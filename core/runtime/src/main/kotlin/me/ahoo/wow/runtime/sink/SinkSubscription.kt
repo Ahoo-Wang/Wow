@@ -167,9 +167,10 @@ internal class SinkSubscription(
             requestId = stream.requestId,
             commandType = stream.commandType,
             commitTime = stream.commitTime,
-            events = events.map(::payloadOf),
+            events = events.map { payloadOf(it, entry.imported) },
+            // The view's text is the codec's own: written as it is, parsed only by a sink that reads the tree.
             state = if (includeState) {
-                PublishedState(view.version, codec.stateSchemaFingerprint(model), WowJson.mapper.readTree(view.state))
+                PublishedState.ofText(view.version, codec.stateSchemaFingerprint(model), view.state)
             } else {
                 null
             },
@@ -198,15 +199,25 @@ internal class SinkSubscription(
         return AccessValues.ofStream(codec.accessAfter(model, stream, stateText), stream.scope) to stream.version
     }
 
-    /** [record] at its event type's current name and revision: as stored when it is, upgraded through the model else. */
-    private fun payloadOf(record: EventRecord): StateEventPayload {
+    /**
+     * [record] at its event type's current name and revision: as stored when it is, upgraded through the model else.
+     * Its text is the codec's own, the stored payload as Wow's mapper wrote it, so it is published as it is and parsed
+     * only by a sink that reads the tree. An [imported] commit's payload is the one text this node's codec did not
+     * write (migrate-data's, from 9.x): it is parsed here, so a text that is not JSON fails its entry and is never
+     * written into an envelope.
+     */
+    private fun payloadOf(record: EventRecord, imported: Boolean): StateEventPayload {
         val current = model.eventType(record.name)
         val text = if (record.name == current.name && record.revision == current.revision) {
             record.payload
         } else {
             codec.encode(model, codec.decode(model, record)).payload
         }
-        return StateEventPayload(current.name, current.revision, WowJson.mapper.readTree(text))
+        return if (imported) {
+            StateEventPayload(current.name, current.revision, WowJson.mapper.readTree(text))
+        } else {
+            StateEventPayload.ofText(current.name, current.revision, text)
+        }
     }
 
     /**

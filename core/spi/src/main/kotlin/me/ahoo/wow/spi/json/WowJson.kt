@@ -19,6 +19,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.spi.log.TransportCodec
+import me.ahoo.wow.spi.state.StateEventJson
 import tools.jackson.core.JsonGenerator
 import tools.jackson.core.JsonParser
 import tools.jackson.databind.DeserializationContext
@@ -72,6 +73,7 @@ object WowJson {
         .addMixIn(ScheduleRule::class.java, ScheduleRuleJson::class.java)
         .addMixIn(AggregateRef::class.java, AggregateRefJson::class.java)
         .addModule(TransportCodec.module)
+        .addModule(StateEventJson.module)
         .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
         .enable(MapperFeature.ALLOW_FINAL_FIELDS_AS_MUTATORS)
         .enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS)

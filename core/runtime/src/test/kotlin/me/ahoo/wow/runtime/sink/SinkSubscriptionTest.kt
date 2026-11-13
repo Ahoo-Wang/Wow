@@ -55,6 +55,7 @@ import me.ahoo.wow.spi.wait.Origin
 import me.ahoo.wow.spi.wait.WaitContext
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import tools.jackson.core.JacksonException
 import tools.jackson.databind.node.ObjectNode
 import java.math.BigDecimal
 import java.util.concurrent.CopyOnWriteArrayList
@@ -144,6 +145,35 @@ class SinkSubscriptionTest {
         record.transport.assert().isNull()
         sink.toString().assert().isEqualTo("SinkSubscription($NAME)")
     }
+
+    @Test
+    fun `the payloads and the state should go as the codec's text, parsed only when read`(): Unit = runBlocking {
+        val sink = sink()
+        val stream = commit(SetPrice(BigDecimal("2.50")))
+        val entry = sink.subscription.decoder.decode(stream, log.positionOf(stream.ref, stream.version), null)
+        val record = checkNotNull(sink.recordOf(entry))
+        record.events.single().payloadText.assert().isEqualTo(stream.events.single().payload)
+        record.state!!.stateText.assert().isEqualTo(entry.state().state)
+        record.events.single().payload.assert().isEqualTo(tree("""{"amount":2.50,"currency":"EUR"}"""))
+    }
+
+    @Test
+    fun `an imported commit's payloads should be parsed, so one that is not JSON fails its entry`(): Unit =
+        runBlocking {
+            val sink = sink()
+            val stream = commit(SetPrice(BigDecimal("2.50")))
+            val entry = sink.subscription.decoder.decode(stream, log.positionOf(stream.ref, stream.version), null)
+                .copy(imported = true)
+            val record = checkNotNull(sink.recordOf(entry))
+            record.events.single().payloadText.assert().isNull()
+            record.events.single().payload.assert().isEqualTo(tree("""{"amount":2.50,"currency":"EUR"}"""))
+            // The state is the view's, the codec's own text, whatever the commit's origin.
+            record.state!!.stateText.assert().isNotNull()
+            val broken = entry.copy(
+                stream = stream.copyWith(events = listOf(EventRecord("shop.order.Priced", 2, """{"amount":"""))),
+            )
+            runCatching { sink.recordOf(broken) }.exceptionOrNull().assert().isInstanceOf(JacksonException::class.java)
+        }
 
     @Test
     fun `an event of an older revision under a former name should be written upgraded`(): Unit = runBlocking {

@@ -19,6 +19,13 @@ import me.ahoo.wow.tck.values.ValueSemanticsSpec
 class SpiValueSemanticsTest : ValueSemanticsSpec() {
     override val packages: List<String> = listOf("me.ahoo.wow.spi")
 
+    override val excluded: Map<String, String> = mapOf(
+        "me.ahoo.wow.spi.state.StateEventPayload#payloadText" to
+            "the payload's text, which equals compares through the tree it parses into",
+        "me.ahoo.wow.spi.state.PublishedState#stateText" to
+            "the state's text, which equals compares through the tree it parses into",
+    )
+
     override val excludedClasses: Map<String, String> = mapOf(
         "me.ahoo.wow.spi.json.query.MatchAllFilterExclusion" to
             "a Jackson inclusion filter: it is equal to the match-all filter, so that filter is left out of the JSON",

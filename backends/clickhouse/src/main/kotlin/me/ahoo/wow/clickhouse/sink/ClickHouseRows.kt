@@ -15,6 +15,8 @@ package me.ahoo.wow.clickhouse.sink
 
 import me.ahoo.wow.spi.access.AccessValues
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spi.state.PublishedState
+import me.ahoo.wow.spi.state.StateEventPayload
 import me.ahoo.wow.spi.state.StateEventRecord
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
@@ -77,12 +79,12 @@ internal object ClickHouseRows {
                     addObject()
                         .put("name", event.name)
                         .put("revision", event.revision)
-                        .put("payload", textOf(event.payload))
+                        .put("payload", textOf(event))
                 }
             }
         }
         val state = record.state
-        put("state", state?.let { textOf(it.state) }.orEmpty())
+        put("state", state?.let(::textOf).orEmpty())
         put("state_fingerprint", state?.schemaFingerprint.orEmpty())
         putObject("state_numbers").apply {
             state?.state?.properties()?.forEach { (name, value) ->
@@ -97,4 +99,10 @@ internal object ClickHouseRows {
             .toByteArray(Charsets.UTF_8)
 
     private fun textOf(node: JsonNode): String = WowJson.mapper.writeValueAsString(node)
+
+    /** [event]'s payload as the codec's text it was made from, or its tree written. */
+    private fun textOf(event: StateEventPayload): String = event.payloadText ?: textOf(event.payload)
+
+    /** [state]'s state as the codec's text it was made from, or its tree written. */
+    private fun textOf(state: PublishedState): String = state.stateText ?: textOf(state.state)
 }

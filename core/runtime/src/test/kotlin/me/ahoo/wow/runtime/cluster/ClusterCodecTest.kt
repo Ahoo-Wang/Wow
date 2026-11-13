@@ -135,9 +135,14 @@ class ClusterCodecTest {
     }
 
     @Test
-    fun `the codec registers the Kotlin module and Wow's transport and enum modules only, whatever else is on the class path`() {
+    fun `the codec registers the Kotlin module and Wow's transport, state event and enum modules only, whatever else is on the class path`() {
         ClusterCodec.mapper.registeredModules().map { it.moduleName }
-            .assert().containsExactly(KotlinModule.Builder().build().moduleName, "wow-transport", WowEnums.MODULE_NAME)
+            .assert().containsExactly(
+                KotlinModule.Builder().build().moduleName,
+                "wow-transport",
+                "wow-state-event",
+                WowEnums.MODULE_NAME,
+            )
         // DiscoverableModule is registered for discovery in this test class path, and would change the body.
         val discovering = JsonMapper.builder().findAndAddModules().build()
         discovering.registeredModules().map { it.javaClass.name }.assert().contains(DiscoverableModule::class.java.name)
