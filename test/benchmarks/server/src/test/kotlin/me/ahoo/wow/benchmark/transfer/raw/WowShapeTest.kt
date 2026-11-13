@@ -188,6 +188,8 @@ class WowShapeTest {
             Triple("what-if-4-appenders-4-writers", null, false),
         )
         WowShape.cases().last().second.connections.assert().isEqualTo(8)
+        // The fills are the calibration's alone (RawStoreBench.equalShape): no ceiling's step or what-if waits for a size.
+        WowShape.cases().all { (_, options) -> options.appendFill == null && options.saveFill == null }.assert().isTrue()
     }
 
     @Test
