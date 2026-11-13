@@ -112,23 +112,81 @@ internal class PostgresSnapshotTables(context: String, aggregate: String) {
     """.trimIndent()
 
     /**
-     * The whole version-guarded save as one autocommitted statement: insert, or on the key's conflict replace the
-     * row only when the new version is higher and its state revision is not lower. PostgreSQL locks
-     * the conflicting row and evaluates the guard against its latest committed version, so concurrent saves leave the
-     * highest version whatever their order.
-     *
-     * Returns the version when the row was inserted or replaced, no row when the guard refused it.
-     */
-    val save = upsert(SAVE_GUARD)
-
-    /**
-     * [save] of [rows] snapshots of distinct refs as one autocommitted statement, each row guarded as [save] guards
-     * one; given in key order, the rows are locked in that order. Returns the key of each row inserted or replaced; a refused one returns none.
+     * The version-guarded save of [rows] snapshots of distinct refs as one statement: insert each, or on the key's
+     * conflict replace the row only when the new version is higher and its state revision is not lower. PostgreSQL
+     * locks the conflicting row (and logs that lock) and evaluates the guard against its latest committed version, so
+     * concurrent saves leave the highest version whatever their order; given in key order, the rows are locked in that
+     * order. Returns the key of each row inserted or replaced; a refused one returns none. [writeRows] is the save; this
+     * decides the rows a concurrent first save raced it for.
      */
     fun saveRows(rows: Int): String = saves.computeIfAbsent(rows) { upsert(SAVE_GUARD, it, "tenant_id, aggregate_id") }
 
-    /** [saveRows] and [markRefusedRows] by row count, built once each: a batch is at most the writer's batch. */
+    /**
+     * [saveRows] without the row lock `ON CONFLICT DO UPDATE` takes, and logs, before it updates an existing row: one
+     * statement that updates the rows that exist under the save's guard (a plain `UPDATE`, whose row lock is part of
+     * its update and writes no record of its own) and inserts those that do not (`ON CONFLICT DO NOTHING`, which locks
+     * nothing it does not write). Each row of the statement's result is a key and whether the statement wrote it:
+     * - written: updated or inserted;
+     * - not written: the row existed when the statement started and the guard refused it, as [saveRows] refuses one.
+     *
+     * A key in neither was absent when the statement started and inserted meanwhile by a concurrent first save: the
+     * caller saves it again with [saveRows], whose conflict path then decides it by the same guard.
+     *
+     * Its rows lock in the order of the plan's join, which the primary key gives in key order; two statements that
+     * take common rows in two orders deadlock, and PostgreSQL ends one of them (`40P01`), which then wrote nothing.
+     */
+    fun writeRows(rows: Int): String = writes.computeIfAbsent(rows, ::write)
+
+    private fun write(rows: Int): String = """
+        WITH input (tenant_id, aggregate_id, version, schema_fingerprint, state, owner_id, space_id, deleted,
+            first_event_time, last_event_time, access, operator, first_operator, schedules, state_revision) AS (
+            VALUES ${List(rows) { TYPED_ROW }.joinToString(", ")}
+        ), present AS (
+            SELECT stored.tenant_id, stored.aggregate_id FROM $snapshot AS stored
+            JOIN input ON stored.tenant_id = input.tenant_id AND stored.aggregate_id = input.aggregate_id
+        ), updated AS (
+            UPDATE $snapshot AS stored SET
+                version = input.version,
+                schema_fingerprint = input.schema_fingerprint,
+                state = input.state,
+                owner_id = input.owner_id,
+                space_id = input.space_id,
+                deleted = input.deleted,
+                first_event_time = input.first_event_time,
+                last_event_time = input.last_event_time,
+                access = input.access,
+                operator = input.operator,
+                first_operator = input.first_operator,
+                schedules = input.schedules,
+                state_revision = input.state_revision,
+                stale_version = CASE WHEN stored.stale_version > input.version THEN stored.stale_version END
+            FROM input
+            WHERE stored.tenant_id = input.tenant_id AND stored.aggregate_id = input.aggregate_id
+                AND input.version > stored.version AND input.state_revision >= stored.state_revision
+            RETURNING stored.tenant_id, stored.aggregate_id
+        ), inserted AS (
+            INSERT INTO $snapshot (tenant_id, aggregate_id, version, schema_fingerprint, state, owner_id, space_id,
+                deleted, first_event_time, last_event_time, access, operator, first_operator, schedules, state_revision)
+            SELECT * FROM input
+            WHERE NOT EXISTS (
+                SELECT 1 FROM present
+                WHERE present.tenant_id = input.tenant_id AND present.aggregate_id = input.aggregate_id
+            )
+            ORDER BY input.tenant_id, input.aggregate_id
+            ON CONFLICT (tenant_id, aggregate_id) DO NOTHING
+            RETURNING tenant_id, aggregate_id
+        )
+        SELECT tenant_id, aggregate_id, true FROM updated
+        UNION ALL SELECT tenant_id, aggregate_id, true FROM inserted
+        UNION ALL SELECT tenant_id, aggregate_id, false FROM present
+        WHERE NOT EXISTS (
+            SELECT 1 FROM updated WHERE updated.tenant_id = present.tenant_id AND updated.aggregate_id = present.aggregate_id
+        )
+    """.trimIndent()
+
+    /** [saveRows], [writeRows] and [markRefusedRows] by row count, built once each: a batch is at most the writer's. */
     private val saves = ConcurrentHashMap<Int, String>()
+    private val writes = ConcurrentHashMap<Int, String>()
     private val marks = ConcurrentHashMap<Int, String>()
 
     /**
@@ -236,6 +294,10 @@ internal class PostgresSnapshotTables(context: String, aggregate: String) {
         const val MAX_ROWS = 1_000
 
         private const val ROW = "(?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?::jsonb, ?::jsonb, ?)"
+
+        /** [ROW] with every parameter typed, as the first row of a `VALUES` list outside an insert needs. */
+        private const val TYPED_ROW = "(?::text, ?::text, ?::integer, ?::text, ?::jsonb, ?::text, ?::text, ?::boolean, " +
+            "?::bigint, ?::bigint, ?::jsonb, ?::jsonb, ?::jsonb, ?::jsonb, ?::integer)"
 
         /** A save's guard: a higher version, of the same or a higher state revision. */
         private const val SAVE_GUARD =

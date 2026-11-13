@@ -52,7 +52,7 @@ import javax.sql.DataSource
  * load, which claims its format version first ([PostgresFormat]). One table holds one row per aggregate. The state and
  * the access attributes are `jsonb`, so the snapshot can be queried in place
  * as the default read model. A save is one autocommitted statement that carries its own version and state revision
- * guard (see [PostgresSnapshotTables.save]); a save refused for a higher state revision then marks the row stale. The
+ * guard (see [PostgresSnapshotTables.writeRows]); a save refused for a higher state revision then marks the row stale. The
  * claimed state revision of each table is a row of [PostgresSnapshotTables.TABLES], claimed with one
  * statement.
  *
@@ -116,7 +116,7 @@ class PostgresSnapshotStore(
 
     /** The version-guarded save of [snapshot] on [connection]; a refused one marks a higher state revision stale. */
     private fun saveIn(connection: Connection, tables: PostgresSnapshotTables, snapshot: SnapshotRecord): Boolean =
-        upsert(connection, tables.save, snapshot).also { written ->
+        (keyOf(snapshot) in written(connection, tables, listOf(snapshot))).also { written ->
             if (!written) {
                 connection.prepareStatement(tables.markRefused).use { mark ->
                     mark.setInt(1, snapshot.version)
@@ -219,17 +219,7 @@ class PostgresSnapshotStore(
         alone: Boolean,
     ): List<SnapshotSaveOutcome> {
         val written = try {
-            connection.prepareStatement(tables.saveRows(snapshots.size)).use { save ->
-                val width = PostgresSnapshotTables.ROW_PARAMETERS
-                snapshots.forEachIndexed { row, snapshot -> bind(save, row * width, snapshot) }
-                save.executeQuery().use { rows ->
-                    buildSet<Pair<String, String>> {
-                        while (rows.next()) {
-                            add(rows.getString(1) to rows.getString(2))
-                        }
-                    }
-                }
-            }
+            written(connection, tables, snapshots)
         } catch (failure: SQLException) {
             // Refused for a value, the statement wrote nothing; any other failure is thrown, and so is a refusal in the
             // batch's transaction, which it aborted.
@@ -252,6 +242,50 @@ class PostgresSnapshotStore(
         }
         return snapshots.map { SnapshotSaveOutcome.of((it.ref.tenantId to it.ref.id) in written) }
     }
+
+    /**
+     * The keys of [snapshots], of distinct refs of one aggregate type in key order, that their save wrote: one
+     * statement ([PostgresSnapshotTables.writeRows]) that writes no row lock for a row it updates, and tells a row the
+     * guard refused from one that was absent when it started. A row absent then and not written lost a concurrent
+     * first save's race: those rows, seldom any, are saved again with [PostgresSnapshotTables.saveRows], whose
+     * conflict path decides them by the same guard.
+     */
+    private fun written(
+        connection: Connection,
+        tables: PostgresSnapshotTables,
+        snapshots: List<SnapshotRecord>,
+    ): Set<Pair<String, String>> {
+        val written = HashSet<Pair<String, String>>()
+        val present = HashSet<Pair<String, String>>()
+        connection.prepareStatement(tables.writeRows(snapshots.size)).use { write ->
+            bindAll(write, snapshots)
+            write.executeQuery().use { rows ->
+                while (rows.next()) {
+                    val key = rows.getString(1) to rows.getString(2)
+                    if (rows.getBoolean(3)) written += key else present += key
+                }
+            }
+        }
+        val raced = snapshots.filter { keyOf(it) !in written && keyOf(it) !in present }
+        if (raced.isNotEmpty()) {
+            connection.prepareStatement(tables.saveRows(raced.size)).use { save ->
+                bindAll(save, raced)
+                save.executeQuery().use { rows ->
+                    while (rows.next()) {
+                        written += rows.getString(1) to rows.getString(2)
+                    }
+                }
+            }
+        }
+        return written
+    }
+
+    private fun bindAll(statement: PreparedStatement, snapshots: List<SnapshotRecord>) {
+        val width = PostgresSnapshotTables.ROW_PARAMETERS
+        snapshots.forEachIndexed { row, snapshot -> bind(statement, row * width, snapshot) }
+    }
+
+    private fun keyOf(snapshot: SnapshotRecord): Pair<String, String> = snapshot.ref.tenantId to snapshot.ref.id
 
     /** [snapshot] saved alone, after a statement of several was refused for a value: refused alone, it failed. */
     private fun savedAlone(

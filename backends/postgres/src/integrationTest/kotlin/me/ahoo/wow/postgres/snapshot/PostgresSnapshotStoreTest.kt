@@ -70,6 +70,58 @@ class PostgresSnapshotStoreTest : SnapshotStoreSpec() {
             .containsExactly("version", "last_event_time", "operator", "state")
     }
 
+    @Test
+    fun `a save racing a concurrent first save of its aggregate is decided by the version guard`(): Unit = runBlocking {
+        raced(held = 1, saved = 2).assert().isEqualTo(SnapshotSaveOutcome.Written to 2)
+        raced(held = 3, saved = 2).assert().isEqualTo(SnapshotSaveOutcome.Refused to 3)
+    }
+
+    /**
+     * Saves version [saved] of a new aggregate while another transaction holds its first row, at [held], uncommitted:
+     * the save waits for it, finds the row absent when it started and not written, and decides it again. Its outcome,
+     * and the version the row holds then.
+     */
+    private suspend fun raced(held: Int, saved: Int): Pair<SnapshotSaveOutcome, Int> = coroutineScope {
+        val context = PostgresFixture.newContext()
+        val store = PostgresFixture.snapshotStore(context)
+        store.createTable("aggregate")
+        val ref = AggregateType(context, "aggregate").ref("tenant", "a")
+        val name = table(context, "aggregate")
+        PostgresFixture.dataSource.connection.use { holder ->
+            holder.autoCommit = false
+            holder.prepareStatement(
+                "INSERT INTO \"$name\" (tenant_id, aggregate_id, version, schema_fingerprint, state, deleted, " +
+                    "first_event_time, last_event_time) VALUES ('tenant', 'a', ?, 'f', '{}', false, 0, 0)",
+            ).use { insert ->
+                insert.setInt(1, held)
+                insert.executeUpdate()
+            }
+            val record = snapshot("a", saved).copyWith(ref = ref)
+            val saving = async(Dispatchers.IO) { store.saveAll(listOf(record)).single() }
+            awaitLockWait(name)
+            holder.commit()
+            saving.await() to checkNotNull(store.load(ref)).version
+        }
+    }
+
+    /** Waits until a statement on [table] waits for a lock: the save, on the first row another transaction holds. */
+    private fun awaitLockWait(table: String) {
+        val deadline = System.nanoTime() + LOCK_WAIT_NANOS
+        while (true) {
+            val waiting = PostgresFixture.dataSource.connection.use { connection ->
+                connection.prepareStatement(
+                    "SELECT count(*) FROM pg_stat_activity WHERE wait_event_type = 'Lock' AND query LIKE ?",
+                ).use { query ->
+                    query.setString(1, "%$table%")
+                    query.executeQuery().use { rows -> rows.next() && rows.getInt(1) > 0 }
+                }
+            }
+            if (waiting) return
+            check(System.nanoTime() < deadline) { "No save waited for the held first row." }
+            Thread.sleep(POLL_MILLIS)
+        }
+    }
+
     private fun execute(sql: String) {
         PostgresFixture.dataSource.connection.use { connection -> connection.createStatement().use { it.execute(sql) } }
     }
@@ -222,5 +274,7 @@ class PostgresSnapshotStoreTest : SnapshotStoreSpec() {
         const val BATCH = 20
         const val FIRST_LOADS = 32
         const val CHANGED_BY_EVERY_SAVE = 4
+        const val LOCK_WAIT_NANOS = 10_000_000_000L
+        const val POLL_MILLIS = 10L
     }
 }
