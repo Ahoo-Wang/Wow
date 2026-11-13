@@ -29,6 +29,8 @@
 #   bench.sh up       [--backend=...] [--nodes=...] [--accounts=...] [--prime] [--jfr] [options]
 #   bench.sh inspect  --reuse [the session's options] [--sql=<file>]   (the servers' RSS and the store, after a session's runs)
 #   bench.sh down
+#   bench.sh abba     --arm='<name>|<install>|<server args>' (twice or more) --concurrencies=<list> [--sweeps=2]
+#                      (the arms in turn, ABBA, each a fresh sweep with the bench-pipeline line; abba.sh)
 #   bench.sh compare <root>   (an ABAB's tables: sessions <root>/<round>-<arm>-<backend>/<phase>, by arm and round,
 #                              each arm's ratio to the first; .github/scripts/bench-compare.mjs)
 #
@@ -84,7 +86,7 @@ CLICKHOUSE_IMAGE=clickhouse/clickhouse-server:25.3.14.14-alpine
 CLICKHOUSE_URL=http://127.0.0.1:18123
 
 usage() {
-  sed -n '14,58p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '14,60p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
   exit 2
 }
 
@@ -541,6 +543,10 @@ component() {
 # shellcheck source=measure.sh
 . "$HARNESS/measure.sh"
 
+# The ABBA comparison of arms (install, server arguments) on one machine.
+# shellcheck source=abba.sh
+. "$HARNESS/abba.sh"
+
 command=${1:-}
 if [ -z "$command" ]; then usage; fi
 shift
@@ -550,6 +556,7 @@ case "$command" in
   saturate) saturate "$@" ;;
   component) component "$@" ;;
   measure) measure "$@" ;;
+  abba) abba "$@" ;;
   up) up "$@" ;;
   inspect) inspect "$@" ;;
   down) down ;;
