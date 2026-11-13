@@ -32,6 +32,12 @@ import java.util.concurrent.ConcurrentHashMap
  * The record of each table's claimed state revision is a row of [TABLES], shared by the snapshot
  * tables of the database, keyed by the table's name (`COLLATE "C"`).
  *
+ * A save rewrites its aggregate's row, and the table is laid out for that update to stay small: the columns a save
+ * seldom changes come first and those every save changes last (`version`, `last_event_time`, `operator`, `state`).
+ * PostgreSQL logs an update that stays on its page as the new row less the bytes it shares with the old one at its
+ * start and end, so the unchanged columns cost the log nothing. The fixed-width ones lead, the widest first, so the
+ * row needs no padding before the text columns.
+ *
  * The text columns the query side compares and sorts by use the `C` collation: they order by code point, as the query
  * backend orders the state's text values, and their indexes serve that order. Two partial indexes cover the predicates
  * admission adds to every query: the tenant and the caller's owner or space, over the snapshots that
@@ -50,22 +56,22 @@ internal class PostgresSnapshotTables(context: String, aggregate: String) {
     fun ddl(): List<String> = listOf(
         """
         CREATE TABLE IF NOT EXISTS $snapshot (
+            first_event_time bigint NOT NULL,
+            state_revision integer NOT NULL DEFAULT 1,
+            deleted boolean NOT NULL,
             tenant_id text COLLATE "C" NOT NULL,
             aggregate_id text COLLATE "C" NOT NULL,
-            version integer NOT NULL,
             schema_fingerprint text NOT NULL,
-            state jsonb NOT NULL,
             owner_id text COLLATE "C",
             space_id text COLLATE "C",
-            deleted boolean NOT NULL,
-            first_event_time bigint NOT NULL,
-            last_event_time bigint NOT NULL,
-            access jsonb NOT NULL DEFAULT '{}',
-            operator jsonb,
             first_operator jsonb,
+            access jsonb NOT NULL DEFAULT '{}',
             schedules jsonb,
-            state_revision integer NOT NULL DEFAULT 1,
             stale_version integer,
+            version integer NOT NULL,
+            last_event_time bigint NOT NULL,
+            operator jsonb,
+            state jsonb NOT NULL,
             PRIMARY KEY (tenant_id, aggregate_id)
         )
         """.trimIndent(),
