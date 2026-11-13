@@ -11,9 +11,10 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spi.log
+package me.ahoo.wow.spi.store
 
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.spi.log.EventLog
 import kotlin.coroutines.AbstractCoroutineContextElement
 import kotlin.coroutines.CoroutineContext
 
@@ -28,7 +29,7 @@ import kotlin.coroutines.CoroutineContext
  * them, so the queue reads every mark the log wrote once the call returns.
  */
 @InternalWowApi
-class AppendCallMarks : AbstractCoroutineContextElement(Key) {
+class StoreCallMarks : AbstractCoroutineContextElement(Key) {
     /** The group taken from the queue, the call about to be made. */
     val taken: Long = System.nanoTime()
 
@@ -101,5 +102,5 @@ class AppendCallMarks : AbstractCoroutineContextElement(Key) {
     }
 
     @InternalWowApi
-    companion object Key : CoroutineContext.Key<AppendCallMarks>
+    companion object Key : CoroutineContext.Key<StoreCallMarks>
 }
