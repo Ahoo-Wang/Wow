@@ -753,7 +753,6 @@ public final class me/ahoo/wow/runtime/snapshot/SnapshotOptions {
 	public final fun getMemberTtl-UwyO8pc ()J
 	public final fun getPages ()I
 	public final fun getWriteBatch ()I
-	public final fun getWritesInFlight ()Ljava/lang/Integer;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }
