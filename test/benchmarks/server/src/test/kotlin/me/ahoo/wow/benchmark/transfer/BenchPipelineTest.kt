@@ -13,13 +13,22 @@
 
 package me.ahoo.wow.benchmark.transfer
 
+import com.mongodb.ServerAddress
+import com.mongodb.connection.ClusterId
+import com.mongodb.connection.ConnectionDescription
 import com.mongodb.connection.ConnectionPoolSettings
+import com.mongodb.connection.ServerId
+import com.mongodb.event.CommandFailedEvent
+import com.mongodb.event.CommandSucceededEvent
 import com.zaxxer.hikari.HikariDataSource
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.mongo.MongoPoolGauge
 import me.ahoo.wow.spi.observation.ObservedEvent
+import me.ahoo.wow.spi.store.HeldStoreCallMarks
+import me.ahoo.wow.spi.store.StoreCallMarks
+import org.bson.BsonDocument
 import org.junit.jupiter.api.Test
 
 /** The per-second line of the saga pipeline, and the counts `bench-signals` adds for it. */
@@ -45,10 +54,31 @@ class BenchPipelineTest {
     }
 
     @Test
+    fun `the command clock should add each command's time to the marks its thread holds, and nothing without`() {
+        val clock = BenchPipelineConfiguration().benchCommandClock()
+        val connection = ConnectionDescription(ServerId(ClusterId(), ServerAddress()))
+        fun succeeded(nanos: Long) =
+            CommandSucceededEvent(null, 1, 1, connection, "db", "insert", BsonDocument(), nanos)
+        val failed = CommandFailedEvent(null, 1, 1, connection, "db", "insert", 3_000, IllegalStateException())
+        val marks = StoreCallMarks().apply { sent() }
+        HeldStoreCallMarks.hold(marks)
+        try {
+            clock.commandSucceeded(succeeded(2_000))
+            clock.commandFailed(failed)
+        } finally {
+            HeldStoreCallMarks.release(marks)
+        }
+        clock.commandSucceeded(succeeded(5_000))
+        marks.command.assert().isEqualTo(5_000L)
+        marks.commands.assert().isEqualTo(2)
+    }
+
+    @Test
     fun `a node with nothing to say should log nothing`() {
         BenchPipeline { null }.snapshot().assert().isNull()
         BenchPipeline { mapOf("window" to emptyMap()) }.snapshot().assert().isNull()
         BenchPipeline.clockOf(emptyList()).assert().isEmpty()
+        BenchPipeline.snapshotClockOf(emptyList()).assert().isEmpty()
     }
 
     @Test

@@ -183,6 +183,7 @@ fun runStep(
     counters: () -> Map<String, Double>,
     ratios: (Map<String, Double>) -> Map<String, Double> = { emptyMap() },
     records: (Map<String, Double>, Map<String, Double>) -> Map<String, Double> = { _, _ -> emptyMap() },
+    watch: () -> () -> Map<String, Double> = { { emptyMap() } },
     worker: (Int) -> RawWorker,
 ): RawStep {
     val (warmUpSeconds, seconds) = pace.timing
@@ -200,7 +201,9 @@ fun runStep(
             tally.measuring.set(true)
             Triple(read.first, read.second, System.nanoTime())
         }
+        val watched = watch()
         Thread.sleep(seconds * MILLIS)
+        val diagnostics = watched()
         val (endedAt, cpuAfter, after) = tally.paused {
             val ended = System.nanoTime()
             tally.measuring.set(false)
@@ -227,7 +230,7 @@ fun runStep(
             p99FlushMs = percentile(latencies, P99) / NANOS_PER_MILLI,
             storeCpuMsPerUnit = perUnit(cpuBefore, cpuAfter, units),
             perUnit = growth.mapValues { (_, delta) -> if (units > 0) delta / units else 0.0 },
-            ratios = ratios(growth),
+            ratios = ratios(growth) + diagnostics,
         )
     } finally {
         tally.stopping.set(true)

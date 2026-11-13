@@ -16,12 +16,12 @@ package me.ahoo.wow.postgres
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.postgres.PostgresLogCatalog.Companion.UNDEFINED_TABLE
 import me.ahoo.wow.spi.log.Append
-import me.ahoo.wow.spi.log.AppendCallMarks
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogPosition
 import me.ahoo.wow.spi.log.notAppendedAfter
+import me.ahoo.wow.spi.store.StoreCallMarks
 import org.postgresql.util.PSQLException
 import java.sql.Connection
 import java.sql.SQLException
@@ -43,7 +43,7 @@ internal class PostgresLogAppender(
         partition: Int,
         stream: EventStreamRecord,
         transport: ByteArray?,
-        marks: AppendCallMarks?,
+        marks: StoreCallMarks?,
     ): AppendOutcome {
         var sent = false
         return try {
@@ -66,7 +66,7 @@ internal class PostgresLogAppender(
         partition: Int,
         stream: EventStreamRecord,
         transport: ByteArray?,
-        marks: AppendCallMarks?,
+        marks: StoreCallMarks?,
     ): AppendOutcome {
         try {
             val sequence = connection.prepareStatement(table.append).use { append ->
@@ -136,7 +136,7 @@ internal class PostgresLogAppender(
      * [marks], when the call is clocked: its first connection acquired, its first statement sent and its last
      * statement's result read, a definite abort's appends again among them.
      */
-    fun appendAll(parts: List<Int>, streams: List<Append>, marks: AppendCallMarks?): List<AppendOutcome> {
+    fun appendAll(parts: List<Int>, streams: List<Append>, marks: StoreCallMarks?): List<AppendOutcome> {
         val outcomes = arrayOfNulls<AppendOutcome>(streams.size)
         var sent = false
         var stopped: SQLException? = null
@@ -158,7 +158,7 @@ internal class PostgresLogAppender(
      * One statement's [group], each stream of the partition in [parts] beside it: their outcomes, every one the same
      * when the statement's outcome is a failure.
      */
-    private fun appendChunk(parts: List<Int>, group: List<Append>, marks: AppendCallMarks?): List<AppendOutcome> {
+    private fun appendChunk(parts: List<Int>, group: List<Append>, marks: StoreCallMarks?): List<AppendOutcome> {
         var sent = false
         return try {
             dataSource.autoCommitted { connection ->
@@ -191,7 +191,7 @@ internal class PostgresLogAppender(
         connection: Connection,
         parts: List<Int>,
         group: List<Append>,
-        marks: AppendCallMarks?,
+        marks: StoreCallMarks?,
     ): List<AppendOutcome> {
         val across = parts.distinct().size > 1
         val tablesOf = group.map { catalog.tableOf(connection, it.stream.ref.type) }
@@ -237,7 +237,7 @@ internal class PostgresLogAppender(
         across: Boolean,
         parts: List<Int>,
         group: List<Append>,
-        marks: AppendCallMarks?,
+        marks: StoreCallMarks?,
     ): List<Pair<Int, Long?>> = connection.prepareStatement(sql).use { statement ->
         group.forEachIndexed { index, entry ->
             if (across) {
@@ -264,7 +264,7 @@ internal class PostgresLogAppender(
         connection: Connection,
         parts: List<Int>,
         group: List<Append>,
-        marks: AppendCallMarks?,
+        marks: StoreCallMarks?,
     ): List<AppendOutcome> {
         val outcomes = arrayOfNulls<AppendOutcome>(group.size)
         group.indices.groupBy { parts[it] }.values.forEach { indexes ->
@@ -285,7 +285,7 @@ internal class PostgresLogAppender(
         partition: Int,
         group: List<Append>,
         tablesOf: List<AggregateLogTable>,
-        marks: AppendCallMarks?,
+        marks: StoreCallMarks?,
     ): List<AppendOutcome> {
         val failed = HashMap<AggregateRef, AppendOutcome>()
         return group.mapIndexed { index, entry ->

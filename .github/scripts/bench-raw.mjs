@@ -70,6 +70,15 @@ export function rawCpus(cpuset, backend) {
   return { ...cpuset, server: `0-${total - 3}` };
 }
 
+/** A raw run's CPUs in words (rawCpus): the program's, the store's, and the idle generator's. */
+export function rawLayoutText(cpus) {
+  if (!cpus?.server) return 'CPUs: unpinned.';
+  const store = cpus.store
+    ? `the store on ${cpus.store} alone`
+    : 'the store with the program';
+  return `CPUs: the program on ${cpus.server}, ${store}${cpus.load ? `, ${cpus.load} idle (the generator's)` : ''}.`;
+}
+
 /** The arguments of a raw run of [arm] into [dir]: bench.sh measure's, the program's settings, its CPUs (rawCpus). */
 export function rawArgs(arm, installs, measured, dir) {
   const cpuset = rawCpus(measured, arm.backend);
@@ -93,6 +102,10 @@ export function runRaw(
   suite,
   { benchPath, out, cpuset, arms, installs, save },
 ) {
+  // The suite records the layout its runs had (rawCpus), not the measure layout it was given.
+  const backends = [...new Set(arms.map(arm => arm.backend))];
+  if (suite.cpus && backends.length === 1)
+    suite.cpus = rawCpus(suite.cpus, backends[0]);
   for (const arm of arms) {
     const dir = join(out, arm.id);
     const run = { name: arm.id, arm: arm.id, status: 'failed' };
@@ -143,7 +156,7 @@ export function calibrationText(raw) {
   const apart = (c.apart ?? [])
     .map(check => `${check.metric} ${ratioText(check)}`)
     .join('; ');
-  const tail = apart ? ` Apart: ${apart}.` : '';
+  const tail = `${apart ? ` Apart: ${apart}.` : ''}${nodeTimeText(c)}`;
   if (!c.passed) {
     const why =
       c.read === false
@@ -152,6 +165,35 @@ export function calibrationText(raw) {
     return `**Uncalibrated (${why}): ${checks || 'no check'}.${tail} No case of this run is read.**`;
   }
   return `Calibrated on Wow's ground, per command: ${checks}.${tail}`;
+}
+
+/**
+ * Why the model's own shape at Wow's rate is not Wow's, from the calibration's apart metrics: Wow's append calls take
+ * longer, its statement and the time around it in the node each beside the model's. Neither difference is said to be
+ * the node's code alone: where node and store share CPUs, each waits for the other's; empty unless both sides' call
+ * and statement were read.
+ */
+export function nodeTimeText(calibration) {
+  const of = metric =>
+    (calibration?.apart ?? []).find(check => check.metric === metric) ?? {};
+  const [call, trip, appends] = [
+    'appendCallMs',
+    'appendRoundTripMs',
+    'uncapped appendsPerCommand',
+  ].map(of);
+  const values = [call, trip, appends].flatMap(check => [
+    check.wowPerCommand,
+    check.rawPerCommand,
+  ]);
+  if (!values.every(Number.isFinite)) return '';
+  const around = check => num(check.call - check.trip, 2);
+  const wow = { call: call.wowPerCommand, trip: trip.wowPerCommand };
+  const model = { call: call.rawPerCommand, trip: trip.rawPerCommand };
+  return (
+    ` The model's own shape differs from Wow's because Wow's append calls take longer at the same rate: Wow's call ${num(wow.call, 2)} ms, its statement ${num(wow.trip, 2)} ms and ${around(wow)} ms around it in the node; the model's ${num(model.call, 2)} ms, ${num(model.trip, 2)} ms and ${around(model)} ms.` +
+    ` Where Wow's node and the store share CPUs, both parts include each waiting for the other's, so neither is the node's code alone.` +
+    ` At Wow's rate Wow's appends carry ${num(1 / appends.wowPerCommand, 1)} commands and the model's ${num(1 / appends.rawPerCommand, 1)}.`
+  );
 }
 
 /**
@@ -300,7 +342,7 @@ export function renderRaw(suite, definition) {
     '',
     definition?.answers ?? '',
     '',
-    `Runner: ${suite.runner?.cpu ?? '?'}, ${suite.runner?.cores ?? '?'} cores, ${suite.runner?.jdk ?? 'JDK not recorded'}. ${RAW.warmUp} s unmeasured and ${RAW.seconds} s measured a step.`,
+    `Runner: ${suite.runner?.cpu ?? '?'}, ${suite.runner?.cores ?? '?'} cores, ${suite.runner?.jdk ?? 'JDK not recorded'}. ${rawLayoutText(suite.cpus)} ${RAW.warmUp} s unmeasured and ${RAW.seconds} s measured a step.`,
     '',
   ];
   for (const run of suite.runs.filter(it => it.status === 'ok')) {

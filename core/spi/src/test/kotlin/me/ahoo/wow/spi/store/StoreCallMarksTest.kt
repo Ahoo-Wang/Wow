@@ -10,15 +10,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.ahoo.wow.spi.log
+package me.ahoo.wow.spi.store
 
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 
-class AppendCallMarksTest {
+class StoreCallMarksTest {
+    @Test
+    fun `the driver's command time should count only between the first command sent and the last result read`() {
+        val marks = StoreCallMarks()
+        // A lookup while the store builds its batch: before sent, not the call's command.
+        marks.commanded(5)
+        marks.sent()
+        marks.commanded(7)
+        marks.commanded(11)
+        marks.read()
+        marks.commanded(13)
+        marks.command.assert().isEqualTo(18L)
+        marks.commands.assert().isEqualTo(2)
+    }
+
     @Test
     fun `the marks should keep the first connection and statement and the last result, marked once all are`() {
-        val marks = AppendCallMarks()
+        val marks = StoreCallMarks()
         marks.taken.assert().isPositive()
         marks.marked.assert().isFalse()
         marks.entered()

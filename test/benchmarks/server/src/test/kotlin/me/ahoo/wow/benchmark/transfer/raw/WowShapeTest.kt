@@ -26,6 +26,12 @@ import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
 
 class WowShapeTest {
+    private companion object {
+        const val CALLERS = 64
+        const val SLOW_RATE = 700.0
+        const val HOLDING_NANOS = 2_000_000_000L
+    }
+
     /** A store that records its calls: each append's partitions and size, each save, and when each was appended. */
     private class Store : AutoCloseable {
         override fun close() = Unit
@@ -94,6 +100,74 @@ class WowShapeTest {
     }
 
     @Test
+    fun `a filled call waits for its size and takes whole batches past it, its saves of theirs`() {
+        val calls = Calls()
+        val options = WowShape.Options(answer = WowShape.Answer.COMMITTED, maxBatch = 4, appendFill = 6, saveFill = 5)
+        val pool = Executors.newFixedThreadPool(64)
+        val results = shape(calls, options).use { shape ->
+            (0 until 400).map { number -> pool.submit<Boolean> { shape.submit(Aggregates.Command(number, 2)) } }
+                .map { it.get() }
+        }
+        pool.shutdown()
+        results.all { it }.assert().isTrue()
+        calls.appends.sumOf { it.size }.assert().isEqualTo(400)
+        // A call takes no more than a lane's batch past its size, a save none past its own.
+        calls.appends.all { it.size <= 6 + 4 - 1 }.assert().isTrue()
+        calls.saves.sum().assert().isEqualTo(400)
+        calls.saves.all { it <= 5 }.assert().isTrue()
+        // Certain enough to assert: 64 callers keep far more than six commands queued, and a call waits up to 20 ms for
+        // its size, ten times the store call's 2 ms, so calls and saves reach their sizes; how many do is timing's.
+        calls.appends.any { it.size >= 6 }.assert().isTrue()
+        calls.saves.any { it == 5 }.assert().isTrue()
+        WowShape.Options(appendFill = 6).wows.assert().isFalse()
+    }
+
+    /**
+     * [options]' saves' sizes with 64 callers submitting about 700 commands a second between them for [seconds], as an
+     * Actions runner's Wow run went: a caller every 64 / 700 s.
+     */
+    private fun paced(options: WowShape.Options, seconds: Double): List<Int> {
+        val calls = Calls()
+        val pool = Executors.newFixedThreadPool(CALLERS)
+        val interval = (CALLERS * 1_000.0 / SLOW_RATE).toLong()
+        val rounds = (seconds * SLOW_RATE / CALLERS).toInt()
+        shape(calls, options).use { shape ->
+            (0 until CALLERS).map { caller ->
+                pool.submit {
+                    Thread.sleep(caller * interval / CALLERS)
+                    repeat(rounds) { round ->
+                        shape.submit(Aggregates.Command(caller + round * CALLERS, 2))
+                        Thread.sleep(interval)
+                    }
+                }
+            }.forEach { it.get() }
+        }
+        pool.shutdown()
+        return calls.saves.toList()
+    }
+
+    @Test
+    fun `a fill's wait is four times its snapshots' arrival at the rate, 20 ms at least`() {
+        // Fifteen snapshots at 700 a second take 21 ms; two writers sharing them, twice that; the margin is four.
+        WowShape.fillWaitOf(listOf(6, 15), SLOW_RATE).assert().isEqualTo((4 * 15 / SLOW_RATE * 1e9).toLong())
+        WowShape.fillWaitOf(listOf(15, 9), 9_000.0).assert().isEqualTo(WowShape.FILL_WAIT_NANOS)
+        WowShape.fillWaitOf(listOf(6, 15), null).assert().isEqualTo(WowShape.FILL_WAIT_NANOS)
+    }
+
+    @Test
+    fun `a save holds for its fill up to its limit, so every save is full until the callers stop`() {
+        // The appends as Wow's take them, so the snapshots arrive as the callers submit; only the saves are held.
+        val held = WowShape.Options(answer = WowShape.Answer.COMMITTED, saveFill = 15, fillWaitNanos = HOLDING_NANOS)
+        val saves = paced(held, seconds = 2.0)
+        saves.sum().assert().isEqualTo(CALLERS * (2.0 * SLOW_RATE / CALLERS).toInt())
+        // Certain: a save takes no more than its fill and waits seconds for it, far past any pause of the pacing, so no
+        // save holds fewer before the callers stop; then what is left, less than each writer's fill, goes in the tail.
+        val tail = saves.dropWhile { it == 15 }
+        tail.none { it == 15 }.assert().isTrue()
+        tail.sum().assert().isLessThan(2 * 15)
+    }
+
+    @Test
     fun `a command the store refused is not saved, and one a failed call carried fails its caller`() {
         val calls = Calls()
         shape(calls, WowShape.Options(), refuse = { it.number == 3 }).use { shape ->
@@ -118,21 +192,28 @@ class WowShapeTest {
     fun `a committed caller is answered at its append, its snapshot saved behind`() {
         val saving = java.util.concurrent.CountDownLatch(1)
         val saved = AtomicInteger()
-        WowShape(partitions, ::partitionOf, WowShape.Options(answer = WowShape.Answer.COMMITTED), ::Store, { _, c ->
-            BooleanArray(c.size) { true }
-        }) { _, c ->
+        val committed = WowShape.Options(answer = WowShape.Answer.COMMITTED)
+        val append = { _: Store, c: List<Aggregates.Command> -> BooleanArray(c.size) { true } }
+        val save = { _: Store, c: List<Aggregates.Command> ->
             saving.await()
             saved.addAndGet(c.size)
             BooleanArray(c.size) { true }
-        }.use { shape ->
+        }
+        val shape = WowShape(partitions, ::partitionOf, committed, ::Store, append, save)
+        shape.use {
             shape.submit(Aggregates.Command(1, 2)).assert().isTrue()
             saved.get().assert().isZero()
             shape.counters()[WowShape.SHAPE_APPENDED].assert().isEqualTo(1.0)
+            shape.counters()[WowShape.SHAPE_APPEND_CALLS].assert().isEqualTo(1.0)
+            shape.counters()[WowShape.SHAPE_APPEND_PARTITIONS].assert().isEqualTo(1.0)
             saving.countDown()
         }
         saved.get().assert().isEqualTo(1)
+        shape.counters()[WowShape.SHAPE_SAVE_CALLS].assert().isEqualTo(1.0)
         WowShape.ratios(mapOf(WowShape.SHAPE_APPENDED to 100.0, WowShape.SHAPE_SAVED to 96.0))
             .assert().isEqualTo(mapOf(WowShape.SAVES_PER_APPEND to 0.96))
+        WowShape.ratios(mapOf(WowShape.SHAPE_APPEND_CALLS to 4.0, WowShape.SHAPE_APPEND_PARTITIONS to 10.0))
+            .assert().isEqualTo(mapOf(WowShape.PARTITIONS_PER_APPEND to 2.5))
     }
 
     @Test
@@ -155,7 +236,11 @@ class WowShapeTest {
             Triple("wow-shape-snapshot", RawCase.SNAPSHOT, true),
             Triple("what-if-merge-64", null, false),
             Triple("what-if-merge-256", null, false),
+            Triple("what-if-4-appenders-4-writers", null, false),
         )
+        WowShape.cases().last().second.connections.assert().isEqualTo(8)
+        // The fills are the calibration's alone (RawStoreBench.equalShape): no ceiling's step or what-if waits for a size.
+        WowShape.cases().all { (_, options) -> options.appendFill == null && options.saveFill == null }.assert().isTrue()
     }
 
     @Test

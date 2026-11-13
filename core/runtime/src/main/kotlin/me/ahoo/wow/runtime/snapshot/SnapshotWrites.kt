@@ -18,12 +18,14 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.selects.select
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
 import me.ahoo.wow.spi.snapshot.SnapshotStore
+import me.ahoo.wow.spi.store.StoreCallMarks
 
 /**
  * The snapshot writes of a snapshot subscription, of all its partitions together:
@@ -88,6 +90,21 @@ internal class SnapshotWrites(
 
     /** The saves waiting now, for a test. */
     val waiting: Int get() = synchronized(this) { queue.size }
+
+    private val counted = SnapshotWriteCounts()
+
+    /** Whether something read the [counts]: until then the writes count nothing. */
+    @Volatile
+    private var counting = false
+
+    /**
+     * What the writes took, wrote and spent ([SnapshotWriteCounts]), counted from the first call of this on. Until then
+     * the writes count nothing: their only cost is reading that no one asked.
+     */
+    fun counts(): SnapshotWriteCounts {
+        counting = true
+        return counted
+    }
 
     /** Saves [snapshot] with the saves waiting with it; whether it was written, as [SnapshotStore.save] says. */
     suspend fun save(snapshot: SnapshotRecord): Boolean {
@@ -217,7 +234,6 @@ internal class SnapshotWrites(
     }
 
     /** Writes [batch] with one [SnapshotStore.saveAll], the highest version of each aggregate only, and ends its saves. */
-    @Suppress("TooGenericExceptionCaught") // Whatever the store throws ends the saves of the batch, never the leader.
     private suspend fun write(batch: List<Write>) {
         val latest = LinkedHashMap<AggregateRef, Write>()
         batch.forEach { write ->
@@ -226,26 +242,42 @@ internal class SnapshotWrites(
             }
         }
         val writes = latest.values.toList()
-        // The leader's own cancellation puts the batch back (ensureActive); anything else is the store's failure.
-        val outcomes = try {
-            store.saveAll(writes.map { it.snapshot })
-        } catch (unavailable: StorageUnavailableException) {
-            currentCoroutineContext().ensureActive()
-            writes.map { SnapshotSaveOutcome.Failed(unavailable) }
-        } catch (failure: Exception) {
-            currentCoroutineContext().ensureActive()
-            if (writes.size > 1) alone(writes) else listOf(SnapshotSaveOutcome.Failed(failure))
-        } catch (failure: Throwable) {
-            writes.map { SnapshotSaveOutcome.Failed(failure) }
-        }
-        writes.forEachIndexed { index, write -> write.end(outcomes[index]) }
-        batch.forEach { write ->
-            val covering = latest.getValue(write.snapshot.ref)
-            if (covering !== write) {
-                val outcome = outcomes[writes.indexOf(covering)]
-                write.end(if (outcome is SnapshotSaveOutcome.Failed) outcome else SnapshotSaveOutcome.Refused)
+        val counts = if (counting) counted else null
+        val call = counts?.start(batch.size, writes.size)
+        try {
+            val outcomes = saved(writes, call?.marks)
+            call?.marks?.returned()
+            writes.forEachIndexed { index, write -> write.end(outcomes[index]) }
+            batch.forEach { write ->
+                val covering = latest.getValue(write.snapshot.ref)
+                if (covering !== write) {
+                    val outcome = outcomes[writes.indexOf(covering)]
+                    write.end(if (outcome is SnapshotSaveOutcome.Failed) outcome else SnapshotSaveOutcome.Refused)
+                }
             }
+            call?.done()
+        } finally {
+            counts?.ended()
         }
+    }
+
+    /**
+     * [writes] saved with one [SnapshotStore.saveAll], their outcomes; [marks], when the write is clocked, in the call's
+     * context. A failure of the call is each save's, or, but for the store unavailable, each saved alone.
+     */
+    @Suppress("TooGenericExceptionCaught") // Whatever the store throws ends the saves of the batch, never the leader.
+    private suspend fun saved(writes: List<Write>, marks: StoreCallMarks?): List<SnapshotSaveOutcome> = try {
+        val snapshots = writes.map { it.snapshot }
+        if (marks == null) store.saveAll(snapshots) else withContext(marks) { store.saveAll(snapshots) }
+    } catch (unavailable: StorageUnavailableException) {
+        // The leader's own cancellation puts the batch back (ensureActive); anything else is the store's failure.
+        currentCoroutineContext().ensureActive()
+        writes.map { SnapshotSaveOutcome.Failed(unavailable) }
+    } catch (failure: Exception) {
+        currentCoroutineContext().ensureActive()
+        if (writes.size > 1) alone(writes) else listOf(SnapshotSaveOutcome.Failed(failure))
+    } catch (failure: Throwable) {
+        writes.map { SnapshotSaveOutcome.Failed(failure) }
     }
 
     /** Each of [writes] saved alone, after the batch's call failed: the failure is then the snapshot's own. */

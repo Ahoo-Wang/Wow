@@ -23,12 +23,12 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.spi.log.Append
-import me.ahoo.wow.spi.log.AppendCallMarks
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.spi.store.StoreCallMarks
 import org.junit.jupiter.api.Test
 import java.util.Collections
 import kotlin.time.Duration.Companion.seconds
@@ -69,6 +69,9 @@ class AppendClockTest {
         log.found.assert().containsOnly(true)
         // The log sleeps a millisecond in its statement: at least that, a call.
         clock.statement.assert().isGreaterThanOrEqualTo(PARTITIONS * 1_000L)
+        // The driver's time the log reported, each call's command, within its statement.
+        clock.commanded.assert().isEqualTo(PARTITIONS.toLong())
+        clock.command.assert().isEqualTo(PARTITIONS * COMMAND_NANOS / 1_000)
         // Each step is rounded down to its microsecond: their sum is the call's, less at most one a step.
         val steps = with(clock) { listOf(enter, hop, acquire, bind, statement, release, hopBack) }
         steps.forEach { it.assert().isNotNegative() }
@@ -128,13 +131,14 @@ class AppendClockTest {
         val found: MutableList<Boolean> = Collections.synchronizedList(ArrayList())
 
         override suspend fun appendAll(streams: List<Append>): List<AppendOutcome> {
-            val marks = currentCoroutineContext()[AppendCallMarks]?.apply { entered() }
+            val marks = currentCoroutineContext()[StoreCallMarks]?.apply { entered() }
             found += marks != null
             val outcomes = withContext(Dispatchers.IO) {
                 marks?.onThread()
                 marks?.acquired()
                 marks?.sent()
                 Thread.sleep(1)
+                marks?.commanded(COMMAND_NANOS)
                 marks?.read()
                 marks?.released()
                 streams
@@ -145,5 +149,6 @@ class AppendClockTest {
 
     private companion object {
         const val PARTITIONS = 4
+        const val COMMAND_NANOS = 500_000L
     }
 }

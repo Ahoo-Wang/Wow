@@ -14,6 +14,7 @@
 package me.ahoo.wow.benchmark.transfer.raw
 
 import me.ahoo.test.asserts.assert
+import org.assertj.core.api.Assertions.within
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.util.concurrent.atomic.AtomicInteger
@@ -96,6 +97,41 @@ class RawRunTest {
     }
 
     @Test
+    fun `a bench-pipeline line is read as its JSON tree, a field by its section, null when it has none`() {
+        val line = WowWindow.sectionsOf(
+            "{\"t\":3,\"appendDepth\":{\"queued\":0,\"handedGroups\":2}," +
+                "\"appendCalls\":{\"calls\":40,\"streams\":600},\"pool\":{\"active\":4,\"waiting\":1,\"max\":10}," +
+                "\"appendClock\":{\"calls\":200,\"call\":700000,\"statement\":620000}}",
+        )!!
+        WowWindow.field(line, "appendCalls", "calls").assert().isEqualTo(40.0)
+        WowWindow.field(line, "appendCalls", "streams").assert().isEqualTo(600.0)
+        WowWindow.field(line, "pool", "waiting").assert().isEqualTo(1.0)
+        WowWindow.field(line, "appendClock", "statement").assert().isEqualTo(620000.0)
+        WowWindow.field(line, "appendDepth", "calls").assert().isNull()
+        WowWindow.field(line, "window", "x").assert().isNull()
+        WowWindow.sectionsOf("not json").assert().isNull()
+        WowWindow.sectionsOf(null).assert().isNull()
+    }
+
+    @Test
+    fun `a call's mean time is its nanoseconds over its calls in a window, none without a call`() {
+        val times = CallTimes()
+        times.add("append", 3_000_000)
+        times.time("append") { Thread.sleep(0) }
+        times.counters()["append calls"].assert().isEqualTo(2.0)
+        val growth = mapOf("append nanos" to 6e6, "append calls" to 3.0, "save nanos" to 0.0, "save calls" to 0.0)
+        CallTimes.means(growth).assert().isEqualTo(mapOf("appendMs" to 2.0))
+    }
+
+    @Test
+    fun `wow's call sizes are its commands an append and snapshots a save, each its own`() {
+        val wow = mapOf("statements: append" to 0.0664, "statements: save" to 0.1135)
+        sizesOf(wow, "statements: append", "statements: save").assert().isEqualTo(15 to 9)
+        sizesOf(mapOf("a" to 2.0, "s" to 5.0), "a", "s").assert().isEqualTo(1 to 1)
+        sizesOf(wow, "statements: append", "missing").assert().isNull()
+    }
+
+    @Test
     fun `a cgroup's CPU is its cpu stat's usage in microseconds`() {
         cgroupUsageMicros("usage_usec 123456\nuser_usec 100000\nsystem_usec 23456\n").assert().isEqualTo(123456)
         cgroupUsageMicros("user_usec 1\n").assert().isNull()
@@ -164,18 +200,17 @@ class RawRunTest {
     }
 
     @Test
-    fun `the calibration's batch shape is Wow's, from its statements or commands per command`() {
-        val wow = mapOf("statements: append" to 0.0707, "statements: save" to 0.2205)
-        shapeOf(wow, "statements: append", "statements: save").assert().isEqualTo(14 to 5)
-        val mongo = mapOf("commands: insert log" to 0.0678, "commands: update snapshot" to 0.1325)
-        shapeOf(mongo, "commands: insert log", "commands: update snapshot").assert().isEqualTo(15 to 8)
-        shapeOf(mapOf("a" to 2.0, "s" to 5.0), "a", "s").assert().isEqualTo(1 to 1)
-        // Wow's writer saves behind its appends and across them: fewer saves than appends, each of more snapshots.
-        val behind = mapOf("statements: append" to 0.17075, "statements: save" to 0.109375)
-        shapeOf(behind, "statements: append", "statements: save").assert().isEqualTo(6 to 9)
-        val mongoBehind = mapOf("commands: insert log" to 0.139, "commands: update snapshot" to 0.051)
-        shapeOf(mongoBehind, "commands: insert log", "commands: update snapshot").assert().isEqualTo(7 to 20)
-        shapeOf(wow, "statements: append", "missing").assert().isNull()
+    fun `wow's partitions an append are its partition table's updates over its appends, its WAL's when read`() {
+        val appends = "statements: statement with wow_log__transfer__account"
+        val wow = mapOf(
+            appends to 0.1,
+            "wal Heap/HOT_UPDATE wow_log__transfer__partition records" to 0.45,
+            "wal Heap/UPDATE wow_log__transfer__partition records" to 0.05,
+            "wow_log__transfer__partition updates" to 0.6,
+        )
+        spreadOf(wow).assert().isEqualTo(5.0, within(1e-9))
+        spreadOf(wow.filterKeys { !it.startsWith("wal ") }).assert().isEqualTo(6.0, within(1e-9))
+        spreadOf(wow - appends).assert().isNull()
     }
 
     @Test

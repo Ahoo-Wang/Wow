@@ -14,12 +14,15 @@
 package me.ahoo.wow.benchmark.transfer.raw
 
 import me.ahoo.wow.api.client.CommandClient
+import me.ahoo.wow.benchmark.transfer.BenchPipeline
+import me.ahoo.wow.benchmark.transfer.CONNECTION_HOLD
 import me.ahoo.wow.benchmark.transfer.ComponentCounters
 import me.ahoo.wow.benchmark.transfer.ComponentRun
 import me.ahoo.wow.benchmark.transfer.StoreCounter
 import me.ahoo.wow.benchmark.transfer.TransferServer
 import org.springframework.boot.WebApplicationType
 import org.springframework.boot.builder.SpringApplicationBuilder
+import org.springframework.context.ApplicationContext
 import java.io.File
 import kotlin.system.exitProcess
 
@@ -171,6 +174,7 @@ private fun seed(
     checkpoint: () -> Unit,
     own: (Long, Long) -> Map<String, Double> = { _, _ -> emptyMap() },
     records: (Map<String, Double>, Map<String, Double>) -> Map<String, Double> = { _, _ -> emptyMap() },
+    watch: () -> () -> Map<String, Double> = { { emptyMap() } },
 ): Map<String, Double> {
     val context = SpringApplicationBuilder(
         TransferServer::class.java,
@@ -181,6 +185,8 @@ private fun seed(
         .profiles(backend)
         .run(
             "--wow.internal.port=0",
+            // The node's append queue and pool, read over the window (WowWindow): an atomic add a call.
+            "--bench.pipeline.enabled=true",
             *options.filterKeys { it.startsWith("spring.") || it.startsWith("wow.") }
                 .map { "--${it.key}=${it.value}" }
                 .toTypedArray(),
@@ -199,13 +205,20 @@ private fun seed(
     val commands = context.getBean(RawCommands::class.java)
     var from = 0L
     var to = 0L
+    var watched: () -> Map<String, Double> = { emptyMap() }
+    var diagnostics: Map<String, Double> = emptyMap()
+    var window: WowWindow? = null
     val component = try {
         run.run(context.getBean(CommandClient::class.java), context.getBean(StoreCounter::class.java)) { starting ->
+            // The horizon is watched over the measured deposits alone, not the settling after them.
+            if (!starting) diagnostics = watched() + window?.stop().orEmpty() + wowTimes(context)
             // The warm-up's snapshots are written behind its commits: let them land before the measured deposits.
             Thread.sleep(SETTLE_MILLIS)
             if (starting) {
                 before = counters() + commands.snapshot()
                 from = System.currentTimeMillis()
+                watched = watch()
+                window = windowOf(context, commands)
             } else {
                 to = System.currentTimeMillis()
                 after = counters() + commands.snapshot()
@@ -220,14 +233,49 @@ private fun seed(
     val rate = (component["throughput"] as? Number)?.let { mapOf(WOW_RATE to it.toDouble()) }.orEmpty()
     val failed = (component["failed"] as Map<*, *>?).orEmpty().values.sumOf { (it as Number).toDouble() }
     val growth = growthOf(before, after) + own(from, to) + records(before, after)
-    return growth.mapValues { (_, delta) -> delta / ops } + statements + rate + (WOW_FAILED to failed / ops)
+    return growth.mapValues { (_, delta) -> delta / ops } + statements + rate + (WOW_FAILED to failed / ops) +
+        diagnostics
 }
+
+/** Wow's run's window, read on its node's `bench-pipeline` line and its saves; null without the line. */
+private fun windowOf(context: ApplicationContext, commands: RawCommands): WowWindow? {
+    val store = context.getBean(StoreCounter::class.java)
+    return context.getBeanProvider(BenchPipeline::class.java).ifAvailable?.let { line ->
+        WowWindow(line::snapshot) { savesOf(store.snapshot(), commands.snapshot()) }
+    }
+}
+
+/**
+ * Wow's run's store calls over its window (StoreCounter.timings, reset at its start), by the names the model's are
+ * (CallTimes): its append's and save's statements' round trips, a connection's wait in the pool and its hold.
+ */
+private fun wowTimes(context: ApplicationContext): Map<String, Double> =
+    CallTimes.means(context.getBean(StoreCounter::class.java).timings()).mapKeys { (key, _) ->
+        when (key) {
+            "${PG_APPENDS.removePrefix(STATEMENTS)}Ms" -> "${RawPostgres.APPEND_ROUND_TRIP}Ms"
+            "${PG_SAVES.removePrefix(STATEMENTS)}Ms" -> "${RawPostgres.SAVE_ROUND_TRIP}Ms"
+            "$CONNECTION_HOLD ${PG_APPENDS.removePrefix(STATEMENTS)}Ms" -> APPEND_HOLD_MS
+            "$CONNECTION_HOLD ${PG_SAVES.removePrefix(STATEMENTS)}Ms" -> SAVE_HOLD_MS
+            else -> key
+        }
+    }.filterKeys { it in WOW_TIMES }
+
+/**
+ * Wow's run's snapshot saves so far: its save statements of the snapshot table (PostgreSQL, [statements]) or its
+ * update commands of the snapshot collection (MongoDB, [commands]), whichever the store counted.
+ */
+private fun savesOf(statements: Map<String, Long>, commands: Map<String, Double>): Long =
+    statements.filterKeys { it.endsWith(" ${RawPostgres.SNAPSHOT}") && !it.contains(" select ") }.values.sum() +
+        (commands["commands: update ${RawMongo.SNAPSHOT}"] ?: 0.0).toLong()
 
 /** The calibration's connections: Wow's run's concurrency. */
 const val CALIBRATION_CONNECTIONS = 64
 
 /** The calibration's case: today's, on Wow's ground. */
 const val CALIBRATION = "calibration"
+
+/** The model's own shape beside the calibration, apart. */
+const val CALIBRATION_MODEL = "calibration-model"
 
 /** Versions of [aggregates] aggregates opened at version 1. */
 fun opened(aggregates: Int): IntArray = IntArray(aggregates) { 1 }
@@ -259,27 +307,25 @@ private fun postgres(settings: RawSettings, options: Map<String, String>): RawRe
         { raw.counters() + raw.tables() },
         raw::checkpoint,
         records = raw::records,
+        watch = raw::watchWow,
     )
     raw.loadTemplates(settings.templates)
     val cpu = ContainerCpu(settings.container)
     val cases = raw.cases(settings.logBatch, settings.snapshotBatch, settings.batches)
     fun step(case: RawPostgres.Case, connections: Int, pace: Pace, versions: IntArray): RawStep =
         postgresStep(raw, cpu, case, connections, pace, versions)
-    val (logBatch, snapshotBatch) = shapeOf(wow, PG_APPENDS, PG_SAVES) ?: (settings.logBatch to settings.snapshotBatch)
-    requireTemplates(logBatch, settings.templates)
-    val today = raw.cases(logBatch, snapshotBatch, settings.batches).first { it.case.name == RawPostgres.WOW_TODAY }
-    raw.prepare(today.fillfactor, settings.templates)
-    val calibrating = step(
-        RawPostgres.Case(
-            today.case.copy(name = CALIBRATION, prices = WOW_GROUND),
-            today.fillfactor,
-            flush = today.flush
-        ),
-        CALIBRATION_CONNECTIONS,
-        Pace(calibrationTiming(settings), wow[WOW_RATE]),
-        opened(settings.templates),
-    )
-    val steps = mutableListOf(calibrating)
+    val model = cases.first { it.case.ceiling == RawCase.COMMITTED }
+    val (calibrating, uncapped) = listOf(equalShape(model.shape, wow, PG_APPENDS, PG_SAVES), model.shape)
+        .zip(listOf(calibrationCase(model.case), modelCase(model.case))).map { (shape, case) ->
+            raw.prepare(model.fillfactor, settings.templates)
+            step(
+                RawPostgres.Case(case, model.fillfactor, shape, model.flush),
+                CALIBRATION_CONNECTIONS,
+                Pace(calibrationTiming(settings), wow[WOW_RATE]),
+                opened(settings.templates),
+            )
+        }
+    val steps = mutableListOf(calibrating, uncapped)
     for (case in cases.filter { settings.keeps(it.case.name) }) {
         val clients = if (case.shape != null) settings.shapeClients else settings.connections
         steps += stepsOf(clients, settings.aggregates, {
@@ -297,7 +343,7 @@ private fun postgres(settings: RawSettings, options: Map<String, String>): RawRe
             steps += step(case, split.connections, pace, opened(settings.aggregates))
         }
     }
-    return RawResult(postgresCalibration(wow, calibrating, logBatch, snapshotBatch), raw.settings(), steps)
+    return RawResult(postgresCalibration(wow, calibrating, uncapped), raw.settings(), steps)
 }
 
 /** A PostgreSQL step: [case]'s workers on a connection each, or callers of Wow's own write path for a shape. */
@@ -313,7 +359,7 @@ private fun postgresStep(
     return try {
         val counters = { raw.counters() + shape?.counters().orEmpty() }
         val ratios = { growth: Map<String, Double> -> raw.ratios(growth) + WowShape.ratios(growth) }
-        runStep(case.case, connections, pace, cpu, counters, ratios, raw.recordsOf(case.case)) { index ->
+        runStep(case.case, connections, pace, cpu, counters, ratios, raw.recordsOf(case.case), raw::watch) { index ->
             val owned = Aggregates(versions, index, connections)
             if (shape != null) {
                 caller(shape, owned)
@@ -361,21 +407,18 @@ private fun mongo(settings: RawSettings, options: Map<String, String>): RawResul
                     shape?.close()
                 }
             }.also(::print)
-        val shape = shapeOf(wow, MONGO_APPENDS, MONGO_SAVES) ?: (settings.logBatch to settings.snapshotBatch)
-        requireTemplates(shape.first, settings.templates)
-        val today = raw.cases(shape.first, shape.second, settings.batches).first { it.case.name == RawMongo.WOW_TODAY }
-        raw.prepare(settings.templates, today.bigState)
-        val calibrating = step(
-            RawMongo.Case(
-                today.case.copy(name = CALIBRATION, prices = WOW_GROUND),
-                today.bigState,
-                flush = today.flush
-            ),
-            CALIBRATION_CONNECTIONS,
-            opened(settings.templates),
-            Pace(calibrationTiming(settings), wow[WOW_RATE]),
-        )
-        val steps = mutableListOf(calibrating)
+        val model = cases.first { it.case.ceiling == RawCase.COMMITTED }
+        val (calibrating, uncapped) = listOf(equalShape(model.shape, wow, MONGO_APPENDS, MONGO_SAVES), model.shape)
+            .zip(listOf(calibrationCase(model.case), modelCase(model.case))).map { (shape, case) ->
+                raw.prepare(settings.templates, model.bigState)
+                step(
+                    RawMongo.Case(case, model.bigState, shape, model.flush),
+                    CALIBRATION_CONNECTIONS,
+                    opened(settings.templates),
+                    Pace(calibrationTiming(settings), wow[WOW_RATE]),
+                )
+            }
+        val steps = mutableListOf(calibrating, uncapped)
         for (case in cases.filter { settings.keeps(it.case.name) }) {
             val clients = if (case.shape != null) settings.shapeClients else settings.connections
             steps += stepsOf(clients, settings.aggregates, {
@@ -384,7 +427,7 @@ private fun mongo(settings: RawSettings, options: Map<String, String>): RawResul
                 step(case, n, versions)
             }
         }
-        RawResult(mongoCalibration(wow, calibrating, shape.first, shape.second), raw.settings(), steps)
+        RawResult(mongoCalibration(wow, calibrating, uncapped), raw.settings(), steps)
     }
 
 /**
@@ -396,10 +439,26 @@ private fun calibrationTiming(
     settings: RawSettings
 ) = maxOf(settings.warmUpSeconds, CALIBRATION_WARM_UP) to settings.seconds
 
-/** Fails unless the calibration's 64 connections have [logBatch] templates each. */
-private fun requireTemplates(logBatch: Int, templates: Int) = require(CALIBRATION_CONNECTIONS * logBatch <= templates) {
-    "The calibration's $CALIBRATION_CONNECTIONS connections need $logBatch templates each: raise --templates."
-}
+/**
+ * The calibration's case: Wow's own write path answered at the append ([model], the committed ceiling's), as Wow's E1
+ * answers, paced to Wow's rate on Wow's ground, in Wow's shape (equalShape); no ceiling of its own.
+ */
+private fun calibrationCase(model: RawCase) = model.copy(name = CALIBRATION, prices = WOW_GROUND, ceiling = null)
+
+/** The model's own shape at Wow's rate, beside the calibration: what its lanes make of Wow's load, apart. */
+private fun modelCase(model: RawCase) = model.copy(name = CALIBRATION_MODEL, prices = MODEL_GROUND, ceiling = null)
+
+/**
+ * Wow's own write path ([shape]) with its calls of the sizes Wow's run made ([sizesOf], from the counts [append] and
+ * [save]), each call waiting for its size as long as its streams and snapshots take to arrive at Wow's rate
+ * (WowShape.fillWaitOf): the store's cost a command at an equal shape, which the calibration checks. The model's own
+ * sizes follow from its calls' time, and Wow's from its node's time around each call too, so they are compared apart.
+ */
+private fun equalShape(shape: WowShape.Options?, wow: Map<String, Double>, append: String, save: String) =
+    sizesOf(wow, append, save)?.let { (commands, snapshots) ->
+        val wait = WowShape.fillWaitOf(listOf(commands, snapshots), wow[WOW_RATE])
+        shape?.copy(appendFill = commands, saveFill = snapshots, fillWaitNanos = wait)
+    } ?: shape
 
 /** A caller of Wow's own write path: one command a flush, counted once its stream and its snapshot were written. */
 private fun caller(shape: WowShape<*>, owned: Aggregates) = object : RawWorker {
@@ -414,4 +473,5 @@ private const val SEED_CONCURRENCY = CALIBRATION_CONNECTIONS
 private const val CALIBRATION_WARM_UP = 10
 private const val DEPOSITS = 4
 private const val SETTLE_MILLIS = 2_000L
-private const val WOW_GROUND = "today on Wow's ground: the calibration"
+private const val MODEL_GROUND = "Wow's own write path at Wow's rate, its own shape: Wow's node time apart"
+private const val WOW_GROUND = "Wow's own write path on Wow's ground, at its rate: the calibration"

@@ -37,6 +37,8 @@ import org.junit.jupiter.params.provider.ValueSource
 class SnapshotSubscriptionWritesTest : SnapshotSubscriptionFixtures() {
     @Test
     fun `one aggregate's entries waiting together are written once, at the latest version`(): Unit = runBlocking {
+        val counts = snapshots.writeCounts()
+        snapshots.writeCounts().assert().isSameAs(counts)
         runtime.start(setOf(0))
         val gate = CompletableDeferred<Unit>().also { store.gate = it }
         val first = async { coordinator.execute(counter, add("a")) }
@@ -56,6 +58,11 @@ class SnapshotSubscriptionWritesTest : SnapshotSubscriptionFixtures() {
         }
         store.saves.assert().containsExactly(1, 5)
         store.load(ref("a"))!!.state.assert().isEqualTo("""{"total":5}""")
+        // The subscription's writes counted, from its first read: two writes of one save each, the second the four
+        // entries' latest (the same certainty as the saves above); each is clocked once its saves ended: waited for.
+        eventually { counts.clock.calls == 2L }
+        counts.saves.assert().isEqualTo(2L)
+        counts.snapshots.assert().isEqualTo(2L)
     }
 
     @Test

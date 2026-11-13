@@ -17,14 +17,17 @@ import com.mongodb.MongoWriteException
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.Updates
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.mongo.ClockedMongo
 import me.ahoo.wow.mongo.CountedMongo
 import me.ahoo.wow.mongo.log.MongoLogFixture
 import me.ahoo.wow.spi.StorageRefusedException
 import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
 import me.ahoo.wow.spi.snapshot.SnapshotStore
+import me.ahoo.wow.spi.store.StoreCallMarks
 import me.ahoo.wow.tck.ExactJson
 import me.ahoo.wow.tck.snapshot.SnapshotStoreSpec
 import org.bson.BsonDocument
@@ -46,6 +49,24 @@ class MongoSnapshotStoreTest : SnapshotStoreSpec() {
     fun `the store keeps four writes in flight, a journaled bulk write each`() {
         store().writesInFlight.assert().isEqualTo(4)
     }
+
+    @Test
+    fun `a clocked save should mark each instant the store sees, its driver's bulk write within it`(): Unit =
+        runBlocking {
+            val context = MongoLogFixture.newContext()
+            val store = MongoSnapshotStore(ClockedMongo.client, MongoLogFixture.DATABASE, context)
+                .also { it.createCollection("aggregate") }
+            val type = AggregateType(context, "aggregate")
+            val marks = StoreCallMarks()
+            withContext(marks) {
+                store.saveAll(listOf("a", "b").map { snapshot(it, 1).copyWith(ref = type.ref("tenant", it)) })
+            }.assert().containsOnly(SnapshotSaveOutcome.Written)
+            marks.marked.assert().isTrue()
+            listOf(marks.taken, marks.entered, marks.onThread, marks.acquired, marks.sent, marks.read, marks.released)
+                .zipWithNext().forEach { (earlier, later) -> later.assert().isGreaterThanOrEqualTo(earlier) }
+            marks.commands.assert().isEqualTo(1)
+            marks.command.assert().isPositive().isLessThanOrEqualTo(marks.read - marks.sent)
+        }
 
     @Test
     fun `creating the schema twice keeps the snapshots`(): Unit = runBlocking {
