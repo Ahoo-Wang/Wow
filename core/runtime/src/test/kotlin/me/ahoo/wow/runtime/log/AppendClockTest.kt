@@ -23,12 +23,12 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.spi.log.Append
-import me.ahoo.wow.spi.log.AppendCallMarks
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.spi.store.StoreCallMarks
 import org.junit.jupiter.api.Test
 import java.util.Collections
 import kotlin.time.Duration.Companion.seconds
@@ -128,7 +128,7 @@ class AppendClockTest {
         val found: MutableList<Boolean> = Collections.synchronizedList(ArrayList())
 
         override suspend fun appendAll(streams: List<Append>): List<AppendOutcome> {
-            val marks = currentCoroutineContext()[AppendCallMarks]?.apply { entered() }
+            val marks = currentCoroutineContext()[StoreCallMarks]?.apply { entered() }
             found += marks != null
             val outcomes = withContext(Dispatchers.IO) {
                 marks?.onThread()

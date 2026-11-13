@@ -24,7 +24,6 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.postgres.snapshot.PostgresSnapshotStore
 import me.ahoo.wow.spi.log.Append
-import me.ahoo.wow.spi.log.AppendCallMarks
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventRecord
@@ -32,6 +31,7 @@ import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.log.SnapshotTailReader
 import me.ahoo.wow.spi.snapshot.SnapshotStore
+import me.ahoo.wow.spi.store.StoreCallMarks
 import me.ahoo.wow.tck.log.EventLogSpec
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.hours
@@ -99,7 +99,7 @@ class PostgresEventLogTest : EventLogSpec() {
         // A group commit across partitions, and a single stream's call.
         val calls = listOf(listOf("a", "b", "c", "d"), listOf("e"))
         calls.forEach { ids ->
-            val marks = AppendCallMarks()
+            val marks = StoreCallMarks()
             val outcomes = withContext(marks) {
                 log.appendAll(ids.map { Append.of(stream(it, 1, aggregate = type), null) })
             }

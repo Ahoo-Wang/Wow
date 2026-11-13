@@ -29,7 +29,6 @@ import me.ahoo.wow.spi.access.AccessWalks
 import me.ahoo.wow.spi.access.AggregatePage
 import me.ahoo.wow.spi.log.AggregateTail
 import me.ahoo.wow.spi.log.Append
-import me.ahoo.wow.spi.log.AppendCallMarks
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -40,6 +39,7 @@ import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.log.SnapshotTailReader
 import me.ahoo.wow.spi.log.TailPacer
 import me.ahoo.wow.spi.log.requireChains
+import me.ahoo.wow.spi.store.StoreCallMarks
 import javax.sql.DataSource
 
 /**
@@ -142,7 +142,7 @@ class PostgresEventLog(
     private suspend fun appendOne(
         stream: EventStreamRecord,
         transport: ByteArray?,
-        marks: AppendCallMarks?,
+        marks: StoreCallMarks?,
     ): AppendOutcome = dispatcher.jdbc {
         marks?.onThread()
         require(stream.ref.type.context == context) { "${stream.ref} is not in context $context." }
@@ -153,11 +153,11 @@ class PostgresEventLog(
     }
 
     /**
-     * Group commit: [PostgresLogAppender.appendAll]. A call clocked by the append queue ([AppendCallMarks] in its
+     * Group commit: [PostgresLogAppender.appendAll]. A call clocked by the append queue ([StoreCallMarks] in its
      * context) is marked from its entry to its connection given back.
      */
     override suspend fun appendAll(streams: List<Append>): List<AppendOutcome> {
-        val marks = currentCoroutineContext()[AppendCallMarks]?.apply { entered() }
+        val marks = currentCoroutineContext()[StoreCallMarks]?.apply { entered() }
         if (streams.size <= 1) {
             return streams.map { appendOne(it.stream, it.transport, marks) }
         }

@@ -16,7 +16,7 @@ package me.ahoo.wow.benchmark.transfer
 import com.zaxxer.hikari.HikariDataSource
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.mongo.MongoPoolGauge
-import me.ahoo.wow.runtime.log.AppendClock
+import me.ahoo.wow.runtime.CallClock
 import me.ahoo.wow.runtime.log.HandoffLog
 import me.ahoo.wow.runtime.node.ServiceNode
 import org.slf4j.LoggerFactory
@@ -43,7 +43,7 @@ import java.util.concurrent.TimeUnit
  * - `appendCalls`, cumulative from this line's first read: `calls` to the log, the `streams` they carried, and the calls
  *   `full` at their cap (`mergeMax` merged). Streams over calls between two lines is the mean call of that second.
  * - `appendClock`, cumulative from this line's first read, in microseconds summed over the calls (the queue's
- *   `AppendClock`): the `calls` clocked, each one's `call` from its group taken to the log's call returned and its
+ *   `CallClock`): the `calls` clocked, each one's `call` from its group taken to the log's call returned and its
  *   `complete` from there to its outcomes handed back and its committer free; and, over the `marked` calls (those whose
  *   log marks the instants only it sees, PostgreSQL's), `enter` to the log's call, `hop` to the thread of its JDBC work,
  *   `acquire` to its connection, `bind` to its statement sent (its tables found, its statement prepared, its streams'
@@ -61,7 +61,7 @@ import java.util.concurrent.TimeUnit
  *
  * Every read is of an atomic or volatile field, with no lock taken on the path a command or an entry runs. The append
  * queue counts its calls and handed groups only once read (`PartitionAppendQueue.counts`): an atomic add per call and
- * per group, none per append; while read, each call also carries its marks (`AppendCallMarks`, nine clock reads) in its
+ * per group, none per append; while read, each call also carries its marks (`StoreCallMarks`, nine clock reads) in its
  * coroutine context, which the log marks and the queue sums, eleven adds a call. The hand-off's channels have no depth
  * to read without a count on every entry, and the throttle's waiters are behind its monitor, so neither is here; the
  * throttled partitions are the `partitionThrottled` less `partitionUnthrottled` of `bench-signals`.
@@ -172,7 +172,7 @@ class BenchPipeline(private val sections: () -> Map<String, Map<String, Number>>
         }
 
         /** The [clocks]' calls, summed over the contexts; none while no call was clocked. */
-        internal fun clockOf(clocks: List<AppendClock>): Map<String, Number> =
+        internal fun clockOf(clocks: List<CallClock>): Map<String, Number> =
             if (clocks.sumOf { it.calls } == 0L) {
                 emptyMap()
             } else {

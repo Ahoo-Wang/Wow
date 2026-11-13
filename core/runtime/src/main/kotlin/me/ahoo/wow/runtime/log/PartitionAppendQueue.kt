@@ -30,11 +30,11 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.runtime.InFlightLimit
 import me.ahoo.wow.runtime.health.launchWorker
 import me.ahoo.wow.spi.log.Append
-import me.ahoo.wow.spi.log.AppendCallMarks
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.spi.store.StoreCallMarks
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.CoroutineContext
@@ -310,7 +310,7 @@ class PartitionAppendQueue(
     }
 
     /** Not cancellable: an append taken into a batch completes. [marks], when clocked, go in the log call's context. */
-    private suspend fun commit(batch: List<Pending>, marks: AppendCallMarks?) = withContext(
+    private suspend fun commit(batch: List<Pending>, marks: StoreCallMarks?) = withContext(
         if (marks == null) NonCancellable else NonCancellable + marks,
     ) {
         val streams = batch.flatMap { it.streams }
