@@ -15,6 +15,7 @@ package me.ahoo.wow.query.observe
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.query.error.QueryBusyException
 import me.ahoo.wow.query.error.QueryError
 import me.ahoo.wow.query.error.QueryErrors
 import me.ahoo.wow.query.error.QueryExecutionException
@@ -30,6 +31,10 @@ import me.ahoo.wow.query.state.StateNotFoundException
  * - a rejection the caller can fix (an error-catalog violation, a missing caller scope, a state read's parameter) at
  *   DEBUG, by its message alone: it is the client's error, answered 4xx, and logging it louder lets callers flood the
  *   log; so is a state read answered as not found, whatever the reason, which the audit keeps;
+ * - a query its store's bulkhead refused ([QueryBusyException], answered 429 with `Retry-After`) by bursts: the store
+ *   shedding load, not a defect, and every query beyond its limit meets it while it lasts. The first refusal of a burst
+ *   is a WARN naming the store, the rest DEBUG, until the store admits a query at once again
+ *   ([me.ahoo.wow.query.admission.QueryBulkhead]); a refusal not logged takes no lock and builds nothing;
  * - a storage that cannot be reached ([QueryStorageUnavailableException], answered 503 with `Retry-After`) at WARN, by
  *   its message and its redacted cause chain: an outage, not a defect, and every query meets it until it ends;
  * - a server fault the core states ([QueryExecutionException]) at ERROR, by its message and its cause chain with
@@ -46,7 +51,11 @@ class QueryLogObserver : QueryObserver {
 
     override fun onError(aggregateType: AggregateType, queryType: QueryType, error: Throwable) {
         when {
-            error.isRejection() -> log.debug { "Query [$aggregateType/$queryType] rejected: ${error.message}" }
+            error.isRejection() -> if (log.isDebugEnabled()) {
+                log.debug { "Query [$aggregateType/$queryType] rejected: ${error.message}" }
+            }
+
+            error is QueryBusyException -> refused(aggregateType, queryType, error)
 
             error is QueryStorageUnavailableException -> {
                 val cause = error.cause
@@ -58,6 +67,18 @@ class QueryLogObserver : QueryObserver {
                 if (cause == null) log.error { error.message } else log.error(cause.redacted()) { error.message }
             }
             else -> log.error(error) { error.message }
+        }
+    }
+
+    private fun refused(aggregateType: AggregateType, queryType: QueryType, error: QueryBusyException) {
+        if (error.firstOfBurst) {
+            log.warn {
+                "Query store [${error.store}] runs as many queries as it allows at once (${error.maxConcurrent}): " +
+                    "it refuses queries (429 wow.query.busy). Later refusals are logged at debug level until it " +
+                    "admits a query at once again."
+            }
+        } else if (log.isDebugEnabled()) {
+            log.debug { "Query [$aggregateType/$queryType] refused: store [${error.store}] is at its limit." }
         }
     }
 }

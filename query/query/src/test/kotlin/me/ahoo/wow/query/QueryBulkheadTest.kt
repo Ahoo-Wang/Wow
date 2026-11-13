@@ -13,6 +13,10 @@
 
 package me.ahoo.wow.query
 
+import ch.qos.logback.classic.Level
+import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.core.read.ListAppender
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
@@ -29,10 +33,12 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.query.admission.QueryBulkhead
 import me.ahoo.wow.query.error.QueryBusyException
+import me.ahoo.wow.query.observe.QueryLogObserver
 import me.ahoo.wow.query.observe.started
 import me.ahoo.wow.spi.StorageBusyException
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.slf4j.LoggerFactory
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -60,6 +66,45 @@ class QueryBulkheadTest {
 
     private suspend fun busy(block: suspend () -> Unit): QueryBusyException =
         runCatching { block() }.exceptionOrNull() as QueryBusyException
+
+    @Test
+    fun `refusals should come in bursts, each counted, the first marked, ended by a query admitted at once`(): Unit =
+        runBlocking {
+            val bulkhead = QueryBulkhead("main", 1, maxWait = Duration.ZERO)
+            val gate = CompletableDeferred<Unit>()
+            val held = hold(bulkhead, gate)
+            val burst = (1..5).map { busy { bulkhead.run { "refused" } } }
+            burst.map { it.firstOfBurst }.assert().containsExactly(true, false, false, false, false)
+            gate.complete(Unit)
+            held.await()
+            val ended = infos { bulkhead.run { "admitted at once" } }
+            ended.map { it.formattedMessage }.assert()
+                .containsExactly("Query store [main] admits queries at once again, after refusing 5.")
+            ended.single().loggerName.assert().isEqualTo(QueryLogObserver::class.java.name)
+            // Outside a burst, a query admitted at once logs nothing.
+            infos { bulkhead.run { "admitted at once" } }.assert().isEmpty()
+            // The next burst's first refusal is marked again.
+            val again = CompletableDeferred<Unit>()
+            val heldAgain = hold(bulkhead, again)
+            busy { bulkhead.run { "refused" } }.firstOfBurst.assert().isTrue()
+            busy { bulkhead.run { "refused" } }.firstOfBurst.assert().isFalse()
+            again.complete(Unit)
+            heldAgain.await()
+        }
+
+    /** The INFO events of the query log while [block] runs. */
+    private suspend fun infos(block: suspend () -> Unit): List<ILoggingEvent> {
+        val logger = LoggerFactory.getLogger(QueryLogObserver::class.java) as Logger
+        val appender = ListAppender<ILoggingEvent>().apply { start() }
+        logger.addAppender(appender)
+        return try {
+            block()
+            synchronized(appender) { appender.list.toList() }.filter { it.level == Level.INFO }
+        } finally {
+            logger.detachAppender(appender)
+            appender.stop()
+        }
+    }
 
     @Test
     fun `a call beyond the bound should fail busy once its wait runs out, and pass once a permit is back`(): Unit =

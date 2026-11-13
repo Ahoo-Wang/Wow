@@ -33,7 +33,7 @@ outline: deep
 | 存储的并发查询 | 与追加共用的连接池的四分之一（至少 2），自适应，最多升到一半；查询专用连接池则为全部；连接池不报告大小时为 16 | 查询以 `wow.query.busy` 拒绝（429） |
 | `wow.query.dataset.max-concurrent`：同时运行的数据集查询 | 8，固定上限，不自适应 | 查询在一个短队列中等待，然后以 `wow.query.busy` 拒绝 |
 
-带 `Retry-After` 的拒绝是背压，不是错误：客户端稍后重试，遇到它的 Saga 会重试该条目并放慢它的分区，同一条目被拒绝 20 次（`wow.subscription.backpressure.max-attempts`）后才停放该聚合（[失败与重试](../guide/failures#how-a-failure-is-classified)）。
+带 `Retry-After` 的拒绝是背压，不是错误：客户端稍后重试，遇到它的 Saga 会重试该条目并放慢它的分区，同一条目被拒绝 20 次（`wow.subscription.backpressure.max-attempts`）后才停放该聚合（[失败与重试](../guide/failures#how-a-failure-is-classified)）。存储拒绝的查询在 `me.ahoo.wow.query.observe.QueryLogObserver` 上按阵发记录：第一次拒绝记为 `WARN`，写出存储及其上限，其余记为 `DEBUG`，直到该存储再次立即接纳查询；那时以 `INFO` 记录它拒绝了多少次。
 
 **查询永远不会让追加饿死。** 每个存储的快照查询和 `events` 查询都在它们自己的上限下运行，它的日志的长重放也是：状态读取的重放，以及订阅重建状态时重放超过日志一页（512 次提交）的重放。除非 `wow.query.max-concurrent` 把它固定下来，这个上限会随存储的写入压力自适应：追加变慢或等待连接时减半，恢复后再增长回来。为查询使用单独的连接池或只读副本，可以完全消除这种争用（[PostgreSQL](./postgresql#size-the-pools)）。
 

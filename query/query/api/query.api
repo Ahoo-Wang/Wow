@@ -597,8 +597,10 @@ public final class me/ahoo/wow/query/error/QueryBindingError$Companion {
 }
 
 public final class me/ahoo/wow/query/error/QueryBusyException : me/ahoo/wow/query/error/QueryExecutionException {
-	public fun <init> (Ljava/lang/String;I)V
+	public fun <init> (Ljava/lang/String;IZ)V
+	public synthetic fun <init> (Ljava/lang/String;IZILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun getErrorCode ()Ljava/lang/String;
+	public final fun getFirstOfBurst ()Z
 	public final fun getMaxConcurrent ()I
 	public final fun getStore ()Ljava/lang/String;
 }
