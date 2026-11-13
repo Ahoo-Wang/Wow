@@ -25,7 +25,6 @@ import me.ahoo.wow.spi.VirtualThreads
 import me.ahoo.wow.spi.subscription.Checkpoint
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import java.sql.Connection
-import java.util.concurrent.atomic.AtomicReferenceArray
 import javax.sql.DataSource
 
 /**
@@ -107,17 +106,24 @@ class PostgresCheckpointStore(
      * of a batch was a transaction of its own). A key saved twice keeps its furthest position, as one statement may
      * touch a row once.
      *
-     * The rows that exist are moved first with one plain update ([MOVE]): one key lookup per row, its guard the
-     * upsert's (`position < new`), and no `ON CONFLICT`, whose speculative insert locks each conflicting row and writes
-     * that lock to the WAL (41% of a checkpoint row's WAL on a busy node, its update being HOT). That is every row of a
-     * save but a subscription's first in a partition. The update says which rows it moved; the others are either
-     * absent or refused by the guard (a position not ahead of the stored one), and only they take the upsert
-     * ([saveRows]), which inserts the absent and, its guard checked again under the row's lock, leaves the refused as
-     * they are, or moves one that a concurrent save inserted meanwhile.
+     * Two statements, each over the batch as three arrays in key order, no `ON CONFLICT DO UPDATE`:
+     * 1. [ADD] inserts the rows not there yet (a subscription's first save in a partition), `ON CONFLICT DO
+     *    NOTHING`: a row that exists is left as it is, unlocked, and nothing is written for it.
+     * 2. [MOVE] moves every row that is behind with one plain update, its guard the upsert's (`position < new`): it
+     *    locks and writes the rows it moves and no other, a row the guard refuses neither.
      *
-     * The rows go in key order, so two batches touching the same rows lock them in the same order and never wait on
-     * each other in a cycle; past [MAX_ROWS] the upserts are split into several statements of the one transaction. A
-     * failed batch commits none of them, and the caller saves them again, as it saves any batch that failed: each
+     * So the common save, every row there and behind, writes each row once, a HOT update, with no lock record.
+     * `ON CONFLICT DO UPDATE` locks each conflicting row and writes that lock to the WAL (41% of a checkpoint row's WAL
+     * on a busy node), a row its guard refuses too.
+     *
+     * The rows are locked in one pass and one order. [ADD] locks only the rows it inserts, in key order; [MOVE] only
+     * the rows it moves, in the arrays' key order (its plan probes the group's rows with them, which a test pins). So
+     * two saves touching the same rows, each ahead on some and behind on others, never wait on each other in a cycle,
+     * which an update followed by an upsert of the rows the other had moved could. A row another save inserted between
+     * the two statements is moved by [MOVE] if this save is ahead, its guard checked on the latest version, and left
+     * if not.
+     *
+     * A failed batch commits none of it, and the caller saves it again, as it saves any batch that failed: each
      * statement only moves a position forward.
      */
     override suspend fun saveAll(group: String, checkpoints: List<Checkpoint>) {
@@ -135,32 +141,20 @@ class PostgresCheckpointStore(
         val rows = checkpoints.groupBy { it.subscription to it.partition }.values
             .map { same -> same.maxBy { it.position } }
             .sortedWith(compareBy({ it.subscription }, { it.partition }))
-        val moved = move(connection, group, rows)
-        rows.filterNot { (it.subscription to it.partition) in moved }.chunked(MAX_ROWS).forEach { chunk ->
-            connection.prepareStatement(saveRows(chunk.size)).use { save ->
-                chunk.forEachIndexed { at, checkpoint ->
-                    val first = at * COLUMNS
-                    save.setString(first + 1, group)
-                    save.setString(first + 2, checkpoint.subscription)
-                    save.setInt(first + 3, checkpoint.partition)
-                    save.setLong(first + 4, checkpoint.position)
-                }
-                save.executeUpdate()
-            }
-        }
+        execute(connection, ADD, group, rows)
+        execute(connection, MOVE, group, rows)
     }
 
-    /** Moves the rows of [rows] that exist and are behind, with one update; the keys it moved. */
-    private fun move(connection: Connection, group: String, rows: List<Checkpoint>): Set<Pair<String, Int>> =
-        connection.prepareStatement(MOVE).use { update ->
-            update.setArray(1, connection.createArrayOf("text", rows.map { it.subscription }.toTypedArray()))
-            update.setArray(2, connection.createArrayOf("integer", rows.map { it.partition }.toTypedArray()))
-            update.setArray(3, connection.createArrayOf("bigint", rows.map { it.position }.toTypedArray()))
-            update.setString(4, group)
-            update.executeQuery().use { moved ->
-                buildSet { while (moved.next()) add(moved.getString(1) to moved.getInt(2)) }
-            }
+    /** Runs [sql], [ADD] or [MOVE], over [rows] given as three arrays in key order, and [group]. */
+    private fun execute(connection: Connection, sql: String, group: String, rows: List<Checkpoint>) {
+        connection.prepareStatement(sql).use { statement ->
+            statement.setArray(1, connection.createArrayOf("text", rows.map { it.subscription }.toTypedArray()))
+            statement.setArray(2, connection.createArrayOf("integer", rows.map { it.partition }.toTypedArray()))
+            statement.setArray(3, connection.createArrayOf("bigint", rows.map { it.position }.toTypedArray()))
+            statement.setString(4, group)
+            statement.executeUpdate()
         }
+    }
 
     internal companion object {
         const val TABLE = "wow_checkpoint"
@@ -187,30 +181,36 @@ class PostgresCheckpointStore(
         val SAVE = rowsSql(1)
 
         /**
-         * Moves the rows of a batch that exist and are behind, the batch given as three arrays in key order, and
-         * returns the keys it moved: one lookup of the key a row, as a plain update, no lock beyond the update's.
+         * Inserts the rows of a batch not there yet, the batch given as three arrays in key order and its group. The
+         * rows its snapshot holds are filtered out first, by one read of the group's rows, so a save whose rows all
+         * exist inserts nothing and checks no conflict; a row another save inserted meanwhile conflicts, and is left as
+         * it is.
+         */
+        val ADD = """
+            INSERT INTO $TABLE (subscription_group, subscription, partition, position)
+            SELECT g.subscription_group, v.subscription, v.partition, v.position
+            FROM unnest(?::text[], ?::integer[], ?::bigint[]) AS v(subscription, partition, position),
+                (SELECT ?::text AS subscription_group) AS g
+            WHERE NOT EXISTS (
+                SELECT 1 FROM $TABLE AS c
+                WHERE c.subscription_group = g.subscription_group AND c.subscription = v.subscription
+                    AND c.partition = v.partition
+            )
+            ON CONFLICT (subscription_group, subscription, partition) DO NOTHING
+        """.trimIndent()
+
+        /**
+         * Moves the rows of a batch that are behind, the batch given as three arrays in key order and its group: a
+         * plain update, which locks the rows it moves and no other.
          */
         val MOVE = """
             UPDATE $TABLE AS c SET position = v.position
             FROM unnest(?::text[], ?::integer[], ?::bigint[]) AS v(subscription, partition, position)
             WHERE c.subscription_group = ? AND c.subscription = v.subscription AND c.partition = v.partition
                 AND c.position < v.position
-            RETURNING c.subscription, c.partition
         """.trimIndent()
 
-        /** The parameters of one row of [saveRows]. */
-        private const val COLUMNS = 4
-
-        /** The most rows one statement of [saveBatch] upserts: well under PostgreSQL's 32,767 parameters. */
-        const val MAX_ROWS = 1_000
-
-        /** [saveRows] of each row count up to [MAX_ROWS], built once: a batch saves without building its SQL. */
-        private val saves = AtomicReferenceArray<String>(MAX_ROWS + 1)
-
-        /** Upserts [rows] checkpoints in the order given, each moving its position only forward. */
-        fun saveRows(rows: Int): String =
-            saves.get(rows) ?: rowsSql(rows).also { if (rows <= MAX_ROWS) saves.set(rows, it) }
-
+        /** Upserts one checkpoint ([save]), moving its position only forward. */
         private fun rowsSql(rows: Int): String = """
             INSERT INTO $TABLE AS c (subscription_group, subscription, partition, position)
             VALUES ${List(rows) { "(?, ?, ?, ?)" }.joinToString(", ")}
