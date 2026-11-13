@@ -271,6 +271,30 @@ class SharedStatesTest {
     }
 
     @Test
+    fun `a stripe should keep views over its share of the bytes while the whole is under the bound`() {
+        // 64 stripes of the default capacity: a stripe's share of 1,000 bytes would be 15. The bound is the whole's.
+        val views = SharedStates(
+            codec,
+            mapOf(SNAPSHOT to setOf(CART)),
+            SharedStateOptions(maxBytes = 1_000),
+            time,
+        )
+        val state = "x".repeat(25)
+        (1..3).forEach { views.put(alice, SerializedState(it, state)) }
+        views.bytes.assert().isEqualTo(150L)
+        (1..3).forEach { views.get(alice, it).assert().isNotNull() }
+        // 1,050 bytes with this one: over the whole's bound, its put evicts its own stripe's oldest view until under.
+        views.put(alice, SerializedState(4, "y".repeat(450)))
+        views.bytes.assert().isEqualTo(1_000L)
+        views.get(alice, 1).assert().isNull()
+        (2..4).forEach { views.get(alice, it).assert().isNotNull() }
+        views.put(alice, SerializedState(5, state))
+        views.bytes.assert().isEqualTo(1_000L)
+        views.get(alice, 2).assert().isNull()
+        views.get(alice, 5).assert().isNotNull()
+    }
+
+    @Test
     fun `the views should age out at the next put on their stripe, a read evicting nothing`() {
         // A capacity this small is one stripe: every put below is on the stripe of both aggregates.
         val views = views(maxAge = 10.seconds)
