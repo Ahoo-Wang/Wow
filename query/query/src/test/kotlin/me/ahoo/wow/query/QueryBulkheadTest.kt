@@ -13,6 +13,10 @@
 
 package me.ahoo.wow.query
 
+import ch.qos.logback.classic.Level
+import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.core.read.ListAppender
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
@@ -29,10 +33,12 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.query.admission.QueryBulkhead
 import me.ahoo.wow.query.error.QueryBusyException
+import me.ahoo.wow.query.observe.QueryLogObserver
 import me.ahoo.wow.query.observe.started
 import me.ahoo.wow.spi.StorageBusyException
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.slf4j.LoggerFactory
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -60,6 +66,55 @@ class QueryBulkheadTest {
 
     private suspend fun busy(block: suspend () -> Unit): QueryBusyException =
         runCatching { block() }.exceptionOrNull() as QueryBusyException
+
+    @Test
+    fun `a store hovering at its limit should keep one burst of refusals open, logged once`(): Unit = runBlocking {
+        var now = 0L
+        val bulkhead = QueryBulkhead("main", 1, maxWait = Duration.ZERO, nanoTime = { now })
+        val hovering = logged {
+            repeat(4) { round ->
+                now = round.seconds.inWholeNanoseconds
+                bulkhead.acquire()
+                busy { bulkhead.acquire() }
+                bulkhead.release()
+                // Admitted at once within the quiet interval: the burst stays open.
+                bulkhead.run { "admitted at once" }
+            }
+        }
+        hovering.filter { it.level == Level.WARN }.map { it.formattedMessage }.assert().containsExactly(
+            "Query store [main] runs as many queries as it allows at once (1): it refuses queries (429 " +
+                "wow.query.busy). Later refusals are counted, and logged at debug level until it admits a query at " +
+                "once 10 seconds after the last one.",
+        )
+        hovering.filter { it.level == Level.INFO }.assert().isEmpty()
+        // The last refusal was at 3 s: an admission at once 10 s later ends the burst, with every refusal counted.
+        now = (3.seconds + QueryBulkhead.BURST_QUIET).inWholeNanoseconds
+        val ended = logged { bulkhead.run { "admitted at once" } }
+        ended.map { it.formattedMessage }.assert()
+            .containsExactly("Query store [main] admits queries at once again, after refusing 4 in 3s.")
+        ended.single().level.assert().isEqualTo(Level.INFO)
+        // Outside a burst an admission logs nothing, and the next refusal opens a later burst with its warning.
+        logged { bulkhead.run { "admitted at once" } }.assert().isEmpty()
+        bulkhead.acquire()
+        val again = logged { busy { bulkhead.acquire() } }
+        again.map { it.level }.assert().containsExactly(Level.WARN)
+        again.single().loggerName.assert().isEqualTo(QueryLogObserver::class.java.name)
+        bulkhead.release()
+    }
+
+    /** The WARN and INFO events of the query log while [block] runs. */
+    private suspend fun logged(block: suspend () -> Unit): List<ILoggingEvent> {
+        val logger = LoggerFactory.getLogger(QueryLogObserver::class.java) as Logger
+        val appender = ListAppender<ILoggingEvent>().apply { start() }
+        logger.addAppender(appender)
+        return try {
+            block()
+            synchronized(appender) { appender.list.toList() }.filter { it.level.isGreaterOrEqual(Level.INFO) }
+        } finally {
+            logger.detachAppender(appender)
+            appender.stop()
+        }
+    }
 
     @Test
     fun `a call beyond the bound should fail busy once its wait runs out, and pass once a permit is back`(): Unit =
