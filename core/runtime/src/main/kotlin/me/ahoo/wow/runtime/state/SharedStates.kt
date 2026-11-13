@@ -459,8 +459,8 @@ class SharedStates(
 
         /** Called under the lock. */
         private fun evictEldest() {
-            val eldest = order.keys.first()
-            order.remove(eldest)?.let { heldBytes.addAndGet(-it.bytes) }
+            val (eldest, entry) = order.pollFirstEntry()
+            heldBytes.addAndGet(-entry.bytes)
             val slot = slots[eldest.ref] ?: return
             slot.views.remove(eldest.version)
             if (slot.views.isEmpty()) {
