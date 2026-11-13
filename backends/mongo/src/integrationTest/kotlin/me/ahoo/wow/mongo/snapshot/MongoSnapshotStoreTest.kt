@@ -279,13 +279,13 @@ class MongoSnapshotStoreTest : SnapshotStoreSpec() {
             snapshot("a", version).copyWith(ref = AggregateType(context, "aggregate").ref("tenant", "a"))
         saving.save(of(single, 1)).assert().isTrue()
         batching.saveAll(listOf(of(batch, 1))).single().assert().isEqualTo(SnapshotSaveOutcome.Written)
+        // The same fields by name, BSON type and value. Not their order: an upsert's insert takes the filter's fields
+        // in an order mongod does not hold between a findAndModify (the save) and a bulk's update (the batch), and no
+        // reader depends on it.
         stored(single).assertSameFieldsAs(stored(batch))
-        // One update for both: the fields in the same order too, which no reader depends on.
-        stored(single).keys.toList().assert().isEqualTo(stored(batch).keys.toList())
         saving.save(of(single, 2)).assert().isTrue()
         batching.saveAll(listOf(of(batch, 2))).single().assert().isEqualTo(SnapshotSaveOutcome.Written)
         stored(single).assertSameFieldsAs(stored(batch))
-        stored(single).keys.toList().assert().isEqualTo(stored(batch).keys.toList())
     }
 
     /** The one snapshot document of [context]'s collection, as stored. */
