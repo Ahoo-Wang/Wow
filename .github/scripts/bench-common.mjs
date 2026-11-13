@@ -5,6 +5,7 @@
  */
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 // What bench.mjs and its kinds' modules share: running bench.sh, reading its JSON, and the summaries' formats. It
 // imports none of them.
@@ -201,11 +202,40 @@ export function tuningOf(arm) {
   return Object.keys(tuning).length ? tuning : undefined;
 }
 
-/** [arm] with its pool (`pool`) and its tuning (`tuning`) recorded, each when it has one. */
-export const withRecorded = arm => {
+/**
+ * The stamp of the build at [install] (its `wow-build-stamp`, test/benchmarks/build-stamp.gradle.kts) in short words:
+ * its commit's first ten characters, `with changes` when its tree had some; undefined without one.
+ */
+export function buildStampOf(install) {
+  const file = install && join(install, 'wow-build-stamp');
+  if (!file || !existsSync(file)) return undefined;
+  const text = readFileSync(file, 'utf8');
+  const commit = text.match(/^commit=(\S+)/m)?.[1]?.slice(0, 10) ?? 'unknown';
+  return /^dirty=no$/m.test(text) ? commit : `${commit} with changes`;
+}
+
+/**
+ * The build [arm] runs, as bench.yml names each to bench.mjs: `INSTALL_<ARM>` in [env] (`INSTALL_HEAD`,
+ * `INSTALL_BASE`); undefined without one.
+ */
+const installOf = (arm, env) =>
+  arm?.install
+    ? env[`INSTALL_${String(arm.install).toUpperCase()}`]
+    : undefined;
+
+/**
+ * [arm] with its pool (`pool`), its tuning (`tuning`) and its build's stamp (`build`, [buildStampOf]) recorded, each
+ * when it has one.
+ */
+export const withRecorded = (arm, env = process.env) => {
   const pooled = withPool(arm);
   const tuning = tuningOf(arm);
-  return tuning ? { ...pooled, tuning } : pooled;
+  const build = buildStampOf(installOf(arm, env));
+  return {
+    ...pooled,
+    ...(tuning ? { tuning } : {}),
+    ...(build ? { build } : {}),
+  };
 };
 
 /** A suite's arms' pools for its runners row: `-` without one. */

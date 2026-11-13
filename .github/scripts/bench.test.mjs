@@ -444,6 +444,14 @@ test("the jdk suites pair the head's server on JDK 21 with it on 25", () => {
     JAVA_HOME_25_X64: fakeJdk(dir, '25.0.1+8-LTS'),
   };
   assert.deepEqual(suitesOf('jdk'), ['jdk-e1-pg', 'jdk-e3-pg', 'jdk-e1-mongo']);
+  // The head's build, as bench.yml names it, stamped: each arm's line names it.
+  const head = join(dir, 'head-install');
+  mkdirSync(head);
+  writeFileSync(
+    join(head, 'wow-build-stamp'),
+    'commit=53208e5e49abc\ndirty=no\n',
+  );
+  process.env.INSTALL_HEAD = head;
   const suite = runSuite('jdk-e1-pg', {
     benchPath,
     warmUp: 1,
@@ -453,6 +461,7 @@ test("the jdk suites pair the head's server on JDK 21 with it on 25", () => {
     env,
     out: join(dir, 'results', 'jdk-e1-pg'),
   });
+  delete process.env.INSTALL_HEAD;
   assert.deepEqual(
     suite.arms.map(arm => [arm.id, arm.install, arm.jdk]),
     [
@@ -469,7 +478,7 @@ test("the jdk suites pair the head's server on JDK 21 with it on 25", () => {
   assert.ok(calls.every(line => !line.includes('--install=')));
   assert.match(
     renderSuite(suite),
-    /- `jdk21`: the server on JDK Eclipse Adoptium 21\.0\.9\+10-LTS\n- `jdk25`: the server on JDK Eclipse Adoptium 25\.0\.1\+8-LTS/,
+    /- `jdk21`: build 53208e5e49; the server on JDK Eclipse Adoptium 21\.0\.9\+10-LTS\n- `jdk25`: build 53208e5e49; the server on JDK Eclipse Adoptium 25\.0\.1\+8-LTS/,
   );
   // Its A/A thresholds are its ab twin's.
   assert.equal(noiseLabel(suite), 'e1-pg-uniform@100k');

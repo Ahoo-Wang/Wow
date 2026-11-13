@@ -311,11 +311,15 @@ setup() {
   local scenario; scenario=$(opt scenario saturation)
   OUT=$(opt out "$REPO/test/benchmarks/results/e2e/$(date +%Y%m%d-%H%M%S)-$LABEL-$BACKEND-n$NODES-$scenario")
   mkdir -p "$OUT"
+  # A session's servers run the build `up` started (resume); a new run's installs are this tree's build (stamp.sh).
+  if [ "$(opt reuse false)" != true ]; then fresh_installs; fi
   if [ ! -x "$LOAD" ]; then build; fi
   if [ "$(opt reuse false)" = true ]; then
     resume
+    record_installs
     return
   fi
+  record_installs
   # Everything started here stops when the script ends, also for `up` until its session is written, so an `up`
   # that fails leaves no server behind.
   trap down EXIT
@@ -391,6 +395,7 @@ setup() {
       printf 'S_STORE=%q\n' "$store"
       printf 'S_META=%q\n' "$META"
       printf 'S_JFR=%q\n' "$(opt jfr false)"
+      session_builds
       printf 'S_OUT=%q\n' "$OUT"
     } >"$SESSION"
   fi
@@ -512,6 +517,8 @@ component() {
   local scenario; scenario=$(opt scenario E1)
   OUT=$(opt out "$REPO/test/benchmarks/results/e2e/$(date +%Y%m%d-%H%M%S)-component-$BACKEND-$scenario")
   mkdir -p "$OUT"
+  fresh_installs
+  record_installs
   local install
   install=$(opt install "$REPO/test/benchmarks/server/build/install/benchmark-server")
   local jar
@@ -547,6 +554,8 @@ component() {
 # The batch lock: one batch at a time on this machine's harness.
 # shellcheck source=lock.sh
 . "$HARNESS/lock.sh"
+# shellcheck source=stamp.sh
+. "$HARNESS/stamp.sh"
 
 # The ABBA comparison of arms (install, server arguments) on one machine.
 # shellcheck source=abba.sh
