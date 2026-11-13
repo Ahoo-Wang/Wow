@@ -120,6 +120,24 @@ class MongoSequencerTest {
     }
 
     @Test
+    fun `the tail seals a block of this node no lane holds, and waits in a done block the lane still keeps`() {
+        // Two blocks done, the second first, each kept for the next reservation to take out.
+        val first = allocate().sequence
+        val second = allocate(CART)
+        val third = allocate(ITEM)
+        sequencer.settle(0, second.sequence)
+        sequencer.settle(checkNotNull(third.closing))
+        sequencer.settle(0, first)
+        sequencer.settle(checkNotNull(second.closing))
+        val done = MongoSequencer.OpenBlock(NODE, 1, BLOCK, listOf(ORDER))
+        sequencer.resolve(0, first + 2, listOf(done)).assert().isEqualTo(MongoSequencer.Resolution.Wait)
+        // Listed in this node's name, never known to its lane: a reservation whose reply was lost.
+        val lost = MongoSequencer.OpenBlock(NODE, BLOCK * 3 + 1, BLOCK * 4, listOf(ORDER))
+        (sequencer.resolve(0, BLOCK * 3 + 1, listOf(lost)) as MongoSequencer.Resolution.Seal).block
+            .assert().isEqualTo(lost)
+    }
+
+    @Test
     fun `the tail closes this node's unallocated remainder, and closes it again while its range is unwritten`() {
         allocate()
         val mine = listOf(MongoSequencer.OpenBlock(NODE, 1, BLOCK, listOf(ORDER)))
@@ -164,5 +182,6 @@ class MongoSequencerTest {
         const val NODE = "node"
         const val ORDER = "wow_log__shop__order"
         const val CART = "wow_log__shop__cart"
+        const val ITEM = "wow_log__shop__item"
     }
 }

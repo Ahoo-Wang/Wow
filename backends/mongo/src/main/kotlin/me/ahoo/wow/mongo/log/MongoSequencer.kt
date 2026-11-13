@@ -92,11 +92,12 @@ internal class MongoSequencer(
     /**
      * What the tail waiting at [sequence] of [partition] does about it, given the counter's open [blocks]: nothing yet
      * (an append of this node is in flight, or no block holds it), close this node's unallocated remainder, fill a
-     * sequence of this node again, or seal another node's block from [sequence] on.
+     * sequence of this node again, or seal a block from [sequence] on: another node's, or one of this node that none of
+     * its lanes holds (a reservation that committed and whose reply was lost).
      */
     fun resolve(partition: Int, sequence: Long, blocks: List<OpenBlock>): Resolution {
         val holder = blocks.firstOrNull { sequence in it.from..it.to } ?: return Resolution.Wait
-        return if (holder.node == node) lanes[partition].resolve(sequence) else Resolution.Seal(holder)
+        return if (holder.node == node) lanes[partition].resolve(sequence, holder) else Resolution.Seal(holder)
     }
 
     /** The open blocks of [partition], as the counter records them. */
@@ -225,8 +226,18 @@ internal class MongoSequencer(
             block.closed = true
         }
 
-        fun resolve(sequence: Long): Resolution = lock.withLock {
-            val block = block(sequence) ?: return Resolution.Wait
+        /**
+         * Taken under the lane's lock, so no reservation of the lane is in flight: a block of [holder]'s that the lane
+         * does not hold was never known to it. A done block it forgot when a reservation took it out after the
+         * counter was read is sealed in vain: each of its sequences is an entry or a placeholder already, and a read
+         * steps over any placeholder the seal adds inside a closed range.
+         */
+        fun resolve(sequence: Long, holder: OpenBlock): Resolution = lock.withLock {
+            val block = block(sequence) ?: return if (finished.any { sequence in it.from..it.to }) {
+                Resolution.Wait
+            } else {
+                Resolution.Seal(holder)
+            }
             when {
                 sequence in block.unfilled -> Resolution.Fill(block.unfilled.getValue(sequence))
                 sequence < block.next -> Resolution.Wait
