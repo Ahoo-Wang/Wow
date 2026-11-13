@@ -210,6 +210,7 @@ public abstract class me/ahoo/wow/query/tck/EventQueryBackendSpec : me/ahoo/wow/
 	public final fun a projection drops or keeps the events as a whole ()V
 	public final fun a projection inside the events is rejected ()V
 	public final fun a record is one stream with its system fields and its events as stored ()V
+	public final fun a record shows an owner, a space and a built-in attribute without a value as null ()V
 	public final fun a record shows the access attributes its stream carries, null when it carries none ()V
 	public final fun a sort by an event field is rejected ()V
 	public final fun access attributes select streams, a multiple one by any of its values, an unstamped stream by none ()V
@@ -218,6 +219,7 @@ public abstract class me/ahoo/wow/query/tck/EventQueryBackendSpec : me/ahoo/wow/
 	public final fun an element match on the event name selects the commits that hold one, aliases included ()V
 	public final fun an event field outside its element scope is rejected ()V
 	public final fun an expired timeout fails a list with the timeout error ()V
+	public final fun an owner without a value is null to a filter, as a system field and as a built-in attribute ()V
 	public final fun an unsorted list of one aggregate comes in version order ()V
 	public final fun list sorts by the commit time and honors the limit ()V
 	public final fun paged pages commits and counts them ()V

@@ -17,7 +17,6 @@ import kotlinx.coroutines.CoroutineDispatcher
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.spi.access.AccessStamp
-import me.ahoo.wow.spi.access.AccessValues
 import me.ahoo.wow.spi.access.AccessWalk
 import me.ahoo.wow.spi.access.AggregatePage
 import javax.sql.DataSource
@@ -40,7 +39,7 @@ internal class PostgresLogAccess(
             dataSource.autoCommitted { connection ->
                 catalog.withTable(connection, ref.type) { table ->
                     connection.prepareStatement(table.stamp).use { update ->
-                        update.setString(1, AccessValues.text(access))
+                        update.setString(1, PostgresLogAccessColumn.text(access))
                         update.setInt(2, asOf)
                         update.setString(3, ref.id)
                         update.setString(4, ref.tenantId)
@@ -87,7 +86,7 @@ internal class PostgresLogAccess(
                         connection.prepareStatement(table.stampRows).use { update ->
                             fun array(kind: String, values: List<Any>) =
                                 connection.createArrayOf(kind, values.toTypedArray())
-                            update.setArray(1, array("text", group.map { AccessValues.text(it.access) }))
+                            update.setArray(1, array("text", group.map { PostgresLogAccessColumn.text(it.access) }))
                             update.setArray(2, array("int4", group.map { it.asOf }))
                             update.setArray(3, array("text", group.map { it.ref.id }))
                             update.setArray(4, array("text", group.map { it.ref.tenantId }))

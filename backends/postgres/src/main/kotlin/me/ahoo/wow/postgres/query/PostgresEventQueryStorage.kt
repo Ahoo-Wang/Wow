@@ -18,6 +18,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.postgres.PostgresEventLogTables
+import me.ahoo.wow.postgres.PostgresLogAccessColumn
 import me.ahoo.wow.query.backend.CachedQueryBindings
 import me.ahoo.wow.query.backend.QueryBackendBinding
 import me.ahoo.wow.query.schema.LogicalQuerySchema
@@ -29,6 +30,7 @@ import me.ahoo.wow.query.schema.QueryStorageAdapter
 import me.ahoo.wow.query.schema.QueryStorageFacts
 import me.ahoo.wow.query.schema.QueryValueBindings
 import me.ahoo.wow.spi.VirtualThreads
+import me.ahoo.wow.spi.access.AccessValues
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.json.query.EventFields
 import me.ahoo.wow.spi.json.query.EventStreamFields
@@ -180,11 +182,11 @@ internal object PostgresEventQueryLayout {
                 .put("tenantId", row.getString("operator_tenant_id"))
                 .put("actedElsewhere", row.getBoolean("operator_acted_elsewhere"))
         }
-        val access = row.getString("access")
+        val access = PostgresLogAccessColumn.of(row.getString("access"))
         if (access == null) {
             putNull(EventStreamFields.ACCESS)
         } else {
-            set(EventStreamFields.ACCESS, WowJson.mapper.readTree(access))
+            set(EventStreamFields.ACCESS, AccessValues.json(access))
         }
         if (projection.keepsEvents()) {
             val events = putArray(EventStreamFields.EVENTS)
