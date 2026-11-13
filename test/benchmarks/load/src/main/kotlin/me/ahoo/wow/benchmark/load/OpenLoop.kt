@@ -189,8 +189,12 @@ class InFlightCap private constructor(val cap: Int, val boundBy: String) {
     override fun toString(): String = "InFlightCap(cap=$cap, boundBy=$boundBy)"
 
     companion object {
-        /** The most operations outstanding per target: a few thousand connections a node accepts at once. */
-        const val PER_TARGET: Int = 2_000
+        /**
+         * The most operations outstanding per target: a few thousand connections a node accepts at once. The paired
+         * suites' closed-loop search stops at the same number (bench-calibration.mjs IN_FLIGHT_PER_TARGET), so a
+         * saturation is never found at a concurrency the open loop cannot hold.
+         */
+        const val PER_TARGET: Int = 2_048
         const val BY_RATE: String = "rate x request timeout"
         const val BY_CEILING: String = "per-target ceiling"
 

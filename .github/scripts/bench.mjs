@@ -34,6 +34,31 @@ import {
   runMeasure,
 } from './bench-measure.mjs';
 import { measureSuites } from './bench-measure-suites.mjs';
+import {
+  CALIBRATED,
+  AA_ROUNDS,
+  calibratedGeneratorBound,
+  drifted,
+  EQUAL,
+  equalRate,
+  GENERATOR_BOUND,
+  GENERATOR_BUSY,
+  generatorBound,
+  median,
+  modeOf,
+  noiseOf,
+  OVERLOAD,
+  PROBE,
+  probeHeld,
+  refusedByGenerator,
+  SATURATION,
+  saturationOutlier,
+  saturationRatioBound,
+  sharesText,
+  SIGNIFICANCE_METRICS,
+  significanceSection,
+  sustainable,
+} from './bench-calibration.mjs';
 
 // The steps of bench.yml, the timed end-to-end benchmark of decision
 // D224 (test/benchmarks/README.md) on GitHub's runners:
@@ -259,7 +284,7 @@ export const SUITES = {
     distribution: 'uniform',
     arms: [BASE_MONGO, HEAD_MONGO],
     answers:
-      'E1 write on MongoDB, uniform keys: the head against the V10 baseline (regression guard), throughput and CPU at each calibrated rate, latency at one rate.',
+      'E1 write on MongoDB, uniform keys: the head against the V10 baseline (regression guard), throughput as the closed-loop saturation of each arm, latency and CPU at one rate.',
   },
   'e1-mongo-zipf': {
     group: 'ab',
@@ -1026,9 +1051,6 @@ export function queryLimitsText(stores) {
 // The anomaly checks of a run, so a run surfaces defects and not only numbers. `overload` marks a run that went past
 // what the node keeps up with by design (a calibration or capacity probe, a cliff step that did not keep up), where
 // errors are expected; signals are flagged there too, since a pause or a store fallback is worth a look either way.
-/** The error kind of an operation the load generator did not send: its in-flight cap was full. */
-export const OVERLOAD = 'generator-overload';
-
 export const ANOMALY = {
   errorPercent: 1,
   tailToMedian: 10,
@@ -1036,7 +1058,7 @@ export const ANOMALY = {
   // p50 or, with enough tail samples, p99; these defaults stand in for a suite without a threshold.
   stability: { throughput: 0.05, p50: 0.25, p99: 0.5 },
   // The load generator used this share of the CPUs it had: the run measured the generator, not the servers.
-  generatorBusy: 0.9,
+  generatorBusy: GENERATOR_BUSY,
   // A component count of the head above the baseline's by more than this.
   componentGrowth: 0.05,
   // p99 > 10× p50 is flagged only above this p99, so a 2 ms median with a 30 ms p99 does not count.
@@ -1104,10 +1126,18 @@ export function anomaliesOf(run, { overload = false, noise } = {}) {
     }
   }
   const total = m.ok + m.failed;
-  if (total > 0 && (m.failed * 100) / total > ANOMALY.errorPercent) {
-    const overloaded = Object.keys(m.errors ?? {}).some(kind =>
-      kind.endsWith(OVERLOAD),
-    );
+  const refused = refusedByGenerator(m);
+  if (total > 0 && (refused * 100) / total > ANOMALY.errorPercent) {
+    found.push({
+      kind: 'generator-bound',
+      detail: `${refused} of ${total} not sent: the load generator's in-flight cap (${m.inFlightCap ?? '?'}, ${m.inFlightBoundBy ?? '?'}) was full, not the node's error; the round is left out of the intervals`,
+    });
+  }
+  if (
+    total > 0 &&
+    ((m.failed - refused) * 100) / total > ANOMALY.errorPercent
+  ) {
+    const overloaded = refused > 0;
     const cap =
       overloaded && Number.isFinite(m.inFlightCap)
         ? `; ${OVERLOAD}: ${m.inFlightCap} in flight at most (${m.inFlightBoundBy})`
@@ -1247,39 +1277,13 @@ export function anomalies(suite, noise = {}) {
   return rows;
 }
 
-export const DRIFT = 0.05;
-// The closed loop reaches its best throughput only with deep queues, so `fraction` of it can be more than a minute
-// of open loop sustains (the first runs on GitHub's 4-vCPU runners collapsed into timeouts at 80%). Each arm's
-// rate is therefore calibrated in open loop first: a short probe at the rate, and while it is not sustainable
-// (more than 1% failed, or less than 97% of the rate completed) the rate steps down by a quarter, at most 4 probes.
-export const PROBE = { warmUp: 10, measure: 20, attempts: 4, step: 0.75 };
-
-/** Whether an open-loop run at `rate` kept up: at most 1% failed and at least 97% of the rate completed. */
-export function sustainable(m, rate) {
-  const total = (m?.ok ?? 0) + (m?.failed ?? 0);
-  return total > 0 && m.failed / total <= 0.01 && m.throughput >= 0.97 * rate;
-}
-
-// bench.sh's default cap of 256 workers stopped the closed loop before V10 flattened, and so did 1024 on GitHub's
-// runners (E1, E2 and E3), so the cap is 4096; the doubling stops on its own after two steps that gain less than 5%.
-// A saturation found at the cap is a lower bound, marked `≥` (`capped`).
-// Two arms whose saturations differ more than `outlier` times are probed again, the lower once: a search can stop
-// early on a stalled step (large-mongo arm b found 202/s at concurrency 1 against arm a's 990/s at 128, 2026-10-28,
-// run 40721764669, an A/A run of one build). The second search stands, and the first is kept beside it.
-export const SATURATION = {
-  warmUp: 3,
-  step: 8,
-  maxConcurrency: 4096,
-  outlier: 3,
-};
-
 // kind `sessions` (the Axon comparison), as the local compare.sh runs it: one session per arm and round, ABBA (W A A W
 // for two rounds). `bench.sh up` seeds and primes the data set, and the session answers three questions, in this order:
 // - same rate: both arms at one fixed rate in open loop (20 s warm-up, 40 s measured), about half of the slower arm's
 //   sustainable rate on a runner's two server CPUs, so both run loaded (the suite's `rates`): for the same work, whose
 //   latency and cost are lower. Axon's sweeps there kept p99 within 200 ms with no failure up to 1,776–1,969/s (E1) and
 //   515–655/s (E3) (EPYC 9V45, run 41568172064, whose fixed rates were 500/s and 150/s, a quarter of that).
-// - peak: each scenario's closed-loop sweep, the concurrency growing fourfold from 1 to the paired suites' cap (V10
+// - peak: each scenario's closed-loop sweep, the concurrency growing fourfold from 1 to 4,096 (V10
 //   still gained past 1,024 on GitHub's 4-core runners), then on a step at a time while the top step still rises
 //   (sweepNext): how much each handles at most. The sweep also gives the arm's sustainable rate, the most a step did
 //   with p99 within the limit and no failure (sustainableStep). Coarse then fine: short steps (`locate`, the paired
@@ -1299,7 +1303,8 @@ export const SESSIONS = {
     locate: { warmUp: SATURATION.warmUp, step: SATURATION.step },
     failAfter: 10,
     growth: 4,
-    maxConcurrency: SATURATION.maxConcurrency,
+    // The sessions' sweeps go past the paired suites' ceiling to find V10's peak, on to `limit`.
+    maxConcurrency: 4096,
     // A step gaining at most this over the one before has levelled off: the closed loop's own minimum gain.
     gain: 0.05,
     // Each client of a step holds a connection to the one node: 16,384 stay within Linux's ephemeral ports to one
@@ -1901,56 +1906,6 @@ export function generatorWithKafka(suite) {
   };
 }
 
-/** The arm of two saturations (id → `{throughput}`) to probe again: the lower, when they differ past the outlier. */
-export function saturationOutlier(saturations, ids) {
-  const [a, b] = ids.map(id => saturations[id]?.throughput);
-  if (!(a > 0) || !(b > 0)) return undefined;
-  if (Math.max(a, b) / Math.min(a, b) <= SATURATION.outlier) return undefined;
-  return a < b ? ids[0] : ids[1];
-}
-
-/** What a row shows instead of a ratio that measured the load generator rather than the servers. */
-export const GENERATOR_BOUND = 'invalid: generator-bound';
-
-/**
- * Whether a load generator that used `cores` of its `cpus` was the bottleneck: past ANOMALY.generatorBusy of them,
- * what was measured is the generator.
- */
-export function generatorBound(cores, cpus) {
-  return (
-    cpus > 0 && Number.isFinite(cores) && cores >= ANOMALY.generatorBusy * cpus
-  );
-}
-
-/** Whether an arm's closed-loop saturation step was generator-bound. */
-export function saturationGeneratorBound(suite, arm) {
-  const s = suite.saturation?.[arm];
-  return generatorBound(s?.generatorCores, s?.generatorCpus);
-}
-
-/** Whether either arm's saturation was generator-bound: the saturation ratio is then not the servers'. */
-export function saturationRatioBound(suite) {
-  return (suite.arms ?? []).some(arm =>
-    saturationGeneratorBound(suite, arm.id),
-  );
-}
-
-/**
- * Whether a run of either arm at the calibrated rates was generator-bound: its rates came from saturations or probes
- * the generator capped, so the calibrated pairs compare the generator, not the arms.
- */
-export function calibratedGeneratorBound(suite) {
-  return (suite.runs ?? []).some(
-    run =>
-      run.status === 'ok' &&
-      (run.mode ?? 'calibrated') === 'calibrated' &&
-      generatorBound(
-        run.metrics?.loadGeneratorCores,
-        run.metrics?.loadGeneratorCpus,
-      ),
-  );
-}
-
 const saturationText = s =>
   s?.throughput
     ? `${s.capped ? '≥ ' : ''}${num(s.throughput)}/s${generatorBound(s.generatorCores, s.generatorCpus) ? ` (${GENERATOR_BOUND}, ${num(s.generatorCores, 2)} of ${s.generatorCpus} cores)` : ''}${againText(s)}`
@@ -2397,33 +2352,6 @@ export function ratios(a, b) {
   );
 }
 
-/** Whether another round is due: two runs of one arm differ by more than DRIFT in throughput or p99. */
-// The rounds of a paired suite: `calibrated`, each arm at its own calibrated rate (throughput and cost compare;
-// latencies are at unequal loads), then `equal`, both arms at the lower of the two calibrated rates (latencies
-// compare).
-export const CALIBRATED = 'calibrated';
-export const EQUAL = 'equal';
-const modeOf = run => run.mode ?? CALIBRATED;
-
-/** The lower of the arms' calibrated rates: the rate of the equal-rate rounds. */
-export function equalRate(rates, arms) {
-  const values = arms.map(arm => rates[arm.id]).filter(Number.isFinite);
-  return values.length === arms.length ? Math.min(...values) : undefined;
-}
-
-export function drifted(runs, arms) {
-  return arms.some(arm => {
-    const own = runs.filter(
-      run =>
-        run.arm === arm.id && run.status === 'ok' && modeOf(run) === CALIBRATED,
-    );
-    return (
-      spread(own.map(run => run.metrics.throughput)) > DRIFT ||
-      spread(own.map(run => run.metrics.p99)) > DRIFT
-    );
-  });
-}
-
 /** The pairs of a paired suite: per round, the two arms' runs and their ratios. */
 export function pairs(suite, mode = CALIBRATED) {
   // A component suite has a head and a baseline too, but no rounds, and a sessions suite runs several scenarios a
@@ -2442,121 +2370,6 @@ export function pairs(suite, mode = CALIBRATED) {
     if (first?.status !== 'ok' || second?.status !== 'ok') return [];
     return [{ round, ratios: ratios(first.metrics, second.metrics) }];
   });
-}
-
-const median = values => {
-  const sorted = values.filter(Number.isFinite).sort((x, y) => x - y);
-  if (sorted.length === 0) return undefined;
-  const middle = Math.floor(sorted.length / 2);
-  return sorted.length % 2
-    ? sorted[middle]
-    : (sorted[middle - 1] + sorted[middle]) / 2;
-};
-
-// Significance (D224 note ②): a ratio counts only beyond the suite's noise. An A/A run (`aa`) puts the head against
-// itself; the largest deviation of its pair ratios from 1 is the suite's threshold per metric (at least NOISE_FLOOR),
-// which the report writes as noise.json, to commit as test/benchmarks/noise.json for later runs to read. The
-// confidence interval of a ratio comes from a bootstrap over the measured seconds of both arms' runs in that mode:
-// the mean per-second throughput, the median per-second p50 and p99.
-export const NOISE_FLOOR = 0.02;
-export const AA_ROUNDS = 4;
-export const BOOTSTRAP = { resamples: 1000, seed: 20261020 };
-export const SIGNIFICANCE_METRICS = [
-  ['throughput', 'okSeries', 'mean'],
-  ['p50', 'p50Series', 'median'],
-  ['p99', 'p99Series', 'median'],
-];
-
-/** A small seeded generator (mulberry32), so a report's intervals are the same every time it is rendered. */
-function random(seed) {
-  let state = seed >>> 0;
-  return () => {
-    state = (state + 0x6d2b79f5) >>> 0;
-    let t = state;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-/** The 95% bootstrap interval of statistic(b) / statistic(a) over the samples, with its point value. */
-export function bootstrapRatio(a, b, statistic) {
-  const xs = a.filter(Number.isFinite);
-  const ys = b.filter(Number.isFinite);
-  if (xs.length < 2 || ys.length < 2) return undefined;
-  const of = values =>
-    statistic === 'mean'
-      ? values.reduce((sum, v) => sum + v, 0) / values.length
-      : median(values);
-  const next = random(BOOTSTRAP.seed);
-  const draw = values =>
-    Array.from(
-      { length: values.length },
-      () => values[Math.floor(next() * values.length)],
-    );
-  const ratios = [];
-  for (let i = 0; i < BOOTSTRAP.resamples; i++) {
-    const x = of(draw(xs));
-    if (x > 0) ratios.push(of(draw(ys)) / x);
-  }
-  ratios.sort((p, q) => p - q);
-  const at = q =>
-    ratios[Math.min(ratios.length - 1, Math.floor(q * ratios.length))];
-  const point = of(xs) > 0 ? of(ys) / of(xs) : undefined;
-  return { point, lo: at(0.025), hi: at(0.975) };
-}
-
-/** The bootstrap intervals of a paired suite's ratios in one mode, per significance metric. */
-export function confidence(suite, mode) {
-  if (suite.arms?.length !== 2) return {};
-  const [a, b] = suite.arms.map(arm => arm.id);
-  const runs = suite.runs.filter(
-    run => modeOf(run) === mode && run.status === 'ok',
-  );
-  const pool = (id, key) =>
-    runs.filter(run => run.arm === id).flatMap(run => run.metrics[key] ?? []);
-  // A latency's point estimate is the median of the rounds' own percentiles (each from the run's whole histogram);
-  // its interval comes from the bootstrap over the measured seconds.
-  const perRound = (id, metric) =>
-    median(runs.filter(run => run.arm === id).map(run => run.metrics[metric]));
-  return Object.fromEntries(
-    SIGNIFICANCE_METRICS.map(([metric, key, statistic]) => {
-      const interval = bootstrapRatio(pool(a, key), pool(b, key), statistic);
-      if (!interval || metric === 'throughput') return [metric, interval];
-      const pa = perRound(a, metric);
-      const pb = perRound(b, metric);
-      return [
-        metric,
-        { ...interval, point: pa > 0 ? pb / pa : interval.point },
-      ];
-    }),
-  );
-}
-
-/**
- * An A/A suite's noise per significance metric: the half-width of the 95% bootstrap interval of its equal-rate
- * ratio (the head against itself at one rate, AA_ROUNDS rounds), at least NOISE_FLOOR. Null when the suite measured
- * no equal-rate pair: a failed suite has no noise, and the floor would make every later ratio significant.
- */
-export function noiseOf(suite) {
-  const intervals = confidence(suite, EQUAL);
-  if (!SIGNIFICANCE_METRICS.some(([metric]) => intervals[metric])) return null;
-  return Object.fromEntries(
-    SIGNIFICANCE_METRICS.map(([metric]) => {
-      const interval = intervals[metric];
-      const half = interval ? (interval.hi - interval.lo) / 2 : NaN;
-      return [metric, Math.max(NOISE_FLOOR, Number.isFinite(half) ? half : 0)];
-    }),
-  );
-}
-
-/** Whether a ratio's interval clears the noise threshold: `higher`, `lower`, `within noise` or `uncalibrated`. */
-export function verdict(interval, threshold) {
-  if (!interval) return 'no data';
-  if (!Number.isFinite(threshold)) return 'uncalibrated';
-  if (interval.lo > 1 + threshold) return 'higher';
-  if (interval.hi < 1 - threshold) return 'lower';
-  return 'within noise';
 }
 
 /** min, median and max of finite values, or undefined. */
@@ -3214,11 +3027,13 @@ export function renderSuite(suite) {
       '',
     );
   } else if (calibratedPairs.length > 0) {
+    const shares = sharesText(suite);
     lines.push(
-      'Pairs at the calibrated rates (throughput and CPU compare; the latencies are at unequal loads):',
+      "Pairs at the calibrated rates (each arm at its own rate: an open loop's throughput is its offered rate, so the throughput ratio is the calibrations'; CPU and latency are at unequal loads):",
       '',
       ...calibratedPairs,
       '',
+      ...(shares ? [shares, ''] : []),
     );
   }
   const equalPairs = pairTable(suite, EQUAL);
@@ -3714,7 +3529,7 @@ export function runSuite(name, options) {
           measure: PROBE.measure,
           into: suite.probes,
         });
-        if (probe.status === 'ok' && sustainable(probe.metrics, rate)) {
+        if (probe.status === 'ok' && probeHeld(probe.metrics, rate)) {
           kept = true;
           break;
         }
@@ -4258,47 +4073,7 @@ export function renderReport(suites, meta = {}) {
       '',
     );
   }
-  const noise = meta.noise ?? {};
-  const significant = suites.filter(
-    s => s.kind === 'paired' && s.arms.length === 2 && !s.aa,
-  );
-  if (significant.length > 0) {
-    const rows = [];
-    let beyond = 0;
-    let calibrated = 0;
-    for (const suite of significant) {
-      const thresholds = noise[noiseLabel(suite)];
-      if (thresholds) calibrated++;
-      const [a, b] = suite.arms.map(arm => arm.id);
-      // Throughput and CPU compare at the calibrated rates, latencies at the equal rate.
-      for (const [metric, mode] of [
-        ['throughput', CALIBRATED],
-        ['p50', EQUAL],
-        ['p99', EQUAL],
-      ]) {
-        const interval = confidence(suite, mode)[metric];
-        const result =
-          mode === CALIBRATED && calibratedGeneratorBound(suite)
-            ? GENERATOR_BOUND
-            : verdict(interval, thresholds?.[metric]);
-        if (result === 'higher' || result === 'lower') beyond++;
-        rows.push(
-          `| ${labelOf(suite)} | ${b}/${a} | ${metric} | ${mode} | ${interval ? `${ratio(interval.point)} [${ratio(interval.lo)}–${ratio(interval.hi)}]` : '-'} | ` +
-            `${thresholds?.[metric] ? `±${num(thresholds[metric] * 100)}%` : '-'} | ${result === 'higher' || result === 'lower' ? `**${result}**` : result} |`,
-        );
-      }
-    }
-    lines.push(
-      '## Significance',
-      '',
-      `Beyond noise: ${beyond} of ${rows.length} ratios; ${calibrated} of ${significant.length} suites have an A/A noise threshold (test/benchmarks/noise.json). A ratio counts when its 95% bootstrap interval (over the measured seconds) clears the suite's threshold; without one it is \`uncalibrated\`.`,
-      '',
-      '| Suite | b/a | Metric | Rounds | Ratio [95% CI] | Noise | Verdict |',
-      '| --- | --- | --- | --- | --- | --- | --- |',
-      ...rows,
-      '',
-    );
-  }
+  lines.push(...significanceSection(suites, meta.noise ?? {}, noiseLabel));
   const aaSuites = suites.filter(s => s.aa);
   if (aaSuites.length > 0) {
     lines.push(
@@ -4421,7 +4196,7 @@ export function renderReport(suites, meta = {}) {
       '',
       '## Paired ratios',
       '',
-      '`calibrated`: each arm at its own calibrated rate, so throughput and CPU per operation compare but the latencies are at **unequal loads**. `equal rate`: both arms at the lower of the two calibrated rates; read the latency ratios from these rows.',
+      "`calibrated`: each arm at its own calibrated rate, so the throughput ratio is the ratio of the calibrations (an open loop's throughput is its offered rate) and CPU and latencies are at **unequal loads**. `equal rate`: both arms at the lower of the two calibrated rates; read the latency and cost ratios from these rows.",
       '',
       `| Suite | b/a | Rounds | Saturation | ${RATIO_METRICS.map(([, label]) => label).join(' | ')} |`,
       `| --- | --- | --- | --- | ${RATIO_METRICS.map(() => '---').join(' | ')} |`,
