@@ -33,13 +33,21 @@ import kotlin.concurrent.withLock
  * aggregate's previous stream, written by another node), takes a new block: the current one is closed at its next
  * sequence, so its remainder is final without placeholders ([Closing]).
  *
- * Every allocated sequence is **settled** by the log: written, or a placeholder written at it. A block leaves the
- * counter's list once it is used up or closed and every sequence it gave is settled; until then it stays, and the
- * partition's tail can resolve a sequence it waits at ([resolve]): its own unallocated remainder is closed, an
+ * Every allocated sequence is **settled** by the log: written, or a placeholder written at it. A block is **done** once
+ * it is used up or closed and every sequence it gave is settled. It is not taken out of the counter's list then, which
+ * would cost a write of its own: its node's next reservation in the partition takes it out in the same update that
+ * adds the new block, and a tail of the partition that has read through it takes it out once it has seen it so for a
+ * grace ([DoneBlocks]), by when a live node has reserved again: that is what clears the done blocks of a node that
+ * stopped before its next reservation. So **a listed block is open, or
+ * done and waiting for its node's next reservation or for a tail.** Both name the block (its node and its first
+ * sequence), so either taking it out first leaves the other a no-op, and neither touches a block being added.
+ *
+ * Until a block is done, the partition's tail can resolve a sequence it waits at ([resolve]): its own unallocated remainder is closed, an
  * allocated sequence whose placeholder could not be written is filled again, another node's block is the log's to seal
  * with placeholders (a node that stopped, or a zombie, may still write it, and the placeholders take its sequences
  * first). A node whose block another node sealed meets a taken position on its next insert and drops the block
- * ([abandon]).
+ * ([abandon]). A done block holds no sequence a tail waits at, so a done block still listed is never resolved, and the
+ * collections it names were registered when it was reserved.
  *
  * [node] identifies this log's process for its blocks only; a restarted node has another, so its former blocks are
  * sealed like any stopped node's.
@@ -95,7 +103,7 @@ internal class MongoSequencer(
     fun openBlocks(counter: Document?): List<OpenBlock> =
         counter?.getList(BLOCKS, Document::class.java).orEmpty().map(OpenBlock::of)
 
-    /** Takes [block] out of [partition]'s list, once sealed. */
+    /** Takes [block] out of [partition]'s list: once sealed, or done and read through by a tail. */
     fun remove(partition: Int, block: OpenBlock) {
         counters.updateOne(
             Filters.eq(MongoEventLog.ID, partition),
@@ -120,28 +128,29 @@ internal class MongoSequencer(
         /** Blocks this node no longer allocates from, until every sequence they gave is settled. */
         private val retired = ArrayList<Block>()
 
-        fun allocate(collection: String, after: Long, registered: () -> Collection<String>): Allocation {
-            val done = ArrayList<Block>()
-            val allocation = lock.withLock {
+        /** Done blocks still on the counter's list, for this lane's next reservation to take out. */
+        private val finished = ArrayList<Block>()
+
+        fun allocate(collection: String, after: Long, registered: () -> Collection<String>): Allocation =
+            lock.withLock {
                 var closing: Closing? = null
                 val usable = current?.takeIf { it.next <= it.to && collection in it.collections && it.next > after }
                 val block = usable ?: run {
-                    // Reserved first: a reservation that fails leaves the current block as it was.
-                    val fresh = reserve(registered() + collection)
+                    // Reserved first, the done blocks taken out in the same update: a reservation that fails leaves
+                    // the current block and the list as they were.
+                    // The current block among them when it is used up and settled, as it usually is by now.
+                    val done = finished + retired.filter { it.done } + listOfNotNull(current?.takeIf { it.done })
+                    val fresh = reserve(registered() + collection, done)
                     closing = current?.let(::retire)
-                    retired.filter { it.done }.forEach {
-                        retired -= it
-                        done += it
-                    }
+                    // Every done block was taken out, the current one too when it was: none is left in `retired`.
+                    finished.clear()
+                    retired -= done.toSet()
                     fresh.also { current = it }
                 }
                 val sequence = block.next++
                 block.pending += sequence
                 Allocation(partition, sequence, closing)
             }
-            done.forEach(::remove)
-            return allocation
-        }
 
         /** Stops allocating from [block]; its remainder, when it has one, is to be closed, which it then waits for. */
         private fun retire(block: Block): Closing? {
@@ -155,17 +164,19 @@ internal class MongoSequencer(
 
         private fun closingOf(block: Block) = Closing(partition, block.next, block.to, block.collections.first())
 
-        private fun remove(block: Block) =
-            remove(partition, OpenBlock(node, block.from, block.to, block.collections.toList()))
-
-        private fun reserve(collections: Collection<String>): Block {
+        /**
+         * Reserves the next block for [collections], and takes this node's [done] blocks out of the list in the same
+         * update, each by its node and first sequence.
+         */
+        private fun reserve(collections: Collection<String>, done: List<Block>): Block {
             val names = collections.distinct()
             val add = Document(NODE, node)
                 .append(FROM, Document("\$add", listOf("\$${MongoEventLog.SEQUENCE}", 1L)))
                 .append(TO, Document("\$add", listOf("\$${MongoEventLog.SEQUENCE}", blockSize)))
                 .append(COLLECTIONS, names)
             // One pipeline update: both fields are computed from the counter as it was, so the block is the next range.
-            val open = Document("\$ifNull", listOf("\$$BLOCKS", emptyList<Any>()))
+            val listed = Document("\$ifNull", listOf("\$$BLOCKS", emptyList<Any>()))
+            val open = if (done.isEmpty()) listed else withoutDone(listed, done)
             val blocks = Document("\$concatArrays", listOf(open, listOf(add)))
             val sequence = Document("\$add", listOf("\$${MongoEventLog.SEQUENCE}", blockSize))
             val update = listOf(Document("\$set", Document(BLOCKS, blocks).append(MongoEventLog.SEQUENCE, sequence)))
@@ -177,14 +188,29 @@ internal class MongoSequencer(
             return Block(to - blockSize + 1, to, names.toSet())
         }
 
-        fun settle(sequence: Long) {
-            val done = lock.withLock {
-                val block = block(sequence) ?: return
-                block.pending -= sequence
-                block.unfilled -= sequence
-                if (block.done && block in retired) block.also { retired -= it } else null
+        /** [listed] less this node's [done] blocks, each named by its node and first sequence. */
+        private fun withoutDone(listed: Document, done: List<Block>): Document {
+            val isDone = Document(
+                "\$and",
+                listOf(
+                    Document("\$eq", listOf("\$\$block.$NODE", node)),
+                    Document("\$in", listOf("\$\$block.$FROM", done.map { it.from })),
+                ),
+            )
+            return Document(
+                "\$filter",
+                Document("input", listed).append("as", "block").append("cond", Document("\$not", listOf(isDone))),
+            )
+        }
+
+        fun settle(sequence: Long) = lock.withLock {
+            val block = block(sequence) ?: return@withLock
+            block.pending -= sequence
+            block.unfilled -= sequence
+            if (block.done && block in retired) {
+                retired -= block
+                finished += block
             }
-            done?.let(::remove)
         }
 
         fun unfilled(sequence: Long, collection: String) =

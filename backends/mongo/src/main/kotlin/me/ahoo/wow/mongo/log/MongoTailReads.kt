@@ -47,6 +47,8 @@ internal class MongoTailReads(
     /** The registry as a majority committed it, which [headOf] reads with the counter and the collections' heads. */
     private val committedRegistry: MongoCollection<Document>,
     private val context: String,
+    /** The done blocks this log's tails take out of the counter's list, once read through for a grace. */
+    private val doneBlocks: DoneBlocks = DoneBlocks(),
 ) {
     /**
      * One read of the tail after [last]: the counter of [partition], then each aggregate collection's entries and
@@ -93,12 +95,17 @@ internal class MongoTailReads(
         val pastRun = entries.keys.any { it > next } || gaps.keys.any { it > next }
         val missing = next.takeIf { pastRun || unread(counter, next, end) && beyond(partition, end, known) }
         val names = known.map { it.name }.toSet()
-        val unknown = sequencer.openBlocks(counter).any { block -> block.collections.any { it !in names } }
+        val blocks = sequencer.openBlocks(counter)
+        val unknown = blocks.any { block -> block.collections.any { it !in names } }
         val again = when {
             next > end -> true
             unknown || missing != null -> collections.register().map { it.name }.toSet() != names
             else -> false
         }
+        // A listed block wholly at or below the run this read went through (`through`: each of its sequences an entry
+        // or a placeholder) is done, whoever's it is: taken out of the counter's list once seen so for a grace, its
+        // node's next reservation having not come by then (DoneBlocks). A write only then; none on a poll before.
+        doneBlocks.due(partition, blocks, through = next - 1).forEach { sequencer.remove(partition, it) }
         return TailBatch(run, through = next - 1, missing, again)
     }
 

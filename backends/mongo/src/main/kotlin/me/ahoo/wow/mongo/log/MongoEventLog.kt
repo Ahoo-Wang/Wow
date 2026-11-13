@@ -185,6 +185,7 @@ class MongoEventLog(
         options.tailBatch,
         committedRegistry,
         context,
+        DoneBlocks(options.doneGrace),
     )
 
     /** Where an aggregate's streams are found. */

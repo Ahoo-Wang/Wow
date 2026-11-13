@@ -48,6 +48,11 @@ class MongoEventLogOptions(
     val ddl: Ddl = Ddl.AUTO,
     /** Whether the log shards its aggregate collections on a sharded cluster (the store's `sharding` option). */
     val sharding: MongoSharding = MongoSharding.AUTO,
+    /**
+     * How long a tail leaves a done block on the counter's list, read through, for its node's next reservation
+     * ([DoneBlocks]); zero takes it out at once.
+     */
+    val doneGrace: Duration = DoneBlocks.GRACE,
 ) {
     init {
         require(pollInterval.isPositive()) { "The poll interval is positive." }
@@ -55,6 +60,7 @@ class MongoEventLogOptions(
         require(tailBatch >= 1) { "A tail reads at least one sequence at a time." }
         require(appendTimeout.isPositive()) { "The append timeout is positive." }
         require(operationTimeout.isPositive()) { "The operation timeout is positive." }
+        require(!doneGrace.isNegative()) { "The done blocks' grace is never negative." }
     }
 
     override fun equals(other: Any?): Boolean =
@@ -64,10 +70,11 @@ class MongoEventLogOptions(
 
     override fun toString(): String =
         "MongoEventLogOptions(pollInterval=$pollInterval, maxPollInterval=$maxPollInterval, tailBatch=$tailBatch, " +
-            "appendTimeout=$appendTimeout, operationTimeout=$operationTimeout, ddl=$ddl, sharding=$sharding)"
+            "appendTimeout=$appendTimeout, operationTimeout=$operationTimeout, ddl=$ddl, sharding=$sharding, " +
+            "doneGrace=$doneGrace)"
 
     private fun valueFields(): List<Any?> =
-        listOf(pollInterval, maxPollInterval, tailBatch, appendTimeout, operationTimeout, ddl, sharding)
+        listOf(pollInterval, maxPollInterval, tailBatch, appendTimeout, operationTimeout, ddl, sharding, doneGrace)
 
     internal companion object {
         val DEFAULT_POLL_INTERVAL: Duration = 50.milliseconds

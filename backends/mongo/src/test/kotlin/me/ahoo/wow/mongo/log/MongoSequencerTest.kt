@@ -29,9 +29,13 @@ import org.junit.jupiter.api.Test
 class MongoSequencerTest {
     private var reserved = 0L
     private var failReservation = false
+
+    /** Each reservation's update, as JSON. */
+    private val reservations = ArrayList<String>()
     private val counters = mockk<MongoCollection<Document>>(relaxed = true).also { counters ->
         every { counters.findOneAndUpdate(any<Bson>(), any<List<Bson>>(), any<FindOneAndUpdateOptions>()) } answers {
             if (failReservation) throw MongoException("unreachable")
+            reservations += secondArg<List<Bson>>().joinToString { (it as Document).toJson() }
             reserved += BLOCK
             Document(MongoEventLog.SEQUENCE, reserved)
         }
@@ -43,6 +47,11 @@ class MongoSequencerTest {
         sequencer.allocate(0, collection, after, registered)
 
     private fun removals() = verify(exactly = 0) { counters.updateOne(any<Bson>(), any<Bson>()) }
+
+    /** Whether the last reservation took this node's blocks starting at [froms] out of the list. */
+    private fun tookOut(vararg froms: Long): Boolean = reservations.last().let { update ->
+        update.contains("\"\$filter\"") && update.contains("\"\$\$block.from\", [${froms.joinToString(", ")}]")
+    }
 
     @Test
     fun `a block gives its sequences in turn, one reservation for all of them`() {
@@ -58,10 +67,13 @@ class MongoSequencerTest {
         cart.sequence.assert().isEqualTo(BLOCK + 1)
         val closing = checkNotNull(cart.closing)
         listOf(closing.from, closing.to, closing.collection).assert().containsExactly(2L, BLOCK, ORDER)
-        removals()
         sequencer.settle(0, 1)
         sequencer.settle(closing)
-        verify(exactly = 1) { counters.updateOne(any<Bson>(), any<Bson>()) }
+        // Done, the old block waits on the list for the next reservation, which takes it out in its own update.
+        removals()
+        allocate(CART, after = BLOCK * 3).sequence.assert().isEqualTo(BLOCK * 2 + 1)
+        tookOut(1).assert().isTrue()
+        removals()
     }
 
     @Test
@@ -84,7 +96,9 @@ class MongoSequencerTest {
         (1..BLOCK).forEach { sequencer.settle(0, allocate().sequence) }
         removals()
         allocate()
-        verify(exactly = 1) { counters.updateOne(any<Bson>(), any<Bson>()) }
+        // Taken out in the next reservation's own update, no write of its own.
+        tookOut(1).assert().isTrue()
+        removals()
     }
 
     @Test
