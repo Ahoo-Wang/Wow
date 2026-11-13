@@ -100,5 +100,6 @@ class AppendCallMarks : AbstractCoroutineContextElement(Key) {
         done = System.nanoTime()
     }
 
+    @InternalWowApi
     companion object Key : CoroutineContext.Key<AppendCallMarks>
 }

@@ -70,7 +70,7 @@ class AppendClockTest {
         // The log sleeps a millisecond in its statement: at least that, a call.
         clock.statement.assert().isGreaterThanOrEqualTo(PARTITIONS * 1_000L)
         // Each step is rounded down to its microsecond: their sum is the call's, less at most one a step.
-        val steps = listOf(clock.enter, clock.hop, clock.acquire, clock.bind, clock.statement, clock.release, clock.hopBack)
+        val steps = with(clock) { listOf(enter, hop, acquire, bind, statement, release, hopBack) }
         steps.forEach { it.assert().isNotNegative() }
         steps.sum().assert().isBetween(clock.call - steps.size, clock.call)
         clock.complete.assert().isNotNegative()
@@ -97,8 +97,7 @@ class AppendClockTest {
 
         eventually(5.seconds) { clock.calls == PARTITIONS.toLong() }
         clock.marked.assert().isZero()
-        listOf(clock.enter, clock.hop, clock.acquire, clock.bind, clock.statement, clock.release, clock.hopBack)
-            .forEach { it.assert().isZero() }
+        with(clock) { listOf(enter, hop, acquire, bind, statement, release, hopBack) }.forEach { it.assert().isZero() }
         clock.call.assert().isNotNegative()
         queue.close()
     }

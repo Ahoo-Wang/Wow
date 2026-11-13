@@ -204,26 +204,7 @@ internal class PostgresLogAppender(
             this.tables.appendGroup(parts[0], tables, branches)
         }
         val rows = try {
-            connection.prepareStatement(sql).use { statement ->
-                group.forEachIndexed { index, entry ->
-                    if (across) {
-                        val first = index * PostgresEventLogTables.ACROSS_STREAM_PARAMETERS + 1
-                        statement.setInt(first, parts[index])
-                        logRows.bindStream(statement, first + 1, entry.stream, entry.transport)
-                    } else {
-                        logRows.bindStream(
-                            statement,
-                            index * AggregateLogTable.STREAM_PARAMETERS + 1,
-                            entry.stream,
-                            entry.transport
-                        )
-                    }
-                }
-                marks?.sent()
-                statement.executeQuery().use { rows ->
-                    rows.map { it.getInt("version") to it.getLong("sequence").takeUnless { _ -> it.wasNull() } }
-                }.also { marks?.read() }
-            }
+            runGroup(connection, sql, across, parts, group, marks)
         } catch (failure: PSQLException) {
             val constraint = failure.serverErrorMessage?.constraint
             // PostgreSQL rolls back the statement it picks to end a deadlock: that is a definite abort too.
@@ -249,6 +230,35 @@ internal class PostgresLogAppender(
         }
     }
 
+    /** [group]'s statement [sql], its streams bound, run: each stream's version, and its sequence when appended. */
+    private fun runGroup(
+        connection: Connection,
+        sql: String,
+        across: Boolean,
+        parts: List<Int>,
+        group: List<Append>,
+        marks: AppendCallMarks?,
+    ): List<Pair<Int, Long?>> = connection.prepareStatement(sql).use { statement ->
+        group.forEachIndexed { index, entry ->
+            if (across) {
+                val first = index * PostgresEventLogTables.ACROSS_STREAM_PARAMETERS + 1
+                statement.setInt(first, parts[index])
+                logRows.bindStream(statement, first + 1, entry.stream, entry.transport)
+            } else {
+                logRows.bindStream(
+                    statement,
+                    index * AggregateLogTable.STREAM_PARAMETERS + 1,
+                    entry.stream,
+                    entry.transport
+                )
+            }
+        }
+        marks?.sent()
+        statement.executeQuery().use { rows ->
+            rows.map { it.getInt("version") to it.getLong("sequence").takeUnless { _ -> it.wasNull() } }
+        }.also { marks?.read() }
+    }
+
     /** [group] a partition at a time, each its own group, whose conflicts and duplicates are its own. */
     private fun appendByPartition(
         connection: Connection,
@@ -258,7 +268,8 @@ internal class PostgresLogAppender(
     ): List<AppendOutcome> {
         val outcomes = arrayOfNulls<AppendOutcome>(group.size)
         group.indices.groupBy { parts[it] }.values.forEach { indexes ->
-            appendGroupsIn(connection, indexes.map { parts[it] }, indexes.map { group[it] }, marks).forEachIndexed { at, outcome ->
+            val partition = indexes.map { group[it] }
+            appendGroupsIn(connection, indexes.map { parts[it] }, partition, marks).forEachIndexed { at, outcome ->
                 outcomes[indexes[at]] = outcome
             }
         }

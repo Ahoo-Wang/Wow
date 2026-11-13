@@ -101,7 +101,8 @@ class BenchPipelineNodeTest {
                     }
                 }
                 val line = checkNotNull(sections(pipeline))
-                listOf("appendDepth", "appendCalls", "appendClock", "handoff", "window", "windowMax").forEach { section ->
+                val sections = listOf("appendDepth", "appendCalls", "appendClock", "handoff", "window", "windowMax")
+                sections.forEach { section ->
                     line.has(section).assert().describedAs(section).isTrue()
                 }
                 line.path("appendCalls").path("calls").asLong().assert().isGreaterThan(0L)
