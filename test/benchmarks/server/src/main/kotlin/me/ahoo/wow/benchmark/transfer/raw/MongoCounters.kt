@@ -47,8 +47,9 @@ class MongoCounters(private val admin: MongoClient, private val database: MongoD
     }
 
     /**
-     * Each of Wow's and the clone's collections' inserts, updates and removes (the `top` command): where a
-     * calibration's gap is.
+     * Each of Wow's and the clone's collections' operations by kind (the `top` command): their counts (`<namespace>
+     * <kind>`), where a calibration's gap is, and mongod's time on them (`<namespace> <kind> micros`), where its CPU
+     * goes.
      */
     fun tables(): Map<String, Double> {
         val totals = admin.getDatabase("admin").runCommand(Document("top", 1))["totals"] as Document?
@@ -57,9 +58,10 @@ class MongoCounters(private val admin: MongoClient, private val database: MongoD
             for ((namespace, value) in totals) {
                 if (!namespace.contains(".wow_") && !namespace.contains(".raw_")) continue
                 val counts = value as Document
-                for (kind in listOf("insert", "update", "remove", "queries", "commands")) {
-                    val count = (counts[kind] as Document?)?.get("count") as Number? ?: continue
-                    put("$namespace $kind", count.toDouble())
+                for (kind in listOf("insert", "update", "remove", "queries", "getmore", "commands")) {
+                    val entry = counts[kind] as Document? ?: continue
+                    (entry["count"] as Number?)?.let { put("$namespace $kind", it.toDouble()) }
+                    (entry["time"] as Number?)?.let { put("$namespace $kind micros", it.toDouble()) }
                 }
             }
         }

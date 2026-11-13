@@ -268,6 +268,10 @@ private fun savesOf(statements: Map<String, Long>, commands: Map<String, Double>
     statements.filterKeys { it.endsWith(" ${RawPostgres.SNAPSHOT}") && !it.contains(" select ") }.values.sum() +
         (commands["commands: update ${RawMongo.SNAPSHOT}"] ?: 0.0).toLong()
 
+/** The store container's CPU so far ([cpu]), as Wow's run's counters read it: its milliseconds a command apart. */
+private fun storeCpuOf(cpu: ContainerCpu): Map<String, Double> =
+    cpu.micros()?.let { mapOf(STORE_CPU_MICROS to it.toDouble()) }.orEmpty()
+
 /** The calibration's connections: Wow's run's concurrency. */
 const val CALIBRATION_CONNECTIONS = 64
 
@@ -300,17 +304,17 @@ private fun postgres(settings: RawSettings, options: Map<String, String>): RawRe
         user = options["spring.datasource.username"] ?: "postgres",
         password = options["spring.datasource.password"] ?: "postgres",
     )
+    val cpu = ContainerCpu(settings.container)
     val wow = seed(
         "postgres",
         settings.templates,
         options,
-        { raw.counters() + raw.tables() },
+        { raw.counters() + raw.tables() + storeCpuOf(cpu) },
         raw::checkpoint,
         records = raw::records,
         watch = raw::watchWow,
     )
     raw.loadTemplates(settings.templates)
-    val cpu = ContainerCpu(settings.container)
     val cases = raw.cases(settings.logBatch, settings.snapshotBatch, settings.batches)
     fun step(case: RawPostgres.Case, connections: Int, pace: Pace, versions: IntArray): RawStep =
         postgresStep(raw, cpu, case, connections, pace, versions)
@@ -381,9 +385,10 @@ private fun mongo(settings: RawSettings, options: Map<String, String>): RawResul
         uri = options["spring.mongodb.uri"] ?: "mongodb://localhost:27017/?replicaSet=rs0",
         databaseName = options["wow.mongo.database"] ?: "transfer",
     ).use { raw ->
-        val wow = seed("mongo", settings.templates, options, { raw.counters() + raw.tables() }, {}, raw::ownOplog)
-        raw.loadTemplates(settings.templates)
         val cpu = ContainerCpu(settings.container)
+        val counters = { raw.counters() + raw.tables() + storeCpuOf(cpu) }
+        val wow = seed("mongo", settings.templates, options, counters, {}, raw::ownOplog)
+        raw.loadTemplates(settings.templates)
         val cases = raw.cases(settings.logBatch, settings.snapshotBatch, settings.batches)
         fun step(case: RawMongo.Case, connections: Int, versions: IntArray, pace: Pace = Pace(settings.timing)) =
             raw.client(case.shape?.connections ?: connections).use { client ->

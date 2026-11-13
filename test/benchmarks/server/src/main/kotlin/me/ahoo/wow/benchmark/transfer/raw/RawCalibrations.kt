@@ -32,11 +32,13 @@ internal fun postgresCalibration(wow: Map<String, Double>, calibrating: RawStep,
     val spread = spreadOf(wow)?.let { mapOf(WowShape.PARTITIONS_PER_APPEND to it) }.orEmpty()
     return calibrationOf(
         (if (path) PATH_CHECKS else POSTGRES_CHECKS) + EQUAL_SHAPE_CHECKS + KEPT_CHECKS,
-        (if (path) listOf("walRecords", "walBytes") else emptyList()) + listOf("walFpi", "commits") + XMIN_APART +
+        (if (path) listOf("walRecords", "walBytes") else emptyList()) + listOf("walFpi", "commits", STORE_CPU_MS) +
+            XMIN_APART +
             WowShape.PARTITIONS_PER_APPEND + SHAPE_APART + CALL_APART + PostgresCounters.NEW_PAGE_SHARE + LAYOUT_METRICS,
-        (postgresWow(wow) + modelCounts(wow, PG_APPENDS, PG_SAVES) + wowPath + spread + wowCalls(wow)).let { it + shapeOf(it) },
+        (postgresWow(wow) + modelCounts(wow, PG_APPENDS, PG_SAVES) + wowPath + spread + wowCalls(wow) + wowStoreCpu(wow))
+            .let { it + shapeOf(it) },
         calibrating,
-        modelled(calibrating) + rawPath + uncappedOf(uncapped),
+        modelled(calibrating) + rawPath + uncappedOf(uncapped) + storeCpu(calibrating),
     )
 }
 
@@ -146,11 +148,45 @@ fun calibrationOf(
 internal fun mongoCalibration(wow: Map<String, Double>, calibrating: RawStep, uncapped: RawStep): RawCalibration =
     calibrationOf(
         MONGO_CHECKS + EQUAL_SHAPE_CHECKS + KEPT_CHECKS,
-        listOf("commands", OWN_OPLOG_BYTES) + SHAPE_APART,
-        (mongoWow(wow) + modelCounts(wow, MONGO_APPENDS, MONGO_SAVES)).let { it + shapeOf(it) },
+        listOf("commands", OWN_OPLOG_BYTES, STORE_CPU_MS) + SHAPE_APART + MONGO_TIME_APART,
+        (mongoWow(wow) + modelCounts(wow, MONGO_APPENDS, MONGO_SAVES) + wowStoreCpu(wow) + mongoTimes(wow))
+            .let { it + shapeOf(it) },
         calibrating,
-        modelled(calibrating) + uncappedOf(uncapped),
+        modelled(calibrating) + uncappedOf(uncapped) + storeCpu(calibrating),
     )
+
+/** The calibration step's store CPU a command, milliseconds, under the name Wow's is reported by (wowStoreCpu). */
+private fun storeCpu(calibrating: RawStep): Map<String, Double> =
+    calibrating.storeCpuMsPerUnit?.let { mapOf(STORE_CPU_MS to it) }.orEmpty()
+
+/** Wow's run's store CPU a command, milliseconds, from its counters' container CPU (STORE_CPU_MICROS a command). */
+private fun wowStoreCpu(wow: Map<String, Double>): Map<String, Double> =
+    wow[STORE_CPU_MICROS]?.let { mapOf(STORE_CPU_MS to it / MILLIS) }.orEmpty()
+
+/**
+ * Where mongod's time goes in Wow's run, by collection and operation (`top`'s time, microseconds a command): Wow's
+ * own side alone, the clone's collections being the log's and snapshots'. Reported apart, never a check: the share
+ * of mongod's time the appends and snapshots are not (the tails' reads of the log, the checkpoints, the leases).
+ */
+private val MONGO_TIME_APART: List<String>
+    get() = listOf(WOW_WRITES_TIME, WOW_OTHER_TIME)
+
+/**
+ * Wow's run's mongod time a command on the log's inserts and the snapshots' updates (WOW_WRITES_TIME), and on
+ * everything else of its collections (WOW_OTHER_TIME): from `top`'s `<namespace> <operation> micros` counters.
+ */
+private fun mongoTimes(wow: Map<String, Double>): Map<String, Double> {
+    val times = wow.filterKeys { it.endsWith(" micros") && " total " !in it }
+    if (times.isEmpty()) return emptyMap()
+    val writes = times.filterKeys {
+        (it.contains(".${RawMongo.LOG} ") && it.contains(" insert ")) ||
+            (it.contains(".${RawMongo.SNAPSHOT} ") && it.contains(" update "))
+    }.values.sum()
+    return mapOf(WOW_WRITES_TIME to writes / MILLIS, WOW_OTHER_TIME to (times.values.sum() - writes) / MILLIS)
+}
+
+private const val WOW_WRITES_TIME = "mongodWritesMs"
+private const val WOW_OTHER_TIME = "mongodOtherMs"
 
 /** Wow's commands a second in its own run, the rate the calibration is paced at. */
 internal const val WOW_RATE = "wowCommandsPerSecond"
@@ -180,6 +216,10 @@ private const val APPENDS = "appendsPerCommand"
 private const val SAVES = "savesPerCommand"
 internal const val WOW_FAILED = "failedPerCommand"
 internal const val OWN_OPLOG_BYTES = "ownOplogBytes"
+
+/** The store container's CPU: Wow's run's counter (microseconds) and the reported figure, milliseconds a command. */
+internal const val STORE_CPU_MICROS = "storeCpuMicros"
+internal const val STORE_CPU_MS = "storeCpuMs"
 
 /**
  * The horizon's diagnostics (PostgresCounters.watch), reported apart on both sides: a reading of the HOT share's gap
