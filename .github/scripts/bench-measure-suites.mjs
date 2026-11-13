@@ -4,11 +4,13 @@
  * you may obtain a copy at http://www.apache.org/licenses/LICENSE-2.0
  */
 import { armsOfRuns, walkRuns, walkShareRuns } from './bench-measure.mjs';
+import { rawSuites } from './bench-raw.mjs';
 import { sinkSuites } from './bench-sink.mjs';
 
 /**
  * The suites of the `measure` kind, by name, on bench.mjs's arms: the access scale checks (the dataset's queries, the
- * walk's share and cost) and the sink group (sinkSuites). bench.mjs spreads them into its SUITES where they stood.
+ * walk's share and cost), the sink group (sinkSuites) and the raw-driver ceilings (rawSuites). bench.mjs spreads them
+ * into its SUITES where they stood.
  */
 export function measureSuites({
   HEAD_PG,
@@ -74,5 +76,6 @@ export function measureSuites({
         "What the Sink's codecs cost a dataset's reads (CH-6, D421): access-dataset-ch's list page, count and aggregation under the dataset policy, its `_state` created without codecs (LZ4) against with the Sink's, two rounds ABBA on one runner.",
     },
     ...sinkSuites(HEAD_PG, BASE_PG),
+    ...rawSuites(HEAD_PG, HEAD_MONGO),
   };
 }
