@@ -22,7 +22,6 @@ import {
   AXON_INSTALL,
   axonInstall,
   CLUSTER,
-  drifted,
   measuredWindow,
   mergeSignals,
   planMatrix,
@@ -30,27 +29,19 @@ import {
   OWN,
   parseJob,
   peakRatio,
-  bootstrapRatio,
-  calibratedGeneratorBound,
-  confidence,
   correctnessOf,
   cpuSplit,
-  GENERATOR_BOUND,
   generatorWithKafka,
   HOST_PROCESSES,
   hostProcesses,
   javaHome,
   javaRelease,
-  generatorBound,
   cpuLayout,
   layoutOf,
-  saturationRatioBound,
   halves,
   noiseFile,
   noiseLabel,
-  noiseOf,
   propertiesOf,
-  verdict,
   metrics,
   pairs,
   ratios,
@@ -65,8 +56,6 @@ import {
   queryLimitsWithin,
   queryLimitsText,
   ratioVerdict,
-  SATURATION,
-  saturationOutlier,
   saturationSamples,
   runSettings,
   runSuite,
@@ -87,6 +76,19 @@ import {
   sweepPlanOf,
   usesBus,
 } from './bench.mjs';
+import {
+  bootstrapRatio,
+  calibratedGeneratorBound,
+  confidence,
+  drifted,
+  GENERATOR_BOUND,
+  generatorBound,
+  noiseOf,
+  SATURATION,
+  saturationOutlier,
+  saturationRatioBound,
+  verdict,
+} from './bench-calibration.mjs';
 import { HANDOVER_SCRIPT, roundOrder, spread } from './bench-common.mjs';
 
 // This file runs under Node's test runner alone (`pnpm test:ci-scripts`), whose NODE_TEST_CONTEXT makes
@@ -839,7 +841,7 @@ test('a ratio the load generator capped is shown as invalid, not as a ratio', ()
   assert.match(report, /invalid: generator-bound, 0\.98 of 1 cores/);
   assert.match(
     report,
-    /\| e1-mongo-uniform@100k \| head\/base \| throughput \| calibrated \| .* \| invalid: generator-bound \|/,
+    /\| e1-mongo-uniform@100k \| head, base \| kept up \| calibrated \| .* \| invalid: generator-bound \|/,
   );
 });
 
@@ -1021,7 +1023,7 @@ test('anomalies flag pauses, store fallbacks, error spikes, dips and long tails'
   );
   // A 30 ms p99 over a 2 ms median is below the floor.
   assert.deepEqual(anomaliesOf(run({ p50: 2, p99: 30 })), []);
-  // An overloaded run says what bound its operations in flight, as its result recorded it.
+  // Operations the generator refused are its own bound, not the node's errors: named as such, and no error spike.
   const result = {
     load: {
       rate: 900,
@@ -1033,11 +1035,28 @@ test('anomalies flag pauses, store fallbacks, error spikes, dips and long tails'
   const capped = metrics(result);
   assert.equal(capped.inFlightCap, 2000);
   assert.equal(capped.inFlightBoundBy, 'per-target ceiling');
+  const refused = anomaliesOf(
+    run({
+      failed: 40,
+      errors: capped.errors,
+      inFlightCap: 2000,
+      inFlightBoundBy: 'per-target ceiling',
+    }),
+  );
+  assert.deepEqual(
+    refused.map(a => a.kind),
+    ['generator-bound'],
+  );
+  assert.match(
+    refused[0].detail,
+    /^40 of 1040 not sent: the load generator's in-flight cap \(2000, per-target ceiling\) was full, not the node's error; the round is left out of the intervals$/,
+  );
+  // Beside other failures, the error spike still names the cap.
   assert.match(
     anomaliesOf(
       run({
-        failed: 40,
-        errors: capped.errors,
+        failed: 60,
+        errors: { 'E1:generator-overload': 20, 'http-408': 40 },
         inFlightCap: 2000,
         inFlightBoundBy: 'per-target ceiling',
       }),
