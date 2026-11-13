@@ -79,7 +79,11 @@ The host builds the `MongoClient` it makes, or Spring Boot's, with a `MongoPoolG
 
 ## Failover
 
-When the primary steps down or fails, the replica set elects another within seconds (about 2 s on the test cluster for a step-down; up to `electionTimeoutMillis`, 10 s by default, for a member that stops answering). What it does to the appends in flight:
+When the primary steps down or fails, the replica set elects another within seconds (about 2 s on the test cluster for a step-down; up to `electionTimeoutMillis`, 10 s by default, for a member that stops answering).
+
+A failover loses nothing Wow acted on. The subscriptions read only what a majority has committed, and a majority's commit survives any failover the set survives. So no saga's derived command, Kafka message, projection's write or snapshot comes from a commit the new primary lacks. On PostgreSQL, synchronous replication gives this guarantee ([Failover](./postgresql#failover)); here the store gives it.
+
+What a failover does to the appends in flight:
 
 - An append acknowledged as committed is never lost: a majority has it, and the new primary has it too. So is any other write Wow made: a reservation, a timer, a checkpoint.
 - An append whose acknowledgement the failover interrupted is unknown: it may have landed, and it may be rolled back with the old primary. The node writes a placeholder at its sequence once it can; if the stream landed, the placeholder meets it and the stream stays. The command is answered as unknown, and a retry with the same request ID finds the stream or commits it once.
