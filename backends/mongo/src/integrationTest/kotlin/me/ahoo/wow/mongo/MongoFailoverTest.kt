@@ -14,6 +14,8 @@
 package me.ahoo.wow.mongo
 
 import com.mongodb.MongoException
+import com.mongodb.WriteConcern
+import com.mongodb.client.model.Filters
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -26,7 +28,9 @@ import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.mongo.log.MongoEventLog
 import me.ahoo.wow.mongo.log.MongoLogFixture
+import me.ahoo.wow.mongo.query.MongoEventQueryStorage
 import me.ahoo.wow.mongo.subscription.MongoLeaseStore
 import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.log.AppendOutcome
@@ -96,6 +100,75 @@ class MongoFailoverTest {
         renewed.single().epoch.assert().isEqualTo(held.epoch)
         retrying { leases.acquire(group, 0, "node-b", 1.minutes) }.assert().isNull()
     }
+
+    @Test
+    fun `an events query never shows a stream a failover rolls back`(): Unit = runBlocking {
+        assumeTrue(System.getProperty(CONTAINER) != null, "Pauses members in the cluster's container: -D$CONTAINER.")
+        val context = MongoLogFixture.newContext()
+        val type = AggregateType(context, "order")
+        val storage = MongoEventQueryStorage(client, MongoLogFixture.DATABASE, context)
+        // The collection the events queries read, and the same collection read on the primary as it is now.
+        val events = storage.collectionOf(type)
+        val raw = client.getDatabase(MongoLogFixture.DATABASE).getCollection(storage.collection(type.name))
+        raw.withWriteConcern(WriteConcern.MAJORITY).insertOne(streamDocument(COMMITTED))
+        val primary = checkNotNull(hello().getString("primary")).substringAfterLast(':')
+        val secondaries = secondaryPorts()
+        secondaries.forEach { signal(it, "STOP") }
+        try {
+            // Applied on the primary alone: no secondary can acknowledge it.
+            raw.withWriteConcern(WriteConcern.W1).insertOne(streamDocument(UNCOMMITTED))
+            raw.find(byId(UNCOMMITTED)).first().assert().isNotNull()
+            events.find(byId(UNCOMMITTED)).first().assert().isNull()
+            events.find(byId(COMMITTED)).first().assert().isNotNull()
+            // Stepped down, then paused, so the secondaries elect one of themselves without the stream and cannot
+            // copy it from the old primary first.
+            stepDown()
+            signal(primary, "STOP")
+        } finally {
+            // Killed while paused, not resumed: a paused member keeps the oplog its sync source already sent it, unread
+            // in its socket, and would apply the stream on resuming. The cluster's supervisor starts them again on
+            // their data, which never held it.
+            secondaries.forEach { signal(it, "KILL") }
+        }
+        try {
+            awaitPrimary()
+        } finally {
+            // Back, the old primary finds the new one's history without the stream, and rolls it back.
+            signal(primary, "CONT")
+        }
+        awaitHealthy()
+        // The old primary rejoined and rolled the stream back: it never was.
+        retrying { raw.find(byId(UNCOMMITTED)).first() }.assert().isNull()
+        retrying { events.find(byId(UNCOMMITTED)).first() }.assert().isNull()
+        retrying { events.find(byId(COMMITTED)).first() }.assert().isNotNull()
+    }
+
+    /** The ports of the members that are secondaries now. */
+    private fun secondaryPorts(): List<String> {
+        val primary = checkNotNull(hello().getString("primary"))
+        return hello().getList("hosts", String::class.java).filter { it != primary }.map { it.substringAfterLast(':') }
+    }
+
+    /** Sends the signal [name] (`STOP`, `CONT`, `KILL`) to the member on [port] in the cluster's container. */
+    private fun signal(port: String, name: String) {
+        val process = ProcessBuilder(
+            "docker",
+            "exec",
+            System.getProperty(CONTAINER),
+            "sh",
+            "-c",
+            "kill -$name \$(cat /data/cluster/rs0-$port.pid)",
+        ).redirectErrorStream(true).start()
+        check(process.waitFor() == 0) { "$name to $port failed: ${process.inputStream.reader().readText()}" }
+    }
+
+    private fun byId(id: String) = Filters.eq(MongoEventLog.AGGREGATE_ID, id)
+
+    /** A stream document as the log keeps one, as far as a query by aggregate id reads it. */
+    private fun streamDocument(id: String) = Document(MongoEventLog.AGGREGATE_ID, id)
+        .append(MongoEventLog.TENANT_ID, "tenant")
+        .append(MongoEventLog.VERSION, 1)
+        .append(MongoEventLog.PARTITION, 0)
 
     /**
      * Appends from [WRITERS] writers, a new aggregate each time, while [fail] fails the primary over; then reads the
@@ -236,6 +309,9 @@ class MongoFailoverTest {
         const val WRITERS = 8
         const val APPENDS = 40
         const val STEP_DOWN_SECONDS = 10
+
+        const val COMMITTED = "committed"
+        const val UNCOMMITTED = "uncommitted"
         const val POLL_MS = 100L
         val ELECTION_TIMEOUT = 60.seconds
         val TAIL_TIMEOUT = 60.seconds
