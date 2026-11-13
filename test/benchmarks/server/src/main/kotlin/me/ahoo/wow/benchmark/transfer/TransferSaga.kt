@@ -16,33 +16,31 @@ package me.ahoo.wow.benchmark.transfer
 import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.Saga
 import me.ahoo.wow.api.client.CommandRequest
-import me.ahoo.wow.api.subscribe.StateEvent
+import me.ahoo.wow.api.subscribe.StateTypedEvent
 import me.ahoo.wow.benchmark.transfer.TransferContext.ACCOUNT_TYPE
 
 /**
  * The transfer between two accounts: the source has locked the amount ([Prepare]); the saga enters it on the target,
  * then confirms it on the source, or unlocks it on the source when the target refused it.
  *
- * V10: a handler takes each commit of the account with its events, and returns the commands it derives, addressed by
- * their aggregate's reference.
+ * V10: each handler names the one event it acts on, so a commit of the account without it is passed over before its
+ * events are decoded and its state read; it is called once per such event and returns the command it derives,
+ * addressed by its aggregate's reference.
  */
 @Saga
 class TransferSaga {
     @OnEvent
-    fun onPrepared(event: StateEvent<AccountState>): List<CommandRequest<Entry>> =
-        event.events.filterIsInstance<Prepared>().map {
-            CommandRequest.to(ACCOUNT_TYPE.ref(event.ref.tenantId, it.to), Entry(event.ref.id, it.amount))
-        }
+    fun onPrepared(event: StateTypedEvent<AccountState, Prepared>): CommandRequest<Entry> =
+        CommandRequest.to(
+            ACCOUNT_TYPE.ref(event.ref.tenantId, event.event.to),
+            Entry(event.ref.id, event.event.amount),
+        )
 
     @OnEvent
-    fun onAmountEntered(event: StateEvent<AccountState>): List<CommandRequest<Confirm>> =
-        event.events.filterIsInstance<AmountEntered>().map {
-            CommandRequest.to(ACCOUNT_TYPE.ref(event.ref.tenantId, it.sourceId), Confirm(it.amount))
-        }
+    fun onAmountEntered(event: StateTypedEvent<AccountState, AmountEntered>): CommandRequest<Confirm> =
+        CommandRequest.to(ACCOUNT_TYPE.ref(event.ref.tenantId, event.event.sourceId), Confirm(event.event.amount))
 
     @OnEvent
-    fun onEntryFailed(event: StateEvent<AccountState>): List<CommandRequest<UnlockAmount>> =
-        event.events.filterIsInstance<EntryFailed>().map {
-            CommandRequest.to(ACCOUNT_TYPE.ref(event.ref.tenantId, it.sourceId), UnlockAmount(it.amount))
-        }
+    fun onEntryFailed(event: StateTypedEvent<AccountState, EntryFailed>): CommandRequest<UnlockAmount> =
+        CommandRequest.to(ACCOUNT_TYPE.ref(event.ref.tenantId, event.event.sourceId), UnlockAmount(event.event.amount))
 }

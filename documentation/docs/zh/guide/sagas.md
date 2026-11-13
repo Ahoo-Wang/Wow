@@ -22,6 +22,7 @@ fun onOrderSubmitted(
 ```
 
 - **它接收什么。** `StateTypedEvent<S, E>` 对已提交流中的每个事件 `E` 调用一次处理函数，`event` 是那个事件，`state` 是整次提交之后聚合的状态。`StateEvent<S>` 每条流调用一次，带着它全部的 `events`。状态类型 `S` 选出模块所在上下文中以它为状态的聚合。聚合的访问属性是它状态的成员（`@Access`），所以 Saga 从 `state` 读取提交时的访问属性，不必去读可能滞后于提交的快照。
+- **它的代价。** 接收 `StateEvent<S>` 的处理函数接收其聚合的每一次提交：每次提交都先解码、读取状态，再交给处理函数。写明事件的处理函数（`E`，需要状态时用 `StateTypedEvent<S, E>`）在提交不含该事件时被跳过，省去这些工作：它的位置照常前进，在它这一跳上的等待立即得到回答。所以处理函数只针对某个事件时，就写明这个事件。运维看到的是：处理函数不接收的提交，没有 `handle <subscription>` span，也没有 `wow.subscription.lag` 样本。
 - **它返回什么。** 一个 `CommandRequest`、多个（`List`、任意 `Iterable`、`Sequence`、`Flow`，或 Reactor 的 `Mono`、`Flux`），或者 `null`、空列表或 `Unit` 表示没有命令。运行时把每个请求转成一条确定的命令（见下文）。
 - **哪些命令。** 返回类型指明了命令类时（`CommandRequest<ReserveStock>`、它们的列表、一个密封类型），编译器就知道它们。没有指明时，例如 `List<CommandRequest<*>>`，要在 `@Sends(derives = [...])` 里声明它们，这样 Manifest 才会列出它们，等待也才能跟随 Saga 进入它们的上下文；两者都没有的处理函数无法编译。运行时要求处理函数遵守它们：发送一个没有声明的类会使这次处理永久失败，聚合立即停放。
 - **它的名字。** 每个处理函数都是一个独立的订阅，名为 `<processor>.<function>`：`OrderProcessSaga.onOrderAwaitingValidation`。函数上的 `@Name("…")` 改用它命名，所以给改名后的函数加上 `@Name("<原来的名字>")`，订阅、它的检查点和执行都保持不变。

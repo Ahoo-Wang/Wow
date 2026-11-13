@@ -57,7 +57,7 @@ outline: deep
 | --- | --- |
 | 准入 | `admit <context>.<aggregate>`，一个 internal span，是请求的 server span 的子 Span |
 | 执行、决定、追加 | `execute`、`decide`、`append <context>.<aggregate>` |
-| 订阅处理日志的一个条目 | `handle <subscription>` |
+| 订阅处理日志的一个条目 | `handle <subscription>`；订阅的过滤条件跳过的条目没有 |
 | 订阅处理主题的一条消息 | `process <topic>`，一个 consumer span |
 | 定时器触发 | `fire <command type>` |
 | 查询 | 每个查询一个 span |
@@ -72,7 +72,7 @@ span 以属性的形式带着上下文、聚合、租户、命令和订阅（`wo
 | `wow.command.duration` | Timer | 一条命令的执行，从接收到得出结果，按结果分 |
 | `wow.command.refusals` | Counter | 在内核接收之前就结束的命令：拒绝、繁忙的车道或节点、不可用的存储 |
 | `wow.command.rejections` | Counter | 被聚合拒绝的命令（带或不带事件），按拒绝的错误码：是业务结果，不是失败 |
-| `wow.subscription.lag` | Timer | 从一次提交到订阅处理它 |
+| `wow.subscription.lag` | Timer | 从一次提交到订阅处理它；订阅的过滤条件跳过的提交（例如不含处理函数所写明事件的提交）没有 |
 | `wow.subscription.backlog` | Gauge | 分区中位于订阅位置之后的条目数 |
 | `wow.subscription.progress` | Gauge | 订阅的位置相对于日志头部的比例，0 到 1：重建的进度 |
 | `wow.subscription.parked.aggregates` | Gauge | 订阅停放的聚合数 |

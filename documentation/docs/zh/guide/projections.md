@@ -39,6 +39,7 @@ fun onEvent(event: StateEvent<OrderState>) {
 ```
 
 - `StateEvent<OrderState>` 对每个订单的每次提交调用一次处理函数，`state` 是提交之后订单的状态。改为接收 `StateTypedEvent<S, E>`，则只对 `E` 类型的事件调用，每个这样的事件调用一次。
+- 接收 `StateEvent<S>` 的处理函数接收每一次提交，先解码、读取状态。写明事件的处理函数（`E`，需要状态时用 `StateTypedEvent<S, E>`）在提交不含该事件时被跳过，省去这些工作，它的位置照常前进。所以投影只读某个事件时，就写明这个事件；运维看到的是：它不接收的提交，没有 `handle <subscription>` span，也没有 `wow.subscription.lag` 样本。
 - `scope.ownerId` 是提交之后聚合的所有者，这里是买家；`commitTime` 是它提交的时间。
 - `@Blocking` 让处理函数在虚拟线程上运行，因为它要写入 Wow 之外的存储。处理函数也可以是 `suspend`，或者返回 Reactor 的 `Mono`。
 - 这个处理函数是一个独立的订阅，名为 `OrderSummaryProjection.onEvent`。

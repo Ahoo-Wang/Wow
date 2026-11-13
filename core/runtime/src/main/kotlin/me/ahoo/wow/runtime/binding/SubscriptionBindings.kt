@@ -130,9 +130,10 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
             DerivedCommands(context.models, context.coordinator, context.sender, context.creations, context.validators)
         return local.map { handler ->
             val name = handler.name
-            val filter = SubscriptionFilter(
+            val filter = handlerFilter(
                 context.context,
-                read(handler, context.models).mapTo(LinkedHashSet()) { it.type.name },
+                read(handler, context.models),
+                handler.eventType,
                 // A job's subscription reads its job's instances alone, not every job's ticks.
                 ids = handler.job?.let {
                     ScheduleJobModel.instanceIds(context.context, it, context.backends.log.partitions)
@@ -522,4 +523,28 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
             ) { context.codec.decodeState(model, view.state) }
         }
     }
+}
+
+/**
+ * The filter of a handler of [models] in [context]: their aggregates, and for a handler of each event of [eventType]
+ * the names [models] store those events under, current and former, of the type itself or any subtype (a sealed
+ * parent, an interface). A commit holding none of them completes at admission, before its events are decoded and its
+ * state read, as the handler's own check would have skipped it; its checkpoint moves and a wait on it at this hop is
+ * answered as for any entry a filter leaves out. A name [models] do not know is still handed on
+ * ([SubscriptionFilter.known]), as decoding alone can say whether it is one of the type's. With no [eventType], or none
+ * of [models]' events of it, the filter names no event: every commit is handed on, as before.
+ */
+internal fun handlerFilter(
+    context: String,
+    models: List<AggregateModel<*>>,
+    eventType: Class<*>?,
+    ids: Set<String> = emptySet(),
+): SubscriptionFilter {
+    val aggregates = models.mapTo(LinkedHashSet()) { it.type.name }
+    val events = eventType?.let { type -> models.flatMapTo(LinkedHashSet()) { it.eventNamesOf(type) } }.orEmpty()
+    if (events.isEmpty()) {
+        return SubscriptionFilter(context, aggregates, ids = ids)
+    }
+    val known = models.flatMapTo(LinkedHashSet()) { it.knownEventNames }
+    return SubscriptionFilter(context, aggregates, events, ids, known)
 }

@@ -30,7 +30,7 @@ The package `me.ahoo.wow.benchmark.transfer`:
 | `AccountRejections.kt` | The rejection codes: invalid amount, insufficient balance, frozen |
 | `AccountState.kt` | Owner, balance, locked amount, frozen |
 | `Account.kt` | The rules: `Withdraw` and `Prepare` read the balance and reject when it does not cover the amount; a frozen account refuses a transfer out (rejection) and an entry in (`EntryFailed`) |
-| `TransferSaga.kt` | `Prepared` → `Entry` on the target; `AmountEntered` → `Confirm` on the source; `EntryFailed` → `UnlockAmount` on the source (the compensation) |
+| `TransferSaga.kt` | `Prepared` → `Entry` on the target; `AmountEntered` → `Confirm` on the source; `EntryFailed` → `UnlockAmount` on the source (the compensation). Each handler takes its one event (`StateTypedEvent<AccountState, …>`), so the other commits of the account pass it by before they are decoded |
 | `TransferServer.kt` | The server |
 
 The semantics are those of the Java example `examples/transfer`, ported to Kotlin, with `Deposit` and `Withdraw` added. `src/test/.../TransferCases.kt` is one table of cases, which `AccountSpec` and `TransferSagaSpec` run through the test DSL.
