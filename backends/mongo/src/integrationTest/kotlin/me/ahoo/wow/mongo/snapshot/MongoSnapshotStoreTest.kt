@@ -43,6 +43,11 @@ class MongoSnapshotStoreTest : SnapshotStoreSpec() {
         "wow_snapshot__${context.replace('-', '_')}__$aggregate"
 
     @Test
+    fun `the store keeps four writes in flight, a journaled bulk write each`() {
+        store().writesInFlight.assert().isEqualTo(4)
+    }
+
+    @Test
     fun `creating the schema twice keeps the snapshots`(): Unit = runBlocking {
         val context = MongoLogFixture.newContext()
         val saved = snapshot("a", 1).copyWith(ref = AggregateType(context, "aggregate").ref("tenant", "a"))

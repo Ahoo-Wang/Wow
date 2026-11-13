@@ -107,6 +107,14 @@ class MongoSnapshotStore(
     /** This store rewrites its snapshots in place: it is its own rebuild control plane. */
     override val rebuilds: SnapshotRebuildStore get() = this
 
+    /**
+     * [WRITES_IN_FLIGHT]: a write here is one unordered `bulkWrite` of at most the batch, and returns only once a
+     * majority journaled it ([MongoDatabases]), so the subscription's throughput is these calls times their batch per
+     * call, whatever the server has to spare. It is what the subscription had in flight before the calls were merged
+     * across partitions (four lanes, each one call at a time).
+     */
+    override val writesInFlight: Int get() = WRITES_IN_FLIGHT
+
     private val database = MongoDatabases.of(client, databaseName, operationTimeout)
 
     /**
@@ -417,6 +425,9 @@ class MongoSnapshotStore(
     internal companion object {
         /** The version of this layout. */
         const val FORMAT = 1
+
+        /** [writesInFlight]. */
+        const val WRITES_IN_FLIGHT = 4
 
         /** The partial index of the owner scope. */
         const val OWNER_INDEX = "owner_ix"
