@@ -81,6 +81,10 @@ class SnapshotWritesTest {
 
     private val store = Store()
 
+    // Every test here runs on runBlocking's one thread: its coroutines run in the order they are started, the stores
+    // below suspend only at their gates, and SnapshotWrites changes no dispatcher. That is what makes each exact batch
+    // and count below certain, together with the waits on [SnapshotWrites.waiting] and on the calls a store holds.
+
     /** Holds each call until the test releases it, by its index, or [releaseAll] opens it for good. */
     private class Held(private val delegate: SnapshotStore = InMemorySnapshotStore()) : SnapshotStore by delegate {
         class Call(val ids: List<String>) {

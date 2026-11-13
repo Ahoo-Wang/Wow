@@ -43,7 +43,9 @@ class SnapshotSubscriptionWritesTest : SnapshotSubscriptionFixtures() {
         eventually { store.saves.size == 1 }
         // Versions 2 to 5 queue behind version 1, whose write is held.
         val later = (2..5).map { async { coordinator.execute(counter, add("a")) } }
-        eventually { probed.count { it.first == "a" } == 5 }
+        // What makes [1, 5] certain: the snapshot subscription itself holds all five before the write is let go, so
+        // the lane takes 2 to 5 together once 1 is written. The probe, another subscription, may run ahead of it.
+        eventually { snapshotsTaken() == 5 }
         later.forEach { it.isCompleted.assert().isFalse() }
         gate.complete(Unit)
 
@@ -75,11 +77,15 @@ class SnapshotSubscriptionWritesTest : SnapshotSubscriptionFixtures() {
                 it.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
                 it.hop.assert().isEqualTo(Hop.snapshot("shop"))
             }
-            // The second committer's write took those ready when it gathered, and the next write the rest: three in all.
-            store.batches.size.assert().isEqualTo(3)
+            // What the design promises, and nothing a scheduler decides. How many writes carried the eight depends on
+            // how many had reached the queue when each committer gathered: their subscription runs on the Default
+            // dispatcher's threads, the probe's wait above sees another subscription. How saves merge is pinned where
+            // the gathering is deterministic, in SnapshotWritesTest. Here: a's write alone first, every snapshot
+            // written once at its version, never more writes at once than the store's count.
             store.batches.first().assert().isEqualTo(1)
             store.batches.sum().assert().isEqualTo(1 + ids.size)
             ids.forEach { store.load(ref(it))!!.version.assert().isEqualTo(1) }
+            store.peakWrites.get().assert().isLessThanOrEqualTo(store.writesInFlight)
         }
 
     @Test
@@ -93,6 +99,9 @@ class SnapshotSubscriptionWritesTest : SnapshotSubscriptionFixtures() {
             )
         }
         val gate = CompletableDeferred<Unit>().also { store.gate = it }
+        // What makes the exact batches certain: every entry is handled here, on runBlocking's one thread, coroutines
+        // run in the order they are started and nothing on the snapshot path changes dispatcher, so which saves are
+        // queued when a write gathers is the code's order, not a scheduler's.
         // Partition 0's write runs, held; partition 1's starts the second, whatever partitions they are of.
         val first = entry("p0", 0)
         eventually { store.batches.size == 1 }
@@ -109,6 +118,7 @@ class SnapshotSubscriptionWritesTest : SnapshotSubscriptionFixtures() {
         store.batches.first().assert().isEqualTo(1)
         store.batches.sum().assert().isEqualTo(ids.size)
         store.batches.size.assert().isEqualTo(3)
+        store.peakWrites.get().assert().isEqualTo(2)
         ids.forEach { store.load(ref(it))!!.version.assert().isEqualTo(1) }
     }
 
@@ -125,6 +135,7 @@ class SnapshotSubscriptionWritesTest : SnapshotSubscriptionFixtures() {
                 subscription.handle(subscription.decoder.decode(stream, LogPosition(0, ids.indexOf(id) + 1L), null))
             }
             val gate = CompletableDeferred<Unit>().also { counted.gate = it }
+            // Certain for the same reason as above: one thread, coroutines in start order, no change of dispatcher.
             // Each entry, arriving once the writes before took their batches, starts one more write: the store's count.
             val held = ids.take(inFlight).mapIndexed { started, id ->
                 entry(id).also { eventually { counted.batches.size == started + 1 } }
@@ -138,6 +149,7 @@ class SnapshotSubscriptionWritesTest : SnapshotSubscriptionFixtures() {
             gate.complete(Unit)
             (held + waiting).awaitAll()
             counted.batches.assert().containsExactly(*Array(inFlight + 1) { 1 })
+            counted.peakWrites.get().assert().isEqualTo(inFlight)
         }
 
     @Test
