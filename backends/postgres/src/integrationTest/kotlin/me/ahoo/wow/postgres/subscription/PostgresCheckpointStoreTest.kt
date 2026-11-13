@@ -16,7 +16,9 @@ package me.ahoo.wow.postgres.subscription
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.postgres.CountedDataSource
 import me.ahoo.wow.postgres.PostgresFixture
@@ -25,6 +27,9 @@ import me.ahoo.wow.spi.subscription.Checkpoint
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.tck.subscription.CheckpointStoreSpec
 import org.junit.jupiter.api.Test
+import java.sql.Connection
+import java.sql.PreparedStatement
+import kotlin.time.Duration.Companion.seconds
 
 class PostgresCheckpointStoreTest : CheckpointStoreSpec() {
     override fun createStore(): CheckpointStore = store
@@ -53,15 +58,16 @@ class PostgresCheckpointStoreTest : CheckpointStoreSpec() {
     }
 
     @Test
-    fun `a batch of checkpoints is one statement batch and one commit`(): Unit = runBlocking {
+    fun `a batch of checkpoints is one transaction and one commit`(): Unit = runBlocking {
         // B.O-5: in autocommit, each upsert of the JDBC batch was a transaction, and a WAL flush, of its own.
         val counted = CountedDataSource(PostgresFixture.dataSource)
         val batched = PostgresCheckpointStore(counted.dataSource)
         val group = "batch-${System.nanoTime()}"
         val mark = counted.begin()
         val commits = counted.commits
+        // Every row is new: the insert adds them all, the update moves none.
         batched.saveAll(group, (0 until 8).map { Checkpoint.of("snapshot", it, 10L + it) })
-        counted.since(mark).size.assert().isEqualTo(1)
+        counted.since(mark).map { it.substringBefore(' ') }.assert().containsExactly("INSERT", "UPDATE")
         (counted.commits - commits).assert().isEqualTo(1)
         (0 until 8).map { batched.load(group, "snapshot", it) }.assert().isEqualTo((0 until 8).map { 10L + it })
         // A batch moves positions forward only, in one commit again.
@@ -72,6 +78,38 @@ class PostgresCheckpointStoreTest : CheckpointStoreSpec() {
     }
 
     @Test
+    fun `a batch of rows that exist and move is an insert that adds none and one plain update`(): Unit = runBlocking {
+        // The common save: every row there and behind. No ON CONFLICT DO UPDATE, whose row lock is never taken.
+        val counted = CountedDataSource(PostgresFixture.dataSource)
+        val batched = PostgresCheckpointStore(counted.dataSource)
+        val group = "move-${System.nanoTime()}"
+        batched.saveAll(group, (0 until 64).map { Checkpoint.of("saga", it, 1) })
+        val mark = counted.begin()
+        batched.saveAll(group, (0 until 64).map { Checkpoint.of("saga", it, 2) })
+        counted.since(mark).map { it.substringBefore(' ') }.assert().containsExactly("INSERT", "UPDATE")
+        (0 until 64).map { batched.load(group, "saga", it) }.assert().allMatch { it == 2L }
+    }
+
+    @Test
+    fun `a row the guard refuses stays, one that is absent is inserted, one behind moves, in one save`(): Unit =
+        runBlocking {
+            // The insert adds the absent and leaves the others; the update moves the row behind and leaves the refused.
+            val counted = CountedDataSource(PostgresFixture.dataSource)
+            val batched = PostgresCheckpointStore(counted.dataSource)
+            val group = "mixed-${System.nanoTime()}"
+            batched.saveAll(group, listOf(Checkpoint.of("s", 0, 5), Checkpoint.of("s", 1, 5)))
+            val mark = counted.begin()
+            batched.saveAll(
+                group,
+                listOf(Checkpoint.of("s", 0, 9), Checkpoint.of("s", 1, 3), Checkpoint.of("s", 2, 4)),
+            )
+            counted.since(mark).map { it.substringBefore(' ') }.assert().containsExactly("INSERT", "UPDATE")
+            batched.load(group, "s", 0).assert().isEqualTo(9L)
+            batched.load(group, "s", 1).assert().isEqualTo(5L)
+            batched.load(group, "s", 2).assert().isEqualTo(4L)
+        }
+
+    @Test
     fun `a batch that names a key twice keeps its furthest position`(): Unit = runBlocking {
         // One statement may touch a row once: the batch keeps one row per key, the furthest.
         val group = "twice-${System.nanoTime()}"
@@ -80,34 +118,124 @@ class PostgresCheckpointStoreTest : CheckpointStoreSpec() {
     }
 
     @Test
-    fun `a batch past one statement's rows is split, and still commits once`(): Unit = runBlocking {
+    fun `a batch of any size is the same two statements and one commit`(): Unit = runBlocking {
         val counted = CountedDataSource(PostgresFixture.dataSource)
         val batched = PostgresCheckpointStore(counted.dataSource)
         val group = "large-${System.nanoTime()}"
-        val rows = PostgresCheckpointStore.MAX_ROWS * 2 + 5
+        val rows = 2_005
         val mark = counted.begin()
         val commits = counted.commits
         batched.saveAll(group, (0 until rows).map { Checkpoint.of("large", it, it.toLong()) })
-        counted.since(mark).size.assert().isEqualTo(3)
+        // Arrays, not a row's parameters each: one insert and one update, whatever the rows.
+        counted.since(mark).size.assert().isEqualTo(2)
         (counted.commits - commits).assert().isEqualTo(1)
-        listOf(0, PostgresCheckpointStore.MAX_ROWS, rows - 1).forEach {
+        listOf(0, 1_000, rows - 1).forEach {
             batched.load(group, "large", it).assert().isEqualTo(it.toLong())
         }
     }
 
     @Test
-    fun `concurrent batches over the same keys in opposite orders never deadlock`(): Unit = runBlocking {
-        // The rows go in key order whatever order the caller gives them, so two batches lock them in one order.
+    fun `concurrent batches in opposite orders, each ahead on its own half, leave the highest`(): Unit = runBlocking {
+        // The rows go in key order whatever order the caller gives them. What makes this outcome certain: each batch
+        // is ahead on its own half only, at the stored position on the other, so each update locks rows the other
+        // leaves alone, and neither can wait on the other, whatever order its plan locks in.
         val group = "order-${System.nanoTime()}"
         val keys = (0 until KEYS)
         repeat(ROUNDS) { round ->
-            val forward = keys.map { Checkpoint.of("order", it, round * 2L + 1) }
-            val backward = keys.reversed().map { Checkpoint.of("order", it, round * 2L + 2) }
+            val high = round * 2L + 2
+            fun position(mine: Boolean) = if (mine) high else high - 2
+            val forward = keys.map { Checkpoint.of("order", it, position(it < KEYS / 2)) }
+            val backward = keys.reversed().map { Checkpoint.of("order", it, position(it >= KEYS / 2)) }
             listOf(forward, backward).map { batch ->
                 async(Dispatchers.IO) { store.saveAll(group, batch) }
             }.awaitAll()
         }
         keys.map { store.load(group, "order", it) }.assert().allMatch { it == ROUNDS * 2L }
+    }
+
+    @Test
+    fun `two saves each ahead on the row the other is behind on never wait on each other`(): Unit = runBlocking {
+        // The cycle an update followed by an upsert met: stored k1 = 5, k2 = 5; A saves {k1: 9, k2: 3},
+        // B {k1: 3, k2: 9}.
+        // What makes this outcome certain: the statements run here, on two connections, in the order that crossed
+        // before, each in turn. Each completes at once: the insert takes no lock on a row that exists, and the update
+        // locks only the row it moves, never the one the guard refuses, so neither waits for the other (a wait would
+        // fail on the lock timeout instead).
+        val group = "crossed-${System.nanoTime()}"
+        store.saveAll(group, listOf(Checkpoint.of("s", 1, 5), Checkpoint.of("s", 2, 5)))
+        val a = listOf(Checkpoint.of("s", 1, 9), Checkpoint.of("s", 2, 3))
+        val b = listOf(Checkpoint.of("s", 1, 3), Checkpoint.of("s", 2, 9))
+        PostgresFixture.dataSource.connection.use { first ->
+            PostgresFixture.dataSource.connection.use { second ->
+                listOf(first, second).forEach { connection ->
+                    connection.autoCommit = false
+                    connection.createStatement().use { it.execute("SET LOCAL lock_timeout = '2s'") }
+                }
+                run(first, PostgresCheckpointStore.ADD, group, a)
+                run(second, PostgresCheckpointStore.ADD, group, b)
+                run(first, PostgresCheckpointStore.MOVE, group, a)
+                run(second, PostgresCheckpointStore.MOVE, group, b)
+                first.commit()
+                second.commit()
+            }
+        }
+        store.load(group, "s", 1).assert().isEqualTo(9L)
+        store.load(group, "s", 2).assert().isEqualTo(9L)
+    }
+
+    @Test
+    fun `a row another save inserts while this one runs is moved if this one is ahead`(): Unit = runBlocking {
+        // B inserts k at 3 and holds its transaction open; A saves k at 9. What makes the outcome certain: A is seen
+        // waiting on B's insert (a transaction lock, in pg_stat_activity) before B commits, so A's insert meets B's row
+        // as a conflict and leaves it, and A's update, after it, finds it and moves it to 9. An update before the
+        // insert would have found no row, and the insert left B's 3.
+        val group = "raced-${System.nanoTime()}"
+        PostgresFixture.dataSource.connection.use { other ->
+            other.autoCommit = false
+            run(other, PostgresCheckpointStore.ADD, group, listOf(Checkpoint.of("s", 1, 3)))
+            val saving = async(Dispatchers.IO) { store.saveAll(group, listOf(Checkpoint.of("s", 1, 9))) }
+            withTimeout(10.seconds) { while (!insertWaiting()) delay(5) }
+            other.commit()
+            saving.await()
+        }
+        store.load(group, "s", 1).assert().isEqualTo(9L)
+    }
+
+    /** Whether a checkpoint insert waits on another transaction's row now. */
+    private fun insertWaiting(): Boolean = PostgresFixture.dataSource.connection.use { connection ->
+        connection.prepareStatement(
+            "SELECT count(*) FROM pg_stat_activity WHERE wait_event_type = 'Lock' AND wait_event = 'transactionid' " +
+                "AND query LIKE 'INSERT INTO ${PostgresCheckpointStore.TABLE}%'",
+        ).use { query -> query.executeQuery().use { rows -> rows.next() && rows.getInt(1) > 0 } }
+    }
+
+    @Test
+    fun `concurrent saves each ahead on every other key all commit and leave the highest`(): Unit = runBlocking {
+        // At the store's own pace, over 64 keys. What makes this outcome certain: each save is ahead on its own keys
+        // only, at the stored position on the other's, so its update locks rows the other's leaves alone; the inserts
+        // of the first round lock new keys in key order. Neither can wait on the other in a cycle, whatever order the
+        // plans of the two pooled connections lock in. Saves moving the same rows are the next test's.
+        val group = "crossed-pace-${System.nanoTime()}"
+        repeat(ROUNDS) { round ->
+            val high = round * 2L + 2
+            val even = (0 until KEYS).map { Checkpoint.of("x", it, if (it % 2 == 0) high else high - 2) }
+            val odd = (0 until KEYS).map { Checkpoint.of("x", it, if (it % 2 == 1) high else high - 2) }
+            listOf(even, odd).map { batch -> async(Dispatchers.IO) { store.saveAll(group, batch) } }.awaitAll()
+        }
+        (0 until KEYS).map { store.load(group, "x", it) }.assert().allMatch { it == ROUNDS * 2L }
+    }
+
+    private fun run(connection: Connection, sql: String, group: String, rows: List<Checkpoint>) =
+        connection.prepareStatement(sql).use { statement ->
+            bind(connection, statement, group, rows)
+            statement.executeUpdate()
+        }
+
+    private fun bind(connection: Connection, statement: PreparedStatement, group: String, rows: List<Checkpoint>) {
+        statement.setArray(1, connection.createArrayOf("text", rows.map { it.subscription }.toTypedArray()))
+        statement.setArray(2, connection.createArrayOf("integer", rows.map { it.partition }.toTypedArray()))
+        statement.setArray(3, connection.createArrayOf("bigint", rows.map { it.position }.toTypedArray()))
+        statement.setString(4, group)
     }
 
     @Test
