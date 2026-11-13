@@ -1,6 +1,6 @@
 ---
 title: PostgreSQL
-description: "Run a service on PostgreSQL: the DataSource, the tables Wow creates, the server settings it needs, connection pools for appends and queries, placing aggregates on several databases, and schema management."
+description: "Run a service on PostgreSQL: the DataSource, the tables Wow creates, the server settings it needs, failover and synchronous replication, connection pools for appends and queries, placing aggregates on several databases, and schema management."
 outline: deep
 ---
 
@@ -108,6 +108,58 @@ Measured on 20,000 snapshots of about 1.2 kB with 100,000 saves:
 | 80 | 100% | 37% larger at load, unchanged by the saves |
 
 The setting applies to pages written after it; `VACUUM FULL` rewrites the existing ones, under an exclusive lock. Wow sets no `fillfactor` of its own.
+
+## Failover {#failover}
+
+On one PostgreSQL server, a row is visible only once its transaction commits, and the log's appends commit with their WAL flushed (`synchronous_commit` at its default, `on`). The subscriptions read committed rows, so a crash of the server loses nothing a subscription acted on.
+
+A failover to a standby keeps that guarantee only with synchronous replication. PostgreSQL replicates asynchronously by default, and a promoted asynchronous standby lacks the commits it had not yet received. The old primary had acknowledged those commits, and the subscriptions may already have acted on them. Wow cannot see the replication from its connections: this is the deployment's to decide.
+
+**What an asynchronous failover can leave behind.** The new primary holds an earlier, consistent point of the database: its log, checkpoints and counters stop at the same place. What the subscriptions did with the lost commits stays where it went:
+
+- a saga's derived command, committed in another context;
+- a message on Kafka, read by other contexts;
+- a projection's write to another system, such as a view or an index;
+- a snapshot kept in another store.
+
+The log then gives the lost positions and versions to new commits, so one aggregate version can appear twice outside the service, with different events.
+
+**Finding them.** The checkpoints in the database went back with the log, so they show no gap. Compare the log's head with what is kept outside it:
+
+- a subscription whose checkpoints are in another store stands past its partition's head (`GET /wow/ops/subscriptions` shows each partition's position and head, [The Ops Service and Console](./ops-console#without-the-ops-service));
+- the service's Kafka topics, and the read models and systems the subscriptions write, hold commits the log no longer has.
+
+Then recover as after a restore to an earlier point: rebuild the read models kept outside, and tell the owners of the contexts that read the service's streams ([Restore a database](./backup#restore-a-database)).
+
+**Closing it.** Make the failover target a synchronous standby. On the primary's `postgresql.conf`:
+
+```ini
+synchronous_standby_names = 'ANY 1 (standby_a, standby_b)'
+synchronous_commit = on
+```
+
+- **`synchronous_standby_names`** lists the standbys, by their `application_name`, that a commit waits for:
+  - `FIRST n (…)` waits for the `n` connected ones listed first;
+  - `ANY n (…)` waits for any `n` of them.
+
+  It is set only in the configuration file or on the server's command line.
+- **`synchronous_commit = on`**, the default, makes a commit wait until those standbys have flushed it to durable storage. `remote_apply` waits too until they have replayed it, so it is visible to queries there, at a larger delay.
+  - `remote_write` waits only for the standby's operating system to have the data, which a crash of that operating system loses.
+  - `local` and `off` wait for no standby.
+- **Set for Wow's account.** `synchronous_commit` can also be set per role, database or transaction, and a `local` or `off` there undoes the guarantee for Wow's commits. Wow itself lowers it only for the covered snapshot saves (below).
+- **What the tails read.** While a commit waits for its standbys, PostgreSQL keeps it invisible to other sessions, so a tail reads nothing a synchronous standby lacks. A waiting commit becomes visible on the primary alone only when its wait is cancelled, or when the primary restarts during it: cancel no backend that waits for replication.
+- **Promote a synchronous standby.** With `ANY`, promote the one furthest ahead.
+
+**What it costs a commit.** Each commit waits at least one round trip to its synchronous standbys, longer with `remote_apply`, and holds its locks meanwhile. Keep the standbys close to the primary. A commit waits for as long as its standbys are missing, so with one standby named, a stopped standby stops every commit. Name one more than a commit waits for (`ANY 1` of two, or `FIRST 1` of two). The node's calls wait at most `wow.postgres.operation-timeout`, then fail ([Size the pools](#size-the-pools)).
+
+**The covered snapshots.** A context's log, its snapshot subscription's checkpoints and its snapshots are on one store by default, and its snapshot saves then commit with `synchronous_commit = off`: they wait for neither the local flush nor a standby. This leaves no gap. The checkpoint that covers those snapshots commits after them and waits for the standbys, and the WAL reaches a standby in order, so a standby that has the checkpoint has the snapshots. A snapshot it lacks is past its last checkpoint, and the subscription writes it again from the log.
+
+**On a managed service.**
+
+- Amazon RDS's Multi-AZ DB instance replicates synchronously to its standby, and a Multi-AZ DB cluster commits once at least one reader acknowledges. An RDS read replica is asynchronous.
+- Amazon Aurora writes the cluster volume, shared by the writer and its replicas, synchronously to six storage nodes across Availability Zones. A global database replicates to its other Regions asynchronously.
+
+A failover to an asynchronous replica is the case above.
 
 ## Size the pools
 
