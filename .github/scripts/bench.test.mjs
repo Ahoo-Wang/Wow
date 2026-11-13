@@ -54,8 +54,6 @@ import {
   busyOf,
   queryLimitsWithin,
   queryLimitsText,
-  ratioVerdict,
-  saturationSamples,
   runSettings,
   runSuite,
   SAME,
@@ -94,6 +92,7 @@ import {
   roundOrder,
   spread,
 } from './bench-common.mjs';
+import { ratioVerdict, saturationSamples } from './bench-curves.mjs';
 
 // This file runs under Node's test runner alone (`pnpm test:ci-scripts`), whose NODE_TEST_CONTEXT makes
 // hostProcesses refuse: no test here finds or signals a process of the host (X-66).

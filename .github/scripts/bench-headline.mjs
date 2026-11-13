@@ -6,7 +6,8 @@
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { aaSpread, peakRatio, ratioVerdict } from './bench.mjs';
+import { aaSpread, peakRatio } from './bench.mjs';
+import { ratioVerdict } from './bench-curves.mjs';
 
 // The figures the documentation quotes (docs-performance.mjs), read from the reports' own data so that no figure
 // reaches a page by hand: each report's `headline.json` beside its `.md`, written here from the raw results the

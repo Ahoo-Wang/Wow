@@ -356,7 +356,7 @@ const keptText = (id, kept) =>
  */
 export function significanceSection(suites, noise, noiseLabel) {
   const significant = suites.filter(
-    s => s.kind === 'paired' && s.arms.length === 2 && !s.aa,
+    s => s.kind === 'paired' && s.arms.length === 2 && !s.aa && !s.curve,
   );
   if (significant.length === 0) return [];
   const rows = [];

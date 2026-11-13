@@ -38,6 +38,16 @@ import {
 } from './bench-measure.mjs';
 import { measureSuites } from './bench-measure-suites.mjs';
 import {
+  curveAnomalies,
+  curveSection,
+  curveSuites,
+  renderCurve,
+  ratioVerdict,
+  runCurve,
+  samplesTable,
+  saturationSamples,
+} from './bench-curves.mjs';
+import {
   CALIBRATED,
   AA_ROUNDS,
   calibratedGeneratorBound,
@@ -691,6 +701,7 @@ export const SUITES = {
     arms: [ACCESS_CLAIMS_MONGO, ACCESS_POLICY_MONGO],
     answers: 'E3 on MongoDB, as access-e3-pg.',
   },
+  ...curveSuites({ BASE_PG, HEAD_PG, BASE_MONGO, HEAD_MONGO }),
   ...measureSuites({
     HEAD_PG,
     BASE_PG,
@@ -1163,6 +1174,7 @@ export function anomalies(suite, noise = {}) {
   const thresholds = noise[noiseLabel(suite)];
   const rows = [];
   if (suite.kind === 'measure') return measureAnomalies(suite);
+  if (suite.curve) return curveAnomalies(suite);
   if (suite.kind === 'component') {
     // More store round trips or allocations per operation than the baseline: a regression of the core path's cost.
     for (const head of suite.runs.filter(
@@ -1619,59 +1631,6 @@ export function aaSpread(suite, label, key = 'peak') {
 }
 
 /**
- * A paired suite's closed-loop samples (`saturations`), the second arm's against the first's: each arm's throughputs in
- * order, the ratio of their medians, and from the lowest second over the highest first to the highest over the lowest.
- * The A/A spread is the larger of the two arms' (spread); a range within it is level (ratioVerdict).
- */
-export function saturationSamples(suite) {
-  if (!suite.saturations || suite.arms.length !== 2) return undefined;
-  const [a, b] = suite.arms.map(arm => arm.id);
-  const values = id =>
-    (suite.saturations[id] ?? [])
-      .filter(sample => sample.status === 'ok')
-      .map(sample => sample.throughput);
-  const [first, second] = [values(a), values(b)];
-  if (first.length === 0 || second.length === 0) return undefined;
-  const noise =
-    first.length >= 2 && second.length >= 2
-      ? Math.max(spread(first), spread(second))
-      : undefined;
-  const range = {
-    lo: Math.min(...second) / Math.max(...first),
-    hi: Math.max(...second) / Math.min(...first),
-    bound: '',
-  };
-  return {
-    ids: [a, b],
-    first,
-    second,
-    median: median(second) / median(first),
-    range,
-    noise,
-    verdict: ratioVerdict(range, noise, [b, a]),
-  };
-}
-
-/**
- * What a ratio of two arms' peaks (peakRatio) says beyond the A/A spread `noise`: one arm higher, level, or
- * undetermined. A lower-bound ratio (`≥`) can show the first arm higher only, an upper bound (`≤`) the second.
- */
-export function ratioVerdict(ratio, noise, ids) {
-  if (!ratio) return '-';
-  if (!Number.isFinite(noise)) return 'no A/A (one session an arm)';
-  const first = ratio.lo > 1 + noise;
-  const second = ratio.hi < 1 - noise;
-  if (ratio.bound === '~') return 'undetermined (both lower bounds)';
-  if (ratio.bound === '≥')
-    return first ? `${ids[0]} higher` : 'undetermined (a lower bound)';
-  if (ratio.bound === '≤')
-    return second ? `${ids[1]} higher` : 'undetermined (an upper bound)';
-  if (first) return `${ids[0]} higher`;
-  if (second) return `${ids[1]} higher`;
-  return 'level (within the A/A spread)';
-}
-
-/**
  * Whether a session's store holds what its runs asked of it, from the events it stored once the nodes were quiet
  * (bench.sh inspect): every seeded account opened; between the deposits (E1 and the prime) that reached their
  * completion point and those sent, as many stored, since one that timed out may still commit, and the same for the
@@ -2075,7 +2034,8 @@ export function parseJob(id) {
  * (group `ab`) has its own rule, its A/A runs needing none.
  */
 export const usesBase = name =>
-  ['sessions', 'measure'].includes(SUITES[name]?.kind) &&
+  (['sessions', 'measure'].includes(SUITES[name]?.kind) ||
+    Boolean(SUITES[name]?.curve)) &&
   SUITES[name].arms.some(arm => arm.install === 'base');
 
 /**
@@ -2786,23 +2746,6 @@ function sweepTable(suite, located = false) {
 }
 
 /** The closed-loop samples of the suites that took them (saturationSamples), a row a suite. */
-function samplesTable(suites) {
-  return [
-    '| Suite | b/a | a, in order | b, in order | Median ratio | Range | A/A spread | Verdict |',
-    '| --- | --- | --- | --- | --- | --- | --- | --- |',
-    ...suites.flatMap(suite => {
-      const samples = saturationSamples(suite);
-      if (!samples) return [];
-      const [a, b] = samples.ids;
-      const list = values => values.map(value => `${num(value)}/s`).join(', ');
-      return [
-        `| ${labelOf(suite)} | ${b}/${a} | ${list(samples.first)} | ${list(samples.second)} | ${ratio(samples.median)} | ` +
-          `${ratio(samples.range.lo)}–${ratio(samples.range.hi)} | ${Number.isFinite(samples.noise) ? `${num(samples.noise * 100)}%` : '-'} | ${samples.verdict} |`,
-      ];
-    }),
-  ];
-}
-
 function saturationTable(suite) {
   if (!suite.saturation || Object.keys(suite.saturation).length === 0)
     return [];
@@ -2876,6 +2819,7 @@ function primingLines(suite) {
 export function renderSuite(suite) {
   const definition = SUITES[suite.name];
   if (suite.kind === 'measure') return renderMeasure(suite, definition);
+  if (suite.curve) return renderCurve(suite, definition);
   const lines = [
     `## ${labelOf(suite)}${suite.aa ? ' (A/A: head against head)' : ''}`,
     '',
@@ -3450,7 +3394,17 @@ export function runSuite(name, options) {
     return suite.saturation[key];
   };
 
-  if (definition.kind === 'paired' && definition.saturations) {
+  if (definition.kind === 'paired' && definition.curve) {
+    runCurve(definition, suite, {
+      benchPath,
+      out,
+      name,
+      arms,
+      common,
+      propsOf,
+      save,
+    });
+  } else if (definition.kind === 'paired' && definition.saturations) {
     // Closed-loop samples alone: `saturations` searches an arm in turn (ABBA); the arm's saturation is their median.
     suite.saturations = Object.fromEntries(arms.map(arm => [arm.id, []]));
     for (let index = 0; index < definition.saturations; index++) {
@@ -4133,6 +4087,7 @@ export function renderReport(suites, meta = {}) {
       );
     }
   }
+  lines.push(...curveSection(suites));
   const sampled = suites.filter(suite => saturationSamples(suite));
   if (sampled.length > 0) {
     lines.push(
@@ -4151,7 +4106,7 @@ export function renderReport(suites, meta = {}) {
     '| Suite | Arm | Saturation | Concurrency | Open-loop rate | Share of saturation |',
     '| --- | --- | --- | --- | --- | --- |',
   );
-  for (const suite of suites.filter(s => s.kind === 'paired')) {
+  for (const suite of suites.filter(s => s.kind === 'paired' && !s.curve)) {
     for (const arm of suite.arms) {
       const s = suite.saturation?.[arm.id] ?? {};
       lines.push(
