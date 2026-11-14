@@ -113,7 +113,7 @@ sealed class ObservedEvent {
             /** It surely did not reach the owner, and ran here. */
             LOCAL("local"),
 
-            /** The peer had its most forwards in flight, and it ran here. */
+            /** The peer had its most forwards in flight: the command was refused busy, and ran nowhere. */
             BUSY("busy"),
 
             /** It may have reached the owner, and its outcome is unknown. */

@@ -87,6 +87,54 @@ class ClusterForwardOutcomesTest : ClusterTestCase() {
     }
 
     @Test
+    fun `a forward past the peer's bound is refused busy and runs nowhere, one at the bound minus one goes`(): Unit =
+        runBlocking {
+            val (one) = cluster.start("node-1", "node-2")
+            cluster.awaitStable()
+            val (first, second, third) = (0 until 64).map { "acc-$it" }.filter { ownerOf(it) == "node-2" }.take(3)
+            val gate = CompletableDeferred<Unit>()
+            val sent = AtomicInteger()
+            val (events, observer) = observing()
+            // The peer takes at most two forwards from this node; each forward it is sent waits at the gate.
+            val router = PartitionedRouter(
+                listOf(one.ownership),
+                { _, _ ->
+                    sent.incrementAndGet()
+                    gate.await()
+                    ForwardReply.refused(Refusal.NOT_OWNER)
+                },
+                fastOptions(forwardTimeout = 5.seconds, maxInFlightPerPeer = 2),
+                observer,
+            )
+            val held = async(Dispatchers.Default) { router.routeOn(one, one.command(first), null) }
+            eventually { sent.get() == 1 }
+            // One in flight, the bound minus one: the next forward is sent.
+            val atBound = async(Dispatchers.Default) { router.routeOn(one, one.command(second), null) }
+            eventually { sent.get() == 2 }
+
+            // Two in flight, the bound: the next is refused busy before it is sent, and nothing runs it here.
+            val past = one.command(third)
+            val refused = router.routeOn(one, past, null)
+            refused.committed.status.assert().isEqualTo(CommandResult.Status.FAILED)
+            refused.committed.error!!.code.assert().isEqualTo(ResultCodes.BUSY)
+            refused.outcome.assert().isNull()
+            sent.get().assert().isEqualTo(2)
+            one.decided.assert().isEmpty()
+            cluster.events.assert().doesNotContain("append $third")
+            events.filterIsInstance<ObservedEvent.Refused>().map { it.code }.assert().containsExactly(ResultCodes.BUSY)
+            events.filterIsInstance<ObservedEvent.ForwardFailed>().map { it.outcome }.assert()
+                .containsExactly(ObservedEvent.ForwardFailed.Outcome.BUSY)
+
+            // The forwards in flight were sent; their refusal before the deadline still runs them here.
+            gate.complete(Unit)
+            listOf(held.await(), atBound.await()).forEach {
+                it.committed.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+            }
+            one.decided.assert().hasSize(2).doesNotContain(past.id)
+            router.peersInFlight.assert().isEmpty()
+        }
+
+    @Test
     fun `only a forward the owner surely did not receive runs locally`(): Unit = runBlocking {
         // Decision D223: a refusal or an unsent request runs here; a failure after the send is unknown.
         val (one) = cluster.start("node-1", "node-2")

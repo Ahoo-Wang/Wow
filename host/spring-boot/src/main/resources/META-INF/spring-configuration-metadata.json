@@ -457,7 +457,7 @@
   }, {
     "name" : "wow.cluster.max-in-flight-per-node",
     "type" : "java.lang.Integer",
-    "description" : "The forwards one node may have outstanding with another; one more runs here instead.",
+    "description" : "The forwards one node may have outstanding with another; one more is refused busy (`wow.command.busy`), not run here.",
     "sourceType" : "me.ahoo.wow.spring.boot.node.ClusterProperties",
     "defaultValue" : 1024
   }, {

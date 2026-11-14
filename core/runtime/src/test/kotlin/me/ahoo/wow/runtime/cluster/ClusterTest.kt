@@ -328,21 +328,26 @@ class ClusterTest : ClusterTestCase() {
         }
 
     @Test
-    fun `a peer with its in-flight forwards at the limit is not forwarded to`(): Unit = runBlocking {
-        cluster.close()
-        cluster = TestCluster(options = fastOptions(forwardTimeout = 5.seconds, maxInFlightPerPeer = 1))
-        val (one, two) = cluster.start("node-1", "node-2")
-        cluster.awaitStable()
-        val (first, second) = (0 until 64).map { "acc-$it" }.filter { ownerOf(it) == "node-2" }.take(2)
-        val gate = CompletableDeferred<Unit>().also { two.hold = it }
-        val forwarded = async(Dispatchers.Default) { one.deposit(first) }
-        eventually { two.decided.size == 1 }
+    fun `a command for a peer with its in-flight forwards at the limit is refused busy, not run here`(): Unit =
+        runBlocking {
+            cluster.close()
+            cluster = TestCluster(options = fastOptions(forwardTimeout = 5.seconds, maxInFlightPerPeer = 1))
+            val (one, two) = cluster.start("node-1", "node-2")
+            cluster.awaitStable()
+            val (first, second) = (0 until 64).map { "acc-$it" }.filter { ownerOf(it) == "node-2" }.take(2)
+            val gate = CompletableDeferred<Unit>().also { two.hold = it }
+            val forwarded = async(Dispatchers.Default) { one.deposit(first) }
+            eventually { two.decided.size == 1 }
 
-        val local = one.deposit(second)
-        one.decided.assert().containsExactly(local.commandId)
-        gate.complete(Unit)
-        two.decided.assert().containsExactly(forwarded.await().commandId)
-    }
+            // The owner is deciding the one forward the bound allows: the next is answered busy, and runs nowhere.
+            val refused = one.deposit(second)
+            refused.status.assert().isEqualTo(CommandResult.Status.FAILED)
+            refused.error!!.code.assert().isEqualTo(ResultCodes.BUSY)
+            one.decided.assert().isEmpty()
+            gate.complete(Unit)
+            two.decided.assert().containsExactly(forwarded.await().commandId)
+            cluster.events.assert().contains("append $first").doesNotContain("append $second")
+        }
 
     /** Waits until [node]'s routes were read [times] more times: each refresh of them makes a new table. */
     private suspend fun refreshed(node: TestNode, times: Int) {

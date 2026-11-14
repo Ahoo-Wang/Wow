@@ -63,7 +63,10 @@ class ClusterProperties {
      */
     var forwardTimeout: Duration? = null
 
-    /** The forwards one node may have outstanding with another; one more runs here instead. */
+    /**
+     * The forwards one node may have outstanding with another; one more is refused busy (`wow.command.busy`), not run
+     * here.
+     */
     var maxInFlightPerNode: Int = DEFAULT_CLUSTER.maxInFlightPerPeer
 
     /** How long a hand-off of a partition waits for its commands in flight before it moves on. */
