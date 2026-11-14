@@ -61,7 +61,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
-          node-version: 24.22.2
+          node-version: 24.22.3
 
       # gradle.properties, every package.json, the chart and the release tag agree.
       - name: Verify release versions
@@ -72,7 +72,7 @@ jobs:
       - name: Set up Helm
         uses: azure/setup-helm@2f5e7bc67f1f9972ab16657bb795f36d8f04de0e # v5.1.0
         with:
-          version: v4.3.1
+          version: v4.3.2
 
       - name: Package the chart
         id: package
