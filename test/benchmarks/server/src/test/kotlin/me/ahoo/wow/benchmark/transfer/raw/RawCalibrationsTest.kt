@@ -18,7 +18,7 @@ import org.assertj.core.api.Assertions.within
 import org.junit.jupiter.api.Test
 
 class RawCalibrationsTest {
-    private fun step(storeCpuMsPerUnit: Double?) = RawStep(
+    private fun step(storeCpuMsPerUnit: Double?, perUnit: Map<String, Double> = emptyMap()) = RawStep(
         case = RawCase("wow-today", "command", 10, "today"),
         connections = 4,
         rate = null,
@@ -31,7 +31,7 @@ class RawCalibrationsTest {
         p50FlushMs = 1.5,
         p99FlushMs = 9.0,
         storeCpuMsPerUnit = storeCpuMsPerUnit,
-        perUnit = emptyMap(),
+        perUnit = perUnit,
     )
 
     private fun RawCalibration.apartOf(metric: String) = apart.single { it.metric == metric }
@@ -47,6 +47,8 @@ class RawCalibrationsTest {
             // Not an operation's: a namespace's total is left out, as top reports it beside its kinds.
             "transfer.${RawMongo.LOG} total micros" to 1000.0,
             "transfer.${RawMongo.LOG} insert" to 0.066,
+            // The clone's collections are the clone's side: the counters' own read of one is left out of Wow's.
+            "transfer.${RawMongo.RAW_SNAPSHOT} commands micros" to 0.013,
         )
         val calibration = mongoCalibration(wow, step(null), step(null))
         calibration.apartOf("mongodWritesMs").wow!!.assert().isEqualTo(0.0702, within(1e-9))
@@ -62,5 +64,20 @@ class RawCalibrationsTest {
         val none = mongoCalibration(emptyMap(), step(null), step(null))
         none.apartOf(STORE_CPU_MS).wow.assert().isNull()
         none.apartOf("mongodWritesMs").wow.assert().isNull()
+    }
+
+    @Test
+    fun `the clone's mongod time is its own collections' in the calibrating step, its log's and snapshots' writes apart`() {
+        val clone = mapOf(
+            "transfer.${RawMongo.RAW_LOG} insert micros" to 15.0,
+            "transfer.${RawMongo.RAW_SNAPSHOT} update micros" to 30.0,
+            "transfer.${RawMongo.RAW_COUNTERS} update micros" to 2.0,
+            // Wow's collections in the clone's step are Wow's idle node's, not the clone's.
+            "transfer.wow_checkpoint update micros" to 4.0,
+        )
+        val calibration = mongoCalibration(emptyMap(), step(null, clone), step(null))
+        calibration.apartOf("mongodWritesMs").raw!!.assert().isEqualTo(0.045, within(1e-9))
+        calibration.apartOf("mongodOtherMs").raw!!.assert().isEqualTo(0.002, within(1e-9))
+        calibration.apartOf("mongodWritesMs").wow.assert().isNull()
     }
 }

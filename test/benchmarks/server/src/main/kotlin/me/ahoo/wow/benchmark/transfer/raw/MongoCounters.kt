@@ -67,6 +67,35 @@ class MongoCounters(private val admin: MongoClient, private val database: MongoD
         }
     }
 
+    /**
+     * Each of Wow's and the clone's collections now, for a calibration's side-by-side layout (a raw run's
+     * `store.collections`): its documents, their mean size, its storage and its indexes' bytes, and each index's key,
+     * size and uniqueness.
+     */
+    fun collections(): Map<String, Map<String, Any?>> =
+        database.listCollectionNames().filter { it.startsWith("wow_") || it.startsWith("raw_") }.sorted()
+            .associateWith { name ->
+                val collection = database.getCollection(name)
+                val stats = collection.aggregate(listOf(Document("\$collStats", Document("storageStats", Document()))))
+                    .firstOrNull()?.get("storageStats") as Document?
+                val sizes = stats?.get("indexSizes") as Document?
+                mapOf(
+                    "count" to (stats?.get("count") as Number?),
+                    "avgObjSize" to (stats?.get("avgObjSize") as Number?),
+                    "storageSize" to (stats?.get("storageSize") as Number?),
+                    "totalIndexSize" to (stats?.get("totalIndexSize") as Number?),
+                    "indexes" to collection.listIndexes().map { index ->
+                        val indexName = index.getString("name")
+                        mapOf(
+                            "name" to indexName,
+                            "key" to (index["key"] as Document?)?.toJson(),
+                            "unique" to (index["unique"] == true),
+                            "bytes" to (sizes?.get(indexName) as Number?),
+                        )
+                    }.toList(),
+                )
+            }
+
     /** The mean latency of the snapshot collection's writes over a step, microseconds, from the counters' growth. */
     fun ratios(growth: Map<String, Double>): Map<String, Double> {
         val writes = growth["snapshotWrites"] ?: 0.0

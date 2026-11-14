@@ -387,14 +387,21 @@ private fun mongo(settings: RawSettings, options: Map<String, String>): RawResul
     ).use { raw ->
         val cpu = ContainerCpu(settings.container)
         val counters = { raw.counters() + raw.tables() + storeCpuOf(cpu) }
-        val wow = seed("mongo", settings.templates, options, counters, {}, raw::ownOplog)
+        var wowWindow = 0L to 0L
+        val wow = seed("mongo", settings.templates, options, counters, {}, { from, to ->
+            wowWindow = from to to
+            raw.ownOplog(from, to)
+        })
+        // Wow's side of the layout: its collections and its oplog's bytes by collection over its measured window.
+        val wowLayout = raw.collections()
+        val wowOplog = raw.oplogByNamespace(wowWindow.first, wowWindow.second)
         raw.loadTemplates(settings.templates)
         val cases = raw.cases(settings.logBatch, settings.snapshotBatch, settings.batches)
         fun step(case: RawMongo.Case, connections: Int, versions: IntArray, pace: Pace = Pace(settings.timing)) =
             raw.client(case.shape?.connections ?: connections).use { client ->
                 val shape = case.shape?.let { raw.shapeOf(it, client) }
                 try {
-                    val counters = { raw.counters() + shape?.counters().orEmpty() }
+                    val counters = { raw.counters() + raw.tables() + shape?.counters().orEmpty() }
                     val ratios = { growth: Map<String, Double> -> raw.ratios(growth) + WowShape.ratios(growth) }
                     runStep(case.case, connections, pace, cpu, counters, ratios) { index ->
                         val owned = Aggregates(versions, index, connections)
@@ -413,15 +420,24 @@ private fun mongo(settings: RawSettings, options: Map<String, String>): RawResul
                 }
             }.also(::print)
         val model = cases.first { it.case.ceiling == RawCase.COMMITTED }
+        var rawLayout: Map<String, Map<String, Any?>> = emptyMap()
+        var rawOplog: Map<String, Map<String, Double>> = emptyMap()
         val (calibrating, uncapped) = listOf(equalShape(model.shape, wow, MONGO_APPENDS, MONGO_SAVES), model.shape)
             .zip(listOf(calibrationCase(model.case), modelCase(model.case))).map { (shape, case) ->
                 raw.prepare(settings.templates, model.bigState)
+                val from = System.currentTimeMillis()
                 step(
                     RawMongo.Case(case, model.bigState, shape, model.flush),
                     CALIBRATION_CONNECTIONS,
                     opened(settings.templates),
                     Pace(calibrationTiming(settings), wow[WOW_RATE]),
-                )
+                ).also {
+                    // The clone's side of the layout, once: after the calibrating step, the first.
+                    if (rawLayout.isEmpty()) {
+                        rawLayout = raw.collections()
+                        rawOplog = raw.oplogByNamespace(from, System.currentTimeMillis())
+                    }
+                }
             }
         val steps = mutableListOf(calibrating, uncapped)
         for (case in cases.filter { settings.keeps(it.case.name) }) {
@@ -432,7 +448,11 @@ private fun mongo(settings: RawSettings, options: Map<String, String>): RawResul
                 step(case, n, versions)
             }
         }
-        RawResult(mongoCalibration(wow, calibrating, uncapped), raw.settings(), steps)
+        val layout = mapOf(
+            "collections" to mapOf("wow" to wowLayout, "raw" to rawLayout),
+            "oplog" to mapOf("wow" to wowOplog, "raw" to rawOplog),
+        )
+        RawResult(mongoCalibration(wow, calibrating, uncapped), raw.settings() + layout, steps)
     }
 
 /**
