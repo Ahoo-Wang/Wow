@@ -18,15 +18,18 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.log.LogPosition
 import tools.jackson.databind.json.JsonMapper
 import tools.jackson.databind.node.ArrayNode
+import java.sql.Connection
 import java.sql.PreparedStatement
 import java.sql.ResultSet
 import java.sql.Types
+import java.util.HexFormat
 
 /**
  * The rows of a context's log on PostgreSQL: a stream's columns as an append binds them ([bindStream]), and the stream
@@ -61,6 +64,37 @@ internal class PostgresLogRows(private val context: String) {
         }
         statement.setNullableString(index++, stream.access?.let(PostgresLogAccessColumn::text))
         stream.accessVersion?.let { statement.setInt(index, it) } ?: statement.setNull(index, Types.INTEGER)
+    }
+
+    /**
+     * Binds [group]'s streams to [statement] from parameter [first] on as arrays, one per [AggregateLogTable.COLUMNS],
+     * in the group's order ([PostgresEventLogTables.appendGroupAcrossArrays]); the transports as hex text, which the
+     * statement decodes: the driver binds no array of `bytea` given as objects.
+     */
+    fun bindStreamArrays(statement: PreparedStatement, connection: Connection, first: Int, group: List<Append>) {
+        val streams = group.map { it.stream }
+        fun array(type: String, values: List<Any?>) = connection.createArrayOf(type, values.toTypedArray())
+        var index = first
+        statement.setArray(index++, array("text", streams.map { it.ref.tenantId }))
+        statement.setArray(index++, array("text", streams.map { it.ref.id }))
+        statement.setArray(index++, array("int4", streams.map { it.version }))
+        statement.setArray(index++, array("text", streams.map { it.commandId }))
+        statement.setArray(index++, array("text", streams.map { it.requestId }))
+        statement.setArray(index++, array("text", streams.map { it.commandType }))
+        statement.setArray(index++, array("int8", streams.map { it.commitTime }))
+        statement.setArray(index++, array("text", streams.map { encodeEvents(it.events) }))
+        statement.setArray(index++, array("text", streams.map { it.scope.ownerId }))
+        statement.setArray(index++, array("text", streams.map { it.scope.spaceId }))
+        statement.setArray(index++, array("text", streams.map { it.causation?.correlationId }))
+        statement.setArray(index++, array("text", streams.map { it.causation?.causationId }))
+        statement.setArray(index++, array("text", streams.map { json.writeValueAsString(it.headers) }))
+        // As hex text, decoded in the statement: a bytea array is not one the driver binds as the statement reads it.
+        statement.setArray(index++, array("text", group.map { append -> append.transport?.let(HEX::formatHex) }))
+        statement.setArray(index++, array("text", streams.map { it.operator?.id }))
+        statement.setArray(index++, array("text", streams.map { it.operator?.tenantId }))
+        statement.setArray(index++, array("bool", streams.map { it.operator?.actedElsewhere }))
+        statement.setArray(index++, array("text", streams.map { it.access?.let(PostgresLogAccessColumn::text) }))
+        statement.setArray(index, array("int4", streams.map { it.accessVersion }))
     }
 
     fun entryOf(partition: Int, aggregate: String, row: ResultSet) = LogEntry(
@@ -136,3 +170,6 @@ internal fun <T> ResultSet.map(row: (ResultSet) -> T): List<T> {
     }
     return values
 }
+
+/** The transports' hex, as the array append binds them and its statement decodes them. */
+private val HEX: HexFormat = HexFormat.of()
