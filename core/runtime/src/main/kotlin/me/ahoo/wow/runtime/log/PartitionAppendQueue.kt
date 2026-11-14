@@ -46,8 +46,9 @@ import kotlin.coroutines.CoroutineContext
  * appends and cost a few per cent at low concurrency. These are the backends' constants, not settings.
  *
  * A log that takes several partitions at once ([EventLog.appendsAcrossPartitions]) gets the partitions' groups merged:
- * [mergers] committers, each taking what the partitions handed it meanwhile, at most [mergeMax]
- * streams, into one call; a log that does not take them is called per partition.
+ * [mergers] committers, each taking half of the streams the partitions handed and no committer took yet (the oldest
+ * group whatever its size), at most [mergeMax], into one call; a log that does not take them is called per
+ * partition.
  *
  * Fields may be added: Wow builds it from the host's configuration, so the constructor is internal
  * to Wow.
@@ -104,11 +105,18 @@ class AppendQueueOptions @InternalWowApi constructor(
  * appended. Once taken into a batch, the append completes whatever the caller does.
  *
  * When the log takes several partitions a call ([EventLog.appendsAcrossPartitions]), the lanes hand
- * their batches to [AppendQueueOptions.mergers] committers instead of calling the log themselves: a committer takes the
- * first batch handed and those handed meanwhile, at most [AppendQueueOptions.mergeMax] streams, and commits them with
- * one call. The store's fixed cost of a call is then shared by the partitions, whose batches are small at moderate load
- * (one or two streams). A lane waits for its batch before it takes the next, so each partition has one batch in flight,
- * as without merging; a merged call that throws fails every caller of its batches.
+ * their batches to [AppendQueueOptions.mergers] committers instead of calling the log themselves: a free committer
+ * takes the oldest batch handed and those after it, in turn, up to half of the streams handed and not taken yet, at
+ * most [AppendQueueOptions.mergeMax], and commits them with one call. The store's fixed cost of a call is then shared
+ * by the partitions, whose batches are small at moderate load (one or two streams). A lane waits for its batch before
+ * it takes the next, so each partition has one batch in flight, as without merging; a merged call that throws fails
+ * every caller of its batches.
+ *
+ * **Half, not all** (measured 2026-11-13): a call that took every batch handed held every lane, which then handed
+ * their next batches one after another as it completed, so the other committer started on the first of them alone: a
+ * small call after each large one, a full call's fixed cost each, the lanes moving in step with the calls. Half leaves
+ * the other committer a backlog to start from. A batch is never split, so a lone batch at low load is one call at
+ * once, as before, and what a call leaves stays at the head of the handed batches for the next free committer.
  *
  * The queue only serializes the appends
  * of this node: a partition appended to from two nodes (Local fallback during a hand-off) still
@@ -141,6 +149,9 @@ class PartitionAppendQueue(
 
     private val handed = Channel<Handed>(Channel.UNLIMITED)
 
+    /** The streams of the batches [handed] that no committer took yet. */
+    private val handedStreams = AtomicInteger()
+
     // Before the lanes' workers, which hand their groups to it.
     private val mergers: List<Job> =
         if (merging) List(options.mergers) { scope.launchWorker("append merger") { merge() } } else emptyList()
@@ -169,15 +180,19 @@ class PartitionAppendQueue(
         counting.get() ?: AppendQueueCounts().let { fresh -> counting.compareAndExchange(null, fresh) ?: fresh }
 
     /**
-     * Commits a group of the lanes' groups: the first handed, and those handed meanwhile, up to
-     * [AppendQueueOptions.mergeMax] streams, with one call; each lane then takes its next group. False once closed.
+     * Commits a group of the lanes' groups with one call: the oldest handed, and those after it in turn, up to half of
+     * the streams handed and not taken (the oldest group whatever its size), at most [AppendQueueOptions.mergeMax];
+     * each lane then takes its next group. False once closed.
      */
     private suspend fun merge(): Boolean {
         val first = handed.receiveCatching().getOrNull() ?: return false
+        val waiting = first.streams + handedStreams.addAndGet(-first.streams)
+        val limit = minOf(options.mergeMax, (waiting + 1) / 2)
         val group = arrayListOf(first)
         var streams = first.streams
-        while (streams < options.mergeMax) {
+        while (streams < limit) {
             val next = handed.tryReceive().getOrNull() ?: break
+            handedStreams.addAndGet(-next.streams)
             group += next
             streams += next.streams
         }
@@ -274,6 +289,7 @@ class PartitionAppendQueue(
                 // One group of the partition in flight: its next waits, so the partition's order holds.
                 val handing = Handed(batch, counting.get())
                 handing.counted?.handed(handing.streams)
+                handedStreams.addAndGet(handing.streams)
                 handed.send(handing)
                 handing.done.await()
             } else {
