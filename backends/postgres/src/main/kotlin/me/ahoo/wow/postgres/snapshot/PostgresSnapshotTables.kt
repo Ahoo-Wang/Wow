@@ -87,11 +87,16 @@ internal class PostgresSnapshotTables(context: String, aggregate: String) {
         """.trimIndent(),
     )
 
-    private fun upsert(guard: String, rows: Int = 1, returning: String = "version") = """
+    private fun upsert(
+        guard: String,
+        rows: Int = 1,
+        returning: String = "version",
+        source: String = "VALUES ${List(rows) { ROW }.joinToString(", ")}",
+    ) = """
         INSERT INTO $snapshot AS stored (tenant_id, aggregate_id, version, schema_fingerprint, state,
             owner_id, space_id, deleted, first_event_time, last_event_time, access, operator, first_operator, schedules,
             state_revision)
-        VALUES ${List(rows) { ROW }.joinToString(", ")}
+        $source
         ON CONFLICT (tenant_id, aggregate_id) DO UPDATE SET
             version = excluded.version,
             schema_fingerprint = excluded.schema_fingerprint,
@@ -132,6 +137,19 @@ internal class PostgresSnapshotTables(context: String, aggregate: String) {
      * concurrent writers of the same new aggregates, which this one never does.
      */
     fun saveRows(rows: Int): String = saves.computeIfAbsent(rows) { upsert(SAVE_GUARD, it, "tenant_id, aggregate_id") }
+
+    /**
+     * [saveRows] with one text whatever the batch's size, for batches above [PostgresBatches.ARRAYS_ABOVE] rows:
+     * [ROW_PARAMETERS] array parameters, one per column, unnested in the order given (`WITH ORDINALITY`), so the rows
+     * are still taken in key order.
+     */
+    val saveRowsArrays: String = upsert(
+        SAVE_GUARD,
+        returning = "tenant_id, aggregate_id",
+        source = "SELECT $SAVED FROM unnest(?::text[], ?::text[], ?::integer[], ?::text[], ?::jsonb[], ?::text[], " +
+            "?::text[], ?::boolean[], ?::bigint[], ?::bigint[], ?::jsonb[], ?::jsonb[], ?::jsonb[], ?::jsonb[], " +
+            "?::integer[]) WITH ORDINALITY AS t ($SAVED, ord) ORDER BY ord",
+    )
 
     /** [saveRows] and [markRefusedRows] by row count, built once each: a batch is at most the writer's batch. */
     private val saves = ConcurrentHashMap<Int, String>()
@@ -242,6 +260,10 @@ internal class PostgresSnapshotTables(context: String, aggregate: String) {
         const val MAX_ROWS = 1_000
 
         private const val ROW = "(?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?::jsonb, ?::jsonb, ?)"
+
+        /** The columns a save writes, in the order of its parameters. */
+        private const val SAVED = "tenant_id, aggregate_id, version, schema_fingerprint, state, owner_id, space_id, " +
+            "deleted, first_event_time, last_event_time, access, operator, first_operator, schedules, state_revision"
 
         /** A save's guard: a higher version, of the same or a higher state revision. */
         private const val SAVE_GUARD =

@@ -23,12 +23,13 @@ import kotlin.time.Duration.Companion.seconds
 
 class PostgresEventLogOptionsTest {
     @Test
-    fun `the defaults are the log's, 50 ms polls backing off to 1 s and 500 a batch`() {
+    fun `the defaults are the log's, 50 ms polls backing off to 1 s, 500 a batch, arrays above 64 streams`() {
         val options = PostgresEventLogOptions()
         options.pollInterval.assert().isEqualTo(50.milliseconds)
         options.maxPollInterval.assert().isEqualTo(1.seconds)
         options.tailBatch.assert().isEqualTo(500)
         options.ddl.assert().isEqualTo(Ddl.AUTO)
+        options.arraysAbove.assert().isEqualTo(PostgresBatches.ARRAYS_ABOVE).isEqualTo(64)
     }
 
     @Test
@@ -40,6 +41,8 @@ class PostgresEventLogOptionsTest {
         }.hasMessage("The longest poll interval is at least the poll interval.")
         assertThrownBy<IllegalArgumentException> { PostgresEventLogOptions(tailBatch = 0) }
             .hasMessage("A tail reads at least one entry at a time.")
+        assertThrownBy<IllegalArgumentException> { PostgresEventLogOptions(arraysAbove = -1) }
+            .hasMessage("The rows above which an append binds as arrays are never negative.")
     }
 
     @Test
@@ -52,7 +55,7 @@ class PostgresEventLogOptionsTest {
         options.assert().isEqualTo(options)
         options.equals("options").assert().isFalse()
         options.toString().assert().isEqualTo(
-            "PostgresEventLogOptions(pollInterval=50ms, maxPollInterval=1s, tailBatch=7, ddl=VALIDATE)",
+            "PostgresEventLogOptions(pollInterval=50ms, maxPollInterval=1s, tailBatch=7, ddl=VALIDATE, arraysAbove=64)",
         )
     }
 }

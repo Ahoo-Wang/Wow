@@ -215,6 +215,29 @@ internal class PostgresEventLogTables(val context: String) {
                 "?::jsonb, ?::text, ?::text, ?::text, ?::text, ?::jsonb, ?::bytea, ?::text, ?::text, ?::boolean, ?::jsonb, " +
                 "?::integer)"
         }
+        return appendAcross(tables, "WITH input (ord, branch, part, ${AggregateLogTable.COLUMNS}) AS (VALUES $values)")
+    }
+
+    /**
+     * [appendGroupAcross] with one text whatever the group's size, for groups above [PostgresBatches.ARRAYS_ABOVE]
+     * rows: the rows are [ACROSS_ARRAYS] array parameters, the branches, the partitions, then one per column of
+     * [AggregateLogTable.COLUMNS] (the transport as hex text, decoded here), unnested in the order they are given
+     * (`WITH ORDINALITY`): `ord` is that order, from which each partition's sequences are allotted as the values list
+     * allots them.
+     */
+    fun appendGroupAcrossArrays(tables: List<AggregateLogTable>): String {
+        val columns = AggregateLogTable.COLUMNS.split(", ")
+        val input = "WITH input (ord, branch, part, ${AggregateLogTable.COLUMNS}) AS (" +
+            "SELECT (t.ord - 1)::integer, t.branch, t.part, " +
+            columns.joinToString(", ") { if (it == "transport") "decode(t.transport, 'hex')" else "t.$it" } + " " +
+            "FROM unnest(?::integer[], ?::integer[], ?::text[], ?::text[], ?::integer[], ?::text[], " +
+            "?::text[], ?::text[], ?::bigint[], ?::jsonb[], ?::text[], ?::text[], ?::text[], ?::text[], ?::jsonb[], " +
+            "?::text[], ?::text[], ?::text[], ?::boolean[], ?::jsonb[], ?::integer[]) " +
+            "WITH ORDINALITY AS t (branch, part, ${AggregateLogTable.COLUMNS}, ord))"
+        return appendAcross(tables, input)
+    }
+
+    private fun appendAcross(tables: List<AggregateLogTable>, input: String): String {
         val current = tables.withIndex().joinToString(" UNION ALL ") { (branch, table) ->
             "SELECT input.ord, coalesce((SELECT max(log.version) FROM ${table.log} AS log " +
                 "WHERE log.aggregate_id = input.aggregate_id AND log.tenant_id = input.tenant_id), 0) AS version " +
@@ -228,7 +251,7 @@ internal class PostgresEventLogTables(val context: String) {
                 "ORDER BY fits.tenant_id, fits.request_id RETURNING sequence)"
         }
         return """
-            WITH input (ord, branch, part, ${AggregateLogTable.COLUMNS}) AS (VALUES $values),
+            $input,
             current AS ($current),
             links AS (
                 SELECT input.ord, row_number() OVER (
@@ -267,6 +290,9 @@ internal class PostgresEventLogTables(val context: String) {
 
         /** The parameters of a stream in [appendGroupAcross]: its partition, then its own. */
         const val ACROSS_STREAM_PARAMETERS = AggregateLogTable.STREAM_PARAMETERS + 1
+
+        /** The array parameters of [appendGroupAcrossArrays]: the branches, the partitions, then one per column. */
+        const val ACROSS_ARRAYS = AggregateLogTable.STREAM_PARAMETERS + 2
 
         /** The registry of aggregate tables, shared by the logs of every context. */
         const val REGISTRY = "wow_log_aggregate"
