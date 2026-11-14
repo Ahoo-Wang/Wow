@@ -149,10 +149,14 @@ internal fun mongoCalibration(wow: Map<String, Double>, calibrating: RawStep, un
     calibrationOf(
         MONGO_CHECKS + EQUAL_SHAPE_CHECKS + KEPT_CHECKS,
         listOf("commands", OWN_OPLOG_BYTES, STORE_CPU_MS) + SHAPE_APART + MONGO_TIME_APART,
-        (mongoWow(wow) + modelCounts(wow, MONGO_APPENDS, MONGO_SAVES) + wowStoreCpu(wow) + mongoTimes(wow))
+        (
+            mongoWow(wow) + modelCounts(wow, MONGO_APPENDS, MONGO_SAVES) + wowStoreCpu(wow) +
+                mongoTimes(wow, RawMongo.LOG, RawMongo.SNAPSHOT, "wow_")
+            )
             .let { it + shapeOf(it) },
         calibrating,
-        modelled(calibrating) + uncappedOf(uncapped) + storeCpu(calibrating),
+        modelled(calibrating) + uncappedOf(uncapped) + storeCpu(calibrating) +
+            mongoTimes(calibrating.perUnit, RawMongo.RAW_LOG, RawMongo.RAW_SNAPSHOT, "raw_"),
     )
 
 /** The calibration step's store CPU a command, milliseconds, under the name Wow's is reported by (wowStoreCpu). */
@@ -164,23 +168,28 @@ private fun wowStoreCpu(wow: Map<String, Double>): Map<String, Double> =
     wow[STORE_CPU_MICROS]?.let { mapOf(STORE_CPU_MS to it / MILLIS) }.orEmpty()
 
 /**
- * Where mongod's time goes in Wow's run, by collection and operation (`top`'s time, microseconds a command): Wow's
- * own side alone, the clone's collections being the log's and snapshots'. Reported apart, never a check: the share
- * of mongod's time the appends and snapshots are not (the tails' reads of the log, the checkpoints, the leases).
+ * Where mongod's time goes, by collection and operation (`top`'s time, microseconds a command), on each side: Wow's
+ * collections in its run, the clone's in the calibrating step. Reported apart, never a check: the share of mongod's
+ * time the appends and snapshots are not (the tails' reads of the log, the checkpoints, the leases on Wow's side).
  */
 private val MONGO_TIME_APART: List<String>
     get() = listOf(WOW_WRITES_TIME, WOW_OTHER_TIME)
 
 /**
- * Wow's run's mongod time a command on the log's inserts and the snapshots' updates (WOW_WRITES_TIME), and on
- * everything else of its collections (WOW_OTHER_TIME): from `top`'s `<namespace> <operation> micros` counters.
+ * A side's mongod time a command on its log's inserts and its snapshots' updates (WOW_WRITES_TIME), and on everything
+ * else of its own collections, those whose names start [prefix] (WOW_OTHER_TIME): from `top`'s
+ * `<namespace> <operation> micros` counters in [counts], a namespace's total left out.
  */
-private fun mongoTimes(wow: Map<String, Double>): Map<String, Double> {
-    val times = wow.filterKeys { it.endsWith(" micros") && " total " !in it }
+private fun mongoTimes(
+    counts: Map<String, Double>,
+    log: String,
+    snapshot: String,
+    prefix: String,
+): Map<String, Double> {
+    val times = counts.filterKeys { it.endsWith(" micros") && " total " !in it && ".$prefix" in it }
     if (times.isEmpty()) return emptyMap()
     val writes = times.filterKeys {
-        (it.contains(".${RawMongo.LOG} ") && it.contains(" insert ")) ||
-            (it.contains(".${RawMongo.SNAPSHOT} ") && it.contains(" update "))
+        (it.contains(".$log ") && it.contains(" insert ")) || (it.contains(".$snapshot ") && it.contains(" update "))
     }.values.sum()
     return mapOf(WOW_WRITES_TIME to writes / MILLIS, WOW_OTHER_TIME to (times.values.sum() - writes) / MILLIS)
 }

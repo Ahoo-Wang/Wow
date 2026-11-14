@@ -80,9 +80,14 @@ fun interface CommandRouter {
  *   then [reserves][ClusterChannel.reserve] one of the peer's streams, waiting its turn while they are all taken,
  *   until its deadline, and is sent once it has one.
  * - A forward the owner surely did not receive degrades to running locally, without retrying it: no
- *   known owner, the peer's [ClusterOptions.maxInFlightPerPeer] reached, the peer unreachable or not connected by the
- *   wait's deadline ([ClusterChannelException.unsent]), or a refusal before the forward's deadline
- *   ([Refusal.NOT_OWNER], [Refusal.EXPIRED], or a type the peer does not know): the peer did not run it.
+ *   known owner, the peer unreachable or not connected by the wait's deadline ([ClusterChannelException.unsent]), or
+ *   a refusal before the forward's deadline ([Refusal.NOT_OWNER], [Refusal.EXPIRED], or a type the peer does not
+ *   know): the peer did not run it.
+ * - A forward to a peer that has [ClusterOptions.maxInFlightPerPeer] forwards from this node in flight is answered
+ *   busy ([ResultCodes.BUSY]), as the node's own admission bound answers, and runs nowhere. The bound keeps one slow
+ *   peer from taking the node's whole budget of commands in flight; running the command here instead, without the
+ *   lease, would make the owner reload the aggregate's state and stall its tail, adding to the load of the peer that
+ *   is already slow.
  * - Past its deadline a forward runs nowhere: one not sent by then (no stream to the peer was free, or its wait ran
  *   out before it could be sent), or refused after it, is withdrawn ([ResultCodes.WAIT_TIMEOUT]) once its wait has run
  *   out, as a command still queued in its lane at its wait's deadline is, and answered busy ([ResultCodes.BUSY]) while
@@ -136,7 +141,8 @@ class PartitionedRouter(
 
     /**
      * The settlement [peer] replied with; null when the forward surely did not reach it, so the command runs here;
-     * withdrawn or busy when it was not sent by its deadline; an unknown outcome when it may have reached [peer].
+     * busy when [peer] has its most forwards in flight; withdrawn or busy when it was not sent by its deadline; an
+     * unknown outcome when it may have reached [peer].
      */
     @Suppress("TooGenericExceptionCaught") // Whatever fails before the send degrades to Local.
     private suspend fun forward(
@@ -149,9 +155,7 @@ class PartitionedRouter(
         val permits = inFlight.computeIfAbsent(peer.address) { AtomicInteger() }
         if (permits.incrementAndGet() > options.maxInFlightPerPeer) {
             permits.decrementAndGet()
-            logger.debug { "${peer.node} has ${options.maxInFlightPerPeer} forwards in flight; ${command.id} runs here." }
-            observer.observed(ObservedEvent.ForwardFailed(command.ref.type, ObservedEvent.ForwardFailed.Outcome.BUSY))
-            return null
+            return busy(model, command, peer)
         }
         try {
             val request = try {
@@ -243,6 +247,29 @@ class PartitionedRouter(
             request.deadline <= clock.millis() -> late(model, command, request, wait, peer, "refused: ${reply.refused}")
             else -> unsent(ownership, command, peer, "refused: ${reply.refused}")
         }
+    }
+
+    /**
+     * [peer] has [ClusterOptions.maxInFlightPerPeer] forwards from this node in flight: [command] is refused busy
+     * ([ResultCodes.BUSY]), as the node's own admission bound refuses one. It committed nothing and runs nowhere, and a
+     * retry with the same request id runs it.
+     */
+    private fun busy(model: AggregateModel<*>, command: Command<*>, peer: Member): Settlement {
+        logger.debug {
+            "${peer.node} has ${options.maxInFlightPerPeer} forwards in flight; ${command.id} is refused busy."
+        }
+        observer.observed(ObservedEvent.ForwardFailed(command.ref.type, ObservedEvent.ForwardFailed.Outcome.BUSY))
+        observer.observed(ObservedEvent.Refused(command.ref.type, ResultCodes.BUSY))
+        val committed = reachedResult(
+            command,
+            commandFunction(model, command),
+            Hop.committed(command.ref.type.context),
+            clock.millis(),
+        )
+        // Not the peer or its address: the client is told the conclusion, the node's log the rest.
+        val message = "The owner of ${command.ref} already has ${options.maxInFlightPerPeer} commands in flight from " +
+            "this node; retry later."
+        return Settlement(committed.failed(ResultCodes.BUSY, message))
     }
 
     /** The time left until [deadline], none once it passed. */

@@ -14,8 +14,10 @@
 package me.ahoo.wow.runtime.subscription
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.spi.observation.ObservedEvent
@@ -47,8 +49,11 @@ internal class PartitionPause(
     private val clock: Clock,
     private val observer: Observer = Observer.NONE,
 ) {
-    /** Held by the probe while paused; fair, so the lanes take turns. */
-    private val probe = Mutex()
+    /** Whether a caller holds the probe while paused; guarded by the monitor. */
+    private var probeHeld = false
+
+    /** The callers waiting for the probe, first come first served, so the lanes take turns; guarded by the monitor. */
+    private val probeTurns = ArrayDeque<CompletableDeferred<Unit>>()
 
     /** Guarded by the monitor. */
     private var pause: Pause? = null
@@ -68,29 +73,77 @@ internal class PartitionPause(
     /**
      * Passes the gate before an attempt: at once while the partition runs (false); while it is paused, once it is
      * this caller's turn to probe and the probe backoff has passed (true: the caller holds the probe and [release]s
-     * it after the attempt), or as soon as the partition resumes meanwhile (false).
+     * it after the attempt), or as soon as the partition resumes meanwhile (false); null once [stop] completes first,
+     * holding nothing: the attempt is given up.
      */
-    suspend fun admit(): Boolean {
+    suspend fun admit(stop: Deferred<Unit>): Boolean? {
         if (!isPaused) {
             return false
         }
-        probe.lock()
+        if (!takeProbe(stop)) {
+            return null
+        }
         var probing = false
         try {
             val current = synchronized(this) { pause } ?: return false
-            probing = withTimeoutOrNull(options.backoff(current.probes + 1)) { current.resumed.await() } == null
-            return probing
+            // Null once the backoff passed: the caller probes. True once the stop came first, false once resumed.
+            val stopped = withTimeoutOrNull(options.backoff(current.probes + 1)) {
+                select<Boolean> {
+                    stop.onAwait { true }
+                    current.resumed.onAwait { false }
+                }
+            }
+            probing = stopped == null
+            return if (stopped == true) null else probing
         } finally {
             if (!probing) {
-                probe.unlock()
+                giveProbe()
             }
         }
+    }
+
+    /** Waits for the turn to hold the probe: true once taken; false once [stop] comes first, taking nothing. */
+    private suspend fun takeProbe(stop: Deferred<Unit>): Boolean {
+        val turn = synchronized(this) {
+            if (!probeHeld) {
+                probeHeld = true
+                return true
+            }
+            CompletableDeferred<Unit>().also { probeTurns.addLast(it) }
+        }
+        val taken = try {
+            select<Boolean> {
+                stop.onAwait { false }
+                turn.onAwait { true }
+            }
+        } catch (cancelled: CancellationException) {
+            leaveProbe(turn)
+            throw cancelled
+        }
+        if (!taken) {
+            leaveProbe(turn)
+        }
+        return taken
+    }
+
+    /** Leaves the wait for [turn]: the probe handed over as it left is passed on. */
+    private fun leaveProbe(turn: CompletableDeferred<Unit>) {
+        val handed = synchronized(this) { !probeTurns.remove(turn) }
+        if (handed) {
+            giveProbe()
+        }
+    }
+
+    /** Gives the probe to the longest waiter, or frees it. */
+    private fun giveProbe() {
+        val next = synchronized(this) { probeTurns.removeFirstOrNull().also { if (it == null) probeHeld = false } }
+        next?.complete(Unit)
     }
 
     /** Releases the probe [admit] gave, when it gave it. */
     fun release(probing: Boolean) {
         if (probing) {
-            probe.unlock()
+            giveProbe()
         }
     }
 

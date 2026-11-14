@@ -53,8 +53,12 @@ internal class AggregateLanes<I : Any>(
         if (first) lane.items.addFirst(item) else lane.items.addLast(item)
     }
 
-    /** Called under the monitor: forgets every lane, returning the items still queued in them. */
-    fun clear(): List<I> = active.values.flatMap { it.items }.also { active.clear() }
+    /**
+     * Called under the monitor: forgets every lane and empties it, returning the items still queued in them; a lane
+     * running ends after the item it runs.
+     */
+    fun clear(): List<I> = active.values.flatMap { lane -> lane.items.toList().also { lane.items.clear() } }
+        .also { active.clear() }
 
     /** Runs the next item of [ref]'s [lane]: false once the lane is empty, and forgotten. */
     @Suppress("TooGenericExceptionCaught") // Whatever escaped the item ends the lane, its action answered first.

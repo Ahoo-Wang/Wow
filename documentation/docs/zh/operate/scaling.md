@@ -30,6 +30,7 @@ outline: deep
 | --- | --- | --- |
 | `wow.executor.max-in-flight`：节点上的在途命令 | 4,096 | 命令以 `wow.command.busy` 拒绝（429，带 `Retry-After`） |
 | `wow.executor.lane-capacity`：等待同一个聚合的命令 | 1,024 | 同上，针对这个聚合 |
+| `wow.cluster.max-in-flight-per-node`：本节点发往同一个属主的在途转发 | 1,024 | 同上，针对那个属主的分区的命令，也不改在本地执行 |
 | 存储的并发查询 | 与追加共用的连接池的四分之一（至少 2），自适应，最多升到一半；查询专用连接池则为全部；连接池不报告大小时为 16 | 查询以 `wow.query.busy` 拒绝（429） |
 | `wow.query.dataset.max-concurrent`：同时运行的数据集查询 | 8，固定上限，不自适应 | 查询在一个短队列中等待，然后以 `wow.query.busy` 拒绝 |
 

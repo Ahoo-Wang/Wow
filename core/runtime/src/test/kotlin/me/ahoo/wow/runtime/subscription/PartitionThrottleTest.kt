@@ -13,9 +13,11 @@
 
 package me.ahoo.wow.runtime.subscription
 
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.spi.observation.ObservedEvent
@@ -75,9 +77,9 @@ class PartitionThrottleTest {
         val throttle = throttle(max = 4)
         repeat(3) { throttle.backpressure(cart("x")) }
         throttle.state!!.limit.assert().isEqualTo(1)
-        throttle.acquire()
-        val first = async { throttle.acquire() }
-        val second = async { throttle.acquire() }
+        throttle.acquire(never)
+        val first = async { throttle.acquire(never) }
+        val second = async { throttle.acquire(never) }
         repeat(WAITS) { yield() }
         first.isCompleted.assert().isFalse()
         // Some wait: the limit rises by half (at least one), and the longest waiter gets the room.
@@ -95,16 +97,42 @@ class PartitionThrottleTest {
     fun `a cancelled wait leaves its turn to the next`(): Unit = runBlocking {
         val throttle = throttle(max = 2)
         repeat(2) { throttle.backpressure(cart("x")) }
-        throttle.acquire()
-        val cancelled = async { throttle.acquire() }
-        val next = async { throttle.acquire() }
+        throttle.acquire(never)
+        val cancelled = async { throttle.acquire(never) }
+        val next = async { throttle.acquire(never) }
         repeat(WAITS) { yield() }
         cancelled.cancelAndJoin()
         throttle.release()
         next.await()
         throttle.release()
         // Room for one again, nothing held.
-        throttle.acquire()
+        throttle.acquire(never)
+        throttle.release()
+    }
+
+    @Test
+    fun `a wait the stop ends takes nothing, and room handed over as it stops is passed on`(): Unit = runBlocking {
+        // Certain as every test here: one thread, coroutines in start order, the room taken before the others wait.
+        val throttle = throttle(max = 2)
+        repeat(2) { throttle.backpressure(cart("x")) }
+        throttle.acquire(never).assert().isTrue()
+        val stop = CompletableDeferred<Unit>()
+        val stopped = async { throttle.acquire(stop) }
+        val handed = CompletableDeferred<Unit>()
+        val handedOver = async { throttle.acquire(handed) }
+        val next = async { throttle.acquire(never) }
+        repeat(WAITS) { yield() }
+        // The first wait ends with its stop while the room is still held.
+        stop.complete(Unit)
+        withTimeout(10.seconds) { stopped.await() }.assert().isFalse()
+        // The second's stop and the release come together: the room handed to it is passed on to the next.
+        handed.complete(Unit)
+        throttle.release()
+        withTimeout(10.seconds) { handedOver.await() }.assert().isFalse()
+        withTimeout(10.seconds) { next.await() }.assert().isTrue()
+        throttle.release()
+        // Room for one again, nothing held; a stop that came before finds the room as it is.
+        throttle.acquire(stop).assert().isTrue()
         throttle.release()
     }
 
@@ -133,6 +161,9 @@ class PartitionThrottleTest {
         SubscriptionOptions().copyWith(backpressure = BackpressureOptions(maxAttempts = 3)).backpressure.maxAttempts
             .assert().isEqualTo(3)
     }
+
+    /** A stop that never comes. */
+    private val never = CompletableDeferred<Unit>()
 
     private companion object {
         const val WAITS = 20

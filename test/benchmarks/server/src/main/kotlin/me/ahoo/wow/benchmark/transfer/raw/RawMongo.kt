@@ -369,6 +369,34 @@ class RawMongo(private val uri: String, private val databaseName: String) : Auto
         return mapOf("ownOplogBytes" to (total?.toDouble() ?: 0.0))
     }
 
+    /**
+     * The oplog's entries written between [fromMillis] and [toMillis] (whole seconds), by namespace and operation
+     * (`<namespace> <op>`): their count, bytes and share of the window's bytes, so each collection's share of a side's
+     * oplog bytes a command reads apart. The window holds whatever ran in it, so a share, not a count, is the figure.
+     */
+    fun oplogByNamespace(fromMillis: Long, toMillis: Long): Map<String, Map<String, Double>> {
+        val window = Filters.and(
+            Filters.gte("ts", BsonTimestamp((fromMillis / MILLIS).toInt(), 0)),
+            Filters.lte("ts", BsonTimestamp((toMillis / MILLIS).toInt(), 0)),
+            Filters.regex("ns", "^($databaseName\\.|admin\\.\\\$cmd)"),
+        )
+        val group = Document("_id", Document("ns", "\$ns").append("op", "\$op"))
+            .append("entries", Document("\$sum", 1))
+            .append("bytes", Document("\$sum", Document("\$bsonSize", "\$\$ROOT")))
+        val rows = admin.getDatabase("local").getCollection("oplog.rs")
+            .aggregate(listOf(Document("\$match", window), Document("\$group", group))).toList()
+        val total = rows.sumOf { (it["bytes"] as Number).toDouble() }
+        return rows.associate { row ->
+            val id = row["_id"] as Document
+            val bytes = (row["bytes"] as Number).toDouble()
+            "${id.getString("ns")} ${id.getString("op")}" to mapOf(
+                "entries" to (row["entries"] as Number).toDouble(),
+                "bytes" to bytes,
+                "share" to if (total > 0) bytes / total else 0.0,
+            )
+        }
+    }
+
     private val stats = MongoCounters(admin, database)
 
     /** MongoDB's cumulative counters (MongoCounters). */
@@ -376,6 +404,9 @@ class RawMongo(private val uri: String, private val databaseName: String) : Auto
 
     /** Each of Wow's and the clone's collections' writes (MongoCounters). */
     fun tables(): Map<String, Double> = stats.tables()
+
+    /** Each of Wow's and the clone's collections' documents and indexes now (MongoCounters). */
+    fun collections(): Map<String, Map<String, Any?>> = stats.collections()
 
     /** The snapshot collection's mean write latency over a step, from the counters' growth. */
     fun ratios(growth: Map<String, Double>): Map<String, Double> = stats.ratios(growth)

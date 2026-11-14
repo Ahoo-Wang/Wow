@@ -34,7 +34,7 @@ The host refuses to start rather than run with a setting that would quietly do t
 
 | Code | Cause | Do |
 | --- | --- | --- |
-| `wow.command.busy` (429) | The node or the aggregate has too many commands in flight | Retry after `Retry-After`; add nodes if it persists ([Scaling and Capacity](./scaling#limits-a-node-enforces)) |
+| `wow.command.busy` (429) | The node or the aggregate has too many commands in flight, or the partition's owner too many forwards from this node (`wow.command.forward.failures` with `wow.outcome=busy`) | Retry after `Retry-After`; add nodes if it persists ([Scaling and Capacity](./scaling#limits-a-node-enforces)) |
 | `wow.aggregate.version-mismatch` (409, 412 with `If-Match`) | The aggregate is not at the version the client expected | Read it again and decide whether to retry |
 | `wow.command.contended` (409) | Concurrent writers kept winning the version | Retry with the same request id |
 | `wow.command.request-id-reused` (409) | The request id was used by another command | Give each command its own request id |

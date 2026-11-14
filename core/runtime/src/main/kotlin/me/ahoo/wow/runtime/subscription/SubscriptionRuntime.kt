@@ -395,16 +395,24 @@ class SubscriptionRuntime internal constructor(
     }
 
     /**
-     * Stops reading [parts], drains them within the stop timeout, abandons the rest and saves their checkpoints, in one
-     * call of the store a partition, each tried whatever the others' came to; the first failure is thrown.
+     * Stops reading [parts], abandons at once the work not started (the entries queued in the lanes, and what a
+     * subscription's handlers wait for that has not started, [SubscriptionStops]), waits within the stop timeout for
+     * the handlings running, abandons what is left and saves the checkpoints of what is done, in one call of the store a
+     * partition, each tried whatever the others' came to; the first failure is thrown. A wait that times out is told,
+     * one line a subscription and partition with handlings left.
      */
     @Suppress("TooGenericExceptionCaught") // Kept, and thrown once every partition's save was tried.
     private suspend fun halt(parts: List<PartitionRun>) {
         parts.forEach { it.readersJob.cancelAndJoin() }
         val workers = parts.flatMap { it.workers }
-        withTimeoutOrNull(options.stopTimeout) { workers.forEach { it.awaitDrained() } }
+        val partitions = parts.mapTo(HashSet()) { it.partition }
+        val stops = workers.mapNotNullTo(LinkedHashSet()) { it.subscription.stops }
+        workers.forEach { it.abandon() }
+        stops.forEach { it.stopping(partitions) }
+        awaitRunning(workers)
         parts.forEach { it.lanesJob.cancelAndJoin() }
         workers.forEach { it.abandon() }
+        stops.forEach { it.stopped(partitions) }
         var failure: Exception? = null
         for (part in parts) {
             try {
@@ -416,6 +424,20 @@ class SubscriptionRuntime internal constructor(
             }
         }
         failure?.let { throw it }
+    }
+
+    /** Waits within the stop timeout for the handlings [workers] run; a wait that times out is told, one line a worker. */
+    private suspend fun awaitRunning(workers: List<SubscriptionWorker>) {
+        if (withTimeoutOrNull(options.stopTimeout) { workers.forEach { it.running.awaitNone() } } != null) {
+            return
+        }
+        workers.filter { it.running.value > 0 }.forEach {
+            logger.warn {
+                "Subscription ${it.subscription.name} of group $group stopped partition ${it.partition} with " +
+                    "${it.running.value} handlings still running after ${options.stopTimeout}: they are abandoned, " +
+                    "and the next owner handles their entries again from the checkpoint."
+            }
+        }
     }
 
     /**

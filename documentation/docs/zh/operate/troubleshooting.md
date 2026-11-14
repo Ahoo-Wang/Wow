@@ -34,7 +34,7 @@ outline: deep
 
 | 错误码 | 原因 | 处置 |
 | --- | --- | --- |
-| `wow.command.busy`（429） | 节点或聚合的在途命令太多 | 在 `Retry-After` 之后重试；持续出现就增加节点（[伸缩与容量](./scaling#limits-a-node-enforces)） |
+| `wow.command.busy`（429） | 节点或聚合的在途命令太多，或者分区的属主上来自本节点的在途转发太多（`wow.outcome=busy` 的 `wow.command.forward.failures`） | 在 `Retry-After` 之后重试；持续出现就增加节点（[伸缩与容量](./scaling#limits-a-node-enforces)） |
 | `wow.aggregate.version-mismatch`（409，带 `If-Match` 时为 412） | 聚合不处于客户端期望的版本 | 重新读取，再决定是否重试 |
 | `wow.command.contended`（409） | 并发的写者一再抢先拿到版本 | 用同一个请求 ID 重试 |
 | `wow.command.request-id-reused`（409） | 这个请求 ID 已被另一条命令使用 | 给每条命令自己的请求 ID |
