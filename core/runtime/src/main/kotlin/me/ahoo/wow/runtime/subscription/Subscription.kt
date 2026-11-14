@@ -101,6 +101,8 @@ class Subscription private constructor(
      * store it is and the `queryable` hop for those whose queries read it).
      */
     private val answers: ((AggregateType) -> Set<String>)? = null,
+    /** What the subscription does as the runtime stops some of its partitions; nothing when not given. */
+    internal val stops: SubscriptionStops? = null,
 ) {
     /**
      * With a [handler] that reports nothing of what it did: a saga, which reports what it derived, is made with [saga].
@@ -213,6 +215,7 @@ class Subscription private constructor(
             kind: FunctionKind,
             decoder: EntryDecoder = EntryDecoder.RECORDS,
             answers: ((AggregateType) -> Set<String>)? = null,
+            stops: SubscriptionStops? = null,
             handler: suspend (SubscribedEntry) -> Unit,
         ): Subscription = Subscription(
             name,
@@ -228,6 +231,7 @@ class Subscription private constructor(
             coalesces = true,
             takesEventless = true,
             answers = answers,
+            stops = stops,
         )
 
         /**
@@ -497,4 +501,16 @@ fun interface EntryDecoder {
                 SubscribedEntry(stream, position, events, transport, states)
             }
     }
+}
+
+/**
+ * What a subscription does as the runtime stops some of its partitions ([SubscriptionRuntime] halting them): told it
+ * [stopping] once the work not started is abandoned, before the stop waits for the handlings running, so it can give
+ * up what its handlers wait for that has not started either; told it [stopped] once they are stopped, so a partition
+ * started here again works as before.
+ */
+internal interface SubscriptionStops {
+    fun stopping(partitions: Set<Int>)
+
+    fun stopped(partitions: Set<Int>)
 }

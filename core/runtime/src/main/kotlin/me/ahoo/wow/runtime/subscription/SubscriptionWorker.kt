@@ -146,6 +146,9 @@ internal class SubscriptionWorker(
     /** How the handler is retried before its aggregate is parked: its subscription's budget. */
     private val retry: RetryPolicy = options.retryOf(subscription)
 
+    /** The handlings running now: what a stop waits for, the work not started abandoned ([abandon]). */
+    val running = RunningHandlings()
+
     /** How one entry is handled: its handler attempted within the budget, behind the pause and the throttle. */
     private val handling = EntryHandling(
         group,
@@ -160,6 +163,7 @@ internal class SubscriptionWorker(
         observer,
         random,
         importedThrough,
+        running,
     )
 
     /** How a lane runs its live entries together, null for a subscription that runs each alone. */
@@ -200,7 +204,7 @@ internal class SubscriptionWorker(
     /** Where the worker's watermark is stored, and up to where it was. */
     val saves = CheckpointSaves(subscription, partition, checkpoint) { watermark }
 
-    /** Set by [abandon] under the monitor: the lanes are cancelled, so a retry would never run. */
+    /** Set by [abandon] under the monitor: the work not started is dropped, and the lanes are being cancelled. */
     private var abandoned = false
 
     /** The sequence of the last entry taken. */
@@ -294,10 +298,17 @@ internal class SubscriptionWorker(
     }
 
     /** Runs [item], the next of [ref]'s [lane] ([queued]). */
-    private suspend fun handle(ref: AggregateRef, lane: Lane<Item>, item: Item) = when (item) {
-        is Item.Live -> runs?.live(item, lane) ?: runLive(item)
-        is Item.Retry -> runRetry(ref, item)
-        is Item.Skip -> runSkip(ref, item)
+    private suspend fun handle(ref: AggregateRef, lane: Lane<Item>, item: Item) {
+        running.started()
+        try {
+            when (item) {
+                is Item.Live -> runs?.live(item, lane) ?: runLive(item)
+                is Item.Retry -> runRetry(ref, item)
+                is Item.Skip -> runSkip(ref, item)
+            }
+        } finally {
+            running.ended(ref)
+        }
     }
 
     /** [failure] escaped [item] of [ref]: its lane ends ([AggregateLanes]), a fatal error recorded with its partition. */
@@ -548,14 +559,10 @@ internal class SubscriptionWorker(
         (outcome.exceptionOrNull() as? CancellationException)?.let { throw it }
     }
 
-    /** Waits until every taken entry is complete. */
-    suspend fun awaitDrained() {
-        outstanding.awaitZero()
-    }
-
     /** Fails the retries and skips still queued: their lanes were cancelled by a stop. */
     fun abandon() = synchronized(this) {
         abandoned = true
+        running.stop()
         queued.clear().filterIsInstance<Item.Action>().forEach {
             it.result.cancel(CancellationException("The subscription runtime stopped."))
         }
