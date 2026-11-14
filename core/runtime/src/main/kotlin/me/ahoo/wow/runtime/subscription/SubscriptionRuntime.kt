@@ -428,7 +428,7 @@ class SubscriptionRuntime internal constructor(
 
     /** Waits within the stop timeout for the handlings [workers] run; a wait that times out is told, one line a worker. */
     private suspend fun awaitRunning(workers: List<SubscriptionWorker>) {
-        if (withTimeoutOrNull(options.stopTimeout) { workers.forEach { it.running.awaitZero() } } != null) {
+        if (withTimeoutOrNull(options.stopTimeout) { workers.forEach { it.running.awaitNone() } } != null) {
             return
         }
         workers.filter { it.running.value > 0 }.forEach {

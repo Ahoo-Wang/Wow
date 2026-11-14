@@ -430,10 +430,14 @@ class SnapshotWritesTest {
         // A save of the partition stopping fails at once, until it is resumed.
         withTimeout(5.seconds) { runCatching { writes.save(snapshot("d"), partition = 0) } }.exceptionOrNull()
             .assert().isInstanceOf(SnapshotSaveAbandoned::class.java)
+        // A save of no partition (an entry made by hand) is no stop's to give up.
+        val none = async { writes.save(snapshot("e")) }
+        eventually { writes.waiting == 2 }
         held.releaseAll()
         running.await().assert().isTrue()
         other.await().assert().isTrue()
-        held.written.assert().containsExactly(listOf("a@1"), listOf("c@1"))
+        none.await().assert().isTrue()
+        held.written.flatten().assert().containsExactlyInAnyOrder("a@1", "c@1", "e@1")
         writes.resume(setOf(0))
         writes.save(snapshot("d"), partition = 0).assert().isTrue()
     }

@@ -13,8 +13,11 @@
 
 package me.ahoo.wow.runtime.subscription
 
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.spi.subscription.FailureClass
@@ -24,6 +27,7 @@ import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 /** The pause of one subscription's partition (decision D243), driven step by step on a clock the test moves. */
@@ -37,7 +41,7 @@ class PartitionPauseTest {
     @Test
     fun `a running partition admits every attempt and charges each aggregate its own failures`(): Unit = runBlocking {
         val pause = pause()
-        pause.admit().assert().isFalse()
+        pause.admit(never).assert().isFalse()
         pause.failed(cart("x"), FailureClass.RECOVERABLE, failure, probing = false).assert().isFalse()
         pause.failed(cart("x"), FailureClass.UNRECOVERABLE, failure, probing = false).assert().isFalse()
         pause.isPaused.assert().isFalse()
@@ -93,9 +97,9 @@ class PartitionPauseTest {
     fun `a paused partition lets one probe at a time, and a resume releases the waiting ones`(): Unit = runBlocking {
         val pause = pause(SystemicFailureOptions(initialBackoff = 1.milliseconds, maxBackoff = 2.milliseconds))
         pause.failed(cart("x"), FailureClass.SYSTEMIC, failure, probing = false)
-        val probing = pause.admit()
+        val probing = checkNotNull(pause.admit(never))
         probing.assert().isTrue()
-        val waiting = async { pause.admit() }
+        val waiting = async { pause.admit(never) }
         val writer = async { pause.awaitRunning() }
         repeat(WAITS) { yield() }
         waiting.isCompleted.assert().isFalse()
@@ -107,6 +111,66 @@ class PartitionPauseTest {
         waiting.await().assert().isFalse()
         writer.await()
         pause.release(false)
+    }
+
+    @Test
+    fun `a wait for the probe's turn ends with the stop, and a turn handed over as it stops is passed on`(): Unit =
+        runBlocking {
+            // Certain as every test here: one thread, coroutines in start order, the probe held before the others
+            // wait, in the order they started.
+            val pause = pause(SystemicFailureOptions(initialBackoff = 1.milliseconds, maxBackoff = 1.milliseconds))
+            pause.failed(cart("x"), FailureClass.SYSTEMIC, failure, probing = false)
+            val probing = checkNotNull(pause.admit(never))
+            val first = CompletableDeferred<Unit>()
+            val second = CompletableDeferred<Unit>()
+            val stopped = async { pause.admit(first) }
+            val handed = async { pause.admit(second) }
+            val next = async { pause.admit(never) }
+            repeat(WAITS) { yield() }
+            // The first wait ends with its stop while the probe is still held.
+            first.complete(Unit)
+            withTimeout(10.seconds) { stopped.await() }.assert().isNull()
+            // The second's stop and the probe's release come together: the turn handed to it is passed on.
+            second.complete(Unit)
+            pause.release(probing)
+            withTimeout(10.seconds) { handed.await() }.assert().isNull()
+            withTimeout(10.seconds) { next.await() }.assert().isTrue()
+            pause.release(true)
+        }
+
+    @Test
+    fun `a cancelled wait for the probe's turn leaves it to the next`(): Unit = runBlocking {
+        // Certain as every test here: one thread, coroutines in start order, the probe held before the others wait.
+        val pause = pause(SystemicFailureOptions(initialBackoff = 1.milliseconds, maxBackoff = 1.milliseconds))
+        pause.failed(cart("x"), FailureClass.SYSTEMIC, failure, probing = false)
+        val probing = checkNotNull(pause.admit(never))
+        val cancelled = async { pause.admit(never) }
+        val next = async { pause.admit(never) }
+        repeat(WAITS) { yield() }
+        cancelled.cancelAndJoin()
+        pause.release(probing)
+        withTimeout(10.seconds) { next.await() }.assert().isTrue()
+        pause.release(true)
+    }
+
+    @Test
+    fun `a wait out the probe's backoff ends with the stop and gives the probe back`(): Unit = runBlocking {
+        // What makes it certain: the backoff is a minute, past the test's bound, so only the stop ends the wait; the
+        // stopped caller held the probe as it waited, and the next caller can take it only if it was given back.
+        val pause = pause(SystemicFailureOptions(initialBackoff = 1.minutes, maxBackoff = 1.minutes))
+        pause.failed(cart("x"), FailureClass.SYSTEMIC, failure, probing = false)
+        val stop = CompletableDeferred<Unit>()
+        val stopped = async { pause.admit(stop) }
+        repeat(WAITS) { yield() }
+        stop.complete(Unit)
+        withTimeout(10.seconds) { stopped.await() }.assert().isNull()
+        pause.succeeded(cart("x"))
+        // Not paused any more: the next caller attempts at once, and a paused one would need the probe given back.
+        pause.failed(cart("x"), FailureClass.SYSTEMIC, failure, probing = false)
+        val next = async { pause.admit(never) }
+        repeat(WAITS) { yield() }
+        pause.succeeded(cart("x"))
+        withTimeout(10.seconds) { next.await() }.assert().isFalse()
     }
 
     @Test
@@ -140,6 +204,9 @@ class PartitionPauseTest {
 
         override fun withZone(zone: java.time.ZoneId?): Clock = this
     }
+
+    /** A stop that never comes. */
+    private val never = CompletableDeferred<Unit>()
 
     private companion object {
         const val WAITS = 20

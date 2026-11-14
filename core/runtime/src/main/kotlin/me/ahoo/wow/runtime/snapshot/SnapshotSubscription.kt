@@ -161,7 +161,8 @@ class SnapshotSubscription(
     )
 
     private suspend fun write(entry: SubscribedEntry) {
-        val partition = entry.position?.partition ?: 0
+        // An entry made by hand has no position: its save is of no partition, which no stop gives up.
+        val partition = entry.position?.partition
         val stream = entry.stream
         val ref = stream.ref
         val version = stream.version
@@ -223,7 +224,7 @@ class SnapshotSubscription(
      * Saves [snapshot] with the saves waiting, of any partition: written or not, the store then holds its version or a
      * later one (a version-guarded save).
      */
-    private suspend fun save(snapshot: SnapshotRecord, partition: Int) {
+    private suspend fun save(snapshot: SnapshotRecord, partition: Int?) {
         writes.save(snapshot, partition)
         remember(snapshot.ref, FirstCommit.of(snapshot), snapshot.version)
     }

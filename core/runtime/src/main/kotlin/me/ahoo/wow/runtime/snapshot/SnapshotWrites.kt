@@ -133,12 +133,13 @@ internal class SnapshotWrites(
 
     /**
      * Saves [snapshot], of [partition], with the saves waiting with it; whether it was written, as [SnapshotStore.save]
-     * says. A save of a partition stopping fails with [SnapshotSaveAbandoned].
+     * says. A save of a partition stopping fails with [SnapshotSaveAbandoned]; one of no partition (null: an entry
+     * made by hand, with no log position) never stops.
      */
-    suspend fun save(snapshot: SnapshotRecord, partition: Int = 0): Boolean {
+    suspend fun save(snapshot: SnapshotRecord, partition: Int? = null): Boolean {
         val write = Write(snapshot, partition)
         val leads = synchronized(this) {
-            if (partition in stopping) throw SnapshotSaveAbandoned(partition)
+            if (partition != null && partition in stopping) throw SnapshotSaveAbandoned(partition)
             queue.addLast(write)
             (leaders < limit && !gathering).also {
                 if (it) {
@@ -163,7 +164,8 @@ internal class SnapshotWrites(
     fun abandon(partitions: Set<Int>) {
         val dropped = synchronized(this) {
             stopping += partitions
-            queue.filter { it.partition in partitions && !it.leads }.also { left -> queue.removeAll(left.toSet()) }
+            queue.filter { !it.leads && it.partition?.let(partitions::contains) == true }
+                .also { left -> queue.removeAll(left.toSet()) }
         }
         dropped.forEach { it.result.completeExceptionally(SnapshotSaveAbandoned(it.partition)) }
     }
@@ -351,7 +353,7 @@ internal class SnapshotWrites(
         }
     }
 
-    private class Write(val snapshot: SnapshotRecord, val partition: Int) {
+    private class Write(val snapshot: SnapshotRecord, val partition: Int?) {
         val result = CompletableDeferred<Boolean>()
 
         /** Whether this save leads the writes, or was handed the lead. Guarded by the writes' monitor. */
@@ -380,5 +382,5 @@ internal class SnapshotWrites(
 }
 
 /** A save of [partition] given up as its partition stops: not written, so its entry's checkpoint stays before it. */
-internal class SnapshotSaveAbandoned(partition: Int) :
+internal class SnapshotSaveAbandoned(partition: Int?) :
     IllegalStateException("The snapshot writes stop in partition $partition: the save was not written.")

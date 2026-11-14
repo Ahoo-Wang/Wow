@@ -16,6 +16,8 @@ package me.ahoo.wow.runtime.subscription
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.selects.select
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.spi.observation.ObservedEvent
@@ -56,24 +58,38 @@ internal class PartitionThrottle(
             since?.let { ThrottledPartition(group, subscription, partition, limit, it) }
         }
 
-    /** Waits for room under the limit, then takes it; [release] gives it back. */
-    suspend fun acquire() {
+    /**
+     * Waits for room under the limit, then takes it, true; [release] gives it back. False once [stop] completes first,
+     * taking nothing: the attempt is given up.
+     */
+    suspend fun acquire(stop: Deferred<Unit>): Boolean {
         val turn = synchronized(this) {
             if (running < limit && waiting.isEmpty()) {
                 running++
-                return
+                return true
             }
             CompletableDeferred<Unit>().also { waiting.addLast(it) }
         }
-        try {
-            turn.await()
-        } catch (cancelled: CancellationException) {
-            val granted = synchronized(this) { !waiting.remove(turn) }
-            if (granted) {
-                // The room was handed over as the wait was cancelled: pass it on.
-                release()
+        val granted = try {
+            select<Boolean> {
+                stop.onAwait { false }
+                turn.onAwait { true }
             }
+        } catch (cancelled: CancellationException) {
+            leave(turn)
             throw cancelled
+        }
+        if (!granted) {
+            leave(turn)
+        }
+        return granted
+    }
+
+    /** Leaves the wait for [turn]: the room handed over as it left is passed on. */
+    private fun leave(turn: CompletableDeferred<Unit>) {
+        val granted = synchronized(this) { !waiting.remove(turn) }
+        if (granted) {
+            release()
         }
     }
 

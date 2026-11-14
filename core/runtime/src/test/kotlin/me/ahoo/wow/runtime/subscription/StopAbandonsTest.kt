@@ -21,11 +21,13 @@ import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.kernel.memory.InMemoryCheckpointStore
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
+import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.subscription.SubscriptionId
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -110,6 +112,58 @@ class StopAbandonsTest {
         eventually { attempts.get() == 1 }
         withTimeout(10.seconds) { first.stop() }
         attempts.get().assert().isEqualTo(1)
+        ledger.list(SubscriptionId("group", NAME)).assert().isEmpty()
+        (checkpoints.load("group", NAME, 0) ?: 0L).assert().isEqualTo(0L)
+    }
+
+    @Test
+    fun `a handling waiting on its paused partition is given up at once, nothing parked`(): Unit = runBlocking {
+        // What makes it certain: the handler's failure is systemic, so the partition pauses with a probe backoff of a
+        // minute, far past the test's bound of 10 s for the stop. The aggregates' handlings wait there, for the probe's
+        // backoff or its turn, and only the stop can end those waits. The ledger and the checkpoint are read once the
+        // stop returned.
+        val down = Subscription(NAME, SubscriptionFilter("shop")) {
+            throw StorageUnavailableException("The view store is unavailable; retry later.")
+        }
+        val options = testOptions(stopTimeout = 60.seconds)
+            .copyWith(systemic = SystemicFailureOptions(initialBackoff = 1.minutes, maxBackoff = 1.minutes))
+        val first = runtime(down, options)
+        first.start(setOf(0))
+        listOf("x", "y", "z").forEach { appender.append(it) }
+        eventually { first.paused().isNotEmpty() }
+        withTimeout(10.seconds) { first.stop() }
+        ledger.list(SubscriptionId("group", NAME)).assert().isEmpty()
+        (checkpoints.load("group", NAME, 0) ?: 0L).assert().isEqualTo(0L)
+    }
+
+    @Test
+    fun `a failure as the worker stops is not parked, on its last attempt either`(): Unit = runBlocking {
+        // What makes it certain: the handler has one attempt, which fails only once the stop has told the
+        // subscription it stops, after it abandoned the worker's work not started. Without the stop it would park the
+        // aggregate at once; the ledger and the checkpoint are read once the stop returned.
+        val told = CompletableDeferred<Unit>()
+        val started = CompletableDeferred<Unit>()
+        val failing = Subscription.coalescing(
+            NAME,
+            SubscriptionFilter("shop"),
+            FunctionKind.SYSTEM,
+            stops = object : SubscriptionStops {
+                override fun stopping(partitions: Set<Int>) {
+                    told.complete(Unit)
+                }
+
+                override fun stopped(partitions: Set<Int>) = Unit
+            },
+        ) {
+            started.complete(Unit)
+            told.await()
+            error("${it.ref.id} fails as its worker stops")
+        }
+        val first = runtime(failing, testOptions(maxAttempts = 1, stopTimeout = 60.seconds))
+        first.start(setOf(0))
+        appender.append("a")
+        withTimeout(10.seconds) { started.await() }
+        withTimeout(10.seconds) { first.stop() }
         ledger.list(SubscriptionId("group", NAME)).assert().isEmpty()
         (checkpoints.load("group", NAME, 0) ?: 0L).assert().isEqualTo(0L)
     }

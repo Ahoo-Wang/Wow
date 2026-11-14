@@ -14,8 +14,6 @@
 package me.ahoo.wow.runtime.subscription
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -58,10 +56,8 @@ internal class EntryHandling(
     private val random: Random,
     /** The sequence up to which the partition of the log holds imported history; 0 for none, and for a topic. */
     private val importedThrough: Long,
-    /** Completed once the worker stops: its partition's unstarted work was abandoned ([SubscriptionWorker.abandon]). */
-    private val stop: Deferred<Unit> = CompletableDeferred(),
-    /** Takes a handling out of the work the stop waits for: it waits for its lane's cancellation instead. */
-    private val stopped: () -> Unit = {},
+    /** The worker's handlings as its stop sees them: what is given up as it stops leaves them ([giveUp]). */
+    private val running: RunningHandlings = RunningHandlings(),
 ) {
     /**
      * Runs the handler with its subscription's retries ([retry]); returns what it did, or the last failure once the
@@ -93,8 +89,7 @@ internal class EntryHandling(
      */
     @Suppress("TooGenericExceptionCaught") // A failure of the run is its result, whatever it is.
     suspend fun attemptRun(first: SourcedEntry, block: suspend () -> RunHandled): RunHandled {
-        val probing = pause.admit()
-        throttle.acquire()
+        val probing = enter(first.stream.ref)
         val handled = try {
             if (retry.timeout.isInfinite()) {
                 block()
@@ -142,8 +137,7 @@ internal class EntryHandling(
         var failures = 0
         var pushedBack = 0
         while (true) {
-            val probing = pause.admit()
-            throttle.acquire()
+            val probing = enter(ref)
             val failure = try {
                 val handled = attempt(sourced)
                 succeeded(ref)
@@ -164,8 +158,8 @@ internal class EntryHandling(
                 throttle.release()
                 pause.release(probing)
             }
-            if (stop.isCompleted) {
-                giveUp()
+            if (running.stop.isCompleted) {
+                giveUp(ref)
             }
             val kind = classification.classify(failure, subscription.retry)
             if (pause.failed(ref, kind, failure, probing)) {
@@ -181,30 +175,43 @@ internal class EntryHandling(
                 }
                 val retryAfter = FailureClassification.retryAfterOf(failure)
                 logger.debug { "Subscription ${subscription.name} met backpressure at $ref: ${failure.message}" }
-                backOff(options.backpressure.backoff(pushedBack, retryAfter, random.nextDouble()))
+                backOff(ref, options.backpressure.backoff(pushedBack, retryAfter, random.nextDouble()))
                 continue
             }
             failures++
             if (kind == FailureClass.UNRECOVERABLE || failures >= retry.maxAttempts) {
                 return Result.failure(failure)
             }
-            backOff(retry.backoff(failures))
-        }
-    }
-
-    /** Waits [backoff] before the next attempt: a retry not started, which a stop gives up at once ([giveUp]). */
-    private suspend fun backOff(backoff: Duration) {
-        if (withTimeoutOrNull(backoff) { stop.await() } != null) {
-            giveUp()
+            backOff(ref, retry.backoff(failures))
         }
     }
 
     /**
-     * Gives the entry up as the worker stops: neither retried nor parked, it was not handled, so its checkpoint stays
-     * before it and the next owner handles it. The stop no longer waits for it; its lane's cancellation ends it.
+     * Passes the partition's pause and throttle before an attempt for [ref]: whether it holds the pause's probe. A wait
+     * there is an attempt not started, which a stop gives up at once ([giveUp]), holding nothing.
      */
-    private suspend fun giveUp(): Nothing {
-        stopped()
+    private suspend fun enter(ref: AggregateRef): Boolean {
+        val probing = pause.admit(running.stop) ?: giveUp(ref)
+        if (!throttle.acquire(running.stop)) {
+            pause.release(probing)
+            giveUp(ref)
+        }
+        return probing
+    }
+
+    /** Waits [backoff] before the next attempt for [ref]: a retry not started, which a stop gives up at once. */
+    private suspend fun backOff(ref: AggregateRef, backoff: Duration) {
+        if (withTimeoutOrNull(backoff) { running.stop.await() } != null) {
+            giveUp(ref)
+        }
+    }
+
+    /**
+     * Gives [ref]'s entry up as the worker stops: neither retried nor parked, it was not handled, so its checkpoint
+     * stays before it and the next owner handles it. The stop no longer waits for it; its lane's cancellation ends it.
+     */
+    private suspend fun giveUp(ref: AggregateRef): Nothing {
+        running.givenUp(ref)
         awaitCancellation()
     }
 
