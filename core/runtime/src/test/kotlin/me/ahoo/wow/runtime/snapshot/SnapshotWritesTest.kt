@@ -410,4 +410,31 @@ class SnapshotWritesTest {
         store.batches.last().assert().containsExactly("d@1")
         store.load(type.ref("t", "c")).assert().isNull()
     }
+
+    @Test
+    fun `a stop fails its partition's saves that wait, lets the write in flight end, and leaves other partitions'`():
+        Unit = runBlocking {
+        // Certain as every test here: one thread, coroutines in start order, the store holding each call.
+        val held = Held()
+        val writes = SnapshotWrites(held, maxBatch = 8, committers = 1)
+        val running = async { writes.save(snapshot("a"), partition = 0) }
+        eventually { held.calls.size == 1 }
+        val waiting = async { runCatching { writes.save(snapshot("b"), partition = 0) } }
+        val other = async { writes.save(snapshot("c"), partition = 1) }
+        eventually { writes.waiting == 2 }
+        writes.abandon(setOf(0))
+        // b gave up at once; a's write, in flight, and c, of another partition, go on.
+        withTimeout(5.seconds) { waiting.await() }.exceptionOrNull().assert()
+            .isInstanceOf(SnapshotSaveAbandoned::class.java)
+        writes.waiting.assert().isEqualTo(1)
+        // A save of the partition stopping fails at once, until it is resumed.
+        withTimeout(5.seconds) { runCatching { writes.save(snapshot("d"), partition = 0) } }.exceptionOrNull()
+            .assert().isInstanceOf(SnapshotSaveAbandoned::class.java)
+        held.releaseAll()
+        running.await().assert().isTrue()
+        other.await().assert().isTrue()
+        held.written.assert().containsExactly(listOf("a@1"), listOf("c@1"))
+        writes.resume(setOf(0))
+        writes.save(snapshot("d"), partition = 0).assert().isTrue()
+    }
 }

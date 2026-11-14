@@ -31,6 +31,7 @@ import me.ahoo.wow.runtime.subscription.EntryDecoder
 import me.ahoo.wow.runtime.subscription.SubscribedEntry
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
+import me.ahoo.wow.runtime.subscription.SubscriptionStops
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
@@ -125,6 +126,9 @@ class SnapshotSubscription(
      */
     fun writeCounts(): SnapshotWriteCounts = writes.counts()
 
+    /** The saves waiting for a write now, for a test. */
+    internal val writesWaiting: Int get() = writes.waiting
+
     init {
         require(models.isNotEmpty()) { "A snapshot subscription needs the aggregate types it snapshots." }
         require(models.all { it.type.context == context }) { "Every snapshotted aggregate type is of $context." }
@@ -147,10 +151,17 @@ class SnapshotSubscription(
         FunctionKind.SYSTEM,
         EntryDecoder.stateEvents(reader, decodeEvents = false),
         answers = answers,
+        // A stop gives up the saves of its partitions that wait: a cache the next owner writes again.
+        stops = object : SubscriptionStops {
+            override fun stopping(partitions: Set<Int>) = writes.abandon(partitions)
+
+            override fun stopped(partitions: Set<Int>) = writes.resume(partitions)
+        },
         handler = ::write,
     )
 
     private suspend fun write(entry: SubscribedEntry) {
+        val partition = entry.position?.partition ?: 0
         val stream = entry.stream
         val ref = stream.ref
         val version = stream.version
@@ -169,7 +180,7 @@ class SnapshotSubscription(
         // The view knows the first stream when the kernel loaded the aggregate: no store read.
         val known = if (version == 1) FirstCommit.of(stream) else held?.first ?: view?.first
         if (view != null && known != null) {
-            save(snapshotOf(model, stream, view.state, known, view.deleted, view.schedules))
+            save(snapshotOf(model, stream, view.state, known, view.deleted, view.schedules), partition)
             return
         }
         val stored = store.load(ref)
@@ -179,7 +190,7 @@ class SnapshotSubscription(
         }
         val first = known ?: stored?.let(FirstCommit::of) ?: firstOf(ref)
         val state = entry.state(stored)
-        save(snapshotOf(model, stream, state.state, first, state.deleted, state.schedules))
+        save(snapshotOf(model, stream, state.state, first, state.deleted, state.schedules), partition)
     }
 
     /**
@@ -212,8 +223,8 @@ class SnapshotSubscription(
      * Saves [snapshot] with the saves waiting, of any partition: written or not, the store then holds its version or a
      * later one (a version-guarded save).
      */
-    private suspend fun save(snapshot: SnapshotRecord) {
-        writes.save(snapshot)
+    private suspend fun save(snapshot: SnapshotRecord, partition: Int) {
+        writes.save(snapshot, partition)
         remember(snapshot.ref, FirstCommit.of(snapshot), snapshot.version)
     }
 

@@ -14,8 +14,10 @@
 package me.ahoo.wow.runtime.subscription
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.aggregate.AggregateRef
@@ -32,6 +34,7 @@ import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.observation.observe
 import me.ahoo.wow.spi.subscription.FailureClass
 import kotlin.random.Random
+import kotlin.time.Duration
 
 /**
  * How a [SubscriptionWorker] handles one entry: its [subscription]'s handler attempted within its budget ([retry]), each
@@ -55,6 +58,10 @@ internal class EntryHandling(
     private val random: Random,
     /** The sequence up to which the partition of the log holds imported history; 0 for none, and for a topic. */
     private val importedThrough: Long,
+    /** Completed once the worker stops: its partition's unstarted work was abandoned ([SubscriptionWorker.abandon]). */
+    private val stop: Deferred<Unit> = CompletableDeferred(),
+    /** Takes a handling out of the work the stop waits for: it waits for its lane's cancellation instead. */
+    private val stopped: () -> Unit = {},
 ) {
     /**
      * Runs the handler with its subscription's retries ([retry]); returns what it did, or the last failure once the
@@ -157,6 +164,9 @@ internal class EntryHandling(
                 throttle.release()
                 pause.release(probing)
             }
+            if (stop.isCompleted) {
+                giveUp()
+            }
             val kind = classification.classify(failure, subscription.retry)
             if (pause.failed(ref, kind, failure, probing)) {
                 continue
@@ -171,15 +181,31 @@ internal class EntryHandling(
                 }
                 val retryAfter = FailureClassification.retryAfterOf(failure)
                 logger.debug { "Subscription ${subscription.name} met backpressure at $ref: ${failure.message}" }
-                delay(options.backpressure.backoff(pushedBack, retryAfter, random.nextDouble()))
+                backOff(options.backpressure.backoff(pushedBack, retryAfter, random.nextDouble()))
                 continue
             }
             failures++
             if (kind == FailureClass.UNRECOVERABLE || failures >= retry.maxAttempts) {
                 return Result.failure(failure)
             }
-            delay(retry.backoff(failures))
+            backOff(retry.backoff(failures))
         }
+    }
+
+    /** Waits [backoff] before the next attempt: a retry not started, which a stop gives up at once ([giveUp]). */
+    private suspend fun backOff(backoff: Duration) {
+        if (withTimeoutOrNull(backoff) { stop.await() } != null) {
+            giveUp()
+        }
+    }
+
+    /**
+     * Gives the entry up as the worker stops: neither retried nor parked, it was not handled, so its checkpoint stays
+     * before it and the next owner handles it. The stop no longer waits for it; its lane's cancellation ends it.
+     */
+    private suspend fun giveUp(): Nothing {
+        stopped()
+        awaitCancellation()
     }
 
     private fun succeeded(ref: AggregateRef) {

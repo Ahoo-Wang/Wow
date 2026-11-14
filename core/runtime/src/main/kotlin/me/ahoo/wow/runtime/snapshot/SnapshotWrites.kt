@@ -128,10 +128,17 @@ internal class SnapshotWrites(
         return counted
     }
 
-    /** Saves [snapshot] with the saves waiting with it; whether it was written, as [SnapshotStore.save] says. */
-    suspend fun save(snapshot: SnapshotRecord): Boolean {
-        val write = Write(snapshot)
+    /** The partitions stopping ([abandon]): a save of one fails at once. Guarded by this object's monitor. */
+    private val stopping = HashSet<Int>()
+
+    /**
+     * Saves [snapshot], of [partition], with the saves waiting with it; whether it was written, as [SnapshotStore.save]
+     * says. A save of a partition stopping fails with [SnapshotSaveAbandoned].
+     */
+    suspend fun save(snapshot: SnapshotRecord, partition: Int = 0): Boolean {
+        val write = Write(snapshot, partition)
         val leads = synchronized(this) {
+            if (partition in stopping) throw SnapshotSaveAbandoned(partition)
             queue.addLast(write)
             (leaders < limit && !gathering).also {
                 if (it) {
@@ -147,6 +154,22 @@ internal class SnapshotWrites(
         lead(write)
         return write.result.await()
     }
+
+    /**
+     * Fails the saves of [partitions] that wait and lead nothing with [SnapshotSaveAbandoned], and every save of them
+     * from now until [resume]: a stop, which waits for the writes in flight alone. A save handed the lead and the
+     * writes running end as they would; the saves of other partitions are untouched.
+     */
+    fun abandon(partitions: Set<Int>) {
+        val dropped = synchronized(this) {
+            stopping += partitions
+            queue.filter { it.partition in partitions && !it.leads }.also { left -> queue.removeAll(left.toSet()) }
+        }
+        dropped.forEach { it.result.completeExceptionally(SnapshotSaveAbandoned(it.partition)) }
+    }
+
+    /** Saves [partitions] again, once stopped: one started here again writes as before. */
+    fun resume(partitions: Set<Int>) = synchronized(this) { stopping -= partitions }
 
     /** Waits until [write] is written, false, or handed the lead, true. */
     private suspend fun awaitLead(write: Write): Boolean = try {
@@ -328,7 +351,7 @@ internal class SnapshotWrites(
         }
     }
 
-    private class Write(val snapshot: SnapshotRecord) {
+    private class Write(val snapshot: SnapshotRecord, val partition: Int) {
         val result = CompletableDeferred<Boolean>()
 
         /** Whether this save leads the writes, or was handed the lead. Guarded by the writes' monitor. */
@@ -355,3 +378,7 @@ internal class SnapshotWrites(
         const val RETIRE_FRACTION = 4
     }
 }
+
+/** A save of [partition] given up as its partition stops: not written, so its entry's checkpoint stays before it. */
+internal class SnapshotSaveAbandoned(partition: Int) :
+    IllegalStateException("The snapshot writes stop in partition $partition: the save was not written.")
