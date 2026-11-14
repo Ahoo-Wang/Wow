@@ -400,10 +400,20 @@ class SubscriptionRuntime internal constructor(
      */
     @Suppress("TooGenericExceptionCaught") // Kept, and thrown once every partition's save was tried.
     private suspend fun halt(parts: List<PartitionRun>) {
+        val t0 = System.nanoTime()
+        fun ms() = (System.nanoTime() - t0) / 1_000_000
         parts.forEach { it.readersJob.cancelAndJoin() }
+        val readers = ms()
         val workers = parts.flatMap { it.workers }
-        withTimeoutOrNull(options.stopTimeout) { workers.forEach { it.awaitDrained() } }
+        val before = workers.filter { it.inFlight > 0 }.map { "${it.subscription.name}=${it.inFlight}" }
+        val drained = withTimeoutOrNull(options.stopTimeout) { workers.forEach { it.awaitDrained() } } != null
+        val left = workers.filter { it.inFlight > 0 }.map { "${it.subscription.name}=${it.inFlight}" }
+        val drain = ms()
         parts.forEach { it.lanesJob.cancelAndJoin() }
+        logger.warn {
+            "DIAG halt $group partitions ${parts.map { it.partition }}: readers ${readers}ms, drain ${drain - readers}ms " +
+                "drained=$drained in flight before $before after $left, lanes ${ms() - drain}ms"
+        }
         workers.forEach { it.abandon() }
         var failure: Exception? = null
         for (part in parts) {

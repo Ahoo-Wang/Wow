@@ -402,9 +402,16 @@ class PartitionOwnership internal constructor(
     suspend fun stop(): Unit = lifecycle.withLock {
         val run = running ?: return@withLock
         try {
+            val t0 = System.nanoTime()
             run.membershipJob.cancelAndJoin()
+            val joined = (System.nanoTime() - t0) / 1_000_000
             quietly("leave $group", RECORD_EXPIRES) { membership.leave(group.name) }
+            val left = (System.nanoTime() - t0) / 1_000_000
             reconcileLock.withLock {
+                logger.warn {
+                    "DIAG stop $group: membership joined ${joined}ms, left ${left}ms, " +
+                        "reconcile lock ${(System.nanoTime() - t0) / 1_000_000}ms"
+                }
                 target = emptySet()
                 runs.handOff(gates.keys.toList())
             }

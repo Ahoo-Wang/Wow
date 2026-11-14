@@ -138,16 +138,28 @@ internal class PartitionRuns(
         handed.map { partition ->
             async {
                 val gate = gates[partition] ?: return@async
+                val t0 = System.nanoTime()
+                fun ms() = (System.nanoTime() - t0) / 1_000_000
                 gate.accepting = false
                 stopTimers(partition)
+                val timersDone = ms()
                 // The intake stops taking the partition's commands, settles those in flight and saves its checkpoint.
                 stopIntake(partition)
+                val intakeDone = ms()
+                val inFlight = gate.inFlight.value
                 withTimeoutOrNull(options.drainTimeout) { gate.inFlight.awaitZero() } ?: logger.warn {
                     "$node handed off partition $partition of $group with commands still in flight."
                 }
+                val drainDone = ms()
                 stopSubscriptions(partition)
+                val subsDone = ms()
                 quietly("release partition $partition", LEASE_EXPIRES) {
                     leaseCalls.bounded { leases.release(group.name, partition, node) }
+                }
+                logger.warn {
+                    "DIAG handOff $group p$partition: timers ${timersDone}ms, intake ${intakeDone - timersDone}ms, " +
+                        "drain ${drainDone - intakeDone}ms (in flight $inFlight), subscriptions ${subsDone - drainDone}ms, " +
+                        "release ${ms() - subsDone}ms"
                 }
                 quietly(
                     "drop the cached states of partition $partition",
