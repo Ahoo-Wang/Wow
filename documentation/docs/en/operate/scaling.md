@@ -30,6 +30,7 @@ A node bounds what it accepts and tells callers to come back later instead of qu
 | --- | --- | --- |
 | `wow.executor.max-in-flight`: commands in flight on the node | 4,096 | The command is refused with `wow.command.busy` (429, with `Retry-After`) |
 | `wow.executor.lane-capacity`: commands waiting for one aggregate | 1,024 | The same, for that aggregate |
+| `wow.cluster.max-in-flight-per-node`: forwards in flight from this node to one owner | 1,024 | The same, for the commands of that owner's partitions, which are not run here instead |
 | A store's concurrent queries | A quarter of a pool the appends share (at least 2), adapting up to half of it; all of a query pool of its own; 16 when the pool does not say its size | The query is refused with `wow.query.busy` (429) |
 | `wow.query.dataset.max-concurrent`: dataset queries at once | 8, a fixed bound, not adaptive | The query waits in a short queue, then is refused with `wow.query.busy` |
 

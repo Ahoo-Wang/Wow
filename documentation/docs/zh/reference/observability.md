@@ -18,7 +18,7 @@ Wow 节点向监控报告的每个名字。类路径上有 `wow-observability` �
 | `wow.command.duration` | Timer | `wow.context`, `wow.aggregate.name`, `wow.outcome` | 命令的执行，从接手它到得出结果：`committed`、`rejected`、`duplicate`（此前已提交）、`unchanged`、`contended`、`unknown`、`ok`（未指明结果）、`error`、`cancelled` |
 | `wow.command.refusals` | Counter | `wow.context`, `wow.aggregate.name`, `error.type` | 在内核接手之前就结束的命令，按 problem 错误码 |
 | `wow.command.rejections` | Counter | `wow.context`, `wow.aggregate.name`, `error.type` | 被聚合的决策拒绝的命令（带或不带事件），按拒绝的错误码 |
-| `wow.command.forward.failures` | Counter | `wow.context`, `wow.outcome` | 转发给分区所有者却没有得到结论的命令：`local`（在本地运行，从未到达所有者）、`busy`（所有者在途的转发已达上限；在本地运行）、`unknown`（可能已到达） |
+| `wow.command.forward.failures` | Counter | `wow.context`, `wow.outcome` | 转发给分区所有者却没有得到结论的命令：`local`（在本地运行，从未到达所有者）、`busy`（所有者在途的转发已达上限；以繁忙拒绝，在哪里都不执行，同时计入 `wow.command.busy` 拒绝）、`unknown`（可能已到达） |
 | `wow.wait.timeouts` | Counter | `wow.context`, `wow.aggregate.name`, `wow.stage` | 超时的等待，按它到达的最后阶段：`accepted`、`committed`、`handled`、`unknown` |
 | `wow.wait.signal.drops` | Counter | `wow.reason` | 发往其他节点、未发送就被丢弃的等待信号：`queue-full`、`closed`、`expired`、`refused`、`failed` |
 | `wow.executor.in_flight` | Gauge | `wow.context` | 上下文执行器中在途的命令 |

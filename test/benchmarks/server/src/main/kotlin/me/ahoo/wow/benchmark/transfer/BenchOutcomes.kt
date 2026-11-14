@@ -30,17 +30,19 @@ import kotlin.coroutines.EmptyCoroutineContext
  * cumulative from the node's start:
  *
  * - `admit.<outcome>`: the commands that arrived at this node's intake, admitted or refused, and `refused.<code>`, every
- *   refusal by its code (a busy lane, a forward answered busy or withdrawn past its deadline);
+ *   refusal by its code (a busy lane, a forward to a peer with its most in flight, or one answered busy or withdrawn
+ *   past its deadline);
  * - `forward.in`: the forwards this node took from its peers (each resumed once, `Observer.resuming`), and
- *   `forward.<outcome>`: its own forwards that failed (`busy`: the peer had its most in flight, `local`: it surely did
- *   not reach the peer, both then run here without the partition's lease; `unknown`: no reply, not run here);
+ *   `forward.<outcome>`: its own forwards that failed (`busy`: the peer had its most in flight, refused busy and run
+ *   nowhere, also counted in `refused.wow.command.busy`; `local`: it surely did not reach the peer, then run here
+ *   without the partition's lease; `unknown`: no reply, not run here);
  * - `execute.<outcome>`: the commands this node's kernel executed, its own partitions', its peers' forwards and those
  *   it ran without the lease alike;
  * - `append.<outcome>`: each stream's append as the log answered it;
  * - `cache.<outcome>`: the state cache's hits, misses, evictions and stale states (a state behind a commit another
  *   node made in this node's partition, dropped when its tail reads it).
  *
- * What a node runs without the lease is `forward.busy` and `forward.local`, plus what it runs with no owner known to
+ * What a node runs without the lease is `forward.local`, plus what it runs with no owner known to
  * forward to and what a peer forwards into a partition it has not started yet, which no observer is told of: on the
  * owner, those commits show as `cache.stale`, and on the node that ran them, as `cache.miss` (a node without the lease
  * takes no state from its cache). An observer bean the host composes with any other, only with the line on: a

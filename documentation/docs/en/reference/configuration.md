@@ -93,7 +93,7 @@ How the nodes of a service share the partitions of each context's log, and forwa
 | `wow.cluster.heartbeat-interval` | `Duration` | `PT3S` | How often a node sends its heartbeat; less than half of `member-ttl`, so one late heartbeat is harmless. |
 | `wow.cluster.lease-parallelism` | `Integer` | `16` | The most lease calls a node runs at a time for one lease group: its acquisitions and the releases its hand-offs end with, one bound for both. |
 | `wow.cluster.lease-ttl` | `Duration` | `PT10S` | How long a partition stays with a node that stopped renewing its lease. |
-| `wow.cluster.max-in-flight-per-node` | `Integer` | `1024` | The forwards one node may have outstanding with another; one more runs here instead. |
+| `wow.cluster.max-in-flight-per-node` | `Integer` | `1024` | The forwards one node may have outstanding with another; one more is refused busy (`wow.command.busy`), not run here. |
 | `wow.cluster.member-ttl` | `Duration` | `PT10S` | How long a node stays a member of the cluster after its last heartbeat. |
 | `wow.cluster.reconcile-interval` | `Duration` | `PT1S` | How often a node compares the partitions it holds with those it should hold; a change of the members it notices reconciles at once. |
 | `wow.cluster.reconcile-timeout` | `Duration` | `PT1M` | How long one reconcile may go without finishing a step for a partition before the node takes itself as stuck: it leaves the members and gives up its leases until the reconcile moves again, so the other nodes take the partitions it cannot run. Longer than `drain-timeout` and than `lease-ttl`, or the node does not start. One still running after `wow.health.liveness.stall-timeout` fails the node's liveness. |
