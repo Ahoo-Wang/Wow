@@ -32,6 +32,7 @@ import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.Partitioner
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.seconds
@@ -48,7 +49,8 @@ class PartitionAppendQueueMergeTest {
     fun `a free committer of two takes its share of the streams handed, the oldest groups first`(): Unit =
         runBlocking {
             val log = HeldLog(InMemoryEventLog(PARTITIONS), held = 2)
-            val queue = PartitionAppendQueue(log, AppendQueueOptions(maxBatch = 1, mergers = 2, mergeMax = 512))
+            val options = AppendQueueOptions(maxBatch = 1, mergers = 2, mergeMax = 512, shareFloor = 0)
+            val queue = PartitionAppendQueue(log, options)
             val counts = queue.counts()
             try {
                 // Both committers held, each in its first call: partition 0's, then partition 1's.
@@ -77,6 +79,39 @@ class PartitionAppendQueueMergeTest {
         }
 
     @Test
+    fun `a committer of two takes every group handed while no more than the floor waits`(): Unit = runBlocking {
+        val log = HeldLog(InMemoryEventLog(PARTITIONS), held = 2)
+        val queue = PartitionAppendQueue(log, AppendQueueOptions(maxBatch = 1, mergers = 2, mergeMax = 512))
+        val counts = queue.counts()
+        try {
+            val held = (0..1).map { partition ->
+                append(queue, refIn(partition)).also { eventually(5.seconds) { log.entered.get() == partition + 1 } }
+            }
+            val rest = (2 until PARTITIONS).map { partition ->
+                append(queue, refIn(partition))
+                    .also { eventually(5.seconds) { counts.handedGroups == partition - 1 } }
+            }
+            log.release(0)
+            eventually(5.seconds) { log.calls.size == 2 }
+            // Certain: the second committer held throughout; six streams waiting, under the default floor.
+            (PARTITIONS - 2 <= AppendQueueOptions.DEFAULT_SHARE_FLOOR).assert().isTrue()
+            log.calls[1].map { partitionOf(it) }.assert().containsExactly(2, 3, 4, 5, 6, 7)
+            log.release(1)
+            (held + rest).forEach { it.await().assert().isInstanceOf(AppendOutcome.Committed::class.java) }
+        } finally {
+            log.release(0)
+            log.release(1)
+            queue.close()
+        }
+    }
+
+    @Test
+    fun `the share's floor is never negative`() {
+        assertThrows<IllegalArgumentException> { AppendQueueOptions(shareFloor = -1) }
+        AppendQueueOptions().shareFloor.assert().isEqualTo(AppendQueueOptions.DEFAULT_SHARE_FLOOR)
+    }
+
+    @Test
     fun `a lone committer takes every group handed`(): Unit = runBlocking {
         val log = HeldLog(InMemoryEventLog(PARTITIONS), held = 1)
         val queue = PartitionAppendQueue(log, AppendQueueOptions(maxBatch = 1, mergers = 1, mergeMax = 512))
@@ -100,7 +135,8 @@ class PartitionAppendQueueMergeTest {
     @Test
     fun `the oldest group is taken whole, whatever the share of what waits is`(): Unit = runBlocking {
         val log = HeldLog(InMemoryEventLog(PARTITIONS), held = 2)
-        val queue = PartitionAppendQueue(log, AppendQueueOptions(maxBatch = 4, mergers = 2, mergeMax = 512))
+        val options = AppendQueueOptions(maxBatch = 4, mergers = 2, mergeMax = 512, shareFloor = 0)
+        val queue = PartitionAppendQueue(log, options)
         val refs = refsIn(1, 5)
         try {
             val first = append(queue, refs.first())
