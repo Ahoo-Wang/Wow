@@ -363,7 +363,7 @@ class PartitionAppendQueueTest {
     private fun partitionOf(stream: EventStreamRecord) = Partitioner.partitionOf(stream.ref, PARTITIONS)
 
     @Test
-    fun `groups of several partitions handed meanwhile commit together, half of them a call`(): Unit =
+    fun `groups several partitions handed meanwhile commit with one call, each caller with its own outcome`(): Unit =
         runBlocking {
             // Decision D275: the store's fixed cost of a call is shared by the partitions' small groups.
             val log = GatedLog(InMemoryEventLog(PARTITIONS), acrossPartitions = true)
@@ -392,10 +392,7 @@ class PartitionAppendQueueTest {
                 )
             }
             log.batches.first().map { it.ref }.assert().containsExactly(first)
-            // Three groups were waiting: the next call takes half of them, two, and the call after it the third.
-            log.batches[1].map(::partitionOf).toSet().assert().hasSize(2)
-            (log.batches[1] + log.batches[2]).map(::partitionOf).toSet()
-                .assert().containsAll((1 until PARTITIONS).toList())
+            log.batches[1].map(::partitionOf).toSet().assert().containsAll((1 until PARTITIONS).toList())
             // One group of a partition in flight at a time: partition 0's two never share a call.
             log.batches.none { batch -> batch.count { partitionOf(it) == 0 } > 1 }.assert().isTrue()
             queue.close()
