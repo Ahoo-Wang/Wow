@@ -198,7 +198,10 @@ class MongoEventLog(
     /** The access attributes of the streams, and the walks of the aggregate types. */
     private val logAccess = MongoLogAccess(dispatcher, collections, lookups, walks, partitions)
 
-    /** The appends, alone or in groups, and the placeholders of the sequences no stream took. */
+    /** The placeholders of the sequences no stream took. */
+    private val placeholders = MongoLogPlaceholders(sequencer, collections)
+
+    /** The appends, alone or in groups. */
     private val appender = MongoLogAppender(
         context,
         partitions,
@@ -206,7 +209,8 @@ class MongoEventLog(
         collections,
         documents,
         lookups,
-        lastSequences
+        lastSequences,
+        placeholders,
     )
 
     /**
@@ -393,11 +397,11 @@ class MongoEventLog(
         val counter = committedCounters.find(Filters.eq(ID, partition)).first()
         when (val resolution = sequencer.resolve(partition, sequence, sequencer.openBlocks(counter))) {
             MongoSequencer.Resolution.Wait -> Unit
-            is MongoSequencer.Resolution.Close -> appender.close(resolution.closing)
+            is MongoSequencer.Resolution.Close -> placeholders.close(resolution.closing)
             is MongoSequencer.Resolution.Fill ->
-                appender.fill(collections.named(resolution.collection), partition, sequence, GAP_UNKNOWN)
+                placeholders.fill(collections.named(resolution.collection), partition, sequence, GAP_UNKNOWN)
 
-            is MongoSequencer.Resolution.Seal -> appender.seal(partition, sequence, resolution.block)
+            is MongoSequencer.Resolution.Seal -> placeholders.seal(partition, sequence, resolution.block)
         }
     }
 
