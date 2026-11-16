@@ -62,6 +62,13 @@ internal class AttemptScope(
 ) : DecideScope, KernelLifecycle.MetadataScope {
     private var compensations: MutableList<suspend () -> Unit>? = null
     private var afterAppendActions: MutableList<suspend () -> Unit>? = null
+
+    /**
+     * Whether the decide function registered an after-append action of its own ([afterAppend]), which may read the
+     * state it decided on once the stream commits; the kernel's own (a reservation's) read none.
+     */
+    var readsAfterAppend = false
+        private set
     private var results: MutableMap<String, Any>? = null
     private var reserved: MutableList<ReservationKey>? = null
     private var released: MutableList<ReservationKey>? = null
@@ -145,7 +152,7 @@ internal class AttemptScope(
             // A confirmed key took no hold of this attempt's: there is nothing to give up.
             onAppendFailure { store.abandon(scope, key, owner, hold) }
         }
-        afterAppend { confirmed(store.confirm(scope, key, owner, committed), scope, key) }
+        onCommitted { confirmed(store.confirm(scope, key, owner, committed), scope, key) }
         return true
     }
 
@@ -158,7 +165,7 @@ internal class AttemptScope(
         (released ?: ArrayList<ReservationKey>().also { released = it }) += reservation
         val owner = command.ref
         val scope = ReservationScope.of(owner, reservation)
-        afterAppend { store.release(scope, key, owner, committed) }
+        onCommitted { store.release(scope, key, owner, committed) }
     }
 
     /** Logs a key the committed fact lost to another owner: confirming cannot get it back. */
@@ -176,6 +183,12 @@ internal class AttemptScope(
     }
 
     override fun afterAppend(action: suspend () -> Unit) {
+        readsAfterAppend = true
+        onCommitted(action)
+    }
+
+    /** Registers [action] to run once this attempt's stream commits, with the decide function's [afterAppend]s. */
+    private fun onCommitted(action: suspend () -> Unit) {
         (afterAppendActions ?: ArrayList<suspend () -> Unit>().also { afterAppendActions = it }) += action
     }
 

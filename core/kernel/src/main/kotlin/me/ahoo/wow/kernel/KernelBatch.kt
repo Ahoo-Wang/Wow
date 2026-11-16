@@ -96,6 +96,9 @@ internal class Batching(
             // Before the next command evolves the same (mutable) state further.
             appending?.invoke(member.stream, member.evolved)
             state = member.evolved
+            // Its after-append actions run once the batch commits, and read the state it was decided on: no command
+            // after it in this batch evolves that state further.
+            if (member.attempt.readsAfterAppend) break
         }
         if (members.streams.isEmpty() && caching && !members.tainted) {
             // Nothing evolved it: the state goes back as it was taken (C4: only under the lease), and the first command
