@@ -126,6 +126,18 @@ class MongoEventQueryIndexesTest {
 
     private fun collection() = database.getCollection(MongoNames.of(MongoEventLog.PREFIX, type.context, type.name))
 
+    /**
+     * The entries of each index of the collection, as `validate` counts them: a mongos replies with each shard's own
+     * counts under `raw`, which add up.
+     */
+    private fun keysPerIndex(): Map<String, Int> {
+        val reply = database.runCommand(Document("validate", collection().namespace.collectionName))
+        val replies = reply.get("raw", Document::class.java)?.values?.map { it as Document } ?: listOf(reply)
+        return replies.flatMap { it.get("keysPerIndex", Document::class.java).entries }
+            .groupBy({ it.key }, { (it.value as Number).toInt() })
+            .mapValues { (_, counts) -> counts.sum() }
+    }
+
     @Test
     fun `the access indexes are created as ddl says, the built-ins' indexes of an earlier version replaced`(): Unit =
         runBlocking {
@@ -218,13 +230,12 @@ class MongoEventQueryIndexesTest {
         Unit = runBlocking {
         planned()
         val schema = schema()
-        val keys = database.runCommand(Document("validate", collection().namespace.collectionName))
-            .get("keysPerIndex", Document::class.java)
+        val keys = keysPerIndex()
         val stamped = (0 until ROWS).filter { it % UNSTAMPED != 0 }
-        keys.getInteger("access_owner").assert().isEqualTo(stamped.count { it % NO_SCOPE != 0 })
-        keys.getInteger("access_space").assert().isEqualTo(stamped.count { it % NO_SCOPE != 0 })
+        keys["access_owner"].assert().isEqualTo(stamped.count { it % NO_SCOPE != 0 })
+        keys["access_space"].assert().isEqualTo(stamped.count { it % NO_SCOPE != 0 })
         // A declared attribute's index, partial on the streams alone, holds every stream.
-        keys.getInteger("access_region").assert().isEqualTo(ROWS)
+        keys["access_region"].assert().isEqualTo(ROWS)
         // The equality finds what it found before: the key is the tenant's and the value's.
         val owner = EqualFilter(QueryField("access.owner"), "u-7")
         collection().countDocuments(compiled(schema, owner)).assert()
@@ -240,6 +251,10 @@ class MongoEventQueryIndexesTest {
         Unit = runBlocking {
         val log = MongoLogFixture.log(PARTITIONS, type.context, listOf(type.name))
         fun document(id: String) = checkNotNull(collection().find(Filters.eq("aggregate_id", id)).first())
+
+        // A single-document write on a collection sharded by partition names its document by `_id`, which mongos
+        // routes to whichever shard holds it.
+        fun byId(id: String) = Filters.eq("_id", document(id)["_id"])
         val appended = stream(6)
         log.append(appended)
         document("o-6").get("access", Document::class.java).keys.assert().containsExactly("region", "teams")
@@ -263,14 +278,14 @@ class MongoEventQueryIndexesTest {
             "owner",
             null
         ).append("space", null).append("region", "R9").append("teams", listOf("K6"))
-        collection().updateOne(Filters.eq("aggregate_id", "o-6"), Updates.set("access", nulls))
+        collection().updateOne(byId("o-6"), Updates.set("access", nulls))
         read().assert().isEqualTo(restamped)
         val noSpace = compiled(schema(), IsNullFilter(QueryField("access.space")))
         collection().countDocuments(noSpace).assert().isEqualTo(1L)
 
         // One an earlier version wrote with an owner has no key: an equality on its owner does not find it, until
         // a stamp writes its attributes again, and its key with them.
-        collection().updateOne(Filters.eq("aggregate_id", "o-8"), Updates.unset(MongoEventLog.ACCESS_KEY))
+        collection().updateOne(byId("o-8"), Updates.unset(MongoEventLog.ACCESS_KEY))
         val ownedBy = EqualFilter(QueryField("access.owner"), "u-8")
         val byOwner = compiled(schema(), ownedBy)
         collection().countDocuments(byOwner).assert().isEqualTo(0L)

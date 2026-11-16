@@ -155,10 +155,12 @@ class MongoSnapshotStoreTest : SnapshotStoreSpec() {
             store.save(saved).assert().isTrue()
             val snapshots = MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE)
                 .getCollection(collection(context))
-            snapshots.updateOne(Filters.eq("aggregate_id", "a"), Updates.set("state", Document("price", 2.5)))
+            // The whole shard key, the tenant and the aggregate id, routes each update to one shard when sharded.
+            val a = Filters.and(Filters.eq("tenant_id", "tenant"), Filters.eq("aggregate_id", "a"))
+            snapshots.updateOne(a, Updates.set("state", Document("price", 2.5)))
             store.load(saved.ref)!!.state.assert().isEqualTo("""{"price":2.5}""")
             // A BSON value JSON has no counterpart for is not a state Wow wrote.
-            snapshots.updateOne(Filters.eq("aggregate_id", "a"), Updates.set("state", Document("id", ObjectId())))
+            snapshots.updateOne(a, Updates.set("state", Document("id", ObjectId())))
             assertThrownBy<IllegalStateException> { runBlocking { store.load(saved.ref) } }
         }
 
