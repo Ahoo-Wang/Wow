@@ -269,7 +269,12 @@ internal class MongoLogAppender(
             // A document beyond the size limit, which the driver refuses as it reaches it, after the batches before it
             // went: a member that landed is committed, the others are appended alone, so it fails alone.
             return members.map { member ->
-                if (landed(collection, member)) {
+                val landed = try {
+                    landed(collection, member)
+                } catch (failure: MongoException) {
+                    return@map member to unknown(member, failure, gaps)
+                }
+                if (landed) {
                     member to outcomeOf(collection, member, null, gaps)
                 } else {
                     gaps.add(member, GAP_FAILED)
@@ -289,7 +294,9 @@ internal class MongoLogAppender(
 
     /**
      * [member]'s outcome after its insert, which failed with [error] when there is one; its sequence goes to [gaps]
-     * when it holds no stream.
+     * when it holds no stream. The lookup of a refused member's request or version that fails leaves its outcome
+     * unknown: the insert may have committed the members before it, whose outcomes a throw would lose
+     * ([EventLog.appendAll]).
      */
     private fun outcomeOf(
         collection: AggregateCollection,
@@ -311,7 +318,16 @@ internal class MongoLogAppender(
         }
         lastSequences.remove(stream.ref)
         gaps.add(member, GAP_FAILED)
-        return when {
+        return try {
+            refusedOutcome(collection, stream, error)
+        } catch (failure: MongoException) {
+            AppendOutcome.Unknown(failure)
+        }
+    }
+
+    /** The outcome of [stream], which its insert refused with [error], looked up when a key refused it. */
+    private fun refusedOutcome(collection: AggregateCollection, stream: EventStreamRecord, error: WriteError) =
+        when {
             error.code == MongoFailures.BSON_OBJECT_TOO_LARGE -> AppendOutcome.Rejected(
                 MongoException(error.code, error.message)
             )
@@ -329,7 +345,6 @@ internal class MongoLogAppender(
                 AppendOutcome.Conflict(lookups.currentVersion(collection, stream.ref))
             )
         }
-    }
 
     /** Whether [member]'s stream is at its position: the document there has its request. */
     private fun landed(collection: AggregateCollection, member: Member): Boolean {

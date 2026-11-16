@@ -37,8 +37,8 @@ import java.util.UUID
 
 /**
  * The fixtures and hooks of the [EventLog] contract ([EventLogSpec], the class a backend's test extends): the backend's
- * hooks ([createLog], [refused], [opensOneStorePerContext], [createSnapshots], [snapshotTailsOf]), the streams a test
- * appends ([stream]) and the suite's constants.
+ * hooks ([createLog], [refused], [failingReadAfterWrite], [opensOneStorePerContext], [createSnapshots],
+ * [snapshotTailsOf]), the streams a test appends ([stream]) and the suite's constants.
  *
  * The contract's cases come in families, one class each: [EventLogRecordCases], [EventLogAccessCases],
  * [EventLogEntryCases], [EventLogReadCases] and [EventLogBatchCases], then [EventLogSpec] with the uniqueness and
@@ -67,6 +67,13 @@ abstract class EventLogFixtures internal constructor() {
      * default, for a backend that stores every stream, which skips the cases of a refused stream.
      */
     protected open fun refused(stream: EventStreamRecord): EventStreamRecord? = null
+
+    /**
+     * A log of [context] with [partitions] partitions, on the store [createLog] opens, whose store fails once,
+     * transiently, at the first read a call of `appendAll` makes after it wrote: the lookup of a stream the write
+     * refused. Null, the default, for a backend whose `appendAll` reads nothing after it writes, which skips the case.
+     */
+    protected open fun failingReadAfterWrite(context: String, partitions: Int): EventLog? = null
 
     /**
      * Whether [createLog] called again with one context opens the same log, as another node of the service does. False,

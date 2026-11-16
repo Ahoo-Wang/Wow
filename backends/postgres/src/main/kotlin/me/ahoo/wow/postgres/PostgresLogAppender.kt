@@ -240,12 +240,28 @@ internal class PostgresLogAppender(
             val stream = entry.stream
             val (version, sequence) = rows[index]
             failed[stream.ref] ?: if (sequence == null) {
-                duplicateOr(connection, tablesOf[index], stream) { AppendOutcome.Conflict(version) }
+                refusedOutcome(connection, tablesOf[index], stream, version)
                     .also { failed[stream.ref] = notAppendedAfter(stream, it) }
             } else {
                 AppendOutcome.Committed(LogPosition(parts[index], sequence))
             }
         }
+    }
+
+    /**
+     * The outcome of [stream], which its group's statement did not append, its aggregate at [version]. A lookup of its
+     * request that fails leaves it unknown: the statement committed the group's other streams, whose outcomes a throw
+     * would lose ([EventLog.appendAll]).
+     */
+    private fun refusedOutcome(
+        connection: Connection,
+        table: AggregateLogTable,
+        stream: EventStreamRecord,
+        version: Int,
+    ): AppendOutcome = try {
+        duplicateOr(connection, table, stream) { AppendOutcome.Conflict(version) }
+    } catch (failure: SQLException) {
+        AppendOutcome.Unknown(failure)
     }
 
     /** [group]'s statement [sql], its streams bound, run: each stream's version, and its sequence when appended. */
