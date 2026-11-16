@@ -90,7 +90,8 @@ class MongoTailReadsTest : MongoLogFixtures() {
             log.append(stream("a", version, aggregate = AggregateType(context, "order")))
         }
         MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE).getCollection(collection(context, "order"))
-            .deleteOne(Filters.eq("sequence", 2L))
+            // The shard key (the partition, the log's only one) routes the delete to one shard on a sharded cluster.
+            .deleteOne(Filters.and(Filters.eq(MongoEventLog.PARTITION, 0), Filters.eq(MongoEventLog.SEQUENCE, 2L)))
         withTimeoutOrNull(TAIL_STALL_MS) { log.tail(0).take(2).toList() }.assert().isNull()
         withTimeout(TAIL_TIMEOUT_MS) { log.tail(0).first() }.position.sequence.assert().isEqualTo(1L)
     }
