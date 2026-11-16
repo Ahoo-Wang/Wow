@@ -38,11 +38,17 @@ class PostgresEventLogOptions(
     val tailBatch: Int = DEFAULT_TAIL_BATCH,
     /** How the log's tables are managed: created when missing by default (`wow.ddl`). */
     val ddl: Ddl = Ddl.AUTO,
+    /**
+     * The streams above which an append across partitions binds each column as one array, one statement text whatever
+     * its size ([PostgresBatches.ARRAYS_ABOVE]); 0 binds every such group so.
+     */
+    val arraysAbove: Int = PostgresBatches.ARRAYS_ABOVE,
 ) {
     init {
         require(pollInterval.isPositive()) { "The poll interval is positive." }
         require(maxPollInterval >= pollInterval) { "The longest poll interval is at least the poll interval." }
         require(tailBatch >= 1) { "A tail reads at least one entry at a time." }
+        require(arraysAbove >= 0) { "The rows above which an append binds as arrays are never negative." }
     }
 
     override fun equals(other: Any?): Boolean =
@@ -52,9 +58,9 @@ class PostgresEventLogOptions(
 
     override fun toString(): String =
         "PostgresEventLogOptions(pollInterval=$pollInterval, maxPollInterval=$maxPollInterval, " +
-            "tailBatch=$tailBatch, ddl=$ddl)"
+            "tailBatch=$tailBatch, ddl=$ddl, arraysAbove=$arraysAbove)"
 
-    private fun valueFields(): List<Any?> = listOf(pollInterval, maxPollInterval, tailBatch, ddl)
+    private fun valueFields(): List<Any?> = listOf(pollInterval, maxPollInterval, tailBatch, ddl, arraysAbove)
 
     internal companion object {
         val DEFAULT_POLL_INTERVAL: Duration = 50.milliseconds

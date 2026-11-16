@@ -111,7 +111,10 @@ class PostgresEventLog(
     private val catalog = PostgresLogCatalog(dataSource, context, partitions, ddl, tables)
 
     /** The appends: one stream, and a group commit. */
-    private val appender = PostgresLogAppender(dataSource, tables, logRows, lookups, catalog)
+    private val appender = PostgresLogAppender(dataSource, tables, logRows, lookups, catalog, options.arraysAbove)
+
+    /** The array appends whose parameters did not bind: a defect, each logged and its group failed. */
+    internal val bindFailures: Long get() = appender.bindFailures
 
     /** The reads of one aggregate's streams. */
     private val aggregateReads = PostgresAggregateReads(dataSource, dispatcher, context, catalog, logRows, lookups)

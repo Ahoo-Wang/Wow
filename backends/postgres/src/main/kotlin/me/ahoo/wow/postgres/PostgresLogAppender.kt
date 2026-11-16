@@ -23,8 +23,10 @@ import me.ahoo.wow.spi.log.LogPosition
 import me.ahoo.wow.spi.log.notAppendedAfter
 import me.ahoo.wow.spi.store.StoreCallMarks
 import org.postgresql.util.PSQLException
+import org.slf4j.LoggerFactory
 import java.sql.Connection
 import java.sql.SQLException
+import java.util.concurrent.atomic.AtomicLong
 import javax.sql.DataSource
 
 /**
@@ -37,7 +39,17 @@ internal class PostgresLogAppender(
     private val logRows: PostgresLogRows,
     private val lookups: PostgresLogLookups,
     private val catalog: PostgresLogCatalog,
+    /** The rows above which a group across partitions binds as arrays ([PostgresBatches.ARRAYS_ABOVE]). */
+    private val arraysAbove: Int = PostgresBatches.ARRAYS_ABOVE,
 ) {
+    private val failedBinds = AtomicLong()
+
+    /**
+     * The array statements whose parameters did not bind ([PostgresBatches.INVALID_PARAMETER_VALUE]): a defect, each
+     * logged and its group failed, never taken for refused streams and appended again a partition at a time.
+     */
+    val bindFailures: Long get() = failedBinds.get()
+
     /** [stream], of [partition], in one autocommitted statement; [marks] when the call is clocked. */
     fun append(
         partition: Int,
@@ -198,14 +210,20 @@ internal class PostgresLogAppender(
         // Sorted: every group takes its tables' request keys in one order ([PostgresEventLogTables.appendGroup]).
         val tables = tablesOf.distinctBy { it.base }.sortedBy { it.base }
         val branches = tablesOf.map { table -> tables.indexOf(table) }
-        val sql = if (across) {
-            this.tables.appendGroupAcross(tables, branches)
-        } else {
-            this.tables.appendGroup(parts[0], tables, branches)
-        }
+        val arrays = across && group.size > arraysAbove
         val rows = try {
-            runGroup(connection, sql, across, parts, group, marks)
+            if (arrays) {
+                runGroupArrays(connection, this.tables.appendGroupAcrossArrays(tables), branches, parts, group, marks)
+            } else {
+                val sql = if (across) {
+                    this.tables.appendGroupAcross(tables, branches)
+                } else {
+                    this.tables.appendGroup(parts[0], tables, branches)
+                }
+                runGroup(connection, sql, across, parts, group, marks)
+            }
         } catch (failure: PSQLException) {
+            if (arrays) unbound(failure, group.size)
             val constraint = failure.serverErrorMessage?.constraint
             // PostgreSQL rolls back the statement it picks to end a deadlock: that is a definite abort too.
             val definite = PostgresFailures.isRefused(failure) || failure.sqlState == DEADLOCK_DETECTED ||
@@ -253,6 +271,36 @@ internal class PostgresLogAppender(
                 )
             }
         }
+        marks?.sent()
+        statement.executeQuery().use { rows ->
+            rows.map { it.getInt("version") to it.getLong("sequence").takeUnless { _ -> it.wasNull() } }
+        }.also { marks?.read() }
+    }
+
+    /**
+     * Throws [failure] of an array append of [streams] when its statement did not bind
+     * ([PostgresBatches.INVALID_PARAMETER_VALUE]), logged and counted: never a refusal to append again a partition at a
+     * time. Returns otherwise.
+     */
+    private fun unbound(failure: PSQLException, streams: Int) {
+        if (failure.sqlState != PostgresBatches.INVALID_PARAMETER_VALUE) return
+        failedBinds.incrementAndGet()
+        logger.error("An append of {} streams as arrays did not bind; it is failed whole.", streams, failure)
+        throw failure
+    }
+
+    /** [runGroup] of [PostgresEventLogTables.appendGroupAcrossArrays]: each column of the group as one array. */
+    private fun runGroupArrays(
+        connection: Connection,
+        sql: String,
+        branches: List<Int>,
+        parts: List<Int>,
+        group: List<Append>,
+        marks: StoreCallMarks?,
+    ): List<Pair<Int, Long?>> = connection.prepareStatement(sql).use { statement ->
+        statement.setArray(1, connection.createArrayOf("int4", branches.toTypedArray()))
+        statement.setArray(2, connection.createArrayOf("int4", parts.toTypedArray()))
+        logRows.bindStreamArrays(statement, connection, 3, group)
         marks?.sent()
         statement.executeQuery().use { rows ->
             rows.map { it.getInt("version") to it.getLong("sequence").takeUnless { _ -> it.wasNull() } }
@@ -368,3 +416,5 @@ private fun chunksOf(streams: List<Append>, size: Int): List<List<IndexedValue<A
     }
     return chunks
 }
+
+private val logger = LoggerFactory.getLogger(PostgresLogAppender::class.java)

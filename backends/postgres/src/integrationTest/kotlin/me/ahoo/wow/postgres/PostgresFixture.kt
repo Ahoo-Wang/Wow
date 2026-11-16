@@ -42,13 +42,18 @@ object PostgresFixture {
         partitions: Int,
         context: String = newContext(),
         aggregates: Collection<String> = emptyList(),
-    ): PostgresEventLog = PostgresEventLog(dataSource, context, partitions).also { log ->
+        options: PostgresEventLogOptions = PostgresEventLogOptions(),
+    ): PostgresEventLog = PostgresEventLog(dataSource, context, partitions, options = options).also { log ->
         log.createSchema()
         aggregates.forEach { log.createTable(it) }
     }
 
-    fun snapshotStore(context: String = newContext()): PostgresSnapshotStore =
-        PostgresSnapshotStore(dataSource, context).also { it.createSchema() }
+    fun snapshotStore(
+        context: String = newContext(),
+        arraysAbove: Int = PostgresBatches.ARRAYS_ABOVE,
+    ): PostgresSnapshotStore = PostgresSnapshotStore(dataSource, context, arraysAbove = arraysAbove).also {
+        it.createSchema()
+    }
 
     /** Creates [table] without its format record: the table alone, as Wow does not create it. */
     fun createUnrecorded(table: String) {

@@ -21,6 +21,7 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.schedule.ScheduleRule
+import me.ahoo.wow.postgres.PostgresBatches
 import me.ahoo.wow.postgres.PostgresFailures
 import me.ahoo.wow.postgres.PostgresFormat
 import me.ahoo.wow.postgres.PostgresSchema
@@ -39,12 +40,14 @@ import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.snapshot.SnapshotTable
 import me.ahoo.wow.spi.store.StoreCallMarks
+import org.slf4j.LoggerFactory
 import tools.jackson.databind.json.JsonMapper
 import java.sql.Connection
 import java.sql.PreparedStatement
 import java.sql.ResultSet
 import java.sql.SQLException
 import java.sql.Types
+import java.util.concurrent.atomic.AtomicLong
 import javax.sql.DataSource
 
 /**
@@ -68,7 +71,17 @@ class PostgresSnapshotStore(
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
     /** How the store's tables are managed: created when missing by default. */
     private val ddl: Ddl = Ddl.AUTO,
+    /**
+     * The snapshots above which a batch of saves binds each column as one array, one statement text whatever its size
+     * ([me.ahoo.wow.postgres.PostgresBatches.ARRAYS_ABOVE]); 0 binds every batch so.
+     */
+    private val arraysAbove: Int = PostgresBatches.ARRAYS_ABOVE,
 ) : SnapshotStore, SnapshotRebuildStore {
+    private val failedBinds = AtomicLong()
+
+    /** The array saves whose parameters did not bind: a defect, each logged and its batch failed. */
+    internal val bindFailures: Long get() = failedBinds.get()
+
     /**
      * Whether the node covered this context's snapshot writes ([me.ahoo.wow.spi.store.CoveredSnapshots]): its log, the
      * checkpoints of its snapshot subscription and all its snapshots on this store's database, so [saveAll] commits
@@ -228,10 +241,16 @@ class PostgresSnapshotStore(
         alone: Boolean,
         marks: StoreCallMarks?,
     ): List<SnapshotSaveOutcome> {
+        val arrays = snapshots.size > arraysAbove
+        val statement = if (arrays) tables.saveRowsArrays else tables.saveRows(snapshots.size)
         val written = try {
-            connection.prepareStatement(tables.saveRows(snapshots.size)).use { save ->
-                val width = PostgresSnapshotTables.ROW_PARAMETERS
-                snapshots.forEachIndexed { row, snapshot -> bind(save, row * width, snapshot) }
+            connection.prepareStatement(statement).use { save ->
+                if (arrays) {
+                    bindArrays(save, connection, snapshots)
+                } else {
+                    val width = PostgresSnapshotTables.ROW_PARAMETERS
+                    snapshots.forEachIndexed { row, snapshot -> bind(save, row * width, snapshot) }
+                }
                 marks?.sent()
                 save.executeQuery().use { rows ->
                     buildSet<Pair<String, String>> {
@@ -242,6 +261,14 @@ class PostgresSnapshotStore(
                 }.also { marks?.read() }
             }
         } catch (failure: SQLException) {
+            if (arrays && failure.sqlState == PostgresBatches.INVALID_PARAMETER_VALUE) {
+                // A defect of the statement, not a refused snapshot: thrown as no SQL failure, so that no save takes
+                // it for refused rows and saves them again alone.
+                failedBinds.incrementAndGet()
+                val size = snapshots.size
+                logger.error("A save of {} snapshots as arrays did not bind; it is failed whole.", size, failure)
+                throw IllegalStateException("A save of $size snapshots as arrays did not bind.", failure)
+            }
             // Refused for a value, the statement wrote nothing; any other failure is thrown, and so is a refusal in the
             // batch's transaction, which it aborted.
             if (!alone) throw failure
@@ -299,6 +326,29 @@ class PostgresSnapshotStore(
         save.setNullableString(offset + 13, snapshot.firstOperator?.let(json::writeValueAsString))
         save.setNullableString(offset + 14, snapshot.schedules.takeIf { it.isNotEmpty() }?.let(::encodeSchedules))
         save.setInt(offset + 15, snapshot.stateRevision)
+    }
+
+    /** [snapshots] as one array per column, in their order ([PostgresSnapshotTables.saveRowsArrays]). */
+    private fun bindArrays(save: PreparedStatement, connection: Connection, snapshots: List<SnapshotRecord>) {
+        fun array(type: String, values: List<Any?>) = connection.createArrayOf(type, values.toTypedArray())
+        save.setArray(1, array("text", snapshots.map { it.ref.tenantId }))
+        save.setArray(2, array("text", snapshots.map { it.ref.id }))
+        save.setArray(3, array("int4", snapshots.map { it.version }))
+        save.setArray(4, array("text", snapshots.map { it.schemaFingerprint }))
+        save.setArray(5, array("text", snapshots.map { it.state }))
+        save.setArray(6, array("text", snapshots.map { it.scope.ownerId }))
+        save.setArray(7, array("text", snapshots.map { it.scope.spaceId }))
+        save.setArray(8, array("bool", snapshots.map { it.deleted }))
+        save.setArray(9, array("int8", snapshots.map { it.firstEventTime }))
+        save.setArray(10, array("int8", snapshots.map { it.lastEventTime }))
+        save.setArray(11, array("text", snapshots.map { AccessValues.text(it.access) }))
+        save.setArray(12, array("text", snapshots.map { it.operator?.let(json::writeValueAsString) }))
+        save.setArray(13, array("text", snapshots.map { it.firstOperator?.let(json::writeValueAsString) }))
+        val schedules = snapshots.map { snapshot ->
+            snapshot.schedules.takeIf { it.isNotEmpty() }?.let(::encodeSchedules)
+        }
+        save.setArray(14, array("text", schedules))
+        save.setArray(15, array("int4", snapshots.map { it.stateRevision }))
     }
 
     override suspend fun markStale(ref: AggregateRef): Boolean = dispatcher.jdbc {
@@ -478,3 +528,5 @@ class PostgresSnapshotStore(
         }
     }
 }
+
+private val logger = LoggerFactory.getLogger(PostgresSnapshotStore::class.java)
