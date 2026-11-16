@@ -23,11 +23,10 @@ import com.google.devtools.ksp.processing.SymbolProcessorProvider
  * It does not opt the processor in to KSP's new features (backing fields and context parameters,
  * `SymbolProcessorEnvironment.registerProcessorForNewFeatures`), for which KSP 2.3 warns that the processor "has not
  * opted in for upcoming features yet". Opted in, KSP gives a property's `@field:` annotations (`@field:AggregateId`,
- * `@field:JsonProperty`) to its backing field and no longer to the property, so the compiler would read them there;
- * but KSP 2.3.13 fails with an internal error ("Unexpected null backing field symbol") when it is asked for the
- * backing field of a property a class inherits from a library, and leaving such properties out loses their annotations.
- * The processor opts in when KSP reads those backing fields, and its symbols are validated without the new features
- * ([me.ahoo.wow.compiler.model.symbol.isValid]) until then.
+ * `@field:JsonProperty`) to its backing field and no longer to the property, where the compiler reads them: opted in,
+ * a command's, a state's and an inherited property's `@field:` annotations (KSP 2.3.14) are no longer seen. The
+ * processor opts in once the compiler reads a property's annotations from its backing field too, and its symbols are
+ * validated without the new features ([me.ahoo.wow.compiler.model.symbol.isValid]) until then.
  */
 class ModelSymbolProcessorProvider : SymbolProcessorProvider {
     override fun create(environment: SymbolProcessorEnvironment): SymbolProcessor {
