@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.gradle
 
-import com.google.devtools.ksp.gradle.KspAATask
 import com.google.devtools.ksp.gradle.KspExtension
 import me.ahoo.wow.gradle.WowArtifacts.GROUP
 import me.ahoo.wow.gradle.WowArtifacts.declares
@@ -179,7 +178,7 @@ internal object DomainRole {
 
     /**
      * Applies KSP with the model processor, and adds `wow-compiler` of the plugin's version unless `ksp` declares
-     * `wow-compiler` itself (a build that pins it, or Wow's own build). Its KSP tasks run one at a time ([KspRuns]).
+     * `wow-compiler` itself (a build that pins it, or Wow's own build).
      */
     private fun configureKsp(project: Project, extension: WowExtension) {
         project.pluginManager.apply(KSP)
@@ -188,8 +187,6 @@ internal object DomainRole {
             ksp.arg(MODULE_OPTION, fragmentName(project.path))
             ksp.arg(ContextArgument(extension.context))
         }
-        val runs = KspRuns.of(project)
-        project.tasks.withType(KspAATask::class.java).configureEach { it.usesService(runs) }
         // Added at once, not when `ksp` resolves: KSP wires a compilation's processors only when it sees a declared
         // one. A wow-compiler the module declares itself takes its place.
         project.configurations.named(KSP_CONFIGURATION) { configuration ->

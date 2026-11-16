@@ -28,7 +28,7 @@ import java.util.zip.ZipFile
  * The three plugins by role (decision D363 ①), built with Gradle TestKit: the quickstart's single module, which applies
  * `me.ahoo.wow.service` alone; a domain module whose api module does not declare it; the integration test suite; and
  * a domain, its api and its service under Gradle's isolated projects, since no plugin configures another project; and
- * the KSP tasks of every module, which run one at a time ([KspRuns]).
+ * the KSP tasks of several modules, which may overlap.
  */
 class PluginRolesFunctionalTest {
     private fun classpath(property: String): String =
@@ -80,8 +80,8 @@ class PluginRolesFunctionalTest {
         write(root, "gradle.properties", "kotlin.compiler.execution.strategy=in-process\norg.gradle.jvmargs=-Xmx1g")
     }
 
-    /** The bank of the quickstart: its context, commands, events and account, in package [pkg] of [path]. */
-    private fun bank(root: File, path: String, pkg: String = "bank") {
+    /** The bank of the quickstart: its context ([context]), commands, events and account, in package [pkg] of [path]. */
+    private fun bank(root: File, path: String, pkg: String = "bank", context: String = "bank") {
         val sources = if (path.isEmpty()) "src/main/kotlin/$pkg" else "$path/src/main/kotlin/$pkg"
         write(
             root,
@@ -93,7 +93,7 @@ class PluginRolesFunctionalTest {
             import me.ahoo.wow.api.annotation.BoundedContext
             import me.ahoo.wow.api.annotation.CreateAggregate
 
-            @BoundedContext(name = "bank")
+            @BoundedContext(name = "$context")
             object Bank
 
             @CreateAggregate
@@ -418,29 +418,37 @@ class PluginRolesFunctionalTest {
     }
 
     @Test
-    fun `the KSP tasks of every module should run one at a time`(@TempDir root: File) {
-        settings(root, "bank", "bank-domain", "bank-server")
-        module(root, "bank-domain", WowPlugin.ID)
-        module(root, "bank-server", WowPlugin.SERVICE_ID, dependencies = """implementation(project(":bank-domain"))""")
-        // Which build service a task uses has no public getter: the task's own record of them is read.
-        val report = """
-            tasks.register("kspRuns") {
-                val runs = gradle.sharedServices.registrations.named("${KspRuns.NAME}")
-                val ksp = tasks.matching { it.name.startsWith("ksp") && it.name.endsWith("Kotlin") }
-                doLast {
-                    ksp.forEach { task ->
-                        val used = (task as org.gradle.api.internal.TaskInternal).requiredServices
-                            .isServiceRequired(runs.get().service)
-                        println("KSP-RUNS ${'$'}{task.path} ${'$'}used ${'$'}{runs.get().maxParallelUsages.get()}")
-                    }
-                }
-            }
-        """.trimIndent()
-        listOf("bank-domain", "bank-server").forEach { File(root, "$it/build.gradle.kts").appendText("\n$report\n") }
-        val output = runner(root, "kspRuns").build().output
-        listOf(":bank-domain", ":bank-server").forEach { module ->
-            output.assert().contains("KSP-RUNS $module:kspKotlin true 1", "KSP-RUNS $module:kspTestKotlin true 1")
+    fun `the KSP tasks of every module may overlap, and each still writes its fragment and its contract`(
+        @TempDir root: File,
+    ) {
+        val contexts = listOf("bank", "shop", "mail", "post")
+        settings(root, "bank", *contexts.map { "$it-domain" }.toTypedArray(), "bank-server")
+        contexts.forEach { context ->
+            module(root, "$context-domain", WowPlugin.ID)
+            bank(root, "$context-domain", pkg = context, context = context)
         }
+        module(
+            root,
+            "bank-server",
+            WowPlugin.SERVICE_ID,
+            dependencies = contexts.joinToString("\n") { "implementation(project(\":$it-domain\"))" },
+        )
+        // No build service holds them to one at a time: with --parallel, the modules' KSP runs may overlap in the
+        // daemon, and each still resolves its class path and writes its whole part.
+        val result = runner(
+            root,
+            ":bank-server:${WowPlugin.MERGE_TASK}",
+            WowPlugin.GENERATE_CONTRACT_TASK,
+            "--parallel",
+        ).build()
+        contexts.forEach { context ->
+            result.task(":$context-domain:kspKotlin")?.outcome.assert().isEqualTo(TaskOutcome.SUCCESS)
+            ManifestJson.read(File(root, "$context-domain/build/wow/contract.json")).contexts.map { it.name }.assert()
+                .containsExactly(context)
+        }
+        ManifestJson.read(File(root, "bank-server/build/wow/manifest.json")).contexts.associate { context ->
+            context.name to context.aggregates.map { it.name }
+        }.assert().isEqualTo(contexts.associateWith { listOf("account") })
     }
 
     @Test

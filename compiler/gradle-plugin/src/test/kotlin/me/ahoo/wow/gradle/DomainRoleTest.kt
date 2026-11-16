@@ -80,16 +80,13 @@ class DomainRoleTest {
     }
 
     @Test
-    fun `its KSP tasks should run one at a time, through the build's service`() {
+    fun `its KSP tasks should use no build service that runs them one at a time`() {
         val project = project()
         (project as ProjectInternal).evaluate()
-        val registration = project.gradle.sharedServices.registrations.getByName(KspRuns.NAME)
-        registration.maxParallelUsages.get().assert().isEqualTo(1)
+        val serial = project.gradle.sharedServices.registrations.filter { it.maxParallelUsages.orNull == 1 }
         project.tasks.withType(KspAATask::class.java).toList().assert().isNotEmpty().allSatisfy { task ->
-            (task as TaskInternal).requiredServices.isServiceRequired(registration.service).assert().isTrue()
+            serial.none { (task as TaskInternal).requiredServices.isServiceRequired(it.service) }.assert().isTrue()
         }
-        // Gradle creates it when a KSP task runs.
-        registration.service.get().assert().isInstanceOf(KspRuns::class.java)
     }
 
     @Test

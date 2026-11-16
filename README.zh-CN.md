@@ -132,7 +132,7 @@ flowchart LR
 | --- | --- |
 | Java | 21 |
 | Kotlin | 2.4.21 |
-| KSP | 2.3.13 |
+| KSP | 2.3.14 |
 | Spring Boot | 4.1.2 |
 
 ## 从 9.x 迁移

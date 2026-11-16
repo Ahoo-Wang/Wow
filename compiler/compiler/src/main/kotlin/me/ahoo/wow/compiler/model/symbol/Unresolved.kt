@@ -23,8 +23,8 @@ import com.google.devtools.ksp.symbol.KSTypeReference
 /**
  * The problem of a symbol that never validated, deferred to the end of KSP: nothing of it was generated. It names the
  * types of the symbol that did not resolve, as its source writes them, where it finds them. Sources that compile
- * without such an error point to KSP's environment, not to them: KSP runs overlapping in a Gradle daemon have failed
- * to read their class path (the Wow Gradle plugin's `KspRuns` runs a build's one at a time).
+ * without such an error point to KSP's environment, not to them: a class path KSP could not read, as KSP 2.3.13's
+ * runs overlapping in a Gradle daemon could not (google/ksp#3286, fixed in 2.3.14).
  */
 internal fun KSAnnotated.neverValidated(): String {
     val name = (this as? KSDeclaration)?.qualifiedName?.asString() ?: toString()

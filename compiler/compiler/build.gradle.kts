@@ -12,6 +12,17 @@ dependencies {
     testImplementation(project(":reactor"))
 }
 
+// The compile-testing harness (kctfork) brings the KSP it was built against (its symbol-processing-aa-embeddable and
+// symbol-processing-common-deps); every KSP artifact is the catalog's, so the tests run the KSP a user's build does.
+configurations.configureEach {
+    resolutionStrategy.eachDependency {
+        if (requested.group == "com.google.devtools.ksp") {
+            useVersion(libs.versions.ksp.get())
+            because("KSP's artifacts are one release")
+        }
+    }
+}
+
 tasks.withType<Test>().all {
     jvmArgs(
         "--add-opens=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED",
