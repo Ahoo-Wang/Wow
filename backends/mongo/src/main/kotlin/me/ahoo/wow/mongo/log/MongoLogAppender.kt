@@ -81,7 +81,6 @@ internal class MongoLogAppender(
                 collection.name,
                 after
             ) { collections.known().map { it.name } }
-            allocation.closing?.let(::close)
             insert(collection, stream, document, allocation)?.let { return it }
         }
         error("The blocks of partition $partition of $context were sealed under $MAX_SEALED appends in a row.")
@@ -111,40 +110,7 @@ internal class MongoLogAppender(
      */
     fun appendGroup(streams: List<Append>, marks: StoreCallMarks?): List<AppendOutcome> {
         val outcomes = arrayOfNulls<AppendOutcome>(streams.size)
-        val failed = HashMap<AggregateRef, AppendOutcome>()
-        val previous = HashMap<AggregateRef, Long>()
-        val members = ArrayList<Member>(streams.size)
-        streams.forEachIndexed { index, entry ->
-            val stream = entry.stream
-            val transport = entry.transport
-            failed[stream.ref]?.let {
-                outcomes[index] = it
-                return@forEachIndexed
-            }
-            val collection = collections.of(stream.ref.type)
-            val partition = lookups.partitionOf(stream.ref)
-            val document = encode(partition, stream, transport, marks).getOrElse {
-                outcomes[index] = AppendOutcome.Rejected(it)
-                failed[stream.ref] = notAppendedAfter(stream, AppendOutcome.Rejected(it))
-                return@forEachIndexed
-            }
-            val after = previous[stream.ref] ?: previousOf(collection, stream, marks) ?: run {
-                val conflict = AppendOutcome.Conflict(lookups.currentVersion(collection, stream.ref))
-                outcomes[index] = duplicateOr(collection, stream, conflict)
-                failed[stream.ref] = notAppendedAfter(stream, checkNotNull(outcomes[index]))
-                return@forEachIndexed
-            }
-            val allocation = sequencer.allocate(
-                partition,
-                collection.name,
-                after
-            ) { collections.known().map { it.name } }
-            allocation.closing?.let(::close)
-            document[SEQUENCE] = allocation.sequence
-            document[ID] = positionId(partition, allocation.sequence)
-            previous[stream.ref] = allocation.sequence
-            members += Member(index, stream, collection, document, allocation.sequence)
-        }
+        val members = prepare(streams, outcomes, marks)
         marks?.sent()
         insertMembers(members, outcomes)
         marks?.read()
@@ -152,7 +118,7 @@ internal class MongoLogAppender(
         // document's insert did not reach, has no outcome yet: it is appended again, alone, in order, unless one of
         // its aggregate's did not commit. Once a stream of the call may have committed, a failure of the store here
         // is not thrown: that stream and those not tried after it are unknown ([EventLog.appendAll]).
-        failed.clear()
+        val failed = HashMap<AggregateRef, AppendOutcome>()
         var written = outcomes.any { it.mayHaveCommitted() }
         var stopped: MongoException? = null
         return outcomes.mapIndexed { index, outcome ->
@@ -170,6 +136,57 @@ internal class MongoLogAppender(
             if (settled !is AppendOutcome.Committed) failed[stream.ref] = notAppendedAfter(stream, settled)
             settled
         }
+    }
+
+    /**
+     * [streams] encoded and sequenced, each in its partition: the members to insert, the outcomes of those refused
+     * before in [outcomes]. No member is tried yet, so when a step fails (a lookup, a reservation), each sequence
+     * allotted is filled before the failure is thrown, and the tail never waits at one.
+     */
+    private fun prepare(streams: List<Append>, outcomes: Array<AppendOutcome?>, marks: StoreCallMarks?): List<Member> {
+        val failed = HashMap<AggregateRef, AppendOutcome>()
+        val previous = HashMap<AggregateRef, Long>()
+        val members = ArrayList<Member>(streams.size)
+        try {
+            streams.forEachIndexed { index, entry ->
+                val stream = entry.stream
+                val transport = entry.transport
+                failed[stream.ref]?.let {
+                    outcomes[index] = it
+                    return@forEachIndexed
+                }
+                val collection = collections.of(stream.ref.type)
+                val partition = lookups.partitionOf(stream.ref)
+                val document = encode(partition, stream, transport, marks).getOrElse {
+                    outcomes[index] = AppendOutcome.Rejected(it)
+                    failed[stream.ref] = notAppendedAfter(stream, AppendOutcome.Rejected(it))
+                    return@forEachIndexed
+                }
+                val after = previous[stream.ref] ?: previousOf(collection, stream, marks) ?: run {
+                    val conflict = AppendOutcome.Conflict(lookups.currentVersion(collection, stream.ref))
+                    outcomes[index] = duplicateOr(collection, stream, conflict)
+                    failed[stream.ref] = notAppendedAfter(stream, checkNotNull(outcomes[index]))
+                    return@forEachIndexed
+                }
+                val allocation = sequencer.allocate(
+                    partition,
+                    collection.name,
+                    after
+                ) { collections.known().map { it.name } }
+                document[SEQUENCE] = allocation.sequence
+                document[ID] = positionId(partition, allocation.sequence)
+                previous[stream.ref] = allocation.sequence
+                members += Member(index, stream, collection, document, allocation.sequence)
+                allocation.closing?.let(::close)
+            }
+        } catch (
+            @Suppress("TooGenericExceptionCaught") // Whatever failed, no member was tried: each is filled.
+            failure: RuntimeException,
+        ) {
+            Gaps().apply { members.forEach { add(it, GAP_FAILED) } }.write()
+            throw failure
+        }
+        return members
     }
 
     /** Whether this outcome's stream may be in the log: a call that has one no longer throws ([EventLog.appendAll]). */
@@ -430,9 +447,9 @@ internal class MongoLogAppender(
     }
 
     /**
-     * Inserts [document] at [allocation]'s sequence: the outcome, or null when the position was taken (the block was
-     * sealed). A sequence the stream did not take gets its placeholder, unless the outcome is unknown and the stream
-     * landed.
+     * Inserts [document] at [allocation]'s sequence, after closing the block it replaced: the outcome, or null when the
+     * position was taken (the block was sealed). A sequence the stream did not take gets its placeholder, unless the
+     * outcome is unknown and the stream landed.
      */
     private fun insert(
         collection: AggregateCollection,
@@ -445,6 +462,7 @@ internal class MongoLogAppender(
         document[SEQUENCE] = sequence
         document[ID] = positionId(partition, sequence)
         val outcome = try {
+            allocation.closing?.let(::close)
             collection.appends.insertOne(document)
             sequencer.settle(partition, sequence)
             lastSequences[stream.ref] = LastSequence(stream.version, sequence)
@@ -510,13 +528,16 @@ internal class MongoLogAppender(
         sequencer.settle(partition, sequence)
     }
 
-    /** Writes [closing], a block's unused remainder, as one range placeholder, and settles it. */
+    /**
+     * Writes [closing], a block's unused remainder, as one range placeholder, and settles it. A closing that cannot be
+     * written now is left to the tail, which closes the block again ([MongoSequencer.resolve]).
+     */
     fun close(closing: MongoSequencer.Closing) {
         val placeholder = placeholder(closing.partition, closing.from, GAP_CLOSED).append(GAP_TO, closing.to)
         try {
             collections.named(closing.collection).appends.insertOne(placeholder)
         } catch (failure: MongoException) {
-            if (!failure.isDuplicateKey()) throw failure
+            if (!failure.isDuplicateKey()) return
         }
         sequencer.settle(closing)
     }
