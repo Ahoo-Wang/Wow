@@ -14,12 +14,10 @@
 package me.ahoo.wow.runtime.sink
 
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.selects.select
-import kotlinx.coroutines.yield
 import me.ahoo.wow.runtime.health.NodeFatals
+import me.ahoo.wow.runtime.subscription.LeaderBatches
 import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.sink.Sink
 import me.ahoo.wow.spi.state.StateEventRecord
@@ -39,8 +37,7 @@ internal class Written(val done: Int, val failure: Throwable?)
  *   run is of. Group commits by partition would only cut it: on a sink that writes one batch at a time (ClickHouse's
  *   one insert), four of them carried half the commits an insert one did, draining a backlog.
  *
- * - **No waiting for a batch to fill** (as [me.ahoo.wow.runtime.snapshot.SnapshotWrites]): a run finding no write
- *   running leads one at once, after a [yield] that lets the lanes ready in the same instant join it; the runs
+ * - **One leader, as [LeaderBatches] with one committer**: a run finding no write running leads one at once; the runs
  *   arriving while it runs wait for the next, which the leader writes too, until its own run is written. Then it hands
  *   the lead to the oldest run still waiting. A batch takes whole runs, in the order they came, and at least one.
  * - **Durable before it returns**: a run's write returns once the [Sink.write] covering its records returned, so its
@@ -54,104 +51,20 @@ internal class Written(val done: Int, val failure: Throwable?)
  *   times out puts the runs it has not ended back, and the next leader goes on from them. The entry that failed is
  *   then handled alone by its lane, with one [Sink.write] of its own outside these batches, so no later batch
  *   carries it.
- * - **Cancellation**: a leader cancelled (its lane stopped, or its run timed out) leaves the queue if no batch took its
- *   own run yet, puts the runs it took and has not ended back in front and hands the lead on; a waiting run cancelled
- *   leaves the queue.
  */
-internal class SinkWrites(private val sink: Sink, private val maxBatch: Int) {
+internal class SinkWrites(private val sink: Sink, maxBatch: Int) :
+    LeaderBatches<Written, SinkWrites.Run>(maxBatch, committers = 1, catchUp = 1, retireBelow = 0) {
     init {
         require(maxBatch >= 1) { "A sink write batch holds at least one record." }
     }
 
-    private val queue = ArrayDeque<Run>()
-
-    /** Whether a run leads the writes, or was handed the lead. Guarded by this object's monitor. */
-    private var leading = false
-
-    /** The runs waiting now, for a test. */
-    val waiting: Int get() = synchronized(this) { queue.size }
-
     /** Writes [records], a run of one aggregate's, with the runs waiting with it; how many are durable. */
-    suspend fun write(records: List<StateEventRecord>): Written {
-        if (records.isEmpty()) {
-            return Written(0, null)
-        }
-        val run = Run(records)
-        val leads = synchronized(this) {
-            queue.addLast(run)
-            (!leading).also { leading = true }
-        }
-        if (!leads && !awaitLead(run)) {
-            return run.result.await()
-        }
-        lead(run)
-        return run.result.await()
-    }
-
-    /** Waits until [run] is written, false, or handed the lead, true. */
-    private suspend fun awaitLead(run: Run): Boolean = try {
-        select {
-            run.result.onAwait { false }
-            run.lead.onAwait { true }
-        }
-    } catch (cancelled: CancellationException) {
-        synchronized(this) {
-            if (queue.remove(run) && run.lead.isCompleted) {
-                // Handed the lead it will not take.
-                handOver()
-            }
-        }
-        throw cancelled
-    }
-
-    /** Writes the waiting runs, a batch at a time, until [own] is written; then hands the lead on. */
-    private suspend fun lead(own: Run) {
-        var taken = emptyList<Run>()
-        try {
-            yield()
-            while (!own.result.isCompleted) {
-                // The own run waits in the queue until a batch takes it, so a batch is never empty.
-                taken = synchronized(this) { batch() }
-                writeBatch(taken)
-            }
-        } catch (cancelled: CancellationException) {
-            synchronized(this) {
-                // Cancelled at the yield, its own run still heads the queue: handed the lead, it would lead nobody.
-                queue.remove(own)
-                // Cancelled in a write: the runs of its batch not ended yet go back in front. A batch written run by run
-                // after a failure ends each run as its write returns, so some may have ended already.
-                taken.filter { it !== own && !it.result.isCompleted }.asReversed().forEach(queue::addFirst)
-            }
-            throw cancelled
-        } finally {
-            synchronized(this) { handOver() }
-        }
-    }
-
-    /** Called under the monitor: the runs at the queue's head whose records fit [maxBatch] together, at least one. */
-    private fun batch(): List<Run> {
-        val taken = mutableListOf(queue.removeFirst())
-        var size = taken.single().records.size
-        while (queue.isNotEmpty() && size + queue.first().records.size <= maxBatch) {
-            size += queue.first().records.size
-            taken += queue.removeFirst()
-        }
-        return taken
-    }
-
-    /** Called under the monitor: the lead passes to the oldest waiting run, or no run leads. */
-    private fun handOver() {
-        val next = queue.firstOrNull()
-        if (next == null) {
-            leading = false
-        } else {
-            next.lead.complete(Unit)
-        }
-    }
+    suspend fun write(records: List<StateEventRecord>): Written =
+        if (records.isEmpty()) Written(0, null) else submit(Run(records))
 
     /** Writes [batch] with one [Sink.write], and ends its runs. */
     @Suppress("TooGenericExceptionCaught") // Whatever the sink throws ends the runs of the batch, never the leader.
-    private suspend fun writeBatch(batch: List<Run>) {
+    override suspend fun writeBatch(batch: List<Run>) {
         // The leader's own cancellation puts the batch back (ensureActive); anything else is the sink's failure.
         try {
             sink.write(batch.flatMap { it.records })
@@ -202,11 +115,8 @@ internal class SinkWrites(private val sink: Sink, private val maxBatch: Int) {
         return Written(records.size, null)
     }
 
-    private class Run(val records: List<StateEventRecord>) {
-        val result = CompletableDeferred<Written>()
-
-        /** Completed when the lead is handed to this run. */
-        val lead = CompletableDeferred<Unit>()
+    class Run(val records: List<StateEventRecord>) : LeaderBatches.Request<Written>() {
+        override val size: Int get() = records.size
 
         fun end(written: Written) {
             // A cancellation the sink met is its failure, not the waiting lane's own cancellation.
@@ -219,5 +129,7 @@ internal class SinkWrites(private val sink: Sink, private val maxBatch: Int) {
                 },
             )
         }
+
+        override fun fail(cause: Throwable) = end(Written(0, cause))
     }
 }

@@ -328,6 +328,51 @@ class SnapshotWritesTest {
     }
 
     @Test
+    fun `an error one snapshot's save throws, after its batch's call failed, fails only that save`(): Unit =
+        runBlocking {
+            listOf(NotImplementedError("Not yet."), StackOverflowError()).forEach { error ->
+                // A healthy aggregate of its own each round: the store would refuse a version it holds.
+                val healthyId = "healthy-${error::class.simpleName}"
+                val alone = CopyOnWriteArrayList<String>()
+                val erring = object : SnapshotStore by store {
+                    override suspend fun saveAll(snapshots: List<SnapshotRecord>): List<SnapshotSaveOutcome> =
+                        if (snapshots.size > 1) throw IllegalStateException("One by one.") else store.saveAll(snapshots)
+
+                    override suspend fun save(snapshot: SnapshotRecord): Boolean {
+                        alone += snapshot.ref.id
+                        return if (snapshot.ref.id == "bad") throw error else store.save(snapshot)
+                    }
+                }
+                val writes = SnapshotWrites(erring, 8)
+                // Undispatched: the first leads and yields, so the second joins its batch.
+                val bad = async(start = CoroutineStart.UNDISPATCHED) { runCatching { writes.save(snapshot("bad")) } }
+                val healthy = async(start = CoroutineStart.UNDISPATCHED) { writes.save(snapshot(healthyId)) }
+                withTimeout(5.seconds) { bad.await() }.exceptionOrNull().assert().isInstanceOf(error::class.java)
+                withTimeout(5.seconds) { healthy.await() }.assert().isTrue()
+                alone.assert().containsExactly("bad", healthyId)
+                writes.waiting.assert().isEqualTo(0)
+            }
+        }
+
+    @Test
+    fun `a write that throws ends every save of its batch with it, and the next save leads`(): Unit = runBlocking {
+        // A store answering fewer outcomes than snapshots: the write fails ending them, outside any store call.
+        val short = object : SnapshotStore by store {
+            override suspend fun saveAll(snapshots: List<SnapshotRecord>): List<SnapshotSaveOutcome> = emptyList()
+        }
+        val writes = SnapshotWrites(short, 8)
+        val saves = listOf("a", "b").map { id ->
+            async(start = CoroutineStart.UNDISPATCHED) { runCatching { writes.save(snapshot(id)) } }
+        }
+        withTimeout(5.seconds) { saves.awaitAll() }.forEach {
+            it.exceptionOrNull().assert().isInstanceOf(IndexOutOfBoundsException::class.java)
+        }
+        writes.waiting.assert().isEqualTo(0)
+        withTimeout(5.seconds) { runCatching { writes.save(snapshot("c")) } }.exceptionOrNull().assert()
+            .isInstanceOf(IndexOutOfBoundsException::class.java)
+    }
+
+    @Test
     fun `a save cancelled once a batch took it is still written`(): Unit = runBlocking {
         val writes = SnapshotWrites(store, 8)
         val gate = CompletableDeferred<Unit>().also { store.gate = it }
