@@ -45,7 +45,6 @@ import me.ahoo.wow.api.query.InFilter
 import me.ahoo.wow.api.query.IsEmptyFilter
 import me.ahoo.wow.api.query.IsNotNullFilter
 import me.ahoo.wow.api.query.IsNullFilter
-import me.ahoo.wow.api.query.LessThanFilter
 import me.ahoo.wow.api.query.LessThanOrEqualFilter
 import me.ahoo.wow.api.query.MatchNoneFilter
 import me.ahoo.wow.api.query.NorFilter
@@ -97,14 +96,17 @@ class ClickHouseSqlCompilerTest {
         where(EqualFilter(PAID, true)).assert().isEqualTo("`paid` = {p0:Bool}")
         where(NotEqualFilter(CITY, "x")).assert().isEqualTo("`city` != {p0:String}")
         where(NotEqualFilter(NOTE, "x")).assert().isEqualTo("(`note` != {p0:String} OR isNull(`note`))")
-        statement(GreaterThanFilter(AMOUNT, BigDecimal("1.50"))).let {
-            it.sql.assert().isEqualTo("`amount` > {p0:Decimal(18, 2)}")
-            it.parameters["p0"].assert().isEqualTo("1.50")
+        // A number is bound as it was given, never narrowed to its column's width or scale (#6321).
+        statement(GreaterThanFilter(AMOUNT, BigDecimal("1.255"))).let {
+            it.sql.assert().isEqualTo("`amount` > {p0:Decimal(76, 3)}")
+            it.parameters["p0"].assert().isEqualTo("1.255")
         }
-        where(GreaterThanOrEqualFilter(QUANTITY, 1)).assert().isEqualTo("`quantity` >= {p0:Int64}")
-        where(LessThanFilter(QUANTITY, 1)).assert().isEqualTo("`quantity` < {p0:Int64}")
-        where(LessThanOrEqualFilter(QUANTITY, 1)).assert().isEqualTo("`quantity` <= {p0:Int64}")
-        where(BetweenFilter(QUANTITY, 1, 2)).assert().isEqualTo("`quantity` BETWEEN {p0:Int64} AND {p1:Int64}")
+        statement(GreaterThanFilter(AMOUNT, 2)).parameters["p0"].assert().isEqualTo("2")
+        // In the column's own type while that holds it, so a key's index is kept; widened only past it.
+        where(GreaterThanFilter(AMOUNT, 2)).assert().isEqualTo("`amount` > {p0:Decimal(18, 2)}")
+        where(GreaterThanOrEqualFilter(QUANTITY, 1)).assert().isEqualTo("`quantity` >= {p0:Int256}")
+        where(LessThanOrEqualFilter(QUANTITY, 1)).assert().isEqualTo("`quantity` <= {p0:Int256}")
+        where(BetweenFilter(QUANTITY, 1, 2)).assert().isEqualTo("`quantity` BETWEEN {p0:Int256} AND {p1:Int256}")
         where(InFilter(CITY, listOf("a", "b"))).assert().isEqualTo("`city` IN ({p0:String}, {p1:String})")
         where(NotInFilter(CITY, listOf("a"))).assert().isEqualTo("`city` NOT IN ({p0:String})")
         where(NotInFilter(NOTE, listOf("a"))).assert().isEqualTo("(`note` NOT IN ({p0:String}) OR isNull(`note`))")
@@ -155,17 +157,21 @@ class ClickHouseSqlCompilerTest {
     }
 
     @Test
-    fun `date operands should bind as epoch milliseconds whatever their form`() {
-        val bound = "fromUnixTimestamp64Milli({p0:Int64}, 'UTC')"
+    fun `date operands should bind as an instant in UTC at every digit they have whatever their form`() {
         mapOf(
-            "2025-01-01T00:00:00Z" to "1735689600000",
-            "2025-01-01T08:00:00+08:00" to "1735689600000",
-            "2025-01-01T00:00:00" to "1735689600000",
-            "2025-01-01" to "1735689600000",
-        ).forEach { (operand, millis) ->
+            "2025-01-01T00:00:00Z" to "2025-01-01 00:00:00.000000000",
+            "2025-01-01T08:00:00+08:00" to "2025-01-01 00:00:00.000000000",
+            "2025-01-01T00:00:00" to "2025-01-01 00:00:00.000000000",
+            "2025-01-01" to "2025-01-01 00:00:00.000000000",
+        ).forEach { (operand, text) ->
             val statement = statement(GreaterThanFilter(CREATED_AT, operand))
-            statement.sql.assert().isEqualTo("`created_at` > $bound")
-            statement.parameters["p0"].assert().isEqualTo(millis)
+            statement.sql.assert().isEqualTo("`created_at` > toDateTime64({p0:String}, 3, 'UTC')")
+            statement.parameters["p0"].assert().isEqualTo(text)
+        }
+        // Below the millisecond, the operand's own digits decide the scale (#6304).
+        statement(GreaterThanFilter(CREATED_AT, "2025-01-01T00:00:00.0000002Z")).let {
+            it.sql.assert().isEqualTo("`created_at` > toDateTime64({p0:String}, 7, 'UTC')")
+            it.parameters["p0"].assert().isEqualTo("2025-01-01 00:00:00.000000200")
         }
         statement(TodayFilter(CREATED_AT)).sql.assert().isEqualTo(
             "(`created_at` >= fromUnixTimestamp64Milli({p0:Int64}, 'UTC') AND " +

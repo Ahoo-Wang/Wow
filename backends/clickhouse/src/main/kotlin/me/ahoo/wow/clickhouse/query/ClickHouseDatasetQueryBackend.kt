@@ -247,7 +247,7 @@ internal class ClickHouseDatasetQueryBackend internal constructor(
                 append(" FROM ").append(source(table))
                 append(" WHERE ").append(where)
                 if (order.isNotEmpty()) {
-                    val terms = order.map { (column, direction) -> ordered(quoteIdentifier(column.name), direction) }
+                    val terms = order.map { (column, direction) -> ordered(column.compared, direction) }
                     append(" ORDER BY ").append(terms.joinToString(", "))
                 }
                 limit?.let { append(" LIMIT ").append(it) }
@@ -260,11 +260,11 @@ internal class ClickHouseDatasetQueryBackend internal constructor(
         private fun after(values: List<Any?>): String = sort.indices.joinToString(" OR ") { index ->
             buildList {
                 repeat(index) { equal ->
-                    add("${quoteIdentifier(sort[equal].first.name)} = ${bound(equal, values[equal])}")
+                    add("${sort[equal].first.compared} = ${bound(equal, values[equal])}")
                 }
                 val (column, direction) = sort[index]
                 val operator = if (direction == Sort.Direction.ASC) ">" else "<"
-                add("${quoteIdentifier(column.name)} $operator ${bound(index, values[index])}")
+                add("${column.compared} $operator ${bound(index, values[index])}")
             }.joinToString(" AND ", "(", ")")
         }
 
