@@ -1404,7 +1404,7 @@
   }, {
     "name" : "wow.subscription.max-catch-ups",
     "type" : "java.lang.Integer",
-    "description" : "The partitions the node reads behind their head at once, all its subscriptions together; 0 for no bound. A partition whose subscriptions start behind the head (a history migrate-data imported, a long stop) waits for one, and the others stand at their checkpoints, so the node keeps its store for its commands while it catches up. More do not catch up sooner on one store, and raise the latency of the commands meanwhile.",
+    "description" : "The partitions the node reads behind their head at once, past their first page, all its subscriptions together; 0 for no bound. A partition whose subscriptions start behind the head reads its first 512 entries at once, which the gap of a hand-over fits in; one further behind (a history migrate-data imported, a long stop) then waits for one, and the others stand where their page ended, so the node keeps its store for its commands while it catches up. More do not catch up sooner on one store, and raise the latency of the commands meanwhile.",
     "sourceType" : "me.ahoo.wow.spring.boot.node.SubscriptionProperties",
     "defaultValue" : 2
   }, {
