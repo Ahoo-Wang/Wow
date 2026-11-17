@@ -62,6 +62,7 @@ import me.ahoo.wow.query.admission.QueryAdmission
 import me.ahoo.wow.query.backend.CursorPosition
 import me.ahoo.wow.query.backend.PageWindow
 import me.ahoo.wow.query.error.QueryExecutionException
+import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
@@ -200,7 +201,7 @@ internal class InMemoryReferenceSemanticsTest : InMemoryReferenceFixtures() {
     }
 
     @Test
-    fun `offset pages count their total, bounded or not`() = runBlocking {
+    fun `offset pages count their total, bounded or not`(): Unit = runBlocking {
         val query = QueryAdmission.Trusted.list(
             ListQuery(MatchAllFilter, sort = listOf(Sort(ID, Sort.Direction.ASC))),
             schema
@@ -215,11 +216,12 @@ internal class InMemoryReferenceSemanticsTest : InMemoryReferenceFixtures() {
     }
 
     @Test
-    fun `keyset pages continue after a position of every kind`() = runBlocking {
+    fun `keyset pages continue after a position of every kind`(): Unit = runBlocking {
         val sort = listOf(Sort(PRICE, Sort.Direction.DESC), Sort(ID, Sort.Direction.ASC))
         val query = QueryAdmission.Trusted.list(ListQuery(MatchAllFilter, sort = sort), schema)
+        // By price descending: r5 (50), r3 (30), r2 (20.0), r1 (10), then r4, which has none.
         val first = backend.page(query, PageWindow.Keyset(null, 2))
-        first.rows.map { it.path("id").stringValue() }.assert().containsExactly("r3", "r5")
+        first.rows.map { it.path("id").stringValue() }.assert().containsExactly("r5", "r3")
         val second = backend.page(query, PageWindow.Keyset(first.positions!!.last(), 10))
         second.rows.map { it.path("id").stringValue() }.assert().containsExactly("r2", "r1", "r4")
         second.positions!!.last().values.assert().containsExactly(null, "r4")
@@ -229,19 +231,24 @@ internal class InMemoryReferenceSemanticsTest : InMemoryReferenceFixtures() {
             ListQuery(MatchAllFilter, sort = listOf(Sort(FLAG, Sort.Direction.ASC), Sort(ID, Sort.Direction.ASC))),
             schema
         )
+        // By flag ascending, r4's missing one first: after (false, r2) come r5 (false), then r1 and r3 (true).
         backend.page(byFlag, PageWindow.Keyset(CursorPosition(listOf(false, "r2")), 10)).rows
-            .map { it.path("id").stringValue() }.assert().containsExactly("r1", "r3")
+            .map { it.path("id").stringValue() }.assert().containsExactly("r5", "r1", "r3")
         backend.page(byFlag, PageWindow.Keyset(null, 1)).positions!!.single().values.assert()
             .containsExactly(null, "r4")
     }
 
     @Test
-    fun `projections include and exclude through objects and arrays`() = runBlocking {
+    fun `projections include and exclude through objects and arrays`(): Unit = runBlocking {
+        // A path the schema does not declare is refused at admission, before any backend.
+        assertThrows<QuerySchemaValidationException> {
+            QueryAdmission.Trusted.list(
+                ListQuery(IdFilter("r1"), projection = Projection(include = listOf(ID, QueryField("missing.path")))),
+                schema,
+            )
+        }
         val include = QueryAdmission.Trusted.list(
-            ListQuery(
-                IdFilter("r1"),
-                projection = Projection(include = listOf(ID, NAME, LINE_SKU, QueryField("missing.path"))),
-            ),
+            ListQuery(IdFilter("r1"), projection = Projection(include = listOf(ID, NAME, LINE_SKU))),
             schema,
         )
         val included = backend.stream(include).toList().single()
@@ -250,7 +257,7 @@ internal class InMemoryReferenceSemanticsTest : InMemoryReferenceFixtures() {
         included.path("lines").first().has("price").assert().isFalse()
         included.has("price").assert().isFalse()
         val exclude = QueryAdmission.Trusted.list(
-            ListQuery(IdFilter("r1"), projection = Projection(exclude = listOf(PRICE, LINE_PRICE, QueryField("x.y")))),
+            ListQuery(IdFilter("r1"), projection = Projection(exclude = listOf(PRICE, LINE_PRICE))),
             schema,
         )
         val excluded = backend.stream(exclude).toList().single()
