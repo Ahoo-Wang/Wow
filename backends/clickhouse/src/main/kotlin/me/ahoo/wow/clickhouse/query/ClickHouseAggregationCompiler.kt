@@ -41,7 +41,9 @@ import java.time.Duration
  * The inner query uses internal aliases, so a metric alias that equals a column name never shadows the column in
  * `WHERE` or in another metric (ClickHouse resolves aliases before columns); the outer query renames, derives,
  * filters by HAVING, sorts and limits. HAVING compares in IEEE double space, and a NULL metric satisfies no
- * comparison, as the protocol says. Windows and dense fill are the core's (`StorageSupport` RESIDUAL): they never
+ * comparison, as the protocol says. A metric is its exact value or the query fails: an integer column's SUM and AVG
+ * accumulate in a wider integer, and a metric computed in floating point that left the double range fails the
+ * statement instead of reaching the result as the `NULL` an empty set has. Windows and dense fill are the core's (`StorageSupport` RESIDUAL): they never
  * arrive here.
  */
 internal class ClickHouseAggregationCompiler(
@@ -71,7 +73,7 @@ internal class ClickHouseAggregationCompiler(
         }
         val conditions = query.groupBy.withIndex()
             .filter { (_, group) -> group.dropsMissingKeys() }
-            .map { "isNotNull(${group(it.index)})" } + listOfNotNull(query.having?.let(::having))
+            .map { "isNotNull(${group(it.index)})" } + listOfNotNull(query.having?.let(::having), finite())
         val sql = buildString {
             append("SELECT ").append(outer.joinToString(", "))
             append(" FROM (SELECT ").append(inner.joinToString(", "))
@@ -174,8 +176,7 @@ internal class ClickHouseAggregationCompiler(
         val condition = metric.filter.takeUnless { it == MatchAllFilter }?.let(filters::compile)
         return when (metric) {
             is AggregationMetric.Count -> condition?.let { "countIf($it)" } ?: "count()"
-            is AggregationMetric.Numeric ->
-                aggregate(metric.function.native(), metric.expression.nativeInput(), condition)
+            is AggregationMetric.Numeric -> aggregate(metric.function.native(), metric.input(), condition)
             is AggregationMetric.DistinctCount -> {
                 val input = metric.expression.nativeInput()
                 condition?.let { "uniqExactIf($input, $it)" } ?: "uniqExact($input)"
@@ -207,6 +208,35 @@ internal class ClickHouseAggregationCompiler(
         val position = filters.column(checkNotNull(metric.orderBy) { "Admission names every FIRST / LAST orderBy." })
         val guard = listOfNotNull("isNotNull($value)", "isNotNull($position)", condition).joinToString(" AND ")
         return "${function}IfOrNull($value, $position, $guard)"
+    }
+
+    /**
+     * A Numeric metric's input: its [nativeInput], except that SUM and AVG of an integer column accumulate in a wider
+     * integer ([accumulated]).
+     */
+    private fun AggregationMetric.Numeric.input(): String {
+        val input = expression
+        val accumulates = function == AggregationFunction.SUM || function == AggregationFunction.AVG
+        if (input !is AggregationExpression.Field || !accumulates) return input.nativeInput()
+        val column = filters.columnOf(input.field)
+        val native = filters.column(input.field)
+        return if (column.family == ClickHouseTypeFamily.INTEGER) accumulated(column, native) else native
+    }
+
+    /**
+     * The guard of the metrics computed in floating point, a Float column's or an expression's, which can leave the
+     * double range: a group the query keeps whose metric is not finite fails the statement (`throwIf`), since the
+     * output format would write it as `NULL`. Last of the conditions, it reads only the groups the others kept.
+     */
+    private fun finite(): String? {
+        val floating = query.metrics.withIndex().filter { (_, metric) ->
+            metric is AggregationMetric.Numeric && metric.expression.let {
+                it !is AggregationExpression.Field || filters.columnOf(it.field).family == ClickHouseTypeFamily.FLOAT
+            }
+        }
+        if (floating.isEmpty()) return null
+        val finite = floating.joinToString(" AND ") { "isFinite(ifNull(${metric(it.index)}, 0))" }
+        return "throwIf(NOT ($finite), 'An aggregation metric is not a finite number.') = 0"
     }
 
     /**
@@ -260,10 +290,27 @@ internal class ClickHouseAggregationCompiler(
         const val PERCENT = 100.0
         const val SECONDS_PER_HOUR = 3600
         const val SECONDS_PER_MINUTE = 60
+        const val NATIVE_BITS = 64
+        const val MAX_BITS = 256
 
         fun group(index: Int): String = "__g$index"
 
         fun metric(index: Int): String = "__m$index"
+
+        /**
+         * An integer [column]'s [input] widened to twice the bits ClickHouse sums it in (64 for a column of up to 64
+         * bits, the column's own from 128), so no sum of the rows a table can hold wraps; a 256-bit column has no wider
+         * type and keeps its own.
+         */
+        fun accumulated(column: TypedColumn, input: String): String {
+            // `Int64`, `UInt128`: the digits of an integer type are its bits.
+            val bits = column.baseType.filter(Char::isDigit).toInt()
+            return when {
+                bits <= NATIVE_BITS -> "toInt128($input)"
+                bits < MAX_BITS -> "toInt256($input)"
+                else -> input
+            }
+        }
 
         fun AggregationFunction.native(): String = when (this) {
             AggregationFunction.SUM -> "sum"
