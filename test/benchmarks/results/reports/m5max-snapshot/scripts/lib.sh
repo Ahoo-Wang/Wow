@@ -55,7 +55,12 @@ LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="${WOW_REPO:-$(git -C "$LIB_DIR" rev-parse --show-toplevel)}"
 B="$REPO/test/benchmarks/harness/bench.sh"
 LOAD="$REPO/test/benchmarks/load/build/install/benchmark-load"
-WOW_INSTALL="$REPO/test/benchmarks/server/build/install/benchmark-server"
+# The server measured: SERVER_INSTALL, another build of it (an arm: another commit's, arm-install.sh), else the
+# checkout's own. Either is inside the checkout: this benchmark's processes are told by their path (foreign_jvms).
+WOW_INSTALL="${SERVER_INSTALL:-$REPO/test/benchmarks/server/build/install/benchmark-server}"
+# The harness's options naming that build, for a session's `up`: none for the checkout's own.
+INSTALL_ARGS=()
+if [ -n "${SERVER_INSTALL:-}" ]; then INSTALL_ARGS=(--install="$SERVER_INSTALL"); fi
 AXON_INSTALL="$REPO/test/benchmarks/axon-server/build/install/axon-server"
 SESSION_FILE="$REPO/test/benchmarks/results/e2e/.session"
 ACCOUNTS=100000
@@ -90,8 +95,9 @@ say() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
 caffeinate -dimsu -w $$ &
 
 # Fails unless the worktree is clean (ALLOW_DIRTY=true skips that), the builds $@ and the load generator are there,
-# nothing holds the harness's ports or containers (another benchmark would share the CPUs and the stores), and no other
-# JVM runs, a Gradle daemon among them, but those in ALLOW_JVM_PIDS.
+# inside the checkout, nothing holds the harness's ports or containers (another benchmark would share the CPUs and the
+# stores), and no other JVM runs, a Gradle daemon among them, but those in ALLOW_JVM_PIDS. A build outside the checkout
+# would run a server foreign_jvms takes for another JVM, and every step would be void.
 preflight() {
   if [ -n "$(git -C "$REPO" status --porcelain)" ] && [ "${ALLOW_DIRTY:-false}" != true ]; then
     say "$REPO has changes; the runs would record them (ALLOW_DIRTY=true runs anyway)"
@@ -100,6 +106,14 @@ preflight() {
   local install
   for install in "$LOAD" "$@"; do
     if [ ! -x "$install/bin/$(basename "$install")" ]; then say "no build at $install"; return 1; fi
+    case "$(cd "$install" && pwd -P)/" in
+      "$(cd "$REPO" && pwd -P)"/*) ;;
+      *)
+        say "$install is outside $REPO: its server would read as another JVM; put it under" \
+          "test/benchmarks/results/e2e/ (arm-install.sh)"
+        return 1
+        ;;
+    esac
   done
   local port
   for port in $PORTS; do
@@ -156,11 +170,22 @@ wait_quiet() {
 }
 
 # The commit, machine, container engine and JDK, appended to $1/environment.txt.
+# The build at install $1 in words, from its wow-build-stamp (test/benchmarks/build-stamp.gradle.kts): its commit,
+# `with changes` when its tree had some; `unstamped` without one.
+build_of() {
+  local file="$1/wow-build-stamp" commit
+  if [ ! -f "$file" ]; then echo unstamped; return; fi
+  commit=$(sed -n 's/^commit=//p' "$file")
+  if grep -qx 'dirty=no' "$file"; then echo "$commit"; else echo "$commit with changes"; fi
+}
+
 record_environment() {
   mkdir -p "$1"
   {
     echo "## $(basename "$0") $(date '+%Y-%m-%dT%H:%M:%S%z')"
     echo "commit: $(git -C "$REPO" rev-parse HEAD)"
+    echo "server build: $(build_of "$WOW_INSTALL") ($WOW_INSTALL)"
+    echo "load generator build: $(build_of "$LOAD")"
     echo "changed paths: $(git -C "$REPO" status --porcelain | wc -l | tr -d ' ')"
     echo "machine: $(sysctl -n hw.model), $(sysctl -n machdep.cpu.brand_string), $(sysctl -n hw.ncpu) cores" \
       "($(sysctl -n hw.perflevel0.logicalcpu) $(sysctl -n hw.perflevel0.name)" \
@@ -504,5 +529,5 @@ curate() {
     --include='saturate.log' --include='run.log' --include='saturation.json' --include='result.json' \
     --include='settle.json' --include='settle.log' --include='summary.md' --include='pg-statements.txt' \
     --include='hot-version.tsv' --include='tables.txt' --include='explain.txt' \
-    --include='allowed-jvms.txt' --include='mongo-stats.tsv' --exclude='*' "$1/" "$2/"
+    --include='allowed-jvms.txt' --include='mongo-stats.tsv' --include='install.txt' --exclude='*' "$1/" "$2/"
 }

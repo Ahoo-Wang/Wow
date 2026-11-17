@@ -85,11 +85,11 @@ fresh_installs() {
 session_builds() { printf 'S_SERVER_BUILD=%q\n' "$(install_stamp "$(opt install "$SERVER_INSTALL")")"; }
 
 # Names the builds the run measures with: the server's and the load generator's stamps, in the log and in
-# $OUT/install.txt (`server=<stamp>`, `load=<stamp>`). The server's is its --install's or this tree's; on a reused
-# session, the build its `up` started (S_SERVER_BUILD, resume reads it), whatever was built since.
+# $OUT/install.txt (`server=<stamp>`, `load=<stamp>`). The server's is $1's when given, else its --install's or this
+# tree's; on a reused session, the build its `up` started (S_SERVER_BUILD, resume reads it), whatever was built since.
 record_installs() {
   local server load
-  server=${S_SERVER_BUILD:-$(install_stamp "$(opt install "$SERVER_INSTALL")")}
+  server=${S_SERVER_BUILD:-$(install_stamp "${1:-$(opt install "$SERVER_INSTALL")}")}
   load=$(install_stamp "$LOAD_INSTALL")
   printf 'server=%s\nload=%s\n' "$server" "$load" >"$OUT/install.txt"
   log "server build $(stamp_text "$server"), load generator $(stamp_text "$load")"

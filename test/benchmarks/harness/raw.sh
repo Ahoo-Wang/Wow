@@ -26,6 +26,7 @@ measure_raw() {
   local main=me.ahoo.wow.benchmark.transfer.raw.RawStoreBenchKt
   OUT=$(opt out "$REPO/test/benchmarks/results/e2e/$(date +%Y%m%d-%H%M%S)-measure-raw-$BACKEND")
   mkdir -p "$OUT"
+  record_installs
   local install jar class
   install=$(opt install "$REPO/test/benchmarks/server/build/install/benchmark-server")
   class="$(echo "$main" | tr . /).class"

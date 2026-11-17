@@ -215,22 +215,13 @@ export function buildStampOf(install) {
 }
 
 /**
- * The build [arm] runs, as bench.yml names each to bench.mjs: `INSTALL_<ARM>` in [env] (`INSTALL_HEAD`,
- * `INSTALL_BASE`); undefined without one.
+ * [arm] with its pool (`pool`), its tuning (`tuning`) and the stamp of the build it runs, the one at [install]
+ * (`build`, [buildStampOf]), recorded, each when it has one.
  */
-const installOf = (arm, env) =>
-  arm?.install
-    ? env[`INSTALL_${String(arm.install).toUpperCase()}`]
-    : undefined;
-
-/**
- * [arm] with its pool (`pool`), its tuning (`tuning`) and its build's stamp (`build`, [buildStampOf]) recorded, each
- * when it has one.
- */
-export const withRecorded = (arm, env = process.env) => {
+export const withRecorded = (arm, install) => {
   const pooled = withPool(arm);
   const tuning = tuningOf(arm);
-  const build = buildStampOf(installOf(arm, env));
+  const build = buildStampOf(install);
   return {
     ...pooled,
     ...(tuning ? { tuning } : {}),

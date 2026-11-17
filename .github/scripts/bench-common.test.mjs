@@ -89,7 +89,7 @@ test("an arm's tuning is its bench.tuning server arguments, else its properties,
   assert.equal('tuning' in withRecorded({ backend: 'mongo' }), false);
 });
 
-test("an arm records its build's stamp from the install bench.yml names it, and none without one", () => {
+test('an arm records the stamp of the build at its install, and none without one', () => {
   const install = mkdtempSync(join(tmpdir(), 'bench-common-install-'));
   assert.equal(buildStampOf(install), undefined, 'unstamped');
   writeFileSync(
@@ -97,14 +97,13 @@ test("an arm records its build's stamp from the install bench.yml names it, and 
     'commit=53208e5e49abcdef0123\ndirty=no\n',
   );
   assert.equal(buildStampOf(install), '53208e5e49');
-  const env = { INSTALL_BASE: install };
   assert.equal(
-    withRecorded({ id: 'base', backend: 'mongo', install: 'base' }, env).build,
+    withRecorded({ id: 'base', backend: 'mongo', install: 'base' }, install)
+      .build,
     '53208e5e49',
   );
   assert.equal(
-    'build' in
-      withRecorded({ id: 'head', backend: 'mongo', install: 'head' }, env),
+    'build' in withRecorded({ id: 'head', backend: 'mongo', install: 'head' }),
     false,
   );
   writeFileSync(
