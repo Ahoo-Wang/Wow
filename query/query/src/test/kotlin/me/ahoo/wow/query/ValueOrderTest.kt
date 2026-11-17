@@ -15,12 +15,15 @@ package me.ahoo.wow.query
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.query.backend.compareScalars
 import me.ahoo.wow.query.backend.orderOf
+import me.ahoo.wow.query.backend.parseInstant
 import me.ahoo.wow.query.backend.valueKey
+import me.ahoo.wow.query.schema.Temporal
 import me.ahoo.wow.spi.json.WowJson
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.JsonNodeFactory
 import java.math.BigInteger
+import java.time.Instant
 
 class ValueOrderTest {
     private val nodes = JsonNodeFactory.instance
@@ -29,15 +32,15 @@ class ValueOrderTest {
 
     @Test
     fun `values of different kinds order by kind, then each kind by value`() {
-        orderOf(null, node("1")).assert().isNegative()
-        orderOf(node("null"), node("1")).assert().isNegative()
-        orderOf(node("1"), node("\"a\"")).assert().isNegative()
-        orderOf(node("1.5"), node("2")).assert().isNegative()
-        orderOf(node("\"b\""), node("\"a\"")).assert().isPositive()
-        orderOf(node("true"), node("false")).assert().isPositive()
-        orderOf(node("[1]"), node("[2]")).assert().isNegative()
-        orderOf(node("[1]"), node("true")).assert().isPositive()
-        orderOf(null, node("null")).assert().isZero()
+        orderOf(null, node("1"), null).assert().isNegative()
+        orderOf(node("null"), node("1"), null).assert().isNegative()
+        orderOf(node("1"), node("\"a\""), null).assert().isNegative()
+        orderOf(node("1.5"), node("2"), null).assert().isNegative()
+        orderOf(node("\"b\""), node("\"a\""), null).assert().isPositive()
+        orderOf(node("true"), node("false"), null).assert().isPositive()
+        orderOf(node("[1]"), node("[2]"), null).assert().isNegative()
+        orderOf(node("[1]"), node("true"), null).assert().isPositive()
+        orderOf(null, node("null"), null).assert().isZero()
         compareScalars(node("false"), node("true")).assert().isEqualTo(-1)
         compareScalars(node("\"a\""), node("1")).assert().isNull()
     }
@@ -46,19 +49,36 @@ class ValueOrderTest {
     fun `numbers order by their exact value, past a long and past a double`() {
         val maxLong = nodes.numberNode(Long.MAX_VALUE)
         val pastLong = nodes.numberNode(BigInteger.valueOf(Long.MAX_VALUE).add(BigInteger.ONE))
-        orderOf(maxLong, pastLong).assert().isNegative()
-        orderOf(pastLong, maxLong).assert().isPositive()
-        orderOf(node("1.00000000000000000001"), node("1")).assert().isPositive()
-        orderOf(nodes.numberNode(1), nodes.numberNode(1L)).assert().isZero()
+        orderOf(maxLong, pastLong, null).assert().isNegative()
+        orderOf(pastLong, maxLong, null).assert().isPositive()
+        orderOf(node("1.00000000000000000001"), node("1"), null).assert().isPositive()
+        orderOf(nodes.numberNode(1), nodes.numberNode(1L), null).assert().isZero()
     }
 
     @Test
     fun `values equal by value share a key, whatever their JSON width`() {
         listOf(nodes.numberNode(1), nodes.numberNode(1L), node("1.0"), nodes.numberNode(BigInteger.ONE))
-            .map { it.valueKey() }.distinct().assert().hasSize(1)
-        nodes.numberNode(10).valueKey().assert().isEqualTo(node("10.00").valueKey())
-        nodes.numberNode(1).valueKey().assert().isNotEqualTo(nodes.numberNode(2).valueKey())
-        nodes.stringNode("1").valueKey().assert().isNotEqualTo(nodes.numberNode(1).valueKey())
-        (null as JsonNode?).valueKey().assert().isNull()
+            .map { it.valueKey(null) }.distinct().assert().hasSize(1)
+        nodes.numberNode(10).valueKey(null).assert().isEqualTo(node("10.00").valueKey(null))
+        nodes.numberNode(1).valueKey(null).assert().isNotEqualTo(nodes.numberNode(2).valueKey(null))
+        nodes.stringNode("1").valueKey(null).assert().isNotEqualTo(nodes.numberNode(1).valueKey(null))
+        (null as JsonNode?).valueKey(null).assert().isNull()
+    }
+
+    @Test
+    fun `a date field's value compares by its instant in every ISO-8601 form, and anything else as it is`() {
+        val instant = Instant.parse("2026-01-01T00:00:00Z")
+        listOf("2026-01-01T00:00:00Z", "2026-01-01T01:00:00+01:00", "2025-12-31T23:00:00-01:00", "2026-01-01T00:00:00")
+            .forEach { parseInstant(it).assert().isEqualTo(instant) }
+        parseInstant("2026-01-01").assert().isEqualTo(instant)
+        parseInstant("soon").assert().isNull()
+        val midnight = node("\"2026-01-01T00:00:00Z\"").valueKey(Temporal.Date)
+        node("\"2026-01-01\"").valueKey(Temporal.Date).assert().isEqualTo(midnight)
+        // A number or a text that is no date is itself, as are a missing value and null.
+        node("1").valueKey(Temporal.Date).assert().isEqualTo(node("1.0").valueKey(null))
+        node("\"soon\"").valueKey(Temporal.Date).assert().isEqualTo(node("\"soon\""))
+        orderOf(null, node("\"2026-01-01\""), Temporal.Date).assert().isNegative()
+        orderOf(node("\"2026-01-01\""), null, Temporal.Date).assert().isPositive()
+        (null as JsonNode?).valueKey(Temporal.Date).assert().isNull()
     }
 }

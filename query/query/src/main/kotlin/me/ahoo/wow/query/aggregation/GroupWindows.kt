@@ -71,7 +71,7 @@ internal class GroupWindows(
     private val query: AggregationQuery,
     private val windowed: Set<String>,
     /** How each output column reads, by its alias ([outputReadings]); a column absent is read as it is. */
-    private val readings: Map<String, Temporal> = emptyMap(),
+    private val readings: Map<String, Temporal>,
 ) {
     private val groupAliases = query.groupBy.map(AggregationGroup::alias)
     private val metricAliases = query.metrics.map(AggregationMetric::alias)

@@ -45,13 +45,13 @@ class InMemoryValueSemanticsTest {
 
     @Test
     fun `values equal and order by value across widths and kinds`() {
-        nodes.numberNode(1).sameValue(nodes.numberNode(1.0)).assert().isTrue()
-        nodes.numberNode(BigInteger.TEN).sameValue(nodes.numberNode(10L)).assert().isTrue()
-        array(1, 2).sameValue(array(1, 2)).assert().isTrue()
-        array(1, 2).sameValue(array(1)).assert().isFalse()
-        array(1, 2).sameValue(array(1, 3)).assert().isFalse()
-        array(1, 2).matches(nodes.numberNode(2)).assert().isTrue()
-        array(1, 2).matches(array(1)).assert().isFalse()
+        nodes.numberNode(1).sameValue(nodes.numberNode(1.0), null).assert().isTrue()
+        nodes.numberNode(BigInteger.TEN).sameValue(nodes.numberNode(10L), null).assert().isTrue()
+        array(1, 2).sameValue(array(1, 2), null).assert().isTrue()
+        array(1, 2).sameValue(array(1), null).assert().isFalse()
+        array(1, 2).sameValue(array(1, 3), null).assert().isFalse()
+        array(1, 2).matches(nodes.numberNode(2), null).assert().isTrue()
+        array(1, 2).matches(array(1), null).assert().isFalse()
         val withNull = listOf(array(3, 1, 2), nodes.nullNode())
         withNull.sortKey(ascending = true, temporal = null).assert().isNull()
         withNull.sortKey(ascending = false, temporal = null)!!.intValue().assert().isEqualTo(3)

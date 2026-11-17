@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationDateUnit
+import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
@@ -99,6 +100,18 @@ internal class InMemoryValueComparisonTest : InMemoryReferenceFixtures() {
             dates,
             AggregationQuery(metrics = listOf(AggregationMetric.Count("n", filter = EqualFilter(DAY, INSTANT)))),
         ).single().path("n").longValue().assert().isEqualTo(3L)
+    }
+
+    @Test
+    fun `a DISTINCT_COUNT of a date counts every text of its instant once`() {
+        fun distinct(field: QueryField<*>) = aggregate(
+            dates,
+            AggregationQuery(
+                metrics = listOf(AggregationMetric.DistinctCount(AggregationExpression.Field(field), "distinct")),
+            ),
+        ).single().path("distinct").longValue()
+        distinct(DAY).assert().isEqualTo(2L)
+        distinct(NAME).assert().isEqualTo(4L)
     }
 
     // A date's order in aggregation output (#6276): two instants a millisecond apart, whose texts order the other way.

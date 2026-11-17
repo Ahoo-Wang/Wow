@@ -428,7 +428,7 @@ class BackendWindowsTest {
             metrics = listOf(gmv, derived("previous", DerivedExpression.Previous("gmv", "month"))),
         )
         assertThrows<IllegalStateException> {
-            GroupWindows(query, setOf("previous")).apply(listOf(monthRow("zj", 1, 10)))
+            GroupWindows(query, setOf("previous"), emptyMap()).apply(listOf(monthRow("zj", 1, 10)))
         }
     }
 

@@ -193,8 +193,9 @@ internal class InMemoryAggregation(
         if (expression !is me.ahoo.wow.api.query.AggregationExpression.Field) {
             return members.mapNotNull { filters.expression(expression, it) }.distinct().size
         }
-        return members.flatMap { it.values(admitted.field(expression.field)).flattened() }
-            .filterNot { it.isNull }.distinctBy { it.valueKey() }.size
+        val field = admitted.field(expression.field)
+        return members.flatMap { it.values(field).flattened() }
+            .filterNot { it.isNull }.distinctBy { it.valueKey(field.temporal) }.size
     }
 
     private fun numeric(function: AggregationFunction, values: List<Double>): JsonNode {

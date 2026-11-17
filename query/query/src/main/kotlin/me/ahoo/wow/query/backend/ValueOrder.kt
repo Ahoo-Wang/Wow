@@ -49,8 +49,8 @@ internal fun compareScalars(left: JsonNode, right: JsonNode): Int? = when {
  * strings and booleans, each by value, then anything else by its JSON text; values of different kinds by kind, so a
  * mixed set never fails.
  */
-internal fun orderOf(left: JsonNode?, right: JsonNode?, temporal: Temporal? = null): Int {
-    if (temporal != null) return orderOf(left?.orderKey(temporal), right?.orderKey(temporal))
+internal fun orderOf(left: JsonNode?, right: JsonNode?, temporal: Temporal?): Int {
+    if (temporal != null) return orderOf(left?.orderKey(temporal), right?.orderKey(temporal), null)
     val leftRank = left.kindRank()
     val rightRank = right.kindRank()
     if (leftRank != rightRank) return leftRank.compareTo(rightRank)
@@ -63,7 +63,7 @@ internal fun orderOf(left: JsonNode?, right: JsonNode?, temporal: Temporal? = nu
  * them: a number's exact value without trailing zeros (`1`, `1L` and `1.0` are one key), a date its instant
  * (`…T00:00:00Z` and `…T01:00:00+01:00` are one key), any other value itself.
  */
-internal fun JsonNode?.valueKey(temporal: Temporal? = null): Any? {
+internal fun JsonNode?.valueKey(temporal: Temporal?): Any? {
     val value = this?.orderKey(temporal)
     return if (value != null && value.isNumber) value.decimal().stripTrailingZeros() else value
 }

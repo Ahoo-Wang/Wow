@@ -62,7 +62,7 @@ internal fun List<JsonNode>.flattened(): List<JsonNode> = flatMap { if (it.isArr
  * Whether two stored values are equal by value, read as [temporal] says: numbers by their exact value, a date by its
  * instant ([valueKey]), arrays element by element.
  */
-internal fun JsonNode.sameValue(other: JsonNode, temporal: Temporal? = null): Boolean = when {
+internal fun JsonNode.sameValue(other: JsonNode, temporal: Temporal?): Boolean = when {
     isArray && other.isArray ->
         size() == other.size() && (0 until size()).all { get(it).sameValue(other.get(it), temporal) }
     isArray || other.isArray -> false
@@ -70,7 +70,7 @@ internal fun JsonNode.sameValue(other: JsonNode, temporal: Temporal? = null): Bo
 }
 
 /** Whether this stored value matches [operand]: equal by value, or, for an array, holding an element that is. */
-internal fun JsonNode.matches(operand: JsonNode, temporal: Temporal? = null): Boolean =
+internal fun JsonNode.matches(operand: JsonNode, temporal: Temporal?): Boolean =
     sameValue(operand, temporal) || (isArray && !operand.isArray && any { it.sameValue(operand, temporal) })
 
 /**

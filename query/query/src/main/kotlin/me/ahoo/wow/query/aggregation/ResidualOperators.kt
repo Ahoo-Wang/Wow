@@ -154,7 +154,7 @@ internal class BoundedTopRows(
     sort: List<Sort>,
     private val limit: Int,
     private val groupAliases: List<String> = emptyList(),
-    readings: Map<String, Temporal> = emptyMap(),
+    readings: Map<String, Temporal>,
 ) {
     private val groupIndexes = groupAliases.withIndex().associate { (index, alias) -> alias to index }
     private val currentGroupOrder = LongArray(groupAliases.size)

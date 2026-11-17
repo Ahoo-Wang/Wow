@@ -287,6 +287,7 @@ class ResidualOperatorsTest {
             listOf(Sort(QueryField("month"), Sort.Direction.ASC), Sort(QueryField("total"), Sort.Direction.DESC)),
             limit = 2,
             groupAliases = listOf("month"),
+            readings = emptyMap(),
         ).apply { rows.forEach(::add) }.result()
             .map { it.path("month").asString() to it.path("total").intValue() }
             .assert().containsExactly("b" to 5, "b" to 1)
@@ -300,7 +301,7 @@ class ResidualOperatorsTest {
     private fun Map<String, Any?>.toObjectNode(): ObjectNode = WowJson.mapper.valueToTree(this)
 
     private fun selectTopRows(rows: Iterable<ObjectNode>, sort: List<Sort>, limit: Int): List<ObjectNode> =
-        BoundedTopRows(sort, limit).apply { rows.forEach(::add) }.result()
+        BoundedTopRows(sort, limit, readings = emptyMap()).apply { rows.forEach(::add) }.result()
 
     private companion object {
         const val DAY_MILLIS = 86_400_000L
