@@ -39,7 +39,7 @@ spring:
 | `wow_log__<context>__partition` | 上下文日志的每个分区一行计数器 |
 | `wow_log_aggregate` | 每个上下文的日志有哪些聚合表 |
 | `wow_snapshot__<context>__<aggregate>` | 每个聚合一行：它最新的快照，状态和访问属性为 `jsonb`，直接在原处查询 |
-| `wow_snapshot_table` | 每张快照表保存的状态修订号 |
+| `wow_snapshot_table` | 每张快照表保存的状态修订号、是否已追上日志，以及由谁从日志开头填充它 |
 | `wow_timer__<context>__<aggregate>` | 一种聚合类型的定时命令，每个定时器一行，位于其属主的分区 |
 | `wow_timer_aggregate` | 每个上下文有哪些定时器表；到期读取在一条语句中合并它们 |
 | `wow_checkpoint`、`wow_lease`、`wow_lease_member` | 每个订阅进行到哪里，以及哪个节点拥有哪个分区 |

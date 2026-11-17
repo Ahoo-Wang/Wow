@@ -31,6 +31,7 @@ import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryLeaseStore
 import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.runtime.subscription.SubscribedEntry
+import me.ahoo.wow.spi.snapshot.SnapshotFill
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import org.junit.jupiter.api.Test
@@ -106,14 +107,40 @@ class SnapshotBackfillTest {
         }
 
     @Test
-    fun `a table is never marked while its subscription has a checkpoint, so one left unmarked is backfilled`(): Unit =
+    fun `a table first claimed while its subscription has a checkpoint is backfilled, never marked at once`(): Unit =
         runBlocking {
-            // A node met the table and stopped before marking it; the other nodes' runtimes started meanwhile.
-            memory.claim(type, 1)
             checkpointed(primary)
-            // An empty log does not make it marked: the subscription has a checkpoint. Redundant, never missing.
-            maintenance("node-2").prepare().map { it.name }.assert().containsExactly(backfill)
+            // An empty log does not make it marked: the subscription has a checkpoint, so a backfill fills it.
+            maintenance("node-1").prepare().map { it.name }.assert().containsExactly(backfill)
+            memory.table(type)!!.fill.assert().isEqualTo(SnapshotFill.BACKFILL)
             memory.table(type)!!.backfilled.assert().isFalse()
+            // A later node reads the record: it backfills its partitions too.
+            maintenance("node-2").prepare().map { it.name }.assert().containsExactly(backfill)
+        }
+
+    @Test
+    fun `a cluster started on a log that holds entries runs no backfill, the record naming the subscription`(): Unit =
+        runBlocking {
+            // A log migrate-data imported: entries before any node starts.
+            var id = 0
+            while ((0 until PARTITIONS).any { log.head(it) == null }) {
+                commit("imported-${id++}")
+            }
+            val first = maintenance("node-1")
+            first.prepare().assert().isEmpty()
+            memory.table(type)!!.fill.assert().isEqualTo(SnapshotFill.SUBSCRIPTION)
+            memory.table(type)!!.backfilled.assert().isFalse()
+            // The first node's runtime starts its subscription at the beginning: its starting checkpoints.
+            checkpointed(primary)
+            maintenance("node-2").prepare().assert().isEmpty()
+
+            // Caught up once the subscription the record names reached every partition's head.
+            first.maintain()
+            first.maintain()
+            memory.table(type)!!.backfilled.assert().isFalse()
+            checkpointed(primary) { runBlocking { head(it) } }
+            first.maintain()
+            memory.table(type)!!.backfilled.assert().isTrue()
         }
 
     @Test
@@ -149,7 +176,7 @@ class SnapshotBackfillTest {
         val refs = listOf(commit("a"), commit("b"))
         // Snapshots at the entries' versions: a write that runs loads one and finds nothing to save.
         refs.forEach { memory.save(codec.snapshotOf(model, it, Counter(), 1, Scope.NONE, 0, 0)) }
-        memory.claim(type, 1)
+        memory.claim(type, 1, SnapshotFill.BACKFILL)
         checkpointed(primary)
         val node = maintenance("node-2", counting)
         val running = node.prepare().single()

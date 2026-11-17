@@ -34,6 +34,7 @@ import me.ahoo.wow.spi.VirtualThreads
 import me.ahoo.wow.spi.access.AccessValues
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.schema.EnsuredOnce
+import me.ahoo.wow.spi.snapshot.SnapshotFill
 import me.ahoo.wow.spi.snapshot.SnapshotRebuildStore
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
@@ -398,7 +399,12 @@ class PostgresSnapshotStore(
         dataSource.autoCommitted { connection -> recorded(connection, tables) }
     }
 
-    override suspend fun claim(type: AggregateType, revision: Int, lower: Boolean): SnapshotTable = dispatcher.jdbc {
+    override suspend fun claim(
+        type: AggregateType,
+        revision: Int,
+        fill: SnapshotFill,
+        lower: Boolean,
+    ): SnapshotTable = dispatcher.jdbc {
         require(type.context == context) { "$type is not in context $context." }
         require(revision >= 1) { "A state revision starts at 1." }
         val tables = tables(type.name)
@@ -407,7 +413,8 @@ class PostgresSnapshotStore(
                 claim.setString(1, tables.base)
                 claim.setInt(2, revision)
                 claim.setBoolean(3, revision != 1)
-                claim.setBoolean(4, lower)
+                claim.setString(4, fill.name)
+                claim.setBoolean(5, lower)
                 claim.executeQuery().use { rows -> if (rows.next()) tableOf(rows) else null }
             } ?: checkNotNull(recorded(connection, tables))
         }
@@ -442,6 +449,7 @@ class PostgresSnapshotStore(
         revision = row.getInt("revision"),
         rebuilding = row.getBoolean("rebuilding"),
         backfilled = row.getBoolean("backfilled"),
+        fill = SnapshotFill.valueOf(row.getString("fill")),
     )
 
     // Interruptible: the kernel gives up on a load past its timeout, and the read ends with it.

@@ -23,6 +23,7 @@ import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.runtime.wait.SubscriptionDirectory
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.snapshot.SnapshotFill.BACKFILL
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotTable
 import org.junit.jupiter.api.Test
@@ -107,9 +108,11 @@ class SnapshotTargetsTest {
         router.rebuilds!!.rewrite(saved.copyWith(state = """{"x":1}""")).assert().isTrue()
         router.rebuilds!!.markStale(saved.ref).assert().isTrue()
         router.rebuilds!!.pending(order, 1, limit = 10).assert().containsExactly(saved.ref)
-        router.rebuilds!!.claim(order, 2).assert().isEqualTo(SnapshotTable(2, rebuilding = true, backfilled = false))
+        router.rebuilds!!.claim(order, 2, BACKFILL).assert()
+            .isEqualTo(SnapshotTable(2, rebuilding = true, backfilled = false, fill = BACKFILL))
         router.rebuilds!!.table(order).assert().isEqualTo(b.table(order))
-        router.rebuilds!!.mark(order, 2, rebuilding = false, backfilled = true).assert().isEqualTo(SnapshotTable(2))
+        router.rebuilds!!.mark(order, 2, rebuilding = false, backfilled = true).assert()
+            .isEqualTo(SnapshotTable(2, fill = BACKFILL))
         a.table(order).assert().isNull()
         router.save(snapshot(cart, "c")).assert().isTrue()
         a.load(cart.ref("tenant", "c")).assert().isNotNull()

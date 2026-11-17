@@ -16,6 +16,7 @@ package me.ahoo.wow.runtime.snapshot
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.spi.snapshot.SnapshotFill
 import me.ahoo.wow.spi.snapshot.SnapshotRebuildStore
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
@@ -71,8 +72,8 @@ class SnapshotStoreRouter(
 
         override suspend fun table(type: AggregateType): SnapshotTable? = of(type).table(type)
 
-        override suspend fun claim(type: AggregateType, revision: Int, lower: Boolean): SnapshotTable =
-            of(type).claim(type, revision, lower)
+        override suspend fun claim(type: AggregateType, revision: Int, fill: SnapshotFill, lower: Boolean): SnapshotTable =
+            of(type).claim(type, revision, fill, lower)
 
         override suspend fun mark(
             type: AggregateType,

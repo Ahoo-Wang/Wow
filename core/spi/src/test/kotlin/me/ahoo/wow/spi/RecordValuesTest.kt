@@ -41,6 +41,8 @@ import me.ahoo.wow.spi.reservation.ConfirmOutcome
 import me.ahoo.wow.spi.reservation.Reservation
 import me.ahoo.wow.spi.reservation.ReservationKey
 import me.ahoo.wow.spi.reservation.ReservationScope
+import me.ahoo.wow.spi.snapshot.SnapshotFill.BACKFILL
+import me.ahoo.wow.spi.snapshot.SnapshotFill.SUBSCRIPTION
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotTable
 import me.ahoo.wow.spi.state.PublishedState
@@ -182,8 +184,13 @@ class RecordValuesTest {
     fun `the snapshot, state and wait records are values`() {
         valueSemantics({ snapshot() }, snapshot(2))
         snapshot().copyWith(version = 2).assert().isEqualTo(snapshot(2))
-        valueSemantics({ SnapshotTable.of(1) }, SnapshotTable.of(1, rebuilding = true))
-        SnapshotTable.of(1).copyWith(revision = 2).assert().isEqualTo(SnapshotTable.of(2))
+        valueSemantics(
+            { SnapshotTable.of(1, fill = SUBSCRIPTION) },
+            SnapshotTable.of(1, rebuilding = true, fill = SUBSCRIPTION),
+        )
+        valueSemantics({ SnapshotTable.of(1, fill = SUBSCRIPTION) }, SnapshotTable.of(1, fill = BACKFILL))
+        SnapshotTable.of(1, fill = SUBSCRIPTION).copyWith(revision = 2).assert()
+            .isEqualTo(SnapshotTable.of(2, fill = SUBSCRIPTION))
         valueSemantics({ stateEvent() }, stateEvent(2))
         stateEvent().copyWith(version = 2, state = PublishedState.of(2, "f", json.objectNode())).assert()
             .isEqualTo(stateEvent(2))

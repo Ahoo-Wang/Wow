@@ -82,7 +82,8 @@ internal class PostgresSnapshotTables(context: String, aggregate: String) {
             structure text COLLATE "C" PRIMARY KEY,
             revision integer NOT NULL,
             rebuilding boolean NOT NULL,
-            backfilled boolean NOT NULL
+            backfilled boolean NOT NULL,
+            fill text NOT NULL
         )
         """.trimIndent(),
     )
@@ -205,24 +206,25 @@ internal class PostgresSnapshotTables(context: String, aggregate: String) {
     val load = "SELECT * FROM $snapshot WHERE tenant_id = ? AND aggregate_id = ?"
 
     /** The table's record. */
-    val table = "SELECT revision, rebuilding, backfilled FROM $TABLES WHERE structure = ?"
+    val table = "SELECT revision, rebuilding, backfilled, fill FROM $TABLES WHERE structure = ?"
 
     /**
-     * A claim: records the table, or raises its revision, or lowers it when the claim says so (the
-     * fourth parameter); a change starts a rebuild. Returns the record when it was written, no row otherwise.
+     * A claim: records the table with who fills it, or raises its revision, or lowers it when the claim says so (the
+     * fifth parameter); a change starts a rebuild, and keeps the fill recorded first. Returns the record when it was
+     * written, no row otherwise.
      */
     val claim = """
-        INSERT INTO $TABLES AS recorded (structure, revision, rebuilding, backfilled) VALUES (?, ?, ?, false)
+        INSERT INTO $TABLES AS recorded (structure, revision, rebuilding, backfilled, fill) VALUES (?, ?, ?, false, ?)
         ON CONFLICT (structure) DO UPDATE SET revision = excluded.revision, rebuilding = true
         WHERE excluded.revision > recorded.revision OR (?::boolean AND excluded.revision < recorded.revision)
-        RETURNING revision, rebuilding, backfilled
+        RETURNING revision, rebuilding, backfilled, fill
     """.trimIndent()
 
     /** Sets the flags given (null keeps one) while the table is claimed at a revision. */
     val mark = """
         UPDATE $TABLES SET rebuilding = COALESCE(?::boolean, rebuilding), backfilled = COALESCE(?::boolean, backfilled)
         WHERE structure = ? AND revision = ?
-        RETURNING revision, rebuilding, backfilled
+        RETURNING revision, rebuilding, backfilled, fill
     """.trimIndent()
 
     companion object {

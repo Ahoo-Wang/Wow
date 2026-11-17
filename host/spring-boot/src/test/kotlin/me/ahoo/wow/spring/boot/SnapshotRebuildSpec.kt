@@ -51,6 +51,7 @@ import me.ahoo.wow.runtime.store.StoreTypes
 import me.ahoo.wow.runtime.subscription.RetryPolicy
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
 import me.ahoo.wow.spi.Closing
+import me.ahoo.wow.spi.snapshot.SnapshotFill
 import me.ahoo.wow.spi.snapshot.SnapshotRebuilds
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
@@ -108,7 +109,8 @@ abstract class SnapshotRebuildSpec {
         val second = start("node-2", revision = 2)
         // Backfilled already: node-1 met the table on a fresh store with an empty log, which its subscription wrote
         // from the beginning.
-        table(A).assert().isEqualTo(SnapshotTable(2, rebuilding = true, backfilled = true))
+        table(A).assert()
+            .isEqualTo(SnapshotTable(2, rebuilding = true, backfilled = true, fill = SnapshotFill.SUBSCRIPTION))
         second.snapshotStatus.rebuilding(type).assert().isTrue()
         // The write side does not read a snapshot of another revision back: it replays the log.
         add(second, IDS.first(), 1)
@@ -117,7 +119,7 @@ abstract class SnapshotRebuildSpec {
             maintain(second)
             !table(A).catchingUp
         }
-        table(A).assert().isEqualTo(SnapshotTable(2))
+        table(A).assert().isEqualTo(SnapshotTable(2, fill = SnapshotFill.SUBSCRIPTION))
         snapshot(A, IDS.first())!!.assertCounter(revision = 2, version = 3, total = 5, adds = 3)
         IDS.drop(1).forEach { snapshot(A, it)!!.assertCounter(revision = 2, version = 2, total = 4, adds = 2) }
         second.snapshotStatus.rebuilding(type).assert().isFalse()
@@ -153,7 +155,7 @@ abstract class SnapshotRebuildSpec {
                 maintain(new)
                 !new.snapshotStatus.rebuilding(type)
             }
-            table(A).assert().isEqualTo(SnapshotTable(2))
+            table(A).assert().isEqualTo(SnapshotTable(2, fill = SnapshotFill.SUBSCRIPTION))
 
             // The rollback: the new revision is gone, a node of the old one starts and rebuilds back.
             new.stop()

@@ -41,6 +41,7 @@ import me.ahoo.wow.elasticsearch.snapshot.ElasticsearchSnapshotDocuments.TENANT_
 import me.ahoo.wow.elasticsearch.whenShardReady
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.StorageRefusedException
+import me.ahoo.wow.spi.snapshot.SnapshotFill
 import me.ahoo.wow.spi.snapshot.SnapshotRebuildStore
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
@@ -351,14 +352,17 @@ class ElasticsearchSnapshotStore internal constructor(
         return read(tablesIndex(), names.snapshots(context, type.name))?.source?.let(::tableOf)
     }
 
-    override suspend fun claim(type: AggregateType, revision: Int, lower: Boolean): SnapshotTable {
+    override suspend fun claim(type: AggregateType, revision: Int, fill: SnapshotFill, lower: Boolean): SnapshotTable {
         require(type.context == context) { "$type is not in context $context." }
         require(revision >= 1) { "A state revision starts at 1." }
         val index = tablesIndex()
         val id = names.snapshots(context, type.name)
         decide(index, id) { stored ->
             when {
-                stored == null -> Decision.Write(tableDocument(SnapshotTable(revision, revision != 1, false)), true)
+                stored == null -> {
+                    val created = SnapshotTable(revision, rebuilding = revision != 1, backfilled = false, fill = fill)
+                    Decision.Write(tableDocument(created), true)
+                }
                 else -> {
                     val claimed = tableOf(stored.source)
                     val changes = if (lower) claimed.revision != revision else claimed.revision < revision
@@ -505,12 +509,14 @@ class ElasticsearchSnapshotStore internal constructor(
         revision = source.path(REVISION).intValue(),
         rebuilding = source.path(REBUILDING).booleanValue(),
         backfilled = source.path(BACKFILLED).booleanValue(),
+        fill = SnapshotFill.valueOf(source.path(FILL).textValue()),
     )
 
     private fun tableDocument(table: SnapshotTable): ObjectNode = JsonNodeFactory.instance.objectNode()
         .put(REVISION, table.revision)
         .put(REBUILDING, table.rebuilding)
         .put(BACKFILLED, table.backfilled)
+        .put(FILL, table.fill.name)
 
     internal companion object {
         /** [writesInFlight] with `refresh: wait_for`. */
@@ -524,6 +530,7 @@ class ElasticsearchSnapshotStore internal constructor(
         private const val REVISION = "revision"
         private const val REBUILDING = "rebuilding"
         private const val BACKFILLED = "backfilled"
+        private const val FILL = "fill"
 
         val TABLE_DEFINITION: String = """
             {
@@ -533,7 +540,8 @@ class ElasticsearchSnapshotStore internal constructor(
                 "properties": {
                   "$REVISION": { "type": "integer" },
                   "$REBUILDING": { "type": "boolean" },
-                  "$BACKFILLED": { "type": "boolean" }
+                  "$BACKFILLED": { "type": "boolean" },
+                  "$FILL": { "type": "keyword" }
                 }
               }
             }

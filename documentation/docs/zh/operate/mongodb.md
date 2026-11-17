@@ -131,7 +131,7 @@ MongoDB 是 Wow 服务的默认存储（[选择存储](./choosing-storage)）。
 | `wow_log__<context>__partition` | 上下文日志的每个分区一个计数器文档：已分出的序号，以及尚未封口的段 |
 | `wow_log_aggregate` | 每个上下文的日志有哪些聚合集合 |
 | `wow_snapshot__<context>__<aggregate>` | 每个聚合一个文档：它最新的快照，`_id` 为 `{t: 租户, a: 聚合 ID}` |
-| `wow_snapshot_table` | 每个快照集合保存的状态修订号 |
+| `wow_snapshot_table` | 每个快照集合保存的状态修订号、是否已追上日志，以及由谁从日志开头填充它 |
 | `wow_timer__<context>__<aggregate>` | 一种聚合类型的定时命令，每个定时器一个文档，位于其属主的分区 |
 | `wow_timer_aggregate` | 每个上下文有哪些定时器集合；到期读取在一次聚合中合并它们 |
 | `wow_checkpoint`、`wow_lease`、`wow_lease_member` | 每个订阅进行到哪里，以及哪个节点拥有哪个分区 |

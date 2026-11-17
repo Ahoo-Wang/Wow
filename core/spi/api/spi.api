@@ -1250,9 +1250,17 @@ public abstract interface class me/ahoo/wow/spi/sink/StreamSinks : java/lang/Aut
 	public abstract fun sinkOf (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/sink/Sink;
 }
 
+public final class me/ahoo/wow/spi/snapshot/SnapshotFill : java/lang/Enum {
+	public static final field BACKFILL Lme/ahoo/wow/spi/snapshot/SnapshotFill;
+	public static final field SUBSCRIPTION Lme/ahoo/wow/spi/snapshot/SnapshotFill;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/spi/snapshot/SnapshotFill;
+	public static fun values ()[Lme/ahoo/wow/spi/snapshot/SnapshotFill;
+}
+
 public abstract interface class me/ahoo/wow/spi/snapshot/SnapshotRebuildStore {
-	public abstract fun claim (Lme/ahoo/wow/api/aggregate/AggregateType;IZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public static synthetic fun claim$default (Lme/ahoo/wow/spi/snapshot/SnapshotRebuildStore;Lme/ahoo/wow/api/aggregate/AggregateType;IZLkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public abstract fun claim (Lme/ahoo/wow/api/aggregate/AggregateType;ILme/ahoo/wow/spi/snapshot/SnapshotFill;ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun claim$default (Lme/ahoo/wow/spi/snapshot/SnapshotRebuildStore;Lme/ahoo/wow/api/aggregate/AggregateType;ILme/ahoo/wow/spi/snapshot/SnapshotFill;ZLkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 	public abstract fun mark (Lme/ahoo/wow/api/aggregate/AggregateType;ILjava/lang/Boolean;Ljava/lang/Boolean;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun mark$default (Lme/ahoo/wow/spi/snapshot/SnapshotRebuildStore;Lme/ahoo/wow/api/aggregate/AggregateType;ILjava/lang/Boolean;Ljava/lang/Boolean;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 	public abstract fun markStale (Lme/ahoo/wow/api/aggregate/AggregateRef;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -1356,20 +1364,21 @@ public final class me/ahoo/wow/spi/snapshot/SnapshotTable {
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getBackfilled ()Z
 	public final fun getCatchingUp ()Z
+	public final fun getFill ()Lme/ahoo/wow/spi/snapshot/SnapshotFill;
 	public final fun getRebuilding ()Z
 	public final fun getRevision ()I
 	public fun hashCode ()I
-	public static final fun of (I)Lme/ahoo/wow/spi/snapshot/SnapshotTable;
-	public static final fun of (IZ)Lme/ahoo/wow/spi/snapshot/SnapshotTable;
-	public static final fun of (IZZ)Lme/ahoo/wow/spi/snapshot/SnapshotTable;
+	public static final fun of (ILme/ahoo/wow/spi/snapshot/SnapshotFill;)Lme/ahoo/wow/spi/snapshot/SnapshotTable;
+	public static final fun of (IZLme/ahoo/wow/spi/snapshot/SnapshotFill;)Lme/ahoo/wow/spi/snapshot/SnapshotTable;
+	public static final fun of (IZZLme/ahoo/wow/spi/snapshot/SnapshotFill;)Lme/ahoo/wow/spi/snapshot/SnapshotTable;
 	public fun toString ()Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/spi/snapshot/SnapshotTable$Companion {
-	public final fun of (I)Lme/ahoo/wow/spi/snapshot/SnapshotTable;
-	public final fun of (IZ)Lme/ahoo/wow/spi/snapshot/SnapshotTable;
-	public final fun of (IZZ)Lme/ahoo/wow/spi/snapshot/SnapshotTable;
-	public static synthetic fun of$default (Lme/ahoo/wow/spi/snapshot/SnapshotTable$Companion;IZZILjava/lang/Object;)Lme/ahoo/wow/spi/snapshot/SnapshotTable;
+	public final fun of (ILme/ahoo/wow/spi/snapshot/SnapshotFill;)Lme/ahoo/wow/spi/snapshot/SnapshotTable;
+	public final fun of (IZLme/ahoo/wow/spi/snapshot/SnapshotFill;)Lme/ahoo/wow/spi/snapshot/SnapshotTable;
+	public final fun of (IZZLme/ahoo/wow/spi/snapshot/SnapshotFill;)Lme/ahoo/wow/spi/snapshot/SnapshotTable;
+	public static synthetic fun of$default (Lme/ahoo/wow/spi/snapshot/SnapshotTable$Companion;IZZLme/ahoo/wow/spi/snapshot/SnapshotFill;ILjava/lang/Object;)Lme/ahoo/wow/spi/snapshot/SnapshotTable;
 }
 
 public final class me/ahoo/wow/spi/state/PublishedState {
