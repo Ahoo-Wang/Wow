@@ -375,7 +375,7 @@ class OtelObserverTest {
         tags(WowMetrics.STORE_FALLBACKS.name, WowMetrics.CAPABILITY).assert()
             .containsExactly("snapshot-load", "snapshot-rebuild", "snapshot-tail-read")
         tags(WowMetrics.STORE_FALLBACKS.name, WowMetrics.REASON).assert()
-            .containsExactly("failed", "timed-out", "unsupported")
+            .containsExactly("failed", "skipped", "timed-out", "unsupported")
         tags(WowMetrics.FATAL_ERRORS.name, WowMetrics.KIND).assert().containsExactly(
             "append-queue",
             "executor",

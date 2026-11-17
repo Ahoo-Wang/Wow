@@ -23,18 +23,24 @@ import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
+import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.runtime.Executor
 import me.ahoo.wow.runtime.binding.AddItems
 import me.ahoo.wow.runtime.binding.CART
 import me.ahoo.wow.runtime.binding.TENANT
 import me.ahoo.wow.runtime.binding.cartModel
+import me.ahoo.wow.runtime.health.SkippingSnapshots
+import me.ahoo.wow.runtime.health.StoreActivity
 import me.ahoo.wow.runtime.subscription.RuntimeFailures
 import me.ahoo.wow.spi.StorageBusyException
+import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.VersionPages
 import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.ObservedEvent.StateRebuilt.Outcome
 import me.ahoo.wow.spi.observation.Observer
+import me.ahoo.wow.spi.snapshot.SnapshotRecord
+import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.subscription.FailureClass
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -162,6 +168,33 @@ class SharedStateRebuildGateTest {
         assertThrownBy<IllegalStateException> { runBlocking { reader(FailingGate).read(streams[PAGE]) } }
         observed.map { it.gated to it.outcome }.assert().containsExactly(true to Outcome.RAN)
     }
+
+    @Test
+    fun `a skipped snapshot load replays past a page under the gate, as a failed load does (X-128)`(): Unit =
+        runBlocking {
+            val streams = commits(PAGE + 1)
+            val failing = object : SnapshotStore by InMemorySnapshotStore() {
+                override suspend fun load(ref: AggregateRef): SnapshotRecord? =
+                    throw StorageUnavailableException("The snapshot store does not answer.")
+            }
+            // A store whose probe failed: its loads are skipped, the store not called.
+            val skipping = SkippingSnapshots(
+                InMemorySnapshotStore(),
+                StoreActivity(StoreActivity.STORE, "search").apply { probeFailed() },
+            )
+            listOf(failing, skipping).forEach { snapshots ->
+                val views = SharedStates(codec, mapOf(READER to setOf(CART)), gate = RefusingGate, observer = observer)
+                val reader = SharedStateReader(READER, listOf(cart), kernel, codec, views, snapshots)
+                // No snapshot: the whole log, a page and one stream, waits for the gate, which refuses it.
+                assertThrows<StorageBusyException> { runBlocking { reader.read(streams[PAGE]) } }
+                observed.last().let {
+                    it.gated.assert().isTrue()
+                    it.outcome.assert().isEqualTo(Outcome.REFUSED)
+                }
+            }
+            observed.map { it.gated to it.outcome }.assert()
+                .containsExactly(true to Outcome.REFUSED, true to Outcome.REFUSED)
+        }
 
     private companion object {
         const val READER = "reader"

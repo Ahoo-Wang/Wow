@@ -39,6 +39,8 @@ import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.contract.PeerEvents
 import me.ahoo.wow.runtime.health.NodeFatals
 import me.ahoo.wow.runtime.health.NodeStores
+import me.ahoo.wow.runtime.health.StoreActivities
+import me.ahoo.wow.runtime.health.StoreActivity
 import me.ahoo.wow.runtime.health.StoreWritePressure
 import me.ahoo.wow.runtime.health.WritePressures
 import me.ahoo.wow.runtime.health.untracked
@@ -175,18 +177,24 @@ internal class NodeAssembly(
     /** The append latency of each store the node's logs are on. */
     private val pressures = WritePressures()
 
+    /** The record of each store placed on the node, which its snapshot load gate and its health probe share. */
+    private val activities = StoreActivities()
+
     /**
      * The backends of each context the [models] are of, opened once, each call recorded and each
      * append's latency measured.
      */
     private val opened: Map<String, ContextBackends> = models.mapTo(LinkedHashSet()) { it.type.context }
-        .associateWith { NodeStores.track(it, backends.backends(it), pressures) }
+        .associateWith { NodeStores.track(it, backends.backends(it), pressures, activities) }
 
     /**
      * The append latency of the store [store] (`wow.stores.<name>`), as this node's logs on it measure
      * it; null when none of them is on it.
      */
     fun writePressure(store: String): StoreWritePressure? = pressures.find(store)
+
+    /** The record of the store [store] placed on the node, the one its snapshot load gate reads. */
+    internal fun storeActivity(store: String): StoreActivity = activities.of(store)
 
     private val nodeSnapshots = NodeSnapshots(manifest, observer, replayGate)
 

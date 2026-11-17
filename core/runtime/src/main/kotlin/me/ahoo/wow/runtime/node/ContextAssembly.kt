@@ -417,7 +417,7 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
             codec = codec,
             reservations = reservations,
             states = states,
-            snapshots = backends.primarySnapshots,
+            snapshots = backends.snapshotLoads,
             commandTypes = names,
             ids = admission.ids,
             observer = observer,

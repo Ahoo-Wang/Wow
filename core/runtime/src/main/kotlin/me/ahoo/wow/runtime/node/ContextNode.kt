@@ -130,7 +130,7 @@ class ContextNode internal constructor(
      * decodes with.
      */
     fun stateReader(reader: String): SharedStateReader =
-        SharedStateReader(reader, models, kernel, codec, views, backends.primarySnapshots)
+        SharedStateReader(reader, models, kernel, codec, views, backends.snapshotLoads)
 
     /**
      * The snapshot write checkpoint of [type]: the progress of the subscription that writes the store [type]'s queries

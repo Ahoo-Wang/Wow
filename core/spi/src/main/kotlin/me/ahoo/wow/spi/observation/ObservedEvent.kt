@@ -296,6 +296,13 @@ sealed class ObservedEvent {
              * was done the other way, and the call was cancelled.
              */
             TIMED_OUT("timed-out"),
+
+            /**
+             * The capability was not called: its store does not answer lately (a snapshot store whose loads failed
+             * or timed out three times in a row, or whose health probe failed), so the work was done the other way at
+             * once, until the store's probe answers again.
+             */
+            SKIPPED("skipped"),
         }
     }
 

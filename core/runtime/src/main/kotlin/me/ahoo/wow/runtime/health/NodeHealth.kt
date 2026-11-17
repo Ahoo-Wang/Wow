@@ -543,11 +543,15 @@ class NodeHealth(
             }
             if (answered == null) {
                 activity.failed(TimeoutException("The probe of $activity did not answer."))
+                activity.probeFailed()
+            } else {
+                activity.probeAnswered()
             }
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (failure: Exception) {
             logger.debug(failure) { "The health probe of $activity failed." }
+            activity.probeFailed()
         } finally {
             activity.probeEnded()
         }
