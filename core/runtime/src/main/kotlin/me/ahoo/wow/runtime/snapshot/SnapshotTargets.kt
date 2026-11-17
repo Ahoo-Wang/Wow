@@ -54,6 +54,9 @@ class SnapshotPlacement(val store: String, val copy: String? = null) {
  * `wow.snapshot:<store>` for each other one. A store keeps its subscription, and its checkpoints, whatever role it
  * plays for which type. The `snapshot` hop of a wait is the subscription of the type's own store; no caller spells a
  * store's subscription in a wait.
+ *
+ * A cache miss loads each type's snapshot from its own store as [loading] holds it ([loads]): the store as it is, or
+ * behind a gate that skips its loads while it does not answer ([withLoads]).
  */
 @InternalWowApi
 class SnapshotTargets(
@@ -61,6 +64,7 @@ class SnapshotTargets(
     val stores: Map<String, SnapshotStore>,
     placements: Map<AggregateType, SnapshotPlacement> = emptyMap(),
     val fallback: SnapshotPlacement = SnapshotPlacement(default),
+    private val loading: Map<String, SnapshotStore> = stores,
 ) {
     private val placements: Map<AggregateType, SnapshotPlacement> = placements.toMap()
 
@@ -68,6 +72,7 @@ class SnapshotTargets(
         require(default in stores) { "The default snapshot store $default is not one of ${stores.keys}." }
         val missing = (this.placements.values + fallback).flatMap { it.targets }.filter { it !in stores }.distinct()
         require(missing.isEmpty()) { "The snapshot targets $missing name no snapshot store of ${stores.keys}." }
+        require(loading.keys == stores.keys) { "The loads ${loading.keys} are of the stores ${stores.keys}." }
     }
 
     /** Where [type]'s snapshots are written. */
@@ -76,11 +81,24 @@ class SnapshotTargets(
     /** The store [type]'s snapshots are read from by its commands and its state reads: its own. */
     fun primaryOf(type: AggregateType): SnapshotStore = stores.getValue(placementOf(type).store)
 
-    /** The snapshots each type's own store keeps: what the kernel and the state readers read. */
+    /** The snapshots each type's own store keeps: what the state reads and the write side read. */
     val primary: SnapshotStore = SnapshotStoreRouter.of(
         stores.getValue(fallback.store),
         this.placements.mapValues { (_, placement) -> stores.getValue(placement.store) },
     )
+
+    /**
+     * [primary] as a cache miss loads it, the kernel's and the shared states' reads that replay the log for a load that
+     * fails: each type's own store as [loading] holds it.
+     */
+    val loads: SnapshotStore = SnapshotStoreRouter.of(
+        loading.getValue(fallback.store),
+        this.placements.mapValues { (_, placement) -> loading.getValue(placement.store) },
+    )
+
+    /** These targets, each store's cache-miss loads through what [gate] makes of it, by the store's name. */
+    fun withLoads(gate: (String, SnapshotStore) -> SnapshotStore): SnapshotTargets =
+        SnapshotTargets(default, stores, placements, fallback, stores.mapValues { (name, store) -> gate(name, store) })
 
     /**
      * The subscription that writes the snapshots [store] keeps, own or copied: `wow.snapshot` for the [default] store,

@@ -31,6 +31,7 @@ import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.ObservedEvent.StoreFellBack.Capability.SNAPSHOT_LOAD
 import me.ahoo.wow.spi.observation.ObservedEvent.StoreFellBack.Reason.FAILED
+import me.ahoo.wow.spi.observation.ObservedEvent.StoreFellBack.Reason.SKIPPED
 import me.ahoo.wow.spi.observation.ObservedEvent.StoreFellBack.Reason.TIMED_OUT
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
@@ -101,6 +102,21 @@ class KernelSnapshotTimeoutTest {
             store.cancelled.assert().isEqualTo(1)
             fallbacks.map { it.capability to it.reason }.assert().containsExactly(SNAPSHOT_LOAD to TIMED_OUT)
         }
+
+    @Test
+    fun `a load the store's gate skipped is replayed at once, counted as skipped, not failed`() = runTest {
+        val replaying = Kernel(log, codec)
+        send(replaying, CreateCart("ahoo"))
+        val skipping = object : SnapshotStore by InMemorySnapshotStore() {
+            override suspend fun load(ref: AggregateRef): SnapshotRecord? =
+                throw SnapshotLoadSkippedException("the store search does not answer lately")
+        }
+        val outcome = send(kernel(skipping), AddItem("apple", 2)) as CommandOutcome.Committed
+        (outcome.state as CartState).items.assert().isEqualTo(mapOf("apple" to 2))
+        // No wait for the load's timeout.
+        currentTime.assert().isZero()
+        fallbacks.map { it.capability to it.reason }.assert().containsExactly(SNAPSHOT_LOAD to SKIPPED)
+    }
 
     @Test
     fun `a load that answers within its timeout is the cache's`() = runTest {

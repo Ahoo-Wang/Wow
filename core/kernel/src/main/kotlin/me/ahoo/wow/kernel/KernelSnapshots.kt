@@ -18,6 +18,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.SnapshotTail
 import me.ahoo.wow.spi.log.SnapshotTailReader
@@ -94,8 +96,9 @@ internal class SnapshotTailReads(
  * snapshot being only a cache, so a failing store costs a full replay and only the log's failure fails the command.
  * A load that gives no answer within [timeout] is failed the same way: cancelled, its store call interrupted, and
  * counted as timed out, so a store that stops answering costs a replay, not the command's wait. Cancellation from
- * the caller still propagates. Each failure is counted with [ObservedEvent.StoreFellBack], and the first of each
- * outage is logged as a warning ([OutageWarnings]): a store that is down fails every load.
+ * the caller still propagates. A load the store's gate skipped ([SnapshotLoadSkippedException]: the store does not
+ * answer lately) is none at once, counted as skipped. Each failure is counted with [ObservedEvent.StoreFellBack], and
+ * the first of each outage is logged as a warning ([OutageWarnings]): a store that is down fails every load.
  */
 internal class TolerantSnapshots(
     private val store: SnapshotStore,
@@ -117,6 +120,10 @@ internal class TolerantSnapshots(
         }
     } catch (cancelled: CancellationException) {
         throw cancelled
+    } catch (skipped: SnapshotLoadSkippedException) {
+        fellBack(ref, ObservedEvent.StoreFellBack.Reason.SKIPPED, null) {
+            "Loading the snapshot of $ref was skipped (${skipped.message}); replaying its log."
+        }
     } catch (
         @Suppress("TooGenericExceptionCaught") // Whatever the store throws, the log still holds the state.
         failure: Exception,
@@ -142,6 +149,16 @@ internal class TolerantSnapshots(
 
     /** A load's answer, null when there is no snapshot: told apart from a load that gave none in time. */
     private class Loaded(val snapshot: SnapshotRecord?)
+}
+
+/**
+ * A snapshot load its store's gate did not make, the store not answering lately: the cache-miss load
+ * ([TolerantSnapshots]) replays the log at once, counted as skipped. [reason] says why, never a host. It carries no stack
+ * trace: it is thrown for every load while the store is skipped, as a signal, not a fault.
+ */
+@InternalWowApi
+class SnapshotLoadSkippedException(reason: String) : StorageUnavailableException(reason) {
+    override fun fillInStackTrace(): Throwable = this
 }
 
 /**

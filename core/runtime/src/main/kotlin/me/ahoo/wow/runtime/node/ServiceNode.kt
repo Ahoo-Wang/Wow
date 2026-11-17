@@ -31,6 +31,7 @@ import me.ahoo.wow.runtime.cluster.TopicRouter
 import me.ahoo.wow.runtime.command.CommandIntake
 import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.health.NodeFatals
+import me.ahoo.wow.runtime.health.StoreActivity
 import me.ahoo.wow.runtime.health.StoreWritePressure
 import me.ahoo.wow.runtime.ledger.LedgerPublisher
 import me.ahoo.wow.runtime.manifest.ManifestCheck
@@ -205,6 +206,9 @@ class ServiceNode @InternalWowApi constructor(
      */
     @InternalWowApi
     fun writePressure(store: String): StoreWritePressure? = assembly.writePressure(store)
+
+    /** The record of the store [store] placed on the node: its health probe's, which gates its snapshot loads. */
+    internal fun storeActivity(store: String): StoreActivity = assembly.storeActivity(store)
 
     /** The commands in flight in the executors of every context: one bound for the node. */
     internal val inFlight: InFlightLimit get() = assembly.inFlight

@@ -19,6 +19,7 @@ import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.store.Store
 import me.ahoo.wow.spi.subscription.LeaseStore
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * The stores a node calls, each with its [StoreActivity]: every context's event log, one per log
@@ -49,12 +50,14 @@ internal class NodeStores(
     companion object {
         /**
          * [backends] of [context], their logs and lease store called through records of their calls, each log's
-         * append latency in its store's [pressures].
+         * append latency in its store's [pressures], and each placed store's cache-miss snapshot loads behind the gate
+         * of its record in [activities] ([SkippingSnapshots]), the one its health probe feeds.
          */
         fun track(
             context: String,
             backends: ContextBackends,
             pressures: WritePressures = WritePressures(),
+            activities: StoreActivities = StoreActivities(),
         ): ContextBackends {
             val log = trackedLog(backends.log, StoreActivity(StoreActivity.LOG, context), pressures.of(backends.store))
             val groups = backends.groups.map { group ->
@@ -70,7 +73,11 @@ internal class NodeStores(
             // A one-round-trip read is a call of the log of its type's group.
             fun activityOf(type: AggregateType?): StoreActivity =
                 activityOf(groups.firstOrNull { type != null && type in it.types }?.log ?: log)!!
+            val placed = backends.stores.all.mapTo(HashSet()) { it.name }
             return backends.copyWith(
+                snapshots = backends.snapshots?.withLoads { name, store ->
+                    if (name in placed) SkippingSnapshots(store, activities.of(name)) else store
+                },
                 log = log,
                 leases = trackedLeases(backends.leases, StoreActivity(StoreActivity.LEASES, context)),
                 groups = groups,
@@ -93,9 +100,20 @@ internal class NodeStores(
             }
             val writePath = contexts.flatMap { it.backends.stores.writePath }.toSet()
             val placed = contexts.flatMap { it.backends.stores.all }.distinct().map { store ->
-                PlacedStore(store, store in writePath, StoreActivity(StoreActivity.STORE, store.name))
+                PlacedStore(store, store in writePath, node.storeActivity(store.name))
             }
             return NodeStores(logs, leases, placed)
         }
     }
+}
+
+/**
+ * The record of each store instance placed on a node, by its name, created on first use: one record a store's snapshot
+ * load gate ([SkippingSnapshots]) and its health probe share.
+ */
+internal class StoreActivities {
+    private val stores = ConcurrentHashMap<String, StoreActivity>()
+
+    /** [store]'s, created on first use. */
+    fun of(store: String): StoreActivity = stores.computeIfAbsent(store) { StoreActivity(StoreActivity.STORE, it) }
 }

@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.runtime.health
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
@@ -37,7 +38,10 @@ import me.ahoo.wow.spi.log.SnapshotTailReader
 import me.ahoo.wow.spi.subscription.Lease
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.subscription.Member
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration
+
+private val logger = KotlinLogging.logger {}
 
 /**
  * What a node saw of one store it calls: when a call last succeeded, since when the calls fail, and
@@ -83,6 +87,69 @@ class StoreActivity internal constructor(
 
     /** The times of the latest failures, at most [MAX_RECENT]; guarded by itself. */
     private val recent = ArrayDeque<Long>()
+
+    /**
+     * Whether the snapshot loads of this store are skipped ([SkippingSnapshots]): since [LOADS_TO_SKIP] of them in a
+     * row failed or timed out, or its probe failed, until a load or a probe answers. Kept apart from the record above,
+     * which the node's health reads: a load fails at the kernel's own bound, and the health reads the probe alone.
+     */
+    @Volatile
+    var loadsSkipped: Boolean = false
+        private set
+
+    /** The loads that failed or timed out since one answered. */
+    private val loadFailures = AtomicInteger()
+
+    /**
+     * A snapshot load answered: the loads' failures start over, and loads skipped for them resume. One read while the
+     * loads answer.
+     */
+    internal fun loadAnswered() {
+        if (loadFailures.get() != 0) {
+            loadFailures.set(0)
+            resumeLoads("a load answered")
+        }
+    }
+
+    /** A snapshot load failed or timed out: the [LOADS_TO_SKIP]th in a row skips the next ones. */
+    internal fun loadFailed() {
+        if (loadFailures.incrementAndGet() == LOADS_TO_SKIP) {
+            skipLoads("$LOADS_TO_SKIP loads in a row failed or timed out")
+        }
+    }
+
+    /** Its probe answered: skipped loads resume. Only a placed [STORE]'s loads are gated; a log's or leases' are not. */
+    internal fun probeAnswered() {
+        if (kind == STORE) {
+            loadFailures.set(0)
+            resumeLoads("its health probe answered")
+        }
+    }
+
+    /** Its probe failed or did not answer: a placed [STORE]'s loads are skipped until it answers. */
+    internal fun probeFailed() {
+        if (kind == STORE) {
+            skipLoads("its health probe failed")
+        }
+    }
+
+    private fun skipLoads(why: String) {
+        if (!loadsSkipped) {
+            loadsSkipped = true
+            logger.warn {
+                "Snapshot loads from the store $name are skipped, their states replayed from the log: $why. They " +
+                    "resume when a load or its health probe answers; each skipped load is counted " +
+                    "(wow.store.fallbacks, reason skipped)."
+            }
+        }
+    }
+
+    private fun resumeLoads(why: String) {
+        if (loadsSkipped) {
+            loadsSkipped = false
+            logger.info { "Snapshot loads from the store $name resume: $why." }
+        }
+    }
 
     internal fun succeeded() {
         lastSuccess = nanos()
@@ -162,6 +229,14 @@ class StoreActivity internal constructor(
 
         /** The latest failures remembered, so [failuresWithin] counts at most this many. */
         const val MAX_RECENT: Int = 256
+
+        /**
+         * The snapshot loads in a row that fail or time out before a store's loads are skipped. Not one: a single slow
+         * load of a large aggregate, or one timeout in a burst, must not turn the loads of every aggregate on the store
+         * into replays until the next probe, up to its interval later. Three with no answer between them is a store
+         * that stopped answering; under traffic they come within one load timeout, since loads run side by side.
+         */
+        const val LOADS_TO_SKIP: Int = 3
     }
 }
 

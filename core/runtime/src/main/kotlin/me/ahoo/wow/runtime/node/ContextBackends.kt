@@ -75,6 +75,13 @@ class ContextBackends @InternalWowApi constructor(
     /** The snapshots the write side and the state readers read: each type's primary target. */
     val primarySnapshots: SnapshotStore? get() = snapshots?.primary
 
+    /**
+     * [primarySnapshots] as a cache miss loads them (the kernel's, the shared states'): each placed store behind the gate
+     * that skips its loads while it does not answer, once the node tracks these backends.
+     */
+    @InternalWowApi
+    val snapshotLoads: SnapshotStore? get() = snapshots?.loads
+
     init {
         require(store.isNotBlank()) { "A log group names its store." }
         val stores = groups.map { it.store }

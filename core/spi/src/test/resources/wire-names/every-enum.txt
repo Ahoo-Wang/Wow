@@ -208,6 +208,7 @@ me.ahoo.wow.spi.observation.ObservedEvent$StoreFellBack$Capability.SNAPSHOT_LOAD
 me.ahoo.wow.spi.observation.ObservedEvent$StoreFellBack$Reason.FAILED=failed
 me.ahoo.wow.spi.observation.ObservedEvent$StoreFellBack$Reason.UNSUPPORTED=unsupported
 me.ahoo.wow.spi.observation.ObservedEvent$StoreFellBack$Reason.TIMED_OUT=timed-out
+me.ahoo.wow.spi.observation.ObservedEvent$StoreFellBack$Reason.SKIPPED=skipped
 me.ahoo.wow.spi.observation.ObservedEvent$TailRead$Reason.START=start
 me.ahoo.wow.spi.observation.ObservedEvent$TailRead$Reason.GAP=gap
 me.ahoo.wow.spi.observation.ObservedEvent$TailRead$Reason.OVERFLOW=overflow
