@@ -37,6 +37,7 @@ import {
   runMeasure,
 } from './bench-measure.mjs';
 import { measureSuites } from './bench-measure-suites.mjs';
+import { restoreSeeded } from './bench-seed.mjs';
 import {
   curveAnomalies,
   curveSection,
@@ -3277,6 +3278,16 @@ export function runSuite(name, options) {
       : [
           `--seed-concurrency=${seedConcurrency}`,
           ...(primed ? ['--prime'] : []),
+          // A primed data set is seeded once an arm and restored after (bench-seed.mjs); a cluster's seeds afresh.
+          ...restoreSeeded({
+            benchPath,
+            out: join(out, 'seeds'),
+            server: server(arm),
+            props: propsOf(arm),
+            accounts: data.accounts,
+            primed: primed && definition.kind !== 'cluster',
+            seed: [`--seed-concurrency=${seedConcurrency}`, ...pins],
+          }),
         ]),
     ...pins,
   ];

@@ -29,6 +29,8 @@
 #   bench.sh up       [--backend=...] [--nodes=...] [--accounts=...] [--prime] [--jfr] [options]
 #   bench.sh inspect  --reuse [the session's options] [--sql=<file>]   (the servers' RSS and the store, after a session's runs)
 #   bench.sh down
+#   bench.sh seed-copy [a session's options] --out=<dir>   (seeds once and keeps a copy; a session's --restore=<dir>
+#                      starts on it and skips seeding; seed.sh)
 #   bench.sh abba     --arm='<name>|<install>|<server args>' (twice or more) --concurrencies=<list> [--sweeps=2]
 #                      (the arms in turn, ABBA, each a fresh sweep with the bench-pipeline line; abba.sh)
 #   bench.sh lock     --owner=<name> [--wait[=<s>]] / unlock --owner=<name>   (a batch's hold on the harness; lock.sh)
@@ -87,7 +89,7 @@ CLICKHOUSE_IMAGE=clickhouse/clickhouse-server:25.3.14.14-alpine
 CLICKHOUSE_URL=http://127.0.0.1:18123
 
 usage() {
-  sed -n '14,61p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '14,63p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
   exit 2
 }
 
@@ -130,7 +132,10 @@ stores_up() {
   fi
   local services=("$1")
   if uses_bus; then services=(kafka "$1"); fi
-  WOW_BENCH_MONGO_CACHE_GB=$(opt mongo-cache-gb 2) docker compose "${files[@]}" up -d --wait "${services[@]}" >/dev/null
+  # Not exported: a node reads every WOW_* variable as its configuration and refuses one it does not know.
+  local cache; cache=$(opt mongo-cache-gb 2)
+  WOW_BENCH_MONGO_CACHE_GB=$cache seed_restore "$1" "${files[@]}"
+  WOW_BENCH_MONGO_CACHE_GB=$cache docker compose "${files[@]}" up -d --wait "${services[@]}" >/dev/null
 }
 
 # The whole disk under Docker's volumes, as /dev/<disk>: cgroup v2 caps a disk, not a partition (--store-write-iops).
@@ -190,7 +195,7 @@ parse() {
     esac
     OPTIONS="$OPTIONS${argument#--}
 "
-    case " --backend --nodes --label --out --heap --jfr --jfr-settings --settle --accounts --install --server-args --server-java --no-bus --seed-concurrency --load-cpus --server-cpus --store-cpus --bus-cpus --prime --reuse --tmpfs --store-write-iops --mongo-cache-gb --sql --dump-every " in
+    case " --backend --nodes --label --out --heap --jfr --jfr-settings --settle --accounts --install --server-args --server-java --no-bus --seed-concurrency --load-cpus --server-cpus --store-cpus --bus-cpus --prime --reuse --tmpfs --store-write-iops --mongo-cache-gb --sql --dump-every --restore " in
       *" $key "*) ;;
       *) PASS+=("$argument") ;;
     esac
@@ -344,9 +349,8 @@ setup() {
   log "nodes up; settling ${settle}s"
   sleep "$settle"
   TARGET_LIST=$(IFS=,; echo "${TARGETS[*]}")
-  log "seeding $ACCOUNTS accounts"
-  load seed --targets="$TARGET_LIST" --accounts="$ACCOUNTS" \
-    --concurrency="$(opt seed-concurrency 32)" | tee "$OUT/seed.log" >&2
+  seed_accounts "$store"
+  if [ "${SEED_COPY:-false}" = true ]; then return; fi
   log "checking every scenario once"
   # Only the run's scenarios, so a baseline without a newer scenario (E1-large) still runs the ones it has.
   load check --targets="$TARGET_LIST" --accounts="$ACCOUNTS" --scenario="$(opt scenario "")" \
@@ -382,7 +386,7 @@ setup() {
   META="backend=$BACKEND;nodes=$NODES;heap=$HEAP;gc=G1;serverJvm=$jvm;loadJvm=$load_jvm;stores=$stores"
   META="$META;storeWriteIops=$(opt store-write-iops "");primed=$primed"
   META="$META;primeSeconds=$prime_seconds;settleSeconds=$settle_seconds;accounts=$ACCOUNTS"
-  META="$META;tmpfs=$(opt tmpfs false);mongoCacheGb=$(opt mongo-cache-gb 2)"
+  META="$META;tmpfs=$(opt tmpfs false);mongoCacheGb=$(opt mongo-cache-gb 2);seed=$(seed_mode)"
   if [ "$UP" = true ]; then
     # results/e2e is ignored by git: a fresh checkout has no such directory until a run's output makes one.
     mkdir -p "$(dirname "$SESSION")"
@@ -559,6 +563,9 @@ component() {
 . "$HARNESS/lock.sh"
 # shellcheck source=stamp.sh
 . "$HARNESS/stamp.sh"
+# Seeding once: a copy of a seeded store, restored by later sessions.
+# shellcheck source=seed.sh
+. "$HARNESS/seed.sh"
 
 # The ABBA comparison of arms (install, server arguments) on one machine.
 # shellcheck source=abba.sh
@@ -577,6 +584,7 @@ case "$command" in
   up) lock_guard; up "$@" ;;
   inspect) inspect "$@" ;;
   down) lock_guard; down ;;
+  seed-copy) lock_guard; seed_copy "$@" ;;
   lock) bench_lock "$@" ;;
   unlock) bench_unlock "$@" ;;
   # The tables of an ABAB: a directory of sessions named <round>-<arm>-<backend>, a phase directory in each.

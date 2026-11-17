@@ -529,8 +529,16 @@ test('the jdk-saturation suites take closed-loop samples alone, ABBA, and judge 
     env,
     out: join(dir, 'results', 'jdk-e1-pg-saturation'),
   });
-  const calls = readFileSync(join(dir, 'calls.log'), 'utf8').trim().split('\n');
-  // Searches alone, four an arm in turn, each from empty stores: no probe, no round.
+  const { copies, calls } = Object.groupBy(
+    readFileSync(join(dir, 'calls.log'), 'utf8').trim().split('\n'),
+    line => (line.startsWith('seed-copy ') ? 'copies' : 'calls'),
+  );
+  // Each arm's JDK seeds its own copy of the 100k accounts, before its first search.
+  assert.deepEqual(
+    copies.map(line => line.match(/--server-java=\S+jdk-(\d+)/)[1]),
+    ['21', '25'],
+  );
+  // Searches alone, four an arm in turn, each from its restored copy: no probe, no round.
   assert.ok(calls.every(line => line.startsWith('saturate ')));
   assert.ok(calls.every(line => !line.includes('--reuse')));
   assert.deepEqual(
@@ -656,7 +664,7 @@ test('runSuite pairs the arms, adds a round on drift, and the report combines th
   );
   assert.match(
     calls,
-    /saturate --backend=mongo --install=\/builds\/base\/benchmark-server --scenario=E1 --distribution=uniform --accounts=100000 --seed-concurrency=256 --prime --warm-up=3 --step=8/,
+    /saturate --backend=mongo --install=\/builds\/base\/benchmark-server --scenario=E1 --distribution=uniform --accounts=100000 --seed-concurrency=256 --prime --restore=\S+ --warm-up=3 --step=8/,
   );
 
   const suites = readSuites(join(dir, 'results'));
@@ -1625,15 +1633,24 @@ test('large data sets are primed before every run; small ones are not; the repor
   const calls = readFileSync(join(dir, 'calls.log'), 'utf8')
     .split('\n')
     .filter(Boolean);
-  assert.ok(
-    calls
-      .filter(line => line.includes('/big/'))
-      .every(line => line.includes('--prime')),
+  // The large data set is seeded once an arm (bench-seed.mjs), and every session restores its arm's copy and primes.
+  const bigCalls = calls.filter(line => line.includes('/big/'));
+  const copies = bigCalls.filter(line => line.startsWith('seed-copy '));
+  assert.deepEqual(
+    copies.map(line => line.match(/--out=\S+\/(seed-\d+)/)[1]),
+    ['seed-1', 'seed-2'],
   );
+  assert.ok(copies[0].includes('--install=/b'));
+  const sessions = bigCalls.filter(line => !line.startsWith('seed-copy '));
+  for (const line of sessions) {
+    assert.match(line, / --prime --restore=\S+\/big\/seeds\/seed-[12] /);
+    assert.equal(line.includes('--install=/b'), line.includes('/seed-1 '));
+  }
+  // The small one seeds afresh in every session, unprimed.
+  const smallCalls = calls.filter(line => line.includes('/small/'));
+  assert.ok(smallCalls.length > 0);
   assert.ok(
-    calls
-      .filter(line => line.includes('/small/'))
-      .every(line => !line.includes('--prime')),
+    smallCalls.every(line => !/--prime|--restore|^seed-copy/.test(line)),
   );
   const report = renderReport([big, small]);
   assert.match(
