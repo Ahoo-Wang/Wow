@@ -14,8 +14,6 @@
 package me.ahoo.wow.clickhouse.query
 
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.query.dataset.QueryDataset
@@ -37,33 +35,6 @@ import me.ahoo.wow.query.schema.QueryValueType
 import me.ahoo.wow.query.schema.StorageSupport
 import me.ahoo.wow.query.schema.SupportMode
 import me.ahoo.wow.query.schema.Temporal
-import java.time.Duration
-
-/** A table's metadata, [load]ed (from `system.tables` and `system.columns`) at most once per [ttl]. */
-internal class ClickHouseTableMetadata(
-    private val ttl: Duration,
-    private val clock: () -> Long = System::nanoTime,
-    private val load: suspend () -> ClickHouseTable,
-) {
-    private val mutex = Mutex()
-
-    @Volatile
-    private var cached: Pair<ClickHouseTable, Long>? = null
-
-    /** The table, read again once [ttl] has passed since the last read. */
-    suspend fun table(): ClickHouseTable {
-        cached?.let { (table, readAt) -> if (clock() - readAt < ttl.toNanos()) return table }
-        return refresh()
-    }
-
-    /** The table, read now. */
-    suspend fun refresh(): ClickHouseTable = mutex.withLock {
-        load().also { cached = it to clock() }
-    }
-
-    /** The table as last read; a caller reads it ([table]) before. */
-    fun current(): ClickHouseTable = checkNotNull(cached) { "The table is read before it is used." }.first
-}
 
 /**
  * What a dataset's table proves about its declaration,
