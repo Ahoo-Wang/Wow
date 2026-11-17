@@ -40,6 +40,7 @@ import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
+import me.ahoo.wow.spi.snapshot.SnapshotFill
 import me.ahoo.wow.spi.snapshot.SnapshotRebuildRequested
 import me.ahoo.wow.spi.snapshot.SnapshotRebuildStore
 import me.ahoo.wow.spi.snapshot.SnapshotRebuilds
@@ -74,19 +75,19 @@ class LogProgress(val group: String, val log: EventLog, val checkpoints: Checkpo
  *   table rebuilding again. A node of
  *   another revision marks the table rebuilding on each run, so the stale marks its refused saves leave are rewritten.
  * - **Backfill**: a target that has not caught up with the log since it was first claimed is filled from the beginning
- *   of the log, by the subscription that writes it when that one has no checkpoint yet, else by a subscription of its
- *   own ([prepare], `<subscription>#<aggregate>`) on every node for the partitions it runs, a node joining meanwhile
- *   included, whatever the store and its subscription's name: a store that replaced a type's own, even the default
- *   one, is filled from the log too. A target caught up once its subscription's checkpoint in every partition reached
- *   the log's head of the previous run; the table is then marked backfilled, and every node's backfill of it stops
- *   writing on that mark, whichever node wrote it.
- * - **Nothing to backfill**: a node that meets a table not backfilled while the subscription that writes it has no
- *   checkpoint in any partition and the log holds no entry (a cluster started on fresh stores) marks the table
- *   backfilled at once: that subscription starts at the log's beginning, which is empty. So the nodes starting after
- *   it, which find the first one's checkpoints, start no backfill of a store its own subscription writes from the
- *   beginning. A table is marked so only on that reading, never while the subscription has a checkpoint; a node that
- *   stops between meeting a table and marking it leaves it unmarked, and a later node backfills it: redundant, never
- *   missing.
+ *   of the log by the subscription its table's record names ([SnapshotTable.fill]), decided once by the claim that
+ *   first records it ([claim]), so every node reads the same: the subscription that writes the store when that one had
+ *   no checkpoint then ([SnapshotFill.SUBSCRIPTION]: it starts at the beginning), else a subscription of the table's
+ *   own ([SnapshotFill.BACKFILL], [prepare], `<subscription>#<aggregate>`) on every node for the partitions it runs, a
+ *   node joining meanwhile included, whatever the store and its subscription's name: a store that replaced a type's
+ *   own, even the default one, is filled from the log too. A target caught up once the subscription the record names
+ *   has its checkpoint in every partition at the log's head of the previous run; the table is then marked
+ *   backfilled, and every node's backfill of it stops writing on that mark, whichever node wrote it.
+ * - **The first claim's reading**: the checkpoints are read before the claim that records the table. SUBSCRIPTION is
+ *   recorded only when no checkpoint was seen: a checkpoint saved after that read is of a subscription starting at the
+ *   beginning, which fills the table too. Two first claims leave one record, BACKFILL at worst redundant.
+ * - **Nothing to backfill**: a table its own subscription fills, met while the log holds no entry (a cluster started
+ *   on fresh stores), is marked backfilled at once: that subscription starts at a beginning that holds nothing.
  * - **Rebuild requests**: the built-in subscription [REBUILD_SUBSCRIPTION] rewrites, from the log, the snapshots each
  *   `wow.snapshot.SnapshotRebuildRequested` of the rebuild aggregate names ([SnapshotRebuildModel]), in each target: in place on
  *   a node of the claimed revision, else marked stale (or written at its own revision when missing) for the rebuild.
@@ -127,8 +128,8 @@ class SnapshotMaintenance(
     /** The target stores that have a rebuild control plane, and their types: the stores this maintenance keeps. */
     private val placed: Map<String, Set<AggregateType>> = stored.filterKeys { storeOf(it).rebuilds != null }
     private val tables = ConcurrentHashMap<Pair<String, AggregateType>, SnapshotTable>()
-    private val tracked = ConcurrentHashMap<Pair<String, AggregateType>, String>()
-    private val caughtUp: MutableSet<Pair<String, AggregateType>> = ConcurrentHashMap.newKeySet()
+    private val backfills =
+        SnapshotBackfills(context, this.models, targets, kernel, codec, log, progress, options, gate)
 
     /** Where each table's rebuild stopped, by store and aggregate type. */
     private val cursors = ConcurrentHashMap<Pair<String, AggregateType>, RebuildCursor>()
@@ -178,36 +179,15 @@ class SnapshotMaintenance(
     }
 
     /**
-     * Claims [type]'s table in [store], and gives the subscription that backfills it when its store subscription is
-     * past the beginning of the log; marks it backfilled when that subscription has no checkpoint and the log holds
-     * nothing ([markFilled]); else that subscription fills it.
+     * Claims [type]'s table in [store], and gives the subscription that backfills it when its record says a backfill
+     * fills it ([SnapshotBackfills.prepared]); else its store subscription fills it, marked at once on an empty log.
      */
     private suspend fun backfillToStart(store: String, type: AggregateType): SnapshotSubscription? {
         val table = claim(store, type)
         if (table.backfilled) {
             return null
         }
-        val subscription = targets.subscriptionOf(store)
-        // A subscription past the beginning has not written this store from it, whatever its name: a store first
-        // claimed for the type, or one that replaced the type's store, is filled from the log.
-        if (progress.any { hasCheckpoint(it, subscription) }) {
-            val backfill = backfillOf(store, type)
-            tracked[store to type] = backfill.name
-            logger.info {
-                "Backfilling the snapshots of $type in $store from the log's beginning with ${backfill.name}: " +
-                    "$subscription is past it."
-            }
-            return backfill
-        }
-        if (heads().isEmpty()) {
-            // The checkpoints are read before the heads, and both before this node's runtime starts (the node prepares
-            // first): no checkpoint, then an empty log, means every subscription that writes the store starts at a
-            // beginning that holds nothing, whatever commits afterwards.
-            markFilled(store, type, table, subscription)
-        } else {
-            tracked[store to type] = subscription
-        }
-        return null
+        return backfills.prepared(store, type, table, empty = { heads().isEmpty() }) { marked(store, type, table) }
     }
 
     /** Runs [maintain] every interval in [scope], the first one an interval after [prepare], until [stop]. */
@@ -265,33 +245,13 @@ class SnapshotMaintenance(
                     rebuildsOf(store).mark(type, table.revision, rebuilding = true)?.let { tables[store to type] = it }
                 }
                 if (!table.backfilled) {
-                    checkBackfill(store, type, table)
-                } else if (caughtUp.add(store to type)) {
-                    stopped(store, type)
+                    previousHeads?.let { backfills.check(store, type, table, it) { marked(store, type, table) } }
+                } else {
+                    backfills.marked(store, type)
                 }
             }
         }
         previousHeads = heads
-    }
-
-    /** [type]'s table in [store] is marked backfilled, by this node or another: its backfill here, if any, stops. */
-    private fun stopped(store: String, type: AggregateType) {
-        val backfill = tracked[store to type]?.takeIf { it != targets.subscriptionOf(store) } ?: return
-        logger.info { "The backfill $backfill of $type in $store stops: its table is marked backfilled." }
-    }
-
-    /**
-     * Marks [type]'s table in [store] backfilled at once: [subscription], which writes it, has no checkpoint and the
-     * log holds nothing, so it writes the store from the log's beginning ([prepare]).
-     */
-    private suspend fun markFilled(store: String, type: AggregateType, table: SnapshotTable, subscription: String) {
-        rebuildsOf(store).mark(type, table.revision, backfilled = true)?.let { tables[store to type] = it }
-        caughtUp += store to type
-        tracked[store to type] = subscription
-        logger.info {
-            "The snapshots of $type in $store need no backfill: $subscription writes them from the log's beginning, " +
-                "which holds nothing yet."
-        }
     }
 
     /**
@@ -393,10 +353,11 @@ class SnapshotMaintenance(
         val snapshots = rebuildsOf(store)
         val table = snapshots.table(type)
         val claimed = when {
-            table == null || revision > table.revision -> snapshots.claim(type, revision)
+            table == null -> snapshots.claim(type, revision, backfills.firstFill(store))
+            revision > table.revision -> snapshots.claim(type, revision, table.fill)
             revision < table.revision && leases.members(memberGroup(type, table.revision)).isEmpty() -> {
                 logger.info { "No node of state revision ${table.revision} of $type is left: rolling back to $revision." }
-                snapshots.claim(type, revision, lower = true)
+                snapshots.claim(type, revision, table.fill, lower = true)
             }
 
             else -> table
@@ -493,28 +454,9 @@ class SnapshotMaintenance(
         return absent
     }
 
-    /**
-     * Marks [type]'s target [store] backfilled once the subscription that fills it reached, in every partition of
-     * every log group, the head the log had at the previous run.
-     */
-    private suspend fun checkBackfill(store: String, type: AggregateType, table: SnapshotTable) {
-        val heads = previousHeads ?: return
-        val subscription = tracked[store to type] ?: targets.subscriptionOf(store)
-        val reached = progress.all { group ->
-            (0 until group.log.partitions).all { partition ->
-                val head = heads[group.group to partition] ?: return@all true
-                (group.checkpoints.load(group.group, subscription, partition) ?: 0L) >= head
-            }
-        }
-        if (!reached) {
-            return
-        }
-        rebuildsOf(store).mark(type, table.revision, backfilled = true)?.let {
-            tables[store to type] = it
-            caughtUp += store to type
-            logger.info { "The snapshots of $type in $store caught up with the log." }
-        }
-    }
+    /** Marks [type]'s [table] in [store] backfilled, and keeps the record after; null when it is claimed elsewhere now. */
+    private suspend fun marked(store: String, type: AggregateType, table: SnapshotTable): SnapshotTable? =
+        rebuildsOf(store).mark(type, table.revision, backfilled = true)?.also { tables[store to type] = it }
 
     /** The head of each partition of each log group, the empty ones left out. */
     private suspend fun heads(): Map<Pair<String, Int>, Long> = buildMap {
@@ -524,25 +466,6 @@ class SnapshotMaintenance(
             }
         }
     }
-
-    private suspend fun hasCheckpoint(group: LogProgress, subscription: String): Boolean =
-        (0 until group.log.partitions).any { group.checkpoints.load(group.group, subscription, it) != null }
-
-    /** The subscription that backfills [type]'s target [store] alone, until it caught up. */
-    private fun backfillOf(store: String, type: AggregateType): SnapshotSubscription = SnapshotSubscription(
-        context,
-        listOf(models.getValue(type)),
-        storeOf(store),
-        kernel,
-        log,
-        codec,
-        name = "${targets.subscriptionOf(store)}#${type.name}",
-        answers = { emptySet() },
-        active = { (store to it) !in caughtUp },
-        writeBatch = options.writeBatch,
-        writesInFlight = options.writesInFlight,
-        gate = gate,
-    )
 
     /** The snapshot of [ref] rebuilt from its whole log, at [model]'s state revision; null when the log holds none. */
     private suspend fun recordOf(model: AggregateModel<*>, ref: AggregateRef): SnapshotRecord? {

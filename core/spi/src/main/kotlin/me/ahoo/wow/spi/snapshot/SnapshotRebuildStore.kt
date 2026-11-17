@@ -56,12 +56,13 @@ interface SnapshotRebuildStore {
 
     /**
      * Claims [type]'s table at state [revision] and returns its record after the claim. The first
-     * claim records the table, not yet backfilled, and rebuilding unless [revision] is 1 (a snapshot written before
-     * revisions is of revision 1). A later claim raises a lower revision; it lowers a higher one only when [lower]
-     * says so (a rollback, once no node of the higher revision is left); either change starts a rebuild. Claims are
-     * atomic: concurrent claims leave one revision.
+     * claim records the table, not yet backfilled, filled by [fill], and rebuilding unless [revision] is 1 (a snapshot
+     * written before revisions is of revision 1). A later claim raises a lower revision; it lowers a higher one only
+     * when [lower] says so (a rollback, once no node of the higher revision is left); either change starts a rebuild.
+     * A later claim never changes the [SnapshotTable.fill] the first one recorded, whatever its own [fill]. Claims are
+     * atomic: concurrent claims leave one revision and one fill.
      */
-    suspend fun claim(type: AggregateType, revision: Int, lower: Boolean = false): SnapshotTable
+    suspend fun claim(type: AggregateType, revision: Int, fill: SnapshotFill, lower: Boolean = false): SnapshotTable
 
     /**
      * Sets [rebuilding] and [backfilled], each when given, on [type]'s table while it is claimed at [revision]; returns
@@ -79,7 +80,8 @@ interface SnapshotRebuildStore {
  * The record of one aggregate type's snapshot table: the state [revision] it is claimed at, whether
  * snapshots of another revision or marked stale may remain to be rewritten ([rebuilding]), and whether the table has
  * caught up with the log since it was first claimed ([backfilled]): a snapshot target added to a running service is
- * filled from the beginning of the log. A query of a table that is [catchingUp] answers with `rebuilding`.
+ * filled from the beginning of the log, by the subscription its first claim recorded ([fill]). A query of a table
+ * that is [catchingUp] answers with `rebuilding`.
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
@@ -87,6 +89,8 @@ class SnapshotTable @InternalWowApi constructor(
     val revision: Int,
     val rebuilding: Boolean = false,
     val backfilled: Boolean = true,
+    /** Who fills the table from the log's beginning, recorded by its first claim and never changed. */
+    val fill: SnapshotFill,
 ) {
     init {
         require(revision >= 1) { "A state revision starts at 1." }
@@ -101,7 +105,8 @@ class SnapshotTable @InternalWowApi constructor(
         revision: Int = this.revision,
         rebuilding: Boolean = this.rebuilding,
         backfilled: Boolean = this.backfilled,
-    ): SnapshotTable = SnapshotTable(revision, rebuilding, backfilled)
+        fill: SnapshotFill = this.fill,
+    ): SnapshotTable = SnapshotTable(revision, rebuilding, backfilled, fill)
 
     override fun equals(other: Any?): Boolean =
         this === other || other is SnapshotTable && valueFields() == other.valueFields()
@@ -109,15 +114,22 @@ class SnapshotTable @InternalWowApi constructor(
     override fun hashCode(): Int = valueFields().hashCode()
 
     override fun toString(): String =
-        "SnapshotTable(revision=$revision, rebuilding=$rebuilding, backfilled=$backfilled)"
+        "SnapshotTable(revision=$revision, rebuilding=$rebuilding, backfilled=$backfilled, fill=$fill)"
 
-    private fun valueFields(): List<Any?> = listOf(revision, rebuilding, backfilled)
+    private fun valueFields(): List<Any?> = listOf(revision, rebuilding, backfilled, fill)
 
     companion object {
-        /** A SnapshotTable of the given fields; parameters added later come last, with a default. */
+        /**
+         * A SnapshotTable of the given fields; parameters added later come last, with a default, but for [fill]:
+         * every record states who fills its table.
+         */
         @JvmStatic
         @JvmOverloads
-        fun of(revision: Int, rebuilding: Boolean = false, backfilled: Boolean = true): SnapshotTable =
-            SnapshotTable(revision, rebuilding, backfilled)
+        fun of(
+            revision: Int,
+            rebuilding: Boolean = false,
+            backfilled: Boolean = true,
+            fill: SnapshotFill,
+        ): SnapshotTable = SnapshotTable(revision, rebuilding, backfilled, fill)
     }
 }

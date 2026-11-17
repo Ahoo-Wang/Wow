@@ -44,6 +44,7 @@ import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
+import me.ahoo.wow.spi.snapshot.SnapshotFill
 import me.ahoo.wow.spi.snapshot.SnapshotRebuildStore
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
@@ -191,12 +192,13 @@ class SnapshotMaintenanceTest {
     @Test
     fun `a rebuild request on a node of another revision writes a missing snapshot at its own`(): Unit = runBlocking {
         val store = InMemorySnapshotStore()
-        store.claim(type, 2)
+        store.claim(type, 2, SnapshotFill.SUBSCRIPTION)
         val maintenance = maintenance(1, store)
         val ref = commit("a")
         maintenance.rebuild(ref)
         store.load(ref)!!.stateRevision.assert().isEqualTo(1)
-        store.table(type).assert().isEqualTo(SnapshotTable(2, rebuilding = true, backfilled = false))
+        store.table(type).assert()
+            .isEqualTo(SnapshotTable(2, rebuilding = true, backfilled = false, fill = SnapshotFill.SUBSCRIPTION))
         maintenance.tables().keys.assert().containsExactly(SnapshotTargets.DEFAULT_STORE to type)
         // An aggregate the log holds nothing of has no snapshot to write.
         val nothing = type.ref("tenant", "nothing")
@@ -366,7 +368,7 @@ class SnapshotMaintenanceTest {
             maintenance.prepare()
             // A node of revision 3, alive, claims the table just before the scan from the first that would end it.
             leases.heartbeat("$GROUP#snapshot/counter@3", "three", "three:8080", 1.hours)
-            store.beforeScan = { after -> if (after == null && store.scans.isNotEmpty()) store.memory.claim(type, 3) }
+            store.beforeScan = { after -> if (after == null && store.scans.isNotEmpty()) store.memory.claim(type, 3, SnapshotFill.SUBSCRIPTION) }
             maintenance.maintain()
             store.scans.assert().containsExactly(null, "a", "b", null)
             val key = SnapshotTargets.DEFAULT_STORE to type

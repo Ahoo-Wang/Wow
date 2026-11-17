@@ -131,7 +131,7 @@ The stores create their collections and indexes on first use, named as on Postgr
 | `wow_log__<context>__partition` | One counter document per partition of the context's log: the sequences given out, and the blocks still open |
 | `wow_log_aggregate` | Which aggregate collections each context's log has |
 | `wow_snapshot__<context>__<aggregate>` | One document per aggregate: its latest snapshot, whose `_id` is `{t: tenant, a: aggregate id}` |
-| `wow_snapshot_table` | The state revision each snapshot collection holds |
+| `wow_snapshot_table` | The state revision each snapshot collection holds, whether it caught up with the log, and who fills it from the log's beginning |
 | `wow_timer__<context>__<aggregate>` | The scheduled commands of one aggregate type, one document per timer, each in its owner's partition |
 | `wow_timer_aggregate` | Which timer collections each context has; the due read unions them in one aggregation |
 | `wow_checkpoint`, `wow_lease`, `wow_lease_member` | Where each subscription stands, and which node owns which partition |

@@ -16,6 +16,7 @@ package me.ahoo.wow.kernel.memory
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.spi.snapshot.SnapshotFill
 import me.ahoo.wow.spi.snapshot.SnapshotRebuildStore
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
@@ -95,10 +96,10 @@ class InMemorySnapshotStore : SnapshotStore, SnapshotRebuildStore {
 
     override suspend fun table(type: AggregateType): SnapshotTable? = tables[type]
 
-    override suspend fun claim(type: AggregateType, revision: Int, lower: Boolean): SnapshotTable =
+    override suspend fun claim(type: AggregateType, revision: Int, fill: SnapshotFill, lower: Boolean): SnapshotTable =
         tables.compute(type) { _, table ->
             when {
-                table == null -> SnapshotTable(revision, rebuilding = revision != 1, backfilled = false)
+                table == null -> SnapshotTable(revision, rebuilding = revision != 1, backfilled = false, fill = fill)
                 revision > table.revision || revision < table.revision && lower ->
                     table.copyWith(revision = revision, rebuilding = true)
 

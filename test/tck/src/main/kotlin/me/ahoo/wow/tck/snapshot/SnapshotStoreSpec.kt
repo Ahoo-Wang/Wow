@@ -25,6 +25,8 @@ import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.schedule.Misfire
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.spi.StorageRefusedException
+import me.ahoo.wow.spi.snapshot.SnapshotFill.BACKFILL
+import me.ahoo.wow.spi.snapshot.SnapshotFill.SUBSCRIPTION
 import me.ahoo.wow.spi.snapshot.SnapshotRebuildStore
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
@@ -454,44 +456,71 @@ abstract class SnapshotStoreSpec {
     }
 
     @Test
-    fun `a table's first claim records it at the revision, not yet backfilled`(): Unit = runBlocking {
-        val store = createStore()
-        val other = AggregateType(context, "other")
-        store.rebuild.table(type).assert().isNull()
-        store.rebuild.claim(type, 1).assert().isEqualTo(SnapshotTable(1, rebuilding = false, backfilled = false))
-        store.rebuild.table(type).assert().isEqualTo(SnapshotTable(1, rebuilding = false, backfilled = false))
-        store.rebuild.claim(other, 2).assert().isEqualTo(SnapshotTable(2, rebuilding = true, backfilled = false))
-        store.rebuild.claim(type, 1).assert().isEqualTo(SnapshotTable(1, rebuilding = false, backfilled = false))
-    }
+    fun `a table's first claim records it at the revision, not yet backfilled, with who fills it`(): Unit =
+        runBlocking {
+            val store = createStore()
+            val other = AggregateType(context, "other")
+            store.rebuild.table(type).assert().isNull()
+            store.rebuild.claim(type, 1, SUBSCRIPTION).assert()
+                .isEqualTo(SnapshotTable(1, rebuilding = false, backfilled = false, fill = SUBSCRIPTION))
+            store.rebuild.table(type).assert()
+                .isEqualTo(SnapshotTable(1, rebuilding = false, backfilled = false, fill = SUBSCRIPTION))
+            store.rebuild.claim(other, 2, BACKFILL).assert()
+                .isEqualTo(SnapshotTable(2, rebuilding = true, backfilled = false, fill = BACKFILL))
+            store.rebuild.table(other).assert()
+                .isEqualTo(SnapshotTable(2, rebuilding = true, backfilled = false, fill = BACKFILL))
+            store.rebuild.claim(type, 1, BACKFILL).assert()
+                .isEqualTo(SnapshotTable(1, rebuilding = false, backfilled = false, fill = SUBSCRIPTION))
+        }
 
     @Test
-    fun `a claim raises the revision, and lowers it only for a rollback`(): Unit = runBlocking {
-        val store = createStore()
-        store.rebuild.claim(type, 1)
-        store.rebuild.mark(type, 1, backfilled = true).assert().isEqualTo(SnapshotTable(1, rebuilding = false))
-        store.rebuild.claim(type, 2).assert().isEqualTo(SnapshotTable(2, rebuilding = true))
-        store.rebuild.mark(type, 1, rebuilding = false).assert().isNull()
-        store.rebuild.mark(type, 2, rebuilding = false).assert().isEqualTo(SnapshotTable(2))
-        store.rebuild.mark(type, 2).assert().isEqualTo(SnapshotTable(2))
-        store.rebuild.mark(type, 1).assert().isNull()
-        store.rebuild.claim(type, 1).assert().isEqualTo(SnapshotTable(2))
-        store.rebuild.claim(type, 2, lower = true).assert().isEqualTo(SnapshotTable(2))
-        store.rebuild.claim(type, 1, lower = true).assert().isEqualTo(SnapshotTable(1, rebuilding = true))
-        store.rebuild.table(type).assert().isEqualTo(SnapshotTable(1, rebuilding = true))
-        store.rebuild.mark(AggregateType(context, "unclaimed"), 1, rebuilding = false).assert().isNull()
-    }
+    fun `a claim raises the revision, and lowers it only for a rollback, keeping who fills the table`(): Unit =
+        runBlocking {
+            val store = createStore()
+            store.rebuild.claim(type, 1, BACKFILL)
+            store.rebuild.mark(type, 1, backfilled = true).assert()
+                .isEqualTo(SnapshotTable(1, rebuilding = false, fill = BACKFILL))
+            store.rebuild.claim(type, 2, SUBSCRIPTION).assert()
+                .isEqualTo(SnapshotTable(2, rebuilding = true, fill = BACKFILL))
+            store.rebuild.mark(type, 1, rebuilding = false).assert().isNull()
+            store.rebuild.mark(type, 2, rebuilding = false).assert().isEqualTo(SnapshotTable(2, fill = BACKFILL))
+            store.rebuild.mark(type, 2).assert().isEqualTo(SnapshotTable(2, fill = BACKFILL))
+            store.rebuild.mark(type, 1).assert().isNull()
+            store.rebuild.claim(type, 1, SUBSCRIPTION).assert().isEqualTo(SnapshotTable(2, fill = BACKFILL))
+            store.rebuild.claim(type, 2, SUBSCRIPTION, lower = true).assert()
+                .isEqualTo(SnapshotTable(2, fill = BACKFILL))
+            store.rebuild.claim(type, 1, SUBSCRIPTION, lower = true).assert()
+                .isEqualTo(SnapshotTable(1, rebuilding = true, fill = BACKFILL))
+            store.rebuild.table(type).assert().isEqualTo(SnapshotTable(1, rebuilding = true, fill = BACKFILL))
+            store.rebuild.mark(AggregateType(context, "unclaimed"), 1, rebuilding = false).assert().isNull()
+        }
 
     @Test
     fun `concurrent claims leave one revision`(): Unit = runBlocking {
         val store = createStore()
         val claimed = coroutineScope {
             (1..CONCURRENT_VERSIONS).map { index ->
-                async(Dispatchers.Default) { store.rebuild.claim(type, index % 3 + 1) }
+                async(Dispatchers.Default) { store.rebuild.claim(type, index % 3 + 1, SUBSCRIPTION) }
             }.awaitAll()
         }
         claimed.forEach { it.revision.assert().isBetween(1, 3) }
         store.rebuild.table(type)!!.revision.assert().isEqualTo(3)
-        store.rebuild.claim(type, 3).revision.assert().isEqualTo(3)
+        store.rebuild.claim(type, 3, SUBSCRIPTION).revision.assert().isEqualTo(3)
+    }
+
+    @Test
+    fun `concurrent first claims of two fills leave one, which every later claim reads`(): Unit = runBlocking {
+        val store = createStore()
+        val claimed = coroutineScope {
+            (1..CONCURRENT_VERSIONS).map { index ->
+                val fill = if (index % 2 == 0) SUBSCRIPTION else BACKFILL
+                async(Dispatchers.Default) { store.rebuild.claim(type, 1, fill) }
+            }.awaitAll()
+        }
+        // Certain: only the claim that creates the record writes its fill, which the store makes atomic, and each claim
+        // returns the record after it, so every one of them reads the fill that first claim wrote.
+        val recorded = store.rebuild.table(type)!!.fill
+        claimed.map { it.fill }.distinct().assert().containsExactly(recorded)
     }
 
     protected companion object {

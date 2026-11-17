@@ -55,6 +55,7 @@ import me.ahoo.wow.spi.StorageRefusedException
 import me.ahoo.wow.spi.VirtualThreads
 import me.ahoo.wow.spi.access.AccessValues
 import me.ahoo.wow.spi.schema.EnsuredOnce
+import me.ahoo.wow.spi.snapshot.SnapshotFill
 import me.ahoo.wow.spi.snapshot.SnapshotRebuildStore
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
@@ -358,14 +359,19 @@ class MongoSnapshotStore(
         tables.find(Filters.eq(ID, collectionName(context, type.name))).first()?.let(::tableOf)
     }
 
-    override suspend fun claim(type: AggregateType, revision: Int, lower: Boolean): SnapshotTable = dispatcher.mongo {
+    override suspend fun claim(
+        type: AggregateType,
+        revision: Int,
+        fill: SnapshotFill,
+        lower: Boolean,
+    ): SnapshotTable = dispatcher.mongo {
         require(type.context == context) { "$type is not in context $context." }
         require(revision >= 1) { "A state revision starts at 1." }
         val structure = collectionName(context, type.name)
         try {
             tables.insertOne(
                 Document(ID, structure).append(REVISION, revision).append(REBUILDING, revision != 1)
-                    .append(BACKFILLED, false),
+                    .append(BACKFILLED, false).append(FILL, fill.name),
             )
         } catch (failure: MongoWriteException) {
             if (!failure.isDuplicateKey()) {
@@ -410,6 +416,7 @@ class MongoSnapshotStore(
         revision = document.getInteger(REVISION),
         rebuilding = document.getBoolean(REBUILDING),
         backfilled = document.getBoolean(BACKFILLED),
+        fill = SnapshotFill.valueOf(document.getString(FILL)),
     )
 
     // Interruptible: the kernel gives up on a load past its timeout, and the read ends with it.
@@ -551,5 +558,6 @@ class MongoSnapshotStore(
         private const val REVISION = "revision"
         private const val REBUILDING = "rebuilding"
         private const val BACKFILLED = "backfilled"
+        private const val FILL = "fill"
     }
 }
