@@ -13,8 +13,10 @@
 #
 # bench.sh's batch lock, sourced by bench.sh: one harness on this machine, so one batch at a time.
 #
-#   bench.sh lock   --owner=<name> [--pid=<pid>] [--wait[=<seconds>]]   (a batch script, before its first round)
+#   bench.sh lock   --owner=<name> [--pid=<pid>] [--wait[=<seconds>]] [--quiet-wait=<seconds>]
+#                                                                        (a batch script, before its first round)
 #   bench.sh unlock --owner=<name>                                      (the same script, after its last)
+#   quiet.sh <command> [<argument>...]                                  (any session, in front of heavy work)
 #
 # The lock is a directory (mkdir is atomic; macOS has no flock), $WOW_BENCH_LOCK or /tmp/wow-e2e-bench.lock, holding
 # its owner's name, pid and start. While another live owner holds it, run, saturate, measure, up, down and abba refuse,
@@ -23,6 +25,13 @@
 # whose pid is gone is a crashed batch's: it is taken over. --wait queues behind the holder, printing who holds it,
 # and takes the lock the moment it is released (or fails after <seconds>; without a number it waits as long as it
 # takes). No rule here reads a clock: a lock or a take-over is stale only when its holder's pid is gone (#6346).
+#
+# The lock is also the machine's quiet window, one place for every worktree. Any session runs its heavy work (a Gradle
+# build, `pnpm test` or `build`, a container command) through quiet.sh, which waits while another live owner holds the
+# lock, saying who and since when, then runs it. A batch that takes the lock first waits, --quiet-wait seconds at most
+# (600 by default; 0 waits for nothing), for the heavy work already running that is not its own to end, saying what it
+# waits for, and fails naming what still runs when the time is up: one that started just before the lock was taken.
+# Release is the holder's unlock, or its exit: a lock whose pid is gone holds no one.
 
 LOCK_DIR="${WOW_BENCH_LOCK:-/tmp/wow-e2e-bench.lock}"
 
@@ -34,13 +43,90 @@ lock_field() { sed -n "s/^$1=//p" "$LOCK_DIR/holder" 2>/dev/null || true; }
 lock_alive() { [ -n "$1" ] && kill -0 "$1" 2>/dev/null; }
 
 # Whether this process descends from pid $1.
-lock_descends() {
-  local pid=$$
+lock_descends() { lock_pid_descends $$ "$1"; }
+
+# Whether pid $1 is pid $2 or descends from it.
+lock_pid_descends() {
+  local pid=$1
   while [ -n "$pid" ] && [ "$pid" -gt 1 ]; do
-    if [ "$pid" = "$1" ]; then return 0; fi
+    if [ "$pid" = "$2" ]; then return 0; fi
     pid=$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ' || true)
   done
   return 1
+}
+
+# The heavy work a batch waits for: a Gradle build (its client), a Vitest or Playwright run, a headless browser, a
+# `pnpm test` or `build`, a Storybook (dev or build) or a Vite dev server. Idle Gradle and Kotlin daemons are not work.
+# WOW_BENCH_HEAVY replaces it (a test's own). This is the work sessions start, which the lock makes wait; it is not the
+# m5max snapshot's own rule, which still voids a step during which any foreign JVM ran and waits for its own quiet
+# samples (lib.sh), whatever started it.
+LOCK_HEAVY="${WOW_BENCH_HEAVY:-GradleWrapperMain|gradle-wrapper\.jar|org\.gradle\.launcher\.GradleMain|vitest|playwright|chrome-headless-shell|storybook (dev|build)|storybook/bin|(^|[ /])vite( |$)|vite/bin/vite|(^|[ /])pnpm( [^ ]+)* (test|build)( |$)}"
+LOCK_DOCKER="${WOW_BENCH_DOCKER:-docker}"
+
+# The heavy work running that is not the lock holder's ($1, its pid), this process's or its ancestors': one
+# "pid <command>" line each, and one "container <name>" line for each container that is not the benchmark's
+# (wow-e2e-bench-*). The process list is read whole before it is matched, so the match runs in no process of its own.
+lock_foreign_work() {
+  local holder=$1 listing pid command name
+  listing=$(ps -A -o pid=,command= 2>/dev/null || true)
+  while read -r pid command; do
+    [ -n "$pid" ] || continue
+    [[ $command =~ $LOCK_HEAVY ]] || continue
+    # Gone since the listing: the listing's own subshell, among others.
+    lock_alive "$pid" || continue
+    # The holder's own work, this process's, and the processes this one runs under (the script that took the lock).
+    if lock_pid_descends "$pid" "$holder" || lock_pid_descends "$pid" $$ || lock_pid_descends $$ "$pid"; then
+      continue
+    fi
+    echo "$pid ${command:0:160}"
+  done <<<"$listing"
+  if command -v "$LOCK_DOCKER" >/dev/null 2>&1; then
+    while read -r name; do
+      case "$name" in "" | wow-e2e-bench*) ;; *) echo "container $name" ;; esac
+    done <<<"$("$LOCK_DOCKER" ps --format '{{.Names}}' 2>/dev/null || true)"
+  fi
+}
+
+# Waits, $2 seconds at most, until no heavy work runs that is not the holder's ($1, its pid), saying what it waits for
+# every 30 s; fails naming what still runs when the time is up.
+lock_await_quiet() {
+  local holder=$1 bound=$2 waited=0 told=-30 busy line
+  while :; do
+    busy=$(lock_foreign_work "$holder")
+    if [ -z "$busy" ]; then return 0; fi
+    if [ "$waited" -ge "$bound" ]; then
+      log "still running after ${bound}s, not this batch's (it holds the lock, so new work waits; this did not):"
+      while IFS= read -r line; do echo "  $line" >&2; done <<<"$busy"
+      return 1
+    fi
+    if [ $((waited - told)) -ge 30 ]; then
+      log "waiting up to ${bound}s for work already running to end:" \
+        "$(echo "$busy" | tr '\n' ';' | sed 's/;$//; s/;/; /g')"
+      told=$waited
+    fi
+    sleep 2
+    waited=$((waited + 2))
+  done
+}
+
+# Waits while another live owner holds the lock and this process is neither its owner's (WOW_BENCH_OWNER) nor
+# descends from its pid, saying every 30 s who holds it and since when, and what waits ($1). A lock whose pid is gone
+# holds no one.
+lock_await_free() {
+  local what=$1 pid owner waited=0 told=-30
+  while :; do
+    owner=$(lock_field owner)
+    pid=$(lock_field pid)
+    if [ -z "$owner" ] || ! lock_alive "$pid" || [ "${WOW_BENCH_OWNER:-}" = "$owner" ] || lock_descends "$pid"; then
+      return 0
+    fi
+    if [ $((waited - told)) -ge 30 ]; then
+      log "the machine is held by $(lock_holder) for a benchmark batch; $what runs once it is released"
+      told=$waited
+    fi
+    sleep 2
+    waited=$((waited + 2))
+  done
 }
 
 # Epoch second $1 as the time of day (macOS's date takes -r seconds, GNU's -d @seconds).
@@ -169,8 +255,17 @@ bench_lock() {
   local owner
   owner=$(opt owner "")
   if [ -z "$owner" ]; then log "bench.sh lock needs --owner=<name>"; exit 2; fi
-  lock_take "$owner" "$(opt pid "$PPID")" "$(lock_wait_option)" || exit 2
+  local pid
+  pid=$(opt pid "$PPID")
+  lock_take "$owner" "$pid" "$(lock_wait_option)" || exit 2
   log "the harness is held by $(lock_holder)"
+  local quiet
+  quiet=$(opt quiet-wait 600)
+  if [ "$quiet" -gt 0 ] && ! lock_await_quiet "$pid" "$quiet"; then
+    lock_release "$owner"
+    log "the harness is released by $owner: the machine did not go quiet"
+    exit 2
+  fi
 }
 
 # `bench.sh unlock`: releases the lock when --owner holds it; a lock another owner holds is left alone.
