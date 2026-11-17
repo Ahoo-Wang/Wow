@@ -16,6 +16,7 @@ package me.ahoo.wow.gradle
 import com.google.devtools.ksp.gradle.KspAATask
 import com.google.devtools.ksp.gradle.KspExtension
 import me.ahoo.test.asserts.assert
+import org.gradle.api.GradleException
 import org.gradle.api.Project
 import org.gradle.api.ProjectConfigurationException
 import org.gradle.api.artifacts.ExternalModuleDependency
@@ -148,5 +149,40 @@ class DomainRoleTest {
         project.configurations.findByName("wowManifestElements").assert().isNull()
         val component = project.components.getByName("java") as SoftwareComponentInternal
         component.usages.map { it.name }.assert().doesNotContain(WowPlugin.CONTRACT_ELEMENTS, "wowManifestElements")
+    }
+
+    /** An extension of a KSP whose `arg` takes a key and a value only. */
+    class KeyValueArgs {
+        val args = mutableListOf<Pair<String, String>>()
+
+        fun arg(key: String, value: String) {
+            args += key to value
+        }
+    }
+
+    @Test
+    fun `a KSP argument should be passed by the extension's arg, whatever class loader holds it`() {
+        val ksp = KeyValueArgs()
+        DomainRole.kspArg(ksp, "wow.model", "generate")
+        ksp.args.assert().containsExactly("wow.model" to "generate")
+    }
+
+    @Test
+    fun `a KSP without the arg the plugin calls should fail naming its version and the plugin's`() {
+        assertThrows<GradleException> {
+            DomainRole.kspArg(KeyValueArgs(), DomainRole.ContextArgument(project().provider { "bank" }))
+        }.message.assert().contains(
+            "The KSP Gradle plugin of an unknown version has no ksp { arg(CommandLineArgumentProvider) }",
+            "the plugin is built for KSP ${WowPlugin.kspVersion}",
+            "id(\"com.google.devtools.ksp\") version \"${WowPlugin.kspVersion}\"",
+        )
+        DomainRole.kspSignatureMissing("9.9.9", listOf("String", "String")).assert()
+            .startsWith("The KSP Gradle plugin 9.9.9 has no ksp { arg(String, String) }")
+    }
+
+    @Test
+    fun `the KSP version should be read from its jar`() {
+        DomainRole.versionOf(KspExtension::class.java).assert().isEqualTo(WowPlugin.kspVersion)
+        DomainRole.versionOf(KeyValueArgs::class.java).assert().isNull()
     }
 }
