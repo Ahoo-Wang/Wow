@@ -132,13 +132,13 @@ class RetryPolicy @InternalWowApi constructor(
  *   parking the aggregates.
  * - [backpressure]: how a subscription retries an entry whose downstream asked it to come back later, and throttles
  *   its partition meanwhile.
- * - [maxCatchUps]: the partitions a node reads behind their head at once, past their first page, all its
- *   subscription runtimes together; 0 for no bound. A partition whose subscriptions start behind the head of its
- *   source reads its first page (512 entries) at once: the gap a hand-over or a fail-over leaves fits in it, so such
- *   a partition never waits for another's catch-up. One further behind (a history migrate-data imported, a long stop,
- *   a node that died with its subscriptions lagging) waits at the page's end for a permit, in the order the
- *   partitions asked, and gives it back once each of its subscriptions has taken every entry up to that head, paused
- *   on a systemic failure, or stalled. So a node catching up on a large backlog keeps its store for its commands.
+ * - [maxCatchUps]: the partitions a node catches up at once, all its subscription runtimes together; 0 for no bound.
+ *   A partition whose subscriptions start behind the head of its source by more than 512 entries (a history
+ *   migrate-data imported, a long stop, a node that died with its subscriptions lagging) waits for a permit before it
+ *   reads, in the order the partitions asked, and gives it back once each of its subscriptions has taken every entry
+ *   up to that head, paused on a systemic failure, or stalled. So a node catching up on a large backlog keeps its
+ *   store for its commands. One behind by 512 or less is not catching up and reads at once: the gap a hand-over or a
+ *   fail-over leaves fits, so such a partition never waits for another's catch-up.
  *
  * Fields may be added: Wow builds it from the host's configuration, so the constructor is internal
  * to Wow.
