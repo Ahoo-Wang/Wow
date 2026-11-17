@@ -480,6 +480,12 @@ allprojects {
     dependencies {
         detektPlugins("io.gitlab.arturbosch.detekt:detekt-formatting")
     }
+    // A test JUnit finds but will not run fails the run, not just its log: a `@Test` whose Kotlin expression body
+    // returns a value, or one that is private or static, is a discovery issue of severity WARNING, which JUnit
+    // otherwise only logs while it skips the method (#6281).
+    tasks.withType<Test>().configureEach {
+        systemProperty("junit.platform.discovery.issue.severity.critical", "WARNING")
+    }
     tasks.withType<Jar> {
         manifest {
             attributes["Implementation-Title"] = project.artifactName()

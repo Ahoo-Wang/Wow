@@ -68,16 +68,15 @@ class StoreTckSelfTest : StoreTck() {
 
     override fun provider(type: String): StoreProvider = empty
 
-    /** The kit's own provider lookup, which a backend's subclass uses unless it overrides it. */
-    private class Lookup : StoreTck() {
-        override fun config(): StoreConfig = StoreConfig.of("lookup", "no-such-type")
-
-        fun find(type: String): StoreProvider = provider(type)
-    }
+    /**
+     * The kit's own provider lookup, which a backend's subclass uses unless it overrides it: this class overrides it, so
+     * it reaches the kit's through `super`, not through a subclass of the kit that JUnit would take for a test class.
+     */
+    private fun kitProvider(type: String): StoreProvider = super.provider(type)
 
     @Test
     fun `a store type no provider on the class path has should fail, naming it`() {
-        assertThrows<IllegalStateException> { Lookup().find("no-such-type") }.message.assert()
+        assertThrows<IllegalStateException> { kitProvider("no-such-type") }.message.assert()
             .contains("no-such-type", "META-INF/services")
     }
 
@@ -86,8 +85,8 @@ class StoreTckSelfTest : StoreTck() {
         val names = PortNames()
         names.generateDisplayNameForNestedClass(listOf(StoreTckSelfTest::class.java), Log::class.java)
             .assert().isEqualTo("StoreTckSelfTest > EventLog")
-        names.generateDisplayNameForNestedClass(listOf(StoreTckSelfTest::class.java), Lookup::class.java)
-            .assert().isEqualTo("StoreTckSelfTest > Lookup")
+        names.generateDisplayNameForNestedClass(listOf(StoreTckSelfTest::class.java), EmptyStore::class.java)
+            .assert().isEqualTo("StoreTckSelfTest > EmptyStore")
     }
 
     private companion object {
