@@ -39,6 +39,7 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SearchFilter
 import me.ahoo.wow.api.query.childFilters
 import me.ahoo.wow.api.query.fields
+import me.ahoo.wow.query.backend.parseInstant
 import me.ahoo.wow.query.backend.single
 import me.ahoo.wow.query.resolve.integralLong
 import me.ahoo.wow.query.schema.EPOCH_MILLIS
@@ -49,10 +50,11 @@ import me.ahoo.wow.query.schema.instantOf
 import java.time.DateTimeException
 import java.time.Duration
 import java.time.Instant
-import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.LocalTime
 import java.time.OffsetDateTime
 import java.time.ZoneId
+import java.time.ZoneOffset
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
@@ -171,21 +173,33 @@ internal data class PreviousStep(
         }
     }
 
-    /** An ISO-8601 instant, offset date-time, local date-time or date moved back, in the form it came in. */
-    private fun shiftText(text: String): String? = try {
-        when {
-            text.endsWith("Z") && 'T' in text -> back(Instant.parse(text)).toString()
-            'T' in text && (text.lastIndexOf('+') > text.indexOf('T') || text.lastIndexOf('-') > text.indexOf('T')) -> {
-                val moment = OffsetDateTime.parse(text)
-                back(moment.toInstant()).atOffset(moment.offset).format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)
+    /**
+     * An ISO-8601 instant, offset date-time, local date-time or date moved back as the instant every reader reads it
+     * as ([parseInstant]: one without an offset at UTC), so its spellings of one instant move alike (#6390). It keeps
+     * the form it came in: an offset date-time its offset, one without an offset its UTC wall clock, and a date stays
+     * a date while the instant it reaches is a midnight at UTC, else becomes that instant's date-time.
+     */
+    private fun shiftText(text: String): String? {
+        val instant = parseInstant(text) ?: return null
+        val time = text.indexOf('T')
+        return try {
+            val moved = back(instant)
+            when {
+                text.endsWith("Z") && time >= 0 -> moved.toString()
+                time >= 0 && (text.lastIndexOf('+') > time || text.lastIndexOf('-') > time) ->
+                    moved.atOffset(OffsetDateTime.parse(text).offset).format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)
+                else -> {
+                    val wallClock = LocalDateTime.ofInstant(moved, ZoneOffset.UTC)
+                    if (time < 0 && wallClock.toLocalTime() == LocalTime.MIDNIGHT) {
+                        wallClock.toLocalDate().format(DateTimeFormatter.ISO_LOCAL_DATE)
+                    } else {
+                        wallClock.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+                    }
+                }
             }
-            'T' in text -> LocalDateTime.parse(text).minus(shift.toLong(), unit)
-                .format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
-            else -> LocalDate.parse(text).atStartOfDay().minus(shift.toLong(), unit).toLocalDate()
-                .format(DateTimeFormatter.ISO_LOCAL_DATE)
+        } catch (_: DateTimeException) {
+            null
         }
-    } catch (_: DateTimeException) {
-        null
     }
 
     companion object {
