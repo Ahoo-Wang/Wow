@@ -43,10 +43,17 @@ dependencies {
     testImplementation("org.axonframework:axon-test")
     // axon-test declares Hamcrest optional, and its fixtures need it.
     testImplementation("org.hamcrest:hamcrest")
+    // Every JUnit artifact from the repository's JUnit BOM. Spring Boot's BOM manages JUnit too, and axon-test
+    // brings a newer Jupiter: without one platform over them all, the launcher could stay at Boot's version while the
+    // engine moves on, and JUnit fails at its initialization.
+    testImplementation(platform(libs.junit.bom))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 tasks.test {
     useJUnitPlatform()
+    // A test JUnit finds but will not run fails the run, as in the repository's build, whose rule does not reach
+    // a build of its own: a discovery issue of severity WARNING, which JUnit otherwise only logs.
+    systemProperty("junit.platform.discovery.issue.severity.critical", "WARNING")
 }
