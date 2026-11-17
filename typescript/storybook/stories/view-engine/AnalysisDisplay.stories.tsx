@@ -12,6 +12,7 @@
  */
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import {
+  AggregationDateUnit,
   AggregationFunction,
   AggregationGroupType,
   SortDirection,
@@ -47,7 +48,8 @@ export type DisplayScene =
   | 'scatter'
   | 'split-other'
   | 'split-crowded'
-  | 'pie-average';
+  | 'pie-average'
+  | 'step-balance';
 
 /** Twelve cities, from a county town to a metropolis: three orders apart. */
 const CITIES = [
@@ -144,6 +146,116 @@ const citySalesDefinition: DataViewDefinition = {
     ],
   },
 };
+
+/**
+ * 一只货品在华东仓三十天的期末库存：每天收盘时盘一次，一天一行。零售那套
+ * 数据里没有余额一类的指标（交易订单量的是流量：一天卖了多少），所以这里
+ * 自带一份。库存是一个余额：两次盘点之间它不动，直到出库或到货改了它——
+ * 周末不出库，那几天是平的；第 10 天与第 24 天各到一车货，一步跳上去。
+ * 两点之间画斜线，画的是一个从没有过的中间库存。
+ */
+const STOCK_DAYS = 30;
+const DAY_MS = 86_400_000;
+/** The last reading: noon, so the day it falls on is the same in any zone a few hours off UTC. */
+const LAST_READING = Date.UTC(2026, 8, 23, 12);
+const OPENING_STOCK = 480;
+/** What moved the stock on a day, by the day's index: out is negative, a delivery positive. */
+const STOCK_MOVES: Readonly<Record<number, number>> = {
+  2: -60,
+  3: -45,
+  6: -80,
+  7: -35,
+  9: 360,
+  10: -70,
+  13: -55,
+  14: -90,
+  16: -40,
+  20: -75,
+  21: -60,
+  23: 360,
+  24: -85,
+  27: -50,
+  28: -65,
+};
+
+/** Each day's closing stock: the opening one, moved by every day up to it. */
+export const STOCK_READINGS: RecordData[] = Array.from(
+  { length: STOCK_DAYS },
+  (_, day) => ({
+    id: `EOD-${day + 1}`,
+    readAt: new Date(
+      LAST_READING - (STOCK_DAYS - 1 - day) * DAY_MS,
+    ).toISOString(),
+    stock: Object.entries(STOCK_MOVES)
+      .filter(([moved]) => Number(moved) <= day)
+      .reduce((stock, [, by]) => stock + by, OPENING_STOCK),
+  }),
+);
+
+const stockDefinition: DataViewDefinition = {
+  kind: 'data',
+  id: 'stock-readings',
+  title: '库存盘点',
+  source: 'stock-readings',
+  fields: [
+    { name: 'id', label: '盘点单', kind: 'string', sortable: true },
+    {
+      name: 'readAt',
+      label: '盘点时间',
+      kind: 'datetime',
+      temporal: { type: 'date' },
+      sortable: true,
+    },
+    { name: 'stock', label: '期末库存', kind: 'number' },
+  ],
+  record: { rowKey: 'id', paging: 'paged', layouts: ['table'] },
+  analysis: {
+    count: true,
+    fields: [
+      {
+        field: 'readAt',
+        groups: [AggregationGroupType.DATE_HISTOGRAM],
+        functions: [],
+        dateUnits: [AggregationDateUnit.DAY],
+      },
+      // One reading a day, so the day's largest is that reading: a balance
+      // is never summed over time.
+      { field: 'stock', groups: [], functions: [AggregationFunction.MAX] },
+    ],
+  },
+};
+
+/** The stock, day by day, drawn stepped: each value holds until the next reading. */
+function stockConfig(): AnalysisViewConfig {
+  return analysisConfig({
+    layout: 'chart',
+    groups: [
+      {
+        type: AggregationGroupType.DATE_HISTOGRAM,
+        field: 'readAt',
+        alias: 'day',
+        unit: AggregationDateUnit.DAY,
+        label: '日期',
+      },
+    ],
+    metrics: [
+      {
+        alias: 'stock',
+        type: AggregationMetricType.NUMERIC,
+        function: AggregationFunction.MAX,
+        label: '期末库存',
+        expression: { type: AggregationExpressionType.FIELD, field: 'stock' },
+      },
+    ],
+    sort: [{ alias: 'day', direction: SortDirection.ASC }],
+    limit: 100,
+    table: { columns: [] },
+    chart: {
+      type: 'line',
+      cartesian: { x: 'day', series: [{ metric: 'stock', line: 'step' }] },
+    },
+  });
+}
 
 const CITY = {
   type: AggregationGroupType.TERMS,
@@ -242,10 +354,21 @@ function displayConfig(scene: DisplayScene): AnalysisViewConfig {
         },
         [AVG],
       );
+    case 'step-balance':
+      return stockConfig();
   }
 }
 
 function displayView(scene: DisplayScene): ViewInstance {
+  if (scene === 'step-balance')
+    return {
+      id: 'stock-analysis',
+      definitionId: stockDefinition.id,
+      title: '华东仓期末库存',
+      scope: 'shared',
+      revision: '1',
+      config: displayConfig(scene),
+    };
   return {
     id: 'city-sales-analysis',
     definitionId: citySalesDefinition.id,
@@ -258,12 +381,20 @@ function displayView(scene: DisplayScene): ViewInstance {
 
 function DisplayDemo({ scene = 'log-scale' }: { scene?: DisplayScene }) {
   const view = displayView(scene);
+  const definition =
+    scene === 'step-balance' ? stockDefinition : citySalesDefinition;
+  const rows =
+    scene === 'step-balance'
+      ? STOCK_READINGS
+      : scene === 'log-refused'
+        ? WITH_A_ZERO
+        : CITY_SALES;
   return (
     <StoryEngine
       create={() =>
         createStoryEngine({
-          definitions: [citySalesDefinition],
-          source: rowSource(scene === 'log-refused' ? WITH_A_ZERO : CITY_SALES),
+          definitions: [definition],
+          source: rowSource(rows),
           instances: [view],
         })
       }
@@ -271,7 +402,7 @@ function DisplayDemo({ scene = 'log-scale' }: { scene?: DisplayScene }) {
       {engine => (
         <DataWorkbench
           engine={engine}
-          definitionId={citySalesDefinition.id}
+          definitionId={definition.id}
           instanceId={view.id}
           {...HOST_LANGUAGE}
           viewKinds={['analysis']}
@@ -281,7 +412,8 @@ function DisplayDemo({ scene = 'log-scale' }: { scene?: DisplayScene }) {
   );
 }
 
-const FIXTURE = '内存 ViewStore · 十二个城市、四个渠道的销售';
+const FIXTURE =
+  '内存 ViewStore · 十二个城市、四个渠道的销售；一只货品三十天的期末库存';
 
 const description = `**分析视图 · 显示收口**（D33 批 E）
 
@@ -289,6 +421,7 @@ const description = `**分析视图 · 显示收口**（D33 批 E）
 - **散点**：两根轴各有标题、范围、数值格式与刻度；指针所在处画十字准星，两根轴上各写一个数。
 - **超过八条的拆分**（Q56，结清 Q9）：可加的指标画最大的七条，其余并成一条灰色「其他」——另发一次只按横轴分组的查询、减去这七条；不可加的指标照画，显示页写「超过 8 条，颜色会重复，建议改用热力图或表格」；不可加指标的饼图置灰，写「占比只对可加的指标成立」。
 - **读屏摘要**：图名之后一句话：共几组、最高、最低；时间轴说首尾与走向。
+- **阶梯线**（#3723）：折线、面积与组合里的线可以画成阶梯（显示页「连线」选「阶梯」）——每个值保持到下一个点才变。余额、库存、阶梯价一类的数在两次读数之间不动，斜线画的是从没有过的中间值。场景用一只货品在华东仓三十天的期末库存：零售数据里没有余额类的指标，所以自带一份。
 - **导出图片**（Q58）：「导出」菜单里与「导出数据…」并列的 PNG 与 SVG，图上带标题、图例与一行条件。`;
 
 const meta = {
@@ -316,6 +449,7 @@ const meta = {
         'split-other',
         'split-crowded',
         'pie-average',
+        'step-balance',
       ],
     },
   },
@@ -342,3 +476,10 @@ export const SplitCrowded: Story = { args: { scene: 'split-crowded' } };
 
 /** 只有平均额：饼图置灰，写「占比只对可加的指标成立」（Q9）。 */
 export const PieOfAnAverage: Story = { args: { scene: 'pie-average' } };
+
+/**
+ * 华东仓一只货品三十天的期末库存，画成阶梯（#3723）：库存是余额，两次盘点
+ * 之间不动——周末是平的，出库那天降一级，到货那天跳上去一大步。显示页的
+ * 「连线」写着「阶梯」，下面一句说为什么。
+ */
+export const StepBalance: Story = { args: { scene: 'step-balance' } };
