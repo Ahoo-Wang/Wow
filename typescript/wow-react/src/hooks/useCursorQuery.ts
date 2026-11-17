@@ -160,10 +160,14 @@ export function useCursorQuery<
   // Where the pages stand as of now, not as of a render: fetchNext() reads
   // them when it is called, so a handler that awaits one fetchNext() and
   // calls the same one again reads on from the page the first one read.
+  // `running` is the signal of the run that is reading a page for the rows,
+  // until it ends or the runner aborts it: a run a newer query, abort() or an
+  // unmount replaced no longer holds fetchNext() back, however long its
+  // execute goes on, and its end does not free the hook for a newer run.
   const progress = useRef<{
     nextCursor: string | null | undefined;
-    runs: number;
-  }>({ nextCursor: undefined, runs: 0 });
+    running: AbortSignal | undefined;
+  }>({ nextCursor: undefined, running: undefined });
   const readPage = options.execute;
   const {
     status,
@@ -185,7 +189,7 @@ export function useCursorQuery<
           progress.current.nextCursor = undefined;
           setPages(noPages());
         }
-        progress.current.runs++;
+        progress.current.running = options.signal;
         try {
           const page = await readPage({ ...query, cursor }, options);
           // A run that no longer counts was aborted by the runner: its page
@@ -202,7 +206,9 @@ export function useCursorQuery<
           }
           return page;
         } finally {
-          progress.current.runs--;
+          if (progress.current.running === options.signal) {
+            progress.current.running = undefined;
+          }
         }
       },
     },
@@ -210,8 +216,8 @@ export function useCursorQuery<
   );
   const hasMore = typeof pages.nextCursor === 'string';
   const fetchNext = useCallback(async () => {
-    const { nextCursor, runs } = progress.current;
-    if (runs > 0 || typeof nextCursor !== 'string') return;
+    const { nextCursor, running } = progress.current;
+    if (running?.aborted === false || typeof nextCursor !== 'string') return;
     next.current = nextCursor;
     // The runner hands the cursor to the executor before it first awaits;
     // clear it in case the run did not start (no query, unmounted).
