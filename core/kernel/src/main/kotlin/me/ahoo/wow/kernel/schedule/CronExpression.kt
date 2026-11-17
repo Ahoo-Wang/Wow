@@ -39,6 +39,8 @@ import java.util.BitSet
  * [next] reads the fields as local times of a time zone: a local time that a daylight saving gap skips runs at the
  * instant it would have been, later by the length of the gap (02:30 in a spring-forward gap runs at 03:30), unless an
  * earlier time already ran at that instant; a local time that an overlap repeats runs once, at its earlier offset.
+ * The times run in the order of their instants: one a gap shifted past the local times right after the gap runs after
+ * them (02:20 in a half-hour gap from 02:00 runs at 02:50, after 02:40).
  */
 @InternalWowApi
 class CronExpression private constructor(
@@ -62,7 +64,7 @@ class CronExpression private constructor(
             val candidate = nextLocal(local, after.atZone(zone).year + MAX_YEARS) ?: return null
             val instant = ZonedDateTime.ofLocal(candidate, zone, null).toInstant()
             if (instant.isAfter(after)) {
-                return instant
+                return beforeShifted(candidate, instant, after, zone) ?: instant
             }
             // In an overlap, the earlier offset of this local time ran already, or a gap shifted it before [after].
             local = candidate.plusSeconds(1)
@@ -70,10 +72,28 @@ class CronExpression private constructor(
     }
 
     /**
+     * For [candidate], a local time a daylight saving gap skipped, run at [shifted]: the first time after [after] this
+     * expression names past the gap, when it runs before [shifted]; null otherwise. The gap's shift may move its local
+     * times past those right after it, which run first. The search starts at the gap's end, or at the second after
+     * [after] once [after] is past the gap's start, and stops with the year of [shifted]'s local time: no transition
+     * follows a gap within its length, so the local times from there map to instants after [after], in order.
+     */
+    private fun beforeShifted(candidate: LocalDateTime, shifted: Instant, after: Instant, zone: ZoneId): Instant? {
+        val gap = zone.rules.getTransition(candidate)?.takeIf { it.isGap } ?: return null
+        val start = if (after < gap.instant) {
+            gap.dateTimeAfter
+        } else {
+            LocalDateTime.ofInstant(after, zone).withNano(0).plusSeconds(1)
+        }
+        val following = nextLocal(start, candidate.plus(gap.duration).year) ?: return null
+        return ZonedDateTime.ofLocal(following, zone, null).toInstant().takeIf { it < shifted }
+    }
+
+    /**
      * The local time the search for the first time after [after] starts at: the second after it, or, less than a
      * daylight saving gap's length after that gap began, the gap's start. A local time the gap skipped runs later by
-     * the gap, so it may still fall after [after] though it reads earlier; local times only map to instants in order,
-     * and those not after [after] are passed over.
+     * the gap, so it may still fall after [after] though it reads earlier; the local times whose instants are not after
+     * [after] are passed over.
      */
     private fun searchStart(after: Instant, zone: ZoneId): LocalDateTime {
         val transition = zone.rules.previousTransition(after.plusNanos(1))

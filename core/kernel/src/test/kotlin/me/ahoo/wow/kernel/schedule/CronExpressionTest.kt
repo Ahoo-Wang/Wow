@@ -195,6 +195,23 @@ class CronExpressionTest {
     }
 
     @Test
+    fun `a local time a half-hour gap shifts past the times after the gap runs after them`() {
+        val lordHowe = ZoneId.of("Australia/Lord_Howe")
+        // 2026-10-04 02:00 (+10:30) jumps to 02:30 (+11:00): 02:20 runs at 02:50, after 02:40, which the gap left.
+        times("0 20,40 2 * * *", "2026-10-04T01:59", count = 4, zone = lordHowe).assert().isEqualTo(
+            local("2026-10-04T02:40", "2026-10-04T02:50", "2026-10-05T02:20", "2026-10-05T02:40"),
+        )
+        times("0 20,40 2 * * *", "2026-10-04T02:30", count = 2, zone = lordHowe).assert()
+            .isEqualTo(local("2026-10-04T02:40", "2026-10-04T02:50"))
+        // From a time after the gap, the times after it that are still to come run before the shifted one.
+        times("0 20,35,40 2 * * *", "2026-10-04T02:35", count = 2, zone = lordHowe).assert()
+            .isEqualTo(local("2026-10-04T02:40", "2026-10-04T02:50"))
+        // Nothing named after the gap before the shifted time: the shifted one runs, then next year's.
+        times("0 20 2 4 10 *", "2026-10-04T01:59", count = 2, zone = lordHowe).assert()
+            .isEqualTo(local("2026-10-04T02:50", "2027-10-04T02:20"))
+    }
+
+    @Test
     fun `a local time an overlap repeats runs once, at its earlier offset`() {
         val newYork = ZoneId.of("America/New_York")
         // 2026-11-01 02:00 EDT falls back to 01:00 EST.

@@ -247,6 +247,22 @@ class ScheduleSlotsTest {
         ScheduleSlots.expressionOf(monthly).assert().isSameAs(ScheduleSlots.expressionOf(monthly))
         ScheduleSlots.zoneOf(monthly).id.assert().isEqualTo("UTC")
     }
+
+    @Test
+    fun `across a half-hour gap a slot is due at the earliest time, first, after a run and coalesced`() {
+        // 2026-10-04 02:00 (+10:30) jumps to 02:30 (+11:00): 02:40 is due at 15:40Z, before 02:20 shifted to 02:50.
+        val zone = "Australia/Lord_Howe"
+        val before = at("2026-10-03T15:29:00Z")
+        val earliest = at("2026-10-03T15:40:00Z")
+        val yesterday = at("2026-10-02T16:10:00Z")
+        ScheduleSlots.firstDue(ScheduleRule.Cron("0 20,40 2 * * *", zone), before).assert().isEqualTo(earliest)
+        val catchUp = ScheduleRule.Cron("0 20,40 2 * * *", zone, Misfire.CATCH_UP)
+        checkNotNull(ScheduleSlots.afterFired(timer(catchUp, yesterday), before)).slotDueAt.assert().isEqualTo(earliest)
+        // Claimed at 02:45, a coalescing slot of yesterday's 02:40 moves on to today's.
+        val coalesce = ScheduleRule.Cron("0 20,40 2 * * *", zone, Misfire.COALESCE)
+        ScheduleSlots.caughtUp(timer(coalesce, yesterday), at("2026-10-03T15:45:00Z")).slotDueAt.assert()
+            .isEqualTo(earliest)
+    }
 }
 
 private fun commandOf(vararg fields: Pair<String, String>): ObjectNode =
