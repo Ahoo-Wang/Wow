@@ -26,6 +26,7 @@ import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.multiMatc
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.nested
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.prefix
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.range
+import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.regexp
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.script
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.term
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.terms
@@ -145,20 +146,9 @@ internal object ElasticsearchFilterCompiler {
                     .lte(JsonData.of(admitted.operand(filter.field, filter.value)))
             }
         }
-        is ContainsFilter -> wildcard {
-            it.field(admitted.physicalPath(filter.field))
-                .value("*${filter.value.escapeWildcard()}*")
-                .caseInsensitive(filter.stringComparison.ignoreCase)
-        }
-        is StartsWithFilter -> prefix {
-            it.field(admitted.physicalPath(filter.field)).value(filter.value)
-                .caseInsensitive(filter.stringComparison.ignoreCase)
-        }
-        is EndsWithFilter -> wildcard {
-            it.field(admitted.physicalPath(filter.field))
-                .value("*${filter.value.escapeWildcard()}")
-                .caseInsensitive(filter.stringComparison.ignoreCase)
-        }
+        is ContainsFilter -> admitted.literal(filter.field, filter.value, filter.stringComparison, true, true)
+        is StartsWithFilter -> admitted.literal(filter.field, filter.value, filter.stringComparison, false, true)
+        is EndsWithFilter -> admitted.literal(filter.field, filter.value, filter.stringComparison, true, false)
         is InFilter -> {
             val field = admitted.physicalPath(filter.field)
             if (field.addressesDocumentId(nested)) {
@@ -278,6 +268,29 @@ internal object ElasticsearchFilterCompiler {
             instant.toEpochMilli()
         } catch (_: ArithmeticException) {
             throw QueryViolation.StorageUnsupported(DATE_BEYOND_MILLIS, reference).rejection()
+        }
+    }
+
+    /**
+     * A match of a text of [field] that holds [value]: after anything when [leading], before anything when
+     * [trailing]. Ignoring case, a `regexp` of [ElasticsearchCaseFolding], since `case_insensitive` folds ASCII
+     * letters only.
+     */
+    private fun AdmittedQuery<*>.literal(
+        field: QueryField<*>,
+        value: String,
+        comparison: StringComparison,
+        leading: Boolean,
+        trailing: Boolean,
+    ): Query {
+        val path = physicalPath(field)
+        return when {
+            comparison.ignoreCase -> regexp {
+                it.field(path).value(ElasticsearchCaseFolding.pattern(value, leading, trailing))
+                    .flags(ElasticsearchCaseFolding.FLAGS)
+            }
+            leading -> wildcard { it.field(path).value("*${value.escapeWildcard()}${if (trailing) "*" else ""}") }
+            else -> prefix { it.field(path).value(value) }
         }
     }
 

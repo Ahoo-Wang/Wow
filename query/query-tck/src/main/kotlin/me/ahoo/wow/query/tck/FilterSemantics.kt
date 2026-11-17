@@ -83,6 +83,9 @@ class SemanticProbe private constructor(
         /** The value followed by a newline: an end anchor must not match before it. */
         const val TRAILING_NEWLINE = "trailingNewline"
 
+        /** A value whose letters are not all ASCII: letter case is compared outside ASCII too. */
+        const val NON_ASCII = "nonAscii"
+
         private fun missing(shape: SemanticShape) = SemanticProbe(shape, MISSING, null)
         private fun nullValue(shape: SemanticShape) = SemanticProbe(shape, NULL, "null")
 
@@ -96,6 +99,7 @@ class SemanticProbe private constructor(
                 SemanticProbe(SemanticShape.STRING, CASE_VARIANT, "\"wow\""),
                 SemanticProbe(SemanticShape.STRING, OTHER, "\"Other\""),
                 SemanticProbe(SemanticShape.STRING, TRAILING_NEWLINE, "\"Wow\\n\""),
+                SemanticProbe(SemanticShape.STRING, NON_ASCII, "\"Ärger\""),
             ),
             SemanticShape.NUMBER to listOf(
                 missing(SemanticShape.NUMBER),
@@ -158,6 +162,7 @@ object FilterSemantics {
     private const val THREE = SemanticProbe.THREE
     private const val VALUE_AND_OTHER = SemanticProbe.VALUE_AND_OTHER
     private const val TRAILING_NEWLINE = SemanticProbe.TRAILING_NEWLINE
+    private const val NON_ASCII = SemanticProbe.NON_ASCII
 
     private fun string(id: String, vararg matches: String, filter: (QueryField<*>) -> FilterExpression) =
         SemanticCase("string.$id", SemanticShape.STRING, matches.toSet(), filter)
@@ -172,10 +177,12 @@ object FilterSemantics {
         // Equality is exact and case-sensitive; negations match records without the field.
         string("eq", VALUE) { EqualFilter(it, "Wow") },
         string("eq-null", MISSING, NULL) { EqualFilter(it, null) },
-        string("ne", MISSING, NULL, EMPTY, CASE_VARIANT, OTHER, TRAILING_NEWLINE) { NotEqualFilter(it, "Wow") },
-        string("ne-null", EMPTY, VALUE, CASE_VARIANT, OTHER, TRAILING_NEWLINE) { NotEqualFilter(it, null) },
+        string("ne", MISSING, NULL, EMPTY, CASE_VARIANT, OTHER, TRAILING_NEWLINE, NON_ASCII) {
+            NotEqualFilter(it, "Wow")
+        },
+        string("ne-null", EMPTY, VALUE, CASE_VARIANT, OTHER, TRAILING_NEWLINE, NON_ASCII) { NotEqualFilter(it, null) },
         string("in", VALUE, OTHER) { InFilter(it, listOf("Wow", "Other")) },
-        string("not-in", MISSING, NULL, EMPTY, CASE_VARIANT, TRAILING_NEWLINE) {
+        string("not-in", MISSING, NULL, EMPTY, CASE_VARIANT, TRAILING_NEWLINE, NON_ASCII) {
             NotInFilter(it, listOf("Wow", "Other"))
         },
         // Literal matches: case-sensitive unless asked otherwise; never match a missing or null field.
@@ -193,13 +200,27 @@ object FilterSemantics {
         string("ends-with-ignore-case", VALUE, CASE_VARIANT) {
             EndsWithFilter(it, "OW", StringComparison.CASE_INSENSITIVE)
         },
+        // Letter case outside ASCII: ignored as the reference ignores it, by each letter's lower case.
+        string("starts-with-non-ascii", NON_ASCII) { StartsWithFilter(it, "Är") },
+        string("starts-with-non-ascii-exact-case") { StartsWithFilter(it, "är") },
+        string("contains-ignore-case-non-ascii", NON_ASCII) {
+            ContainsFilter(it, "äR", StringComparison.CASE_INSENSITIVE)
+        },
+        string("starts-with-ignore-case-non-ascii", NON_ASCII) {
+            StartsWithFilter(it, "äR", StringComparison.CASE_INSENSITIVE)
+        },
+        string("ends-with-ignore-case-non-ascii", NON_ASCII) {
+            EndsWithFilter(it, "äRGER", StringComparison.CASE_INSENSITIVE)
+        },
         // Presence: null and missing are both "null"; only a missing field does not exist.
         string("is-null", MISSING, NULL) { IsNullFilter(it) },
-        string("is-not-null", EMPTY, VALUE, CASE_VARIANT, OTHER, TRAILING_NEWLINE) { IsNotNullFilter(it) },
-        string("exists", NULL, EMPTY, VALUE, CASE_VARIANT, OTHER, TRAILING_NEWLINE) { ExistsFilter(it) },
+        string("is-not-null", EMPTY, VALUE, CASE_VARIANT, OTHER, TRAILING_NEWLINE, NON_ASCII) { IsNotNullFilter(it) },
+        string("exists", NULL, EMPTY, VALUE, CASE_VARIANT, OTHER, TRAILING_NEWLINE, NON_ASCII) { ExistsFilter(it) },
         string("not-exists", MISSING) { NotExistsFilter(it) },
         string("is-empty-string", EMPTY) { IsEmptyStringFilter(it) },
-        string("is-not-empty-string", VALUE, CASE_VARIANT, OTHER, TRAILING_NEWLINE) { IsNotEmptyStringFilter(it) },
+        string("is-not-empty-string", VALUE, CASE_VARIANT, OTHER, TRAILING_NEWLINE, NON_ASCII) {
+            IsNotEmptyStringFilter(it)
+        },
         // Ranges never match a missing or null field.
         number("eq", TWO) { EqualFilter(it, 2) },
         number("ne", MISSING, NULL, ONE, THREE) { NotEqualFilter(it, 2) },
