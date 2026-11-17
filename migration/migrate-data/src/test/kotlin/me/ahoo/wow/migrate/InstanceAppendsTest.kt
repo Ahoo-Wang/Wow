@@ -60,6 +60,18 @@ internal class InstanceAppendsTest : EventStreamImporterFixtures() {
     }
 
     @Test
+    fun `another command at the version under the 9x request id stops the import`(): Unit = runTest {
+        val first = NineXExample.stream("order-stream-v1.json")
+        val record = StreamConverter(NineXExample.plan).convert(first)
+        log.append(record.copyWith(commandId = "v10-command"))
+        val failure = assertThrows<MigrationException> {
+            importer(InMemoryNineXEventSource(listOf(first))).importAll(order)
+        }
+        failure.message!!.assert().contains("V10 has been written to").contains("v10-command").contains(first.commandId)
+        log.read(record.ref).toList().single().commandId.assert().isEqualTo("v10-command")
+    }
+
+    @Test
     fun `a log ahead of 9x stops the import`(): Unit = runTest {
         val first = NineXExample.stream("order-stream-v1.json")
         val converter = StreamConverter(NineXExample.plan)
