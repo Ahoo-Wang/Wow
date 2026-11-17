@@ -17,6 +17,40 @@ A service's Manifest is its contract in one document: its contexts, aggregates, 
 
 The snapshot queries read the state schema from the completed fragment: a state field can be filtered and sorted only once the plugin has completed it.
 
+## A type written by a custom serializer
+
+The plugin learns a type's schema by asking Jackson how it writes the class. It cannot see inside a serializer of the class's own (`@JsonSerialize(using = …)`) or a `@JsonValue`, so it does not guess: `generateWowManifestFragment` stops and asks for the shape.
+
+```text
+Jackson does not write com.example.ledger.Ledger as an object (a custom serializer or @JsonValue), so its schema cannot be introspected: declare it in wow { schemaOverrides.put("com.example.ledger.Ledger", "<JSON Schema>") }.
+```
+
+Declare the shape the serializer writes, as a JSON Schema, in the domain module's `build.gradle.kts`. Each class is named by its binary name, so a nested class is `Outer$Inner`. A state type and an event are declared alike:
+
+<!-- sample: fragment -->
+
+```kotlin
+wow {
+    // The state, which LedgerSerializer writes as {"owner": "…", "lines": [12, 30]}
+    schemaOverrides.put(
+        "com.example.ledger.Ledger",
+        """{"type":"object","properties":{"owner":{"type":"string"},"lines":{"type":"array","items":{"type":"integer","format":"int64"}}},"required":["owner","lines"]}""",
+    )
+    // An event, which PostedSerializer writes as {"amount": 250}
+    schemaOverrides.put(
+        "com.example.ledger.Posted",
+        """{"type":"object","properties":{"amount":{"type":"integer","format":"int64"}},"required":["amount"]}""",
+    )
+}
+```
+
+The declared schema stands for the class wherever the Manifest is read:
+- the snapshot and event queries filter, sort and project its fields, such as `state.owner`;
+- OpenAPI and the generated clients describe it;
+- the [compatibility check](#the-compatibility-check) compares it with the baseline, under the rules of any state or event schema.
+
+The check compares the declared shape, not what the serializer writes. The two are kept in step by hand, and nothing checks one against the other. If the serializer starts writing another field and its declaration does not change, the wire changes and the check does not see it. Change both in the same commit.
+
 ## Peers get their part
 
 A service that sends another context's commands, or reads its published stream, needs that context's commands, events, state and errors. The plugin selects them from the other context's fragment and puts them in its api module's jar, as `META-INF/wow/contract.json`. A service that depends on the api module finds the contract on its class path, and uses it to name the commands it sends, check the wait plans that cross into the other context, and decode its published events. Nothing is configured: depending on the api is enough.

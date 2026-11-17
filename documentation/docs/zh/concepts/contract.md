@@ -34,7 +34,7 @@ annotations ─▶ compiler ─▶ Manifest ─┬▶ HTTP routes (at run time)
 
 一个服务的领域常常分布在几个 Gradle 模块里。编译器一次只看一个模块，所以每个模块产出 Manifest 的一个**片段**。构建时，一个 Gradle 任务补全每个片段的 schema，并把片段合并成服务的 Manifest。运行时，服务合并它在类路径上找到的片段。两个片段声明了同一个上下文、聚合、命令、事件或订阅时，服务拒绝启动。
 
-schema 来自 Jackson 本身。构建过程加载编译好的类，询问 Jackson 会怎样序列化它们，所以命名策略、`@JsonProperty`、自定义序列化器和 Kotlin 默认值，都按它们在线上的真实样子体现出来。这只发生在构建时；运行时不做任何内省。
+schema 来自 Jackson 本身。构建过程加载编译好的类，询问 Jackson 会怎样序列化它们，所以命名策略、`@JsonProperty` 和 Kotlin 默认值，都按它们在线上的真实样子体现出来。由类自己的序列化器写出的类不会：构建看不到序列化器的内部，所以会停下来，要求声明这个类的结构（[由自定义序列化器写出的类型](../guide/manifest#a-type-written-by-a-custom-serializer)）。这只发生在构建时；运行时不做任何内省。
 
 服务在公开端口的 `GET /wow/manifest` 上发布它的 Manifest，与所有路由一样需要认证（没有调用方时 401），任何已认证的调用方都能读取。
 

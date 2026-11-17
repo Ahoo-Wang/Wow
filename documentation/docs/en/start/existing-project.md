@@ -117,7 +117,7 @@ The `wow { }` block configures it:
 | Property | Default | Means |
 | --- | --- | --- |
 | `context` | The module's one `@BoundedContext` | The context of the module's aggregates and processors |
-| `schemaOverrides` | Empty | A JSON Schema per JVM class name, for a type a custom serializer writes |
+| `schemaOverrides` | Empty | A JSON Schema per JVM class name, for a type a custom serializer writes ([A type written by a custom serializer](../guide/manifest#a-type-written-by-a-custom-serializer)) |
 | `service` | None | The service that hosts the module's contexts, which its contract names and the service's Manifest takes ([What the Compiler Generates](../guide/generated-code)) |
 
 `catalog-server/build.gradle.kts`:
