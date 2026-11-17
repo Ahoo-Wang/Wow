@@ -63,6 +63,7 @@ import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.query.TodayFilter
 import me.ahoo.wow.clickhouse.query.ClickHouseQueryFixtures.SCHEMA
 import me.ahoo.wow.clickhouse.query.ClickHouseQueryFixtures.TABLE
+import me.ahoo.wow.clickhouse.sink.ClickHouseColumn
 import me.ahoo.wow.query.admission.AdmittedQuery
 import me.ahoo.wow.query.admission.QueryAdmission
 import me.ahoo.wow.query.backend.GroupWindow
@@ -426,6 +427,21 @@ class ClickHouseSqlCompilerTest {
         compile(query, GroupWindow.All).assert().endsWith("ORDER BY `orders` DESC NULLS LAST, `city` ASC NULLS FIRST")
         compile(AggregationQuery(metrics = listOf(AggregationMetric.Count("orders"))), GroupWindow.First(1)).assert()
             .isEqualTo("SELECT __m0 AS `orders` FROM (SELECT count() AS __m0 FROM `bi`.`orders` WHERE 1) LIMIT 1")
+    }
+
+    @Test
+    fun `the inner query's own names should avoid the table's columns and the query's aliases`() {
+        val columns = TABLE.columns.values.map { it.column } + ClickHouseColumn("__g0", "Int64")
+        val table = ClickHouseTable(TABLE.database, TABLE.name, TABLE.engine, columns)
+        val query = AggregationQuery(
+            groupBy = listOf(AggregationGroup.Terms(CITY, "__m0")),
+            metrics = listOf(AggregationMetric.Count("orders")),
+        )
+        ClickHouseAggregationCompiler(admit(query), table, TABLE.qualifiedName).compile(GroupWindow.All).sql.assert()
+            .isEqualTo(
+                "SELECT ___g0 AS `__m0`, ___m0 AS `orders` FROM (SELECT `city` AS ___g0, count() AS ___m0 " +
+                    "FROM `bi`.`orders` WHERE 1 GROUP BY ___g0) ORDER BY `__m0` ASC NULLS FIRST",
+            )
     }
 
     @Test

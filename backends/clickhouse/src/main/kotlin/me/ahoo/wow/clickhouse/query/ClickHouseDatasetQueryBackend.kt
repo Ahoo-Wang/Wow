@@ -184,10 +184,10 @@ internal class ClickHouseDatasetQueryBackend internal constructor(
         private val sort: List<Pair<TypedColumn, Sort.Direction>> = query.sort.map {
             filters.columnOf(it.field) to it.direction
         }
-        private val positionAliases: List<String> = sort.indices.map { own("__position$it") }
+        private val positionAliases: List<String> = sort.indices.map { table.ownName("__position$it") }
 
         /** The one column a statement selects when the projection keeps none: a `SELECT` lists at least one. */
-        private val placeholder: String? = if (columns.isEmpty()) own("__record") else null
+        private val placeholder: String? = if (columns.isEmpty()) table.ownName("__record") else null
 
         /**
          * A list or an offset page, its sort ended by the dataset's identity when the sort lacks it:
@@ -227,9 +227,6 @@ internal class ClickHouseDatasetQueryBackend internal constructor(
 
         fun position(row: ObjectNode): CursorPosition =
             CursorPosition(positionAliases.map { alias -> row.get(alias).positionValue() })
-
-        /** [name], or that name with leading underscores added until it names no column of the table. */
-        private fun own(name: String): String = generateSequence(name) { "_$it" }.first { it !in table.columns }
 
         private fun statement(
             where: String,
