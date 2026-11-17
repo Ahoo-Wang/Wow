@@ -124,7 +124,7 @@ class TimerRunner(
 
     /**
      * Sends the PARKED timers of [target] again, due now with their attempts reset, and resolves its ledger entry: an
-     * operator's retry. Any node may call it; the owner of the timers' partition sends them.
+     * operator's retry ([resolve]). Any node may call it; the owner of the timers' partition sends them.
      *
      * @return how many timers were retried.
      */
@@ -135,13 +135,13 @@ class TimerRunner(
                 TimerChange(it, it.copyWith(status = TimerStatus.PENDING, attempts = 0, outcome = null, dueAt = now))
             },
         ).count { it }
-        ledger.resolveAnywhere(parkedSubscription, target)
+        resolve(target, now)
         return retried
     }
 
     /**
      * Cancels the PARKED timers of [target] with the outcome `SKIPPED` and resolves its ledger entry: an operator's
-     * skip.
+     * skip ([resolve]).
      *
      * @return how many timers were skipped.
      */
@@ -151,9 +151,25 @@ class TimerRunner(
                 TimerChange(it, it.copyWith(status = TimerStatus.CANCELLED, outcome = TimerOutcomes.SKIPPED))
             },
         ).count { it }
-        ledger.resolveAnywhere(parkedSubscription, target)
+        resolve(target, loop.clock.millis())
         return skipped
     }
+
+    /**
+     * Resolves [target]'s ledger entry once an operator's retry or skip settled the PARKED timers it read, then records
+     * it again for a timer of [target] still PARKED: one parked meanwhile, on any node, that the operator's call never
+     * read. A parking writes its timer PARKED and then records its entry again ([park]); this resolves the entry and
+     * then reads the PARKED timers. Whichever of the two comes last finds the other's write, so a PARKED timer keeps
+     * its entry, with no lock across the nodes.
+     */
+    private suspend fun resolve(target: AggregateRef, now: Long) {
+        ledger.resolveAnywhere(parkedSubscription, target)
+        store.parked(target).firstOrNull()?.let { ledger.park(entryOf(it, it.outcome.orEmpty(), now)) }
+    }
+
+    /** The ledger entry of [timer]'s target, parked with [reason] at [now]. */
+    private fun entryOf(timer: Timer, reason: String, now: Long) =
+        ParkedAggregate(parkedSubscription, timer.target, timer.partition, 1, "${timer.id}: $reason", now)
 
     /** Takes [due], the timers the loop just read, into the wheel of each partition, but those being sent. */
     internal fun load(due: List<Timer>) {
@@ -373,19 +389,15 @@ class TimerRunner(
 
     /**
      * Parks [timer], claimed, its [attempts] spent: its target is recorded in the failure ledger, then the timer is
-     * written PARKED. The ledger entry comes first, so a parked timer always has the entry an operator retries or skips
-     * it by. A parking cut short leaves at most an entry whose timers are not parked, which a retry or a skip resolves
-     * finding none; the timer, still claimed, is sent again once the claim lapses, and parked then.
+     * written PARKED, then the target recorded again. The ledger entry comes first, so a parked timer always has the
+     * entry an operator retries or skips it by. A parking cut short leaves at most an entry whose timers are not
+     * parked, which a retry or a skip resolves finding none; the timer, still claimed, is sent again once the claim
+     * lapses, and parked then. The entry is recorded again once the timer may be PARKED, unless the store answered that
+     * the write did not take: an operator's retry or skip of the target may have resolved it meanwhile, having read its
+     * PARKED timers before this one was ([resolve]). A write whose answer was lost may have taken, so it records too.
      */
     private suspend fun park(part: Part, timer: Timer, attempts: Int, reason: String, now: Long) {
-        val entry = ParkedAggregate(
-            parkedSubscription,
-            timer.target,
-            timer.partition,
-            1,
-            "${timer.id}: $reason",
-            now,
-        )
+        val entry = entryOf(timer, reason, now)
         if (quietly("record the parked target of the timer ${timer.id}") { ledger.park(entry) } == null) {
             // Never parked without its entry: its last attempt is sent again after the backoff, and parks then.
             val backoff = options.retry.backoff(attempts)
@@ -405,7 +417,9 @@ class TimerRunner(
             timer,
             timer.copyWith(status = TimerStatus.PARKED, attempts = attempts, outcome = reason),
         )
-        quietly("park the timer ${timer.id}") { store.settle(listOf(parked)) }
+        if (quietly("park the timer ${timer.id}") { store.settle(listOf(parked)).single() } != false) {
+            quietly("record the parked target of the timer ${timer.id} again") { ledger.park(entry) }
+        }
         part.sending.remove(timer.id)
     }
 
