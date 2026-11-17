@@ -456,6 +456,27 @@ class PostgresSnapshotStore(
         }
     }
 
+    /** Each aggregate type's snapshots of [refs] with one statement of its table. */
+    override suspend fun loadAll(refs: Collection<AggregateRef>): Map<AggregateRef, SnapshotRecord> =
+        if (refs.isEmpty()) {
+            emptyMap()
+        } else {
+            dispatcher.jdbcRead {
+                dataSource.autoCommitted { connection ->
+                    refs.distinct().groupBy { it.type }.flatMap { (type, own) ->
+                        require(type.context == context) { "$type is not in context $context." }
+                        connection.prepareStatement(tables(type.name).loadAll).use { query ->
+                            query.setArray(1, connection.createArrayOf("text", own.map { it.tenantId }.toTypedArray()))
+                            query.setArray(2, connection.createArrayOf("text", own.map { it.id }.toTypedArray()))
+                            query.executeQuery().use { rows ->
+                                buildList { while (rows.next()) add(snapshotOf(type, rows)) }
+                            }
+                        }
+                    }.associateBy { it.ref }
+                }
+            }
+        }
+
     /**
      * The table of [aggregateName]'s snapshots, made sure of, when this store keeps [context]'s snapshots in
      * [dataSource]: the log of that context in that database reads a snapshot with its tail in one

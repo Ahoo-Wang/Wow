@@ -126,6 +126,9 @@ class SnapshotSubscription(
      */
     fun writeCounts(): SnapshotWriteCounts = writes.counts()
 
+    /** The loads of the entries without a view, of every partition, read together. */
+    private val loads = SnapshotLoads(store, writeBatch, writesInFlight ?: store.writesInFlight) { writes.read }
+
     /** The saves waiting for a write now, for a test. */
     internal val writesWaiting: Int get() = writes.waiting
 
@@ -153,9 +156,15 @@ class SnapshotSubscription(
         answers = answers,
         // A stop gives up the saves of its partitions that wait: a cache the next owner writes again.
         stops = object : SubscriptionStops {
-            override fun stopping(partitions: Set<Int>) = writes.abandon(partitions)
+            override fun stopping(partitions: Set<Int>) {
+                loads.abandon(partitions)
+                writes.abandon(partitions)
+            }
 
-            override fun stopped(partitions: Set<Int>) = writes.resume(partitions)
+            override fun stopped(partitions: Set<Int>) {
+                loads.resume(partitions)
+                writes.resume(partitions)
+            }
         },
         handler = ::write,
     )
@@ -184,8 +193,7 @@ class SnapshotSubscription(
             save(snapshotOf(model, stream, view.state, known, view.deleted, view.schedules), partition)
             return
         }
-        val stored = store.load(ref)
-        writes.read?.loaded(1)
+        val stored = loads.load(ref, partition)
         if (stored != null && stored.version >= version) {
             remember(ref, FirstCommit.of(stored), stored.version)
             return

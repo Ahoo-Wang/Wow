@@ -73,6 +73,14 @@ interface SnapshotStore {
     suspend fun load(ref: AggregateRef): SnapshotRecord?
 
     /**
+     * The snapshots of [refs], each as [load] reads it, by their ref; a ref with none is left out. The snapshot
+     * subscription reads the snapshots of the entries it handles without a view together, so a backend may read them
+     * with one round trip. A failure of the whole call is thrown. By default they are loaded one by one.
+     */
+    suspend fun loadAll(refs: Collection<AggregateRef>): Map<AggregateRef, SnapshotRecord> =
+        refs.distinct().mapNotNull { load(it) }.associateBy { it.ref }
+
+    /**
      * The store's snapshot rebuild control plane: an optional capability, null by default, for a store
      * that cannot rewrite its snapshots in place. The node then leaves the snapshots of another state revision as they
      * are, which the kernel reads past (it replays the log), until a commit replaces them; it warns once and counts the

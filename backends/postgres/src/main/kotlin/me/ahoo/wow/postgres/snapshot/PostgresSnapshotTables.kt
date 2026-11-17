@@ -204,6 +204,10 @@ internal class PostgresSnapshotTables(context: String, aggregate: String) {
 
     val load = "SELECT * FROM $snapshot WHERE tenant_id = ? AND aggregate_id = ?"
 
+    /** The snapshots of the keys of two arrays, the tenants' and the aggregates', unnested together. */
+    val loadAll = "SELECT s.* FROM unnest(?::text[], ?::text[]) AS k(tenant_id, aggregate_id) " +
+        "JOIN $snapshot s ON s.tenant_id = k.tenant_id COLLATE \"C\" AND s.aggregate_id = k.aggregate_id COLLATE \"C\""
+
     /** The table's record. */
     val table = "SELECT revision, rebuilding, backfilled FROM $TABLES WHERE structure = ?"
 

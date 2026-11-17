@@ -47,6 +47,11 @@ class SnapshotStoreRouter(
 
     override suspend fun load(ref: AggregateRef): SnapshotRecord? = storeOf(ref.type).load(ref)
 
+    /** Each store's snapshots with one call of its own [SnapshotStore.loadAll]. */
+    override suspend fun loadAll(refs: Collection<AggregateRef>): Map<AggregateRef, SnapshotRecord> =
+        refs.groupBy { storeOf(it.type) }.flatMap { (store, own) -> store.loadAll(own).entries }
+            .associate { it.key to it.value }
+
     /**
      * The rebuild control plane of each type's store: a router over the stores that have one, null when none has. A
      * type whose store has none is refused, as the node's maintenance never asks it (it rebuilds per named store).
