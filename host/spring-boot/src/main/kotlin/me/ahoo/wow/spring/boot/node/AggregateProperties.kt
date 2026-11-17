@@ -52,7 +52,8 @@ class AggregateProperties {
 
     /**
      * How the ClickHouse Sink keeps the type's commits, in the same style as the other per-aggregate keys; it replaces
-     * the removed `wow.clickhouse.sink.aggregates`.
+     * the removed `wow.clickhouse.sink.aggregates`. Experimental in 10.0 with wow-clickhouse, which is incubating: they
+     * may change without a deprecation cycle until the dataset and analytics modules are released stable.
      */
     var clickhouse: AggregateClickHouseProperties = AggregateClickHouseProperties()
 
@@ -72,10 +73,17 @@ class AggregateClickHouseProperties {
  */
 @InternalWowApi
 class AggregateHistoryProperties {
-    /** Whether every commit of the type is kept: `auto`, the Sink's default, keeps it; `true` or `false` decide. */
+    /**
+     * Whether every commit of the type is kept: `auto`, the Sink's default, keeps it; `true` or `false` decide.
+     * Experimental in 10.0 with wow-clickhouse, which is incubating: it may change without a deprecation cycle until
+     * the dataset and analytics modules are released stable.
+     */
     var enabled: Switch = Switch.AUTO
 
-    /** How long the type's history is kept; forever when not set. */
+    /**
+     * How long the type's history is kept; forever when not set. Experimental in 10.0 with wow-clickhouse, which is
+     * incubating: it may change without a deprecation cycle until the dataset and analytics modules are released stable.
+     */
     var ttl: Duration? = null
 }
 

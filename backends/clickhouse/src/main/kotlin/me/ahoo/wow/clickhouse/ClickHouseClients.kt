@@ -14,6 +14,7 @@
 package me.ahoo.wow.clickhouse
 
 import com.clickhouse.client.api.Client
+import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.spi.config.ProviderOption
 import me.ahoo.wow.spi.store.StoreResources
 
@@ -26,7 +27,11 @@ import me.ahoo.wow.spi.store.StoreResources
  * An application that wants one shared client, or uses ClickHouse itself, declares the bean over the same settings,
  * bound with Spring's `Binder` (`Bindable.mapOf(String::class.java, String::class.java)` of `wow.clickhouse`), and
  * closes it with its context: `@Bean(destroyMethod = "close") fun clickHouse(...) = ClickHouseClients.of(settings)`.
+ *
+ * Incubating, as all of wow-clickhouse: it may change without a deprecation cycle until the dataset and analytics
+ * modules are released stable.
  */
+@ExperimentalWowApi
 object ClickHouseClients {
     /** The server's HTTP endpoint. */
     @JvmField

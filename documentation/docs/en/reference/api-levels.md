@@ -80,8 +80,12 @@ The two lists below are generated from the sources of the published modules: the
 | `me.ahoo.wow.query.schema.QueryValueType` | class | `wow-query` |
 | `me.ahoo.wow.query.schema.QuerySemanticType` | interface | `wow-query` |
 | `me.ahoo.wow.query.schema.Temporal` | interface | `wow-query` |
+| `me.ahoo.wow.clickhouse.ClickHouseClients` | object | `wow-clickhouse` |
 | `me.ahoo.wow.clickhouse.query.ClickHouseDatasetBindings` | class | `wow-clickhouse` |
 | `me.ahoo.wow.clickhouse.query.ClickHouseDatasetOptions` | class | `wow-clickhouse` |
+| `me.ahoo.wow.clickhouse.sink.AggregateSinkOptions` | class | `wow-clickhouse` |
+| `me.ahoo.wow.clickhouse.sink.ClickHouseSinkOptions` | class | `wow-clickhouse` |
+| `me.ahoo.wow.clickhouse.sink.ClickHouseSinkProvider` | class | `wow-clickhouse` |
 | `me.ahoo.wow.http.ops.parkedRoutes` | fun | `wow-http` |
 | `me.ahoo.wow.http.ops.OpsPaths` | object | `wow-http` |
 | `me.ahoo.wow.http.ops.subscriptionRoutes` | fun | `wow-http` |

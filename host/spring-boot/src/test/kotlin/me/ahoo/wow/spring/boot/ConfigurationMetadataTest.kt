@@ -46,7 +46,8 @@ class ConfigurationMetadataTest {
                     sink.javaClass,
                     sink.options,
                     "The settings of ClickHouse: the connection the Sink and the dataset backend share, the Sink's " +
-                        "and the datasets'.",
+                        "and the datasets'. Experimental in 10.0 with wow-clickhouse, which is incubating: they may " +
+                        "change without a deprecation cycle until the dataset and analytics modules are released stable.",
                 )
             } +
             ServiceLoader.load(QueryDatasetProvider::class.java).filter {

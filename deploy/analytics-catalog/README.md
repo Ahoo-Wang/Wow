@@ -1,6 +1,6 @@
 # The analytics catalog on Kubernetes
 
-The analytics catalog (`platform/analytics/catalog/server`): the datasets of the ClickHouse warehouse the services' Sinks write to (the ordering's, with its `clickhouse` profile, which `deploy/eshop-ordering` leaves off), their descriptions and their queries, on MongoDB (or PostgreSQL), behind CoSec, with two nodes. It is deployed with Wow's chart ([`deploy/helm/wow-service`](../helm/wow-service/README.md)), as [eShop ordering](../eshop-ordering/README.md) is, and the choices there hold here too.
+The analytics catalog (`platform/analytics/catalog/server`): the datasets of the ClickHouse warehouse the services' Sinks write to (the ordering's, with its `clickhouse` profile, which `deploy/eshop-ordering` leaves off), their descriptions and their queries, on MongoDB (or PostgreSQL), behind CoSec, with two nodes. It is deployed with Wow's chart ([`deploy/helm/wow-service`](../helm/wow-service/README.md)), as [eShop ordering](../eshop-ordering/README.md) is, and the choices there hold here too. The catalog is incubating: its image, its values and its configuration may change without a deprecation cycle until the dataset and analytics modules are released stable.
 
 | File | What it holds |
 | --- | --- |

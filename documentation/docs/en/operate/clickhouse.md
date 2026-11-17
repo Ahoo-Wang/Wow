@@ -8,6 +8,10 @@ outline: deep
 
 ClickHouse is Wow's warehouse. A sink copies each published aggregate's commits into it, from which ClickHouse derives the current state and one row per event, and the service's datasets are queried there. The log stays the only fact: the warehouse can be dropped and filled again from it. This page connects a service, describes the tables and their columns, and says how to run them on a cluster.
 
+::: warning wow-clickhouse is experimental in 10.0
+`wow-clickhouse` is incubating: it may change without a deprecation cycle until the dataset and analytics modules are released stable. Its types (`ClickHouseClients`, `ClickHouseSinkProvider`, `ClickHouseSinkOptions`, `AggregateSinkOptions`, `ClickHouseDatasetBindings`, `ClickHouseDatasetOptions`) are `@ExperimentalWowApi` ([API Levels](../reference/api-levels)), and the `wow.clickhouse.*` and `wow.aggregates.[<context>.<aggregate>].clickhouse.*` keys may change with them, as may the analytics catalog's image. A service that turns the sink or the datasets on with its dependency and keys alone needs nothing more; Kotlin code that names one of these types, a client bean built with `ClickHouseClients.of` say, opts in with `@OptIn(ExperimentalWowApi::class)`. Once the dataset and analytics modules are released stable, a 10.x minor release removes the mark. The mark changes nothing the sink stores or a dataset query sends.
+:::
+
 ## Connect a service
 
 The server must be ClickHouse 25.3 or later. From 25.3 the server carries a dataset's tenant condition into each merged (`FINAL`) source the dataset joins, so a tenant's query reads that tenant's rows of it; an older server reads the whole source for every query.
@@ -38,6 +42,7 @@ The sink and the datasets find their client by one rule: the application's Click
 
 ```kotlin
 @Bean(destroyMethod = "close")
+@OptIn(ExperimentalWowApi::class) // wow-clickhouse is incubating
 @ConditionalOnProperty(prefix = ClickHouseClients.PREFIX, name = ["endpoint"])
 fun analyticsCatalogClickHouseClient(environment: Environment): Client {
     val settings = Binder.get(environment)

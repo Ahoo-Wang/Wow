@@ -99,6 +99,7 @@ class AnalyticsCatalogConfiguration {
      */
     // region shared-client
     @Bean(destroyMethod = "close")
+    @OptIn(ExperimentalWowApi::class) // wow-clickhouse is incubating
     @ConditionalOnProperty(prefix = ClickHouseClients.PREFIX, name = ["endpoint"])
     fun analyticsCatalogClickHouseClient(environment: Environment): Client {
         val settings = Binder.get(environment)
@@ -111,6 +112,7 @@ class AnalyticsCatalogConfiguration {
 
     /** The warehouse catalog: over `databases`, else `wow.clickhouse.database`, its one reader. */
     @Bean
+    @OptIn(ExperimentalWowApi::class) // wow-clickhouse is incubating
     fun warehouseCatalog(
         client: ObjectProvider<Client>,
         properties: AnalyticsCatalogProperties,
@@ -246,6 +248,7 @@ class AnalyticsCatalogConfiguration {
     )
 
     /** The settings under `wow.clickhouse`, keys relative to it, as the Sink and the dataset backend read them. */
+    @OptIn(ExperimentalWowApi::class) // wow-clickhouse is incubating
     private fun clickHouseSettings(environment: Environment): Map<String, String> =
         Binder.get(environment).bind(ClickHouseClients.PREFIX, Bindable.mapOf(String::class.java, String::class.java))
             .orElse(emptyMap())

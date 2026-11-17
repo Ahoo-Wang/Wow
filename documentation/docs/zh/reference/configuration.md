@@ -44,8 +44,8 @@ Per aggregate type, by `<context>.<aggregate>` (bracketed in a property name: `w
 
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `wow.aggregates.[<context>.<aggregate>].clickhouse.history.enabled` | `Switch` | `auto` | Whether every commit of the type is kept: `auto`, the Sink's default, keeps it; `true` or `false` decide. |
-| `wow.aggregates.[<context>.<aggregate>].clickhouse.history.ttl` | `Duration` |  | How long the type's history is kept; forever when not set. |
+| `wow.aggregates.[<context>.<aggregate>].clickhouse.history.enabled` | `Switch` | `auto` | Whether every commit of the type is kept: `auto`, the Sink's default, keeps it; `true` or `false` decide. Experimental in 10.0 with wow-clickhouse, which is incubating: it may change without a deprecation cycle until the dataset and analytics modules are released stable. |
+| `wow.aggregates.[<context>.<aggregate>].clickhouse.history.ttl` | `Duration` |  | How long the type's history is kept; forever when not set. Experimental in 10.0 with wow-clickhouse, which is incubating: it may change without a deprecation cycle until the dataset and analytics modules are released stable. |
 | `wow.aggregates.[<context>.<aggregate>].id-generator` | `String` |  | The id generator that gives the type's new ids, by name. |
 | `wow.aggregates.[<context>.<aggregate>].log.store` | `String` |  | The store of `wow.stores` the type's log is on, over `wow.log.store`. |
 | `wow.aggregates.[<context>.<aggregate>].query.events.store` | `String` |  | The store of `wow.stores` the type's `events` queries read; its log store when not set. |
@@ -66,7 +66,7 @@ What each service that calls this one may call and read on the internal port, by
 
 ## `wow.clickhouse`
 
-The settings of ClickHouse: the connection the Sink and the dataset backend share, the Sink's and the datasets'.
+The settings of ClickHouse: the connection the Sink and the dataset backend share, the Sink's and the datasets'. Experimental in 10.0 with wow-clickhouse, which is incubating: they may change without a deprecation cycle until the dataset and analytics modules are released stable.
 
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |

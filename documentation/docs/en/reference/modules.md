@@ -27,7 +27,7 @@ The Gradle plugins add `platform("me.ahoo.wow:wow-bom:<their version>")`, so `im
 | `me.ahoo.wow:wow-postgres` | [`backends/postgres`](https://github.com/Ahoo-Wang/Wow/tree/main/backends/postgres) | Log, snapshots, query, checkpoints, leases, failure ledger and reservations on PostgreSQL |
 | `me.ahoo.wow:wow-mongo` | [`backends/mongo`](https://github.com/Ahoo-Wang/Wow/tree/main/backends/mongo) | Log, snapshots, query, checkpoints, leases, failure ledger and reservations on MongoDB |
 | `me.ahoo.wow:wow-kafka` | [`backends/kafka`](https://github.com/Ahoo-Wang/Wow/tree/main/backends/kafka) | The Kafka transport, Kafka Sink and Kafka-sourced subscriptions |
-| `me.ahoo.wow:wow-clickhouse` | [`backends/clickhouse`](https://github.com/Ahoo-Wang/Wow/tree/main/backends/clickhouse) | The ClickHouse Sink and the dataset query backend |
+| `me.ahoo.wow:wow-clickhouse` | [`backends/clickhouse`](https://github.com/Ahoo-Wang/Wow/tree/main/backends/clickhouse) | The ClickHouse Sink and the dataset query backend; experimental in 10.0: incubating, it may change without a deprecation cycle until the dataset and analytics modules are released stable |
 | `me.ahoo.wow:wow-elasticsearch` | [`backends/elasticsearch`](https://github.com/Ahoo-Wang/Wow/tree/main/backends/elasticsearch) | Snapshots, their queries and the event search Sink on Elasticsearch |
 | `me.ahoo.wow:wow-openapi` | [`edge/openapi`](https://github.com/Ahoo-Wang/Wow/tree/main/edge/openapi) | The OpenAPI 3.1 document of a service's public routes, from its Manifest alone; plain data |
 | `me.ahoo.wow:wow-http` | [`edge/http`](https://github.com/Ahoo-Wang/Wow/tree/main/edge/http) | Routes materialized from the Manifest, problem+json, SSE and the signal entry |

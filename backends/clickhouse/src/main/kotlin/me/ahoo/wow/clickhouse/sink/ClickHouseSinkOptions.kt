@@ -14,6 +14,7 @@
 package me.ahoo.wow.clickhouse.sink
 
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.spi.Ddl
 import kotlin.time.Duration
@@ -26,8 +27,10 @@ import kotlin.time.Duration
  * - [historyTtl]: how long the history is kept, by commit time; forever when null. Only with [history].
  *
  * Fields may be added: Wow builds it from the host's configuration, so the constructor is internal
- * to Wow.
+ * to Wow. Incubating, as all of wow-clickhouse: it may change without a deprecation cycle until the dataset and
+ * analytics modules are released stable.
  */
+@ExperimentalWowApi
 class AggregateSinkOptions @InternalWowApi constructor(
     val history: Boolean = true,
     val historyTtl: Duration? = null,
@@ -58,8 +61,10 @@ class AggregateSinkOptions @InternalWowApi constructor(
  * - [aggregates]: per aggregate type, how its commits are kept; [AggregateSinkOptions] defaults else.
  *
  * Fields may be added: Wow builds it from the host's configuration, so the constructor is internal
- * to Wow.
+ * to Wow. Incubating, as all of wow-clickhouse: it may change without a deprecation cycle until the dataset and
+ * analytics modules are released stable.
  */
+@ExperimentalWowApi
 class ClickHouseSinkOptions @InternalWowApi constructor(
     val database: String = DEFAULT_DATABASE,
     val ddl: Ddl = Ddl.AUTO,

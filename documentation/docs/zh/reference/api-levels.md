@@ -80,8 +80,12 @@ API 只是升级要保持兼容的三样东西之一。在同一个主版本内�
 | `me.ahoo.wow.query.schema.QueryValueType` | class | `wow-query` |
 | `me.ahoo.wow.query.schema.QuerySemanticType` | interface | `wow-query` |
 | `me.ahoo.wow.query.schema.Temporal` | interface | `wow-query` |
+| `me.ahoo.wow.clickhouse.ClickHouseClients` | object | `wow-clickhouse` |
 | `me.ahoo.wow.clickhouse.query.ClickHouseDatasetBindings` | class | `wow-clickhouse` |
 | `me.ahoo.wow.clickhouse.query.ClickHouseDatasetOptions` | class | `wow-clickhouse` |
+| `me.ahoo.wow.clickhouse.sink.AggregateSinkOptions` | class | `wow-clickhouse` |
+| `me.ahoo.wow.clickhouse.sink.ClickHouseSinkOptions` | class | `wow-clickhouse` |
+| `me.ahoo.wow.clickhouse.sink.ClickHouseSinkProvider` | class | `wow-clickhouse` |
 | `me.ahoo.wow.http.ops.parkedRoutes` | fun | `wow-http` |
 | `me.ahoo.wow.http.ops.OpsPaths` | object | `wow-http` |
 | `me.ahoo.wow.http.ops.subscriptionRoutes` | fun | `wow-http` |
