@@ -15,6 +15,7 @@ package me.ahoo.wow.clickhouse.sink
 
 import com.clickhouse.client.api.Client
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.clickhouse.ClickHouseClients
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.query.policy.GovernedAggregates
@@ -37,7 +38,11 @@ import kotlin.time.Duration.Companion.milliseconds
  * `sink.deduplication-window`, and each aggregate type's `history.enabled` and `history.ttl` under
  * `aggregates.<context>.<aggregate>`, which the host gives from
  * `wow.aggregates.[<context>.<aggregate>].clickhouse.history.*` ([ClickHouseSinkOptions]).
+ *
+ * Incubating, as all of wow-clickhouse: it may change without a deprecation cycle until the dataset and analytics
+ * modules are released stable.
  */
+@ExperimentalWowApi
 class ClickHouseSinkProvider : SinkProvider {
     override val type: String = TYPE
 

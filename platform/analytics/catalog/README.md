@@ -1,6 +1,6 @@
 # Analytics catalog
 
-**Incubating**, unpublished: the analytics catalog service,
+**Incubating**: its artifacts are unpublished, and its image, published with every pre-release, may change without a deprecation cycle until the dataset and analytics modules are released stable. The analytics catalog service,
 the control plane of the analytics platform, in place of the 9.x `dataset-registry/`, which stays until the 9.x cleanup. The data plane (the Sink's writes, the dataset queries) never calls it on its own path.
 
 The data-source catalog is the warehouse's own metadata: every table or view of the configured databases is one source,

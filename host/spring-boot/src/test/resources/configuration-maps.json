@@ -38,13 +38,13 @@
   }, {
     "name" : "wow.aggregates.[<context>.<aggregate>].clickhouse.history.enabled",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Switch",
-    "description" : "Whether every commit of the type is kept: `auto`, the Sink's default, keeps it; `true` or `false` decide.",
+    "description" : "Whether every commit of the type is kept: `auto`, the Sink's default, keeps it; `true` or `false` decide. Experimental in 10.0 with wow-clickhouse, which is incubating: it may change without a deprecation cycle until the dataset and analytics modules are released stable.",
     "sourceType" : "me.ahoo.wow.spring.boot.node.AggregateHistoryProperties",
     "defaultValue" : "auto"
   }, {
     "name" : "wow.aggregates.[<context>.<aggregate>].clickhouse.history.ttl",
     "type" : "java.time.Duration",
-    "description" : "How long the type's history is kept; forever when not set.",
+    "description" : "How long the type's history is kept; forever when not set. Experimental in 10.0 with wow-clickhouse, which is incubating: it may change without a deprecation cycle until the dataset and analytics modules are released stable.",
     "sourceType" : "me.ahoo.wow.spring.boot.node.AggregateHistoryProperties"
   }, {
     "name" : "wow.aggregates.[<context>.<aggregate>].id-generator",

@@ -84,7 +84,7 @@ The host wires each part when its module is on the class path, and the part's ow
 | `wow-postgres` | The PostgreSQL backend, over the application's `DataSource` |
 | `wow-mongo` | The MongoDB backend, over the application's `MongoClient` |
 | `wow-kafka` | The Kafka transport, when `wow.kafka.bootstrap-servers` is set: published streams, commands and receipts between contexts ([Kafka](../operate/kafka)) |
-| `wow-clickhouse` | The warehouse sink and the datasets' queries |
+| `wow-clickhouse` | The warehouse sink and the datasets' queries ([ClickHouse](../operate/clickhouse)); experimental in 10.0, incubating until the dataset and analytics modules are released stable |
 | `wow-elasticsearch` | The store type `elasticsearch`, for snapshots and their queries, and the sink that indexes event streams for search |
 | `wow-observability` | Traces and metrics of the node's work |
 | `wow-cosec` | CoSec authentication and authorization of the public routes ([Secure a Deployment](../operate/security)); experimental in 10.0, following CoSec 8's pre-release |

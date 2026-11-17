@@ -8,6 +8,10 @@ outline: deep
 
 ClickHouse 是 Wow 的数仓。一个 Sink 把每个发布的聚合的提交复制进去，ClickHouse 从中推出当前状态和每个事件一行，服务的数据集也在那里查询。日志仍然是唯一的事实：数仓可以删掉，再从日志重新填充。本页连接一个服务，介绍这些表和它们的列，并说明怎样在集群上运行它们。
 
+::: warning wow-clickhouse 在 10.0 中是实验性的
+`wow-clickhouse` 仍在孵化中：在数据集与分析模块正式发布之前，它可能不经弃用周期而改变。它的类型（`ClickHouseClients`、`ClickHouseSinkProvider`、`ClickHouseSinkOptions`、`AggregateSinkOptions`、`ClickHouseDatasetBindings`、`ClickHouseDatasetOptions`）都是 `@ExperimentalWowApi`（[API 级别](../reference/api-levels)），`wow.clickhouse.*` 和 `wow.aggregates.[<context>.<aggregate>].clickhouse.*` 配置键也可能随之改变，分析目录的镜像也是如此。只靠依赖和配置键开启 Sink 或数据集的服务无需再做什么；在 Kotlin 代码里用到这些类型时（例如用 `ClickHouseClients.of` 构建客户端 Bean），以 `@OptIn(ExperimentalWowApi::class)` 选择使用。数据集与分析模块正式发布后，一个 10.x 的次版本会去掉这个标记。这个标记不改变 Sink 存储的任何数据，也不改变数据集查询发送的任何内容。
+:::
+
 ## 连接服务 {#connect-a-service}
 
 服务器须为 ClickHouse 25.3 或更新版本。从 25.3 起，服务器会把数据集的租户条件带进它所连接的每个合并（`FINAL`）来源，租户的查询只读该来源中这个租户的行；更旧的服务器每次查询都会读整个来源。
@@ -38,6 +42,7 @@ Sink 和数据集按同一条规则取得客户端：应用有 ClickHouse `Clien
 
 ```kotlin
 @Bean(destroyMethod = "close")
+@OptIn(ExperimentalWowApi::class) // wow-clickhouse is incubating
 @ConditionalOnProperty(prefix = ClickHouseClients.PREFIX, name = ["endpoint"])
 fun analyticsCatalogClickHouseClient(environment: Environment): Client {
     val settings = Binder.get(environment)

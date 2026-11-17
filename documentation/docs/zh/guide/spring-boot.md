@@ -84,7 +84,7 @@ dependencies {
 | `wow-postgres` | PostgreSQL 后端，基于应用的 `DataSource` |
 | `wow-mongo` | MongoDB 后端，基于应用的 `MongoClient` |
 | `wow-kafka` | 设置了 `wow.kafka.bootstrap-servers` 时的 Kafka 传输：上下文之间发布的事件流、命令和回执（[Kafka](../operate/kafka)） |
-| `wow-clickhouse` | 数仓 Sink 和数据集的查询 |
+| `wow-clickhouse` | 数仓 Sink 和数据集的查询（[ClickHouse](../operate/clickhouse)）；在 10.0 中是实验性的，在数据集与分析模块正式发布之前仍在孵化中 |
 | `wow-elasticsearch` | 存储类型 `elasticsearch`，用于快照及其查询，以及为检索索引事件流的 Sink |
 | `wow-observability` | 节点工作的追踪和指标 |
 | `wow-cosec` | 公开路由的 CoSec 认证与授权（[保护部署](../operate/security)）；在 10.0 中是实验性的，跟随 CoSec 8 的预发布版本 |

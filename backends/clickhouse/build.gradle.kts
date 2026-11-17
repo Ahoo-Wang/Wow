@@ -1,4 +1,5 @@
-description = "Wow ClickHouse: the ClickHouse Sink and the dataset query backend"
+description = "Wow ClickHouse: the ClickHouse Sink and the dataset query backend; experimental in 10.0: incubating, " +
+    "it may change without a deprecation cycle until the dataset and analytics modules are released stable"
 
 // The Sink of work package 6.4b (decisions D142, D164) and the dataset query backend of 6.4a.
 dependencies {
