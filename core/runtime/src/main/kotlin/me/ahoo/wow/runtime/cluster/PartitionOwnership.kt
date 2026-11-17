@@ -21,7 +21,6 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -216,6 +215,9 @@ class PartitionOwnership internal constructor(
             leaseCalls = LeaseCalls(options.leaseParallelism),
         )
     }
+
+    /** What each reconcile does to the partitions held once it knows its target. */
+    private val round = ReconcileRound(runs, gates)
 
     private val wakeRefresh = Channel<Unit>(Channel.CONFLATED)
 
@@ -535,17 +537,12 @@ class PartitionOwnership internal constructor(
         fence.reconcileStarted()
         try {
             renewals.loseOverdue()
-            runs.dropLost()
             // The members the membership read last: no read of its own.
             val members = membership.membersOf(group.name).mapTo(HashSet()) { it.node }
             peerRoutes.membersSeen(members)
             val goal = Hrw.partitionsOf(node, members + node, partitions)
             target = goal
-            runs.handOff(gates.keys.filter { it !in goal })
-            val missing = goal.filter { !gates.containsKey(it) }
-            coroutineScope {
-                missing.forEach { partition -> launch { runs.acquire(partition, reads) } }
-            }
+            round.move(goal, reads)
         } finally {
             reconciling = null
             fence.reconcileEnded()
