@@ -59,6 +59,8 @@ dependencies {
     // META-INF/wow/dataset/eshop-ordering.sales.json is queried there (work package E.6).
     implementation("me.ahoo.wow:wow-clickhouse")
     testImplementation("me.ahoo.wow:wow-test-spring-boot")
+    // The CoSec-Identity header the CoSec gateway forwards, which the service believes as it comes.
+    testImplementation(testFixtures(project(":cosec")))
     // The integration tests run the service in their JVM on PostgreSQL and ClickHouse in containers, its command
     // topics in its JVM: the snapshot queries and the sales dataset (decision D204).
     integrationTestImplementation("org.testcontainers:testcontainers-postgresql")

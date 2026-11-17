@@ -108,9 +108,9 @@ class CoSecEdgeTest {
     fun `the authorizer decides a command answered as an event stream with the request's security too`() {
         val opened = node.post("/shop/cart/open-cart", headers = token("alice;acme")).assertSucceeded()
         val id = opened["ref"]["id"].asString()
-        // The route is permitted, the command is not: only the authorizer asks a second time.
-        var asked = 0
-        cosec.permits = { it.action != "shop:AddItem" || ++asked == 1 }
+        // The route is permitted, the command is not: the authorizer asks a second time, and is denied.
+        cosec.asked.clear()
+        cosec.permits = { it.action != "shop:AddItem" }
         val status = node.client.post().uri("/shop/cart/$id/add-item")
             .header("Authorization", "Bearer alice;acme")
             .header("Content-Type", "application/json")
@@ -121,7 +121,7 @@ class CoSecEdgeTest {
             .returnResult()
         status.status.value().assert().isEqualTo(403)
         status.responseBody!!.assert().contains(FrameworkCodes.AUTH_FORBIDDEN)
-        asked.assert().isEqualTo(2)
+        cosec.asked.map { it.toString() }.assert().isEqualTo(listOf("shop:AddItem cart/$id", "shop:AddItem cart/$id"))
     }
 
     @Test
@@ -141,8 +141,7 @@ class CoSecEdgeTest {
     fun `the CoSec request facts and the app of CoSec's scope reach the command beside the host's own`() {
         node.post(
             "/shop/cart/open-cart",
-            headers = token("alice;acme") + mapOf(
-                CoSecParameters.APP_ID to "shop-app",
+            headers = token("alice;acme;;shop-app") + mapOf(
                 CoSecRequestFacts.DEVICE_ID to "device-1",
                 "X-Trace" to "t-1",
                 "X-Other" to "ignored",

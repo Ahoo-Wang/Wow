@@ -1,3 +1,8 @@
+// The test fixtures: the CoSec-Identity header a CoSec gateway forwards, for the tests of the services behind one.
+plugins {
+    `java-test-fixtures`
+}
+
 description = "Wow CoSec: the caller from CoSec's security context, and command authorization; experimental in 10.0: " +
     "it follows CoSec 8's pre-release and may change within 10.x"
 
