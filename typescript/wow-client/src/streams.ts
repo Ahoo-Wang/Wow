@@ -214,6 +214,14 @@ export function resumableQueryRows<T>(
   const events = (from: Answer) =>
     eventsOf(from, event => event === ROW_EVENT || event === UNNAMED_EVENT);
   let reader = events(answer);
+  /**
+   * Releases a response the stream reads no more of: past the event that
+   * ended it, its body may still be open (a peer, a proxy or the caller's
+   * fetcher need not close it at once). A release that fails hides nothing:
+   * what ended the stream is what its reader learns.
+   */
+  const release = (from: typeof reader, reason?: unknown) =>
+    from.cancel(reason).catch(() => undefined);
   let lastEventId = options.lastEventId;
   let received = 0;
   let failures = 0;
@@ -260,55 +268,11 @@ export function resumableQueryRows<T>(
 
   return new ReadableStream<Positioned<T>>({
     async pull(controller) {
-      for (;;) {
-        let stop: unknown;
-        let delayMs: number | undefined;
-        try {
-          const next = await reader.read();
-          if (next.done) {
-            // Every stream ends with `end`: one without was cut off.
-            stop = new TypeError('The query stream was cut off.');
-          } else {
-            const { event, id, data } = next.value;
-            if (event === ROW_EVENT || event === UNNAMED_EVENT) {
-              if (id) lastEventId = id;
-              received++;
-              failures = 0;
-              controller.enqueue(
-                id ? { row: data as T, position: id } : { row: data as T },
-              );
-              return;
-            }
-            if (event === END_EVENT) {
-              const end = data as StreamEnd;
-              if (end.reason === COMPLETE) {
-                controller.close();
-                return;
-              }
-              stop = new TypeError(`The query stream ended: ${end.reason}.`);
-              if (!end.resumable) throw stop;
-              if (end.reason === HOLD_EXPIRED) delayMs = 0;
-            } else if (event === ERROR_EVENT) {
-              const error = problemOf(data);
-              if (error.retry === 'none') throw error;
-              stop = error;
-              delayMs = error.retryAfterMs;
-            } else {
-              continue;
-            }
-          }
-        } catch (error) {
-          if (error === stop || error instanceof WowProblemError) throw error;
-          stop = error;
-        }
-        if (cancelling.signal.aborted) return;
-        // Only a stream read from the start, or whose records have positions, can be asked for again.
-        if (signal?.aborted) throw signal.reason;
-        if (lastEventId === undefined && received > 0) throw stop;
-        if (!(await resume(stop, delayMs))) {
-          controller.close();
-          return;
-        }
+      try {
+        await read(controller);
+      } catch (error) {
+        await release(reader, error);
+        throw error;
       }
     },
     cancel(reason) {
@@ -316,4 +280,63 @@ export function resumableQueryRows<T>(
       return reader.cancel(reason);
     },
   });
+
+  /** Reads the next record into `controller`, resuming as the stream says. */
+  async function read(
+    controller: ReadableStreamDefaultController<Positioned<T>>,
+  ): Promise<void> {
+    for (;;) {
+      let stop: unknown;
+      let delayMs: number | undefined;
+      try {
+        const next = await reader.read();
+        if (next.done) {
+          // Every stream ends with `end`: one without was cut off.
+          stop = new TypeError('The query stream was cut off.');
+        } else {
+          const { event, id, data } = next.value;
+          if (event === ROW_EVENT || event === UNNAMED_EVENT) {
+            if (id) lastEventId = id;
+            received++;
+            failures = 0;
+            controller.enqueue(
+              id ? { row: data as T, position: id } : { row: data as T },
+            );
+            return;
+          }
+          if (event === END_EVENT) {
+            const end = data as StreamEnd;
+            if (end.reason === COMPLETE) {
+              await release(reader);
+              controller.close();
+              return;
+            }
+            stop = new TypeError(`The query stream ended: ${end.reason}.`);
+            if (!end.resumable) throw stop;
+            if (end.reason === HOLD_EXPIRED) delayMs = 0;
+          } else if (event === ERROR_EVENT) {
+            const error = problemOf(data);
+            if (error.retry === 'none') throw error;
+            stop = error;
+            delayMs = error.retryAfterMs;
+          } else {
+            continue;
+          }
+        }
+      } catch (error) {
+        if (error === stop || error instanceof WowProblemError) throw error;
+        stop = error;
+      }
+      if (cancelling.signal.aborted) return;
+      // Only a stream read from the start, or whose records have positions, can be asked for again.
+      if (signal?.aborted) throw signal.reason;
+      if (lastEventId === undefined && received > 0) throw stop;
+      // This response ends here: release it before asking for another.
+      await release(reader, stop);
+      if (!(await resume(stop, delayMs))) {
+        controller.close();
+        return;
+      }
+    }
+  }
 }
