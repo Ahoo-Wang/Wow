@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.compiler.model.source
 
+import me.ahoo.wow.compiler.model.KotlinNames
 import me.ahoo.wow.compiler.model.aggregate.AggregateBinding
 import me.ahoo.wow.compiler.model.aggregate.Dependency
 import me.ahoo.wow.compiler.model.route.ServiceRouteBinding
@@ -68,7 +69,7 @@ internal object ModelProviderSource {
         // A dependency of a generic type is found by its class and cast to the type the factory takes.
         appendLine("@file:kotlin.Suppress(\"UNCHECKED_CAST\")")
         if (packageName.isNotEmpty()) {
-            appendLine("package $packageName")
+            appendLine("package ${KotlinNames.qualified(packageName)}")
         }
         appendLine()
         appendLine("/** The binding index of the module of Manifest fragment [fragment]. */")
@@ -86,7 +87,7 @@ internal object ModelProviderSource {
             val factory = if (aggregate.packageName.isEmpty()) {
                 aggregate.factoryName
             } else {
-                "${aggregate.packageName}.${aggregate.factoryName}"
+                "${KotlinNames.qualified(aggregate.packageName)}.${aggregate.factoryName}"
             }
             val building = "the ${aggregate.rootSimpleName} model"
             val arguments = listOf("context") + aggregate.dependencies.map { dependency(it, building) }

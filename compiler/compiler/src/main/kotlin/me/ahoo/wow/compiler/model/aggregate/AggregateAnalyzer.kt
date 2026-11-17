@@ -59,6 +59,7 @@ import me.ahoo.wow.compiler.model.symbol.isModuleInternal
 import me.ahoo.wow.compiler.model.symbol.javaTypeOf
 import me.ahoo.wow.compiler.model.symbol.reactorReturn
 import me.ahoo.wow.compiler.model.symbol.render
+import me.ahoo.wow.compiler.model.symbol.sourceName
 import me.ahoo.wow.compiler.model.symbol.suppresses
 import me.ahoo.wow.compiler.model.symbol.toName
 
@@ -79,7 +80,7 @@ internal class AggregateAnalyzer(
     fun analyze(root: KSClassDeclaration): AggregateBinding {
         val problems = mutableListOf<String>()
         val warnings = mutableListOf<String>()
-        val rootName = root.qualifiedName!!.asString()
+        val rootName = root.sourceName()!!
         // Read once: its arguments are the aggregate's, from its ownership to its retired events.
         val rootArguments = root.argumentsOf(AggregateRoot::class, problems)
         val state = RootStateResolver.stateOf(root, problems)
@@ -110,7 +111,7 @@ internal class AggregateAnalyzer(
             packageName = root.packageName.asString(),
             rootSimpleName = root.simpleName.asString(),
             aggregateName = aggregateName,
-            state = state.qualifiedName!!.asString(),
+            state = state.sourceName()!!,
             rootIsState = rootIsState,
             stateArguments = stateArguments,
             dependencies = dependencies.values.toList(),
@@ -389,7 +390,7 @@ internal class AggregateAnalyzer(
 
     /** The events `@OnCommand(produces)` lists, of the function's [onCommand] read, by qualified name. */
     private fun declaredProduces(onCommand: AnnotationArguments?): List<String> =
-        onCommand?.types(PRODUCES).orEmpty().mapNotNull { it.declaration.qualifiedName?.asString() }.distinct()
+        onCommand?.types(PRODUCES).orEmpty().mapNotNull { it.declaration.sourceName() }.distinct()
 
     /** `@OnCommand(onDeleted)`, of the function's [onCommand] read: false by default. */
     private fun declaredOnDeleted(onCommand: AnnotationArguments?): Boolean = onCommand?.boolean(ON_DELETED) ?: false
@@ -461,9 +462,9 @@ internal class AggregateAnalyzer(
             val simple = type.declaration.simpleName.asString().withFirst(Char::lowercaseChar) +
                 dependencyName?.let(::identifierSuffix).orEmpty()
             val unique = if (dependencies.values.any { it.name == simple }) simple + dependencies.size else simple
-            val erasure = type.declaration.qualifiedName!!.asString()
+            val erasure = type.declaration.sourceName()!!
             Dependency(unique, rendered, erasure, dependencyName, type.javaTypeOf())
-        }.name
+        }.parameter
     }
 
     /** `"fx.primary"` gives `FxPrimary`, to name a named dependency's factory parameter. */

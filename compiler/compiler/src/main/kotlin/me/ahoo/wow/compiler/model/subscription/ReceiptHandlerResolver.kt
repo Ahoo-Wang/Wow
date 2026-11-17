@@ -24,6 +24,7 @@ import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.compiler.model.symbol.binaryName
 import me.ahoo.wow.compiler.model.symbol.handlerName
 import me.ahoo.wow.compiler.model.symbol.isHandler
+import me.ahoo.wow.compiler.model.symbol.sourceName
 
 /**
  * Reads the receipt handlers of a saga, its `@OnRejected` and `@OnCommitted` functions ([SubscriptionResolver]):
@@ -111,7 +112,7 @@ internal object ReceiptHandlerResolver {
             subscription = "$processor.$name",
             callee = callee,
             command = command,
-            commandSource = command?.let { first.arguments.firstOrNull()?.type?.resolve()?.qualifiedName() },
+            commandSource = command?.let { first.arguments.firstOrNull()?.type?.resolve()?.declaration?.sourceName() },
             context = context != null,
             suspending = Modifier.SUSPEND in function.modifiers,
             reactor = reactor,

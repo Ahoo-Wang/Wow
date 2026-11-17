@@ -26,6 +26,7 @@ import me.ahoo.wow.compiler.model.symbol.binaryName
 import me.ahoo.wow.compiler.model.symbol.classOf
 import me.ahoo.wow.compiler.model.symbol.commandClassesOf
 import me.ahoo.wow.compiler.model.symbol.concreteClasses
+import me.ahoo.wow.compiler.model.symbol.sourceName
 
 /**
  * What a saga's handler sends ([SendsBinding]), of any of its kinds (`@OnEvent`, `@OnRejected`, `@OnCommitted`,
@@ -167,14 +168,14 @@ internal object SendsResolver {
 
     private fun commandClass(declaration: KSClassDeclaration): CommandClass = CommandClass(
         declaration.binaryName(),
-        declaration.qualifiedName!!.asString(),
+        declaration.sourceName()!!,
         declaration.getAllSuperTypes().mapTo(LinkedHashSet()) { it.declaration.binaryName() },
     )
 
     private fun KSType.qualifiedName(): String? = declaration.qualifiedName?.asString()
 
     private fun KSType.render(): String {
-        val name = declaration.qualifiedName!!.asString()
+        val name = declaration.sourceName()!!
         val rendered = if (arguments.isEmpty()) {
             name
         } else {

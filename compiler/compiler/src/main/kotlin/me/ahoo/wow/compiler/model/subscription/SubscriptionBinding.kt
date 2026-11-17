@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.compiler.model.subscription
 
+import me.ahoo.wow.compiler.model.KotlinNames
 import me.ahoo.wow.compiler.model.aggregate.Dependency
 
 /**
@@ -53,7 +54,7 @@ internal data class SubscriptionBinding(
 ) {
     /** The generated function that binds the processor's handlers: `cartSagaHandlers` for `CartSaga`. */
     val factoryName: String
-        get() = simpleNames.joinToString("").replaceFirstChar { it.lowercase() } + "Handlers"
+        get() = KotlinNames.quoted(simpleNames.joinToString("").replaceFirstChar { it.lowercase() } + "Handlers")
 }
 
 internal data class HandlerBinding(

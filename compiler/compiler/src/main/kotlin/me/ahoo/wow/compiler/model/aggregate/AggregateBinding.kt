@@ -14,6 +14,7 @@
 package me.ahoo.wow.compiler.model.aggregate
 
 import me.ahoo.wow.api.lifecycle.Lifecycle
+import me.ahoo.wow.compiler.model.KotlinNames
 
 /** What `ModelSymbolProcessor` found in one aggregate root, before generating its model. */
 internal data class AggregateBinding(
@@ -79,8 +80,8 @@ internal data class AggregateBinding(
     /** Whether `@AggregateRoot(lifecycle)` narrows the lifecycle commands, which the generated model then says. */
     val narrowsLifecycle: Boolean get() = lifecycle != ALL_LIFECYCLE_COMMANDS
 
-    /** The name of the generated model factory, `<root>Model`. */
-    val factoryName: String get() = rootSimpleName.replaceFirstChar { it.lowercase() } + "Model"
+    /** The name of the generated model factory, `<root>Model`, as Kotlin source ([KotlinNames.quoted]). */
+    val factoryName: String get() = KotlinNames.quoted(rootSimpleName.replaceFirstChar { it.lowercase() } + "Model")
 
     companion object {
         /** Every lifecycle command, by its system name, sorted. */
@@ -100,7 +101,10 @@ internal class Dependency(
     val erasure: String,
     val dependencyName: String?,
     val fullType: String? = null,
-)
+) {
+    /** The parameter's [name] as Kotlin source ([KotlinNames.quoted]): a type's simple name may be a keyword. */
+    val parameter: String get() = KotlinNames.quoted(name)
+}
 
 internal data class CommandBinding(
     val command: String,
