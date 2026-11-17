@@ -127,6 +127,25 @@ class TimerRecoveryRaceTest : TimerRunnerFixtures() {
         }
 
     @Test
+    fun `a retry that reads again a PARKED timer with no outcome records its entry with an empty reason`(): Unit =
+        runBlocking {
+            // What makes it certain: the retry has settled the PARKED timer it read (old) and waits at its resolve
+            // while a PARKED row with no outcome, one this runner did not write, is put in the store; then the resolve
+            // runs and the retry reads that row again.
+            parked("old")
+            val runner = TimerRunner(SHOP, store, heldResolve, firer, loop(maxAttempts = 1)).also { runners += it }
+            val operator = async { runner.retry(order("o-1")) }
+            withTimeout(10.seconds) { atResolve.await() }
+            val bare = timer("bare")
+            store.put(bare)
+            val parked = bare.copyWith(status = TimerStatus.PARKED, attempts = 1, outcome = null)
+            store.settle(listOf(TimerChange(bare, parked))).single().assert().isTrue()
+            resolving.complete(Unit)
+            withTimeout(10.seconds) { operator.await() }.assert().isEqualTo(1)
+            entry()?.reason.assert().isEqualTo("${bare.id}: ")
+        }
+
+    @Test
     fun `a retry that resolves the target while a timer of it is parking leaves the entry for that one`(): Unit =
         retryWhileParking()
 
