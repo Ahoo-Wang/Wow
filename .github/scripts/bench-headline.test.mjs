@@ -87,6 +87,29 @@ test('an Actions capacity suite gives each scenario its sustainable rate, beside
   });
 });
 
+test('a saturation whose search reached its most clients still gaining is marked a lower bound', () => {
+  const root = rootWith({
+    'actions-snapshot/l4/sustainable-mongo.100k/suite.json': {
+      kind: 'capacity',
+      distribution: 'uniform',
+      arms: [{ id: 'head', backend: 'mongo' }],
+      refs: REFS,
+      runner: RUNNER,
+      saturation: {
+        E1: { throughput: 5010.75, capped: true },
+        E2: { throughput: 2261.625, capped: false },
+      },
+      capacity: {
+        E1: { rate: 2975.1, p50: 18.2, p99: 198.7, cpuMsPerOp: 0.95 },
+        E2: { rate: 1272.2, p50: 28.8, p99: 190.5, cpuMsPerOp: 2.2 },
+      },
+    },
+  });
+  const [e1, e2] = actionsSnapshot(root, 'actions-snapshot');
+  assert.equal(e1.saturationLowerBound, true);
+  assert.equal('saturationLowerBound' in e2, false);
+});
+
 test("an L3 round of the head is a unit cost at its own rate, the node's, the store's and Kafka's CPU apart", () => {
   const root = rootWith({
     'actions-snapshot/l3/e1-pg-uniform.100k/suite.json': {

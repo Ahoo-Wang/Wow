@@ -26,7 +26,7 @@ Wow 按端到端测量：负载生成器经 HTTP 向运行在 PostgreSQL 或 Mon
 
 两个环境：
 
-- **GitHub Actions。** 每个套件独占一台共享 Runner，4 核 16 GB，节点、存储、Kafka 与负载生成器都在其上。一次比较在同一台 Runner 上轮流运行当前提交和一个已发布的基线，因此它的比值可跨 Runner 比较，而绝对数字只属于那台 Runner。
+- **GitHub Actions。** 每个套件独占一台共享 Runner，4 核 15～16 GB，节点、存储、Kafka 与负载生成器都在其上。一次比较在同一台 Runner 上轮流运行当前提交和一个已发布的基线，因此它的比值可跨 Runner 比较，而绝对数字只属于那台 Runner。
 - **一台 Apple M5 Max**（18 核，64 GB）。存储运行在同一主机的容器中，节点为一个或三个；闭环扫描从 1 个客户端到 4,096 个，单节点的 E1 继续向上。
 
 ## 数字 {#figures}
@@ -34,17 +34,19 @@ Wow 按端到端测量：负载生成器经 HTTP 向运行在 PostgreSQL 或 Mon
 <!-- performance:begin snapshots -->
 <!-- 由 .github/scripts/docs-performance.mjs 依据各报告的 headline.json 生成；用 `pnpm docs:reference` 重新生成。请勿手改。 -->
 
-每个数字都来自其所在行注明的构建、JDK 与机器，都将在 10.0.0-beta.3 上重测。各场景见[测了什么](#what-was-measured)。
+每个数字都来自其所在行注明的构建、JDK 与机器。各场景见[测了什么](#what-was-measured)。
 
-**GitHub Actions，每个套件一台 4 核 runner**：[actions-snapshot](https://github.com/Ahoo-Wang/Wow/blob/main/test/benchmarks/results/reports/actions-snapshot.md)，构建 `d8284109df`。
+**GitHub Actions，每个套件一台 4 核 runner**：[actions-snapshot](https://github.com/Ahoo-Wang/Wow/blob/main/test/benchmarks/results/reports/actions-snapshot.md)，构建 `e3a4e937aa`。
+
+这些行来自 2 种 CPU 型号，每行注明了自己的型号：型号不同的两行既不能用来比较存储，也不能用来比较场景。
 
 | 存储 | 节点 | 场景 | 键 | 峰值 | 可持续 | CPU、JDK、构建 |
 | --- | ---: | --- | --- | --- | --- | --- |
-| MongoDB | 一个 | E1 | 均匀 | 2,166.1/s，闭环 | 1,353.8/s，开环，p99 171 ms | EPYC 7763，JDK 25.0.5+8，`d8284109df` |
-| MongoDB | 一个 | E2 | 均匀 | 1,353.4/s，闭环 | 676.7/s，开环，p99 196.6 ms | EPYC 7763，JDK 25.0.5+8，`d8284109df` |
-| MongoDB | 一个 | E3 | 均匀 | 776.8/s，闭环 | 485.5/s，开环，p99 161.8 ms | EPYC 7763，JDK 25.0.5+8，`d8284109df` |
-| PostgreSQL | 一个 | E1 | 均匀 | 4,912.5/s，闭环 | 2,609.8/s，开环，p99 160.8 ms | EPYC 9V45，JDK 25.0.5+8，`d8284109df` |
-| PostgreSQL | 一个 | E3 | 均匀 | 2,374/s，闭环 | 741.9/s，开环，p99 188.4 ms | EPYC 9V45，JDK 25.0.5+8，`d8284109df` |
+| MongoDB | 一个 | E1 | 均匀 | ≥ 5,010.8/s，闭环 | 2,975.1/s，开环，p99 198.7 ms | Xeon 6975P-C，JDK 25.0.5+8，`e3a4e937aa` |
+| MongoDB | 一个 | E2 | 均匀 | 2,261.6/s，闭环 | 1,272.2/s，开环，p99 190.5 ms | Xeon 6975P-C，JDK 25.0.5+8，`e3a4e937aa` |
+| MongoDB | 一个 | E3 | 均匀 | 1,466.6/s，闭环 | 1,008.3/s，开环，p99 173.1 ms | Xeon 6975P-C，JDK 25.0.5+8，`e3a4e937aa` |
+| PostgreSQL | 一个 | E1 | 均匀 | 4,474.9/s，闭环 | 1,957.8/s，开环，p99 139.3 ms | EPYC 7763，JDK 25.0.5+8，`e3a4e937aa` |
+| PostgreSQL | 一个 | E3 | 均匀 | 1,493.1/s，闭环 | 839.9/s，开环，p99 190.5 ms | EPYC 7763，JDK 25.0.5+8，`e3a4e937aa` |
 
 **Apple M5 Max，18 核，64 GB，一台主机**：[m5max-snapshot](https://github.com/Ahoo-Wang/Wow/blob/main/test/benchmarks/results/reports/m5max-snapshot.md)，构建 `103f9b6746`。
 

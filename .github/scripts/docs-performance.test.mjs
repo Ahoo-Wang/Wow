@@ -169,6 +169,12 @@ test("an Actions headline is its sustainable rates beside the closed-loop satura
 test("the CPU names are a reader's", () => {
   assert.equal(cpuName('AMD EPYC 7763 64-Core Processor'), 'EPYC 7763');
   assert.equal(cpuName('Apple M5 Max, 18 cores, 64 GB'), 'Apple M5 Max');
+  assert.equal(cpuName('Intel(R) Xeon(R) 6975P-C'), 'Xeon 6975P-C');
+  assert.equal(cpuName('INTEL(R) XEON(R) PLATINUM 8573C'), 'Xeon 8573C');
+  assert.equal(
+    cpuName('Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz'),
+    'Xeon 8370C',
+  );
 });
 
 test('a headline that lacks a field the table needs is refused, naming it', () => {
@@ -362,14 +368,85 @@ test('a report with no row the table quotes is left out of the block', () => {
   );
 });
 
-test('the block says once that the figures are measured again on 10.0.0-beta.3, in each locale', () => {
-  assert.match(
-    performanceBlock('en', [HEADLINE]),
-    /each is measured again on 10\.0\.0-beta\.3\./,
+test('the block says once that each figure is from the build, JDK and runner its row names, in each locale', () => {
+  const en = performanceBlock('en', [HEADLINE]);
+  assert.equal(
+    en.match(
+      /Each figure is from the build, the JDK and the runner its row names\./g,
+    ).length,
+    1,
   );
+  assert.doesNotMatch(en, /beta\.3/);
   assert.match(
     performanceBlock('zh', [HEADLINE]),
-    /都将在 10\.0\.0-beta\.3 上重测。/,
+    /每个数字都来自其所在行注明的构建、JDK 与机器。/,
+  );
+});
+
+test('a report whose rows name more than one CPU model says once that they do not compare the stores, in each locale', () => {
+  const on = (cpu, store) => ({
+    ...HEADLINE.figures[0],
+    id: `sustainable.${store}.E1`,
+    kind: 'sustainable',
+    store,
+    cpu,
+  });
+  const mixed = {
+    ...HEADLINE,
+    figures: [
+      on('Intel(R) Xeon(R) 6975P-C', 'mongo'),
+      on('AMD EPYC 7763 64-Core Processor', 'postgres'),
+    ],
+  };
+  const en = performanceBlock('en', [mixed]);
+  assert.equal(
+    en.match(
+      /These rows ran on 2 CPU models, which each row names: two rows on different models do not compare the stores, nor the scenarios\./g,
+    ).length,
+    1,
+  );
+  assert.match(
+    performanceBlock('zh', [mixed]),
+    /这些行来自 2 种 CPU 型号，每行注明了自己的型号：型号不同的两行既不能用来比较存储，也不能用来比较场景。/,
+  );
+  const one = {
+    ...mixed,
+    figures: [
+      on('AMD EPYC 7763 64-Core Processor', 'mongo'),
+      on('AMD EPYC 7763 64-Core Processor', 'postgres'),
+    ],
+  };
+  assert.doesNotMatch(performanceBlock('en', [one]), /CPU models/);
+  assert.doesNotMatch(performanceBlock('en', [HEADLINE]), /CPU models/);
+});
+
+test('a closed-loop peak whose search reached its most clients still gaining is a lower bound', () => {
+  const capped = {
+    ...HEADLINE,
+    environment: 'actions',
+    figures: [
+      {
+        id: 'sustainable.mongo.E1',
+        kind: 'sustainable',
+        store: 'mongo',
+        nodes: 1,
+        scenario: 'E1',
+        keys: 'uniform',
+        value: 2975.1,
+        p99Ms: 198.7,
+        saturation: 5010.8,
+        saturationLowerBound: true,
+        commit: 'e3a4e937aa',
+        cpu: 'Intel(R) Xeon(R) 6975P-C',
+        jdk: '25.0.5+8',
+        source: 'actions-snapshot/l4/sustainable-mongo.100k/suite.json',
+      },
+    ],
+  };
+  assert.ok(
+    performanceBlock('en', [capped]).includes(
+      '| ≥ 5,010.8/s, closed loop | 2,975.1/s, open loop, p99 198.7 ms | Xeon 6975P-C,',
+    ),
   );
 });
 
