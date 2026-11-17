@@ -142,7 +142,8 @@ class SnapshotSubscription(
         gate = gate,
     )
 
-    private val reader = SharedStateReader(name, models, kernel, codec, this.views, store) { writes.read?.logRead() }
+    private val reader =
+        SharedStateReader(name, models, kernel, codec, this.views, store) { writes.countsIfRead?.logRead() }
 
     /** The subscription to register: [name]d, of the snapshotted aggregate types only. */
     val subscription: Subscription = Subscription.coalescing(
@@ -185,7 +186,7 @@ class SnapshotSubscription(
             return
         }
         val stored = store.load(ref)
-        writes.read?.loaded(1)
+        writes.countsIfRead?.loaded(1)
         if (stored != null && stored.version >= version) {
             remember(ref, FirstCommit.of(stored), stored.version)
             return
@@ -241,7 +242,7 @@ class SnapshotSubscription(
 
     /** What the snapshot keeps of [ref]'s first stream, read from the log. */
     private suspend fun firstOf(ref: AggregateRef): FirstCommit {
-        writes.read?.logRead()
+        writes.countsIfRead?.logRead()
         val stream = checkNotNull(log.read(ref, 1, 1).firstOrNull()) { "The log does not hold $ref@1." }
         return FirstCommit.of(stream)
     }
