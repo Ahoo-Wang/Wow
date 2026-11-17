@@ -53,3 +53,13 @@ tests:
             - port: http
               path: /actuator/prometheus
               interval: 30s
+
+  - it: refuses a monitor's label of the chart's, naming it
+    template: templates/servicemonitor.yaml
+    set:
+      metrics.serviceMonitor.enabled: true
+      metrics.serviceMonitor.labels:
+        app.kubernetes.io/name: custom-label
+    asserts:
+      - failedTemplate:
+          errorPattern: "metrics.serviceMonitor.labels.app.kubernetes.io/name is a label the chart sets itself"
