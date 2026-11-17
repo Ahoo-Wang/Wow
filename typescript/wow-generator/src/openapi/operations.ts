@@ -20,6 +20,7 @@ import type {
   Paths,
   Reference,
   Response,
+  Responses,
   Schema,
 } from '@ahoo-wang/fetcher-openapi';
 import { compareNames } from '../naming/order';
@@ -142,6 +143,14 @@ export function okResponseStatus(operation: Operation): string | undefined {
 }
 
 /**
+ * A key of `Responses` that names a response, a status code or `default`,
+ * rather than an `x-` extension. It is typed from the map itself, so it is a
+ * plain `string` where fetcher-openapi keys `Responses` by `string`, and its
+ * status code key where it keys the map by that.
+ */
+type ResponseKey = Extract<Exclude<keyof Responses, `x-${string}`>, string>;
+
+/**
  * Extracts the success response from an operation: `200`, else the lowest
  * other 2xx response, else `2XX`.
  * @param operation - The OpenAPI operation
@@ -153,7 +162,10 @@ export function extractOkResponse(
   components?: Components,
 ): Response | Reference | undefined {
   const status = okResponseStatus(operation);
-  const response = status ? operation.responses[status] : undefined;
+  // Every status `okResponseStatus` picks is a 2xx code, so a response key.
+  const response = status
+    ? operation.responses[status as ResponseKey]
+    : undefined;
   return components && isReference(response)
     ? extractResponse(response, components)
     : response;
