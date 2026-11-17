@@ -66,7 +66,7 @@ class PartitionRunsTest {
                 it.started()
                 it.lost = true
             }
-            runs.dropLost()
+            runs.dropLost(gates.toMap(), retaken = emptySet(), reads = null)
             coVerify { intake.stopPartition(0) }
             coVerify { runtime.stopPartition(0) }
             changed.assert().containsExactly(0)
@@ -98,7 +98,7 @@ class PartitionRunsTest {
         // The acquisition is a step of the reconcile all the same.
         steps.assert().hasSize(1)
         // Once the reconcile moves again, it is dropped as any lost partition.
-        fenced.dropLost()
+        fenced.dropLost(gates.toMap(), retaken = emptySet(), reads = null)
         gates.assert().isEmpty()
         steps.assert().hasSize(2)
     }

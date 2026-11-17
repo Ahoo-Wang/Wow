@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.runtime.cluster
 
-import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -40,13 +39,4 @@ internal class ReconcileRound(private val runs: PartitionRuns, private val gates
         }
         listOf(dropping, moving).awaitEach()
     }
-}
-
-/**
- * Awaits every one of these, then throws the first failure among them: in a supervisor scope, one that fails leaves
- * the others running to their end, a partition's stop above all.
- */
-internal suspend fun List<Deferred<*>>.awaitEach() {
-    val failures = map { deferred -> runCatching { deferred.await() }.exceptionOrNull() }
-    failures.firstOrNull { it != null }?.let { throw it }
 }

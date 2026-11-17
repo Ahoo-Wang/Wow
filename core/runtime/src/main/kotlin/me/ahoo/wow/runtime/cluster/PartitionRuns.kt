@@ -15,6 +15,7 @@ package me.ahoo.wow.runtime.cluster
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
@@ -166,13 +167,10 @@ internal class PartitionRuns(
      * as a hand-off stops its partitions (#6379). Each one stops in order: its timers, its intake, its subscriptions,
      * its cached states, its gate. Each of [retaken] is acquired again once its own stop ended, never before, so this
      * node never reads a partition twice; one partition's stop holds up no other's, nor another's acquisition. The
-     * first acquisition that failed is thrown once every partition stopped.
+     * first acquisition that failed is thrown once every partition stopped. A failed drop of a partition's cached
+     * states is logged and its stop goes on, as a hand-off's does: [acquire] drops them again before it reads.
      */
-    suspend fun dropLost(
-        lost: Map<Int, PartitionGate> = gates.filterValues { it.lost },
-        retaken: Set<Int> = emptySet(),
-        reads: Job? = null,
-    ) = supervisorScope {
+    suspend fun dropLost(lost: Map<Int, PartitionGate>, retaken: Set<Int>, reads: Job?) = supervisorScope {
         lost.map { (partition, gate) ->
             async {
                 drop(partition, gate)
@@ -256,6 +254,15 @@ internal suspend fun runLogged(
     } catch (failure: Exception) {
         logger.warn(failure) { "$node failed to $action in $group; $then." }
     }
+}
+
+/**
+ * Awaits every one of these, then throws the first failure among them: in a supervisor scope, one that fails leaves
+ * the others running to their end, a partition's stop above all.
+ */
+internal suspend fun List<Deferred<*>>.awaitEach() {
+    val failures = map { deferred -> runCatching { deferred.await() }.exceptionOrNull() }
+    failures.firstOrNull { it != null }?.let { throw it }
 }
 
 // The lines moved from the ownership keep its logger's name.
