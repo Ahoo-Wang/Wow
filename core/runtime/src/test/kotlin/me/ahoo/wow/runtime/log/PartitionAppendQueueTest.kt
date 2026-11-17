@@ -15,7 +15,9 @@ package me.ahoo.wow.runtime.log
 
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -78,8 +80,8 @@ class PartitionAppendQueueTest {
         val first = async(Dispatchers.Default) { queue.append(stream(refs[0], 1)) }
         log.entered.await()
         // One at a time, so the queue order is known.
-        val rest = refs.drop(1).mapIndexed { index, ref ->
-            async(Dispatchers.Default) { queue.append(stream(ref, 1)) }.also { queue.queuedSoon(index + 1) }
+        val rest = refs.drop(1).map { ref ->
+            enqueued { queue.append(stream(ref, 1)) }
         }
         log.release.complete(Unit)
 
@@ -107,8 +109,7 @@ class PartitionAppendQueueTest {
             stream(fresh, 1),
             stream(behind, 1, requestId = "another"),
             stream(duplicate, 2, requestId = "taken"),
-        ).map { async(Dispatchers.Default) { queue.append(it) } }
-        queue.queuedSoon(outcomes.size)
+        ).map { enqueued { queue.append(it) } }
         log.release.complete(Unit)
 
         blocked.await().assert().isInstanceOf(AppendOutcome.Committed::class.java)
@@ -127,10 +128,8 @@ class PartitionAppendQueueTest {
         val (blocker, ref) = refsOfOnePartition(2)
         val blocked = async(Dispatchers.Default) { queue.append(stream(blocker, 1)) }
         log.entered.await()
-        val v1 = async(Dispatchers.Default) { queue.append(stream(ref, 1)) }
-        queue.queuedSoon(1)
-        val v2 = async(Dispatchers.Default) { queue.append(stream(ref, 2)) }
-        queue.queuedSoon(2)
+        val v1 = enqueued { queue.append(stream(ref, 1)) }
+        val v2 = enqueued { queue.append(stream(ref, 2)) }
         log.release.complete(Unit)
 
         listOf(blocked, v1, v2).awaitAll().forEach { it.assert().isInstanceOf(AppendOutcome.Committed::class.java) }
@@ -146,11 +145,8 @@ class PartitionAppendQueueTest {
         val refs = refsOfOnePartition(4)
         val blocked = async(Dispatchers.Default) { queue.append(stream(refs[0], 1)) }
         log.entered.await()
-        val failing = refs.subList(
-            1,
-            3
-        ).map { ref -> async(Dispatchers.Default) { runCatching { queue.append(stream(ref, 1)) } } }
-        queue.queuedSoon(failing.size)
+        // Both in the lane before the gate opens, so the lane's next batch, the log's failing second call, takes both.
+        val failing = refs.subList(1, 3).map { ref -> enqueued { runCatching { queue.append(stream(ref, 1)) } } }
         log.release.complete(Unit)
 
         blocked.await().assert().isInstanceOf(AppendOutcome.Committed::class.java)
@@ -171,8 +167,7 @@ class PartitionAppendQueueTest {
         val withdrawn = launch(Dispatchers.Default) { queue.append(stream(cancelled, 1)) }
         queue.queuedSoon(1)
         withdrawn.cancelAndJoin()
-        val after = async(Dispatchers.Default) { queue.append(stream(kept, 1)) }
-        queue.queuedSoon(1)
+        val after = enqueued { queue.append(stream(kept, 1)) }
         log.release.complete(Unit)
 
         blocked.await().assert().isInstanceOf(AppendOutcome.Committed::class.java)
@@ -236,8 +231,7 @@ class PartitionAppendQueueTest {
         // second could still be on its way to the queue when it closed, and be refused.
         val first = async(Dispatchers.Default) { queue.append(stream(refs[0], 1)) }
         log.entered.await()
-        val second = async(Dispatchers.Default) { queue.append(stream(refs[1], 1)) }
-        queue.queuedSoon(1)
+        val second = enqueued { queue.append(stream(refs[1], 1)) }
         val appends = listOf(first, second)
         val closing = launch(Dispatchers.Default) { queue.close() }
         log.release.complete(Unit)
@@ -303,8 +297,7 @@ class PartitionAppendQueueTest {
         val refs = refsOfOnePartition(6)
         val first = async(Dispatchers.Default) { queue.append(stream(refs[0], 1)) }
         log.entered.await()
-        val rest = refs.drop(1).map { ref -> async(Dispatchers.Default) { queue.append(stream(ref, 1)) } }
-        queue.queuedSoon(rest.size)
+        val rest = refs.drop(1).map { ref -> enqueued { queue.append(stream(ref, 1)) } }
         log.release.complete(Unit)
 
         (listOf(first) + rest).awaitAll()
@@ -345,7 +338,19 @@ class PartitionAppendQueueTest {
         queue.close()
     }
 
-    /** Waits until [count] appends are queued behind the batch in flight. */
+    /**
+     * Starts [append] on the test's thread, up to its wait for its outcome, then goes on on [Dispatchers.Default]: when
+     * this returns, its append is in its lane, which has room. [queuedSoon] cannot say so: the queue counts an append
+     * just before it sends it to its lane, so a count read meanwhile on another thread can include an append still on
+     * its way, which the lane's next batch then misses.
+     */
+    private fun <T> CoroutineScope.enqueued(append: suspend CoroutineScope.() -> T): Deferred<T> =
+        async(Dispatchers.Default, CoroutineStart.UNDISPATCHED, append)
+
+    /**
+     * Waits until [count] appends are counted queued behind the batch in flight: counted, not yet in their lane
+     * ([enqueued]).
+     */
     private suspend fun PartitionAppendQueue.queuedSoon(count: Int) {
         withTimeout(5.seconds) {
             while (queued < count) {
