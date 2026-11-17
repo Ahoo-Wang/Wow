@@ -13,6 +13,13 @@
 
 package me.ahoo.wow.runtime.subscription
 
+import ch.qos.logback.classic.Level
+import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.LoggerContext
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.classic.turbo.TurboFilter
+import ch.qos.logback.core.read.ListAppender
+import ch.qos.logback.core.spi.FilterReply
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancelAndJoin
@@ -24,6 +31,8 @@ import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.slf4j.LoggerFactory
+import org.slf4j.Marker
 import java.time.Clock
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.time.Duration
@@ -70,6 +79,54 @@ class PartitionThrottleTest {
         throttle(minConcurrency = 3).apply { repeat(4) { backpressure(cart("x")) } }.state!!.limit.assert().isEqualTo(3)
         // A bound below the minimum is never throttled.
         throttle(max = 1, minConcurrency = 2).apply { backpressure(cart("x")) }.isThrottled.assert().isFalse()
+    }
+
+    @Test
+    fun `the warning should name the limit it entered at, even when a success lifts it before the line is written`() {
+        val throttle = throttle()
+        val thread = Thread.currentThread()
+        var lifted = false
+        // Kotlin-logging asks whether WARN is on before it builds the line, outside the throttle's monitor: a success
+        // run there is one another handling's thread runs between the two.
+        val lift = object : TurboFilter() {
+            override fun decide(
+                marker: Marker?,
+                logger: Logger,
+                level: Level,
+                format: String?,
+                params: Array<out Any>?,
+                t: Throwable?,
+            ): FilterReply {
+                val throttles = Thread.currentThread() === thread && logger.name == LOGGER
+                if (throttles && level == Level.WARN && !lifted) {
+                    lifted = true
+                    throttle.succeeded()
+                }
+                return FilterReply.NEUTRAL
+            }
+        }
+        val lines = logged(lift) { throttle.backpressure(cart("x")) }
+        lifted.assert().isTrue()
+        throttle.isThrottled.assert().isFalse()
+        lines.filter { "throttles partition" in it }.assert().singleElement().satisfies({
+            it.assert().contains("it runs at most 4 handlings at once")
+        })
+    }
+
+    /** The throttle's lines while [block] runs, with [filter] asked before each. */
+    private fun logged(filter: TurboFilter, block: () -> Unit): List<String> {
+        val context = LoggerFactory.getILoggerFactory() as LoggerContext
+        val logger = context.getLogger(LOGGER)
+        val appender = ListAppender<ILoggingEvent>().apply { start() }
+        logger.addAppender(appender)
+        context.addTurboFilter(filter)
+        try {
+            block()
+        } finally {
+            context.turboFilterList.remove(filter)
+            logger.detachAppender(appender)
+        }
+        return appender.list.map { it.formattedMessage }
     }
 
     @Test
@@ -167,5 +224,6 @@ class PartitionThrottleTest {
 
     private companion object {
         const val WAITS = 20
+        const val LOGGER = "me.ahoo.wow.runtime.subscription.PartitionThrottle"
     }
 }
