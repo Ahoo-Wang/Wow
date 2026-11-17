@@ -435,9 +435,11 @@ internal class SchemaIntrospector(
     }
 
     /**
-     * The declared schema of an overridden type. A concrete class of the application that Jackson does not write as
-     * an object (a custom serializer, a `@JsonValue`) and that has no override fails the generation: its schema is
-     * declared, not guessed.
+     * The declared schema of an overridden type. A class of the application without an override fails the generation
+     * when its schema would be guessed: a concrete class Jackson does not write as an object (a custom serializer, a
+     * `@JsonValue`), and any class, an interface, an abstract class and an enum among them, that Jackson writes with a
+     * serializer of its own (`@JsonSerialize` with `using` or `converter`, its own or a supertype's), which the
+     * generator would otherwise describe by its properties or constants (#6372). Its schema is declared, not guessed.
      */
     private class Overrides(
         private val schemas: Map<String, ObjectNode>,
@@ -463,13 +465,30 @@ internal class SchemaIntrospector(
                     "schema cannot be introspected: declare it in wow { schemaOverrides.put(\"${rawClass.name}\", " +
                     "\"<JSON Schema>\") }."
             }
+            check(!isOwnClass(rawClass) || !hasOwnSerializer(rawClass)) {
+                "Jackson writes ${rawClass.name} with a serializer of its own (@JsonSerialize using or converter), " +
+                    "so its schema cannot be introspected: declare it in wow { schemaOverrides.put(" +
+                    "\"${rawClass.name}\", \"<JSON Schema>\") }."
+            }
             return null
         }
 
         private fun isApplicationClass(rawClass: Class<*>): Boolean =
-            !rawClass.isPrimitive && !rawClass.isArray && !rawClass.isEnum && !rawClass.isInterface &&
-                !Modifier.isAbstract(rawClass.modifiers) &&
-                PLATFORM_PACKAGES.none { rawClass.name.startsWith(it) }
+            isOwnClass(rawClass) && !rawClass.isEnum && !rawClass.isInterface && !Modifier.isAbstract(rawClass.modifiers)
+
+        /** A class of the application, of any kind: no primitive, array or platform class. */
+        private fun isOwnClass(rawClass: Class<*>): Boolean =
+            !rawClass.isPrimitive && !rawClass.isArray && PLATFORM_PACKAGES.none { rawClass.name.startsWith(it) }
+
+        /** Whether Jackson's annotations give [rawClass] a serializer or a converter of its own. */
+        private fun hasOwnSerializer(rawClass: Class<*>): Boolean {
+            val config = mapper.serializationConfig()
+            val annotations = config.classIntrospectorInstance()
+                .introspectClassAnnotations(mapper.typeFactory.constructType(rawClass))
+            val introspector = config.annotationIntrospector
+            return introspector.findSerializer(config, annotations) != null ||
+                introspector.findSerializationConverter(config, annotations) != null
+        }
 
         private fun isWrittenAsObject(rawClass: Class<*>): Boolean {
             var isObject = false
