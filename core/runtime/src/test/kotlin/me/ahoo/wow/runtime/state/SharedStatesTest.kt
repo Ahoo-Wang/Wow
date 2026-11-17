@@ -165,6 +165,24 @@ class SharedStatesTest {
         }
 
     @Test
+    fun `a batch member's commit with no pending view should record nothing, its outcome's state not its own`(): Unit =
+        runBlocking {
+            // A batch member's outcome holds the state the members after it evolved further: without the view
+            // expected at its append (its expectation failed), its readers read the store.
+            val kernel = Kernel(InMemoryEventLog(), codec = codec)
+            val views = views()
+            val committed = kernel.execute(cartModel(), Command("c-1", "r-1", alice, AddItems(listOf("apple"))))
+                as CommandOutcome.Committed
+            views.record(cartModel(), committed, expectedOnly = true)
+            views.get(alice, 1).assert().isNull()
+            views.size.assert().isEqualTo(0)
+            // Expected, it is recorded from the view expected.
+            views.expect(cartModel(), committed.stream, CachedState(committed.state, 1))
+            views.record(cartModel(), committed, expectedOnly = true)
+            views.get(alice, 1)!!.state.assert().contains("apple")
+        }
+
+    @Test
     fun `a pending view of another append should not be recorded, and forget should drop it`(): Unit = runBlocking {
         val kernel = Kernel(InMemoryEventLog(), codec = codec)
         val views = views()

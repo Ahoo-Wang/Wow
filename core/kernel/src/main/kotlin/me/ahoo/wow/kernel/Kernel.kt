@@ -227,10 +227,16 @@ class Kernel(
      * after it while each one is pure (its decide function and after hooks do no I/O, so deciding it again costs
      * nothing), is not sent for a schedule, is not among the aggregate's recent requests or the batch's own, and
      * appends a stream; it ends before the first that is not, which is [BatchOutcome.Again]: the lane runs it next,
-     * alone if need be. The streams commit as a prefix ([EventLog.appendAll]); the first that does not commit is
-     * settled as [execute] settles an append, and the commands after it, compensated, are [BatchOutcome.Again]: their
-     * streams were decided on a state that did not commit. The aggregate's state is then dropped from the cache, as
-     * a later stream evolved it.
+     * alone if need be. It ends after a command whose decide function registers an after-append action, which reads
+     * the state that command was decided on once its stream commits: no later command of the batch evolves it first.
+     * The streams commit as a prefix ([EventLog.appendAll]); the first that does not commit is settled as [execute]
+     * settles an append, and the commands after it, compensated, are [BatchOutcome.Again]: their streams were decided
+     * on a state that did not commit. The aggregate's state is then dropped from the cache, as a later stream evolved
+     * it.
+     *
+     * A state may be evolved in place: a member's [CommandOutcome.Committed.state] is the instance the later members of
+     * its batch evolved further, as the next command's [execute] evolves it. The state each stream committed is the
+     * one [appending] is given for it, before the next member is decided.
      */
     suspend fun <S : Any> executeBatch(
         model: AggregateModel<S>,

@@ -85,8 +85,7 @@ internal class Batching(
             val commandType = model.commandType(command.body.javaClass)
             val requests = checks.of(model, decider, command, commandType, lease)
             val reach = requests.reach
-            // A command with I/O to decide, or sent for a schedule, runs alone: it ends the batch, or is the first.
-            if (!requests.pure || command.schedule != null) break
+            if (!joins(requests, command)) break
             val current = state ?: source.load(model, requests).first.also {
                 state = it
                 caching = requests.caching
@@ -96,17 +95,27 @@ internal class Batching(
             // Before the next command evolves the same (mutable) state further.
             appending?.invoke(member.stream, member.evolved)
             state = member.evolved
+            // Its after-append actions run once the batch commits, and read the state it was decided on: no command
+            // after it in this batch evolves that state further.
+            if (member.attempt.readsAfterAppend) break
         }
-        if (members.streams.isEmpty() && caching && !members.tainted) {
-            // Nothing evolved it: the state goes back as it was taken (C4: only under the lease), and the first command
-            // runs alone. A first command that failed deciding may have evolved it part way: it is dropped.
-            putBack(queued.first().command.ref, state)
+        if (members.streams.isEmpty() && caching) {
+            putBackUnchanged(members, queued.first().command.ref, state)
         }
         return members
     }
 
-    /** Caches [state] of [ref] again, unless it is the initial state of an aggregate not yet created. */
-    private fun putBack(ref: AggregateRef, state: CachedState?) {
+    /** A command with I/O to decide, or sent for a schedule, runs alone: it ends the batch, or is the first. */
+    private fun joins(requests: RequestCheck, command: Command<*>): Boolean =
+        requests.pure && command.schedule == null
+
+    /**
+     * Caches [state] of [ref] again, as it was taken, when no member of [members] evolved it (C4: only under the
+     * lease), unless it is the initial state of an aggregate not yet created; the first command then runs alone. A
+     * first command that failed deciding may have evolved it part way: it is dropped.
+     */
+    private fun putBackUnchanged(members: BatchMembers, ref: AggregateRef, state: CachedState?) {
+        if (members.tainted) return
         state?.takeIf { it.version > 0 }?.let { states.put(ref, it) }
     }
 

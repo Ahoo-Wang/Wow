@@ -185,7 +185,7 @@ class Executor(
             if (views != null) {
                 outcomes.forEach { outcome ->
                     ((outcome as? BatchOutcome.Done)?.outcome as? CommandOutcome.Committed)?.let {
-                        recordView(views, model, it)
+                        recordView(views, model, it, expectedOnly = batch.size > 1)
                     }
                 }
             }
@@ -241,9 +241,14 @@ class Executor(
     }
 
     @Suppress("TooGenericExceptionCaught") // Whatever fails, the command is committed; only cancellation propagates.
-    private fun recordView(views: SharedStates, model: AggregateModel<*>, committed: CommandOutcome.Committed) {
+    private fun recordView(
+        views: SharedStates,
+        model: AggregateModel<*>,
+        committed: CommandOutcome.Committed,
+        expectedOnly: Boolean,
+    ) {
         try {
-            views.record(model, committed)
+            views.record(model, committed, expectedOnly)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (failure: Exception) {
