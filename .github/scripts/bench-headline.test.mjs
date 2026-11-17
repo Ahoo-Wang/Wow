@@ -261,10 +261,11 @@ test("the recovery report's arms are summarize.py's, each with its own build, ma
     'rehearsal.bound-2.kind',
   ]);
   // A base whose partitions were not all back by the round's end has no last time: never the last one it saw.
-  assert.equal(figures['lost-leases.base'].lastBackMs, null);
-  assert.deepEqual(figures['lost-leases.base'].firstBackMs, [47200, 47600]);
+  assert.equal(figures['lost-leases.base'].lastBackSeconds, null);
+  assert.deepEqual(figures['lost-leases.base'].firstBackSeconds, [47.2, 47.6]);
   assert.deepEqual(figures['lost-leases.base'].backAtEnd, [16, 28]);
-  assert.deepEqual(figures['lost-leases.fix'].lastBackMs, [2400, 3500]);
+  assert.deepEqual(figures['lost-leases.fix'].lastBackSeconds, [2.4, 3.5]);
+  assert.equal(figures['lost-leases.fix'].environment, 'm5max');
   assert.equal(figures['lost-leases.fix'].cpu, M5MAX);
   assert.deepEqual(figures['handover.mongo.main'].failedWaits, [15, 2]);
   assert.deepEqual(figures['handover.mongo.main'].p99Ms, [2867, 5636]);
@@ -273,7 +274,7 @@ test("the recovery report's arms are summarize.py's, each with its own build, ma
   assert.equal(kind.environment, 'actions');
   assert.equal(kind.cpu, `${REHEARSAL_IMAGE}, CPU model ${NOT_RECORDED}`);
   assert.equal(kind.jdk, '25.0.5');
-  assert.equal(kind.catchUpMs, 59409);
+  assert.equal(kind.catchUpSeconds, 59.4);
   assert.equal(kind.run, '44137290807');
 });
 

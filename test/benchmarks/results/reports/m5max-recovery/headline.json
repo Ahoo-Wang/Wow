@@ -9,11 +9,11 @@
       "store": "mongo",
       "nodes": 1,
       "lost": 64,
-      "firstBackMs": [
-        47171,
-        47807
+      "firstBackSeconds": [
+        47.2,
+        47.8
       ],
-      "lastBackMs": null,
+      "lastBackSeconds": null,
       "backAtEnd": [
         16,
         28,
@@ -22,6 +22,7 @@
       "rounds": 3,
       "commit": "7f46c8dfb4",
       "changed": false,
+      "environment": "m5max",
       "cpu": "Apple M5 Max, 18 cores, 64 GB",
       "jdk": "25.0.5+8",
       "source": "m5max-recovery/lost-leases"
@@ -32,13 +33,13 @@
       "store": "mongo",
       "nodes": 1,
       "lost": 64,
-      "firstBackMs": [
-        2377,
-        2652
+      "firstBackSeconds": [
+        2.4,
+        2.7
       ],
-      "lastBackMs": [
-        2447,
-        3457
+      "lastBackSeconds": [
+        2.4,
+        3.5
       ],
       "backAtEnd": [
         64,
@@ -48,6 +49,7 @@
       "rounds": 3,
       "commit": "93f53932fa",
       "changed": false,
+      "environment": "m5max",
       "cpu": "Apple M5 Max, 18 cores, 64 GB",
       "jdk": "25.0.5+8",
       "source": "m5max-recovery/lost-leases"
@@ -74,6 +76,7 @@
       "rounds": 3,
       "commit": "55937a4b2c",
       "changed": true,
+      "environment": "m5max",
       "cpu": "Apple M5 Max, 18 cores, 64 GB",
       "jdk": "25.0.5+8",
       "source": "m5max-recovery/handover"
@@ -100,6 +103,7 @@
       "rounds": 3,
       "commit": "e3a4e937aa",
       "changed": true,
+      "environment": "m5max",
       "cpu": "Apple M5 Max, 18 cores, 64 GB",
       "jdk": "25.0.5+8",
       "source": "m5max-recovery/handover"
@@ -122,6 +126,7 @@
       "rounds": 1,
       "commit": "55937a4b2c",
       "changed": true,
+      "environment": "m5max",
       "cpu": "Apple M5 Max, 18 cores, 64 GB",
       "jdk": "25.0.5+8",
       "source": "m5max-recovery/handover"
@@ -136,7 +141,7 @@
       "p99Ms": 16814,
       "maxMs": 22566,
       "worstSecondP99Ms": 22566,
-      "catchUpMs": 66259,
+      "catchUpSeconds": 66.3,
       "commit": "7c0896effd",
       "fix": "f33284fa69",
       "environment": "actions",
@@ -155,7 +160,7 @@
       "p99Ms": 30011,
       "maxMs": 30497,
       "worstSecondP99Ms": 30475,
-      "catchUpMs": 107195,
+      "catchUpSeconds": 107.2,
       "commit": "7c0896effd",
       "fix": "f33284fa69",
       "environment": "actions",
@@ -174,7 +179,7 @@
       "p99Ms": 7922,
       "maxMs": 10260,
       "worstSecondP99Ms": 10260,
-      "catchUpMs": 87505,
+      "catchUpSeconds": 87.5,
       "commit": "0853cbf27b",
       "fix": "f33284fa69",
       "environment": "actions",
@@ -193,7 +198,7 @@
       "p99Ms": 3929,
       "maxMs": 4614,
       "worstSecondP99Ms": 4614,
-      "catchUpMs": 59409,
+      "catchUpSeconds": 59.4,
       "commit": "0853cbf27b",
       "fix": "f33284fa69",
       "environment": "actions",

@@ -334,12 +334,15 @@ export function recovery(root, report) {
       store: 'mongo',
       nodes: 1,
       lost: a.rounds[0]?.lost,
-      firstBackMs: range(a.rounds.map(r => r.firstBackMs)),
-      lastBackMs: all ? range(a.rounds.map(r => r.lastBackMs)) : null,
+      firstBackSeconds: secondsRange(a.rounds.map(r => r.firstBackMs)),
+      lastBackSeconds: all
+        ? secondsRange(a.rounds.map(r => r.lastBackMs))
+        : null,
       backAtEnd: a.rounds.map(r => r.back),
       rounds: a.rounds.length,
       commit: a.commit,
       changed: a.changed,
+      environment: 'm5max',
       cpu: M5MAX,
       jdk: a.jdk,
       source: `${report}/lost-leases`,
@@ -358,6 +361,7 @@ export function recovery(root, report) {
       rounds: a.rounds.length,
       commit: a.commit,
       changed: a.changed,
+      environment: 'm5max',
       cpu: M5MAX,
       jdk: a.jdk,
       source: `${report}/handover`,
@@ -375,7 +379,7 @@ export function recovery(root, report) {
         p99Ms: j.p99Ms,
         maxMs: j.maxMs,
         worstSecondP99Ms: j.worstSecondP99Ms,
-        catchUpMs: j.catchUpMs['example-service'],
+        catchUpSeconds: round(j.catchUpMs['example-service'] / 1000),
         commit: a.commit,
         fix: a.fix,
         environment: 'actions',
@@ -388,6 +392,12 @@ export function recovery(root, report) {
   }
   return figures;
 }
+
+/** Milliseconds as the smallest and the largest in seconds, to a tenth: a duration a page prints as `2.4 s`. */
+const secondsRange = values => {
+  const ms = range(values);
+  return ms && ms.map(value => round(value / 1000));
+};
 
 /** The commit `environment.txt` records (`commit=<sha>`), cut to ten characters. */
 function environmentCommit(path) {
