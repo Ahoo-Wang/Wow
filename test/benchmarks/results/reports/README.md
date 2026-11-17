@@ -24,7 +24,12 @@ The documentation's [Performance](../../../../documentation/docs/en/operate/perf
 
 Each figure carries its build (`commit`), the runner's CPU model (`cpu`), its run when the report names one (`run`), and the file it comes from (`source`). None is computed across two reports, so none across two builds.
 
-`pnpm docs:reference` writes the headlines and the pages' tables together. The documentation checks fail while either is not what the data gives ([`docs-performance.mjs`](../../../../.github/scripts/docs-performance.mjs)). A report that replaces another changes its data, and its headline and the pages with it, in the same pull request.
+A page quotes them two ways, and any page of the documentation may:
+
+- **A named block**, a table between `<!-- performance:begin <name> -->` and `<!-- performance:end -->`. The Performance page holds `snapshots`, each quoted report's rates; `BLOCKS` in `docs-performance.mjs` names the others.
+- **An inline span**, one figure's number in the prose: `<!-- perf:<report>/<figure id>:<field> --><!-- /perf -->`, the field a dotted path for a nested one (`sustainable.value`). A rate prints as `2,609.8/s`, a time (`…Ms`) as `160.8 ms`, and a peak that is a lower bound with `≥`. A span whose report, figure or number the headlines do not hold fails the check.
+
+`pnpm docs:reference` writes the headlines, the pages' blocks and their spans together. The documentation checks fail while either is not what the data gives ([`docs-performance.mjs`](../../../../.github/scripts/docs-performance.mjs)). A report that replaces another changes its data, and its headline and the pages with it, in the same pull request.
 
 ## History
 

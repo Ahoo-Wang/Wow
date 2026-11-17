@@ -31,7 +31,7 @@ Wow 按端到端测量：负载生成器经 HTTP 向运行在 PostgreSQL 或 Mon
 
 ## 数字 {#figures}
 
-<!-- performance:begin -->
+<!-- performance:begin snapshots -->
 <!-- 由 .github/scripts/docs-performance.mjs 依据各报告的 headline.json 生成；用 `pnpm docs:reference` 重新生成。请勿手改。 -->
 
 每个数字都来自其所在行注明的构建、JDK 与机器，都将在 10.0.0-beta.3 上重测。各场景见[测了什么](#what-was-measured)。
