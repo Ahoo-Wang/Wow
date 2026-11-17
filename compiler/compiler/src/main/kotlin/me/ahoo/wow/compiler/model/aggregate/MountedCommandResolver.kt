@@ -24,6 +24,7 @@ import me.ahoo.wow.compiler.model.symbol.commandClassesOf
 import me.ahoo.wow.compiler.model.symbol.declaredName
 import me.ahoo.wow.compiler.model.symbol.isOf
 import me.ahoo.wow.compiler.model.symbol.render
+import me.ahoo.wow.compiler.model.symbol.sourceName
 
 /**
  * Reads `@MountedCommand` classes and checks them against the aggregate they are mounted under: one a
@@ -56,7 +57,7 @@ internal object MountedCommandResolver {
             problems += "mounted command $name names no aggregate: @MountedCommand(aggregate) is its aggregate's name"
         }
         return MountedBinding(
-            command = declaration.qualifiedName!!.asString(),
+            command = declaration.sourceName()!!,
             commandName = declaration.declaredName(problems),
             aggregate = aggregate,
             type = declaration.binaryName(),

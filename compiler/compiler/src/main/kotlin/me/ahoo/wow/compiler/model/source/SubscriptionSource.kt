@@ -15,6 +15,7 @@ package me.ahoo.wow.compiler.model.source
 
 import me.ahoo.wow.compiler.model.KotlinNames
 import me.ahoo.wow.compiler.model.aggregate.Dependency
+import me.ahoo.wow.compiler.model.aggregate.parameter
 import me.ahoo.wow.compiler.model.subscription.EventParameter
 import me.ahoo.wow.compiler.model.subscription.HandlerBinding
 import me.ahoo.wow.compiler.model.subscription.JobBinding
@@ -61,7 +62,7 @@ internal object SubscriptionSource {
         // A dependency of a generic type is found by its class and cast to the type the constructor takes.
         appendLine("@file:kotlin.Suppress(\"UNCHECKED_CAST\", \"UNUSED_PARAMETER\", \"RedundantSuppression\")")
         if (binding.packageName.isNotEmpty()) {
-            appendLine("package ${binding.packageName}")
+            appendLine("package ${KotlinNames.qualified(binding.packageName)}")
         }
         appendLine()
         renderFromDependencies(binding)
@@ -73,7 +74,7 @@ internal object SubscriptionSource {
         appendLine(" * `${binding.name}.<function>`.")
         appendLine(" */")
         val visibility = if (binding.internal) "internal" else "public"
-        val parameters = binding.dependencies.joinToString("") { "\n    ${it.name}: ${it.type}," }
+        val parameters = binding.dependencies.joinToString("") { "\n    ${it.parameter}: ${it.type}," }
         // A processor without problems has a handler at least: one that declares none is refused.
         val handlers = binding.handlers
         appendLine(
@@ -82,7 +83,7 @@ internal object SubscriptionSource {
         val instance = if (binding.isObject) {
             processorType
         } else {
-            "$processorType(${binding.dependencies.joinToString(", ") { it.name }})"
+            "$processorType(${binding.dependencies.joinToString(", ") { it.parameter }})"
         }
         appendLine("    val processor = $instance")
         val rejections = kind == SAGA && binding.rejections.isNotEmpty()
@@ -277,7 +278,7 @@ internal object SubscriptionSource {
             val factory = if (binding.packageName.isEmpty()) {
                 binding.factoryName
             } else {
-                "${binding.packageName}.${binding.factoryName}"
+                "${KotlinNames.qualified(binding.packageName)}.${binding.factoryName}"
             }
             appendLine("        $factory(dependencies),")
         }

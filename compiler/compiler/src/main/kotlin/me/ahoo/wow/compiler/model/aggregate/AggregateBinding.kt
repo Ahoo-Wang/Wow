@@ -14,6 +14,7 @@
 package me.ahoo.wow.compiler.model.aggregate
 
 import me.ahoo.wow.api.lifecycle.Lifecycle
+import me.ahoo.wow.compiler.model.KotlinNames
 
 /** What `ModelSymbolProcessor` found in one aggregate root, before generating its model. */
 internal data class AggregateBinding(
@@ -79,8 +80,9 @@ internal data class AggregateBinding(
     /** Whether `@AggregateRoot(lifecycle)` narrows the lifecycle commands, which the generated model then says. */
     val narrowsLifecycle: Boolean get() = lifecycle != ALL_LIFECYCLE_COMMANDS
 
-    /** The name of the generated model factory, `<root>Model`. */
-    val factoryName: String get() = rootSimpleName.replaceFirstChar { it.lowercase() } + "Model"
+    /** The name of the generated model factory, `<root>Model`, as Kotlin source ([KotlinNames.quoted]). */
+    val factoryName: String
+        get() = KotlinNames.quoted(rootSimpleName.take(1).lowercase() + rootSimpleName.drop(1) + "Model")
 
     companion object {
         /** Every lifecycle command, by its system name, sorted. */
@@ -101,6 +103,9 @@ internal class Dependency(
     val dependencyName: String?,
     val fullType: String? = null,
 )
+
+/** The parameter's [Dependency.name] as Kotlin source ([KotlinNames.quoted]): a simple name may be a keyword. */
+internal val Dependency.parameter: String get() = KotlinNames.quoted(name)
 
 internal data class CommandBinding(
     val command: String,
@@ -165,6 +170,7 @@ internal data class MountedBinding(
 )
 
 internal data class SourcingBinding(
+    /** The event's class as Kotlin source, each segment of its name quoted where Kotlin needs it (#6388). */
     val event: String,
     val eventName: String?,
     /** The event's `@Revision`, 1 without it. */
@@ -176,6 +182,8 @@ internal data class SourcingBinding(
     val returnsState: Boolean,
     /** The event's JVM binary name, which keys its schema in the Manifest fragment. */
     val type: String,
+    /** The event's qualified name as KSP gives it, unquoted: the name the processor finds its class by. */
+    val qualifiedName: String,
     /** Whether the function takes the commit of its event (`EventStream`) second. */
     val commit: Boolean = false,
     /** What the event's class says it is ([Descriptions]). */

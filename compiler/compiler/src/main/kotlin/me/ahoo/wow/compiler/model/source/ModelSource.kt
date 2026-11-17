@@ -19,6 +19,7 @@ import me.ahoo.wow.compiler.model.aggregate.AfterBinding
 import me.ahoo.wow.compiler.model.aggregate.AggregateBinding
 import me.ahoo.wow.compiler.model.aggregate.CommandBinding
 import me.ahoo.wow.compiler.model.aggregate.SourcingBinding
+import me.ahoo.wow.compiler.model.aggregate.parameter
 import me.ahoo.wow.compiler.model.symbol.blocking
 
 /**
@@ -53,7 +54,7 @@ internal object ModelSource {
         val visibility = if (binding.internal) "internal" else "public"
         appendLine()
         appendLine("/** The names of the aggregate [${binding.root}] builds: its context, its name and its type. */")
-        appendLine("$visibility object ${binding.rootSimpleName}Model {")
+        appendLine("$visibility object ${KotlinNames.quoted("${binding.rootSimpleName}Model")} {")
         appendLine("    /** The aggregate's bounded context. */")
         appendLine("    public const val CONTEXT: kotlin.String = \"$context\"")
         appendLine()
@@ -76,14 +77,14 @@ internal object ModelSource {
         // The admitted command is passed as the `Command<X>` its decide function was registered for.
         appendLine("@file:kotlin.Suppress(\"UNCHECKED_CAST\")")
         if (binding.packageName.isNotEmpty()) {
-            appendLine("package ${binding.packageName}")
+            appendLine("package ${KotlinNames.qualified(binding.packageName)}")
         }
         appendLine()
         appendLine(
             "/** The model of [${binding.root}], in bounded context [context]; [configure] runs after the bindings. */",
         )
         val contextParameter = context?.let { "context: kotlin.String = \"$it\"" } ?: "context: kotlin.String"
-        val parameters = listOf(contextParameter) + binding.dependencies.map { "${it.name}: ${it.type}" } +
+        val parameters = listOf(contextParameter) + binding.dependencies.map { "${it.parameter}: ${it.type}" } +
             "configure: me.ahoo.wow.kernel.AggregateModelBuilder<$state>.() -> kotlin.Unit = {}"
         val visibility = if (binding.internal) "internal" else "public"
         appendLine(

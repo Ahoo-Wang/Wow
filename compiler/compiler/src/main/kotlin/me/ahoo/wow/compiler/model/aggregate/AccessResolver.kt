@@ -31,6 +31,7 @@ import me.ahoo.wow.compiler.model.symbol.argumentsOf
 import me.ahoo.wow.compiler.model.symbol.declarations
 import me.ahoo.wow.compiler.model.symbol.isModuleInternal
 import me.ahoo.wow.compiler.model.symbol.isOf
+import me.ahoo.wow.compiler.model.symbol.sourceName
 import me.ahoo.wow.manifest.AccessAttributeName
 import me.ahoo.wow.manifest.QueryFieldNames
 
@@ -245,7 +246,7 @@ internal object AccessResolver {
             return null
         }
         if (declaration.classKind == ClassKind.ENUM_CLASS) {
-            return Scalar(declaration.qualifiedName!!.asString(), "STRING", declaration.isModuleInternal())
+            return Scalar(declaration.sourceName()!!, "STRING", declaration.isModuleInternal())
         }
         return if (wrapped) null else wrappedBy(declaration)
     }

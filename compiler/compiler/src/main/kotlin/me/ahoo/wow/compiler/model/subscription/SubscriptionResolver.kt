@@ -44,6 +44,8 @@ import me.ahoo.wow.compiler.model.symbol.dependencyName
 import me.ahoo.wow.compiler.model.symbol.handlerName
 import me.ahoo.wow.compiler.model.symbol.isHandler
 import me.ahoo.wow.compiler.model.symbol.javaTypeOf
+import me.ahoo.wow.compiler.model.symbol.renderInFull
+import me.ahoo.wow.compiler.model.symbol.sourceName
 
 /**
  * Reads a subscription processor and checks its shape:
@@ -180,7 +182,7 @@ internal object SubscriptionResolver {
                 "which the generated handlers find in them"
         }
         return SubscriptionBinding(
-            processor = processor.qualifiedName!!.asString(),
+            processor = processor.sourceName()!!,
             name = name,
             kind = kind?.name,
             handlers = handlers,
@@ -363,7 +365,7 @@ internal object SubscriptionResolver {
                 "@DependencyName: it names the dependency"
         }
         val name = parameter.name?.asString() ?: "dependency$index"
-        Dependency(name, type.render(), type.declaration.qualifiedName!!.asString(), dependencyName, type.javaTypeOf())
+        Dependency(name, type.renderInFull(), type.declaration.sourceName()!!, dependencyName, type.javaTypeOf())
     }
 
     private fun handler(
@@ -432,12 +434,12 @@ internal object SubscriptionResolver {
     ): HandlerBinding? {
         val stateType = first.arguments.firstOrNull()?.type?.resolve()
         if (stateType != null && stateType.arguments.isNotEmpty()) {
-            problems += "$where takes a StateEvent of ${stateType.render()}: an aggregate's state takes no type " +
-                "arguments"
+            problems += "$where takes a StateEvent of ${stateType.renderInFull()}: an aggregate's state takes no " +
+                "type arguments"
             return null
         }
         return handler.copy(
-            state = stateType?.qualifiedName(),
+            state = stateType?.declaration?.sourceName(),
             nullableState = stateType == null || stateType.isMarkedNullable,
         )
     }
@@ -524,20 +526,10 @@ internal object SubscriptionResolver {
                 "a ${kind.label} handler that returns a publisher returns Mono<Void> or Mono<Unit>, which completes " +
                 "when its handling does"
         }
-        return if (allowed) null else "returns ${returned.render()}: $problem"
+        return if (allowed) null else "returns ${returned.renderInFull()}: $problem"
     }
 
     private fun KSType.qualifiedName(): String? = declaration.qualifiedName?.asString()
-
-    private fun KSType.render(): String {
-        val name = declaration.qualifiedName!!.asString()
-        val rendered = if (arguments.isEmpty()) {
-            name
-        } else {
-            name + arguments.joinToString(", ", "<", ">") { it.type?.resolve()?.render() ?: "*" }
-        }
-        return if (isMarkedNullable) "$rendered?" else rendered
-    }
 
     private fun com.google.devtools.ksp.symbol.KSAnnotated.hasAnnotation(qualifiedName: String): Boolean =
         annotations.any { it.annotationType.resolve().declaration.qualifiedName?.asString() == qualifiedName }

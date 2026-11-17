@@ -21,6 +21,7 @@ import com.google.devtools.ksp.symbol.KSDeclaration
 import com.google.devtools.ksp.symbol.KSType
 import com.google.devtools.ksp.symbol.KSTypeAlias
 import me.ahoo.wow.api.annotation.Retry
+import me.ahoo.wow.compiler.model.KotlinNames
 import me.ahoo.wow.compiler.model.symbol.AnnotationArguments
 import me.ahoo.wow.compiler.model.symbol.AnnotationSet
 import me.ahoo.wow.compiler.model.symbol.argumentsOf
@@ -90,7 +91,8 @@ internal data class RetryBinding(
     private fun iso(duration: Duration?): String = duration?.toIsoString().orEmpty()
 
     private fun classes(names: List<String>?): String =
-        names.orEmpty().joinToString(prefix = "listOf(", postfix = ")") { "$it::class.java" }
+        // The Manifest records the qualified names; the source quotes them.
+        names.orEmpty().joinToString(prefix = "listOf(", postfix = ")") { "${KotlinNames.qualified(it)}::class.java" }
 }
 
 /**

@@ -28,6 +28,7 @@ import me.ahoo.wow.compiler.model.symbol.argumentsOf
 import me.ahoo.wow.compiler.model.symbol.binaryName
 import me.ahoo.wow.compiler.model.symbol.classOf
 import me.ahoo.wow.compiler.model.symbol.render
+import me.ahoo.wow.compiler.model.symbol.sourceName
 import me.ahoo.wow.manifest.Manifest
 
 /** A parameter of a service route's function, as its binding passes it. */
@@ -145,7 +146,7 @@ internal object ServiceRouteResolver {
         val response = answer?.let { reading.schemaType(it.makeNotNullable(), "answer") }
         return ServiceRouteBinding(
             handler = owner?.binaryName() ?: "",
-            handlerType = owner?.qualifiedName?.asString() ?: "",
+            handlerType = owner?.sourceName() ?: "",
             function = function.simpleName.asString(),
             name = name,
             method = method,
@@ -171,7 +172,7 @@ internal object ServiceRouteResolver {
         problems: List<String>,
     ): ServiceRouteBinding = ServiceRouteBinding(
         handler = owner?.binaryName() ?: "",
-        handlerType = owner?.qualifiedName?.asString() ?: "",
+        handlerType = owner?.sourceName() ?: "",
         function = function.simpleName.asString(),
         name = function.simpleName.asString(),
         method = RouteMethod.GET,

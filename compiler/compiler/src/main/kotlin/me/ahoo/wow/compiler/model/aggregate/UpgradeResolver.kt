@@ -22,6 +22,7 @@ import com.google.devtools.ksp.symbol.Modifier
 import me.ahoo.wow.api.annotation.Blocking
 import me.ahoo.wow.api.annotation.Upgrade
 import me.ahoo.wow.compiler.model.symbol.argumentsOf
+import me.ahoo.wow.compiler.model.symbol.sourceName
 
 /**
  * An `@Upgrade` function as the model processor read it: the event it upgrades, by its qualified name
@@ -69,7 +70,7 @@ internal object UpgradeResolver {
         val name = function.qualifiedName?.asString() ?: function.simpleName.asString()
         val unread = mutableListOf<String>()
         val upgrade = function.argumentsOf(Upgrade::class, unread)
-        val event = upgrade?.type(EVENT)?.declaration?.qualifiedName?.asString()
+        val event = upgrade?.type(EVENT)?.declaration?.sourceName()
         val from = upgrade?.int(FROM) ?: 0
         val parameter = function.parameters.singleOrNull()?.type?.resolve()
         val returned = function.returnType?.resolve()

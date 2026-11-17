@@ -20,6 +20,7 @@ import com.google.devtools.ksp.symbol.KSTypeAlias
 import com.google.devtools.ksp.symbol.KSTypeParameter
 import com.google.devtools.ksp.symbol.Modifier
 import me.ahoo.wow.compiler.model.symbol.render
+import me.ahoo.wow.compiler.model.symbol.sourceName
 
 /**
  * What a decide function or an after hook can produce, read from its return type for the Manifest's `produces`:
@@ -64,7 +65,7 @@ internal object EventYield {
             name in UNKNOWN -> null
             name in CONTAINERS -> of(type.arguments.single().type?.resolve())
             declaration is KSClassDeclaration && Modifier.SEALED in declaration.modifiers -> sealed(declaration)
-            else -> listOf(name)
+            else -> listOf(declaration.sourceName()!!)
         }
     }
 

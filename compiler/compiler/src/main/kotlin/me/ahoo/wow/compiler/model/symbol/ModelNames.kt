@@ -13,8 +13,10 @@
 
 package me.ahoo.wow.compiler.model.symbol
 
+import com.google.devtools.ksp.symbol.KSDeclaration
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 import com.google.devtools.ksp.symbol.KSType
+import com.google.devtools.ksp.symbol.KSTypeArgument
 import com.google.devtools.ksp.symbol.Variance
 import me.ahoo.wow.api.annotation.AfterCommand
 import me.ahoo.wow.api.annotation.Blocking
@@ -22,6 +24,7 @@ import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.annotation.OnSourcing
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.schedule.Schedules
+import me.ahoo.wow.compiler.model.KotlinNames
 
 /** The names and forms the model processor and its resolvers share. */
 internal object ModelNames {
@@ -124,7 +127,7 @@ internal fun KSType.javaTypeOf(): String? {
     if (arguments.isEmpty()) {
         return null
     }
-    val raw = "${declaration.qualifiedName!!.asString()}::class.java"
+    val raw = "${declaration.sourceName()!!}::class.java"
     val arguments = arguments.joinToString(", ") { argument ->
         // Only a star projection has no type.
         fun type(): String = argument.type!!.resolve().argumentOf()
@@ -139,19 +142,42 @@ internal fun KSType.javaTypeOf(): String? {
 }
 
 /** This type as a type argument: its full type, or its class. */
-private fun KSType.argumentOf(): String = javaTypeOf() ?: "${declaration.qualifiedName!!.asString()}::class.javaObjectType"
+private fun KSType.argumentOf(): String = javaTypeOf() ?: "${declaration.sourceName()!!}::class.javaObjectType"
 
 private const val TYPES = "me.ahoo.wow.kernel.Types"
 
 /**
- * This type's qualified name, with its type arguments (`*` for a star projection); a type that does not resolve has
- * no qualified name, and is the name the code wrote, which KSP gives as `<ERROR TYPE: Name>`.
+ * This declaration's qualified name as Kotlin source (#6388): KSP gives each segment of its package and of its
+ * classes' names without the backticks it was declared in, so each is quoted again where Kotlin reads it only so
+ * ([KotlinNames.qualified]); null for a declaration without a qualified name, a local one. The JVM binary name,
+ * which the Manifest keys by, is [binaryName].
+ */
+internal fun KSDeclaration.sourceName(): String? = qualifiedName?.let { KotlinNames.qualified(it.asString()) }
+
+/**
+ * This type as Kotlin source, its own nullability aside (a caller that names a class drops it; [renderInFull] keeps
+ * it): its [sourceName], with its type arguments each in full (#6389), its variance (`out`, `in`, `*`) and its
+ * nullability kept at every depth, so an invariant `Box<String?>` is not written `Box<String>`. A type that does not
+ * resolve has no qualified name, and is the name the code wrote, which KSP gives as `<ERROR TYPE: Name>`.
  */
 internal fun KSType.render(): String {
-    val name = declaration.qualifiedName?.asString()
+    val name = declaration.sourceName()
         ?: declaration.simpleName.asString().removeSurrounding("<ERROR TYPE: ", ">")
     if (arguments.isEmpty()) {
         return name
     }
-    return name + arguments.joinToString(", ", "<", ">") { it.type?.resolve()?.render() ?: "*" }
+    return name + arguments.joinToString(", ", "<", ">") { it.render() }
+}
+
+/** This type as Kotlin source in full: [render], then its own `?` when it is nullable. */
+internal fun KSType.renderInFull(): String = render() + if (isMarkedNullable) "?" else ""
+
+/** A type argument as Kotlin source: its variance, and its type in full; a star projection, `*`, has no type. */
+private fun KSTypeArgument.render(): String {
+    val type = type?.resolve()?.renderInFull() ?: return "*"
+    return when (variance) {
+        Variance.COVARIANT -> "out $type"
+        Variance.CONTRAVARIANT -> "in $type"
+        else -> type
+    }
 }

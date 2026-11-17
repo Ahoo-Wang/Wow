@@ -19,6 +19,7 @@ import me.ahoo.wow.api.subscribe.StateTypedEvent
 import me.ahoo.wow.compiler.model.symbol.binaryName
 import me.ahoo.wow.compiler.model.symbol.concreteClasses
 import me.ahoo.wow.compiler.model.symbol.declaredName
+import me.ahoo.wow.compiler.model.symbol.sourceName
 
 /** An event class of an aggregate of the module: its [type], its [binary] name and its [state]. */
 internal data class ModuleEvent(val type: KSType, val binary: String, val state: String)
@@ -69,12 +70,12 @@ internal object TypedEventResolver {
         val typed = first.declaration.qualifiedName?.asString() == STATE_TYPED_EVENT
         val declaredState = if (typed) first.arguments.firstOrNull()?.type?.resolve() else null
         val event = (if (typed) first.arguments.getOrNull(1)?.type?.resolve() else first)?.makeNotNullable()
-        val eventName = event?.declaration?.qualifiedName?.asString()
+        val eventName = event?.declaration?.sourceName()
         if (event == null || eventName == null) {
             problems += "$where takes a StateTypedEvent of no event type: name the event, StateTypedEvent<S, E>"
             return null
         }
-        val state = declaredState?.declaration?.qualifiedName?.asString()
+        val state = declaredState?.declaration?.sourceName()
         val nullable = declaredState == null || declaredState.isMarkedNullable
         if (aggregates.isNotEmpty()) {
             return named(where, typed, event, eventName, state, problems)?.copy(nullableState = nullable)
