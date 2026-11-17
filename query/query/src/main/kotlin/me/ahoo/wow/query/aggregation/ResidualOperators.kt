@@ -21,6 +21,9 @@ import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.ComparisonOperator
 import me.ahoo.wow.api.query.HavingExpression
 import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.query.backend.compareScalars
+import me.ahoo.wow.query.backend.orderKey
+import me.ahoo.wow.query.schema.Temporal
 import me.ahoo.wow.spi.json.WowJson
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
@@ -144,18 +147,20 @@ internal class DatePartFill(
 /**
  * Keeps the first [limit] rows under [sort] while rows stream in, holding at most [limit] of them. Sort fields that
  * are [groupAliases] keep the order the backend emitted the groups in, since the storage's group order (dates,
- * keywords) is not necessarily the JSON order of the keys; metric fields compare by value, nulls first.
+ * keywords) is not necessarily the JSON order of the keys; metric fields compare by value, nulls first: a number
+ * exactly, whatever its width, and a value [readings] reads as a date by its instant.
  */
 internal class BoundedTopRows(
     sort: List<Sort>,
     private val limit: Int,
     private val groupAliases: List<String> = emptyList(),
+    readings: Map<String, Temporal> = emptyMap(),
 ) {
     private val groupIndexes = groupAliases.withIndex().associate { (index, alias) -> alias to index }
     private val currentGroupOrder = LongArray(groupAliases.size)
     private var previous: ObjectNode? = null
     private var sequence = 0L
-    private val comparator = rankedRowComparator(sort, groupIndexes)
+    private val comparator = rankedRowComparator(sort, groupIndexes, readings)
     private val rows = PriorityQueue(comparator.reversed())
 
     fun add(row: ObjectNode) {
@@ -187,38 +192,28 @@ private class RankedRow(
 private fun rankedRowComparator(
     sort: List<Sort>,
     groupIndexes: Map<String, Int>,
+    readings: Map<String, Temporal>,
 ): Comparator<RankedRow> = Comparator { left, right ->
     sort.firstNotNullOfOrNull { field ->
-        val comparison = groupIndexes[field.field.path]?.let { index ->
+        val path = field.field.path
+        val comparison = groupIndexes[path]?.let { index ->
             left.groupOrder[index].compareTo(right.groupOrder[index])
-        } ?: compareValues(left.row[field.field.path], right.row[field.field.path])
+        } ?: compareValues(left.row[path], right.row[path], readings[path])
             .let { if (field.direction == Sort.Direction.ASC) it else -it }
         comparison.takeIf { it != 0 }
     } ?: 0
 }
 
-private fun compareValues(left: JsonNode?, right: JsonNode?): Int {
-    val leftValue = left.toSortValue()
-    val rightValue = right.toSortValue()
+/** Two metric values by value ([compareScalars] of their [orderKey]s), `null` first; values of two kinds fail. */
+private fun compareValues(left: JsonNode?, right: JsonNode?, temporal: Temporal?): Int {
+    val leftValue = left?.takeUnless(JsonNode::isNull)?.orderKey(temporal)
+    val rightValue = right?.takeUnless(JsonNode::isNull)?.orderKey(temporal)
     return when {
-        leftValue === rightValue -> 0
+        leftValue == null && rightValue == null -> 0
         leftValue == null -> -1
         rightValue == null -> 1
-        leftValue is Long && rightValue is Long -> leftValue.compareTo(rightValue)
-        leftValue is Number && rightValue is Number -> leftValue.toDouble().compareTo(rightValue.toDouble())
-        leftValue is String && rightValue is String -> leftValue.compareTo(rightValue)
-        leftValue is Boolean && rightValue is Boolean -> leftValue.compareTo(rightValue)
-        else -> incomparableValues(left, right)
+        else -> compareScalars(leftValue, rightValue) ?: incomparableValues(left, right)
     }
-}
-
-private fun JsonNode?.toSortValue(): Any? = when {
-    this == null || isNull -> null
-    isIntegralNumber -> longValue()
-    isNumber -> doubleValue()
-    isString -> stringValue()
-    isBoolean -> booleanValue()
-    else -> this
 }
 
 private fun incomparableValues(left: JsonNode?, right: JsonNode?): Nothing =

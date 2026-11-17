@@ -16,19 +16,15 @@ package me.ahoo.wow.query.memory
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.query.backend.decimal
 import me.ahoo.wow.query.backend.orderOf
+import me.ahoo.wow.query.backend.parseInstant
+import me.ahoo.wow.query.backend.valueKey
 import me.ahoo.wow.query.schema.EPOCH_MILLIS
 import me.ahoo.wow.query.schema.Temporal
 import me.ahoo.wow.query.schema.instantOf
 import me.ahoo.wow.spi.json.WowJson
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.JsonNodeFactory
-import java.math.BigDecimal
 import java.time.Instant
-import java.time.LocalDate
-import java.time.LocalDateTime
-import java.time.OffsetDateTime
-import java.time.ZoneOffset
-import java.time.format.DateTimeParseException
 
 /*
  * The value semantics of the in-memory reference backend, the canonical semantics of the filter matrix: numbers compare
@@ -62,16 +58,20 @@ private fun JsonNode.child(name: String): List<JsonNode> = when {
 /** The scalar this value contributes to a comparison: an array contributes each element. */
 internal fun List<JsonNode>.flattened(): List<JsonNode> = flatMap { if (it.isArray) it.toList() else listOf(it) }
 
-/** Whether two stored values are equal by value: numbers by their exact value, arrays element by element. */
-internal fun JsonNode.sameValue(other: JsonNode): Boolean = when {
-    isNumber && other.isNumber -> decimal().compareTo(other.decimal()) == 0
-    isArray && other.isArray -> size() == other.size() && (0 until size()).all { get(it).sameValue(other.get(it)) }
-    else -> this == other
+/**
+ * Whether two stored values are equal by value, read as [temporal] says: numbers by their exact value, a date by its
+ * instant ([valueKey]), arrays element by element.
+ */
+internal fun JsonNode.sameValue(other: JsonNode, temporal: Temporal? = null): Boolean = when {
+    isArray && other.isArray ->
+        size() == other.size() && (0 until size()).all { get(it).sameValue(other.get(it), temporal) }
+    isArray || other.isArray -> false
+    else -> valueKey(temporal) == other.valueKey(temporal)
 }
 
 /** Whether this stored value matches [operand]: equal by value, or, for an array, holding an element that is. */
-internal fun JsonNode.matches(operand: JsonNode): Boolean =
-    sameValue(operand) || (isArray && !operand.isArray && any { it.sameValue(operand) })
+internal fun JsonNode.matches(operand: JsonNode, temporal: Temporal? = null): Boolean =
+    sameValue(operand, temporal) || (isArray && !operand.isArray && any { it.sameValue(operand, temporal) })
 
 /**
  * The sort key of a field's stored values, read as [temporal] says, as MongoDB orders them: a missing field and `null`
@@ -89,21 +89,6 @@ internal fun List<JsonNode>.sortKey(ascending: Boolean, temporal: Temporal?): Js
         val better = if (ascending) order < 0 else order > 0
         if (better) next else best
     }
-}
-
-/** The order of two stored values of a field read as [temporal] says: [orderOf] of their [orderKey]s. */
-internal fun orderOf(left: JsonNode?, right: JsonNode?, temporal: Temporal?): Int =
-    orderOf(left?.orderKey(temporal), right?.orderKey(temporal))
-
-/**
- * What a stored value orders by: a date string ([Temporal.Date]) by its instant, as an exact number of seconds, so
- * `…T00:00:00Z`, `…T00:00:00.001Z` and `…T01:00:00+01:00` order by time and not by text; any other value itself. A
- * string that is not a date stays a string, after every date.
- */
-internal fun JsonNode.orderKey(temporal: Temporal?): JsonNode {
-    if (temporal != Temporal.Date || !isString) return this
-    val instant = parseInstant(stringValue()) ?: return this
-    return nodes.numberNode(BigDecimal.valueOf(instant.epochSecond).add(BigDecimal.valueOf(instant.nano.toLong(), 9)))
 }
 
 /** A sort key as a cursor position value ([me.ahoo.wow.query.backend.CursorPositionCodec.EXACT]): a number exactly. */
@@ -137,16 +122,3 @@ internal fun JsonNode.instant(temporal: Temporal?): Instant? = when {
 }
 
 private fun JsonNode.longOrNull(): Long? = if (canConvertToLong()) longValue() else null
-
-/** An ISO-8601 instant, offset date-time, local date-time (at UTC) or date (its start, at UTC). */
-internal fun parseInstant(text: String): Instant? = try {
-    when {
-        text.endsWith("Z") && 'T' in text -> Instant.parse(text)
-        'T' in text && (text.lastIndexOf('+') > text.indexOf('T') || text.lastIndexOf('-') > text.indexOf('T')) ->
-            OffsetDateTime.parse(text).toInstant()
-        'T' in text -> LocalDateTime.parse(text).toInstant(ZoneOffset.UTC)
-        else -> LocalDate.parse(text).atStartOfDay().toInstant(ZoneOffset.UTC)
-    }
-} catch (_: DateTimeParseException) {
-    null
-}

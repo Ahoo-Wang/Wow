@@ -42,6 +42,7 @@ import me.ahoo.wow.query.admission.QueryBudget
 import me.ahoo.wow.query.aggregation.AggregationPlan
 import me.ahoo.wow.query.aggregation.EmptyAggregationValues
 import me.ahoo.wow.query.aggregation.PreviousStep
+import me.ahoo.wow.query.aggregation.outputReadings
 import me.ahoo.wow.query.error.QueryError
 import me.ahoo.wow.query.error.QueryExecutionException
 import me.ahoo.wow.query.error.QueryStorageUnavailableException
@@ -213,7 +214,7 @@ fun QueryBackend.aggregate(
     query: AdmittedQuery<AggregationQuery>,
     budget: QueryBudget? = null,
 ): Flow<ObjectNode> = flow {
-    val plan = AggregationPlan.of(query.query, query.schema.storage.aggregation)
+    val plan = AggregationPlan.of(query.query, query.schema.storage.aggregation, query.outputReadings())
     val aggregation = query.query
     var rows = groups(if (plan.adjusted) query.withQuery(plan.native) else query, plan, budget)
     if (aggregation.groupBy.isEmpty()) {

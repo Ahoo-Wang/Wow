@@ -15,6 +15,7 @@ package me.ahoo.wow.query.memory
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.query.backend.parseInstant
 import me.ahoo.wow.query.memory.InMemoryReferenceFixtures.Companion.JAN_5
 import me.ahoo.wow.query.schema.Temporal
 import me.ahoo.wow.spi.json.WowJson
