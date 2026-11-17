@@ -200,20 +200,11 @@ internal class InstanceAppends(
                     return null
                 }
 
-                is AppendOutcome.AlreadyCommitted -> {
-                    val existing = outcome.existing
-                    if (existing.ref == attempt.ref && existing.version == attempt.version) {
+                is AppendOutcome.AlreadyCommitted ->
+                    attempt = rewritten(record, attempt, outcome.existing, stream) ?: run {
                         stats.skipped.incrementAndGet()
                         return null
                     }
-                    if (attempt !== record) {
-                        throw MigrationException(
-                            "9.x stream ${stream.id}: the request id ${attempt.requestId} is committed for " +
-                                "${existing.ref} v${existing.version}.",
-                        )
-                    }
-                    attempt = record.copyWith(requestId = "${record.requestId}#${stream.id}")
-                }
 
                 is AppendOutcome.Conflict -> {
                     val current = outcome.currentVersion
@@ -231,6 +222,37 @@ internal class InstanceAppends(
                 ).apply { initCause(outcome.cause) }
             }
         }
+    }
+
+    /**
+     * The log holds [attempt]'s request id, for [existing]: null when that is [attempt]'s version of its instance, by
+     * the same command, so the stream is already imported; else the attempt under a request id of its own, once.
+     */
+    private fun rewritten(
+        record: EventStreamRecord,
+        attempt: EventStreamRecord,
+        existing: EventStreamRecord,
+        stream: NineXStream,
+    ): EventStreamRecord? {
+        if (existing.ref == attempt.ref && existing.version == attempt.version) {
+            // The request id is a retry key, not the stream's identity: the version is this 9.x stream's only when its
+            // command is, as verified() requires of a version the log already holds.
+            if (existing.commandId != attempt.commandId) {
+                throw MigrationException(
+                    "${attempt.ref} v${attempt.version} in the V10 log is command ${existing.commandId}, not the 9.x " +
+                        "stream ${stream.id}'s ${attempt.commandId}: V10 has been written to since the import began, " +
+                        "so the import stops.",
+                )
+            }
+            return null
+        }
+        if (attempt !== record) {
+            throw MigrationException(
+                "9.x stream ${stream.id}: the request id ${attempt.requestId} is committed for ${existing.ref} " +
+                    "v${existing.version}.",
+            )
+        }
+        return record.copyWith(requestId = "${record.requestId}#${stream.id}")
     }
 
     /**
