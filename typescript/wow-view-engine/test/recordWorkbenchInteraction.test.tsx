@@ -579,6 +579,78 @@ describe('the record workbench layout', () => {
     expect(screen.getByText('Not saved yet')).toBeDefined();
   });
 
+  /**
+   * A saved view folds because its author already decided; an author who
+   * left a condition without a value decided the reader fills it in (#6297).
+   * The blank one sits in a group, since the rule reads the whole tree.
+   */
+  const blank: FilterTree = {
+    op: 'and',
+    children: [
+      { field: 'warehouse', operator: FilterOperator.EQ, value: 'CN' },
+      {
+        op: 'or',
+        children: [{ field: 'status', operator: FilterOperator.EQ, value: '' }],
+      },
+    ],
+  };
+
+  it('opens a saved view with a condition left blank with its conditions out', async () => {
+    workbench([{ ...mine, config: recordConfig({ filter: blank }) }]);
+    await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
+
+    expect(editorToggle().getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByLabelText('Status value')).toBeDefined();
+  });
+
+  it('opens a system view with a condition left blank the same way', async () => {
+    const store = new MemoryViewStore({ instances: [] });
+    const engine = new ViewEngine({
+      resources: resourcesOf(
+        [
+          ordersDefinition({
+            views: [
+              {
+                id: 'all',
+                title: 'All orders',
+                config: recordConfig({ filter: blank }),
+              },
+            ],
+          }),
+        ],
+        () => testSource(),
+      ),
+      store,
+    });
+    render(
+      <DataWorkbench
+        engine={engine}
+        definitionId="orders"
+        instanceId="system:orders:all"
+      />,
+    );
+    await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
+
+    expect(editorToggle().getAttribute('aria-expanded')).toBe('true');
+  });
+
+  it('keeps the conditions out while the blank one is filled in, and folded once the reader folds them', async () => {
+    workbench([{ ...mine, config: recordConfig({ filter: blank }) }]);
+    await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
+
+    // Filling it in is the very thing the editor was opened out for: the
+    // draft saying something no longer folds it under the reader's hands.
+    fireEvent.change(screen.getByLabelText('Status value'), {
+      target: { value: 'PAID' },
+    });
+    expect(editorToggle().getAttribute('aria-expanded')).toBe('true');
+
+    // What the reader did to the fold wins over the default.
+    fireEvent.click(editorToggle());
+    expect(editorToggle().getAttribute('aria-expanded')).toBe('false');
+    expect(screen.queryByLabelText('Status value')).toBeNull();
+  });
+
   it('counts what is waiting to be applied on the folded band', async () => {
     workbench([mine]);
     await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));

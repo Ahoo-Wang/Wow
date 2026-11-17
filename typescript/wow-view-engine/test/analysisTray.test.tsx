@@ -256,6 +256,22 @@ describe('the analysis tray', () => {
     expect(analysisToggle().getAttribute('aria-expanded')).toBe('true');
   });
 
+  /** The record view's rule (#6297): a condition left blank is the reader's to fill. */
+  it('opens a saved view out when its author left a condition blank', async () => {
+    await open({
+      fold: false,
+      config: {
+        filter: {
+          op: 'and',
+          children: [{ field: 'warehouse', operator: 'EQ', value: '' }],
+        },
+      },
+    });
+
+    expect(tray()).not.toBeNull();
+    expect(analysisToggle().getAttribute('aria-expanded')).toBe('true');
+  });
+
   /**
    * The order each row depends on the one before (D71, revising D20): the
    * numbers, what they are compared by, which groups are kept, then the

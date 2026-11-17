@@ -48,7 +48,11 @@ import {
 } from './outcomesStore.js';
 import { StoryEngine } from './StoryEngine.js';
 import '@ahoo-wang/wow-view-engine/styles.css';
-import { AggregationFunction, SortDirection } from '@ahoo-wang/wow-client/dsl';
+import {
+  AggregationFunction,
+  FilterOperator,
+  SortDirection,
+} from '@ahoo-wang/wow-client/dsl';
 
 /**
  * The Record workbench in one state at a time. Every state below follows from
@@ -156,6 +160,25 @@ const elementsView = {
  * 于是同一行里两种读法并排，谁也没有被对方带歪。
  */
 /**
+ * A view saved with two conditions left for its reader to fill in: the
+ * fields picked, the values not. Neither narrows the rows until it says
+ * something, so the only place they show is the editor.
+ */
+const blankConditionView = {
+  ...savedViews[0],
+  title: '按状态与备注查',
+  config: recordConfig({
+    filter: {
+      op: 'and' as const,
+      children: [
+        { field: 'status', operator: FilterOperator.IN, value: [] },
+        { field: 'note', operator: FilterOperator.CONTAINS, value: '' },
+      ],
+    },
+  }),
+};
+
+/**
  * A view that sums 金额 but whose table no longer shows the column: the
  * summary has no column to sit under, so the table draws no band for it.
  */
@@ -260,6 +283,7 @@ function RecordWorkbenchDemo({
   elements = false,
   dated = false,
   summaryOffTable = false,
+  blankCondition = false,
   exporting,
   wide = false,
   noViews = false,
@@ -374,6 +398,8 @@ function RecordWorkbenchDemo({
   dated?: boolean;
   /** Opens a view that sums a column its table no longer shows. */
   summaryOffTable?: boolean;
+  /** Opens a view saved with conditions whose values were left blank. */
+  blankCondition?: boolean;
   /**
    * What the export window has to report: pages slow enough to watch the
    * bar fill, a ceiling below the result, or a backend that refuses the
@@ -486,7 +512,9 @@ function RecordWorkbenchDemo({
                           ? [datedView]
                           : summaryOffTable
                             ? [summaryOffTableView]
-                            : savedViews,
+                            : blankCondition
+                              ? [blankConditionView]
+                              : savedViews,
           });
         }}
       >
@@ -784,6 +812,7 @@ const meta = {
     elements: { table: { disable: true } },
     exporting: { table: { disable: true } },
     wide: { table: { disable: true } },
+    blankCondition: { table: { disable: true } },
   },
 } satisfies Meta<typeof RecordWorkbenchDemo>;
 
@@ -848,6 +877,17 @@ export const ElementColumns: Story = { args: { elements: true } };
  * 条件，六单都在一页上，于是两行说的是同一件事，而这正是那两个标签的用处。
  */
 export const EarliestAndLatest: Story = { args: { dated: true } };
+
+/**
+ * 作者留了没填值的条件，打开时条件区展开（#6297）。已保存的视图本来折起——
+ * 作者已经定好了要看什么；可这份视图的作者只挑了「状态」与「备注」、没填值，
+ * 等的就是读者来填。空条件不进查询，「正在显示」不列它，折起来它哪儿都
+ * 看不见，所以这份视图打开就是展开的。填上一个值，条件区仍开着；读者自己
+ * 收起之后，以读者的为准。
+ */
+export const BlankConditionOpensOut: Story = {
+  args: { blankCondition: true },
+};
 
 /** A saved config the definition outgrew: `apply` is refused until it is fixed. */
 export const NeedsFixing: Story = { args: { broken: true } };

@@ -118,7 +118,8 @@ export interface WorkbenchShellProps {
   /**
    * The fold a view opens on. A view that was never saved opens out — there
    * is nothing to look at until it has been told what to ask for — and a
-   * saved one opens folded, because its author already decided.
+   * saved one opens folded, because its author already decided, unless the
+   * author left a condition blank for the reader to fill in (`leftBlank`).
    */
   defaultEditorOpen?: boolean;
   onEditorOpenChange?(open: boolean): void;
