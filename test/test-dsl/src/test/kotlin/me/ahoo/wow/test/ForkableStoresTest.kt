@@ -45,7 +45,7 @@ class ForkableStoresTest {
     )
 
     @Test
-    fun `a copy of the timers holds what they held`() = runBlocking {
+    fun `a copy of the timers holds what they held`(): Unit = runBlocking {
         val timers = ForkableTimerStore()
         timers.put(timer("a", 10)).assert().isTrue()
         timers.put(timer("b", 20)).assert().isTrue()
@@ -63,7 +63,7 @@ class ForkableStoresTest {
     }
 
     @Test
-    fun `a copy of the reservations holds what they held, expiring when they did`() = runBlocking {
+    fun `a copy of the reservations holds what they held, expiring when they did`(): Unit = runBlocking {
         val reservations = ForkableReservationStore()
         val scope = ReservationScope.of(owner.type, "tenant", "handle")
         reservations.reserve(scope, "held", owner, "h1", 1.hours).assert().isNotNull()

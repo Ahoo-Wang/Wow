@@ -203,7 +203,7 @@ class EventQueryGatewaysTest {
     }
 
     @Test
-    fun `the descriptor is the unified one, its limits those of the entry`() = runBlocking {
+    fun `the descriptor is the unified one, its limits those of the entry`(): Unit = runBlocking {
         val descriptor = untimed.describe(QueryEntry.HTTP)
         descriptor.model.assert().isEqualTo(QueryModel.EVENTS)
         descriptor.record.identity.assert().isEqualTo("aggregateId")

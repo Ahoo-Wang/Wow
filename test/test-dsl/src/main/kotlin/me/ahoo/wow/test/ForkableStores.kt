@@ -14,6 +14,8 @@
 package me.ahoo.wow.test
 
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.kernel.memory.InMemoryReservationStore
 import me.ahoo.wow.kernel.memory.InMemoryTimerStore
@@ -96,9 +98,21 @@ internal class ForkableReservationStore(writes: List<ReservationWrite> = emptyLi
 
     private fun now(): Long = replaying ?: System.currentTimeMillis()
 
-    private suspend fun <T> write(op: suspend (ReservationStore) -> T): T {
+    /** One write at a time, so the clock a write is pinned to is its own. */
+    private val writing = Mutex()
+
+    /**
+     * Runs [op] on the store with the clock pinned to the time it is recorded at, so that its replay, at that time,
+     * computes what it computed: an expiry read from the clock twice could differ by the millisecond between.
+     */
+    private suspend fun <T> write(op: suspend (ReservationStore) -> T): T = writing.withLock {
         val at = now()
-        return op(store).also { journal += ReservationWrite(at) { op(it) } }
+        replaying = at
+        try {
+            op(store).also { journal += ReservationWrite(at) { op(it) } }
+        } finally {
+            replaying = null
+        }
     }
 
     override suspend fun reserve(
