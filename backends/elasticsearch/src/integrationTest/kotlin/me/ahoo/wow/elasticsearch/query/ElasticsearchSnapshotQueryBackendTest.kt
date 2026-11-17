@@ -62,6 +62,10 @@ class ElasticsearchSnapshotQueryBackendTest : QueryBackendSpec() {
         "array.is-not-null",
         "array.exists",
         "array.not-exists",
+        // An ignore-case match is a class of single characters per letter (ElasticsearchCaseFolding): `İ` meets `i`,
+        // and a final capital sigma `σ`, where the reference lowers a text, `İ` to `i̇` and that sigma to `ς` (#6392).
+        "string.starts-with-ignore-case-dotted-i",
+        "string.ends-with-ignore-case-final-sigma",
         // Elasticsearch rounds the unit after a local start Africa/Monrovia's 1972 change skipped into the one before it.
         GAP_START,
         GAP_MID_UNIT,

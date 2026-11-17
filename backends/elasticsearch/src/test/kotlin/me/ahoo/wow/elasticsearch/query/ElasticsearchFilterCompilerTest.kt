@@ -24,6 +24,7 @@ import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.multiMatc
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.nested
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.prefix
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.range
+import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.regexp
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.term
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.terms
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.termsSet
@@ -188,12 +189,18 @@ class ElasticsearchFilterCompilerTest {
                 range { it.untyped { range -> range.field("state.value").lt(JsonData.of(1)) } },
             LessThanOrEqualFilter(field, one) to
                 range { it.untyped { range -> range.field("state.value").lte(JsonData.of(1)) } },
+            ContainsFilter(textField, "value*?\\tail") to
+                wildcard { it.field("state.text").value("*value\\*\\?\\\\tail*") },
+            StartsWithFilter(textField, "value") to prefix { it.field("state.text").value("value") },
+            EndsWithFilter(textField, "value*?\\tail") to
+                wildcard { it.field("state.text").value("*value\\*\\?\\\\tail") },
+            // Ignoring case, a regexp of every letter's characters (#6392): `İ` lowers to `i` too.
             ContainsFilter(textField, "value*?\\tail", StringComparison.CASE_INSENSITIVE) to
-                wildcard { it.field("state.text").value("*value\\*\\?\\\\tail*").caseInsensitive(true) },
+                regexp { it.field("state.text").value(".*$VALUE\\*\\?\\\\$TAIL.*").flags("NONE") },
             StartsWithFilter(textField, "value", StringComparison.CASE_INSENSITIVE) to
-                prefix { it.field("state.text").value("value").caseInsensitive(true) },
+                regexp { it.field("state.text").value("$VALUE.*").flags("NONE") },
             EndsWithFilter(textField, "value*?\\tail", StringComparison.CASE_INSENSITIVE) to
-                wildcard { it.field("state.text").value("*value\\*\\?\\\\tail").caseInsensitive(true) },
+                regexp { it.field("state.text").value(".*$VALUE\\*\\?\\\\$TAIL").flags("NONE") },
             InFilter(field, listOf(one, two)) to
                 terms {
                     it.field("state.value").terms { values ->
@@ -344,6 +351,10 @@ class ElasticsearchFilterCompilerTest {
     }
 
     companion object {
+        /** `value` and `tail` ignoring case, as [ElasticsearchCaseFolding] classes their letters. */
+        private const val VALUE = "[vV][aA][lL][uU][eE]"
+        private const val TAIL = "[tT][aA][iI\u0130][lL]"
+
         private const val INSTANT = "2026-01-01T00:00:00Z"
         private const val BEYOND_MILLIS = "+1000000000-01-01T00:00:00Z"
         private val ANY = QueryValueType("any")
