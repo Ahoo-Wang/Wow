@@ -1331,6 +1331,13 @@ test('A/A runs give the noise thresholds; bootstrap intervals decide what clears
     p50: 0.02,
     p99: 0.02,
   });
+  // A later A/A run widens a committed threshold and never narrows it: each metric keeps the wider of the two.
+  assert.deepEqual(
+    noiseFile([suite], {
+      'e1-mongo-uniform@1k': { throughput: 0.05, p50: 0.3, p99: 0.01 },
+    })['e1-mongo-uniform@1k'],
+    { throughput: 0.05, p50: 0.3, p99: 0.02 },
+  );
   const report = renderReport([suite], { noise: {} });
   assert.match(report, /## A\/A noise/);
   assert.match(report, /e1-mongo-uniform@1k \(A\/A: head against head\)/);

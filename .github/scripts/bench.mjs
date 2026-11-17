@@ -3968,9 +3968,25 @@ export function noiseFile(suites, previous = {}) {
   // A suite that measured nothing keeps the thresholds it had.
   for (const suite of suites.filter(s => s.aa && !s.properties)) {
     const noise = noiseOf(suite);
-    if (noise) next[labelOf(suite)] = noise;
+    if (noise) next[labelOf(suite)] = widened(next[labelOf(suite)], noise);
   }
   return next;
+}
+
+/**
+ * The thresholds of [committed] and of an A/A run's [noise], each metric the wider of the two. One run's half-width
+ * is one draw of the suite's noise, not the noise: two A/A runs of identical code read thresholds three to five times
+ * apart (e3-pg@100k's p50 ±37.3% then ±12.8%), and both were observed between identical arms. A later run widens a
+ * threshold and never narrows it, so a narrow draw never makes the next paired run call noise a finding.
+ */
+function widened(committed = {}, noise) {
+  const metrics = new Set([...Object.keys(committed), ...Object.keys(noise)]);
+  return Object.fromEntries(
+    [...metrics].map(metric => [
+      metric,
+      Math.max(committed[metric] ?? 0, noise[metric] ?? 0),
+    ]),
+  );
 }
 
 /** The combined report of every suite. */
