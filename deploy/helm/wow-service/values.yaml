@@ -211,10 +211,13 @@ metrics:
   serviceMonitor:
     enabled: false
     interval: 30s
+    # The monitor's own labels, beside the chart's (release: kube-prometheus-stack, say, for the Prometheus that picks
+    # it). None of the chart's: they are refused.
     labels: {}
   podMonitor:
     enabled: false
     interval: 30s
+    # As serviceMonitor.labels.
     labels: {}
 
 # endregion
@@ -227,6 +230,8 @@ serviceAccount:
   annotations: {}
 
 podAnnotations: {}
+# The pods' own labels, beside the chart's. None of the chart's: app.kubernetes.io/name, which every selector selects the
+# pods by (from service.name), app.kubernetes.io/part-of (set partOf), and its others are refused, each by name.
 podLabels: {}
 
 podSecurityContext:

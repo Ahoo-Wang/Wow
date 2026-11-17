@@ -271,3 +271,30 @@ tests:
     asserts:
       - failedTemplate:
           errorPattern: "metrics.port is the internal port"
+
+  - it: refuses a pod label that would replace the one the pods are selected by, naming it and where it comes from
+    template: templates/deployment.yaml
+    set:
+      podLabels:
+        app.kubernetes.io/name: custom-label
+    asserts:
+      - failedTemplate:
+          errorPattern: "podLabels.app.kubernetes.io/name is a label the chart sets itself, from service.name, and selects the service's pods by it"
+
+  - it: refuses a pod label of the platform, which partOf sets, with partOf unset too
+    template: templates/deployment.yaml
+    set:
+      podLabels:
+        app.kubernetes.io/part-of: eshop
+    asserts:
+      - failedTemplate:
+          errorPattern: "podLabels.app.kubernetes.io/part-of is a label the chart sets itself, from partOf.*set partOf instead"
+
+  - it: refuses a pod label of the chart's that no selector reads, which would be a second key of the name
+    template: templates/deployment.yaml
+    set:
+      podLabels:
+        app.kubernetes.io/instance: other
+    asserts:
+      - failedTemplate:
+          errorPattern: "podLabels.app.kubernetes.io/instance is a label the chart sets itself: remove it"

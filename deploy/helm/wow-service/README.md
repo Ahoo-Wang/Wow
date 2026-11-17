@@ -33,6 +33,10 @@ Every object is named after `service.name`, the service's `spring.application.na
 
 A peer in another namespace takes `namespace` in `service.peers`: the node looks it up there (`wow.peer.dns.namespaces`) and the internal policy admits its pods from there.
 
+## Labels
+
+Every object carries the chart's labels, and every selector selects the pods by `app.kubernetes.io/name`, the service's name. `podLabels` adds labels of your own to the pods, `metrics.serviceMonitor.labels` and `metrics.podMonitor.labels` to the monitors; none of them may set one of the chart's labels (`app.kubernetes.io/name`, `app.kubernetes.io/part-of`, which `partOf` sets, `app.kubernetes.io/instance`, `app.kubernetes.io/version`, `app.kubernetes.io/managed-by`, `helm.sh/chart`): the render fails, naming the key.
+
 ## In an umbrella chart
 
 Add it once per service, under an alias, and nest each service's values under its alias:

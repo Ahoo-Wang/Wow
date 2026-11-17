@@ -103,6 +103,9 @@ check() {
   refused "maxSkew" --set topologySpread.maxSkew=zero
   refused "both true" --set autoscaling.hpa.enabled=true --set autoscaling.keda.enabled=true \
     --set autoscaling.keda.prometheus.serverAddress=http://prometheus:9090
+  # A pod label the pods are selected by is the chart's: one in podLabels would leave every selector without its pods.
+  refused "podLabels.app.kubernetes.io/name is a label the chart sets itself" \
+    --set 'podLabels.app\.kubernetes\.io/name=custom-label'
 }
 
 umbrella() {
