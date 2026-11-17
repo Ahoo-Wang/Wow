@@ -56,6 +56,7 @@ import me.ahoo.wow.manifest.tools.SchemaShapes.types
  * | an alternative added | additive |
  * | an alternative of `oneOf` added or widened that may accept a value another accepts | breaking |
  * | an alternative of `oneOf` added whose required discriminator no other alternative's values hold | additive |
+ * | an output's alternative of `oneOf` removed or narrowed that another overlaps, so a value both took is produced | breaking |
  * | a member of `allOf` changed, each of its changes compared in place | as the change is |
  * | a member of `allOf` added / removed | breaking / additive |
  * | additional properties no longer accepted / now accepted | breaking / additive |
@@ -297,17 +298,8 @@ internal class SchemaCompatibility(
                 trial.compare(path, old, new, null)
                 trial.changes.takeIf { changes -> changes.none { it.kind == ChangeKind.BREAKING } }
             }
-            val compatible = { old: Any?, new: Any? -> trial(old, new) != null }
             if (direction == SchemaDirection.OUTPUT) {
-                // Every value the current schema may produce needs an alternative an old reader handles.
-                val matched = mutableSetOf<Int>()
-                newAlternatives.forEachIndexed { index, alternative ->
-                    val match = oldAlternatives.indices.firstOrNull { compatible(oldAlternatives[it], alternative) }
-                    if (match == null) breaking("$path.$keyword[$index]", "alternative added") else matched += match
-                }
-                (oldAlternatives.indices - matched).forEach {
-                    additive("$path.$keyword[$it]", "alternative no longer produced")
-                }
+                compareProduced("$path.$keyword", keyword == ONE_OF, oldAlternatives, newAlternatives, trial)
                 return
             }
             // Each current alternative an old one matched, and whether it now accepts the old one's values unchanged.
@@ -330,6 +322,49 @@ internal class SchemaCompatibility(
         }
 
         /**
+         * An output's alternatives at [path]: each value a current alternative produces needs an old alternative that
+         * accepts it, an unchanged one taken first. Of a `oneOf` ([exclusive]) old clients refuse a value two old
+         * alternatives accept (#6285), so the current alternative also needs each other old one it may share a value
+         * with ([overlap]) to be [taken] whole by another current alternative, which the current `oneOf` then gives
+         * that shared value to instead: removing or narrowing an alternative another overlaps breaks.
+         */
+        private fun compareProduced(
+            path: String,
+            exclusive: Boolean,
+            oldAlternatives: List<*>,
+            newAlternatives: List<*>,
+            trial: (Any?, Any?) -> List<ManifestChange>?,
+        ) {
+            val matched = mutableSetOf<Int>()
+            newAlternatives.forEachIndexed { index, alternative ->
+                val candidates = oldAlternatives.indices.mapNotNull { old ->
+                    trial(oldAlternatives[old], alternative)?.let { old to it.isEmpty() }
+                }
+                val match = (candidates.firstOrNull { (_, unchanged) -> unchanged } ?: candidates.firstOrNull())?.first
+                if (match == null) {
+                    breaking("$path[$index]", "alternative added")
+                    return@forEachIndexed
+                }
+                matched += match
+                if (!exclusive) return@forEachIndexed
+                oldAlternatives.indices.filter { old ->
+                    old != match && overlap(oldAlternatives[old], baselineDefs, alternative, currentDefs) &&
+                        newAlternatives.indices.none { it != index && taken(path, oldAlternatives[old], newAlternatives[it]) }
+                }.forEach { old ->
+                    breaking("$path[$index]", "alternative produces a value old alternative $old accepts too: refused")
+                }
+            }
+            (oldAlternatives.indices - matched).forEach { additive("$path[$it]", "alternative no longer produced") }
+        }
+
+        /** Whether [new] accepts every value [old] accepts: compared as an input, nothing breaks. */
+        private fun taken(path: String, old: Any?, new: Any?): Boolean {
+            val trial = Comparison(SchemaDirection.INPUT, comparing.toMutableSet())
+            trial.compare(path, old, new, null)
+            return trial.changes.none { it.kind == ChangeKind.BREAKING }
+        }
+
+        /**
          * A value of `oneOf` matches exactly one of its [alternatives]: each one [grown] (added, or accepting more) that
          * may accept a value another one accepts breaks a value old clients sent, which now matches both. Two
          * alternatives are told apart by their JSON types, or by a property both require whose values cannot coincide
@@ -338,7 +373,7 @@ internal class SchemaCompatibility(
         private fun compareExclusive(path: String, alternatives: List<*>, grown: List<Int>) {
             grown.forEach { index ->
                 alternatives.indices.filter { it != index && (it !in grown || it > index) }
-                    .filter { overlap(alternatives[index], alternatives[it]) }
+                    .filter { overlap(alternatives[index], currentDefs, alternatives[it], currentDefs) }
                     .forEach {
                         breaking(
                             "$path.$ONE_OF[$index]",
@@ -352,11 +387,16 @@ internal class SchemaCompatibility(
          * Whether two alternatives may accept one value: no property both require has values that cannot coincide
          * ([discriminators]), and they share a JSON type (an `integer` is a `number`).
          */
-        private fun overlap(left: Any?, right: Any?): Boolean {
-            val leftSchema = resolve(left, currentDefs)
-            val rightSchema = resolve(right, currentDefs)
-            val rightValues = discriminators(rightSchema)
-            val apart = discriminators(leftSchema).any { (name, values) ->
+        private fun overlap(
+            left: Any?,
+            leftDefs: Map<String, Any?>,
+            right: Any?,
+            rightDefs: Map<String, Any?>,
+        ): Boolean {
+            val leftSchema = resolve(left, leftDefs)
+            val rightSchema = resolve(right, rightDefs)
+            val rightValues = discriminators(rightSchema, rightDefs)
+            val apart = discriminators(leftSchema, leftDefs).any { (name, values) ->
                 rightValues[name]?.let { values.intersect(it).isEmpty() } == true
             }
             if (apart) return false
@@ -366,9 +406,9 @@ internal class SchemaCompatibility(
         }
 
         /** The values each property [schema] requires is held to, by its `const` or its `enum`: a discriminator. */
-        private fun discriminators(schema: Map<String, Any?>): Map<String, Set<Any?>> =
+        private fun discriminators(schema: Map<String, Any?>, defs: Map<String, Any?>): Map<String, Set<Any?>> =
             required(schema).mapNotNull { name ->
-                val property = resolve(properties(schema)[name], currentDefs)
+                val property = resolve(properties(schema)[name], defs)
                 val values = if (CONST in property) setOf(property[CONST]) else (property[ENUM] as List<*>?)?.toSet()
                 values?.let { name to it }
             }.toMap()
