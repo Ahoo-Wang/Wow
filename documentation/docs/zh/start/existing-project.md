@@ -117,7 +117,7 @@ tasks.test {
 | 属性 | 默认值 | 含义 |
 | --- | --- | --- |
 | `context` | 模块中唯一的 `@BoundedContext` | 模块中的聚合和处理器所属的上下文 |
-| `schemaOverrides` | 空 | 每个 JVM 类名对应一个 JSON Schema，用于由自定义序列化器写出的类型 |
+| `schemaOverrides` | 空 | 每个 JVM 类名对应一个 JSON Schema，用于由自定义序列化器写出的类型（[由自定义序列化器写出的类型](../guide/manifest#a-type-written-by-a-custom-serializer)） |
 | `service` | 无 | 承载模块上下文的服务，写进其契约，服务的 Manifest 也取这个名字（[编译器生成什么](../guide/generated-code)） |
 
 `catalog-server/build.gradle.kts`：

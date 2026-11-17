@@ -34,7 +34,7 @@ annotations ─▶ compiler ─▶ Manifest ─┬▶ HTTP routes (at run time)
 
 A service's domain is often spread over several Gradle modules. The compiler sees one module at a time, so each module produces a **fragment** of the Manifest. At build time, a Gradle task completes each fragment's schemas and merges the fragments into the service's Manifest. At run time, the service merges the fragments it finds on its classpath. Two fragments that declare the same context, aggregate, command, event or subscription stop the service from starting.
 
-The schemas come from Jackson itself. The build loads the compiled classes and asks Jackson how it would serialize them, so naming strategies, `@JsonProperty`, custom serializers and Kotlin defaults all show up as they really are on the wire. This happens at build time only; at run time nothing is introspected.
+The schemas come from Jackson itself. The build loads the compiled classes and asks Jackson how it would serialize them, so naming strategies, `@JsonProperty` and Kotlin defaults all show up as they really are on the wire. A class Jackson writes with a serializer of its own does not: the build cannot see inside the serializer, so it stops and asks for the class's shape ([A type written by a custom serializer](../guide/manifest#a-type-written-by-a-custom-serializer)). This happens at build time only; at run time nothing is introspected.
 
 The service publishes its Manifest at `GET /wow/manifest` on its public port, authenticated like every route (401 without a caller); any authenticated caller may read it.
 

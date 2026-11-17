@@ -17,6 +17,40 @@ outline: deep
 
 快照查询从补全后的片段读取状态 schema：只有插件补全之后，状态字段才能被过滤和排序。
 
+## 由自定义序列化器写出的类型 {#a-type-written-by-a-custom-serializer}
+
+插件通过询问 Jackson 怎样写出一个类来得知它的 schema。它看不到类自己的序列化器（`@JsonSerialize(using = …)`）或 `@JsonValue` 的内部，所以不去猜：`generateWowManifestFragment` 停下来，要求声明它的结构。
+
+```text
+Jackson does not write com.example.ledger.Ledger as an object (a custom serializer or @JsonValue), so its schema cannot be introspected: declare it in wow { schemaOverrides.put("com.example.ledger.Ledger", "<JSON Schema>") }.
+```
+
+在领域模块的 `build.gradle.kts` 中，以 JSON Schema 声明序列化器写出的结构。每个类用它的二进制名指明，所以嵌套类写作 `Outer$Inner`。状态类型和事件的声明方式相同：
+
+<!-- sample: fragment -->
+
+```kotlin
+wow {
+    // 状态，由 LedgerSerializer 写成 {"owner": "…", "lines": [12, 30]}
+    schemaOverrides.put(
+        "com.example.ledger.Ledger",
+        """{"type":"object","properties":{"owner":{"type":"string"},"lines":{"type":"array","items":{"type":"integer","format":"int64"}}},"required":["owner","lines"]}""",
+    )
+    // 事件，由 PostedSerializer 写成 {"amount": 250}
+    schemaOverrides.put(
+        "com.example.ledger.Posted",
+        """{"type":"object","properties":{"amount":{"type":"integer","format":"int64"}},"required":["amount"]}""",
+    )
+}
+```
+
+凡是读取 Manifest 的地方，声明的 schema 都代表这个类：
+- 快照查询和事件查询可以按它的字段过滤、排序和投影，例如 `state.owner`；
+- OpenAPI 和生成的客户端按它描述这个类；
+- [兼容检查](#the-compatibility-check)按任何状态或事件 schema 的规则，把它与基线比较。
+
+检查比较的是声明的结构，而不是序列化器写出的内容。两者要靠手工保持一致，没有任何东西拿一个去检查另一个。如果序列化器开始写出另一个字段，而它的声明没有改变，线上的格式就变了，检查却看不到。请在同一次提交中修改两者。
+
 ## 对端得到它们那一部分 {#peers-get-their-part}
 
 发送另一个上下文的命令、或读取它发布的事件流的服务，需要那个上下文的命令、事件、状态和错误。插件从对方上下文的片段中挑出它们，以 `META-INF/wow/contract.json` 放进它的 api 模块的 jar。依赖这个 api 模块的服务在类路径上找到这份契约，用它来指明它发送的命令、检查跨进对方上下文的等待计划，并解码对方发布的事件。不需要任何配置：依赖 api 就够了。
