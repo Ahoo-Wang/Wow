@@ -1,6 +1,6 @@
 # Each measurement of a run with the host's load beside it: a sweep's summary.md (its steps, the other processes' CPU
 # and the load average during each, and whether another process disturbed it), and the run's SUMMARY.md on stdout
-# (every measurement's peak or rate, and the host's load before and after it).
+# (every measurement's peak or rate, the host's load before and after it, and the builds it ran, from its install.txt).
 #   python3 -I summarize.py <raw output root> [--disturbed-cores=2] [--json=<file>]
 #   python3 -I summarize.py --peak [--next] --ports=<n> <sweep directory>...
 #   python3 -I summarize.py --check <measurement directory>
@@ -29,7 +29,7 @@
 #
 # --json also writes what SUMMARY.md says as data, for the documentation's figures (the headline writer,
 # .github/scripts/bench-headline.mjs): each measurement's peak, sustainable step, every step, and its disturbed and
-# void steps, from the same values.
+# void steps, from the same values, and its builds.
 import json
 import os
 import re
@@ -392,6 +392,24 @@ def check(directory):
     return found
 
 
+def builds(directory):
+    """The builds a measurement ran, from its install.txt (bench.sh's stamp.sh): the server's and the load generator's,
+    each its commit's first ten characters, `with changes` when its tree had some, or `unstamped`; None without one."""
+    try:
+        with open(os.path.join(directory, "install.txt"), encoding="utf-8") as file:
+            stamps = dict(line.split("=", 1) for line in file.read().splitlines() if "=" in line)
+    except OSError:
+        return None
+
+    def words(stamp):
+        fields = dict(part.split("=", 1) for part in stamp.split() if "=" in part)
+        if "commit" not in fields:
+            return "unstamped"
+        return fields["commit"][:10] + ("" if fields.get("dirty") == "no" else " with changes")
+
+    return {who: words(stamps[who]) for who in ("server", "load") if who in stamps}
+
+
 def main(root, json_path=None):
     print(f"# {os.path.basename(os.path.abspath(root))}: measurements\n")
     try:
@@ -401,8 +419,8 @@ def main(root, json_path=None):
         pass
     print(f"| Measurement | Peak (failed {FAILED_SHARE:.0%} or less) or result | Sustainable | Failed more than "
           f"{FAILED_SHARE:.0%} | Last step or provenance | Disturbed steps | Void steps | Generator-bound steps "
-          "| Load before | Load after |")
-    print("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |")
+          "| Load before | Load after | Builds |")
+    print("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |")
     allowed, jvms, measurements, data = [], set(), 0, {}
     for path, directories, files in os.walk(root):
         # The sessions a rerun replaced are not the run's.
@@ -414,11 +432,13 @@ def main(root, json_path=None):
         elif "result.json" in files:
             row = fixed(path)
         if row:
-            data[label] = dict(row["data"], setAside=".void-" in label)
+            built = builds(path)
+            data[label] = dict(row["data"], setAside=".void-" in label, **({"builds": built} if built else {}))
             if ".void-" in label:
                 row["void"] += " (an attempt set aside: void by the rule in force when it was measured, the script's log)"
             print(f"| {label} | {row['peak']} | {row['sustainable']} | {row['failed']} | {row['last']} "
-                  f"| {row['disturbed']} | {row['void']} | {row['generator']} | {row['before']} | {row['after']} |")
+                  f"| {row['disturbed']} | {row['void']} | {row['generator']} | {row['before']} | {row['after']} "
+                  f"| {', '.join(f'{who} {build}' for who, build in built.items()) if built else '-'} |")
             measurements += 1
             for sample in samples(path):
                 if sample[8] is not None:

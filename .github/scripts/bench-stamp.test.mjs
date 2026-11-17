@@ -19,10 +19,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 
-const STAMP_SH = join(
-  import.meta.dirname,
-  '../../test/benchmarks/harness/stamp.sh',
-);
+const HARNESS = join(import.meta.dirname, '../../test/benchmarks/harness');
+const STAMP_SH = join(HARNESS, 'stamp.sh');
 const SERVER = 'test/benchmarks/server/build/install/benchmark-server';
 const LOAD = 'test/benchmarks/load/build/install/benchmark-load';
 
@@ -192,4 +190,28 @@ test("a reused run names the server build its session's up started, not one buil
     'a run without a session names the install as it is',
   );
   assert.equal(fresh.status, 0);
+});
+
+test('measure checks the builds of a program that runs Wow and names them; the ClickHouse insert runs none', () => {
+  const repo = repository();
+  // measure.sh sourced too, with parse stubbed as bench.sh's: the walk stops at its missing AccessWalkBench (exit 3),
+  // after it checked and named its builds; the insert experiment is stubbed, so no container starts.
+  const measure = args => `HARNESS=${JSON.stringify(HARNESS)}
+parse() { local a; for a in "$@"; do OPTIONS="$OPTIONS\${a#--}
+"; done; }
+check_java() { :; }
+. "$HARNESS/measure.sh"
+measure_clickhouse_insert() { echo inserted; }
+measure ${args}`;
+  const walk = run(repo, measure(`--program=walk --out="$OUT/walk"`));
+  assert.equal(walk.status, 3, walk.stderr);
+  assert.equal(walk.stdout, 'built\n');
+  assert.match(walk.stderr, /has no AccessWalkBench/);
+  assert.equal(
+    readFileSync(join(repo, 'out', 'walk', 'install.txt'), 'utf8'),
+    'server=unstamped\nload=unstamped\n',
+  );
+  const insert = run(repo, measure('--program=clickhouse-insert'));
+  assert.equal(insert.status, 0, insert.stderr);
+  assert.equal(insert.stdout, 'inserted\n');
 });

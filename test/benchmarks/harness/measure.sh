@@ -71,6 +71,7 @@ measure_dataset() {
   HEAP=$(opt heap 1g)
   OUT=$(opt out "$REPO/test/benchmarks/results/e2e/$(date +%Y%m%d-%H%M%S)-measure")
   mkdir -p "$OUT/config/wow/dataset"
+  record_installs
   local runs warm
   runs=$(opt runs 200)
   warm=$(opt warm-up-runs 20)
@@ -138,6 +139,7 @@ measure_walk() {
   local main=me.ahoo.wow.benchmark.transfer.AccessWalkBenchKt
   OUT=$(opt out "$REPO/test/benchmarks/results/e2e/$(date +%Y%m%d-%H%M%S)-measure-walk-$BACKEND")
   mkdir -p "$OUT"
+  record_installs
   local install jar class
   install=$(opt install "$REPO/test/benchmarks/server/build/install/benchmark-server")
   class="$(echo "$main" | tr . /).class"
@@ -419,6 +421,8 @@ measure_sink() {
   # With a backlog, the node that takes the load has no sink: ClickHouse's not switched on, or the benchmark server
   # instead of the search server.
   local server="$REPO/test/benchmarks/server/build/install/benchmark-server" first=$install
+  # The build named is the sink's node's: the search server's for Elasticsearch, unstamped.
+  record_installs "${install:-$server}"
   if [ "$backlog" = true ]; then
     extra=$args
     if [ "$sink" = elasticsearch ]; then first=$server; fi
@@ -550,8 +554,12 @@ es_counts() {
 }
 
 # measure: the scale check --program names, dataset-access (the default), walk, clickhouse-insert, sink or raw (raw.sh).
+#
+# A program that runs Wow's builds measures this tree's: its stale installs are rebuilt first (stamp.sh), and it names
+# the builds it ran in <out>/install.txt. The ClickHouse insert experiment runs none.
 measure() {
   parse "$@"
+  if [ "$(opt program dataset-access)" != clickhouse-insert ]; then fresh_installs; fi
   case "$(opt program dataset-access)" in
     dataset-access) measure_dataset ;;
     walk) measure_walk ;;

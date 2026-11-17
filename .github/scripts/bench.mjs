@@ -3092,6 +3092,13 @@ export function axonInstall(
   return install;
 }
 
+/**
+ * The server's install bench.sh at [benchPath] runs when no `--install` names another: the checkout's own build, the
+ * head's in bench.yml's measure job.
+ */
+export const headInstall = benchPath =>
+  join(dirname(benchPath), '../server/build/install/benchmark-server');
+
 /** Drives one suite through bench.sh; writes suite.json and summary.md to `out`. */
 export function runSuite(name, options) {
   const definition = SUITES[name];
@@ -3200,7 +3207,8 @@ export function runSuite(name, options) {
     cold: definition.cold === true,
     aa: aaRun,
     ...(properties && definition.kind === 'paired' ? { properties } : {}),
-    // An arm on a JDK of its own records which (its release; the major version without one); its pool, tuning, build.
+    // An arm on a JDK of its own records which (its release; the major version without one); its pool, tuning, and
+    // the build it runs: the install bench.yml names for it, the head's being the checkout's own (headInstall).
     arms: arms.map(arm =>
       withRecorded(
         arm.java
@@ -3209,6 +3217,8 @@ export function runSuite(name, options) {
               jdk: javaRelease(javaHome(arm.java, env)) ?? `${arm.java}`,
             }
           : arm,
+        installs[arm.install] ??
+          (arm.install === 'head' ? headInstall(benchPath) : undefined),
       ),
     ),
     refs,

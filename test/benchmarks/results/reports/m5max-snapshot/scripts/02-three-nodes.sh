@@ -7,7 +7,7 @@
 #
 #   02-three-nodes.sh [postgres] [mongo]     (both by default; one of them reruns its session)
 #
-# WOW_REPO and BENCH_OUT as for 01-single-node.sh.
+# WOW_REPO, BENCH_OUT and SERVER_INSTALL as for 01-single-node.sh.
 set -uo pipefail
 
 # shellcheck source=lib.sh
@@ -17,7 +17,7 @@ FIXED=(--start-concurrency=1024 --max-concurrency=1024 --step=60 --warm-up=15)
 
 three_nodes() {
   local backend=$1 dir="$OUT_ROOT/3-N-$1"
-  local C=(--backend="$backend" --nodes=3 --accounts="$ACCOUNTS" --heap=1g)
+  local C=(--backend="$backend" --nodes=3 --accounts="$ACCOUNTS" --heap=1g ${INSTALL_ARGS[@]+"${INSTALL_ARGS[@]}"})
   session_up "$dir" "${C[@]}" || return 1
   measure_sweep "$dir/e1-sweep" "${C[@]}" --scenario=E1 --distribution=uniform "${SWEEP[@]}"
   measure_sweep "$dir/e3-sweep" "${C[@]}" --scenario=E3 --distribution=uniform "${SWEEP[@]}"

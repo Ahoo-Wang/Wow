@@ -9,7 +9,8 @@
 #   01-single-node.sh [postgres] [mongo]     (both by default; one of them reruns its session)
 #
 # WOW_REPO names the checkout measured (by default the one this script is in) and BENCH_OUT the raw output's root (by
-# default its results/e2e/m5max-snapshot).
+# default its results/e2e/m5max-snapshot). SERVER_INSTALL names another build of the server to measure, inside the
+# checkout (arm-install.sh): the checkout's harness and load generator run it.
 set -uo pipefail
 
 # shellcheck source=lib.sh
@@ -45,7 +46,7 @@ e1_to_limit() {
 
 single_node() {
   local backend=$1 dir="$OUT_ROOT/1-S-$1"
-  local C=(--backend="$backend" --accounts="$ACCOUNTS" --heap=1g)
+  local C=(--backend="$backend" --accounts="$ACCOUNTS" --heap=1g ${INSTALL_ARGS[@]+"${INSTALL_ARGS[@]}"})
   session_up "$dir" "${C[@]}" || return 1
   e1_to_limit "$dir" e1 "${C[@]}" --distribution=uniform
   e1_to_limit "$dir" e1-zipf "${C[@]}" --distribution=zipf

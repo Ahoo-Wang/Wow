@@ -33,6 +33,7 @@ import {
   cpuSplit,
   generatorWithKafka,
   HOST_PROCESSES,
+  headInstall,
   hostProcesses,
   javaHome,
   javaRelease,
@@ -438,20 +439,22 @@ test('javaRelease names a JDK by its release file', () => {
 
 test("the jdk suites pair the head's server on JDK 21 with it on 25", () => {
   const dir = mkdtempSync(join(tmpdir(), 'bench-'));
-  const benchPath = fakeBench(dir);
+  // bench.sh where the checkout keeps it, so the head's build is the checkout's own install beside it.
+  const harness = join(dir, 'harness');
+  mkdirSync(harness);
+  const benchPath = fakeBench(harness);
   const env = {
     JAVA_HOME_21_X64: fakeJdk(dir, '21.0.9+10-LTS'),
     JAVA_HOME_25_X64: fakeJdk(dir, '25.0.1+8-LTS'),
   };
   assert.deepEqual(suitesOf('jdk'), ['jdk-e1-pg', 'jdk-e3-pg', 'jdk-e1-mongo']);
-  // The head's build, as bench.yml names it, stamped: each arm's line names it.
-  const head = join(dir, 'head-install');
-  mkdirSync(head);
+  // The head's build, the checkout's own install (bench.yml names none for it), stamped: each arm's line names it.
+  const head = headInstall(benchPath);
+  mkdirSync(head, { recursive: true });
   writeFileSync(
     join(head, 'wow-build-stamp'),
     'commit=53208e5e49abc\ndirty=no\n',
   );
-  process.env.INSTALL_HEAD = head;
   const suite = runSuite('jdk-e1-pg', {
     benchPath,
     warmUp: 1,
@@ -461,7 +464,6 @@ test("the jdk suites pair the head's server on JDK 21 with it on 25", () => {
     env,
     out: join(dir, 'results', 'jdk-e1-pg'),
   });
-  delete process.env.INSTALL_HEAD;
   assert.deepEqual(
     suite.arms.map(arm => [arm.id, arm.install, arm.jdk]),
     [
@@ -469,7 +471,9 @@ test("the jdk suites pair the head's server on JDK 21 with it on 25", () => {
       ['jdk25', 'head', 'Eclipse Adoptium 25.0.1+8-LTS'],
     ],
   );
-  const calls = readFileSync(join(dir, 'calls.log'), 'utf8').trim().split('\n');
+  const calls = readFileSync(join(harness, 'calls.log'), 'utf8')
+    .trim()
+    .split('\n');
   // Both arms run the head's build, each call naming its server's JDK.
   for (const java of [env.JAVA_HOME_21_X64, env.JAVA_HOME_25_X64]) {
     assert.ok(calls.some(line => line.includes(`--server-java=${java} `)));

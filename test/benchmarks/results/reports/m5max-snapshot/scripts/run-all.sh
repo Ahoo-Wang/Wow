@@ -3,7 +3,12 @@
 # The whole snapshot: the single-node sessions, then the clusters, each script's output into <raw root>/<script>.log;
 # then the summaries (each sweep's summary.md, the run's SUMMARY.md). About 95 minutes. A session run again replaces
 # its earlier run (lib.sh); the summaries cover the sessions in place.
-#   ALLOW_JVM_PIDS="<pid>..." run-all.sh     (WOW_REPO and BENCH_OUT as for 01-single-node.sh; ALLOW_JVM_PIDS in lib.sh)
+#   ALLOW_JVM_PIDS="<pid>..." run-all.sh     (WOW_REPO, BENCH_OUT and SERVER_INSTALL as for 01-single-node.sh;
+#                                            ALLOW_JVM_PIDS in lib.sh)
+#
+# Two arms, another commit's server against the checkout's (a tag against the head), each in a raw root of its own:
+#   SERVER_INSTALL="$(arm-install.sh v10.0.0-beta.4)" BENCH_OUT=<root>/tag run-all.sh
+#   BENCH_OUT=<root>/head run-all.sh
 set -uo pipefail
 
 here="$(cd "$(dirname "$0")" && pwd)"
