@@ -191,6 +191,14 @@ internal data class AggregateMapping(
         tags.filter { it.to != null }.groupBy { it.to }.filterValues { it.size > 1 }.forEach { (to, keys) ->
             throw IllegalArgumentException("$from maps the 9.x tag keys ${keys.map { it.key }} all to $to.")
         }
+        val written = tags.filter { it.written }.mapNotNull { it.to }.toSet()
+        events.filter { it.tags }.forEach { event ->
+            val onto = event.fields.entries.filter { it.value in written }.sortedBy { it.key }
+            require(onto.isEmpty()) {
+                "$from: the tags event ${event.from} renames 9.x fields to the attributes its tags are written as: " +
+                    "${onto.joinToString { "${it.key} to ${it.value}" }}."
+            }
+        }
         val toDot = to.indexOf('.')
         require(toDot in 1 until to.length - 1) { "A V10 aggregate type is named context.aggregate: $to" }
         require(defaultCommand == null || defaultCommand.isNotBlank()) { "$from has a blank default command." }
@@ -226,7 +234,9 @@ internal data class CommandMapping(val from: String, val to: String) {
  *   its payload's `tags` become fields of the V10 event [to], one per applied key of [AggregateMapping.tags], named as
  *   the access attribute, each value converted by the attribute's Manifest entry ([TagValues]). Every such attribute
  *   is written, an absent key as none (null, or an empty list), as 9.x replaced the whole map; the payload's other
- *   fields are kept, renamed by [fields]. `draft-map` sets it on the 9.x tags event, so the import never guesses.
+ *   fields are kept, renamed by [fields]. An attribute the tags are written as is theirs alone: [AggregateMapping]
+ *   refuses a rename onto one, and a stream whose payload holds a field of that name fails, as one value would
+ *   overwrite the other. `draft-map` sets it on the 9.x tags event, so the import never guesses.
  * - [drop] leaves the event out of its stream. A stream whose every event is dropped would leave its version empty,
  *   which the log cannot hold: the mapping check counts such streams and fails before anything is imported; map
  *   those events with [retire] instead.
