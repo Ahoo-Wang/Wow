@@ -7,9 +7,16 @@
 // log and options, against a lock of its own: no harness command runs, so no store or container is touched.
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  readlinkSync,
+  symlinkSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import { test } from 'node:test';
 
 const LOCK_SH = join(
@@ -42,6 +49,34 @@ const bash = (lock, script, env = {}, strict = false) =>
 
 const fresh = () => join(mkdtempSync(join(tmpdir(), 'bench-lock-')), 'lock');
 const holder = lock => readFileSync(join(lock, 'holder'), 'utf8');
+/** A pid that is gone: a shell's, once it has exited. */
+const gonePid = () =>
+  spawnSync('bash', ['-c', 'echo $$'], { encoding: 'utf8' }).stdout.trim();
+/** The take-over's mutex links beside [lock], by name. */
+const mutexes = lock =>
+  readdirSync(dirname(lock)).filter(name =>
+    name.startsWith(`${basename(lock)}.takeover.`),
+  );
+
+/** Four takers, each with a live pid of its own, racing for [lock]: the winners' names. */
+const race = lock => {
+  // The four sleeps start first and end only once every taker has finished, so a winner's pid lives until the last
+  // taker is done: a taker however late finds a live holder's lock, which it never takes over.
+  const result = bash(
+    lock,
+    `pids=""; for owner in a b c d; do sleep 30 & pids="$pids $!"; done
+    takers=""; set -- $pids
+    for owner in a b c d; do ( lock_take "$owner" "$1" "" && echo "won $owner" ) & takers="$takers $!"; shift; done
+    wait $takers; kill $pids`,
+  );
+  return {
+    winners: result.stdout
+      .split('\n')
+      .filter(line => line.startsWith('won '))
+      .map(line => line.slice(4)),
+    output: result.stdout + result.stderr,
+  };
+};
 
 test('a lock is taken once, holds its owner, pid and start, and refuses another live owner saying who and how to wait', () => {
   const lock = fresh();
@@ -157,30 +192,65 @@ test("a bounded wait gives up after its seconds; unlock leaves another owner's l
 test('takers racing over one dead lock: one wins it, the others lose without removing it', () => {
   for (let round = 0; round < 10; round++) {
     const lock = fresh();
-    const gone = spawnSync('bash', ['-c', 'echo $$'], {
-      encoding: 'utf8',
-    }).stdout.trim();
-    bash(lock, `lock_take crashed ${gone} ""`);
-    // Four takers over the one dead lock, each with a live pid of its own: the four sleeps start first and end only
-    // once every taker has finished. So exactly one winner is certain: the winner's holder pid lives until the last
-    // taker is done, and a taker however late finds a live holder's lock, which it never takes over.
-    const race = bash(
-      lock,
-      `pids=""; for owner in a b c d; do sleep 30 & pids="$pids $!"; done
-      takers=""; set -- $pids
-      for owner in a b c d; do ( lock_take "$owner" "$1" "" && echo "won $owner" ) & takers="$takers $!"; shift; done
-      wait $takers; kill $pids`,
-    );
-    const winners = race.stdout
-      .split('\n')
-      .filter(line => line.startsWith('won '));
-    assert.equal(
-      winners.length,
-      1,
-      `round ${round}: ${race.stdout}${race.stderr}`,
-    );
-    assert.match(holder(lock), new RegExp(`^owner=${winners[0].slice(4)}\n`));
+    bash(lock, `lock_take crashed ${gonePid()} ""`);
+    // Exactly one winner is certain: the take-over's mutex lets one taker at a time re-read the lock, the first
+    // replaces the dead one, and every later taker finds a live holder's lock (race).
+    const { winners, output } = race(lock);
+    assert.equal(winners.length, 1, `round ${round}: ${output}`);
+    assert.match(holder(lock), new RegExp(`^owner=${winners[0]}\n`));
+    assert.deepEqual(mutexes(lock), [], 'each taker removed its own mutex');
   }
+});
+
+test("a live holder's take-over mutex is never stale, whatever the clock says, and a taker gives up naming it", () => {
+  const lock = fresh();
+  bash(lock, `lock_take crashed ${gonePid()} ""`);
+  // A taker inside the take-over (this test's process, alive) holds the mutex while the wall clock jumps 10 minutes.
+  symlinkSync(String(process.pid), `${lock}.takeover.0`);
+  const late = bash(
+    lock,
+    `date() { if [ "$1" = +%s ]; then echo $(( $(command date +%s) + 600 )); else command date "$@"; fi; }
+    lock_take late $$ 2`,
+  );
+  assert.equal(late.status, 1);
+  assert.match(
+    late.stderr,
+    new RegExp(
+      `the take-over of crashed \\(pid \\d+, since [^)]*\\) by pid ${process.pid} \\(${lock}\\.takeover\\.0\\); wait for it with --wait`,
+    ),
+  );
+  assert.match(
+    holder(lock),
+    /^owner=crashed\n/,
+    "the dead lock stays for the mutex's holder to replace",
+  );
+  assert.equal(readlinkSync(`${lock}.takeover.0`), String(process.pid));
+});
+
+test("a gone holder's take-over mutex is passed over: one of the racing takers takes the dead lock over", () => {
+  for (let round = 0; round < 10; round++) {
+    const lock = fresh();
+    bash(lock, `lock_take crashed ${gonePid()} ""`);
+    // A taker that died inside the take-over left its mutex.
+    symlinkSync(gonePid(), `${lock}.takeover.0`);
+    const { winners, output } = race(lock);
+    assert.equal(winners.length, 1, `round ${round}: ${output}`);
+    assert.match(holder(lock), new RegExp(`^owner=${winners[0]}\n`));
+    assert.deepEqual(
+      mutexes(lock),
+      ['lock.takeover.0'],
+      "only the gone holder's mutex stays",
+    );
+  }
+});
+
+test('a lock whose holder is not written yet is never taken over', () => {
+  const lock = fresh();
+  bash(lock, 'mkdir "$LOCK_DIR"');
+  const taker = bash(lock, 'lock_take late $$ ""');
+  assert.equal(taker.status, 1);
+  assert.match(taker.stderr, /held by a lock with no holder written yet/);
+  assert.equal(existsSync(join(lock, 'holder')), false);
 });
 
 test("under bench.sh's set -euo pipefail, the guard passes with no lock and with a gone holder's, and no helper ends the script", () => {
@@ -202,7 +272,7 @@ test("under bench.sh's set -euo pipefail, the guard passes with no lock and with
   );
   bash(lock, 'rm -rf "$LOCK_DIR"');
   const helpers = strict(
-    'f=$(lock_field pid); a=$(lock_age); t=$(lock_time ""); lock_descends 1 || true; echo "done [$f]"',
+    'f=$(lock_field pid); b=$(lock_blocker); t=$(lock_time ""); lock_descends 1 || true; echo "done [$f]"',
   );
   assert.equal(helpers.status, 0, helpers.stderr);
   assert.equal(helpers.stdout.trim(), 'done []');

@@ -22,7 +22,7 @@
 # name (a batch script exports it before its rounds), or whose process descends from its pid (abba's sweeps). A lock
 # whose pid is gone is a crashed batch's: it is taken over. --wait queues behind the holder, printing who holds it,
 # and takes the lock the moment it is released (or fails after <seconds>; without a number it waits as long as it
-# takes).
+# takes). No rule here reads a clock: a lock or a take-over is stale only when its holder's pid is gone (#6346).
 
 LOCK_DIR="${WOW_BENCH_LOCK:-/tmp/wow-e2e-bench.lock}"
 
@@ -46,23 +46,46 @@ lock_descends() {
 # Epoch second $1 as the time of day (macOS's date takes -r seconds, GNU's -d @seconds).
 lock_time() { date -r "$1" '+%H:%M:%S' 2>/dev/null || date -d "@$1" '+%H:%M:%S' 2>/dev/null || true; }
 
-# The seconds since directory $1 (the lock's, by default) was made: GNU's stat -c first, which macOS's refuses (GNU's
-# -f is the file system's and prints `?` for %m).
-lock_age() {
-  local made dir=${1:-$LOCK_DIR}
-  made=$(stat -c %Y "$dir" 2>/dev/null || stat -f %m "$dir" 2>/dev/null || true)
-  echo $(($(date +%s) - ${made:-0}))
-}
-
 # Who holds the lock, in words.
 lock_holder() { echo "$(lock_field owner) (pid $(lock_field pid), since $(lock_time "$(lock_field since)"))"; }
 
 # Releases the lock when owner $1 holds it.
 lock_release() { if [ "$(lock_field owner)" = "$1" ]; then rm -rf "$LOCK_DIR"; fi; }
 
+# The take-over's mutex: the first of $LOCK_DIR.takeover.0, .1, ... that no gone holder left. Each is a symlink whose
+# target is its holder's pid, made by one call: `ln -s` fails while the link exists, as mkdir does, and the link names
+# its holder from the instant it exists. A directory made first and a pid written after would leave a moment in which
+# a holder that died left a mutex nobody could ever call stale. A mutex is stale only when its holder's pid is gone,
+# never by its age: a wall clock that stepped forward once made a live holder's mutex look old, and two takers took
+# one dead lock over (#6346). Only its holder removes a link, when it is done: a gone holder's link is passed over to
+# the next, never removed by another taker, who could not tell it from one made since by a live taker. 0 when taken,
+# the link in LOCK_MUTEX; 1 while a live holder has it, LOCK_MUTEX and LOCK_MUTEX_PID naming them.
+lock_mutex() {
+  local n=0 tries=0 link holder
+  while [ "$tries" -lt 100 ]; do
+    link="$LOCK_DIR.takeover.$n"
+    LOCK_MUTEX=$link
+    if ln -s "${BASHPID:-$$}" "$link" 2>/dev/null; then return 0; fi
+    holder=$(readlink "$link" 2>/dev/null || true)
+    tries=$((tries + 1))
+    if [ -z "$holder" ]; then
+      # Released between the two calls: try it again.
+      continue
+    elif lock_alive "$holder"; then
+      LOCK_MUTEX_PID=$holder
+      return 1
+    fi
+    n=$((n + 1))
+  done
+  LOCK_MUTEX_PID=unknown
+  return 1
+}
+
 # Takes the lock for owner $1 and pid $2, once: 0 when taken (or already this owner's), 1 while another live owner
-# holds it. A lock whose pid is gone is taken over.
+# holds it, or another taker is taking a dead owner's over (LOCK_MUTEX_PID names it). A lock whose pid is gone is
+# taken over; a lock whose holder is not written yet is never, since its taker is writing it.
 lock_try() {
+  LOCK_MUTEX_PID=""
   if mkdir "$LOCK_DIR" 2>/dev/null; then
     printf 'owner=%s\npid=%s\nsince=%s\n' "$1" "$2" "$(date +%s)" >"$LOCK_DIR/holder"
     return 0
@@ -71,30 +94,36 @@ lock_try() {
   holder=$(lock_field owner)
   pid=$(lock_field pid)
   if [ "$holder" = "$1" ]; then return 0; fi
-  if [ -z "$pid" ] && [ "$(lock_age)" -lt 5 ]; then
-    # Another taker made the directory and has not written its holder yet.
-    return 1
-  fi
-  if ! lock_alive "$pid"; then
-    # The take-over under a mutex of its own (mkdir is atomic): its one holder reads the lock again, and only while it
-    # is still the dead one replaces it; the other takers lose. A live lock is never moved, and a taker without the
-    # lock can only mkdir, which fails while any lock exists, so two takers never both hold it.
-    local mutex="$LOCK_DIR.takeover"
-    if [ -d "$mutex" ] && [ "$(lock_age "$mutex")" -ge 10 ]; then rmdir "$mutex" 2>/dev/null; fi
-    if ! mkdir "$mutex" 2>/dev/null; then return 1; fi
+  if [ -n "$pid" ] && ! lock_alive "$pid"; then
+    # The take-over under the mutex (lock_mutex): its one holder reads the lock again, and only while it is still the
+    # dead one replaces it; the other takers lose. A live lock is never moved, and a taker without the lock can only
+    # mkdir, which fails while any lock exists, so two takers never both hold it.
+    lock_mutex || return 1
     local taken=1
     if [ "$(lock_field pid)" = "$pid" ] && ! lock_alive "$pid"; then
-      log "taking over the lock of ${holder:-a batch} (pid ${pid:-unknown}, gone)"
+      log "taking over the lock of ${holder:-a batch} (pid $pid, gone)"
       rm -rf "$LOCK_DIR"
       if mkdir "$LOCK_DIR" 2>/dev/null; then
         printf 'owner=%s\npid=%s\nsince=%s\n' "$1" "$2" "$(date +%s)" >"$LOCK_DIR/holder"
         taken=0
       fi
     fi
-    rmdir "$mutex" 2>/dev/null
+    rm -f "$LOCK_MUTEX"
     return "$taken"
   fi
   return 1
+}
+
+# Who blocks a taker that lost, in words: the take-over's mutex and the pid that holds it, a lock whose holder is not
+# written (its taker is writing it, or died doing so: remove $LOCK_DIR once no batch runs), or the lock's holder.
+lock_blocker() {
+  if [ -n "${LOCK_MUTEX_PID:-}" ]; then
+    echo "the take-over of $(lock_holder) by pid $LOCK_MUTEX_PID ($LOCK_MUTEX)"
+  elif [ -d "$LOCK_DIR" ] && [ -z "$(lock_field pid)" ]; then
+    echo "a lock with no holder written yet ($LOCK_DIR)"
+  else
+    lock_holder
+  fi
 }
 
 # Takes the lock for owner $1 and pid $2, waiting up to $3 seconds (empty: not at all; `forever`: as long as it takes)
@@ -103,11 +132,11 @@ lock_take() {
   local owner=$1 pid=$2 wait=$3 waited=0 told=0
   while ! lock_try "$owner" "$pid"; do
     if [ -z "$wait" ] || { [ "$wait" != forever ] && [ "$waited" -ge "$wait" ]; }; then
-      log "the harness is held by $(lock_holder); wait for it with --wait (bench.sh lock --wait, or abba --wait)"
+      log "the harness is held by $(lock_blocker); wait for it with --wait (bench.sh lock --wait, or abba --wait)"
       return 1
     fi
     if [ $((waited - told)) -ge 30 ] || [ "$waited" = 0 ]; then
-      log "waiting for the harness: held by $(lock_holder)"
+      log "waiting for the harness: held by $(lock_blocker)"
       told=$waited
     fi
     sleep 2
