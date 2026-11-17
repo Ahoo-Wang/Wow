@@ -19,7 +19,7 @@ outline: deep
 
 ## 由自定义序列化器写出的类型 {#a-type-written-by-a-custom-serializer}
 
-插件通过询问 Jackson 怎样写出一个类来得知它的 schema。它看不到类自己的序列化器（`@JsonSerialize(using = …)`）或 `@JsonValue` 的内部，所以不去猜：`generateWowManifestFragment` 停下来，要求声明它的结构。
+插件通过询问 Jackson 怎样写出一个类来得知它的 schema。它看不到类自己的序列化器（`@JsonSerialize(using = …)`）或 `@JsonValue` 的内部，所以不去猜：`generateWowManifestFragment` 停下来，要求声明它的结构。对任何种类的类，包括接口、抽象类和枚举，只要 `@JsonSerialize` 给了它自己的序列化器或转换器（注解在它自己或某个超类型上），无论这个序列化器写出什么，构建也会停下来。
 
 ```text
 Jackson does not write com.example.ledger.Ledger as an object (a custom serializer or @JsonValue), so its schema cannot be introspected: declare it in wow { schemaOverrides.put("com.example.ledger.Ledger", "<JSON Schema>") }.
@@ -43,6 +43,23 @@ wow {
     )
 }
 ```
+
+由自己的序列化器写出的属性，也就是属性上带 `using`、`converter`、`contentUsing` 或 `contentConverter` 的 `@JsonSerialize`，或者 `@JsonRawValue`，同样会让构建停下来。最常见的情形是写成字符串的 `Long` id，否则 Manifest 和生成的客户端会把它说成数字：
+
+```text
+Jackson writes com.example.ledger.Order#id with a serializer of its own (@JsonSerialize using, converter, contentUsing or contentConverter, or @JsonRawValue), so its schema cannot be introspected: declare it in wow { schemaOverrides.put("com.example.ledger.Order#id", "<JSON Schema>") }.
+```
+
+<!-- sample: fragment -->
+
+```kotlin
+wow {
+    // Order 的 id，由 @field:JsonSerialize(using = ToStringSerializer::class) 写成 "1024"
+    schemaOverrides.put("com.example.ledger.Order#id", """{"type":"string"}""")
+}
+```
+
+键用二进制名指明一个类；或者指明一个属性：声明 Jackson 写出它所用的访问器的那个类，加上 `#`，再加上这个类声明的属性名，与它的 JSON 名无关。构建停下时会打印出确切的那一行。所以继承来的属性只由声明它的类指明一次，被某个类覆盖的属性由那个类指明，由接口上带注解的 getter 声明的属性则由实现它的每个类指明。只要键存在，它声明的 schema 就代表整个类，或者代表线上写出的整个属性，包括属性的列表元素和映射的值。生成器给声明的属性加上的，只有它给任何属性都会加上的东西：可以为 null 的属性在类型中加上 `null`，以及它的查询注解的关键字。属性的键优先于它的类型的键；在模块中没有指明任何东西的键会被忽略，所以约定插件可以共用一个 `wow { }` 块。键的序列化器（`keyUsing`）不需要声明：JSON 对象的键都是字符串，schema 不约束它们。
 
 凡是读取 Manifest 的地方，声明的 schema 都代表这个类：
 - 快照查询和事件查询可以按它的字段过滤、排序和投影，例如 `state.owner`；

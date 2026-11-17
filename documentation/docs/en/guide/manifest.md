@@ -19,7 +19,7 @@ The snapshot queries read the state schema from the completed fragment: a state 
 
 ## A type written by a custom serializer
 
-The plugin learns a type's schema by asking Jackson how it writes the class. It cannot see inside a serializer of the class's own (`@JsonSerialize(using = …)`) or a `@JsonValue`, so it does not guess: `generateWowManifestFragment` stops and asks for the shape.
+The plugin learns a type's schema by asking Jackson how it writes the class. It cannot see inside a serializer of the class's own (`@JsonSerialize(using = …)`) or a `@JsonValue`, so it does not guess: `generateWowManifestFragment` stops and asks for the shape. It stops too for a class of any kind, an interface, an abstract class or an enum among them, that `@JsonSerialize` gives a serializer or a converter of its own, its own annotation or a supertype's, whatever the serializer writes.
 
 ```text
 Jackson does not write com.example.ledger.Ledger as an object (a custom serializer or @JsonValue), so its schema cannot be introspected: declare it in wow { schemaOverrides.put("com.example.ledger.Ledger", "<JSON Schema>") }.
@@ -43,6 +43,23 @@ wow {
     )
 }
 ```
+
+A property written by a serializer of its own, `@JsonSerialize` on the property with `using`, `converter`, `contentUsing` or `contentConverter`, or `@JsonRawValue`, stops the build the same way. The commonest case is a `Long` id written as a string, which the Manifest and the generated client would otherwise call a number:
+
+```text
+Jackson writes com.example.ledger.Order#id with a serializer of its own (@JsonSerialize using, converter, contentUsing or contentConverter, or @JsonRawValue), so its schema cannot be introspected: declare it in wow { schemaOverrides.put("com.example.ledger.Order#id", "<JSON Schema>") }.
+```
+
+<!-- sample: fragment -->
+
+```kotlin
+wow {
+    // Order's id, written by @field:JsonSerialize(using = ToStringSerializer::class) as "1024"
+    schemaOverrides.put("com.example.ledger.Order#id", """{"type":"string"}""")
+}
+```
+
+A key names a class by its binary name, or a property by the class that declares the accessor Jackson writes it by, `#`, and the property's name as that class declares it, whatever its JSON name. The stop prints the exact line. So an inherited property is named once, by the class that declares it, a property a class overrides by that class, and a property an interface's annotated getter declares by each class that implements it. A key's declared schema stands for the whole class, or the whole property as written on the wire, whenever the key is present: a property's list items and map values included. The generator adds to a declared property only what it adds to any property: `null` to the types of one that can be null, and the keywords of its query annotations. A property's key wins over its type's, and a key that names nothing in the module is ignored, so a convention plugin may share one `wow { }` block. A key serializer (`keyUsing`) needs no declaration: a JSON object's keys are strings, which the schema does not constrain.
 
 The declared schema stands for the class wherever the Manifest is read:
 - the snapshot and event queries filter, sort and project its fields, such as `state.owner`;
