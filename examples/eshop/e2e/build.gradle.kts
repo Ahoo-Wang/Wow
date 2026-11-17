@@ -220,8 +220,8 @@ configurations["clusterTestImplementation"].extendsFrom(configurations["soakTest
 configurations["clusterTestRuntimeOnly"].extendsFrom(configurations["soakTestRuntimeOnly"])
 
 dependencies {
-    // The CoSec-Identity header the gateway forwards (IdentityCodec), for the probe that reaches a service around it.
-    "clusterTestImplementation"("me.ahoo.cosec:cosec-runtime:${libs.versions.cosec.get()}")
+    // The CoSec-Identity header the gateway forwards, for the probe that reaches a service around it.
+    "clusterTestImplementation"(testFixtures(project(":cosec")))
 }
 
 tasks.named<io.gitlab.arturbosch.detekt.Detekt>("detekt") {

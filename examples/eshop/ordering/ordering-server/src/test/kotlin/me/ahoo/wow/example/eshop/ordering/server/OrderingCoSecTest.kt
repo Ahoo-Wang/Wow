@@ -14,8 +14,6 @@
 package me.ahoo.wow.example.eshop.ordering.server
 
 import kotlinx.coroutines.runBlocking
-import me.ahoo.cosec.runtime.identity.IdentityCodec
-import me.ahoo.cosec.spi.identity.Identity
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.caller.Caller
@@ -26,6 +24,7 @@ import me.ahoo.wow.api.wire.DevelopmentHeaders.ROLES_ATTRIBUTE
 import me.ahoo.wow.api.wire.DevelopmentHeaders.USER
 import me.ahoo.wow.client.UserCredential
 import me.ahoo.wow.cosec.CoSecCallerResolver
+import me.ahoo.wow.cosec.CoSecIdentities
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderItem
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderStateView
 import me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder
@@ -36,9 +35,6 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.assertThrows
 import java.math.BigDecimal
-import java.time.Duration
-import java.time.Instant
-import java.util.UUID
 
 /**
  * The ordering service as it is deployed, behind the CoSec gateway (the `cosec` profile): CoSec's gateway mode reads
@@ -59,20 +55,8 @@ class OrderingCoSecTest {
     }
 
     /** The header the gateway forwards for [id] of the default tenant, with [roles], after verifying its token. */
-    private fun signedIn(id: String, vararg roles: String): Map<String, String> {
-        val now = Instant.now()
-        val identity = Identity(
-            tenant = DEFAULT_TENANT,
-            subject = id,
-            app = "",
-            space = "",
-            roles = roles.toSet(),
-            credential = Identity.Credential(Identity.Method.JWT, UUID.randomUUID().toString(), now.plus(TOKEN_TTL)),
-            issuedAt = now,
-            requestId = UUID.randomUUID().toString(),
-        )
-        return mapOf(IdentityCodec.HEADER to IdentityCodec.encode(identity))
-    }
+    private fun signedIn(id: String, vararg roles: String): Map<String, String> =
+        CoSecIdentities.headers(id, roles.toList())
 
     @Test
     @OptIn(ExperimentalWowApi::class) // wow-cosec is experimental in 10.0
@@ -122,8 +106,6 @@ class OrderingCoSecTest {
         runBlocking { server.queries(caller, gateway).snapshots(OrderStateView::class.java).state(id) }
 
     private companion object {
-        const val DEFAULT_TENANT = "(0)"
-        val TOKEN_TTL: Duration = Duration.ofHours(1)
         const val UNAUTHORIZED = 401
     }
 }

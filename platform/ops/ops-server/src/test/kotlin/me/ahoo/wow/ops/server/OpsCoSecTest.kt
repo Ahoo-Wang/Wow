@@ -13,24 +13,23 @@
 
 package me.ahoo.wow.ops.server
 
-import me.ahoo.cosec.runtime.identity.IdentityCodec
-import me.ahoo.cosec.spi.identity.Identity
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.cosec.CoSecCallerResolver
+import me.ahoo.wow.cosec.CoSecIdentities
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.ops.api.parked.EntryAggregate
 import me.ahoo.wow.ops.api.parked.EntryRetrySpec
 import me.ahoo.wow.ops.api.parked.ParkedEntry
 import me.ahoo.wow.ops.api.parked.ParkedStatus
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spring.boot.security.CoSecRouteMapAutoConfiguration
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import java.time.Duration
-import java.time.Instant
+import org.springframework.boot.autoconfigure.AutoConfiguration
 
 /**
  * The ops service in its production shape, the `cosec` profile (roadmap P.15), end to end over HTTP: behind the CoSec
@@ -53,20 +52,8 @@ class OpsCoSecTest {
      * [id] of CoSec's default tenant with [roles], as the CoSec gateway forwards it after verifying its credential: the
      * service holds no secret and verifies nothing, it believes the header.
      */
-    private fun signedIn(id: String, vararg roles: String): Who {
-        val now = Instant.now()
-        val identity = Identity(
-            tenant = DEFAULT_TENANT,
-            subject = id,
-            app = "",
-            space = "",
-            roles = roles.toSet(),
-            credential = Identity.Credential(Identity.Method.JWT, "token-of-$id", now + Duration.ofHours(1)),
-            issuedAt = now,
-            requestId = "request-of-$id",
-        )
-        return Who(mapOf(IdentityCodec.HEADER to IdentityCodec.encode(identity)))
-    }
+    private fun signedIn(id: String, vararg roles: String): Who =
+        Who(CoSecIdentities.headers(id, roles.toList()))
 
     private fun entry(context: String, id: String): ParkedEntry = WowJson.mapper.convertValue(
         // A ledger entry is a wire record whose constructor is Wow's own (decision D216): read it from its JSON.
@@ -91,6 +78,16 @@ class OpsCoSecTest {
     @OptIn(ExperimentalWowApi::class) // wow-cosec is experimental in 10.0
     fun `the caller should be CoSec's`() {
         ops.context.getBean(CallerResolver::class.java).assert().isInstanceOf(CoSecCallerResolver::class.java)
+    }
+
+    @Test
+    @OptIn(ExperimentalWowApi::class) // wow-cosec is experimental in 10.0
+    fun `the Manifest's route map should be ordered before configurations CoSec's starter has`() {
+        // The host names CoSec's pipeline configuration by its class name, which a CoSec release may move: a name of
+        // no class orders nothing, and CoSec's own empty route map would win where CoSec decides itself.
+        val order = CoSecRouteMapAutoConfiguration::class.java.getAnnotation(AutoConfiguration::class.java)
+        order.beforeName.assert().isNotEmpty()
+        order.beforeName.forEach { name -> Class.forName(name).name.assert().isEqualTo(name) }
     }
 
     @Test
@@ -158,7 +155,6 @@ class OpsCoSecTest {
     }
 
     private companion object {
-        const val DEFAULT_TENANT = "(0)"
         const val QUERY = "/ops/parked/snapshot/query"
         const val SAGA = "PaymentSaga.onOrderPlaced"
         const val FAILED_AT = 1_700_000_000_000L

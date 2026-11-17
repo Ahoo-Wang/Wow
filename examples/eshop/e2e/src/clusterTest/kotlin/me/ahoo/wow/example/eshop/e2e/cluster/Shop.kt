@@ -13,8 +13,7 @@
 
 package me.ahoo.wow.example.eshop.e2e.cluster
 
-import me.ahoo.cosec.runtime.identity.IdentityCodec
-import me.ahoo.cosec.spi.identity.Identity
+import me.ahoo.wow.cosec.CoSecIdentities
 import me.ahoo.wow.example.eshop.e2e.Answer
 import me.ahoo.wow.example.eshop.e2e.json
 import java.io.IOException
@@ -24,7 +23,6 @@ import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.net.http.HttpTimeoutException
 import java.time.Duration
-import java.time.Instant
 import java.util.Base64
 import java.util.UUID
 import javax.crypto.Mac
@@ -73,21 +71,8 @@ class Tokens(private val secret: String) {
      * The CoSec-Identity header the gateway forwards for [who] once it has verified a token and permitted the request:
      * what a service behind it believes, unsigned, which is why only the gateway's pods reach a service's public port.
      */
-    fun identity(who: Who, ttl: Duration = Duration.ofHours(2)): String {
-        val now = Instant.now()
-        return IdentityCodec.encode(
-            Identity(
-                tenant = TENANT,
-                subject = who.id,
-                app = "",
-                space = "",
-                roles = who.roles.toSet(),
-                credential = Identity.Credential(Identity.Method.JWT, UUID.randomUUID().toString(), now.plus(ttl)),
-                issuedAt = now,
-                requestId = UUID.randomUUID().toString(),
-            )
-        )
-    }
+    fun identity(who: Who, ttl: Duration = Duration.ofHours(2)): String =
+        CoSecIdentities.header(who.id, who.roles, tenant = TENANT, ttl = ttl)
 
     private fun encode(text: String): String = Base64.getUrlEncoder().withoutPadding().encodeToString(
         text.toByteArray()

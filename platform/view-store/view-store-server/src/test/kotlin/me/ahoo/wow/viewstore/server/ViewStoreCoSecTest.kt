@@ -13,18 +13,15 @@
 
 package me.ahoo.wow.viewstore.server
 
-import me.ahoo.cosec.runtime.identity.IdentityCodec
-import me.ahoo.cosec.spi.identity.Identity
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.wire.WowHeaders
+import me.ahoo.wow.cosec.CoSecIdentities
 import me.ahoo.wow.test.server.Answer
 import me.ahoo.wow.viewstore.api.ViewStoreContext
 import me.ahoo.wow.viewstore.domain.ViewStoreRejections
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import java.time.Duration
-import java.time.Instant
 import java.util.UUID
 
 /**
@@ -47,20 +44,8 @@ class ViewStoreCoSecTest {
      * [id] of CoSec's default tenant with [roles], decided by the gateway in [app], as the gateway forwards it: the
      * service holds no secret and verifies nothing, it believes the header.
      */
-    private fun signedIn(id: String, vararg roles: String, app: String = APP): Who {
-        val now = Instant.now()
-        val identity = Identity(
-            tenant = "(0)",
-            subject = id,
-            app = app,
-            space = "",
-            roles = roles.toSet(),
-            credential = Identity.Credential(Identity.Method.JWT, "token-of-$id", now + Duration.ofHours(1)),
-            issuedAt = now,
-            requestId = "request-of-$id",
-        )
-        return Who(mapOf(IdentityCodec.HEADER to IdentityCodec.encode(identity)))
-    }
+    private fun signedIn(id: String, vararg roles: String, app: String = APP): Who =
+        Who(CoSecIdentities.headers(id, roles.toList(), app = app))
 
     private fun definition(): String = "orders-${UUID.randomUUID()}"
 

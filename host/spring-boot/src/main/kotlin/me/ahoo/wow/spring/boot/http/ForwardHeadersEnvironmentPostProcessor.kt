@@ -20,9 +20,12 @@ import org.springframework.core.env.MapPropertySource
 
 /**
  * Reads the client behind the gateway: a gateway always sits in front of the public
- * port and overwrites `X-Forwarded-For`, so the host makes Spring Boot's `server.forward-headers-strategy` `framework`
- * by default, and the address a command records (`remote_ip`) is the client's, not the gateway's. Whatever the
- * application sets wins, `none` included; the host logs the strategy in effect when it starts.
+ * port and overwrites `X-Forwarded-For`, so the host makes Spring Boot's `server.forward-headers-strategy` `native` by
+ * default, the public port's Reactor Netty server taking the remote address from it, and the address a command
+ * records (`remote_ip`) is the client's, not the gateway's. Not `framework`: CoSec does not start under Spring's
+ * forwarded-header transformer, which the client address cannot be read safely through (CoSec's `PIP-16`); under
+ * `native` CoSec reads `X-Forwarded-For` itself, one proxy deep by default. Whatever the application sets wins, `none`
+ * included; the host logs the strategy in effect when it starts.
  */
 internal class ForwardHeadersEnvironmentPostProcessor : EnvironmentPostProcessor {
     override fun postProcessEnvironment(environment: ConfigurableEnvironment, application: SpringApplication) {
@@ -34,7 +37,7 @@ internal class ForwardHeadersEnvironmentPostProcessor : EnvironmentPostProcessor
 
     companion object {
         const val FORWARD_HEADERS_STRATEGY: String = "server.forward-headers-strategy"
-        const val DEFAULT: String = "framework"
+        const val DEFAULT: String = "native"
         const val SOURCE: String = "wowForwardHeaders"
     }
 }

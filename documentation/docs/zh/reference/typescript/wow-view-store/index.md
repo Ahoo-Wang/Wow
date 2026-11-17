@@ -81,7 +81,7 @@ export type WowViewStoreErrorCode = (typeof WowViewStoreErrorCodes)[keyof typeof
 
 | 错误码 | 状态 | 何时 |
 |---|---|---|
-| `view-store.app-required` | 400 | 请求的作用域没有应用：在 CoSec 网关之后，即它转发的 `CoSec-App-Id` |
+| `view-store.app-required` | 400 | 请求的作用域没有应用：在 CoSec 网关之后，即它转发的应用，也就是用户令牌所属的应用 |
 | `view-store.invalid` | 400 | 写入无效：它的配置、标题、偏好或措辞 |
 | `view-store.owner-required` | 400 | 写入没有所有者：视图由用户、`(shared)` 或 `(platform)` 下的 `(system)` 保存 |
 | `view-store.not-found` | 404 | 聚合属于另一个应用，读起来就像不存在 |

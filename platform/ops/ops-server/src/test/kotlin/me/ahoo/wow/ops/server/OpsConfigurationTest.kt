@@ -21,7 +21,6 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import me.ahoo.cosec.api.context.SecurityContext
 import me.ahoo.cosec.api.context.SecurityScope
-import me.ahoo.cosec.api.tenant.Tenant
 import me.ahoo.cosec.runtime.AuthorizationChecker
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
@@ -80,8 +79,8 @@ class OpsConfigurationTest {
     private fun request(subject: String): SecurityContext = mockk(relaxed = true) {
         every { scope } returns mockk<SecurityScope>(relaxed = true)
         every { principal.id } returns subject
-        every { principal.anonymous } returns false
-        every { tenant.tenantId } returns Tenant.DEFAULT_TENANT_ID
+        every { principal.authenticated } returns true
+        every { tenantId } returns SecurityContext.DEFAULT_TENANT_ID
     }
 
     /**

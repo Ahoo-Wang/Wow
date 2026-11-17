@@ -162,7 +162,7 @@ spec:
               app.kubernetes.io/name: cosec-gateway
       containers:
         - name: cosec-gateway
-          image: ghcr.io/ahoo-wang/cosec-gateway:8.0.0-alpha.3@sha256:4517ff67496d04ced0099709809c3b9463e46a9050b1cd302f90e1cbab424296
+          image: ghcr.io/ahoo-wang/cosec-gateway:8.0.0-beta.1@sha256:50ffb29f25544a28709458e3375579babbb6ed15a8b61fd8d116d8e1c632ee91
           imagePullPolicy: IfNotPresent
           envFrom:
             - secretRef:

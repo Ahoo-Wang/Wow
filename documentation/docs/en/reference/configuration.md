@@ -7,7 +7,7 @@ description: "Every key of the host's wow.* configuration, its type, default and
 
 # Configuration Keys
 
-Every key of the `wow.*` configuration a Spring Boot host reads, 284 in all, generated from the host's configuration metadata ([`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)). Spring Boot binds them relaxed: `max-concurrent`, `maxConcurrent` and `MAX_CONCURRENT` are one key. A `wow.*` key that no property of the host or of a module on the class path names refuses the node's start, pointing at the migration guide's page of the keys of earlier versions. So does an environment variable under a Wow group (`WOW_KAFKA_…`: the first word of a key), read as Spring maps it; give a variable of your own a name outside these groups. A key below a map takes the map's key in brackets when it holds a dot: `wow.aggregates.[shop.cart].tenant`; each map's own keys are listed below it, its entry written `<name>` or `[<context>.<aggregate>]`. [Module Configuration Keys](./module-configuration) lists the keys of the platform services, of wow-cosid and of wow-cocache. The keys are the contract, not the host's property classes, which are Wow's own: an application reads a key through Spring's `Environment`, `@Value` or a `Binder`.
+Every key of the `wow.*` configuration a Spring Boot host reads, 282 in all, generated from the host's configuration metadata ([`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)). Spring Boot binds them relaxed: `max-concurrent`, `maxConcurrent` and `MAX_CONCURRENT` are one key. A `wow.*` key that no property of the host or of a module on the class path names refuses the node's start, pointing at the migration guide's page of the keys of earlier versions. So does an environment variable under a Wow group (`WOW_KAFKA_…`: the first word of a key), read as Spring maps it; give a variable of your own a name outside these groups. A key below a map takes the map's key in brackets when it holds a dot: `wow.aggregates.[shop.cart].tenant`; each map's own keys are listed below it, its entry written `<name>` or `[<context>.<aggregate>]`. [Module Configuration Keys](./module-configuration) lists the keys of the platform services, of wow-cosid and of wow-cocache. The keys are the contract, not the host's property classes, which are Wow's own: an application reads a key through Spring's `Environment`, `@Value` or a `Binder`.
 
 ## `wow`
 
@@ -127,11 +127,10 @@ CoSec's authorization of the commands.
 
 ## `wow.cosec.cross-scope`
 
-The callers that may act across scopes: by CoSec role or policy.
+The callers that may act across scopes: by CoSec role.
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `wow.cosec.cross-scope.policies` | `Set<String>` |  | The CoSec policies of these callers. |
 | `wow.cosec.cross-scope.roles` | `Set<String>` |  | The CoSec roles of these callers. |
 
 ## `wow.cosec.tenant-level`
@@ -140,7 +139,6 @@ The tenant-level callers, who read and write every aggregate of their tenant.
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `wow.cosec.tenant-level.policies` | `Set<String>` |  | The CoSec policies of these callers. |
 | `wow.cosec.tenant-level.roles` | `Set<String>` |  | The CoSec roles of these callers. |
 
 ## `wow.elasticsearch`
@@ -229,7 +227,7 @@ The HTTP edge: its routes and its error answers.
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
 | `wow.http.errors` | `Map<String,Error>` |  | The HTTP status of an error code, by code (bracketed in a property name: `wow.http.errors.[a.b].status`). |
-| `wow.http.request-facts` | `Set<String>` |  | The request headers copied into a command's headers, beside the standard request facts the edge records: `app_id`, the application the caller resolver authenticated, and on the public port `user_agent` and `remote_ip`; none of the three can be listed, and each fact is cut to 512 characters. `remote_ip` is the server's remote address, which the host takes from the gateway's `X-Forwarded-For` (`server.forward-headers-strategy` is `framework` unless the application sets it, `none` included). |
+| `wow.http.request-facts` | `Set<String>` |  | The request headers copied into a command's headers, beside the standard request facts the edge records: `app_id`, the application the caller resolver authenticated, and on the public port `user_agent` and `remote_ip`; none of the three can be listed, and each fact is cut to 512 characters. `remote_ip` is the server's remote address, which the host takes from the gateway's `X-Forwarded-For` (`server.forward-headers-strategy` is `native` unless the application sets it, `none` included). |
 
 ## `wow.http.client-facts`
 

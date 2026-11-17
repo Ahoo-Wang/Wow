@@ -23,8 +23,8 @@ import me.ahoo.wow.api.caller.Caller
  * The security context of the request a [Caller] comes from, for the CoSec authorizers: CoSec's
  * pipeline writes the context it permitted into the request's Reactor context, which the request's coroutines carry
  * (`ReactorContext`) through the edge's handling, admission included. A command or a route call is the request's
- * when that context is CoSec's (its `scope`) and its principal is the caller: the same subject in the
- * same tenant, and no service identity.
+ * when that context's principal is one a credential proved and is the caller: the same subject in the same tenant,
+ * and no service identity.
  *
  * A caller without one is request-less: a saga's, a timer's, a compensation's or a scheduled job's command, which
  * carries the scope and operator of the root command admission authorized, or a service's call on
@@ -37,7 +37,7 @@ internal object CoSecRequests {
         }
         val subject = caller.subject ?: return null
         val context = currentCoroutineContext()[ReactorContext]?.context?.getSecurityContextOrEmpty() ?: return null
-        if (context.scope == null || context.principal.id != subject) {
+        if (!context.principal.authenticated || context.principal.id != subject) {
             return null
         }
         return context.takeIf { CoSecCallerResolver.tenantOf(it, defaultTenant) == caller.tenantId }

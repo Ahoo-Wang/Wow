@@ -39,10 +39,11 @@ object ViewStoreContext {
     const val SYSTEM_TENANT_ID: String = "(platform)"
 
     /**
-     * The request header naming the calling application. The service does not copy it as the client sent it: its
-     * caller resolver authenticates the application (CoSec's: the app of the scope CoSec resolved for the request,
-     * behind the CoSec gateway the one the gateway decided the request in and forwarded), and the edge records it as
-     * the standard request fact `app_id` and the caller's attribute `app`, which the view store reads.
+     * The request header a CoSec 7 client named its application in, which CoSec 8 reads no more. The service never
+     * takes the application from a header a client sends: its caller resolver authenticates it (CoSec's: the app of
+     * the scope CoSec resolved for the request, the one the token is issued for, behind the CoSec gateway the one the
+     * gateway decided the request in and forwarded), and the edge records it as the standard request fact `app_id`
+     * and the caller's attribute `app`, which the view store reads.
      */
     const val APP_ID_HEADER: String = "CoSec-App-Id"
 
