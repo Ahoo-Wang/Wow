@@ -143,8 +143,9 @@ internal class SchemaOverrides(declared: Map<String, ObjectNode>, private val ma
 
     /**
      * Whether a property's own annotations, which Jackson merges onto its [accessor] from its field, getter and
-     * constructor parameter, give it a serializer of its own. Read from the annotations, not the introspector, which also answers with the Kotlin
-     * module's own converters, such as a value class's, which the generator describes as Jackson writes them.
+     * constructor parameter, give it a serializer of its own. Read from the annotations, not the introspector, which
+     * also answers with the Kotlin module's own converters, such as a value class's, which the generator describes as
+     * Jackson writes them.
      */
     private fun hasOwnSerializer(accessor: AnnotatedMember): Boolean {
         val serialize = accessor.getAnnotation(JsonSerialize::class.java)
