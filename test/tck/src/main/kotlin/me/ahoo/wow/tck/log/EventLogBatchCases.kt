@@ -77,6 +77,31 @@ abstract class EventLogBatchCases internal constructor() : EventLogReadCases() {
     }
 
     @Test
+    fun `a read that fails after appendAll wrote keeps the outcomes the write gave`(): Unit = runBlocking {
+        val probe = failingReadAfterWrite(context, partitions = 4)
+        Assumptions.assumeTrue(probe != null, "This backend's appendAll reads nothing after it writes.")
+        val log = checkNotNull(probe)
+        val (fresh, taken, after) = idsInPartitionZero(3, 4)
+        createLog(partitions = 4).append(stream(taken, 1, requestId = "first"))
+            .assert().isInstanceOf(AppendOutcome.Committed::class.java)
+        // The write commits fresh and after, and refuses taken's version 1; the lookup of what refused it fails.
+        val outcomes = log.appendAll(
+            listOf(
+                Append.of(stream(fresh, 1)),
+                Append.of(stream(taken, 1, requestId = "second")),
+                Append.of(stream(after, 1)),
+            ),
+        )
+        outcomes[0].assert().isInstanceOf(AppendOutcome.Committed::class.java)
+        outcomes[1].assert().isInstanceOf(AppendOutcome.Unknown::class.java)
+        outcomes[2].assert().isInstanceOf(AppendOutcome.Committed::class.java)
+        listOf(fresh, after).forEach { id -> log.read(type.ref("tenant", id)).toList().size.assert().isEqualTo(1) }
+        // Unknown, its stream appended again is answered as it is: a conflict at the version the first request took.
+        log.append(stream(taken, 1, requestId = "second")).assert().isEqualTo(AppendOutcome.Conflict(1))
+        log.read(type.ref("tenant", taken)).toList().single().requestId.assert().isEqualTo("first")
+    }
+
+    @Test
     fun `appendAll sequences a group without gaps`(): Unit = runBlocking {
         val log = createLog(partitions = 4)
         val ids = idsInPartitionZero(10, 4)

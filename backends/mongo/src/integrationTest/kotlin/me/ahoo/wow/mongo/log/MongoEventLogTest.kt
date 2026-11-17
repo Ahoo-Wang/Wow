@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.mongo.log
 
+import com.mongodb.MongoException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
@@ -45,6 +46,28 @@ class MongoEventLogTest : EventLogSpec() {
 
     override fun createSnapshots(context: String): SnapshotStore =
         MongoSnapshotStore(MongoLogFixture.client, MongoLogFixture.DATABASE, context).also { it.createSchema() }
+
+    /** Its first find after its first `insertMany` fails, once: the lookup of a stream the insert refused. */
+    override fun failingReadAfterWrite(context: String, partitions: Int): EventLog {
+        var wrote = false
+        var failed = false
+        val client = faulty(
+            many = { documents, insert ->
+                try {
+                    insert(documents)
+                } finally {
+                    wrote = true
+                }
+            },
+            find = {
+                if (wrote && !failed) {
+                    failed = true
+                    throw MongoException(QUOTA_EXCEEDED, "failed once after a write")
+                }
+            },
+        )
+        return MongoEventLog(client, MongoLogFixture.DATABASE, context, partitions).also { it.createSchema() }
+    }
 
     /** A decimal of 40 significant digits: MongoDB keeps at most 34 exactly. */
     override fun refused(stream: EventStreamRecord): EventStreamRecord = stream.copyWith(
@@ -140,5 +163,6 @@ class MongoEventLogTest : EventLogSpec() {
         const val IDLE_POLLS = 13
         const val COMMITS = 5
         const val SETTLE_MS = 100L
+        const val QUOTA_EXCEEDED = 12_501
     }
 }

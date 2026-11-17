@@ -34,6 +34,13 @@ import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.store.StoreCallMarks
 import me.ahoo.wow.tck.log.EventLogSpec
 import org.junit.jupiter.api.Test
+import java.lang.reflect.InvocationTargetException
+import java.lang.reflect.Proxy
+import java.sql.Connection
+import java.sql.PreparedStatement
+import java.sql.SQLException
+import java.util.concurrent.atomic.AtomicBoolean
+import javax.sql.DataSource
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -48,6 +55,43 @@ class PostgresEventLogTest : EventLogSpec() {
     override fun snapshotTailsOf(log: EventLog, snapshots: SnapshotStore): SnapshotTailReader =
 
         (log as PostgresEventLog).snapshotTailsWith(snapshots as PostgresSnapshotStore)
+
+    /** Its first query after its first group statement fails, once: the lookup of a stream the statement refused. */
+    override fun failingReadAfterWrite(context: String, partitions: Int): EventLog {
+        val wrote = AtomicBoolean(false)
+        val failed = AtomicBoolean(false)
+        val target = PostgresFixture.dataSource
+        val dataSource = proxy(DataSource::class.java, target) { name, _ ->
+            if (name != "getConnection") return@proxy null
+            val connection = target.connection
+            proxy(Connection::class.java, connection) { method, arguments ->
+                if (method != "prepareStatement") return@proxy null
+                val sql = arguments[0] as String
+                val statement = connection.prepareStatement(sql)
+                proxy(PreparedStatement::class.java, statement) { call, _ ->
+                    when {
+                        call != "executeQuery" -> null
+                        sql.startsWith(GROUP_STATEMENT) -> statement.executeQuery().also { wrote.set(true) }
+                        wrote.get() && failed.compareAndSet(false, true) ->
+                            throw SQLException("failed once after a write", CONNECTION_FAILURE)
+                        else -> null
+                    }
+                }
+            }
+        }
+        return PostgresEventLog(dataSource, context, partitions).also { it.createSchema() }
+    }
+
+    private fun <T : Any> proxy(type: Class<T>, delegate: T, intercept: (String, Array<Any?>) -> Any?): T = type.cast(
+        Proxy.newProxyInstance(type.classLoader, arrayOf(type)) { _, method, args ->
+            val arguments = args ?: emptyArray()
+            intercept(method.name, arguments) ?: try {
+                method.invoke(delegate, *arguments)
+            } catch (thrown: InvocationTargetException) {
+                throw thrown.targetException
+            }
+        },
+    )
 
     /** A `\u0000` in a payload string: PostgreSQL's `jsonb` does not take it (finding A2-7). */
     override fun refused(stream: EventStreamRecord): EventStreamRecord = stream.copyWith(
@@ -115,5 +159,9 @@ class PostgresEventLogTest : EventLogSpec() {
         const val IDLE_POLLS = 13
         const val COMMITS = 5
         const val SETTLE_MS = 100L
+
+        /** A group's statement ([PostgresEventLogTables.appendGroup]). */
+        const val GROUP_STATEMENT = "WITH input"
+        const val CONNECTION_FAILURE = "08006"
     }
 }

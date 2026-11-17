@@ -25,12 +25,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.mongo.ExactBson
 import me.ahoo.wow.mongo.MongoFailures
 import me.ahoo.wow.mongo.isDuplicateKey
-import me.ahoo.wow.mongo.log.MongoEventLog.Companion.GAP
-import me.ahoo.wow.mongo.log.MongoEventLog.Companion.GAP_CLOSED
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.GAP_FAILED
-import me.ahoo.wow.mongo.log.MongoEventLog.Companion.GAP_NODE
-import me.ahoo.wow.mongo.log.MongoEventLog.Companion.GAP_SEALED
-import me.ahoo.wow.mongo.log.MongoEventLog.Companion.GAP_TO
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.GAP_UNKNOWN
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.ID
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.MAX_SEALED
@@ -55,8 +50,8 @@ import org.bson.Document
 /**
  * The appends of a context's log on MongoDB: a stream alone, at the sequence its
  * partition's block gives it, or a group with one ordered `insertMany` per aggregate collection; each stream's outcome
- * as [MongoEventLog.append] gives it, and a placeholder for each sequence no stream took, so the tail never waits on
- * one.
+ * as [MongoEventLog.append] gives it, and a placeholder for each sequence no stream took ([MongoLogPlaceholders]), so
+ * the tail never waits on one.
  */
 internal class MongoLogAppender(
     private val context: String,
@@ -66,6 +61,7 @@ internal class MongoLogAppender(
     private val documents: MongoLogDocuments,
     private val lookups: MongoLogLookups,
     private val lastSequences: LastSequences,
+    private val placeholders: MongoLogPlaceholders,
 ) {
     fun appendNow(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome {
         require(stream.ref.type.context == context) { "${stream.ref} is not in context $context." }
@@ -177,7 +173,7 @@ internal class MongoLogAppender(
                 document[ID] = positionId(partition, allocation.sequence)
                 previous[stream.ref] = allocation.sequence
                 members += Member(index, stream, collection, document, allocation.sequence)
-                allocation.closing?.let(::close)
+                allocation.closing?.let(placeholders::close)
             }
         } catch (
             @Suppress("TooGenericExceptionCaught") // Whatever failed, no member was tried: each is filled.
@@ -273,7 +269,12 @@ internal class MongoLogAppender(
             // A document beyond the size limit, which the driver refuses as it reaches it, after the batches before it
             // went: a member that landed is committed, the others are appended alone, so it fails alone.
             return members.map { member ->
-                if (landed(collection, member)) {
+                val landed = try {
+                    landed(collection, member)
+                } catch (failure: MongoException) {
+                    return@map member to unknown(member, failure, gaps)
+                }
+                if (landed) {
                     member to outcomeOf(collection, member, null, gaps)
                 } else {
                     gaps.add(member, GAP_FAILED)
@@ -293,7 +294,9 @@ internal class MongoLogAppender(
 
     /**
      * [member]'s outcome after its insert, which failed with [error] when there is one; its sequence goes to [gaps]
-     * when it holds no stream.
+     * when it holds no stream. The lookup of a refused member's request or version that fails leaves its outcome
+     * unknown: the insert may have committed the members before it, whose outcomes a throw would lose
+     * ([EventLog.appendAll]).
      */
     private fun outcomeOf(
         collection: AggregateCollection,
@@ -315,7 +318,16 @@ internal class MongoLogAppender(
         }
         lastSequences.remove(stream.ref)
         gaps.add(member, GAP_FAILED)
-        return when {
+        return try {
+            refusedOutcome(collection, stream, error)
+        } catch (failure: MongoException) {
+            AppendOutcome.Unknown(failure)
+        }
+    }
+
+    /** The outcome of [stream], which its insert refused with [error], looked up when a key refused it. */
+    private fun refusedOutcome(collection: AggregateCollection, stream: EventStreamRecord, error: WriteError) =
+        when {
             error.code == MongoFailures.BSON_OBJECT_TOO_LARGE -> AppendOutcome.Rejected(
                 MongoException(error.code, error.message)
             )
@@ -333,7 +345,6 @@ internal class MongoLogAppender(
                 AppendOutcome.Conflict(lookups.currentVersion(collection, stream.ref))
             )
         }
-    }
 
     /** Whether [member]'s stream is at its position: the document there has its request. */
     private fun landed(collection: AggregateCollection, member: Member): Boolean {
@@ -361,60 +372,20 @@ internal class MongoLogAppender(
      * `insertMany` per collection ([fillAll]) once the group's inserts are done.
      */
     private inner class Gaps {
-        private val byCollection = LinkedHashMap<AggregateCollection, MutableList<Gap>>()
+        private val byCollection = LinkedHashMap<AggregateCollection, MutableList<MongoLogPlaceholders.Gap>>()
         private val members = HashSet<Int>()
 
         operator fun contains(member: Member): Boolean = member.index in members
 
         fun add(member: Member, reason: String) {
             members += member.index
-            val gap = Gap(lookups.partitionOf(member.stream.ref), member.sequence, reason)
+            val gap = MongoLogPlaceholders.Gap(lookups.partitionOf(member.stream.ref), member.sequence, reason)
             byCollection.getOrPut(member.collection) { ArrayList() } += gap
         }
 
         fun write() {
-            byCollection.forEach { (collection, gaps) -> fillAll(collection, gaps) }
+            byCollection.forEach { (collection, gaps) -> placeholders.fillAll(collection, gaps) }
             byCollection.clear()
-        }
-    }
-
-    /** A sequence of [partition] that holds no stream, and why. */
-    private class Gap(val partition: Int, val sequence: Long, val reason: String)
-
-    /**
-     * Writes a placeholder at each of [gaps] in [collection] with one unordered `insertMany`, and settles each: a stream
-     * that landed at its position takes it first, and settles it as well. A placeholder that cannot be written now is
-     * left to the tail, as [fill] leaves it.
-     */
-    private fun fillAll(collection: AggregateCollection, gaps: List<Gap>) {
-        if (gaps.size == 1) {
-            return gaps.single().let { fill(collection, it.partition, it.sequence, it.reason) }
-        }
-        val unwritten: Set<Int> = try {
-            collection.appends.insertMany(
-                gaps.map { placeholder(it.partition, it.sequence, it.reason) },
-                InsertManyOptions().ordered(false),
-            )
-            emptySet()
-        } catch (bulk: MongoBulkWriteException) {
-            // A write concern that failed leaves every placeholder unknown: filled again later, a duplicate then.
-            if (bulk.writeConcernError != null) {
-                gaps.indices.toSet()
-            } else {
-                bulk.writeErrors.filterNot { it.category == ErrorCategory.DUPLICATE_KEY }.mapTo(HashSet()) { it.index }
-            }
-        } catch (
-            failure: MongoException,
-        ) {
-            // Each sequence is left to the tail, which fills it again.
-            gaps.indices.toSet()
-        }
-        gaps.forEachIndexed { at, gap ->
-            if (at in unwritten) {
-                sequencer.unfilled(gap.partition, gap.sequence, collection.name)
-            } else {
-                sequencer.settle(gap.partition, gap.sequence)
-            }
         }
     }
 
@@ -462,7 +433,7 @@ internal class MongoLogAppender(
         document[SEQUENCE] = sequence
         document[ID] = positionId(partition, sequence)
         val outcome = try {
-            allocation.closing?.let(::close)
+            allocation.closing?.let(placeholders::close)
             collection.appends.insertOne(document)
             sequencer.settle(partition, sequence)
             lastSequences[stream.ref] = LastSequence(stream.version, sequence)
@@ -479,18 +450,19 @@ internal class MongoLogAppender(
             try {
                 outcomeOf(failure, collection, stream)
             } catch (thrown: MongoException) {
-                fill(collection, partition, sequence, GAP_FAILED)
+                placeholders.fill(collection, partition, sequence, GAP_FAILED)
                 throw thrown
             }
         } catch (
             @Suppress("TooGenericExceptionCaught") // Whatever else failed, the sequence is filled before it is thrown.
             failure: RuntimeException,
         ) {
-            fill(collection, partition, sequence, GAP_FAILED)
+            placeholders.fill(collection, partition, sequence, GAP_FAILED)
             throw failure
         }
         lastSequences.remove(stream.ref)
-        fill(collection, partition, sequence, if (outcome is AppendOutcome.Unknown) GAP_UNKNOWN else GAP_FAILED)
+        val reason = if (outcome is AppendOutcome.Unknown) GAP_UNKNOWN else GAP_FAILED
+        placeholders.fill(collection, partition, sequence, reason)
         return if (outcome is AppendOutcome.Conflict) duplicateOr(collection, stream, outcome) else outcome
     }
 
@@ -511,58 +483,6 @@ internal class MongoLogAppender(
 
             else -> AppendOutcome.Conflict(lookups.currentVersion(collection, stream.ref))
         }
-
-    /**
-     * Writes a placeholder at [sequence] of [partition] in [collection] and settles the sequence: a stream that landed
-     * there takes it first, and settles it as well. A placeholder that cannot be written now is left to the tail.
-     */
-    fun fill(collection: AggregateCollection, partition: Int, sequence: Long, reason: String) {
-        try {
-            collection.appends.insertOne(placeholder(partition, sequence, reason))
-        } catch (failure: MongoException) {
-            if (!failure.isDuplicateKey()) {
-                sequencer.unfilled(partition, sequence, collection.name)
-                return
-            }
-        }
-        sequencer.settle(partition, sequence)
-    }
-
-    /**
-     * Writes [closing], a block's unused remainder, as one range placeholder, and settles it. A closing that cannot be
-     * written now is left to the tail, which closes the block again ([MongoSequencer.resolve]).
-     */
-    fun close(closing: MongoSequencer.Closing) {
-        val placeholder = placeholder(closing.partition, closing.from, GAP_CLOSED).append(GAP_TO, closing.to)
-        try {
-            collections.named(closing.collection).appends.insertOne(placeholder)
-        } catch (failure: MongoException) {
-            if (!failure.isDuplicateKey()) return
-        }
-        sequencer.settle(closing)
-    }
-
-    /**
-     * Seals [block] from [from], another node's or one of this node that it never knew: a placeholder at each of its
-     * sequences left in each collection it may write, so a write of that node still to come meets a taken position;
-     * then takes it out of the counter's list.
-     */
-    fun seal(partition: Int, from: Long, block: MongoSequencer.OpenBlock) {
-        val placeholders = (from..block.to).map { placeholder(partition, it, GAP_SEALED) }
-        block.collections.forEach { name ->
-            try {
-                collections.named(name).appends
-                    .insertMany(placeholders.map(::Document), InsertManyOptions().ordered(false))
-            } catch (failure: MongoBulkWriteException) {
-                if (failure.writeErrors.any { it.category != ErrorCategory.DUPLICATE_KEY }) throw failure
-            }
-        }
-        sequencer.remove(partition, block)
-    }
-
-    fun placeholder(partition: Int, sequence: Long, reason: String): Document =
-        Document(ID, positionId(partition, sequence)).append(PARTITION, partition).append(SEQUENCE, sequence)
-            .append(GAP, reason).append(GAP_NODE, sequencer.node)
 
     /**
      * [stream]'s document in [partition], its sequence still to be set: encoded before it is written, so a stream
