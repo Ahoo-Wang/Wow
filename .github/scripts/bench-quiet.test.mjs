@@ -125,6 +125,31 @@ test("a dead holder's lock blocks no one, and the holder's own commands run at o
   holder.kill();
 });
 
+test('the heavy work the lock waits for counts a Storybook and a Vite dev server, and no idle daemon', () => {
+  const heavy = command =>
+    bash(
+      machine(),
+      `[[ ${JSON.stringify(command)} =~ $LOCK_HEAVY ]] && echo heavy || echo light`,
+      { WOW_BENCH_HEAVY: '' },
+    ).stdout.trim();
+  for (const command of [
+    'node /w/node_modules/.bin/storybook dev -p 6006',
+    'node /w/node_modules/storybook/bin/index.cjs build',
+    'node /w/node_modules/vite/bin/vite.js --port 5173',
+    'node /usr/bin/pnpm --filter wow-storybook test',
+    'java -jar /w/gradle/wrapper/gradle-wrapper.jar :kernel:check',
+  ]) {
+    assert.equal(heavy(command), 'heavy', command);
+  }
+  for (const command of [
+    'java -Xmx512m org.gradle.launcher.daemon.bootstrap.GradleDaemon 9.9.1',
+    'java -cp kotlin-daemon.jar org.jetbrains.kotlin.daemon.KotlinCompileDaemon',
+    'node /usr/bin/pnpm exec prettier --check README.md',
+  ]) {
+    assert.equal(heavy(command), 'light', command);
+  }
+});
+
 test("a batch's bounded wait fails naming the work still running and the containers not the benchmark's", async () => {
   const m = machine(['someone-postgres', 'wow-e2e-bench-mongo']);
   const work = fakeWork(m);

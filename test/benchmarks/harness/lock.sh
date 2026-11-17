@@ -56,13 +56,16 @@ lock_pid_descends() {
 }
 
 # The heavy work a batch waits for: a Gradle build (its client), a Vitest or Playwright run, a headless browser, a
-# `pnpm test` or `build`. Idle Gradle and Kotlin daemons are not work. WOW_BENCH_HEAVY replaces it (a test's own).
-LOCK_HEAVY="${WOW_BENCH_HEAVY:-GradleWrapperMain|gradle-wrapper\.jar|org\.gradle\.launcher\.GradleMain|vitest|playwright|chrome-headless-shell|(^|[ /])pnpm( [^ ]+)* (test|build)( |$)}"
+# `pnpm test` or `build`, a Storybook (dev or build) or a Vite dev server. Idle Gradle and Kotlin daemons are not work.
+# WOW_BENCH_HEAVY replaces it (a test's own). This is the work sessions start, which the lock makes wait; it is not the
+# m5max snapshot's own rule, which still voids a step during which any foreign JVM ran and waits for its own quiet
+# samples (lib.sh), whatever started it.
+LOCK_HEAVY="${WOW_BENCH_HEAVY:-GradleWrapperMain|gradle-wrapper\.jar|org\.gradle\.launcher\.GradleMain|vitest|playwright|chrome-headless-shell|storybook (dev|build)|storybook/bin|(^|[ /])vite( |$)|vite/bin/vite|(^|[ /])pnpm( [^ ]+)* (test|build)( |$)}"
 LOCK_DOCKER="${WOW_BENCH_DOCKER:-docker}"
 
-# The heavy work running that is not the lock holder's ($1, its pid), this process's or its ancestors': one "pid <command>" line
-# each, and one "container <name>" line for each container that is not the benchmark's (wow-e2e-bench-*). The process
-# list is read whole before it is matched, so the match runs in no process of its own.
+# The heavy work running that is not the lock holder's ($1, its pid), this process's or its ancestors': one
+# "pid <command>" line each, and one "container <name>" line for each container that is not the benchmark's
+# (wow-e2e-bench-*). The process list is read whole before it is matched, so the match runs in no process of its own.
 lock_foreign_work() {
   local holder=$1 listing pid command name
   listing=$(ps -A -o pid=,command= 2>/dev/null || true)
@@ -72,7 +75,9 @@ lock_foreign_work() {
     # Gone since the listing: the listing's own subshell, among others.
     lock_alive "$pid" || continue
     # The holder's own work, this process's, and the processes this one runs under (the script that took the lock).
-    if lock_pid_descends "$pid" "$holder" || lock_pid_descends "$pid" $$ || lock_pid_descends $$ "$pid"; then continue; fi
+    if lock_pid_descends "$pid" "$holder" || lock_pid_descends "$pid" $$ || lock_pid_descends $$ "$pid"; then
+      continue
+    fi
     echo "$pid ${command:0:160}"
   done <<<"$listing"
   if command -v "$LOCK_DOCKER" >/dev/null 2>&1; then
@@ -95,7 +100,8 @@ lock_await_quiet() {
       return 1
     fi
     if [ $((waited - told)) -ge 30 ]; then
-      log "waiting up to ${bound}s for work already running to end: $(echo "$busy" | tr '\n' ';' | sed 's/;$//; s/;/; /g')"
+      log "waiting up to ${bound}s for work already running to end:" \
+        "$(echo "$busy" | tr '\n' ';' | sed 's/;$//; s/;/; /g')"
       told=$waited
     fi
     sleep 2
