@@ -59,13 +59,12 @@ class CronExpression private constructor(
      * dates fall on the same weekdays every 400 years: an expression with no time in them has none ever.
      */
     fun next(after: Instant, zone: ZoneId): Instant? {
-        val limitYear = after.atZone(zone).year + MAX_YEARS
         var local = searchStart(after, zone)
         while (true) {
-            val candidate = nextLocal(local, limitYear) ?: return null
+            val candidate = nextLocal(local, after.atZone(zone).year + MAX_YEARS) ?: return null
             val instant = ZonedDateTime.ofLocal(candidate, zone, null).toInstant()
             if (instant.isAfter(after)) {
-                return beforeShifted(candidate, instant, after, zone, limitYear) ?: instant
+                return beforeShifted(candidate, instant, after, zone) ?: instant
             }
             // In an overlap, the earlier offset of this local time ran already, or a gap shifted it before [after].
             local = candidate.plusSeconds(1)
@@ -75,20 +74,19 @@ class CronExpression private constructor(
     /**
      * For [candidate], a local time a daylight saving gap skipped, run at [shifted]: the first time after [after] this
      * expression names past the gap, when it runs before [shifted]; null otherwise. The gap's shift may move its local
-     * times past those right after it, which run first.
+     * times past those right after it, which run first. The search starts at the gap's end, or at the second after
+     * [after] once [after] is past the gap's start, and stops with the year of [shifted]'s local time: no transition
+     * follows a gap within its length, so the local times from there map to instants after [after], in order.
      */
-    private fun beforeShifted(
-        candidate: LocalDateTime,
-        shifted: Instant,
-        after: Instant,
-        zone: ZoneId,
-        limitYear: Int,
-    ): Instant? {
+    private fun beforeShifted(candidate: LocalDateTime, shifted: Instant, after: Instant, zone: ZoneId): Instant? {
         val gap = zone.rules.getTransition(candidate)?.takeIf { it.isGap } ?: return null
-        val afterLocal = LocalDateTime.ofInstant(after, zone).withNano(0).plusSeconds(1)
-        val following = nextLocal(if (afterLocal.isAfter(gap.dateTimeAfter)) afterLocal else gap.dateTimeAfter, limitYear)
-            ?: return null
-        return ZonedDateTime.ofLocal(following, zone, null).toInstant().takeIf { it.isAfter(after) && it < shifted }
+        val start = if (after < gap.instant) {
+            gap.dateTimeAfter
+        } else {
+            LocalDateTime.ofInstant(after, zone).withNano(0).plusSeconds(1)
+        }
+        val following = nextLocal(start, candidate.plus(gap.duration).year) ?: return null
+        return ZonedDateTime.ofLocal(following, zone, null).toInstant().takeIf { it < shifted }
     }
 
     /**

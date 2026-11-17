@@ -206,6 +206,9 @@ class CronExpressionTest {
         // From a time after the gap, the times after it that are still to come run before the shifted one.
         times("0 20,35,40 2 * * *", "2026-10-04T02:35", count = 2, zone = lordHowe).assert()
             .isEqualTo(local("2026-10-04T02:40", "2026-10-04T02:50"))
+        // Nothing named after the gap before the shifted time: the shifted one runs, then next year's.
+        times("0 20 2 4 10 *", "2026-10-04T01:59", count = 2, zone = lordHowe).assert()
+            .isEqualTo(local("2026-10-04T02:50", "2027-10-04T02:20"))
     }
 
     @Test
