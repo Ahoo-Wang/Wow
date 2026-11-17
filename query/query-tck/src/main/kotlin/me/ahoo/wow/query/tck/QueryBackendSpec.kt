@@ -76,7 +76,9 @@ abstract class QueryBackendSpec : SnapshotValueComparisonCases() {
     @Test
     fun `an expired timeout fails every primitive with the timeout error`() = blocking {
         val fixture = given(orders())
-        val expired = Duration.ofNanos(1)
+        // No time left: zero, not a positive timeout too short to meet, which bounds a query as at least a
+        // millisecond (#6334) and an in-memory answer can meet.
+        val expired = Duration.ZERO
         suspend fun fails(block: suspend () -> Any?) {
             val error = runCatching { block() }.exceptionOrNull()
             (error is QueryTimeoutException).assert().describedAs("$error").isTrue()

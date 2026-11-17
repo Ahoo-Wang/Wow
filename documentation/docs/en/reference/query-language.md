@@ -71,7 +71,7 @@ A filter is a tree of nodes. Each node is a JSON object whose `op` names its ope
 
 ### Values
 
-A value is a JSON scalar: a string, a number, a boolean, or `null` where the operator says so. Numbers keep their precision: `1.50` stays a decimal, and integers beyond 2^53 are exact. A value must match the field's type in the state schema (`value-mismatch` otherwise): a string field compares with a string, a number field with a number. A time field (an `Instant`, a `LocalDate`, or an integer or string with `@QueryTemporal`) compares with its own encoding: epoch milliseconds for an `Instant`, `"2026-10-13"` for a `LocalDate`.
+A value is a JSON scalar: a string, a number, a boolean, or `null` where the operator says so. Numbers keep their precision: `1.50` stays a decimal, and integers beyond 2^53 are exact. A value must match the field's type in the state schema (`value-mismatch` otherwise): a string field compares with a string, a number field with a number. A time field (an `Instant`, a `LocalDate`, or an integer or string with `@QueryTemporal`) compares with its own encoding: epoch milliseconds for an `Instant`, `"2026-10-13"` for a `LocalDate`. A date string compares by the instant it names, to the millisecond: `eq` with `"2026-10-13"` matches that day's first instant (`2026-10-13T00:00:00Z`), not the whole day, and `"2026-10-13T08:00:00Z"` does not hold the rest of its second. To match a day, use a range (`gte` the day, `lt` the next) or a [calendar filter](#relative-time) in the day's zone.
 
 ### Comparisons
 

@@ -1009,12 +1009,24 @@ describe('architecture', () => {
   describe('Wow protocol', () => {
     it('imports Wow only from its DSL entry', () => {
       // The engine speaks the query language alone; the clients of a Wow
-      // service reach it through wow-view-store's adapters.
+      // service reach it through wow-view-store's adapters. One exception,
+      // exactly: `runtime/requestId.ts` takes `newRequestId` from the root
+      // entry, so the engine's request ids are the client's UUIDv7 and the
+      // engine keeps no generator of its own. Any other name, or that name
+      // anywhere else, still fails.
+      const requestIds = (file: SourceFile, entry: Import) =>
+        relative(src, file.path) === join('runtime', 'requestId.ts') &&
+        entry.specifier === WOW &&
+        !entry.namespace &&
+        entry.names.length === 1 &&
+        entry.names[0] === 'newRequestId';
       const violations = files.flatMap(file =>
         file.imports
           .filter(
-            ({ specifier }) =>
-              specifier.startsWith(WOW) && specifier !== `${WOW}/dsl`,
+            entry =>
+              entry.specifier.startsWith(WOW) &&
+              entry.specifier !== `${WOW}/dsl` &&
+              !requestIds(file, entry),
           )
           .map(({ specifier }) => `${describePath(file)} -> ${specifier}`),
       );

@@ -106,12 +106,13 @@ abstract class SnapshotRebuildSpec {
         first.stop()
 
         val second = start("node-2", revision = 2)
-        table(A).assert().isEqualTo(SnapshotTable(2, rebuilding = true, backfilled = false))
+        // Backfilled already: node-1 met the table on a fresh store with an empty log, which its subscription wrote
+        // from the beginning.
+        table(A).assert().isEqualTo(SnapshotTable(2, rebuilding = true, backfilled = true))
         second.snapshotStatus.rebuilding(type).assert().isTrue()
         // The write side does not read a snapshot of another revision back: it replays the log.
         add(second, IDS.first(), 1)
-        // Rebuilt, and caught up with the log: the table was first claimed by node-1, which never ran a round to mark it
-        // backfilled, so a round of node-2 marks it once its `snapshot` subscription passed the log's head.
+        // Rebuilt in place by a round of node-2, the node of the claimed revision.
         eventually {
             maintain(second)
             !table(A).catchingUp

@@ -254,7 +254,7 @@ V10 拒绝一些 9.x 曾接受的 ID：空的聚合 ID（或根本没有）、�
 | `retire` | 把记录按原样以 `to` 这个名字写入，V10 聚合把这个名字列为退役，所以加载时跳过它，流也保留它的版本。`to` 在 Manifest 中没有退役时，检查失败。只用于没有改变状态的事件：退役一个删除或状态变化会把它丢掉（[代码已删除的历史](../migrate/data#_2-check-the-map)）。 |
 | `lifecycle` | `{to, fields}`：紧接着这个事件、在同一条流中写入的系统生命周期事件，用于实现了某个生命周期事件的 9.x 领域事件（`UserDeleted : AggregateDeleted`）。`to` 是 `wow.lifecycle.AggregateDeleted`、`AggregateRestored`、`OwnerTransferred` 或 `SpaceTransferred`；`fields` 从 9.x 载荷构造它的载荷，9.x 名字对应 V10 名字，后两者要给出 `ownerId` 或 `spaceId`。9.x 的 `ResourceTagsApplied` 没有对应的生命周期事件：用 `tags` 映射它。不能与 `drop` 或 `retire` 一起用。 |
 | `drop` | 把这个事件从它的流中去掉。如果一条流的事件全被丢弃，这个版本就是空的，检查会拒绝：这样的事件要用 `retire` 映射。 |
-| `tags` | 用于 9.x 的标签事件（`default_resource_tags_applied`，或实现了 `ResourceTagsApplied` 的领域事件）：它的 `tags` 变成 V10 事件 `to` 的字段，每个映射为 `APPLIED` 的键一个，以它的访问属性命名，每个值按该属性的 Manifest 条目转换。每个这样的字段都会写入，缺失的键写作 `null` 或 `[]`，就像 9.x 替换整个标签映射那样；载荷的其他字段保留，并按 `fields` 重命名。不能与 `drop` 或 `retire` 一起用。 |
+| `tags` | 用于 9.x 的标签事件（`default_resource_tags_applied`，或实现了 `ResourceTagsApplied` 的领域事件）：它的 `tags` 变成 V10 事件 `to` 的字段，每个映射为 `APPLIED` 的键一个，以它的访问属性命名，每个值按该属性的 Manifest 条目转换。每个这样的字段都会写入，缺失的键写作 `null` 或 `[]`，就像 9.x 替换整个标签映射那样；载荷的其他字段保留，并按 `fields` 重命名。这些字段只属于标签：`fields` 把某个字段重命名为其中之一时，映射会被拒绝；载荷里有同名字段的流无法转换，因为一个值会覆盖另一个；`check --decode` 会报告它，`import` 遇到它会停止。不能与 `drop` 或 `retire` 一起用。 |
 
 ### 标签 {#tags}
 

@@ -155,9 +155,10 @@ internal class StreamConverter(
      * ([TagValues]), none when the event holds no such key: 9.x replaced the whole map.
      */
     private fun tagged(event: NineXEvent, mapping: EventMapping, aggregate: AggregatePlan, at: String): String {
-        val payload = renamed(event, mapping, at)
+        val written = aggregate.mapping.tags.filter { it.written }
+        val payload = renamed(event, mapping, at, written.associate { it.to!! to it.key })
         val tags = NineXTags.of(event.body.get(TAGS))
-        aggregate.mapping.tags.filter { it.written }.forEach { tag ->
+        written.forEach { tag ->
             val name = tag.to!!
             val attribute = aggregate.accessOf(name) ?: throw MigrationException(
                 "$at (${event.name}): the 9.x tag ${tag.key} maps to $name, which ${aggregate.target} does not declare " +
@@ -182,9 +183,16 @@ internal class StreamConverter(
 
     /**
      * [event]'s payload fields but the tags, renamed by [mapping]. A rename onto a field the payload also holds fails
-     * the stream, naming both, in whatever order the payload holds them: one value would overwrite the other.
+     * the stream, naming both, in whatever order the payload holds them: one value would overwrite the other. So does a
+     * field that becomes one of the [tagged] attributes (the attribute to the 9.x tag key written as it), which the
+     * tags event writes whether it holds the key or not.
      */
-    private fun renamed(event: NineXEvent, mapping: EventMapping, at: String): ObjectNode {
+    private fun renamed(
+        event: NineXEvent,
+        mapping: EventMapping,
+        at: String,
+        tagged: Map<String, String> = emptyMap(),
+    ): ObjectNode {
         val renamed = WowJson.mapper.createObjectNode()
         val names = mutableMapOf<String, String>()
         event.body.properties().forEach { (name, value) ->
@@ -192,6 +200,12 @@ internal class StreamConverter(
                 return@forEach
             }
             val to = mapping.fields[name] ?: name
+            tagged[to]?.let { key ->
+                throw MigrationException(
+                    "$at (${event.name}): the 9.x field $name and the 9.x tag $key both become $to, and one would " +
+                        "overwrite the other.",
+                )
+            }
             names.put(to, name)?.let { other ->
                 throw MigrationException(
                     "$at (${event.name}): the 9.x fields ${listOf(other, name).sorted().joinToString(" and ")} both " +

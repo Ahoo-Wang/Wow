@@ -12,27 +12,14 @@
  */
 
 /**
- * A fresh request id: a random (version 4) UUID.
+ * Where the engine's request ids come from: the Wow client's `newRequestId`,
+ * a UUIDv7 (RFC 9562) whose first 48 bits are the millisecond it was made
+ * in, so a view store's writes reach the service's unique index on the
+ * request id in the order they were made, as every other caller's do. Over
+ * plain HTTP, where `crypto.randomUUID` is missing, it still has
+ * `crypto.getRandomValues`.
  *
- * `crypto.randomUUID` exists only in a secure context (HTTPS or localhost);
- * a host served over plain HTTP — an intranet console, a dev cluster — has
- * `crypto.getRandomValues` but no `randomUUID`, and every write would fail
- * before it was sent. So the id is made from random bytes when
- * `randomUUID` is missing, in the same shape.
+ * The engine keeps no generator of its own. `react` may not import the
+ * client (`test/architecture.test.ts`), so it takes the generator from here.
  */
-export function newRequestId(): string {
-  const source = globalThis.crypto;
-  if (typeof source?.randomUUID === 'function') return source.randomUUID();
-  const bytes = new Uint8Array(16);
-  source.getRandomValues(bytes);
-  bytes[6] = (bytes[6] & 0x0f) | 0x40;
-  bytes[8] = (bytes[8] & 0x3f) | 0x80;
-  const hex = Array.from(bytes, byte => byte.toString(16).padStart(2, '0'));
-  return [
-    hex.slice(0, 4).join(''),
-    hex.slice(4, 6).join(''),
-    hex.slice(6, 8).join(''),
-    hex.slice(8, 10).join(''),
-    hex.slice(10, 16).join(''),
-  ].join('-');
-}
+export { newRequestId } from '@ahoo-wang/wow-client';
