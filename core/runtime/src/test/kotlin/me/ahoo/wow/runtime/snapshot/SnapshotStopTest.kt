@@ -85,15 +85,17 @@ class SnapshotStopTest : SnapshotSubscriptionFixtures() {
         Unit = runBlocking {
         // What makes it certain: the store holds every write until the test lets it go, so the window fills (its
         // count is seen) with two writes in flight, at most four snapshots, and the rest of its saves waiting
-        // behind them. Once the stop is seen to have given up those saves (none waits, the writes still held), the
-        // writes are let go: the stop ends with them, where it would wait 60 s, its timeout, for the saves given
-        // up, and the test bounds it at 10 s. So the done prefix is at most four of the window's eight.
+        // behind them. Saves are waited for, not read once: the window counts an entry when it is dispatched, before
+        // its handling reaches its save, and no save leaves the queue while the writes are held. Once the stop is
+        // seen to have given up those saves (none waits, the writes still held), the writes are let go: the stop
+        // ends with them, where it would wait 60 s, its timeout, for the saves given up, and the test bounds it at
+        // 10 s. So the done prefix is at most four of the window's eight.
         val gate = CompletableDeferred<Unit>().also { store.gate = it }
         val runtime = snapshotRuntime()
         runtime.start(setOf(0))
         commitAll()
         eventually { runtime.positions().single().inFlight == WINDOW }
-        small.writesWaiting.assert().isGreaterThan(0)
+        eventually { small.writesWaiting > 0 }
         val stopping = async(Dispatchers.Default) { runtime.stop() }
         eventually { small.writesWaiting == 0 }
         store.gate = null
@@ -111,6 +113,8 @@ class SnapshotStopTest : SnapshotSubscriptionFixtures() {
         first.start(setOf(0))
         commitAll()
         eventually { first.positions().single().inFlight == WINDOW }
+        // Saves waiting behind the held writes, as the test above waits for them, so the stop has some to give up.
+        eventually { small.writesWaiting > 0 }
         val stopping = async(Dispatchers.Default) { first.stop() }
         eventually { small.writesWaiting == 0 }
         store.gate = null
