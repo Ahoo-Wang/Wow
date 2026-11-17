@@ -1,0 +1,3 @@
+# A pod label the pods are selected by (#6391), in a file: a key with dots stays whole, as it does not in set.
+podLabels:
+  app.kubernetes.io/name: custom-label

@@ -1,0 +1,3 @@
+# A label of the chart's that no selector reads.
+podLabels:
+  app.kubernetes.io/instance: other

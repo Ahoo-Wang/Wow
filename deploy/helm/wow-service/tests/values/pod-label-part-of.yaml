@@ -1,0 +1,3 @@
+# The platform's pod label, which partOf sets.
+podLabels:
+  app.kubernetes.io/part-of: eshop

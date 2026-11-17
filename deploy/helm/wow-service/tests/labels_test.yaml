@@ -113,38 +113,33 @@ tests:
 
   - it: refuses a pod label that would replace the one the pods are selected by, naming it and where it comes from
     template: templates/deployment.yaml
-    set:
-      podLabels:
-        app.kubernetes.io/name: custom-label
+    values:
+      - values/pod-label-name.yaml
     asserts:
       - failedTemplate:
           errorPattern: "podLabels.app.kubernetes.io/name is a label the chart sets itself, from service.name, and selects the service's pods by it"
 
   - it: refuses a pod label of the platform, which partOf sets, with partOf unset too
     template: templates/deployment.yaml
+    values:
+      - values/pod-label-part-of.yaml
     set:
       partOf: ""
-      podLabels:
-        app.kubernetes.io/part-of: eshop
     asserts:
       - failedTemplate:
           errorPattern: "podLabels.app.kubernetes.io/part-of is a label the chart sets itself, from partOf.*set partOf instead"
 
   - it: refuses a pod label of the chart's that no selector reads, which would be a second key of the name
     template: templates/deployment.yaml
-    set:
-      podLabels:
-        app.kubernetes.io/instance: other
+    values:
+      - values/pod-label-instance.yaml
     asserts:
       - failedTemplate:
           errorPattern: "podLabels.app.kubernetes.io/instance is a label the chart sets itself: remove it"
 
   - it: refuses a monitor's label of the chart's
-    set:
-      metrics.serviceMonitor.labels:
-        app.kubernetes.io/name: custom-label
-      metrics.podMonitor.labels:
-        release: kube-prometheus-stack
+    values:
+      - values/monitor-label-name.yaml
     asserts:
       - template: templates/servicemonitor.yaml
         failedTemplate:

@@ -1,0 +1,8 @@
+# A monitor label of the chart's.
+metrics:
+  serviceMonitor:
+    labels:
+      app.kubernetes.io/name: custom-label
+  podMonitor:
+    labels:
+      release: kube-prometheus-stack

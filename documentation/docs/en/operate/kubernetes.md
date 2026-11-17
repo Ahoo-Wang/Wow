@@ -421,10 +421,13 @@ metrics:
   serviceMonitor:
     enabled: false
     interval: 30s
+    # The monitor's own labels, beside the chart's (release: kube-prometheus-stack, say, for the Prometheus that picks
+    # it). None of the chart's: they are refused.
     labels: {}
   podMonitor:
     enabled: false
     interval: 30s
+    # As serviceMonitor.labels.
     labels: {}
 ```
 
