@@ -259,6 +259,13 @@ export const sidebarEn: DefaultTheme.Sidebar = {
                 {text: 'Host without Spring', link: 'without-spring'},
             ],
         },
+        {
+            base: '/guide/',
+            text: 'Measured',
+            items: [
+                {text: 'Performance', link: 'performance'},
+            ],
+        },
     ],
     '/start/': [
         {

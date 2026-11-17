@@ -16,6 +16,7 @@ import {
   begin,
   checkedHeadline,
   cpuName,
+  cpuCount,
   performanceBlock,
   performancePages,
   spanText,
@@ -228,7 +229,7 @@ test('a named block replaces what is between its markers and nothing else', () =
 test('a block of no known name, or a marker without its pair, is refused, naming the page', () => {
   assert.throws(
     () => withFigures(`${begin('curves')}\n${END}\n`, 'en', [], 'p.md'),
-    /p\.md: no block is named curves \(snapshots\)/,
+    /p\.md: no block is named curves \(snapshots, actions, m5max\)/,
   );
   for (const text of [
     `${BEGIN}\nno end\n`,
@@ -274,6 +275,35 @@ test("an inline span is its figure's number, a rate, a time or a count, rewritte
     '<!-- perf:m5max-snapshot/sweep.postgres.1.e1-sweep:value -->≥ 37,713.6/s<!-- /perf -->',
   );
   assert.equal(spanText('p50Ms', 4.7), '4.7 ms');
+  // One arm's figure of a list is printed as the list's field.
+  assert.equal(spanText('readyMs.0', 1793), '1,793 ms');
+});
+
+test("a pinned process's CPUs print as how many the harness gave it", () => {
+  assert.equal(cpuCount('0-2'), 3);
+  assert.equal(cpuCount('3'), 1);
+  assert.equal(cpuCount('0,2-3'), 3);
+  assert.equal(spanText('cpus.server', '0-2'), '3');
+  assert.equal(spanText('cpus.load', '2-3'), '2');
+  assert.equal(spanText('bytesPerEvent.1', 627), '627');
+});
+
+test('a span names where its figure was measured: the build as code, the CPU as a reader names it, the JDK', () => {
+  const text = [
+    '<!-- perf:actions-snapshot/sustainable.postgres.E1:commit --><!-- /perf -->',
+    '<!-- perf:actions-snapshot/sustainable.postgres.E1:cpu --><!-- /perf -->',
+    '<!-- perf:m5max-snapshot/sweep.postgres.1.e1-sweep:cpu --><!-- /perf -->',
+    '<!-- perf:m5max-snapshot/sweep.postgres.1.e1-sweep:jdk --><!-- /perf -->',
+  ].join('\n');
+  assert.equal(
+    withFigures(text, 'en', [HEADLINE, ACTIONS], 'p.md'),
+    [
+      '<!-- perf:actions-snapshot/sustainable.postgres.E1:commit -->`d8284109df`<!-- /perf -->',
+      '<!-- perf:actions-snapshot/sustainable.postgres.E1:cpu -->EPYC 9V45<!-- /perf -->',
+      '<!-- perf:m5max-snapshot/sweep.postgres.1.e1-sweep:cpu -->Apple M5 Max<!-- /perf -->',
+      '<!-- perf:m5max-snapshot/sweep.postgres.1.e1-sweep:jdk -->25.0.5+8<!-- /perf -->',
+    ].join('\n'),
+  );
 });
 
 test('a span whose report, figure or number the headlines do not hold is refused, naming it', () => {
@@ -448,6 +478,25 @@ test('a closed-loop peak whose search reached its most clients still gaining is 
       '| ≥ 5,010.8/s, closed loop | 2,975.1/s, open loop, p99 198.7 ms | Xeon 6975P-C,',
     ),
   );
+});
+
+test("an environment's block holds its report's tables alone", () => {
+  const block = name =>
+    withFigures(`${begin(name)}\n${END}\n`, 'en', [ACTIONS, HEADLINE], 'p.md');
+  assert.match(
+    block('actions'),
+    /\*\*GitHub Actions, one 4-core runner a suite\*\*/,
+  );
+  assert.doesNotMatch(
+    block('actions'),
+    /Apple M5 Max, 18 cores, 64 GB, one host/,
+  );
+  assert.match(
+    block('m5max'),
+    /\*\*Apple M5 Max, 18 cores, 64 GB, one host\*\*/,
+  );
+  assert.doesNotMatch(block('m5max'), /GitHub Actions/);
+  assert.match(block('snapshots'), /GitHub Actions[\s\S]*Apple M5 Max/);
 });
 
 test('a row measured on a JDK other than 25 says so, and one whose run recorded none says that', () => {
