@@ -32,6 +32,9 @@ env:
     value: -javaagent:/otel/opentelemetry-javaagent.jar
 podAnnotations:
   instrumentation.opentelemetry.io/inject-java: "true"
+# A pod label of the deployment's own, beside the chart's.
+podLabels:
+  team: basket
 podDisruptionBudget:
   minAvailable: 2
 autoscaling:

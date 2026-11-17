@@ -1,0 +1,154 @@
+suite: the labels
+templates:
+  - templates/deployment.yaml
+  - templates/configmap.yaml
+  - templates/service.yaml
+  - templates/pdb.yaml
+  - templates/networkpolicy.yaml
+  - templates/servicemonitor.yaml
+  - templates/podmonitor.yaml
+set:
+  service.name: eshop-ordering-service
+  image.repository: ghcr.io/example/eshop-ordering-server
+  partOf: eshop
+  podLabels:
+    team: analytics
+  metrics.serviceMonitor.enabled: true
+  metrics.podMonitor.enabled: true
+tests:
+  # Every selector is the service's name alone, and the pods carry it: each object selects the pods, a pod label of
+  # the values' beside the chart's.
+  - it: selects the pods by a label they carry, in every object, with a pod label of the values' beside it
+    asserts:
+      - template: templates/deployment.yaml
+        isSubset:
+          path: spec.template.metadata.labels
+          content:
+            app.kubernetes.io/name: eshop-ordering-service
+            app.kubernetes.io/part-of: eshop
+            team: analytics
+      - template: templates/deployment.yaml
+        equal:
+          path: spec.selector.matchLabels
+          value:
+            app.kubernetes.io/name: eshop-ordering-service
+      - template: templates/deployment.yaml
+        equal:
+          path: spec.template.spec.topologySpreadConstraints[0].labelSelector.matchLabels
+          value:
+            app.kubernetes.io/name: eshop-ordering-service
+      - template: templates/deployment.yaml
+        equal:
+          path: spec.template.spec.topologySpreadConstraints[1].labelSelector.matchLabels
+          value:
+            app.kubernetes.io/name: eshop-ordering-service
+      - template: templates/service.yaml
+        documentIndex: 0
+        equal:
+          path: spec.selector
+          value:
+            app.kubernetes.io/name: eshop-ordering-service
+      - template: templates/service.yaml
+        documentIndex: 1
+        equal:
+          path: spec.selector
+          value:
+            app.kubernetes.io/name: eshop-ordering-service
+      - template: templates/pdb.yaml
+        equal:
+          path: spec.selector.matchLabels
+          value:
+            app.kubernetes.io/name: eshop-ordering-service
+      - template: templates/networkpolicy.yaml
+        documentIndex: 0
+        equal:
+          path: spec.podSelector.matchLabels
+          value:
+            app.kubernetes.io/name: eshop-ordering-service
+      - template: templates/networkpolicy.yaml
+        documentIndex: 1
+        equal:
+          path: spec.podSelector.matchLabels
+          value:
+            app.kubernetes.io/name: eshop-ordering-service
+      # The internal port admits the service's own nodes and its platform's pods.
+      - template: templates/networkpolicy.yaml
+        documentIndex: 1
+        equal:
+          path: spec.ingress[0].from[0].podSelector.matchLabels
+          value:
+            app.kubernetes.io/name: eshop-ordering-service
+      - template: templates/networkpolicy.yaml
+        documentIndex: 1
+        equal:
+          path: spec.ingress[0].from[1].podSelector.matchLabels
+          value:
+            app.kubernetes.io/part-of: eshop
+      - template: templates/podmonitor.yaml
+        equal:
+          path: spec.selector.matchLabels
+          value:
+            app.kubernetes.io/name: eshop-ordering-service
+      # The metrics Service selects the pods, and the ServiceMonitor selects that Service by labels it carries.
+      - template: templates/servicemonitor.yaml
+        documentIndex: 0
+        equal:
+          path: spec.selector
+          value:
+            app.kubernetes.io/name: eshop-ordering-service
+      - template: templates/servicemonitor.yaml
+        documentIndex: 0
+        isSubset:
+          path: metadata.labels
+          content:
+            app.kubernetes.io/name: eshop-ordering-service
+            wow.ahoo.me/metrics: "true"
+      - template: templates/servicemonitor.yaml
+        documentIndex: 1
+        equal:
+          path: spec.selector.matchLabels
+          value:
+            app.kubernetes.io/name: eshop-ordering-service
+            wow.ahoo.me/metrics: "true"
+
+  - it: refuses a pod label that would replace the one the pods are selected by, naming it and where it comes from
+    template: templates/deployment.yaml
+    set:
+      podLabels:
+        app.kubernetes.io/name: custom-label
+    asserts:
+      - failedTemplate:
+          errorPattern: "podLabels.app.kubernetes.io/name is a label the chart sets itself, from service.name, and selects the service's pods by it"
+
+  - it: refuses a pod label of the platform, which partOf sets, with partOf unset too
+    template: templates/deployment.yaml
+    set:
+      partOf: ""
+      podLabels:
+        app.kubernetes.io/part-of: eshop
+    asserts:
+      - failedTemplate:
+          errorPattern: "podLabels.app.kubernetes.io/part-of is a label the chart sets itself, from partOf.*set partOf instead"
+
+  - it: refuses a pod label of the chart's that no selector reads, which would be a second key of the name
+    template: templates/deployment.yaml
+    set:
+      podLabels:
+        app.kubernetes.io/instance: other
+    asserts:
+      - failedTemplate:
+          errorPattern: "podLabels.app.kubernetes.io/instance is a label the chart sets itself: remove it"
+
+  - it: refuses a monitor's label of the chart's
+    set:
+      metrics.serviceMonitor.labels:
+        app.kubernetes.io/name: custom-label
+      metrics.podMonitor.labels:
+        release: kube-prometheus-stack
+    asserts:
+      - template: templates/servicemonitor.yaml
+        failedTemplate:
+          errorPattern: "metrics.serviceMonitor.labels.app.kubernetes.io/name is a label the chart sets itself"
+      - template: templates/podmonitor.yaml
+        failedTemplate:
+          errorPattern: "metrics.serviceMonitor.labels.app.kubernetes.io/name is a label the chart sets itself"

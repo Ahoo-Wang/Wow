@@ -115,6 +115,12 @@ Every object is named after `service.name`, the service's `spring.application.na
 | HorizontalPodAutoscaler or ScaledObject | `<name>` | Optional: [Scale](#scale) |
 | ServiceMonitor or PodMonitor | `<name>` | Optional: [Monitor](#monitor); a ServiceMonitor comes with a headless Service `<name>-metrics` |
 
+### Labels
+
+Every object carries the chart's labels: `app.kubernetes.io/name`, the service's name, `app.kubernetes.io/instance`, `app.kubernetes.io/version`, `app.kubernetes.io/managed-by`, `helm.sh/chart`, and `app.kubernetes.io/part-of` with `partOf`. The pods are selected by `app.kubernetes.io/name` alone: the Deployment, both Services, the disruption budget, the network policies, the monitors and the topology spread select them by it, and the other services' internal policies admit them by it, as the platform's admit them by `app.kubernetes.io/part-of`.
+
+`podLabels` adds labels of your own to the pods, and `metrics.serviceMonitor.labels` and `metrics.podMonitor.labels` to the monitors (the `release` label the Prometheus Operator picks them by, say). None of them may set one of the chart's labels: the render fails, naming the key. A pod label `app.kubernetes.io/name` would leave every selector without its pods, and any other would render a second key of the same name.
+
 ## The image
 
 The image runs the service's Gradle distribution (`./gradlew :eshop-ordering-server:installDist`) on a JDK 25 base, pinned by digest, as a numeric non-root user, and exposes the HTTP port and the internal port. The chart sets both ports on the pod (`SERVER_PORT`, `WOW_INTERNAL_PORT`, from `ports`), so the Services, the probes and the image's configuration cannot disagree.

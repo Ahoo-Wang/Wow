@@ -108,6 +108,26 @@ namespace (service.peers[].namespace) as wow.peer.dns.namespaces.<service>.
 {{- if hasKey .Values.config "SPRING_APPLICATION_JSON" -}}
 {{- fail "config.SPRING_APPLICATION_JSON: put those keys under settings, which the chart renders as SPRING_APPLICATION_JSON" -}}
 {{- end -}}
+{{- /*
+The chart's labels are the chart's: a map of labels the values lay over them (the pods', the monitors') sets none of
+them. The pods are selected by app.kubernetes.io/name, and the platform's internal policies admit them by
+app.kubernetes.io/part-of: a pod label of the same key would leave the Deployment's selector without its pods, which
+the API server refuses, and the Services, the disruption budget and the policies without theirs; any other would be a
+second key of the same name, which a strict YAML reader refuses.
+*/ -}}
+{{- $own := include "wow-service.labels" . | fromYaml -}}
+{{- $_ := set $own "app.kubernetes.io/part-of" "" -}}
+{{- $why := dict
+  "app.kubernetes.io/name" ", from service.name, and selects the service's pods by it (the Deployment, the Services, the PodDisruptionBudget, the NetworkPolicies, the monitors, the topology spread): remove it"
+  "app.kubernetes.io/part-of" ", from partOf, and the platform's internal NetworkPolicies admit its pods by it: set partOf instead"
+-}}
+{{- range $values, $labels := dict "podLabels" .Values.podLabels "metrics.serviceMonitor.labels" .Values.metrics.serviceMonitor.labels "metrics.podMonitor.labels" .Values.metrics.podMonitor.labels -}}
+{{- range $key, $value := $labels -}}
+{{- if hasKey $own $key -}}
+{{- fail (printf "%s.%s is a label the chart sets itself%s" $values $key (get $why $key | default ": remove it")) -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
 {{- if and .Values.networkPolicy.enabled (not .Values.networkPolicy.public.from) -}}
 {{- fail "networkPolicy.public.from is empty, which would admit every pod to the public port: name the gateway's pods, or disable networkPolicy" -}}
 {{- end -}}

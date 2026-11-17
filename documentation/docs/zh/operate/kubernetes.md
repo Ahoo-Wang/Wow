@@ -115,6 +115,12 @@ chart 也在 `oci://registry-1.docker.io/ahoowang/wow-service`。它的 `values.
 | HorizontalPodAutoscaler 或 ScaledObject | `<name>` | 可选：[伸缩](#scale) |
 | ServiceMonitor 或 PodMonitor | `<name>` | 可选：[监控](#monitor)；ServiceMonitor 另带一个 headless Service `<name>-metrics` |
 
+### 标签 {#labels}
+
+每个对象都带 chart 的标签：`app.kubernetes.io/name`（服务名）、`app.kubernetes.io/instance`、`app.kubernetes.io/version`、`app.kubernetes.io/managed-by`、`helm.sh/chart`，设置了 `partOf` 时还有 `app.kubernetes.io/part-of`。Pod 只按 `app.kubernetes.io/name` 选择：Deployment、两个 Service、中断预算、网络策略、监控对象和拓扑分布都按它选择这些 Pod，其他服务的内部网络策略也按它放行这些 Pod，正如平台的策略按 `app.kubernetes.io/part-of` 放行。
+
+`podLabels` 给 Pod 加上你自己的标签，`metrics.serviceMonitor.labels` 和 `metrics.podMonitor.labels` 给监控对象加标签（例如 Prometheus Operator 据以挑选它们的 `release` 标签）。它们都不能设置 chart 自己的标签：渲染会失败，并指出那个键。Pod 上的 `app.kubernetes.io/name` 会让每个选择器都选不到 Pod，其他的则会渲染出同名的第二个键。
+
 ## 镜像 {#the-image}
 
 镜像在 JDK 25 基础镜像（按摘要钉住）上以数字非 root 用户运行服务的 Gradle 发行包（`./gradlew :eshop-ordering-server:installDist`），并暴露 HTTP 端口和内部端口。chart 在 Pod 上设置这两个端口（`SERVER_PORT`、`WOW_INTERNAL_PORT`，取自 `ports`），因此 Service、探针和镜像自己的配置不会不一致。
