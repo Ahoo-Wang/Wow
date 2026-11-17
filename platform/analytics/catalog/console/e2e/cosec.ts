@@ -21,20 +21,36 @@ import { createHmac } from "node:crypto";
 export const COSEC_SECRET =
   "the-catalog-console-e2e-secret-of-32-chars";
 
+/**
+ * The console's app: the one the suite's tokens are issued for (their `aud`),
+ * and the app of the console's route at the gateway's stand-in
+ * (`cosec-app-id`), which takes no token for another app or for none.
+ */
+export const APP = "analytics-catalog-console";
+
+/** How a token of {@link accessToken} differs from a valid one of the console's. */
+export interface TokenOptions {
+  /** Seconds it is valid for: an hour; a negative one gives a token that has expired. */
+  validFor?: number;
+  /** The secret it is signed with. */
+  secret?: string;
+  /** The app it is issued for, {@link APP}; null for a token of no app. */
+  app?: string | null;
+}
+
 function part(value: object): string {
   return Buffer.from(JSON.stringify(value)).toString("base64url");
 }
 
 /**
  * A CoSec access token of `sub` with `roles`, in CoSec's default tenant, as
- * the enterprise's CoSec issues it: HS256-signed, valid for `validFor` seconds
- * (an hour; a negative one gives a token that has expired).
+ * the enterprise's CoSec issues it for an app: HS256-signed, valid for an
+ * hour, for the console's app, unless `options` says otherwise.
  */
 export function accessToken(
   sub: string,
   roles: string[],
-  validFor: number = 3600,
-  secret: string = COSEC_SECRET,
+  { validFor = 3600, secret = COSEC_SECRET, app = APP }: TokenOptions = {},
 ): string {
   const now = Math.floor(Date.now() / 1000);
   const unsigned = `${part({ alg: "HS256", typ: "JWT" })}.${part({
@@ -42,6 +58,7 @@ export function accessToken(
     sub,
     tenantId: "(0)",
     roles,
+    ...(app === null ? {} : { aud: app }),
     iat: now,
     exp: now + validFor,
   })}`;

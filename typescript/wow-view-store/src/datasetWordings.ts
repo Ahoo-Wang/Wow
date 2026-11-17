@@ -31,9 +31,10 @@ import { wordingOf } from './wire.js';
 export interface WowDatasetWordingsOptions {
   /**
    * The fetcher every request goes through, as the V10
-   * `WowViewStoreOptions.fetcher`: its interceptors carry the caller and
-   * `CoSec-App-Id`. The wording is the tenant's (an aggregate of the tenant,
-   * not of an owner), so no request names a scope.
+   * `WowViewStoreOptions.fetcher`: its interceptors carry the caller, a token
+   * issued for the front end's app on CoSec 8, which reads no `CoSec-App-Id`.
+   * The wording is the tenant's (an aggregate of the tenant, not of an owner),
+   * so no request names a scope.
    */
   fetcher: Fetcher;
 }
