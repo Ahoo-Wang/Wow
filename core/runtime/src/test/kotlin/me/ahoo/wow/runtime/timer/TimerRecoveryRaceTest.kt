@@ -54,14 +54,20 @@ class TimerRecoveryRaceTest : TimerRunnerFixtures() {
     private val atParking = CompletableDeferred<Unit>()
     private val parkingWrite = CompletableDeferred<Unit>()
 
+    /** Whether a PARKED write's answer is lost: the write lands, then the call throws. */
+    private var replyLost = false
+
     /** The store, its PARKED writes held at [parkingWrite]. */
     private val heldParking = object : TimerStore by store {
         override suspend fun settle(changes: List<TimerChange>): List<Boolean> {
-            if (changes.any { it.next.status == TimerStatus.PARKED }) {
+            val parking = changes.any { it.next.status == TimerStatus.PARKED }
+            if (parking) {
                 atParking.complete(Unit)
                 parkingWrite.await()
             }
-            return store.settle(changes)
+            return store.settle(changes).also {
+                if (parking && replyLost) throw IllegalStateException("The reply was lost.")
+            }
         }
     }
 
@@ -102,8 +108,7 @@ class TimerRecoveryRaceTest : TimerRunnerFixtures() {
     fun `a skip that resolves the target after another timer of it parked leaves the entry for that one`(): Unit =
         recoveryWhileParking(skip = true)
 
-    @Test
-    fun `a retry that resolves the target while a timer of it is parking leaves the entry for that one`(): Unit =
+    private fun retryWhileParking(): Unit =
         runBlocking {
             // What makes it certain: the parking recorded its entry and waits at its PARKED write while the
             // operator's retry finds no PARKED timer (it is still FIRING) and resolves the entry; then the PARKED
@@ -120,4 +125,14 @@ class TimerRecoveryRaceTest : TimerRunnerFixtures() {
             parkingWrite.complete(Unit)
             eventually { status("new").status == TimerStatus.PARKED && entry() != null }
         }
+
+    @Test
+    fun `a retry that resolves the target while a timer of it is parking leaves the entry for that one`(): Unit =
+        retryWhileParking()
+
+    @Test
+    fun `a parking whose PARKED write landed but whose answer was lost records the entry again`() {
+        replyLost = true
+        retryWhileParking()
+    }
 }

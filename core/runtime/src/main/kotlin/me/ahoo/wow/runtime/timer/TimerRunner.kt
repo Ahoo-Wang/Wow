@@ -392,8 +392,9 @@ class TimerRunner(
      * written PARKED, then the target recorded again. The ledger entry comes first, so a parked timer always has the
      * entry an operator retries or skips it by. A parking cut short leaves at most an entry whose timers are not
      * parked, which a retry or a skip resolves finding none; the timer, still claimed, is sent again once the claim
-     * lapses, and parked then. The entry is recorded again once the timer is PARKED: an operator's retry or skip of the
-     * target may have resolved it meanwhile, having read its PARKED timers before this one was ([resolve]).
+     * lapses, and parked then. The entry is recorded again once the timer may be PARKED, unless the store answered that
+     * the write did not take: an operator's retry or skip of the target may have resolved it meanwhile, having read its
+     * PARKED timers before this one was ([resolve]). A write whose answer was lost may have taken, so it records too.
      */
     private suspend fun park(part: Part, timer: Timer, attempts: Int, reason: String, now: Long) {
         val entry = entryOf(timer, reason, now)
@@ -416,7 +417,7 @@ class TimerRunner(
             timer,
             timer.copyWith(status = TimerStatus.PARKED, attempts = attempts, outcome = reason),
         )
-        if (quietly("park the timer ${timer.id}") { store.settle(listOf(parked)).single() } == true) {
+        if (quietly("park the timer ${timer.id}") { store.settle(listOf(parked)).single() } != false) {
             quietly("record the parked target of the timer ${timer.id} again") { ledger.park(entry) }
         }
         part.sending.remove(timer.id)
