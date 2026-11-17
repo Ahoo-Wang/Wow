@@ -13,6 +13,9 @@
 
 package me.ahoo.wow.elasticsearch.query
 
+import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.query.schema.QueryViolation
+
 /**
  * A literal match that ignores letter case as the core's reference does (#6392). The reference compares the lower case
  * of both texts (`String.lowercase()`: Unicode's lowercase mapping, in the root locale, so no language's own rules).
@@ -38,11 +41,26 @@ internal object ElasticsearchCaseFolding {
     }
 
     /**
-     * The Lucene regular expression that matches a text holding [operand] ignoring case: after anything when
-     * [leading], before anything when [trailing]. Every ASCII character but a letter or a digit is escaped, an
+     * The Lucene regular expression that matches a text of [field] holding [operand] ignoring case: after anything
+     * when [leading], before anything when [trailing]. Every ASCII character but a letter or a digit is escaped, an
      * operator or not; a letter or a digit never is, since `\d` and `\w` are classes.
+     *
+     * A pattern longer than [MAX_PATTERN_LENGTH] is refused here, before any request, as the storage's limit
+     * ([QueryViolation.StorageUnsupported]), where Elasticsearch would answer with its own error.
      */
-    fun pattern(operand: String, leading: Boolean, trailing: Boolean): String = buildString {
+    fun pattern(field: QueryField<*>, operand: String, leading: Boolean, trailing: Boolean): String {
+        val pattern = pattern(operand, leading, trailing)
+        if (pattern.length > MAX_PATTERN_LENGTH) {
+            throw QueryViolation.StorageUnsupported(
+                "an ignore-case match of a ${operand.length}-character operand, whose pattern of ${pattern.length} " +
+                    "characters passes the $MAX_PATTERN_LENGTH an Elasticsearch regexp holds",
+                field,
+            ).rejection()
+        }
+        return pattern
+    }
+
+    private fun pattern(operand: String, leading: Boolean, trailing: Boolean): String = buildString {
         if (leading) append(ANY)
         operand.codePoints().forEach { codePoint ->
             val characters = classes[Character.toLowerCase(codePoint)]
@@ -58,6 +76,13 @@ internal object ElasticsearchCaseFolding {
 
     /** The flags of the `regexp`: no optional operator, so only the classes and [ANY] above are operators. */
     const val FLAGS = "NONE"
+
+    /**
+     * The longest pattern sent: Elasticsearch's default `index.max_regex_length`. Most letters take four
+     * characters (`[aA]`), so an operand of about 250 letters reaches it. The bound is fixed: an index whose setting
+     * is raised does not raise it, since a query is compiled without reading its index's settings.
+     */
+    const val MAX_PATTERN_LENGTH = 1000
 
     private const val ANY = ".*"
     private const val ASCII_END = 0x80

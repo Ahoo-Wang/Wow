@@ -86,6 +86,12 @@ class SemanticProbe private constructor(
         /** A value whose letters are not all ASCII: letter case is compared outside ASCII too. */
         const val NON_ASCII = "nonAscii"
 
+        /** A value that opens with `İ` (U+0130), whose lower case is two characters, `i̇`. */
+        const val DOTTED_CAPITAL_I = "dottedCapitalI"
+
+        /** A value that ends with a capital sigma, whose lower case there is the final `ς`, not `σ`. */
+        const val FINAL_SIGMA = "finalSigma"
+
         private fun missing(shape: SemanticShape) = SemanticProbe(shape, MISSING, null)
         private fun nullValue(shape: SemanticShape) = SemanticProbe(shape, NULL, "null")
 
@@ -100,6 +106,8 @@ class SemanticProbe private constructor(
                 SemanticProbe(SemanticShape.STRING, OTHER, "\"Other\""),
                 SemanticProbe(SemanticShape.STRING, TRAILING_NEWLINE, "\"Wow\\n\""),
                 SemanticProbe(SemanticShape.STRING, NON_ASCII, "\"Ärger\""),
+                SemanticProbe(SemanticShape.STRING, DOTTED_CAPITAL_I, "\"İstanbul\""),
+                SemanticProbe(SemanticShape.STRING, FINAL_SIGMA, "\"ΟΔΟΣ\""),
             ),
             SemanticShape.NUMBER to listOf(
                 missing(SemanticShape.NUMBER),
@@ -163,6 +171,11 @@ object FilterSemantics {
     private const val VALUE_AND_OTHER = SemanticProbe.VALUE_AND_OTHER
     private const val TRAILING_NEWLINE = SemanticProbe.TRAILING_NEWLINE
     private const val NON_ASCII = SemanticProbe.NON_ASCII
+    private const val DOTTED_CAPITAL_I = SemanticProbe.DOTTED_CAPITAL_I
+    private const val FINAL_SIGMA = SemanticProbe.FINAL_SIGMA
+
+    /** The probes outside ASCII, which every negation and presence case matches. */
+    private val UNICODE = arrayOf(NON_ASCII, DOTTED_CAPITAL_I, FINAL_SIGMA)
 
     private fun string(id: String, vararg matches: String, filter: (QueryField<*>) -> FilterExpression) =
         SemanticCase("string.$id", SemanticShape.STRING, matches.toSet(), filter)
@@ -177,12 +190,12 @@ object FilterSemantics {
         // Equality is exact and case-sensitive; negations match records without the field.
         string("eq", VALUE) { EqualFilter(it, "Wow") },
         string("eq-null", MISSING, NULL) { EqualFilter(it, null) },
-        string("ne", MISSING, NULL, EMPTY, CASE_VARIANT, OTHER, TRAILING_NEWLINE, NON_ASCII) {
+        string("ne", MISSING, NULL, EMPTY, CASE_VARIANT, OTHER, TRAILING_NEWLINE, *UNICODE) {
             NotEqualFilter(it, "Wow")
         },
-        string("ne-null", EMPTY, VALUE, CASE_VARIANT, OTHER, TRAILING_NEWLINE, NON_ASCII) { NotEqualFilter(it, null) },
+        string("ne-null", EMPTY, VALUE, CASE_VARIANT, OTHER, TRAILING_NEWLINE, *UNICODE) { NotEqualFilter(it, null) },
         string("in", VALUE, OTHER) { InFilter(it, listOf("Wow", "Other")) },
-        string("not-in", MISSING, NULL, EMPTY, CASE_VARIANT, TRAILING_NEWLINE, NON_ASCII) {
+        string("not-in", MISSING, NULL, EMPTY, CASE_VARIANT, TRAILING_NEWLINE, *UNICODE) {
             NotInFilter(it, listOf("Wow", "Other"))
         },
         // Literal matches: case-sensitive unless asked otherwise; never match a missing or null field.
@@ -212,13 +225,19 @@ object FilterSemantics {
         string("ends-with-ignore-case-non-ascii", NON_ASCII) {
             EndsWithFilter(it, "äRGER", StringComparison.CASE_INSENSITIVE)
         },
+        // The two contexts where a text's lower case is not its letters': `İ` lowers to `i̇`, so `İstanbul` does
+        // not start with `is`; a word's last capital sigma lowers to `ς`, so `ΟΔΟΣ` ends with `ος`.
+        string("starts-with-ignore-case-dotted-i") { StartsWithFilter(it, "is", StringComparison.CASE_INSENSITIVE) },
+        string("ends-with-ignore-case-final-sigma", FINAL_SIGMA) {
+            EndsWithFilter(it, "ος", StringComparison.CASE_INSENSITIVE)
+        },
         // Presence: null and missing are both "null"; only a missing field does not exist.
         string("is-null", MISSING, NULL) { IsNullFilter(it) },
-        string("is-not-null", EMPTY, VALUE, CASE_VARIANT, OTHER, TRAILING_NEWLINE, NON_ASCII) { IsNotNullFilter(it) },
-        string("exists", NULL, EMPTY, VALUE, CASE_VARIANT, OTHER, TRAILING_NEWLINE, NON_ASCII) { ExistsFilter(it) },
+        string("is-not-null", EMPTY, VALUE, CASE_VARIANT, OTHER, TRAILING_NEWLINE, *UNICODE) { IsNotNullFilter(it) },
+        string("exists", NULL, EMPTY, VALUE, CASE_VARIANT, OTHER, TRAILING_NEWLINE, *UNICODE) { ExistsFilter(it) },
         string("not-exists", MISSING) { NotExistsFilter(it) },
         string("is-empty-string", EMPTY) { IsEmptyStringFilter(it) },
-        string("is-not-empty-string", VALUE, CASE_VARIANT, OTHER, TRAILING_NEWLINE, NON_ASCII) {
+        string("is-not-empty-string", VALUE, CASE_VARIANT, OTHER, TRAILING_NEWLINE, *UNICODE) {
             IsNotEmptyStringFilter(it)
         },
         // Ranges never match a missing or null field.

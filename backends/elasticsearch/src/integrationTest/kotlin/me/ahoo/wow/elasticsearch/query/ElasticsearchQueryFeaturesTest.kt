@@ -59,9 +59,12 @@ import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaRegistration
+import me.ahoo.wow.query.schema.QuerySchemaValidationException
+import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.query.tck.QueryBackendSpec
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import tools.jackson.databind.node.ObjectNode
 
 /**
@@ -406,6 +409,16 @@ class ElasticsearchQueryFeaturesTest {
         ).assert().containsExactly("o1", "o5")
         ids(EqualFilter(QueryField("state.createdAt"), T0)).assert().containsExactly("o1")
         ids(MatchAllFilter).size.assert().isEqualTo(5)
+    }
+
+    @Test
+    fun `an ignore-case pattern runs up to Elasticsearch's default regexp length, and past it is refused first`() {
+        fun contains(letters: Int) =
+            ids(ContainsFilter(QueryField("state.name"), "a".repeat(letters), StringComparison.CASE_INSENSITIVE))
+        // 249 letters make a pattern of 1000 characters, the bound: Elasticsearch runs it.
+        contains(249).assert().isEmpty()
+        assertThrows<QuerySchemaValidationException> { contains(250) }.violation.assert()
+            .isInstanceOf(QueryViolation.StorageUnsupported::class.java)
     }
 
     @Test

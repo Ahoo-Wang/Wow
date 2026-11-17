@@ -117,6 +117,17 @@ A value is a JSON scalar: a string, a number, a boolean, or `null` where the ope
 }
 ```
 
+Ignoring case compares the lower case of the field's text with the lower case of `value`, by Unicode's lowercase mapping and no language's own rules: `Ärger` starts with `äR`, as `Wow` starts with `w`. Each backend follows it letter by letter.
+
+A text's lower case differs from its letters' lower cases in two places only, and there the backends answer differently:
+
+| Field, filter | In-memory, MongoDB, ClickHouse | PostgreSQL, Elasticsearch |
+| --- | --- | --- |
+| `İstanbul`, `starts-with` `is` | No match: `İ` (U+0130) lowers to `i̇`, two characters | A match: `İ` lowers to `i` |
+| `ΟΔΟΣ`, `ends-with` `ος` | A match: a capital sigma that ends a word lowers to `ς` | No match: it lowers to `σ` |
+
+PostgreSQL lowers by the database's collation; these are the answers of the tests' database, `postgres:17-alpine` with its default locale. On Elasticsearch an ignore-case `value` is also bounded in length ([Elasticsearch](../operate/elasticsearch#snapshot-queries)).
+
 ### Collections
 
 | `op` | Properties | Matches |

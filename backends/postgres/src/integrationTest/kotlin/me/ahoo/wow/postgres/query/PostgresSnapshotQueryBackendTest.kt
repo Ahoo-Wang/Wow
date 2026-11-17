@@ -48,7 +48,14 @@ class PostgresSnapshotQueryBackendTest : QueryBackendSpec() {
 
     // PostgreSQL's date_trunc reads a local time Africa/Monrovia's 1972 change skipped at the offset after it (UTC), so
     // the hour and the minute of that gap start before the transition.
-    override val semanticDivergences: Set<String> = setOf(GAP_START, GAP_MID_UNIT)
+    override val semanticDivergences: Set<String> = setOf(
+        GAP_START,
+        GAP_MID_UNIT,
+        // lower() lowers each character alone, as the database's collation does: `İ` to `i`, a final capital sigma to
+        // `σ`, where the reference lowers a text, `İ` to `i̇` and that sigma to `ς` (#6392).
+        "string.starts-with-ignore-case-dotted-i",
+        "string.ends-with-ignore-case-final-sigma",
+    )
 
     override fun binding(type: AggregateType): QueryBackendBinding<QueryBackend> =
         PostgresSnapshotQueryStorage(PostgresFixture.dataSource, type.context).binding(type)!!

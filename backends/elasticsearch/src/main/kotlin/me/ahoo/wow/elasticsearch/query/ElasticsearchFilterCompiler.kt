@@ -286,7 +286,7 @@ internal object ElasticsearchFilterCompiler {
         val path = physicalPath(field)
         return when {
             comparison.ignoreCase -> regexp {
-                it.field(path).value(ElasticsearchCaseFolding.pattern(value, leading, trailing))
+                it.field(path).value(ElasticsearchCaseFolding.pattern(field, value, leading, trailing))
                     .flags(ElasticsearchCaseFolding.FLAGS)
             }
             leading -> wildcard { it.field(path).value("*${value.escapeWildcard()}${if (trailing) "*" else ""}") }

@@ -14,11 +14,16 @@
 package me.ahoo.wow.elasticsearch.query
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.query.schema.QuerySchemaValidationException
+import me.ahoo.wow.query.schema.QueryViolation
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 /** Each letter of an operand matched ignoring case is the class of every character with its lower case (#6392). */
 class ElasticsearchCaseFoldingTest {
-    private fun pattern(operand: String) = ElasticsearchCaseFolding.pattern(operand, leading = false, trailing = false)
+    private fun pattern(operand: String, leading: Boolean = false, trailing: Boolean = false) =
+        ElasticsearchCaseFolding.pattern(FIELD, operand, leading, trailing)
 
     @Test
     fun `a letter should be the class of every character whose lower case it has, outside ASCII too`() {
@@ -36,7 +41,26 @@ class ElasticsearchCaseFoldingTest {
     @Test
     fun `ASCII but a letter or a digit should be escaped, and anything else kept, around the anchors asked`() {
         pattern("中1 .*\\").assert().isEqualTo("中1\\ \\.\\*\\\\")
-        ElasticsearchCaseFolding.pattern("a", leading = true, trailing = true).assert().isEqualTo(".*[aA].*")
-        ElasticsearchCaseFolding.pattern("", leading = true, trailing = false).assert().isEqualTo(".*")
+        pattern("a", leading = true, trailing = true).assert().isEqualTo(".*[aA].*")
+        pattern("", leading = true).assert().isEqualTo(".*")
+    }
+
+    @Test
+    fun `a pattern past Elasticsearch's default regexp length should be refused before any request`() {
+        // 249 letters of four characters and the two anchors make 1000, the bound itself.
+        pattern("a".repeat(249), leading = true, trailing = true).length.assert().isEqualTo(1000)
+        assertThrows<QuerySchemaValidationException> {
+            pattern("a".repeat(250), leading = true, trailing = true)
+        }.violation.assert().isEqualTo(
+            QueryViolation.StorageUnsupported(
+                "an ignore-case match of a 250-character operand, whose pattern of 1004 characters passes the " +
+                    "1000 an Elasticsearch regexp holds",
+                FIELD,
+            ),
+        )
+    }
+
+    private companion object {
+        val FIELD = QueryField("state.name")
     }
 }
