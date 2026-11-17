@@ -57,6 +57,7 @@ import me.ahoo.wow.query.resolve.operandValue
 import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.query.schema.Temporal
 import java.math.BigDecimal
+import java.math.BigInteger
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -95,7 +96,7 @@ internal class ClickHouseFilterCompiler(
         is IdFilter -> systemEqual(filter, filter.value)
         is IdsFilter -> {
             val column = systemColumn(filter)
-            filter.values.joinToString(", ", "${quoteIdentifier(column.name)} IN (", ")") { bind(column, it) }
+            filter.values.joinToString(", ", "${column.compared} IN (", ")") { bind(column, it) }
         }
         is TenantIdFilter -> systemEqual(filter, filter.value)
         is OwnerIdFilter -> systemEqual(filter, filter.value)
@@ -104,16 +105,16 @@ internal class ClickHouseFilterCompiler(
         is EqualFilter, is NotEqualFilter, is InFilter, is NotInFilter, is ContainsAllFilter, is IsEmptyFilter,
         is IsNullFilter, is IsNotNullFilter, is ExistsFilter, is NotExistsFilter,
         -> if (columnOf(checkNotNull(filter.predicateField())).array) array(filter) else scalar(filter)
-        is GreaterThanFilter -> "${column(filter.field)} > ${bind(filter.field, filter.value)}"
-        is GreaterThanOrEqualFilter -> "${column(filter.field)} >= ${bind(filter.field, filter.value)}"
-        is LessThanFilter -> "${column(filter.field)} < ${bind(filter.field, filter.value)}"
-        is LessThanOrEqualFilter -> "${column(filter.field)} <= ${bind(filter.field, filter.value)}"
-        is BetweenFilter -> "${column(filter.field)} BETWEEN ${bind(filter.field, filter.lowerBound)} AND " +
+        is GreaterThanFilter -> "${compared(filter.field)} > ${bind(filter.field, filter.value)}"
+        is GreaterThanOrEqualFilter -> "${compared(filter.field)} >= ${bind(filter.field, filter.value)}"
+        is LessThanFilter -> "${compared(filter.field)} < ${bind(filter.field, filter.value)}"
+        is LessThanOrEqualFilter -> "${compared(filter.field)} <= ${bind(filter.field, filter.value)}"
+        is BetweenFilter -> "${compared(filter.field)} BETWEEN ${bind(filter.field, filter.lowerBound)} AND " +
             bind(filter.field, filter.upperBound)
         is ContainsFilter -> if (filter.stringComparison.ignoreCase) {
-            "positionCaseInsensitiveUTF8(${column(filter.field)}, ${text(filter.value)}) > 0"
+            "positionCaseInsensitiveUTF8(${compared(filter.field)}, ${text(filter.value)}) > 0"
         } else {
-            "position(${column(filter.field)}, ${text(filter.value)}) > 0"
+            "position(${compared(filter.field)}, ${text(filter.value)}) > 0"
         }
         is StartsWithFilter -> "startsWith(${folded(filter.field, filter.stringComparison.ignoreCase)}, " +
             "${foldedText(filter.value, filter.stringComparison.ignoreCase)})"
@@ -132,13 +133,10 @@ internal class ClickHouseFilterCompiler(
 
     /** A predicate on a scalar column. Admission normalizes EQ and NE with a null operand into IS_NULL and IS_NOT_NULL. */
     private fun scalar(filter: FilterExpression): String = when (filter) {
-        is EqualFilter -> "${column(filter.field)} = ${bind(filter.field, filter.value)}"
-        is NotEqualFilter -> orNull(filter.field, "${column(filter.field)} != ${bind(filter.field, filter.value)}")
-        is InFilter -> filter.values.joinToString(", ", "${column(filter.field)} IN (", ")") { bind(filter.field, it) }
-        is NotInFilter -> orNull(
-            filter.field,
-            filter.values.joinToString(", ", "${column(filter.field)} NOT IN (", ")") { bind(filter.field, it) },
-        )
+        is EqualFilter -> "${compared(filter.field)} = ${bind(filter.field, filter.value)}"
+        is NotEqualFilter -> orNull(filter.field, "${compared(filter.field)} != ${bind(filter.field, filter.value)}")
+        is InFilter -> "${compared(filter.field)} IN ${terms(filter.field, filter.values)}"
+        is NotInFilter -> orNull(filter.field, "${compared(filter.field)} NOT IN ${terms(filter.field, filter.values)}")
         is IsNullFilter, is NotExistsFilter -> "isNull(${column(checkNotNull(filter.predicateField()))})"
         is IsNotNullFilter, is ExistsFilter -> "isNotNull(${column(checkNotNull(filter.predicateField()))})"
         // IS_EMPTY and CONTAINS_ALL need a collection, and the only collections are array columns.
@@ -174,6 +172,13 @@ internal class ClickHouseFilterCompiler(
 
     fun columnOf(field: QueryField<*>): TypedColumn = table.column(admitted.physicalPath(field))
 
+    /** [values] bound for [field], as an `IN` list. */
+    private fun terms(field: QueryField<*>, values: List<Any?>): String =
+        values.joinToString(", ", "(", ")") { bind(field, it) }
+
+    /** [field]'s column as a predicate compares it ([TypedColumn.compared]). */
+    private fun compared(field: QueryField<*>): String = columnOf(field).compared
+
     /**
      * [field] as a `DateTime64`: a native date column at its own precision, an epoch column converted from its unit.
      * Admission admits a date group or date difference only on a field with one of these encodings.
@@ -196,14 +201,14 @@ internal class ClickHouseFilterCompiler(
 
     private fun systemEqual(filter: FilterExpression, value: String): String {
         val column = systemColumn(filter)
-        return "${quoteIdentifier(column.name)} = ${bind(column, value)}"
+        return "${column.compared} = ${bind(column, value)}"
     }
 
     private fun orNull(field: QueryField<*>, predicate: String): String =
         if (columnOf(field).nullable) "($predicate OR isNull(${column(field)}))" else predicate
 
     private fun folded(field: QueryField<*>, ignoreCase: Boolean): String =
-        if (ignoreCase) "lowerUTF8(${column(field)})" else column(field)
+        if (ignoreCase) "lowerUTF8(${compared(field)})" else compared(field)
 
     private fun foldedText(value: String, ignoreCase: Boolean): String =
         if (ignoreCase) "lowerUTF8(${text(value)})" else text(value)
@@ -212,14 +217,20 @@ internal class ClickHouseFilterCompiler(
 
     private fun bind(field: QueryField<*>, value: Any?): String = bind(columnOf(field), value, field)
 
-    /** An operand of [column], bound as its parameter type; a date operand as epoch milliseconds. */
+    /**
+     * An operand of [column], bound in a type that holds it exactly, never narrowed to the column's own: the comparison
+     * decides, not the bind. A date-time is a `DateTime64` at every digit it has (#6304), an epoch number its
+     * milliseconds; a whole number of an integer column is an `Int256`, and any other number a `Decimal(76, s)` at its
+     * own scale, whatever the column's width or scale (#6321); anything else is bound as its column's parameter type.
+     */
     fun bind(column: TypedColumn, value: Any?, field: QueryField<*> = QueryField(column.name)): String {
         val operand = value.operandValue() ?: throw QueryExecutionException("A null operand cannot be bound.")
         if (operand is List<*>) {
             throw QueryViolation.StorageUnsupported("an array operand", field).rejection()
         }
-        if (column.temporal) {
-            return "fromUnixTimestamp64Milli(${parameters.bind(operand.epochMillis(field).toString(), "Int64")}, 'UTC')"
+        if (column.temporal) return instant(operand, column, field)
+        if (column.family == ClickHouseTypeFamily.INTEGER || column.family == ClickHouseTypeFamily.DECIMAL) {
+            return number(operand, column, field)
         }
         val text = when (operand) {
             is BigDecimal -> operand.toPlainString()
@@ -228,11 +239,45 @@ internal class ClickHouseFilterCompiler(
         return parameters.bind(text, column.parameterType)
     }
 
-    private fun Any.epochMillis(field: QueryField<*>): Long = when (this) {
-        is Number -> toLong()
-        is String -> parseInstant(field).toEpochMilli()
-        else -> throw QueryViolation.StorageUnsupported("a [${javaClass.simpleName}] operand for a date field", field)
+    private fun instant(operand: Any, column: TypedColumn, field: QueryField<*>): String = when (operand) {
+        is Number -> "fromUnixTimestamp64Milli(${parameters.bind(operand.toLong().toString(), "Int64")}, 'UTC')"
+        is String -> {
+            val instant = operand.parseInstant(field)
+            val digits = instant.nano.toString().padStart(NANO_DIGITS, '0').trimEnd('0').length
+            val scale = maxOf(MILLI_DIGITS, column.scale, digits)
+            "toDateTime64(${parameters.bind(DATE_TIME_TEXT.format(instant), "String")}, $scale, 'UTC')"
+        }
+        else -> throw QueryViolation.StorageUnsupported(
+            "a [${operand.javaClass.simpleName}] operand for a date field",
+            field
+        )
             .rejection()
+    }
+
+    private fun number(operand: Any, column: TypedColumn, field: QueryField<*>): String {
+        val exact = when (operand) {
+            is BigDecimal -> operand
+            is BigInteger -> BigDecimal(operand)
+            is Double, is Float -> BigDecimal(operand.toString())
+            is Number -> BigDecimal.valueOf(operand.toLong())
+            // A cursor position's exact text: a decimal, or an integer past a long.
+            is String -> operand.toBigDecimalOrNull()
+            else -> null
+        }?.stripTrailingZeros() ?: throw QueryViolation.StorageUnsupported(
+            "a [${operand.javaClass.simpleName}] operand for a numeric field",
+            field,
+        ).rejection()
+        val scale = maxOf(exact.scale(), 0)
+        if (exact.precision() - exact.scale() + scale > MAX_DECIMAL_DIGITS) {
+            throw QueryViolation.StorageUnsupported(
+                "a number of more than $MAX_DECIMAL_DIGITS digits",
+                field
+            ).rejection()
+        }
+        // A decimal column compares with a decimal, an integer column with an integer while the operand is whole.
+        val whole = scale == 0 && column.family == ClickHouseTypeFamily.INTEGER
+        val type = if (whole) "Int256" else "Decimal($MAX_DECIMAL_DIGITS, $scale)"
+        return parameters.bind(exact.setScale(scale).toPlainString(), type)
     }
 
     private fun String.parseInstant(field: QueryField<*>): Instant = try {
@@ -275,6 +320,16 @@ internal class ClickHouseFilterCompiler(
     }
 
     companion object {
+        private const val NANO_DIGITS = 9
+        private const val MILLI_DIGITS = 3
+
+        /** The digits a `Decimal256` holds, and so an `Int256`'s too (76 of its 77). */
+        private const val MAX_DECIMAL_DIGITS = 76
+
+        /** An instant as `toDateTime64` parses it, every digit to the nanosecond, in UTC. */
+        private val DATE_TIME_TEXT: DateTimeFormatter =
+            DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss.SSSSSSSSS").withZone(ZoneOffset.UTC)
+
         /**
          * `left op right` as the protocol computes it, a finite double: a division by zero, and a result past the
          * double range (`inf`, `nan`), is NULL.

@@ -66,6 +66,18 @@ internal class TypedColumn(val column: ClickHouseColumn) {
     val scale: Int
         get() = DATE_TIME64.matchEntire(baseType)?.groupValues?.get(1)?.toInt() ?: 0
 
+    /**
+     * Whether its field reads the column as its text: a UUID, or an Enum's label. Its field is a STRING, which compares,
+     * orders and matches by characters; the native column orders a UUID by its second half and an Enum by its number,
+     * and its string functions take no Enum (#6330, #6337).
+     */
+    val textual: Boolean
+        get() = family == ClickHouseTypeFamily.ENUM || baseType == "UUID"
+
+    /** The column as its field compares, orders and matches it: its text for a [textual] column, else itself. */
+    val compared: String
+        get() = if (textual) "toString(${quoteIdentifier(name)})" else quoteIdentifier(name)
+
     /** The type an operand of this column is bound as: its base type, except where the text form differs. */
     val parameterType: String
         get() = when (family) {
