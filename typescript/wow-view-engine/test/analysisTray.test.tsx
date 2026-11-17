@@ -17,6 +17,7 @@ import {
   AggregationFunction,
   AggregationGroupType,
   AggregationMetricType,
+  FilterOperator,
 } from '@ahoo-wang/wow-client/dsl';
 import {
   cleanup,
@@ -263,7 +264,9 @@ describe('the analysis tray', () => {
       config: {
         filter: {
           op: 'and',
-          children: [{ field: 'warehouse', operator: 'EQ', value: '' }],
+          children: [
+            { field: 'warehouse', operator: FilterOperator.EQ, value: '' },
+          ],
         },
       },
     });
