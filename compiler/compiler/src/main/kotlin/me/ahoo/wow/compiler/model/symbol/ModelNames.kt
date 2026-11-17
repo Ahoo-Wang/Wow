@@ -16,6 +16,7 @@ package me.ahoo.wow.compiler.model.symbol
 import com.google.devtools.ksp.symbol.KSDeclaration
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 import com.google.devtools.ksp.symbol.KSType
+import com.google.devtools.ksp.symbol.KSTypeArgument
 import com.google.devtools.ksp.symbol.Variance
 import me.ahoo.wow.api.annotation.AfterCommand
 import me.ahoo.wow.api.annotation.Blocking
@@ -154,8 +155,10 @@ private const val TYPES = "me.ahoo.wow.kernel.Types"
 internal fun KSDeclaration.sourceName(): String? = qualifiedName?.let { KotlinNames.qualified(it.asString()) }
 
 /**
- * This type as Kotlin source: its [sourceName], with its type arguments (`*` for a star projection); a type that does
- * not resolve has no qualified name, and is the name the code wrote, which KSP gives as `<ERROR TYPE: Name>`.
+ * This type as Kotlin source, its own nullability aside (a caller that names a class drops it; [renderInFull] keeps
+ * it): its [sourceName], with its type arguments each in full (#6389), its variance (`out`, `in`, `*`) and its
+ * nullability kept at every depth, so an invariant `Box<String?>` is not written `Box<String>`. A type that does not
+ * resolve has no qualified name, and is the name the code wrote, which KSP gives as `<ERROR TYPE: Name>`.
  */
 internal fun KSType.render(): String {
     val name = declaration.sourceName()
@@ -163,5 +166,19 @@ internal fun KSType.render(): String {
     if (arguments.isEmpty()) {
         return name
     }
-    return name + arguments.joinToString(", ", "<", ">") { it.type?.resolve()?.render() ?: "*" }
+    return name + arguments.joinToString(", ", "<", ">") { it.render() }
+}
+
+/** This type as Kotlin source in full: [render], then its own `?` when it is nullable. */
+internal fun KSType.renderInFull(): String = render() + if (isMarkedNullable) "?" else ""
+
+/** A type argument as Kotlin source: its variance, and its type in full; a star projection has no type. */
+private fun KSTypeArgument.render(): String {
+    val type = type?.resolve()?.renderInFull() ?: return "*"
+    return when (variance) {
+        Variance.STAR -> "*"
+        Variance.COVARIANT -> "out $type"
+        Variance.CONTRAVARIANT -> "in $type"
+        Variance.INVARIANT -> type
+    }
 }

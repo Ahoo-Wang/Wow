@@ -31,6 +31,7 @@ import me.ahoo.wow.compiler.model.symbol.argumentsOf
 import me.ahoo.wow.compiler.model.symbol.binaryName
 import me.ahoo.wow.compiler.model.symbol.declaredName
 import me.ahoo.wow.compiler.model.symbol.render
+import me.ahoo.wow.compiler.model.symbol.renderInFull
 
 /** The sourcing functions of an aggregate's state, and the events its handlers produce. */
 internal object SourcingResolver {
@@ -169,9 +170,8 @@ internal object SourcingResolver {
         if (commit == null || isCommit(commit)) {
             return null
         }
-        val rendered = commit.render() + if (commit.isMarkedNullable) "?" else ""
-        return "sourcing function $name takes $rendered second: a sourcing function's second parameter is the " +
-            "commit of its event, a $EVENT_STREAM"
+        return "sourcing function $name takes ${commit.renderInFull()} second: a sourcing function's second " +
+            "parameter is the commit of its event, a $EVENT_STREAM"
     }
 
     /** Whether [type] is the commit of an event, a sourcing function's second parameter: a non-null `EventStream`. */

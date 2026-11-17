@@ -26,6 +26,7 @@ import me.ahoo.wow.compiler.model.symbol.binaryName
 import me.ahoo.wow.compiler.model.symbol.classOf
 import me.ahoo.wow.compiler.model.symbol.commandClassesOf
 import me.ahoo.wow.compiler.model.symbol.concreteClasses
+import me.ahoo.wow.compiler.model.symbol.renderInFull
 import me.ahoo.wow.compiler.model.symbol.sourceName
 
 /**
@@ -88,9 +89,9 @@ internal object SendsResolver {
 
             Returned.Unnamed -> {
                 if (declared.isEmpty()) {
-                    problems += "$where returns ${returned.render()}, which names no command class: declare what " +
-                        "it derives with @Sends(derives = [...]), the command classes or a sealed type of them, or " +
-                        "return CommandRequest<X> of the class it derives"
+                    problems += "$where returns ${returned.renderInFull()}, which names no command class: " +
+                        "declare what it derives with @Sends(derives = [...]), the command classes or a sealed type " +
+                        "of them, or return CommandRequest<X> of the class it derives"
                 }
                 declared
             }
@@ -160,8 +161,8 @@ internal object SendsResolver {
     ): List<KSClassDeclaration> = types.flatMap { type ->
         val classes = commandClassesOf(type)
         if (classes.isEmpty()) {
-            problems += "$where sends ${type.render()} in @Sends($member), which is no command class: @Sends names " +
-                "command classes, or a sealed type whose subclasses they are"
+            problems += "$where sends ${type.renderInFull()} in @Sends($member), which is no command class: " +
+                "@Sends names command classes, or a sealed type whose subclasses they are"
         }
         classes
     }.distinctBy { it.binaryName() }
@@ -173,14 +174,4 @@ internal object SendsResolver {
     )
 
     private fun KSType.qualifiedName(): String? = declaration.qualifiedName?.asString()
-
-    private fun KSType.render(): String {
-        val name = declaration.sourceName()!!
-        val rendered = if (arguments.isEmpty()) {
-            name
-        } else {
-            name + arguments.joinToString(", ", "<", ">") { it.type?.resolve()?.render() ?: "*" }
-        }
-        return if (isMarkedNullable) "$rendered?" else rendered
-    }
 }
