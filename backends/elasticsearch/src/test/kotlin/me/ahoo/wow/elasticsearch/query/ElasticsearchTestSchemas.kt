@@ -37,6 +37,7 @@ internal fun nativeSchema(
     fields: Map<QueryField<*>, QueryValueBindings> = emptyMap(),
     semanticTypes: Map<QueryField<*>, QuerySemanticType> = emptyMap(),
     values: Map<QueryField<*>, QueryValueSchema> = emptyMap(),
+    provisional: Boolean = false,
 ): QueryModelSchema {
     fun value(prefix: String): QueryValueSchema {
         if (prefix.isNotEmpty()) values[QueryField(prefix.removeSuffix("."))]?.let { return it }
@@ -80,6 +81,7 @@ internal fun nativeSchema(
         LogicalQuerySchema(value("")),
         bindings,
         storage = ElasticsearchQuerySchemaAdapter.STORAGE_SUPPORT,
+        provisional = provisional,
     )
 }
 

@@ -23,6 +23,8 @@ import co.elastic.clients.elasticsearch.core.SearchRequest
 import co.elastic.clients.elasticsearch.core.search.Hit
 import co.elastic.clients.elasticsearch.core.search.SourceFilter
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.query.AggregationQuery
@@ -244,14 +246,20 @@ internal class ElasticsearchQueryBackend(
         return result
     }
 
+    /**
+     * No rows when this flow's own search finds no index. Only this flow's failures are read: one its collector throws,
+     * a missing index of the collector's own call included, passes through unchanged (`catch` sees upstream failures
+     * only).
+     */
     private fun Flow<ObjectNode>.orMissing(query: AdmittedQuery<*>): Flow<ObjectNode> = flow {
-        try {
-            collect { emit(it) }
-        } catch (failure: ElasticsearchException) {
-            if (ElasticsearchFailures.isIndexNotFound(failure)) return@flow
-            throw failure
-        }
-        if (query.provisional) throw createdSinceAdmission()
+        var missing = false
+        emitAll(
+            catch { failure ->
+                if (failure !is ElasticsearchException || !ElasticsearchFailures.isIndexNotFound(failure)) throw failure
+                missing = true
+            },
+        )
+        if (!missing && query.provisional) throw createdSinceAdmission()
     }
 
     private fun createdSinceAdmission(): Throwable = QuerySchemaUnavailableException(
