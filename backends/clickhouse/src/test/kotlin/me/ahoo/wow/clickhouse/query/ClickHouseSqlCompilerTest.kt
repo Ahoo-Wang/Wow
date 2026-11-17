@@ -374,7 +374,7 @@ class ClickHouseSqlCompilerTest {
             "count() AS __m0",
             "countIf(isNotNull(`paid_at`)) AS __m1",
             "sumOrNull(`amount`) AS __m2",
-            "avgIfOrNull(`quantity`, isNotNull(`paid_at`)) AS __m3",
+            "avgIfOrNull(toInt128(`quantity`), isNotNull(`paid_at`)) AS __m3",
             "minOrNull(`quantity`) AS __m4",
             "maxOrNull(`amount`) AS __m5",
             "stddevPopOrNull(`amount`) AS __m6",
@@ -394,6 +394,35 @@ class ClickHouseSqlCompilerTest {
                 "toFloat64(__m1)), NULL) AS `derived`",
             "ifNotFinite((ifNotFinite(if(toFloat64(__m1) = 0, NULL, ",
         ).forEach { sql.assert().contains(it) }
+    }
+
+    @Test
+    fun `an integer sum should accumulate wide and a floating metric should fail outside the double range`() {
+        val sql = aggregate(
+            metrics = listOf(
+                AggregationMetric.Numeric(AggregationFunction.SUM, AggregationExpression.Field(QUANTITY), "sum"),
+                AggregationMetric.Numeric(AggregationFunction.SUM, AggregationExpression.Field(RATE), "rate"),
+                AggregationMetric.Numeric(AggregationFunction.MAX, AggregationExpression.Field(QUANTITY), "max"),
+                AggregationMetric.Numeric(
+                    AggregationFunction.SUM,
+                    AggregationExpression.Binary(
+                        AggregationExpressionOperator.MULTIPLY,
+                        AggregationExpression.Field(QUANTITY),
+                        AggregationExpression.Constant(2.0),
+                    ),
+                    "doubled",
+                ),
+                AggregationMetric.Count("orders"),
+            ),
+        )
+        sql.assert().contains(
+            "sumOrNull(toInt128(`quantity`)) AS __m0",
+            "sumOrNull(`rate`) AS __m1",
+            "maxOrNull(`quantity`) AS __m2",
+            "sumOrNull(ifNotFinite((toFloat64(`quantity`) * toFloat64(2.0)), NULL)) AS __m3",
+            ") WHERE throwIf(NOT (isFinite(ifNull(__m1, 0)) AND isFinite(ifNull(__m3, 0))), " +
+                "'An aggregation metric is not a finite number.') = 0 ",
+        )
     }
 
     @Test
@@ -505,6 +534,7 @@ class ClickHouseSqlCompilerTest {
         val NOTE = QueryField("note")
         val AMOUNT = QueryField("amount")
         val QUANTITY = QueryField("quantity")
+        val RATE = QueryField("rate")
         val CREATED_AT = QueryField("created_at")
         val PAID_AT = QueryField("paid_at")
         val PAID = QueryField("paid")
