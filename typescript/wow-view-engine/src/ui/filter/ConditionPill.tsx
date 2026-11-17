@@ -375,9 +375,10 @@ export function ConditionPill({
       data-pending={pending || undefined}
       data-negated={negated || undefined}
       aria-describedby={errors.length > 0 ? reasonId : undefined}
-      // `flex-wrap`: the value takes a line of its own where the strip is too
-      // narrow to hold the whole sentence on one — see the floor on the value
-      // below. Nothing wraps at a strip width the track was designed for.
+      // `flex-wrap`: the answer (the value with its negation and its ✕) takes
+      // a line of its own where the strip is too narrow to hold the whole
+      // sentence on one — see the floor on the value below. Nothing wraps at
+      // a strip width the track was designed for (`GroupBlock`'s 23rem).
       className={PILL_FRAME}
     >
       {pending && <PendingDot named className={PENDING_AT_CORNER} />}
@@ -413,65 +414,76 @@ export function ConditionPill({
           render; it is each control's own variant now (`ui/kit/variants.tsx`),
           so a registry rename cannot silently give the pill its borders
           back. */}
+      {/* The answer and what is done to it wrap as one: the value, the
+          negation and the ✕. Laid out as three items of the pill, the value
+          could still fit at its floor while the ✕ after it could not, and the
+          ✕ took a line to itself under a sentence that had room for nothing
+          else. No `min-w-0` here: the group's own content (the value's floor
+          and the two buttons) is the width the pill wraps on. */}
       <div
-        data-slot="filter-value"
-        className={cn(
-          'fve:min-w-0 fve:flex-1',
-          // The floor that decides where the pill wraps. A value control is
-          // the answer itself, and below a few characters it stops being one:
-          // on a 420-wide strip the field's name and the operator left 38px,
-          // in which a range's second box ran 31px past the ✕ and an enum
-          // select showed its chevron and none of the value. The floor makes
-          // the value drop to a line of its own instead, where it has the
-          // whole pill — 6rem for one input, 9rem for the two a range or a
-          // date needs. Above the floor it still takes only what is left, and
-          // clamps.
-          wide ? 'fve:min-w-36' : 'fve:min-w-24',
-        )}
+        data-slot="filter-answer"
+        className="fve:flex fve:flex-1 fve:items-center fve:gap-1"
       >
-        {/* `field` is defined wherever `editor` is — the descriptor comes
+        <div
+          data-slot="filter-value"
+          className={cn(
+            'fve:min-w-0 fve:flex-1',
+            // The floor that decides where the pill wraps. A value control is
+            // the answer itself, and below a few characters it stops being one:
+            // on a 420-wide strip the field's name and the operator left 38px,
+            // in which a range's second box ran 31px past the ✕ and an enum
+            // select showed its chevron and none of the value. The floor makes
+            // the value drop to a line of its own instead, with the negation
+            // and the ✕ beside it, where it has the rest of the pill — 6rem for
+            // one input, 9rem for the two a range or a date needs. Above the
+            // floor it still takes only what is left, and clamps.
+            wide ? 'fve:min-w-36' : 'fve:min-w-24',
+          )}
+        >
+          {/* `field` is defined wherever `editor` is — the descriptor comes
             from its kind — and is named so the fallback can say which kind
             asked for an input nobody wrote. */}
-        {editor && field && (
-          <FilterValueEditor
-            editor={editor}
-            kind={field.kind}
-            value={leaf.value}
-            // The field's title, as the other three names on this row use:
-            // an identifier on screen is a word the interface never says
-            // anywhere else.
-            label={messages.label('label.filter.value-of', {
-              field: label,
-            })}
-            disabled={disabled}
-            invalid={invalidValue || undefined}
-            options={editor.remote ? optionsFor?.(editor.remote) : undefined}
-            source={
-              editor.remote
-                ? (filter.optionSource?.(editor.remote) ?? null)
-                : null
-            }
-            candidates={filter.valueCandidates?.(path) ?? null}
-            // A time since another moment picks the earlier one among the
-            // other times beside it (N3).
-            times={
-              editor.input === 'duration'
-                ? filter.fields
-                    .filter(
-                      entry => entry.name !== field.name && holdsTime(entry),
-                    )
-                    .map(entry => ({
-                      value: entry.name,
-                      label: messages.say(entry.label),
-                    }))
-                : undefined
-            }
-            onChange={value => filter.updateLeaf(path, { value })}
-          />
-        )}
+          {editor && field && (
+            <FilterValueEditor
+              editor={editor}
+              kind={field.kind}
+              value={leaf.value}
+              // The field's title, as the other three names on this row use:
+              // an identifier on screen is a word the interface never says
+              // anywhere else.
+              label={messages.label('label.filter.value-of', {
+                field: label,
+              })}
+              disabled={disabled}
+              invalid={invalidValue || undefined}
+              options={editor.remote ? optionsFor?.(editor.remote) : undefined}
+              source={
+                editor.remote
+                  ? (filter.optionSource?.(editor.remote) ?? null)
+                  : null
+              }
+              candidates={filter.valueCandidates?.(path) ?? null}
+              // A time since another moment picks the earlier one among the
+              // other times beside it (N3).
+              times={
+                editor.input === 'duration'
+                  ? filter.fields
+                      .filter(
+                        entry => entry.name !== field.name && holdsTime(entry),
+                      )
+                      .map(entry => ({
+                        value: entry.name,
+                        label: messages.say(entry.label),
+                      }))
+                  : undefined
+              }
+              onChange={value => filter.updateLeaf(path, { value })}
+            />
+          )}
+        </div>
+        {negate}
+        {remove}
       </div>
-      {negate}
-      {remove}
       {/* Why the border is red, in words, on a line of its own under the
           sentence: the border alone was the whole of it, and a reader had
           to find the strip above to learn what was wrong here (second
