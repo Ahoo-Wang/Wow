@@ -50,10 +50,12 @@ import kotlin.time.TimeSource
  *
  * Nothing is read, by the shared tail or a catch-up, before [reads] completes, when given: a partition held back while
  * its node starts the others ([SubscriptionRuntime.startPartition]). Then, with the node's [catchUps], a partition
- * whose workers start behind the head of the source reads its first [FREE_CATCH_UP] entries at once, its readers
- * together, without a permit: the gap a hand-over or a fail-over leaves fits in it (#6407). One that reaches the head
- * within them never asks for a permit. Otherwise its readers stop at the page's end and the partition waits for a
- * permit for the rest, as a large backlog does, whoever left it. It gives the permit back once each worker has taken
+ * whose workers start behind the head of the source reads the first [FREE_CATCH_UP] entries of that backlog at once,
+ * its readers together, without a permit: the gap a hand-over or a fail-over leaves fits in it (#6407). Only the
+ * backlog counts, the entries up to the head it opened behind: those past it are live and read as they come. One
+ * whose workers all pass that head within the page never asks for a permit; the reader that takes it past says so.
+ * Otherwise its readers stop at the page's end and the partition waits for a permit for the rest, as a large backlog
+ * does, whoever left it. It gives the permit back once each worker has taken
  * every entry up to that head, is paused on a systemic failure, or has taken nothing for [STALLED]
  * ([SubscriptionOptions.maxCatchUps]). A reader the page ended reads again from its own position once the permit is
  * held: it holds none of the entries it did not take meanwhile.
@@ -84,8 +86,18 @@ internal class PartitionRunner(
     /** Completes once the partition's readers have taken its first page without a permit: it then waits for one. */
     private val pageTaken = CompletableDeferred<Unit>()
 
-    /** The entries the partition's readers may still take, together, before it holds a permit. */
+    /** Completes once a reader took the partition's last worker behind [target] past it, within the first page. */
+    private val passed = CompletableDeferred<Unit>()
+
+    /** The backlog's entries the partition's readers may still take, together, before it holds a permit. */
     private val free = AtomicInteger(FREE_CATCH_UP)
+
+    /**
+     * The head of the source the partition opened behind: its backlog is the entries up to it, which spend the first
+     * page; those past it are live, and spend nothing.
+     */
+    @Volatile
+    private var target = Long.MAX_VALUE
 
     /** Whether the partition reads: no longer held back, nor waiting for a catch-up permit past its first page. */
     val reading: Boolean get() = opened.isCompleted && (permitted.isCompleted || !pageTaken.isCompleted)
@@ -107,8 +119,11 @@ internal class PartitionRunner(
             retryForever(options.readRetry, { "read the shared tail of partition $partition" }) {
                 pageEnded = false
                 source.tail(partition, head.takeIf { it > 0 })
-                    .takeWhile { mayTake().also { pageEnded = !it } }
-                    .collect { entry -> fanOut(entry) }
+                    .takeWhile { entry -> mayTake(entry).also { pageEnded = !it } }
+                    .collect { entry ->
+                        fanOut(entry)
+                        took(entry)
+                    }
             }
             // The first page ended the read: it goes on from `head` with the permit. Else the tail ended, and the
             // partition's reads with it.
@@ -160,6 +175,7 @@ internal class PartitionRunner(
             opened.complete(Unit)
             return
         }
+        this.target = target
         opened.complete(Unit)
         if (caughtUpWithinPage(target)) {
             permitted.complete(Unit)
@@ -174,25 +190,38 @@ internal class PartitionRunner(
         }
     }
 
-    /** Whether the partition caught up to [target] before its readers took its first page. */
+    /**
+     * Whether the partition caught up to [target] before its readers took its first page: a reader that takes its last
+     * worker past it says so ([took]). The poll ([awaitCaughtUp]) is left for the workers no reader moves past it: one
+     * paused on a systemic failure, or one that has taken nothing for [STALLED].
+     */
     private suspend fun caughtUpWithinPage(target: Long): Boolean = coroutineScope {
         val caughtUp = async { awaitCaughtUp(target) }
         select {
+            passed.onAwait { true }
             caughtUp.onAwait { true }
             pageTaken.onAwait { false }
         }.also { caughtUp.cancel() }
     }
 
     /**
-     * Whether a reader may take one more entry: always once the partition is [permitted]; before, while its first
-     * page lasts, the last reader past it marking the page taken.
+     * Whether a reader may take [entry]: always once the partition is [permitted], or when the entry is past [target],
+     * live; an entry of the backlog while its first page lasts, the last reader past the page marking it taken.
      */
-    private fun mayTake(): Boolean {
-        if (permitted.isCompleted || free.getAndDecrement() > 0) {
+    private fun mayTake(entry: SourcedEntry): Boolean {
+        if (permitted.isCompleted || entry.position.sequence > target || free.getAndDecrement() > 0) {
             return true
         }
         pageTaken.complete(Unit)
         return false
+    }
+
+    /** After a reader took [entry]: the partition has passed [target] within its page once no worker is behind it. */
+    private fun took(entry: SourcedEntry) {
+        if (permitted.isCompleted || entry.position.sequence < target) return
+        if (workers.all { it.cursor >= target || it.paused != null }) {
+            passed.complete(Unit)
+        }
     }
 
     /**
@@ -229,8 +258,11 @@ internal class PartitionRunner(
                 if (!tryJoin(worker)) {
                     source.tail(partition, worker.cursor.takeIf { it > 0 })
                         .takeWhile { entry ->
-                            pageEnded = !mayTake()
-                            if (!pageEnded) worker.accept(entry)
+                            pageEnded = !mayTake(entry)
+                            if (!pageEnded) {
+                                worker.accept(entry)
+                                took(entry)
+                            }
                             !pageEnded && !tryJoin(worker)
                         }
                         .collect()
@@ -253,9 +285,10 @@ internal class PartitionRunner(
 }
 
 /**
- * The entries a partition behind its head reads at once, all its readers together, before it needs a catch-up permit
- * ([SubscriptionOptions.maxCatchUps]): more than the gap a hand-over or a fail-over leaves, a few entries, and the
- * share of one page each partition of a node's first activation reads at once (#6407).
+ * The entries of its backlog a partition behind its head reads at once, all its readers together, before it needs a
+ * catch-up permit ([SubscriptionOptions.maxCatchUps]): more than the gap a hand-over or a fail-over leaves, a few
+ * entries, and the share of one page each partition of a node's first activation reads at once (#6407). Entries
+ * committed after it opened do not count.
  */
 internal const val FREE_CATCH_UP = 512
 

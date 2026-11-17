@@ -55,7 +55,11 @@ class CatchUpPermitsTest {
     private fun sequencesOf(ids: Collection<String>): List<Long> =
         handled.entries.filter { it.first in ids }.mapNotNull { it.third }.sorted()
 
-    private fun runtime(subscription: Subscription, options: SubscriptionOptions = testOptions()) =
+    private fun runtime(
+        subscription: Subscription,
+        options: SubscriptionOptions = testOptions(),
+        log: EventLog = this.log,
+    ) =
         SubscriptionRuntime(
             "group",
             log,
@@ -155,6 +159,59 @@ class CatchUpPermitsTest {
         }
 
     @Test
+    fun `a partition behind by less than a page should read its backlog and every new entry without a permit`(): Unit =
+        runBlocking {
+            val ids = idsIn(0, ENTRIES + FREE_CATCH_UP + ENTRIES)
+            val (backlog, live) = ids.take(ENTRIES) to ids.drop(ENTRIES)
+            val held = HeldLog()
+            backlog.forEach { held.appender.append(it) }
+            permits.acquire()
+            val runtime = runtime(projector(), log = held.log)
+            runtime.start()
+            try {
+                runtime.startPartition(0)
+                // Held at its first entry, past its head's read: more than a page of new entries commits meanwhile.
+                held.reached.await()
+                live.forEach { held.appender.append(it) }
+                held.release.complete(Unit)
+                // The new entries are past the head the partition opened behind: live, they spend no page.
+                eventually { handled.size == ids.size }
+                sequencesOf(ids).assert().isEqualTo((1L..ids.size).toList())
+                permits.availablePermits.assert().isZero()
+            } finally {
+                permits.release()
+                runtime.stop()
+            }
+        }
+
+    @Test
+    fun `a partition behind by more than a page should stop at it while new entries arrive`(): Unit = runBlocking {
+        val ids = idsIn(0, FREE_CATCH_UP + ENTRIES + ENTRIES)
+        val (backlog, live) = ids.take(FREE_CATCH_UP + ENTRIES) to ids.drop(FREE_CATCH_UP + ENTRIES)
+        val held = HeldLog()
+        backlog.forEach { held.appender.append(it) }
+        permits.acquire()
+        val runtime = runtime(projector(), log = held.log)
+        runtime.start()
+        try {
+            runtime.startPartition(0)
+            held.reached.await()
+            live.forEach { held.appender.append(it) }
+            held.release.complete(Unit)
+            // Exactly the page, as with no entry arriving: the one subscription's shared tail is the only reader.
+            eventually { handled.size == FREE_CATCH_UP }
+            delay(PAST_THE_PAGE)
+            handled.size.assert().isEqualTo(FREE_CATCH_UP)
+
+            permits.release()
+            eventually { handled.size == ids.size }
+            sequencesOf(ids).assert().isEqualTo((1L..ids.size).toList())
+        } finally {
+            runtime.stop()
+        }
+    }
+
+    @Test
     fun `no more partitions than the permits should read past their page at once`(): Unit = runBlocking {
         val partitions = 4
         val gate = CompletableDeferred<Unit>()
@@ -234,6 +291,25 @@ class CatchUpPermitsTest {
                 runtime.stop()
             }
         }
+
+    /**
+     * A log of two partitions whose first read of partition 0 waits at its first entry for [release]: the partition
+     * has read its head by then, so what is appended meanwhile is live to it.
+     */
+    private class HeldLog {
+        private val memory = InMemoryEventLog(partitions = 2)
+        val reached = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        val log: EventLog = object : EventLog by memory {
+            override fun tail(partition: Int, after: Long?): Flow<LogEntry> = memory.tail(partition, after).onEach {
+                if (partition == 0 && it.position.sequence == 1L) {
+                    reached.complete(Unit)
+                    release.await()
+                }
+            }
+        }
+        val appender = Appender(log)
+    }
 
     private companion object {
         const val ENTRIES = 6
