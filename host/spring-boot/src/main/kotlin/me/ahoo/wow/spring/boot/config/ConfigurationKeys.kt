@@ -213,7 +213,9 @@ class ConfigurationKeys(
         /**
          * The property names [key] may stand for: a `wow.*` key as written; an environment variable as [nameOf] maps
          * it, and in Spring's legacy form too, each underscore between two words a dash or a dot
-         * (`WOW_COSEC_TENANT_LEVEL_ROLES` is `wow.cosec.tenant-level.roles`), as Spring's binder reads it.
+         * (`WOW_COSEC_TENANT_LEVEL_ROLES` is `wow.cosec.tenant-level.roles`), as Spring's binder reads it. The one after
+         * `WOW` is always the dot under `wow`: no key starts `wow-`, and reading `WOW_BENCH_MONGO_CACHE_GB` as
+         * `wow-bench.mongo.cache.gb` would put a variable that is not Wow's under the group `mongo`.
          */
         fun namesOf(key: String): List<ConfigurationPropertyName> {
             if (!key.startsWith(ENV_PREFIX)) {
@@ -223,13 +225,18 @@ class ConfigurationKeys(
             if (elements.size > MAX_LEGACY_ELEMENTS) {
                 return listOf(nameOf(key))
             }
-            var names = listOf(elements.first())
+            val root = elements.first()
+            var names = listOf(root)
             elements.drop(1).forEach { element ->
                 names = if (element.all { it.isDigit() }) {
                     names.map { "$it[$element]" }
                 } else {
                     names.flatMap { name ->
-                        if (name.endsWith(']')) listOf("$name.$element") else listOf("$name.$element", "$name-$element")
+                        if (name == root || name.endsWith(']')) {
+                            listOf("$name.$element")
+                        } else {
+                            listOf("$name.$element", "$name-$element")
+                        }
                     }
                 }
             }

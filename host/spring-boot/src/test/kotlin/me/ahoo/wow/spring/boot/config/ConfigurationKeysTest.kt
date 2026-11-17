@@ -217,6 +217,36 @@ class ConfigurationKeysTest {
     }
 
     @Test
+    fun `a WOW_ variable whose first word is not a Wow group is left alone, whatever its later words (#6404)`() {
+        // The legacy form reads an underscore as a key's dash, but never the one after WOW: no key starts `wow-`, so
+        // WOW_BENCH_MONGO_CACHE_GB is not `wow-bench.mongo.cache.gb`, under the group `mongo`. Each shape of key the
+        // legacy form serves still maps.
+        val mapped = mapOf(
+            // A kebab key under a group, one of three words, a kebab group, an indexed kebab key, a map's entry.
+            "WOW_COSEC_TENANT_LEVEL_ROLES" to "wow.cosec.tenant-level.roles",
+            "WOW_LOG_MAX_POLL_INTERVAL" to "wow.log.max-poll-interval",
+            "WOW_STATE_CACHE_CAPACITY" to "wow.state-cache.capacity",
+            "WOW_VIEW_STORE_SYSTEM_VIEWS_0_ID" to "wow.view-store.system-views[0].id",
+            "WOW_PEERS_ESHOP_ORDERING_PUBLIC_URL" to "wow.peers.eshop-ordering.public-url",
+        )
+        mapped.forEach { (variable, key) ->
+            ConfigurationKeys.namesOf(variable).map { it.toString() }.assert().contains(key)
+        }
+        keys.unknown(variables(*mapped.keys.map { it to "x" }.toTypedArray())).assert().isEmpty()
+        // A tool's, an application's and a bare variable: their first word is no group, though a later one is.
+        val alone = listOf("WOW_BENCH_MONGO_CACHE_GB", "WOW_BENCH_NODE_STOP_SECONDS", "WOW_APP_KAFKA_URL", "WOW_HOME")
+        (mapped.keys + alone).flatMap { ConfigurationKeys.namesOf(it) }.map { it.toString() }
+            .filter { it.startsWith("wow-") }.assert().isEmpty()
+        val tools = variables(*alone.map { it to "x" }.toTypedArray())
+        keys.unknown(tools).assert().isEmpty()
+        keys.check(tools)
+        // A misspelt key under a real group is refused as before, in either form.
+        val misspelt = listOf("WOW_KAFKA_BOOTSTRAP_SERVERZ", "WOW_NODE_STOP_SECONDS", "WOW_STATE_CACHE_CAPACITEE")
+        keys.unknown(variables(*misspelt.map { it to "x" }.toTypedArray())).assert()
+            .containsExactlyInAnyOrderElementsOf(misspelt)
+    }
+
+    @Test
     fun `the WOW_ variables of the shipped Kubernetes manifests should be known`() {
         // Finding F12: every variable a manifest of deploy/ sets, in a ConfigMap or a container's env, as the host reads it.
         val deploy = File("../../deploy").canonicalFile
