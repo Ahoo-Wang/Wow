@@ -33,10 +33,12 @@ import {
 // headline file is not quoted. No figure is computed across two reports, so
 // none across two builds.
 
-/** The reports the page quotes, in its order. */
+/** The reports the pages quote, in their order: the snapshots' tables, then the Axon comparisons' spans. */
 export const HEADLINES = [
   'test/benchmarks/results/reports/actions-snapshot/headline.json',
   'test/benchmarks/results/reports/m5max-snapshot/headline.json',
+  'test/benchmarks/results/reports/actions-axon/headline.json',
+  'test/benchmarks/results/reports/m5max-axon/headline.json',
 ];
 
 export const PAGES = {
@@ -293,19 +295,46 @@ export function performanceBlock(locale, headlines) {
   ].join('\n');
 }
 
-/** The blocks a page may hold, by name: each writes its table, in a locale, from the headlines. */
-export const BLOCKS = { snapshots: performanceBlock };
+/** One environment's part of the block: its report's builds and tables alone. */
+const environmentBlock = environment => (locale, headlines) =>
+  performanceBlock(
+    locale,
+    headlines.filter(headline => headline.environment === environment),
+  );
+
+/**
+ * The blocks a page may hold, by name: each writes its table, in a locale, from the headlines. `snapshots` holds every
+ * snapshot's; `actions` and `m5max` one environment's.
+ */
+export const BLOCKS = {
+  snapshots: performanceBlock,
+  actions: environmentBlock('actions'),
+  m5max: environmentBlock('m5max'),
+};
 
 const BLOCK = /<!-- performance:begin ([^\s]*) -->|<!-- performance:end -->/g;
 const SPAN =
   /<!-- perf:([^/\s]+)\/([^:\s]+):([A-Za-z0-9.]+) -->([\s\S]*?)<!-- \/perf -->/g;
 
+/** The fields of a figure that name where it was measured, as the prose prints each. */
+const WHERE = {
+  commit: commit => `\`${commit}\``,
+  cpu: cpu => cpuName(cpu),
+  jdk: jdk => jdk,
+};
+
 /**
  * A figure's field as the prose prints it: a rate (`value`, `saturation`) as `2,609.8/s`, a time (`…Ms`) as
- * `64 ms`, any other number as itself with thousands separated.
+ * `64 ms`, any other number as itself with thousands separated; its build (`commit`) as code, its CPU as a reader
+ * names it, and its JDK as recorded.
  */
 export function spanText(field, value) {
-  const last = field.split('.').at(-1);
+  // An arm's figure in a list (`readyMs.0`) is printed as its list's field.
+  const last = field
+    .split('.')
+    .filter(key => !/^\d+$/.test(key))
+    .at(-1);
+  if (WHERE[field]) return WHERE[field](value);
   if (last === 'value' || last === 'saturation') return rate(value);
   if (/Ms$/.test(last))
     return `${value.toLocaleString('en-US', { maximumFractionDigits: 1 })} ms`;
@@ -328,7 +357,7 @@ function figureText(headlines, report, id, field, path) {
       `${path}: perf:${report}/${id}:${field}: ${report} has no figure ${id}`,
     );
   const value = field.split('.').reduce((holder, key) => holder?.[key], figure);
-  if (!Number.isFinite(value))
+  if (!Number.isFinite(value) && !(WHERE[field] && typeof value === 'string'))
     throw new Error(
       `${path}: perf:${report}/${id}:${field}: the figure has no number there`,
     );

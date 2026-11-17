@@ -70,6 +70,7 @@ From that, Wow gives you an HTTP route for every command, a state read and queri
 - **Failures are data.** A handler that keeps failing parks one aggregate, recorded in a ledger; it never skips an event or stops a subscription.
 - **One contract.** Routes, OpenAPI, typed clients, views and compatibility checks all come from one Manifest the compiler writes.
 - **Read models are disposable.** Every read model is rebuilt from the log, so changing one needs no migration.
+- **Measured on stated hardware.** [Performance](https://wow.ahoo.me/guide/performance) gives one node's sustainable and peak rates on a 4-core cloud runner and an 18-core workstation, and the comparison with Axon Framework 4, each figure with its build, CPU and JDK.
 
 ## Quickstart
 
