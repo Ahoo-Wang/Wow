@@ -1,0 +1,239 @@
+{
+  "lostLeases": {
+    "base": {
+      "commit": "7f46c8dfb4",
+      "changed": false,
+      "jdk": "25.0.5+8",
+      "rounds": [
+        {
+          "round": 1,
+          "lost": 64,
+          "back": 16,
+          "lostAfterPauseMs": 7573,
+          "firstBackMs": 47646,
+          "lastBackMs": null,
+          "ok": 30319,
+          "failed": 6315
+        },
+        {
+          "round": 2,
+          "lost": 64,
+          "back": 28,
+          "lostAfterPauseMs": 5430,
+          "firstBackMs": 47171,
+          "lastBackMs": null,
+          "ok": 30700,
+          "failed": 5925
+        },
+        {
+          "round": 3,
+          "lost": 64,
+          "back": 16,
+          "lostAfterPauseMs": 5681,
+          "firstBackMs": 47807,
+          "lastBackMs": null,
+          "ok": 30877,
+          "failed": 5744
+        }
+      ]
+    },
+    "fix": {
+      "commit": "93f53932fa",
+      "changed": false,
+      "jdk": "25.0.5+8",
+      "rounds": [
+        {
+          "round": 1,
+          "lost": 64,
+          "back": 64,
+          "lostAfterPauseMs": 7763,
+          "firstBackMs": 2377,
+          "lastBackMs": 2447,
+          "ok": 45669,
+          "failed": 1916
+        },
+        {
+          "round": 2,
+          "lost": 64,
+          "back": 64,
+          "lostAfterPauseMs": 7537,
+          "firstBackMs": 2608,
+          "lastBackMs": 3457,
+          "ok": 45172,
+          "failed": 1775
+        },
+        {
+          "round": 3,
+          "lost": 64,
+          "back": 64,
+          "lostAfterPauseMs": 7475,
+          "firstBackMs": 2652,
+          "lastBackMs": 2894,
+          "ok": 45455,
+          "failed": 1812
+        }
+      ]
+    }
+  },
+  "handover": {
+    "mongo-fix": {
+      "commit": "55937a4b2c",
+      "changed": true,
+      "jdk": "25.0.5+8",
+      "backend": "mongo",
+      "rounds": [
+        {
+          "round": 1,
+          "sent": 5250,
+          "failedWaits": 1,
+          "failed": 1,
+          "p99Ms": 1982.5,
+          "worstSecondP99Ms": 3977.2
+        },
+        {
+          "round": 2,
+          "sent": 5250,
+          "failedWaits": 1,
+          "failed": 1,
+          "p99Ms": 1581.1,
+          "worstSecondP99Ms": 7582.6
+        },
+        {
+          "round": 3,
+          "sent": 5250,
+          "failedWaits": 2,
+          "failed": 2,
+          "p99Ms": 1900.5,
+          "worstSecondP99Ms": 4874.3
+        }
+      ]
+    },
+    "mongo-main": {
+      "commit": "e3a4e937aa",
+      "changed": true,
+      "jdk": "25.0.5+8",
+      "backend": "mongo",
+      "rounds": [
+        {
+          "round": 1,
+          "sent": 5250,
+          "failedWaits": 15,
+          "failed": 15,
+          "p99Ms": 5636.1,
+          "worstSecondP99Ms": 10006.2
+        },
+        {
+          "round": 2,
+          "sent": 5250,
+          "failedWaits": 2,
+          "failed": 2,
+          "p99Ms": 2867.2,
+          "worstSecondP99Ms": 9367.4
+        },
+        {
+          "round": 3,
+          "sent": 5250,
+          "failedWaits": 2,
+          "failed": 2,
+          "p99Ms": 2850.8,
+          "worstSecondP99Ms": 9603.8
+        }
+      ]
+    },
+    "postgres-fix": {
+      "commit": "55937a4b2c",
+      "changed": true,
+      "jdk": "25.0.5+8",
+      "backend": "postgres",
+      "rounds": [
+        {
+          "round": 1,
+          "sent": 5250,
+          "failedWaits": 0,
+          "failed": 0,
+          "p99Ms": 21.8,
+          "worstSecondP99Ms": 998.5
+        }
+      ]
+    }
+  },
+  "rehearsal": {
+    "bound-0": {
+      "run": "44137289607",
+      "fix": "f33284fa69",
+      "commit": "7c0896effd",
+      "maxCatchUps": 0,
+      "jobs": {
+        "runner": {
+          "sent": 6000,
+          "failed": 7,
+          "errors": {
+            "http-504 wow.wait.timeout": 7
+          },
+          "p50Ms": 10,
+          "p99Ms": 16814,
+          "maxMs": 22566,
+          "worstSecondP99Ms": 22566,
+          "catchUpMs": {
+            "view-store-service": 20805,
+            "example-service": 66259
+          },
+          "jdk": "25.0.5"
+        },
+        "kind": {
+          "sent": 6000,
+          "failed": 2587,
+          "errors": {
+            "http-504 wow.wait.timeout": 2328,
+            "HttpTimeoutException": 259
+          },
+          "p50Ms": 4169,
+          "p99Ms": 30011,
+          "maxMs": 30497,
+          "worstSecondP99Ms": 30475,
+          "catchUpMs": {
+            "view-store-service": 32623,
+            "example-service": 107195
+          },
+          "jdk": "25.0.5"
+        }
+      }
+    },
+    "bound-2": {
+      "run": "44137290807",
+      "fix": "f33284fa69",
+      "commit": "0853cbf27b",
+      "maxCatchUps": 2,
+      "jobs": {
+        "runner": {
+          "sent": 6000,
+          "failed": 0,
+          "errors": {},
+          "p50Ms": 165,
+          "p99Ms": 7922,
+          "maxMs": 10260,
+          "worstSecondP99Ms": 10260,
+          "catchUpMs": {
+            "view-store-service": 35078,
+            "example-service": 87505
+          },
+          "jdk": "25.0.5"
+        },
+        "kind": {
+          "sent": 6000,
+          "failed": 0,
+          "errors": {},
+          "p50Ms": 3,
+          "p99Ms": 3929,
+          "maxMs": 4614,
+          "worstSecondP99Ms": 4614,
+          "catchUpMs": {
+            "view-store-service": 22588,
+            "example-service": 59409
+          },
+          "jdk": "25.0.5"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,206 @@
+{
+  "schema": "wow-headline/1",
+  "report": "m5max-recovery",
+  "environment": "m5max",
+  "figures": [
+    {
+      "id": "lost-leases.base",
+      "kind": "lost-leases",
+      "store": "mongo",
+      "nodes": 1,
+      "lost": 64,
+      "firstBackMs": [
+        47171,
+        47807
+      ],
+      "lastBackMs": null,
+      "backAtEnd": [
+        16,
+        28,
+        16
+      ],
+      "rounds": 3,
+      "commit": "7f46c8dfb4",
+      "changed": false,
+      "cpu": "Apple M5 Max, 18 cores, 64 GB",
+      "jdk": "25.0.5+8",
+      "source": "m5max-recovery/lost-leases"
+    },
+    {
+      "id": "lost-leases.fix",
+      "kind": "lost-leases",
+      "store": "mongo",
+      "nodes": 1,
+      "lost": 64,
+      "firstBackMs": [
+        2377,
+        2652
+      ],
+      "lastBackMs": [
+        2447,
+        3457
+      ],
+      "backAtEnd": [
+        64,
+        64,
+        64
+      ],
+      "rounds": 3,
+      "commit": "93f53932fa",
+      "changed": false,
+      "cpu": "Apple M5 Max, 18 cores, 64 GB",
+      "jdk": "25.0.5+8",
+      "source": "m5max-recovery/lost-leases"
+    },
+    {
+      "id": "handover.mongo.fix",
+      "kind": "handover",
+      "store": "mongo",
+      "nodes": 3,
+      "failedWaits": [
+        1,
+        1,
+        2
+      ],
+      "sent": [
+        5250,
+        5250,
+        5250
+      ],
+      "p99Ms": [
+        1581,
+        1983
+      ],
+      "rounds": 3,
+      "commit": "55937a4b2c",
+      "changed": true,
+      "cpu": "Apple M5 Max, 18 cores, 64 GB",
+      "jdk": "25.0.5+8",
+      "source": "m5max-recovery/handover"
+    },
+    {
+      "id": "handover.mongo.main",
+      "kind": "handover",
+      "store": "mongo",
+      "nodes": 3,
+      "failedWaits": [
+        15,
+        2,
+        2
+      ],
+      "sent": [
+        5250,
+        5250,
+        5250
+      ],
+      "p99Ms": [
+        2851,
+        5636
+      ],
+      "rounds": 3,
+      "commit": "e3a4e937aa",
+      "changed": true,
+      "cpu": "Apple M5 Max, 18 cores, 64 GB",
+      "jdk": "25.0.5+8",
+      "source": "m5max-recovery/handover"
+    },
+    {
+      "id": "handover.postgres.fix",
+      "kind": "handover",
+      "store": "postgres",
+      "nodes": 3,
+      "failedWaits": [
+        0
+      ],
+      "sent": [
+        5250
+      ],
+      "p99Ms": [
+        22,
+        22
+      ],
+      "rounds": 1,
+      "commit": "55937a4b2c",
+      "changed": true,
+      "cpu": "Apple M5 Max, 18 cores, 64 GB",
+      "jdk": "25.0.5+8",
+      "source": "m5max-recovery/handover"
+    },
+    {
+      "id": "rehearsal.bound-0.runner",
+      "kind": "rehearsal",
+      "job": "runner",
+      "maxCatchUps": 0,
+      "sent": 6000,
+      "failed": 7,
+      "p99Ms": 16814,
+      "maxMs": 22566,
+      "worstSecondP99Ms": 22566,
+      "catchUpMs": 66259,
+      "commit": "7c0896effd",
+      "fix": "f33284fa69",
+      "environment": "actions",
+      "cpu": "GitHub Actions ubuntu-26.04, CPU model not recorded",
+      "jdk": "25.0.5",
+      "run": "44137289607",
+      "source": "m5max-recovery/rehearsal/44137289607/runner"
+    },
+    {
+      "id": "rehearsal.bound-0.kind",
+      "kind": "rehearsal",
+      "job": "kind",
+      "maxCatchUps": 0,
+      "sent": 6000,
+      "failed": 2587,
+      "p99Ms": 30011,
+      "maxMs": 30497,
+      "worstSecondP99Ms": 30475,
+      "catchUpMs": 107195,
+      "commit": "7c0896effd",
+      "fix": "f33284fa69",
+      "environment": "actions",
+      "cpu": "GitHub Actions ubuntu-26.04, CPU model not recorded",
+      "jdk": "25.0.5",
+      "run": "44137289607",
+      "source": "m5max-recovery/rehearsal/44137289607/kind"
+    },
+    {
+      "id": "rehearsal.bound-2.runner",
+      "kind": "rehearsal",
+      "job": "runner",
+      "maxCatchUps": 2,
+      "sent": 6000,
+      "failed": 0,
+      "p99Ms": 7922,
+      "maxMs": 10260,
+      "worstSecondP99Ms": 10260,
+      "catchUpMs": 87505,
+      "commit": "0853cbf27b",
+      "fix": "f33284fa69",
+      "environment": "actions",
+      "cpu": "GitHub Actions ubuntu-26.04, CPU model not recorded",
+      "jdk": "25.0.5",
+      "run": "44137290807",
+      "source": "m5max-recovery/rehearsal/44137290807/runner"
+    },
+    {
+      "id": "rehearsal.bound-2.kind",
+      "kind": "rehearsal",
+      "job": "kind",
+      "maxCatchUps": 2,
+      "sent": 6000,
+      "failed": 0,
+      "p99Ms": 3929,
+      "maxMs": 4614,
+      "worstSecondP99Ms": 4614,
+      "catchUpMs": 59409,
+      "commit": "0853cbf27b",
+      "fix": "f33284fa69",
+      "environment": "actions",
+      "cpu": "GitHub Actions ubuntu-26.04, CPU model not recorded",
+      "jdk": "25.0.5",
+      "run": "44137290807",
+      "source": "m5max-recovery/rehearsal/44137290807/kind"
+    }
+  ]
+}
