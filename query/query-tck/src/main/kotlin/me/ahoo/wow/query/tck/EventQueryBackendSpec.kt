@@ -307,9 +307,11 @@ abstract class EventQueryBackendSpec : EventAnalyticsCases() {
     @Test
     fun `an expired timeout fails a list with the timeout error`() = blocking {
         val fixture = given()
+        // No time left: zero, not a positive timeout too short to meet, which bounds a query as at least a
+        // millisecond (#6334) and an in-memory answer can meet.
         val error = runCatching {
             fixture.backend.list(
-                QueryAdmission.Trusted.list(ListQuery(MatchAllFilter), fixture.schema).withTimeout(Duration.ofNanos(1)),
+                QueryAdmission.Trusted.list(ListQuery(MatchAllFilter), fixture.schema).withTimeout(Duration.ZERO),
             ).toList()
         }.exceptionOrNull()
         (error as QueryTimeoutException).errorCode.assert().isEqualTo(QueryErrors.TIMEOUT)
