@@ -111,6 +111,51 @@ internal class ClickHouseExecutorCancellationTest {
     }
 
     @Test
+    fun `a statement cancelled before its watcher was ever dispatched is still killed`(): Unit = runBlocking {
+        val entered = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        val killed = CompletableDeferred<Unit>()
+        val response = mockk<QueryResponse>(relaxed = true) {
+            every { inputStream } returns ByteArrayInputStream(byteArrayOf())
+        }
+        val client = mockk<Client> {
+            every { query(any<String>(), any<Map<String, Any>>(), any<QuerySettings>()) } answers {
+                entered.countDown()
+                check(release.await(10, TimeUnit.SECONDS)) { "the blocked statement was never released" }
+                CompletableFuture.completedFuture(response)
+            }
+            every { query(match<String> { it.startsWith("KILL QUERY") }, any<Map<String, Any>>()) } answers {
+                killed.complete(Unit)
+                release.countDown()
+                CompletableFuture.completedFuture(mockk<QueryResponse>(relaxed = true))
+            }
+        }
+        val killThread = Executors.newSingleThreadExecutor()
+        // The kill dispatcher's only thread is held until the statement was cancelled: no coroutine of it is
+        // dispatched before then, so a watcher that waited for its first dispatch is cancelled unstarted.
+        val held = CountDownLatch(1)
+        killThread.execute { held.await(10, TimeUnit.SECONDS) }
+        killThread.asCoroutineDispatcher().use { kills ->
+            Executors.newSingleThreadExecutor().asCoroutineDispatcher().use { reads ->
+                val executor = ClickHouseExecutor(client, dispatcher = reads, kills = kills)
+                val job = launch(Dispatchers.Default) { executor.rows(ClickHouseStatement("SELECT slow()")).collect() }
+                try {
+                    entered.await(5, TimeUnit.SECONDS).assert().isTrue()
+                    job.cancel()
+                    held.countDown()
+                    withTimeoutOrNull(5_000) { killed.await() }
+                    killed.isCompleted.assert().isTrue()
+                } finally {
+                    held.countDown()
+                    release.countDown()
+                    withTimeout(5_000) { job.join() }
+                }
+            }
+        }
+        verify(exactly = 1) { response.close() }
+    }
+
+    @Test
     fun `a statement read to its end yields every row, is closed and is not killed`(): Unit = runBlocking {
         val response = mockk<QueryResponse>(relaxed = true) {
             every { inputStream } returns ByteArrayInputStream("{\"id\":1}\n{\"id\":2}\n".toByteArray())

@@ -19,6 +19,7 @@ import com.clickhouse.data.ClickHouseFormat
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.coroutineScope
@@ -55,14 +56,18 @@ internal class ClickHouseExecutor(
     private val client: Client,
     private val settings: Map<String, String> = emptyMap(),
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
+    /** Where a cancelled statement's watcher sends its kill: never [dispatcher], whose threads the reads may hold. */
+    private val kills: CoroutineDispatcher = KILLS,
 ) {
     @Suppress("TooGenericExceptionCaught") // Any failure of the statement is translated, then rethrown.
     fun rows(statement: ClickHouseStatement, timeout: Duration? = null): Flow<ObjectNode> = flow {
         val queryId = UUID.randomUUID().toString()
         coroutineScope {
             val finished = AtomicBoolean(false)
-            // Stops the statement on the server as soon as this flow is cancelled, even while a read blocks.
-            val watcher = launch(KILLS) {
+            // Stops the statement on the server as soon as this flow is cancelled, even while a read blocks. Started
+            // undispatched, it is waiting before the statement is sent: a cancellation that came before its first
+            // dispatch would cancel it unstarted, and its finally, the kill, would never run.
+            val watcher = launch(kills, CoroutineStart.UNDISPATCHED) {
                 try {
                     awaitCancellation()
                 } finally {
