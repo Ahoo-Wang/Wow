@@ -127,7 +127,8 @@ class SnapshotSubscription(
     fun writeCounts(): SnapshotWriteCounts = writes.counts()
 
     /** The loads of the entries without a view, of every partition, read together. */
-    private val loads = SnapshotLoads(store, writeBatch, writesInFlight ?: store.writesInFlight) { writes.read }
+    private val loads =
+        SnapshotLoads(store, writeBatch, writesInFlight ?: store.writesInFlight) { writes.countsIfRead }
 
     /** The saves waiting for a write now, for a test. */
     internal val writesWaiting: Int get() = writes.waiting
@@ -145,7 +146,8 @@ class SnapshotSubscription(
         gate = gate,
     )
 
-    private val reader = SharedStateReader(name, models, kernel, codec, this.views, store) { writes.read?.logRead() }
+    private val reader =
+        SharedStateReader(name, models, kernel, codec, this.views, store) { writes.countsIfRead?.logRead() }
 
     /** The subscription to register: [name]d, of the snapshotted aggregate types only. */
     val subscription: Subscription = Subscription.coalescing(
@@ -249,7 +251,7 @@ class SnapshotSubscription(
 
     /** What the snapshot keeps of [ref]'s first stream, read from the log. */
     private suspend fun firstOf(ref: AggregateRef): FirstCommit {
-        writes.read?.logRead()
+        writes.countsIfRead?.logRead()
         val stream = checkNotNull(log.read(ref, 1, 1).firstOrNull()) { "The log does not hold $ref@1." }
         return FirstCommit.of(stream)
     }
