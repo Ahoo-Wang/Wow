@@ -159,6 +159,7 @@ public abstract class me/ahoo/wow/models/tree/aggregate/Tree {
 	protected fun hasChildErrorMessage (Lme/ahoo/wow/models/tree/TreeCoded;)Ljava/lang/String;
 	protected fun invalidMoveErrorMessage (Lme/ahoo/wow/models/tree/command/Move;)Ljava/lang/String;
 	protected abstract fun maxLevel ()I
+	protected fun nameBlankErrorMessage ()Ljava/lang/String;
 	protected fun nodeNotFoundErrorMessage (Lme/ahoo/wow/models/tree/TreeCoded;)Ljava/lang/String;
 	public fun onCreate (Lme/ahoo/wow/models/tree/command/Create;Lme/ahoo/wow/api/decide/DecideScope;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	protected fun onCreateExceedMaxLevelErrorMessage (Lme/ahoo/wow/models/tree/command/Created;)Ljava/lang/String;
@@ -175,6 +176,7 @@ public final class me/ahoo/wow/models/tree/aggregate/TreeRejections {
 	public static final field INSTANCE Lme/ahoo/wow/models/tree/aggregate/TreeRejections;
 	public static final field INVALID_MOVE Ljava/lang/String;
 	public static final field MAX_LEVEL_EXCEEDED Ljava/lang/String;
+	public static final field NAME_BLANK Ljava/lang/String;
 	public static final field NODE_HAS_CHILDREN Ljava/lang/String;
 	public static final field NODE_NOT_FOUND Ljava/lang/String;
 	public static final field PARENT_NOT_FOUND Ljava/lang/String;
@@ -190,7 +192,7 @@ public abstract class me/ahoo/wow/models/tree/aggregate/TreeState : me/ahoo/wow/
 	protected abstract fun toFlat (Lme/ahoo/wow/models/tree/Flat;)Lme/ahoo/wow/models/tree/CopySortIdFlat;
 }
 
-public abstract interface class me/ahoo/wow/models/tree/command/Create : me/ahoo/wow/models/common/NotBlankNameCapable {
+public abstract interface class me/ahoo/wow/models/tree/command/Create : me/ahoo/wow/models/common/NameCapable {
 	public abstract fun getParentCode ()Ljava/lang/String;
 	public abstract fun toEvent (Ljava/lang/String;I)Lme/ahoo/wow/models/tree/command/Created;
 }

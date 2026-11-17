@@ -32,7 +32,11 @@ class CategoryState(override val id: String) :
 }
 
 @AllowCreate
-data class CreateCategory(override val name: String, override val parentCode: String) : Create<CategoryCreated> {
+data class CreateCategory(
+    @get:NotBlank(message = "A category needs a name.")
+    override val name: String,
+    override val parentCode: String,
+) : Create<CategoryCreated> {
     override fun toEvent(code: String, sortId: Int) = CategoryCreated(name, code, sortId)
 }
 ```
@@ -40,8 +44,11 @@ data class CreateCategory(override val name: String, override val parentCode: St
 - Annotate the concrete create command `@AllowCreate`: the compiler reads the command's own class.
 - Creating a node answers its code under the result key `code`. The code's last segment comes from
   `generateCode(scope)`, by default a global id of the decision without `-`.
-- A broken rule is a rejection with a `TreeRejections` code (`tree.parent-not-found`, `tree.max-level-exceeded`,
-  `tree.node-not-found`, `tree.node-has-children`, `tree.invalid-move`). The compiler lists only your module's
+- A node has a name: the tree rejects a creation or an update that leaves it blank (`tree.name-blank`), whether or
+  not the host validates commands. `Create` declares no Bean Validation constraint on `name`: declare your own on the
+  command, as above, for your own message at the edge, or implement `NotBlankNameCapable` for the provider's default.
+- A broken rule is a rejection with a `TreeRejections` code (`tree.name-blank`, `tree.parent-not-found`,
+  `tree.max-level-exceeded`, `tree.node-not-found`, `tree.node-has-children`, `tree.invalid-move`). The compiler lists only your module's
   `@ErrorCode` constants in its Manifest; declare the ones you want with a status there, with the same literal.
 - Override `verifyCreate`, `verifyUpdate` or `verifyDelete` to add rules of your domain (they suspend, so they may do
   I/O), and the `...ErrorMessage` functions to change the messages.
