@@ -58,14 +58,22 @@ const html = computed(() => figureHtml(props.name, lang.value.startsWith('zh') ?
   color: var(--vp-c-text-2);
 }
 
-.perf-figure .perf-best-key {
+.perf-figure .perf-glyph {
   display: inline-block;
-  width: 10px;
-  height: 10px;
+  width: 14px;
+  height: 14px;
   margin-right: 6px;
-  border: 2px solid var(--vp-c-text-2);
-  border-radius: 50%;
-  vertical-align: -1px;
+  vertical-align: -2px;
+  overflow: visible;
+}
+
+.perf-figure .perf-dot.perf-neutral {
+  fill: var(--vp-c-text-2);
+}
+
+.perf-figure .perf-dot.perf-hollow.perf-neutral {
+  fill: var(--vp-c-bg);
+  stroke: var(--vp-c-text-2);
 }
 
 .perf-figure .perf-dot.perf-best {
@@ -83,14 +91,6 @@ const html = computed(() => figureHtml(props.name, lang.value.startsWith('zh') ?
 .perf-figure .perf-chart.perf-narrow {
   display: none;
   max-width: 480px;
-}
-
-/* A label above its row crosses the grid: a halo of the page's colour keeps it legible. */
-.perf-figure .perf-case {
-  paint-order: stroke;
-  stroke: var(--vp-c-bg);
-  stroke-width: 4px;
-  stroke-linejoin: round;
 }
 
 @media (max-width: 639px) {
@@ -194,7 +194,8 @@ const html = computed(() => figureHtml(props.name, lang.value.startsWith('zh') ?
 
 .perf-figure .perf-legend {
   display: flex;
-  gap: 16px;
+  flex-wrap: wrap;
+  gap: 4px 16px;
   margin: 0 0 8px;
   font-size: 13px;
   color: var(--vp-c-text-2);
