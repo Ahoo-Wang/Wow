@@ -38,6 +38,27 @@ internal object SchemaShapes {
 
     const val ONE_OF = "oneOf"
 
+    /** The bounds a larger value of narrows: a raised one accepts fewer values. */
+    val LOWER_BOUNDS = setOf("minLength", "minItems", "minProperties", "minimum", "exclusiveMinimum")
+
+    /** The bounds a smaller value of narrows: a lowered one accepts fewer values. */
+    val UPPER_BOUNDS = setOf("maxLength", "maxItems", "maxProperties", "maximum", "exclusiveMaximum")
+
+    /** The keywords that say what a value is, not which values are: no rule of a schema's values reads them. */
+    val ANNOTATIONS = setOf(
+        "\$comment",
+        "title",
+        "description",
+        "default",
+        "examples",
+        "deprecated",
+        "readOnly",
+        "writeOnly",
+    )
+
+    /** The prefix of Wow's own keywords (`x-wow-alias`, `x-wow-sensitive`, …). */
+    private const val WOW_KEYWORD_PREFIX = "x-wow-"
+
     /** The schema that accepts nothing, `false`. */
     val FALSE: Map<String, Any?> = mapOf("not" to emptyMap<String, Any?>())
 
@@ -72,14 +93,26 @@ internal object SchemaShapes {
     /**
      * A reference's [definition] with the keywords written beside the reference, its [siblings], which hold as well (a
      * recursive subtype is written as a reference to its class's schema beside its discriminator's property): the
-     * properties of either, a property both declare as the `allOf` of the two, and the names either requires. Any other
-     * keyword the siblings give takes the definition's place.
+     * properties of either, a property both declare as the `allOf` of the two, and the names either requires.
+     *
+     * A validation keyword both give, with other values, holds twice (#6286), never the siblings' in the definition's
+     * place: a bound is the [tighter] of the two, `allOf` has the members of both, and any other keeps the
+     * definition's value, the siblings' one going into an `allOf` member of its own, after the definition's members.
+     * An annotation or a Wow keyword (`x-wow-*`) beside the reference says how this use of it reads, so it takes the
+     * definition's place.
      */
     private fun withSiblings(definition: Map<String, Any?>, siblings: Map<String, Any?>): Map<String, Any?> {
-        val merged = definition + siblings
+        val held = siblings.filter { (keyword, value) ->
+            keyword in definition && definition[keyword] != value && keyword != PROPERTIES && keyword != REQUIRED &&
+                keyword !in ANNOTATIONS && !keyword.startsWith(WOW_KEYWORD_PREFIX)
+        }
+        val bounds = held.mapNotNull { (keyword, value) ->
+            tighter(keyword, definition[keyword], value)?.let { keyword to it }
+        }
+        val apart = held.filterKeys { it != ALL_OF && bounds.none { (bound) -> bound == it } }
         val own = properties(definition)
         val beside = properties(siblings)
-        return merged + buildMap {
+        return definition + (siblings - held.keys) + bounds + buildMap {
             if (PROPERTIES in definition || PROPERTIES in siblings) {
                 val both = own.keys.intersect(beside.keys).associateWith { mapOf(ALL_OF to listOf(own[it], beside[it])) }
                 put(PROPERTIES, own + beside + both)
@@ -87,7 +120,20 @@ internal object SchemaShapes {
             if (REQUIRED in definition || REQUIRED in siblings) {
                 put(REQUIRED, (required(definition) + required(siblings)).toList())
             }
+            if (ALL_OF in held || apart.isNotEmpty()) {
+                val members = (definition[ALL_OF] as List<*>?).orEmpty() + (held[ALL_OF] as List<*>?).orEmpty()
+                put(ALL_OF, members + listOfNotNull(apart.takeIf { it.isNotEmpty() }))
+            }
         }
+    }
+
+    /** Of two values of the bound [keyword], the one that accepts fewer values; null for another keyword. */
+    private fun tighter(keyword: String, left: Any?, right: Any?): Any? {
+        val lower = keyword in LOWER_BOUNDS
+        if (!lower && keyword !in UPPER_BOUNDS) return null
+        val leftValue = (left as? Number)?.toString()?.toBigDecimalOrNull() ?: return null
+        val rightValue = (right as? Number)?.toString()?.toBigDecimalOrNull() ?: return null
+        return if ((leftValue >= rightValue) == lower) left else right
     }
 
     private fun nullable(schema: Map<String, Any?>, defs: Map<String, Any?>): Map<String, Any?> {

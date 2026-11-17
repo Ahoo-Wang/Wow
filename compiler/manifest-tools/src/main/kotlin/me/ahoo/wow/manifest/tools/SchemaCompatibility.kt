@@ -15,17 +15,20 @@ package me.ahoo.wow.manifest.tools
 
 import me.ahoo.wow.manifest.tools.SchemaShapes.ADDITIONAL_PROPERTIES
 import me.ahoo.wow.manifest.tools.SchemaShapes.ALL_OF
+import me.ahoo.wow.manifest.tools.SchemaShapes.ANNOTATIONS
 import me.ahoo.wow.manifest.tools.SchemaShapes.ANY_OF
 import me.ahoo.wow.manifest.tools.SchemaShapes.CONST
 import me.ahoo.wow.manifest.tools.SchemaShapes.ENUM
 import me.ahoo.wow.manifest.tools.SchemaShapes.FALSE
 import me.ahoo.wow.manifest.tools.SchemaShapes.FORMAT
 import me.ahoo.wow.manifest.tools.SchemaShapes.ITEMS
+import me.ahoo.wow.manifest.tools.SchemaShapes.LOWER_BOUNDS
 import me.ahoo.wow.manifest.tools.SchemaShapes.ONE_OF
 import me.ahoo.wow.manifest.tools.SchemaShapes.PROPERTIES
 import me.ahoo.wow.manifest.tools.SchemaShapes.REF
 import me.ahoo.wow.manifest.tools.SchemaShapes.REQUIRED
 import me.ahoo.wow.manifest.tools.SchemaShapes.TYPE
+import me.ahoo.wow.manifest.tools.SchemaShapes.UPPER_BOUNDS
 import me.ahoo.wow.manifest.tools.SchemaShapes.aliases
 import me.ahoo.wow.manifest.tools.SchemaShapes.covers
 import me.ahoo.wow.manifest.tools.SchemaShapes.properties
@@ -492,17 +495,10 @@ internal class SchemaCompatibility(
             REF, TYPE, ENUM, PROPERTIES, REQUIRED, ITEMS, ADDITIONAL_PROPERTIES, ALL_OF, QueryKeywords.ALIAS_KEYWORD,
         ) + ALTERNATIVES
 
-        val IGNORED = setOf(
-            "\$schema", "\$id", "\$comment", "\$defs", "title", "description", "default", "examples", "deprecated",
-            "readOnly", "writeOnly", QueryKeywords.INDEX_KEYWORD, QueryKeywords.TEXT_KEYWORD, WireTypes.CLASS_KEYWORD,
-            WireTypes.UNIQUE_ITEMS,
+        val IGNORED = ANNOTATIONS + setOf(
+            "\$schema", "\$id", "\$defs", QueryKeywords.INDEX_KEYWORD, QueryKeywords.TEXT_KEYWORD,
+            WireTypes.CLASS_KEYWORD, WireTypes.UNIQUE_ITEMS,
         )
-
-        /** The bounds a larger value of narrows: a raised one accepts fewer values. */
-        val LOWER_BOUNDS = setOf("minLength", "minItems", "minProperties", "minimum", "exclusiveMinimum")
-
-        /** The bounds a smaller value of narrows: a lowered one accepts fewer values. */
-        val UPPER_BOUNDS = setOf("maxLength", "maxItems", "maxProperties", "maximum", "exclusiveMaximum")
 
         /**
          * The constraints a value is checked against when it is written, never when a stored record is read back
