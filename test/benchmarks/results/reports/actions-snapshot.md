@@ -28,13 +28,22 @@ are compared.
   - E3 on MongoDB failed 39 of 4,500, all `504 wow.wait.timeout` on committed commands. Its p99 is 5.7 s, its worst
     second's 9.9 s, and its lowest second 40/s.
   - E3 on PostgreSQL failed 1 (`503 wow.node.closing`), with p99 668 ms.
-  - Each is one run. No cause is stated.
+  - MongoDB's timed-out waits come after node 2's restart, while it caught its partitions up a few at a time. That is
+    the shape of #6407, which #6412 fixes after this build. The recovery report is where the fix is measured. Each is
+    one run.
 - **Cold cache, a million accounts:**
   - On PostgreSQL (Xeon 6975P-C), E1 at 200/s has p99 5.1 ms and E4 point reads at 500/s 3.0 ms.
   - On MongoDB (EPYC 9V74), E1 has p50 3.6 ms and p99 154.6 ms, beyond 10× its p50. E4 has p99 4.9 ms.
-- **L3 at 1k accounts on MongoDB:** E1, E3 and the mixed load fail commands by `504 wow.wait.timeout` at the rate
-  calibrated from their saturation. These suites put the whole load on 1,000 aggregates. The 100k suites failed none,
-  apart from 159 of 181,860 in the mixed load on PostgreSQL.
+- **L3 at 1k accounts on MongoDB: E1 (uniform) and E3 ran their rounds at a rate the node did not hold.**
+  - Each round's rate is a share of the closed-loop peak. No share the probes tried held (`sustainable: false`), so
+    the rounds ran at the last one tried, 0.3375: 974/s for E1 and 315/s for E3.
+  - The node, on its one core, completed less than that, so commands queued in it. E1's p50 is about 1 s and E3's up
+    to 5.3 s, with `504 wow.wait.timeout` in every round of both arms.
+  - The same suites in the run before held their rounds, at 729–764/s and 182–193/s on another CPU model.
+  - So this follows from this run's runners and its calibration, not from the build. See "L3 at 1k accounts" below.
+- **The other failures in L3 are few:** 63 refused as busy (429) in E1 Zipf at 1k, and 7 in E3 on PostgreSQL at 1k.
+  The mixed load's failures are its list reads refused by the query bulkhead (`429 wow.query.busy`): 1,069 at 1k on
+  MongoDB and 159 of 181,860 at 100k on PostgreSQL.
 
 ## Setup
 
@@ -80,10 +89,45 @@ rounds.
 
 - **A rate here is a share of a closed-loop peak, not a sustainable rate.** p99 above 200 ms at that rate does not
   mean the scenario cannot hold 200 ms. L4's bisection answers that, below.
-- **At 1k accounts the load is on 1,000 aggregates.** E1 and E3 on MongoDB fail by `504 wow.wait.timeout`: the caller's
-  wait for the command ran out after 10 s. Part of E1's failures (uniform) are the load generator's: its
-  2,048 requests in flight were full.
 - **A saturation marked `≥`** reached the search's 2,048 clients still gaining, so the peak is at least that.
+
+### L3 at 1k accounts: rounds above the open-loop ceiling
+
+E1 (uniform) and E3 on MongoDB at 1k accounts. The node runs on one core (`server: 0`), with the store, Kafka and the
+load generator on the other three. Both arms of this run are shown, and the same suites in the L3 run before it,
+[44040948524](https://github.com/Ahoo-Wang/Wow/actions/runs/44040948524) (`103f9b6746` against `302950bd4a`), to tell the
+runner and the calibration from the build.
+
+| Suite | Run | Runner | Closed-loop peak, base / head | Probes' throughput | Rounds' rate | Rounds' p50 | Failed per round (r1–r3, e1–e2) |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| E1 uniform | 44123394372 | Xeon 8573C | 2,933 / 2,885/s | 776–835/s (base), 721–837/s (head) | 990 / 974/s | 864–1,450 ms (base), 795–1,196 ms (head) | base 1,104, 1,750, 521, 1,014, 713; head 1,629, 3,351, 1,019, 779, 1,433 |
+| E1 uniform | 44040948524 | EPYC 7763 | 2,160 / 2,263/s | 687–898/s (base), 732–882/s (head) | 729 / 764/s | 30–40 ms (base), 28–78 ms (head) | base 80, 0, 0, 0, 0; head 0 in all five |
+| E3 | 44123394372 | EPYC 9V74 | 956 / 935/s | 230–256/s (base), 213–271/s (head) | 323 / 315/s | 2.3–5.2 s (base), 0.17–5.3 s (head) | base 3,616, 452, 3,335, 1,785, 728; head 2,216, 100, 2,953, 191, 0 |
+| E3 | 44040948524 | EPYC 7763 | 572 / 539/s | (calibrated as sustainable) | 193 / 182/s | 30–37 ms | 0 in all ten |
+
+- **The failures are in nearly every round of both arms in 44123394372.** The exception is E3's last head round, which
+  had none. 44040948524 had none, apart from one base round of E1 (80). They follow the rate the calibration chose,
+  not the build.
+- **The calibration:**
+  - A round runs at a share of the closed-loop peak. The probes try 0.8, 0.6, 0.45 and 0.3375 of it. When none holds,
+    as in both E1 runs and in this run's E3, the rounds run at 0.3375 anyway.
+  - In this run the closed-loop peaks were 2,885–2,933/s for E1 (at 2,048 clients) and 935–956/s for E3. A third of
+    them, 974–990/s and 315–323/s, was more than the node completed: the E1 rounds completed 890–977/s, the E3 rounds
+    232–316/s.
+  - In 44040948524 the peaks were 2,160–2,263/s and 539–572/s. A third of them, 729–764/s and 182–193/s, was completed
+    in full. E1's probe at 729/s did not hold there either (687/s, p50 1.4 s), but its rounds did, at the same rate.
+- **What the nodes logged:**
+  - E1: the timed-out waits are all at `ACCEPTED`. A command waited in the node's queue and was never committed. No
+    tail read after a gap or an overflow (`tailRead` shows `idle` 0–1 only). No sequence-block or stall line. One
+    round (r3, head) logged 5 lost partition leases.
+  - E3: the timed-out waits are at `COMMITTED`, and the saga's subscription `TransferSaga.onPrepared` throttled its
+    partitions and back-pressured 4–407 times a round. One round (e1, head) logged 11 lost partition leases. The prepared transfer was committed, and its next hop queued
+    behind the same one core. Again no tail read after a gap or an overflow.
+- **The tail's 1 s stall grace is excluded.** A stall shows as `tailRead gap` and as waits at `COMMITTED` for E1. Neither
+  is in E1's rounds, and E1's waits time out before commit.
+- **The data cannot say why the closed-loop peak at 1k accounts is about three times what the node completes in open
+  loop, nor where the node's open-loop limit is on these runners.** One run would answer the second: e1-mongo-uniform
+  and e3-mongo at 1k in fixed open-loop steps up to the calibrated rate, as the cliff suites do.
 
 ## L4: sustainable rates
 
@@ -138,8 +182,19 @@ measured phase and restarted 20 s later. MongoDB ran on a Xeon 6975P-C, PostgreS
   times, and their tails read the store after a gap 4–21 times.
 - **MongoDB's E3 hand-over failed 39 of 4,500,** all `504 wow.wait.timeout` on commands that had committed
   (`waitTimedOut COMMITTED`): the command was written, and its caller's wait for it ran out.
+  - **None timed out after the stop.** In the 25 s after node 2 stopped, the two other nodes took its partitions with
+    2–4 tail starts each, and their tails read after a gap 4–11 times.
+  - **All 39 come after its restart.** Node 2 restarted 23 s after the stop and answered 7 s later. Its tails then
+    started from the store over 14 s: 2 by +32 s, 9 by +42 s and 19 by +46 s after the stop.
+  - **The waits ran out from +41 s to +48 s** on all three nodes. These are waits for commands sent from +31 s to
+    +38 s, while those tails were still starting.
+  - **That is the shape of #6407.** After a planned hand-over on MongoDB, the moved partitions catch up two at a time
+    under the catch-up permits (`wow.subscription.max-catch-ups`, 2 per node), about 2 s each. A saga's hop crossing
+    one of the last misses the 10 s wait.
+  - #6412 (`60c63cdc6f`) fixes it and is not in `e3a4e937aa`. This build's nodes do not log the permits, so the logs
+    show the timing, not the permit waits themselves. The fix is measured in the recovery report.
 - **PostgreSQL's E3 hand-over failed 1,** `503 wow.node.closing`, refused by a node as it closed.
-- Each run is one run on one runner, with no A/A, and no cause is stated for either tail.
+- Each run is one run on one runner, with no A/A.
 
 ## L4: cold cache, a million accounts
 
@@ -164,8 +219,8 @@ of 8,000 operations, and no cause is stated.
 - **The CPU model changes between jobs.** Each row names its own. Two rows on different models are not a comparison,
   of stores or of scenarios.
 - **Each L4 figure is one run.** None has an A/A, so none has a noise band.
-- **The 1k suites have no noise threshold.** Their rounds are at a third of saturation, where the latency spread
-  between rounds is wide.
+- **The 1k suites have no noise threshold.** Their rounds are at a third of saturation or a larger share. On MongoDB
+  at 1k accounts, a third of saturation was above the node's open-loop ceiling in this run (above).
 
 ## Data
 

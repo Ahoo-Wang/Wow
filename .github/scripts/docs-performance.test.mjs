@@ -383,6 +383,43 @@ test('the block says once that each figure is from the build, JDK and runner its
   );
 });
 
+test('a report whose rows name more than one CPU model says once that they do not compare the stores, in each locale', () => {
+  const on = (cpu, store) => ({
+    ...HEADLINE.figures[0],
+    id: `sustainable.${store}.E1`,
+    kind: 'sustainable',
+    store,
+    cpu,
+  });
+  const mixed = {
+    ...HEADLINE,
+    figures: [
+      on('Intel(R) Xeon(R) 6975P-C', 'mongo'),
+      on('AMD EPYC 7763 64-Core Processor', 'postgres'),
+    ],
+  };
+  const en = performanceBlock('en', [mixed]);
+  assert.equal(
+    en.match(
+      /These rows ran on 2 CPU models, which each row names: two rows on different models do not compare the stores, nor the scenarios\./g,
+    ).length,
+    1,
+  );
+  assert.match(
+    performanceBlock('zh', [mixed]),
+    /这些行来自 2 种 CPU 型号，每行注明了自己的型号：型号不同的两行既不能用来比较存储，也不能用来比较场景。/,
+  );
+  const one = {
+    ...mixed,
+    figures: [
+      on('AMD EPYC 7763 64-Core Processor', 'mongo'),
+      on('AMD EPYC 7763 64-Core Processor', 'postgres'),
+    ],
+  };
+  assert.doesNotMatch(performanceBlock('en', [one]), /CPU models/);
+  assert.doesNotMatch(performanceBlock('en', [HEADLINE]), /CPU models/);
+});
+
 test('a closed-loop peak whose search reached its most clients still gaining is a lower bound', () => {
   const capped = {
     ...HEADLINE,

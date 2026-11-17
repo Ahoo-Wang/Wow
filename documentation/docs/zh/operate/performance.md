@@ -38,6 +38,8 @@ Wow 按端到端测量：负载生成器经 HTTP 向运行在 PostgreSQL 或 Mon
 
 **GitHub Actions，每个套件一台 4 核 runner**：[actions-snapshot](https://github.com/Ahoo-Wang/Wow/blob/main/test/benchmarks/results/reports/actions-snapshot.md)，构建 `e3a4e937aa`。
 
+这些行来自 2 种 CPU 型号，每行注明了自己的型号：型号不同的两行既不能用来比较存储，也不能用来比较场景。
+
 | 存储 | 节点 | 场景 | 键 | 峰值 | 可持续 | CPU、JDK、构建 |
 | --- | ---: | --- | --- | --- | --- | --- |
 | MongoDB | 一个 | E1 | 均匀 | ≥ 5,010.8/s，闭环 | 2,975.1/s，开环，p99 198.7 ms | Xeon 6975P-C，JDK 25.0.5+8，`e3a4e937aa` |

@@ -75,6 +75,8 @@ const WORDS = {
     cluster: where =>
       `Three nodes on ${where}: the nodes, the stores and the load generator divide the same cores, so these rows show what a cluster costs (forwarding between the nodes), not what it gains. Scaling across separate machines has not been measured.`,
     where: { actions: 'one runner', m5max: 'this one host' },
+    models: n =>
+      `These rows ran on ${n} CPU models, which each row names: two rows on different models do not compare the stores, nor the scenarios.`,
     jdk: jdk =>
       jdk === NOT_RECORDED
         ? 'JDK not recorded'
@@ -103,6 +105,8 @@ const WORDS = {
     cluster: where =>
       `三个节点在${where}上：节点、存储与负载生成器分用同一组 CPU 核，所以这几行显示的是集群的开销（节点之间的转发），不是它带来的收益。跨多台机器的扩展尚未测量。`,
     where: { actions: '同一台 runner', m5max: '同一台主机' },
+    models: n =>
+      `这些行来自 ${n} 种 CPU 型号，每行注明了自己的型号：型号不同的两行既不能用来比较存储，也不能用来比较场景。`,
     jdk: jdk =>
       jdk === NOT_RECORDED
         ? '未记录 JDK'
@@ -258,12 +262,15 @@ export function performanceBlock(locale, headlines) {
     // A cluster's rows go in a table of their own, led by what they show: its nodes share one machine's cores.
     const single = rows.filter(row => row.nodes === 1);
     const cluster = rows.filter(row => row.nodes > 1);
+    // Each suite may run on a machine of its own (Actions): rows on different CPU models compare nothing.
+    const models = new Set(rows.map(row => cpuName(row.cpu))).size;
     return [
       words.title(
         headline,
         words.environments[headline.environment] ?? headline.environment,
         builds,
       ),
+      ...(models > 1 ? ['', words.models(models)] : []),
       ...(single.length > 0 ? ['', ...table(single)] : []),
       ...(cluster.length > 0
         ? [

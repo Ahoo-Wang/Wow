@@ -38,6 +38,8 @@ Each figure is from the build, the JDK and the runner its row names. The scenari
 
 **GitHub Actions, one 4-core runner a suite**: [actions-snapshot](https://github.com/Ahoo-Wang/Wow/blob/main/test/benchmarks/results/reports/actions-snapshot.md), build `e3a4e937aa`.
 
+These rows ran on 2 CPU models, which each row names: two rows on different models do not compare the stores, nor the scenarios.
+
 | Store | Nodes | Scenario | Keys | Peak | Sustainable | CPU, JDK, build |
 | --- | ---: | --- | --- | --- | --- | --- |
 | MongoDB | one | E1 | uniform | ≥ 5,010.8/s, closed loop | 2,975.1/s, open loop, p99 198.7 ms | Xeon 6975P-C, JDK 25.0.5+8, `e3a4e937aa` |
