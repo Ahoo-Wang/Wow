@@ -13,7 +13,26 @@
 
 package me.ahoo.wow.manifest.tools
 
-import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.manifest.tools.SchemaShapes.ADDITIONAL_PROPERTIES
+import me.ahoo.wow.manifest.tools.SchemaShapes.ALL_OF
+import me.ahoo.wow.manifest.tools.SchemaShapes.ANY_OF
+import me.ahoo.wow.manifest.tools.SchemaShapes.CONST
+import me.ahoo.wow.manifest.tools.SchemaShapes.ENUM
+import me.ahoo.wow.manifest.tools.SchemaShapes.FALSE
+import me.ahoo.wow.manifest.tools.SchemaShapes.FORMAT
+import me.ahoo.wow.manifest.tools.SchemaShapes.ITEMS
+import me.ahoo.wow.manifest.tools.SchemaShapes.ONE_OF
+import me.ahoo.wow.manifest.tools.SchemaShapes.PROPERTIES
+import me.ahoo.wow.manifest.tools.SchemaShapes.REF
+import me.ahoo.wow.manifest.tools.SchemaShapes.REQUIRED
+import me.ahoo.wow.manifest.tools.SchemaShapes.TYPE
+import me.ahoo.wow.manifest.tools.SchemaShapes.aliases
+import me.ahoo.wow.manifest.tools.SchemaShapes.covers
+import me.ahoo.wow.manifest.tools.SchemaShapes.properties
+import me.ahoo.wow.manifest.tools.SchemaShapes.refers
+import me.ahoo.wow.manifest.tools.SchemaShapes.required
+import me.ahoo.wow.manifest.tools.SchemaShapes.resolve
+import me.ahoo.wow.manifest.tools.SchemaShapes.types
 
 /**
  * Compares the JSON Schemas of a baseline Manifest ([baselineDefs]) with the current ones ([currentDefs]), following
@@ -37,6 +56,7 @@ import me.ahoo.wow.manifest.Manifest
  * | an alternative added | additive |
  * | an alternative of `oneOf` added or widened that may accept a value another accepts | breaking |
  * | an alternative of `oneOf` added whose required discriminator no other alternative's values hold | additive |
+ * | an output's alternative of `oneOf` removed or narrowed that another overlaps, so a value both took is produced | breaking |
  * | a member of `allOf` changed, each of its changes compared in place | as the change is |
  * | a member of `allOf` added / removed | breaking / additive |
  * | additional properties no longer accepted / now accepted | breaking / additive |
@@ -278,17 +298,8 @@ internal class SchemaCompatibility(
                 trial.compare(path, old, new, null)
                 trial.changes.takeIf { changes -> changes.none { it.kind == ChangeKind.BREAKING } }
             }
-            val compatible = { old: Any?, new: Any? -> trial(old, new) != null }
             if (direction == SchemaDirection.OUTPUT) {
-                // Every value the current schema may produce needs an alternative an old reader handles.
-                val matched = mutableSetOf<Int>()
-                newAlternatives.forEachIndexed { index, alternative ->
-                    val match = oldAlternatives.indices.firstOrNull { compatible(oldAlternatives[it], alternative) }
-                    if (match == null) breaking("$path.$keyword[$index]", "alternative added") else matched += match
-                }
-                (oldAlternatives.indices - matched).forEach {
-                    additive("$path.$keyword[$it]", "alternative no longer produced")
-                }
+                compareProduced("$path.$keyword", keyword == ONE_OF, oldAlternatives, newAlternatives, trial)
                 return
             }
             // Each current alternative an old one matched, and whether it now accepts the old one's values unchanged.
@@ -311,6 +322,49 @@ internal class SchemaCompatibility(
         }
 
         /**
+         * An output's alternatives at [path]: each value a current alternative produces needs an old alternative that
+         * accepts it, an unchanged one taken first. Of a `oneOf` ([exclusive]) old clients refuse a value two old
+         * alternatives accept (#6285), so the current alternative also needs each other old one it may share a value
+         * with ([overlap]) to be [taken] whole by another current alternative, which the current `oneOf` then gives
+         * that shared value to instead: removing or narrowing an alternative another overlaps breaks.
+         */
+        private fun compareProduced(
+            path: String,
+            exclusive: Boolean,
+            oldAlternatives: List<*>,
+            newAlternatives: List<*>,
+            trial: (Any?, Any?) -> List<ManifestChange>?,
+        ) {
+            val matched = mutableSetOf<Int>()
+            newAlternatives.forEachIndexed { index, alternative ->
+                val candidates = oldAlternatives.indices.mapNotNull { old ->
+                    trial(oldAlternatives[old], alternative)?.let { old to it.isEmpty() }
+                }
+                val match = (candidates.firstOrNull { (_, unchanged) -> unchanged } ?: candidates.firstOrNull())?.first
+                if (match == null) {
+                    breaking("$path[$index]", "alternative added")
+                    return@forEachIndexed
+                }
+                matched += match
+                if (!exclusive) return@forEachIndexed
+                oldAlternatives.indices.filter { old ->
+                    old != match && overlap(oldAlternatives[old], baselineDefs, alternative, currentDefs) &&
+                        newAlternatives.indices.none { it != index && taken(path, oldAlternatives[old], newAlternatives[it]) }
+                }.forEach { old ->
+                    breaking("$path[$index]", "alternative produces a value old alternative $old accepts too: refused")
+                }
+            }
+            (oldAlternatives.indices - matched).forEach { additive("$path[$it]", "alternative no longer produced") }
+        }
+
+        /** Whether [new] accepts every value [old] accepts: compared as an input, nothing breaks. */
+        private fun taken(path: String, old: Any?, new: Any?): Boolean {
+            val trial = Comparison(SchemaDirection.INPUT, comparing.toMutableSet())
+            trial.compare(path, old, new, null)
+            return trial.changes.none { it.kind == ChangeKind.BREAKING }
+        }
+
+        /**
          * A value of `oneOf` matches exactly one of its [alternatives]: each one [grown] (added, or accepting more) that
          * may accept a value another one accepts breaks a value old clients sent, which now matches both. Two
          * alternatives are told apart by their JSON types, or by a property both require whose values cannot coincide
@@ -319,7 +373,7 @@ internal class SchemaCompatibility(
         private fun compareExclusive(path: String, alternatives: List<*>, grown: List<Int>) {
             grown.forEach { index ->
                 alternatives.indices.filter { it != index && (it !in grown || it > index) }
-                    .filter { overlap(alternatives[index], alternatives[it]) }
+                    .filter { overlap(alternatives[index], currentDefs, alternatives[it], currentDefs) }
                     .forEach {
                         breaking(
                             "$path.$ONE_OF[$index]",
@@ -333,11 +387,16 @@ internal class SchemaCompatibility(
          * Whether two alternatives may accept one value: no property both require has values that cannot coincide
          * ([discriminators]), and they share a JSON type (an `integer` is a `number`).
          */
-        private fun overlap(left: Any?, right: Any?): Boolean {
-            val leftSchema = resolve(left, currentDefs)
-            val rightSchema = resolve(right, currentDefs)
-            val rightValues = discriminators(rightSchema)
-            val apart = discriminators(leftSchema).any { (name, values) ->
+        private fun overlap(
+            left: Any?,
+            leftDefs: Map<String, Any?>,
+            right: Any?,
+            rightDefs: Map<String, Any?>,
+        ): Boolean {
+            val leftSchema = resolve(left, leftDefs)
+            val rightSchema = resolve(right, rightDefs)
+            val rightValues = discriminators(rightSchema, rightDefs)
+            val apart = discriminators(leftSchema, leftDefs).any { (name, values) ->
                 rightValues[name]?.let { values.intersect(it).isEmpty() } == true
             }
             if (apart) return false
@@ -347,9 +406,9 @@ internal class SchemaCompatibility(
         }
 
         /** The values each property [schema] requires is held to, by its `const` or its `enum`: a discriminator. */
-        private fun discriminators(schema: Map<String, Any?>): Map<String, Set<Any?>> =
+        private fun discriminators(schema: Map<String, Any?>, defs: Map<String, Any?>): Map<String, Set<Any?>> =
             required(schema).mapNotNull { name ->
-                val property = resolve(properties(schema)[name], currentDefs)
+                val property = resolve(properties(schema)[name], defs)
                 val values = if (CONST in property) setOf(property[CONST]) else (property[ENUM] as List<*>?)?.toSet()
                 values?.let { name to it }
             }.toMap()
@@ -425,106 +484,9 @@ internal class SchemaCompatibility(
         }
     }
 
-    private fun refKey(schema: Any?): String? =
-        ((schema as? Map<*, *>)?.get(REF) as? String)?.takeIf { Manifest.isSchemaRef(it) }?.let(Manifest::schemaKey)
-
-    /** Whether [schema] refers to a definition: by its `$ref`, or as the value of a nullable one ([nullableValue]). */
-    private fun refers(schema: Any?): Boolean =
-        refKey(schema) != null || (schema as? Map<*, *>)?.let { refKey(nullableValue(it)) } != null
-
-    /** The value a nullable [schema] accepts beside `null`, `S` of `anyOf: [{"type": "null"}, S]`; null for another. */
-    private fun nullableValue(schema: Map<*, *>): Any? {
-        val alternatives = schema[ANY_OF] as? List<*> ?: return null
-        return alternatives.singleOrNull { it != NULL_SCHEMA }?.takeIf { alternatives.size == 2 }
-    }
-
-    /**
-     * The schema as a map: `$ref` replaced by its definition with the reference's siblings ([withSiblings]), `true` by
-     * `{}`, and a nullable value written as a `null` alternative beside a typed one (`anyOf: [{"type": "null"}, S]`, as a
-     * nullable class is) read as S with `null` among its types, the type union a nullable scalar is written as: the two
-     * forms accept the same values.
-     */
-    private fun resolve(schema: Any?, defs: Map<String, Any?>): Map<String, Any?> {
-        if (schema == false) return FALSE
-        @Suppress("UNCHECKED_CAST")
-        val map = schema as? Map<String, Any?> ?: return emptyMap()
-        val key = refKey(map) ?: return nullable(map, defs)
-        val definition = resolve(defs[key] ?: true, defs)
-        return if (definition === FALSE) FALSE else withSiblings(definition, map - REF)
-    }
-
-    /**
-     * A reference's [definition] with the keywords written beside the reference, its [siblings], which hold as well (a
-     * recursive subtype is written as a reference to its class's schema beside its discriminator's property): the
-     * properties of either, a property both declare as the `allOf` of the two, and the names either requires. Any other
-     * keyword the siblings give takes the definition's place.
-     */
-    private fun withSiblings(definition: Map<String, Any?>, siblings: Map<String, Any?>): Map<String, Any?> {
-        val merged = definition + siblings
-        val own = properties(definition)
-        val beside = properties(siblings)
-        return merged + buildMap {
-            if (PROPERTIES in definition || PROPERTIES in siblings) {
-                val both = own.keys.intersect(beside.keys).associateWith { mapOf(ALL_OF to listOf(own[it], beside[it])) }
-                put(PROPERTIES, own + beside + both)
-            }
-            if (REQUIRED in definition || REQUIRED in siblings) {
-                put(REQUIRED, (required(definition) + required(siblings)).toList())
-            }
-        }
-    }
-
-    private fun nullable(schema: Map<String, Any?>, defs: Map<String, Any?>): Map<String, Any?> {
-        val value = nullableValue(schema) ?: return schema
-        val resolved = resolve(value, defs)
-        val types = types(resolved) ?: return schema
-        return resolved + (schema - ANY_OF) + (TYPE to (types + NULL).sorted())
-    }
-
-    private fun types(schema: Map<String, Any?>): Set<String>? = when (val type = schema[TYPE]) {
-        is String -> setOf(type)
-        is List<*> -> type.map { it.toString() }.toSet()
-        else -> null
-    }
-
-    /** Whether a value of [type] is still accepted by [types]: an `integer` is a `number`. */
-    private fun covers(types: Set<String>, type: String): Boolean =
-        type in types || (type == INTEGER && NUMBER in types)
-
-    @Suppress("UNCHECKED_CAST")
-    private fun properties(schema: Map<String, Any?>): Map<String, Any?> =
-        schema[PROPERTIES] as Map<String, Any?>? ?: emptyMap()
-
-    private fun required(schema: Map<String, Any?>): Set<String> =
-        (schema[REQUIRED] as List<*>?).orEmpty().map { it.toString() }.toSet()
-
-    /** The `x-wow-alias` paths of a property schema, as written on the property (beside a `$ref` too). */
-    private fun aliases(schema: Any?): List<String> =
-        ((schema as? Map<*, *>)?.get(QueryKeywords.ALIAS_KEYWORD) as List<*>?).orEmpty().map { it.toString() }
-
     private companion object {
         const val STATE = "state"
-        const val REF = "\$ref"
-        const val TYPE = "type"
-        const val ENUM = "enum"
-        const val CONST = "const"
-        const val PROPERTIES = "properties"
-        const val REQUIRED = "required"
-        const val ITEMS = "items"
-        const val ADDITIONAL_PROPERTIES = "additionalProperties"
-        const val INTEGER = "integer"
-        const val NUMBER = "number"
-        const val FORMAT = "format"
-        const val ANY_OF = "anyOf"
-        const val ALL_OF = "allOf"
-        const val NULL = "null"
-        val NULL_SCHEMA: Map<String, Any?> = mapOf(TYPE to NULL)
-
-        const val ONE_OF = "oneOf"
         val ALTERNATIVES = listOf(ANY_OF, ONE_OF)
-
-        /** The schema that accepts nothing, `false`. */
-        val FALSE: Map<String, Any?> = mapOf("not" to emptyMap<String, Any?>())
 
         val HANDLED = setOf(
             REF, TYPE, ENUM, PROPERTIES, REQUIRED, ITEMS, ADDITIONAL_PROPERTIES, ALL_OF, QueryKeywords.ALIAS_KEYWORD,
