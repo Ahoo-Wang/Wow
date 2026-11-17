@@ -35,6 +35,9 @@ import kotlin.reflect.typeOf
 class ServiceRouteBodyNullsTest {
     data class Note(val text: String)
 
+    /** A generic class, not a collection: its own properties are Jackson's to read. */
+    data class Page<T>(val items: List<T>, val next: String? = null)
+
     /** The bodies the routes' functions were called with. */
     private val received = mutableListOf<Any?>()
 
@@ -49,6 +52,7 @@ class ServiceRouteBodyNullsTest {
         "noteArray" to (typeOf<Array<Note>>() to Manifest.arraySchema(note)),
         "nestedNotes" to (typeOf<List<List<Note>>>() to Manifest.arraySchema(Manifest.arraySchema(note))),
         "noteMap" to (typeOf<Map<String, Note>>() to mapOf("type" to "object", "additionalProperties" to note)),
+        "page" to (typeOf<Page<Note>>() to Manifest.refSchema("Page")),
     )
 
     private val handlers = routes.map { (name, route) ->
@@ -118,6 +122,24 @@ class ServiceRouteBodyNullsTest {
 
     @Test
     fun `a null element of a list of nullable elements should be accepted`() = accepted("nullableNotes", "[null]")
+
+    @Test
+    fun `a body of a class should be accepted`() {
+        accepted("note", """{"text":"a"}""")
+        received.single().assert().isEqualTo(Note("a"))
+    }
+
+    @Test
+    fun `an array without nulls should be accepted`() = accepted("noteArray", """[{"text":"a"}]""")
+
+    @Test
+    fun `a map without null values should be accepted`() = accepted("noteMap", """{"a":{"text":"a"}}""")
+
+    @Test
+    fun `a body of a generic class should be read by its own properties`() {
+        accepted("page", """{"items":[{"text":"a"}],"next":null}""")
+        received.single().assert().isEqualTo(Page(listOf(Note("a"))))
+    }
 
     @Test
     fun `a body without nulls should be accepted`() {
