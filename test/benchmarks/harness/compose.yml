@@ -11,7 +11,7 @@ services:
     # under 100,000 accounts' traffic; a deployment sizes it to hold its indexes and hot documents.
     command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--wiredTigerCacheSizeGB", "${WOW_BENCH_MONGO_CACHE_GB:-2}"]
     ports:
-      - "27017:27017"
+      - "127.0.0.1:27017:27017"
     healthcheck:
       # Initiates the replica set on its first run, with the member address the host's clients use.
       test:
@@ -37,7 +37,7 @@ services:
     # lz4 compresses the full-page images. synchronous_commit and full_page_writes stay on.
     command: ["postgres", "-c", "max_connections=300", "-c", "shared_buffers=512MB", "-c", "track_wal_io_timing=on", "-c", "max_wal_size=8GB", "-c", "checkpoint_timeout=15min", "-c", "wal_compression=lz4", "-c", "shared_preload_libraries=${WOW_BENCH_PG_PRELOAD:-}"]
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d transfer"]
       interval: 2s
@@ -67,7 +67,7 @@ services:
       KAFKA_LOG_RETENTION_HOURS: 1
       KAFKA_HEAP_OPTS: -Xms1g -Xmx1g
     ports:
-      - "9092:9092"
+      - "127.0.0.1:9092:9092"
     healthcheck:
       test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list >/dev/null 2>&1"]
       interval: 3s

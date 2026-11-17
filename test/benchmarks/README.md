@@ -80,7 +80,7 @@ Over the measured phase, beside the load:
 
 ## Running it
 
-From the repository root, with Docker and `JAVA_HOME` set to a JDK 25 (on macOS, `export JAVA_HOME=$(/usr/libexec/java_home -v 25)`: the script cannot read a shell alias). `bench.sh build` runs Gradle, whose toolchain still compiles for Java 21:
+From the repository root, with Docker and `JAVA_HOME` set to a JDK 25 (on macOS, `export JAVA_HOME=$(/usr/libexec/java_home -v 25)`: the script cannot read a shell alias). The stores and tools publish their ports on 127.0.0.1 only, so a port that another tool holds on another loopback address (`kubefwd` on 127.1.27.x:27017, say) does not stop them. `bench.sh build` runs Gradle, whose toolchain still compiles for Java 21:
 
 ```bash
 test/benchmarks/harness/bench.sh build
