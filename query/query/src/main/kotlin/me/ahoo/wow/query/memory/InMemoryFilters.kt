@@ -164,16 +164,16 @@ internal class InMemoryFilters(private val query: AdmittedQuery<*>, private val 
     @Suppress("CyclomaticComplexMethod")
     private fun compare(filter: FilterExpression, values: List<JsonNode>, temporal: Temporal?): Boolean {
         return when (filter) {
-            is EqualFilter -> values.any { it.matches(filter.value.operandNode()) }
-            is NotEqualFilter -> values.none { it.matches(filter.value.operandNode()) }
+            is EqualFilter -> values.any { it.matches(filter.value.operandNode(), temporal) }
+            is NotEqualFilter -> values.none { it.matches(filter.value.operandNode(), temporal) }
             is InFilter -> filter.values.map { it.operandNode() }.let { operands ->
-                values.any { value -> operands.any { value.matches(it) } }
+                values.any { value -> operands.any { value.matches(it, temporal) } }
             }
             is NotInFilter -> filter.values.map { it.operandNode() }.let { operands ->
-                values.none { value -> operands.any { value.matches(it) } }
+                values.none { value -> operands.any { value.matches(it, temporal) } }
             }
             is ContainsAllFilter -> filter.values.map { it.operandNode() }.all { operand ->
-                values.flattened().any { it.sameValue(operand) }
+                values.flattened().any { it.sameValue(operand, temporal) }
             }
             is GreaterThanFilter -> range(values, temporal, filter.value) { it > 0 }
             is GreaterThanOrEqualFilter -> range(values, temporal, filter.value) { it >= 0 }

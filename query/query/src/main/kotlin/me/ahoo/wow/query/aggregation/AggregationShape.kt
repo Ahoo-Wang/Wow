@@ -23,6 +23,7 @@ import me.ahoo.wow.query.schema.AggregationSupport
 import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.query.schema.StorageSupport
 import me.ahoo.wow.query.schema.SupportMode
+import me.ahoo.wow.query.schema.Temporal
 import me.ahoo.wow.query.schema.offers
 import me.ahoo.wow.query.schema.requireValid
 import me.ahoo.wow.query.spec.MetricSpec
@@ -111,6 +112,8 @@ internal class AggregationPlan private constructor(
     val having: Boolean,
     val topN: Boolean,
     val windows: GroupWindows? = null,
+    /** How each output column reads ([outputReadings]), for the residual top-N's comparisons. */
+    private val readings: Map<String, Temporal> = emptyMap(),
 ) {
     val adjusted: Boolean
         get() = native !== query
@@ -131,11 +134,13 @@ internal class AggregationPlan private constructor(
         query.effectiveSort(),
         query.limit,
         native.effectiveSort().map { it.field.path },
+        readings,
     )
 
     companion object {
-        fun of(query: AggregationQuery, support: AggregationSupport): AggregationPlan {
-            query.denseDatePart?.let { return datePart(query, it) }
+        /** The plan of [query] over [support], each output column compared as [readings] says it reads. */
+        fun of(query: AggregationQuery, support: AggregationSupport, readings: Map<String, Temporal>): AggregationPlan {
+            query.denseDatePart?.let { return datePart(query, it, readings) }
             val residual = Residual.of(query, support)
             if (!residual.any) {
                 return AggregationPlan(query, query, GroupWindow.First(query.firstGroups), null, false, false)
@@ -151,7 +156,8 @@ internal class AggregationPlan private constructor(
                 dense?.let { DateHistogramFill(it, native.metrics) },
                 residual.having,
                 residual.topN,
-                windowed.takeIf { it.isNotEmpty() }?.let { GroupWindows(query, it) },
+                windowed.takeIf { it.isNotEmpty() }?.let { GroupWindows(query, it, readings) },
+                readings,
             )
         }
 
@@ -159,7 +165,11 @@ internal class AggregationPlan private constructor(
          * A dense DATE_PART: the storage returns the (at most 31) present keys in key order, and the core fills the
          * domain, then applies HAVING and a metric sort itself, since both must see the fill rows.
          */
-        private fun datePart(query: AggregationQuery, group: AggregationGroup.DatePart): AggregationPlan {
+        private fun datePart(
+            query: AggregationQuery,
+            group: AggregationGroup.DatePart,
+            readings: Map<String, Temporal>,
+        ): AggregationPlan {
             val direction = query.effectiveSort().first { it.field.path == group.alias }.direction
             val windowed = windowedMetrics(query)
             val native = query.copy(
@@ -175,7 +185,8 @@ internal class AggregationPlan private constructor(
                 DatePartFill(group, direction, native.metrics),
                 query.having != null,
                 query.metricSorted,
-                windowed.takeIf { it.isNotEmpty() }?.let { GroupWindows(query, it) },
+                windowed.takeIf { it.isNotEmpty() }?.let { GroupWindows(query, it, readings) },
+                readings,
             )
         }
 

@@ -25,6 +25,7 @@ import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.query.admission.AdmittedQuery
 import me.ahoo.wow.query.aggregation.DateBuckets
+import me.ahoo.wow.query.aggregation.outputReadings
 import me.ahoo.wow.query.backend.GroupWindow
 import me.ahoo.wow.query.backend.orderOf
 import me.ahoo.wow.query.backend.valueKey
@@ -51,9 +52,14 @@ internal class InMemoryAggregation(
     private val filters = InMemoryFilters(admitted, access)
     private val buckets = HashMap<AggregationGroup.DateHistogram, DateBuckets>()
 
+    /** How each output column reads, so a date group or metric is its instant when keyed or sorted. */
+    private val readings = admitted.outputReadings()
+    private val keyReadings = query.groupBy.map { readings[it.alias] }
+
     fun run(records: List<ObjectNode>, window: GroupWindow): List<ObjectNode> {
         val scopes = records.map(::RecordScope).filter { filters.matches(query.filter, it) }.flatMap(::expand)
-        // Each group under the exact values of its keys, so `1` and `1L` are one group; it shows its first record's keys.
+        // Each group under the exact values of its keys, so `1` and `1L` are one group, as are two texts of one instant
+        // for a date; it shows its first record's keys.
         val groups = LinkedHashMap<List<Any?>, Pair<List<JsonNode?>, MutableList<RecordScope>>>()
         scopes.forEach { scope ->
             // A record joins the group of each combination of its keys: a terms field gives one key per value.
@@ -62,7 +68,8 @@ internal class InMemoryAggregation(
                 prefixes.flatMap { prefix -> keys.map { prefix + it } }
             }
             combinations.filterNot { keys -> keys.any { it == UNGROUPED } }.forEach { keys ->
-                groups.getOrPut(keys.map { it.valueKey() }) { keys to mutableListOf() }.second.add(scope)
+                val key = keys.mapIndexed { index, value -> value.valueKey(keyReadings[index]) }
+                groups.getOrPut(key) { keys to mutableListOf() }.second.add(scope)
             }
         }
         // Without groups and without a match there is no row: the core emits the empty summary, as with MongoDB.
@@ -95,7 +102,7 @@ internal class InMemoryAggregation(
     private fun keys(group: AggregationGroup, scope: RecordScope): List<JsonNode?> {
         if (group !is AggregationGroup.Terms || group.expression != null) return listOf(key(group, scope))
         val values = groupScope(group, scope).values(admitted.field(checkNotNull(group.field))).flattened()
-            .filterNot { it.isNull }.distinctBy { it.valueKey() }
+            .filterNot { it.isNull }.distinctBy { it.valueKey(readings[group.alias]) }
         return values.ifEmpty { listOf(group.missingKey?.let(nodes::stringNode) ?: nodes.nullNode()) }
     }
 
@@ -186,8 +193,9 @@ internal class InMemoryAggregation(
         if (expression !is me.ahoo.wow.api.query.AggregationExpression.Field) {
             return members.mapNotNull { filters.expression(expression, it) }.distinct().size
         }
-        return members.flatMap { it.values(admitted.field(expression.field)).flattened() }
-            .filterNot { it.isNull }.distinctBy { it.valueKey() }.size
+        val field = admitted.field(expression.field)
+        return members.flatMap { it.values(field).flattened() }
+            .filterNot { it.isNull }.distinctBy { it.valueKey(field.temporal) }.size
     }
 
     private fun numeric(function: AggregationFunction, values: List<Double>): JsonNode {
@@ -249,7 +257,8 @@ internal class InMemoryAggregation(
 
     private fun comparator(sort: List<Sort>): Comparator<ObjectNode> = Comparator { left, right ->
         sort.firstNotNullOfOrNull { order ->
-            val comparison = orderOf(left.get(order.field.path), right.get(order.field.path))
+            val path = order.field.path
+            val comparison = orderOf(left.get(path), right.get(path), readings[path])
             (if (order.direction == Sort.Direction.ASC) comparison else -comparison).takeIf { it != 0 }
         } ?: 0
     }

@@ -21,6 +21,8 @@ import me.ahoo.wow.api.query.DerivedExpression
 import me.ahoo.wow.api.query.RunningFunction
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.query.backend.orderOf
+import me.ahoo.wow.query.backend.valueKey
+import me.ahoo.wow.query.schema.Temporal
 import me.ahoo.wow.spi.json.WowJson
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
@@ -62,9 +64,15 @@ private fun DerivedExpression.readsWindow(windowed: Set<String>): Boolean = when
 
 /**
  * Computes the [windowed] derived metrics of [query] over the complete [rows][apply], in declaration order, and
- * writes each row's metrics back in declaration order.
+ * writes each row's metrics back in declaration order. A group key partitions, pairs and orders by its value read as
+ * [readings] says ([valueKey], [orderOf]): `1` and `1.0` are one key, and a date is its instant.
  */
-internal class GroupWindows(private val query: AggregationQuery, private val windowed: Set<String>) {
+internal class GroupWindows(
+    private val query: AggregationQuery,
+    private val windowed: Set<String>,
+    /** How each output column reads, by its alias ([outputReadings]); a column absent is read as it is. */
+    private val readings: Map<String, Temporal>,
+) {
     private val groupAliases = query.groupBy.map(AggregationGroup::alias)
     private val metricAliases = query.metrics.map(AggregationMetric::alias)
 
@@ -112,7 +120,7 @@ internal class GroupWindows(private val query: AggregationQuery, private val win
     ): Array<Double?> {
         val step = PreviousStep.of(query, window)
         val others = groupAliases.filter { it != window.along }
-        fun key(row: ObjectNode, along: Long?): List<Any?> = others.map { row[it] } + along
+        fun key(row: ObjectNode, along: Long?): List<Any?> = others.map { row[it].valueKey(readings[it]) } + along
         val values = checkNotNull(earlier[step]) { "The earlier groups of [$step] were not read." }
             .associate { key(it, it.bucket(window.along)) to it.number(window.metric) }
         return Array(rows.size) { index ->
@@ -135,11 +143,11 @@ internal class GroupWindows(private val query: AggregationQuery, private val win
         val orderBy = window.order.field.path
         val tieBreak = groupAliases.filter { it != orderBy && it !in window.within }
         val comparator = Comparator<Int> { left, right ->
-            orderOf(rows[left][orderBy], rows[right][orderBy])
+            orderOf(rows[left][orderBy], rows[right][orderBy], readings[orderBy])
                 .let { if (window.order.direction == Sort.Direction.ASC) it else -it }
         }.thenComparator { left, right ->
             tieBreak.firstNotNullOfOrNull { alias ->
-                orderOf(rows[left][alias], rows[right][alias]).takeIf { it != 0 }
+                orderOf(rows[left][alias], rows[right][alias], readings[alias]).takeIf { it != 0 }
             } ?: 0
         }
         partitions(rows, window.within).forEach { partition ->
@@ -171,7 +179,7 @@ internal class GroupWindows(private val query: AggregationQuery, private val win
 
     /** The row indexes of each partition: the rows that share their [within] keys. */
     private fun partitions(rows: List<ObjectNode>, within: List<String>): Collection<List<Int>> =
-        rows.indices.groupBy { index -> within.map { rows[index][it] } }.values
+        rows.indices.groupBy { index -> within.map { rows[index][it].valueKey(readings[it]) } }.values
 }
 
 private fun List<Double>.sumOrNull(): Double? = takeIf { it.isNotEmpty() }?.sum()
