@@ -19,6 +19,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.query.AggregationQuery
@@ -107,7 +108,7 @@ internal class ClickHouseDatasetQueryBackend internal constructor(
 
     override fun stream(query: AdmittedQuery<ListQuery>): Flow<ObjectNode> = flow {
         val select = Select(query, table())
-        emitAll(executor.rows(select.records(query.query.limit, 0), query.timeout))
+        emitAll(executor.rows(select.records(query.query.limit, 0), query.timeout).map(select::record))
     }
 
     override suspend fun page(query: AdmittedQuery<Queryable<*>>, window: PageWindow): BackendPage {
@@ -121,11 +122,12 @@ internal class ClickHouseDatasetQueryBackend internal constructor(
                     null
                 }
                 val rows = executor.all(select.records(window.limit, window.offset), query.timeout)
-                BackendPage(rows, total?.await())
+                BackendPage(rows.map(select::record), total?.await())
             }
             is PageWindow.Keyset -> {
                 val rows = executor.all(select.keyset(window), query.timeout)
-                BackendPage(rows.map(select::record), positions = rows.map(select::position))
+                val positions = rows.map(select::position)
+                BackendPage(rows.map(select::record), positions = positions)
             }
         }
     }
@@ -169,7 +171,11 @@ internal class ClickHouseDatasetQueryBackend internal constructor(
 
     override fun toString(): String = "ClickHouseDatasetQueryBackend(${dataset.name} on ${storage.database}.${storage.table})"
 
-    /** One record query: its columns, filter and sort, and for a keyset page the position columns. */
+    /**
+     * One record query: its columns, filter and sort, and for a keyset page the position columns. The columns a
+     * statement selects for itself are named apart from every column of the table, so none replaces or removes a
+     * declared field of its name.
+     */
     private inner class Select(private val admitted: AdmittedQuery<Queryable<*>>, private val table: ClickHouseTable) {
         private val query = admitted.query
         private val parameters = SqlParameters()
@@ -178,6 +184,10 @@ internal class ClickHouseDatasetQueryBackend internal constructor(
         private val sort: List<Pair<TypedColumn, Sort.Direction>> = query.sort.map {
             filters.columnOf(it.field) to it.direction
         }
+        private val positionAliases: List<String> = sort.indices.map { own("__position$it") }
+
+        /** The one column a statement selects when the projection keeps none: a `SELECT` lists at least one. */
+        private val placeholder: String? = if (columns.isEmpty()) own("__record") else null
 
         /**
          * A list or an offset page, its sort ended by the dataset's identity when the sort lacks it:
@@ -205,15 +215,21 @@ internal class ClickHouseDatasetQueryBackend internal constructor(
             return statement(where, window.limit, 0, positions = true)
         }
 
-        /** The row as the dataset returns it: the projected columns, without the position columns. */
+        /**
+         * [row] as the dataset returns it: the projected columns, without the columns this statement selected for
+         * itself. A keyset page reads its [position] first.
+         */
         fun record(row: ObjectNode): ObjectNode {
-            val record = row.deepCopy()
-            sort.indices.forEach { record.remove(positionAlias(it)) }
-            return record
+            placeholder?.let(row::remove)
+            positionAliases.forEach(row::remove)
+            return row
         }
 
         fun position(row: ObjectNode): CursorPosition =
-            CursorPosition(sort.indices.map { index -> row.get(positionAlias(index)).positionValue() })
+            CursorPosition(positionAliases.map { alias -> row.get(alias).positionValue() })
+
+        /** [name], or that name with leading underscores added until it names no column of the table. */
+        private fun own(name: String): String = generateSequence(name) { "_$it" }.first { it !in table.columns }
 
         private fun statement(
             where: String,
@@ -223,10 +239,12 @@ internal class ClickHouseDatasetQueryBackend internal constructor(
             order: List<Pair<TypedColumn, Sort.Direction>> = sort,
         ): ClickHouseStatement {
             val selected = columns.map(::quoteIdentifier) + if (positions) {
-                sort.mapIndexed { index, (column, _) -> "${positionExpression(column)} AS ${positionAlias(index)}" }
+                sort.mapIndexed { index, (column, _) ->
+                    "${positionExpression(column)} AS ${quoteIdentifier(positionAliases[index])}"
+                }
             } else {
                 emptyList()
-            }
+            } + listOfNotNull(placeholder?.let { "1 AS ${quoteIdentifier(it)}" })
             val sql = buildString {
                 append("SELECT ").append(selected.joinToString(", "))
                 append(" FROM ").append(source(table))
@@ -267,16 +285,14 @@ internal class ClickHouseDatasetQueryBackend internal constructor(
             }
         }
 
-        private fun columns(projection: Projection): List<String> = when {
-            projection.include.isNotEmpty() -> projection.include.map(admitted::physicalPath)
-            projection.exclude.isNotEmpty() -> fields - projection.exclude.map(admitted::physicalPath).toSet()
-            else -> fields
+        /** The included fields, or every declared one when the projection includes none, less the excluded ones. */
+        private fun columns(projection: Projection): List<String> {
+            val included = if (projection.include.isEmpty()) fields else projection.include.map(admitted::physicalPath)
+            return included - projection.exclude.map(admitted::physicalPath).toSet()
         }
     }
 
     private companion object {
-        fun positionAlias(index: Int): String = "__position$index"
-
         fun positionExpression(column: TypedColumn): String {
             val quoted = quoteIdentifier(column.name)
             return when (column.family) {
