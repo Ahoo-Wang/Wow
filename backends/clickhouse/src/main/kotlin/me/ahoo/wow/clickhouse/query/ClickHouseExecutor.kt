@@ -19,6 +19,7 @@ import com.clickhouse.data.ClickHouseFormat
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.coroutineScope
@@ -45,7 +46,8 @@ import java.util.concurrent.atomic.AtomicBoolean
  *
  * The response body is read on [dispatcher], since reading it blocks. Each statement carries its own query id: when
  * its collector is cancelled (the core's timeout, a client that went away), `KILL QUERY` stops the statement on the
- * server, since an abandoned HTTP read does not always reach it.
+ * server, since an abandoned HTTP read does not always reach it. The kill is sent from threads of its own, never
+ * [dispatcher]'s: while every one of those blocks in a statement's call or read, the kill that ends them still runs.
  *
  * A statement with a [timeout] runs under `max_execution_time`, in whole seconds rounded up;
  * ClickHouse failing it for that (`TIMEOUT_EXCEEDED`) is a [StorageTimeoutException], the query's timeout to the core.
@@ -54,14 +56,18 @@ internal class ClickHouseExecutor(
     private val client: Client,
     private val settings: Map<String, String> = emptyMap(),
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
+    /** Where a cancelled statement's watcher sends its kill: never [dispatcher], whose threads the reads may hold. */
+    private val kills: CoroutineDispatcher = KILLS,
 ) {
     @Suppress("TooGenericExceptionCaught") // Any failure of the statement is translated, then rethrown.
     fun rows(statement: ClickHouseStatement, timeout: Duration? = null): Flow<ObjectNode> = flow {
         val queryId = UUID.randomUUID().toString()
         coroutineScope {
             val finished = AtomicBoolean(false)
-            // Stops the statement on the server as soon as this flow is cancelled, even while a read blocks.
-            val watcher = launch {
+            // Stops the statement on the server as soon as this flow is cancelled, even while a read blocks. Started
+            // undispatched, it is waiting before the statement is sent: a cancellation that came before its first
+            // dispatch would cancel it unstarted, and its finally, the kill, would never run.
+            val watcher = launch(kills, CoroutineStart.UNDISPATCHED) {
                 try {
                     awaitCancellation()
                 } finally {
@@ -144,6 +150,16 @@ internal class ClickHouseExecutor(
 
     companion object {
         private val log = KotlinLogging.logger { }
+
+        /** At most this many kills are sent at once; each is one short call, `ASYNC` on the server. */
+        private const val KILL_PARALLELISM = 4
+
+        /**
+         * Where a cancelled statement's watcher runs and sends its `KILL QUERY`: a view of [Dispatchers.IO], which
+         * IO's own parallelism does not bound, so neither the watcher's start nor its kill waits for a slot that a
+         * blocked read holds.
+         */
+        private val KILLS: CoroutineDispatcher = Dispatchers.IO.limitedParallelism(KILL_PARALLELISM)
 
         /** ClickHouse's error code of a query that ran past `max_execution_time`. */
         const val TIMEOUT_EXCEEDED: Int = 159
