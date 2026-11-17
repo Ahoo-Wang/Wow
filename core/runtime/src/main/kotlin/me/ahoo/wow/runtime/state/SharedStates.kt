@@ -219,8 +219,9 @@ class SharedStates(
         }
         val stream = committed.stream
         val stripe = Stripes.pick(stripes, stream.ref)
-        val view = stripe.pending(stream)
-            ?: if (expectedOnly) return else SerializedState(
+        val view = stripe.pending(stream) ?: run {
+            if (expectedOnly) return
+            SerializedState(
                 stream.version,
                 codec.stateText(committed.state),
                 stream.scope,
@@ -228,6 +229,7 @@ class SharedStates(
                 committed.schedules,
                 committed.first,
             )
+        }
         stripe.commit(stream.ref, view, readersOf.getValue(model.type))
     }
 
