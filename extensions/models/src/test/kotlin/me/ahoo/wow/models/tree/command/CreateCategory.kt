@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.models.tree.command
 
+import jakarta.validation.constraints.NotBlank
 import me.ahoo.wow.api.annotation.AllowCreate
 import me.ahoo.wow.api.annotation.Description
 import me.ahoo.wow.api.annotation.Summary
@@ -20,9 +21,18 @@ import me.ahoo.wow.api.annotation.Summary
 @Summary("Create a category")
 @Description("The aggregate id is the tenant's id.")
 @AllowCreate
-data class CreateCategory(override val name: String, override val parentCode: String) : Create<CategoryCreated> {
+data class CreateCategory(
+    /** The domain's own constraint, with its own message: the library declares none on a create command's name. */
+    @get:NotBlank(message = NAME_REQUIRED)
+    override val name: String,
+    override val parentCode: String,
+) : Create<CategoryCreated> {
     override fun toEvent(code: String, sortId: Int): CategoryCreated =
         CategoryCreated(name = name, code = code, sortId = sortId)
+
+    companion object {
+        const val NAME_REQUIRED = "A category needs a name."
+    }
 }
 
 data class CategoryCreated(
