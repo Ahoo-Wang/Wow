@@ -37,10 +37,12 @@ import me.ahoo.wow.api.query.*
 import me.ahoo.wow.elasticsearch.ElasticsearchAccessPresence
 import me.ahoo.wow.elasticsearch.query.aggregation.RuntimeExpressionCompiler
 import me.ahoo.wow.query.admission.AdmittedQuery
+import me.ahoo.wow.query.backend.parseInstant
 import me.ahoo.wow.query.error.QueryExecutionException
 import me.ahoo.wow.query.resolve.ignoreCase
 import me.ahoo.wow.query.resolve.requiredOperandValue
 import me.ahoo.wow.query.schema.QueryCapability
+import me.ahoo.wow.query.schema.Temporal
 
 /**
  * Compiles admitted filters to Elasticsearch queries. Every field, system fields included, compiles at the physical
@@ -112,7 +114,7 @@ internal object ElasticsearchFilterCompiler {
             if (field.addressesDocumentId(nested)) {
                 ids { it.values(filter.value.requiredOperandValue().toString()) }
             } else {
-                term { it.field(field).value(filter.value.fieldValue()) }
+                term { it.field(field).value(admitted.operand(filter.field, filter.value).fieldValue()) }
             }
         }
         is NotEqualFilter -> bool {
@@ -121,25 +123,25 @@ internal object ElasticsearchFilterCompiler {
         is GreaterThanFilter -> range {
             it.untyped { range ->
                 range.field(admitted.physicalPath(filter.field))
-                    .gt(JsonData.of(filter.value.requiredOperandValue()))
+                    .gt(JsonData.of(admitted.operand(filter.field, filter.value)))
             }
         }
         is GreaterThanOrEqualFilter -> range {
             it.untyped { range ->
                 range.field(admitted.physicalPath(filter.field))
-                    .gte(JsonData.of(filter.value.requiredOperandValue()))
+                    .gte(JsonData.of(admitted.operand(filter.field, filter.value)))
             }
         }
         is LessThanFilter -> range {
             it.untyped { range ->
                 range.field(admitted.physicalPath(filter.field))
-                    .lt(JsonData.of(filter.value.requiredOperandValue()))
+                    .lt(JsonData.of(admitted.operand(filter.field, filter.value)))
             }
         }
         is LessThanOrEqualFilter -> range {
             it.untyped { range ->
                 range.field(admitted.physicalPath(filter.field))
-                    .lte(JsonData.of(filter.value.requiredOperandValue()))
+                    .lte(JsonData.of(admitted.operand(filter.field, filter.value)))
             }
         }
         is ContainsFilter -> wildcard {
@@ -163,7 +165,9 @@ internal object ElasticsearchFilterCompiler {
             } else {
                 terms {
                     it.field(field).terms { terms ->
-                        terms.value(filter.values.map { value -> value.fieldValue() })
+                        terms.value(
+                            filter.values.map { value -> admitted.operand(filter.field, value).fieldValue() },
+                        )
                     }
                 }
             }
@@ -174,12 +178,12 @@ internal object ElasticsearchFilterCompiler {
         is BetweenFilter -> range {
             it.untyped { range ->
                 range.field(admitted.physicalPath(filter.field))
-                    .gte(JsonData.of(filter.lowerBound.requiredOperandValue()))
-                    .lte(JsonData.of(filter.upperBound.requiredOperandValue()))
+                    .gte(JsonData.of(admitted.operand(filter.field, filter.lowerBound)))
+                    .lte(JsonData.of(admitted.operand(filter.field, filter.upperBound)))
             }
         }
         is ContainsAllFilter -> {
-            val values = filter.values.map { it.fieldValue() }
+            val values = filter.values.map { admitted.operand(filter.field, it).fieldValue() }
             termsSet {
                 it.field(admitted.physicalPath(filter.field))
                     .terms(values).minimumShouldMatch(values.size.toString())
@@ -256,6 +260,18 @@ internal object ElasticsearchFilterCompiler {
         }
 
     private const val DOCUMENT_ID_FIELD = "_id"
+
+    /**
+     * [value], an operand of [reference], as Elasticsearch compares it: a date string ([Temporal.Date]) as its epoch
+     * milliseconds, the form the normalizer gives a relative date. A `date` field parses an inclusive upper bound,
+     * and a term, which is the range `[value, value]`, rounding up the fields a text lacks, so `…T00:00:00Z` would
+     * hold the whole second (#6347). Any other operand, a text that names no instant among them, is sent as it is.
+     */
+    private fun AdmittedQuery<*>.operand(reference: QueryField<*>, value: Any?): Any {
+        val operand = value.requiredOperandValue()
+        if (operand !is String || field(reference).temporal != Temporal.Date) return operand
+        return parseInstant(operand)?.toEpochMilli() ?: operand
+    }
 
     private fun Any?.fieldValue(): FieldValue {
         val value = requiredOperandValue()

@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.backend
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.query.schema.Temporal
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.JsonNodeFactory
@@ -81,8 +82,14 @@ internal fun JsonNode.orderKey(temporal: Temporal?): JsonNode {
     )
 }
 
-/** An ISO-8601 instant, offset date-time, local date-time (at UTC) or date (its start, at UTC). */
-internal fun parseInstant(text: String): Instant? = try {
+/**
+ * An ISO-8601 instant, offset date-time, local date-time (at UTC) or date (its start, at UTC): how the core reads a
+ * date string ([Temporal.Date]), and how a backend that sends a date operand as its instant reads it, so the two never
+ * read one text as different instants. An epoch number is read by its field's unit instead
+ * ([me.ahoo.wow.query.schema.Temporal.Epoch]).
+ */
+@InternalWowApi
+fun parseInstant(text: String): Instant? = try {
     when {
         text.endsWith("Z") && 'T' in text -> Instant.parse(text)
         'T' in text && (text.lastIndexOf('+') > text.indexOf('T') || text.lastIndexOf('-') > text.indexOf('T')) ->

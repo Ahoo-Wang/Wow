@@ -43,6 +43,7 @@ import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.json.query.SnapshotFields
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.JsonNode
+import java.time.Instant
 
 class ElasticsearchFilterCompilerTest {
     @Test
@@ -275,6 +276,39 @@ class ElasticsearchFilterCompilerTest {
     }
 
     @Test
+    fun `a date operand compiles as its epoch milliseconds, so no bound holds the rest of its second`() {
+        // Elasticsearch reads a term on a `date` field as [value, value], rounding the upper bound up over the fields
+        // a text lacks: `…T00:00:00Z` sent as text would hold `…T00:00:00.999Z` (#6347).
+        val day = QueryField("state.day")
+        val instant = JsonData.of(Instant.parse(INSTANT).toEpochMilli())
+        assertQuery(
+            ElasticsearchFilterCompiler.compileAdmitted(EqualFilter(day, json("2026-01-01T01:00:00+01:00"))),
+            term { it.field("state.day").value(Instant.parse(INSTANT).toEpochMilli()) },
+        )
+        assertQuery(
+            ElasticsearchFilterCompiler.compileAdmitted(InFilter(day, listOf(json(INSTANT)))),
+            terms {
+                it.field("state.day").terms { terms ->
+                    terms.value(listOf(FieldValue.of(Instant.parse(INSTANT).toEpochMilli())))
+                }
+            },
+        )
+        assertQuery(
+            ElasticsearchFilterCompiler.compileAdmitted(BetweenFilter(day, json("2026-01-01"), json(INSTANT))),
+            range { it.untyped { range -> range.field("state.day").gte(instant).lte(instant) } },
+        )
+        assertQuery(
+            ElasticsearchFilterCompiler.compileAdmitted(GreaterThanFilter(day, json(INSTANT))),
+            range { it.untyped { range -> range.field("state.day").gt(instant) } },
+        )
+        // A field read as no date keeps its text.
+        assertQuery(
+            ElasticsearchFilterCompiler.compileAdmitted(EqualFilter(QueryField("state.name"), json(INSTANT))),
+            term { it.field("state.name").value(INSTANT) },
+        )
+    }
+
+    @Test
     fun `element predicates compile the physical paths admission resolved`() {
         val query = ElasticsearchFilterCompiler.compileAdmitted(
             filter { "state.items".elementMatch { "name" eq "value" } },
@@ -294,6 +328,7 @@ class ElasticsearchFilterCompilerTest {
     }
 
     companion object {
+        private const val INSTANT = "2026-01-01T00:00:00Z"
         private val ANY = QueryValueType("any")
 
         /** An admissible schema: `state.items` binds to another physical path to show compilers use resolutions. */
@@ -337,6 +372,10 @@ class ElasticsearchFilterCompilerTest {
                 )
                 put(QueryField("state.time"), nativeBindings(QueryField("state.time"), QueryCapability.RANGE))
                 put(
+                    QueryField("state.day"),
+                    nativeBindings(QueryField("state.day"), QueryCapability.EXACT_MATCH, QueryCapability.RANGE),
+                )
+                put(
                     QueryField("state.items"),
                     nativeBindings(QueryField("storage.items"), QueryCapability.ELEMENT_SCOPE),
                 )
@@ -361,7 +400,7 @@ class ElasticsearchFilterCompilerTest {
                     nativeBindings(QueryField("storage.items._id"), QueryCapability.EXACT_MATCH),
                 )
             },
-            semanticTypes = mapOf(QueryField("state.time") to Temporal.Date),
+            semanticTypes = mapOf(QueryField("state.time") to Temporal.Date, QueryField("state.day") to Temporal.Date),
             values = buildMap {
                 listOf("state.value", "state.number", "state.native").forEach {
                     put(QueryField(it), QueryValueSchema(QueryValueKind.SCALAR, valueTypes = setOf(ANY)))
