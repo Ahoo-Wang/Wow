@@ -165,6 +165,17 @@ class WowPluginTest {
     }
 
     @Test
+    fun `a module without KSP on its class path should be told the line that brings it, of the plugin's KSP`() {
+        WowPlugin.kspVersion.assert().matches("""\d+\.\d+\.\d+.*""")
+        WowPlugin.missingKsp(":shop-domain", WowPlugin.ID).assert().contains(
+            "Project ':shop-domain' applies the Wow plugin (${WowPlugin.ID})",
+            "id(\"${WowPlugin.API_ID}\") apply false",
+            "Add id(\"com.google.devtools.ksp\") version \"${WowPlugin.kspVersion}\" to the module's plugins",
+            "com.google.devtools.ksp:symbol-processing-gradle-plugin:${WowPlugin.kspVersion}",
+        )
+    }
+
+    @Test
     fun `a domain module should build no service Manifest, a service module both`() {
         val domain = project(id = WowPlugin.ID)
         domain.tasks.findByName(WowPlugin.GENERATE_FRAGMENT_TASK).assert().isNotNull()
