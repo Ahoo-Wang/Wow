@@ -20,33 +20,25 @@ import java.util.Base64
 import java.util.UUID
 
 /**
- * The `CoSec-Identity` header a CoSec gateway forwards once it has verified a principal's token and permitted the
- * request, for the tests of a service behind one (`wow.cosec.mode: gateway`), which believes the header as it comes.
+ * The identity a CoSec gateway forwards in `CoSec-Identity` once it has verified a principal's token and permitted
+ * the request, for the tests of a service behind one (`wow.cosec.mode: gateway`), which believes the header as it
+ * comes: [subject] of [tenant] with [roles] in the scope [app] and [space] (empty for none and the default space), its
+ * token valid for [ttl] from the moment the header is written.
  *
  * Written as CoSec documents the header, base64url without padding of its JSON, format version 1
  * ([Forwarding the identity](https://cosec.ahoo.me/integration/web#forwarding-the-identity),
  * `schema/cosec-identity.schema.json`): CoSec's own codec is its internal API, which only CoSec's modules use.
  */
-object CoSecIdentities {
-    /** The header's name. */
-    const val HEADER: String = "CoSec-Identity"
-
-    /** CoSec's default tenant, `(0)`, which a principal of no tenant is in. */
-    const val DEFAULT_TENANT: String = "(0)"
-
-    /**
-     * The header of [subject] of [tenant] with [roles] in the scope [app] and [space] (empty for none and the default
-     * space), its token valid for [ttl] from now.
-     */
-    @Suppress("LongParameterList")
-    fun header(
-        subject: String,
-        roles: Collection<String> = emptyList(),
-        tenant: String = DEFAULT_TENANT,
-        app: String = "",
-        space: String = "",
-        ttl: Duration = Duration.ofHours(1),
-    ): String {
+class CoSecIdentity(
+    val subject: String,
+    val roles: Collection<String> = emptyList(),
+    val tenant: String = DEFAULT_TENANT,
+    val app: String = "",
+    val space: String = "",
+    val ttl: Duration = Duration.ofHours(1),
+) {
+    /** The header's value, its token valid for [ttl] from now. */
+    fun header(): String {
         val now = Instant.now()
         val identity = linkedMapOf(
             "v" to 1,
@@ -65,14 +57,14 @@ object CoSecIdentities {
         return Base64.getUrlEncoder().withoutPadding().encodeToString(WowJson.mapper.writeValueAsBytes(identity))
     }
 
-    /** The header of [header] as a request's headers. */
-    @Suppress("LongParameterList")
-    fun headers(
-        subject: String,
-        roles: Collection<String> = emptyList(),
-        tenant: String = DEFAULT_TENANT,
-        app: String = "",
-        space: String = "",
-        ttl: Duration = Duration.ofHours(1),
-    ): Map<String, String> = mapOf(HEADER to header(subject, roles, tenant, app, space, ttl))
+    /** The header as a request's headers. */
+    fun headers(): Map<String, String> = mapOf(HEADER to header())
+
+    companion object {
+        /** The header's name. */
+        const val HEADER: String = "CoSec-Identity"
+
+        /** CoSec's default tenant, `(0)`, which a principal of no tenant is in. */
+        const val DEFAULT_TENANT: String = "(0)"
+    }
 }

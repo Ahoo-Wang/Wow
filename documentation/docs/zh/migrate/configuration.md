@@ -58,7 +58,7 @@ V10 的配置项也在 `wow.*` 之下，但大多数 9.x 配置项不沿用：V1
 
 | 9.x | V10 |
 | --- | --- |
-| `wow.cosec.*`、`wow.cosec.abac.*` | `wow.cosec.*`：`mode`、`tenant-level`、`cross-scope`、`authorizer`（[保护部署](../operate/security)）；`wow.cosec.abac.*` 已移除，查询 ABAC 也已移除（`wow.query.abac.*`，启动时拒绝） |
+| `wow.cosec.*`、`wow.cosec.abac.*` | `wow.cosec.*`：`mode`、`tenant-level`、`cross-scope`、`authorizer`（[保护部署](../operate/security)），`tenant-level` 和 `cross-scope` 只按 `roles` 指明调用方：早先 V10 预发布版本的 `policies` 键在启动时被拒绝，因为 CoSec 8 不告诉应用主体的策略；`wow.cosec.abac.*` 已移除，查询 ABAC 也已移除（`wow.query.abac.*`，启动时拒绝） |
 | `wow.compensation.*`，以及补偿服务自己的配置项 | 每个节点用 `wow.subscription.parked.*`，每个订阅用 `wow.subscriptions.[<context>.<processor.function>].parked.*`；运维路由用 `wow.http.ops.enabled`，webhook 与向运维服务发布用 `wow.ops.webhook.*` 与 `wow.ops.publish.*`（[平台服务](./platform)） |
 | `wow.bi.script.*` | 随 BI 同步一起移除：改用 ClickHouse Sink，`wow.clickhouse.sink.*`（[ClickHouse](../operate/clickhouse)） |
 | 代码中每个聚合固定的租户 | `wow.aggregates.[<context>.<aggregate>].tenant` |

@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.example.eshop.e2e.cluster
 
-import me.ahoo.wow.cosec.CoSecIdentities
+import me.ahoo.wow.cosec.CoSecIdentity
 import me.ahoo.wow.example.eshop.e2e.Answer
 import me.ahoo.wow.example.eshop.e2e.json
 import java.io.IOException
@@ -72,7 +72,7 @@ class Tokens(private val secret: String) {
      * what a service behind it believes, unsigned, which is why only the gateway's pods reach a service's public port.
      */
     fun identity(who: Who, ttl: Duration = Duration.ofHours(2)): String =
-        CoSecIdentities.header(who.id, who.roles, tenant = TENANT, ttl = ttl)
+        CoSecIdentity(who.id, who.roles, tenant = TENANT, ttl = ttl).header()
 
     private fun encode(text: String): String = Base64.getUrlEncoder().withoutPadding().encodeToString(
         text.toByteArray()

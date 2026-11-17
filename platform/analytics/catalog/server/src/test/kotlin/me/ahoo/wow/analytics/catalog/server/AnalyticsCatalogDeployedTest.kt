@@ -14,7 +14,7 @@
 package me.ahoo.wow.analytics.catalog.server
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.cosec.CoSecIdentities
+import me.ahoo.wow.cosec.CoSecIdentity
 import org.junit.jupiter.api.Test
 
 /**
@@ -46,7 +46,7 @@ class AnalyticsCatalogDeployedTest {
      * service holds no secret and verifies nothing, it believes the header.
      */
     private fun signedIn(id: String, vararg roles: String): Who =
-        Who(CoSecIdentities.headers(id, roles.toList()))
+        Who(CoSecIdentity(id, roles.toList()).headers())
 
     private companion object {
         const val FORBIDDEN = 403

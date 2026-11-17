@@ -358,6 +358,36 @@ class ConfigurationKeysTest {
     }
 
     @Test
+    fun `the CoSec policy keys of earlier pre-releases refuse the startup, written as keys or variables`() {
+        // CoSec 8.0.0-beta.1 tells an application no principal's policies: a key that named callers by one would
+        // otherwise be dropped in silence, and change who is a tenant-level or cross-scope caller.
+        val removed = environment(
+            "wow.cosec.cross-scope.policies" to "p1",
+            "wow.cosec.tenant-level.policies[0]" to "p2",
+        )
+        keys.unknown(removed).assert().containsExactlyInAnyOrder(
+            "wow.cosec.cross-scope.policies",
+            "wow.cosec.tenant-level.policies[0]",
+        )
+        val variables = variables("WOW_COSEC_CROSS_SCOPE_POLICIES" to "p1", "WOW_COSEC_TENANTLEVEL_POLICIES" to "p2")
+        keys.unknown(variables).assert().containsExactlyInAnyOrder(
+            "WOW_COSEC_CROSS_SCOPE_POLICIES",
+            "WOW_COSEC_TENANTLEVEL_POLICIES",
+        )
+        // Their roles are still read.
+        keys.unknown(environment("wow.cosec.tenant-level.roles" to "employee")).assert().isEmpty()
+    }
+
+    @Test
+    fun `a host that still sets a CoSec policy key does not start`() {
+        listOf("wow.cosec.cross-scope.policies", "wow.cosec.tenant-level.policies").forEach { key ->
+            val failure = runCatching { startHost(key to "staff").close() }.exceptionOrNull()
+            generateSequence(failure) { it.cause }.filterIsInstance<WowConfigurationException>().first().message
+                .assert().contains("Unknown Wow configuration keys: $key.")
+        }
+    }
+
+    @Test
     fun `a host whose security key is mistyped does not start`() {
         val failure = runCatching { startHost("wow.cosec.authorizer.enable" to true).close() }.exceptionOrNull()
         generateSequence(failure) { it.cause }.any { it.message.orEmpty().contains("wow.cosec.authorizer.enable") }

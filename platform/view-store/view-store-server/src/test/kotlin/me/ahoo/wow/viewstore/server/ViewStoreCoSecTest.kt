@@ -15,7 +15,7 @@ package me.ahoo.wow.viewstore.server
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.wire.WowHeaders
-import me.ahoo.wow.cosec.CoSecIdentities
+import me.ahoo.wow.cosec.CoSecIdentity
 import me.ahoo.wow.test.server.Answer
 import me.ahoo.wow.viewstore.api.ViewStoreContext
 import me.ahoo.wow.viewstore.domain.ViewStoreRejections
@@ -45,7 +45,7 @@ class ViewStoreCoSecTest {
      * service holds no secret and verifies nothing, it believes the header.
      */
     private fun signedIn(id: String, vararg roles: String, app: String = APP): Who =
-        Who(CoSecIdentities.headers(id, roles.toList(), app = app))
+        Who(CoSecIdentity(id, roles.toList(), app = app).headers())
 
     private fun definition(): String = "orders-${UUID.randomUUID()}"
 

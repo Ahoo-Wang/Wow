@@ -18,7 +18,7 @@ import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.cosec.CoSecCallerResolver
-import me.ahoo.wow.cosec.CoSecIdentities
+import me.ahoo.wow.cosec.CoSecIdentity
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.ops.api.parked.EntryAggregate
 import me.ahoo.wow.ops.api.parked.EntryRetrySpec
@@ -53,7 +53,7 @@ class OpsCoSecTest {
      * service holds no secret and verifies nothing, it believes the header.
      */
     private fun signedIn(id: String, vararg roles: String): Who =
-        Who(CoSecIdentities.headers(id, roles.toList()))
+        Who(CoSecIdentity(id, roles.toList()).headers())
 
     private fun entry(context: String, id: String): ParkedEntry = WowJson.mapper.convertValue(
         // A ledger entry is a wire record whose constructor is Wow's own (decision D216): read it from its JSON.

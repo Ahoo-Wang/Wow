@@ -24,7 +24,7 @@ import me.ahoo.wow.api.wire.DevelopmentHeaders.ROLES_ATTRIBUTE
 import me.ahoo.wow.api.wire.DevelopmentHeaders.USER
 import me.ahoo.wow.client.UserCredential
 import me.ahoo.wow.cosec.CoSecCallerResolver
-import me.ahoo.wow.cosec.CoSecIdentities
+import me.ahoo.wow.cosec.CoSecIdentity
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderItem
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderStateView
 import me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder
@@ -56,7 +56,7 @@ class OrderingCoSecTest {
 
     /** The header the gateway forwards for [id] of the default tenant, with [roles], after verifying its token. */
     private fun signedIn(id: String, vararg roles: String): Map<String, String> =
-        CoSecIdentities.headers(id, roles.toList())
+        CoSecIdentity(id, roles.toList()).headers()
 
     @Test
     @OptIn(ExperimentalWowApi::class) // wow-cosec is experimental in 10.0
