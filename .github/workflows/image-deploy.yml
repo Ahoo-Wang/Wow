@@ -68,7 +68,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
-          node-version: 24.22.2
+          node-version: 24.22.3
 
       # gradle.properties, every package.json and the release tag agree.
       - name: Verify release versions
@@ -148,7 +148,7 @@ jobs:
         if: matrix.console != ''
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
-          node-version: 24.22.2
+          node-version: 24.22.3
           cache: pnpm
 
       # The console the server serves from its distribution's ui/.
