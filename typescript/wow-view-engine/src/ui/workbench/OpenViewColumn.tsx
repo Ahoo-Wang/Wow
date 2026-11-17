@@ -45,7 +45,7 @@ import { OriginBar } from './OriginBar.js';
 import { resultBlockShown, ShellResult } from './ResultBlock.js';
 import { StatusLine } from './StatusLine.js';
 import { TitleBar } from './TitleBar.js';
-import { filled, useEditorFold } from './useEditorFold.js';
+import { filled, leftBlank, useEditorFold } from './useEditorFold.js';
 import type { useWorkbenchFolds } from './useWorkbenchFolds.js';
 import type { WorkbenchShellProps } from './WorkbenchShell.js';
 
@@ -161,12 +161,15 @@ export function OpenViewColumn({
     // — but not one opened from another's group, nor one a host handed over
     // (a dashboard's follow-up, D22 H): its conditions are what it was
     // opened with, the applied bar says them, and an editor unfolded over
-    // them says them twice more (2026-09-23 audit).
+    // them says them twice more (2026-09-23 audit). A saved one opens folded,
+    // unless its author left a condition blank for the reader (`leftBlank`).
     fallback:
       defaultEditorOpen ??
-      (state?.saved === null &&
-        !workbench.held?.origin &&
-        !workbench.held?.handed),
+      (state?.saved
+        ? leftBlank(state.saved.config, filter.fields, filter.kinds)
+        : state?.saved === null &&
+          !workbench.held?.origin &&
+          !workbench.held?.handed),
     runtimeId: runtime?.id ?? null,
     onChange: onEditorOpenChange,
   });

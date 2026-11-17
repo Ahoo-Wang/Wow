@@ -583,12 +583,13 @@ export const TheValueStaysInsideItsPill: Story = {
   args: { instanceId: 'orders-rich', hostWidth: 420 },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    // A saved view opens with its editor folded.
-    await userEvent.click(
+    // The view holds a condition left blank (订单号), so it opens with its
+    // editor out (#6297).
+    await expect(
       await canvas.findByRole('button', {
         name: new RegExp(`^${zhCN['label.filter.panel']}`),
       }),
-    );
+    ).toHaveAttribute('aria-expanded', 'true');
     const host = canvasElement.querySelector<HTMLElement>('[data-pill-host]')!;
 
     // It mounts at the narrowest of the three and is widened from there: the

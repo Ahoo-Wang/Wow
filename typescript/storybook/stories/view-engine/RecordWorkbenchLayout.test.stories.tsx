@@ -14,6 +14,7 @@ import type { StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
 import { zhCN } from '@ahoo-wang/wow-view-engine/ui';
 import displayMeta, {
+  BlankConditionOpensOut as DisplayBlankConditionOpensOut,
   FillTheScreen as DisplayFillTheScreen,
   FillTheScreenInScaledHost as DisplayFillTheScreenInScaledHost,
   FillTheScreenInTransformedHost as DisplayFillTheScreenInTransformedHost,
@@ -108,6 +109,39 @@ export const BlockSpacing: Story = {
       '[data-slot="record-pagination"]',
     )!;
     await expect(getComputedStyle(pagination).borderTopWidth).toBe('1px');
+  },
+};
+
+/**
+ * A saved view whose author left conditions blank opens with them out, in a
+ * real browser and the real catalogue: the band is on the page, its toggle
+ * says so, and the two conditions waiting for a value are in it (#6297).
+ */
+export const BlankConditionOpensOut: Story = {
+  ...DisplayBlankConditionOpensOut,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole('table');
+
+    const toggle = canvas.getByRole('button', {
+      name: new RegExp(`^${zhCN['label.filter.panel']}`),
+    });
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    const band = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="editor-band"]',
+    );
+    await expect(band).not.toBeNull();
+    await expect(band!.textContent).toContain('状态');
+    await expect(band!.textContent).toContain('备注');
+
+    // Folded by the reader, it stays folded: theirs wins over the default.
+    await userEvent.click(toggle);
+    await waitFor(() =>
+      expect(
+        canvasElement.querySelector('[data-slot="editor-band"]'),
+      ).toBeNull(),
+    );
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
   },
 };
 
