@@ -229,12 +229,37 @@ internal class ServiceRouteHandling(
         override fun <T> body(type: KType): T {
             val bytes = body?.takeIf { it.isNotEmpty() }
                 ?: throw MalformedRouteRequestException(BODY, "The route takes a body, and the request has none.")
-            return try {
+            val value: T = try {
                 HttpJson.mapper.readValue(bytes, HttpJson.mapper.typeFactory.constructType(type.javaType))
             } catch (failure: tools.jackson.core.JacksonException) {
                 throw MalformedRouteRequestException(BODY, "The body does not read as the route's request.", failure)
             }
+            nullIn(value, type, "The body")?.let { where ->
+                throw MalformedRouteRequestException(BODY, "$where is null, which the route's request does not allow.")
+            }
+            return value
         }
+
+        /**
+         * Where [value] holds a null its Kotlin [type] allows none at, as a message names it: the value itself, or an
+         * element of a collection or an array, or a map's value, at any depth. The Java type the body is read as has
+         * no nullability, so Jackson reads such a null as it is; a null property of a class it reads refuses itself.
+         */
+        private fun nullIn(value: Any?, type: KType, where: String): String? {
+            if (value == null) return where.takeUnless { type.isMarkedNullable }
+            val element = type.arguments.lastOrNull()?.type ?: return null
+            return when (value) {
+                is Collection<*> -> elementIn(value.asIterable(), element, where)
+                is Array<*> -> elementIn(value.asIterable(), element, where)
+                is Map<*, *> -> value.entries.firstNotNullOfOrNull { (key, item) ->
+                    nullIn(item, element, "$where's $key")
+                }
+                else -> null
+            }
+        }
+
+        private fun elementIn(elements: Iterable<Any?>, type: KType, where: String): String? =
+            elements.withIndex().firstNotNullOfOrNull { (index, item) -> nullIn(item, type, "$where's element $index") }
 
         @Suppress("UNCHECKED_CAST")
         private fun <T : Any> read(name: String, what: String, value: String, type: KClass<T>): T {
