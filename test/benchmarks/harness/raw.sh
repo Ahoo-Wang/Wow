@@ -37,6 +37,7 @@ measure_raw() {
   if [ -z "$jar" ]; then log "$install has no ${main##*.}"; exit 3; fi
   trap down EXIT
   down
+  refuse_busy_ports || exit 2
   log "starting kafka and $BACKEND"
   stores_up "$BACKEND"
   pin_containers "$BACKEND"

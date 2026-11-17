@@ -55,10 +55,12 @@ export function anomalyTable(rows) {
 
 // A cluster run with a hand-over: bench.sh runs with its output teed to a log, and a helper waits for the load
 // generator's measured phase, stops the node on NODE_PORT (SIGTERM: a graceful stop, its partitions hand over),
-// and after DOWN seconds starts it again with its own command line, working directory and environment. The
-// restarted node is stopped once bench.sh is done (bench.sh only knows the pids it started). Every dealing with
-// the node goes through the process functions (HOST_PROCESSES) run before it; the script stops only its own helper
-// itself.
+// and after DOWN seconds starts it again with its own command line, working directory and environment. bench.sh
+// learns the restarted node's pid from WOW_BENCH_ADOPTED_PIDS (nodes.sh), so its `down` stops it before the stores
+// go: a node left running past them wrote into the next session's new stores (L4 run 44055712763). Should it still
+// live once bench.sh is done, the script stops it, kills it after STOP_WAIT seconds (30), and does not leave while it
+// lives. Every dealing with the node goes through the process functions (HOST_PROCESSES) run before it; the script
+// stops only its own helper itself.
 export const HANDOVER_SCRIPT = `
 set -uo pipefail
 bench=$1; shift
@@ -83,13 +85,18 @@ handover() {
 }
 handover >> "$RUN_DIR/handover.log" 2>&1 &
 helper=$!
-"$bench" "$@" 2>&1 | tee -a "$log"
+WOW_BENCH_ADOPTED_PIDS="$RUN_DIR/node-restarted.pid" "$bench" "$@" 2>&1 | tee -a "$log"
 status=\${PIPESTATUS[0]}
 kill "$helper" 2>/dev/null; wait "$helper" 2>/dev/null
 if [ -f "$RUN_DIR/node-restarted.pid" ]; then
   restarted=$(cat "$RUN_DIR/node-restarted.pid")
   signal TERM "$restarted" 2>/dev/null
-  for _ in $(seq 1 150); do signal 0 "$restarted" 2>/dev/null || break; sleep 0.2; done
+  for _ in $(seq 1 $((\${STOP_WAIT:-30} * 5))); do signal 0 "$restarted" 2>/dev/null || break; sleep 0.2; done
+  if signal 0 "$restarted" 2>/dev/null; then
+    echo "[handover] $(date +%s.%N) the restarted node (pid $restarted) did not stop: killing it" >> "$RUN_DIR/handover.log"
+    signal KILL "$restarted" 2>/dev/null
+    while signal 0 "$restarted" 2>/dev/null; do sleep 0.2; done
+  fi
 fi
 exit "$status"
 `;

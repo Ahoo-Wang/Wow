@@ -166,15 +166,12 @@ down() {
     SERVER_PIDS=($(. "$SESSION"; echo "$S_PIDS"))
     rm -f "$SESSION"
   fi
-  for pid in ${SERVER_PIDS[@]+"${SERVER_PIDS[@]}"}; do
-    kill "$pid" 2>/dev/null || true
-  done
-  for pid in ${SERVER_PIDS[@]+"${SERVER_PIDS[@]}"}; do
-    wait "$pid" 2>/dev/null || true
-    # A session's server is not this shell's child: wait until it is gone, at most 30 s.
-    local _
-    for _ in $(seq 1 150); do kill -0 "$pid" 2>/dev/null || break; sleep 0.2; done
-  done
+  # Every node goes before its stores, a hand-over's restarted one too (nodes.sh): a node left running past this
+  # writes into the next session's stores.
+  local adopted
+  adopted=$(adopted_pids)
+  # shellcheck disable=SC2086 # the adopted pids, one a word
+  stop_nodes ${SERVER_PIDS[@]+"${SERVER_PIDS[@]}"} $adopted
   compose down -v --remove-orphans >/dev/null 2>&1 || true
   docker rm -f "$CLICKHOUSE" "$ELASTICSEARCH" >/dev/null 2>&1 || true
 }
@@ -324,6 +321,7 @@ setup() {
   # that fails leaves no server behind.
   trap down EXIT
   down
+  refuse_busy_ports || exit 2
   local store=postgres
   if [ "$BACKEND" = mongo ]; then store=mongo; fi
   if uses_bus; then log "starting kafka and $store"; else log "starting $store (no bus)"; fi
@@ -529,6 +527,7 @@ component() {
   if [ -z "$jar" ]; then log "$install has no ComponentBench"; exit 3; fi
   trap down EXIT
   down
+  refuse_busy_ports || exit 2
   local store=postgres
   if [ "$BACKEND" = mongo ]; then store=mongo; fi
   log "starting kafka and $store"
@@ -550,6 +549,10 @@ component() {
 # The measure command and its programs.
 # shellcheck source=measure.sh
 . "$HARNESS/measure.sh"
+
+# The nodes' processes: stopped before their stores, and no session over a node an earlier one left.
+# shellcheck source=nodes.sh
+. "$HARNESS/nodes.sh"
 
 # The batch lock: one batch at a time on this machine's harness.
 # shellcheck source=lock.sh
