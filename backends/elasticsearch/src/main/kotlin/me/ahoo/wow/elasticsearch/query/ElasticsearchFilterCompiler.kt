@@ -42,6 +42,7 @@ import me.ahoo.wow.query.error.QueryExecutionException
 import me.ahoo.wow.query.resolve.ignoreCase
 import me.ahoo.wow.query.resolve.requiredOperandValue
 import me.ahoo.wow.query.schema.QueryCapability
+import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.query.schema.Temporal
 
 /**
@@ -260,17 +261,24 @@ internal object ElasticsearchFilterCompiler {
         }
 
     private const val DOCUMENT_ID_FIELD = "_id"
+    private const val DATE_BEYOND_MILLIS = "date operands beyond the epoch milliseconds a long holds"
 
     /**
      * [value], an operand of [reference], as Elasticsearch compares it: a date string ([Temporal.Date]) as its epoch
      * milliseconds, the form the normalizer gives a relative date. A `date` field parses an inclusive upper bound,
      * and a term, which is the range `[value, value]`, rounding up the fields a text lacks, so `…T00:00:00Z` would
      * hold the whole second (#6347). Any other operand, a text that names no instant among them, is sent as it is.
+     * An instant beyond the milliseconds a long holds, which a `date` field cannot store either, is refused.
      */
     private fun AdmittedQuery<*>.operand(reference: QueryField<*>, value: Any?): Any {
         val operand = value.requiredOperandValue()
         if (operand !is String || field(reference).temporal != Temporal.Date) return operand
-        return parseInstant(operand)?.toEpochMilli() ?: operand
+        val instant = parseInstant(operand) ?: return operand
+        return try {
+            instant.toEpochMilli()
+        } catch (_: ArithmeticException) {
+            throw QueryViolation.StorageUnsupported(DATE_BEYOND_MILLIS, reference).rejection()
+        }
     }
 
     private fun Any?.fieldValue(): FieldValue {

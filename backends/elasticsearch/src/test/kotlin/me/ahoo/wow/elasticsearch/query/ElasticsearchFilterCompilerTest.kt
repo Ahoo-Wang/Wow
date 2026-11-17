@@ -36,12 +36,15 @@ import me.ahoo.wow.api.query.*
 import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.api.query.dsl.filter
 import me.ahoo.wow.query.schema.QueryCapability
+import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryValueSchema
 import me.ahoo.wow.query.schema.QueryValueType
+import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.query.schema.Temporal
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.json.query.SnapshotFields
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import tools.jackson.databind.JsonNode
 import java.time.Instant
 
@@ -309,6 +312,19 @@ class ElasticsearchFilterCompilerTest {
     }
 
     @Test
+    fun `a date operand beyond the milliseconds a long holds is refused, not an internal error`() {
+        // ISO-8601 names instants to the year 1,000,000,000; a long of milliseconds ends in the year 292,278,994.
+        assertThrows<QuerySchemaValidationException> {
+            ElasticsearchFilterCompiler.compileAdmitted(EqualFilter(QueryField("state.day"), json(BEYOND_MILLIS)))
+        }.violation.assert().isEqualTo(
+            QueryViolation.StorageUnsupported(
+                "date operands beyond the epoch milliseconds a long holds",
+                QueryField("state.day"),
+            ),
+        )
+    }
+
+    @Test
     fun `element predicates compile the physical paths admission resolved`() {
         val query = ElasticsearchFilterCompiler.compileAdmitted(
             filter { "state.items".elementMatch { "name" eq "value" } },
@@ -329,6 +345,7 @@ class ElasticsearchFilterCompilerTest {
 
     companion object {
         private const val INSTANT = "2026-01-01T00:00:00Z"
+        private const val BEYOND_MILLIS = "+1000000000-01-01T00:00:00Z"
         private val ANY = QueryValueType("any")
 
         /** An admissible schema: `state.items` binds to another physical path to show compilers use resolutions. */
