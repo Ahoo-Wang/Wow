@@ -88,7 +88,7 @@ helm upgrade --install eshop-ordering oci://ghcr.io/ahoo-wang/wow-service --vers
   -f deploy/eshop-ordering/values.yaml --wait
 ```
 
-chart 也在 `oci://registry-1.docker.io/ahoowang/wow-service` 和 `oci://registry.cn-shanghai.aliyuncs.com/ahoo/wow-service`。它的 `values.schema.json` 只接受 chart 声明的键：拼错的键会让安装失败，正如节点拒绝它不认识的 `wow.*` 键。每个 value 的说明在 chart 的 [`values.yaml`](https://github.com/Ahoo-Wang/Wow/blob/main/deploy/helm/wow-service/values.yaml) 里；它的 [README](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/helm/wow-service) 列出它渲染的对象。
+chart 也在 `oci://registry-1.docker.io/ahoowang/wow-service`。它的 `values.schema.json` 只接受 chart 声明的键：拼错的键会让安装失败，正如节点拒绝它不认识的 `wow.*` 键。每个 value 的说明在 chart 的 [`values.yaml`](https://github.com/Ahoo-Wang/Wow/blob/main/deploy/helm/wow-service/values.yaml) 里；它的 [README](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/helm/wow-service) 列出它渲染的对象。
 
 ### 安装之前 {#before-you-install}
 

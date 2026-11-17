@@ -43,11 +43,12 @@ WAVES=(
   "eshop-basket"
 )
 
-# The registries a release publishes to (image-deploy.yml, chart-deploy.yml), as <images>|<charts>.
+# The registries a release publishes to (image-deploy.yml, chart-deploy.yml), as <images>|<charts>; no <charts> where
+# the chart is not pushed (Aliyun's registry refuses an OCI chart).
 REGISTRIES=(
   "docker.io/ahoowang|oci://registry-1.docker.io/ahoowang"
   "ghcr.io/ahoo-wang|oci://ghcr.io/ahoo-wang"
-  "registry.cn-shanghai.aliyuncs.com/ahoo|oci://registry.cn-shanghai.aliyuncs.com/ahoo"
+  "registry.cn-shanghai.aliyuncs.com/ahoo|"
 )
 CHART=oci://ghcr.io/ahoo-wang/wow-service
 

@@ -14,13 +14,13 @@
 # The Helm chart of a release (D395): deploy/helm/wow-service packaged at the
 # release's version, its Chart.yaml's version and appVersion (which
 # project-version.mjs holds to gradle.properties and the tag), and pushed as an
-# OCI chart where the server images go: GHCR (oci://ghcr.io/ahoo-wang), Docker
-# Hub (oci://registry-1.docker.io/ahoowang) and Aliyun
-# (oci://registry.cn-shanghai.aliyuncs.com/ahoo), with the images'
-# credentials. package-deploy.yml calls it beside image-deploy.yml once npm is
-# published; it can also be dispatched on a release tag to push the chart
-# again. An OCI chart has no moving tags: pre-releases and stable releases alike
-# are pushed under their version alone.
+# OCI chart to GHCR (oci://ghcr.io/ahoo-wang) and Docker Hub
+# (oci://registry-1.docker.io/ahoowang), with the images' credentials; Aliyun's
+# registry, which takes the images, refuses an OCI chart. package-deploy.yml
+# calls it beside image-deploy.yml once npm is published; it can also be
+# dispatched on a release tag to push the chart again. An OCI chart has no
+# moving tags: pre-releases and stable releases alike are pushed under their
+# version alone.
 name: Helm Chart Deploy
 on:
   workflow_call:
@@ -102,12 +102,3 @@ jobs:
         run: |
           helm registry login registry-1.docker.io --username "$USERNAME" --password-stdin <<<"$PASSWORD"
           helm push "$CHART" oci://registry-1.docker.io/ahoowang
-
-      - name: Push to AliyunCR
-        env:
-          CHART: ${{ steps.package.outputs.chart }}
-          USERNAME: ${{ secrets.ALIYUN_CR_USERNAME }}
-          PASSWORD: ${{ secrets.ALIYUN_CR_TOKEN }}
-        run: |
-          helm registry login registry.cn-shanghai.aliyuncs.com --username "$USERNAME" --password-stdin <<<"$PASSWORD"
-          helm push "$CHART" oci://registry.cn-shanghai.aliyuncs.com/ahoo
