@@ -32,8 +32,9 @@ import me.ahoo.wow.api.result.FrameworkCodes
  *   commands, the snapshot rebuild), and an aggregate keeps them as its one fragment declares them; a domain
  *   command never takes a system name, nor a system command a domain one;
  * - a schema key of `$defs` declared by two fragments holds the same schema in both (a type shared by two modules);
- * - a route, a method and a path, belongs to one command, one query model or one service route only, an aggregate
- *   lists a query model once, a context names a service route once, and no service route takes a reserved segment;
+ * - a route, a method and a path, belongs to one command, one query model or one service route only, two paths whose
+ *   variables alone are named apart (`{id}`, `{key}`) being one; an aggregate lists a query model once, a context
+ *   names a service route once, and no service route takes a reserved segment;
  * - a context publishes the state events of one of its own aggregates, each once, and a topic carries one aggregate's
  *   state events only, across all contexts;
  * - only a saga's subscription handles receipts, of rejections or of commits;
@@ -46,6 +47,9 @@ import me.ahoo.wow.api.result.FrameworkCodes
  * fragments always give the same Manifest, and carries the framework's error table ([FrameworkErrors.ALL]).
  */
 object ManifestMerger {
+    /** A path segment that is a template variable alone: `{id}`. */
+    private val VARIABLE = Regex("\\{[A-Za-z_][A-Za-z0-9_]*}")
+
     fun merge(fragments: List<ManifestFragment>, service: ServiceInfo? = null): Manifest {
         val conflicts = fragments.filter { it.manifest.format != Manifest.FORMAT }.map {
             "${it.source} is of format ${it.manifest.format}, not ${Manifest.FORMAT}"
@@ -263,13 +267,30 @@ object ManifestMerger {
                     "reserves"
             }
         }
-        val shared = (commandRoutes + queryRoutes + serviceRoutes).groupBy({ it.first }, { it.second })
+        val shared = (commandRoutes + queryRoutes + serviceRoutes).groupBy { (route) -> matched(route) }
             .filterValues { it.size > 1 }
-            .map { (route, owners) ->
-                "route ${route.method} ${route.path} is declared by ${owners.joinToString(" and ")}"
-            }
+            .map { (_, declared) -> shared(declared) }
         return names + reserved + reservedServiceRoutes + shared
     }
+
+    /** The conflict of routes [declared] by their owners that match the same requests. */
+    private fun shared(declared: List<Pair<RouteManifest, String>>): String {
+        val routes = declared.map { (route) -> route }.distinct()
+        if (routes.size == 1) {
+            val route = routes.single()
+            return "route ${route.method} ${route.path} is declared by ${declared.joinToString(" and ") { it.second }}"
+        }
+        return "routes ${routes.joinToString(" and ") { "${it.method} ${it.path}" }} match the same requests: " +
+            "declared by ${declared.joinToString(" and ") { (route, owner) -> "$owner as ${route.path}" }}"
+    }
+
+    /**
+     * What of [route] decides the requests it matches: its method and its template with each variable segment's name
+     * left out, since `/shop/lookup/{id}` and `/shop/lookup/{key}` match the same paths (#6284). A segment that is
+     * not a plain variable stays as it is written.
+     */
+    private fun matched(route: RouteManifest): Pair<String, String> =
+        route.method to route.path.split('/').joinToString("/") { if (VARIABLE.matches(it)) "{}" else it }
 
     /** A fragment's top-level errors that are not the framework's as [FrameworkErrors] defines them. */
     private fun frameworkErrorConflicts(fragment: ManifestFragment): List<String> =
