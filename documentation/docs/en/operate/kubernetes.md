@@ -88,7 +88,7 @@ helm upgrade --install eshop-ordering oci://ghcr.io/ahoo-wang/wow-service --vers
   -f deploy/eshop-ordering/values.yaml --wait
 ```
 
-The chart is also on `oci://registry-1.docker.io/ahoowang/wow-service` and `oci://registry.cn-shanghai.aliyuncs.com/ahoo/wow-service`. Its `values.schema.json` holds every value to the keys the chart declares: a misspelt key fails the install, as a node refuses a `wow.*` key it does not know. Every value is described in the chart's [`values.yaml`](https://github.com/Ahoo-Wang/Wow/blob/main/deploy/helm/wow-service/values.yaml); its [README](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/helm/wow-service) lists the objects it renders.
+The chart is also on `oci://registry-1.docker.io/ahoowang/wow-service`. Its `values.schema.json` holds every value to the keys the chart declares: a misspelt key fails the install, as a node refuses a `wow.*` key it does not know. Every value is described in the chart's [`values.yaml`](https://github.com/Ahoo-Wang/Wow/blob/main/deploy/helm/wow-service/values.yaml); its [README](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/helm/wow-service) lists the objects it renders.
 
 ### Before you install
 
