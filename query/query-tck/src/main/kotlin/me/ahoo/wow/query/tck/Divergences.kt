@@ -43,3 +43,6 @@ internal const val CANONICAL_SEMANTICS = "canonical semantics"
 
 /** The rule of a date bucket's start. */
 internal const val BUCKET_RULE = "bucket rule"
+
+/** The rule of a value's order: a number by its value, a date by its instant ([SnapshotValueComparisonCases]). */
+internal const val VALUE_ORDER = "value order"

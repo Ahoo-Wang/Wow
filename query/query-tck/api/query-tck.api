@@ -261,7 +261,7 @@ public final class me/ahoo/wow/query/tck/FilterSemantics {
 	public final fun getUNCOVERED ()Ljava/util/Map;
 }
 
-public abstract class me/ahoo/wow/query/tck/QueryBackendSpec : me/ahoo/wow/query/tck/SnapshotDateBucketCases {
+public abstract class me/ahoo/wow/query/tck/QueryBackendSpec : me/ahoo/wow/query/tck/SnapshotValueComparisonCases {
 	public static final field Companion Lme/ahoo/wow/query/tck/QueryBackendSpec$Companion;
 	public static final field DAY J
 	public static final field OTHER_TENANT Ljava/lang/String;
@@ -421,5 +421,25 @@ public abstract class me/ahoo/wow/query/tck/SnapshotRecordCases : me/ahoo/wow/qu
 	public final fun projection preserves scalar and object subtree semantics ()V
 	public final fun single exposes the snapshot record shape ()V
 	public final fun single returns the first record in sort order, or none ()V
+}
+
+public abstract class me/ahoo/wow/query/tck/SnapshotValueComparisonCases : me/ahoo/wow/query/tck/SnapshotDateBucketCases {
+	public static final field Companion Lme/ahoo/wow/query/tck/SnapshotValueComparisonCases$Companion;
+	public static final field DATE_EQUALITY Ljava/lang/String;
+	public static final field DATE_RANGE Ljava/lang/String;
+	public final fun PREVIOUS pairs a group with the earlier one whose number is the same in another width ()V
+	public final fun TOTAL, RUNNING and RANK within a number partition its widths together ()V
+	public final fun a RUNNING total over date groups accumulates by instant ()V
+	public final fun a date's TERMS groups and DISTINCT_COUNT count every text of its instant once ()V
+	public final fun a date's equality and membership match every text of its instant ()V
+	public final fun a date's range holds every text of its instant, and a millisecond later apart ()V
+	public final fun a list sorted by a date orders by instant ()V
+	public final fun a number's TERMS groups and DISTINCT_COUNT count it once in every width ()V
+	public final fun a number's equality and membership match it in every width ()V
+	public final fun a top-N by a FIRST or LAST date picks the earlier instant ()V
+	public final fun a top-N by a FIRST or LAST number orders it by value across widths ()V
+}
+
+public final class me/ahoo/wow/query/tck/SnapshotValueComparisonCases$Companion {
 }
 
