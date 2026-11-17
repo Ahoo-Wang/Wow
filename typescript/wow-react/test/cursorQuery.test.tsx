@@ -157,6 +157,84 @@ describe('useCursorQuery', () => {
     expect(result.current.items).toEqual([o3]);
   });
 
+  /**
+   * The old query's run read its page, then went on working on it (data
+   * filled in, a cache written) after the runner aborted it for a new
+   * query: its execute ignores the signal from there, as an executor may.
+   */
+  function renderHeldOldRun(server: FakeServer) {
+    const entered = deferred<void>();
+    const postprocess = deferred<void>();
+    const client = new QueryModelClient<Row>('/shop/order/snapshot/query', {
+      fetcher: server.fetcher,
+    });
+    const hook = renderHook(
+      ({ query }: { query: typeof paid }) =>
+        useCursorQuery<Row>({
+          query,
+          execute: async (q, options) => {
+            const page = await client.cursor(q, options);
+            if (q.filter === paid.filter) {
+              entered.resolve();
+              await postprocess.promise;
+            }
+            return page;
+          },
+        }),
+      { initialProps: { query: paid } },
+    );
+    return { ...hook, entered, postprocess };
+  }
+
+  it('reads on from a new query while a cancelled run of the old one is still working (#6268)', async () => {
+    const server = fakeServer(request =>
+      (request.body as { cursor: string | null }).cursor === null
+        ? json({ list: [o1, o2], nextCursor: 'next' })
+        : json({ list: [o3], nextCursor: null }),
+    );
+    const { result, rerender, entered, postprocess } = renderHeldOldRun(server);
+    try {
+      await act(() => entered.promise);
+      rerender({ query: shipped });
+      await waitFor(() => expect(result.current.status).toBe('success'));
+      expect(result.current.loading).toBe(false);
+      expect(result.current.hasMore).toBe(true);
+      await act(() => result.current.fetchNext());
+      expect(cursors(server)).toEqual([null, null, 'next']);
+      expect(result.current.items).toEqual([o1, o2, o3]);
+    } finally {
+      postprocess.resolve();
+    }
+  });
+
+  it('keeps a page in flight busy when a cancelled run of the old query ends meanwhile (#6268)', async () => {
+    const second = deferred<Response>();
+    const server = fakeServer(request =>
+      (request.body as { cursor: string | null }).cursor === null
+        ? json({ list: [o1, o2], nextCursor: 'next' })
+        : second.promise,
+    );
+    const { result, rerender, entered, postprocess } = renderHeldOldRun(server);
+    await act(() => entered.promise);
+    rerender({ query: shipped });
+    await waitFor(() => expect(result.current.hasMore).toBe(true));
+    let first!: Promise<void>;
+    act(() => {
+      first = result.current.fetchNext();
+    });
+    // The old run ends while the new query's next page is in flight: it must
+    // not free the hook for a second request of that page.
+    await act(async () => {
+      postprocess.resolve();
+      await postprocess.promise;
+    });
+    await act(() => result.current.fetchNext());
+    expect(cursors(server)).toEqual([null, null, 'next']);
+    second.resolve(json({ list: [o3], nextCursor: null }));
+    await act(() => first);
+    expect(result.current.items).toEqual([o1, o2, o3]);
+  });
+
   it('starts again from the first page when the query changes, and on execute()', async () => {
     const server = fakeServer(twoPages);
     const { result, rerender } = render(server);
