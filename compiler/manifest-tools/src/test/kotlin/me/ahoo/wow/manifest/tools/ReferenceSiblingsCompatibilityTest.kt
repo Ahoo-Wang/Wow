@@ -115,6 +115,59 @@ class ReferenceSiblingsCompatibilityTest {
     }
 
     @Test
+    fun `a definition upper bound lowered beside a weaker sibling bound should break`() {
+        val old = mapOf("type" to "number", "maximum" to 20)
+        changes(old, old + ("maximum" to 10), mapOf("maximum" to 100)).breaking.assert().isNotEmpty()
+    }
+
+    @Test
+    fun `a bound that is not a number should hold beside the other, not in its place`() {
+        changes(number(10), number(20), mapOf("minimum" to "0")).breaking.assert().isNotEmpty()
+        val written = mapOf("type" to "number", "minimum" to "10")
+        changes(written, written + ("minimum" to "20"), mapOf("minimum" to 0)).breaking.assert().isNotEmpty()
+    }
+
+    @Test
+    fun `the members of allOf on both sides should all hold`() {
+        val old = mapOf("allOf" to listOf(number(10)))
+        val new = mapOf("allOf" to listOf(number(20)))
+        changes(old, new, mapOf("allOf" to listOf(mapOf("minimum" to 0)))).breaking.assert().isNotEmpty()
+    }
+
+    @Test
+    fun `the names a definition requires should hold beside those its reference requires`() {
+        val properties = listOf("a", "b", "c").associateWith { mapOf("type" to "string") }
+        val old = mapOf("type" to "object", "properties" to properties, "required" to listOf("a"))
+        changes(old, old + ("required" to listOf("a", "b")), mapOf("required" to listOf("c")))
+            .breaking.map { it.description }.assert().containsExactly("field made required")
+    }
+
+    @Test
+    fun `a property both declare should hold as both, the definition's changes compared`() {
+        val shape = { minimum: Int -> mapOf("type" to "object", "properties" to mapOf("x" to number(minimum))) }
+        val siblings = mapOf("properties" to mapOf("x" to mapOf("minimum" to 0)))
+        changes(shape(10), shape(20), siblings).breaking.assert().isNotEmpty()
+    }
+
+    @Test
+    fun `a discriminator beside a reference should be compared as its own`() {
+        val definition = mapOf("type" to "object")
+        val kind = { value: String ->
+            mapOf("properties" to mapOf("kind" to mapOf("const" to value)), "required" to listOf("kind"))
+        }
+        changes(definition, definition, kind("card")).changes.assert().isEmpty()
+        ManifestCompatibility.compare(manifest(definition, kind("card")), manifest(definition, kind("bank")))
+            .breaking.assert().isNotEmpty()
+    }
+
+    @Test
+    fun `an annotation or a Wow keyword beside a reference should take the definition's place`() {
+        val old = number(10) + ("description" to "a value") + ("x-wow-mask" to "partial")
+        val new = number(10) + ("description" to "another") + ("x-wow-mask" to "full")
+        changes(old, new, mapOf("description" to "this value", "x-wow-mask" to "none")).changes.assert().isEmpty()
+    }
+
+    @Test
     fun `the same definition and siblings should be no change`() {
         changes(number(10), number(10), mapOf("minimum" to 0)).changes.assert().isEmpty()
     }
