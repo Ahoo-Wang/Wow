@@ -418,6 +418,20 @@ class MongoSnapshotStore(
         collectionOf(ref.type.name).find(keyFilter(ref)).first()?.let { snapshotOf(ref.type, it) }
     }
 
+    /** Each aggregate type's snapshots of [refs] with one `find` of its collection by `_id`. */
+    override suspend fun loadAll(refs: Collection<AggregateRef>): Map<AggregateRef, SnapshotRecord> =
+        if (refs.isEmpty()) {
+            emptyMap()
+        } else {
+            dispatcher.mongoRead {
+                refs.distinct().groupBy { it.type }.flatMap { (type, own) ->
+                    require(type.context == context) { "$type is not in context $context." }
+                    collectionOf(type.name).find(Filters.`in`(ID, own.map { keyOf(it) })).into(ArrayList())
+                        .map { snapshotOf(type, it) }
+                }.associateBy { it.ref }
+            }
+        }
+
     private fun keyFilter(ref: AggregateRef): Bson = Filters.and(
         Filters.eq(ID, keyOf(ref)),
         Filters.eq(TENANT_ID, ref.tenantId),
