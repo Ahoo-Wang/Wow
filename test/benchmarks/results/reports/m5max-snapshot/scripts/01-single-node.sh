@@ -1,10 +1,17 @@
 #!/usr/bin/env bash
 #
 # The single-node ceilings on disk: one session per backend (100,000 accounts, primed, 1 GB heap), in it closed-loop
-# sweeps from 1 to 4,096 clients of E1 with uniform keys, Zipf keys and one hot account, then of E3 with uniform keys.
-# Each E1 sweep goes on past 4,096 clients until its throughput stops rising: 4,096 again (the noise band) and 8,192,
-# then 12,288 if 8,192 failed 1% of its commands or less, still rose past the band, and 12,288 fits the client's
-# ephemeral ports (`summarize.py --peak`, whose verdict is <sweep>-peak.md: e1-peak.md, e1-zipf-peak.md, e1-hot-peak.md).
+# sweeps from 1 to 4,096 clients of E1 with uniform keys, then of E3 with uniform keys, then of E1 with Zipf keys and
+# with one hot account. Each E1 sweep goes on past 4,096 clients until its throughput stops rising: 4,096 again (the
+# noise band) and 8,192, then 12,288 if 8,192 failed 1% of its commands or less, still rose past the band, and 12,288
+# fits the client's ephemeral ports (`summarize.py --peak`, whose verdict is <sweep>-peak.md: e1-peak.md,
+# e1-zipf-peak.md, e1-hot-peak.md). A sweep whose 4,096-client step already failed more than 1% goes no further: no step
+# past it can be a peak.
+#
+# The order is E1, E3, Zipf, hot since 2026-11-17 (before, E1, Zipf, hot, E3, with every sweep's top run). The Zipf
+# and hot sweeps end in a step that fails heavily, which leaves the node working off a backlog the next sweep's settle
+# waits for (up to 3 min); run last, the hot sweep's backlog ends with the session. A step of this order ran after
+# other neighbours than the same step of an earlier report: compare the two knowing it.
 #
 #   01-single-node.sh [postgres] [mongo]     (both by default; one of them reruns its session)
 #
@@ -29,6 +36,15 @@ e1_to_limit() {
   last=$(python3 -I -c 'import json, sys; print(json.load(open(sys.argv[1]))["steps"][-1]["concurrency"])' \
     "$dir/$name-sweep/saturation.json" 2>/dev/null)
   if [ "$last" != 4096 ]; then say "the $name sweep ended at ${last:-no step}; no steps past it"; return 0; fi
+  local failed
+  failed=$(python3 -I -c 'import json, sys; s = json.load(open(sys.argv[1]))["steps"][-1]; e = sum(s["errors"].values())
+print("yes" if e and e / (e + s["ok"]) > 0.01 else "no")' "$dir/$name-sweep/saturation.json" 2>/dev/null)
+  if [ "$failed" = yes ]; then
+    say "the $name sweep's 4,096-client step failed more than 1%; no steps past it can be a peak"
+    python3 -I "$LIB_DIR/summarize.py" --peak --ports="$PORTS_EPHEMERAL" "$dir/$name-sweep" >"$dir/$name-peak.md"
+    say "$name: $(head -1 "$dir/$name-peak.md")"
+    return 0
+  fi
   measure_sweep "$dir/$name-top" "$@" --scenario=E1 \
     --sweep --growth=2 --start-concurrency=4096 --max-concurrency=8192 --step=30 --warm-up=10
   local measured=("$dir/$name-sweep" "$dir/$name-top") next
@@ -49,9 +65,9 @@ single_node() {
   local C=(--backend="$backend" --accounts="$ACCOUNTS" --heap=1g ${INSTALL_ARGS[@]+"${INSTALL_ARGS[@]}"})
   session_up "$dir" "${C[@]}" || return 1
   e1_to_limit "$dir" e1 "${C[@]}" --distribution=uniform
+  measure_sweep "$dir/e3-sweep" "${C[@]}" --scenario=E3 --distribution=uniform "${SWEEP[@]}"
   e1_to_limit "$dir" e1-zipf "${C[@]}" --distribution=zipf
   e1_to_limit "$dir" e1-hot "${C[@]}" --distribution=hot --hot-keys=1
-  measure_sweep "$dir/e3-sweep" "${C[@]}" --scenario=E3 --distribution=uniform "${SWEEP[@]}"
   session_down "$dir"
 }
 
