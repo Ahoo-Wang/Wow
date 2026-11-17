@@ -82,8 +82,10 @@ class ClickHouseDatasetOptions @InternalWowApi constructor(
     val metadataTtl: Duration = Duration.ofMinutes(1),
     /**
      * Server settings every statement runs under, such as `max_memory_usage` or `max_rows_to_read`: ClickHouse fails
-     * a query over such a limit rather than truncating it. The execution time comes from each query's budget
-     * (`AdmittedQuery.timeout`), not from here.
+     * a query over such a limit rather than truncating it. Refused: the execution time, which comes from each query's
+     * budget (`AdmittedQuery.timeout`); a setting that decides how rows are written (`output_format_*` and those Wow
+     * sets itself), which Wow's reading relies on; and an overflow mode other than `throw` (`result_overflow_mode`,
+     * `read_overflow_mode`, ...), which answers part of a result as if it were all of it.
      */
     val settings: Map<String, String> = emptyMap(),
 ) {
@@ -92,6 +94,16 @@ class ClickHouseDatasetOptions @InternalWowApi constructor(
         require(!metadataTtl.isNegative) { "metadataTtl must not be negative." }
         require(settings.keys.none { it in ClickHouseExecutor.timeoutSettings(Duration.ofSeconds(1)).keys }) {
             "The execution time comes from each query's budget, not from settings."
+        }
+        settings.forEach { (name, value) ->
+            require(name !in ClickHouseExecutor.OWN_SETTINGS && !name.startsWith(OUTPUT_FORMAT)) {
+                "ClickHouse setting [$name] decides how a dataset's rows are written, which Wow reads: " +
+                    "Wow sets it itself; leave it out of the dataset settings."
+            }
+            require(OVERFLOW_MODE !in name || value.equals(THROW, ignoreCase = true)) {
+                "ClickHouse setting [$name=$value] answers a query over its limit with part of the result as if it " +
+                    "were all of it: set it to [$THROW] or leave it out, so the query fails instead."
+            }
         }
     }
 
@@ -104,4 +116,10 @@ class ClickHouseDatasetOptions @InternalWowApi constructor(
         "ClickHouseDatasetOptions(database=$database, metadataTtl=$metadataTtl, settings=$settings)"
 
     private fun valueFields(): List<Any?> = listOf(database, metadataTtl, settings)
+
+    private companion object {
+        const val OUTPUT_FORMAT = "output_format_"
+        const val OVERFLOW_MODE = "_overflow_mode"
+        const val THROW = "throw"
+    }
 }

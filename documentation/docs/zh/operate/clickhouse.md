@@ -475,7 +475,7 @@ Sink 为它保存的每张表，在数据库的 `wow_catalog` 中追加一行，
 
 ## 数据集 {#datasets}
 
-服务在它的表之上声明数据集（`META-INF/wow/dataset/<context>.<dataset>.json`），节点在 ClickHouse 中查询它们：例如 ordering 基于它的订单的销售数据集。`wow.clickhouse.query.enabled` 提供它们，默认打开；`wow.clickhouse.query.settings.<name>` 设置每个数据集查询运行时的 ClickHouse 设置，例如 `max_memory_usage`。`wow.query.dataset.max-concurrent` 限制同时运行的数量，这样分析查询就不会占满 Sink 正在写入的数仓。
+服务在它的表之上声明数据集（`META-INF/wow/dataset/<context>.<dataset>.json`），节点在 ClickHouse 中查询它们：例如 ordering 基于它的订单的销售数据集。`wow.clickhouse.query.enabled` 提供它们，默认打开；`wow.clickhouse.query.settings.<name>` 设置每个数据集查询运行时的 ClickHouse 设置，例如 `max_memory_usage`。有三类设置会被拒绝，节点不会启动，并指出是哪个设置：执行时间，它来自每个查询的预算；决定行如何写出的设置（`output_format_*`、`date_time_output_format` 以及 Wow 自己设置的其他设置），因为 Wow 要读取这些行；以及非 `throw` 的溢出模式（例如 `result_overflow_mode=break`），它会把部分结果当作全部结果返回。溢出模式保持 `throw` 的限制则让查询失败。`wow.query.dataset.max-concurrent` 限制同时运行的数量，这样分析查询就不会占满 Sink 正在写入的数仓。
 
 ClickHouse 无法连接或不能写入时（连接被拒绝或超时、存活副本过少），数据集查询以 503 和 `Retry-After` 回答 `wow.storage.unavailable`，Sink 的订阅暂停它的分区直到 ClickHouse 恢复，不会搁置任何聚合。ClickHouse 达到容量时（同时运行的查询过多、没有空闲连接），查询同样这样回答，Sink 则限流它的分区并退避重试，只有用完背压预算（`wow.subscription.backpressure.max-attempts`）才搁置聚合。
 

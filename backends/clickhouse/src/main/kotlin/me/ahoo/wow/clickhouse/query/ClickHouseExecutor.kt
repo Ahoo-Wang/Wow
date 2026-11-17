@@ -184,6 +184,9 @@ internal class ClickHouseExecutor(
             "http_write_exception_in_output_format" to "0",
         )
 
+        /** The settings that decide how a statement writes its rows and computes dates, which no configuration sets. */
+        val OWN_SETTINGS: Set<String> = OUTPUT_SETTINGS.keys + DATE_SETTINGS.keys
+
         /** `max_execution_time` of [timeout] in whole seconds, rounded up and at least 1, since `0` means unlimited. */
         fun timeoutSettings(timeout: Duration?): Map<String, String> {
             if (timeout == null) return emptyMap()
