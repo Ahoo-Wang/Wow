@@ -74,6 +74,24 @@ if (inBrowser) {
 }
 
 /**
+ * The page's `localStorage` and `sessionStorage`, as a browser has them. From
+ * Node 25 on, Node puts Web Storage on the global itself, and without
+ * `--localstorage-file` its `localStorage` is `undefined`. Vitest's jsdom
+ * environment copies a window property over one the global already has only
+ * when its own list names it, and that list names `Storage` but neither
+ * storage, so on Node 25 and later a suite would read Node's empty slot
+ * where Node 24 gives it jsdom's. Each storage is jsdom's here, whichever
+ * Node runs the suite.
+ */
+const page = (globalThis as { jsdom?: { window: Window } }).jsdom?.window;
+if (inBrowser && page)
+  for (const name of ['localStorage', 'sessionStorage'] as const)
+    Object.defineProperty(globalThis, name, {
+      configurable: true,
+      get: () => page[name],
+    });
+
+/**
  * jsdom has no `matchMedia`. The suites run as a reader who asked for
  * less motion: a chart's marks then land where they belong at once
  * (`useChartMotion`) instead of growing over frames that a busy machine
