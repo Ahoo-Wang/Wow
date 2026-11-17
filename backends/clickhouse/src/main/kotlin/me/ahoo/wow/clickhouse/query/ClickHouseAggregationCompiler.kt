@@ -38,9 +38,10 @@ import java.time.Duration
  * WHERE isNotNull(__g0) AND <having> ORDER BY `orders` DESC NULLS LAST, `city` ASC NULLS FIRST LIMIT 10
  * ```
  *
- * The inner query uses internal aliases, so a metric alias that equals a column name never shadows the column in
+ * The inner query uses names of its own, so a metric alias that equals a column name never shadows the column in
  * `WHERE` or in another metric (ClickHouse resolves aliases before columns); the outer query renames, derives,
- * filters by HAVING, sorts and limits. HAVING compares in IEEE double space, and a NULL metric satisfies no
+ * filters by HAVING, sorts and limits. Those own names (`__g0`, `__m0`) avoid every column of the table and every
+ * alias of the query ([ClickHouseTable.ownName]): a column or an alias named like one is never replaced by it. HAVING compares in IEEE double space, and a NULL metric satisfies no
  * comparison, as the protocol says. Windows and dense fill are the core's (`StorageSupport` RESIDUAL): they never
  * arrive here.
  */
@@ -53,32 +54,35 @@ internal class ClickHouseAggregationCompiler(
     private val parameters = SqlParameters()
     private val filters = ClickHouseFilterCompiler(admitted, table, parameters, access)
     private val query = admitted.query
+    private val aliases: Set<String> = (query.groupBy.map { it.alias } + query.metrics.map { it.alias }).toSet()
+    private val groupNames: List<String> = query.groupBy.indices.map { table.ownName("__g$it", aliases) }
+    private val metricNames: List<String> = query.metrics.indices.map { table.ownName("__m$it", aliases) }
 
     fun compile(window: GroupWindow): ClickHouseStatement {
         if (query.elements.isNotEmpty()) throw QueryViolation.StorageUnsupported("element scopes").rejection()
         val inner = buildList {
-            query.groupBy.forEachIndexed { index, group -> add("${group(group)} AS ${group(index)}") }
+            query.groupBy.forEachIndexed { index, group -> add("${group(group)} AS ${groupNames[index]}") }
             query.metrics.forEachIndexed { index, metric ->
-                if (metric !is AggregationMetric.Derived) add("${metric(metric)} AS ${metric(index)}")
+                if (metric !is AggregationMetric.Derived) add("${metric(metric)} AS ${metricNames[index]}")
             }
         }
         val outer = buildList {
-            query.groupBy.forEachIndexed { index, group -> add("${group(index)} AS ${quoteIdentifier(group.alias)}") }
+            query.groupBy.zip(groupNames) { group, name -> add("$name AS ${quoteIdentifier(group.alias)}") }
             query.metrics.forEachIndexed { index, metric ->
-                val value = if (metric is AggregationMetric.Derived) derived(metric.expression) else metric(index)
+                val value = if (metric is AggregationMetric.Derived) derived(metric.expression) else metricNames[index]
                 add("$value AS ${quoteIdentifier(metric.alias)}")
             }
         }
         val conditions = query.groupBy.withIndex()
             .filter { (_, group) -> group.dropsMissingKeys() }
-            .map { "isNotNull(${group(it.index)})" } + listOfNotNull(query.having?.let(::having))
+            .map { "isNotNull(${groupNames[it.index]})" } + listOfNotNull(query.having?.let(::having))
         val sql = buildString {
             append("SELECT ").append(outer.joinToString(", "))
             append(" FROM (SELECT ").append(inner.joinToString(", "))
             append(" FROM ").append(source)
             append(" WHERE ").append(filters.compile(query.filter))
             if (query.groupBy.isNotEmpty()) {
-                append(" GROUP BY ").append(query.groupBy.indices.joinToString(", ") { group(it) })
+                append(" GROUP BY ").append(groupNames.joinToString(", "))
             }
             append(")")
             if (conditions.isNotEmpty()) append(" WHERE ").append(conditions.joinToString(" AND "))
@@ -224,7 +228,7 @@ internal class ClickHouseAggregationCompiler(
             when (val metric = query.metrics[index]) {
                 // A derived metric has no inner column: its arithmetic is inlined.
                 is AggregationMetric.Derived -> derived(metric.expression)
-                else -> "toFloat64(${metric(index)})"
+                else -> "toFloat64(${metricNames[index]})"
             }
         }
         is DerivedExpression.Constant -> expression.value.sqlLiteral()
@@ -260,10 +264,6 @@ internal class ClickHouseAggregationCompiler(
         const val PERCENT = 100.0
         const val SECONDS_PER_HOUR = 3600
         const val SECONDS_PER_MINUTE = 60
-
-        fun group(index: Int): String = "__g$index"
-
-        fun metric(index: Int): String = "__m$index"
 
         fun AggregationFunction.native(): String = when (this) {
             AggregationFunction.SUM -> "sum"

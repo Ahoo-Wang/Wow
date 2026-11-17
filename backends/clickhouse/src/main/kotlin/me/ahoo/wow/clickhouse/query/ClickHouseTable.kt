@@ -135,6 +135,14 @@ internal class ClickHouseTable(
     fun column(name: String): TypedColumn =
         columns[name] ?: throw QueryExecutionException("Column [$name] is not in table [$database.${this.name}].")
 
+    /**
+     * What a statement names a column it selects for itself: [name], or that name with leading underscores added until
+     * it names no column of this table and none of the [taken] names, so it never replaces either. ClickHouse
+     * resolves an alias before a column, quoted or not.
+     */
+    fun ownName(name: String, taken: Set<String> = emptySet()): String =
+        generateSequence(name) { "_$it" }.first { it !in columns && it !in taken }
+
     override fun toString(): String = "ClickHouseTable($database.$name, $engine)"
 
     private companion object {
