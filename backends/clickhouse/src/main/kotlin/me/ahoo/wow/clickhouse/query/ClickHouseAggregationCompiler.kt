@@ -23,6 +23,7 @@ import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.DerivedExpression
 import me.ahoo.wow.api.query.HavingExpression
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.query.admission.AdmittedQuery
 import me.ahoo.wow.query.backend.GroupWindow
 import me.ahoo.wow.query.error.QueryExecutionException
@@ -43,9 +44,10 @@ import java.time.Duration
  * filters by HAVING, sorts and limits. Those own names (`__g0`, `__m0`) avoid every column of the table and every
  * alias of the query ([ClickHouseTable.ownName]): a column or an alias named like one is never replaced by it. HAVING
  * compares in IEEE double space, and a NULL metric satisfies no comparison, as the protocol says. A metric is its
- * exact value or the query fails: an integer column's SUM and AVG accumulate in a wider integer, and a metric
- * computed in floating point that left the double range fails the statement instead of reaching the result as the
- * `NULL` an empty set has. Windows and dense fill are the core's (`StorageSupport` RESIDUAL): they never arrive here.
+ * exact value or the query fails: an integer column's SUM and AVG never wrap, and a metric computed in floating point
+ * that left the double range fails the statement instead of reaching the result as the `NULL` an empty set has.
+ * Windows and dense fill are the core's (`StorageSupport` RESIDUAL): they never
+ * arrive here.
  */
 internal class ClickHouseAggregationCompiler(
     private val admitted: AdmittedQuery<AggregationQuery>,
@@ -60,6 +62,11 @@ internal class ClickHouseAggregationCompiler(
     private val groupNames: List<String> = query.groupBy.indices.map { table.ownName("__g$it", aliases) }
     private val metricNames: List<String> = query.metrics.indices.map { table.ownName("__m$it", aliases) }
 
+    /** The inner column counting a group's rows, when a narrow integer sum needs its bound ([bounded]). */
+    private val rowsName: String? = table.ownName("__rows", aliases).takeIf {
+        query.metrics.any { it is AggregationMetric.Numeric && it.narrowSum() }
+    }
+
     fun compile(window: GroupWindow): ClickHouseStatement {
         if (query.elements.isNotEmpty()) throw QueryViolation.StorageUnsupported("element scopes").rejection()
         val inner = buildList {
@@ -67,6 +74,7 @@ internal class ClickHouseAggregationCompiler(
             query.metrics.forEachIndexed { index, metric ->
                 if (metric !is AggregationMetric.Derived) add("${metric(metric)} AS ${metricNames[index]}")
             }
+            rowsName?.let { add("count() AS $it") }
         }
         val outer = buildList {
             query.groupBy.zip(groupNames) { group, name -> add("$name AS ${quoteIdentifier(group.alias)}") }
@@ -78,7 +86,7 @@ internal class ClickHouseAggregationCompiler(
         val conditions = query.groupBy.withIndex()
             .filter { (_, group) -> group.dropsMissingKeys() }
             .map { "isNotNull(${groupNames[it.index]})" } +
-            listOfNotNull(query.having?.let(::having), finite())
+            listOfNotNull(query.having?.let(::having), finite(), bounded())
         val sql = buildString {
             append("SELECT ").append(outer.joinToString(", "))
             append(" FROM (SELECT ").append(inner.joinToString(", "))
@@ -216,16 +224,37 @@ internal class ClickHouseAggregationCompiler(
     }
 
     /**
-     * A Numeric metric's input: its [nativeInput], except that SUM and AVG of an integer column accumulate in a wider
-     * integer ([accumulated]).
+     * A Numeric metric's input: its [nativeInput], except that SUM and AVG of an integer column wider than
+     * [NARROW_BITS] accumulate in a wider integer ([accumulated]).
      */
     private fun AggregationMetric.Numeric.input(): String {
+        val (field, column) = integerSummed() ?: return expression.nativeInput()
+        val native = filters.column(field)
+        return if (column.bits() > NARROW_BITS) accumulated(column, native) else native
+    }
+
+    /** The field and the column of a SUM or AVG of an integer column, or null. */
+    private fun AggregationMetric.Numeric.integerSummed(): Pair<QueryField<*>, TypedColumn>? {
         val input = expression
         val accumulates = function == AggregationFunction.SUM || function == AggregationFunction.AVG
-        if (input !is AggregationExpression.Field || !accumulates) return input.nativeInput()
+        if (input !is AggregationExpression.Field || !accumulates) return null
         val column = filters.columnOf(input.field)
-        val native = filters.column(input.field)
-        return if (column.family == ClickHouseTypeFamily.INTEGER) accumulated(column, native) else native
+        return if (column.family == ClickHouseTypeFamily.INTEGER) input.field to column else null
+    }
+
+    /** Whether this sums an integer column of [NARROW_BITS] or fewer natively, under the bound of [bounded]. */
+    private fun AggregationMetric.Numeric.narrowSum(): Boolean =
+        integerSummed()?.let { (_, column) -> column.bits() <= NARROW_BITS } == true
+
+    /**
+     * The bound of the native SUM and AVG of an integer column of [NARROW_BITS] or fewer, which ClickHouse
+     * accumulates in 64 bits: n values of at most 2^31 in magnitude (2^32 - 1 unsigned) stay within `Int64`
+     * (`UInt64`) while n is at most 2^32, since 2^32 * -2^31 = -2^63, 2^32 * (2^31 - 1) < 2^63 and
+     * 2^32 * (2^32 - 1) < 2^64. A group the query keeps of more rows fails the statement (`throwIf`) instead of
+     * widening every such sum for a group no table is likely to hold.
+     */
+    private fun bounded(): String? = rowsName?.let {
+        "throwIf($it > $NARROW_ROWS, 'A group holds more rows than its integer sum is exact for.') = 0"
     }
 
     /**
@@ -295,22 +324,25 @@ internal class ClickHouseAggregationCompiler(
         const val PERCENT = 100.0
         const val SECONDS_PER_HOUR = 3600
         const val SECONDS_PER_MINUTE = 60
+        const val NARROW_BITS = 32
         const val NATIVE_BITS = 64
         const val MAX_BITS = 256
 
+        /** The most rows a group may hold while a native sum of a column of [NARROW_BITS] or fewer is exact: 2^32. */
+        const val NARROW_ROWS = 4_294_967_296L
+
+        /** `Int64`, `UInt128`: the digits of an integer type are its bits. */
+        fun TypedColumn.bits(): Int = baseType.filter(Char::isDigit).toInt()
+
         /**
-         * An integer [column]'s [input] widened to twice the bits ClickHouse sums it in (64 for a column of up to 64
-         * bits, the column's own from 128), so no sum of the rows a table can hold wraps; a 256-bit column has no wider
-         * type and keeps its own.
+         * An integer [column]'s [input] widened to twice the bits ClickHouse sums it in, its own: 128 for a 64-bit
+         * column, 256 for a 128-bit one, where one row can already be at the edge of the sum's type. A 256-bit column
+         * has no wider type and keeps its own.
          */
-        fun accumulated(column: TypedColumn, input: String): String {
-            // `Int64`, `UInt128`: the digits of an integer type are its bits.
-            val bits = column.baseType.filter(Char::isDigit).toInt()
-            return when {
-                bits <= NATIVE_BITS -> "toInt128($input)"
-                bits < MAX_BITS -> "toInt256($input)"
-                else -> input
-            }
+        fun accumulated(column: TypedColumn, input: String): String = when {
+            column.bits() <= NATIVE_BITS -> "toInt128($input)"
+            column.bits() < MAX_BITS -> "toInt256($input)"
+            else -> input
         }
 
         fun AggregationFunction.native(): String = when (this) {

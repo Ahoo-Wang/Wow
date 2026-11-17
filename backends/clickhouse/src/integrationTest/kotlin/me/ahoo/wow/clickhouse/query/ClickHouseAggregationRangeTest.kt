@@ -51,6 +51,16 @@ class ClickHouseAggregationRangeTest {
     }
 
     @Test
+    fun `the native sum and mean of Int32 and UInt32 values past their range should be exact`(): Unit = runBlocking {
+        val signed = aggregate("range_int32", "Int32", listOf("2147483647", "2147483647")).getOrThrow()
+        signed.path("total").longValue().assert().isEqualTo(4_294_967_294L)
+        signed.path("mean").doubleValue().assert().isEqualTo(2_147_483_647.0)
+        val unsigned = aggregate("range_uint32", "UInt32", listOf("4294967295", "4294967295")).getOrThrow()
+        unsigned.path("total").longValue().assert().isEqualTo(8_589_934_590L)
+        unsigned.path("count").longValue().assert().isEqualTo(2L)
+    }
+
+    @Test
     fun `the sum of UInt128 values past its range should be exact`(): Unit = runBlocking {
         val max = "340282366920938463463374607431768211455"
         val row = aggregate("range_uint128", "UInt128", listOf(max, "1")).getOrThrow()
@@ -104,7 +114,8 @@ class ClickHouseAggregationRangeTest {
         val database = ClickHouseContainers.DATABASE
         ClickHouseContainers.execute("DROP TABLE IF EXISTS $database.$table")
         ClickHouseContainers.execute(
-            "CREATE TABLE $database.$table (id String, tenant_id String, amount $native) ENGINE = MergeTree ORDER BY id",
+            "CREATE TABLE $database.$table (id String, tenant_id String, amount $native) " +
+                "ENGINE = MergeTree ORDER BY id",
         )
         if (values.isNotEmpty()) {
             val rows = values.mapIndexed { index, value -> "('$index', 't1', $value)" }.joinToString(", ")
