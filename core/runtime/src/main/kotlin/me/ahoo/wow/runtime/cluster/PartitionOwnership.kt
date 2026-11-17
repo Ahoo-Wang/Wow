@@ -69,7 +69,9 @@ import kotlin.time.TimeSource
  *   its runtimes, intake and timers start: a start slower than the margin keeps its lease.
  *   Each round is reported to [renewalRounds] and logged, as a warning when it took more than half the margin
  *   `leaseTtl − renewInterval`. A lease lost to expiry stops the partition here, and so does one left unrenewed for
- *   `leaseTtl − renewInterval` (the store unreachable, say), without a release; the next reconcile acquires it anew.
+ *   `leaseTtl − renewInterval` (the store unreachable, say), without a release. The next reconcile stops the lost
+ *   partitions together, beside its hand-offs and acquisitions, and acquires each one still in the target anew once
+ *   its own stop ended ([PartitionRuns.dropLost]), so one partition's long drain holds up only that partition.
  * - **Hand-off** of a partition goes in this order: stop accepting new commands for it, stop its command intake,
  *   which settles the commands it took and saves its checkpoint, wait for its other commands in
  *   flight for at most [ClusterOptions.drainTimeout], stop its subscriptions, which saves their checkpoints

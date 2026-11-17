@@ -21,6 +21,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
@@ -32,8 +33,8 @@ import kotlin.time.TimeSource
 /**
  * Starting and stopping the partitions one [PartitionOwnership] holds, around their leases: [acquire] takes a
  * partition's lease, makes its gate and starts its runtimes, intake and timers; [handOff] stops them, in order, and
- * releases the lease; [dropLost] stops those whose lease was lost; [stop] stops the runtimes, the intake and the timers
- * whole.
+ * releases the lease; [dropLost] stops those whose lease was lost, together, and acquires again each one the node is
+ * to keep once its own stop ended; [stop] stops the runtimes, the intake and the timers whole.
  *
  * It alone puts, removes and clears the entries of [gates], which the ownership builds and passes it; the ownership and
  * its [LeaseRenewals] only read them, and flip a gate's own fields.
@@ -160,16 +161,35 @@ internal class PartitionRuns(
         }.awaitAll()
     }
 
-    /** Stops the partitions whose lease expired before it was renewed; another node may own them now. */
-    suspend fun dropLost() {
-        gates.filterValues { it.lost }.forEach { (partition, gate) ->
-            stopTimers(partition)
-            stopIntake(partition)
-            stopSubscriptions(partition)
-            partitionChanged(partition)
-            gates.remove(partition, gate)
-            progressed()
-        }
+    /**
+     * Stops [lost], the partitions whose lease expired before it was renewed (another node may own them now), together,
+     * as a hand-off stops its partitions (#6379). Each one stops in order: its timers, its intake, its subscriptions,
+     * its cached states, its gate. Each of [retaken] is acquired again once its own stop ended, never before, so this
+     * node never reads a partition twice; one partition's stop holds up no other's, nor another's acquisition. The
+     * first acquisition that failed is thrown once every partition stopped.
+     */
+    suspend fun dropLost(
+        lost: Map<Int, PartitionGate> = gates.filterValues { it.lost },
+        retaken: Set<Int> = emptySet(),
+        reads: Job? = null,
+    ) = supervisorScope {
+        lost.map { (partition, gate) ->
+            async {
+                drop(partition, gate)
+                if (partition in retaken) {
+                    acquire(partition, reads)
+                }
+            }
+        }.awaitEach()
+    }
+
+    private suspend fun drop(partition: Int, gate: PartitionGate) {
+        stopTimers(partition)
+        stopIntake(partition)
+        stopSubscriptions(partition)
+        quietly("drop the cached states of partition $partition", STATES_DROPPED_AGAIN) { partitionChanged(partition) }
+        gates.remove(partition, gate)
+        progressed()
     }
 
     private suspend fun stopTimers(partition: Int) = timers.forEach { runner ->
