@@ -23,6 +23,7 @@ import me.ahoo.wow.api.query.EndsWithFilter
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.GreaterThanFilter
+import me.ahoo.wow.api.query.InFilter
 import me.ahoo.wow.api.query.LessThanFilter
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
@@ -167,6 +168,9 @@ class ClickHouseFilterBindingTest {
         target.ids(GreaterThanFilter(uuid, first)).assert().containsExactly("b")
         target.ids(EqualFilter(uuid, first)).assert().containsExactly("a")
         target.ids(EqualFilter(uuid, "not a uuid")).assert().isEmpty()
+        // Not the text the column prints: equal to no value but as text, as a STRING is.
+        target.ids(EqualFilter(uuid, last.uppercase())).assert().isEmpty()
+        target.ids(InFilter(uuid, listOf(first, last.uppercase()))).assert().containsExactly("a")
         val schema = target.schema()
         val pages = mutableListOf<String>()
         var cursor: String? = null

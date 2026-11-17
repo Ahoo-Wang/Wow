@@ -96,7 +96,7 @@ internal class ClickHouseFilterCompiler(
         is IdFilter -> systemEqual(filter, filter.value)
         is IdsFilter -> {
             val column = systemColumn(filter)
-            filter.values.joinToString(", ", "${column.compared} IN (", ")") { bind(column, it) }
+            filter.values.joinToString(", ", "${column.equated(filter.values)} IN (", ")") { bind(column, it) }
         }
         is TenantIdFilter -> systemEqual(filter, filter.value)
         is OwnerIdFilter -> systemEqual(filter, filter.value)
@@ -133,10 +133,12 @@ internal class ClickHouseFilterCompiler(
 
     /** A predicate on a scalar column. Admission normalizes EQ and NE with a null operand into IS_NULL and IS_NOT_NULL. */
     private fun scalar(filter: FilterExpression): String = when (filter) {
-        is EqualFilter -> "${compared(filter.field)} = ${bind(filter.field, filter.value)}"
-        is NotEqualFilter -> orNull(filter.field, "${compared(filter.field)} != ${bind(filter.field, filter.value)}")
-        is InFilter -> "${compared(filter.field)} IN ${terms(filter.field, filter.values)}"
-        is NotInFilter -> orNull(filter.field, "${compared(filter.field)} NOT IN ${terms(filter.field, filter.values)}")
+        is EqualFilter -> "${equated(filter.field, filter.value)} = ${bind(filter.field, filter.value)}"
+        is NotEqualFilter ->
+            orNull(filter.field, "${equated(filter.field, filter.value)} != ${bind(filter.field, filter.value)}")
+        is InFilter -> "${equated(filter.field, filter.values)} IN ${terms(filter.field, filter.values)}"
+        is NotInFilter ->
+            orNull(filter.field, "${equated(filter.field, filter.values)} NOT IN ${terms(filter.field, filter.values)}")
         is IsNullFilter, is NotExistsFilter -> "isNull(${column(checkNotNull(filter.predicateField()))})"
         is IsNotNullFilter, is ExistsFilter -> "isNotNull(${column(checkNotNull(filter.predicateField()))})"
         // IS_EMPTY and CONTAINS_ALL need a collection, and the only collections are array columns.
@@ -176,8 +178,23 @@ internal class ClickHouseFilterCompiler(
     private fun terms(field: QueryField<*>, values: List<Any?>): String =
         values.joinToString(", ", "(", ")") { bind(field, it) }
 
-    /** [field]'s column as a predicate compares it ([TypedColumn.compared]). */
+    /** [field]'s column as an order or a literal match compares it ([TypedColumn.compared]). */
     private fun compared(field: QueryField<*>): String = columnOf(field).compared
+
+    /** [field]'s column as an equality with [value], or with each of [value]'s values, compares it ([equated]). */
+    private fun equated(field: QueryField<*>, value: Any?): String =
+        columnOf(field).equated(value as? List<*> ?: listOf(value))
+
+    /**
+     * The column as an equality with [values] compares it: natively while each is a value it prints, so a lookup keeps
+     * its key's index, else as its text ([TypedColumn.prints]).
+     */
+    private fun TypedColumn.equated(values: List<*>): String =
+        if (values.all { it.operandValue().let { value -> value !is String || prints(value) } }) {
+            quoteIdentifier(name)
+        } else {
+            compared
+        }
 
     /**
      * [field] as a `DateTime64`: a native date column at its own precision, an epoch column converted from its unit.
@@ -201,7 +218,7 @@ internal class ClickHouseFilterCompiler(
 
     private fun systemEqual(filter: FilterExpression, value: String): String {
         val column = systemColumn(filter)
-        return "${column.compared} = ${bind(column, value)}"
+        return "${column.equated(listOf(value))} = ${bind(column, value)}"
     }
 
     private fun orNull(field: QueryField<*>, predicate: String): String =
@@ -268,15 +285,21 @@ internal class ClickHouseFilterCompiler(
             field,
         ).rejection()
         val scale = maxOf(exact.scale(), 0)
-        if (exact.precision() - exact.scale() + scale > MAX_DECIMAL_DIGITS) {
+        if (integral(exact) + scale > MAX_DECIMAL_DIGITS) {
             throw QueryViolation.StorageUnsupported(
                 "a number of more than $MAX_DECIMAL_DIGITS digits",
                 field
             ).rejection()
         }
-        // A decimal column compares with a decimal, an integer column with an integer while the operand is whole.
+        // A decimal column compares with a decimal, in its own type while that holds the operand (a Decimal256 against
+        // its key reads every granule); an integer column with an Int256 while the operand is whole, which keeps it.
         val whole = scale == 0 && column.family == ClickHouseTypeFamily.INTEGER
-        val type = if (whole) "Int256" else "Decimal($MAX_DECIMAL_DIGITS, $scale)"
+        val own = column.decimal?.takeIf { (precision, digits) -> scale <= digits && integral(exact) <= precision - digits }
+        val type = when {
+            whole -> "Int256"
+            own != null -> column.baseType
+            else -> "Decimal($MAX_DECIMAL_DIGITS, $scale)"
+        }
         return parameters.bind(exact.setScale(scale).toPlainString(), type)
     }
 
@@ -318,6 +341,9 @@ internal class ClickHouseFilterCompiler(
             "(toFloat64($to - $from) / ${expression.unit.millis})"
         }
     }
+
+    /** The digits of [value]'s whole part. */
+    private fun integral(value: BigDecimal): Int = maxOf(value.precision() - value.scale(), 0)
 
     companion object {
         private const val NANO_DIGITS = 9

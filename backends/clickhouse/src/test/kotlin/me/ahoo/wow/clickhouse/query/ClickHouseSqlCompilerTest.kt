@@ -101,7 +101,8 @@ class ClickHouseSqlCompilerTest {
             it.parameters["p0"].assert().isEqualTo("1.255")
         }
         statement(GreaterThanFilter(AMOUNT, 2)).parameters["p0"].assert().isEqualTo("2")
-        where(GreaterThanFilter(AMOUNT, 2)).assert().isEqualTo("`amount` > {p0:Decimal(76, 0)}")
+        // In the column's own type while that holds it, so a key's index is kept; widened only past it.
+        where(GreaterThanFilter(AMOUNT, 2)).assert().isEqualTo("`amount` > {p0:Decimal(18, 2)}")
         where(GreaterThanOrEqualFilter(QUANTITY, 1)).assert().isEqualTo("`quantity` >= {p0:Int256}")
         where(LessThanOrEqualFilter(QUANTITY, 1)).assert().isEqualTo("`quantity` <= {p0:Int256}")
         where(BetweenFilter(QUANTITY, 1, 2)).assert().isEqualTo("`quantity` BETWEEN {p0:Int256} AND {p1:Int256}")

@@ -74,9 +74,36 @@ internal class TypedColumn(val column: ClickHouseColumn) {
     val textual: Boolean
         get() = family == ClickHouseTypeFamily.ENUM || baseType == "UUID"
 
-    /** The column as its field compares, orders and matches it: its text for a [textual] column, else itself. */
+    /** The column as its field orders and matches it: its text for a [textual] column, else itself. */
     val compared: String
         get() = if (textual) "toString(${quoteIdentifier(name)})" else quoteIdentifier(name)
+
+    /**
+     * Whether [text] is what this column prints for one of its values: a lower-case canonical UUID, or one of an Enum's
+     * labels. Equal to such an operand, the native column is equal to it as text too, and keeps its key's index
+     * (`toString(col)` reads every granule); any other operand is equal to no value but as text.
+     */
+    fun prints(text: String): Boolean = when {
+        baseType == "UUID" -> CANONICAL_UUID.matches(text)
+        family == ClickHouseTypeFamily.ENUM -> text in labels
+        else -> true
+    }
+
+    private val labels: Set<String> by lazy {
+        ENUM_LABEL.findAll(baseType).map { it.groupValues[1].replace("\\'", "'").replace("\\\\", "\\") }.toSet()
+    }
+
+    /**
+     * The digits and the fraction digits a `Decimal` column holds, from `Decimal(P, S)` or `DecimalN(S)`; null for
+     * another column.
+     */
+    val decimal: Pair<Int, Int>?
+        get() {
+            DECIMAL_PS.matchEntire(baseType)?.let { return it.groupValues[1].toInt() to it.groupValues[2].toInt() }
+            val sized = DECIMAL_N.matchEntire(baseType) ?: return null
+            val precision = DECIMAL_PRECISION.getValue(sized.groupValues[1].toInt())
+            return precision to sized.groupValues[2].toInt()
+        }
 
     /** The type an operand of this column is bound as: its base type, except where the text form differs. */
     val parameterType: String
@@ -98,6 +125,11 @@ internal class TypedColumn(val column: ClickHouseColumn) {
         val FLOAT_TYPES = setOf("Float32", "Float64")
         val DATE_TYPES = setOf("Date", "Date32")
         val DATE_TIME64 = Regex("""DateTime64\((\d+)(,.*)?\)""")
+        val CANONICAL_UUID = Regex("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
+        val ENUM_LABEL = Regex("""'((?:[^'\\]|\\.)*)'\s*=\s*-?\d+""")
+        val DECIMAL_PS = Regex("""Decimal\((\d+),\s*(\d+)\)""")
+        val DECIMAL_N = Regex("""Decimal(32|64|128|256)\((\d+)\)""")
+        val DECIMAL_PRECISION = mapOf(32 to 9, 64 to 18, 128 to 38, 256 to 76)
 
         fun familyOf(baseType: String): ClickHouseTypeFamily = when {
             baseType in STRING_TYPES || baseType.startsWith("FixedString(") -> ClickHouseTypeFamily.STRING
