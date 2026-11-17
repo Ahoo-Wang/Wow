@@ -22,6 +22,8 @@ import co.elastic.clients.elasticsearch.core.CountRequest
 import co.elastic.clients.elasticsearch.core.SearchRequest
 import co.elastic.clients.elasticsearch.core.search.Hit
 import co.elastic.clients.elasticsearch.core.search.SourceFilter
+import co.elastic.clients.elasticsearch.core.search.TrackHits
+import co.elastic.clients.util.ObjectBuilder
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.emitAll
@@ -123,7 +125,7 @@ internal class ElasticsearchQueryBackend(
             it.from(Math.toIntExact(window.offset)).size(window.limit).trackTotalHits { trackHits ->
                 when {
                     !window.withTotal -> trackHits.enabled(false)
-                    window.totalLimit != null -> trackHits.count(window.totalLimit!! + 1)
+                    window.totalLimit != null -> trackHits.pastLimit(window.totalLimit!!)
                     else -> trackHits.enabled(true)
                 }
             }
@@ -159,7 +161,7 @@ internal class ElasticsearchQueryBackend(
             // A bounded count stops at `limit + 1` matches: the core reads more as "at least".
             val request = SearchRequest.of {
                 it.index(indexName).query(filter).size(0).allowPartialSearchResults(false)
-                    .trackTotalHits { trackHits -> trackHits.count(limit + 1) }
+                    .trackTotalHits { trackHits -> trackHits.pastLimit(limit) }
             }
             search(request).hits().total()?.value() ?: 0L
         }
@@ -213,6 +215,14 @@ internal class ElasticsearchQueryBackend(
             SortOptions.of { it.field { sortField -> sortField.field(field).order(order) } }
         }
     }
+
+    /**
+     * Hits tracked to `limit + 1`, so the core reads a total past [limit] as "at least". Elasticsearch's threshold is
+     * an `int`: at `Int.MAX_VALUE` one more does not fit, and every hit is tracked instead, an exact total the core
+     * reads the same way.
+     */
+    private fun TrackHits.Builder.pastLimit(limit: Int): ObjectBuilder<TrackHits> =
+        if (limit == Int.MAX_VALUE) enabled(true) else count(limit + 1)
 
     private suspend fun search(request: SearchRequest) =
         client.search(request, ObjectNode::class.java).awaitElasticsearch().requireComplete()
