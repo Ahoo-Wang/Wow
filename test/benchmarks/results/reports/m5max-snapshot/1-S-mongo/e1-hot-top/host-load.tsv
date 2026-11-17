@@ -1,5 +1,5 @@
-epoch	load1	load5	load15	foreignCpu	topForeign	foreignContainers	hostCpu	generatorThread	allowedJvmCpu	foreignJvms
-1794471903	23.15	11.44	10.56	269	Claude Helper (Renderer) 182, WindowServer 35, Claude Helper 15		234	0	0.0	
-1794471915	22.05	11.58	10.62	76	WindowServer 36, Claude Helper 12, Claude Helper (Renderer) 12		1359	45	0.1	
-1794471927	25.56	12.84	11.08	102	WindowServer 40, Claude Helper (Renderer) 26, Claude Helper 16		1369	44	0.1	
-1794471940	27.63	13.69	11.40	140	WindowServer 39, deleted 38, Claude Helper (Renderer) 17		1465	48	0.3	
+epoch	load1	load5	load15	foreignCpu	topForeign	foreignContainers	hostCpu	generatorThread	allowedJvmCpu	foreignJvms	benchContainersUsec
+1794914485	16.95	10.12	10.41	20	sysmond 12, bash 2, claude 1		102	3	0.0		wow-e2e-bench-mongo=2433127523,wow-e2e-bench-kafka=388167774
+1794914496	17.18	10.49	10.53	18	deleted 4, claude 2, claude 2		1234	44	0.0		wow-e2e-bench-mongo=2474188719,wow-e2e-bench-kafka=392966098
+1794914509	19.69	11.23	10.79	6	AppleCentauriAlpha 1, claude 1, Stats 1		1504	55	0.0		wow-e2e-bench-mongo=2530555619,wow-e2e-bench-kafka=397860793
+1794914521	20.40	11.78	11.00	14	sysmond 4, Stats 4, configd 2		1454	54	0.0		wow-e2e-bench-mongo=2586729777,wow-e2e-bench-kafka=402702924

@@ -1,6 +1,16 @@
-epoch	load1	load5	load15	foreignCpu	topForeign	foreignContainers	hostCpu	generatorThread	allowedJvmCpu	foreignJvms
-1794471462	11.46	11.77	11.18	74	find 42, sysmond 11, Stats 8		161	0	0.3	
-1794471475	9.92	11.43	11.06	73	find 65, Stats 2, claude 2		131	0	0.1	
-1794471487	8.26	10.98	10.91	29	find 22, sysmond 4, AppleCentauriAlpha 1		1071	25	0.0	
-1794471499	8.92	11.03	10.93	37	find 30, sysmond 3, MacPacketTunnel 2		1114	28	0.0	
-1794471511	11.89	11.61	11.14	14	find 8, claude 4, AppleCentauriAlpha 1		785	16	0.1	
+epoch	load1	load5	load15	foreignCpu	topForeign	foreignContainers	hostCpu	generatorThread	allowedJvmCpu	foreignJvms	benchContainersUsec
+1794913932	16.38	12.65	12.41	28	sysmond 5, dasd 3, claude 2		240	3	0.0		wow-e2e-bench-mongo=1593790087,wow-e2e-bench-kafka=228055842
+1794913943	14.16	12.30	12.29	11	claude 3, Stats 3, configd 2		160	0	0.0		wow-e2e-bench-mongo=1603974714,wow-e2e-bench-kafka=230887195
+1794913956	11.78	11.86	12.13	8	claude 2, Stats 1, AppleCentauriAlpha 1		145	0	0.0		wow-e2e-bench-mongo=1612216069,wow-e2e-bench-kafka=233688968
+1794913968	10.19	11.52	12.00	16	sysmond 6, claude 3, Shadowrocket 1		187	0	0.0		wow-e2e-bench-mongo=1619814393,wow-e2e-bench-kafka=236533653
+1794913980	8.66	11.12	11.85	20	Stats 7, configd 3, WindowServer 3		170	0	0.0		wow-e2e-bench-mongo=1626498108,wow-e2e-bench-kafka=240216582
+1794913993	7.65	10.82	11.74	16	sysmond 6, mdworker_shared 4, Stats 1		127	0	0.0		wow-e2e-bench-mongo=1632941040,wow-e2e-bench-kafka=243175210
+1794914005	8.42	10.89	11.75	6	claude 2, claude 1, wifip2pd 1		111	0	0.1		wow-e2e-bench-mongo=1638823832,wow-e2e-bench-kafka=246310806
+1794914017	6.78	10.40	11.56	62	launchd 44, Stats 6, configd 3		101	0	0.0		wow-e2e-bench-mongo=1644370842,wow-e2e-bench-kafka=249245884
+1794914030	6.20	10.16	11.46	10	Stats 2, AppleCentauriAlpha 1, claude 1		110	0	0.0		wow-e2e-bench-mongo=1649867950,wow-e2e-bench-kafka=252490925
+1794914042	4.98	9.69	11.27	10	Shadowrocket 2, WindowServer 2, AppleCentauriAlpha 1		123	0	0.0		wow-e2e-bench-mongo=1655078592,wow-e2e-bench-kafka=256046212
+1794914054	4.44	9.42	11.16	25	sysmond 6, Stats 4, configd 2		106	0	0.0		wow-e2e-bench-mongo=1660190191,wow-e2e-bench-kafka=259045963
+1794914067	3.93	9.06	11.00	9	claude 2, Stats 1, AppleCentauriAlpha 1		89	0	0.0		wow-e2e-bench-mongo=1665182451,wow-e2e-bench-kafka=262008366
+1794914079	4.64	9.04	10.97	7	sysmond 4, claude 1, AppleCentauriAlpha 1		1393	28	0.0		wow-e2e-bench-mongo=1701836987,wow-e2e-bench-kafka=266516448
+1794914091	8.33	9.63	11.14	13	sysmond 4, Stats 2, claude 2		1419	25	0.0		wow-e2e-bench-mongo=1777119201,wow-e2e-bench-kafka=271588647
+1794914104	8.75	9.67	11.14	5	WindowServer 1, AppleCentauriAlpha 1, Dock 1		1432	25	0.0		wow-e2e-bench-mongo=1860023528,wow-e2e-bench-kafka=276675951

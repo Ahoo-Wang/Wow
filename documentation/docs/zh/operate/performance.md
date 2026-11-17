@@ -46,27 +46,27 @@ Wow 按端到端测量：负载生成器经 HTTP 向运行在 PostgreSQL 或 Mon
 | PostgreSQL | 一个 | E1 | 均匀 | 4,912.5/s，闭环 | 2,609.8/s，开环，p99 160.8 ms | EPYC 9V45，JDK 25.0.5+8，`d8284109df` |
 | PostgreSQL | 一个 | E3 | 均匀 | 2,374/s，闭环 | 741.9/s，开环，p99 188.4 ms | EPYC 9V45，JDK 25.0.5+8，`d8284109df` |
 
-**Apple M5 Max，18 核，64 GB，一台主机**：[m5max-snapshot](https://github.com/Ahoo-Wang/Wow/blob/main/test/benchmarks/results/reports/m5max-snapshot.md)，构建 `d9b0781205`。
+**Apple M5 Max，18 核，64 GB，一台主机**：[m5max-snapshot](https://github.com/Ahoo-Wang/Wow/blob/main/test/benchmarks/results/reports/m5max-snapshot.md)，构建 `103f9b6746`。
 
 | 存储 | 节点 | 场景 | 键 | 峰值 | 可持续 | CPU、JDK、构建 |
 | --- | ---: | --- | --- | --- | --- | --- |
-| MongoDB | 一个 | E1 | 单个热点账户 | 6,911.2/s，1,024 个客户端 | 5,417.2/s，64 个客户端，p99 150.5 ms | Apple M5 Max，JDK 25.0.5+8，`d9b0781205` |
-| MongoDB | 一个 | E1 | 均匀 | ≥ 21,775.2/s，4,096 个客户端 | 19,759.6/s，1,024 个客户端，p99 102.4 ms | Apple M5 Max，JDK 25.0.5+8，`d9b0781205` |
-| MongoDB | 一个 | E1 | Zipf | 13,372.5/s，1,024 个客户端 | 3,353.8/s，64 个客户端，p99 197.6 ms | Apple M5 Max，JDK 25.0.5+8，`d9b0781205` |
-| MongoDB | 一个 | E3 | 均匀 | 7,341.7/s，1,024 个客户端 | 4,809.4/s，256 个客户端，p99 173.1 ms | Apple M5 Max，JDK 25.0.5+8，`d9b0781205` |
-| PostgreSQL | 一个 | E1 | 单个热点账户 | 11,521.2/s，1,024 个客户端 | 8,520.7/s，256 个客户端，p99 155.6 ms | Apple M5 Max，JDK 25.0.5+8，`d9b0781205` |
-| PostgreSQL | 一个 | E1 | 均匀 | ≥ 37,713.6/s，4,096 个客户端 | 23,030.1/s，1,024 个客户端，p99 74.8 ms | Apple M5 Max，JDK 25.0.5+8，`d9b0781205` |
-| PostgreSQL | 一个 | E1 | Zipf | 17,090.6/s，1,024 个客户端 | 15,386.1/s，256 个客户端，p99 52.2 ms | Apple M5 Max，JDK 25.0.5+8，`d9b0781205` |
-| PostgreSQL | 一个 | E3 | 均匀 | 7,956.2/s，1,024 个客户端 | 3,687.4/s，64 个客户端，p99 41.7 ms | Apple M5 Max，JDK 25.0.5+8，`d9b0781205` |
+| MongoDB | 一个 | E1 | 单个热点账户 | 9,948.1/s，256 个客户端 | 9,948.1/s，256 个客户端，p99 78.8 ms | Apple M5 Max，JDK 25.0.5+8，`103f9b6746` |
+| MongoDB | 一个 | E1 | 均匀 | ≥ 28,609.4/s，4,096 个客户端 | 28,196.1/s，1,024 个客户端，p99 66.6 ms | Apple M5 Max，JDK 25.0.5+8，`103f9b6746` |
+| MongoDB | 一个 | E1 | Zipf | 15,957.5/s，1,024 个客户端 | 14,914.4/s，256 个客户端，p99 42.2 ms | Apple M5 Max，JDK 25.0.5+8，`103f9b6746` |
+| MongoDB | 一个 | E3 | 均匀 | 7,738.2/s，1,024 个客户端 | 5,898.6/s，256 个客户端，p99 72.2 ms | Apple M5 Max，JDK 25.0.5+8，`103f9b6746` |
+| PostgreSQL | 一个 | E1 | 单个热点账户 | 11,853.7/s，256 个客户端 | 11,853.7/s，256 个客户端，p99 76.8 ms | Apple M5 Max，JDK 25.0.5+8，`103f9b6746` |
+| PostgreSQL | 一个 | E1 | 均匀 | ≥ 41,706.1/s，4,096 个客户端 | 41,706.1/s，4,096 个客户端，p99 167.9 ms | Apple M5 Max，JDK 25.0.5+8，`103f9b6746` |
+| PostgreSQL | 一个 | E1 | Zipf | 19,746.8/s，256 个客户端 | 19,746.8/s，256 个客户端，p99 29.6 ms | Apple M5 Max，JDK 25.0.5+8，`103f9b6746` |
+| PostgreSQL | 一个 | E3 | 均匀 | 8,042.7/s，1,024 个客户端 | 3,637.9/s，64 个客户端，p99 185.3 ms | Apple M5 Max，JDK 25.0.5+8，`103f9b6746` |
 
 三个节点在同一台主机上：节点、存储与负载生成器分用同一组 CPU 核，所以这几行显示的是集群的开销（节点之间的转发），不是它带来的收益。跨多台机器的扩展尚未测量。
 
 | 存储 | 节点 | 场景 | 键 | 峰值 | 可持续 | CPU、JDK、构建 |
 | --- | ---: | --- | --- | --- | --- | --- |
-| MongoDB | 3 | E1 | 均匀 | 16,657.2/s，1,024 个客户端 | 16,657.2/s，1,024 个客户端，p99 178.2 ms | Apple M5 Max，JDK 25.0.5+8，`d9b0781205` |
-| MongoDB | 3 | E3 | 均匀 | 5,380.1/s，1,024 个客户端 | 4,894.1/s，256 个客户端，p99 105 ms | Apple M5 Max，JDK 25.0.5+8，`d9b0781205` |
-| PostgreSQL | 3 | E1 | 均匀 | 21,114.1/s，1,024 个客户端 | 21,114.1/s，1,024 个客户端，p99 122.9 ms | Apple M5 Max，JDK 25.0.5+8，`d9b0781205` |
-| PostgreSQL | 3 | E3 | 均匀 | 6,950.1/s，1,024 个客户端 | 6,119.1/s，256 个客户端，p99 75.8 ms | Apple M5 Max，JDK 25.0.5+8，`d9b0781205` |
+| MongoDB | 3 | E1 | 均匀 | 19,052.3/s，1,024 个客户端 | 19,052.3/s，1,024 个客户端，p99 131.1 ms | Apple M5 Max，JDK 25.0.5+8，`103f9b6746` |
+| MongoDB | 3 | E3 | 均匀 | 6,060.2/s，1,024 个客户端 | 5,462.9/s，256 个客户端，p99 78.8 ms | Apple M5 Max，JDK 25.0.5+8，`103f9b6746` |
+| PostgreSQL | 3 | E1 | 均匀 | 25,104.3/s，1,024 个客户端 | 25,104.3/s，1,024 个客户端，p99 90.6 ms | Apple M5 Max，JDK 25.0.5+8，`103f9b6746` |
+| PostgreSQL | 3 | E3 | 均匀 | 8,623/s，1,024 个客户端 | 7,279/s，256 个客户端，p99 59.6 ms | Apple M5 Max，JDK 25.0.5+8，`103f9b6746` |
 <!-- performance:end -->
 
 ## 怎样读 {#how-to-read}

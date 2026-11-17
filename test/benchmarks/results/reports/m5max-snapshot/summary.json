@@ -3,89 +3,201 @@
   "measurements": {
     "1-S-mongo/e1-hot-sweep": {
       "backend": "mongo",
+      "builds": {
+        "load": "103f9b6746",
+        "server": "103f9b6746"
+      },
       "disturbed": [],
       "generatorBound": [],
       "keys": "hot",
       "kind": "sweep",
       "nodes": "1",
       "peak": {
-        "clients": 1024,
+        "clients": 256,
         "lowerBound": false,
         "single": false,
-        "throughput": 6911.2
+        "throughput": 9948.1
       },
       "scenario": "E1",
       "setAside": false,
       "steps": [
         {
           "clients": 1,
+          "containerCores": {
+            "kafka": 0.246,
+            "mongo": 0.556
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 2.847,
-          "p99Ms": 5.727,
-          "throughput": 344.2
+          "mongo": {
+            "abortedPerSecond": 0.0,
+            "journalSyncMs": 0.876,
+            "journalSyncsPerSecond": 199.307,
+            "majorityWaitMs": 0.0,
+            "majorityWaitsPerSecond": 246.583,
+            "retriedPerSecond": 0.0,
+            "ticketsMax": 1.0,
+            "ticketsMean": 0.047,
+            "transactionLatencyMicros": null,
+            "writeConflictsPerSecond": 0.0,
+            "writeLatencyMicros": 1910.639
+          },
+          "p50Ms": 2.191,
+          "p99Ms": 5.983,
+          "throughput": 369.3666666666667
         },
         {
           "clients": 4,
+          "containerCores": {
+            "kafka": 0.269,
+            "mongo": 0.769
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 3.727,
-          "p99Ms": 12.543,
-          "throughput": 829.3
+          "mongo": {
+            "abortedPerSecond": 0.0,
+            "journalSyncMs": 0.605,
+            "journalSyncsPerSecond": 895.615,
+            "majorityWaitMs": 0.0,
+            "majorityWaitsPerSecond": 1889.103,
+            "retriedPerSecond": 0.0,
+            "ticketsMax": 2.0,
+            "ticketsMean": 0.256,
+            "transactionLatencyMicros": null,
+            "writeConflictsPerSecond": 0.0,
+            "writeLatencyMicros": 1597.105
+          },
+          "p50Ms": 2.367,
+          "p99Ms": 7.487,
+          "throughput": 1391.8666666666666
         },
         {
           "clients": 16,
+          "containerCores": {
+            "kafka": 0.256,
+            "mongo": 0.961
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 5.599,
-          "p99Ms": 20.863,
-          "throughput": 2203.6
+          "mongo": {
+            "abortedPerSecond": 0.0,
+            "journalSyncMs": 0.598,
+            "journalSyncsPerSecond": 862.667,
+            "majorityWaitMs": 0.0,
+            "majorityWaitsPerSecond": 1946.487,
+            "retriedPerSecond": 0.0,
+            "ticketsMax": 4.0,
+            "ticketsMean": 0.275,
+            "transactionLatencyMicros": null,
+            "writeConflictsPerSecond": 0.0,
+            "writeLatencyMicros": 1665.449
+          },
+          "p50Ms": 3.743,
+          "p99Ms": 10.751,
+          "throughput": 3740.5666666666666
         },
         {
           "clients": 64,
+          "containerCores": {
+            "kafka": 0.313,
+            "mongo": 1.451
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 8.959,
-          "p99Ms": 150.527,
-          "throughput": 5417.233333333334
+          "mongo": {
+            "abortedPerSecond": 0.0,
+            "journalSyncMs": 0.91,
+            "journalSyncsPerSecond": 681.795,
+            "majorityWaitMs": 0.001,
+            "majorityWaitsPerSecond": 1417.59,
+            "retriedPerSecond": 0.0,
+            "ticketsMax": 2.0,
+            "ticketsMean": 0.575,
+            "transactionLatencyMicros": null,
+            "writeConflictsPerSecond": 0.0,
+            "writeLatencyMicros": 2329.912
+          },
+          "p50Ms": 7.071,
+          "p99Ms": 18.687,
+          "throughput": 8013.666666666667
         },
         {
           "clients": 256,
+          "containerCores": {
+            "kafka": 0.309,
+            "mongo": 2.039
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 37.631,
-          "p99Ms": 248.831,
-          "throughput": 6687.833333333333
+          "mongo": {
+            "abortedPerSecond": 0.0,
+            "journalSyncMs": 0.941,
+            "journalSyncsPerSecond": 640.513,
+            "majorityWaitMs": 0.001,
+            "majorityWaitsPerSecond": 1296.333,
+            "retriedPerSecond": 0.0,
+            "ticketsMax": 3.0,
+            "ticketsMean": 0.475,
+            "transactionLatencyMicros": null,
+            "writeConflictsPerSecond": 0.0,
+            "writeLatencyMicros": 2513.643
+          },
+          "p50Ms": 28.799,
+          "p99Ms": 78.847,
+          "throughput": 9948.1
         },
         {
           "clients": 1024,
+          "containerCores": {
+            "kafka": 0.341,
+            "mongo": 2.038
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 187.391,
-          "p99Ms": 471.039,
-          "throughput": 6911.2
+          "mongo": {
+            "abortedPerSecond": 0.0,
+            "journalSyncMs": 1.043,
+            "journalSyncsPerSecond": 615.05,
+            "majorityWaitMs": 0.0,
+            "majorityWaitsPerSecond": 1236.95,
+            "retriedPerSecond": 0.0,
+            "ticketsMax": 2.0,
+            "ticketsMean": 0.512,
+            "transactionLatencyMicros": null,
+            "writeConflictsPerSecond": 0.0,
+            "writeLatencyMicros": 2697.067
+          },
+          "p50Ms": 155.647,
+          "p99Ms": 309.247,
+          "throughput": 9588.933333333332
         },
         {
           "clients": 4096,
+          "containerCores": {},
           "errors": {
-            "http-429-wow.command.busy": 548113
+            "http-429-wow.command.busy": 552724
           },
-          "failedShare": 0.4949177549452226,
-          "p50Ms": 155.647,
-          "p99Ms": 4653.055,
-          "throughput": 18645.666666666668
+          "failedShare": 0.47889015289682607,
+          "mongo": null,
+          "p50Ms": 96.255,
+          "p99Ms": 1392.639,
+          "throughput": 20048.433333333334
         }
       ],
       "sustainable": {
-        "clients": 64,
-        "p50Ms": 8.959,
-        "p99Ms": 150.527,
-        "throughput": 5417.233333333334
+        "clients": 256,
+        "p50Ms": 28.799,
+        "p99Ms": 78.847,
+        "throughput": 9948.1
       },
       "void": []
     },
     "1-S-mongo/e1-hot-top": {
       "backend": "mongo",
+      "builds": {
+        "load": "103f9b6746",
+        "server": "103f9b6746"
+      },
       "disturbed": [],
       "generatorBound": [],
       "keys": "hot",
@@ -97,13 +209,15 @@
       "steps": [
         {
           "clients": 4096,
+          "containerCores": {},
           "errors": {
-            "http-429-wow.command.busy": 527698
+            "http-429-wow.command.busy": 671697
           },
-          "failedShare": 0.4946392784631911,
-          "p50Ms": 158.719,
-          "p99Ms": 4751.359,
-          "throughput": 17971.2
+          "failedShare": 0.4918399744596473,
+          "mongo": null,
+          "p50Ms": 108.543,
+          "p99Ms": 2113.535,
+          "throughput": 23132.833333333332
         }
       ],
       "sustainable": null,
@@ -111,6 +225,10 @@
     },
     "1-S-mongo/e1-sweep": {
       "backend": "mongo",
+      "builds": {
+        "load": "103f9b6746",
+        "server": "103f9b6746"
+      },
       "disturbed": [],
       "generatorBound": [],
       "keys": "uniform",
@@ -120,78 +238,198 @@
         "clients": 4096,
         "lowerBound": true,
         "single": false,
-        "throughput": 21775.2
+        "throughput": 28609.366666666665
       },
       "scenario": "E1",
       "setAside": false,
       "steps": [
         {
           "clients": 1,
+          "containerCores": {
+            "kafka": 0.252,
+            "mongo": 0.348
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 2.975,
-          "p99Ms": 7.455,
-          "throughput": 292.73333333333335
+          "mongo": {
+            "abortedPerSecond": 0.0,
+            "journalSyncMs": 0.761,
+            "journalSyncsPerSecond": 646.0,
+            "majorityWaitMs": 0.0,
+            "majorityWaitsPerSecond": 774.302,
+            "retriedPerSecond": 0.0,
+            "ticketsMax": 1.0,
+            "ticketsMean": 0.091,
+            "transactionLatencyMicros": null,
+            "writeConflictsPerSecond": 0.0,
+            "writeLatencyMicros": 1717.332
+          },
+          "p50Ms": 1.751,
+          "p99Ms": 5.631,
+          "throughput": 434.6
         },
         {
           "clients": 4,
+          "containerCores": {
+            "kafka": 0.25,
+            "mongo": 0.581
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 2.671,
-          "p99Ms": 11.903,
-          "throughput": 1020.6
+          "mongo": {
+            "abortedPerSecond": 0.0,
+            "journalSyncMs": 0.486,
+            "journalSyncsPerSecond": 1041.462,
+            "majorityWaitMs": 0.0,
+            "majorityWaitsPerSecond": 2274.231,
+            "retriedPerSecond": 0.0,
+            "ticketsMax": 1.0,
+            "ticketsMean": 0.231,
+            "transactionLatencyMicros": null,
+            "writeConflictsPerSecond": 0.0,
+            "writeLatencyMicros": 1397.601
+          },
+          "p50Ms": 1.975,
+          "p99Ms": 6.783,
+          "throughput": 1575.3
         },
         {
           "clients": 16,
+          "containerCores": {
+            "kafka": 0.272,
+            "mongo": 0.661
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 6.527,
-          "p99Ms": 29.183,
-          "throughput": 1885.9333333333334
+          "mongo": {
+            "abortedPerSecond": 0.0,
+            "journalSyncMs": 1.229,
+            "journalSyncsPerSecond": 640.179,
+            "majorityWaitMs": 0.0,
+            "majorityWaitsPerSecond": 1320.923,
+            "retriedPerSecond": 0.0,
+            "ticketsMax": 2.0,
+            "ticketsMean": 0.15,
+            "transactionLatencyMicros": null,
+            "writeConflictsPerSecond": 0.0,
+            "writeLatencyMicros": 2687.658
+          },
+          "p50Ms": 4.287,
+          "p99Ms": 13.631,
+          "throughput": 3059.266666666667
         },
         {
           "clients": 64,
+          "containerCores": {
+            "kafka": 0.304,
+            "mongo": 1.285
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 9.407,
-          "p99Ms": 153.599,
-          "throughput": 5093.133333333333
+          "mongo": {
+            "abortedPerSecond": 0.0,
+            "journalSyncMs": 0.932,
+            "journalSyncsPerSecond": 674.231,
+            "majorityWaitMs": 0.0,
+            "majorityWaitsPerSecond": 1327.949,
+            "retriedPerSecond": 0.0,
+            "ticketsMax": 3.0,
+            "ticketsMean": 0.425,
+            "transactionLatencyMicros": null,
+            "writeConflictsPerSecond": 0.0,
+            "writeLatencyMicros": 2444.817
+          },
+          "p50Ms": 6.623,
+          "p99Ms": 16.639,
+          "throughput": 8699.066666666668
         },
         {
           "clients": 256,
+          "containerCores": {
+            "kafka": 0.359,
+            "mongo": 2.875
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 18.687,
-          "p99Ms": 189.439,
-          "throughput": 11021.233333333334
+          "mongo": {
+            "abortedPerSecond": 0.0,
+            "journalSyncMs": 1.125,
+            "journalSyncsPerSecond": 522.641,
+            "majorityWaitMs": 0.001,
+            "majorityWaitsPerSecond": 848.718,
+            "retriedPerSecond": 0.0,
+            "ticketsMax": 4.0,
+            "ticketsMean": 1.2,
+            "transactionLatencyMicros": null,
+            "writeConflictsPerSecond": 0.0,
+            "writeLatencyMicros": 3935.099
+          },
+          "p50Ms": 14.847,
+          "p99Ms": 28.543,
+          "throughput": 16583.666666666668
         },
         {
           "clients": 1024,
+          "containerCores": {
+            "kafka": 0.39,
+            "mongo": 4.7
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 51.967,
-          "p99Ms": 102.399,
-          "throughput": 19759.6
+          "mongo": {
+            "abortedPerSecond": 0.0,
+            "journalSyncMs": 1.632,
+            "journalSyncsPerSecond": 350.154,
+            "majorityWaitMs": 0.002,
+            "majorityWaitsPerSecond": 474.513,
+            "retriedPerSecond": 0.0,
+            "ticketsMax": 5.0,
+            "ticketsMean": 2.2,
+            "transactionLatencyMicros": null,
+            "writeConflictsPerSecond": 0.0,
+            "writeLatencyMicros": 8820.035
+          },
+          "p50Ms": 35.327,
+          "p99Ms": 66.559,
+          "throughput": 28196.1
         },
         {
           "clients": 4096,
+          "containerCores": {},
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 171.007,
-          "p99Ms": 679.935,
-          "throughput": 21775.2
+          "mongo": {
+            "abortedPerSecond": 0.0,
+            "journalSyncMs": 2.316,
+            "journalSyncsPerSecond": 219.103,
+            "majorityWaitMs": 0.002,
+            "majorityWaitsPerSecond": 296.692,
+            "retriedPerSecond": 0.0,
+            "ticketsMax": 6.0,
+            "ticketsMean": 2.718,
+            "transactionLatencyMicros": null,
+            "writeConflictsPerSecond": 0.0,
+            "writeLatencyMicros": 15424.46
+          },
+          "p50Ms": 135.167,
+          "p99Ms": 325.631,
+          "throughput": 28609.366666666665
         }
       ],
       "sustainable": {
         "clients": 1024,
-        "p50Ms": 51.967,
-        "p99Ms": 102.399,
-        "throughput": 19759.6
+        "p50Ms": 35.327,
+        "p99Ms": 66.559,
+        "throughput": 28196.1
       },
       "void": []
     },
     "1-S-mongo/e1-top": {
       "backend": "mongo",
+      "builds": {
+        "load": "103f9b6746",
+        "server": "103f9b6746"
+      },
       "disturbed": [],
       "generatorBound": [],
       "keys": "uniform",
@@ -201,28 +439,59 @@
         "clients": 4096,
         "lowerBound": false,
         "single": false,
-        "throughput": 21822.633333333335
+        "throughput": 26615.9
       },
       "scenario": "E1",
       "setAside": false,
       "steps": [
         {
           "clients": 4096,
+          "containerCores": {
+            "kafka": 0.361,
+            "mongo": 4.66
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 177.151,
-          "p99Ms": 503.807,
-          "throughput": 21822.633333333335
+          "mongo": {
+            "abortedPerSecond": 0.0,
+            "journalSyncMs": 2.328,
+            "journalSyncsPerSecond": 191.0,
+            "majorityWaitMs": 0.004,
+            "majorityWaitsPerSecond": 260.302,
+            "retriedPerSecond": 0.0,
+            "ticketsMax": 6.0,
+            "ticketsMean": 2.698,
+            "transactionLatencyMicros": null,
+            "writeConflictsPerSecond": 0.0,
+            "writeLatencyMicros": 16695.18
+          },
+          "p50Ms": 144.383,
+          "p99Ms": 333.823,
+          "throughput": 26615.9
         },
         {
           "clients": 8192,
+          "containerCores": {},
           "errors": {
-            "http-429-wow.command.busy": 104730
+            "http-429-wow.command.busy": 12468
           },
-          "failedShare": 0.16431534488493377,
-          "p50Ms": 423.935,
-          "p99Ms": 913.407,
-          "throughput": 17754.733333333334
+          "failedShare": 0.020319823725366205,
+          "mongo": {
+            "abortedPerSecond": 0.0,
+            "journalSyncMs": 1.421,
+            "journalSyncsPerSecond": 360.4,
+            "majorityWaitMs": 0.008,
+            "majorityWaitsPerSecond": 517.85,
+            "retriedPerSecond": 0.0,
+            "ticketsMax": 5.0,
+            "ticketsMean": 1.683,
+            "transactionLatencyMicros": null,
+            "writeConflictsPerSecond": 0.0,
+            "writeLatencyMicros": 6675.963
+          },
+          "p50Ms": 405.503,
+          "p99Ms": 475.135,
+          "throughput": 20037.333333333332
         }
       ],
       "sustainable": null,
@@ -230,6 +499,10 @@
     },
     "1-S-mongo/e1-zipf-sweep": {
       "backend": "mongo",
+      "builds": {
+        "load": "103f9b6746",
+        "server": "103f9b6746"
+      },
       "disturbed": [],
       "generatorBound": [],
       "keys": "zipf",
@@ -239,80 +512,200 @@
         "clients": 1024,
         "lowerBound": false,
         "single": false,
-        "throughput": 13372.533333333333
+        "throughput": 15957.533333333333
       },
       "scenario": "E1",
       "setAside": false,
       "steps": [
         {
           "clients": 1,
+          "containerCores": {
+            "kafka": 0.241,
+            "mongo": 0.406
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 2.927,
-          "p99Ms": 7.423,
-          "throughput": 292.03333333333336
+          "mongo": {
+            "abortedPerSecond": 0.0,
+            "journalSyncMs": 0.518,
+            "journalSyncsPerSecond": 764.19,
+            "majorityWaitMs": 0.0,
+            "majorityWaitsPerSecond": 911.571,
+            "retriedPerSecond": 0.0,
+            "ticketsMax": 1.0,
+            "ticketsMean": 0.093,
+            "transactionLatencyMicros": null,
+            "writeConflictsPerSecond": 0.0,
+            "writeLatencyMicros": 1394.76
+          },
+          "p50Ms": 1.455,
+          "p99Ms": 5.439,
+          "throughput": 493.8666666666667
         },
         {
           "clients": 4,
+          "containerCores": {
+            "kafka": 0.249,
+            "mongo": 0.669
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 2.703,
-          "p99Ms": 13.951,
-          "throughput": 998.9
+          "mongo": {
+            "abortedPerSecond": 0.0,
+            "journalSyncMs": 0.494,
+            "journalSyncsPerSecond": 1052.59,
+            "majorityWaitMs": 0.0,
+            "majorityWaitsPerSecond": 2303.103,
+            "retriedPerSecond": 0.0,
+            "ticketsMax": 3.0,
+            "ticketsMean": 0.45,
+            "transactionLatencyMicros": null,
+            "writeConflictsPerSecond": 0.0,
+            "writeLatencyMicros": 1417.202
+          },
+          "p50Ms": 2.079,
+          "p99Ms": 6.751,
+          "throughput": 1546.8333333333333
         },
         {
           "clients": 16,
+          "containerCores": {
+            "kafka": 0.285,
+            "mongo": 0.881
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 5.663,
-          "p99Ms": 96.255,
-          "throughput": 1640.7666666666667
+          "mongo": {
+            "abortedPerSecond": 0.0,
+            "journalSyncMs": 0.664,
+            "journalSyncsPerSecond": 859.385,
+            "majorityWaitMs": 0.0,
+            "majorityWaitsPerSecond": 1877.308,
+            "retriedPerSecond": 0.0,
+            "ticketsMax": 2.0,
+            "ticketsMean": 0.35,
+            "transactionLatencyMicros": null,
+            "writeConflictsPerSecond": 0.0,
+            "writeLatencyMicros": 1757.204
+          },
+          "p50Ms": 3.615,
+          "p99Ms": 11.071,
+          "throughput": 3753.133333333333
         },
         {
           "clients": 64,
+          "containerCores": {
+            "kafka": 0.308,
+            "mongo": 1.264
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 11.071,
-          "p99Ms": 197.631,
-          "throughput": 3353.766666666667
+          "mongo": {
+            "abortedPerSecond": 0.0,
+            "journalSyncMs": 1.001,
+            "journalSyncsPerSecond": 653.846,
+            "majorityWaitMs": 0.001,
+            "majorityWaitsPerSecond": 1325.128,
+            "retriedPerSecond": 0.0,
+            "ticketsMax": 3.0,
+            "ticketsMean": 0.55,
+            "transactionLatencyMicros": null,
+            "writeConflictsPerSecond": 0.0,
+            "writeLatencyMicros": 2521.386
+          },
+          "p50Ms": 7.071,
+          "p99Ms": 19.839,
+          "throughput": 7776.6
         },
         {
           "clients": 256,
+          "containerCores": {
+            "kafka": 0.347,
+            "mongo": 2.302
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 18.943,
-          "p99Ms": 239.615,
-          "throughput": 8015.366666666667
+          "mongo": {
+            "abortedPerSecond": 0.0,
+            "journalSyncMs": 1.137,
+            "journalSyncsPerSecond": 518.308,
+            "majorityWaitMs": 0.0,
+            "majorityWaitsPerSecond": 948.385,
+            "retriedPerSecond": 0.0,
+            "ticketsMax": 3.0,
+            "ticketsMean": 1.0,
+            "transactionLatencyMicros": null,
+            "writeConflictsPerSecond": 0.0,
+            "writeLatencyMicros": 3450.977
+          },
+          "p50Ms": 15.167,
+          "p99Ms": 42.239,
+          "throughput": 14914.366666666667
         },
         {
           "clients": 1024,
+          "containerCores": {
+            "kafka": 0.344,
+            "mongo": 2.991
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 21.247,
-          "p99Ms": 585.727,
-          "throughput": 13372.533333333333
+          "mongo": {
+            "abortedPerSecond": 0.0,
+            "journalSyncMs": 1.197,
+            "journalSyncsPerSecond": 506.025,
+            "majorityWaitMs": 0.002,
+            "majorityWaitsPerSecond": 886.25,
+            "retriedPerSecond": 0.0,
+            "ticketsMax": 3.0,
+            "ticketsMean": 1.024,
+            "transactionLatencyMicros": null,
+            "writeConflictsPerSecond": 0.0,
+            "writeLatencyMicros": 3750.542
+          },
+          "p50Ms": 17.919,
+          "p99Ms": 397.311,
+          "throughput": 15957.533333333333
         },
         {
           "clients": 4096,
+          "containerCores": {},
           "errors": {
-            "http-429-wow.command.busy": 73748
+            "http-429-wow.command.busy": 102934
           },
-          "failedShare": 0.13724899037835223,
-          "p50Ms": 66.047,
-          "p99Ms": 2490.367,
-          "throughput": 15452.733333333334
+          "failedShare": 0.14367608325156225,
+          "mongo": {
+            "abortedPerSecond": 0.0,
+            "journalSyncMs": 2.157,
+            "journalSyncsPerSecond": 280.923,
+            "majorityWaitMs": 0.01,
+            "majorityWaitsPerSecond": 390.359,
+            "retriedPerSecond": 0.0,
+            "ticketsMax": 5.0,
+            "ticketsMean": 1.425,
+            "transactionLatencyMicros": null,
+            "writeConflictsPerSecond": 0.0,
+            "writeLatencyMicros": 8655.495
+          },
+          "p50Ms": 52.991,
+          "p99Ms": 1507.327,
+          "throughput": 20449.9
         }
       ],
       "sustainable": {
-        "clients": 64,
-        "p50Ms": 11.071,
-        "p99Ms": 197.631,
-        "throughput": 3353.766666666667
+        "clients": 256,
+        "p50Ms": 15.167,
+        "p99Ms": 42.239,
+        "throughput": 14914.366666666667
       },
       "void": []
     },
     "1-S-mongo/e1-zipf-top": {
       "backend": "mongo",
+      "builds": {
+        "load": "103f9b6746",
+        "server": "103f9b6746"
+      },
       "disturbed": [],
       "generatorBound": [],
       "keys": "zipf",
@@ -324,13 +717,15 @@
       "steps": [
         {
           "clients": 4096,
+          "containerCores": {},
           "errors": {
-            "http-429-wow.command.busy": 78858
+            "http-429-wow.command.busy": 98291
           },
-          "failedShare": 0.13051768140696532,
-          "p50Ms": 66.047,
-          "p99Ms": 1859.583,
-          "throughput": 17511.2
+          "failedShare": 0.14351795744879678,
+          "mongo": null,
+          "p50Ms": 56.575,
+          "p99Ms": 1605.631,
+          "throughput": 19552.6
         }
       ],
       "sustainable": null,
@@ -338,6 +733,10 @@
     },
     "1-S-mongo/e3-sweep": {
       "backend": "mongo",
+      "builds": {
+        "load": "103f9b6746",
+        "server": "103f9b6746"
+      },
       "disturbed": [],
       "generatorBound": [],
       "keys": "uniform",
@@ -347,164 +746,320 @@
         "clients": 1024,
         "lowerBound": false,
         "single": false,
-        "throughput": 7341.666666666667
+        "throughput": 7738.2
       },
       "scenario": "E3",
       "setAside": false,
       "steps": [
         {
           "clients": 1,
+          "containerCores": {
+            "kafka": 0.269,
+            "mongo": 1.141
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 4.511,
-          "p99Ms": 14.143,
-          "throughput": 174.33333333333334
+          "mongo": {
+            "abortedPerSecond": 0.0,
+            "journalSyncMs": 0.614,
+            "journalSyncsPerSecond": 754.581,
+            "majorityWaitMs": 0.0,
+            "majorityWaitsPerSecond": 1326.0,
+            "retriedPerSecond": 0.0,
+            "ticketsMax": 1.0,
+            "ticketsMean": 0.136,
+            "transactionLatencyMicros": null,
+            "writeConflictsPerSecond": 0.0,
+            "writeLatencyMicros": 1552.196
+          },
+          "p50Ms": 3.375,
+          "p99Ms": 10.431,
+          "throughput": 248.8
         },
         {
           "clients": 4,
+          "containerCores": {
+            "kafka": 0.266,
+            "mongo": 0.872
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 7.935,
-          "p99Ms": 29.311,
-          "throughput": 407.26666666666665
+          "mongo": {
+            "abortedPerSecond": 0.0,
+            "journalSyncMs": 0.577,
+            "journalSyncsPerSecond": 916.333,
+            "majorityWaitMs": 0.0,
+            "majorityWaitsPerSecond": 2099.026,
+            "retriedPerSecond": 0.0,
+            "ticketsMax": 2.0,
+            "ticketsMean": 0.35,
+            "transactionLatencyMicros": null,
+            "writeConflictsPerSecond": 0.0,
+            "writeLatencyMicros": 1553.938
+          },
+          "p50Ms": 5.663,
+          "p99Ms": 12.799,
+          "throughput": 651.2666666666667
         },
         {
           "clients": 16,
+          "containerCores": {
+            "kafka": 0.256,
+            "mongo": 1.2
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 9.983,
-          "p99Ms": 32.255,
-          "throughput": 1330.6333333333334
+          "mongo": {
+            "abortedPerSecond": 0.0,
+            "journalSyncMs": 0.884,
+            "journalSyncsPerSecond": 735.846,
+            "majorityWaitMs": 0.0,
+            "majorityWaitsPerSecond": 1522.218,
+            "retriedPerSecond": 0.0,
+            "ticketsMax": 2.0,
+            "ticketsMean": 0.308,
+            "transactionLatencyMicros": null,
+            "writeConflictsPerSecond": 0.0,
+            "writeLatencyMicros": 2099.918
+          },
+          "p50Ms": 9.663,
+          "p99Ms": 21.759,
+          "throughput": 1531.1666666666667
         },
         {
           "clients": 64,
+          "containerCores": {
+            "kafka": 0.312,
+            "mongo": 2.05
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 19.967,
-          "p99Ms": 191.487,
-          "throughput": 2576.8333333333335
+          "mongo": {
+            "abortedPerSecond": 0.0,
+            "journalSyncMs": 1.096,
+            "journalSyncsPerSecond": 565.436,
+            "majorityWaitMs": 0.0,
+            "majorityWaitsPerSecond": 1052.385,
+            "retriedPerSecond": 0.0,
+            "ticketsMax": 3.0,
+            "ticketsMean": 0.625,
+            "transactionLatencyMicros": null,
+            "writeConflictsPerSecond": 0.0,
+            "writeLatencyMicros": 3068.872
+          },
+          "p50Ms": 18.047,
+          "p99Ms": 43.775,
+          "throughput": 3281.8
         },
         {
           "clients": 256,
+          "containerCores": {
+            "kafka": 0.346,
+            "mongo": 3.779
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 50.431,
-          "p99Ms": 173.055,
-          "throughput": 4809.4
+          "mongo": {
+            "abortedPerSecond": 0.0,
+            "journalSyncMs": 1.367,
+            "journalSyncsPerSecond": 403.667,
+            "majorityWaitMs": 0.004,
+            "majorityWaitsPerSecond": 611.026,
+            "retriedPerSecond": 0.0,
+            "ticketsMax": 3.0,
+            "ticketsMean": 1.225,
+            "transactionLatencyMicros": null,
+            "writeConflictsPerSecond": 0.0,
+            "writeLatencyMicros": 5375.803
+          },
+          "p50Ms": 41.727,
+          "p99Ms": 72.191,
+          "throughput": 5898.633333333333
         },
         {
           "clients": 1024,
+          "containerCores": {
+            "kafka": 0.378,
+            "mongo": 4.599
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 134.143,
-          "p99Ms": 401.407,
-          "throughput": 7341.666666666667
+          "mongo": {
+            "abortedPerSecond": 0.0,
+            "journalSyncMs": 1.626,
+            "journalSyncsPerSecond": 259.128,
+            "majorityWaitMs": 0.013,
+            "majorityWaitsPerSecond": 336.667,
+            "retriedPerSecond": 0.0,
+            "ticketsMax": 6.0,
+            "ticketsMean": 2.3,
+            "transactionLatencyMicros": null,
+            "writeConflictsPerSecond": 0.0,
+            "writeLatencyMicros": 12193.951
+          },
+          "p50Ms": 124.415,
+          "p99Ms": 440.319,
+          "throughput": 7738.2
         },
         {
           "clients": 4096,
+          "containerCores": {},
           "errors": {
-            "http-429-wow.command.busy": 397534,
-            "http-504-wow.wait.timeout": 1989
+            "http-429-wow.command.busy": 423223,
+            "http-504-wow.wait.timeout": 2707
           },
-          "failedShare": 0.7566780808945522,
-          "p50Ms": 485.375,
-          "p99Ms": 5931.007,
-          "throughput": 4282.433333333333
+          "failedShare": 0.7883271391977731,
+          "mongo": {
+            "abortedPerSecond": 0.0,
+            "journalSyncMs": 3.526,
+            "journalSyncsPerSecond": 107.733,
+            "majorityWaitMs": 0.022,
+            "majorityWaitsPerSecond": 147.2,
+            "retriedPerSecond": 0.0,
+            "ticketsMax": 6.0,
+            "ticketsMean": 2.022,
+            "transactionLatencyMicros": null,
+            "writeConflictsPerSecond": 0.0,
+            "writeLatencyMicros": 22510.591
+          },
+          "p50Ms": 634.879,
+          "p99Ms": 5734.399,
+          "throughput": 3812.2
         }
       ],
       "sustainable": {
         "clients": 256,
-        "p50Ms": 50.431,
-        "p99Ms": 173.055,
-        "throughput": 4809.4
+        "p50Ms": 41.727,
+        "p99Ms": 72.191,
+        "throughput": 5898.633333333333
       },
       "void": []
     },
     "1-S-postgres/e1-hot-sweep": {
       "backend": "postgres",
+      "builds": {
+        "load": "103f9b6746",
+        "server": "103f9b6746"
+      },
       "disturbed": [],
       "generatorBound": [],
       "keys": "hot",
       "kind": "sweep",
       "nodes": "1",
       "peak": {
-        "clients": 1024,
+        "clients": 256,
         "lowerBound": false,
         "single": false,
-        "throughput": 11521.166666666666
+        "throughput": 11853.7
       },
       "scenario": "E1",
       "setAside": false,
       "steps": [
         {
           "clients": 1,
+          "containerCores": {
+            "kafka": 0.273,
+            "postgres": 0.266
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 1.199,
-          "p99Ms": 4.031,
-          "throughput": 639.1
+          "mongo": null,
+          "p50Ms": 0.767,
+          "p99Ms": 3.135,
+          "throughput": 1027.3333333333333
         },
         {
           "clients": 4,
+          "containerCores": {
+            "kafka": 0.338,
+            "postgres": 0.658
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 4.767,
-          "p99Ms": 15.807,
-          "throughput": 729.5333333333333
+          "mongo": null,
+          "p50Ms": 1.687,
+          "p99Ms": 6.943,
+          "throughput": 2008.7666666666667
         },
         {
           "clients": 16,
+          "containerCores": {
+            "kafka": 0.323,
+            "postgres": 0.845
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 4.223,
-          "p99Ms": 16.191,
-          "throughput": 2955.3
+          "mongo": null,
+          "p50Ms": 2.911,
+          "p99Ms": 10.303,
+          "throughput": 4678.733333333334
         },
         {
           "clients": 64,
+          "containerCores": {
+            "kafka": 0.377,
+            "postgres": 1.413
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 7.007,
-          "p99Ms": 22.271,
-          "throughput": 7664.866666666667
+          "mongo": null,
+          "p50Ms": 5.439,
+          "p99Ms": 13.759,
+          "throughput": 10806.233333333334
         },
         {
           "clients": 256,
+          "containerCores": {
+            "kafka": 0.369,
+            "postgres": 1.544
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 30.847,
-          "p99Ms": 155.647,
-          "throughput": 8520.666666666666
+          "mongo": null,
+          "p50Ms": 23.551,
+          "p99Ms": 76.799,
+          "throughput": 11853.7
         },
         {
           "clients": 1024,
+          "containerCores": {
+            "kafka": 0.378,
+            "postgres": 1.513
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 134.143,
-          "p99Ms": 303.103,
-          "throughput": 11521.166666666666
+          "mongo": null,
+          "p50Ms": 125.439,
+          "p99Ms": 296.959,
+          "throughput": 11761.3
         },
         {
           "clients": 4096,
+          "containerCores": {},
           "errors": {
-            "http-429-wow.command.busy": 605525
+            "http-429-wow.command.busy": 535534
           },
-          "failedShare": 0.4809872899093748,
-          "p50Ms": 88.063,
-          "p99Ms": 1548.287,
-          "throughput": 21779.866666666665
+          "failedShare": 0.4531737495779532,
+          "mongo": null,
+          "p50Ms": 85.503,
+          "p99Ms": 651.263,
+          "throughput": 21540.233333333334
         }
       ],
       "sustainable": {
         "clients": 256,
-        "p50Ms": 30.847,
-        "p99Ms": 155.647,
-        "throughput": 8520.666666666666
+        "p50Ms": 23.551,
+        "p99Ms": 76.799,
+        "throughput": 11853.7
       },
       "void": []
     },
     "1-S-postgres/e1-hot-top": {
       "backend": "postgres",
+      "builds": {
+        "load": "103f9b6746",
+        "server": "103f9b6746"
+      },
       "disturbed": [],
       "generatorBound": [],
       "keys": "hot",
@@ -516,13 +1071,15 @@
       "steps": [
         {
           "clients": 4096,
+          "containerCores": {},
           "errors": {
-            "http-429-wow.command.busy": 606290
+            "http-429-wow.command.busy": 518661
           },
-          "failedShare": 0.481194760501854,
-          "p50Ms": 89.087,
-          "p99Ms": 1490.943,
-          "throughput": 21789.266666666666
+          "failedShare": 0.45300159047218946,
+          "mongo": null,
+          "p50Ms": 87.039,
+          "p99Ms": 696.319,
+          "throughput": 20876.066666666666
         }
       ],
       "sustainable": null,
@@ -530,6 +1087,10 @@
     },
     "1-S-postgres/e1-sweep": {
       "backend": "postgres",
+      "builds": {
+        "load": "103f9b6746",
+        "server": "103f9b6746"
+      },
       "disturbed": [],
       "generatorBound": [],
       "keys": "uniform",
@@ -539,78 +1100,114 @@
         "clients": 4096,
         "lowerBound": true,
         "single": false,
-        "throughput": 37713.6
+        "throughput": 41706.066666666666
       },
       "scenario": "E1",
       "setAside": false,
       "steps": [
         {
           "clients": 1,
+          "containerCores": {
+            "kafka": 0.261,
+            "postgres": 0.254
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 0.875,
-          "p99Ms": 3.615,
-          "throughput": 776.3333333333334
+          "mongo": null,
+          "p50Ms": 0.747,
+          "p99Ms": 1.215,
+          "throughput": 1298.6666666666667
         },
         {
           "clients": 4,
+          "containerCores": {
+            "kafka": 0.317,
+            "postgres": 0.549
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 4.927,
-          "p99Ms": 16.127,
-          "throughput": 684.4
+          "mongo": null,
+          "p50Ms": 1.551,
+          "p99Ms": 5.503,
+          "throughput": 2353.2
         },
         {
           "clients": 16,
+          "containerCores": {
+            "kafka": 0.313,
+            "postgres": 0.622
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 4.895,
-          "p99Ms": 15.295,
-          "throughput": 2643.5333333333333
+          "mongo": null,
+          "p50Ms": 2.559,
+          "p99Ms": 10.623,
+          "throughput": 4174.533333333334
         },
         {
           "clients": 64,
+          "containerCores": {
+            "kafka": 0.406,
+            "postgres": 1.111
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 5.375,
-          "p99Ms": 15.935,
-          "throughput": 9676.4
+          "mongo": null,
+          "p50Ms": 4.047,
+          "p99Ms": 8.831,
+          "throughput": 14623.2
         },
         {
           "clients": 256,
+          "containerCores": {
+            "kafka": 0.425,
+            "postgres": 1.39
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 16.127,
-          "p99Ms": 28.543,
-          "throughput": 16241.7
+          "mongo": null,
+          "p50Ms": 9.919,
+          "p99Ms": 20.991,
+          "throughput": 23754.166666666668
         },
         {
           "clients": 1024,
+          "containerCores": {
+            "kafka": 0.401,
+            "postgres": 1.735
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 48.895,
-          "p99Ms": 74.751,
-          "throughput": 23030.133333333335
+          "mongo": null,
+          "p50Ms": 24.063,
+          "p99Ms": 46.079,
+          "throughput": 41605.666666666664
         },
         {
           "clients": 4096,
+          "containerCores": {},
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 105.983,
-          "p99Ms": 211.967,
-          "throughput": 37713.6
+          "mongo": null,
+          "p50Ms": 96.767,
+          "p99Ms": 167.935,
+          "throughput": 41706.066666666666
         }
       ],
       "sustainable": {
-        "clients": 1024,
-        "p50Ms": 48.895,
-        "p99Ms": 74.751,
-        "throughput": 23030.133333333335
+        "clients": 4096,
+        "p50Ms": 96.767,
+        "p99Ms": 167.935,
+        "throughput": 41706.066666666666
       },
       "void": []
     },
     "1-S-postgres/e1-top": {
       "backend": "postgres",
+      "builds": {
+        "load": "103f9b6746",
+        "server": "103f9b6746"
+      },
       "disturbed": [],
       "generatorBound": [],
       "keys": "uniform",
@@ -620,118 +1217,170 @@
         "clients": 4096,
         "lowerBound": false,
         "single": false,
-        "throughput": 36719.53333333333
+        "throughput": 40594.13333333333
       },
       "scenario": "E1",
       "setAside": false,
       "steps": [
         {
           "clients": 4096,
+          "containerCores": {
+            "kafka": 0.364,
+            "postgres": 1.909
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 108.543,
-          "p99Ms": 227.327,
-          "throughput": 36719.53333333333
+          "mongo": null,
+          "p50Ms": 98.815,
+          "p99Ms": 183.295,
+          "throughput": 40594.13333333333
         },
         {
           "clients": 8192,
+          "containerCores": {},
           "errors": {
-            "http-429-wow.command.busy": 26600
+            "http-429-wow.command.busy": 19145
           },
-          "failedShare": 0.04001257538083398,
-          "p50Ms": 376.831,
-          "p99Ms": 557.055,
-          "throughput": 21273.033333333333
+          "failedShare": 0.02739167447616731,
+          "mongo": null,
+          "p50Ms": 358.399,
+          "p99Ms": 454.655,
+          "throughput": 22659.666666666668
         }
       ],
-      "sustainable": null,
+      "sustainable": {
+        "clients": 4096,
+        "p50Ms": 98.815,
+        "p99Ms": 183.295,
+        "throughput": 40594.13333333333
+      },
       "void": []
     },
     "1-S-postgres/e1-zipf-sweep": {
       "backend": "postgres",
+      "builds": {
+        "load": "103f9b6746",
+        "server": "103f9b6746"
+      },
       "disturbed": [],
       "generatorBound": [],
       "keys": "zipf",
       "kind": "sweep",
       "nodes": "1",
       "peak": {
-        "clients": 1024,
+        "clients": 256,
         "lowerBound": false,
         "single": false,
-        "throughput": 17090.633333333335
+        "throughput": 19746.8
       },
       "scenario": "E1",
       "setAside": false,
       "steps": [
         {
           "clients": 1,
+          "containerCores": {
+            "kafka": 0.256,
+            "postgres": 0.204
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 1.367,
-          "p99Ms": 4.159,
-          "throughput": 524.2666666666667
+          "mongo": null,
+          "p50Ms": 0.851,
+          "p99Ms": 3.503,
+          "throughput": 791.3333333333334
         },
         {
           "clients": 4,
+          "containerCores": {
+            "kafka": 0.307,
+            "postgres": 0.444
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 4.927,
-          "p99Ms": 15.999,
-          "throughput": 684.1
+          "mongo": null,
+          "p50Ms": 1.671,
+          "p99Ms": 7.519,
+          "throughput": 1650.6
         },
         {
           "clients": 16,
+          "containerCores": {
+            "kafka": 0.348,
+            "postgres": 0.752
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 4.959,
-          "p99Ms": 18.047,
-          "throughput": 2466.733333333333
+          "mongo": null,
+          "p50Ms": 2.527,
+          "p99Ms": 10.495,
+          "throughput": 4712.833333333333
         },
         {
           "clients": 64,
+          "containerCores": {
+            "kafka": 0.362,
+            "postgres": 1.066
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 6.559,
-          "p99Ms": 24.831,
-          "throughput": 7402.466666666666
+          "mongo": null,
+          "p50Ms": 5.215,
+          "p99Ms": 17.791,
+          "throughput": 9838.0
         },
         {
           "clients": 256,
+          "containerCores": {
+            "kafka": 0.4,
+            "postgres": 1.791
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 14.527,
-          "p99Ms": 52.223,
-          "throughput": 15386.1
+          "mongo": null,
+          "p50Ms": 11.583,
+          "p99Ms": 29.567,
+          "throughput": 19746.8
         },
         {
           "clients": 1024,
+          "containerCores": {
+            "kafka": 0.409,
+            "postgres": 2.137
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 19.327,
-          "p99Ms": 389.119,
-          "throughput": 17090.633333333335
+          "mongo": null,
+          "p50Ms": 14.015,
+          "p99Ms": 337.919,
+          "throughput": 19335.466666666667
         },
         {
           "clients": 4096,
+          "containerCores": {},
           "errors": {
-            "http-429-wow.command.busy": 83231
+            "http-429-wow.command.busy": 126957
           },
-          "failedShare": 0.12019246737455612,
-          "p50Ms": 63.487,
-          "p99Ms": 1835.007,
-          "throughput": 20308.333333333332
+          "failedShare": 0.14381629684675093,
+          "mongo": null,
+          "p50Ms": 41.727,
+          "p99Ms": 1425.407,
+          "throughput": 25193.833333333332
         }
       ],
       "sustainable": {
         "clients": 256,
-        "p50Ms": 14.527,
-        "p99Ms": 52.223,
-        "throughput": 15386.1
+        "p50Ms": 11.583,
+        "p99Ms": 29.567,
+        "throughput": 19746.8
       },
       "void": []
     },
     "1-S-postgres/e1-zipf-top": {
       "backend": "postgres",
+      "builds": {
+        "load": "103f9b6746",
+        "server": "103f9b6746"
+      },
       "disturbed": [],
       "generatorBound": [],
       "keys": "zipf",
@@ -743,13 +1392,15 @@
       "steps": [
         {
           "clients": 4096,
+          "containerCores": {},
           "errors": {
-            "http-429-wow.command.busy": 74031
+            "http-429-wow.command.busy": 128487
           },
-          "failedShare": 0.10687989420433808,
-          "p50Ms": 63.743,
-          "p99Ms": 1703.935,
-          "throughput": 20620.833333333332
+          "failedShare": 0.14344725798222413,
+          "mongo": null,
+          "p50Ms": 41.727,
+          "p99Ms": 1409.023,
+          "throughput": 25574.066666666666
         }
       ],
       "sustainable": null,
@@ -757,6 +1408,10 @@
     },
     "1-S-postgres/e3-sweep": {
       "backend": "postgres",
+      "builds": {
+        "load": "103f9b6746",
+        "server": "103f9b6746"
+      },
       "disturbed": [],
       "generatorBound": [],
       "keys": "uniform",
@@ -766,81 +1421,117 @@
         "clients": 1024,
         "lowerBound": false,
         "single": false,
-        "throughput": 7956.166666666667
+        "throughput": 8042.666666666667
       },
       "scenario": "E3",
       "setAside": false,
       "steps": [
         {
           "clients": 1,
+          "containerCores": {
+            "kafka": 0.302,
+            "postgres": 0.633
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 2.031,
-          "p99Ms": 10.687,
-          "throughput": 396.3
+          "mongo": null,
+          "p50Ms": 1.823,
+          "p99Ms": 5.503,
+          "throughput": 452.3333333333333
         },
         {
           "clients": 4,
+          "containerCores": {
+            "kafka": 0.317,
+            "postgres": 0.652
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 4.767,
-          "p99Ms": 30.079,
-          "throughput": 422.03333333333336
+          "mongo": null,
+          "p50Ms": 3.903,
+          "p99Ms": 16.511,
+          "throughput": 662.3666666666667
         },
         {
           "clients": 16,
+          "containerCores": {
+            "kafka": 0.347,
+            "postgres": 0.966
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 6.399,
-          "p99Ms": 19.199,
-          "throughput": 2195.1
+          "mongo": null,
+          "p50Ms": 5.727,
+          "p99Ms": 12.159,
+          "throughput": 2525.0333333333333
         },
         {
           "clients": 64,
+          "containerCores": {
+            "kafka": 0.348,
+            "postgres": 0.983
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 15.551,
-          "p99Ms": 41.727,
-          "throughput": 3687.4
+          "mongo": null,
+          "p50Ms": 13.311,
+          "p99Ms": 185.343,
+          "throughput": 3637.9333333333334
         },
         {
           "clients": 256,
+          "containerCores": {
+            "kafka": 0.348,
+            "postgres": 1.355
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 57.855,
-          "p99Ms": 704.511,
-          "throughput": 3650.766666666667
+          "mongo": null,
+          "p50Ms": 27.135,
+          "p99Ms": 643.071,
+          "throughput": 7067.233333333334
         },
         {
           "clients": 1024,
+          "containerCores": {
+            "kafka": 0.346,
+            "postgres": 1.471
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 100.863,
-          "p99Ms": 745.471,
-          "throughput": 7956.166666666667
+          "mongo": null,
+          "p50Ms": 88.063,
+          "p99Ms": 737.279,
+          "throughput": 8042.666666666667
         },
         {
           "clients": 4096,
+          "containerCores": {},
           "errors": {
-            "http-429-wow.command.busy": 359173,
-            "http-504-wow.wait.timeout": 1066
+            "http-429-wow.command.busy": 467570,
+            "http-504-wow.wait.timeout": 2338
           },
-          "failedShare": 0.6968896781731937,
-          "p50Ms": 339.967,
-          "p99Ms": 6684.671,
-          "throughput": 5222.833333333333
+          "failedShare": 0.717097110906283,
+          "mongo": null,
+          "p50Ms": 276.479,
+          "p99Ms": 3555.327,
+          "throughput": 6179.466666666666
         }
       ],
       "sustainable": {
         "clients": 64,
-        "p50Ms": 15.551,
-        "p99Ms": 41.727,
-        "throughput": 3687.4
+        "p50Ms": 13.311,
+        "p99Ms": 185.343,
+        "throughput": 3637.9333333333334
       },
       "void": []
     },
     "3-N-mongo/e1-c1024": {
       "backend": "mongo",
+      "builds": {
+        "load": "103f9b6746",
+        "server": "103f9b6746"
+      },
       "disturbed": [],
       "generatorBound": [],
       "keys": "uniform",
@@ -850,30 +1541,48 @@
         "clients": 1024,
         "lowerBound": false,
         "single": true,
-        "throughput": 15805.783333333333
+        "throughput": 17695.866666666665
       },
       "scenario": "E1",
       "setAside": false,
       "steps": [
         {
           "clients": 1024,
+          "containerCores": {},
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 48.895,
-          "p99Ms": 192.511,
-          "throughput": 15805.783333333333
+          "mongo": {
+            "abortedPerSecond": 0.0,
+            "journalSyncMs": 3.869,
+            "journalSyncsPerSecond": 215.026,
+            "majorityWaitMs": 0.006,
+            "majorityWaitsPerSecond": 1031.5,
+            "retriedPerSecond": 0.0,
+            "ticketsMax": 9.0,
+            "ticketsMean": 2.192,
+            "transactionLatencyMicros": null,
+            "writeConflictsPerSecond": 0.0,
+            "writeLatencyMicros": 9400.865
+          },
+          "p50Ms": 43.519,
+          "p99Ms": 152.575,
+          "throughput": 17695.866666666665
         }
       ],
       "sustainable": {
         "clients": 1024,
-        "p50Ms": 48.895,
-        "p99Ms": 192.511,
-        "throughput": 15805.783333333333
+        "p50Ms": 43.519,
+        "p99Ms": 152.575,
+        "throughput": 17695.866666666665
       },
       "void": []
     },
     "3-N-mongo/e1-sweep": {
       "backend": "mongo",
+      "builds": {
+        "load": "103f9b6746",
+        "server": "103f9b6746"
+      },
       "disturbed": [],
       "generatorBound": [],
       "keys": "uniform",
@@ -883,78 +1592,200 @@
         "clients": 1024,
         "lowerBound": false,
         "single": false,
-        "throughput": 16657.2
+        "throughput": 19052.266666666666
       },
       "scenario": "E1",
       "setAside": false,
       "steps": [
         {
           "clients": 1,
+          "containerCores": {
+            "kafka": 0.267,
+            "mongo": 0.384
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 3.119,
-          "p99Ms": 7.263,
-          "throughput": 289.4
+          "mongo": {
+            "abortedPerSecond": 0.0,
+            "journalSyncMs": 0.802,
+            "journalSyncsPerSecond": 568.186,
+            "majorityWaitMs": 0.0,
+            "majorityWaitsPerSecond": 720.744,
+            "retriedPerSecond": 0.0,
+            "ticketsMax": 1.0,
+            "ticketsMean": 0.091,
+            "transactionLatencyMicros": null,
+            "writeConflictsPerSecond": 0.0,
+            "writeLatencyMicros": 1843.991
+          },
+          "p50Ms": 2.415,
+          "p99Ms": 5.727,
+          "throughput": 355.43333333333334
         },
         {
           "clients": 4,
+          "containerCores": {
+            "kafka": 0.323,
+            "mongo": 0.839
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 3.295,
-          "p99Ms": 10.111,
-          "throughput": 941.0
+          "mongo": {
+            "abortedPerSecond": 0.0,
+            "journalSyncMs": 0.797,
+            "journalSyncsPerSecond": 752.308,
+            "majorityWaitMs": 0.0,
+            "majorityWaitsPerSecond": 2559.821,
+            "retriedPerSecond": 0.0,
+            "ticketsMax": 2.0,
+            "ticketsMean": 0.205,
+            "transactionLatencyMicros": null,
+            "writeConflictsPerSecond": 0.0,
+            "writeLatencyMicros": 1961.378
+          },
+          "p50Ms": 2.447,
+          "p99Ms": 7.231,
+          "throughput": 1280.2
         },
         {
           "clients": 16,
+          "containerCores": {
+            "kafka": 0.416,
+            "mongo": 1.53
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 5.119,
-          "p99Ms": 17.407,
-          "throughput": 2455.1666666666665
+          "mongo": {
+            "abortedPerSecond": 0.0,
+            "journalSyncMs": 1.06,
+            "journalSyncsPerSecond": 757.308,
+            "majorityWaitMs": 0.0,
+            "majorityWaitsPerSecond": 3831.462,
+            "retriedPerSecond": 0.0,
+            "ticketsMax": 3.0,
+            "ticketsMean": 0.5,
+            "transactionLatencyMicros": null,
+            "writeConflictsPerSecond": 0.0,
+            "writeLatencyMicros": 2467.453
+          },
+          "p50Ms": 4.159,
+          "p99Ms": 11.903,
+          "throughput": 3210.8
         },
         {
           "clients": 64,
+          "containerCores": {
+            "kafka": 0.452,
+            "mongo": 2.346
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 7.583,
-          "p99Ms": 30.335,
-          "throughput": 6691.8
+          "mongo": {
+            "abortedPerSecond": 0.0,
+            "journalSyncMs": 1.141,
+            "journalSyncsPerSecond": 711.744,
+            "majorityWaitMs": 0.0,
+            "majorityWaitsPerSecond": 3560.359,
+            "retriedPerSecond": 0.0,
+            "ticketsMax": 5.0,
+            "ticketsMean": 1.275,
+            "transactionLatencyMicros": null,
+            "writeConflictsPerSecond": 0.0,
+            "writeLatencyMicros": 2649.638
+          },
+          "p50Ms": 6.911,
+          "p99Ms": 15.359,
+          "throughput": 8462.833333333334
         },
         {
           "clients": 256,
+          "containerCores": {
+            "kafka": 0.464,
+            "mongo": 3.5
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 17.919,
-          "p99Ms": 42.239,
-          "throughput": 13448.1
+          "mongo": {
+            "abortedPerSecond": 0.0,
+            "journalSyncMs": 2.061,
+            "journalSyncsPerSecond": 423.154,
+            "majorityWaitMs": 0.002,
+            "majorityWaitsPerSecond": 2076.333,
+            "retriedPerSecond": 0.0,
+            "ticketsMax": 5.0,
+            "ticketsMean": 1.575,
+            "transactionLatencyMicros": null,
+            "writeConflictsPerSecond": 0.0,
+            "writeLatencyMicros": 4771.261
+          },
+          "p50Ms": 16.639,
+          "p99Ms": 31.871,
+          "throughput": 14889.5
         },
         {
           "clients": 1024,
+          "containerCores": {
+            "kafka": 0.478,
+            "mongo": 4.519
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 46.847,
-          "p99Ms": 178.175,
-          "throughput": 16657.2
+          "mongo": {
+            "abortedPerSecond": 0.0,
+            "journalSyncMs": 3.677,
+            "journalSyncsPerSecond": 243.897,
+            "majorityWaitMs": 0.005,
+            "majorityWaitsPerSecond": 1172.718,
+            "retriedPerSecond": 0.0,
+            "ticketsMax": 7.0,
+            "ticketsMean": 2.25,
+            "transactionLatencyMicros": null,
+            "writeConflictsPerSecond": 0.0,
+            "writeLatencyMicros": 8640.888
+          },
+          "p50Ms": 40.959,
+          "p99Ms": 131.071,
+          "throughput": 19052.266666666666
         },
         {
           "clients": 4096,
-          "errors": {},
-          "failedShare": 0.0,
-          "p50Ms": 157.695,
-          "p99Ms": 3375.103,
-          "throughput": 7741.7
+          "containerCores": {},
+          "errors": {
+            "http-429-wow.command.busy": 58464
+          },
+          "failedShare": 0.08809569014619328,
+          "mongo": {
+            "abortedPerSecond": 0.0,
+            "journalSyncMs": 3.994,
+            "journalSyncsPerSecond": 216.795,
+            "majorityWaitMs": 0.006,
+            "majorityWaitsPerSecond": 1024.256,
+            "retriedPerSecond": 0.0,
+            "ticketsMax": 5.0,
+            "ticketsMean": 2.282,
+            "transactionLatencyMicros": null,
+            "writeConflictsPerSecond": 0.0,
+            "writeLatencyMicros": 9550.004
+          },
+          "p50Ms": 105.983,
+          "p99Ms": 589.823,
+          "throughput": 20172.6
         }
       ],
       "sustainable": {
         "clients": 1024,
-        "p50Ms": 46.847,
-        "p99Ms": 178.175,
-        "throughput": 16657.2
+        "p50Ms": 40.959,
+        "p99Ms": 131.071,
+        "throughput": 19052.266666666666
       },
       "void": []
     },
     "3-N-mongo/e3-c1024": {
       "backend": "mongo",
+      "builds": {
+        "load": "103f9b6746",
+        "server": "103f9b6746"
+      },
       "disturbed": [],
       "generatorBound": [],
       "keys": "uniform",
@@ -964,18 +1795,32 @@
         "clients": 1024,
         "lowerBound": false,
         "single": true,
-        "throughput": 5273.4
+        "throughput": 6015.55
       },
       "scenario": "E3",
       "setAside": false,
       "steps": [
         {
           "clients": 1024,
+          "containerCores": {},
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 153.599,
-          "p99Ms": 581.631,
-          "throughput": 5273.4
+          "mongo": {
+            "abortedPerSecond": 0.0,
+            "journalSyncMs": 3.452,
+            "journalSyncsPerSecond": 235.513,
+            "majorityWaitMs": 0.005,
+            "majorityWaitsPerSecond": 1039.436,
+            "retriedPerSecond": 0.0,
+            "ticketsMax": 8.0,
+            "ticketsMean": 2.256,
+            "transactionLatencyMicros": null,
+            "writeConflictsPerSecond": 0.0,
+            "writeLatencyMicros": 9230.936
+          },
+          "p50Ms": 141.311,
+          "p99Ms": 518.143,
+          "throughput": 6015.55
         }
       ],
       "sustainable": null,
@@ -983,6 +1828,10 @@
     },
     "3-N-mongo/e3-sweep": {
       "backend": "mongo",
+      "builds": {
+        "load": "103f9b6746",
+        "server": "103f9b6746"
+      },
       "disturbed": [],
       "generatorBound": [],
       "keys": "uniform",
@@ -992,78 +1841,201 @@
         "clients": 1024,
         "lowerBound": false,
         "single": false,
-        "throughput": 5380.066666666667
+        "throughput": 6060.233333333334
       },
       "scenario": "E3",
       "setAside": false,
       "steps": [
         {
           "clients": 1,
+          "containerCores": {
+            "kafka": 0.279,
+            "mongo": 0.564
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 5.919,
-          "p99Ms": 13.311,
-          "throughput": 155.03333333333333
+          "mongo": {
+            "abortedPerSecond": 0.0,
+            "journalSyncMs": 0.684,
+            "journalSyncsPerSecond": 627.14,
+            "majorityWaitMs": 0.0,
+            "majorityWaitsPerSecond": 1034.767,
+            "retriedPerSecond": 0.0,
+            "ticketsMax": 2.0,
+            "ticketsMean": 0.116,
+            "transactionLatencyMicros": null,
+            "writeConflictsPerSecond": 0.0,
+            "writeLatencyMicros": 1800.467
+          },
+          "p50Ms": 4.671,
+          "p99Ms": 9.663,
+          "throughput": 201.36666666666667
         },
         {
           "clients": 4,
+          "containerCores": {
+            "kafka": 0.367,
+            "mongo": 1.408
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 6.399,
-          "p99Ms": 17.535,
-          "throughput": 530.1666666666666
+          "mongo": {
+            "abortedPerSecond": 0.0,
+            "journalSyncMs": 0.647,
+            "journalSyncsPerSecond": 953.795,
+            "majorityWaitMs": 0.0,
+            "majorityWaitsPerSecond": 3825.154,
+            "retriedPerSecond": 0.0,
+            "ticketsMax": 7.0,
+            "ticketsMean": 0.5,
+            "transactionLatencyMicros": null,
+            "writeConflictsPerSecond": 0.0,
+            "writeLatencyMicros": 1642.062
+          },
+          "p50Ms": 5.407,
+          "p99Ms": 11.391,
+          "throughput": 695.5333333333333
         },
         {
           "clients": 16,
+          "containerCores": {
+            "kafka": 0.429,
+            "mongo": 2.325
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 11.583,
-          "p99Ms": 56.319,
-          "throughput": 1150.2333333333333
+          "mongo": {
+            "abortedPerSecond": 0.0,
+            "journalSyncMs": 0.88,
+            "journalSyncsPerSecond": 860.154,
+            "majorityWaitMs": 0.0,
+            "majorityWaitsPerSecond": 4391.308,
+            "retriedPerSecond": 0.0,
+            "ticketsMax": 5.0,
+            "ticketsMean": 0.975,
+            "transactionLatencyMicros": null,
+            "writeConflictsPerSecond": 0.0,
+            "writeLatencyMicros": 2051.922
+          },
+          "p50Ms": 9.535,
+          "p99Ms": 18.815,
+          "throughput": 1593.9333333333334
         },
         {
           "clients": 64,
+          "containerCores": {
+            "kafka": 0.469,
+            "mongo": 2.93
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 20.991,
-          "p99Ms": 45.311,
-          "throughput": 2885.8333333333335
+          "mongo": {
+            "abortedPerSecond": 0.0,
+            "journalSyncMs": 1.515,
+            "journalSyncsPerSecond": 561.436,
+            "majorityWaitMs": 0.001,
+            "majorityWaitsPerSecond": 2705.615,
+            "retriedPerSecond": 0.0,
+            "ticketsMax": 4.0,
+            "ticketsMean": 1.55,
+            "transactionLatencyMicros": null,
+            "writeConflictsPerSecond": 0.0,
+            "writeLatencyMicros": 3586.132
+          },
+          "p50Ms": 20.095,
+          "p99Ms": 74.751,
+          "throughput": 2926.1666666666665
         },
         {
           "clients": 256,
+          "containerCores": {
+            "kafka": 0.52,
+            "mongo": 4.793
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 49.407,
-          "p99Ms": 104.959,
-          "throughput": 4894.133333333333
+          "mongo": {
+            "abortedPerSecond": 0.0,
+            "journalSyncMs": 2.657,
+            "journalSyncsPerSecond": 331.615,
+            "majorityWaitMs": 0.005,
+            "majorityWaitsPerSecond": 1527.103,
+            "retriedPerSecond": 0.0,
+            "ticketsMax": 6.0,
+            "ticketsMean": 2.225,
+            "transactionLatencyMicros": null,
+            "writeConflictsPerSecond": 0.0,
+            "writeLatencyMicros": 6412.839
+          },
+          "p50Ms": 45.823,
+          "p99Ms": 78.847,
+          "throughput": 5462.933333333333
         },
         {
           "clients": 1024,
+          "containerCores": {
+            "kafka": 0.504,
+            "mongo": 4.754
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 149.503,
-          "p99Ms": 514.047,
-          "throughput": 5380.066666666667
+          "mongo": {
+            "abortedPerSecond": 0.0,
+            "journalSyncMs": 3.555,
+            "journalSyncsPerSecond": 239.436,
+            "majorityWaitMs": 0.007,
+            "majorityWaitsPerSecond": 1091.795,
+            "retriedPerSecond": 0.0,
+            "ticketsMax": 9.0,
+            "ticketsMean": 2.6,
+            "transactionLatencyMicros": null,
+            "writeConflictsPerSecond": 0.0,
+            "writeLatencyMicros": 9193.251
+          },
+          "p50Ms": 143.359,
+          "p99Ms": 471.039,
+          "throughput": 6060.233333333334
         },
         {
           "clients": 4096,
-          "errors": {},
-          "failedShare": 0.0,
-          "p50Ms": 1277.951,
-          "p99Ms": 5636.095,
-          "throughput": 2495.0666666666666
+          "containerCores": {},
+          "errors": {
+            "http-429-wow.command.busy": 16439,
+            "http-504-wow.wait.timeout": 3522
+          },
+          "failedShare": 0.11876669701134653,
+          "mongo": {
+            "abortedPerSecond": 0.0,
+            "journalSyncMs": 3.485,
+            "journalSyncsPerSecond": 211.289,
+            "majorityWaitMs": 0.007,
+            "majorityWaitsPerSecond": 855.822,
+            "retriedPerSecond": 0.0,
+            "ticketsMax": 8.0,
+            "ticketsMean": 2.733,
+            "transactionLatencyMicros": null,
+            "writeConflictsPerSecond": 0.0,
+            "writeLatencyMicros": 10261.052
+          },
+          "p50Ms": 278.527,
+          "p99Ms": 6815.743,
+          "throughput": 4936.933333333333
         }
       ],
       "sustainable": {
         "clients": 256,
-        "p50Ms": 49.407,
-        "p99Ms": 104.959,
-        "throughput": 4894.133333333333
+        "p50Ms": 45.823,
+        "p99Ms": 78.847,
+        "throughput": 5462.933333333333
       },
       "void": []
     },
     "3-N-postgres/e1-c1024": {
       "backend": "postgres",
+      "builds": {
+        "load": "103f9b6746",
+        "server": "103f9b6746"
+      },
       "disturbed": [],
       "generatorBound": [],
       "keys": "uniform",
@@ -1073,30 +2045,36 @@
         "clients": 1024,
         "lowerBound": false,
         "single": true,
-        "throughput": 19000.166666666668
+        "throughput": 24255.116666666665
       },
       "scenario": "E1",
       "setAside": false,
       "steps": [
         {
           "clients": 1024,
+          "containerCores": {},
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 36.863,
-          "p99Ms": 180.223,
-          "throughput": 19000.166666666668
+          "mongo": null,
+          "p50Ms": 32.127,
+          "p99Ms": 98.815,
+          "throughput": 24255.116666666665
         }
       ],
       "sustainable": {
         "clients": 1024,
-        "p50Ms": 36.863,
-        "p99Ms": 180.223,
-        "throughput": 19000.166666666668
+        "p50Ms": 32.127,
+        "p99Ms": 98.815,
+        "throughput": 24255.116666666665
       },
       "void": []
     },
     "3-N-postgres/e1-sweep": {
       "backend": "postgres",
+      "builds": {
+        "load": "103f9b6746",
+        "server": "103f9b6746"
+      },
       "disturbed": [],
       "generatorBound": [],
       "keys": "uniform",
@@ -1106,82 +2084,116 @@
         "clients": 1024,
         "lowerBound": false,
         "single": false,
-        "throughput": 21114.066666666666
+        "throughput": 25104.333333333332
       },
       "scenario": "E1",
       "setAside": false,
       "steps": [
         {
           "clients": 1,
+          "containerCores": {
+            "kafka": 0.293,
+            "postgres": 0.243
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 1.159,
-          "p99Ms": 3.439,
-          "throughput": 722.8333333333334
+          "mongo": null,
+          "p50Ms": 1.031,
+          "p99Ms": 3.455,
+          "throughput": 800.8
         },
         {
           "clients": 4,
+          "containerCores": {
+            "kafka": 0.385,
+            "postgres": 0.725
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 1.895,
-          "p99Ms": 6.943,
-          "throughput": 1525.9
+          "mongo": null,
+          "p50Ms": 1.543,
+          "p99Ms": 3.711,
+          "throughput": 2482.6666666666665
         },
         {
           "clients": 16,
+          "containerCores": {
+            "kafka": 0.481,
+            "postgres": 1.482
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 4.863,
-          "p99Ms": 15.487,
-          "throughput": 2618.4666666666667
+          "mongo": null,
+          "p50Ms": 3.039,
+          "p99Ms": 6.591,
+          "throughput": 4980.2
         },
         {
           "clients": 64,
+          "containerCores": {
+            "kafka": 0.447,
+            "postgres": 1.292
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 6.783,
-          "p99Ms": 16.895,
-          "throughput": 7644.933333333333
+          "mongo": null,
+          "p50Ms": 6.591,
+          "p99Ms": 20.223,
+          "throughput": 8021.633333333333
         },
         {
           "clients": 256,
+          "containerCores": {
+            "kafka": 0.506,
+            "postgres": 1.503
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 15.679,
-          "p99Ms": 28.287,
-          "throughput": 15953.166666666666
+          "mongo": null,
+          "p50Ms": 13.439,
+          "p99Ms": 23.807,
+          "throughput": 18559.266666666666
         },
         {
           "clients": 1024,
+          "containerCores": {
+            "kafka": 0.503,
+            "postgres": 1.499
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 35.583,
-          "p99Ms": 122.879,
-          "throughput": 21114.066666666666
+          "mongo": null,
+          "p50Ms": 31.871,
+          "p99Ms": 90.623,
+          "throughput": 25104.333333333332
         },
         {
           "clients": 4096,
+          "containerCores": {},
           "errors": {
-            "http-409-wow.command.contended": 2,
-            "http-503-wow.command.unknown": 232,
-            "http-504-wow.wait.timeout": 7681
+            "http-429-wow.command.busy": 71059
           },
-          "failedShare": 0.02379392030013708,
-          "p50Ms": 49.151,
-          "p99Ms": 3227.647,
-          "throughput": 10824.433333333332
+          "failedShare": 0.08504529389869821,
+          "mongo": null,
+          "p50Ms": 79.359,
+          "p99Ms": 444.415,
+          "throughput": 25482.8
         }
       ],
       "sustainable": {
         "clients": 1024,
-        "p50Ms": 35.583,
-        "p99Ms": 122.879,
-        "throughput": 21114.066666666666
+        "p50Ms": 31.871,
+        "p99Ms": 90.623,
+        "throughput": 25104.333333333332
       },
       "void": []
     },
     "3-N-postgres/e3-c1024": {
       "backend": "postgres",
+      "builds": {
+        "load": "103f9b6746",
+        "server": "103f9b6746"
+      },
       "disturbed": [],
       "generatorBound": [],
       "keys": "uniform",
@@ -1191,18 +2203,20 @@
         "clients": 1024,
         "lowerBound": false,
         "single": true,
-        "throughput": 5807.833333333333
+        "throughput": 6630.766666666666
       },
       "scenario": "E3",
       "setAside": false,
       "steps": [
         {
           "clients": 1024,
+          "containerCores": {},
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 130.559,
-          "p99Ms": 806.911,
-          "throughput": 5807.833333333333
+          "mongo": null,
+          "p50Ms": 105.983,
+          "p99Ms": 847.871,
+          "throughput": 6630.766666666666
         }
       ],
       "sustainable": null,
@@ -1210,6 +2224,10 @@
     },
     "3-N-postgres/e3-sweep": {
       "backend": "postgres",
+      "builds": {
+        "load": "103f9b6746",
+        "server": "103f9b6746"
+      },
       "disturbed": [],
       "generatorBound": [],
       "keys": "uniform",
@@ -1219,76 +2237,108 @@
         "clients": 1024,
         "lowerBound": false,
         "single": false,
-        "throughput": 6950.1
+        "throughput": 8623.0
       },
       "scenario": "E3",
       "setAside": false,
       "steps": [
         {
           "clients": 1,
+          "containerCores": {
+            "kafka": 0.332,
+            "postgres": 0.415
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 2.559,
-          "p99Ms": 7.807,
-          "throughput": 308.2
+          "mongo": null,
+          "p50Ms": 2.111,
+          "p99Ms": 4.223,
+          "throughput": 456.1666666666667
         },
         {
           "clients": 4,
+          "containerCores": {
+            "kafka": 0.344,
+            "postgres": 0.627
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 8.127,
-          "p99Ms": 26.111,
-          "throughput": 408.03333333333336
+          "mongo": null,
+          "p50Ms": 6.271,
+          "p99Ms": 18.559,
+          "throughput": 559.0
         },
         {
           "clients": 16,
+          "containerCores": {
+            "kafka": 0.423,
+            "postgres": 1.152
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 11.327,
-          "p99Ms": 182.271,
-          "throughput": 1129.4333333333334
+          "mongo": null,
+          "p50Ms": 9.727,
+          "p99Ms": 27.007,
+          "throughput": 1451.7
         },
         {
           "clients": 64,
+          "containerCores": {
+            "kafka": 0.506,
+            "postgres": 1.618
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 18.431,
-          "p99Ms": 45.567,
-          "throughput": 3214.233333333333
+          "mongo": null,
+          "p50Ms": 15.807,
+          "p99Ms": 29.183,
+          "throughput": 3881.4666666666667
         },
         {
           "clients": 256,
+          "containerCores": {
+            "kafka": 0.541,
+            "postgres": 1.748
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 40.703,
-          "p99Ms": 75.775,
-          "throughput": 6119.133333333333
+          "mongo": null,
+          "p50Ms": 34.047,
+          "p99Ms": 59.647,
+          "throughput": 7279.0
         },
         {
           "clients": 1024,
+          "containerCores": {
+            "kafka": 0.533,
+            "postgres": 1.859
+          },
           "errors": {},
           "failedShare": 0.0,
-          "p50Ms": 119.807,
-          "p99Ms": 415.743,
-          "throughput": 6950.1
+          "mongo": null,
+          "p50Ms": 102.911,
+          "p99Ms": 309.247,
+          "throughput": 8623.0
         },
         {
           "clients": 4096,
+          "containerCores": {},
           "errors": {
-            "http-409-wow.command.contended": 2,
-            "http-504-wow.wait.timeout": 66
+            "http-429-wow.command.busy": 18424,
+            "http-504-wow.wait.timeout": 3014
           },
-          "failedShare": 0.0007040139146279597,
-          "p50Ms": 700.415,
-          "p99Ms": 6979.583,
-          "throughput": 3217.366666666667
+          "failedShare": 0.08872426280393171,
+          "mongo": null,
+          "p50Ms": 136.191,
+          "p99Ms": 6619.135,
+          "throughput": 7339.566666666667
         }
       ],
       "sustainable": {
         "clients": 256,
-        "p50Ms": 40.703,
-        "p99Ms": 75.775,
-        "throughput": 6119.133333333333
+        "p50Ms": 34.047,
+        "p99Ms": 59.647,
+        "throughput": 7279.0
       },
       "void": []
     }

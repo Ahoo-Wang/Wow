@@ -1,30 +1,30 @@
-## up, attempt 1 2026-11-12T00:44:20-0800
-uptime:  0:44  up 3 days, 18 mins, 2 users, load averages: 23.10 26.98 20.50
+## up, attempt 1 2026-11-17T03:40:26-0800
+uptime:  3:40  up 3 days, 13 mins, 3 users, load averages: 45.41 37.10 25.26
 swap: total = 1024.00M  used = 0.25M  free = 1023.75M  (encrypted)
 containers: 
 busiest other processes (% of one core):
-  1.0 1103 Stats
-  0.9 597 AppleCentauriAlpha
-  0.7 408 WindowServer
-  0.7 35898 PerfPowerServices
-  0.6 349 configd
-  0.5 657 wifip2pd
-  0.5 36956 bash
-  0.3 643 ContinuityCaptureAgent
-allowed JVMs (% of one core): 10510 10555 64878 94957 0.0
+  7.8 2814 Stats
+  4.5 648 configd
+  0.9 707 WindowServer
+  0.8 911 AppleCentauriAlpha
+  0.8 778 airportd
+  0.8 63896 bash
+  0.5 922 wifip2pd
+  0.2 1431 WeChat
+allowed JVMs (% of one core): 2744 32611  0.0
 other JVMs:
-## down 2026-11-12T00:57:48-0800
-uptime:  0:57  up 3 days, 32 mins, 2 users, load averages: 37.54 31.07 25.18
+## down 2026-11-17T03:53:47-0800
+uptime:  3:53  up 3 days, 26 mins, 3 users, load averages: 49.80 38.29 29.59
 swap: total = 1024.00M  used = 0.25M  free = 1023.75M  (encrypted)
 containers: wow-e2e-bench-mongo wow-e2e-bench-kafka 
 busiest other processes (% of one core):
-  2.3 592 sysmond
-  0.7 633 cfprefsd
-  0.6 78385 claude
-  0.6 597 AppleCentauriAlpha
-  0.6 477 symptomsd
-  0.5 657 wifip2pd
-  0.5 36956 bash
-  0.4 666 Finder
-allowed JVMs (% of one core): 10510 10555 64878 94957 0.1
+  41.9 707 WindowServer
+  5.7 898 sysmond
+  2.3 2814 Stats
+  2.0 2812 Shadowrocket
+  1.2 911 AppleCentauriAlpha
+  1.2 63896 bash
+  0.7 922 wifip2pd
+  0.5 793 symptomsd
+allowed JVMs (% of one core): 2744 32611  0.0
 other JVMs:

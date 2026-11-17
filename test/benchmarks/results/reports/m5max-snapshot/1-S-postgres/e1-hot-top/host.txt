@@ -1,30 +1,30 @@
-## begin 2026-11-12T00:00:13-0800
-uptime:  0:00  up 2 days, 23:34, 2 users, load averages: 12.74 8.40 8.78
+## begin 2026-11-17T02:54:52-0800
+uptime:  2:54  up 2 days, 23:27, 3 users, load averages: 16.88 10.43 13.40
 swap: total = 1024.00M  used = 0.25M  free = 1023.75M  (encrypted)
 containers: wow-e2e-bench-postgres wow-e2e-bench-kafka 
 busiest other processes (% of one core):
-  24.1 26726 find
-  4.3 1103 Stats
-  1.8 730 deleted
-  1.6 592 sysmond
-  1.6 349 configd
-  1.5 50540 claude
-  1.0 597 AppleCentauriAlpha
-  0.9 477 symptomsd
-allowed JVMs (% of one core): 10510 10555 64878 94957 0.0
+  2.5 898 sysmond
+  1.5 793 symptomsd
+  1.0 911 AppleCentauriAlpha
+  0.6 43020 bash
+  0.5 2814 Stats
+  0.4 834 searchpartyd
+  0.4 778 airportd
+  0.4 700 bluetoothd
+allowed JVMs (% of one core): 2744 32611  0.0
 other JVMs:
-## end 2026-11-12T00:00:57-0800
-uptime:  0:00  up 2 days, 23:35, 2 users, load averages: 19.38 10.74 9.62
+## end 2026-11-17T02:55:36-0800
+uptime:  2:55  up 2 days, 23:28, 3 users, load averages: 19.69 12.06 13.84
 swap: total = 1024.00M  used = 0.25M  free = 1023.75M  (encrypted)
 containers: wow-e2e-bench-postgres wow-e2e-bench-kafka 
 busiest other processes (% of one core):
-  49.8 26726 find
-  2.7 50540 claude
-  0.6 597 AppleCentauriAlpha
-  0.4 67919 claude
-  0.4 657 wifip2pd
-  0.2 52711 claude
-  0.2 477 symptomsd
-  0.1 775 Shadowrocket
-allowed JVMs (% of one core): 10510 10555 64878 94957 0.1
+  4.9 2814 Stats
+  3.3 648 configd
+  2.6 793 symptomsd
+  0.8 911 AppleCentauriAlpha
+  0.5 707 WindowServer
+  0.3 91762 claude
+  0.3 78720 claude
+  0.2 778 airportd
+allowed JVMs (% of one core): 2744 32611  0.0
 other JVMs:

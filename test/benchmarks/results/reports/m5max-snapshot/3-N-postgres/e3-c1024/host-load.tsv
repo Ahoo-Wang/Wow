@@ -1,8 +1,8 @@
-epoch	load1	load5	load15	foreignCpu	topForeign	foreignContainers	hostCpu	generatorThread	allowedJvmCpu	foreignJvms
-1794472974	35.72	28.38	20.21	23	sysmond 10, AppleCentauriAlpha 3, bash 2		23	0	0.0	
-1794472986	34.61	28.36	20.30	3	AppleCentauriAlpha 1, UniversalControl 0, Stats 0		1444	15	0.2	
-1794472998	32.89	28.29	20.42	25	Stats 6, claude 5, configd 2		1168	8	0.3	
-1794473011	36.83	29.30	20.87	22	Stats 4, sysmond 4, UniversalControl 3		1400	12	0.5	
-1794473024	37.00	29.65	21.14	18	UniversalControl 3, AppleCentauriAlpha 3, Stats 3		1432	17	0.2	
-1794473036	31.85	28.79	20.93	139	deleted 33, cloudd 27, triald_system 16		1134	10	0.3	
-1794473049	26.41	27.73	20.69	10	Stats 3, configd 2, claude 2		1471	14	0.2	
+epoch	load1	load5	load15	foreignCpu	topForeign	foreignContainers	hostCpu	generatorThread	allowedJvmCpu	foreignJvms	benchContainersUsec
+1794915539	46.75	33.84	22.95	22	sysmond 11, Shadowrocket 2, WeChat 2		32	0	0.0		wow-e2e-bench-postgres=866246723,wow-e2e-bench-kafka=321349636
+1794915551	48.49	34.75	23.46	12	Stats 4, configd 3, WindowServer 1		1130	9	0.0		wow-e2e-bench-postgres=888757985,wow-e2e-bench-kafka=328038732
+1794915565	50.84	35.73	23.94	77	WindowServer 43, Claude 6, Shadowrocket 5		996	10	0.1		wow-e2e-bench-postgres=910159407,wow-e2e-bench-kafka=334356406
+1794915578	51.25	36.60	24.45	6	launchd 2, AppleCentauriAlpha 1, claude 1		1442	16	0.1		wow-e2e-bench-postgres=929585612,wow-e2e-bench-kafka=340409155
+1794915590	50.39	36.85	24.68	11	Stats 4, configd 2, WindowServer 2		1041	11	0.1		wow-e2e-bench-postgres=950589076,wow-e2e-bench-kafka=346456230
+1794915603	46.33	36.65	24.83	52	java 44, sysmond 4, WindowServer 1		1536	14	0.1		wow-e2e-bench-postgres=970893420,wow-e2e-bench-kafka=353330895
+1794915616	48.33	37.34	25.20	6	Stats 2, configd 1, AppleCentauriAlpha 1		1397	14	0.1		wow-e2e-bench-postgres=988600408,wow-e2e-bench-kafka=359240819

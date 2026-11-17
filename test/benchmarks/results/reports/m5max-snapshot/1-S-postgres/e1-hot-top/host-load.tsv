@@ -1,5 +1,5 @@
-epoch	load1	load5	load15	foreignCpu	topForeign	foreignContainers	hostCpu	generatorThread	allowedJvmCpu	foreignJvms
-1794470413	12.74	8.40	8.78	51	find 36, sysmond 4, Stats 3		104	0	0.0	
-1794470425	14.45	8.88	8.94	32	find 26, sysmond 3, AppleCentauriAlpha 1		1386	51	2.8	
-1794470437	15.63	9.44	9.14	39	find 25, sysmond 3, Stats 3		1336	47	0.0	
-1794470450	20.11	10.74	9.61	26	find 23, AppleCentauriAlpha 1, wifip2pd 0		1429	49	0.0	
+epoch	load1	load5	load15	foreignCpu	topForeign	foreignContainers	hostCpu	generatorThread	allowedJvmCpu	foreignJvms	benchContainersUsec
+1794912892	16.88	10.43	13.40	15	sysmond 8, bash 2, AppleCentauriAlpha 1		64	0	0.0		wow-e2e-bench-postgres=1492205704,wow-e2e-bench-kafka=474555664
+1794912904	16.58	10.57	13.41	12	Stats 3, sysmond 3, configd 2		1156	40	0.1		wow-e2e-bench-postgres=1511095460,wow-e2e-bench-kafka=479338165
+1794912917	19.31	11.44	13.67	9	sysmond 4, claude 2, AppleCentauriAlpha 1		1232	41	0.0		wow-e2e-bench-postgres=1532814935,wow-e2e-bench-kafka=485676995
+1794912930	20.44	12.07	13.85	5	claude 2, AppleCentauriAlpha 1, WindowServer 1		1265	49	0.1		wow-e2e-bench-postgres=1553764276,wow-e2e-bench-kafka=490826697

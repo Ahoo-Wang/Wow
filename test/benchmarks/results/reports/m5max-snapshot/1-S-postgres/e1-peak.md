@@ -1,16 +1,16 @@
-Peak 37,713.6/s at 4,096 clients: the step at 8,192 clients failed 4.0% (26,600 × 429 wow.command.busy), which ends a sweep; a step that fails more than 1% is not a peak; the throughput was still rising when the failures began (4,096 clients passed the 23,030.1/s below them by more than the band).
+Peak 41,706.1/s at 4,096 clients: the step at 8,192 clients failed 2.7% (19,145 × 429 wow.command.busy), which ends a sweep; a step that fails more than 1% is not a peak.
 Noise band 3.0% (the larger of 3% and the difference between two runs of one concurrency that failed 1% or less).
-Sustainable (the highest step with a p99 of 200 ms or less and no error): 23,030.1/s at 1,024 clients, p99 74.8 ms.
-Failed more than 1% (not a peak): 8,192 clients (e1-top): 21,273.0/s answered, failed 4.0% (26,600 × 429 wow.command.busy).
+Sustainable (the highest step with a p99 of 200 ms or less and no error): 41,706.1/s at 4,096 clients, p99 167.9 ms.
+Failed more than 1% (not a peak): 8,192 clients (e1-top): 22,659.7/s answered, failed 2.7% (19,145 × 429 wow.command.busy).
 
 | Measurement | Clients | Throughput (/s) | p99 (ms) | Failed | Generator-bound |
 | --- | ---: | ---: | ---: | ---: | --- |
-| e1-sweep | 1 | 776.3 | 3.6 | 0.00% |  |
-| e1-sweep | 4 | 684.4 | 16.1 | 0.00% |  |
-| e1-sweep | 16 | 2,643.5 | 15.3 | 0.00% |  |
-| e1-sweep | 64 | 9,676.4 | 15.9 | 0.00% |  |
-| e1-sweep | 256 | 16,241.7 | 28.5 | 0.00% |  |
-| e1-sweep | 1,024 | 23,030.1 | 74.8 | 0.00% |  |
-| e1-sweep | 4,096 | 37,713.6 | 212.0 | 0.00% |  |
-| e1-top | 4,096 | 36,719.5 | 227.3 | 0.00% |  |
-| e1-top | 8,192 | 21,273.0 | 557.1 | 4.00% |  |
+| e1-sweep | 1 | 1,298.7 | 1.2 | 0.00% |  |
+| e1-sweep | 4 | 2,353.2 | 5.5 | 0.00% |  |
+| e1-sweep | 16 | 4,174.5 | 10.6 | 0.00% |  |
+| e1-sweep | 64 | 14,623.2 | 8.8 | 0.00% |  |
+| e1-sweep | 256 | 23,754.2 | 21.0 | 0.00% |  |
+| e1-sweep | 1,024 | 41,605.7 | 46.1 | 0.00% |  |
+| e1-sweep | 4,096 | 41,706.1 | 167.9 | 0.00% |  |
+| e1-top | 4,096 | 40,594.1 | 183.3 | 0.00% |  |
+| e1-top | 8,192 | 22,659.7 | 454.7 | 2.74% |  |
