@@ -256,21 +256,30 @@ class SubscriptionCheckpointTest {
     @Test
     fun `stop waits for the entries in flight and saves the checkpoint`(): Unit = runBlocking {
         val handled = Handled()
-        val runtime = runtime(
+        val started = AtomicInteger()
+        lateinit var runtime: SubscriptionRuntime
+        runtime = runtime(
             Subscription("stopping", SubscriptionFilter("shop")) { entry ->
-                delay(1)
+                started.incrementAndGet()
+                // Held until the stop has begun: it is in flight when the stop comes, never queued behind another.
+                while (runtime.isRunning) {
+                    delay(1)
+                }
                 handled.record(entry)
             },
             testOptions(checkpointInterval = 1.hours),
         )
-        repeat(30) { appender.append("a${it % 3}") }
+        // Nine aggregates of one entry each: nine lanes, each running its entry at once, none queued for the stop to
+        // abandon. The stop is called once all nine have started, and none ends before the stop marks the runtime
+        // stopped, which it does before it waits: all nine are handled by the time it returns, and it saves the last.
+        repeat(9) { appender.append("a$it") }
         runtime.start(setOf(0))
-        eventually { handled.size >= 1 }
+        eventually { started.get() == 9 }
         runtime.stop()
         runtime.isRunning.assert().isFalse()
 
-        checkpoint("stopping").assert().isEqualTo(handled.sequences().max())
-        handled.sequences().sorted().assert().isEqualTo((1L..handled.sequences().max()).toList())
+        handled.sequences().sorted().assert().isEqualTo((1L..9L).toList())
+        checkpoint("stopping").assert().isEqualTo(9L)
     }
 
     @Test
