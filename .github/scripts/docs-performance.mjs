@@ -71,7 +71,7 @@ const WORDS = {
       `**${environment}**: [${headline.report}](${REPORTS}${headline.report}.md), ${builds.length === 1 ? 'build' : 'builds'} ${builds.map(b => `\`${b}\``).join(', ')}.`,
     head: '| Store | Nodes | Scenario | Keys | Peak | Sustainable | CPU, JDK, build |',
     remeasured:
-      'Each figure is from the build, the JDK and the runner its row names, and each is measured again on 10.0.0-beta.3. The scenarios are those of [What was measured](#what-was-measured).',
+      'Each figure is from the build, the JDK and the runner its row names. The scenarios are those of [What was measured](#what-was-measured).',
     cluster: where =>
       `Three nodes on ${where}: the nodes, the stores and the load generator divide the same cores, so these rows show what a cluster costs (forwarding between the nodes), not what it gains. Scaling across separate machines has not been measured.`,
     where: { actions: 'one runner', m5max: 'this one host' },
@@ -99,7 +99,7 @@ const WORDS = {
       `**${environment}**：[${headline.report}](${REPORTS}${headline.report}.md)，构建 ${builds.map(b => `\`${b}\``).join('、')}。`,
     head: '| 存储 | 节点 | 场景 | 键 | 峰值 | 可持续 | CPU、JDK、构建 |',
     remeasured:
-      '每个数字都来自其所在行注明的构建、JDK 与机器，都将在 10.0.0-beta.3 上重测。各场景见[测了什么](#what-was-measured)。',
+      '每个数字都来自其所在行注明的构建、JDK 与机器。各场景见[测了什么](#what-was-measured)。',
     cluster: where =>
       `三个节点在${where}上：节点、存储与负载生成器分用同一组 CPU 核，所以这几行显示的是集群的开销（节点之间的转发），不是它带来的收益。跨多台机器的扩展尚未测量。`,
     where: { actions: '同一台 runner', m5max: '同一台主机' },
@@ -125,12 +125,15 @@ const major = jdk => Number(String(jdk).split(/[.+]/)[0]);
 const rate = value =>
   `${value.toLocaleString('en-US', { maximumFractionDigits: 1 })}/s`;
 
-/** A CPU model as a reader names it: `AMD EPYC 7763 64-Core Processor` is `EPYC 7763`. */
+/**
+ * A CPU model as a reader names it: `AMD EPYC 7763 64-Core Processor` is `EPYC 7763`, `Intel(R) Xeon(R) 6975P-C` and
+ * `INTEL(R) XEON(R) PLATINUM 8573C` are `Xeon 6975P-C` and `Xeon 8573C`.
+ */
 export const cpuName = cpu =>
   cpu
     .replace(/^AMD\s+/, '')
     .replace(/\s+\d+-Core Processor$/, '')
-    .replace(/^Intel\(R\) Xeon\(R\) Platinum\s+/, 'Xeon ')
+    .replace(/^Intel\(R\) Xeon\(R\)(\s+Platinum)?\s+/i, 'Xeon ')
     .replace(/\s+CPU\s+@.*$/, '')
     .replace(/, 18 cores, 64 GB$/, '');
 
@@ -146,7 +149,11 @@ export function rowsOf(headline) {
         {
           ...figure,
           peak: figure.saturation
-            ? { value: figure.saturation, loop: 'closed' }
+            ? {
+                value: figure.saturation,
+                loop: 'closed',
+                lowerBound: figure.saturationLowerBound,
+              }
             : undefined,
           sustainable: {
             value: figure.value,

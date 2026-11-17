@@ -169,6 +169,12 @@ test("an Actions headline is its sustainable rates beside the closed-loop satura
 test("the CPU names are a reader's", () => {
   assert.equal(cpuName('AMD EPYC 7763 64-Core Processor'), 'EPYC 7763');
   assert.equal(cpuName('Apple M5 Max, 18 cores, 64 GB'), 'Apple M5 Max');
+  assert.equal(cpuName('Intel(R) Xeon(R) 6975P-C'), 'Xeon 6975P-C');
+  assert.equal(cpuName('INTEL(R) XEON(R) PLATINUM 8573C'), 'Xeon 8573C');
+  assert.equal(
+    cpuName('Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz'),
+    'Xeon 8370C',
+  );
 });
 
 test('a headline that lacks a field the table needs is refused, naming it', () => {
@@ -362,14 +368,48 @@ test('a report with no row the table quotes is left out of the block', () => {
   );
 });
 
-test('the block says once that the figures are measured again on 10.0.0-beta.3, in each locale', () => {
-  assert.match(
-    performanceBlock('en', [HEADLINE]),
-    /each is measured again on 10\.0\.0-beta\.3\./,
+test('the block says once that each figure is from the build, JDK and runner its row names, in each locale', () => {
+  const en = performanceBlock('en', [HEADLINE]);
+  assert.equal(
+    en.match(
+      /Each figure is from the build, the JDK and the runner its row names\./g,
+    ).length,
+    1,
   );
+  assert.doesNotMatch(en, /beta\.3/);
   assert.match(
     performanceBlock('zh', [HEADLINE]),
-    /都将在 10\.0\.0-beta\.3 上重测。/,
+    /每个数字都来自其所在行注明的构建、JDK 与机器。/,
+  );
+});
+
+test('a closed-loop peak whose search reached its most clients still gaining is a lower bound', () => {
+  const capped = {
+    ...HEADLINE,
+    environment: 'actions',
+    figures: [
+      {
+        id: 'sustainable.mongo.E1',
+        kind: 'sustainable',
+        store: 'mongo',
+        nodes: 1,
+        scenario: 'E1',
+        keys: 'uniform',
+        value: 2975.1,
+        p99Ms: 198.7,
+        saturation: 5010.8,
+        saturationLowerBound: true,
+        commit: 'e3a4e937aa',
+        cpu: 'Intel(R) Xeon(R) 6975P-C',
+        jdk: '25.0.5+8',
+        source: 'actions-snapshot/l4/sustainable-mongo.100k/suite.json',
+      },
+    ],
+  };
+  assert.ok(
+    performanceBlock('en', [capped]).includes(
+      '| ≥ 5,010.8/s, closed loop | 2,975.1/s, open loop, p99 198.7 ms | Xeon 6975P-C,',
+    ),
   );
 });
 

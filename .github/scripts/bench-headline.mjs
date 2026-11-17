@@ -34,7 +34,7 @@ export const REPORTS_DIR = 'test/benchmarks/results/reports';
 export const REPORTS = {
   'actions-snapshot': {
     environment: 'actions',
-    runs: { l3: '42973046096', l4: '42973320597' },
+    runs: { l3: '44123394372', l4: '44131893810' },
     read: actionsSnapshot,
   },
   'm5max-snapshot': {
@@ -142,6 +142,10 @@ export function actionsSnapshot(root, report) {
           // The node's, the store's and Kafka's CPU together (bench.mjs's cpuMsPerOp).
           cpuMsPerOp: round(c.cpuMsPerOp, 2),
           saturation: round(suite.saturation?.[scenario]?.throughput),
+          // The closed-loop search reached its most clients still gaining: the peak is at least this.
+          ...(suite.saturation?.[scenario]?.capped
+            ? { saturationLowerBound: true }
+            : {}),
           ...from,
         });
       }
