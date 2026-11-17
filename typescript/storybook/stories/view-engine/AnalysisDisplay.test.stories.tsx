@@ -20,6 +20,8 @@ import displayMeta, {
   ScatterAxes as DisplayScatterAxes,
   SplitCrowded as DisplaySplitCrowded,
   SplitOther as DisplaySplitOther,
+  STOCK_READINGS,
+  StepBalance as DisplayStepBalance,
 } from './AnalysisDisplay.stories.js';
 import { chartsDrawn, legendNames } from './chartDom.js';
 
@@ -100,6 +102,72 @@ function catchDownloads() {
     },
   };
 }
+
+/** The corners of a path written as `M x y L x y …`, the way the SVG renderer writes a line. */
+function cornersOf(path: SVGPathElement): [number, number][] {
+  const numbers = (path.getAttribute('d') ?? '')
+    .split(/[MLZ\s,]+/)
+    .filter(Boolean)
+    .map(Number);
+  const corners: [number, number][] = [];
+  for (let at = 0; at + 1 < numbers.length; at += 2)
+    corners.push([numbers[at]!, numbers[at + 1]!]);
+  return corners;
+}
+
+/**
+ * 阶梯线（#3723）：期末库存画成阶梯，ECharts 拿到的是 `step: 'end'`——每个
+ * 值保持到下一个点，到了那一点才变。量的是画出来的那条线：只有横段与竖段，
+ * 从第一点出发先走一段横的（`start` 先竖着跳，`middle` 在两点中间跳），
+ * 而且每一次跳都落在库存真变了的那一天：三十天里十五天有出入库，十五次跳。
+ * 显示页的「连线」选的是「阶梯」，下面一句说为什么。
+ */
+export const StepBalanceHoldsUntilTheNextReading: Story = {
+  ...DisplayStepBalance,
+  play: async ({ canvasElement }) => {
+    await chartsDrawn(canvasElement);
+    const line = [...plotOf(canvasElement).querySelectorAll('svg path')]
+      .filter(path => (path.getAttribute('fill') ?? 'none') === 'none')
+      .map(path => ({ path, corners: cornersOf(path as SVGPathElement) }))
+      .sort((one, other) => other.corners.length - one.corners.length)[0];
+    await expect(line).toBeDefined();
+    const corners = line!.corners;
+    const near = (a: number, b: number) => Math.abs(a - b) < 0.5;
+    const segments = corners.slice(1).map((to, index) => {
+      const from = corners[index]!;
+      return { dx: to[0] - from[0], dy: to[1] - from[1] };
+    });
+    // Only flats and jumps: nothing drawn between two readings slants.
+    await expect(
+      segments.every(({ dx, dy }) => near(dx, 0) || near(dy, 0)),
+    ).toBe(true);
+    // Held first, then moved: the value of the first day runs on to the next.
+    const first = segments.find(({ dx, dy }) => !near(dx, 0) || !near(dy, 0));
+    await expect(near(first!.dy, 0)).toBe(true);
+    const changes = STOCK_READINGS.filter(
+      (reading, day) =>
+        day > 0 && reading.stock !== STOCK_READINGS[day - 1]!.stock,
+    ).length;
+    await expect(changes).toBe(15);
+    await expect(segments.filter(({ dy }) => !near(dy, 0))).toHaveLength(
+      changes,
+    );
+
+    const options = await optionsPage(
+      canvasElement,
+      zhCN['label.chart.tab.display'],
+    );
+    const choice = options.querySelector<HTMLElement>(
+      '[data-slot="chart-line"]',
+    )!;
+    await expect(
+      within(choice).getByRole('button', {
+        name: zhCN['label.chart.line.step'],
+      }),
+    ).toHaveAttribute('aria-pressed', 'true');
+    await expect(choice).toHaveTextContent(zhCN['label.chart.line.step.hint']);
+  },
+};
 
 /**
  * 对数刻度：十二个城市、从拉萨的 ¥640 到上海的 ¥52 万，左轴按 10 的幂排；
