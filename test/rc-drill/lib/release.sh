@@ -63,6 +63,7 @@ artifacts() {
   mkdir -p "$evidence/artifacts/charts"
   for entry in "${REGISTRIES[@]}"; do
     charts=${entry#*|}
+    [ -n "$charts" ] || continue
     chart="$evidence/artifacts/charts/${charts//[^a-z0-9]/_}"
     mkdir -p "$chart"
     if helm pull "$charts/wow-service" --version "$version" --untar --untardir "$chart" >/dev/null; then
