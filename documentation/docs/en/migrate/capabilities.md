@@ -207,7 +207,7 @@ Use this page to find out, before you migrate, what happens to each 9.x capabili
 
 | 9.x capability | In V10 | Notes |
 | --- | --- | --- |
-| `wow-models` | Kept | — |
+| `wow-models` | Kept | A tree's `Create` command no longer inherits `@NotBlank` on `name`: declare your own constraint on the command, or implement `NotBlankNameCapable`. The tree itself rejects a blank name with `tree.name-blank`. See [Extensions](../guide/extensions#models-wow-models). |
 | `wow-cocache` | Replaced | One shared cache per aggregate type, written by the context that owns it and read as `StateViewCache`; a reader's own index and join caches have no counterpart. |
 | `wow-apiclient` | Replaced | Typed command and query clients that run in-process for the service's own contexts and over HTTP for others. See [Between contexts](../concepts/cross-context#typed-clients). |
 | CosId | Kept | Through `wow-cosid` on CosId 5, for aggregate ids: segment generators move to CosId 5's configuration, and their state with CosId's migration tool. |

@@ -22,4 +22,6 @@ dependencies {
     testImplementation(project(":test-dsl"))
     // The Manifest fragment the compiler writes, which the tests read (the kernel does not bring :manifest, D231).
     testImplementation(project(":manifest"))
+    // A Bean Validation provider, the one the hosts' tests use: what a command's own constraint answers at an edge.
+    testImplementation("org.springframework.boot:spring-boot-starter-validation")
 }

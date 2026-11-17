@@ -15,7 +15,11 @@ package me.ahoo.wow.models.common
 
 import jakarta.validation.constraints.NotBlank
 
-/** A [NameCapable] whose name is not blank: an HTTP edge with Jakarta Validation refuses a command with a blank one. */
+/**
+ * A [NameCapable] whose name is not blank: an HTTP edge with Jakarta Validation refuses a command with a blank one,
+ * with the provider's default message. A type opts into it; one that wants its own message declares its own constraint
+ * on a [NameCapable] instead, since Bean Validation adds a subtype's constraint to an inherited one.
+ */
 interface NotBlankNameCapable : NameCapable {
     @get:NotBlank
     override val name: String

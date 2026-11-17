@@ -100,3 +100,5 @@ class Category(state: CategoryState) :
 ```
 
 Annotate the concrete create command `@AllowCreate`: the compiler reads the command's own class. The packages are `me.ahoo.wow.models.common` and `me.ahoo.wow.models.tree`, as in 9.x, so a migrated domain's imports stay.
+
+A node has a name: the tree rejects a creation or an update that leaves it blank with `tree.name-blank`, whether or not the host validates commands. `Create` declares no Bean Validation constraint on `name`, so the constraint at the edge is yours: put `@get:NotBlank(message = …)` on your command's `name` for your own message, or implement `NotBlankNameCapable` for the provider's default one. In 9.x every create command inherited that default constraint and could not replace it.

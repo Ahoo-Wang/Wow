@@ -22,6 +22,9 @@ package me.ahoo.wow.models.tree.aggregate
  * constant of the same literal) or the host maps their status.
  */
 object TreeRejections {
+    /** The node to create, or the node as an update leaves it, has a blank name. */
+    const val NAME_BLANK = "tree.name-blank"
+
     /** The parent of the node to create does not exist. */
     const val PARENT_NOT_FOUND = "tree.parent-not-found"
 

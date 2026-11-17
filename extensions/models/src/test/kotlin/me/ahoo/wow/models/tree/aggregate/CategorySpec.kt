@@ -81,6 +81,19 @@ class CategorySpec {
     }
 
     @Test
+    fun `a node should not be created without a name`() = aggregateSpec(model) {
+        whenCommand(CreateCategory(" ", "")) {
+            expectRejected(TreeRejections.NAME_BLANK) { message.assert().isEqualTo("A tree node has a name.") }
+        }
+    }
+
+    @Test
+    fun `a node should not be updated to have no name`() = aggregateSpec(model) {
+        given(l1)
+        whenCommand(UpdateCategory(name = "", code = l1.code)) { expectRejected(TreeRejections.NAME_BLANK) }
+    }
+
+    @Test
     fun `a node should not be created below the maximum level`() = aggregateSpec(model) {
         given(l1, l2, l3)
         whenCommand(CreateCategory("name", l3.code)) {

@@ -100,3 +100,5 @@ class Category(state: CategoryState) :
 ```
 
 为具体的创建命令标注 `@AllowCreate`：编译器读取的是命令自己的类。包仍是 `me.ahoo.wow.models.common` 和 `me.ahoo.wow.models.tree`，与 9.x 相同，所以迁移来的领域的导入保持不变。
+
+节点必须有名称：创建或更新后名称为空白时，树以 `tree.name-blank` 拒绝，无论宿主是否校验命令。`Create` 不在 `name` 上声明 Bean Validation 约束，所以入口处的约束由你声明：要自己的提示语，就在命令的 `name` 上写 `@get:NotBlank(message = …)`；要校验提供者的默认提示语，就实现 `NotBlankNameCapable`。在 9.x，每个创建命令都继承了那条默认约束，且无法替换。

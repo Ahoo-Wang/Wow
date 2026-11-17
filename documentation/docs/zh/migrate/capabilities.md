@@ -207,7 +207,7 @@ outline: deep
 
 | 9.x 能力 | V10 中 | 说明 |
 | --- | --- | --- |
-| `wow-models` | 保留 | — |
+| `wow-models` | 保留 | 树的 `Create` 命令不再继承 `name` 上的 `@NotBlank`：在命令上声明自己的约束，或实现 `NotBlankNameCapable`。树自身以 `tree.name-blank` 拒绝空白名称。见[扩展](../guide/extensions#models-wow-models)。 |
 | `wow-cocache` | 替代 | 每个聚合类型一份共享缓存，由拥有它的上下文写入，读者以 `StateViewCache` 读取；读者自建的索引缓存与关联缓存没有对应物。 |
 | `wow-apiclient` | 替代 | 类型化的命令与查询客户端：对服务自己的上下文在进程内运行，对其他上下文经 HTTP。见[上下文之间](../concepts/cross-context#typed-clients)。 |
 | CosId | 保留 | 通过 CosId 5 上的 `wow-cosid`，用于聚合 ID：号段生成器改用 CosId 5 的配置，其状态用 CosId 的迁移工具迁移。 |

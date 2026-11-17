@@ -44,7 +44,8 @@ import me.ahoo.wow.models.tree.command.Update
  * }
  * ```
  *
- * A command that breaks a rule of the tree is rejected with a [TreeRejections] code, its message from the overridable
+ * A node has a name: the tree rejects a creation or an update that leaves one blank, whether or not the host
+ * validates commands. A command that breaks a rule of the tree is rejected with a [TreeRejections] code, its message from the overridable
  * `...ErrorMessage` functions. The `verify...` hooks run after the tree's own rules and may reject too, after I/O if
  * they need it (they suspend). Creating a node answers the caller with the node's code under the result key `code`
  * ([DecideScope.putResult]).
@@ -62,6 +63,8 @@ abstract class Tree<T : TreeState<*, *, *, *, *>, C : Create<*>, U : Update<*>, 
 
     /** The deepest level a node may have; the first level is 1. */
     protected abstract fun maxLevel(): Int
+
+    protected open fun nameBlankErrorMessage(): String = "A tree node has a name."
 
     protected open fun onCreateNotFoundParentErrorMessage(command: C): String =
         "Parent node not found. parentCode:${command.parentCode}."
@@ -88,11 +91,14 @@ abstract class Tree<T : TreeState<*, *, *, *, *>, C : Create<*>, U : Update<*>, 
     protected open suspend fun verifyDelete(command: D, scope: DecideScope): Rejection? = null
 
     /**
-     * Creates a node under its parent, after its siblings, with a generated code ([generateCode]); the parent must
-     * exist and the node must not be deeper than [maxLevel].
+     * Creates a node under its parent, after its siblings, with a generated code ([generateCode]); the node must have
+     * a name, the parent must exist and the node must not be deeper than [maxLevel].
      */
     @OnCommand
     open suspend fun onCreate(command: C, scope: DecideScope): Decision {
+        if (command.name.isBlank()) {
+            return reject(TreeRejections.NAME_BLANK, nameBlankErrorMessage())
+        }
         val parentCode = command.parentCode
         if (!parentCode.isRootNode() && state.children.none { it.code == parentCode }) {
             return reject(
@@ -120,13 +126,17 @@ abstract class Tree<T : TreeState<*, *, *, *, *>, C : Create<*>, U : Update<*>, 
         return Decision.events(event)
     }
 
-    /** Updates an existing node. */
+    /** Updates an existing node, which keeps a name. */
     @OnCommand
     open suspend fun onUpdate(command: U, scope: DecideScope): Decision {
         val previous = state.children.firstOrNull { it.code == command.code }
             ?: return reject(TreeRejections.NODE_NOT_FOUND, nodeNotFoundErrorMessage(command), CODE to command.code)
+        val event = command.toEvent(previous)
+        if (event.name.isBlank()) {
+            return reject(TreeRejections.NAME_BLANK, nameBlankErrorMessage(), CODE to command.code)
+        }
         verifyUpdate(command, scope)?.let { return Decision.Rejected(it) }
-        return Decision.events(command.toEvent(previous))
+        return Decision.events(event)
     }
 
     /** Deletes an existing node without children. */
