@@ -243,7 +243,13 @@ describe('an element whose fields differ by variant (#3519)', () => {
       />,
     );
     const user = userEvent.setup();
-    await user.click(await screen.findByRole('button', { name: /^Filter/ }));
+    // An element match with no predicate yet is a condition left blank, so
+    // the saved view opens with its conditions out (#6297).
+    expect(
+      (await screen.findByRole('button', { name: /^Filter/ })).getAttribute(
+        'aria-expanded',
+      ),
+    ).toBe('true');
     // The predicate's own, named for the events condition it sits in.
     await user.click(
       await screen.findByRole('button', { name: 'Events Add condition' }),
