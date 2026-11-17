@@ -209,16 +209,18 @@ class SharedStates(
 
     /**
      * Records the state of [committed], when some reader reads [model]'s aggregate type: the pending view of its
-     * stream, when one was [expect]ed, else the state serialized now.
+     * stream, when one was [expect]ed, else the state serialized now. With [expectedOnly], a stream with no pending
+     * view records nothing, and its readers read the store: a batch member's [CommandOutcome.Committed.state] is the
+     * instance the members after it evolved further ([me.ahoo.wow.kernel.Kernel.executeBatch]), not its own.
      */
-    fun record(model: AggregateModel<*>, committed: CommandOutcome.Committed) {
+    fun record(model: AggregateModel<*>, committed: CommandOutcome.Committed, expectedOnly: Boolean = false) {
         if (model.type !in readersOf) {
             return
         }
         val stream = committed.stream
         val stripe = Stripes.pick(stripes, stream.ref)
         val view = stripe.pending(stream)
-            ?: SerializedState(
+            ?: if (expectedOnly) return else SerializedState(
                 stream.version,
                 codec.stateText(committed.state),
                 stream.scope,
