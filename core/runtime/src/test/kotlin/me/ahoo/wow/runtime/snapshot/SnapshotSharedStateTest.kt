@@ -67,6 +67,44 @@ class SnapshotSharedStateTest : SnapshotSubscriptionFixtures() {
     }
 
     @Test
+    fun `without a shared state the snapshot just before is evolved with the entry, the log read for a gap`(): Unit =
+        runBlocking {
+            // Commands run outside the executor that records views: as on another node, or before an ownership change.
+            val elsewhere = Executor(kernel)
+            repeat(2) { elsewhere.execute(counter, add("a", WaitPlan.COMMITTED)) }
+            runtime.start(setOf(0))
+            eventually { store.load(ref("a"))?.version == 2 }
+            runtime.stop()
+            elsewhere.execute(counter, add("a", WaitPlan.COMMITTED))
+            val third = log.read(ref("a"), 3, 3).toList().single()
+            log.reads.clear()
+
+            // The stored snapshot is at 2, the entry at 3: the entry in hand is the whole tail.
+            val next = SnapshotSubscription("shop", listOf(counter), store, kernel, log, codec)
+            val counts = next.writeCounts()
+            val resumed = runtime(InMemoryCheckpointStore().also { it.save("shop", "wow.snapshot", 0, 2) }, next)
+            resumed.start(setOf(0))
+            eventually { resumed.hasHandled(SystemSubscriptions.SNAPSHOT, third) }
+            resumed.stop()
+            log.reads.assert().isEmpty()
+            listOf(counts.loads, counts.loadCalls, counts.tails).assert().containsExactly(1L, 1L, 0L)
+            store.load(ref("a"))!!.state.assert().isEqualTo("""{"total":3}""")
+
+            // The stored snapshot is at 3, the one entry past the checkpoint at 5: the log's tail is read from 4.
+            repeat(2) { elsewhere.execute(counter, add("a", WaitPlan.COMMITTED)) }
+            val fifth = log.read(ref("a"), 5, 5).toList().single()
+            log.reads.clear()
+            val behind = SnapshotSubscription("shop", listOf(counter), store, kernel, log, codec)
+            val gapCounts = behind.writeCounts()
+            val gapped = runtime(InMemoryCheckpointStore().also { it.save("shop", "wow.snapshot", 0, 4) }, behind)
+            gapped.start(setOf(0))
+            eventually { gapped.hasHandled(SystemSubscriptions.SNAPSHOT, fifth) }
+            log.reads.assert().containsExactly(4)
+            listOf(gapCounts.loads, gapCounts.loadCalls, gapCounts.tails).assert().containsExactly(1L, 1L, 1L)
+            store.load(ref("a"))!!.state.assert().isEqualTo("""{"total":5}""")
+        }
+
+    @Test
     fun `a shared state is written without reading the log or the store`(): Unit = runBlocking {
         runtime.start(setOf(0))
         coordinator.execute(counter, add("a")).hop.assert().isEqualTo(Hop.snapshot("shop"))
@@ -197,15 +235,14 @@ class SnapshotSharedStateTest : SnapshotSubscriptionFixtures() {
         ).rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_DELETED)
         log.reads.assert().containsExactly(3)
 
-        // The restore is written from the stored snapshot evolved with the log's tail.
+        // The restore is written from the stored snapshot, one version before it, evolved with the entry in hand.
         val restored = elsewhere.execute(counter, command("a", RestoreAggregate())) as CommandOutcome.Committed
         log.reads.clear()
         val other = SnapshotSubscription("shop", listOf(counter), store, kernel, log, codec)
         val resumed = runtime(InMemoryCheckpointStore().also { it.save("shop", "wow.snapshot", 0, 3) }, other)
         resumed.start(setOf(0))
         eventually { resumed.hasHandled(SystemSubscriptions.SNAPSHOT, restored.stream) }
-        log.reads.assert().isNotEmpty()
-        log.reads.none { it == 1 }.assert().isTrue()
+        log.reads.assert().isEmpty()
         val snapshot = store.load(ref("a"))!!
         snapshot.version.assert().isEqualTo(4)
         snapshot.deleted.assert().isFalse()

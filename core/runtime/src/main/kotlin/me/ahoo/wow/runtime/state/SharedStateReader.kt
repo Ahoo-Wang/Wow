@@ -38,6 +38,7 @@ import tools.jackson.core.JacksonException
  * 3. otherwise the state rebuilt from the nearest base before the version: the latest view before it
  *    ([SharedStates.floor], such as the one this reader rebuilt for the aggregate's previous commit) or the aggregate's
  *    snapshot in [snapshots], whichever is later, evolved with the log's tail up to the version ([Kernel.stateAt]);
+ *    a base at the version right before the stream's is evolved with the stream in hand instead, reading no log;
  * 4. without either (no view, and no snapshot or one already past the version), the log replayed up to the version.
  *
  * A rebuild (3. and 4.) runs one an aggregate at a time across the readers of the [views] ([SharedStates.rebuild]):
@@ -51,6 +52,8 @@ import tools.jackson.core.JacksonException
  * replays its aggregate once, not on every commit. Each read [pass]es the version, so the views this reader no longer
  * needs can be evicted.
  *
+ * [logRead] is told of each read of the log a rebuild makes, for a diagnostic count.
+ *
  * [codec] must be the kernel's, so a view decodes as it was encoded. It runs inside the subscription's retries: a
  * state that cannot be read is retried, then parks the aggregate like a failing handler.
  */
@@ -62,6 +65,7 @@ class SharedStateReader(
     val codec: EventCodec,
     private val views: SharedStates,
     private val snapshots: SnapshotStore? = null,
+    private val logRead: () -> Unit = {},
 ) {
     private val models: Map<AggregateType, AggregateModel<*>> = models.associateBy { it.type }
 
@@ -123,11 +127,20 @@ class SharedStateReader(
         val ref = stream.ref
         val version = stream.version
         val model = modelOf(ref.type)
-        val state = if (base != null) {
-            kernel.stateAt(model, ref, version, base)
-        } else {
-            // A subscription sees the state of every commit it handles, however long the history: no replay limit.
-            kernel.stateAt(model, ref, version, maxReplay = Int.MAX_VALUE)
+        val state = when {
+            // The base is one the log's tail would be folded onto ([baseOf]: of this aggregate, at or before the
+            // version, of the model's revision and schema), and the tail after it is the stream in hand alone: the log
+            // would read only what the caller holds.
+            base != null && base.version == version - 1 -> kernel.evolved(model, base, stream)
+            base != null -> {
+                logRead()
+                kernel.stateAt(model, ref, version, base)
+            }
+            else -> {
+                logRead()
+                // A subscription sees the state of every commit it handles, however long the history: no replay limit.
+                kernel.stateAt(model, ref, version, maxReplay = Int.MAX_VALUE)
+            }
         }
         checkNotNull(state) { "The log does not hold $ref@$version." }
         return keep(ref, state)

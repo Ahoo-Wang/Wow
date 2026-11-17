@@ -29,8 +29,11 @@ import java.util.concurrent.atomic.LongAdder
  * - [writing] is now: the leaders in a store's call, at most the store's writes in flight; [allowed] is now: how many
  *   may lead, the store's writes in flight, or its catch-up count while the writes are behind.
  * - [clock] is cumulative: where each write's time went, from its batch taken to its saves ended ([CallClock]).
+ * - [loads], [loadCalls] and [tails] are cumulative, the reads of an entry without a view: the snapshots loaded, the
+ *   store's calls that loaded them, and the log's reads of a rebuild (its tail after a base, or its replay) or of an
+ *   aggregate's first stream. With [snapshots], they are the store's round trips a snapshot written cost.
  *
- * Each is an atomic add, per write, never per save; nothing waits on a lock.
+ * Each is an atomic add, per write, never per save, and per read of an entry without a view; nothing waits on a lock.
  */
 @InternalWowApi
 class SnapshotWriteCounts internal constructor() {
@@ -38,11 +41,17 @@ class SnapshotWriteCounts internal constructor() {
     private val written = LongAdder()
     private val inCall = AtomicInteger()
     private val limit = AtomicInteger()
+    private val loaded = LongAdder()
+    private val loadCalled = LongAdder()
+    private val logReads = LongAdder()
 
     val saves: Long get() = taken.sum()
     val snapshots: Long get() = written.sum()
     val writing: Int get() = inCall.get()
     val allowed: Int get() = limit.get()
+    val loads: Long get() = loaded.sum()
+    val loadCalls: Long get() = loadCalled.sum()
+    val tails: Long get() = logReads.sum()
 
     /** Where the writes' time went. */
     val clock = CallClock()
@@ -58,6 +67,17 @@ class SnapshotWriteCounts internal constructor() {
     /** How many may lead now. */
     internal fun limited(leaders: Int) {
         limit.set(leaders)
+    }
+
+    /** One call of the store loaded [snapshots]. */
+    internal fun loaded(snapshots: Int) {
+        loaded.add(snapshots.toLong())
+        loadCalled.increment()
+    }
+
+    /** The log was read once. */
+    internal fun logRead() {
+        logReads.increment()
     }
 
     /** A write [start]ed ended, clocked or not. */
