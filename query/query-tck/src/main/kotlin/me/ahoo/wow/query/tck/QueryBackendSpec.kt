@@ -46,6 +46,7 @@ import me.ahoo.wow.query.error.QueryTimeoutException
 import me.ahoo.wow.query.policy.QueryEntryPolicy
 import me.ahoo.wow.query.schema.FixedQueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QueryValueType
+import me.ahoo.wow.query.schema.Temporal
 import me.ahoo.wow.query.schema.querySchema
 import org.junit.jupiter.api.Test
 import java.time.Duration
@@ -69,7 +70,7 @@ import kotlin.time.toKotlinDuration
  * The cases come in families, each a parent class of this one ([SnapshotQueryFixtures] lists them); this class holds
  * the timeouts and the gateway cases.
  */
-abstract class QueryBackendSpec : SnapshotDateBucketCases() {
+abstract class QueryBackendSpec : SnapshotValueComparisonCases() {
     // Timeouts
 
     @Test
@@ -191,6 +192,11 @@ abstract class QueryBackendSpec : SnapshotDateBucketCases() {
             field("state.createdAt") {
                 types(QueryValueType.INTEGER)
                 temporalEpoch()
+            }
+            // A date string, as an ISO-8601 instant, offset date-time or date ([Temporal.Date]).
+            field("state.placedAt") {
+                types(QueryValueType.STRING)
+                semantic(Temporal.Date)
             }
             field("state.keywords") {
                 items {

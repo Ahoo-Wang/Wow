@@ -56,11 +56,11 @@ import java.util.UUID
  * queries, and the snapshots it stores ([snapshot], [orders]).
  *
  * The contract's cases come in families, one class each: [SnapshotFilterCases], [SnapshotRecordCases],
- * [SnapshotKeysetCases], [SnapshotAggregationCases] and [SnapshotDateBucketCases], then [QueryBackendSpec] with the
- * timeouts and the gateway. They form one chain, in that order, each extending the one before, because a class has
- * one superclass and JUnit runs the cases a test class inherits. The order means nothing: every family reads only
- * this class's fixtures, hooks and constants, and the suite's public constants on [QueryBackendSpec], never a member
- * of the family it extends, so any order would run the same cases.
+ * [SnapshotKeysetCases], [SnapshotAggregationCases], [SnapshotDateBucketCases] and [SnapshotValueComparisonCases], then
+ * [QueryBackendSpec] with the timeouts and the gateway. They form one chain, in that order, each extending the one
+ * before, because a class has one superclass and JUnit runs the cases a test class inherits. The order means nothing:
+ * every family reads only this class's fixtures, hooks and constants, and the suite's public constants on
+ * [QueryBackendSpec], never a member of the family it extends, so any order would run the same cases.
  */
 abstract class SnapshotQueryFixtures internal constructor() {
     /** Stores [snapshots], all of [type], where the backend under test reads them. */
