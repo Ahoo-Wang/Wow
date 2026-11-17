@@ -86,4 +86,22 @@ class StateDiffTest {
         assertThrows<IllegalArgumentException> { StateMapping(fields = mapOf("a" to "")) }
         assertThrows<IllegalArgumentException> { StateMapping(ignore = listOf("a..b")) }
     }
+
+    @Test
+    fun `two 9x fields that become one field are a difference holding both, unless ignored, and a swap is not`() {
+        val renamed = StateMapping(mapOf("oldAmount" to "amount"))
+        diff("""{"oldAmount":10,"amount":25,"paid":true}""", """{"amount":25,"paid":true}""", renamed)
+            .map { it.render() }.assert()
+            .containsExactly("""amount: 9.x {"amount":25,"oldAmount":10}, V10 25""")
+        diff("""{"amount":25,"oldAmount":10}""", """{}""", renamed).map { it.render() }.assert()
+            .containsExactly("""amount: 9.x {"amount":25,"oldAmount":10}, V10 (none)""")
+        diff("""{"oldAmount":10,"amount":25}""", "null", renamed).map { it.render() }.assert().containsExactly(
+            """amount: 9.x {"amount":25,"oldAmount":10}, V10 (none)""",
+            "(state): 9.x {}, V10 (none)",
+        )
+        diff("""{"oldAmount":10,"amount":25}""", """{"amount":25}""", renamed.copy(ignore = listOf("amount")))
+            .assert().isEmpty()
+        val swapped = StateMapping(mapOf("a" to "b", "b" to "a"))
+        diff("""{"a":10,"b":25}""", """{"a":25,"b":10}""", swapped).assert().isEmpty()
+    }
 }

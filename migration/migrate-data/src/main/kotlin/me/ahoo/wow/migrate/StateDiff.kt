@@ -46,27 +46,51 @@ internal data class FieldDifference(val path: String, val nineX: JsonNode?, val 
  * - anything else compares by equality, so the string `"1"` is not the number `1`.
  *
  * Before comparing, [StateMapping.fields] renames the 9.x state's top-level fields and [StateMapping.ignore] removes
- * the listed fields from both states.
+ * the listed fields from both states. Two 9.x fields that become one V10 field (a rename onto a field the 9.x state
+ * also holds) are a difference of that field, its 9.x side an object of both by their 9.x names: neither is compared
+ * as if the other were not there.
  */
 internal object StateDiff {
     /** The differences of the 9.x state [nineX] read through [mapping] from the V10 state [v10]; empty when equal. */
     fun diff(nineX: JsonNode, v10: JsonNode, mapping: StateMapping = StateMapping()): List<FieldDifference> {
-        val left = renamed(nineX.deepCopy(), mapping.fields)
+        val merged = mutableMapOf<String, JsonNode>()
+        val left = renamed(nineX.deepCopy(), mapping.fields, merged)
         val right = v10.deepCopy()
         mapping.ignore.forEach { path ->
             val names = path.split('.')
             remove(left, names)
             remove(right, names)
+            if (names.size == 1) {
+                merged.remove(names[0])
+            }
         }
-        return buildList { compare("", left, right, this) }
+        return buildList {
+            merged.toSortedMap().forEach { (name, sources) ->
+                add(FieldDifference(name, sources, (right as? ObjectNode)?.remove(name)?.present()))
+            }
+            compare("", left, right, this)
+        }
     }
 
-    private fun renamed(state: JsonNode, fields: Map<String, String>): JsonNode {
+    /**
+     * [state]'s top-level fields renamed by [fields]. A field two 9.x fields become is left out, and put in [merged]
+     * as an object of both by their 9.x names.
+     */
+    private fun renamed(state: JsonNode, fields: Map<String, String>, merged: MutableMap<String, JsonNode>): JsonNode {
         if (fields.isEmpty() || state !is ObjectNode) {
             return state
         }
         val renamed = WowJson.mapper.createObjectNode()
-        state.properties().forEach { (name, value) -> renamed.set(fields[name] ?: name, value) }
+        state.properties().groupBy { fields[it.key] ?: it.key }.forEach { (to, sources) ->
+            val single = sources.singleOrNull()
+            if (single != null) {
+                renamed.set(to, single.value)
+            } else {
+                merged[to] = WowJson.mapper.createObjectNode().also { both ->
+                    sources.sortedBy { it.key }.forEach { (name, value) -> both.set(name, value) }
+                }
+            }
+        }
         return renamed
     }
 

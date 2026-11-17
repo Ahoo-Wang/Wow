@@ -19,7 +19,6 @@ import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
-import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
 
 /**
@@ -130,11 +129,8 @@ internal class StreamConverter(
             val mapping = aggregate.eventOf(event.name, event.revision)
                 ?: throw MigrationException("$subject: the 9.x event ${event.name}@${event.revision} has no mapping.")
             val to = mapping.to ?: return@mapIndexed event to emptyList()
-            val payload = if (mapping.tags) {
-                tagged(event, mapping, aggregate, "$subject, event $position")
-            } else {
-                payload(event.body, mapping)
-            }
+            val at = "$subject, event $position"
+            val payload = if (mapping.tags) tagged(event, mapping, aggregate, at) else payload(event, mapping, at)
             event to listOfNotNull(
                 EventRecord(aggregate.fullName(to), mapping.toRevision, payload),
                 mapping.lifecycle?.let { lifecycle -> lifecycleOf(lifecycle, event, "$subject, event $position") },
@@ -159,12 +155,7 @@ internal class StreamConverter(
      * ([TagValues]), none when the event holds no such key: 9.x replaced the whole map.
      */
     private fun tagged(event: NineXEvent, mapping: EventMapping, aggregate: AggregatePlan, at: String): String {
-        val payload = WowJson.mapper.createObjectNode()
-        event.body.properties().forEach { (name, value) ->
-            if (name != TAGS) {
-                payload.set(mapping.fields[name] ?: name, value)
-            }
-        }
+        val payload = renamed(event, mapping, at)
         val tags = NineXTags.of(event.body.get(TAGS))
         aggregate.mapping.tags.filter { it.written }.forEach { tag ->
             val name = tag.to!!
@@ -182,13 +173,34 @@ internal class StreamConverter(
         return WowJson.mapper.writeValueAsString(payload)
     }
 
-    private fun payload(body: JsonNode, mapping: EventMapping): String {
-        if (mapping.fields.isEmpty() || body !is ObjectNode) {
-            return WowJson.mapper.writeValueAsString(body)
+    private fun payload(event: NineXEvent, mapping: EventMapping, at: String): String {
+        if (mapping.fields.isEmpty() || event.body !is ObjectNode) {
+            return WowJson.mapper.writeValueAsString(event.body)
         }
+        return WowJson.mapper.writeValueAsString(renamed(event, mapping, at))
+    }
+
+    /**
+     * [event]'s payload fields but the tags, renamed by [mapping]. A rename onto a field the payload also holds fails
+     * the stream, naming both, in whatever order the payload holds them: one value would overwrite the other.
+     */
+    private fun renamed(event: NineXEvent, mapping: EventMapping, at: String): ObjectNode {
         val renamed = WowJson.mapper.createObjectNode()
-        body.properties().forEach { (name, value) -> renamed.set(mapping.fields[name] ?: name, value) }
-        return WowJson.mapper.writeValueAsString(renamed)
+        val names = mutableMapOf<String, String>()
+        event.body.properties().forEach { (name, value) ->
+            if (name == TAGS && mapping.tags) {
+                return@forEach
+            }
+            val to = mapping.fields[name] ?: name
+            names.put(to, name)?.let { other ->
+                throw MigrationException(
+                    "$at (${event.name}): the 9.x fields ${listOf(other, name).sorted().joinToString(" and ")} both " +
+                        "become $to, and one would overwrite the other.",
+                )
+            }
+            renamed.set(to, value)
+        }
+        return renamed
     }
 
     /** The 9.x scope of [stream], moved by an owner or space transfer among its converted [events]. */

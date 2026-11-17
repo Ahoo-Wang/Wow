@@ -239,4 +239,20 @@ class MigrationMapTest {
         assertThrows<IllegalArgumentException> { SubscriptionMapping("s.CartSaga", functions = mapOf("on" to "a.b.c")) }
         assertThrows<IllegalArgumentException> { SubscriptionMapping("s.CartSaga", functions = mapOf("on" to "a.")) }
     }
+
+    @Test
+    fun `two 9x fields renamed to one field are refused, in an event, a lifecycle event and the state, and a swap is not`() {
+        assertThrows<IllegalArgumentException> {
+            EventMapping("order_paid", to = "OrderPaid", fields = mapOf("oldAmount" to "amount", "amount" to "amount"))
+        }.message!!.assert().contains("amount, oldAmount")
+        assertThrows<IllegalArgumentException> {
+            LifecycleMapping(Lifecycle.OWNER_TRANSFERRED, mapOf("toOwnerId" to "ownerId", "owner" to "ownerId"))
+        }.message!!.assert().contains("owner, toOwnerId")
+        assertThrows<IllegalArgumentException> {
+            StateMapping(mapOf("oldAmount" to "amount", "total" to "amount"))
+        }.message!!.assert().contains("oldAmount, total")
+        val swapped = mapOf("a" to "b", "b" to "a")
+        EventMapping("order_paid", to = "OrderPaid", fields = swapped).fields.size.assert().isEqualTo(2)
+        StateMapping(mapOf("a" to "b", "b" to "a")).fields.size.assert().isEqualTo(2)
+    }
 }
