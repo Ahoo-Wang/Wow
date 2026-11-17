@@ -29,7 +29,7 @@ clickhouse() { curl -sS --fail-with-body -u bench:bench "$CLICKHOUSE_URL/" --dat
 # Starts the measure programs' ClickHouse ($CLICKHOUSE_IMAGE, the version CI runs) on the store's CPUs, and waits until
 # it answers.
 clickhouse_up() {
-  docker run -d --name "$CLICKHOUSE" -p 18123:8123 --ulimit nofile=262144:262144 \
+  docker run -d --name "$CLICKHOUSE" -p 127.0.0.1:18123:8123 --ulimit nofile=262144:262144 \
     -e CLICKHOUSE_USER=bench -e CLICKHOUSE_PASSWORD=bench "$CLICKHOUSE_IMAGE" >/dev/null
   local store; store=$(opt store-cpus "$(opt server-cpus "")")
   if [ -n "$store" ]; then docker update --cpuset-cpus "$store" "$CLICKHOUSE" >/dev/null; fi
@@ -43,7 +43,7 @@ clickhouse_up() {
 # Starts the measure programs' Elasticsearch ($ELASTICSEARCH_IMAGE), one node with security off and a 1 GB heap, on
 # the store's CPUs, and waits until its cluster is yellow, at most 120 s; ELASTICSEARCH_URL is its address.
 elasticsearch_up() {
-  docker run -d --name "$ELASTICSEARCH" -p 19200:9200 -e discovery.type=single-node -e xpack.security.enabled=false \
+  docker run -d --name "$ELASTICSEARCH" -p 127.0.0.1:19200:9200 -e discovery.type=single-node -e xpack.security.enabled=false \
     -e ES_JAVA_OPTS="-Xms1g -Xmx1g" "$ELASTICSEARCH_IMAGE" >/dev/null
   local store; store=$(opt store-cpus "$(opt server-cpus "")")
   if [ -n "$store" ]; then docker update --cpuset-cpus "$store" "$ELASTICSEARCH" >/dev/null; fi
