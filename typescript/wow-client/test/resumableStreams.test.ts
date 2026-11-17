@@ -107,6 +107,30 @@ function answers(
   });
 }
 
+/**
+ * A response that sends `text` and keeps its body open, as a peer, a proxy
+ * or a fetcher of the caller's may after the event that ends the stream:
+ * `cancelled()` says whether the stream released it.
+ */
+function heldOpen(text: string) {
+  let cancelled = false;
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(new TextEncoder().encode(text));
+    },
+    cancel() {
+      cancelled = true;
+    },
+  });
+  return {
+    response: new Response(body, {
+      status: 200,
+      headers: { 'Content-Type': 'text/event-stream' },
+    }),
+    cancelled: () => cancelled,
+  };
+}
+
 const lastEventIds = (requests: SentRequest[]) =>
   requests.map(r => r.headers.get('Last-Event-ID'));
 
@@ -535,5 +559,44 @@ describe('resumable query streams (decision D253)', () => {
     );
     await vi.waitFor(() => expect(cancelled).toBe('left the page'));
     expect(requests).toHaveLength(2);
+  });
+
+  it('releases a response it resumes from, though its body stays open (#6271)', async () => {
+    const first = heldOpen(row('p1') + end('hold-expired'));
+    const { requests } = answers(
+      () => first.response,
+      () => sseResponse(row('p2') + end('complete')),
+    );
+    const stream = await new SnapshotQueryClient(PRODUCT, client()).stream(
+      query,
+    );
+    expect(ids(await readAll(stream))).toEqual(['p1', 'p2']);
+    expect(requests).toHaveLength(2);
+    expect(first.cancelled()).toBe(true);
+  });
+
+  it('releases a response that completed, though its body stays open (#6271)', async () => {
+    const only = heldOpen(row('p1') + end('complete'));
+    answers(() => only.response);
+    const stream = await new SnapshotQueryClient(PRODUCT, client()).stream(
+      query,
+    );
+    expect(ids(await readAll(stream))).toEqual(['p1']);
+    expect(only.cancelled()).toBe(true);
+  });
+
+  it('releases a response that ended in an error it cannot retry, though its body stays open (#6271)', async () => {
+    const only = heldOpen(
+      row('p1') +
+        'event:error\ndata:{"type":"about:blank","title":"t","status":400,"code":"wow.query.invalid","retry":"none"}\n\n',
+    );
+    answers(() => only.response);
+    const stream = await new SnapshotQueryClient(PRODUCT, client()).stream(
+      query,
+    );
+    await expect(readAll(stream)).rejects.toMatchObject({
+      code: 'wow.query.invalid',
+    });
+    expect(only.cancelled()).toBe(true);
   });
 });
