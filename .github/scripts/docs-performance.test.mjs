@@ -16,6 +16,7 @@ import {
   begin,
   checkedHeadline,
   cpuName,
+  cpuCount,
   performanceBlock,
   performancePages,
   spanText,
@@ -276,6 +277,14 @@ test("an inline span is its figure's number, a rate, a time or a count, rewritte
   assert.equal(spanText('p50Ms', 4.7), '4.7 ms');
   // One arm's figure of a list is printed as the list's field.
   assert.equal(spanText('readyMs.0', 1793), '1,793 ms');
+});
+
+test("a pinned process's CPUs print as how many the harness gave it", () => {
+  assert.equal(cpuCount('0-2'), 3);
+  assert.equal(cpuCount('3'), 1);
+  assert.equal(cpuCount('0,2-3'), 3);
+  assert.equal(spanText('cpus.server', '0-2'), '3');
+  assert.equal(spanText('cpus.load', '2-3'), '2');
   assert.equal(spanText('bytesPerEvent.1', 627), '627');
 });
 

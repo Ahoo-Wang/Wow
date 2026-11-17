@@ -9,16 +9,16 @@ outline: deep
 一个 Wow 节点怎样处理一条命令，在注明的硬件上有多快，在同一套规则下与 Axon Framework 4 相比如何，以及它在哪里到头。本页的每个数字都在构建文档时由已提交的基准报告写出，并注明测量它的构建、CPU 与 JDK。
 
 ::: tip 一屏看完
-- **在一台 4 核云端 runner 上**，数据库、Kafka 与负载生成器同在这 4 个核上，一个节点在 PostgreSQL 上以 <!-- perf:actions-snapshot/sustainable.postgres.E1:value -->1,957.8/s<!-- /perf --> 持续写入，p99 不超过 <!-- perf:actions-snapshot/sustainable.postgres.E1:p99Ms -->139.3 ms<!-- /perf -->（runner <!-- perf:actions-snapshot/sustainable.postgres.E1:cpu -->EPYC 7763<!-- /perf -->）；在 MongoDB 上为 <!-- perf:actions-snapshot/sustainable.mongo.E1:value -->2,975.1/s<!-- /perf -->（runner <!-- perf:actions-snapshot/sustainable.mongo.E1:cpu -->Xeon 6975P-C<!-- /perf -->）。两种存储各在自己的 runner 上运行，所以两者不作比较（[在一台 4 核云端 runner 上](#on-a-4-core-cloud-runner)）。
+- **在一台 4 核云端 runner 上**，一个节点与数据库、Kafka 共用 <!-- perf:actions-snapshot/sustainable.postgres.E1:cpus.server -->3<!-- /perf --> 个核，负载生成器占另外 <!-- perf:actions-snapshot/sustainable.postgres.E1:cpus.load -->1<!-- /perf --> 个，这个节点在 PostgreSQL 上以 <!-- perf:actions-snapshot/sustainable.postgres.E1:value -->1,957.8/s<!-- /perf --> 持续写入，p99 不超过 <!-- perf:actions-snapshot/sustainable.postgres.E1:p99Ms -->139.3 ms<!-- /perf -->（runner <!-- perf:actions-snapshot/sustainable.postgres.E1:cpu -->EPYC 7763<!-- /perf -->）；在 MongoDB 上为 <!-- perf:actions-snapshot/sustainable.mongo.E1:value -->2,975.1/s<!-- /perf -->（runner <!-- perf:actions-snapshot/sustainable.mongo.E1:cpu -->Xeon 6975P-C<!-- /perf -->）。两种存储各在自己的 runner 上运行，所以两者不作比较（[在一台 4 核云端 runner 上](#on-a-4-core-cloud-runner)）。
 - **在一台 18 核工作站上**，一个节点在 PostgreSQL 上以 <!-- perf:m5max-snapshot/sweep.postgres.1.e1-sweep:sustainable.value -->41,706.1/s<!-- /perf --> 持续写入，p99 不超过 <!-- perf:m5max-snapshot/sweep.postgres.1.e1-sweep:sustainable.p99Ms -->167.9 ms<!-- /perf -->，此时有 <!-- perf:m5max-snapshot/sweep.postgres.1.e1-sweep:sustainable.clients -->4,096<!-- /perf --> 个客户端（[一个节点在工作站上能走多远](#how-far-one-node-goes-on-a-workstation)）。
-- **与 Axon Framework 4 相比**，同一个 PostgreSQL、同一套规则下，Wow 在 Saga 链上的峰值在 2 个服务器 CPU 上是 Axon 的 <!-- perf:actions-axon/axon.axon-pg.100k.e3.peak:lo -->1.9<!-- /perf -->～<!-- perf:actions-axon/axon.axon-pg.100k.e3.peak:hi -->2.3<!-- /perf --> 倍，在 18 核上是 <!-- perf:m5max-axon/axon.m5max-axon-peak-e3.e3.peak:lo -->5.2<!-- /perf -->～<!-- perf:m5max-axon/axon.m5max-axon-peak-e3.e3.peak:hi -->5.4<!-- /perf --> 倍（[与 Axon Framework 4 对比](#against-axon-framework-4)）。
+- **与 Axon Framework 4 相比**，同一个 PostgreSQL、同一套规则下，在节点与 PostgreSQL 共用 <!-- perf:actions-axon/axon.axon-pg.100k.e3.peak:cpus.server -->2<!-- /perf --> 个核时，Wow 在 Saga 链上的峰值是 Axon 的 <!-- perf:actions-axon/axon.axon-pg.100k.e3.peak:lo -->1.9<!-- /perf -->～<!-- perf:actions-axon/axon.axon-pg.100k.e3.peak:hi -->2.3<!-- /perf --> 倍，在 18 核上是 <!-- perf:m5max-axon/axon.m5max-axon-peak-e3.e3.peak:lo -->5.2<!-- /perf -->～<!-- perf:m5max-axon/axon.m5max-axon-peak-e3.e3.peak:hi -->5.4<!-- /perf --> 倍（[与 Axon Framework 4 对比](#against-axon-framework-4)）。
 
 要为部署定规模？见[容量规划](../operate/performance)。
 :::
 
 ## Wow 怎样处理一条命令，以及为什么它便宜 {#what-wow-does-with-a-command-and-why-that-is-cheap}
 
-一条命令发往拥有其聚合所在分区的节点。该节点的缓存里已有聚合的状态，所以命令对着内存做决定，途中不从数据库读任何东西。
+一条命令发往拥有其聚合所在分区的节点。正在使用的聚合在其所属节点的缓存里，所以它的命令对着内存做决定，途中不从数据库读任何东西；节点第一次遇到的聚合会加载一次，来自它的快照和其后的事件（[冷缓存](#a-cold-cache)测的就是这种情况）。
 
 - **一个聚合的命令在它自己的通道里按序执行，不加锁。** 排在一条命令之后的命令与它一起提交，多个分区的追加合并成一条语句，所以一次写入至多一次数据库往返、一次提交，速率越高，命令共用得越多。
 - **不在命令的路径上：** 快照、Saga 与 Sink 在提交之后跟随日志。
@@ -45,7 +45,7 @@ outline: deep
 
 ## 在一台 4 核云端 runner 上 {#on-a-4-core-cloud-runner}
 
-一个节点运行在 GitHub Actions 的 runner 上（4 核，15～16 GB），数据库、Kafka 与负载生成器在同一台机器上，100,000 个账户。每个套件在各自的 runner 上运行，其 CPU 型号写在所在行。
+一个节点运行在 4 核、15～16 GB 的 GitHub Actions runner 上，100,000 个账户。测试工具把节点、数据库与 Kafka 绑定在其中 <!-- perf:actions-snapshot/sustainable.postgres.E1:cpus.server -->3<!-- /perf --> 个核上，负载生成器绑定在另外 <!-- perf:actions-snapshot/sustainable.postgres.E1:cpus.load -->1<!-- /perf --> 个上；下文的阶梯、冷缓存与三节点运行也这样绑定。每个套件在各自的 runner 上运行，其 CPU 型号写在所在行。
 
 <!-- performance:begin actions -->
 <!-- 由 .github/scripts/docs-performance.mjs 依据各报告的 headline.json 生成；用 `pnpm docs:reference` 重新生成。请勿手改。 -->
@@ -128,10 +128,10 @@ outline: deep
 
 ## 三个节点，以及失去一个节点 {#three-nodes-and-a-node-lost}
 
-同一台云端 runner 上的三个节点（构建 <!-- perf:actions-snapshot/cluster.postgres.e1-steady:commit -->`e3a4e937aa`<!-- /perf -->；PostgreSQL 的 runner 为 <!-- perf:actions-snapshot/cluster.postgres.e1-steady:cpu -->EPYC 7763<!-- /perf -->，MongoDB 的为 <!-- perf:actions-snapshot/cluster.mongo.e1-steady:cpu -->Xeon 6975P-C<!-- /perf -->）：
+同一台云端 runner 上的三个节点，与数据库、Kafka 共用 <!-- perf:actions-snapshot/cluster.postgres.e1-steady:cpus.server -->3<!-- /perf --> 个核（构建 <!-- perf:actions-snapshot/cluster.postgres.e1-steady:commit -->`e3a4e937aa`<!-- /perf -->；PostgreSQL 的 runner 为 <!-- perf:actions-snapshot/cluster.postgres.e1-steady:cpu -->EPYC 7763<!-- /perf -->，MongoDB 的为 <!-- perf:actions-snapshot/cluster.mongo.e1-steady:cpu -->Xeon 6975P-C<!-- /perf -->）：
 
 - **稳态下**，以 <!-- perf:actions-snapshot/cluster.postgres.e1-steady:value -->150/s<!-- /perf --> 写入时，p99 在 PostgreSQL 上为 <!-- perf:actions-snapshot/cluster.postgres.e1-steady:p99Ms -->14.1 ms<!-- /perf -->，在 MongoDB 上为 <!-- perf:actions-snapshot/cluster.mongo.e1-steady:p99Ms -->13.7 ms<!-- /perf -->。
-- **运行中停掉一个节点：** 它的分区在几秒内移到其他节点。写入最差一秒的 p99 在 PostgreSQL 上为 <!-- perf:actions-snapshot/cluster.postgres.e1-handover:worstSecondP99Ms -->3,129.3 ms<!-- /perf -->，在 MongoDB 上为 <!-- perf:actions-snapshot/cluster.mongo.e1-handover:worstSecondP99Ms -->1,671.2 ms<!-- /perf -->；失败的写入分别为 <!-- perf:actions-snapshot/cluster.postgres.e1-handover:failed -->0<!-- /perf --> 与 <!-- perf:actions-snapshot/cluster.mongo.e1-handover:failed -->0<!-- /perf --> 条。在同一次交接中，saga 链在 MongoDB 上失败 <!-- perf:actions-snapshot/cluster.mongo.e3-handover:failed -->39<!-- /perf --> 条，在 PostgreSQL 上失败 <!-- perf:actions-snapshot/cluster.postgres.e3-handover:failed -->1<!-- /perf --> 条，各为一次运行。MongoDB 上的失败都发生在被停节点重启之后、它的分区逐个追赶期间：这正是 [#6407](https://github.com/Ahoo-Wang/Wow/issues/6407)，此构建之后由 [#6412](https://github.com/Ahoo-Wang/Wow/pull/6412) 修复（时间线见[报告](https://github.com/Ahoo-Wang/Wow/blob/main/test/benchmarks/results/reports/actions-snapshot.md#l4-cluster-and-hand-over-e5)）。
+- **运行中停掉一个节点：** 它的分区在几秒内移到其他节点。写入最差一秒的 p99 在 PostgreSQL 上为 <!-- perf:actions-snapshot/cluster.postgres.e1-handover:worstSecondP99Ms -->3,129.3 ms<!-- /perf -->，在 MongoDB 上为 <!-- perf:actions-snapshot/cluster.mongo.e1-handover:worstSecondP99Ms -->1,671.2 ms<!-- /perf -->；失败的写入分别为 <!-- perf:actions-snapshot/cluster.postgres.e1-handover:failed -->0<!-- /perf --> 与 <!-- perf:actions-snapshot/cluster.mongo.e1-handover:failed -->0<!-- /perf --> 条。在同一次交接中，saga 链在 MongoDB 上失败 <!-- perf:actions-snapshot/cluster.mongo.e3-handover:failed -->39<!-- /perf --> 条，在 PostgreSQL 上失败 <!-- perf:actions-snapshot/cluster.postgres.e3-handover:failed -->1<!-- /perf --> 条，各为一次运行，构建为 <!-- perf:actions-snapshot/cluster.mongo.e3-handover:commit -->`e3a4e937aa`<!-- /perf -->。MongoDB 上的失败都发生在被停节点重启之后、它的分区逐个追赶期间：这正是 [#6407](https://github.com/Ahoo-Wang/Wow/issues/6407)，此构建之后由 [#6412](https://github.com/Ahoo-Wang/Wow/pull/6412) 修复（时间线见[报告](https://github.com/Ahoo-Wang/Wow/blob/main/test/benchmarks/results/reports/actions-snapshot.md#l4-cluster-and-hand-over-e5)）。
 - **没有测量：跨多台机器的扩展。** 这些节点与数据库共用一台机器，所以它们显示的是集群的开销，而不是它带来的收益。[容量规划](../operate/performance)给出上限，以及在你自己的机器上要做的测量。
 
 ## 与 Axon Framework 4 对比 {#against-axon-framework-4}
@@ -144,7 +144,7 @@ outline: deep
 - **噪声：** 两侧在同一批测量中交替运行，W A A W；落在一侧自身 A/A 波动之内的差别称为持平。
 - **正确性：** 每次会话之后都检查其数据库；数据有误的一侧不参与比较。
 
-在 2 个服务器 CPU 上（一台 GitHub Actions runner），每个区间是 Wow 的速率除以 Axon 的，画在两侧自身波动的范围之内；空心区间为持平：
+在一台 4 核的 GitHub Actions runner 上，节点（Wow 或 Axon 的）与 PostgreSQL 绑定在其中 <!-- perf:actions-axon/axon.axon-pg.100k.e3.peak:cpus.server -->2<!-- /perf --> 个核上，负载生成器绑定在另外 <!-- perf:actions-axon/axon.axon-pg.100k.e3.peak:cpus.load -->2<!-- /perf --> 个上；每个区间是 Wow 的速率除以 Axon 的，画在两侧自身波动的范围之内；空心区间为持平：
 
 <PerfFigure name="actions-axon" />
 

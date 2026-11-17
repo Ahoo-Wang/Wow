@@ -71,7 +71,11 @@ function suitesIn(dir) {
     .sort();
 }
 
-/** Where a figure comes from: the build, the CPU model, the run when there is one, and the file in the repository. */
+/**
+ * Where a figure comes from: the build, the CPU model, the CPUs the harness pinned each process to when it did (the
+ * suite's `cpus`, taskset lists: `server` the node and every store or bus without CPUs of its own, `load` the load
+ * generator), the run when there is one, and the file in the repository.
+ */
 function provenance(suite, source, run) {
   return {
     commit: suite.refs?.headSha?.slice(0, 10),
@@ -79,6 +83,7 @@ function provenance(suite, source, run) {
       suite.runner?.cpu && suite.runner.cpu !== 'unknown'
         ? suite.runner.cpu
         : M5MAX,
+    ...(suite.cpus ? { cpus: suite.cpus } : {}),
     jdk: jdkOf(suite.runner?.jdk),
     ...(run ? { run } : {}),
     source,

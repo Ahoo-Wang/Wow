@@ -323,12 +323,23 @@ const WHERE = {
   jdk: jdk => jdk,
 };
 
+/** How many CPUs a taskset list names: `0-2` is 3, `3` is 1, `0,2-3` is 3. */
+export const cpuCount = list =>
+  String(list)
+    .split(',')
+    .map(part => part.split('-').map(Number))
+    .reduce((n, [from, to = from]) => n + to - from + 1, 0);
+
+/** A pinned process's CPUs (`cpus.server`, `cpus.load`): printed as how many. */
+const isCpus = field => /^cpus\.[a-z]+$/.test(field);
+
 /**
  * A figure's field as the prose prints it: a rate (`value`, `saturation`) as `2,609.8/s`, a time (`…Ms`) as
  * `64 ms`, any other number as itself with thousands separated; its build (`commit`) as code, its CPU as a reader
- * names it, and its JDK as recorded.
+ * names it, its JDK as recorded, and a pinned process's CPUs as their count.
  */
 export function spanText(field, value) {
+  if (isCpus(field)) return String(cpuCount(value));
   // An arm's figure in a list (`readyMs.0`) is printed as its list's field.
   const last = field
     .split('.')
@@ -357,7 +368,10 @@ function figureText(headlines, report, id, field, path) {
       `${path}: perf:${report}/${id}:${field}: ${report} has no figure ${id}`,
     );
   const value = field.split('.').reduce((holder, key) => holder?.[key], figure);
-  if (!Number.isFinite(value) && !(WHERE[field] && typeof value === 'string'))
+  if (
+    !Number.isFinite(value) &&
+    !((WHERE[field] || isCpus(field)) && typeof value === 'string')
+  )
     throw new Error(
       `${path}: perf:${report}/${id}:${field}: the figure has no number there`,
     );
