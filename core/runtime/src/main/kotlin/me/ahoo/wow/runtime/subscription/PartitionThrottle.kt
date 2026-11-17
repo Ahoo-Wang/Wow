@@ -101,19 +101,21 @@ internal class PartitionThrottle(
 
     /** [ref]'s downstream pushed back: the limit halves, down to the minimum. */
     fun backpressure(ref: AggregateRef) {
+        // The limit it entered at, taken under the monitor: a success on another handling may lift the throttle before
+        // the line is written, and the state read then is gone.
         val entered = synchronized(this) {
             limit = (limit / 2).coerceAtLeast(options.minConcurrency.coerceAtMost(max))
             if (since == null && limit < max) {
                 since = clock.millis()
-                true
+                limit
             } else {
-                false
+                null
             }
         }
-        if (entered) {
+        if (entered != null) {
             logger.warn {
                 "Subscription $subscription throttles partition $partition of group $group: the downstream of $ref " +
-                    "pushed back; it runs at most ${state?.limit} handlings at once until handlings succeed again."
+                    "pushed back; it runs at most $entered handlings at once until handlings succeed again."
             }
             observer.observed(ObservedEvent.PartitionThrottled(group, subscription, partition, true))
         }
