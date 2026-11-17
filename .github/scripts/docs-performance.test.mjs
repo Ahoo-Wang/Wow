@@ -13,11 +13,13 @@ import {
   END,
   HEADLINES,
   PAGES,
+  begin,
   checkedHeadline,
   cpuName,
   performanceBlock,
   performancePages,
-  withBlock,
+  spanText,
+  withFigures,
 } from './docs-performance.mjs';
 
 const FROM = {
@@ -198,20 +200,104 @@ test('a headline that lacks a field the table needs is refused, naming it', () =
   );
 });
 
-test('the block replaces what is between the markers and nothing else', () => {
+test('a named block replaces what is between its markers and nothing else', () => {
   const text = `# Performance\n\nBefore.\n\n${BEGIN}\nstale\n${END}\n\nAfter.\n`;
   assert.equal(
-    withBlock(text, 'fresh', 'p.md'),
-    `# Performance\n\nBefore.\n\n${BEGIN}\nfresh\n${END}\n\nAfter.\n`,
+    withFigures(text, 'en', [HEADLINE], 'p.md'),
+    `# Performance\n\nBefore.\n\n${BEGIN}\n${performanceBlock('en', [HEADLINE])}\n${END}\n\nAfter.\n`,
+  );
+  // Two blocks on one page are each written.
+  const twice = withFigures(
+    `${BEGIN}\n${END}\n\nBetween.\n\n${BEGIN}\nold\n${END}\n`,
+    'zh',
+    [HEADLINE],
+    'p.md',
+  );
+  assert.equal(twice.split(performanceBlock('zh', [HEADLINE])).length, 3);
+  assert.ok(twice.includes(`${END}\n\nBetween.\n\n${BEGIN}`));
+  // A page with neither is left as it is.
+  assert.equal(withFigures('# None\n', 'en', [], 'p.md'), '# None\n');
+});
+
+test('a block of no known name, or a marker without its pair, is refused, naming the page', () => {
+  assert.throws(
+    () => withFigures(`${begin('curves')}\n${END}\n`, 'en', [], 'p.md'),
+    /p\.md: no block is named curves \(snapshots\)/,
+  );
+  for (const text of [
+    `${BEGIN}\nno end\n`,
+    `${BEGIN}\n${BEGIN}\n${END}\n`,
+    `${END}\n${BEGIN}\n`,
+  ]) {
+    assert.throws(
+      () => withFigures(text, 'en', [], 'p.md'),
+      /p\.md: <!-- performance:begin snapshots --> must be followed by <!-- performance:end -->/,
+    );
+  }
+  assert.throws(
+    () => withFigures(`${BEGIN}\n${END}\n${END}\n`, 'en', [], 'p.md'),
+    /p\.md: <!-- performance:end --> without its/,
+  );
+});
+
+test("an inline span is its figure's number, a rate, a time or a count, rewritten when it drifts", () => {
+  const text = [
+    'PostgreSQL sustains <!-- perf:actions-snapshot/sustainable.postgres.E1:value -->2,000/s<!-- /perf --> at',
+    'p99 <!-- perf:actions-snapshot/sustainable.postgres.E1:p99Ms -->?<!-- /perf -->, and one M5 Max node',
+    '<!-- perf:m5max-snapshot/sweep.postgres.1.e1-sweep:sustainable.value --><!-- /perf --> with',
+    '<!-- perf:m5max-snapshot/sweep.postgres.1.e1-sweep:sustainable.clients -->1<!-- /perf --> clients.',
+  ].join('\n');
+  assert.equal(
+    withFigures(text, 'zh', [HEADLINE, ACTIONS], 'p.md'),
+    [
+      'PostgreSQL sustains <!-- perf:actions-snapshot/sustainable.postgres.E1:value -->2,609.8/s<!-- /perf --> at',
+      'p99 <!-- perf:actions-snapshot/sustainable.postgres.E1:p99Ms -->160.8 ms<!-- /perf -->, and one M5 Max node',
+      '<!-- perf:m5max-snapshot/sweep.postgres.1.e1-sweep:sustainable.value -->23,030.1/s<!-- /perf --> with',
+      '<!-- perf:m5max-snapshot/sweep.postgres.1.e1-sweep:sustainable.clients -->1,024<!-- /perf --> clients.',
+    ].join('\n'),
+  );
+  assert.equal(spanText('saturation', 4912.5), '4,912.5/s');
+  // A peak the sweep's last step reached is a lower bound, and says so as the tables do.
+  assert.equal(
+    withFigures(
+      '<!-- perf:m5max-snapshot/sweep.postgres.1.e1-sweep:value --><!-- /perf -->',
+      'en',
+      [HEADLINE],
+      'p.md',
+    ),
+    '<!-- perf:m5max-snapshot/sweep.postgres.1.e1-sweep:value -->≥ 37,713.6/s<!-- /perf -->',
+  );
+  assert.equal(spanText('p50Ms', 4.7), '4.7 ms');
+});
+
+test('a span whose report, figure or number the headlines do not hold is refused, naming it', () => {
+  const span = ref => `x <!-- perf:${ref} -->1<!-- /perf -->`;
+  assert.throws(
+    () =>
+      withFigures(span('actions-axon/peak.e1:value'), 'en', [ACTIONS], 'p.md'),
+    /p\.md: perf:actions-axon\/peak\.e1:value names no quoted report \(actions-snapshot\)/,
   );
   assert.throws(
-    () => withBlock('# No markers\n', 'x', 'p.md'),
-    /p\.md must hold/,
+    () =>
+      withFigures(
+        span('actions-snapshot/sustainable.mongo.E1:value'),
+        'en',
+        [ACTIONS],
+        'p.md',
+      ),
+    /actions-snapshot has no figure sustainable\.mongo\.E1/,
   );
-  assert.throws(
-    () => withBlock(`${END}\n${BEGIN}\n`, 'x', 'p.md'),
-    /p\.md must hold/,
-  );
+  // A field the figure lacks, and one that is not a number (the sustainable step a sweep did not find).
+  for (const ref of [
+    'actions-snapshot/sustainable.postgres.E1:p50Ms',
+    'm5max-snapshot/sweep.mongo.3.e3-sweep:sustainable.value',
+    'actions-snapshot/sustainable.postgres.E1:store',
+  ]) {
+    assert.throws(
+      () => withFigures(span(ref), 'en', [HEADLINE, ACTIONS], 'p.md'),
+      /the figure has no number there/,
+    );
+  }
 });
 
 test("the pages take the headlines of the reports present in the tree, from their data, in the page's order", () => {
@@ -243,8 +329,25 @@ test("the pages take the headlines of the reports present in the tree, from thei
       },
     }),
   );
+  // Another page of the documentation that quotes a figure inline is written too; one that quotes none is not.
+  const guide = 'documentation/docs/en/guide/why.md';
+  mkdirSync(join(root, dirname(guide)), { recursive: true });
+  writeFileSync(
+    join(root, guide),
+    'One node: <!-- perf:m5max-snapshot/sweep.postgres.1.e1-sweep:value --><!-- /perf -->.\n',
+  );
+  writeFileSync(join(root, dirname(guide), 'plain.md'), '# Plain\n');
   const pages = performancePages(root);
-  assert.deepEqual(Object.keys(pages), [HEADLINES[1], ...Object.values(PAGES)]);
+  assert.deepEqual(Object.keys(pages), [
+    HEADLINES[1],
+    PAGES.en,
+    guide,
+    PAGES.zh,
+  ]);
+  assert.equal(
+    pages[guide],
+    'One node: <!-- perf:m5max-snapshot/sweep.postgres.1.e1-sweep:value -->≥ 37,713.6/s<!-- /perf -->.\n',
+  );
   assert.match(pages[HEADLINES[1]], /"schema": "wow-headline\/1"/);
   assert.ok(pages[PAGES.en].includes('[m5max-snapshot]'));
   assert.ok(pages[PAGES.en].includes('≥ 37,713.6/s, at 4,096 clients'));

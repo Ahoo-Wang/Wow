@@ -3,8 +3,8 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may obtain a copy at http://www.apache.org/licenses/LICENSE-2.0
  */
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { readdirSync, readFileSync } from 'node:fs';
+import { join, relative } from 'node:path';
 import {
   NOT_RECORDED,
   headlineFiles,
@@ -13,18 +13,25 @@ import {
   reportsIn,
 } from './bench-headline.mjs';
 
-// The figures of the documentation's performance page (operate/performance), in
-// English and Chinese, generated from the benchmark reports so that the page
-// never shows a number its report no longer has (D391 keeps one report of each
-// kind and environment).
+// The figures the documentation quotes, in English and Chinese, generated from
+// the benchmark reports so that no page shows a number its report no longer has
+// (D391 keeps one report of each kind and environment).
 //
-// Each report that the page quotes keeps its headline figures in
+// Each report the pages quote keeps its headline figures in
 // `<report>/headline.json` beside its `.md`, written from the report's own data
 // by bench-headline.mjs, each figure with the build, the CPU model and the file
-// it comes from. The page holds them between two markers; docs-reference.mjs
-// writes the block (`--write`) and fails when it is not what the headlines give.
-// A report without a headline file is not quoted. No figure is computed across
-// two reports, so none across two builds.
+// it comes from. A page quotes them two ways, and docs-reference.mjs writes both
+// (`--write`) and fails when either is not what the headlines give:
+// - a named block, a table between `<!-- performance:begin <name> -->` and
+//   `<!-- performance:end -->`, written by BLOCKS[name];
+// - an inline span, one figure's number in the prose:
+//   `<!-- perf:actions-snapshot/sustainable.postgres.E1:value -->2,609.8/s<!-- /perf -->`,
+//   the report, the figure's id and the field, a dotted path for a nested one
+//   (`sustainable.value`).
+// Every page of the documentation that holds either is written, and the
+// performance pages (PAGES) must hold the `snapshots` block. A report without a
+// headline file is not quoted. No figure is computed across two reports, so
+// none across two builds.
 
 /** The reports the page quotes, in its order. */
 export const HEADLINES = [
@@ -37,7 +44,15 @@ export const PAGES = {
   zh: 'documentation/docs/zh/operate/performance.md',
 };
 
-export const BEGIN = '<!-- performance:begin -->';
+/** The documentation's pages, by locale: every page there that quotes a figure is written. */
+export const DOCS = {
+  en: 'documentation/docs/en',
+  zh: 'documentation/docs/zh',
+};
+
+/** The opening marker of the block `name`. */
+export const begin = name => `<!-- performance:begin ${name} -->`;
+export const BEGIN = begin('snapshots');
 export const END = '<!-- performance:end -->';
 
 const REPORTS =
@@ -264,19 +279,110 @@ export function performanceBlock(locale, headlines) {
   ].join('\n');
 }
 
-/** `text` with its block between the markers replaced by `block`; fails when the markers are not there once each, in order. */
-export function withBlock(text, block, path) {
-  const begin = text.indexOf(BEGIN);
-  const end = text.indexOf(END);
-  if (
-    begin < 0 ||
-    end < begin ||
-    text.indexOf(BEGIN, begin + 1) >= 0 ||
-    text.indexOf(END, end + 1) >= 0
-  ) {
-    throw new Error(`${path} must hold ${BEGIN} and then ${END}, once each`);
+/** The blocks a page may hold, by name: each writes its table, in a locale, from the headlines. */
+export const BLOCKS = { snapshots: performanceBlock };
+
+const BLOCK = /<!-- performance:begin ([^\s]*) -->|<!-- performance:end -->/g;
+const SPAN =
+  /<!-- perf:([^/\s]+)\/([^:\s]+):([A-Za-z0-9.]+) -->([\s\S]*?)<!-- \/perf -->/g;
+
+/**
+ * A figure's field as the prose prints it: a rate (`value`, `saturation`) as `2,609.8/s`, a time (`…Ms`) as
+ * `64 ms`, any other number as itself with thousands separated.
+ */
+export function spanText(field, value) {
+  const last = field.split('.').at(-1);
+  if (last === 'value' || last === 'saturation') return rate(value);
+  if (/Ms$/.test(last))
+    return `${value.toLocaleString('en-US', { maximumFractionDigits: 1 })} ms`;
+  return value.toLocaleString('en-US', { maximumFractionDigits: 1 });
+}
+
+/**
+ * The text of field `field` (a dotted path) of figure `id` in the headline of `report`, `≥` before a peak that is a
+ * lower bound (`value` of a figure whose `lowerBound` is set), or a failure naming it.
+ */
+function figureText(headlines, report, id, field, path) {
+  const headline = headlines.find(quoted => quoted.report === report);
+  if (!headline)
+    throw new Error(
+      `${path}: perf:${report}/${id}:${field} names no quoted report (${headlines.map(h => h.report).join(', ') || 'none'})`,
+    );
+  const figure = headline.figures.find(candidate => candidate.id === id);
+  if (!figure)
+    throw new Error(
+      `${path}: perf:${report}/${id}:${field}: ${report} has no figure ${id}`,
+    );
+  const value = field.split('.').reduce((holder, key) => holder?.[key], figure);
+  if (!Number.isFinite(value))
+    throw new Error(
+      `${path}: perf:${report}/${id}:${field}: the figure has no number there`,
+    );
+  return `${field === 'value' && figure.lowerBound ? '≥ ' : ''}${spanText(field, value)}`;
+}
+
+/**
+ * `text` with each named block's table and each inline span's figure written in `locale` from `headlines`; fails on
+ * a block of no known name, a begin without its end or an end without its begin, a block inside another, and a span
+ * whose report, figure or field the headlines do not hold.
+ */
+export function withFigures(text, locale, headlines, path) {
+  const markers = [...text.matchAll(BLOCK)];
+  const blocks = [];
+  for (const [i, marker] of markers.entries()) {
+    const name = marker[1];
+    if (name === undefined) continue;
+    const close = markers[i + 1];
+    if (!close || close[1] !== undefined)
+      throw new Error(`${path}: ${begin(name)} must be followed by ${END}`);
+    if (!BLOCKS[name])
+      throw new Error(
+        `${path}: no block is named ${name} (${Object.keys(BLOCKS).join(', ')})`,
+      );
+    blocks.push({
+      name,
+      from: marker.index + marker[0].length,
+      to: close.index,
+    });
   }
-  return `${text.slice(0, begin + BEGIN.length)}\n${block}\n${text.slice(end)}`;
+  const ends = markers.filter(marker => marker[1] === undefined).length;
+  if (ends !== blocks.length)
+    throw new Error(`${path}: ${END} without its ${begin('<name>')}`);
+  let written = '';
+  let at = 0;
+  for (const block of blocks) {
+    written += `${text.slice(at, block.from)}\n${BLOCKS[block.name](locale, headlines)}\n`;
+    at = block.to;
+  }
+  written += text.slice(at);
+  return written.replace(
+    SPAN,
+    (_, report, id, field) =>
+      `<!-- perf:${report}/${id}:${field} -->${figureText(headlines, report, id, field, path)}<!-- /perf -->`,
+  );
+}
+
+/** The pages under `dir` (relative to `root`) that quote a figure, by a block or a span, as paths relative to root. */
+function quotingPages(root, dir) {
+  let entries;
+  try {
+    entries = readdirSync(join(root, dir), {
+      recursive: true,
+      withFileTypes: true,
+    });
+  } catch {
+    return [];
+  }
+  return entries
+    .filter(entry => entry.isFile() && entry.name.endsWith('.md'))
+    .map(entry => relative(root, join(entry.parentPath, entry.name)))
+    .filter(path => {
+      const text = readFileSync(join(root, path), 'utf8');
+      return (
+        text.includes('<!-- performance:begin') || text.includes('<!-- perf:')
+      );
+    })
+    .sort();
 }
 
 /** The headlines of the reports present in `root`, as their data gives them, in the page's order. */
@@ -288,22 +394,22 @@ export function headlinesOf(root) {
 }
 
 /**
- * The performance pages as the headlines give them, by path, each page's text with its block written, and each
- * report's headline.json (bench-headline.mjs): docs-reference.mjs writes and checks them together.
+ * The pages that quote figures as the headlines give them, by path: the performance pages (PAGES), which must hold
+ * the `snapshots` block, and every other page of the documentation that holds a block or a span, each with its
+ * figures written; and each report's headline.json (bench-headline.mjs): docs-reference.mjs writes and checks them
+ * together.
  */
 export function performancePages(root) {
   const headlines = headlinesOf(root);
-  return {
-    ...headlineFiles(root),
-    ...Object.fromEntries(
-      Object.entries(PAGES).map(([locale, path]) => [
-        path,
-        withBlock(
-          readFileSync(join(root, path), 'utf8'),
-          performanceBlock(locale, headlines),
-          path,
-        ),
-      ]),
-    ),
-  };
+  const pages = {};
+  for (const [locale, dir] of Object.entries(DOCS)) {
+    const paths = new Set([PAGES[locale], ...quotingPages(root, dir)]);
+    for (const path of paths) {
+      const text = readFileSync(join(root, path), 'utf8');
+      if (path === PAGES[locale] && !text.includes(BEGIN))
+        throw new Error(`${path} must hold ${BEGIN} and then ${END}`);
+      pages[path] = withFigures(text, locale, headlines, path);
+    }
+  }
+  return { ...headlineFiles(root), ...pages };
 }
