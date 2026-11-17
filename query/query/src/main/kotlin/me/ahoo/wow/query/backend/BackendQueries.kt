@@ -55,6 +55,7 @@ import me.ahoo.wow.spi.json.WowJson
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
 import java.time.Duration
+import kotlin.time.toKotlinDuration
 
 /*
  * Every query shape, derived by the core from the four backend primitives. The gateway calls these
@@ -82,11 +83,14 @@ internal fun storageFault(error: Throwable): Throwable = when (error) {
 
 /**
  * Runs [block] within [timeout] (none when `null`), a storage failure reported as [storageFault]. Only this timeout
- * becomes a [QueryTimeoutException]: the caller's own cancellation, an enclosing timeout included, stays one.
+ * becomes a [QueryTimeoutException]: the caller's own cancellation, an enclosing timeout included, stays one. A
+ * positive timeout below a millisecond waits one, as the coroutine timer counts whole milliseconds (#6334): it never
+ * becomes the zero that would skip [block].
  */
 internal suspend fun <T> executing(timeout: Duration?, block: suspend () -> T): T {
     if (timeout == null) return guarded(block)
-    val done = withTimeoutOrNull(timeout.toMillis()) { Done(guarded(block)) } ?: throw QueryTimeoutException(timeout)
+    val done = withTimeoutOrNull(timeout.toKotlinDuration()) { Done(guarded(block)) }
+        ?: throw QueryTimeoutException(timeout)
     return done.value
 }
 
@@ -104,14 +108,15 @@ private suspend fun <T> guarded(block: suspend () -> T): T = try {
 
 /**
  * [this] flow within [timeout] as a whole (none when `null`), a storage failure reported as [storageFault]. The timeout
- * bounds the stream from its start to its last row, the time the consumer takes included.
+ * bounds the stream from its start to its last row, the time the consumer takes included, a positive one below a
+ * millisecond as a millisecond, as [executing] does.
  */
 @Suppress("ThrowsCount")
 internal fun <T> Flow<T>.executing(timeout: Duration?): Flow<T> {
     val guarded = catch { error -> if (error is CancellationException) throw error else throw storageFault(error) }
     if (timeout == null) return guarded
     return flow {
-        withTimeoutOrNull(timeout.toMillis()) { emitAll(guarded) } ?: throw QueryTimeoutException(timeout)
+        withTimeoutOrNull(timeout.toKotlinDuration()) { emitAll(guarded) } ?: throw QueryTimeoutException(timeout)
     }
 }
 

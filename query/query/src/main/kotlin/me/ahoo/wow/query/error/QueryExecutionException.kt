@@ -16,6 +16,7 @@ package me.ahoo.wow.query.error
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.spi.StorageBusyException
+import java.math.BigDecimal
 import java.time.Duration
 
 /**
@@ -49,10 +50,18 @@ internal inline fun checkExecution(value: Boolean, message: () -> String) {
 class QueryTimeoutException(
     val timeout: Duration,
     cause: Throwable? = null,
-) : QueryExecutionException("Query exceeded its execution timeout of ${timeout.toMillis()} ms.", cause) {
+) : QueryExecutionException("Query exceeded its execution timeout of ${timeout.inMillisText()} ms.", cause) {
     override val errorCode: String
         get() = QueryErrors.TIMEOUT
 }
+
+/** This duration in milliseconds, its fraction kept (`0.999` for 999 µs), so a timeout below one never reads `0`. */
+private fun Duration.inMillisText(): String =
+    BigDecimal.valueOf(seconds).add(BigDecimal.valueOf(nano.toLong(), NANO_SCALE)).movePointRight(MILLI_SHIFT)
+        .stripTrailingZeros().toPlainString()
+
+private const val NANO_SCALE = 9
+private const val MILLI_SHIFT = 3
 
 /**
  * A query the storage could not run because it was unreachable or did not answer in time, a backend's
