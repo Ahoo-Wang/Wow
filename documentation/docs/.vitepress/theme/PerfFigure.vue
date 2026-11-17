@@ -80,6 +80,29 @@ const html = computed(() => figureHtml(props.name, lang.value.startsWith('zh') ?
   font-family: var(--vp-font-family-base);
 }
 
+.perf-figure .perf-chart.perf-narrow {
+  display: none;
+  max-width: 480px;
+}
+
+/* A label above its row crosses the grid: a halo of the page's colour keeps it legible. */
+.perf-figure .perf-case {
+  paint-order: stroke;
+  stroke: var(--vp-c-bg);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+
+@media (max-width: 639px) {
+  .perf-figure .perf-chart.perf-wide {
+    display: none;
+  }
+
+  .perf-figure .perf-chart.perf-narrow {
+    display: block;
+  }
+}
+
 .perf-figure .perf-title {
   font-size: 14px;
   font-weight: 600;

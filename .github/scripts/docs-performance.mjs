@@ -12,6 +12,7 @@ import {
   headlinePath,
   reportsIn,
 } from './bench-headline.mjs';
+import { cpuModel } from '../../documentation/docs/.vitepress/theme/perf-figures.mjs';
 
 // The figures the documentation quotes, in English and Chinese, generated from
 // the benchmark reports so that no page shows a number its report no longer has
@@ -132,16 +133,10 @@ const rate = value =>
   `${value.toLocaleString('en-US', { maximumFractionDigits: 1 })}/s`;
 
 /**
- * A CPU model as a reader names it: `AMD EPYC 7763 64-Core Processor` is `EPYC 7763`, `Intel(R) Xeon(R) 6975P-C` and
- * `INTEL(R) XEON(R) PLATINUM 8573C` are `Xeon 6975P-C` and `Xeon 8573C`.
+ * A CPU model as a table row names it: the figures' name (cpuModel), less the M5 Max's cores and memory, which the
+ * environment's title gives.
  */
-export const cpuName = cpu =>
-  cpu
-    .replace(/^AMD\s+/, '')
-    .replace(/\s+\d+-Core Processor$/, '')
-    .replace(/^Intel\(R\) Xeon\(R\)(\s+Platinum)?\s+/i, 'Xeon ')
-    .replace(/\s+CPU\s+@.*$/, '')
-    .replace(/, 18 cores, 64 GB$/, '');
+export const cpuName = cpu => cpuModel(cpu).replace(/, 18 cores, 64 GB$/, '');
 
 /**
  * The rows of a headline the page's table shows, each `{ store, nodes, scenario, keys, peak?, sustainable?, cpu,

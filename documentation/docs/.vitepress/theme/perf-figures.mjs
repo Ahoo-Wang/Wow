@@ -56,6 +56,18 @@ const WORDS = {
 };
 
 /**
+ * A CPU model as a reader names it: `AMD EPYC 7763 64-Core Processor` is `EPYC 7763`, `Intel(R) Xeon(R) 6975P-C` and
+ * `INTEL(R) XEON(R) PLATINUM 8573C` are `Xeon 6975P-C` and `Xeon 8573C`. The pages' tables and spans name it the same
+ * way (docs-performance.mjs).
+ */
+export const cpuModel = cpu =>
+  String(cpu)
+    .replace(/^AMD\s+/, '')
+    .replace(/\s+\d+-Core Processor$/, '')
+    .replace(/^Intel\(R\) Xeon\(R\)(\s+Platinum)?\s+/i, 'Xeon ')
+    .replace(/\s+CPU\s+@.*$/, '');
+
+/**
  * The figures a page can show, by name. `sweep` draws closed-loop sweeps as the answered rate against p99, a panel a
  * scenario and a line a store, with the 200 ms line. `ratio` draws Wow ÷ Axon as a range a case, inside its A/A band.
  */
@@ -229,39 +241,49 @@ function ratioFigure(definition, words, headlines, name) {
   const shown = figures.filter(f => f.comparable);
   const lo = Math.min(0.8, ...shown.map(f => f.lo * (1 - f.band)));
   const hi = Math.max(1.25, ...shown.map(f => f.hi * (1 + f.band)));
-  const [W, L, R, T, ROW, B] = [720, 250, 84, 8, 30, 44];
-  const H = T + figures.length * ROW + B;
-  const x = logScale(lo, hi, L, W - R);
-  let body = '';
-  for (const t of ticksIn(1, hi))
-    body +=
-      `<line class="perf-grid" x1="${round(x(t))}" x2="${round(x(t))}" y1="${T}" y2="${H - B}"/>` +
-      text('perf-tick', x(t), H - B + 16, `${t}×`, 'middle');
-  body += `<line class="perf-axis" x1="${round(x(1))}" x2="${round(x(1))}" y1="${T}" y2="${H - B}"/>`;
-  body += text('perf-tick', (L + W - R) / 2, H - 6, words.ratio, 'middle');
-  figures.forEach((figure, i) => {
-    const cy = T + i * ROW + ROW / 2;
-    body += text('perf-tick', L - 10, cy + 4, caseOf(figure, words), 'end');
-    if (!figure.comparable) {
-      body += text('perf-note', x(1) + 8, cy + 4, words.notCompared);
-      return;
-    }
-    const hollow = !figure.verdict.startsWith('wow') ? ' perf-hollow' : '';
-    const title = `${caseOf(figure, words)}: ${range(figure)}, ${figure.verdict}`;
-    const [b0, b1] = [x(figure.lo * (1 - figure.band)), x(figure.hi * (1 + figure.band))];
-    body +=
-      `<rect class="perf-band perf-series-1" x="${round(b0)}" y="${cy - 8}" width="${round(b1 - b0)}" ` +
-      `height="16" rx="4"/>` +
-      hline('perf-range perf-series-1', x(figure.lo), x(figure.hi), cy) +
-      [figure.lo, figure.hi]
-        .map(
-          v =>
-            `<circle class="perf-dot perf-series-1${hollow}" cx="${round(x(v))}" cy="${cy}" r="4">` +
-            `<title>${escape(title)}</title></circle>`,
-        )
-        .join('') +
-      text('perf-label', b1 + 6, cy + 4, range(figure));
-  });
+  // Two layouts: wide, a case's label left of its range; narrow (a phone), the label above it, so the labels stay
+  // legible without a scroll that would hide the ranges. The page shows one by its width (PerfFigure.vue).
+  const chart = ({ W, L, R, ROW, above }) => {
+    const [T, B] = [8, 44];
+    const H = T + figures.length * ROW + B;
+    const x = logScale(lo, hi, L, W - R);
+    let body = '';
+    for (const t of ticksIn(1, hi))
+      body +=
+        `<line class="perf-grid" x1="${round(x(t))}" x2="${round(x(t))}" y1="${T}" y2="${H - B}"/>` +
+        text('perf-tick', x(t), H - B + 16, `${t}×`, 'middle');
+    body += `<line class="perf-axis" x1="${round(x(1))}" x2="${round(x(1))}" y1="${T}" y2="${H - B}"/>`;
+    body += text('perf-tick', (L + W - R) / 2, H - 6, words.ratio, 'middle');
+    figures.forEach((figure, i) => {
+      const cy = above ? T + i * ROW + ROW - 14 : T + i * ROW + ROW / 2;
+      body += above
+        ? text('perf-tick perf-case', L, cy - 16, caseOf(figure, words))
+        : text('perf-tick', L - 10, cy + 4, caseOf(figure, words), 'end');
+      if (!figure.comparable) {
+        body += text('perf-note', x(1) + 8, cy + 4, words.notCompared);
+        return;
+      }
+      const hollow = !figure.verdict.startsWith('wow') ? ' perf-hollow' : '';
+      const title = `${caseOf(figure, words)}: ${range(figure)}, ${figure.verdict}`;
+      const [b0, b1] = [x(figure.lo * (1 - figure.band)), x(figure.hi * (1 + figure.band))];
+      body +=
+        `<rect class="perf-band perf-series-1" x="${round(b0)}" y="${cy - 8}" width="${round(b1 - b0)}" ` +
+        `height="16" rx="4"/>` +
+        hline('perf-range perf-series-1', x(figure.lo), x(figure.hi), cy) +
+        [figure.lo, figure.hi]
+          .map(
+            v =>
+              `<circle class="perf-dot perf-series-1${hollow}" cx="${round(x(v))}" cy="${cy}" r="4">` +
+              `<title>${escape(title)}</title></circle>`,
+          )
+          .join('') +
+        text('perf-label', b1 + 6, cy + 4, range(figure));
+    });
+    return svg(W, H, words.ratio, body);
+  };
+  const charts =
+    chart({ W: 720, L: 250, R: 84, ROW: 30, above: false }).replace('class="perf-chart"', 'class="perf-chart perf-wide"') +
+    chart({ W: 360, L: 12, R: 84, ROW: 44, above: true }).replace('class="perf-chart"', 'class="perf-chart perf-narrow"');
   const rows = figures.map(f => [
     caseOf(f, words),
     f.comparable ? range(f) : '–',
@@ -270,7 +292,7 @@ function ratioFigure(definition, words, headlines, name) {
     grouped(median(f.wow)),
     grouped(median(f.axon)),
   ]);
-  return { first: figures[0], chart: svg(W, H, words.ratio, body), data: table(words.columns.ratio, rows) };
+  return { first: figures[0], chart: charts, data: table(words.columns.ratio, rows) };
 }
 
 /** The HTML of figure [name] in [locale] (`en` or `zh`), drawn from [headlines] (each report's headline, by name). */
@@ -283,7 +305,7 @@ export function figureHtml(name, locale, headlines) {
   const { first, chart, data } = draw(definition, words, headlines, name);
   return (
     `<figure class="perf-figure">${chart}` +
-    `<figcaption>${escape(words.build(first.commit, first.cpu, first.jdk))}</figcaption>` +
+    `<figcaption>${escape(words.build(first.commit, cpuModel(first.cpu), first.jdk))}</figcaption>` +
     `<details><summary>${escape(words.table)}</summary>${data}</details></figure>`
   );
 }
