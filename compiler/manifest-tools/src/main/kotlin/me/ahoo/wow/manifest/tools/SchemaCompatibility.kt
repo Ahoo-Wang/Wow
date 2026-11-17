@@ -13,7 +13,26 @@
 
 package me.ahoo.wow.manifest.tools
 
-import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.manifest.tools.SchemaShapes.ADDITIONAL_PROPERTIES
+import me.ahoo.wow.manifest.tools.SchemaShapes.ALL_OF
+import me.ahoo.wow.manifest.tools.SchemaShapes.ANY_OF
+import me.ahoo.wow.manifest.tools.SchemaShapes.CONST
+import me.ahoo.wow.manifest.tools.SchemaShapes.ENUM
+import me.ahoo.wow.manifest.tools.SchemaShapes.FALSE
+import me.ahoo.wow.manifest.tools.SchemaShapes.FORMAT
+import me.ahoo.wow.manifest.tools.SchemaShapes.ITEMS
+import me.ahoo.wow.manifest.tools.SchemaShapes.ONE_OF
+import me.ahoo.wow.manifest.tools.SchemaShapes.PROPERTIES
+import me.ahoo.wow.manifest.tools.SchemaShapes.REF
+import me.ahoo.wow.manifest.tools.SchemaShapes.REQUIRED
+import me.ahoo.wow.manifest.tools.SchemaShapes.TYPE
+import me.ahoo.wow.manifest.tools.SchemaShapes.aliases
+import me.ahoo.wow.manifest.tools.SchemaShapes.covers
+import me.ahoo.wow.manifest.tools.SchemaShapes.properties
+import me.ahoo.wow.manifest.tools.SchemaShapes.refers
+import me.ahoo.wow.manifest.tools.SchemaShapes.required
+import me.ahoo.wow.manifest.tools.SchemaShapes.resolve
+import me.ahoo.wow.manifest.tools.SchemaShapes.types
 
 /**
  * Compares the JSON Schemas of a baseline Manifest ([baselineDefs]) with the current ones ([currentDefs]), following
@@ -425,106 +444,9 @@ internal class SchemaCompatibility(
         }
     }
 
-    private fun refKey(schema: Any?): String? =
-        ((schema as? Map<*, *>)?.get(REF) as? String)?.takeIf { Manifest.isSchemaRef(it) }?.let(Manifest::schemaKey)
-
-    /** Whether [schema] refers to a definition: by its `$ref`, or as the value of a nullable one ([nullableValue]). */
-    private fun refers(schema: Any?): Boolean =
-        refKey(schema) != null || (schema as? Map<*, *>)?.let { refKey(nullableValue(it)) } != null
-
-    /** The value a nullable [schema] accepts beside `null`, `S` of `anyOf: [{"type": "null"}, S]`; null for another. */
-    private fun nullableValue(schema: Map<*, *>): Any? {
-        val alternatives = schema[ANY_OF] as? List<*> ?: return null
-        return alternatives.singleOrNull { it != NULL_SCHEMA }?.takeIf { alternatives.size == 2 }
-    }
-
-    /**
-     * The schema as a map: `$ref` replaced by its definition with the reference's siblings ([withSiblings]), `true` by
-     * `{}`, and a nullable value written as a `null` alternative beside a typed one (`anyOf: [{"type": "null"}, S]`, as a
-     * nullable class is) read as S with `null` among its types, the type union a nullable scalar is written as: the two
-     * forms accept the same values.
-     */
-    private fun resolve(schema: Any?, defs: Map<String, Any?>): Map<String, Any?> {
-        if (schema == false) return FALSE
-        @Suppress("UNCHECKED_CAST")
-        val map = schema as? Map<String, Any?> ?: return emptyMap()
-        val key = refKey(map) ?: return nullable(map, defs)
-        val definition = resolve(defs[key] ?: true, defs)
-        return if (definition === FALSE) FALSE else withSiblings(definition, map - REF)
-    }
-
-    /**
-     * A reference's [definition] with the keywords written beside the reference, its [siblings], which hold as well (a
-     * recursive subtype is written as a reference to its class's schema beside its discriminator's property): the
-     * properties of either, a property both declare as the `allOf` of the two, and the names either requires. Any other
-     * keyword the siblings give takes the definition's place.
-     */
-    private fun withSiblings(definition: Map<String, Any?>, siblings: Map<String, Any?>): Map<String, Any?> {
-        val merged = definition + siblings
-        val own = properties(definition)
-        val beside = properties(siblings)
-        return merged + buildMap {
-            if (PROPERTIES in definition || PROPERTIES in siblings) {
-                val both = own.keys.intersect(beside.keys).associateWith { mapOf(ALL_OF to listOf(own[it], beside[it])) }
-                put(PROPERTIES, own + beside + both)
-            }
-            if (REQUIRED in definition || REQUIRED in siblings) {
-                put(REQUIRED, (required(definition) + required(siblings)).toList())
-            }
-        }
-    }
-
-    private fun nullable(schema: Map<String, Any?>, defs: Map<String, Any?>): Map<String, Any?> {
-        val value = nullableValue(schema) ?: return schema
-        val resolved = resolve(value, defs)
-        val types = types(resolved) ?: return schema
-        return resolved + (schema - ANY_OF) + (TYPE to (types + NULL).sorted())
-    }
-
-    private fun types(schema: Map<String, Any?>): Set<String>? = when (val type = schema[TYPE]) {
-        is String -> setOf(type)
-        is List<*> -> type.map { it.toString() }.toSet()
-        else -> null
-    }
-
-    /** Whether a value of [type] is still accepted by [types]: an `integer` is a `number`. */
-    private fun covers(types: Set<String>, type: String): Boolean =
-        type in types || (type == INTEGER && NUMBER in types)
-
-    @Suppress("UNCHECKED_CAST")
-    private fun properties(schema: Map<String, Any?>): Map<String, Any?> =
-        schema[PROPERTIES] as Map<String, Any?>? ?: emptyMap()
-
-    private fun required(schema: Map<String, Any?>): Set<String> =
-        (schema[REQUIRED] as List<*>?).orEmpty().map { it.toString() }.toSet()
-
-    /** The `x-wow-alias` paths of a property schema, as written on the property (beside a `$ref` too). */
-    private fun aliases(schema: Any?): List<String> =
-        ((schema as? Map<*, *>)?.get(QueryKeywords.ALIAS_KEYWORD) as List<*>?).orEmpty().map { it.toString() }
-
     private companion object {
         const val STATE = "state"
-        const val REF = "\$ref"
-        const val TYPE = "type"
-        const val ENUM = "enum"
-        const val CONST = "const"
-        const val PROPERTIES = "properties"
-        const val REQUIRED = "required"
-        const val ITEMS = "items"
-        const val ADDITIONAL_PROPERTIES = "additionalProperties"
-        const val INTEGER = "integer"
-        const val NUMBER = "number"
-        const val FORMAT = "format"
-        const val ANY_OF = "anyOf"
-        const val ALL_OF = "allOf"
-        const val NULL = "null"
-        val NULL_SCHEMA: Map<String, Any?> = mapOf(TYPE to NULL)
-
-        const val ONE_OF = "oneOf"
         val ALTERNATIVES = listOf(ANY_OF, ONE_OF)
-
-        /** The schema that accepts nothing, `false`. */
-        val FALSE: Map<String, Any?> = mapOf("not" to emptyMap<String, Any?>())
 
         val HANDLED = setOf(
             REF, TYPE, ENUM, PROPERTIES, REQUIRED, ITEMS, ADDITIONAL_PROPERTIES, ALL_OF, QueryKeywords.ALIAS_KEYWORD,
