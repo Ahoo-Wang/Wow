@@ -88,6 +88,40 @@ for (const entry of regression) {
     `${entry.id}: regression exposed in documentation`,
   );
 }
+// The sidebar search finds a story by its name only through the anchors
+// `experimentalSearchDocsHeadings` puts on the docs pages (see
+// `.storybook/main.ts`). Each page built from a stories file must carry at
+// least one, and together they must name exactly the stories those pages list
+// (`dev` and `autodocs`), by id and name, so that every such story is found
+// and a hit lands on its link (`.storybook/DocsPage.tsx`).
+const storyPages = Object.values(index.entries).filter(
+  entry =>
+    entry.type === 'docs' && /\.stories\.(ts|tsx)$/.test(entry.importPath),
+);
+assert.ok(storyPages.length > 0, 'No docs page is built from a stories file');
+const anchored = new Map();
+for (const page of storyPages) {
+  assert.ok(
+    page.anchors?.length > 0,
+    `${page.id}: no story anchors; is experimentalSearchDocsHeadings still on and still named so?`,
+  );
+  for (const { id, title } of page.anchors)
+    anchored.set(id.replace(/^anchor--/, ''), title);
+}
+const listed = stories.filter(
+  entry => entry.tags.includes('dev') && entry.tags.includes('autodocs'),
+);
+for (const entry of listed)
+  assert.equal(
+    anchored.get(entry.id),
+    entry.name,
+    `${entry.id}: not searchable by its name`,
+  );
+assert.equal(
+  anchored.size,
+  listed.length,
+  'A story anchor names no story its docs page lists',
+);
 console.log(
-  `Verified ${targets.size} navigation targets and ${regression.length} regression stories.`,
+  `Verified ${targets.size} navigation targets, ${regression.length} regression stories and ${anchored.size} searchable stories on ${storyPages.length} docs pages.`,
 );

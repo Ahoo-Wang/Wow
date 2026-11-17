@@ -24,8 +24,18 @@ function getAbsolutePath(value: string): string {
 }
 
 const config: StorybookConfig = {
-  // The developer highlighter scans all DOM styles on mutations, even without targets.
-  features: { highlight: process.env.VIEW_ENGINE_ACCEPTANCE !== 'true' },
+  features: {
+    // The developer highlighter scans all DOM styles on mutations, even without targets.
+    highlight: process.env.VIEW_ENGINE_ACCEPTANCE !== 'true',
+    // The site is built in docs mode, whose sidebar holds docs pages only, so
+    // its search finds a story by its name only through the anchors this flag
+    // adds to each docs page (storybookjs/storybook#33593). It is experimental:
+    // if it is renamed, set the new name here; if it is removed, check whether
+    // docs mode searches story names on its own, else say in the guided intro
+    // that the search covers page titles only. `scripts/verify-storybook.mjs`
+    // fails the build when the anchors are missing.
+    experimentalSearchDocsHeadings: true,
+  },
   // `View Engine/导览` is a page of its own (`stories/view-engine/Intro.mdx`).
   stories: ['../stories/**/*.mdx', '../stories/**/*.stories.@(ts|tsx)'],
   addons: [

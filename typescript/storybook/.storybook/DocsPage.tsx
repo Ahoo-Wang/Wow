@@ -46,7 +46,9 @@ export function DocsPage() {
       <nav aria-label="独立场景">
         <ul>
           {stories.map(story => (
-            <li key={story.id}>
+            // The sidebar search opens a story found by its name at
+            // `#anchor--<story id>` on this page, so it lands on its link.
+            <li key={story.id} id={`anchor--${story.id}`}>
               <a
                 href={`./?path=/story/${encodeURIComponent(story.id)}`}
                 target="_top"
