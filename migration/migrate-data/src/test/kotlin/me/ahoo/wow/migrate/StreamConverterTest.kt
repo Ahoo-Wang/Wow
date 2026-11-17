@@ -221,4 +221,29 @@ class StreamConverterTest {
             converter().convert(created.copy(aggregate = NineXAggregate("example-service", "payment")))
         }
     }
+
+    @Test
+    fun `a rename onto a field the 9x payload also holds fails the stream, in either order, and a swap converts`() {
+        fun paid(fields: Map<String, String>) = NineXExample.map.order {
+            copy(events = events.map { if (it.from == "order_paid") it.copy(fields = fields) else it })
+        }
+        val stream = NineXExample.stream("order-stream-v3.json")
+        fun paying(body: String) =
+            stream.copy(events = listOf(stream.events.single().copy(body = WowJson.mapper.readTree(body))))
+        val renaming = converter(paid(mapOf("oldAmount" to "amount")))
+        listOf("""{"oldAmount":10,"amount":25,"paid":true}""", """{"amount":25,"oldAmount":10,"paid":true}""").forEach {
+            assertThrows<MigrationException> { renaming.convert(paying(it)) }.message.assert().isEqualTo(
+                "${renaming.subjectOf(stream)}, event 0 (order_paid): the 9.x fields amount and oldAmount both become " +
+                    "amount, and one would overwrite the other.",
+            )
+        }
+        renaming.convert(paying("""{"oldAmount":10,"paid":true}""")).events.single().payload.assert()
+            .isEqualTo("""{"amount":10,"paid":true}""")
+        // A field named as 9.x's tags is an ordinary field of an event that is not the tags event.
+        renaming.convert(paying("""{"oldAmount":10,"tags":{"a":"b"}}""")).events.single().payload.assert()
+            .isEqualTo("""{"amount":10,"tags":{"a":"b"}}""")
+        converter(paid(mapOf("oldAmount" to "amount", "amount" to "oldAmount")))
+            .convert(paying("""{"oldAmount":10,"amount":25}""")).events.single().payload.assert()
+            .isEqualTo("""{"amount":10,"oldAmount":25}""")
+    }
 }

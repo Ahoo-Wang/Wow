@@ -267,8 +267,21 @@ internal data class EventMapping(
         require(toRevision >= 1) { "The event mapping of $from has a V10 revision below 1." }
         require(!drop || fields.isEmpty()) { "The event mapping of $from drops it and renames its fields." }
         require(!retire || fields.isEmpty()) { "The event mapping of $from retires it and renames its fields." }
+        require(fields.merged().isEmpty()) {
+            "The event mapping of $from renames several 9.x fields to one V10 field: ${fields.merged()}."
+        }
     }
 }
+
+/**
+ * The fields these renames give more than one 9.x name, each with those names (`amount from amount, oldAmount`); empty
+ * when every rename has a field of its own. A swap (`a` to `b`, `b` to `a`) has none.
+ */
+internal fun Map<String, String>.merged(): String =
+    entries.groupBy({ it.value }, { it.key })
+        .filterValues { it.size > 1 }
+        .entries.sortedBy { it.key }
+        .joinToString("; ") { (to, from) -> "$to from ${from.sorted().joinToString()}" }
 
 /**
  * The system lifecycle event [to] a 9.x event that implemented one is composed with in V10: written right after the
@@ -288,6 +301,9 @@ internal data class LifecycleMapping(val to: String, val fields: Map<String, Str
         require(missing.isEmpty()) { "The lifecycle mapping to $to names no 9.x field for $missing." }
         require(fields.keys.none { it.isBlank() } && fields.values.none { it.isBlank() }) {
             "The lifecycle mapping to $to names a blank field."
+        }
+        require(fields.merged().isEmpty()) {
+            "The lifecycle mapping to $to renames several 9.x fields to one field: ${fields.merged()}."
         }
     }
 
@@ -345,6 +361,9 @@ internal data class StateMapping(val fields: Map<String, String> = emptyMap(), v
     init {
         require(fields.keys.none { it.isBlank() } && fields.values.none { it.isBlank() }) {
             "A state field mapping names both fields."
+        }
+        require(fields.merged().isEmpty()) {
+            "A state field mapping renames several 9.x fields to one V10 field: ${fields.merged()}."
         }
         require(ignore.none { path -> path.split('.').any { it.isBlank() } }) {
             "An ignored state field is a dotted path of names: $ignore"

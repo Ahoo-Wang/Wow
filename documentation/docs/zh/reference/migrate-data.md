@@ -237,7 +237,7 @@ V10 拒绝一些 9.x 曾接受的 ID：空的聚合 ID（或根本没有）、�
 | `commands` | `{from, to}`：流记录的每个 9.x 命令名（它的 `upstream_name` 请求头）及其 V10 命令。存储里出现的每个命令名都需要一项。 |
 | `defaultCommand` | 没有记录命令名的流所对应的 V10 命令。不配置时，这样的流无法通过检查。 |
 | `events` | 每个 9.x 事件；见下文。 |
-| `state` | 9.x 快照的状态怎样读成 V10 的状态，只用于 `compare`：`fields` 重命名顶层字段，9.x 名字对应 V10 名字；`ignore` 在两侧都忽略某些字段，按 V10 名字，点分路径可以深入对象、穿过数组。只对按设计只存在于一侧的字段使用 `ignore`。 |
+| `state` | 9.x 快照的状态怎样读成 V10 的状态，只用于 `compare`：`fields` 重命名顶层字段，9.x 名字对应 V10 名字，每个 V10 名字只对应一个 9.x 字段（9.x 状态同时含有被重命名的字段和一个已叫 V10 名字的字段时，该字段即为差异，并列出两个 9.x 值）；`ignore` 在两侧都忽略某些字段，按 V10 名字，点分路径可以深入对象、穿过数组。只对按设计只存在于一侧的字段使用 `ignore`。 |
 | `reservations` | 值中指明该聚合某个实例的每个 9.x `PrepareKey`；见下文。存储里的每个 `PrepareKey` 都需要一项。 |
 | `tags` | 聚合的标签事件写过、或它的快照持有的每个 9.x 标签键，以及它变成的 V10 访问属性；见下文。存储里的每个键都需要一项。 |
 
@@ -249,7 +249,7 @@ V10 拒绝一些 9.x 曾接受的 ID：空的聚合 ID（或根本没有）、�
 | `fromRevision` | 这一项映射的 9.x 修订号；不写时匹配任意修订号。 |
 | `to` | V10 事件名；对退役事件，是退役的名字。 |
 | `toRevision` | 9.x 载荷在 V10 中对应的修订号，默认 1：9.x 的形状就是修订号 1，V10 的升级函数把它一路读到当前修订号。不能超过 Manifest 中的修订号。 |
-| `fields` | 重命名载荷的顶层字段，9.x 名字对应 V10 名字。用于形状由 V10 固定的系统事件，例如 9.x 的 `OwnerTransferred.toOwnerId`；领域事件的变化应放在它的升级函数里。 |
+| `fields` | 重命名载荷的顶层字段，9.x 名字对应 V10 名字。用于形状由 V10 固定的系统事件，例如 9.x 的 `OwnerTransferred.toOwnerId`；领域事件的变化应放在它的升级函数里。每个 V10 名字只由一个 9.x 字段重命名而来，否则映射文件被拒绝。互换（`a` 改为 `b`、`b` 改为 `a`）也算一一对应。载荷同时含有被重命名的字段和一个已叫 V10 名字的字段的流无法转换，并点出这两个字段：`check --decode` 报告它，`import` 在它上面停下。 |
 | `upgrade` | Skill 写的升级函数，记录下来供报告使用；工具不运行它。 |
 | `retire` | 把记录按原样以 `to` 这个名字写入，V10 聚合把这个名字列为退役，所以加载时跳过它，流也保留它的版本。`to` 在 Manifest 中没有退役时，检查失败。只用于没有改变状态的事件：退役一个删除或状态变化会把它丢掉（[代码已删除的历史](../migrate/data#_2-check-the-map)）。 |
 | `lifecycle` | `{to, fields}`：紧接着这个事件、在同一条流中写入的系统生命周期事件，用于实现了某个生命周期事件的 9.x 领域事件（`UserDeleted : AggregateDeleted`）。`to` 是 `wow.lifecycle.AggregateDeleted`、`AggregateRestored`、`OwnerTransferred` 或 `SpaceTransferred`；`fields` 从 9.x 载荷构造它的载荷，9.x 名字对应 V10 名字，后两者要给出 `ownerId` 或 `spaceId`。9.x 的 `ResourceTagsApplied` 没有对应的生命周期事件：用 `tags` 映射它。不能与 `drop` 或 `retire` 一起用。 |

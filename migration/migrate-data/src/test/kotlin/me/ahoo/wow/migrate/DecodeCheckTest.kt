@@ -16,6 +16,7 @@ package me.ahoo.wow.migrate
 import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.migrate.example.NineXExample
+import me.ahoo.wow.spi.json.WowJson
 import org.junit.jupiter.api.Test
 
 class DecodeCheckTest {
@@ -141,5 +142,34 @@ class DecodeCheckTest {
     fun `a reason should be one line, its class when the failure says nothing`() {
         reasonOf(IllegalStateException("first\nsecond")).assert().isEqualTo("first")
         reasonOf(IllegalStateException()).assert().isEqualTo(IllegalStateException::class.java.name)
+    }
+
+    @Test
+    fun `a stream whose renamed field would overwrite another should be reported as not converting`() = runTest {
+        val stream = NineXExample.stream("order-stream-v3.json")
+        val body = WowJson.mapper.readTree("""{"oldAmount":10,"amount":25,"paid":true}""")
+        val colliding = stream.copy(events = listOf(stream.events.single().copy(body = body)))
+        val renaming = MigrationPlan(
+            NineXExample.map.copy(
+                aggregates = NineXExample.map.aggregates.map { aggregate ->
+                    if (aggregate.source() != order) {
+                        aggregate
+                    } else {
+                        aggregate.copy(
+                            events = aggregate.events.map {
+                                if (it.from == "order_paid") it.copy(fields = mapOf("oldAmount" to "amount")) else it
+                            },
+                        )
+                    }
+                },
+            ),
+            NineXExample.manifest,
+        )
+        val source = InMemoryNineXEventSource(NineXExample.streams().map { if (it.id == stream.id) colliding else it })
+        decoding(source, renaming).check(order).also {
+            it.passed.assert().isFalse()
+            it.unconverted.assert().isEqualTo(1)
+        }
+        reported.single().reason.assert().contains("both become amount")
     }
 }
