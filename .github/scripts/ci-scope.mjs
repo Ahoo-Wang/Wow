@@ -110,10 +110,11 @@ const CATALOG_CONSOLE_PATH =
 // ci.yml's axon-server job: the unit tests and the distribution of the
 // industry comparison's Axon Framework server (test/benchmarks/axon-server, a
 // Gradle build of its own, outside the repository's and so outside JVM_PATH).
-// Decided apart from RULES, by AXON_SERVER_PATH: its own paths and the workflow.
+// Decided apart from RULES, by AXON_SERVER_PATH: its own paths, the repository's
+// version catalog (its JUnit BOM comes from it) and the workflow.
 const AXON_SERVER = 'axonServer';
 const AXON_SERVER_PATH =
-  /^(?:test\/benchmarks\/axon-server\/|\.github\/workflows\/ci\.yml$)/;
+  /^(?:test\/benchmarks\/axon-server\/|gradle\/libs\.versions\.toml$|\.github\/workflows\/ci\.yml$)/;
 // ci.yml's migrate-data-image job: the wow-migrate-data image built from the
 // commit's distribution, never pushed, then run as a user runs it (its usage,
 // and check over a 9.x store of one stream). Decided apart from RULES, by
