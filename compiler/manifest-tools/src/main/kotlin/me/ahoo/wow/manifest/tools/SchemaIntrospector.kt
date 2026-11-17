@@ -36,14 +36,12 @@ import com.github.victools.jsonschema.module.jakarta.validation.JakartaValidatio
 import com.github.victools.jsonschema.module.jakarta.validation.JakartaValidationOption
 import me.ahoo.wow.api.annotation.Description
 import me.ahoo.wow.api.annotation.Summary
-import me.ahoo.wow.api.wire.WireNames
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandRoutes
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.spi.SystemCommandGroups
 import me.ahoo.wow.spi.json.StateJson
-import me.ahoo.wow.spi.json.WowEnums
 import tools.jackson.databind.BeanProperty
 import tools.jackson.databind.JavaType
 import tools.jackson.databind.introspect.BeanPropertyDefinition
@@ -85,7 +83,8 @@ import kotlin.reflect.jvm.kotlinProperty
  *   once is inlined. A property's list, set, object array or map is no named type: it is written where it is used,
  *   each element or value nullable as its Kotlin type argument is ([TypeArguments]).
  * - A custom serializer is opaque to introspection: [schemaOverrides] gives the schema of such a class, by binary
- *   name, and a class Jackson does not write as an object fails the generation until it has one.
+ *   name, or of such a property, by its declaring class's binary name, `#` and its declared name, and the generation
+ *   stops for one until it has it ([SchemaOverrides]).
  * - A member's Jakarta Bean Validation constraints become the validation keywords of its schema, as victools' Jakarta
  *   module maps them: `@NotBlank` is `minLength: 1`, `@Positive` is `exclusiveMinimum: 0`, `@Size` is
  *   `minLength`/`maxLength` (`minItems`/`maxItems` on a collection), `@Min`/`@Max` and `@DecimalMin`/`@DecimalMax` the
@@ -213,6 +212,7 @@ internal class SchemaIntrospector(
 
     private fun generator(queryKeywords: QueryFieldKeywords): SchemaGenerator {
         val builder = SchemaGeneratorConfigBuilder(mapper, SchemaVersion.DRAFT_2020_12, OptionPreset.PLAIN_JSON)
+        val overrides = SchemaOverrides(schemaOverrides.mapValues { (key, schema) -> parse(key, schema) }, mapper)
         // A polymorphic property is its type's definition ([Polymorphic]), not alternatives the generator writes per
         // property, which name no base class: ahead of the Jackson module's own resolution.
         builder.forFields().withTargetTypeOverridesResolver { Polymorphic.declared(it) }
@@ -237,9 +237,7 @@ internal class SchemaIntrospector(
             )
         builder.forTypesInGeneral()
             .withDefinitionNamingStrategy(BinaryNames)
-            .withCustomDefinitionProvider(
-                Overrides(schemaOverrides.mapValues { (type, schema) -> parse(type, schema) }, mapper),
-            )
+            .withCustomDefinitionProvider(overrides.types)
             .withCustomDefinitionProvider(Polymorphic)
             .withCustomDefinitionProvider(TypeArguments)
             .withTypeAttributeOverride(queryKeywords)
@@ -248,6 +246,8 @@ internal class SchemaIntrospector(
         builder.forFields()
             .withRequiredCheck(::isKotlinRequired)
             .withNullableCheck { isKotlinNullable(it) }
+            // A declared property is the whole property, ahead of its list's or map's ([SchemaOverrides]).
+            .withCustomDefinitionProvider(overrides.members<FieldScope>())
             .withCustomDefinitionProvider(TypeArguments.Containers.of<FieldScope>())
             .withInstanceAttributeOverride { attributes, field, _ ->
                 queryKeywords.overrideMemberAttributes(
@@ -261,6 +261,7 @@ internal class SchemaIntrospector(
             .withReadOnlyCheck { true }
             .withRequiredCheck { KotlinMembers.typeOf(it)?.isMarkedNullable == false }
             .withNullableCheck { isKotlinNullable(it) }
+            .withCustomDefinitionProvider(overrides.members<MethodScope>())
             .withCustomDefinitionProvider(TypeArguments.Containers.of<MethodScope>())
             .withInstanceAttributeOverride { attributes, method, _ ->
                 queryKeywords.overrideMemberAttributes(
@@ -434,83 +435,9 @@ internal class SchemaIntrospector(
                 )
     }
 
-    /**
-     * The declared schema of an overridden type. A class of the application without an override fails the generation
-     * when its schema would be guessed: a concrete class Jackson does not write as an object (a custom serializer, a
-     * `@JsonValue`), and any class, an interface, an abstract class and an enum among them, that Jackson writes with a
-     * serializer of its own (`@JsonSerialize` with `using` or `converter`, its own or a supertype's), which the
-     * generator would otherwise describe by its properties or constants (#6372). Its schema is declared, not guessed.
-     */
-    private class Overrides(
-        private val schemas: Map<String, ObjectNode>,
-        private val mapper: JsonMapper,
-    ) : CustomDefinitionProviderV2 {
-        override fun provideCustomSchemaDefinition(
-            type: ResolvedType,
-            context: SchemaGenerationContext
-        ): CustomDefinition? {
-            val rawClass = type.erasedType
-            schemas[rawClass.name]?.let { return CustomDefinition(it.deepCopy()) }
-            // A Wow enumeration is written by its wire names; a domain's, by its constants' names.
-            if (rawClass in WowEnums.TYPES) {
-                val values = rawClass.enumConstants.map { it as Enum<*> }.filter { it.name != UNKNOWN }
-                return CustomDefinition(
-                    mapper.createObjectNode().put("type", "string").apply {
-                        putArray("enum").apply { values.forEach { add(WireNames.of(it)) } }
-                    },
-                )
-            }
-            check(!isApplicationClass(rawClass) || isWrittenAsObject(rawClass)) {
-                "Jackson does not write ${rawClass.name} as an object (a custom serializer or @JsonValue), so its " +
-                    "schema cannot be introspected: declare it in wow { schemaOverrides.put(\"${rawClass.name}\", " +
-                    "\"<JSON Schema>\") }."
-            }
-            check(!isOwnClass(rawClass) || !hasOwnSerializer(rawClass)) {
-                "Jackson writes ${rawClass.name} with a serializer of its own (@JsonSerialize using or converter), " +
-                    "so its schema cannot be introspected: declare it in wow { schemaOverrides.put(" +
-                    "\"${rawClass.name}\", \"<JSON Schema>\") }."
-            }
-            return null
-        }
-
-        private fun isApplicationClass(rawClass: Class<*>): Boolean =
-            isOwnClass(rawClass) && !rawClass.isEnum && !rawClass.isInterface && !Modifier.isAbstract(rawClass.modifiers)
-
-        /** A class of the application, of any kind: no primitive, array or platform class. */
-        private fun isOwnClass(rawClass: Class<*>): Boolean =
-            !rawClass.isPrimitive && !rawClass.isArray && PLATFORM_PACKAGES.none { rawClass.name.startsWith(it) }
-
-        /** Whether Jackson's annotations give [rawClass] a serializer or a converter of its own. */
-        private fun hasOwnSerializer(rawClass: Class<*>): Boolean {
-            val config = mapper.serializationConfig()
-            val annotations = config.classIntrospectorInstance()
-                .introspectClassAnnotations(mapper.typeFactory.constructType(rawClass))
-            val introspector = config.annotationIntrospector
-            return introspector.findSerializer(config, annotations) != null ||
-                introspector.findSerializationConverter(config, annotations) != null
-        }
-
-        private fun isWrittenAsObject(rawClass: Class<*>): Boolean {
-            var isObject = false
-            mapper.acceptJsonFormatVisitor(
-                rawClass,
-                object : JsonFormatVisitorWrapper.Base() {
-                    override fun expectObjectFormat(type: JavaType): JsonObjectFormatVisitor? {
-                        isObject = true
-                        return null
-                    }
-                },
-            )
-            return isObject
-        }
-    }
-
     private companion object {
-        /** The value a reader older than its writer reads an unknown value as, which no writer writes. */
-        const val UNKNOWN = "UNKNOWN"
         const val DEFS = "\$defs"
         const val DESCRIPTION = "description"
-        val PLATFORM_PACKAGES = listOf("java.", "javax.", "kotlin.")
 
         /** The body classes of the system commands a fragment may list, by their full names. */
         val SYSTEM_BODIES: Map<String, Class<*>> = SystemCommandGroups.LISTED_BY_A_CONTRACT.commands

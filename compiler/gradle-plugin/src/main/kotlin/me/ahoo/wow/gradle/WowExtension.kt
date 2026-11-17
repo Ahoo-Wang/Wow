@@ -46,9 +46,11 @@ abstract class WowExtension {
     abstract val service: Property<String>
 
     /**
-     * JSON Schemas (2020-12, as JSON text) that replace the introspected schema of a class, by its JVM binary name.
-     * Introspection follows Jackson's annotations, naming and Kotlin module, but cannot see inside a custom serializer:
-     * a type written by one declares its schema here.
+     * JSON Schemas (2020-12, as JSON text) that replace the introspected schema of a class, by its JVM binary name, or
+     * of a property, by the binary name of the class that declares the accessor Jackson writes it by, `#` and the
+     * property's declared name (`sample.Order#id`). Introspection follows Jackson's annotations, naming and Kotlin
+     * module, but cannot see inside a custom serializer: a class or a property written by one declares its schema
+     * here, and the build stops for one until it does, printing the line to add.
      */
     abstract val schemaOverrides: MapProperty<String, String>
 }
