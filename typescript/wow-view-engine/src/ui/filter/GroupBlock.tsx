@@ -207,13 +207,18 @@ export function ConditionStrip({
   return (
     <div
       data-slot="filter-conditions"
-      // `min(20rem,100%)` rather than `20rem`: a bare 20rem is a floor the
-      // track keeps even when the band is narrower than it, so at a phone's
-      // width every column was pinned to 320px and the pills hung 24px past
-      // the editor band they are in. Clamped to the band, the column is
-      // 20rem where there is 20rem and the band's own width where there is
-      // not — which is the same layout everywhere it used to be right.
-      className="fve:@container fve:grid fve:grid-cols-[repeat(auto-fill,minmax(min(20rem,100%),1fr))] fve:gap-1.5"
+      // 23rem is the width one condition's sentence needs on one line: the
+      // name (4rem), the operator (6rem, 7.4rem for the longest word a kind
+      // offers in Chinese), the value at its floor (6rem), the negation and
+      // the ✕ (1.75rem each), four gaps and the pill's own padding and
+      // border. It was 20rem, which held the sentence until the negation
+      // joined it: at 326px every pill then put its ✕ on a second line.
+      // `min(23rem,100%)` rather than `23rem`: a bare floor is one the track
+      // keeps even when the band is narrower than it, so at a phone's width
+      // every column was pinned to it and the pills hung past the editor
+      // band they are in. Clamped to the band, the column is the floor where
+      // there is room for it and the band's own width where there is not.
+      className="fve:@container fve:grid fve:grid-cols-[repeat(auto-fill,minmax(min(23rem,100%),1fr))] fve:gap-1.5"
     >
       {group.children.map((child, index) => {
         const pressed = negated.get(index);

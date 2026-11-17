@@ -370,15 +370,16 @@ describe('FilterPanel tree editing', () => {
       actions.compareDocumentPosition(conditions) &
         Node.DOCUMENT_POSITION_PRECEDING,
     ).toBeTruthy();
-    // A bare `minmax(20rem, …)` is a floor the track keeps even when the
+    // A bare `minmax(23rem, …)` is a floor the track keeps even when the
     // band is narrower than it, so at a phone's width every column stayed
-    // 320px and the pills hung past the editor band. Clamped to the band,
-    // the column is 20rem where there is 20rem and the band's width where
-    // there is not.
+    // at the floor and the pills hung past the editor band. Clamped to the
+    // band, the column is 23rem (one condition's sentence on one line, its
+    // negation and its ✕ included) where there is 23rem and the band's width
+    // where there is not.
     // A **surviving class assertion**: how many condition columns fit is a
     // grid template, and the number of columns it comes to at a given width
     // is the browser story's to count.
-    expect(conditions.className).toContain('minmax(min(20rem,100%),1fr)');
+    expect(conditions.className).toContain('minmax(min(23rem,100%),1fr)');
   });
 
   it('keeps the fields to add with when it has no way out of its own', () => {

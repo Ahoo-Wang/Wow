@@ -637,6 +637,82 @@ export const TheValueStaysInsideItsPill: Story = {
 };
 
 /**
+ * A condition's negation and its ✕ stay on the value's line, and at the width
+ * the strip's track is made for the whole sentence is one line.
+ *
+ * Measured at a strip of 1322px in the after-sale workbench: the track was
+ * 20rem, four columns of 326px, and a simple-mode pill needs 328px of content
+ * for its name, operator, value at its floor, negation and ✕. So every pill
+ * was 70px tall with the ✕ alone on its second line, and a pill whose kind
+ * offers a longer operator word put the negation there too. The floor is the
+ * sentence's width now (23rem), and what wraps below it is the answer as one:
+ * the value with its two buttons.
+ */
+export const TheAnswerWrapsAsOne: Story = {
+  ...DisplaySimple,
+  args: { instanceId: 'orders-simple', hostWidth: 420 },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    // A saved view opens with its editor folded.
+    await userEvent.click(
+      await canvas.findByRole('button', {
+        name: new RegExp(`^${zhCN['label.filter.panel']}`),
+      }),
+    );
+    const host = canvasElement.querySelector<HTMLElement>('[data-pill-host]')!;
+    const rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
+
+    // Mounted narrow and widened, as the story above: the last width gives
+    // the strip tracks of the floor and more.
+    for (const width of [420, 640, 1024, 1440]) {
+      host.style.width = `${width}px`;
+      await waitFor(() =>
+        expect(
+          canvasElement.querySelectorAll('[data-slot="filter-condition"]')
+            .length,
+        ).toBeGreaterThan(0),
+      );
+      await nextFrame();
+
+      for (const pill of canvasElement.querySelectorAll<HTMLElement>(
+        '[data-slot="filter-condition"]',
+      )) {
+        const where = `${pill.getAttribute('aria-label')} @ ${width}`;
+        const value = pill
+          .querySelector<HTMLElement>('[data-slot="filter-value"]')!
+          .getBoundingClientRect();
+        const answer = pill.querySelector<HTMLElement>(
+          '[data-slot="filter-answer"]',
+        )!;
+        const trailing = [...answer.querySelectorAll('button')]
+          .filter(button => !button.closest('[data-slot="filter-value"]'))
+          .map(button => button.getBoundingClientRect());
+        // The negation and the ✕: both are there in simple mode.
+        await expect(trailing.length, where).toBe(2);
+        for (const box of trailing) {
+          const middle = box.top + box.height / 2;
+          await expect(middle, where).toBeGreaterThan(value.top);
+          await expect(middle, where).toBeLessThan(value.bottom);
+        }
+
+        // At the floor and wider, a one-input condition is one line: its
+        // name and its ✕ share it.
+        const frame = pill.getBoundingClientRect();
+        if (frame.width < 23 * rem || pill.hasAttribute('data-wide')) continue;
+        const name = pill
+          .querySelector<HTMLElement>('[data-slot="tooltip-trigger"]')!
+          .getBoundingClientRect();
+        const cross = trailing[trailing.length - 1];
+        await expect(
+          name.top < cross.bottom && cross.top < name.bottom,
+          `${where}: one line at ${Math.round(frame.width)}px`,
+        ).toBe(true);
+      }
+    }
+  },
+};
+
+/**
  * F-09: the calendar speaks the surface's language, and the popover is sized
  * by what is in it rather than by the grid of day numbers at the top.
  *
