@@ -93,6 +93,9 @@ internal class SnapshotWrites(
         return counted
     }
 
+    /** The [counts], once something read them; null until then, when nothing is counted. */
+    internal val countsIfRead: SnapshotWriteCounts? get() = if (counting) counted else null
+
     override fun limited(leaders: Int) {
         if (counting) counted.limited(leaders)
     }

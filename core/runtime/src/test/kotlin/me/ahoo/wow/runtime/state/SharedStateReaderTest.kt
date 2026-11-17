@@ -98,7 +98,10 @@ class SharedStateReaderTest {
         name: String = PROJECTION,
         views: SharedStates = this.views,
         snapshots: SnapshotStore? = this.snapshots,
-    ) = SharedStateReader(name, models, kernel, codec, views, snapshots)
+    ) = SharedStateReader(name, models, kernel, codec, views, snapshots) { logReads++ }
+
+    /** The reads of the log the readers made for a rebuild, as each tells it. */
+    private var logReads = 0
 
     private suspend fun add(vararg items: String, executor: Executor = this.executor): CommandOutcome.Committed {
         val id = "c-${items.joinToString("-")}"
@@ -240,22 +243,59 @@ class SharedStateReaderTest {
     }
 
     @Test
-    fun `without a view the state should be the snapshot evolved with the log's tail`(): Unit = runBlocking {
-        val elsewhere = Executor(kernel)
-        add("apple", executor = elsewhere)
-        add("pear", executor = elsewhere)
-        snapshots.save(
-            codec.snapshotOf(cart, ref, ListCart().apply { items = listOf("snapshot") }, 1, Scope.NONE, 0, 0)
-        )
-        add("plum", executor = elsewhere)
-        log.streamsRead = 0
-        reader().read(stream(2)).items().assert().containsExactlyInAnyOrder("snapshot", "pear")
-        // The stream read for the entry, then the tail after the snapshot up to the entry: the log holds the snapshot's
-        // version, since it holds the entry's, so the snapshot's own stream is not read again.
-        log.streamsRead.assert().isEqualTo(2)
-        // The rebuilt state is shared: the other reader finds it as a view.
-        views.get(ref, 2)!!.items().assert().containsExactlyInAnyOrder("snapshot", "pear")
-    }
+    fun `without a view the state should be the snapshot at the version before evolved with the entry in hand`(): Unit =
+        runBlocking {
+            val elsewhere = Executor(kernel)
+            add("apple", executor = elsewhere)
+            add("pear", executor = elsewhere)
+            snapshots.save(
+                codec.snapshotOf(cart, ref, ListCart().apply { items = listOf("snapshot") }, 1, Scope.NONE, 0, 0)
+            )
+            add("plum", executor = elsewhere)
+            val entry = stream(2)
+            log.streamsRead = 0
+            reader().read(entry).items().assert().containsExactlyInAnyOrder("snapshot", "pear")
+            // The tail after the snapshot is the entry alone, which the reader holds: the log is not read.
+            log.streamsRead.assert().isEqualTo(0)
+            logReads.assert().isEqualTo(0)
+            // The rebuilt state is shared: the other reader finds it as a view.
+            views.get(ref, 2)!!.items().assert().containsExactlyInAnyOrder("snapshot", "pear")
+        }
+
+    @Test
+    fun `without a view the state should be the snapshot evolved with the log's tail across a gap`(): Unit =
+        runBlocking {
+            val elsewhere = Executor(kernel)
+            add("apple", executor = elsewhere)
+            add("pear", executor = elsewhere)
+            add("plum", executor = elsewhere)
+            snapshots.save(
+                codec.snapshotOf(cart, ref, ListCart().apply { items = listOf("snapshot") }, 1, Scope.NONE, 0, 0)
+            )
+            val entry = stream(3)
+            log.streamsRead = 0
+            reader().read(entry).items().assert().containsExactlyInAnyOrder("snapshot", "pear", "plum")
+            // The tail after the snapshot up to the entry, read once: versions 2 and 3.
+            log.streamsRead.assert().isEqualTo(2)
+            logReads.assert().isEqualTo(1)
+        }
+
+    @Test
+    fun `a snapshot at the version before that does not fit should cost a replay, not the entry in hand`(): Unit =
+        runBlocking {
+            val elsewhere = Executor(kernel)
+            add("apple", executor = elsewhere)
+            add("pear", executor = elsewhere)
+            val snapshot = ListCart().apply { items = listOf("snapshot") }
+            val fitting = codec.snapshotOf(cart, ref, snapshot, 1, Scope.NONE, 0, 0)
+            snapshots.save(fitting.copyWith(schemaFingerprint = "another schema"))
+            val entry = stream(2)
+            log.streamsRead = 0
+            reader().read(entry).items().assert().containsExactly("apple", "pear")
+            // No base: the log replayed from version 1, as without a snapshot.
+            log.streamsRead.assert().isEqualTo(2)
+            logReads.assert().isEqualTo(1)
+        }
 
     @Test
     fun `a reader behind the snapshot should replay once, then evolve what it read`(): Unit = runBlocking {
