@@ -622,12 +622,14 @@ test('the catalog console, the catalog service and what the console builds with 
   );
 });
 
-test("the Axon server's own paths alone run its job, and nothing else", () => {
+test("the Axon server's own paths and the catalog alone run its job, and nothing else", () => {
   for (const path of [
     'test/benchmarks/axon-server/build.gradle.kts',
     'test/benchmarks/axon-server/src/main/kotlin/me/ahoo/wow/benchmark/axon/BoundedCache.kt',
     'test/benchmarks/axon-server/src/test/kotlin/me/ahoo/wow/benchmark/axon/BoundedCacheTest.kt',
     'test/benchmarks/axon-server/inspect.sql',
+    // Its JUnit BOM comes from the repository's catalog: a version bump there alone runs its job.
+    'gradle/libs.versions.toml',
     // The workflow runs every job it defines.
     '.github/workflows/ci.yml',
     'new-directory/index.ts',

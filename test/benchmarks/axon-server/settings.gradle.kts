@@ -20,4 +20,10 @@ dependencyResolutionManagement {
     repositories {
         mavenCentral()
     }
+    // The repository's catalog, so the versions this build shares with it (JUnit's) are written once.
+    versionCatalogs {
+        create("libs") {
+            from(files("../../../gradle/libs.versions.toml"))
+        }
+    }
 }
