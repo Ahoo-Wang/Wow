@@ -151,6 +151,24 @@ signal() { echo "signal $1 $2" >> '${signals}'; case "$1" in KILL) touch '${dead
   );
 });
 
+/** Listens on every port of [ports], all of them or none: the listening servers, or undefined when one is taken. */
+async function listenOn(ports) {
+  const servers = [];
+  for (const port of ports) {
+    const server = createServer();
+    const ok = await new Promise(resolve => {
+      server.once('error', () => resolve(false));
+      server.listen(port, '127.0.0.1', () => resolve(true));
+    });
+    if (!ok) {
+      await Promise.all(servers.map(s => new Promise(r => s.close(r))));
+      return undefined;
+    }
+    servers.push(server);
+  }
+  return servers;
+}
+
 test('a session does not start while anything listens on a node port, and names it', async t => {
   const tools = spawnSync('bash', ['-c', 'command -v lsof || command -v ss'], {
     encoding: 'utf8',
@@ -159,28 +177,35 @@ test('a session does not start while anything listens on a node port, and names 
     t.skip('neither lsof nor ss: who listens cannot be told');
     return;
   }
-  const server = createServer();
-  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-  const { port } = server.address();
-  // The listener is this test's process, on a node's public port; the internal ports are 1,000 above.
-  const busy = nodes(
-    'refuse_busy_ports',
-    {},
-    { public: port - 3, internal: port + 1000 },
-  );
+  // The span is the test's own: every public and internal port refuse_busy_ports reads (ten of each, the internal ones
+  // 1,000 above), below the ephemeral ranges (macOS 49152, Linux 32768) so no other process is handed one meanwhile,
+  // and held by the test while it looks.
+  let ports;
+  let servers;
+  for (let tries = 0; !servers && tries < 50; tries++) {
+    const base = 20000 + Math.floor(Math.random() * 10000);
+    ports = { public: base, internal: base + 1000 };
+    const span = Array.from({ length: 10 }, (_, offset) => offset);
+    servers = await listenOn([
+      ...span.map(offset => ports.public + offset),
+      ...span.map(offset => ports.internal + offset),
+    ]);
+  }
+  assert.ok(servers, 'no free span of node ports below the ephemeral range');
+  const busy = nodes('refuse_busy_ports', {}, ports);
   assert.equal(busy.status, 1);
   assert.match(
     busy.stderr,
     new RegExp(
-      `a node of an earlier session still listens; stop it before a new session starts:\\n  port ${port}: pid ${process.pid} `,
+      `a node of an earlier session still listens; stop it before a new session starts:\\n  port ${ports.public}: pid ${process.pid} `,
     ),
   );
-  await new Promise(resolve => server.close(resolve));
-  const free = nodes(
-    'refuse_busy_ports; echo free',
-    {},
-    { public: port - 3, internal: port + 1000 },
+  assert.match(
+    busy.stderr,
+    new RegExp(`\\n  port ${ports.internal + 9}: pid ${process.pid} `),
   );
+  await Promise.all(servers.map(s => new Promise(resolve => s.close(resolve))));
+  const free = nodes('refuse_busy_ports; echo free', {}, ports);
   assert.equal(free.status, 0, free.stderr);
   assert.equal(free.stdout, 'free\n');
 });
