@@ -68,6 +68,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      # JDK 25 first, so 21 stays the default, Gradle's own and the toolchain's; the runner runs on 25, as the servers' images do.
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          java-version: '25'
+          distribution: 'temurin'
       - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
           java-version: '21'
@@ -123,7 +128,8 @@ jobs:
         run: |
           ./gradlew :eshop-e2e:clusterTest -Pga.backend="$BACKEND" -Pga.partitions=8 \
             -Pga.owner-deletions="$OWNER_DELETIONS" -Pga.excluded="$GA_EXCLUDED" \
-            -Pga.excluded-reason="$GA_EXCLUDED_REASON" --stacktrace
+            -Pga.excluded-reason="$GA_EXCLUDED_REASON" \
+            "-Pwow.test.java=25" "-Porg.gradle.java.installations.fromEnv=JAVA_HOME_25_X64" --stacktrace
       - name: Record the internal Services' DNS answers (for D305)
         if: always()
         run: .github/ga-e2e/cluster.sh dns examples/eshop/e2e/build/ga-e2e/dns.txt

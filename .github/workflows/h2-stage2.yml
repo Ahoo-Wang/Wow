@@ -56,6 +56,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      # JDK 25 first, so 21 stays the default, Gradle's own and the toolchain's; the driver and the nodes it starts run on 25.
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          java-version: '25'
+          distribution: 'temurin'
       - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
           java-version: '21'
@@ -84,7 +89,7 @@ jobs:
           else
             settings=(-Pwow-test.h2.stage2.duration="$DURATION" -Pwow-test.h2.stage2.rate="$RATE")
           fi
-          ./gradlew :routing-spike:h2Stage2 "${settings[@]}" --stacktrace
+          ./gradlew :routing-spike:h2Stage2 "${settings[@]}" "-Pwow.test.java=25" "-Porg.gradle.java.installations.fromEnv=JAVA_HOME_25_X64" --stacktrace
       - name: Summarize the report
         if: always()
         run: |
