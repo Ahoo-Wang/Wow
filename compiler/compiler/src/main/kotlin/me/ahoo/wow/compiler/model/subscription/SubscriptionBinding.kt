@@ -54,7 +54,9 @@ internal data class SubscriptionBinding(
 ) {
     /** The generated function that binds the processor's handlers: `cartSagaHandlers` for `CartSaga`. */
     val factoryName: String
-        get() = KotlinNames.quoted(simpleNames.joinToString("").replaceFirstChar { it.lowercase() } + "Handlers")
+        get() = simpleNames.joinToString("").let { simple ->
+            KotlinNames.quoted(simple.take(1).lowercase() + simple.drop(1) + "Handlers")
+        }
 }
 
 internal data class HandlerBinding(

@@ -380,8 +380,7 @@ internal class ModelSymbolProcessor(
         // The events of the module's aggregates, which a handler of each event of a type takes.
         val events = bindings.flatMap { aggregate ->
             aggregate.sourcing.mapNotNull { sourcing ->
-                // The event's source name unquoted is the qualified name KSP reads: no name holds a backtick.
-                resolver.getClassDeclarationByName(resolver.getKSNameFromString(sourcing.event.replace("`", "")))?.let {
+                resolver.getClassDeclarationByName(resolver.getKSNameFromString(sourcing.qualifiedName))?.let {
                     ModuleEvent(it.asStarProjectedType(), sourcing.type, aggregate.state)
                 }
             }

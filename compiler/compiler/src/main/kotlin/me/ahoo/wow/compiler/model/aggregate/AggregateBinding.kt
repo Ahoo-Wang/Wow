@@ -81,7 +81,8 @@ internal data class AggregateBinding(
     val narrowsLifecycle: Boolean get() = lifecycle != ALL_LIFECYCLE_COMMANDS
 
     /** The name of the generated model factory, `<root>Model`, as Kotlin source ([KotlinNames.quoted]). */
-    val factoryName: String get() = KotlinNames.quoted(rootSimpleName.replaceFirstChar { it.lowercase() } + "Model")
+    val factoryName: String
+        get() = KotlinNames.quoted(rootSimpleName.take(1).lowercase() + rootSimpleName.drop(1) + "Model")
 
     companion object {
         /** Every lifecycle command, by its system name, sorted. */
@@ -101,10 +102,10 @@ internal class Dependency(
     val erasure: String,
     val dependencyName: String?,
     val fullType: String? = null,
-) {
-    /** The parameter's [name] as Kotlin source ([KotlinNames.quoted]): a type's simple name may be a keyword. */
-    val parameter: String get() = KotlinNames.quoted(name)
-}
+)
+
+/** The parameter's [Dependency.name] as Kotlin source ([KotlinNames.quoted]): a simple name may be a keyword. */
+internal val Dependency.parameter: String get() = KotlinNames.quoted(name)
 
 internal data class CommandBinding(
     val command: String,
@@ -169,6 +170,7 @@ internal data class MountedBinding(
 )
 
 internal data class SourcingBinding(
+    /** The event's class as Kotlin source, each segment of its name quoted where Kotlin needs it (#6388). */
     val event: String,
     val eventName: String?,
     /** The event's `@Revision`, 1 without it. */
@@ -180,6 +182,8 @@ internal data class SourcingBinding(
     val returnsState: Boolean,
     /** The event's JVM binary name, which keys its schema in the Manifest fragment. */
     val type: String,
+    /** The event's qualified name as KSP gives it, unquoted: the name the processor finds its class by. */
+    val qualifiedName: String,
     /** Whether the function takes the commit of its event (`EventStream`) second. */
     val commit: Boolean = false,
     /** What the event's class says it is ([Descriptions]). */

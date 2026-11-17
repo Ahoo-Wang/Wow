@@ -86,6 +86,8 @@ class EscapedTypesTest {
             @Projection
             class `$processor`(private val clock: `$service`) {
                 @OnEvent fun onEvent(event: StateEvent<`$state`>) = Unit
+                // A handler of an event class: the processor finds the class by the event's qualified name.
+                @OnEvent fun onOpened(event: `$event`) = Unit
             }
 
             data class `$body`(val value: Int)

@@ -172,13 +172,12 @@ internal fun KSType.render(): String {
 /** This type as Kotlin source in full: [render], then its own `?` when it is nullable. */
 internal fun KSType.renderInFull(): String = render() + if (isMarkedNullable) "?" else ""
 
-/** A type argument as Kotlin source: its variance, and its type in full; a star projection has no type. */
+/** A type argument as Kotlin source: its variance, and its type in full; a star projection, `*`, has no type. */
 private fun KSTypeArgument.render(): String {
     val type = type?.resolve()?.renderInFull() ?: return "*"
     return when (variance) {
-        Variance.STAR -> "*"
         Variance.COVARIANT -> "out $type"
         Variance.CONTRAVARIANT -> "in $type"
-        Variance.INVARIANT -> type
+        else -> type
     }
 }

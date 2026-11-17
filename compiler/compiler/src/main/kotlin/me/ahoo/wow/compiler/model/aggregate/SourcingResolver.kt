@@ -135,6 +135,7 @@ internal object SourcingResolver {
                 function = name,
                 returnsState = returnsState,
                 type = event.binaryName(),
+                qualifiedName = event.qualifiedName!!.asString(),
                 commit = commit,
                 declaration = event,
             )
@@ -196,6 +197,7 @@ internal object SourcingResolver {
             function = function,
             returnsState = returnsState,
             type = event.binaryName(),
+            qualifiedName = event.qualifiedName!!.asString(),
             commit = commit,
             description = Descriptions.of(event, problems),
         )

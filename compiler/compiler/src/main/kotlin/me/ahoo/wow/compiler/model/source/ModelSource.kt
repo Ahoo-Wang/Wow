@@ -19,6 +19,7 @@ import me.ahoo.wow.compiler.model.aggregate.AfterBinding
 import me.ahoo.wow.compiler.model.aggregate.AggregateBinding
 import me.ahoo.wow.compiler.model.aggregate.CommandBinding
 import me.ahoo.wow.compiler.model.aggregate.SourcingBinding
+import me.ahoo.wow.compiler.model.aggregate.parameter
 import me.ahoo.wow.compiler.model.symbol.blocking
 
 /**

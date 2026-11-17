@@ -15,6 +15,7 @@ package me.ahoo.wow.compiler.model.source
 
 import me.ahoo.wow.compiler.model.KotlinNames
 import me.ahoo.wow.compiler.model.aggregate.Dependency
+import me.ahoo.wow.compiler.model.aggregate.parameter
 import me.ahoo.wow.compiler.model.subscription.EventParameter
 import me.ahoo.wow.compiler.model.subscription.HandlerBinding
 import me.ahoo.wow.compiler.model.subscription.JobBinding
