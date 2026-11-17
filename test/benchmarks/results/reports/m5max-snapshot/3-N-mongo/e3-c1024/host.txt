@@ -1,30 +1,30 @@
-## begin 2026-11-12T00:56:28-0800
-uptime:  0:56  up 3 days, 30 mins, 2 users, load averages: 38.95 29.15 23.99
+## begin 2026-11-17T03:52:27-0800
+uptime:  3:52  up 3 days, 25 mins, 3 users, load averages: 43.63 33.04 27.01
 swap: total = 1024.00M  used = 0.25M  free = 1023.75M  (encrypted)
 containers: wow-e2e-bench-mongo wow-e2e-bench-kafka 
 busiest other processes (% of one core):
-  2.1 592 sysmond
-  0.9 597 AppleCentauriAlpha
-  0.8 477 symptomsd
-  0.6 36956 bash
-  0.2 455 airportd
-  0.2 1103 Stats
-  0.1 94957 java
-  0.1 68330 claude
-allowed JVMs (% of one core): 10510 10555 64878 94957 0.1
+  42.2 707 WindowServer
+  2.7 898 sysmond
+  2.5 2814 Stats
+  0.7 911 AppleCentauriAlpha
+  0.6 922 wifip2pd
+  0.5 43832 claude
+  0.4 793 symptomsd
+  0.4 63896 bash
+allowed JVMs (% of one core): 2744 32611  0.0
 other JVMs:
-## end 2026-11-12T00:57:48-0800
-uptime:  0:57  up 3 days, 32 mins, 2 users, load averages: 37.54 31.07 25.18
+## end 2026-11-17T03:53:47-0800
+uptime:  3:53  up 3 days, 26 mins, 3 users, load averages: 49.80 38.29 29.59
 swap: total = 1024.00M  used = 0.25M  free = 1023.75M  (encrypted)
 containers: wow-e2e-bench-mongo wow-e2e-bench-kafka 
 busiest other processes (% of one core):
-  2.4 78385 claude
-  1.6 1103 Stats
-  1.2 477 symptomsd
-  1.2 349 configd
-  0.6 597 AppleCentauriAlpha
-  0.4 657 wifip2pd
-  0.4 36956 bash
-  0.3 50579 claude
-allowed JVMs (% of one core): 10510 10555 64878 94957 0.0
+  36.7 707 WindowServer
+  5.5 2814 Stats
+  2.2 793 symptomsd
+  1.2 911 AppleCentauriAlpha
+  0.7 922 wifip2pd
+  0.7 63896 bash
+  0.3 634 logd
+  0.2 78720 claude
+allowed JVMs (% of one core): 2744 32611  0.0
 other JVMs:

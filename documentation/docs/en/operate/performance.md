@@ -46,27 +46,27 @@ Each figure is from the build, the JDK and the runner its row names, and each is
 | PostgreSQL | one | E1 | uniform | 4,912.5/s, closed loop | 2,609.8/s, open loop, p99 160.8 ms | EPYC 9V45, JDK 25.0.5+8, `d8284109df` |
 | PostgreSQL | one | E3 | uniform | 2,374/s, closed loop | 741.9/s, open loop, p99 188.4 ms | EPYC 9V45, JDK 25.0.5+8, `d8284109df` |
 
-**Apple M5 Max, 18 cores, 64 GB, one host**: [m5max-snapshot](https://github.com/Ahoo-Wang/Wow/blob/main/test/benchmarks/results/reports/m5max-snapshot.md), build `d9b0781205`.
+**Apple M5 Max, 18 cores, 64 GB, one host**: [m5max-snapshot](https://github.com/Ahoo-Wang/Wow/blob/main/test/benchmarks/results/reports/m5max-snapshot.md), build `103f9b6746`.
 
 | Store | Nodes | Scenario | Keys | Peak | Sustainable | CPU, JDK, build |
 | --- | ---: | --- | --- | --- | --- | --- |
-| MongoDB | one | E1 | one hot account | 6,911.2/s, at 1,024 clients | 5,417.2/s, at 64 clients, p99 150.5 ms | Apple M5 Max, JDK 25.0.5+8, `d9b0781205` |
-| MongoDB | one | E1 | uniform | ≥ 21,775.2/s, at 4,096 clients | 19,759.6/s, at 1,024 clients, p99 102.4 ms | Apple M5 Max, JDK 25.0.5+8, `d9b0781205` |
-| MongoDB | one | E1 | Zipf | 13,372.5/s, at 1,024 clients | 3,353.8/s, at 64 clients, p99 197.6 ms | Apple M5 Max, JDK 25.0.5+8, `d9b0781205` |
-| MongoDB | one | E3 | uniform | 7,341.7/s, at 1,024 clients | 4,809.4/s, at 256 clients, p99 173.1 ms | Apple M5 Max, JDK 25.0.5+8, `d9b0781205` |
-| PostgreSQL | one | E1 | one hot account | 11,521.2/s, at 1,024 clients | 8,520.7/s, at 256 clients, p99 155.6 ms | Apple M5 Max, JDK 25.0.5+8, `d9b0781205` |
-| PostgreSQL | one | E1 | uniform | ≥ 37,713.6/s, at 4,096 clients | 23,030.1/s, at 1,024 clients, p99 74.8 ms | Apple M5 Max, JDK 25.0.5+8, `d9b0781205` |
-| PostgreSQL | one | E1 | Zipf | 17,090.6/s, at 1,024 clients | 15,386.1/s, at 256 clients, p99 52.2 ms | Apple M5 Max, JDK 25.0.5+8, `d9b0781205` |
-| PostgreSQL | one | E3 | uniform | 7,956.2/s, at 1,024 clients | 3,687.4/s, at 64 clients, p99 41.7 ms | Apple M5 Max, JDK 25.0.5+8, `d9b0781205` |
+| MongoDB | one | E1 | one hot account | 9,948.1/s, at 256 clients | 9,948.1/s, at 256 clients, p99 78.8 ms | Apple M5 Max, JDK 25.0.5+8, `103f9b6746` |
+| MongoDB | one | E1 | uniform | ≥ 28,609.4/s, at 4,096 clients | 28,196.1/s, at 1,024 clients, p99 66.6 ms | Apple M5 Max, JDK 25.0.5+8, `103f9b6746` |
+| MongoDB | one | E1 | Zipf | 15,957.5/s, at 1,024 clients | 14,914.4/s, at 256 clients, p99 42.2 ms | Apple M5 Max, JDK 25.0.5+8, `103f9b6746` |
+| MongoDB | one | E3 | uniform | 7,738.2/s, at 1,024 clients | 5,898.6/s, at 256 clients, p99 72.2 ms | Apple M5 Max, JDK 25.0.5+8, `103f9b6746` |
+| PostgreSQL | one | E1 | one hot account | 11,853.7/s, at 256 clients | 11,853.7/s, at 256 clients, p99 76.8 ms | Apple M5 Max, JDK 25.0.5+8, `103f9b6746` |
+| PostgreSQL | one | E1 | uniform | ≥ 41,706.1/s, at 4,096 clients | 41,706.1/s, at 4,096 clients, p99 167.9 ms | Apple M5 Max, JDK 25.0.5+8, `103f9b6746` |
+| PostgreSQL | one | E1 | Zipf | 19,746.8/s, at 256 clients | 19,746.8/s, at 256 clients, p99 29.6 ms | Apple M5 Max, JDK 25.0.5+8, `103f9b6746` |
+| PostgreSQL | one | E3 | uniform | 8,042.7/s, at 1,024 clients | 3,637.9/s, at 64 clients, p99 185.3 ms | Apple M5 Max, JDK 25.0.5+8, `103f9b6746` |
 
 Three nodes on this one host: the nodes, the stores and the load generator divide the same cores, so these rows show what a cluster costs (forwarding between the nodes), not what it gains. Scaling across separate machines has not been measured.
 
 | Store | Nodes | Scenario | Keys | Peak | Sustainable | CPU, JDK, build |
 | --- | ---: | --- | --- | --- | --- | --- |
-| MongoDB | 3 | E1 | uniform | 16,657.2/s, at 1,024 clients | 16,657.2/s, at 1,024 clients, p99 178.2 ms | Apple M5 Max, JDK 25.0.5+8, `d9b0781205` |
-| MongoDB | 3 | E3 | uniform | 5,380.1/s, at 1,024 clients | 4,894.1/s, at 256 clients, p99 105 ms | Apple M5 Max, JDK 25.0.5+8, `d9b0781205` |
-| PostgreSQL | 3 | E1 | uniform | 21,114.1/s, at 1,024 clients | 21,114.1/s, at 1,024 clients, p99 122.9 ms | Apple M5 Max, JDK 25.0.5+8, `d9b0781205` |
-| PostgreSQL | 3 | E3 | uniform | 6,950.1/s, at 1,024 clients | 6,119.1/s, at 256 clients, p99 75.8 ms | Apple M5 Max, JDK 25.0.5+8, `d9b0781205` |
+| MongoDB | 3 | E1 | uniform | 19,052.3/s, at 1,024 clients | 19,052.3/s, at 1,024 clients, p99 131.1 ms | Apple M5 Max, JDK 25.0.5+8, `103f9b6746` |
+| MongoDB | 3 | E3 | uniform | 6,060.2/s, at 1,024 clients | 5,462.9/s, at 256 clients, p99 78.8 ms | Apple M5 Max, JDK 25.0.5+8, `103f9b6746` |
+| PostgreSQL | 3 | E1 | uniform | 25,104.3/s, at 1,024 clients | 25,104.3/s, at 1,024 clients, p99 90.6 ms | Apple M5 Max, JDK 25.0.5+8, `103f9b6746` |
+| PostgreSQL | 3 | E3 | uniform | 8,623/s, at 1,024 clients | 7,279/s, at 256 clients, p99 59.6 ms | Apple M5 Max, JDK 25.0.5+8, `103f9b6746` |
 <!-- performance:end -->
 
 ## How to read them {#how-to-read}

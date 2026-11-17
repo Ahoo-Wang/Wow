@@ -1,8 +1,8 @@
-epoch	load1	load5	load15	foreignCpu	topForeign	foreignContainers	hostCpu	generatorThread	allowedJvmCpu	foreignJvms
-1794473708	26.05	24.81	22.10	22	Stats 5, sysmond 5, configd 3		25	0	0.0	
-1794473721	25.23	24.66	22.07	9	rapportd 2, runningboardd 1, Stats 1		1191	17	0.1	
-1794473733	34.73	26.78	22.88	10	sysmond 3, AppleCentauriAlpha 1, airportd 1		1366	19	0.2	
-1794473745	37.60	27.62	23.22	3	AppleCentauriAlpha 1, wifip2pd 0, UniversalControl 0		1343	19	0.2	
-1794473757	31.53	26.76	22.99	11	claude 4, Stats 3, configd 2		1422	23	0.2	
-1794473770	38.58	28.42	23.62	5	Stats 1, AppleCentauriAlpha 1, configd 1		1373	22	0.3	
-1794473782	36.98	28.42	23.67	15	launchd 13, AppleCentauriAlpha 1, wifip2pd 0		1347	19	0.2	
+epoch	load1	load5	load15	foreignCpu	topForeign	foreignContainers	hostCpu	generatorThread	allowedJvmCpu	foreignJvms	benchContainersUsec
+1794916267	30.90	27.25	24.50	96	WindowServer 44, Stats 16, launchd 15		167	0	0.0		wow-e2e-bench-mongo=1659279890,wow-e2e-bench-kafka=270979496
+1794916280	37.77	28.82	25.09	48	WindowServer 36, Stats 5, claude 3		1457	24	0.1		wow-e2e-bench-mongo=1708137424,wow-e2e-bench-kafka=276511336
+1794916292	44.93	30.79	25.85	46	WindowServer 36, sysmond 4, Stats 1		1482	23	0.1		wow-e2e-bench-mongo=1767749346,wow-e2e-bench-kafka=282827846
+1794916305	43.77	31.03	26.00	49	WindowServer 37, Stats 7, claude 1		1444	24	0.1		wow-e2e-bench-mongo=1824153593,wow-e2e-bench-kafka=288859560
+1794916317	41.58	31.15	26.13	45	WindowServer 37, Stats 2, Shadowrocket 1		822	15	0.1		wow-e2e-bench-mongo=1881323090,wow-e2e-bench-kafka=294955624
+1794916329	51.03	33.50	27.02	52	WindowServer 37, Stats 7, claude 2		1390	22	0.1		wow-e2e-bench-mongo=1939398817,wow-e2e-bench-kafka=301244013
+1794916342	47.16	33.55	27.15	43	WindowServer 37, Stats 3, AppleCentauriAlpha 1		1353	19	0.1		wow-e2e-bench-mongo=1998854118,wow-e2e-bench-kafka=307620872

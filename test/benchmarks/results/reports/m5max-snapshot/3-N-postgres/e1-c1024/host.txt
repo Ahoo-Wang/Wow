@@ -1,30 +1,30 @@
-## begin 2026-11-12T00:41:34-0800
-uptime:  0:41  up 3 days, 15 mins, 2 users, load averages: 44.39 27.88 19.30
+## begin 2026-11-17T03:37:39-0800
+uptime:  3:37  up 3 days, 10 mins, 3 users, load averages: 40.78 29.43 20.46
 swap: total = 1024.00M  used = 0.25M  free = 1023.75M  (encrypted)
 containers: wow-e2e-bench-postgres wow-e2e-bench-kafka 
 busiest other processes (% of one core):
-  2.5 477 symptomsd
-  2.2 592 sysmond
-  1.0 597 AppleCentauriAlpha
-  1.0 1103 Stats
-  0.5 657 wifip2pd
-  0.5 36956 bash
-  0.4 50540 claude
-  0.3 893 UniversalControl
-allowed JVMs (% of one core): 10510 10555 64878 94957 0.2
+  2.5 898 sysmond
+  2.5 793 symptomsd
+  1.5 63896 bash
+  0.7 707 WindowServer
+  0.7 2812 Shadowrocket
+  0.6 911 AppleCentauriAlpha
+  0.4 922 wifip2pd
+  0.3 799 syspolicyd
+allowed JVMs (% of one core): 2744 32611  0.0
 other JVMs:
-## end 2026-11-12T00:42:53-0800
-uptime:  0:42  up 3 days, 17 mins, 2 users, load averages: 35.72 28.38 20.21
+## end 2026-11-17T03:38:58-0800
+uptime:  3:38  up 3 days, 11 mins, 3 users, load averages: 46.75 33.84 22.95
 swap: total = 1024.00M  used = 0.25M  free = 1023.75M  (encrypted)
 containers: wow-e2e-bench-postgres wow-e2e-bench-kafka 
 busiest other processes (% of one core):
-  4.4 50540 claude
-  2.7 893 UniversalControl
-  2.7 413 runningboardd
-  2.1 477 symptomsd
-  1.6 597 AppleCentauriAlpha
-  1.1 401 bluetoothd
-  1.0 702 BTLEServer
-  0.7 657 wifip2pd
-allowed JVMs (% of one core): 10510 10555 64878 94957 0.1
+  2.4 2814 Stats
+  2.4 1431 WeChat
+  2.1 793 symptomsd
+  1.7 707 WindowServer
+  1.5 648 configd
+  1.0 43322 claude
+  0.9 911 AppleCentauriAlpha
+  0.6 922 wifip2pd
+allowed JVMs (% of one core): 2744 32611  0.0
 other JVMs:

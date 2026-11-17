@@ -1,18 +1,14 @@
-1794472604 [settle] 1s: node-1 0.01, node-2 0.00, node-3 4.34
-1794472605 [settle] 2s: node-1 0.01, node-2 0.01, node-3 4.46
-1794472606 [settle] 3s: node-1 0.01, node-2 0.02, node-3 4.06
-1794472607 [settle] 4s: node-1 0.01, node-2 0.01, node-3 4.12
-1794472608 [settle] 5s: node-1 0.01, node-2 0.01, node-3 1.72
-1794472609 [settle] 6s: node-1 0.02, node-2 0.01, node-3 0.02
-1794472610 [settle] 7s: node-1 0.01, node-2 0.01, node-3 0.02
-1794472611 [settle] 8s: node-1 0.01, node-2 0.01, node-3 0.01
-1794472611 [settle] quiet after 8s (below 0.25 cores for 3 s in a row)
-1794472652 [saturate] E3: concurrency=1 throughput=308.2/s p50=2ms errors={}
-1794472692 [saturate] E3: concurrency=4 throughput=408.0/s p50=8ms errors={}
-1794472732 [saturate] E3: concurrency=16 throughput=1129.4/s p50=11ms errors={}
-1794472772 [saturate] E3: concurrency=64 throughput=3214.2/s p50=18ms errors={}
-1794472812 [saturate] E3: concurrency=256 throughput=6119.1/s p50=40ms errors={}
-1794472852 [saturate] E3: concurrency=1024 throughput=6950.1/s p50=119ms errors={}
-1794472893 [saturate] E3: concurrency=4096 throughput=3217.4/s p50=700ms errors={http-504-wow.wait.timeout=66, http-409-wow.command.contended=2}
-1794472893 [saturate] saturation: 6950.1/s at concurrency 1024
-1794472893 [bench] results in /private/tmp/claude-501/-Users-ahoowang-work-ahoo-Wow--claude-worktrees-p1-sweep-edges-b33c1b/b15b5aab-5b8a-44af-a70a-3928f466a07f/scratchpad/wt-final/test/benchmarks/results/e2e/m5max-snapshot/3-N-postgres/e3-sweep
+1794915172 [settle] 1s: node-1 0.02, node-2 0.04, node-3 0.01
+1794915173 [settle] 2s: node-1 0.01, node-2 0.01, node-3 0.02
+1794915174 [settle] 3s: node-1 0.01, node-2 0.01, node-3 0.01
+1794915174 [settle] quiet after 3s (below 0.25 cores for 3 s in a row)
+1794915174 [bench] server build 103f9b6746, load generator 103f9b6746
+1794915215 [saturate] E3: concurrency=1 throughput=456.2/s p50=2ms errors={}
+1794915255 [saturate] E3: concurrency=4 throughput=559.0/s p50=6ms errors={}
+1794915295 [saturate] E3: concurrency=16 throughput=1451.7/s p50=9ms errors={}
+1794915335 [saturate] E3: concurrency=64 throughput=3881.5/s p50=15ms errors={}
+1794915375 [saturate] E3: concurrency=256 throughput=7279.0/s p50=34ms errors={}
+1794915415 [saturate] E3: concurrency=1024 throughput=8623.0/s p50=102ms errors={}
+1794915458 [saturate] E3: concurrency=4096 throughput=7339.6/s p50=136ms errors={http-429-wow.command.busy=18424, http-504-wow.wait.timeout=3014}
+1794915458 [saturate] saturation: 8623.0/s at concurrency 1024
+1794915459 [bench] results in /private/tmp/claude-501/-Users-ahoowang-work-ahoo-Wow--claude-worktrees-p1-sweep-edges-b33c1b/b15b5aab-5b8a-44af-a70a-3928f466a07f/scratchpad/bench-run/test/benchmarks/results/e2e/beta5/head/3-N-postgres/e3-sweep

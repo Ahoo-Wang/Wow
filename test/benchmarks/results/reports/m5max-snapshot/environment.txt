@@ -1,26 +1,26 @@
-## 01-single-node.sh 2026-11-11T23:39:31-0800
-commit: d9b0781205aa5749bf7e3941dfcbb622c2eaac36
+## 01-single-node.sh 2026-11-17T02:31:36-0800
+commit: 103f9b674680e7b98fbd8b934ee1947fbbe37a12
+server build: 103f9b674680e7b98fbd8b934ee1947fbbe37a12 (/private/tmp/claude-501/-Users-ahoowang-work-ahoo-Wow--claude-worktrees-p1-sweep-edges-b33c1b/b15b5aab-5b8a-44af-a70a-3928f466a07f/scratchpad/bench-run/test/benchmarks/server/build/install/benchmark-server)
+load generator build: 103f9b674680e7b98fbd8b934ee1947fbbe37a12
 changed paths: 0
 machine: Mac17,14, Apple M5 Max, 18 cores (6 Super + 12 Performance), 64 GB
-macOS: 27.2 (26B123)
+macOS: 27.2.1 (26B131)
 engine: OrbStack 2.2.5 (2020500)
-docker: 29.8.2, 16 CPUs, 33670660096 bytes
+docker: 29.8.2, 16 CPUs, 50498138112 bytes
 jdk: OpenJDK Runtime Environment Temurin-25.0.5+8 (build 25.0.5+8-LTS)
-allowed JVMs (pid, %cpu, rss KB, started, command): 10510 10555 64878 94957
-  10510   0.0 1661824 Wed Nov 11 23:13:33 2026     /Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/bin/java --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.lang.inv
-  10555   0.0 2685312 Wed Nov 11 23:13:42 2026     /Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/bin/java -cp /Users/ahoowang/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kot
-  64878   0.0 4611712 Wed Nov 11 20:01:25 2026     /Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home/bin/java -cp /Users/ahoowang/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kot
-  94957   0.0 2190048 Wed Nov 11 21:36:27 2026     /Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home/bin/java --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.lang.inv
-## 02-three-nodes.sh 2026-11-12T00:30:49-0800
-commit: d9b0781205aa5749bf7e3941dfcbb622c2eaac36
+step JFR: off
+allowed JVMs (pid, %cpu, rss KB, started, command): 2744 32611 
+   2744   0.0 1268400 Mon Nov 16 22:45:00 2026     /Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home/bin/java --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.lang.inv
+## 02-three-nodes.sh 2026-11-17T03:27:07-0800
+commit: 103f9b674680e7b98fbd8b934ee1947fbbe37a12
+server build: 103f9b674680e7b98fbd8b934ee1947fbbe37a12 (/private/tmp/claude-501/-Users-ahoowang-work-ahoo-Wow--claude-worktrees-p1-sweep-edges-b33c1b/b15b5aab-5b8a-44af-a70a-3928f466a07f/scratchpad/bench-run/test/benchmarks/server/build/install/benchmark-server)
+load generator build: 103f9b674680e7b98fbd8b934ee1947fbbe37a12
 changed paths: 0
 machine: Mac17,14, Apple M5 Max, 18 cores (6 Super + 12 Performance), 64 GB
-macOS: 27.2 (26B123)
+macOS: 27.2.1 (26B131)
 engine: OrbStack 2.2.5 (2020500)
-docker: 29.8.2, 16 CPUs, 33670660096 bytes
+docker: 29.8.2, 16 CPUs, 50498138112 bytes
 jdk: OpenJDK Runtime Environment Temurin-25.0.5+8 (build 25.0.5+8-LTS)
-allowed JVMs (pid, %cpu, rss KB, started, command): 10510 10555 64878 94957
-  10510   0.0 666640 Wed Nov 11 23:13:33 2026     /Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/bin/java --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.lang.invo
-  10555   0.0 554960 Wed Nov 11 23:13:42 2026     /Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/bin/java -cp /Users/ahoowang/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotl
-  64878   0.0 3496496 Wed Nov 11 20:01:25 2026     /Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home/bin/java -cp /Users/ahoowang/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kot
-  94957   0.0 1316400 Wed Nov 11 21:36:27 2026     /Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home/bin/java --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.lang.inv
+step JFR: off
+allowed JVMs (pid, %cpu, rss KB, started, command): 2744 32611 
+   2744   0.0 1247216 Mon Nov 16 22:45:00 2026     /Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home/bin/java --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.lang.inv

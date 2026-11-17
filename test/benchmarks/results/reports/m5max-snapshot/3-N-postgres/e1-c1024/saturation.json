@@ -6,22 +6,22 @@
     "accounts": 100000
   },
   "targets": ["http://127.0.0.1:18080", "http://127.0.0.1:18081", "http://127.0.0.1:18082"],
-  "saturationThroughput": 19000.166666666668,
+  "saturationThroughput": 24255.116666666665,
   "saturationConcurrency": 1024,
-  "generatorCores": 1.6404764220099435,
+  "generatorCores": 2.108534879700284,
   "availableProcessors": 18,
   "note": "Closed loop: the latencies only show the knee; open-loop runs at 50% and 80% of the saturation throughput give the results.",
   "steps": [
     {
       "concurrency": 1024,
       "seconds": 60,
-      "throughput": 19000.166666666668,
-      "ok": 1140010,
+      "throughput": 24255.116666666665,
+      "ok": 1455307,
       "errors": {},
-      "p50Ms": 36.863,
-      "p99Ms": 180.223,
-      "generatorCores": 1.6404764220099435,
-      "sentOk": 1392036,
+      "p50Ms": 32.127,
+      "p99Ms": 98.815,
+      "generatorCores": 2.108534879700284,
+      "sentOk": 1799594,
       "sentFailed": 0
     }
   ],
@@ -35,9 +35,9 @@
     "stores": "kafka postgres",
     "storeWriteIops": "",
     "primed": "true",
-    "primeSeconds": "10",
-    "settleSeconds": "3",
+    "primeSeconds": "8",
+    "settleSeconds": "4",
     "accounts": "100000",
-    "session": "/private/tmp/claude-501/-Users-ahoowang-work-ahoo-Wow--claude-worktrees-p1-sweep-edges-b33c1b/b15b5aab-5b8a-44af-a70a-3928f466a07f/scratchpad/wt-final/test/benchmarks/results/e2e/20261112-003049-run-postgres-n3-saturation"
+    "session": "/private/tmp/claude-501/-Users-ahoowang-work-ahoo-Wow--claude-worktrees-p1-sweep-edges-b33c1b/b15b5aab-5b8a-44af-a70a-3928f466a07f/scratchpad/bench-run/test/benchmarks/results/e2e/20261117-032707-run-postgres-n3-saturation"
   }
 }

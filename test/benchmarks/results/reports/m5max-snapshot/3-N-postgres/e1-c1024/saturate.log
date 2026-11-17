@@ -1,7 +1,8 @@
-1794472895 [settle] 1s: node-1 0.01, node-2 0.01, node-3 0.01
-1794472896 [settle] 2s: node-1 0.02, node-2 0.01, node-3 0.02
-1794472897 [settle] 3s: node-1 0.02, node-2 0.01, node-3 0.01
-1794472897 [settle] quiet after 3s (below 0.25 cores for 3 s in a row)
-1794472973 [saturate] E1: concurrency=1024 throughput=19000.2/s p50=36ms errors={}
-1794472973 [saturate] saturation: 19000.2/s at concurrency 1024
-1794472973 [bench] results in /private/tmp/claude-501/-Users-ahoowang-work-ahoo-Wow--claude-worktrees-p1-sweep-edges-b33c1b/b15b5aab-5b8a-44af-a70a-3928f466a07f/scratchpad/wt-final/test/benchmarks/results/e2e/m5max-snapshot/3-N-postgres/e1-c1024
+1794915460 [settle] 1s: node-1 0.01, node-2 0.01, node-3 0.01
+1794915461 [settle] 2s: node-1 0.01, node-2 0.00, node-3 0.02
+1794915462 [settle] 3s: node-1 0.01, node-2 0.02, node-3 0.01
+1794915462 [settle] quiet after 3s (below 0.25 cores for 3 s in a row)
+1794915463 [bench] server build 103f9b6746, load generator 103f9b6746
+1794915538 [saturate] E1: concurrency=1024 throughput=24255.1/s p50=32ms errors={}
+1794915538 [saturate] saturation: 24255.1/s at concurrency 1024
+1794915538 [bench] results in /private/tmp/claude-501/-Users-ahoowang-work-ahoo-Wow--claude-worktrees-p1-sweep-edges-b33c1b/b15b5aab-5b8a-44af-a70a-3928f466a07f/scratchpad/bench-run/test/benchmarks/results/e2e/beta5/head/3-N-postgres/e1-c1024

@@ -1,25 +1,25 @@
-epoch	load1	load5	load15	foreignCpu	topForeign	foreignContainers	hostCpu	generatorThread	allowedJvmCpu	foreignJvms
-1794470458	19.38	10.74	9.62	54	find 38, sysmond 7, bash 2		92	0	0.0	
-1794470470	15.83	10.38	9.51	52	find 46, claude 4, AppleCentauriAlpha 1		276	13	0.0	
-1794470482	14.59	10.30	9.49	72	find 52, Stats 5, launchd 4		295	2	0.1	
-1794470495	12.96	10.09	9.42	58	find 50, Stats 2, configd 2		382	2	0.0	
-1794470507	10.84	9.76	9.32	47	find 43, claude 1, Stats 0		373	3	0.1	
-1794470519	11.05	9.83	9.35	47	find 39, Stats 3, configd 2		160	1	0.0	
-1794470532	10.26	9.71	9.31	14	find 5, sysmond 3, Stats 1		184	2	0.2	
-1794470544	9.08	9.47	9.23	28	find 20, sysmond 4, WindowServer 1		298	3	0.0	
-1794470556	7.75	9.16	9.12	50	find 39, Stats 5, configd 3		580	6	0.0	
-1794470568	7.97	9.15	9.12	47	find 39, Stats 2, claude 1		556	6	0.1	
-1794470581	9.01	9.32	9.18	59	find 48, sysmond 3, UniversalControl 1		392	2	0.0	
-1794470593	7.78	9.05	9.09	11	find 8, AppleCentauriAlpha 1, wifip2pd 0		711	6	0.0	
-1794470605	6.87	8.78	8.99	35	find 24, Stats 3, sysmond 3		438	5	0.1	
-1794470618	8.25	9.01	9.07	34	find 26, sysmond 3, Stats 2		659	8	0.0	
-1794470630	7.65	8.84	9.01	32	find 26, claude 2, claude 2		545	6	0.0	
-1794470643	7.42	8.75	8.97	39	find 34, claude 2, java 1		474	5	0.0	
-1794470655	6.59	8.50	8.88	30	find 29, wifip2pd 0, AppleCentauriAlpha 0		377	1	0.0	
-1794470667	9.37	9.01	9.06	46	find 36, Stats 4, configd 2		1008	12	0.0	
-1794470680	8.37	8.81	8.98	47	find 44, Stats 1, AppleCentauriAlpha 1		909	12	0.0	
-1794470692	12.89	9.79	9.33	62	find 46, launchd 13, Shadowrocket 1		876	12	0.0	
-1794470704	11.52	9.60	9.26	31	find 15, Stats 4, configd 2		1579	58	89.3	
-1794470717	12.33	9.89	9.38	36	find 34, AppleCentauriAlpha 1, wifip2pd 0		1022	17	0.0	
-1794470730	14.68	10.49	9.60	21	find 13, AppleCentauriAlpha 2, Stats 1		881	25	0.0	
-1794470742	16.33	11.07	9.82	24	find 20, claude 1, AppleCentauriAlpha 1		893	3	0.1	
+epoch	load1	load5	load15	foreignCpu	topForeign	foreignContainers	hostCpu	generatorThread	allowedJvmCpu	foreignJvms	benchContainersUsec
+1794912937	19.69	12.06	13.84	21	sysmond 11, bash 2, claude 1		74	0	0.0		wow-e2e-bench-postgres=1559678857,wow-e2e-bench-kafka=492590579
+1794912949	17.20	11.77	13.72	18	Stats 6, configd 4, WindowServer 3		373	3	0.0		wow-e2e-bench-postgres=1564198483,wow-e2e-bench-kafka=496799566
+1794912961	13.97	11.33	13.52	9	sysmond 4, Stats 2, configd 1		202	2	0.0		wow-e2e-bench-postgres=1569549202,wow-e2e-bench-kafka=500101048
+1794912974	12.13	11.02	13.39	6	Shadowrocket 2, Claude Helper (Renderer) 1, WindowServer 1		443	1	0.0		wow-e2e-bench-postgres=1576929003,wow-e2e-bench-kafka=503381029
+1794912986	10.89	10.80	13.27	7	Stats 2, configd 1, WindowServer 1		304	4	0.0		wow-e2e-bench-postgres=1594640838,wow-e2e-bench-kafka=507779435
+1794912999	9.52	10.51	13.14	9	Shadowrocket 2, WindowServer 1, intelligenceflowd 1		258	3	0.0		wow-e2e-bench-postgres=1600608392,wow-e2e-bench-kafka=511202996
+1794913011	8.72	10.28	13.01	18	dasd 6, Stats 2, cfprefsd 2		292	2	0.0		wow-e2e-bench-postgres=1606837771,wow-e2e-bench-kafka=515572341
+1794913024	7.92	10.05	12.89	2	AppleCentauriAlpha 1, claude 1, wifip2pd 0		502	6	0.0		wow-e2e-bench-postgres=1616352139,wow-e2e-bench-kafka=519626746
+1794913036	7.02	9.75	12.74	20	mdworker_shared 4, mdworker_shared 4, sysmond 4		469	5	0.0		wow-e2e-bench-postgres=1628275221,wow-e2e-bench-kafka=523948719
+1794913049	8.23	9.93	12.76	1	AppleCentauriAlpha 1, wifip2pd 0, configd 0		416	6	0.0		wow-e2e-bench-postgres=1639682086,wow-e2e-bench-kafka=528195594
+1794913061	7.90	9.77	12.66	21	WindowServer 5, sysmond 4, configd 3		645	10	0.0		wow-e2e-bench-postgres=1652572888,wow-e2e-bench-kafka=532549850
+1794913073	9.14	9.97	12.69	6	Stats 2, claude 1, configd 1		505	8	0.0		wow-e2e-bench-postgres=1664468135,wow-e2e-bench-kafka=536708594
+1794913086	7.57	9.58	12.51	9	sysmond 4, rapportd 1, Claude Helper (Renderer) 1		289	4	0.0		wow-e2e-bench-postgres=1676051068,wow-e2e-bench-kafka=540603435
+1794913098	9.08	9.85	12.57	31	Claude 15, Stats 5, configd 3		376	4	0.1		wow-e2e-bench-postgres=1687760611,wow-e2e-bench-kafka=545411957
+1794913111	8.77	9.75	12.48	2	AppleCentauriAlpha 1, wifip2pd 0, configd 0		399	7	0.0		wow-e2e-bench-postgres=1705632856,wow-e2e-bench-kafka=550055088
+1794913123	8.75	9.71	12.44	8	Stats 4, configd 2, WindowServer 1		701	12	0.0		wow-e2e-bench-postgres=1723221593,wow-e2e-bench-kafka=554567844
+1794913136	9.47	9.79	12.42	21	Stats 6, claude 4, configd 3		705	12	0.0		wow-e2e-bench-postgres=1739421787,wow-e2e-bench-kafka=558839508
+1794913149	8.62	9.60	12.32	25	Stats 10, configd 3, locationd 2		712	11	0.0		wow-e2e-bench-postgres=1756829353,wow-e2e-bench-kafka=562947341
+1794913162	7.53	9.31	12.17	16	sysmond 9, systemstats 2, launchd 2		316	4	0.0		wow-e2e-bench-postgres=1775205001,wow-e2e-bench-kafka=567943404
+1794913174	6.91	9.12	12.06	4	Stats 1, AppleCentauriAlpha 1, configd 1		773	14	0.0		wow-e2e-bench-postgres=1792687072,wow-e2e-bench-kafka=571945760
+1794913187	12.63	10.27	12.42	7	claude 2, claude 1, AppleCentauriAlpha 1		1455	55	0.1		wow-e2e-bench-postgres=1815255588,wow-e2e-bench-kafka=576220214
+1794913200	15.20	10.90	12.62	13	java 9, Stats 1, AppleCentauriAlpha 1		860	8	0.0		wow-e2e-bench-postgres=1838431241,wow-e2e-bench-kafka=580577913
+1794913212	16.06	11.29	12.73	14	sysmond 4, configd 3, WindowServer 2		797	17	0.0		wow-e2e-bench-postgres=1861737047,wow-e2e-bench-kafka=584899626
+1794913225	14.73	11.16	12.67	8	Stats 2, configd 1, AppleCentauriAlpha 1		45	0	0.0		wow-e2e-bench-postgres=1878771284,wow-e2e-bench-kafka=588975303

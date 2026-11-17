@@ -1,26 +1,25 @@
-epoch	load1	load5	load15	foreignCpu	topForeign	foreignContainers	hostCpu	generatorThread	allowedJvmCpu	foreignJvms
-1794473411	35.71	27.35	22.27	28	Stats 8, sysmond 5, configd 4		110	0	1.6	
-1794473424	28.25	26.11	21.92	11	Stats 4, configd 2, AppleCentauriAlpha 1		185	1	0.0	
-1794473436	25.34	25.55	21.77	5	AppleCentauriAlpha 1, Stats 1, wifip2pd 1		254	2	0.3	
-1794473448	20.30	24.43	21.43	4	AppleCentauriAlpha 1, claude 1, wifip2pd 0		152	1	0.3	
-1794473460	18.97	24.00	21.31	5	claude 2, AppleCentauriAlpha 1, wifip2pd 0		592	23	0.0	
-1794473472	15.97	23.09	21.03	19	WindowServer 6, sysmond 3, Stats 3		449	2	0.0	
-1794473485	14.36	22.51	20.85	9	claude 2, Stats 2, configd 1		447	2	0.0	
-1794473497	12.46	21.83	20.63	4	AppleCentauriAlpha 1, claude 1, Stats 1		271	1	0.0	
-1794473509	10.15	20.86	20.31	3	AppleCentauriAlpha 1, Stats 1, wifip2pd 0		714	5	0.1	
-1794473521	11.84	20.88	20.32	4	claude 2, AppleCentauriAlpha 1, wifip2pd 0		686	4	0.1	
-1794473534	9.60	19.94	19.99	11	claude 4, Stats 3, configd 2		711	5	0.0	
-1794473546	11.41	19.96	20.00	5	Stats 1, claude 1, AppleCentauriAlpha 1		1204	8	0.0	
-1794473558	11.79	19.63	19.88	5	rapportd 1, secd 1, AppleCentauriAlpha 1		1166	10	0.1	
-1794473570	17.46	20.54	20.20	7	Stats 2, claude 1, AppleCentauriAlpha 1		1103	9	0.2	
-1794473582	16.91	20.29	20.11	16	claude 4, sysmond 4, Stats 3		1302	10	0.1	
-1794473595	20.86	21.03	20.38	7	sysmond 3, Stats 1, AppleCentauriAlpha 1		1308	11	0.0	
-1794473607	32.33	23.56	21.29	6	sysmond 3, AppleCentauriAlpha 1, Stats 1		1286	10	0.2	
-1794473619	37.44	24.90	21.79	20	Stats 4, sysmond 3, MacPacketTunnel 2		1377	9	0.1	
-1794473631	37.48	25.35	21.99	38	WindowServer 11, Claude 5, Shadowrocket 4		1369	10	0.3	
-1794473644	36.58	25.68	22.16	4	AppleCentauriAlpha 1, Stats 1, configd 1		1478	10	0.1	
-1794473656	34.71	25.61	22.18	11	AppleCentauriAlpha 2, UniversalControl 2, claude 1		1422	12	0.2	
-1794473668	30.65	25.20	22.09	5	AppleCentauriAlpha 1, Shadowrocket 1, claude 1		1545	4	0.2	
-1794473681	30.49	25.31	22.17	6	Stats 2, configd 1, AppleCentauriAlpha 1		1599	6	14.5	
-1794473693	28.04	25.05	22.13	5	Stats 1, AppleCentauriAlpha 1, configd 1		1386	4	0.1	
-1794473705	28.23	25.22	22.22	4	AppleCentauriAlpha 1, wifip2pd 1, claude 0		44	0	0.0	
+epoch	load1	load5	load15	foreignCpu	topForeign	foreignContainers	hostCpu	generatorThread	allowedJvmCpu	foreignJvms	benchContainersUsec
+1794915976	45.22	31.06	25.13	43	sysmond 9, Stats 9, WindowServer 5		63	0	0.0		wow-e2e-bench-mongo=778119997,wow-e2e-bench-kafka=146466728
+1794915988	36.17	29.75	24.77	18	biomesyncd 4, Stats 3, configd 2		252	2	0.1		wow-e2e-bench-mongo=783347230,wow-e2e-bench-kafka=149424820
+1794916001	31.59	28.98	24.55	20	sysmond 3, claude 3, UniversalControl 3		350	2	0.0		wow-e2e-bench-mongo=789266130,wow-e2e-bench-kafka=153324574
+1794916013	25.48	27.75	24.19	5	AppleCentauriAlpha 1, wifip2pd 1, claude 1		232	16	0.0		wow-e2e-bench-mongo=795548331,wow-e2e-bench-kafka=156365161
+1794916025	22.09	26.96	23.95	40	WindowServer 27, Stats 7, MenuBarAgent 1		536	3	0.1		wow-e2e-bench-mongo=808006547,wow-e2e-bench-kafka=160350962
+1794916038	17.50	25.70	23.56	38	WindowServer 30, Stats 6, AppleCentauriAlpha 1		485	3	0.0		wow-e2e-bench-mongo=824793768,wow-e2e-bench-kafka=164898251
+1794916050	15.27	24.95	23.32	7	sysmond 4, AppleCentauriAlpha 1, wifip2pd 0		500	3	0.0		wow-e2e-bench-mongo=841414165,wow-e2e-bench-kafka=169335754
+1794916062	15.97	24.60	23.22	20	nfcd 6, cfprefsd 3, Stats 2		806	7	0.0		wow-e2e-bench-mongo=862214895,wow-e2e-bench-kafka=174128713
+1794916075	15.25	24.17	23.08	36	WindowServer 9, Claude 8, Claude Helper (Renderer) 4		844	6	0.0		wow-e2e-bench-mongo=890551648,wow-e2e-bench-kafka=179476194
+1794916087	16.80	24.06	23.06	28	launchd 15, mdworker_shared 4, mdworker_shared 3		889	6	0.0		wow-e2e-bench-mongo=918254011,wow-e2e-bench-kafka=184552774
+1794916099	16.72	23.81	22.98	14	sysmond 3, claude 2, claude 2		1162	10	0.0		wow-e2e-bench-mongo=948588718,wow-e2e-bench-kafka=190011528
+1794916112	17.13	23.52	22.89	6	sysmond 3, AppleCentauriAlpha 1, wifip2pd 1		998	10	0.1		wow-e2e-bench-mongo=982059484,wow-e2e-bench-kafka=195694534
+1794916124	15.28	22.91	22.68	12	Stats 6, configd 2, AppleCentauriAlpha 1		970	9	0.1		wow-e2e-bench-mongo=1017755347,wow-e2e-bench-kafka=201644521
+1794916137	14.24	22.31	22.47	19	sysmond 4, UniversalControl 3, AppleCentauriAlpha 2		972	9	0.1		wow-e2e-bench-mongo=1054127909,wow-e2e-bench-kafka=207603703
+1794916149	15.27	22.25	22.45	17	sysmond 4, Stats 3, claude 3		1410	12	0.1		wow-e2e-bench-mongo=1109681458,wow-e2e-bench-kafka=213921589
+1794916161	21.95	23.32	22.82	50	sysmond 20, systemstats 4, WindowServer 4		1401	10	0.0		wow-e2e-bench-mongo=1169858411,wow-e2e-bench-kafka=220258010
+1794916174	32.80	25.57	23.62	55	WindowServer 35, UsageTrackingAgent 9, Stats 3		1458	11	0.1		wow-e2e-bench-mongo=1230692234,wow-e2e-bench-kafka=226808580
+1794916186	36.60	26.57	24.00	61	WindowServer 39, Stats 8, sysmond 4		1526	8	0.0		wow-e2e-bench-mongo=1288482240,wow-e2e-bench-kafka=233182350
+1794916199	33.99	26.49	24.01	49	WindowServer 36, Stats 6, cfprefsd 2		1500	12	0.1		wow-e2e-bench-mongo=1346412688,wow-e2e-bench-kafka=239536651
+1794916211	30.22	25.93	23.84	63	WindowServer 38, Stats 10, claude 3		1290	9	0.1		wow-e2e-bench-mongo=1408278132,wow-e2e-bench-kafka=245910128
+1794916224	35.16	27.22	24.34	49	WindowServer 37, Stats 5, AppleCentauriAlpha 1		1421	8	0.0		wow-e2e-bench-mongo=1468264686,wow-e2e-bench-kafka=252059092
+1794916236	33.07	27.03	24.31	39	WindowServer 35, AppleCentauriAlpha 1, Stats 1		1509	10	0.1		wow-e2e-bench-mongo=1532540891,wow-e2e-bench-kafka=258249336
+1794916249	31.05	26.91	24.31	64	WindowServer 34, WeChatAppEx Helper (Renderer) 8, Stats 7		1463	9	0.1		wow-e2e-bench-mongo=1597698628,wow-e2e-bench-kafka=264445466
+1794916261	33.28	27.55	24.57	39	WindowServer 32, Stats 2, claude 2		270	0	0.0		wow-e2e-bench-mongo=1656374369,wow-e2e-bench-kafka=270007607
