@@ -17,6 +17,7 @@ import {type Theme, useRoute} from 'vitepress'
 import mediumZoom from 'medium-zoom'
 import './global.css'
 import KaiCodeAward from './KaiCodeAward.vue'
+import PerfFigure from './PerfFigure.vue'
 import CopyOrDownloadAsMarkdownButtons
     from 'vitepress-plugin-llms/vitepress-components/CopyOrDownloadAsMarkdownButtons.vue'
 
@@ -28,6 +29,7 @@ export default {
     enhanceApp({app}) {
         app.component('CopyOrDownloadAsMarkdownButtons', CopyOrDownloadAsMarkdownButtons)
         app.component('Mermaid', defineAsyncComponent(() => import('./Mermaid.vue')))
+        app.component('PerfFigure', PerfFigure)
     },
     setup() {
         const route = useRoute()
