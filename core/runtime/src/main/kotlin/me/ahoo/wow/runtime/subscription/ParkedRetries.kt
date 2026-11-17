@@ -124,7 +124,9 @@ internal class ParkedRetries(
 
     /**
      * Runs [entry] on [worker] when one of the worker's retry permits is free; otherwise leaves it as read, claimed
-     * by nothing and its request not taken, due for the next scan.
+     * by nothing and its request not taken, due for the next scan. The permit and the entry's mark as running are
+     * given back as the run's job ends, whether it ran or was cancelled before it started (a stop): the entry stays
+     * due for a later scan, of this run of the runtime or the next.
      */
     private fun dispatch(scope: CoroutineScope, worker: SubscriptionWorker, entry: ParkedAggregate) {
         val key = entry.subscription to entry.ref
@@ -135,13 +137,10 @@ internal class ParkedRetries(
             running.remove(key)
             return
         }
-        scope.launch {
-            try {
-                run(worker, entry)
-            } finally {
-                worker.retryPermits.release()
-                running.remove(key)
-            }
+        // Given back however the job ends: one cancelled before it starts never runs its body, nor a finally in it.
+        scope.launch { run(worker, entry) }.invokeOnCompletion {
+            worker.retryPermits.release()
+            running.remove(key)
         }
     }
 
