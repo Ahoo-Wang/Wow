@@ -14,6 +14,7 @@
 package me.ahoo.wow.compiler.model.source
 
 import me.ahoo.wow.api.lifecycle.Lifecycle
+import me.ahoo.wow.compiler.model.KotlinNames
 import me.ahoo.wow.compiler.model.aggregate.AfterBinding
 import me.ahoo.wow.compiler.model.aggregate.AggregateBinding
 import me.ahoo.wow.compiler.model.aggregate.CommandBinding
@@ -100,7 +101,7 @@ internal object ModelSource {
         }
         val first = if (command.admitted) "this.command as $COMMAND<${command.command}>" else "command"
         val arguments = (listOf(first) + command.arguments).joinToString(", ")
-        val call = "${receiver(binding)}.${command.function}($arguments)"
+        val call = "${receiver(binding)}.${KotlinNames.quoted(command.function)}($arguments)"
         val name = command.commandName?.let { ", name = \"\$type.$it\"" }.orEmpty()
         val onDeleted = if (command.onDeleted) ", onDeleted = true" else ""
         val produces = produces(command.yields)
@@ -136,7 +137,7 @@ internal object ModelSource {
         val exclude = after.exclude.joinToString(", ", "kotlin.collections.setOf(", ")") { "$it::class.java" }
         val command = after.parameter?.let { if (after.admitted) "this.command as $it" else "command as $it" }
         val arguments = listOfNotNull(command) + after.arguments
-        val call = "${receiver(binding)}.${after.function}(${arguments.joinToString(", ")})"
+        val call = "${receiver(binding)}.${KotlinNames.quoted(after.function)}(${arguments.joinToString(", ")})"
         appendLine("        $dsl(include = $include, exclude = $exclude${produces(after.yields)}) { state, command ->")
         appendLine("            me.ahoo.wow.kernel.eventsOf(${awaited(call, after.reactor)})")
         appendLine("        }")
@@ -178,7 +179,8 @@ internal object ModelSource {
         }
         binding.upgrades.forEach { upgrade ->
             val node = if (upgrade.objectNode) "node as $OBJECT_NODE" else "node"
-            appendLine("        upgrade<${upgrade.event}>(${upgrade.from}) { node -> ${upgrade.function}($node) }")
+            val function = KotlinNames.qualified(upgrade.function)
+            appendLine("        upgrade<${upgrade.event}>(${upgrade.from}) { node -> $function($node) }")
         }
     }
 
@@ -188,15 +190,14 @@ internal object ModelSource {
             val name = binding.eventName?.let { "name = \"\$type.$it\", " }.orEmpty() +
                 if (binding.revision == 1) "" else "revision = ${binding.revision}, "
             val (commit, read) = if (binding.commit) ", commit" to "(event, commit)" else "" to "(event)"
+            val function = KotlinNames.quoted(binding.function)
             if (binding.returnsState) {
                 appendLine(
                     "        evolveTo<${binding.event}>(${name}evolve = { state, event$commit -> " +
-                        "state.${binding.function}$read })"
+                        "state.$function$read })"
                 )
             } else {
-                appendLine(
-                    "        evolve<${binding.event}>(${name}evolve = { event$commit -> ${binding.function}$read })"
-                )
+                appendLine("        evolve<${binding.event}>(${name}evolve = { event$commit -> $function$read })")
             }
         }
         sourcing.forEach { binding ->

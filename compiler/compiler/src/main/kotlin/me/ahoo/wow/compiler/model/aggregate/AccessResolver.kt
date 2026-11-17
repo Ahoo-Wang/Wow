@@ -25,6 +25,7 @@ import com.google.devtools.ksp.symbol.KSTypeAlias
 import com.google.devtools.ksp.symbol.Modifier
 import me.ahoo.wow.api.annotation.Access
 import me.ahoo.wow.api.annotation.Blocking
+import me.ahoo.wow.compiler.model.KotlinNames
 import me.ahoo.wow.compiler.model.symbol.annotatedIn
 import me.ahoo.wow.compiler.model.symbol.argumentsOf
 import me.ahoo.wow.compiler.model.symbol.declarations
@@ -60,7 +61,8 @@ internal data class AccessBinding(
     /** How the generated model reads the attribute's value from `state`: the member, its value classes unwrapped. */
     val read: String
         get() {
-            val member = if (property) "state.$member" else "state.$member()"
+            val member = KotlinNames.quoted(member).let { if (property) "state.$it" else "state.$it()" }
+            val unwrap = unwrap?.let(KotlinNames::quoted)
             return when {
                 unwrap == null -> member
                 multiple -> "$member.map { it.$unwrap }"

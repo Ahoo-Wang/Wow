@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.compiler.model.source
 
+import me.ahoo.wow.compiler.model.KotlinNames
 import me.ahoo.wow.compiler.model.route.RouteArgument
 import me.ahoo.wow.compiler.model.route.ServiceRouteBinding
 
@@ -47,7 +48,7 @@ internal object ServiceRouteSource {
             appendLine("                override suspend fun handle(")
             appendLine("                    call: me.ahoo.wow.api.route.RouteCall,")
             appendLine("                    request: me.ahoo.wow.kernel.route.RouteRequest,")
-            appendLine("                ): kotlin.Any? = $handler.${route.function}(")
+            appendLine("                ): kotlin.Any? = $handler.${KotlinNames.quoted(route.function)}(")
             route.arguments.forEach { appendLine("                    ${argument(it)},") }
             appendLine("                )")
             appendLine("            },")
