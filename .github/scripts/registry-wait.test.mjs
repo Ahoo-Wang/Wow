@@ -16,43 +16,50 @@ const REACT = [
   'https://registry.npmjs.org/@ahoo-wang/wow-react/-/wow-react-10.0.0-beta.10.tgz',
 ];
 
+const TEXTS = {
+  200: 'OK',
+  403: 'Forbidden',
+  404: 'Not Found',
+  503: 'Service Unavailable',
+};
+
 /**
- * A registry stand-in: each URL answers 404 until its read `there[url]`, then
- * 200 (never, without one); `statuses[url]` answers that status at once.
+ * A registry stand-in: each URL plays its list of answers in turn, a status or
+ * an Error the read throws, and repeats the last one.
  */
-function registry({ there = {}, statuses = {} }) {
+function registry(answers) {
   const reads = {};
   const fetch = async url => {
-    reads[url] = (reads[url] ?? 0) + 1;
-    const status =
-      statuses[url] ??
-      (there[url] !== undefined && reads[url] >= there[url] ? 200 : 404);
-    let cancelled = false;
+    const read = (reads[url] = (reads[url] ?? 0) + 1);
+    const plan = answers[url];
+    const answer = plan[Math.min(read, plan.length) - 1];
+    if (answer instanceof Error) throw answer;
     return {
-      status,
-      statusText:
-        { 200: 'OK', 404: 'Not Found', 503: 'Service Unavailable' }[status] ??
-        '',
-      body: { cancel: async () => (cancelled = true) },
-      get cancelled() {
-        return cancelled;
-      },
+      status: answer,
+      statusText: TEXTS[answer] ?? '',
+      body: { cancel: async () => {} },
     };
   };
   return { fetch, reads };
 }
 
-test('tarballs that are all there are read once each, with no wait', async () => {
-  const { fetch, reads } = registry({
-    there: { [CLIENT[1]]: 1, [REACT[1]]: 1 },
-  });
+/** Waits for [tarballs] at ten minutes, ten seconds apart, counting the waits. */
+async function wait(fetch, tarballs = [CLIENT, REACT]) {
   const slept = [];
   const logs = [];
-  await waitForTarballs([CLIENT, REACT], {
+  await waitForTarballs(tarballs, {
+    timeoutMs: 600_000,
+    intervalMs: 10_000,
     fetch,
     sleep: async ms => slept.push(ms),
     log: line => logs.push(line),
   });
+  return { slept, logs };
+}
+
+test('tarballs that are all there are read once each, with no wait', async () => {
+  const { fetch, reads } = registry({ [CLIENT[1]]: [200], [REACT[1]]: [200] });
+  const { slept, logs } = await wait(fetch);
   assert.deepEqual(reads, { [CLIENT[1]]: 1, [REACT[1]]: 1 });
   assert.deepEqual(slept, []);
   assert.equal(
@@ -63,72 +70,74 @@ test('tarballs that are all there are read once each, with no wait', async () =>
 
 test('a tarball that answers 404 is read again at the interval until it answers 200', async () => {
   const { fetch, reads } = registry({
-    there: { [CLIENT[1]]: 1, [REACT[1]]: 4 },
+    [CLIENT[1]]: [200],
+    [REACT[1]]: [404, 404, 404, 200],
   });
-  const slept = [];
-  await waitForTarballs([CLIENT, REACT], {
-    intervalMs: 10_000,
-    fetch,
-    sleep: async ms => slept.push(ms),
-    log: () => {},
-  });
+  const { slept } = await wait(fetch);
   // One already there is not read again.
   assert.deepEqual(reads, { [CLIENT[1]]: 1, [REACT[1]]: 4 });
   assert.deepEqual(slept, [10_000, 10_000, 10_000]);
 });
 
-test('a tarball never there fails at the bound, naming the package and how long it was waited for', async () => {
-  const { fetch, reads } = registry({ there: { [CLIENT[1]]: 1 } });
-  let sleeps = 0;
+test('a 503 is waited on like a 404, until the tarball answers 200', async () => {
+  const { fetch, reads } = registry({
+    [CLIENT[1]]: [503, 200],
+    [REACT[1]]: [200],
+  });
+  const { slept } = await wait(fetch);
+  assert.equal(reads[CLIENT[1]], 2);
+  assert.deepEqual(slept, [10_000]);
+});
+
+test('a read that fails is waited on, until the tarball answers 200', async () => {
+  const { fetch, reads } = registry({
+    [CLIENT[1]]: [new Error('read ECONNRESET'), 200],
+    [REACT[1]]: [200],
+  });
+  const { slept } = await wait(fetch);
+  assert.equal(reads[CLIENT[1]], 2);
+  assert.deepEqual(slept, [10_000]);
+});
+
+test('tarballs never there fail at the bound, each named with its last answer or error', async () => {
+  const { fetch, reads } = registry({
+    [CLIENT[1]]: [404, 503],
+    [REACT[1]]: [404, new Error('read ECONNRESET')],
+  });
+  let slept = 0;
   await assert.rejects(
     waitForTarballs([CLIENT, REACT], {
       timeoutMs: 600_000,
       intervalMs: 10_000,
       fetch,
-      sleep: async () => sleeps++,
+      sleep: async () => slept++,
       log: () => {},
     }),
     {
       message:
-        'the registry still answers 404 for the tarballs of @ahoo-wang/wow-react after 600s (61 reads 10s apart)' +
-        `\n  @ahoo-wang/wow-react: ${REACT[1]}`,
+        'the registry does not serve the tarballs of @ahoo-wang/wow-client, @ahoo-wang/wow-react after 600s (61 reads 10s apart)' +
+        `\n  @ahoo-wang/wow-client: ${CLIENT[1]} answered 503 Service Unavailable` +
+        `\n  @ahoo-wang/wow-react: ${REACT[1]} could not be read: read ECONNRESET`,
     },
   );
   // Ten minutes at ten seconds: the first read, then one every interval until the bound.
-  assert.equal(reads[REACT[1]], 61);
-  assert.equal(sleeps, 60);
+  assert.deepEqual(reads, { [CLIENT[1]]: 61, [REACT[1]]: 61 });
+  assert.equal(slept, 60);
 });
 
-test('an answer other than 200 or 404 is reported as it is, not waited on', async () => {
-  const { fetch, reads } = registry({ statuses: { [CLIENT[1]]: 503 } });
-  let sleeps = 0;
+test('a 403, which no wait turns into a 200, is reported at once', async () => {
+  const { fetch, reads } = registry({ [CLIENT[1]]: [403], [REACT[1]]: [200] });
+  let slept = 0;
   await assert.rejects(
     waitForTarballs([CLIENT, REACT], {
       fetch,
-      sleep: async () => sleeps++,
+      sleep: async () => slept++,
       log: () => {},
     }),
     {
-      message: `the tarball of @ahoo-wang/wow-client, ${CLIENT[1]}, answered 503 Service Unavailable`,
+      message: `the tarball of @ahoo-wang/wow-client, ${CLIENT[1]}, answered 403 Forbidden`,
     },
   );
   assert.equal(reads[CLIENT[1]], 1);
-  assert.equal(sleeps, 0);
-});
-
-test('a read that fails is reported as it is, not waited on', async () => {
-  let sleeps = 0;
-  await assert.rejects(
-    waitForTarballs([CLIENT], {
-      fetch: async () => {
-        throw new Error('getaddrinfo ENOTFOUND registry.npmjs.org');
-      },
-      sleep: async () => sleeps++,
-      log: () => {},
-    }),
-    {
-      message: `the tarball of @ahoo-wang/wow-client, ${CLIENT[1]}, could not be read: getaddrinfo ENOTFOUND registry.npmjs.org`,
-    },
-  );
-  assert.equal(sleeps, 0);
+  assert.equal(slept, 0);
 });

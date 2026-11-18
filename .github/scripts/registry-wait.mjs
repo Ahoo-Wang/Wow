@@ -83,10 +83,11 @@ export function tarballUrl(name, version) {
 
 /**
  * Waits until each of `tarballs` (`[name, url]` pairs) answers 200, reading
- * each one not yet there every `intervalMs` for at most `timeoutMs`. Only a 404
- * means "not yet": any other answer, or a read that fails, is reported as it
- * is, not waited on. A tarball still 404 at the bound fails, naming each
- * package and how long it was waited for.
+ * each one not yet there every `intervalMs` for at most `timeoutMs`. A 404, a
+ * 5xx and a read that fails mean "not yet", as for waitForRegistry: a CDN that
+ * has not caught up, or a reset on the way. Any other answer, a 401, 403 or
+ * 410 that no wait turns into a 200, is reported at once. At the bound it
+ * fails, naming each package still missing with its last answer or error.
  */
 export async function waitForTarballs(
   tarballs,
@@ -99,6 +100,7 @@ export async function waitForTarballs(
   } = {},
 ) {
   const reads = Math.floor(timeoutMs / intervalMs) + 1;
+  const last = new Map();
   let missing = [...tarballs];
   for (let read = 1; ; read++) {
     const still = [];
@@ -107,17 +109,19 @@ export async function waitForTarballs(
       try {
         response = await fetch(url, { method: 'GET', cache: 'no-store' });
       } catch (error) {
-        throw new Error(
-          `the tarball of ${name}, ${url}, could not be read: ${error.message}`,
-        );
+        last.set(name, `could not be read: ${error.message}`);
+        still.push([name, url]);
+        continue;
       }
       // Only the status matters: the body is not downloaded.
       await response.body?.cancel();
-      if (response.status === 404) still.push([name, url]);
-      else if (response.status !== 200)
-        throw new Error(
-          `the tarball of ${name}, ${url}, answered ${response.status} ${response.statusText}`.trim(),
-        );
+      const answer = `${response.status} ${response.statusText}`.trim();
+      if (response.status === 200) continue;
+      if (response.status === 404 || response.status >= 500) {
+        last.set(name, `answered ${answer}`);
+        still.push([name, url]);
+      } else
+        throw new Error(`the tarball of ${name}, ${url}, answered ${answer}`);
     }
     missing = still;
     if (missing.length === 0) {
@@ -128,8 +132,10 @@ export async function waitForTarballs(
     }
     if (read >= reads)
       throw new Error(
-        `the registry still answers 404 for the tarballs of ${missing.map(([name]) => name).join(', ')} after ${((read - 1) * intervalMs) / 1000}s (${read} reads ${intervalMs / 1000}s apart)` +
-          missing.map(([name, url]) => `\n  ${name}: ${url}`).join(''),
+        `the registry does not serve the tarballs of ${missing.map(([name]) => name).join(', ')} after ${((read - 1) * intervalMs) / 1000}s (${read} reads ${intervalMs / 1000}s apart)` +
+          missing
+            .map(([name, url]) => `\n  ${name}: ${url} ${last.get(name)}`)
+            .join(''),
       );
     log(
       `registry: waiting for the tarballs of ${missing.map(([name]) => name).join(', ')} (read ${read}/${reads})`,
