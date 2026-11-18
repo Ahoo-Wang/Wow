@@ -207,8 +207,12 @@ tasks.test {
     inputs.files(fixtureExternalClasspath).withPropertyName("fixtureExternalClasspath")
         .withNormalizer(ClasspathNormalizer::class.java)
     environment("GRADLE_RO_DEP_CACHE", gradle.gradleUserHomeDir.resolve("caches").path)
-    // The installation a test runs a Tooling API build on, in a Gradle home of its own (WowContractSourcesFunctionalTest).
-    systemProperty("wow-test.gradle.home", requireNotNull(gradle.gradleHomeDir).path)
+    // The installation a test runs a Tooling API build on, and the Gradle home of its own it runs it in
+    // (WowContractSourcesFunctionalTest): a directory of this module's build, kept between runs as TestKit keeps its
+    // own, removed by `clean`. Both are named in doFirst, as the paths below, so neither is an input (an absolute path
+    // would defeat the build cache) or an output (a daemon's caches are no result to cache).
+    val gradleHome = requireNotNull(gradle.gradleHomeDir).path
+    val toolingHome = layout.buildDirectory.dir("tooling-api-home")
     // The POMs of the plugin markers, which say what a plugin request resolves.
     val markers = layout.buildDirectory.dir("publications")
     dependsOn(
@@ -221,6 +225,8 @@ tasks.test {
         systemProperty("wow-test.fixture.compileClasspath", compileClasspath.asPath)
         systemProperty("wow-test.fixture.processorClasspath", processorClasspath.asPath)
         systemProperty("wow-test.fixture.toolsClasspath", toolsClasspath.asPath)
+        systemProperty("wow-test.gradle.home", gradleHome)
+        systemProperty("wow-test.tooling.home", toolingHome.get().asFile.path)
     }
 }
 

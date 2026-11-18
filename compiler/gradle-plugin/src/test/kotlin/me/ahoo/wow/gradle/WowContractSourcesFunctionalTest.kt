@@ -287,13 +287,19 @@ class WowContractSourcesFunctionalTest {
      * An IDE sync through Gradle's Tooling API, which starts its build apart from TestKit. It must not run in the
      * user's Gradle home: the test task gives the fixtures' builds that home's dependency cache read-only
      * (`GRADLE_RO_DEP_CACHE`), and a build of that home would open the same cache writable too, which Gradle refuses
-     * ("already open with different lock options"). So it runs in a home of its own, [home], on the installation of
-     * the build under test (no distribution to download), reads the user's cache read-only as every fixture's build
-     * does, and stops the daemon it started.
+     * ("already open with different lock options"). So it runs in a home of its own, on the installation of the build
+     * under test (no distribution to download), reads the user's cache read-only as every fixture's build does, and
+     * stops the daemon it started.
+     *
+     * That home is not a `@TempDir`: [GradleConnector.disconnect] asks the daemon to stop and does not wait for it, so
+     * deleting the home when the test ends races a daemon still writing its caches. It is a directory of the module's
+     * build (`build/tooling-api-home`, which the test task names), kept between runs as TestKit keeps its own, and
+     * `clean` removes it.
      */
     @Test
     @Order(4)
-    fun `the IDE model should resolve without running the build`(@TempDir home: File) {
+    fun `the IDE model should resolve without running the build`() {
+        val home = File(requireNotNull(System.getProperty("wow-test.tooling.home")))
         // What an IDE sync asks for (Gradle's Tooling API), with the plugin under test on the root build script's
         // class path: the paired domain module still depends on its api module.
         val metadata = Properties().apply {
