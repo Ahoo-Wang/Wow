@@ -110,6 +110,14 @@ class ReplayCheckSpecTest {
     }
 
     @Test
+    fun `a clock that does not move on should fail the wait, saying why`() {
+        assertThrownBy<IllegalStateException> { ReplayCheck.awaitTick(Long.MAX_VALUE) }.hasMessage(
+            "The JVM's clock did not move on in 100ms, so a state rebuilt from the log cannot be told apart from one " +
+                "that read the clock.",
+        )
+    }
+
+    @Test
     fun `a given state should be rebuilt from itself and the streams since, and pass`() = aggregateSpec(pure) {
         givenState(version = 3) {
             holder = "alice"

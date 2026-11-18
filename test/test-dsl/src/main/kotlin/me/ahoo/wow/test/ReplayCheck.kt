@@ -46,7 +46,8 @@ internal class ReplayCheck(private val codec: EventCodec, private val replay: (I
      * hold.
      */
     fun verify(located: (AssertionError, String) -> AssertionError) {
-        val written = left.maxOfOrNull { it.writtenAt } ?: return
+        // The last was written last.
+        val written = left.lastOrNull()?.writtenAt ?: return
         val checked = left.toList()
         left.clear()
         awaitTick(written)
@@ -58,24 +59,25 @@ internal class ReplayCheck(private val codec: EventCodec, private val replay: (I
         }
     }
 
-    /** Waits for the JVM's clock to move past [millis], spinning: under a millisecond. */
-    private fun awaitTick(millis: Long) {
-        val deadline = System.nanoTime() + MAX_WAIT.inWholeNanoseconds
-        while (System.currentTimeMillis() <= millis) {
-            check(System.nanoTime() < deadline) {
-                "The JVM's clock did not move on in $MAX_WAIT, so a state rebuilt from the log cannot be told apart " +
-                    "from one that read the clock."
-            }
-            Thread.onSpinWait()
-        }
-    }
+    internal companion object {
+        private val MAX_WAIT = 100.milliseconds
 
-    private companion object {
-        val MAX_WAIT = 100.milliseconds
-        const val MESSAGE = "Rebuilt from its log once the clock had moved on, the state is not the one the command " +
-            "left (expected the command's, was the rebuilt one's):"
-        const val WAY_OUT = "A state is a function of its events: take the time from the event, its commit or the " +
-            "command's @OccurredAt, not the clock; a random value is made in the command function and carried by the " +
-            "event."
+        /** Waits for the JVM's clock to move past [millis], spinning: under a millisecond, failing past [MAX_WAIT]. */
+        fun awaitTick(millis: Long) {
+            val deadline = System.nanoTime() + MAX_WAIT.inWholeNanoseconds
+            while (System.currentTimeMillis() <= millis) {
+                check(System.nanoTime() < deadline) {
+                    "The JVM's clock did not move on in $MAX_WAIT, so a state rebuilt from the log cannot be told " +
+                        "apart from one that read the clock."
+                }
+                Thread.onSpinWait()
+            }
+        }
+
+        private const val MESSAGE = "Rebuilt from its log once the clock had moved on, the state is not the one the " +
+            "command left (expected the command's, was the rebuilt one's):"
+        private const val WAY_OUT = "A state is a function of its events: take the time from the event, its commit " +
+            "or the command's @OccurredAt, not the clock; a random value is made in the command function and carried " +
+            "by the event."
     }
 }
