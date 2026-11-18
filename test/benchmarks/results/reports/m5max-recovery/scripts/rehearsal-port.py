@@ -1,5 +1,6 @@
-# Ports 62ea68f0f9 (D399's rehearsal instrumentation: live orders, TIMING lines) onto a tree, without the workflow
-# file (the V10 side already runs on JDK 25 there). python3 ci-repro-port.py <tree> <max-catch-ups or "">
+# Ports 62ea68f0f9 (the instrumentation of the runs that set the catch-up bound's default: live orders, TIMING lines)
+# onto a tree, without the workflow file (the V10 side already runs on JDK 25 there).
+# python3 ci-repro-port.py <tree> <max-catch-ups or "">
 import sys
 T, bound = sys.argv[1], sys.argv[2]
 def patch(path, pairs):

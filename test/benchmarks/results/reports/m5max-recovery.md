@@ -4,7 +4,7 @@ This report covers how a cluster comes back when a node loses its partitions, an
 
 - **A node that loses all its leases at once** (#6379, fixed by #6384): one node on MongoDB loses all 64 leases when its store pauses. The comparison is the time until every partition is acquired again.
 - **A planned hand-over** (#6407, fixed by #6412, then by #6424): CI's e3-handover step on three nodes. The comparison is the sagas' timed-out waits and the p99.
-- **A catch-up on a migrated history under live orders** (D399's bound, at #6412): the migration rehearsal's live orders while the V10 host catches up on the imported log. The comparison is with two catch-up permits and with no bound.
+- **A catch-up on a migrated history under live orders** (the catch-up bound, `wow.subscription.max-catch-ups`, at #6412): the migration rehearsal's live orders while the V10 host catches up on the imported log. The comparison is with two catch-up permits and with no bound.
 - **A node's first activation on a migrated history** (#6412 against its parent, then #6424 against the same parent): the same live orders at two permits. #6412's rows are the reason for #6424; #6424 is the code that ships.
 
 The lost-leases and hand-over pairs ran on the local Apple M5 Max on 2026-11-17 and 2026-11-18, each in one hold of the benchmark lock. The rehearsal rows ran on GitHub Actions on the same days. Every JVM ran JDK 25. Each table states its builds and its machine.
@@ -48,7 +48,7 @@ The times are from each partition's loss (the node's `has not renewed the lease 
 
 - **With the fix,** all 64 partitions were back 2.4, 3.5 and 2.9 s after the loss, at the unpause.
 - **On the base,** none was back before 47.2 s. Its last partition's time is above 48 s and was not reached within the round.
-- **Why the base is slow:** it stopped the lost partitions one after another and acquired them only after the last stop. Each stop waited for drains that ran against the throttled store, because the lost partitions' commands ran without the lease meanwhile (D6, D71).
+- **Why the base is slow:** it stopped the lost partitions one after another and acquired them only after the last stop. Each stop waited for drains that ran against the throttled store, because the lost partitions' commands ran without the lease meanwhile .
 - **With the pause alone** (5 s, store back at once), both arms were back within 1.5 s. That earlier run is not part of this report.
 
 ## A planned hand-over (#6407)
@@ -91,9 +91,9 @@ Both are clean builds without probes (`install.txt`: `dirty=no`). #6424 merged a
 - **#6424 keeps what #6412 gave the hand-over.** The moved partitions' gaps fit in its 512, so they read at once, as with #6412.
 - **The one failed wait a round on MongoDB** is the same stall grace, in both arms.
 
-## A catch-up under live orders (D399's bound, at #6412)
+## A catch-up under live orders (the catch-up bound, at #6412)
 
-**Setup:** `migration-rehearsal.yml` on two throwaway `ci-repro` branches. Each is #6412's head `f33284fa69` plus the instrumentation of D399's rehearsal, ported from `62ea68f0f9` ([`rehearsal-port.py`](m5max-recovery/scripts/rehearsal-port.py)):
+**Setup:** `migration-rehearsal.yml` on two throwaway `ci-repro` branches. Each is #6412's head `f33284fa69` plus the instrumentation of the runs that set the bound's default, ported from `62ea68f0f9` ([`rehearsal-port.py`](m5max-recovery/scripts/rehearsal-port.py)):
 - a `driver live` step: 50 orders a second for 120 s on the V10 host's first start on the imported log (50,000 orders), each waiting `committed` with a 10 s limit;
 - the hosts' `TIMING` lines.
 
@@ -144,7 +144,7 @@ The sources are the same files as in the last section, under `first-start/<run>[
 
 - **In the first pair** #6412's worst second was 1.8 to 1.9 times its parent's on both jobs. In the second pair the direction differed by job.
 - **No direction holds across pairs,** so these runs neither show that #6412 is worse at a first activation nor that it is equal.
-- **The reason for #6424** is what the bound is for. #6412 let every partition behind its head read 512 entries without a permit, and that includes a node's first activation on an imported history, which is the case D399's bound is written for.
+- **The reason for #6424** is what the bound is for. #6412 let every partition behind its head read 512 entries without a permit, and that includes a node's first activation on an imported history, which is the case the catch-up bound (`wow.subscription.max-catch-ups`) is written for.
 - **The parent's red runner jobs** (both attempts) are its `rollback-after-compare`, 25 minutes after this step. It read V10 while the host was still catching up and did not wait; the export and 9.x were right.
 
 **#6424 against the same parent**, the code that ships. Two pairs, dispatched together: 44203434208 (parent) with 44203434241 (#6424), and 44203470768 (parent) with 44203470883 (#6424).
@@ -161,6 +161,6 @@ The sources are the same files as in the last section, under `first-start/<run>[
 | 2 | #6424 `0249db185b` | kind | 0 | 1,514 ms | 2,209 ms | 49.6 s |
 
 - **No live order failed** in any run.
-- **#6424's worst seconds** are 2.1 to 3.5 s. The parent's are 1.6 to 2.7 s in this window and 1.6 to 4.6 s over all eight of its job runs. They are within D399's 2.0 to 3.7 s.
+- **#6424's worst seconds** are 2.1 to 3.5 s. The parent's are 1.6 to 2.7 s in this window and 1.6 to 4.6 s over all eight of its job runs. They are within the 2.0 to 3.7 s of the runs that set the bound's default.
 - **What #6424 does here:** every partition of the imported log is thousands of entries behind its head, so it waits for a permit before its first entry, as on the parent.
 - **One #6424 catch-up took 84.7 s** (kind, pair 1). It is the one outside the 45 to 73 s of the other runs in this window, and within the 85 to 94 s the parent took in three of its four job runs in the pairs above.
