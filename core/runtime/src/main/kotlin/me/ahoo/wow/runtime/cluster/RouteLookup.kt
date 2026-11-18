@@ -34,8 +34,9 @@ import kotlin.time.TimeSource
  * so, the node [read]s the routes and sends it to the owner they name now ([target]).
  *
  * - **Bounded**: one read at a time (the others wait for it and take what it read), at most one each [interval], each
- *   within [timeout]. After a read that failed or timed out, none for [backOff]: a lease store that cannot be read
- *   costs one [timeout] and then nothing, the command running without the lease as before.
+ *   within [timeout]. After a read that failed or timed out, none until the routes are read again by the ownership's
+ *   own refresh ([routes] then holds another table): a lease store that cannot be read costs one [timeout] and then
+ *   nothing until it can be read again, the commands running without the lease as before.
  * - **Off the leased path**: only a command with no owner to send it to asks ([ownerOf]); one whose partition this
  *   node holds, or whose owner the routes name, never does.
  *
@@ -47,16 +48,21 @@ internal class RouteLookup(
     private val read: suspend () -> Unit,
     /** The owner the routes name for a partition, null for none ([PartitionOwnership.forwardTarget]). */
     private val target: (Int) -> Member?,
-    private val backOff: Duration,
+    /** The routes as last read ([PartitionOwnership.routes]): a refresh that succeeds replaces the table. */
+    private val routes: () -> RouteTable,
     private val interval: Duration = INTERVAL,
     private val timeout: Duration = TIMEOUT,
     private val timeSource: TimeSource = TimeSource.Monotonic,
 ) {
     private val reading = Mutex()
 
-    /** When the last read ended, and whether it failed. */
+    /** When the last read that succeeded ended. */
     @Volatile
-    private var last: Pair<TimeMark, Boolean>? = null
+    private var last: TimeMark? = null
+
+    /** The routes as they were when a read failed, until a refresh replaces them: no read meanwhile. */
+    @Volatile
+    private var failedOn: RouteTable? = null
 
     private val readCount = AtomicLong()
     private val forwardCount = AtomicLong()
@@ -86,17 +92,16 @@ internal class RouteLookup(
     }
 
     /**
-     * The owner of [partition] once the routes are read again, at most once each [interval] and not within [backOff]
-     * of a failed read; null to run the command here without the lease, as before.
+     * The owner of [partition] once the routes are read again, at most once each [interval] and not after a failed
+     * read until a refresh succeeded; null to run the command here without the lease, as before.
      */
     suspend fun ownerOf(partition: Int): Outcome {
-        if (backingOff()) {
+        if (failing()) {
             return Outcome(null, read = false, failed = true)
         }
         val made = reading.withLock {
             // The read another command made while this one waited for the lock, or one a moment ago, answers it.
-            val previous = last
-            if (previous != null && (previous.first.elapsedNow() < interval || backingOff())) {
+            if (failing() || last?.let { it.elapsedNow() < interval } == true) {
                 return@withLock false
             }
             readCount.incrementAndGet()
@@ -111,10 +116,15 @@ internal class RouteLookup(
                 }
                 false
             }
-            last = timeSource.markNow() to !ok
+            if (ok) {
+                last = timeSource.markNow()
+                failedOn = null
+            } else {
+                failedOn = routes()
+            }
             true
         }
-        val failed = last?.second == true
+        val failed = failing()
         val owner = if (failed) null else target(partition)
         if (owner != null) {
             forwardCount.incrementAndGet()
@@ -122,7 +132,15 @@ internal class RouteLookup(
         return Outcome(owner, made, failed)
     }
 
-    private fun backingOff(): Boolean = last?.let { (at, failed) -> failed && at.elapsedNow() < backOff } == true
+    /** Whether a read failed and no refresh of the routes has succeeded since: none is tried meanwhile. */
+    private fun failing(): Boolean {
+        val failed = failedOn ?: return false
+        if (routes() !== failed) {
+            failedOn = null
+            return false
+        }
+        return true
+    }
 
     internal companion object {
         /**

@@ -80,7 +80,7 @@ fun interface CommandRouter {
  *   then [reserves][ClusterChannel.reserve] one of the peer's streams, waiting its turn while they are all taken,
  *   until its deadline, and is sent once it has one.
  * - A command whose route names no owner first reads its lease group's routes once more ([RouteLookup]: one read at
- *   a time, at most one each tenth of a second, within a fifth of one, none for a refresh interval after one failed)
+ *   a time, at most one each tenth of a second, within a fifth of one, none after one failed until a refresh succeeds)
  *   and is sent to the owner they name now: an owner that acquired a moment ago, which the routes read each
  *   [ClusterOptions.routeRefreshInterval] do not show yet. Run here without the lease, its commit would land above
  *   the new owner's block, where that owner's tail reaches it only at its next read of the store. A command with a
@@ -128,12 +128,7 @@ class PartitionedRouter(
 
     /** Each group's reads of its routes before a command runs without the lease. */
     private val lookups: Map<String, RouteLookup> = this.groups.mapValues { (_, ownership) ->
-        RouteLookup(
-            ownership.group.name,
-            ownership::refreshRoutes,
-            ownership::forwardTarget,
-            options.routeRefreshInterval,
-        )
+        RouteLookup(ownership.group.name, ownership::refreshRoutes, ownership::forwardTarget, { ownership.routes })
     }
 
     /** The reads of [context]'s routes made before commands ran without the lease, and the commands sent on after. */

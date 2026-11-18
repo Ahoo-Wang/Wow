@@ -17,8 +17,12 @@ import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.job
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.runBlocking
@@ -27,6 +31,7 @@ import me.ahoo.wow.kernel.memory.InMemoryLeaseStore
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.subscription.Member
 import org.junit.jupiter.api.Test
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.TestTimeSource
 
@@ -60,6 +65,33 @@ class PeerRoutesTest {
         routes.refresh(steppedOut = false, upkeep = upkeep)
         upkeep.coroutineContext.job.children.toList().joinAll()
         routes.knownPeers.assert().containsExactly("node-2@node-2:9090")
+        upkeep.coroutineContext.job.cancel()
+    }
+
+    @Test
+    fun `two refreshes at once run one after the other, the members' change seen once`(): Unit = runBlocking {
+        val entered = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        val reading = AtomicInteger()
+        val most = AtomicInteger()
+        coEvery { leases.owners(GROUP.name) } coAnswers {
+            most.accumulateAndGet(reading.incrementAndGet(), ::maxOf)
+            entered.complete(Unit)
+            release.await()
+            reading.decrementAndGet()
+            emptyList()
+        }
+        val routes = routes()
+        val upkeep = CoroutineScope(coroutineContext + Job())
+        val first = async(Dispatchers.Default) { routes.refresh(steppedOut = false, upkeep = upkeep) }
+        entered.await()
+        val second = async(Dispatchers.Default) { routes.refresh(steppedOut = false, upkeep = upkeep) }
+        release.complete(Unit)
+        listOf(first, second).awaitAll()
+        upkeep.coroutineContext.job.children.toList().joinAll()
+        most.get().assert().isEqualTo(1)
+        woken.assert().isEqualTo(1)
+        greeted.assert().containsExactly(other)
         upkeep.coroutineContext.job.cancel()
     }
 

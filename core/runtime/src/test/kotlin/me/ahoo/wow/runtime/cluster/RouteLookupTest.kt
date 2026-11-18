@@ -26,8 +26,8 @@ import me.ahoo.wow.spi.subscription.Member
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TestTimeSource
 
 /** The routes read once more before a command whose route names no owner runs without the lease (RouteLookup). */
@@ -39,11 +39,14 @@ class RouteLookupTest {
     private var named: Member? = null
     private val reads = AtomicInteger()
 
+    /** The routes as last read: a refresh that succeeds replaces the table. */
+    private var table = RouteTable()
+
     private fun lookup(read: suspend () -> Unit = { reads.incrementAndGet() }) = RouteLookup(
         "group",
         read,
         { named },
-        backOff = 1.seconds,
+        { table },
         timeSource = time,
     )
 
@@ -81,22 +84,24 @@ class RouteLookupTest {
     }
 
     @Test
-    fun `an unreadable store costs one timeout, then no read for the back-off`(): Unit = runBlocking {
-        val lookup = lookup {
-            reads.incrementAndGet()
-            awaitCancellation()
+    fun `an unreadable store costs one timeout, then no read until a refresh of the routes succeeds`(): Unit =
+        runBlocking {
+            val lookup = lookup {
+                reads.incrementAndGet()
+                awaitCancellation()
+            }
+            val found = lookup.ownerOf(7)
+            listOf(found.owner, found.read, found.failed).assert().containsExactly(null, true, true)
+            found.observed.assert().isEqualTo(ObservedEvent.RouteLookedUp.Outcome.FAILED)
+            // However long it is, no read while the routes are those of the failure: the command runs at once.
+            time += 1.hours
+            lookup.ownerOf(7).let { listOf(it.owner, it.read, it.failed) }.assert().containsExactly(null, false, true)
+            reads.get().assert().isEqualTo(1)
+            // The ownership's own refresh read the store again: the next command may read.
+            table = RouteTable()
+            lookup.ownerOf(7).read.assert().isTrue()
+            reads.get().assert().isEqualTo(2)
         }
-        val found = lookup.ownerOf(7)
-        listOf(found.owner, found.read, found.failed).assert().containsExactly(null, true, true)
-        found.observed.assert().isEqualTo(ObservedEvent.RouteLookedUp.Outcome.FAILED)
-        // Within the back-off, no read: the command runs without the lease at once.
-        time += 500.milliseconds
-        lookup.ownerOf(7).let { listOf(it.owner, it.read, it.failed) }.assert().containsExactly(null, false, true)
-        reads.get().assert().isEqualTo(1)
-        time += 1.seconds
-        lookup.ownerOf(7).read.assert().isTrue()
-        reads.get().assert().isEqualTo(2)
-    }
 
     @Test
     fun `a store that throws is unreadable as well`(): Unit = runBlocking {
