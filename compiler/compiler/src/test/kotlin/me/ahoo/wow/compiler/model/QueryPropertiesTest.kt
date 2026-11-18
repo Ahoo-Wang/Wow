@@ -85,7 +85,7 @@ class QueryPropertiesTest {
 
     @Test
     fun `a state's properties are its serialized paths under state`() {
-        val (_, result) = compileModel("generate", order)
+        val (_, result) = compileModel("generate", ManifestFragmentFixtures.context, order)
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
         result.properties("sample.OrderStateProperties").assert().isEqualTo(
             linkedMapOf(
@@ -128,7 +128,7 @@ class QueryPropertiesTest {
             }
             """.trimIndent(),
         )
-        val (_, compiled) = compileModel("generate", order, typed)
+        val (_, compiled) = compileModel("generate", ManifestFragmentFixtures.context, order, typed)
         compiled.exitCode.assert().withFailMessage { compiled.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
         listOf(
             "OrderStateProperties.STATE__TOTAL_URL_COUNT eq \"three\"",
@@ -146,7 +146,7 @@ class QueryPropertiesTest {
                 val query = listQuery { filter { $condition } }
                 """.trimIndent(),
             )
-            val (_, refused) = compileModel("generate", order, mistyped)
+            val (_, refused) = compileModel("generate", ManifestFragmentFixtures.context, order, mistyped)
             refused.exitCode.assert().describedAs(condition).isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
             refused.messages.assert().contains("Mistyped.kt")
         }
@@ -154,7 +154,7 @@ class QueryPropertiesTest {
 
     @Test
     fun `a root that is its own state gets them too`() {
-        val (_, result) = compileModel("generate", order)
+        val (_, result) = compileModel("generate", ManifestFragmentFixtures.context, order)
         result.properties("sample.LedgerProperties").assert().isEqualTo(
             linkedMapOf("STATE__ID" to "state.id", "STATE__BALANCE" to "state.balance"),
         )
@@ -183,7 +183,7 @@ class QueryPropertiesTest {
             }
             """.trimIndent(),
         )
-        val (_, result) = compileModel("generate", tally)
+        val (_, result) = compileModel("generate", ManifestFragmentFixtures.context, tally)
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
         // The aggregate's id is a system field of the snapshot record, not of the state.
         result.properties("sample.TallyStateProperties").assert().isEqualTo(
@@ -230,7 +230,7 @@ class QueryPropertiesTest {
             }
             """.trimIndent(),
         )
-        val (_, result) = compileModel("generate", labeled)
+        val (_, result) = compileModel("generate", ManifestFragmentFixtures.context, labeled)
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
         result.properties("sample.ShelfStateProperties").assert().isEqualTo(
             linkedMapOf(
@@ -298,7 +298,7 @@ class QueryPropertiesTest {
 
     @Test
     fun `paths should follow the JSON naming strategy Jackson writes the state with`() {
-        val (_, result) = compileModel("generate", named)
+        val (_, result) = compileModel("generate", ManifestFragmentFixtures.context, named)
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
         // A name that is no query path segment (`dotted.name`), and one the class ignores by its JSON name, are none.
         result.properties("sample.naming.ContactStateProperties").values.assert().containsExactlyInAnyOrder(
@@ -349,7 +349,7 @@ class QueryPropertiesTest {
             }
             """.trimIndent(),
         )
-        val (_, result) = compileModel("generate", source)
+        val (_, result) = compileModel("generate", ManifestFragmentFixtures.context, source)
         result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
         result.messages.assert().contains(
             "@JsonNaming of sample.naming.ContactState names sample.naming.Shouting: the model names its properties " +
@@ -407,7 +407,7 @@ class QueryPropertiesTest {
             }
             """.trimIndent(),
         )
-        val (compilation, result) = compileModel("generate", domain, queries)
+        val (compilation, result) = compileModel("generate", ManifestFragmentFixtures.context, domain, queries)
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
         compilation.generated("CounterStateProperties.kt").assert()
             .contains("internal object CounterStateProperties")
@@ -442,7 +442,7 @@ class QueryPropertiesTest {
             }
             """.trimIndent(),
         )
-        val (compilation, result) = compileModel("generate", domain)
+        val (compilation, result) = compileModel("generate", ManifestFragmentFixtures.context, domain)
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
         compilation.generated("MeterModel.kt").assert().contains("internal fun meterModel(")
         compilation.generated("MeterStateProperties.kt").assert().contains("internal object MeterStateProperties")

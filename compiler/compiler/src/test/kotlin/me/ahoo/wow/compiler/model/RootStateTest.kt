@@ -71,7 +71,7 @@ class RootStateTest {
     )
 
     private fun assertBuiltFromState(root: SourceFile) {
-        val (compilation, result) = compileModel("generate", types, root, scenario)
+        val (compilation, result) = compileModel("generate", ManifestFragmentFixtures.context, types, root, scenario)
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
         compilation.workingDir.walkTopDown().single { it.name == "CartModel.kt" }.readText()
             .assert().contains("aggregate<sample.CartState>", "sample.Cart(state).onCommand(command)")
@@ -155,7 +155,7 @@ class RootStateTest {
             }
             """.trimIndent(),
         )
-        val (compilation, result) = compileModel("generate", root)
+        val (compilation, result) = compileModel("generate", ManifestFragmentFixtures.context, root)
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
         compilation.workingDir.walkTopDown().single { it.name == "CounterModel.kt" }.readText()
             .assert().contains("aggregate<sample.Counter>", "state.onCommand(command)")
@@ -181,7 +181,7 @@ class RootStateTest {
             }
             """.trimIndent(),
         )
-        val (_, result) = compileModel("generate", types, root)
+        val (_, result) = compileModel("generate", ManifestFragmentFixtures.context, types, root)
         result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
         result.messages.assert().contains(
             "the root's constructors take the states CartState, OtherState: a root is built from one state",
@@ -203,7 +203,7 @@ class RootStateTest {
             }
             """.trimIndent(),
         )
-        val (_, result) = compileModel("generate", types, root)
+        val (_, result) = compileModel("generate", ManifestFragmentFixtures.context, types, root)
         result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
         result.messages.assert().contains("the root's constructor must take only its state")
     }

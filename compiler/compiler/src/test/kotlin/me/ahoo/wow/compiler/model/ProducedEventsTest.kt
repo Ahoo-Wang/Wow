@@ -64,7 +64,7 @@ class ProducedEventsTest {
     )
 
     private fun failing(root: String, state: String): String {
-        val (_, result) = compileModel("generate", cart(root, state))
+        val (_, result) = compileModel("generate", ManifestFragmentFixtures.context, cart(root, state))
         result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
         return result.messages
     }
@@ -89,6 +89,7 @@ class ProducedEventsTest {
     private fun compiled(root: String): String {
         val (_, result) = compileModel(
             "generate",
+            ManifestFragmentFixtures.context,
             cart(
                 "@me.ahoo.wow.api.annotation.OnCommand(produces = [Created::class]) " +
                     "fun onCommand(command: Create): me.ahoo.wow.api.decide.Decision = " +
@@ -150,6 +151,7 @@ class ProducedEventsTest {
         // Not a constant: KSP evaluates no value for it, so it suppresses nothing (and the compiler refuses it).
         val (_, result) = compileModel(
             "generate",
+            ManifestFragmentFixtures.context,
             cart(
                 "object Names { val unlisted: String = \"UnlistedEvents\" }\n" +
                     "@Suppress(Names.unlisted) fun onCommand(command: Bump): me.ahoo.wow.api.decide.Decision = " +
@@ -189,6 +191,7 @@ class ProducedEventsTest {
         val (_, result) = compileModelAgainst(
             "generate",
             listOf(library),
+            ManifestFragmentFixtures.context,
             SourceFile.kotlin(
                 "Desk.kt",
                 """

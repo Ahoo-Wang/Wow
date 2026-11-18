@@ -71,7 +71,7 @@ class ManifestFragmentTest {
     }
 
     @Test
-    fun `two bounded contexts and no option should write no fragment`() {
+    fun `two bounded contexts and no option should fail the compilation, asking for the option`() {
         val another = SourceFile.kotlin(
             "Billing.kt",
             """
@@ -84,7 +84,7 @@ class ManifestFragmentTest {
             """.trimIndent(),
         )
         val (compilation, result) = compileModel("generate", context, another, cart)
-        result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
+        result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
         fragments(compilation).assert().isEmpty()
         result.messages.assert().contains(
             "No Manifest fragment and no model provider: the module declares 2 @BoundedContext; set the KSP option " +
@@ -120,9 +120,9 @@ class ManifestFragmentTest {
     }
 
     @Test
-    fun `without a bounded context there should be no fragment, and a warning`() {
+    fun `an aggregate without a bounded context should fail the compilation, naming both causes`() {
         val (compilation, result) = compileModel("generate", cart)
-        result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
+        result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
         fragments(compilation).assert().isEmpty()
         result.messages.assert().contains(
             "No Manifest fragment and no model provider: the module declares 0 @BoundedContext",

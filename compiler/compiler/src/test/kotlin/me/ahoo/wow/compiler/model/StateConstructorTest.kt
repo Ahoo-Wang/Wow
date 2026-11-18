@@ -67,7 +67,7 @@ class StateConstructorTest {
     )
 
     private fun generate(state: String): Pair<JvmCompilationResult, String> {
-        val (compilation, result) = compileModel("generate", counter(state), scenario)
+        val (compilation, result) = compileModel("generate", ManifestFragmentFixtures.context, counter(state), scenario)
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
         val source = compilation.workingDir.walkTopDown().single { it.name == "CounterModel.kt" }.readText()
         return result to source
@@ -203,7 +203,7 @@ class StateConstructorTest {
             }
             """.trimIndent(),
         )
-        val (compilation, result) = compileModel("generate", root)
+        val (compilation, result) = compileModel("generate", ManifestFragmentFixtures.context, root)
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
         compilation.workingDir.walkTopDown().single { it.name == "TallyModel.kt" }.readText().assert()
             .contains("me.ahoo.wow.kernel.aggregate<sample.Tally>(context, \"tally\")")
@@ -215,6 +215,7 @@ class StateConstructorTest {
     fun `a state constructor of another shape is a problem`() {
         val (_, result) = compileModel(
             "generate",
+            ManifestFragmentFixtures.context,
             counter(
                 """
                 class CounterState(val count: Int) {
@@ -235,6 +236,7 @@ class StateConstructorTest {
     fun `a state without a constructor is a problem`() {
         val (_, result) = compileModel(
             "generate",
+            ManifestFragmentFixtures.context,
             counter(
                 """
                 interface CounterState {

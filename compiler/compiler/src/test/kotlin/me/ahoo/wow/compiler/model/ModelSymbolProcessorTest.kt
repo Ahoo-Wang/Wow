@@ -24,7 +24,7 @@ import org.junit.jupiter.api.Test
 @OptIn(ExperimentalCompilerApi::class)
 class ModelSymbolProcessorTest {
     private fun compile(mode: String, vararg sources: SourceFile): Pair<KotlinCompilation, JvmCompilationResult> =
-        compileModel(mode, *sources)
+        compileModel(mode, ManifestFragmentFixtures.context, *sources)
 
     private val cart = SourceFile.kotlin(
         "Cart.kt",

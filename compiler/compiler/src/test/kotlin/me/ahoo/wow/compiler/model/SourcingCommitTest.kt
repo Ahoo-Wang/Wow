@@ -118,7 +118,7 @@ class SourcingCommitTest {
             }
             """.trimIndent(),
         )
-        val (_, result) = compileModel("generate", domain, scenario)
+        val (_, result) = compileModel("generate", ManifestFragmentFixtures.context, domain, scenario)
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
         val account = "[opened at 1000 by alice due 31000, deposited 5 at 2000 v2]"
         val ledger = "LedgerState(total=2, lastAt=3000)"
@@ -181,7 +181,7 @@ class SourcingCommitTest {
             }
             """.trimIndent(),
         )
-        val (_, result) = compileModel("generate", source, scenario)
+        val (_, result) = compileModel("generate", ManifestFragmentFixtures.context, source, scenario)
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
         result.classLoader.loadClass("sample.ScenarioKt").getMethod("run").invoke(null)
             .assert().isEqualTo("[Started(by=1) v1 at 1000, Added(by=2) v2 at 2000]")
@@ -217,7 +217,7 @@ class SourcingCommitTest {
             }
             """.trimIndent(),
         )
-        val (_, result) = compileModel("generate", source)
+        val (_, result) = compileModel("generate", ManifestFragmentFixtures.context, source)
         result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
         result.messages.assert().contains(
             "sourcing function onSourcing takes kotlin.String second: a sourcing function's second parameter is " +

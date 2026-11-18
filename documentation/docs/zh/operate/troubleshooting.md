@@ -105,6 +105,7 @@ ownership 健康组件为 `DOWN`，或者在某个节点离开期间，某些聚
   要在代码里解决：让一方不通过对方的视图读取对方的状态，改用事件或查询。只用另一个上下文的类型（它的命令、事件和值）永远不会成环。
 - **"…which no peer contract on the class path lists as an event: it is in `<module>`, whose api module carries no contract listing it."** 这个事件的 api 模块发布时没有带契约：只含类型的发布（`-Pwow.contract.publish=false`，环的第一次发布），或者没有声明 `wowContract` 的 api 模块。改为依赖该模块的完整发布。
 - **"Unable to find a variant of '`<group>:<artifactId>:<version>`' with the requested capability: feature 'contract'"，并列出提供 `<group>:<项目名>-contract` 的变体。** 这个 api 模块由 10.0.0-beta.8 的插件以不同于项目名的 artifactId 发布，而那个插件只按项目名提供契约。用之后的插件重新发布这个模块。在此之前，请求它提供的名字：`capabilities { requireCapability("<group>:<项目名>-contract") }`；Maven 构建添加分类器 `contract`，不受此影响。
+- **"No Manifest fragment and no model provider: the module declares 0 @BoundedContext that KSP handed the processor…"** 一个含聚合或处理器的领域模块编译时，编译器找不到可用的限界上下文。要么模块确实没有：在模块里声明一个 `@BoundedContext`，或设置 KSP 选项 `wow.context`（`wow { context = "…" }`）。要么模块声明了一个，但 KSP 没有把它交给处理器，因为 KSP 的增量缓存描述的是别的源码，例如源码集的根移动之后（分阶段迁移切回 `src/` 时）：对该模块做一次干净构建，或重新运行它的 KSP 任务（`--rerun`）。若声明了两个或更多 `@BoundedContext`，消息会说明这一点，并要求用 `wow.context` 指定其中一个。
 - **"…in a build run with -Pwow.contract.publish=false…"** 这个属性只发布 api 模块的类型，而服务需要它们的契约。去掉这个属性构建服务。
 - **"…the contract and the types of its api module are of different versions."** 一个上下文的契约所列的类，类路径上只有一部分。消费方可以持有一个上下文的契约而没有它的任何类，通过 JSON 访问它；但不可以只持有其中一部分类。依赖该模块的同一个版本，它的 jar 与分类器 `contract` 一起。
 

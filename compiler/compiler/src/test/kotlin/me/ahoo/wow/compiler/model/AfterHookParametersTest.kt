@@ -94,7 +94,7 @@ class AfterHookParametersTest {
     )
 
     private fun run(hooks: String): String {
-        val (_, result) = compileModel("generate", cart(hooks), scenario)
+        val (_, result) = compileModel("generate", ManifestFragmentFixtures.context, cart(hooks), scenario)
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
         return result.classLoader.loadClass("sample.ScenarioKt").getMethod("run").invoke(null) as String
     }
@@ -154,6 +154,7 @@ class AfterHookParametersTest {
     fun `a hook naming a class that is no command of the aggregate should be a compile error`() {
         val (_, result) = compileModel(
             "generate",
+            ManifestFragmentFixtures.context,
             cart(
                 "@AfterCommand(include = [Add::class, Audited::class], exclude = [Created::class]) " +
                     "fun audit(command: Any): Audited = Audited(\"x\")",
@@ -171,6 +172,7 @@ class AfterHookParametersTest {
     fun `a hook including a command it does not take should be a compile error`() {
         val (_, result) = compileModel(
             "generate",
+            ManifestFragmentFixtures.context,
             cart("@AfterCommand(include = [Create::class]) fun audit(command: Add): Audited = Audited(\"x\")"),
         )
         result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
@@ -181,7 +183,11 @@ class AfterHookParametersTest {
 
     @Test
     fun `a hook taking a type no command function takes should be a compile error`() {
-        val (_, result) = compileModel("generate", cart("fun afterCommand(command: Audited): Audited = command"))
+        val (_, result) = compileModel(
+            "generate",
+            ManifestFragmentFixtures.context,
+            cart("fun afterCommand(command: Audited): Audited = command")
+        )
         result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
         result.messages.assert().contains(
             "after hook afterCommand takes sample.Audited, which no command function of the aggregate takes",
@@ -189,7 +195,7 @@ class AfterHookParametersTest {
     }
 
     private fun failing(hooks: String): String {
-        val (_, result) = compileModel("generate", cart(hooks))
+        val (_, result) = compileModel("generate", ManifestFragmentFixtures.context, cart(hooks))
         result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
         return result.messages
     }
