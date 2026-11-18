@@ -85,9 +85,11 @@ export function tarballUrl(name, version) {
  * Waits until each of `tarballs` (`[name, url]` pairs) answers 200, reading
  * each one not yet there every `intervalMs` for at most `timeoutMs`. A 404, a
  * 5xx and a read that fails mean "not yet", as for waitForRegistry: a CDN that
- * has not caught up, or a reset on the way. Any other answer, a 401, 403 or
- * 410 that no wait turns into a 200, is reported at once. At the bound it
- * fails, naming each package still missing with its last answer or error.
+ * has not caught up, or a reset on the way. A read that does not answer within
+ * `intervalMs` fails, so none holds the wait past its bound. Any other answer,
+ * a 401, 403 or 410 that no wait turns into a 200, is reported at once. At the
+ * bound it fails, naming each package still missing with its last answer or
+ * error.
  */
 export async function waitForTarballs(
   tarballs,
@@ -107,7 +109,13 @@ export async function waitForTarballs(
     for (const [name, url] of missing) {
       let response;
       try {
-        response = await fetch(url, { method: 'GET', cache: 'no-store' });
+        // A read that does not answer within the interval is abandoned and counts as failed, so no read holds the
+        // loop past its bound.
+        response = await fetch(url, {
+          method: 'GET',
+          cache: 'no-store',
+          signal: AbortSignal.timeout(intervalMs),
+        });
       } catch (error) {
         last.set(name, `could not be read: ${error.message}`);
         still.push([name, url]);

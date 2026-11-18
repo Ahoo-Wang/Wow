@@ -99,6 +99,29 @@ test('a read that fails is waited on, until the tarball answers 200', async () =
   assert.deepEqual(slept, [10_000]);
 });
 
+test('a read that never answers is abandoned at the interval and read again', async () => {
+  let reads = 0;
+  const fetch = async (url, { signal }) => {
+    reads++;
+    if (reads === 1)
+      // Never settles on its own: only the read's deadline ends it, and a read without one hangs.
+      return new Promise((_, reject) =>
+        signal?.addEventListener('abort', () => reject(signal.reason)),
+      );
+    return { status: 200, statusText: 'OK', body: { cancel: async () => {} } };
+  };
+  const slept = [];
+  await waitForTarballs([CLIENT], {
+    timeoutMs: 1_000,
+    intervalMs: 20,
+    fetch,
+    sleep: async ms => slept.push(ms),
+    log: () => {},
+  });
+  assert.equal(reads, 2);
+  assert.deepEqual(slept, [20]);
+});
+
 test('tarballs never there fail at the bound, each named with its last answer or error', async () => {
   const { fetch, reads } = registry({
     [CLIENT[1]]: [404, 503],
