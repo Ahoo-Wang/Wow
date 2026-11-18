@@ -61,7 +61,7 @@ class AccountSpec {
 }
 ```
 
-`accountModel()` is the model factory the compiler generated for the `Account` aggregate. A factory takes the context's name, which defaults to the module's, and the domain services the command functions need; pass stubs of them. `aggregateSpec` runs one aggregate, `id` in `tenantId` (`aggregate-1` in the default tenant, `(0)`, or in the `caller`'s tenant when one is given).
+`accountModel()` is the model factory the compiler generated for the `Account` aggregate. A factory takes the context's name, which defaults to the module's, and the domain services the command functions need; pass stubs of them. Each service is a parameter named after its type, `paymentPolicy` for a `PaymentPolicy`, whatever a command function calls its parameter, and two parameters of one type take the one service of that type. Two services of one type are told apart by `@DependencyName("…")` on the command function's parameter: the host gives it the bean of that name, and the factory names its parameter after it, `@DependencyName("express") policy: PaymentPolicy` being `paymentPolicyExpress`. A processor's handlers factory names its services after its constructor's parameters. `aggregateSpec` runs one aggregate, `id` in `tenantId` (`aggregate-1` in the default tenant, `(0)`, or in the `caller`'s tenant when one is given).
 
 ### Arrange and act
 
@@ -245,6 +245,23 @@ fun `an unpaid order should cancel itself once its grace period has passed`() = 
 ```
 
 A cron rule steps through its slots as the runtime does: moving past several slots sends only the latest, unless the rule catches up.
+
+### Command constraints
+
+A spec runs a command's decision and checks none of the command's Bean Validation constraints (`@NotBlank`, `@Positive`, …): on a node, admission checks them and answers `wow.command.invalid` with their violations, which a server test reads ([Test a Service](./testing-services)). The test module brings no Bean Validation provider, where 9.x's brought one and its `TestValidator`. To check a command's constraints in a domain module's tests, add the provider the server runs, Hibernate Validator, at the version the server's Spring Boot manages, and build a validator as 9.x's `TestValidator` did:
+
+<!-- sample: fragment -->
+
+```kotlin
+// build.gradle.kts: testImplementation("org.hibernate.validator:hibernate-validator:<the server's version>")
+private val validator = Validation.byDefaultProvider().configure()
+    .messageInterpolator(ParameterMessageInterpolator())
+    .buildValidatorFactory().validator
+
+validator.validate(CancelOrder(reason = "")).map { "${it.propertyPath}" }.assert().containsExactly("reason")
+```
+
+`ParameterMessageInterpolator` needs no expression language, as 9.x's did not. The server interpolates messages with Spring Boot's validator, so assert a violation's path and constraint where its text may differ. A constraint a command repeats, on a field and on the getter of an interface it implements, is one violation: Hibernate Validator reports one constraint once per property.
 
 ## Sagas
 

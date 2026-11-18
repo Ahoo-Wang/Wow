@@ -302,7 +302,7 @@ In 9.x, sibling `whenCommand` calls inside one `on { … }` or `givenEvent(…) 
 | --- | --- |
 | `class XSpec : AggregateSpec<A, S>({ on { … } })`, a `@TestFactory` | `@Test fun x() = aggregateSpec(model) { … }`, one test; `@TestFactory fun x() = aggregateSpecTests(model) { … }`, a test per step and fork |
 | `aggregateVerifier<A, S>()`, its chained stages (from Kotlin or Java) | One `aggregateSpec`: `.whenCommand(c).expect…().verify()` is `whenCommand(c) { expect… }`; `.then()` and `.then(false)` are the next `whenCommand`, since a spec chains and a rejection changes nothing; `.fork { … }` is `fork(name) { … }` inside the checks. The test DSL is Kotlin only |
-| `inject { register(service) }` | The services the generated model factory takes (`orderModel(name, inventory)`, the context name first, with a default, so services passed alone go by name); `fork(name, model = …)` for a branch whose service answers otherwise |
+| `inject { register(service) }` | The services the generated model factory takes (`orderModel(name, inventory)`, the context name first, with a default, so services passed alone go by the factory's parameter names: each is named after its service's type, `inventoryService` for an `InventoryService`, not after a 9.x registration's name or the command function's parameter, and two services of one type are told apart by `@DependencyName` ([Test Domain Code](../guide/testing#arrange-and-act))); `fork(name, model = …)` for a branch whose service answers otherwise |
 | `inject { register(clock) }`, a `Clock` the command function takes | `aggregateSpec(model, start = instant)`: `DecideScope.now` reads the spec's clock, which starts at `start`, and `advanceTime(duration)` moves it |
 | `name("…")` | The test's name: the `@Test` function's, and in `aggregateSpecTests` each step's and fork's |
 | `givenOwnerId(…)`, `givenSpaceId(…)` | `scope = Scope(owner, space)` on `given`, `givenState` or `whenCommand` |
@@ -312,7 +312,7 @@ In 9.x, sibling `whenCommand` calls inside one `on { … }` or `givenEvent(…) 
 | `ref("name")`, `fork("name") { … }` on a verified stage | `ref("name")` in the spec, `fork(name, from = "name") { … }`; or `fork { … }` inside the checks |
 | `.verify()`, `.verify(false)` | Nothing to call: the checks run as their block ends, and the first that fails ends it. 9.x's collected failures have no form; in `aggregateSpecTests` each step fails its own test while the others run |
 | A verified stage's `stateRoot`, `stateAggregate`, `verifiedResult` | `expectState { … }` for the state; `expectVersion`, `expectScope`, `expectDeleted` for the aggregate; `error` and `results` in the checks for the outcome |
-| Command validation through `TestValidator` | Removed: validation is the admission's `CommandValidator`, which the kernel and the spec do not pass through; test it at the HTTP layer |
+| Command validation through `TestValidator` | Removed: validation is the admission's `CommandValidator`, which the kernel and the spec do not pass through; test it at the HTTP layer, or validate the command in a domain test with a Bean Validation provider added to the tests and configured as 9.x's was ([Command constraints](../guide/testing#command-constraints)) |
 | `TestGlobalIdGeneratorFactory` | Nothing to set: `DecideScope.ids` gives sequential ids in a spec |
 
 ### Aggregate expectations {#aggregate-expectations}
@@ -374,6 +374,7 @@ Some 9.x constructs have no V10 form. The Skill reports each one the service use
 - a 9.x Redis event store: the data tool reads MongoDB only;
 - Java tests on `AggregateVerifier`, and Java calls of `suspend` APIs (`DecideScope.reserve`, `SagaContext.call`): Kotlin only;
 - Jackson modules found on the class path, and fields without public getters: `WowJson` applies neither;
+- the host's Jackson settings: Wow's JSON is its own mapper, so `spring.jackson.*`, a Jackson customizer bean and an `ObjectMapper` or `JsonMapper` bean reach none of what Wow reads and writes, a command's body included. A 9.x service that read enum values case-insensitively through its Spring configuration refuses `"paid"` for `PAID`; a property that should accept any case says so itself, `@field:JsonFormat(with = [JsonFormat.Feature.ACCEPT_CASE_INSENSITIVE_VALUES])` (on the enum class it has no effect);
 - state-event resend and per-version re-dispatch: none until 10.x; a parked entry is retried instead;
 - a `MessageFunction` registered at run time: rewrite it as an annotated processor.
 

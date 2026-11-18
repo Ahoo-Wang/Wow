@@ -302,7 +302,7 @@ fun orderAccess(): AccessPolicy<OrderState> = accessPolicy {
 | --- | --- |
 | `class XSpec : AggregateSpec<A, S>({ on { … } })`，一个 `@TestFactory` | `@Test fun x() = aggregateSpec(model) { … }`，一个测试；`@TestFactory fun x() = aggregateSpecTests(model) { … }`，每个步骤和分叉一个测试 |
 | `aggregateVerifier<A, S>()` 及其链式阶段（Kotlin 或 Java 调用） | 一个 `aggregateSpec`：`.whenCommand(c).expect…().verify()` 是 `whenCommand(c) { expect… }`；`.then()` 与 `.then(false)` 是下一个 `whenCommand`，因为 spec 是链接的，拒绝不改变任何东西；`.fork { … }` 是检查中的 `fork(name) { … }`。测试 DSL 只支持 Kotlin |
-| `inject { register(service) }` | 生成的模型工厂接收的服务（`orderModel(name, inventory)`，第一个参数是带默认值的上下文名，只传服务时按参数名传）；某个分支需要服务给出不同回答时，用 `fork(name, model = …)` |
+| `inject { register(service) }` | 生成的模型工厂接收的服务（`orderModel(name, inventory)`，第一个参数是带默认值的上下文名，只传服务时按工厂的参数名传：每个参数按其服务的类型命名，`InventoryService` 对应 `inventoryService`，而不是 9.x 注册时的名字或命令函数的参数名；同一类型的两个服务用 `@DependencyName` 区分（[测试领域代码](../guide/testing#arrange-and-act)））；某个分支需要服务给出不同回答时，用 `fork(name, model = …)` |
 | `inject { register(clock) }`，命令函数接收的 `Clock` | `aggregateSpec(model, start = instant)`：`DecideScope.now` 读取 spec 的时钟，它从 `start` 开始，`advanceTime(duration)` 推进它 |
 | `name("…")` | 测试的名字：`@Test` 函数的名字；在 `aggregateSpecTests` 中，是每个步骤和分叉的名字 |
 | `givenOwnerId(…)`、`givenSpaceId(…)` | `given`、`givenState` 或 `whenCommand` 上的 `scope = Scope(owner, space)` |
@@ -312,7 +312,7 @@ fun orderAccess(): AccessPolicy<OrderState> = accessPolicy {
 | 已验证阶段上的 `ref("name")`、`fork("name") { … }` | spec 中的 `ref("name")`、`fork(name, from = "name") { … }`；或者在检查中使用 `fork { … }` |
 | `.verify()`、`.verify(false)` | 不需要调用：检查在它们的块结束时运行，第一个失败的检查会结束这个块。9.x 收集全部失败的做法没有对应形式；在 `aggregateSpecTests` 中，每个步骤让自己的测试失败，其余照常运行 |
 | 已验证阶段的 `stateRoot`、`stateAggregate`、`verifiedResult` | 状态用 `expectState { … }`；聚合用 `expectVersion`、`expectScope`、`expectDeleted`；结果用检查中的 `error` 和 `results` |
-| 经由 `TestValidator` 的命令校验 | 已去掉：校验是准入层的 `CommandValidator`，内核和 spec 都不经过它；在 HTTP 层测试它 |
+| 经由 `TestValidator` 的命令校验 | 已去掉：校验是准入层的 `CommandValidator`，内核和 spec 都不经过它；在 HTTP 层测试它，或在领域测试中，用加入测试并按 9.x 方式配置的 Bean Validation 实现校验命令（[命令的约束](../guide/testing#command-constraints)） |
 | `TestGlobalIdGeneratorFactory` | 不需要设置：在 spec 中，`DecideScope.ids` 给出顺序的 ID |
 
 ### 聚合的期望 {#aggregate-expectations}
@@ -374,6 +374,7 @@ V10 新增、9.x 没有对应的：
 - 9.x 的 Redis 事件存储：数据工具只读取 MongoDB；
 - 基于 `AggregateVerifier` 的 Java 测试，以及对 `suspend` API（`DecideScope.reserve`、`SagaContext.call`）的 Java 调用：只支持 Kotlin；
 - 在类路径上发现的 Jackson 模块，以及没有公共 getter 的字段：`WowJson` 两者都不应用；
+- 宿主的 Jackson 设置：Wow 的 JSON 是它自己的映射器，所以 `spring.jackson.*`、Jackson 定制器 bean，以及 `ObjectMapper` 或 `JsonMapper` bean，都影响不到 Wow 读写的任何内容，包括命令体。通过 Spring 配置不区分大小写地读取枚举值的 9.x 服务，会拒绝把 `"paid"` 读作 `PAID`；应当接受任意大小写的属性要自己声明，`@field:JsonFormat(with = [JsonFormat.Feature.ACCEPT_CASE_INSENSITIVE_VALUES])`（标在枚举类上不起作用）；
 - 状态事件重发和按版本重新分发：10.x 之前都没有；改为重试停放的条目；
 - 在运行时注册的 `MessageFunction`：把它改写为带注解的处理器。
 

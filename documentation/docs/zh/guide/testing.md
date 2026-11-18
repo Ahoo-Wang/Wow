@@ -61,7 +61,7 @@ class AccountSpec {
 }
 ```
 
-`accountModel()` 是编译器为 `Account` 聚合生成的模型工厂。工厂接收上下文的名字（默认为模块所在的上下文），以及命令函数需要的领域服务；传入它们的桩。`aggregateSpec` 运行一个聚合，即 `tenantId` 中的 `id`（默认是默认租户 `(0)` 中的 `aggregate-1`；给了 `caller` 时是它的租户）。
+`accountModel()` 是编译器为 `Account` 聚合生成的模型工厂。工厂接收上下文的名字（默认为模块所在的上下文），以及命令函数需要的领域服务；传入它们的桩。每个服务是一个按其类型命名的参数，`PaymentPolicy` 对应 `paymentPolicy`，与命令函数给参数起的名字无关；同一类型的两个参数取的是该类型的同一个服务。同一类型的两个服务，用命令函数参数上的 `@DependencyName("…")` 区分：宿主给它那个名字的 bean，工厂也按这个名字命名它的参数，`@DependencyName("express") policy: PaymentPolicy` 就是 `paymentPolicyExpress`。处理器的处理函数工厂按构造函数的参数名命名它的服务。`aggregateSpec` 运行一个聚合，即 `tenantId` 中的 `id`（默认是默认租户 `(0)` 中的 `aggregate-1`；给了 `caller` 时是它的租户）。
 
 ### 准备与执行 {#arrange-and-act}
 
@@ -245,6 +245,23 @@ fun `an unpaid order should cancel itself once its grace period has passed`() = 
 ```
 
 cron 规则像运行时那样逐个时间槽推进：一次越过多个时间槽时只发送最近的那一个，除非规则要求补发。
+
+### 命令的约束 {#command-constraints}
+
+规格运行命令的决策，不检查命令上的任何 Bean Validation 约束（`@NotBlank`、`@Positive` 等）：在节点上由准入层检查它们，并以 `wow.command.invalid` 回答其中的违规，服务器测试可以读到（[测试服务](./testing-services)）。测试模块不带 Bean Validation 实现，而 9.x 的测试模块带有一个实现和它的 `TestValidator`。要在领域模块的测试中检查命令的约束，加入服务器运行的实现 Hibernate Validator，版本取服务器的 Spring Boot 所管理的版本，并像 9.x 的 `TestValidator` 那样构建校验器：
+
+<!-- sample: fragment -->
+
+```kotlin
+// build.gradle.kts: testImplementation("org.hibernate.validator:hibernate-validator:<服务器的版本>")
+private val validator = Validation.byDefaultProvider().configure()
+    .messageInterpolator(ParameterMessageInterpolator())
+    .buildValidatorFactory().validator
+
+validator.validate(CancelOrder(reason = "")).map { "${it.propertyPath}" }.assert().containsExactly("reason")
+```
+
+`ParameterMessageInterpolator` 不需要表达式语言，9.x 的也不需要。服务器用 Spring Boot 的校验器插值消息，所以在文本可能不同的地方，断言违规的路径与约束。命令重复声明的约束（在字段上，以及在它所实现接口的 getter 上）是一个违规：Hibernate Validator 对每个属性的一个约束只报告一次。
 
 ## Saga {#sagas}
 
