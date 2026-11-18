@@ -17,32 +17,35 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import java.net.URL
 
 /**
- * Whether the classes a peer contract lists are where its consumer runs: an api module's contract and its types are
- * one module, and a contract of one version beside types of another lists classes those types lack (a Maven build
- * resolving the two separately). The build's merge and the node's startup check every contract on their class path
- * ([problems]), each finding a class its own way: the merge in its class path's entries, the node in its class
- * loader ([locator]).
+ * Whether the classes a peer contract lists are where its consumer runs, context by context: a consumer may hold a
+ * context's contract with none of its classes and address it by JSON; it may not hold it with only some of them. A
+ * context's commands and events all live in its api module, so some of them present and others not is a contract and
+ * types of different versions (a Maven build resolving the two apart), which would fail later, at decoding. The build's
+ * merge and the node's startup check every contract on their class path ([problems]), each finding a class its own
+ * way: the merge in its class path's entries, the node in its class loader ([locator]).
  */
 @InternalWowApi
 object ContractClasses {
     /**
-     * Why [contract] does not hold together with its types: one problem per class it lists that [locate] finds in no
-     * class path entry, naming the contract's [ManifestFragment.source] and the entries that hold its other classes, the
-     * types it is beside; none when every class is there.
+     * Why [contract] does not hold together with its types: one problem per class of a context that [locate] finds in
+     * no class path entry while it finds others of that context, naming the contract's [ManifestFragment.source] and
+     * the entries the context's present classes come from; none for a context whose classes are all there, or none of
+     * them.
      */
     @JvmStatic
-    fun problems(contract: ManifestFragment, locate: (String) -> String?): List<String> {
-        val located = contract.manifest.contexts.flatMap(PeerContracts::classesOf).distinct().associateWith(locate)
-        val missing = located.filterValues { it == null }.keys.sorted()
-        if (missing.isEmpty()) return emptyList()
-        val types = located.values.filterNotNull().distinct().sorted()
-        val beside = if (types.isEmpty()) "" else ", while its other classes are in ${types.joinToString()}"
-        return missing.map { binary ->
-            "$binary, which the contract in ${contract.source} lists, is in no class path entry$beside: the " +
-                "contract and the types of its api module are of different versions. Depend on one version of the " +
-                "module, its types and its contract (Maven: the module and its classifier contract, of one version)."
+    fun problems(contract: ManifestFragment, locate: (String) -> String?): List<String> =
+        contract.manifest.contexts.flatMap { context ->
+            val located = PeerContracts.classesOf(context).associateWith(locate)
+            val present = located.values.filterNotNull().distinct().sorted()
+            val missing = located.filterValues { it == null }.keys.sorted()
+            if (present.isEmpty() || missing.isEmpty()) return@flatMap emptyList()
+            missing.map { binary ->
+                "$binary, which the contract in ${contract.source} lists for context ${context.name}, is in no class " +
+                    "path entry, while the context's other classes are in ${present.joinToString()}: the contract and " +
+                    "the types of its api module are of different versions. Depend on one version of the module, its " +
+                    "types and its contract (Maven: the module and its classifier contract, of one version)."
+            }
         }
-    }
 
     /** Where [classLoader] holds a class, by its binary name: the jar's file name, or the directory; null for none. */
     @JvmStatic

@@ -19,6 +19,7 @@ import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.ContractException
+import me.ahoo.wow.manifest.EventManifest
 import me.ahoo.wow.manifest.FunctionManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.PeerContracts
@@ -107,8 +108,8 @@ class ContractMergeTest {
         assertThrows<IllegalStateException> { merge(listOf(service(), contract, types), owners) }.message.assert()
             .contains(
                 "The contracts on the class path do not match their types:",
-                "billing.Void, which the contract in sample:billing-api:1.0.0 lists, is in no class path entry, " +
-                    "while its other classes are in sample:billing-api:2.0.0",
+                "billing.Void, which the contract in sample:billing-api:1.0.0 lists for context billing, is in no " +
+                    "class path entry, while the context's other classes are in sample:billing-api:2.0.0",
             )
     }
 
@@ -123,5 +124,26 @@ class ContractMergeTest {
                     "sample:billing-api:1.0.0-types, whose api module carries no contract listing it",
                 "-Pwow.contract.publish=false",
             )
+    }
+
+    @Test
+    fun `a peer addressed by its contract alone, none of its classes present, should merge in silence`() {
+        val billing = Manifest(
+            contexts = listOf(
+                ContextManifest(
+                    "billing",
+                    aggregates = listOf(
+                        AggregateManifest(
+                            "invoice",
+                            state = StateManifest(Manifest.schemaRef("billing.InvoiceState")),
+                            events = listOf(EventManifest("Charged", schema = Manifest.schemaRef("billing.Charged"))),
+                        ),
+                    ),
+                ),
+            ),
+        )
+        val contract = entry("billing-contract", contract = billing)
+
+        merge(listOf(service(), contract), mapOf(contract.path to "sample:billing-api:1.0.0")).assert().isEqualTo(1)
     }
 }

@@ -42,20 +42,21 @@ class ContractClassesTest {
     )
 
     @Test
-    fun `a contract whose classes its types lack should name its jar and the types beside it`() {
+    fun `a context of which only some classes are present should name the contract and the types beside it`() {
         val types = mapOf("sample.Open" to "sample-api-2.0.0.jar")
         ContractClasses.problems(contract, types::get).single().assert().isEqualTo(
-            "sample.Opened, which the contract in sample-api-1.0.0-contract.jar lists, is in no class path entry, " +
-                "while its other classes are in sample-api-2.0.0.jar: the contract and the types of its api module " +
-                "are of different versions. Depend on one version of the module, its types and its contract (Maven: " +
-                "the module and its classifier contract, of one version).",
+            "sample.Opened, which the contract in sample-api-1.0.0-contract.jar lists for context sample, is in no " +
+                "class path entry, while the context's other classes are in sample-api-2.0.0.jar: the contract and " +
+                "the types of its api module are of different versions. Depend on one version of the module, its " +
+                "types and its contract (Maven: the module and its classifier contract, of one version).",
         )
+    }
+
+    @Test
+    fun `a context of which all classes, or none, are present should pass in silence`() {
         ContractClasses.problems(contract) { "sample-api-1.0.0.jar" }.assert().isEmpty()
-        ContractClasses.problems(contract) { null }.map { it.substringBefore(':') }.assert()
-            .containsExactly(
-                "sample.Open, which the contract in sample-api-1.0.0-contract.jar lists, is in no class path entry",
-                "sample.Opened, which the contract in sample-api-1.0.0-contract.jar lists, is in no class path entry",
-            )
+        // A peer addressed by its contract alone, its commands as JSON.
+        ContractClasses.problems(contract) { null }.assert().isEmpty()
     }
 
     @Test

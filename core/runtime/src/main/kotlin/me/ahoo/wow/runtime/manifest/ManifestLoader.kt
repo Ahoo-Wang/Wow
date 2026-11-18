@@ -18,6 +18,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.manifest.ClassPathContracts
 import me.ahoo.wow.manifest.ContractClasses
+import me.ahoo.wow.manifest.ContractException
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestAssembly
 import me.ahoo.wow.manifest.ManifestFragment
@@ -32,9 +33,9 @@ import tools.jackson.databind.json.JsonMapper
  * as the build does ([ManifestAssembly]), naming the service, with the peer contracts on [classLoader].
  *
  * Startup fails with every problem listed: a [ManifestLoadException] for the fragments that are missing or do not
- * read as a Manifest, else the merger's [me.ahoo.wow.manifest.ManifestConflictException] for the conflicts between
- * them. A peer contract whose classes its types lack ([ContractClasses]) is logged as a warning, naming both: the
- * node reads a command of a class it lacks as its JSON, and the build's merge refuses such a class path.
+ * read as a Manifest, a [ContractException] for a peer contract of a context whose classes the class path holds only
+ * some of ([ContractClasses]), else the merger's [me.ahoo.wow.manifest.ManifestConflictException] for the conflicts
+ * between them.
  */
 @InternalWowApi
 class ManifestLoader(
@@ -58,10 +59,13 @@ class ManifestLoader(
         val contracts = ClassPathContracts.load(classLoader, { manifestLogger.warn { it } }) {
             mapper.readValue(it, Map::class.java)
         }
-        // A contract whose classes its types lack is of another version than they are: say so, naming both. The
-        // node still starts, a command of a class it lacks read as its JSON, as the build's merge refuses it.
+        // A context of whose classes the class path holds only some is a contract of another version than its types:
+        // fail, naming both. One of whose classes it holds none is addressed by JSON.
         val locate = ContractClasses.locator(classLoader)
-        contracts.flatMap { ContractClasses.problems(it, locate) }.forEach { manifestLogger.warn { it } }
+        val drifted = contracts.flatMap { ContractClasses.problems(it, locate) }
+        if (drifted.isNotEmpty()) {
+            throw ContractException(drifted)
+        }
         return ManifestAssembly.assemble(fragments, service, contracts.map { it.manifest }, locate)
     }
 
