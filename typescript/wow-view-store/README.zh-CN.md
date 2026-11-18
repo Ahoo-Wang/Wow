@@ -37,7 +37,8 @@ import {
   datasetCatalogOf,
 } from '@ahoo-wang/wow-view-store';
 
-// fetcher 的拦截器带上授权与 `CoSec-App-Id`；路径里不出现租户与 owner。
+// fetcher 的拦截器带上授权：为这个前端的应用签发的令牌，视图存储按应用保存数据
+// （CoSec 8 不读取 `CoSec-App-Id`）。路径里不出现租户与 owner。
 const fetcher = new Fetcher({ baseURL: 'https://api.example.com' });
 
 const engine = new ViewEngine({

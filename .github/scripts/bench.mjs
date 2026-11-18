@@ -38,6 +38,13 @@ import {
 } from './bench-measure.mjs';
 import { measureSuites } from './bench-measure-suites.mjs';
 import {
+  POOL,
+  judgedAgainst,
+  noiseEntries,
+  pooled,
+  thresholdsOf,
+} from './bench-noise.mjs';
+import {
   curveAnomalies,
   curveSection,
   curveSuites,
@@ -59,7 +66,6 @@ import {
   generatorBound,
   median,
   modeOf,
-  noiseOf,
   OVERLOAD,
   PROBE,
   probeHeld,
@@ -1056,8 +1062,8 @@ export function queryLimitsText(stores) {
 export const ANOMALY = {
   errorPercent: 1,
   tailToMedian: 10,
-  // Unstable: the halves of the measured phase differ by more than the suite's A/A noise (noise.json) in throughput,
-  // p50 or, with enough tail samples, p99; these defaults stand in for a suite without a threshold.
+  // Unstable: the halves of the measured phase differ by more than the wider of these and the suite's A/A threshold
+  // (noise.json), in throughput, p50 or, with enough tail samples, p99.
   stability: { throughput: 0.05, p50: 0.25, p99: 0.5 },
   // The load generator used this share of the CPUs it had: the run measured the generator, not the servers.
   generatorBusy: GENERATOR_BUSY,
@@ -1101,7 +1107,10 @@ export function anomaliesOf(run, { overload = false, noise } = {}) {
   }
   const st = m.stability;
   if (st) {
-    const limit = metric => noise?.[metric] ?? ANOMALY.stability[metric];
+    // The wider of the suite's A/A threshold and the default: a pooled threshold can sit at the 2% floor (A/A
+    // intervals that span 1), which is no limit for one run's halves.
+    const limit = metric =>
+      Math.max(noise?.[metric] ?? 0, ANOMALY.stability[metric]);
     const drifted = [
       ['throughput', st.throughputChange],
       ['p50', Number.isFinite(st.p50Ratio) ? st.p50Ratio - 1 : undefined],
@@ -1113,7 +1122,7 @@ export function anomaliesOf(run, { overload = false, noise } = {}) {
     if (drifted.length > 0) {
       found.push({
         kind: 'unstable',
-        detail: `second half against first, beyond ${noise ? 'the A/A noise' : 'the default limits'}: ${drifted
+        detail: `second half against first, beyond ${noise ? 'the wider of the A/A noise and the default limits' : 'the default limits'}: ${drifted
           .map(
             ([metric, change]) =>
               `${metric} ${change >= 0 ? '+' : ''}${num(change * 100)}% (±${num(limit(metric) * 100)}%)`,
@@ -3961,34 +3970,6 @@ export function readSuites(dir) {
   );
 }
 
-/** The noise thresholds of a run's A/A suites, keyed by `suite@dataset`, merged over `previous`. */
-export function noiseFile(suites, previous = {}) {
-  const next = { ...previous };
-  // An A/A run whose second arm ran with changed properties measured the change, not the noise.
-  // A suite that measured nothing keeps the thresholds it had.
-  for (const suite of suites.filter(s => s.aa && !s.properties)) {
-    const noise = noiseOf(suite);
-    if (noise) next[labelOf(suite)] = widened(next[labelOf(suite)], noise);
-  }
-  return next;
-}
-
-/**
- * The thresholds of [committed] and of an A/A run's [noise], each metric the wider of the two. One run's half-width
- * is one draw of the suite's noise, not the noise: two A/A runs of identical code read thresholds three to five times
- * apart (e3-pg@100k's p50 ±37.3% then ±12.8%), and both were observed between identical arms. A later run widens a
- * threshold and never narrows it, so a narrow draw never makes the next paired run call noise a finding.
- */
-function widened(committed = {}, noise) {
-  const metrics = new Set([...Object.keys(committed), ...Object.keys(noise)]);
-  return Object.fromEntries(
-    [...metrics].map(metric => [
-      metric,
-      Math.max(committed[metric] ?? 0, noise[metric] ?? 0),
-    ]),
-  );
-}
-
 /** The combined report of every suite. */
 export function renderReport(suites, meta = {}) {
   const lines = [
@@ -4030,13 +4011,15 @@ export function renderReport(suites, meta = {}) {
     lines.push(
       '## A/A noise',
       '',
-      `The head against itself at one rate, ${AA_ROUNDS} rounds or more: each metric's threshold is the half-width of the 95% bootstrap interval of its ratio, at least 2%. The report writes these as noise.json; commit it as test/benchmarks/noise.json to make them the thresholds of later runs.`,
+      `The head against itself at one rate, ${AA_ROUNDS} rounds or more: per metric, the half-width of this run's 95% bootstrap interval of the ratio, at least how far it reached from 1 and at least 2% (a suite's threshold is the largest of these over its last ${POOL} A/A runs). The report writes these as noise-history-entries.json; add it with \`node .github/scripts/bench-noise.mjs add\` to test/benchmarks/noise-history.json, which noise.json is written from. An unprimed suite (1k) is not pooled: its calibration probes measure a fresh node's start.`,
       '',
       `| Suite | ${SIGNIFICANCE_METRICS.map(([metric]) => metric).join(' | ')} |`,
       `| --- | ${SIGNIFICANCE_METRICS.map(() => '---').join(' | ')} |`,
       ...aaSuites.map(suite => {
-        const n = noiseOf(suite);
-        return `| ${labelOf(suite)} | ${SIGNIFICANCE_METRICS.map(([metric]) => (n ? `±${num(n[metric] * 100)}%` : 'no data')).join(' | ')} |`;
+        const [entry] = noiseEntries([suite]);
+        const t = entry && thresholdsOf([entry]);
+        const empty = pooled(suite) ? 'no data' : 'not pooled';
+        return `| ${labelOf(suite)} | ${SIGNIFICANCE_METRICS.map(([metric]) => (t ? `±${num(t[metric] * 100)}%` : empty)).join(' | ')} |`;
       }),
       '',
     );
@@ -4390,20 +4373,25 @@ if (
       process.exitCode = suite.failures > 0 ? 1 : 0;
     } else if (command === 'report') {
       const suites = readSuites(process.argv[3]);
-      const previous =
+      const committed =
         env.NOISE && existsSync(env.NOISE) ? readJson(env.NOISE) : {};
+      // This run's A/A draws: they widen what it judges its paired suites against, never narrow it.
+      const entries = noiseEntries(suites, {
+        run: env.GITHUB_RUN_ID,
+        attempt: env.GITHUB_RUN_ATTEMPT,
+      });
       const meta = {
         ...(suites[0]?.refs ?? {}),
         skipped: env.SKIPPED ? JSON.parse(env.SKIPPED) : [],
-        noise: previous,
+        noise: judgedAgainst(committed, entries),
       };
       const report = renderReport(suites, meta);
       const file = process.argv[4] ?? 'report.md';
       writeFileSync(file, report);
-      if (suites.some(suite => suite.aa)) {
+      if (entries.length > 0) {
         writeFileSync(
-          join(dirname(file), 'noise.json'),
-          `${JSON.stringify(noiseFile(suites, previous), null, 2)}\n`,
+          join(dirname(file), 'noise-history-entries.json'),
+          `${JSON.stringify(entries, null, 2)}\n`,
         );
       }
       if (env.GITHUB_STEP_SUMMARY)

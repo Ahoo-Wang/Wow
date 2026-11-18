@@ -34,13 +34,14 @@ are compared.
 - **Cold cache, a million accounts:**
   - On PostgreSQL (Xeon 6975P-C), E1 at 200/s has p99 5.1 ms and E4 point reads at 500/s 3.0 ms.
   - On MongoDB (EPYC 9V74), E1 has p50 3.6 ms and p99 154.6 ms, beyond 10× its p50. E4 has p99 4.9 ms.
-- **L3 at 1k accounts on MongoDB: E1 (uniform) and E3 ran their rounds at a rate the node did not hold.**
-  - Each round's rate is a share of the closed-loop peak. No share the probes tried held (`sustainable: false`), so
-    the rounds ran at the last one tried, 0.3375: 974/s for E1 and 315/s for E3.
-  - The node, on its one core, completed less than that, so commands queued in it. E1's p50 is about 1 s and E3's up
-    to 5.3 s, with `504 wow.wait.timeout` in every round of both arms.
-  - The same suites in the run before held their rounds, at 729–764/s and 182–193/s on another CPU model.
-  - So this follows from this run's runners and its calibration, not from the build. See "L3 at 1k accounts" below.
+- **L3 at 1k accounts on MongoDB: E1 (uniform) and E3 failed by a cold node's start-up backlog.**
+  - Every round starts on a fresh node, and the 1k suites are not primed.
+  - For its first tens of seconds a cold node is bound by its own one core. At 974/s (E1) and 315/s (E3) the queue it
+    built then had not drained by the end of the round. E1's p50 is about 1 s and E3's up to 5.3 s, with
+    `504 wow.wait.timeout` in every round of both arms.
+  - A follow-up A/A at beta.6 with a 120 s warm-up,
+    [44198387310](https://github.com/Ahoo-Wang/Wow/actions/runs/44198387310), held every round with 0 failed. Probes at
+    the same rates, on the same runner, after a 10 s warm-up, did not. See "L3 at 1k accounts" below.
 - **The other failures in L3 are few:** 63 refused as busy (429) in E1 Zipf at 1k, and 7 in E3 on PostgreSQL at 1k.
   The mixed load's failures are its list reads refused by the query bulkhead (`429 wow.query.busy`): 1,069 at 1k on
   MongoDB and 159 of 181,860 at 100k on PostgreSQL.
@@ -49,7 +50,7 @@ are compared.
 
 | | |
 | --- | --- |
-| Runs | L3 [44123394372](https://github.com/Ahoo-Wang/Wow/actions/runs/44123394372) (`tier=L3`) and L4 [44131893810](https://github.com/Ahoo-Wang/Wow/actions/runs/44131893810) (`tier=L4`), dispatched from `main` |
+| Runs | L3 [44123394372](https://github.com/Ahoo-Wang/Wow/actions/runs/44123394372) (`tier=L3`) and L4 [44131893810](https://github.com/Ahoo-Wang/Wow/actions/runs/44131893810) (`tier=L4`), dispatched from `main`. One follow-up, [44198387310](https://github.com/Ahoo-Wang/Wow/actions/runs/44198387310) (`suites=e1-mongo-uniform,e3-mongo dataset=1k aa=true warm_up=120`) |
 | Build | `v10.0.0-beta.6`, `e3a4e937aa`, in both runs |
 | L3 base arm | `v10.0.0-beta.5`, `103f9b6746`. Not quoted here |
 | Harness | Built from `e3a4e937aa` for both arms |
@@ -91,7 +92,7 @@ rounds.
   mean the scenario cannot hold 200 ms. L4's bisection answers that, below.
 - **A saturation marked `≥`** reached the search's 2,048 clients still gaining, so the peak is at least that.
 
-### L3 at 1k accounts: rounds above the open-loop ceiling
+### L3 at 1k accounts: a cold node's start-up backlog
 
 E1 (uniform) and E3 on MongoDB at 1k accounts. The node runs on one core (`server: 0`), with the store, Kafka and the
 load generator on the other three. Both arms of this run are shown, and the same suites in the L3 run before it,
@@ -121,13 +122,62 @@ runner and the calibration from the build.
     tail read after a gap or an overflow (`tailRead` shows `idle` 0–1 only). No sequence-block or stall line. One
     round (r3, head) logged 5 lost partition leases.
   - E3: the timed-out waits are at `COMMITTED`, and the saga's subscription `TransferSaga.onPrepared` throttled its
-    partitions and back-pressured 4–407 times a round. One round (e1, head) logged 11 lost partition leases. The prepared transfer was committed, and its next hop queued
-    behind the same one core. Again no tail read after a gap or an overflow.
+    partitions and back-pressured 4–407 times a round. One round (e1, head) logged 11 lost partition leases. The
+    prepared transfer was committed, and its next hop queued behind the same one core. Again no tail read after a gap
+    or an overflow.
 - **The tail's 1 s stall grace is excluded.** A stall shows as `tailRead gap` and as waits at `COMMITTED` for E1. Neither
   is in E1's rounds, and E1's waits time out before commit.
-- **The data cannot say why the closed-loop peak at 1k accounts is about three times what the node completes in open
-  loop, nor where the node's open-loop limit is on these runners.** One run would answer the second: e1-mongo-uniform
-  and e3-mongo at 1k in fixed open-loop steps up to the calibrated rate, as the cliff suites do.
+
+#### What decided it: the same rate after a 120 s warm-up
+
+[44198387310](https://github.com/Ahoo-Wang/Wow/actions/runs/44198387310) ran `e1-mongo-uniform` and `e3-mongo` at 1k
+accounts with `aa=true` (both arms `e3a4e937aa`) and `warm_up=120`. E1 ran on an EPYC 9V74 and E3 on an EPYC 9V45.
+
+The calibration probes still warm up for 10 s on a fresh node, whatever `warm_up` says. None held, so the rounds ran at
+0.3375 of the closed-loop peak again. Each arm's last probe ran at exactly its rounds' rate. So the probe and the rounds
+differ in their warm-up alone: same runner, build and rate.
+
+| Suite | Rate (arm a / b) | Rounds after 120 s | Probe at the same rate after 10 s |
+| --- | --- | --- | --- |
+| E1 uniform | 785.5 / 773.8/s | 0 failed in all 12, p50 13–22 ms, p99 75–106 ms | a: 1,373 failed, 740/s completed. b: 3,726 failed, 650/s |
+| E3 | 423.9 / 474.9/s | 0 failed in all 12, p50 6–7 ms, p99 97–171 ms | a: 0 failed, p50 from 2.6 s. b: 464 failed |
+
+**The backlog's shape.** p50 per 5 s of the probe at the rounds' rate, from the first recorded second, second 10 of
+load. The 10 s of warm-up are not recorded.
+
+| Probe | s10 | s15 | s20 | s25 | s30 | s35 |
+| --- | --- | --- | --- | --- | --- | --- |
+| E1, a, 785.5/s | 3,031 ms | 2,966 ms | 2,441 ms | 2,359 ms | 1,393 ms | 872 ms |
+| E1, b, 773.8/s | 4,424 ms | 3,129 ms | 2,785 ms | 2,785 ms | 2,753 ms | 2,310 ms |
+| E3, a, 423.9/s | 2,638 ms | 1,933 ms | 754 ms | 56 ms | 17 ms | 18 ms |
+| E3, b, 474.9/s | 4,489 ms | 3,359 ms | 3,031 ms | 2,638 ms | 1,810 ms | 1,008 ms |
+
+- E3 at 424/s is flat by about second 25. E1 is still draining at second 40.
+- The rounds after 120 s are flat from their first measured second, at 4–35 ms per 5 s.
+- The node drains its backlog at the speed its headroom allows. In 44123394372 the rates were higher (974/s for E1),
+  and a 30 s warm-up left most of the drain inside the measured phase.
+
+**Where the CPU goes, cold and warm** (cores, measured phase; the node has one):
+
+| | Node | MongoDB | Kafka | GC share |
+| --- | --- | --- | --- | --- |
+| Probes, cold (first 40 s), both suites | 0.99–1.00 | 0.52–0.65 | 0.42–0.63 | 0.8–3.5% |
+| E1 rounds, warm, at the same rate | 0.67–0.98 | 0.89–0.92 | 0.45–0.52 | 0.3–0.8% |
+| E3 rounds, warm, at the same rate | 0.49–0.52 | 0.84–0.86 | 0.33–0.37 | 0.2–0.3% |
+
+- **A cold node's own core is the bound, not the store.** At E3's 424/s the node used its whole core cold and half of
+  it warm.
+- **The logs show none of these:** collection or index creation, lost leases in the probes or rounds (one closed-loop
+  search lost 6), a tail read after a gap or an overflow, a stall or sequence-block line.
+- **An observation, not a conclusion: E3's subscription rebuilds track its backlog.** `stateRebuilt ungated-ran` is a
+  subscription rebuilding a shared state its views no longer hold.
+  - It was 852 in the probe that held (E3, a), against 6,089 in the probe that did not (E3, b), and 914 over a warm
+    round of 180 s.
+  - In 44123394372's failing E3 rounds it was 5,663–11,733 a round.
+- **Two things this leaves:**
+  - A known gap of the benchmark harness: the calibration probes warm up for 10 s on a fresh node, whatever `warm_up`
+    says. On an unprimed suite they measure the cold start, and send the rounds to the lowest share.
+  - A node's first half minute after start is not its steady state.
 
 ## L4: sustainable rates
 
@@ -219,8 +269,8 @@ of 8,000 operations, and no cause is stated.
 - **The CPU model changes between jobs.** Each row names its own. Two rows on different models are not a comparison,
   of stores or of scenarios.
 - **Each L4 figure is one run.** None has an A/A, so none has a noise band.
-- **The 1k suites have no noise threshold.** Their rounds are at a third of saturation or a larger share. On MongoDB
-  at 1k accounts, a third of saturation was above the node's open-loop ceiling in this run (above).
+- **The 1k suites have no noise threshold, and they are not primed.** Each round starts on a cold node. On MongoDB at
+  1k accounts, the start-up backlog had not drained within the round at this run's rates (above).
 
 ## Data
 
@@ -231,7 +281,9 @@ of 8,000 operations, and no cause is stated.
 - per round or probe of beta.6, `result.json`: latencies, per-second series, histogram, resources and environment,
   commit included;
 - per closed-loop search of beta.6, `saturation.json`;
-- `headline.json`, the figures the documentation quotes, written from the above by `bench-headline.mjs`.
+- `headline.json`, the figures the documentation quotes, written from the above by `bench-headline.mjs`;
+- `followups/44198387310/`, the 1k A/A with a 120 s warm-up: its report, each suite's `suite.json`, and each round's,
+  probe's and search's `result.json` or `saturation.json`.
 
 The base arm's rounds, L3's report with its ratios, and the node, seed, prime and settle logs stay in the runs'
 artifacts.
@@ -244,6 +296,10 @@ gh workflow run bench.yml --ref main -f head_ref=v10.0.0-beta.6 -f base_ref=v10.
 
 ```bash
 gh workflow run bench.yml --ref main -f head_ref=v10.0.0-beta.6 -f tier=L4
+```
+
+```bash
+gh workflow run bench.yml --ref main -f head_ref=v10.0.0-beta.6 -f suites=e1-mongo-uniform,e3-mongo -f dataset=1k -f aa=true -f warm_up=120
 ```
 
 The workflow keeps one pending run per ref, so a second run is dispatched from another branch. Each job uploads

@@ -74,7 +74,7 @@ Elasticsearch 上的副本不是在命令路径中与聚合自己的快照存储
 - **版本不一致。** 检索可能显示比稍后的状态读取更旧的版本。答案必须是最新的时，读取状态。
 - **又一个集群。** Elasticsearch 是在 MongoDB 之外要运行、规划容量、保护和监控的第二个系统。
 
-各存储在基准测试中的数字见[性能](./performance)。
+各存储在基准测试中的数字见[容量规划](./performance)，它们怎样测得见[性能](../guide/performance)。
 
 ## 什么时候选 PostgreSQL {#when-postgresql}
 

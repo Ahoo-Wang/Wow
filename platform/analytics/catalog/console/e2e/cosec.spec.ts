@@ -12,7 +12,7 @@
  */
 
 import { expect, test, type Page } from "@playwright/test";
-import { accessToken } from "./cosec.ts";
+import { accessToken, APP } from "./cosec.ts";
 import { CONNECTION, DATABASE, putTable } from "./warehouse.ts";
 import { DevelopmentCallerHeaders } from "@ahoo-wang/wow-client";
 
@@ -57,6 +57,30 @@ test("a request without a token is answered 401, and no identity header is trust
   );
 });
 
+test("the gateway decides in the token's app: on the console's route a token for another app, or for none, is refused, whatever CoSec-App-Id names", async ({
+  request,
+}) => {
+  const query = "/analytics-catalog/source/snapshot/query";
+  const data = { kind: "list", filter: { op: "match-all" } };
+  for (const app of ["another-console", null]) {
+    const token = accessToken("eve", ["analytics.catalog.editor"], { app });
+    const answer = await request.post(query, {
+      data,
+      headers: { Authorization: `Bearer ${token}`, "CoSec-App-Id": APP },
+    });
+    expect(answer.status()).toBe(403);
+    expect((await answer.json()).type).toBe(
+      "https://cosec.ahoo.me/problems/scope-rejected",
+    );
+  }
+  // The console's own token passes, whatever app a client names.
+  const own = await request.post(query, {
+    data,
+    headers: { Authorization: `Bearer ${EDITOR}`, "CoSec-App-Id": "another-console" },
+  });
+  expect(own.status()).toBe(200);
+});
+
 test("an analyst signs in with a CoSec token and drafts a source in its name", async ({
   page,
   request,
@@ -84,7 +108,7 @@ test("a token the gateway refuses signs the console out", async ({ page }) => {
     accessToken(
       "mallory",
       ["analytics.catalog.admin"],
-      -60,
+      { validFor: -60 },
     ),
   );
   await expect(page.getByText("Sign in to read the catalog")).toBeVisible();
@@ -104,8 +128,7 @@ test("a token the gateway refuses later signs the console out, saying so", async
     accessToken(
       "mallory",
       ["analytics.catalog.admin"],
-      3600,
-      "a-secret-the-gateway-does-not-know",
+      { secret: "a-secret-the-gateway-does-not-know" },
     ),
   );
   await expect(

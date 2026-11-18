@@ -74,7 +74,7 @@ A type whose states are searched on Elasticsearch has two arrangements. They dif
 - **Versions apart.** A search may show a version older than the state read shows a moment later. Read the state when the answer must be current.
 - **Another cluster.** Elasticsearch is a second system to run, size, secure and monitor beside MongoDB.
 
-[Performance](./performance) gives each store's figures in the benchmarks.
+[Capacity Planning](./performance) gives each store's figures in the benchmarks, and [Performance](../guide/performance) how they were measured.
 
 ## When to pick PostgreSQL {#when-postgresql}
 
