@@ -235,7 +235,8 @@ lines += [
     "",
     f"- Before V10 writes: export --dry-run: " + "; ".join(log_lines("rollback-before-dry-run", r"not in 9\.x|Dry run")[:2])
     + f"; 9.x states vs V10: {data('rollback-before-compare')}.",
-    f"- After V10 writes ({data('v10-traffic').get('commands', '?')} V10 commands): rollback took {seconds('rollback-after')}; "
+    f"- After V10 writes ({data('v10-traffic').get('commands', '?')} V10 commands, read back "
+    f"{data('v10-lag').get('caughtUpMillis', '?')} ms after they stopped): rollback took {seconds('rollback-after')}; "
     + "; ".join(log_lines("export", r" done: |^EQUAL|^DIFFERS"))
     + f"; 9.x states vs V10: {data('rollback-after-compare')}; 9.x then took {data('ninex-after-rollback-traffic').get('commands', '?')} writes.",
     f"- Refusal: after V10 created orders and views, export --dry-run exited "

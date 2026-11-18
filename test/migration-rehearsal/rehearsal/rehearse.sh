@@ -535,6 +535,9 @@ step v10-traffic 0 driver traffic --version=v10 --base="$V10_URL" --book="$WORK/
 views_traffic_join v10-views
 # V10's derived ids find the imported preferences and wordings: each set lands on the version after 9.x's.
 step v10-settings 0 driver views settings --version=v10 --base="$VIEWS_URL" --settings="$WORK/settings.tsv"
+# A state read answers the snapshot, which V10's subscriptions write after the commit: each order the traffic touched
+# is read once it reaches its booked version. A host started on the migrated history may still be catching up on it.
+step v10-lag 0 driver await --base="$V10_URL" --touched="$WORK/v10-touched.tsv"
 step v10-states-after 0 driver states --version=v10 --base="$V10_URL" --book="$WORK/book.tsv" --sample="$SAMPLE" --out="$WORK/v10-after.json"
 
 # 7. rollback after V10 writes
