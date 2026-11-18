@@ -95,6 +95,7 @@ The two lists below are generated from the sources of the published modules: the
 | `me.ahoo.wow.cosec.CoSecCallerOptions` | class | `wow-cosec` |
 | `me.ahoo.wow.cosec.CoSecCallerResolver` | class | `wow-cosec` |
 | `me.ahoo.wow.cosec.CoSecCommandAuthorizer` | class | `wow-cosec` |
+| `me.ahoo.wow.cosec.CoSecIdentity` | class | `wow-cosec` |
 | `me.ahoo.wow.cosec.CoSecServiceRouteAuthorizer` | class | `wow-cosec` |
 | `me.ahoo.wow.spring.boot.security.CoSecAutoConfiguration` | class | `wow-spring-boot` |
 | `me.ahoo.wow.spring.boot.security.CoSecRouteMapAutoConfiguration` | class | `wow-spring-boot` |

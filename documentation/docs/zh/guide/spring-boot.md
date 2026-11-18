@@ -153,3 +153,5 @@ Wow 分组下的环境变量（如 `WOW_KAFKA_…`）也按同样方式检查。
 ## 运行 {#run-it}
 
 `./gradlew bootRun` 或应用的 main 函数会启动一个节点。没有 `DataSource` 或 `MongoClient` 时，数据保存在内存中，这只在开发 profile 或内部端口只绑定在回环网卡上时允许。没有 Kafka 时，只要它做的事都不需要主题，它在任何地方都能启动，并在启动时说明它不发布任何流；在开发中，它改为把主题保存在 JVM 里（[服务什么时候需要 Kafka](../operate/kafka#when-a-service-needs-kafka)）。生产服务需要什么，见[部署模型](../operate/topology)。
+
+公开端口的每条路由都需要认证，包括 `GET /wow/manifest` 和 `GET /wow/openapi`：没有调用者的请求得到 401（`wow.auth.unauthenticated`）。开发时，请求用开发身份请求头指明调用者（[调用者是谁](./http#who-the-caller-is)）。`cosec` profile 下、位于 CoSec 网关之后的节点，相信网关转发的 `CoSec-Identity` 请求头：直接调用它的本地客户端或测试，发送网关会转发的身份，即 `wow-cosec` 的 `CoSecIdentity("alice", listOf("buyer")).headers()`，按 CoSec 文档的格式写出（[把网关放在前面](../operate/security#put-the-gateway-in-front)）。

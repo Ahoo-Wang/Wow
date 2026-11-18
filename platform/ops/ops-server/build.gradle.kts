@@ -56,8 +56,6 @@ dependencies {
     runtimeOnly("com.zaxxer:HikariCP")
     implementation("io.github.oshai:kotlin-logging-jvm")
     testImplementation("me.ahoo.wow:wow-test-spring-boot")
-    // The CoSec-Identity header the CoSec gateway forwards, which the service believes as it comes.
-    testImplementation(testFixtures(project(":cosec")))
     // A command within a request CoSec permitted: CoSec's filter writes its security context into the Reactor context.
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor")
     // The same flow on PostgreSQL in a container (decision D196).

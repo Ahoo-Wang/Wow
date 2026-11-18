@@ -13,7 +13,7 @@ A service's Manifest is its contract in one document: its contexts, aggregates, 
 1. **The compiler** writes each domain module's fragment, `META-INF/wow/manifest/<module>.json` ([What the Compiler Generates](./generated-code#the-manifest-fragment)).
 2. **The Gradle plugin** (`generateWowManifestFragment`) completes the fragment with the JSON Schemas of its types, the query keywords and the state's fingerprint. A type's Jakarta Bean Validation constraints become its schema's validation keywords, so a client sees them before it sends: `@Positive` is an `exclusiveMinimum` of 0, `@NotBlank` a `minLength` of 1, `@Size` the length or item bounds, `@Pattern` a `pattern` and `@Email` the `email` format. Whether a field is required, or may be null, still follows its Kotlin type. The completed fragment replaces the compiler's in the module's resources.
 3. **At build time**, `mergeWowManifest` merges the fragments of the service's runtime class path into `build/wow/manifest.json`.
-4. **At startup**, the host merges the same fragments, adds the framework's error codes, and serves the result at `GET /wow/manifest`.
+4. **At startup**, the host merges the same fragments, adds the framework's error codes, and serves the result at `GET /wow/manifest`, authenticated like every route of the public port: a request with no caller is answered 401.
 
 The snapshot queries read the state schema from the completed fragment: a state field can be filtered and sorted only once the plugin has completed it.
 

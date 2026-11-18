@@ -52,6 +52,7 @@ class OpsCoSecTest {
      * [id] of CoSec's default tenant with [roles], as the CoSec gateway forwards it after verifying its credential: the
      * service holds no secret and verifies nothing, it believes the header.
      */
+    @OptIn(ExperimentalWowApi::class) // wow-cosec is experimental in 10.0
     private fun signedIn(id: String, vararg roles: String): Who =
         Who(CoSecIdentity(id, roles.toList()).headers())
 

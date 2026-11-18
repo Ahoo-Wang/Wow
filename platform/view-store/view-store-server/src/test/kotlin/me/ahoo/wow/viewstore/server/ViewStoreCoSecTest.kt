@@ -14,6 +14,7 @@
 package me.ahoo.wow.viewstore.server
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.cosec.CoSecIdentity
 import me.ahoo.wow.test.server.Answer
@@ -44,6 +45,7 @@ class ViewStoreCoSecTest {
      * [id] of CoSec's default tenant with [roles], decided by the gateway in [app], as the gateway forwards it: the
      * service holds no secret and verifies nothing, it believes the header.
      */
+    @OptIn(ExperimentalWowApi::class) // wow-cosec is experimental in 10.0
     private fun signedIn(id: String, vararg roles: String, app: String = APP): Who =
         Who(CoSecIdentity(id, roles.toList(), app = app).headers())
 

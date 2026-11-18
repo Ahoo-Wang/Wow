@@ -62,8 +62,6 @@ dependencies {
     implementation("io.github.oshai:kotlin-logging-jvm")
     testImplementation("me.ahoo.wow:wow-test")
     testImplementation("me.ahoo.wow:wow-test-spring-boot")
-    // The CoSec-Identity header the CoSec gateway forwards, which the service believes as it comes.
-    testImplementation(testFixtures(project(":cosec")))
     // The generator of the configuration metadata of the service's own keys (design rule K8).
     testImplementation(testFixtures(project(":spring-boot")))
     // The catalog on ClickHouse in a container (decision D196).
