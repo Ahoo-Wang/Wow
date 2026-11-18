@@ -14,7 +14,6 @@
 package me.ahoo.wow.manifest
 
 import me.ahoo.wow.api.annotation.InternalWowApi
-import java.net.URL
 
 /**
  * Whether the classes a peer contract lists are where its consumer runs, context by context: a consumer may hold a
@@ -50,17 +49,22 @@ object ContractClasses {
     /** Where [classLoader] holds a class, by its binary name: the jar's file name, or the directory; null for none. */
     @JvmStatic
     fun locator(classLoader: ClassLoader): (String) -> String? = { binary ->
-        classLoader.getResource(binary.replace('.', '/') + ".class")?.let { where(it, binary) }
+        classLoader.getResource(binary.replace('.', '/') + ".class")?.let { where(it.toString(), binary) }
     }
 
-    /** The class path entry of [resource], the class file of [binary]: a jar's file name, else its directory. */
-    internal fun where(resource: URL, binary: String): String {
-        val location = resource.toString()
-        val jar = location.substringBefore("!/", missingDelimiterValue = "")
-        return if (jar.isNotEmpty()) {
-            jar.substringAfterLast('/')
-        } else {
-            location.removeSuffix(binary.replace('.', '/') + ".class").removePrefix("file:")
+    /**
+     * The class path entry of [location], the URL of the class file of [binary]: a jar's file name, else its
+     * directory. A jar is the one the class is directly in, before the last `!/`: a library nested in a Spring Boot
+     * executable jar is `jar:nested:/app.jar/!BOOT-INF/lib/x.jar!/…` (Spring Boot 3.2 and later) or
+     * `jar:file:/app.jar!/BOOT-INF/lib/x.jar!/…` (the older loader), and its entry is `x.jar`, not the application's
+     * jar. A directory nested in a jar (`BOOT-INF/classes`) is named with the jar holding it.
+     */
+    internal fun where(location: String, binary: String): String {
+        val entry = location.substringBeforeLast("!/", missingDelimiterValue = "").trimEnd('/')
+        return when {
+            entry.isEmpty() -> location.removeSuffix(binary.replace('.', '/') + ".class").removePrefix("file:")
+            entry.endsWith(".jar") -> entry.substringAfterLast('/')
+            else -> entry.removePrefix("jar:")
         }
     }
 }

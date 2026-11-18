@@ -19,7 +19,7 @@ description: Wow 的术语，每条一句定义，附英文原词和解释它的
 | Aggregate type | 聚合类型 | 一类聚合在它的上下文里的名字，写作 `context.aggregate`。 |
 | Alias | 别名 | 命令或事件以前的名字，保留下来，让以这个名字记录的历史仍然可读。见[决定与演化](../concepts/programming-model#events-change-over-time)。 |
 | Analytics catalog | 分析目录 | 定义、审批和发布数据集的平台服务。见[读模型](../concepts/read-models#three-query-models)。 |
-| API jar | api jar | 限界上下文发布的模块：它的 jar 装命令、事件和值类，它的特性 `contract`（分类器为 `contract` 的 jar）装对端读取的契约及由它生成的代码。见[一份契约](../concepts/contract#contracts-between-services)。 |
+| API jar | api jar | 限界上下文发布的模块，它的 jar 装命令、事件和值类。它的特性 `contract` 以分类器为 `contract` 的 jar 发布，装契约及由它生成的代码，供服务和使用其他上下文生成代码的代码读取。见[一份契约](../concepts/contract#contracts-between-services)。 |
 | Backpressure | 背压 | 系统某部分负载高的信号，例如繁忙拒绝或等待超时；订阅对它的回应是放慢，而不是暂停或停放。见[订阅](../concepts/subscriptions#failures-park-one-aggregate)。 |
 | Bounded context | 限界上下文 | 领域的一部分，有自己的模型、自己的日志和自己的公开语言。见[上下文之间](../concepts/cross-context)。 |
 | Bulkhead | 舱壁 | 带短队列的并发上限，防止查询用光写入需要的连接。见[读模型](../concepts/read-models#reads-must-not-slow-down-writes)。 |

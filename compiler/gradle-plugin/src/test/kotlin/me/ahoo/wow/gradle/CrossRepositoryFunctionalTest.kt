@@ -139,8 +139,13 @@ class CrossRepositoryFunctionalTest {
         val result = runner(b, "1.0.0", "1.0.0-types", ":b-api:publish", ":b-domain:check").build()
         result.task(":b-domain:check")?.outcome.assert().isIn(TaskOutcome.SUCCESS, TaskOutcome.UP_TO_DATE)
         publishedJars("b-api", "1.0.0").assert().containsExactly("b-api-1.0.0-contract.jar", "b-api-1.0.0.jar")
+        // The merge names the types-only release the event's class is in, and the property that published it.
         runner(b, "1.0.0", "1.0.0-types", ":b-server:${WowPlugin.MERGE_TASK}").buildAndFail().output.assert()
-            .contains("AlphaOpened, which no peer contract on the class path lists")
+            .contains(
+                "AlphaOpened, which no peer contract on the class path lists as an event: it is in " +
+                    "repro:a-api:1.0.0-types, whose api module carries no contract listing it",
+                "(-P${ContractRole.PUBLISH_PROPERTY}=false)",
+            )
     }
 
     @Test

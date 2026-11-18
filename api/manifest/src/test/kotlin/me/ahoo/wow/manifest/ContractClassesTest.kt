@@ -17,7 +17,6 @@ import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
-import java.net.URI
 import java.net.URLClassLoader
 
 /** Whether the classes of a peer contract are on its consumer's class path ([ContractClasses]). */
@@ -61,8 +60,16 @@ class ContractClassesTest {
 
     @Test
     fun `a class should be located in its jar, by the jar's name, or in its directory`(@TempDir directory: File) {
-        ContractClasses.where(URI("jar:file:/repo/sample-api-2.0.0.jar!/sample/Open.class").toURL(), "sample.Open")
+        fun where(location: String) = ContractClasses.where(location, "sample.Open")
+        where("jar:file:/repo/sample-api-2.0.0.jar!/sample/Open.class").assert().isEqualTo("sample-api-2.0.0.jar")
+        // A library nested in a Spring Boot executable jar is named, not the application's jar.
+        where("jar:nested:/app/service.jar/!BOOT-INF/lib/sample-api-2.0.0.jar!/sample/Open.class")
             .assert().isEqualTo("sample-api-2.0.0.jar")
+        where("jar:file:/app/service.jar!/BOOT-INF/lib/sample-api-2.0.0.jar!/sample/Open.class")
+            .assert().isEqualTo("sample-api-2.0.0.jar")
+        where("jar:nested:/app/service.jar/!BOOT-INF/classes/!/sample/Open.class")
+            .assert().isEqualTo("nested:/app/service.jar/!BOOT-INF/classes")
+        where("file:/build/classes/kotlin/main/sample/Open.class").assert().isEqualTo("/build/classes/kotlin/main/")
         File(directory, "sample/Open.class").apply { parentFile.mkdirs() }.writeText("")
         URLClassLoader(arrayOf(directory.toURI().toURL()), null).use { loader ->
             val locate = ContractClasses.locator(loader)
