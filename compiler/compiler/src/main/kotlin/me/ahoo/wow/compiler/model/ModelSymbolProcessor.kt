@@ -27,6 +27,7 @@ import com.google.devtools.ksp.symbol.KSPropertyDeclaration
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.compiler.model.aggregate.AggregateAnalyzer
 import me.ahoo.wow.compiler.model.aggregate.AggregateBinding
+import me.ahoo.wow.compiler.model.aggregate.AggregateIdResolver
 import me.ahoo.wow.compiler.model.aggregate.AliasCheck
 import me.ahoo.wow.compiler.model.aggregate.CommandBinding
 import me.ahoo.wow.compiler.model.aggregate.ErrorCodeBinding
@@ -194,6 +195,7 @@ internal class ModelSymbolProcessor(
         if (mode == Mode.OFF) {
             return emptyList()
         }
+        AggregateIdResolver.reportMisplaced(resolver, logger)
         val unread = contexts.collect(resolver)
         // The contexts' files in the order read: sources keeps its order, so a new one lands where collecting put it.
         sources += contexts.files
@@ -481,7 +483,7 @@ internal class ModelSymbolProcessor(
         if (context == null) {
             // A model, its handlers and its fragment are named after the module's context: without one, nothing it
             // generated could join a service's Manifest, so the compilation fails here, naming why.
-            logger.error(noContext(contexts.declared.size))
+            logger.error(contexts.noContext(contexts.declared.size))
             return
         }
         val errors = errors(context)
@@ -508,24 +510,6 @@ internal class ModelSymbolProcessor(
             "json",
         ).bufferedWriter().use { it.write(FRAGMENT_WRITER.writeValueAsString(ManifestTree.write(fragment))) }
         writeModelProvider(context, "${Manifest.FRAGMENT_DIRECTORY}/$module.json", module)
-    }
-
-    /**
-     * Why a generate-mode module of aggregates or processors fails, with [declared] `@BoundedContext`s: several need
-     * the KSP option to name one; none is either a module without one, or one whose declaration KSP did not hand the
-     * processor, an incremental build whose caches describe other sources, which the error names with its way out.
-     */
-    private fun noContext(declared: Int): String {
-        val option = ModelSymbolProcessorProvider.CONTEXT_OPTION
-        val head = "No Manifest fragment and no model provider: the module declares $declared @BoundedContext"
-        return if (declared > 1) {
-            "$head; set the KSP option $option to name its bounded context"
-        } else {
-            "$head that KSP handed the processor, so its models name no context. Either it has none: declare one " +
-                "@BoundedContext, or set the KSP option $option. Or it declares one KSP did not hand the processor, " +
-                "because KSP's incremental caches describe other sources (a source root that moved): build the " +
-                "module clean, or rerun its KSP task (--rerun)"
-        }
     }
 
     /**
@@ -560,7 +544,7 @@ internal class ModelSymbolProcessor(
     private fun generate(binding: AggregateBinding, root: KSClassDeclaration) {
         val upgradeFiles = upgrades.filter { upgrade -> binding.upgrades.any { it.function == upgrade.name } }
             .mapNotNull { it.declaration.containingFile }
-        // Without a context the compilation fails at its end ([noContext]), so no model is written that names none.
+        // Without a context the compilation fails at its end ([BoundedContexts.noContext]), so no model names none.
         contexts.context()?.let { context ->
             codeGenerator.createNewFile(
                 Dependencies(

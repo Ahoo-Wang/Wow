@@ -29,7 +29,11 @@ package me.ahoo.wow.api.annotation
  * command. One property of a command is its aggregate id; an aggregate whose id is its owner's
  * (`@AggregateRoot(idSource = OWNER)`) takes none, and neither does an `@Unaddressed` or a mounted command, whose
  * transformer finds the aggregate.
+ *
+ * A Java command marks its field, which its public getter reads, or, a record, its component
+ * (`record Rename(@AggregateId String id, String name)`): javac carries the mark to the component's accessor, which is
+ * what the `FUNCTION` target is for. On any other function the mark is a compile error.
  */
-@Target(AnnotationTarget.PROPERTY, AnnotationTarget.FIELD)
+@Target(AnnotationTarget.PROPERTY, AnnotationTarget.FIELD, AnnotationTarget.FUNCTION)
 @MustBeDocumented
 annotation class AggregateId

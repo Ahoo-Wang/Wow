@@ -27,7 +27,7 @@ The annotations of the programming model, in `me.ahoo.wow.api.annotation` (artif
 
 [AggregateId](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/AggregateId.kt): The property of a command that holds the id of the aggregate the command acts on, its target: a `String` the command's class declares, or an interface it implements does, stored or computed from other properties.
 
-- Targets: `PROPERTY`, `FIELD`
+- Targets: `PROPERTY`, `FIELD`, `FUNCTION`
 - Parameters: None.
 
 ## `@AggregateRoot`

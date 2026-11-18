@@ -96,6 +96,22 @@ internal object AnnotationSet {
     /** The annotations only a member of an aggregate's state takes: `@Access`. */
     private val STATE_NAMES = setOf("Access")
 
+    /** The annotation that names a command's aggregate, which a Java record's component takes too. */
+    private const val AGGREGATE_ID = "AggregateId"
+
+    /**
+     * Why [where] may not take the command annotation [simpleName]: only a property of a command an aggregate decides
+     * takes it, and `@AggregateId` a Java record's component as well.
+     */
+    fun commandPropertyOnly(where: String, simpleName: String): String {
+        val places = if (simpleName == AGGREGATE_ID) {
+            ": a Kotlin property, a Java field read by its public getter, or a Java record's component"
+        } else {
+            ""
+        }
+        return "$where is annotated @$simpleName, which only a property of a command an aggregate decides takes$places"
+    }
+
     /** The annotations only a property of a command an aggregate decides takes: `@AggregateId`, `@OccurredAt`. */
     private val COMMAND_NAMES = setOf("AggregateId", "OccurredAt")
 
@@ -131,9 +147,13 @@ internal object AnnotationSet {
             if (simpleName in STATE_NAMES && !state) {
                 return@mapNotNull "$where is annotated @$simpleName, which only a member of an aggregate's state takes"
             }
+            // A function's @AggregateId, the one command annotation a function can carry, is reported wherever the
+            // function is, by AggregateIdResolver.misplaced: not here, by owner.
+            if (simpleName == AGGREGATE_ID && annotated is KSFunctionDeclaration) {
+                return@mapNotNull null
+            }
             if (simpleName in COMMAND_NAMES && !command) {
-                return@mapNotNull "$where is annotated @$simpleName, which only a property of a command an aggregate " +
-                    "decides takes"
+                return@mapNotNull commandPropertyOnly(where, simpleName)
             }
             if (simpleName in NAMES) {
                 return@mapNotNull null
@@ -163,7 +183,11 @@ internal object AnnotationSet {
             problems(it, field, state = state, command = command) +
                 listOfNotNull(it.getter).flatMap { getter -> problems(getter, field, command = command) }
         }
-        val functions = type.getDeclaredFunctions().flatMap { problemsOfFunction(it, where, state = state) }
+        // A Java record command's component takes @AggregateId, read from its constructor's parameter or accessor.
+        val record = command && JavaRecords.isRecord(type)
+        val functions = type.getDeclaredFunctions().flatMap {
+            problemsOfFunction(it, where, state = state, component = record && JavaRecords.isComponentSite(type, it))
+        }
         return (problems(type, where) + constructorParameters + properties + functions).distinct()
     }
 
@@ -176,10 +200,11 @@ internal object AnnotationSet {
         owner: String,
         processor: Boolean = false,
         state: Boolean = false,
+        component: Boolean = false,
     ): List<String> {
         val where = "$owner's function ${function.simpleName.asString()}"
-        return problems(function, where, processor, state) + function.parameters.flatMap {
-            problems(it, "$where's parameter ${it.name?.asString()}")
+        return problems(function, where, processor, state, command = component) + function.parameters.flatMap {
+            problems(it, "$where's parameter ${it.name?.asString()}", command = component)
         }
     }
 }

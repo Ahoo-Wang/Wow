@@ -27,7 +27,7 @@ description: "编程模型的注解：用在哪里、有哪些参数、表达什
 
 [AggregateId](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/AggregateId.kt): The property of a command that holds the id of the aggregate the command acts on, its target: a `String` the command's class declares, or an interface it implements does, stored or computed from other properties.
 
-- 目标: `PROPERTY`, `FIELD`
+- 目标: `PROPERTY`, `FIELD`, `FUNCTION`
 - 参数: 无。
 
 ## `@AggregateRoot`

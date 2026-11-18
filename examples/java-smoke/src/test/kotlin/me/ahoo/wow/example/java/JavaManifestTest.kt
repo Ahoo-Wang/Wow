@@ -36,6 +36,13 @@ class JavaManifestTest {
     }
 
     @Test
+    fun `a Java record command should name its aggregate by its marked component`() {
+        val account = context.path("aggregates").single { it.path("name").asString() == "account" }
+        val rename = account.path("commands").single { it.path("name").asString() == "RenameAccount" }
+        rename.path("idProperty").asString().assert().isEqualTo("id")
+    }
+
+    @Test
     fun `the error codes of Java fields should be the context's errors`() {
         context.path("errors").toList().associate { it.path("code").asString() to it.path("status").asInt() }.assert()
             .containsEntry(AccountRejections.INVALID_AMOUNT, 422)
