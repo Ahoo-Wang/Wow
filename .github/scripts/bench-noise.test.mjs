@@ -7,11 +7,14 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
+import { verdict } from './bench-calibration.mjs';
 import {
   HISTORY,
   NOISE,
   POOL,
   added,
+  halfWidth,
+  heldOut,
   judgedAgainst,
   noiseFromHistory,
   poolOf,
@@ -49,16 +52,17 @@ test('an entry reaches as far from 1 as its interval goes beyond it, and no fart
   assert.equal(reach({ legacy: true, thresholds: { p50: 0.46 } }, 'p50'), 0.46);
 });
 
-test("a suite's threshold is the farthest reach of its last POOL entries, at least 2%: a wide draw ages out", () => {
+test("a suite's threshold is the largest half-width of its last POOL entries, at least their reach and 2%: a wide draw ages out", () => {
   const wide = entry('2026-10-01', 1.3, 1.5);
   const narrow = ['2026-11-01', '2026-11-02', '2026-11-03', '2026-11-04'].map(
     d => entry(d, 0.9, 1.1),
   );
   assert.equal(POOL, 5);
+  // p50: the wide draw's reach (0.3) is beyond every half-width (0.1); p99: the half-width of [0.9, 1.1].
   assert.deepEqual(thresholdsOf(poolOf([wide, ...narrow])), {
     throughput: 0.02,
     p50: 0.3,
-    p99: 0.02,
+    p99: 0.1,
   });
   // A fifth newer entry pushes the wide one out of the pool; the history keeps it.
   const pool = poolOf([wide, ...narrow, entry('2026-11-05', 0.95, 1.05)]);
@@ -66,9 +70,20 @@ test("a suite's threshold is the farthest reach of its last POOL entries, at lea
   assert.ok(!pool.includes(wide));
   assert.deepEqual(thresholdsOf(pool), {
     throughput: 0.02,
-    p50: 0.02,
-    p99: 0.02,
+    p50: 0.1,
+    p99: 0.1,
   });
+});
+
+test('an entry is half as wide as its interval; a legacy entry is its threshold', () => {
+  assert.ok(
+    Math.abs(halfWidth(entry('2026-11-01', 0.8, 1.2), 'p50') - 0.2) < 1e-9,
+  );
+  assert.equal(
+    halfWidth({ legacy: true, thresholds: { p50: 0.46 } }, 'p50'),
+    0.46,
+  );
+  assert.equal(halfWidth({ metrics: {} }, 'p50'), 0);
 });
 
 test('a legacy threshold, which has no date, is the oldest of its pool and counts until POOL newer entries', () => {
@@ -93,7 +108,7 @@ test("noise.json holds each suite's thresholds and what its pool mixes", () => {
   assert.deepEqual(noise['e3-pg@100k'], {
     throughput: 0.02,
     p50: 0.1,
-    p99: 0.02,
+    p99: 0.1,
     pool: {
       entries: 2,
       cpus: ['AMD EPYC 7763 64-Core Processor', 'Intel(R) Xeon(R) 6975P-C'],
@@ -110,11 +125,12 @@ test('a run is judged against the wider of the pool and its own A/A draw, never 
       pool: { entries: 5 },
     },
   };
+  // The run's own draw is narrower at p50 (0.2) and wider at p99 (0.1): each metric keeps the wider.
   const judged = judgedAgainst(committed, [entry('2026-11-20', 0.5, 0.9)]);
   assert.deepEqual(judged['e3-pg@100k'], {
     throughput: 0.02,
     p50: 0.3,
-    p99: 0.02,
+    p99: 0.1,
     pool: { entries: 5 },
   });
   const wider = judgedAgainst(committed, [entry('2026-11-20', 1.4, 1.6)]);
@@ -166,4 +182,22 @@ test('the committed noise.json is what the committed history gives', () => {
   assert.ok(
     Object.keys(JSON.parse(noise)).every(suite => suite.endsWith('@100k')),
   );
+});
+
+test('no committed A/A draw, held out of its pool, would have been called a difference by the rest of it', () => {
+  // Identical code against itself: every flag here is a false alarm, and a rule that gives one does not ship.
+  const history = JSON.parse(readFileSync(join(ROOT, HISTORY), 'utf8'));
+  assert.deepEqual(heldOut(history, verdict), []);
+  // The reach alone, the first rule tried, did flag held-out draws: the half-width is what keeps them in.
+  const reachOnly = (interval, t) => verdict(interval, t);
+  const flaggedByReach = history.filter(entry =>
+    ['p50', 'p99'].some(metric => {
+      const others = history.filter(
+        e => e.suite === entry.suite && e !== entry,
+      );
+      const t = Math.max(0.02, ...poolOf(others).map(e => reach(e, metric)));
+      return ['higher', 'lower'].includes(reachOnly(entry.metrics[metric], t));
+    }),
+  );
+  assert.ok(flaggedByReach.length > 0);
 });

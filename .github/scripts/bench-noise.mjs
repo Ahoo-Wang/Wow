@@ -20,10 +20,18 @@ import { labelOf } from './bench-common.mjs';
 //
 // Each A/A suite run is one entry of test/benchmarks/noise-history.json, appended and never edited: where it ran
 // (the run, the build, the runner's CPU model and the suite's CPU pinning, the date) and, per significance metric,
-// its A/A interval and each equal-rate round pair's own ratio. A suite's threshold is derived from its last POOL
-// entries, by the rule `verdict` applies (bench-calibration.mjs): the smallest t, at least NOISE_FLOOR, under which
-// none of them would have been called a difference, i.e. the farthest any of their intervals reached from 1. A wide
-// draw counts until POOL newer entries of the suite push it out; the history keeps it.
+// its A/A interval and each equal-rate round pair's own ratio. A suite's threshold per metric is the largest A/A
+// half-width among its last POOL entries, not below the farthest any of their intervals reached from 1 and not below
+// NOISE_FLOOR. So a ratio is beyond noise (`verdict`, bench-calibration.mjs) when its whole interval clears 1 by at
+// least as much as an identical-code run's own interval has recently been wide, and no recent A/A run of the suite
+// would have been called a difference. A wide draw counts until POOL newer entries of the suite push it out; the
+// history keeps it.
+//
+// Why the half-width, and not the reach alone: the bootstrap over a run's seconds understates run-to-run noise. A/A
+// intervals exclude 1 about twice as often as their nominal 5% (4 of 42 at p50, 5 of 42 at p99 in the history as
+// first built), so the reach alone flagged 8 of 84 held-out A/A draws of identical code. The half-width takes the
+// between-run uncertainty to be at least the within-run one; held out, it flagged none. The test holding each
+// committed entry out keeps any later rule to that.
 //
 // test/benchmarks/noise.json is this module's output, the thresholds the workflow reads (NOISE); it is never edited
 // by hand, and `--check` fails when it is not what the history gives.
@@ -32,9 +40,11 @@ import { labelOf } from './bench-common.mjs';
 //   node .github/scripts/bench-noise.mjs --check          (fails when noise.json is not what the history gives)
 //   node .github/scripts/bench-noise.mjs add <entries>    (appends a run's noise-history-entries.json, then writes)
 //
-// The rule not taken: the 95th percentile of the round pairs' |ratio − 1| over the pool. It uses every pair, but it
-// is not what `verdict` compares (an interval against 1 ± t), so "within noise" would stop meaning that no recent A/A
-// run of identical code would have been called this.
+// Rules not taken (held-out A/A draws of the first history flagged, of 84): the reach alone (8); the reach with a
+// floor of the largest reach of every suite's pool (2, and every quiet suite pays for the noisiest one's bad day);
+// the 95th percentile of the round pairs' |ratio − 1| over the pool (0, but it is not what `verdict` compares, an
+// interval against 1 ± t, and it sat at 59% p50 and 74% p99); the half-width × 0.75 (0, a factor fitted to that
+// history).
 
 export const POOL = 5;
 export const HISTORY = 'test/benchmarks/noise-history.json';
@@ -134,14 +144,61 @@ export function poolOf(entries, size = POOL) {
     .slice(0, size);
 }
 
-/** A suite's thresholds from its pool: per metric the farthest reach from 1, at least NOISE_FLOOR. */
+/** Half the width of an entry's interval in [metric]; a legacy entry's threshold as it was; 0 without an interval. */
+export function halfWidth(entry, metric) {
+  if (entry.legacy) return entry.thresholds?.[metric] ?? 0;
+  const m = entry.metrics?.[metric];
+  if (!Number.isFinite(m?.lo) || !Number.isFinite(m?.hi)) return 0;
+  return (m.hi - m.lo) / 2;
+}
+
+/**
+ * A suite's thresholds from its pool: per metric the largest A/A half-width, not below the farthest reach from 1,
+ * and not below NOISE_FLOOR.
+ */
 export function thresholdsOf(pool) {
   return Object.fromEntries(
     METRICS.map(metric => [
       metric,
-      round4(Math.max(NOISE_FLOOR, ...pool.map(entry => reach(entry, metric)))),
+      round4(
+        Math.max(
+          NOISE_FLOOR,
+          ...pool.map(entry =>
+            Math.max(halfWidth(entry, metric), reach(entry, metric)),
+          ),
+        ),
+      ),
     ]),
   );
+}
+
+/**
+ * Each entry of [history] held out of its suite's pool and judged against the threshold the rest of the pool gives:
+ * the held-out A/A draws that would have been called a difference, `{ suite, run, metric, interval, threshold }`.
+ * Identical code against itself, so each one is a false alarm.
+ */
+export function heldOut(history, judge) {
+  return history.flatMap(entry => {
+    if (entry.legacy) return [];
+    const others = poolOf(
+      history.filter(e => e.suite === entry.suite && e !== entry),
+    );
+    if (others.length === 0) return [];
+    const t = thresholdsOf(others);
+    return METRICS.filter(metric =>
+      Number.isFinite(entry.metrics?.[metric]?.lo),
+    )
+      .filter(metric =>
+        ['higher', 'lower'].includes(judge(entry.metrics[metric], t[metric])),
+      )
+      .map(metric => ({
+        suite: entry.suite,
+        run: entry.run,
+        metric,
+        interval: [entry.metrics[metric].lo, entry.metrics[metric].hi],
+        threshold: t[metric],
+      }));
+  });
 }
 
 /**

@@ -4011,7 +4011,7 @@ export function renderReport(suites, meta = {}) {
     lines.push(
       '## A/A noise',
       '',
-      `The head against itself at one rate, ${AA_ROUNDS} rounds or more: per metric, how far this run's 95% bootstrap interval of the ratio reached from 1, at least 2% (the rule a suite's threshold is derived by, over its last ${POOL} A/A runs). The report writes these as noise-history-entries.json; add it with \`node .github/scripts/bench-noise.mjs add\` to test/benchmarks/noise-history.json, which noise.json is written from. An unprimed suite (1k) is not pooled: its calibration probes measure a fresh node's start.`,
+      `The head against itself at one rate, ${AA_ROUNDS} rounds or more: per metric, the half-width of this run's 95% bootstrap interval of the ratio, at least how far it reached from 1 and at least 2% (a suite's threshold is the largest of these over its last ${POOL} A/A runs). The report writes these as noise-history-entries.json; add it with \`node .github/scripts/bench-noise.mjs add\` to test/benchmarks/noise-history.json, which noise.json is written from. An unprimed suite (1k) is not pooled: its calibration probes measure a fresh node's start.`,
       '',
       `| Suite | ${SIGNIFICANCE_METRICS.map(([metric]) => metric).join(' | ')} |`,
       `| --- | ${SIGNIFICANCE_METRICS.map(() => '---').join(' | ')} |`,
