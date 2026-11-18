@@ -243,10 +243,10 @@ internal object QueryPropertiesSource {
     }
 
     /**
-     * The element type of this type of the class [type], named [qualified], when Jackson writes it as an array: an object array, a
-     * collection (a class whose supertypes reach `Collection`: a `SortedSet`, an `ArrayDeque`, a class extending
-     * `ArrayList<Line>`), or an [ITERATED] interface; null for any other type. The element type is the one its
-     * `iterator()` yields as a member of this type, a supertype's type argument substituted.
+     * The element type of this type of the class [type], named [qualified], when Jackson writes it as an array: an
+     * object array, a collection (a class whose supertypes reach `Collection`: a `SortedSet`, an `ArrayDeque`, a class
+     * extending `ArrayList<Line>`), or an [ITERATED] interface; null for any other type. The element type is the one
+     * its `iterator()` yields as a member of this type, a supertype's type argument substituted.
      */
     private fun KSType.elementOf(type: KSClassDeclaration, qualified: String): KSType? {
         // Each has one type parameter, a star projection of which has no type.
@@ -263,7 +263,8 @@ internal object QueryPropertiesSource {
 
     /** This class, [qualified], when a path continues into its properties: an application's class not a leaf. */
     private fun KSClassDeclaration.nestedClassOf(qualified: String): KSClassDeclaration? {
-        val platform = qualified.startsWith("kotlin.") || qualified.startsWith("java.") || qualified.startsWith("javax.")
+        val platform = qualified.startsWith("kotlin.") || qualified.startsWith("java.") ||
+            qualified.startsWith("javax.")
         return if (platform || isLeaf()) null else this
     }
 

@@ -144,9 +144,9 @@ internal object TypeArguments : CustomDefinitionProviderV2 {
      */
     object Containers {
         /**
-         * Whether a value declared as [type] is a list or a sequence Jackson writes as an array, as it does a collection:
-         * an `Iterable` (Kotlin's `Iterable` and `MutableIterable` alike) or a `Sequence`, not a class implementing one,
-         * which Jackson writes as a bean.
+         * Whether a value declared as [type] is a list or a sequence Jackson writes as an array, as it does a
+         * collection: an `Iterable` (Kotlin's `Iterable` and `MutableIterable` alike) or a `Sequence`, not a class
+         * implementing one, which Jackson writes as a bean.
          */
         fun isIterated(type: Class<*>): Boolean = type == Iterable::class.java || type == Sequence::class.java
 
