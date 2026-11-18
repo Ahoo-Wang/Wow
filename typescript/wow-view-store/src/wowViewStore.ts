@@ -72,9 +72,12 @@ export interface WowViewStoreOptions {
    * Its interceptors carry who is asking; the store never does. The V10
    * service takes the tenant and the owner from the principal, so no path
    * names them: the interceptors send the authorization (CoSec's token, or
-   * the headers the service's own caller resolver reads) and `CoSec-App-Id`,
-   * the application every view, preference and wording is kept in. The
-   * store adds `Wow-Scope` itself where it acts as a reserved owner: the
+   * the headers the service's own caller resolver reads). Every view,
+   * preference and wording is kept in the request's application, which on
+   * CoSec 8 is the one the token is issued for (its `aud`), or the one the
+   * gateway's route names (`cosec-app-id`); CoSec 8 reads no `CoSec-App-Id`,
+   * so a front end needs a token issued for its app, or a route that sets
+   * it. The store adds `Wow-Scope` itself where it acts as a reserved owner: the
    * shared views' `(shared)`, and `(system)` of `(platform)` for stored
    * system views.
    */

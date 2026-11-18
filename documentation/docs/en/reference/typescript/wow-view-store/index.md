@@ -16,7 +16,7 @@ description: 'WowViewStore, the @ahoo-wang/wow-view-store package: the view engi
 | Export | Role |
 |---|---|
 | `WowViewStore` | The store: `new WowViewStore({ fetcher, permissions?, pageSize? })`, handed to `new ViewEngine({ store })` |
-| `WowViewStoreOptions` | `fetcher`, whose interceptors carry the authorization and `CoSec-App-Id`; `permissions`, which buttons are enabled; `pageSize`, the views one `list` page holds |
+| `WowViewStoreOptions` | `fetcher`, whose interceptors carry the authorization, a token issued for the front end's app; `permissions`, which buttons are enabled; `pageSize`, the views one `list` page holds |
 | `SHARED_SCOPE`, `SYSTEM_SCOPE` | The `Wow-Scope` of the reserved owners: `{ ownerId: '(shared)' }` for shared views and preferences, `{ tenantId: '(platform)', ownerId: '(system)' }` for stored system views |
 | `WowViewStoreErrorCodes`, `WowViewStoreErrorCode` | The view store's own problem codes, beside Wow's, and their union type |
 | `datasetCatalogOf(client)` | The view engine's dataset catalog over a `DatasetClient`: the datasets a Wow service serves (`GET /wow/dataset`) and a source for each |
@@ -34,7 +34,7 @@ export interface WowViewStoreOptions {
 
 The view engine's [`ViewStore`](../wow-view-engine/store#api-ViewStore) over the Wow view store: every method of the port, the optional `changeAudience` included; `permissions` is there only when the host gave `options.permissions`. The port names a view by id alone, so the store remembers where it last saw each one (a list, a read, a write); a view it has not seen is found with one read by id, which the service answers with the caller's own view of that id, else a shared one, else a system view.
 
-- `fetcher` goes to a base URL that serves `/view-store/…`: the gateway in front of the view store service. Its interceptors carry who is asking, the authorization and `CoSec-App-Id`; the service takes the tenant and the owner from the principal, and the store adds `Wow-Scope` itself where a view belongs to a reserved owner. No path names a tenant or an owner.
+- `fetcher` goes to a base URL that serves `/view-store/…`: the gateway in front of the view store service. Its interceptors carry who is asking, the authorization; the service takes the tenant and the owner from the principal, and the application every view is kept in from the token (its `aud`) or the gateway's route (`cosec-app-id`): CoSec 8 reads no `CoSec-App-Id`, so a front end needs a token issued for its app, or a route that sets it; and the store adds `Wow-Scope` itself where a view belongs to a reserved owner. No path names a tenant or an owner.
 - `permissions` decides which buttons are enabled for one definition's views, never what a write may do: the service authorizes each write. A host answers it by the roles the caller holds: `createShared` and `changeAudience` by the role that writes the owner `(shared)` (`view-store.shared-writer` as shipped), since creating a shared view, sharing a personal one and claiming a shared one all need it; `editSystem` by the role that writes `(system)` of `(platform)` (`view-store.system-writer`). Left out, everything is allowed but `editSystem`, which stays off unless the answer says `true`.
 - `pageSize` is the most views one `list` page returns, 100 by default, the service's default cursor page. The system views come whole on the first page, so that page may hold more.
 
@@ -92,7 +92,7 @@ export type WowViewStoreErrorCode = (typeof WowViewStoreErrorCodes)[keyof typeof
 
 | Rule | Behavior |
 |---|---|
-| Who is asking | The store takes no tenant, user or application. The fetcher's interceptors send the authorization and `CoSec-App-Id`, and the service reads the tenant and the owner from the principal; a host nobody signs in to sends a caller through an interceptor of its own ([Saved Views](../../../typescript/view-engine/storage.md#wowviewstore-views-on-a-wow-service)) |
+| Who is asking | The store takes no tenant, user or application. The fetcher's interceptors send the authorization, and the service reads the tenant and the owner from the principal, the application from the token or the gateway's route (CoSec 8 reads no `CoSec-App-Id`); a host nobody signs in to sends a caller through an interceptor of its own ([Saved Views](../../../typescript/view-engine/storage.md#wowviewstore-views-on-a-wow-service)) |
 | Audience | The owner is the audience: a personal view is the caller's own, a shared one the owner `(shared)`'s. "Make shared" sends `share-view` as the caller, the view's owner; "Make personal" sends `claim-view` as `(shared)`, which makes the caller the owner. Either moves the view in place, its id kept, and waits for the service's `ViewAudienceSaga` to move it |
 | Writes | `Wow-Request-Id` is the port's `requestId` and `If-Match` its `revision` (`"0"` for preferences never written); each waits for the snapshot and answers the view read back at the version it left |
 | Retries | The service deduplicates every write by its request id, creates included, so a retry from any tab or store is answered with the first attempt's outcome. A stale revision is `CONFLICT`, carrying the view as it is now |
