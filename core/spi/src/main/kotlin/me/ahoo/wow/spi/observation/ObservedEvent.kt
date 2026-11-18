@@ -439,6 +439,12 @@ sealed class ObservedEvent {
 
             /** Entries other nodes appended, found by a probe of the head. */
             IDLE("idle"),
+
+            /**
+             * A probe of the head on schedule shortly after the tail opened, whatever this node commits: entries other
+             * nodes appended without the lease while their routes did not name this node yet.
+             */
+            SCHEDULED("scheduled"),
         }
     }
 

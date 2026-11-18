@@ -18,6 +18,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
+import me.ahoo.wow.runtime.log.HandoffOptions
 import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.subscription.Member
 import java.util.concurrent.atomic.AtomicLong
@@ -158,4 +159,18 @@ internal class RouteLookup(
 
         private val logger = KotlinLogging.logger {}
     }
+}
+
+/**
+ * These hand-off options with a tail's probes on schedule after it opens ([HandoffOptions.scheduledProbes]), on a node
+ * of [cluster]: another node appends without the lease in a partition this node acquired only while its routes do not
+ * name this one, so for at most a route refresh ([ClusterOptions.routeRefreshInterval]) after the acquisition, the
+ * reuse of a lookup's read ([RouteLookup.INTERVAL]) and a command already deciding, which one probe interval covers.
+ * With the defaults that is 2.1 s: one or two reads more per partition acquired, when its own commits keep it from an
+ * idle probe, and none on a partition held longer. Unchanged without a cluster: every command runs where it arrives.
+ */
+internal fun HandoffOptions.probingAfterAcquiring(cluster: ClusterOptions?): HandoffOptions {
+    cluster ?: return this
+    val window = cluster.routeRefreshInterval + RouteLookup.INTERVAL + probeInterval
+    return HandoffOptions(capacity, gapWait, probeInterval, window)
 }

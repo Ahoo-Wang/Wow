@@ -26,7 +26,7 @@ Tags are written as `name=value`; a tag without a value takes the value its name
 | `wow.executor.in_flight` | Gauge | `wow.context` | Commands in flight in the context's executor |
 | `wow.executor.lanes` | Gauge | `wow.context` | Aggregates with commands in the executor |
 | `wow.log.append_queue.depth` | Gauge | `wow.context` | Commits waiting in the log's append queue |
-| `wow.log.tail.reads` | Counter | `wow.context`, `wow.reason` | Tails that read the store because memory could not continue them: `start`, `gap`, `overflow`, `idle` |
+| `wow.log.tail.reads` | Counter | `wow.context`, `wow.reason` | Tails that read the store because memory could not continue them: `start`, `gap`, `overflow`, `idle`, and `scheduled` (a probe every second for about 2 s after a node acquires a partition, for commits other nodes made there before their routes named it) |
 | `wow.state_cache.lookups` | Counter | `wow.context`, `wow.outcome` | State cache lookups: `hit`, `miss` (a snapshot and a tail read) |
 | `wow.state_cache.evictions` | Counter | `wow.context` | States evicted from the state cache |
 | `wow.state_cache.invalidations` | Counter | `wow.context` | States dropped from the state cache as behind the log: the partition's owner read a later stream of the aggregate, which another node committed without the partition's lease |
