@@ -89,6 +89,19 @@ Base services come before the services that consume them, and modules on a cycle
 
 Preparing in order releases nothing: every service stays on 9.x in production until the window.
 
+### A service that reads its peers' streams {#a-service-that-reads-its-peers-streams}
+
+A service whose processors read another context's published streams starts only with that context's V10 contract on its class path, the one its api module publishes. So the first local start of a downstream service needs each of its upstreams' V10 api modules. Without one, it refuses to start before it opens a store:
+
+```text
+The service's contracts do not hold together:
+- subscription <context>.<processor>.<function> reads context <peer>, which no Manifest declares
+```
+
+A types-only release of the upstream (`-Pwow.contract.publish=false`) carries no contract, so the downstream does not start against it either: it is told to depend on the module's full release.
+
+There is no stand-in for development. A peer's contract comes only from the class path, from its api module's `META-INF/wow/contract.json`: `wow.peers.<context>.contract: manifest` serves calls to the peer, never subscriptions to its streams, and the test server's fake peer serves calls alone and needs the contract too. A downstream service is therefore started locally only once each upstream's api module and domain are on V10 and its api module is published with its contract. Until then its sources can be migrated, but it does not start. This is the order above: base services first.
+
 ## Front ends
 
 A front end is developed once the contracts of the services it calls are stable, with clients generated from their Manifests ([HTTP and TypeScript Clients](./http-and-clients)), and released in the window, after the services are verified and before the traffic opens. An old front end cannot run against a V10 service, because V10 forces these changes on every caller:
@@ -170,6 +183,16 @@ The estate shares one write stop: every 9.x service stops, every service's data 
 9. **Decide: go on, or go back to 9.x.** Decide now, before the traffic opens. Until then V10 has written nothing but its scheduled jobs' commands and any probe's: go back by restarting 9.x if it wrote nothing, or by `export` if it did ([Roll back](#roll-back)). Once the traffic opens, V10 writes what 9.x has no form for, and the way back closes at the first such write ([The point of no easy return](#the-point-of-no-easy-return)).
 10. **Release the front ends, then open the traffic** once every node of every service is active: gateways and external command producers with it, then scale out. Keep every 9.x service stopped.
 11. **Observe** every service, and the flows that cross them: an order paid, its stock reserved.
+
+### Who creates the topics {#who-creates-the-topics}
+
+A context's topics are created by its own nodes or by an operator, never by a reader. `wow.kafka.ddl`, over `wow.ddl`, decides which:
+
+- **`auto`, the default.** Each node creates the topics its context owns when it starts, on standby too: its command topic when it takes commands from it, its receipts topic, and the streams it publishes. A topic that exists is never altered.
+- **`validate`.** The node creates none, and refuses to start while one is missing, or while its command topic has another number of partitions than its log (`The topics of node … are not as it needs them (topic DDL validate)`). The operator creates them first, as the sample deployments under `deploy/` describe with `kafka-topics --create`.
+- **No reader creates a topic it reads.** Its consumers never create a topic by asking for it, and the `wow-service` chart runs no topic job.
+
+A node whose peers' topics do not exist yet still starts. It waits for each topic, retrying without end, and once it is activated its readiness stays down while it waits: the `topics` component of `/actuator/health/readiness`, unless `wow.health.topics.required` is `false`. On standby that component is up, marked `standby`. So in the window, with `auto`, starting every node on standby (step 5) creates every context's topics before any node is activated. With `validate`, the operator creates every context's topics before step 5. Either way they exist before the activations of step 7, whatever order the services start in.
 
 ## Online, when the import does not fit the window {#online}
 
