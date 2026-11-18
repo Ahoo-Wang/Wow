@@ -205,8 +205,9 @@ class InheritedAggregateIdTest {
         }
         // A record's component: KSP shows it as its accessor alone, and a mark on it as none.
         result.messages.assert().contains(
-            "command Tally has a String record component id (read by sample.Tally's accessor id()$elsewhere, which " +
-                "KSP shows as no property, so no mark on it is read) and no @AggregateId property",
+            "command Tally has a String record component id (read by sample.Tally's accessor id()$elsewhere) and no " +
+                "@AggregateId property",
+            "mark the component @AggregateId (record Tally(@AggregateId String id, …))",
         )
         names.filterNot { it in warned || it in unmarkable || it == "Tally" }
             .forEach { result.messages.assert().doesNotContain("command $it has") }
@@ -228,15 +229,17 @@ class InheritedAggregateIdTest {
     }
 
     @Test
-    fun `a record's component should not take the mark, refused in its source and unread in its class file`() {
+    fun `a record's component should take the mark, compiled here or in a library`() {
         val marked = SourceFile.java(
             "Tally.java",
             """
             package sample;
 
             import me.ahoo.wow.api.annotation.AggregateId;
+            import me.ahoo.wow.api.annotation.CreateAggregate;
 
-            public record Tally(@AggregateId String id) {
+            @CreateAggregate
+            public record Tally(@AggregateId String id, int quantity) {
             }
             """.trimIndent(),
         )
@@ -251,22 +254,59 @@ class InheritedAggregateIdTest {
 
             @AggregateRoot
             class Stock(val id: String) {
-                fun onCommand(command: Tally): Stocked = Stocked(0)
+                fun onCommand(command: Tally): Stocked = Stocked(command.quantity())
                 fun onSourcing(event: Stocked) = Unit
             }
             """.trimIndent(),
         )
-        val (_, compiled) = compileModel("generate", context, marked, stock)
-        compiled.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
-        compiled.messages.assert().contains("command Tally's function <init>'s parameter id is annotated @AggregateId")
-        val (_, read) = compileModelAgainst("generate", listOf(compileLibrary(marked)), context, stock)
-        read.exitCode.assert().withFailMessage { read.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
-        read.messages.assert().contains(
-            "command Tally has a String record component id (read by sample.Tally's accessor id(), compiled in " +
-                "another module, which KSP shows as no property, so no mark on it is read) and no @AggregateId " +
-                "property: Wow 10 does not take a command's aggregate from its body unless a property is marked " +
-                "@AggregateId. If id names Tally's aggregate, write the command as a class whose field a public " +
-                "getter reads, or in Kotlin, then mark the id @AggregateId",
+        val library = compileLibrary(marked)
+        listOf(
+            compileModel("generate", context, marked, stock),
+            compileModelAgainst("generate", listOf(library), context, stock),
+        ).forEach { (compilation, result) ->
+            result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
+            result.messages.assert().doesNotContain("command Tally has")
+            compilation.workingDir.walkTopDown().single { it.name == "StockModel.kt" }.readText()
+                .assert().contains("aggregateId<sample.Tally> { it.`id` }")
+            val fragment = compilation.workingDir.walkTopDown()
+                .single { it.isFile && it.parentFile.invariantSeparatorsPath.endsWith(Manifest.FRAGMENT_DIRECTORY) }
+            ManifestFragmentFixtures.read(
+                fragment
+            ).contexts.single().aggregates.single().commands.single { it.name == "Tally" }
+                .idProperty.assert().isEqualTo("id")
+        }
+    }
+
+    @Test
+    fun `the mark on a function that is no record's component should be a compile error naming where it goes`() {
+        val marked = SourceFile.kotlin(
+            "Count.kt",
+            """
+            package sample
+
+            import me.ahoo.wow.api.annotation.AggregateId
+            import me.ahoo.wow.api.annotation.AggregateRoot
+
+            data class Count(val stock: String) {
+                @AggregateId
+                fun target(): String = stock
+            }
+
+            data class Counted(val quantity: Int)
+
+            @AggregateRoot
+            class Stock(val id: String) {
+                fun onCommand(command: Count): Counted = Counted(0)
+                fun onSourcing(event: Counted) = Unit
+            }
+            """.trimIndent(),
+        )
+        val (_, result) = compileModel("generate", context, marked)
+        result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        result.messages.assert().contains(
+            "function sample.Count.target is annotated @AggregateId, which only a property of a command an " +
+                "aggregate decides takes: a Kotlin property, a Java field read by its public getter, or a Java " +
+                "record's component",
         )
     }
 

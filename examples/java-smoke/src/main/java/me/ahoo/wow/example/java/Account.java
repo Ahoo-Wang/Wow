@@ -34,6 +34,10 @@ public class Account {
         return new AccountOpened(command.owner());
     }
 
+    public AccountRenamed onCommand(RenameAccount command) {
+        return new AccountRenamed(command.owner());
+    }
+
     public Deposited onCommand(Deposit command) {
         requirePositive(command.amount());
         return new Deposited(command.amount());

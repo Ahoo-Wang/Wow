@@ -38,6 +38,15 @@ class AccountSpec {
         }
     }
 
+    @Test
+    fun `a Java record command should name its aggregate by its component`() = aggregateSpec(model, id = "alice") {
+        given(AccountOpened("Alice"))
+        whenCommand(RenameAccount("alice", "Alicia")) {
+            expectEvents(AccountRenamed("Alicia"))
+            expectState { owner.assert().isEqualTo("Alicia") }
+        }
+    }
+
     // region rejection
     @Test
     fun `a Java rejection should carry the code of a Java field`() = aggregateSpec(model, id = "alice") {

@@ -59,6 +59,10 @@ public class Account {
         return new AccountOpened(command.owner());
     }
 
+    public AccountRenamed onCommand(RenameAccount command) {
+        return new AccountRenamed(command.owner());
+    }
+
     public Deposited onCommand(Deposit command) {
         requirePositive(command.amount());
         return new Deposited(command.amount());
@@ -112,6 +116,10 @@ public class AccountState {
     }
 
     public void onSourcing(AccountOpened event) {
+        owner = event.owner();
+    }
+
+    public void onSourcing(AccountRenamed event) {
         owner = event.owner();
     }
 

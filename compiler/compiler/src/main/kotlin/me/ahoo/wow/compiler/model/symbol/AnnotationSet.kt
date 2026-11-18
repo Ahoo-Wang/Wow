@@ -18,6 +18,7 @@ import com.google.devtools.ksp.getDeclaredProperties
 import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
+import me.ahoo.wow.compiler.model.aggregate.JavaRecords
 
 /**
  * The annotation set. Its annotations keep the package
@@ -133,7 +134,7 @@ internal object AnnotationSet {
             }
             if (simpleName in COMMAND_NAMES && !command) {
                 return@mapNotNull "$where is annotated @$simpleName, which only a property of a command an aggregate " +
-                    "decides takes"
+                    "decides takes: a Kotlin property, a Java field read by its public getter, or a Java record's component"
             }
             if (simpleName in NAMES) {
                 return@mapNotNull null
@@ -163,7 +164,11 @@ internal object AnnotationSet {
             problems(it, field, state = state, command = command) +
                 listOfNotNull(it.getter).flatMap { getter -> problems(getter, field, command = command) }
         }
-        val functions = type.getDeclaredFunctions().flatMap { problemsOfFunction(it, where, state = state) }
+        // A Java record command's component takes @AggregateId, read from its constructor's parameter or accessor.
+        val record = command && JavaRecords.isRecord(type)
+        val functions = type.getDeclaredFunctions().flatMap {
+            problemsOfFunction(it, where, state = state, component = record && JavaRecords.isComponentSite(type, it))
+        }
         return (problems(type, where) + constructorParameters + properties + functions).distinct()
     }
 
@@ -176,10 +181,13 @@ internal object AnnotationSet {
         owner: String,
         processor: Boolean = false,
         state: Boolean = false,
+        component: Boolean = false,
     ): List<String> {
         val where = "$owner's function ${function.simpleName.asString()}"
-        return problems(function, where, processor, state) + function.parameters.flatMap {
-            problems(it, "$where's parameter ${it.name?.asString()}")
+        // A function's @AggregateId, the one command annotation a function can carry, is the processor's to report,
+        // wherever the function is (AggregateIdResolver.misplaced).
+        return problems(function, where, processor, state, command = true) + function.parameters.flatMap {
+            problems(it, "$where's parameter ${it.name?.asString()}", command = component)
         }
     }
 }

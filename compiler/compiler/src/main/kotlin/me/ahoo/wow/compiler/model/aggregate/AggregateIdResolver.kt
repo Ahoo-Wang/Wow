@@ -17,6 +17,8 @@ import com.google.devtools.ksp.getAllSuperTypes
 import com.google.devtools.ksp.isPrivate
 import com.google.devtools.ksp.isProtected
 import com.google.devtools.ksp.isPublic
+import com.google.devtools.ksp.processing.KSPLogger
+import com.google.devtools.ksp.processing.Resolver
 import com.google.devtools.ksp.symbol.ClassKind
 import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSClassDeclaration
@@ -63,11 +65,14 @@ internal object AggregateIdResolver {
     ): AggregateIdBinding? {
         val name = command.simpleName.asString()
         val annotated = propertiesOf(command).filter { it.annotated() }.distinctBy { it.simpleName.asString() }.toList()
-        if (annotated.size > 1) {
-            problems += "command $name has several @AggregateId properties " +
-                "(${annotated.joinToString { it.simpleName.asString() }}): one property holds its aggregate's id"
+        val components = markedComponents(command)
+        if (annotated.size + components.size > 1) {
+            val names = annotated.map { it.simpleName.asString() } + components.map { it.name }
+            problems += "command $name has several @AggregateId properties (${names.joinToString()}): one property " +
+                "holds its aggregate's id"
             return null
         }
+        components.singleOrNull()?.let { return componentBinding(command, it, creation, unaddressed, problems) }
         val property = annotated.singleOrNull() ?: return null
         val propertyName = property.simpleName.asString()
         val where = "command $name's @AggregateId property $propertyName"
@@ -98,12 +103,62 @@ internal object AggregateIdResolver {
     }
 
     /**
+     * The module's functions marked `@AggregateId` that are no Java record's component accessor, each with its
+     * problem: the mark's `FUNCTION` target is there for a record's component, which javac carries to its accessor.
+     */
+    fun reportMisplaced(resolver: Resolver, logger: KSPLogger) =
+        misplaced(resolver).forEach { (problem, function) -> logger.error(problem, function) }
+
+    internal fun misplaced(resolver: Resolver): List<Pair<String, KSFunctionDeclaration>> =
+        resolver.getSymbolsWithAnnotation(AGGREGATE_ID).filterIsInstance<KSFunctionDeclaration>()
+            .filterNot { function ->
+                val owner = function.parentDeclaration as? KSClassDeclaration
+                owner != null && JavaRecords.isComponentSite(owner, function)
+            }
+            .map { function ->
+                val where = function.qualifiedName?.asString() ?: function.simpleName.asString()
+                "function $where is annotated @AggregateId, which only a property of a command an aggregate decides " +
+                    "takes: a Kotlin property, a Java field read by its public getter, or a Java record's component" to
+                    function
+            }.toList()
+
+    /** The components of [command], a Java record, marked `@AggregateId`; none for any other command. */
+    private fun markedComponents(command: KSClassDeclaration): List<JavaRecords.Component> =
+        JavaRecords.components(command).filter { component -> component.sites.any { it.hasAnnotation(AGGREGATE_ID) } }
+
+    /**
+     * The binding of a Java record [command]'s marked [component]: read as Kotlin reads a record's component, by its
+     * name, and written by Wow's JSON under its name. Its problems are a property's: no `String`, or the command
+     * `@Unaddressed`.
+     */
+    private fun componentBinding(
+        command: KSClassDeclaration,
+        component: JavaRecords.Component,
+        creation: String,
+        unaddressed: Boolean,
+        problems: MutableList<String>,
+    ): AggregateIdBinding {
+        val name = command.simpleName.asString()
+        val where = "command $name's @AggregateId record component ${component.name}"
+        val type = component.type?.declaration?.qualifiedName?.asString()
+        if (type !in STRINGS) {
+            problems += "$where is a $type: an aggregate id is a String"
+        }
+        if (unaddressed) {
+            problems += "command $name is @Unaddressed and has an @AggregateId property: a transformer finds an " +
+                "unaddressed command's aggregate, and the body names an @AggregateId command's"
+        }
+        // A Java String is a platform type: a creation may leave it out, any other command must name one.
+        return AggregateIdBinding(component.name, component.name, nullable = creation != "NONE")
+    }
+
+    /**
      * The report of a [command] that has a `String` property named `id`, stored or computed, its own or a supertype's
      * (9.x's `Identifier.id`), and no `@AggregateId` property: Wow 10 does not take a command's aggregate from its body
      * by a property's name, as 9.x did. 9.x read that `id` from the command object by reflection, so it bound one Wow's
      * JSON does not write (`@JsonIgnore`, `@JsonIgnoreProperties`) or the generated model cannot read (private) too:
      * such an `id` is reported as well, and the report says the mark alone will not do there. So is a Java record's
-     * `id` component, which KSP shows as no property, only as its accessor, so no mark on it is read. Its class may be
+     * unmarked `id` component, which is marked on the component ([JavaRecords]). Its class may be
      * compiled here or in a library, an api module's jar, as a context's commands are. None where the command's class
      * suppresses it ([UNMARKED_AGGREGATE_ID]), or one of its [handlers] does: a library's `@Suppress` is kept only in
      * its source, so its command function is where a command of a library suppresses it. A `@Suppress` without a value
@@ -125,7 +180,7 @@ internal object AggregateIdResolver {
         val suppressed = command.suppresses(UNMARKED_AGGREGATE_ID, problems) ||
             handlers.any { it.suppresses(UNMARKED_AGGREGATE_ID, problems) }
         val properties = propertiesOf(command)
-        if (suppressed || properties.any { it.annotated() }) {
+        if (suppressed || properties.any { it.annotated() } || markedComponents(command).isNotEmpty()) {
             return null
         }
         val id = properties.firstOrNull {
@@ -175,15 +230,15 @@ internal object AggregateIdResolver {
 
     /**
      * What [command]'s `id` record component is, when it is a Java record with one ([isRecordOfId]), and how it is
-     * marked: as a class's field, since no mark on a component is read; null for any other command.
+     * marked: on the component; null for any other command.
      */
     private fun recordUnmarked(command: KSClassDeclaration): Pair<String, String>? {
         if (!command.isRecordOfId()) return null
         val elsewhere = if (command.origin in SOURCE) "" else ", compiled in another module"
         val clause = "a String record component $ID (read by ${command.qualifiedName!!.asString()}'s accessor " +
-            "$ID()$elsewhere, which KSP shows as no property, so no mark on it is read)"
-        return clause to "write the command as a class whose field a public getter reads, or in Kotlin, then mark " +
-            "the $ID @AggregateId"
+            "$ID()$elsewhere)"
+        return clause to "mark the component @AggregateId (record ${command.simpleName.asString()}(@AggregateId " +
+            "String $ID, …))"
     }
 
     /**
@@ -229,7 +284,7 @@ internal object AggregateIdResolver {
 
     /**
      * Whether this is a Java record with a `String` component named `id`: KSP shows a record's components as no
-     * property, only as their accessors, and a mark on a component as none, in its source or its class file alike.
+     * property, only as their accessors ([JavaRecords]).
      */
     private fun KSClassDeclaration.isRecordOfId(): Boolean =
         // A supertype or a return type that does not resolve has no qualified name: it is no record, and no String.

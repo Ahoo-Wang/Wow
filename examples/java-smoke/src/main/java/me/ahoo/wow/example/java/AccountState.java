@@ -33,6 +33,10 @@ public class AccountState {
         owner = event.owner();
     }
 
+    public void onSourcing(AccountRenamed event) {
+        owner = event.owner();
+    }
+
     public void onSourcing(Deposited event) {
         balance += event.amount();
     }

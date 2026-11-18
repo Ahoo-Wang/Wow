@@ -27,6 +27,7 @@ import com.google.devtools.ksp.symbol.KSPropertyDeclaration
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.compiler.model.aggregate.AggregateAnalyzer
 import me.ahoo.wow.compiler.model.aggregate.AggregateBinding
+import me.ahoo.wow.compiler.model.aggregate.AggregateIdResolver
 import me.ahoo.wow.compiler.model.aggregate.AliasCheck
 import me.ahoo.wow.compiler.model.aggregate.CommandBinding
 import me.ahoo.wow.compiler.model.aggregate.ErrorCodeBinding
@@ -194,6 +195,7 @@ internal class ModelSymbolProcessor(
         if (mode == Mode.OFF) {
             return emptyList()
         }
+        AggregateIdResolver.reportMisplaced(resolver, logger)
         val unread = contexts.collect(resolver)
         // The contexts' files in the order read: sources keeps its order, so a new one lands where collecting put it.
         sources += contexts.files
