@@ -51,7 +51,7 @@ outline: deep
 
 - 先修复原因：部署修正后的处理函数，或者让它调用的外部系统恢复。
 - 然后重试这些聚合：订阅从每个聚合停下的地方重新读取它的流（[ops 服务与控制台](./ops-console)）。
-- Saga 发出的命令被拒绝，只有在 Saga 没有对应的 `@OnRejected` 处理函数时才会停放聚合（[失败与重试](../guide/failures)）。
+- Saga 派生的命令被拒绝，只有在命令属于 Saga 自身上下文、且 Saga 没有对应的 `@OnRejected` 处理函数时，才会停放 Saga 的源聚合：发往其他上下文的命令此时不请求回执，由目标记录这次拒绝。Saga 调用的命令被拒绝时，只要 Saga 没有对应的处理函数，无论命令属于哪个上下文，都会停放聚合（[失败与重试](../guide/failures)）。
 
 ## 部署之后订阅重新开始了 {#a-subscription-starts-over-after-a-deploy}
 
