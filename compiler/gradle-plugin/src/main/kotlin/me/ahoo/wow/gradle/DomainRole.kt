@@ -146,9 +146,7 @@ internal object DomainRole {
             task.module.set(project.path)
             task.classpathProjects.set(projects)
             task.classpathProjectPaths.set(projects.map { it.values.distinct().sorted() })
-            val pairings = pairing.artifacts.resolvedArtifacts.map { artifacts ->
-                byProject(artifacts.filter(::isPairing))
-            }
+            val pairings = pairing.artifacts.resolvedArtifacts.map(::pairings)
             task.pairing.from(pairings.map { it.keys })
             task.pairingProjects.set(pairings)
             task.tools.from(toolsConfiguration(project))
@@ -174,12 +172,16 @@ internal object DomainRole {
             artifact.file.path to id.projectPath
         }.toMap()
 
+    /** The pairing files among [artifacts] ([isPairing]), each to the project it comes from. */
+    internal fun pairings(artifacts: Collection<ResolvedArtifactResult>): Map<String, String> =
+        byProject(artifacts.filter(::isPairing))
+
     /**
      * The pairing of the api modules among [compileClasspath]'s projects ([ApiRole.PAIRING_ELEMENTS]): a file each,
      * naming the domain modules it declares. A project with none (no api module, or one of another build) pairs with
      * no domain: its variant is missing, which the lenient view leaves out.
      */
-    private fun pairingOf(project: Project, compileClasspath: Configuration): ArtifactView =
+    internal fun pairingOf(project: Project, compileClasspath: Configuration): ArtifactView =
         compileClasspath.incoming.artifactView { view ->
             view.withVariantReselection()
             view.lenient(true)

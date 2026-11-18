@@ -24,6 +24,7 @@ import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.manifest.tools.ManifestJson
 import org.gradle.api.GradleException
 import org.gradle.api.Project
+import org.gradle.api.artifacts.ExternalModuleDependency
 import org.gradle.util.GradleVersion
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -194,5 +195,19 @@ class WowPluginTest {
             WowPlugin.CHECK_TASK
         )
             .forEach { service.tasks.findByName(it).assert().describedAs(it).isNotNull() }
+    }
+
+    @Test
+    fun `wow contract should require the contract feature of the api module it names`() {
+        val project = project(id = WowPlugin.ID)
+        val wow = project.extensions.getByType(WowExtension::class.java)
+        val api = wow.contract(project.dependencies.project(mapOf("path" to project.path)))
+        api.capabilitySelectors.single().displayName.assert().contains(ContractRole.FEATURE)
+        val coordinates = wow.contract("sample:shop-api:1.0.0") as ExternalModuleDependency
+        listOf(coordinates.group, coordinates.name, coordinates.version).assert()
+            .containsExactly("sample", "shop-api", "1.0.0")
+        coordinates.capabilitySelectors.single().displayName.assert().contains(ContractRole.FEATURE)
+        assertThrows<IllegalArgumentException> { wow.contract(42) }.message.assert()
+            .contains("wow.contract(...) takes an api module", "not 42")
     }
 }

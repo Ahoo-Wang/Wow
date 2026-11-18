@@ -27,6 +27,7 @@ import org.gradle.api.attributes.DocsType
 import org.gradle.api.internal.project.ProjectInternal
 import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.tasks.SourceSetContainer
+import org.gradle.api.tasks.WriteProperties
 import org.gradle.api.tasks.bundling.Jar
 import org.gradle.testfixtures.ProjectBuilder
 import org.junit.jupiter.api.Test
@@ -301,5 +302,23 @@ class WowApiPluginTest {
         api.configurations.getByName("api").incoming.dependencies.filter { it.group == "me.ahoo.wow" }
             .map { "${it.group}:${it.name}:${it.version}" }.assert()
             .containsExactlyInAnyOrder("me.ahoo.wow:wow-api:null", "me.ahoo.wow:wow-bom:${WowPlugin.version}")
+    }
+
+    @Test
+    fun `an api module should tell its domain modules in-build that it pairs with them`() {
+        val api = paired("shop-domain", "audit-domain")
+        val write = api.tasks.getByName("writeWowPairing") as WriteProperties
+        write.properties.assert().containsEntry(ApiRole.PAIRING_DOMAINS, ":audit-domain,:shop-domain")
+        val elements = api.configurations.getByName(ApiRole.PAIRING_ELEMENTS)
+        elements.isCanBeResolved.assert().isFalse()
+        elements.outgoing.artifacts.files.singleFile.name.assert().isEqualTo("pairing.properties")
+        // The domain module's contract task finds it among its compile class path's projects: the api's pairing file,
+        // no other variant of the project.
+        val domain = api.rootProject.project(":shop-domain")
+        (domain as ProjectInternal).evaluate()
+        val view = DomainRole.pairingOf(domain, domain.configurations.getByName("compileClasspath"))
+        val pairings = DomainRole.pairings(view.artifacts.artifacts)
+        pairings.assert().hasSize(1).containsValue(":shop-api")
+        pairings.keys.single().assert().endsWith("pairing.properties")
     }
 }
