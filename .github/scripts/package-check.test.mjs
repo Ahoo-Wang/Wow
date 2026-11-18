@@ -18,10 +18,10 @@ import {
   distTagProblems,
   manifestProblems,
   typeDiagnostics,
-  waitForRegistry,
 } from './package-check.mjs';
 import { ROOT } from './project-version.mjs';
 import { HELD_BACK, PUBLISHED } from './publish-npm.mjs';
+import { waitForRegistry } from './registry-wait.mjs';
 
 const manifest = dir =>
   JSON.parse(readFileSync(join(ROOT, dir, 'package.json'), 'utf8'));

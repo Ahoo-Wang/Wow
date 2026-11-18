@@ -18,10 +18,14 @@ import { pathToFileURL } from 'node:url';
 import { fetcherFloor, peerFetchers } from './fetcher-floor.mjs';
 import { ROOT, readProjectVersion } from './project-version.mjs';
 import {
+  tarballUrl,
+  waitForRegistry,
+  waitForTarballs,
+} from './registry-wait.mjs';
+import {
   HELD_BACK,
   PUBLISHED,
   distTag,
-  isPublished,
   pack,
   publishPlan,
   tarballName,
@@ -375,62 +379,6 @@ export function annotation(message) {
     .replace(/\n/g, '%0A')}`;
 }
 
-/**
- * How long the smoke test waits for npm to serve a version it accepted:
- * up to 30 minutes. npm took about 13 minutes to serve wow-client 9.2.2
- * after accepting it, and with no approval step a smoke job that gives up
- * early only needs a re-run.
- */
-const REGISTRY_ATTEMPTS = 120;
-const REGISTRY_DELAY_MS = 15_000;
-
-/**
- * Waits until the registry serves every name@version, asking at most
- * `attempts` times. A 404 and a registry error both mean "not yet"; the last
- * error of each package goes into the failure.
- */
-export async function waitForRegistry(
-  names,
-  version,
-  {
-    attempts = REGISTRY_ATTEMPTS,
-    delayMs = REGISTRY_DELAY_MS,
-    published = isPublished,
-    sleep = ms => new Promise(done => setTimeout(done, ms)),
-    log = console.log,
-  } = {},
-) {
-  let missing = [...names];
-  const errors = new Map();
-  for (let attempt = 1; ; attempt++) {
-    missing = missing.filter(name => {
-      try {
-        return !published(name, version);
-      } catch (error) {
-        errors.set(name, `${error.stderr || error.message}`.trim());
-        return true;
-      }
-    });
-    if (missing.length === 0) {
-      log(
-        `registry: serves ${names.map(name => `${name}@${version}`).join(', ')}`,
-      );
-      return;
-    }
-    const specs = missing.map(name => `${name}@${version}`).join(', ');
-    if (attempt >= attempts)
-      throw new Error(
-        `the registry does not serve ${specs} after ${attempts} attempts ${delayMs / 1000}s apart` +
-          missing
-            .filter(name => errors.has(name))
-            .map(name => `\n  ${name}: ${errors.get(name).split('\n')[0]}`)
-            .join(''),
-      );
-    log(`registry: waiting for ${specs} (attempt ${attempt}/${attempts})`);
-    await sleep(delayMs);
-  }
-}
-
 /** Packages whose dist-tag `tag` is not `version`, given each one's dist-tags. */
 export function distTagProblems(distTags, tag, version) {
   return Object.entries(distTags)
@@ -654,6 +602,10 @@ if (
       await waitForRegistry(
         plan.map(({ name }) => name),
         version,
+      );
+      // The tarballs too, before any install: npm can serve a version's metadata before its tarball.
+      await waitForTarballs(
+        plan.map(({ name }) => [name, tarballUrl(name, version)]),
       );
       checkDistTags(plan, version);
       checkConsumer(
