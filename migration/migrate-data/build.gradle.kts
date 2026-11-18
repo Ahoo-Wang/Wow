@@ -39,3 +39,10 @@ kotlin {
         associateWith(target.compilations.getByName("test"))
     }
 }
+
+// A MongoDB cluster to run the 9.x source and the V10 target on in place of the single-member container, as the
+// MongoDB backend's tests do: test/mongo-cluster/cluster.sh up sharded, then
+// ./gradlew :migrate-data:integrationTest -Dwow-test.mongo.url=$(test/mongo-cluster/cluster.sh url sharded)
+tasks.named<Test>("integrationTest") {
+    providers.systemProperty("wow-test.mongo.url").orNull?.let { systemProperty("wow-test.mongo.url", it) }
+}

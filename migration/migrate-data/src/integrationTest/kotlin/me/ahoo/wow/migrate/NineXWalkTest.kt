@@ -23,6 +23,7 @@ import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.migrate.example.NineXExample
 import me.ahoo.wow.spi.json.WowJson
 import org.bson.Document
+import org.junit.jupiter.api.Assumptions.assumeFalse
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir
@@ -71,6 +72,8 @@ class NineXWalkTest {
 
     @Test
     fun `a page reads 9x's index with no sort in the store, and costs its own instances, however many follow`() {
+        // The database profiler this reads runs on a replica set's members alone: a mongos refuses it.
+        assumeFalse(NineXMongoStore.sharded, "Reads the profiler, which a mongos does not run.")
         for (n in 1..300) {
             insertOrder("o-%03d".format(n), "(0)")
         }

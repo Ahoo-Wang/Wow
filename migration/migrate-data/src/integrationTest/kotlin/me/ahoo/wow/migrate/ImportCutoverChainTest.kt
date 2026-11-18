@@ -121,7 +121,7 @@ class ImportCutoverChainTest {
                 {
                   "map": "migration-map.json",
                   "manifests": ["manifest.json"],
-                  "source": { "uri": "${WowContainers.mongo.replicaSetUrl}", "database": "${nineX.name}" },
+                  "source": { "uri": "${WowContainers.mongoUrl}", "database": "${nineX.name}" },
                   "target": $target,
                   "partitions": { "${NineXExample.CONTEXT}": $PARTITIONS }
                 }
@@ -157,7 +157,7 @@ class ImportCutoverChainTest {
     @Test
     fun `on MongoDB, a peer's saga acts on V10's commits alone, its projection on the imported history too`() {
         val database = "wow_cutover_${databases.incrementAndGet()}"
-        val target = """{ "type": "mongo", "uri": "${WowContainers.mongo.replicaSetUrl}", "database": "$database" }"""
+        val target = """{ "type": "mongo", "uri": "${WowContainers.mongoUrl}", "database": "$database" }"""
         chain(
             target,
             MongoEventLog(NineXMongoStore.client, database, NineXExample.CONTEXT, PARTITIONS),

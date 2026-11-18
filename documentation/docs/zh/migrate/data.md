@@ -285,6 +285,50 @@ V10 停放的是聚合，不是事件：停放的聚合后续的事件在停放�
 
 只有事件流会写回去。V10 建立的预留键、它停放的聚合以及它的投影的视图都不会写回，9.x 也不会在它的事件总线上发布导出的流。
 
+## 分片的 MongoDB {#a-sharded-mongodb}
+
+工具通过集群的 `mongos` 路由读取分片的 9.x 存储、写入分片的 V10 目标。它没有任何专门针对分片的东西：它用的是路由提供给任何客户端的能力。
+
+### 支持什么 {#what-is-supported}
+
+- **源。** 让 `source.uri` 指向路由（`mongodb://mongos-1,mongos-2/`）。工具按 URI 的读偏好读取：保持默认的主节点，这样续跑的导入和追尾读到的是最新提交。它的读取和计数都经过路由，路由会排除块迁移尚未清理的文档，所以均衡器可以运行。每个 `<aggregate>_event_stream` 都需要 9.x 的 `(aggregateId, version)` 索引，导入按它遍历；`export` 还要求它唯一（[回滚](#roll-back)）。9.x 常用的分片键 `{aggregateId: "hashed"}` 能让这个索引保持唯一，无论 9.x 是在集合分片之前还是之后建的它。
+- **目标。** 让 `target.uri` 指向路由。工具在第一次用到每个 V10 集合时创建它，并像节点那样按[分片集群](../operate/mongodb#sharded-clusters)中的键给它分片：
+  - 日志按 `{partition: 1}`，在集合为空时按每个分区拆分，并分散到各个分片；
+  - 快照按 `{tenant_id: 1, aggregate_id: "hashed"}`；
+  - 预留键按 `{tenant_id: 1, key: "hashed"}`。
+
+  检查点、租约和失败台账不分片。连接所用的用户需要分片的权限：`clusterManager`，或者在该数据库上的 `enableSharding`、`splitChunk` 和 `moveChunk`。
+- **工具在 `mongos` 上总是分片。** `target` 还没有 `sharding` 或 `ddl` 选项（[#6470](https://github.com/Ahoo-Wang/Wow/issues/6470)）。即使节点运行 `wow.mongo.sharding: none`，它也会分片，并且需要创建集合和索引的权限。已经按其他键分片的集合会让导入停止，报错中会写出它的名字。
+
+### 演练过什么 {#what-was-rehearsed}
+
+`ShardedMigrationTest` 运行在仓库的分片集群上：两个各有三个成员的分片，前面是两个 `mongos`，MongoDB 7.0（`test/mongo-cluster/cluster.sh up sharded`，然后 `./gradlew :migrate-data:integrationTest -Dwow-test.mongo.url=$(test/mongo-cluster/cluster.sh url sharded)`）。它像 9.x 脚本通常做的那样给 9.x 示例的存储分片：事件流按 `{aggregateId: "hashed"}`，快照按 `{_id: "hashed"}`。它在一个集合分片之前、在另一个集合分片之后建唯一索引。它把每个实例复制 20 份，分布在两个分片上，然后经由路由，把下面这些运行到同一集群上的一个目标数据库：
+
+1. `check` 和 `import`；
+2. 在已持有某个实例部分历史的目标上运行 `import --restart`；
+3. `compare`（没有差异）和 `snapshot`；
+4. 对 V10 之后写入的一条流运行 `export`。
+
+它检查目标的日志集合和快照集合按上面的键分片，并且日志的块分布在两个分片上。这个集群每晚运行 MongoDB 后端的测试；migrate-data 的测试只在有人启动时运行。还没有真实的 9.x 数据在分片集群之间迁移过，所以请演练你自己的数据。
+
+### 运维要重做什么，在什么时候 {#what-the-operator-redoes-and-when}
+
+- **9.x 的分片脚本。** 它写的是 9.x 的集合和键：不要在 V10 的名字上运行它。工具和节点在创建 V10 集合时就给它们分片；脚本已经按其他键分片过的集合，会让两者都拒绝它。让 V10 的部署不再包含这个脚本。要手工分片，就在节点上设置 `wow.mongo.sharding: none`，并使用[分片集群](../operate/mongodb#sharded-clusters)中的键。在能告诉工具把分片留给你之前（[#6470](https://github.com/Ahoo-Wang/Wow/issues/6470)），它会给自己创建的集合分片。
+- **手工建的快照索引。** 在 9.x 的 `<aggregate>_snapshot` 上建的索引不会带过来。V10 的快照在 `wow_snapshot__<context>__<aggregate>` 中，字段改了名：
+
+  | 9.x | V10 |
+  | --- | --- |
+  | `_id` | `aggregate_id` |
+  | `tenantId` | `tenant_id` |
+  | `ownerId` | `owner_id` |
+  | `spaceId` | `space_id` |
+  | `firstEventTime` | `first_event_time` |
+  | `eventTime` | `last_event_time` |
+  | `tags` | `access`，每个标签放在映射文件指定的属性下 |
+
+  状态仍在 `state` 下，路径不变，`deleted` 保留原名。V10 会创建它自己的查询需要的索引：快照的键，以及在未删除快照上的 `{tenant_id, owner_id}` 和 `{tenant_id, space_id}`。只按新名字重建你自己的查询需要的那些。在 `snapshot` 写完集合之后、切换流量之前建它们。在满的集合上建索引要占用窗口内的时间，所以在演练中计时。在线切换时，在双跑期间的 `snapshot` 之后、最后一遍之前建它们，最后一遍只会加入有变化的实例。
+- **事件流的索引。** 为 9.x 事件流建的索引在 V10 中没有对应：V10 日志有自己的索引。导入需要的 9.x 索引，即追尾的 `(createTime, _id)` 索引，建在 9.x 侧，见[追上 9.x](#follow-9-x)。
+
 ## 限制 {#limits}
 
 - 只读取 9.x 的 MongoDB 事件存储。Redis 或 Elasticsearch 事件存储、或者 Elasticsearch 上的补偿服务，要先在 9.x 中迁到 MongoDB。

@@ -133,7 +133,7 @@ A JSON file. Relative paths resolve against the file's directory. A string writt
 | `target.type` | required | `postgres` or `mongo`. |
 | `target.jdbcUrl`, `target.username`, `target.password` | | The PostgreSQL target. |
 | `target.poolSize` | `16` | The most connections to the PostgreSQL target. |
-| `target.uri`, `target.database` | | The MongoDB target, a replica set. |
+| `target.uri`, `target.database` | | The MongoDB target: a replica set, or a sharded cluster's `mongos` routers, on which the tool shards the collections it creates ([A sharded MongoDB](../migrate/data#a-sharded-mongodb)). |
 | `partitions` | | Each V10 context's partition count, which must be the services' own. |
 | `classpath` | the tool's own class path | The services' V10 domain modules, each a jar or a directory of classes or jars, such as a service's distribution `lib`. `compare` and `snapshot` rebuild states with their models, `check --decode` reads the 9.x events with them, and without `manifests` the Manifests come from them. The tool runs no decide function, so it stands in for each dependency the models take that is an interface, and gives a `java.time.Clock` or `java.time.ZoneId` the system's UTC one. A model taking a dependency of another class fails, naming it: take it as an interface in the model. |
 | `compensation.database` | | The 9.x compensation service's database. Without `compensation`, nothing of the compensation service is read. |
