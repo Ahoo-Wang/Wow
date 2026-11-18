@@ -153,6 +153,7 @@ class QueryEngine private constructor(
         private var accessPolicies: List<AccessPolicy<*>> = emptyList()
         private var aggregatesOf: (Class<*>) -> List<AggregateType> = { emptyList() }
         private var strictAccess: Boolean = true
+        private var missingAccessAtRead: String? = null
         private var filters: List<QueryFilter> = emptyList()
         private var observers: List<QueryObserver> = emptyList()
         private var entryPolicy: QueryEntryPolicy = QueryEntryPolicy.DEFAULT
@@ -226,6 +227,17 @@ class QueryEngine private constructor(
             strictAccess = strict
         }
 
+        /**
+         * Refuses an aggregate that declares access attributes and has no access policy where it is read, not when the
+         * engine is built, the refusal ending with [wayOut], the caller's own words for the way out. Only the read side
+         * of a spec (`wow-test-query`'s `MemoryQueries`) uses it: it builds the engine over every module on the test's
+         * class path, most of whose aggregates a spec never reads, and a spec that reads one names its policy. A node
+         * must not: it would start with aggregates no caller may read, which its build refuses at its start, before
+         * any request.
+         */
+        @InternalWowApi
+        fun refuseMissingAccessPoliciesAtRead(wayOut: String) = apply { missingAccessAtRead = wayOut }
+
         /** The application's query filters. */
         fun filters(filters: List<QueryFilter>) = apply { this.filters = filters }
 
@@ -269,7 +281,14 @@ class QueryEngine private constructor(
             val catalog = catalog()
             val observer = QueryObserver.of(listOf(QueryLogObserver()) + observers)
             val ownerships = QueryOwnership.of(manifest)
-            val access = AccessPolicies.of(manifest, contexts, accessPolicies, aggregatesOf, strictAccess)
+            val access = AccessPolicies.of(
+                manifest,
+                contexts,
+                accessPolicies,
+                aggregatesOf,
+                strictAccess,
+                missingAccessAtRead,
+            )
             val scope = scopePolicies(ownerships, access)
             val gatewayPolicies = scope + accessPolicy(access) + policies
             datasets.requireAccess(access)

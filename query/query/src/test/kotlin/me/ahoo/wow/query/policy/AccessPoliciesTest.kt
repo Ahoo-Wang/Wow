@@ -18,6 +18,7 @@ import me.ahoo.wow.api.access.AccessAttribute
 import me.ahoo.wow.api.access.AccessAttributes
 import me.ahoo.wow.api.access.AccessPolicy
 import me.ahoo.wow.api.access.accessPolicy
+import me.ahoo.wow.api.access.ungovernedAccess
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.aggregate.Scope
@@ -43,6 +44,9 @@ import org.junit.jupiter.api.assertThrows
 /** The startup check of the access policies against the Manifest (D390 B2). */
 class AccessPoliciesTest {
     private val notes = accessPolicy<NoteState> { readWrite { allowAll() } }
+
+    /** The way out a refusal at the read names: the caller's own words, here a test's. */
+    private val wayOut = "pass the policy."
     private val missing = AggregateType("docs", "missing")
 
     private class UnknownState
@@ -64,6 +68,38 @@ class AccessPoliciesTest {
         assertThrows<IllegalStateException> { policies() }.message.assert()
             .contains("docs.document declares the access attributes [department, sharedWith, level]")
             .contains("nothing is granted by omission")
+    }
+
+    @Test
+    fun `a spec's read side should refuse a missing policy where the aggregate is read, not when it is built`() {
+        val deferred = AccessPolicies.of(
+            MANIFEST,
+            setOf("docs"),
+            listOf(notes),
+            AccessFixtures::aggregatesOf,
+            missingAtRead = wayOut,
+        )
+        // Built: the aggregates with a policy, and those that need none, are read as on a node.
+        deferred.governs(NOTE).assert().isTrue()
+        deferred.requireReadable(NOTE)
+        deferred.requireReadable(LEDGER)
+        assertThrows<IllegalStateException> { deferred.requireReadable(DOCUMENT) }.message.assert().isEqualTo(
+            "${ungovernedAccess(DOCUMENT, listOf("department", "sharedWith", "level"))}; $wayOut",
+        )
+        // The policies' own refusals stay at the build.
+        val again = accessPolicy<NoteState> { readWrite { allowAll() } }
+        assertThrows<IllegalStateException> {
+            AccessPolicies.of(
+                MANIFEST,
+                setOf("docs"),
+                listOf(notes, again),
+                AccessFixtures::aggregatesOf,
+                missingAtRead = wayOut,
+            )
+        }.message.assert().contains("docs.note has 2 access policies")
+        // A node's build still refuses at its start, with the same text.
+        assertThrows<IllegalStateException> { of(notes) }.message.assert()
+            .isEqualTo(ungovernedAccess(DOCUMENT, listOf("department", "sharedWith", "level")) + ".")
     }
 
     @Test

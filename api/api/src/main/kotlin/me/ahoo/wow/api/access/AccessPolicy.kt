@@ -231,14 +231,20 @@ fun resolveAccessPolicies(
     val byType = resolved.toMap()
     val ungoverned = declaring.filter { (type, names) -> names.isNotEmpty() && type !in byType }
     check(ungoverned.isEmpty()) {
-        ungoverned.entries.joinToString("; ", postfix = ".") { (type, names) ->
-            "The aggregate $type declares the access attributes $names, but no access policy is given for it: " +
-                "declare an AccessPolicy bean of its state (accessPolicy { read { … }; write { … } }), since " +
-                "nothing is granted by omission"
-        }
+        ungoverned.entries.joinToString("; ", postfix = ".") { (type, names) -> ungovernedAccess(type, names) }
     }
     return byType
 }
+
+/**
+ * Why the aggregate [type], which declares the access attributes [names], is refused without an access policy, as
+ * [resolveAccessPolicies] refuses it: nothing is granted by omission.
+ */
+@InternalWowApi
+fun ungovernedAccess(type: AggregateType, names: List<String>): String =
+    "The aggregate $type declares the access attributes $names, but no access policy is given for it: declare an " +
+        "AccessPolicy bean of its state (accessPolicy { read { … }; write { … } }), since nothing is granted by " +
+        "omission"
 
 /** The aggregate [policy] is of among [candidates], those of the node whose state is its state type. */
 private fun aggregateOf(policy: AccessPolicy<*>, candidates: List<AggregateType>, strict: Boolean): AggregateType? {

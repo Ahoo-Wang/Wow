@@ -19,7 +19,10 @@ import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.MissingDependencyException
 import me.ahoo.wow.kernel.ModelProvider
 
-/** The tests' inventory, which the compiler would generate: its stocks and carts, by a fragment on the class path. */
+/**
+ * The tests' inventory, which the compiler would generate: its stocks, carts and shelves, by a fragment on the class
+ * path. A shelf declares an access attribute, `zone`, and the tests give no policy for it but those that read it.
+ */
 class InventoryModels : ModelProvider {
     override val binding: Int = ModelProvider.BINDING
     override val context: String = "inventory"
@@ -35,8 +38,12 @@ class InventoryModels : ModelProvider {
 
     data class Cart(val items: Int)
 
+    /** A shelf, whose zone is an access attribute: its reads need a policy. */
+    data class Shelf(val zone: String)
+
     companion object {
         val STOCK = AggregateType("inventory", "stock")
         val CART = AggregateType("inventory", "cart")
+        val SHELF = AggregateType("inventory", "shelf")
     }
 }

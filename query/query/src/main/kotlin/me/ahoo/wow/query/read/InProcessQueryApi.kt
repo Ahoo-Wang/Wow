@@ -272,6 +272,8 @@ class InProcessQueryApi @InternalWowApi constructor(
         /** The state of [ref] [load] reads, as the public port's state read answers it. */
         private suspend fun read(ref: AggregateRef, load: suspend () -> Snapshot<JsonNode>?): Snapshot<S>? {
             requireUse(ref.type == type) { "$ref is not an aggregate of $type." }
+            // A state read checks no scope without a caller, so it asks here, whoever reads.
+            engine.access.requireReadable(type)
             val reads = engine.reads
             return try {
                 mapped {
