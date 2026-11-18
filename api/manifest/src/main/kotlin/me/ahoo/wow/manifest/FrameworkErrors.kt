@@ -146,8 +146,9 @@ object FrameworkErrors {
         ErrorManifest(
             FrameworkCodes.COMMAND_UNDECLARED_EVENT,
             500,
-            "The command's handling produced an event its decide function or after hooks do not declare: a bug in " +
-                "the model, which the message names; it committed nothing.",
+            "The command's handling produced an event its decide function or after hooks do not declare, a " +
+                "rejection's events held to the same declaration: a bug in the model, which the message names; it " +
+                "committed nothing.",
         ),
         ErrorManifest(
             FrameworkCodes.NODE_CLOSING,

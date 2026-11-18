@@ -67,7 +67,7 @@ outline: deep
 | `@OnError` | 放弃 | 从决定函数返回拒绝，需要记录这次拒绝时带上事件；把补偿放进 Saga 的 `@OnRejected` 处理函数。 |
 | 用 Java 写的领域模型 | 保留 | 编译器读取 Java 源码。面向 Java 的测试 API 计划在 10.x 提供。 |
 | 注入命令函数的领域服务 | 保留 | 通过生成的模型工厂绑定一次。 |
-| 错误事件（`IgnoreSourcing`） | 替代 | 带事件的拒绝（`reject(code, message, events)`），每个事件有溯源函数，不改变状态时为空；它们与拒绝一起提交。 |
+| 错误事件（`IgnoreSourcing`） | 替代 | 带事件的拒绝（`reject(code, message, events)`），每个事件有溯源函数，不改变状态时为空，并在该函数的 `@OnCommand(produces = […])` 中声明；它们与拒绝一起提交（[拒绝](../guide/rejections#reject-with-events)）。 |
 | 状态类独立的聚合 | 保留 | — |
 | `@AfterCommand`、`@Blocking`、`@CreateAggregate`、`@AllowCreate` | 保留 | — |
 | 快照系统字段 `eventId`、`snapshotTime`、`eventTime` | 替代 | `firstEventTime`、`lastEventTime`、`operator`、`firstOperator` 以及其他快照字段。 |
