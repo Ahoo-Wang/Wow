@@ -14,6 +14,7 @@
 package me.ahoo.wow.gradle
 
 import org.gradle.api.artifacts.ModuleDependency
+import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.api.artifacts.dsl.DependencyFactory
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.MapProperty
@@ -41,24 +42,38 @@ abstract class WowExtension {
     protected abstract val dependencyFactory: DependencyFactory
 
     /**
-     * The contract of the api module [dependency] names, `project(":ordering-api")` or its coordinates: its feature
-     * `contract` (capability `<group>:<name>-contract`), `META-INF/wow/contract.json` and the code generated from it,
-     * `<Context>Contract` and `<State>View`, with the api's types. A module that uses that code declares it,
-     * `implementation(wow.contract(project(":ordering-api")))`; a service, and the tests, see every api's contract
-     * without it.
+     * The contract of the api module [dependency] names, `project(":ordering-api")` or its coordinates
+     * `"group:name[:version]"`: the module with its feature `contract` (capability `<group>:<name>-contract`) required,
+     * `META-INF/wow/contract.json` and the code generated from it, `<Context>Contract` and `<State>View`, with the api's
+     * types. A module that uses that code declares it, `implementation(wow.contract(project(":ordering-api")))`; a
+     * service sees every api's contract without it, and a domain's tests those of the build's api modules.
      *
-     * @throws IllegalArgumentException when [dependency] is neither a module dependency nor coordinates.
+     * @throws IllegalArgumentException when [dependency] is neither a project nor plain coordinates: a classifier or an
+     * extension names no contract.
      */
     fun contract(dependency: Any): ModuleDependency {
         val module = when (dependency) {
-            is ModuleDependency -> dependency.copy()
-            is CharSequence -> dependencyFactory.create(dependency)
-            else -> throw IllegalArgumentException(
-                "wow.contract(...) takes an api module, project(\":ordering-api\") or its coordinates, not $dependency"
-            )
+            is ProjectDependency -> dependency.copy()
+            is CharSequence -> coordinates(dependency.toString())
+            else -> throw IllegalArgumentException(usage("not $dependency"))
         }
         module.capabilities { it.requireFeature(ContractRole.FEATURE) }
         return module
+    }
+
+    private fun coordinates(notation: String): ModuleDependency {
+        val parts = COORDINATES.matchEntire(notation)?.groupValues
+            ?: throw IllegalArgumentException(usage("not \"$notation\", which is no plain group:name[:version]"))
+        return dependencyFactory.create(parts[1], parts[2], parts[3].ifEmpty { null })
+    }
+
+    private fun usage(what: String): String =
+        "wow.contract(...) takes an api module, project(\":ordering-api\") or its coordinates " +
+            "\"group:name[:version]\", $what"
+
+    private companion object {
+        /** `group:name` or `group:name:version`, none holding a classifier (`:`) or an extension (`@`). */
+        val COORDINATES = Regex("""([^:@\s]+):([^:@\s]+)(?::([^:@\s]+))?""")
     }
 
     /**

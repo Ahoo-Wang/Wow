@@ -44,7 +44,7 @@ public final class me/ahoo/wow/gradle/WowPlugin : org/gradle/api/Plugin {
 }
 
 public final class me/ahoo/wow/gradle/WowPlugin$Companion {
-	public final fun getAPI_VIEW ()Lorg/gradle/api/attributes/Attribute;
+	public final fun getCONTRACT_ATTRIBUTE ()Lorg/gradle/api/attributes/Attribute;
 	public final fun getVersion ()Ljava/lang/String;
 }
 

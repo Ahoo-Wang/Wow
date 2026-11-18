@@ -207,7 +207,13 @@ class WowPluginTest {
         listOf(coordinates.group, coordinates.name, coordinates.version).assert()
             .containsExactly("sample", "shop-api", "1.0.0")
         coordinates.capabilitySelectors.single().displayName.assert().contains(ContractRole.FEATURE)
+        val latest = wow.contract("sample:shop-api") as ExternalModuleDependency
+        latest.version.assert().isNull()
         assertThrows<IllegalArgumentException> { wow.contract(42) }.message.assert()
             .contains("wow.contract(...) takes an api module", "not 42")
+        listOf("sample:shop-api:1.0.0:sources", "sample:shop-api:1.0.0@jar", "shop-api").forEach { notation ->
+            assertThrows<IllegalArgumentException> { wow.contract(notation) }.message.assert()
+                .contains("\"group:name[:version]\"", "not \"$notation\", which is no plain group:name[:version]")
+        }
     }
 }

@@ -867,6 +867,7 @@ tasks.register("publicationCheck") {
     val groupId = project.group.toString()
     val releaseVersion = project.version.toString()
     val libraries = publicationProjects.filter { it !in bomProjects }.map { it.artifactName() }.toSortedSet()
+    val apis = publicationProjects.filter { it.pluginManager.hasPlugin("me.ahoo.wow.api") }.map { it.artifactName() }
     val platforms = publicationProjects.filter { it in bomProjects }.map { it.artifactName() }.toSortedSet()
     val bomArtifactId = bomProject.artifactName()
     val bomConstrained = bomConstrainedProjects.map { it.artifactName() }.toSortedSet()
@@ -913,19 +914,17 @@ tasks.register("publicationCheck") {
                 if (!file(artifactId, suffix).isFile) problems += "$artifactId: no $artifactId-$releaseVersion$suffix"
             }
         }
-        val librarySuffixes = listOf(".jar", "-sources.jar", "-javadoc.jar", ".pom", ".module")
-        val platformSuffixes = listOf(".pom", ".module")
-        libraries.forEach { requireFiles(it, librarySuffixes) }
-        platforms.forEach { requireFiles(it, platformSuffixes) }
-        pluginMarkers.values.forEach { requireFiles(it, listOf(".pom")) }
+        // An api module's contract is its feature, the jars of classifiers contract and contract-sources (D435).
+        val suffixes = libraries.associateWith { listOf(".jar", "-sources.jar", "-javadoc.jar", ".pom", ".module") +
+            (if (it in apis) listOf("-contract.jar", "-contract-sources.jar") else emptyList()) } +
+            platforms.associateWith { listOf(".pom", ".module") } + pluginMarkers.values.associateWith { listOf(".pom") }
+        suffixes.forEach { (artifactId, expected) -> requireFiles(artifactId, expected) }
         // Nothing else: no further classifier (a `-test-fixtures` jar), only these files, their signatures and checksums.
         val checksums = listOf("", ".md5", ".sha1", ".sha256", ".sha512")
         fun allowedFiles(artifactId: String, suffixes: List<String>) = suffixes
             .flatMap { listOf(it, "$it.asc") }
             .flatMap { suffix -> checksums.map { "$artifactId-$releaseVersion$suffix$it" } }
-        (libraries.associateWith { allowedFiles(it, librarySuffixes) } +
-            platforms.associateWith { allowedFiles(it, platformSuffixes) } +
-            pluginMarkers.values.associateWith { allowedFiles(it, listOf(".pom")) }).forEach { (artifactId, allowed) ->
+        suffixes.mapValues { (artifactId, expected) -> allowedFiles(artifactId, expected) }.forEach { (artifactId, allowed) ->
             File(groupDir, "${dirOf(artifactId)}/$releaseVersion").listFiles().orEmpty().map { it.name }
                 .filter { it !in allowed }.sorted()
                 .forEach { problems += "$artifactId: publishes $it, which a release does not ship" }

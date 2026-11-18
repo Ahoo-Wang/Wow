@@ -13,20 +13,20 @@
 
 package me.ahoo.wow.gradle
 
+import me.ahoo.wow.gradle.WowArtifacts.documentationAttributes
 import me.ahoo.wow.gradle.WowArtifacts.toolsConfiguration
-import me.ahoo.wow.gradle.WowPlugin.Companion.API_VIEW
 import me.ahoo.wow.gradle.WowPlugin.Companion.CONTRACT_JAR_TASK
 import me.ahoo.wow.gradle.WowPlugin.Companion.CONTRACT_SOURCE_SET
 import me.ahoo.wow.gradle.WowPlugin.Companion.GENERATE_CONTRACT_SOURCES_TASK
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
-import org.gradle.api.artifacts.ModuleDependency
 import org.gradle.api.artifacts.type.ArtifactTypeDefinition
-import org.gradle.api.attributes.Attribute
 import org.gradle.api.attributes.Bundling
 import org.gradle.api.attributes.Category
+import org.gradle.api.attributes.DocsType
 import org.gradle.api.attributes.LibraryElements
 import org.gradle.api.attributes.Usage
+import org.gradle.api.component.AdhocComponentWithVariants
 import org.gradle.api.file.SourceDirectorySet
 import org.gradle.api.plugins.JavaPlugin
 import org.gradle.api.tasks.SourceSet
@@ -35,34 +35,23 @@ import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.tasks.bundling.Jar
 
 /**
- * The contract of an api module, apart from its types: `META-INF/wow/contract.json` and
- * the code generated from it, `<Context>Contract` and `<State>View`, in a jar of their own ([CONTRACT_JAR_TASK]). Every
- * name and value in them comes from compiling the domain modules the api declares, so the api's own variants, which
- * every module compiles against, hold its types alone, and no build waits for a domain to reach another context's
- * types.
+ * The contract of an api module, apart from its types: `META-INF/wow/contract.json` and the code generated from it,
+ * `<Context>Contract` and `<State>View`, in a jar of their own ([CONTRACT_JAR_TASK]). Every name and value in them comes
+ * from compiling the domain modules the api declares, so the api's own variants, which every module compiles against,
+ * hold its types alone, and no build waits for a domain to reach another context's types.
  *
- * The contract is the api's feature [FEATURE], capability `<group>:<name>-contract`:
+ * The contract is the api module's feature [FEATURE], capability `<group>:<name>-contract`, published within the
+ * module as Gradle publishes test fixtures: the variants [CONTRACT_API_ELEMENTS] and [CONTRACT_RUNTIME_ELEMENTS], the
+ * jar of classifier `contract`, and its sources' jar when the module publishes sources. Its own variants carry
+ * [WowPlugin.CONTRACT_ATTRIBUTE], naming the feature, by which a service finds every api's contract
+ * ([ContractDerivation]); `-P`[PUBLISH_PROPERTY]`=false` publishes the types alone, a cycle's first release.
  *
- * - a module that uses an api's generated code asks for it, `implementation(wow.contract(project(":ordering-api")))`
- *   ([WowExtension.contract]); its variants depend on the api's types;
- * - a service, and the tests of a domain or a service, see every api's contract ([requestContracts]): they ask for the
- *   [CONTRACT_VIEW] of [API_VIEW], which the api's [VIEW_API_ELEMENTS] and [VIEW_RUNTIME_ELEMENTS] answer with its
- *   types and, through a dependency on its own feature, its contract once. Any other consumer lacks that request, and
- *   Gradle picks the api's own variants, which have fewer attributes.
- *
- * In one build a domain's tests see every api module of the build they reach, its own and its peers': under isolated
- * projects a domain cannot tell its own api from a peer's when it configures itself, and tests are no input of any
- * domain's main, so this adds no cycle. A peer in a repository of its own is no api module of the build: a test that
- * uses its generated code declares `testImplementation(wow.contract(...))`.
- *
- * None of these variants is published yet: the api's publication holds its types.
+ * A module that uses an api's generated code asks for it, `implementation(wow.contract(project(":ordering-api")))`
+ * ([WowExtension.contract]); the contract's variants depend on the api's types.
  */
 internal object ContractRole {
     /** The feature of an api module's contract, whose capability is `<group>:<name>-contract`. */
     const val FEATURE = "contract"
-
-    /** The [API_VIEW] value a consumer asks for to see every api's types with its contract. */
-    const val CONTRACT_VIEW = "contract"
 
     /**
      * The declarable configuration of the contract variants' dependencies, the api's own types: the generated source
@@ -74,14 +63,20 @@ internal object ContractRole {
     const val CONTRACT_API_ELEMENTS = "wowContractApiElements"
     const val CONTRACT_RUNTIME_ELEMENTS = "wowContractRuntimeElements"
 
-    /** The variants of an api's types with its contract, which [CONTRACT_VIEW] selects. */
-    const val VIEW_API_ELEMENTS = "wowContractViewApiElements"
-    const val VIEW_RUNTIME_ELEMENTS = "wowContractViewRuntimeElements"
+    /** The contract's sources, a variant of the same capability, when the module publishes its own. */
+    const val CONTRACT_SOURCES_ELEMENTS = "wowContractSourcesElements"
+
+    /**
+     * The Gradle property that, `false`, publishes the api module's types alone, without its contract: the first
+     * release of a member of a cycle of contexts that consume each other across repositories, whose domain cannot yet
+     * compile against its peer's types.
+     */
+    const val PUBLISH_PROPERTY = "wow.contract.publish"
 
     /**
      * The contract of [api], which declares domain modules: [CONTRACT_JAR_TASK] packs what [assemble] keeps and, with
      * the Kotlin JVM plugin ([kotlin]), the code generated from it ([contractSources]); the contract variants offer the
-     * jar, the view variants the api's types beside it.
+     * jar, and the api's component publishes them ([publish]).
      */
     fun contract(api: Project, main: SourceSet, assemble: TaskProvider<AssembleContract>, kotlin: Boolean) {
         val jar = api.tasks.register(CONTRACT_JAR_TASK, Jar::class.java) { jar ->
@@ -89,10 +84,8 @@ internal object ContractRole {
             jar.from(assemble)
             jar.archiveClassifier.set(FEATURE)
         }
-        if (kotlin) {
-            val generated = contractSources(api, main, assemble)
-            jar.configure { it.from(generated.output) }
-        }
+        val generated = if (kotlin) contractSources(api, main, assemble) else null
+        generated?.let { sources -> jar.configure { it.from(sources.output) } }
         // The generated source set's own, which the Kotlin plugin creates: its code compiles against the api's types.
         val dependencies = api.configurations.findByName(CONTRACT_API)
             ?: api.configurations.create(CONTRACT_API) { configuration ->
@@ -114,65 +107,43 @@ internal object ContractRole {
                     elements.outgoing.artifact(jar) { it.type = ArtifactTypeDefinition.JAR_TYPE }
                 }
             }
-        view(api)
+        publish(api, capability, generated)
     }
 
     /**
-     * The view variants of [api]: its types (the `jar` task's) of the same dependencies, constraints and attributes as
-     * `apiElements` and `runtimeElements`, and its own contract feature, of [API_VIEW] [CONTRACT_VIEW]. They follow
-     * those variants lazily: their dependencies and constraints, and each attribute's value, are read when a consumer
-     * resolves, so a JVM target set later (after this, in an `afterEvaluate` of the build script) is the view's too. A
-     * view less fit than the api's own variant would be passed over, and its consumer left without the contract. The
-     * attributes' keys are taken when [contract] runs, once the project is evaluated: the `java` plugin, which every api
-     * module applies first, declares them all on creating the variants.
+     * Publishes [api]'s contract within its module, unless [PUBLISH_PROPERTY] is `false`: its own variants carry
+     * [WowPlugin.CONTRACT_ATTRIBUTE], and the `java` component the contract variants, mapped to Maven's optional
+     * dependencies, and, when the module publishes its sources, those of the [generated] code
+     * ([CONTRACT_SOURCES_ELEMENTS]).
      */
-    private fun view(api: Project) {
-        val types = api.tasks.named(JavaPlugin.JAR_TASK_NAME, Jar::class.java)
-        val contract = api.dependencies.project(mapOf("path" to api.path)) as ModuleDependency
-        contract.capabilities { it.requireFeature(FEATURE) }
-        listOf(
-            Triple(VIEW_API_ELEMENTS, Usage.JAVA_API, JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME),
-            Triple(VIEW_RUNTIME_ELEMENTS, Usage.JAVA_RUNTIME, JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME),
-        ).forEach { (name, usage, own) ->
-            val elements = api.configurations.getByName(own)
-            api.configurations.create(name) { view ->
-                view.description = "This api module's types with its contract ($usage), which $API_VIEW " +
-                    "$CONTRACT_VIEW selects."
-                view.isCanBeConsumed = true
-                view.isCanBeResolved = false
-                view.dependencies.addAllLater(api.provider { elements.allDependencies.toList() })
-                view.dependencyConstraints.addAllLater(api.provider { elements.allDependencyConstraints.toList() })
-                view.dependencies.add(contract)
-                jvmAttributes(api, view, usage)
-                // The JVM version and environment the api's own variants declare, so that a consumer asking for
-                // the view finds it no less fit than they are.
-                elements.attributes.keySet().filter { view.attributes.getAttribute(it) == null }.forEach { key ->
-                    @Suppress("UNCHECKED_CAST")
-                    val attribute = key as Attribute<Any>
-                    view.attributes.attributeProvider(
-                        attribute,
-                        api.provider { elements.attributes.getAttribute(attribute) },
-                    )
-                }
-                view.attributes.attribute(API_VIEW, CONTRACT_VIEW)
-                view.outgoing.artifact(types) { it.type = ArtifactTypeDefinition.JAR_TYPE }
+    private fun publish(api: Project, capability: String, generated: SourceSet?) {
+        if (api.providers.gradleProperty(PUBLISH_PROPERTY).orNull == "false") return
+        listOf(JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME, JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME).forEach {
+            api.configurations.named(it) { own -> own.attributes.attribute(WowPlugin.CONTRACT_ATTRIBUTE, FEATURE) }
+        }
+        val component = api.components.getByName("java") as AdhocComponentWithVariants
+        listOf(CONTRACT_API_ELEMENTS to "compile", CONTRACT_RUNTIME_ELEMENTS to "runtime").forEach { (name, scope) ->
+            component.addVariantsFromConfiguration(api.configurations.getByName(name)) {
+                it.mapToMavenScope(scope)
+                it.mapToOptional()
             }
         }
-    }
-
-    /**
-     * Makes the class paths of [project]'s source sets that [selected] keeps ask for the [CONTRACT_VIEW] of every api
-     * module: its types and its contract.
-     */
-    fun requestContracts(project: Project, selected: (SourceSet) -> Boolean) {
-        project.dependencies.attributesSchema.attribute(API_VIEW)
-        project.extensions.getByType(SourceSetContainer::class.java).matching(selected).configureEach { sourceSet ->
-            listOf(sourceSet.compileClasspathConfigurationName, sourceSet.runtimeClasspathConfigurationName)
-                .forEach { name ->
-                    project.configurations.named(name) { classpath ->
-                        classpath.attributes { it.attribute(API_VIEW, CONTRACT_VIEW) }
-                    }
-                }
+        val sources = api.configurations.findByName(JavaPlugin.SOURCES_ELEMENTS_CONFIGURATION_NAME)
+        if (generated != null && sources != null) {
+            val jar = api.tasks.register(generated.sourcesJarTaskName, Jar::class.java) { jar ->
+                jar.description = "Assembles the sources of the code generated from this api module's contract."
+                jar.from(generated.allSource)
+                jar.archiveClassifier.set("$FEATURE-sources")
+            }
+            val elements = api.configurations.create(CONTRACT_SOURCES_ELEMENTS) { elements ->
+                elements.description = "The sources of this api module's contract code, of capability $capability."
+                elements.isCanBeConsumed = true
+                elements.isCanBeResolved = false
+                documentationAttributes(api, elements, DocsType.SOURCES)
+                elements.outgoing.capability(capability)
+                elements.outgoing.artifact(jar)
+            }
+            component.addVariantsFromConfiguration(elements) { it.mapToOptional() }
         }
     }
 

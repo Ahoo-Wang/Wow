@@ -44,7 +44,7 @@ import org.gradle.testing.base.TestingExtension
  */
 internal object ServiceRole {
     /**
-     * The service role of [project]: the api modules' contracts on its class paths ([ContractRole.requestContracts]),
+     * The service role of [project]: the api modules' contracts on its class paths ([ContractDerivation]),
      * the service's Manifest merged from the fragments of its runtime class path, its OpenAPI document, the values of
      * the `wow-service` Helm chart it knows, the gate against its committed baseline, and the integration test suite.
      */
@@ -55,9 +55,9 @@ internal object ServiceRole {
 
     private fun configureService(project: Project, extension: WowServiceExtension) {
         configureIntegrationTest(project)
-        // Every class path of the service sees the api modules' contracts, its own api's and its peers': the merge
-        // and the node read them, and its code may use the generated <Context>Contract.
-        ContractRole.requestContracts(project) { true }
+        // Every class path of the service sees the api modules' contracts, its own api's and its peers', and so does
+        // whoever consumes its runtime variant: the merge and the node read them, its code may use <Context>Contract.
+        ContractDerivation.derive(project, projectsOnly = false, outgoing = true) { true }
         val tools = toolsConfiguration(project)
         val main = project.extensions.getByType(
             SourceSetContainer::class.java
