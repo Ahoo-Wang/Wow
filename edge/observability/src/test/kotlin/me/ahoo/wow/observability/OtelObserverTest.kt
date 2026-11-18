@@ -241,6 +241,20 @@ class OtelObserverTest {
     }
 
     @Test
+    fun `a route looked up again should count by what it found, and the reads made apart`() {
+        observer.observed(ObservedEvent.RouteLookedUp(ORDER, ObservedEvent.RouteLookedUp.Outcome.OWNER, read = true))
+        observer.observed(ObservedEvent.RouteLookedUp(ORDER, ObservedEvent.RouteLookedUp.Outcome.OWNER, read = false))
+        observer.observed(ObservedEvent.RouteLookedUp(ORDER, ObservedEvent.RouteLookedUp.Outcome.FAILED, read = false))
+        val meters = telemetry.meters
+        fun lookups(outcome: String) = meters.get(WowMetrics.ROUTE_LOOKUPS.name)
+            .tags(WowMetrics.CONTEXT, SALES, WowMetrics.OUTCOME, outcome).counter().count()
+        listOf(lookups("owner"), lookups("failed")).assert().containsExactly(2.0, 1.0)
+        // One of them made the read; the others took it, or a failed one's back-off.
+        meters.get(WowMetrics.ROUTE_READS.name).tags(WowMetrics.CONTEXT, SALES).counter().count()
+            .assert().isEqualTo(1.0)
+    }
+
+    @Test
     fun `rejections should be counted by their code, apart from refusals, with or without events`() {
         observer.observed(ObservedEvent.Rejected(ORDER, "PlaceOrder", "sales.order.out_of_stock", withEvents = true))
         observer.observed(ObservedEvent.Rejected(ORDER, "PlaceOrder", "sales.order.out_of_stock", withEvents = false))

@@ -108,6 +108,13 @@ class HandoffOptions @InternalWowApi constructor(
  *   delivers it, and reads the store at once for what the head shows past it (other nodes' entries), or when the
  *   append returns without the entry the tail needs.
  *
+ * So another node's commit reaches a tail only at one of these reads. One that lands past this node's block of
+ * sequences while this node keeps committing, its commits less than [HandoffOptions.probeInterval] apart, leaves no
+ * gap in its own run until the node takes its next block, past that commit: until then it waits for the node's first
+ * pause of a probe interval, or for the end of its block, whichever comes first. A command that would commit there
+ * without the lease is sent to the partition's owner when its routes, read once more, name one
+ * ([me.ahoo.wow.runtime.cluster.RouteLookup]), so such a commit takes an acquisition the read did not see.
+ *
  * Each read of the store is reported to [observer] ([ObservedEvent.TailRead]) with its reason, and each entry it delivers
  * to [readBack]: among them are the commits of other nodes, which no hand-over brings. A node that does not own a
  * partition opens no tail of it, so what it appends there (Local execution) is handed to no one; its owner's tails
