@@ -58,6 +58,9 @@ tasks.named<Test>("test") {
             exclude("**/build/**", "**/node_modules/**", ".claude/**", ".git/**", ".gradle/**")
         },
     ).withPropertyName("repositoryManifests").withPathSensitivity(PathSensitivity.RELATIVE)
+    // WireScalarsTest compares the JSON values reference with the scalars the Manifest describes.
+    inputs.files(fileTree(root) { include("documentation/docs/*/reference/json-values.md") })
+        .withPropertyName("jsonValuesReference").withPathSensitivity(PathSensitivity.RELATIVE)
     systemProperty("wow-test.repository.root", root.path)
 }
 

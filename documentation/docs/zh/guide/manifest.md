@@ -59,7 +59,7 @@ wow {
 }
 ```
 
-属性持有一个平台类，而 Wow 的 JSON 把它写成字符串或数字时，构建同样会停下，除非 Manifest 按写出的样子描述这个类。它描述的是状态、命令和事件常持有的值类：`Year` 为整数，`YearMonth`、`MonthDay`、`ZoneOffset`、`TimeZone`、`Locale`、`Currency` 和 `URL` 为字符串，`ByteArray` 为它的 Base64 文本，`kotlin.time.Duration` 与 `java.time.Duration` 一样为它的 ISO-8601 文本（`PT1H30M`），此外还有日期、时间、时长、数字和 UUID。`Month` 是枚举，与所有枚举一样按名字写出。其他这样的类都会被拒绝，无论直接持有，还是放在集合、`Optional` 或映射的值中：`Charset`、`Path`、`AtomicLong`，以及包装 `kotlin.time.Duration` 的值类，Kotlin 模块把它写成时长的内部数字。请声明这个属性的 schema，或者把值存为 `String`：
+属性持有一个平台类，而 Wow 的 JSON 把它写成字符串或数字时，构建同样会停下，除非 Manifest 按写出的样子描述这个类。它描述的是状态、命令和事件常持有的值类：`Year` 为整数，`YearMonth`、`MonthDay`、`ZoneOffset`、`TimeZone`、`Locale`、`Currency` 和 `URL` 为字符串，`ByteArray` 为它的 Base64 文本，`kotlin.time.Duration` 与 `java.time.Duration` 一样为它的 ISO-8601 文本（`PT1H30M`），此外还有日期、时间、时长、数字和 UUID。[JSON 中的值](../reference/json-values)逐一列出它们，以及为它们写出的文本和读取方拒绝什么。`Month` 是枚举，与所有枚举一样按名字写出。其他这样的类都会被拒绝，无论直接持有，还是放在集合、`Optional` 或映射的值中：`Charset`、`Path`、`AtomicLong`，以及包装 `kotlin.time.Duration` 的值类，Kotlin 模块把它写成时长的内部数字。请声明这个属性的 schema，或者把值存为 `String`：
 
 ```text
 Wow's JSON does not write java.nio.charset.Charset, which com.example.ledger.Ledger#encoding holds, as an object, and it is no scalar Wow describes, so its schema would not be what is written: declare it in wow { schemaOverrides.put("com.example.ledger.Ledger#encoding", "<JSON Schema>") }, or hold it as a String.

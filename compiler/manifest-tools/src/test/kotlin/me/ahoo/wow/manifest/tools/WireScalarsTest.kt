@@ -189,6 +189,26 @@ class WireScalarsTest {
         disagreements.assert().isEmpty()
     }
 
+    @Test
+    fun `the JSON values reference should list every class of the table, and no other, in each language`() {
+        val root = File(requireNotNull(System.getProperty(ROOT)) { "System property $ROOT is not set." })
+        val described = WireTypes.SCALARS.keys.map(::referenceName)
+        listOf("en", "zh").forEach { language ->
+            val page = "documentation/docs/$language/reference/json-values.md"
+            // Each row's first cell names its classes, each in backticks.
+            val listed = File(root, page).readLines().filter { it.startsWith("| `") }
+                .flatMap { row -> NAME.findAll(row.split("|")[1]).map { it.groupValues[1] } }
+            (described - listed.toSet()).assert().describedAs("$page leaves out").isEmpty()
+            (listed - described.toSet()).assert().describedAs("$page lists beyond the table").isEmpty()
+            listed.groupingBy { it }.eachCount().filterValues { it > 1 }.keys.assert()
+                .describedAs("$page lists twice").isEmpty()
+        }
+    }
+
+    /** A class as the reference page names it: by its simple name, Kotlin's duration by its qualified one. */
+    private fun referenceName(type: Class<*>): String =
+        if (type == kotlin.time.Duration::class.java) type.name else type.simpleName
+
     data class HoldsCharset(val value: Charset = Charsets.UTF_8)
     data class HoldsPattern(val value: Pattern = Pattern.compile("a+"))
     data class HoldsPath(val value: Path = Path.of("/tmp/a"))
@@ -318,4 +338,9 @@ class WireScalarsTest {
     }
 
     private fun JsonNode.getValue(name: String): JsonNode = get(name) ?: error("Wow's JSON writes no $name")
+
+    private companion object {
+        const val ROOT = "wow-test.repository.root"
+        val NAME = Regex("`([^`]+)`")
+    }
 }

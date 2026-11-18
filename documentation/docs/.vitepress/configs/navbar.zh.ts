@@ -62,6 +62,7 @@ export const navbarZh: DefaultTheme.NavItem[] = [
             {text: '错误码', link: '/zh/reference/error-codes'},
             {text: '注解', link: '/zh/reference/annotations'},
             {text: 'Manifest 格式', link: '/zh/reference/manifest'},
+            {text: 'JSON 中的值', link: '/zh/reference/json-values'},
             {text: '模块与制品', link: '/zh/reference/modules'},
             {text: 'API 级别', link: '/zh/reference/api-levels'},
             {text: 'HTTP API', link: '/zh/reference/http'},
