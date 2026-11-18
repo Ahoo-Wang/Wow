@@ -88,7 +88,7 @@ internal class SchemaOverrides(declared: Map<String, ObjectNode>, private val ma
                 },
             )
         }
-        check(!isApplicationClass(rawClass) || isWrittenAsObject(rawClass)) {
+        check(!isApplicationClass(rawClass) || isWrittenAsObject(rawClass, mapper)) {
             "Jackson does not write ${rawClass.name} as an object (a custom serializer or @JsonValue), so its " +
                 "schema cannot be introspected: ${declaration(rawClass.name)}."
         }
@@ -190,7 +190,16 @@ internal class SchemaOverrides(declared: Map<String, ObjectNode>, private val ma
         return serializes || accessor.getAnnotation(JsonRawValue::class.java)?.value == true
     }
 
-    private fun isWrittenAsObject(rawClass: Class<*>, writer: JsonMapper = mapper): Boolean {
+    /**
+     * Whether [writer] writes [rawClass] as an object, by its format visitor. A platform class is asked of Wow's JSON
+     * (`WowJson.mapper`), which writes it. An application's class is asked of the generator's [mapper], which
+     * describes it, the Kotlin module alone: Wow's JSON registers no module beyond its own and discovers none, so
+     * the two differ only for the classes of Wow that it writes with serializers of its own (`AggregateRef`,
+     * `Transport`, a published state). An `AggregateRef`'s writes the shape its class has, which the generator
+     * describes; Wow's JSON, whose serializer has no format visitor, would call it no object and refuse every state
+     * holding one (`WireScalarsTest`).
+     */
+    private fun isWrittenAsObject(rawClass: Class<*>, writer: JsonMapper): Boolean {
         var isObject = false
         writer.acceptJsonFormatVisitor(
             rawClass,

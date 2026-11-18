@@ -14,10 +14,18 @@
 package me.ahoo.wow.manifest.tools
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.spi.json.WowJson
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import tools.jackson.databind.JavaType
 import tools.jackson.databind.JsonNode
+import tools.jackson.databind.json.JsonMapper
+import tools.jackson.databind.jsonFormatVisitors.JsonFormatVisitorWrapper
+import tools.jackson.databind.jsonFormatVisitors.JsonObjectFormatVisitor
+import tools.jackson.module.kotlin.KotlinModule
 import java.io.File
 import java.math.BigDecimal
 import java.math.BigInteger
@@ -222,6 +230,36 @@ class WireScalarsTest {
                 .defs.getValue(HoldsCharset::class.java.name).let { (it as Map<*, *>)["properties"] as Map<*, *> }
             (schema["value"] as Map<*, *>)["type"].assert().describedAs(name).isEqualTo("string")
         }
+    }
+
+    data class HoldsRef(val value: AggregateRef = AggregateType("ordering", "order").ref("tenant", "order-1"))
+
+    @Test
+    fun `an application class Wow writes with a serializer of its own should be described by its class`() {
+        // Wow's JSON writes an AggregateRef by a serializer of its own, which reports no object to a format visitor;
+        // the generator's mapper sees its class. Asked of Wow's JSON, the guard would refuse every state holding one.
+        fun isObject(mapper: JsonMapper): Boolean {
+            var isObject = false
+            mapper.acceptJsonFormatVisitor(
+                AggregateRef::class.java,
+                object : JsonFormatVisitorWrapper.Base() {
+                    override fun expectObjectFormat(type: JavaType): JsonObjectFormatVisitor? {
+                        isObject = true
+                        return null
+                    }
+                },
+            )
+            return isObject
+        }
+        isObject(WowJson.mapper).assert().isFalse()
+        isObject(JsonMapper.builder().addModule(KotlinModule.Builder().build()).build()).assert().isTrue()
+        // The schema of its class is the shape the serializer writes.
+        val defs = introspector.complete(QueryKeywordsTest.fragment(HoldsRef::class.java)).defs
+        val value = ((defs.getValue(HoldsRef::class.java.name) as Map<*, *>)["properties"] as Map<*, *>)["value"]
+        val ref = (value as Map<*, *>)["\$ref"]?.let { defs.getValue(Manifest.schemaKey(it as String)) } ?: value
+        val wire = WowJson.mapper.readTree(WowJson.mapper.writeValueAsString(HoldsRef()))["value"]
+        ((ref as Map<*, *>)["properties"] as Map<*, *>).keys.assert()
+            .containsExactlyInAnyOrderElementsOf(wire.propertyNames())
     }
 
     private fun JsonNode.getValue(name: String): JsonNode = get(name) ?: error("Wow's JSON writes no $name")
