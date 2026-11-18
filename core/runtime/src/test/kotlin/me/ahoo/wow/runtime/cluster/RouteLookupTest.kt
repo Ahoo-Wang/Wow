@@ -21,6 +21,7 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.runtime.log.HandoffOptions
 import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.subscription.Member
 import org.junit.jupiter.api.Test
@@ -102,6 +103,14 @@ class RouteLookupTest {
             lookup.ownerOf(7).read.assert().isTrue()
             reads.get().assert().isEqualTo(2)
         }
+
+    @Test
+    fun `a tail's probes stay on schedule for a route refresh and a lookup after it opens, only in a cluster`() {
+        val handoff = HandoffOptions()
+        handoff.probingAfterAcquiring(null).assert().isSameAs(handoff)
+        handoff.probingAfterAcquiring(ClusterOptions()).scheduledProbes
+            .assert().isEqualTo(ClusterOptions().routeRefreshInterval + RouteLookup.INTERVAL + handoff.probeInterval)
+    }
 
     @Test
     fun `a store that throws is unreadable as well`(): Unit = runBlocking {

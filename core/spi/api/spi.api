@@ -1005,6 +1005,7 @@ public final class me/ahoo/wow/spi/observation/ObservedEvent$TailRead$Reason : j
 	public static final field GAP Lme/ahoo/wow/spi/observation/ObservedEvent$TailRead$Reason;
 	public static final field IDLE Lme/ahoo/wow/spi/observation/ObservedEvent$TailRead$Reason;
 	public static final field OVERFLOW Lme/ahoo/wow/spi/observation/ObservedEvent$TailRead$Reason;
+	public static final field SCHEDULED Lme/ahoo/wow/spi/observation/ObservedEvent$TailRead$Reason;
 	public static final field START Lme/ahoo/wow/spi/observation/ObservedEvent$TailRead$Reason;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public final fun getValue ()Ljava/lang/String;

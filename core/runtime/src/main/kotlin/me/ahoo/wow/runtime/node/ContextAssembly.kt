@@ -32,6 +32,7 @@ import me.ahoo.wow.runtime.cluster.LeaseGroup
 import me.ahoo.wow.runtime.cluster.PartitionOwnership
 import me.ahoo.wow.runtime.cluster.ServiceMembership
 import me.ahoo.wow.runtime.cluster.TopicRouter
+import me.ahoo.wow.runtime.cluster.probingAfterAcquiring
 import me.ahoo.wow.runtime.command.MessageEntries
 import me.ahoo.wow.runtime.ledger.MaintenanceSkips
 import me.ahoo.wow.runtime.ledger.SkipLedger
@@ -463,11 +464,14 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
      * next command decides on the log, not on a stale state that would conflict.
      */
     private fun handoffOf(context: String, log: EventLog, states: StateCache): EventLog =
-        HandoffLog(log, context, options.handoff, observer) { entry ->
+        HandoffLog(log, context, options.handoff.probingAfterAcquiring(clusterOrNull()), observer) { entry ->
             if (states.dropBefore(entry.stream.ref, entry.stream.version)) {
                 observer.observed(ObservedEvent.StateCache(context, ObservedEvent.StateCache.Outcome.STALE))
             }
         }
+
+    /** The cluster's options on a partitioned node; null when every command runs where it arrives. */
+    private fun clusterOrNull() = options.cluster.takeIf { options.routing == Routing.PARTITIONED }
 
     /**
      * The state consumers of [context]: the subscription of each snapshot target, of the types it
