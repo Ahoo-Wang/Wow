@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.compiler.model.source
 
+import com.google.devtools.ksp.getAllSuperTypes
 import com.google.devtools.ksp.isPublic
 import com.google.devtools.ksp.processing.CodeGenerator
 import com.google.devtools.ksp.processing.Dependencies
@@ -45,10 +46,13 @@ import me.ahoo.wow.manifest.QueryFieldNames
  * backing field or computed (a getter alone, `val total: Int get() = ...`, which Jackson writes into the snapshot
  * too), under its `@JsonProperty` name or its name as the class's `@JsonNaming` translates it, without the `@JsonIgnore`d ones and those a class's `@JsonIgnoreProperties`
  * names. It descends into a property of an application class or interface, an interface's properties being those its
- * getters give, a default one included, as the schema describes them, and into the element class of a collection or an
- * array (an element's fields are named inside its `ELEMENT_MATCH`, which the DSL reads relative to the element); a map,
- * an enum, a sealed interface, an abstract or sealed class, a value class and the `kotlin.` and `java.` types are
- * leaves, and so is a class already on the path. Each constant is named after its path, as
+ * getters give, a default one included, as the schema describes them, and into the element class of whatever Jackson
+ * writes as an array, decided by the type's hierarchy: a collection in any shape (a list, a set, a `SortedSet`, a
+ * `Deque`, a class extending `ArrayList<Line>`), an object array, and a property declared as an `Iterable` (an
+ * element's fields are named inside its `ELEMENT_MATCH`, which the DSL reads relative to the element). A `Sequence` of
+ * a class is a problem naming the property: Jackson reads its elements back as maps. A map, an enum, a sealed
+ * interface, an abstract or sealed class, a value class and the `kotlin.` and `java.` types are leaves, and so is a
+ * class already on the path. Each constant is named after its path, as
  * `wow-manifest`'s [QueryFieldNames] names it, the same function the api module's generated `<Context>Contract` names
  * the state schema's paths with: the JSON property names in upper snake case, a nested one after
  * `__`: `STATE__ITEMS__PRODUCT_ID`. The object is `internal` when its state is (or a class it is nested in): its
@@ -59,19 +63,22 @@ internal object QueryPropertiesSource {
     private const val QUERY_FIELD = "me.ahoo.wow.api.query.QueryField"
     private const val ANY = "kotlin.Any?"
     private const val STATE = QueryFieldNames.STATE
-    private val COLLECTIONS = setOf(
+    private const val ARRAY = "kotlin.Array"
+    private const val SEQUENCE = "kotlin.sequences.Sequence"
+    private const val ITERATOR = "iterator"
+
+    /** A class that is one of these, or has one among its supertypes, is a collection Jackson writes as an array. */
+    private val COLLECTIONS = setOf("kotlin.collections.Collection", "java.util.Collection")
+
+    /**
+     * The interfaces of a value Jackson writes as an array only when a property is declared as one: the list or the
+     * sequence it holds. A class of the application implementing one is a bean, with properties of its own.
+     */
+    private val ITERATED = setOf(
         "kotlin.collections.Iterable",
-        "kotlin.collections.Collection",
-        "kotlin.collections.List",
-        "kotlin.collections.Set",
         "kotlin.collections.MutableIterable",
-        "kotlin.collections.MutableCollection",
-        "kotlin.collections.MutableList",
-        "kotlin.collections.MutableSet",
-        "kotlin.Array",
-        "java.util.List",
-        "java.util.Set",
-        "java.util.Collection",
+        "java.lang.Iterable",
+        SEQUENCE,
     )
 
     /** One generated constant: its [name], the logical [path] it holds and the Kotlin [type] of its values. */
@@ -152,7 +159,7 @@ internal object QueryPropertiesSource {
             if (properties.putIfAbsent(childName, Property(childName, childPath, type.kotlinType())) != null) {
                 return@forEach
             }
-            val nested = type.nestedClass() ?: return@forEach
+            val nested = type.nestedClass(owner, wireName, problems) ?: return@forEach
             val qualified = nested.qualifiedName!!.asString()
             if (qualified !in visited) {
                 collect(nested, childPath, visited + qualified, properties, problems)
@@ -192,16 +199,72 @@ internal object QueryPropertiesSource {
         simpleName.asString() !in ignored && wireName !in ignored &&
         !jsonIgnored(problems)
 
-    /** The class whose properties a path continues into: the type itself, or a collection's element type. */
-    private fun KSType.nestedClass(): KSClassDeclaration? {
-        (declaration as? KSTypeAlias)?.let { return it.type.resolve().nestedClass() }
-        val qualified = declaration.qualifiedName?.asString() ?: return null
-        if (qualified in COLLECTIONS) {
-            return arguments.firstOrNull()?.type?.resolve()?.nestedClass()
-        }
+    /**
+     * The class whose properties a path continues into past [owner]'s property [wireName] of this type: the type
+     * itself, or the element type of a collection, an array or a declared iterable. A sequence's element class, which
+     * Jackson reads back as maps, is a problem to [problems] instead.
+     */
+    private fun KSType.nestedClass(
+        owner: KSClassDeclaration,
+        wireName: String,
+        problems: MutableList<String>,
+    ): KSClassDeclaration? {
+        (declaration as? KSTypeAlias)?.let { return aliased(it).nestedClass(owner, wireName, problems) }
         val type = declaration as? KSClassDeclaration ?: return null
+        // A public property's type is never local: Kotlin approximates a local type to a supertype that has a name.
+        val qualified = type.qualifiedName!!.asString()
+        val element = elementOf(type, qualified) ?: return type.nestedClassOf(qualified)
+        val nested = element.nestedClass(owner, wireName, problems)
+        if (nested != null && qualified == SEQUENCE) {
+            problems += "${owner.qualifiedName!!.asString()}.$wireName is a Sequence of " +
+                "${nested.qualifiedName!!.asString()}: Jackson writes a Sequence as an array but reads its elements " +
+                "back as maps, so a state holds none of these, and its query fields could name none of their " +
+                "fields; hold them in a List or a Set"
+            return null
+        }
+        return nested
+    }
+
+    /**
+     * The type [alias] stands for, its type parameters replaced by this type's arguments: `LinkedHashSet<Line>` is
+     * `java.util.LinkedHashSet<Line>`, not a set of the alias's own parameter.
+     */
+    private fun KSType.aliased(alias: KSTypeAlias): KSType {
+        val target = alias.type.resolve()
+        val parameters = alias.typeParameters.map { it.name.asString() }
+        if (parameters.isEmpty()) return target
+        return target.replace(
+            target.arguments.map { argument ->
+                // A star projection has no type; a parameter of the target is one of the alias's own.
+                val parameter = argument.type?.resolve()?.declaration as? KSTypeParameter
+                if (parameter == null) argument else arguments[parameters.indexOf(parameter.name.asString())]
+            },
+        )
+    }
+
+    /**
+     * The element type of this type of the class [type], named [qualified], when Jackson writes it as an array: an object array, a
+     * collection (a class whose supertypes reach `Collection`: a `SortedSet`, an `ArrayDeque`, a class extending
+     * `ArrayList<Line>`), or an [ITERATED] interface; null for any other type. The element type is the one its
+     * `iterator()` yields as a member of this type, a supertype's type argument substituted.
+     */
+    private fun KSType.elementOf(type: KSClassDeclaration, qualified: String): KSType? {
+        // Each has one type parameter, a star projection of which has no type.
+        if (qualified == ARRAY || qualified in ITERATED) {
+            return arguments.single().type?.resolve()
+        }
+        val collection = qualified in COLLECTIONS ||
+            type.getAllSuperTypes().any { it.declaration.qualifiedName!!.asString() in COLLECTIONS }
+        if (!collection) return null
+        // Every collection has `iterator()`, which a collection's class declares or inherits.
+        val iterator = type.getAllFunctions().first { it.simpleName.asString() == ITERATOR }
+        return iterator.asMemberOf(makeNotNullable()).returnType!!.arguments.single().type?.resolve()
+    }
+
+    /** This class, [qualified], when a path continues into its properties: an application's class not a leaf. */
+    private fun KSClassDeclaration.nestedClassOf(qualified: String): KSClassDeclaration? {
         val platform = qualified.startsWith("kotlin.") || qualified.startsWith("java.") || qualified.startsWith("javax.")
-        return if (platform || type.isLeaf()) null else type
+        return if (platform || isLeaf()) null else this
     }
 
     /** Whether no path continues into this class: it is no class or plain interface whose properties are its own. */

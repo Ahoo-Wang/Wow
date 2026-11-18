@@ -33,8 +33,8 @@ import kotlin.reflect.KType
  *   so a definition of its own, keyed `a.Box(java.lang.String?)`, whose members typed by the parameter accept null,
  *   while `Box<String>` keeps `a.Box(java.lang.String)` and its non-null members; a [Nullable] value is written as a
  *   nullable value is ([nullable]).
- * - A property's list, set, object array or map is written where it is used ([Containers]), never as a definition of
- *   its erased type, each element or value nullable as its type argument is.
+ * - A property's list, set, object array, declared iterable or map is written where it is used ([Containers]), never
+ *   as a definition of its erased type, each element or value nullable as its type argument is.
  */
 internal object TypeArguments : CustomDefinitionProviderV2 {
     private const val TYPE = "type"
@@ -133,14 +133,23 @@ internal object TypeArguments : CustomDefinitionProviderV2 {
     private fun isScalar(type: Class<*>): Boolean = type.isEnum || PLATFORM_PACKAGES.any { type.name.startsWith(it) }
 
     /**
-     * A property's list, set, object array or map, written where it is used, never as a definition of its erased type
+     * A property's list, set, object array, declared iterable or map, written where it is used, never as a definition
+     * of its erased type
      * (two `Map<String, Long>` and one `Map<String, Long?>` are three schemas, not one shared definition): each element
      * or value accepts null when its type argument is nullable, at any depth (`List<Map<String, Item?>>`), the way a
      * nullable property does. A collection's or a map's arguments are [Nullable]s where they accept null ([declared]);
      * an object array's element is nullable as its Kotlin type argument is, which an array type cannot carry. A Java
-     * or platform type argument is not nullable; a primitive array is left to the generator.
+     * or platform type argument is not nullable; a primitive array is left to the generator. A value declared as an
+     * `Iterable` or a `Sequence` ([isIterated]) is an array too.
      */
     object Containers {
+        /**
+         * Whether a value declared as [type] is a list or a sequence Jackson writes as an array, as it does a collection:
+         * an `Iterable` (Kotlin's `Iterable` and `MutableIterable` alike) or a `Sequence`, not a class implementing one,
+         * which Jackson writes as a bean.
+         */
+        fun isIterated(type: Class<*>): Boolean = type == Iterable::class.java || type == Sequence::class.java
+
         /** The provider of the properties [M] are: fields, or the getters of computed properties. */
         fun <M : MemberScope<*, *>> of(): CustomPropertyDefinitionProvider<M> =
             CustomPropertyDefinitionProvider { member, context ->
@@ -156,6 +165,7 @@ internal object TypeArguments : CustomDefinitionProviderV2 {
                 erased.isArray && !erased.componentType.isPrimitive -> ITEMS to type.arrayElementType
                 Collection::class.java.isAssignableFrom(erased) ->
                     ITEMS to context.typeContext.getContainerItemType(type)
+                isIterated(erased) -> ITEMS to (type.typeParameters.singleOrNull() ?: return null)
                 // A map has its two parameters, resolved (to `Object` when raw).
                 Map::class.java.isAssignableFrom(erased) ->
                     ADDITIONAL_PROPERTIES to type.typeParametersFor(Map::class.java)[1]
