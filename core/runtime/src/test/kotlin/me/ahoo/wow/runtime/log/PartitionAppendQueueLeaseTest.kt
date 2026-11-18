@@ -50,11 +50,11 @@ class PartitionAppendQueueLeaseTest {
         .take(count)
         .toList()
 
-    private fun stream(ref: AggregateRef) = EventStreamRecord(
+    private fun stream(ref: AggregateRef, version: Int = 1) = EventStreamRecord(
         ref = ref,
-        version = 1,
-        commandId = "command-${ref.id}",
-        requestId = ref.id,
+        version = version,
+        commandId = "command-${ref.id}-$version",
+        requestId = "${ref.id}-$version",
         commandType = "bank.Deposit",
         commitTime = 1L,
         events = listOf(EventRecord("bank.Deposited", 1, """{"amount":1}""")),
@@ -90,6 +90,33 @@ class PartitionAppendQueueLeaseTest {
         log.calls.map { it.second }.assert().containsExactly(null, null, ExecutionLease.NOT_HELD)
         queue.close()
     }
+
+    @Test
+    fun `an aggregate's appends keep their order across marks, its later one in the next batch`(): Unit =
+        runBlocking {
+            val log = LeaseLog(InMemoryEventLog(PARTITIONS), acrossPartitions = false)
+            val queue = PartitionAppendQueue(log)
+            val (first, account) = refs(2, 0)
+            coroutineScope {
+                val held = async(Dispatchers.Default) { queue.append(stream(first)) }
+                log.entered.await()
+                // Version 1 run without the lease, queued ahead of version 2 run with it: split by mark within one
+                // batch, version 2 would be committed first and conflict.
+                val degraded = async(Dispatchers.Default + ExecutionLease.NOT_HELD) { queue.append(stream(account)) }
+                eventually { queue.queued == 1 }
+                val leased = async(Dispatchers.Default) { queue.append(stream(account, 2)) }
+                eventually { queue.queued == 2 }
+                log.release.complete(Unit)
+                listOf(held, degraded, leased).awaitAll()
+                    .forEach { it.assert().isInstanceOf(AppendOutcome.Committed::class.java) }
+            }
+            log.calls.map { it.first to it.second }.assert().containsExactly(
+                listOf(first) to null,
+                listOf(account) to ExecutionLease.NOT_HELD,
+                listOf(account) to null,
+            )
+            queue.close()
+        }
 
     @Test
     fun `a batch of appends without the lease alone is one call under it`(): Unit = runBlocking {

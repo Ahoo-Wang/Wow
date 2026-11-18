@@ -356,6 +356,11 @@ class PartitionAppendQueue(
      * Commits [batch], its appends without the lease ([Pending.degraded]) in a call of their own under
      * [ExecutionLease.NOT_HELD], after the others: the log reads the lease from the call's coroutine, which is the
      * lane's or a committer's, not the caller's. A batch has them only while a partition changes hands.
+     *
+     * Committing them apart reorders no aggregate's appends: a batch holds at most one unit of each aggregate ([take]
+     * passes over a unit whose aggregate is already in it, and a merged call takes the lanes' batches, whose
+     * aggregates are in their own partition each), and a unit is one caller's, under one mark. So an aggregate's later
+     * unit, whatever its mark, waits for the next batch.
      */
     private suspend fun commit(batch: List<Pending>, marks: StoreCallMarks?) {
         if (batch.none { it.degraded }) return commitAll(batch, marks)
