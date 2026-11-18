@@ -45,10 +45,16 @@ data class ShipParcel(val address: String)
 
 data class ScheduleParcel(val parcelId: String, val day: String)
 
-/** A fake peer of the shipping context, called by a service's client as a saga's synchronous call does. */
+/**
+ * A fake peer of the shipping context, called by a service's client as a saga's synchronous call does; and one of the
+ * returns context, of whose classes the test holds none. The fixture's contract keeps `ReturnParcel` in a context of its
+ * own: a consumer may hold a context's contract with none of its classes and address it by JSON, not with only some of
+ * them, which is a contract and types of different versions.
+ */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class FakePeerTest {
     private val shipping = fakePeer("shipping")
+    private val returns = fakePeer("returns")
     private val client = WowClient.builder()
         .endpoints(EndpointResolver.of(emptyMap(), mapOf("shipping" to shipping.url)))
         .service("shop-service")
@@ -58,6 +64,7 @@ class FakePeerTest {
     fun close() {
         client.close()
         shipping.close()
+        returns.close()
     }
 
     private fun commands(caller: Caller): CommandClient = client.commands.of(caller)
@@ -163,13 +170,13 @@ class FakePeerTest {
 
     @Test
     fun `a command whose class the class path lacks should be its JSON`() {
-        val answer = WowHttp(shipping.url).post(
-            "/shipping/parcel/parcel-4/return-parcel",
+        val answer = WowHttp(returns.url).post(
+            "/returns/parcel/parcel-4/return-parcel",
             """{"reason":"damaged"}""",
             mapOf(WowHeaders.SERVICE to "shop-service", WowHeaders.CALL to callOf("acme")),
         )
         answer.status.assert().describedAs(answer.text).isEqualTo(200)
-        val call = shipping.calls.single { it.commandType == "shipping.parcel.ReturnParcel" }
+        val call = returns.calls.single { it.commandType == "returns.parcel.ReturnParcel" }
         (call.command as JsonNode)["reason"].asString().assert().isEqualTo("damaged")
     }
 

@@ -52,7 +52,7 @@ submitted.ref.assert().isEqualTo(ref)
 | 对端上下文的，默认 | 经对端的命令主题 `wow.<context>.commands`；主题收到后 `send` 就返回 |
 | 列在 `wow.peers` 下的对端的 | 经 HTTP 发往对端的服务 |
 
-客户端从对端 api jar 携带的契约认识对端，所以应用只需依赖对端的 `*-api` 模块。
+客户端从对端 api 模块的契约认识对端，服务在类路径上就能找到它，所以应用只需依赖对端的 `*-api` 模块。
 
 ## 配置经 HTTP 访问的对端 {#configure-a-peer-over-http}
 
@@ -96,7 +96,7 @@ wow:
 
 ## 在 Wow 宿主之外 {#outside-a-wow-host}
 
-不是 Wow 服务的应用用 `WowClient.builder()` 自己构建客户端：每个上下文的服务在哪里（`endpoints`）、模式（`service` 带上它以哪个服务的名字调用，或者 `user` 带上终端用户的凭据），以及超时。`client.commands` 是同一个 `CommandClient`，对端的契约来自类路径上的 api jar。每种调用方走哪个端口、以什么身份调用、请求带什么，见[从其他服务调用 Wow](./calling-from-other-services)。
+不是 Wow 服务的应用用 `WowClient.builder()` 自己构建客户端：每个上下文的服务在哪里（`endpoints`）、模式（`service` 带上它以哪个服务的名字调用，或者 `user` 带上终端用户的凭据），以及超时。`client.commands` 是同一个 `CommandClient`，对端的契约来自类路径，这样的应用要把每个 api 模块的特性 `contract` 放到类路径上。每种调用方走哪个端口、以什么身份调用、请求带什么，见[从其他服务调用 Wow](./calling-from-other-services)。
 
 ## 在 Java 中 {#from-java}
 

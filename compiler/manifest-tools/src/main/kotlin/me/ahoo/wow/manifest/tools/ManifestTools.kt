@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.manifest.tools
 
+import me.ahoo.wow.manifest.ContractClasses
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestAssembly
 import me.ahoo.wow.manifest.ManifestFragment
@@ -46,7 +47,8 @@ object ManifestTools {
      * path), describing the service
      * [serviceOf] names: the one the contracts of its contexts and its own [serviceName] agree on; fails on a conflict, on
      * a schema reference no fragment resolves, on another context's event a handler takes whose aggregate the peer
-     * contracts on the [classpath] do not say ([PeerSources]), or on a command a saga derives by its class that neither a context of
+     * contracts on the [classpath] do not say ([PeerSources], naming the entry its class is in), on a contract whose
+     * classes its types lack ([ContractClasses]), on a command a saga derives by its class that neither a context of
      * the service nor a peer contract on the [classpath] decides ([undecidedCommands]), or on two fragments of one
      * name ([fragmentsOf]). Returns the number of fragments merged.
      */
@@ -65,10 +67,18 @@ object ManifestTools {
             ManifestJson.contract(entry)?.let { ManifestFragment(owners[entry.path] ?: entry.name, it.manifest) }
         }
         val service = serviceOf(fragments, contracts, serviceName, defaultServiceName)
+        // Where a class is on the class path, named by its entry's owner: a contract's classes must all be there.
+        val classes = ClassPath(classpath)
+        val locate: (String) -> String? = { binary -> classes.entryOf(binary)?.let { owners[it.path] ?: it.name } }
+        val mismatched = contracts.flatMap { ContractClasses.problems(it, locate) }
+        check(mismatched.isEmpty()) {
+            "The contracts on the class path do not match their types:\n" + mismatched.joinToString("\n") { "- $it" }
+        }
         val manifest = ManifestAssembly.assemble(
             fragments,
             ServiceInfo(service, serviceVersion),
             contracts.map { it.manifest },
+            locate,
         )
         val unresolved = manifest.unresolvedSchemaRefs
         check(unresolved.isEmpty()) {

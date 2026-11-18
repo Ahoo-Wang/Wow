@@ -18,11 +18,16 @@ import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.MissingDependencyException
 import me.ahoo.wow.kernel.ModelProvider
+import me.ahoo.wow.manifest.AggregateManifest
+import me.ahoo.wow.manifest.CommandManifest
+import me.ahoo.wow.manifest.ContextManifest
+import me.ahoo.wow.manifest.ContractException
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestConflictException
 import me.ahoo.wow.manifest.ManifestTree
 import me.ahoo.wow.manifest.ServiceInfo
+import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
 import me.ahoo.wow.runtime.cluster.accountManifest
 import me.ahoo.wow.runtime.node.InMemoryBackends
@@ -188,5 +193,46 @@ class ManifestLoaderTest {
     fun `a provider's models are of its own context`() {
         assertThrows<IllegalArgumentException> { ServiceNode.models(Dependencies.NONE, listOf(MisplacedModels())) }
             .message.assert().contains("bank.account")
+    }
+
+    /** A peer contract of `billing`, its commands of the classes [classes]. */
+    private fun peerContract(vararg classes: String) {
+        val peer = Manifest(
+            contexts = listOf(
+                ContextManifest(
+                    "billing",
+                    aggregates = listOf(
+                        AggregateManifest(
+                            "invoice",
+                            state = StateManifest(Manifest.schemaRef("billing.InvoiceState")),
+                            commands = classes.map {
+                                CommandManifest(it.substringAfterLast('.'), schema = Manifest.schemaRef(it))
+                            },
+                        ),
+                    ),
+                ),
+            ),
+        )
+        write("META-INF/wow/contract.json", mapper.writeValueAsBytes(ManifestTree.write(peer)))
+    }
+
+    @Test
+    fun `a peer contract of whose classes some are present should fail startup, naming the contract and the types`() {
+        fragment("bank", accountManifest(null, "bank"))
+        peerContract("billing.Issue", ManifestLoaderTest::class.java.name)
+        val classLoader = classLoader(BankModels::class.java)
+
+        assertThrows<ContractException> { ManifestLoader(classLoader).load(NODE_SERVICE) }.problems.single().assert()
+            .startsWith("billing.Issue, which the contract in ")
+            .contains("lists for context billing, is in no class path entry, while the context's other classes are in ")
+    }
+
+    @Test
+    fun `a peer contract of whose classes none are present should be addressed by JSON, in silence`() {
+        fragment("bank", accountManifest(null, "bank"))
+        peerContract("billing.Issue")
+        val classLoader = classLoader(BankModels::class.java)
+
+        ManifestLoader(classLoader).load(NODE_SERVICE).contexts.map { it.name }.assert().containsExactly("bank")
     }
 }

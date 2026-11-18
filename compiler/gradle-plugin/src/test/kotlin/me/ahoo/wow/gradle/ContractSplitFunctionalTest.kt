@@ -47,6 +47,7 @@ class ContractSplitFunctionalTest {
         contract: Boolean = views,
         extra: String = "",
         apiExtra: String = extra,
+        peerViews: Boolean = false,
     ) {
         ContextsFixture.write(
             root,
@@ -80,6 +81,7 @@ class ContractSplitFunctionalTest {
                 api = if (shared) "api(project(\":a-api\"))" else "",
                 amount = if (shared) ", val amount: a.api.AlphaAmount" else "",
                 consumes = mutual,
+                views = peerViews,
                 extra = extra,
                 apiExtra = apiExtra,
             ),
@@ -151,5 +153,18 @@ class ContractSplitFunctionalTest {
         val late = "afterEvaluate {\n$target\n}"
         build(root, shared = true, mutual = true, views = false, extra = target, apiExtra = late)
         merge(root).assert().isEqualTo(mapOf("a" to listOf("b"), "b" to listOf("a")))
+    }
+
+    /** The report of the one cycle that remains, which the troubleshooting page shows as it is. */
+    @Test
+    fun `two domains each reading the other's generated view should be a task cycle through both contracts`(
+        @TempDir root: File
+    ) {
+        build(root, shared = false, mutual = true, views = true, peerViews = true)
+        runner(root, ":a-server:${WowPlugin.MERGE_TASK}").buildAndFail().output.assert().contains(
+            "Circular dependency between the following tasks:",
+            ":a-api:${WowPlugin.ASSEMBLE_CONTRACT_TASK}",
+            ":b-api:${WowPlugin.ASSEMBLE_CONTRACT_TASK}",
+        )
     }
 }

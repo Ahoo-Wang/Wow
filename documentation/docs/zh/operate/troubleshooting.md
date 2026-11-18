@@ -21,6 +21,7 @@ outline: deep
 | 没有命令传输 | 某个 Saga 向另一个上下文发命令，而节点既没有 Kafka 也没有内存主题 | 设置 `wow.kafka.bootstrap-servers`，或在开发中运行，主题保存在它的 JVM 里（`wow.transport`） |
 | 缺少主题，或命令主题的分区数不对 | `wow.kafka.ddl: validate`，而运维人员没有按日志的需要创建主题 | 创建主题：命令主题的分区数恰好是 `wow.log.partitions`（[Kafka](./kafka#creating-topics)） |
 | 另一种格式的结构 | 一张以本版本 Wow 不读取的格式记录的表 | 用写下它的那个 Wow 版本打开它，或者从空的存储开始；绝不要编辑 `wow_format` |
+| 契约与其 api 模块的类型版本不一致 | 一个上下文的契约所列的类，类路径上只有一部分：一个版本的契约配上另一个版本的类型，Maven 构建分别解析两者时就可能这样 | 依赖 api 模块的同一个版本，它的 jar 与分类器 `contract` 一起（[构建因契约失败](#a-build-fails-over-contracts)） |
 
 ## 命令超时 {#commands-time-out}
 
@@ -79,6 +80,32 @@ ownership 健康组件为 `DOWN`，或者在某个节点离开期间，某些聚
 | `wow.subscription.offset.gaps` 大于零 | 保留策略删除了某个订阅尚未读取的偏移量 | 提高主题的保留期；决定 `wow.kafka.offset-gap` 怎么设（[Kafka](./kafka#reading-other-contexts-streams)） |
 | `wow.subscription.undecodable.messages` 大于零 | 这个版本无法解码的消息 | 升级读取方服务的 api，或者是写入方发送了未知的格式 |
 | 某个主题的订阅停住，日志说有一条记录不是 Wow 信封 | 有别的生产者在写这个主题，例如共用 broker 的 9.x | 用 `wow.kafka.topics.prefix` 给服务各自的主题（[Kafka](./kafka#reading-other-contexts-streams)） |
+
+## 构建因契约失败 {#a-build-fails-over-contracts}
+
+服务或领域模块的构建可能因 api 模块的契约而停下（[一份契约](../concepts/contract#contracts-between-services)）：
+
+- **经由两份契约的任务环。** 两个领域模块各自用到对方的生成代码（`<State>View`、`<Context>Contract`），于是各自需要对方的契约，而契约要先编译对方才得到。Gradle 在任何任务运行之前报告它：
+
+  ```text
+  Circular dependency between the following tasks:
+  :a-api:assembleWowContract
+  \--- :a-domain:generateWowContract
+       +--- :a-domain:generateWowManifestFragment
+       |    +--- :a-domain:compileJava
+       |    |    +--- :a-domain:compileKotlin
+       |    |    |    +--- :a-domain:kspKotlin
+       |    |    |    |    \--- :b-api:wowContractJar
+       |    |    |    |         +--- :b-api:assembleWowContract
+       |    |    |    |         |    \--- :b-domain:generateWowContract
+       |    |    |    |         |         +--- :a-api:wowContractJar
+       |    |    |    |         |         |    +--- :a-api:assembleWowContract (*)
+  ```
+
+  要在代码里解决：让一方不通过对方的视图读取对方的状态，改用事件或查询。只用另一个上下文的类型（它的命令、事件和值）永远不会成环。
+- **"…which no peer contract on the class path lists as an event: it is in `<module>`, whose api module carries no contract listing it."** 这个事件的 api 模块发布时没有带契约：只含类型的发布（`-Pwow.contract.publish=false`，环的第一次发布），或者没有声明 `wowContract` 的 api 模块。改为依赖该模块的完整发布。
+- **"…in a build run with -Pwow.contract.publish=false…"** 这个属性只发布 api 模块的类型，而服务需要它们的契约。去掉这个属性构建服务。
+- **"…the contract and the types of its api module are of different versions."** 一个上下文的契约所列的类，类路径上只有一部分。消费方可以持有一个上下文的契约而没有它的任何类，通过 JSON 访问它；但不可以只持有其中一部分类。依赖该模块的同一个版本，它的 jar 与分类器 `contract` 一起。
 
 ## 查询被拒绝或很慢 {#queries-are-refused-or-slow}
 

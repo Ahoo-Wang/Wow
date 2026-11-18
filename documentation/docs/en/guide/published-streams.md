@@ -38,7 +38,7 @@ fun onOrderStockConfirmed(
 )
 ```
 
-- **The event classes.** `OrderStockConfirmed` is the ordering api's class. The payment's domain module depends on `eshop-ordering-api`, whose jar carries the ordering's contract (`META-INF/wow/contract.json`); nothing else is configured.
+- **The event classes.** `OrderStockConfirmed` is the ordering api's class. The payment's domain module asks for the ordering api's contract, `implementation(wow.contract(project(":eshop-ordering-api")))`, for the generated `OrderStateView`; the payment's service finds the ordering's contract (`META-INF/wow/contract.json`) without a line.
 - **The state.** `OrderStateView` is generated into the ordering api from its contract, one view per aggregate whose stream carries its state, named after the state class with `View` appended. It holds the state's fields: those the ordering requires are non-null, the others nullable. A class of the api (`OrderItem`, `OrderStatus`) is referenced; a type of the ordering's domain is copied into the view as a nested class; free-shape content is an `ObjectNode` (a free value a `JsonNode`). Fields the view does not have are ignored, so the ordering adding one breaks no reader. When the upstream publishes without the state (`publishState = false`), its api generates no view of it, and the handler declares its state nullable: a non-nullable state of a stream without state fails when the node starts.
 - **The access attributes.** Each published record's `access` holds the aggregate's access attributes after the commit, owner and space among them, as the upstream published them, with the state or without it; it is `null` when the stream was not stamped.
 - **The aggregates.** All the aggregates in `aggregates` belong to one context, written `context.aggregate`.
@@ -78,7 +78,7 @@ fun onPaymentSucceeded(
 ): CommandRequest<PayOrder> = CommandRequest.of(PayOrder(event.ref.id, event.state.amount), event.state.orderId)
 ```
 
-`CommandRequest.of(body, id)` finds the ordering's order from the contract in the ordering api's jar, and the command goes to the ordering's command topic, `wow.eshop-ordering.commands`. A rejection comes back as a receipt, to the saga's `@OnRejected` handler:
+`CommandRequest.of(body, id)` finds the ordering's order from the ordering api's contract, and the command goes to the ordering's command topic, `wow.eshop-ordering.commands`. A rejection comes back as a receipt, to the saga's `@OnRejected` handler:
 
 <!-- sample: examples/eshop/payment/payment-domain/src/main/kotlin/me/ahoo/wow/example/eshop/payment/domain/payment/OrderPaymentSaga.kt#peer-rejected -->
 

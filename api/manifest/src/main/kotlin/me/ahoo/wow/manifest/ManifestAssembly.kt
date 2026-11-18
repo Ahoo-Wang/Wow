@@ -23,7 +23,14 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  */
 @InternalWowApi
 object ManifestAssembly {
-    /** The Manifest of [service], assembled from [fragments] with the peer [contracts]. */
-    fun assemble(fragments: List<ManifestFragment>, service: ServiceInfo, contracts: List<Manifest>): Manifest =
-        PeerSources.resolve(ManifestMerger.merge(fragments, service), contracts)
+    /**
+     * The Manifest of [service], assembled from [fragments] with the peer [contracts]; [locate] finds a class on the
+     * class path, which an event no contract lists is named with ([PeerSources.resolve]).
+     */
+    fun assemble(
+        fragments: List<ManifestFragment>,
+        service: ServiceInfo,
+        contracts: List<Manifest>,
+        locate: (String) -> String?,
+    ): Manifest = PeerSources.resolve(ManifestMerger.merge(fragments, service), contracts, locate)
 }

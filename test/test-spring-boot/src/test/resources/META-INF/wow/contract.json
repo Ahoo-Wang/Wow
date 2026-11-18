@@ -24,12 +24,23 @@
               "creation": "none",
               "idProperty": "parcelId",
               "routes": [{ "method": "POST", "path": "/shipping/parcel/schedule-parcel" }]
-            },
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "returns",
+      "aggregates": [
+        {
+          "name": "parcel",
+          "state": { "schema": "#/$defs/me.ahoo.wow.test.server.ReturnState" },
+          "commands": [
             {
               "name": "ReturnParcel",
               "schema": "#/$defs/me.ahoo.wow.test.server.ReturnParcel",
               "creation": "none",
-              "routes": [{ "method": "POST", "path": "/shipping/parcel/{id}/return-parcel" }]
+              "routes": [{ "method": "POST", "path": "/returns/parcel/{id}/return-parcel" }]
             }
           ]
         }

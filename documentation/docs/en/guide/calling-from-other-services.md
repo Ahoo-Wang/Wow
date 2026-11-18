@@ -21,7 +21,7 @@ The public port is reachable from the gateway alone, and the internal port from 
 
 ## From the JVM
 
-`WowClient` sends command objects and reads states, as a Wow service's own clients do. It takes the peer's contract from its api jar, so the application depends on the peer's `*-api` module. Build it with where each context's service is, and its mode:
+`WowClient` sends command objects and reads states, as a Wow service's own clients do. It takes the peer's contract from the peer's `*-api` module, whose feature `contract` holds it: the application asks for it, `implementation("com.example:ordering-api:1.0.0") { capabilities { requireFeature("contract") } }`, or, with Maven, the module's jar of classifier `contract` beside it. Build it with where each context's service is, and its mode:
 
 <!-- sample: fragment -->
 

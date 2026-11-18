@@ -19,7 +19,7 @@ Each term has one meaning across these pages. The second column is the term the 
 | Aggregate type | 聚合类型 | The name of a kind of aggregate within its context, written `context.aggregate`. |
 | Alias | 别名 | A former name of a command or an event, kept so that history recorded under it still reads. See [Deciding and evolving](../concepts/programming-model#events-change-over-time). |
 | Analytics catalog | 分析目录 | The platform service where datasets are defined, approved and published. See [Read models](../concepts/read-models#three-query-models). |
-| API jar | api jar | The published module of a bounded context that holds its commands, events and state classes and the contract peers read. See [One contract](../concepts/contract#contracts-between-services). |
+| API jar | api jar | The published module of a bounded context, whose jar holds its commands, events and value classes. Its feature `contract`, published as the jar of classifier `contract`, holds the contract and the code generated from it, which services and code using another context's generated code read. See [One contract](../concepts/contract#contracts-between-services). |
 | Backpressure | 背压 | A sign that a part of the system is loaded, such as a busy refusal or a wait timeout, which subscriptions answer by slowing down rather than by pausing or parking. See [Subscriptions](../concepts/subscriptions#failures-park-one-aggregate). |
 | Bounded context | 限界上下文 | A part of the domain with its own model, its own log and its own published language. See [Between contexts](../concepts/cross-context). |
 | Bulkhead | 舱壁 | The concurrency limit, with a short queue, that keeps queries from using up the connections writes need. See [Read models](../concepts/read-models#reads-must-not-slow-down-writes). |
@@ -32,7 +32,7 @@ Each term has one meaning across these pages. The second column is the term the 
 | Command function | 命令函数 | The decide function of an aggregate for one command type. |
 | Command topic | 命令主题 | The Kafka topic `wow.<context>.commands` through which commands reach a context asynchronously. See [Between contexts](../concepts/cross-context#commands-to-another-context). |
 | `COMMITTED` | 已提交 | The wait stage reached when a command's events are appended, or the command was settled without appending. See [Waiting for outcomes](../concepts/waits). |
-| Contract | 契约 | The part of a context's Manifest that other services need, carried in its API jar as `META-INF/wow/contract.json`. See [One contract](../concepts/contract#contracts-between-services). |
+| Contract | 契约 | The part of a context's Manifest that other services need, `META-INF/wow/contract.json`, published as its api module's feature `contract`. See [One contract](../concepts/contract#contracts-between-services). |
 | CoSec | CoSec | The authentication and authorization framework Wow integrates for callers, route-level and action-level authorization. See [Identity](../concepts/identity#access). |
 | Creation rule | 创建语义 | Whether a command must create its aggregate, may create it, or applies only to one that exists. |
 | Cross-scope caller | 跨作用域调用方 | A caller allowed to act in another tenant or scope, which it names in the `Wow-Scope` header. |

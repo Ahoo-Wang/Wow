@@ -21,6 +21,7 @@ The host refuses to start rather than run with a setting that would quietly do t
 | No command transport | A saga sends commands to another context and the node has neither Kafka nor in-memory topics | Set `wow.kafka.bootstrap-servers`, or run it in development, where its topics are in its JVM (`wow.transport`) |
 | A missing topic, or a command topic with the wrong number of partitions | `wow.kafka.ddl: validate`, and the operator has not created the topic as the log needs it | Create the topic: a command topic has exactly `wow.log.partitions` partitions ([Kafka](./kafka#creating-topics)) |
 | A structure of another format | A table recorded in a format this version of Wow does not read | Open it with the version of Wow that wrote it, or start from an empty store; never edit `wow_format` |
+| The contract and the types of its api module are of different versions | A context's contract lists classes of which the class path holds only some: a contract of one version beside types of another, as a Maven build resolving the two apart can take | Depend on one version of the api module, its jar and its classifier `contract` ([A build fails over contracts](#a-build-fails-over-contracts)) |
 
 ## Commands time out
 
@@ -79,6 +80,32 @@ The ownership health component is `DOWN`, or commands for some aggregates are sl
 | `wow.subscription.offset.gaps` is above zero | Retention deleted offsets a subscription had not read | Raise the topic's retention; decide on `wow.kafka.offset-gap` ([Kafka](./kafka#reading-other-contexts-streams)) |
 | `wow.subscription.undecodable.messages` is above zero | Messages this version cannot decode | Upgrade the reading service's api, or the writer sends an unknown format |
 | A topic's subscriptions stop, logging that a record is not a Wow envelope | Another producer writes the topic, such as 9.x on a shared broker | Give the services their own topics with `wow.kafka.topics.prefix` ([Kafka](./kafka#reading-other-contexts-streams)) |
+
+## A build fails over contracts
+
+A service's build, or a domain's, can stop over the api modules' contracts ([One contract](../concepts/contract#contracts-between-services)):
+
+- **A task cycle through two contracts.** Two domain modules each use the other's generated code (a `<State>View`, `<Context>Contract`), so each needs the other's contract, which comes from compiling the other. Gradle reports it before anything runs:
+
+  ```text
+  Circular dependency between the following tasks:
+  :a-api:assembleWowContract
+  \--- :a-domain:generateWowContract
+       +--- :a-domain:generateWowManifestFragment
+       |    +--- :a-domain:compileJava
+       |    |    +--- :a-domain:compileKotlin
+       |    |    |    +--- :a-domain:kspKotlin
+       |    |    |    |    \--- :b-api:wowContractJar
+       |    |    |    |         +--- :b-api:assembleWowContract
+       |    |    |    |         |    \--- :b-domain:generateWowContract
+       |    |    |    |         |         +--- :a-api:wowContractJar
+       |    |    |    |         |         |    +--- :a-api:assembleWowContract (*)
+  ```
+
+  The fix is in the code: one side reads the other's state without its view, by an event or a query. Using another context's types alone (its commands, events and values) never cycles.
+- **"…which no peer contract on the class path lists as an event: it is in `<module>`, whose api module carries no contract listing it."** The event's api module was published without its contract: a types-only release (`-Pwow.contract.publish=false`, the first release of a cycle), or an api module that declares no `wowContract`. Depend on the module's full release.
+- **"…in a build run with -Pwow.contract.publish=false…"** The property publishes api modules' types alone; a service needs their contracts. Build the service without it.
+- **"…the contract and the types of its api module are of different versions."** A context's contract lists classes of which the class path holds only some. A consumer may hold a context's contract with none of its classes and address it by JSON; it may not hold it with only some of them. Depend on one version of the module, its jar and its classifier `contract`.
 
 ## Queries are refused or slow
 

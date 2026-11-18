@@ -44,7 +44,7 @@ The compiler writes the module's part of the service's contract to `META-INF/wow
 
 ## The contract code of the api module
 
-The api module declares its domain module, `wowContract(project(":ordering-domain"))` under the plugin `me.ahoo.wow.api`, and the plugins select from the fragment what a peer needs, the commands, events, state schemas and errors of each context, and put it in the api module's jar as `META-INF/wow/contract.json`. The contract also names the service that hosts the contexts, as the domain module's build declares it:
+The api module declares its domain module, `wowContract(project(":ordering-domain"))` under the plugin `me.ahoo.wow.api`, and the plugins select from the fragment what a peer needs, the commands, events, state schemas and errors of each context, as `META-INF/wow/contract.json`, the api module's contract. The contract also names the service that hosts the contexts, as the domain module's build declares it:
 
 <!-- sample: fragment -->
 
@@ -65,4 +65,10 @@ An api module also compiles `<Context>Contract` from it, such as `EshopOrderingC
 | `<Aggregate>.Errors.*` | Its error codes, by their full names |
 | `<Aggregate>.STATE__*` | The query fields of its state, with `wow-query-api` |
 
-A peer depends on the api module alone and writes no path, name or code by hand: `EshopOrderingContract.Order.ref(tenant, id)` addresses an order, and `EshopOrderingContract.Order.Errors.WRONG_STATUS` compares a rejection ([Call Other Services](./calling-services), [Rejections and Error Codes](./rejections#what-the-caller-receives)). The domain module itself compiles against a view of the api without this code, so it never depends on its own generated contract.
+A peer writes no path, name or code by hand: `EshopOrderingContract.Order.ref(tenant, id)` addresses an order, and `EshopOrderingContract.Order.Errors.WRONG_STATUS` compares a rejection ([Call Other Services](./calling-services), [Rejections and Error Codes](./rejections#what-the-caller-receives)).
+
+The contract and this code are the api module's feature `contract`, published within the module as the jar of classifier `contract`; the module's own jar holds its types alone, so every module compiles against the types without waiting for any domain, the api's own domain module among them. Who sees the contract:
+
+- **A service** sees the contract of every api module it reaches, its own api's included, without a line.
+- **A domain module's tests** see those of the build's api modules, their own api's included: most use its `<Context>Contract`. A peer published from another repository is asked for: `testImplementation(wow.contract(...))`.
+- **Code that uses another context's generated code** asks for it: `implementation(wow.contract(project(":eshop-ordering-api")))`, `wow.contract("com.example:ordering-api:1.0.0")` or `wow.contract(libs.ordering.api)`. A module without a Wow plugin writes `implementation(project(":eshop-ordering-api")) { capabilities { requireFeature("contract") } }`; a Maven build adds the module's jar of classifier `contract`, of the same version.

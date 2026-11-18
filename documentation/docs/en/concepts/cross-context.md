@@ -60,11 +60,11 @@ A saga declares the commands it calls, and the Manifest lists them. The default 
 
 Code that is not a saga, such as a service endpoint or a scheduled job, sends commands and runs queries through typed clients: a command client and a query API. For a context the service hosts, they run in-process, without encoding the command. For another context, a command goes to its command topic or over HTTP to its service, and a query goes over HTTP. The calling code is the same either way.
 
-The remote side comes from the other context's contract, found in its API jar. A consumer depends only on that API jar; it writes no paths and no HTTP client code. Errors arrive as typed codes that say whether a retry is safe: a query is sent again only when its problem says a retry may get past it (busy, 429; a store, node or peer unavailable, 503) or no connection could be made, a timeout (504) is never retried as it is, and a streamed query resumes where it stopped.
+The remote side comes from the other context's contract, published with its api module. A consumer depends only on that api module; it writes no paths and no HTTP client code. Errors arrive as typed codes that say whether a retry is safe: a query is sent again only when its problem says a retry may get past it (busy, 429; a store, node or peer unavailable, 503) or no connection could be made, a timeout (504) is never retried as it is, and a streamed query resumes where it stopped.
 
 ## Contracts
 
-All of this needs only the other context's API jar. It carries the context's contract, which the service reads from its classpath to check a command before sending it, to check a wait plan that reaches into the other context, and to check a published stream it subscribes to. [One contract](./contract#contracts-between-services) explains how the contract gets into the jar.
+All of this needs only the other context's api module. Its contract, which the service finds on its classpath, is read to check a command before sending it, to check a wait plan that reaches into the other context, and to check a published stream it subscribes to. [One contract](./contract#contracts-between-services) explains where the contract comes from.
 
 ## Waiting across contexts
 
