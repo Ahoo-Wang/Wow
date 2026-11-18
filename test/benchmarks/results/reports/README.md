@@ -31,6 +31,10 @@ A page quotes them two ways, and any page of the documentation may:
 
 `pnpm docs:reference` writes the headlines, the pages' blocks and their spans together. The documentation checks fail while either is not what the data gives ([`docs-performance.mjs`](../../../../.github/scripts/docs-performance.mjs)). A report that replaces another changes its data, and its headline and the pages with it, in the same pull request.
 
+## Reading a comparison
+
+A paired run calls a latency ratio beyond noise when its 95% interval clears the suite's A/A threshold (`test/benchmarks/noise.json`, written from `noise-history.json`; the [benchmark guide](../../README.md) gives the rule). One L3 run can flag only a large latency change. With these thresholds and the width of one run's own intervals, the smallest change it can call beyond noise is a median of about 83% at p50 (48% to 135% by suite) and about 51% at p99 (34% to 95%), from the history as first built. A change of 10 to 20% needs an alternating run with more rounds (`repeats`), whose intervals are narrower. CPU and allocation per operation are reported as ratios with no threshold: nothing judges them beyond noise.
+
 ## History
 
 The reports that left the tree, with their directories and raw results, are in git history; at commit `1357642891` they are in [`test/benchmarks/results/reports`](https://github.com/Ahoo-Wang/Wow/tree/1357642891a5a458bdb8fc7adc364af7bcb8ee21/test/benchmarks/results/reports).
