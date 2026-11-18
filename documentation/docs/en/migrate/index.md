@@ -30,6 +30,17 @@ These tools migrate from Wow 9.x only. Aggregates from another system are import
 
 Migration happens once, in one place, and leaves nothing behind. V10 itself contains no 9.x code: 9.x type names, annotations, configuration keys, routes and storage formats exist only in the migration tools.
 
+**The recommended path is offline, the whole estate in one window.** The estate is every 9.x service tied to the one you migrate by events, commands, calls or api jars:
+
+1. **List the estate and its API dependency graph, cycles included**, before any code.
+2. **Prepare in dependency order:** shared libraries, then API types, then domains and contracts, then servers and configuration; base services before the services that consume them.
+3. **Develop the front ends** once the services' contracts are stable, and release them in the same window.
+4. **Cut over in one window:** stop every 9.x service, import, start V10 and let it catch up, verify, release the front ends, open the traffic. The decision to go back is taken before the traffic opens.
+
+The preparation goes in order; the go-live cannot. V10 reads no 9.x topic, the api jars of the two versions cannot share a class path, and the routes, headers and error bodies all change, so a service others depend on cannot go live first on its own, and an old front end cannot run against a new service. [Cut Over](./cutover) is the path in full.
+
+Each service of the estate goes through three steps:
+
 ```mermaid
 flowchart LR
     SRC[9.x source] --> SKILL[wow-migrate Skill] --> SRC10[V10 source]
@@ -41,7 +52,7 @@ flowchart LR
 
 1. **Source.** The `wow-migrate` agent Skill rewrites the service's Kotlin source, configuration and clients. Rewriting is semantic, not mechanical: an error handler becomes a rejection or a saga, a processor becomes subscriptions, identity leaves the command bodies. The rewrite is accepted when the service compiles and its domain tests pass. While it renames commands and events, the Skill writes `migration-map.json`, which records every change of name or shape. [Migrate the Source](./source), [Configuration Keys](./configuration) and [HTTP and TypeScript Clients](./http-and-clients) describe the rewrite.
 2. **Data.** The `migrate-data` tool checks the map against what the 9.x store really holds and against the V10 Manifest, imports the event history into the V10 log, and compares every aggregate it can with its 9.x snapshot. By default 9.x stops writing for the whole migration; a large system imports while 9.x serves, follows what it keeps writing, and stops only for a short final pass. The rebuilt state matching 9.x is also the proof that the rewritten evolve functions are right. [Migrate the data](./data) describes the procedure.
-3. **Cut over.** By default 9.x stops writing for the cut-over: import, compare, write the snapshots, start V10, switch traffic. A large system imports while 9.x serves and stops only for a final pass, V10 waiting on standby. Custom projections are rebuilt by their subscriptions; they are not migrated. Services that exchange events or commands, or share api jars, cut over together in one window. [Cut Over](./cutover) is the switch, for one service or an estate, and its two ways back.
+3. **Cut over.** In the estate's window 9.x stops writing: import, compare, write the snapshots, start V10, switch traffic. An estate whose import does not fit the window imports while 9.x serves and stops only for a final pass, V10 waiting on standby. Custom projections are rebuilt by their subscriptions; they are not migrated. [Cut Over](./cutover) is the window, the online exception, a service with no links, and the two ways back.
 
 The data side follows two rules. **Nothing is guessed:** a 9.x event type, command, reserved key or failed execution that the map does not account for stops the tool before it writes anything. **No unexplained difference is accepted:** every kind of difference the comparison reports is either a known 9.x defect or an intended change, and someone signs it off before the cut-over.
 
