@@ -3653,6 +3653,162 @@
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/mixed-pg.1k/suite.json"
+    },
+    {
+      "id": "start.mongo.e1-mongo-uniform.1k.a",
+      "kind": "start",
+      "store": "mongo",
+      "nodes": 1,
+      "scenario": "E1",
+      "keys": "uniform",
+      "accounts": 1000,
+      "rate": 785.5,
+      "cold": {
+        "warmUpSeconds": 10,
+        "nodeCores": 1,
+        "storeCores": 0.58,
+        "busCores": 0.58,
+        "failed": 1373,
+        "p50FirstMs": 3031,
+        "p50LastMs": 364.5,
+        "lastSecond": 39
+      },
+      "warm": {
+        "warmUpSeconds": 120,
+        "nodeCores": 0.98,
+        "storeCores": 0.9,
+        "busCores": 0.52,
+        "failed": 0,
+        "p50Ms": 22.1
+      },
+      "commit": "e3a4e937aa",
+      "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
+      "jdk": "25.0.5+8",
+      "run": "44198387310",
+      "source": "actions-snapshot/followups/44198387310/e1-mongo-uniform.1k/suite.json"
+    },
+    {
+      "id": "start.mongo.e1-mongo-uniform.1k.b",
+      "kind": "start",
+      "store": "mongo",
+      "nodes": 1,
+      "scenario": "E1",
+      "keys": "uniform",
+      "accounts": 1000,
+      "rate": 773.8,
+      "cold": {
+        "warmUpSeconds": 10,
+        "nodeCores": 1,
+        "storeCores": 0.55,
+        "busCores": 0.63,
+        "failed": 3726,
+        "p50FirstMs": 4423.7,
+        "p50LastMs": 1261.6,
+        "lastSecond": 39
+      },
+      "warm": {
+        "warmUpSeconds": 120,
+        "nodeCores": 0.94,
+        "storeCores": 0.91,
+        "busCores": 0.51,
+        "failed": 0,
+        "p50Ms": 18.7
+      },
+      "commit": "e3a4e937aa",
+      "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
+      "jdk": "25.0.5+8",
+      "run": "44198387310",
+      "source": "actions-snapshot/followups/44198387310/e1-mongo-uniform.1k/suite.json"
+    },
+    {
+      "id": "start.mongo.e3-mongo.1k.a",
+      "kind": "start",
+      "store": "mongo",
+      "nodes": 1,
+      "scenario": "E3",
+      "keys": "uniform",
+      "accounts": 1000,
+      "rate": 423.9,
+      "cold": {
+        "warmUpSeconds": 10,
+        "nodeCores": 1,
+        "storeCores": 0.65,
+        "busCores": 0.42,
+        "failed": 0,
+        "p50FirstMs": 2637.8,
+        "p50LastMs": 41.2,
+        "lastSecond": 39
+      },
+      "warm": {
+        "warmUpSeconds": 120,
+        "nodeCores": 0.49,
+        "storeCores": 0.85,
+        "busCores": 0.34,
+        "failed": 0,
+        "p50Ms": 5.5
+      },
+      "commit": "e3a4e937aa",
+      "cpu": "AMD EPYC 9V45 96-Core Processor",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
+      "jdk": "25.0.5+8",
+      "run": "44198387310",
+      "source": "actions-snapshot/followups/44198387310/e3-mongo.1k/suite.json"
+    },
+    {
+      "id": "start.mongo.e3-mongo.1k.b",
+      "kind": "start",
+      "store": "mongo",
+      "nodes": 1,
+      "scenario": "E3",
+      "keys": "uniform",
+      "accounts": 1000,
+      "rate": 474.9,
+      "cold": {
+        "warmUpSeconds": 10,
+        "nodeCores": 1,
+        "storeCores": 0.59,
+        "busCores": 0.42,
+        "failed": 464,
+        "p50FirstMs": 4489.2,
+        "p50LastMs": 44.5,
+        "lastSecond": 39
+      },
+      "warm": {
+        "warmUpSeconds": 120,
+        "nodeCores": 0.51,
+        "storeCores": 0.86,
+        "busCores": 0.34,
+        "failed": 0,
+        "p50Ms": 7.1
+      },
+      "commit": "e3a4e937aa",
+      "cpu": "AMD EPYC 9V45 96-Core Processor",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
+      "jdk": "25.0.5+8",
+      "run": "44198387310",
+      "source": "actions-snapshot/followups/44198387310/e3-mongo.1k/suite.json"
     }
   ]
 }

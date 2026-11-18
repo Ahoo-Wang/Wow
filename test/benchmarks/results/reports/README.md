@@ -2,7 +2,7 @@
 
 Every report names the commit, command, environment and raw results that reproduce it. How the benchmark is run and read is in [the benchmark README](../../README.md).
 
-Before GA the tree keeps the latest report of each kind on each environment (decision D391): two environments, the local Apple M5 Max and GitHub Actions, and two kinds, a snapshot and the comparison with Axon Framework 4. A report has a fixed name without a version, `m5max-snapshot`, `m5max-axon`, `actions-snapshot` or `actions-axon`: a `.md` and a directory of the same name. A new report replaces the one before it in the same pull request, by updating the same file; the reports under their earlier names go out then. A node's raw logs are not committed, unless they are the evidence for a conclusion.
+Before GA the tree keeps the latest report of each kind on each environment, and no older one: two environments, the local Apple M5 Max and GitHub Actions, and two kinds, a snapshot and the comparison with Axon Framework 4. A report has a fixed name without a version, `m5max-snapshot`, `m5max-axon`, `actions-snapshot` or `actions-axon`: a `.md` and a directory of the same name. A new report replaces the one before it in the same pull request, by updating the same file; the reports under their earlier names go out then. A node's raw logs are not committed, unless they are the evidence for a conclusion.
 
 ## Current
 
