@@ -55,6 +55,7 @@ class OrderingCoSecTest {
     }
 
     /** The header the gateway forwards for [id] of the default tenant, with [roles], after verifying its token. */
+    @OptIn(ExperimentalWowApi::class) // wow-cosec is experimental in 10.0
     private fun signedIn(id: String, vararg roles: String): Map<String, String> =
         CoSecIdentity(id, roles.toList()).headers()
 

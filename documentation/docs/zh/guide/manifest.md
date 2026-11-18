@@ -13,7 +13,7 @@ outline: deep
 1. **编译器**写出每个领域模块的片段 `META-INF/wow/manifest/<module>.json`（[编译器生成什么](./generated-code#the-manifest-fragment)）。
 2. **Gradle 插件**（`generateWowManifestFragment`）用片段中类型的 JSON Schema、查询关键字和状态的指纹补全片段。类型上的 Jakarta Bean Validation 约束成为它的 schema 的校验关键字，客户端在发送之前就能看到：`@Positive` 是值为 0 的 `exclusiveMinimum`，`@NotBlank` 是值为 1 的 `minLength`，`@Size` 是长度或条目数的上下界，`@Pattern` 是 `pattern`，`@Email` 是 `email` 格式。字段是否必填、能否为 null，仍然由它的 Kotlin 类型决定。补全后的片段替换模块资源中编译器写出的那个。
 3. **在构建时**，`mergeWowManifest` 把服务运行时类路径上的片段合并成 `build/wow/manifest.json`。
-4. **在启动时**，宿主合并同样的片段，加上框架的错误码，并在 `GET /wow/manifest` 上提供结果。
+4. **在启动时**，宿主合并同样的片段，加上框架的错误码，并在 `GET /wow/manifest` 上提供结果；它与公开端口的每条路由一样需要认证：没有调用者的请求得到 401。
 
 快照查询从补全后的片段读取状态 schema：只有插件补全之后，状态字段才能被过滤和排序。
 

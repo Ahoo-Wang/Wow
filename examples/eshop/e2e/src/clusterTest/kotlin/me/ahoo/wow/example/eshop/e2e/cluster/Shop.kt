@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.example.eshop.e2e.cluster
 
+import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.cosec.CoSecIdentity
 import me.ahoo.wow.example.eshop.e2e.Answer
 import me.ahoo.wow.example.eshop.e2e.json
@@ -71,6 +72,7 @@ class Tokens(private val secret: String) {
      * The CoSec-Identity header the gateway forwards for [who] once it has verified a token and permitted the request:
      * what a service behind it believes, unsigned, which is why only the gateway's pods reach a service's public port.
      */
+    @OptIn(ExperimentalWowApi::class) // wow-cosec is experimental in 10.0
     fun identity(who: Who, ttl: Duration = Duration.ofHours(2)): String =
         CoSecIdentity(who.id, who.roles, tenant = TENANT, ttl = ttl).header()
 

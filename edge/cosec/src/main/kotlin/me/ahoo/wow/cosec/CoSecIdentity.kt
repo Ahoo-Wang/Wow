@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.cosec
 
+import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.spi.json.WowJson
 import java.time.Duration
 import java.time.Instant
@@ -21,14 +22,21 @@ import java.util.UUID
 
 /**
  * The identity a CoSec gateway forwards in `CoSec-Identity` once it has verified a principal's token and permitted
- * the request, for the tests of a service behind one (`wow.cosec.mode: gateway`), which believes the header as it
- * comes: [subject] of [tenant] with [roles] in the scope [app] and [space] (empty for none and the default space), its
- * token valid for [ttl] from the moment the header is written.
+ * the request: what a local client or an end-to-end test sends a service behind one (`wow.cosec.mode: gateway`),
+ * which believes the header as it comes. [subject] of [tenant] with [roles] in the scope [app] and [space] (empty for
+ * none and the default space), its token valid for [ttl] from the moment the header is written.
+ *
+ * ```kotlin
+ * val headers = CoSecIdentity("alice", listOf("buyer")).headers() // {"CoSec-Identity": "eyJ2Ijox…"}
+ * ```
  *
  * Written as CoSec documents the header, base64url without padding of its JSON, format version 1
  * ([Forwarding the identity](https://cosec.ahoo.me/integration/web#forwarding-the-identity),
- * `schema/cosec-identity.schema.json`): CoSec's own codec is its internal API, which only CoSec's modules use.
+ * `schema/cosec-identity.schema.json`): CoSec's own codec is its internal API, which only CoSec's modules use. The
+ * services' tests that run behind CoSec's gateway mode read it through CoSec's own pipeline, so a change of the format
+ * fails them. It is a test's and a developer's tool, never a gateway's: a service believes whoever sends it.
  */
+@ExperimentalWowApi
 class CoSecIdentity(
     val subject: String,
     val roles: Collection<String> = emptyList(),

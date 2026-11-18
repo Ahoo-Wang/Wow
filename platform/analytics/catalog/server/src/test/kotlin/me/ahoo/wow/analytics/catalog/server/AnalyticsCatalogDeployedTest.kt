@@ -14,6 +14,7 @@
 package me.ahoo.wow.analytics.catalog.server
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.cosec.CoSecIdentity
 import org.junit.jupiter.api.Test
 
@@ -45,6 +46,7 @@ class AnalyticsCatalogDeployedTest {
      * [id] of CoSec's default tenant with [roles], as the CoSec gateway forwards it after verifying its credential: the
      * service holds no secret and verifies nothing, it believes the header.
      */
+    @OptIn(ExperimentalWowApi::class) // wow-cosec is experimental in 10.0
     private fun signedIn(id: String, vararg roles: String): Who =
         Who(CoSecIdentity(id, roles.toList()).headers())
 
