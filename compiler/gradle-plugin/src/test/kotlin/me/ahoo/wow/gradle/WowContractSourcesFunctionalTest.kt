@@ -257,7 +257,7 @@ class WowContractSourcesFunctionalTest {
             repositories {
                 maven { url = uri("${File(projectDir, "repo").path.replace("\\", "/")}") }
                 maven { url = uri("${System.getProperty("wow-test.fixture.repository")}") }
-                mavenCentral()
+                ${FixtureRepositories.central}
             }
 
             dependencies {

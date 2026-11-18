@@ -411,9 +411,9 @@ val BUILD_PLATFORM = "wowBuildPlatform"
 
 // The classpaths the build resolves for Wow's own code: every resolvable configuration (the source sets' compile and
 // runtime classpaths, KSP's, the fixtures', `wowTools`, detekt's plugins, ...) but the tools' own (the Kotlin
-// compiler's, Dokka's, JaCoCo's, the detekt CLI's, the TestKit's plugin classpath), whose versions are theirs. A
-// publication reads none of them (`apiElements` and `runtimeElements` are consumable, not resolvable).
-val TOOL_CLASSPATH = Regex("""^(kotlin|dokka|jacoco|detekt$|functionalPluginClasspath).*""")
+// compiler's, Dokka's, JaCoCo's, the detekt CLI's, the TestKit's plugin classpath and the fixtures' external modules),
+// whose versions are theirs. A publication reads none of them (`apiElements` and `runtimeElements` are consumable).
+val TOOL_CLASSPATH = Regex("""^(kotlin|dokka|jacoco|detekt$|functionalPluginClasspath|fixtureExternal).*""")
 fun String.isBuildClasspath(): Boolean = !TOOL_CLASSPATH.matches(this)
 
 allprojects {

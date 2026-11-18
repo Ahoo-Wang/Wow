@@ -57,7 +57,7 @@ internal object ContextsFixture {
             }
 
             repositories {
-                mavenCentral()
+                ${FixtureRepositories.central}
                 maven { url = uri("${System.getProperty("wow-test.fixture.repository")}") }
                 ${repository?.let { "maven { url = uri(\"$it\") }" }.orEmpty()}
             }

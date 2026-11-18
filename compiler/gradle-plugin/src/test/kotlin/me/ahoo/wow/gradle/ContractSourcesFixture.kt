@@ -51,7 +51,7 @@ internal class ContractSourcesFixture(val projectDir: File) {
             version = "1.0.0"
 
             repositories {
-                mavenCentral()
+                ${FixtureRepositories.central}
                 maven { url = uri("${System.getProperty("wow-test.fixture.repository")}") }
             }
 
@@ -256,7 +256,7 @@ internal class ContractSourcesFixture(val projectDir: File) {
             plugins { `java-library` }
 
             repositories {
-                mavenCentral()
+                ${FixtureRepositories.central}
                 maven { url = uri("${System.getProperty("wow-test.fixture.repository")}") }
             }
 

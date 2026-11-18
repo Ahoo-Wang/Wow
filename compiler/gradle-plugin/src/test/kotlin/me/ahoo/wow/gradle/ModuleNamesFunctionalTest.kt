@@ -51,7 +51,7 @@ class ModuleNamesFunctionalTest {
             }
 
             repositories {
-                mavenCentral()
+                ${FixtureRepositories.central}
                 maven { url = uri("${System.getProperty("wow-test.fixture.repository")}") }
             }
 
