@@ -85,6 +85,7 @@ fun onCommand(command: ReserveStock, scope: DecideScope): StockReserved? = when 
 <!-- sample: fragment -->
 
 ```kotlin
+@OnCommand(produces = [AttemptFailed::class])
 fun onCommand(command: Unlock): Unlocked =
     if (command.code == state.code) {
         Unlocked(command.code)
@@ -93,7 +94,7 @@ fun onCommand(command: Unlock): Unlocked =
     }
 ```
 
-- **它们是聚合的事件。** 聚合用它的溯源函数溯源这些事件，它们与拒绝在同一个事件流中、以下一个版本提交，和任何决策的事件一样：投影、Saga 和状态都会读到。聚合没有溯源函数的事件会让命令失败，什么都不写。不必另外声明拒绝的事件清单：它们就在聚合的事件之中。生命周期事件永远不在其中：携带 `AggregateDeleted` 或其他生命周期事件的拒绝会让命令失败（`wow.command.undeclared-event`），什么都不写，因为只有事件决策才改变聚合的生命周期。
+- **它们是聚合的事件。** 聚合用它的溯源函数溯源这些事件，它们与拒绝在同一个事件流中、以下一个版本提交，和任何决策的事件一样：投影、Saga 和状态都会读到。聚合没有溯源函数的事件会让命令失败，什么都不写。它们在函数的 `@OnCommand(produces)` 中声明，和决策的事件一样；返回类型已写明自己的事件时（`Unlocked`），`produces` 列出其余的事件，例如 `AttemptFailed`。Manifest 随后把它们列入命令可能提交的事件；函数未声明的拒绝事件会让命令失败（`wow.command.undeclared-event`），在节点上和测试中都一样。已经存有这种事件的日志照常重放：事件只被溯源，不会再被决策。生命周期事件永远不在其中：携带 `AggregateDeleted` 或其他生命周期事件的拒绝会让命令失败（`wow.command.undeclared-event`），什么都不写，因为只有事件决策才改变聚合的生命周期。
 - **调用方仍然收到拒绝**，带着错误码和状态。结果的 `version` 是事件到达的版本。不带事件的拒绝什么都不写，它的 `version` 是决策所见的版本。
 - **被拒绝的决策所安排的会被撤销。** 它的调度不会提交，它的预留会释放，`onAppendFailure` 登记的其他补偿也会执行，和不带事件的拒绝一样。
 - **重试得到同一个拒绝。** 用同一个请求 ID 再发一次命令，回答的是事件流记录的那个拒绝，标记为重复，版本相同。

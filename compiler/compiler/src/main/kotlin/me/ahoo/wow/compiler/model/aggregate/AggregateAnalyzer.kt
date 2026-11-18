@@ -327,9 +327,10 @@ internal class AggregateAnalyzer(
         val onCommand = function.annotatedIn(ON_COMMAND_ANNOTATION)?.argumentsOf(OnCommand::class, problems)
         val producesListed = declaredProduces(onCommand)
         val schedules = declaredSchedules(function, onCommand, problems)
-        if (producesListed.isNotEmpty() && returned != null) {
-            problems += "$name's return type names the events it produces: @OnCommand(produces) is for a return " +
-                "type that does not, such as a Decision"
+        // Beside a return type that names its events, produces lists the others: those a rejection carries.
+        returned?.filter { it in producesListed }?.forEach {
+            problems += "$name's @OnCommand(produces) lists $it, which its return type already names: list only the " +
+                "events the return type does not, such as those a rejection carries"
         }
         unlistedEvents(function, open, returned, producesListed, problems)?.let { warnings += it }
         val creation = creationOf(command)
@@ -349,7 +350,7 @@ internal class AggregateAnalyzer(
             aggregateId = AggregateIdResolver.of(command, creation, unaddressed, problems),
             occurredAt = OccurredAtResolver.of(command, creation, problems),
             type = command.binaryName(),
-            yields = returned ?: producesListed.ifEmpty { null },
+            yields = returned?.plus(producesListed)?.distinct() ?: producesListed.ifEmpty { null },
             declaredProduces = producesListed,
             schedules = schedules,
             onDeleted = declaredOnDeleted(onCommand),

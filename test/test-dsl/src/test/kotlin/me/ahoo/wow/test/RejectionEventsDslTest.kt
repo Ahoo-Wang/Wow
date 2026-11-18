@@ -119,6 +119,31 @@ class RejectionEventsDslTest {
         }.hasMessageContaining("rejected vault.safe.no-owner: A safe has an owner, dropping the event it carried")
     }
 
+    private val undeclared = aggregate<Safe>("vault", "safe") {
+        initial { Safe(it.id) }
+        decide<Unlock>(produces = setOf(Unlocked::class.java)) { _, body ->
+            Decision.reject("wrong-code", "Wrong code.", events = listOf(AttemptFailed(body.code)))
+        }
+        evolve<Opened> { }
+        evolve<Unlocked> { unlocked = true }
+        evolve<AttemptFailed> { failures++ }
+    }
+
+    @Test
+    fun `a rejection's event its function does not declare should fail the spec, naming the line to add`() {
+        assertThrownBy<AssertionError> {
+            aggregateSpec(undeclared) {
+                given(Opened("alice"))
+                whenCommand(Unlock("0000")) { expectRejected("wrong-code") }
+            }
+        }.hasMessageContaining(
+            "Expected an outcome but the command failed with wow.command.undeclared-event, as a node answers it: " +
+                "vault.safe's decide function of Unlock rejected it with AttemptFailed, which it does not declare: a " +
+                "rejection's events are declared as a decision's are. Add it to the function's " +
+                "@OnCommand(produces = [AttemptFailed::class]).",
+        )
+    }
+
     private companion object {
         const val SECRET = "4242"
     }

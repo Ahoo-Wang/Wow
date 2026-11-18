@@ -53,7 +53,7 @@ export const FrameworkErrorCodes = {
   COMMAND_FAILED: 'wow.command.failed',
   /** 409 Command refused: The aggregate's current state refuses the command (a check of its decide function); the message says why. */
   COMMAND_REFUSED: 'wow.command.refused',
-  /** 500 Undeclared event: The command's handling produced an event its decide function or after hooks do not declare: a bug in the model, which the message names; it committed nothing. */
+  /** 500 Undeclared event: The command's handling produced an event its decide function or after hooks do not declare, a rejection's events held to the same declaration: a bug in the model, which the message names; it committed nothing. */
   COMMAND_UNDECLARED_EVENT: 'wow.command.undeclared-event',
   /** 503 Node closing: The node is shutting down; retry on another node. */
   NODE_CLOSING: 'wow.node.closing',

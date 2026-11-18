@@ -41,7 +41,7 @@ internal class Decisions(private val blocking: CoroutineContext) {
         val decided = when (decision) {
             is Decision.Events -> decision.events
             Decision.NoOp -> emptyList()
-            is Decision.Rejected -> return decision.also { rejectedWith(model, body, it.events) }
+            is Decision.Rejected -> return decision.also { rejectedWith(model, body, it.events, decider.produces) }
         }
         declared(model, body, decided, decider.produces, "decide function")
         val afters = model.afterFunctions(body.javaClass)
@@ -78,20 +78,35 @@ internal class Decisions(private val blocking: CoroutineContext) {
     }
 
     /**
-     * [events], those a rejection of [command] carries; an [UndeclaredEventException] when one is a lifecycle event.
-     * A rejection's events record the refused attempt: a lifecycle event among them would delete, restore or transfer
-     * the aggregate on a command the aggregate refused, which only a decision of events may do.
+     * [events], those a rejection of [command] carries; an [UndeclaredEventException] when one is a lifecycle event,
+     * or, when the function's [produces] is known, one it does not declare. A rejection's events record the refused
+     * attempt: a lifecycle event among them would delete, restore or transfer the aggregate on a command the aggregate
+     * refused, which only a decision of events may do; and the Manifest lists what a command can commit from its
+     * `produces`, so an event a rejection carries is declared there as a decision's is. Replaying a log is unaffected:
+     * events are sourced, never decided again.
      */
-    private fun rejectedWith(model: AggregateModel<*>, command: Any, events: List<Any>) {
-        val lifecycle = events.firstOrNull { it.javaClass in LIFECYCLE_EVENTS } ?: return
+    private fun rejectedWith(model: AggregateModel<*>, command: Any, events: List<Any>, produces: Set<Class<*>>?) {
         val commandClass = command.javaClass
+        events.firstOrNull { it.javaClass in LIFECYCLE_EVENTS }?.let { lifecycle ->
+            throw UndeclaredEventException(
+                model.type,
+                commandClass,
+                lifecycle.javaClass,
+                "${model.type}'s decide function of ${commandClass.simpleName} rejected it with " +
+                    "${lifecycle.javaClass.simpleName}: a rejection's events are the aggregate's own, never a " +
+                    "lifecycle event, which only a decision of events commits.",
+            )
+        }
+        if (produces == null) return
+        val undeclared = events.firstOrNull { it.javaClass !in produces } ?: return
+        val event = undeclared.javaClass.simpleName
         throw UndeclaredEventException(
             model.type,
             commandClass,
-            lifecycle.javaClass,
-            "${model.type}'s decide function of ${commandClass.simpleName} rejected it with " +
-                "${lifecycle.javaClass.simpleName}: a rejection's events are the aggregate's own, never a lifecycle " +
-                "event, which only a decision of events commits.",
+            undeclared.javaClass,
+            "${model.type}'s decide function of ${commandClass.simpleName} rejected it with $event, which it does " +
+                "not declare: a rejection's events are declared as a decision's are. Add it to the function's " +
+                "@OnCommand(produces = [$event::class]).",
         )
     }
 

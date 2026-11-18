@@ -67,7 +67,7 @@ Use this page to find out, before you migrate, what happens to each 9.x capabili
 | `@OnError` | Dropped | Return a rejection from decide, with events when the refusal is to be recorded; put compensation in a saga's `@OnRejected` handler. |
 | Domain models written in Java | Kept | The compiler reads Java sources. A Java-friendly test API is planned for 10.x. |
 | Domain services injected into command functions | Kept | Bound once, through the generated model factory. |
-| Error events (`IgnoreSourcing`) | Replaced | A rejection that carries the events (`reject(code, message, events)`), each with a sourcing function, empty when it changes nothing; they are committed with the rejection. |
+| Error events (`IgnoreSourcing`) | Replaced | A rejection that carries the events (`reject(code, message, events)`), each with a sourcing function, empty when it changes nothing, and declared in the function's `@OnCommand(produces = […])`; they are committed with the rejection ([Rejections](../guide/rejections#reject-with-events)). |
 | Aggregate with a separate state class | Kept | — |
 | `@AfterCommand`, `@Blocking`, `@CreateAggregate`, `@AllowCreate` | Kept | — |
 | Snapshot system fields `eventId`, `snapshotTime`, `eventTime` | Replaced | `firstEventTime`, `lastEventTime`, `operator`, `firstOperator` and the other snapshot fields. |

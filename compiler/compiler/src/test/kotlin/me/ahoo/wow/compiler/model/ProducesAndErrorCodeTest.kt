@@ -134,6 +134,43 @@ class ProducesAndErrorCodeTest {
     }
 
     @Test
+    fun `beside a return type that names its events, produces should list the events a rejection carries`() {
+        val journal = SourceFile.kotlin(
+            "Journal.kt",
+            """
+            package sample
+
+            import me.ahoo.wow.api.annotation.AggregateRoot
+            import me.ahoo.wow.api.annotation.CreateAggregate
+            import me.ahoo.wow.api.annotation.OnCommand
+            import me.ahoo.wow.api.decide.reject
+
+            @CreateAggregate
+            data class Post(val note: String)
+            data class Posted(val note: String)
+            data class Flagged(val note: String)
+
+            @AggregateRoot
+            class Journal(val id: String) {
+                @OnCommand(produces = [Flagged::class])
+                fun onCommand(command: Post): Posted =
+                    if (command.note.isBlank()) reject("blank", "A note.", events = listOf(Flagged(command.note)))
+                    else Posted(command.note)
+
+                fun onSourcing(event: Posted) = Unit
+                fun onSourcing(event: Flagged) = Unit
+            }
+            """.trimIndent(),
+        )
+        val (compilation, result) = compileModel("generate", context, journal)
+        result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
+        fragment(compilation).contexts.single().aggregates.single().domainCommands.single { it.name == "Post" }
+            .produces.assert().isEqualTo(listOf("Flagged", "Posted"))
+        compilation.workingDir.walkTopDown().single { it.name == "JournalModel.kt" }.readText().assert()
+            .contains("produces = kotlin.collections.setOf(sample.Posted::class.java, sample.Flagged::class.java)")
+    }
+
+    @Test
     fun `@OnCommand(produces) should list events of the aggregate, on a function whose return type does not say`() {
         val wrong = SourceFile.kotlin(
             "Wrong.kt",
@@ -164,8 +201,8 @@ class ProducesAndErrorCodeTest {
         val (_, result) = compileModel("generate", context, wrong)
         result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
         result.messages.assert().contains(
-            "onCommand's return type names the events it produces: @OnCommand(produces) is for a return type " +
-                "that does not, such as a Decision",
+            "onCommand's @OnCommand(produces) lists sample.Posted, which its return type already names: list only " +
+                "the events the return type does not, such as those a rejection carries",
             "@OnCommand(produces) of edit(sample.Edit) lists sample.Stray, which is not an event of the aggregate",
         )
     }
