@@ -82,6 +82,7 @@ class AggregateSpec<S : Any> private constructor(
         options = KernelOptions(verifyDecidePurity = true),
     )
     private val timers = AggregateTimers(model, ref, codec, origin?.timers.orEmpty())
+    private val replays = ReplayCheck(codec, ::currentState)
     private var sequence = origin?.sequence ?: 0
     private var forks = 0
 
@@ -176,12 +177,12 @@ class AggregateSpec<S : Any> private constructor(
     private fun tick(duration: Duration): List<Result<CommandOutcome>> {
         require(!duration.isNegative()) { "Time only moves on." }
         millis += duration.inWholeMilliseconds
-        return runBlocking { timers.fire(millis) { execute(it) } }
+        return runBlocking { timers.fire(millis) { execute(it) } }.also { replays.verify(::located) }
     }
 
     /** Executes [command], recording the schedules it commits; a decide function's exception is the failure. */
     private suspend fun execute(command: Command<*>): Result<CommandOutcome> = try {
-        Result.success(kernel.execute(model, command).also { timers.record(it) })
+        Result.success(kernel.execute(model, command).also { timers.record(it) }.also { replays.record(command, it) })
     } catch (
         @Suppress("TooGenericExceptionCaught") // Whatever the decide function throws, expectError checks it.
         failure: Exception,
@@ -386,7 +387,8 @@ class AggregateSpec<S : Any> private constructor(
     /** The events of [stream], one of this aggregate's, decoded, without those the model retired. */
     internal fun decoded(stream: EventStreamRecord): List<Any> = codec.decodeEvents(model, stream.events)
 
-    private fun send(command: Command<*>): Result<CommandOutcome> = runBlocking { execute(command) }
+    private fun send(command: Command<*>): Result<CommandOutcome> =
+        runBlocking { execute(command) }.also { replays.verify(::located) }
 
     /**
      * Checks [result] of the command [commandId], sent by the step [step], with [expect]: a failing check names the
