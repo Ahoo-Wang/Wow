@@ -18,6 +18,7 @@ import com.github.victools.jsonschema.generator.CustomPropertyDefinition
 import com.github.victools.jsonschema.generator.CustomPropertyDefinitionProvider
 import com.github.victools.jsonschema.generator.MemberScope
 import com.github.victools.jsonschema.generator.impl.module.SimpleTypeModule
+import tools.jackson.databind.JsonNode
 
 /**
  * How a schema names the JVM type of a value, in both directions: [SchemaIntrospector] writes a schema's `format` and
@@ -245,10 +246,12 @@ internal object WireTypes {
 
     /**
      * Whether a schema names [type] by its class: an application's class, and a platform value class that its JSON
-     * type and format do not read back as. Arrays, collections and maps are named by their items.
+     * type and format do not read back as. Arrays, collections and maps are named by their items, and a Jackson tree
+     * by nothing: it is written as the JSON it holds, a free shape.
      */
     fun isNamed(type: Class<*>): Boolean = when {
         type.isArray || Collection::class.java.isAssignableFrom(type) || Map::class.java.isAssignableFrom(type) -> false
+        JsonNode::class.java.isAssignableFrom(type) -> false
         !isPlatform(type) -> true
         else -> type !in PLAIN && type !in READ_BACK
     }
