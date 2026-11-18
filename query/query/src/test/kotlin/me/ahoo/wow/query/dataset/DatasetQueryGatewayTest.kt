@@ -54,6 +54,7 @@ import me.ahoo.wow.query.error.QueryErrors
 import me.ahoo.wow.query.error.QueryScopeRequiredException
 import me.ahoo.wow.query.memory.InMemoryDatasetStorageAdapter
 import me.ahoo.wow.query.policy.AccessFixtures
+import me.ahoo.wow.query.policy.AccessPolicies
 import me.ahoo.wow.query.policy.AccessQueryPolicy
 import me.ahoo.wow.query.policy.QueryEntryPolicy
 import me.ahoo.wow.query.policy.QueryPolicy
@@ -138,6 +139,29 @@ internal class DatasetQueryGatewayTest : DatasetQueryGatewayFixtures() {
             UnavailableDatasetQueryGateway(orders.withUnavailable("rebuilding")).maskRecord(record).assert()
                 .isSameAs(record)
         }
+
+    @Test
+    fun `a dataset bound to an aggregate whose missing policy is refused at the read should be refused`() = runTest {
+        // A spec's read side: no policy of the documents, refused where they are read, a dataset of theirs included.
+        val access = AccessPolicies.of(
+            AccessFixtures.MANIFEST,
+            setOf("docs"),
+            emptyList(),
+            AccessFixtures::aggregatesOf,
+            missingAtRead = "pass the policy.",
+        )
+        val policies = listOf(ScopeQueryPolicy(access = access), AccessQueryPolicy(access))
+        assertThrows<IllegalStateException> {
+            gateway(RecordingBackend(), bound(AccessFixtures.DOCUMENT), policies, adapter = ACCESS_ADAPTER)
+                .count(CountQuery(MatchAllFilter), U1)
+        }.message.assert()
+            .startsWith("The aggregate docs.document declares the access attributes")
+            .endsWith("; pass the policy.")
+        // A dataset bound to no aggregate reads as any.
+        val backend = RecordingBackend()
+        gateway(backend, orders, policies).count(CountQuery(MatchAllFilter), U1)
+        backend.admitted.assert().hasSize(1)
+    }
 
     @Test
     fun `no filter, sort or projection of the caller's reaches an access restriction`() = runTest {

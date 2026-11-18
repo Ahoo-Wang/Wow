@@ -19,7 +19,6 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.access.AccessAttribute
 import me.ahoo.wow.api.access.AccessPolicy
 import me.ahoo.wow.api.access.accessPolicy
-import me.ahoo.wow.api.access.ungovernedAccess
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandRequest
@@ -42,8 +41,9 @@ import org.junit.jupiter.api.assertThrows
  * its read side is built: a spec that never reads it runs, and one that does names the policy it reads under.
  */
 class MemoryQueriesAccessTest {
-    private val refusal = ungovernedAccess(SHELF, listOf("zone")) +
-        "; a spec that reads it passes the policy to memoryQueries(access = …)."
+    private val refusal = "The aggregate inventory.shelf declares the access attributes [zone], but no access " +
+        "policy is given for it: declare an AccessPolicy bean of its state (accessPolicy { read { … }; write { … } " +
+        "}), since nothing is granted by omission; a spec that reads it passes the policy to memoryQueries(access = …)."
 
     private val zone = AccessAttribute.single<Shelf, String>("zone", String::class.java)
 

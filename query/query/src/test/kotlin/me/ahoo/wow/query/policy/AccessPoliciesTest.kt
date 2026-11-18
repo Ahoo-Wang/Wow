@@ -44,6 +44,9 @@ import org.junit.jupiter.api.assertThrows
 /** The startup check of the access policies against the Manifest (D390 B2). */
 class AccessPoliciesTest {
     private val notes = accessPolicy<NoteState> { readWrite { allowAll() } }
+
+    /** The way out a refusal at the read names: the caller's own words, here a test's. */
+    private val wayOut = "pass the policy."
     private val missing = AggregateType("docs", "missing")
 
     private class UnknownState
@@ -74,15 +77,14 @@ class AccessPoliciesTest {
             setOf("docs"),
             listOf(notes),
             AccessFixtures::aggregatesOf,
-            refuseMissingAtRead = true,
+            missingAtRead = wayOut,
         )
         // Built: the aggregates with a policy, and those that need none, are read as on a node.
         deferred.governs(NOTE).assert().isTrue()
         deferred.requireReadable(NOTE)
         deferred.requireReadable(LEDGER)
         assertThrows<IllegalStateException> { deferred.requireReadable(DOCUMENT) }.message.assert().isEqualTo(
-            "${ungovernedAccess(DOCUMENT, listOf("department", "sharedWith", "level"))}; a spec that reads it " +
-                "passes the policy to memoryQueries(access = …).",
+            "${ungovernedAccess(DOCUMENT, listOf("department", "sharedWith", "level"))}; $wayOut",
         )
         // The policies' own refusals stay at the build.
         val again = accessPolicy<NoteState> { readWrite { allowAll() } }
@@ -92,7 +94,7 @@ class AccessPoliciesTest {
                 setOf("docs"),
                 listOf(notes, again),
                 AccessFixtures::aggregatesOf,
-                refuseMissingAtRead = true,
+                missingAtRead = wayOut,
             )
         }.message.assert().contains("docs.note has 2 access policies")
         // A node's build still refuses at its start, with the same text.

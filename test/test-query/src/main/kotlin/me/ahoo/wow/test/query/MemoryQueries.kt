@@ -86,7 +86,7 @@ class MemoryQueries @InternalWowApi constructor(
             .accessPolicies(access, { state -> this.stateTypes.filterValues { it == state }.keys.toList() })
             // A spec reads few of the aggregates of the modules on its class path: one of them without a policy is
             // refused where the spec reads it, as a node refuses it at its start.
-            .refuseMissingAccessPoliciesAtRead()
+            .refuseMissingAccessPoliciesAtRead(MISSING_ACCESS_POLICY)
             .filters(filters)
             .build()
     }
@@ -191,6 +191,10 @@ class MemoryQueries @InternalWowApi constructor(
 
     companion object {
         private const val NO_FINGERPRINT = "memory"
+
+        /** The way out a refusal of an aggregate without its access policy names, where a spec reads it. */
+        internal const val MISSING_ACCESS_POLICY =
+            "a spec that reads it passes the policy to memoryQueries(access = …)."
 
         /**
          * The read side of the modules on [classLoader]'s class path: their merged Manifest, the state classes it names

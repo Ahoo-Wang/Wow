@@ -84,7 +84,7 @@ class AccessPolicies private constructor(
 
     /**
      * Refuses a read of [type] when it declares access attributes and has no policy, which the engine was built to
-     * refuse where it is read ([of] with `refuseMissingAtRead`), as a spec's read side is, not when it is built.
+     * refuse where it is read ([of] with a `missingAtRead` way out), as a spec's read side is, not when it is built.
      */
     fun requireReadable(type: AggregateType) {
         refusedAtRead[type]?.let { refusal -> throw IllegalStateException(refusal) }
@@ -122,9 +122,10 @@ class AccessPolicies private constructor(
          *   several without naming one, or naming an aggregate whose state it is not;
          * - two policies of one aggregate;
          * - an aggregate that declares access attributes without a policy: nothing is granted by omission. When
-         *   [refuseMissingAtRead], it is refused where it is read instead ([requireReadable]), as the read side of a
-         *   spec builds the engine over every module on its class path, most of whose aggregates a spec never reads:
-         *   never a node's, which must refuse at its start an aggregate no caller may read.
+         *   [missingAtRead] is given, it is refused where it is read instead ([requireReadable]), the refusal naming
+         *   that way out, as the read side of a spec builds the engine over every module on its class path, most of
+         *   whose aggregates a spec never reads: never a node's, which must refuse at its start an aggregate no caller
+         *   may read.
          *
          * The attributes a policy compares are checked as it is evaluated ([declares]): its references are typed by its
          * state, so only a policy built against another version of the state names one its aggregate does not declare.
@@ -136,23 +137,20 @@ class AccessPolicies private constructor(
             policies: List<AccessPolicy<*>>,
             aggregatesOf: (Class<*>) -> List<AggregateType>,
             strict: Boolean = true,
-            refuseMissingAtRead: Boolean = false,
+            missingAtRead: String? = null,
         ): AccessPolicies {
             val aggregates = manifest.contexts.filter { it.name in contexts }.flatMap { context ->
                 context.aggregates.map { AggregateType(context.name, it.name) to it }
             }.toMap()
             val declaring = aggregates.mapValues { (_, aggregate) -> aggregate.access.map { it.name } }
-            if (!refuseMissingAtRead) {
+            if (missingAtRead == null) {
                 val byType = resolveAccessPolicies(policies, aggregates.keys, aggregatesOf, declaring, strict)
                 return AccessPolicies(byType, aggregates)
             }
             // The policies' own refusals stay at build; a missing policy is the read's.
             val byType = resolveAccessPolicies(policies, aggregates.keys, aggregatesOf, emptyMap(), strict)
             val refused = declaring.filter { (type, names) -> names.isNotEmpty() && type !in byType }
-                .mapValues { (type, names) ->
-                    "${ungovernedAccess(type, names)}; a spec that reads it passes the policy to " +
-                        "memoryQueries(access = …)."
-                }
+                .mapValues { (type, names) -> "${ungovernedAccess(type, names)}; $missingAtRead" }
             return AccessPolicies(byType, aggregates, refused)
         }
 
