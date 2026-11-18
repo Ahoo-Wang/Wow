@@ -124,8 +124,10 @@ class CrossRepositoryFunctionalTest {
     @Test
     @Order(1)
     fun `the first release of a cycle should publish one member's types alone`() {
-        runner(a, "1.0.0-types", "none", "-P${ContractRole.PUBLISH_PROPERTY}=false", ":a-api:publish").build()
-            .task(":a-domain:compileKotlin").assert().isNull()
+        val typesOnly = runner(a, "1.0.0-types", "none", "-P${ContractRole.PUBLISH_PROPERTY}=false", ":a-api:publish")
+            .build()
+        typesOnly.task(":a-domain:compileKotlin").assert().isNull()
+        typesOnly.output.assert().contains("Publishing :a-api 1.0.0-types without its contract")
         publishedJars("a-api", "1.0.0-types").assert().containsExactly("a-api-1.0.0-types.jar")
         publishedModule("a-api", "1.0.0-types").assert()
             .doesNotContain(ContractRole.CONTRACT_API_ELEMENTS, WowPlugin.CONTRACT_ATTRIBUTE.name)
@@ -149,6 +151,10 @@ class CrossRepositoryFunctionalTest {
         publishedModule("a-api", "1.0.0").assert().contains(""""${WowPlugin.CONTRACT_ATTRIBUTE.name}": "contract"""")
         runner(b, "1.0.1", "1.0.0", ":b-server:${WowPlugin.MERGE_TASK}").build()
             .task(":b-server:${WowPlugin.MERGE_TASK}")?.outcome.assert().isEqualTo(TaskOutcome.SUCCESS)
+        // A service built with the types-only property finds its own api without a contract: its merge says why.
+        val property = "-P${ContractRole.PUBLISH_PROPERTY}=false"
+        runner(a, "1.0.0", "1.0.0", property, ":a-server:${WowPlugin.MERGE_TASK}").buildAndFail()
+            .output.assert().contains(ContractRole.typesOnlyService(":a-server"))
     }
 
     /** The files a `files` task ([printing]) printed, by name. */
@@ -277,5 +283,88 @@ class CrossRepositoryFunctionalTest {
             .containsExactlyInAnyOrder("a-api-1.1.0-contract.jar", "b-api-1.0.0-contract.jar")
         contracts.single { it.name.startsWith("a-api") }.canonicalFile.invariantSeparatorsPath.assert()
             .startsWith("${a.canonicalFile.invariantSeparatorsPath}/a-api/build/")
+    }
+
+    @Test
+    @Order(7)
+    fun `a module should ask for an api module's contract by its version catalog's accessor, in either DSL`(
+        @TempDir catalog: File,
+    ) {
+        ContextsFixture.write(
+            catalog,
+            "settings.gradle.kts",
+            """
+            rootProject.name = "catalog"
+            include("kotlin-dsl", "groovy-dsl")
+            dependencyResolutionManagement {
+                versionCatalogs { create("libs") { library("a-api", "repro", "a-api").version("1.1.0") } }
+            }
+            """,
+        )
+        ContextsFixture.properties(catalog)
+        ContextsFixture.module(
+            catalog,
+            "kotlin-dsl",
+            WowPlugin.ID,
+            "implementation(wow.contract(libs.a.api))",
+            printing("compileClasspath"),
+            repository,
+        )
+        val classpath = { property: String ->
+            System.getProperty(property).split(File.pathSeparator).joinToString(", ") { "'${it.replace("\\", "/")}'" }
+        }
+        ContextsFixture.write(
+            catalog,
+            "groovy-dsl/build.gradle",
+            """
+            plugins {
+                id 'org.jetbrains.kotlin.jvm'
+                id '${WowPlugin.ID}'
+            }
+            repositories {
+                mavenCentral()
+                maven { url = uri('${System.getProperty("wow-test.fixture.repository")}') }
+                maven { url = uri('$repository') }
+            }
+            dependencies {
+                implementation files(${classpath("wow-test.fixture.compileClasspath")})
+                ksp files(${classpath("wow-test.fixture.processorClasspath")})
+                implementation wow.contract(libs.a.api)
+            }
+            tasks.register('files') {
+                def files = configurations.named('compileClasspath').map { it.files*.path }
+                doLast { println('FILES=' + files.get().join(',')) }
+            }
+            """,
+        )
+        listOf("kotlin-dsl", "groovy-dsl").forEach { module ->
+            val result = GradleRunner.create().withProjectDir(catalog).withPluginClasspath()
+                .withArguments(":$module:files", "--stacktrace").forwardOutput().build()
+            printed(result).filter { it.startsWith("a-api") }.assert().describedAs(module)
+                .containsExactly("a-api-1.1.0-contract.jar", "a-api-1.1.0.jar")
+        }
+    }
+
+    @Test
+    @Order(8)
+    fun `a published service should name its derived contracts in its Gradle metadata, its api modules in its POM`() {
+        File(a, "a-server/build.gradle.kts").appendText(
+            published.replace("""create<MavenPublication>("api")""", """create<MavenPublication>("server")"""),
+        )
+        runner(a, "1.1.0", "1.0.0", ":a-server:publish").build()
+        // Gradle's metadata: each contract, a dependency on its api module requiring its feature.
+        val module = publishedModule("a-server", "1.1.0").replace(Regex("""\s+"""), "")
+        listOf("a", "b").forEach { context ->
+            module.assert().contains(
+                """"module":"$context-api",""",
+                """"requestedCapabilities":[{"group":"repro","name":"$context-api-contract"}]""",
+            )
+        }
+        // The POM cannot require a capability: it names the api modules, whose contracts a Maven consumer adds by
+        // their classifier, contract.
+        val pom = File(root, "repo/repro/a-server/1.1.0/a-server-1.1.0.pom").readText().replace(Regex("""\s+"""), "")
+        pom.assert().contains("<artifactId>a-api</artifactId><version>1.1.0</version><scope>runtime</scope>")
+            .contains("<artifactId>b-api</artifactId><version>1.0.0</version><scope>runtime</scope>")
+            .doesNotContain("<classifier>")
     }
 }

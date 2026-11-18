@@ -117,7 +117,14 @@ internal object ContractRole {
      * ([CONTRACT_SOURCES_ELEMENTS]).
      */
     private fun publish(api: Project, capability: String, generated: SourceSet?) {
-        if (api.providers.gradleProperty(PUBLISH_PROPERTY).orNull == "false") return
+        if (typesOnly(api)) {
+            api.logger.lifecycle(
+                "Publishing ${api.path} ${api.version} without its contract (-P$PUBLISH_PROPERTY=false): a " +
+                    "types-only release, the first of a cycle, under a version of its own; services need the " +
+                    "module's full release.",
+            )
+            return
+        }
         listOf(JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME, JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME).forEach {
             api.configurations.named(it) { own -> own.attributes.attribute(WowPlugin.CONTRACT_ATTRIBUTE, FEATURE) }
         }
@@ -146,6 +153,15 @@ internal object ContractRole {
             component.addVariantsFromConfiguration(elements) { it.mapToOptional() }
         }
     }
+
+    /** Whether [project]'s build publishes api modules without their contracts ([PUBLISH_PROPERTY] `false`). */
+    fun typesOnly(project: Project): Boolean = project.providers.gradleProperty(PUBLISH_PROPERTY).orNull == "false"
+
+    /** Why a service of a build that publishes api modules without their contracts fails to merge its Manifest. */
+    fun typesOnlyService(path: String): String =
+        "Project '$path' merges its Manifest in a build run with -P$PUBLISH_PROPERTY=false, which leaves the api " +
+            "modules without their contracts: that property is for publishing a cycle member's types alone. Build " +
+            "the service without it."
 
     private fun jvmAttributes(project: Project, configuration: Configuration, usage: String) {
         val objects = project.objects

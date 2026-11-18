@@ -38,6 +38,11 @@ import org.gradle.api.tasks.SourceSetContainer
  * project of the build is added as `project(path)`; a module, or a project of an included build, by its coordinates at
  * the version Gradle selected for its types, which an included build's substitution turns into its project. Types and
  * contract are one module, so they cannot drift.
+ *
+ * The graph is the runtime one (`implementation`, `runtimeOnly`, and `api` through `implementation`), not the compile
+ * one: the merge and the node read contracts at runtime, and that is what a service needs without naming them. An api
+ * module a source set has on `compileOnly` alone is not on its runtime class path, and its contract would be: code
+ * that compiles against an api's generated code asks for it by name, `wow.contract(...)`.
  */
 internal object ContractDerivation {
     /**

@@ -27,6 +27,7 @@ import me.ahoo.wow.gradle.WowPlugin.Companion.OPENAPI_TASK
 import me.ahoo.wow.gradle.WowPlugin.Companion.UPDATE_BASELINE_TASK
 import me.ahoo.wow.gradle.WowPlugin.Companion.defaultServiceName
 import me.ahoo.wow.gradle.WowPlugin.Companion.version
+import org.gradle.api.GradleException
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.plugins.JavaPlugin
@@ -79,6 +80,11 @@ internal object ServiceRole {
             task.defaultServiceName.set(defaultServiceName(project.path, project.rootProject.name))
             task.serviceVersion.set(project.provider { project.version.toString() })
             task.outputFile.set(project.layout.buildDirectory.file("wow/manifest.json"))
+            // The api modules of a types-only build carry no contract to find: say why, not which is missing.
+            if (ContractRole.typesOnly(project)) {
+                val message = ContractRole.typesOnlyService(project.path)
+                task.doFirst { throw GradleException(message) }
+            }
         }
         project.tasks.register(OPENAPI_TASK, GenerateOpenApi::class.java) { task ->
             task.group = GROUP_NAME

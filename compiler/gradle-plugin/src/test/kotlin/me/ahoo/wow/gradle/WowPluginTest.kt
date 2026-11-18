@@ -209,11 +209,30 @@ class WowPluginTest {
         coordinates.capabilitySelectors.single().displayName.assert().contains(ContractRole.FEATURE)
         val latest = wow.contract("sample:shop-api") as ExternalModuleDependency
         latest.version.assert().isNull()
+        // An external module dependency, and a provider of one, as a version catalog's accessor is.
+        val external = project.dependencies.create("sample:shop-api:1.0.0") as ExternalModuleDependency
+        listOf(wow.contract(external), wow.contract(project.provider { external }).get()).forEach { contract ->
+            (contract as ExternalModuleDependency).version.assert().isEqualTo("1.0.0")
+            contract.capabilitySelectors.single().displayName.assert().contains(ContractRole.FEATURE)
+        }
+        val sources = project.dependencies.create("sample:shop-api:1.0.0:sources") as ExternalModuleDependency
+        assertThrows<IllegalArgumentException> { wow.contract(sources) }.message.assert()
+            .contains("not sample:shop-api, which names an artifact of a classifier or an extension")
         assertThrows<IllegalArgumentException> { wow.contract(42) }.message.assert()
             .contains("wow.contract(...) takes an api module", "not 42")
         listOf("sample:shop-api:1.0.0:sources", "sample:shop-api:1.0.0@jar", "shop-api").forEach { notation ->
             assertThrows<IllegalArgumentException> { wow.contract(notation) }.message.assert()
                 .contains("\"group:name[:version]\"", "not \"$notation\", which is no plain group:name[:version]")
         }
+    }
+
+    @Test
+    fun `a service of a types-only build should fail its merge naming the property`() {
+        File(directory, "gradle.properties").writeText("${ContractRole.PUBLISH_PROPERTY}=false\n")
+        val service = project()
+        val merge = service.tasks.getByName(WowPlugin.MERGE_TASK)
+        assertThrows<GradleException> { merge.actions.first().execute(merge) }.message.assert()
+            .isEqualTo(ContractRole.typesOnlyService(service.path))
+            .contains("-P${ContractRole.PUBLISH_PROPERTY}=false", "Build the service without it.")
     }
 }
