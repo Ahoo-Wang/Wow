@@ -14,6 +14,8 @@ outline: deep
 | View store | The V10 view store | `migrate-data`, as any service's history |
 | Dataset registry | The analytics catalog (incubating) | Redefined, not moved |
 
+The platform services are nodes of the estate's graph like any service, and move to V10 in the same window as the services that use them ([Find the estate](./cutover#find-the-estate)).
+
 ## Compensation service → ops service
 
 In 9.x, a failed handling was recorded by the compensation service, which retried it and let operators skip it. In V10, nothing is skipped and nothing leaves the service: a handler that keeps failing parks its aggregate in the service's own failure ledger, beside its checkpoints, and the parked aggregate is retried over a longer horizon. The ops service collects the ledgers of every service, and its console is where operators look at the parked aggregates and resume or skip them ([The Ops Service and Console](../operate/ops-console)).

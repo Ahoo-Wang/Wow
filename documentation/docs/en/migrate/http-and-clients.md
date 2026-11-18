@@ -83,10 +83,11 @@ Keep every Wow package on one V10 minor ([Compatibility and Versions](../typescr
 
 ## Steps
 
-1. The service's V10 Manifest exists and passes its compatibility baseline.
-2. Replace the packages, generate the clients from the Manifest into the same directory, commit `.wow-generator.json`, and delete the 9.x generator configuration and scripts ([Generate a Client](../typescript/generate)).
-3. Run `tsc` and fix each error by the tables above, never with a cast or `any`; then the linter and the application's tests.
-4. Search for what the type check cannot see: 9.x error codes, `bodyType`, 9.x paths in fetches, gateway rules and CoSec policies, relative times without a zone or with 9.x's `zoneId`, arithmetic on exact numbers.
-5. Run the application against the V10 service, in development or staging: a command with its wait, a state read, a query, and a refusal shown to the user.
+1. Start once the contracts of the services the application calls are stable: it is developed against them, and released in the estate's window, after the services are verified and before the traffic opens ([Front ends](./cutover#front-ends)).
+2. The service's V10 Manifest exists and passes its compatibility baseline.
+3. Replace the packages, generate the clients from the Manifest into the same directory, commit `.wow-generator.json`, and delete the 9.x generator configuration and scripts ([Generate a Client](../typescript/generate)).
+4. Run `tsc` and fix each error by the tables above, never with a cast or `any`; then the linter and the application's tests.
+5. Search for what the type check cannot see: 9.x error codes, `bodyType`, 9.x paths in fetches, gateway rules and CoSec policies, relative times without a zone or with 9.x's `zoneId`, arithmetic on exact numbers.
+6. Run the application against the V10 service, in development or staging: a command with its wait, a state read, a query, and a refusal shown to the user.
 
 Kotlin and Java callers of a 9.x service's routes, `wow-apiclient` and `CommandGateway`, move to the `CommandClient` and `QueryApi` clients ([Calling Other Services](../guide/calling-services)).
