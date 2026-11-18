@@ -91,18 +91,18 @@ class WowPlugin : Plugin<Project> {
         const val CONTRACTS_CONFIGURATION = "wowContracts"
         const val GENERATE_CONTRACT_SOURCES_TASK = "generateWowContractSources"
         const val CONTRACT_SOURCE_SET = "wowContract"
-        const val CORE_JAR_TASK = "wowCoreJar"
+
+        /** The api module's jar of its contract and the code generated from it ([ContractRole]). */
+        const val CONTRACT_JAR_TASK = "wowContractJar"
         const val CHECK_TASK = "checkWowManifest"
         const val UPDATE_BASELINE_TASK = "updateWowManifestBaseline"
 
         /**
-         * The attribute of an api module's core views: [coreView] of the domain module that requests it, whose
-         * contract the api's generated code comes from.
+         * The attribute a consumer asks for to see the api modules' types with their contracts
+         * ([ContractRole.CONTRACT_VIEW]): a service's class paths and the tests' do. In-build alone, published by
+         * no module.
          */
         val API_VIEW: Attribute<String> = Attribute.of("me.ahoo.wow.api-view", String::class.java)
-
-        /** The [API_VIEW] value of the core view of an api module for the domain module [domain] (its path). */
-        fun coreView(domain: String): String = "core$domain"
 
         /**
          * The Gradle property that lets [UPDATE_BASELINE_TASK] record a breaking change within the baseline's
@@ -215,16 +215,18 @@ class WowPlugin : Plugin<Project> {
  *
  * - becomes a `java-library`, with `api(platform("me.ahoo.wow:wow-bom:<plugin version>"))` and
  *   `api("me.ahoo.wow:wow-api")`, the latter unless it declares `wow-api` itself;
- * - assembles `META-INF/wow/contract.json` into its jar ([AssembleContract]): the contexts of those contracts whose
- *   command and event classes are all its own; a declared domain module of no contract fails it, naming the module;
+ * - holds its types alone in its own variants and jar, which every module compiles against: its domain modules
+ *   compile without waiting for their contract, and another context's domain without waiting for this one's;
+ * - assembles `META-INF/wow/contract.json` ([AssembleContract]): the contexts of those contracts whose command and
+ *   event classes are all its own; a declared domain module of no contract fails it, naming the module;
  * - with the Kotlin JVM plugin, compiles `<package>.<Context>Contract` per context and `<State>View` per published
- *   state from that contract ([GenerateContractSources], source set [WowPlugin.CONTRACT_SOURCE_SET]), which its
- *   classes, jar and sources jar carry;
- * - offers each declared domain module a core view of itself, a jar of its own classes without that code, which the
- *   domain compiles against (attribute [WowPlugin.API_VIEW], a variant named after the domain's path): the domain's
- *   contract comes from compiling the domain, so the domain cannot wait for the code generated from it.
+ *   state from that contract ([GenerateContractSources], source set [WowPlugin.CONTRACT_SOURCE_SET]);
+ * - offers both in its contract jar ([WowPlugin.CONTRACT_JAR_TASK]), its feature `contract` (capability
+ *   `<group>:<name>-contract`, [ContractRole]): a module that uses the generated code asks for it with
+ *   `wow.contract(...)`, and a service, and the tests, see every api's contract;
+ * - tells the domain modules it declares, in-build, that it pairs with them (`wowPairingElements`).
  *
- * An api module of no declared domain module carries no contract and generates nothing.
+ * An api module of no declared domain module is a library of types: it offers no contract and generates nothing.
  */
 class WowApiPlugin : Plugin<Project> {
     override fun apply(project: Project) {

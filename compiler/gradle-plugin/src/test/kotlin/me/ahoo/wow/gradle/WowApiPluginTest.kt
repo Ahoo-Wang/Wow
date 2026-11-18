@@ -22,10 +22,12 @@ import me.ahoo.wow.manifest.PeerContracts
 import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.manifest.tools.ManifestJson
 import org.gradle.api.Project
+import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.api.attributes.DocsType
 import org.gradle.api.internal.project.ProjectInternal
 import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.tasks.SourceSetContainer
+import org.gradle.api.tasks.WriteProperties
 import org.gradle.api.tasks.bundling.Jar
 import org.gradle.testfixtures.ProjectBuilder
 import org.junit.jupiter.api.Test
@@ -77,8 +79,11 @@ class WowApiPluginTest {
         assemble.owner.get().assert().isEqualTo(":shop-api")
         assemble.outputDirectory.get().asFile.canonicalFile
             .assert().isEqualTo(File(directory, "shop-api/build/wow/contract").canonicalFile)
-        (api.tasks.getByName("jar") as Jar).taskDependencies.getDependencies(null).map { it.name }
+        api.tasks.getByName(WowPlugin.CONTRACT_JAR_TASK).taskDependencies.getDependencies(null).map { it.name }
             .assert().contains(WowPlugin.ASSEMBLE_CONTRACT_TASK)
+        // The api's own jar holds its types alone.
+        (api.tasks.getByName("jar") as Jar).taskDependencies.getDependencies(null).map { it.name }
+            .assert().doesNotContain(WowPlugin.ASSEMBLE_CONTRACT_TASK)
         // A module dependency is no api module of the domain.
         api.rootProject.allprojects.mapNotNull { it.configurations.findByName(WowPlugin.CONTRACT_CONFIGURATION) }
             .assert().hasSize(1)
@@ -99,25 +104,41 @@ class WowApiPluginTest {
             .assert().contains("compileKotlin")
         api.configurations.getByName(generated.implementationConfigurationName).extendsFrom.map { it.name }
             .assert().contains("implementation")
+        // The api's own variants and jar hold its types; the contract jar holds the generated code.
         (api.tasks.getByName("jar") as Jar).taskDependencies.getDependencies(null).map { it.name }
+            .assert().doesNotContain("compileWowContractKotlin")
+        api.tasks.getByName(WowPlugin.CONTRACT_JAR_TASK).taskDependencies.getDependencies(null).map { it.name }
             .assert().contains("compileWowContractKotlin")
         val wowContractClasses = File(directory, "shop-api/build/classes/kotlin/wowContract").canonicalFile
         listOf("apiElements", "runtimeElements").forEach { name ->
-            val variants = api.configurations.getByName(name).outgoing.variants
-            variants.getByName("classes").artifacts.map { it.file.canonicalFile }.assert().contains(wowContractClasses)
-            // One core view per paired domain module, named after its path, without the generated classes.
-            val cores = variants.filter { it.attributes.contains(WowPlugin.API_VIEW) }
-            cores.map { it.name }.assert().containsExactlyInAnyOrder("wowCore:shop-domain", "wowCore:audit-domain")
-            cores.map { it.attributes.getAttribute(WowPlugin.API_VIEW) }
-                .assert().containsExactlyInAnyOrder(
-                    WowPlugin.coreView(":shop-domain"),
-                    WowPlugin.coreView(":audit-domain")
-                )
-            cores.flatMap { it.artifacts }.map { it.file.canonicalFile }.assert().doesNotContain(wowContractClasses)
+            val elements = api.configurations.getByName(name)
+            elements.outgoing.variants.flatMap { it.artifacts }.map { it.file.canonicalFile }
+                .assert().doesNotContain(wowContractClasses)
+            elements.attributes.contains(WowPlugin.API_VIEW).assert().isFalse()
         }
-        // The domain module compiles against its core view.
-        api.rootProject.project(":shop-domain").configurations.getByName("compileClasspath").attributes
-            .getAttribute(WowPlugin.API_VIEW).assert().isEqualTo(WowPlugin.coreView(":shop-domain"))
+        // The contract, the api's feature: its capability, and the api's types as its dependency.
+        listOf(ContractRole.CONTRACT_API_ELEMENTS, ContractRole.CONTRACT_RUNTIME_ELEMENTS).forEach { name ->
+            val elements = api.configurations.getByName(name)
+            elements.outgoing.capabilities.map { "${it.group}:${it.name}" }
+                .assert().containsExactly("${api.group}:shop-api-contract")
+            elements.allDependencies.withType(ProjectDependency::class.java).map { it.path }
+                .assert().containsExactly(":shop-api")
+        }
+        // The view of the api's types with its contract, for a consumer that asks for it.
+        listOf(ContractRole.VIEW_API_ELEMENTS, ContractRole.VIEW_RUNTIME_ELEMENTS).forEach { name ->
+            val view = api.configurations.getByName(name)
+            view.attributes.getAttribute(WowPlugin.API_VIEW).assert().isEqualTo(ContractRole.CONTRACT_VIEW)
+            view.dependencies.withType(ProjectDependency::class.java).map { it.path }.assert().contains(":shop-api")
+        }
+        // The domain module compiles against the types; its tests see the contracts.
+        val domain = api.rootProject.project(":shop-domain")
+        domain.configurations.getByName("compileClasspath").attributes.contains(WowPlugin.API_VIEW).assert().isFalse()
+        listOf("testCompileClasspath", "testRuntimeClasspath").forEach { name ->
+            domain.configurations.getByName(name).attributes.getAttribute(WowPlugin.API_VIEW)
+                .assert().isEqualTo(ContractRole.CONTRACT_VIEW)
+        }
+        // The pairing it tells its domain modules, in-build.
+        api.configurations.getByName(ApiRole.PAIRING_ELEMENTS).isCanBeConsumed.assert().isTrue()
     }
 
     @Test
@@ -148,7 +169,7 @@ class WowApiPluginTest {
     }
 
     @Test
-    fun `an api project declaring a domain module after its evaluation should offer it a core view`() {
+    fun `an api project declaring a domain module after its evaluation should offer its contract`() {
         val root = ProjectBuilder.builder().withProjectDir(directory).withName("services").build()
         val api = ProjectBuilder.builder().withParent(root).withName("shop-api")
             .withProjectDir(File(directory, "shop-api")).build()
@@ -162,9 +183,21 @@ class WowApiPluginTest {
             api.dependencies.project(mapOf("path" to ":shop-domain"))
         )
         api.tasks.findByName(WowPlugin.GENERATE_CONTRACT_SOURCES_TASK).assert().isNotNull()
-        val views = api.configurations.getByName("apiElements").outgoing.variants
-            .map { it.attributes.getAttribute(WowPlugin.API_VIEW) }
-        views.assert().contains(WowPlugin.coreView(":shop-domain"))
+        api.configurations.findByName(ContractRole.CONTRACT_API_ELEMENTS).assert().isNotNull()
+    }
+
+    @Test
+    fun `an api project of no domain module should be a library of types, with no contract`() {
+        val root = ProjectBuilder.builder().withProjectDir(directory).withName("services").build()
+        val api = ProjectBuilder.builder().withParent(root).withName("ids-api")
+            .withProjectDir(File(directory, "ids-api")).build()
+        api.pluginManager.apply(WowPlugin.API_ID)
+        api.pluginManager.apply("org.jetbrains.kotlin.jvm")
+        (api as ProjectInternal).evaluate()
+        listOf(ContractRole.CONTRACT_API_ELEMENTS, ContractRole.VIEW_API_ELEMENTS, ContractRole.CONTRACT_API)
+            .forEach { api.configurations.findByName(it).assert().describedAs(it).isNull() }
+        api.tasks.findByName(WowPlugin.CONTRACT_JAR_TASK).assert().isNull()
+        api.tasks.findByName(WowPlugin.GENERATE_CONTRACT_SOURCES_TASK).assert().isNull()
     }
 
     @Test
@@ -179,6 +212,9 @@ class WowApiPluginTest {
         (api as ProjectInternal).evaluate()
         api.tasks.findByName(WowPlugin.ASSEMBLE_CONTRACT_TASK).assert().isNotNull()
         api.tasks.findByName(WowPlugin.GENERATE_CONTRACT_SOURCES_TASK).assert().isNull()
+        // Its contract jar holds the contract alone.
+        api.tasks.findByName(WowPlugin.CONTRACT_JAR_TASK).assert().isNotNull()
+        api.configurations.findByName(ContractRole.CONTRACT_API_ELEMENTS).assert().isNotNull()
     }
 
     private fun contractFile(name: String, vararg classes: String): File =
@@ -242,12 +278,12 @@ class WowApiPluginTest {
     }
 
     @Test
-    fun `an api module's sources jar should hold the generated sources`() {
+    fun `an api module's sources jar should hold its own sources alone`() {
         val api = paired("shop-domain")
         api.extensions.getByType(JavaPluginExtension::class.java).withSourcesJar()
         val sources = api.tasks.getByName("sourcesJar") as Jar
         sources.taskDependencies.getDependencies(sources).map { it.name }.assert()
-            .contains(WowPlugin.GENERATE_CONTRACT_SOURCES_TASK)
+            .doesNotContain(WowPlugin.GENERATE_CONTRACT_SOURCES_TASK)
     }
 
     @Test
@@ -266,5 +302,23 @@ class WowApiPluginTest {
         api.configurations.getByName("api").incoming.dependencies.filter { it.group == "me.ahoo.wow" }
             .map { "${it.group}:${it.name}:${it.version}" }.assert()
             .containsExactlyInAnyOrder("me.ahoo.wow:wow-api:null", "me.ahoo.wow:wow-bom:${WowPlugin.version}")
+    }
+
+    @Test
+    fun `an api module should tell its domain modules in-build that it pairs with them`() {
+        val api = paired("shop-domain", "audit-domain")
+        val write = api.tasks.getByName("writeWowPairing") as WriteProperties
+        write.properties.assert().containsEntry(ApiRole.PAIRING_DOMAINS, ":audit-domain,:shop-domain")
+        val elements = api.configurations.getByName(ApiRole.PAIRING_ELEMENTS)
+        elements.isCanBeResolved.assert().isFalse()
+        elements.outgoing.artifacts.files.singleFile.name.assert().isEqualTo("pairing.properties")
+        // The domain module's contract task finds it among its compile class path's projects: the api's pairing file,
+        // no other variant of the project.
+        val domain = api.rootProject.project(":shop-domain")
+        (domain as ProjectInternal).evaluate()
+        val view = DomainRole.pairingOf(domain, domain.configurations.getByName("compileClasspath"))
+        val pairings = DomainRole.pairings(view.artifacts.artifacts)
+        pairings.assert().hasSize(1).containsValue(":shop-api")
+        pairings.keys.single().assert().endsWith("pairing.properties")
     }
 }

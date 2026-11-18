@@ -43,6 +43,8 @@ dependencies {
     integrationTestImplementation(project(":test-spring-boot"))
     integrationTestImplementation(project(":quickstart"))
     integrationTestImplementation(project(":eshop-catalog-domain"))
+    // ... and its contract, which names the catalog's service for discovery: this module applies no Wow plugin.
+    integrationTestImplementation(project(":eshop-catalog-api")) { capabilities { requireFeature("contract") } }
     integrationTestImplementation("org.springframework.cloud:spring-cloud-starter-consul-discovery")
     integrationTestImplementation("org.springframework.cloud:spring-cloud-starter-loadbalancer")
     integrationTestImplementation("org.testcontainers:testcontainers-consul")

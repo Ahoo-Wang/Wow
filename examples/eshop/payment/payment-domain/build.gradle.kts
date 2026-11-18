@@ -13,8 +13,9 @@ wow {
 
 dependencies {
     api(project(":eshop-payment-api"))
-    // The ordering's commands, which the order-payment saga sends to the ordering context, and its order view.
-    implementation(project(":eshop-ordering-api"))
+    // The ordering's commands, which the order-payment saga sends to the ordering context, and, from its contract,
+    // its order view (`OrderStateView`): the contract of an api module is asked for by name.
+    implementation(wow.contract(project(":eshop-ordering-api")))
     // The ordering's shared cache of its orders, which the gateway saga reads: the interface alone, no dependency.
     implementation("me.ahoo.wow:wow-cocache-api")
     // The gateway saga says once when the ordering's orders are unavailable.

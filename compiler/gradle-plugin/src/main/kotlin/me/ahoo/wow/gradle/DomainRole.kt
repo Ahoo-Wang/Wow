@@ -18,13 +18,11 @@ import me.ahoo.wow.gradle.WowArtifacts.declares
 import me.ahoo.wow.gradle.WowArtifacts.documentationAttributes
 import me.ahoo.wow.gradle.WowArtifacts.toolsConfiguration
 import me.ahoo.wow.gradle.WowArtifacts.wowDependencies
-import me.ahoo.wow.gradle.WowPlugin.Companion.API_VIEW
 import me.ahoo.wow.gradle.WowPlugin.Companion.CONTRACT_DOCS_TYPE
 import me.ahoo.wow.gradle.WowPlugin.Companion.CONTRACT_ELEMENTS
 import me.ahoo.wow.gradle.WowPlugin.Companion.GENERATE_CONTRACT_TASK
 import me.ahoo.wow.gradle.WowPlugin.Companion.GENERATE_FRAGMENT_TASK
 import me.ahoo.wow.gradle.WowPlugin.Companion.KOTLIN_JVM
-import me.ahoo.wow.gradle.WowPlugin.Companion.coreView
 import me.ahoo.wow.gradle.WowPlugin.Companion.fragmentName
 import me.ahoo.wow.gradle.WowPlugin.Companion.kspVersion
 import me.ahoo.wow.gradle.WowPlugin.Companion.missingKotlinJvm
@@ -33,9 +31,13 @@ import me.ahoo.wow.gradle.WowPlugin.Companion.requireKotlin
 import me.ahoo.wow.gradle.WowPlugin.Companion.version
 import org.gradle.api.GradleException
 import org.gradle.api.Project
+import org.gradle.api.artifacts.ArtifactView
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.component.ProjectComponentIdentifier
+import org.gradle.api.artifacts.result.ResolvedArtifactResult
+import org.gradle.api.attributes.Category
 import org.gradle.api.attributes.LibraryElements
+import org.gradle.api.attributes.Usage
 import org.gradle.api.file.FileCollection
 import org.gradle.api.file.FileTree
 import org.gradle.api.plugins.JavaPlugin
@@ -84,7 +86,9 @@ internal object DomainRole {
         val main = sourceSets.getByName(SourceSet.MAIN_SOURCE_SET_NAME)
         val runtimeClasspath = project.configurations.named(main.runtimeClasspathConfigurationName)
         val compileClasspath = project.configurations.getByName(main.compileClasspathConfigurationName)
-        coreRequest(project, compileClasspath)
+        // The tests see the contracts of the api modules on their class paths, their own api's included: most use
+        // its <Context>Contract. Main never does: the module's contract comes from compiling it.
+        ContractRole.requestContracts(project) { it.name != SourceSet.MAIN_SOURCE_SET_NAME }
         // KSP runs within the Kotlin compilation; it has no public API for its task or its output directory, so they
         // are named here alone. A KSP that renames them fails the plugin's functional tests.
         val compilerFragments = project.files(project.layout.buildDirectory.dir(KSP_RESOURCES))
@@ -109,9 +113,8 @@ internal object DomainRole {
     }
 
     /**
-     * The classes variants of [classpath]: a project's classes directories, never its jar, and a module's jar. The
-     * jar of an api module carries the contract of the domain modules that pair with it, so reading it to complete
-     * their fragments would be a cycle.
+     * The classes variants of [classpath]: a project's classes directories, never its jar, and a module's jar. An api
+     * module's are its types alone, never its contract, which comes from completing these fragments.
      */
     private fun classesOf(project: Project, classpath: Configuration): FileCollection =
         classpath.incoming.artifactView { view ->
@@ -120,14 +123,13 @@ internal object DomainRole {
                     LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE,
                     project.objects.named(LibraryElements::class.java, LibraryElements.CLASSES),
                 )
-                it.attribute(API_VIEW, coreView(project.path))
             }
         }.files
 
     /**
      * The peer contract: [GENERATE_CONTRACT_TASK] filters the completed [fragments], refusing a context whose classes
-     * are in a project of [compileClasspath] that does not pair with the module, and the [CONTRACT_ELEMENTS] variant
-     * offers the result, empty for a module of no fragment.
+     * are in a project of [compileClasspath] that does not pair with the module ([pairingOf]), and the
+     * [CONTRACT_ELEMENTS] variant offers the result, empty for a module of no fragment.
      */
     private fun contract(
         project: Project,
@@ -135,14 +137,18 @@ internal object DomainRole {
         extension: WowExtension,
         compileClasspath: Configuration,
     ) {
-        val unpaired = unpairedProjectsOf(compileClasspath)
+        val projects = projectsOf(compileClasspath)
+        val pairing = pairingOf(project, compileClasspath)
         val generate = project.tasks.register(GENERATE_CONTRACT_TASK, GenerateContract::class.java) { task ->
             task.description = "Filters the module's Manifest fragment down to the contract its api modules carry."
             task.fragments.from(fragments.matching { it.include("${FRAGMENT_RESOURCES}/**/*.json") })
             task.service.set(extension.service)
             task.module.set(project.path)
-            task.unpaired.set(unpaired)
-            task.unpairedProjects.set(unpaired.map { it.values.distinct().sorted() })
+            task.classpathProjects.set(projects)
+            task.classpathProjectPaths.set(projects.map { it.values.distinct().sorted() })
+            val pairings = pairing.artifacts.resolvedArtifacts.map(::pairings)
+            task.pairing.from(pairings.map { it.keys })
+            task.pairingProjects.set(pairings)
             task.tools.from(toolsConfiguration(project))
             task.outputFile.set(project.layout.buildDirectory.file("wow/contract.json"))
         }
@@ -155,28 +161,49 @@ internal object DomainRole {
         project.artifacts.add(elements.name, generate.flatMap { it.outputFile }) { it.builtBy(generate) }
     }
 
+    /** The project entries of [compileClasspath], each to its project's path. */
+    private fun projectsOf(compileClasspath: Configuration): Provider<Map<String, String>> =
+        compileClasspath.incoming.artifacts.resolvedArtifacts.map(::byProject)
+
+    /** The files of [artifacts] that come from projects of the build, each to its project's path. */
+    private fun byProject(artifacts: Collection<ResolvedArtifactResult>): Map<String, String> =
+        artifacts.mapNotNull { artifact ->
+            val id = artifact.id.componentIdentifier as? ProjectComponentIdentifier ?: return@mapNotNull null
+            artifact.file.path to id.projectPath
+        }.toMap()
+
+    /** The pairing files among [artifacts] ([isPairing]), each to the project it comes from. */
+    internal fun pairings(artifacts: Collection<ResolvedArtifactResult>): Map<String, String> =
+        byProject(artifacts.filter(::isPairing))
+
     /**
-     * The project entries of [compileClasspath] whose variant is not a core view ([API_VIEW]): projects that do not
-     * pair with the module, by entry path. Only the module's contract task reads it, once the classes are built.
+     * The pairing of the api modules among [compileClasspath]'s projects ([ApiRole.PAIRING_ELEMENTS]): a file each,
+     * naming the domain modules it declares. A project with none (no api module, or one of another build) pairs with
+     * no domain: its variant is missing, which the lenient view leaves out.
      */
-    private fun unpairedProjectsOf(compileClasspath: Configuration): Provider<Map<String, String>> =
-        compileClasspath.incoming.artifacts.resolvedArtifacts.map { artifacts ->
-            artifacts.mapNotNull { artifact ->
-                val id = artifact.id.componentIdentifier as? ProjectComponentIdentifier ?: return@mapNotNull null
-                if (artifact.variant.attributes.getAttribute(API_VIEW) != null) return@mapNotNull null
-                artifact.file.path to id.projectPath
-            }.toMap()
+    internal fun pairingOf(project: Project, compileClasspath: Configuration): ArtifactView =
+        compileClasspath.incoming.artifactView { view ->
+            view.withVariantReselection()
+            view.lenient(true)
+            view.componentFilter { it is ProjectComponentIdentifier }
+            view.attributes {
+                it.attribute(Usage.USAGE_ATTRIBUTE, project.objects.named(Usage::class.java, ApiRole.PAIRING_USAGE))
+                it.attribute(
+                    Category.CATEGORY_ATTRIBUTE,
+                    project.objects.named(Category::class.java, ApiRole.PAIRING_USAGE),
+                )
+            }
         }
 
     /**
-     * Makes [configuration] of a domain module request its core view of its api modules ([coreView]): they carry the
-     * code generated from the domain's contract, which compiling and processing the domain cannot wait for. KSP reads
-     * the compile class path too.
+     * Whether [artifact] is a pairing file: of the pairing usage. A variant that declares neither usage nor category
+     * (a project's source directories) matches the view too, and is no pairing.
      */
-    private fun coreRequest(project: Project, configuration: Configuration) {
-        project.dependencies.attributesSchema.attribute(API_VIEW)
-        configuration.attributes { it.attribute(API_VIEW, coreView(project.path)) }
-    }
+    private fun isPairing(artifact: ResolvedArtifactResult): Boolean =
+        artifact.variant.attributes.keySet().any { key ->
+            key.name == Usage.USAGE_ATTRIBUTE.name &&
+                artifact.variant.attributes.getAttribute(key).toString() == ApiRole.PAIRING_USAGE
+        }
 
     /**
      * Applies KSP with the model processor, and adds `wow-compiler` of the plugin's version unless `ksp` declares

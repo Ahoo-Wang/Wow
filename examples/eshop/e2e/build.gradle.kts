@@ -23,6 +23,13 @@ description = "Wow eShop: end-to-end tests across the eShop's services"
 //   shows it through its query routes, and an operator's retry there resolves it (6.3f).
 // - EshopLoad, the load script, starts the same EshopStack (the task eshopLoad below; README.md holds its baseline).
 // The platform's ops service (`ops`) runs beside them as one more server.
+//
+// Each server's class path, and the tests' own, hold the api modules' contracts as the server's does in its own
+// project: an api module's own variants are its types, and the Wow service plugin asks its class paths for the view of
+// every api with its contract (`me.ahoo.wow.api-view` `contract`, decision D435). This module applies no Wow plugin,
+// so it asks for the view itself.
+val wowApiView: Attribute<String> = Attribute.of("me.ahoo.wow.api-view", String::class.java)
+dependencies.attributesSchema.attribute(wowApiView)
 val servers = listOf("catalog", "basket", "ordering", "inventory", "payment", "ops").associateWith { context ->
     configurations.create("eshop${context.replaceFirstChar { it.uppercase() }}Server") {
         isCanBeConsumed = false
@@ -36,6 +43,7 @@ val servers = listOf("catalog", "basket", "ordering", "inventory", "payment", "o
                 TargetJvmEnvironment.TARGET_JVM_ENVIRONMENT_ATTRIBUTE,
                 objects.named(TargetJvmEnvironment.STANDARD_JVM),
             )
+            attribute(wowApiView, "contract")
         }
     }
 }
@@ -83,6 +91,10 @@ dependencies {
     // MongoLogChecksTest: the GA verdict's check of a MongoDB log, against logs two nodes write on the TCK's MongoDB.
     integrationTestImplementation(project(":mongo"))
     integrationTestImplementation(project(":tck-containers"))
+}
+
+listOf("integrationTestCompileClasspath", "integrationTestRuntimeClasspath").forEach { name ->
+    configurations.named(name) { attributes { attribute(wowApiView, "contract") } }
 }
 
 /**
