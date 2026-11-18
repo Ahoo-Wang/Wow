@@ -52,7 +52,16 @@ export const REPORTS = {
   },
   'm5max-recovery': {
     environment: 'm5max',
-    runs: { 'bound-2': '44137290807', 'bound-0': '44137289607' },
+    runs: {
+      'bound-2': '44137290807',
+      'bound-0': '44137289607',
+      '6412-parent': '44194947161',
+      6412: '44194947617',
+      'patch-1-parent': '44203434208',
+      'patch-1': '44203434241',
+      'patch-2-parent': '44203470768',
+      'patch-2': '44203470883',
+    },
     read: recovery,
   },
 };
@@ -396,6 +405,31 @@ export function recovery(root, report) {
         jdk: /^\d+(\.\d+)+$/.test(j.jdk ?? '') ? j.jdk : jdkOf(j.jdk),
         run: a.run,
         source: `${report}/rehearsal/${a.run}/${job}`,
+      });
+    }
+  }
+  for (const a of Object.values(summary.firstStart ?? {})) {
+    for (const [job, j] of Object.entries(a.jobs)) {
+      figures.push({
+        id: `first-start.${a.pair}.${a.arm}.${job}`,
+        kind: 'first-start',
+        pair: a.pair,
+        arm: a.arm,
+        job,
+        maxCatchUps: a.maxCatchUps,
+        sent: j.sent,
+        failed: j.failed,
+        p99Ms: j.p99Ms,
+        worstSecondP99Ms: j.worstSecondP99Ms,
+        catchUpSeconds: round(j.catchUpMs['example-service'] / 1000),
+        commit: a.code,
+        built: a.commit,
+        environment: 'actions',
+        cpu: `${REHEARSAL_IMAGE}, CPU model ${NOT_RECORDED}`,
+        jdk: /^\d+(\.\d+)+$/.test(j.jdk ?? '') ? j.jdk : jdkOf(j.jdk),
+        run: a.run,
+        attempt: a.attempt,
+        source: `${report}/first-start/${a.dir}/${job}`,
       });
     }
   }

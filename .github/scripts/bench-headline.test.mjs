@@ -272,6 +272,28 @@ test("the recovery report's arms are summarize.py's, each with its own build, ma
           },
         },
       },
+      firstStart: {
+        'patch-1.patch': {
+          pair: 'patch-1',
+          arm: 'patch',
+          code: '0249db185b',
+          commit: '6781a666aa',
+          maxCatchUps: 2,
+          dir: '44203434241',
+          run: '44203434241',
+          attempt: 1,
+          jobs: {
+            runner: {
+              sent: 6000,
+              failed: 0,
+              p99Ms: 2413,
+              worstSecondP99Ms: 3278,
+              catchUpMs: { 'example-service': 49524 },
+              jdk: '25.0.5',
+            },
+          },
+        },
+      },
     },
   });
   const figures = Object.fromEntries(
@@ -282,6 +304,7 @@ test("the recovery report's arms are summarize.py's, each with its own build, ma
     'lost-leases.fix',
     'handover.mongo.main',
     'rehearsal.bound-2.kind',
+    'first-start.patch-1.patch.runner',
   ]);
   // A base whose partitions were not all back by the round's end has no last time: never the last one it saw.
   assert.equal(figures['lost-leases.base'].lastBackSeconds, null);
@@ -299,6 +322,14 @@ test("the recovery report's arms are summarize.py's, each with its own build, ma
   assert.equal(kind.jdk, '25.0.5');
   assert.equal(kind.catchUpSeconds, 59.4);
   assert.equal(kind.run, '44137290807');
+  // A first-start arm names the code it measured, and apart the commit its run built: that code and the rehearsal's
+  // instrumentation.
+  const patch = figures['first-start.patch-1.patch.runner'];
+  assert.equal(patch.commit, '0249db185b');
+  assert.equal(patch.built, '6781a666aa');
+  assert.equal(patch.catchUpSeconds, 49.5);
+  assert.equal(patch.environment, 'actions');
+  assert.equal(patch.source, 'm5max-recovery/first-start/44203434241/runner');
 });
 
 test('a JDK is the version its run records, never an assumed one', () => {

@@ -1,12 +1,13 @@
 # Recovery: lost leases, a planned hand-over, and a catch-up under live orders
 
-This report covers how a cluster comes back when a node loses its partitions, and when partitions move. It has three before/after pairs, one for each fix:
+This report covers how a cluster comes back when a node loses its partitions, and when partitions move. It has before/after pairs for each fix, and the code that ships is the last build in each:
 
 - **A node that loses all its leases at once** (#6379, fixed by #6384): one node on MongoDB loses all 64 leases when its store pauses. The comparison is the time until every partition is acquired again.
-- **A planned hand-over** (#6407, fixed by #6412): CI's e3-handover step on three nodes. The comparison is the sagas' timed-out waits and the p99.
+- **A planned hand-over** (#6407, fixed by #6412, then by #6424): CI's e3-handover step on three nodes. The comparison is the sagas' timed-out waits and the p99.
 - **A catch-up on a migrated history under live orders** (D399's bound, at #6412): the migration rehearsal's live orders while the V10 host catches up on the imported log. The comparison is with two catch-up permits and with no bound.
+- **A node's first activation on a migrated history** (#6412 against its parent, then #6424 against the same parent): the same live orders at two permits. #6412's rows are the reason for #6424; #6424 is the code that ships.
 
-The first two pairs ran on the local Apple M5 Max on 2026-11-17, each in one hold of the benchmark lock. The third ran on GitHub Actions the same day. Every JVM ran JDK 25. Each table states its builds and its machine.
+The lost-leases and hand-over pairs ran on the local Apple M5 Max on 2026-11-17 and 2026-11-18, each in one hold of the benchmark lock. The rehearsal rows ran on GitHub Actions on the same days. Every JVM ran JDK 25. Each table states its builds and its machine.
 
 Each pair is a build against the build before it, not a release. No number here is computed across two builds, and none is set beside another report's numbers.
 
@@ -75,6 +76,21 @@ Each failed command is a saga's timed-out wait (`504 wow.wait.timeout`), out of 
 - **On main,** the moved partitions queued two at a time for the node's permits. Each catch-up held its permit about 2 s, because MongoDB's tail waits its 1 s stall grace at each foreign open block.
 - **What remains with the fix** is that stall grace. One partition took 11.4 s to catch up and gave fix-1's timed-out wait.
 
+**The code that ships** ([`handover-gate.sh`](m5max-recovery/scripts/handover-gate.sh)). #6424 replaced #6412's free first read, so the same step was run again, on 2026-11-17 from 23:57 to 00:15Z (2026-11-18), in one hold of the lock:
+- main `f43a7a75bf`, which carries #6412, against #6424's first commit `0249db185b`, three rounds each alternating;
+- then one PostgreSQL round with `0249db185b`.
+
+Both are clean builds without probes (`install.txt`: `dirty=no`). #6424 merged as `bc220111ba`. Its second commit changed no behaviour: it kept a helper and added a test.
+
+| Build | Store | Failed waits per round | p99 per round |
+| --- | --- | --- | --- |
+| main `f43a7a75bf` (#6412) | MongoDB | 1, 1, 1 | 1,900.5 / 1,974.3 / 1,777.7 ms |
+| #6424 `0249db185b` | MongoDB | 1, 1, 1 | 1,810.4 / 1,900.5 / 1,736.7 ms |
+| #6424 `0249db185b` | PostgreSQL | 0 | 19.7 ms |
+
+- **#6424 keeps what #6412 gave the hand-over.** The moved partitions' gaps fit in its 512, so they read at once, as with #6412.
+- **The one failed wait a round on MongoDB** is the same stall grace, in both arms.
+
 ## A catch-up under live orders (D399's bound, at #6412)
 
 **Setup:** `migration-rehearsal.yml` on two throwaway `ci-repro` branches. Each is #6412's head `f33284fa69` plus the instrumentation of D399's rehearsal, ported from `62ea68f0f9` ([`rehearsal-port.py`](m5max-recovery/scripts/rehearsal-port.py)):
@@ -99,5 +115,52 @@ The sources are each job's `offline-live.log` (totals) and `offline-live.jsonl` 
   - on runner: all `504 wow.wait.timeout`;
   - on kind: 2,328 `504 wow.wait.timeout` and 259 client timeouts.
 - **The bound refuses no command.** It only holds a partition's reads past its first page until a permit is free.
-- **Not measured: main at two permits in the same window.** The worst seconds' p99 with two permits, 10.3 s on runner and 4.6 s on kind, is above the 2.0 to 3.7 s that D399's runs recorded at an earlier commit. With no main arm, this run cannot separate #6412's first page from runner variance.
+- **Main at two permits** is measured in the next section, by pairs in one window.
 - **Not measured: how long each partition held a permit.** The `TIMING` lines are per host.
+
+## A node's first activation on a migrated history (#6412, then #6424)
+
+**Setup:** the same rehearsal step, with the same instrumentation, at two permits. Each pair was dispatched together, so its two runs share a window. A pair's arms are the code below, each plus that instrumentation, on a throwaway `ci-repro` branch whose commit the run built.
+
+**Arms:**
+- parent `0d2017aa28`, the commit before #6412 (built as `95bd118e96`);
+- #6412 `60c63cdc6f` (built as `17ce2d07ff`);
+- #6424 `0249db185b` (built as `6781a666aa`).
+
+The sources are the same files as in the last section, under `first-start/<run>[-a<attempt>]/<job>`.
+
+**#6412 against its parent**, the reason for #6424. The runs are 44194947161 (parent) and 44194947617 (#6412). The second pair is attempt 2 of the same runs.
+
+| Pair | Build | Job | Failed of 6,000 | p99 | Worst second's p99 | Catch-up |
+| --- | --- | --- | ---: | ---: | ---: | ---: |
+| 1 | parent `0d2017aa28` | runner | 0 | 2,704 ms | 4,623 ms | 85.2 s |
+| 1 | #6412 `60c63cdc6f` | runner | 0 | 6,722 ms | 8,283 ms | 89.4 s |
+| 1 | parent `0d2017aa28` | kind | 0 | 1,134 ms | 1,937 ms | 51.0 s |
+| 1 | #6412 `60c63cdc6f` | kind | 0 | 2,495 ms | 3,775 ms | 63.6 s |
+| 2 | parent `0d2017aa28` | runner | 0 | 2,259 ms | 3,261 ms | 91.3 s |
+| 2 | #6412 `60c63cdc6f` | runner | 0 | 1,096 ms | 1,752 ms | 60.9 s |
+| 2 | parent `0d2017aa28` | kind | 0 | 3,422 ms | 4,111 ms | 94.2 s |
+| 2 | #6412 `60c63cdc6f` | kind | 0 | 3,985 ms | 5,205 ms | 49.0 s |
+
+- **In the first pair** #6412's worst second was 1.8 to 1.9 times its parent's on both jobs. In the second pair the direction differed by job.
+- **No direction holds across pairs,** so these runs neither show that #6412 is worse at a first activation nor that it is equal.
+- **The reason for #6424** is what the bound is for. #6412 let every partition behind its head read 512 entries without a permit, and that includes a node's first activation on an imported history, which is the case D399's bound is written for.
+- **The parent's red runner jobs** (both attempts) are its `rollback-after-compare`, 25 minutes after this step. It read V10 while the host was still catching up and did not wait; the export and 9.x were right.
+
+**#6424 against the same parent**, the code that ships. Two pairs, dispatched together: 44203434208 (parent) with 44203434241 (#6424), and 44203470768 (parent) with 44203470883 (#6424).
+
+| Pair | Build | Job | Failed of 6,000 | p99 | Worst second's p99 | Catch-up |
+| --- | --- | --- | ---: | ---: | ---: | ---: |
+| 1 | parent `0d2017aa28` | runner | 0 | 1,012 ms | 1,640 ms | 49.5 s |
+| 1 | #6424 `0249db185b` | runner | 0 | 2,413 ms | 3,278 ms | 49.5 s |
+| 1 | parent `0d2017aa28` | kind | 0 | 1,426 ms | 2,458 ms | 49.1 s |
+| 1 | #6424 `0249db185b` | kind | 0 | 2,058 ms | 3,471 ms | 84.7 s |
+| 2 | parent `0d2017aa28` | runner | 0 | 1,868 ms | 2,713 ms | 73.2 s |
+| 2 | #6424 `0249db185b` | runner | 0 | 1,278 ms | 2,092 ms | 45.1 s |
+| 2 | parent `0d2017aa28` | kind | 0 | 1,527 ms | 2,529 ms | 49.3 s |
+| 2 | #6424 `0249db185b` | kind | 0 | 1,514 ms | 2,209 ms | 49.6 s |
+
+- **No live order failed** in any run.
+- **#6424's worst seconds** are 2.1 to 3.5 s. The parent's are 1.6 to 2.7 s in this window and 1.6 to 4.6 s over all eight of its job runs. They are within D399's 2.0 to 3.7 s.
+- **What #6424 does here:** every partition of the imported log is thousands of entries behind its head, so it waits for a permit before its first entry, as on the parent.
+- **One #6424 catch-up took 84.7 s** (kind, pair 1). It is the one outside the 45 to 73 s of the other runs in this window, and within the 85 to 94 s the parent took in three of its four job runs in the pairs above.

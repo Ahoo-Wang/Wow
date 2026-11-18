@@ -8,9 +8,11 @@
 #   lost (overdue, or not given back) and when it was acquired again, against pause.txt's pause.
 # handover/<arm>-<n>: #6407's e3-handover rounds. result.json gives the commands that failed (every one a saga's
 #   timed-out wait) and the p99; install.txt the build.
-# rehearsal/<run>/<job>: migration-rehearsal.yml's live orders during the V10 host's catch-up on the imported log.
-#   offline-live.log gives the totals, offline-live.jsonl one line a second (by completion), timing.txt the hosts'
-#   TIMING lines, jvm.txt the host's JVM.
+# rehearsal/<run>/<job>: migration-rehearsal.yml's live orders during the V10 host's catch-up on the imported log,
+#   with two permits and with no bound, at #6412's head. offline-live.log gives the totals, offline-live.jsonl one line
+#   a second (by completion), timing.txt the hosts' TIMING lines, jvm.txt the host's JVM.
+# first-start/<run>[-a<attempt>]/<job>: the same step at two permits, by pairs run in one window: #6412 against its
+#   parent, then the patch that replaced its free read (#6424) against the same parent.
 import datetime
 import json
 import os
@@ -79,7 +81,10 @@ def lost_leases(base):
     return arms
 
 
-HANDOVER_ARMS = {'main': 'mongo-main', 'fix': 'mongo-fix', 'pgfix': 'postgres-fix'}
+HANDOVER_ARMS = {
+    'main': 'mongo-main', 'fix': 'mongo-fix', 'pgfix': 'postgres-fix',
+    'm6412': 'mongo-6412', 'patch': 'mongo-patch', 'pgpatch': 'postgres-patch',
+}
 
 
 def handover(base):
@@ -107,41 +112,73 @@ REHEARSAL_ARMS = {'44137290807': ('bound-2', 'f33284fa69', '0853cbf27b', 2),
                   '44137289607': ('bound-0', 'f33284fa69', '7c0896effd', 0)}
 
 
+def live(d):
+    """One job's live orders: the totals, the worst second's p99 and each service's first catch-up in the window."""
+    total = json.loads([l for l in open(f'{d}/offline-live.log') if l.startswith('{')][-1])
+    seconds = [json.loads(l) for l in open(f'{d}/offline-live.jsonl')]
+    step = next(json.loads(l) for l in open(f'{d}/steps.jsonl') if '"offline-live"' in l)
+    start, end = step['startMs'] / 1000, (step['startMs'] + step['millis']) / 1000
+    # The first catch-up of each service that ended within the live window: the V10 host's on the imported log.
+    caught = {}
+    for line in open(f'{d}/timing.txt'):
+        m = TIMING.match(line)
+        if m and start - 120 <= ts(m.group(1)) <= end and m.group(2) not in caught:
+            caught[m.group(2)] = int(m.group(3))
+    m = re.search(r'using Java (\S+)', open(f'{d}/jvm.txt').read())
+    return {
+        'sent': total['commands'],
+        'failed': total['failed'],
+        'errors': total['errors'],
+        'p50Ms': total['p50'],
+        'p99Ms': total['p99'],
+        'maxMs': total['max'],
+        'worstSecondP99Ms': max(s['p99'] for s in seconds),
+        'catchUpMs': caught,
+        'jdk': m.group(1) if m else 'not recorded',
+    }
+
+
 def rehearsal(base):
     arms = {}
     for run in sorted(os.listdir(f'{base}/rehearsal')) if os.path.isdir(f'{base}/rehearsal') else []:
         arm, fix, commit, permits = REHEARSAL_ARMS[run]
-        jobs = {}
-        for job in ('runner', 'kind'):
-            d = f'{base}/rehearsal/{run}/{job}'
-            total = json.loads([l for l in open(f'{d}/offline-live.log') if l.startswith('{')][-1])
-            seconds = [json.loads(l) for l in open(f'{d}/offline-live.jsonl')]
-            step = next(json.loads(l) for l in open(f'{d}/steps.jsonl') if '"offline-live"' in l)
-            start, end = step['startMs'] / 1000, (step['startMs'] + step['millis']) / 1000
-            # The first catch-up of each service that ended within the live window: the V10 host's on the imported log.
-            caught = {}
-            for line in open(f'{d}/timing.txt'):
-                m = TIMING.match(line)
-                if m and start - 120 <= ts(m.group(1)) <= end and m.group(2) not in caught:
-                    caught[m.group(2)] = int(m.group(3))
-            m = re.search(r'using Java (\S+)', open(f'{d}/jvm.txt').read())
-            jobs[job] = {
-                'sent': total['commands'],
-                'failed': total['failed'],
-                'errors': total['errors'],
-                'p50Ms': total['p50'],
-                'p99Ms': total['p99'],
-                'maxMs': total['max'],
-                'worstSecondP99Ms': max(s['p99'] for s in seconds),
-                'catchUpMs': caught,
-                'jdk': m.group(1) if m else 'not recorded',
-            }
+        jobs = {job: live(f'{base}/rehearsal/{run}/{job}') for job in ('runner', 'kind')}
         arms[arm] = {'run': run, 'fix': fix, 'commit': commit, 'maxCatchUps': permits, 'jobs': jobs}
     return arms
 
 
+# Each first-start directory: its pair, its arm, the code it measured and the commit the run built (that code plus the
+# rehearsal's instrumentation), all at two permits.
+FIRST_START = {
+    '44194947161-a1': ('6412-1', 'parent', '0d2017aa28', '95bd118e96'),
+    '44194947617-a1': ('6412-1', '6412', '60c63cdc6f', '17ce2d07ff'),
+    '44194947161-a2': ('6412-2', 'parent', '0d2017aa28', '95bd118e96'),
+    '44194947617-a2': ('6412-2', '6412', '60c63cdc6f', '17ce2d07ff'),
+    '44203434208': ('patch-1', 'parent', '0d2017aa28', '95bd118e96'),
+    '44203434241': ('patch-1', 'patch', '0249db185b', '6781a666aa'),
+    '44203470768': ('patch-2', 'parent', '0d2017aa28', '95bd118e96'),
+    '44203470883': ('patch-2', 'patch', '0249db185b', '6781a666aa'),
+}
+
+
+def first_start(base):
+    arms = {}
+    for name in sorted(os.listdir(f'{base}/first-start')) if os.path.isdir(f'{base}/first-start') else []:
+        pair, arm, code, commit = FIRST_START[name]
+        run, _, attempt = name.partition('-a')
+        arms[f'{pair}.{arm}'] = {
+            'pair': pair, 'arm': arm, 'code': code, 'commit': commit, 'maxCatchUps': 2, 'dir': name,
+            'run': run, 'attempt': int(attempt or 1),
+            'jobs': {job: live(f'{base}/first-start/{name}/{job}') for job in ('runner', 'kind')},
+        }
+    return dict(sorted(arms.items()))
+
+
 def summary(base):
-    return {'lostLeases': lost_leases(base), 'handover': handover(base), 'rehearsal': rehearsal(base)}
+    return {
+        'lostLeases': lost_leases(base), 'handover': handover(base), 'rehearsal': rehearsal(base),
+        'firstStart': first_start(base),
+    }
 
 
 def seconds(ms):
@@ -163,6 +200,12 @@ def tables(s):
         for job, j in a['jobs'].items():
             print(f"  {arm} {job:6} run {a['run']}: failed {j['failed']} of {j['sent']}, p99 {j['p99Ms']} ms, "
                   f"worst second p99 {j['worstSecondP99Ms']} ms, catch-up {j['catchUpMs']}")
+    print('first start (two permits, by pairs in one window)')
+    for key, a in s['firstStart'].items():
+        for job, j in a['jobs'].items():
+            print(f"  {key:15} {a['code']} {job:6} run {a['run']} attempt {a['attempt']}: failed {j['failed']} of "
+                  f"{j['sent']}, p99 {j['p99Ms']} ms, worst second p99 {j['worstSecondP99Ms']} ms, catch-up "
+                  f"{j['catchUpMs'].get('example-service')} ms")
 
 
 if __name__ == '__main__':
