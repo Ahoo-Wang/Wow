@@ -181,7 +181,7 @@ class TargetCheckpointStoreTest {
     @Test
     fun `an import on MongoDB should keep its checkpoints and its reserved keys in the target, and compare reads them`() {
         val target = "wow_v10_target_checkpoints"
-        migrate("""{ "type": "mongo", "uri": "${WowContainers.mongo.replicaSetUrl}", "database": "$target" }""")
+        migrate("""{ "type": "mongo", "uri": "${WowContainers.mongoUrl}", "database": "$target" }""")
         val database = NineXMongoStore.client.getDatabase(target)
         val stored = database.getCollection(MongoCheckpointTable.CHECKPOINTS).find().toList().single()
         stored.getString("_id").assert().isEqualTo("example")
@@ -220,7 +220,7 @@ class TargetCheckpointStoreTest {
               "map": "migration-map.json",
               "manifests": ["manifest.json"],
               "checkpoint": "target:example",
-              "source": { "uri": "${WowContainers.mongo.replicaSetUrl}", "database": "${nineX.name}" },
+              "source": { "uri": "${WowContainers.mongoUrl}", "database": "${nineX.name}" },
               "target": $target,
               "partitions": { "${NineXExample.CONTEXT}": 4 },
               "pageSize": 2

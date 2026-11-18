@@ -285,6 +285,50 @@ Until V10 writes anything, rolling back is switching traffic back to 9.x. Once V
 
 Only event streams go back. Reserved keys V10 made, aggregates it parked and its projections' views do not, and 9.x does not publish the exported streams on its event bus.
 
+## A sharded MongoDB
+
+The tool reads a sharded 9.x store and writes a sharded V10 target through the cluster's `mongos` routers. Nothing in it is specific to sharding: it uses what the routers offer any client.
+
+### What is supported
+
+- **The source.** Give `source.uri` the routers (`mongodb://mongos-1,mongos-2/`). The tool reads with the URI's read preference: keep the default, the primary, so a resumed import and the tail read the latest commits. Its reads and counts go through the routers, which leave out the documents a chunk migration has not yet cleaned up, so the balancer may run. Each `<aggregate>_event_stream` needs 9.x's `(aggregateId, version)` index, which the import walks in, unique for `export` ([Roll back](#roll-back)). 9.x's usual shard key, `{aggregateId: "hashed"}`, keeps that index unique, whether 9.x built it before the collection was sharded or after.
+- **The target.** Give `target.uri` the routers. The tool creates each V10 collection the first time it touches it and shards it as the nodes would, by the keys in [Sharded clusters](../operate/mongodb#sharded-clusters):
+  - the log by `{partition: 1}`, split at each partition and spread over the shards while it is empty;
+  - the snapshots by `{tenant_id: 1, aggregate_id: "hashed"}`;
+  - the reserved keys by `{tenant_id: 1, key: "hashed"}`.
+
+  The checkpoints, the leases and the failure ledger stay unsharded. The connection's user needs the rights to shard: `clusterManager`, or `enableSharding`, `splitChunk` and `moveChunk` on the database.
+- **The tool always shards on a `mongos`.** `target` has no `sharding` or `ddl` choice yet ([#6470](https://github.com/Ahoo-Wang/Wow/issues/6470)). It shards even where the nodes run `wow.mongo.sharding: none`, and it needs the rights to create collections and indexes. A collection already sharded by another key stops the import with an error that names it.
+
+### What was rehearsed
+
+`ShardedMigrationTest` runs on the repository's sharded cluster: two shards of three members behind two `mongos`, on MongoDB 7.0 (`test/mongo-cluster/cluster.sh up sharded`, then `./gradlew :migrate-data:integrationTest -Dwow-test.mongo.url=$(test/mongo-cluster/cluster.sh url sharded)`). It shards the 9.x example's store as a 9.x script usually does: the event streams by `{aggregateId: "hashed"}` and the snapshots by `{_id: "hashed"}`. It builds the unique index before sharding one collection and after sharding the other. It writes 20 copies of each instance, spread over both shards, and runs these through the routers into a target database on the same cluster:
+
+1. `check` and `import`;
+2. `import --restart` over a target that already holds part of an instance's history;
+3. `compare` (no differences) and `snapshot`;
+4. `export` of a stream V10 wrote after.
+
+It checks that the target's log and snapshot collections are sharded by the keys above and that the log's chunks are on both shards. The cluster runs the MongoDB backend's tests every night. It runs migrate-data's tests only when someone starts them. No real 9.x data has been migrated between sharded clusters, so rehearse yours.
+
+### What the operator redoes, and when
+
+- **The 9.x sharding script.** It names 9.x's collections and keys: do not run it on the V10 names. The tool and the nodes shard the V10 collections as they create them, and a collection that a script has already sharded by another key makes both of them refuse it. Leave the script out of the V10 deployment. To shard by hand, with `wow.mongo.sharding: none` on the nodes, use the keys in [Sharded clusters](../operate/mongodb#sharded-clusters). Until the tool can be told to leave the sharding to you ([#6470](https://github.com/Ahoo-Wang/Wow/issues/6470)), it shards the collections it creates.
+- **Hand-made snapshot indexes.** An index made on a 9.x `<aggregate>_snapshot` does not carry over. The V10 snapshots are in `wow_snapshot__<context>__<aggregate>`, with renamed fields:
+
+  | 9.x | V10 |
+  | --- | --- |
+  | `_id` | `aggregate_id` |
+  | `tenantId` | `tenant_id` |
+  | `ownerId` | `owner_id` |
+  | `spaceId` | `space_id` |
+  | `firstEventTime` | `first_event_time` |
+  | `eventTime` | `last_event_time` |
+  | `tags` | `access`, each tag under the attribute the map names |
+
+  The state stays under `state`, at its own paths, and `deleted` keeps its name. V10 creates the indexes its own queries need: the snapshot's key and `{tenant_id, owner_id}` and `{tenant_id, space_id}` over the snapshots not deleted. Rebuild only those your own queries need, on the new names. Build them after `snapshot` has written the collection and before traffic switches. A build on a full collection takes time inside the window, so time it in the rehearsal. In an online cut-over, build them after the dual run's `snapshot` and before the final pass, which then only adds the changed instances.
+- **Event-stream indexes.** An index made for 9.x's event streams has no V10 counterpart: the V10 log keeps its own. A 9.x index the import needs, the `(createTime, _id)` index of the tail, is created on the 9.x side, as [Follow 9.x](#follow-9-x) says.
+
 ## Limits
 
 - Only the 9.x MongoDB event store is read. Move a Redis or Elasticsearch event store, or a compensation service on Elasticsearch, to MongoDB in 9.x first.

@@ -59,8 +59,8 @@ class NineXExportTest {
                 {
                   "map": "migration-map.json",
                   "manifests": ["manifest.json"],
-                  "source": { "uri": "${WowContainers.mongo.replicaSetUrl}", "database": "${nineX.name}" },
-                  "target": { "type": "mongo", "uri": "${WowContainers.mongo.replicaSetUrl}", "database": "$database" },
+                  "source": { "uri": "${WowContainers.mongoUrl}", "database": "${nineX.name}" },
+                  "target": { "type": "mongo", "uri": "${WowContainers.mongoUrl}", "database": "$database" },
                   "partitions": { "${NineXExample.CONTEXT}": $PARTITIONS },
                   "pageSize": 2
                 }

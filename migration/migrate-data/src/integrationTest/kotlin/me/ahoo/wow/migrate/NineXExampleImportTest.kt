@@ -69,7 +69,7 @@ class NineXExampleImportTest {
                 {
                   "map": "migration-map.json",
                   "manifests": ["manifest.json"],
-                  "source": { "uri": "${WowContainers.mongo.replicaSetUrl}", "database": "${nineX.name}",
+                  "source": { "uri": "${WowContainers.mongoUrl}", "database": "${nineX.name}",
                               "createCommitTimeIndex": $createIndex },
                   "target": $target,
                   "partitions": { "${NineXExample.CONTEXT}": $PARTITIONS },
@@ -268,7 +268,7 @@ class NineXExampleImportTest {
     @Test
     fun `the 9x example's data imports into the V10 log on MongoDB`() {
         val target =
-            """{ "type": "mongo", "uri": "${WowContainers.mongo.replicaSetUrl}", "database": "$TARGET_DATABASE" }"""
+            """{ "type": "mongo", "uri": "${WowContainers.mongoUrl}", "database": "$TARGET_DATABASE" }"""
         migrate(
             target,
             MongoEventLog(NineXMongoStore.client, TARGET_DATABASE, NineXExample.CONTEXT, PARTITIONS),
@@ -281,7 +281,7 @@ class NineXExampleImportTest {
         // Finding A4-7: the 9.x order archived by a stream holding only order_archived, which V10 retired (D219).
         NineXMongoStore.insert(nineX, NineXExample.archived(NineXExample.resource("order-stream-v4.json")))
         val database = "wow_v10_retired"
-        val target = """{ "type": "mongo", "uri": "${WowContainers.mongo.replicaSetUrl}", "database": "$database" }"""
+        val target = """{ "type": "mongo", "uri": "${WowContainers.mongoUrl}", "database": "$database" }"""
         val log = MongoEventLog(NineXMongoStore.client, database, NineXExample.CONTEXT, PARTITIONS)
         val manifest = NineXExample.manifestText(NineXExample.archivingManifest())
 

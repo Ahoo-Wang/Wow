@@ -83,7 +83,7 @@ class NineXCompensationImportTest {
     private fun config(target: String, map: String = NineXCompensationExample.mapText(), uri: Boolean = false): Path {
         Files.writeString(directory.resolve("migration-map.json"), map)
         Files.writeString(directory.resolve("manifest.json"), NineXCompensationExample.MANIFEST_TEXT)
-        val compensationUri = if (uri) """, "uri": "${WowContainers.mongo.replicaSetUrl}"""" else ""
+        val compensationUri = if (uri) """, "uri": "${WowContainers.mongoUrl}"""" else ""
         return directory.resolve("migrate-data.json").also {
             Files.writeString(
                 it,
@@ -91,7 +91,7 @@ class NineXCompensationImportTest {
                 {
                   "map": "migration-map.json",
                   "manifests": ["manifest.json"],
-                  "source": { "uri": "${WowContainers.mongo.replicaSetUrl}", "database": "${nineX.name}" },
+                  "source": { "uri": "${WowContainers.mongoUrl}", "database": "${nineX.name}" },
                   "target": $target,
                   "partitions": { "${NineXExample.CONTEXT}": $PARTITIONS },
                   "pageSize": 2,
@@ -110,7 +110,7 @@ class NineXCompensationImportTest {
     @Suppress("LongMethod") // One import, then the ledger and the ops API over it, in the order an operator meets them.
     fun `the unresolved 9x executions import into the failure ledger on MongoDB, and the ops API resumes them`(): Unit =
         runBlocking {
-            val target = """{ "type": "mongo", "uri": "${WowContainers.mongo.replicaSetUrl}", "database": "$TARGET" }"""
+            val target = """{ "type": "mongo", "uri": "${WowContainers.mongoUrl}", "database": "$TARGET" }"""
 
             // Without subscription mappings, the failures of every 9.x processor function would be lost.
             run("import", "--config", config(target, NineXExample.MAP_TEXT).toString()).assert()

@@ -223,8 +223,9 @@ internal data class CompensationConfig(val database: String, val service: String
 
 /**
  * The V10 log: [type] `postgres` (with [jdbcUrl], [username] and [password], through a pool of at most [poolSize]
- * connections) or `mongo` (with [uri] and [database], a replica set). Per-aggregate log stores are migrated by one run per store, each with a map of the
- * aggregates that store holds.
+ * connections) or `mongo` (with [uri] and [database]: a replica set, or a sharded cluster's mongos routers, on which
+ * the MongoDB stores shard the collections they create). Per-aggregate log stores are migrated by one run per store,
+ * each with a map of the aggregates that store holds.
  */
 internal data class TargetConfig(
     val type: String,

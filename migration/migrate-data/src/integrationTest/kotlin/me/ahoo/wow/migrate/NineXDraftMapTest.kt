@@ -46,8 +46,8 @@ class NineXDraftMapTest {
                 {
                   "map": "migration-map.json",
                   "manifests": ["manifest.json"],
-                  "source": { "uri": "${WowContainers.mongo.replicaSetUrl}", "database": "${nineX.name}" },
-                  "target": { "type": "mongo", "uri": "${WowContainers.mongo.replicaSetUrl}", "database": "$TARGET" },
+                  "source": { "uri": "${WowContainers.mongoUrl}", "database": "${nineX.name}" },
+                  "target": { "type": "mongo", "uri": "${WowContainers.mongoUrl}", "database": "$TARGET" },
                   "partitions": { "${NineXExample.CONTEXT}": 4 }
                 }
                 """.trimIndent(),

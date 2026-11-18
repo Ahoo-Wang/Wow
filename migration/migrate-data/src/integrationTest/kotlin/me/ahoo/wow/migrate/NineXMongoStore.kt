@@ -33,7 +33,12 @@ import java.util.concurrent.atomic.AtomicInteger
  * (9.x reads floats as `BigDecimal`, which the driver stores as `Decimal128`).
  */
 internal object NineXMongoStore {
-    val client: MongoClient by lazy { MongoClients.create(WowContainers.mongo.replicaSetUrl) }
+    val client: MongoClient by lazy { MongoClients.create(WowContainers.mongoUrl) }
+
+    /** Whether [client] talks to a mongos: `wow-test.mongo.url` names a sharded cluster. */
+    val sharded: Boolean by lazy {
+        client.getDatabase("admin").runCommand(Document("hello", 1)).getString("msg") == "isdbgrid"
+    }
 
     private val databases = AtomicInteger()
 
