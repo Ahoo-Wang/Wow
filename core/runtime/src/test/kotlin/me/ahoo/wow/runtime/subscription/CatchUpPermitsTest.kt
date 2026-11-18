@@ -17,6 +17,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Semaphore
 import me.ahoo.test.asserts.assert
@@ -182,6 +183,31 @@ class CatchUpPermitsTest {
                 runtime.stop()
             }
         }
+
+    @Test
+    fun `a partition whose log's tail ends should read what it gave and nothing after`(): Unit = runBlocking {
+        val ids = idsIn(0, ENTRIES + ENTRIES)
+        val memory = InMemoryEventLog(partitions = 2)
+        // The tail gives the backlog, then ends, as a log that closes would.
+        val ending = object : EventLog by memory {
+            override fun tail(partition: Int, after: Long?): Flow<LogEntry> =
+                memory.tail(partition, after).take(ENTRIES)
+        }
+        val appender = Appender(ending)
+        ids.take(ENTRIES).forEach { appender.append(it) }
+        val runtime = runtime(projector(), log = ending)
+        runtime.start()
+        try {
+            runtime.startPartition(0)
+            eventually { handled.size == ENTRIES }
+            ids.drop(ENTRIES).forEach { appender.append(it) }
+            delay(UNPERMITTED)
+            // The partition's one reader was its shared tail: its reads ended with the tail.
+            sequencesOf(ids).assert().isEqualTo((1L..ENTRIES).toList())
+        } finally {
+            runtime.stop()
+        }
+    }
 
     @Test
     fun `no more partitions than the permits should catch up at once`(): Unit = runBlocking {

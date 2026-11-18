@@ -87,24 +87,25 @@ internal class PartitionRunner(
         readers.launchWorker("shared tail of partition $partition") {
             opened.await()
             retryForever(options.readRetry, { "read the shared tail of partition $partition" }) {
-                source.tail(partition, head.takeIf { it > 0 }).collect { entry ->
-                    lock.withLock {
-                        if (entry.position.sequence > head) {
-                            val iterator = joined.iterator()
-                            while (iterator.hasNext()) {
-                                val worker = iterator.next()
-                                if (!worker.tryAccept(entry)) {
-                                    iterator.remove()
-                                    catchUp(worker)
-                                }
-                            }
-                            head = entry.position.sequence
-                        }
-                    }
-                }
+                source.tail(partition, head.takeIf { it > 0 }).collect(::fanOut)
             }
             // The tail ended: the partition's reads end with it.
             false
+        }
+    }
+
+    /** Hands [entry] to the joined workers; one without room for it is detached and catches up on its own. */
+    private suspend fun fanOut(entry: SourcedEntry) = lock.withLock {
+        if (entry.position.sequence > head) {
+            val iterator = joined.iterator()
+            while (iterator.hasNext()) {
+                val worker = iterator.next()
+                if (!worker.tryAccept(entry)) {
+                    iterator.remove()
+                    catchUp(worker)
+                }
+            }
+            head = entry.position.sequence
         }
     }
 
