@@ -133,7 +133,7 @@ internal object QueryPropertiesSource {
     fun properties(
         state: KSClassDeclaration,
         problems: MutableList<String>,
-        origins: MutableSet<KSFile> = linkedSetOf(),
+        origins: MutableSet<KSFile>,
     ): List<Property> {
         val properties = linkedMapOf<String, Property>()
         collect(state, STATE, listOf(state.qualifiedName!!.asString()), properties, problems, origins)
