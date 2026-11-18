@@ -78,16 +78,16 @@ internal object ContractDerivation {
                     )
                 }
             }
-            val derived = project.configurations.create(derivedName(sourceSet)) { derived ->
+            // Declarable alone from its creation, as a service's runtimeElements extends it: a rule of the build on
+            // resolvable configurations, as it adds a platform of its own, must not reach the published variant.
+            val derived = project.configurations.dependencyScope(derivedName(sourceSet)) { derived ->
                 derived.description = "The contracts of the api modules source set ${sourceSet.name} depends on."
-                derived.isCanBeConsumed = false
-                derived.isCanBeResolved = false
                 derived.dependencies.addAllLater(
                     graph.incoming.resolutionResult.rootComponent.map { root ->
                         contractsOf(root, dependencies, projectsOnly)
                     },
                 )
-            }
+            }.get()
             val into = listOf(sourceSet.compileClasspathConfigurationName, sourceSet.runtimeClasspathConfigurationName) +
                 listOfNotNull(
                     JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME

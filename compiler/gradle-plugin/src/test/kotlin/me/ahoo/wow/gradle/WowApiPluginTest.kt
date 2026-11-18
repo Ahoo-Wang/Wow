@@ -330,6 +330,9 @@ class WowApiPluginTest {
         val root = ProjectBuilder.builder().withProjectDir(directory).withName("services").build()
         val api = ProjectBuilder.builder().withParent(root).withName("shop-api")
             .withProjectDir(File(directory, "shop-api")).build()
+        // As Wow's own build gives its resolvable class paths a platform of the build alone (`wowBuildPlatform`).
+        val buildOnly = api.configurations.dependencyScope("buildOnly").get()
+        api.configurations.matching { it.isCanBeResolved }.configureEach { it.extendsFrom(buildOnly) }
         api.pluginManager.apply(WowPlugin.API_ID)
         api.pluginManager.apply("org.jetbrains.kotlin.jvm")
         api.extensions.getByType(JavaPluginExtension::class.java).withSourcesJar()
@@ -351,6 +354,18 @@ class WowApiPluginTest {
         jar.archiveClassifier.get().assert().isEqualTo("contract-sources")
         (api.components.getByName("java") as SoftwareComponentInternal).usages.map { it.name }.assert()
             .contains(ContractRole.CONTRACT_SOURCES_ELEMENTS)
+    }
+
+    @Test
+    fun `an api module's published contract variants should be consumable alone, from their creation`() {
+        val api = publishing()
+        listOf(
+            ContractRole.CONTRACT_API_ELEMENTS,
+            ContractRole.CONTRACT_RUNTIME_ELEMENTS,
+            ContractRole.CONTRACT_SOURCES_ELEMENTS,
+        ).forEach { name ->
+            api.configurations.getByName(name).hierarchy.map { it.name }.assert().doesNotContain("buildOnly")
+        }
     }
 
     @Test
