@@ -25,6 +25,8 @@ import me.ahoo.wow.manifest.tools.ManifestJson
 import org.gradle.api.GradleException
 import org.gradle.api.Project
 import org.gradle.api.artifacts.ExternalModuleDependency
+import org.gradle.api.file.SourceDirectorySet
+import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.util.GradleVersion
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -172,6 +174,22 @@ class WowPluginTest {
             "Add id(\"com.google.devtools.ksp\") version \"${WowPlugin.kspVersion}\" to the module's plugins",
             "com.google.devtools.ksp:symbol-processing-gradle-plugin:${WowPlugin.kspVersion}",
         )
+    }
+
+    @Test
+    fun `each source set's Kotlin compile and KSP should take its roots, relative to the project, as an input`() {
+        // KSP is not on this class path, and the test compile's other inputs do not evaluate here:
+        // SourceRootSwitchFunctionalTest shows every one of the four tasks takes the input.
+        val domain = project(id = WowPlugin.ID)
+        val roots = domain.tasks.getByName("compileKotlin").inputs.properties[SourceRoots.INPUT] as List<*>
+        roots.assert().contains("src/main/kotlin")
+        roots.forEach { it.toString().assert().doesNotStartWith("/") }
+        val sourceSets = domain.extensions.getByType(SourceSetContainer::class.java)
+        SourceRoots.rootsOf(domain, sourceSets.getByName("test")).assert().contains("src/test/kotlin")
+        // Moved under another root, as a staged migration's sources are: the input moves with it.
+        val main = sourceSets.getByName("main")
+        (main.extensions.getByName("kotlin") as SourceDirectorySet).setSrcDirs(listOf("build/staged/main/kotlin"))
+        SourceRoots.rootsOf(domain, main).assert().containsExactly("build/staged/main/kotlin")
     }
 
     @Test

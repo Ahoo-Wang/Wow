@@ -87,7 +87,8 @@ class ManifestFragmentTest {
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
         fragments(compilation).assert().isEmpty()
         result.messages.assert().contains(
-            "No Manifest fragment and no model provider: the module declares 2 @BoundedContext"
+            "No Manifest fragment and no model provider: the module declares 2 @BoundedContext; set the KSP option " +
+                ModelSymbolProcessorProvider.CONTEXT_OPTION,
         )
     }
 
@@ -124,7 +125,10 @@ class ManifestFragmentTest {
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
         fragments(compilation).assert().isEmpty()
         result.messages.assert().contains(
-            "No Manifest fragment and no model provider: the module declares 0 @BoundedContext"
+            "No Manifest fragment and no model provider: the module declares 0 @BoundedContext",
+            "declare one @BoundedContext, or set the KSP option ${ModelSymbolProcessorProvider.CONTEXT_OPTION}",
+            "KSP's incremental caches describe other sources (a source root that moved): build the module clean, " +
+                "or rerun its KSP task (--rerun)",
         )
     }
 
