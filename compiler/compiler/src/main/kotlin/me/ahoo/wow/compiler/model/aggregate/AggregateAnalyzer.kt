@@ -173,8 +173,13 @@ internal class AggregateAnalyzer(
         val commandTypes = commandFunctions.mapNotNull { firstParameterClass(it, unwrapCommand = true) }
         // A command could name its aggregate where it is not @Unaddressed and its aggregate's id is not its owner's.
         if (idSource != AggregateIdSource.OWNER.name) {
-            commandTypes.distinct().filterNot { it.hasAnnotation(Unaddressed::class.java.name) }
-                .mapNotNullTo(warnings) { AggregateIdResolver.unmarkedId(it, problems) }
+            commandFunctions.groupBy { firstParameterClass(it, unwrapCommand = true) }
+                .filterKeys { it != null && !it.hasAnnotation(Unaddressed::class.java.name) }
+                .forEach { (command, handlers) ->
+                    val creates = creationOf(command!!) != "NONE"
+                    AggregateIdResolver.unmarkedId(command, handlers, creates, problems)
+                        ?.let { if (creates) problems += it else warnings += it }
+                }
         }
         val afters = root.functionsNamedOrAnnotated(AFTER_COMMAND, AFTER_COMMAND_ANNOTATION, problems)
             .mapNotNull { function ->

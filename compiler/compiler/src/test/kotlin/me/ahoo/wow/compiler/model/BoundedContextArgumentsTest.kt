@@ -37,7 +37,7 @@ class BoundedContextArgumentsTest {
         import me.ahoo.wow.api.annotation.CreateAggregate
 
         @CreateAggregate
-        data class Open(val id: String)
+        data class Open(@me.ahoo.wow.api.annotation.AggregateId val id: String)
         data class Opened(val id: String)
 
         @AggregateRoot

@@ -44,7 +44,7 @@ class LifecycleCompositionTest {
         import me.ahoo.wow.api.lifecycle.OwnerTransferred
 
         @CreateAggregate
-        data class Open(val id: String)
+        data class Open(@me.ahoo.wow.api.annotation.AggregateId val id: String)
         data class Close(val reason: String)
         data class Reopen(val reason: String)
         data class Touch(val by: String)

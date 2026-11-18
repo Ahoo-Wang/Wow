@@ -33,7 +33,7 @@ class RootStateTest {
         import me.ahoo.wow.api.annotation.CreateAggregate
 
         @CreateAggregate
-        data class Create(val id: String)
+        data class Create(@me.ahoo.wow.api.annotation.AggregateId val id: String)
         data class Created(val id: String)
         data class Add(val item: String)
         data class Added(val item: String)

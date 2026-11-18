@@ -39,7 +39,7 @@ class ProducedEventsTest {
         import me.ahoo.wow.api.lifecycle.AggregateDeleted
 
         @CreateAggregate
-        data class Create(val id: String)
+        data class Create(@me.ahoo.wow.api.annotation.AggregateId val id: String)
         data class Bump(val by: Int)
         data class Remove(val item: String)
 
@@ -176,7 +176,7 @@ class ProducedEventsTest {
                 import me.ahoo.wow.api.decide.Decision
 
                 @CreateAggregate
-                data class Open(val id: String)
+                data class Open(@me.ahoo.wow.api.annotation.AggregateId val id: String)
                 data class Opened(val id: String)
 
                 abstract class Base<S : Any>(protected val state: S) {

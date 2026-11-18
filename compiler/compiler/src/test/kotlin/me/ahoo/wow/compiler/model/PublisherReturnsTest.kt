@@ -40,7 +40,7 @@ class PublisherReturnsTest {
         import me.ahoo.wow.api.annotation.CreateAggregate
 
         @CreateAggregate
-        data class PlaceOrder(val id: String)
+        data class PlaceOrder(@me.ahoo.wow.api.annotation.AggregateId val id: String)
         data class OrderPlaced(val id: String)
 
         @AggregateRoot

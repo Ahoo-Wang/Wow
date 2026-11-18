@@ -62,6 +62,8 @@ class IdSourceManifestTest {
         import me.ahoo.wow.api.annotation.CreateAggregate
         $imports
 
+        // Its id is not the aggregate's: a creation that names none is also routed without one.
+        @Suppress("UnmarkedAggregateId")
         @CreateAggregate
         data class Open(val id: String)
         data class PutItem(val sku: String)

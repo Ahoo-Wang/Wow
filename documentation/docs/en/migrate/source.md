@@ -117,7 +117,7 @@ data class AdjustStock(val warehouseId: String, val code: String, val delta: Int
 
 A client that sent such a command to a route with the id sends it to the route without one ([HTTP and TypeScript Clients](./http-and-clients#routes)).
 
-A 9.x command with no `@AggregateId` whose `id`, often a 9.x `Identifier.id`, named its aggregate was routed by that id. V10 infers nothing from a property's name, so mark that `id` `@AggregateId`; the compiler's `UnmarkedAggregateId` warning lists every command that has such an `id` and no mark ([Name the aggregate in the body](../guide/aggregates#name-the-aggregate-in-the-body)). When the id is an interface's default getter that the command cannot mark there, an interface of a peer's jar, or one that commands of other aggregates implement too, override it in the command:
+A 9.x command with no `@AggregateId` whose `id`, often a 9.x `Identifier.id`, named its aggregate was routed by that id. V10 infers nothing from a property's name, so mark that `id` `@AggregateId`; the compiler's `UnmarkedAggregateId` lists every command that has such an `id` and no mark, wherever the command is compiled, the context's api module included: an error for a command that creates its aggregate, a warning for any other ([Name the aggregate in the body](../guide/aggregates#name-the-aggregate-in-the-body)). When the id is an interface's default getter that the command cannot mark there, an interface of a peer's jar, or one that commands of other aggregates implement too, override it in the command:
 
 <!-- sample: fragment -->
 

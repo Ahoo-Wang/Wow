@@ -105,7 +105,7 @@ data class RestockProduct(
 
 这个属性由命令类或它实现的接口声明，是 public 或 internal，并且 Wow 的 JSON 会写出它（没有 `@JsonIgnore`），所以每个发送方的命令体里都有它。一条命令只有一个属性指明聚合。编译器拒绝把它用在 `@Unaddressed` 命令或挂载命令上（它们的聚合由转换器找到），也拒绝用在 ID 即所有者 ID 的聚合上。接收这类命令的 `CommandTransformer` 会让服务在启动时失败。
 
-Wow 10 只按 `@AggregateId` 从命令体取得命令的聚合，从不按属性名推断。因此，命令有名为 `id` 的 `String` 属性却没有 `@AggregateId`，而它本可以指明聚合时，编译器会发出警告：这个 `id` 可以是存储的或计算的，可以是命令自己的，也可以来自接口，例如 9.x 的 `Identifier.id`。如果这个 `id` 指明的是聚合，就给它标注 `@AggregateId`：命令体指明聚合的 9.x 命令都需要这样做，其中包括 Saga 发送时不带 ID 的创建命令。如果 9.x 从路径绑定它，它只是重复了路由：删掉它，改读 `command.ref.id`（[命令体承载什么](../migrate/source#what-a-command-body-holds)）。指明其他东西的 `id` 保留不动，在命令类上标注 `@Suppress("UnmarkedAggregateId")` 即可消除警告。
+Wow 10 只按 `@AggregateId` 从命令体取得命令的聚合，从不按属性名推断。因此，命令有名为 `id` 的 `String` 属性却没有 `@AggregateId`，而它本可以指明聚合时，编译器会发出警告：这个 `id` 可以是存储的或计算的，可以是命令自己的，也可以来自接口，例如 9.x 的 `Identifier.id`。如果这个 `id` 指明的是聚合，就给它标注 `@AggregateId`：命令体指明聚合的 9.x 命令都需要这样做，其中包括 Saga 发送时不带 ID 的创建命令。如果 9.x 从路径绑定它，它只是重复了路由：删掉它，改读 `command.ref.id`（[命令体承载什么](../migrate/source#what-a-command-body-holds)）。指明其他东西的 `id` 保留不动，用 `@Suppress("UnmarkedAggregateId")` 说明这一点：标在命令类上；命令类在另一个模块中编译时（例如上下文的 api 模块，它的 `@Suppress` 到不了领域模块的编译），标在它的命令函数上。对创建聚合的命令（`@CreateAggregate` 或 `@AllowCreate`），这是编译错误而不是警告：创建命令不带 ID 发送时（例如 Saga 用 `CommandRequest.of(body)` 发送），会得到生成的 ID，无论它的 `id` 是什么，都会成为一个新聚合。其他命令不带 ID 发送时会在发送处被拒绝，所以对它们，警告只是更早地说明这一点。消息会指出这个 `id` 来自哪里：命令类自身、超类、接口的默认 getter，或 Java 的 getter。Java 命令标注它的字段，由公开的 getter 读取。
 
 ### 只在内部受理的命令 {#keep-a-command-internal}
 

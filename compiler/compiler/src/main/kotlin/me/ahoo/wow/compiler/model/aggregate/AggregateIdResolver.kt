@@ -16,8 +16,11 @@ package me.ahoo.wow.compiler.model.aggregate
 import com.google.devtools.ksp.getAllSuperTypes
 import com.google.devtools.ksp.isPrivate
 import com.google.devtools.ksp.isProtected
+import com.google.devtools.ksp.isPublic
+import com.google.devtools.ksp.symbol.ClassKind
 import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSClassDeclaration
+import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 import com.google.devtools.ksp.symbol.KSPropertyDeclaration
 import com.google.devtools.ksp.symbol.Origin
 import me.ahoo.wow.compiler.model.symbol.declarations
@@ -40,7 +43,7 @@ internal data class AggregateIdBinding(val property: String, val json: String, v
  *
  * - more than one property is annotated;
  * - it is no `String`, or a `String?` of a command that does not create its aggregate, which must name one;
- * - it is private or protected, so the generated model cannot read it;
+ * - it is private or protected, so the generated model cannot read it: a Java field is read by its public getter;
  * - Wow's JSON does not write it (`@JsonIgnore`, or the class's `@JsonIgnoreProperties` names it), so a sender's
  *   body would not hold it;
  * - the command is `@Unaddressed`: its transformer finds its aggregate.
@@ -78,7 +81,7 @@ internal object AggregateIdResolver {
                 problems += "$where is nullable: only a command that creates its aggregate may leave its id out, " +
                     "which admission then generates"
         }
-        if (property.isPrivate() || property.isProtected() || property.getter?.isPrivateGetter() == true) {
+        if (!property.readable(command)) {
             problems += "$where is not visible to the generated model: make it public or internal"
         }
         val ignored = command.jsonIgnoredProperties(problems)
@@ -95,30 +98,90 @@ internal object AggregateIdResolver {
     }
 
     /**
-     * The warning of a [command] that has a `String` property named `id`, stored or computed, its own or a supertype's
-     * (9.x's `Identifier.id`), and no `@AggregateId` property: Wow 10 does not take a command's aggregate from its body
-     * by a property's name, as 9.x did. None where the command suppresses it ([UNMARKED_AGGREGATE_ID]), nor where its
-     * source is not compiled here: its author marks it, and a library's `@Suppress` does not reach this compilation. A
-     * `@Suppress` without a value is one of [problems].
+     * The report of a [command] that Wow's JSON writes a `String` property named `id` of, stored or computed, its own
+     * or a supertype's (9.x's `Identifier.id`), and that has no `@AggregateId` property: Wow 10 does not take a
+     * command's aggregate from its body by a property's name, as 9.x did. Its class may be compiled here or in a
+     * library, an api module's jar, as a context's commands are. None where the command's class suppresses it
+     * ([UNMARKED_AGGREGATE_ID]), or one of its [handlers] does: a library's `@Suppress` is kept only in its source, so
+     * its command function is where a command of a library suppresses it. A `@Suppress` without a value is one of
+     * [problems].
+     *
+     * The caller makes it an error for a command that [creates] its aggregate and a warning for any other, and the
+     * two severities are the two outcomes of the same send. A creation sent without an aggregate id, as a saga's
+     * `CommandRequest.of(body)` or a client's route without an id sends it, takes a generated id: a new aggregate
+     * where 9.x addressed the one its `id` named, silently, so the build refuses it until the `id` is marked or the
+     * command says it is not the aggregate's. Any other command sent without an id is refused where it is sent, by
+     * admission or for want of a route, so the warning only says so earlier.
      */
-    fun unmarkedId(command: KSClassDeclaration, problems: MutableList<String>): String? {
-        if (command.origin !in SOURCE || command.suppresses(UNMARKED_AGGREGATE_ID, problems)) {
-            return null
-        }
+    fun unmarkedId(
+        command: KSClassDeclaration,
+        handlers: List<KSFunctionDeclaration>,
+        creates: Boolean,
+        problems: MutableList<String>,
+    ): String? {
+        val suppressed = command.suppresses(UNMARKED_AGGREGATE_ID, problems) ||
+            handlers.any { it.suppresses(UNMARKED_AGGREGATE_ID, problems) }
         val properties = propertiesOf(command)
-        val id = properties.any {
-            it.simpleName.asString() == ID && it.type.resolve().declaration.qualifiedName?.asString() in STRINGS
-        }
-        if (!id || properties.any { it.annotated() }) {
+        if (suppressed || properties.any { it.annotated() }) {
             return null
         }
+        val ignored = command.jsonIgnoredProperties(problems)
+        val naming = command.jsonNaming(problems)
+        val id = properties.firstOrNull {
+            it.simpleName.asString() == ID && it.type.resolve().declaration.qualifiedName?.asString() in STRINGS &&
+                it.readable(command) && !it.jsonIgnored(problems) && ID !in ignored &&
+                it.wireName(problems, naming) !in ignored
+        } ?: return null
         val name = command.simpleName.asString()
-        return "command $name has a String property $ID and no @AggregateId property: Wow 10 does not take a " +
-            "command's aggregate from its body unless a property is marked @AggregateId. If $ID names $name's " +
-            "aggregate, mark it @AggregateId, as a 9.x command whose body named its aggregate needs, a creation a " +
-            "saga sends without an aggregate id among them. If 9.x bound it from the path, it only repeated the " +
-            "route: remove it and read command.ref.id. Otherwise suppress this with " +
-            "@Suppress(\"$UNMARKED_AGGREGATE_ID\")."
+        val ways = "Mark $ID @AggregateId if it names $name's aggregate (an inherited $ID is marked where the " +
+            "command overrides it), or, if it names something else, suppress this with " +
+            "@Suppress(\"$UNMARKED_AGGREGATE_ID\") on the command class, or on its command function where the class " +
+            "is compiled in another module."
+        if (creates) {
+            return "command $name creates its aggregate and has a String property $ID ${originOf(command, id)} and " +
+                "no @AggregateId property: sent without an aggregate id, as a saga's CommandRequest.of(body) or a " +
+                "client's route without an id sends it, it creates a new aggregate under a generated id, whatever " +
+                "its $ID holds. $ways"
+        }
+        return "command $name has a String property $ID ${originOf(command, id)} and no @AggregateId property: " +
+            "Wow 10 does not take a command's aggregate from its body unless a property is marked @AggregateId. If " +
+            "$ID names $name's aggregate, mark it @AggregateId, as a 9.x command whose body named its aggregate " +
+            "needs, a creation a saga sends without an aggregate id among them; an inherited $ID is marked where the " +
+            "command overrides it. If 9.x bound it from the path, it only repeated the route: remove it and read " +
+            "command.ref.id. Otherwise suppress this with @Suppress(\"$UNMARKED_AGGREGATE_ID\") on the command " +
+            "class, or on its command function where the class is compiled in another module."
+    }
+
+    /**
+     * Where [command]'s [property] comes from: declared by the command's class or a supertype, an interface's default
+     * getter among them; a library's class is said to be compiled elsewhere.
+     */
+    private fun originOf(command: KSClassDeclaration, property: KSPropertyDeclaration): String {
+        val owner = property.parentDeclaration as KSClassDeclaration
+        val declared = when {
+            // A Java bean's private field, which Wow's JSON and the model read through its getter.
+            property.origin in JAVA && property.isPrivate() ->
+                "read by ${owner.qualifiedName!!.asString()}'s getter getId()"
+            owner == command -> "declared by ${owner.qualifiedName!!.asString()}"
+            owner.classKind != ClassKind.INTERFACE -> "inherited from the class ${owner.qualifiedName!!.asString()}"
+            // A class that does not override an interface's property inherits its default getter.
+            else -> "inherited from the interface ${owner.qualifiedName!!.asString()}'s default getter"
+        }
+        return if (command.origin in SOURCE) "($declared)" else "($declared, compiled in another module)"
+    }
+
+    /**
+     * Whether the generated model, and Wow's JSON, read this property of [command]: a public or internal one (a
+     * Kotlin property's getter is as visible as the property), or a Java field, whatever its visibility, that
+     * [command] has a public getter of (`getId()`), which a Kotlin caller reads as the property.
+     */
+    private fun KSPropertyDeclaration.readable(command: KSClassDeclaration): Boolean {
+        if (!isPrivate() && !isProtected()) {
+            return true
+        }
+        val name = simpleName.asString()
+        val getter = "get" + name.first().uppercaseChar() + name.substring(1)
+        return origin in JAVA && command.getAllFunctions().any { it.simpleName.asString() == getter && it.isPublic() }
     }
 
     /** The properties of [command] and its supertypes, the class's own first. */
@@ -147,4 +210,7 @@ internal object AggregateIdResolver {
 
     /** The origins of a declaration whose source this compilation reads. */
     private val SOURCE: Set<Origin> = setOf(Origin.KOTLIN, Origin.JAVA)
+
+    /** The origins of a Java declaration, compiled here or in a library. */
+    private val JAVA: Set<Origin> = setOf(Origin.JAVA, Origin.JAVA_LIB)
 }

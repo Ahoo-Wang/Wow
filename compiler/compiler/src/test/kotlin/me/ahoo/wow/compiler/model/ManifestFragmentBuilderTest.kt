@@ -212,6 +212,8 @@ class ManifestFragmentBuilderTest {
         @BoundedContext(name = "orders")
         object OrdersContext
 
+        // Its id is not the aggregate's: a creation that names none is also routed without one.
+        @Suppress("UnmarkedAggregateId")
         @CreateAggregate
         data class PlaceOrder(val id: String)
         data class Ship(val note: String)

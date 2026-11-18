@@ -117,7 +117,7 @@ data class AdjustStock(val warehouseId: String, val code: String, val delta: Int
 
 原先把这类命令发往带 ID 路由的客户端，改为发往不带 ID 的路由（[HTTP 与 TypeScript 客户端](./http-and-clients#routes)）。
 
-9.x 命令没有 `@AggregateId`，但它的 `id`（常见的是 9.x 的 `Identifier.id`）指明了聚合时，9.x 按这个 id 路由命令。V10 不按属性名推断任何东西，所以要给这个 `id` 标注 `@AggregateId`；编译器的 `UnmarkedAggregateId` 警告会列出每个有这种 `id` 却没有标注的命令（[在命令体中指明聚合](../guide/aggregates#name-the-aggregate-in-the-body)）。如果这个 id 是接口的默认 getter，而命令没法在接口上标注，比如接口来自外部服务的 jar，或者别的聚合的命令也实现了它，就在命令里覆写它：
+9.x 命令没有 `@AggregateId`，但它的 `id`（常见的是 9.x 的 `Identifier.id`）指明了聚合时，9.x 按这个 id 路由命令。V10 不按属性名推断任何东西，所以要给这个 `id` 标注 `@AggregateId`；编译器的 `UnmarkedAggregateId` 会列出每个有这种 `id` 却没有标注的命令，无论命令在哪里编译，包括上下文的 api 模块：对创建聚合的命令是错误，对其他命令是警告（[在命令体中指明聚合](../guide/aggregates#name-the-aggregate-in-the-body)）。如果这个 id 是接口的默认 getter，而命令没法在接口上标注，比如接口来自外部服务的 jar，或者别的聚合的命令也实现了它，就在命令里覆写它：
 
 <!-- sample: fragment -->
 

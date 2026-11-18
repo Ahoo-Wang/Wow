@@ -61,7 +61,7 @@ class CommittedManifestTest {
         import me.ahoo.wow.api.annotation.CreateAggregate
 
         @CreateAggregate
-        data class PlaceOrder(val id: String)
+        data class PlaceOrder(@me.ahoo.wow.api.annotation.AggregateId val id: String)
         data class ConfirmStock(val productId: String)
         data class OrderPlaced(val id: String)
         data class StockConfirmed(val productId: String)
