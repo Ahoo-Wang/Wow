@@ -54,9 +54,10 @@ class SnapshotSharedStateTest : SnapshotSubscriptionFixtures() {
         val resumed = runtime(InMemoryCheckpointStore().also { it.save("shop", "wow.snapshot", 0, 2) }, other)
         resumed.start(setOf(0))
         eventually { resumed.hasHandled(SystemSubscriptions.SNAPSHOT, fifth) }
-        // Evolved from the stored snapshot, never replayed from the first stream.
-        log.reads.assert().isNotEmpty()
-        log.reads.none { it == 1 }.assert().isTrue()
+        // Evolved from the stored snapshot, never replayed from the first stream. Whether the log is read at all depends
+        // on how entries 3 to 5 meet in the lane: handled together, the latest reads the tail from 3; one at a time,
+        // each evolves the one before it in hand and nothing is read. So only where a read may start is asserted.
+        log.reads.all { it in 3..4 }.assert().isTrue()
         val snapshot = store.load(ref("a"))!!
         snapshot.version.assert().isEqualTo(5)
         snapshot.state.assert().isEqualTo("""{"total":5}""")
