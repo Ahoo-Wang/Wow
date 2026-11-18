@@ -175,8 +175,8 @@ load. The 10 s of warm-up are not recorded.
     round of 180 s.
   - In 44123394372's failing E3 rounds it was 5,663–11,733 a round.
 - **Two things this leaves:**
-  - The calibration probes measure the cold start on an unprimed suite, and send the rounds to the lowest share. This
-    is on X-106's list.
+  - A known gap of the benchmark harness: the calibration probes warm up for 10 s on a fresh node, whatever `warm_up`
+    says. On an unprimed suite they measure the cold start, and send the rounds to the lowest share.
   - A node's first half minute after start is not its steady state.
 
 ## L4: sustainable rates
