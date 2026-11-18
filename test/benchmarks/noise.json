@@ -1,52 +1,132 @@
 {
-  "e1-pg-uniform@100k": {
-    "throughput": 0.02,
-    "p50": 0.4624749239975163,
-    "p99": 0.2269236943274739
-  },
-  "e3-pg@100k": {
-    "throughput": 0.02,
-    "p50": 0.37324745064523357,
-    "p99": 0.39505105990867273
-  },
-  "mixed-pg@100k": {
-    "throughput": 0.02,
-    "p50": 0.4993312301055971,
-    "p99": 0.5628458900322039
-  },
   "e1-mongo-uniform@100k": {
     "throughput": 0.02,
-    "p50": 0.1992344838799785,
-    "p99": 0.12054382386378931
+    "p50": 0.02,
+    "p99": 0.02,
+    "pool": {
+      "entries": 4,
+      "cpus": [
+        "AMD EPYC 7763 64-Core Processor",
+        "INTEL(R) XEON(R) PLATINUM 8573C"
+      ]
+    }
   },
   "e1-mongo-zipf@100k": {
     "throughput": 0.02,
-    "p50": 0.27379608226986996,
-    "p99": 0.24076665312196133
+    "p50": 0.0233,
+    "p99": 0.0295,
+    "pool": {
+      "entries": 4,
+      "cpus": [
+        "AMD EPYC 7763 64-Core Processor",
+        "AMD EPYC 9V45 96-Core Processor",
+        "Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz"
+      ]
+    }
+  },
+  "e1-pg-uniform@100k": {
+    "throughput": 0.02,
+    "p50": 0.02,
+    "p99": 0.02,
+    "pool": {
+      "entries": 5,
+      "cpus": [
+        "AMD EPYC 7763 64-Core Processor",
+        "AMD EPYC 9V45 96-Core Processor",
+        "AMD EPYC 9V74 80-Core Processor",
+        "Intel(R) Xeon(R) 6975P-C"
+      ]
+    }
   },
   "e2-mongo@100k": {
     "throughput": 0.02,
-    "p50": 0.31595833632769577,
-    "p99": 0.11661721516912849
+    "p50": 0.1065,
+    "p99": 0.02,
+    "pool": {
+      "entries": 4,
+      "cpus": [
+        "AMD EPYC 9V74 80-Core Processor",
+        "INTEL(R) XEON(R) PLATINUM 8573C",
+        "Intel(R) Xeon(R) 6975P-C"
+      ]
+    }
   },
   "e3-mongo@100k": {
     "throughput": 0.02,
-    "p50": 0.18446155827516558,
-    "p99": 0.12244289187985435
+    "p50": 0.02,
+    "p99": 0.0226,
+    "pool": {
+      "entries": 4,
+      "cpus": [
+        "AMD EPYC 7763 64-Core Processor",
+        "INTEL(R) XEON(R) PLATINUM 8573C",
+        "Intel(R) Xeon(R) 6973P-C"
+      ]
+    }
+  },
+  "e3-pg@100k": {
+    "throughput": 0.02,
+    "p50": 0.3125,
+    "p99": 0.1646,
+    "pool": {
+      "entries": 5,
+      "cpus": [
+        "AMD EPYC 7763 64-Core Processor",
+        "AMD EPYC 9V45 96-Core Processor",
+        "AMD EPYC 9V74 80-Core Processor"
+      ]
+    }
   },
   "large-mongo@100k": {
     "throughput": 0.02,
-    "p50": 0.348350271960766,
-    "p99": 0.1711586850438303
+    "p50": 0.02,
+    "p99": 0.02,
+    "pool": {
+      "entries": 4,
+      "cpus": [
+        "AMD EPYC 9V45 96-Core Processor",
+        "AMD EPYC 9V74 80-Core Processor",
+        "INTEL(R) XEON(R) PLATINUM 8573C",
+        "Intel(R) Xeon(R) 6975P-C"
+      ]
+    }
   },
   "large-pg@100k": {
     "throughput": 0.02,
-    "p50": 0.8753287154813959,
-    "p99": 0.18714265859813917
+    "p50": 0.02,
+    "p99": 0.02,
+    "pool": {
+      "entries": 3,
+      "cpus": [
+        "AMD EPYC 7763 64-Core Processor",
+        "AMD EPYC 9V45 96-Core Processor",
+        "AMD EPYC 9V74 80-Core Processor"
+      ]
+    }
   },
   "mixed-mongo@100k": {
     "throughput": 0.02,
-    "p50": 0.6228659177310436,
-    "p99": 0.16819733169479534
+    "p50": 0.2943,
+    "p99": 0.0764,
+    "pool": {
+      "entries": 5,
+      "cpus": [
+        "AMD EPYC 7763 64-Core Processor",
+        "AMD EPYC 9V45 96-Core Processor"
+      ]
+    }
+  },
+  "mixed-pg@100k": {
+    "throughput": 0.02,
+    "p50": 0.02,
+    "p99": 0.02,
+    "pool": {
+      "entries": 3,
+      "cpus": [
+        "AMD EPYC 7763 64-Core Processor",
+        "AMD EPYC 9V74 80-Core Processor",
+        "Intel(R) Xeon(R) 6975P-C"
+      ]
+    }
   }
 }
