@@ -400,6 +400,68 @@ fun onSourcing(event: OrderPaid, commit: EventStream) {
 - The commit time is the decision's `scope.now`: a deadline the decision computes from it and the time the state reads agree.
 - History imported from 9.x keeps each stream's create time and operator as its commit's ([Migrate](../migrate/source#events-and-state)).
 
+### Read no clock
+
+A state reads no clock and no random source, in a property or in a sourcing function. The kernel rebuilds a state from its log on each node, after each restart and from each snapshot, and writes it for snapshots and the published stream: a clock gives each of those a value of its own, so one log gives different states. Time comes from the event or from the commit (`commit.commitTime`, [above](#read-the-commit)); a random value or an id is chosen when deciding (`scope.ids`) and carried by the event. A property computed from the time, an `isExpired` say, belongs to the reader: the state keeps the deadline, and the reader compares it with its own clock.
+
+The test DSL sees such a read only by chance. Its purity check writes the state as JSON before each command function and again after it and its after hooks, and fails the test when the two differ ([Testing](./testing#expect)). A property that writes what it reads from a millisecond clock makes the two writes differ only when they straddle a tick, so the test fails now and then; one that reads the date differs only across midnight. A sourcing function that reads a clock is not seen at all: the check compares the state around a decision, not two replays. A node checks nothing unless its kernel is built with `KernelOptions(verifyDecidePurity = true)`.
+
+A domain module refuses these calls at build with detekt's `ForbiddenMethodCall` and `ForbiddenImport` rules, in its detekt configuration:
+
+```yaml
+style:
+  ForbiddenMethodCall:
+    active: true
+    methods:
+      - value: 'java.lang.System.currentTimeMillis'
+        reason: 'A state reads no clock: the time comes from the event or the commit.'
+      - value: 'java.lang.System.nanoTime'
+        reason: 'A state reads no clock: the time comes from the event or the commit.'
+      - value: 'java.time.Instant.now'
+        reason: 'A state reads no clock: the time comes from the event or the commit.'
+      - value: 'java.time.LocalDate.now'
+        reason: 'A state reads no clock: the time comes from the event or the commit.'
+      - value: 'java.time.LocalDateTime.now'
+        reason: 'A state reads no clock: the time comes from the event or the commit.'
+      - value: 'java.time.LocalTime.now'
+        reason: 'A state reads no clock: the time comes from the event or the commit.'
+      - value: 'java.time.OffsetDateTime.now'
+        reason: 'A state reads no clock: the time comes from the event or the commit.'
+      - value: 'java.time.ZonedDateTime.now'
+        reason: 'A state reads no clock: the time comes from the event or the commit.'
+      - value: 'java.time.YearMonth.now'
+        reason: 'A state reads no clock: the time comes from the event or the commit.'
+      - value: 'java.time.Year.now'
+        reason: 'A state reads no clock: the time comes from the event or the commit.'
+      - value: 'java.time.Clock.systemUTC'
+        reason: 'A state reads no clock: the time comes from the event or the commit.'
+      - value: 'java.time.Clock.systemDefaultZone'
+        reason: 'A state reads no clock: the time comes from the event or the commit.'
+      - value: 'kotlin.time.Clock.System.now'
+        reason: 'A state reads no clock: the time comes from the event or the commit.'
+      - value: 'java.util.Date.<init>()'
+        reason: 'A state reads no clock: the time comes from the event or the commit.'
+      - value: 'java.util.UUID.randomUUID'
+        reason: 'A state reads no random source: the event carries the value.'
+      - value: 'kotlin.uuid.Uuid.Companion.random'
+        reason: 'A state reads no random source: the event carries the value.'
+      - value: 'java.lang.Math.random'
+        reason: 'A state reads no random source: the event carries the value.'
+      - value: 'java.util.Random.<init>()'
+        reason: 'A state reads no random source: the event carries the value.'
+      - value: 'java.util.concurrent.ThreadLocalRandom.current'
+        reason: 'A state reads no random source: the event carries the value.'
+  ForbiddenImport:
+    active: true
+    imports:
+      - value: 'kotlin.random.Random'
+        reason: 'A state reads no random source: the event carries the value.'
+```
+
+- `ForbiddenMethodCall` needs type resolution: it runs in `detektMain` (detekt 1.23), and the plain `detekt` task skips it.
+- It covers the whole module, command functions included, which take the time from `scope.now` and ids from `scope.ids` alike. A call that is meant takes `@Suppress("ForbiddenMethodCall")`, or `includes` narrows the rule to the state classes' files.
+- It sees the module's own calls: a clock read through a helper in another module, or a `Clock` passed in, passes.
+
 ## Run code after every command
 
 A function annotated `@AfterCommand`, or named `afterCommand`, runs after the command functions it applies to: those in `include`, all of them when `include` is empty, less those in `exclude`. It sees the state the command function saw, and returns events, which are appended after the command's own in the same stream. It does not run when the command is rejected, and it cannot reject. When it fails, the whole command fails and nothing is written.

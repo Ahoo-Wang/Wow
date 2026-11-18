@@ -108,7 +108,7 @@ Time stands still at `start`, 2026-01-01T00:00:00Z by default, until `advanceTim
 
 A rejection is a value, checked by its code. A rejection with events commits them, so `expectRejected` goes with `expectEvents`, `expectVersion` and `expectState` to check them and the state they left; a creation rejected with events fails the test, naming the command, since its events could never be committed. An exception decide throws is a failure, checked by its type; one that no `expectError` checks fails the test as it was thrown. After a command that committed nothing, `expectState` checks the state the aggregate is in.
 
-**Decide must not change the state.** In a spec, the kernel compares the state before and after each command function and after hook, and fails the test when one of them changed it directly. A change that does not go through an event would drift from the log at run time; the test catches it.
+**Decide must not change the state.** In a spec, the kernel compares the state before and after each command function and after hook, and fails the test when one of them changed it directly. A change that does not go through an event would drift from the log at run time; the test catches it. A clock read in the state it sees only by chance: a state reads none ([Read no clock](./aggregates#read-no-clock)).
 
 ### Start from a state
 

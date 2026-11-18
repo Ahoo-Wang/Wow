@@ -400,6 +400,68 @@ fun onSourcing(event: OrderPaid, commit: EventStream) {
 - 提交时间就是这次决定的 `scope.now`：决定据此计算的截止时间与状态读到的时间一致。
 - 从 9.x 导入的历史把每条流的创建时间和操作人保留为其提交的提交时间和操作人（[迁移](../migrate/source#events-and-state)）。
 
+### 不读时钟 {#read-no-clock}
+
+状态不读时钟，也不读随机源，属性里不读，演化函数里也不读。内核在每个节点上、每次重启后、从每个快照出发，都会从日志重建状态，还会为快照和发布流写出状态：时钟在每一次都给出各自的值，于是同一份日志得出不同的状态。时间来自事件或提交（`commit.commitTime`，[见上文](#read-the-commit)）；随机值或 ID 在决定时选定（`scope.ids`），由事件携带。由时间算出的属性（比如 `isExpired`）属于读取方：状态保存截止时间，读取方用自己的时钟与它比较。
+
+测试 DSL 只能碰巧看到这类读取。它的纯度检查在每个命令函数之前把状态写成 JSON，在该函数及其 after 钩子之后再写一次，两者不同则测试失败（[测试](./testing#expect)）。属性若写出它从毫秒时钟读到的值，只有两次写出恰好跨过一个刻度时才不同，所以测试偶尔失败；读日期的属性只在跨过午夜时才不同。演化函数读时钟则完全看不到：检查比较的是一次决定前后的状态，而不是两次重放。节点不做任何检查，除非其内核以 `KernelOptions(verifyDecidePurity = true)` 构建。
+
+领域模块可以在构建时用 detekt 的 `ForbiddenMethodCall` 和 `ForbiddenImport` 规则拒绝这些调用，写在它的 detekt 配置里：
+
+```yaml
+style:
+  ForbiddenMethodCall:
+    active: true
+    methods:
+      - value: 'java.lang.System.currentTimeMillis'
+        reason: 'A state reads no clock: the time comes from the event or the commit.'
+      - value: 'java.lang.System.nanoTime'
+        reason: 'A state reads no clock: the time comes from the event or the commit.'
+      - value: 'java.time.Instant.now'
+        reason: 'A state reads no clock: the time comes from the event or the commit.'
+      - value: 'java.time.LocalDate.now'
+        reason: 'A state reads no clock: the time comes from the event or the commit.'
+      - value: 'java.time.LocalDateTime.now'
+        reason: 'A state reads no clock: the time comes from the event or the commit.'
+      - value: 'java.time.LocalTime.now'
+        reason: 'A state reads no clock: the time comes from the event or the commit.'
+      - value: 'java.time.OffsetDateTime.now'
+        reason: 'A state reads no clock: the time comes from the event or the commit.'
+      - value: 'java.time.ZonedDateTime.now'
+        reason: 'A state reads no clock: the time comes from the event or the commit.'
+      - value: 'java.time.YearMonth.now'
+        reason: 'A state reads no clock: the time comes from the event or the commit.'
+      - value: 'java.time.Year.now'
+        reason: 'A state reads no clock: the time comes from the event or the commit.'
+      - value: 'java.time.Clock.systemUTC'
+        reason: 'A state reads no clock: the time comes from the event or the commit.'
+      - value: 'java.time.Clock.systemDefaultZone'
+        reason: 'A state reads no clock: the time comes from the event or the commit.'
+      - value: 'kotlin.time.Clock.System.now'
+        reason: 'A state reads no clock: the time comes from the event or the commit.'
+      - value: 'java.util.Date.<init>()'
+        reason: 'A state reads no clock: the time comes from the event or the commit.'
+      - value: 'java.util.UUID.randomUUID'
+        reason: 'A state reads no random source: the event carries the value.'
+      - value: 'kotlin.uuid.Uuid.Companion.random'
+        reason: 'A state reads no random source: the event carries the value.'
+      - value: 'java.lang.Math.random'
+        reason: 'A state reads no random source: the event carries the value.'
+      - value: 'java.util.Random.<init>()'
+        reason: 'A state reads no random source: the event carries the value.'
+      - value: 'java.util.concurrent.ThreadLocalRandom.current'
+        reason: 'A state reads no random source: the event carries the value.'
+  ForbiddenImport:
+    active: true
+    imports:
+      - value: 'kotlin.random.Random'
+        reason: 'A state reads no random source: the event carries the value.'
+```
+
+- `ForbiddenMethodCall` 需要类型解析：它在 `detektMain` 中运行（detekt 1.23），普通的 `detekt` 任务会跳过它。
+- 它覆盖整个模块，命令函数也在内，命令函数同样从 `scope.now` 取时间、从 `scope.ids` 取 ID。确实需要的调用加上 `@Suppress("ForbiddenMethodCall")`，或用 `includes` 把规则收窄到状态类所在的文件。
+- 它只看到模块自己的调用：经由另一个模块中的辅助函数读取时钟，或传入一个 `Clock`，都能通过。
+
 ## 在每条命令之后运行代码 {#run-code-after-every-command}
 
 标注 `@AfterCommand` 或名为 `afterCommand` 的函数，在它适用的命令函数之后运行：`include` 里的命令函数，`include` 为空时是全部，再减去 `exclude` 里的。它看到的是命令函数看到的那个状态，返回事件，这些事件在同一条流里追加在命令自己的事件之后。命令被拒绝时它不运行，它也不能拒绝。它失败时整条命令失败，什么都不写。
