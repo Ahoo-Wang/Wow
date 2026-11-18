@@ -32,7 +32,7 @@ Each `@Saga`, `@Projection` or `@Reactor` class gets `<processor>Handlers(servic
 
 ## Query fields
 
-With `wow-query-api` on the module's class path, each state gets `<State>Properties`: one `QueryField` constant per path a snapshot query can name, such as `ProductStateProperties.STATE__PRICE` for `state.price`, beside the system fields of `SnapshotProperties` ([Query Snapshots](./queries#write-a-query-in-kotlin)).
+With `wow-query-api` on the module's class path, each state gets `<State>Properties`: one `QueryField` constant per path a snapshot query can name, such as `ProductStateProperties.STATE__PRICE` for `state.price`, beside the system fields of `SnapshotProperties` ([Query Snapshots](./queries#write-a-query-in-kotlin)). A property holding elements in any collection shape, a list, a set, a `SortedSet`, a `Deque`, an array or a declared `Iterable`, gets its elements' fields too, named inside its `elementMatch { }`; a map is a leaf. A `Sequence` of a class is a compile error naming the property: Jackson reads its elements back as maps, so hold them in a `List` or a `Set`.
 
 ## The binding index
 

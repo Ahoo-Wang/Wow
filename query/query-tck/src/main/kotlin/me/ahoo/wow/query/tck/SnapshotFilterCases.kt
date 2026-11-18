@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.tck
 import kotlinx.coroutines.flow.map
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.query.AfterNowFilter
 import me.ahoo.wow.api.query.AggregateIdFilter
@@ -57,10 +58,12 @@ import me.ahoo.wow.query.tck.QueryBackendSpec.Companion.PROBE_FIELDS
 import me.ahoo.wow.query.tck.QueryBackendSpec.Companion.T0
 import me.ahoo.wow.query.tck.QueryBackendSpec.Companion.TENANT
 import me.ahoo.wow.query.tck.QueryBackendSpec.Companion.probeId
+import me.ahoo.wow.spi.json.StateJson
 import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestFactory
+import java.util.SortedSet
 
 /**
  * The filter cases of the snapshot contract: the semantics matrix, system fields, logical filters, element match,
@@ -241,6 +244,35 @@ abstract class SnapshotFilterCases internal constructor() : SnapshotQueryFixture
         Unit
     }
 
+    @OptIn(InternalWowApi::class)
+    @Test
+    fun `element match selects by the elements of a sorted set, which Wow's JSON writes as an array`() = blocking {
+        // The lines of states holding them in a sorted set, as Wow's JSON writes a snapshot's state: the state schema
+        // describes a sorted set as an array of its elements, as it does a list.
+        fun state(vararg lines: SortedLine): String =
+            StateJson.mapper.writeValueAsString(SortedLines(lines.toSortedSet()))
+        val fixture = given(
+            listOf(
+                snapshot("s1", state(SortedLine("B", 2), SortedLine("A", 1))),
+                snapshot("s2", state(SortedLine("B", 1), SortedLine("C", 3))),
+                snapshot("s3", state()),
+            ),
+        )
+        val sameLine = ElementMatchFilter(
+            QueryField("state.lines"),
+            AndFilter(
+                listOf(
+                    EqualFilter(QueryField("sku"), "B"),
+                    GreaterThanOrEqualFilter(QueryField("quantity"), 2),
+                ),
+            ),
+        )
+        fixture.ids(sameLine).assert().containsExactly("s1")
+        fixture.ids(ElementMatchFilter(QueryField("state.lines"), EqualFilter(QueryField("sku"), "C")))
+            .assert().containsExactly("s2")
+        Unit
+    }
+
     @Test
     fun `relative-now filters resolve against the server clock in the field's encoding`() = blocking {
         val now = System.currentTimeMillis()
@@ -294,3 +326,11 @@ abstract class SnapshotFilterCases internal constructor() : SnapshotQueryFixture
         Unit
     }
 }
+
+/** A line of [SortedLines], ordered by its `sku`. */
+internal data class SortedLine(val sku: String, val quantity: Int) : Comparable<SortedLine> {
+    override fun compareTo(other: SortedLine): Int = sku.compareTo(other.sku)
+}
+
+/** A state holding its lines in a sorted set. */
+internal data class SortedLines(val lines: SortedSet<SortedLine>)

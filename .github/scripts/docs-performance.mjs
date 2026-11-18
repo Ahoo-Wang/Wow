@@ -14,6 +14,7 @@ import {
 } from './bench-headline.mjs';
 import { cpuModel } from '../../documentation/docs/.vitepress/theme/perf-figures.mjs';
 import { exampleBlock, unitCostsBlock } from './docs-capacity.mjs';
+import { boundBlock, handoverBlock, leasesBlock } from './docs-recovery.mjs';
 
 // The figures the documentation quotes, in English and Chinese, generated from
 // the benchmark reports so that no page shows a number its report no longer has
@@ -35,12 +36,13 @@ import { exampleBlock, unitCostsBlock } from './docs-capacity.mjs';
 // headline file is not quoted. No figure is computed across two reports, so
 // none across two builds.
 
-/** The reports the pages quote, in their order: the snapshots' tables, then the Axon comparisons' spans. */
+/** The reports the pages quote, in their order: the snapshots' tables, the Axon comparisons' spans, then recovery. */
 export const HEADLINES = [
   'test/benchmarks/results/reports/actions-snapshot/headline.json',
   'test/benchmarks/results/reports/m5max-snapshot/headline.json',
   'test/benchmarks/results/reports/actions-axon/headline.json',
   'test/benchmarks/results/reports/m5max-axon/headline.json',
+  'test/benchmarks/results/reports/m5max-recovery/headline.json',
 ];
 
 export const PAGES = {
@@ -300,7 +302,8 @@ const environmentBlock = environment => (locale, headlines) =>
 
 /**
  * The blocks a page may hold, by name: each writes its table, in a locale, from the headlines. `snapshots` holds every
- * snapshot's; `actions` and `m5max` one environment's.
+ * snapshot's; `actions` and `m5max` one environment's; the capacity page's (docs-capacity.mjs) and the recovery
+ * report's (docs-recovery.mjs) theirs.
  */
 export const BLOCKS = {
   snapshots: performanceBlock,
@@ -308,6 +311,9 @@ export const BLOCKS = {
   m5max: environmentBlock('m5max'),
   'unit-costs': unitCostsBlock,
   example: exampleBlock,
+  'recovery-leases': leasesBlock,
+  'recovery-handover': handoverBlock,
+  'recovery-bound': boundBlock,
 };
 
 const BLOCK = /<!-- performance:begin ([^\s]*) -->|<!-- performance:end -->/g;

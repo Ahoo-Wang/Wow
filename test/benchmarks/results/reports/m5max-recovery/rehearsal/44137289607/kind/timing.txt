@@ -1,0 +1,48 @@
+2026-11-17T17:44:43.002Z  WARN 32351 --- [view-store-service] [           main] me.ahoo.wow.runtime.node.ServiceNode     : TIMING activate node=runnervmccnms-a98463c0 ms=2180
+2026-11-17T17:45:14.454Z  WARN 32351 --- [view-store-service] [atcher-worker-5] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=runnervmccnms-a98463c0 sinceJoinMs=31393 positions=576 lag=262922
+2026-11-17T17:45:15.627Z  WARN 32351 --- [view-store-service] [atcher-worker-4] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=runnervmccnms-a98463c0 sinceJoinMs=32623 positions=576 lag=0
+2026-11-17T17:45:15.628Z  WARN 32351 --- [view-store-service] [atcher-worker-4] me.ahoo.wow.runtime.node.ServiceNode     : TIMING caughtUp node=runnervmccnms-a98463c0 ms=32623
+2026-11-17T17:58:41.656Z  WARN 47820 --- [view-store-service] [  virtual-37817] me.ahoo.wow.runtime.node.ServiceNode     : TIMING activate node=runnervmccnms-465df390 ms=1937
+2026-11-17T17:59:21.369Z  WARN 47820 --- [view-store-service] [atcher-worker-2] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=runnervmccnms-465df390 sinceJoinMs=39691 positions=576 lag=422009
+2026-11-17T17:59:22.633Z  WARN 47820 --- [view-store-service] [atcher-worker-1] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=runnervmccnms-465df390 sinceJoinMs=40954 positions=576 lag=0
+2026-11-17T17:59:22.639Z  WARN 47820 --- [view-store-service] [atcher-worker-1] me.ahoo.wow.runtime.node.ServiceNode     : TIMING caughtUp node=runnervmccnms-465df390 ms=40954
+2026-11-17T18:01:27.902Z  WARN 67174 --- [view-store-service] [           main] me.ahoo.wow.runtime.node.ServiceNode     : TIMING activate node=runnervmccnms-d2824f3b ms=610
+2026-11-17T18:01:29.073Z  WARN 67174 --- [view-store-service] [atcher-worker-3] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=runnervmccnms-d2824f3b sinceJoinMs=1164 positions=576 lag=0
+2026-11-17T18:01:29.074Z  WARN 67174 --- [view-store-service] [atcher-worker-3] me.ahoo.wow.runtime.node.ServiceNode     : TIMING caughtUp node=runnervmccnms-d2824f3b ms=1164
+2026-11-17T18:05:09.838Z  WARN 75655 --- [view-store-service] [           main] me.ahoo.wow.runtime.node.ServiceNode     : TIMING activate node=runnervmccnms-960b712e ms=813
+2026-11-17T18:05:10.976Z  WARN 75655 --- [view-store-service] [atcher-worker-1] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=runnervmccnms-960b712e sinceJoinMs=1129 positions=576 lag=0
+2026-11-17T18:05:10.977Z  WARN 75655 --- [view-store-service] [atcher-worker-1] me.ahoo.wow.runtime.node.ServiceNode     : TIMING caughtUp node=runnervmccnms-960b712e ms=1129
+2026-11-17T17:44:42.252Z  WARN 32348 --- [example-service] [           main] me.ahoo.wow.runtime.node.ServiceNode     : TIMING activate node=runnervmccnms-7448cd7d ms=1734
+2026-11-17T17:46:05.744Z  WARN 32348 --- [example-service] [atcher-worker-4] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=runnervmccnms-7448cd7d sinceJoinMs=83475 positions=512 lag=1536428
+2026-11-17T17:46:06.897Z  WARN 32348 --- [example-service] [atcher-worker-1] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=runnervmccnms-7448cd7d sinceJoinMs=84642 positions=512 lag=2349
+2026-11-17T17:46:08.450Z  WARN 32348 --- [example-service] [atcher-worker-3] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=runnervmccnms-7448cd7d sinceJoinMs=86195 positions=512 lag=2202
+2026-11-17T17:46:10.063Z  WARN 32348 --- [example-service] [atcher-worker-5] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=runnervmccnms-7448cd7d sinceJoinMs=87807 positions=512 lag=775
+2026-11-17T17:46:11.119Z  WARN 32348 --- [example-service] [atcher-worker-3] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=runnervmccnms-7448cd7d sinceJoinMs=88863 positions=512 lag=8
+2026-11-17T17:46:12.149Z  WARN 32348 --- [example-service] [atcher-worker-5] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=runnervmccnms-7448cd7d sinceJoinMs=89893 positions=512 lag=8
+2026-11-17T17:46:13.293Z  WARN 32348 --- [example-service] [atcher-worker-5] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=runnervmccnms-7448cd7d sinceJoinMs=91038 positions=512 lag=34
+2026-11-17T17:46:14.331Z  WARN 32348 --- [example-service] [atcher-worker-4] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=runnervmccnms-7448cd7d sinceJoinMs=92076 positions=512 lag=24
+2026-11-17T17:46:15.558Z  WARN 32348 --- [example-service] [atcher-worker-1] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=runnervmccnms-7448cd7d sinceJoinMs=93303 positions=512 lag=33
+2026-11-17T17:46:16.730Z  WARN 32348 --- [example-service] [atcher-worker-4] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=runnervmccnms-7448cd7d sinceJoinMs=94475 positions=512 lag=24
+2026-11-17T17:46:17.763Z  WARN 32348 --- [example-service] [atcher-worker-3] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=runnervmccnms-7448cd7d sinceJoinMs=95507 positions=512 lag=8
+2026-11-17T17:46:18.793Z  WARN 32348 --- [example-service] [atcher-worker-1] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=runnervmccnms-7448cd7d sinceJoinMs=96538 positions=512 lag=16
+2026-11-17T17:46:19.838Z  WARN 32348 --- [example-service] [atcher-worker-2] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=runnervmccnms-7448cd7d sinceJoinMs=97582 positions=512 lag=8
+2026-11-17T17:46:20.886Z  WARN 32348 --- [example-service] [atcher-worker-3] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=runnervmccnms-7448cd7d sinceJoinMs=98631 positions=512 lag=16
+2026-11-17T17:46:22.186Z  WARN 32348 --- [example-service] [atcher-worker-2] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=runnervmccnms-7448cd7d sinceJoinMs=99930 positions=512 lag=90
+2026-11-17T17:46:23.252Z  WARN 32348 --- [example-service] [atcher-worker-5] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=runnervmccnms-7448cd7d sinceJoinMs=100997 positions=512 lag=16
+2026-11-17T17:46:24.288Z  WARN 32348 --- [example-service] [atcher-worker-4] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=runnervmccnms-7448cd7d sinceJoinMs=102033 positions=512 lag=16
+2026-11-17T17:46:25.323Z  WARN 32348 --- [example-service] [atcher-worker-5] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=runnervmccnms-7448cd7d sinceJoinMs=103068 positions=512 lag=8
+2026-11-17T17:46:26.350Z  WARN 32348 --- [example-service] [atcher-worker-4] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=runnervmccnms-7448cd7d sinceJoinMs=104095 positions=512 lag=1
+2026-11-17T17:46:27.398Z  WARN 32348 --- [example-service] [atcher-worker-5] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=runnervmccnms-7448cd7d sinceJoinMs=105142 positions=512 lag=8
+2026-11-17T17:46:28.423Z  WARN 32348 --- [example-service] [atcher-worker-1] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=runnervmccnms-7448cd7d sinceJoinMs=106167 positions=512 lag=8
+2026-11-17T17:46:29.450Z  WARN 32348 --- [example-service] [atcher-worker-4] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=runnervmccnms-7448cd7d sinceJoinMs=107195 positions=512 lag=0
+2026-11-17T17:46:29.451Z  WARN 32348 --- [example-service] [atcher-worker-4] me.ahoo.wow.runtime.node.ServiceNode     : TIMING caughtUp node=runnervmccnms-7448cd7d ms=107195
+2026-11-17T17:58:41.437Z  WARN 47817 --- [example-service] [  virtual-71529] me.ahoo.wow.runtime.node.ServiceNode     : TIMING activate node=runnervmccnms-b44df424 ms=1757
+2026-11-17T17:59:58.474Z  WARN 47817 --- [example-service] [atcher-worker-3] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=runnervmccnms-b44df424 sinceJoinMs=77007 positions=512 lag=1652172
+2026-11-17T17:59:59.862Z  WARN 47817 --- [example-service] [atcher-worker-3] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=runnervmccnms-b44df424 sinceJoinMs=78412 positions=512 lag=0
+2026-11-17T17:59:59.864Z  WARN 47817 --- [example-service] [atcher-worker-3] me.ahoo.wow.runtime.node.ServiceNode     : TIMING caughtUp node=runnervmccnms-b44df424 ms=78412
+2026-11-17T18:01:25.481Z  WARN 67170 --- [example-service] [           main] me.ahoo.wow.runtime.node.ServiceNode     : TIMING activate node=runnervmccnms-c7f182f4 ms=1176
+2026-11-17T18:01:26.725Z  WARN 67170 --- [example-service] [atcher-worker-2] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=runnervmccnms-c7f182f4 sinceJoinMs=1232 positions=512 lag=0
+2026-11-17T18:01:26.726Z  WARN 67170 --- [example-service] [atcher-worker-2] me.ahoo.wow.runtime.node.ServiceNode     : TIMING caughtUp node=runnervmccnms-c7f182f4 ms=1232
+2026-11-17T18:05:07.151Z  WARN 75651 --- [example-service] [           main] me.ahoo.wow.runtime.node.ServiceNode     : TIMING activate node=runnervmccnms-c2904153 ms=1071
+2026-11-17T18:05:08.458Z  WARN 75651 --- [example-service] [atcher-worker-4] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=runnervmccnms-c2904153 sinceJoinMs=1292 positions=512 lag=0
+2026-11-17T18:05:08.458Z  WARN 75651 --- [example-service] [atcher-worker-4] me.ahoo.wow.runtime.node.ServiceNode     : TIMING caughtUp node=runnervmccnms-c2904153 ms=1292
