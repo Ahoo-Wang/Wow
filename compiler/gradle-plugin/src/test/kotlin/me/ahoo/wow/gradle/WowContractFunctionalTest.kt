@@ -32,7 +32,7 @@ import java.util.zip.ZipFile
  *
  * - `shop-api` (`me.ahoo.wow.api`) declares `wowContract(project(":shop-domain"))` (context `shop`) and
  *   `wowContract(project(":audit-domain"))` (context `audit`), which depend on it: it holds the commands and events of
- *   both, so its contract jar carries both contexts; it is published, its types alone;
+ *   both, so its contract jar carries both contexts; it is published, the contract its feature;
  * - `billing-domain` (context `billing`) depends on `shop-api` and on `billing-api`, which declares it and holds its
  *   classes: only `billing-api`'s contract carries `billing`;
  * - `broken-domain` keeps an event of its context outside `broken-api`: assembling `broken-api`'s contract fails;
@@ -270,9 +270,11 @@ class WowContractFunctionalTest {
     }
 
     @Test
-    fun `the published api should be its types and name no domain module`() {
+    fun `the published api should be its types and its contract, and name no domain module`() {
         val published = File(projectDir, "repo/sample/shop-api/1.0.0")
         contractOf(File(published, "shop-api-1.0.0.jar")).assert().isNull()
+        contractOf(File(published, "shop-api-1.0.0-contract.jar"))!!.contexts.map { it.name }
+            .assert().containsExactly("audit", "shop")
         listOf("shop-api-1.0.0.pom", "shop-api-1.0.0.module").forEach { metadata ->
             File(published, metadata).readText().assert().doesNotContain("domain", "wow-contract", "api-view")
         }

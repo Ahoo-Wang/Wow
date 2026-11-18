@@ -86,9 +86,12 @@ internal object DomainRole {
         val main = sourceSets.getByName(SourceSet.MAIN_SOURCE_SET_NAME)
         val runtimeClasspath = project.configurations.named(main.runtimeClasspathConfigurationName)
         val compileClasspath = project.configurations.getByName(main.compileClasspathConfigurationName)
-        // The tests see the contracts of the api modules on their class paths, their own api's included: most use
-        // its <Context>Contract. Main never does: the module's contract comes from compiling it.
-        ContractRole.requestContracts(project) { it.name != SourceSet.MAIN_SOURCE_SET_NAME }
+        // The tests see the contracts of the build's api modules on their class paths, their own api's included: most
+        // use its <Context>Contract. Main never does: the module's contract comes from compiling it.
+        // A service module derives them for every source set itself (ServiceRole), published peers' included.
+        if (id != WowPlugin.SERVICE_ID) {
+            ContractDerivation.derive(project, projectsOnly = true) { it.name != SourceSet.MAIN_SOURCE_SET_NAME }
+        }
         // KSP runs within the Kotlin compilation; it has no public API for its task or its output directory, so they
         // are named here alone. A KSP that renames them fails the plugin's functional tests.
         val compilerFragments = project.files(project.layout.buildDirectory.dir(KSP_RESOURCES))

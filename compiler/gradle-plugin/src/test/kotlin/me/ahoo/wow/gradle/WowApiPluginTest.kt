@@ -24,6 +24,7 @@ import me.ahoo.wow.manifest.tools.ManifestJson
 import org.gradle.api.Project
 import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.api.attributes.DocsType
+import org.gradle.api.internal.component.SoftwareComponentInternal
 import org.gradle.api.internal.project.ProjectInternal
 import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.tasks.SourceSetContainer
@@ -114,7 +115,8 @@ class WowApiPluginTest {
             val elements = api.configurations.getByName(name)
             elements.outgoing.variants.flatMap { it.artifacts }.map { it.file.canonicalFile }
                 .assert().doesNotContain(wowContractClasses)
-            elements.attributes.contains(WowPlugin.API_VIEW).assert().isFalse()
+            // ... and name the feature that holds the module's contract, for the services to find it.
+            elements.attributes.getAttribute(WowPlugin.CONTRACT_ATTRIBUTE).assert().isEqualTo(ContractRole.FEATURE)
         }
         // The contract, the api's feature: its capability, and the api's types as its dependency.
         listOf(ContractRole.CONTRACT_API_ELEMENTS, ContractRole.CONTRACT_RUNTIME_ELEMENTS).forEach { name ->
@@ -124,18 +126,16 @@ class WowApiPluginTest {
             elements.allDependencies.withType(ProjectDependency::class.java).map { it.path }
                 .assert().containsExactly(":shop-api")
         }
-        // The view of the api's types with its contract, for a consumer that asks for it.
-        listOf(ContractRole.VIEW_API_ELEMENTS, ContractRole.VIEW_RUNTIME_ELEMENTS).forEach { name ->
-            val view = api.configurations.getByName(name)
-            view.attributes.getAttribute(WowPlugin.API_VIEW).assert().isEqualTo(ContractRole.CONTRACT_VIEW)
-            view.dependencies.withType(ProjectDependency::class.java).map { it.path }.assert().contains(":shop-api")
-        }
-        // The domain module compiles against the types; its tests see the contracts.
+        // The module publishes the contract within itself, as a feature.
+        (api.components.getByName("java") as SoftwareComponentInternal).usages.map { it.name }.assert()
+            .contains(ContractRole.CONTRACT_API_ELEMENTS, ContractRole.CONTRACT_RUNTIME_ELEMENTS)
+        // The domain module compiles against the types; its tests see the contracts derived for them.
         val domain = api.rootProject.project(":shop-domain")
-        domain.configurations.getByName("compileClasspath").attributes.contains(WowPlugin.API_VIEW).assert().isFalse()
+        val derived = "wowTestDerivedContracts"
+        domain.configurations.getByName("compileClasspath").extendsFrom.map { it.name }
+            .assert().doesNotContain(derived)
         listOf("testCompileClasspath", "testRuntimeClasspath").forEach { name ->
-            domain.configurations.getByName(name).attributes.getAttribute(WowPlugin.API_VIEW)
-                .assert().isEqualTo(ContractRole.CONTRACT_VIEW)
+            domain.configurations.getByName(name).extendsFrom.map { it.name }.assert().contains(derived)
         }
         // The pairing it tells its domain modules, in-build.
         api.configurations.getByName(ApiRole.PAIRING_ELEMENTS).isCanBeConsumed.assert().isTrue()
@@ -194,8 +194,10 @@ class WowApiPluginTest {
         api.pluginManager.apply(WowPlugin.API_ID)
         api.pluginManager.apply("org.jetbrains.kotlin.jvm")
         (api as ProjectInternal).evaluate()
-        listOf(ContractRole.CONTRACT_API_ELEMENTS, ContractRole.VIEW_API_ELEMENTS, ContractRole.CONTRACT_API)
+        listOf(ContractRole.CONTRACT_API_ELEMENTS, ContractRole.CONTRACT_API)
             .forEach { api.configurations.findByName(it).assert().describedAs(it).isNull() }
+        api.configurations.getByName("apiElements").attributes.getAttribute(WowPlugin.CONTRACT_ATTRIBUTE)
+            .assert().isNull()
         api.tasks.findByName(WowPlugin.CONTRACT_JAR_TASK).assert().isNull()
         api.tasks.findByName(WowPlugin.GENERATE_CONTRACT_SOURCES_TASK).assert().isNull()
     }
@@ -320,5 +322,60 @@ class WowApiPluginTest {
         val pairings = DomainRole.pairings(view.artifacts.artifacts)
         pairings.assert().hasSize(1).containsValue(":shop-api")
         pairings.keys.single().assert().endsWith("pairing.properties")
+    }
+
+    /** `:shop-api` of `shop-domain`, publishing sources, with the Gradle properties [properties] of its build. */
+    private fun publishing(properties: String = ""): Project {
+        File(directory, "gradle.properties").writeText(properties)
+        val root = ProjectBuilder.builder().withProjectDir(directory).withName("services").build()
+        val api = ProjectBuilder.builder().withParent(root).withName("shop-api")
+            .withProjectDir(File(directory, "shop-api")).build()
+        // As Wow's own build gives its resolvable class paths a platform of the build alone (`wowBuildPlatform`).
+        val buildOnly = api.configurations.dependencyScope("buildOnly").get()
+        api.configurations.matching { it.isCanBeResolved }.configureEach { it.extendsFrom(buildOnly) }
+        api.pluginManager.apply(WowPlugin.API_ID)
+        api.pluginManager.apply("org.jetbrains.kotlin.jvm")
+        api.extensions.getByType(JavaPluginExtension::class.java).withSourcesJar()
+        ProjectBuilder.builder().withParent(root).withName("shop-domain")
+            .withProjectDir(File(directory, "shop-domain")).build()
+        val domain = api.dependencies.project(mapOf("path" to ":shop-domain"))
+        api.dependencies.add(WowPlugin.CONTRACT_CONFIGURATION, domain)
+        (api as ProjectInternal).evaluate()
+        return api
+    }
+
+    @Test
+    fun `an api module publishing sources should publish its contract's sources within its feature`() {
+        val api = publishing()
+        val sources = api.configurations.getByName(ContractRole.CONTRACT_SOURCES_ELEMENTS)
+        sources.outgoing.capabilities.map { it.name }.assert().containsExactly("shop-api-contract")
+        sources.attributes.getAttribute(DocsType.DOCS_TYPE_ATTRIBUTE)?.name.assert().isEqualTo(DocsType.SOURCES)
+        val jar = api.tasks.getByName("wowContractSourcesJar") as Jar
+        jar.archiveClassifier.get().assert().isEqualTo("contract-sources")
+        (api.components.getByName("java") as SoftwareComponentInternal).usages.map { it.name }.assert()
+            .contains(ContractRole.CONTRACT_SOURCES_ELEMENTS)
+    }
+
+    @Test
+    fun `an api module's published contract variants should be consumable alone, from their creation`() {
+        val api = publishing()
+        listOf(
+            ContractRole.CONTRACT_API_ELEMENTS,
+            ContractRole.CONTRACT_RUNTIME_ELEMENTS,
+            ContractRole.CONTRACT_SOURCES_ELEMENTS,
+        ).forEach { name ->
+            api.configurations.getByName(name).hierarchy.map { it.name }.assert().doesNotContain("buildOnly")
+        }
+    }
+
+    @Test
+    fun `an api module's first release of a cycle should publish its types alone`() {
+        val api = publishing("${ContractRole.PUBLISH_PROPERTY}=false\n")
+        (api.components.getByName("java") as SoftwareComponentInternal).usages.map { it.name }.assert()
+            .doesNotContain(ContractRole.CONTRACT_API_ELEMENTS, ContractRole.CONTRACT_SOURCES_ELEMENTS)
+        api.configurations.getByName("apiElements").attributes.getAttribute(WowPlugin.CONTRACT_ATTRIBUTE)
+            .assert().isNull()
+        // In-build, the contract is still its feature.
+        api.configurations.findByName(ContractRole.CONTRACT_API_ELEMENTS).assert().isNotNull()
     }
 }

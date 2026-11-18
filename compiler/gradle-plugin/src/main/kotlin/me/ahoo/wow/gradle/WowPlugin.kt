@@ -98,11 +98,12 @@ class WowPlugin : Plugin<Project> {
         const val UPDATE_BASELINE_TASK = "updateWowManifestBaseline"
 
         /**
-         * The attribute a consumer asks for to see the api modules' types with their contracts
-         * ([ContractRole.CONTRACT_VIEW]): a service's class paths and the tests' do. In-build alone, published by
-         * no module.
+         * The attribute of an api module's own variants, the types, naming the feature that holds its contract
+         * (`contract`): set on the variants of an api module that declares `wowContract`, published with them, read by
+         * a service to find every api's contract among its dependencies ([ContractDerivation]). No consumer asks for
+         * it, so it takes part in no variant selection.
          */
-        val API_VIEW: Attribute<String> = Attribute.of("me.ahoo.wow.api-view", String::class.java)
+        val CONTRACT_ATTRIBUTE: Attribute<String> = Attribute.of("me.ahoo.wow.contract", String::class.java)
 
         /**
          * The Gradle property that lets [UPDATE_BASELINE_TASK] record a breaking change within the baseline's

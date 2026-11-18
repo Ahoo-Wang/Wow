@@ -13,11 +13,14 @@
 
 package me.ahoo.wow.gradle
 
+import org.gradle.api.artifacts.ExternalModuleDependency
 import org.gradle.api.artifacts.ModuleDependency
+import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.api.artifacts.dsl.DependencyFactory
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
+import org.gradle.api.provider.Provider
 import javax.inject.Inject
 
 /**
@@ -41,24 +44,55 @@ abstract class WowExtension {
     protected abstract val dependencyFactory: DependencyFactory
 
     /**
-     * The contract of the api module [dependency] names, `project(":ordering-api")` or its coordinates: its feature
-     * `contract` (capability `<group>:<name>-contract`), `META-INF/wow/contract.json` and the code generated from it,
-     * `<Context>Contract` and `<State>View`, with the api's types. A module that uses that code declares it,
-     * `implementation(wow.contract(project(":ordering-api")))`; a service, and the tests, see every api's contract
-     * without it.
+     * The contract of the api module [dependency] names: `project(":ordering-api")`, its coordinates
+     * `"group:name[:version]"`, or an external module dependency without artifacts of its own. It is the module with
+     * its feature `contract` (capability `<group>:<name>-contract`) required: `META-INF/wow/contract.json` and the code
+     * generated from it, `<Context>Contract` and `<State>View`, with the api's types. A module that uses that code
+     * declares it, `implementation(wow.contract(project(":ordering-api")))`; a service sees every api's contract without
+     * it, and a domain's tests those of the build's api modules. A version catalog's accessor takes the other form
+     * ([contract] of a provider).
      *
-     * @throws IllegalArgumentException when [dependency] is neither a module dependency nor coordinates.
+     * @throws IllegalArgumentException when [dependency] names no module: a classifier or an extension names an
+     * artifact, not a contract, and anything else is no module at all.
      */
     fun contract(dependency: Any): ModuleDependency {
         val module = when (dependency) {
-            is ModuleDependency -> dependency.copy()
-            is CharSequence -> dependencyFactory.create(dependency)
-            else -> throw IllegalArgumentException(
-                "wow.contract(...) takes an api module, project(\":ordering-api\") or its coordinates, not $dependency"
-            )
+            is ProjectDependency -> dependency.copy()
+            is ExternalModuleDependency -> external(dependency)
+            is CharSequence -> coordinates(dependency.toString())
+            else -> throw IllegalArgumentException(usage("not $dependency"))
         }
         module.capabilities { it.requireFeature(ContractRole.FEATURE) }
         return module
+    }
+
+    /**
+     * The contract of the api module a version catalog names, `implementation(wow.contract(libs.ordering.api))`, as
+     * [contract] of the dependency: a provider, as `implementation(...)` takes one.
+     */
+    fun contract(dependency: Provider<out ExternalModuleDependency>): Provider<ModuleDependency> =
+        dependency.map { contract(it) }
+
+    private fun external(dependency: ExternalModuleDependency): ModuleDependency {
+        require(dependency.artifacts.isEmpty()) {
+            usage("not ${dependency.group}:${dependency.name}, which names an artifact of a classifier or an extension")
+        }
+        return dependency.copy()
+    }
+
+    private fun coordinates(notation: String): ModuleDependency {
+        val parts = COORDINATES.matchEntire(notation)?.groupValues
+            ?: throw IllegalArgumentException(usage("not \"$notation\", which is no plain group:name[:version]"))
+        return dependencyFactory.create(parts[1], parts[2], parts[3].ifEmpty { null })
+    }
+
+    private fun usage(what: String): String =
+        "wow.contract(...) takes an api module, project(\":ordering-api\"), its coordinates " +
+            "\"group:name[:version]\" or a version catalog's libs.ordering.api, $what"
+
+    private companion object {
+        /** `group:name` or `group:name:version`, none holding a classifier (`:`) or an extension (`@`). */
+        val COORDINATES = Regex("""([^:@\s]+):([^:@\s]+)(?::([^:@\s]+))?""")
     }
 
     /**

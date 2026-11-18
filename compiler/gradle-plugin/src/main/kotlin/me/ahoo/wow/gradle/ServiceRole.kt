@@ -27,6 +27,7 @@ import me.ahoo.wow.gradle.WowPlugin.Companion.OPENAPI_TASK
 import me.ahoo.wow.gradle.WowPlugin.Companion.UPDATE_BASELINE_TASK
 import me.ahoo.wow.gradle.WowPlugin.Companion.defaultServiceName
 import me.ahoo.wow.gradle.WowPlugin.Companion.version
+import org.gradle.api.GradleException
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.plugins.JavaPlugin
@@ -44,7 +45,7 @@ import org.gradle.testing.base.TestingExtension
  */
 internal object ServiceRole {
     /**
-     * The service role of [project]: the api modules' contracts on its class paths ([ContractRole.requestContracts]),
+     * The service role of [project]: the api modules' contracts on its class paths ([ContractDerivation]),
      * the service's Manifest merged from the fragments of its runtime class path, its OpenAPI document, the values of
      * the `wow-service` Helm chart it knows, the gate against its committed baseline, and the integration test suite.
      */
@@ -55,9 +56,9 @@ internal object ServiceRole {
 
     private fun configureService(project: Project, extension: WowServiceExtension) {
         configureIntegrationTest(project)
-        // Every class path of the service sees the api modules' contracts, its own api's and its peers': the merge
-        // and the node read them, and its code may use the generated <Context>Contract.
-        ContractRole.requestContracts(project) { true }
+        // Every class path of the service sees the api modules' contracts, its own api's and its peers', and so does
+        // whoever consumes its runtime variant: the merge and the node read them, its code may use <Context>Contract.
+        ContractDerivation.derive(project, projectsOnly = false, outgoing = true) { true }
         val tools = toolsConfiguration(project)
         val main = project.extensions.getByType(
             SourceSetContainer::class.java
@@ -79,6 +80,11 @@ internal object ServiceRole {
             task.defaultServiceName.set(defaultServiceName(project.path, project.rootProject.name))
             task.serviceVersion.set(project.provider { project.version.toString() })
             task.outputFile.set(project.layout.buildDirectory.file("wow/manifest.json"))
+            // The api modules of a types-only build carry no contract to find: say why, not which is missing.
+            if (ContractRole.typesOnly(project)) {
+                val message = ContractRole.typesOnlyService(project.path)
+                task.doFirst { throw GradleException(message) }
+            }
         }
         project.tasks.register(OPENAPI_TASK, GenerateOpenApi::class.java) { task ->
             task.group = GROUP_NAME

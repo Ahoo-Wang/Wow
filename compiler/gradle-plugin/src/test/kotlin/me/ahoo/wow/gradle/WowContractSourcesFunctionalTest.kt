@@ -140,18 +140,40 @@ class WowContractSourcesFunctionalTest {
 
     @Test
     @Order(1)
-    fun `the published api should be its types and their sources, nothing of its in-build variants`() {
+    fun `the published api should be its types and its contract feature, nothing of its in-build variants`() {
         val published = File(projectDir, "repo/sample/shop-api/1.0.0")
         val module = File(published, "shop-api-1.0.0.module").readText()
-        module.assert().doesNotContain("wowContract", "me.ahoo.wow.api-view", "wow-pairing", "shop-domain")
-        // The variants a java-library publishes with its sources: neither the contract feature nor its view is.
+        module.assert().doesNotContain("me.ahoo.wow.api-view", "wow-pairing", "shop-domain")
+        // The variants a java-library publishes with its sources, and the contract feature's beside them.
         Regex("""\{\s*"name": "([^"]+)",\s*"attributes"""").findAll(module).map { it.groupValues[1] }.toList()
-            .assert().containsExactly("apiElements", "runtimeElements", "sourcesElements")
-        val jars = listOf("shop-api-1.0.0.jar", "shop-api-1.0.0-sources.jar")
+            .assert().containsExactlyInAnyOrder(
+                "apiElements",
+                "runtimeElements",
+                ContractRole.CONTRACT_API_ELEMENTS,
+                ContractRole.CONTRACT_RUNTIME_ELEMENTS,
+                "sourcesElements",
+                ContractRole.CONTRACT_SOURCES_ELEMENTS,
+            )
+        // The types name the feature that holds the contract; the contract variants are of its capability.
+        Regex(""""me\.ahoo\.wow\.contract": "([^"]+)"""").findAll(module).map { it.groupValues[1] }.toList()
+            .assert().containsExactly(ContractRole.FEATURE, ContractRole.FEATURE)
+        module.assert().contains(""""name": "shop-api-contract"""")
+        val jars = listOf(
+            "shop-api-1.0.0.jar",
+            "shop-api-1.0.0-sources.jar",
+            "shop-api-1.0.0-contract.jar",
+            "shop-api-1.0.0-contract-sources.jar",
+        )
         Regex(""""name": "([^"]+\.jar)"""").findAll(module).map { it.groupValues[1] }.toSet()
             .assert().containsExactlyInAnyOrderElementsOf(jars)
-        File(published, "shop-api-1.0.0.pom").readText().assert().doesNotContain("classifier", "wow-core")
         published.list()!!.filter { it.endsWith(".jar") }.assert().containsExactlyInAnyOrderElementsOf(jars)
+        ZipFile(File(published, "shop-api-1.0.0-contract.jar")).use { jar ->
+            jar.getEntry("META-INF/wow/contract.json").assert().isNotNull()
+        }
+        ZipFile(File(published, "shop-api-1.0.0-contract-sources.jar")).use { sources ->
+            sources.getEntry("shopapi/ShopContract.kt").assert().isNotNull()
+        }
+        File(published, "shop-api-1.0.0.pom").readText().assert().doesNotContain("wow-core", "shop-domain")
     }
 
     @Test
@@ -223,7 +245,9 @@ class WowContractSourcesFunctionalTest {
 
     @Test
     @Order(3)
-    fun `an external peer should compile against the published api's types`(@TempDir external: File) {
+    fun `an external peer should compile against the published api's contract, which it asks for`(
+        @TempDir external: File,
+    ) {
         fixture.write("settings.gradle.kts", """rootProject.name = "external"""", external)
         fixture.write(
             "build.gradle.kts",
@@ -237,7 +261,7 @@ class WowContractSourcesFunctionalTest {
             }
 
             dependencies {
-                implementation("sample:shop-api:1.0.0")
+                implementation("sample:shop-api:1.0.0") { capabilities { requireFeature("contract") } }
                 implementation(files(${fixture.classpath("wow-test.fixture.compileClasspath")}))
             }
             """,
@@ -249,8 +273,10 @@ class WowContractSourcesFunctionalTest {
             package external
 
             import shopapi.CreateCart
+            import shopapi.ShopContract
 
             val create = CreateCart::class
+            val ref = ShopContract.Cart.ref("t", "1")
             """,
             external,
         )
