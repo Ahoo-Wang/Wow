@@ -161,6 +161,8 @@ tasks.test {
     val apiClasspath = files(tasks.jar, configurations.runtimeClasspath, functionalPluginClasspath)
     inputs.files(apiClasspath).withPropertyName("apiClasspath").withNormalizer(ClasspathNormalizer::class.java)
     systemProperty("wow-test.ksp.version", libs.versions.ksp.get())
+    // The JUnit a fixture's own tests run on (IncrementalKspFunctionalTest), resolved from Maven Central.
+    systemProperty("wow-test.junit.version", libs.versions.junit.get())
     // The POMs of the plugin markers, which say what a plugin request resolves.
     val markers = layout.buildDirectory.dir("publications")
     dependsOn(

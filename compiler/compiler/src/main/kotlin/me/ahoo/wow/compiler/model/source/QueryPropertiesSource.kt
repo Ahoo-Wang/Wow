@@ -20,6 +20,7 @@ import com.google.devtools.ksp.processing.Dependencies
 import com.google.devtools.ksp.processing.Resolver
 import com.google.devtools.ksp.symbol.ClassKind
 import com.google.devtools.ksp.symbol.KSClassDeclaration
+import com.google.devtools.ksp.symbol.KSFile
 import com.google.devtools.ksp.symbol.KSPropertyDeclaration
 import com.google.devtools.ksp.symbol.KSType
 import com.google.devtools.ksp.symbol.KSTypeAlias
@@ -91,18 +92,29 @@ internal object QueryPropertiesSource {
     /**
      * Writes [state]'s `<State>Properties`, unless [generated], the states already written, holds it. The problems of
      * its paths' Jackson annotations, an argument without a value, are what it returns instead, writing nothing.
+     *
+     * An isolating output, whose origins are every file its paths are read from: the [root]'s, the state's, and those
+     * of each class a path walks into, their supertypes included. So KSP writes it again whenever one of them changes,
+     * not only when the state's own file does.
      */
-    fun generate(codeGenerator: CodeGenerator, state: KSClassDeclaration, generated: MutableSet<String>): List<String> {
+    fun generate(
+        codeGenerator: CodeGenerator,
+        state: KSClassDeclaration,
+        root: KSClassDeclaration,
+        generated: MutableSet<String>,
+    ): List<String> {
         if (!generated.add(state.qualifiedName!!.asString())) {
             return emptyList()
         }
         val problems = mutableListOf<String>()
-        val properties = properties(state, problems)
+        val origins = linkedSetOf<KSFile>()
+        listOfNotNull(root.containingFile).forEach(origins::add)
+        val properties = properties(state, problems, origins)
         if (problems.isNotEmpty()) {
             return problems.distinct()
         }
         codeGenerator.createNewFile(
-            Dependencies(aggregating = false, sources = listOfNotNull(state.containingFile).toTypedArray()),
+            Dependencies(aggregating = false, sources = origins.toTypedArray()),
             state.packageName.asString(),
             className(state),
         ).bufferedWriter().use { it.write(render(state, properties)) }
@@ -114,10 +126,17 @@ internal object QueryPropertiesSource {
         state.qualifiedName!!.asString().removePrefix("${state.packageName.asString()}.").replace(".", "") +
             "Properties"
 
-    /** The paths of [state] a query names, in declaration order, each once; their annotations' in [problems]. */
-    fun properties(state: KSClassDeclaration, problems: MutableList<String>): List<Property> {
+    /**
+     * The paths of [state] a query names, in declaration order, each once; their annotations' in [problems], and the
+     * files of the classes they are read from in [origins].
+     */
+    fun properties(
+        state: KSClassDeclaration,
+        problems: MutableList<String>,
+        origins: MutableSet<KSFile> = linkedSetOf(),
+    ): List<Property> {
         val properties = linkedMapOf<String, Property>()
-        collect(state, STATE, listOf(state.qualifiedName!!.asString()), properties, problems)
+        collect(state, STATE, listOf(state.qualifiedName!!.asString()), properties, problems, origins)
         return properties.values.toList()
     }
 
@@ -147,7 +166,11 @@ internal object QueryPropertiesSource {
         visited: List<String>,
         properties: MutableMap<String, Property>,
         problems: MutableList<String>,
+        origins: MutableSet<KSFile>,
     ) {
+        // Its own properties and its supertypes', each of a file of its own.
+        (sequenceOf(owner) + owner.getAllSuperTypes().map { it.declaration })
+            .mapNotNull { it.containingFile }.forEach(origins::add)
         val ignored = owner.jsonIgnoredProperties(problems)
         val naming = owner.jsonNaming(problems)
         owner.getAllProperties().forEach { property ->
@@ -162,7 +185,7 @@ internal object QueryPropertiesSource {
             val nested = type.nestedClass(owner, wireName, problems) ?: return@forEach
             val qualified = nested.qualifiedName!!.asString()
             if (qualified !in visited) {
-                collect(nested, childPath, visited + qualified, properties, problems)
+                collect(nested, childPath, visited + qualified, properties, problems, origins)
             }
         }
     }
