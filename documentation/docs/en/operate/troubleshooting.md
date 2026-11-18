@@ -51,7 +51,7 @@ The host refuses to start rather than run with a setting that would quietly do t
 
 - Fix the cause first: deploy the corrected handler, or bring back the outside system it calls.
 - Then retry the aggregates: the subscription reads each one's stream again from where it stopped ([The Ops Service and Console](./ops-console)).
-- A rejection of a command a saga sent parks the aggregate only when the saga has no `@OnRejected` handler for it ([Failures and Retries](../guide/failures)).
+- A rejection of a command a saga derived parks the saga's source aggregate only when the command is of the saga's own context and the saga has no `@OnRejected` handler for it: a command to another context then asks for no receipt, and its target logs the rejection. A rejection of a command the saga called parks the aggregate when the saga has no handler for it, whatever the command's context ([Failures and Retries](../guide/failures)).
 
 ## A subscription starts over after a deploy
 
