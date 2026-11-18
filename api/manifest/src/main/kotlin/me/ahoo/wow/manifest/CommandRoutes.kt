@@ -36,7 +36,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  * - an aggregate's snapshot rebuild: `POST /{context}/{aggregate}/wow.snapshot.rebuild-snapshot`, the ids in its body
  *   ([unaddressed] of the system name);
  * - a context's schedule jobs: `POST /{context}/wow.schedule/{id}/<segment>`, the job's name as the id
- *   ([jobRoute]: `.../enable`, `.../reschedule`, `.../disable`).
+ *   ([jobRoute]: `.../enable-job`, `.../reschedule-job`, `.../disable-job`).
  *
  * An aggregate whose id is its owner's (`@AggregateRoot(idSource = OWNER)`) has, beside every route by id, the same route
  * without `{id}`, which an owner-level caller sends for its own aggregate: `POST /{context}/{aggregate}/{segment}`

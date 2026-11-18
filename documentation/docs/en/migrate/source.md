@@ -190,6 +190,21 @@ A saga that handled a 9.x `onError` gains an `@OnRejected` handler for a rejecte
 
 A periodic job a 9.x service ran in Simba or `@Scheduled` is an `@OnSchedule` handler of a saga, on a cron rule, when it derives commands from what is due; a job that waits for each command's outcome before the next stays outside, sending through the `CommandClient` ([Scheduled Commands](../guide/scheduling)). A 9.x backfill that re-dispatched stored events to one handler is a handler of a new name with `@OnEvent(start = OnEvent.Start.BEGINNING)`, which reads the stream once from its start ([Rebuild and Replay](../operate/replay)).
 
+### Scheduled jobs {#scheduled-jobs}
+
+Four differences come with every 9.x job ported to `@OnSchedule`, three of them silent:
+
+- **The time zone.** A 9.x scheduler read its cron in the server's zone. A V10 job reads it in UTC unless it names a zone, `@OnSchedule(timeZone = "Asia/Shanghai")` or `wow.schedules.<name>.time-zone`, and never in the server's. A daily job ported as it stood runs at the same hour in UTC, moved by the zone's offset, with no message.
+- **Every tenant.** A 9.x job that looped over the tenants has no one-line port. A `SYSTEM` job, the default, runs once, in the default tenant: `context.queries` read that tenant, `context.queries.trusted()` reads every tenant, and a command for another tenant names it with `targetTenant`. A `TENANT` job runs once per tenant, but only for a tenant that has enabled it, with `wow.schedule.EnableJob` in that tenant (`POST /<context>/wow.schedule/<job>/enable-job`): the host enables no tenant's instance, so each existing tenant is enabled when the job is ported, and each new one when it is created.
+- **No run-now.** A job cannot be run by hand: its instances take enable, reschedule and disable, and nothing ticks one but its rule. A 9.x endpoint that ran a job on demand stays code of the service's own, which sends the commands the job would.
+- **A rate from configuration.** A V10 job runs on a cron rule alone, with no fixed rate or delay. A 9.x rate held in a property becomes the job's cron under `wow.schedules.<name>.cron`, such as `0 */5 * * * *` for every five minutes.
+
+A 9.x scheduler that sent a command and waited for its processing before the next has no form as a job. A job derives its commands and waits for none: a derived request that names a wait or a timeout fails the handler for good, and the job's instance parks. The supported shapes:
+
+- **Commands to another context:** the job calls each in turn, `context.call(request)`, which returns once that context has committed it, declared in `@Sends(calls = [...])`. A call to the job's own context refuses the start.
+- **Commands to its own context, or a wait beyond the commit:** the scheduler stays outside the service, in one process that sends each command with a `CommandClient`'s `wait` and sends the next after its result. Run it in one place: Wow gives such a scheduler no lock, so one inside the service's nodes runs on every node.
+
+
 ## Reserved keys
 
 A 9.x `PrepareKey` becomes a reservation taken in the decide function; the kernel confirms it once the events are appended. A 9.x key was global, a V10 key is unique per aggregate type and tenant unless reserved with `ReservationTenancy.SYSTEM`, so decide the tenancy of every key, and write the same namespace and tenancy into the map's `reservations`. A 9.x key that aggregates of several types shared becomes an aggregate of its own that holds the keys ([Unique Keys](../guide/unique-keys#a-key-unique-across-aggregate-types)). A brand's name, unique within its tenant:
