@@ -23,7 +23,13 @@ import {
   type TokenStorage,
 } from "@ahoo-wang/fetcher-cosec";
 
-/** The application the console calls the catalog from (`CoSec-App-Id`). */
+/**
+ * The console's application, which fetcher-cosec sends as `CoSec-App-Id`. A
+ * CoSec 8 gateway reads no such header: it decides a request in the app its
+ * token is issued for (`aud`), and on a route that names one
+ * (`cosec-app-id`) takes only that app's tokens. Sign in with a token issued
+ * for this app.
+ */
 export const APP_ID = "analytics-catalog-console";
 
 /**

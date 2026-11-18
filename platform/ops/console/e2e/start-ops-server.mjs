@@ -30,7 +30,8 @@
  * secret and ignores the bearer token. The server then listens on
  * `OPS_E2E_SERVICE_PORT` (18190), and a stand-in of the gateway
  * (`e2e/cosec-gateway.mjs`) on `OPS_E2E_PORT` in front of it, verifying the
- * suite's tokens with `OPS_E2E_COSEC_SECRET`.
+ * suite's tokens with `OPS_E2E_COSEC_SECRET` on a route of the console's app,
+ * `OPS_E2E_COSEC_APP`.
  *
  * Build them first, from the repository root, with JDK 21:
  *
@@ -81,6 +82,8 @@ if (cosec)
     port,
     upstream: servicePort,
     secret: process.env.OPS_E2E_COSEC_SECRET,
+    // The console's route names its app (`cosec-app-id`): only a token issued for it passes.
+    app: process.env.OPS_E2E_COSEC_APP ?? '',
   });
 
 const java = process.env.JAVA_HOME
