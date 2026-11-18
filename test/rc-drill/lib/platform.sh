@@ -17,7 +17,19 @@ cluster() {
   if kind get clusters | grep -qx "$cluster"; then
     log "cluster $cluster exists"
   else
-    kind create cluster --config "$here/kind.yaml" --wait 0s
+    # kind passes the shell's proxy variables into its nodes, where a proxy on the host's loopback is the node's own
+    # loopback and refuses every image pull. Such a proxy is left out of the cluster: the nodes reach the registries
+    # directly. A proxy at another address is kept.
+    local unset=() var
+    for var in HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy; do
+      case "${!var:-}" in
+        *://127.* | *://localhost* | *://\[::1\]*)
+          log "kind: leaving out $var=${!var}, the host's loopback, which the nodes cannot reach"
+          unset+=(-u "$var")
+          ;;
+      esac
+    done
+    env ${unset[@]+"${unset[@]}"} kind create cluster --config "$here/kind.yaml" --wait 0s
   fi
   curl -fsSLo "$evidence/calico.yaml" "https://raw.githubusercontent.com/projectcalico/calico/$CALICO_VERSION/manifests/calico.yaml"
   echo "$CALICO_SHA256  $evidence/calico.yaml" | shasum -a 256 -c -
