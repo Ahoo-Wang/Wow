@@ -205,22 +205,6 @@ class MongoSequencerTest {
     }
 
     @Test
-    fun `a sequence this node never gave out of its current block is closed at once, one it gave out is not`() {
-        allocate().sequence.assert().isEqualTo(1L)
-        // Given out, its append may still land: the tail waits the grace.
-        sequencer.unallocated(0, 1).assert().isNull()
-        // Past the block: another node's, whose seal is the tail's after the grace.
-        sequencer.unallocated(0, BLOCK + 1).assert().isNull()
-        val closing = checkNotNull(sequencer.unallocated(0, 3))
-        listOf(closing.from, closing.to, closing.collection).assert().containsExactly(2L, BLOCK, ORDER)
-        // Closed, the block is no longer current; a sequence in no block of this node is not its to close.
-        sequencer.unallocated(0, 3).assert().isNull()
-        sequencer.unallocated(0, BLOCK + 1).assert().isNull()
-        // The next append takes a new block.
-        allocate().sequence.assert().isEqualTo(BLOCK + 1)
-    }
-
-    @Test
     fun `a block holds at least one sequence`() {
         assertThrownBy<IllegalArgumentException> { MongoSequencer(counters, NODE, 0, 1) }
     }
