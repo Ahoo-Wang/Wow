@@ -285,6 +285,34 @@ class AnnotationSetTest {
             .contains("event Opened's field id is annotated @AggregateId, $commandOnly")
     }
 
+    @Test
+    fun `a command annotation off a command should name the places of @AggregateId alone`() {
+        val ledger = SourceFile.kotlin(
+            "Ledger.kt",
+            """
+            package sample
+
+            import me.ahoo.wow.api.annotation.AggregateRoot
+            import me.ahoo.wow.api.annotation.OccurredAt
+
+            data class Post(val amount: Int)
+            data class Posted(@OccurredAt val at: Long)
+
+            @AggregateRoot
+            class Ledger(val id: String) {
+                fun onCommand(command: Post): Posted = Posted(0)
+                fun onSourcing(event: Posted) = Unit
+            }
+            """.trimIndent(),
+        )
+        val (_, result) = compileModel("generate", ManifestFragmentFixtures.context, ledger)
+        result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        result.messages.assert().contains(
+            "event Posted's field at is annotated @OccurredAt, which only a property of a command an aggregate " +
+                "decides takes\n",
+        )
+    }
+
     private val processors = SourceFile.kotlin(
         "Processors.kt",
         """

@@ -302,7 +302,8 @@ class InheritedAggregateIdTest {
     )
 
     @Test
-    fun `a record's canonical constructor should be the one of its components, beside a wider one`() {
+    fun `a record's canonical constructor should be the one of its components, beside other constructors`() {
+        // A wider constructor, a narrower one of components, and one of no component; methods that are no accessor.
         val (compilation, result) = recordOf(
             "Count",
             """
@@ -313,6 +314,22 @@ class InheritedAggregateIdTest {
             public record Count(@AggregateId String id, int quantity) {
                 public Count(String id, int quantity, String note) {
                     this(id, quantity);
+                }
+
+                public Count(String id) {
+                    this(id, 0);
+                }
+
+                public Count(long code) {
+                    this(String.valueOf(code), 0);
+                }
+
+                public String describe() {
+                    return id + quantity;
+                }
+
+                public String label(String prefix) {
+                    return prefix + id;
                 }
             }
             """,
@@ -387,6 +404,9 @@ class InheritedAggregateIdTest {
                 fun target(): String = stock
             }
 
+            @AggregateId
+            fun loose(): String = ""
+
             data class Counted(val quantity: Int)
 
             @AggregateRoot
@@ -396,13 +416,30 @@ class InheritedAggregateIdTest {
             }
             """.trimIndent(),
         )
-        val (_, result) = compileModel("generate", context, marked)
-        result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
-        result.messages.assert().contains(
-            "function sample.Count.target is annotated @AggregateId, which only a property of a command an " +
-                "aggregate decides takes: a Kotlin property, a Java field read by its public getter, or a Java " +
-                "record's component",
+        // A record's method that is no accessor of a component.
+        val record = SourceFile.java(
+            "Tally.java",
+            """
+            package sample;
+
+            import me.ahoo.wow.api.annotation.AggregateId;
+
+            public record Tally(String id) {
+                @AggregateId
+                public String label(String prefix) {
+                    return prefix + id;
+                }
+            }
+            """.trimIndent(),
         )
+        val (_, result) = compileModel("generate", context, marked, record)
+        result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        val takes = "is annotated @AggregateId, which only a property of a command an aggregate decides takes: a " +
+            "Kotlin property, a Java field read by its public getter, or a Java record's component"
+        result.messages.assert()
+            .contains("function sample.Count.target $takes")
+            .contains("function sample.loose $takes")
+            .contains("function sample.Tally.label $takes")
     }
 
     @Test

@@ -140,9 +140,8 @@ internal object AggregateIdResolver {
     ): AggregateIdBinding {
         val name = command.simpleName.asString()
         val where = "command $name's @AggregateId record component ${component.name}"
-        val type = component.type?.declaration?.qualifiedName?.asString()
-        if (type !in STRINGS) {
-            problems += "$where is a $type: an aggregate id is a String"
+        if (component.type !in STRINGS) {
+            problems += "$where is a ${component.type}: an aggregate id is a String"
         }
         if (unaddressed) {
             problems += "command $name is @Unaddressed and has an @AggregateId property: a transformer finds an " +
