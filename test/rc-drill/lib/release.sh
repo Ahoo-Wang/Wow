@@ -64,7 +64,8 @@ artifacts() {
   for entry in "${REGISTRIES[@]}"; do
     charts=${entry#*|}
     [ -n "$charts" ] || continue
-    chart="$evidence/artifacts/charts/${charts//[^a-z0-9]/_}"
+    # A folder per version too: the run checks the previous release's chart into the same evidence after the new one's.
+    chart="$evidence/artifacts/charts/${charts//[^a-z0-9]/_}/$version"
     mkdir -p "$chart"
     if helm pull "$charts/wow-service" --version "$version" --untar --untardir "$chart" >/dev/null; then
       log "chart $charts/wow-service $version: $(grep -E '^(version|appVersion):' "$chart/wow-service/Chart.yaml" | tr '\n' ' ')"
