@@ -224,31 +224,53 @@ export function bootstrapRatio(a, b, statistic) {
   return { point, lo: at(0.025), hi: at(0.975) };
 }
 
+/** A paired suite's measured runs in one mode: a round the load generator refused (refusedRound) is left out. */
+const measured = (suite, mode) =>
+  suite.runs.filter(
+    run => modeOf(run) === mode && run.status === 'ok' && !refusedRound(run),
+  );
+
+/** The round pairs of a paired suite in one mode: per round with both arms measured, the two arms' runs. */
+export function roundPairs(suite, mode) {
+  if (suite.arms?.length !== 2) return [];
+  const [a, b] = suite.arms.map(arm => arm.id);
+  const runs = measured(suite, mode);
+  return [...new Set(runs.map(run => run.round))]
+    .sort((x, y) => x - y)
+    .map(round =>
+      [a, b].map(arm =>
+        runs.find(run => run.round === round && run.arm === arm),
+      ),
+    )
+    .filter(([ra, rb]) => ra && rb);
+}
+
 /**
- * The bootstrap intervals of a paired suite's ratios in one mode, per significance metric. A round the load generator
- * refused (refusedRound) is left out: it measured the generator's ceiling.
+ * The bootstrap intervals of a paired suite's ratios in one mode, per significance metric, over the arms' measured
+ * seconds. The point is the interval's own statistic over all of them: the ratio of the arms' mean per-second
+ * throughput, or of their median per-second p50 and p99, a typical second's. A latency also keeps each round pair's
+ * whole-run ratio (`rounds`, from each run's whole histogram), which a few slow seconds can set: it is shown beside
+ * the interval and not judged, since two rounds give it no interval.
  */
 export function confidence(suite, mode) {
   if (suite.arms?.length !== 2) return {};
   const [a, b] = suite.arms.map(arm => arm.id);
-  const runs = suite.runs.filter(
-    run => modeOf(run) === mode && run.status === 'ok' && !refusedRound(run),
-  );
+  const runs = measured(suite, mode);
   const pool = (id, key) =>
     runs.filter(run => run.arm === id).flatMap(run => run.metrics[key] ?? []);
-  // A latency's point estimate is the median of the rounds' own percentiles (each from the run's whole histogram);
-  // its interval comes from the bootstrap over the measured seconds.
-  const perRound = (id, metric) =>
-    median(runs.filter(run => run.arm === id).map(run => run.metrics[metric]));
+  const pairs = roundPairs(suite, mode);
   return Object.fromEntries(
     SIGNIFICANCE_METRICS.map(([metric, key, statistic]) => {
       const interval = bootstrapRatio(pool(a, key), pool(b, key), statistic);
       if (!interval || metric === 'throughput') return [metric, interval];
-      const pa = perRound(a, metric);
-      const pb = perRound(b, metric);
       return [
         metric,
-        { ...interval, point: pa > 0 ? pb / pa : interval.point },
+        {
+          ...interval,
+          rounds: pairs
+            .map(([ra, rb]) => rb.metrics[metric] / ra.metrics[metric])
+            .filter(Number.isFinite),
+        },
       ];
     }),
   );
@@ -353,7 +375,7 @@ export function significanceSection(suites, noise, noiseLabel) {
     const [a, b] = suite.arms.map(arm => arm.id);
     const [saturation, measured] = saturationRow(suite, a, b);
     rows.push(
-      `| ${labelOf(suite)} | ${b}/${a} | saturation | closed loop | ${saturation} | - | ${measured} |`,
+      `| ${labelOf(suite)} | ${b}/${a} | saturation | closed loop | ${saturation} | - | - | ${measured} |`,
     );
     const kept = [a, b].map(id => keptUp(suite, id));
     const fell = [a, b].filter((id, at) => kept[at] && !kept[at].held);
@@ -365,7 +387,7 @@ export function significanceSection(suites, noise, noiseLabel) {
           ? `**${fell.join(' and ')} fell behind**`
           : 'both kept up';
     rows.push(
-      `| ${labelOf(suite)} | ${b}, ${a} | kept up | ${CALIBRATED} | ${keptText(b, kept[1])} · ${keptText(a, kept[0])} | - | ${keptVerdict} |`,
+      `| ${labelOf(suite)} | ${b}, ${a} | kept up | ${CALIBRATED} | ${keptText(b, kept[1])} · ${keptText(a, kept[0])} | - | - | ${keptVerdict} |`,
     );
     const shares = sharesText(suite);
     if (shares) notes.push(shares);
@@ -382,6 +404,7 @@ export function significanceSection(suites, noise, noiseLabel) {
       if (result === 'higher' || result === 'lower') beyond++;
       rows.push(
         `| ${labelOf(suite)} | ${b}/${a} | ${metric} | ${EQUAL} | ${interval ? `${ratio(interval.point)} [${ratio(interval.lo)}–${ratio(interval.hi)}]` : '-'} | ` +
+          `${interval?.rounds?.length ? interval.rounds.map(ratio).join(', ') : '-'} | ` +
           `${thresholds?.[metric] ? `±${num(thresholds[metric] * 100)}%` : '-'} | ${result === 'higher' || result === 'lower' ? `**${result}**` : result} |`,
       );
     }
@@ -389,10 +412,10 @@ export function significanceSection(suites, noise, noiseLabel) {
   return [
     '## Significance',
     '',
-    `Beyond noise: ${beyond} of ${latencies} latency ratios; ${calibrated} of ${significant.length} suites have an A/A noise threshold (test/benchmarks/noise.json). A latency ratio counts when its 95% bootstrap interval (over the measured seconds of the equal-rate rounds, rounds the load generator refused left out) clears the suite's threshold; without one it is \`uncalibrated\`. Throughput is the closed-loop saturation ratio, a measurement without an interval; at the calibrated rates each arm is judged against its own rate (in an open loop the throughput is the offered rate), never against the other arm.`,
+    `Beyond noise: ${beyond} of ${latencies} latency ratios; ${calibrated} of ${significant.length} suites have an A/A noise threshold (test/benchmarks/noise.json). A latency ratio counts when its 95% bootstrap interval (over the measured seconds of the equal-rate rounds, rounds the load generator refused left out) clears the suite's threshold; without one it is \`uncalibrated\`. The ratio and its interval are of a typical second: the arms' median per-second p50 or p99. The whole-run ratios beside them, one per round pair, are of each run's whole histogram, which a few slow seconds can set; they are shown and not judged, since two rounds give them no interval, and they are the Paired ratios table's figures. Throughput is the closed-loop saturation ratio, a measurement without an interval; at the calibrated rates each arm is judged against its own rate (in an open loop the throughput is the offered rate), never against the other arm.`,
     '',
-    '| Suite | Arms | Metric | Rounds | Ratio [95% CI] or share | Noise | Verdict |',
-    '| --- | --- | --- | --- | --- | --- | --- |',
+    '| Suite | Arms | Metric | Rounds | Ratio [95% CI] or share | Whole-run, per round | Noise | Verdict |',
+    '| --- | --- | --- | --- | --- | --- | --- | --- |',
     ...rows,
     '',
     ...(notes.length > 0 ? [...notes.map(note => `- ${note}`), ''] : []),

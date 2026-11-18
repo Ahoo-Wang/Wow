@@ -102,6 +102,55 @@ test('a round the generator refused is left out of the intervals and of what an 
   assert.equal(intervals.throughput.point, 1);
 });
 
+test("a latency's point is the statistic its interval is of, and each round's whole-run ratio stands beside it, unjudged", () => {
+  // Five real suites' equal-rate rounds (beta.8 against beta.7, beta.9 against beta.8) whose point, when it was the
+  // ratio of the arms' median whole-run p99s, lay outside its own interval: a few slow seconds set a whole-run p99,
+  // and a typical second's does not move with them.
+  const { suites } = JSON.parse(
+    readFileSync(
+      new URL('./fixtures/l3-equal-rounds.json', import.meta.url),
+      'utf8',
+    ),
+  );
+  const median = values => {
+    const sorted = [...values].sort((x, y) => x - y);
+    const middle = Math.floor(sorted.length / 2);
+    return sorted.length % 2
+      ? sorted[middle]
+      : (sorted[middle - 1] + sorted[middle]) / 2;
+  };
+  const wholeRun = (suite, arm) =>
+    median(suite.runs.filter(r => r.arm === arm).map(r => r.metrics.p99));
+  const rows = {
+    'e3-mongo@100k': '1.127, 1.614',
+    'mixed-pg@100k': '3.274, 2.014',
+    'e1-mongo-zipf@1k': '0.097, 0.893',
+    'e1-mongo-uniform@100k': '0.639, 0.961',
+    'e2-mongo@100k': '1.280, 1.402',
+  };
+  assert.deepEqual(
+    suites.map(s => `${s.name}@${s.dataset}`).sort(),
+    Object.keys(rows).sort(),
+  );
+  for (const suite of suites) {
+    const label = `${suite.name}@${suite.dataset}`;
+    const { p99 } = confidence(suite, 'equal');
+    const old = wholeRun(suite, 'head') / wholeRun(suite, 'base');
+    assert.ok(old < p99.lo || old > p99.hi, `${label}: the old point ${old}`);
+    assert.ok(p99.lo <= p99.point && p99.point <= p99.hi, label);
+    assert.equal(p99.rounds.map(r => r.toFixed(3)).join(', '), rows[label]);
+    const row = significanceSection([suite], {}, s => `${s.name}@${s.dataset}`)
+      .filter(line => line.includes(`| ${label} | head/base | p99 |`))
+      .join('');
+    assert.ok(
+      row.includes(
+        `| ${p99.point.toFixed(3)} [${p99.lo.toFixed(3)}–${p99.hi.toFixed(3)}] | ${rows[label]} |`,
+      ),
+      row,
+    );
+  }
+});
+
 test('each arm is judged against its own calibrated rate, and different shares are said in words', () => {
   const suite = {
     name: 'e1-pg-uniform',
@@ -160,11 +209,13 @@ test('the significance section reads throughput from the saturations and counts 
       run('base', 'calibrated', 0, { throughput: 1_498 }),
       run('head', 'calibrated', 0, { throughput: 1_165 }),
       run('base', 'equal', 0, {
+        p99: 210,
         p50Series: seconds(20),
         p99Series: seconds(200),
         okSeries: seconds(1_165),
       }),
       run('head', 'equal', 0, {
+        p99: 210,
         p50Series: seconds(20),
         p99Series: seconds(200),
         okSeries: seconds(1_165),
@@ -180,15 +231,15 @@ test('the significance section reads throughput from the saturations and counts 
   );
   assert.match(
     text,
-    /\| e1-pg-uniform@100k \| head\/base \| saturation \| closed loop \| 1\.037 \| - \| one search an arm, no interval \|/,
+    /\| e1-pg-uniform@100k \| head\/base \| saturation \| closed loop \| 1\.037 \| - \| - \| one search an arm, no interval \|/,
   );
   assert.match(
     text,
-    /\| e1-pg-uniform@100k \| head, base \| kept up \| calibrated \| head 100% of 1165\/s \(60% of saturation\) · base 100% of 1498\/s \(80% of saturation\) \| - \| both kept up \|/,
+    /\| e1-pg-uniform@100k \| head, base \| kept up \| calibrated \| head 100% of 1165\/s \(60% of saturation\) · base 100% of 1498\/s \(80% of saturation\) \| - \| - \| both kept up \|/,
   );
   assert.match(
     text,
-    /\| e1-pg-uniform@100k \| head\/base \| p99 \| equal \| 1\.000 \[1\.000–1\.000\] \| - \| uncalibrated \|/,
+    /\| e1-pg-uniform@100k \| head\/base \| p99 \| equal \| 1\.000 \[1\.000–1\.000\] \| 1\.000 \| - \| uncalibrated \|/,
   );
   assert.doesNotMatch(text, /\| throughput \|/);
   assert.match(text, /- e1-pg-uniform@100k: the arms ran at different shares/);
@@ -208,7 +259,7 @@ test('the significance section reads throughput from the saturations and counts 
   ).join('\n');
   assert.match(
     capped,
-    /\| ~1\.603 \| - \| capped: an arm reached the ceiling of 2048 clients, a lower bound \|/,
+    /\| ~1\.603 \| - \| - \| capped: an arm reached the ceiling of 2048 clients, a lower bound \|/,
   );
   assert.deepEqual(
     significanceSection([{ ...suite, aa: true }], {}, s => s.name),
