@@ -348,6 +348,8 @@ fun `an order the ordering context refuses should park the checkout`() = sagaSpe
 
 处理函数通过查询 API 读取的 Saga，从 `givenQueries` 拿到读到的内容：读侧的一个假实现，或 `wow-test-query` 提供的、基于内存快照的读侧。这个读侧是类路径上各模块声明的 Manifest 的查询引擎：处理函数的过滤条件、作用域与租户策略以及预算都像在节点上一样生效。`givenSnapshots(model, id, *events)` 持有聚合在这些事件之后所处状态的快照，版本是最后一个事件的版本：由它的模型像 `givenAggregate` 那样重放这些事件，模型没有溯源函数的事件会被拒绝。`givenSnapshots(type, id to state)` 按给定的样子持有状态，用于测试中没有模型溯源的状态。手头有模型时，优先用事件：写成 JSON map 的状态绕过了状态的 schema，拼错的字段会被悄悄丢掉，读回的状态里该字段是默认值。读取多个聚合的规格，给一个 `givenQueries(memoryQueries { snapshot(model, id, *events); … })`，其中也可以用 `snapshots(type, id to state, …)`；每次 `givenSnapshots` 都会替换之前给出的查询。
 
+状态声明了访问属性的聚合，像在节点上一样，按它的访问策略读取。没有策略时，读侧在规格读取这个聚合的地方拒绝，而不是在构建时拒绝：从不读取该聚合的规格照常运行，读取它的规格传入它所依据的策略，`memoryQueries(access = listOf(documentAccess)) { … }`。把策略声明为领域模块中的一个值，`val documentAccess = accessPolicy<DocumentState> { … }`，服务器的 `@Bean` 返回它，读取该聚合的规格也传入它，这样规格依据的是生产环境的策略，而不是一份副本。节点在启动时仍会拒绝声明了访问属性却没有策略的聚合。
+
 ### 失败、重试与停放 {#failures-retries-and-parking}
 
 抛出异常的处理函数会让规格失败，除非这一步的检查预期了它：`expectError<T>`、`expectRetried` 或 `expectParked`。规格像运行时的订阅那样，判断运行时会如何处理这次失败：

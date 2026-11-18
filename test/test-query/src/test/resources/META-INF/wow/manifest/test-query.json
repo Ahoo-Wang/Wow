@@ -21,6 +21,16 @@
           "lifecycle": [],
           "queries": [{ "model": "snapshot", "routes": [] }],
           "ownership": "owner"
+        },
+        {
+          "name": "shelf",
+          "state": { "schema": "#/$defs/ZonedShelf" },
+          "commands": [],
+          "events": [],
+          "lifecycle": [],
+          "queries": [{ "model": "snapshot", "routes": [] }],
+          "ownership": "tenant",
+          "access": [{ "name": "zone", "type": "string" }]
         }
       ],
       "subscriptions": [],
@@ -37,6 +47,10 @@
     "Cart": {
       "type": "object",
       "properties": { "items": { "type": "integer" } }
+    },
+    "ZonedShelf": {
+      "type": "object",
+      "properties": { "zone": { "type": "string" } }
     }
   }
 }

@@ -108,6 +108,8 @@ class ScopeQueryPolicy(
     override suspend fun evaluate(caller: QueryCaller, context: QueryContext<*>): FilterExpression {
         targets.recheck(context.aggregateType, caller)
         val type = context.aggregateType
+        // Every query of an aggregate, trusted or not, is admitted here: a missing policy refused at the read is.
+        access.requireReadable(type)
         // An access policy of the aggregate's own decides its owner and space instead; so it does for a dataset of
         // the rows of an aggregate it governs.
         val dataset = (context.schema.profile as? DatasetQueryModelProfile)?.dataset

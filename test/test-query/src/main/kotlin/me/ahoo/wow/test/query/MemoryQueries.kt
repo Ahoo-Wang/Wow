@@ -84,6 +84,9 @@ class MemoryQueries @InternalWowApi constructor(
         QueryEngine.Builder(manifest)
             .snapshots(storage) { aggregateOf(it) != null }
             .accessPolicies(access, { state -> this.stateTypes.filterValues { it == state }.keys.toList() })
+            // A spec reads few of the aggregates of the modules on its class path: one of them without a policy is
+            // refused where the spec reads it, as a node refuses it at its start.
+            .refuseMissingAccessPoliciesAtRead()
             .filters(filters)
             .build()
     }
