@@ -44,8 +44,8 @@ class ContractSplitFunctionalTest {
         File(root, path).apply { parentFile.mkdirs() }.writeText(content.trimIndent())
     }
 
-    /** The module [path] of [plugin], depending on [dependencies]. */
-    private fun module(root: File, path: String, plugin: String, dependencies: String) {
+    /** The module [path] of [plugin], depending on [dependencies], its build file ending with [extra]. */
+    private fun module(root: File, path: String, plugin: String, dependencies: String, extra: String = "") {
         val compiler = if (plugin == WowPlugin.API_ID) {
             ""
         } else {
@@ -71,6 +71,8 @@ class ContractSplitFunctionalTest {
                 wowTools(files(${classpath("wow-test.fixture.toolsClasspath")}))
                 $dependencies
             }
+
+            $extra
             """,
         )
     }
@@ -89,6 +91,11 @@ class ContractSplitFunctionalTest {
         val amount: String = "",
         val consumes: Boolean = true,
         val views: Boolean = false,
+        /** Whether a domain reading the peer's view asks for the peer's contract (`wow.contract`). */
+        val contract: Boolean = views,
+        /** What each module's build file ends with: [apiExtra] for the api module. */
+        val extra: String = "",
+        val apiExtra: String = extra,
     )
 
     private fun context(root: File, context: Context) {
@@ -96,11 +103,11 @@ class ContractSplitFunctionalTest {
         domain(root, context)
         if (context.consumes) saga(root, context)
         val domain = "implementation(project(\":${context.name}-domain\"))"
-        module(root, "${context.name}-server", WowPlugin.SERVICE_ID, domain)
+        module(root, "${context.name}-server", WowPlugin.SERVICE_ID, domain, context.extra)
     }
 
     private fun api(root: File, context: Context) = with(context) {
-        module(root, "$name-api", WowPlugin.API_ID, "wowContract(project(\":$name-domain\"))\n$api")
+        module(root, "$name-api", WowPlugin.API_ID, "wowContract(project(\":$name-domain\"))\n$api", apiExtra)
         write(
             root,
             "$name-api/src/main/kotlin/$name/api/Messages.kt",
@@ -125,10 +132,10 @@ class ContractSplitFunctionalTest {
     private fun domain(root: File, context: Context) = with(context) {
         val peerApi = when {
             !consumes -> ""
-            views -> "implementation(wow.contract(project(\":$peer-api\")))"
+            contract -> "implementation(wow.contract(project(\":$peer-api\")))"
             else -> "implementation(project(\":$peer-api\"))"
         }
-        module(root, "$name-domain", WowPlugin.ID, "api(project(\":$name-api\"))\n$peerApi")
+        module(root, "$name-domain", WowPlugin.ID, "api(project(\":$name-api\"))\n$peerApi", extra)
         write(
             root,
             "$name-domain/src/main/kotlin/$name/domain/$aggregate.kt",
@@ -197,7 +204,15 @@ class ContractSplitFunctionalTest {
      * The two contexts: `b-api` uses `a-api`'s amount when [shared]; `b-domain` consumes `a`'s events when [mutual];
      * `a-domain` reads `b`'s state as its view when [views].
      */
-    private fun build(root: File, shared: Boolean, mutual: Boolean, views: Boolean) {
+    private fun build(
+        root: File,
+        shared: Boolean,
+        mutual: Boolean,
+        views: Boolean,
+        contract: Boolean = views,
+        extra: String = "",
+        apiExtra: String = extra,
+    ) {
         write(
             root,
             "settings.gradle.kts",
@@ -207,7 +222,10 @@ class ContractSplitFunctionalTest {
             """,
         )
         write(root, "gradle.properties", "kotlin.compiler.execution.strategy=in-process\norg.gradle.jvmargs=-Xmx1g")
-        context(root, Context("a", "Alpha", "b", "Beta", views = views))
+        context(
+            root,
+            Context("a", "Alpha", "b", "Beta", views = views, contract = contract, extra = extra, apiExtra = apiExtra),
+        )
         context(
             root,
             Context(
@@ -218,18 +236,21 @@ class ContractSplitFunctionalTest {
                 api = if (shared) "api(project(\":a-api\"))" else "",
                 amount = if (shared) ", val amount: a.api.AlphaAmount" else "",
                 consumes = mutual,
+                extra = extra,
+                apiExtra = apiExtra,
             ),
         )
     }
 
-    /** Builds both services' Manifests, and returns the context each subscription of [service] takes events of. */
+    private fun runner(root: File, vararg tasks: String): GradleRunner = GradleRunner.create()
+        .withProjectDir(root)
+        .withPluginClasspath()
+        .withArguments(*tasks, "--stacktrace")
+        .forwardOutput()
+
+    /** Builds both services' Manifests, and returns the contexts each service's subscriptions take events of. */
     private fun merge(root: File): Map<String, List<String>> {
-        val result = GradleRunner.create()
-            .withProjectDir(root)
-            .withPluginClasspath()
-            .withArguments(":a-server:${WowPlugin.MERGE_TASK}", ":b-server:${WowPlugin.MERGE_TASK}", "--stacktrace")
-            .forwardOutput()
-            .build()
+        val result = runner(root, ":a-server:${WowPlugin.MERGE_TASK}", ":b-server:${WowPlugin.MERGE_TASK}").build()
         listOf("a", "b").forEach {
             result.task(":$it-server:${WowPlugin.MERGE_TASK}")?.outcome.assert().isEqualTo(TaskOutcome.SUCCESS)
         }
@@ -257,5 +278,34 @@ class ContractSplitFunctionalTest {
     fun `a context consuming the events of one whose api uses its types should build`(@TempDir root: File) {
         build(root, shared = true, mutual = false, views = false)
         merge(root).assert().isEqualTo(mapOf("a" to listOf("b"), "b" to emptyList()))
+    }
+
+    @Test
+    fun `a domain using a peer's generated view without asking for its contract should not compile`(
+        @TempDir root: File
+    ) {
+        build(root, shared = false, mutual = false, views = true, contract = false)
+        val failed = runner(root, ":a-domain:compileKotlin").buildAndFail()
+        // The peer's types resolve, its api's own variant being them; its generated view is the contract's alone.
+        failed.output.assert().contains("BetaStateView").doesNotContain("BetaOpened did not resolve")
+    }
+
+    @Test
+    fun `a service should see the contracts of api modules whose JVM target is set after the plugin's evaluation`(
+        @TempDir root: File
+    ) {
+        val target = """
+            java {
+                sourceCompatibility = JavaVersion.VERSION_21
+                targetCompatibility = JavaVersion.VERSION_21
+            }
+            kotlin { compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21) } }
+        """
+        // The api modules set it in an afterEvaluate of their own, which runs after the one the plugin offers the
+        // contract in: a view whose JVM version was taken then (the build's default) would not fit the services'
+        // request for 21, Gradle would pick the api's own variant, and the merge would find no peer contract.
+        val late = "afterEvaluate {\n$target\n}"
+        build(root, shared = true, mutual = true, views = false, extra = target, apiExtra = late)
+        merge(root).assert().isEqualTo(mapOf("a" to listOf("b"), "b" to listOf("a")))
     }
 }

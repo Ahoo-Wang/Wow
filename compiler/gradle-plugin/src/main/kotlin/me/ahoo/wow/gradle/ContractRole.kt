@@ -50,6 +50,11 @@ import org.gradle.api.tasks.bundling.Jar
  *   types and, through a dependency on its own feature, its contract once. Any other consumer lacks that request, and
  *   Gradle picks the api's own variants, which have fewer attributes.
  *
+ * In one build a domain's tests see every api module of the build they reach, its own and its peers': under isolated
+ * projects a domain cannot tell its own api from a peer's when it configures itself, and tests are no input of any
+ * domain's main, so this adds no cycle. A peer in a repository of its own is no api module of the build: a test that
+ * uses its generated code declares `testImplementation(wow.contract(...))`.
+ *
  * None of these variants is published yet: the api's publication holds its types.
  */
 internal object ContractRole {
@@ -113,8 +118,13 @@ internal object ContractRole {
     }
 
     /**
-     * The view variants of [api]: its types (the `jar` task's) of the same dependencies as `apiElements` and
-     * `runtimeElements`, and its own contract feature, of [API_VIEW] [CONTRACT_VIEW].
+     * The view variants of [api]: its types (the `jar` task's) of the same dependencies, constraints and attributes as
+     * `apiElements` and `runtimeElements`, and its own contract feature, of [API_VIEW] [CONTRACT_VIEW]. They follow
+     * those variants lazily: their dependencies and constraints, and each attribute's value, are read when a consumer
+     * resolves, so a JVM target set later (after this, in an `afterEvaluate` of the build script) is the view's too. A
+     * view less fit than the api's own variant would be passed over, and its consumer left without the contract. The
+     * attributes' keys are taken when [contract] runs, once the project is evaluated: the `java` plugin, which every api
+     * module applies first, declares them all on creating the variants.
      */
     private fun view(api: Project) {
         val types = api.tasks.named(JavaPlugin.JAR_TASK_NAME, Jar::class.java)
@@ -130,7 +140,8 @@ internal object ContractRole {
                     "$CONTRACT_VIEW selects."
                 view.isCanBeConsumed = true
                 view.isCanBeResolved = false
-                view.extendsFrom(*elements.extendsFrom.toTypedArray())
+                view.dependencies.addAllLater(api.provider { elements.allDependencies.toList() })
+                view.dependencyConstraints.addAllLater(api.provider { elements.allDependencyConstraints.toList() })
                 view.dependencies.add(contract)
                 jvmAttributes(api, view, usage)
                 // The JVM version and environment the api's own variants declare, so that a consumer asking for
