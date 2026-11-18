@@ -17,6 +17,7 @@ import me.ahoo.wow.gradle.WowPlugin.Companion.CONTRACT_ATTRIBUTE
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Dependency
 import org.gradle.api.artifacts.ModuleDependency
+import org.gradle.api.artifacts.component.ModuleComponentSelector
 import org.gradle.api.artifacts.component.ProjectComponentIdentifier
 import org.gradle.api.artifacts.dsl.DependencyHandler
 import org.gradle.api.artifacts.result.ResolvedComponentResult
@@ -111,9 +112,10 @@ internal object ContractDerivation {
         val pending = ArrayDeque(listOf(root))
         val contracts = mutableListOf<Dependency>()
         while (pending.isNotEmpty()) {
-            pending.removeFirst().dependencies.filterIsInstance<ResolvedDependencyResult>().map { it.selected }
-                .filter { seen.add(it.id) }
-                .forEach { component ->
+            pending.removeFirst().dependencies.filterIsInstance<ResolvedDependencyResult>()
+                .filter { seen.add(it.selected.id) }
+                .forEach { edge ->
+                    val component = edge.selected
                     pending += component
                     val feature = featureOf(component) ?: return@forEach
                     val id = component.id
@@ -121,13 +123,25 @@ internal object ContractDerivation {
                     val contract = when {
                         local -> dependencies.project(mapOf("path" to (id as ProjectComponentIdentifier).projectPath))
                         projectsOnly -> null
-                        else -> component.moduleVersion?.let { dependencies.create("$it") }
+                        else -> coordinatesOf(edge)?.let { dependencies.create(it) }
                     } as ModuleDependency? ?: return@forEach
                     contract.capabilities { it.requireFeature(feature) }
                     contracts += contract
                 }
         }
         return contracts
+    }
+
+    /**
+     * The coordinates to ask [edge]'s component for its contract by: the module the edge requested, at the version
+     * Gradle selected, which resolve again as the edge did. A project of an included build answers coordinates its
+     * build substitutes, which may not be its own `group:name`: `wow-ops-api` for the project `:ops-api`, by a
+     * `dependencySubstitution`. A project requested as a project is asked by its own coordinates.
+     */
+    private fun coordinatesOf(edge: ResolvedDependencyResult): String? {
+        val selected = edge.selected.moduleVersion ?: return null
+        val requested = edge.requested as? ModuleComponentSelector ?: return "$selected"
+        return "${requested.group}:${requested.module}:${selected.version}"
     }
 
     /** The feature [component]'s selected variant names in [CONTRACT_ATTRIBUTE]; null for any other component. */
