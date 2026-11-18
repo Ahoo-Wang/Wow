@@ -27,6 +27,7 @@ import me.ahoo.wow.spi.json.WowEnums
 import me.ahoo.wow.spi.json.WowJson
 import tools.jackson.databind.BeanDescription
 import tools.jackson.databind.JavaType
+import tools.jackson.databind.JsonNode
 import tools.jackson.databind.ValueSerializer
 import tools.jackson.databind.annotation.JsonSerialize
 import tools.jackson.databind.introspect.AnnotatedMember
@@ -34,10 +35,14 @@ import tools.jackson.databind.introspect.BeanPropertyDefinition
 import tools.jackson.databind.json.JsonMapper
 import tools.jackson.databind.jsonFormatVisitors.JsonFormatVisitorWrapper
 import tools.jackson.databind.jsonFormatVisitors.JsonObjectFormatVisitor
+import tools.jackson.databind.node.ArrayNode
 import tools.jackson.databind.node.ObjectNode
 import tools.jackson.databind.util.Converter
 import java.lang.reflect.Modifier
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.reflect.KClass
+import kotlin.reflect.KType
+import kotlin.reflect.full.primaryConstructor
 
 /**
  * The schemas a module declares in `wow { schemaOverrides }`, and the generation's stops that ask for one: a schema is
@@ -60,6 +65,11 @@ import java.util.concurrent.ConcurrentHashMap
  *   `converter`, `contentUsing` or `contentConverter`, or `@JsonRawValue`). Each stop prints the line that declares
  *   it. A property's key serializer (`keyUsing`) is no stop: a JSON object's keys are strings, which the schema
  *   does not constrain.
+ * - A Jackson tree (`tools.jackson.databind`'s, which Wow's JSON writes as the JSON it holds) is described as Jackson
+ *   writes it, with no declaration: an `ObjectNode` is an object, an `ArrayNode` an array, any other `JsonNode` any
+ *   value ([treeSchemaOf]). A declared schema of one wins, as of any class. A Jackson 2 tree
+ *   (`com.fasterxml.jackson.databind.JsonNode`) stops the generation, declared or not: Wow's JSON is Jackson 3's,
+ *   which writes it as a bean of its getters, not as the JSON it holds.
  * - It also stops for a property holding a platform class, itself or as its container's element, that Wow's JSON
  *   writes as no object and that is no scalar Wow describes ([WireTypes.SCALARS]): a `Charset`, an `AtomicLong`, a
  *   `kotlin.time.Duration` in a list. The generator would describe it by its fields, which are not what is written.
@@ -78,7 +88,16 @@ internal class SchemaOverrides(declared: Map<String, ObjectNode>, private val ma
 
     private fun definitionOf(type: ResolvedType): CustomDefinition? {
         val rawClass = type.erasedType
+        check(!isJackson2Tree(rawClass)) {
+            "Wow's JSON is Jackson 3's, which writes ${rawClass.name}, a Jackson 2 tree, as a bean of its getters " +
+                "(\"nodeType\", \"object\", ...), not as the JSON it holds: hold a tools.jackson.databind.JsonNode, " +
+                "ObjectNode or ArrayNode instead."
+        }
         classes[rawClass.name]?.let { return CustomDefinition(it.deepCopy()) }
+        // Written as the JSON it holds: inline, and named by no class, as a free shape is.
+        treeSchemaOf(rawClass)?.let {
+            return CustomDefinition(it, CustomDefinition.DefinitionType.INLINE, CustomDefinition.AttributeInclusion.NO)
+        }
         // A Wow enumeration is written by its wire names; a domain's, by its constants' names.
         if (rawClass in WowEnums.TYPES) {
             val values = rawClass.enumConstants.map { it as Enum<*> }.filter { it.name != UNKNOWN }
@@ -110,12 +129,34 @@ internal class SchemaOverrides(declared: Map<String, ObjectNode>, private val ma
             "Jackson writes $key with a serializer of its own (@JsonSerialize using, converter, contentUsing or " +
                 "contentConverter, or @JsonRawValue), so its schema cannot be introspected: ${declaration(key)}."
         }
+        wrappedDuration(KotlinMembers.typeOf(member))?.let { wrapper ->
+            error(
+                "Wow's JSON writes $key, a ${wrapper.name} over a kotlin.time.Duration, as Kotlin's internal " +
+                    "encoding of the duration, which no unit reads: ${declaration(key)}, or hold a " +
+                    "kotlin.time.Duration.",
+            )
+        }
         unwritten(member.type)?.let { type ->
             error(
                 "Wow's JSON does not write ${type.name}, which $key holds, as an object, and it is no scalar Wow " +
                     "describes, so its schema would not be what is written: ${declaration(key)}, or hold it as a " +
                     "String.",
             )
+        }
+        return null
+    }
+
+    /**
+     * The value class [type] is, when it holds a `kotlin.time.Duration`, itself or through value classes: the Kotlin
+     * module writes it unboxed, the duration's internal `long`, which the conversion of a `Duration` does not reach.
+     */
+    private fun wrappedDuration(type: KType?): Class<*>? {
+        val wrapper = type?.classifier as? KClass<*> ?: return null
+        var current: KClass<*> = wrapper
+        while (current.isValue) {
+            current = current.primaryConstructor?.parameters?.singleOrNull()?.type?.classifier as? KClass<*>
+                ?: return null
+            if (current == kotlin.time.Duration::class) return wrapper.java
         }
         return null
     }
@@ -162,6 +203,22 @@ internal class SchemaOverrides(declared: Map<String, ObjectNode>, private val ma
     /** A class of the application, of any kind: no primitive, array or platform class. */
     private fun isOwnClass(rawClass: Class<*>): Boolean =
         !rawClass.isPrimitive && !rawClass.isArray && PLATFORM_PACKAGES.none { rawClass.name.startsWith(it) }
+
+    /**
+     * The schema of a Jackson tree of [rawClass], as Wow's JSON writes it, the JSON it holds: an `ObjectNode` an
+     * object, an `ArrayNode` an array, any other `JsonNode` (one of either, or a value node) any value, `{}`; null for
+     * any other class.
+     */
+    private fun treeSchemaOf(rawClass: Class<*>): ObjectNode? = when {
+        !JsonNode::class.java.isAssignableFrom(rawClass) -> null
+        ObjectNode::class.java.isAssignableFrom(rawClass) -> mapper.createObjectNode().put(TYPE, "object")
+        ArrayNode::class.java.isAssignableFrom(rawClass) -> mapper.createObjectNode().put(TYPE, "array")
+        else -> mapper.createObjectNode()
+    }
+
+    /** Whether [rawClass] is a Jackson 2 tree, named so that this module needs no Jackson 2 on its class path. */
+    private fun isJackson2Tree(rawClass: Class<*>): Boolean =
+        generateSequence(rawClass) { it.superclass }.any { it.name == JACKSON_2_TREE }
 
     /** Whether Jackson's annotations give [rawClass] a serializer or a converter of its own. */
     private fun hasOwnSerializer(rawClass: Class<*>): Boolean {
@@ -216,6 +273,11 @@ internal class SchemaOverrides(declared: Map<String, ObjectNode>, private val ma
     private companion object {
         /** The separator of a property's key: the class's binary name, `#`, the property's declared name. */
         const val PROPERTY = "#"
+
+        const val TYPE = "type"
+
+        /** The base class of Jackson 2's trees, which Wow's JSON, Jackson 3's, does not write as JSON. */
+        const val JACKSON_2_TREE = "com.fasterxml.jackson.databind.JsonNode"
 
         /** The value a reader older than its writer reads an unknown value as, which no writer writes. */
         const val UNKNOWN = "UNKNOWN"

@@ -51,7 +51,7 @@ outline: deep
 
 - 先修复原因：部署修正后的处理函数，或者让它调用的外部系统恢复。
 - 然后重试这些聚合：订阅从每个聚合停下的地方重新读取它的流（[ops 服务与控制台](./ops-console)）。
-- Saga 发出的命令被拒绝，只有在 Saga 没有对应的 `@OnRejected` 处理函数时才会停放聚合（[失败与重试](../guide/failures)）。
+- Saga 派生的命令被拒绝，只有在命令属于 Saga 自身上下文、且 Saga 没有对应的 `@OnRejected` 处理函数时，才会停放 Saga 的源聚合：发往其他上下文的命令此时不请求回执，由目标记录这次拒绝。Saga 调用的命令被拒绝时，只要 Saga 没有对应的处理函数，无论命令属于哪个上下文，都会停放聚合（[失败与重试](../guide/failures)）。
 
 ## 部署之后订阅重新开始了 {#a-subscription-starts-over-after-a-deploy}
 
@@ -104,6 +104,7 @@ ownership 健康组件为 `DOWN`，或者在某个节点离开期间，某些聚
 
   要在代码里解决：让一方不通过对方的视图读取对方的状态，改用事件或查询。只用另一个上下文的类型（它的命令、事件和值）永远不会成环。
 - **"…which no peer contract on the class path lists as an event: it is in `<module>`, whose api module carries no contract listing it."** 这个事件的 api 模块发布时没有带契约：只含类型的发布（`-Pwow.contract.publish=false`，环的第一次发布），或者没有声明 `wowContract` 的 api 模块。改为依赖该模块的完整发布。
+- **"Unable to find a variant of '`<group>:<artifactId>:<version>`' with the requested capability: feature 'contract'"，并列出提供 `<group>:<项目名>-contract` 的变体。** 这个 api 模块由 10.0.0-beta.8 的插件以不同于项目名的 artifactId 发布，而那个插件只按项目名提供契约。用之后的插件重新发布这个模块。在此之前，请求它提供的名字：`capabilities { requireCapability("<group>:<项目名>-contract") }`；Maven 构建添加分类器 `contract`，不受此影响。
 - **"…in a build run with -Pwow.contract.publish=false…"** 这个属性只发布 api 模块的类型，而服务需要它们的契约。去掉这个属性构建服务。
 - **"…the contract and the types of its api module are of different versions."** 一个上下文的契约所列的类，类路径上只有一部分。消费方可以持有一个上下文的契约而没有它的任何类，通过 JSON 访问它；但不可以只持有其中一部分类。依赖该模块的同一个版本，它的 jar 与分类器 `contract` 一起。
 

@@ -94,10 +94,12 @@ class WowJsonTest {
     }
 
     @Test
-    fun `the mapper registers the Kotlin module and Wow's transport, state event and enum modules only and ignores unknown properties`() {
+    fun `the mapper registers the Kotlin module and Wow's time, transport, state event and enum modules only and ignores unknown properties`() {
         WowJson.mapper.registeredModules().map { it.moduleName }
             .assert().containsExactly(
                 KotlinModule.Builder().build().moduleName,
+                "wow-month-names",
+                "wow-kotlin-durations",
                 "wow-transport",
                 "wow-state-event",
                 WowEnums.MODULE_NAME,

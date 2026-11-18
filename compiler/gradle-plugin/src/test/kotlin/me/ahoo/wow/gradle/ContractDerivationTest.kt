@@ -23,6 +23,7 @@ import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.api.artifacts.component.BuildIdentifier
 import org.gradle.api.artifacts.component.ComponentIdentifier
 import org.gradle.api.artifacts.component.ComponentSelector
+import org.gradle.api.artifacts.component.ModuleComponentSelector
 import org.gradle.api.artifacts.component.ProjectComponentIdentifier
 import org.gradle.api.artifacts.result.ComponentSelectionReason
 import org.gradle.api.artifacts.result.DependencyResult
@@ -36,6 +37,7 @@ import org.gradle.testfixtures.ProjectBuilder
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
+import java.lang.reflect.Proxy
 import java.util.Optional
 
 /**
@@ -131,11 +133,34 @@ class ContractDerivationTest {
         override fun toString(): String = coordinates
     }
 
-    /** A component of [id], its selected variant of [variantAttributes], reaching [reaches]. */
-    private class Component(
+    /**
+     * What an edge to [selected] requested: the module [requested] names, else the selected module's coordinates, or a
+     * project's selector for a project.
+     */
+    private fun requestOf(selected: ResolvedComponentResult, requested: String?): ComponentSelector {
+        val coordinates = requested ?: selected.moduleVersion?.toString()
+        val type = if (coordinates != null) ModuleComponentSelector::class.java else ComponentSelector::class.java
+        return Proxy.newProxyInstance(type.classLoader, arrayOf(type)) { _, method, _ ->
+            val parts = coordinates?.split(':').orEmpty()
+            when (method.name) {
+                "getGroup" -> parts[0]
+                "getModule" -> parts[1]
+                "getVersion" -> parts[2]
+                "getDisplayName", "toString" -> coordinates ?: selected.id.displayName
+                else -> throw UnsupportedOperationException(method.name)
+            }
+        } as ComponentSelector
+    }
+
+    /**
+     * A component of [id], its selected variant of [variantAttributes], reaching [reaches], each by the coordinates
+     * [requests] names, else by its own.
+     */
+    private inner class Component(
         private val id: ComponentIdentifier,
         private val variantAttributes: AttributeContainer,
         private val reaches: List<ResolvedComponentResult> = emptyList(),
+        private val requests: Map<ResolvedComponentResult, String> = emptyMap(),
     ) : ResolvedComponentResult {
         override fun getId(): ComponentIdentifier = id
         override fun getModuleVersion(): ModuleVersionIdentifier? = id as? ModuleVersionIdentifier
@@ -152,7 +177,7 @@ class ContractDerivationTest {
             object : ResolvedDependencyResult {
                 override fun getSelected(): ResolvedComponentResult = selected
                 override fun getResolvedVariant(): ResolvedVariantResult = selected.variants.single()
-                override fun getRequested(): ComponentSelector = throw UnsupportedOperationException()
+                override fun getRequested(): ComponentSelector = requestOf(selected, requests[selected])
                 override fun getFrom(): ResolvedComponentResult = this@Component
                 override fun isConstraint(): Boolean = false
             }
@@ -174,11 +199,19 @@ class ContractDerivationTest {
         // A project of an included build is found by its coordinates, which the build's substitution turns back.
         val included = Component(ModuleId("sample:billing-api:2.0.0"), api)
         val other = Component(ProjectId(":billing", ":billing-api"), api, listOf(included))
-        val root = Component(ProjectId(":", ":shop-server"), none, listOf(published, library, other))
+        // A project of an included build published under another name is asked by what was requested, the name its
+        // build's dependencySubstitution turns back into the project, at the version selected.
+        val renamed = Component(ModuleId("sample:ledger-api:3.0.0"), api)
+        val root = Component(
+            ProjectId(":", ":shop-server"),
+            none,
+            listOf(published, library, other, renamed),
+            mapOf(renamed to "sample:acme-ledger-api:latest.release"),
+        )
         val contracts = ContractDerivation.contractsOf(root, project.dependencies, projectsOnly = false)
             .map { it as ExternalModuleDependency }
         contracts.map { "${it.group}:${it.name}:${it.version}" }.assert()
-            .containsExactly("sample:shop-api:1.2.0", "sample:billing-api:2.0.0")
+            .containsExactly("sample:shop-api:1.2.0", "sample:acme-ledger-api:3.0.0", "sample:billing-api:2.0.0")
         contracts.forEach { it.capabilitySelectors.single().displayName.assert().contains(ContractRole.FEATURE) }
         // A domain's tests take the build's own projects alone.
         ContractDerivation.contractsOf(root, project.dependencies, projectsOnly = true).assert().isEmpty()

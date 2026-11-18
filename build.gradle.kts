@@ -1058,7 +1058,10 @@ tasks.register("publicationCheck") {
 // what `publicationCheck` published into its scratch repository, as a user's build resolves a release from Maven
 // Central: the plugins by their markers, the modules and the BOM by their coordinates. It records the service's
 // baseline, builds and checks it with the configuration cache, builds it again from that cache, and checks that the
-// api module's contract jar carries the contract and the service's Manifest holds the context.
+// api module's contract jar carries the contract and the service's Manifest holds the context. Then
+// test/publication-consumer/contracts resolves the feature contract of each of Wow's published api modules by its
+// coordinates, with no Wow plugin: an api module published under another name than its project's offered no
+// capability of that name (10.0.0-beta.8).
 tasks.register("publicationConsumerCheck") {
     description = "Builds the documented three-module layout against the release publicationCheck published."
     group = LifecycleBasePlugin.VERIFICATION_GROUP
@@ -1066,6 +1069,8 @@ tasks.register("publicationConsumerCheck") {
     val fixture = layout.projectDirectory.dir("test/publication-consumer").asFile
     val consumer = layout.buildDirectory.dir("publication-check/consumer").get().asFile
     val gradlew = rootDir.resolve("gradlew").path
+    val apis = publicationProjects.filter { it.pluginManager.hasPlugin("me.ahoo.wow.api") }.map { it.artifactName() }
+    val group = project.group.toString()
     val properties = listOf(
         "-Pwow.consumer.repository=${publicationCheckRepository.get().asFile.toURI()}",
         "-Pwow.consumer.version=$version",
@@ -1094,6 +1099,21 @@ tasks.register("publicationConsumerCheck") {
         }
         val manifest = consumer.resolve("catalog-server/build/wow/manifest.json").readText()
         if ("\"catalog\"" !in manifest) throw GradleException("The consumer's Manifest holds no context catalog")
+        // Wow's own api modules' contracts, by their feature, as an outside build asks: `<group>:<artifactId>-contract`.
+        val asked = apis.map { "$group:$it-contract" }
+        val contracts = try {
+            runProcess(
+                listOf(gradlew, "-p", consumer.resolve("contracts").path, "--no-daemon", "-q") + properties +
+                    listOf("-Pwow.consumer.apis=${apis.joinToString(",")}", "contracts"),
+            )
+        } catch (e: GradleException) {
+            // Gradle's refusal lists the capabilities each variant offers.
+            throw GradleException("Resolving the feature contract by coordinates asks for $asked:\n${e.message}", e)
+        }.lines().single { it.startsWith("CONTRACTS=") }.removePrefix("CONTRACTS=").split(',')
+        val missing = apis.map { "$it-$version-contract.jar" } - contracts.toSet()
+        if (missing.isNotEmpty()) {
+            throw GradleException("Resolving the feature contract by coordinates asks for $asked, and gave $contracts")
+        }
     }
 }
 

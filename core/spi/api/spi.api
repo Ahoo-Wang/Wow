@@ -903,6 +903,22 @@ public final class me/ahoo/wow/spi/observation/ObservedEvent$ReservationLost : m
 	public final fun getContext ()Ljava/lang/String;
 }
 
+public final class me/ahoo/wow/spi/observation/ObservedEvent$RouteLookedUp : me/ahoo/wow/spi/observation/ObservedEvent {
+	public final fun getOutcome ()Lme/ahoo/wow/spi/observation/ObservedEvent$RouteLookedUp$Outcome;
+	public final fun getRead ()Z
+	public final fun getType ()Lme/ahoo/wow/api/aggregate/AggregateType;
+}
+
+public final class me/ahoo/wow/spi/observation/ObservedEvent$RouteLookedUp$Outcome : java/lang/Enum {
+	public static final field FAILED Lme/ahoo/wow/spi/observation/ObservedEvent$RouteLookedUp$Outcome;
+	public static final field NONE Lme/ahoo/wow/spi/observation/ObservedEvent$RouteLookedUp$Outcome;
+	public static final field OWNER Lme/ahoo/wow/spi/observation/ObservedEvent$RouteLookedUp$Outcome;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public final fun getValue ()Ljava/lang/String;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/spi/observation/ObservedEvent$RouteLookedUp$Outcome;
+	public static fun values ()[Lme/ahoo/wow/spi/observation/ObservedEvent$RouteLookedUp$Outcome;
+}
+
 public final class me/ahoo/wow/spi/observation/ObservedEvent$SignalDropped : me/ahoo/wow/spi/observation/ObservedEvent {
 	public final fun getOrigin ()Ljava/lang/String;
 	public final fun getReason ()Lme/ahoo/wow/spi/observation/ObservedEvent$SignalDropped$Reason;
@@ -989,6 +1005,7 @@ public final class me/ahoo/wow/spi/observation/ObservedEvent$TailRead$Reason : j
 	public static final field GAP Lme/ahoo/wow/spi/observation/ObservedEvent$TailRead$Reason;
 	public static final field IDLE Lme/ahoo/wow/spi/observation/ObservedEvent$TailRead$Reason;
 	public static final field OVERFLOW Lme/ahoo/wow/spi/observation/ObservedEvent$TailRead$Reason;
+	public static final field SCHEDULED Lme/ahoo/wow/spi/observation/ObservedEvent$TailRead$Reason;
 	public static final field START Lme/ahoo/wow/spi/observation/ObservedEvent$TailRead$Reason;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public final fun getValue ()Ljava/lang/String;

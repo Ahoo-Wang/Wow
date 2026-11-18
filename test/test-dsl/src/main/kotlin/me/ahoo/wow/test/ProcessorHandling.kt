@@ -86,7 +86,7 @@ internal class ProcessorHandling(
             failing = handler
             val rejectedCalls = LinkedHashMap<String, Command<*>>()
             val answering = CommandCalls { command ->
-                calls += command
+                calls += command.admitted()
                 answer(command).also { result ->
                     if (result.status == CommandResult.Status.REJECTED) {
                         rejectedCalls[result.commandId] = command
@@ -113,7 +113,9 @@ internal class ProcessorHandling(
                 if (kind != FunctionKind.SAGA) throw rejected
                 callRejected(handler, rejected, rejectedCalls[rejected.result.commandId], context.executionId)
             }
-            derived.forEach { derivedBy[it.id] = context.executionId }
+            derived.forEach {
+                derivedBy[it.admitted().id] = context.executionId
+            }
             commands += derived
         }
         failing = null
@@ -175,7 +177,9 @@ internal class ProcessorHandling(
             val context =
                 rejectionContextOf(handler, rejected, SequentialIds(), commandTypes, queries, answering(calls))
             val derived = receiptHandling { handler.invoke(rejected, context) }
-            derived.forEach { derivedBy[it.id] = context.executionId }
+            derived.forEach {
+                derivedBy[it.admitted().id] = context.executionId
+            }
             Handled(derived, calls)
         }
 
@@ -185,7 +189,9 @@ internal class ProcessorHandling(
             val context =
                 committedContextOf(handler, committed, SequentialIds(), commandTypes, queries, answering(calls))
             val derived = receiptHandling { handler.invoke(committed, context) }
-            derived.forEach { derivedBy[it.id] = context.executionId }
+            derived.forEach {
+                derivedBy[it.admitted().id] = context.executionId
+            }
             Handled(derived, calls)
         }
 
@@ -201,8 +207,24 @@ internal class ProcessorHandling(
 
     /** The calls of a receipt's handler: answered by [answer], each recorded into [calls]. */
     private fun answering(calls: MutableList<Command<*>>): CommandCalls = CommandCalls { command ->
-        calls += command
+        calls += command.admitted()
         answer(command)
+    }
+
+    /**
+     * This command, a saga sent or called, as the service admits it: one that names no aggregate is refused where its
+     * contract routes it by an id alone ([ClassPathCommandTypes.needsAggregateId]), as admission refuses it on the
+     * node, so the specification fails where the service would, and does not pass on an aggregate the send never
+     * reaches.
+     */
+    private fun Command<*>.admitted(): Command<*> {
+        check(ref.isAssigned || !commandTypes.needsAggregateId(body.javaClass)) {
+            "The saga sends ${body.javaClass.name} naming no ${ref.type} to act on, which the service refuses: only " +
+                "a command that creates its aggregate, one its body names the aggregate of (@AggregateId), or one " +
+                "a transformer addresses (@Unaddressed) may leave its id out. Name the aggregate: " +
+                "CommandRequest.of(command, id)."
+        }
+        return this
     }
 }
 

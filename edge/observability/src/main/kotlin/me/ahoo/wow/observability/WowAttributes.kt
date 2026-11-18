@@ -180,6 +180,21 @@ object WowMetrics {
         values = mapOf(OUTCOME to ObservedEvent.ForwardFailed.Outcome.entries.map { it.value }),
     )
 
+    val ROUTE_LOOKUPS: MetricSpec = MetricSpec.counter(
+        "wow.command.route.lookups",
+        "The commands whose route named no owner, by what reading the lease group's routes again found: an owner, " +
+            "which they were sent to, or none, or a failed read, so they ran without the lease.",
+        tags = listOf(CONTEXT, OUTCOME),
+        values = mapOf(OUTCOME to ObservedEvent.RouteLookedUp.Outcome.entries.map { it.value }),
+    )
+
+    val ROUTE_READS: MetricSpec = MetricSpec.counter(
+        "wow.command.route.reads",
+        "The reads of a lease group's routes made before commands whose route named no owner ran without the lease: " +
+            "at most one at a time, and one each tenth of a second.",
+        tags = listOf(CONTEXT),
+    )
+
     val WAIT_TIMEOUTS: MetricSpec = MetricSpec.counter(
         "wow.wait.timeouts",
         "The waits that timed out, by the last stage they reached.",
@@ -477,7 +492,8 @@ object WowMetrics {
 
     /** Every metric above. */
     val ALL: List<MetricSpec> = listOf(
-        COMMAND_DURATION, COMMAND_REFUSALS, COMMAND_REJECTIONS, FORWARD_FAILURES, WAIT_TIMEOUTS, SIGNAL_DROPS,
+        COMMAND_DURATION, COMMAND_REFUSALS, COMMAND_REJECTIONS, FORWARD_FAILURES, ROUTE_LOOKUPS, ROUTE_READS,
+        WAIT_TIMEOUTS, SIGNAL_DROPS,
         EXECUTOR_IN_FLIGHT, EXECUTOR_LANES, APPEND_QUEUE_DEPTH, TAIL_READS, STATE_CACHE_LOOKUPS, STATE_CACHE_EVICTIONS,
         STATE_CACHE_INVALIDATIONS, SHARED_STATE_REBUILDS, SHARED_STATE_REBUILD_WAIT, STORE_FALLBACKS, FENCE_NOTICES,
         RESERVATION_LOSSES, ACCESS_STAMPED, ACCESS_STAMP_DURATION,

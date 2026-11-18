@@ -241,6 +241,20 @@ class OtelObserverTest {
     }
 
     @Test
+    fun `a route looked up again should count by what it found, and the reads made apart`() {
+        observer.observed(ObservedEvent.RouteLookedUp(ORDER, ObservedEvent.RouteLookedUp.Outcome.OWNER, read = true))
+        observer.observed(ObservedEvent.RouteLookedUp(ORDER, ObservedEvent.RouteLookedUp.Outcome.OWNER, read = false))
+        observer.observed(ObservedEvent.RouteLookedUp(ORDER, ObservedEvent.RouteLookedUp.Outcome.FAILED, read = false))
+        val meters = telemetry.meters
+        fun lookups(outcome: String) = meters.get(WowMetrics.ROUTE_LOOKUPS.name)
+            .tags(WowMetrics.CONTEXT, SALES, WowMetrics.OUTCOME, outcome).counter().count()
+        listOf(lookups("owner"), lookups("failed")).assert().containsExactly(2.0, 1.0)
+        // One of them made the read; the others took it, or a failed one's back-off.
+        meters.get(WowMetrics.ROUTE_READS.name).tags(WowMetrics.CONTEXT, SALES).counter().count()
+            .assert().isEqualTo(1.0)
+    }
+
+    @Test
     fun `rejections should be counted by their code, apart from refusals, with or without events`() {
         observer.observed(ObservedEvent.Rejected(ORDER, "PlaceOrder", "sales.order.out_of_stock", withEvents = true))
         observer.observed(ObservedEvent.Rejected(ORDER, "PlaceOrder", "sales.order.out_of_stock", withEvents = false))
@@ -371,7 +385,8 @@ class OtelObserverTest {
         tags(WowMetrics.STATE_CACHE_LOOKUPS.name, WowMetrics.OUTCOME).assert().containsExactly("hit", "miss")
         telemetry.meters.get(WowMetrics.STATE_CACHE_EVICTIONS.name).counter().count().assert().isEqualTo(1.0)
         telemetry.meters.get(WowMetrics.STATE_CACHE_INVALIDATIONS.name).counter().count().assert().isEqualTo(1.0)
-        tags(WowMetrics.TAIL_READS.name, WowMetrics.REASON).assert().containsExactly("gap", "idle", "overflow", "start")
+        tags(WowMetrics.TAIL_READS.name, WowMetrics.REASON).assert()
+            .containsExactly("gap", "idle", "overflow", "scheduled", "start")
         tags(WowMetrics.STORE_FALLBACKS.name, WowMetrics.CAPABILITY).assert()
             .containsExactly("snapshot-load", "snapshot-rebuild", "snapshot-tail-read")
         tags(WowMetrics.STORE_FALLBACKS.name, WowMetrics.REASON).assert()

@@ -198,6 +198,7 @@ tasks.test {
     val apiClasspath = files(tasks.jar, configurations.runtimeClasspath, functionalPluginClasspath)
     inputs.files(apiClasspath).withPropertyName("apiClasspath").withNormalizer(ClasspathNormalizer::class.java)
     systemProperty("wow-test.ksp.version", libs.versions.ksp.get())
+    // The JUnit and fluent-assert a fixture's own tests run on (PluginRolesFunctionalTest, IncrementalKspFunctionalTest).
     systemProperty("wow-test.junit.version", libs.versions.junit.get())
     systemProperty("wow-test.fluent-assert.version", libs.versions.fluent.assert.get())
     // The fixtures' builds read this build's dependency cache, which holds what they take from Central

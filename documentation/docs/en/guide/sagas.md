@@ -123,7 +123,7 @@ A receipt comes for a command the target accepted without change too (`Decision.
 
 ## Handle a rejection
 
-A derived command may be refused: the stock is short, the order was cancelled meanwhile. A rejection is a business outcome, so the saga handles it in an `@OnRejected` handler of the command's type, which takes a `CommandReceipt.Rejected<C>` and returns the commands that compensate:
+A derived command may be refused: the stock is short, the order was cancelled meanwhile. A rejection is a business outcome, so the saga handles it in an `@OnRejected` handler of the command's type, which takes a `CommandReceipt.Rejected<C>` and returns the commands that compensate. A rejection no handler takes is not passed over as 9.x passed over a failed derived command: one of a command to the saga's own context parks the saga's source aggregate, as below.
 
 <!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSaga.kt#rejected -->
 
@@ -139,7 +139,7 @@ fun onReserveRejected(rejected: CommandReceipt.Rejected<ReserveStock>): CommandR
 
 `CommandReceipt.Rejected` names the command (`commandId`, `commandType`, `ref`), its `error` (code, message, violations, extensions), the saga's `executionId` and its `source`, the aggregate whose commit derived the command; it does not carry the command's body. A rejection from another context comes back as a receipt. The runtime hands each rejection over once.
 
-Each derived command is settled on its own: a rejected command stops none of the others, and each rejection goes to its handler. The commands to one aggregate run in the order the saga derived them; those to different aggregates run concurrently, so work that depends on another command's outcome is not derived beside it: derive it from the event the first command commits. The rejections of the saga's own context's commands that it has no handler for park the aggregate once for the saga's subscription, as a failure would, listing every rejected command. A command to another context asks for a receipt only when the saga has a handler of its type, so the target logs a rejection no handler takes, and it goes no further. A rejection that needs no compensation is accepted by a handler that returns `Unit`:
+Each derived command is settled on its own: a rejected command stops none of the others, and each rejection goes to its handler. The commands to one aggregate run in the order the saga derived them; those to different aggregates run concurrently, so work that depends on another command's outcome is not derived beside it: derive it from the event the first command commits. The rejections of the saga's own context's commands that it has no handler for park the aggregate once for the saga's subscription, as a failure would, listing every rejected command. A command to another context asks for a receipt only when the saga has a handler of its type, so the target logs a rejection no handler takes, and it goes no further. A rejection that needs no compensation is accepted by a handler that returns `Unit`, which also keeps what a 9.x saga did after a failed derived command:
 
 <!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSaga.kt#release-rejected -->
 

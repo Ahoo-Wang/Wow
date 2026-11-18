@@ -19,12 +19,14 @@ Tags are written as `name=value`; a tag without a value takes the value its name
 | `wow.command.refusals` | Counter | `wow.context`, `wow.aggregate.name`, `error.type` | Commands that ended before the kernel took them, by their problem code |
 | `wow.command.rejections` | Counter | `wow.context`, `wow.aggregate.name`, `error.type` | Commands their aggregate's decision rejected, with or without events, by the rejection's code |
 | `wow.command.forward.failures` | Counter | `wow.context`, `wow.outcome` | Forwards to the partition's owner without its settlement: `local` (ran here, never reached the owner), `busy` (the owner had its most forwards in flight; refused busy and run nowhere, so also counted in `wow.command.refusals`), `unknown` (may have reached it) |
+| `wow.command.route.lookups` | Counter | `wow.context`, `wow.outcome` | Commands whose route named no owner, by what reading the lease group's routes once more found: `owner` (an owner that acquired a moment ago; sent to it), `none` (none yet; ran here without the lease), `failed` (the read failed or timed out, or one did and the routes have not been read since; ran here without the lease) |
+| `wow.command.route.reads` | Counter | `wow.context` | Reads of a lease group's routes made for such commands: at most one at a time and one each 100 ms, each within 200 ms |
 | `wow.wait.timeouts` | Counter | `wow.context`, `wow.aggregate.name`, `wow.stage` | Waits that ran out of time, by the last stage they reached: `accepted`, `committed`, `handled`, `unknown` |
 | `wow.wait.signal.drops` | Counter | `wow.reason` | Wait signals for another node dropped without being sent: `queue-full`, `closed`, `expired`, `refused`, `failed` |
 | `wow.executor.in_flight` | Gauge | `wow.context` | Commands in flight in the context's executor |
 | `wow.executor.lanes` | Gauge | `wow.context` | Aggregates with commands in the executor |
 | `wow.log.append_queue.depth` | Gauge | `wow.context` | Commits waiting in the log's append queue |
-| `wow.log.tail.reads` | Counter | `wow.context`, `wow.reason` | Tails that read the store because memory could not continue them: `start`, `gap`, `overflow`, `idle` |
+| `wow.log.tail.reads` | Counter | `wow.context`, `wow.reason` | Tails that read the store because memory could not continue them: `start`, `gap`, `overflow`, `idle`, and `scheduled` (a probe every second for about 2 s after a node acquires a partition, for commits other nodes made there before their routes named it) |
 | `wow.state_cache.lookups` | Counter | `wow.context`, `wow.outcome` | State cache lookups: `hit`, `miss` (a snapshot and a tail read) |
 | `wow.state_cache.evictions` | Counter | `wow.context` | States evicted from the state cache |
 | `wow.state_cache.invalidations` | Counter | `wow.context` | States dropped from the state cache as behind the log: the partition's owner read a later stream of the aggregate, which another node committed without the partition's lease |

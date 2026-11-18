@@ -17,6 +17,8 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.subscription.Member
@@ -77,12 +79,16 @@ internal class PeerRoutes(
         lastMembers = emptySet()
     }
 
+    /** One refresh at a time: the ownership's loop and a router's lookup ([RouteLookup]) both refresh. */
+    private val refreshing = Mutex()
+
     /**
      * Reads the owners into [routes], beside the members the membership read last; a change of the members wakes the
      * reconciler ([wake]). Once the node [steppedOut], the membership reads no members for it, so it reads them here.
-     * Greetings run in [upkeep], none without it (the ownership not running).
+     * Greetings run in [upkeep], none without it (the ownership not running). One refresh at a time ([refreshing]):
+     * two that overlapped would write the table in either order, and both see the members changed.
      */
-    suspend fun refresh(steppedOut: Boolean, upkeep: CoroutineScope?) {
+    suspend fun refresh(steppedOut: Boolean, upkeep: CoroutineScope?): Unit = refreshing.withLock {
         if (steppedOut) {
             membership.refresh()
         }

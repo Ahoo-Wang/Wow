@@ -40,10 +40,15 @@ internal object AccessSource {
         state.packageName.asString().let { if (it.isEmpty()) className(state) else "$it.${className(state)}" },
     )
 
-    /** Writes [state]'s `<State>Access` of [attributes], unless [generated], the states already written, holds it. */
+    /**
+     * Writes [state]'s `<State>Access` of [attributes], unless [generated], the states already written, holds it. An
+     * isolating output, whose origins are the [root]'s file and the state's: the root declares the aggregate's access
+     * and the state the attributes' properties, so KSP writes it again when either changes.
+     */
     fun generate(
         codeGenerator: CodeGenerator,
         state: KSClassDeclaration,
+        root: KSClassDeclaration,
         attributes: List<AccessBinding>,
         internal: Boolean,
         generated: MutableSet<String>,
@@ -52,7 +57,10 @@ internal object AccessSource {
             return
         }
         codeGenerator.createNewFile(
-            Dependencies(aggregating = false, sources = listOfNotNull(state.containingFile).toTypedArray()),
+            Dependencies(
+                aggregating = false,
+                sources = listOfNotNull(root.containingFile, state.containingFile).distinct().toTypedArray(),
+            ),
             state.packageName.asString(),
             className(state),
         ).bufferedWriter().use { it.write(render(state, attributes, internal)) }

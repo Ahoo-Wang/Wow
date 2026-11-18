@@ -27,6 +27,9 @@ import org.gradle.api.attributes.DocsType
 import org.gradle.api.internal.component.SoftwareComponentInternal
 import org.gradle.api.internal.project.ProjectInternal
 import org.gradle.api.plugins.JavaPluginExtension
+import org.gradle.api.publish.PublishingExtension
+import org.gradle.api.publish.ivy.IvyPublication
+import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.tasks.WriteProperties
 import org.gradle.api.tasks.bundling.Jar
@@ -38,6 +41,11 @@ import java.io.File
 
 /** The api module's plugin, `me.ahoo.wow.api` (decision D363 ①), on projects the builder makes. */
 class WowApiPluginTest {
+    private companion object {
+        /** The contract capability of `:shop-api`, by its project's name. */
+        const val CONTRACT = "shop-api-contract"
+    }
+
     @TempDir
     lateinit var directory: File
 
@@ -325,7 +333,7 @@ class WowApiPluginTest {
     }
 
     /** `:shop-api` of `shop-domain`, publishing sources, with the Gradle properties [properties] of its build. */
-    private fun publishing(properties: String = ""): Project {
+    private fun publishing(properties: String = "", published: (Project) -> Unit = {}): Project {
         File(directory, "gradle.properties").writeText(properties)
         val root = ProjectBuilder.builder().withProjectDir(directory).withName("services").build()
         val api = ProjectBuilder.builder().withParent(root).withName("shop-api")
@@ -340,8 +348,44 @@ class WowApiPluginTest {
             .withProjectDir(File(directory, "shop-domain")).build()
         val domain = api.dependencies.project(mapOf("path" to ":shop-domain"))
         api.dependencies.add(WowPlugin.CONTRACT_CONFIGURATION, domain)
+        published(api)
         (api as ProjectInternal).evaluate()
         return api
+    }
+
+    private fun contractCapabilities(api: Project): Map<String, List<String>> = listOf(
+        ContractRole.CONTRACT_API_ELEMENTS,
+        ContractRole.CONTRACT_RUNTIME_ELEMENTS,
+        ContractRole.CONTRACT_SOURCES_ELEMENTS,
+    ).associateWith { name -> api.configurations.getByName(name).outgoing.capabilities.map { it.name }.distinct() }
+
+    /** An api module's publication by [plugin], `maven-publish` or `ivy-publish`, under [name] when given. */
+    private fun publishedBy(plugin: String, name: String? = null): (Project) -> Unit = { api ->
+        api.pluginManager.apply(plugin)
+        val publications = api.extensions.getByType(PublishingExtension::class.java).publications
+        if (plugin == "ivy-publish") {
+            publications.create("api", IvyPublication::class.java) { ivy -> name?.let { ivy.module = it } }
+        } else {
+            publications.create("api", MavenPublication::class.java) { maven -> name?.let { maven.artifactId = it } }
+        }
+    }
+
+    private fun offers(api: Project, vararg names: String) =
+        contractCapabilities(api).values.forEach { it.assert().containsExactly(*names) }
+
+    @Test
+    fun `an api module published under another name should offer its contract by that name too`() {
+        listOf("maven-publish", "ivy-publish").forEach { plugin ->
+            offers(publishing(published = publishedBy(plugin, "acme-shop-api")), CONTRACT, "acme-shop-api-contract")
+        }
+        // Published under its project's name, it offers the one capability.
+        offers(publishing(published = publishedBy("maven-publish")), CONTRACT)
+        // Read when the variants are, not when the plugin is applied: a name set after evaluation, as a convention
+        // plugin's afterEvaluate sets it, is the one offered.
+        val late = publishing(published = publishedBy("maven-publish"))
+        val publications = late.extensions.getByType(PublishingExtension::class.java).publications
+        (publications.getByName("api") as MavenPublication).artifactId = "late-shop-api"
+        offers(late, CONTRACT, "late-shop-api-contract")
     }
 
     @Test

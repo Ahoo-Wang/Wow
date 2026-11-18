@@ -39,6 +39,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.TimeSource
 
 /**
  * How a node hands its own commits to its tails in memory, always: the constants of the hand-off,
@@ -55,7 +56,12 @@ import kotlin.time.Duration.Companion.seconds
  *   node's append during a hand-off; an unknown outcome). The wait only bounds an append that does not
  *   return: 1 s, the longest poll interval, which bounds how late another node's entries are read anyway;
  * - [probeInterval]: how long a tail waits without a commit of this node before it checks the partition's head for
- *   entries other nodes appended: the log's longest poll interval (`wow.log.max-poll-interval`).
+ *   entries other nodes appended: the log's longest poll interval (`wow.log.max-poll-interval`);
+ * - [scheduledProbes]: how long after it opens a tail checks the head every [probeInterval] whatever this node
+ *   commits ([ObservedEvent.TailRead.Reason.SCHEDULED]). A tail opens as its node acquires the partition, while other
+ *   nodes may still append there without the lease, their routes not naming the new owner yet; this node keeps
+ *   committing, so without it the first probe could wait for a pause, or for the end of its block. Zero, the default,
+ *   for none: a node without a cluster ([me.ahoo.wow.runtime.node.ContextAssembly] sets it for one).
  *
  * Fields may be added: Wow builds it from the host's configuration, so the constructor is internal
  * to Wow.
@@ -64,11 +70,13 @@ class HandoffOptions @InternalWowApi constructor(
     val capacity: Int = DEFAULT_CAPACITY,
     val gapWait: Duration = 1.seconds,
     val probeInterval: Duration = 1.seconds,
+    val scheduledProbes: Duration = Duration.ZERO,
 ) {
     init {
         require(capacity >= 1) { "A tail holds at least one entry handed over." }
         require(gapWait.isPositive()) { "The gap wait is positive." }
         require(probeInterval.isPositive()) { "The probe interval is positive." }
+        require(!scheduledProbes.isNegative()) { "The scheduled probes last zero or more." }
     }
 
     override fun equals(other: Any?): Boolean =
@@ -77,9 +85,10 @@ class HandoffOptions @InternalWowApi constructor(
     override fun hashCode(): Int = valueFields().hashCode()
 
     override fun toString(): String =
-        "HandoffOptions(capacity=$capacity, gapWait=$gapWait, probeInterval=$probeInterval)"
+        "HandoffOptions(capacity=$capacity, gapWait=$gapWait, probeInterval=$probeInterval, " +
+            "scheduledProbes=$scheduledProbes)"
 
-    private fun valueFields(): List<Any?> = listOf(capacity, gapWait, probeInterval)
+    private fun valueFields(): List<Any?> = listOf(capacity, gapWait, probeInterval, scheduledProbes)
 
     companion object {
         private const val DEFAULT_CAPACITY = 1_024
@@ -103,10 +112,20 @@ class HandoffOptions @InternalWowApi constructor(
  * - on an overflow: a tail holding [HandoffOptions.capacity] entries it has not taken drops the next ones, so a slow
  *   subscription never holds up an append;
  * - after [HandoffOptions.probeInterval] without a hand-over, when the head is past its position: entries other nodes
- *   appended. The head may also show a commit of this node whose append has not returned yet (the store's answer on its
+ *   appended; and, for [HandoffOptions.scheduledProbes] after it opens, every probe interval whatever the hand-overs,
+ *   for the entries other nodes appended without the lease while their routes did not name this node yet. The head may also show a commit of this node whose append has not returned yet (the store's answer on its
  *   way back): while an append of this node is in flight, the probe waits for it to hand its entry over, as on a gap,
  *   delivers it, and reads the store at once for what the head shows past it (other nodes' entries), or when the
  *   append returns without the entry the tail needs.
+ *
+ * So another node's commit reaches a tail only at one of these reads. One that lands past this node's block of
+ * sequences while this node keeps committing, its commits less than [HandoffOptions.probeInterval] apart, leaves no
+ * gap in its own run until the node takes its next block, past that commit: until then it waits for the node's first
+ * pause of a probe interval, or for the end of its block, whichever comes first. A command that would commit there
+ * without the lease is sent to the partition's owner when its routes, read once more, name one
+ * ([me.ahoo.wow.runtime.cluster.RouteLookup]), so such a commit takes an acquisition the read did not see; it comes
+ * within a route refresh of the acquisition, while the tail's probes are still on schedule
+ * ([HandoffOptions.scheduledProbes]), and is read at the next one. Past that window the floor above holds again.
  *
  * Each read of the store is reported to [observer] ([ObservedEvent.TailRead]) with its reason, and each entry it delivers
  * to [readBack]: among them are the commits of other nodes, which no hand-over brings. A node that does not own a
@@ -253,6 +272,21 @@ class HandoffLog(
         /** Entries handed over past the next one the run needs, by sequence. */
         private val pending = TreeMap<Long, LogEntry>()
 
+        /** When it opened, and last read the store: its probes are on schedule for a while after it opens. */
+        private val opened = TimeSource.Monotonic.markNow()
+        private var lastRead = opened
+        private var scheduling = options.scheduledProbes.isPositive()
+
+        /** Whether its probe is due on schedule now; false for good once [HandoffOptions.scheduledProbes] passed. */
+        private fun scheduledProbeDue(): Boolean {
+            if (!scheduling) return false
+            if (opened.elapsedNow() >= options.scheduledProbes) {
+                scheduling = false
+                return false
+            }
+            return lastRead.elapsedNow() >= options.probeInterval
+        }
+
         suspend fun run(collector: FlowCollector<LogEntry>) {
             var reason = Reason.START
             while (true) {
@@ -270,6 +304,7 @@ class HandoffLog(
         private suspend fun FlowCollector<LogEntry>.fromStore(reason: Reason) {
             // Cleared before the head is read: an entry dropped before this was committed before it, so at or below it.
             listener.overflowed.set(false)
+            lastRead = TimeSource.Monotonic.markNow()
             val head = log.head(partition) ?: 0L
             if (head > cursor) {
                 // An append of this node may have committed, handed its entry over and returned while the head was
@@ -277,7 +312,8 @@ class HandoffLog(
                 drain()
                 deliverRun()
             }
-            if (head > cursor && reason == Reason.IDLE && ownCommitAhead()) {
+            val probe = reason == Reason.IDLE || reason == Reason.SCHEDULED
+            if (head > cursor && probe && ownCommitAhead()) {
                 // This node's own commits first, from memory; what the head shows past them is other nodes', read now
                 // rather than a probe interval later.
                 deliverRun()
@@ -323,6 +359,9 @@ class HandoffLog(
                 deliverRun()
                 if (listener.overflowed.get()) {
                     return Reason.OVERFLOW
+                }
+                if (scheduledProbeDue()) {
+                    return Reason.SCHEDULED
                 }
                 if (pending.isEmpty()) {
                     hold(nextOrIdle() ?: return Reason.IDLE)

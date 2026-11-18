@@ -19,12 +19,14 @@ Wow 节点向监控报告的每个名字。类路径上有 `wow-observability` �
 | `wow.command.refusals` | Counter | `wow.context`, `wow.aggregate.name`, `error.type` | 在内核接手之前就结束的命令，按 problem 错误码 |
 | `wow.command.rejections` | Counter | `wow.context`, `wow.aggregate.name`, `error.type` | 被聚合的决策拒绝的命令（带或不带事件），按拒绝的错误码 |
 | `wow.command.forward.failures` | Counter | `wow.context`, `wow.outcome` | 转发给分区所有者却没有得到结论的命令：`local`（在本地运行，从未到达所有者）、`busy`（所有者在途的转发已达上限；以繁忙拒绝，在哪里都不执行，所以也计入 `wow.command.refusals`）、`unknown`（可能已到达） |
+| `wow.command.route.lookups` | Counter | `wow.context`, `wow.outcome` | 路由中没有所有者的命令，按重新读取一次租约组路由的结果：`owner`（片刻前取得分区的所有者；命令发给它）、`none`（还没有所有者；在本地不持租约运行）、`failed`（读取失败或超时，或之前有一次失败且路由此后尚未重新读取成功；在本地不持租约运行） |
+| `wow.command.route.reads` | Counter | `wow.context` | 为这类命令读取租约组路由的次数：同一时刻最多一次、每 100 毫秒最多一次，每次限时 200 毫秒 |
 | `wow.wait.timeouts` | Counter | `wow.context`, `wow.aggregate.name`, `wow.stage` | 超时的等待，按它到达的最后阶段：`accepted`、`committed`、`handled`、`unknown` |
 | `wow.wait.signal.drops` | Counter | `wow.reason` | 发往其他节点、未发送就被丢弃的等待信号：`queue-full`、`closed`、`expired`、`refused`、`failed` |
 | `wow.executor.in_flight` | Gauge | `wow.context` | 上下文执行器中在途的命令 |
 | `wow.executor.lanes` | Gauge | `wow.context` | 在执行器中有命令的聚合 |
 | `wow.log.append_queue.depth` | Gauge | `wow.context` | 在日志追加队列中等待的提交 |
-| `wow.log.tail.reads` | Counter | `wow.context`, `wow.reason` | 因为内存无法接续而读取存储的 tail：`start`、`gap`、`overflow`、`idle` |
+| `wow.log.tail.reads` | Counter | `wow.context`, `wow.reason` | 因为内存无法接续而读取存储的 tail：`start`、`gap`、`overflow`、`idle`，以及 `scheduled`（节点取得分区后约 2 秒内每秒探测一次，读取其他节点在路由指向它之前在该分区的提交） |
 | `wow.state_cache.lookups` | Counter | `wow.context`, `wow.outcome` | 状态缓存的查找：`hit`、`miss`（一次快照读取和一次 tail 读取） |
 | `wow.state_cache.evictions` | Counter | `wow.context` | 从状态缓存逐出的状态 |
 | `wow.state_cache.invalidations` | Counter | `wow.context` | 因落后于日志而从状态缓存丢弃的状态：分区属主读到了该聚合更新的流，是另一个节点在不持该分区租约时提交的 |

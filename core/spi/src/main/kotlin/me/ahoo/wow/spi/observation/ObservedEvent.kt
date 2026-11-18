@@ -122,6 +122,35 @@ sealed class ObservedEvent {
     }
 
     /**
+     * A command of [type] whose route named no owner, after this node read its lease group's routes once more before
+     * running it without the lease ([outcome]); [read] is whether this command made that read, rather than take one
+     * made a moment before by another command.
+     */
+    class RouteLookedUp @InternalWowApi constructor(
+        val type: AggregateType,
+        val outcome: Outcome,
+        val read: Boolean,
+    ) : ObservedEvent() {
+        override fun fields() = listOf("type" to type, "outcome" to outcome, "read" to read)
+
+        /**
+         * What the read found for the command's partition.
+         *
+         * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+         */
+        enum class Outcome(val value: String) {
+            /** The routes now name the owner: the command is sent to it. */
+            OWNER("owner"),
+
+            /** They name none yet: the command runs here without the lease, as before. */
+            NONE("none"),
+
+            /** The read failed or timed out, or one did shortly before: the command runs here without the lease. */
+            FAILED("failed"),
+        }
+    }
+
+    /**
      * A lookup of an aggregate's state in the state cache of [context] by the kernel, a state evicted from it, or one
      * dropped as stale.
      */
@@ -410,6 +439,12 @@ sealed class ObservedEvent {
 
             /** Entries other nodes appended, found by a probe of the head. */
             IDLE("idle"),
+
+            /**
+             * A probe of the head on schedule shortly after the tail opened, whatever this node commits: entries other
+             * nodes appended without the lease while their routes did not name this node yet.
+             */
+            SCHEDULED("scheduled"),
         }
     }
 

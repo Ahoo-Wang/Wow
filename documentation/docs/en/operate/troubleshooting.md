@@ -51,7 +51,7 @@ The host refuses to start rather than run with a setting that would quietly do t
 
 - Fix the cause first: deploy the corrected handler, or bring back the outside system it calls.
 - Then retry the aggregates: the subscription reads each one's stream again from where it stopped ([The Ops Service and Console](./ops-console)).
-- A rejection of a command a saga sent parks the aggregate only when the saga has no `@OnRejected` handler for it ([Failures and Retries](../guide/failures)).
+- A rejection of a command a saga derived parks the saga's source aggregate only when the command is of the saga's own context and the saga has no `@OnRejected` handler for it: a command to another context then asks for no receipt, and its target logs the rejection. A rejection of a command the saga called parks the aggregate when the saga has no handler for it, whatever the command's context ([Failures and Retries](../guide/failures)).
 
 ## A subscription starts over after a deploy
 
@@ -104,6 +104,7 @@ A service's build, or a domain's, can stop over the api modules' contracts ([One
 
   The fix is in the code: one side reads the other's state without its view, by an event or a query. Using another context's types alone (its commands, events and values) never cycles.
 - **"…which no peer contract on the class path lists as an event: it is in `<module>`, whose api module carries no contract listing it."** The event's api module was published without its contract: a types-only release (`-Pwow.contract.publish=false`, the first release of a cycle), or an api module that declares no `wowContract`. Depend on the module's full release.
+- **"Unable to find a variant of '`<group>:<artifactId>:<version>`' with the requested capability: feature 'contract'", listing variants that provide `<group>:<project name>-contract`.** The api module was published by 10.0.0-beta.8's plugin under an artifactId other than its project's name, and that plugin offered the contract by the project's name alone. Publish the module again with a later plugin. Until then, ask for the name it offers, `capabilities { requireCapability("<group>:<project name>-contract") }`; a Maven build adds the classifier `contract`, which this does not touch.
 - **"…in a build run with -Pwow.contract.publish=false…"** The property publishes api modules' types alone; a service needs their contracts. Build the service without it.
 - **"…the contract and the types of its api module are of different versions."** A context's contract lists classes of which the class path holds only some. A consumer may hold a context's contract with none of its classes and address it by JSON; it may not hold it with only some of them. Depend on one version of the module, its jar and its classifier `contract`.
 

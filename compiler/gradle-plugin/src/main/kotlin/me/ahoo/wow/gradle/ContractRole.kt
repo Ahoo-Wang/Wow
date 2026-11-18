@@ -29,6 +29,9 @@ import org.gradle.api.attributes.Usage
 import org.gradle.api.component.AdhocComponentWithVariants
 import org.gradle.api.file.SourceDirectorySet
 import org.gradle.api.plugins.JavaPlugin
+import org.gradle.api.publish.PublishingExtension
+import org.gradle.api.publish.ivy.IvyPublication
+import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.api.tasks.SourceSet
 import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.tasks.TaskProvider
@@ -40,7 +43,8 @@ import org.gradle.api.tasks.bundling.Jar
  * from compiling the domain modules the api declares, so the api's own variants, which every module compiles against,
  * hold its types alone, and no build waits for a domain to reach another context's types.
  *
- * The contract is the api module's feature [FEATURE], capability `<group>:<name>-contract`, published within the
+ * The contract is the api module's feature [FEATURE], capability `<group>:<name>-contract` (by its project's name
+ * and by each module name it is published under, [publishedCapabilities]), published within the
  * module as Gradle publishes test fixtures: the variants [CONTRACT_API_ELEMENTS] and [CONTRACT_RUNTIME_ELEMENTS], the
  * jar of classifier `contract`, and its sources' jar when the module publishes sources. Its own variants carry
  * [WowPlugin.CONTRACT_ATTRIBUTE], naming the feature, by which a service finds every api's contract
@@ -100,6 +104,7 @@ internal object ContractRole {
                     elements.extendsFrom(dependencies)
                     jvmAttributes(api, elements, usage)
                     elements.outgoing.capability(capability)
+                    publishedCapabilities(api, elements)
                     elements.outgoing.artifact(jar) { it.type = ArtifactTypeDefinition.JAR_TYPE }
                 }
             }
@@ -142,9 +147,31 @@ internal object ContractRole {
                 elements.description = "The sources of this api module's contract code, of capability $capability."
                 documentationAttributes(api, elements, DocsType.SOURCES)
                 elements.outgoing.capability(capability)
+                publishedCapabilities(api, elements)
                 elements.outgoing.artifact(jar)
             }
             component.addVariantsFromConfiguration(elements.get()) { it.mapToOptional() }
+        }
+    }
+
+    /**
+     * Offers on [elements] the contract's capability under each module name [api] is published by, beside its
+     * project's name: a consumer by coordinates, `wow.contract("<group>:<artifactId>:<version>")` or a service deriving
+     * the contract, asks the published module for its feature, `<group>:<artifactId>-contract`, while one in the build
+     * asks the project, `<group>:<project name>-contract`. So `:ops-api` published as `wow-ops-api` offers both. Each
+     * Maven publication's `artifactId` and each Ivy publication's `module` is read when the variant is, so a build
+     * that sets it after the plugin is applied is heard; a name equal to the project's offers no other capability.
+     */
+    private fun publishedCapabilities(api: Project, elements: Configuration) {
+        fun offer(name: () -> String) =
+            elements.outgoing.capability(api.provider { "${api.group}:${name()}-$FEATURE:${api.version}" })
+        api.plugins.withId("maven-publish") {
+            api.extensions.getByType(PublishingExtension::class.java).publications
+                .withType(MavenPublication::class.java).all { publication -> offer { publication.artifactId } }
+        }
+        api.plugins.withId("ivy-publish") {
+            api.extensions.getByType(PublishingExtension::class.java).publications
+                .withType(IvyPublication::class.java).all { publication -> offer { publication.module } }
         }
     }
 

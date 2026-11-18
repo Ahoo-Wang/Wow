@@ -138,6 +138,7 @@ class OtelObserver(
             is ObservedEvent.WaitTimedOut -> waitTimedOut(event.type, event.stage)
             is ObservedEvent.SignalDropped -> signalDropped(event.reason.value)
             is ObservedEvent.ForwardFailed -> forwardFailed(event.type, event.outcome.value)
+            is ObservedEvent.RouteLookedUp -> routeLookedUp(event)
             is ObservedEvent.StateCache -> stateCache(event.context, event.outcome)
             is ObservedEvent.StateRebuilt -> stateRebuilt(event)
             is ObservedEvent.ReservationLost -> reservationLost(event.context)
@@ -204,6 +205,13 @@ class OtelObserver(
 
     private fun signalDropped(reason: String) {
         cached.counter(WowMetrics.SIGNAL_DROPS, reason).increment()
+    }
+
+    private fun routeLookedUp(event: ObservedEvent.RouteLookedUp) {
+        cached.counter(WowMetrics.ROUTE_LOOKUPS, event.type.context, event.outcome.value).increment()
+        if (event.read) {
+            cached.counter(WowMetrics.ROUTE_READS, event.type.context).increment()
+        }
     }
 
     private fun forwardFailed(type: AggregateType, outcome: String) {

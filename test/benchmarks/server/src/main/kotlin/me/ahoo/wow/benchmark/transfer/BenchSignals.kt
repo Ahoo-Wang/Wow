@@ -75,6 +75,8 @@ class BenchSignals : Observer, AutoCloseable {
             is ObservedEvent.WaitTimedOut -> count("waitTimedOut", event.stage.toString())
             is ObservedEvent.SignalDropped -> count("signalDropped", event.reason.value)
             is ObservedEvent.ForwardFailed -> count("forwardFailed", event.outcome.value)
+            is ObservedEvent.RouteLookedUp ->
+                count("routeLookedUp", event.outcome.value + if (event.read) "-read" else "")
             // The reason names the failing aggregate and its exception, so the key is the subscription alone.
             is ObservedEvent.PartitionPaused -> count("partitionPaused", event.subscription)
             is ObservedEvent.PartitionResumed -> count("partitionResumed", event.subscription)

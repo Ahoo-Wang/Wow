@@ -59,11 +59,13 @@ wow {
 }
 ```
 
-属性持有一个平台类，而 Wow 的 JSON 把它写成字符串或数字时，构建同样会停下，除非 Manifest 按写出的样子描述这个类。它描述的是状态、命令和事件常持有的值类：`Year` 和 `Month`（它的序号，1 到 12）为整数，`YearMonth`、`MonthDay`、`ZoneOffset`、`TimeZone`、`Locale`、`Currency` 和 `URL` 为字符串，`ByteArray` 为它的 Base64 文本，此外还有日期、时间、时长、数字和 UUID。其他这样的类都会被拒绝，无论直接持有，还是放在集合、`Optional` 或映射的值中：`Charset`、`Path`、`AtomicLong`，以及列表中的 `kotlin.time.Duration`。请声明这个属性的 schema，或者把值存为 `String`：
+属性持有一个平台类，而 Wow 的 JSON 把它写成字符串或数字时，构建同样会停下，除非 Manifest 按写出的样子描述这个类。它描述的是状态、命令和事件常持有的值类：`Year` 为整数，`YearMonth`、`MonthDay`、`ZoneOffset`、`TimeZone`、`Locale`、`Currency` 和 `URL` 为字符串，`ByteArray` 为它的 Base64 文本，`kotlin.time.Duration` 与 `java.time.Duration` 一样为它的 ISO-8601 文本（`PT1H30M`），此外还有日期、时间、时长、数字和 UUID。`Month` 是枚举，与所有枚举一样按名字写出。其他这样的类都会被拒绝，无论直接持有，还是放在集合、`Optional` 或映射的值中：`Charset`、`Path`、`AtomicLong`，以及包装 `kotlin.time.Duration` 的值类，Kotlin 模块把它写成时长的内部数字。请声明这个属性的 schema，或者把值存为 `String`：
 
 ```text
 Wow's JSON does not write java.nio.charset.Charset, which com.example.ledger.Ledger#encoding holds, as an object, and it is no scalar Wow describes, so its schema would not be what is written: declare it in wow { schemaOverrides.put("com.example.ledger.Ledger#encoding", "<JSON Schema>") }, or hold it as a String.
 ```
+
+Jackson 的树不需要声明。Wow 的 JSON 把它写成它所承载的 JSON，所以 Manifest 把 `tools.jackson.databind` 的 `ObjectNode` 描述为对象（`{"type":"object"}`），把 `ArrayNode` 描述为数组，把其他任何 `JsonNode` 描述为任意值（`{}`），不以类名指明：这就是状态、命令或事件承载无类内容（例如没有 V10 类型的 9.x 结构）的自由形状。为它声明的 schema 优先，与任何类一样。Jackson 2 的树（`com.fasterxml.jackson.databind.JsonNode`）无论是否声明都会被拒绝：Wow 的 JSON 是 Jackson 3 的，它把这种树当作由 getter 组成的 bean 写出（`"nodeType"`、`"object"`……），而不是写出它承载的 JSON，所以请改用 Jackson 3 的树。
 
 键用二进制名指明一个类；或者指明一个属性：声明 Jackson 写出它所用的访问器的那个类，加上 `#`，再加上这个类声明的属性名，与它的 JSON 名无关。构建停下时会打印出确切的那一行。所以继承来的属性只由声明它的类指明一次，被某个类覆盖的属性由那个类指明，由接口上带注解的 getter 声明的属性则由实现它的每个类指明。只要键存在，它声明的 schema 就代表整个类，或者代表线上写出的整个属性，包括属性的列表元素和映射的值。生成器给声明的属性加上的，只有它给任何属性都会加上的东西：可以为 null 的属性在类型中加上 `null`，以及它的查询注解的关键字。属性的键优先于它的类型的键；在模块中没有指明任何东西的键会被忽略，所以约定插件可以共用一个 `wow { }` 块。键的序列化器（`keyUsing`）不需要声明：JSON 对象的键都是字符串，schema 不约束它们。
 

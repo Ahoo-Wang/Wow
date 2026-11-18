@@ -4131,7 +4131,7 @@ export function renderReport(suites, meta = {}) {
       '',
       '## Paired ratios',
       '',
-      "`calibrated`: each arm at its own calibrated rate, so the throughput ratio is the ratio of the calibrations (an open loop's throughput is its offered rate) and CPU and latencies are at **unequal loads**. `equal rate`: both arms at the lower of the two calibrated rates; read the latency and cost ratios from these rows.",
+      "`calibrated`: each arm at its own calibrated rate, so the throughput ratio is the ratio of the calibrations (an open loop's throughput is its offered rate) and CPU and latencies are at **unequal loads**. `equal rate`: both arms at the lower of the two calibrated rates; read the latency and cost ratios from these rows. A latency here is each run's whole-run percentile, from its whole histogram; the Significance section judges a typical second's instead.",
       '',
       `| Suite | b/a | Rounds | Saturation | ${RATIO_METRICS.map(([, label]) => label).join(' | ')} |`,
       `| --- | --- | --- | --- | ${RATIO_METRICS.map(() => '---').join(' | ')} |`,

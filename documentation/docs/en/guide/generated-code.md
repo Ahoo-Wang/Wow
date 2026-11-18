@@ -67,7 +67,7 @@ An api module also compiles `<Context>Contract` from it, such as `EshopOrderingC
 
 A peer writes no path, name or code by hand: `EshopOrderingContract.Order.ref(tenant, id)` addresses an order, and `EshopOrderingContract.Order.Errors.WRONG_STATUS` compares a rejection ([Call Other Services](./calling-services), [Rejections and Error Codes](./rejections#what-the-caller-receives)).
 
-The contract and this code are the api module's feature `contract`, published within the module as the jar of classifier `contract`; the module's own jar holds its types alone, so every module compiles against the types without waiting for any domain, the api's own domain module among them. Who sees the contract:
+The contract and this code are the api module's feature `contract`, published within the module as the jar of classifier `contract`; the module's own jar holds its types alone, so every module compiles against the types without waiting for any domain, the api's own domain module among them. The feature's capability is `<group>:<project name>-contract`, which a module of the same build asks for, and also `<group>:<artifactId>-contract` when the module is published under another name, which a build asking by coordinates asks for. Who sees the contract:
 
 - **A service** sees the contract of every api module it reaches, its own api's included, without a line.
 - **A domain module's tests** see those of the build's api modules, their own api's included: most use its `<Context>Contract`. A peer published from another repository is asked for: `testImplementation(wow.contract(...))`.
