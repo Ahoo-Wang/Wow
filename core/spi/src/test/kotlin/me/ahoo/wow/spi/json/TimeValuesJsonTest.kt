@@ -19,6 +19,9 @@ import org.junit.jupiter.api.assertThrows
 import tools.jackson.core.JacksonException
 import tools.jackson.module.kotlin.readValue
 import java.time.Month
+import java.time.OffsetDateTime
+import java.time.ZoneOffset
+import java.time.ZonedDateTime
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
@@ -44,6 +47,8 @@ class TimeValuesJsonTest {
     data class JavaTiming(val duration: java.time.Duration)
 
     data class Edge(val value: Duration, val values: List<Duration>)
+
+    data class Dated(val at: OffsetDateTime, val zoned: ZonedDateTime, val ats: List<OffsetDateTime>)
 
     @Test
     fun `a month should be written by its name, a map's key too, and read back`() {
@@ -100,5 +105,23 @@ class TimeValuesJsonTest {
         assertThrows<JacksonException> { WowJson.mapper.readValue<Timing>("""{"duration":"an hour"}""") }
         WowJson.mapper.readValue<JavaTiming>("""{"duration":90}""").duration
             .assert().isEqualTo(java.time.Duration.ofSeconds(90))
+    }
+
+    @Test
+    fun `a date-time with an offset should read back at the offset it was written with, not at UTC`() {
+        val at = OffsetDateTime.parse("2026-01-02T03:04:05+08:00")
+        val zoned = ZonedDateTime.parse("2026-01-02T03:04:05-05:00[America/New_York]")
+        val text = WowJson.mapper.writeValueAsString(Dated(at, zoned, listOf(at)))
+        text.assert().isEqualTo(
+            """{"at":"2026-01-02T03:04:05+08:00","zoned":"2026-01-02T03:04:05-05:00",""" +
+                """"ats":["2026-01-02T03:04:05+08:00"]}""",
+        )
+        val read = WowJson.mapper.readValue<Dated>(text)
+        read.at.assert().isEqualTo(at)
+        read.ats.assert().containsExactly(at)
+        // A ZonedDateTime is written with its offset, not its region's name: it reads back in that fixed offset.
+        read.zoned.assert().isEqualTo(zoned.withZoneSameInstant(ZoneOffset.ofHours(-5)))
+        WowJson.mapper.writeValueAsString(read).assert().isEqualTo(text)
+        WowJson.readerBuilder().build().readValue<Dated>(text).at.offset.assert().isEqualTo(ZoneOffset.ofHours(8))
     }
 }
