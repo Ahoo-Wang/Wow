@@ -1059,7 +1059,7 @@ tasks.register("publicationCheck") {
 // what `publicationCheck` published into its scratch repository, as a user's build resolves a release from Maven
 // Central: the plugins by their markers, the modules and the BOM by their coordinates. It records the service's
 // baseline, builds and checks it with the configuration cache, builds it again from that cache, and checks that the
-// api module's jar carries the contract and the service's Manifest holds the context.
+// api module's contract jar carries the contract and the service's Manifest holds the context.
 tasks.register("publicationConsumerCheck") {
     description = "Builds the documented three-module layout against the release publicationCheck published."
     group = LifecycleBasePlugin.VERIFICATION_GROUP
@@ -1087,7 +1087,7 @@ tasks.register("publicationConsumerCheck") {
             throw GradleException("The consumer's second build did not reuse its configuration cache:\n$again")
         }
         val apiJar = consumer.resolve("catalog-api/build/libs").listFiles().orEmpty()
-            .single { it.name.endsWith(".jar") && !it.name.contains("wow-core") }
+            .single { it.name.endsWith("-contract.jar") }
         ZipFile(apiJar).use {
             if (it.getEntry("META-INF/wow/contract.json") == null) {
                 throw GradleException("${apiJar.name} carries no META-INF/wow/contract.json")
