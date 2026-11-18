@@ -38,6 +38,8 @@ rootProject.name = "Wow"
  * request, not a release.
  */
 val prebuiltPublicationTasks = listOf("jar", "sourcesJar", "javadocJar") +
+    // An api module's contract feature (classifiers `contract` and `contract-sources`, the Wow Gradle plugin).
+    listOf("wowContractJar", "wowContractSourcesJar") +
     // One plugin marker per plugin id of :gradle-plugin (`wow`, `wowApi`, `wowService`).
     listOf(
         "MavenLibrary",
