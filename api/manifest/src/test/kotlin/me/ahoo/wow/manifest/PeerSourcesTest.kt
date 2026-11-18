@@ -91,6 +91,23 @@ class PeerSourcesTest {
     }
 
     @Test
+    fun `an event no contract lists should be named with the entry its class is in, a types-only release`() {
+        val located = mapOf("billing.Charged" to "sample:billing-api:1.0.0-types")
+        assertThrows<ContractException> {
+            PeerSources.resolve(service("billing.Charged"), listOf(ordering), located::get)
+        }.problems.single().assert().contains(
+            "takes billing.Charged, which no peer contract on the class path lists as an event: it is in " +
+                "sample:billing-api:1.0.0-types, whose api module carries no contract listing it",
+            "a types-only release (-Pwow.contract.publish=false)",
+            "Depend on the module's full release",
+        )
+        // A class the class path does not hold names the api module to depend on.
+        assertThrows<ContractException> {
+            PeerSources.resolve(service("billing.Charged"), listOf(ordering)) { null }
+        }.problems.single().assert().endsWith("depend on the api module of the context that publishes it")
+    }
+
+    @Test
     fun `a fragment's event schemas read back from the tree, and a Manifest without them leaves them out`() {
         val manifest = service("ordering.OrderPaid")
         ManifestTree.read(ManifestTree.write(manifest), ManifestTree.REFUSE).assert().isEqualTo(manifest)

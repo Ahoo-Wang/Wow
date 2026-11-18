@@ -25,10 +25,12 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 object PeerSources {
     /**
      * [manifest] with every subscription that takes another context's events by type reading the aggregates the
-     * [contracts] list them under; a [ContractException] listing every subscription it cannot say.
+     * [contracts] list them under; a [ContractException] listing every subscription it cannot say. An event no contract
+     * lists is named with the class path entry [locate] finds its class in, when it finds one: the api module there
+     * carries no contract that lists it, a types-only release of a cycle's first member, or one of no `wowContract`.
      */
     @JvmStatic
-    fun resolve(manifest: Manifest, contracts: List<Manifest>): Manifest {
+    fun resolve(manifest: Manifest, contracts: List<Manifest>, locate: (String) -> String? = { null }): Manifest {
         if (manifest.contexts.none { context -> context.subscriptions.any { it.source.eventSchemas.isNotEmpty() } }) {
             return manifest
         }
@@ -40,7 +42,7 @@ object PeerSources {
         val problems = mutableListOf<String>()
         val contexts = manifest.contexts.map { context ->
             val subscriptions = context.subscriptions.map { subscription ->
-                resolved(context.name, subscription, owners, problems)
+                resolved(context.name, subscription, owners, problems, locate)
             }
             context.copyWith(subscriptions = subscriptions)
         }
@@ -50,11 +52,23 @@ object PeerSources {
         return manifest.copyWith(contexts = contexts)
     }
 
+    /** What to do about the event class [binary] no contract lists, as [locate] finds it on the class path. */
+    private fun unlisted(binary: String, locate: (String) -> String?): String {
+        val entry = locate(binary) ?: return "depend on the api module of the context that publishes it"
+        return "it is in $entry, whose api module carries no contract listing it: a types-only release " +
+            "(-P$PUBLISH_PROPERTY=false), the first of a cycle of contexts consuming each other, or an api module " +
+            "that declares no wowContract. Depend on the module's full release, whose contract lists the event"
+    }
+
+    /** The Gradle property that publishes an api module's types alone, as its message names it. */
+    private const val PUBLISH_PROPERTY = "wow.contract.publish"
+
     private fun resolved(
         context: String,
         subscription: SubscriptionManifest,
         owners: Map<String, List<String>>,
         problems: MutableList<String>,
+        locate: (String) -> String?,
     ): SubscriptionManifest {
         val source = subscription.source
         if (source.eventSchemas.isEmpty()) return subscription
@@ -63,7 +77,7 @@ object PeerSources {
             val candidates = owners[schema].orEmpty()
             when (candidates.size) {
                 0 -> problems += "$where takes ${Manifest.schemaKey(schema)}, which no peer contract on the class " +
-                    "path lists as an event: depend on the api module of the context that publishes it"
+                    "path lists as an event: " + unlisted(Manifest.schemaKey(schema), locate)
 
                 1 -> Unit
                 else -> problems += "$where takes ${Manifest.schemaKey(schema)}, an event of " +

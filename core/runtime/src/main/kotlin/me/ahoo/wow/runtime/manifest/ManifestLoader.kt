@@ -17,6 +17,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.manifest.ClassPathContracts
+import me.ahoo.wow.manifest.ContractClasses
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestAssembly
 import me.ahoo.wow.manifest.ManifestFragment
@@ -32,7 +33,8 @@ import tools.jackson.databind.json.JsonMapper
  *
  * Startup fails with every problem listed: a [ManifestLoadException] for the fragments that are missing or do not
  * read as a Manifest, else the merger's [me.ahoo.wow.manifest.ManifestConflictException] for the conflicts between
- * them.
+ * them. A peer contract whose classes its types lack ([ContractClasses]) is logged as a warning, naming both: the
+ * node reads a command of a class it lacks as its JSON, and the build's merge refuses such a class path.
  */
 @InternalWowApi
 class ManifestLoader(
@@ -56,7 +58,11 @@ class ManifestLoader(
         val contracts = ClassPathContracts.load(classLoader, { manifestLogger.warn { it } }) {
             mapper.readValue(it, Map::class.java)
         }
-        return ManifestAssembly.assemble(fragments, service, contracts.map { it.manifest })
+        // A contract whose classes its types lack is of another version than they are: say so, naming both. The
+        // node still starts, a command of a class it lacks read as its JSON, as the build's merge refuses it.
+        val locate = ContractClasses.locator(classLoader)
+        contracts.flatMap { ContractClasses.problems(it, locate) }.forEach { manifestLogger.warn { it } }
+        return ManifestAssembly.assemble(fragments, service, contracts.map { it.manifest }, locate)
     }
 
     /** The Manifest of the service named [service]; see [load]. */

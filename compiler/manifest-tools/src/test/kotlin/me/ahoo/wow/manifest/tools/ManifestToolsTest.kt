@@ -342,7 +342,7 @@ class ManifestToolsTest {
         )
     }
 
-    /** A jar holding [contract] as its peer contract. */
+    /** A jar holding [contract] as its peer contract, beside the class files it lists, as an api module's are. */
     private fun contractJar(name: String, contract: Manifest): File {
         val file = File(directory, "$name-contract.json").also { ManifestJson.write(contract, it) }
         return File(directory, "$name.jar").also { jar ->
@@ -350,6 +350,10 @@ class ManifestToolsTest {
                 zip.putNextEntry(ZipEntry(PeerContracts.RESOURCE))
                 zip.write(file.readBytes())
                 zip.closeEntry()
+                contract.contexts.flatMap(PeerContracts::classesOf).distinct().forEach { binary ->
+                    zip.putNextEntry(ZipEntry(binary.replace('.', '/') + ".class"))
+                    zip.closeEntry()
+                }
             }
         }
     }

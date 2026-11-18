@@ -18,11 +18,17 @@ import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.MissingDependencyException
 import me.ahoo.wow.kernel.ModelProvider
+import me.ahoo.wow.manifest.AggregateManifest
+import me.ahoo.wow.manifest.CommandManifest
+import me.ahoo.wow.manifest.ContextManifest
+import me.ahoo.wow.manifest.ContractClasses
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestConflictException
+import me.ahoo.wow.manifest.ManifestFragment
 import me.ahoo.wow.manifest.ManifestTree
 import me.ahoo.wow.manifest.ServiceInfo
+import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
 import me.ahoo.wow.runtime.cluster.accountManifest
 import me.ahoo.wow.runtime.node.InMemoryBackends
@@ -188,5 +194,32 @@ class ManifestLoaderTest {
     fun `a provider's models are of its own context`() {
         assertThrows<IllegalArgumentException> { ServiceNode.models(Dependencies.NONE, listOf(MisplacedModels())) }
             .message.assert().contains("bank.account")
+    }
+
+    @Test
+    fun `a peer contract listing a class its types lack should be warned of, the node still starting`() {
+        fragment("bank", accountManifest(null, "bank"))
+        val peer = Manifest(
+            contexts = listOf(
+                ContextManifest(
+                    "billing",
+                    aggregates = listOf(
+                        AggregateManifest(
+                            "invoice",
+                            state = StateManifest(Manifest.schemaRef("billing.InvoiceState")),
+                            commands = listOf(CommandManifest("Issue", schema = Manifest.schemaRef("billing.Issue"))),
+                        ),
+                    ),
+                ),
+            ),
+        )
+        write("META-INF/wow/contract.json", mapper.writeValueAsBytes(ManifestTree.write(peer)))
+        val classLoader = classLoader(BankModels::class.java)
+
+        ManifestLoader(classLoader).load(NODE_SERVICE).contexts.map { it.name }.assert().containsExactly("bank")
+        // What the warning says, as the node's locator finds the class.
+        val contract = ManifestFragment("contract.json", peer)
+        ContractClasses.problems(contract, ContractClasses.locator(classLoader)).single().assert()
+            .startsWith("billing.Issue, which the contract in contract.json lists, is in no class path entry")
     }
 }
