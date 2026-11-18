@@ -38,6 +38,9 @@ import tools.jackson.databind.node.ObjectNode
 import tools.jackson.databind.util.Converter
 import java.lang.reflect.Modifier
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.reflect.KClass
+import kotlin.reflect.KType
+import kotlin.reflect.full.primaryConstructor
 
 /**
  * The schemas a module declares in `wow { schemaOverrides }`, and the generation's stops that ask for one: a schema is
@@ -110,12 +113,34 @@ internal class SchemaOverrides(declared: Map<String, ObjectNode>, private val ma
             "Jackson writes $key with a serializer of its own (@JsonSerialize using, converter, contentUsing or " +
                 "contentConverter, or @JsonRawValue), so its schema cannot be introspected: ${declaration(key)}."
         }
+        wrappedDuration(KotlinMembers.typeOf(member))?.let { wrapper ->
+            error(
+                "Wow's JSON writes $key, a ${wrapper.name} over a kotlin.time.Duration, as Kotlin's internal " +
+                    "encoding of the duration, which no unit reads: ${declaration(key)}, or hold a " +
+                    "kotlin.time.Duration.",
+            )
+        }
         unwritten(member.type)?.let { type ->
             error(
                 "Wow's JSON does not write ${type.name}, which $key holds, as an object, and it is no scalar Wow " +
                     "describes, so its schema would not be what is written: ${declaration(key)}, or hold it as a " +
                     "String.",
             )
+        }
+        return null
+    }
+
+    /**
+     * The value class [type] is, when it holds a `kotlin.time.Duration`, itself or through value classes: the Kotlin
+     * module writes it unboxed, the duration's internal `long`, which the conversion of a `Duration` does not reach.
+     */
+    private fun wrappedDuration(type: KType?): Class<*>? {
+        val wrapper = type?.classifier as? KClass<*> ?: return null
+        var current: KClass<*> = wrapper
+        while (current.isValue) {
+            current = current.primaryConstructor?.parameters?.singleOrNull()?.type?.classifier as? KClass<*>
+                ?: return null
+            if (current == kotlin.time.Duration::class) return wrapper.java
         }
         return null
     }

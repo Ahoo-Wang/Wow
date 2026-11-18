@@ -135,10 +135,12 @@ class ClusterCodecTest {
     }
 
     @Test
-    fun `the codec registers the Kotlin module and Wow's transport, state event and enum modules only, whatever else is on the class path`() {
+    fun `the codec registers the Kotlin module and Wow's time, transport, state event and enum modules only, whatever else is on the class path`() {
         ClusterCodec.mapper.registeredModules().map { it.moduleName }
             .assert().containsExactly(
                 KotlinModule.Builder().build().moduleName,
+                "wow-month-names",
+                "wow-kotlin-durations",
                 "wow-transport",
                 "wow-state-event",
                 WowEnums.MODULE_NAME,

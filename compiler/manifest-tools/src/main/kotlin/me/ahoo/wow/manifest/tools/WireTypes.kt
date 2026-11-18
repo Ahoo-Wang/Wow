@@ -13,6 +13,10 @@
 
 package me.ahoo.wow.manifest.tools
 
+import com.github.victools.jsonschema.generator.CustomDefinition
+import com.github.victools.jsonschema.generator.CustomPropertyDefinition
+import com.github.victools.jsonschema.generator.CustomPropertyDefinitionProvider
+import com.github.victools.jsonschema.generator.MemberScope
 import com.github.victools.jsonschema.generator.impl.module.SimpleTypeModule
 
 /**
@@ -84,8 +88,6 @@ internal object WireTypes {
         Byte::class.javaPrimitiveType!! to INT32_SCALAR,
         java.lang.Byte::class.java to INT32_SCALAR,
         java.time.Year::class.java to INT32_SCALAR,
-        // Wow's JSON writes a month by its number, 1 to 12, not its name.
-        java.time.Month::class.java to INT32_SCALAR,
         Long::class.javaPrimitiveType!! to INT64_SCALAR,
         java.lang.Long::class.java to INT64_SCALAR,
         java.math.BigInteger::class.java to Scalar(JsonType.INTEGER, BIGINT),
@@ -104,6 +106,8 @@ internal object WireTypes {
         java.time.OffsetTime::class.java to Scalar(JsonType.STRING, TIME),
         java.time.Duration::class.java to Scalar(JsonType.STRING, DURATION),
         java.time.Period::class.java to Scalar(JsonType.STRING, DURATION),
+        // As a `java.time.Duration` is, held as a class: nullable, an element, a map's value ([kotlinDurations]).
+        kotlin.time.Duration::class.java to Scalar(JsonType.STRING, DURATION),
         java.util.UUID::class.java to Scalar(JsonType.STRING, UUID),
         java.net.URI::class.java to Scalar(JsonType.STRING, URI),
         java.net.URL::class.java to Scalar(JsonType.STRING, URI),
@@ -125,6 +129,24 @@ internal object WireTypes {
 
     /** The format of each class whose values a plain JSON type does not tell apart, as [SCALARS] gives it. */
     val FORMATS: Map<Class<*>, String> = SCALARS.mapNotNull { (type, scalar) -> scalar.format?.let { type to it } }.toMap()
+
+    /**
+     * The schema of a property Kotlin declares as a `kotlin.time.Duration`, which the JVM holds as a `long`: the
+     * ISO-8601 text Wow's JSON writes, as [SCALARS] describes a `Duration` it holds as a class. None for any other.
+     */
+    fun <M : MemberScope<*, *>> kotlinDurations(): CustomPropertyDefinitionProvider<M> =
+        CustomPropertyDefinitionProvider { member, context ->
+            val unboxed = member.type.erasedType.isPrimitive
+            if (!unboxed || KotlinMembers.typeOf(member)?.classifier != kotlin.time.Duration::class) {
+                null
+            } else {
+                val schema = context.generatorConfig.createObjectNode()
+                    .put("type", JsonType.STRING.keyword)
+                    .put(FORMAT, DURATION)
+                    .put(CLASS_KEYWORD, kotlin.time.Duration::class.java.name)
+                CustomPropertyDefinition(schema, CustomDefinition.AttributeInclusion.YES)
+            }
+        }
 
     /** The schema generator's description of each of [SCALARS], by its JSON type alone; its format is [FORMATS]'. */
     fun module(): SimpleTypeModule = SimpleTypeModule().also { module ->
