@@ -243,6 +243,9 @@ internal class SchemaIntrospector(
             .withTypeAttributeOverride(queryKeywords)
             .withTypeAttributeOverride(WireFormats)
             .withDescriptionResolver { scope -> describe(scope.type.erasedType) }
+        // A platform value class is the scalar Wow's JSON writes it as ([WireTypes.SCALARS]): after a declared schema,
+        // ahead of the generator's own simple types, which the options add when the configuration is built.
+        builder.with(WireTypes.module())
         builder.forFields()
             .withRequiredCheck(::isKotlinRequired)
             .withNullableCheck { isKotlinNullable(it) }
