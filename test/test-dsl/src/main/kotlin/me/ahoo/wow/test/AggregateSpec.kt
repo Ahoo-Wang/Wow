@@ -549,9 +549,3 @@ class AggregateSpec<S : Any> private constructor(
         val marks: Map<String, Snapshot>,
     )
 }
-
-/**
- * A failure in a [AggregateSpec.fork], which names the fork and, for a failing check of a command, the step and the
- * command: `In fork "paid", whenCommand(ShipOrder) (command-4): Expected …`.
- */
-class ForkAssertionError(message: String, cause: Throwable) : AssertionError(message, cause)
