@@ -186,11 +186,7 @@ internal object DomainRole {
      * naming the line to add ([missingKsp]).
      */
     private fun configureKsp(project: Project, extension: WowExtension, id: String) {
-        try {
-            project.pluginManager.apply(KSP)
-        } catch (unknown: UnknownPluginException) {
-            throw GradleException(missingKsp(project.path, id), unknown)
-        }
+        applyKsp(project, id)
         kspArg(project, MODEL_OPTION, "generate")
         kspArg(project, MODULE_OPTION, fragmentName(project.path))
         kspArg(project, ContextArgument(extension.context))
@@ -202,6 +198,18 @@ internal object DomainRole {
             configuration.withDependencies { dependencies ->
                 if (dependencies.any { it !== compiler && declares(it, COMPILER) }) dependencies.remove(compiler)
             }
+        }
+    }
+
+    /**
+     * Applies the KSP plugin [ksp] to [project], which applies the Wow plugin [id]: by its id, from the project's own
+     * class path. A class path without it fails naming the line to add ([missingKsp]).
+     */
+    internal fun applyKsp(project: Project, id: String, ksp: String = KSP) {
+        try {
+            project.pluginManager.apply(ksp)
+        } catch (unknown: UnknownPluginException) {
+            throw GradleException(missingKsp(project.path, id), unknown)
         }
     }
 
@@ -231,13 +239,14 @@ internal object DomainRole {
     }
 
     /**
-     * The version of the KSP Gradle plugin [type] (its extension, decorated by Gradle) comes from: its jar's name
-     * (`symbol-processing-gradle-plugin-<version>.jar`), else its manifest's; null when neither says.
+     * The version of the KSP Gradle plugin [type] (its extension, decorated by Gradle) comes from: the name of the jar
+     * its class file is in (`symbol-processing-gradle-plugin-<version>.jar`), else its manifest's; null when neither
+     * says.
      */
     internal fun versionOf(type: Class<*>): String? {
-        val declared = generateSequence(type) { it.superclass }.firstOrNull { !it.name.endsWith("_Decorated") } ?: type
-        val jar = declared.protectionDomain?.codeSource?.location?.path?.substringAfterLast('/')
-        return jar?.let(KSP_JAR::matchEntire)?.groupValues?.get(1) ?: declared.`package`?.implementationVersion
+        val declared = generateSequence(type) { it.superclass }.first { !it.name.endsWith("_Decorated") }
+        val location = declared.getResource("${declared.simpleName}.class")?.toString().orEmpty()
+        return KSP_JAR.find(location)?.let { it.groupValues[1] } ?: declared.`package`.implementationVersion
     }
 
     /** Why a module fails whose KSP, of version [found], has no `arg` taking [parameters]. */
@@ -272,7 +281,7 @@ internal object DomainRole {
     private const val KSP = "com.google.devtools.ksp"
     private const val KSP_CONFIGURATION = "ksp"
     private const val KSP_EXTENSION = "ksp"
-    private val KSP_JAR = Regex("""symbol-processing-gradle-plugin-(.+)\.jar""")
+    private val KSP_JAR = Regex("""symbol-processing-gradle-plugin-([^/!]+)\.jar""")
     private const val KSP_TASK = "kspKotlin"
     private const val KSP_RESOURCES = "generated/ksp/main/resources"
     private const val MODEL_OPTION = "wow.model"

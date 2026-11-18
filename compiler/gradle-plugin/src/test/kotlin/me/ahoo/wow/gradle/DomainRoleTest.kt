@@ -151,6 +151,9 @@ class DomainRoleTest {
         component.usages.map { it.name }.assert().doesNotContain(WowPlugin.CONTRACT_ELEMENTS, "wowManifestElements")
     }
 
+    /** A class Gradle decorates when it creates an instance, as it does a plugin's extension. */
+    open class DecoratedArgs
+
     /** An extension of a KSP whose `arg` takes a key and a value only. */
     class KeyValueArgs {
         val args = mutableListOf<Pair<String, String>>()
@@ -181,8 +184,21 @@ class DomainRoleTest {
     }
 
     @Test
+    fun `a module whose class path holds no KSP should fail naming the line to add`() {
+        assertThrows<GradleException> { DomainRole.applyKsp(project(), WowPlugin.ID, "sample.no-such-ksp") }
+            .message.assert().contains(
+                "Project ':' applies the Wow plugin (${WowPlugin.ID}) from a class path without the KSP Gradle plugin",
+                "Add id(\"com.google.devtools.ksp\") version \"${WowPlugin.kspVersion}\" to the module's plugins",
+            )
+    }
+
+    @Test
     fun `the KSP version should be read from its jar`() {
         DomainRole.versionOf(KspExtension::class.java).assert().isEqualTo(WowPlugin.kspVersion)
         DomainRole.versionOf(KeyValueArgs::class.java).assert().isNull()
+        // An extension as Gradle creates it, of a class it decorates: the version is the declared class's.
+        val decorated = project().objects.newInstance(DecoratedArgs::class.java)
+        decorated.javaClass.name.assert().endsWith("_Decorated")
+        DomainRole.versionOf(decorated.javaClass).assert().isNull()
     }
 }
