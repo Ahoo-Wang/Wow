@@ -107,14 +107,15 @@ internal class BoundedContexts(
     }
 
     /**
-     * Why a generate-mode module of aggregates or processors fails, with [declared] `@BoundedContext`s: several need
-     * the KSP option to name one; none is either a module without one, or one whose declaration KSP did not hand the
-     * processor, an incremental build whose caches describe other sources, which the error names with its way out.
+     * Why a generate-mode module of aggregates or processors fails, by the `@BoundedContext`s it [declared]: several
+     * need the KSP option to name one; none is either a module without one, or one whose declaration KSP did not hand
+     * the processor, an incremental build whose caches describe other sources, which the error names with its way out.
      */
-    fun noContext(declared: Int): String {
+    fun noContext(): String {
+        val count = declared.size
         val contextOption = ModelSymbolProcessorProvider.CONTEXT_OPTION
-        val head = "No Manifest fragment and no model provider: the module declares $declared @BoundedContext"
-        return if (declared > 1) {
+        val head = "No Manifest fragment and no model provider: the module declares $count @BoundedContext"
+        return if (count > 1) {
             "$head; set the KSP option $contextOption to name its bounded context"
         } else {
             "$head that KSP handed the processor, so its models name no context. Either it has none: declare one " +

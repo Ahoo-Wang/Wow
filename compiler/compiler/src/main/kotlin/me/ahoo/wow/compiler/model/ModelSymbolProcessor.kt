@@ -483,7 +483,7 @@ internal class ModelSymbolProcessor(
         if (context == null) {
             // A model, its handlers and its fragment are named after the module's context: without one, nothing it
             // generated could join a service's Manifest, so the compilation fails here, naming why.
-            logger.error(contexts.noContext(contexts.declared.size))
+            logger.error(contexts.noContext())
             return
         }
         val errors = errors(context)
