@@ -277,6 +277,101 @@ class InheritedAggregateIdTest {
         }
     }
 
+    /** The record command [name] of [source], with the [extra] sources, and a `Stock` that takes it. */
+    private fun recordOf(name: String, source: String, vararg extra: SourceFile) = compileModel(
+        "generate",
+        context,
+        *extra,
+        SourceFile.java("$name.java", source.trimIndent()),
+        SourceFile.kotlin(
+            "Stock.kt",
+            """
+            package sample
+
+            import me.ahoo.wow.api.annotation.AggregateRoot
+
+            data class Counted(val quantity: Int)
+
+            @AggregateRoot
+            class Stock(val id: String) {
+                fun onCommand(command: $name): Counted = Counted(0)
+                fun onSourcing(event: Counted) = Unit
+            }
+            """.trimIndent(),
+        ),
+    )
+
+    @Test
+    fun `a record's canonical constructor should be the one of its components, beside a wider one`() {
+        val (compilation, result) = recordOf(
+            "Count",
+            """
+            package sample;
+
+            import me.ahoo.wow.api.annotation.AggregateId;
+
+            public record Count(@AggregateId String id, int quantity) {
+                public Count(String id, int quantity, String note) {
+                    this(id, quantity);
+                }
+            }
+            """,
+        )
+        result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
+        result.messages.assert().doesNotContain("command Count has")
+        compilation.workingDir.walkTopDown().single { it.name == "StockModel.kt" }.readText()
+            .assert().contains("aggregateId<sample.Count> { it.`id` }")
+    }
+
+    @Test
+    fun `a marked record component should be refused as a marked property is`() {
+        mapOf(
+            // No String.
+            """
+            package sample;
+
+            import me.ahoo.wow.api.annotation.AggregateId;
+
+            public record Count(@AggregateId long id) {
+            }
+            """ to "command Count's @AggregateId record component id is a kotlin.Long: an aggregate id is a String",
+            // An unaddressed command, whose transformer finds its aggregate.
+            """
+            package sample;
+
+            import me.ahoo.wow.api.annotation.AggregateId;
+            import me.ahoo.wow.api.annotation.Unaddressed;
+
+            @Unaddressed
+            public record Count(@AggregateId String id) {
+            }
+            """ to "command Count is @Unaddressed and has an @AggregateId property: a transformer finds an unaddressed " +
+                "command's aggregate, and the body names an @AggregateId command's",
+            // Beside another marked property, an interface's.
+            """
+            package sample;
+
+            import me.ahoo.wow.api.annotation.AggregateId;
+
+            public record Count(@AggregateId String id, String key) implements Keyed {
+                @Override
+                public String getKey() {
+                    return key;
+                }
+            }
+            """ to "command Count has several @AggregateId properties (key, id): one property holds its aggregate's id",
+        ).forEach { (source, problem) ->
+            val keyed = SourceFile.kotlin(
+                "Keyed.kt",
+                "package sample\n\nimport me.ahoo.wow.api.annotation.AggregateId\n\n" +
+                    "interface Keyed {\n    @AggregateId\n    val key: String\n}\n",
+            )
+            val (_, result) = recordOf("Count", source, keyed)
+            result.exitCode.assert().describedAs(problem).isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+            result.messages.assert().contains(problem)
+        }
+    }
+
     @Test
     fun `the mark on a function that is no record's component should be a compile error naming where it goes`() {
         val marked = SourceFile.kotlin(

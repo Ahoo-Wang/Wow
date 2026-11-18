@@ -112,13 +112,13 @@ internal class BoundedContexts(
      * processor, an incremental build whose caches describe other sources, which the error names with its way out.
      */
     fun noContext(declared: Int): String {
-        val option = ModelSymbolProcessorProvider.CONTEXT_OPTION
+        val contextOption = ModelSymbolProcessorProvider.CONTEXT_OPTION
         val head = "No Manifest fragment and no model provider: the module declares $declared @BoundedContext"
         return if (declared > 1) {
-            "$head; set the KSP option $option to name its bounded context"
+            "$head; set the KSP option $contextOption to name its bounded context"
         } else {
             "$head that KSP handed the processor, so its models name no context. Either it has none: declare one " +
-                "@BoundedContext, or set the KSP option $option. Or it declares one KSP did not hand the processor, " +
+                "@BoundedContext, or set the KSP option $contextOption. Or it declares one KSP did not hand the processor, " +
                 "because KSP's incremental caches describe other sources (a source root that moved): build the " +
                 "module clean, or rerun its KSP task (--rerun)"
         }

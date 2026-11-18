@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.compiler.model.aggregate
+package me.ahoo.wow.compiler.model.symbol
 
 import com.google.devtools.ksp.getAllSuperTypes
 import com.google.devtools.ksp.getDeclaredFunctions
@@ -43,8 +43,11 @@ internal object JavaRecords {
         val functions = record.getDeclaredFunctions().toList()
         val accessors = functions.filter { it.simpleName.asString() != CONSTRUCTOR && it.parameters.isEmpty() }
             .associateBy { it.simpleName.asString() }
+        // The canonical constructor: every parameter a component, of the most parameters; another constructor of a
+        // record has a parameter of no component, or fewer.
         val canonical = functions.filter { it.simpleName.asString() == CONSTRUCTOR }
-            .maxByOrNull { constructor -> constructor.parameters.count { it.name?.asString() in accessors } }
+            .filter { constructor -> constructor.parameters.all { it.name?.asString() in accessors } }
+            .maxByOrNull { it.parameters.size }
             ?: return emptyList()
         return canonical.parameters.mapNotNull { parameter ->
             val name = parameter.name?.asString() ?: return@mapNotNull null
@@ -52,6 +55,10 @@ internal object JavaRecords {
             Component(name, accessor.returnType?.resolve(), listOf(parameter, accessor))
         }
     }
+
+    /** The component of [record] named [name] whose type is [type], by qualified name; null when it has none. */
+    fun component(record: KSClassDeclaration, name: String, type: Set<String>): Component? =
+        components(record).firstOrNull { it.name == name && it.type?.declaration?.qualifiedName?.asString() in type }
 
     /** Whether [function] of [record] is a site of its components: the canonical constructor, or an accessor. */
     fun isComponentSite(record: KSClassDeclaration, function: KSFunctionDeclaration): Boolean {
@@ -61,5 +68,6 @@ internal object JavaRecords {
             function.parameters.isEmpty() && name in names
     }
 
-    private val JAVA: Set<Origin> = setOf(Origin.JAVA, Origin.JAVA_LIB)
+    /** The origins of a Java declaration, compiled here or in a library. */
+    val JAVA: Set<Origin> = setOf(Origin.JAVA, Origin.JAVA_LIB)
 }

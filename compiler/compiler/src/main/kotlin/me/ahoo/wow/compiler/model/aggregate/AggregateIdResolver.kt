@@ -25,6 +25,8 @@ import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 import com.google.devtools.ksp.symbol.KSPropertyDeclaration
 import com.google.devtools.ksp.symbol.Origin
+import me.ahoo.wow.compiler.model.symbol.AnnotationSet
+import me.ahoo.wow.compiler.model.symbol.JavaRecords
 import me.ahoo.wow.compiler.model.symbol.declarations
 import me.ahoo.wow.compiler.model.symbol.jsonIgnored
 import me.ahoo.wow.compiler.model.symbol.jsonIgnoredProperties
@@ -117,9 +119,7 @@ internal object AggregateIdResolver {
             }
             .map { function ->
                 val where = function.qualifiedName?.asString() ?: function.simpleName.asString()
-                "function $where is annotated @AggregateId, which only a property of a command an aggregate decides " +
-                    "takes: a Kotlin property, a Java field read by its public getter, or a Java record's component" to
-                    function
+                AnnotationSet.commandPropertyOnly("function $where", AGGREGATE_ID_NAME) to function
             }.toList()
 
     /** The components of [command], a Java record, marked `@AggregateId`; none for any other command. */
@@ -229,11 +229,11 @@ internal object AggregateIdResolver {
     }
 
     /**
-     * What [command]'s `id` record component is, when it is a Java record with one ([isRecordOfId]), and how it is
-     * marked: on the component; null for any other command.
+     * What [command]'s `id` record component is, when it is a Java record with one ([JavaRecords.component]), and how
+     * it is marked: on the component; null for any other command.
      */
     private fun recordUnmarked(command: KSClassDeclaration): Pair<String, String>? {
-        if (!command.isRecordOfId()) return null
+        if (JavaRecords.component(command, ID, STRINGS) == null) return null
         val elsewhere = if (command.origin in SOURCE) "" else ", compiled in another module"
         val clause = "a String record component $ID (read by ${command.qualifiedName!!.asString()}'s accessor " +
             "$ID()$elsewhere)"
@@ -274,25 +274,13 @@ internal object AggregateIdResolver {
      * Wow's JSON writes it; null for a Kotlin property, or a field no public getter reads.
      */
     private fun KSPropertyDeclaration.javaReader(command: KSClassDeclaration): String? {
-        if (origin !in JAVA) return null
+        if (origin !in JavaRecords.JAVA) return null
         val name = simpleName.asString()
         val getter = "get" + name.first().uppercaseChar() + name.substring(1)
         return "getter $getter()".takeIf {
             command.getAllFunctions().any { it.simpleName.asString() == getter && it.isPublic() }
         }
     }
-
-    /**
-     * Whether this is a Java record with a `String` component named `id`: KSP shows a record's components as no
-     * property, only as their accessors ([JavaRecords]).
-     */
-    private fun KSClassDeclaration.isRecordOfId(): Boolean =
-        // A supertype or a return type that does not resolve has no qualified name: it is no record, and no String.
-        getAllSuperTypes().any { it.declaration.qualifiedName?.asString() == RECORD } &&
-            getAllFunctions().any {
-                it.simpleName.asString() == ID &&
-                    it.returnType?.resolve()?.declaration?.qualifiedName?.asString() in STRINGS
-            }
 
     /** The properties of [command] and its supertypes, the class's own first. */
     internal fun propertiesOf(command: KSClassDeclaration): Sequence<KSPropertyDeclaration> =
@@ -318,8 +306,6 @@ internal object AggregateIdResolver {
     /** The origins of a declaration whose source this compilation reads. */
     private val SOURCE: Set<Origin> = setOf(Origin.KOTLIN, Origin.JAVA)
 
-    private const val RECORD = "java.lang.Record"
-
-    /** The origins of a Java declaration, compiled here or in a library. */
-    private val JAVA: Set<Origin> = setOf(Origin.JAVA, Origin.JAVA_LIB)
+    /** The simple name of [AGGREGATE_ID], as [AnnotationSet] reports it. */
+    private const val AGGREGATE_ID_NAME = "AggregateId"
 }
