@@ -32,7 +32,7 @@ internal object KotlinDurations {
     private object Reader : ValueDeserializer<Duration>() {
         override fun deserialize(p: JsonParser, ctxt: DeserializationContext): Duration {
             if (p.hasToken(JsonToken.VALUE_STRING)) {
-                val text = p.string.trim()
+                val text = p.string
                 return Duration.parseIsoStringOrNull(text) ?: ctxt.handleWeirdStringValue(
                     Duration::class.java,
                     text,

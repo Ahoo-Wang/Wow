@@ -22,6 +22,7 @@ import java.time.Month
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.nanoseconds
 import kotlin.time.Duration.Companion.seconds
 
 /** A `java.time.Month` and a `kotlin.time.Duration` as Wow's JSON writes and reads them ([MonthNames], [KotlinDurations]). */
@@ -41,6 +42,8 @@ class TimeValuesJsonTest {
     )
 
     data class JavaTiming(val duration: java.time.Duration)
+
+    data class Edge(val value: Duration, val values: List<Duration>)
 
     @Test
     fun `a month should be written by its name, a map's key too, and read back`() {
@@ -63,6 +66,28 @@ class TimeValuesJsonTest {
             """{"duration":"PT1H30M","optional":"PT2M","absent":null,"durations":["PT1H"],"byName":{"a":"PT3S"}}""",
         )
         WowJson.mapper.readValue<Timing>(text).assert().isEqualTo(Timing())
+    }
+
+    @Test
+    fun `a Kotlin duration's edges should be written as java_time_Duration writes them, and read back equal`() {
+        mapOf(
+            Duration.ZERO to "PT0S",
+            -(1.hours + 30.minutes) to "PT-1H-30M",
+            1.seconds + 1.nanoseconds to "PT1.000000001S",
+            // An infinite duration is written as the largest java.time.Duration the conversion makes, which Kotlin's
+            // parser, saturating beyond its range, reads back as infinite.
+            Duration.INFINITE to "PT2562047788015215H30M7S",
+            -Duration.INFINITE to "PT-2562047788015215H-30M-8S",
+        ).forEach { (duration, text) ->
+            val written = WowJson.mapper.writeValueAsString(Edge(duration, listOf(duration)))
+            written.assert().describedAs("$duration").isEqualTo("""{"value":"$text","values":["$text"]}""")
+            WowJson.mapper.readValue<Edge>(written).assert().isEqualTo(Edge(duration, listOf(duration)))
+        }
+        // Kotlin's own form of a negative duration reads too; text with surrounding spaces is refused, as a
+        // java.time.Duration refuses it.
+        WowJson.mapper.readValue<Edge>("""{"value":"-PT1H30M","values":[]}""").value
+            .assert().isEqualTo(-(1.hours + 30.minutes))
+        assertThrows<JacksonException> { WowJson.mapper.readValue<Edge>("""{"value":" PT1H ","values":[]}""") }
     }
 
     @Test
