@@ -14,12 +14,7 @@ import {
 } from './bench-headline.mjs';
 import { cpuModel } from '../../documentation/docs/.vitepress/theme/perf-figures.mjs';
 import { exampleBlock, unitCostsBlock } from './docs-capacity.mjs';
-import {
-  boundBlock,
-  firstStartBlock,
-  handoverBlock,
-  leasesBlock,
-} from './docs-recovery.mjs';
+import { boundBlock, handoverBlock, leasesBlock } from './docs-recovery.mjs';
 
 // The figures the documentation quotes, in English and Chinese, generated from
 // the benchmark reports so that no page shows a number its report no longer has
@@ -319,7 +314,6 @@ export const BLOCKS = {
   'recovery-leases': leasesBlock,
   'recovery-handover': handoverBlock,
   'recovery-bound': boundBlock,
-  'recovery-first-start': firstStartBlock,
 };
 
 const BLOCK = /<!-- performance:begin ([^\s]*) -->|<!-- performance:end -->/g;

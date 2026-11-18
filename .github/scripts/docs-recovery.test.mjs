@@ -8,7 +8,6 @@ import { test } from 'node:test';
 import {
   RECOVERY,
   boundBlock,
-  firstStartBlock,
   handoverBlock,
   leasesBlock,
   seconds,
@@ -66,15 +65,6 @@ const live = (id, commit, job, extra) => ({
 const both = (id, commit, extra) =>
   RECOVERY.jobs.map(job => live(id, commit, job, extra));
 
-const firstStart = (pair, arm, commit, run) =>
-  both(`first-start.${pair}.${arm}`, commit, {
-    kind: 'first-start',
-    pair,
-    arm,
-    maxCatchUps: 2,
-    run,
-  });
-
 const headline = figures => [
   { report: 'm5max-recovery', environment: 'm5max', figures },
 ];
@@ -123,16 +113,7 @@ const bounds = [
   }),
 ];
 
-const pairs = [
-  ...firstStart('patch-1', 'patch', 'p1', '201'),
-  ...firstStart('patch-1', 'parent', 'q1', '200'),
-  ...firstStart('patch-2', 'parent', 'q1', '300'),
-  ...firstStart('patch-2', 'patch', 'p1', '301'),
-  // The pairs that are not the code that ships are not quoted.
-  ...firstStart('6412-1', '6412', 'z1', '400'),
-];
-
-const all = headline([...leases, ...handovers, ...bounds, ...pairs]);
+const all = headline([...leases, ...handovers, ...bounds]);
 
 test('a duration prints in seconds, and a range as one value when both ends agree', () => {
   assert.equal(seconds(2.4), '2.4 s');
@@ -141,7 +122,7 @@ test('a duration prints in seconds, and a range as one value when both ends agre
   assert.equal(span([22, 22], seconds), '22 s');
 });
 
-test('the lost-leases table sets the fix against its merge base, and says when not all were back', () => {
+test('the lost-leases table sets the fix against the build before it, and says when not all were back', () => {
   const block = leasesBlock('en', all);
   assert.match(block, /Apple M5 Max, 18 cores, 64 GB, JDK 25\.0\.5\+8/);
   assert.match(block, /all 64 of its leases/);
@@ -152,27 +133,36 @@ test('the lost-leases table sets the fix against its merge base, and says when n
   );
   assert.match(
     block,
-    /\| merge base `b1` \| 47\.2–47\.8 s \| not all back \| 16, 28, 16 of 64 \|/,
+    /\| before the fix `b1` \| 47\.2–47\.8 s \| not all back \| 16, 28, 16 of 64 \|/,
   );
   assert.match(leasesBlock('zh', all), /16、28、16（共 64）/);
 });
 
-test('the hand-over tables are one a batch, in order, and mark a tree with log probes and what a build carries', () => {
+test('the hand-over tables are one a batch, in order, each build named for a reader, and a line says which batches had log probes', () => {
   const block = handoverBlock('en', all);
-  assert.match(block, /Each round sent 5,250 commands/);
+  assert.match(block, /5,250 commands a round/);
   assert.match(
     block,
-    /\| main `m1`, with log probes \| MongoDB \| 15, 2, 2 \| 1,581–1,983 ms \|/,
+    /\| before the fix `m1` \| MongoDB \| 15, 2, 2 \| 1,581–1,983 ms \|/,
   );
-  assert.match(block, /\| main `m2`, which carries #6412 \| MongoDB \|/);
-  assert.match(block, /\| #6424 `p1` \| PostgreSQL \| 0 \| 20 ms \|/);
+  assert.match(block, /\| first fix `x1` \| PostgreSQL \| 0 \|/);
+  assert.match(block, /\| first fix `m2` \| MongoDB \|/);
+  assert.match(
+    block,
+    /^Batch 1's builds carried log probes, which add log lines only\.$/m,
+  );
+  assert.doesNotMatch(block, /\| [^|]*probes/);
+  assert.match(
+    block,
+    /\| the code that ships `p1` \| PostgreSQL \| 0 \| 20 ms \|/,
+  );
   const [, first, second] = block.split(/\*\*Batch \d:\*\*/);
   assert.match(first, /`m1`[\s\S]*`x1`/);
   assert.doesNotMatch(first, /`m2`|`p1`/);
   assert.match(second, /`m2`[\s\S]*`p1`/);
 });
 
-test('the bound table names the runner image whose CPU was not recorded, and each arm its run', () => {
+test('the bound table names the runner image whose CPU was not recorded, each arm its run, and the build both ran', () => {
   const block = boundBlock('en', all);
   assert.match(
     block,
@@ -181,31 +171,16 @@ test('the bound table names the runner image whose CPU was not recorded, and eac
   assert.match(block, /\(101 and 100\)/);
   assert.match(
     block,
-    /\| 2 permits, `c2` \| runner \| 0 \| 2,000 ms \| 50 s \|/,
+    /\| 2 \(the default\), `c2` \| runner \| 0 \| 2,000 ms \| 50 s \|/,
   );
   assert.match(block, /\| no bound, `c0` \| kind \| 7 \|/);
   assert.match(
+    block,
+    /Both runs were of `h1` with the rehearsal's instrumentation, at the earlier rule/,
+  );
+  assert.match(
     boundBlock('zh', all),
     /GitHub Actions ubuntu-26\.04，未记录 CPU 型号/,
-  );
-});
-
-test("the first-activation tables quote only the shipping code's pairs, the parent first in each job", () => {
-  const block = firstStartBlock('en', all);
-  assert.doesNotMatch(block, /z1|400/);
-  assert.match(block, /\*\*Pair 1\*\*, runs 200 and 201:/);
-  assert.match(block, /\*\*Pair 2\*\*, runs 300 and 301:/);
-  const rows = block
-    .split('\n')
-    .filter(line => /^\| (parent|#6424)/.test(line));
-  assert.deepEqual(
-    rows.slice(0, 4).map(line => line.split(' | ').slice(0, 2).join(' | ')),
-    [
-      '| parent of #6412 `q1` | runner',
-      '| #6424 `p1` | runner',
-      '| parent of #6412 `q1` | kind',
-      '| #6424 `p1` | kind',
-    ],
   );
 });
 
@@ -222,9 +197,5 @@ test('a table refuses rows that differ in where they ran, and a missing headline
   assert.throws(
     () => handoverBlock('en', headline(handovers.slice(1))),
     /no figure handover\.mongo\.main/,
-  );
-  assert.throws(
-    () => firstStartBlock('en', headline(pairs.slice(0, 2))),
-    /pair patch-1 has 1 arms, not 2/,
   );
 });
