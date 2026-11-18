@@ -12,7 +12,7 @@
  */
 
 import { expect, test, type Page } from "@playwright/test";
-import { accessToken } from "./cosec.ts";
+import { accessToken, APP } from "./cosec.ts";
 import { ledgerCommands, listed, publish, type Parked } from "./ledger.ts";
 import { DevelopmentCallerHeaders } from "@ahoo-wang/wow-client";
 
@@ -74,12 +74,33 @@ test("a request without a token or with an expired one is answered 401, and no i
   const expired = accessToken(
     "mallory",
     ["ops.operator"],
-    -60,
+    { validFor: -60 },
   );
   const refused = await request.get(state, {
     headers: { Authorization: `Bearer ${expired}` },
   });
   expect(refused.status()).toBe(401);
+});
+
+test("the gateway decides in the token's app: on the console's route a token for another app, or for none, is refused, whatever CoSec-App-Id names", async ({
+  request,
+}) => {
+  const state = `/ops/parked/${encodeURIComponent(exhausted.id)}/state`;
+  for (const app of ["another-console", null]) {
+    const token = accessToken("alice", ["ops.operator"], { app });
+    const answer = await request.get(state, {
+      headers: { Authorization: `Bearer ${token}`, "CoSec-App-Id": APP },
+    });
+    expect(answer.status()).toBe(403);
+    expect((await answer.json()).type).toBe(
+      "https://cosec.ahoo.me/problems/scope-rejected",
+    );
+  }
+  // The console's own token passes, whatever app a client names.
+  const own = await request.get(state, {
+    headers: { Authorization: `Bearer ${OPERATOR}`, "CoSec-App-Id": "another-console" },
+  });
+  expect(own.status()).toBe(200);
 });
 
 test("an operator signs in with a CoSec token and retries an entry in its name", async ({
@@ -175,7 +196,7 @@ test("a token the gateway refuses signs the console out", async ({ page }) => {
     accessToken(
       "mallory",
       ["ops.operator"],
-      -60,
+      { validFor: -60 },
     ),
   );
   await expect(
@@ -194,7 +215,7 @@ test("a token the gateway refuses later signs the console out, saying so", async
   // secret, so the gateway answers 401.
   await signIn(
     page,
-    accessToken("mallory", ["ops.operator"], 3600, "a-secret-the-gateway-does-not-know"),
+    accessToken("mallory", ["ops.operator"], { secret: "a-secret-the-gateway-does-not-know" }),
   );
   await expect(
     page.getByText(

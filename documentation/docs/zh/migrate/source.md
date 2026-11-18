@@ -9,6 +9,7 @@ description: 用 wow-migrate Skill 把 9.x 服务的 Kotlin 源码改写为 V10�
 
 ## 开始之前 {#before-you-start}
 
+- **先看服务群。** 在写任何代码之前，列出服务群和它的 API 依赖图，包括其中的环，并按它的顺序改写：先共享库，然后 api 模块，然后 domain，然后 server，被别人依赖的服务先于它的消费者（[切换](./cutover#find-the-estate)）。
 - **9.x 的最后一个次版本。** V10 只从它迁移。先在 9.x 之内升级。
 - **Gradle、JDK 21、带 KSP 的 Kotlin。** V10 在构建时、在 Gradle 中绑定模型和 Manifest。用 Maven 构建的 9.x 服务，要么在迁移中改用 Gradle，要么留在 9.x。
 - **固定目标版本。** 指明确切的 V10 版本，并对照它核实每个注解、签名、路由和配置项。
@@ -41,7 +42,7 @@ description: 用 wow-migrate Skill 把 9.x 服务的 Kotlin 源码改写为 V10�
 | `wow-cocache` | V10 的 `wow-cocache`：由拥有聚合的上下文为每个聚合类型写一份共享缓存，读者注入 `StateViewCache<V>`；读者自建的索引缓存与关联缓存没有对应物 |
 | 返回 `Mono` 或 `Flux` 的处理函数 | `suspend` 函数，或通过 `wow-reactor` 使用 Reactor |
 
-这些插件需要 Gradle 9 或更高版本、Kotlin JVM 插件 2.3 或更高版本：先升级 Gradle 8 的 wrapper。KSP 读取整个源码目录，忽略源码集的 `exclude`，所以每次只编译领域模块一部分的迁移，要把这些文件同步到单独的目录。
+这些插件需要 Gradle 9 或更高版本、Kotlin JVM 插件 2.3 或更高版本：先升级 Gradle 8 的 wrapper。KSP 读取整个源码目录，忽略源码集的 `exclude`，所以每次只编译领域模块一部分的迁移，要把这些文件同步到单独的目录。这样的一部分是一个聚合连同它的闭包，而不是单独一个聚合：一个状态的类型化查询（`<State>Properties`）只在它的根被编译的地方存在。从这部分代码的 import 找出闭包：它用来查询的每个其他状态的 `<State>Properties`，以及 Saga 发出的每个命令类；把它们的聚合加进这一部分，反复进行，直到不再加入任何东西。
 
 先迁移 api 模块时，可以在根构建上声明 api 插件：`id("me.ahoo.wow.api") version "…" apply false`。它不带来 KSP，所以 9.x 模块保留各自的 `id("com.google.devtools.ksp") version "…"`。在根构建上声明 `me.ahoo.wow` 或 `me.ahoo.wow.service` 则会把插件的 KSP 带到每个模块的类路径上，仍写着 KSP 版本的 9.x 模块随即在 Gradle 中失败，早于任何 Wow 代码运行：
 

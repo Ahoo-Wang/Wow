@@ -39,7 +39,6 @@ import {
   javaRelease,
   cpuLayout,
   halves,
-  noiseFile,
   noiseLabel,
   propertiesOf,
   metrics,
@@ -81,12 +80,12 @@ import {
   drifted,
   GENERATOR_BOUND,
   generatorBound,
-  noiseOf,
   SATURATION,
   saturationOutlier,
   saturationRatioBound,
   verdict,
 } from './bench-calibration.mjs';
+import { noiseEntries, thresholdsOf } from './bench-noise.mjs';
 import {
   HANDOVER_SCRIPT,
   layoutOf,
@@ -1323,21 +1322,21 @@ test('A/A runs give the noise thresholds; bootstrap intervals decide what clears
   assert.doesNotMatch(calls, /--prime/);
   assert.equal(suite.runs.filter(run => run.mode === 'equal').length, 8);
   assert.equal(suite.extraRound, undefined);
-  const noise = noiseFile([suite], { 'e3-pg@100k': { p99: 0.1 } });
-  assert.deepEqual(Object.keys(noise), ['e3-pg@100k', 'e1-mongo-uniform@1k']);
-  // The thresholds are the equal-rate intervals' half-widths, at least 2%: identical arms there give the floor.
-  assert.deepEqual(noise['e1-mongo-uniform@1k'], {
+  // At 1k (not primed) the A/A is not pooled: its calibration probes measured a fresh node's start.
+  assert.deepEqual(noiseEntries([suite]), []);
+  // Primed, the run gives one entry: its interval per metric and each equal-rate round pair's ratio; identical arms
+  // there reach no farther than the floor.
+  const primed = { ...suite, primed: true };
+  const [entry] = noiseEntries([primed], { run: 44198387310, attempt: 1 });
+  assert.equal(entry.suite, 'e1-mongo-uniform@1k');
+  assert.equal(entry.run, '44198387310');
+  assert.equal(entry.rounds, 4);
+  assert.deepEqual(entry.metrics.p50.pairs, [1, 1, 1, 1]);
+  assert.deepEqual(thresholdsOf([entry]), {
     throughput: 0.02,
     p50: 0.02,
     p99: 0.02,
   });
-  // A later A/A run widens a committed threshold and never narrows it: each metric keeps the wider of the two.
-  assert.deepEqual(
-    noiseFile([suite], {
-      'e1-mongo-uniform@1k': { throughput: 0.05, p50: 0.3, p99: 0.01 },
-    })['e1-mongo-uniform@1k'],
-    { throughput: 0.05, p50: 0.3, p99: 0.02 },
-  );
   const report = renderReport([suite], { noise: {} });
   assert.match(report, /## A\/A noise/);
   assert.match(report, /e1-mongo-uniform@1k \(A\/A: head against head\)/);
@@ -1359,21 +1358,21 @@ test('A/A runs give the noise thresholds; bootstrap intervals decide what clears
     [undefined, { 'wow.state-cache.capacity': 131072 }],
   );
   assert.deepEqual(probe.properties, { 'wow.state-cache.capacity': 131072 });
-  assert.deepEqual(Object.keys(noiseFile([probe])), []);
+  assert.deepEqual(noiseEntries([{ ...probe, primed: true }]), []);
 
-  // An A/A suite that measured no equal-rate pair (its saturation failed) has no noise: it keeps what it had.
+  // An A/A suite that measured no equal-rate pair (its saturation failed) has no entry.
   const failed = {
-    ...suite,
+    ...primed,
     runs: suite.runs.filter(run => run.mode !== 'equal'),
   };
-  assert.equal(noiseOf(failed), null);
-  assert.deepEqual(
-    noiseFile([failed], { 'e1-mongo-uniform@1k': { p99: 0.3 } }),
-    { 'e1-mongo-uniform@1k': { p99: 0.3 } },
-  );
+  assert.deepEqual(noiseEntries([failed]), []);
   assert.match(
     renderReport([failed], { noise: {} }),
     /\| e1-mongo-uniform@1k \| no data \| no data \| no data \|/,
+  );
+  assert.match(
+    renderReport([suite], { noise: {} }),
+    /\| e1-mongo-uniform@1k \| not pooled \| not pooled \| not pooled \|/,
   );
 
   // Bootstrap: identical samples give a ratio of 1 with a tight interval; a 20% shift clears a 5% threshold.
@@ -1439,13 +1438,19 @@ test('stability compares the halves; a busy load generator and an unstable run a
     anomaliesOf(run({ stability: { throughputChange: 0.01, p99Ratio: 1.2 } })),
     [],
   );
-  // The suite's A/A noise replaces the defaults: a 20% p50 drift is within ±25%, beyond an A/A ±10%.
+  // The wider of the defaults and the suite's A/A threshold applies: a 20% p50 drift is within ±25% even where the
+  // pooled threshold sits at ±10%, and a 30% drift is beyond an A/A ±28%.
   const drift = run({ stability: { throughputChange: 0, p50Ratio: 1.2 } });
   assert.deepEqual(anomaliesOf(drift), []);
+  assert.deepEqual(
+    anomaliesOf(drift, { noise: { throughput: 0.02, p50: 0.1, p99: 0.5 } }),
+    [],
+  );
   assert.match(
-    anomaliesOf(drift, { noise: { throughput: 0.02, p50: 0.1, p99: 0.5 } })[0]
-      .detail,
-    /beyond the A\/A noise: p50 \+20\.0% \(±10\.0%\)/,
+    anomaliesOf(run({ stability: { throughputChange: 0, p50Ratio: 1.3 } }), {
+      noise: { throughput: 0.02, p50: 0.28, p99: 0.5 },
+    })[0].detail,
+    /beyond the wider of the A\/A noise and the default limits: p50 \+30\.0% \(±28\.0%\)/,
   );
   assert.deepEqual(
     anomaliesOf(run({ loadGeneratorCores: 0.95, loadGeneratorCpus: 1 })).map(

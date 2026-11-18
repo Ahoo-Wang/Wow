@@ -16,7 +16,7 @@ description: '@ahoo-wang/wow-view-store 包的 WowViewStore：视图引擎的 Vi
 | 导出 | 作用 |
 |---|---|
 | `WowViewStore` | store 本身：`new WowViewStore({ fetcher, permissions?, pageSize? })`，交给 `new ViewEngine({ store })` |
-| `WowViewStoreOptions` | `fetcher`：由它的拦截器带上授权信息与 `CoSec-App-Id`；`permissions`：哪些按钮可用；`pageSize`：`list` 一页的视图数 |
+| `WowViewStoreOptions` | `fetcher`：由它的拦截器带上授权信息，即为前端的应用签发的令牌；`permissions`：哪些按钮可用；`pageSize`：`list` 一页的视图数 |
 | `SHARED_SCOPE`、`SYSTEM_SCOPE` | 保留所有者的 `Wow-Scope`：共享视图与共享偏好是 `{ ownerId: '(shared)' }`，存储的系统视图是 `{ tenantId: '(platform)', ownerId: '(system)' }` |
 | `WowViewStoreErrorCodes`、`WowViewStoreErrorCode` | 视图存储自己的 problem 错误码，与 Wow 的并列，以及它们的联合类型 |
 | `datasetCatalogOf(client)` | 基于 `DatasetClient` 的视图引擎数据集目录：Wow 服务提供的数据集（`GET /wow/dataset`），以及每个数据集的数据源 |
@@ -34,7 +34,7 @@ export interface WowViewStoreOptions {
 
 视图引擎的 [`ViewStore`](../wow-view-engine/store#api-ViewStore) 落在 Wow 视图存储上：端口的方法全部实现，包括可选的 `changeAudience`；`permissions` 只在宿主给了 `options.permissions` 时才有。端口只按 id 称呼视图，所以 store 记住它上次在哪里见到每个视图（一次列表、一次读取、一次写入）；没见过的视图用一次按 id 的读取找到，服务按顺序回答调用者自己的这个 id 的视图、共享的视图、系统视图。
 
-- `fetcher` 走的基础 URL 要能提供 `/view-store/…`：视图存储服务前面的网关。它的拦截器携带是谁在请求，即授权信息与 `CoSec-App-Id`；服务从主体中取得租户与所有者，视图属于保留所有者时由 store 自己加上 `Wow-Scope`。没有哪条路径写出租户或所有者。
+- `fetcher` 走的基础 URL 要能提供 `/view-store/…`：视图存储服务前面的网关。它的拦截器携带是谁在请求，即授权信息；服务从主体中取得租户与所有者，从令牌（它的 `aud`）或网关的路由（`cosec-app-id`）取得保存每个视图的应用：CoSec 8 不读取 `CoSec-App-Id`，所以前端需要为它的应用签发的令牌，或者设置应用的路由；视图属于保留所有者时由 store 自己加上 `Wow-Scope`。没有哪条路径写出租户或所有者。
 - `permissions` 决定一份定义的视图哪些按钮可用，从不决定写入能做什么：每次写入都由服务授权。宿主按调用者持有的角色回答：`createShared` 与 `changeAudience` 按能写所有者 `(shared)` 的角色（出厂为 `view-store.shared-writer`），因为新建共享视图、共享个人视图和认领共享视图都需要它；`editSystem` 按能写 `(platform)` 的 `(system)` 的角色（`view-store.system-writer`）。不给时除 `editSystem` 外全部允许，`editSystem` 只有回答为 `true` 才开启。
 - `pageSize` 是 `list` 一页最多返回的视图数，默认 100，即服务的默认游标页大小。系统视图在第一页整体返回，所以第一页可能更多。
 
@@ -92,7 +92,7 @@ export type WowViewStoreErrorCode = (typeof WowViewStoreErrorCodes)[keyof typeof
 
 | 规则 | 行为 |
 |---|---|
-| 谁在请求 | store 不接收租户、用户或应用。fetcher 的拦截器发送授权信息与 `CoSec-App-Id`，服务从主体中读取租户与所有者；没人登录的宿主用自己的拦截器发送一个调用者（[保存的视图](../../../typescript/view-engine/storage.md#wowviewstore-views-on-a-wow-service)） |
+| 谁在请求 | store 不接收租户、用户或应用。fetcher 的拦截器发送授权信息，服务从主体中读取租户与所有者，从令牌或网关的路由读取应用（CoSec 8 不读取 `CoSec-App-Id`）；没人登录的宿主用自己的拦截器发送一个调用者（[保存的视图](../../../typescript/view-engine/storage.md#wowviewstore-views-on-a-wow-service)） |
 | 受众 | 所有者就是受众：个人视图属于调用者自己，共享视图属于所有者 `(shared)`。「设为共享」以调用者（视图的所有者）身份发送 `share-view`；「设为个人」以 `(shared)` 身份发送 `claim-view`，让调用者成为所有者。两者都原地移动视图、保留 id，并等待服务的 `ViewAudienceSaga` 完成移动 |
 | 写入 | `Wow-Request-Id` 是端口的 `requestId`，`If-Match` 是它的 `revision`（从未写过的偏好为 `"0"`）；每次写入都等待快照，回答写入后的版本上读回的视图 |
 | 重试 | 服务按请求 ID 对每次写入去重，包括新建，所以来自任何标签页或 store 的重试都以第一次尝试的结果回答。过期的 revision 为 `CONFLICT`，带着视图当前的样子 |

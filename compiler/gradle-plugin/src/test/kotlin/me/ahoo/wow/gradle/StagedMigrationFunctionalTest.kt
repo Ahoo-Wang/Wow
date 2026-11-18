@@ -105,6 +105,8 @@ class StagedMigrationFunctionalTest {
 
             dependencies {
                 implementation(files(${classpath("wow-test.fixture.compileClasspath")}))
+                // The Wow tools as files, as the other fixtures take them: a version not yet on Maven Central resolves.
+                wowTools(files(${classpath("wow-test.fixture.toolsClasspath")}))
             }
             """,
         )

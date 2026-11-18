@@ -172,8 +172,8 @@ export const median = values => {
 };
 
 // Significance (D224 note ②): a ratio counts only beyond the suite's noise. An A/A run (`aa`) puts the head against
-// itself; the largest deviation of its pair ratios from 1 is the suite's threshold per metric (at least NOISE_FLOOR),
-// which the report writes as noise.json, to commit as test/benchmarks/noise.json for later runs to read. The
+// itself; bench-noise.mjs pools its suites' A/A intervals into test/benchmarks/noise-history.json and derives each
+// suite's threshold per metric (at least NOISE_FLOOR) into test/benchmarks/noise.json, which later runs read. The
 // confidence interval of a ratio comes from a bootstrap over the measured seconds of both arms' runs in that mode:
 // the mean per-second throughput, the median per-second p50 and p99.
 export const NOISE_FLOOR = 0.02;
@@ -250,23 +250,6 @@ export function confidence(suite, mode) {
         metric,
         { ...interval, point: pa > 0 ? pb / pa : interval.point },
       ];
-    }),
-  );
-}
-
-/**
- * An A/A suite's noise per significance metric: the half-width of the 95% bootstrap interval of its equal-rate
- * ratio (the head against itself at one rate, AA_ROUNDS rounds), at least NOISE_FLOOR. Null when the suite measured
- * no equal-rate pair: a failed suite has no noise, and the floor would make every later ratio significant.
- */
-export function noiseOf(suite) {
-  const intervals = confidence(suite, EQUAL);
-  if (!SIGNIFICANCE_METRICS.some(([metric]) => intervals[metric])) return null;
-  return Object.fromEntries(
-    SIGNIFICANCE_METRICS.map(([metric]) => {
-      const interval = intervals[metric];
-      const half = interval ? (interval.hi - interval.lo) / 2 : NaN;
-      return [metric, Math.max(NOISE_FLOOR, Number.isFinite(half) ? half : 0)];
     }),
   );
 }
@@ -386,6 +369,12 @@ export function significanceSection(suites, noise, noiseLabel) {
     );
     const shares = sharesText(suite);
     if (shares) notes.push(shares);
+    // Which runners a pooled threshold mixes (bench-noise.mjs): it is not split by CPU model.
+    const pool = thresholds?.pool;
+    if (pool?.entries)
+      notes.push(
+        `${labelOf(suite)}: its threshold pools ${pool.entries} A/A run${pool.entries === 1 ? '' : 's'}${pool.cpus?.length ? ` on ${pool.cpus.join(', ')}` : ''}${pool.legacy ? ', one of them a legacy threshold without provenance' : ''}.`,
+      );
     for (const metric of ['p50', 'p99']) {
       const interval = confidence(suite, EQUAL)[metric];
       const result = verdict(interval, thresholds?.[metric]);

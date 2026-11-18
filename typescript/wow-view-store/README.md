@@ -49,8 +49,9 @@ import {
   datasetCatalogOf,
 } from '@ahoo-wang/wow-view-store';
 
-// The fetcher's interceptors send the authorization and `CoSec-App-Id`; no
-// path names the tenant or the owner.
+// The fetcher's interceptors send the authorization: a token issued for this
+// front end's app, which the view store keeps its data in (CoSec 8 reads no
+// `CoSec-App-Id`). No path names the tenant or the owner.
 const fetcher = new Fetcher({ baseURL: 'https://api.example.com' });
 
 const engine = new ViewEngine({

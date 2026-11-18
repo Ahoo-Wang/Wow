@@ -9,6 +9,7 @@ A 9.x service's source is rewritten for V10, not upgraded: annotations lose thei
 
 ## Before you start
 
+- **The estate first.** List the estate and its API dependency graph, cycles included, before any code, and rewrite in its order: shared libraries, then api modules, then domains, then servers, a service others depend on before its consumers ([Cut Over](./cutover#find-the-estate)).
 - **The last 9.x minor.** V10 migrates from it only. Upgrade within 9.x first.
 - **Gradle, JDK 21, Kotlin with KSP.** V10 binds models and the Manifest at build time, in Gradle. A 9.x service built with Maven moves to Gradle as part of the migration, or stays on 9.x.
 - **Pin the target.** Name the exact V10 version, and verify every annotation, signature, route and key against it.
@@ -41,7 +42,7 @@ The rewrite is accepted when the service compiles under the V10 compiler and its
 | `wow-cocache` | `wow-cocache` of V10: the owning context writes one shared cache per aggregate type, and readers inject `StateViewCache<V>`; a reader's own index and join caches have no counterpart |
 | Handlers returning `Mono` or `Flux` | `suspend` functions, or Reactor through `wow-reactor` |
 
-The plugins need Gradle 9 or later and the Kotlin JVM plugin 2.3 or later: upgrade a Gradle 8 wrapper first. KSP reads whole source directories and ignores a source set's `exclude`, so a migration that compiles part of a domain at a time syncs those files into a directory of their own.
+The plugins need Gradle 9 or later and the Kotlin JVM plugin 2.3 or later: upgrade a Gradle 8 wrapper first. KSP reads whole source directories and ignores a source set's `exclude`, so a migration that compiles part of a domain at a time syncs those files into a directory of their own. Such a part is an aggregate with its closure, not an aggregate alone: a state's typed queries (`<State>Properties`) exist only where its root is compiled. Find the closure from the part's imports: every other state's `<State>Properties` it queries by and, in a saga, every command class it sends; add their aggregates to the part, and repeat until nothing is added.
 
 A migration that moves the api module first may declare the api plugin on the root build, `id("me.ahoo.wow.api") version "…" apply false`: it brings no KSP, so the 9.x modules keep their own `id("com.google.devtools.ksp") version "…"`. Declaring `me.ahoo.wow` or `me.ahoo.wow.service` there brings the plugin's KSP onto every module's class path, and a 9.x module that still names a KSP version then fails in Gradle, before any Wow code runs:
 

@@ -293,6 +293,84 @@ test("an Axon comparison is Wow's range over Axon's with the A/A spread's verdic
   assert.deepEqual(footprint.rssMbAtReady, [461, 461]);
 });
 
+test("a follow-up's cold start is each arm's probe at its rounds' rate beside its first round, on one runner", () => {
+  const metrics = (serverCores, mongo, kafka, extra) => ({
+    serverCores,
+    containers: { mongo, kafka },
+    failed: 0,
+    ...extra,
+  });
+  const root = rootWith({
+    'actions-snapshot/followups/44198387310/e3-mongo.1k/suite.json': {
+      scenario: 'E3',
+      distribution: 'uniform',
+      accounts: 1000,
+      aa: true,
+      primed: false,
+      warmUp: 120,
+      arms: [{ id: 'a', backend: 'mongo' }],
+      refs: REFS,
+      runner: RUNNER,
+      rates: { a: 423.9 },
+      probes: {
+        0: {
+          arm: 'a',
+          status: 'ok',
+          rate: 1004.8,
+          metrics: metrics(1, 58, 42),
+        },
+        1: {
+          arm: 'a',
+          status: 'ok',
+          rate: 423.9,
+          metrics: metrics(0.998, 65.25, 41.72, {
+            p50Series: [2637.8, 754, 41.2],
+          }),
+        },
+      },
+      runs: [
+        {
+          name: 'r1-a',
+          arm: 'a',
+          status: 'ok',
+          metrics: metrics(0.49, 84.8, 33.6, { p50: 5.5 }),
+        },
+      ],
+    },
+    'actions-snapshot/followups/44198387310/e1-mongo-uniform.100k/suite.json': {
+      aa: true,
+      primed: true,
+    },
+  });
+  const [start, ...rest] = actionsSnapshot(root, 'actions-snapshot');
+  assert.deepEqual(rest, [], 'a primed suite has no cold start');
+  assert.equal(start.id, 'start.mongo.e3-mongo.1k.a');
+  assert.equal(start.rate, 423.9);
+  assert.deepEqual(start.cold, {
+    warmUpSeconds: 10,
+    nodeCores: 1,
+    storeCores: 0.65,
+    busCores: 0.42,
+    failed: 0,
+    p50FirstMs: 2637.8,
+    p50LastMs: 41.2,
+    lastSecond: 12,
+  });
+  assert.deepEqual(start.warm, {
+    warmUpSeconds: 120,
+    nodeCores: 0.49,
+    storeCores: 0.85,
+    busCores: 0.34,
+    failed: 0,
+    p50Ms: 5.5,
+  });
+  assert.equal(start.run, '44198387310');
+  assert.equal(
+    start.source,
+    'actions-snapshot/followups/44198387310/e3-mongo.1k/suite.json',
+  );
+});
+
 test('each run a report is said to come from is one its report names', () => {
   for (const [report, { runs = {} }] of Object.entries(REPORTS)) {
     const text = readFileSync(join(ROOT, REPORTS_DIR, `${report}.md`), 'utf8');

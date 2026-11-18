@@ -13,6 +13,7 @@ import {
   reportsIn,
 } from './bench-headline.mjs';
 import { cpuModel } from '../../documentation/docs/.vitepress/theme/perf-figures.mjs';
+import { exampleBlock, unitCostsBlock } from './docs-capacity.mjs';
 
 // The figures the documentation quotes, in English and Chinese, generated from
 // the benchmark reports so that no page shows a number its report no longer has
@@ -305,6 +306,8 @@ export const BLOCKS = {
   snapshots: performanceBlock,
   actions: environmentBlock('actions'),
   m5max: environmentBlock('m5max'),
+  'unit-costs': unitCostsBlock,
+  example: exampleBlock,
 };
 
 const BLOCK = /<!-- performance:begin ([^\s]*) -->|<!-- performance:end -->/g;
@@ -335,6 +338,7 @@ const isCpus = field => /^cpus\.[a-z]+$/.test(field);
  */
 export function spanText(field, value) {
   if (isCpus(field)) return String(cpuCount(value));
+  if (/Cores$/.test(field)) return value.toFixed(2);
   // An arm's figure in a list (`readyMs.0`) is printed as its list's field.
   const last = field
     .split('.')

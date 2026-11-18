@@ -16,7 +16,7 @@ There are two ways to cut over:
 | Steps | Import, compare, snapshots, start V10 | Import, follow 9.x, V10 on standby, then a short final pass and activation |
 | Use it when | The service can stop writing for as long as a full import takes | A full import takes longer than the service can stop writing |
 
-The offline path is shorter and has fewer moving parts, so use it unless the write stop is too long. Measure it in a rehearsal: on 50,000 orders, the offline path stopped writes for 136.7 seconds, of which the full import took 43.1; the online path stopped them for 102.8 seconds, of which its final pass took 19.7 ([Cut Over](./cutover)). The online path pays off only once the history is much larger than the final window.
+Offline, the whole estate in one window, is the recommended path ([Cut Over](./cutover)): it is shorter and has fewer moving parts, so use it unless the write stop is too long. Measure it in a rehearsal: on 50,000 orders, the offline path stopped writes for 136.7 seconds, of which the full import took 43.1; the online path stopped them for 102.8 seconds, of which its final pass took 19.7 ([Cut Over](./cutover)). The online path pays off only once the history is much larger than the final window.
 
 ## What moves, and what does not
 
@@ -231,13 +231,15 @@ The import writes the tags the map names into the domain event the 9.x tags even
 1. Start the V10 service's nodes. A saga or a reactor of the service's own context starts at the end of its log, so it does not act on the imported 9.x history; a projection starts at the beginning and builds its read model from it. Its transport sink publishes the imported history too, each record up to the cut-over the import recorded marked imported: a peer's saga or reactor passes over it, and a peer's projection builds from it ([Published Streams](../guide/published-streams#history-imported-from-9x)).
 2. Switch traffic to V10, and move every external consumer of 9.x topics to the V10 published streams. There is no 9.x-format sink.
 
+A service of an estate takes these steps in the estate's window, with the others ([One window](./cutover#one-window)).
+
 The first start after an import is longer than the next ones: each partition catches up on the imported history before the node owns it. Measure it in the rehearsal, and give the node's start that much time.
 
 V10 parks the aggregate, not the event: a parked aggregate's later events wait while it is parked, and retrying it replays its streams from the failed version on, including streams 9.x had already handled after the failure. Handlers must tolerate that, as they tolerate any redelivery.
 
 ## Online cut-over for large systems
 
-When a full import takes longer than the service can stop writing, import the history while 9.x still serves, follow what it keeps writing, and stop its writes only for a short final pass.
+This is the exception to the recommended offline window: when a full import takes longer than the service can stop writing, import the history while 9.x still serves, follow what it keeps writing, and stop its writes only for a short final pass.
 
 ### Import while 9.x serves
 

@@ -7,6 +7,7 @@ import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { aaSpread, peakRatio } from './bench.mjs';
+import { PROBE } from './bench-calibration.mjs';
 import { ratioVerdict } from './bench-curves.mjs';
 
 // The figures the documentation quotes (docs-performance.mjs), read from the reports' own data so that no figure
@@ -260,7 +261,81 @@ export function actionsSnapshot(root, report) {
       });
     }
   }
+  figures.push(...coldStarts(dir, report));
   return figures;
+}
+
+/**
+ * A follow-up run's cold starts: in the A/A of an unprimed suite, each arm's calibration probe at its rounds' rate
+ * (a fresh node, PROBE.warmUp seconds of warm-up) beside its first round at the same rate (the suite's warm-up), on one
+ * runner and build. The cores are the node's, the store's and Kafka's in the measured phase; the probe's p50 is that
+ * of its first and last measured seconds, from second PROBE.warmUp of load.
+ */
+function coldStarts(dir, report) {
+  const root = join(dir, 'followups');
+  if (!existsSync(root)) return [];
+  const round2 = value => round(value, 2);
+  return readdirSync(root)
+    .sort()
+    .flatMap(run =>
+      suitesIn(join(root, run)).flatMap(name => {
+        const suite = readJson(join(root, run, name, 'suite.json'));
+        if (!suite.aa || suite.primed) return [];
+        const store = storeOf(suite);
+        const from = provenance(
+          suite,
+          `${report}/followups/${run}/${name}/suite.json`,
+          run,
+        );
+        const cores = m => ({
+          nodeCores: round2(m.serverCores),
+          storeCores: round2(m.containers?.[store] / 100),
+          busCores: round2(m.containers?.kafka / 100),
+        });
+        return Object.entries(suite.rates ?? {}).flatMap(([arm, rate]) => {
+          const probe = Object.values(suite.probes ?? {})
+            .filter(
+              p =>
+                p.arm === arm &&
+                p.status === 'ok' &&
+                Math.abs(p.rate - rate) < 0.01,
+            )
+            .at(-1);
+          const warm = suite.runs.find(
+            r => r.arm === arm && r.name === `r1-${arm}` && r.status === 'ok',
+          );
+          if (!probe || !warm) return [];
+          const p50 = probe.metrics.p50Series ?? [];
+          return [
+            {
+              id: `start.${store}.${name}.${arm}`,
+              kind: 'start',
+              store,
+              nodes: 1,
+              scenario: suite.scenario,
+              keys: suite.distribution,
+              accounts: suite.accounts,
+              rate: round(rate),
+              cold: {
+                warmUpSeconds: PROBE.warmUp,
+                ...cores(probe.metrics),
+                failed: probe.metrics.failed,
+                p50FirstMs: round(p50[0]),
+                p50LastMs: round(p50.at(-1)),
+                lastSecond: PROBE.warmUp + p50.length - 1,
+              },
+              warm: {
+                warmUpSeconds: suite.warmUp,
+                ...cores(warm.metrics),
+                failed: warm.metrics.failed,
+                p50Ms: round(warm.metrics.p50),
+              },
+              ...from,
+            },
+          ];
+        });
+      }),
+    );
 }
 
 /**
