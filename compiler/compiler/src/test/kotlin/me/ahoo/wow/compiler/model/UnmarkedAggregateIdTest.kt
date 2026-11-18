@@ -92,12 +92,11 @@ class UnmarkedAggregateIdTest {
             .contains(
                 "sample.Stock: command ReserveStock has a String property id (declared by sample.ReserveStock) and " +
                     "no @AggregateId property: Wow 10 does not take a command's aggregate from its body unless a " +
-                    "property is marked @AggregateId. If id names ReserveStock's aggregate, mark it @AggregateId, as " +
-                    "a 9.x command whose body named its aggregate needs, a creation a saga sends without an aggregate " +
-                    "id among them; an inherited id is marked where the command overrides it. If 9.x bound it from " +
-                    "the path, it only repeated the route: remove it and read command.ref.id. Otherwise suppress " +
-                    "this with @Suppress(\"UnmarkedAggregateId\") on the command class, or on its command function " +
-                    "where the class is compiled in another module.",
+                    "property is marked @AggregateId. If id names ReserveStock's aggregate, mark it @AggregateId (an " +
+                    "inherited id is marked where the command overrides it), as a 9.x command whose body named its " +
+                    "aggregate needs. If 9.x bound it from the path, it only repeated the route: remove it and read " +
+                    "command.ref.id. Otherwise suppress this with @Suppress(\"UnmarkedAggregateId\") on the command " +
+                    "class, or on its command function where the class is compiled in another module.",
             )
             .contains("command Restock has a String property id (declared by sample.Restock) and no @AggregateId")
     }
@@ -118,10 +117,17 @@ class UnmarkedAggregateIdTest {
                 }
                 @AllowCreate
                 data class Restock(override val sku: String) : Identified
+                // A 9.x id the body left out, which 9.x read from the object all the same.
+                @CreateAggregate
+                data class Shelve(val warehouse: String, val code: String) {
+                    @get:com.fasterxml.jackson.annotation.JsonIgnore
+                    val id: String get() = "${'$'}warehouse-${'$'}code"
+                }
                 """.trimIndent(),
                 functions = """
                 fun onCommand(command: OpenStock): Stocked = Stocked(command.quantity)
                 fun onCommand(command: Restock): Stocked = Stocked(0)
+                fun onCommand(command: Shelve): Stocked = Stocked(0)
                 """.trimIndent(),
             ),
         )
@@ -131,14 +137,23 @@ class UnmarkedAggregateIdTest {
                 "sample.Stock: command OpenStock creates its aggregate and has a String property id (declared by " +
                     "sample.OpenStock) and no @AggregateId property: sent without an aggregate id, as a saga's " +
                     "CommandRequest.of(body) or a client's route without an id sends it, it creates a new aggregate " +
-                    "under a generated id, whatever its id holds. Mark id @AggregateId if it names OpenStock's " +
-                    "aggregate (an inherited id is marked where the command overrides it), or, if it names something " +
+                    "under a generated id, whatever its id holds. If id names OpenStock's aggregate, mark it " +
+                    "@AggregateId (an inherited id is marked where the command overrides it); if it names something " +
                     "else, suppress this with @Suppress(\"UnmarkedAggregateId\") on the command class, or on its " +
                     "command function where the class is compiled in another module.",
             )
             .contains(
                 "command Restock creates its aggregate and has a String property id (inherited from the interface " +
                     "sample.Identified's default getter) and no @AggregateId property",
+            )
+            .contains(
+                "command Shelve creates its aggregate and has a String property id (declared by sample.Shelve, not " +
+                    "written by Wow's JSON) and no @AggregateId property: sent without an aggregate id",
+            )
+            .contains(
+                "If id names Shelve's aggregate, make it a public property Wow's JSON writes, then mark it " +
+                    "@AggregateId: the mark is refused on a property the generated model cannot read or a body does " +
+                    "not carry; if it names something else, suppress this",
             )
     }
 

@@ -18,7 +18,6 @@ import com.google.devtools.ksp.isProtected
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSPropertyDeclaration
 import me.ahoo.wow.compiler.model.aggregate.AggregateIdResolver.hasAnnotation
-import me.ahoo.wow.compiler.model.aggregate.AggregateIdResolver.isPrivateGetter
 import me.ahoo.wow.compiler.model.aggregate.AggregateIdResolver.propertiesOf
 import me.ahoo.wow.compiler.model.symbol.declarations
 import me.ahoo.wow.compiler.model.symbol.jsonIgnored
@@ -68,7 +67,7 @@ internal object OccurredAtResolver {
             problems += "$where: only a command that creates its aggregate (@CreateAggregate) declares when it " +
                 "occurred, and $name ${if (creation == "ALLOWED") "may also act on one that exists" else "does not"}"
         }
-        if (property.isPrivate() || property.isProtected() || property.getter?.isPrivateGetter() == true) {
+        if (property.isPrivate() || property.isProtected()) {
             problems += "$where is not visible to the generated model: make it public or internal"
         }
         val ignored = command.jsonIgnoredProperties(problems)

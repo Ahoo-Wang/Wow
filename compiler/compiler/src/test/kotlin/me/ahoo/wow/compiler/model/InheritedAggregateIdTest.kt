@@ -23,8 +23,10 @@ import org.junit.jupiter.api.Test
 
 /**
  * A command's `id` it inherits, an interface's default getter, an interface's property it implements, a superclass's
- * property or a Java getter, is warned of where it is not marked `@AggregateId`, whether the command is compiled with
- * its root or, as a context's commands are, in its api module; marked, it is the id the generated model reads.
+ * property, a Java getter or a record's accessor, is warned of where it is not marked `@AggregateId`, whether the
+ * command is compiled with its root or, as a context's commands are, in its api module; marked, it is the id the
+ * generated model reads. An `id` the mark cannot take, one Wow's JSON does not write or the model cannot read, which
+ * 9.x bound by reflection all the same, is warned of too, saying why.
  */
 @OptIn(ExperimentalCompilerApi::class)
 class InheritedAggregateIdTest {
@@ -69,7 +71,8 @@ class InheritedAggregateIdTest {
         }
         data class ReserveMarked(@AggregateId override val id: String) : Identifier
         class ReleaseMarked(id: String) : MarkedBase(id)
-        // An id Wow's JSON does not write cannot name the aggregate a body names.
+        // An id 9.x bound by reflection, which the mark cannot take: Wow's JSON does not write it, or the model cannot
+        // read it.
         data class Hidden(@JsonIgnore val id: String, private val secret: String)
         class Kept(private val id: String)
         open class Guarded(protected val id: String)
@@ -102,6 +105,10 @@ class InheritedAggregateIdTest {
 
             public class Ledger {
                 public String id;
+
+                public String getId() {
+                    return id;
+                }
             }
             """.trimIndent(),
         ),
@@ -120,6 +127,10 @@ class InheritedAggregateIdTest {
             }
             """.trimIndent(),
         ),
+        SourceFile.java("Tally.java", "package sample;\n\npublic record Tally(String id) {\n}\n"),
+        // Records of no String id: nothing to report.
+        SourceFile.java("Count.java", "package sample;\n\npublic record Count(int id) {\n}\n"),
+        SourceFile.java("Note.java", "package sample;\n\npublic record Note(String text) {\n}\n"),
         SourceFile.java(
             "AuditMarked.java",
             """
@@ -141,7 +152,7 @@ class InheritedAggregateIdTest {
 
     private val names = listOf(
         "Recount", "Reserve", "Release", "Audit", "RecountMarked", "ReserveMarked", "ReleaseMarked", "AuditMarked",
-        "Hidden", "Kept", "Guarded", "Dropped", "Referenced", "Ledger", "Sealed",
+        "Hidden", "Kept", "Guarded", "Dropped", "Referenced", "Ledger", "Sealed", "Tally", "Count", "Note",
     )
 
     private val root = SourceFile.kotlin(
@@ -175,7 +186,30 @@ class InheritedAggregateIdTest {
                 "command $name has a String property id ($origin$elsewhere) and no @AggregateId property",
             )
         }
-        names.filterNot { it in warned }.forEach { result.messages.assert().doesNotContain("command $it has") }
+        // Reported as well, saying the mark alone will not do: 9.x bound them by reflection.
+        val unmarkable = mapOf(
+            "Hidden" to "not written by Wow's JSON",
+            "Dropped" to "not written by Wow's JSON",
+            "Referenced" to "not written by Wow's JSON",
+            "Kept" to "not visible to the generated model",
+            "Guarded" to "not visible to the generated model",
+            "Sealed" to "not visible to the generated model",
+        )
+        unmarkable.forEach { (name, hindrance) ->
+            result.messages.assert().contains(
+                "command $name has a String property id (declared by sample.$name$elsewhere, $hindrance) and no " +
+                    "@AggregateId property: Wow 10 does not take a command's aggregate from its body unless a property " +
+                    "is marked @AggregateId. If id names $name's aggregate, make it a public property Wow's JSON " +
+                    "writes, then mark it @AggregateId",
+            )
+        }
+        // A record's component: KSP shows it as its accessor alone, and a mark on it as none.
+        result.messages.assert().contains(
+            "command Tally has a String record component id (read by sample.Tally's accessor id()$elsewhere, which " +
+                "KSP shows as no property, so no mark on it is read) and no @AggregateId property",
+        )
+        names.filterNot { it in warned || it in unmarkable || it == "Tally" }
+            .forEach { result.messages.assert().doesNotContain("command $it has") }
         val model = compilation.workingDir.walkTopDown().single { it.name == "StockModel.kt" }.readText()
         val marked = listOf("RecountMarked", "ReserveMarked", "ReleaseMarked", "AuditMarked")
         marked.forEach { model.assert().contains("aggregateId<sample.$it> { it.`id` }") }
@@ -191,6 +225,49 @@ class InheritedAggregateIdTest {
     fun `an inherited id should be warned of unmarked and read marked, compiled with its root`() {
         val (compilation, result) = compileModel("generate", context, commands, *java.toTypedArray(), root)
         assertInherited(compilation, result, elsewhere = "")
+    }
+
+    @Test
+    fun `a record's component should not take the mark, refused in its source and unread in its class file`() {
+        val marked = SourceFile.java(
+            "Tally.java",
+            """
+            package sample;
+
+            import me.ahoo.wow.api.annotation.AggregateId;
+
+            public record Tally(@AggregateId String id) {
+            }
+            """.trimIndent(),
+        )
+        val stock = SourceFile.kotlin(
+            "Stock.kt",
+            """
+            package sample
+
+            import me.ahoo.wow.api.annotation.AggregateRoot
+
+            data class Stocked(val quantity: Int)
+
+            @AggregateRoot
+            class Stock(val id: String) {
+                fun onCommand(command: Tally): Stocked = Stocked(0)
+                fun onSourcing(event: Stocked) = Unit
+            }
+            """.trimIndent(),
+        )
+        val (_, compiled) = compileModel("generate", context, marked, stock)
+        compiled.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        compiled.messages.assert().contains("command Tally's function <init>'s parameter id is annotated @AggregateId")
+        val (_, read) = compileModelAgainst("generate", listOf(compileLibrary(marked)), context, stock)
+        read.exitCode.assert().withFailMessage { read.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
+        read.messages.assert().contains(
+            "command Tally has a String record component id (read by sample.Tally's accessor id(), compiled in " +
+                "another module, which KSP shows as no property, so no mark on it is read) and no @AggregateId " +
+                "property: Wow 10 does not take a command's aggregate from its body unless a property is marked " +
+                "@AggregateId. If id names Tally's aggregate, write the command as a class whose field a public " +
+                "getter reads, or in Kotlin, then mark the id @AggregateId",
+        )
     }
 
     @Test
