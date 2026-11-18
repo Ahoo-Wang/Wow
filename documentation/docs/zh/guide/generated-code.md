@@ -67,7 +67,7 @@ api 模块还从中编译出 `<Context>Contract`，例如 `EshopOrderingContract
 
 对端不用手写任何路径、名字或错误码：`EshopOrderingContract.Order.ref(tenant, id)` 寻址一个订单，`EshopOrderingContract.Order.Errors.WRONG_STATUS` 用于比较拒绝（[调用其他服务](./calling-services)、[拒绝与错误码](./rejections#what-the-caller-receives)）。
 
-契约和这些代码是 api 模块的特性 `contract`，在同一模块内以分类器为 `contract` 的 jar 发布；模块自己的 jar 只装类型，所以每个模块都针对类型编译，不必等任何领域模块，包括 api 自己的领域模块。谁能看到契约：
+契约和这些代码是 api 模块的特性 `contract`，在同一模块内以分类器为 `contract` 的 jar 发布；模块自己的 jar 只装类型，所以每个模块都针对类型编译，不必等任何领域模块，包括 api 自己的领域模块。这个特性的能力（capability）是 `<group>:<项目名>-contract`，同一构建中的模块按它请求；模块以另一个名字发布时，还有 `<group>:<artifactId>-contract`，按坐标请求的构建按它请求。谁能看到契约：
 
 - **服务**无需写一行就能看到它所触及的每个 api 模块的契约，包括它自己的 api。
 - **领域模块的测试**能看到本构建中各 api 模块的契约，包括自己的 api：多数测试用它的 `<Context>Contract`。从另一个仓库发布的对端要显式索取：`testImplementation(wow.contract(...))`。
