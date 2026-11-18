@@ -89,9 +89,9 @@ import kotlin.time.Duration.Companion.seconds
  * each aggregate collection's first entries and placeholders after the last sequence; it merges them by sequence and
  * emits the entries of the run from the last sequence that is final, stepping over placeholders. It never steps over
  * a missing sequence: an append of some node may still land there. Missing for [STALL_GRACE], the sequence is
- * resolved through the counter's open blocks: this node's own remainder is closed, its own unfilled sequence filled,
- * another node's block sealed; entries past it while it waits may also be in a collection this log does not know yet,
- * so it reads the registry again. A node that hands a partition off closes its block's remainder then ([handedOff]),
+ * resolved through the counter's open blocks ([MongoMissingSequences]): this node's own remainder is closed, its own
+ * unfilled sequence filled, another node's block sealed; entries past it while it waits may also be in a collection
+ * this log does not know yet, so it reads the registry again. A node that hands a partition off closes its block's remainder then ([handedOff]),
  * and an append run without the partition's lease takes exactly its own sequence: neither leaves the next owner's tail
  * a grace to wait. A node that stops without handing off, a crash or a lost lease, still does, once per open block.
  *
@@ -376,26 +376,15 @@ class MongoEventLog(
         var last = after ?: 0L
         var idle = pacer.interval
         var woken = false
-        var stalled = 0L
-        var since = 0L
+        val missingSequences =
+            MongoMissingSequences(partition, sequencer, placeholders, collections, committedCounters, dispatcher)
         while (true) {
             val mark = pacer.mark(partition)
             val batch = dispatcher.mongo { tailReads.read(partition, last) }
             batch.entries.forEach { emit(it) }
             last = batch.through
             val missing = batch.missing
-            when {
-                missing == null -> stalled = 0L
-                missing != stalled -> {
-                    stalled = missing
-                    since = System.nanoTime()
-                }
-
-                System.nanoTime() - since >= STALL_GRACE.inWholeNanoseconds -> {
-                    dispatcher.mongo { resolve(partition, missing) }
-                    since = System.nanoTime()
-                }
-            }
+            missingSequences.met(missing)
             if (!batch.again) {
                 val pace = pacer.await(partition, mark, batch.entries.isNotEmpty(), idle, woken && missing == null)
                 idle = pace.idle
@@ -412,22 +401,6 @@ class MongoEventLog(
     override suspend fun handedOff(partition: Int) {
         require(partition in 0 until partitions) { "No partition $partition among $partitions." }
         dispatcher.mongo { sequencer.handOff(partition)?.let(placeholders::close) }
-    }
-
-    /**
-     * Resolves [sequence] of [partition], missing past the grace while something lies past it, through the counter's
-     * open blocks ([MongoSequencer.resolve]).
-     */
-    private fun resolve(partition: Int, sequence: Long) {
-        val counter = committedCounters.find(Filters.eq(ID, partition)).first()
-        when (val resolution = sequencer.resolve(partition, sequence, sequencer.openBlocks(counter))) {
-            MongoSequencer.Resolution.Wait -> Unit
-            is MongoSequencer.Resolution.Close -> placeholders.close(resolution.closing)
-            is MongoSequencer.Resolution.Fill ->
-                placeholders.fill(collections.named(resolution.collection), partition, sequence, GAP_UNKNOWN)
-
-            is MongoSequencer.Resolution.Seal -> placeholders.seal(partition, sequence, resolution.block)
-        }
     }
 
     /**
