@@ -79,6 +79,12 @@ fun interface CommandRouter {
  *   first forward to a peer that started a moment ago does not spend its second opening a connection. The forward
  *   then [reserves][ClusterChannel.reserve] one of the peer's streams, waiting its turn while they are all taken,
  *   until its deadline, and is sent once it has one.
+ * - A command whose route names no owner first reads its lease group's routes once more ([RouteLookup]: one read at
+ *   a time, at most one each tenth of a second, within a fifth of one, none for a refresh interval after one failed)
+ *   and is sent to the owner they name now: an owner that acquired a moment ago, which the routes read each
+ *   [ClusterOptions.routeRefreshInterval] do not show yet. Run here without the lease, its commit would land above
+ *   the new owner's block, where that owner's tail reaches it only at its next read of the store. A command with a
+ *   route never reads.
  * - A forward the owner surely did not receive degrades to running locally, without retrying it: no
  *   known owner, the peer unreachable or not connected by the wait's deadline ([ClusterChannelException.unsent]), or
  *   a refusal before the forward's deadline ([Refusal.NOT_OWNER], [Refusal.EXPIRED], or a type the peer does not
@@ -120,6 +126,19 @@ class PartitionedRouter(
     private val groups: Map<String, PartitionOwnership> = groups.associateBy { it.group.context }
     private val inFlight = ConcurrentHashMap<String, AtomicInteger>()
 
+    /** Each group's reads of its routes before a command runs without the lease. */
+    private val lookups: Map<String, RouteLookup> = this.groups.mapValues { (_, ownership) ->
+        RouteLookup(
+            ownership.group.name,
+            ownership::refreshRoutes,
+            ownership::forwardTarget,
+            options.routeRefreshInterval,
+        )
+    }
+
+    /** The reads of [context]'s routes made before commands ran without the lease, and the commands sent on after. */
+    internal fun lookupsOf(context: String): RouteLookup? = lookups[context]
+
     init {
         require(this.groups.size == groups.size) { "A context has one lease group on a node." }
     }
@@ -135,8 +154,15 @@ class PartitionedRouter(
         ownership.runIfAccepting(partition) { withContext(ExecutionLease.HELD) { local() } }?.let { return it }
         // Run here without the lease: the kernel neither caches its states nor trusts them.
         val degraded: suspend () -> Settlement = { withContext(ExecutionLease.NOT_HELD) { local() } }
-        val peer = ownership.forwardTarget(partition) ?: return degraded()
+        val peer = ownership.forwardTarget(partition) ?: lookUp(command, partition) ?: return degraded()
         return forward(ownership, peer, model, command, wait) ?: degraded()
+    }
+
+    /** The owner of [command]'s [partition] once its group's routes are read again, null for none ([RouteLookup]). */
+    private suspend fun lookUp(command: Command<*>, partition: Int): Member? {
+        val found = lookups.getValue(command.ref.type.context).ownerOf(partition)
+        observer.observed(ObservedEvent.RouteLookedUp(command.ref.type, found.observed, found.read))
+        return found.owner
     }
 
     /**
