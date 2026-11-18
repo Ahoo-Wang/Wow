@@ -114,7 +114,7 @@ internal abstract class MigrateDataFixtures {
     }
 
     protected fun run(vararg args: String, running: () -> Boolean = { true }): Int =
-        MigrateData(PrintStream(output, true), { connections }, running).run(args.toList())
+        MigrateData(PrintStream(output, true), { _, _ -> connections }, running).run(args.toList())
 
     protected val printed: String get() = output.toString()
 }

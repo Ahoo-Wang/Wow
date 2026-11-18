@@ -148,9 +148,9 @@ internal class MigrateDataConfigurationTest : MigrateDataFixtures() {
         }
         mongo.copy(ddl = "none").ddl().assert().isEqualTo(Ddl.NONE)
         assertThrows<IllegalArgumentException> { mongo.copy(ddl = "VALIDATE") }.message.assert()
-            .isEqualTo("A target's ddl is auto, validate, none, not VALIDATE.")
+            .isEqualTo("A target's ddl is one of auto, validate, none, not VALIDATE.")
         assertThrows<IllegalArgumentException> { mongo.copy(sharding = "manual") }.message.assert()
-            .isEqualTo("A target's sharding is auto or none, not manual.")
+            .isEqualTo("A target's sharding is one of auto, none, not manual.")
         // The nodes' choices of their MongoDB configuration: a PostgreSQL target refuses them.
         assertThrows<IllegalArgumentException> {
             TargetConfig("postgres", jdbcUrl = "jdbc:postgresql://localhost/wow", sharding = "none")

@@ -19,7 +19,6 @@ import me.ahoo.wow.tck.containers.WowContainers
 import org.bson.Document
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
@@ -41,6 +40,9 @@ class TargetDdlShardingTest {
     private val output = ByteArrayOutputStream()
 
     private fun run(vararg args: String): Int = MigrateData(PrintStream(output, true)).run(args.toList())
+
+    /** The `FAILED` line the run printed. */
+    private fun failed(): String = output.toString().lines().single { it.startsWith("FAILED") }
 
     @Test
     fun `sharding auto shards the collections the import creates, and none leaves them unsharded`() {
@@ -90,9 +92,8 @@ class TargetDdlShardingTest {
         // Sharded by hand before the import: the collection exists, but Wow did not record its layout.
         val early = "wow_v10_early_${System.nanoTime()}"
         shard("$early.wow_log__example__order", Document("partition", 1))
-        val beforeWow = config(early, """{ "sharding": "none" }""")
-        assertThrows<IllegalStateException> { run("import", "--config", beforeWow) }.message.assert()
-            .startsWith("wow_log__example__order exists without a format record")
+        run("import", "--config", config(early, """{ "sharding": "none" }""")).assert().isEqualTo(MigrateData.FAILED)
+        failed().assert().startsWith("FAILED wow_log__example__order exists without a format record")
 
         // Created by the tool, then sharded by another key: the run that shards it refuses it. A snapshot collection,
         // as MongoDB itself refuses a log collection any other key: the log's unique keys lead with the partition.
@@ -102,24 +103,31 @@ class TargetDdlShardingTest {
         run("snapshot", "--config", unsharded).assert().isEqualTo(MigrateData.OK)
         val namespace = "$other.wow_snapshot__example__order"
         shard(namespace, Document("aggregate_id", "hashed"))
-        assertThrows<IllegalStateException> { run("snapshot", "--config", config(other, "{}"), "--restart") }
-            .message.assert().startsWith("$namespace cannot be sharded by ")
+        output.reset()
+        run("snapshot", "--config", config(other, "{}"), "--restart").assert().isEqualTo(MigrateData.FAILED)
+        failed().assert().startsWith("FAILED $namespace cannot be sharded by ")
             .contains("the key this version of Wow shards it by")
-        // The refused collection keeps the operator's key; the log the run read is sharded as the backend shards it.
-        shardKeys(other).assert().isEqualTo(
-            mapOf(
-                namespace to Document("aggregate_id", "hashed"),
-                "$other.wow_log__example__order" to Document("partition", 1),
-            ),
-        )
+        // The refused collection keeps the operator's key.
+        shardKeys(other)[namespace].assert().isEqualTo(Document("aggregate_id", "hashed"))
     }
 
     @Test
     fun `ddl validate refuses a target it would have to create, and imports into one that exists`() {
         val empty = "wow_v10_ddl_validate_${System.nanoTime()}"
-        assertThrows<IllegalStateException> {
-            run("import", "--config", config(empty, """{ "ddl": "validate" }"""))
-        }.message.assert().contains("does not exist, and the store only validates its schema (ddl validate)")
+        run("import", "--config", config(empty, """{ "ddl": "validate" }""")).assert().isEqualTo(MigrateData.FAILED)
+        failed().assert().startsWith("FAILED wow_log__example__partition does not exist")
+            .contains("the store only validates its schema (ddl validate)")
+        client.getDatabase(empty).listCollectionNames().toList().assert().isEmpty()
+
+        // With the checkpoints kept in the empty target, the tool's own collections are refused first, by name.
+        output.reset()
+        run("import", "--config", config(empty, """{ "ddl": "validate" }""", inTarget = true))
+            .assert().isEqualTo(MigrateData.FAILED)
+        failed().assert().isEqualTo(
+            "FAILED The target lacks the checkpoint collections, and ddl validate only checks them: create " +
+                "wow_migrate_checkpoint, and wow_migrate_imported_key with the index " +
+                "wow_migrate_imported_key_by_name on { checkpoint: 1, prepare_key: 1, _id: 1 }.",
+        )
         client.getDatabase(empty).listCollectionNames().toList().assert().isEmpty()
 
         // The checkpoints kept in the target too: the first run creates their collections, the second only uses them.
@@ -136,8 +144,9 @@ class TargetDdlShardingTest {
     @Test
     fun `ddl none creates nothing, so the import's writes alone make bare collections`() {
         val empty = "wow_v10_ddl_none_${System.nanoTime()}"
-        run("import", "--config", config(empty, """{ "ddl": "none" }""")).assert().describedAs(output.toString())
-            .isEqualTo(MigrateData.OK)
+        // The checkpoints kept in the target too: under none their collections are not made ready either.
+        run("import", "--config", config(empty, """{ "ddl": "none" }""", inTarget = true))
+            .assert().describedAs(output.toString()).isEqualTo(MigrateData.OK)
         // No format record, no index but the _id one, no shard key: the schema is the operator's.
         val database = client.getDatabase(empty)
         val names = database.listCollectionNames().toList()

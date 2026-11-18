@@ -14,6 +14,7 @@
 package me.ahoo.wow.migrate
 
 import kotlinx.coroutines.runBlocking
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.manifest.Manifest
 import java.io.PrintStream
 import java.nio.file.Files
@@ -91,7 +92,10 @@ import kotlin.system.exitProcess
  */
 internal class MigrateData(
     private val out: PrintStream = System.out,
-    private val connect: (MigrationConfig) -> MigrationConnections = ::ConfiguredConnections,
+    /** Connects a run to the stores of [MigrationConfig], opening the V10 types the run's map imports into. */
+    private val connect: (MigrationConfig, Collection<AggregateType>) -> MigrationConnections = { config, types ->
+        ConfiguredConnections(config, types = types)
+    },
     private val running: () -> Boolean = { true },
     private val models: (MigrationConfig) -> MigrationModels = { config ->
         MigrationModels.load(MigrationModels.classLoaderOf(config.classpath, MigrateData::class.java.classLoader))
@@ -122,12 +126,12 @@ internal class MigrateData(
         return reported {
             if (command == DRAFT_MAP) {
                 val manifest = manifestOf(config, null)
-                connect(config).use { draftMap(config, manifest, it, options) }
+                connect(config, emptyList()).use { draftMap(config, manifest, it, options) }
             } else {
                 val map = MigrationMap.read(Files.readString(Path.of(config.map)))
                 val plan = MigrationPlan(map, manifestOf(config, map))
                 val line = (listOf(command) + options.filter { it.startsWith("--") && it != CONFIG }).joinToString(" ")
-                connect(config).use { connections ->
+                connect(config, plan.aggregates.values.map { it.target }.distinct()).use { connections ->
                     runBlocking { run(command, plan, config, Checkpoints(config, connections, line), options, sample) }
                 }
             }
