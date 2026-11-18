@@ -24,10 +24,14 @@
  *   and answers 401 itself for a token that is invalid or has expired, as
  *   CoSec's gateway does (`application/problem+json`, `token-invalid`,
  *   `token-expired`);
- * - otherwise forwards it with the identity CoSec's gateway issues
- *   (`IdentityIssuer`, encoded as `IdentityCodec` does, format v1): the
- *   token's tenant, subject and roles, in the scope of the declared
- *   `CoSec-App-Id` and the default space, the token's `jti` and expiry.
+ * - decides the request in an app as CoSec 8 does: the token's own (its
+ *   `aud`), and on a route that names one (`cosec-app-id`, here `app`) only
+ *   that app, so a token for another app, or for none, is refused 403
+ *   `scope-rejected`. No client chooses it: `CoSec-App-Id` is not read;
+ * - otherwise forwards it with the identity CoSec's gateway forwards (format
+ *   v1, as Web integration › Forwarding the identity describes it): the
+ *   token's tenant, subject and roles, in that app and the default space, the
+ *   token's `jti` and expiry.
  *
  * It decides nothing else: the suite's tokens carry their roles, so there is
  * no policy, no document and no Redis to consult.
@@ -36,10 +40,10 @@
 import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
 import { createServer, request as forward } from 'node:http';
 
-/** The header the gateway forwards the identity in (`IdentityCodec.HEADER`). */
+/** The header the gateway forwards the identity in. */
 const IDENTITY = 'cosec-identity';
 
-/** CoSec's tenant for a credential without one (`TenantId.DEFAULT`). */
+/** CoSec's default tenant, for a credential without one. */
 const DEFAULT_TENANT = '(0)';
 
 /** Headers of one connection, never forwarded; nor is a client's identity. */
@@ -56,7 +60,7 @@ const HOP_BY_HOP = new Set([
   IDENTITY,
 ]);
 
-/** CoSec's problem types the stand-in answers with (`ProblemType`). */
+/** CoSec's problem types the stand-in answers with. */
 const PROBLEMS = {
   'token-invalid': { title: 'Token Invalid', status: 401 },
   'token-expired': { title: 'Token Expired', status: 401 },
@@ -88,7 +92,14 @@ function authenticate(authorization, secret, now) {
     return { problem: 'token-invalid' };
   if (!Number.isInteger(claims.exp) || claims.exp <= now)
     return { problem: 'token-expired' };
-  return { claims };
+  const audience = Array.isArray(claims.aud)
+    ? claims.aud.length === 1
+      ? claims.aud[0]
+      : null
+    : (claims.aud ?? '');
+  // One app, a string or an array of one string: anything else is no token.
+  if (typeof audience !== 'string') return { problem: 'token-invalid' };
+  return { claims, audience };
 }
 
 /**
@@ -109,15 +120,27 @@ function identity(claims, app, now) {
   return Buffer.from(JSON.stringify(value)).toString('base64url');
 }
 
-/** The app `declared` names (`CoSec-App-Id`), or null when it cannot be one. */
-function appOf(declared) {
-  if (declared === undefined || declared === '') return '';
-  const valid =
-    declared.trim() !== '' &&
-    declared !== '*' &&
-    !declared.includes(':') &&
-    declared.length <= 128;
-  return valid ? declared : null;
+/** Whether `app` can be an app id: not blank or `*`, one path segment, no `:`. */
+function isAppId(app) {
+  return (
+    app.trim() !== '' &&
+    app !== '*' &&
+    !app.includes(':') &&
+    !app.includes('/') &&
+    app.length <= 128
+  );
+}
+
+/**
+ * The app a request with a token for `audience` (empty for none) is decided
+ * in on a route of `route` (empty for none), or null when the scope does not
+ * resolve: a route's app takes only its own tokens, and a token's app must be
+ * one.
+ */
+function appOf(audience, route) {
+  if (audience !== '' && !isAppId(audience)) return null;
+  if (route === '') return audience;
+  return audience === route ? route : null;
 }
 
 function only(value) {
@@ -144,15 +167,17 @@ function refuse(response, slug) {
 
 /**
  * Listens on `127.0.0.1:port` and forwards every request to the server on
- * `127.0.0.1:upstream` as the CoSec gateway would, verifying the suite's
- * tokens with `secret`.
+ * `127.0.0.1:upstream` as the CoSec gateway would on a route whose app is
+ * `app` (none when empty), verifying the suite's tokens with `secret`.
  */
-export function startCoSecGateway({ port, upstream, secret }) {
+export function startCoSecGateway({ port, upstream, secret, app = '' }) {
   if (!secret)
     throw new Error("The CoSec gateway stand-in needs the suite's secret.");
+  if (app !== '' && !isAppId(app))
+    throw new Error(`The route's app [${app}] cannot be an app id.`);
   const gateway = createServer((request, response) => {
     const now = Math.floor(Date.now() / 1000);
-    const { claims, problem } = authenticate(
+    const { claims, audience, problem } = authenticate(
       only(request.headers.authorization),
       secret,
       now,
@@ -160,12 +185,12 @@ export function startCoSecGateway({ port, upstream, secret }) {
     if (problem) return refuse(response, problem);
     const headers = forwarded(request.headers);
     if (claims) {
-      // Only a scope that resolves is decided in (`ScopeResolver`): a valid app, the default space.
-      const app = appOf(only(request.headers['cosec-app-id']));
+      // Only a scope that resolves is decided in: the token's app, the route's if it names one, the default space.
+      const scope = appOf(audience, app);
       const space = only(request.headers['cosec-space-id']);
-      if (app === null || (space !== undefined && space !== ''))
+      if (scope === null || (space !== undefined && space !== ''))
         return refuse(response, 'scope-rejected');
-      headers[IDENTITY] = identity(claims, app, now);
+      headers[IDENTITY] = identity(claims, scope, now);
     }
     const proxied = forward(
       {

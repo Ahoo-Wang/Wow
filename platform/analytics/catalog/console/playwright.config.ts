@@ -12,7 +12,7 @@
  */
 
 import { defineConfig } from "@playwright/test";
-import { COSEC_SECRET } from "./e2e/cosec.ts";
+import { APP, COSEC_SECRET } from "./e2e/cosec.ts";
 
 const port = process.env.CATALOG_E2E_PORT ?? "18187";
 
@@ -97,6 +97,7 @@ export default defineConfig({
           server(cosecPort, {
             CATALOG_E2E_COSEC: "true",
             CATALOG_E2E_COSEC_SECRET: COSEC_SECRET,
+            CATALOG_E2E_COSEC_APP: APP,
           }),
         ],
       }),

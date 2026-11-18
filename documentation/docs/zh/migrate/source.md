@@ -43,6 +43,15 @@ description: 用 wow-migrate Skill 把 9.x 服务的 Kotlin 源码改写为 V10�
 
 这些插件需要 Gradle 9 或更高版本、Kotlin JVM 插件 2.3 或更高版本：先升级 Gradle 8 的 wrapper。KSP 读取整个源码目录，忽略源码集的 `exclude`，所以每次只编译领域模块一部分的迁移，要把这些文件同步到单独的目录。
 
+先迁移 api 模块时，可以在根构建上声明 api 插件：`id("me.ahoo.wow.api") version "…" apply false`。它不带来 KSP，所以 9.x 模块保留各自的 `id("com.google.devtools.ksp") version "…"`。在根构建上声明 `me.ahoo.wow` 或 `me.ahoo.wow.service` 则会把插件的 KSP 带到每个模块的类路径上，仍写着 KSP 版本的 9.x 模块随即在 Gradle 中失败，早于任何 Wow 代码运行：
+
+```text
+Error resolving plugin [id: 'com.google.devtools.ksp', version: '2.3.6']
+> The request for this plugin could not be satisfied because the plugin is already on the classpath with an unknown version, so compatibility cannot be checked.
+```
+
+去掉这些模块那一行的版本，写成 `id("com.google.devtools.ksp")`，它们就使用插件的 KSP；或者像[在已有服务中引入 Wow](../start/existing-project)那样，把 Wow 插件的版本写在 `settings.gradle.kts` 中，这样任何模块的类路径上都不会出现它没有要求的 KSP。领域模块若从只声明了 api 插件的根构建应用 `me.ahoo.wow`，就找不到 KSP，构建失败并写出该模块要加的那一行：`id("com.google.devtools.ksp") version` 加插件的 KSP 版本。
+
 [V10 中的 9.x 能力](./capabilities)说明每项 9.x 能力的去向。
 
 ## 注解 {#annotations}

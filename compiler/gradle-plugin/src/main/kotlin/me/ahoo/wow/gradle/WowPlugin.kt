@@ -45,8 +45,11 @@ import java.util.Properties
  * Gradle's isolated projects; the configuration cache is supported.
  *
  * Every task that reads or writes a Manifest runs its work in a worker with an isolated class loader over
- * [TOOLS_CONFIGURATION]: the plugin itself depends on the KSP Gradle plugin only, so it brings no Wow module, Jackson,
- * victools or Kotlin reflection to the build script, and a build of Wow itself can include it to apply it.
+ * [TOOLS_CONFIGURATION]: the plugin's jar depends on nothing, so it brings no Wow module, Jackson, victools or Kotlin
+ * reflection to the build script, and a build of Wow itself can include it to apply it. It applies KSP by its id and
+ * refers to none of its classes: the markers of `me.ahoo.wow` and `me.ahoo.wow.service` bring the KSP Gradle plugin,
+ * `me.ahoo.wow.api`'s does not, so the api plugin on a root build's class path leaves a 9.x module of a staged
+ * migration free to apply KSP of its own version.
  */
 class WowPlugin : Plugin<Project> {
     override fun apply(project: Project) {
@@ -177,6 +180,22 @@ class WowPlugin : Plugin<Project> {
                 "(org.jetbrains.kotlin.jvm), so it would compile no Wow models: the Wow compiler runs as a KSP " +
                 "processor of the Kotlin compilation. Apply kotlin(\"jvm\") in the module as well; a module of " +
                 "Java sources only needs it too, and its Java sources are then processed."
+
+        /** The version of KSP the markers of the domain and service plugins bring, which [missingKsp] names. */
+        internal val kspVersion: String by lazy { properties.getProperty("kspVersion") }
+
+        /**
+         * Why a module at [path] that applies the plugin [id] fails when its class path holds no KSP: it came from a
+         * parent build script that declares `me.ahoo.wow.api` alone, or a convention plugin on the plugin's jar,
+         * neither of which brings KSP as the domain and service plugins' markers do.
+         */
+        internal fun missingKsp(path: String, id: String): String =
+            "Project '$path' applies the Wow plugin ($id) from a class path without the KSP Gradle plugin, which runs " +
+                "the Wow compiler. The plugin's marker brings it, but this class path came from elsewhere: a parent " +
+                "build script that declares only $API_ID (id(\"$API_ID\") apply false), or a convention plugin that " +
+                "depends on wow-gradle-plugin. Add id(\"com.google.devtools.ksp\") version \"$kspVersion\" to the " +
+                "module's plugins, or depend on com.google.devtools.ksp:symbol-processing-gradle-plugin:$kspVersion " +
+                "beside wow-gradle-plugin."
 
         private val properties: Properties by lazy {
             Properties().apply {

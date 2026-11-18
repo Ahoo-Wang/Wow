@@ -36,14 +36,17 @@ gradlePlugin {
 }
 
 dependencies {
-    implementation("com.google.devtools.ksp:symbol-processing-gradle-plugin:${libs.versions.ksp.get()}")
+    // What the published markers of me.ahoo.wow and me.ahoo.wow.service bring: the plugin's jar declares no KSP.
+    runtimeOnly("com.google.devtools.ksp:symbol-processing-gradle-plugin:${libs.versions.ksp.get()}")
 }
 
 tasks.processResources {
     val kotlinVersion = libs.versions.kotlin.asProvider().get()
+    val kspVersion = libs.versions.ksp.get()
     inputs.property("version", wowVersion)
     inputs.property("kotlinVersion", kotlinVersion)
+    inputs.property("kspVersion", kspVersion)
     filesMatching("**/wow-gradle-plugin.properties") {
-        expand("version" to wowVersion, "kotlinVersion" to kotlinVersion)
+        expand("version" to wowVersion, "kotlinVersion" to kotlinVersion, "kspVersion" to kspVersion)
     }
 }
