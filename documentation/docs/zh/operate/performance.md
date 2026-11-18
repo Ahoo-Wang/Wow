@@ -218,3 +218,5 @@ test/benchmarks/harness/bench.sh down
 ```
 
 扫描给出你的机器上 T2 的数字；按你自己的速率运行一次给出 T1 的数字。在 GitHub 的 runner 上：`gh workflow run bench.yml -f tier=L4 -f head_ref=<tag>`。[基准测试指南](https://github.com/Ahoo-Wang/Wow/blob/main/test/benchmarks/README.md)说明了测试工具及每个套件；[`test/benchmarks/results/reports/`](https://github.com/Ahoo-Wang/Wow/tree/main/test/benchmarks/results/reports) 保存这些数字所出自的报告，每份都带有其原始结果。
+
+**比较两个构建。** 一次比较在同一台 runner 上轮流运行两个构建，只有当延迟比值的整个 95% 区间越过该套件的 A/A 阈值时，才判为超出噪声。所以一次 L3 运行只能标出大的延迟变化，量级与它自身区间的宽度相当；各指标的具体大小见[报告说明](https://github.com/Ahoo-Wang/Wow/blob/main/test/benchmarks/results/reports/README.md#reading-a-comparison)。10% 到 20% 的变化需要轮数更多的交替运行。每条命令的 CPU 与分配以比值报告，没有阈值：没有任何判定说它们超出噪声。
