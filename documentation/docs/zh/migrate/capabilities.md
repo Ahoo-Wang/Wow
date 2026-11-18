@@ -162,7 +162,7 @@ outline: deep
 | --- | --- | --- |
 | `wow-metadata.json` 与 `/wow/metadata` | 替代 | Manifest 与 `GET /wow/manifest`。见[一份契约](../concepts/contract)。 |
 | JSON Schema 生成 | 替代 | 在构建期依据 Jackson 自己对类的看法生成 schema。 |
-| 注册自定义 Jackson 模块 | 放弃 | Wow 的 JSON 注册一组固定的模块，所以线上形式不依赖宿主。 |
+| 注册自定义 Jackson 模块 | 放弃 | Wow 的 JSON 注册一组固定的模块，所以线上形式不依赖宿主。[JSON 中的值](../reference/json-values)给出它为每个平台值类写出的形式。 |
 | OpenAPI 文档 | 保留 | 从 Manifest 推出；也有对应的 Gradle 任务。 |
 | springdoc 集成 | 保留 | — |
 | 错误体（`ErrorInfo`） | 替代 | 带错误码的 `application/problem+json`（RFC 9457）。 |
