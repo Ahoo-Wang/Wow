@@ -61,6 +61,60 @@ class TargetDdlShardingTest {
     }
 
     @Test
+    fun `sharding none leaves it to the operator, who shards what the import created by the backend's keys`() {
+        assumeTrue(NineXMongoStore.sharded, "Runs on a sharded cluster: -Dwow-test.mongo.url of a mongos.")
+        val database = "wow_v10_by_hand_${System.nanoTime()}"
+        val config = config(database, """{ "sharding": "none" }""")
+        run("import", "--config", config).assert().describedAs(output.toString()).isEqualTo(MigrateData.OK)
+        run("snapshot", "--config", config).assert().describedAs(output.toString()).isEqualTo(MigrateData.OK)
+        // The operator shards the populated collections by the backend's keys, each on an index of its own: the log's
+        // unique keys are partial, and no partial index serves a shard key.
+        val logs = Document("partition", 1)
+        val snapshots = Document("tenant_id", 1).append("aggregate_id", "hashed")
+        val byHand = listOf("order", "cart").flatMap {
+            listOf("$database.wow_log__example__$it" to logs, "$database.wow_snapshot__example__$it" to snapshots)
+        }.toMap()
+        val logIndex = Document("partition", 1).append("_id", 1)
+        byHand.forEach { (namespace, key) -> shard(namespace, key, if (key == logs) logIndex else key) }
+        output.reset()
+        run("import", "--config", config, "--restart").assert().describedAs(output.toString()).isEqualTo(MigrateData.OK)
+        output.toString().assert().contains("example-service.order done: 1 instances, 0 streams imported, 4 skipped")
+        run("snapshot", "--config", config, "--restart").assert().describedAs(output.toString())
+            .isEqualTo(MigrateData.OK)
+        shardKeys(database).assert().isEqualTo(byHand)
+    }
+
+    @Test
+    fun `a collection made before Wow touched it, or sharded by another key after, is refused by name`() {
+        assumeTrue(NineXMongoStore.sharded, "Runs on a sharded cluster: -Dwow-test.mongo.url of a mongos.")
+        // Sharded by hand before the import: the collection exists, but Wow did not record its layout.
+        val early = "wow_v10_early_${System.nanoTime()}"
+        shard("$early.wow_log__example__order", Document("partition", 1))
+        val beforeWow = config(early, """{ "sharding": "none" }""")
+        assertThrows<IllegalStateException> { run("import", "--config", beforeWow) }.message.assert()
+            .startsWith("wow_log__example__order exists without a format record")
+
+        // Created by the tool, then sharded by another key: the run that shards it refuses it. A snapshot collection,
+        // as MongoDB itself refuses a log collection any other key: the log's unique keys lead with the partition.
+        val other = "wow_v10_other_key_${System.nanoTime()}"
+        val unsharded = config(other, """{ "sharding": "none" }""")
+        run("import", "--config", unsharded).assert().isEqualTo(MigrateData.OK)
+        run("snapshot", "--config", unsharded).assert().isEqualTo(MigrateData.OK)
+        val namespace = "$other.wow_snapshot__example__order"
+        shard(namespace, Document("aggregate_id", "hashed"))
+        assertThrows<IllegalStateException> { run("snapshot", "--config", config(other, "{}"), "--restart") }
+            .message.assert().startsWith("$namespace cannot be sharded by ")
+            .contains("the key this version of Wow shards it by")
+        // The refused collection keeps the operator's key; the log the run read is sharded as the backend shards it.
+        shardKeys(other).assert().isEqualTo(
+            mapOf(
+                namespace to Document("aggregate_id", "hashed"),
+                "$other.wow_log__example__order" to Document("partition", 1),
+            ),
+        )
+    }
+
+    @Test
     fun `ddl validate refuses a target it would have to create, and imports into one that exists`() {
         val empty = "wow_v10_ddl_validate_${System.nanoTime()}"
         assertThrows<IllegalStateException> {
@@ -119,6 +173,13 @@ class TargetDdlShardingTest {
             """.trimIndent(),
         )
         return path.toString()
+    }
+
+    /** Shards [namespace] by [key] on the index [index] it creates first, as an operator does by hand. */
+    private fun shard(namespace: String, key: Document, index: Document = key) {
+        val (database, collection) = namespace.split('.', limit = 2)
+        client.getDatabase(database).getCollection(collection).createIndex(index)
+        client.getDatabase("admin").runCommand(Document("shardCollection", namespace).append("key", key))
     }
 
     /** The sharded collections of [database], each with its shard key. */
