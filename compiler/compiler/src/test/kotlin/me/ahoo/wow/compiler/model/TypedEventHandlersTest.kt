@@ -72,7 +72,7 @@ class TypedEventHandlersTest {
         }
 
         @CreateAggregate
-        data class OpenCart(val id: String)
+        data class OpenCart(@me.ahoo.wow.api.annotation.AggregateId val id: String)
         data class CartOpened(val id: String) : Audited
 
         @AggregateRoot

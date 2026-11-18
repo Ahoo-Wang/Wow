@@ -55,7 +55,7 @@ class SubscriptionManifestTest {
         import me.ahoo.wow.api.annotation.Name
 
         @CreateAggregate
-        data class PlaceOrder(val id: String)
+        data class PlaceOrder(@me.ahoo.wow.api.annotation.AggregateId val id: String)
         @Name("Cancel")
         data class CancelOrder(val reason: String)
         data class OrderPlaced(val id: String)

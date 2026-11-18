@@ -81,7 +81,7 @@ class DerivedCommandsTest {
         sealed interface OrderCommand
 
         @CreateAggregate
-        data class PlaceOrder(val id: String) : OrderCommand
+        data class PlaceOrder(@me.ahoo.wow.api.annotation.AggregateId val id: String) : OrderCommand
         data class CancelOrder(val reason: String) : OrderCommand
         data class OrderPlaced(val id: String)
         data class OrderCancelled(val reason: String)

@@ -49,7 +49,7 @@ class ScheduleManifestTest {
         import kotlin.time.Duration.Companion.minutes
 
         @CreateAggregate
-        data class PlaceOrder(val id: String)
+        data class PlaceOrder(@me.ahoo.wow.api.annotation.AggregateId val id: String)
         data class PayOrder(val amount: Int)
         data class CancelOrder(val reason: String)
         data class OrderPlaced(val id: String)

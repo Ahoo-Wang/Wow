@@ -52,7 +52,7 @@ class ProducesAndErrorCodeTest {
         import reactor.core.publisher.Mono
 
         @CreateAggregate
-        data class Place(val id: String)
+        data class Place(@me.ahoo.wow.api.annotation.AggregateId val id: String)
         data class Cancel(val reason: String)
         data class Hold(val note: String)
 
@@ -197,7 +197,7 @@ class ProducesAndErrorCodeTest {
             import me.ahoo.wow.api.decide.Decision
 
             @CreateAggregate
-            data class OpenCart(val id: String)
+            data class OpenCart(@me.ahoo.wow.api.annotation.AggregateId val id: String)
             data class CartOpened(val id: String)
 
             @AggregateRoot
@@ -282,7 +282,7 @@ class ProducesAndErrorCodeTest {
             import me.ahoo.wow.api.annotation.ErrorCode
 
             @CreateAggregate
-            data class Open(val id: String)
+            data class Open(@me.ahoo.wow.api.annotation.AggregateId val id: String)
             data class Opened(val id: String)
 
             @AggregateRoot
@@ -467,7 +467,7 @@ class ProducesAndErrorCodeTest {
             import me.ahoo.wow.api.annotation.OnCommand
 
             @CreateAggregate
-            data class Open(val id: String)
+            data class Open(@me.ahoo.wow.api.annotation.AggregateId val id: String)
             data class Post(val amount: Int)
             data class Split(val amounts: List<Int>)
             data class Mixed(val note: String)

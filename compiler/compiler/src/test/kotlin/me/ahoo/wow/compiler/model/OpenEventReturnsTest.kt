@@ -44,7 +44,7 @@ class OpenEventReturnsTest {
         import reactor.core.publisher.Mono
 
         @CreateAggregate
-        data class Place(val id: String)
+        data class Place(@me.ahoo.wow.api.annotation.AggregateId val id: String)
         data class Pay(val amount: Int)
         data class Ship(val to: String)
         data class Charge(val amount: Int)

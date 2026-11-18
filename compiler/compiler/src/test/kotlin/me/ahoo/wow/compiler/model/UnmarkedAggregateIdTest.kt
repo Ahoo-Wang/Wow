@@ -47,6 +47,7 @@ class UnmarkedAggregateIdTest {
             import me.ahoo.wow.api.aggregate.AggregateIdSource
             import me.ahoo.wow.api.annotation.AggregateId
             import me.ahoo.wow.api.annotation.AggregateRoot
+            import me.ahoo.wow.api.annotation.AllowCreate
             import me.ahoo.wow.api.annotation.CreateAggregate
             import me.ahoo.wow.api.annotation.MountedCommand
             import me.ahoo.wow.api.annotation.Unaddressed
@@ -81,26 +82,119 @@ class UnmarkedAggregateIdTest {
                 data class Restock(val warehouse: String, val sku: String) : Identified {
                     override val id: String get() = "${'$'}warehouse-${'$'}sku"
                 }
-                @CreateAggregate
-                data class OpenStock(val id: String?, val quantity: Int)
                 """.trimIndent(),
                 functions = """
                 fun onCommand(command: ReserveStock): Stocked = Stocked(command.quantity)
                 fun onCommand(command: Restock): Stocked = Stocked(0)
-                fun onCommand(command: OpenStock): Stocked = Stocked(command.quantity)
                 """.trimIndent(),
             ),
         ).assert()
             .contains(
-                "sample.Stock: command ReserveStock has a String property id and no @AggregateId property: Wow 10 " +
-                    "does not take a command's aggregate from its body unless a property is marked @AggregateId. If " +
-                    "id names ReserveStock's aggregate, mark it @AggregateId, as a 9.x command whose body named its " +
-                    "aggregate needs, a creation a saga sends without an aggregate id among them. If 9.x bound it " +
-                    "from the path, it only repeated the route: remove it and read command.ref.id. Otherwise " +
-                    "suppress this with @Suppress(\"UnmarkedAggregateId\").",
+                "sample.Stock: command ReserveStock has a String property id (declared by sample.ReserveStock) and " +
+                    "no @AggregateId property: Wow 10 does not take a command's aggregate from its body unless a " +
+                    "property is marked @AggregateId. If id names ReserveStock's aggregate, mark it @AggregateId (an " +
+                    "inherited id is marked where the command overrides it), as a 9.x command whose body named its " +
+                    "aggregate needs. If 9.x bound it from the path, it only repeated the route: remove it and read " +
+                    "command.ref.id. Otherwise suppress this with @Suppress(\"UnmarkedAggregateId\") on the command " +
+                    "class, or on its command function where the class is compiled in another module.",
             )
-            .contains("command Restock has a String property id and no @AggregateId property")
-            .contains("command OpenStock has a String property id and no @AggregateId property")
+            .contains("command Restock has a String property id (declared by sample.Restock) and no @AggregateId")
+    }
+
+    @Test
+    fun `a creating command's id it does not mark should fail the compilation, naming both ways out`() {
+        // Sent without an id, a creation takes a generated one: a new aggregate, where 9.x addressed the id's.
+        val (_, result) = compileModel(
+            "generate",
+            context,
+            stock(
+                commands = """
+                @CreateAggregate
+                data class OpenStock(val id: String?, val quantity: Int)
+                interface Identified {
+                    val sku: String
+                    val id: String get() = sku
+                }
+                @AllowCreate
+                data class Restock(override val sku: String) : Identified
+                // A 9.x id the body left out, which 9.x read from the object all the same.
+                @CreateAggregate
+                data class Shelve(val warehouse: String, val code: String) {
+                    @get:com.fasterxml.jackson.annotation.JsonIgnore
+                    val id: String get() = "${'$'}warehouse-${'$'}code"
+                }
+                """.trimIndent(),
+                functions = """
+                fun onCommand(command: OpenStock): Stocked = Stocked(command.quantity)
+                fun onCommand(command: Restock): Stocked = Stocked(0)
+                fun onCommand(command: Shelve): Stocked = Stocked(0)
+                """.trimIndent(),
+            ),
+        )
+        result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        result.messages.assert()
+            .contains(
+                "sample.Stock: command OpenStock creates its aggregate and has a String property id (declared by " +
+                    "sample.OpenStock) and no @AggregateId property: sent without an aggregate id, as a saga's " +
+                    "CommandRequest.of(body) or a client's route without an id sends it, it creates a new aggregate " +
+                    "under a generated id, whatever its id holds. If id names OpenStock's aggregate, mark it " +
+                    "@AggregateId (an inherited id is marked where the command overrides it); if it names something " +
+                    "else, suppress this with @Suppress(\"UnmarkedAggregateId\") on the command class, or on its " +
+                    "command function where the class is compiled in another module.",
+            )
+            .contains(
+                "command Restock creates its aggregate and has a String property id (inherited from the interface " +
+                    "sample.Identified's default getter) and no @AggregateId property",
+            )
+            .contains(
+                "command Shelve creates its aggregate and has a String property id (declared by sample.Shelve, not " +
+                    "written by Wow's JSON) and no @AggregateId property: sent without an aggregate id",
+            )
+            .contains(
+                "If id names Shelve's aggregate, make it a public property Wow's JSON writes, then mark it " +
+                    "@AggregateId: the mark is refused on a property the generated model cannot read or a body does " +
+                    "not carry; if it names something else, suppress this",
+            )
+    }
+
+    @Test
+    fun `a creating command that marks its id, or suppresses the error on its class or function, should compile`() {
+        val library = compileLibrary(
+            SourceFile.kotlin(
+                "Commands.kt",
+                """
+                package base
+
+                import me.ahoo.wow.api.annotation.CreateAggregate
+
+                @CreateAggregate
+                data class Import(val id: String, val quantity: Int)
+                """.trimIndent(),
+            ),
+        )
+        val (_, result) = compileModelAgainst(
+            "generate",
+            listOf(library),
+            context,
+            stock(
+                commands = """
+                @CreateAggregate
+                data class OpenStock(@AggregateId val id: String?, val quantity: Int)
+                // Its id is a request's, not the aggregate's, which admission generates.
+                @Suppress("UnmarkedAggregateId")
+                @AllowCreate
+                data class Seed(val id: String)
+                """.trimIndent(),
+                functions = """
+                fun onCommand(command: OpenStock): Stocked = Stocked(command.quantity)
+                fun onCommand(command: Seed): Stocked = Stocked(0)
+                @Suppress("UnmarkedAggregateId")
+                fun onCommand(command: base.Import): Stocked = Stocked(command.quantity)
+                """.trimIndent(),
+            ),
+        )
+        result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
+        result.messages.assert().doesNotContain("and no @AggregateId property")
     }
 
     @Test
@@ -146,7 +240,22 @@ class UnmarkedAggregateIdTest {
             ),
         ).assert()
             .doesNotContain("command Note has")
-            .contains("command Mark has a String property id and no @AggregateId property")
+            .contains("command Mark has a String property id (declared by sample.Mark) and no @AggregateId property")
+    }
+
+    @Test
+    fun `a command whose supertype does not resolve should not fail the processor`() {
+        // Kotlin reports the unresolved type; the report of an unmarked id must not throw over it.
+        val (_, result) = compileModel(
+            "generate",
+            context,
+            stock(
+                commands = "data class Reserve(val sku: String) : LegacyCommand",
+                functions = "fun onCommand(command: Reserve): Stocked = Stocked(0)",
+            ),
+        )
+        result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        result.messages.assert().doesNotContain("NullPointerException").contains("LegacyCommand")
     }
 
     @Test
@@ -176,8 +285,8 @@ class UnmarkedAggregateIdTest {
     }
 
     @Test
-    fun `a command of a library should not be warned of`() {
-        // Its author marks it, and its @Suppress does not reach this compilation.
+    fun `a command of a library should be warned of, and suppressed on its command function`() {
+        // A context's commands are compiled in its api module, a library here: its @Suppress stays in its source.
         val library = compileLibrary(
             SourceFile.kotlin(
                 "Restock.kt",
@@ -185,6 +294,9 @@ class UnmarkedAggregateIdTest {
                 package base
 
                 data class Restock(val id: String, val quantity: Int)
+                @Suppress("UnmarkedAggregateId")
+                data class Recount(val id: String)
+                data class Return(val id: String)
                 """.trimIndent(),
             ),
         )
@@ -194,10 +306,21 @@ class UnmarkedAggregateIdTest {
             context,
             stock(
                 commands = "",
-                functions = "fun onCommand(command: base.Restock): Stocked = Stocked(command.quantity)",
+                functions = """
+                fun onCommand(command: base.Restock): Stocked = Stocked(command.quantity)
+                fun onCommand(command: base.Recount): Stocked = Stocked(0)
+                @Suppress("UnmarkedAggregateId")
+                fun onCommand(command: base.Return): Stocked = Stocked(0)
+                """.trimIndent(),
             ),
         )
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
-        result.messages.assert().doesNotContain("and no @AggregateId property")
+        result.messages.assert()
+            .contains(
+                "command Restock has a String property id (declared by base.Restock, compiled in another module) " +
+                    "and no @AggregateId property",
+            )
+            .contains("command Recount has a String property id (declared by base.Recount, compiled in another module)")
+            .doesNotContain("command Return has")
     }
 }

@@ -37,7 +37,7 @@ class AfterHookParametersTest {
         import me.ahoo.wow.api.decide.DecideScope
 
         @CreateAggregate
-        data class Create(val id: String)
+        data class Create(@me.ahoo.wow.api.annotation.AggregateId val id: String)
         data class Created(val id: String)
         sealed interface ItemCommand { val item: String }
         data class Add(override val item: String) : ItemCommand

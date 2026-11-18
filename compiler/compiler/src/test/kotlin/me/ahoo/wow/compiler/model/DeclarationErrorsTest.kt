@@ -37,7 +37,7 @@ class DeclarationErrorsTest {
         import me.ahoo.wow.api.annotation.OnCommand
 
         @CreateAggregate
-        data class Create(val id: String)
+        data class Create(@me.ahoo.wow.api.annotation.AggregateId val id: String)
         data class Created(val id: String)
 
         @AggregateRoot
