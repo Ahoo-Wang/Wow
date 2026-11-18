@@ -1,12 +1,15 @@
 ---
-title: Performance
-description: What Wow's benchmarks measure and on what, the latest reports' headline figures, how to read them, what they mean for sizing, and how to reproduce one.
+title: Capacity Planning
+description: Turn a load into a deployment, from measured unit costs per command, one node's sustainable rate and the ceilings that do not move with nodes; every figure generated from a committed benchmark report, with its build, CPU and JDK.
 outline: deep
 ---
 
-# Performance
+# Capacity Planning
 
-Wow is measured end to end: a load generator sends commands over HTTP to Wow nodes on PostgreSQL or MongoDB, with Kafka, and waits for the stage each scenario names. Each environment keeps one report of each kind, the latest, with its raw results. This page gives their headline figures, generated from the reports, and how to read and use them. For what a node does under load, see [Scaling and Capacity](./scaling); for the choice of store, see [Choose the Stores](./choosing-storage).
+This page turns your load into a deployment: how many nodes, how much database, and where adding nodes stops helping. Every number on it is written from a committed benchmark report when the documentation is built, and names the build, the CPU and the JDK it was measured on. For what Wow does with a command and how it compares, see [Performance](../guide/performance); for what a node does under load, [Scaling and Capacity](./scaling).
+
+- **Four inputs, three tables, then the formulas.** The [worked example](#example) runs through them once.
+- **Every figure was measured on stated hardware,** with the database, Kafka and the load generator on the same machine as the nodes. [When the numbers transfer](#transfer) says when they hold for yours, and how to measure your own.
 
 ## What was measured {#what-was-measured}
 
@@ -16,20 +19,66 @@ The domain is the benchmark's own: accounts, and a transfer between two of them 
 | --- | --- | --- |
 | E1 write | A deposit to one account | Its commit is stored |
 | E2 read your write | A deposit, then a read of the account's state | The read shows the deposit's version |
-| E3 saga chain | A transfer prepared on one account | The saga's entry on the other account is stored |
+| E3 saga step | A transfer prepared on one account | The saga's entry on the other account is stored |
 | E4 read | One account's state by id, or a page of ten accounts | The answer |
-| E5 cluster | E1 and E3 on three nodes, round-robin, steady and with one node stopped and restarted | As E1 and E3 |
 | Mixed | Writes and reads together: half E1, the rest E4 | Each as its scenario |
 | Large | E1 with five events of about 2 KB each | As E1 |
 
-The keys are uniform over the accounts, Zipf (a few accounts take most commands), or one hot account. The data sets are 1,000 accounts, which every cache holds; 100,000, each touched once before the measurement; and a million, not touched (a cold cache).
+On GitHub Actions each suite runs on a 4-core runner of its own, whose CPU model its row names. On the Apple M5 Max (18 cores, 64 GB) the stores run in containers on the same host.
 
-Two environments:
+## 1. Your four inputs {#inputs}
 
-- **GitHub Actions.** Each suite runs on a shared runner of its own, 4 cores and 15–16 GB, with the node, the store, Kafka and the load generator on it. A comparison runs the head and a released baseline in turn on one runner, so its ratios hold across runners while its absolute figures belong to that runner.
-- **An Apple M5 Max** (18 cores, 64 GB). The stores run in containers on the same host as one node or three, and closed-loop sweeps go from 1 to 4,096 clients, further for E1 on one node.
+| Input | What to bring |
+| --- | --- |
+| Rate | Commands a second at your busiest hour, by kind: writes, saga steps, point reads, lists |
+| Aggregates | How many exist, and how many are touched in an hour (the hot set) |
+| History | Commits a day, and how long the log is kept (forever by default) |
+| Size | The size of a state, and of a command's events |
 
-## The figures {#figures}
+## 2. Unit costs per command (T1) {#unit-costs}
+
+::: warning Read the rate column first
+Wow batches: commands queued for one aggregate commit together, and the appends of several partitions merge into one statement. So the cost of one command falls as the rate rises, and a cost measured at a high rate, multiplied by a light load, gives too small an answer. Take the row measured nearest your rate; between two rows, the cost of the lower rate.
+:::
+
+One node at 100,000 accounts. A row with a rate alone is the median of beta.6's three L3 rounds of the suite, at the rate the suite's calibration chose, with the node pinned to one core and PostgreSQL or MongoDB and Kafka to one core each; its CPU is split between them. A row "sustainable" is the L4 rate of [T2](#sustainable), whose CPU is the three together. The Large write is five events of about 2 KB; Mixed is half E1 writes, half E4 reads. Commits and WAL bytes are PostgreSQL's per command; MongoDB's journal is not counted.
+
+<!-- performance:begin unit-costs -->
+<!-- Generated by .github/scripts/docs-capacity.mjs from the reports' headline.json; regenerate with `pnpm docs:reference`. Do not edit. -->
+
+CPU in ms per command. Build `e3a4e937aa`, JDK 25.0.5+8; each row names its runner's CPU.
+
+| Workload | Store | Rate | Node | Database | Kafka | All three | Commits | WAL bytes | Runner |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| E1 write | PostgreSQL | 1,487.5/s | 0.579 | 0.431 | 0.335 | 1.34 | 0.674 | 1,132 | Xeon 8573C |
+| E1 write | PostgreSQL | 1,957.8/s, sustainable | not split | not split | not split | 1.33 | not split | not split | EPYC 7763 |
+| E3 saga step | PostgreSQL | 478.7/s | 1.678 | 1.487 | 1.019 | 4.2 | 2.065 | 4,222 | EPYC 7763 |
+| E3 saga step | PostgreSQL | 839.9/s, sustainable | not split | not split | not split | 3.34 | not split | not split | EPYC 7763 |
+| Large write | PostgreSQL | 546.4/s | 1.152 | 1.096 | 0.948 | 3.2 | 1.461 | 13,033 | EPYC 9V74 |
+| Mixed | PostgreSQL | 1,515.5/s | 0.61 | 0.363 | 0.295 | 1.28 | 1.064 | 610 | Xeon 8370C |
+| E1 write | MongoDB | 1,771.1/s | 0.344 | 0.503 | 0.244 | 1.09 | not measured | not measured | EPYC 9V74 |
+| E1 write | MongoDB | 2,975.1/s, sustainable | not split | not split | not split | 0.95 | not split | not split | Xeon 6975P-C |
+| E1 write, Zipf keys | MongoDB | 2,232.6/s | 0.335 | 0.408 | 0.186 | 0.93 | not measured | not measured | EPYC 9V45 |
+| E2 read your write | MongoDB | 869.8/s | 0.736 | 1.004 | 0.476 | 2.21 | not measured | not measured | EPYC 9V74 |
+| E2 read your write | MongoDB | 1,272.2/s, sustainable | not split | not split | not split | 2.2 | not split | not split | Xeon 6975P-C |
+| E3 saga step | MongoDB | 375.2/s | 1.54 | 2.584 | 1.273 | 5.35 | not measured | not measured | EPYC 7763 |
+| E3 saga step | MongoDB | 1,008.3/s, sustainable | not split | not split | not split | 2.8 | not split | not split | Xeon 6975P-C |
+| Large write | MongoDB | 1,048.4/s | 0.505 | 0.771 | 0.375 | 1.65 | not measured | not measured | EPYC 9V45 |
+| Mixed | MongoDB | 1,843.3/s | 0.405 | 0.505 | 0.22 | 1.13 | not measured | not measured | EPYC 9V45 |
+<!-- performance:end -->
+
+The rows come from the [actions-snapshot](https://github.com/Ahoo-Wang/Wow/blob/main/test/benchmarks/results/reports/actions-snapshot.md) report; each runner's CPU model differs, so two rows on different models are not a comparison.
+
+**Per aggregate, on PostgreSQL** (Wow in the larger of the two sessions of the `axon-pg` suite in the [actions-axon](https://github.com/Ahoo-Wang/Wow/blob/main/test/benchmarks/results/reports/actions-axon.md) report, build <!-- perf:actions-axon/footprint.axon-pg.100k.wow:commit -->`3fd5349050`<!-- /perf -->, <!-- perf:actions-axon/footprint.axon-pg.100k.wow:cpu -->EPYC 9V74<!-- /perf -->):
+
+- an event in the log takes <!-- perf:actions-axon/footprint.axon-pg.100k.wow:bytesPerEvent.1 -->627<!-- /perf --> bytes, indexes included;
+- a snapshot, one an aggregate, rewritten in place, <!-- perf:actions-axon/footprint.axon-pg.100k.wow:bytesPerSnapshot.1 -->441<!-- /perf --> bytes.
+
+**Not measured:** the bytes per event and per snapshot on MongoDB; the heap a cached state takes; a cache miss as a cost of its own (the [cold-cache](#cold-cache) rows of T2 show its effect on latency); and what a subscription costs.
+
+## 3. One node's sustainable rate (T2) {#sustainable}
+
+The highest rate with p99 within 200 ms: with at most 1% errors on the runner, found by bisection in open loop; with no error on the workstation, the best step of a closed-loop sweep. On the runner the node, the database and Kafka share <!-- perf:actions-snapshot/sustainable.postgres.E1:cpus.server -->3<!-- /perf --> of its 4 cores, and the load generator has the other <!-- perf:actions-snapshot/sustainable.postgres.E1:cpus.load -->1<!-- /perf -->.
 
 <!-- performance:begin snapshots -->
 <!-- Generated by .github/scripts/docs-performance.mjs from the reports' headline.json; regenerate with `pnpm docs:reference`. Do not edit. -->
@@ -71,44 +120,91 @@ Three nodes on this one host: the nodes, the stores and the load generator divid
 | PostgreSQL | 3 | E3 | uniform | 8,623/s, at 1,024 clients | 7,279/s, at 256 clients, p99 59.6 ms | Apple M5 Max, JDK 25.0.5+8, `103f9b6746` |
 <!-- performance:end -->
 
-## How to read them {#how-to-read}
+### A cold cache {#cold-cache}
 
-- **A peak** is the best throughput of a closed-loop step that failed at most 1% of its commands. It says what a node can do at all, not at what latency.
-- **A sustainable rate** is the highest rate whose p99 stayed within 200 ms with at most 1% errors. It is the figure to size on. The gap between it and the peak is the latency a node trades for throughput.
-- **A lower bound**, written `≥`, is a peak where the measurement could not go further: the load generator was the limit, or it was the sweep's last step.
-- **One run is not a comparison.** A snapshot's figure is one run, and its difference from an earlier snapshot is given without a conclusion. Whether a change made Wow faster or slower is judged on pairs of the head and a baseline on one runner, against the suite's own run-to-run noise ([`noise.json`](https://github.com/Ahoo-Wang/Wow/blob/main/test/benchmarks/noise.json)).
-- **The two environments are not compared with each other**, and neither is a deployment: on both, the store and the load generator share the machine with the nodes. Production sizing needs a run on the target hardware.
+With 1,000,000 accounts and nothing cached, one node on the runner (build <!-- perf:actions-snapshot/cold.postgres.E1:commit -->`e3a4e937aa`<!-- /perf -->; runners <!-- perf:actions-snapshot/cold.postgres.E1:cpu -->Xeon 6975P-C<!-- /perf --> for PostgreSQL and <!-- perf:actions-snapshot/cold.mongo.E1:cpu -->EPYC 9V74<!-- /perf --> for MongoDB) answered writes at <!-- perf:actions-snapshot/cold.postgres.E1:value -->200/s<!-- /perf --> within a p99 of <!-- perf:actions-snapshot/cold.postgres.E1:p99Ms -->5.1 ms<!-- /perf --> on PostgreSQL and <!-- perf:actions-snapshot/cold.mongo.E1:p99Ms -->154.6 ms<!-- /perf --> on MongoDB.
 
-## What they mean for sizing {#sizing}
+**How a node's rate moves with cores:** two hardware classes were measured, not a curve. Between them, go by the CPU a command costs (T1), not by the core count alone.
 
-- **The database carries every node.** All the nodes' appends and reads land on one database, so once it is at its limit, neither a faster node nor more nodes raise the ceiling; a faster or less shared database does.
-- **The tail sets the usable capacity.** Plan on the sustainable rate. Past it, latency grows faster than throughput, and past the peak a node refuses commands with `wow.command.busy` (429, with `Retry-After`) rather than queue them without end ([Limits a node enforces](./scaling#limits-a-node-enforces)).
-- **A hot aggregate is a limit of its own.** One aggregate's commands run one after another on its owner, so the hot-account figures bound what any single aggregate can take, whatever the cluster's size. Spread the load over aggregates where the model allows.
-- **More nodes split the partitions.** Throughput grows with nodes while the store keeps up ([Nodes and partitions](./scaling#nodes-and-partitions)). The three-node figures here come from nodes that share one host, or one runner, with the store and the load generator. They show what a cluster costs (forwarding, the hand-over of a stopped node's partitions) rather than what it gains on separate machines.
+## 4. Ceilings (T3) {#ceilings}
 
-## Against Axon Framework 4 {#axon}
+Limits that more nodes do not raise.
 
-Before GA, Wow was compared with Axon Framework 4 on one PostgreSQL, both without a message bus, with the same domain, load generator and harness, on GitHub Actions ([actions-axon](https://github.com/Ahoo-Wang/Wow/blob/main/test/benchmarks/results/reports/actions-axon.md)) and on the M5 Max ([m5max-axon](https://github.com/Ahoo-Wang/Wow/blob/main/test/benchmarks/results/reports/m5max-axon.md)). Wow's E3 peak was above Axon's in both environments. Its E1 peak was above Axon's on the M5 Max; on Actions it was level with uniform keys and above with hot keys. The reports give the ratios and the conditions each holds under.
+| Ceiling | What was measured | What to do at it |
+| --- | --- | --- |
+| One aggregate | One hot account on the workstation peaked at <!-- perf:m5max-snapshot/sweep.postgres.1.e1-hot-sweep:value -->11,853.7/s<!-- /perf --> on PostgreSQL and <!-- perf:m5max-snapshot/sweep.mongo.1.e1-hot-sweep:value -->9,948.1/s<!-- /perf --> on MongoDB (build <!-- perf:m5max-snapshot/sweep.postgres.1.e1-hot-sweep:commit -->`103f9b6746`<!-- /perf -->, <!-- perf:m5max-snapshot/sweep.postgres.1.e1-hot-sweep:cpu -->Apple M5 Max<!-- /perf -->) | Spread the load over aggregates |
+| One partition with many aggregates | Not measured | Choose the partition count before the first deployment ([Nodes and partitions](./scaling#nodes-and-partitions)) |
+| The database | Its CPU per command, in T1 | A bigger or less shared database; MongoDB sharding; another aggregate type's log on another store |
+| Connections | Not a measurement: each node's pools, plus one pool, within `max_connections` | [Size the pools](./postgresql#size-the-pools) |
+| A sink | Not measured here | Its added load on the log's database is not measured |
+| A subscription that lags | Not a rate: `wow.subscription.backlog` | A faster handler, or more nodes ([Subscriptions](./scaling#subscriptions)) |
 
-## Reproduce a figure {#reproduce}
+## 5. From inputs to a deployment {#formulas}
 
-On GitHub Actions, the Bench workflow (`.github/workflows/bench.yml`) runs a tier, or named suites, of the head against a baseline release:
+- **Nodes** = the larger of:
+  - ⌈Σ rate ÷ (its sustainable rate in T2 × 0.6)⌉, so each node runs at about 60% of its sustainable rate;
+  - ⌈Σ rate × node CPU ms (T1) ÷ (1,000 × cores a node × 0.6)⌉;
 
-```bash
-gh workflow run bench.yml --ref main -f tier=L3 -f head_ref=main
-```
+  plus one, so a lost node's partitions fit on the others.
+- **Database CPU, in cores** = Σ rate × database CPU ms (T1) ÷ 1,000.
+- **On PostgreSQL, commits and WAL a second** = Σ rate × commits, and Σ rate × WAL bytes (T1).
+- **Log storage** = commits a day × bytes per event × days kept; **snapshots** = aggregates × bytes per snapshot (T1's per-aggregate figures).
+- **Heap** = the hot set × the heap a cached state takes (not measured), × 10 while the state cache is a tenth of the heap ([What Wow derives](./configuration#what-wow-derives)), plus the commands in flight.
+- **Partitions:** [Nodes and partitions](./scaling#nodes-and-partitions) has the rule.
 
-L1 counts each operation's store round trips, L2 measures single points, L3 the grid of scenarios and data sets, and L4 the sustainable rates, the cliffs, the cluster and the cold cache. Locally, from the repository root, with Docker and a JDK 25:
+**A node's first half minute after start is not its steady state.** On the runner (build <!-- perf:actions-snapshot/start.mongo.e3-mongo.1k.a:commit -->`e3a4e937aa`<!-- /perf -->, <!-- perf:actions-snapshot/start.mongo.e3-mongo.1k.a:cpu -->EPYC 9V45<!-- /perf -->, MongoDB, 1,000 accounts not primed), a fresh node taking E3 at <!-- perf:actions-snapshot/start.mongo.e3-mongo.1k.a:rate -->423.9<!-- /perf -->/s used <!-- perf:actions-snapshot/start.mongo.e3-mongo.1k.a:cold.nodeCores -->1.00<!-- /perf --> of its one core, while MongoDB used <!-- perf:actions-snapshot/start.mongo.e3-mongo.1k.a:cold.storeCores -->0.65<!-- /perf --> of its own. Its p50 was <!-- perf:actions-snapshot/start.mongo.e3-mongo.1k.a:cold.p50FirstMs -->2,637.8 ms<!-- /perf --> at second <!-- perf:actions-snapshot/start.mongo.e3-mongo.1k.a:cold.warmUpSeconds -->10<!-- /perf --> and <!-- perf:actions-snapshot/start.mongo.e3-mongo.1k.a:cold.p50LastMs -->41.2 ms<!-- /perf --> at second <!-- perf:actions-snapshot/start.mongo.e3-mongo.1k.a:cold.lastSecond -->39<!-- /perf -->. After <!-- perf:actions-snapshot/start.mongo.e3-mongo.1k.a:warm.warmUpSeconds -->120<!-- /perf --> s, the same rate took <!-- perf:actions-snapshot/start.mongo.e3-mongo.1k.a:warm.nodeCores -->0.49<!-- /perf --> of the core. So a rolling restart needs CPU headroom for each node that rejoins: for its first half minute it takes more of its core than it later needs for the same rate.
+
+## 6. A worked example {#example}
+
+Computed by the generator from T1 and T2, as the formulas above; each output names the rows it read.
+
+<!-- performance:begin example -->
+<!-- Generated by .github/scripts/docs-capacity.mjs from the reports' headline.json; regenerate with `pnpm docs:reference`. Do not edit. -->
+
+**The inputs:** a context on PostgreSQL taking, at its busiest hour, 2,000 writes (E1) and 500 saga steps (E3) a second; 2,000,000 accounts, 1,000,000 commits a day, kept 3 years.
+
+| Output | Value | From |
+| --- | --- | --- |
+| Nodes, by sustainable rate | 162% of one node's sustainable rate: 3 at 60% each, and one more for a lost node's partitions, 4 | T2: E1 write, PostgreSQL, 1,957.8/s, EPYC 7763, `e3a4e937aa`; T2: E3 saga step, PostgreSQL, 839.9/s, EPYC 7763, `e3a4e937aa` |
+| Node CPU | 2 cores; 3.33 at 60% | T1: E1 write, PostgreSQL, 1,487.5/s, Xeon 8573C, `e3a4e937aa`; T1: E3 saga step, PostgreSQL, 478.7/s, EPYC 7763, `e3a4e937aa` |
+| Database CPU | 1.61 cores | T1: E1 write, PostgreSQL, 1,487.5/s, Xeon 8573C, `e3a4e937aa`; T1: E3 saga step, PostgreSQL, 478.7/s, EPYC 7763, `e3a4e937aa` |
+| Commits a second | 2,381 a second | T1: E1 write, PostgreSQL, 1,487.5/s, Xeon 8573C, `e3a4e937aa`; T1: E3 saga step, PostgreSQL, 478.7/s, EPYC 7763, `e3a4e937aa` |
+| WAL a second | 4.38 MB a second | T1: E1 write, PostgreSQL, 1,487.5/s, Xeon 8573C, `e3a4e937aa`; T1: E3 saga step, PostgreSQL, 478.7/s, EPYC 7763, `e3a4e937aa` |
+| Log storage a year | 228.9 GB | 627 B per event, the actions-axon report, Wow on PostgreSQL, EPYC 9V74, `3fd5349050` |
+| Snapshots | 0.9 GB | 441 B per snapshot, the actions-axon report, Wow on PostgreSQL, EPYC 9V74, `3fd5349050` |
+<!-- performance:end -->
+
+The node count is for the runner's class of node, where the database shares the machine; on a node of its own, go by the node CPU instead. Heap is not computed, because the heap a cached state takes was not measured.
+
+## 7. Where it stops scaling {#where-it-stops}
+
+Nodes add throughput until the database is full.
+
+- **The bound:** the service's rate ≤ the database's CPU ÷ the database CPU per command (T1). Past it, more nodes add nothing; the next step is a bigger or less shared database.
+- **Then a hot aggregate,** at its ceiling (T3) whatever the node count.
+- **Then one aggregate type's log on one database;** splitting it is planned for 10.x.
+
+**Scaling across separate machines was not measured.** The three-node runs share one machine with the database, so they show what a cluster costs, not what it gains. To measure it on your own machines, run the same E1 sweep against 1, 2 and 4 nodes on separate hosts with one database, and read where the database's CPU reaches its limit.
+
+## 8. When the numbers transfer, and how to measure your own {#transfer}
+
+**The figures hold for:**
+
+- a node of the stated hardware class, with the database, Kafka and the load generator beside it;
+- PostgreSQL or MongoDB as the benchmark harness starts them ([`compose.yml`](https://github.com/Ahoo-Wang/Wow/blob/main/test/benchmarks/harness/compose.yml));
+- the benchmark's small events and states (large payloads by T1's Large row);
+- uniform keys unless named;
+- JDK 25, a 1 GB heap, G1;
+- Kafka publishing on.
+
+**Your own,** on your hardware, from the repository root with Docker and a JDK 25:
 
 ```bash
 test/benchmarks/harness/bench.sh build
 test/benchmarks/harness/bench.sh up --backend=postgres --accounts=100000 --prime
 test/benchmarks/harness/bench.sh saturate --reuse --backend=postgres --accounts=100000 --scenario=E1 --sweep
+test/benchmarks/harness/bench.sh run --reuse --backend=postgres --accounts=100000 --scenario=E1 --rate=1000
 test/benchmarks/harness/bench.sh down
 ```
 
-The [benchmark guide](https://github.com/Ahoo-Wang/Wow/blob/main/test/benchmarks/README.md) explains the harness, its options and every suite. Each report's own Reproduce section gives the exact commands behind its figures.
-
-## The full reports {#reports}
-
-[`test/benchmarks/results/reports/`](https://github.com/Ahoo-Wang/Wow/tree/main/test/benchmarks/results/reports) keeps the latest report of each kind on each environment: a snapshot and the comparison with Axon Framework 4, on GitHub Actions and on the M5 Max. A new report replaces the one before it. Each is a `.md` with a directory of the same name, holding the raw results its figures come from; its [README](https://github.com/Ahoo-Wang/Wow/blob/main/test/benchmarks/results/reports/README.md) lists them.
+The sweep gives T2's figure for your machine; a run at your own rate gives T1's. On GitHub's runners, `gh workflow run bench.yml -f tier=L4 -f head_ref=<tag>`. The [benchmark guide](https://github.com/Ahoo-Wang/Wow/blob/main/test/benchmarks/README.md) explains the harness and every suite, and [`test/benchmarks/results/reports/`](https://github.com/Ahoo-Wang/Wow/tree/main/test/benchmarks/results/reports) keeps the reports these figures come from, each with its raw results.
