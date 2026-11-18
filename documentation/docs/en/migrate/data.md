@@ -298,7 +298,7 @@ The tool reads a sharded 9.x store and writes a sharded V10 target through the c
   - the reserved keys by `{tenant_id: 1, key: "hashed"}`.
 
   The checkpoints, the leases and the failure ledger stay unsharded. The connection's user needs the rights to shard: `clusterManager`, or `enableSharding`, `splitChunk` and `moveChunk` on the database.
-- **The tool always shards on a `mongos`.** `target` has no `sharding` or `ddl` choice yet ([#6470](https://github.com/Ahoo-Wang/Wow/issues/6470)). It shards even where the nodes run `wow.mongo.sharding: none`, and it needs the rights to create collections and indexes. A collection already sharded by another key stops the import with an error that names it.
+- **The same choices as the nodes.** Give `target` the nodes' `wow.mongo.sharding` as `sharding` and their `wow.ddl` as `ddl` ([Configuration file](../reference/migrate-data#configuration-file)). With `sharding: none` the tool leaves the collections it creates unsharded. With `ddl: validate` it creates nothing and refuses a target missing a collection. A collection already sharded by another key stops the import with an error that names it.
 
 ### What was rehearsed
 
@@ -309,11 +309,11 @@ The tool reads a sharded 9.x store and writes a sharded V10 target through the c
 3. `compare` (no differences) and `snapshot`;
 4. `export` of a stream V10 wrote after.
 
-It checks that the target's log and snapshot collections are sharded by the keys above and that the log's chunks are on both shards. The cluster runs the MongoDB backend's tests every night. It runs migrate-data's tests only when someone starts them. No real 9.x data has been migrated between sharded clusters, so rehearse yours.
+It checks that the target's log and snapshot collections are sharded by the keys above and that the log's chunks are on both shards. `TargetDdlShardingTest` runs each value of the target's `sharding` and `ddl` there. The cluster runs the MongoDB backend's tests every night. It runs migrate-data's tests only when someone starts them. No real 9.x data has been migrated between sharded clusters, so rehearse yours.
 
 ### What the operator redoes, and when
 
-- **The 9.x sharding script.** It names 9.x's collections and keys: do not run it on the V10 names. The tool and the nodes shard the V10 collections as they create them, and a collection that a script has already sharded by another key makes both of them refuse it. Leave the script out of the V10 deployment. To shard by hand, with `wow.mongo.sharding: none` on the nodes, use the keys in [Sharded clusters](../operate/mongodb#sharded-clusters). Until the tool can be told to leave the sharding to you ([#6470](https://github.com/Ahoo-Wang/Wow/issues/6470)), it shards the collections it creates.
+- **The 9.x sharding script.** It names 9.x's collections and keys: do not run it on the V10 names. The tool and the nodes shard the V10 collections as they create them, and a collection that a script has already sharded by another key makes both of them refuse it. Leave the script out of the V10 deployment. To shard by hand, set `wow.mongo.sharding: none` on the nodes and `"sharding": "none"` on the tool's `target`. The tool then creates each collection unsharded as it first writes to it, and you shard them after `import` and `snapshot`, before traffic, by the keys in [Sharded clusters](../operate/mongodb#sharded-clusters). Each key needs an index of its own: for the log, `{partition: 1, _id: 1}`, as its unique keys are partial and no partial index serves a shard key. After the import, the whole log is on the database's primary shard. Spread it by moving partitions as [Sharded clusters](../operate/mongodb#sharded-clusters) says (`moveChunk` with `forceJumbo`). Each move copies the partition's history between shards: time it in the rehearsal. A target of any size is better imported with `sharding: auto`, which shards each collection while it is empty ([#6479](https://github.com/Ahoo-Wang/Wow/issues/6479) asks for a way to shard by hand before the first write). Do not create a V10 collection before Wow does: one without Wow's format record is refused, by name. A collection sharded by another key is refused by the first run that shards it, and MongoDB refuses any key but the partition for a log collection.
 - **Hand-made snapshot indexes.** An index made on a 9.x `<aggregate>_snapshot` does not carry over. The V10 snapshots are in `wow_snapshot__<context>__<aggregate>`, with renamed fields:
 
   | 9.x | V10 |

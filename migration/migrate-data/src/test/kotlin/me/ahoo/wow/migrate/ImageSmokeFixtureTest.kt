@@ -61,7 +61,7 @@ class ImageSmokeFixtureTest {
             override fun close() = Unit
         }
         val output = ByteArrayOutputStream()
-        MigrateData(PrintStream(output, true), { connections })
+        MigrateData(PrintStream(output, true), { _, _ -> connections })
             .run(listOf("check", "--config", fixture.resolve("migrate-data.json").toString()))
             .assert().describedAs(output.toString()).isEqualTo(MigrateData.OK)
         output.toString().assert().contains("Mapping check passed.")

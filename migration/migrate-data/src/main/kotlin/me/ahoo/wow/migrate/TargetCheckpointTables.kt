@@ -14,6 +14,7 @@
 package me.ahoo.wow.migrate
 
 import com.mongodb.ErrorCategory
+import com.mongodb.MongoCommandException
 import com.mongodb.MongoWriteException
 import com.mongodb.client.ClientSession
 import com.mongodb.client.MongoClient
@@ -23,6 +24,7 @@ import com.mongodb.client.model.IndexOptions
 import com.mongodb.client.model.Indexes
 import com.mongodb.client.model.Sorts
 import com.mongodb.client.model.Updates
+import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.json.WowJson
 import org.bson.Document
 import org.bson.types.ObjectId
@@ -202,19 +204,59 @@ internal class PostgresCheckpointTable(
  * document per key, in the order recorded (its `_id`). A key write runs in a transaction that reads the fences and
  * writes the checkpoints' document, so a write of the checkpoints at once conflicts with it, and one of them is
  * retried.
+ *
+ * Its collections follow the target's [ddl], as the stores' do: `auto` creates them, `validate` only checks that both
+ * collections and the keys' index exist, and `none` does neither.
  */
 internal class MongoCheckpointTable(
     private val client: MongoClient,
     databaseName: String,
     private val clock: () -> Long = System::currentTimeMillis,
+    private val ddl: Ddl = Ddl.AUTO,
 ) : CheckpointTable {
     private val database = client.getDatabase(databaseName)
     private val checkpoints: MongoCollection<Document> = database.getCollection(CHECKPOINTS)
     private val keys: MongoCollection<Document> = database.getCollection(KEYS)
 
-    /** Creates the keys' index when missing. */
+    /**
+     * Makes sure of the two collections and the keys' index as [ddl] says: creates what is missing, or refuses a
+     * target missing any of them, naming what to create.
+     */
     fun createSchema() {
-        keys.createIndex(Indexes.ascending(CHECKPOINT, PREPARE_KEY, ID), IndexOptions().name(KEYS_INDEX))
+        when (ddl) {
+            Ddl.AUTO -> {
+                if (CHECKPOINTS !in database.listCollectionNames()) {
+                    createCollection()
+                }
+                keys.createIndex(KEYS_KEY, IndexOptions().name(KEYS_INDEX))
+            }
+
+            Ddl.VALIDATE -> if (!complete()) {
+                throw MigrationException(
+                    "The target lacks the checkpoint collections, and ddl validate only checks them: create " +
+                        "$CHECKPOINTS, and $KEYS with the index $KEYS_INDEX on { $CHECKPOINT: 1, $PREPARE_KEY: 1, " +
+                        "$ID: 1 }.",
+                )
+            }
+
+            Ddl.NONE -> Unit
+        }
+    }
+
+    /** Whether both collections and the keys' index exist. */
+    private fun complete(): Boolean {
+        val names = database.listCollectionNames().toSet()
+        return CHECKPOINTS in names && KEYS in names &&
+            keys.listIndexes().any { it.getString("name") == KEYS_INDEX }
+    }
+
+    /** Creates the checkpoints' collection; another run creating it at once creates it too. */
+    private fun createCollection() {
+        try {
+            database.createCollection(CHECKPOINTS)
+        } catch (exists: MongoCommandException) {
+            if (exists.errorCode != NAMESPACE_EXISTS) throw exists
+        }
     }
 
     override fun load(name: String): StoredCheckpoints? = checkpoints.find(Filters.eq(ID, name)).first()?.let {
@@ -309,6 +351,7 @@ internal class MongoCheckpointTable(
         const val CHECKPOINTS = "wow_migrate_checkpoint"
         const val KEYS = "wow_migrate_imported_key"
         private const val KEYS_INDEX = "wow_migrate_imported_key_by_name"
+        private const val NAMESPACE_EXISTS = 48
         private const val ID = "_id"
         private const val VERSION = "version"
         private const val CHECKPOINTS_FIELD = "checkpoints"
@@ -318,6 +361,7 @@ internal class MongoCheckpointTable(
         private const val CHECKPOINT = "checkpoint"
         private const val PREPARE_KEY = "prepare_key"
         private const val IMPORTED_KEY = "imported_key"
+        private val KEYS_KEY = Indexes.ascending(CHECKPOINT, PREPARE_KEY, ID)
     }
 }
 
