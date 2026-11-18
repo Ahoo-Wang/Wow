@@ -53,6 +53,7 @@ class OptionalCapabilitiesTest {
         runBlocking {
             Required.handedOff(0)
             assertThrows<IllegalArgumentException> { Required.handedOff(1) }
+            assertThrows<IllegalArgumentException> { Required.handedOff(-1) }
         }
 
     @Test

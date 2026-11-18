@@ -155,6 +155,7 @@ class MongoSequencerBlocksTest : MongoLogFixtures() {
             // Nothing is left to close: a second hand-off writes nothing.
             old.handedOff(0)
             assertThrownBy<IllegalArgumentException> { runBlocking { old.handedOff(1) } }
+            assertThrownBy<IllegalArgumentException> { runBlocking { old.handedOff(-1) } }
         }
 
     @Test
