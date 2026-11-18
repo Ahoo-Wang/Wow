@@ -244,6 +244,21 @@ class UnmarkedAggregateIdTest {
     }
 
     @Test
+    fun `a command whose supertype does not resolve should not fail the processor`() {
+        // Kotlin reports the unresolved type; the report of an unmarked id must not throw over it.
+        val (_, result) = compileModel(
+            "generate",
+            context,
+            stock(
+                commands = "data class Reserve(val sku: String) : LegacyCommand",
+                functions = "fun onCommand(command: Reserve): Stocked = Stocked(0)",
+            ),
+        )
+        result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        result.messages.assert().doesNotContain("NullPointerException").contains("LegacyCommand")
+    }
+
+    @Test
     fun `an unaddressed or mounted command should not be warned of`() {
         compiled(
             stock(

@@ -232,10 +232,11 @@ internal object AggregateIdResolver {
      * property, only as their accessors, and a mark on a component as none, in its source or its class file alike.
      */
     private fun KSClassDeclaration.isRecordOfId(): Boolean =
-        getAllSuperTypes().any { it.declaration.qualifiedName!!.asString() == RECORD } &&
+        // A supertype or a return type that does not resolve has no qualified name: it is no record, and no String.
+        getAllSuperTypes().any { it.declaration.qualifiedName?.asString() == RECORD } &&
             getAllFunctions().any {
                 it.simpleName.asString() == ID &&
-                    it.returnType!!.resolve().declaration.qualifiedName!!.asString() in STRINGS
+                    it.returnType?.resolve()?.declaration?.qualifiedName?.asString() in STRINGS
             }
 
     /** The properties of [command] and its supertypes, the class's own first. */
