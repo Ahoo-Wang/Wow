@@ -160,6 +160,13 @@ internal class ModelSymbolProcessor(
 
     /** The module's `@ErrorCode` codes without problems, by property. */
     private val errorCodes = sortedMapOf<String, ErrorCodeBinding>()
+
+    /**
+     * The origins of the module's aggregating outputs, the Manifest fragment, the model provider and its service file:
+     * every file a binding was read from (roots, upgrades, error codes, routes, mounted commands, subscription
+     * processors, the `@BoundedContext`s). Any change invalidates an aggregating output, and KSP then hands the
+     * processor every one of its origins again, so each round collects the whole module, as a clean build does.
+     */
     private val sources = mutableSetOf<KSFile>()
 
     /** Whether the module has `wow-query-api`, so each state gets its `<State>Properties` ([QueryPropertiesSource]). */
@@ -423,6 +430,10 @@ internal class ModelSymbolProcessor(
             }
         }
 
+    /**
+     * The processor's `<Processor>Subscriptions`: an isolating output, whose origins are the [processor]'s file and the
+     * `@BoundedContext`s', since its subscriptions are named after the context.
+     */
     private fun generate(binding: SubscriptionBinding, processor: KSClassDeclaration) {
         codeGenerator.createNewFile(
             Dependencies(
@@ -524,6 +535,12 @@ internal class ModelSymbolProcessor(
         }
     }
 
+    /**
+     * The aggregate's `<Aggregate>Model`, an isolating output whose origins are the [root]'s file, its upgrade
+     * functions' files and the `@BoundedContext`s', since the model names its context; and the state's `<State>Access`
+     * and `<State>Properties`, whose origins are the root's file and the state's ([AccessSource],
+     * [QueryPropertiesSource]).
+     */
     private fun generate(binding: AggregateBinding, root: KSClassDeclaration) {
         val upgradeFiles = upgrades.filter { upgrade -> binding.upgrades.any { it.function == upgrade.name } }
             .mapNotNull { it.declaration.containingFile }
@@ -537,9 +554,9 @@ internal class ModelSymbolProcessor(
             "${binding.rootSimpleName}Model",
         ).bufferedWriter().use { it.write(ModelSource.render(binding, contexts.context())) }
         val state = RootStateResolver.stateOf(root)
-        AccessSource.generate(codeGenerator, state, binding.access, binding.internal, accessOf)
+        AccessSource.generate(codeGenerator, state, root, binding.access, binding.internal, accessOf)
         if (queryApi == true) {
-            QueryPropertiesSource.generate(codeGenerator, state, propertiesOf)
+            QueryPropertiesSource.generate(codeGenerator, state, root, propertiesOf)
                 .forEach { logger.error("${binding.root}: $it", root) }
         }
     }
