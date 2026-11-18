@@ -11,8 +11,7 @@ import {
   NOISE_FLOOR,
   SIGNIFICANCE_METRICS,
   confidence,
-  modeOf,
-  refusedRound,
+  roundPairs,
 } from './bench-calibration.mjs';
 import { labelOf } from './bench-common.mjs';
 
@@ -20,7 +19,9 @@ import { labelOf } from './bench-common.mjs';
 //
 // Each A/A suite run is one entry of test/benchmarks/noise-history.json, appended and never edited: where it ran
 // (the run, the build, the runner's CPU model and the suite's CPU pinning, the date) and, per significance metric,
-// its A/A interval and each equal-rate round pair's own ratio. A suite's threshold per metric is the largest A/A
+// its A/A interval and each equal-rate round pair's own ratio (from each run's whole histogram). The rule reads only
+// an interval's ends; its `point` is the interval's own statistic (a typical second's, `confidence`), except in the
+// entries added before that change, whose point is the ratio of the arms' median whole-run percentiles. A suite's threshold per metric is the largest A/A
 // half-width among its last POOL entries, not below the farthest any of their intervals reached from 1 and not below
 // NOISE_FLOOR. So a ratio is beyond noise (`verdict`, bench-calibration.mjs) when its whole interval clears 1 by at
 // least as much as an identical-code run's own interval has recently been wide, and no recent A/A run of the suite
@@ -62,22 +63,6 @@ const round4 = value =>
 export const pooled = suite =>
   Boolean(suite.aa) && !suite.properties && suite.primed !== false;
 
-/** The equal-rate round pairs of an A/A suite: each round's b over a, per metric, refused rounds left out. */
-function pairs(suite) {
-  const [a, b] = suite.arms.map(arm => arm.id);
-  const runs = suite.runs.filter(
-    run => modeOf(run) === EQUAL && run.status === 'ok' && !refusedRound(run),
-  );
-  const rounds = [...new Set(runs.map(run => run.round))].sort((x, y) => x - y);
-  return rounds
-    .map(round =>
-      [a, b].map(arm =>
-        runs.find(run => run.round === round && run.arm === arm),
-      ),
-    )
-    .filter(([ra, rb]) => ra && rb);
-}
-
 /**
  * A run's entries: one per pooled A/A suite that measured an equal-rate pair, with where it ran and, per metric, the
  * A/A interval (lo, point, hi) and each round pair's ratio.
@@ -86,7 +71,7 @@ export function noiseEntries(suites, { run, attempt } = {}) {
   return suites.filter(pooled).flatMap(suite => {
     const intervals = confidence(suite, EQUAL);
     if (!METRICS.some(metric => intervals[metric])) return [];
-    const roundPairs = pairs(suite);
+    const pairs = roundPairs(suite, EQUAL);
     const metrics = Object.fromEntries(
       METRICS.map(metric => {
         const interval = intervals[metric];
@@ -100,7 +85,7 @@ export function noiseEntries(suites, { run, attempt } = {}) {
                   hi: round4(interval.hi),
                 }
               : {}),
-            pairs: roundPairs
+            pairs: pairs
               .map(([ra, rb]) => rb.metrics[metric] / ra.metrics[metric])
               .filter(Number.isFinite)
               .map(round4),
@@ -117,7 +102,7 @@ export function noiseEntries(suites, { run, attempt } = {}) {
         cpu: suite.runner?.cpu,
         cpus: suite.cpus,
         date: suite.startedAt,
-        rounds: roundPairs.length,
+        rounds: pairs.length,
         metrics,
       },
     ];
