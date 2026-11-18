@@ -24,9 +24,18 @@ import org.bson.Document
 
 /**
  * The sequence one tail of [partition] waits at ([MongoEventLog.tail]): missing while something lies past it, where an
- * append of some node may still land, so the tail never steps over it. Missing for [STALL_GRACE], it is resolved
- * through the counter's open blocks ([MongoSequencer.resolve]), read from [counters] as a majority committed them:
- * this node's own remainder is closed, its own unfilled sequence filled, another node's block sealed. One per tail.
+ * append of some node may still land, so the tail never steps over it. One this node never gave out of its current
+ * block cannot fill: it is closed at once with the rest of the block ([MongoSequencer.unallocated]). Any other,
+ * missing for [STALL_GRACE], is resolved through the counter's open blocks ([MongoSequencer.resolve]), read from
+ * [counters] as a majority committed them: this node's own remainder is closed, its own unfilled sequence filled,
+ * another node's block sealed. One per tail.
+ *
+ * **What bounds the closes at once.** The grace paced the closes of a partition to one a second; these are not paced,
+ * and the tail reads again at once after each. Each closes one block of this node, and is met only when a sequence
+ * another node wrote lies past it: this node writes past its current block only once that block is retired. So a
+ * partition's closes at once are at most the blocks this node opens that another node's appends land past, no more
+ * than those foreign appends, which only a partition that changes hands has. Each costs one range placeholder, and
+ * the node's next append there one counter update for a new block, both of which the grace path paid as well, later.
  */
 internal class MongoMissingSequences(
     private val partition: Int,
@@ -40,8 +49,15 @@ internal class MongoMissingSequences(
     private var stalled = 0L
     private var since = 0L
 
-    /** The tail's read found [missing], null for none: resolved once it has been missing for the grace. */
-    suspend fun met(missing: Long?) {
+    /**
+     * The tail's read found [missing], null for none: closed at once when it is this node's never given out, else
+     * resolved once it has been missing for the grace. True when it was closed at once: the tail reads again unpaced.
+     */
+    suspend fun met(missing: Long?): Boolean {
+        if (missing != null && closedAtOnce(missing)) {
+            stalled = 0L
+            return true
+        }
         when {
             missing == null -> stalled = 0L
             missing != stalled -> {
@@ -54,6 +70,14 @@ internal class MongoMissingSequences(
                 since = System.nanoTime()
             }
         }
+        return false
+    }
+
+    /** Whether [sequence] was this node's never given out: its block's remainder is then one range placeholder. */
+    private suspend fun closedAtOnce(sequence: Long): Boolean {
+        val closing = sequencer.unallocated(partition, sequence) ?: return false
+        dispatcher.mongo { placeholders.close(closing) }
+        return true
     }
 
     /**

@@ -88,7 +88,8 @@ import kotlin.time.Duration.Companion.seconds
  * **Tail.** [tail] reads a partition in one aggregation: the partition's counter first, then, through `$unionWith`,
  * each aggregate collection's first entries and placeholders after the last sequence; it merges them by sequence and
  * emits the entries of the run from the last sequence that is final, stepping over placeholders. It never steps over
- * a missing sequence: an append of some node may still land there. Missing for [STALL_GRACE], the sequence is
+ * a missing sequence: an append of some node may still land there. A sequence this node never gave out of its
+ * current block cannot fill, and is closed at once with the rest of the block. Any other missing for [STALL_GRACE] is
  * resolved through the counter's open blocks ([MongoMissingSequences]): this node's own remainder is closed, its own
  * unfilled sequence filled, another node's block sealed; entries past it while it waits may also be in a collection
  * this log does not know yet, so it reads the registry again. A node that hands a partition off closes its block's remainder then ([handedOff]),
@@ -384,8 +385,9 @@ class MongoEventLog(
             batch.entries.forEach { emit(it) }
             last = batch.through
             val missing = batch.missing
-            missingSequences.met(missing)
-            if (!batch.again) {
+            // Once it closed a remainder, the tail reads again at once: the placeholder lets it on.
+            val closed = missingSequences.met(missing)
+            if (!batch.again && !closed) {
                 val pace = pacer.await(partition, mark, batch.entries.isNotEmpty(), idle, woken && missing == null)
                 idle = pace.idle
                 woken = pace.woken
