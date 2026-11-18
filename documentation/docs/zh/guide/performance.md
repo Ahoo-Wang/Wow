@@ -131,8 +131,92 @@ outline: deep
 同一台云端 runner 上的三个节点，与数据库、Kafka 共用 <!-- perf:actions-snapshot/cluster.postgres.e1-steady:cpus.server -->3<!-- /perf --> 个核（构建 <!-- perf:actions-snapshot/cluster.postgres.e1-steady:commit -->`e3a4e937aa`<!-- /perf -->；PostgreSQL 的 runner 为 <!-- perf:actions-snapshot/cluster.postgres.e1-steady:cpu -->EPYC 7763<!-- /perf -->，MongoDB 的为 <!-- perf:actions-snapshot/cluster.mongo.e1-steady:cpu -->Xeon 6975P-C<!-- /perf -->）：
 
 - **稳态下**，以 <!-- perf:actions-snapshot/cluster.postgres.e1-steady:value -->150/s<!-- /perf --> 写入时，p99 在 PostgreSQL 上为 <!-- perf:actions-snapshot/cluster.postgres.e1-steady:p99Ms -->14.1 ms<!-- /perf -->，在 MongoDB 上为 <!-- perf:actions-snapshot/cluster.mongo.e1-steady:p99Ms -->13.7 ms<!-- /perf -->。
-- **运行中停掉一个节点：** 它的分区在几秒内移到其他节点。写入最差一秒的 p99 在 PostgreSQL 上为 <!-- perf:actions-snapshot/cluster.postgres.e1-handover:worstSecondP99Ms -->3,129.3 ms<!-- /perf -->，在 MongoDB 上为 <!-- perf:actions-snapshot/cluster.mongo.e1-handover:worstSecondP99Ms -->1,671.2 ms<!-- /perf -->；失败的写入分别为 <!-- perf:actions-snapshot/cluster.postgres.e1-handover:failed -->0<!-- /perf --> 与 <!-- perf:actions-snapshot/cluster.mongo.e1-handover:failed -->0<!-- /perf --> 条。在同一次交接中，saga 链在 MongoDB 上失败 <!-- perf:actions-snapshot/cluster.mongo.e3-handover:failed -->39<!-- /perf --> 条，在 PostgreSQL 上失败 <!-- perf:actions-snapshot/cluster.postgres.e3-handover:failed -->1<!-- /perf --> 条，各为一次运行，构建为 <!-- perf:actions-snapshot/cluster.mongo.e3-handover:commit -->`e3a4e937aa`<!-- /perf -->。MongoDB 上的失败都发生在被停节点重启之后、它的分区逐个追赶期间：这正是 [#6407](https://github.com/Ahoo-Wang/Wow/issues/6407)，此构建之后由 [#6412](https://github.com/Ahoo-Wang/Wow/pull/6412) 修复（时间线见[报告](https://github.com/Ahoo-Wang/Wow/blob/main/test/benchmarks/results/reports/actions-snapshot.md#l4-cluster-and-hand-over-e5)）。
+- **运行中停掉一个节点：** 它的分区在几秒内移到其他节点。写入最差一秒的 p99 在 PostgreSQL 上为 <!-- perf:actions-snapshot/cluster.postgres.e1-handover:worstSecondP99Ms -->3,129.3 ms<!-- /perf -->，在 MongoDB 上为 <!-- perf:actions-snapshot/cluster.mongo.e1-handover:worstSecondP99Ms -->1,671.2 ms<!-- /perf -->；失败的写入分别为 <!-- perf:actions-snapshot/cluster.postgres.e1-handover:failed -->0<!-- /perf --> 与 <!-- perf:actions-snapshot/cluster.mongo.e1-handover:failed -->0<!-- /perf --> 条。在同一次交接中，saga 链在 MongoDB 上失败 <!-- perf:actions-snapshot/cluster.mongo.e3-handover:failed -->39<!-- /perf --> 条，在 PostgreSQL 上失败 <!-- perf:actions-snapshot/cluster.postgres.e3-handover:failed -->1<!-- /perf --> 条，各为一次运行，构建为 <!-- perf:actions-snapshot/cluster.mongo.e3-handover:commit -->`e3a4e937aa`<!-- /perf -->。MongoDB 上的失败都发生在被停节点重启之后、它的分区逐个追赶期间：这正是 [#6407](https://github.com/Ahoo-Wang/Wow/issues/6407)，此构建之后先由 [#6412](https://github.com/Ahoo-Wang/Wow/pull/6412)、再由 [#6424](https://github.com/Ahoo-Wang/Wow/pull/6424) 修复（时间线见[报告](https://github.com/Ahoo-Wang/Wow/blob/main/test/benchmarks/results/reports/actions-snapshot.md#l4-cluster-and-hand-over-e5)；两次修复的测量见[集群怎样恢复](#recovery)）。
 - **没有测量：跨多台机器的扩展。** 这些节点与数据库共用一台机器，所以它们显示的是集群的开销，而不是它带来的收益。[容量规划](../operate/performance)给出上限，以及在你自己的机器上要做的测量。
+
+### 集群怎样恢复 {#recovery}
+
+下面每种情形都在修复前后各测了一次，见[恢复报告](https://github.com/Ahoo-Wang/Wow/blob/main/test/benchmarks/results/reports/m5max-recovery.md)。每张表注明其机器与 JDK，每行注明其构建。只有当修复与它之前的构建在同一台机器上的同一批测量中、各轮交替运行时，才把两者并列对比；来自不同运行的各行各自成立。
+
+**一个节点同时失去全部租约**（[#6379](https://github.com/Ahoo-Wang/Wow/issues/6379)，由 [#6384](https://github.com/Ahoo-Wang/Wow/pull/6384) 修复）。MongoDB 先暂停、再以很慢的速度服务，节点失去了每一个租约。有修复时，每个分区在失去后 <!-- perf:m5max-recovery/lost-leases.fix:lastBackSeconds.1 -->3.5<!-- /perf --> s 之内都已恢复。在合并基点上，<!-- perf:m5max-recovery/lost-leases.base:firstBackSeconds.0 -->47.2<!-- /perf --> s 之前没有一个分区恢复，到本轮结束时仍有分区没有恢复：它逐个停止失去的分区，每次停止都要等待缓慢的存储，直到最后一个停完才重新获取它们。
+
+<!-- performance:begin recovery-leases -->
+<!-- 由 .github/scripts/docs-recovery.mjs 依据恢复报告的 headline.json 生成；用 `pnpm docs:reference` 重新生成。请勿手改。 -->
+
+Apple M5 Max, 18 cores, 64 GB，JDK 25.0.5+8，MongoDB，一个节点。修复对比其合并基点，同一批测量，每侧 3 轮交替。每一轮节点都失去了全部 64 个租约；每个时间从一个分区失去租约起，到它重新获得为止。
+
+| 构建 | 第一个恢复 | 最后一个恢复 | 每轮结束时已恢复 |
+| --- | ---: | ---: | ---: |
+| 修复 `93f53932fa` | 2.4–2.7 s | 2.4–3.5 s | 64、64、64（共 64） |
+| 合并基点 `7f46c8dfb4` | 47.2–47.8 s | 未全部恢复 | 16、28、16（共 64） |
+<!-- performance:end -->
+
+**一次计划内的交接**（[#6407](https://github.com/Ahoo-Wang/Wow/issues/6407)，先由 [#6412](https://github.com/Ahoo-Wang/Wow/pull/6412)、再由发布的代码 [#6424](https://github.com/Ahoo-Wang/Wow/pull/6424) 修复）。在 saga 运行期间，平稳地停掉一个节点再重启。在 main 上，移来的分区两个一组地排队等待节点的追赶许可。有 #6412 时，每个分区都在第一页之内追上，不需要许可。#6424 对缺口能放进第一页的分区保留这一点，而让更长的积压等待许可，这正是追赶上限的用意。
+
+<!-- performance:begin recovery-handover -->
+<!-- 由 .github/scripts/docs-recovery.mjs 依据恢复报告的 headline.json 生成；用 `pnpm docs:reference` 重新生成。请勿手改。 -->
+
+Apple M5 Max, 18 cores, 64 GB，JDK 25.0.5+8，3 个节点，CI 的 E3 交接步骤。每轮发送 5,250 条命令；失败的一条是 saga 的一次等待超时。每批测量先交替运行两个 MongoDB 分支，再跑一轮 PostgreSQL。
+
+**第 1 批：**
+
+| 构建 | 存储 | 每轮失败的等待 | p99，最低到最高的一轮 |
+| --- | --- | ---: | ---: |
+| main `e3a4e937aa`，带日志探针 | MongoDB | 15、2、2 | 2,851–5,636 ms |
+| 修复 `55937a4b2c`，带日志探针 | MongoDB | 1、1、2 | 1,581–1,983 ms |
+| 修复 `55937a4b2c`，带日志探针 | PostgreSQL | 0 | 22 ms |
+
+**第 2 批：**
+
+| 构建 | 存储 | 每轮失败的等待 | p99，最低到最高的一轮 |
+| --- | --- | ---: | ---: |
+| main `f43a7a75bf`，含 #6412 | MongoDB | 1、1、1 | 1,778–1,974 ms |
+| #6424 `0249db185b` | MongoDB | 1、1、1 | 1,737–1,901 ms |
+| #6424 `0249db185b` | PostgreSQL | 0 | 20 ms |
+<!-- performance:end -->
+
+**仍未解决：** 两次修复之后，MongoDB 的每一轮里仍有一次等待超时。移来的分区在追赶时，会在旧属主留下的每个未关闭的序列块上等满 MongoDB 的停顿宽限期。这项工作正在进行，其结果尚未测量。
+
+**实时订单下的追赶，设与不设上限。** 迁移演练在 V10 主机追赶导入的日志期间发送实时订单。追赶上限（`wow.subscription.max-catch-ups`，默认两个许可）不拒绝任何命令：它只让一个分区第一页之后的读取等到有空闲许可为止。两个许可时，两个任务上都没有实时订单失败；不设上限时，两个任务上都有订单失败。
+
+<!-- performance:begin recovery-bound -->
+<!-- 由 .github/scripts/docs-recovery.mjs 依据恢复报告的 headline.json 生成；用 `pnpm docs:reference` 重新生成。请勿手改。 -->
+
+GitHub Actions ubuntu-26.04，未记录 CPU 型号，JDK 25.0.5，迁移演练中 V10 主机在导入的日志上首次启动时的实时订单，构建为 #6412 的头 `f33284fa69` 加上演练的埋点。每个分支是一次单独的运行（44137290807 与 44137289607），两者同时派发、在不同的 runner 上运行，所以各行各自成立。
+
+| 追赶许可 | 任务 | 失败（共 6,000） | 最差一秒的 p99 | 追赶 |
+| --- | --- | ---: | ---: | ---: |
+| 2 个许可，`0853cbf27b` | runner | 0 | 10,260 ms | 87.5 s |
+| 2 个许可，`0853cbf27b` | kind | 0 | 4,614 ms | 59.4 s |
+| 不设上限，`7c0896effd` | runner | 7 | 22,566 ms | 66.3 s |
+| 不设上限，`7c0896effd` | kind | 2,587 | 30,475 ms | 107.2 s |
+<!-- performance:end -->
+
+**一个节点在迁移来的历史上首次激活。** 导入的日志中每个分区都远远落后于其头部，所以在 #6424 下，每个分区在读取第一条之前都要等待许可，与 #6412 之前相同。两对运行把 #6424 与 #6412 的父提交放在一起。所有运行中都没有实时订单失败。最差的一秒在第一对中偏向一方，在第二对中偏向另一方：两对的方向不一致，所以它们既不表明 #6424 在首次激活时比其父提交慢，也不表明两者一样快。
+
+<!-- performance:begin recovery-first-start -->
+<!-- 由 .github/scripts/docs-recovery.mjs 依据恢复报告的 headline.json 生成；用 `pnpm docs:reference` 重新生成。请勿手改。 -->
+
+GitHub Actions ubuntu-26.04，未记录 CPU 型号，JDK 25.0.5，同样的实时订单，使用默认上限。每个分支是它的代码加上演练的埋点；一对中的两次运行同时派发，所以它们处于同一时段，但不在同一台 runner 上。
+
+**第 1 对**，运行 44203434208 与 44203434241：
+
+| 构建 | 任务 | 失败（共 6,000） | 最差一秒的 p99 | 追赶 |
+| --- | --- | ---: | ---: | ---: |
+| #6412 的父提交 `0d2017aa28` | runner | 0 | 1,640 ms | 49.5 s |
+| #6424 `0249db185b` | runner | 0 | 3,278 ms | 49.5 s |
+| #6412 的父提交 `0d2017aa28` | kind | 0 | 2,458 ms | 49.1 s |
+| #6424 `0249db185b` | kind | 0 | 3,471 ms | 84.7 s |
+
+**第 2 对**，运行 44203470768 与 44203470883：
+
+| 构建 | 任务 | 失败（共 6,000） | 最差一秒的 p99 | 追赶 |
+| --- | --- | ---: | ---: | ---: |
+| #6412 的父提交 `0d2017aa28` | runner | 0 | 2,713 ms | 73.2 s |
+| #6424 `0249db185b` | runner | 0 | 2,092 ms | 45.1 s |
+| #6412 的父提交 `0d2017aa28` | kind | 0 | 2,529 ms | 49.3 s |
+| #6424 `0249db185b` | kind | 0 | 2,209 ms | 49.6 s |
+<!-- performance:end -->
 
 ## 与 Axon Framework 4 对比 {#against-axon-framework-4}
 

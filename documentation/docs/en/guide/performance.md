@@ -131,8 +131,92 @@ With a million accounts and nothing cached, on the cloud runner (build <!-- perf
 Three nodes on one cloud runner, sharing <!-- perf:actions-snapshot/cluster.postgres.e1-steady:cpus.server -->3<!-- /perf --> cores with the database and Kafka (build <!-- perf:actions-snapshot/cluster.postgres.e1-steady:commit -->`e3a4e937aa`<!-- /perf -->; runners <!-- perf:actions-snapshot/cluster.postgres.e1-steady:cpu -->EPYC 7763<!-- /perf --> for PostgreSQL and <!-- perf:actions-snapshot/cluster.mongo.e1-steady:cpu -->Xeon 6975P-C<!-- /perf --> for MongoDB):
 
 - **In steady state**, writes at <!-- perf:actions-snapshot/cluster.postgres.e1-steady:value -->150/s<!-- /perf --> answer within a p99 of <!-- perf:actions-snapshot/cluster.postgres.e1-steady:p99Ms -->14.1 ms<!-- /perf --> on PostgreSQL and <!-- perf:actions-snapshot/cluster.mongo.e1-steady:p99Ms -->13.7 ms<!-- /perf --> on MongoDB.
-- **A node stopped mid-run:** its partitions move to the others in seconds. The worst second's p99 of writes was <!-- perf:actions-snapshot/cluster.postgres.e1-handover:worstSecondP99Ms -->3,129.3 ms<!-- /perf --> on PostgreSQL and <!-- perf:actions-snapshot/cluster.mongo.e1-handover:worstSecondP99Ms -->1,671.2 ms<!-- /perf --> on MongoDB; <!-- perf:actions-snapshot/cluster.postgres.e1-handover:failed -->0<!-- /perf --> and <!-- perf:actions-snapshot/cluster.mongo.e1-handover:failed -->0<!-- /perf --> writes failed. Through the same hand-over, <!-- perf:actions-snapshot/cluster.mongo.e3-handover:failed -->39<!-- /perf --> saga chains failed on MongoDB and <!-- perf:actions-snapshot/cluster.postgres.e3-handover:failed -->1<!-- /perf --> on PostgreSQL, one run each, at build <!-- perf:actions-snapshot/cluster.mongo.e3-handover:commit -->`e3a4e937aa`<!-- /perf -->. MongoDB's come after the stopped node's restart, while its partitions caught up a few at a time: that is [#6407](https://github.com/Ahoo-Wang/Wow/issues/6407), fixed after this build by [#6412](https://github.com/Ahoo-Wang/Wow/pull/6412) ([the report](https://github.com/Ahoo-Wang/Wow/blob/main/test/benchmarks/results/reports/actions-snapshot.md#l4-cluster-and-hand-over-e5) has the timing).
+- **A node stopped mid-run:** its partitions move to the others in seconds. The worst second's p99 of writes was <!-- perf:actions-snapshot/cluster.postgres.e1-handover:worstSecondP99Ms -->3,129.3 ms<!-- /perf --> on PostgreSQL and <!-- perf:actions-snapshot/cluster.mongo.e1-handover:worstSecondP99Ms -->1,671.2 ms<!-- /perf --> on MongoDB; <!-- perf:actions-snapshot/cluster.postgres.e1-handover:failed -->0<!-- /perf --> and <!-- perf:actions-snapshot/cluster.mongo.e1-handover:failed -->0<!-- /perf --> writes failed. Through the same hand-over, <!-- perf:actions-snapshot/cluster.mongo.e3-handover:failed -->39<!-- /perf --> saga chains failed on MongoDB and <!-- perf:actions-snapshot/cluster.postgres.e3-handover:failed -->1<!-- /perf --> on PostgreSQL, one run each, at build <!-- perf:actions-snapshot/cluster.mongo.e3-handover:commit -->`e3a4e937aa`<!-- /perf -->. MongoDB's come after the stopped node's restart, while its partitions caught up a few at a time: that is [#6407](https://github.com/Ahoo-Wang/Wow/issues/6407), fixed after this build by [#6412](https://github.com/Ahoo-Wang/Wow/pull/6412) and then [#6424](https://github.com/Ahoo-Wang/Wow/pull/6424) ([the report](https://github.com/Ahoo-Wang/Wow/blob/main/test/benchmarks/results/reports/actions-snapshot.md#l4-cluster-and-hand-over-e5) has the timing; [How a cluster recovers](#recovery) measures both fixes).
 - **Not measured: scaling across separate machines.** These nodes share one machine with the database, so they show what a cluster costs, not what it gains. [Capacity planning](../operate/performance) gives the bound, and the run to make on your own machines.
+
+### How a cluster recovers {#recovery}
+
+Each case below is measured before and after its fix, in the [recovery report](https://github.com/Ahoo-Wang/Wow/blob/main/test/benchmarks/results/reports/m5max-recovery.md). Each table names its machine and JDK, and each row its build. A fix is set against the build before it only where both ran in one batch on one machine, their rounds alternating; rows from separate runs stand apart.
+
+**A node that loses all its leases at once** ([#6379](https://github.com/Ahoo-Wang/Wow/issues/6379), fixed by [#6384](https://github.com/Ahoo-Wang/Wow/pull/6384)). MongoDB is paused and then served slowly, and the node loses every lease. With the fix, every partition was back within <!-- perf:m5max-recovery/lost-leases.fix:lastBackSeconds.1 -->3.5<!-- /perf --> s of its loss. On the merge base, none was back before <!-- perf:m5max-recovery/lost-leases.base:firstBackSeconds.0 -->47.2<!-- /perf --> s, and some were still out when the round ended: it stopped the lost partitions one after another, each stop waiting on the slow store, and acquired them again only after the last.
+
+<!-- performance:begin recovery-leases -->
+<!-- Generated by .github/scripts/docs-recovery.mjs from the recovery report's headline.json; regenerate with `pnpm docs:reference`. Do not edit. -->
+
+Apple M5 Max, 18 cores, 64 GB, JDK 25.0.5+8, MongoDB, one node. The fix against its merge base, one batch, 3 rounds a side alternating. In every round the node lost all 64 of its leases; each time runs from a partition's loss to its acquisition.
+
+| Build | First back | Last back | Back at each round's end |
+| --- | ---: | ---: | ---: |
+| fix `93f53932fa` | 2.4–2.7 s | 2.4–3.5 s | 64, 64, 64 of 64 |
+| merge base `7f46c8dfb4` | 47.2–47.8 s | not all back | 16, 28, 16 of 64 |
+<!-- performance:end -->
+
+**A planned hand-over** ([#6407](https://github.com/Ahoo-Wang/Wow/issues/6407), fixed by [#6412](https://github.com/Ahoo-Wang/Wow/pull/6412), then by [#6424](https://github.com/Ahoo-Wang/Wow/pull/6424), the code that ships). A node is stopped gracefully and restarted while sagas run. On main, the moved partitions queued two at a time for the node's catch-up permits. With #6412, each caught up within its first page, without a permit. #6424 keeps that for a partition whose gap fits in its first page, and makes a longer backlog wait for a permit, as the catch-up bound intends.
+
+<!-- performance:begin recovery-handover -->
+<!-- Generated by .github/scripts/docs-recovery.mjs from the recovery report's headline.json; regenerate with `pnpm docs:reference`. Do not edit. -->
+
+Apple M5 Max, 18 cores, 64 GB, JDK 25.0.5+8, 3 nodes, CI's E3 hand-over step. Each round sent 5,250 commands; a failed one is a saga's timed-out wait. Each batch alternated its two MongoDB arms, then ran one PostgreSQL round.
+
+**Batch 1:**
+
+| Build | Store | Failed waits per round | p99, lowest to highest round |
+| --- | --- | ---: | ---: |
+| main `e3a4e937aa`, with log probes | MongoDB | 15, 2, 2 | 2,851–5,636 ms |
+| fix `55937a4b2c`, with log probes | MongoDB | 1, 1, 2 | 1,581–1,983 ms |
+| fix `55937a4b2c`, with log probes | PostgreSQL | 0 | 22 ms |
+
+**Batch 2:**
+
+| Build | Store | Failed waits per round | p99, lowest to highest round |
+| --- | --- | ---: | ---: |
+| main `f43a7a75bf`, which carries #6412 | MongoDB | 1, 1, 1 | 1,778–1,974 ms |
+| #6424 `0249db185b` | MongoDB | 1, 1, 1 | 1,737–1,901 ms |
+| #6424 `0249db185b` | PostgreSQL | 0 | 20 ms |
+<!-- performance:end -->
+
+**Still open:** after both fixes, a wait still timed out in every MongoDB round. A moved partition's catch-up waits out MongoDB's stall grace at each sequence block the old owner left open. This is being worked on, and its result has not been measured.
+
+**A catch-up under live orders, with and without the bound.** The migration rehearsal sends live orders while a V10 host catches up on an imported log. The catch-up bound (`wow.subscription.max-catch-ups`, two permits by default) refuses no command: it holds a partition's reads past its first page until a permit is free. With two permits, no live order failed on either job; with no bound, orders failed on both.
+
+<!-- performance:begin recovery-bound -->
+<!-- Generated by .github/scripts/docs-recovery.mjs from the recovery report's headline.json; regenerate with `pnpm docs:reference`. Do not edit. -->
+
+GitHub Actions ubuntu-26.04, CPU model not recorded, JDK 25.0.5, the migration rehearsal's live orders on the V10 host's first start on an imported log, at #6412's head `f33284fa69` plus the rehearsal's instrumentation. Each arm is a run of its own (44137290807 and 44137289607), the two dispatched together on separate runners, so their rows stand apart.
+
+| Catch-up permits | Job | Failed of 6,000 | Worst second's p99 | Catch-up |
+| --- | --- | ---: | ---: | ---: |
+| 2 permits, `0853cbf27b` | runner | 0 | 10,260 ms | 87.5 s |
+| 2 permits, `0853cbf27b` | kind | 0 | 4,614 ms | 59.4 s |
+| no bound, `7c0896effd` | runner | 7 | 22,566 ms | 66.3 s |
+| no bound, `7c0896effd` | kind | 2,587 | 30,475 ms | 107.2 s |
+<!-- performance:end -->
+
+**A node's first activation on a migrated history.** Every partition of an imported log is far behind its head, so with #6424 each waits for a permit before its first entry, as before #6412. Two pairs set #6424 against the parent of #6412. No live order failed in any run. The worst second went one way in the first pair and the other way in the second: the pairs agree on no direction, so they show neither that #6424 is slower at a first activation than its parent nor that it is as fast.
+
+<!-- performance:begin recovery-first-start -->
+<!-- Generated by .github/scripts/docs-recovery.mjs from the recovery report's headline.json; regenerate with `pnpm docs:reference`. Do not edit. -->
+
+GitHub Actions ubuntu-26.04, CPU model not recorded, JDK 25.0.5, the same live orders at the default bound. Each arm is its code plus the rehearsal's instrumentation; a pair's runs were dispatched together, so they share a window, not a runner.
+
+**Pair 1**, runs 44203434208 and 44203434241:
+
+| Build | Job | Failed of 6,000 | Worst second's p99 | Catch-up |
+| --- | --- | ---: | ---: | ---: |
+| parent of #6412 `0d2017aa28` | runner | 0 | 1,640 ms | 49.5 s |
+| #6424 `0249db185b` | runner | 0 | 3,278 ms | 49.5 s |
+| parent of #6412 `0d2017aa28` | kind | 0 | 2,458 ms | 49.1 s |
+| #6424 `0249db185b` | kind | 0 | 3,471 ms | 84.7 s |
+
+**Pair 2**, runs 44203470768 and 44203470883:
+
+| Build | Job | Failed of 6,000 | Worst second's p99 | Catch-up |
+| --- | --- | ---: | ---: | ---: |
+| parent of #6412 `0d2017aa28` | runner | 0 | 2,713 ms | 73.2 s |
+| #6424 `0249db185b` | runner | 0 | 2,092 ms | 45.1 s |
+| parent of #6412 `0d2017aa28` | kind | 0 | 2,529 ms | 49.3 s |
+| #6424 `0249db185b` | kind | 0 | 2,209 ms | 49.6 s |
+<!-- performance:end -->
 
 ## Against Axon Framework 4
 

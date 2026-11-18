@@ -229,7 +229,7 @@ test('a named block replaces what is between its markers and nothing else', () =
 test('a block of no known name, or a marker without its pair, is refused, naming the page', () => {
   assert.throws(
     () => withFigures(`${begin('curves')}\n${END}\n`, 'en', [], 'p.md'),
-    /p\.md: no block is named curves \(snapshots, actions, m5max, unit-costs, example\)/,
+    /p\.md: no block is named curves \(snapshots, actions, m5max, unit-costs, example, recovery-leases, recovery-handover, recovery-bound, recovery-first-start\)/,
   );
   for (const text of [
     `${BEGIN}\nno end\n`,
