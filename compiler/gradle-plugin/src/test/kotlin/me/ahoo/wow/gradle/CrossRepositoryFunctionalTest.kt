@@ -194,7 +194,7 @@ class CrossRepositoryFunctionalTest {
                 }
             }
             repositories {
-                mavenCentral()
+                ${FixtureRepositories.central}
                 maven { url = uri("${System.getProperty("wow-test.fixture.repository")}") }
                 maven { url = uri("$repository") }
             }
@@ -231,7 +231,7 @@ class CrossRepositoryFunctionalTest {
                 """
                 plugins { `java-library` }
                 repositories {
-                    mavenCentral()
+                    ${FixtureRepositories.central}
                     maven { url = uri("${System.getProperty("wow-test.fixture.repository")}") }
                     $repositoryBlock
                 }
@@ -327,7 +327,7 @@ class CrossRepositoryFunctionalTest {
                 id '${WowPlugin.ID}'
             }
             repositories {
-                mavenCentral()
+                ${FixtureRepositories.central}
                 maven { url = uri('${System.getProperty("wow-test.fixture.repository")}') }
                 maven { url = uri('$repository') }
             }

@@ -100,7 +100,7 @@ class ManifestCompatibilityFunctionalTest {
             version = "1.0.0"
 
             repositories {
-                mavenCentral()
+                ${FixtureRepositories.central}
                 maven { url = uri("${System.getProperty("wow-test.fixture.repository")}") }
             }
 

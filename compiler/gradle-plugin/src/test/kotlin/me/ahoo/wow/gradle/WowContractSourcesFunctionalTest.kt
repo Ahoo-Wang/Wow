@@ -20,7 +20,6 @@ import org.gradle.testkit.runner.TaskOutcome
 import org.gradle.tooling.GradleConnector
 import org.gradle.tooling.model.idea.IdeaModuleDependency
 import org.gradle.tooling.model.idea.IdeaProject
-import org.gradle.util.GradleVersion
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.MethodOrderer
 import org.junit.jupiter.api.Order
@@ -257,7 +256,7 @@ class WowContractSourcesFunctionalTest {
             repositories {
                 maven { url = uri("${File(projectDir, "repo").path.replace("\\", "/")}") }
                 maven { url = uri("${System.getProperty("wow-test.fixture.repository")}") }
-                mavenCentral()
+                ${FixtureRepositories.central}
             }
 
             dependencies {
@@ -284,9 +283,23 @@ class WowContractSourcesFunctionalTest {
             .task(":compileKotlin")?.outcome.assert().isEqualTo(TaskOutcome.SUCCESS)
     }
 
+    /**
+     * An IDE sync through Gradle's Tooling API, which starts its build apart from TestKit. It must not run in the
+     * user's Gradle home: the test task gives the fixtures' builds that home's dependency cache read-only
+     * (`GRADLE_RO_DEP_CACHE`), and a build of that home would open the same cache writable too, which Gradle refuses
+     * ("already open with different lock options"). So it runs in a home of its own, on the installation of the build
+     * under test (no distribution to download), reads the user's cache read-only as every fixture's build does, and
+     * stops the daemon it started.
+     *
+     * That home is not a `@TempDir`: [GradleConnector.disconnect] asks the daemon to stop and does not wait for it, so
+     * deleting the home when the test ends races a daemon still writing its caches. It is a directory of the module's
+     * build (`build/tooling-api-home`, which the test task names), kept between runs as TestKit keeps its own, and
+     * `clean` removes it.
+     */
     @Test
     @Order(4)
     fun `the IDE model should resolve without running the build`() {
+        val home = File(requireNotNull(System.getProperty("wow-test.tooling.home")))
         // What an IDE sync asks for (Gradle's Tooling API), with the plugin under test on the root build script's
         // class path: the paired domain module still depends on its api module.
         val metadata = Properties().apply {
@@ -299,9 +312,11 @@ class WowContractSourcesFunctionalTest {
         val settings = File(projectDir, "settings.gradle.kts")
         val original = settings.readText()
         settings.writeText("buildscript { dependencies { classpath(files($classpath)) } }\n$original")
+        val connector = GradleConnector.newConnector()
         try {
-            GradleConnector.newConnector().forProjectDirectory(projectDir)
-                .useGradleVersion(GradleVersion.current().version)
+            connector.forProjectDirectory(projectDir)
+                .useGradleUserHomeDir(home)
+                .useInstallation(File(requireNotNull(System.getProperty("wow-test.gradle.home"))))
                 .connect().use { connection ->
                     val modules = connection.getModel(IdeaProject::class.java).modules.associateBy { it.name }
                     modules.keys.assert().contains("shop-api", "shop-domain", "shop-server", "orders", "client")
@@ -309,6 +324,7 @@ class WowContractSourcesFunctionalTest {
                         .map { it.targetModuleName }.assert().contains("shop-api")
                 }
         } finally {
+            connector.disconnect()
             settings.writeText(original)
         }
     }

@@ -71,6 +71,43 @@ listOf(functionalPluginClasspath, functionalKspClasspath).forEach { configuratio
         )
     }
 }
+// What the TestKit fixtures' builds take from Maven Central, at the catalog's versions they are given (the system
+// properties below): KSP's processors and its plugin's marker, and the standard library, JUnit and fluent-assert a
+// fixture's tests run on. The Kotlin compiler they resolve is this project's own (kotlinBuildToolsApiClasspath and
+// kotlinCompilerPluginClasspathMain, of the same Kotlin Gradle plugin). The test resolves them here, outside the build's
+// platform (TOOL_CLASSPATH), so this build's dependency cache holds the versions the fixtures ask for, and the fixtures
+// read that cache (GRADLE_RO_DEP_CACHE) instead of asking Central once per build. A fixture that takes another module
+// from Central declares it here, of a catalog version.
+val fixtureExternalKspClasspath: Configuration = configurations.create("fixtureExternalKspClasspath")
+val fixtureExternalTestClasspath: Configuration = configurations.create("fixtureExternalTestClasspath")
+listOf(fixtureExternalKspClasspath, fixtureExternalTestClasspath).forEach { configuration ->
+    configuration.isCanBeConsumed = false
+    configuration.attributes {
+        attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage.JAVA_RUNTIME))
+        attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category.LIBRARY))
+        attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, objects.named(LibraryElements.JAR))
+    }
+}
+val kspPlugin = libs.plugins.ksp.get()
+dependencies {
+    fixtureExternalKspClasspath(libs.ksp.symbol.processing.api)
+    fixtureExternalKspClasspath(libs.ksp.symbol.processing.aa.embeddable)
+    fixtureExternalKspClasspath(libs.ksp.symbol.processing.common.deps)
+    fixtureExternalKspClasspath("${kspPlugin.pluginId}:${kspPlugin.pluginId}.gradle.plugin:${kspPlugin.version}")
+    fixtureExternalTestClasspath("org.jetbrains.kotlin:kotlin-stdlib:${libs.versions.kotlin.asProvider().get()}")
+    fixtureExternalTestClasspath(platform(libs.junit.bom))
+    fixtureExternalTestClasspath("org.junit.jupiter:junit-jupiter")
+    fixtureExternalTestClasspath("org.junit.platform:junit-platform-launcher")
+    fixtureExternalTestClasspath(platform(libs.fluent.assert.bom))
+    fixtureExternalTestClasspath("me.ahoo.test:fluent-assert-core")
+}
+val fixtureExternalClasspath: FileCollection = files(
+    fixtureExternalKspClasspath,
+    fixtureExternalTestClasspath,
+    configurations.named("kotlinBuildToolsApiClasspath"),
+    configurations.named("kotlinCompilerPluginClasspathMain"),
+)
+
 dependencies {
     functionalPluginClasspath("org.jetbrains.kotlin:kotlin-gradle-plugin:${libs.versions.kotlin.asProvider().get()}")
     functionalKspClasspath(ksp)
@@ -161,8 +198,21 @@ tasks.test {
     val apiClasspath = files(tasks.jar, configurations.runtimeClasspath, functionalPluginClasspath)
     inputs.files(apiClasspath).withPropertyName("apiClasspath").withNormalizer(ClasspathNormalizer::class.java)
     systemProperty("wow-test.ksp.version", libs.versions.ksp.get())
-    // The JUnit a fixture's own tests run on (IncrementalKspFunctionalTest), resolved from Maven Central.
+    // The JUnit and fluent-assert a fixture's own tests run on (PluginRolesFunctionalTest, IncrementalKspFunctionalTest).
     systemProperty("wow-test.junit.version", libs.versions.junit.get())
+    systemProperty("wow-test.fluent-assert.version", libs.versions.fluent.assert.get())
+    // The fixtures' builds read this build's dependency cache, which holds what they take from Central
+    // (fixtureExternalClasspath), so a build of a fresh TestKit directory asks Central for none of it. Read-only:
+    // no fixture writes it. The TestKit daemons inherit the variable from the test JVM.
+    inputs.files(fixtureExternalClasspath).withPropertyName("fixtureExternalClasspath")
+        .withNormalizer(ClasspathNormalizer::class.java)
+    environment("GRADLE_RO_DEP_CACHE", gradle.gradleUserHomeDir.resolve("caches").path)
+    // The installation a test runs a Tooling API build on, and the Gradle home of its own it runs it in
+    // (WowContractSourcesFunctionalTest): a directory of this module's build, kept between runs as TestKit keeps its
+    // own, removed by `clean`. Both are named in doFirst, as the paths below, so neither is an input (an absolute path
+    // would defeat the build cache) or an output (a daemon's caches are no result to cache).
+    val gradleHome = requireNotNull(gradle.gradleHomeDir).path
+    val toolingHome = layout.buildDirectory.dir("tooling-api-home")
     // The POMs of the plugin markers, which say what a plugin request resolves.
     val markers = layout.buildDirectory.dir("publications")
     dependsOn(
@@ -175,6 +225,8 @@ tasks.test {
         systemProperty("wow-test.fixture.compileClasspath", compileClasspath.asPath)
         systemProperty("wow-test.fixture.processorClasspath", processorClasspath.asPath)
         systemProperty("wow-test.fixture.toolsClasspath", toolsClasspath.asPath)
+        systemProperty("wow-test.gradle.home", gradleHome)
+        systemProperty("wow-test.tooling.home", toolingHome.get().asFile.path)
     }
 }
 

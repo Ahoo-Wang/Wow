@@ -51,8 +51,8 @@ class StagedMigrationFunctionalTest {
             """
             pluginManagement {
                 repositories {
+                    ${FixtureRepositories.central}
                     gradlePluginPortal()
-                    mavenCentral()
                 }
             }
             rootProject.name = "staged"
@@ -80,7 +80,7 @@ class StagedMigrationFunctionalTest {
                 id("com.google.devtools.ksp") version "$kspVersion"
             }
 
-            repositories { mavenCentral() }
+            repositories { ${FixtureRepositories.central} }
             """,
         )
         write(root, "legacy/src/main/kotlin/legacy/Legacy.kt", "package legacy\n\nclass Legacy\n")
@@ -99,7 +99,7 @@ class StagedMigrationFunctionalTest {
             }
 
             repositories {
-                mavenCentral()
+                ${FixtureRepositories.central}
                 maven { url = uri("${System.getProperty("wow-test.fixture.repository")}") }
             }
 
@@ -130,7 +130,7 @@ class StagedMigrationFunctionalTest {
             }
 
             repositories {
-                mavenCentral()
+                ${FixtureRepositories.central}
                 maven { url = uri("${System.getProperty("wow-test.fixture.repository")}") }
             }
 

@@ -57,7 +57,7 @@ class PluginRolesFunctionalTest {
             }
 
             repositories {
-                mavenCentral()
+                ${FixtureRepositories.central}
                 maven { url = uri("${System.getProperty("wow-test.fixture.repository")}") }
             }
 
@@ -216,15 +216,19 @@ class PluginRolesFunctionalTest {
     ) {
         settings(root, "bank")
         module(root, "", WowPlugin.SERVICE_ID)
-        // The module's build script runs after its plugins, so it configures the suite they registered.
+        // The module's build script runs after its plugins, so it configures the suite they registered. JUnit and
+        // fluent-assert are the catalog's, which the build resolves first for the fixtures (fixtureExternalClasspath).
+        val junit = System.getProperty("wow-test.junit.version")
+        val fluentAssert = System.getProperty("wow-test.fluent-assert.version")
         File(root, "build.gradle.kts").appendText(
             """
 
             testing {
                 suites {
                     named<JvmTestSuite>("integrationTest") {
+                        useJUnitJupiter("$junit")
                         dependencies {
-                            implementation("me.ahoo.test:fluent-assert-core:1.2.1")
+                            implementation("me.ahoo.test:fluent-assert-core:$fluentAssert")
                         }
                     }
                 }
