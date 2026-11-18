@@ -20,7 +20,6 @@ import org.gradle.testkit.runner.TaskOutcome
 import org.gradle.tooling.GradleConnector
 import org.gradle.tooling.model.idea.IdeaModuleDependency
 import org.gradle.tooling.model.idea.IdeaProject
-import org.gradle.util.GradleVersion
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.MethodOrderer
 import org.junit.jupiter.api.Order
@@ -284,9 +283,17 @@ class WowContractSourcesFunctionalTest {
             .task(":compileKotlin")?.outcome.assert().isEqualTo(TaskOutcome.SUCCESS)
     }
 
+    /**
+     * An IDE sync through Gradle's Tooling API, which starts its build apart from TestKit. It must not run in the
+     * user's Gradle home: the test task gives the fixtures' builds that home's dependency cache read-only
+     * (`GRADLE_RO_DEP_CACHE`), and a build of that home would open the same cache writable too, which Gradle refuses
+     * ("already open with different lock options"). So it runs in a home of its own, [home], on the installation of
+     * the build under test (no distribution to download), reads the user's cache read-only as every fixture's build
+     * does, and stops the daemon it started.
+     */
     @Test
     @Order(4)
-    fun `the IDE model should resolve without running the build`() {
+    fun `the IDE model should resolve without running the build`(@TempDir home: File) {
         // What an IDE sync asks for (Gradle's Tooling API), with the plugin under test on the root build script's
         // class path: the paired domain module still depends on its api module.
         val metadata = Properties().apply {
@@ -299,9 +306,11 @@ class WowContractSourcesFunctionalTest {
         val settings = File(projectDir, "settings.gradle.kts")
         val original = settings.readText()
         settings.writeText("buildscript { dependencies { classpath(files($classpath)) } }\n$original")
+        val connector = GradleConnector.newConnector()
         try {
-            GradleConnector.newConnector().forProjectDirectory(projectDir)
-                .useGradleVersion(GradleVersion.current().version)
+            connector.forProjectDirectory(projectDir)
+                .useGradleUserHomeDir(home)
+                .useInstallation(File(requireNotNull(System.getProperty("wow-test.gradle.home"))))
                 .connect().use { connection ->
                     val modules = connection.getModel(IdeaProject::class.java).modules.associateBy { it.name }
                     modules.keys.assert().contains("shop-api", "shop-domain", "shop-server", "orders", "client")
@@ -309,6 +318,7 @@ class WowContractSourcesFunctionalTest {
                         .map { it.targetModuleName }.assert().contains("shop-api")
                 }
         } finally {
+            connector.disconnect()
             settings.writeText(original)
         }
     }

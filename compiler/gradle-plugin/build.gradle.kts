@@ -206,6 +206,8 @@ tasks.test {
     inputs.files(fixtureExternalClasspath).withPropertyName("fixtureExternalClasspath")
         .withNormalizer(ClasspathNormalizer::class.java)
     environment("GRADLE_RO_DEP_CACHE", gradle.gradleUserHomeDir.resolve("caches").path)
+    // The installation a test runs a Tooling API build on, in a Gradle home of its own (WowContractSourcesFunctionalTest).
+    systemProperty("wow-test.gradle.home", requireNotNull(gradle.gradleHomeDir).path)
     // The POMs of the plugin markers, which say what a plugin request resolves.
     val markers = layout.buildDirectory.dir("publications")
     dependsOn(
