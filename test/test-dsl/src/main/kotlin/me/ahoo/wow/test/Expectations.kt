@@ -17,6 +17,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Rejection
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.schedule.ScheduleCancelled
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.schedule.ScheduleSet
@@ -25,6 +26,7 @@ import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.RejectionCodes
+import me.ahoo.wow.kernel.UndeclaredEventException
 import kotlin.reflect.KClass
 
 /**
@@ -75,7 +77,16 @@ class Expectations<S : Any> @InternalWowApi constructor(
         get() = decidedOutcome.also { outcomeChecked = true }
 
     private val decidedOutcome: CommandOutcome
-        get() = result.getOrElse { throw AssertionError("Expected an outcome but the command threw $it.", it) }
+        get() = result.getOrElse { thrown ->
+            // An event the function does not declare fails as a node answers it, naming the code and the line to add.
+            val failure = if (thrown is UndeclaredEventException) {
+                "the command failed with ${FrameworkCodes.COMMAND_UNDECLARED_EVENT}, as a node answers it: " +
+                    thrown.message
+            } else {
+                "the command threw $thrown."
+            }
+            throw AssertionError("Expected an outcome but $failure", thrown)
+        }
 
     /**
      * What the command's decide function put for the caller ([me.ahoo.wow.api.decide.DecideScope.putResult]), by key;

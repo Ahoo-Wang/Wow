@@ -32,10 +32,12 @@ import kotlin.reflect.KClass
  * `RejectedException`, or returns a `Decision`.
  *
  * @param produces the events of the aggregate the function can decide, which the Manifest lists as the command's
- *   `produces`, for a function whose return type does not say: a `Decision`, a `Mono<Decision>`,
- *   `Any`. Each must be an event of the aggregate. A function whose return type already names its events (an event,
- *   a sealed type, a list of them) may not declare them again. Empty, the default, declares nothing: `produces` stays
- *   unknown.
+ *   `produces`: all of them for a function whose return type does not say (a `Decision`, a `Mono<Decision>`, `Any`),
+ *   and, beside a return type that names its events (an event, a sealed type, a list of them), the others, such as
+ *   those a rejection carries (`reject(code, message, events)`), never one the return type already names. Each must be
+ *   an event of the aggregate. The kernel holds the function's decisions and its rejections' events to the return
+ *   type's events and this list (`wow.command.undeclared-event`). Empty, the default, declares nothing beyond the
+ *   return type's: for a `Decision`, `produces` stays unknown, and neither is checked.
  * @param schedules the commands the function may schedule with `DecideScope.schedule`, by their classes: a command
  *   class of this context or of another (from that context's api), or a sealed type, which stands for its concrete
  *   subclasses. The Manifest lists them as the aggregate's `schedules`, by full type name (a schema reference for
