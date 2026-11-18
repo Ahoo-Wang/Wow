@@ -122,9 +122,9 @@ wow:
 - `enabled: false` 在每次启动时停用 `SYSTEM` 或 `SHARDED` 任务的实例。
 - `retry.*` 和 `parked.*` 是任务订阅的重试，覆盖处理函数的 `@Retry` 和 `wow.subscription.*`（[失败与重试](./failures#give-a-handler-its-own-budget)）。任务的订阅改写在 `wow.subscriptions` 下，或者为没有处理函数运行的任务写设置，都会使节点在启动时停止。
 
-实例自己的规则优先于宿主的规则：`TENANT` 任务中租户的规则，或者运维人员用 `reschedule` 设的规则。它由实例保存，所以重启后依然有效。
+实例自己的规则优先于宿主的规则：`TENANT` 任务中租户的规则，或者运维人员用 `reschedule-job` 设的规则。它由实例保存，所以重启后依然有效。
 
-任务的实例也接收 HTTP 命令：`POST /<context>/wow.schedule/{id}/<command>`，命令为 `enable`、`reschedule`、`disable`，id 为任务名。它们是 Wow 的系统命令，公开端口默认从不放行：没有命令授权器的服务拒绝它们（403 `wow.auth.forbidden`），有授权器时由授权器决定。在 CoSec 下，动作是 `schedule/<job>` 上的 `<context>:wow.schedule.EnableJob`（以及其他任务命令），由策略授予运维人员（[动作名称](../operate/security#action-names)）。任务自己的命令、Saga 发出的命令以及 ops 在内部端口发送的命令不受影响。
+任务的实例也接收 HTTP 命令：`POST /<context>/wow.schedule/{id}/<command>`，命令为 `enable-job`、`reschedule-job`、`disable-job`，id 为任务名。它们是 Wow 的系统命令，公开端口默认从不放行：没有命令授权器的服务拒绝它们（403 `wow.auth.forbidden`），有授权器时由授权器决定。在 CoSec 下，动作是 `schedule/<job>` 上的 `<context>:wow.schedule.EnableJob`（以及其他任务命令），由策略授予运维人员（[动作名称](../operate/security#action-names)）。任务自己的命令、Saga 发出的命令以及 ops 在内部端口发送的命令不受影响。
 
 ## 测试 {#test-it}
 

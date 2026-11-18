@@ -190,6 +190,21 @@ fun onOrderSubmitted(
 
 9.x 服务在 Simba 或 `@Scheduled` 里运行的周期作业，如果是从到期的内容推导命令，就是 Saga 的一个 `@OnSchedule` 处理函数，按 cron 规则运行；要等每条命令的结果再发下一条的作业，留在 Wow 之外，通过 `CommandClient` 发送（[定时命令](../guide/scheduling)）。9.x 把已存储事件重新投递给某个处理函数的回填，在 V10 中是一个新名字的处理函数，带 `@OnEvent(start = OnEvent.Start.BEGINNING)`，从事件流的开头读一遍（[重建与重放](../operate/replay)）。
 
+### 定时作业 {#scheduled-jobs}
+
+每个移植到 `@OnSchedule` 的 9.x 作业都会带来四处不同，其中三处没有任何提示：
+
+- **时区。** 9.x 调度器按服务器的时区读取 cron。V10 作业按 UTC 读取，除非它指明时区：`@OnSchedule(timeZone = "Asia/Shanghai")` 或 `wow.schedules.<name>.time-zone`，从不使用服务器的时区。原样移植的每日作业会在 UTC 的同一钟点运行，偏移了时区的差值，而且没有任何提示。
+- **每个租户。** 在租户之间循环的 9.x 作业没有一行就能完成的移植。`SYSTEM` 作业（默认）只运行一次，在默认租户里：`context.queries` 读取那个租户，`context.queries.trusted()` 读取每个租户，发往其他租户的命令用 `targetTenant` 指明租户。`TENANT` 作业在每个租户里各运行一次，但只在启用了它的租户里：在那个租户里发送 `wow.schedule.EnableJob`（`POST /<context>/wow.schedule/<job>/enable-job`）。宿主不会为任何租户启用实例，所以移植作业时要为每个已有租户启用它，新租户则在创建时启用。
+- **没有立即运行。** 作业无法手动运行：它的实例只接受启用、重新调度和停用，除了它的规则，没有什么能触发它的一次运行。9.x 中按需运行作业的端点，仍是服务自己的代码，发送作业本会发送的命令。
+- **来自配置的频率。** V10 作业只按 cron 规则运行，没有固定频率或固定延迟。9.x 中放在配置属性里的频率，变成作业在 `wow.schedules.<name>.cron` 下的 cron，例如每五分钟一次是 `0 */5 * * * *`。
+
+发出一条命令、等它处理完再发下一条的 9.x 调度器，没有作业形态。作业推导它的命令，不等待任何一条：指明等待或超时的推导请求会让处理函数永久失败，作业的实例随之停放。受支持的形态：
+
+- **发往其他上下文的命令：** 作业逐条调用，`context.call(request)` 在那个上下文提交之后返回，并在 `@Sends(calls = [...])` 中声明。调用作业自身的上下文会让启动被拒绝。
+- **发往自身上下文的命令，或要等到提交之后：** 调度器留在服务之外，在一个进程里用 `CommandClient` 的 `wait` 发送每条命令，拿到结果后再发下一条。只在一处运行它：Wow 不为这样的调度器提供锁，放在服务节点里的会在每个节点上运行。
+
+
 ## 预留键 {#reserved-keys}
 
 9.x 的 `PrepareKey` 变成在 decide 函数中获取的预留；事件追加之后，内核会确认它。9.x 的键是全局的，V10 的键在每个聚合类型和租户内唯一，除非用 `ReservationTenancy.SYSTEM` 预留，所以要决定每个键的租户范围，并把同样的命名空间和租户范围写进映射的 `reservations`。多种类型的聚合共用的 9.x 键，变成一个持有这些键的独立聚合（[唯一键](../guide/unique-keys#a-key-unique-across-aggregate-types)）。品牌名，在其租户内唯一：
