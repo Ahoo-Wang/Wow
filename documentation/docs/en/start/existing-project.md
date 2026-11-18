@@ -76,7 +76,7 @@ dependencies {
 }
 ```
 
-`me.ahoo.wow.api` adds `wow-api`, packages the contract of the domain modules it declares into its jar, `META-INF/wow/contract.json`, and compiles `<Context>Contract` and the `<State>View`s from it ([What the Compiler Generates](../guide/generated-code#the-contract-code-of-the-api-module)). A domain module whose commands and events are in an api module that does not declare it fails to build, naming the line to add.
+`me.ahoo.wow.api` adds `wow-api`, assembles the contract of the domain modules it declares, `META-INF/wow/contract.json`, and compiles `<Context>Contract` and the `<State>View`s from it ([What the Compiler Generates](../guide/generated-code#the-contract-code-of-the-api-module)). The module's jar holds its types alone; the contract and its code are the module's feature `contract`, published within it as the jar of classifier `contract`. A service finds every api module's contract without a line; a module that uses another context's generated code asks for it with `wow.contract(...)`, and a Maven build adds the classifier `contract`. A domain module whose commands and events are in an api module that does not declare it fails to build, naming the line to add.
 
 `catalog-domain/build.gradle.kts`:
 

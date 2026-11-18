@@ -50,9 +50,15 @@ Datasets are not in the Manifest. The Manifest describes what the code defines a
 
 ## Contracts between services
 
-A service that sends commands to another context, or reads its published stream, needs part of that context's contract: its commands, events, state and errors. It gets that part from the other context's API jar.
+A service that sends commands to another context, or reads its published stream, needs part of that context's contract: its commands, events, state and errors. It gets that part from the other context's api module.
 
-When the other context's domain module is compiled, a build task selects what a peer needs from its fragments and puts it into its API jar, as `META-INF/wow/contract.json`. A service that depends on that API jar finds the contract on its classpath at run time. It uses it to check a command before sending it, to check a wait plan that crosses into the other context, and to check a published stream it subscribes to when it starts. There is nothing to configure: depending on the other context's API is enough.
+When the other context's domain module is compiled, a build task selects what a peer needs from its fragments, as `META-INF/wow/contract.json`. The api module publishes it, with the code generated from it, as its feature `contract`: a jar of its own beside the types jar, of classifier `contract`, in the same module and version. The types jar holds the hand-written commands, events and values alone, so compiling them waits for no domain.
+
+A service that depends on the other context's api module finds the contract on its classpath at run time; the Gradle plugin adds the contract of every api module the service reaches. It uses it to check a command before sending it, to check a wait plan that crosses into the other context, and to check a published stream it subscribes to when it starts. There is nothing to configure: depending on the other context's api is enough.
+
+Code that uses another context's generated code, such as its `<State>View`, asks for the contract by name: `implementation(wow.contract(project(":ordering-api")))`, or the module's coordinates or version catalog entry. A module without a Wow plugin writes `requireFeature("contract")` on the api dependency; a Maven build adds the module's jar of classifier `contract`, of the same version.
+
+A consumer may hold a context's contract with none of its classes and address it by JSON; it may not hold it with only some of them. Some of a context's classes present and others missing is a contract and types of different versions, and the build and the node's startup refuse it, naming both.
 
 ## Compatibility
 

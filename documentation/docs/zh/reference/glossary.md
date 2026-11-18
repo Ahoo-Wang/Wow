@@ -19,7 +19,7 @@ description: Wow 的术语，每条一句定义，附英文原词和解释它的
 | Aggregate type | 聚合类型 | 一类聚合在它的上下文里的名字，写作 `context.aggregate`。 |
 | Alias | 别名 | 命令或事件以前的名字，保留下来，让以这个名字记录的历史仍然可读。见[决定与演化](../concepts/programming-model#events-change-over-time)。 |
 | Analytics catalog | 分析目录 | 定义、审批和发布数据集的平台服务。见[读模型](../concepts/read-models#three-query-models)。 |
-| API jar | api jar | 限界上下文发布的模块，包含它的命令、事件和状态类，以及对端读取的契约。见[一份契约](../concepts/contract#contracts-between-services)。 |
+| API jar | api jar | 限界上下文发布的模块：它的 jar 装命令、事件和值类，它的特性 `contract`（分类器为 `contract` 的 jar）装对端读取的契约及由它生成的代码。见[一份契约](../concepts/contract#contracts-between-services)。 |
 | Backpressure | 背压 | 系统某部分负载高的信号，例如繁忙拒绝或等待超时；订阅对它的回应是放慢，而不是暂停或停放。见[订阅](../concepts/subscriptions#failures-park-one-aggregate)。 |
 | Bounded context | 限界上下文 | 领域的一部分，有自己的模型、自己的日志和自己的公开语言。见[上下文之间](../concepts/cross-context)。 |
 | Bulkhead | 舱壁 | 带短队列的并发上限，防止查询用光写入需要的连接。见[读模型](../concepts/read-models#reads-must-not-slow-down-writes)。 |
@@ -32,7 +32,7 @@ description: Wow 的术语，每条一句定义，附英文原词和解释它的
 | Command function | 命令函数 | 聚合针对一种命令类型的决定函数。 |
 | Command topic | 命令主题 | Kafka 主题 `wow.<context>.commands`，命令经它异步到达一个上下文。见[上下文之间](../concepts/cross-context#commands-to-another-context)。 |
 | `COMMITTED` | 已提交 | 命令的事件已追加，或命令没有追加就有了结论时达到的等待阶段。见[等待结果](../concepts/waits)。 |
-| Contract | 契约 | 上下文的 Manifest 中其他服务需要的部分，以 `META-INF/wow/contract.json` 放在它的 api jar 里。见[一份契约](../concepts/contract#contracts-between-services)。 |
+| Contract | 契约 | 上下文的 Manifest 中其他服务需要的部分，即 `META-INF/wow/contract.json`，作为它的 api 模块的特性 `contract` 发布。见[一份契约](../concepts/contract#contracts-between-services)。 |
 | CoSec | CoSec | Wow 集成的认证与授权框架，用于调用方、路由级授权和动作级授权。见[身份](../concepts/identity#access)。 |
 | Creation rule | 创建语义 | 命令必须创建它的聚合、可以创建它，还是只作用于已存在的聚合。 |
 | Cross-scope caller | 跨作用域调用方 | 被允许在另一个租户或作用域中行事的调用方，它在 `Wow-Scope` 请求头里指明那个租户或作用域。 |

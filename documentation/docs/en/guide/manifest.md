@@ -70,7 +70,7 @@ The check compares the declared shape, not what the serializer writes. The two a
 
 ## Peers get their part
 
-A service that sends another context's commands, or reads its published stream, needs that context's commands, events, state and errors. The plugin selects them from the other context's fragment and puts them in its api module's jar, as `META-INF/wow/contract.json`. A service that depends on the api module finds the contract on its class path, and uses it to name the commands it sends, check the wait plans that cross into the other context, and decode its published events. Nothing is configured: depending on the api is enough.
+A service that sends another context's commands, or reads its published stream, needs that context's commands, events, state and errors. The plugin selects them from the other context's fragment, as `META-INF/wow/contract.json`, which its api module publishes as its feature `contract`. A service that depends on the api module finds the contract on its class path, and uses it to name the commands it sends, check the wait plans that cross into the other context, and decode its published events. Nothing is configured: depending on the api is enough.
 
 A tool that cannot take the api jar, such as a console or a gateway, reads the peer's Manifest from its `GET /wow/manifest` instead ([Call Other Services](./calling-services#call-a-command-by-name)).
 
@@ -99,5 +99,5 @@ A breaking change needs the service's next major version, or a new command or ev
 | The OpenAPI document | Every route, its request and response schemas ([OpenAPI and springdoc](./openapi)) |
 | The TypeScript generator | Typed command and query clients |
 | The view engine | The fields and capabilities a view may use |
-| Peers | Their contract with this context, through its api jar |
+| Peers | Their contract with this context, through its api module's contract |
 | The ops console and migrate-data | Commands, subscriptions and types by name |

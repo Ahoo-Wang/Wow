@@ -44,7 +44,7 @@ build/generated/ksp/main/
 
 ## api 模块的契约代码 {#the-contract-code-of-the-api-module}
 
-api 模块在插件 `me.ahoo.wow.api` 下声明它的领域模块，`wowContract(project(":ordering-domain"))`，插件从片段中挑出对端需要的内容，即每个上下文的命令、事件、状态 schema 和错误，以 `META-INF/wow/contract.json` 放进 api 模块的 jar。契约还写明承载这些上下文的服务，由域模块的构建声明：
+api 模块在插件 `me.ahoo.wow.api` 下声明它的领域模块，`wowContract(project(":ordering-domain"))`，插件从片段中挑出对端需要的内容，即每个上下文的命令、事件、状态 schema 和错误，即 `META-INF/wow/contract.json`，api 模块的契约。契约还写明承载这些上下文的服务，由域模块的构建声明：
 
 <!-- sample: fragment -->
 
@@ -65,4 +65,10 @@ api 模块还从中编译出 `<Context>Contract`，例如 `EshopOrderingContract
 | `<Aggregate>.Errors.*` | 它的错误码，按完整名字 |
 | `<Aggregate>.STATE__*` | 它的状态的查询字段，需要 `wow-query-api` |
 
-对端只依赖 api 模块，不用手写任何路径、名字或错误码：`EshopOrderingContract.Order.ref(tenant, id)` 寻址一个订单，`EshopOrderingContract.Order.Errors.WRONG_STATUS` 用于比较拒绝（[调用其他服务](./calling-services)、[拒绝与错误码](./rejections#what-the-caller-receives)）。领域模块本身针对不含这些代码的 api 视图编译，所以它从不依赖它自己生成的契约。
+对端不用手写任何路径、名字或错误码：`EshopOrderingContract.Order.ref(tenant, id)` 寻址一个订单，`EshopOrderingContract.Order.Errors.WRONG_STATUS` 用于比较拒绝（[调用其他服务](./calling-services)、[拒绝与错误码](./rejections#what-the-caller-receives)）。
+
+契约和这些代码是 api 模块的特性 `contract`，在同一模块内以分类器为 `contract` 的 jar 发布；模块自己的 jar 只装类型，所以每个模块都针对类型编译，不必等任何领域模块，包括 api 自己的领域模块。谁能看到契约：
+
+- **服务**无需写一行就能看到它所触及的每个 api 模块的契约，包括它自己的 api。
+- **领域模块的测试**能看到本构建中各 api 模块的契约，包括自己的 api：多数测试用它的 `<Context>Contract`。从另一个仓库发布的对端要显式索取：`testImplementation(wow.contract(...))`。
+- **用到另一个上下文生成代码的代码**要索取它：`implementation(wow.contract(project(":eshop-ordering-api")))`、`wow.contract("com.example:ordering-api:1.0.0")` 或 `wow.contract(libs.ordering.api)`。没有应用 Wow 插件的模块写 `implementation(project(":eshop-ordering-api")) { capabilities { requireFeature("contract") } }`；Maven 构建加上该模块分类器为 `contract`、版本相同的 jar。

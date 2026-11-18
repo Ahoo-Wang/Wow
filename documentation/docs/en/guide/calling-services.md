@@ -52,7 +52,7 @@ A command always has an accountable caller: the client sends as the anonymous ca
 | Of a peer context, by default | Through the peer's command topic, `wow.<context>.commands`; `send` answers once the topic has it |
 | Of a peer listed under `wow.peers` | Over HTTP, to the peer's service |
 
-The client knows a peer from the contract its api jar carries, so the application depends on the peer's `*-api` module and nothing more.
+The client knows a peer from the contract of its api module, which a service finds on its class path, so the application depends on the peer's `*-api` module and nothing more.
 
 ## Configure a peer over HTTP
 
@@ -96,7 +96,7 @@ A console, a gateway or a tool may call a peer without its api jar. It lists the
 
 ## Outside a Wow host
 
-An application that is not a Wow service builds the clients itself with `WowClient.builder()`: where each context's service is (`endpoints`), the mode (`service` with the name of the service it calls as, or `user` with the end user's credential), and timeouts. `client.commands` is the same `CommandClient`, and the peers' contracts come from the api jars on the class path. [Call Wow from Other Services](./calling-from-other-services) says which port and identity each kind of caller uses, and what its requests carry.
+An application that is not a Wow service builds the clients itself with `WowClient.builder()`: where each context's service is (`endpoints`), the mode (`service` with the name of the service it calls as, or `user` with the end user's credential), and timeouts. `client.commands` is the same `CommandClient`, and the peers' contracts come from the class path, where such an application puts each api module's feature `contract`. [Call Wow from Other Services](./calling-from-other-services) says which port and identity each kind of caller uses, and what its requests carry.
 
 ## From Java
 

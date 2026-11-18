@@ -76,7 +76,7 @@ dependencies {
 }
 ```
 
-`me.ahoo.wow.api` 加上 `wow-api`，把所声明的领域模块的契约打进它的 jar（`META-INF/wow/contract.json`），并由此编译 `<Context>Contract` 与各个 `<State>View`（[编译器生成什么](../guide/generated-code#the-contract-code-of-the-api-module)）。领域模块的命令和事件所在的 api 模块没有声明它时，构建失败，并写出要加的那一行。
+`me.ahoo.wow.api` 加上 `wow-api`，组装所声明的领域模块的契约（`META-INF/wow/contract.json`），并由此编译 `<Context>Contract` 与各个 `<State>View`（[编译器生成什么](../guide/generated-code#the-contract-code-of-the-api-module)）。模块的 jar 只装它的类型；契约及其代码是模块的特性 `contract`，在同一模块内以分类器为 `contract` 的 jar 发布。服务无需写一行就能找到每个 api 模块的契约；用到另一个上下文生成代码的模块用 `wow.contract(...)` 索取，Maven 构建加上分类器 `contract`。领域模块的命令和事件所在的 api 模块没有声明它时，构建失败，并写出要加的那一行。
 
 `catalog-domain/build.gradle.kts`：
 

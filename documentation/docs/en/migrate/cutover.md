@@ -85,7 +85,7 @@ Each V10 module compiles against the V10 modules it depends on, so the estate is
 3. **Domains and contracts.** Each service's domain, and the contract its api module publishes from it.
 4. **Servers and configuration**, with the clients each server uses to call its peers.
 
-Base services come before the services that consume them, and modules on a cycle go together. Within one build a cycle is prepared at once. For services on a cycle across repositories, one side's api module is first published without its contract, the other side builds against it, then the first publishes in full; every later release builds against its peers' previous versions, as in 9.x.
+Base services come before the services that consume them, and modules on a cycle go together. Within one build a cycle is prepared at once. For services on a cycle across repositories, one side's api module is first published without its contract, the other side builds against it, then the first publishes in full; every later release builds against its peers' previous versions, as in 9.x. The types-only publication is `./gradlew :<api>:publish -Pwow.contract.publish=false`, which builds no domain and says so in one line, under a version of its own that orders before the full release, such as `1.0.0-types` before `1.0.0`: a published version cannot gain its contract later. A service of that build refuses to merge its Manifest, naming the property, and a service resolving the types-only version is told to depend on the module's full release.
 
 Preparing in order releases nothing: every service stays on 9.x in production until the window.
 

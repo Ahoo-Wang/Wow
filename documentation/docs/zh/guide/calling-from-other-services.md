@@ -21,7 +21,7 @@ outline: deep
 
 ## 在 JVM 中 {#from-the-jvm}
 
-`WowClient` 发送命令对象、读取状态，与 Wow 服务自己的客户端一样。它从对端的 api jar 里取对端的契约，因此应用依赖对端的 `*-api` 模块。构建时给出每个上下文的服务在哪里，以及它的模式：
+`WowClient` 发送命令对象、读取状态，与 Wow 服务自己的客户端一样。它从对端的 `*-api` 模块取对端的契约，契约是该模块的特性 `contract`：应用要索取它，`implementation("com.example:ordering-api:1.0.0") { capabilities { requireFeature("contract") } }`，用 Maven 时则在旁边加上该模块分类器为 `contract` 的 jar。构建时给出每个上下文的服务在哪里，以及它的模式：
 
 <!-- sample: fragment -->
 
