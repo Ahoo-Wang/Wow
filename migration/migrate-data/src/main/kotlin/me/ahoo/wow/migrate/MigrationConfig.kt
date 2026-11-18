@@ -21,8 +21,10 @@ import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestTree
 import me.ahoo.wow.manifest.ServiceInfo
+import me.ahoo.wow.mongo.MongoSharding
 import me.ahoo.wow.mongo.ledger.MongoFailureLedger
 import me.ahoo.wow.mongo.log.MongoEventLog
+import me.ahoo.wow.mongo.log.MongoEventLogOptions
 import me.ahoo.wow.mongo.reservation.MongoReservationStore
 import me.ahoo.wow.mongo.snapshot.MongoSnapshotStore
 import me.ahoo.wow.mongo.subscription.MongoCheckpointStore
@@ -34,6 +36,7 @@ import me.ahoo.wow.postgres.snapshot.PostgresSnapshotStore
 import me.ahoo.wow.postgres.subscription.PostgresCheckpointStore
 import me.ahoo.wow.postgres.subscription.PostgresLeaseStore
 import me.ahoo.wow.runtime.manifest.ManifestLoader
+import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
@@ -223,9 +226,13 @@ internal data class CompensationConfig(val database: String, val service: String
 
 /**
  * The V10 log: [type] `postgres` (with [jdbcUrl], [username] and [password], through a pool of at most [poolSize]
- * connections) or `mongo` (with [uri] and [database]: a replica set, or a sharded cluster's mongos routers, on which
- * the MongoDB stores shard the collections they create). Per-aggregate log stores are migrated by one run per store,
- * each with a map of the aggregates that store holds.
+ * connections) or `mongo` (with [uri] and [database]: a replica set, or a sharded cluster's mongos routers).
+ * Per-aggregate log stores are migrated by one run per store, each with a map of the aggregates that store holds.
+ *
+ * A `mongo` target manages its collections as the service's nodes do, by the choices of their MongoDB configuration:
+ * [ddl] is `wow.ddl` (`auto` creates what is missing, `validate` only checks it, `none` neither) and [sharding] is
+ * `wow.mongo.sharding` (`auto` shards the collections it creates on a mongos, `none` leaves them to the operator).
+ * Both default to `auto`, as the nodes'.
  */
 internal data class TargetConfig(
     val type: String,
@@ -235,17 +242,33 @@ internal data class TargetConfig(
     val uri: String? = null,
     val database: String? = null,
     val poolSize: Int = DEFAULT_POOL_SIZE,
+    val ddl: String = AUTO,
+    val sharding: String = AUTO,
 ) {
     init {
         require(poolSize >= 1) { "A target's pool holds at least one connection." }
         require(type == POSTGRES || type == MONGO) { "A target is of type $POSTGRES or $MONGO, not $type." }
         require(type != POSTGRES || jdbcUrl != null) { "A $POSTGRES target needs a jdbcUrl." }
         require(type != MONGO || (uri != null && database != null)) { "A $MONGO target needs a uri and a database." }
+        require(ddl in DDLS) { "A target's ddl is ${DDLS.joinToString(", ")}, not $ddl." }
+        require(sharding in SHARDINGS) { "A target's sharding is ${SHARDINGS.joinToString(" or ")}, not $sharding." }
+        require(type == MONGO || ddl == AUTO && sharding == AUTO) {
+            "ddl and sharding are choices of a $MONGO target, not of a $type one."
+        }
     }
+
+    /** How the target's MongoDB stores manage their collections and indexes ([ddl]). */
+    fun ddl(): Ddl = Ddl.valueOf(ddl.uppercase())
+
+    /** Whether the target's MongoDB stores shard the collections they create ([sharding]). */
+    fun sharding(): MongoSharding = MongoSharding.valueOf(sharding.uppercase())
 
     companion object {
         const val POSTGRES = "postgres"
         const val MONGO = "mongo"
+        const val AUTO = "auto"
+        private val DDLS = listOf(AUTO, "validate", "none")
+        private val SHARDINGS = listOf(AUTO, "none")
 
         /** The default [poolSize]: as many connections as the default import and backfill concurrency needs, twice. */
         const val DEFAULT_POOL_SIZE = 16
@@ -382,11 +405,21 @@ internal class ConfiguredConnections(
     }
     private val logs = ConcurrentHashMap<String, EventLog>()
 
+    /** A `mongo` target's database, which [TargetConfig] requires of it; unused by a `postgres` one. */
+    private val targetDatabase: String = config.target.database.orEmpty()
+    private val ddl: Ddl = config.target.ddl()
+    private val sharding: MongoSharding = config.target.sharding()
+
     override fun logOf(context: String): EventLog = logs.computeIfAbsent(context) {
         val partitions = config.partitionsOf(context)
         if (targetClient != null) {
-            MongoEventLog(targetClient, requireNotNull(config.target.database), context, partitions)
-                .also { it.createSchema() }
+            MongoEventLog(
+                targetClient,
+                targetDatabase,
+                context,
+                partitions,
+                options = MongoEventLogOptions(ddl = ddl, sharding = sharding),
+            ).also { it.createSchema() }
         } else {
             PostgresEventLog(dataSource.value, context, partitions).also { it.createSchema() }
         }
@@ -396,7 +429,13 @@ internal class ConfiguredConnections(
 
     override fun snapshotStoreOf(context: String): SnapshotStore = snapshotStores.computeIfAbsent(context) {
         if (targetClient != null) {
-            MongoSnapshotStore(targetClient, requireNotNull(config.target.database), context)
+            MongoSnapshotStore(
+                targetClient,
+                targetDatabase,
+                context,
+                ddl = ddl,
+                sharding = sharding,
+            )
         } else {
             PostgresSnapshotStore(dataSource.value, context)
         }
@@ -407,7 +446,8 @@ internal class ConfiguredConnections(
 
     private val reservationStore: ReservationStore by lazy {
         if (targetClient != null) {
-            MongoReservationStore(targetClient, requireNotNull(config.target.database)).also { it.createSchema() }
+            MongoReservationStore(targetClient, targetDatabase, ddl = ddl, sharding = sharding)
+                .also { it.createSchema() }
         } else {
             PostgresReservationStore(dataSource.value).also { it.createSchema() }
         }
@@ -417,7 +457,8 @@ internal class ConfiguredConnections(
 
     private val checkpointStore: CheckpointStore by lazy {
         if (targetClient != null) {
-            MongoCheckpointStore(targetClient, requireNotNull(config.target.database)).also { it.createSchema() }
+            MongoCheckpointStore(targetClient, targetDatabase, ddl = ddl)
+                .also { it.createSchema() }
         } else {
             PostgresCheckpointStore(dataSource.value).also { it.createSchema() }
         }
@@ -427,7 +468,9 @@ internal class ConfiguredConnections(
 
     private val checkpointTable: CheckpointTable by lazy {
         if (targetClient != null) {
-            MongoCheckpointTable(targetClient, requireNotNull(config.target.database)).also { it.createSchema() }
+            // The tool's own collections: created under `auto`; under `validate` or `none` the operator creates them.
+            MongoCheckpointTable(targetClient, targetDatabase)
+                .also { if (ddl.creates) it.createSchema() }
         } else {
             PostgresCheckpointTable(dataSource.value).also { it.createSchema() }
         }
@@ -437,7 +480,7 @@ internal class ConfiguredConnections(
 
     private val leaseStore: LeaseStore by lazy {
         if (targetClient != null) {
-            MongoLeaseStore(targetClient, requireNotNull(config.target.database)).also { it.createSchema() }
+            MongoLeaseStore(targetClient, targetDatabase, ddl = ddl).also { it.createSchema() }
         } else {
             PostgresLeaseStore(dataSource.value).also { it.createSchema() }
         }
@@ -455,7 +498,7 @@ internal class ConfiguredConnections(
         val service = config.compensation?.service
             ?: throw MigrationException("The configuration names no 9.x compensation.")
         if (targetClient != null) {
-            MongoFailureLedger(targetClient, requireNotNull(config.target.database), service = service)
+            MongoFailureLedger(targetClient, targetDatabase, service = service, ddl = ddl)
                 .also { it.createSchema() }
         } else {
             PostgresFailureLedger(dataSource.value, service = service).also { it.createSchema() }

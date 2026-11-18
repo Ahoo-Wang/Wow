@@ -133,7 +133,9 @@ docker run --rm -v /path/to/migration:/config:ro -e WOW_PG_PASSWORD \
 | `target.type` | 必填 | `postgres` 或 `mongo`。 |
 | `target.jdbcUrl`、`target.username`、`target.password` | | PostgreSQL 目标。 |
 | `target.poolSize` | `16` | 连接 PostgreSQL 目标的最大连接数。 |
-| `target.uri`、`target.database` | | MongoDB 目标：副本集，或分片集群的 `mongos` 路由，工具会给它创建的集合分片（[分片的 MongoDB](../migrate/data#a-sharded-mongodb)）。 |
+| `target.uri`、`target.database` | | MongoDB 目标：副本集，或分片集群的 `mongos` 路由（[分片的 MongoDB](../migrate/data#a-sharded-mongodb)）。 |
+| `target.ddl` | `auto` | MongoDB 目标的存储如何管理它们的集合和索引，与节点的 `wow.ddl` 相同：`auto` 创建缺少的，`validate` 只检查它们存在、不存在时拒绝运行，`none` 两者都不做。在 `none` 下没有谁会创建索引，所以日志的唯一键（它让重跑不会把任何东西写两遍）只有在运维创建了它们时才存在。工具自己的检查点集合（`checkpoint: target:<name>`）只在 `auto` 下创建。 |
+| `target.sharding` | `auto` | MongoDB 目标的存储是否在 `mongos` 上给它们创建的集合分片，与节点的 `wow.mongo.sharding` 相同：`auto` 按后端的键分片，`none` 不分片，留给运维。只有 `auto` 与 `ddl: auto` 一起时才会创建并分片。 |
 | `partitions` | | 每个 V10 上下文的分区数，必须与服务自己的相同。 |
 | `classpath` | 工具自己的类路径 | 服务的 V10 领域模块，每项是一个 jar，或者一个包含类或 jar 的目录，例如服务发行包的 `lib`。`compare` 和 `snapshot` 用它们的模型重建状态，`check --decode` 用它们读取 9.x 事件，不写 `manifests` 时 Manifest 也来自它们。工具不运行任何决定函数，所以模型需要的依赖中，接口用替身代替，`java.time.Clock` 或 `java.time.ZoneId` 给系统的 UTC 时钟或时区。模型需要其他类的依赖时失败并给出类名：在模型中改为接收接口。 |
 | `compensation.database` | | 9.x 补偿服务的数据库。不配置 `compensation` 时，不读取补偿服务的任何内容。 |

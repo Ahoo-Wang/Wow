@@ -15,6 +15,8 @@ package me.ahoo.wow.migrate
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.migrate.example.NineXExample
+import me.ahoo.wow.mongo.MongoSharding
+import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.reservation.ReservationStore
 import me.ahoo.wow.spi.snapshot.SnapshotStore
@@ -133,6 +135,29 @@ internal class MigrateDataConfigurationTest : MigrateDataFixtures() {
         TargetConfig("postgres", jdbcUrl = "jdbc:postgresql://localhost/wow").poolSize.assert()
             .isEqualTo(TargetConfig.DEFAULT_POOL_SIZE)
         assertThrows<IllegalArgumentException> { TargetConfig("postgres", jdbcUrl = "jdbc:x", poolSize = 0) }
+    }
+
+    @Test
+    fun `a MongoDB target manages its collections as the nodes do, by auto unless it says otherwise`() {
+        val mongo = TargetConfig("mongo", uri = "mongodb://localhost", database = "wow")
+        mongo.ddl().assert().isEqualTo(Ddl.AUTO)
+        mongo.sharding().assert().isEqualTo(MongoSharding.AUTO)
+        mongo.copy(ddl = "validate", sharding = "none").also {
+            it.ddl().assert().isEqualTo(Ddl.VALIDATE)
+            it.sharding().assert().isEqualTo(MongoSharding.NONE)
+        }
+        mongo.copy(ddl = "none").ddl().assert().isEqualTo(Ddl.NONE)
+        assertThrows<IllegalArgumentException> { mongo.copy(ddl = "VALIDATE") }.message.assert()
+            .isEqualTo("A target's ddl is auto, validate, none, not VALIDATE.")
+        assertThrows<IllegalArgumentException> { mongo.copy(sharding = "manual") }.message.assert()
+            .isEqualTo("A target's sharding is auto or none, not manual.")
+        // The nodes' choices of their MongoDB configuration: a PostgreSQL target refuses them.
+        assertThrows<IllegalArgumentException> {
+            TargetConfig("postgres", jdbcUrl = "jdbc:postgresql://localhost/wow", sharding = "none")
+        }.message.assert().isEqualTo("ddl and sharding are choices of a mongo target, not of a postgres one.")
+        assertThrows<IllegalArgumentException> {
+            TargetConfig("postgres", jdbcUrl = "jdbc:postgresql://localhost/wow", ddl = "none")
+        }
     }
 
     @Test

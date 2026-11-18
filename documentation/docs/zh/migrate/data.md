@@ -298,7 +298,7 @@ V10 停放的是聚合，不是事件：停放的聚合后续的事件在停放�
   - 预留键按 `{tenant_id: 1, key: "hashed"}`。
 
   检查点、租约和失败台账不分片。连接所用的用户需要分片的权限：`clusterManager`，或者在该数据库上的 `enableSharding`、`splitChunk` 和 `moveChunk`。
-- **工具在 `mongos` 上总是分片。** `target` 还没有 `sharding` 或 `ddl` 选项（[#6470](https://github.com/Ahoo-Wang/Wow/issues/6470)）。即使节点运行 `wow.mongo.sharding: none`，它也会分片，并且需要创建集合和索引的权限。已经按其他键分片的集合会让导入停止，报错中会写出它的名字。
+- **与节点相同的选择。** 把节点的 `wow.mongo.sharding` 作为 `sharding`、把节点的 `wow.ddl` 作为 `ddl` 交给 `target`（[配置文件](../reference/migrate-data#configuration-file)）。`sharding: none` 时，工具不给它创建的集合分片。`ddl: validate` 时，它什么都不创建，目标缺少集合时拒绝运行。已经按其他键分片的集合会让导入停止，报错中会写出它的名字。
 
 ### 演练过什么 {#what-was-rehearsed}
 
@@ -309,11 +309,11 @@ V10 停放的是聚合，不是事件：停放的聚合后续的事件在停放�
 3. `compare`（没有差异）和 `snapshot`；
 4. 对 V10 之后写入的一条流运行 `export`。
 
-它检查目标的日志集合和快照集合按上面的键分片，并且日志的块分布在两个分片上。这个集群每晚运行 MongoDB 后端的测试；migrate-data 的测试只在有人启动时运行。还没有真实的 9.x 数据在分片集群之间迁移过，所以请演练你自己的数据。
+它检查目标的日志集合和快照集合按上面的键分片，并且日志的块分布在两个分片上。`TargetDdlShardingTest` 在那里运行目标的 `sharding` 和 `ddl` 的每个取值。这个集群每晚运行 MongoDB 后端的测试；migrate-data 的测试只在有人启动时运行。还没有真实的 9.x 数据在分片集群之间迁移过，所以请演练你自己的数据。
 
 ### 运维要重做什么，在什么时候 {#what-the-operator-redoes-and-when}
 
-- **9.x 的分片脚本。** 它写的是 9.x 的集合和键：不要在 V10 的名字上运行它。工具和节点在创建 V10 集合时就给它们分片；脚本已经按其他键分片过的集合，会让两者都拒绝它。让 V10 的部署不再包含这个脚本。要手工分片，就在节点上设置 `wow.mongo.sharding: none`，并使用[分片集群](../operate/mongodb#sharded-clusters)中的键。在能告诉工具把分片留给你之前（[#6470](https://github.com/Ahoo-Wang/Wow/issues/6470)），它会给自己创建的集合分片。
+- **9.x 的分片脚本。** 它写的是 9.x 的集合和键：不要在 V10 的名字上运行它。工具和节点在创建 V10 集合时就给它们分片；脚本已经按其他键分片过的集合，会让两者都拒绝它。让 V10 的部署不再包含这个脚本。要手工分片，就在节点上设置 `wow.mongo.sharding: none`、在工具的 `target` 上设置 `"sharding": "none"`，并在导入写入每个集合之前，按[分片集群](../operate/mongodb#sharded-clusters)中的键给它分片。
 - **手工建的快照索引。** 在 9.x 的 `<aggregate>_snapshot` 上建的索引不会带过来。V10 的快照在 `wow_snapshot__<context>__<aggregate>` 中，字段改了名：
 
   | 9.x | V10 |
