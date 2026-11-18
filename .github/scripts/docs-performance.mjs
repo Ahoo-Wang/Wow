@@ -12,6 +12,7 @@ import {
   headlinePath,
   reportsIn,
 } from './bench-headline.mjs';
+import { cpuModel } from '../../documentation/docs/.vitepress/theme/perf-figures.mjs';
 
 // The figures the documentation quotes, in English and Chinese, generated from
 // the benchmark reports so that no page shows a number its report no longer has
@@ -33,10 +34,12 @@ import {
 // headline file is not quoted. No figure is computed across two reports, so
 // none across two builds.
 
-/** The reports the page quotes, in its order. */
+/** The reports the pages quote, in their order: the snapshots' tables, then the Axon comparisons' spans. */
 export const HEADLINES = [
   'test/benchmarks/results/reports/actions-snapshot/headline.json',
   'test/benchmarks/results/reports/m5max-snapshot/headline.json',
+  'test/benchmarks/results/reports/actions-axon/headline.json',
+  'test/benchmarks/results/reports/m5max-axon/headline.json',
 ];
 
 export const PAGES = {
@@ -130,16 +133,10 @@ const rate = value =>
   `${value.toLocaleString('en-US', { maximumFractionDigits: 1 })}/s`;
 
 /**
- * A CPU model as a reader names it: `AMD EPYC 7763 64-Core Processor` is `EPYC 7763`, `Intel(R) Xeon(R) 6975P-C` and
- * `INTEL(R) XEON(R) PLATINUM 8573C` are `Xeon 6975P-C` and `Xeon 8573C`.
+ * A CPU model as a table row names it: the figures' name (cpuModel), less the M5 Max's cores and memory, which the
+ * environment's title gives.
  */
-export const cpuName = cpu =>
-  cpu
-    .replace(/^AMD\s+/, '')
-    .replace(/\s+\d+-Core Processor$/, '')
-    .replace(/^Intel\(R\) Xeon\(R\)(\s+Platinum)?\s+/i, 'Xeon ')
-    .replace(/\s+CPU\s+@.*$/, '')
-    .replace(/, 18 cores, 64 GB$/, '');
+export const cpuName = cpu => cpuModel(cpu).replace(/, 18 cores, 64 GB$/, '');
 
 /**
  * The rows of a headline the page's table shows, each `{ store, nodes, scenario, keys, peak?, sustainable?, cpu,
@@ -293,19 +290,57 @@ export function performanceBlock(locale, headlines) {
   ].join('\n');
 }
 
-/** The blocks a page may hold, by name: each writes its table, in a locale, from the headlines. */
-export const BLOCKS = { snapshots: performanceBlock };
+/** One environment's part of the block: its report's builds and tables alone. */
+const environmentBlock = environment => (locale, headlines) =>
+  performanceBlock(
+    locale,
+    headlines.filter(headline => headline.environment === environment),
+  );
+
+/**
+ * The blocks a page may hold, by name: each writes its table, in a locale, from the headlines. `snapshots` holds every
+ * snapshot's; `actions` and `m5max` one environment's.
+ */
+export const BLOCKS = {
+  snapshots: performanceBlock,
+  actions: environmentBlock('actions'),
+  m5max: environmentBlock('m5max'),
+};
 
 const BLOCK = /<!-- performance:begin ([^\s]*) -->|<!-- performance:end -->/g;
 const SPAN =
   /<!-- perf:([^/\s]+)\/([^:\s]+):([A-Za-z0-9.]+) -->([\s\S]*?)<!-- \/perf -->/g;
 
+/** The fields of a figure that name where it was measured, as the prose prints each. */
+const WHERE = {
+  commit: commit => `\`${commit}\``,
+  cpu: cpu => cpuName(cpu),
+  jdk: jdk => jdk,
+};
+
+/** How many CPUs a taskset list names: `0-2` is 3, `3` is 1, `0,2-3` is 3. */
+export const cpuCount = list =>
+  String(list)
+    .split(',')
+    .map(part => part.split('-').map(Number))
+    .reduce((n, [from, to = from]) => n + to - from + 1, 0);
+
+/** A pinned process's CPUs (`cpus.server`, `cpus.load`): printed as how many. */
+const isCpus = field => /^cpus\.[a-z]+$/.test(field);
+
 /**
  * A figure's field as the prose prints it: a rate (`value`, `saturation`) as `2,609.8/s`, a time (`…Ms`) as
- * `64 ms`, any other number as itself with thousands separated.
+ * `64 ms`, any other number as itself with thousands separated; its build (`commit`) as code, its CPU as a reader
+ * names it, its JDK as recorded, and a pinned process's CPUs as their count.
  */
 export function spanText(field, value) {
-  const last = field.split('.').at(-1);
+  if (isCpus(field)) return String(cpuCount(value));
+  // An arm's figure in a list (`readyMs.0`) is printed as its list's field.
+  const last = field
+    .split('.')
+    .filter(key => !/^\d+$/.test(key))
+    .at(-1);
+  if (WHERE[field]) return WHERE[field](value);
   if (last === 'value' || last === 'saturation') return rate(value);
   if (/Ms$/.test(last))
     return `${value.toLocaleString('en-US', { maximumFractionDigits: 1 })} ms`;
@@ -328,7 +363,10 @@ function figureText(headlines, report, id, field, path) {
       `${path}: perf:${report}/${id}:${field}: ${report} has no figure ${id}`,
     );
   const value = field.split('.').reduce((holder, key) => holder?.[key], figure);
-  if (!Number.isFinite(value))
+  if (
+    !Number.isFinite(value) &&
+    !((WHERE[field] || isCpus(field)) && typeof value === 'string')
+  )
     throw new Error(
       `${path}: perf:${report}/${id}:${field}: the figure has no number there`,
     );

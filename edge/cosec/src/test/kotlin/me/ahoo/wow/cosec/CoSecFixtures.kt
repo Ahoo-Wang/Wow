@@ -11,40 +11,40 @@
  * limitations under the License.
  */
 
+@file:OptIn(ExperimentalCoSecApi::class) // A pipeline without Spring, as wow-cosec's tests need one.
+
 package me.ahoo.wow.cosec
 
+import io.mockk.coEvery
+import io.mockk.spyk
+import kotlinx.coroutines.reactor.mono
+import kotlinx.coroutines.runBlocking
+import me.ahoo.cosec.annotations.ExperimentalCoSecApi
 import me.ahoo.cosec.api.context.SecurityContext
-import me.ahoo.cosec.api.tenant.Tenant
-import me.ahoo.cosec.engine.TraceLevel
-import me.ahoo.cosec.engine.flat.CompiledDocument
-import me.ahoo.cosec.engine.flat.FlatEngine
-import me.ahoo.cosec.engine.flat.FlatEvaluation
-import me.ahoo.cosec.engine.flat.FlatRequest
-import me.ahoo.cosec.engine.flat.SnapshotView
+import me.ahoo.cosec.api.context.SecurityScope
+import me.ahoo.cosec.api.principal.CoSecPrincipal
+import me.ahoo.cosec.document.SnapshotDocuments
+import me.ahoo.cosec.document.route.RouteMap
 import me.ahoo.cosec.model.AppId
-import me.ahoo.cosec.model.Memberships
-import me.ahoo.cosec.model.PolicyId
 import me.ahoo.cosec.model.PrincipalId
-import me.ahoo.cosec.model.RoleId
-import me.ahoo.cosec.model.SpaceId
 import me.ahoo.cosec.model.TenantId
-import me.ahoo.cosec.model.decision.BindingRef
-import me.ahoo.cosec.model.decision.Decision
-import me.ahoo.cosec.model.decision.StatementRef
 import me.ahoo.cosec.model.scope.HostScope
 import me.ahoo.cosec.runtime.AuthorizationChecker
 import me.ahoo.cosec.runtime.Pipeline
-import me.ahoo.cosec.runtime.PipelineComponents
+import me.ahoo.cosec.runtime.event.DecisionEvent
+import me.ahoo.cosec.runtime.event.DecisionListener
+import me.ahoo.cosec.runtime.event.Delivery
 import me.ahoo.cosec.runtime.http.Cookies
 import me.ahoo.cosec.runtime.http.Headers
 import me.ahoo.cosec.runtime.http.HttpFacts
-import me.ahoo.cosec.runtime.route.RouteMap
-import me.ahoo.cosec.runtime.snapshot.SnapshotViews
-import me.ahoo.cosec.runtime.snapshot.SuspendingSnapshotSource
-import me.ahoo.cosec.runtime.snapshot.ViewKey
+import me.ahoo.cosec.runtime.http.Outcome
+import me.ahoo.cosec.runtime.http.ProblemEncoder
 import me.ahoo.cosec.spi.authn.AuthenticatedPrincipal
 import me.ahoo.cosec.spi.authn.AuthnResult
-import me.ahoo.cosec.webflux.PipelineWebFilter
+import me.ahoo.cosec.spi.authn.Credentials
+import me.ahoo.cosec.spi.membership.MembershipClaims
+import me.ahoo.cosec.spi.snapshot.InMemorySnapshotDocumentStore
+import me.ahoo.cosec.spi.snapshot.SnapshotKey
 import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
@@ -75,12 +75,16 @@ import me.ahoo.wow.runtime.wait.WaitCoordinator
 import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.runtime.wait.WaitRegistry
 import me.ahoo.wow.spi.wait.Origin
+import org.springframework.http.HttpStatusCode
+import org.springframework.http.server.reactive.ServerHttpRequest
 import org.springframework.test.web.reactive.server.WebTestClient
+import org.springframework.web.server.ServerWebExchange
 import org.springframework.web.server.WebFilter
+import org.springframework.web.server.WebFilterChain
+import reactor.core.publisher.Mono
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
 import java.time.Duration
-import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.time.Duration.Companion.seconds
 import me.ahoo.wow.api.decide.Decision as WowDecision
@@ -136,15 +140,17 @@ fun cartManifest(): Manifest {
     )
 }
 
-/** What the pipeline's engine is asked: the action (`service:verb`) and the resource (`type/id`) of each request. */
+/** What CoSec is asked: the action (`service:verb`) and the resource (`type/id`) of a request or of a check. */
 class Asked(val action: String, val resource: String, val principal: String?, val app: String, val space: String) {
     override fun toString(): String = "$action $resource"
 }
 
 /**
- * CoSec's pipeline with a stand-in for its documents: the principal of the bearer token
- * `<id>;<tenant>;<roles>;<policies>` (roles comma-separated, `role@space` in a space; empty parts left out), the
- * route map of [cartManifest], and an engine that records what it is [asked] and permits what [permits] says.
+ * CoSec's pipeline over a platform document that permits every request: the principal of the bearer token
+ * `<id>;<tenant>;<roles>;<app>;<attributes>` (roles comma-separated, `role@space` in a space; the app the token is
+ * for; attributes `name=value`, comma-separated; empty parts left out), the route map of [cartManifest], and its
+ * [checker], which permits what [permits] says. [asked] records what the pipeline decided and what the checker was
+ * asked, in that order.
  */
 class CoSecPipeline(
     private val host: String? = null,
@@ -152,109 +158,159 @@ class CoSecPipeline(
 ) {
     val asked = CopyOnWriteArrayList<Asked>()
 
-    private val engine = object : FlatEngine {
-        override fun evaluate(request: FlatRequest, snapshot: SnapshotView, trace: TraceLevel): FlatEvaluation {
-            val authz = request.request
-            val resource = authz.resource.let { if (it.id.isEmpty()) it.type else "${it.type}/${it.id}" }
-            val asked = Asked(
-                "${authz.action.namespace}:${authz.action.verb}",
-                resource,
-                authz.subject.id.takeIf { authz.subject.authenticated },
-                request.scope.app.value,
-                request.scope.space.value,
+    private val documents = InMemorySnapshotDocumentStore().apply {
+        put(SnapshotKey.Platform, SnapshotDocuments.read(PERMIT_ALL.toByteArray()))
+    }
+
+    private val recorder = object : DecisionListener {
+        override val name: String = "asked"
+
+        // Delivered before the outcome, so a test reads what the request was decided as once it is answered.
+        override val delivery: Delivery = Delivery.REQUIRED
+
+        override suspend fun onDecision(event: DecisionEvent) {
+            val action = event.action ?: return
+            val resource = checkNotNull(event.resource)
+            asked += Asked(
+                "${action.namespace}:${action.verb}",
+                if (resource.id.isEmpty()) resource.type else "${resource.type}/${resource.id}",
+                event.subject.id.takeIf { event.subject.authenticated },
+                event.scope?.app?.value.orEmpty(),
+                event.scope?.space?.value.orEmpty(),
             )
-            this@CoSecPipeline.asked += asked
-            return FlatEvaluation(if (permits(asked)) PERMIT else Decision.Deny(null), null)
         }
     }
 
-    val pipeline: Pipeline = Pipeline(
-        PipelineComponents(
-            authenticator = { credentials -> authenticate(credentials.token) },
-            snapshots = SuspendingSnapshotSource(InstalledViews),
-            engine = engine,
-            idGenerator = { "request-1" },
-            routes = RouteMap.of(
+    val pipeline: Pipeline = Pipeline.builder({ credentials -> authenticate(credentials) }, documents)
+        .routes(
+            RouteMap.of(
                 CoSecActions.routes(cartManifest()).routes.map { RouteMap.Located(it, "cosec-routes.json") }
-            ),
+            )
         )
+        .listener(recorder)
+        .build()
+        .also { pipeline -> check(runBlocking { pipeline.awaitDocuments() }.isEmpty()) }
+
+    /** CoSec's checker of this pipeline, asked as the authorizers ask it, deciding as [permits] says. */
+    val checker: AuthorizationChecker = spyk(AuthorizationChecker(pipeline)).also { checker ->
+        coEvery { checker.check(any<SecurityContext>(), any<String>(), any<String>()) } coAnswers {
+            val security = firstArg<SecurityContext>()
+            val asked = Asked(
+                secondArg(),
+                thirdArg(),
+                security.principal.id.takeIf { security.principal.authenticated },
+                security.scope.appId,
+                security.scope.spaceId,
+            )
+            this@CoSecPipeline.asked += asked
+            permits(asked) && callOriginal()
+        }
+    }
+
+    /**
+     * CoSec's WebFlux adapter as far as wow-cosec reads it, which only CoSec's starter builds: each request's outcome,
+     * its problem written, or its security context put on the exchange and into the Reactor context under
+     * [SecurityContext.KEY], where CoSec's filter puts it.
+     */
+    val filter: WebFilter = WebFilter { exchange, chain ->
+        mono { pipeline.evaluate(factsOf(exchange.request)) }.flatMap { outcome -> proceed(exchange, chain, outcome) }
+    }
+
+    private fun proceed(exchange: ServerWebExchange, chain: WebFilterChain, outcome: Outcome): Mono<Void> {
+        val response = exchange.response
+        outcome.headers.forEach { (name, value) -> response.headers.set(name, value) }
+        val problem = outcome.problem
+        if (problem != null) {
+            response.statusCode = HttpStatusCode.valueOf(outcome.status)
+            return response.writeWith(Mono.just(response.bufferFactory().wrap(ProblemEncoder.encode(problem))))
+        }
+        val context = checkNotNull(outcome.security).securityContext
+        exchange.attributes[SecurityContext.KEY] = context
+        return chain.filter(exchange).contextWrite { it.put(SecurityContext.KEY, context) }
+    }
+
+    private fun factsOf(request: ServerHttpRequest) = HttpFacts(
+        method = request.method.name(),
+        rawPath = request.uri.rawPath,
+        rawQuery = request.uri.rawQuery,
+        // Each line as it came, a comma kept: CoSec reads a header's lines itself.
+        headers = Headers.of(request.headers.headerNames().associateWith { request.headers.get(it).orEmpty() }),
+        cookies = Cookies.of(request.cookies.mapValues { (_, cookies) -> cookies.map { it.value } }),
+        remoteAddress = "10.0.0.1",
+        host = HostScope(host?.let(::AppId)),
     )
 
-    val checker: AuthorizationChecker = AuthorizationChecker(pipeline)
-
-    val filter: WebFilter = PipelineWebFilter(pipeline, host = HostScope(host?.let(::AppId)))
-
-    /** The security context the pipeline permits a `POST [path]` with [token] and [headers] in, whatever [permits] says. */
+    /** The security context the pipeline permits a `POST [path]` with [token] and [headers] in. */
     suspend fun security(
         token: String?,
         headers: Map<String, String> = emptyMap(),
         path: String = "/shop/cart/c-1/add-item",
     ): SecurityContext {
         val all = headers + (token?.let { mapOf("Authorization" to "Bearer $it") }.orEmpty())
-        val permits = this.permits
-        this.permits = { true }
-        val outcome = try {
-            pipeline.evaluate(
-                HttpFacts(
-                    method = "POST",
-                    rawPath = path,
-                    rawQuery = null,
-                    headers = Headers.of(all.mapValues { listOf(it.value) }),
-                    cookies = Cookies.of(emptyMap()),
-                    remoteAddress = "10.0.0.1",
-                    host = HostScope(host?.let(::AppId)),
-                )
+        val outcome = pipeline.evaluate(
+            HttpFacts(
+                method = "POST",
+                rawPath = path,
+                rawQuery = null,
+                headers = Headers.of(all.mapValues { listOf(it.value) }),
+                cookies = Cookies.of(emptyMap()),
+                remoteAddress = "10.0.0.1",
+                host = HostScope(host?.let(::AppId)),
             )
-        } finally {
-            this.permits = permits
-        }
+        )
         asked.clear()
         return checkNotNull(outcome.security) { "The pipeline refused the request: ${outcome.status}" }
             .securityContext
     }
 
-    private fun authenticate(token: String?): AuthnResult {
-        token ?: return AuthnResult.Anonymous
+    private fun authenticate(credentials: Credentials): AuthnResult {
+        val token = credentials.token ?: return AuthnResult.Anonymous
         val parts = token.removePrefix("Bearer ").split(';') + List(4) { "" }
-        val roles = parts[2].split(',').filter(String::isNotBlank).map {
-            val role = it.substringBefore('@')
-            val space = it.substringAfter('@', "")
-            SpaceId(space) to RoleId(role)
-        }
-        val memberships = Memberships(
-            Memberships.Source.CLAIMS,
-            roles.groupBy({ it.first }, { it.second }).mapValues { it.value.toSet() },
-            parts[3].split(',').filter(String::isNotBlank).map(::PolicyId),
-        )
-        val tenant = parts[1].ifBlank { Tenant.DEFAULT_TENANT_ID }
-        val attributes = parts.getOrNull(4)?.split(',')?.filter { '=' in it }
-            ?.associate { it.substringBefore('=') to it.substringAfter('=') }.orEmpty()
+        val tenant = parts[1].ifBlank { SecurityContext.DEFAULT_TENANT_ID }
+        val attributes = parts[4].split(',').filter { '=' in it }
+            .associate { it.substringBefore('=') to it.substringAfter('=') }
         return AuthnResult.Authenticated(
-            AuthenticatedPrincipal(PrincipalId(parts[0]), TenantId(tenant), memberships, attributes),
+            AuthenticatedPrincipal(
+                PrincipalId(parts[0]),
+                TenantId(tenant),
+                MembershipClaims.parse(parts[2].split(',').filter(String::isNotBlank), emptyList()),
+                attributes,
+                app = parts[3].ifBlank { null }?.let(::AppId),
+            ),
             "test",
         )
     }
 
-    private object InstalledViews : SnapshotViews {
-        override fun peek(key: ViewKey): SnapshotView = viewOf(key)
-
-        override fun load(key: ViewKey): CompletableFuture<SnapshotView> = CompletableFuture.completedFuture(
-            viewOf(key)
-        )
-
-        private fun viewOf(key: ViewKey) = SnapshotView(
-            CompiledDocument.platform(emptyList(), emptyList()),
-            key.app?.let { CompiledDocument.app(it, emptyList(), emptyList()) },
-            key.tenant?.let { CompiledDocument.tenant(it, emptyList(), emptyList()) },
-        )
-    }
-
     private companion object {
-        val PERMIT: Decision = Decision.Permit(
-            StatementRef.Policy(PolicyId("test"), 0, "permit", BindingRef.Attached(PolicyId("test")))
-        )
+        /** Every request and check permitted, for anyone, in any app and space. */
+        const val PERMIT_ALL = """
+            {
+              "schema": 2,
+              "revision": 1,
+              "publishedAt": "2026-11-17T00:00:00Z",
+              "policies": [{ "id": "all", "statements": [{ "name": "all", "effect": "allow", "action": "*" }] }],
+              "bindings": [{ "id": "all", "subject": "*", "app": "*", "space": "*", "policy": "all" }]
+            }
+        """
     }
 }
+
+/** A security context whose principal [id] no credential proved: one no request of CoSec's pipeline gives a caller. */
+fun unproven(id: String, tenant: String = "acme", roles: List<String> = emptyList()): SecurityContext =
+    object : SecurityContext {
+        override val tenantId = tenant
+        override val principal = object : CoSecPrincipal {
+            override val id = id
+            override val authenticated = false
+            override val attributes = emptyMap<String, Any>()
+        }
+        override val scope = object : SecurityScope {
+            override val appId = ""
+            override val spaceId = ""
+            override val roles = roles
+        }
+        override val forwardedIdentity = null
+    }
 
 /** The caller `alice` of tenant `acme` in space `s1`, as the resolver makes it of `alice;acme;editor@s1`. */
 fun editor(): Caller = Caller(

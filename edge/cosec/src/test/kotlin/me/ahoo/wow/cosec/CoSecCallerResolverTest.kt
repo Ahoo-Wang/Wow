@@ -16,11 +16,7 @@ package me.ahoo.wow.cosec
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import me.ahoo.cosec.api.context.SecurityContext
-import me.ahoo.cosec.api.principal.SimplePrincipal
-import me.ahoo.cosec.api.principal.SimpleTenantPrincipal
-import me.ahoo.cosec.api.tenant.SimpleTenant
 import me.ahoo.cosec.runtime.http.CoSecParameters
-import me.ahoo.cosec.webflux.ServerWebExchanges.setSecurityContext
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
@@ -31,17 +27,12 @@ import org.springframework.http.codec.ServerCodecConfigurer
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest
 import org.springframework.mock.web.server.MockServerWebExchange
 import org.springframework.web.reactive.function.server.ServerRequest
-import java.util.concurrent.ConcurrentHashMap
 
 /** [CoSecCallerResolver] over the security contexts CoSec's pipeline permits requests in (decision D367). */
 class CoSecCallerResolverTest {
     private val cosec = CoSecPipeline()
     private val resolver = CoSecCallerResolver(
-        CoSecCallerOptions(
-            defaultTenant = "home",
-            crossScopeRoles = setOf("admin"),
-            crossScopePolicies = setOf("wow-cross-scope"),
-        ),
+        CoSecCallerOptions(defaultTenant = "home", crossScopeRoles = setOf("admin")),
     )
 
     private fun callerOf(
@@ -73,14 +64,8 @@ class CoSecCallerResolverTest {
     }
 
     @Test
-    fun `a security context CoSec's pipeline did not build is no caller`() {
-        val acme = SimpleTenant("acme")
-        val context = object : SecurityContext {
-            override val tenant = acme
-            override val principal = SimpleTenantPrincipal(SimplePrincipal("alice", emptySet(), setOf("admin")), acme)
-            override val attributes: MutableMap<String, Any> = ConcurrentHashMap()
-        }
-        resolver.callerOf(context).assert().isNull()
+    fun `a security context whose principal no credential proved is no caller, whatever its id`() {
+        resolver.callerOf(unproven("alice", roles = listOf("admin"))).assert().isNull()
     }
 
     @Test
@@ -99,16 +84,18 @@ class CoSecCallerResolverTest {
     }
 
     @Test
-    fun `the application is the app of CoSec's scope, declared or the host's`() {
-        callerOf("alice;acme", mapOf(CoSecParameters.APP_ID to "console"))!!.app.assert().isEqualTo("console")
+    fun `the application is the app of CoSec's scope, the credential's or the host's`() {
+        callerOf("alice;acme;;console")!!.app.assert().isEqualTo("console")
         callerOf("alice;acme")!!.app.assert().isNull()
-        callerOf("alice;acme", cosec = CoSecPipeline(host = "shop-service"))!!.app.assert().isEqualTo("shop-service")
+        // A client declares no app of its own: the header is not read.
+        callerOf("alice;acme", mapOf("CoSec-App-Id" to "console"))!!.app.assert().isNull()
+        val host = CoSecPipeline(host = "shop-service")
+        callerOf("alice;acme;;shop-service", cosec = host)!!.app.assert().isEqualTo("shop-service")
     }
 
     @Test
-    fun `a configured role or policy lets the principal act across scopes`() {
+    fun `a configured role lets the principal act across scopes`() {
         callerOf("root;acme;admin")!!.crossScope.assert().isTrue()
-        callerOf("root;acme;;wow-cross-scope")!!.crossScope.assert().isTrue()
         callerOf("alice;acme;editor")!!.crossScope.assert().isFalse()
         // A role in another space is not the principal's in this request's scope.
         callerOf("root;acme;admin@s1")!!.crossScope.assert().isFalse()
@@ -120,21 +107,19 @@ class CoSecCallerResolverTest {
     }
 
     @Test
-    fun `a configured role or policy makes the principal a tenant-level caller, without an owner`() {
-        val tenantLevel = CoSecCallerResolver(
-            CoSecCallerOptions(tenantRoles = setOf("employee"), tenantPolicies = setOf("staff")),
-        )
+    fun `a configured role makes the principal a tenant-level caller, without an owner`() {
+        val tenantLevel = CoSecCallerResolver(CoSecCallerOptions(tenantRoles = setOf("employee")))
         callerOf("emma;acme;employee", resolver = tenantLevel)!!.scope.assert().isEqualTo(Scope.NONE)
-        callerOf("emma;acme;;staff", resolver = tenantLevel)!!.scope.assert().isEqualTo(Scope.NONE)
+        // A role in another space is not the principal's in this request's scope.
+        callerOf("emma;acme;employee@s1", resolver = tenantLevel)!!.scope.assert().isEqualTo(Scope("emma"))
         callerOf("bob;acme;buyer", resolver = tenantLevel)!!.scope.assert().isEqualTo(Scope("bob"))
     }
 
     @Test
-    fun `roles, policies and the principal's attributes are the caller's attributes, each by its own name`() {
-        callerOf("alice;acme;b,a;p2,p1;dept=sales,name=Alice,abac.region=eu")!!.attributes.assert().isEqualTo(
+    fun `roles and the principal's attributes are the caller's attributes, each by its own name`() {
+        callerOf("alice;acme;b,a;;dept=sales,name=Alice,abac.region=eu")!!.attributes.assert().isEqualTo(
             mapOf(
                 CoSecCallerResolver.ROLES to listOf("a", "b"),
-                CoSecCallerResolver.POLICIES to listOf("p1", "p2"),
                 "dept" to listOf("sales"),
                 "name" to listOf("Alice"),
                 "abac.region" to listOf("eu"),
@@ -145,7 +130,7 @@ class CoSecCallerResolverTest {
 
     @Test
     fun `an attribute of the principal named as one CoSec gives the caller is not a claim`() {
-        callerOf("alice;acme;editor;;roles=admin,policies=all,app=other,dept=, =x")!!.attributes.assert().isEqualTo(
+        callerOf("alice;acme;editor;;roles=admin,app=other,dept=, =x")!!.attributes.assert().isEqualTo(
             mapOf(CoSecCallerResolver.ROLES to listOf("editor")),
         )
     }
@@ -163,7 +148,8 @@ class CoSecCallerResolverTest {
         val exchange = MockServerWebExchange.from(MockServerHttpRequest.post("/shop/cart/c-1/add-item"))
         val request = ServerRequest.create(exchange, ServerCodecConfigurer.create().readers)
         resolver.resolve(request).assert().isNull()
-        exchange.setSecurityContext(cosec.security("alice;acme"))
+        // Where CoSec's filter puts it.
+        exchange.attributes[SecurityContext.KEY] = cosec.security("alice;acme")
         resolver.resolve(request)!!.subject.assert().isEqualTo("alice")
     }
 

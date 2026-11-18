@@ -92,7 +92,7 @@ class ConfigurationMetadataTest {
         names.assert().contains(
             "wow.cosec.authorizer.enabled",
             "wow.cosec.cross-scope.roles",
-            "wow.cosec.tenant-level.policies",
+            "wow.cosec.tenant-level.roles",
             "wow.cosec.mode",
             "wow.tenant.default",
             "wow.executor.max-in-flight",

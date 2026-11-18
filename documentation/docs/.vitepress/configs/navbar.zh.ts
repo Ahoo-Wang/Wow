@@ -12,6 +12,7 @@ export const navbarZh: DefaultTheme.NavItem[] = [
             {text: 'HTTP API', link: '/zh/guide/http'},
             {text: '查询', link: '/zh/guide/queries'},
             {text: '部署', link: '/zh/operate/topology'},
+            {text: '性能', link: '/zh/guide/performance'},
         ],
     },
     {

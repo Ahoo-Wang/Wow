@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.gradle
 
-import com.google.devtools.ksp.gradle.KspExtension
 import me.ahoo.wow.gradle.WowArtifacts.GROUP
 import me.ahoo.wow.gradle.WowArtifacts.declares
 import me.ahoo.wow.gradle.WowArtifacts.documentationAttributes
@@ -27,7 +26,9 @@ import me.ahoo.wow.gradle.WowPlugin.Companion.GENERATE_FRAGMENT_TASK
 import me.ahoo.wow.gradle.WowPlugin.Companion.KOTLIN_JVM
 import me.ahoo.wow.gradle.WowPlugin.Companion.coreView
 import me.ahoo.wow.gradle.WowPlugin.Companion.fragmentName
+import me.ahoo.wow.gradle.WowPlugin.Companion.kspVersion
 import me.ahoo.wow.gradle.WowPlugin.Companion.missingKotlinJvm
+import me.ahoo.wow.gradle.WowPlugin.Companion.missingKsp
 import me.ahoo.wow.gradle.WowPlugin.Companion.requireKotlin
 import me.ahoo.wow.gradle.WowPlugin.Companion.version
 import org.gradle.api.GradleException
@@ -38,6 +39,7 @@ import org.gradle.api.attributes.LibraryElements
 import org.gradle.api.file.FileCollection
 import org.gradle.api.file.FileTree
 import org.gradle.api.plugins.JavaPlugin
+import org.gradle.api.plugins.UnknownPluginException
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Optional
@@ -58,7 +60,7 @@ internal object DomainRole {
      * project fails, naming the fix.
      */
     fun domain(project: Project, extension: WowExtension, id: String) {
-        project.pluginManager.withPlugin(KOTLIN_JVM) { configureDomain(project, extension) }
+        project.pluginManager.withPlugin(KOTLIN_JVM) { configureDomain(project, extension, id) }
         if (project.state.executed) {
             requireKotlinJvm(project, id)
         } else {
@@ -72,10 +74,10 @@ internal object DomainRole {
         }
     }
 
-    private fun configureDomain(project: Project, extension: WowExtension) {
+    private fun configureDomain(project: Project, extension: WowExtension, id: String) {
         requireKotlin(project.path, kotlinPluginVersion(project))
         wowDependencies(project, JavaPlugin.IMPLEMENTATION_CONFIGURATION_NAME, KERNEL)
-        configureKsp(project, extension)
+        configureKsp(project, extension, id)
 
         val tools = toolsConfiguration(project)
         val sourceSets = project.extensions.getByType(SourceSetContainer::class.java)
@@ -178,15 +180,16 @@ internal object DomainRole {
 
     /**
      * Applies KSP with the model processor, and adds `wow-compiler` of the plugin's version unless `ksp` declares
-     * `wow-compiler` itself (a build that pins it, or Wow's own build).
+     * `wow-compiler` itself (a build that pins it, or Wow's own build). KSP comes from the class path of [project]: the
+     * markers of the domain and service plugins bring it, the plugin's jar does not, so `me.ahoo.wow.api` on a parent
+     * build script puts no KSP beside a module's own (a 9.x module of a staged migration). Without it, the module fails
+     * naming the line to add ([missingKsp]).
      */
-    private fun configureKsp(project: Project, extension: WowExtension) {
-        project.pluginManager.apply(KSP)
-        project.extensions.configure(KspExtension::class.java) { ksp ->
-            ksp.arg(MODEL_OPTION, "generate")
-            ksp.arg(MODULE_OPTION, fragmentName(project.path))
-            ksp.arg(ContextArgument(extension.context))
-        }
+    private fun configureKsp(project: Project, extension: WowExtension, id: String) {
+        applyKsp(project, id)
+        kspArg(project, MODEL_OPTION, "generate")
+        kspArg(project, MODULE_OPTION, fragmentName(project.path))
+        kspArg(project, ContextArgument(extension.context))
         // Added at once, not when `ksp` resolves: KSP wires a compilation's processors only when it sees a declared
         // one. A wow-compiler the module declares itself takes its place.
         project.configurations.named(KSP_CONFIGURATION) { configuration ->
@@ -197,6 +200,61 @@ internal object DomainRole {
             }
         }
     }
+
+    /**
+     * Applies the KSP plugin [ksp] to [project], which applies the Wow plugin [id]: by its id, from the project's own
+     * class path. A class path without it fails naming the line to add ([missingKsp]).
+     */
+    internal fun applyKsp(project: Project, id: String, ksp: String = KSP) {
+        try {
+            project.pluginManager.apply(ksp)
+        } catch (unknown: UnknownPluginException) {
+            throw GradleException(missingKsp(project.path, id), unknown)
+        }
+    }
+
+    /** Calls `arg` of [project]'s `ksp` extension with [arguments] ([kspArg]). */
+    private fun kspArg(project: Project, vararg arguments: Any) {
+        kspArg(project.extensions.getByName(KSP_EXTENSION), *arguments)
+    }
+
+    /**
+     * Calls `arg` of the `ksp` extension [ksp] with [arguments] (a key and a value, or a [CommandLineArgumentProvider]),
+     * by its public signature. Not through a typed reference, compile-only or not: the plugin's classes may be loaded
+     * by a parent build script's class loader (a root build's `id("me.ahoo.wow.api") apply false`) that cannot see the
+     * KSP the module's own class path holds, so a `KspExtension` the plugin names would fail to load, or be another
+     * class than the module's. A KSP whose extension lacks that `arg` fails naming its version and the plugin's
+     * ([kspSignatureMissing]).
+     */
+    internal fun kspArg(ksp: Any, vararg arguments: Any) {
+        val types = arguments.map { argument ->
+            if (argument is CommandLineArgumentProvider) CommandLineArgumentProvider::class.java else argument.javaClass
+        }
+        val arg = try {
+            ksp.javaClass.getMethod("arg", *types.toTypedArray())
+        } catch (missing: NoSuchMethodException) {
+            throw GradleException(kspSignatureMissing(versionOf(ksp.javaClass), types.map { it.simpleName }), missing)
+        }
+        arg.invoke(ksp, *arguments)
+    }
+
+    /**
+     * The version of the KSP Gradle plugin [type] (its extension, decorated by Gradle) comes from: the name of the jar
+     * its class file is in (`symbol-processing-gradle-plugin-<version>.jar`), else its manifest's; null when neither
+     * says.
+     */
+    internal fun versionOf(type: Class<*>): String? {
+        val declared = generateSequence(type) { it.superclass }.first { !it.name.endsWith("_Decorated") }
+        val location = declared.getResource("${declared.simpleName}.class")?.toString().orEmpty()
+        return KSP_JAR.find(location)?.let { it.groupValues[1] } ?: declared.`package`.implementationVersion
+    }
+
+    /** Why a module fails whose KSP, of version [found], has no `arg` taking [parameters]. */
+    internal fun kspSignatureMissing(found: String?, parameters: List<String>): String =
+        "The KSP Gradle plugin ${found ?: "of an unknown version"} has no ksp { arg(${parameters.joinToString()}) }, " +
+            "through which the Wow plugin ($version) passes the Wow compiler its options; the plugin is built for " +
+            "KSP $kspVersion. Apply KSP $kspVersion (id(\"com.google.devtools.ksp\") version \"$kspVersion\"), or a " +
+            "Wow plugin built for the KSP the build applies."
 
     /** The version of the Kotlin Gradle plugin [project] applies, read through the plugin's own class loader. */
     private fun kotlinPluginVersion(project: Project): String {
@@ -222,6 +280,8 @@ internal object DomainRole {
     private const val KOTLIN_WRAPPER = "org.jetbrains.kotlin.gradle.plugin.KotlinPluginWrapperKt"
     private const val KSP = "com.google.devtools.ksp"
     private const val KSP_CONFIGURATION = "ksp"
+    private const val KSP_EXTENSION = "ksp"
+    private val KSP_JAR = Regex("""symbol-processing-gradle-plugin-([^/!]+)\.jar""")
     private const val KSP_TASK = "kspKotlin"
     private const val KSP_RESOURCES = "generated/ksp/main/resources"
     private const val MODEL_OPTION = "wow.model"

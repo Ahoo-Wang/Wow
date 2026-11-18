@@ -18,8 +18,9 @@ import org.junit.jupiter.api.Test
 
 /**
  * The default request facts of the public port (09 §17 G-10) as a host serves them: `remote_ip` is the client the
- * gateway forwarded for, since the host makes `server.forward-headers-strategy` `framework` by default (decision
- * D303), unless the application says `none`; each fact is capped (review S-10).
+ * gateway forwarded for, since the host makes `server.forward-headers-strategy` `native` by default (decision
+ * D303; not `framework`, under which CoSec does not start), unless the application says `none`; each fact is capped
+ * (review S-10).
  */
 class HostRequestFactsTest {
     private val facts = mapOf("User-Agent" to "bank-app/1.0", "X-Forwarded-For" to "203.0.113.9")
@@ -32,7 +33,7 @@ class HostRequestFactsTest {
     @Test
     fun `a command records the user agent and the client the gateway forwarded for`() {
         startHost().use { host ->
-            host.context.environment.getProperty("server.forward-headers-strategy").assert().isEqualTo("framework")
+            host.context.environment.getProperty("server.forward-headers-strategy").assert().isEqualTo("native")
             val headers = host.opened()
             headers["user_agent"].assert().isEqualTo("bank-app/1.0")
             headers["remote_ip"].assert().isEqualTo("203.0.113.9")

@@ -71,7 +71,7 @@ Spring 会忽略没有属性绑定的键，所以拼错的键会一声不响地�
 | 主题传输 | 设置了 `wow.kafka.bootstrap-servers` 时为 Kafka；开发中为 JVM 内的主题 | `wow.transport` |
 | 快照保存在哪里，以及类型的查询读取的存储 | 日志所在的存储；类型自己的存储 | `wow.snapshot.store`、`wow.aggregates.[<context>.<aggregate>].snapshot.store` 和 `.query.snapshot.store` |
 | 对端的节点 | 按其契约声明的服务命名的 DNS SRV 记录（[配置对端](../guide/calling-services#configure-a-peer-over-http)），或 Spring Cloud 的注册中心（[Spring Cloud 服务发现](./spring-cloud)） | `wow.peer.discovery`、`wow.peers.<context>.url` |
-| 网关之后的客户端地址 | 网关写入的转发头（`server.forward-headers-strategy: framework`） | `server.forward-headers-strategy` |
+| 网关之后的客户端地址 | 网关写入的转发头（`server.forward-headers-strategy: native`） | `server.forward-headers-strategy` |
 
 ## 开发与生产 {#development-and-production}
 

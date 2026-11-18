@@ -13,8 +13,8 @@
 
 package me.ahoo.wow.spring.boot.security
 
+import me.ahoo.cosec.document.route.RouteMap
 import me.ahoo.cosec.runtime.AuthorizationChecker
-import me.ahoo.cosec.runtime.route.RouteMap
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
@@ -51,9 +51,8 @@ import org.springframework.core.type.AnnotatedTypeMetadata
  *
  * - [CoSecCallerResolver] is the host's [CallerResolver] when CoSec is on (`cosec.enabled`, true unless set) and
  *   the application has none: the host's development callers ([DevelopmentCallerResolver]) step aside. Its options are
- *   `wow.tenant.default`, `wow.cosec.cross-scope.roles` / `wow.cosec.cross-scope.policies` and
- *   `wow.cosec.tenant-level.roles` / `wow.cosec.tenant-level.policies` (the tenant-level callers), comma-separated or
- *   indexed lists. The caller's app and space are those of the scope CoSec resolved, behind a CoSec gateway
+ *   `wow.tenant.default`, `wow.cosec.cross-scope.roles` and `wow.cosec.tenant-level.roles` (the tenant-level
+ *   callers), comma-separated or indexed lists. The caller's app and space are those of the scope CoSec resolved, behind a CoSec gateway
  *   (`wow.cosec.mode=gateway`) the ones the gateway forwarded. No CoSec principal is a service identity: a service
  *   names itself on the internal port.
  * - The CoSec request fact `CoSec-Device-Id` ([CoSecRequestFacts]) joins the edge's request-fact list
@@ -139,9 +138,7 @@ class CoSecAutoConfiguration {
                 CoSecCallerOptions(
                     defaultTenant = defaultTenant(properties),
                     crossScopeRoles = crossScope.roles.names(),
-                    crossScopePolicies = crossScope.policies.names(),
                     tenantRoles = tenantLevel.roles.names(),
-                    tenantPolicies = tenantLevel.policies.names(),
                 )
             }
 
@@ -186,7 +183,7 @@ internal const val COSEC_PIPELINE_MODE = "cosec.pipeline.mode"
 
 /** CoSec's pipeline configuration, whose route map the Manifest's routes take the place of. */
 internal const val COSEC_PIPELINE_AUTO_CONFIGURATION =
-    "me.ahoo.cosec.spring.boot.starter.pipeline.CoSecPipelineAutoConfiguration"
+    "me.ahoo.cosec.spring.boot.pipeline.CoSecPipelineAutoConfiguration"
 
 /** A class of wow-cosec, present only when the application has the module. */
 internal const val COSEC_MODULE = "me.ahoo.wow.cosec.CoSecCallerResolver"

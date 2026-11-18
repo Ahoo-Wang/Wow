@@ -13,8 +13,8 @@
 
 package me.ahoo.wow.cosec
 
-import me.ahoo.cosec.runtime.route.Route
-import me.ahoo.cosec.runtime.route.RouteMapDocument
+import me.ahoo.cosec.document.route.Route
+import me.ahoo.cosec.document.route.RouteMapDocument
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.manifest.CommandRoutes

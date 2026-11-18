@@ -17,6 +17,9 @@ hero:
       text: Wow 怎样工作
       link: /zh/concepts/
     - theme: alt
+      text: 性能
+      link: /zh/guide/performance
+    - theme: alt
       text: GitHub
       link: https://github.com/Ahoo-Wang/Wow
 features:

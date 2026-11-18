@@ -30,19 +30,19 @@ Wow 服务有两扇门：公开端口，调用方在这里发送命令和查询�
 
 类路径上有 `wow-cosec` 以及 CoSec 的 starter 和 WebFlux 模块（`me.ahoo.cosec:cosec-spring-boot`、`me.ahoo.cosec:cosec-webflux`）时，除非应用自己定义了 `CallerResolver`，CoSec 的解析器就是宿主的解析器。CoSec 的管道认证每个请求并解析它的作用域，即决定这个请求时所在的应用和空间；解析器把 CoSec 构建的安全上下文变成调用方：
 
-- **租户和主体标识**来自主体；CoSec 的默认租户 `(0)` 即 `wow.tenant.default`。没有已认证主体的请求，或者安全上下文不是 CoSec 的管道构建的请求，返回 401。
-- **所有者。** 主体是所有者级调用方，作用于它自己的聚合；除非它具有 `wow.cosec.tenant-level` 中的某个角色或策略，这时它是租户级调用方，作用于它租户的每个聚合，例如为每个买家发货的员工。
+- **租户和主体标识**来自主体；CoSec 的默认租户 `(0)` 即 `wow.tenant.default`。没有安全上下文的请求，或者其主体未经任何凭据证明的请求，返回 401。
+- **所有者。** 主体是所有者级调用方，作用于它自己的聚合；除非它在请求的作用域中具有 `wow.cosec.tenant-level` 中的某个角色，这时它是租户级调用方，作用于它租户的每个聚合，例如为每个买家发货的员工。
 - **空间**是 CoSec 作用域的空间。客户端在 `CoSec-Space-Id` 中指明它，只有当主体在那个空间中有角色时 CoSec 才接受；不带它时，请求处于 CoSec 的默认空间，这不是任何 Wow 空间。CoSec 宿主不从 `Wow-Space` 取空间：`Wow-Space` 指明的空间与 CoSec 的不同时，请求返回 403 `wow.auth.forbidden`。
-- **应用。** 调用方的应用（`Caller.app`），也就是提交记录的请求事实 `app_id`，是 CoSec 作用域的应用：宿主自己的应用（`cosec.authorization.scope.app-id`）；没有时，是请求声明且被 CoSec 接受的 `CoSec-App-Id`；再没有时，在 CoSec 网关之后，是网关转发的应用。作用域没有应用时，调用方也没有应用。
-- **角色和属性。** 调用方的 `roles` 属性列出主体在作用域空间中的角色，`policies` 列出它的策略，其余每个主体属性都以自己的名字成为一项声明，供访问策略读取（`caller.claims("departments")`）。在 CoSec 网关之后，主体没有策略，所以那里只有 `wow.cosec.tenant-level` 和 `wow.cosec.cross-scope` 的角色能匹配，声明就是网关转发的那些（`cosec.gateway.identity.claims`）。
-- **在别处行事。** 只有具有 `wow.cosec.cross-scope` 中某个角色或策略的主体，才能在 `Wow-Scope` 里指明另一个租户或作用域。
+- **应用。** 调用方的应用（`Caller.app`），也就是提交记录的请求事实 `app_id`，是 CoSec 作用域的应用：宿主自己的应用（`cosec.authorization.scope.app-id`）；没有时，是请求的凭据声明的应用（令牌的 `aud`、API Key 的 `app`）；再没有时，在 CoSec 网关之后，是网关转发的应用。客户端不能自己声明应用：CoSec 不读取 `CoSec-App-Id`。作用域没有应用时，调用方也没有应用。
+- **角色和属性。** 调用方的 `roles` 属性列出主体在作用域空间中的角色，其余每个主体属性都以自己的名字成为一项声明，供访问策略读取（`caller.claims("departments")`）。CoSec 不告诉应用主体的策略，所以 `wow.cosec.tenant-level` 和 `wow.cosec.cross-scope` 只按角色指明调用方。在 CoSec 网关之后，声明就是网关转发的那些（`cosec.gateway.identity.claims`）。
+- **在别处行事。** 只有具有 `wow.cosec.cross-scope` 中某个角色的主体，才能在 `Wow-Scope` 里指明另一个租户或作用域。
 - **服务。** CoSec 主体从来不是服务身份。服务只在内部端口上声明自己（[关上内部端口](#close-the-internal-port)）。
 
 CoSec 怎样认证请求、怎样检查客户端声明的应用和空间，见 CoSec 的指南：[认证](https://cosec.ahoo.me/integration/authentication)、[应用与空间](https://cosec.ahoo.me/integration/web#app-and-space)。
 
 ## 记录客户端地址 {#record-the-client-address}
 
-每条命令记录客户端的 `User-Agent` 和地址（`user_agent`、`remote_ip`），每个都截断到 512 个字符。公开端口前面总有网关，所以宿主从网关的 `X-Forwarded-For` 取地址：除非应用自己设置，宿主把 Spring Boot 的 `server.forward-headers-strategy` 设为 `framework`，并在启动时记录生效的策略。网关必须覆盖客户端发来的这个请求头。把策略设为 `none` 则记录连接的地址。
+每条命令记录客户端的 `User-Agent` 和地址（`user_agent`、`remote_ip`），每个都截断到 512 个字符。公开端口前面总有网关，所以宿主从网关的 `X-Forwarded-For` 取地址：除非应用自己设置，宿主把 Spring Boot 的 `server.forward-headers-strategy` 设为 `native`，并在启动时记录生效的策略。网关必须覆盖客户端发来的这个请求头。把策略设为 `none` 则记录连接的地址。不用 `framework`：CoSec 在它之下不启动，因为 Spring 的转发头转换器会把客户端写下的地址当作远端地址（[代理之后的客户端 IP](https://cosec.ahoo.me/integration/web#client-ip-behind-proxies)）；在 `native` 之下，CoSec 自己读取 `X-Forwarded-For`，信任一层代理（`cosec.authorization.remote-ip.max-trusted-index`）。
 
 ## 授权命令 {#authorize-commands}
 
@@ -78,7 +78,7 @@ Wow 内置聚合的系统命令在公开端口上遵循同一规则：定时任�
 
 ### CoSec 在哪里决定 {#where-cosec-decides}
 
-- **在自己做决定的服务中**（`cosec.pipeline.mode` 为 `enforce`，CoSec 的默认值），CoSec 的管道读取宿主根据服务 Manifest 构建的路由映射：它的命令路由和服务路由，使用上面的名字，取代 `cosec-routes.json`。内部命令的路由不在其中，因为公开端口不提供它们。应用自己声明了 `RouteMap` Bean 时保留它。这样的服务持有 CoSec 的签名密钥，并从 CoSec 的 Redis 读取文档（[CoSec 快速开始](https://cosec.ahoo.me/guide/quick-start)）。
+- **在自己做决定的服务中**（`cosec.pipeline.mode` 为 `enforce`，CoSec 的默认值），CoSec 的管道读取宿主根据服务 Manifest 构建的路由映射：它的命令路由和服务路由，使用上面的名字，取代 `cosec-routes.json`。内部命令的路由不在其中，因为公开端口不提供它们。应用自己声明了 `RouteMap` Bean 时保留它。这样的服务持有 CoSec 的签名密钥，并从 CoSec 的 Redis 读取文档（[CoSec 快速开始](https://cosec.ahoo.me/guide/quick-start)）。它的探针在每个端口上同样经过 CoSec：平台文档安装之前，Actuator 的 readiness 和 liveness 都回答 503，所以文档尚未发布时 kubelet 会重启 Pod；安装之后回答 401，除非有一条语句允许任何人 `GET` `/actuator/health/readiness` 和 `/actuator/health/liveness`。在部署服务之前发布文档，连同这条语句（[应用上的 Actuator](https://cosec.ahoo.me/integration/web#actuator-on-an-application)）。在网关之后，探针是匿名请求，可以通过。
 - **在 CoSec 网关之后**（`wow.cosec.mode: gateway`），由网关决定。网关不加载路由映射，所以它的策略写的是请求路径上的 `http:<METHOD>` 动作，服务自己不按策略决定任何事（[以网关模式运行服务](#run-services-in-gateway-mode)）。
 
 设置 `wow.cosec.authorizer.enabled: true` 后，`CoSecCommandAuthorizer` 和 `CoSecServiceRouteAuthorizer` 在进程内为每条命令和每次服务路由调用授权，无论它经哪条路径到达命令网关：按上面的动作，以它所来自的请求的主体、在那个请求的作用域中授权。只有 CoSec 自己做决定的地方才装配它们，这需要 CoSec 的 `AuthorizationChecker`：网关模式的服务没有它，这个开关在那里不起作用。开关默认关闭：没有它、也没有你自己的授权器时，通过了路由的命令就被允许，上面内置聚合的系统命令除外。你自己的 `CommandAuthorizer` 与 CoSec 的授权器一同询问，命令需要两者都允许（[组合规则](../guide/spring-boot#beans-the-application-gives)）；只应在没有 CoSec 时才决定的、按你自己的角色授权的授权器，注入 `ObjectProvider<CoSecCommandAuthorizer>`，在存在它时不提出异议，平台服务就是这样做的。
@@ -142,7 +142,7 @@ wow:
 
 网关认证并授权每个请求，把它校验过的内容放在 `CoSec-Identity` 中转发：主体、主体的租户，以及作用域的应用、空间和角色。服务从中读取调用方。它不持有 CoSec 的签名密钥、文档或 Redis，也没有 `AuthorizationChecker`：在网关的决定之外，调用方还能做什么，由服务自己的授权器决定。`wow.cosec.mode: disabled` 关闭 CoSec（`cosec.enabled=false`），用于不带网关运行的服务。eShop 的服务和 Wow 的平台服务（ops 服务、视图存储和分析目录）在 `cosec` profile 下以网关模式运行。
 
-**只有网关能访问网关模式的服务。** 它相信收到的任何 `CoSec-Identity`：其他能给它发请求的人，声称是谁就是谁。要在网络上保证这一点：像部署清单那样，用只放行网关 Pod 的网络策略。不带这个请求头的请求是匿名的，解析器以 401 回答；CoSec 以 400 回答无法读取的请求头，以 401 回答早于 `cosec.pipeline.gateway.max-age`（60 秒）的请求头。详情见 CoSec 的指南：[网关之后的服务](https://cosec.ahoo.me/integration/web#services-behind-the-gateway)、[信任边界](https://cosec.ahoo.me/guide/security-model#trust-boundaries)。
+**只有网关能访问网关模式的服务。** 它相信收到的任何 `CoSec-Identity`：其他能给它发请求的人，声称是谁就是谁。要在网络上保证这一点：像部署清单那样，用只放行网关 Pod 的网络策略。不带这个请求头的请求是匿名的，解析器以 401 回答；CoSec 以 400 回答无法读取的请求头，以 401 回答早于 `cosec.pipeline.identity.max-age`（60 秒）的请求头。详情见 CoSec 的指南：[网关之后的服务](https://cosec.ahoo.me/integration/web#services-behind-the-gateway)、[信任边界](https://cosec.ahoo.me/guide/security-model#trust-boundaries)。
 
 ### 配置 CoSec Gateway {#configure-the-cosec-gateway}
 

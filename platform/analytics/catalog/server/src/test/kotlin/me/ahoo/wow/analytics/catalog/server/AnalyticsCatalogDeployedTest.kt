@@ -13,12 +13,9 @@
 
 package me.ahoo.wow.analytics.catalog.server
 
-import me.ahoo.cosec.runtime.identity.IdentityCodec
-import me.ahoo.cosec.spi.identity.Identity
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.cosec.CoSecIdentity
 import org.junit.jupiter.api.Test
-import java.time.Duration
-import java.time.Instant
 
 /**
  * The analytics catalog as it is deployed: outside development, behind the CoSec gateway (the `cosec` profile), without
@@ -48,20 +45,8 @@ class AnalyticsCatalogDeployedTest {
      * [id] of CoSec's default tenant with [roles], as the CoSec gateway forwards it after verifying its credential: the
      * service holds no secret and verifies nothing, it believes the header.
      */
-    private fun signedIn(id: String, vararg roles: String): Who {
-        val now = Instant.now()
-        val identity = Identity(
-            tenant = "(0)",
-            subject = id,
-            app = "",
-            space = "",
-            roles = roles.toSet(),
-            credential = Identity.Credential(Identity.Method.JWT, "token-of-$id", now + Duration.ofHours(1)),
-            issuedAt = now,
-            requestId = "request-of-$id",
-        )
-        return Who(mapOf(IdentityCodec.HEADER to IdentityCodec.encode(identity)))
-    }
+    private fun signedIn(id: String, vararg roles: String): Who =
+        Who(CoSecIdentity(id, roles.toList()).headers())
 
     private companion object {
         const val FORBIDDEN = 403

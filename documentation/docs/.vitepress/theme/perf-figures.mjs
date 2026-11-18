@@ -23,6 +23,8 @@ const WORDS = {
     sustainable: 'sustainable',
     clients: 'clients',
     refused: 'refused',
+    sustainableStep: 'sustainable step',
+    refusedStep: 'more than 1% refused',
     ratio: 'Wow ÷ Axon (log scale)',
     notCompared: 'not compared: a data check failed',
     table: 'The figure as a table',
@@ -41,6 +43,8 @@ const WORDS = {
     sustainable: '可持续',
     clients: '客户端',
     refused: '拒绝',
+    sustainableStep: '可持续的那一级',
+    refusedStep: '拒绝超过 1%',
     ratio: 'Wow ÷ Axon（对数刻度）',
     notCompared: '未比较：数据校验未通过',
     table: '图中数据（表格）',
@@ -54,6 +58,18 @@ const WORDS = {
     },
   },
 };
+
+/**
+ * A CPU model as a reader names it: `AMD EPYC 7763 64-Core Processor` is `EPYC 7763`, `Intel(R) Xeon(R) 6975P-C` and
+ * `INTEL(R) XEON(R) PLATINUM 8573C` are `Xeon 6975P-C` and `Xeon 8573C`. The pages' tables and spans name it the same
+ * way (docs-performance.mjs).
+ */
+export const cpuModel = cpu =>
+  String(cpu)
+    .replace(/^AMD\s+/, '')
+    .replace(/\s+\d+-Core Processor$/, '')
+    .replace(/^Intel\(R\) Xeon\(R\)(\s+Platinum)?\s+/i, 'Xeon ')
+    .replace(/\s+CPU\s+@.*$/, '');
 
 /**
  * The figures a page can show, by name. `sweep` draws closed-loop sweeps as the answered rate against p99, a panel a
@@ -123,9 +139,11 @@ const logScale = (lo, hi, from, to) => value =>
 const linearScale = (lo, hi, from, to) => value => from + ((value - lo) / (hi - lo)) * (to - from);
 const TICKS = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000];
 const ticksIn = (lo, hi) => TICKS.filter(t => t >= lo && t <= hi);
-const niceMax = value => {
-  const step = 10 ** Math.floor(Math.log10(value));
-  return Math.ceil(value / step) * step;
+/** Round ticks from 0 past [value]: a step of 1, 2 or 5 times a power of ten, at most five steps. */
+const niceTicks = value => {
+  const power = 10 ** Math.floor(Math.log10(value));
+  const step = [0.1, 0.2, 0.5, 1, 2, 5, 10].map(m => m * power).find(s => Math.ceil(value / s) <= 5);
+  return Array.from({ length: Math.ceil(value / step) + 1 }, (_, i) => i * step);
 };
 
 const svg = (width, height, label, body) =>
@@ -141,16 +159,16 @@ const hline = (cls, x1, x2, y) =>
 function sweepPanel(figures, words) {
   const [W, H, L, R, T, B] = [360, 290, 56, 16, 30, 46];
   const steps = figures.flatMap(f => f.steps);
-  const xMax = niceMax(Math.max(...steps.map(s => s.value)));
+  const xTicks = niceTicks(Math.max(...steps.map(s => s.value)));
+  const xMax = xTicks.at(-1);
   const yLo = 10 ** Math.floor(Math.log10(Math.min(...steps.map(s => s.p99Ms))));
   const yHi = 10 ** Math.ceil(Math.log10(Math.max(200, ...steps.map(s => s.p99Ms))));
   const x = linearScale(0, xMax, L, W - R);
   const y = logScale(yLo, yHi, H - B, T);
   let body = text('perf-title', L, 18, figures[0].scenario);
   for (const t of ticksIn(yLo, yHi))
-    body += hline('perf-grid', L, W - R, y(t)) + text('perf-tick', L - 6, y(t) + 4, t, 'end');
-  for (const t of [0, 0.25, 0.5, 0.75, 1].map(f => f * xMax))
-    body += text('perf-tick', x(t), H - B + 16, compact(t), 'middle');
+    body += hline('perf-grid', L, W - R, y(t)) + text('perf-tick', L - 6, y(t) + 4, grouped(t, 0), 'end');
+  for (const t of xTicks) body += text('perf-tick', x(t), H - B + 16, compact(t), 'middle');
   body += hline('perf-axis', L, W - R, H - B);
   body += hline('perf-limit', L, W - R, y(200)) + text('perf-note', L + 4, y(200) - 5, '200 ms');
   body += text('perf-tick', (L + W - R) / 2, H - 8, words.rate, 'middle');
@@ -182,13 +200,20 @@ function sweepPanel(figures, words) {
     .join(' · ');
   return (
     `<div class="perf-panel">${svg(W, H, `${figures[0].scenario}: ${words.rate}, ${words.p99}`, body)}` +
-    `<p class="perf-key-line"><i class="perf-best-key"></i>${escape(words.sustainable)}: ${escape(key)}</p></div>`
+    `<p class="perf-key-line">${glyph('perf-best')}${escape(words.sustainable)}: ${escape(key)}</p></div>`
   );
 }
 
-const legend = stores =>
+/** A marker as the plot draws it, in the text's colour: the legend's glyph for what that marker means. */
+const glyph = cls =>
+  `<svg class="perf-glyph" viewBox="0 0 16 16" aria-hidden="true">` +
+  `<circle class="perf-dot ${cls} perf-neutral" cx="8" cy="8" r="${cls === 'perf-best' ? 6 : 4}"/></svg>`;
+
+const legend = (stores, words) =>
   `<p class="perf-legend">` +
   stores.map(s => `<span><i class="perf-key perf-series-${SERIES[s]}"></i>${STORES[s]}</span>`).join('') +
+  `<span>${glyph('perf-best')}${escape(words.sustainableStep)}</span>` +
+  `<span>${glyph('perf-hollow')}${escape(words.refusedStep)}</span>` +
   `</p>`;
 
 const table = (columns, rows) =>
@@ -213,7 +238,7 @@ function sweepFigure(definition, words, headlines, name) {
   return {
     first: all[0],
     chart:
-      legend([...new Set(all.map(f => f.store))]) +
+      legend([...new Set(all.map(f => f.store))], words) +
       `<div class="perf-panels">${panels.map(p => sweepPanel(p, words)).join('')}</div>`,
     data: table(words.columns.sweep, rows),
   };
@@ -229,39 +254,66 @@ function ratioFigure(definition, words, headlines, name) {
   const shown = figures.filter(f => f.comparable);
   const lo = Math.min(0.8, ...shown.map(f => f.lo * (1 - f.band)));
   const hi = Math.max(1.25, ...shown.map(f => f.hi * (1 + f.band)));
-  const [W, L, R, T, ROW, B] = [720, 250, 84, 8, 30, 44];
-  const H = T + figures.length * ROW + B;
-  const x = logScale(lo, hi, L, W - R);
-  let body = '';
-  for (const t of ticksIn(1, hi))
-    body +=
-      `<line class="perf-grid" x1="${round(x(t))}" x2="${round(x(t))}" y1="${T}" y2="${H - B}"/>` +
-      text('perf-tick', x(t), H - B + 16, `${t}×`, 'middle');
-  body += `<line class="perf-axis" x1="${round(x(1))}" x2="${round(x(1))}" y1="${T}" y2="${H - B}"/>`;
-  body += text('perf-tick', (L + W - R) / 2, H - 6, words.ratio, 'middle');
-  figures.forEach((figure, i) => {
-    const cy = T + i * ROW + ROW / 2;
-    body += text('perf-tick', L - 10, cy + 4, caseOf(figure, words), 'end');
-    if (!figure.comparable) {
-      body += text('perf-note', x(1) + 8, cy + 4, words.notCompared);
-      return;
-    }
-    const hollow = !figure.verdict.startsWith('wow') ? ' perf-hollow' : '';
-    const title = `${caseOf(figure, words)}: ${range(figure)}, ${figure.verdict}`;
-    const [b0, b1] = [x(figure.lo * (1 - figure.band)), x(figure.hi * (1 + figure.band))];
-    body +=
-      `<rect class="perf-band perf-series-1" x="${round(b0)}" y="${cy - 8}" width="${round(b1 - b0)}" ` +
-      `height="16" rx="4"/>` +
-      hline('perf-range perf-series-1', x(figure.lo), x(figure.hi), cy) +
-      [figure.lo, figure.hi]
-        .map(
-          v =>
-            `<circle class="perf-dot perf-series-1${hollow}" cx="${round(x(v))}" cy="${cy}" r="4">` +
-            `<title>${escape(title)}</title></circle>`,
-        )
-        .join('') +
-      text('perf-label', b1 + 6, cy + 4, range(figure));
-  });
+  // Two layouts: wide, a case's label left of its range; narrow (a phone), the label above it, so the labels stay
+  // legible without a scroll that would hide the ranges. The page shows one by its width (PerfFigure.vue).
+  const chart = ({ W, L, R, ROW, above }) => {
+    const [T, B] = [8, 44];
+    const H = T + figures.length * ROW + B;
+    const x = logScale(lo, hi, L, W - R);
+    let body = '';
+    // Each row's centre, and the span its value text takes (about 6.5 units a character at the ticks' size).
+    const rowY = i => (above ? T + i * ROW + ROW - 14 : T + i * ROW + ROW / 2);
+    const valueSpan = figure => {
+      const [from, chars] = figure.comparable
+        ? [x(figure.hi * (1 + figure.band)) + 6, range(figure).length]
+        : [x(1) + 8, words.notCompared.length];
+      return [from - 3, from + chars * 6.5 + 3];
+    };
+    // A vertical line is drawn a row at a time, within the row's band and never through its value text, so that no
+    // line crosses a label: a case's name above its row, or its range beside it.
+    const vline = (cls, t) =>
+      figures
+        .map((figure, i) => {
+          const [from, to] = valueSpan(figure);
+          if (x(t) >= from && x(t) <= to) return '';
+          const cy = rowY(i);
+          const [y1, y2] = above ? [cy - 10, cy + 10] : [cy - ROW / 2, cy + ROW / 2];
+          return `<line class="${cls}" x1="${round(x(t))}" x2="${round(x(t))}" y1="${y1}" y2="${y2}"/>`;
+        })
+        .join('');
+    for (const t of ticksIn(1, hi)) body += vline('perf-grid', t) + text('perf-tick', x(t), H - B + 16, `${t}×`, 'middle');
+    body += vline('perf-axis', 1);
+    body += text('perf-tick', (L + W - R) / 2, H - 6, words.ratio, 'middle');
+    figures.forEach((figure, i) => {
+      const cy = rowY(i);
+      body += above
+        ? text('perf-tick', L, cy - 16, caseOf(figure, words))
+        : text('perf-tick', L - 10, cy + 4, caseOf(figure, words), 'end');
+      if (!figure.comparable) {
+        body += text('perf-note', x(1) + 8, cy + 4, words.notCompared);
+        return;
+      }
+      const hollow = !figure.verdict.startsWith('wow') ? ' perf-hollow' : '';
+      const title = `${caseOf(figure, words)}: ${range(figure)}, ${figure.verdict}`;
+      const [b0, b1] = [x(figure.lo * (1 - figure.band)), x(figure.hi * (1 + figure.band))];
+      body +=
+        `<rect class="perf-band perf-series-1" x="${round(b0)}" y="${cy - 8}" width="${round(b1 - b0)}" ` +
+        `height="16" rx="4"/>` +
+        hline('perf-range perf-series-1', x(figure.lo), x(figure.hi), cy) +
+        [figure.lo, figure.hi]
+          .map(
+            v =>
+              `<circle class="perf-dot perf-series-1${hollow}" cx="${round(x(v))}" cy="${cy}" r="4">` +
+              `<title>${escape(title)}</title></circle>`,
+          )
+          .join('') +
+        text('perf-label', b1 + 6, cy + 4, range(figure));
+    });
+    return svg(W, H, words.ratio, body);
+  };
+  const charts =
+    chart({ W: 720, L: 250, R: 84, ROW: 30, above: false }).replace('class="perf-chart"', 'class="perf-chart perf-wide"') +
+    chart({ W: 360, L: 12, R: 84, ROW: 44, above: true }).replace('class="perf-chart"', 'class="perf-chart perf-narrow"');
   const rows = figures.map(f => [
     caseOf(f, words),
     f.comparable ? range(f) : '–',
@@ -270,7 +322,7 @@ function ratioFigure(definition, words, headlines, name) {
     grouped(median(f.wow)),
     grouped(median(f.axon)),
   ]);
-  return { first: figures[0], chart: svg(W, H, words.ratio, body), data: table(words.columns.ratio, rows) };
+  return { first: figures[0], chart: charts, data: table(words.columns.ratio, rows) };
 }
 
 /** The HTML of figure [name] in [locale] (`en` or `zh`), drawn from [headlines] (each report's headline, by name). */
@@ -283,7 +335,7 @@ export function figureHtml(name, locale, headlines) {
   const { first, chart, data } = draw(definition, words, headlines, name);
   return (
     `<figure class="perf-figure">${chart}` +
-    `<figcaption>${escape(words.build(first.commit, first.cpu, first.jdk))}</figcaption>` +
+    `<figcaption>${escape(words.build(first.commit, cpuModel(first.cpu), first.jdk))}</figcaption>` +
     `<details><summary>${escape(words.table)}</summary>${data}</details></figure>`
   );
 }

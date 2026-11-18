@@ -13,17 +13,10 @@
 
 package me.ahoo.wow.spring.boot.security
 
-import me.ahoo.cosec.engine.flat.CompiledDocument
-import me.ahoo.cosec.engine.flat.SnapshotView
+import io.mockk.mockk
+import me.ahoo.cosec.document.route.RouteMap
+import me.ahoo.cosec.document.route.RouteResolution
 import me.ahoo.cosec.runtime.AuthorizationChecker
-import me.ahoo.cosec.runtime.Pipeline
-import me.ahoo.cosec.runtime.PipelineComponents
-import me.ahoo.cosec.runtime.route.RouteMap
-import me.ahoo.cosec.runtime.route.RouteResolution
-import me.ahoo.cosec.runtime.snapshot.SnapshotViews
-import me.ahoo.cosec.runtime.snapshot.SuspendingSnapshotSource
-import me.ahoo.cosec.runtime.snapshot.ViewKey
-import me.ahoo.cosec.spi.authn.AuthnResult
 import me.ahoo.cosec.webflux.ServerWebExchanges
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Creation
@@ -55,7 +48,6 @@ import org.springframework.boot.test.context.FilteredClassLoader
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import java.util.concurrent.CompletableFuture
 class CoSecAutoConfigurationTest {
     private val runner = ApplicationContextRunner()
         .withConfiguration(AutoConfigurations.of(CoSecAutoConfiguration::class.java))
@@ -73,22 +65,7 @@ class CoSecAutoConfigurationTest {
     @Configuration(proxyBeanMethods = false)
     class CoSec {
         @Bean
-        fun checker(): AuthorizationChecker = AuthorizationChecker(
-            Pipeline(
-                PipelineComponents(
-                    authenticator = { AuthnResult.Anonymous },
-                    snapshots = SuspendingSnapshotSource(
-                        object : SnapshotViews {
-                            override fun peek(key: ViewKey): SnapshotView =
-                                SnapshotView(CompiledDocument.platform(emptyList(), emptyList()), null, null)
-
-                            override fun load(key: ViewKey): CompletableFuture<SnapshotView> =
-                                CompletableFuture.completedFuture(peek(key))
-                        },
-                    ),
-                ),
-            ),
-        )
+        fun checker(): AuthorizationChecker = mockk()
 
         @Bean
         fun manifest(): Manifest = cartManifest()
@@ -113,20 +90,12 @@ class CoSecAutoConfigurationTest {
             "wow.tenant.default=home",
             "wow.cosec.cross-scope.roles[0]=admin",
             "wow.cosec.cross-scope.roles[1]=ops",
-            "wow.cosec.cross-scope.policies=p1, p2,",
-            "wow.cosec.tenant-level.roles=employee",
-            "wow.cosec.tenant-level.policies[0]=p3",
+            "wow.cosec.tenant-level.roles=employee, staff,",
         ).run { context ->
             context.getBeansOfType(CallerResolver::class.java).values.single().assert()
                 .isInstanceOf(CoSecCallerResolver::class.java)
             CoSecAutoConfiguration.callerOptions(context.getBean(WowProperties::class.java)).assert().isEqualTo(
-                CoSecCallerOptions(
-                    "home",
-                    setOf("admin", "ops"),
-                    setOf("p1", "p2"),
-                    tenantRoles = setOf("employee"),
-                    tenantPolicies = setOf("p3"),
-                ),
+                CoSecCallerOptions("home", setOf("admin", "ops"), tenantRoles = setOf("employee", "staff")),
             )
             context.getBeansOfType(CommandAuthorizer::class.java).assert().isEmpty()
         }

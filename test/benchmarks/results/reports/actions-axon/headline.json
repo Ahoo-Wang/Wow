@@ -28,6 +28,11 @@
       ],
       "commit": "3fd5349050",
       "cpu": "AMD EPYC 9V45 96-Core Processor",
+      "cpus": {
+        "load": "2-3",
+        "server": "0-1",
+        "bus": "2-3"
+      },
       "jdk": "25.0.5+8",
       "run": "41681347500",
       "source": "actions-axon/axon-pg-contention.100k/suite.json"
@@ -57,6 +62,11 @@
       ],
       "commit": "3fd5349050",
       "cpu": "AMD EPYC 9V45 96-Core Processor",
+      "cpus": {
+        "load": "2-3",
+        "server": "0-1",
+        "bus": "2-3"
+      },
       "jdk": "25.0.5+8",
       "run": "41681347500",
       "source": "actions-axon/axon-pg-contention.100k/suite.json"
@@ -86,6 +96,11 @@
       ],
       "commit": "3fd5349050",
       "cpu": "AMD EPYC 9V45 96-Core Processor",
+      "cpus": {
+        "load": "2-3",
+        "server": "0-1",
+        "bus": "2-3"
+      },
       "jdk": "25.0.5+8",
       "run": "41681347500",
       "source": "actions-axon/axon-pg-contention.100k/suite.json"
@@ -115,6 +130,11 @@
       ],
       "commit": "3fd5349050",
       "cpu": "AMD EPYC 9V45 96-Core Processor",
+      "cpus": {
+        "load": "2-3",
+        "server": "0-1",
+        "bus": "2-3"
+      },
       "jdk": "25.0.5+8",
       "run": "41681347500",
       "source": "actions-axon/axon-pg-contention.100k/suite.json"
@@ -144,6 +164,11 @@
       ],
       "commit": "3fd5349050",
       "cpu": "AMD EPYC 9V45 96-Core Processor",
+      "cpus": {
+        "load": "2-3",
+        "server": "0-1",
+        "bus": "2-3"
+      },
       "jdk": "25.0.5+8",
       "run": "41681347500",
       "source": "actions-axon/axon-pg-contention.100k/suite.json"
@@ -173,6 +198,11 @@
       ],
       "commit": "3fd5349050",
       "cpu": "AMD EPYC 9V45 96-Core Processor",
+      "cpus": {
+        "load": "2-3",
+        "server": "0-1",
+        "bus": "2-3"
+      },
       "jdk": "25.0.5+8",
       "run": "41681347500",
       "source": "actions-axon/axon-pg-contention.100k/suite.json"
@@ -201,6 +231,11 @@
       ],
       "commit": "3fd5349050",
       "cpu": "AMD EPYC 9V45 96-Core Processor",
+      "cpus": {
+        "load": "2-3",
+        "server": "0-1",
+        "bus": "2-3"
+      },
       "jdk": "25.0.5+8",
       "run": "41681347500",
       "source": "actions-axon/axon-pg-contention.100k/suite.json"
@@ -229,6 +264,11 @@
       ],
       "commit": "3fd5349050",
       "cpu": "AMD EPYC 9V45 96-Core Processor",
+      "cpus": {
+        "load": "2-3",
+        "server": "0-1",
+        "bus": "2-3"
+      },
       "jdk": "25.0.5+8",
       "run": "41681347500",
       "source": "actions-axon/axon-pg-contention.100k/suite.json"
@@ -258,6 +298,11 @@
       ],
       "commit": "3fd5349050",
       "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "cpus": {
+        "load": "2-3",
+        "server": "0-1",
+        "bus": "2-3"
+      },
       "jdk": "25.0.5+8",
       "run": "41681347500",
       "source": "actions-axon/axon-pg.100k/suite.json"
@@ -287,6 +332,11 @@
       ],
       "commit": "3fd5349050",
       "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "cpus": {
+        "load": "2-3",
+        "server": "0-1",
+        "bus": "2-3"
+      },
       "jdk": "25.0.5+8",
       "run": "41681347500",
       "source": "actions-axon/axon-pg.100k/suite.json"
@@ -316,6 +366,11 @@
       ],
       "commit": "3fd5349050",
       "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "cpus": {
+        "load": "2-3",
+        "server": "0-1",
+        "bus": "2-3"
+      },
       "jdk": "25.0.5+8",
       "run": "41681347500",
       "source": "actions-axon/axon-pg.100k/suite.json"
@@ -345,6 +400,11 @@
       ],
       "commit": "3fd5349050",
       "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "cpus": {
+        "load": "2-3",
+        "server": "0-1",
+        "bus": "2-3"
+      },
       "jdk": "25.0.5+8",
       "run": "41681347500",
       "source": "actions-axon/axon-pg.100k/suite.json"
@@ -373,6 +433,11 @@
       ],
       "commit": "3fd5349050",
       "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "cpus": {
+        "load": "2-3",
+        "server": "0-1",
+        "bus": "2-3"
+      },
       "jdk": "25.0.5+8",
       "run": "41681347500",
       "source": "actions-axon/axon-pg.100k/suite.json"
@@ -397,6 +462,11 @@
       ],
       "commit": "3fd5349050",
       "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "cpus": {
+        "load": "2-3",
+        "server": "0-1",
+        "bus": "2-3"
+      },
       "jdk": "25.0.5+8",
       "run": "41681347500",
       "source": "actions-axon/axon-pg.100k/suite.json"

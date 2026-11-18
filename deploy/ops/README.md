@@ -48,7 +48,7 @@ Open the console through the CoSec gateway's route, and sign in with an access t
 
 - **Roles.** `ops.operator` acts on the entries (retry, skip, mark recoverable, apply a retry spec); `ops.viewer` only reads them. A principal with neither reads nothing: both are tenant-level roles (`wow.cosec.tenant-level.roles` in the `cosec` profile), whose scope has no owner.
 - **Tenant.** The services' ledgers publish to Wow's default tenant, `(0)`, which a principal of CoSec's default tenant is in.
-- **Application.** The console calls as `CoSec-App-Id: ops-console`, the app the gateway decides the request in. The ops service does not use it to decide anything.
+- **Application.** The gateway decides each request in the app the operator's access token is issued for (its `aud`), or in the one the gateway's route names (`cosec-app-id` in its metadata); a client names none of its own, as CoSec reads no `CoSec-App-Id`. The ops service does not use it to decide anything.
 
 A request without a token, or with one the gateway refuses or that has expired, is answered 401; the console then signs out.
 

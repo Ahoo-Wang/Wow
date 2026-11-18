@@ -19,9 +19,8 @@ import me.ahoo.wow.http.WowHttpOptions
 
 /**
  * The CoSec request header a command keeps as a request fact, as 9.x wow-cosec appended it: the device the request
- * came from. The edge copies it through its request-fact list ([WowHttpOptions.requestFacts]). The application,
- * `CoSec-App-Id`, is not copied as the client sent it: the command records the app of the scope CoSec resolved for
- * the request as the standard request fact `app_id` ([CoSecCallerResolver]).
+ * came from. The edge copies it through its request-fact list ([WowHttpOptions.requestFacts]). The command records the
+ * app of the scope CoSec resolved for the request as the standard request fact `app_id` ([CoSecCallerResolver]).
  */
 @InternalWowApi
 object CoSecRequestFacts {

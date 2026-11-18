@@ -46,7 +46,7 @@ class CoSecProperties {
         DISABLED,
     }
 
-    /** The callers that may act across scopes: by CoSec role or policy. */
+    /** The callers that may act across scopes: by CoSec role. */
     var crossScope: Principals = Principals()
 
     /** The tenant-level callers, who read and write every aggregate of their tenant. */
@@ -64,13 +64,13 @@ class CoSecProperties {
         var enabled: Boolean = false
     }
 
-    /** Callers by their CoSec roles or policies, comma-separated or as a list. */
+    /**
+     * Callers by their CoSec roles in the request's scope, comma-separated or as a list. CoSec 8 tells an application no
+     * principal's policies, so no caller is named by one.
+     */
     @InternalWowApi
     class Principals {
         /** The CoSec roles of these callers. */
         var roles: MutableSet<String> = LinkedHashSet()
-
-        /** The CoSec policies of these callers. */
-        var policies: MutableSet<String> = LinkedHashSet()
     }
 }

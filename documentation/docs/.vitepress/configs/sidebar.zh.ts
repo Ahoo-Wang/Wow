@@ -263,6 +263,13 @@ export const sidebarZh: DefaultTheme.Sidebar = {
                 {text: '不用 Spring 运行', link: 'without-spring'},
             ],
         },
+        {
+            base: '/zh/guide/',
+            text: '实测',
+            items: [
+                {text: '性能', link: 'performance'},
+            ],
+        },
     ],
     '/zh/start/': [
         {

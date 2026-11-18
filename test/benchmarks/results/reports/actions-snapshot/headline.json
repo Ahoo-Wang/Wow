@@ -16,6 +16,10 @@
       "failed": 0,
       "commit": "e3a4e937aa",
       "cpu": "Intel(R) Xeon(R) 6975P-C",
+      "cpus": {
+        "load": "3",
+        "server": "0-2"
+      },
       "jdk": "25.0.5+8",
       "run": "44131893810",
       "source": "actions-snapshot/l4/cliff-e3-mongo.100k/suite.json"
@@ -33,6 +37,10 @@
       "failed": 0,
       "commit": "e3a4e937aa",
       "cpu": "Intel(R) Xeon(R) 6975P-C",
+      "cpus": {
+        "load": "3",
+        "server": "0-2"
+      },
       "jdk": "25.0.5+8",
       "run": "44131893810",
       "source": "actions-snapshot/l4/cliff-e3-mongo.100k/suite.json"
@@ -50,6 +58,10 @@
       "failed": 0,
       "commit": "e3a4e937aa",
       "cpu": "Intel(R) Xeon(R) 6975P-C",
+      "cpus": {
+        "load": "3",
+        "server": "0-2"
+      },
       "jdk": "25.0.5+8",
       "run": "44131893810",
       "source": "actions-snapshot/l4/cliff-e3-mongo.100k/suite.json"
@@ -67,6 +79,10 @@
       "failed": 0,
       "commit": "e3a4e937aa",
       "cpu": "Intel(R) Xeon(R) 6975P-C",
+      "cpus": {
+        "load": "3",
+        "server": "0-2"
+      },
       "jdk": "25.0.5+8",
       "run": "44131893810",
       "source": "actions-snapshot/l4/cliff-e3-mongo.100k/suite.json"
@@ -84,6 +100,10 @@
       "failed": 0,
       "commit": "e3a4e937aa",
       "cpu": "Intel(R) Xeon(R) 6975P-C",
+      "cpus": {
+        "load": "3",
+        "server": "0-2"
+      },
       "jdk": "25.0.5+8",
       "run": "44131893810",
       "source": "actions-snapshot/l4/cliff-e3-mongo.100k/suite.json"
@@ -101,6 +121,10 @@
       "failed": 0,
       "commit": "e3a4e937aa",
       "cpu": "Intel(R) Xeon(R) 6975P-C",
+      "cpus": {
+        "load": "3",
+        "server": "0-2"
+      },
       "jdk": "25.0.5+8",
       "run": "44131893810",
       "source": "actions-snapshot/l4/cliff-e3-mongo.100k/suite.json"
@@ -118,6 +142,10 @@
       "failed": 0,
       "commit": "e3a4e937aa",
       "cpu": "Intel(R) Xeon(R) 6975P-C",
+      "cpus": {
+        "load": "3",
+        "server": "0-2"
+      },
       "jdk": "25.0.5+8",
       "run": "44131893810",
       "source": "actions-snapshot/l4/cliff-e3-pg.100k/suite.json"
@@ -135,6 +163,10 @@
       "failed": 0,
       "commit": "e3a4e937aa",
       "cpu": "Intel(R) Xeon(R) 6975P-C",
+      "cpus": {
+        "load": "3",
+        "server": "0-2"
+      },
       "jdk": "25.0.5+8",
       "run": "44131893810",
       "source": "actions-snapshot/l4/cliff-e3-pg.100k/suite.json"
@@ -152,6 +184,10 @@
       "failed": 0,
       "commit": "e3a4e937aa",
       "cpu": "Intel(R) Xeon(R) 6975P-C",
+      "cpus": {
+        "load": "3",
+        "server": "0-2"
+      },
       "jdk": "25.0.5+8",
       "run": "44131893810",
       "source": "actions-snapshot/l4/cliff-e3-pg.100k/suite.json"
@@ -169,6 +205,10 @@
       "failed": 0,
       "commit": "e3a4e937aa",
       "cpu": "Intel(R) Xeon(R) 6975P-C",
+      "cpus": {
+        "load": "3",
+        "server": "0-2"
+      },
       "jdk": "25.0.5+8",
       "run": "44131893810",
       "source": "actions-snapshot/l4/cliff-e3-pg.100k/suite.json"
@@ -186,6 +226,10 @@
       "failed": 0,
       "commit": "e3a4e937aa",
       "cpu": "Intel(R) Xeon(R) 6975P-C",
+      "cpus": {
+        "load": "3",
+        "server": "0-2"
+      },
       "jdk": "25.0.5+8",
       "run": "44131893810",
       "source": "actions-snapshot/l4/cliff-e3-pg.100k/suite.json"
@@ -203,6 +247,10 @@
       "failed": 0,
       "commit": "e3a4e937aa",
       "cpu": "Intel(R) Xeon(R) 6975P-C",
+      "cpus": {
+        "load": "3",
+        "server": "0-2"
+      },
       "jdk": "25.0.5+8",
       "run": "44131893810",
       "source": "actions-snapshot/l4/cliff-e3-pg.100k/suite.json"
@@ -223,6 +271,10 @@
       "allocatedBytesPerOp": 263234,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "cpus": {
+        "load": "3",
+        "server": "0-2"
+      },
       "jdk": "25.0.5+8",
       "run": "44131893810",
       "source": "actions-snapshot/l4/cold-mongo.100k/suite.json"
@@ -243,6 +295,10 @@
       "allocatedBytesPerOp": 77777,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "cpus": {
+        "load": "3",
+        "server": "0-2"
+      },
       "jdk": "25.0.5+8",
       "run": "44131893810",
       "source": "actions-snapshot/l4/cold-mongo.100k/suite.json"
@@ -263,6 +319,10 @@
       "allocatedBytesPerOp": 122839,
       "commit": "e3a4e937aa",
       "cpu": "Intel(R) Xeon(R) 6975P-C",
+      "cpus": {
+        "load": "3",
+        "server": "0-2"
+      },
       "jdk": "25.0.5+8",
       "run": "44131893810",
       "source": "actions-snapshot/l4/cold-pg.100k/suite.json"
@@ -283,6 +343,10 @@
       "allocatedBytesPerOp": 36764,
       "commit": "e3a4e937aa",
       "cpu": "Intel(R) Xeon(R) 6975P-C",
+      "cpus": {
+        "load": "3",
+        "server": "0-2"
+      },
       "jdk": "25.0.5+8",
       "run": "44131893810",
       "source": "actions-snapshot/l4/cold-pg.100k/suite.json"
@@ -304,6 +368,10 @@
       "lowestSecond": 150,
       "commit": "e3a4e937aa",
       "cpu": "Intel(R) Xeon(R) 6975P-C",
+      "cpus": {
+        "load": "3",
+        "server": "0-2"
+      },
       "jdk": "25.0.5+8",
       "source": "actions-snapshot/l4/e5-mongo.100k/suite.json"
     },
@@ -324,6 +392,10 @@
       "lowestSecond": 150,
       "commit": "e3a4e937aa",
       "cpu": "Intel(R) Xeon(R) 6975P-C",
+      "cpus": {
+        "load": "3",
+        "server": "0-2"
+      },
       "jdk": "25.0.5+8",
       "source": "actions-snapshot/l4/e5-mongo.100k/suite.json"
     },
@@ -344,6 +416,10 @@
       "lowestSecond": 50,
       "commit": "e3a4e937aa",
       "cpu": "Intel(R) Xeon(R) 6975P-C",
+      "cpus": {
+        "load": "3",
+        "server": "0-2"
+      },
       "jdk": "25.0.5+8",
       "source": "actions-snapshot/l4/e5-mongo.100k/suite.json"
     },
@@ -364,6 +440,10 @@
       "lowestSecond": 40,
       "commit": "e3a4e937aa",
       "cpu": "Intel(R) Xeon(R) 6975P-C",
+      "cpus": {
+        "load": "3",
+        "server": "0-2"
+      },
       "jdk": "25.0.5+8",
       "source": "actions-snapshot/l4/e5-mongo.100k/suite.json"
     },
@@ -384,6 +464,10 @@
       "lowestSecond": 150,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 7763 64-Core Processor",
+      "cpus": {
+        "load": "3",
+        "server": "0-2"
+      },
       "jdk": "25.0.5+8",
       "source": "actions-snapshot/l4/e5-pg.100k/suite.json"
     },
@@ -404,6 +488,10 @@
       "lowestSecond": 150,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 7763 64-Core Processor",
+      "cpus": {
+        "load": "3",
+        "server": "0-2"
+      },
       "jdk": "25.0.5+8",
       "source": "actions-snapshot/l4/e5-pg.100k/suite.json"
     },
@@ -424,6 +512,10 @@
       "lowestSecond": 50,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 7763 64-Core Processor",
+      "cpus": {
+        "load": "3",
+        "server": "0-2"
+      },
       "jdk": "25.0.5+8",
       "source": "actions-snapshot/l4/e5-pg.100k/suite.json"
     },
@@ -444,6 +536,10 @@
       "lowestSecond": 49,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 7763 64-Core Processor",
+      "cpus": {
+        "load": "3",
+        "server": "0-2"
+      },
       "jdk": "25.0.5+8",
       "source": "actions-snapshot/l4/e5-pg.100k/suite.json"
     },
@@ -462,6 +558,10 @@
       "saturationLowerBound": true,
       "commit": "e3a4e937aa",
       "cpu": "Intel(R) Xeon(R) 6975P-C",
+      "cpus": {
+        "load": "3",
+        "server": "0-2"
+      },
       "jdk": "25.0.5+8",
       "run": "44131893810",
       "source": "actions-snapshot/l4/sustainable-mongo.100k/suite.json"
@@ -480,6 +580,10 @@
       "saturation": 2261.6,
       "commit": "e3a4e937aa",
       "cpu": "Intel(R) Xeon(R) 6975P-C",
+      "cpus": {
+        "load": "3",
+        "server": "0-2"
+      },
       "jdk": "25.0.5+8",
       "run": "44131893810",
       "source": "actions-snapshot/l4/sustainable-mongo.100k/suite.json"
@@ -498,6 +602,10 @@
       "saturation": 1466.6,
       "commit": "e3a4e937aa",
       "cpu": "Intel(R) Xeon(R) 6975P-C",
+      "cpus": {
+        "load": "3",
+        "server": "0-2"
+      },
       "jdk": "25.0.5+8",
       "run": "44131893810",
       "source": "actions-snapshot/l4/sustainable-mongo.100k/suite.json"
@@ -516,6 +624,10 @@
       "saturation": 4474.9,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 7763 64-Core Processor",
+      "cpus": {
+        "load": "3",
+        "server": "0-2"
+      },
       "jdk": "25.0.5+8",
       "run": "44131893810",
       "source": "actions-snapshot/l4/sustainable-pg.100k/suite.json"
@@ -534,6 +646,10 @@
       "saturation": 1493.1,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 7763 64-Core Processor",
+      "cpus": {
+        "load": "3",
+        "server": "0-2"
+      },
       "jdk": "25.0.5+8",
       "run": "44131893810",
       "source": "actions-snapshot/l4/sustainable-pg.100k/suite.json"
@@ -558,6 +674,12 @@
       "allocatedBytesPerOp": 73001,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e1-mongo-uniform.100k/suite.json"
@@ -582,6 +704,12 @@
       "allocatedBytesPerOp": 75602,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e1-mongo-uniform.100k/suite.json"
@@ -606,6 +734,12 @@
       "allocatedBytesPerOp": 74786,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e1-mongo-uniform.100k/suite.json"
@@ -630,6 +764,12 @@
       "allocatedBytesPerOp": 76881,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e1-mongo-uniform.100k/suite.json"
@@ -654,6 +794,12 @@
       "allocatedBytesPerOp": 77933,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e1-mongo-uniform.100k/suite.json"
@@ -678,6 +824,12 @@
       "allocatedBytesPerOp": 79905,
       "commit": "e3a4e937aa",
       "cpu": "INTEL(R) XEON(R) PLATINUM 8573C",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e1-mongo-uniform.1k/suite.json"
@@ -702,6 +854,12 @@
       "allocatedBytesPerOp": 75240,
       "commit": "e3a4e937aa",
       "cpu": "INTEL(R) XEON(R) PLATINUM 8573C",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e1-mongo-uniform.1k/suite.json"
@@ -726,6 +884,12 @@
       "allocatedBytesPerOp": 79260,
       "commit": "e3a4e937aa",
       "cpu": "INTEL(R) XEON(R) PLATINUM 8573C",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e1-mongo-uniform.1k/suite.json"
@@ -750,6 +914,12 @@
       "allocatedBytesPerOp": 79681,
       "commit": "e3a4e937aa",
       "cpu": "INTEL(R) XEON(R) PLATINUM 8573C",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e1-mongo-uniform.1k/suite.json"
@@ -774,6 +944,12 @@
       "allocatedBytesPerOp": 79176,
       "commit": "e3a4e937aa",
       "cpu": "INTEL(R) XEON(R) PLATINUM 8573C",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e1-mongo-uniform.1k/suite.json"
@@ -798,6 +974,12 @@
       "allocatedBytesPerOp": 81403,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 9V45 96-Core Processor",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e1-mongo-zipf.100k/suite.json"
@@ -822,6 +1004,12 @@
       "allocatedBytesPerOp": 76967,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 9V45 96-Core Processor",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e1-mongo-zipf.100k/suite.json"
@@ -846,6 +1034,12 @@
       "allocatedBytesPerOp": 78189,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 9V45 96-Core Processor",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e1-mongo-zipf.100k/suite.json"
@@ -870,6 +1064,12 @@
       "allocatedBytesPerOp": 82262,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 9V45 96-Core Processor",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e1-mongo-zipf.100k/suite.json"
@@ -894,6 +1094,12 @@
       "allocatedBytesPerOp": 82309,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 9V45 96-Core Processor",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e1-mongo-zipf.100k/suite.json"
@@ -918,6 +1124,12 @@
       "allocatedBytesPerOp": 91146,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e1-mongo-zipf.1k/suite.json"
@@ -942,6 +1154,12 @@
       "allocatedBytesPerOp": 92561,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e1-mongo-zipf.1k/suite.json"
@@ -966,6 +1184,12 @@
       "allocatedBytesPerOp": 96379,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e1-mongo-zipf.1k/suite.json"
@@ -990,6 +1214,12 @@
       "allocatedBytesPerOp": 102355,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e1-mongo-zipf.1k/suite.json"
@@ -1014,6 +1244,12 @@
       "allocatedBytesPerOp": 97045,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e1-mongo-zipf.1k/suite.json"
@@ -1040,6 +1276,10 @@
       "allocatedBytesPerOp": 79051,
       "commit": "e3a4e937aa",
       "cpu": "INTEL(R) XEON(R) PLATINUM 8573C",
+      "cpus": {
+        "load": "2-3",
+        "server": "0-1"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e1-pg-uniform.100k/suite.json"
@@ -1066,6 +1306,10 @@
       "allocatedBytesPerOp": 80129,
       "commit": "e3a4e937aa",
       "cpu": "INTEL(R) XEON(R) PLATINUM 8573C",
+      "cpus": {
+        "load": "2-3",
+        "server": "0-1"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e1-pg-uniform.100k/suite.json"
@@ -1092,6 +1336,10 @@
       "allocatedBytesPerOp": 78858,
       "commit": "e3a4e937aa",
       "cpu": "INTEL(R) XEON(R) PLATINUM 8573C",
+      "cpus": {
+        "load": "2-3",
+        "server": "0-1"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e1-pg-uniform.100k/suite.json"
@@ -1118,6 +1366,10 @@
       "allocatedBytesPerOp": 79228,
       "commit": "e3a4e937aa",
       "cpu": "INTEL(R) XEON(R) PLATINUM 8573C",
+      "cpus": {
+        "load": "2-3",
+        "server": "0-1"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e1-pg-uniform.100k/suite.json"
@@ -1144,6 +1396,10 @@
       "allocatedBytesPerOp": 78476,
       "commit": "e3a4e937aa",
       "cpu": "INTEL(R) XEON(R) PLATINUM 8573C",
+      "cpus": {
+        "load": "2-3",
+        "server": "0-1"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e1-pg-uniform.100k/suite.json"
@@ -1170,6 +1426,10 @@
       "allocatedBytesPerOp": 84346,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 9V45 96-Core Processor",
+      "cpus": {
+        "load": "2-3",
+        "server": "0-1"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e1-pg-uniform.1k/suite.json"
@@ -1196,6 +1456,10 @@
       "allocatedBytesPerOp": 82437,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 9V45 96-Core Processor",
+      "cpus": {
+        "load": "2-3",
+        "server": "0-1"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e1-pg-uniform.1k/suite.json"
@@ -1222,6 +1486,10 @@
       "allocatedBytesPerOp": 82374,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 9V45 96-Core Processor",
+      "cpus": {
+        "load": "2-3",
+        "server": "0-1"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e1-pg-uniform.1k/suite.json"
@@ -1248,6 +1516,10 @@
       "allocatedBytesPerOp": 78578,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 9V45 96-Core Processor",
+      "cpus": {
+        "load": "2-3",
+        "server": "0-1"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e1-pg-uniform.1k/suite.json"
@@ -1274,6 +1546,10 @@
       "allocatedBytesPerOp": 82588,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 9V45 96-Core Processor",
+      "cpus": {
+        "load": "2-3",
+        "server": "0-1"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e1-pg-uniform.1k/suite.json"
@@ -1298,6 +1574,12 @@
       "allocatedBytesPerOp": 153529,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e2-mongo.100k/suite.json"
@@ -1322,6 +1604,12 @@
       "allocatedBytesPerOp": 159022,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e2-mongo.100k/suite.json"
@@ -1346,6 +1634,12 @@
       "allocatedBytesPerOp": 156117,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e2-mongo.100k/suite.json"
@@ -1370,6 +1664,12 @@
       "allocatedBytesPerOp": 159423,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e2-mongo.100k/suite.json"
@@ -1394,6 +1694,12 @@
       "allocatedBytesPerOp": 162802,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e2-mongo.100k/suite.json"
@@ -1418,6 +1724,12 @@
       "allocatedBytesPerOp": 185166,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e2-mongo.1k/suite.json"
@@ -1442,6 +1754,12 @@
       "allocatedBytesPerOp": 184589,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e2-mongo.1k/suite.json"
@@ -1466,6 +1784,12 @@
       "allocatedBytesPerOp": 178298,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e2-mongo.1k/suite.json"
@@ -1490,6 +1814,12 @@
       "allocatedBytesPerOp": 181161,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e2-mongo.1k/suite.json"
@@ -1514,6 +1844,12 @@
       "allocatedBytesPerOp": 191793,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e2-mongo.1k/suite.json"
@@ -1538,6 +1874,12 @@
       "allocatedBytesPerOp": 229085,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 7763 64-Core Processor",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e3-mongo.100k/suite.json"
@@ -1562,6 +1904,12 @@
       "allocatedBytesPerOp": 227260,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 7763 64-Core Processor",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e3-mongo.100k/suite.json"
@@ -1586,6 +1934,12 @@
       "allocatedBytesPerOp": 230001,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 7763 64-Core Processor",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e3-mongo.100k/suite.json"
@@ -1610,6 +1964,12 @@
       "allocatedBytesPerOp": 226045,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 7763 64-Core Processor",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e3-mongo.100k/suite.json"
@@ -1634,6 +1994,12 @@
       "allocatedBytesPerOp": 226368,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 7763 64-Core Processor",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e3-mongo.100k/suite.json"
@@ -1658,6 +2024,12 @@
       "allocatedBytesPerOp": 383185,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e3-mongo.1k/suite.json"
@@ -1682,6 +2054,12 @@
       "allocatedBytesPerOp": 302879,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e3-mongo.1k/suite.json"
@@ -1706,6 +2084,12 @@
       "allocatedBytesPerOp": 359906,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e3-mongo.1k/suite.json"
@@ -1730,6 +2114,12 @@
       "allocatedBytesPerOp": 313984,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e3-mongo.1k/suite.json"
@@ -1754,6 +2144,12 @@
       "allocatedBytesPerOp": 246738,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e3-mongo.1k/suite.json"
@@ -1780,6 +2176,10 @@
       "allocatedBytesPerOp": 212058,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 7763 64-Core Processor",
+      "cpus": {
+        "load": "2-3",
+        "server": "0-1"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e3-pg.100k/suite.json"
@@ -1806,6 +2206,10 @@
       "allocatedBytesPerOp": 212715,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 7763 64-Core Processor",
+      "cpus": {
+        "load": "2-3",
+        "server": "0-1"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e3-pg.100k/suite.json"
@@ -1832,6 +2236,10 @@
       "allocatedBytesPerOp": 214672,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 7763 64-Core Processor",
+      "cpus": {
+        "load": "2-3",
+        "server": "0-1"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e3-pg.100k/suite.json"
@@ -1858,6 +2266,10 @@
       "allocatedBytesPerOp": 221268,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 7763 64-Core Processor",
+      "cpus": {
+        "load": "2-3",
+        "server": "0-1"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e3-pg.100k/suite.json"
@@ -1884,6 +2296,10 @@
       "allocatedBytesPerOp": 218772,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 7763 64-Core Processor",
+      "cpus": {
+        "load": "2-3",
+        "server": "0-1"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e3-pg.100k/suite.json"
@@ -1910,6 +2326,10 @@
       "allocatedBytesPerOp": 265481,
       "commit": "e3a4e937aa",
       "cpu": "INTEL(R) XEON(R) PLATINUM 8573C",
+      "cpus": {
+        "load": "2-3",
+        "server": "0-1"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e3-pg.1k/suite.json"
@@ -1936,6 +2356,10 @@
       "allocatedBytesPerOp": 270190,
       "commit": "e3a4e937aa",
       "cpu": "INTEL(R) XEON(R) PLATINUM 8573C",
+      "cpus": {
+        "load": "2-3",
+        "server": "0-1"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e3-pg.1k/suite.json"
@@ -1962,6 +2386,10 @@
       "allocatedBytesPerOp": 254422,
       "commit": "e3a4e937aa",
       "cpu": "INTEL(R) XEON(R) PLATINUM 8573C",
+      "cpus": {
+        "load": "2-3",
+        "server": "0-1"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e3-pg.1k/suite.json"
@@ -1988,6 +2416,10 @@
       "allocatedBytesPerOp": 264652,
       "commit": "e3a4e937aa",
       "cpu": "INTEL(R) XEON(R) PLATINUM 8573C",
+      "cpus": {
+        "load": "2-3",
+        "server": "0-1"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e3-pg.1k/suite.json"
@@ -2014,6 +2446,10 @@
       "allocatedBytesPerOp": 253174,
       "commit": "e3a4e937aa",
       "cpu": "INTEL(R) XEON(R) PLATINUM 8573C",
+      "cpus": {
+        "load": "2-3",
+        "server": "0-1"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/e3-pg.1k/suite.json"
@@ -2038,6 +2474,12 @@
       "allocatedBytesPerOp": 167603,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 9V45 96-Core Processor",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/large-mongo.100k/suite.json"
@@ -2062,6 +2504,12 @@
       "allocatedBytesPerOp": 164625,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 9V45 96-Core Processor",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/large-mongo.100k/suite.json"
@@ -2086,6 +2534,12 @@
       "allocatedBytesPerOp": 163800,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 9V45 96-Core Processor",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/large-mongo.100k/suite.json"
@@ -2110,6 +2564,12 @@
       "allocatedBytesPerOp": 177154,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 9V45 96-Core Processor",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/large-mongo.100k/suite.json"
@@ -2134,6 +2594,12 @@
       "allocatedBytesPerOp": 173919,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 9V45 96-Core Processor",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/large-mongo.100k/suite.json"
@@ -2158,6 +2624,12 @@
       "allocatedBytesPerOp": 178665,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 7763 64-Core Processor",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/large-mongo.1k/suite.json"
@@ -2182,6 +2654,12 @@
       "allocatedBytesPerOp": 177507,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 7763 64-Core Processor",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/large-mongo.1k/suite.json"
@@ -2206,6 +2684,12 @@
       "allocatedBytesPerOp": 178275,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 7763 64-Core Processor",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/large-mongo.1k/suite.json"
@@ -2230,6 +2714,12 @@
       "allocatedBytesPerOp": 190349,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 7763 64-Core Processor",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/large-mongo.1k/suite.json"
@@ -2254,6 +2744,12 @@
       "allocatedBytesPerOp": 194287,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 7763 64-Core Processor",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/large-mongo.1k/suite.json"
@@ -2280,6 +2776,10 @@
       "allocatedBytesPerOp": 177564,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "cpus": {
+        "load": "2-3",
+        "server": "0-1"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/large-pg.100k/suite.json"
@@ -2306,6 +2806,10 @@
       "allocatedBytesPerOp": 176180,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "cpus": {
+        "load": "2-3",
+        "server": "0-1"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/large-pg.100k/suite.json"
@@ -2332,6 +2836,10 @@
       "allocatedBytesPerOp": 176805,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "cpus": {
+        "load": "2-3",
+        "server": "0-1"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/large-pg.100k/suite.json"
@@ -2358,6 +2866,10 @@
       "allocatedBytesPerOp": 176830,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "cpus": {
+        "load": "2-3",
+        "server": "0-1"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/large-pg.100k/suite.json"
@@ -2384,6 +2896,10 @@
       "allocatedBytesPerOp": 177512,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "cpus": {
+        "load": "2-3",
+        "server": "0-1"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/large-pg.100k/suite.json"
@@ -2410,6 +2926,10 @@
       "allocatedBytesPerOp": 182819,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "cpus": {
+        "load": "2-3",
+        "server": "0-1"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/large-pg.1k/suite.json"
@@ -2436,6 +2956,10 @@
       "allocatedBytesPerOp": 181766,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "cpus": {
+        "load": "2-3",
+        "server": "0-1"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/large-pg.1k/suite.json"
@@ -2462,6 +2986,10 @@
       "allocatedBytesPerOp": 176372,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "cpus": {
+        "load": "2-3",
+        "server": "0-1"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/large-pg.1k/suite.json"
@@ -2488,6 +3016,10 @@
       "allocatedBytesPerOp": 179544,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "cpus": {
+        "load": "2-3",
+        "server": "0-1"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/large-pg.1k/suite.json"
@@ -2514,6 +3046,10 @@
       "allocatedBytesPerOp": 185269,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "cpus": {
+        "load": "2-3",
+        "server": "0-1"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/large-pg.1k/suite.json"
@@ -2538,6 +3074,12 @@
       "allocatedBytesPerOp": 87051,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 9V45 96-Core Processor",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/mixed-mongo.100k/suite.json"
@@ -2562,6 +3104,12 @@
       "allocatedBytesPerOp": 89304,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 9V45 96-Core Processor",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/mixed-mongo.100k/suite.json"
@@ -2586,6 +3134,12 @@
       "allocatedBytesPerOp": 84568,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 9V45 96-Core Processor",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/mixed-mongo.100k/suite.json"
@@ -2610,6 +3164,12 @@
       "allocatedBytesPerOp": 82022,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 9V45 96-Core Processor",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/mixed-mongo.100k/suite.json"
@@ -2634,6 +3194,12 @@
       "allocatedBytesPerOp": 84444,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 9V45 96-Core Processor",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/mixed-mongo.100k/suite.json"
@@ -2658,6 +3224,12 @@
       "allocatedBytesPerOp": 96137,
       "commit": "e3a4e937aa",
       "cpu": "INTEL(R) XEON(R) PLATINUM 8573C",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/mixed-mongo.1k/suite.json"
@@ -2682,6 +3254,12 @@
       "allocatedBytesPerOp": 95784,
       "commit": "e3a4e937aa",
       "cpu": "INTEL(R) XEON(R) PLATINUM 8573C",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/mixed-mongo.1k/suite.json"
@@ -2706,6 +3284,12 @@
       "allocatedBytesPerOp": 95360,
       "commit": "e3a4e937aa",
       "cpu": "INTEL(R) XEON(R) PLATINUM 8573C",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/mixed-mongo.1k/suite.json"
@@ -2730,6 +3314,12 @@
       "allocatedBytesPerOp": 97491,
       "commit": "e3a4e937aa",
       "cpu": "INTEL(R) XEON(R) PLATINUM 8573C",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/mixed-mongo.1k/suite.json"
@@ -2754,6 +3344,12 @@
       "allocatedBytesPerOp": 95654,
       "commit": "e3a4e937aa",
       "cpu": "INTEL(R) XEON(R) PLATINUM 8573C",
+      "cpus": {
+        "load": "3",
+        "bus": "2",
+        "store": "1",
+        "server": "0"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/mixed-mongo.1k/suite.json"
@@ -2780,6 +3376,10 @@
       "allocatedBytesPerOp": 65118,
       "commit": "e3a4e937aa",
       "cpu": "Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz",
+      "cpus": {
+        "load": "2-3",
+        "server": "0-1"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/mixed-pg.100k/suite.json"
@@ -2806,6 +3406,10 @@
       "allocatedBytesPerOp": 64860,
       "commit": "e3a4e937aa",
       "cpu": "Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz",
+      "cpus": {
+        "load": "2-3",
+        "server": "0-1"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/mixed-pg.100k/suite.json"
@@ -2832,6 +3436,10 @@
       "allocatedBytesPerOp": 64645,
       "commit": "e3a4e937aa",
       "cpu": "Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz",
+      "cpus": {
+        "load": "2-3",
+        "server": "0-1"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/mixed-pg.100k/suite.json"
@@ -2858,6 +3466,10 @@
       "allocatedBytesPerOp": 66650,
       "commit": "e3a4e937aa",
       "cpu": "Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz",
+      "cpus": {
+        "load": "2-3",
+        "server": "0-1"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/mixed-pg.100k/suite.json"
@@ -2884,6 +3496,10 @@
       "allocatedBytesPerOp": 66785,
       "commit": "e3a4e937aa",
       "cpu": "Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz",
+      "cpus": {
+        "load": "2-3",
+        "server": "0-1"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/mixed-pg.100k/suite.json"
@@ -2910,6 +3526,10 @@
       "allocatedBytesPerOp": 77675,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 7763 64-Core Processor",
+      "cpus": {
+        "load": "2-3",
+        "server": "0-1"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/mixed-pg.1k/suite.json"
@@ -2936,6 +3556,10 @@
       "allocatedBytesPerOp": 77762,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 7763 64-Core Processor",
+      "cpus": {
+        "load": "2-3",
+        "server": "0-1"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/mixed-pg.1k/suite.json"
@@ -2962,6 +3586,10 @@
       "allocatedBytesPerOp": 77789,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 7763 64-Core Processor",
+      "cpus": {
+        "load": "2-3",
+        "server": "0-1"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/mixed-pg.1k/suite.json"
@@ -2988,6 +3616,10 @@
       "allocatedBytesPerOp": 79104,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 7763 64-Core Processor",
+      "cpus": {
+        "load": "2-3",
+        "server": "0-1"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/mixed-pg.1k/suite.json"
@@ -3014,6 +3646,10 @@
       "allocatedBytesPerOp": 77378,
       "commit": "e3a4e937aa",
       "cpu": "AMD EPYC 7763 64-Core Processor",
+      "cpus": {
+        "load": "2-3",
+        "server": "0-1"
+      },
       "jdk": "25.0.5+8",
       "run": "44123394372",
       "source": "actions-snapshot/l3/mixed-pg.1k/suite.json"

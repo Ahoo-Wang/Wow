@@ -7,7 +7,7 @@ description: "宿主 wow.* 配置的每个键：类型、默认值与含义。"
 
 # 配置项
 
-Spring Boot 宿主读取的 `wow.*` 配置的全部键，共 284 个，由宿主的配置元数据（[`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)）生成；说明取自源码，为英文。Spring Boot 按宽松规则绑定：`max-concurrent`、`maxConcurrent` 与 `MAX_CONCURRENT` 是同一个键。没有任何属性（宿主的或类路径上某个模块的）对应的 `wow.*` 键会使节点拒绝启动，并指向迁移指南中旧版本键的页面。Wow 分组下的环境变量（`WOW_KAFKA_…`：键的第一个词）按 Spring 的映射读取，同样如此；你自己的变量请起在这些分组之外的名字。映射之下的键，若映射的键含点，要放进方括号：`wow.aggregates.[shop.cart].tenant`；每个映射自己的键列在它下面，条目写作 `<name>` 或 `[<context>.<aggregate>]`。[模块配置项](./module-configuration)列出平台服务、wow-cosid 与 wow-cocache 的键。契约是这些键，而不是宿主的属性类，后者属于 Wow 内部：应用通过 Spring 的 `Environment`、`@Value` 或 `Binder` 读取键。
+Spring Boot 宿主读取的 `wow.*` 配置的全部键，共 282 个，由宿主的配置元数据（[`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)）生成；说明取自源码，为英文。Spring Boot 按宽松规则绑定：`max-concurrent`、`maxConcurrent` 与 `MAX_CONCURRENT` 是同一个键。没有任何属性（宿主的或类路径上某个模块的）对应的 `wow.*` 键会使节点拒绝启动，并指向迁移指南中旧版本键的页面。Wow 分组下的环境变量（`WOW_KAFKA_…`：键的第一个词）按 Spring 的映射读取，同样如此；你自己的变量请起在这些分组之外的名字。映射之下的键，若映射的键含点，要放进方括号：`wow.aggregates.[shop.cart].tenant`；每个映射自己的键列在它下面，条目写作 `<name>` 或 `[<context>.<aggregate>]`。[模块配置项](./module-configuration)列出平台服务、wow-cosid 与 wow-cocache 的键。契约是这些键，而不是宿主的属性类，后者属于 Wow 内部：应用通过 Spring 的 `Environment`、`@Value` 或 `Binder` 读取键。
 
 ## `wow`
 
@@ -127,11 +127,10 @@ CoSec's authorization of the commands.
 
 ## `wow.cosec.cross-scope`
 
-The callers that may act across scopes: by CoSec role or policy.
+The callers that may act across scopes: by CoSec role.
 
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `wow.cosec.cross-scope.policies` | `Set<String>` |  | The CoSec policies of these callers. |
 | `wow.cosec.cross-scope.roles` | `Set<String>` |  | The CoSec roles of these callers. |
 
 ## `wow.cosec.tenant-level`
@@ -140,7 +139,6 @@ The tenant-level callers, who read and write every aggregate of their tenant.
 
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `wow.cosec.tenant-level.policies` | `Set<String>` |  | The CoSec policies of these callers. |
 | `wow.cosec.tenant-level.roles` | `Set<String>` |  | The CoSec roles of these callers. |
 
 ## `wow.elasticsearch`
@@ -229,7 +227,7 @@ The HTTP edge: its routes and its error answers.
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `wow.http.errors` | `Map<String,Error>` |  | The HTTP status of an error code, by code (bracketed in a property name: `wow.http.errors.[a.b].status`). |
-| `wow.http.request-facts` | `Set<String>` |  | The request headers copied into a command's headers, beside the standard request facts the edge records: `app_id`, the application the caller resolver authenticated, and on the public port `user_agent` and `remote_ip`; none of the three can be listed, and each fact is cut to 512 characters. `remote_ip` is the server's remote address, which the host takes from the gateway's `X-Forwarded-For` (`server.forward-headers-strategy` is `framework` unless the application sets it, `none` included). |
+| `wow.http.request-facts` | `Set<String>` |  | The request headers copied into a command's headers, beside the standard request facts the edge records: `app_id`, the application the caller resolver authenticated, and on the public port `user_agent` and `remote_ip`; none of the three can be listed, and each fact is cut to 512 characters. `remote_ip` is the server's remote address, which the host takes from the gateway's `X-Forwarded-For` (`server.forward-headers-strategy` is `native` unless the application sets it, `none` included). |
 
 ## `wow.http.client-facts`
 
@@ -669,7 +667,7 @@ How the node's subscriptions run, retry their failures and park what keeps faili
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `wow.subscription.checkpoint-interval` | `Duration` | `PT1S` | How often each subscription saves its checkpoint; a stop saves it too. |
-| `wow.subscription.max-catch-ups` | `Integer` | `2` | The partitions the node reads behind their head at once, past their first page, all its subscriptions together; 0 for no bound. A partition whose subscriptions start behind the head reads its first 512 entries at once, which the gap of a hand-over fits in; one further behind (a history migrate-data imported, a long stop) then waits for one, and the others stand where their page ended, so the node keeps its store for its commands while it catches up. More do not catch up sooner on one store, and raise the latency of the commands meanwhile. |
+| `wow.subscription.max-catch-ups` | `Integer` | `2` | The partitions the node catches up at once, all its subscriptions together; 0 for no bound. A partition whose subscriptions start behind the head by more than 512 entries (a history migrate-data imported, a long stop) waits for one before it reads, so the node keeps its store for its commands while it catches up; one behind by less, as a hand-over leaves it, reads at once. More do not catch up sooner on one store, and raise the latency of the commands meanwhile. |
 | `wow.subscription.max-in-flight` | `Integer` | `1024` | The entries one subscription may hold in one partition between its checkpoint and the last entry it took: it bounds both memory and what a crash replays. |
 | `wow.subscription.stop-timeout` | `Duration` | `PT10S` | How long a stop waits for the handlers in flight before abandoning them; an abandoned entry is handled again after the restart. |
 

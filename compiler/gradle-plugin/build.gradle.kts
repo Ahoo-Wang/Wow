@@ -30,26 +30,31 @@ gradlePlugin {
     }
 }
 
+// Nothing of Wow: every task that reads or writes a Manifest runs wow-manifest-tools in a worker (wowTools), so a
+// build of Wow itself can include the plugin (build-logic/wow-gradle-plugin) and apply it to its own projects. No KSP
+// either: the plugin applies KSP by its id, and the markers of the domain and service plugins bring it (below), so
+// `me.ahoo.wow.api` on a root build's class path leaves a 9.x module free to apply KSP of its own version.
+val ksp = "com.google.devtools.ksp:symbol-processing-gradle-plugin:${libs.versions.ksp.get()}"
 dependencies {
-    // Nothing of Wow: every task that reads or writes a Manifest runs wow-manifest-tools in a worker (wowTools), so a
-    // build of Wow itself can include the plugin (build-logic/wow-gradle-plugin) and apply it to its own projects.
-    implementation("com.google.devtools.ksp:symbol-processing-gradle-plugin:${libs.versions.ksp.get()}")
-
     // The functional test reads the Manifests it builds, and checks the fingerprint against the kernel.
     testImplementation(project(":manifest"))
     testImplementation(project(":manifest-tools"))
     testImplementation(project(":kernel"))
     // In-process plugin tests (ProjectBuilder) apply the Kotlin plugin the Wow plugin reacts to.
     testImplementation("org.jetbrains.kotlin:kotlin-gradle-plugin:${libs.versions.kotlin.asProvider().get()}")
+    // ... and the KSP plugin the domain role applies, which a domain module's marker brings.
+    testImplementation(ksp)
 }
 
 // What the TestKit fixture builds with: the Kotlin Gradle plugin the fixture applies, the Wow modules it compiles
 // against and processes with, and wow-manifest-tools (none is published yet, so the fixture takes them as files).
 val functionalPluginClasspath: Configuration = configurations.create("functionalPluginClasspath")
+// The KSP the markers of the domain and service plugins bring, which the TestKit fixtures' domain modules apply.
+val functionalKspClasspath: Configuration = configurations.create("functionalKspClasspath")
 val fixtureCompileClasspath: Configuration = configurations.create("fixtureCompileClasspath")
 val fixtureProcessorClasspath: Configuration = configurations.create("fixtureProcessorClasspath")
 val fixtureToolsClasspath: Configuration = configurations.create("fixtureToolsClasspath")
-listOf(functionalPluginClasspath, fixtureCompileClasspath, fixtureProcessorClasspath, fixtureToolsClasspath).forEach { configuration ->
+listOf(functionalPluginClasspath, functionalKspClasspath, fixtureCompileClasspath, fixtureProcessorClasspath, fixtureToolsClasspath).forEach { configuration ->
     configuration.isCanBeConsumed = false
     configuration.attributes {
         attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage.JAVA_RUNTIME))
@@ -58,14 +63,17 @@ listOf(functionalPluginClasspath, fixtureCompileClasspath, fixtureProcessorClass
         attribute(Bundling.BUNDLING_ATTRIBUTE, objects.named(Bundling.EXTERNAL))
     }
 }
-functionalPluginClasspath.attributes {
-    attribute(
-        GradlePluginApiVersion.GRADLE_PLUGIN_API_VERSION_ATTRIBUTE,
-        objects.named(GradleVersion.current().version),
-    )
+listOf(functionalPluginClasspath, functionalKspClasspath).forEach { configuration ->
+    configuration.attributes {
+        attribute(
+            GradlePluginApiVersion.GRADLE_PLUGIN_API_VERSION_ATTRIBUTE,
+            objects.named(GradleVersion.current().version),
+        )
+    }
 }
 dependencies {
     functionalPluginClasspath("org.jetbrains.kotlin:kotlin-gradle-plugin:${libs.versions.kotlin.asProvider().get()}")
+    functionalKspClasspath(ksp)
     // The generated models build on the kernel, which brings wow-api.
     fixtureCompileClasspath(project(":kernel"))
     fixtureCompileClasspath("com.fasterxml.jackson.core:jackson-annotations")
@@ -77,17 +85,42 @@ dependencies {
 
 
 tasks.pluginUnderTestMetadata {
-    pluginClasspath.from(functionalPluginClasspath)
+    pluginClasspath.from(functionalPluginClasspath, functionalKspClasspath)
+}
+
+// The markers of the plugins whose role applies KSP, `me.ahoo.wow` and `me.ahoo.wow.service`, bring the KSP Gradle
+// plugin; `me.ahoo.wow.api`'s brings the plugin's jar alone. Gradle resolves a plugin request through its marker, so
+// the class path a build script declares a plugin on holds KSP only for these two.
+val kspMarkers = listOf("wow", "wowService").map { "${it}PluginMarkerMaven" }
+// After evaluation, once java-gradle-plugin has created the markers: its own withXml, which adds the dependency on the
+// plugin's jar, then runs before this one.
+afterEvaluate {
+    extensions.findByType<PublishingExtension>()?.apply {
+        publications.withType<MavenPublication>().matching { it.name in kspMarkers }.configureEach {
+            pom.withXml {
+                val document = asElement().ownerDocument
+                val dependencies = checkNotNull(asElement().getElementsByTagName("dependencies").item(0)) {
+                    "The marker $name has no dependency on the plugin's jar to add KSP beside"
+                }
+                val dependency = dependencies.appendChild(document.createElement("dependency"))
+                ksp.split(':').zip(listOf("groupId", "artifactId", "version")).forEach { (value, tag) ->
+                    dependency.appendChild(document.createElement(tag)).textContent = value
+                }
+            }
+        }
+    }
 }
 
 tasks.processResources {
     val version = project.version.toString()
     // The Kotlin Wow builds with: the plugin requires the Kotlin Gradle plugin of one minor version before it at least.
     val kotlinVersion = libs.versions.kotlin.asProvider().get()
+    val kspVersion = libs.versions.ksp.get()
     inputs.property("version", version)
     inputs.property("kotlinVersion", kotlinVersion)
+    inputs.property("kspVersion", kspVersion)
     filesMatching("**/wow-gradle-plugin.properties") {
-        expand("version" to version, "kotlinVersion" to kotlinVersion)
+        expand("version" to version, "kotlinVersion" to kotlinVersion, "kspVersion" to kspVersion)
     }
 }
 
@@ -123,7 +156,19 @@ tasks.test {
     val processorClasspath = fixtureProcessorClasspath
     val toolsClasspath = fixtureToolsClasspath
     val repository = layout.buildDirectory.dir("fixture-repository")
+    // What `me.ahoo.wow.api`'s marker resolves, the plugin's jar and its dependencies, with the Kotlin Gradle plugin a
+    // root build declares beside it (StagedMigrationFunctionalTest).
+    val apiClasspath = files(tasks.jar, configurations.runtimeClasspath, functionalPluginClasspath)
+    inputs.files(apiClasspath).withPropertyName("apiClasspath").withNormalizer(ClasspathNormalizer::class.java)
+    systemProperty("wow-test.ksp.version", libs.versions.ksp.get())
+    // The POMs of the plugin markers, which say what a plugin request resolves.
+    val markers = layout.buildDirectory.dir("publications")
+    dependsOn(
+        tasks.matching { it.name.startsWith("generatePomFileFor") && it.name.endsWith("PluginMarkerMavenPublication") },
+    )
     doFirst {
+        systemProperty("wow-test.plugin.markers", markers.get().asFile.path)
+        systemProperty("wow-test.plugin.apiClasspath", apiClasspath.asPath)
         systemProperty("wow-test.fixture.repository", repository.get().asFile.toURI().toString())
         systemProperty("wow-test.fixture.compileClasspath", compileClasspath.asPath)
         systemProperty("wow-test.fixture.processorClasspath", processorClasspath.asPath)

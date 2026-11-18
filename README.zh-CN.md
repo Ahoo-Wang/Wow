@@ -70,6 +70,7 @@ fun `a withdrawal the balance does not cover is rejected`() = aggregateSpec(mode
 - **失败是数据。** 一再失败的处理函数会停放一个聚合，并记进台账；它从不跳过事件，也不停止订阅。
 - **一份契约。** 路由、OpenAPI、类型化客户端、视图和兼容检查，都来自编译器写出的同一份 Manifest。
 - **读模型可以丢弃。** 每个读模型都能从日志重建，所以改变它不需要迁移。
+- **在注明的硬件上实测。** [性能](https://wow.ahoo.me/zh/guide/performance)给出单节点在 4 核云端 runner 与 18 核工作站上的可持续速率与峰值，以及与 Axon Framework 4 的对比，每个数字都注明构建、CPU 与 JDK。
 
 ## 快速开始
 

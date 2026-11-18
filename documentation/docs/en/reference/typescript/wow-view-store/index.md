@@ -81,7 +81,7 @@ export type WowViewStoreErrorCode = (typeof WowViewStoreErrorCodes)[keyof typeof
 
 | Code | Status | When |
 |---|---|---|
-| `view-store.app-required` | 400 | The request's scope has no application: behind the CoSec gateway, the `CoSec-App-Id` it forwarded |
+| `view-store.app-required` | 400 | The request's scope has no application: behind the CoSec gateway, the application it forwarded, the one the user's token is issued for |
 | `view-store.invalid` | 400 | The write is not valid: its config, title, preferences or wording |
 | `view-store.owner-required` | 400 | The write has no owner: a view is saved by a user, by `(shared)`, or by `(system)` under `(platform)` |
 | `view-store.not-found` | 404 | The aggregate belongs to another application, which reads as none |

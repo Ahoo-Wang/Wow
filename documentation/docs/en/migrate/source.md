@@ -43,6 +43,15 @@ The rewrite is accepted when the service compiles under the V10 compiler and its
 
 The plugins need Gradle 9 or later and the Kotlin JVM plugin 2.3 or later: upgrade a Gradle 8 wrapper first. KSP reads whole source directories and ignores a source set's `exclude`, so a migration that compiles part of a domain at a time syncs those files into a directory of their own.
 
+A migration that moves the api module first may declare the api plugin on the root build, `id("me.ahoo.wow.api") version "…" apply false`: it brings no KSP, so the 9.x modules keep their own `id("com.google.devtools.ksp") version "…"`. Declaring `me.ahoo.wow` or `me.ahoo.wow.service` there brings the plugin's KSP onto every module's class path, and a 9.x module that still names a KSP version then fails in Gradle, before any Wow code runs:
+
+```text
+Error resolving plugin [id: 'com.google.devtools.ksp', version: '2.3.6']
+> The request for this plugin could not be satisfied because the plugin is already on the classpath with an unknown version, so compatibility cannot be checked.
+```
+
+Drop the version from those modules' line, `id("com.google.devtools.ksp")`, and they run the plugin's KSP; or keep the Wow plugins' versions in `settings.gradle.kts`, as [Add Wow to an Existing Service](../start/existing-project) does, so no module's class path holds a KSP it did not ask for. A domain module that applies `me.ahoo.wow` from a root build declaring the api plugin alone finds no KSP, and fails naming the line to add to it: `id("com.google.devtools.ksp") version` the plugin's KSP version.
+
 [9.x Capabilities in V10](./capabilities) says where every 9.x capability went.
 
 ## Annotations

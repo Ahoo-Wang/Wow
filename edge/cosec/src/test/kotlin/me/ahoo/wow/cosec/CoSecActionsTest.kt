@@ -13,9 +13,9 @@
 
 package me.ahoo.wow.cosec
 
-import me.ahoo.cosec.runtime.route.RouteMap
-import me.ahoo.cosec.runtime.route.RouteMapCodec
-import me.ahoo.cosec.runtime.route.RouteResolution
+import me.ahoo.cosec.document.route.RouteMap
+import me.ahoo.cosec.document.route.RouteMapCodec
+import me.ahoo.cosec.document.route.RouteResolution
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.manifest.CommandManifest
