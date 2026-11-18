@@ -55,6 +55,7 @@ class WowPlugin : Plugin<Project> {
     override fun apply(project: Project) {
         requireGradle(project.path, GradleVersion.current())
         val extension = project.extensions.create(EXTENSION, WowExtension::class.java)
+        SourceRoots.track(project)
         DomainRole.domain(project, extension, ID)
     }
 
@@ -232,6 +233,7 @@ class WowPlugin : Plugin<Project> {
 class WowApiPlugin : Plugin<Project> {
     override fun apply(project: Project) {
         WowPlugin.requireGradle(project.path, GradleVersion.current())
+        SourceRoots.track(project)
         ApiRole.api(project)
     }
 }
@@ -269,6 +271,7 @@ class WowServicePlugin : Plugin<Project> {
     override fun apply(project: Project) {
         WowPlugin.requireGradle(project.path, GradleVersion.current())
         val extension = project.extensions.create(WowPlugin.EXTENSION, WowServiceExtension::class.java)
+        SourceRoots.track(project)
         DomainRole.domain(project, extension, WowPlugin.SERVICE_ID)
         ServiceRole.service(project, extension)
     }

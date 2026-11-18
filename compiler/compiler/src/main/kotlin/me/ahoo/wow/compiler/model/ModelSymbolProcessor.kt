@@ -479,11 +479,7 @@ internal class ModelSymbolProcessor(
     private fun writeManifestFragment() {
         val context = contexts.context()
         if (context == null) {
-            logger.warn(
-                "No Manifest fragment and no model provider: the module declares ${contexts.declared.size} " +
-                    "@BoundedContext; set the KSP option ${ModelSymbolProcessorProvider.CONTEXT_OPTION} to name " +
-                    "its bounded context",
-            )
+            logger.warn(noContext(contexts.declared.size))
             return
         }
         val errors = errors(context)
@@ -510,6 +506,24 @@ internal class ModelSymbolProcessor(
             "json",
         ).bufferedWriter().use { it.write(FRAGMENT_WRITER.writeValueAsString(ManifestTree.write(fragment))) }
         writeModelProvider(context, "${Manifest.FRAGMENT_DIRECTORY}/$module.json", module)
+    }
+
+    /**
+     * Why the module got no fragment and no model provider, with [declared] `@BoundedContext`s: several need the KSP
+     * option to name one; none is either a module without one, or one whose declaration KSP did not hand the processor,
+     * an incremental build whose caches describe other sources, which the warning names so the round is seen.
+     */
+    private fun noContext(declared: Int): String {
+        val option = ModelSymbolProcessorProvider.CONTEXT_OPTION
+        val head = "No Manifest fragment and no model provider: the module declares $declared @BoundedContext"
+        return if (declared > 1) {
+            "$head; set the KSP option $option to name its bounded context"
+        } else {
+            "$head that KSP handed the processor, so its models name no context. Either it has none: declare one " +
+                "@BoundedContext, or set the KSP option $option. Or it declares one KSP did not hand the processor, " +
+                "because KSP's incremental caches describe other sources (a source root that moved): build the " +
+                "module clean, or rerun its KSP task (--rerun)"
+        }
     }
 
     /**
