@@ -131,8 +131,75 @@ outline: deep
 同一台云端 runner 上的三个节点，与数据库、Kafka 共用 <!-- perf:actions-snapshot/cluster.postgres.e1-steady:cpus.server -->3<!-- /perf --> 个核（构建 <!-- perf:actions-snapshot/cluster.postgres.e1-steady:commit -->`e3a4e937aa`<!-- /perf -->；PostgreSQL 的 runner 为 <!-- perf:actions-snapshot/cluster.postgres.e1-steady:cpu -->EPYC 7763<!-- /perf -->，MongoDB 的为 <!-- perf:actions-snapshot/cluster.mongo.e1-steady:cpu -->Xeon 6975P-C<!-- /perf -->）：
 
 - **稳态下**，以 <!-- perf:actions-snapshot/cluster.postgres.e1-steady:value -->150/s<!-- /perf --> 写入时，p99 在 PostgreSQL 上为 <!-- perf:actions-snapshot/cluster.postgres.e1-steady:p99Ms -->14.1 ms<!-- /perf -->，在 MongoDB 上为 <!-- perf:actions-snapshot/cluster.mongo.e1-steady:p99Ms -->13.7 ms<!-- /perf -->。
-- **运行中停掉一个节点：** 它的分区在几秒内移到其他节点。写入最差一秒的 p99 在 PostgreSQL 上为 <!-- perf:actions-snapshot/cluster.postgres.e1-handover:worstSecondP99Ms -->3,129.3 ms<!-- /perf -->，在 MongoDB 上为 <!-- perf:actions-snapshot/cluster.mongo.e1-handover:worstSecondP99Ms -->1,671.2 ms<!-- /perf -->；失败的写入分别为 <!-- perf:actions-snapshot/cluster.postgres.e1-handover:failed -->0<!-- /perf --> 与 <!-- perf:actions-snapshot/cluster.mongo.e1-handover:failed -->0<!-- /perf --> 条。在同一次交接中，saga 链在 MongoDB 上失败 <!-- perf:actions-snapshot/cluster.mongo.e3-handover:failed -->39<!-- /perf --> 条，在 PostgreSQL 上失败 <!-- perf:actions-snapshot/cluster.postgres.e3-handover:failed -->1<!-- /perf --> 条，各为一次运行，构建为 <!-- perf:actions-snapshot/cluster.mongo.e3-handover:commit -->`e3a4e937aa`<!-- /perf -->。MongoDB 上的失败都发生在被停节点重启之后、它的分区逐个追赶期间：这正是 [#6407](https://github.com/Ahoo-Wang/Wow/issues/6407)，此构建之后由 [#6412](https://github.com/Ahoo-Wang/Wow/pull/6412) 修复（时间线见[报告](https://github.com/Ahoo-Wang/Wow/blob/main/test/benchmarks/results/reports/actions-snapshot.md#l4-cluster-and-hand-over-e5)）。
+- **运行中停掉一个节点：** 它的分区在几秒内移到其他节点。写入最差一秒的 p99 在 PostgreSQL 上为 <!-- perf:actions-snapshot/cluster.postgres.e1-handover:worstSecondP99Ms -->3,129.3 ms<!-- /perf -->，在 MongoDB 上为 <!-- perf:actions-snapshot/cluster.mongo.e1-handover:worstSecondP99Ms -->1,671.2 ms<!-- /perf -->；失败的写入分别为 <!-- perf:actions-snapshot/cluster.postgres.e1-handover:failed -->0<!-- /perf --> 与 <!-- perf:actions-snapshot/cluster.mongo.e1-handover:failed -->0<!-- /perf --> 条。在同一次交接中，saga 链在 MongoDB 上失败 <!-- perf:actions-snapshot/cluster.mongo.e3-handover:failed -->39<!-- /perf --> 条，在 PostgreSQL 上失败 <!-- perf:actions-snapshot/cluster.postgres.e3-handover:failed -->1<!-- /perf --> 条，各为一次运行，构建为 <!-- perf:actions-snapshot/cluster.mongo.e3-handover:commit -->`e3a4e937aa`<!-- /perf -->。MongoDB 上的失败都发生在被停节点重启之后、它的分区逐个追赶期间：这正是 [#6407](https://github.com/Ahoo-Wang/Wow/issues/6407)，此构建之后已修复（时间线见[报告](https://github.com/Ahoo-Wang/Wow/blob/main/test/benchmarks/results/reports/actions-snapshot.md#l4-cluster-and-hand-over-e5)，修复的测量见[集群怎样恢复](#recovery)）。
 - **没有测量：跨多台机器的扩展。** 这些节点与数据库共用一台机器，所以它们显示的是集群的开销，而不是它带来的收益。[容量规划](../operate/performance)给出上限，以及在你自己的机器上要做的测量。
+
+### 集群怎样恢复 {#recovery}
+
+- **一个失去全部租约的节点**，在失去租约后 <!-- perf:m5max-recovery/lost-leases.fix:lastBackSeconds.1 -->3.5<!-- /perf --> s 之内所有分区都已恢复；修复之前，到本轮结束时仍未全部恢复。
+- **MongoDB 上一次计划内的交接**，saga 等待超时比修复之前少，p99 也更低。每一轮仍有等待超时，这项工作正在进行；PostgreSQL 上没有超时。
+
+每张表中的构建都在同一台机器上的同一批测量中交替运行；方法与每一次运行见[恢复报告](https://github.com/Ahoo-Wang/Wow/blob/main/test/benchmarks/results/reports/m5max-recovery.md)。
+
+**一个节点同时失去全部租约**（[#6379](https://github.com/Ahoo-Wang/Wow/issues/6379)）。MongoDB 先暂停、再以很慢的速度服务，节点失去了每一个租约。修复之前，它逐个停止失去的分区，每次停止都要等待缓慢的存储，直到最后一个停完才把它们收回。
+
+<!-- performance:begin recovery-leases -->
+<!-- 由 .github/scripts/docs-recovery.mjs 依据恢复报告的 headline.json 生成；用 `pnpm docs:reference` 重新生成。请勿手改。 -->
+
+Apple M5 Max, 18 cores, 64 GB，JDK 25.0.5+8，MongoDB，一个节点失去全部 64 个租约；每侧 3 轮，在同一批测量中交替。每个时间从一个分区失去租约起，到它重新获得为止。
+
+| 构建 | 第一个恢复 | 最后一个恢复 | 每轮结束时已恢复 |
+| --- | ---: | ---: | ---: |
+| 修复 `93f53932fa` | 2.4–2.7 s | 2.4–3.5 s | 64、64、64（共 64） |
+| 修复之前 `7f46c8dfb4` | 47.2–47.8 s | 未全部恢复 | 16、28、16（共 64） |
+<!-- performance:end -->
+
+**一次计划内的交接**（[#6407](https://github.com/Ahoo-Wang/Wow/issues/6407)）。在 saga 运行期间，平稳地停掉一个节点再重启。修复之前，移来的分区两个一组地排队等待节点的追赶许可；现在，落后其头部不超过一页的分区立即读取。
+
+<!-- performance:begin recovery-handover -->
+<!-- 由 .github/scripts/docs-recovery.mjs 依据恢复报告的 headline.json 生成；用 `pnpm docs:reference` 重新生成。请勿手改。 -->
+
+Apple M5 Max, 18 cores, 64 GB，JDK 25.0.5+8，3 个节点，每轮 5,250 条命令；失败的一条是 saga 的一次等待超时。每批测量先交替运行两个 MongoDB 构建，再跑一轮 PostgreSQL。
+
+**第 1 批：**
+
+| 构建 | 存储 | 每轮失败的等待 | p99，最低到最高的一轮 |
+| --- | --- | ---: | ---: |
+| 修复之前 `e3a4e937aa` | MongoDB | 15、2、2 | 2,851–5,636 ms |
+| 第一次修复 `55937a4b2c` | MongoDB | 1、1、2 | 1,581–1,983 ms |
+| 第一次修复 `55937a4b2c` | PostgreSQL | 0 | 22 ms |
+
+**第 2 批：**
+
+| 构建 | 存储 | 每轮失败的等待 | p99，最低到最高的一轮 |
+| --- | --- | ---: | ---: |
+| 第一次修复 `f43a7a75bf` | MongoDB | 1、1、1 | 1,778–1,974 ms |
+| 发布的代码 `0249db185b` | MongoDB | 1、1、1 | 1,737–1,901 ms |
+| 发布的代码 `0249db185b` | PostgreSQL | 0 | 20 ms |
+
+第 1 批的构建带有日志探针，它们只增加日志行。
+<!-- performance:end -->
+
+**仍未解决：** 两次修复之后，MongoDB 的每一轮里仍有等待超时。移来的分区在追赶时，会在旧属主留下的每个未关闭的序列块上等满 MongoDB 的停顿宽限期。这项工作正在进行，其结果尚未测量。
+
+**追赶大的积压。** 节点追赶大的积压时（例如导入的历史，或一次长时间的停机），同一时间只读取有限个分区，好让实时命令保有存储。这个上限是 `wow.subscription.max-catch-ups`，默认两个许可：落后其头部超过一页的分区要先等到许可才读取；不超过一页的立即读取。默认两个许可时，没有实时订单失败；不设上限时，有订单失败。
+
+<!-- performance:begin recovery-bound -->
+<!-- 由 .github/scripts/docs-recovery.mjs 依据恢复报告的 headline.json 生成；用 `pnpm docs:reference` 重新生成。请勿手改。 -->
+
+GitHub Actions ubuntu-26.04，未记录 CPU 型号，JDK 25.0.5，V10 主机追赶导入的日志期间的实时订单；每种设置一次运行（44137290807 与 44137289607），在不同的 runner 上。
+
+| 追赶许可 | 任务 | 失败（共 6,000） | 最差一秒的 p99 | 追赶 |
+| --- | --- | ---: | ---: | ---: |
+| 2（默认），`0853cbf27b` | runner | 0 | 10,260 ms | 87.5 s |
+| 2（默认），`0853cbf27b` | kind | 0 | 4,614 ms | 59.4 s |
+| 不设上限，`7c0896effd` | runner | 7 | 22,566 ms | 66.3 s |
+| 不设上限，`7c0896effd` | kind | 2,587 | 30,475 ms | 107.2 s |
+
+两次运行都是 `f33284fa69` 加上演练的埋点，用的是先前的规则：它对大的积压在第一页之后的处理与现在相同。
+<!-- performance:end -->
+
+[恢复报告](https://github.com/Ahoo-Wang/Wow/blob/main/test/benchmarks/results/reports/m5max-recovery.md#a-nodes-first-activation-on-a-migrated-history-6412-then-6424)中还有一个节点在迁移来的历史上首次激活的测量：发布的代码对比这些修复之前的代码。
 
 ## 与 Axon Framework 4 对比 {#against-axon-framework-4}
 
