@@ -63,6 +63,8 @@ internal class PartitionRuns(
     private val fenced: () -> Boolean = { false },
     /** The bound on the group's lease calls, which the ownership builds: an acquisition runs within it. */
     private val leaseCalls: LeaseCalls = LeaseCalls(options.leaseParallelism),
+    /** Told each partition handed off once its commands in flight are drained, before its lease is released. */
+    private val drained: suspend (Int) -> Unit = {},
 ) {
     /**
      * Not cancellable: a lease acquired is either tracked by a gate or released. The partition's subscriptions read once
@@ -133,8 +135,9 @@ internal class PartitionRuns(
     }
 
     /**
-     * Hands off [handed] concurrently, each in order: stop accepting, drain, save checkpoints, release. The releases run
-     * within the group's bound on lease calls ([leaseCalls]), which the acquisitions share.
+     * Hands off [handed] concurrently, each in order: stop accepting, drain, tell the log ([drained]), save
+     * checkpoints, release. The releases run within the group's bound on lease calls ([leaseCalls]), which the
+     * acquisitions share.
      */
     suspend fun handOff(handed: List<Int>) = coroutineScope {
         handed.map { partition ->
@@ -147,6 +150,7 @@ internal class PartitionRuns(
                 withTimeoutOrNull(options.drainTimeout) { gate.inFlight.awaitZero() } ?: logger.warn {
                     "$node handed off partition $partition of $group with commands still in flight."
                 }
+                quietly("close the log's sequences of partition $partition", LOG_RESOLVES) { drained(partition) }
                 stopSubscriptions(partition)
                 quietly("release partition $partition", LEASE_EXPIRES) {
                     leaseCalls.bounded { leases.release(group.name, partition, node) }
@@ -226,6 +230,9 @@ internal class PartitionRuns(
 
         /** What follows a release that failed. */
         const val LEASE_EXPIRES = "its lease expires on its own"
+
+        /** What follows a failed close of the sequences the log gave the partition's owner ahead. */
+        const val LOG_RESOLVES = "the next owner's tail resolves them after its grace"
 
         /** What follows a failed drop of a partition's cached states. */
         const val STATES_DROPPED_AGAIN = "they are dropped again before the partition is taken back"

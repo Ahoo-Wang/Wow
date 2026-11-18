@@ -35,16 +35,20 @@ class MongoSequencerTest {
     private val counters = mockk<MongoCollection<Document>>(relaxed = true).also { counters ->
         every { counters.findOneAndUpdate(any<Bson>(), any<List<Bson>>(), any<FindOneAndUpdateOptions>()) } answers {
             if (failReservation) throw MongoException("unreachable")
-            reservations += secondArg<List<Bson>>().joinToString { (it as Document).toJson() }
-            reserved += BLOCK
+            val update = secondArg<List<Bson>>()
+            reservations += update.joinToString { (it as Document).toJson() }
+            // The size the reservation asked for: the counter's sequence plus it.
+            val set = (update.single() as Document).get("\$set", Document::class.java)
+            val sequence = set.get(MongoEventLog.SEQUENCE, Document::class.java)
+            reserved += sequence.getList("\$add", Any::class.java)[1] as Long
             Document(MongoEventLog.SEQUENCE, reserved)
         }
     }
     private val sequencer = MongoSequencer(counters, NODE, BLOCK, 1)
     private val registered = { listOf(ORDER) }
 
-    private fun allocate(collection: String = ORDER, after: Long = 0) =
-        sequencer.allocate(0, collection, after, registered)
+    private fun allocate(collection: String = ORDER, after: Long = 0, exact: Boolean = false) =
+        sequencer.allocate(0, collection, after, exact, registered)
 
     private fun removals() = verify(exactly = 0) { counters.updateOne(any<Bson>(), any<Bson>()) }
 
@@ -170,6 +174,34 @@ class MongoSequencerTest {
             ),
         )
         sequencer.openBlocks(counter).assert().containsExactly(MongoSequencer.OpenBlock(NODE, 1, BLOCK, listOf(ORDER)))
+    }
+
+    @Test
+    fun `an append without the lease takes exactly its sequence and closes the current block`() {
+        allocate().sequence.assert().isEqualTo(1L)
+        val degraded = allocate(exact = true)
+        degraded.sequence.assert().isEqualTo(BLOCK + 1)
+        val closing = checkNotNull(degraded.closing)
+        listOf(closing.from, closing.to).assert().containsExactly(2L, BLOCK)
+        reserved.assert().isEqualTo(BLOCK + 1)
+        // Its block is used up: the next takes one of its own again, with nothing to close.
+        allocate(exact = true).let { listOf(it.sequence, it.closing) }.assert().containsExactly(BLOCK + 2, null)
+        reserved.assert().isEqualTo(BLOCK + 2)
+        // With the lease again, a whole block.
+        allocate().sequence.assert().isEqualTo(BLOCK + 3)
+        reserved.assert().isEqualTo(BLOCK * 2 + 2)
+    }
+
+    @Test
+    fun `a hand-off closes the current block's remainder, and nothing once it is used up or there is none`() {
+        sequencer.handOff(0).assert().isNull()
+        allocate().sequence.assert().isEqualTo(1L)
+        val closing = checkNotNull(sequencer.handOff(0))
+        listOf(closing.from, closing.to, closing.collection).assert().containsExactly(2L, BLOCK, ORDER)
+        // The node allocates from a new block after it, should it own the partition again.
+        allocate().sequence.assert().isEqualTo(BLOCK + 1)
+        repeat(BLOCK.toInt() - 1) { allocate() }
+        sequencer.handOff(0).assert().isNull()
     }
 
     @Test

@@ -115,6 +115,11 @@ internal class LogGroupRouter(
     override suspend fun lineage(partition: Int): PartitionLineage =
         throw UnsupportedOperationException("Each log group has partitions of its own, and their lineage.")
 
+    /** Every group's log is told: each gave the partition's owner sequences of its own. */
+    override suspend fun handedOff(partition: Int) {
+        (listOf(default) + groups.values).distinct().forEach { it.handedOff(partition) }
+    }
+
     companion object {
         /** [default] alone when no type is in another group, else the router over them. */
         @JvmStatic

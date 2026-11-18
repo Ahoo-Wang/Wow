@@ -63,7 +63,8 @@ internal class MongoLogAppender(
     private val lastSequences: LastSequences,
     private val placeholders: MongoLogPlaceholders,
 ) {
-    fun appendNow(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome {
+    /** [stream] alone; [exact] when its command runs without the partition's lease ([MongoSequencer.allocate]). */
+    fun appendNow(stream: EventStreamRecord, transport: ByteArray?, exact: Boolean): AppendOutcome {
         require(stream.ref.type.context == context) { "${stream.ref} is not in context $context." }
         val collection = collections.of(stream.ref.type)
         val partition = Partitioner.partitionOf(stream.ref, partitions)
@@ -75,7 +76,8 @@ internal class MongoLogAppender(
             val allocation = sequencer.allocate(
                 partition,
                 collection.name,
-                after
+                after,
+                exact,
             ) { collections.known().map { it.name } }
             insert(collection, stream, document, allocation)?.let { return it }
         }
@@ -103,10 +105,11 @@ internal class MongoLogAppender(
      *
      * [marks], when the call is clocked: sent once every stream's document is built and sequenced, before the first
      * insert, and read after the last insert or placeholder; the streams appended again alone after it are its release.
+     * [exact] when the group's commands run without their partitions' leases ([MongoSequencer.allocate]).
      */
-    fun appendGroup(streams: List<Append>, marks: StoreCallMarks?): List<AppendOutcome> {
+    fun appendGroup(streams: List<Append>, marks: StoreCallMarks?, exact: Boolean): List<AppendOutcome> {
         val outcomes = arrayOfNulls<AppendOutcome>(streams.size)
-        val members = prepare(streams, outcomes, marks)
+        val members = prepare(streams, outcomes, marks, exact)
         marks?.sent()
         insertMembers(members, outcomes)
         marks?.read()
@@ -122,7 +125,7 @@ internal class MongoLogAppender(
             val transport = streams[index].transport
             failed[stream.ref]?.let { return@mapIndexed it }
             val settled = outcome ?: stopped?.let { AppendOutcome.Unknown(it) } ?: try {
-                appendNow(stream, transport)
+                appendNow(stream, transport, exact)
             } catch (failure: MongoException) {
                 if (!written) throw failure
                 stopped = failure
@@ -139,7 +142,12 @@ internal class MongoLogAppender(
      * before in [outcomes]. No member is tried yet, so when a step fails (a lookup, a reservation), each sequence
      * allotted is filled before the failure is thrown, and the tail never waits at one.
      */
-    private fun prepare(streams: List<Append>, outcomes: Array<AppendOutcome?>, marks: StoreCallMarks?): List<Member> {
+    private fun prepare(
+        streams: List<Append>,
+        outcomes: Array<AppendOutcome?>,
+        marks: StoreCallMarks?,
+        exact: Boolean,
+    ): List<Member> {
         val failed = HashMap<AggregateRef, AppendOutcome>()
         val previous = HashMap<AggregateRef, Long>()
         val members = ArrayList<Member>(streams.size)
@@ -167,7 +175,8 @@ internal class MongoLogAppender(
                 val allocation = sequencer.allocate(
                     partition,
                     collection.name,
-                    after
+                    after,
+                    exact,
                 ) { collections.known().map { it.name } }
                 document[SEQUENCE] = allocation.sequence
                 document[ID] = positionId(partition, allocation.sequence)

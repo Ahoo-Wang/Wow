@@ -23,6 +23,7 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ClosedSendChannelException
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateRef
@@ -33,6 +34,7 @@ import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.log.ExecutionLease
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.store.StoreCallMarks
 import java.util.concurrent.atomic.AtomicInteger
@@ -138,7 +140,10 @@ class AppendQueueOptions @InternalWowApi constructor(
  *
  * The queue only serializes the appends
  * of this node: a partition appended to from two nodes (Local fallback during a hand-off) still
- * contends in the database, and the backend's own retry keeps it correct. The kernel stays unaware of it.
+ * contends in the database, and the backend's own retry keeps it correct. The kernel stays unaware of it. The log
+ * reads whether an append's command holds the partition's lease from the call's coroutine
+ * ([ExecutionLease]): the appends of a batch whose commands run without it go in a call of their own, under
+ * [ExecutionLease.NOT_HELD].
  *
  * Each partition's lane holds at most [capacity] appends: the node's in-flight bound
  * ([me.ahoo.wow.runtime.InFlightLimit]), which every append's command is counted in, so the lane never fills on its
@@ -263,7 +268,7 @@ class PartitionAppendQueue(
 
     /** Queues [streams], one aggregate's, as one unit on its partition's lane, waiting for room when it is full. */
     private suspend fun enqueue(streams: List<Append>): Pending {
-        val pending = Pending(streams, waiting)
+        val pending = Pending(streams, waiting, currentCoroutineContext()[ExecutionLease] === ExecutionLease.NOT_HELD)
         val lane = lanes[Partitioner.partitionOf(pending.ref, log.partitions)]
         check(!closed) { "The append queue is closed." }
         waiting.incrementAndGet()
@@ -347,8 +352,25 @@ class PartitionAppendQueue(
         return batch
     }
 
+    /**
+     * Commits [batch], its appends without the lease ([Pending.degraded]) in a call of their own under
+     * [ExecutionLease.NOT_HELD], after the others: the log reads the lease from the call's coroutine, which is the
+     * lane's or a committer's, not the caller's. A batch has them only while a partition changes hands.
+     *
+     * Committing them apart reorders no aggregate's appends: a batch holds at most one unit of each aggregate ([take]
+     * passes over a unit whose aggregate is already in it, and a merged call takes the lanes' batches, whose
+     * aggregates are in their own partition each), and a unit is one caller's, under one mark. So an aggregate's later
+     * unit, whatever its mark, waits for the next batch.
+     */
+    private suspend fun commit(batch: List<Pending>, marks: StoreCallMarks?) {
+        if (batch.none { it.degraded }) return commitAll(batch, marks)
+        val (degraded, leased) = batch.partition { it.degraded }
+        if (leased.isNotEmpty()) commitAll(leased, marks)
+        withContext(ExecutionLease.NOT_HELD) { commitAll(degraded, marks.takeIf { leased.isEmpty() }) }
+    }
+
     /** Not cancellable: an append taken into a batch completes. [marks], when clocked, go in the log call's context. */
-    private suspend fun commit(batch: List<Pending>, marks: StoreCallMarks?) = withContext(
+    private suspend fun commitAll(batch: List<Pending>, marks: StoreCallMarks?) = withContext(
         if (marks == null) NonCancellable else NonCancellable + marks,
     ) {
         val streams = batch.flatMap { it.streams }
@@ -381,6 +403,8 @@ class PartitionAppendQueue(
     private class Pending(
         val streams: List<Append>,
         private val waiting: AtomicInteger,
+        /** Whether its caller runs without the partition's lease ([ExecutionLease.NOT_HELD]). */
+        val degraded: Boolean,
     ) {
         val ref: AggregateRef = streams.first().stream.ref
         val outcome = CompletableDeferred<List<AppendOutcome>>()

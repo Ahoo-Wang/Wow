@@ -24,7 +24,7 @@ import me.ahoo.wow.api.annotation.WowSpi
  * The log of one bounded context: the only place a fact is written (axiom A1).
  *
  * What a backend must implement are the abstract members; the members with a default are optional optimizations
- * whose default is correct ([appendAll], [readTail], [lineage]).
+ * whose default is correct ([appendAll], [readTail], [lineage], [handedOff]).
  * The contract every backend keeps, checked by the TCK:
  * - unique keys are (`ref`, `version`) and (`tenantId`, `requestId`) within each aggregate type; `ref` includes the
  *   tenant. Each aggregate type is stored apart, so a request id reused by two aggregate types of
@@ -189,5 +189,17 @@ interface EventLog {
     suspend fun lineage(partition: Int): PartitionLineage {
         require(partition in 0 until partitions) { "No partition $partition among $partitions." }
         return PartitionLineage.ROOT
+    }
+
+    /**
+     * This node handed [partition] off: the commands it ran as the partition's owner are drained, and those it runs
+     * for it from now on run without the lease ([ExecutionLease.NOT_HELD]). A backend that gives the owner its
+     * sequences ahead finalizes those it did not give out, so the next owner's tail does not wait at them; others
+     * have nothing to do, the default. Called once per hand-off, before the lease is released; a failure is logged and
+     * the hand-off goes on. A node that stops without handing off (a crash, a lost lease) does not call it: its
+     * sequences are then resolved by the backend's tail, as before.
+     */
+    suspend fun handedOff(partition: Int) {
+        require(partition in 0 until partitions) { "No partition $partition among $partitions." }
     }
 }

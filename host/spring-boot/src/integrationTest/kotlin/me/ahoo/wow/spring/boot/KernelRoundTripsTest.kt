@@ -32,7 +32,6 @@ import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.kernel.EventCodec
-import me.ahoo.wow.kernel.ExecutionLease
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.KernelOptions
 import me.ahoo.wow.kernel.aggregate
@@ -40,6 +39,7 @@ import me.ahoo.wow.mongo.log.MongoEventLog
 import me.ahoo.wow.mongo.snapshot.MongoSnapshotStore
 import me.ahoo.wow.runtime.LruStateCache
 import me.ahoo.wow.spi.log.EventLog
+import me.ahoo.wow.spi.log.ExecutionLease
 import me.ahoo.wow.spi.log.SnapshotTailReader
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.store.Store

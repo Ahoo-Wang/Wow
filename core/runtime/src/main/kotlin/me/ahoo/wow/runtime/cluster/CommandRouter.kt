@@ -23,13 +23,13 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.kernel.AggregateModel
-import me.ahoo.wow.kernel.ExecutionLease
 import me.ahoo.wow.runtime.wait.ResultCodes
 import me.ahoo.wow.runtime.wait.Settlement
 import me.ahoo.wow.runtime.wait.WaitCoordinator
 import me.ahoo.wow.runtime.wait.commandFunction
 import me.ahoo.wow.runtime.wait.failed
 import me.ahoo.wow.runtime.wait.reachedResult
+import me.ahoo.wow.spi.log.ExecutionLease
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.observation.ObservedEvent

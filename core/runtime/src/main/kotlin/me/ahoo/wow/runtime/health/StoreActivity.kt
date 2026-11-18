@@ -341,6 +341,8 @@ private open class TrackedEventLog(
     override suspend fun lineage(partition: Int): PartitionLineage =
         activity.call(::unavailable) { log.lineage(partition) }
 
+    override suspend fun handedOff(partition: Int) = activity.call(::unavailable) { log.handedOff(partition) }
+
     /** Each element read, and the end of the read, is a success; an unavailable store's failure is recorded. */
     private fun <T> Flow<T>.tracked(): Flow<T> = onEach { activity.succeeded() }
         .onCompletion { if (it == null) activity.succeeded() }

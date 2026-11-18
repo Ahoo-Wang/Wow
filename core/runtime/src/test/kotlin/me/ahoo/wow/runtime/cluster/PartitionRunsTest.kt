@@ -172,6 +172,50 @@ class PartitionRunsTest {
             leases.owners(GROUP.name).assert().isEmpty()
         }
 
+    /** Runs whose hand-offs tell [drained] of each partition; [runtime] records when it stops one into [steps]. */
+    private fun telling(steps: MutableList<String>, drained: suspend (Int) -> Unit): PartitionRuns {
+        coEvery { runtime.stopPartition(any()) } answers { steps += "subscriptions stopped" }
+        return PartitionRuns(
+            GROUP,
+            NODE,
+            leases,
+            options,
+            time,
+            options.leaseTtl - options.renewInterval,
+            gates,
+            listOf(runtime),
+            intake,
+            emptyList(),
+            partitionChanged = {},
+            drained = drained,
+        )
+    }
+
+    @Test
+    fun `a hand-off tells the log once drained, before the subscriptions stop and the lease goes`(): Unit =
+        runBlocking {
+            val steps = CopyOnWriteArrayList<String>()
+            val told = telling(steps) { partition ->
+                val held = leases.owners(GROUP.name).map { it.partition }
+                steps += "drained $partition, lease held ${partition in held}"
+            }
+            told.acquire(0, null)
+            told.handOff(listOf(0))
+            steps.assert().containsExactly("drained 0, lease held true", "subscriptions stopped")
+            leases.owners(GROUP.name).assert().isEmpty()
+        }
+
+    @Test
+    fun `a log that fails to hear of a hand-off holds up none of it`(): Unit = runBlocking {
+        val steps = CopyOnWriteArrayList<String>()
+        val told = telling(steps) { error("The log is unavailable.") }
+        told.acquire(0, null)
+        told.handOff(listOf(0))
+        steps.assert().containsExactly("subscriptions stopped")
+        leases.owners(GROUP.name).assert().isEmpty()
+        gates.assert().isEmpty()
+    }
+
     private companion object {
         const val NODE = "node-1"
         val GROUP = LeaseGroup("running-service", "running")

@@ -74,8 +74,9 @@ import kotlin.time.TimeSource
  *   its own stop ended ([PartitionRuns.dropLost]), so one partition's long drain holds up only that partition.
  * - **Hand-off** of a partition goes in this order: stop accepting new commands for it, stop its command intake,
  *   which settles the commands it took and saves its checkpoint, wait for its other commands in
- *   flight for at most [ClusterOptions.drainTimeout], stop its subscriptions, which saves their checkpoints
- *   ([SubscriptionRuntime.stopPartition]), and release the lease, so the new owner acquires it on its next round.
+ *   flight for at most [ClusterOptions.drainTimeout], tell the log ([drained]), stop its subscriptions, which saves
+ *   their checkpoints ([SubscriptionRuntime.stopPartition]), and release the lease, so the new owner acquires it on
+ *   its next round.
  *   State caches are not handed over: the new owner loads from the snapshot and the log's tail, and each node drops
  *   the partition's cached states whenever it acquires, hands off or loses it ([partitionChanged]).
  * - **Routes**: every [ClusterOptions.routeRefreshInterval], and at once on [refreshSoon], the node reads the owners
@@ -138,6 +139,11 @@ class PartitionOwnership internal constructor(
      * stopped: the context's state cache drops the partition's states.
      */
     private val partitionChanged: (Int) -> Unit = {},
+    /**
+     * Called with each partition this node hands off, once its commands in flight are drained: the context's log
+     * finalizes the sequences it gave the partition's owner ahead ([me.ahoo.wow.spi.log.EventLog.handedOff]).
+     */
+    private val drained: suspend (Int) -> Unit = {},
     /**
      * The node's membership in its service on [leases], which every ownership of the node shares: one
      * record and one read of the members per node, whatever the number of groups. One of its own when not given.
@@ -215,6 +221,7 @@ class PartitionOwnership internal constructor(
             progressed = { fence.stepFinished() },
             fenced = { fence.fenced },
             leaseCalls = LeaseCalls(options.leaseParallelism),
+            drained = drained,
         )
     }
 

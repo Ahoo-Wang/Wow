@@ -32,6 +32,7 @@ import me.ahoo.wow.spi.log.readSnapshotTailApart
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import java.util.concurrent.CopyOnWriteArrayList
 
 /** The log and the snapshots of a context whose aggregates are in two groups (decision D177). */
 class LogGroupRouterTest {
@@ -52,6 +53,22 @@ class LogGroupRouterTest {
         events = listOf(EventRecord("${ref.type}.Acted", 1, "{}")),
         scope = Scope.NONE,
     )
+
+    @Test
+    fun `a hand-off reaches each group's log once`(): Unit = runBlocking {
+        val told = CopyOnWriteArrayList<String>()
+        fun telling(name: String, log: EventLog) = object : EventLog by log {
+            override suspend fun handedOff(partition: Int) {
+                told += "$name $partition"
+            }
+        }
+        val defaultLog = telling("default", default)
+        LogGroupRouter(defaultLog, mapOf(invoices to telling("grouped", grouped), receipts to defaultLog)).handedOff(1)
+        told.assert().containsExactly("default 1", "grouped 1")
+        // The in-memory log gives no sequences ahead: nothing to do, a partition it has.
+        router.handedOff(0)
+        assertThrows<IllegalArgumentException> { default.handedOff(PARTITIONS) }
+    }
 
     @Test
     fun `each aggregate is appended to and read from its group's log`(): Unit = runBlocking {
