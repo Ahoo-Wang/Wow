@@ -592,6 +592,24 @@ test('the jdk-saturation suites take closed-loop samples alone, ABBA, and judge 
   assert.match(report, /## Saturation samples \(closed loop\)/);
 });
 
+test('a four-round suite runs no drift round: its median already outvotes one disagreeing run', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'bench-'));
+  // The fake's r1-head runs 10% slow, so an arm drifts whatever the repeats.
+  const suite = runSuite('e1-mongo-uniform', {
+    benchPath: fakeBench(dir),
+    out: join(dir, 'results', 'e1-mongo-uniform'),
+    warmUp: 1,
+    measure: 5,
+    repeats: 4,
+    fraction: 0.8,
+    installs: { base: '/builds/base/benchmark-server' },
+    refs: { baseRef: 'base', baseSha: 'b1', headRef: 'v10', headSha: 'h1' },
+  });
+  assert.equal(suite.extraRound, undefined);
+  assert.equal(suite.runs.filter(run => run.mode !== 'equal').length, 8);
+  assert.equal(suite.runs.filter(run => run.mode === 'equal').length, 8);
+});
+
 test('runSuite pairs the arms, adds a round on drift, and the report combines the suites', () => {
   const dir = mkdtempSync(join(tmpdir(), 'bench-'));
   const benchPath = fakeBench(dir);

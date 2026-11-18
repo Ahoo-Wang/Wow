@@ -276,6 +276,36 @@ export function confidence(suite, mode) {
   );
 }
 
+/**
+ * Why a paired suite has fewer equal-rate pairs than it asked for (`repeats`), in words, or undefined when it has them
+ * all. A suite that has no `finishedAt` did not finish: its job ended first, as one does at the job's time limit.
+ * Otherwise a round the load generator refused, or a run that failed, is not a pair.
+ */
+export function shortOfPairs(suite) {
+  const asked = suite.repeats;
+  const pairs = roundPairs(suite, EQUAL).length;
+  if (!(asked > pairs)) return undefined;
+  const equal = suite.runs.filter(run => modeOf(run) === EQUAL);
+  const refused = equal.filter(run => run.status === 'ok' && refusedRound(run));
+  const failed = equal.filter(run => run.status !== 'ok');
+  const why = [
+    ...(suite.finishedAt
+      ? []
+      : [
+          'its job ended before the suite finished, as a job does at its time limit',
+        ]),
+    ...(refused.length > 0
+      ? [
+          `${refused.length} run${refused.length === 1 ? '' : 's'} the load generator refused`,
+        ]
+      : []),
+    ...(failed.length > 0
+      ? [`${failed.length} run${failed.length === 1 ? '' : 's'} failed`]
+      : []),
+  ];
+  return `${labelOf(suite)}: ${pairs} of ${asked} equal-rate pairs (${why.join('; ') || 'the missing rounds measured one arm or neither'}); ${pairs > 0 ? 'its ratios are over the pairs it has' : 'it has no latency ratio'}.`;
+}
+
 /** Whether a ratio's interval clears the noise threshold: `higher`, `lower`, `within noise` or `uncalibrated`. */
 export function verdict(interval, threshold) {
   if (!interval) return 'no data';
@@ -391,6 +421,8 @@ export function significanceSection(suites, noise, noiseLabel) {
     );
     const shares = sharesText(suite);
     if (shares) notes.push(shares);
+    const short = shortOfPairs(suite);
+    if (short) notes.push(short);
     // Which runners a pooled threshold mixes (bench-noise.mjs): it is not split by CPU model.
     const pool = thresholds?.pool;
     if (pool?.entries)

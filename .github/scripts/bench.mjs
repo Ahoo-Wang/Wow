@@ -94,9 +94,9 @@ import {
 // alternately, open loop at `fraction` of their saturation, so that every
 // comparison is a pair measured on the same machine minutes apart; the
 // relative result survives the variance between runners, the absolute numbers
-// do not. Rounds alternate which arm goes first (ABBA), so drift over the job
-// cancels too. When two runs of one arm differ by more than DRIFT in
-// throughput or p99, one more round runs. bench.sh starts every run on fresh
+// do not. Rounds alternate which arm goes first (ABBA), so drift over the job cancels too. An arm's calibrated
+// rounds are read by their median, which of two runs is their mean: when they differ by more than DRIFT in throughput
+// or p99, a third round runs (of three or more, the median already outvotes one). bench.sh starts every run on fresh
 // containers and servers. `report` combines the suites' results.
 
 // The arms: a build (`install`: `head`, the pushed or dispatched V10 ref; `base`, the V10 baseline ref) on a backend,
@@ -3501,7 +3501,7 @@ export function runSuite(name, options) {
     if (runnable.length > 0) {
       for (let index = 0; index < repeats; index++)
         round(index, CALIBRATED, own, 'r');
-      if (repeats >= 2 && !aaRun && drifted(suite.runs, runnable)) {
+      if (repeats === 2 && !aaRun && drifted(suite.runs, runnable)) {
         suite.extraRound = true;
         round(repeats, CALIBRATED, own, 'r');
       }

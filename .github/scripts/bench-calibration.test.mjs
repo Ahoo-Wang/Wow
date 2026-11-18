@@ -16,6 +16,7 @@ import {
   refusedRound,
   SATURATION,
   sharesText,
+  shortOfPairs,
   significanceSection,
   signalAnomalies,
 } from './bench-calibration.mjs';
@@ -149,6 +150,55 @@ test("a latency's point is the statistic its interval is of, and each round's wh
       row,
     );
   }
+});
+
+test('a suite with fewer equal-rate pairs than it asked for says how many and why, in the significance notes', () => {
+  const pair = round => [
+    run('base', 'equal', round, { p99Series: seconds(100) }),
+    run('head', 'equal', round, { p99Series: seconds(100) }),
+  ];
+  const suite = {
+    name: 'e3-mongo',
+    dataset: '100k',
+    kind: 'paired',
+    repeats: 4,
+    arms: [{ id: 'base' }, { id: 'head' }],
+    runs: [...pair(0), ...pair(1), ...pair(2), pair(3)[1]],
+  };
+  // No finishedAt: the job ended first, as at its time limit (run 44354661146's e3-mongo).
+  assert.equal(
+    shortOfPairs(suite),
+    'e3-mongo@100k: 3 of 4 equal-rate pairs (its job ended before the suite finished, as a job does at its time limit); its ratios are over the pairs it has.',
+  );
+  assert.ok(
+    significanceSection([suite], {}, s => s.name).includes(
+      `- ${shortOfPairs(suite)}`,
+    ),
+  );
+  const refused = run('base', 'equal', 3, {
+    failed: 50,
+    errors: { 'E1:generator-overload': 50 },
+  });
+  assert.equal(
+    shortOfPairs({
+      ...suite,
+      finishedAt: '2026-11-18T19:00:00Z',
+      runs: [...suite.runs, refused],
+    }),
+    'e3-mongo@100k: 3 of 4 equal-rate pairs (1 run the load generator refused); its ratios are over the pairs it has.',
+  );
+  assert.equal(
+    shortOfPairs({
+      ...suite,
+      finishedAt: '2026-11-18T19:00:00Z',
+      runs: [...suite.runs, run('base', 'equal', 3)],
+    }),
+    undefined,
+  );
+  assert.equal(
+    shortOfPairs({ ...suite, finishedAt: '2026-11-18T19:00:00Z', runs: [] }),
+    'e3-mongo@100k: 0 of 4 equal-rate pairs (the missing rounds measured one arm or neither); it has no latency ratio.',
+  );
 });
 
 test('each arm is judged against its own calibrated rate, and different shares are said in words', () => {
