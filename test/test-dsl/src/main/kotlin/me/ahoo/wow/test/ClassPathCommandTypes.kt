@@ -30,7 +30,8 @@ import java.util.concurrent.ConcurrentHashMap
  * contract reads the id from there ([aggregateIdOf]). Its [nameOf] is [CommandTypes.SIMPLE_NAMES]'.
  *
  * The same Manifests declare each context's rejection codes ([errorsOf]), which a rejection the specification hands
- * over is checked against.
+ * over is checked against, and each command's routes, by which a command that names no aggregate is admitted or
+ * refused ([needsAggregateId]).
  *
  * A contract that cannot be read is skipped: the specification checks the saga, not the build that packaged it.
  */
@@ -39,6 +40,8 @@ internal class ClassPathCommandTypes(
     private val errors: Map<String, Set<String>> = emptyMap(),
     /** The property each command's body names its aggregate in, by its schema, for those whose body does. */
     private val idProperties: Map<String, String> = emptyMap(),
+    /** The schemas of the commands every route of which names an aggregate id ([needsAggregateId]). */
+    private val addressedById: Set<String> = emptySet(),
 ) : CommandTypes {
     override fun nameOf(target: AggregateType, command: Class<*>): String? =
         CommandTypes.SIMPLE_NAMES.nameOf(target, command)
@@ -50,6 +53,14 @@ internal class ClassPathCommandTypes(
         idProperties["$DEFS_PREFIX${command.javaClass.name}"]?.let {
             BodyAggregateIds.of(WowJson.mapper.valueToTree(command), it)
         }
+
+    /**
+     * Whether a [command] of this class must name its aggregate: every route its contract lists names one (`{id}`),
+     * as the service admits it. A command that may leave its id out has a route without one: a creation, whose id
+     * admission generates, an `@Unaddressed` command, whose transformer finds its aggregate, and a command of an
+     * aggregate whose id is its owner's. False for a class no contract on the class path lists.
+     */
+    fun needsAggregateId(command: Class<*>): Boolean = "$DEFS_PREFIX${command.name}" in addressedById
 
     /**
      * The rejection codes the context of [type] declares, by its Manifest on the class path; null when none
@@ -78,6 +89,7 @@ internal class ClassPathCommandTypes(
             val aggregates = LinkedHashMap<String, MutableSet<AggregateType>>()
             val errors = LinkedHashMap<String, MutableSet<String>>()
             val idProperties = LinkedHashMap<String, String>()
+            val addressedById = LinkedHashSet<String>()
             (fragments + contracts).distinct().forEach { resource ->
                 val manifest = runCatching {
                     resource.openStream().use { mapper.readValue(it.readBytes(), Map::class.java) }
@@ -85,8 +97,14 @@ internal class ClassPathCommandTypes(
                 commandsOf(manifest).forEach { (schema, type) -> aggregates.getOrPut(schema, ::LinkedHashSet) += type }
                 errorsOf(manifest).forEach { (context, codes) -> errors.getOrPut(context, ::LinkedHashSet) += codes }
                 idProperties += idPropertiesOf(manifest)
+                addressedById += addressedByIdOf(manifest)
             }
-            return ClassPathCommandTypes(aggregates.mapValues { it.value.toList() }, errors, idProperties)
+            return ClassPathCommandTypes(
+                aggregates.mapValues { it.value.toList() },
+                errors,
+                idProperties,
+                addressedById,
+            )
         }
 
         /** The rejection codes each context of a Manifest declares, by context name. */
@@ -115,6 +133,16 @@ internal class ClassPathCommandTypes(
                     val schema = command["schema"] as? String ?: return@mapNotNull null
                     (command["idProperty"] as? String)?.let { schema to it }
                 }.toMap()
+
+        /** The schemas of a Manifest's commands that list routes, each naming an aggregate id (`{id}`). */
+        internal fun addressedByIdOf(manifest: Map<*, *>): Set<String> =
+            manifest.objects("contexts").flatMap { it.objects("aggregates") }.flatMap { it.objects("commands") }
+                .mapNotNull { command ->
+                    val routes = command.objects("routes").mapNotNull { it["path"] as? String }
+                    (command["schema"] as? String)?.takeIf { routes.isNotEmpty() && routes.all { ID in it } }
+                }.toSet()
+
+        private const val ID = "{id}"
 
         private fun Map<*, *>.objects(key: String): List<Map<*, *>> =
             (this[key] as? List<*>).orEmpty().filterIsInstance<Map<*, *>>()

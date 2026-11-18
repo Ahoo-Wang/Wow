@@ -123,7 +123,7 @@ fun onReserveCommitted(
 
 ## 处理拒绝 {#handle-a-rejection}
 
-派生的命令可能被拒绝：库存不足，订单在此期间已被取消。拒绝是业务结果，所以 Saga 在针对该命令类型的 `@OnRejected` 处理函数中处理它，处理函数接收 `CommandReceipt.Rejected<C>`，并返回用来补偿的命令：
+派生的命令可能被拒绝：库存不足，订单在此期间已被取消。拒绝是业务结果，所以 Saga 在针对该命令类型的 `@OnRejected` 处理函数中处理它，处理函数接收 `CommandReceipt.Rejected<C>`，并返回用来补偿的命令。没有处理函数接收的拒绝，不会像 9.x 对待派生命令的失败那样被略过：发往 Saga 自身上下文的命令被拒绝，会停放 Saga 的源聚合，见下文。
 
 <!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSaga.kt#rejected -->
 
@@ -139,7 +139,7 @@ fun onReserveRejected(rejected: CommandReceipt.Rejected<ReserveStock>): CommandR
 
 `CommandReceipt.Rejected` 写明了命令（`commandId`、`commandType`、`ref`）、它的 `error`（错误码、消息、violations、扩展）Saga 的 `executionId`，以及 `source`，即派生出命令的提交所属的聚合；它不带命令体。来自另一个上下文的拒绝以回执的形式返回。运行时把每个拒绝只交出一次。
 
-每条派生命令各自结算：一条命令被拒绝不会阻止其他命令，每个拒绝都交给它的处理函数。发往同一个聚合的命令按 Saga 派生的顺序执行；发往不同聚合的命令并发执行，所以依赖另一条命令结果的工作不要与它一起派生：从第一条命令提交的事件中派生它。Saga 自己上下文中的命令被拒绝而 Saga 没有处理函数时，会像失败一样在 Saga 的订阅中停放这个聚合，只停放一次，并列出每条被拒绝的命令。发往另一个上下文的命令只有在 Saga 有该类型的处理函数时才要求回执，所以没有处理函数接收的拒绝由目标记日志，不再往下传。不需要补偿的拒绝，用一个返回 `Unit` 的处理函数接受：
+每条派生命令各自结算：一条命令被拒绝不会阻止其他命令，每个拒绝都交给它的处理函数。发往同一个聚合的命令按 Saga 派生的顺序执行；发往不同聚合的命令并发执行，所以依赖另一条命令结果的工作不要与它一起派生：从第一条命令提交的事件中派生它。Saga 自己上下文中的命令被拒绝而 Saga 没有处理函数时，会像失败一样在 Saga 的订阅中停放这个聚合，只停放一次，并列出每条被拒绝的命令。发往另一个上下文的命令只有在 Saga 有该类型的处理函数时才要求回执，所以没有处理函数接收的拒绝由目标记日志，不再往下传。不需要补偿的拒绝，用一个返回 `Unit` 的处理函数接受，这也保留了 9.x Saga 在派生命令失败后的行为：
 
 <!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSaga.kt#release-rejected -->
 

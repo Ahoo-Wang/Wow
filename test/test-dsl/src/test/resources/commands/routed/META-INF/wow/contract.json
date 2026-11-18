@@ -1,0 +1,34 @@
+{
+  "contexts": [
+    {
+      "name": "shipping",
+      "aggregates": [
+        {
+          "name": "shipment",
+          "state": { "schema": "#/$defs/sample.ShipmentState" },
+          "commands": [
+            {
+              "name": "Dispatch",
+              "schema": "#/$defs/me.ahoo.wow.test.UnaddressedSendSpecTest$Dispatch",
+              "routes": [{ "method": "POST", "path": "/shipping/shipment/{id}/dispatch" }]
+            },
+            {
+              "name": "Open",
+              "schema": "#/$defs/me.ahoo.wow.test.UnaddressedSendSpecTest$Open",
+              "creation": "REQUIRED",
+              "routes": [{ "method": "POST", "path": "/shipping/shipment/open" }]
+            },
+            {
+              "name": "Route",
+              "schema": "#/$defs/me.ahoo.wow.test.UnaddressedSendSpecTest$Route",
+              "routes": [
+                { "method": "POST", "path": "/shipping/shipment/{id}/route" },
+                { "method": "POST", "path": "/shipping/shipment/route" }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
