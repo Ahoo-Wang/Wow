@@ -190,11 +190,15 @@ class ModelProviderTest {
     }
 
     @Test
-    fun `a module without a bounded context should have no provider`() {
+    fun `a module without a bounded context should fail, with no provider and no model`() {
         val (compilation, result) = compileModel("generate", account)
-        result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
+        result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        result.messages.assert().contains(
+            "No Manifest fragment and no model provider: the module declares 0 @BoundedContext"
+        )
         generated(compilation, ModelProviderSource.MODEL_PROVIDER).assert().isNull()
-        ModelProvider.load(result.classLoader).assert().isEmpty()
+        // No model is written that names no context.
+        compilation.workingDir.walkTopDown().none { it.name == "AccountModel.kt" }.assert().isTrue()
     }
 
     @Test

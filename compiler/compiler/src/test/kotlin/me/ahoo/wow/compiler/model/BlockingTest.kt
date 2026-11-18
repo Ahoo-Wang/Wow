@@ -126,7 +126,7 @@ class BlockingTest {
 
     @Test
     fun `a Blocking command function and after hook should run on a virtual thread and the others inline`() {
-        val (compilation, result) = compileModel("generate", cart, scenario)
+        val (compilation, result) = compileModel("generate", ManifestFragmentFixtures.context, cart, scenario)
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
         val source = compilation.workingDir.walkTopDown().single { it.name == "CartModel.kt" }.readText()
         source.assert().contains("decideBlocking<sample.Add>").contains("decideBlocking<sample.Remove>")
@@ -164,7 +164,7 @@ class BlockingTest {
             $topLevel
             """.trimIndent(),
         )
-        val (_, result) = compileModel("generate", source)
+        val (_, result) = compileModel("generate", ManifestFragmentFixtures.context, source)
         result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
         return result.messages
     }
@@ -215,7 +215,7 @@ class BlockingTest {
             }
             """.trimIndent(),
         )
-        val (compilation, result) = compileModel("generate", source)
+        val (compilation, result) = compileModel("generate", ManifestFragmentFixtures.context, source)
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
         result.messages.assert().contains(
             "onCommand is annotated @Blocking and returns a Reactor publisher: it is called on a virtual thread, " +

@@ -93,7 +93,7 @@ class AnnotationSetTest {
             }
             """.trimIndent(),
         )
-        val (compilation, result) = compileModel("generate", basket, scenario)
+        val (compilation, result) = compileModel("generate", ManifestFragmentFixtures.context, basket, scenario)
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
         val kt = result.classLoader.loadClass("sample.BasketScenarioKt")
         kt.getMethod("run").invoke(null).assert().isEqualTo(
@@ -134,7 +134,7 @@ class AnnotationSetTest {
             }
             """.trimIndent(),
         )
-        val (_, result) = compileModel("generate", source)
+        val (_, result) = compileModel("generate", ManifestFragmentFixtures.context, source)
         result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
         result.messages.assert()
             .contains("command Write is annotated @Revision: only events have revisions")
@@ -196,7 +196,7 @@ class AnnotationSetTest {
 
     @Test
     fun `an annotation Wow 10 removed is a compile error that points to the migration skill`() {
-        val (_, result) = compileModel("generate", legacy)
+        val (_, result) = compileModel("generate", ManifestFragmentFixtures.context, legacy)
         result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
         val skill = "the wow-migrate skill rewrites 9.x code for Wow 10"
         result.messages.assert()
@@ -271,7 +271,7 @@ class AnnotationSetTest {
             }
             """.trimIndent(),
         )
-        val (_, result) = compileModel("generate", kotlinCommands, javaCommand)
+        val (_, result) = compileModel("generate", ManifestFragmentFixtures.context, kotlinCommands, javaCommand)
         result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
         val identity = "which Wow 10 removed: a command carries no tenant, owner or version"
         val commandOnly = "which only a property of a command an aggregate decides takes"
@@ -354,7 +354,7 @@ class AnnotationSetTest {
 
     @Test
     fun `well-formed processors compile with their bindings`() {
-        val (compilation, result) = compileModel("generate", processors)
+        val (compilation, result) = compileModel("generate", ManifestFragmentFixtures.context, processors)
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
         val generated = compilation.workingDir.walkTopDown().filter { it.isFile }.map { it.name }.toSet()
         generated.assert().contains(
@@ -443,7 +443,7 @@ class AnnotationSetTest {
 
     @Test
     fun `a processor's shape is checked`() {
-        val (_, result) = compileModel("generate", broken)
+        val (_, result) = compileModel("generate", ManifestFragmentFixtures.context, broken)
         result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
         result.messages.assert()
             .contains("processor Both is @Projection and @Reactor: a processor is of exactly one kind")

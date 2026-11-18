@@ -252,7 +252,8 @@ class SourceRootSwitchFunctionalTest {
             .filter { it.name.endsWith(".xml") }.map { it.name.removePrefix("TEST-").removeSuffix(".xml") }.sorted()
         val generated = File(dir, "build/generated/ksp/main").walkTopDown().filter { it.isFile }
             .associate { it.relativeTo(dir).invariantSeparatorsPath to it.readText() }.toSortedMap()
-        val noContext = result.output.contains("No Manifest fragment and no model provider")
+        val noContext = result.output.contains("No Manifest fragment and no model provider") &&
+            result.output.contains("KSP's incremental caches describe other sources")
         return Run(result.output.contains("BUILD SUCCESSFUL"), classes, generated, noContext)
     }
 
@@ -304,11 +305,13 @@ class SourceRootSwitchFunctionalTest {
     }
 
     /**
-     * Kotlin and KSP alone, with Wow's processor and no Wow plugin, keep their caches of the old root: the model is
-     * written without its context's default and names object, and the spec using it drops out of the run, the build
-     * green. The fault is upstream's, and [SourceRoots] works around it. This test pins it as a tripwire: **when it fails,
-     * upstream no longer drops outputs after a root switch**, which is good news; remove [SourceRoots] and this test, or
-     * keep [SourceRoots] and say why.
+     * Kotlin and KSP alone, with Wow's processor and no Wow plugin, keep their caches of the old root: KSP does not hand
+     * the processor the file declaring the context, which would have written the model without its context's default and
+     * names object and let the spec using it drop out of the run, the build green. The processor refuses a module of
+     * aggregates with no context it can name, so the build fails instead, naming the stale caches and the way out. The
+     * fault is upstream's, and [SourceRoots] works around it. This test pins it as a tripwire: **when it fails, upstream
+     * no longer drops a file after a root switch**, which is good news; remove [SourceRoots] and this test, or keep
+     * [SourceRoots] and say why.
      */
     @Test
     fun `Kotlin and KSP alone should still drop outputs after a source root switch, until upstream fixes it`(
@@ -318,11 +321,9 @@ class SourceRootSwitchFunctionalTest {
         clean.passed.assert().isTrue()
         val fixed = "Kotlin and KSP no longer drop outputs after a source root switch (incremental: $incremental, " +
             "clean: $clean): upstream fixed it, so SourceRoots can go with this test, or stay, saying why."
-        incremental.passed.assert().withFailMessage(fixed).isTrue()
-        incremental.classes.assert().withFailMessage(fixed).containsExactly("c1.PlainSpec")
-        incremental.generated.assert().withFailMessage(fixed).isNotEqualTo(clean.generated)
-        // The processor's warning makes the round seen: it names the stale caches and the way out.
-        incremental.noContext.assert().isTrue()
+        // The degraded round fails, naming the stale caches and the way out, rather than dropping the model silently.
+        incremental.noContext.assert().withFailMessage(fixed).isTrue()
+        incremental.passed.assert().withFailMessage(fixed).isFalse()
         clean.noContext.assert().isFalse()
     }
 }

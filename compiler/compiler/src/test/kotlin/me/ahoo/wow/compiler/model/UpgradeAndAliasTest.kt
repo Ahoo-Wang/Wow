@@ -98,7 +98,7 @@ class UpgradeAndAliasTest {
             fun read(): Any = EventCodec().decode(ledgerModel("bank"), EventRecord("bank.ledger.Entered", 1, "{\"amount\":5}"))
             """.trimIndent(),
         )
-        val (compilation, result) = compileModel("generate", source, scenario)
+        val (compilation, result) = compileModel("generate", ManifestFragmentFixtures.context, source, scenario)
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
         result.messages.assert().doesNotContain("has no @Upgrade")
         result.classLoader.loadClass("sample.LedgerScenarioKt").getMethod("read").invoke(null).toString()
@@ -130,7 +130,7 @@ class UpgradeAndAliasTest {
             fun current(node: ObjectNode): ObjectNode = node
             """,
         )
-        val (_, result) = compileModel("generate", source)
+        val (_, result) = compileModel("generate", ManifestFragmentFixtures.context, source)
         failed(result).assert()
             .contains("two upgrades of Entered from revision 1: sample.first, sample.again")
             .contains("upgrade sample.zero of Entered from revision 0: Entered is at revision 4")
@@ -142,7 +142,8 @@ class UpgradeAndAliasTest {
 
     @Test
     fun `an event above revision 1 with no upgrade at all is a compile error`() {
-        val messages = failed(compileModel("generate", ledger(revision = 3, extra = "")).second)
+        val messages =
+            failed(compileModel("generate", ManifestFragmentFixtures.context, ledger(revision = 3, extra = "")).second)
         messages.assert().contains(
             "event Entered is at revision 3 but has no @Upgrade: declare one from each of the revisions 1, 2, as " +
                 "@Upgrade(event = Entered::class, from = 1) on a function from JsonNode to JsonNode",
@@ -166,7 +167,7 @@ class UpgradeAndAliasTest {
             fun early(node: ObjectNode): ObjectNode = node
             """,
         )
-        val (_, result) = compileModel("generate", source)
+        val (_, result) = compileModel("generate", ManifestFragmentFixtures.context, source)
         failed(result).assert().contains("upgrade sample.early of Entered from revision 1: Entered is at revision 1")
     }
 
@@ -196,7 +197,7 @@ class UpgradeAndAliasTest {
             fun ObjectNode.extension(): ObjectNode = this
             """,
         )
-        val (_, result) = compileModel("generate", source)
+        val (_, result) = compileModel("generate", ManifestFragmentFixtures.context, source)
         failed(result).assert()
             .contains("upgrade sample.text must take one JsonNode or ObjectNode (tools.jackson.databind)")
             .contains("upgrade sample.nullable must take one JsonNode or ObjectNode")
@@ -215,7 +216,7 @@ class UpgradeAndAliasTest {
             fun stray(node: ObjectNode): ObjectNode = node
             """,
         )
-        val (_, result) = compileModel("generate", source)
+        val (_, result) = compileModel("generate", ManifestFragmentFixtures.context, source)
         failed(result).assert()
             .contains(
                 "upgrade sample.stray upgrades sample.Noted, which is not an event of an aggregate of this module"
@@ -265,6 +266,7 @@ class UpgradeAndAliasTest {
         )
         val (_, result) = compileModel(
             "generate",
+            ManifestFragmentFixtures.context,
             ledger(revision = 1, extra = "", alias = "@Alias(\"Book\")"),
             scenario,
         )
@@ -280,7 +282,7 @@ class UpgradeAndAliasTest {
             alias = "@Alias(\"ledger.Book\", \" \", \"Enter\", \"Old\", \"Old\")",
             extra = "",
         )
-        val (_, result) = compileModel("generate", source)
+        val (_, result) = compileModel("generate", ManifestFragmentFixtures.context, source)
         failed(result).assert()
             .contains("command Enter's @Alias(\"ledger.Book\") has exactly one dot")
             .contains("command Enter's @Alias has a blank value")
@@ -350,7 +352,7 @@ class UpgradeAndAliasTest {
             }
             """.trimIndent(),
         )
-        val (_, result) = compileModel("generate", source)
+        val (_, result) = compileModel("generate", ManifestFragmentFixtures.context, source)
         failed(result).assert()
             .contains("command Open's former name \"Close\" is also the name of command Close of sample.Till")
     }

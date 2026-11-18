@@ -89,7 +89,7 @@ class QueryPropertiesCollectionsTest {
 
     @Test
     fun `every shape of a collection should name its elements' fields`() {
-        val (_, result) = compileModel("generate", shapes)
+        val (_, result) = compileModel("generate", ManifestFragmentFixtures.context, shapes)
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
         val collections = listOf(
             "list", "mutableList", "set", "collection", "iterable", "sortedSet", "treeSet", "navigableSet",
@@ -133,7 +133,7 @@ class QueryPropertiesCollectionsTest {
             }
             """.trimIndent(),
         )
-        val (_, result) = compileModel("generate", shapes, query)
+        val (_, result) = compileModel("generate", ManifestFragmentFixtures.context, shapes, query)
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
         val built = result.classLoader.loadClass("sample.QueriesKt").getMethod("getQuery").invoke(null)
         built.toString().assert().contains("field=state.sortedSet", "field=code", "field=rank")
@@ -177,7 +177,7 @@ class QueryPropertiesCollectionsTest {
             }
             """.trimIndent(),
         )
-        val (_, result) = compileModel("generate", root, state)
+        val (_, result) = compileModel("generate", ManifestFragmentFixtures.context, root, state)
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
         result.properties("sample.RackStateProperties").assert().isEqualTo(
             linkedMapOf("STATE__TAGS" to "state.tags", "STATE__TAGS__LABEL" to "state.tags.label"),
@@ -208,7 +208,7 @@ class QueryPropertiesCollectionsTest {
             }
             """.trimIndent(),
         )
-        val (_, result) = compileModel("generate", source)
+        val (_, result) = compileModel("generate", ManifestFragmentFixtures.context, source)
         result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
         result.messages.assert().contains(
             "sample.FeedState.posts is a Sequence of sample.Post: Jackson writes a Sequence as an array but reads " +

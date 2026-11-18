@@ -479,7 +479,9 @@ internal class ModelSymbolProcessor(
     private fun writeManifestFragment() {
         val context = contexts.context()
         if (context == null) {
-            logger.warn(noContext(contexts.declared.size))
+            // A model, its handlers and its fragment are named after the module's context: without one, nothing it
+            // generated could join a service's Manifest, so the compilation fails here, naming why.
+            logger.error(noContext(contexts.declared.size))
             return
         }
         val errors = errors(context)
@@ -509,9 +511,9 @@ internal class ModelSymbolProcessor(
     }
 
     /**
-     * Why the module got no fragment and no model provider, with [declared] `@BoundedContext`s: several need the KSP
-     * option to name one; none is either a module without one, or one whose declaration KSP did not hand the processor,
-     * an incremental build whose caches describe other sources, which the warning names so the round is seen.
+     * Why a generate-mode module of aggregates or processors fails, with [declared] `@BoundedContext`s: several need
+     * the KSP option to name one; none is either a module without one, or one whose declaration KSP did not hand the
+     * processor, an incremental build whose caches describe other sources, which the error names with its way out.
      */
     private fun noContext(declared: Int): String {
         val option = ModelSymbolProcessorProvider.CONTEXT_OPTION
@@ -558,15 +560,18 @@ internal class ModelSymbolProcessor(
     private fun generate(binding: AggregateBinding, root: KSClassDeclaration) {
         val upgradeFiles = upgrades.filter { upgrade -> binding.upgrades.any { it.function == upgrade.name } }
             .mapNotNull { it.declaration.containingFile }
-        codeGenerator.createNewFile(
-            Dependencies(
-                aggregating = false,
-                sources = (listOfNotNull(root.containingFile) + upgradeFiles + contexts.files).distinct()
-                    .toTypedArray(),
-            ),
-            binding.packageName,
-            "${binding.rootSimpleName}Model",
-        ).bufferedWriter().use { it.write(ModelSource.render(binding, contexts.context())) }
+        // Without a context the compilation fails at its end ([noContext]), so no model is written that names none.
+        contexts.context()?.let { context ->
+            codeGenerator.createNewFile(
+                Dependencies(
+                    aggregating = false,
+                    sources = (listOfNotNull(root.containingFile) + upgradeFiles + contexts.files).distinct()
+                        .toTypedArray(),
+                ),
+                binding.packageName,
+                "${binding.rootSimpleName}Model",
+            ).bufferedWriter().use { it.write(ModelSource.render(binding, context)) }
+        }
         val state = RootStateResolver.stateOf(root)
         AccessSource.generate(codeGenerator, state, root, binding.access, binding.internal, accessOf)
         if (queryApi == true) {
