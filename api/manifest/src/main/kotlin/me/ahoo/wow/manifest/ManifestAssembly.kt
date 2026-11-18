@@ -31,6 +31,6 @@ object ManifestAssembly {
         fragments: List<ManifestFragment>,
         service: ServiceInfo,
         contracts: List<Manifest>,
-        locate: (String) -> String? = { null },
+        locate: (String) -> String?,
     ): Manifest = PeerSources.resolve(ManifestMerger.merge(fragments, service), contracts, locate)
 }
