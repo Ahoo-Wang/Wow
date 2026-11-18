@@ -88,19 +88,15 @@ internal object ContractRole {
         generated?.let { sources -> jar.configure { it.from(sources.output) } }
         // The generated source set's own, which the Kotlin plugin creates: its code compiles against the api's types.
         val dependencies = api.configurations.findByName(CONTRACT_API)
-            ?: api.configurations.create(CONTRACT_API) { configuration ->
+            ?: api.configurations.dependencyScope(CONTRACT_API) { configuration ->
                 configuration.description = "The dependencies of this api module's contract: its own types."
-                configuration.isCanBeConsumed = false
-                configuration.isCanBeResolved = false
-            }
+            }.get()
         dependencies.dependencies.add(api.dependencies.project(mapOf("path" to api.path)))
         val capability = "${api.group}:${api.name}-$FEATURE:${api.version}"
         listOf(CONTRACT_API_ELEMENTS to Usage.JAVA_API, CONTRACT_RUNTIME_ELEMENTS to Usage.JAVA_RUNTIME)
             .forEach { (name, usage) ->
-                api.configurations.create(name) { elements ->
+                api.configurations.consumable(name) { elements ->
                     elements.description = "This api module's contract ($usage), of capability $capability."
-                    elements.isCanBeConsumed = true
-                    elements.isCanBeResolved = false
                     elements.extendsFrom(dependencies)
                     jvmAttributes(api, elements, usage)
                     elements.outgoing.capability(capability)
@@ -142,15 +138,13 @@ internal object ContractRole {
                 jar.from(generated.allSource)
                 jar.archiveClassifier.set("$FEATURE-sources")
             }
-            val elements = api.configurations.create(CONTRACT_SOURCES_ELEMENTS) { elements ->
+            val elements = api.configurations.consumable(CONTRACT_SOURCES_ELEMENTS) { elements ->
                 elements.description = "The sources of this api module's contract code, of capability $capability."
-                elements.isCanBeConsumed = true
-                elements.isCanBeResolved = false
                 documentationAttributes(api, elements, DocsType.SOURCES)
                 elements.outgoing.capability(capability)
                 elements.outgoing.artifact(jar)
             }
-            component.addVariantsFromConfiguration(elements) { it.mapToOptional() }
+            component.addVariantsFromConfiguration(elements.get()) { it.mapToOptional() }
         }
     }
 

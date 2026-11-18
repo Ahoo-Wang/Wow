@@ -56,7 +56,11 @@ class ContractDerivationTest {
         val root = ProjectBuilder.builder().withProjectDir(directory).withName("services").build()
         val api = child(root, "shop-api", WowPlugin.API_ID, WowPlugin.KOTLIN_JVM)
         val domain = child(root, "shop-domain", WowPlugin.ID, WowPlugin.KOTLIN_JVM)
-        val server = child(root, "shop-server", WowPlugin.SERVICE_ID, WowPlugin.KOTLIN_JVM)
+        val server = child(root, "shop-server")
+        // As Wow's own build gives its resolvable class paths a platform of the build alone (`wowBuildPlatform`).
+        val buildOnly = server.configurations.dependencyScope("buildOnly").get()
+        server.configurations.matching { it.isCanBeResolved }.configureEach { it.extendsFrom(buildOnly) }
+        listOf(WowPlugin.SERVICE_ID, WowPlugin.KOTLIN_JVM).forEach(server.pluginManager::apply)
         domain.dependencies.add("api", domain.dependencies.project(mapOf("path" to ":shop-api")))
         server.dependencies.add("implementation", server.dependencies.project(mapOf("path" to ":shop-domain")))
         val declared = api.dependencies.project(mapOf("path" to ":shop-domain"))
@@ -92,6 +96,9 @@ class ContractDerivationTest {
             server.configurations.getByName(name).extendsFrom.map { it.name }
                 .assert().contains("wowTestDerivedContracts")
         }
+        // The build's rules on resolvable configurations do not reach the published runtime variant through them.
+        server.configurations.getByName("runtimeElements").hierarchy.map { it.name }
+            .assert().doesNotContain("buildOnly")
     }
 
     @Test
