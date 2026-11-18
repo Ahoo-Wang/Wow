@@ -106,6 +106,14 @@ internal class MongoSequencer(
     fun unfilled(partition: Int, sequence: Long, collection: String) =
         lanes[partition].unfilled(sequence, collection)
 
+    /**
+     * The [Closing] of this node's current block of [partition] when [sequence] lies in it at or past its next: a
+     * sequence the node never gave out, where no append of it can still land, so the tail closes it without waiting
+     * the grace. Null for any other sequence: one given out (an append in flight), another node's, or one in no block
+     * the lane holds, each of which the tail resolves after the grace ([resolve]).
+     */
+    fun unallocated(partition: Int, sequence: Long): Closing? = lanes[partition].unallocated(sequence)
+
     /** Another node sealed the block [sequence] of [partition] came from: this node allocates from it no more. */
     fun abandon(partition: Int, sequence: Long) = lanes[partition].abandon(sequence)
 
@@ -181,6 +189,10 @@ internal class MongoSequencer(
             }
 
         fun handOff(): Closing? = lock.withLock { current?.let(::retire) }
+
+        /** Under the lock, so no allocation from the block runs meanwhile: one after it takes a new block. */
+        fun unallocated(sequence: Long): Closing? =
+            lock.withLock { current?.takeIf { sequence in it.next..it.to }?.let(::retire) }
 
         /** Stops allocating from [block]; its remainder, when it has one, is to be closed, which it then waits for. */
         private fun retire(block: Block): Closing? {
