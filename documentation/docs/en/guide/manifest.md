@@ -59,6 +59,12 @@ wow {
 }
 ```
 
+A property holding a platform class that Wow's JSON writes as a string or a number stops the build too, unless the Manifest describes that class as written. Those it describes are the value classes a state, a command or an event commonly holds: `Year` and `Month` (its number, 1 to 12) as integers, `YearMonth`, `MonthDay`, `ZoneOffset`, `TimeZone`, `Locale`, `Currency` and `URL` as strings, and a `ByteArray` as its Base64 text, beside the dates, times, durations, numbers and UUIDs. Any other such class is refused, held directly or in a collection, an `Optional` or a map's values: a `Charset`, a `Path`, an `AtomicLong`, a `kotlin.time.Duration` in a list. Declare the property's schema, or hold the value as a `String`:
+
+```text
+Wow's JSON does not write java.nio.charset.Charset, which com.example.ledger.Ledger#encoding holds, as an object, and it is no scalar Wow describes, so its schema would not be what is written: declare it in wow { schemaOverrides.put("com.example.ledger.Ledger#encoding", "<JSON Schema>") }, or hold it as a String.
+```
+
 A key names a class by its binary name, or a property by the class that declares the accessor Jackson writes it by, `#`, and the property's name as that class declares it, whatever its JSON name. The stop prints the exact line. So an inherited property is named once, by the class that declares it, a property a class overrides by that class, and a property an interface's annotated getter declares by each class that implements it. A key's declared schema stands for the whole class, or the whole property as written on the wire, whenever the key is present: a property's list items and map values included. The generator adds to a declared property only what it adds to any property: `null` to the types of one that can be null, and the keywords of its query annotations. A property's key wins over its type's, and a key that names nothing in the module is ignored, so a convention plugin may share one `wow { }` block. A key serializer (`keyUsing`) needs no declaration: a JSON object's keys are strings, which the schema does not constrain.
 
 The declared schema stands for the class wherever the Manifest is read:

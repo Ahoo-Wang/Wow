@@ -24,6 +24,7 @@ import com.github.victools.jsonschema.generator.MemberScope
 import com.github.victools.jsonschema.generator.SchemaGenerationContext
 import me.ahoo.wow.api.wire.WireNames
 import me.ahoo.wow.spi.json.WowEnums
+import me.ahoo.wow.spi.json.WowJson
 import tools.jackson.databind.BeanDescription
 import tools.jackson.databind.JavaType
 import tools.jackson.databind.ValueSerializer
@@ -59,6 +60,9 @@ import java.util.concurrent.ConcurrentHashMap
  *   `converter`, `contentUsing` or `contentConverter`, or `@JsonRawValue`). Each stop prints the line that declares
  *   it. A property's key serializer (`keyUsing`) is no stop: a JSON object's keys are strings, which the schema
  *   does not constrain.
+ * - It also stops for a property holding a platform class, itself or as its container's element, that Wow's JSON
+ *   writes as no object and that is no scalar Wow describes ([WireTypes.SCALARS]): a `Charset`, an `AtomicLong`, a
+ *   `kotlin.time.Duration` in a list. The generator would describe it by its fields, which are not what is written.
  */
 internal class SchemaOverrides(declared: Map<String, ObjectNode>, private val mapper: JsonMapper) {
     private val classes: Map<String, ObjectNode> = declared.filterKeys { PROPERTY !in it }
@@ -106,7 +110,35 @@ internal class SchemaOverrides(declared: Map<String, ObjectNode>, private val ma
             "Jackson writes $key with a serializer of its own (@JsonSerialize using, converter, contentUsing or " +
                 "contentConverter, or @JsonRawValue), so its schema cannot be introspected: ${declaration(key)}."
         }
+        unwritten(member.type)?.let { type ->
+            error(
+                "Wow's JSON does not write ${type.name}, which $key holds, as an object, and it is no scalar Wow " +
+                    "describes, so its schema would not be what is written: ${declaration(key)}, or hold it as a " +
+                    "String.",
+            )
+        }
         return null
+    }
+
+    /**
+     * The platform class in [type], itself or an element of its container (a collection's, an `Optional`'s, a map's
+     * value, an array's), that Wow's JSON does not write as an object while the generator describes it as one: no
+     * scalar of [WireTypes.SCALARS], no enumeration, no class of a declared schema. A `char[]` is one: Jackson writes
+     * it as a string, though its format visitor calls it an array.
+     */
+    private fun unwritten(type: ResolvedType): Class<*>? {
+        val rawClass = type.erasedType
+        return when {
+            rawClass == CharArray::class.java -> rawClass
+            rawClass.isArray -> type.arrayElementType?.let(::unwritten)
+            Map::class.java.isAssignableFrom(rawClass) -> type.typeParameters.getOrNull(1)?.let(::unwritten)
+            rawClass in CONTAINERS || Collection::class.java.isAssignableFrom(rawClass) ->
+                type.typeParameters.firstOrNull()?.let(::unwritten)
+            rawClass.isPrimitive || rawClass.isEnum || isOwnClass(rawClass) -> null
+            rawClass in WireTypes.SCALARS || rawClass in GENERATOR_TYPES || rawClass.name in classes -> null
+            isWrittenAsObject(rawClass, WowJson.mapper) -> null
+            else -> rawClass
+        }
     }
 
     /** The property Jackson writes by [member]: a field of [declaring], or the getter of a computed property. */
@@ -158,9 +190,9 @@ internal class SchemaOverrides(declared: Map<String, ObjectNode>, private val ma
         return serializes || accessor.getAnnotation(JsonRawValue::class.java)?.value == true
     }
 
-    private fun isWrittenAsObject(rawClass: Class<*>): Boolean {
+    private fun isWrittenAsObject(rawClass: Class<*>, writer: JsonMapper = mapper): Boolean {
         var isObject = false
-        mapper.acceptJsonFormatVisitor(
+        writer.acceptJsonFormatVisitor(
             rawClass,
             object : JsonFormatVisitorWrapper.Base() {
                 override fun expectObjectFormat(type: JavaType): JsonObjectFormatVisitor? {
@@ -179,6 +211,15 @@ internal class SchemaOverrides(declared: Map<String, ObjectNode>, private val ma
         /** The value a reader older than its writer reads an unknown value as, which no writer writes. */
         const val UNKNOWN = "UNKNOWN"
         val PLATFORM_PACKAGES = listOf("java.", "javax.", "kotlin.")
+
+        /**
+         * The containers, beside a collection, whose elements the generator describes: their first type argument. An
+         * `Iterable` only as declared: a `Path` is one, which Jackson writes as a string.
+         */
+        val CONTAINERS = setOf(Iterable::class.java, Sequence::class.java, java.util.Optional::class.java)
+
+        /** The platform classes the generator describes as Jackson writes them, though no scalar of Wow's: any value. */
+        val GENERATOR_TYPES = setOf(Any::class.java, Number::class.java, CharSequence::class.java, Void::class.java)
 
         fun declaration(key: String): String = "declare it in wow { schemaOverrides.put(\"$key\", \"<JSON Schema>\") }"
     }

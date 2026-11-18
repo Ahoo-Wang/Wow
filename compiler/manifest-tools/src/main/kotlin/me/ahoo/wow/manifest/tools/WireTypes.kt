@@ -13,12 +13,16 @@
 
 package me.ahoo.wow.manifest.tools
 
+import com.github.victools.jsonschema.generator.impl.module.SimpleTypeModule
+
 /**
  * How a schema names the JVM type of a value, in both directions: [SchemaIntrospector] writes a schema's `format` and
  * `x-wow-class` from a class, and [StateViewSources] reads the Kotlin type of a view's field back from them.
  *
+ * - A platform value class written as a scalar has the JSON type and format [SCALARS] gives it.
  * - A `format` names a value a plain JSON type does not tell apart ([FORMATS]): a 32-bit or a 64-bit integer, a
- *   float, a big integer, an exact decimal, an instant, a date, a time with its offset, a duration, a UUID, a URI.
+ *   float, a big integer, an exact decimal, an instant, a date, a time with its offset, a duration, a UUID, a URI,
+ *   Base64 bytes.
  *   Each format reads back as one type ([TYPES]): `date-time` as an `Instant`, say.
  * - `x-wow-class` ([CLASS_KEYWORD]) names the class, by its JVM binary name, whenever the JSON type and the format do not
  *   ([isNamed]): an application's class (an object, an enumeration, a polymorphic type) and a platform value class
@@ -42,31 +46,97 @@ internal object WireTypes {
     private const val DURATION = "duration"
     private const val UUID = "uuid"
     private const val URI = "uri"
+    private const val BYTE = "byte"
 
-    /** The format of each class whose values a plain JSON type does not tell apart. */
-    val FORMATS: Map<Class<*>, String> = mapOf(
-        Int::class.javaPrimitiveType!! to INT32,
-        java.lang.Integer::class.java to INT32,
-        Short::class.javaPrimitiveType!! to INT32,
-        java.lang.Short::class.java to INT32,
-        Byte::class.javaPrimitiveType!! to INT32,
-        java.lang.Byte::class.java to INT32,
-        Long::class.javaPrimitiveType!! to INT64,
-        java.lang.Long::class.java to INT64,
-        Float::class.javaPrimitiveType!! to FLOAT,
-        java.lang.Float::class.java to FLOAT,
-        java.math.BigInteger::class.java to BIGINT,
-        java.math.BigDecimal::class.java to DECIMAL,
-        java.time.Instant::class.java to DATE_TIME,
-        java.time.OffsetDateTime::class.java to DATE_TIME,
-        java.time.ZonedDateTime::class.java to DATE_TIME,
-        java.time.LocalDate::class.java to DATE,
-        java.time.OffsetTime::class.java to TIME,
-        java.time.Duration::class.java to DURATION,
-        java.time.Period::class.java to DURATION,
-        java.util.UUID::class.java to UUID,
-        java.net.URI::class.java to URI,
-    )
+    /** A schema's JSON type of a scalar value. */
+    enum class JsonType(val keyword: String) {
+        STRING("string"),
+        INTEGER("integer"),
+        NUMBER("number"),
+        BOOLEAN("boolean"),
+    }
+
+    /** How Wow's JSON writes a value of a platform class: a scalar of [type], told apart by its [format] if any. */
+    data class Scalar(val type: JsonType, val format: String? = null)
+
+    private val INT32_SCALAR = Scalar(JsonType.INTEGER, INT32)
+    private val INT64_SCALAR = Scalar(JsonType.INTEGER, INT64)
+    private val STRING_SCALAR = Scalar(JsonType.STRING)
+    private val BOOLEAN_SCALAR = Scalar(JsonType.BOOLEAN)
+
+    /**
+     * The platform classes a state, a command or an event holds as a scalar, as Wow's JSON (`WowJson`) writes them,
+     * with their schema's type and format: the one place both come from. [SchemaIntrospector] describes each by it
+     * ([module]), ahead of the schema generator's own list, which describes some of them as objects (a `YearMonth` as
+     * `{year, month}`, written `"2026-01"`), and a `Byte` as a string. A class matches by itself, not by a subclass.
+     * `WireScalarsTest` writes a value of each with `WowJson` and compares, so an entry without a value there fails
+     * it, and so does a class written otherwise. Every entry is part of the contract: another platform class written
+     * as a scalar (a `Charset`, an `AtomicLong`, a `Path`) has no entry, and a property holding it is refused
+     * ([SchemaOverrides]), naming it.
+     */
+    val SCALARS: Map<Class<*>, Scalar> = mapOf(
+        Boolean::class.javaPrimitiveType!! to BOOLEAN_SCALAR,
+        java.lang.Boolean::class.java to BOOLEAN_SCALAR,
+        Int::class.javaPrimitiveType!! to INT32_SCALAR,
+        java.lang.Integer::class.java to INT32_SCALAR,
+        Short::class.javaPrimitiveType!! to INT32_SCALAR,
+        java.lang.Short::class.java to INT32_SCALAR,
+        Byte::class.javaPrimitiveType!! to INT32_SCALAR,
+        java.lang.Byte::class.java to INT32_SCALAR,
+        java.time.Year::class.java to INT32_SCALAR,
+        // Wow's JSON writes a month by its number, 1 to 12, not its name.
+        java.time.Month::class.java to INT32_SCALAR,
+        Long::class.javaPrimitiveType!! to INT64_SCALAR,
+        java.lang.Long::class.java to INT64_SCALAR,
+        java.math.BigInteger::class.java to Scalar(JsonType.INTEGER, BIGINT),
+        Float::class.javaPrimitiveType!! to Scalar(JsonType.NUMBER, FLOAT),
+        java.lang.Float::class.java to Scalar(JsonType.NUMBER, FLOAT),
+        Double::class.javaPrimitiveType!! to Scalar(JsonType.NUMBER),
+        java.lang.Double::class.java to Scalar(JsonType.NUMBER),
+        java.math.BigDecimal::class.java to Scalar(JsonType.NUMBER, DECIMAL),
+        java.time.Instant::class.java to Scalar(JsonType.STRING, DATE_TIME),
+        java.time.OffsetDateTime::class.java to Scalar(JsonType.STRING, DATE_TIME),
+        java.time.ZonedDateTime::class.java to Scalar(JsonType.STRING, DATE_TIME),
+        java.util.Date::class.java to Scalar(JsonType.STRING, DATE_TIME),
+        java.util.Calendar::class.java to Scalar(JsonType.STRING, DATE_TIME),
+        java.time.LocalDate::class.java to Scalar(JsonType.STRING, DATE),
+        java.time.LocalTime::class.java to Scalar(JsonType.STRING, TIME),
+        java.time.OffsetTime::class.java to Scalar(JsonType.STRING, TIME),
+        java.time.Duration::class.java to Scalar(JsonType.STRING, DURATION),
+        java.time.Period::class.java to Scalar(JsonType.STRING, DURATION),
+        java.util.UUID::class.java to Scalar(JsonType.STRING, UUID),
+        java.net.URI::class.java to Scalar(JsonType.STRING, URI),
+        java.net.URL::class.java to Scalar(JsonType.STRING, URI),
+        // A byte array is written as its Base64 text.
+        ByteArray::class.java to Scalar(JsonType.STRING, BYTE),
+    ) + listOf(
+        String::class.java,
+        Char::class.javaPrimitiveType!!,
+        java.lang.Character::class.java,
+        java.time.LocalDateTime::class.java,
+        java.time.YearMonth::class.java,
+        java.time.MonthDay::class.java,
+        java.time.ZoneId::class.java,
+        java.time.ZoneOffset::class.java,
+        java.util.TimeZone::class.java,
+        java.util.Locale::class.java,
+        java.util.Currency::class.java,
+    ).associateWith { STRING_SCALAR }
+
+    /** The format of each class whose values a plain JSON type does not tell apart, as [SCALARS] gives it. */
+    val FORMATS: Map<Class<*>, String> = SCALARS.mapNotNull { (type, scalar) -> scalar.format?.let { type to it } }.toMap()
+
+    /** The schema generator's description of each of [SCALARS], by its JSON type alone; its format is [FORMATS]'. */
+    fun module(): SimpleTypeModule = SimpleTypeModule().also { module ->
+        SCALARS.forEach { (type, scalar) ->
+            when (scalar.type) {
+                JsonType.STRING -> module.withStringType(type)
+                JsonType.INTEGER -> module.withIntegerType(type)
+                JsonType.NUMBER -> module.withNumberType(type)
+                JsonType.BOOLEAN -> module.withBooleanType(type)
+            }
+        }
+    }
 
     /**
      * The numeric formats as ranges, by the formats each holds every value of, itself included: an `int32` is within
@@ -101,6 +171,7 @@ internal object WireTypes {
         DURATION to "java.time.Duration",
         UUID to "java.util.UUID",
         URI to "java.net.URI",
+        BYTE to "kotlin.ByteArray",
     )
 
     /** The Kotlin types of the JVM's boxed classes, as `x-wow-class` names them, by their qualified names. */
