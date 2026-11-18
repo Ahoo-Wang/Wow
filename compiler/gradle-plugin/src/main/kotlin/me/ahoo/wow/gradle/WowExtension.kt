@@ -13,9 +13,12 @@
 
 package me.ahoo.wow.gradle
 
+import org.gradle.api.artifacts.ModuleDependency
+import org.gradle.api.artifacts.dsl.DependencyFactory
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
+import javax.inject.Inject
 
 /**
  * The `wow { }` block of a module that applies `me.ahoo.wow`, or `me.ahoo.wow.service`, which builds its own sources
@@ -28,8 +31,36 @@ import org.gradle.api.provider.Property
  *     schemaOverrides.put("sample.Money", """{"type":"string"}""")
  * }
  * ```
+ *
+ * It also names the contract of an api module, for a module that uses the code generated from it:
+ * `implementation(wow.contract(project(":ordering-api")))` ([contract]).
  */
 abstract class WowExtension {
+    /** Creates the dependencies [contract] names by coordinates. */
+    @get:Inject
+    protected abstract val dependencyFactory: DependencyFactory
+
+    /**
+     * The contract of the api module [dependency] names, `project(":ordering-api")` or its coordinates: its feature
+     * `contract` (capability `<group>:<name>-contract`), `META-INF/wow/contract.json` and the code generated from it,
+     * `<Context>Contract` and `<State>View`, with the api's types. A module that uses that code declares it,
+     * `implementation(wow.contract(project(":ordering-api")))`; a service, and the tests, see every api's contract
+     * without it.
+     *
+     * @throws IllegalArgumentException when [dependency] is neither a module dependency nor coordinates.
+     */
+    fun contract(dependency: Any): ModuleDependency {
+        val module = when (dependency) {
+            is ModuleDependency -> dependency.copy()
+            is CharSequence -> dependencyFactory.create(dependency)
+            else -> throw IllegalArgumentException(
+                "wow.contract(...) takes an api module, project(\":ordering-api\") or its coordinates, not $dependency"
+            )
+        }
+        module.capabilities { it.requireFeature(ContractRole.FEATURE) }
+        return module
+    }
+
     /**
      * The bounded context this module's aggregates and subscriptions belong to (the KSP option `wow.context`).
      * Unset, the module's one `@BoundedContext` names it.

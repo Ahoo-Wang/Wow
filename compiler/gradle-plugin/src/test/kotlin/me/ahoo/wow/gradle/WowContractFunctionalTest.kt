@@ -28,13 +28,13 @@ import java.io.File
 import java.util.zip.ZipFile
 
 /**
- * The peer contract in the api jar (decision D234), built with the plugin (Gradle TestKit):
+ * The peer contract in the api's contract jar (decisions D234, D435), built with the plugin (Gradle TestKit):
  *
  * - `shop-api` (`me.ahoo.wow.api`) declares `wowContract(project(":shop-domain"))` (context `shop`) and
  *   `wowContract(project(":audit-domain"))` (context `audit`), which depend on it: it holds the commands and events of
- *   both, so its jar carries both contexts, and is published;
+ *   both, so its contract jar carries both contexts; it is published, its types alone;
  * - `billing-domain` (context `billing`) depends on `shop-api` and on `billing-api`, which declares it and holds its
- *   classes: only `billing-api` carries `billing`;
+ *   classes: only `billing-api`'s contract carries `billing`;
  * - `broken-domain` keeps an event of its context outside `broken-api`: assembling `broken-api`'s contract fails;
  * - `orders` (context `orders`), a single-module service (`me.ahoo.wow.service`), depends on `shop-api` alone, and
  *   merges its own Manifest; the servers (`me.ahoo.wow.service`) host the contexts of the domain modules.
@@ -241,10 +241,10 @@ class WowContractFunctionalTest {
     }
 
     @Test
-    fun `the api jar should carry the contracts of the domain modules that declare it`() {
+    fun `the contract jar should carry the contracts of the domain modules that declare it`() {
         result.task(":shop-domain:${WowPlugin.GENERATE_CONTRACT_TASK}")?.outcome.assert().isEqualTo(TaskOutcome.SUCCESS)
         result.task(":shop-api:${WowPlugin.ASSEMBLE_CONTRACT_TASK}")?.outcome.assert().isEqualTo(TaskOutcome.SUCCESS)
-        val contract = contractOf(File(projectDir, "shop-api/build/libs/shop-api-1.0.0.jar"))!!
+        val contract = contractOf(File(projectDir, "shop-api/build/libs/shop-api-1.0.0-contract.jar"))!!
         contract.service!!.name.assert().isEqualTo("shop-service")
         contract.contexts.map { it.name }.assert().containsExactly("audit", "shop")
         contract.contexts.last().aggregates.single().domainCommands.single().schema
@@ -254,23 +254,25 @@ class WowContractFunctionalTest {
         contract.contexts.flatMap { it.aggregates }.flatMap { it.domainCommands }.flatMap { it.routes }.assert()
             .isNotEmpty()
         // The api module declares its domain modules and generates the code of their contexts (decision D363 ①).
-        ZipFile(File(projectDir, "shop-api/build/libs/shop-api-1.0.0.jar")).use { jar ->
+        ZipFile(File(projectDir, "shop-api/build/libs/shop-api-1.0.0-contract.jar")).use { jar ->
             listOf("shopapi/ShopContract.class", "shopapi/audit/AuditContract.class")
                 .forEach { jar.getEntry(it).assert().isNotNull() }
         }
+        // The api's own jar holds its types alone.
+        contractOf(File(projectDir, "shop-api/build/libs/shop-api-1.0.0.jar")).assert().isNull()
     }
 
     @Test
     fun `a context should be carried by the api module that holds its classes only`() {
-        contractOf(File(projectDir, "billing-api/build/libs/billing-api-1.0.0.jar"))!!.contexts.map { it.name }
+        contractOf(File(projectDir, "billing-api/build/libs/billing-api-1.0.0-contract.jar"))!!
+            .contexts.map { it.name }
             .assert().containsExactly("billing")
     }
 
     @Test
-    fun `the published api should carry the contract and name no domain module`() {
+    fun `the published api should be its types and name no domain module`() {
         val published = File(projectDir, "repo/sample/shop-api/1.0.0")
-        contractOf(File(published, "shop-api-1.0.0.jar"))!!.contexts.map { it.name }
-            .assert().containsExactly("audit", "shop")
+        contractOf(File(published, "shop-api-1.0.0.jar")).assert().isNull()
         listOf("shop-api-1.0.0.pom", "shop-api-1.0.0.module").forEach { metadata ->
             File(published, metadata).readText().assert().doesNotContain("domain", "wow-contract", "api-view")
         }
@@ -337,16 +339,17 @@ class WowContractFunctionalTest {
 
     @Test
     fun `the configuration cache should be reused`() {
-        runner(":shop-api:jar", ":billing-api:jar", "--configuration-cache").build()
+        val jars = arrayOf(":shop-api:${WowPlugin.CONTRACT_JAR_TASK}", ":billing-api:${WowPlugin.CONTRACT_JAR_TASK}")
+        runner(*jars, "--configuration-cache").build()
             .output.assert().contains("Configuration cache entry stored")
-        val again = runner(":shop-api:jar", ":billing-api:jar", "--configuration-cache").build()
+        val again = runner(*jars, "--configuration-cache").build()
         again.output.assert().contains("Configuration cache entry reused")
         again.task(":shop-api:${WowPlugin.ASSEMBLE_CONTRACT_TASK}")?.outcome.assert().isEqualTo(TaskOutcome.UP_TO_DATE)
     }
 
     @Test
     fun `a context with classes outside its api module should fail the api's build naming them`() {
-        val failed = runner(":broken-api:jar").buildAndFail()
+        val failed = runner(":broken-api:${WowPlugin.CONTRACT_JAR_TASK}").buildAndFail()
         failed.output.assert().contains(
             "The contract of project ':broken-api' cannot be assembled",
             "context broken of project ':broken-domain' has classes that are not in project ':broken-api': " +
@@ -362,6 +365,8 @@ class WowContractFunctionalTest {
         val BUILT = arrayOf(
             ":shop-api:publish",
             ":billing-api:jar",
+            ":shop-api:${WowPlugin.CONTRACT_JAR_TASK}",
+            ":billing-api:${WowPlugin.CONTRACT_JAR_TASK}",
             ":orders:${WowPlugin.MERGE_TASK}",
             ":shop-server:${WowPlugin.MERGE_TASK}",
             ":orders:${WowPlugin.HELM_VALUES_TASK}",

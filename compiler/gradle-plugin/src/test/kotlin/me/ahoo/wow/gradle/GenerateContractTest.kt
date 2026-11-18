@@ -43,8 +43,9 @@ class GenerateContractTest {
         ManifestJson.write(Manifest(contexts = listOf(ContextManifest("shop"))), fragment)
         val task = (project.tasks.getByName(WowPlugin.GENERATE_CONTRACT_TASK) as GenerateContract).apply {
             fragments.setFrom(fragment)
-            // The projects that do not pair with the module, as the build resolves them once the classes are built.
-            unpaired.set(emptyMap())
+            // The projects of the module's class path and their pairing, as the build resolves them.
+            classpathProjects.set(emptyMap())
+            pairingProjects.set(emptyMap())
         }
 
         task.submit(inProcessQueue(project))
@@ -62,7 +63,8 @@ class GenerateContractTest {
         ManifestJson.write(Manifest(contexts = listOf(ContextManifest("shop"))), fragment)
         (project.tasks.getByName(WowPlugin.GENERATE_CONTRACT_TASK) as GenerateContract).apply {
             fragments.setFrom(fragment)
-            unpaired.set(emptyMap())
+            classpathProjects.set(emptyMap())
+            pairingProjects.set(emptyMap())
         }.submit(inProcessQueue(project))
 
         ManifestJson.read(File(directory, "build/wow/contract.json")).service.assert()
@@ -89,7 +91,9 @@ class GenerateContractTest {
         File(apiClasses, "sample/AddItem.class").apply { parentFile.mkdirs() }.writeText("")
         val task = (project.tasks.getByName(WowPlugin.GENERATE_CONTRACT_TASK) as GenerateContract).apply {
             fragments.setFrom(fragment)
-            unpaired.set(mapOf(apiClasses.path to ":shop-api", File(directory, "missing").path to ":other"))
+            classpathProjects.set(mapOf(apiClasses.path to ":shop-api", File(directory, "missing").path to ":other"))
+            // The api module pairs with another domain module only.
+            pairingProjects.set(mapOf(pairing(":billing-domain").path to ":shop-api"))
         }
         val queue = inProcessQueue(project)
         assertThrows<IllegalStateException> { task.submit(queue) }.message.assert().contains(
@@ -97,11 +101,19 @@ class GenerateContractTest {
             "context shop has its classes sample.AddItem in project ':shop-api', which does not pair with project ':'",
             "apply id(\"me.ahoo.wow.api\") and add dependencies { wowContract(project(\":\")) }",
         )
-        // Paired, the api's classes are a core view, which is no unpaired entry.
-        task.unpaired.set(emptyMap())
+        // Paired: its pairing file names the module among others.
+        task.pairingProjects.set(mapOf(pairing(":billing-domain", ":").path to ":shop-api"))
+        task.unpaired().assert().isEqualTo(mapOf(File(directory, "missing").path to ":other"))
+        task.classpathProjects.set(mapOf(apiClasses.path to ":shop-api"))
         task.submit(queue)
         ManifestJson.read(
             File(directory, "build/wow/contract.json")
         ).contexts.map { it.name }.assert().containsExactly("shop")
     }
+
+    /** A pairing file of an api module that declares [domains], as `wowPairingElements` holds it. */
+    private fun pairing(vararg domains: String): File =
+        File(directory, "pairing-${domains.size}.properties").apply {
+            writeText("${ApiRole.PAIRING_DOMAINS}=${domains.joinToString(",")}\n")
+        }
 }

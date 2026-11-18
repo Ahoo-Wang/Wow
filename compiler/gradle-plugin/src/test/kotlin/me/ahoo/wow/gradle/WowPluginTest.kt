@@ -134,8 +134,6 @@ class WowPluginTest {
         // Two paths that a `-` would join to one name, and a root project named as a child is.
         listOf(":a-b", ":a:b", ":a", ":").map(WowPlugin::fragmentName).assert()
             .containsExactly("a-b", "a/b", "a", WowPlugin.ROOT_FRAGMENT)
-        ApiRole.coreVariant(":a-b").assert().isNotEqualTo(ApiRole.coreVariant(":a:b"))
-        ApiRole.coreVariant(":eshop:ordering-domain").assert().isEqualTo("wowCore:eshop:ordering-domain")
     }
 
     @Test

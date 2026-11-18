@@ -6,7 +6,9 @@ public final class me/ahoo/wow/gradle/WowApiPlugin : org/gradle/api/Plugin {
 
 public abstract class me/ahoo/wow/gradle/WowExtension {
 	public fun <init> ()V
+	public final fun contract (Ljava/lang/Object;)Lorg/gradle/api/artifacts/ModuleDependency;
 	public abstract fun getContext ()Lorg/gradle/api/provider/Property;
+	protected abstract fun getDependencyFactory ()Lorg/gradle/api/artifacts/dsl/DependencyFactory;
 	public abstract fun getSchemaOverrides ()Lorg/gradle/api/provider/MapProperty;
 	public abstract fun getService ()Lorg/gradle/api/provider/Property;
 }
@@ -21,8 +23,8 @@ public final class me/ahoo/wow/gradle/WowPlugin : org/gradle/api/Plugin {
 	public static final field CONTRACT_CONFIGURATION Ljava/lang/String;
 	public static final field CONTRACT_DOCS_TYPE Ljava/lang/String;
 	public static final field CONTRACT_ELEMENTS Ljava/lang/String;
+	public static final field CONTRACT_JAR_TASK Ljava/lang/String;
 	public static final field CONTRACT_SOURCE_SET Ljava/lang/String;
-	public static final field CORE_JAR_TASK Ljava/lang/String;
 	public static final field Companion Lme/ahoo/wow/gradle/WowPlugin$Companion;
 	public static final field EXTENSION Ljava/lang/String;
 	public static final field GENERATE_CONTRACT_SOURCES_TASK Ljava/lang/String;
@@ -42,7 +44,6 @@ public final class me/ahoo/wow/gradle/WowPlugin : org/gradle/api/Plugin {
 }
 
 public final class me/ahoo/wow/gradle/WowPlugin$Companion {
-	public final fun coreView (Ljava/lang/String;)Ljava/lang/String;
 	public final fun getAPI_VIEW ()Lorg/gradle/api/attributes/Attribute;
 	public final fun getVersion ()Ljava/lang/String;
 }

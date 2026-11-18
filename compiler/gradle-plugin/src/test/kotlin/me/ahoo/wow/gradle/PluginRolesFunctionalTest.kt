@@ -457,12 +457,12 @@ class PluginRolesFunctionalTest {
         runner(
             root,
             ":bank-server:${WowPlugin.MERGE_TASK}",
-            ":bank-api:jar",
+            ":bank-api:${WowPlugin.CONTRACT_JAR_TASK}",
             "-Dorg.gradle.unsafe.isolated-projects=true",
         ).build()
         ManifestJson.read(File(root, "bank-server/build/wow/manifest.json")).contexts.map { it.name }.assert()
             .containsExactly("bank")
-        ZipFile(File(root, "bank-api/build/libs/bank-api.jar")).use { jar ->
+        ZipFile(File(root, "bank-api/build/libs/bank-api-contract.jar")).use { jar ->
             jar.getEntry("bankapi/BankContract.class").assert().isNotNull()
             jar.getEntry("META-INF/wow/contract.json").assert().isNotNull()
         }

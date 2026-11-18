@@ -18,6 +18,8 @@ import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
 import org.gradle.workers.WorkQueue
 import org.gradle.workers.WorkerExecutor
+import java.io.File
+import java.util.Properties
 import javax.inject.Inject
 
 /**
@@ -28,8 +30,8 @@ import javax.inject.Inject
  * ([AssembleContract]).
  *
  * A context whose command or event classes are in a project of the module's class path that does not pair with it
- * ([unpaired]: no `wowContract(project("<module>"))` there, or no `me.ahoo.wow.api`) fails the task, naming the line to
- * add: the contract would reach no api module, and no peer would see the context. It runs in an isolated worker with
+ * ([unpaired]: no `wowContract(project("<module>"))` there, or no `me.ahoo.wow.api`, as its [pairing] file says) fails
+ * the task, naming the line to add: the contract would reach no api module, and no peer would see the context. It runs in an isolated worker with
  * the tools, like [MergeManifest].
  */
 @CacheableTask
@@ -51,13 +53,25 @@ internal abstract class GenerateContract @Inject constructor(private val workers
     @get:Input
     abstract val module: Property<String>
 
-    /** The class path entries of projects that do not pair with the module, each to its project path. */
+    /** The module's compile class path entries that come from projects of the build, each to its project's path. */
     @get:Internal
-    abstract val unpaired: MapProperty<String, String>
+    abstract val classpathProjects: MapProperty<String, String>
 
-    /** The projects of [unpaired], whose pairing changes the outcome. */
+    /** The projects of [classpathProjects], whose pairing changes the outcome. */
     @get:Input
-    abstract val unpairedProjects: ListProperty<String>
+    abstract val classpathProjectPaths: ListProperty<String>
+
+    /**
+     * The pairing files of the api modules among those projects (`wowPairingElements`): the domain modules each
+     * declares, `domains` comma-separated.
+     */
+    @get:InputFiles
+    @get:PathSensitive(PathSensitivity.NONE)
+    abstract val pairing: ConfigurableFileCollection
+
+    /** The project each of [pairing]'s files comes from, by its path. */
+    @get:Internal
+    abstract val pairingProjects: MapProperty<String, String>
 
     /** The tools that write the contract: the `wowTools` configuration. */
     @get:Classpath
@@ -72,12 +86,25 @@ internal abstract class GenerateContract @Inject constructor(private val workers
         submit(workers.classLoaderIsolation { spec -> spec.classpath.from(tools) })
     }
 
+    /**
+     * The entries of [classpathProjects] whose project does not pair with [module]: no pairing file of it lists the
+     * module.
+     */
+    internal fun unpaired(): Map<String, String> {
+        val module = module.get()
+        val paired = pairingProjects.get().filter { (file, _) ->
+            val properties = Properties().apply { File(file).inputStream().use(::load) }
+            module in properties.getProperty(ApiRole.PAIRING_DOMAINS, "").split(',')
+        }.values.toSet()
+        return classpathProjects.get().filterValues { it !in paired }
+    }
+
     internal fun submit(queue: WorkQueue) {
         queue.submit(ManifestToolsWork.GenerateContract::class.java) { parameters ->
             parameters.fragments.from(fragments)
             parameters.service.set(service)
             parameters.module.set(module)
-            parameters.unpaired.set(unpaired)
+            parameters.unpaired.set(unpaired())
             parameters.output.set(outputFile)
         }
     }
