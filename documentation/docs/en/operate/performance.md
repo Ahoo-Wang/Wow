@@ -218,3 +218,5 @@ test/benchmarks/harness/bench.sh down
 ```
 
 The sweep gives T2's figure for your machine; a run at your own rate gives T1's. On GitHub's runners, `gh workflow run bench.yml -f tier=L4 -f head_ref=<tag>`. The [benchmark guide](https://github.com/Ahoo-Wang/Wow/blob/main/test/benchmarks/README.md) explains the harness and every suite, and [`test/benchmarks/results/reports/`](https://github.com/Ahoo-Wang/Wow/tree/main/test/benchmarks/results/reports) keeps the reports these figures come from, each with its raw results.
+
+**Comparing two builds.** A comparison runs both builds in turn on one runner, and calls a latency ratio beyond noise only when its whole 95% interval clears the suite's A/A threshold. One L3 run can therefore flag only a large latency change, of the order of its own intervals' width; the [reports README](https://github.com/Ahoo-Wang/Wow/blob/main/test/benchmarks/results/reports/README.md#reading-a-comparison) gives the sizes per metric. A change of 10 to 20% needs an alternating run with more rounds. CPU and allocation per operation are reported as ratios with no threshold: nothing judges them beyond noise.
