@@ -1,0 +1,65 @@
+{"step":"jvms","startMs":1794960249422,"millis":3450,"exit":0,"data":{"ninex": "openjdk version \"21.0.13\" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-21.0.13+9 (build 21.0.13+9-LTS) OpenJDK 64-Bit Server VM Temurin-21.0.13+9 (build 21.0.13+9-LTS, mixed mode, sharing) ", "v10": "openjdk version \"25.0.5\" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-25.0.5+8 (build 25.0.5+8-LTS) OpenJDK 64-Bit Server VM Temurin-25.0.5+8 (build 25.0.5+8-LTS, mixed mode, sharing) ", "wow-migrate-data:local": "openjdk version \"25.0.4.0.4\" 2026-07-21 OpenJDK Runtime Environment (Alibaba Dragonwell Standard Edition)-25.0.4.0.4+7-GA (build 25.0.4.0.4) OpenJDK 64-Bit Server VM (Alibaba Dragonwell Standard Edition)-25.0.4.0.4+7-GA (build 25.0.4.0.4, mixed mode, sharing) "}}
+{"step":"seed","startMs":1794960275465,"millis":151105,"exit":0,"data":{"command":"seed","orders":50000,"carts":25000,"tenants":4,"tags":34953,"commands":216623,"failed":0,"seconds":149.1,"perSecond":1453,"errors":{}}}
+{"step":"seed-views","startMs":1794960426580,"millis":25497,"exit":0,"data":{"command":"views-seed","views":12500,"shared":1206,"deleted":1285,"preferences":3125,"wordings":12,"commands":33205,"failed":0,"seconds":24.9,"perSecond":1332,"errors":{}}}
+{"step":"seed-compensation","startMs":1794960452087,"millis":1447,"exit":0,"data":{"command":"seed-compensation","executions":2500}}
+{"step":"ninex-seeded","startMs":1794960453544,"millis":444,"exit":0,"data":{"orders":166624,"carts":49999,"views":30064,"preferences":3125,"wordings":16}}
+{"step":"check","startMs":1794960453998,"millis":7944,"exit":0,"data":{"containerMillis": 4000}}
+{"step":"offline-9x-states","startMs":1794960461951,"millis":3758,"exit":0,"data":{"command":"states","sampled":5000,"read":5000}}
+{"step":"offline-9x-views-states","startMs":1794960465718,"millis":2964,"exit":0,"data":{"command":"views-states","sampled":1122,"read":1122,"stale":0}}
+{"step":"offline-import","startMs":1794960474741,"millis":29971,"exit":0,"data":{"containerMillis": 25000}}
+{"step":"offline-compare","startMs":1794960504723,"millis":21244,"exit":3,"data":{"containerMillis": 17000}}
+{"step":"offline-snapshot","startMs":1794960526025,"millis":35876,"exit":0,"data":{"containerMillis": 32000}}
+{"step":"offline-unstamped","startMs":1794960561910,"millis":99,"exit":0,"data":{"unstamped":0}}
+{"step":"offline-start","startMs":1794960562019,"millis":16340,"exit":0,"data":{}}
+{"step":"offline-write-stop","startMs":1794960468695,"millis":109783,"exit":0,"data":{}}
+{"step":"offline-access","startMs":1794960578521,"millis":32688,"exit":0,"data":{"command":"access","tenant":"t0","region":"south","orders":12500,"read":12500,"sampled":1250,"visible":155,"streams":616,"wrongStates":0,"wrongStreams":0,"listed":1000,"leaked":0}}
+{"step":"offline-v10-states","startMs":1794960611254,"millis":9682,"exit":0,"data":{"command":"states","sampled":5000,"read":5000}}
+{"step":"offline-states-compare","startMs":1794960620962,"millis":1191,"exit":0,"data":{"command":"compare","instances":5000,"differing":0,"stale":0}}
+{"step":"offline-v10-views-states","startMs":1794960622166,"millis":3566,"exit":0,"data":{"command":"views-states","sampled":1122,"read":1122,"stale":0}}
+{"step":"offline-views-compare","startMs":1794960625743,"millis":389,"exit":0,"data":{"command":"compare","instances":1122,"differing":0,"stale":0}}
+{"step":"offline-not-walked","startMs":1794960626142,"millis":13,"exit":0,"data":{"claims":0}}
+{"step":"offline-live","startMs":1794960578398,"millis":124326,"exit":0,"data":{"command":"live","rate":50,"commands":6000,"failed":0,"p50":3,"p95":782,"p99":1514,"max":2310,"errors":{}}}
+{"step":"offline-caught-up","startMs":1794960702733,"millis":24,"exit":0,"data":{"caughtUp":true}}
+{"step":"timing-job-1","startMs":1794960709104,"millis":28907,"exit":0,"data":{"containerMillis": 25000}}
+{"step":"timing-runner-1","startMs":1794960738253,"millis":27844,"exit":0,"data":{"containerMillis": 26768}}
+{"step":"timing-runner-2","startMs":1794960766222,"millis":27166,"exit":0,"data":{"containerMillis": 26122}}
+{"step":"timing-job-2","startMs":1794960793620,"millis":31073,"exit":0,"data":{"containerMillis": 26000}}
+{"step":"timing-port-forward","startMs":1794960825333,"millis":37223,"exit":0,"data":{"containerMillis": 36657}}
+{"step":"import","startMs":1794960873812,"millis":32627,"exit":0,"data":{"containerMillis": 28000}}
+{"step":"standby-refuses","startMs":1794960915983,"millis":241,"exit":0,"data":{"refused":503}}
+{"step":"dual-run-traffic","startMs":1794960919032,"millis":121964,"exit":0,"data":{"command":"traffic","touched":27048,"created":0,"commands":52234,"failed":48,"seconds":120.3,"perSecond":434,"errors":{"http-400 IllegalState The current order[o-00003537] status[SHIPPED] cannot ship order.":2,"http-400 IllegalState The current order[o-00022860] status[RECEIVED] cannot receipt order.":2,"http-400 IllegalState The current order[o-00015714] status[SHIPPED] cannot ship order.":1,"http-400 OrderPayDuplicated The current order[o-00039477] status[PAID] cannot pay order.":1,"http-400 OrderPayDuplicated The current order[o-00045871] status[PAID] cannot pay order.":1,"http-400 IllegalState The current order[o-00017284] status[RECEIVED] cannot receipt order.":1,"http-400 IllegalState The current order[o-00030569] status[SHIPPED] cannot ship order.":1,"http-400 IllegalState The current order[o-00019563] status[RECEIVED] cannot receipt order.":1,"http-400 IllegalState The current order[o-00038011] status[SHIPPED] cannot ship order.":1,"http-400 IllegalState The current order[o-00039012] status[RECEIVED] cannot receipt order.":1,"http-400 IllegalState The current order[o-00042028] status[RECEIVED] cannot receipt order.":1,"http-400 OrderPayDuplicated The current order[o-00018441] status[PAID] cannot pay order.":1,"http-400 OrderPayDuplicated The current order[o-00019386] status[PAID] cannot pay order.":1,"http-400 IllegalState The current order[o-00023521] status[RECEIVED] cannot receipt order.":1,"http-400 IllegalState The current order[o-00048289] status[RECEIVED] cannot receipt order.":1,"http-400 OrderPayDuplicated The current order[o-00025980] status[PAID] cannot pay order.":1,"http-400 IllegalState The current order[o-00025995] status[RECEIVED] cannot receipt order.":1,"http-400 IllegalState The current order[o-00032631] status[SHIPPED] cannot ship order.":1,"http-400 IllegalState The current order[o-00004529] status[RECEIVED] cannot receipt order.":1,"http-400 IllegalState The current order[o-00018420] status[SHIPPED] cannot ship order.":1}}}
+{"step":"dual-run-views","startMs":1794960919013,"millis":122010,"exit":0,"data":{"command":"views-traffic","touched":9960,"created":0,"commands":52002,"failed":0,"seconds":120.6,"perSecond":431,"errors":{}}}
+{"step":"dual-run-lag","startMs":1794961041057,"millis":58877,"exit":0,"data":{"command":"await","orders":27048,"behind":0,"caughtUpMillis":57847}}
+{"step":"dual-run-views-lag","startMs":1794961099948,"millis":26627,"exit":0,"data":{"command":"views-await","views":9960,"behind":0,"caughtUpMillis":25872}}
+{"step":"final-import","startMs":1794961134902,"millis":17367,"exit":0,"data":{"containerMillis": 14000}}
+{"step":"compare","startMs":1794961152279,"millis":23242,"exit":3,"data":{"containerMillis": 20000}}
+{"step":"snapshot","startMs":1794961175581,"millis":41976,"exit":0,"data":{"containerMillis": 38000}}
+{"step":"unstamped","startMs":1794961217567,"millis":211,"exit":0,"data":{"unstamped":0}}
+{"step":"standby-access","startMs":1794961217791,"millis":7332,"exit":0,"data":{"command":"access","tenant":"t0","region":"south","orders":12500,"read":12500,"sampled":1250,"visible":179,"streams":845,"wrongStates":0,"wrongStreams":0,"listed":1000,"leaked":0}}
+{"step":"activate","startMs":1794961225142,"millis":1269,"exit":0,"data":{"activated":2}}
+{"step":"write-stop","startMs":1794961128863,"millis":97640,"exit":0,"data":{"writesStoppedMs":1794961041042}}
+{"step":"access","startMs":1794961226537,"millis":25693,"exit":0,"data":{"command":"access","tenant":"t0","region":"south","orders":12500,"read":12500,"sampled":1250,"visible":179,"streams":845,"wrongStates":0,"wrongStreams":0,"listed":1000,"leaked":0}}
+{"step":"v10-states","startMs":1794961252338,"millis":12288,"exit":0,"data":{"command":"states","sampled":5000,"read":5000}}
+{"step":"v10-views-states","startMs":1794961264648,"millis":9505,"exit":0,"data":{"command":"views-states","sampled":1122,"read":1122,"stale":0}}
+{"step":"not-walked","startMs":1794961274167,"millis":32,"exit":0,"data":{"claims":0}}
+{"step":"rollback-before-dry-run","startMs":1794961280263,"millis":11512,"exit":0,"data":{"containerMillis": 9000}}
+{"step":"rollback-before-states","startMs":1794961300002,"millis":7735,"exit":0,"data":{"command":"states","sampled":5000,"read":5000}}
+{"step":"rollback-before-compare","startMs":1794961307749,"millis":428,"exit":0,"data":{"command":"compare","instances":5000,"differing":0,"stale":0}}
+{"step":"rollback-before-views-states","startMs":1794961308186,"millis":5509,"exit":0,"data":{"command":"views-states","sampled":1122,"read":1122,"stale":0}}
+{"step":"rollback-before-views-compare","startMs":1794961313705,"millis":307,"exit":0,"data":{"command":"compare","instances":1122,"differing":0,"stale":0}}
+{"step":"v10-traffic","startMs":1794961330763,"millis":62969,"exit":0,"data":{"command":"traffic","touched":14318,"created":0,"commands":24923,"failed":26,"seconds":60.2,"perSecond":414,"errors":{"http-409 example.order.wrong-status":26}}}
+{"step":"v10-views","startMs":1794961330702,"millis":63047,"exit":0,"data":{"command":"views-traffic","touched":9400,"created":0,"commands":27344,"failed":0,"seconds":60.4,"perSecond":453,"errors":{}}}
+{"step":"v10-settings","startMs":1794961393758,"millis":4677,"exit":0,"data":{"command":"views-settings","preferences":3125,"wordings":8,"mismatched":0,"commands":3133,"failed":0,"seconds":4.0,"perSecond":785,"errors":{}}}
+{"step":"v10-states-after","startMs":1794961398445,"millis":3356,"exit":0,"data":{"command":"states","sampled":5000,"read":5000}}
+{"step":"export-dry-run","startMs":1794961407857,"millis":14322,"exit":0,"data":{"containerMillis": 10000}}
+{"step":"export","startMs":1794961422189,"millis":22444,"exit":0,"data":{"containerMillis": 20000}}
+{"step":"rollback-after","startMs":1794961401810,"millis":50053,"exit":0,"data":{}}
+{"step":"rollback-after-states","startMs":1794961451872,"millis":8060,"exit":0,"data":{"command":"states","sampled":5000,"read":5000}}
+{"step":"rollback-after-compare","startMs":1794961459942,"millis":448,"exit":0,"data":{"command":"compare","instances":5000,"differing":0,"stale":0}}
+{"step":"rollback-after-views","startMs":1794961460402,"millis":17160,"exit":0,"data":{"command":"views-verify","views":9400,"mismatched":0,"commands":9400,"failed":0,"seconds":16.4,"perSecond":571,"errors":{}}}
+{"step":"rollback-after-settings","startMs":1794961477574,"millis":5953,"exit":0,"data":{"command":"views-settings","preferences":3125,"wordings":8,"mismatched":0,"commands":3133,"failed":0,"seconds":5.3,"perSecond":589,"errors":{}}}
+{"step":"ninex-after-rollback-traffic","startMs":1794961483537,"millis":6036,"exit":0,"data":{"command":"traffic","touched":1880,"created":0,"commands":2912,"failed":6,"seconds":5.2,"perSecond":561,"errors":{"http-400 IllegalState The current order[o-00001761] status[SHIPPED] cannot ship order.":1,"http-400 IllegalState The current order[o-00008948] status[RECEIVED] cannot receipt order.":1,"http-400 IllegalState The current order[o-00007969] status[SHIPPED] cannot ship order.":1,"http-400 IllegalState The current order[o-00032498] status[SHIPPED] cannot ship order.":1,"http-400 IllegalState The current order[o-00017455] status[RECEIVED] cannot receipt order.":1,"http-400 IllegalState The current order[o-00048102] status[SHIPPED] cannot ship order.":1}}}
+{"step":"ninex-after-rollback","startMs":1794961489585,"millis":552,"exit":0,"data":{"orders":224136,"carts":72486,"views":118810,"preferences":9375,"wordings":32}}
+{"step":"v10-new-orders","startMs":1794961505798,"millis":1307,"exit":0,"data":{"command":"traffic","touched":5,"created":5,"commands":5,"failed":0,"seconds":0.6,"perSecond":9,"errors":{}}}
+{"step":"v10-new-views","startMs":1794961507114,"millis":1289,"exit":0,"data":{"command":"views-traffic","touched":5,"created":5,"commands":5,"failed":0,"seconds":0.7,"perSecond":7,"errors":{}}}
+{"step":"export-refused","startMs":1794961514444,"millis":12259,"exit":1,"data":{"containerMillis": 9000}}

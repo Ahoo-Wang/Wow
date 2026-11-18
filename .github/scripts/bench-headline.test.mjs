@@ -19,6 +19,8 @@ import {
   headlineOf,
   jdkOf,
   m5maxSnapshot,
+  recovery,
+  REHEARSAL_IMAGE,
   writeHeadlines,
 } from './bench-headline.mjs';
 
@@ -214,6 +216,120 @@ test("the M5 Max snapshot's sweeps are summarize.py's, each step kept, an attemp
   assert.equal(figures[0].commit, 'd9b0781205');
   assert.equal(figures[0].cpu, M5MAX);
   assert.equal(figures[0].jdk, '25.0.5+8');
+});
+
+test("the recovery report's arms are summarize.py's, each with its own build, machine and JDK", () => {
+  const round = (lost, back, first, last) => ({
+    round: 1,
+    lost,
+    back,
+    firstBackMs: first,
+    lastBackMs: last,
+  });
+  const root = rootWith({
+    'm5max-recovery/summary.json': {
+      lostLeases: {
+        base: {
+          commit: '7f46c8dfb4',
+          changed: false,
+          jdk: '25.0.5+8',
+          rounds: [round(64, 16, 47600, null), round(64, 28, 47200, null)],
+        },
+        fix: {
+          commit: '93f53932fa',
+          changed: false,
+          jdk: '25.0.5+8',
+          rounds: [round(64, 64, 2400, 2400), round(64, 64, 2600, 3500)],
+        },
+      },
+      handover: {
+        'mongo-main': {
+          commit: 'e3a4e937aa',
+          changed: true,
+          jdk: '25.0.5+8',
+          rounds: [
+            { round: 1, sent: 5250, failedWaits: 15, p99Ms: 5636.1 },
+            { round: 2, sent: 5250, failedWaits: 2, p99Ms: 2867.2 },
+          ],
+        },
+      },
+      rehearsal: {
+        'bound-2': {
+          run: '44137290807',
+          fix: 'f33284fa69',
+          commit: '0853cbf27b',
+          maxCatchUps: 2,
+          jobs: {
+            kind: {
+              sent: 6000,
+              failed: 0,
+              p99Ms: 3929,
+              maxMs: 4614,
+              worstSecondP99Ms: 4614,
+              catchUpMs: { 'example-service': 59409 },
+              jdk: '25.0.5',
+            },
+          },
+        },
+      },
+      firstStart: {
+        'patch-1.patch': {
+          pair: 'patch-1',
+          arm: 'patch',
+          code: '0249db185b',
+          commit: '6781a666aa',
+          maxCatchUps: 2,
+          dir: '44203434241',
+          run: '44203434241',
+          attempt: 1,
+          jobs: {
+            runner: {
+              sent: 6000,
+              failed: 0,
+              p99Ms: 2413,
+              worstSecondP99Ms: 3278,
+              catchUpMs: { 'example-service': 49524 },
+              jdk: '25.0.5',
+            },
+          },
+        },
+      },
+    },
+  });
+  const figures = Object.fromEntries(
+    recovery(root, 'm5max-recovery').map(f => [f.id, f]),
+  );
+  assert.deepEqual(Object.keys(figures), [
+    'lost-leases.base',
+    'lost-leases.fix',
+    'handover.mongo.main',
+    'rehearsal.bound-2.kind',
+    'first-start.patch-1.patch.runner',
+  ]);
+  // A base whose partitions were not all back by the round's end has no last time: never the last one it saw.
+  assert.equal(figures['lost-leases.base'].lastBackSeconds, null);
+  assert.deepEqual(figures['lost-leases.base'].firstBackSeconds, [47.2, 47.6]);
+  assert.deepEqual(figures['lost-leases.base'].backAtEnd, [16, 28]);
+  assert.deepEqual(figures['lost-leases.fix'].lastBackSeconds, [2.4, 3.5]);
+  assert.equal(figures['lost-leases.fix'].environment, 'm5max');
+  assert.equal(figures['lost-leases.fix'].cpu, M5MAX);
+  assert.deepEqual(figures['handover.mongo.main'].failedWaits, [15, 2]);
+  assert.deepEqual(figures['handover.mongo.main'].p99Ms, [2867, 5636]);
+  assert.equal(figures['handover.mongo.main'].changed, true);
+  const kind = figures['rehearsal.bound-2.kind'];
+  assert.equal(kind.environment, 'actions');
+  assert.equal(kind.cpu, `${REHEARSAL_IMAGE}, CPU model ${NOT_RECORDED}`);
+  assert.equal(kind.jdk, '25.0.5');
+  assert.equal(kind.catchUpSeconds, 59.4);
+  assert.equal(kind.run, '44137290807');
+  // A first-start arm names the code it measured, and apart the commit its run built: that code and the rehearsal's
+  // instrumentation.
+  const patch = figures['first-start.patch-1.patch.runner'];
+  assert.equal(patch.commit, '0249db185b');
+  assert.equal(patch.built, '6781a666aa');
+  assert.equal(patch.catchUpSeconds, 49.5);
+  assert.equal(patch.environment, 'actions');
+  assert.equal(patch.source, 'm5max-recovery/first-start/44203434241/runner');
 });
 
 test('a JDK is the version its run records, never an assumed one', () => {

@@ -1,0 +1,641 @@
+{
+  "lostLeases": {
+    "base": {
+      "commit": "7f46c8dfb4",
+      "changed": false,
+      "jdk": "25.0.5+8",
+      "rounds": [
+        {
+          "round": 1,
+          "lost": 64,
+          "back": 16,
+          "lostAfterPauseMs": 7573,
+          "firstBackMs": 47646,
+          "lastBackMs": null,
+          "ok": 30319,
+          "failed": 6315
+        },
+        {
+          "round": 2,
+          "lost": 64,
+          "back": 28,
+          "lostAfterPauseMs": 5430,
+          "firstBackMs": 47171,
+          "lastBackMs": null,
+          "ok": 30700,
+          "failed": 5925
+        },
+        {
+          "round": 3,
+          "lost": 64,
+          "back": 16,
+          "lostAfterPauseMs": 5681,
+          "firstBackMs": 47807,
+          "lastBackMs": null,
+          "ok": 30877,
+          "failed": 5744
+        }
+      ]
+    },
+    "fix": {
+      "commit": "93f53932fa",
+      "changed": false,
+      "jdk": "25.0.5+8",
+      "rounds": [
+        {
+          "round": 1,
+          "lost": 64,
+          "back": 64,
+          "lostAfterPauseMs": 7763,
+          "firstBackMs": 2377,
+          "lastBackMs": 2447,
+          "ok": 45669,
+          "failed": 1916
+        },
+        {
+          "round": 2,
+          "lost": 64,
+          "back": 64,
+          "lostAfterPauseMs": 7537,
+          "firstBackMs": 2608,
+          "lastBackMs": 3457,
+          "ok": 45172,
+          "failed": 1775
+        },
+        {
+          "round": 3,
+          "lost": 64,
+          "back": 64,
+          "lostAfterPauseMs": 7475,
+          "firstBackMs": 2652,
+          "lastBackMs": 2894,
+          "ok": 45455,
+          "failed": 1812
+        }
+      ]
+    }
+  },
+  "handover": {
+    "mongo-fix": {
+      "commit": "55937a4b2c",
+      "changed": true,
+      "jdk": "25.0.5+8",
+      "backend": "mongo",
+      "rounds": [
+        {
+          "round": 1,
+          "sent": 5250,
+          "failedWaits": 1,
+          "failed": 1,
+          "p99Ms": 1982.5,
+          "worstSecondP99Ms": 3977.2
+        },
+        {
+          "round": 2,
+          "sent": 5250,
+          "failedWaits": 1,
+          "failed": 1,
+          "p99Ms": 1581.1,
+          "worstSecondP99Ms": 7582.6
+        },
+        {
+          "round": 3,
+          "sent": 5250,
+          "failedWaits": 2,
+          "failed": 2,
+          "p99Ms": 1900.5,
+          "worstSecondP99Ms": 4874.3
+        }
+      ]
+    },
+    "mongo-6412": {
+      "commit": "f43a7a75bf",
+      "changed": false,
+      "jdk": "25.0.5+8",
+      "backend": "mongo",
+      "rounds": [
+        {
+          "round": 1,
+          "sent": 5250,
+          "failedWaits": 1,
+          "failed": 1,
+          "p99Ms": 1900.5,
+          "worstSecondP99Ms": 4875.7
+        },
+        {
+          "round": 2,
+          "sent": 5250,
+          "failedWaits": 1,
+          "failed": 1,
+          "p99Ms": 1974.3,
+          "worstSecondP99Ms": 9598.7
+        },
+        {
+          "round": 3,
+          "sent": 5250,
+          "failedWaits": 1,
+          "failed": 1,
+          "p99Ms": 1777.7,
+          "worstSecondP99Ms": 4330.8
+        }
+      ]
+    },
+    "mongo-main": {
+      "commit": "e3a4e937aa",
+      "changed": true,
+      "jdk": "25.0.5+8",
+      "backend": "mongo",
+      "rounds": [
+        {
+          "round": 1,
+          "sent": 5250,
+          "failedWaits": 15,
+          "failed": 15,
+          "p99Ms": 5636.1,
+          "worstSecondP99Ms": 10006.2
+        },
+        {
+          "round": 2,
+          "sent": 5250,
+          "failedWaits": 2,
+          "failed": 2,
+          "p99Ms": 2867.2,
+          "worstSecondP99Ms": 9367.4
+        },
+        {
+          "round": 3,
+          "sent": 5250,
+          "failedWaits": 2,
+          "failed": 2,
+          "p99Ms": 2850.8,
+          "worstSecondP99Ms": 9603.8
+        }
+      ]
+    },
+    "mongo-patch": {
+      "commit": "0249db185b",
+      "changed": false,
+      "jdk": "25.0.5+8",
+      "backend": "mongo",
+      "rounds": [
+        {
+          "round": 1,
+          "sent": 5250,
+          "failedWaits": 1,
+          "failed": 1,
+          "p99Ms": 1810.4,
+          "worstSecondP99Ms": 4442.6
+        },
+        {
+          "round": 2,
+          "sent": 5250,
+          "failedWaits": 1,
+          "failed": 1,
+          "p99Ms": 1900.5,
+          "worstSecondP99Ms": 5115.3
+        },
+        {
+          "round": 3,
+          "sent": 5250,
+          "failedWaits": 1,
+          "failed": 1,
+          "p99Ms": 1736.7,
+          "worstSecondP99Ms": 5116.0
+        }
+      ]
+    },
+    "postgres-fix": {
+      "commit": "55937a4b2c",
+      "changed": true,
+      "jdk": "25.0.5+8",
+      "backend": "postgres",
+      "rounds": [
+        {
+          "round": 1,
+          "sent": 5250,
+          "failedWaits": 0,
+          "failed": 0,
+          "p99Ms": 21.8,
+          "worstSecondP99Ms": 998.5
+        }
+      ]
+    },
+    "postgres-patch": {
+      "commit": "0249db185b",
+      "changed": false,
+      "jdk": "25.0.5+8",
+      "backend": "postgres",
+      "rounds": [
+        {
+          "round": 1,
+          "sent": 5250,
+          "failedWaits": 0,
+          "failed": 0,
+          "p99Ms": 19.7,
+          "worstSecondP99Ms": 1004.9
+        }
+      ]
+    }
+  },
+  "rehearsal": {
+    "bound-0": {
+      "run": "44137289607",
+      "fix": "f33284fa69",
+      "commit": "7c0896effd",
+      "maxCatchUps": 0,
+      "jobs": {
+        "runner": {
+          "sent": 6000,
+          "failed": 7,
+          "errors": {
+            "http-504 wow.wait.timeout": 7
+          },
+          "p50Ms": 10,
+          "p99Ms": 16814,
+          "maxMs": 22566,
+          "worstSecondP99Ms": 22566,
+          "catchUpMs": {
+            "view-store-service": 20805,
+            "example-service": 66259
+          },
+          "jdk": "25.0.5"
+        },
+        "kind": {
+          "sent": 6000,
+          "failed": 2587,
+          "errors": {
+            "http-504 wow.wait.timeout": 2328,
+            "HttpTimeoutException": 259
+          },
+          "p50Ms": 4169,
+          "p99Ms": 30011,
+          "maxMs": 30497,
+          "worstSecondP99Ms": 30475,
+          "catchUpMs": {
+            "view-store-service": 32623,
+            "example-service": 107195
+          },
+          "jdk": "25.0.5"
+        }
+      }
+    },
+    "bound-2": {
+      "run": "44137290807",
+      "fix": "f33284fa69",
+      "commit": "0853cbf27b",
+      "maxCatchUps": 2,
+      "jobs": {
+        "runner": {
+          "sent": 6000,
+          "failed": 0,
+          "errors": {},
+          "p50Ms": 165,
+          "p99Ms": 7922,
+          "maxMs": 10260,
+          "worstSecondP99Ms": 10260,
+          "catchUpMs": {
+            "view-store-service": 35078,
+            "example-service": 87505
+          },
+          "jdk": "25.0.5"
+        },
+        "kind": {
+          "sent": 6000,
+          "failed": 0,
+          "errors": {},
+          "p50Ms": 3,
+          "p99Ms": 3929,
+          "maxMs": 4614,
+          "worstSecondP99Ms": 4614,
+          "catchUpMs": {
+            "view-store-service": 22588,
+            "example-service": 59409
+          },
+          "jdk": "25.0.5"
+        }
+      }
+    }
+  },
+  "firstStart": {
+    "6412-1.6412": {
+      "pair": "6412-1",
+      "arm": "6412",
+      "code": "60c63cdc6f",
+      "commit": "17ce2d07ff",
+      "maxCatchUps": 2,
+      "dir": "44194947617-a1",
+      "run": "44194947617",
+      "attempt": 1,
+      "jobs": {
+        "runner": {
+          "sent": 6000,
+          "failed": 0,
+          "errors": {},
+          "p50Ms": 132,
+          "p99Ms": 6722,
+          "maxMs": 8546,
+          "worstSecondP99Ms": 8283,
+          "catchUpMs": {
+            "view-store-service": 32476,
+            "example-service": 89449
+          },
+          "jdk": "25.0.5"
+        },
+        "kind": {
+          "sent": 6000,
+          "failed": 0,
+          "errors": {},
+          "p50Ms": 4,
+          "p99Ms": 2495,
+          "maxMs": 3790,
+          "worstSecondP99Ms": 3775,
+          "catchUpMs": {
+            "view-store-service": 20976,
+            "example-service": 63582
+          },
+          "jdk": "25.0.5"
+        }
+      }
+    },
+    "6412-1.parent": {
+      "pair": "6412-1",
+      "arm": "parent",
+      "code": "0d2017aa28",
+      "commit": "95bd118e96",
+      "maxCatchUps": 2,
+      "dir": "44194947161-a1",
+      "run": "44194947161",
+      "attempt": 1,
+      "jobs": {
+        "runner": {
+          "sent": 6000,
+          "failed": 0,
+          "errors": {},
+          "p50Ms": 185,
+          "p99Ms": 2704,
+          "maxMs": 4623,
+          "worstSecondP99Ms": 4623,
+          "catchUpMs": {
+            "view-store-service": 31354,
+            "example-service": 85201
+          },
+          "jdk": "25.0.5"
+        },
+        "kind": {
+          "sent": 6000,
+          "failed": 0,
+          "errors": {},
+          "p50Ms": 3,
+          "p99Ms": 1134,
+          "maxMs": 1937,
+          "worstSecondP99Ms": 1937,
+          "catchUpMs": {
+            "view-store-service": 16942,
+            "example-service": 50992
+          },
+          "jdk": "25.0.5"
+        }
+      }
+    },
+    "6412-2.6412": {
+      "pair": "6412-2",
+      "arm": "6412",
+      "code": "60c63cdc6f",
+      "commit": "17ce2d07ff",
+      "maxCatchUps": 2,
+      "dir": "44194947617-a2",
+      "run": "44194947617",
+      "attempt": 2,
+      "jobs": {
+        "runner": {
+          "sent": 6000,
+          "failed": 0,
+          "errors": {},
+          "p50Ms": 3,
+          "p99Ms": 1096,
+          "maxMs": 1752,
+          "worstSecondP99Ms": 1752,
+          "catchUpMs": {
+            "view-store-service": 22130,
+            "example-service": 60914
+          },
+          "jdk": "25.0.5"
+        },
+        "kind": {
+          "sent": 6000,
+          "failed": 0,
+          "errors": {},
+          "p50Ms": 1,
+          "p99Ms": 3985,
+          "maxMs": 5205,
+          "worstSecondP99Ms": 5205,
+          "catchUpMs": {
+            "view-store-service": 20476,
+            "example-service": 48991
+          },
+          "jdk": "25.0.5"
+        }
+      }
+    },
+    "6412-2.parent": {
+      "pair": "6412-2",
+      "arm": "parent",
+      "code": "0d2017aa28",
+      "commit": "95bd118e96",
+      "maxCatchUps": 2,
+      "dir": "44194947161-a2",
+      "run": "44194947161",
+      "attempt": 2,
+      "jobs": {
+        "runner": {
+          "sent": 6000,
+          "failed": 0,
+          "errors": {},
+          "p50Ms": 215,
+          "p99Ms": 2259,
+          "maxMs": 3261,
+          "worstSecondP99Ms": 3261,
+          "catchUpMs": {
+            "view-store-service": 34161,
+            "example-service": 91282
+          },
+          "jdk": "25.0.5"
+        },
+        "kind": {
+          "sent": 6000,
+          "failed": 0,
+          "errors": {},
+          "p50Ms": 313,
+          "p99Ms": 3422,
+          "maxMs": 4515,
+          "worstSecondP99Ms": 4111,
+          "catchUpMs": {
+            "view-store-service": 29846,
+            "example-service": 94233
+          },
+          "jdk": "25.0.5"
+        }
+      }
+    },
+    "patch-1.parent": {
+      "pair": "patch-1",
+      "arm": "parent",
+      "code": "0d2017aa28",
+      "commit": "95bd118e96",
+      "maxCatchUps": 2,
+      "dir": "44203434208",
+      "run": "44203434208",
+      "attempt": 1,
+      "jobs": {
+        "runner": {
+          "sent": 6000,
+          "failed": 0,
+          "errors": {},
+          "p50Ms": 2,
+          "p99Ms": 1012,
+          "maxMs": 1645,
+          "worstSecondP99Ms": 1640,
+          "catchUpMs": {
+            "example-service": 49468,
+            "view-store-service": 16936
+          },
+          "jdk": "25.0.5"
+        },
+        "kind": {
+          "sent": 6000,
+          "failed": 0,
+          "errors": {},
+          "p50Ms": 2,
+          "p99Ms": 1426,
+          "maxMs": 2458,
+          "worstSecondP99Ms": 2458,
+          "catchUpMs": {
+            "view-store-service": 16526,
+            "example-service": 49081
+          },
+          "jdk": "25.0.5"
+        }
+      }
+    },
+    "patch-1.patch": {
+      "pair": "patch-1",
+      "arm": "patch",
+      "code": "0249db185b",
+      "commit": "6781a666aa",
+      "maxCatchUps": 2,
+      "dir": "44203434241",
+      "run": "44203434241",
+      "attempt": 1,
+      "jobs": {
+        "runner": {
+          "sent": 6000,
+          "failed": 0,
+          "errors": {},
+          "p50Ms": 3,
+          "p99Ms": 2413,
+          "maxMs": 3292,
+          "worstSecondP99Ms": 3278,
+          "catchUpMs": {
+            "view-store-service": 15417,
+            "example-service": 49524
+          },
+          "jdk": "25.0.5"
+        },
+        "kind": {
+          "sent": 6000,
+          "failed": 0,
+          "errors": {},
+          "p50Ms": 250,
+          "p99Ms": 2058,
+          "maxMs": 3471,
+          "worstSecondP99Ms": 3471,
+          "catchUpMs": {
+            "view-store-service": 31323,
+            "example-service": 84720
+          },
+          "jdk": "25.0.5"
+        }
+      }
+    },
+    "patch-2.parent": {
+      "pair": "patch-2",
+      "arm": "parent",
+      "code": "0d2017aa28",
+      "commit": "95bd118e96",
+      "maxCatchUps": 2,
+      "dir": "44203470768",
+      "run": "44203470768",
+      "attempt": 1,
+      "jobs": {
+        "runner": {
+          "sent": 6000,
+          "failed": 0,
+          "errors": {},
+          "p50Ms": 91,
+          "p99Ms": 1868,
+          "maxMs": 2713,
+          "worstSecondP99Ms": 2713,
+          "catchUpMs": {
+            "view-store-service": 26943,
+            "example-service": 73241
+          },
+          "jdk": "25.0.5"
+        },
+        "kind": {
+          "sent": 6000,
+          "failed": 0,
+          "errors": {},
+          "p50Ms": 2,
+          "p99Ms": 1527,
+          "maxMs": 2529,
+          "worstSecondP99Ms": 2529,
+          "catchUpMs": {
+            "view-store-service": 17108,
+            "example-service": 49251
+          },
+          "jdk": "25.0.5"
+        }
+      }
+    },
+    "patch-2.patch": {
+      "pair": "patch-2",
+      "arm": "patch",
+      "code": "0249db185b",
+      "commit": "6781a666aa",
+      "maxCatchUps": 2,
+      "dir": "44203470883",
+      "run": "44203470883",
+      "attempt": 1,
+      "jobs": {
+        "runner": {
+          "sent": 6000,
+          "failed": 0,
+          "errors": {},
+          "p50Ms": 1,
+          "p99Ms": 1278,
+          "maxMs": 2092,
+          "worstSecondP99Ms": 2092,
+          "catchUpMs": {
+            "example-service": 45059,
+            "view-store-service": 17328
+          },
+          "jdk": "25.0.5"
+        },
+        "kind": {
+          "sent": 6000,
+          "failed": 0,
+          "errors": {},
+          "p50Ms": 3,
+          "p99Ms": 1514,
+          "maxMs": 2310,
+          "worstSecondP99Ms": 2209,
+          "catchUpMs": {
+            "view-store-service": 19147,
+            "example-service": 49604
+          },
+          "jdk": "25.0.5"
+        }
+      }
+    }
+  }
+}

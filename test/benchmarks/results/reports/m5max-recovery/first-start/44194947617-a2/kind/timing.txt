@@ -1,0 +1,87 @@
+2026-11-17T23:43:24.684Z  WARN 28324 --- [view-store-service] [           main] me.ahoo.wow.runtime.node.ServiceNode     : TIMING activate node=ip-10-0-132-144-47914b68 ms=975
+2026-11-17T23:43:33.558Z  WARN 28324 --- [view-store-service] [atcher-worker-1] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-47914b68 sinceJoinMs=8801 positions=576 lag=262997
+2026-11-17T23:43:35.700Z  WARN 28324 --- [view-store-service] [atcher-worker-1] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-47914b68 sinceJoinMs=11012 positions=576 lag=204417
+2026-11-17T23:43:37.296Z  WARN 28324 --- [view-store-service] [atcher-worker-3] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-47914b68 sinceJoinMs=12608 positions=576 lag=175126
+2026-11-17T23:43:38.485Z  WARN 28324 --- [view-store-service] [atcher-worker-1] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-47914b68 sinceJoinMs=13797 positions=576 lag=148631
+2026-11-17T23:43:40.178Z  WARN 28324 --- [view-store-service] [atcher-worker-1] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-47914b68 sinceJoinMs=15490 positions=576 lag=126067
+2026-11-17T23:43:41.598Z  WARN 28324 --- [view-store-service] [atcher-worker-3] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-47914b68 sinceJoinMs=16910 positions=576 lag=84900
+2026-11-17T23:43:44.058Z  WARN 28324 --- [view-store-service] [atcher-worker-4] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-47914b68 sinceJoinMs=19370 positions=576 lag=56194
+2026-11-17T23:43:45.164Z  WARN 28324 --- [view-store-service] [atcher-worker-5] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-47914b68 sinceJoinMs=20476 positions=576 lag=0
+2026-11-17T23:43:45.165Z  WARN 28324 --- [view-store-service] [atcher-worker-5] me.ahoo.wow.runtime.node.ServiceNode     : TIMING caughtUp node=ip-10-0-132-144-47914b68 ms=20476
+2026-11-17T23:53:51.340Z  WARN 40190 --- [view-store-service] [  virtual-42844] me.ahoo.wow.runtime.node.ServiceNode     : TIMING activate node=ip-10-0-132-144-90368f14 ms=1106
+2026-11-17T23:54:02.245Z  WARN 40190 --- [view-store-service] [atcher-worker-4] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-90368f14 sinceJoinMs=10872 positions=576 lag=668440
+2026-11-17T23:54:03.486Z  WARN 40190 --- [view-store-service] [atcher-worker-1] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-90368f14 sinceJoinMs=12141 positions=576 lag=577877
+2026-11-17T23:54:04.793Z  WARN 40190 --- [view-store-service] [atcher-worker-5] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-90368f14 sinceJoinMs=13448 positions=576 lag=564139
+2026-11-17T23:54:06.104Z  WARN 40190 --- [view-store-service] [atcher-worker-3] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-90368f14 sinceJoinMs=14759 positions=576 lag=541046
+2026-11-17T23:54:07.401Z  WARN 40190 --- [view-store-service] [atcher-worker-4] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-90368f14 sinceJoinMs=16056 positions=576 lag=510406
+2026-11-17T23:54:09.855Z  WARN 40190 --- [view-store-service] [atcher-worker-2] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-90368f14 sinceJoinMs=18510 positions=576 lag=481779
+2026-11-17T23:54:11.736Z  WARN 40190 --- [view-store-service] [atcher-worker-2] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-90368f14 sinceJoinMs=20391 positions=576 lag=410577
+2026-11-17T23:54:13.842Z  WARN 40190 --- [view-store-service] [atcher-worker-5] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-90368f14 sinceJoinMs=22497 positions=576 lag=345612
+2026-11-17T23:54:16.254Z  WARN 40190 --- [view-store-service] [atcher-worker-4] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-90368f14 sinceJoinMs=24909 positions=576 lag=280896
+2026-11-17T23:54:17.925Z  WARN 40190 --- [view-store-service] [atcher-worker-3] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-90368f14 sinceJoinMs=26580 positions=576 lag=167266
+2026-11-17T23:54:20.723Z  WARN 40190 --- [view-store-service] [atcher-worker-2] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-90368f14 sinceJoinMs=29378 positions=576 lag=89218
+2026-11-17T23:54:21.820Z  WARN 40190 --- [view-store-service] [atcher-worker-5] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-90368f14 sinceJoinMs=30475 positions=576 lag=0
+2026-11-17T23:54:21.822Z  WARN 40190 --- [view-store-service] [atcher-worker-5] me.ahoo.wow.runtime.node.ServiceNode     : TIMING caughtUp node=ip-10-0-132-144-90368f14 ms=30475
+2026-11-17T23:55:35.477Z  WARN 55090 --- [view-store-service] [           main] me.ahoo.wow.runtime.node.ServiceNode     : TIMING activate node=ip-10-0-132-144-2d57e94f ms=1296
+2026-11-17T23:55:36.671Z  WARN 55090 --- [view-store-service] [atcher-worker-1] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-2d57e94f sinceJoinMs=1177 positions=576 lag=0
+2026-11-17T23:55:36.677Z  WARN 55090 --- [view-store-service] [atcher-worker-1] me.ahoo.wow.runtime.node.ServiceNode     : TIMING caughtUp node=ip-10-0-132-144-2d57e94f ms=1177
+2026-11-17T23:58:29.915Z  WARN 62200 --- [view-store-service] [           main] me.ahoo.wow.runtime.node.ServiceNode     : TIMING activate node=ip-10-0-132-144-1848563d ms=594
+2026-11-17T23:58:31.006Z  WARN 62200 --- [view-store-service] [atcher-worker-1] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-1848563d sinceJoinMs=1083 positions=576 lag=0
+2026-11-17T23:58:31.010Z  WARN 62200 --- [view-store-service] [atcher-worker-1] me.ahoo.wow.runtime.node.ServiceNode     : TIMING caughtUp node=ip-10-0-132-144-1848563d ms=1083
+2026-11-17T23:43:24.907Z  WARN 28321 --- [example-service] [           main] me.ahoo.wow.runtime.node.ServiceNode     : TIMING activate node=ip-10-0-132-144-fe70fde9 ms=1176
+2026-11-17T23:43:47.738Z  WARN 28321 --- [example-service] [atcher-worker-3] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-fe70fde9 sinceJoinMs=22784 positions=512 lag=1516481
+2026-11-17T23:43:53.966Z  WARN 28321 --- [example-service] [atcher-worker-3] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-fe70fde9 sinceJoinMs=29043 positions=512 lag=1246367
+2026-11-17T23:43:58.364Z  WARN 28321 --- [example-service] [atcher-worker-3] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-fe70fde9 sinceJoinMs=33440 positions=512 lag=1009343
+2026-11-17T23:44:02.834Z  WARN 28321 --- [example-service] [atcher-worker-1] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-fe70fde9 sinceJoinMs=37910 positions=512 lag=794974
+2026-11-17T23:44:08.102Z  WARN 28321 --- [example-service] [atcher-worker-4] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-fe70fde9 sinceJoinMs=43179 positions=512 lag=553294
+2026-11-17T23:44:11.266Z  WARN 28321 --- [example-service] [atcher-worker-2] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-fe70fde9 sinceJoinMs=46341 positions=512 lag=279725
+2026-11-17T23:44:12.893Z  WARN 28321 --- [example-service] [atcher-worker-5] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-fe70fde9 sinceJoinMs=47970 positions=512 lag=51320
+2026-11-17T23:44:13.914Z  WARN 28321 --- [example-service] [atcher-worker-1] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-fe70fde9 sinceJoinMs=48991 positions=512 lag=0
+2026-11-17T23:44:13.915Z  WARN 28321 --- [example-service] [atcher-worker-1] me.ahoo.wow.runtime.node.ServiceNode     : TIMING caughtUp node=ip-10-0-132-144-fe70fde9 ms=48991
+2026-11-17T23:53:51.258Z  WARN 40187 --- [example-service] [ virtual-144009] me.ahoo.wow.runtime.node.ServiceNode     : TIMING activate node=ip-10-0-132-144-7dbf404a ms=1071
+2026-11-17T23:53:59.910Z  WARN 40187 --- [example-service] [atcher-worker-1] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-7dbf404a sinceJoinMs=8637 positions=512 lag=1869546
+2026-11-17T23:54:03.335Z  WARN 40187 --- [example-service] [atcher-worker-1] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-7dbf404a sinceJoinMs=12072 positions=512 lag=1792025
+2026-11-17T23:54:07.713Z  WARN 40187 --- [example-service] [atcher-worker-4] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-7dbf404a sinceJoinMs=16450 positions=512 lag=1750294
+2026-11-17T23:54:14.693Z  WARN 40187 --- [example-service] [atcher-worker-4] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-7dbf404a sinceJoinMs=23430 positions=512 lag=1674287
+2026-11-17T23:54:18.063Z  WARN 40187 --- [example-service] [atcher-worker-4] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-7dbf404a sinceJoinMs=26801 positions=512 lag=1509501
+2026-11-17T23:54:23.035Z  WARN 40187 --- [example-service] [atcher-worker-4] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-7dbf404a sinceJoinMs=31772 positions=512 lag=1398089
+2026-11-17T23:54:28.049Z  WARN 40187 --- [example-service] [atcher-worker-5] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-7dbf404a sinceJoinMs=36786 positions=512 lag=1198441
+2026-11-17T23:54:32.502Z  WARN 40187 --- [example-service] [atcher-worker-3] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-7dbf404a sinceJoinMs=41239 positions=512 lag=903003
+2026-11-17T23:54:36.278Z  WARN 40187 --- [example-service] [atcher-worker-2] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-7dbf404a sinceJoinMs=45015 positions=512 lag=676556
+2026-11-17T23:55:32.565Z  WARN 55087 --- [example-service] [           main] me.ahoo.wow.runtime.node.ServiceNode     : TIMING activate node=ip-10-0-132-144-9d686ef9 ms=586
+2026-11-17T23:55:35.606Z  WARN 55087 --- [example-service] [atcher-worker-2] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-9d686ef9 sinceJoinMs=3037 positions=512 lag=403932
+2026-11-17T23:55:36.774Z  WARN 55087 --- [example-service] [atcher-worker-3] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-9d686ef9 sinceJoinMs=4207 positions=512 lag=374910
+2026-11-17T23:55:37.900Z  WARN 55087 --- [example-service] [atcher-worker-2] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-9d686ef9 sinceJoinMs=5334 positions=512 lag=355750
+2026-11-17T23:55:42.234Z  WARN 55087 --- [example-service] [atcher-worker-4] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-9d686ef9 sinceJoinMs=9668 positions=512 lag=329521
+2026-11-17T23:55:47.000Z  WARN 55087 --- [example-service] [atcher-worker-3] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-9d686ef9 sinceJoinMs=14434 positions=512 lag=302665
+2026-11-17T23:55:49.163Z  WARN 55087 --- [example-service] [atcher-worker-2] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-9d686ef9 sinceJoinMs=16597 positions=512 lag=296801
+2026-11-17T23:55:51.290Z  WARN 55087 --- [example-service] [atcher-worker-2] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-9d686ef9 sinceJoinMs=18717 positions=512 lag=296084
+2026-11-17T23:55:53.458Z  WARN 55087 --- [example-service] [atcher-worker-5] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-9d686ef9 sinceJoinMs=20889 positions=512 lag=293623
+2026-11-17T23:55:55.417Z  WARN 55087 --- [example-service] [atcher-worker-4] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-9d686ef9 sinceJoinMs=22851 positions=512 lag=289157
+2026-11-17T23:55:57.206Z  WARN 55087 --- [example-service] [atcher-worker-3] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-9d686ef9 sinceJoinMs=24640 positions=512 lag=287513
+2026-11-17T23:56:01.918Z  WARN 55087 --- [example-service] [atcher-worker-3] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-9d686ef9 sinceJoinMs=29352 positions=512 lag=279354
+2026-11-17T23:56:03.558Z  WARN 55087 --- [example-service] [atcher-worker-4] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-9d686ef9 sinceJoinMs=30991 positions=512 lag=213986
+2026-11-17T23:56:05.280Z  WARN 55087 --- [example-service] [atcher-worker-4] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-9d686ef9 sinceJoinMs=32714 positions=512 lag=209717
+2026-11-17T23:56:09.461Z  WARN 55087 --- [example-service] [atcher-worker-1] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-9d686ef9 sinceJoinMs=36895 positions=512 lag=204863
+2026-11-17T23:56:14.510Z  WARN 55087 --- [example-service] [atcher-worker-2] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-9d686ef9 sinceJoinMs=41942 positions=512 lag=142416
+2026-11-17T23:56:17.032Z  WARN 55087 --- [example-service] [atcher-worker-4] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-9d686ef9 sinceJoinMs=44466 positions=512 lag=33930
+2026-11-17T23:56:18.313Z  WARN 55087 --- [example-service] [atcher-worker-1] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-9d686ef9 sinceJoinMs=45747 positions=512 lag=1255
+2026-11-17T23:56:19.516Z  WARN 55087 --- [example-service] [atcher-worker-1] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-9d686ef9 sinceJoinMs=46950 positions=512 lag=377
+2026-11-17T23:56:20.852Z  WARN 55087 --- [example-service] [atcher-worker-3] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-9d686ef9 sinceJoinMs=48286 positions=512 lag=594
+2026-11-17T23:56:22.579Z  WARN 55087 --- [example-service] [atcher-worker-2] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-9d686ef9 sinceJoinMs=50013 positions=512 lag=1871
+2026-11-17T23:56:24.164Z  WARN 55087 --- [example-service] [atcher-worker-4] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-9d686ef9 sinceJoinMs=51598 positions=512 lag=1424
+2026-11-17T23:56:25.611Z  WARN 55087 --- [example-service] [atcher-worker-1] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-9d686ef9 sinceJoinMs=53045 positions=512 lag=438
+2026-11-17T23:56:27.598Z  WARN 55087 --- [example-service] [atcher-worker-2] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-9d686ef9 sinceJoinMs=55032 positions=512 lag=1116
+2026-11-17T23:56:29.113Z  WARN 55087 --- [example-service] [atcher-worker-5] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-9d686ef9 sinceJoinMs=56547 positions=512 lag=1247
+2026-11-17T23:56:30.438Z  WARN 55087 --- [example-service] [atcher-worker-1] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-9d686ef9 sinceJoinMs=57872 positions=512 lag=1494
+2026-11-17T23:56:31.625Z  WARN 55087 --- [example-service] [atcher-worker-5] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-9d686ef9 sinceJoinMs=59059 positions=512 lag=798
+2026-11-17T23:56:32.808Z  WARN 55087 --- [example-service] [atcher-worker-1] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-9d686ef9 sinceJoinMs=60242 positions=512 lag=877
+2026-11-17T23:56:34.046Z  WARN 55087 --- [example-service] [atcher-worker-1] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-9d686ef9 sinceJoinMs=61480 positions=512 lag=602
+2026-11-17T23:56:35.338Z  WARN 55087 --- [example-service] [atcher-worker-1] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-9d686ef9 sinceJoinMs=62771 positions=512 lag=1211
+2026-11-17T23:56:36.562Z  WARN 55087 --- [example-service] [atcher-worker-3] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-9d686ef9 sinceJoinMs=63996 positions=512 lag=1124
+2026-11-17T23:56:37.867Z  WARN 55087 --- [example-service] [atcher-worker-3] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-9d686ef9 sinceJoinMs=65301 positions=512 lag=809
+2026-11-17T23:56:38.875Z  WARN 55087 --- [example-service] [atcher-worker-3] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-9d686ef9 sinceJoinMs=66309 positions=512 lag=0
+2026-11-17T23:56:38.877Z  WARN 55087 --- [example-service] [atcher-worker-3] me.ahoo.wow.runtime.node.ServiceNode     : TIMING caughtUp node=ip-10-0-132-144-9d686ef9 ms=66309
+2026-11-17T23:58:28.486Z  WARN 62197 --- [example-service] [           main] me.ahoo.wow.runtime.node.ServiceNode     : TIMING activate node=ip-10-0-132-144-eb1ec4f5 ms=629
+2026-11-17T23:58:29.576Z  WARN 62197 --- [example-service] [atcher-worker-2] me.ahoo.wow.runtime.node.ServiceNode     : TIMING lag node=ip-10-0-132-144-eb1ec4f5 sinceJoinMs=1078 positions=512 lag=0
+2026-11-17T23:58:29.577Z  WARN 62197 --- [example-service] [atcher-worker-2] me.ahoo.wow.runtime.node.ServiceNode     : TIMING caughtUp node=ip-10-0-132-144-eb1ec4f5 ms=1078

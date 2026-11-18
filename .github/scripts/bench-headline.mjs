@@ -22,7 +22,7 @@ import { ratioVerdict } from './bench-curves.mjs';
 //
 // The Actions reports' views are bench.mjs's (`suite.json`: a capacity suite's `capacity`, a sessions suite's
 // sweeps through peakRatio and aaSpread). The M5 Max snapshot's are its summarize.py's (`summary.json`, written with
-// `--json` from the same values as its SUMMARY.md). A figure is never computed across two reports, so never across
+// `--json` from the same values as its SUMMARY.md), and the recovery report's its own summarize.py's. A figure is never computed across two reports, so never across
 // two builds.
 
 export const SCHEMA = 'wow-headline/1';
@@ -50,6 +50,20 @@ export const REPORTS = {
   'm5max-axon': {
     environment: 'm5max',
     read: axonComparison,
+  },
+  'm5max-recovery': {
+    environment: 'm5max',
+    runs: {
+      'bound-2': '44137290807',
+      'bound-0': '44137289607',
+      '6412-parent': '44194947161',
+      6412: '44194947617',
+      'patch-1-parent': '44203434208',
+      'patch-1': '44203434241',
+      'patch-2-parent': '44203470768',
+      'patch-2': '44203470883',
+    },
+    read: recovery,
   },
 };
 
@@ -391,6 +405,117 @@ export function m5maxSnapshot(root, report) {
   }
   return figures;
 }
+
+/** The runner image of the migration rehearsal's jobs, whose CPU model the runs do not record. */
+export const REHEARSAL_IMAGE = 'GitHub Actions ubuntu-26.04';
+
+/**
+ * The recovery report (`summary.json`, its summarize.py's). Each figure is one arm, with its own build, machine and
+ * JDK: a node losing all its leases at once and a planned hand-over ran on the M5 Max; the migration rehearsal's live
+ * orders ran on Actions runners, one figure per job.
+ */
+export function recovery(root, report) {
+  const path = join(root, REPORTS_DIR, report, 'summary.json');
+  if (!existsSync(path)) return [];
+  const summary = readJson(path);
+  const figures = [];
+  for (const [arm, a] of Object.entries(summary.lostLeases ?? {})) {
+    const all = a.rounds.every(r => r.back === r.lost);
+    figures.push({
+      id: `lost-leases.${arm}`,
+      kind: 'lost-leases',
+      store: 'mongo',
+      nodes: 1,
+      lost: a.rounds[0]?.lost,
+      firstBackSeconds: secondsRange(a.rounds.map(r => r.firstBackMs)),
+      lastBackSeconds: all
+        ? secondsRange(a.rounds.map(r => r.lastBackMs))
+        : null,
+      backAtEnd: a.rounds.map(r => r.back),
+      rounds: a.rounds.length,
+      commit: a.commit,
+      changed: a.changed,
+      environment: 'm5max',
+      cpu: M5MAX,
+      jdk: a.jdk,
+      source: `${report}/lost-leases`,
+    });
+  }
+  for (const [arm, a] of Object.entries(summary.handover ?? {})) {
+    const [store, build] = arm.split('-');
+    figures.push({
+      id: `handover.${store}.${build}`,
+      kind: 'handover',
+      store,
+      nodes: 3,
+      failedWaits: a.rounds.map(r => r.failedWaits),
+      sent: a.rounds.map(r => r.sent),
+      p99Ms: range(a.rounds.map(r => r.p99Ms)),
+      rounds: a.rounds.length,
+      commit: a.commit,
+      changed: a.changed,
+      environment: 'm5max',
+      cpu: M5MAX,
+      jdk: a.jdk,
+      source: `${report}/handover`,
+    });
+  }
+  for (const [arm, a] of Object.entries(summary.rehearsal ?? {})) {
+    for (const [job, j] of Object.entries(a.jobs)) {
+      figures.push({
+        id: `rehearsal.${arm}.${job}`,
+        kind: 'rehearsal',
+        job,
+        maxCatchUps: a.maxCatchUps,
+        sent: j.sent,
+        failed: j.failed,
+        p99Ms: j.p99Ms,
+        maxMs: j.maxMs,
+        worstSecondP99Ms: j.worstSecondP99Ms,
+        catchUpSeconds: round(j.catchUpMs['example-service'] / 1000),
+        commit: a.commit,
+        fix: a.fix,
+        environment: 'actions',
+        cpu: `${REHEARSAL_IMAGE}, CPU model ${NOT_RECORDED}`,
+        jdk: /^\d+(\.\d+)+$/.test(j.jdk ?? '') ? j.jdk : jdkOf(j.jdk),
+        run: a.run,
+        source: `${report}/rehearsal/${a.run}/${job}`,
+      });
+    }
+  }
+  for (const a of Object.values(summary.firstStart ?? {})) {
+    for (const [job, j] of Object.entries(a.jobs)) {
+      figures.push({
+        id: `first-start.${a.pair}.${a.arm}.${job}`,
+        kind: 'first-start',
+        pair: a.pair,
+        arm: a.arm,
+        job,
+        maxCatchUps: a.maxCatchUps,
+        sent: j.sent,
+        failed: j.failed,
+        p99Ms: j.p99Ms,
+        worstSecondP99Ms: j.worstSecondP99Ms,
+        catchUpSeconds: round(j.catchUpMs['example-service'] / 1000),
+        commit: a.code,
+        built: a.commit,
+        environment: 'actions',
+        cpu: `${REHEARSAL_IMAGE}, CPU model ${NOT_RECORDED}`,
+        jdk: /^\d+(\.\d+)+$/.test(j.jdk ?? '') ? j.jdk : jdkOf(j.jdk),
+        run: a.run,
+        attempt: a.attempt,
+        source: `${report}/first-start/${a.dir}/${job}`,
+      });
+    }
+  }
+  return figures;
+}
+
+/** Milliseconds as the smallest and the largest in seconds, to a tenth: a duration a page prints as `2.4 s`. */
+const secondsRange = values => {
+  const ms = range(values);
+  return ms && ms.map(value => round(value / 1000));
+};
 
 /** The commit `environment.txt` records (`commit=<sha>`), cut to ten characters. */
 function environmentCommit(path) {

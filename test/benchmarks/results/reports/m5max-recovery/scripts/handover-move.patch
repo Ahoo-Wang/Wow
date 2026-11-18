@@ -1,0 +1,145 @@
+diff --git a/core/runtime/src/main/kotlin/me/ahoo/wow/runtime/cluster/PartitionOwnership.kt b/core/runtime/src/main/kotlin/me/ahoo/wow/runtime/cluster/PartitionOwnership.kt
+index 20b8878f84..81fe722641 100644
+--- a/core/runtime/src/main/kotlin/me/ahoo/wow/runtime/cluster/PartitionOwnership.kt
++++ b/core/runtime/src/main/kotlin/me/ahoo/wow/runtime/cluster/PartitionOwnership.kt
+@@ -543,6 +543,12 @@ class PartitionOwnership internal constructor(
+             val members = membership.membersOf(group.name).mapTo(HashSet()) { it.node }
+             peerRoutes.membersSeen(members)
+             val goal = Hrw.partitionsOf(node, members + node, partitions)
++            if (goal != target) {
++                val was = target
++                logger.info {
++                    "[move] target of $node: +${(goal - was).sorted()} -${(was - goal).sorted()} members ${members.sorted()}"
++                }
++            }
+             target = goal
+             round.move(goal, reads)
+         } finally {
+diff --git a/core/runtime/src/main/kotlin/me/ahoo/wow/runtime/cluster/PartitionRuns.kt b/core/runtime/src/main/kotlin/me/ahoo/wow/runtime/cluster/PartitionRuns.kt
+index 0ef8f73bfe..6c34d83607 100644
+--- a/core/runtime/src/main/kotlin/me/ahoo/wow/runtime/cluster/PartitionRuns.kt
++++ b/core/runtime/src/main/kotlin/me/ahoo/wow/runtime/cluster/PartitionRuns.kt
+@@ -68,17 +68,33 @@ internal class PartitionRuns(
+      * Not cancellable: a lease acquired is either tracked by a gate or released. The partition's subscriptions read once
+      * [reads] completes, when given. Runs within the group's bound on lease calls ([leaseCalls]).
+      */
+-    suspend fun acquire(partition: Int, reads: Job?) = leaseCalls.bounded {
++    suspend fun acquire(partition: Int, reads: Job?): Unit {
++        val called = timeSource.markNow()
++        leaseCalls.bounded { acquireBounded(partition, reads, called.elapsedNow().inWholeMilliseconds) }
++    }
++
++    private suspend fun acquireBounded(partition: Int, reads: Job?, permitMs: Long) {
+         try {
+-            start(partition, reads)
++            start(partition, reads, permitMs)
+         } finally {
+             progressed()
+         }
+     }
+ 
+-    private suspend fun start(partition: Int, reads: Job?) = withContext(NonCancellable) {
++    private suspend fun start(partition: Int, reads: Job?, permitMs: Long) = withContext(NonCancellable) {
+         val asked = timeSource.markNow()
+-        leases.acquire(group.name, partition, node, options.leaseTtl) ?: return@withContext
++        val taken = leases.acquire(group.name, partition, node, options.leaseTtl)
++        val leaseMs = asked.elapsedNow().inWholeMilliseconds
++        if (taken == null) {
++            logger.info { "[move] lease $partition held elsewhere: permit ${permitMs}ms lease ${leaseMs}ms" }
++            return@withContext
++        }
++        val stepMarks = mutableListOf<String>()
++        var step = timeSource.markNow()
++        fun mark(name: String) {
++            stepMarks += "$name ${step.elapsedNow().inWholeMilliseconds}ms"
++            step = timeSource.markNow()
++        }
+         // Tracked from now on, so the renewals keep the lease while the partition starts; it takes no command yet.
+         val gate = PartitionGate(asked, unrenewedLimit)
+         // Put before the fence is asked: a fence that falls after the put sees the gate when it walks the gates, and
+@@ -88,9 +104,15 @@ internal class PartitionRuns(
+         try {
+             // Another node may have committed to the partition's aggregates since this one last cached them.
+             partitionChanged(partition)
+-            runtimes.forEach { it.startPartition(partition, reads) }
++            mark("states")
++            runtimes.forEach {
++                it.startPartition(partition, reads)
++                mark("sub:${it.group}")
++            }
+             intake?.startPartition(partition, reads)
++            mark("intake")
+             timers.forEach { it.startPartition(partition) }
++            mark("timers")
+         } catch (cancelled: CancellationException) {
+             // A start cancelled from within takes the same way out, then goes on up: no gate is left behind.
+             failedStart(partition, gate, cancelled)
+@@ -109,6 +131,10 @@ internal class PartitionRuns(
+         } else {
+             logger.info { "$node acquired partition $partition of $group." }
+         }
++        logger.info {
++            "[move] started $partition: permit ${permitMs}ms lease ${leaseMs}ms ${stepMarks.joinToString(" ")} " +
++                "total ${asked.elapsedNow().inWholeMilliseconds}ms"
++        }
+     }
+ 
+     /** Closes [gate] for good when the ownership is fenced: it takes no command, and its lease is not renewed. */
+@@ -140,23 +166,55 @@ internal class PartitionRuns(
+         handed.map { partition ->
+             async {
+                 val gate = gates[partition] ?: return@async
++                val begun = timeSource.markNow()
++                val stepMarks = mutableListOf<String>()
++                var step = timeSource.markNow()
++                fun mark(name: String) {
++                    stepMarks += "$name ${step.elapsedNow().inWholeMilliseconds}ms"
++                    step = timeSource.markNow()
++                }
+                 gate.accepting = false
+                 stopTimers(partition)
++                mark("timers")
+                 // The intake stops taking the partition's commands, settles those in flight and saves its checkpoint.
+                 stopIntake(partition)
++                mark("intake")
++                val inFlightAtDrain = gate.inFlight.value
+                 withTimeoutOrNull(options.drainTimeout) { gate.inFlight.awaitZero() } ?: logger.warn {
+                     "$node handed off partition $partition of $group with commands still in flight."
+                 }
+-                stopSubscriptions(partition)
++                mark("drain($inFlightAtDrain)")
++                coroutineScope {
++                    runtimes.map { runtime ->
++                        async {
++                            val each = timeSource.markNow()
++                            quietly("stop the subscriptions of partition $partition", OTHERS_STOPPED) {
++                                runtime.stopPartition(partition)
++                            }
++                            "${runtime.group} ${each.elapsedNow().inWholeMilliseconds}ms"
++                        }
++                    }.awaitAll()
++                }.let { stepMarks += "subs[${it.joinToString(", ")}]" }
++                step = timeSource.markNow()
++                val releaseCalled = timeSource.markNow()
++                var permitMs = 0L
+                 quietly("release partition $partition", LEASE_EXPIRES) {
+-                    leaseCalls.bounded { leases.release(group.name, partition, node) }
++                    leaseCalls.bounded {
++                        permitMs = releaseCalled.elapsedNow().inWholeMilliseconds
++                        leases.release(group.name, partition, node)
++                    }
+                 }
++                mark("release(permit ${permitMs}ms)")
+                 quietly(
+                     "drop the cached states of partition $partition",
+                     STATES_DROPPED_AGAIN
+                 ) { partitionChanged(partition) }
++                mark("states")
+                 gates.remove(partition, gate)
+                 logger.info { "$node handed off partition $partition of $group." }
++                logger.info {
++                    "[move] handed $partition: ${stepMarks.joinToString(" ")} total ${begun.elapsedNow().inWholeMilliseconds}ms"
++                }
+                 progressed()
+             }
+         }.awaitAll()
