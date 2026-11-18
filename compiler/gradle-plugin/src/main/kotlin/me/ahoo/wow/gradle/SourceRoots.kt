@@ -19,9 +19,9 @@ import org.gradle.api.tasks.SourceSet
 import org.gradle.api.tasks.SourceSetContainer
 
 /**
- * The source roots of each source set as an input of its Kotlin compile and its KSP task ([INPUT]): the roots'
- * paths relative to the project, so a build cache entry stays relocatable, and the tasks run again, once, when a source
- * set's roots move.
+ * The source roots of each source set, its Kotlin and its Java ones, as an input of its Kotlin compile and its KSP
+ * task ([INPUT]): the roots' paths relative to the project, so a build cache entry stays relocatable, and the tasks run
+ * again, once, when a source set's roots move. Both tasks read the Java sources too, a Java aggregate's among them.
  *
  * Gradle fingerprints sources by their paths relative to their root, so a source set switched to another root holding
  * the same files at the same relative paths (the staged migration's switch back to `src/`) leaves both tasks up to
@@ -45,9 +45,10 @@ internal object SourceRoots {
         }
     }
 
-    /** The Kotlin roots of [sourceSet], relative to [project]'s directory when within it, sorted. */
+    /** The Kotlin and Java roots of [sourceSet], relative to [project]'s directory when within it, sorted, once each. */
     internal fun rootsOf(project: Project, sourceSet: SourceSet): List<String> =
-        (sourceSet.extensions.getByName("kotlin") as SourceDirectorySet).srcDirs
+        ((sourceSet.extensions.getByName("kotlin") as SourceDirectorySet).srcDirs + sourceSet.java.srcDirs)
             .map { it.relativeToOrSelf(project.projectDir).invariantSeparatorsPath }
+            .distinct()
             .sorted()
 }

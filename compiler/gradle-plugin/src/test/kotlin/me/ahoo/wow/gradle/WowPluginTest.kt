@@ -189,7 +189,9 @@ class WowPluginTest {
         // Moved under another root, as a staged migration's sources are: the input moves with it.
         val main = sourceSets.getByName("main")
         (main.extensions.getByName("kotlin") as SourceDirectorySet).setSrcDirs(listOf("build/staged/main/kotlin"))
-        SourceRoots.rootsOf(domain, main).assert().containsExactly("build/staged/main/kotlin")
+        main.java.setSrcDirs(listOf("build/staged/main/java"))
+        // A Java root that moves alone moves the input too: both tasks read the Java sources.
+        SourceRoots.rootsOf(domain, main).assert().containsExactly("build/staged/main/java", "build/staged/main/kotlin")
     }
 
     @Test
