@@ -32,7 +32,7 @@ build/generated/ksp/main/
 
 ## 查询字段 {#query-fields}
 
-模块的类路径上有 `wow-query-api` 时，每个状态得到 `<State>Properties`：快照查询能指明的每条路径一个 `QueryField` 常量，例如 `state.price` 对应 `ProductStateProperties.STATE__PRICE`，与 `SnapshotProperties` 中的系统字段放在一起（[查询快照](./queries#write-a-query-in-kotlin)）。
+模块的类路径上有 `wow-query-api` 时，每个状态得到 `<State>Properties`：快照查询能指明的每条路径一个 `QueryField` 常量，例如 `state.price` 对应 `ProductStateProperties.STATE__PRICE`，与 `SnapshotProperties` 中的系统字段放在一起（[查询快照](./queries#write-a-query-in-kotlin)）。以任何集合形态持有元素的属性，列表、集合、`SortedSet`、`Deque`、数组或声明为 `Iterable` 的属性，也会得到其元素的字段，在它的 `elementMatch { }` 内指明；映射是叶子。类的 `Sequence` 是指明该属性的编译错误：Jackson 把它的元素读回为映射，所以请用 `List` 或 `Set` 持有它们。
 
 ## 绑定索引 {#the-binding-index}
 
