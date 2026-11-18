@@ -34,6 +34,7 @@ import tools.jackson.databind.annotation.JsonSerialize
 import tools.jackson.databind.cfg.JsonNodeFeature
 import tools.jackson.databind.exc.MismatchedInputException
 import tools.jackson.databind.json.JsonMapper
+import tools.jackson.module.kotlin.KotlinFeature
 import tools.jackson.module.kotlin.KotlinModule
 
 /**
@@ -43,7 +44,9 @@ import tools.jackson.module.kotlin.KotlinModule
  * - It registers a fixed set of modules, the Kotlin module and Wow's own, and never discovers others on the class path:
  * what Wow stores and sends must not depend on what a host happens to bring.
  * - Wow's own enumerations are written by their lower-kebab wire names, and read by them alone
- *   ([WowEnums]); a domain's enumerations are written as its Jackson writes them.
+ *   ([WowEnums]); a domain's enumerations are written as its Jackson writes them. A `java.time.Month` is written by
+ *   its name, as every enumeration is ([MonthNames]).
+ * - A `kotlin.time.Duration` is ISO-8601 text, as a `java.time.Duration` is ([KotlinDurations]).
  * - A [me.ahoo.wow.spi.log.Transport] is written in its one form ([TransportCodec]), wherever a
  *   message embeds one.
  * - JSON numbers keep their exact value. A decimal read into an untyped value (`Any`, `Map<String, Any?>`) or a tree
@@ -69,7 +72,9 @@ object WowJson {
 
     /** Wow's configuration but for its enumerations ([WowEnums]), which a writer and an older reader read apart. */
     private fun base(): JsonMapper.Builder = JsonMapper.builder()
-        .addModule(KotlinModule.Builder().build())
+        .addModule(KotlinModule.Builder().enable(KotlinFeature.UseJavaDurationConversion).build())
+        .addModule(MonthNames.module)
+        .addModule(KotlinDurations.module)
         .addMixIn(ScheduleRule::class.java, ScheduleRuleJson::class.java)
         .addMixIn(AggregateRef::class.java, AggregateRefJson::class.java)
         .addModule(TransportCodec.module)

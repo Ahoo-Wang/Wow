@@ -252,6 +252,7 @@ internal class SchemaIntrospector(
             // A declared property is the whole property, ahead of its list's or map's ([SchemaOverrides]).
             .withCustomDefinitionProvider(overrides.members<FieldScope>())
             .withCustomDefinitionProvider(TypeArguments.Containers.of<FieldScope>())
+            .withCustomDefinitionProvider(WireTypes.kotlinDurations<FieldScope>())
             .withInstanceAttributeOverride { attributes, field, _ ->
                 queryKeywords.overrideMemberAttributes(
                     attributes,
@@ -266,6 +267,7 @@ internal class SchemaIntrospector(
             .withNullableCheck { isKotlinNullable(it) }
             .withCustomDefinitionProvider(overrides.members<MethodScope>())
             .withCustomDefinitionProvider(TypeArguments.Containers.of<MethodScope>())
+            .withCustomDefinitionProvider(WireTypes.kotlinDurations<MethodScope>())
             .withInstanceAttributeOverride { attributes, method, _ ->
                 queryKeywords.overrideMemberAttributes(
                     attributes,

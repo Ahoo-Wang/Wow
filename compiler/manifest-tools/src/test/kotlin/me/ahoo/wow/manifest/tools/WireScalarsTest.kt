@@ -60,8 +60,12 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 import java.util.regex.Pattern
+import kotlin.reflect.KClass
 import kotlin.reflect.full.declaredMemberProperties
 import kotlin.reflect.jvm.javaField
+import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * The schema of each platform value class is what Wow's JSON writes for it ([WireTypes.SCALARS]): a value of each, in
@@ -80,7 +84,6 @@ class WireScalarsTest {
         val byte: Byte = 1,
         val boxedByte: Byte? = 1,
         val year: Year = Year.of(2026),
-        val month: Month = Month.JANUARY,
         val long: Long = 1,
         val boxedLong: Long? = 1,
         val bigInteger: BigInteger = BigInteger.TEN,
@@ -99,6 +102,9 @@ class WireScalarsTest {
         val offsetTime: OffsetTime = OffsetTime.parse("03:04:05+08:00"),
         val duration: Duration = Duration.ofMinutes(90),
         val period: Period = Period.of(1, 2, 3),
+        // A Kotlin duration the JVM holds as a long, and one it holds as the class.
+        val kotlinDuration: kotlin.time.Duration = 90.minutes,
+        val boxedKotlinDuration: kotlin.time.Duration? = 90.minutes,
         val uuid: UUID = UUID(1, 2),
         val uri: URI = URI("https://example.com/a"),
         val url: URL = URI("https://example.com/a").toURL(),
@@ -114,8 +120,9 @@ class WireScalarsTest {
         val timeZone: TimeZone = TimeZone.getTimeZone("UTC"),
         val locale: Locale = Locale.CHINA,
         val currency: Currency = Currency.getInstance("CNY"),
-        // Not scalars of the table: an enumeration Wow's JSON writes by its name, as its schema says.
+        // Not scalars of the table: enumerations, which Wow's JSON writes by their names, as their schemas say.
         val dayOfWeek: DayOfWeek = DayOfWeek.MONDAY,
+        val month: Month = Month.JANUARY,
     )
 
     // Read back from the text, as a reader sees it: a tree of the value holds a byte array as binary, not text.
@@ -160,7 +167,11 @@ class WireScalarsTest {
 
     @Test
     fun `each value's schema should be of the JSON type and format Wow's JSON writes it as`() {
-        val fields = Values::class.declaredMemberProperties.associate { it.name to it.javaField!!.type }
+        // A Kotlin duration the JVM holds as a long is described as the class Kotlin declares.
+        val fields = Values::class.declaredMemberProperties.associate { property ->
+            val declared = (property.returnType.classifier as KClass<*>).java
+            property.name to if (declared == kotlin.time.Duration::class.java) declared else property.javaField!!.type
+        }
         val disagreements = fields.mapNotNull { (name, type) ->
             val schema = schema(name)
             val wire = typeOf(written.getValue(name))
@@ -189,7 +200,15 @@ class WireScalarsTest {
     data class HoldsAtomicBoolean(val value: AtomicBoolean = AtomicBoolean(true))
     data class HoldsAtomicInteger(val value: AtomicInteger = AtomicInteger(1))
     data class HoldsAtomicLong(val value: AtomicLong = AtomicLong(1))
-    data class HoldsDurations(val value: List<kotlin.time.Duration> = emptyList())
+    data class HoldsDurations(
+        val list: List<kotlin.time.Duration> = listOf(1.hours),
+        val map: Map<String, kotlin.time.Duration> = mapOf("a" to 3.seconds),
+    )
+
+    @JvmInline
+    value class Timeout(val value: kotlin.time.Duration)
+
+    data class HoldsTimeout(val value: Timeout = Timeout(5.seconds))
     data class HoldsCharsets(val value: Map<String, Charset> = emptyMap())
 
     @Test
@@ -206,7 +225,6 @@ class WireScalarsTest {
             HoldsAtomicBoolean::class.java to AtomicBoolean::class.java,
             HoldsAtomicInteger::class.java to AtomicInteger::class.java,
             HoldsAtomicLong::class.java to AtomicLong::class.java,
-            HoldsDurations::class.java to kotlin.time.Duration::class.java,
             HoldsCharsets::class.java to Charset::class.java,
         ).forEach { (state, held) ->
             val key = "${state.name}#value"
@@ -218,6 +236,43 @@ class WireScalarsTest {
                     "{ schemaOverrides.put(\"$key\", \"<JSON Schema>\") }, or hold it as a String.",
             )
         }
+    }
+
+    @Test
+    fun `a month should be written by its name, as its schema's enumeration says`() {
+        written["month"].asString().assert().isEqualTo("JANUARY")
+        schema("month")["enum"].assert().isEqualTo(Month.entries.map { it.name })
+    }
+
+    @Test
+    fun `a Kotlin duration should be ISO-8601 text, held as a long, a class, an element or a map's value`() {
+        written["kotlinDuration"].asString().assert().isEqualTo("PT1H30M")
+        written["boxedKotlinDuration"].asString().assert().isEqualTo("PT1H30M")
+        val durations = WowJson.mapper.readTree(WowJson.mapper.writeValueAsString(HoldsDurations()))
+        durations["list"][0].asString().assert().isEqualTo("PT1H")
+        durations["map"]["a"].asString().assert().isEqualTo("PT3S")
+        val held = introspector.complete(QueryKeywordsTest.fragment(HoldsDurations::class.java))
+            .defs.getValue(HoldsDurations::class.java.name).let { (it as Map<*, *>)["properties"] as Map<*, *> }
+        val list = (held["list"] as Map<*, *>)["items"] as Map<*, *>
+        val map = (held["map"] as Map<*, *>)["additionalProperties"] as Map<*, *>
+        listOf(schema("kotlinDuration"), schema("boxedKotlinDuration"), list, map).forEach { duration ->
+            val type = duration["type"]
+            (if (type is List<*>) type - "null" else listOf(type)).assert().isEqualTo(listOf("string"))
+            duration[WireTypes.FORMAT].assert().isEqualTo("duration")
+            duration[WireTypes.CLASS_KEYWORD].assert().isEqualTo(kotlin.time.Duration::class.java.name)
+        }
+    }
+
+    @Test
+    fun `a value class over a Kotlin duration should be refused, naming the property`() {
+        val key = "${HoldsTimeout::class.java.name}#value"
+        val fragment = QueryKeywordsTest.fragment(HoldsTimeout::class.java)
+        assertThrows<IllegalStateException> { introspector.complete(fragment) }
+            .message.assert().isEqualTo(
+                "Wow's JSON writes $key, a ${Timeout::class.java.name} over a kotlin.time.Duration, as Kotlin's " +
+                    "internal encoding of the duration, which no unit reads: declare it in wow " +
+                    "{ schemaOverrides.put(\"$key\", \"<JSON Schema>\") }, or hold a kotlin.time.Duration.",
+            )
     }
 
     @Test
