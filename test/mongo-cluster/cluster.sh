@@ -48,9 +48,10 @@ up() {
   url "$mode" >/dev/null
   down
   case $mode in
-    rs) ports=(-p 27101-27103:27101-27103) ;;
-    sharded) ports=(-p 27200:27200 -p 27202:27202) ;;
+    rs) ports=(-p 127.0.0.1:27101-27103:27101-27103) ;;
+    sharded) ports=(-p 127.0.0.1:27200:27200 -p 127.0.0.1:27202:27202) ;;
   esac
+  # On 127.0.0.1 only: a wildcard binding cannot be taken while another tool holds the port on a loopback alias.
   # --init reaps the members that stop, so the supervisor sees them gone and starts them again.
   docker run -d --init --name "$NAME" "${ports[@]}" -v "$HERE/supervise.sh:/supervise.sh:ro" \
     --entrypoint bash "$IMAGE" /supervise.sh "$mode" >/dev/null
