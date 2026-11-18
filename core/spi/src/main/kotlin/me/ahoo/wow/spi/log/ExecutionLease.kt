@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.kernel
+package me.ahoo.wow.spi.log
 
 import me.ahoo.wow.api.annotation.InternalWowApi
 import kotlin.coroutines.AbstractCoroutineContextElement
@@ -28,6 +28,10 @@ import kotlin.coroutines.CoroutineContext
  *
  * Without either (a `Local` router, a context without a lease group, a command intake), states are cached as before
  * and a decide that does I/O always looks its request id up on a miss.
+ *
+ * The log reads it too: the coroutine of an [EventLog.append] or [EventLog.appendAll] carries the mark of the commands
+ * whose streams it appends. A backend that gives a partition's owner its sequences ahead may give an append under
+ * [NOT_HELD] only those it writes, so a command run without the lease leaves none open behind it (MongoDB's blocks).
  */
 @InternalWowApi
 class ExecutionLease private constructor(val held: Boolean) : AbstractCoroutineContextElement(Key) {

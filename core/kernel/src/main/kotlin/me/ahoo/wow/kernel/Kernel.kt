@@ -31,6 +31,7 @@ import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.log.ExecutionLease
 import me.ahoo.wow.spi.log.SnapshotTailReader
 import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.observation.ObservedOutcome

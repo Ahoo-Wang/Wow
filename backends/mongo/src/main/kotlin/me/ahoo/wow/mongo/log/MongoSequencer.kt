@@ -49,6 +49,11 @@ import kotlin.concurrent.withLock
  * ([abandon]). A done block holds no sequence a tail waits at, so a done block still listed is never resolved, and the
  * collections it names were registered when it was reserved.
  *
+ * A node that does not own a partition keeps no block of it open: an append run without the lease (`exact`) closes
+ * the node's current block and reserves exactly the one sequence it writes, and a hand-off closes the current block's
+ * remainder ([handOff]). Only a node that stops without handing off (a crash, a lost lease) leaves a block open, which
+ * the tail then resolves after its grace.
+ *
  * [node] identifies this log's process for its blocks only; a restarted node has another, so its former blocks are
  * sealed like any stopped node's.
  */
@@ -69,9 +74,24 @@ internal class MongoSequencer(
      * A sequence of [partition] for an append to [collection], greater than [after] (the aggregate's previous stream,
      * 0 for none). [registered] gives the collections a new block may be written to. The caller writes
      * [Allocation.closing] first when there is one, then the stream, and [settle]s both.
+     *
+     * [exact] for an append whose command runs without the partition's lease: the sequence comes from a block of its
+     * own, of that one sequence, and the current block is closed, so the node leaves nothing open in a partition
+     * another node may own. One reservation per stream, only while a partition changes hands.
      */
-    fun allocate(partition: Int, collection: String, after: Long, registered: () -> Collection<String>): Allocation =
-        lanes[partition].allocate(collection, after, registered)
+    fun allocate(
+        partition: Int,
+        collection: String,
+        after: Long,
+        exact: Boolean,
+        registered: () -> Collection<String>,
+    ): Allocation = lanes[partition].allocate(collection, after, exact, registered)
+
+    /**
+     * This node handed [partition] off: its current block is closed at its next sequence, the [Closing] to write, null
+     * when it has no block or its block is used up. The block's sequences given out are settled by their appends.
+     */
+    fun handOff(partition: Int): Closing? = lanes[partition].handOff()
 
     /** [sequence] of [partition] is written, or has its placeholder. */
     fun settle(partition: Int, sequence: Long) = lanes[partition].settle(sequence)
@@ -132,16 +152,23 @@ internal class MongoSequencer(
         /** Done blocks still on the counter's list, for this lane's next reservation to take out. */
         private val finished = ArrayList<Block>()
 
-        fun allocate(collection: String, after: Long, registered: () -> Collection<String>): Allocation =
+        fun allocate(
+            collection: String,
+            after: Long,
+            exact: Boolean,
+            registered: () -> Collection<String>,
+        ): Allocation =
             lock.withLock {
                 var closing: Closing? = null
-                val usable = current?.takeIf { it.next <= it.to && collection in it.collections && it.next > after }
+                val usable = current?.takeIf {
+                    !exact && it.next <= it.to && collection in it.collections && it.next > after
+                }
                 val block = usable ?: run {
                     // Reserved first, the done blocks taken out in the same update: a reservation that fails leaves
                     // the current block and the list as they were.
                     // The current block among them when it is used up and settled, as it usually is by now.
                     val done = finished + retired.filter { it.done } + listOfNotNull(current?.takeIf { it.done })
-                    val fresh = reserve(registered() + collection, done)
+                    val fresh = reserve(registered() + collection, done, if (exact) 1L else blockSize)
                     closing = current?.let(::retire)
                     // Every done block was taken out, the current one too when it was: none is left in `retired`.
                     finished.clear()
@@ -152,6 +179,8 @@ internal class MongoSequencer(
                 block.pending += sequence
                 Allocation(partition, sequence, closing)
             }
+
+        fun handOff(): Closing? = lock.withLock { current?.let(::retire) }
 
         /** Stops allocating from [block]; its remainder, when it has one, is to be closed, which it then waits for. */
         private fun retire(block: Block): Closing? {
@@ -166,27 +195,27 @@ internal class MongoSequencer(
         private fun closingOf(block: Block) = Closing(partition, block.next, block.to, block.collections.first())
 
         /**
-         * Reserves the next block for [collections], and takes this node's [done] blocks out of the list in the same
-         * update, each by its node and first sequence.
+         * Reserves the next block of [size] sequences for [collections], and takes this node's [done] blocks out of the
+         * list in the same update, each by its node and first sequence.
          */
-        private fun reserve(collections: Collection<String>, done: List<Block>): Block {
+        private fun reserve(collections: Collection<String>, done: List<Block>, size: Long): Block {
             val names = collections.distinct()
             val add = Document(NODE, node)
                 .append(FROM, Document("\$add", listOf("\$${MongoEventLog.SEQUENCE}", 1L)))
-                .append(TO, Document("\$add", listOf("\$${MongoEventLog.SEQUENCE}", blockSize)))
+                .append(TO, Document("\$add", listOf("\$${MongoEventLog.SEQUENCE}", size)))
                 .append(COLLECTIONS, names)
             // One pipeline update: both fields are computed from the counter as it was, so the block is the next range.
             val listed = Document("\$ifNull", listOf("\$$BLOCKS", emptyList<Any>()))
             val open = if (done.isEmpty()) listed else withoutDone(listed, done)
             val blocks = Document("\$concatArrays", listOf(open, listOf(add)))
-            val sequence = Document("\$add", listOf("\$${MongoEventLog.SEQUENCE}", blockSize))
+            val sequence = Document("\$add", listOf("\$${MongoEventLog.SEQUENCE}", size))
             val update = listOf(Document("\$set", Document(BLOCKS, blocks).append(MongoEventLog.SEQUENCE, sequence)))
             val to = counters.findOneAndUpdate(
                 Filters.eq(MongoEventLog.ID, partition),
                 update,
                 FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER),
             )!!.getLong(MongoEventLog.SEQUENCE)
-            return Block(to - blockSize + 1, to, names.toSet())
+            return Block(to - size + 1, to, names.toSet())
         }
 
         /** [listed] less this node's [done] blocks, each named by its node and first sequence. */

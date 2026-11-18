@@ -32,6 +32,7 @@ import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.CommittedRequest
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.log.ExecutionLease
 import me.ahoo.wow.spi.log.LogEntry
 import org.junit.jupiter.api.Test
 import java.io.IOException

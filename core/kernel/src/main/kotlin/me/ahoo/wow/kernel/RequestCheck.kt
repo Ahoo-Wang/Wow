@@ -18,6 +18,7 @@ import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.spi.log.AggregateTail
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.log.ExecutionLease
 
 /**
  * How one execution makes sure its request is not committed already: from the

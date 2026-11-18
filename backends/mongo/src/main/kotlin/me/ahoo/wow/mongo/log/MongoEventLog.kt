@@ -45,6 +45,7 @@ import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.log.ExecutionLease
 import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.log.LogPosition
 import me.ahoo.wow.spi.log.PartitionLineage
@@ -90,7 +91,9 @@ import kotlin.time.Duration.Companion.seconds
  * a missing sequence: an append of some node may still land there. Missing for [STALL_GRACE], the sequence is
  * resolved through the counter's open blocks: this node's own remainder is closed, its own unfilled sequence filled,
  * another node's block sealed; entries past it while it waits may also be in a collection this log does not know yet,
- * so it reads the registry again.
+ * so it reads the registry again. A node that hands a partition off closes its block's remainder then ([handedOff]),
+ * and an append run without the partition's lease takes exactly its own sequence: neither leaves the next owner's tail
+ * a grace to wait. A node that stops without handing off, a crash or a lost lease, still does, once per open block.
  *
  * **Read concern.** Every read, the tail, [head], the version slot reads ([readEntries], [positionOf]) and the
  * request lookups included, reads what a majority of the replica set has committed (`readConcern: majority`).
@@ -261,10 +264,21 @@ class MongoEventLog(
         collections.of(aggregateName)
     }
 
-    override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome =
-        dispatcher.mongo { appender.appendNow(stream, transport) }.also { outcome ->
+    /**
+     * Appends [stream] at a sequence of its partition's block: one of exactly that sequence when its command runs
+     * without the partition's lease ([ExecutionLease.NOT_HELD]), so the node leaves no block open in a partition
+     * another node owns ([MongoSequencer.allocate]).
+     */
+    override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome {
+        val exact = withoutLease()
+        return dispatcher.mongo { appender.appendNow(stream, transport, exact) }.also { outcome ->
             if (outcome is AppendOutcome.Committed) pacer.committed(outcome.position.partition)
         }
+    }
+
+    /** Whether the append's command runs without its partition's lease, as the router marked it. */
+    private suspend fun withoutLease(): Boolean =
+        currentCoroutineContext()[ExecutionLease] === ExecutionLease.NOT_HELD
 
     /** A group may hold the streams of several partitions: each takes its own partition's sequence. */
     override val appendsAcrossPartitions: Boolean get() = true
@@ -294,12 +308,13 @@ class MongoEventLog(
         }
         requireChains(streams)
         val marks = currentCoroutineContext()[StoreCallMarks]?.apply { entered() }
+        val exact = withoutLease()
         return dispatcher.mongo {
             marks?.onThread()
             marks?.acquired()
             HeldStoreCallMarks.hold(marks)
             try {
-                appender.appendGroup(streams, marks).also { marks?.released() }
+                appender.appendGroup(streams, marks, exact).also { marks?.released() }
             } finally {
                 HeldStoreCallMarks.release(marks)
             }
@@ -387,6 +402,16 @@ class MongoEventLog(
                 woken = pace.woken
             }
         }
+    }
+
+    /**
+     * Closes the remainder of this node's block of [partition], one range placeholder, so the next owner's tail does
+     * not wait a grace at it. A node that stops without handing off leaves its block open: the tail resolves it
+     * after [STALL_GRACE], as before. A closing that cannot be written now is left to the tail as well.
+     */
+    override suspend fun handedOff(partition: Int) {
+        require(partition in 0 until partitions) { "No partition $partition among $partitions." }
+        dispatcher.mongo { sequencer.handOff(partition)?.let(placeholders::close) }
     }
 
     /**

@@ -24,6 +24,7 @@ import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.log.ExecutionLease
 import me.ahoo.wow.spi.log.TransportCodec
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.wait.WaitContext

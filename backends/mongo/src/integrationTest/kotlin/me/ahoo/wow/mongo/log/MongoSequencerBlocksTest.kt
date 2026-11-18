@@ -19,10 +19,13 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
+import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.spi.log.AppendOutcome
+import me.ahoo.wow.spi.log.ExecutionLease
 import org.bson.Document
 import org.junit.jupiter.api.Test
 
@@ -130,6 +133,47 @@ class MongoSequencerBlocksTest : MongoLogFixtures() {
             tailed(log, 2).map { it.stream.ref.id }.assert().containsExactly("a", "b")
             counter(context).getList("blocks", Document::class.java).map { it.getLong("from") }
                 .assert().doesNotContain(MongoEventLog.BLOCK + 1)
+        }
+
+    @Test
+    fun `a node that hands a partition off closes its remainder, so the next owner's tail does not wait at it`(): Unit =
+        runBlocking {
+            val context = MongoLogFixture.newContext()
+            val old = MongoLogFixture.log(1, context)
+            val next = MongoLogFixture.log(1, context)
+            val type = AggregateType(context, "order")
+            old.append(stream("a", 1, aggregate = type))
+            old.handedOff(0)
+            // One range placeholder over the sequences the node did not give out.
+            val closed = MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE)
+                .getCollection(collection(context, "order"))
+                .find(Filters.eq(MongoEventLog.GAP_TO, MongoEventLog.BLOCK)).toList()
+            closed.map { it.getLong(MongoEventLog.SEQUENCE) }.assert().containsExactly(2L)
+            (next.append(stream("b", 1, aggregate = type)) as AppendOutcome.Committed).position.sequence
+                .assert().isEqualTo(MongoEventLog.BLOCK + 1)
+            tailed(next, 2).map { it.stream.ref.id }.assert().containsExactly("a", "b")
+            // Nothing is left to close: a second hand-off writes nothing.
+            old.handedOff(0)
+            assertThrownBy<IllegalArgumentException> { runBlocking { old.handedOff(1) } }
+        }
+
+    @Test
+    fun `an append without the lease takes exactly the sequences it writes, alone or in a group`(): Unit =
+        runBlocking {
+            val context = MongoLogFixture.newContext()
+            val degraded = MongoLogFixture.log(1, context)
+            val owner = MongoLogFixture.log(1, context)
+            val type = AggregateType(context, "order")
+            withContext(ExecutionLease.NOT_HELD) {
+                (degraded.append(stream("a", 1, aggregate = type)) as AppendOutcome.Committed).position.sequence
+                    .assert().isEqualTo(1L)
+                degraded.appendAll(group(context, "b", "c")).map { (it as AppendOutcome.Committed).position.sequence }
+                    .assert().containsExactly(2L, 3L)
+            }
+            // No block of the node is open past them: the owner's block starts right after.
+            (owner.append(stream("d", 1, aggregate = type)) as AppendOutcome.Committed).position.sequence
+                .assert().isEqualTo(4L)
+            tailed(owner, 4).map { it.stream.ref.id }.assert().containsExactly("a", "b", "c", "d")
         }
 
     private fun counters(context: String) =

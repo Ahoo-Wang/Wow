@@ -15,12 +15,14 @@ package me.ahoo.wow.spi.log
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 /** A backend that implements only what it must has none of the optional capabilities (finding R5.B-9). */
 class OptionalCapabilitiesTest {
@@ -45,6 +47,13 @@ class OptionalCapabilitiesTest {
 
         override suspend fun load(ref: AggregateRef): SnapshotRecord? = null
     }
+
+    @Test
+    fun `a log that gives no sequences ahead has nothing to do at a hand-off, of a partition it has`(): Unit =
+        runBlocking {
+            Required.handedOff(0)
+            assertThrows<IllegalArgumentException> { Required.handedOff(1) }
+        }
 
     @Test
     fun `a snapshot store cannot rebuild unless it says otherwise`() {

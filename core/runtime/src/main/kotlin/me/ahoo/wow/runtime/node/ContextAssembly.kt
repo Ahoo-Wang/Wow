@@ -309,6 +309,8 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
             timers = logGroups.mapNotNull { it.timers?.runner },
             groups = logGroups.drop(1).map { it.subscriptions },
             partitionChanged = { partition -> states.invalidate(partition, partitions) },
+            // Each log group's log gave the partition's owner sequences of its own.
+            drained = { partition -> logGroups.forEach { it.log.handedOff(partition) } },
             membership = membershipOf(backends.leases),
             observer = observer,
         )
