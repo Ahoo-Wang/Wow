@@ -37,6 +37,9 @@ The warehouse's flat view follows the same rule: a writer replaces it only with 
 ## Your code: the contract
 
 The commands, events, state and errors a service exposes are its contract with its clients and peers. The Gradle plugin compares each build's Manifest with the committed baseline and fails a change that breaks a client: a removed command or event, a new required field, a field removed or retyped. Record an intended change with `updateWowManifestBaseline` and review it with the code ([Test a Service](../guide/testing-services#check-the-contract)). Within the baseline's compatibility line, the service's major version, the update refuses a breaking change: it needs the service's next major version, which records the break and the new line, or a new command beside the old one.
+or a new command beside the old one.
+
+**The order of a rollout that adds a property to a command.** A service refuses a body that gives a property its command does not have (`unknown-property`), so its nodes are upgraded before its clients send the new property, and a service that calls another is upgraded after the one it calls. Between the nodes of one service the property is ignored: a node of the version before reads a newer node's forward or logged command, its saga's derived command among them, without it.
 
 ## Subscriptions during a rollout
 

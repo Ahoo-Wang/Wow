@@ -18,6 +18,8 @@ import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.spi.json.JsonReadFailures
 import tools.jackson.core.JacksonException
+import tools.jackson.core.exc.InputCoercionException
+import tools.jackson.core.exc.StreamReadException
 import tools.jackson.databind.DeserializationFeature
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.ObjectReader
@@ -71,12 +73,17 @@ internal class CommandBodies(private val mapper: JsonMapper) {
     private fun violationOf(body: CommandBody, type: Class<*>, failure: JacksonException): Violation? {
         // A command object is taken as it is, never read: only text and a tree fail to read.
         val json = if (body is CommandBody.Bytes) treeOf(body.bytes) else (body as CommandBody.Tree).node
-        // A failure that is about no value of a body that is JSON is the property it gives twice.
-        val read = json?.let { failures.of(it, type, failure) ?: (body as? CommandBody.Bytes)?.let(::duplicateIn) }
+        // Text that reads as JSON fails to read strictly only on a property it gives twice, at any depth, which a
+        // reader may report through the property holding it: the duplicate is asked for first.
+        val read = json?.let {
+            if (body is CommandBody.Bytes && failure.readsStrictly()) failures.duplicateIn(body.bytes) else null
+        } ?: json?.let { failures.of(it, type, failure) }
         return read?.let { Violation.of(it.path, it.reason.code, it.message) }
     }
 
-    private fun duplicateIn(body: CommandBody.Bytes) = failures.duplicateIn(body.bytes)
+    /** Whether [this] or a cause is the stream's own failure: a duplicate, not a number out of its type's range. */
+    private fun JacksonException.readsStrictly(): Boolean = generateSequence<Throwable>(this) { it.cause }
+        .any { it is StreamReadException && it !is InputCoercionException }
 
     private fun readerOf(type: Class<*>): ObjectReader =
         readers.computeIfAbsent(type) {
