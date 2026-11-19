@@ -1,4 +1,4 @@
-# Message keys — 2221.
+# Message keys — 2222.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Wording and language」, docs/design/decisions.md D29).
 analysis.alias.duplicate
