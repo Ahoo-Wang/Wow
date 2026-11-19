@@ -80,7 +80,8 @@ internal object DateOperands {
     private fun equality(expression: FilterExpression): FilterExpression? = when (expression) {
         is EqualFilter -> expression.value.instant()?.let { within(expression.field, it) }
         is NotEqualFilter -> expression.value.instant()?.let { NorFilter(listOf(within(expression.field, it))) }
-        is InFilter -> expression.values.instants()?.let { at -> OrFilter(at.map { within(expression.field, it) }) }
+        is InFilter -> expression.values.instants()?.map { within(expression.field, it) }
+            ?.let { ranges -> ranges.singleOrNull() ?: OrFilter(ranges) }
         is NotInFilter -> expression.values.instants()?.let { at -> NorFilter(at.map { within(expression.field, it) }) }
         else -> null
     }

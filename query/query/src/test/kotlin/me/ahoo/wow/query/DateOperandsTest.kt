@@ -92,6 +92,7 @@ class DateOperandsTest {
         admitted(EqualFilter(at, "2026-10-13T08:00:00.0005Z")).assert().isEqualTo(within)
         admitted(EqualFilter(at, "2026-10-13T16:00:00+08:00")).assert().isEqualTo(within)
         admitted(NotEqualFilter(at, first)).assert().isEqualTo(NorFilter(listOf(within)))
+        admitted(InFilter(at, listOf(first))).assert().isEqualTo(within)
         admitted(InFilter(at, listOf(first, next))).assert()
             .isEqualTo(OrFilter(listOf(within, BetweenFilter(at, next, "2026-10-13T08:00:00.001999999Z"))))
         admitted(NotInFilter(at, listOf(first))).assert().isEqualTo(NorFilter(listOf(within)))
