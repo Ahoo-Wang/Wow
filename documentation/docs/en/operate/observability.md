@@ -95,7 +95,7 @@ The sampled gauges, the parked entries and the subscriptions' positions, come fr
 | --- | --- | --- |
 | Readiness down on a node for minutes | A store down, or a node that lost its partitions | `/actuator/health/wow` |
 | `wow.subscription.parked.aggregates` above 0 | An aggregate waits for a fix and an operator | [The Ops Service and Console](./ops-console) |
-| `wow.subscription.paused.partitions` above 0 for long | A downstream store or service is down | The subscription's logs, the store |
+| `wow.subscription.paused.partitions` above 0 for long | A store or service the subscription depends on fails it systemically: down, refusing, or timing out under the load, such as a sink's store slower than the traffic. A paused partition handles one probe at a time until a handling succeeds. A store that is only slower, its writes still succeeding, throttles instead (`wow.subscription.throttled.partitions`) | The subscription's logs, which name why it paused; the store's health; its errors and latency against the traffic; `wow.subscription.backlog`, for how far it fell behind |
 | `wow.subscription.backlog` growing | A subscription falls behind | Its lag, its handler's latency, the node's executor |
 | `wow.timer.delay` growing | Timers fire late | The node's load, the timers' store |
 | `wow.subscription.offset.gaps` above 0 | A subscription skipped or stopped at retained data | The topic's retention |
