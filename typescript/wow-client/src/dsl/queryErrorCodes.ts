@@ -41,6 +41,8 @@ export const QueryErrorCodes = Object.freeze({
   EMPTY_BODY: 'empty-body',
   /** The body has a property the query type does not declare. */
   UNKNOWN_PROPERTY: 'unknown-property',
+  /** The body gives a property more than once in one object. */
+  DUPLICATE_PROPERTY: 'duplicate-property',
   /** An `op`, metric or other type discriminator names no known type. */
   UNKNOWN_TYPE: 'unknown-type',
   /** An enum value is not one the server knows. */
