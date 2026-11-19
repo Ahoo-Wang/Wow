@@ -29,6 +29,7 @@ import me.ahoo.wow.spi.access.AggregatePage
 import me.ahoo.wow.spi.log.AggregateTail
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.CommittedRequest
+import me.ahoo.wow.spi.log.CreationClaim
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogEntry
@@ -179,6 +180,14 @@ class InMemoryEventLog(override val partitions: Int = DEFAULT_PARTITIONS) :
 
     override suspend fun findByRequestId(type: AggregateType, tenantId: String, requestId: String): EventStreamRecord? =
         lock.withLock { requests[tenantId to requestId]?.firstOrNull { it.ref.type == type } }
+
+    /** No claim: a request is keyed per (tenant, request) and type, so a second attempt under another id meets it. */
+    override suspend fun claimCreation(
+        type: AggregateType,
+        tenantId: String,
+        requestId: String,
+        claim: CreationClaim,
+    ): CreationClaim = claim
 
     override suspend fun head(partition: Int): Long? {
         require(partition in 0 until partitions) { "No partition $partition among $partitions." }

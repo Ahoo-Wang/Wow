@@ -175,19 +175,20 @@ interface EventLog {
      * aggregate, so that every attempt of one request targets one aggregate, in one partition, whatever the attempts'
      * draws.
      *
-     * A log whose request key spans the aggregate type keeps no claims: a second attempt's stream, under another id,
-     * meets the first's at the key, and that is the default, which returns [claim]. A log whose key is narrower must
-     * claim: insert-if-absent, one claim per (type, tenant, request), as durable as its streams. A claim lost while
-     * an attempt of its request is still deciding lets a retry draw again, and both attempts may then commit, two
+     * A log whose request key spans the aggregate type keeps no claims and returns [claim]: a second attempt's
+     * stream, under another id, meets the first's at the key. A log whose key is narrower must claim:
+     * insert-if-absent, one claim per (type, tenant, request), as durable as its streams. A claim lost while an
+     * attempt of its request is still deciding lets a retry draw again, and both attempts may then commit, two
      * aggregates under two ids. A claim is never released: no bound holds an attempt, so no time after which a claim
-     * is no longer needed.
+     * is no longer needed. A log that wraps another forwards the call: it has no default, so that a wrapper written
+     * by hand cannot drop the claims it does not forward.
      */
     suspend fun claimCreation(
         type: AggregateType,
         tenantId: String,
         requestId: String,
         claim: CreationClaim,
-    ): CreationClaim = claim
+    ): CreationClaim
 
     /**
      * The entries of [partition] after [after] (exclusive; null from the start), in sequence order, each with its

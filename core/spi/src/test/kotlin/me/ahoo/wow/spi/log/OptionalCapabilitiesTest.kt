@@ -39,6 +39,9 @@ class OptionalCapabilitiesTest {
 
         override suspend fun findByRequestId(type: AggregateType, tenantId: String, requestId: String) = null
 
+        override suspend fun claimCreation(type: AggregateType, tenantId: String, requestId: String, claim: CreationClaim) =
+            claim
+
         override fun tail(partition: Int, after: Long?): Flow<LogEntry> = emptyFlow()
 
         override suspend fun head(partition: Int): Long? = null
