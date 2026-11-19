@@ -68,20 +68,25 @@ class FilterNormalizer {
      * [lowering][me.ahoo.wow.query.spec.FilterOperatorSpec.lowering] states: a rewrite (`EQ`/`NE` of `null` to
      * `IS_NULL`/`IS_NOT_NULL`, the empty-string predicates to equality), or relative time to a range at [now], encoded
      * as [temporal], the field's encoding, stores time. Admission calls this with the encoding it resolved, so
-     * lowering never looks a field up again; a relative-time filter is admitted only on a field that keeps time.
+     * lowering never looks a field up again; a relative-time filter is admitted only on a field that keeps time. On a
+     * [date] field, a date or date-time string, a comparison is then compared at its millisecond ([DateOperands]).
      */
-    internal fun lower(expression: FilterExpression, now: Instant, temporal: Temporal?): FilterExpression =
-        when (val lowering = expression.spec.lowering) {
-            null -> expression
-            is Lowering.Rewrite -> lowering.lower(expression)
-            Lowering.RelativeTime -> {
-                val relative = expression as RelativeTimeFilter
-                val resolved = checkNotNull(temporal) {
-                    "Admission resolves the temporal of a relative-time filter on [${relative.field.path}]."
-                }
-                Window(relative, now, resolved).lower()
+    internal fun lower(
+        expression: FilterExpression,
+        now: Instant,
+        temporal: Temporal?,
+        date: Boolean = false,
+    ): FilterExpression = when (val lowering = expression.spec.lowering) {
+        null -> expression
+        is Lowering.Rewrite -> lowering.lower(expression)
+        Lowering.RelativeTime -> {
+            val relative = expression as RelativeTimeFilter
+            val resolved = checkNotNull(temporal) {
+                "Admission resolves the temporal of a relative-time filter on [${relative.field.path}]."
             }
+            Window(relative, now, resolved).lower()
         }
+    }.let { if (date) DateOperands.lower(it) else it }
 
     /** The window of [filter] at [now], its bounds written as [temporal] stores time. */
     private inner class Window(
@@ -211,3 +216,12 @@ class FilterNormalizer {
         return if (filtered.isEmpty()) MatchAllFilter else NorFilter(filtered)
     }
 }
+
+/** A logical filter of this one's kind over its operands, each mapped by [map]; null for a filter of another kind. */
+internal inline fun FilterExpression.mapLogical(map: (FilterExpression) -> FilterExpression): FilterExpression? =
+    when (this) {
+        is AndFilter -> AndFilter(operands.map(map))
+        is OrFilter -> OrFilter(operands.map(map))
+        is NorFilter -> NorFilter(operands.map(map))
+        else -> null
+    }

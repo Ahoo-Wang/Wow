@@ -23,9 +23,11 @@ import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.BetweenFilter
 import me.ahoo.wow.api.query.DerivedExpression
 import me.ahoo.wow.api.query.EqualFilter
+import me.ahoo.wow.api.query.GreaterThanFilter
 import me.ahoo.wow.api.query.GreaterThanOrEqualFilter
 import me.ahoo.wow.api.query.InFilter
 import me.ahoo.wow.api.query.LessThanFilter
+import me.ahoo.wow.api.query.LessThanOrEqualFilter
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.NotEqualFilter
 import me.ahoo.wow.api.query.NotInFilter
@@ -87,6 +89,34 @@ abstract class SnapshotValueComparisonCases internal constructor() : SnapshotDat
             fixture.ids(LessThanFilter(PLACED_AT, LATER)).assert().containsExactlyInAnyOrder(*SAME_INSTANT)
         }
     }
+
+    // Two instants within one millisecond, and one in the next.
+    private suspend fun millis(): Fixture = given(
+        listOf("first" to FIRST, "second" to SECOND, "next" to NEXT)
+            .map { (id, at) -> snapshot(id, """{"status":"earlier","placedAt":"$at","createdAt":$T0}""") },
+    )
+
+    @Test
+    fun `a date compares at its millisecond, two instants within one equal and one in the next apart`(): Unit =
+        blocking {
+            val fixture = millis()
+            fixture.assumeBound(PLACED_AT, QueryCapability.RANGE, "a date range")
+            standard(DATE_MILLISECOND, semanticDivergences, VALUE_ORDER) {
+                val within = arrayOf("first", "second")
+                fixture.ids(EqualFilter(PLACED_AT, "2026-01-01T00:00:00.000500Z")).assert()
+                    .containsExactlyInAnyOrder(*within)
+                fixture.ids(EqualFilter(PLACED_AT, INSTANT)).assert().containsExactlyInAnyOrder(*within)
+                fixture.ids(InFilter(PLACED_AT, listOf(LATER))).assert().containsExactly("next")
+                fixture.ids(NotEqualFilter(PLACED_AT, "2026-01-01T00:00:00.000900Z")).assert().containsExactly("next")
+                fixture.ids(NotInFilter(PLACED_AT, listOf(LATER))).assert().containsExactlyInAnyOrder(*within)
+                fixture.ids(GreaterThanFilter(PLACED_AT, FIRST)).assert().containsExactly("next")
+                fixture.ids(GreaterThanOrEqualFilter(PLACED_AT, SECOND)).assert()
+                    .containsExactlyInAnyOrder("first", "second", "next")
+                fixture.ids(LessThanFilter(PLACED_AT, NEXT)).assert().containsExactlyInAnyOrder(*within)
+                fixture.ids(LessThanOrEqualFilter(PLACED_AT, FIRST)).assert().containsExactlyInAnyOrder(*within)
+                fixture.ids(BetweenFilter(PLACED_AT, SECOND, SECOND)).assert().containsExactlyInAnyOrder(*within)
+            }
+        }
 
     @Test
     fun `a list sorted by a date orders by instant`(): Unit = blocking {
@@ -316,8 +346,17 @@ abstract class SnapshotValueComparisonCases internal constructor() : SnapshotDat
          */
         const val DATE_RANGE = "date.range-by-instant"
 
+        /**
+         * The case id of a date compared at its millisecond, for [semanticDivergences]: on every store, an operand and
+         * a stored instant within one millisecond are equal, and a range holds the operand's millisecond whole.
+         */
+        const val DATE_MILLISECOND = "date.millisecond"
+
         private const val INSTANT = "2026-01-01T00:00:00Z"
         private const val LATER = "2026-01-01T00:00:00.001Z"
+        private const val FIRST = "2026-01-01T00:00:00.000200Z"
+        private const val SECOND = "2026-01-01T00:00:00.000700Z"
+        private const val NEXT = "2026-01-01T00:00:00.001100Z"
         private const val HOUR = 3_600_000L
         private val SAME_INSTANT = arrayOf("fraction", "offset", "utc")
         private val PLACED_AT = QueryField("state.placedAt")

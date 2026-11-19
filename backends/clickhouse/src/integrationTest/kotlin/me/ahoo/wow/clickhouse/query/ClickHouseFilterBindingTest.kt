@@ -97,19 +97,21 @@ class ClickHouseFilterBindingTest {
     )
 
     @Test
-    fun `a date operand keeps its digits below the millisecond`(): Unit = runBlocking {
-        val target = dates("binding_dates")
-        val time = QueryField("created_at")
-        val returned = target.backend.list(
-            QueryAdmission.Trusted.list(ListQuery(EqualFilter(id, "b")), target.schema())
-        )
-            .toList().single().path("created_at").stringValue()
-        target.ids(EqualFilter(time, returned)).assert().containsExactly("b")
-        target.ids(LessThanFilter(time, b)).assert().containsExactly("a")
-        target.ids(GreaterThanFilter(time, a)).assert().containsExactly("b", "c")
-        target.ids(BetweenFilter(time, a, b)).assert().containsExactly("a", "b")
-        target.ids(EqualFilter(time, "2026-01-01T00:00:00.001Z")).assert().containsExactly("c")
-    }
+    fun `a date operand compares at its millisecond, as the query language says, the column's digits kept`(): Unit =
+        runBlocking {
+            val target = dates("binding_dates")
+            val time = QueryField("created_at")
+            val returned = target.backend.list(
+                QueryAdmission.Trusted.list(ListQuery(EqualFilter(id, "b")), target.schema())
+            )
+                .toList().single().path("created_at").stringValue()
+            // a and b are within one millisecond, c is in the next.
+            target.ids(EqualFilter(time, returned)).assert().containsExactly("a", "b")
+            target.ids(LessThanFilter(time, b)).assert().isEmpty()
+            target.ids(GreaterThanFilter(time, a)).assert().containsExactly("c")
+            target.ids(BetweenFilter(time, a, b)).assert().containsExactly("a", "b")
+            target.ids(EqualFilter(time, "2026-01-01T00:00:00.001Z")).assert().containsExactly("c")
+        }
 
     @Test
     fun `a numeric operand is compared as given, past its column's width and scale`(): Unit = runBlocking {

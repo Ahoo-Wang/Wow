@@ -410,15 +410,14 @@ internal class QueryResolver(
                 reference.effective.inMetricFilter
             ) { QueryViolation.MetricFilterArrayField(reference.logical) }
         }
-        val lowered = normalizer.lower(expression.withPredicateField(reference.name), now, temporal)
+        val date = reference.effective.temporal == Temporal.Date && !at.metric
+        val lowered = normalizer.lower(expression.withPredicateField(reference.name), now, temporal, date)
         return registered(lowered, reference, at.scope)
     }
 
     /** Registers each predicate [lowered] consists of, for the capability that predicate itself requires. */
     private fun registered(lowered: FilterExpression, reference: Reference, scope: Scope): FilterExpression {
-        if (lowered is AndFilter) {
-            return AndFilter(lowered.operands.map { registered(it, reference, scope) })
-        }
+        lowered.mapLogical { registered(it, reference, scope) }?.let { return it }
         val field = register(reference, scope, lowered.requiredCapability())
         when (lowered) {
             is EqualFilter -> requireScalarEquality(lowered.value, reference)
@@ -467,7 +466,8 @@ internal class QueryResolver(
      */
     private fun values(reference: Reference, values: Iterable<Any?>, rule: ValueRule) {
         requireValid(
-            reference.effective.satisfies(rule) && reference.definition.value.accepts(values)
+            reference.effective.satisfies(rule) && reference.definition.value.accepts(values) &&
+                DateOperands.accepts(reference.effective.temporal, values)
         ) { QueryViolation.ValueMismatch(reference.logical) }
     }
 
