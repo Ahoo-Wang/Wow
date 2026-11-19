@@ -128,6 +128,8 @@ DRILL_KUBECTL=/opt/homebrew/bin/kubectl DRILL_EVIDENCE=build/rc-drill/beta.10 DR
 
 Both runs go one step at a time, each command on its own (`drill.sh tools`, then `drill.sh artifacts 10.0.0-beta.10`, and so on), so a stop is seen when it happens. `tools` and `artifacts` stop the run before any cluster exists.
 
+The window is the machine's batch lock (`test/benchmarks/harness/lock.sh`). Take it first, with `bench.sh lock --owner=<name> --wait`, then export `WOW_BENCH_OWNER=<name>` in the shell that runs the steps. A step, run on its own or re-run by hand, is `drill.sh step <name> <command> [<argument>...]`, as `run` names it: for example `drill.sh step 3-e2e e2e functional`. It is timed into `steps.tsv` like the others. `step` and `run` never wait for the lock, as `quiet.sh` would. Outside the window, or in a shell whose `WOW_BENCH_OWNER` does not name the lock's holder, they stop at once and say which.
+
 With a previous version, the run installs that version first, then upgrades to the new one under load (step 4).
 - `DRILL_UPGRADE` is the drill's decision, taken from `drill.sh compare <previous> <version>`, which lists what changed between the two in the stores, the cluster channel and the configuration:
   - `rolling` when nothing there stops a running deployment from crossing;
