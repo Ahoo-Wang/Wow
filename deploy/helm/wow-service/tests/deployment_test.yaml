@@ -298,3 +298,53 @@ tests:
     asserts:
       - failedTemplate:
           errorPattern: "podLabels.app.kubernetes.io/instance is a label the chart sets itself: remove it"
+
+  # A container another controller injects (the OpenTelemetry Operator's agent init container, an image without a USER)
+  # inherits runAsNonRoot: the pod's user is what it runs as.
+  - it: runs the pod as the user and group Wow's images run as, non-root, its container dropping every capability
+    template: templates/deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext
+          value:
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+            seccompProfile:
+              type: RuntimeDefault
+      - equal:
+          path: spec.template.spec.containers[0].securityContext
+          value:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            capabilities:
+              drop:
+                - ALL
+
+  - it: runs the pod as the user and group a service's own image needs, the rest of the security context kept
+    template: templates/deployment.yaml
+    set:
+      podSecurityContext.runAsUser: 1000
+      podSecurityContext.runAsGroup: 2000
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext
+          value:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 2000
+            seccompProfile:
+              type: RuntimeDefault
+
+  - it: leaves the user and group to the image when both are null
+    template: templates/deployment.yaml
+    set:
+      podSecurityContext.runAsUser: null
+      podSecurityContext.runAsGroup: null
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext
+          value:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault

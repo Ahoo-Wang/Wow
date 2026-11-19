@@ -234,8 +234,16 @@ podAnnotations: {}
 # pods by (from service.name), app.kubernetes.io/part-of (set partOf), and its others are refused, each by name.
 podLabels: {}
 
+# The pod runs as the user and group Wow's images run as (USER 10001, deploy/*/Dockerfile). runAsNonRoot verifies the
+# application container by its image's numeric USER; a container another controller adds inherits runAsNonRoot but
+# not that USER, so without a user named here it would run as root and be refused. The OpenTelemetry Operator's Java
+# agent init container (instrumentation.opentelemetry.io/inject-java), an image without a USER, is one: it runs as this
+# user. A service built from another base image, whose files belong to another id, sets that id here; null leaves the
+# user to its image again, and then no injected container without a USER of its own can start.
 podSecurityContext:
   runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
   seccompProfile:
     type: RuntimeDefault
 
