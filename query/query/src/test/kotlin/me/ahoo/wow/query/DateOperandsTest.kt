@@ -30,6 +30,7 @@ import me.ahoo.wow.api.query.NotInFilter
 import me.ahoo.wow.api.query.OrFilter
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.query.admission.QueryAdmission
+import me.ahoo.wow.query.resolve.DateOperands
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryValueType
 import me.ahoo.wow.query.schema.QueryViolation
@@ -39,6 +40,7 @@ import me.ahoo.wow.query.schema.objectFixture
 import me.ahoo.wow.query.schema.scalarFixture
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import tools.jackson.databind.node.JsonNodeFactory
 import java.time.Instant
 
 /**
@@ -120,5 +122,32 @@ class DateOperandsTest {
             refusal(EqualFilter(count, value)).assert().describedAs("$value")
                 .isEqualTo(QueryViolation.ValueMismatch(count))
         }
+    }
+
+    @Test
+    fun `an operand that names no instant should be left as it is, and a JSON string read as its text`() {
+        val first = "2026-10-13T08:00:00Z"
+        // Admission refuses each of these on a caller's query; lowering, which may meet one first, leaves it alone.
+        listOf(
+            EqualFilter(at, 7),
+            NotEqualFilter(at, null),
+            InFilter(at, listOf(first, null)),
+            NotInFilter(at, listOf("2026-10")),
+            GreaterThanFilter(at, null),
+            GreaterThanOrEqualFilter(at, 7),
+            LessThanFilter(at, "soon"),
+            LessThanOrEqualFilter(at, null),
+            BetweenFilter(at, "soon", first),
+            BetweenFilter(at, first, "soon"),
+            IsNullFilter(at),
+        ).forEach { filter -> DateOperands.lower(filter).assert().describedAs("$filter").isSameAs(filter) }
+        val json = JsonNodeFactory.instance
+        DateOperands.lower(EqualFilter(at, json.stringNode(first))).assert()
+            .isEqualTo(BetweenFilter(at, first, "2026-10-13T08:00:00.000999999Z"))
+        DateOperands.accepts(Temporal.Date, listOf(null, first, json.stringNode(first))).assert().isTrue()
+        DateOperands.accepts(Temporal.Date, listOf(7)).assert().isFalse()
+        DateOperands.accepts(Temporal.Date, listOf(json.numberNode(7))).assert().isFalse()
+        DateOperands.accepts(Temporal.Date, listOf("soon")).assert().isFalse()
+        DateOperands.accepts(null, listOf(7)).assert().isTrue()
     }
 }
