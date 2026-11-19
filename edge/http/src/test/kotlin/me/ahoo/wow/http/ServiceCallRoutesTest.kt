@@ -186,6 +186,22 @@ class ServiceCallRoutesTest {
     }
 
     @Test
+    fun `a call retried after its creation committed should answer with the aggregate it created (#6517)`(): Unit =
+        runBlocking {
+            // The first attempt committed, and its answer was lost: the saga's retry is the same call, its request id
+            // the basket's commit's. Admission looks the request up before it gives the creation an id, in every
+            // partition of the type, by the request id, not by the id an attempt was given: the retry is that cart.
+            val first = caller.call(call(ref = "", body = OpenCart("hi")))
+            val retried = caller.call(call(ref = "", body = OpenCart("hi")))
+            retried.ref.assert().isEqualTo(first.ref)
+            retried.version.assert().isEqualTo(first.version)
+            // Decided once: one cart for one request.
+            node.commands.assert().hasSize(1)
+            // Another request is another cart.
+            caller.call(call(ref = "", body = OpenCart("hi"), id = "call-2")).ref.assert().isNotEqualTo(first.ref)
+        }
+
+    @Test
     fun `a call the target rejects should answer its rejected result`(): Unit = runBlocking {
         val rejected = caller.call(call(body = Checkout()))
         rejected.status.assert().isEqualTo(CommandResult.Status.REJECTED)

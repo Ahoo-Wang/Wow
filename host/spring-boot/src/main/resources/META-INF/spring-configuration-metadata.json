@@ -962,7 +962,7 @@
   }, {
     "name" : "wow.peer.timeout",
     "type" : "java.time.Duration",
-    "description" : "How long a request may take to be answered, a command's longer wait aside; `wow.peers.<context>.timeout` overrides it for one peer.",
+    "description" : "How long a request without a wait, a query or a read, may take to be answered. A command or a saga's call waits for its answer its own wait, which it states as `Wow-Wait-Timeout`, and a grace after it: a call's wait at most this long. `wow.peers.<context>.timeout` overrides it for one peer.",
     "sourceType" : "me.ahoo.wow.spring.boot.http.PeerProperties",
     "defaultValue" : "PT30S"
   }, {
@@ -1576,7 +1576,7 @@
   }, {
     "name" : "wow.wait.default-timeout",
     "type" : "java.time.Duration",
-    "description" : "How long a command whose request names no timeout waits (`Wow-Wait-Timeout`), whichever edge it came through. At most `wow.wait.max-timeout`: a node whose default is above it does not start.",
+    "description" : "How long a command whose request names no timeout waits (`Wow-Wait-Timeout`), whichever edge it came through. It is also the wait this node's sagas' calls state when they go on with none, so the calling node sets how long its calls wait, not the node they call. At most `wow.wait.max-timeout`: a node whose default is above it does not start.",
     "sourceType" : "me.ahoo.wow.spring.boot.node.WaitProperties",
     "defaultValue" : "PT10S"
   }, {

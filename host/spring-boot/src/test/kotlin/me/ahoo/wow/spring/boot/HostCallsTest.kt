@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.spring.boot
 
+import com.sun.net.httpserver.HttpServer
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
@@ -47,10 +48,12 @@ import org.junit.jupiter.api.assertThrows
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import tools.jackson.databind.json.JsonMapper
+import java.net.InetSocketAddress
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
+import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -67,6 +70,25 @@ class HostCallsTest {
         "wow.peer.timeout" to "5s",
     )
 
+    /** What a recorder in the bank's place was told a call waits: what the call states, not what it is answered. */
+    private val stated = CopyOnWriteArrayList<String?>()
+
+    private val recorder = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0).apply {
+        createContext("/") { exchange ->
+            exchange.use {
+                stated += exchange.requestHeaders.getFirst(WowHeaders.WAIT_TIMEOUT)
+                exchange.sendResponseHeaders(503, -1)
+            }
+        }
+        start()
+    }
+
+    /** A node whose own default wait is 3 s, calling the recorder (#6517). */
+    private val calling = startHost(
+        "wow.peers.bank.url" to "http://127.0.0.1:${recorder.address.port}",
+        "wow.wait.default-timeout" to "3s",
+    )
+
     /** A target whose list narrows the service's calls (decision D226). */
     private val narrowed = startHost(
         "wow.callers.ledger-service.commands[0]" to "wow.lifecycle.*",
@@ -80,6 +102,8 @@ class HostCallsTest {
 
     @AfterAll
     fun close() {
+        calling.close()
+        recorder.stop(0)
         denying.close()
         narrowed.close()
         host.close()
@@ -151,6 +175,25 @@ class HostCallsTest {
         // Its retry looks the service up again and reaches the node now listed.
         caller.call(OutgoingCall("bank.account.OpenAccount", command)).status.assert()
             .isEqualTo(CommandResult.Status.SUCCEEDED)
+    }
+
+    @Test
+    fun `a call that goes on with no wait should state the calling node's default wait (#6517)`() {
+        val command = Command(
+            "call-5",
+            "request-5",
+            AggregateType(BANK, "account").unassigned(Caller.DEFAULT_TENANT),
+            OpenAccount("frank"),
+            scope = Scope("frank"),
+            causation = root,
+            operator = Operator("frank", Caller.DEFAULT_TENANT),
+        )
+        val caller = calling.context.getBean(CommandCaller::class.java)
+        assertThrows<WowProblemException> {
+            runBlocking { caller.call(OutgoingCall("bank.account.OpenAccount", command)) }
+        }
+        // The calling node's wow.wait.default-timeout, not the constant or the target's; a call is sent once.
+        stated.assert().containsExactly("3s")
     }
 
     @Test

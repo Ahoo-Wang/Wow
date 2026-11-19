@@ -110,7 +110,9 @@ class ClusterProperties {
 class WaitProperties {
     /**
      * How long a command whose request names no timeout waits (`Wow-Wait-Timeout`), whichever edge it came
-     * through. At most `wow.wait.max-timeout`: a node whose default is above it does not start.
+     * through. It is also the wait this node's sagas' calls state when they go on with none, so the calling node sets
+     * how long its calls wait, not the node they call. At most `wow.wait.max-timeout`: a node whose default is above it
+     * does not start.
      */
     var defaultTimeout: Duration = WaitPlan.DEFAULT_TIMEOUT.toJavaDuration()
 

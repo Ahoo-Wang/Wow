@@ -83,8 +83,9 @@ internal class NodePeers {
 
     /**
      * The client of the other contexts' command gateways the sagas call: the service mode of
-     * `wow-client` at the internal ports [endpoints] resolves, as this node's service, each call bounded by
-     * `wow.peer.timeout` or its peer's own and sent by the route its peer's contract in [contracts] lists.
+     * `wow-client` at the internal ports [endpoints] resolves, as this node's service, each call waiting the wait it
+     * goes on with, else this node's `wow.wait.default-timeout`, at most `wow.peer.timeout` or its peer's own, and sent
+     * by the route its peer's contract in [contracts] lists.
      */
     @Bean
     @ConditionalOnMissingBean
@@ -102,6 +103,8 @@ internal class NodePeers {
         properties.peer.timeout.toKotlinDuration(),
         properties.peerTimeouts(),
         contracts.fragments.map { it.manifest },
+        // A call that goes on with no wait states this node's own: the side that pays for the wait sets it.
+        properties.wait.defaultTimeout.toKotlinDuration(),
     )
 
     /**

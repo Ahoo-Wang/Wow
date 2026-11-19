@@ -27,6 +27,7 @@ import java.net.Socket
 import java.net.URI
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.CountDownLatch
 
 /** A request the fake peer took: its method, path with query, headers and body. */
 data class Taken(val method: String, val path: String, val headers: Map<String, String>, val body: String)
@@ -35,15 +36,23 @@ data class Taken(val method: String, val path: String, val headers: Map<String, 
  * One answer of the fake peer: its status, its headers and its body, written in [chunks] (each flushed apart, the
  * stream's pieces) when given.
  */
-class Reply(
+class Reply @JvmOverloads constructor(
     val status: Int,
     val headers: Map<String, String> = emptyMap(),
     val body: ByteArray = ByteArray(0),
     val chunks: List<String>? = null,
     /** Whether the connection is cut after the chunks, without ending the response. */
     val abort: Boolean = false,
+    /**
+     * Whether the request is taken and never answered, its connection left open: a node gone without closing it, as
+     * a pod deleted by force, whose address drops what reaches it.
+     */
+    val hold: Boolean = false,
 ) {
     companion object {
+        /** A request taken and never answered ([hold]). */
+        val HELD: Reply = Reply(0, hold = true)
+
         fun json(value: Any, status: Int = 200): Reply =
             Reply(status, mapOf("Content-Type" to "application/json"), WowJson.mapper.writeValueAsBytes(value))
 
@@ -75,6 +84,9 @@ class FakePeer : AutoCloseable {
     @Volatile
     private var last: Reply = Reply(404)
 
+    /** Released as the peer closes: the requests it holds end then. */
+    private val released = CountDownLatch(1)
+
     private val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0).apply {
         createContext("/") { exchange ->
             exchange.use {
@@ -87,6 +99,10 @@ class FakePeer : AutoCloseable {
                     exchange.requestBody.readAllBytes().decodeToString(),
                 )
                 val reply = replies.poll()?.also { last = it } ?: last
+                if (reply.hold) {
+                    released.await()
+                    return@use
+                }
                 reply.headers.forEach { (name, value) -> exchange.responseHeaders.add(name, value) }
                 val chunks = reply.chunks
                 if (chunks != null) {
@@ -113,6 +129,7 @@ class FakePeer : AutoCloseable {
     fun reply(vararg replies: Reply): FakePeer = apply { this.replies += replies }
 
     override fun close() {
+        released.countDown()
         server.stop(0)
     }
 }

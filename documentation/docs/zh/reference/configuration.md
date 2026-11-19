@@ -398,7 +398,7 @@ How the node calls its peers, the services of the other contexts it calls over H
 | `wow.peer.discovery` | `String` | `dns` | How the node finds the internal ports of a peer's nodes: `dns` (the default) looks up the DNS SRV records `wow.peer.dns.name-template` names after the peer's service, as its contract on the class path or its Manifest names it; `static` takes `wow.peers.<context>.url` alone; `spring-cloud`, with wow-spring-cloud on the class path, reads the instances a Spring Cloud service registry has of the service; another value names a community provider's discovery. Each is configured under `wow.peer.<type>` by the options it declares. A peer's `url` wins over any discovery. |
 | `wow.peer.forwarded-headers` | `List<String>` | `Authorization` | The headers of the public request it serves that a user-mode request forwards. |
 | `wow.peer.mode` | `PeerMode` | `service` | The mode of a peer that names none: `service`, through its internal port as this service, or `user`, through its public routes with the end user's credential. |
-| `wow.peer.timeout` | `Duration` | `PT30S` | How long a request may take to be answered, a command's longer wait aside; `wow.peers.<context>.timeout` overrides it for one peer. |
+| `wow.peer.timeout` | `Duration` | `PT30S` | How long a request without a wait, a query or a read, may take to be answered. A command or a saga's call waits for its answer its own wait, which it states as `Wow-Wait-Timeout`, and a grace after it: a call's wait at most this long. `wow.peers.<context>.timeout` overrides it for one peer. |
 
 ## `wow.peer.dns`
 
@@ -773,7 +773,7 @@ How long and how far the commands' waits go.
 
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `wow.wait.default-timeout` | `Duration` | `PT10S` | How long a command whose request names no timeout waits (`Wow-Wait-Timeout`), whichever edge it came through. At most `wow.wait.max-timeout`: a node whose default is above it does not start. |
+| `wow.wait.default-timeout` | `Duration` | `PT10S` | How long a command whose request names no timeout waits (`Wow-Wait-Timeout`), whichever edge it came through. It is also the wait this node's sagas' calls state when they go on with none, so the calling node sets how long its calls wait, not the node they call. At most `wow.wait.max-timeout`: a node whose default is above it does not start. |
 | `wow.wait.max-hops` | `Integer` | `16` | The most hops of a wait plan, at most WaitOptions.MAX_HOPS_CAP; each saga a chain follows adds two. |
 | `wow.wait.max-registered` | `Integer` | `16384` | The most waits the node holds at once, which bounds their memory: beyond it a command whose plan waits past ACCEPTED is not run and is answered `wow.command.busy` (429, with `Retry-After`), FAILED at ACCEPTED. |
 | `wow.wait.max-timeout` | `Duration` | `PT1M` | The longest wait; a longer timeout a caller asks for is capped to it, and a node stops within it. |
