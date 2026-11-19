@@ -236,9 +236,13 @@ tasks.register<Test>("clusterTest") {
     testClassesDirs = clusterTestSourceSet.output.classesDirs
     classpath = clusterTestSourceSet.runtimeClasspath
     useJUnitPlatform()
-    val reportDir = layout.buildDirectory.dir("ga-e2e")
-    jvmArgumentProviders.add(CommandLineArgumentProvider { listOf("-Dga.report=${reportDir.get().asFile}") })
-    providers.gradlePropertiesPrefixedBy("ga.").get().forEach { (name, value) -> systemProperty(name, value) }
+    // The report's folder: ga.report when a run names it (the rc drill: its evidence, where it waits for the load's
+    // load.started), else build/ga-e2e, which the GA end-to-end run uploads.
+    val reportDir = providers.gradleProperty("ga.report").map { file(it) }
+        .orElse(layout.buildDirectory.dir("ga-e2e").map { it.asFile })
+    jvmArgumentProviders.add(CommandLineArgumentProvider { listOf("-Dga.report=${reportDir.get()}") })
+    providers.gradlePropertiesPrefixedBy("ga.").get().filterKeys { it != "ga.report" }
+        .forEach { (name, value) -> systemProperty(name, value) }
     // The rc drill's run (RcDrillTest, test/rc-drill) is the one with `ga.scenarios`, and runs alone; the GA end-to-end
     // run never runs it.
     val drill = providers.gradleProperty("ga.scenarios").isPresent

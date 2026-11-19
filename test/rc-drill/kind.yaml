@@ -1,14 +1,16 @@
 # The rc drill's cluster: a control plane and three workers, each worker a zone of its own, so the chart's topology
 # spread (zone, then hostname) and the replica set's three failure domains (Operate › MongoDB) have somewhere to go,
 # and losing a worker is losing a zone. kind keeps the control plane tainted when it has workers, so every workload runs
-# on the workers. No kindnet, which does not enforce NetworkPolicy: the drill installs Calico (versions.env), whose
-# default pool is 192.168.0.0/16.
+# on the workers. No kindnet, which does not enforce NetworkPolicy: the drill installs Calico (versions.env), which
+# takes the pod subnet from kubeadm's configuration. Not Calico's default pool, 192.168.0.0/16: OrbStack gives kind's
+# Docker network an address in 192.168.0.0/16 (192.168.97.0/24), and pods and nodes in one range lose the routes
+# between them, the API server's among them.
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 name: wow-rc-drill
 networking:
   disableDefaultCNI: true
-  podSubnet: 192.168.0.0/16
+  podSubnet: 10.244.0.0/16
 # Every node runs the image kind v0.33.0 (versions.env) was released with, pinned by digest: Kubernetes 1.37.0, the
 # version the chart's CI renders and installs on (.github/helm/chart.sh).
 nodes:

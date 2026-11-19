@@ -15,6 +15,13 @@ data:
           grpc:
             endpoint: 0.0.0.0:4317
     processors:
+      # First in every pipeline: under the upgrade's peak (the new pods' series beside the old ones', every node's
+      # traces) a collector without it grew to its limit and was OOM-killed. It refuses data above 80 % of the limit
+      # rather than die, so the agents retry.
+      memory_limiter:
+        check_interval: 1s
+        limit_percentage: 80
+        spike_limit_percentage: 20
       batch: {}
     exporters:
       prometheus:
@@ -26,13 +33,15 @@ data:
       pipelines:
         metrics:
           receivers: [otlp]
-          processors: [batch]
+          processors: [memory_limiter, batch]
           exporters: [prometheus]
         traces:
           receivers: [otlp]
+          processors: [memory_limiter]
           exporters: [nop]
         logs:
           receivers: [otlp]
+          processors: [memory_limiter]
           exporters: [nop]
 ---
 apiVersion: apps/v1
@@ -51,7 +60,7 @@ spec:
       labels:
         app.kubernetes.io/name: otel-collector
       annotations:
-        rc-drill/config: "1"
+        rc-drill/config: "2"
     spec:
       containers:
         - name: collector
@@ -70,9 +79,9 @@ spec:
           resources:
             requests:
               cpu: 200m
-              memory: 256Mi
-            limits:
               memory: 512Mi
+            limits:
+              memory: 1536Mi
       volumes:
         - name: config
           configMap:

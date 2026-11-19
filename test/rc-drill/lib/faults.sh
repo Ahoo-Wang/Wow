@@ -29,6 +29,9 @@ zone_down() {
   log "node $node stopped"
   sleep 180
   docker start "$node" >/dev/null
+  # For the cluster test's restart check: a container on this node restarts once in place, reason Unknown, and that
+  # restart is the node's (RcDrillTest exempts it, and its report lists each one).
+  grep -qx "$node" "$evidence/e2e/state/restarted-nodes" 2>/dev/null || echo "$node" >>"$evidence/e2e/state/restarted-nodes"
   "$kubectl" --context "kind-$cluster" wait --for=condition=Ready "node/$node" --timeout=600s
   for set in mongodb kafka elasticsearch; do k rollout status "statefulset/$set" --timeout=900s; done
 }
@@ -96,10 +99,15 @@ drain() {
 }
 
 drain_worker() {
-  local node=$1
-  "$kubectl" --context "kind-$cluster" drain "$node" --ignore-daemonsets --delete-emptydir-data --timeout=900s
-  sleep 60
+  local node=$1 status=0
+  # The drill's own tools (mongo-shell, the probes) are bare pods, which drain refuses to delete without --force and the
+  # verdict still needs: the drain leaves them out, and evicts everything else on the node.
+  "$kubectl" --context "kind-$cluster" drain "$node" --ignore-daemonsets --delete-emptydir-data --timeout=900s \
+    --pod-selector='app.kubernetes.io/name notin (mongo-shell,insider,outsider)' || status=$?
+  [ "$status" != 0 ] || sleep 60
+  # Uncordoned whatever the drain did, so a failed drain leaves no zone unschedulable.
   "$kubectl" --context "kind-$cluster" uncordon "$node"
+  [ "$status" = 0 ] || return "$status"
   for set in mongodb kafka elasticsearch; do k rollout status "statefulset/$set" --timeout=900s; done
 }
 
@@ -128,6 +136,12 @@ reinstall() {
     for name in ${WAVES[index]}; do
       helm --kube-context "kind-$cluster" -n "$namespace" uninstall "$name" --wait --timeout 10m
     done
+  done
+  # helm uninstall --wait returns once a release's own objects are gone; its pods are still stopping gracefully.
+  local _
+  for _ in $(seq 1 120); do
+    [ -n "$(k get pods -l app.kubernetes.io/managed-by=Helm -o name)" ] || break
+    sleep 5
   done
   [ -z "$(k get pods -l app.kubernetes.io/managed-by=Helm -o name)" ] || fail "pods left after the uninstall"
   install "$version"

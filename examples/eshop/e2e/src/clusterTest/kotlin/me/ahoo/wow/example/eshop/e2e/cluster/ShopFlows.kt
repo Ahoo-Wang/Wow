@@ -223,23 +223,25 @@ class ShopFlows(val shop: Shop, private val ledger: RunLedger? = null) {
     /**
      * Every order the ordering holds, by number: the run's, the cluster being the run's own. A checkout whose answer a
      * fault lost names no order, and its number is the ordering's to give, so the orders are read from the ordering
-     * itself, [ORDER_PAGE] at a time.
+     * itself, [ORDER_PAGE] at a time, by cursor: a paged query refuses a window past 10,000 records, which a drill's
+     * orders outgrow.
      */
     fun orders(): List<String> {
         val orders = mutableListOf<String>()
-        var index = 1
-        while (true) {
+        var cursor: String? = null
+        do {
+            val after = cursor?.let { ""","cursor":${json.writeValueAsString(it)}""" }.orEmpty()
             val answer = shop.post(
                 "/eshop-ordering/order/snapshot/query",
-                """{"kind":"paged","filter":{"op":"match-all"},"sort":[{"field":"aggregateId","direction":"asc"}],""" +
-                    """"pagination":{"index":$index,"size":$ORDER_PAGE}}""",
+                """{"kind":"cursor","filter":{"op":"match-all"},"sort":[{"field":"aggregateId","direction":"asc"}],""" +
+                    """"size":$ORDER_PAGE$after}""",
                 Who.EMPLOYEE,
             ).require("list the orders")
-            val page = json.readTree(answer.body)["list"].values().map { it["aggregateId"].asString() }
-            orders += page
-            if (page.size < ORDER_PAGE) return orders
-            index++
-        }
+            val page = json.readTree(answer.body)
+            orders += page["list"].values().map { it["aggregateId"].asString() }
+            cursor = page["nextCursor"]?.takeUnless { it.isNull }?.asString()
+        } while (cursor != null)
+        return orders
     }
 
     /** [condition], polled until it holds, for at most [deadline]; the failure says [what] and the [detail]. */

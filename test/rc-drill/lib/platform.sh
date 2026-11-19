@@ -17,13 +17,32 @@ cluster() {
   if kind get clusters | grep -qx "$cluster"; then
     log "cluster $cluster exists"
   else
-    kind create cluster --config "$here/kind.yaml" --wait 0s
+    # kind passes the shell's proxy variables into its nodes, where a proxy on the host's loopback is the node's own
+    # loopback and refuses every image pull. Such a proxy is left out of the cluster: the nodes reach the registries
+    # directly. A proxy at another address is kept.
+    local unset=() var
+    for var in HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy; do
+      case "${!var:-}" in
+        *://127.* | *://localhost* | *://\[::1\]*)
+          log "kind: leaving out $var=${!var}, the host's loopback, which the nodes cannot reach"
+          unset+=(-u "$var")
+          ;;
+      esac
+    done
+    env ${unset[@]+"${unset[@]}"} kind create cluster --config "$here/kind.yaml" --wait 0s
   fi
   curl -fsSLo "$evidence/calico.yaml" "https://raw.githubusercontent.com/projectcalico/calico/$CALICO_VERSION/manifests/calico.yaml"
   echo "$CALICO_SHA256  $evidence/calico.yaml" | shasum -a 256 -c -
   "$kubectl" --context "kind-$cluster" apply -f "$evidence/calico.yaml" >/dev/null
   "$kubectl" --context "kind-$cluster" -n kube-system rollout status daemonset/calico-node --timeout=600s
   "$kubectl" --context "kind-$cluster" wait --for=condition=Ready nodes --all --timeout=600s
+  # The cluster's DNS in every zone: kind's CoreDNS spreads its two replicas only as a preference, and losing the worker
+  # that held both (step 5's node loss) left every service unable to resolve another for as long as the zone was down.
+  "$kubectl" --context "kind-$cluster" -n kube-system patch deployment coredns --type merge -p '{"spec":{"replicas":3,
+    "template":{"spec":{"topologySpreadConstraints":[{"maxSkew":1,"topologyKey":"topology.kubernetes.io/zone",
+    "whenUnsatisfiable":"DoNotSchedule","labelSelector":{"matchLabels":{"k8s-app":"kube-dns"}},
+    "matchLabelKeys":["pod-template-hash"]}]}}}}' >/dev/null
+  "$kubectl" --context "kind-$cluster" -n kube-system rollout status deployment/coredns --timeout=300s
   "$kubectl" --context "kind-$cluster" create namespace "$namespace" --dry-run=client -o yaml |
     "$kubectl" --context "kind-$cluster" apply -f -
   # The cluster test runs kubectl in the context's namespace.
@@ -31,7 +50,9 @@ cluster() {
   "$kubectl" --context "kind-$cluster" get nodes -L topology.kubernetes.io/zone
 }
 
-random() { openssl rand -hex "${1:-24}"; }
+# Without a trailing newline: a secret takes the file whole, and a password ending in one breaks the consumers that
+# put it in a URI or an Authorization header (mongodb-init, Elasticsearch's probe) while others strip it.
+random() { openssl rand -hex "${1:-24}" | tr -d '\n'; }
 
 # The run's secrets (README.md, "Secrets"): random values, a CA of the run's own, created in the namespace and kept
 # in the evidence folder only.

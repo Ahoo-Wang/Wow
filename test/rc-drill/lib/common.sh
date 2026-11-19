@@ -85,7 +85,26 @@ step() {
   log "step $name: $*"
   checked "$@" > >(tee "$evidence/steps/$name.log") 2>&1 || status=$?
   printf '%s\t%s\t%s\t%s\n' "$name" "$started" "$(date -u +%s)" "$status" >>"$evidence/steps.tsv"
+  keep_logs "$name" "$started"
   [ "$status" = 0 ] || fail "step $name ($status)"
+}
+
+# Every pod's logs of the step [name] that started at [started] (epoch seconds), its current and previous containers',
+# from a minute before the step: kept before the next step starts, so a later reinstall, drain or restart cannot take
+# them (the Wow pods, the stores, the gateways, the drill's tools). Nothing when there is no cluster.
+keep_logs() {
+  local name=$1 started=$2 out pod container since
+  out="$evidence/logs/$name"
+  since=$(date -u -r "$((started - 60))" +%Y-%m-%dT%H:%M:%SZ)
+  for pod in $(k get pods -o name 2>/dev/null); do
+    pod=${pod#pod/}
+    mkdir -p "$out"
+    for container in $(k get pod "$pod" -o jsonpath='{.spec.containers[*].name}' 2>/dev/null); do
+      k logs "$pod" -c "$container" --since-time="$since" >"$out/$pod.$container.log" 2>&1 || true
+      k logs "$pod" -c "$container" --previous --since-time="$since" >"$out/$pod.$container.previous.log" 2>/dev/null ||
+        rm -f "$out/$pod.$container.previous.log"
+    done
+  done
 }
 
 entry() {

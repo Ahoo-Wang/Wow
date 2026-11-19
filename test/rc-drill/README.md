@@ -15,7 +15,7 @@ Everything runs in one kind cluster (`kind.yaml`): a control plane and three wor
 
 | Resource | Needs | Why |
 |---|---|---|
-| **Memory of the Docker VM** (OrbStack: Settings › System › Memory limit) | **48 GiB** | The pods request about 28 GiB, and are limited to about 39 GiB. Each Java node grows toward its limit (heap at 75 %). Scaling ordering out and a rolling update's surge add about 2.5 GiB at their peak. The control plane and Calico take about 2 GiB. The machine has 64 GiB; the VM is set to 32 GiB today, too little. |
+| **Memory of the Docker VM** (OrbStack: Settings › System › Memory limit) | **48 GiB** | The pods request about 28 GiB, and are limited to about 40 GiB. Each Java node grows toward its limit (heap at 75 %). Scaling ordering out and a rolling update's surge add about 2.5 GiB at their peak. The control plane and Calico take about 2 GiB. The machine has 64 GiB, and the VM 48 GiB (OrbStack's `memory_mib` 49152), which it reports as about 47 GiB. |
 | **CPUs of the Docker VM** | **16** (all the VM has; the machine has 18) | About 9 cores requested. The load, the faults and the services' recoveries keep 8–12 busy. |
 | **Free disk of the Docker VM** | **60 GB** | The images: each worker pulls what it runs, and every node holds the five eShop images, which the drill loads into all of them (about 25 GB). The eShop's build and its image layers (about 5 GB). The volumes (under 5 GB at the drill's data). |
 | **Time** | about **5 h** a run | The steps, timed in the drill's plan. Other sessions' Docker work (Testcontainers, the integration tests) is held for the whole run. |
@@ -29,9 +29,9 @@ What the pods ask, in the order the platform comes up:
 | Elasticsearch (`platform/elasticsearch`) | 3 | 0.75 | 4.5 / 4.5 GiB |
 | ClickHouse | 1 | 0.25 | 1 / 2 GiB |
 | Redis, the CoSec gateway | 1 + 2 | 0.55 | 2.1 / 2.25 GiB |
-| Traefik, the collector, Prometheus, kube-state-metrics, the operator | 6 | 0.7 | 1.7 / 3.4 GiB |
+| Traefik, the collector, Prometheus, kube-state-metrics, the operator | 6 | 0.7 | 1.95 / 4.4 GiB |
 | The eShop's five services and the platform's three (deploy/'s values) | 16 | 4.5 | 12 / 16 GiB |
-| **In all** | 35 | **≈ 9** | **≈ 28 / 39 GiB** |
+| **In all** | 35 | **≈ 9** | **≈ 28 / 40 GiB** |
 
 ## Tools
 
@@ -66,7 +66,7 @@ Plus `openssl`, `jq` and `curl`. `curl` and `helm pull` reach the public registr
 | `platform/observability/` | The OpenTelemetry Operator's values and the Instrumentation that injects the Java agent, as `deploy/`'s values expect. The collector. Prometheus with `alerts.yaml`, one rule per row of Operate › Observability's "What to alert on". kube-state-metrics for the pods' readiness. |
 | `platform/probes.yaml` | The boundary's vantage points, `outsider` and `insider`, on the catalog's image. |
 | `eshop-build.sh`, `published-wow.init.gradle.kts` | The eShop's servers built from a release's source against the Wow it published on Maven Central ("Running it"). |
-| `values/` | What the drill sets on top of each service's generated values and `deploy/<service>/values.yaml`: the catalog's `search` profile, the ordering's `clickhouse` profile, and the end-to-end suite's settings (named as such in each file). The platform's three services take `deploy/`'s values unchanged. |
+| `values/` | What the drill sets on top of each service's generated values and `deploy/<service>/values.yaml`: the catalog's `search` profile, the ordering's `clickhouse` profile, and the end-to-end suite's settings (named as such in each file). Every service, the platform's three included, also takes `pod-security-workaround.yaml` when its chart names no user (step 8): a user of 10001 for the pods, the workaround for the OpenTelemetry agent's init container under the chart's `runAsNonRoot` (the file says why). Otherwise the platform's three take `deploy/`'s values unchanged. |
 
 ### Where the drill differs from `deploy/`, and why
 
@@ -97,6 +97,7 @@ The order, which the drill's script follows:
 8. **The services.** Each with the chart of the release, by version: `helm install <service> oci://ghcr.io/ahoo-wang/wow-service --version <version>`, with, in order:
    - the values its build generates (`generateWowHelmValues`);
    - `deploy/<service>/values.yaml`;
+   - `values/pod-security-workaround.yaml`, only when the chart of that version sets no `podSecurityContext.runAsUser` (10.0.0-beta.10 and earlier): read from the chart step 0 checked, and logged for each install, so a chart that names its user is proved by its own default;
    - `values/<service>.yaml` when there is one;
    - for the eShop's services, `--set image.tag=<version>`.
 
@@ -133,7 +134,7 @@ With a previous version, the run installs that version first, then upgrades to t
   - `restart` otherwise: a fresh install of the new version, then a rolling restart at that version under load.
 - The run refuses to guess.
 
-**Evidence.** Each step is timed in the evidence folder (`steps.tsv`, `steps/<step>.log`), beside:
+**Evidence.** Each step is timed in the evidence folder (`steps.tsv`, `steps/<step>.log`), and every pod's logs of the step, its current and previous containers', are kept in `logs/<step>/` before the next step starts, so a later reinstall or drain cannot take them. Beside them:
 - the artifacts' check;
 - the comparison;
 - the end-to-end reports (`e2e/<label>/`);

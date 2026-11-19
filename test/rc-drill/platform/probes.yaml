@@ -36,6 +36,14 @@ spec:
       image: wow-eshop-catalog-server:DRILL_VERSION
       imagePullPolicy: Never
       command: ["sleep", "infinity"]
+      env:
+        # The cluster test's reads of Elasticsearch itself (SearchStore), as its `elastic` user: the security is on, and
+        # the probe makes the Authorization header in the pod, so the password never leaves it.
+        - name: ELASTIC_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: elasticsearch-credentials
+              key: password
       resources:
         requests:
           cpu: 10m
