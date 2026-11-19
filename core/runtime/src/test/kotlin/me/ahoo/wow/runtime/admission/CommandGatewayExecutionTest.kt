@@ -146,7 +146,11 @@ class CommandGatewayExecutionTest : CommandGatewayFixtures() {
             WaitOptions(),
             router = { _, _, _, _ -> error("unreachable") },
         )
-        val throwing = CommandGateway(ModelRegistry(listOf(model)), mapOf(CONTEXT to failing), committed = CommittedRequests.NONE)
+        val throwing = CommandGateway(
+            ModelRegistry(listOf(model)),
+            mapOf(CONTEXT to failing),
+            committed = CommittedRequests.NONE,
+        )
         throwing.execute(request(wait = WaitPlan.ACCEPTED)).status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         throwing.close(5.seconds)
         gateway.close(5.seconds)

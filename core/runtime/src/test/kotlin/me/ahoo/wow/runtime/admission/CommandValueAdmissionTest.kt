@@ -232,7 +232,11 @@ class CommandValueAdmissionTest {
                 origin,
                 WaitOptions(maxTimeout = 30.seconds),
             )
-            val gateway = CommandGateway(ModelRegistry(listOf(model)), mapOf(CONTEXT to warm), committed = CommittedRequests.NONE)
+            val gateway = CommandGateway(
+                ModelRegistry(listOf(model)),
+                mapOf(CONTEXT to warm),
+                committed = CommittedRequests.NONE,
+            )
             fun retried(body: Any, requestId: String) =
                 ServerCommandRequest.builder(body, cart.ref(TENANT, "cart-9")).caller(alice).requestId(requestId)
                     .wait(WaitPlan.COMMITTED).build()
