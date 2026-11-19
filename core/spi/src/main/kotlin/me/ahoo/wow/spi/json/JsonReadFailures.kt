@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.spi.json
 
-import com.fasterxml.jackson.annotation.JsonValue
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.spi.json.JsonReadFailure.Reason
 import tools.jackson.core.JacksonException
@@ -31,22 +30,31 @@ import tools.jackson.databind.exc.MismatchedInputException
 import tools.jackson.databind.json.JsonMapper
 import tools.jackson.databind.module.SimpleModule
 import tools.jackson.databind.node.MissingNode
-import java.lang.reflect.AnnotatedElement
 import java.math.BigDecimal
 import java.math.BigInteger
+import java.net.URI
+import java.net.URL
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.Month
+import java.time.MonthDay
 import java.time.OffsetDateTime
 import java.time.OffsetTime
+import java.time.Period
 import java.time.Year
 import java.time.YearMonth
+import java.time.ZoneId
+import java.time.ZoneOffset
 import java.time.ZonedDateTime
 import java.util.Calendar
+import java.util.Currency
 import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
+import java.util.UUID
 
 /**
  * Why a JSON value did not read as its type, in Wow's words: the property, by its [path] in the JSON
@@ -94,33 +102,28 @@ class JsonReadFailures(private val mapper: JsonMapper) {
         return JsonReadFailure(pathOf(databind), reason, message)
     }
 
+    /**
+     * The reason and message of [failure]: the kind expected only where it is known, for a scalar class Wow's JSON
+     * describes or an enumeration; for any other class, a value class or one read by a reader of its own, say, the kind
+     * given alone.
+     */
     private fun describe(json: JsonNode, failure: DatabindException): Pair<Reason, String> {
         if (failure is OutOfRange) {
             return Reason.OUT_OF_RANGE to rangeOf(failure.targetType)
         }
         val given = kindOf(nodeAt(json, failure))
-        val absent = given == Kind.NONE || given == Kind.NULL
-        val target = targetOf(failure, absent)
-        val expected = target?.let { kindsOf(it) }
+        if (given == Kind.NONE || given == Kind.NULL) {
+            return Reason.WRONG_KIND to "A value is required, given ${given.words}."
+        }
+        val target = (failure as? MismatchedInputException)?.targetType
+        val enumeration = target?.isEnum == true
+        val expected = target?.let { KINDS[it] } ?: STRING.takeIf { enumeration }
         return when {
-            expected != null && given !in expected ->
-                Reason.WRONG_KIND to "Expected ${expected.first().words}, given ${given.words}."
-
-            expected == null && absent -> Reason.WRONG_KIND to "Expected a value, given ${given.words}."
-            target?.isEnum == true && given == Kind.STRING ->
-                Reason.NOT_IN_ENUMERATION to "Not one of the values of its enumeration."
-
+            expected == null -> Reason.INVALID_FORMAT to "Not a valid value of its type, given ${given.words}."
+            given !in expected -> Reason.WRONG_KIND to "Expected ${expected.first().words}, given ${given.words}."
+            enumeration -> Reason.NOT_IN_ENUMERATION to "Not one of the values of its enumeration."
             else -> Reason.INVALID_FORMAT to "Not a valid value of its format."
         }
-    }
-
-    /**
-     * The type [failure] could not read; for a property left out or null ([absent]), which Jackson reports against the
-     * class that holds it, the property's own type.
-     */
-    private fun targetOf(failure: DatabindException, absent: Boolean): Class<*>? {
-        val target = (failure as? MismatchedInputException)?.targetType ?: return null
-        return if (absent) propertyType(target, failure) ?: target else target
     }
 
     /** The failure of reading [json] as [type] again with readers that locate a number out of range. */
@@ -148,7 +151,10 @@ class JsonReadFailures(private val mapper: JsonMapper) {
         val NUMBER = setOf(Kind.NUMBER, Kind.INTEGER)
         val STRING = setOf(Kind.STRING)
 
-        /** The kinds each class reads, the first the one Wow writes; the others, forms written before 9.0. */
+        /**
+         * The kinds each scalar class Wow's JSON describes reads, the first the one Wow writes; the others, forms
+         * written before 9.0, or a month's number.
+         */
         val KINDS: Map<Class<*>, Set<Kind>> = buildMap {
             put(Boolean::class.javaPrimitiveType!!, setOf(Kind.BOOLEAN))
             put(Boolean::class.javaObjectType, setOf(Kind.BOOLEAN))
@@ -163,8 +169,23 @@ class JsonReadFailures(private val mapper: JsonMapper) {
                 put(it.javaObjectType, NUMBER)
             }
             put(BigDecimal::class.java, NUMBER)
-            put(Char::class.javaPrimitiveType!!, STRING)
-            put(ByteArray::class.java, STRING)
+            listOf(
+                String::class.java,
+                Char::class.javaPrimitiveType!!,
+                Char::class.javaObjectType,
+                ByteArray::class.java,
+                Period::class.java,
+                MonthDay::class.java,
+                ZoneId::class.java,
+                ZoneOffset::class.java,
+                TimeZone::class.java,
+                Locale::class.java,
+                Currency::class.java,
+                UUID::class.java,
+                URI::class.java,
+                URL::class.java,
+                kotlin.time.Duration::class.java,
+            ).forEach { put(it, STRING) }
             put(Month::class.java, setOf(Kind.STRING, Kind.INTEGER))
             listOf(Instant::class.java, OffsetDateTime::class.java, ZonedDateTime::class.java, Duration::class.java)
                 .forEach { put(it, setOf(Kind.STRING, Kind.NUMBER, Kind.INTEGER)) }
@@ -177,17 +198,6 @@ class JsonReadFailures(private val mapper: JsonMapper) {
                 OffsetTime::class.java,
             ).forEach { put(it, setOf(Kind.STRING, Kind.ARRAY)) }
         }
-
-        /** The platform's classes Wow's JSON writes as text, beyond `java.time`'s. */
-        val TEXT = setOf(
-            java.util.UUID::class.java,
-            java.util.Locale::class.java,
-            java.util.Currency::class.java,
-            java.util.TimeZone::class.java,
-            java.net.URI::class.java,
-            java.net.URL::class.java,
-            kotlin.time.Duration::class.java,
-        )
 
         val LOCATED_NUMBERS: SimpleModule = SimpleModule("wow-located-numbers").setDeserializerModifier(
             object : ValueDeserializerModifier() {
@@ -202,41 +212,6 @@ class JsonReadFailures(private val mapper: JsonMapper) {
                 }
             },
         )
-
-        /** The kinds [type] reads, or null when they are not known: any value, a tree, a class of its own form. */
-        /**
-         * The kinds [type] reads, or null when they are not known: another class of the platform, `Any`, or a class
-         * that reads from a value of its own.
-         */
-        fun kindsOf(type: Class<*>): Set<Kind>? = KINDS[type] ?: textOrContainer(type) ?: when {
-            PLATFORM.containsMatchIn(type.name) || writtenAsValue(type) -> null
-            else -> setOf(Kind.OBJECT)
-        }
-
-        fun textOrContainer(type: Class<*>): Set<Kind>? = when {
-            type.isEnum || type in TEXT || CharSequence::class.java.isAssignableFrom(type) -> STRING
-            type.name.startsWith("java.time.") -> STRING
-            type.isArray || Iterable::class.java.isAssignableFrom(type) -> setOf(Kind.ARRAY)
-            Map::class.java.isAssignableFrom(type) -> setOf(Kind.OBJECT)
-            else -> null
-        }
-
-        val PLATFORM = Regex("""^(java|javax|kotlin)\.""")
-
-        /**
-         * Whether [type] is written as a value of its own (`@JsonValue`), so that its kinds are not known. A class read
-         * through a delegating creator is not: Jackson reports a failure against the delegate's type.
-         */
-        fun writtenAsValue(type: Class<*>): Boolean =
-            listOf<AnnotatedElement>(*type.declaredFields, *type.declaredMethods)
-                .any { it.isAnnotationPresent(JsonValue::class.java) }
-
-        /** The type of the property [failure]'s path ends in, when [holder] declares a field of that name. */
-        fun propertyType(holder: Class<*>, failure: DatabindException): Class<*>? {
-            val name = failure.path.lastOrNull()?.propertyName ?: return null
-            return generateSequence(holder) { it.superclass }
-                .firstNotNullOfOrNull { type -> type.declaredFields.firstOrNull { it.name == name } }?.type
-        }
 
         fun kindOf(node: JsonNode): Kind = when {
             node.isMissingNode -> Kind.NONE

@@ -33,6 +33,7 @@ import tools.jackson.databind.type.ArrayType
 import tools.jackson.databind.type.LogicalType
 import java.net.URL
 import java.time.DateTimeException
+import java.time.MonthDay
 import java.time.Year
 import java.time.ZoneId
 import java.util.Calendar
@@ -59,8 +60,8 @@ import java.util.TimeZone
  *   decimal of epoch seconds for an `Instant`, an `OffsetDateTime`, a `ZonedDateTime` and a `Duration`, epoch
  *   milliseconds for a `Date` and a `Calendar`, an array for a `LocalDateTime`, a `LocalDate`, a `YearMonth`, a
  *   `LocalTime` and an `OffsetTime`. Any other number or array for them is refused.
- * - **A `Year` from a string**, and **a `byte[]` from an array** of numbers: one shape for each schema, the integer and
- *   the Base64 text Wow writes.
+ * - **A `Year` from a string**, and **a `byte[]` or a `MonthDay` from an array**: one shape for each schema, the
+ *   integer and the text Wow writes. No release wrote a `MonthDay` as an array: 1.x to 6.x wrote `"--01-02"` too.
  * - **A `TimeZone`** is read through `ZoneId`, so an unknown id is refused where Jackson reads it as `GMT`, and an
  *   offset, `"+08:00"`, is that offset. A short id Java knows (`PST`) reads as the zone it names.
  */
@@ -105,6 +106,7 @@ internal object StrictReads {
         ): ValueDeserializer<*> = when (val type = beanDesc.beanClass) {
             in BYTES -> Checked(deserializer, type, Check.BYTE)
             Year::class.java -> Checked(deserializer, type, Check.YEAR)
+            MonthDay::class.java -> Checked(deserializer, type, Check.NO_ARRAY)
             in DATES -> Checked(deserializer, type, Check.DATE)
             else -> deserializer
         }
@@ -115,13 +117,13 @@ internal object StrictReads {
             beanDesc: BeanDescription.Supplier,
             deserializer: ValueDeserializer<*>,
         ): ValueDeserializer<*> = if (valueType.rawClass == ByteArray::class.java) {
-            Checked(deserializer, ByteArray::class.java, Check.BYTES)
+            Checked(deserializer, ByteArray::class.java, Check.NO_ARRAY)
         } else {
             deserializer
         }
     }
 
-    private enum class Check { BYTE, YEAR, DATE, BYTES }
+    private enum class Check { BYTE, YEAR, DATE, NO_ARRAY }
 
     /** Jackson's reader of [type], refusing first what [check] says it takes and Wow does not. */
     private class Checked(delegate: ValueDeserializer<*>, private val type: Class<*>, private val check: Check) :
@@ -134,7 +136,7 @@ internal object StrictReads {
             when (check) {
                 Check.BYTE -> if (token == JsonToken.VALUE_NUMBER_INT) checkByte(p)
                 Check.YEAR -> if (token == JsonToken.VALUE_STRING) return ctxt.handleUnexpectedToken(type, p)
-                Check.BYTES -> if (token == JsonToken.START_ARRAY) return ctxt.handleUnexpectedToken(type, p)
+                Check.NO_ARRAY -> if (token == JsonToken.START_ARRAY) return ctxt.handleUnexpectedToken(type, p)
                 Check.DATE -> if (token == JsonToken.VALUE_STRING && DATE_ALONE.matches(p.string.trim())) {
                     throw InvalidFormatException.from(p, "A date alone is not a ${type.simpleName}.", p.string, type)
                 }

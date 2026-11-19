@@ -11,3 +11,11 @@ dependencies {
     // ExactJson, the TCK's exact JSON comparison.
     testImplementation(project(":tck"))
 }
+
+// StrictReadsReferenceTest holds the JSON values reference's last column to the strict reads' table.
+tasks.named<Test>("test") {
+    val root = rootDir
+    inputs.files(fileTree(root) { include("documentation/docs/*/reference/json-values.md") })
+        .withPropertyName("jsonValuesReference").withPathSensitivity(PathSensitivity.RELATIVE)
+    systemProperty("wow-test.repository.root", root.path)
+}

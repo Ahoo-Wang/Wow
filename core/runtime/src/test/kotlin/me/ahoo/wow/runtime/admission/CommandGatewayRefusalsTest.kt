@@ -103,7 +103,7 @@ class CommandGatewayRefusalsTest : CommandGatewayFixtures() {
         // Not JSON, or no value: nothing to name.
         malformed("{not json")
         malformed("null")
-        malformed("""{"quantity":2}""", Violation.of("sku", "wrong-kind", "Expected a string, given none."))
+        malformed("""{"quantity":2}""", Violation.of("sku", "wrong-kind", "A value is required, given none."))
         malformed(
             """{"sku":"apple","quantity":"many"}""",
             Violation.of("quantity", "wrong-kind", "Expected an integer, given a string."),
@@ -116,7 +116,10 @@ class CommandGatewayRefusalsTest : CommandGatewayFixtures() {
             """{"sku":"apple","quantity":2147483648}""",
             Violation.of("quantity", "out-of-range", "Out of range: -2147483648 to 2147483647."),
         )
-        malformed("""["apple"]""", Violation.of("", "wrong-kind", "Expected an object, given an array."))
+        malformed(
+            """["apple"]""",
+            Violation.of("", "invalid-format", "Not a valid value of its type, given an array."),
+        )
         // A tree is read as its text is.
         val quantity = JsonMapper.builder().build().readTree("""{"sku":"pear","quantity":true}""")
         gateway.execute(request().copyWith(body = CommandBody.Tree(quantity))).error!!.violations.assert()
