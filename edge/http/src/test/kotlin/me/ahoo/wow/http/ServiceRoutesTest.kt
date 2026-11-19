@@ -245,6 +245,18 @@ class ServiceRoutesTest {
     }
 
     @Test
+    fun `a number parameter is a number as JSON writes it`() {
+        node.get("/$CONTEXT/kinds/-7?d=-1.5e3").body!!["d"].asDouble().assert().isEqualTo(-1500.0)
+        // No NaN, Infinity, sign, leading zero, space or digit of another script (#6501).
+        listOf("NaN", "Infinity", "-Infinity", "%201.5", "1.5%20", "%2B1", "01", "1.", ".5", "%D9%A1").forEach { d ->
+            node.get("/$CONTEXT/kinds/42?d=$d").body!!["violations"][0]["path"].asString().assert().isEqualTo("d")
+        }
+        listOf("%2B42", "042", "4.0", "4e1", "%D9%A1").forEach { n ->
+            node.get("/$CONTEXT/kinds/$n").body!!["violations"][0]["path"].asString().assert().isEqualTo("n")
+        }
+    }
+
+    @Test
     fun `a caller that acts across scopes calls in the scope it names, and relays as itself`() {
         val answer = node.get(
             "/$CONTEXT/summaries/mon?limit=1",

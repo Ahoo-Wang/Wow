@@ -151,6 +151,11 @@ class BodyIdAdmissionTest {
                 request("Restock", """{"productId":"$long","quantity":1}"""),
                 "The aggregate id is at most ${AdmissionLimits.MAX_ID_LENGTH} characters; this one has ${long.length}.",
             )
+            // An id no store keeps as given (#6501): white space at either end, here.
+            refused(
+                request("Restock", """{"productId":" mug","quantity":1}"""),
+                "The aggregate id ' mug' begins or ends with white space, which a reader would not see.",
+            )
             refused(
                 request("Audit", """{"productId":"mug"}"""),
                 "The aggregate the body of $CONTEXT.product.Audit names cannot be read: No product is audited as mug.",

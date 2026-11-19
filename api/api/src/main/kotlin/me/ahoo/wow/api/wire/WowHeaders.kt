@@ -16,7 +16,10 @@ package me.ahoo.wow.api.wire
 /**
  * The request headers of the public port. A request header that is neither one of these
  * nor a request fact the host lists (`wow.http.request-facts`) is ignored, but for `User-Agent`, which the public
- * port records as the default request fact `user_agent` beside the client's address, `remote_ip`.
+ * port records as the default request fact `user_agent` beside the client's address, `remote_ip`, and a header under
+ * the prefix `Wow-`, which is Wow's: one the public port does not take, and a Wow header given in more than one line
+ * but [SCOPE], is refused (400 `wow.request.malformed`). Nodes are upgraded before the clients that send a header they
+ * do not know; the internal port keeps reading what a peer of the next minor version sends.
  */
 object WowHeaders {
     /** The caller's id of the request, kept as the command's request id: a retry with the same one is deduplicated. */

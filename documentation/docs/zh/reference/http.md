@@ -56,15 +56,34 @@ outline: deep
 | --- | --- | --- |
 | `Wow-Request-Id` | 命令 | 调用方给请求的 ID：用同一个 ID 重试会被当作已完成来回答（`duplicate`），绝不会决定两次；同一个 ID 用于另一条命令时是 `wow.command.request-id-reused` |
 | `Wow-Wait` | 命令 | 回答之前要等到哪里（见下文）；默认 `snapshot`，没有快照的聚合为 `committed`，在那里显式的 `snapshot` 是 `wow.wait.invalid` |
-| `Wow-Wait-Timeout` | 命令 | 等待多久：`500ms`、`10s`、`1m` 或 ISO-8601；默认 `wow.wait.default-timeout`（10 秒），最长 `wow.wait.max-timeout`（1 分钟） |
-| `If-Match` | 命令 | 聚合必须所处的版本；否则 `412 wow.aggregate.version-mismatch`（[实体标签](./protocols#entity-tags)） |
-| `If-None-Match` | 状态读取、能力描述 | 上一次的 `ETag`；仍然有效时返回 `304`（[实体标签](./protocols#entity-tags)） |
+| `Wow-Wait-Timeout` | 命令 | 等待多久：`500ms`、`10s`、`1m`（单位紧跟数字）或 ISO-8601，至少 1 毫秒（`10 s` 和 `PT0.0001S` 是 `wow.wait.invalid`）；默认 `wow.wait.default-timeout`（10 秒）。更长的会被截到 `wow.wait.max-timeout`（1 分钟）：超时是客户端给自己的等待设的上限，节点的最大值再给它设上限 |
+| `If-Match` | 命令 | 聚合必须所处的版本，写成强标签：`"3"`，或状态读取写出的 `"3-…"`，其中的摘要不做比较；聚合处于其他版本时返回 `412 wow.aggregate.version-mismatch`。不指版本的标签（`W/"3"`、`"03"`、`"2147483648"`）或指两个版本时返回 `400 wow.request.malformed`。它的多行是一个列表（[实体标签](./protocols#entity-tags)） |
+| `If-None-Match` | 状态读取、能力描述 | 上一次的 `ETag`；仍然有效时返回 `304`。无法解析的会被忽略：缓存条件失败时放行（[实体标签](./protocols#entity-tags)） |
 | `Accept: text/event-stream` | 命令、`list` 查询 | 服务端推送事件（见下文） |
 | `Last-Event-ID` | 流式的 `list` 查询 | 从哪个位置之后续读 |
-| `Wow-Scope` | 每个路由 | 对被允许跨作用域行事的调用方：要在其中行事的租户、所有者和空间，一个 RFC 8941 字典，`tenant="t1", owner="u1", space="s1"`。在查询路由上，打开 `wow.query.allow-cross-tenant` 时，`tenant=*` 或 `tenant=("t1" "t2")` 可以跨租户读取 |
+| `Wow-Scope` | 每个路由 | 对被允许跨作用域行事的调用方：要在其中行事的租户、所有者和空间，一个 RFC 8941 字典，`tenant="t1", owner="u1", space="s1"`。在查询路由上，打开 `wow.query.allow-cross-tenant` 时，`tenant=*` 或 `tenant=("t1" "t2")` 可以跨租户读取。它的多行用逗号连成一个字典；同一个成员给出两次是格式错误（`wow.command.malformed`，读取时为 `wow.query.malformed`） |
 | `Wow-Space` | 每个路由 | 在调用方自己的空间中，要在其中行事的那个 |
 
-带有 `Wow-Call`（服务同步调用的请求头）的命令请求或上下文自有服务路由的请求，在公开端口上会以 `403 wow.auth.forbidden` 拒绝：调用只在内部端口上接收。`wow.http.request-facts` 列出的请求头会复制进命令，并写进它的事件流。
+`wow.http.request-facts` 列出的请求头会复制进命令，并写进它的事件流。
+
+前缀 `Wow-` 属于 Wow。除了上面这些请求头，公开端口还接收 `Wow-Service`（它不读取）和开发身份请求头（`Wow-User`、`Wow-Owner`、`Wow-Roles`、`Wow-Tenant`、`Wow-App`，只在开发 profile 下读取）。先升级节点，再升级客户端：客户端发送更新版本 Wow 的 `Wow-` 请求头时，旧节点会拒绝它。内部端口仍然读取下一个次版本的对端发送的内容。
+
+### 公开端口拒绝什么 {#refused}
+
+客户端在请求体之外发送的内容，不会被当作别的东西读取，也不会被丢弃：
+
+| 请求 | 回答 |
+| --- | --- |
+| 端口不接收的 `Wow-` 请求头（`Wow-Wiat`，`Wow-Wait` 的拼写错误） | `400 wow.request.malformed`，指出它 |
+| 分两行或更多行给出的 Wow 请求头（`Wow-Request-Id: r1` 和 `Wow-Request-Id: r2`），`Wow-Scope` 除外 | `400 wow.request.malformed`，指出它：追加一行的代理不能决定取值 |
+| 任何路由上的 `Wow-Call`（服务同步调用的请求头）：命令、查询、状态读取、服务路由 | `403 wow.auth.forbidden`，无论凭据如何：调用只在内部端口上接收 |
+| 路径中的矩阵参数（`/shop/cart/c-1;x=1/add-item`） | `400 wow.request.malformed`：没有路由接收它们 |
+| 类型不是 `application/json` 或 `application/<name>+json` 的请求体，参数不计（`*/*`、`application/*`、`image/x+json`） | `415` |
+| 含控制字符（`a%00b`）、两端有空白（`%20c-1`），或者是 `.` 或 `..` 的聚合 ID | `400 wow.command.malformed`。含 `%2F` 的 ID 是 ID `a/b`，Unicode ID（`%E8%B4%AD`）按原样接收：客户端会编码它发送的 ID |
+| 状态读取上的空白 ID（`/shop/cart/%20/state`） | `400 wow.query.malformed` |
+| 状态读取或 trace 不接收的参数（`?verison=1`），或给出两次的参数（`?version=1&version=9`） | `400 wow.query.invalid`，违规项指出它 |
+| 不是不带符号、不带前导零的 ASCII 数字的 `version`、`minVersion`、`from`、`to` 或 `limit`（`%2B1`、`001`、`١`） | `400 wow.query.invalid`，违规项指出它 |
+| 服务路由的数字参数不是 JSON 写法的数字（`NaN`、`Infinity`、空格、`+1`、`01`；整数带小数或指数） | `400 wow.route.malformed`，违规项指出它 |
 
 ## Wow-Wait {#wow-wait}
 

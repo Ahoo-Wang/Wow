@@ -101,7 +101,8 @@ import java.time.format.DateTimeParseException
  * both through the [ReadFacade] of `:query`, the one read path of every entry, which observes and
  * audits each read as a query of type `STATE` or `TRACE`. A deleted aggregate's state is read as
  * any other, `deleted` set. A query parameter that cannot be read, or is out of range, is 400 `wow.query.invalid`
- * with a violation naming it.
+ * with a violation naming it: a number is ASCII digits with no sign or leading zero, and a parameter the route does
+ * not take, or one given twice, is refused, never ignored ([checkParameters]). A blank id is 400 `wow.query.malformed`.
  */
 internal class StateHandler(
     private val reads: StateReads,
@@ -117,7 +118,7 @@ internal class StateHandler(
     private val facade: ReadFacade = queries.reads ?: ReadFacade(queries::visibility, masks)
 
     suspend fun handle(request: ServerRequest, type: AggregateType): ServerResponse {
-        val reader = reader(request, type)
+        val reader = reader(request, type, STATE_PARAMETERS)
         val what = when {
             request.queryParam(WowPaths.VERSION).isPresent -> StateRead.VERSION
             request.queryParam(WowPaths.AT).isPresent -> StateRead.AT
@@ -150,7 +151,7 @@ internal class StateHandler(
     }
 
     suspend fun trace(request: ServerRequest, type: AggregateType): ServerResponse {
-        val reader = reader(request, type)
+        val reader = reader(request, type, TRACE_PARAMETERS)
         val ref = reader.ref
         val masked = answering(type) {
             facade.observed(type, StateRead.TRACE, reader.caller, rows = { it.size.toLong() }) {
@@ -177,10 +178,14 @@ internal class StateHandler(
             .bodyValueAndAwait(HttpJson.write(mapOf("ref" to ref, "commits" to masked)))
     }
 
-    /** Authenticates and negotiates [request]: the scope the caller reads in, the ref it reads, and its query caller. */
-    private suspend fun reader(request: ServerRequest, type: AggregateType): Reader {
+    /**
+     * Authenticates and negotiates [request], whose query parameters are among [parameters]: the scope the caller
+     * reads in, the ref it reads, and its query caller.
+     */
+    private suspend fun reader(request: ServerRequest, type: AggregateType, parameters: Set<String>): Reader {
         val caller = authenticator.authenticate(request)
         Negotiation.checkAcceptable(request, alsoEventStream = false)
+        answering(type) { checkParameters(request, parameters) }
         val target = headers.target(request, FrameworkCodes.QUERY_MALFORMED)
         val queryCaller = answering(type) { targets.of(type, caller, target) }
         val acting = checkNotNull(queryCaller.caller)
@@ -198,6 +203,9 @@ internal class StateHandler(
                 )
             },
         )
+        if (id.isBlank()) {
+            throw problem(FrameworkCodes.QUERY_MALFORMED, "A ${type.name} is read by an id that is not blank.", type)
+        }
         return Reader(scope, type.ref(tenant, id), queryCaller)
     }
 
@@ -348,6 +356,32 @@ internal class StateHandler(
 
         private const val NOT_MODIFIED = 304
 
+        /** The query parameters of a state read: any other is refused. */
+        private val STATE_PARAMETERS = setOf(WowPaths.VERSION, WowPaths.AT, WowPaths.MIN_VERSION)
+
+        /** The query parameters of a trace: any other is refused. */
+        private val TRACE_PARAMETERS = setOf(WowPaths.FROM, WowPaths.TO, WowPaths.LIMIT)
+
+        /** A whole number as a parameter writes it: ASCII digits, no sign, no leading zero. */
+        private val DIGITS = Regex("0|[1-9][0-9]*")
+
+        /**
+         * Refuses a query parameter of [request] that is not one of [parameters], a typo read as no parameter, or one
+         * given twice, of which no value is the one read.
+         */
+        private fun checkParameters(request: ServerRequest, parameters: Set<String>) {
+            request.queryParams().forEach { (name, values) ->
+                val refusal = when {
+                    name !in parameters ->
+                        "'$name' is no parameter of this read; it takes ${parameters.joinToString { "'$it'" }}."
+
+                    values.size > 1 -> "'$name' is given ${values.size} times; it is given once."
+                    else -> return@forEach
+                }
+                throw InvalidStateReadException(refusal, QueryErrorCodes.INVALID_REQUEST, name)
+            }
+        }
+
         /**
          * This commit of a trace of [ref] as its snapshot after it, for its policies to read: its first commit's time
          * and operator are the [latest] snapshot's, and a trace reads no schedules.
@@ -383,7 +417,8 @@ internal class StateHandler(
         private fun ServerRequest.number(name: String, min: Int, max: Int = Int.MAX_VALUE): Int? {
             val value = queryParam(name).orElse(null) ?: return null
             val range = if (max == Int.MAX_VALUE) "from $min" else "from $min to $max"
-            return value.toIntOrNull()?.takeIf { it in min..max } ?: throw InvalidStateReadException(
+            val number = value.takeIf(DIGITS::matches)?.toIntOrNull()
+            return number?.takeIf { it in min..max } ?: throw InvalidStateReadException(
                 "'$name' is a whole number $range: '$value'.",
                 QueryErrorCodes.INVALID_VALUE,
                 name,
