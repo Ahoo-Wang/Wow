@@ -13,18 +13,24 @@
 
 package me.ahoo.wow.spi.json
 
+import com.fasterxml.jackson.annotation.JsonFormat
+import com.fasterxml.jackson.annotation.JsonProperty
 import tools.jackson.core.JsonParser
 import tools.jackson.core.JsonToken
 import tools.jackson.core.exc.InputCoercionException
 import tools.jackson.databind.BeanDescription
+import tools.jackson.databind.BeanProperty
 import tools.jackson.databind.DeserializationConfig
 import tools.jackson.databind.DeserializationContext
 import tools.jackson.databind.DeserializationFeature
+import tools.jackson.databind.JavaType
 import tools.jackson.databind.ValueDeserializer
 import tools.jackson.databind.cfg.CoercionAction
 import tools.jackson.databind.cfg.CoercionInputShape
 import tools.jackson.databind.cfg.MutableCoercionConfig
+import tools.jackson.databind.deser.BeanDeserializerBuilder
 import tools.jackson.databind.deser.ValueDeserializerModifier
+import tools.jackson.databind.deser.jdk.EnumDeserializer
 import tools.jackson.databind.deser.std.DelegatingDeserializer
 import tools.jackson.databind.exc.InvalidFormatException
 import tools.jackson.databind.json.JsonMapper
@@ -60,6 +66,11 @@ import java.util.TimeZone
  *   decimal of epoch seconds for an `Instant`, an `OffsetDateTime`, a `ZonedDateTime` and a `Duration`, epoch
  *   milliseconds for a `Date` and a `Calendar`, an array for a `LocalDateTime`, a `LocalDate`, a `YearMonth`, a
  *   `LocalTime` and an `OffsetTime`. Any other number or array for them is refused.
+ * - **A computed property** (a getter alone) that Wow's JSON writes is known to its reader, which reads nothing into
+ *   it: a reader that refuses an unknown property, a command's body's, reads what Wow wrote of the command.
+ * - **A number for an enumeration**, or a number's text, which Jackson reads as the constant of that index: Wow
+ *   writes an enumeration by its name. A `Month` reads its one-based number, and an enumeration written as a number
+ *   (`@JsonFormat(shape = NUMBER)`, on the class or the property) reads as one.
  * - **A `Year` from a string**, and **a `byte[]` or a `MonthDay` from an array**: one shape for each schema, the
  *   integer and the text Wow writes. No release wrote a `MonthDay` as an array: 1.x to 6.x wrote `"--01-02"` too.
  * - **A `TimeZone`** is read through `ZoneId`, so an unknown id is refused where Jackson reads it as `GMT`, and an
@@ -111,6 +122,32 @@ internal object StrictReads {
             else -> deserializer
         }
 
+        /**
+         * A computed property, a getter with no field, setter or creator parameter behind it, is one Wow's JSON writes
+         * and reads nothing into: a reader that refuses an unknown property (a command's body) takes it as known.
+         */
+        override fun updateBuilder(
+            config: DeserializationConfig,
+            beanDesc: BeanDescription.Supplier,
+            builder: BeanDeserializerBuilder,
+        ): BeanDeserializerBuilder = builder.apply {
+            beanDesc.get().findProperties()
+                .filter { it.hasGetter() && !it.hasSetter() && !it.hasField() && !it.hasConstructorParameter() }
+                .forEach { addIgnorable(it.name) }
+        }
+
+        override fun modifyEnumDeserializer(
+            config: DeserializationConfig,
+            type: JavaType,
+            beanDesc: BeanDescription.Supplier,
+            deserializer: ValueDeserializer<*>,
+        ): ValueDeserializer<*> = if (deserializer is EnumDeserializer && !numbered(type.rawClass)) {
+            // Jackson's reader alone reads an index: a reader of Wow's ([WowEnums]) or the domain's decides its own.
+            ByName(deserializer, type.rawClass)
+        } else {
+            deserializer
+        }
+
         override fun modifyArrayDeserializer(
             config: DeserializationConfig,
             valueType: ArrayType,
@@ -154,6 +191,46 @@ internal object StrictReads {
                 throw OutOfRange(p, "${p.string} is out of the range of a byte, -128 to 127.", p.string, type)
             }
         }
+    }
+
+    /** Whether this shape writes an enumeration as its number, which it then reads as one. */
+    private fun JsonFormat.Shape?.numbered(): Boolean =
+        this == JsonFormat.Shape.NUMBER || this == JsonFormat.Shape.NUMBER_INT
+
+    private fun numbered(type: Class<*>): Boolean = type.getAnnotation(JsonFormat::class.java)?.shape.numbered()
+
+    /**
+     * An enumeration's reader that takes its constants by their names alone: a number, or a number's text, which
+     * Jackson reads as the constant of that index, is refused. A property written as a number reads as one.
+     */
+    private class ByName(delegate: ValueDeserializer<*>, private val type: Class<*>) :
+        DelegatingDeserializer(delegate) {
+        override fun newDelegatingInstance(newDelegatee: ValueDeserializer<*>): ValueDeserializer<*> =
+            ByName(newDelegatee, type)
+
+        override fun createContextual(ctxt: DeserializationContext, property: BeanProperty?): ValueDeserializer<*> {
+            val contextual = super.createContextual(ctxt, property)
+            val shape = findFormatOverrides(ctxt, property, type)?.shape
+            return if (shape.numbered() && contextual is ByName) contextual._delegatee else contextual
+        }
+
+        override fun deserialize(p: JsonParser, ctxt: DeserializationContext): Any? {
+            if (p.currentToken() == JsonToken.VALUE_NUMBER_INT) {
+                return ctxt.handleUnexpectedToken(type, p)
+            }
+            // An index's text, which Jackson reads as the constant of that index unless a constant is named so.
+            val index = p.takeIf { it.currentToken() == JsonToken.VALUE_STRING }?.string
+                ?.takeIf { it.isNotEmpty() && it.all(Char::isDigit) }
+            val value = super.deserialize(p, ctxt)
+            if (index != null && value is Enum<*> && !value.named(index)) {
+                throw InvalidFormatException.from(p, "$index is no name of ${type.simpleName}.", index, type)
+            }
+            return value
+        }
+
+        /** Whether this constant is written as [text]: its name, or the name `@JsonProperty` gives it. */
+        private fun Enum<*>.named(text: String): Boolean =
+            name == text || type.getField(name).getAnnotation(JsonProperty::class.java)?.value == text
     }
 
     /** A [TimeZone] read through [ZoneId]: an unknown id is refused, an offset is that offset. */

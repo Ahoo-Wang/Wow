@@ -23,6 +23,7 @@ object QueryErrorCodes {
     const val BODY_NOT_OBJECT = "body-not-object"
     const val EMPTY_BODY = "empty-body"
     const val UNKNOWN_PROPERTY = "unknown-property"
+    const val DUPLICATE_PROPERTY = "duplicate-property"
     const val UNKNOWN_TYPE = "unknown-type"
     const val UNKNOWN_VALUE = "unknown-value"
     const val INVALID_VALUE = "invalid-value"

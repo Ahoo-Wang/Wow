@@ -29,7 +29,7 @@ A body is one JSON object: `kind` names the operation, the other properties are 
 }
 ```
 
-A property the kind does not have is 400 `wow.query.malformed` with the violation code `unknown-property`; a body without `kind` or with another value is `invalid-value` or `unknown-value`.
+A property the kind does not have is 400 `wow.query.malformed` with the violation code `unknown-property`, and a property given more than once in one object is `duplicate-property`, never read as its last value; a body without `kind` or with another value is `invalid-value` or `unknown-value`.
 
 Every word the protocol defines is lowercase kebab-case: `kind`, `op`, `type`, `direction`, `total`, `mode`, `unit` and the other enumerated properties, the error and violation codes, and the descriptor's values (`"not-in"`, `"date-histogram"`, `"unknown-field"`, `"snapshot"`). Only that spelling is read: `"NOT_IN"` is `unknown-type`. A custom query model or value type a backend registers follows the same rule, and one that does not is refused when the service starts, with the lowercase spelling in the message. Two kinds of value keep their own spelling, because the protocol does not define them: your domain's values (`"PUBLISHED"` below is the product's status), and zone ids and ISO-8601 durations (`Asia/Shanghai`, `PT30M`). A time unit in the descriptor is a JDK `TimeUnit` name in lowercase (`"milliseconds"`).
 
@@ -77,8 +77,8 @@ A value is a JSON scalar: a string, a number, a boolean, or `null` where the ope
 
 | `op` | Properties | Matches |
 | --- | --- | --- |
-| `eq` | `field`, `value`: a scalar or `null` | The field equals `value`; `null` asks whether the field is null |
-| `ne` | `field`, `value` | The field differs from `value` |
+| `eq` | `field`, `value`: a scalar or `null`, given even when it is `null` | The field equals `value`; `null` asks whether the field is null. A filter that leaves `value` out is refused (`invalid-request`), never read as `null` |
+| `ne` | `field`, `value`, given as for `eq` | The field differs from `value` |
 | `gt`, `gte`, `lt`, `lte` | `field`, `value`: a scalar, not `null` | The field is greater, greater or equal, less, less or equal |
 | `between` | `field`, `lowerBound`, `upperBound`: scalars, not `null` | `lowerBound <= field <= upperBound`, both bounds included |
 | `in` | `field`, `values`: a non-empty array of scalars, no `null` | The field equals one of `values` |
@@ -443,7 +443,7 @@ The descriptor's `analysis` says which of these the backend runs.
 
 | Code | Status | When |
 | --- | --- | --- |
-| `wow.query.malformed` | 400 | The body does not read as a query: `empty-body`, `body-not-object`, `invalid-json`, `unknown-property`, `unknown-type` (an unknown `op` or `type`), `unknown-value`, `invalid-value`, `invalid-request` (a rule of the query type, such as an empty `operands`) |
+| `wow.query.malformed` | 400 | The body does not read as a query: `empty-body`, `body-not-object`, `invalid-json`, `unknown-property`, `duplicate-property`, `unknown-type` (an unknown `op` or `type`), `unknown-value`, `invalid-value`, `invalid-request` (a rule of the query type, such as an empty `operands`) |
 | `wow.query.invalid` | 400 | The model refuses it; each violation names its rule, such as `unknown-field`, `unsupported-capability`, `value-mismatch`, `element-scope-required`, `size-out-of-range`, `filter-too-large`, `expensive-operator-disabled`, `invalid-cursor`, `stream-not-resumable`, `storage-unsupported` |
 | `wow.query.failed` | 500 | The backend failed |
 | `wow.query.too-many-groups` | 400 | An `aggregate` without a `sort` found more groups than its `limit` |

@@ -46,7 +46,8 @@ import tools.jackson.module.kotlin.KotlinModule
  * what Wow stores and sends must not depend on what a host happens to bring.
  * - Wow's own enumerations are written by their lower-kebab wire names, and read by them alone
  *   ([WowEnums]); a domain's enumerations are written as its Jackson writes them. A `java.time.Month` is written by
- *   its name, as every enumeration is ([MonthNames]).
+ *   its name, as every enumeration is ([MonthNames]). A number for an enumeration is refused ([StrictReads]), where
+ *   Jackson would read it, or its text, as the constant of that index.
  * - A `kotlin.time.Duration` is ISO-8601 text, as a `java.time.Duration` is ([KotlinDurations]).
  * - An `OffsetDateTime` or a `ZonedDateTime` is read back at the offset it was written with, as a `java.time` value
  *   prints it: `2026-01-02T03:04:05+08:00` reads as `+08:00`, not as the same instant at UTC, which is Jackson's
@@ -67,7 +68,8 @@ import tools.jackson.module.kotlin.KotlinModule
  *   and a ref that names it is refused when read. A ref whose `id` is null or left out reads as not assigned.
  * - A read ignores the properties it does not know, at every level, as Jackson 3 does by default; stated here so that
  *   the cluster codec's lenient reading and the event codec's reading of older payloads do not rest on
- *   a library default.
+ *   a library default. A request's body is read stricter ([JsonReadFailures.requestReader]): a property given twice
+ *   is refused, and a command's body refuses a property its command does not have.
  * - A property with no setter that the class holds in a field, a `val` of its body, is read into that field, as 9.x's
  *   JSON read it: a collection or map it fills as it goes (`val items = sortedSetOf<String>()`, a `MutableList` or
  *   `MutableMap` `val`) reads back filled, and a value set at construction (`val label = ""`) reads back as written.

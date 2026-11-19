@@ -29,7 +29,7 @@ outline: deep
 }
 ```
 
-该种类没有的属性会返回 400 `wow.query.malformed`，violation 代码为 `unknown-property`；没有 `kind` 或 `kind` 为其他值的请求体，是 `invalid-value` 或 `unknown-value`。
+该种类没有的属性会返回 400 `wow.query.malformed`，violation 代码为 `unknown-property`；同一对象中给出多次的属性是 `duplicate-property`，不会读作最后一个值；没有 `kind` 或 `kind` 为其他值的请求体，是 `invalid-value` 或 `unknown-value`。
 
 协议自己定义的词一律是小写短横线：`kind`、`op`、`type`、`direction`、`total`、`mode`、`unit` 等枚举类属性，错误码与 violation 代码，以及描述符里的取值（`"not-in"`、`"date-histogram"`、`"unknown-field"`、`"snapshot"`）。只认这一种写法：`"NOT_IN"` 是 `unknown-type`。后端注册的自定义查询模型或值类型遵守同一规则，不符合的会在服务启动时被拒绝，消息里给出小写的写法。有两类取值保留自己的写法，因为它们不是协议定义的：领域的取值（下文的 `"PUBLISHED"` 是商品的状态），以及时区 ID 与 ISO-8601 时长（`Asia/Shanghai`、`PT30M`）。描述符里的时间单位是 JDK `TimeUnit` 名称的小写（`"milliseconds"`）。
 
@@ -77,8 +77,8 @@ outline: deep
 
 | `op` | 属性 | 匹配 |
 | --- | --- | --- |
-| `eq` | `field`，`value`：标量或 `null` | 字段等于 `value`；`null` 表示询问字段是否为 null |
-| `ne` | `field`、`value` | 字段不等于 `value` |
+| `eq` | `field`，`value`：标量或 `null`，即使为 `null` 也要给出 | 字段等于 `value`；`null` 表示询问字段是否为 null。省略 `value` 的过滤会被拒绝（`invalid-request`），不会读作 `null` |
+| `ne` | `field`、`value`，给出方式与 `eq` 相同 | 字段不等于 `value` |
 | `gt`、`gte`、`lt`、`lte` | `field`，`value`：标量，不能为 `null` | 字段大于、大于等于、小于、小于等于 |
 | `between` | `field`，`lowerBound`、`upperBound`：标量，不能为 `null` | `lowerBound <= field <= upperBound`，两端都包含 |
 | `in` | `field`，`values`：非空的标量数组，不含 `null` | 字段等于 `values` 中的某一个 |
@@ -443,7 +443,7 @@ PostgreSQL 按数据库的排序规则取小写；这里是测试数据库的回
 
 | 错误码 | 状态 | 何时 |
 | --- | --- | --- |
-| `wow.query.malformed` | 400 | 请求体无法读成查询：`empty-body`、`body-not-object`、`invalid-json`、`unknown-property`、`unknown-type`（未知的 `op` 或 `type`）、`unknown-value`、`invalid-value`、`invalid-request`（违反了查询类型的规则，例如 `operands` 为空） |
+| `wow.query.malformed` | 400 | 请求体无法读成查询：`empty-body`、`body-not-object`、`invalid-json`、`unknown-property`、`duplicate-property`、`unknown-type`（未知的 `op` 或 `type`）、`unknown-value`、`invalid-value`、`invalid-request`（违反了查询类型的规则，例如 `operands` 为空） |
 | `wow.query.invalid` | 400 | 模型拒绝了它；每个 violation 指明它违反的规则，例如 `unknown-field`、`unsupported-capability`、`value-mismatch`、`element-scope-required`、`size-out-of-range`、`filter-too-large`、`expensive-operator-disabled`、`invalid-cursor`、`stream-not-resumable`、`storage-unsupported` |
 | `wow.query.failed` | 500 | 后端失败 |
 | `wow.query.too-many-groups` | 400 | 不带 `sort` 的 `aggregate` 得到的分组多于 `limit` |

@@ -64,6 +64,7 @@ description: "框架的错误码与 HTTP 状态，以及查询请求被拒时的
 | `body-not-object` | Reading and decoding the request body. |
 | `empty-body` | Reading and decoding the request body. |
 | `unknown-property` | Reading and decoding the request body. |
+| `duplicate-property` | Reading and decoding the request body. |
 | `unknown-type` | Reading and decoding the request body. |
 | `unknown-value` | Reading and decoding the request body. |
 | `invalid-value` | Reading and decoding the request body. |

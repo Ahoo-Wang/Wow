@@ -22,6 +22,7 @@ import me.ahoo.wow.api.query.QueryErrorCodes
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.query.error.QueryRequestException
 import me.ahoo.wow.query.json.QueryJson
+import me.ahoo.wow.spi.json.JsonReadFailures
 import tools.jackson.core.JacksonException
 import tools.jackson.core.exc.StreamReadException
 import tools.jackson.databind.DeserializationFeature
@@ -67,6 +68,9 @@ internal object QueryBodies {
 
     private val KINDS = QueryKind.entries.joinToString(", ") { it.wire }
 
+    /** Reads a body refusing a property given more than once in one object, which a plain read keeps the last of. */
+    private val failures = JsonReadFailures(QueryJson.mapper)
+
     fun read(body: ByteArray?): QueryBody {
         val node = objectOf(body)
         val kind = kindOf(node)
@@ -84,8 +88,17 @@ internal object QueryBodies {
     }
 
     private fun parse(body: ByteArray) = try {
-        QueryJson.mapper.readTree(body)
+        failures.requestReader.readTree(body)
     } catch (invalid: JacksonException) {
+        failures.duplicateIn(body)?.let { duplicate ->
+            val name = duplicate.path.substringAfterLast('.').substringAfterLast(']')
+            throw QueryRequestException(
+                "Duplicate property [$name] at [${duplicate.path}].",
+                QueryErrorCodes.DUPLICATE_PROPERTY,
+                duplicate.path,
+                invalid,
+            )
+        }
         val at = (invalid as? StreamReadException)?.location?.let { " (line ${it.lineNr}, column ${it.columnNr})" }
         throw QueryRequestException(
             "Request body is not valid JSON${at.orEmpty()}.",

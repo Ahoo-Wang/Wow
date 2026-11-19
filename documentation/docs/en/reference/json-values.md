@@ -9,7 +9,8 @@ Wow's JSON (`WowJson`) writes and reads the states, commands and events of a ser
 
 - The classes are the JVM's: a Kotlin `Int` is `int`, or `Integer` where it is nullable or a type argument, and a `ByteArray` is `byte[]`. A row matches its class itself, not a subclass.
 - A JavaScript `number` holds an integer exactly only up to 2^53 − 1 (`9007199254740991`): a client reads a larger `long` as a `bigint`.
-- An enumeration is written by its name, as its schema's `enum` lists it: a `Month` as `"JANUARY"`.
+- An enumeration is written by its name, as its schema's `enum` lists it: a `Month` as `"JANUARY"`. It is read by its name alone: a number, or a number's text, is refused (`wrong-kind`, `not-in-enumeration`), where Jackson would read the constant of that index. A `Month` also reads its one-based number, and an enumeration written as a number (`@JsonFormat(shape = NUMBER)`) reads as one.
+- A request's body, a command's or a query's, that gives a property more than once in one object is refused (`duplicate-property`), where a JSON reader commonly keeps the last. So is one that gives a property its type does not have (`unknown-property`); a computed property Wow writes, a getter alone, is known and read into nothing. Events, snapshots and cluster messages ignore an unknown property, so that an older or a newer writer's message reads.
 - A property holding another platform class written as a scalar (a `Charset`, a `Path`, an `AtomicLong`) stops the build, unless its schema is declared ([Manifest](../guide/manifest#a-type-written-by-a-custom-serializer)).
 - A test holds each row to the code: its classes, JSON type and format to what the Manifest describes, and each value it shows to what Wow's JSON writes.
 

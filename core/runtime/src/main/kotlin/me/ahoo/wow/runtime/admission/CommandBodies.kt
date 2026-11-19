@@ -18,12 +18,22 @@ import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.spi.json.JsonReadFailures
 import tools.jackson.core.JacksonException
+import tools.jackson.databind.DeserializationFeature
 import tools.jackson.databind.JsonNode
+import tools.jackson.databind.ObjectReader
 import tools.jackson.databind.json.JsonMapper
+import java.util.concurrent.ConcurrentHashMap
 
 /** How admission reads a request's body as its command type, step 4 of admission ([CommandGateway]), with [mapper]. */
 internal class CommandBodies(private val mapper: JsonMapper) {
     private val failures = JsonReadFailures(mapper)
+
+    /**
+     * Each command type's reader of a body: Wow's JSON, refusing a property given more than once in one object, of
+     * which a plain read would keep the last silently, and a property the command does not have, which Wow's JSON
+     * ignores where an older or a newer writer's message must read (events, snapshots, cluster messages).
+     */
+    private val readers = ConcurrentHashMap<Class<*>, ObjectReader>()
 
     /**
      * Why [body] cannot be taken, or null when it can: it writes `\u0000` in a string or a key ([AdmissionLimits]); a
@@ -49,8 +59,8 @@ internal class CommandBodies(private val mapper: JsonMapper) {
      */
     fun decode(body: CommandBody, type: Class<*>): BodyRead = try {
         when (body) {
-            is CommandBody.Bytes -> mapper.readValue(body.bytes, type)
-            is CommandBody.Tree -> mapper.treeToValue(body.node, type)
+            is CommandBody.Bytes -> readerOf(type).readValue<Any>(body.bytes)
+            is CommandBody.Tree -> readerOf(type).readValue<Any>(body.node)
             is CommandBody.Value -> body.command.takeIf { type.isInstance(it) }
         }?.let(::Decoded) ?: Undecodable(emptyList())
     } catch (failure: JacksonException) {
@@ -61,8 +71,17 @@ internal class CommandBodies(private val mapper: JsonMapper) {
     private fun violationOf(body: CommandBody, type: Class<*>, failure: JacksonException): Violation? {
         // A command object is taken as it is, never read: only text and a tree fail to read.
         val json = if (body is CommandBody.Bytes) treeOf(body.bytes) else (body as CommandBody.Tree).node
-        return json?.let { failures.of(it, type, failure) }?.let { Violation.of(it.path, it.reason.code, it.message) }
+        // A failure that is about no value of a body that is JSON is the property it gives twice.
+        val read = json?.let { failures.of(it, type, failure) ?: (body as? CommandBody.Bytes)?.let(::duplicateIn) }
+        return read?.let { Violation.of(it.path, it.reason.code, it.message) }
     }
+
+    private fun duplicateIn(body: CommandBody.Bytes) = failures.duplicateIn(body.bytes)
+
+    private fun readerOf(type: Class<*>): ObjectReader =
+        readers.computeIfAbsent(type) {
+            failures.requestReader.forType(it).with(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+        }
 
     /** [bytes] as a tree, or null when they are not JSON. */
     private fun treeOf(bytes: ByteArray): JsonNode? = try {

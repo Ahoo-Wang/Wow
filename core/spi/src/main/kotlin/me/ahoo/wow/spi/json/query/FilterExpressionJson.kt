@@ -92,6 +92,7 @@ internal const val OP = "op"
 private const val OPERATOR = "operator"
 private const val OPERANDS = "operands"
 private const val PREDICATE = "predicate"
+private const val VALUE = "value"
 
 /** The filter class each operator names on the wire; a new operator does not compile until it has one. */
 @Suppress("CyclomaticComplexMethod")
@@ -194,8 +195,8 @@ internal class FilterExpressionTypeResolverBuilder : StdTypeResolverBuilder() {
 
 /**
  * Reads a filter only by its `op`: an object without one (a 9.x legacy `Condition`) is rejected, at the top, as a
- * property value and nested in the tree. EQ and NE read from JSON take a scalar only; the model also takes a list,
- * for in-process array equality.
+ * property value and nested in the tree. EQ and NE read from JSON name their value, `null` for a null, and take a
+ * scalar only; the model also takes a list, for in-process array equality.
  */
 private class FilterExpressionTypeDeserializer(
     source: AsPropertyTypeDeserializer,
@@ -232,6 +233,11 @@ private fun JsonNode.requireCanonicalFilterPayload(nested: Boolean) {
         -> get(OPERANDS)?.forEach { it.requireCanonicalFilterPayload(nested = true) }
 
         FilterOperator.ELEMENT_MATCH -> get(PREDICATE)?.requireCanonicalFilterPayload(nested = true)
+        // Left out, the value would read as null, and the filter as is-null: a request that names no value is refused.
+        FilterOperator.EQ, FilterOperator.NE -> require(has(VALUE)) {
+            "${get(OP).asString()} names its value, null for a null."
+        }
+
         else -> Unit
     }
 }

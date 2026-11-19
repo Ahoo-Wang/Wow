@@ -330,6 +330,23 @@ class QueryRoutesTest {
             "condition"
         )
         malformed("""{"kind":"list","filter":null}""", QueryErrorCodes.INVALID_VALUE, "filter")
+        // A property given twice is refused, never read as its last value: a list is not answered as a count.
+        malformed(
+            """{"kind":"list","kind":"count","filter":{"op":"match-all"}}""",
+            QueryErrorCodes.DUPLICATE_PROPERTY,
+            "kind",
+        )
+        malformed(
+            """{"kind":"list","filter":{"op":"eq","field":"state.items","value":1,"value":7}}""",
+            QueryErrorCodes.DUPLICATE_PROPERTY,
+            "filter.value",
+        )
+        // An equality that names no value is refused, never read as is-null.
+        malformed(
+            """{"kind":"list","filter":{"op":"eq","field":"state.items"}}""",
+            QueryErrorCodes.INVALID_REQUEST,
+            "filter",
+        )
         // 9.x's filter, without 10.x's: refused as unknown, never read as a query of every record.
         malformed(
             """{"kind":"count","condition":{"field":"state.status","operator":"eq","value":"PAID"}}""",
