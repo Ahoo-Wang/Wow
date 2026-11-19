@@ -128,15 +128,17 @@ class DateOperandsTest {
     fun `an operand that names no instant should be left as it is, and a JSON string read as its text`() {
         val first = "2026-10-13T08:00:00Z"
         // Admission refuses each of these on a caller's query; lowering, which may meet one first, leaves it alone.
+        // A filter itself refuses a null but for equality's, which asks for presence.
         listOf(
             EqualFilter(at, 7),
+            EqualFilter(at, null),
             NotEqualFilter(at, null),
-            InFilter(at, listOf(first, null)),
+            InFilter(at, listOf(first, "soon")),
             NotInFilter(at, listOf("2026-10")),
-            GreaterThanFilter(at, null),
+            GreaterThanFilter(at, "soon"),
             GreaterThanOrEqualFilter(at, 7),
             LessThanFilter(at, "soon"),
-            LessThanOrEqualFilter(at, null),
+            LessThanOrEqualFilter(at, 7),
             BetweenFilter(at, "soon", first),
             BetweenFilter(at, first, "soon"),
             IsNullFilter(at),
