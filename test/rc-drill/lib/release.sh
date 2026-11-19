@@ -166,6 +166,8 @@ service() {
   entry=$(entry "$name")
   module=${entry##*|}
   values+=(-f "$src/$module/build/wow/helm/values.yaml" -f "$src/deploy/$name/values.yaml")
+  # Every service: the drill's workaround for the OpenTelemetry agent's init container (values/pod-security-workaround.yaml).
+  values+=(-f "$here/values/pod-security-workaround.yaml")
   [ ! -f "$here/values/$name.yaml" ] || values+=(-f "$here/values/$name.yaml")
   is_eshop "$name" && values+=(--set "image.tag=$version")
   helm --kube-context "kind-$cluster" -n "$namespace" upgrade --install "$name" "$CHART" --version "$version" \

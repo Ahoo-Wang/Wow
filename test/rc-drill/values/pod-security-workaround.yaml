@@ -1,0 +1,9 @@
+# A workaround of the drill's for a finding of Wow's, on every service: the chart's podSecurityContext asks
+# runAsNonRoot with no user, and the OpenTelemetry Operator's injected init container
+# (opentelemetry-auto-instrumentation-java, an image with no USER) takes the app container's runAsNonRoot, so the
+# kubelet refuses it ("container has runAsNonRoot and image will run as root") and no Wow pod starts. Wow's images run
+# as 10001; naming it here lets the injected container run as that user too. Merged into the chart's podSecurityContext,
+# which keeps its runAsNonRoot and seccomp profile.
+podSecurityContext:
+  runAsUser: 10001
+  runAsGroup: 10001
