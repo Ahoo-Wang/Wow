@@ -118,6 +118,10 @@ class SoakDatabase(private val connection: Connection, val context: String) {
         )
     }
 
+    /** The ids of the aggregates [table] holds. */
+    fun aggregateIds(table: String): Set<String> =
+        query("SELECT DISTINCT aggregate_id FROM \"$table\"") { it.getString(1) }.toSet()
+
     /** How many aggregates [table] holds. */
     fun aggregateCount(table: String): Long =
         query("SELECT count(DISTINCT (tenant_id, aggregate_id)) FROM \"$table\"") { it.getLong(1) }.single()

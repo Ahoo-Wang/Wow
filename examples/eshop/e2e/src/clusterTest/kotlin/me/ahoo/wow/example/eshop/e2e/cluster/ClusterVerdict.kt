@@ -104,17 +104,31 @@ class ClusterVerdict(private val flows: ShopFlows, private val reads: StoreReads
         }
     }
 
-    /** Waits until every order the run made is settled (paid, shipped or cancelled), at most [deadline]. */
+    /**
+     * Waits, at most [deadline], until the order list (the ordering's snapshot query, which lags behind its log) holds
+     * every order of the ordering's log, and every listed order is settled (paid, shipped or cancelled), and says how
+     * long that took: the read side's lag at this verdict. An order whose state read answers nothing stays open.
+     */
     fun settle(deadline: Duration = SETTLE) {
-        val until = System.nanoTime() + deadline.toNanos()
-        var open: Map<String, String?> = emptyMap()
-        while (System.nanoTime() < until) {
-            open = flows.orders().associateWith { runCatching { flows.orderStatus(it) }.getOrNull() }
-                .filterValues { it != null && it !in SETTLED }
-            if (open.isEmpty()) return
-            Thread.sleep(POLL.toMillis())
+        val started = System.nanoTime()
+        var unlisted: Set<String>
+        var open: Map<String, String?>
+        do {
+            // The log first: every order it holds now must be listed.
+            val logged = reads.aggregateIds("ordering", "order")
+            val listed = flows.orders().toSet()
+            unlisted = logged - listed
+            open = listed.associateWith { runCatching { flows.orderStatus(it) }.getOrNull() }
+                .filterValues { it !in SETTLED }
+            val done = unlisted.isEmpty() && open.isEmpty()
+            if (!done) Thread.sleep(POLL.toMillis())
+        } while (!done && System.nanoTime() - started < deadline.toNanos())
+        val waited = Duration.ofNanos(System.nanoTime() - started)
+        if (unlisted.isEmpty() && open.isEmpty()) {
+            log("the order list held the ordering's log, every order settled, after $waited")
+        } else {
+            log("after $waited, unlisted: ${unlisted.take(LISTED)}; open: ${open.entries.take(LISTED)}")
         }
-        log("orders still open after $deadline: $open")
     }
 
     /** The orders' numbers: well formed, each answered once, each an order of the ordering ([orders]). */
@@ -136,8 +150,19 @@ class ClusterVerdict(private val flows: ShopFlows, private val reads: StoreReads
 
     fun judge() {
         stopSampling()
-        val orders = flows.orders().mapNotNull { id -> flows.order(id)?.let { id to it } }.toMap()
-        log("judging ${orders.size} orders of ${flows.checkouts.values.sumOf { it.get() }} checkouts")
+        val logged = reads.aggregateIds("ordering", "order")
+        val listed = flows.orders()
+        val unlisted = logged - listed.toSet()
+        check(unlisted.isEmpty()) {
+            "the order list lacks ${unlisted.size} orders of the ordering's log: ${unlisted.take(LISTED)}"
+        }
+        val orders = listed.associateWith { id ->
+            checkNotNull(flows.order(id)) { "the state read of $id answered nothing" }
+        }
+        log(
+            "judging ${orders.size} orders of ${flows.checkouts.values.sumOf { it.get() }} checkouts, " +
+                "${logged.size} in the ordering's log"
+        )
         checkNumbers(orders.keys)
         orders.forEach { (id, order) ->
             val status = order["status"].asString()
@@ -254,6 +279,7 @@ class ClusterVerdict(private val flows: ShopFlows, private val reads: StoreReads
 
     companion object {
         const val EVIDENCE = 500
+        const val LISTED = 20
         val CONTEXTS = listOf("catalog", "basket", "ordering", "inventory", "payment")
         val SETTLED = setOf("PAID", "SHIPPED", "CANCELLED")
         val PAID = setOf("PAID", "SHIPPED")
