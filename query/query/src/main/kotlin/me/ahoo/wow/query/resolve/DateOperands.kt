@@ -74,11 +74,19 @@ internal object DateOperands {
         values.all { value -> value == null || value.textOrNull()?.let(::instantOf) != null }
 
     /** [expression], a comparison on a date field, as a range at its operands' millisecond. */
-    fun lower(expression: FilterExpression): FilterExpression = when (expression) {
+    fun lower(expression: FilterExpression): FilterExpression = equality(expression) ?: bound(expression) ?: expression
+
+    /** An equality or a membership as its operands' millisecond ranges: an `or`, or a `nor` for its negation. */
+    private fun equality(expression: FilterExpression): FilterExpression? = when (expression) {
         is EqualFilter -> expression.value.instant()?.let { within(expression.field, it) }
         is NotEqualFilter -> expression.value.instant()?.let { NorFilter(listOf(within(expression.field, it))) }
         is InFilter -> expression.values.instants()?.let { at -> OrFilter(at.map { within(expression.field, it) }) }
         is NotInFilter -> expression.values.instants()?.let { at -> NorFilter(at.map { within(expression.field, it) }) }
+        else -> null
+    }
+
+    /** A bound as its operand's millisecond's: `gt` and `lte` past its last instant, `gte` and `lt` at its first. */
+    private fun bound(expression: FilterExpression): FilterExpression? = when (expression) {
         is GreaterThanFilter -> expression.value.instant()?.let { GreaterThanOrEqualFilter(expression.field, next(it)) }
         is GreaterThanOrEqualFilter ->
             expression.value.instant()?.let { GreaterThanOrEqualFilter(expression.field, floor(it)) }
@@ -86,7 +94,7 @@ internal object DateOperands {
         is LessThanOrEqualFilter -> expression.value.instant()?.let { LessThanFilter(expression.field, next(it)) }
         is BetweenFilter -> between(expression)
         else -> null
-    } ?: expression
+    }
 
     private fun between(expression: BetweenFilter): FilterExpression? {
         val lower = expression.lowerBound.instant() ?: return null

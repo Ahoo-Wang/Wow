@@ -158,27 +158,34 @@ class ClickHouseSqlCompilerTest {
 
     @Test
     fun `date operands should bind as an instant in UTC at every digit they have whatever their form`() {
+        // A date's comparison holds at its operand's millisecond: `gt` is `gte` the next millisecond's first instant.
         mapOf(
-            "2025-01-01T00:00:00Z" to "2025-01-01 00:00:00.000000000",
-            "2025-01-01T08:00:00+08:00" to "2025-01-01 00:00:00.000000000",
-            "2025-01-01T00:00:00" to "2025-01-01 00:00:00.000000000",
-            "2025-01-01" to "2025-01-01 00:00:00.000000000",
+            "2025-01-01T00:00:00Z" to "2025-01-01 00:00:00.001000000",
+            "2025-01-01T08:00:00+08:00" to "2025-01-01 00:00:00.001000000",
+            "2025-01-01" to "2025-01-01 00:00:00.001000000",
+            "2025-01-01T00:00:00.0000002Z" to "2025-01-01 00:00:00.001000000",
         ).forEach { (operand, text) ->
             val statement = statement(GreaterThanFilter(CREATED_AT, operand))
-            statement.sql.assert().isEqualTo("`created_at` > toDateTime64({p0:String}, 3, 'UTC')")
+            statement.sql.assert().isEqualTo("`created_at` >= toDateTime64({p0:String}, 3, 'UTC')")
             statement.parameters["p0"].assert().isEqualTo(text)
         }
-        // Below the millisecond, the operand's own digits decide the scale (#6304).
-        statement(GreaterThanFilter(CREATED_AT, "2025-01-01T00:00:00.0000002Z")).let {
-            it.sql.assert().isEqualTo("`created_at` > toDateTime64({p0:String}, 7, 'UTC')")
-            it.parameters["p0"].assert().isEqualTo("2025-01-01 00:00:00.000000200")
+        // Below the millisecond, a bound's own digits decide the scale (#6304): an equality's last instant has nine.
+        statement(EqualFilter(CREATED_AT, "2025-01-01T00:00:00.0000002Z")).let {
+            it.sql.assert().contains("toDateTime64({p0:String}, 3, 'UTC')", "toDateTime64({p1:String}, 9, 'UTC')")
+            it.parameters["p0"].assert().isEqualTo("2025-01-01 00:00:00.000000000")
+            it.parameters["p1"].assert().isEqualTo("2025-01-01 00:00:00.000999999")
         }
         statement(TodayFilter(CREATED_AT)).sql.assert().isEqualTo(
             "(`created_at` >= fromUnixTimestamp64Milli({p0:Int64}, 'UTC') AND " +
                 "`created_at` < fromUnixTimestamp64Milli({p1:Int64}, 'UTC'))",
         )
+        // A time with no offset, and text that is no date, are refused at admission.
+        assertThrows<RuntimeException> { statement(GreaterThanFilter(CREATED_AT, "2025-01-01T00:00:00")) }
+        assertThrows<RuntimeException> { statement(GreaterThanFilter(CREATED_AT, "yesterday")) }
+        // Bound without admission, the compiler still refuses text that is no date.
         assertThrows<RuntimeException> { where(GreaterThanFilter(CREATED_AT, "yesterday")) }
     }
+
 
     @Test
     fun `expression filters should compute in Float64 and never match a missing value`() {

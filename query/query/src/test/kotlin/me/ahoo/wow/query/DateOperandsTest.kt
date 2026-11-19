@@ -113,8 +113,9 @@ class DateOperandsTest {
     fun `an integer field should take an integer, not a decimal's form`() {
         val count = QueryField("count")
         admitted(EqualFilter(count, 7)).assert().isEqualTo(EqualFilter(count, 7))
-        admitted(EqualFilter(count, java.math.BigDecimal("7"))).assert().isInstanceOf(EqualFilter::class.java)
-        listOf(java.math.BigDecimal("7.0"), java.math.BigDecimal("1E+2"), 7.5).forEach { value ->
+        // A decimal of any scale, from JSON's `7.0`, `7e0` or `1e2`, or in process, is no integer.
+        val decimals = listOf(java.math.BigDecimal("7"), java.math.BigDecimal("7.0"), java.math.BigDecimal("1E+2"), 7.5)
+        decimals.forEach { value ->
             refusal(EqualFilter(count, value)).assert().describedAs("$value")
                 .isEqualTo(QueryViolation.ValueMismatch(count))
         }
