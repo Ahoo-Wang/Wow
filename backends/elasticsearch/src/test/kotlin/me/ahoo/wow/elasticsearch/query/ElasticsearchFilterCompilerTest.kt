@@ -288,28 +288,24 @@ class ElasticsearchFilterCompilerTest {
     @Test
     fun `a date operand compiles as its epoch milliseconds, so no bound holds the rest of its second`() {
         // Elasticsearch reads a term on a `date` field as [value, value], rounding the upper bound up over the fields
-        // a text lacks: `…T00:00:00Z` sent as text would hold `…T00:00:00.999Z` (#6347).
+        // a text lacks: `…T00:00:00Z` sent as text would hold `…T00:00:00.999Z` (#6347). Admission compares a date at
+        // its millisecond, as a range from its first instant to its last, which this index holds as one millisecond.
         val day = QueryField("state.day")
         val instant = JsonData.of(Instant.parse(INSTANT).toEpochMilli())
+        val next = JsonData.of(Instant.parse(INSTANT).toEpochMilli() + 1)
+        val millisecond = range { it.untyped { range -> range.field("state.day").gte(instant).lte(instant) } }
         assertQuery(
             ElasticsearchFilterCompiler.compileAdmitted(EqualFilter(day, json("2026-01-01T01:00:00+01:00"))),
-            term { it.field("state.day").value(Instant.parse(INSTANT).toEpochMilli()) },
+            millisecond,
         )
-        assertQuery(
-            ElasticsearchFilterCompiler.compileAdmitted(InFilter(day, listOf(json(INSTANT)))),
-            terms {
-                it.field("state.day").terms { terms ->
-                    terms.value(listOf(FieldValue.of(Instant.parse(INSTANT).toEpochMilli())))
-                }
-            },
-        )
+        assertQuery(ElasticsearchFilterCompiler.compileAdmitted(InFilter(day, listOf(json(INSTANT)))), millisecond)
         assertQuery(
             ElasticsearchFilterCompiler.compileAdmitted(BetweenFilter(day, json("2026-01-01"), json(INSTANT))),
-            range { it.untyped { range -> range.field("state.day").gte(instant).lte(instant) } },
+            millisecond,
         )
         assertQuery(
             ElasticsearchFilterCompiler.compileAdmitted(GreaterThanFilter(day, json(INSTANT))),
-            range { it.untyped { range -> range.field("state.day").gt(instant) } },
+            range { it.untyped { range -> range.field("state.day").gte(next) } },
         )
         // A field read as no date keeps its text.
         assertQuery(
@@ -320,15 +316,11 @@ class ElasticsearchFilterCompilerTest {
 
     @Test
     fun `a date operand beyond the milliseconds a long holds is refused, not an internal error`() {
-        // ISO-8601 names instants to the year 1,000,000,000; a long of milliseconds ends in the year 292,278,994.
+        // ISO-8601 names instants to the year 1,000,000,000; a long of milliseconds ends in the year 292,278,994. Such
+        // a year is no RFC 3339 date-time, which admission refuses before the store's own bound is reached.
         assertThrows<QuerySchemaValidationException> {
             ElasticsearchFilterCompiler.compileAdmitted(EqualFilter(QueryField("state.day"), json(BEYOND_MILLIS)))
-        }.violation.assert().isEqualTo(
-            QueryViolation.StorageUnsupported(
-                "date operands beyond the epoch milliseconds a long holds",
-                QueryField("state.day"),
-            ),
-        )
+        }.violation.assert().isEqualTo(QueryViolation.ValueMismatch(QueryField("state.day")))
     }
 
     @Test

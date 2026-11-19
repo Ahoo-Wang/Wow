@@ -147,9 +147,16 @@ class QuerySchemaValidationTest {
                 "string" to scalarFixture(),
             )
         )
-        listOf("integer" to 1, "integer" to BigDecimal("1.0"), "decimal" to 1.5, "boolean" to true, "string" to "one")
+        listOf("integer" to 1, "decimal" to 1.5, "boolean" to true, "string" to "one")
             .forEach { (field, value) -> validateQuery(EqualFilter(QueryField(field), value), schema) }
-        listOf("integer" to 1.5, "integer" to "1", "decimal" to "1.5", "boolean" to 1, "string" to 1)
+        listOf(
+            "integer" to 1.5,
+            "integer" to BigDecimal("1.0"),
+            "integer" to "1",
+            "decimal" to "1.5",
+            "boolean" to 1,
+            "string" to 1,
+        )
             .forEach { (field, value) ->
                 assertThrows<QuerySchemaValidationException> {
                     validateQuery(

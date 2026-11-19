@@ -134,6 +134,7 @@ public final class me/ahoo/wow/query/tck/DatasetQueryBackendSpec$Companion {
 	public final fun getDATES ()Lme/ahoo/wow/query/tck/DatasetTable;
 	public final fun getHISTORY ()Lme/ahoo/wow/query/tck/DatasetTable;
 	public final fun getMICROS ()Lme/ahoo/wow/query/tck/DatasetTable;
+	public final fun getMILLIS ()Lme/ahoo/wow/query/tck/DatasetTable;
 	public final fun getORDERS ()Lme/ahoo/wow/query/tck/DatasetTable;
 	public final fun getSEMANTIC ()Lme/ahoo/wow/query/tck/DatasetTable;
 	public final fun getSEMANTIC_FIELDS ()Ljava/util/Map;
@@ -162,6 +163,7 @@ protected final class me/ahoo/wow/query/tck/DatasetQueryFixtures$Target {
 public abstract class me/ahoo/wow/query/tck/DatasetRecordCases : me/ahoo/wow/query/tck/DatasetQueryFixtures {
 	public final fun NOR holds for a record whose condition has no value ()V
 	public final fun a cursor over instants a microsecond apart walks each record once, in time order ()V
+	public final fun a date compares at its millisecond, two instants within one equal and one in the next apart ()V
 	public final fun a date sorts by time, instants a millisecond apart included ()V
 	public final fun a single record is the first in sort order, or none ()V
 	public final fun a stream reads keyset chunks with positions and resumes strictly after one ()V
@@ -430,10 +432,12 @@ public abstract class me/ahoo/wow/query/tck/SnapshotRecordCases : me/ahoo/wow/qu
 public abstract class me/ahoo/wow/query/tck/SnapshotValueComparisonCases : me/ahoo/wow/query/tck/SnapshotDateBucketCases {
 	public static final field Companion Lme/ahoo/wow/query/tck/SnapshotValueComparisonCases$Companion;
 	public static final field DATE_EQUALITY Ljava/lang/String;
+	public static final field DATE_MILLISECOND Ljava/lang/String;
 	public static final field DATE_RANGE Ljava/lang/String;
 	public final fun PREVIOUS pairs a group with the earlier one whose number is the same in another width ()V
 	public final fun TOTAL, RUNNING and RANK within a number partition its widths together ()V
 	public final fun a RUNNING total over date groups accumulates by instant ()V
+	public final fun a date compares at its millisecond, two instants within one equal and one in the next apart ()V
 	public final fun a date's TERMS groups and DISTINCT_COUNT count every text of its instant once ()V
 	public final fun a date's equality and membership match every text of its instant ()V
 	public final fun a date's range holds every text of its instant, and a millisecond later apart ()V

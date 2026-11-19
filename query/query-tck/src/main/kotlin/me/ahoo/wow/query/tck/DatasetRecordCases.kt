@@ -18,16 +18,22 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationExpressionOperator
 import me.ahoo.wow.api.query.AndFilter
+import me.ahoo.wow.api.query.BetweenFilter
 import me.ahoo.wow.api.query.ComparisonOperator
 import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.CountResult
 import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.ExpressionFilter
+import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.GreaterThanFilter
 import me.ahoo.wow.api.query.IdsFilter
+import me.ahoo.wow.api.query.InFilter
+import me.ahoo.wow.api.query.LessThanOrEqualFilter
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.NorFilter
+import me.ahoo.wow.api.query.NotEqualFilter
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Pagination
 import me.ahoo.wow.api.query.Projection
@@ -46,6 +52,7 @@ import me.ahoo.wow.query.backend.single
 import me.ahoo.wow.query.tck.DatasetQueryBackendSpec.Companion.DATES
 import me.ahoo.wow.query.tck.DatasetQueryBackendSpec.Companion.ID
 import me.ahoo.wow.query.tck.DatasetQueryBackendSpec.Companion.MICROS
+import me.ahoo.wow.query.tck.DatasetQueryBackendSpec.Companion.MILLIS
 import me.ahoo.wow.query.tck.DatasetQueryBackendSpec.Companion.SEMANTIC
 import me.ahoo.wow.query.tck.DatasetQueryBackendSpec.Companion.SEMANTIC_FIELDS
 import org.junit.jupiter.api.DynamicTest
@@ -249,6 +256,24 @@ abstract class DatasetRecordCases internal constructor() : DatasetQueryFixtures(
             cursor = page.nextCursor
         } while (cursor != null && ids.size <= MAX_LIST)
         ids.assert().containsExactly("u2", "u1", "u3")
+        Unit
+    }
+
+    @Test
+    fun `a date compares at its millisecond, two instants within one equal and one in the next apart`() = blocking {
+        val millis = target(MILLIS)
+        suspend fun ids(filter: FilterExpression): List<String> =
+            millis.list(ListQuery(filter, limit = MAX_LIST)).map { it.path(ID).stringValue() }
+        val within = arrayOf("m1", "m2")
+        ids(EqualFilter(CREATED_AT, "2026-01-01T00:00:00.000500Z")).assert().containsExactlyInAnyOrder(*within)
+        ids(EqualFilter(CREATED_AT, "2026-01-01T00:00:00Z")).assert().containsExactlyInAnyOrder(*within)
+        ids(InFilter(CREATED_AT, listOf("2026-01-01T00:00:00.001Z"))).assert().containsExactly("m3")
+        ids(NotEqualFilter(CREATED_AT, "2026-01-01T00:00:00.000900Z")).assert().containsExactly("m3")
+        ids(GreaterThanFilter(CREATED_AT, "2026-01-01T00:00:00.000200Z")).assert().containsExactly("m3")
+        ids(LessThanOrEqualFilter(CREATED_AT, "2026-01-01T00:00:00.000200Z")).assert()
+            .containsExactlyInAnyOrder(*within)
+        ids(BetweenFilter(CREATED_AT, "2026-01-01T00:00:00.000700Z", "2026-01-01T00:00:00.000700Z")).assert()
+            .containsExactlyInAnyOrder(*within)
         Unit
     }
 

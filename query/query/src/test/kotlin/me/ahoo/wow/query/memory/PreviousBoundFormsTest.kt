@@ -28,9 +28,11 @@ import me.ahoo.wow.query.admission.QueryAdmission
 import me.ahoo.wow.query.aggregation.PreviousStep
 import me.ahoo.wow.query.backend.aggregate
 import me.ahoo.wow.query.backend.parseInstant
+import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.Temporal
 import me.ahoo.wow.spi.json.WowJson
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import tools.jackson.databind.node.ObjectNode
 import java.time.Duration
 import java.time.Instant
@@ -123,18 +125,23 @@ internal class PreviousBoundFormsTest : InMemoryReferenceFixtures() {
         }
 
     @Test
-    fun `a day-over-day count should read the whole previous day whatever the form of its bounds`() {
+    fun `a day-over-day count should read the whole previous day whatever the offset of its bounds`() {
         val utc: (String) -> String = { it }
-        val offsetFree: (String) -> String = { it.removeSuffix("Z") }
+        val est: (String) -> String = { Instant.parse(it).atOffset(EST).toString() }
         // November 1, 2026 runs from 04:00Z to 05:00Z the next day: its first hour and an hour inside it, then today.
         val fall = listOf("2026-11-01T04:30:00Z", "2026-11-01T05:30:00Z", "2026-11-02T05:30:00Z")
-        listOf(utc, offsetFree).forEach { form ->
+        listOf(utc, est).forEach { form ->
             previous(fall, "2026-11-02T05:00:00Z", "2026-11-03T05:00:00Z", form).assert().isEqualTo(2L)
         }
         // March 8, 2026 runs from 05:00Z to 04:00Z the next day: its first hour and its last, then today.
         val spring = listOf("2026-03-08T05:30:00Z", "2026-03-09T03:30:00Z", "2026-03-09T04:30:00Z")
-        listOf(utc, offsetFree).forEach { form ->
+        listOf(utc, est).forEach { form ->
             previous(spring, "2026-03-09T04:00:00Z", "2026-03-10T04:00:00Z", form).assert().isEqualTo(2L)
+        }
+        // A caller's bound names its offset: one without is refused at admission (the core's own moved bound,
+        // which reads at UTC, is never admitted again).
+        assertThrows<QuerySchemaValidationException> {
+            previous(fall, "2026-11-02T05:00:00Z", "2026-11-03T05:00:00Z") { it.removeSuffix("Z") }
         }
     }
 

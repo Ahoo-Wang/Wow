@@ -69,7 +69,9 @@ internal fun QueryValueSchema.accepts(values: Iterable<Any?>): Boolean {
 
 private fun JsonNode.matches(type: QueryValueType): Boolean = when (type) {
     QueryValueType.STRING -> isString
-    QueryValueType.INTEGER -> isNumber && canConvertToExactIntegral()
+    // An integer is an integral number: a decimal (`7.0`, `7e0`, `1e2`, a `BigDecimal` in process) is refused, as a
+    // command's body refuses a float's token for an integer.
+    QueryValueType.INTEGER -> isIntegralNumber
     QueryValueType.DECIMAL -> isNumber
     QueryValueType.BOOLEAN -> isBoolean
     QueryValueType.OBJECT -> isObject

@@ -109,8 +109,8 @@ internal class InMemoryReferenceSemanticsTest : InMemoryReferenceFixtures() {
             .containsExactlyInAnyOrder("r2", "r3")
         matches(GreaterThanFilter(DAY, "2026-01-07T00:00:00+08:00")).assert()
             .containsExactlyInAnyOrder("r3", "r4")
-        // A stored day that is no instant, or a bound that is none, orders against nothing.
-        matches(GreaterThanFilter(DAY, "not a day")).assert().isEmpty()
+        // A bound that is no instant is refused at admission.
+        assertThrows<QuerySchemaValidationException> { matches(GreaterThanFilter(DAY, "not a day")) }
     }
 
     @Test

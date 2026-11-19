@@ -64,6 +64,9 @@ class QueryBodiesTest {
             QueryErrorCodes.UNKNOWN_VALUE,
             "sort[0].direction",
         )
+        // An enumeration's values are named as the body writes them, never by their class's constants.
+        refused("""{"kind":"list","filter":{"op":"match-all"},"sort":[{"field":"version","direction":"ASC"}]}""")
+            .message.assert().isEqualTo("Unknown value [ASC] at [sort[0].direction]; expected one of asc, desc.")
         assertRefused("""{"kind":"cursor","filter":{"op":"match-all"},"size":0}""", QueryErrorCodes.INVALID_REQUEST)
         assertRefused("""{"kind":"list","filter":"MATCH_ALL"}""", QueryErrorCodes.INVALID_VALUE, "filter")
         refused("{\"kind\":").message.assert().contains("line 1")

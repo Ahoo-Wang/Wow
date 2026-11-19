@@ -92,8 +92,11 @@ class QueryValueDomainsTest {
     @Test
     fun `a value accepts operands of its declared types, nulls included`() {
         val integer = scalarFixture(QueryValueType.INTEGER)
-        integer.accepts(listOf(1, 2L, BigDecimal("3.0"), null)).assert().isTrue()
+        integer.accepts(listOf(1, 2L, null)).assert().isTrue()
+        // A decimal is no integer whatever its scale: JSON's 3.0 and 3e0 are read as one.
         integer.accepts(listOf(1.5)).assert().isFalse()
+        integer.accepts(listOf(BigDecimal("3.0"))).assert().isFalse()
+        integer.accepts(listOf(BigDecimal("3"))).assert().isFalse()
         scalarFixture(QueryValueType.DECIMAL).accepts(listOf(1, 1.5)).assert().isTrue()
         scalarFixture(QueryValueType.BOOLEAN).accepts(listOf(true)).assert().isTrue()
         scalarFixture().accepts(listOf("a", JsonNodeFactory.instance.stringNode("b"))).assert().isTrue()

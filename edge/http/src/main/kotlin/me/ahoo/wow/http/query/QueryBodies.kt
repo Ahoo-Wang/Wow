@@ -25,6 +25,7 @@ import me.ahoo.wow.query.json.QueryJson
 import tools.jackson.core.JacksonException
 import tools.jackson.core.exc.StreamReadException
 import tools.jackson.databind.DeserializationFeature
+import tools.jackson.databind.JsonNode
 import tools.jackson.databind.ObjectReader
 import tools.jackson.databind.exc.InvalidFormatException
 import tools.jackson.databind.exc.InvalidTypeIdException
@@ -131,7 +132,7 @@ internal object QueryBodies {
         val (message, code) = when (jackson) {
             is InvalidFormatException if jackson.targetType?.isEnum == true ->
                 "Unknown value [${jackson.value}]$at; expected one of " +
-                    "${jackson.targetType.enumConstants.joinToString(", ")}." to QueryErrorCodes.UNKNOWN_VALUE
+                    "${wireNames(jackson.targetType).joinToString(", ")}." to QueryErrorCodes.UNKNOWN_VALUE
             is PropertyBindingException ->
                 "Unknown property [${jackson.propertyName}]$at." to QueryErrorCodes.UNKNOWN_PROPERTY
             is InvalidTypeIdException -> "Unknown type [${jackson.typeId}]$at." to QueryErrorCodes.UNKNOWN_TYPE
@@ -140,6 +141,10 @@ internal object QueryBodies {
         }
         return QueryRequestException(message, code, name, this)
     }
+
+    /** An enumeration's constants as the body writes them, `asc` and `desc`, never the names of their class. */
+    private fun wireNames(type: Class<*>): List<String> =
+        type.enumConstants.map { QueryJson.mapper.valueToTree<JsonNode>(it).asString() }
 
     private fun Throwable.causes(): Sequence<Throwable> = generateSequence(this) {
         it.cause.takeIf { cause -> cause !== it }

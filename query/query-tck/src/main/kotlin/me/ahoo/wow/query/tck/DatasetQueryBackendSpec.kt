@@ -148,6 +148,21 @@ abstract class DatasetQueryBackendSpec : DatasetDateBucketCases() {
             ).map { (id, at) -> mapOf(ID to id, TENANT_COLUMN.path to "t1", "created_at" to Instant.parse(at)) },
         )
 
+        /** Two instants within one millisecond, and one in the next. */
+        val MILLIS = DatasetTable(
+            name = "millis",
+            columns = listOf(
+                DatasetColumn(ID, DatasetColumn.Type.STRING),
+                DatasetColumn(TENANT_COLUMN.path, DatasetColumn.Type.STRING),
+                DatasetColumn("created_at", DatasetColumn.Type.DATE),
+            ),
+            rows = listOf(
+                "m1" to "2026-01-01T00:00:00.000200Z",
+                "m2" to "2026-01-01T00:00:00.000700Z",
+                "m3" to "2026-01-01T00:00:00.001100Z",
+            ).map { (id, at) -> mapOf(ID to id, TENANT_COLUMN.path to "t1", "created_at" to Instant.parse(at)) },
+        )
+
         /** Instants on either side of the epoch. */
         val HISTORY = DatasetTable(
             name = "history",
