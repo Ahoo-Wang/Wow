@@ -17,6 +17,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.clickhouse.ClickHouseClients
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.sink.Sink
 import me.ahoo.wow.spi.state.StateEventRecord
@@ -32,13 +33,21 @@ import kotlin.time.Duration.Companion.minutes
  * - **Batches**: the sink subscription hands [write] the records of every aggregate's commits waiting together, at
  *   most [maxBatch] ([batchSize]): their runs, each aggregate's in version order ([Sink.maxBatch]). A write is one
  *   `INSERT` (more only past [batchSize], which the subscription does not hand it), one at a time per sink, and
- *   returns once ClickHouse has acknowledged its records. So a sustained load is written in a few large inserts
- *   instead of one small part per commit, and an idle sink adds no delay.
+ *   returns once ClickHouse has acknowledged its records.
+ * - **Paced** ([minWriteInterval], [insertInterval]): an insert starts no sooner than [insertInterval] after the
+ *   previous one started, unless [batchSize] records are waiting, and the commits arriving meanwhile join it. Each
+ *   insert makes a part in each table it reaches (the base table and the two views' tables, per month touched), so
+ *   one insert per commit or per few would have ClickHouse make and merge thousands of parts a minute: unpaced, the
+ *   inserts took 7 ms under the rc drill's load, 3,250 a minute of a few rows each, which a 2Gi ClickHouse refused
+ *   (#6494). Paced, a node inserts at most once per interval per aggregate type under load; an idle sink inserts at
+ *   once, and a backlog, in full batches, at full speed.
  * - **Idempotent by `ref@version`**: each insert carries a deduplication token, the record's id for a
  *   batch of one, else a digest of the batch's ids, so a retry of the same batch within the tables' deduplication
- *   window is dropped at once, the views' included. Beyond it, and for a batch made up differently, the history tables
- *   are `ReplacingMergeTree`s keyed by `ref@version` ([ClickHouseSinkSchema]): a replayed record is merged away, and a
- *   read with `FINAL` never sees it twice.
+ *   window is dropped at once, the views' included. Paced, that window of 1,000 inserts covers about five minutes of
+ *   them at one a second per node and type, where unpaced it covered some 18 s. Beyond it, and for a batch made up
+ *   differently (a retry that other commits joined), the history tables are `ReplacingMergeTree`s keyed by
+ *   `ref@version` ([ClickHouseSinkSchema]): a replayed record is merged away, and a read with `FINAL` never sees it
+ *   twice.
  * - **DDL**: before its first write, and again once [recheckEvery] has passed since, the Sink creates
  *   or validates its tables as [ddl] says; a failure fails the write, which the subscription retries. The check
  *   repeated finds what changed since: a table dropped or altered fails the writes until it is as the Sink expects.
@@ -60,6 +69,7 @@ class ClickHouseSink internal constructor(
     private val statements: ClickHouseStatements,
     private val ddl: Ddl = Ddl.AUTO,
     private val batchSize: Int = ClickHouseSinkOptions.DEFAULT_BATCH_SIZE,
+    private val insertInterval: Duration = ClickHouseSinkOptions.DEFAULT_INSERT_INTERVAL,
     /** The `wow_catalog` entries of the tables, asked for when the Sink first describes them. */
     catalog: () -> List<CatalogEntry> = { emptyList() },
     private val recheckEvery: Duration = DEFAULT_RECHECK,
@@ -87,6 +97,7 @@ class ClickHouseSink internal constructor(
     init {
         require(batchSize >= 1) { "A batch holds at least one record." }
         require(recheckEvery.isPositive()) { "The tables are checked again after a positive interval." }
+        require(!insertInterval.isNegative()) { "The interval between two inserts is never negative." }
     }
 
     /** Held by the write that inserts: one insert at a time per sink. */
@@ -94,6 +105,9 @@ class ClickHouseSink internal constructor(
 
     /** The most records a write takes: [batchSize], one `INSERT`. */
     override val maxBatch: Int get() = batchSize
+
+    /** The least time between the starts of two inserts: [insertInterval]. */
+    override val minWriteInterval: Duration get() = insertInterval
 
     override suspend fun write(records: List<StateEventRecord>) {
         if (records.isEmpty()) {
@@ -253,10 +267,14 @@ class ClickHouseSink internal constructor(
             schema.addColumns(missing).joinToString("; ")
     }
 
-    override fun toString(): String = "ClickHouseSink(${schema.database}.${schema.target})"
+    override fun toString(): String =
+        "ClickHouseSink(${schema.database}.${schema.target}, $INTERVAL_SETTING=$insertInterval)"
 
     @InternalWowApi
     companion object {
+        /** The setting of [insertInterval], which a refusal of it names. */
+        private val INTERVAL_SETTING = "${ClickHouseClients.PREFIX}.${ClickHouseSinkProvider.INSERT_INTERVAL.key}"
+
         /** How long the Sink writes before it checks its tables again. */
         val DEFAULT_RECHECK: Duration = 1.minutes
 

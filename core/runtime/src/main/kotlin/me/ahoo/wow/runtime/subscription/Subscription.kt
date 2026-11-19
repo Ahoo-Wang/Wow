@@ -33,6 +33,7 @@ import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.state.StateEventRecord
 import me.ahoo.wow.spi.subscription.SubscriptionId
+import kotlin.time.Duration
 
 /**
  * A subscription: a [name], a [filter] and exactly one handler. The checkpoint belongs to the
@@ -84,6 +85,13 @@ class Subscription private constructor(
     internal val maxRun: Int = 1,
     /** What runs a run of an aggregate's entries, for a subscription made [batching]; null for any other. */
     internal val runHandler: RunHandler? = null,
+    /**
+     * The least time between two writes of a subscription made [batching], whose runs wait up to it within their
+     * handler's timeout ([SubscriptionRuntime] refuses one more than half that timeout); zero for any other.
+     */
+    internal val minRunInterval: Duration = Duration.ZERO,
+    /** What paces the writes ([minRunInterval]), named in a refusal: the sink and its setting. */
+    internal val paced: String? = null,
     /** Whether every entry is the subscription's, whatever its filter: one of a topic of commands or receipts. */
     private val takesAll: Boolean = false,
     /** Whether a stream that only changes schedules is the subscription's: a built-in one's. */
@@ -247,6 +255,8 @@ class Subscription private constructor(
             name: String,
             filter: SubscriptionFilter,
             maxRun: Int,
+            minRunInterval: Duration = Duration.ZERO,
+            paced: String? = null,
             startFrom: StartFrom = StartFrom.BEGINNING,
             decoder: EntryDecoder = EntryDecoder.RECORDS,
             models: Collection<AggregateModel<*>> = emptyList(),
@@ -269,6 +279,8 @@ class Subscription private constructor(
                 },
                 maxRun = maxRun,
                 runHandler = runHandler,
+                minRunInterval = minRunInterval,
+                paced = paced,
                 context = context,
                 retry = retry,
             )

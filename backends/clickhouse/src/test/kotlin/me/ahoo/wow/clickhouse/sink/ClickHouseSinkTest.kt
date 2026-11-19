@@ -24,8 +24,10 @@ import me.ahoo.wow.clickhouse.sink.SinkFixtures.recordOf
 import me.ahoo.wow.spi.Ddl
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 class ClickHouseSinkTest {
     private val statements = RecordingStatements()
@@ -50,7 +52,12 @@ class ClickHouseSinkTest {
         statements.inserts.first().second.assert().isEqualTo(
             ClickHouseRows.bodyOf(listOf(recordOf())).toString(Charsets.UTF_8)
         )
-        sink.toString().assert().isEqualTo("ClickHouseSink(default.shop_order_state_events)")
+        sink.toString().assert()
+            .isEqualTo("ClickHouseSink(default.shop_order_state_events, wow.clickhouse.sink.insert-interval=1s)")
+        // Paced: its subscription starts an insert no sooner than a second after the last one started.
+        sink.minWriteInterval.assert().isEqualTo(1.seconds)
+        sinks(ClickHouseSinkOptions(insertInterval = Duration.ZERO)).sinkOf("shop", "order").minWriteInterval
+            .assert().isEqualTo(Duration.ZERO)
     }
 
     @Test
@@ -262,6 +269,10 @@ class ClickHouseSinkTest {
         assertThrows<IllegalArgumentException> { ClickHouseSinkOptions(database = " ") }
         assertThrows<IllegalArgumentException> { ClickHouseSinkOptions(batchSize = 0) }
         assertThrows<IllegalArgumentException> { ClickHouseSinkOptions(deduplicationWindow = 0) }
+        assertThrows<IllegalArgumentException> { ClickHouseSinkOptions(insertInterval = (-1).seconds) }
+        assertThrows<IllegalArgumentException> {
+            ClickHouseSink(sinks().schemaOf(ORDER), statements, Ddl.NONE, insertInterval = (-1).seconds)
+        }
         assertThrows<IllegalArgumentException> {
             ClickHouseSink(sinks().schemaOf(ORDER), statements, Ddl.NONE, batchSize = 0)
         }

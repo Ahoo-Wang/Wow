@@ -25,6 +25,8 @@ import me.ahoo.wow.spi.store.StoreResources
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.util.ServiceLoader
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 
 /** The ClickHouse Sink provider (finding R5.B-5): when it is configured, and the options it reads. */
 class ClickHouseSinkProviderTest {
@@ -59,6 +61,10 @@ class ClickHouseSinkProviderTest {
     fun `unset settings take the Sink's defaults`() {
         val options = ClickHouseSinkProvider.options(config("endpoint" to "http://c:8123"))
         options.assert().isEqualTo(ClickHouseSinkOptions())
+        ClickHouseSinkProvider.options(config("sink.insert-interval" to "250ms")).insertInterval
+            .assert().isEqualTo(250.milliseconds)
+        ClickHouseSinkProvider.options(config("sink.insert-interval" to "0")).insertInterval
+            .assert().isEqualTo(Duration.ZERO)
         assertThrows<WowConfigurationException> { ClickHouseSinkProvider.options(config("ddl" to "drop")) }
             .message.assert().contains("wow.clickhouse.ddl", "auto, validate, none")
         // A history setting is an aggregate type's: a key that names no aggregate is refused.

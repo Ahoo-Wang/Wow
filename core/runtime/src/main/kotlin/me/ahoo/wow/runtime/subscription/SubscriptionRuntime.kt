@@ -176,7 +176,15 @@ class SubscriptionRuntime internal constructor(
             "Subscription ${subscription.name} is already registered in group $group."
         }
         // A retry budget that does not add up fails the assembly, not the first partition the node acquires.
-        options.retryOf(subscription)
+        val retry = options.retryOf(subscription)
+        // A paced run waits up to its interval, then for its write, within one attempt.
+        require(subscription.minRunInterval * 2 <= retry.timeout) {
+            "Subscription ${subscription.name} paces its writes to ${subscription.paced} to one every " +
+                "${subscription.minRunInterval}, so a run may wait that long before its write, and that is more " +
+                "than half its handler timeout of ${retry.timeout}: lower the interval, or raise the timeout " +
+                "(wow.subscription.retry.timeout, or " +
+                "wow.subscriptions.[${subscription.context}.${subscription.name}].retry.timeout)."
+        }
         directory[subscription.name] = subscription
     }
 

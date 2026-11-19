@@ -40,6 +40,7 @@ public final class me/ahoo/wow/clickhouse/sink/ClickHouseSinkOptions {
 	public static final field DEFAULT_BATCH_SIZE I
 	public static final field DEFAULT_DATABASE Ljava/lang/String;
 	public static final field DEFAULT_DEDUPLICATION_WINDOW I
+	public synthetic fun <init> (Ljava/lang/String;Lme/ahoo/wow/spi/Ddl;IILjava/util/Map;JILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun aggregate (Lme/ahoo/wow/api/aggregate/AggregateType;)Lme/ahoo/wow/clickhouse/sink/AggregateSinkOptions;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getAggregates ()Ljava/util/Map;
@@ -47,11 +48,13 @@ public final class me/ahoo/wow/clickhouse/sink/ClickHouseSinkOptions {
 	public final fun getDatabase ()Ljava/lang/String;
 	public final fun getDdl ()Lme/ahoo/wow/spi/Ddl;
 	public final fun getDeduplicationWindow ()I
+	public final fun getInsertInterval-UwyO8pc ()J
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/clickhouse/sink/ClickHouseSinkOptions$Companion {
+	public final fun getDEFAULT_INSERT_INTERVAL-UwyO8pc ()J
 }
 
 public final class me/ahoo/wow/clickhouse/sink/ClickHouseSinkProvider : me/ahoo/wow/spi/sink/SinkProvider {
@@ -61,6 +64,7 @@ public final class me/ahoo/wow/clickhouse/sink/ClickHouseSinkProvider : me/ahoo/
 	public static final field DDL Lme/ahoo/wow/spi/config/ProviderOption;
 	public static final field DEDUPLICATION_WINDOW Lme/ahoo/wow/spi/config/ProviderOption$Defaulted;
 	public static final field ENABLED Lme/ahoo/wow/spi/config/ProviderOption$Defaulted;
+	public static final field INSERT_INTERVAL Lme/ahoo/wow/spi/config/ProviderOption$Defaulted;
 	public static final field TYPE Ljava/lang/String;
 	public fun <init> ()V
 	public fun available (Lme/ahoo/wow/spi/sink/SinkConfig;)Z

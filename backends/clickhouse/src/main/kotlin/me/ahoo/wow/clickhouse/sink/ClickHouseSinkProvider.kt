@@ -35,7 +35,7 @@ import kotlin.time.Duration.Companion.milliseconds
  * which it never closes, else through one of `endpoint` and the credentials, which it closes with the sinks
  * ([ClickHouseClients.clientOf]); with neither, it fails the start naming both. Its settings, relative to its configuration (`wow.clickhouse.*`), are its [options]: the
  * connection's, `ddl` ([Ddl], `auto` by default; the host gives `wow.ddl` when it is not set), `sink.batch-size`,
- * `sink.deduplication-window`, and each aggregate type's `history.enabled` and `history.ttl` under
+ * `sink.insert-interval`, `sink.deduplication-window`, and each aggregate type's `history.enabled` and `history.ttl` under
  * `aggregates.<context>.<aggregate>`, which the host gives from
  * `wow.aggregates.[<context>.<aggregate>].clickhouse.history.*` ([ClickHouseSinkOptions]).
  *
@@ -56,6 +56,7 @@ class ClickHouseSinkProvider : SinkProvider {
         DDL,
         ENABLED,
         BATCH_SIZE,
+        INSERT_INTERVAL,
         DEDUPLICATION_WINDOW,
         AGGREGATES,
     )
@@ -115,6 +116,16 @@ class ClickHouseSinkProvider : SinkProvider {
             ClickHouseSinkOptions.DEFAULT_BATCH_SIZE,
         )
 
+        /** The least time between the starts of two inserts of one aggregate type's Sink on a node. */
+        @JvmField
+        val INSERT_INTERVAL: ProviderOption.Defaulted<Duration> = ProviderOption.duration(
+            "sink.insert-interval",
+            "the least time between the starts of two inserts of one aggregate type's Sink on a node, unless " +
+                "batch-size records are waiting; the commits arriving meanwhile join the next insert. At most half " +
+                "the subscription's handler timeout; 0 inserts as often as one returns.",
+            ClickHouseSinkOptions.DEFAULT_INSERT_INTERVAL,
+        )
+
         /** How many recent inserts each table remembers to drop a retried one. */
         @JvmField
         val DEDUPLICATION_WINDOW: ProviderOption.Defaulted<Int> = ProviderOption.int(
@@ -144,6 +155,7 @@ class ClickHouseSinkProvider : SinkProvider {
                 database = config.settings.option(ClickHouseClients.DATABASE),
                 ddl = ddl,
                 batchSize = config.settings.option(BATCH_SIZE),
+                insertInterval = config.settings.option(INSERT_INTERVAL),
                 deduplicationWindow = config.settings.option(DEDUPLICATION_WINDOW),
                 aggregates = aggregates(config),
             )

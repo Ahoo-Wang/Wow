@@ -420,6 +420,12 @@
     "sourceType" : "me.ahoo.wow.clickhouse.sink.ClickHouseSinkProvider",
     "defaultValue" : false
   }, {
+    "name" : "wow.clickhouse.sink.insert-interval",
+    "type" : "java.time.Duration",
+    "description" : "The least time between the starts of two inserts of one aggregate type's Sink on a node, unless batch-size records are waiting; the commits arriving meanwhile join the next insert. At most half the subscription's handler timeout; 0 inserts as often as one returns.",
+    "sourceType" : "me.ahoo.wow.clickhouse.sink.ClickHouseSinkProvider",
+    "defaultValue" : "PT1S"
+  }, {
     "name" : "wow.clickhouse.username",
     "type" : "java.lang.String",
     "description" : "The user name to sign in with.",

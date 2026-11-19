@@ -18,6 +18,7 @@ import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.spi.Ddl
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * How the Sink keeps one aggregate type's commits.
@@ -56,6 +57,9 @@ class AggregateSinkOptions @InternalWowApi constructor(
  * - [database]: where its tables are.
  * - [ddl]: whether it creates, validates or leaves its tables ([Ddl]).
  * - [batchSize]: the most records one `INSERT` carries.
+ * - [insertInterval]: the least time between the starts of two inserts of one aggregate type's Sink on a node, unless
+ *   [batchSize] records are waiting ([me.ahoo.wow.spi.sink.Sink.minWriteInterval]); zero inserts as often as one
+ *   returns.
  * - [deduplicationWindow]: the `non_replicated_deduplication_window` of the tables it creates: how many recent insert
  *   blocks each remembers, so that a retried insert (the same `ref@version` token) is dropped.
  * - [aggregates]: per aggregate type, how its commits are kept; [AggregateSinkOptions] defaults else.
@@ -71,10 +75,12 @@ class ClickHouseSinkOptions @InternalWowApi constructor(
     val batchSize: Int = DEFAULT_BATCH_SIZE,
     val deduplicationWindow: Int = DEFAULT_DEDUPLICATION_WINDOW,
     val aggregates: Map<AggregateType, AggregateSinkOptions> = emptyMap(),
+    val insertInterval: Duration = DEFAULT_INSERT_INTERVAL,
 ) {
     init {
         require(database.isNotBlank()) { "The Sink names its database." }
         require(batchSize >= 1) { "A batch holds at least one record." }
+        require(!insertInterval.isNegative()) { "The interval between two inserts is never negative." }
         require(deduplicationWindow >= 1) { "The deduplication window holds at least one block." }
     }
 
@@ -88,13 +94,17 @@ class ClickHouseSinkOptions @InternalWowApi constructor(
 
     override fun toString(): String =
         "ClickHouseSinkOptions(database=$database, ddl=$ddl, batchSize=$batchSize, " +
-            "deduplicationWindow=$deduplicationWindow, aggregates=$aggregates)"
+            "deduplicationWindow=$deduplicationWindow, aggregates=$aggregates, insertInterval=$insertInterval)"
 
-    private fun valueFields(): List<Any?> = listOf(database, ddl, batchSize, deduplicationWindow, aggregates)
+    private fun valueFields(): List<Any?> =
+        listOf(database, ddl, batchSize, deduplicationWindow, aggregates, insertInterval)
 
     companion object {
         const val DEFAULT_DATABASE: String = "default"
         const val DEFAULT_BATCH_SIZE: Int = 1000
         const val DEFAULT_DEDUPLICATION_WINDOW: Int = 1000
+
+        /** One insert a second at most under load, as ClickHouse asks of a writer of small batches. */
+        val DEFAULT_INSERT_INTERVAL: Duration = 1.seconds
     }
 }

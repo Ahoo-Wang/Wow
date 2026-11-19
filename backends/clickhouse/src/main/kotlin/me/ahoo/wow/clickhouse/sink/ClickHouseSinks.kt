@@ -56,7 +56,14 @@ class ClickHouseSinks internal constructor(
         val schema = schemaOf(type)
         // The entries are asked for when the Sink describes its tables: whether a policy governs the aggregate is the
         // query engine's to say, which the node assembling its sinks has not built yet.
-        return ClickHouseSink(schema, statements, options.ddl, options.batchSize, catalog = { catalogOf(schema) })
+        return ClickHouseSink(
+            schema,
+            statements,
+            options.ddl,
+            options.batchSize,
+            options.insertInterval,
+            catalog = { catalogOf(schema) },
+        )
     }
 
     /** The `wow_catalog` entries of [type]'s tables. */
