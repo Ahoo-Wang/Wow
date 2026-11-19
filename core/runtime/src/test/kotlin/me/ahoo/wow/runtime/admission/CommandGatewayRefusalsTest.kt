@@ -116,6 +116,16 @@ class CommandGatewayRefusalsTest : CommandGatewayFixtures() {
             """{"sku":"apple","quantity":2147483648}""",
             Violation.of("quantity", "out-of-range", "Out of range: -2147483648 to 2147483647."),
         )
+        // A property the command does not have is refused, a typo of an optional one first: it would take its default.
+        malformed(
+            """{"sku":"apple","Quantity":5}""",
+            Violation.of("Quantity", "unknown-property", "Not a property of its type."),
+        )
+        // A property given twice is refused where a plain read keeps the last.
+        malformed(
+            """{"sku":"apple","quantity":1,"sku":"pear"}""",
+            Violation.of("sku", "duplicate-property", "Given more than once in its object."),
+        )
         malformed(
             """["apple"]""",
             Violation.of("", "invalid-format", "Not a valid value of its type, given an array."),
@@ -158,7 +168,7 @@ class CommandGatewayRefusalsTest : CommandGatewayFixtures() {
         // An escaped backslash before u0000 is the text "\u0000", not the character.
         gateway.execute(request(body = """{"sku":"a\\u0000b"}""", wait = WaitPlan.COMMITTED)).status
             .assert().isEqualTo(CommandResult.Status.SUCCEEDED)
-        val text = mapper.readTree("""{"sku":"a\\u0000b","quantity":1,"more":[1,true,null,{"k":"v"}]}""")
+        val text = mapper.readTree("""{"sku":"a\\u0000b","quantity":1}""")
         gateway.execute(request(wait = WaitPlan.COMMITTED).copyWith(body = CommandBody.Tree(text))).status
             .assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         AdmissionLimits.writesNul("\\u000".toByteArray()).assert().isFalse()

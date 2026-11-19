@@ -205,6 +205,9 @@ class ClusterCodecTest {
         ClusterCodec.decodeSignal(newer.toByteArray()).assert().isEqualTo(signal)
     }
 
+    // The body's "currency" is a property of the command a node of the next version derives, a saga's in a rolling
+    // upgrade: its partition's owner, on the version before, reads the forward (and the command log) by this codec,
+    // which ignores it. A caller's body is what admission's CommandBodies refuses one in.
     @Test
     fun `a message of the next minor version is read, its unknown fields ignored`() {
         val json = """

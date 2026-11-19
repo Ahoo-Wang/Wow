@@ -1165,6 +1165,7 @@ export const QueryErrorCodes: Readonly<{
     readonly BODY_NOT_OBJECT: "body-not-object";
     readonly EMPTY_BODY: "empty-body";
     readonly UNKNOWN_PROPERTY: "unknown-property";
+    readonly DUPLICATE_PROPERTY: "duplicate-property";
     readonly UNKNOWN_TYPE: "unknown-type";
     readonly UNKNOWN_VALUE: "unknown-value";
     readonly INVALID_VALUE: "invalid-value";

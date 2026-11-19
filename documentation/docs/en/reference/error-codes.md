@@ -64,6 +64,7 @@ A rejected query request (`wow.query.malformed` or `wow.query.invalid`) lists wh
 | `body-not-object` | Reading and decoding the request body. |
 | `empty-body` | Reading and decoding the request body. |
 | `unknown-property` | Reading and decoding the request body. |
+| `duplicate-property` | Reading and decoding the request body. |
 | `unknown-type` | Reading and decoding the request body. |
 | `unknown-value` | Reading and decoding the request body. |
 | `invalid-value` | Reading and decoding the request body. |

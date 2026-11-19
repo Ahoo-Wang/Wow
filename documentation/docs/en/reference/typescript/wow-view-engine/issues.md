@@ -521,6 +521,7 @@ The list holds the codes `issue('…')` raises directly and those raised through
 | `runtime.query.failed.cursor-not-allowed` | {field} cannot be used to page through this data. |
 | `runtime.query.failed.cursor-sort-duplicate` | The sort names {field} twice; keep it once. |
 | `runtime.query.failed.cursor-sort-too-many` | The sort has too many fields to page through this data; remove some. |
+| `runtime.query.failed.duplicate-property` | The query this view sent gives a property twice: {reason} |
 | `runtime.query.failed.element-scope-required` | {field} can only be filtered inside its list, with a condition on the list's elements. |
 | `runtime.query.failed.empty-body` | The service received an empty query: {reason} |
 | `runtime.query.failed.event-projection-type-required` | An event's payload cannot be shown without its type; keep the event type column. |

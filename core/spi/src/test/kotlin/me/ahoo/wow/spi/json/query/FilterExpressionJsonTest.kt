@@ -222,6 +222,20 @@ class FilterExpressionJsonTest {
     }
 
     @Test
+    fun `equality JSON should name its value, null for a null, at the top and nested`() {
+        listOf("eq", "ne").forEach { op ->
+            assertThrows<IllegalArgumentException> { read("""{"op":"$op","field":"state.status"}""") }
+                .message.assert().isEqualTo("$op names its value, null for a null.")
+            assertThrows<IllegalArgumentException> {
+                read("""{"op":"and","operands":[{"op":"$op","field":"state.status"}]}""")
+            }.message.assert().isEqualTo("$op names its value, null for a null.")
+            assertThrows<IllegalArgumentException> {
+                read("""{"op":"element-match","field":"state.lines","predicate":{"op":"$op","field":"sku"}}""")
+            }.message.assert().isEqualTo("$op names its value, null for a null.")
+        }
+    }
+
+    @Test
     fun `equality JSON should accept every scalar`() {
         listOf("\"PAID\"" to "PAID", "true" to true, "null" to null, "7" to 7).forEach { (json, value) ->
             read("""{"op":"eq","field":"state.status","value":$json}""")

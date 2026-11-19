@@ -18,10 +18,12 @@ import com.fasterxml.jackson.annotation.JsonValue
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.spi.json.JsonReadFailure.Reason
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import tools.jackson.core.JacksonException
 import tools.jackson.core.JsonParser
 import tools.jackson.core.JsonToken
 import tools.jackson.databind.DeserializationContext
+import tools.jackson.databind.DeserializationFeature
 import tools.jackson.databind.ValueDeserializer
 import tools.jackson.databind.annotation.JsonDeserialize
 import java.time.Instant
@@ -152,5 +154,65 @@ class JsonReadFailuresTest {
     fun `a failure that is not about a value should be described as none`() {
         val syntax = runCatching { WowJson.mapper.readTree("{not json") }.exceptionOrNull() as JacksonException
         failures.of(WowJson.mapper.readTree("{}"), Order::class.java, syntax).assert().isNull()
+    }
+
+    @Test
+    fun `a property given twice should be found by its path, and none in JSON that gives none`() {
+        fun duplicate(json: String) = failures.duplicateIn(json.toByteArray())
+        duplicate("""{"sku":"a","sku":"b"}""")!!.run {
+            path.assert().isEqualTo("sku")
+            reason.assert().isEqualTo(Reason.DUPLICATE_PROPERTY)
+            message.assert().isEqualTo("Given more than once in its object.")
+        }
+        duplicate("""{"items":[{"sku":"a"},{"sku":"b","quantity":1,"sku":"c"}]}""")!!.path.assert()
+            .isEqualTo("items[1].sku")
+        duplicate("""{"tags":{"a":1,"a":2}}""")!!.path.assert().isEqualTo("tags.a")
+        duplicate("""{"items":[{"sku":"a"},{"sku":"a"}]}""").assert().isNull()
+        duplicate("""{"sku":"a",""").assert().isNull()
+    }
+
+    @Test
+    fun `the request reader should refuse a property given twice`() {
+        val reader = failures.requestReader.forType(Item::class.java)
+        assertThrows<JacksonException> { reader.readValue<Item>("""{"sku":"a","sku":"b","quantity":1}""") }
+        WowJson.mapper.readValue("""{"sku":"a","sku":"b","quantity":1}""", Item::class.java).sku.assert().isEqualTo("b")
+    }
+
+    data class Priced(val price: Int, val quantity: Int) {
+        val total: Int get() = price * quantity
+        val isFree: Boolean get() = price == 0
+        var note: String = ""
+    }
+
+    /**
+     * A getter alone whose value a creator's parameter of its name gives is a property read, not a computed one; a
+     * creator's parameter with no getter (`offset`) is read too.
+     */
+    class Celsius(degrees: Double, offset: Double = 0.0) {
+        private val value = degrees + offset
+        val degrees: Double get() = value
+    }
+
+    @Test
+    fun `a reader refusing an unknown property should name it, and read what Wow writes of a computed one`() {
+        val reader = failures.requestReader.forType(Priced::class.java)
+            .with(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+        val text = WowJson.mapper.writeValueAsString(Priced(2, 3))
+        val written = WowJson.mapper.readTree(text).propertyNames()
+        written.assert().containsExactlyInAnyOrder("price", "quantity", "total", "isFree", "note")
+        reader.readValue<Priced>(text).assert().isEqualTo(Priced(2, 3))
+        reader.readValue<Priced>("""{"price":2,"quantity":3,"total":99,"note":"gift"}""").run {
+            total.assert().isEqualTo(6)
+            note.assert().isEqualTo("gift")
+        }
+        failures.requestReader.forType(Celsius::class.java).with(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+            .readValue<Celsius>("""{"degrees":21.0,"offset":0.5}""").degrees.assert().isEqualTo(21.5)
+        val json = """{"price":2,"quantity":3,"Quantity":5}"""
+        val failure = assertThrows<JacksonException> { reader.readValue<Priced>(json) }
+        failures.of(WowJson.mapper.readTree(json), Priced::class.java, failure)!!.run {
+            path.assert().isEqualTo("Quantity")
+            reason.assert().isEqualTo(Reason.UNKNOWN_PROPERTY)
+            message.assert().isEqualTo("Not a property of its type.")
+        }
     }
 }

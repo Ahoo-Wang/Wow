@@ -17,16 +17,21 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.spi.json.JsonReadFailure.Reason
 import tools.jackson.core.JacksonException
 import tools.jackson.core.JsonParser
+import tools.jackson.core.StreamReadFeature
+import tools.jackson.core.TokenStreamContext
 import tools.jackson.core.exc.InputCoercionException
+import tools.jackson.core.exc.StreamReadException
 import tools.jackson.databind.BeanDescription
 import tools.jackson.databind.DatabindException
 import tools.jackson.databind.DeserializationConfig
 import tools.jackson.databind.DeserializationContext
 import tools.jackson.databind.JsonNode
+import tools.jackson.databind.ObjectReader
 import tools.jackson.databind.ValueDeserializer
 import tools.jackson.databind.deser.ValueDeserializerModifier
 import tools.jackson.databind.deser.std.DelegatingDeserializer
 import tools.jackson.databind.exc.MismatchedInputException
+import tools.jackson.databind.exc.PropertyBindingException
 import tools.jackson.databind.json.JsonMapper
 import tools.jackson.databind.module.SimpleModule
 import tools.jackson.databind.node.MissingNode
@@ -77,6 +82,12 @@ class JsonReadFailure(val path: String, val reason: Reason, val message: String)
 
         /** A text that is not one of its enumeration's values. */
         NOT_IN_ENUMERATION("not-in-enumeration"),
+
+        /** A property given more than once in one object, of which a reader would keep one silently. */
+        DUPLICATE_PROPERTY("duplicate-property"),
+
+        /** A property its type does not have, where the reader refuses one (a command's body). */
+        UNKNOWN_PROPERTY("unknown-property"),
     }
 }
 
@@ -87,6 +98,12 @@ class JsonReadFailure(val path: String, val reason: Reason, val message: String)
 @InternalWowApi
 class JsonReadFailures(private val mapper: JsonMapper) {
     private val located: JsonMapper by lazy { mapper.rebuild().addModule(LOCATED_NUMBERS).build() }
+
+    /**
+     * The reader of a request's body: [mapper]'s, refusing a property given more than once in one object, which
+     * Jackson would read as its last value ([duplicateIn] names it).
+     */
+    val requestReader: ObjectReader = mapper.reader().with(StreamReadFeature.STRICT_DUPLICATE_DETECTION)
 
     /**
      * Why [json] did not read as [type], given the [failure] of reading it; null when [failure] is not about a value,
@@ -111,6 +128,9 @@ class JsonReadFailures(private val mapper: JsonMapper) {
         if (failure is OutOfRange) {
             return Reason.OUT_OF_RANGE to rangeOf(failure.targetType)
         }
+        if (failure is PropertyBindingException) {
+            return Reason.UNKNOWN_PROPERTY to "Not a property of its type."
+        }
         val given = kindOf(nodeAt(json, failure))
         if (given == Kind.NONE || given == Kind.NULL) {
             return Reason.WRONG_KIND to "A value is required, given ${given.words}."
@@ -123,6 +143,26 @@ class JsonReadFailures(private val mapper: JsonMapper) {
             given !in expected -> Reason.WRONG_KIND to "Expected ${expected.first().words}, given ${given.words}."
             enumeration -> Reason.NOT_IN_ENUMERATION to "Not one of the values of its enumeration."
             else -> Reason.INVALID_FORMAT to "Not a valid value of its format."
+        }
+    }
+
+    /**
+     * The first property [json] gives more than once in one object, by its path; null when it gives none, or is not
+     * JSON. The [requestReader] refuses one, and the reader that caught it asks this where it is.
+     */
+    fun duplicateIn(json: ByteArray): JsonReadFailure? {
+        if (runCatching { mapper.readTree(json) }.isFailure) {
+            return null
+        }
+        val parser = requestReader.createParser(json)
+        return parser.use {
+            try {
+                generateSequence { parser.nextToken() }.count()
+                null
+            } catch (_: StreamReadException) {
+                // JSON that reads leniently fails strictly only on a name its object took twice: its current name.
+                JsonReadFailure(pathOf(parser.streamReadContext()), Reason.DUPLICATE_PROPERTY, DUPLICATE)
+            }
         }
     }
 
@@ -146,6 +186,7 @@ class JsonReadFailures(private val mapper: JsonMapper) {
 
     private companion object {
         const val RANGE = "Out of the range of its type."
+        const val DUPLICATE = "Given more than once in its object."
 
         val INTEGER = setOf(Kind.INTEGER)
         val NUMBER = setOf(Kind.NUMBER, Kind.INTEGER)
@@ -224,6 +265,12 @@ class JsonReadFailures(private val mapper: JsonMapper) {
             // What parsed JSON holds besides: a tree read from text holds no binary or POJO node.
             else -> Kind.BOOLEAN
         }
+
+        /** The path of [context]'s current value: its name in an object, its index in an array. */
+        fun pathOf(context: TokenStreamContext): String = generateSequence(context) { it.parent }
+            .toList().asReversed().filterNot { it.inRoot() }
+            .joinToString("") { if (it.inArray()) "[${it.currentIndex}]" else ".${it.currentName()}" }
+            .removePrefix(".")
 
         fun pathOf(failure: DatabindException): String = buildString {
             failure.path.forEach { reference ->

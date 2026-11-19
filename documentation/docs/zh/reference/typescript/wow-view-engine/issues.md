@@ -521,6 +521,7 @@ export type IssuePath = (string | number)[];
 | `runtime.query.failed.cursor-not-allowed` | 「{field}」不能用来翻页。 |
 | `runtime.query.failed.cursor-sort-duplicate` | 排序里「{field}」出现了两次，保留一次即可。 |
 | `runtime.query.failed.cursor-sort-too-many` | 排序字段太多，没法在这份数据上翻页；去掉几个。 |
+| `runtime.query.failed.duplicate-property` | 这个视图发出的查询重复给出了同一属性：{reason} |
 | `runtime.query.failed.element-scope-required` | 「{field}」只能在它所属的列表里，按列表元素的条件筛选。 |
 | `runtime.query.failed.empty-body` | 服务端收到的是空查询：{reason} |
 | `runtime.query.failed.event-projection-type-required` | 事件内容不能脱离它的类型显示；保留事件类型这一列。 |

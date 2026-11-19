@@ -9,7 +9,8 @@ Wow 的 JSON（`WowJson`）写出并读取服务的状态、命令和事件：�
 
 - 这些类是 JVM 的类：Kotlin 的 `Int` 是 `int`，可空或作为类型实参时是 `Integer`；`ByteArray` 是 `byte[]`。一行只匹配它的类本身，不匹配子类。
 - JavaScript 的 `number` 只能精确持有至多 2^53 − 1（`9007199254740991`）的整数：客户端把更大的 `long` 读作 `bigint`。
-- 枚举按名字写出，与其 schema 的 `enum` 列出的一样：`Month` 写作 `"JANUARY"`。
+- 枚举按名字写出，与其 schema 的 `enum` 列出的一样：`Month` 写作 `"JANUARY"`。读取时只按名字：数字或数字的文本会被拒绝（`wrong-kind`、`not-in-enumeration`），而 Jackson 会把它读作该序号的常量。`Month` 也读取从 1 开始的序号，写成数字的枚举（`@JsonFormat(shape = NUMBER)`）按数字读取。
+- 请求体（命令的或查询的）在同一对象中多次给出同一属性时会被拒绝（`duplicate-property`），而 JSON 读取方通常保留最后一个。给出其类型没有的属性时也会被拒绝（`unknown-property`）；Wow 写出的计算属性（只有 getter）是已知属性，读取时不写入任何值。事件、快照和集群消息忽略未知属性，因此较旧或较新的写入方的消息都能读取。
 - 属性若持有另一个写成标量的平台类（`Charset`、`Path`、`AtomicLong`），构建会停下，除非声明了它的 schema（[Manifest](../guide/manifest#a-type-written-by-a-custom-serializer)）。
 - 有一个测试让每一行与代码一致：它的类、JSON 类型和格式与 Manifest 的描述一致，它列出的每个值与 Wow 的 JSON 写出的一致。
 

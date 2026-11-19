@@ -1748,6 +1748,7 @@ public final class me/ahoo/wow/api/query/QueryErrorCodes {
 	public static final field CURSOR_NOT_ALLOWED Ljava/lang/String;
 	public static final field CURSOR_SORT_DUPLICATE Ljava/lang/String;
 	public static final field CURSOR_SORT_TOO_MANY Ljava/lang/String;
+	public static final field DUPLICATE_PROPERTY Ljava/lang/String;
 	public static final field ELEMENT_SCOPE_REQUIRED Ljava/lang/String;
 	public static final field EMPTY_BODY Ljava/lang/String;
 	public static final field EVENT_PROJECTION_TYPE_REQUIRED Ljava/lang/String;

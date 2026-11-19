@@ -3494,6 +3494,7 @@ export const en: {
     readonly "runtime.query.failed.body-not-object": "The service could not read the query this view sent: {reason}";
     readonly "runtime.query.failed.empty-body": "The service received an empty query: {reason}";
     readonly "runtime.query.failed.unknown-property": "The service does not understand part of this query; it may be older than this view engine: {reason}";
+    readonly "runtime.query.failed.duplicate-property": "The query this view sent gives a property twice: {reason}";
     readonly "runtime.query.failed.unknown-type": "The service does not know an operator or metric this view uses; it may be older than this view engine: {reason}";
     readonly "runtime.query.failed.unknown-value": "The service does not know a value this view sent: {reason}";
     readonly "runtime.query.failed.invalid-value": "A value in this query is missing or of the wrong kind: {reason}";
