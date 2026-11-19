@@ -13,12 +13,13 @@
 
 package me.ahoo.wow.ops.server
 
+import me.ahoo.cosec.annotations.ExperimentalCoSecApi
+import me.ahoo.cosec.testkit.IdentityHeader
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.cosec.CoSecCallerResolver
-import me.ahoo.wow.cosec.CoSecIdentity
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.ops.api.parked.EntryAggregate
 import me.ahoo.wow.ops.api.parked.EntryRetrySpec
@@ -52,9 +53,9 @@ class OpsCoSecTest {
      * [id] of CoSec's default tenant with [roles], as the CoSec gateway forwards it after verifying its credential: the
      * service holds no secret and verifies nothing, it believes the header.
      */
-    @OptIn(ExperimentalWowApi::class) // wow-cosec is experimental in 10.0
+    @OptIn(ExperimentalCoSecApi::class) // CoSec's test kit is experimental in 8.0
     private fun signedIn(id: String, vararg roles: String): Who =
-        Who(CoSecIdentity(id, roles.toList()).headers())
+        Who(mapOf(IdentityHeader.NAME to IdentityHeader.forSubject(id, roles = roles.toSet())))
 
     private fun entry(context: String, id: String): ParkedEntry = WowJson.mapper.convertValue(
         // A ledger entry is a wire record whose constructor is Wow's own (decision D216): read it from its JSON.
