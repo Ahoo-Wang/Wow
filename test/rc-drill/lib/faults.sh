@@ -137,6 +137,12 @@ reinstall() {
       helm --kube-context "kind-$cluster" -n "$namespace" uninstall "$name" --wait --timeout 10m
     done
   done
+  # helm uninstall --wait returns once a release's own objects are gone; its pods are still stopping gracefully.
+  local _
+  for _ in $(seq 1 120); do
+    [ -n "$(k get pods -l app.kubernetes.io/managed-by=Helm -o name)" ] || break
+    sleep 5
+  done
   [ -z "$(k get pods -l app.kubernetes.io/managed-by=Helm -o name)" ] || fail "pods left after the uninstall"
   install "$version"
   e2e verdict reinstall
