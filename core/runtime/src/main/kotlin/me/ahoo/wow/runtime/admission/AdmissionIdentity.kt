@@ -107,8 +107,7 @@ internal object AdmissionIdentity {
         } catch (failure: RuntimeException) {
             return BodyId.Refused("The aggregate the body of $command names cannot be read: ${failure.message}")
         }
-        (AdmissionLimits.oversized("aggregate id", inBody) ?: AggregateIds.unaddressable(inBody))
-            ?.let { return BodyId.Refused(it) }
+        AggregateIds.refused(inBody)?.let { return BodyId.Refused(it) }
         return when {
             inBody != null && inBody.isBlank() -> BodyId.Refused("The body of $command names a blank aggregate id.")
             inBody != null && requested != null && inBody != requested ->

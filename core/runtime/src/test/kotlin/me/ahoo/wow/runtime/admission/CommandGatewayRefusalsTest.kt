@@ -215,6 +215,11 @@ class CommandGatewayRefusalsTest : CommandGatewayFixtures() {
         }
         AggregateIds.unaddressable(null).assert().isNull()
         AggregateIds.unaddressable(" ").assert().isNull()
+        // The one rule migrate-data reports a 9.x id by: admission's length, then unaddressable.
+        AggregateIds.refused("x".repeat(AdmissionLimits.MAX_ID_LENGTH + 1)).assert()
+            .isEqualTo("The aggregate id is at most ${AdmissionLimits.MAX_ID_LENGTH} characters; this one has 257.")
+        AggregateIds.refused(".").assert().isEqualTo(AggregateIds.unaddressable("."))
+        AggregateIds.refused("x".repeat(AdmissionLimits.MAX_ID_LENGTH)).assert().isNull()
     }
 
     @Test

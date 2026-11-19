@@ -14,6 +14,7 @@
 package me.ahoo.wow.migrate
 
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.runtime.admission.AggregateIds
 import me.ahoo.wow.spi.json.WowJson
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
@@ -39,19 +40,36 @@ internal data class NineXAggregateId(val id: String, val tenantId: String) : Com
 }
 
 /**
- * The 9.x aggregate ids V10 refuses: an empty one (or none at all), a blank one, and [AggregateRef.UNASSIGNED], the
- * id of a ref admission has not given one yet. A 9.x data defect, an instance of such an id cannot be imported.
+ * The 9.x aggregate ids V10 refuses: an empty one (or none at all), a blank one, [AggregateRef.UNASSIGNED], the id of
+ * a ref admission has not given one yet, and every id admission refuses ([AggregateIds.refused]): one longer than it
+ * takes, one holding a control character, one with white space at either end, `.` and `..`. A 9.x data defect, an
+ * instance of such an id cannot be imported: no command could reach it in V10.
  */
 internal object RefusedIds {
     /** How the map's `stream` names the empty 9.x aggregate id, which a JSON string shows as nothing. */
     const val EMPTY: String = "(empty)"
 
-    /** Why V10 refuses [id] as an aggregate id; null when it takes it. */
+    /** Why V10 refuses [id] as an aggregate id, shown safely ([shown]); null when it takes it. */
     fun reasonOf(id: String): String? = when {
         id.isEmpty() -> "empty"
         id.isBlank() -> "blank"
         id == AggregateRef.UNASSIGNED -> "the id V10 gives a ref admission has not given one yet"
-        else -> null
+        else -> AggregateIds.refused(id)?.let(::shown)?.removeSuffix(".")
+    }
+
+    /**
+     * [text] with each control character and each white space but the plain one (U+0020) written as its `\uXXXX`
+     * escape, so a report shows what an id holds: a no-break or ideographic space would look like a plain one or
+     * nothing, and a line or paragraph separator would break the line.
+     */
+    fun shown(text: String): String = buildString(text.length) {
+        text.forEach { char ->
+            if (char.isISOControl() || char.isWhitespace() && char != ' ') {
+                append("\\u%04x".format(char.code))
+            } else {
+                append(char)
+            }
+        }
     }
 
     /** [id] as the map's `stream` names it: the empty id as [EMPTY], any other as it is. */
@@ -60,12 +78,16 @@ internal object RefusedIds {
     /** The 9.x aggregate id the map's `stream` [name] names: [EMPTY] the empty one, any other itself. */
     fun idOf(name: String): String = if (name == EMPTY) "" else name
 
-    /** [name], a map's `stream`, as the JSON string a person copies into the map. */
-    fun quoted(name: String): String = WowJson.mapper.writeValueAsString(name)
+    /**
+     * [name], a map's `stream`, as the JSON string a person copies into the map: every control character and every
+     * white space but the plain one escaped ([shown]), those JSON leaves as they are too, which it still reads as the
+     * same id.
+     */
+    fun quoted(name: String): String = shown(WowJson.mapper.writeValueAsString(name))
 
     /** [tenants] as a message lists them: a blank tenant, which V10 refuses too, as `(blank)`. */
     fun tenantsText(tenants: Collection<String>): String =
-        tenants.map { it.ifBlank { BLANK_TENANT } }.distinct().sorted().toString()
+        tenants.map { it.ifBlank { BLANK_TENANT } }.distinct().sorted().toString().let(::shown)
 
     private const val BLANK_TENANT = "(blank)"
 }

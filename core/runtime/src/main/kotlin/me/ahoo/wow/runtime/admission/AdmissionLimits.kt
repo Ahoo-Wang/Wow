@@ -43,8 +43,7 @@ internal object AdmissionLimits {
      * [oversizedBody] does.
      */
     fun oversized(requestId: String, aggregateId: String?, tenantId: String, scope: Scope, body: Any? = null): String? =
-        oversized("request id", requestId) ?: oversized("aggregate id", aggregateId)
-            ?: AggregateIds.unaddressable(aggregateId)
+        oversized("request id", requestId) ?: AggregateIds.refused(aggregateId)
             ?: oversized("tenant id", tenantId) ?: oversized("owner id", scope.ownerId)
             ?: oversized("space id", scope.spaceId) ?: body?.let(::oversizedBody)
 

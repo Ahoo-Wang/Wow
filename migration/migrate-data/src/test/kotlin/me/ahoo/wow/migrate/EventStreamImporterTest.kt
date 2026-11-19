@@ -141,7 +141,7 @@ internal class EventStreamImporterTest : EventStreamImporterFixtures() {
             // Without its entry, its first stream stops the import, naming the entry that excludes it.
             assertThrows<MigrationException> { importer(source, ImportOptions(restart = true)).importAll(order) }
                 .message.assert().contains(
-                    "its aggregate id is empty, which V10 refuses; exclude it with {\"aggregate\": " +
+                    "V10 refuses its aggregate id (empty); exclude it with {\"aggregate\": " +
                         "\"example-service.order\", \"stream\": \"(empty)\", \"reason\": \"…\"}.",
                 )
         }
