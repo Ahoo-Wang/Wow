@@ -557,7 +557,7 @@ public abstract interface class me/ahoo/wow/spi/log/EventLog {
 	public abstract fun append (Lme/ahoo/wow/spi/log/EventStreamRecord;[BLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun append$default (Lme/ahoo/wow/spi/log/EventLog;Lme/ahoo/wow/spi/log/EventStreamRecord;[BLkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 	public fun appendAll (Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public fun claimCreation (Lme/ahoo/wow/api/aggregate/AggregateType;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/log/CreationClaim;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun claimCreation (Lme/ahoo/wow/api/aggregate/AggregateType;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/log/CreationClaim;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun findByRequestId (Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun findByRequestId (Lme/ahoo/wow/api/aggregate/AggregateType;Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun getAppendsAcrossPartitions ()Z

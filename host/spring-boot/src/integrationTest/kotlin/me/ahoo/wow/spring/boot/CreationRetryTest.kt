@@ -232,7 +232,8 @@ abstract class CreationRetrySpec {
             opened.status.assert().describedAs(opened.toString()).isEqualTo(CommandResult.Status.SUCCEEDED)
             opened.ref.id.assert().isEqualTo(ids[0])
             val stranger = gateway.execute(place(caller = bob))
-            stranger.error!!.code.assert().describedAs(stranger.toString()).isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
+            stranger.error!!.code.assert().describedAs(stranger.toString())
+                .isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
             // An id of its own, so it learns nothing of alice's order, drawn in her order's partition.
             stranger.ref.id.assert().isNotEqualTo(ids[0])
             partitionOf(stranger.ref.id).assert().isEqualTo(partitionOf(ids[0]))

@@ -153,7 +153,7 @@ abstract class KernelRoundTripsSpec {
             val kernel = kernel(256)
             // The type's collection or table made sure of first, and each partition appended to once, as by earlier
             // commands of the type: the first append in a partition on MongoDB also takes the node a block of sequences.
-            (0 until PARTITIONS).forEach { partition ->
+            for (partition in 0 until PARTITIONS) {
                 val id = generateSequence(0) { it + 1 }.map { "first-$it-${UUID.randomUUID()}" }
                     .first { Partitioner.partitionOf(model.type.ref("tenant", it), PARTITIONS) == partition }
                 kernel.execute(model, command(model.type.ref("tenant", id), Open("ahoo")))
@@ -161,7 +161,8 @@ abstract class KernelRoundTripsSpec {
             val creations = CreationIds(IdGenerators.DEFAULT, CommittedRequests.of(log))
             val mark = mark()
             val id = creations.idOf(model.type, "tenant", "unnamed")
-            val unnamed = kernel.execute(model, command(model.type.ref("tenant", id), Open("ahoo"), requestId = "unnamed"))
+            val created = command(model.type.ref("tenant", id), Open("ahoo"), requestId = "unnamed")
+            val unnamed = kernel.execute(model, created)
             unnamed.assert().isInstanceOf(CommandOutcome.Committed::class.java)
             since(mark).assert().describedAs("unnamed").isEqualTo(1 + claim + load + append)
             val (named, trips) = kernel.trips(command(ref("named"), Open("ahoo")))
