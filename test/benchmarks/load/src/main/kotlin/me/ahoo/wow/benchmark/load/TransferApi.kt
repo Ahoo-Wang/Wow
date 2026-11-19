@@ -42,6 +42,7 @@ object TransferApi {
     private const val JSON = "application/json"
     private const val PLAN = "Wow-Wait"
     private const val TIMEOUT = "Wow-Wait-Timeout"
+    private const val REQUEST_ID = "Wow-Request-Id"
 
     /** The client's own bound on a request: beyond the servers' wait timeout, so the server answers first. */
     val REQUEST_TIMEOUT: Duration = WAIT_TIMEOUT.plusSeconds(20)
@@ -49,6 +50,17 @@ object TransferApi {
     /** The request that opens account [id] with [balance], answered once its snapshot holds it. */
     fun openAccount(base: URI, id: String, owner: String, balance: Long): HttpRequest =
         post(command(base, id, "open-account"), """{"owner":"$owner","balance":$balance}""", *wait(Wait.SNAPSHOT))
+
+    /**
+     * The request that opens an account with [balance] without naming its id, answered once its snapshot holds it:
+     * the server's admission draws the id, and claims it for [requestId], which a retry of the account sends again.
+     */
+    fun openUnnamedAccount(base: URI, requestId: String, owner: String, balance: Long): HttpRequest = post(
+        base.resolve("/$CONTEXT/account/open-account"),
+        """{"owner":"$owner","balance":$balance}""",
+        REQUEST_ID to requestId,
+        *wait(Wait.SNAPSHOT),
+    )
 
     /** The request that deposits [amount] on account [id], answered at [wait]. */
     fun deposit(base: URI, id: String, amount: Long, wait: Wait): HttpRequest =

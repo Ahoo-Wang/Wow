@@ -47,7 +47,9 @@
 #          comparison), --server-args="<args>" (more arguments for every server, such as --wow.transport=memory),
 #          --server-java=<JDK home> (the servers' JDK, 21 at least, for a runtime calibration; by default JAVA_HOME's),
 #          --no-bus (no Kafka: for servers that use none, such as a Wow node with --wow.transport=none, and Axon's),
-#          --seed-concurrency=32 (accounts opened at once),
+#          --seed-concurrency=32 (accounts opened at once), --seed-unnamed (up only: the accounts are opened without
+#          their ids, each under a request id of its own, and the servers draw the ids; what a creation that names no id
+#          costs, to measure: no scenario can address such accounts, so the session is checked, primed and run no more),
 #          --load-cpus=<list> and --server-cpus=<list> (Linux, taskset lists: the load generator on its own CPUs, the
 #          servers and the containers on the others), --store-cpus=<list> and --bus-cpus=<list> (the store's and
 #          Kafka's containers on CPUs of their own, else on the --server-cpus), --prime (an untimed pass over every account before the run,
@@ -190,7 +192,7 @@ parse() {
     esac
     OPTIONS="$OPTIONS${argument#--}
 "
-    case " --backend --nodes --label --out --heap --jfr --jfr-settings --settle --accounts --install --server-args --server-java --no-bus --seed-concurrency --load-cpus --server-cpus --store-cpus --bus-cpus --prime --reuse --tmpfs --store-write-iops --mongo-cache-gb --sql --dump-every " in
+    case " --backend --nodes --label --out --heap --jfr --jfr-settings --settle --accounts --install --server-args --server-java --no-bus --seed-concurrency --seed-unnamed --load-cpus --server-cpus --store-cpus --bus-cpus --prime --reuse --tmpfs --store-write-iops --mongo-cache-gb --sql --dump-every " in
       *" $key "*) ;;
       *) PASS+=("$argument") ;;
     esac
@@ -304,6 +306,11 @@ setup() {
   NODES=$(opt nodes 1)
   HEAP=$(opt heap 1g)
   ACCOUNTS=$(opt accounts 1000)
+  UNNAMED=$(opt seed-unnamed false)
+  if [ "$UNNAMED" = true ] && [ "${UP:-false}" != true ]; then
+    log "--seed-unnamed opens accounts no scenario can address: give it to up alone"
+    exit 2
+  fi
   LABEL=$(opt label run)
   local scenario; scenario=$(opt scenario saturation)
   OUT=$(opt out "$REPO/test/benchmarks/results/e2e/$(date +%Y%m%d-%H%M%S)-$LABEL-$BACKEND-n$NODES-$scenario")
@@ -346,14 +353,18 @@ setup() {
   TARGET_LIST=$(IFS=,; echo "${TARGETS[*]}")
   log "seeding $ACCOUNTS accounts"
   load seed --targets="$TARGET_LIST" --accounts="$ACCOUNTS" \
-    --concurrency="$(opt seed-concurrency 32)" | tee "$OUT/seed.log" >&2
-  log "checking every scenario once"
-  # Only the run's scenarios, so a baseline without a newer scenario (E1-large) still runs the ones it has.
-  load check --targets="$TARGET_LIST" --accounts="$ACCOUNTS" --scenario="$(opt scenario "")" \
-    --mix="$(opt mix "")" | tee "$OUT/check.log" >&2
-  # --prime: an untimed pass over every seeded account (D224 note ⑤), so a large data set is measured warm.
+    --concurrency="$(opt seed-concurrency 32)" --unnamed="$UNNAMED" | tee "$OUT/seed.log" >&2
   local primed=false prime_seconds=0 settle_seconds=0
-  if [ "$(opt prime false)" = true ]; then
+  if [ "$UNNAMED" = true ]; then
+    log "seeded without ids: nothing checks, primes or runs on these accounts"
+  else
+    log "checking every scenario once"
+    # Only the run's scenarios, so a baseline without a newer scenario (E1-large) still runs the ones it has.
+    load check --targets="$TARGET_LIST" --accounts="$ACCOUNTS" --scenario="$(opt scenario "")" \
+      --mix="$(opt mix "")" | tee "$OUT/check.log" >&2
+  fi
+  # --prime: an untimed pass over every seeded account (D224 note ⑤), so a large data set is measured warm.
+  if [ "$UNNAMED" != true ] && [ "$(opt prime false)" = true ]; then
     log "priming $ACCOUNTS accounts"
     local prime_started=$SECONDS
     load prime --targets="$TARGET_LIST" --accounts="$ACCOUNTS" \

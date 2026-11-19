@@ -87,12 +87,14 @@ private const val MILLIS_PER_SECOND = 1_000L
 private const val DEFAULT_SEED = 20_261_015L
 private const val PERCENT = 100.0
 private const val MICROS_PER_MILLI = 1_000.0
+private const val P50 = 50.0
+private const val P99 = 99.0
 
 private fun usage(): Nothing {
     System.err.println(
         """
         usage: benchmark-load <seed|check|prime|settle|run|saturate> --targets=http://host:port[,…] [options]
-          seed:     --accounts=1000 --concurrency=32 --balance=1000000000000
+          seed:     --accounts=1000 --concurrency=32 --balance=1000000000000 --unnamed=true (open without ids)
           prime:    --accounts=1000 --concurrency=256 --out=<dir>
           settle:   --pids=name:pid,… --quiet-cores=0.25 --quiet-seconds=3 --max-seconds=180 --out=<dir>
           check:    --accounts=1000 [--scenario=… | --mix=…: only those]
@@ -116,59 +118,85 @@ private fun usage(): Nothing {
  * Opens [Options] `accounts` accounts, at most `concurrency` at a time. A creation that failed may have committed all
  * the same (a wait that timed out, performance item 6): up to [SEED_ROUNDS] times, each
  * failed account is read, and opened again only when it does not exist. The seed fails only for accounts still missing.
+ *
+ * With `--unnamed`, each account is opened without its id, under a request id of its own (`seed-<index>`), and the
+ * server draws the id: what a creation that names no id costs, to measure. A failed one is sent again under the same
+ * request id, which the server answers with the account it opened, so it is not read first. The accounts then have
+ * the servers' ids, not `account-<index>`, so nothing after the seed can address them.
+ *
+ * The line it prints gives the seed's rate and each first request's latency, p50 and p99.
  */
 private fun seed(client: Client, targets: List<URI>, options: Options): Int {
     val accounts = options.int("accounts", DEFAULT_ACCOUNTS)
-    val balance = options.long("balance", DEFAULT_BALANCE)
-    val permits = Semaphore(options.int("concurrency", DEFAULT_SEED_CONCURRENCY))
-    val firstFailure = AtomicReference<String>()
+    val opening = Opening(
+        client,
+        targets,
+        options.long("balance", DEFAULT_BALANCE),
+        Semaphore(options.int("concurrency", DEFAULT_SEED_CONCURRENCY)),
+        options.string("unnamed", "false") == "true",
+    )
     val started = System.nanoTime()
-    var missing = openAll(client, targets, (0 until accounts).toList(), balance, permits, firstFailure)
+    var missing = opening.openAll((0 until accounts).toList(), opening.latencies)
     var retried = 0
     repeat(SEED_ROUNDS) {
         if (missing.isEmpty()) return@repeat
         retried += missing.size
-        val absent = missing.filterNot { index -> exists(client, targets[index % targets.size], index) }
-        missing = openAll(client, targets, absent, balance, permits, firstFailure)
+        val absent = if (opening.unnamed) missing else missing.filterNot { opening.exists(it) }
+        missing = opening.openAll(absent, null)
     }
     val seconds = (System.nanoTime() - started) / OpenLoop.NANOS_PER_SECOND.toDouble()
+    val latencies = opening.latencies
     println(
-        "[seed] $accounts accounts in ${"%.1f".format(seconds)}s, " +
-            "$retried retried, ${missing.size} failed",
+        "[seed] $accounts accounts in ${"%.1f".format(seconds)}s${if (opening.unnamed) " (unnamed)" else ""}, " +
+            "$retried retried, ${missing.size} failed; " +
+            "p50 ${"%.1f".format(latencies.percentile(P50) / MICROS_PER_MILLI)} ms, " +
+            "p99 ${"%.1f".format(latencies.percentile(P99) / MICROS_PER_MILLI)} ms",
     )
-    firstFailure.get()?.let { println("[seed] first failure: $it") }
+    opening.firstFailure.get()?.let { println("[seed] first failure: $it") }
     return if (missing.isEmpty()) 0 else 1
 }
 
-/** Opens the accounts [indices]; the ones whose creation failed. */
-private fun openAll(
-    client: Client,
-    targets: List<URI>,
-    indices: List<Int>,
-    balance: Long,
-    permits: Semaphore,
-    firstFailure: AtomicReference<String>,
-): List<Int> {
-    val failed = ConcurrentLinkedQueue<Int>()
-    val futures = indices.map { index ->
-        permits.acquire()
-        val request = TransferApi.openAccount(
-            targets[index % targets.size],
-            accountId(index),
-            ownerOf(index),
-            balance
-        )
-        client.command(request).handle { error, failure ->
-            val reason = error ?: failure?.let { OpenLoop.rootCause(it).toString() }
-            if (reason != null) {
-                failed += index
-                firstFailure.compareAndSet(null, "${accountId(index)}: $reason")
+/** How the seed opens accounts: [unnamed] ones under their own request ids, else by their ids. */
+private class Opening(
+    private val client: Client,
+    private val targets: List<URI>,
+    private val balance: Long,
+    private val permits: Semaphore,
+    val unnamed: Boolean,
+) {
+    val firstFailure = AtomicReference<String>()
+
+    /** Each first request's latency, in microseconds. */
+    val latencies = Histogram()
+
+    /** Opens the accounts [indices], each latency into [recorded] when given; the ones whose creation failed. */
+    fun openAll(indices: List<Int>, recorded: Histogram?): List<Int> {
+        val failed = ConcurrentLinkedQueue<Int>()
+        val futures = indices.map { index ->
+            permits.acquire()
+            val base = targets[index % targets.size]
+            val request = if (unnamed) {
+                TransferApi.openUnnamedAccount(base, "seed-$index", ownerOf(index), balance)
+            } else {
+                TransferApi.openAccount(base, accountId(index), ownerOf(index), balance)
             }
-            permits.release()
+            val sent = System.nanoTime()
+            client.command(request).handle { error, failure ->
+                recorded?.record((System.nanoTime() - sent) / OpenLoop.NANOS_PER_MICRO)
+                val reason = error ?: failure?.let { OpenLoop.rootCause(it).toString() }
+                if (reason != null) {
+                    failed += index
+                    firstFailure.compareAndSet(null, "${if (unnamed) "seed-$index" else accountId(index)}: $reason")
+                }
+                permits.release()
+            }
         }
+        CompletableFuture.allOf(*futures.toTypedArray()).join()
+        return failed.sorted()
     }
-    CompletableFuture.allOf(*futures.toTypedArray()).join()
-    return failed.sorted()
+
+    /** Whether the account [index] exists: its state reads back. */
+    fun exists(index: Int): Boolean = exists(client, targets[index % targets.size], index)
 }
 
 /** Whether the account [index] exists: its state reads back. */

@@ -38,6 +38,17 @@ class TransferApiTest {
     }
 
     @Test
+    fun `an account opened without its id should name its request and wait for the snapshot`() {
+        val opened = TransferApi.openUnnamedAccount(base, "seed-7", "owner-7", 100)
+        opened.uri().path.assert().isEqualTo("/transfer/account/open-account")
+        opened.headers().firstValue("Wow-Request-Id").get().assert().isEqualTo("seed-7")
+        opened.headers().firstValue("Wow-Wait").get().assert().isEqualTo("snapshot")
+        body(opened).assert().isEqualTo("""{"owner":"owner-7","balance":100}""")
+        TransferApi.openAccount(base, "acc-7", "owner-7", 100).uri().path.assert()
+            .isEqualTo("/transfer/account/acc-7/open-account")
+    }
+
+    @Test
     fun `a list query should spell its filter as the server reads it`() {
         val list = TransferApi.list(base, 10)
         list.uri().path.assert().isEqualTo("/transfer/account/snapshot/query")
