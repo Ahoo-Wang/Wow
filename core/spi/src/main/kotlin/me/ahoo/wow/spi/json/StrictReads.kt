@@ -33,6 +33,7 @@ import tools.jackson.databind.deser.ValueDeserializerModifier
 import tools.jackson.databind.deser.jdk.EnumDeserializer
 import tools.jackson.databind.deser.std.DelegatingDeserializer
 import tools.jackson.databind.exc.InvalidFormatException
+import tools.jackson.databind.exc.MismatchedInputException
 import tools.jackson.databind.json.JsonMapper
 import tools.jackson.databind.module.SimpleModule
 import tools.jackson.databind.type.ArrayType
@@ -222,7 +223,7 @@ internal object StrictReads {
 
         override fun deserialize(p: JsonParser, ctxt: DeserializationContext): Any? {
             if (p.currentToken() == JsonToken.VALUE_NUMBER_INT) {
-                return ctxt.handleUnexpectedToken(type, p)
+                throw MismatchedInputException.from(p, type, "${type.simpleName} is read by name, not by number.")
             }
             // An index's text, which Jackson reads as the constant of that index unless a constant is named so.
             if (p.currentToken() == JsonToken.VALUE_STRING && INDEX.matches(p.string) && p.string !in names) {

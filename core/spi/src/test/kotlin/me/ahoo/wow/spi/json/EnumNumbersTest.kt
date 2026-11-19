@@ -53,6 +53,8 @@ class EnumNumbersTest {
         @JsonFormat(shape = JsonFormat.Shape.NUMBER_INT)
         val rank: Grade = Grade.PASS,
         val code: Code = Code.PLAIN,
+        @JsonFormat(with = [JsonFormat.Feature.ACCEPT_CASE_INSENSITIVE_PROPERTIES])
+        val loose: Status = Status.PAID,
     )
 
     private val failures = JsonReadFailures(WowJson.mapper)
@@ -112,5 +114,12 @@ class EnumNumbersTest {
             path.assert().isEqualTo("code")
             reason.assert().isEqualTo(Reason.NOT_IN_ENUMERATION)
         }
+    }
+
+    @Test
+    fun `a property read case-insensitively should read its names so, and refuse a number still`() {
+        WowJson.mapper.readValue<Order>("""{"loose":"shipped"}""").loose.assert().isEqualTo(Status.SHIPPED)
+        refusal("""{"loose":1}""").reason.assert().isEqualTo(Reason.WRONG_KIND)
+        refusal("""{"loose":"1"}""").reason.assert().isEqualTo(Reason.NOT_IN_ENUMERATION)
     }
 }
