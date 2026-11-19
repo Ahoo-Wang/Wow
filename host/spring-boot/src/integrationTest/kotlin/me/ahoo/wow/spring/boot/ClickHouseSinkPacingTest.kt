@@ -28,6 +28,7 @@ import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.runtime.sink.SinkBatches
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spi.sink.Sink
 import me.ahoo.wow.spi.sink.SinkConfig
 import me.ahoo.wow.spi.state.PublishedState
 import me.ahoo.wow.spi.state.StateEventPayload
@@ -48,8 +49,18 @@ import kotlin.time.measureTime
  * everything that arrived (#6494).
  */
 class ClickHouseSinkPacingTest {
-    /** What a Sink paced at its interval did under the load: its inserts' starts (µs), new parts, how long it took. */
-    private class Counted(val inserts: List<Long>, val parts: Long, val elapsed: Duration)
+    /** What a Sink paced at its interval did under the load: its inserts, its new parts, and how long it took. */
+    private class Counted(val inserts: Int, val parts: Long, val elapsed: Duration)
+
+    /** [sink] with its writes counted. */
+    private class Counting(private val sink: Sink) : Sink by sink {
+        val writes = AtomicInteger()
+
+        override suspend fun write(records: List<StateEventRecord>) {
+            writes.incrementAndGet()
+            sink.write(records)
+        }
+    }
 
     private fun load(interval: Duration): Counted {
         val database = "wow_pacing_${databases.incrementAndGet()}"
@@ -61,9 +72,11 @@ class ClickHouseSinkPacingTest {
             StoreResources.of(mapOf("manifest" to MANIFEST, "client" to client)),
         )
         val sinks = ClickHouseSinkProvider().open(config)
-        val batches = SinkBatches(sinks.sinkOf(ORDER.context, ORDER.name))
+        val counting = Counting(sinks.sinkOf(ORDER.context, ORDER.name))
+        val batches = SinkBatches(counting)
         // AGGREGATES aggregates, each committing PERIOD after its last commit was written, COMMITS times: as a
-        // subscription's lane does, an aggregate's next commit goes once its previous one's write returned.
+        // subscription's lane does, an aggregate's next commit goes once its previous one's write returned. Timed on
+        // the node, around every write.
         val elapsed = measureTime {
             runBlocking(Dispatchers.Default) {
                 repeat(AGGREGATES) { aggregate ->
@@ -79,11 +92,10 @@ class ClickHouseSinkPacingTest {
         }
         sinks.close()
         execute("SYSTEM FLUSH LOGS")
-        val inserts = client.queryAll(
-            "SELECT toUnixTimestamp64Micro(query_start_time_microseconds) AS start FROM system.query_log " +
-                "WHERE type = 'QueryFinish' AND query_kind = 'Insert' " +
-                "AND has(tables, '$database.shop_order_state_events') ORDER BY start",
-        ).map { it.getLong("start") }
+        val inserts = count(
+            "SELECT count() AS n FROM system.query_log WHERE type = 'QueryFinish' AND query_kind = 'Insert' " +
+                "AND has(tables, '$database.shop_order_state_events')",
+        ).toInt()
         // The parts of the Sink's three tables: its catalog row adds one to wow_catalog besides.
         val parts = count(
             "SELECT count() AS n FROM system.part_log WHERE database = '$database' AND event_type = 'NewPart' " +
@@ -91,6 +103,8 @@ class ClickHouseSinkPacingTest {
         )
         count("SELECT count() AS n FROM $database.shop_order_state_events FINAL")
             .assert().isEqualTo((AGGREGATES * COMMITS).toLong())
+        // One write is one insert: what the node wrote is what ClickHouse logged.
+        counting.writes.get().assert().isEqualTo(inserts)
         return Counted(inserts, parts, elapsed)
     }
 
@@ -99,19 +113,21 @@ class ClickHouseSinkPacingTest {
         val unpaced = load(Duration.ZERO)
         val paced = load(1.seconds)
         println(
-            "#6494 load of ${AGGREGATES * COMMITS} commits: unpaced ${unpaced.inserts.size} inserts, " +
-                "${unpaced.parts} new parts in ${unpaced.elapsed}; paced at 1s ${paced.inserts.size} inserts, " +
+            "#6494 load of ${AGGREGATES * COMMITS} commits: unpaced ${unpaced.inserts} inserts, " +
+                "${unpaced.parts} new parts in ${unpaced.elapsed}; paced at 1s ${paced.inserts} inserts, " +
                 "${paced.parts} new parts in ${paced.elapsed}",
         )
-        // Paced, two inserts start a second apart at least (by the server's clock: a client's start is within the HTTP
-        // round trip of it), so the load had at most one a second of its length, and one at its start.
-        paced.inserts.zipWithNext { earlier, later -> later - earlier }
-            .forEach { it.assert().isGreaterThanOrEqualTo(SPACING_MICROS) }
-        paced.inserts.size.toLong().assert().isLessThanOrEqualTo(paced.elapsed.inWholeSeconds + 1)
+        // Paced, the batcher marks each write's start no sooner than the interval after the last one's, whatever the
+        // runner's speed (no batch is full: the load never has batch-size records waiting), and every mark falls within
+        // the run timed around it: n inserts span at least n - 1 intervals of it. The spacing itself is held exactly
+        // by the batcher's test on virtual time (SinkWritesPacingTest); here it would be a real clock's, and a pause
+        // between one write's mark and its call of the sink shortens a gap by any amount.
+        paced.inserts.toLong().assert().isLessThanOrEqualTo(paced.elapsed.inWholeSeconds + 1)
         // Each insert makes a part in each of the three tables (the base table and the two views'), one month each.
-        paced.parts.assert().isEqualTo(paced.inserts.size * 3L)
-        unpaced.parts.assert().isEqualTo(unpaced.inserts.size * 3L)
-        unpaced.inserts.size.assert().isGreaterThan(paced.inserts.size * 10)
+        paced.parts.assert().isEqualTo(paced.inserts * 3L)
+        unpaced.parts.assert().isEqualTo(unpaced.inserts * 3L)
+        // How many inserts unpaced takes is a measurement, not an invariant: an insert follows as soon as the last
+        // returned, so a slower ClickHouse makes them fewer and larger. Printed above, for the comparison.
     }
 
     private fun count(sql: String): Long = client.queryAll(sql).single().getLong("n")
@@ -126,9 +142,6 @@ class ClickHouseSinkPacingTest {
         const val AGGREGATES = 64
         const val COMMITS = 10
         val PERIOD = 0.5.seconds
-
-        /** A second, less what the HTTP round trip before an insert's start may take off the server's spacing. */
-        const val SPACING_MICROS = 900_000L
 
         val MANIFEST = Manifest(
             contexts = listOf(
