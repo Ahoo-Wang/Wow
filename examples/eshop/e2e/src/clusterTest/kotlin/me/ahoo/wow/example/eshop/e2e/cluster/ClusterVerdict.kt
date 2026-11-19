@@ -105,12 +105,26 @@ class ClusterVerdict(private val flows: ShopFlows, private val reads: StoreReads
     }
 
     /**
-     * Waits, at most [deadline], until the order list (the ordering's snapshot query, which lags behind its log) holds
-     * every order of the ordering's log, and every listed order is settled (paid, shipped or cancelled), and says how
-     * long that took: the read side's lag at this verdict. An order whose state read answers nothing stays open.
+     * Waits, at most [deadline], until every checkout of the basket's log has its order in the ordering's log (the
+     * checkout saga's call can still be on its way after the load stops), then until the order list (the ordering's
+     * snapshot query, which lags behind its log) holds every order of that log and every listed order is settled
+     * (paid, shipped or cancelled), and says how long each took: the run's lags at this verdict. An order whose state
+     * read answers nothing stays open.
      */
     fun settle(deadline: Duration = SETTLE) {
         val started = System.nanoTime()
+        var unordered: Set<String>
+        do {
+            unordered = checkoutsWithoutOrder()
+            val done = unordered.isEmpty()
+            if (!done) Thread.sleep(POLL.toMillis())
+        } while (!done && System.nanoTime() - started < deadline.toNanos())
+        val ordered = Duration.ofNanos(System.nanoTime() - started)
+        if (unordered.isEmpty()) {
+            log("every checkout had its order in the ordering's log after $ordered")
+        } else {
+            log("after $ordered, checkouts without an order: ${unordered.take(LISTED)}")
+        }
         var unlisted: Set<String>
         var open: Map<String, String?>
         do {
@@ -125,11 +139,18 @@ class ClusterVerdict(private val flows: ShopFlows, private val reads: StoreReads
         } while (!done && System.nanoTime() - started < deadline.toNanos())
         val waited = Duration.ofNanos(System.nanoTime() - started)
         if (unlisted.isEmpty() && open.isEmpty()) {
-            log("the order list held the ordering's log, every order settled, after $waited")
+            log("the order list held the ordering's log, every order settled, after $waited in all")
         } else {
             log("after $waited, unlisted: ${unlisted.take(LISTED)}; open: ${open.entries.take(LISTED)}")
         }
     }
+
+    /**
+     * The basket's checkouts (`CheckoutBasket` commits) that no order of the ordering's log was caused by: a chain the
+     * run started that has not reached the ordering yet.
+     */
+    private fun checkoutsWithoutOrder(): Set<String> =
+        reads.commitsOf("basket", "basket", CHECKOUT) - reads.firstCauses("ordering", "order")
 
     /** The orders' numbers: well formed, each answered once, each an order of the ordering ([orders]). */
     private fun checkNumbers(orders: Set<String>) {
@@ -150,6 +171,14 @@ class ClusterVerdict(private val flows: ShopFlows, private val reads: StoreReads
 
     fun judge() {
         stopSampling()
+        // The run's orders have one origin, the basket's checkouts: an order's first commit names its own.
+        val checkouts = reads.commitsOf("basket", "basket", CHECKOUT)
+        val causes = reads.firstCauses("ordering", "order")
+        val unordered = checkouts - causes
+        check(unordered.isEmpty()) {
+            "${unordered.size} checkouts of the basket's log have no order in the ordering's: ${unordered.take(LISTED)}"
+        }
+        val otherOrigins = causes - checkouts
         val logged = reads.aggregateIds("ordering", "order")
         val listed = flows.orders()
         val unlisted = logged - listed.toSet()
@@ -160,8 +189,9 @@ class ClusterVerdict(private val flows: ShopFlows, private val reads: StoreReads
             checkNotNull(flows.order(id)) { "the state read of $id answered nothing" }
         }
         log(
-            "judging ${orders.size} orders of ${flows.checkouts.values.sumOf { it.get() }} checkouts, " +
-                "${logged.size} in the ordering's log"
+            "judging ${orders.size} orders listed, ${logged.size} in the ordering's log, from ${checkouts.size} " +
+                "checkouts in the basket's log (${flows.checkouts.values.sumOf { it.get() }} the run made); " +
+                "orders of another origin: ${otherOrigins.size} ${otherOrigins.take(LISTED)}"
         )
         checkNumbers(orders.keys)
         orders.forEach { (id, order) ->
@@ -280,6 +310,7 @@ class ClusterVerdict(private val flows: ShopFlows, private val reads: StoreReads
     companion object {
         const val EVIDENCE = 500
         const val LISTED = 20
+        const val CHECKOUT = "eshop-basket.basket.CheckoutBasket"
         val CONTEXTS = listOf("catalog", "basket", "ordering", "inventory", "payment")
         val SETTLED = setOf("PAID", "SHIPPED", "CANCELLED")
         val PAID = setOf("PAID", "SHIPPED")
