@@ -56,7 +56,9 @@ class Tokens(private val secret: String) {
             "jti" to UUID.randomUUID().toString(),
             "sub" to who.id,
             "tenantId" to TENANT,
-            "iat" to now,
+            // Issued a little in the past: the gateway refuses an iat in its future, with no leeway, and its clock may
+            // be a few milliseconds behind this one, which refused about one probe in fifty.
+            "iat" to now - ISSUED_BEFORE.seconds,
             "exp" to now + ttl.seconds,
         )
         if (who.roles.isNotEmpty()) claims["roles"] = who.roles
@@ -83,6 +85,9 @@ class Tokens(private val secret: String) {
     private companion object {
         const val ALGORITHM = "HmacSHA256"
         const val MILLIS = 1000
+
+        /** How far before now a token says it was issued, which the clocks' skew never reaches. */
+        val ISSUED_BEFORE: Duration = Duration.ofSeconds(30)
 
         /** CoSec's default tenant, Wow's default tenant behind it, whose document holds the shop's rules. */
         const val TENANT = "(0)"
