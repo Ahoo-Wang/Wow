@@ -20,8 +20,10 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.AppendOutcome
+import me.ahoo.wow.spi.log.CreationClaim
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.Partitioner
 import org.junit.jupiter.api.Test
@@ -93,6 +95,32 @@ abstract class EventLogSpec : EventLogBatchCases() {
                 else -> throw AssertionError("Neither a duplicate nor a commit: $again")
             }
             log.findByRequestId(first.ref, "request")?.ref.assert().isEqualTo(first.ref)
+        }
+
+    @Test
+    fun `the attempts of one creation, drawn in two partitions, commit one aggregate under the request's claim`(): Unit =
+        runBlocking {
+            // The id the first attempt drew, and the retry's, in two partitions: MongoDB's request key never meets them.
+            val log = createLog(partitions = 4)
+            val first = "a"
+            val elsewhere = generateSequence(1) { it + 1 }.map { "b-$it" }.first {
+                Partitioner.partitionOf(type.ref("tenant", it), 4) !=
+                    Partitioner.partitionOf(type.ref("tenant", first), 4)
+            }
+            val alice = Scope("alice", "home")
+            val claimed = log.claimCreation(type, "tenant", "request", CreationClaim.of(first, alice))
+            claimed.assert().isEqualTo(CreationClaim.of(first, alice))
+            val again = log.claimCreation(type, "tenant", "request", CreationClaim.of(elsewhere, Scope("bob")))
+            // A log that claims hands every later attempt the first claim; one whose key spans the type, its own.
+            again.assert().isIn(claimed, CreationClaim.of(elsewhere, Scope("bob")))
+            // Another tenant's or another type's request of the same id claims apart.
+            log.claimCreation(type, "other", "request", CreationClaim.of(elsewhere, Scope.NONE))
+                .assert().isEqualTo(CreationClaim.of(elsewhere, Scope.NONE))
+            log.claimCreation(other, "tenant", "request", CreationClaim.of(elsewhere, alice))
+                .aggregateId.assert().isEqualTo(elsewhere)
+            val outcomes = listOf(claimed, again).map { log.append(stream(it.aggregateId, 1, requestId = "request")) }
+            outcomes.count { it is AppendOutcome.Committed }.assert().describedAs(outcomes.toString()).isEqualTo(1)
+            (outcomes[1] as AppendOutcome.AlreadyCommitted).existing.ref.id.assert().isEqualTo(first)
         }
 
     @Test

@@ -25,6 +25,7 @@ import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.runtime.snapshot.SnapshotStoreRouter
 import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.AppendOutcome
+import me.ahoo.wow.spi.log.CreationClaim
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -172,6 +173,25 @@ class LogGroupRouterTest {
         router.append(stream(orders.ref("t", "o-1"), requestId = "shared", commitTime = 7), null)
         router.findByRequestId(invoices, "t", "shared")?.ref.assert().isEqualTo(invoices.ref("t", "i-1"))
         router.findByRequestId(invoices, "t", "missing").assert().isNull()
+    }
+
+    @Test
+    fun `a creation's claim goes to its type's group log`(): Unit = runBlocking {
+        val claimed = CreationClaim.of("i-1", Scope("alice"))
+        val claims = CopyOnWriteArrayList<AggregateType>()
+        val claiming = object : EventLog by grouped {
+            override suspend fun claimCreation(
+                type: AggregateType,
+                tenantId: String,
+                requestId: String,
+                claim: CreationClaim,
+            ): CreationClaim = claimed.also { claims += type }
+        }
+        val routed = LogGroupRouter(default, mapOf(invoices to claiming))
+        routed.claimCreation(invoices, "t", "r-1", CreationClaim.of("i-2", Scope("bob"))).assert().isSameAs(claimed)
+        val own = CreationClaim.of("o-1", Scope("bob"))
+        routed.claimCreation(orders, "t", "r-1", own).assert().isSameAs(own)
+        claims.assert().containsExactly(invoices)
     }
 
     @Test

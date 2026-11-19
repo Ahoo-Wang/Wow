@@ -15,6 +15,7 @@ One consistent backup of each service's database, on PostgreSQL or MongoDB, take
 | --- | --- |
 | The log: every aggregate's committed streams, and the partitions' counters | It is the history itself |
 | The reservations | Which aggregate holds each unique key |
+| The creation claims (MongoDB) | Which aggregate each request that created one without naming it targets, so a retry of it commits nothing more |
 | The timers | The commands scheduled for later |
 | The failure ledger | The aggregates a subscription has parked, waiting for an operator |
 | The checkpoints and leases | Where each subscription stands in the log, and which node owns which partition |
