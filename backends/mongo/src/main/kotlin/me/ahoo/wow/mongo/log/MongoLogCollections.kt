@@ -176,13 +176,12 @@ internal class MongoLogCollections(
             streams(REQUEST_KEY, REQUEST_ID),
             ddl
         )
-        if (sharded) {
-            // Sharded by partition, one chunk each, spread over the shards while the collection is new.
-            MongoShards.shardLog(client, database, log, partitions)
-        }
         // The claims: the `_id`'s index alone, created with the collection by the first claim, after its record.
         MongoFormat.claim(database, collection.claimsName, FORMAT, ddl)
         if (sharded) {
+            // Sharded by partition, one chunk each, spread over the shards while the collection is new; the claims by
+            // the request.
+            MongoShards.shardLog(client, database, log, partitions)
             MongoShards.shardClaims(client, database, collection.claims)
         }
         if (!ddl.creates) {

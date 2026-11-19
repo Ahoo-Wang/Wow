@@ -114,8 +114,8 @@ abstract class EventLogSpec : EventLogBatchCases() {
             // A log that claims hands every later attempt the first claim; one whose key spans the type, its own.
             again.assert().isIn(claimed, CreationClaim.of(elsewhere, Scope("bob")))
             // Another tenant's or another type's request of the same id claims apart.
-            log.claimCreation(type, "other", "request", CreationClaim.of(elsewhere, alice)).aggregateId
-                .assert().isEqualTo(elsewhere)
+            log.claimCreation(type, "other", "request", CreationClaim.of(elsewhere, Scope.NONE))
+                .assert().isEqualTo(CreationClaim.of(elsewhere, Scope.NONE))
             log.claimCreation(other, "tenant", "request", CreationClaim.of(elsewhere, alice))
                 .aggregateId.assert().isEqualTo(elsewhere)
             val outcomes = listOf(claimed, again).map { log.append(stream(it.aggregateId, 1, requestId = "request")) }
