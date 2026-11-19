@@ -95,7 +95,7 @@ span 以属性的形式带着上下文、聚合、租户、命令和订阅（`wo
 | --- | --- | --- |
 | 某个节点的就绪状态持续几分钟为 down | 某个存储不可用，或者某个节点失去了它的分区 | `/actuator/health/wow` |
 | `wow.subscription.parked.aggregates` 大于 0 | 有聚合在等待修复和运维人员处理 | [ops 服务与控制台](./ops-console) |
-| `wow.subscription.paused.partitions` 长时间大于 0 | 下游的存储或服务不可用 | 订阅的日志、存储 |
+| `wow.subscription.paused.partitions` 长时间大于 0 | 订阅所依赖的存储或服务对它出现系统性故障：不可用、拒绝，或在负载下超时，例如 Sink 的存储跟不上流量。暂停的分区每次只处理一个探测，直到某次处理成功。只是变慢、写入仍然成功的存储会触发限流（`wow.subscription.throttled.partitions`），而不是暂停 | 订阅的日志，其中写明暂停的原因；存储的健康状态；对照流量看它的错误和延迟；`wow.subscription.backlog`，看落后了多少 |
 | `wow.subscription.backlog` 持续增长 | 某个订阅落后了 | 它的落后量、处理函数的延迟、节点的执行器 |
 | `wow.timer.delay` 持续增长 | 定时器触发得晚了 | 节点的负载、定时器的存储 |
 | `wow.subscription.offset.gaps` 大于 0 | 某个订阅跳过了数据，或停在已过保留期的数据上 | 主题的保留期 |
