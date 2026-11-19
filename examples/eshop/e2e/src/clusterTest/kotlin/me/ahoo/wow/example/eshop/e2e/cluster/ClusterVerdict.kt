@@ -104,18 +104,53 @@ class ClusterVerdict(private val flows: ShopFlows, private val reads: StoreReads
         }
     }
 
-    /** Waits until every order the run made is settled (paid, shipped or cancelled), at most [deadline]. */
+    /**
+     * Waits, at most [deadline], until every checkout of the basket's log has its order in the ordering's log (the
+     * checkout saga's call can still be on its way after the load stops), then until the order list (the ordering's
+     * snapshot query, which lags behind its log) holds every order of that log and every listed order is settled
+     * (paid, shipped or cancelled), and says how long each took: the run's lags at this verdict. An order whose state
+     * read answers nothing stays open.
+     */
     fun settle(deadline: Duration = SETTLE) {
-        val until = System.nanoTime() + deadline.toNanos()
-        var open: Map<String, String?> = emptyMap()
-        while (System.nanoTime() < until) {
-            open = flows.orders().associateWith { runCatching { flows.orderStatus(it) }.getOrNull() }
-                .filterValues { it != null && it !in SETTLED }
-            if (open.isEmpty()) return
-            Thread.sleep(POLL.toMillis())
+        val started = System.nanoTime()
+        var unordered: Set<String>
+        do {
+            unordered = checkoutsWithoutOrder()
+            val done = unordered.isEmpty()
+            if (!done) Thread.sleep(POLL.toMillis())
+        } while (!done && System.nanoTime() - started < deadline.toNanos())
+        val ordered = Duration.ofNanos(System.nanoTime() - started)
+        if (unordered.isEmpty()) {
+            log("every checkout had its order in the ordering's log after $ordered")
+        } else {
+            log("after $ordered, checkouts without an order: ${unordered.take(LISTED)}")
         }
-        log("orders still open after $deadline: $open")
+        var unlisted: Set<String>
+        var open: Map<String, String?>
+        do {
+            // The log first: every order it holds now must be listed.
+            val logged = reads.aggregateIds("ordering", "order")
+            val listed = flows.orders().toSet()
+            unlisted = logged - listed
+            open = listed.associateWith { runCatching { flows.orderStatus(it) }.getOrNull() }
+                .filterValues { it !in SETTLED }
+            val done = unlisted.isEmpty() && open.isEmpty()
+            if (!done) Thread.sleep(POLL.toMillis())
+        } while (!done && System.nanoTime() - started < deadline.toNanos())
+        val waited = Duration.ofNanos(System.nanoTime() - started)
+        if (unlisted.isEmpty() && open.isEmpty()) {
+            log("the order list held the ordering's log, every order settled, after $waited in all")
+        } else {
+            log("after $waited, unlisted: ${unlisted.take(LISTED)}; open: ${open.entries.take(LISTED)}")
+        }
     }
+
+    /**
+     * The basket's checkouts (`CheckoutBasket` commits) that no order of the ordering's log was caused by: a chain the
+     * run started that has not reached the ordering yet.
+     */
+    private fun checkoutsWithoutOrder(): Set<String> =
+        reads.commitsOf("basket", "basket", CHECKOUT) - reads.firstCauses("ordering", "order")
 
     /** The orders' numbers: well formed, each answered once, each an order of the ordering ([orders]). */
     private fun checkNumbers(orders: Set<String>) {
@@ -136,8 +171,28 @@ class ClusterVerdict(private val flows: ShopFlows, private val reads: StoreReads
 
     fun judge() {
         stopSampling()
-        val orders = flows.orders().mapNotNull { id -> flows.order(id)?.let { id to it } }.toMap()
-        log("judging ${orders.size} orders of ${flows.checkouts.values.sumOf { it.get() }} checkouts")
+        // The run's orders have one origin, the basket's checkouts: an order's first commit names its own.
+        val checkouts = reads.commitsOf("basket", "basket", CHECKOUT)
+        val causes = reads.firstCauses("ordering", "order")
+        val unordered = checkouts - causes
+        check(unordered.isEmpty()) {
+            "${unordered.size} checkouts of the basket's log have no order in the ordering's: ${unordered.take(LISTED)}"
+        }
+        val otherOrigins = causes - checkouts
+        val logged = reads.aggregateIds("ordering", "order")
+        val listed = flows.orders()
+        val unlisted = logged - listed.toSet()
+        check(unlisted.isEmpty()) {
+            "the order list lacks ${unlisted.size} orders of the ordering's log: ${unlisted.take(LISTED)}"
+        }
+        val orders = listed.associateWith { id ->
+            checkNotNull(flows.order(id)) { "the state read of $id answered nothing" }
+        }
+        log(
+            "judging ${orders.size} orders listed, ${logged.size} in the ordering's log, from ${checkouts.size} " +
+                "checkouts in the basket's log (${flows.checkouts.values.sumOf { it.get() }} the run made); " +
+                "orders of another origin: ${otherOrigins.size} ${otherOrigins.take(LISTED)}"
+        )
         checkNumbers(orders.keys)
         orders.forEach { (id, order) ->
             val status = order["status"].asString()
@@ -186,9 +241,11 @@ class ClusterVerdict(private val flows: ShopFlows, private val reads: StoreReads
             )
             status in PAID && (succeeded != 1 || payment?.get("status")?.asString() != "SUCCEEDED") ->
                 paymentOnce.violate(evidence + ("reason" to "paid without one succeeded payment"))
-            status in PAID && payment!!["amount"].decimalValue().compareTo(ShopFlows.total(order)) != 0 ->
+            // A paid order's payment is there: the branch above takes one without a succeeded payment.
+            status in PAID && payment?.get("amount")?.decimalValue()?.compareTo(ShopFlows.total(order)) != 0 ->
                 paymentOnce.violate(
-                    evidence + ("reason" to "amount ${payment["amount"]} is not the total ${ShopFlows.total(order)}")
+                    evidence +
+                        ("reason" to "amount ${payment?.get("amount")} is not the total ${ShopFlows.total(order)}")
                 )
             status == "CANCELLED" && succeeded > 0 -> paymentOnce.violate(evidence + ("reason" to "cancelled but paid"))
         }
@@ -254,6 +311,8 @@ class ClusterVerdict(private val flows: ShopFlows, private val reads: StoreReads
 
     companion object {
         const val EVIDENCE = 500
+        const val LISTED = 20
+        const val CHECKOUT = "eshop-basket.basket.CheckoutBasket"
         val CONTEXTS = listOf("catalog", "basket", "ordering", "inventory", "payment")
         val SETTLED = setOf("PAID", "SHIPPED", "CANCELLED")
         val PAID = setOf("PAID", "SHIPPED")

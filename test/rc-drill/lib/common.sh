@@ -76,10 +76,30 @@ checked() {
   DRILL_EVIDENCE="$evidence" DRILL_SOURCES="$sources" "$here/drill.sh" "$@"
 }
 
-# Times a step and keeps its output: evidence/steps/<name>.log, and one line per step in evidence/steps.tsv.
+# The machine's batch lock (test/benchmarks/harness/lock.sh), the drill's window.
+# shellcheck source=../../benchmarks/harness/lock.sh
+source "$root/test/benchmarks/harness/lock.sh"
+
+# Whether this shell runs in the drill's window: the batch lock held by a live owner whose name is this shell's
+# WOW_BENCH_OWNER (or that this process descends from). A step never waits for the lock, as quiet.sh would: outside the
+# window, or from a shell that does not name the lock's holder, it stops at once and says which.
+window() {
+  local owner pid
+  owner=$(lock_field owner)
+  pid=$(lock_field pid)
+  if [ -z "$owner" ] || ! lock_alive "$pid"; then
+    fail "no one holds the batch lock: take it (bench.sh lock --owner=<name> --wait) and export WOW_BENCH_OWNER=<name>"
+  elif [ "${WOW_BENCH_OWNER:-}" != "$owner" ] && ! lock_descends "$pid"; then
+    fail "the batch lock is held by $(lock_holder), not this shell's (WOW_BENCH_OWNER=${WOW_BENCH_OWNER:-})"
+  fi
+}
+
+# Times a step and keeps its output: evidence/steps/<name>.log, and one line per step in evidence/steps.tsv. In the
+# drill's window only (window).
 step() {
   local name=$1 started status=0
   shift
+  window
   mkdir -p "$evidence/steps"
   started=$(date -u +%s)
   log "step $name: $*"

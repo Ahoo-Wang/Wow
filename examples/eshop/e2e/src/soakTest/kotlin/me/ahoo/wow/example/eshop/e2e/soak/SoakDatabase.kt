@@ -118,6 +118,22 @@ class SoakDatabase(private val connection: Connection, val context: String) {
         )
     }
 
+    /** The ids of the aggregates [table] holds. */
+    fun aggregateIds(table: String): Set<String> =
+        query("SELECT DISTINCT aggregate_id FROM \"$table\"") { it.getString(1) }.toSet()
+
+    /** The tenant, id and version of each commit of [commandType] [table] holds. */
+    fun commitsOf(table: String, commandType: String): List<Triple<String, String, Int>> = query(
+        "SELECT tenant_id, aggregate_id, version FROM \"$table\" WHERE command_type = ?",
+        commandType,
+    ) { Triple(it.getString(1), it.getString(2), it.getInt(3)) }
+
+    /** The causation ids of the first commits [table] holds. */
+    fun firstCauses(table: String): Set<String> =
+        query("SELECT causation_id FROM \"$table\" WHERE version = 1 AND causation_id IS NOT NULL") {
+            it.getString(1)
+        }.toSet()
+
     /** How many aggregates [table] holds. */
     fun aggregateCount(table: String): Long =
         query("SELECT count(DISTINCT (tenant_id, aggregate_id)) FROM \"$table\"") { it.getLong(1) }.single()
