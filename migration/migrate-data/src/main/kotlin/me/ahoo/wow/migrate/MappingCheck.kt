@@ -528,8 +528,8 @@ internal class MappingCheck(private val plan: MigrationPlan) {
             "${RefusedIds.quoted(RefusedIds.nameOf(id))} (${RefusedIds.reasonOf(id)}: " +
                 "${instances.sumOf { it.value }} streams of the tenants $tenants)"
         }
-        return "$aggregate: V10 refuses these 9.x aggregate ids, so the streams of their instances cannot be " +
-            "imported; exclude each with {\"aggregate\": \"$aggregate\", \"stream\": <the id as listed>, " +
+        return "$aggregate: V10 refuses the aggregate ids of these ${refused.size} 9.x instances, so no command " +
+            "could reach them and their streams cannot be imported; exclude each with {\"aggregate\": \"$aggregate\", \"stream\": <the id as listed>, " +
             "\"reason\": \"…\"}: ${listed.joinToString(", ")}"
     }
 

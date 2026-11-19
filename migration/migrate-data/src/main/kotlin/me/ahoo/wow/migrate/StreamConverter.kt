@@ -98,12 +98,12 @@ internal class StreamConverter(
      * that excludes it.
      */
     private fun refuseId(stream: NineXStream, subject: String) {
-        val reason = RefusedIds.reasonOf(stream.aggregateId.id)?.let { "its aggregate id is $it" }
-            ?: "it records no tenant".takeIf { stream.aggregateId.tenantId.isBlank() }
+        val reason = RefusedIds.reasonOf(stream.aggregateId.id)?.let { "V10 refuses its aggregate id ($it)" }
+            ?: "it records no tenant, which V10 refuses".takeIf { stream.aggregateId.tenantId.isBlank() }
             ?: return
         val name = RefusedIds.quoted(RefusedIds.nameOf(stream.aggregateId.id))
         throw MigrationException(
-            "$subject: $reason, which V10 refuses; exclude it with {\"aggregate\": " +
+            "$subject: $reason; exclude it with {\"aggregate\": " +
                 "\"${stream.aggregate}\", \"stream\": $name, \"reason\": \"…\"}.",
         )
     }

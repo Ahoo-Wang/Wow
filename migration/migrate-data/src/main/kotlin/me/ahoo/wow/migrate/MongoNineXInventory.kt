@@ -27,6 +27,7 @@ import me.ahoo.wow.migrate.NineXMongoFields.EVENT_REVISION
 import me.ahoo.wow.migrate.NineXMongoFields.HEADER
 import me.ahoo.wow.migrate.NineXMongoFields.TENANT_ID
 import org.bson.Document
+import org.bson.conversions.Bson
 
 /**
  * What the mapping check and `draft-map` count of a 9.x MongoDB event store ([MongoNineXEventSource.inventory]), one
@@ -89,18 +90,24 @@ internal class MongoNineXInventory(private val database: MongoDatabase) {
 
     /**
      * The number of streams of each instance whose id V10 refuses ([RefusedIds]), per aggregate: an absent or null id
-     * read as the empty one, as [NineXStream.parse] reads it.
+     * read as the empty one, as [NineXStream.parse] reads it. The store matches each of [REFUSED_CANDIDATES], ids
+     * that may be refused, on 9.x's `(aggregateId, version)` index, and [RefusedIds.reasonOf] decides each: the rule
+     * is admission's, never a copy of it in a query.
      */
     private fun refusedIdsOf(collection: MongoCollection<Document>): Map<NineXAggregate, Map<NineXAggregateId, Long>> =
+        REFUSED_CANDIDATES.flatMap { candidates -> refusedOf(collection, candidates) }
+            .filter { (id, _) -> RefusedIds.reasonOf(id.getString("id")) != null }
+            .groupBy({ it.first.aggregate() }) { (id, count) ->
+                NineXAggregateId(id.getString("id"), id.getString("tenant").orEmpty()) to count
+            }
+            // The empty id comes from both matches: "" from the pattern, none at all and null from the other.
+            .mapValues { (_, instances) -> instances.groupBy({ it.first }) { it.second }.mapValues { it.value.sum() } }
+
+    /** The number of streams of each instance [candidates] matches, by its aggregate, id and tenant. */
+    private fun refusedOf(collection: MongoCollection<Document>, candidates: Bson): List<Pair<Document, Long>> =
         collection.aggregate(
             listOf(
-                Aggregates.match(
-                    Filters.or(
-                        Filters.eq(AGGREGATE_ID, null),
-                        Filters.regex(AGGREGATE_ID, "^\\s*$"),
-                        Filters.eq(AGGREGATE_ID, AggregateRef.UNASSIGNED),
-                    ),
-                ),
+                Aggregates.match(candidates),
                 Document(
                     "\$group",
                     Document(
@@ -112,10 +119,6 @@ internal class MongoNineXInventory(private val database: MongoDatabase) {
                 ),
             ),
         ).map { it.get("_id", Document::class.java) to it.count() }.toList()
-            .groupBy({ it.first.aggregate() }) { (id, count) ->
-                NineXAggregateId(id.getString("id"), id.getString("tenant").orEmpty()) to count
-            }
-            .mapValues { (_, instances) -> instances.toMap() }
 
     /**
      * The number of streams by the set of event types each holds, per aggregate: grouped by the store on the set
@@ -178,7 +181,26 @@ internal class MongoNineXInventory(private val database: MongoDatabase) {
 
     private fun Document.count(): Long = (get("count") as Number).toLong()
 
-    private companion object {
+    internal companion object {
+        /**
+         * The characters an id V10 refuses may begin or end with, more than it refuses: every control character and
+         * every Unicode white space (`Zs`, `Zl`, `Zp`, and their neighbours), and the `.` of `.` and `..`.
+         */
+        private const val ENDS = "\\x{0}-\\x{20}\\x{7f}-\\x{a0}\\x{1680}\\x{180e}\\x{2000}-\\x{200f}" +
+            "\\x{2028}-\\x{202f}\\x{205f}-\\x{206f}\\x{3000}\\x{feff}."
+
+        /**
+         * The ids that may be refused ([RefusedIds]): the empty one, one beginning or ending with one of
+         * [ENDS], one holding a control character, and one of 129 code points or more, as an id longer than admission
+         * takes (256 UTF-16 characters) has; then none at all, and [AggregateRef.UNASSIGNED]. Two matches on 9.x's
+         * `(aggregateId, version)` index, each fetching only the streams it matches: the regular expression alone is
+         * matched against the index's keys, and one match of it and of null would fetch every stream to tell a null.
+         */
+        val REFUSED_CANDIDATES: List<Bson> = listOf(
+            Filters.regex(AGGREGATE_ID, "^$|^[$ENDS]|[$ENDS]$|[\\x{0}-\\x{1f}\\x{7f}-\\x{9f}]|^.{129}", "s"),
+            Filters.`in`(AGGREGATE_ID, null, AggregateRef.UNASSIGNED),
+        )
+
         /** The headers naming a stream's command, the first one written winning. */
         private val COMMAND_HEADERS =
             listOf(NineXHeaders.UPSTREAM_NAME, NineXHeaders.DOTTED_UPSTREAM_NAME, NineXHeaders.COMMAND_NAME)

@@ -45,4 +45,10 @@ object AggregateIds {
 
         else -> null
     }
+
+    /**
+     * Why admission refuses [id] as an aggregate id, as text, or null when it takes it: longer than an id admission
+     * takes ([AdmissionLimits.MAX_ID_LENGTH]), or [unaddressable]. A blank id is refused where it is read.
+     */
+    fun refused(id: String?): String? = AdmissionLimits.oversized("aggregate id", id) ?: unaddressable(id)
 }

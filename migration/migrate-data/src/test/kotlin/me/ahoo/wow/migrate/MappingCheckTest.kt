@@ -381,8 +381,8 @@ class MappingCheckTest {
         )
         val inventories = example.map { if (it.aggregate == order) it.copy(refusedIds = refused) else it }
         check(inventories = inventories).problems.assert().containsExactly(
-            "example-service.order: V10 refuses these 9.x aggregate ids, so the streams of their instances cannot " +
-                "be imported; " +
+            "example-service.order: V10 refuses the aggregate ids of these 4 9.x instances, so no command could " +
+                "reach them and their streams cannot be imported; " +
                 "exclude each with {\"aggregate\": \"example-service.order\", \"stream\": <the id as listed>, " +
                 "\"reason\": \"…\"}: \"(empty)\" (empty: 3 streams of the tenants [t1, t2]), \" \" (blank: 1 streams " +
                 "of the tenants [t1]), \"(none)\" (the id V10 gives a ref admission has not given one yet: 1 streams of " +
