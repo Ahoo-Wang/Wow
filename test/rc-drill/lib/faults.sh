@@ -99,10 +99,15 @@ drain() {
 }
 
 drain_worker() {
-  local node=$1
-  "$kubectl" --context "kind-$cluster" drain "$node" --ignore-daemonsets --delete-emptydir-data --timeout=900s
-  sleep 60
+  local node=$1 status=0
+  # The drill's own tools (mongo-shell, the probes) are bare pods, which drain refuses to delete without --force and the
+  # verdict still needs: the drain leaves them out, and evicts everything else on the node.
+  "$kubectl" --context "kind-$cluster" drain "$node" --ignore-daemonsets --delete-emptydir-data --timeout=900s \
+    --pod-selector='app.kubernetes.io/name notin (mongo-shell,insider,outsider)' || status=$?
+  [ "$status" != 0 ] || sleep 60
+  # Uncordoned whatever the drain did, so a failed drain leaves no zone unschedulable.
   "$kubectl" --context "kind-$cluster" uncordon "$node"
+  [ "$status" = 0 ] || return "$status"
   for set in mongodb kafka elasticsearch; do k rollout status "statefulset/$set" --timeout=900s; done
 }
 
