@@ -175,20 +175,22 @@ class EventQueryGatewaysTest {
     }
 
     @Test
-    fun `ranges take every number type and stay within their bounds`() {
+    fun `ranges take every integer type and stay within their bounds`() {
         val version = QueryField("version")
         val time = QueryField("commitTime")
         versions(of(EqualFilter(version, 2L))).assert().containsExactly(2)
         versions(of(EqualFilter(version, BigInteger.TWO))).assert().containsExactly(2)
-        versions(of(EqualFilter(version, BigDecimal("2")))).assert().containsExactly(2)
         versions(of(GreaterThanFilter(time, Long.MAX_VALUE))).assert().isEmpty()
         versions(of(LessThanFilter(version, 1))).assert().isEmpty()
         versions(of(LessThanFilter(time, 1000), GreaterThanFilter(time, 1000))).assert().isEmpty()
         versions(of(IdFilter("c-2"))).assert().isEmpty()
         versions(of(TenantIdFilter(TENANT), TenantIdFilter("other"))).assert().isEmpty()
         versions(of(EqualFilter(QueryField("tenantId"), TENANT))).assert().hasSize(3)
-        code { untimed.list(ListQuery(of(EqualFilter(version, BigDecimal("2.5")))), inProcess).toList() }
-            .assert().isEqualTo(QueryErrorCodes.VALUE_MISMATCH)
+        // A decimal is no integer whatever its scale, an in-process BigDecimal as JSON's 2.0.
+        listOf(BigDecimal("2.5"), BigDecimal("2")).forEach { decimal ->
+            code { untimed.list(ListQuery(of(EqualFilter(version, decimal))), inProcess).toList() }
+                .assert().isEqualTo(QueryErrorCodes.VALUE_MISMATCH)
+        }
         code { untimed.list(ListQuery(of(EqualFilter(QueryField("unknown"), 1))), inProcess).toList() }
             .assert().isEqualTo(QueryErrorCodes.UNKNOWN_FIELD)
     }
