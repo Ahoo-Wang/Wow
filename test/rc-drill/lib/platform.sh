@@ -36,6 +36,13 @@ cluster() {
   "$kubectl" --context "kind-$cluster" apply -f "$evidence/calico.yaml" >/dev/null
   "$kubectl" --context "kind-$cluster" -n kube-system rollout status daemonset/calico-node --timeout=600s
   "$kubectl" --context "kind-$cluster" wait --for=condition=Ready nodes --all --timeout=600s
+  # The cluster's DNS in every zone: kind's CoreDNS spreads its two replicas only as a preference, and losing the worker
+  # that held both (step 5's node loss) left every service unable to resolve another for as long as the zone was down.
+  "$kubectl" --context "kind-$cluster" -n kube-system patch deployment coredns --type merge -p '{"spec":{"replicas":3,
+    "template":{"spec":{"topologySpreadConstraints":[{"maxSkew":1,"topologyKey":"topology.kubernetes.io/zone",
+    "whenUnsatisfiable":"DoNotSchedule","labelSelector":{"matchLabels":{"k8s-app":"kube-dns"}},
+    "matchLabelKeys":["pod-template-hash"]}]}}}}' >/dev/null
+  "$kubectl" --context "kind-$cluster" -n kube-system rollout status deployment/coredns --timeout=300s
   "$kubectl" --context "kind-$cluster" create namespace "$namespace" --dry-run=client -o yaml |
     "$kubectl" --context "kind-$cluster" apply -f -
   # The cluster test runs kubectl in the context's namespace.
