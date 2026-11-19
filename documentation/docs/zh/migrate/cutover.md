@@ -192,7 +192,7 @@ The service's contracts do not hold together:
 - **`validate`。** 节点不创建任何主题；缺了一个，或者它的命令主题的分区数与它的日志不同，它就拒绝启动（`The topics of node … are not as it needs them (topic DDL validate)`）。由运维人员先创建它们，正如 `deploy/` 下的示例部署用 `kafka-topics --create` 所说明的那样。
 - **读取方从不创建它读取的主题。** 它的消费者不会因为查询某个主题就创建它，`wow-service` Chart 也不运行任何创建主题的作业。
 
-对端的主题还不存在时，节点照样启动。它等待每个主题，无限重试；一旦被激活，在等待期间它的就绪状态一直是 down：`/actuator/health/readiness` 的 `topics` 组件，除非 `wow.health.topics.required` 为 `false`。待机时这个组件是 up，并标为 `standby`。所以在窗口里，用 `auto` 时，以待机方式启动每个节点（第 5 步）就会在任何节点被激活之前创建每个上下文的主题；用 `validate` 时，运维人员在第 5 步之前创建每个上下文的主题。无论哪种方式，主题都在第 7 步的激活之前就已存在，与服务以什么顺序启动无关。
+对端的主题还不存在时，节点照样启动。它等待每个主题，无限重试；一旦被激活，在等待期间它的就绪状态一直是 down：`/actuator/health/readiness` 的 `topics` 组件，除非 `wow.health.topics.required` 为 `false`。待机时这个组件是 up，并标为 `standby`。所以在窗口里，用 `auto` 时，以待机方式启动每个节点（第 5 步）就会在任何节点被激活之前创建每个上下文的主题；用 `validate` 时，运维人员在第 5 步之前创建每个上下文的主题。无论哪种方式，主题都在第 7 步的激活之前就已存在，与服务以什么顺序启动无关。与缺失的主题被等待不同，节点启动时 broker 的名字无法解析会让它停下：节点退出，指出这些主机和 `wow.kafka.bootstrap-servers`，由它的编排器重启它。
 
 ## 在线：导入放不进窗口时 {#online}
 

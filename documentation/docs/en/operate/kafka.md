@@ -78,7 +78,7 @@ kafka-topics --bootstrap-server kafka:9092 --create --topic wow.eshop-ordering.o
 
 The command topic takes the replication factor and `min.insync.replicas` that [Durability](#durability) asks of it; the others may take the broker's defaults.
 
-No node ever creates a topic as a side effect of reading it, so a stream that does not exist yet is waited for, not created with the broker's default partition count. The broker may, though: with `auto.create.topics.enable` on, Kafka's default, a producer that writes to a missing topic creates it with the broker's default count, often one. A service that takes commands refuses to start on a command topic made so, and one that takes the ledger's commands alone runs without them and warns. Turn it off on the brokers, and let Wow create its topics (`ddl: auto`) or check them (`validate`).
+No node ever creates a topic as a side effect of reading it, so a stream that does not exist yet is waited for, not created with the broker's default partition count. The broker may, though: with `auto.create.topics.enable` on, Kafka's default, a producer that writes to a missing topic creates it with the broker's default count, often one. A service that takes commands refuses to start on a command topic made so, and one that takes the ledger's commands alone runs without them and warns. Turn it off on the brokers, and let Wow create its topics (`ddl: auto`) or check them (`validate`). Unlike a missing topic, which is waited for, brokers whose names do not resolve at a node's start stop it: the node exits, naming the hosts and `wow.kafka.bootstrap-servers`, and its orchestrator restarts it.
 
 ## Durability
 

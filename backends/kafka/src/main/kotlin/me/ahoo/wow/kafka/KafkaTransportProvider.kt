@@ -15,11 +15,15 @@ package me.ahoo.wow.kafka
 
 import kotlinx.coroutines.withTimeout
 import me.ahoo.wow.spi.config.ProviderOption
+import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.transport.TopicTransport
 import me.ahoo.wow.spi.transport.TopicTransportOptions
 import me.ahoo.wow.spi.transport.TransportConfig
 import me.ahoo.wow.spi.transport.TransportProvider
+import org.apache.kafka.common.KafkaException
+import org.apache.kafka.common.config.ConfigException
 import org.slf4j.LoggerFactory
+import java.net.InetAddress
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
@@ -55,14 +59,30 @@ class KafkaTransportProvider : TransportProvider {
 
     override fun available(config: TransportConfig): Boolean = config.settings.option(BOOTSTRAP_SERVERS) != null
 
+    /**
+     * The transport of [config]: its producer and admin built now, its consumers as its subscriptions read. A node
+     * whose bootstrap names do not resolve cannot build them, and does not start: that is reported as what it is
+     * ([unresolved]), the bootstrap hosts and the setting they come from, not as a client that failed to construct.
+     */
     override fun open(config: TransportConfig): TopicTransport {
         val options = options(config)
+        val producer = built(config, options) { KafkaTopicProducer.create(options) }
+        val admin = built(config, options) {
+            KafkaTopicAdmin.create(options, replicationFactor(config), creationConfigs(config))
+        }
         return KafkaTopicTransport(
-            KafkaTopicProducer.create(options),
+            producer,
             KafkaPartitionedSource.create(options, config.settings.option(OFFSET_GAP), config.observer),
-            KafkaTopicAdmin.create(options, replicationFactor(config), creationConfigs(config)),
+            admin,
             durability(config),
         )
+    }
+
+    /** [client], or, when none of the bootstrap names resolves, the failure that says so ([unresolved]). */
+    private inline fun <T> built(config: TransportConfig, options: KafkaOptions, client: () -> T): T = try {
+        client()
+    } catch (failure: KafkaException) {
+        throw unresolved(config, options, failure) ?: failure
     }
 
     private class KafkaTopicTransport(
@@ -220,6 +240,39 @@ class KafkaTransportProvider : TransportProvider {
 
         // kafka-clients logs through SLF4J: so does its transport, with no logging dependency of its own.
         private val logger = LoggerFactory.getLogger(KafkaTransportProvider::class.java)
+
+        /**
+         * The failure of a node whose bootstrap names do not resolve, from [failure], a client's construction that
+         * met none it could resolve (Kafka's `No resolvable bootstrap urls`); null for any other failure. It names the
+         * hosts that do not resolve now and the setting they come from, and keeps [failure] as its cause. The node
+         * exits, as before: its orchestrator restarts it, where a missing topic is waited for.
+         */
+        internal fun unresolved(
+            config: TransportConfig,
+            options: KafkaOptions,
+            failure: Throwable,
+        ): WowConfigurationException? {
+            generateSequence(failure) { it.cause }.firstOrNull {
+                it is ConfigException && it.message.orEmpty().startsWith(UNRESOLVABLE)
+            } ?: return null
+            val hosts = options.bootstrapServers.split(',').map(String::trim).filter(String::isNotEmpty)
+            val unresolved = hosts.filterNot(::resolves).ifEmpty { hosts }
+            return WowConfigurationException(
+                "${config.key}.${BOOTSTRAP_SERVERS.key}",
+                options.bootstrapServers,
+                "The Kafka bootstrap hosts ${unresolved.joinToString()} do not resolve, and the node cannot start " +
+                    "without its brokers.",
+                "Check the host names and the DNS that resolves them; once they resolve, the node starts.",
+            ).apply { initCause(failure) }
+        }
+
+        /** Whether the host of [address] (`host:port`) resolves now. */
+        private fun resolves(address: String): Boolean = runCatching {
+            InetAddress.getAllByName(address.substringBeforeLast(':').removePrefix("[").removeSuffix("]"))
+        }.isSuccess
+
+        /** The start of Kafka's message when none of the bootstrap names resolves. */
+        private const val UNRESOLVABLE = "No resolvable bootstrap urls"
 
         /** The clients' options of [config]. */
         fun options(config: TransportConfig): KafkaOptions = KafkaOptions(
