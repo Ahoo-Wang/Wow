@@ -27,6 +27,7 @@ import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.spi.id.AggregateIdGenerator
 import me.ahoo.wow.spi.id.GlobalIdGenerator
 import me.ahoo.wow.spi.id.IdGenerators
+import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.tenant.TenantPolicy
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -69,12 +70,15 @@ class CommandGatewayTest : CommandGatewayFixtures() {
             retried.ref.id.assert().isEqualTo("cart-n1")
             retried.duplicate.assert().isTrue()
             drawn.assert().isEqualTo(1)
-            // Another owner reusing the request id learns nothing of the cart: a new id, answered as if nothing existed.
+            // Another owner reusing the request id learns nothing of the cart: a new id, answered as if nothing existed,
+            // drawn in the cart's partition, where every log's request key meets it.
             val stranger = gateway.execute(open(caller = bob))
             stranger.error!!.code.assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
-            stranger.ref.id.assert().isEqualTo("cart-n2")
+            stranger.ref.id.assert().isNotEqualTo("cart-n1")
+            Partitioner.partitionOf(stranger.ref, log.partitions).assert()
+                .isEqualTo(Partitioner.partitionOf(opened.ref, log.partitions))
             // Without a request id of its own, a request is new: it draws a new id.
-            gateway.execute(open(requestId = null)).ref.id.assert().isEqualTo("cart-n3")
+            gateway.execute(open(requestId = null)).ref.id.assert().isEqualTo("cart-n$drawn")
         }
 
     @Test

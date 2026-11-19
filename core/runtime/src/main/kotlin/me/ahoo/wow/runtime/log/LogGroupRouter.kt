@@ -20,6 +20,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.spi.log.AggregateTail
 import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.AppendOutcome
+import me.ahoo.wow.spi.log.CreationClaim
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogEntry
@@ -105,6 +106,13 @@ internal class LogGroupRouter(
 
     override suspend fun findByRequestId(type: AggregateType, tenantId: String, requestId: String): EventStreamRecord? =
         logOf(type).findByRequestId(type, tenantId, requestId)
+
+    override suspend fun claimCreation(
+        type: AggregateType,
+        tenantId: String,
+        requestId: String,
+        claim: CreationClaim,
+    ): CreationClaim = logOf(type).claimCreation(type, tenantId, requestId, claim)
 
     override fun tail(partition: Int, after: Long?): Flow<LogEntry> =
         throw UnsupportedOperationException("Each log group is tailed by its own log: its sequences are its own.")

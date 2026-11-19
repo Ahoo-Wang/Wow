@@ -112,6 +112,7 @@ On a sharded cluster the service connects to the mongos routers (`mongodb://mong
 | `wow_snapshot__<context>__<aggregate>` | `{tenant_id: 1, aggregate_id: "hashed"}` | A snapshot's `_id` is its key; new aggregates spread over the shards, a load reads one, a query of one tenant reads that tenant's chunks |
 | `wow_timer__<context>__<aggregate>` | `{partition: 1}` | A timer is in its owner's partition; the key `(partition, owner, key)` leads with it, so it stays unique, a read or write by owner reaches one shard, and a node's due read the shards of its partitions. A resume's read of a target's parked timers reads every shard |
 | `wow_reservation__<context>__<aggregate>` | `{tenant_id: 1, key: "hashed"}` | A key's `_id` is `{t: tenant, n: namespace, k: key}`; keys spread over the shards, and a reserve, a confirmation or a lookup of a key reads one |
+| `wow_claim__<context>__<aggregate>` | `{tenant_id: 1, request_id: "hashed"}` | A claim's `_id` is `{t: tenant, r: request id}`; claims spread over the shards, and a claim reads and writes one, where its `_id` keeps one claim per request |
 
 - A new log or timer collection is split at each partition and its chunks spread over the shards in turn, while it is empty; a new snapshot collection starts with one chunk, and the balancer spreads it by data size.
 - The counters, the registries, the checkpoints, leases and ledger are small and stay unsharded on the database's primary shard.
@@ -131,6 +132,7 @@ The stores create their collections and indexes on first use, named as on Postgr
 | `wow_log__<context>__<aggregate>` | The log of one aggregate type, one document per committed stream, and the placeholders of sequences no stream took |
 | `wow_log__<context>__partition` | One counter document per partition of the context's log: the sequences given out, and the blocks still open |
 | `wow_log_aggregate` | Which aggregate collections each context's log has |
+| `wow_claim__<context>__<aggregate>` | The claims of the creations of one aggregate type that name no aggregate id: one document per (tenant, request id), the id every attempt of the request takes |
 | `wow_snapshot__<context>__<aggregate>` | One document per aggregate: its latest snapshot, whose `_id` is `{t: tenant, a: aggregate id}` |
 | `wow_snapshot_table` | The state revision each snapshot collection holds, whether it caught up with the log, and who fills it from the log's beginning |
 | `wow_timer__<context>__<aggregate>` | The scheduled commands of one aggregate type, one document per timer, each in its owner's partition |
@@ -141,6 +143,8 @@ The stores create their collections and indexes on first use, named as on Postgr
 | `wow_format` | The format version of each structure |
 
 A log collection keeps an index for each access attribute an `events` query under an access policy reads, `access_<name>`: a declared attribute's leads with the tenant and holds every stream. The built-in `owner` and `space` are indexed differently. A stream that has one also stores it scoped by its tenant in its own field, `access_key` (the tenant's length, a colon, the tenant, then the value), and `access_owner` and `access_space` are sparse indexes of those keys. So a stream of an aggregate with neither, such as one a job creates, adds no index entry, and an equality or an `$in` on the owner or the space reads the tenant's entries alone, inside an `anyOf` as well. A negation and `isNull` read the attribute itself, by no index of its own, as on PostgreSQL. A query of every tenant (`Wow-Scope: tenant=*`) has no tenant to scope a key with, so its equality on the owner or the space scans the collection. `access_key` is the store's own: no record and no SPI reads it.
+
+**Creation claims.** The log's request key leads with the partition, so a request is unique within a partition only. A creation that names no aggregate id draws its id at admission, so two attempts of one request (a retry sent while the first attempt is still deciding) could draw ids in two partitions and both commit. Admission therefore claims the id for the request before it routes the command: the first attempt's claim holds, and every later attempt of the request takes that id, so they meet in one aggregate and the request commits once. A claim is written by a majority within the append timeout, as an append is: a claim a failover rolled back would let a retry draw again. Claims are never removed, since nothing bounds how long an attempt may decide; each is about 100 bytes. A request committed without a claim (a log imported by `migrate-data`, or restored from a later point than its claims) is still found, since admission looks the request up in the log before it claims. PostgreSQL keys a request per table, and keeps no claims.
 
 A new aggregate type's collection is created the first time the log touches it; it needs no restart. Decimals are stored as `Decimal128`, exactly; an append whose payload holds a number MongoDB cannot store exactly is refused.
 
@@ -165,4 +169,4 @@ Named store instances place aggregate types on different databases or clusters, 
 
 ## Backups
 
-The log is the only fact; snapshots, read models and the warehouse are rebuilt from it. Back up the log collections with the checkpoints, leases, ledger, reservations and timers, as one consistent backup of the database.
+The log is the only fact; snapshots, read models and the warehouse are rebuilt from it. Back up the log collections with the creation claims, checkpoints, leases, ledger, reservations and timers, as one consistent backup of the database.

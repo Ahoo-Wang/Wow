@@ -28,7 +28,9 @@ import me.ahoo.wow.api.annotation.WowSpi
  * The contract every backend keeps, checked by the TCK:
  * - unique keys are (`ref`, `version`) and (`tenantId`, `requestId`) within each aggregate type; `ref` includes the
  *   tenant. Each aggregate type is stored apart, so a request id reused by two aggregate types of
- *   the context commits twice (makes the reuse the caller's error);
+ *   the context commits twice (makes the reuse the caller's error). A backend whose request key is narrower than the
+ *   type, such as MongoDB's, unique within a partition, keeps one request to one aggregate of a creation that names
+ *   none by its claims instead ([claimCreation]);
  * - an aggregate's first stream is version 1 and each next stream is exactly one more;
  * - a stream lands in the partition [Partitioner] assigns its ref, at a sequence that orders it within the partition:
  *   an aggregate's streams are in version order. [tail] delivers in sequence order, never skips a committed entry,
@@ -165,6 +167,27 @@ interface EventLog {
      * aggregate; a caller that knows the aggregate calls the overload taking its [AggregateRef].
      */
     suspend fun findByRequestId(type: AggregateType, tenantId: String, requestId: String): EventStreamRecord?
+
+    /**
+     * The claim of the aggregate that the creation of request [requestId] within [tenantId] in [type] targets:
+     * [claim], the attempt's own (its freshly drawn id), when the request has none, else the request's first claim.
+     * Admission calls it, after [findByRequestId] found nothing committed, for a creation command that names no
+     * aggregate, so that every attempt of one request targets one aggregate, in one partition, whatever the attempts'
+     * draws.
+     *
+     * A log whose request key spans the aggregate type keeps no claims: a second attempt's stream, under another id,
+     * meets the first's at the key, and that is the default, which returns [claim]. A log whose key is narrower must
+     * claim: insert-if-absent, one claim per (type, tenant, request), as durable as its streams. A claim lost while
+     * an attempt of its request is still deciding lets a retry draw again, and both attempts may then commit, two
+     * aggregates under two ids. A claim is never released: no bound holds an attempt, so no time after which a claim
+     * is no longer needed.
+     */
+    suspend fun claimCreation(
+        type: AggregateType,
+        tenantId: String,
+        requestId: String,
+        claim: CreationClaim,
+    ): CreationClaim = claim
 
     /**
      * The entries of [partition] after [after] (exclusive; null from the start), in sequence order, each with its

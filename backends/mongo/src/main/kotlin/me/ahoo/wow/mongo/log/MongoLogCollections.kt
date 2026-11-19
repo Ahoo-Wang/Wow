@@ -60,12 +60,13 @@ import java.util.concurrent.TimeUnit
 internal fun committed(log: MongoCollection<Document>): MongoCollection<Document> =
     log.withReadConcern(ReadConcern.MAJORITY)
 
-/** The log collection of one aggregate type. */
+/** The log collection of one aggregate type, and the claims of its creations ([MongoCreationClaims]). */
 internal class AggregateCollection(
     val aggregate: String,
     val name: String,
     database: MongoDatabase,
     appendMillis: Long,
+    context: String,
 ) {
     val log: MongoCollection<Document> = database.getCollection(name)
 
@@ -75,6 +76,21 @@ internal class AggregateCollection(
     /** The appends and placeholders, acknowledged by a majority within the append timeout. */
     val appends: MongoCollection<Document> =
         log.withWriteConcern(WriteConcern.MAJORITY).withTimeout(appendMillis, TimeUnit.MILLISECONDS)
+
+    /** The name of the claims of the type's creations: `wow_claim__<context>__<aggregate>`. */
+    val claimsName: String = MongoNames.of(CLAIMS_PREFIX, context, aggregate)
+
+    /**
+     * The claims of the type's creations, written as its appends are, by a majority within the append timeout: a
+     * claim is as durable as the streams it keeps to one aggregate.
+     */
+    val claims: MongoCollection<Document> =
+        database.getCollection(claimsName).withWriteConcern(WriteConcern.MAJORITY)
+            .withTimeout(appendMillis, TimeUnit.MILLISECONDS)
+
+    private companion object {
+        const val CLAIMS_PREFIX = "wow_claim"
+    }
 }
 
 /**
@@ -134,7 +150,7 @@ internal class MongoLogCollections(
      */
     private fun ensure(aggregate: String): AggregateCollection {
         val collection =
-            AggregateCollection(aggregate, MongoNames.of(PREFIX, context, aggregate), database, appendMillis)
+            AggregateCollection(aggregate, MongoNames.of(PREFIX, context, aggregate), database, appendMillis, context)
         require(collection.name != countersName) {
             "The aggregate $aggregate of $context would take the name of the log's partition counters."
         }
@@ -163,6 +179,11 @@ internal class MongoLogCollections(
         if (sharded) {
             // Sharded by partition, one chunk each, spread over the shards while the collection is new.
             MongoShards.shardLog(client, database, log, partitions)
+        }
+        // The claims: the `_id`'s index alone, created with the collection by the first claim, after its record.
+        MongoFormat.claim(database, collection.claimsName, FORMAT, ddl)
+        if (sharded) {
+            MongoShards.shardClaims(client, database, collection.claims)
         }
         if (!ddl.creates) {
             // The registry is the schema's: a validated or foreign schema registered its collections already.
@@ -203,7 +224,7 @@ internal class MongoLogCollections(
     /** Reads the registry again: the aggregate collections of the context, in registry order. */
     fun register(): List<AggregateCollection> =
         registry.find(Filters.eq(CONTEXT, context)).sort(Sorts.ascending(AGGREGATE))
-            .map { AggregateCollection(it.getString(AGGREGATE), it.getString(ID), database, appendMillis) }
+            .map { AggregateCollection(it.getString(AGGREGATE), it.getString(ID), database, appendMillis, context) }
             .toList()
             .also { registered = it }
 }

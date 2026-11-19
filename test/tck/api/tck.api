@@ -232,6 +232,7 @@ public abstract class me/ahoo/wow/tck/log/EventLogSpec : me/ahoo/wow/tck/log/Eve
 	public final fun appendAll reports a retry of a request at the version it committed as a duplicate ()V
 	public final fun concurrent appends of one request at one version commit once, the others are duplicates ()V
 	public final fun concurrent appends to one version let exactly one win ()V
+	public final fun the attempts of one creation, drawn in two partitions, commit one aggregate under the request's claim ()V
 	public final fun two tenants may use the same aggregate id ()V
 }
 

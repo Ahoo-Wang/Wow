@@ -38,8 +38,12 @@ import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.mongo.log.MongoEventLog
 import me.ahoo.wow.mongo.snapshot.MongoSnapshotStore
 import me.ahoo.wow.runtime.LruStateCache
+import me.ahoo.wow.runtime.admission.CommittedRequests
+import me.ahoo.wow.runtime.admission.CreationIds
+import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.ExecutionLease
+import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.log.SnapshotTailReader
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.store.Store
@@ -113,6 +117,12 @@ abstract class KernelRoundTripsSpec {
      */
     protected abstract val load: Int
 
+    /**
+     * The round trips of claiming a creation's id for its request ([me.ahoo.wow.spi.log.EventLog.claimCreation]),
+     * which admission adds to a creation that names no aggregate: none where the log's request key spans the type.
+     */
+    protected abstract val claim: Int
+
     private val log by lazy { log(context) }
     private val snapshots by lazy { snapshots(context) }
     private val snapshotTails by lazy { snapshotTails(context) }
@@ -136,6 +146,28 @@ abstract class KernelRoundTripsSpec {
     }
 
     private fun ref(name: String) = model.type.ref("tenant", "$name-${UUID.randomUUID()}")
+
+    @Test
+    fun `a creation that names no aggregate adds its request's lookup and claim, one that names it neither`(): Unit =
+        runBlocking {
+            val kernel = kernel(256)
+            // The type's collection or table made sure of first, and each partition appended to once, as by earlier
+            // commands of the type: the first append in a partition on MongoDB also takes the node a block of sequences.
+            (0 until PARTITIONS).forEach { partition ->
+                val id = generateSequence(0) { it + 1 }.map { "first-$it-${UUID.randomUUID()}" }
+                    .first { Partitioner.partitionOf(model.type.ref("tenant", it), PARTITIONS) == partition }
+                kernel.execute(model, command(model.type.ref("tenant", id), Open("ahoo")))
+            }
+            val creations = CreationIds(IdGenerators.DEFAULT, CommittedRequests.of(log))
+            val mark = mark()
+            val id = creations.idOf(model.type, "tenant", "unnamed")
+            val unnamed = kernel.execute(model, command(model.type.ref("tenant", id), Open("ahoo"), requestId = "unnamed"))
+            unnamed.assert().isInstanceOf(CommandOutcome.Committed::class.java)
+            since(mark).assert().describedAs("unnamed").isEqualTo(1 + claim + load + append)
+            val (named, trips) = kernel.trips(command(ref("named"), Open("ahoo")))
+            named.assert().isInstanceOf(CommandOutcome.Committed::class.java)
+            trips.assert().describedAs("named").isEqualTo(load + append)
+        }
 
     @Test
     fun `a warm append is the append alone, one lookup less than D46`(): Unit = runBlocking {
@@ -209,14 +241,20 @@ abstract class KernelRoundTripsSpec {
             }
         }
 
-    private companion object {
+    protected companion object {
         const val CONTEXT_SUFFIX = 12
+
+        /** The partitions of the logs the backends give ([log]). */
+        const val PARTITIONS = 4
     }
 }
 
 /** [KernelRoundTripsSpec] on PostgreSQL: a round trip is a statement. */
 class PostgresKernelRoundTripsTest : KernelRoundTripsSpec() {
     override val append = 1
+
+    /** Its request key spans the aggregate type: no claim. */
+    override val claim = 0
 
     /** The snapshot with the tail, one statement. */
     override val load = 1
@@ -229,7 +267,7 @@ class PostgresKernelRoundTripsTest : KernelRoundTripsSpec() {
             )
     }
 
-    override fun log(context: String): EventLog = store.log(context, 4).also { store.createSchemas() }
+    override fun log(context: String): EventLog = store.log(context, PARTITIONS).also { store.createSchemas() }
 
     override fun snapshots(context: String): SnapshotStore = store.snapshots(context).also { store.createSchemas() }
 
@@ -287,8 +325,11 @@ class MongoKernelRoundTripsTest : KernelRoundTripsSpec() {
     /** The snapshot, then the tail. */
     override val load = 2
 
+    /** Its request key is unique within a partition: one upsert of the request's claim. */
+    override val claim = 1
+
     override fun log(context: String): EventLog =
-        MongoEventLog(Counted.client, DATABASE, context, 4).also { it.createSchema() }
+        MongoEventLog(Counted.client, DATABASE, context, PARTITIONS).also { it.createSchema() }
 
     override fun snapshots(context: String): SnapshotStore = MongoSnapshotStore(Counted.client, DATABASE, context)
 
