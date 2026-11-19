@@ -14,7 +14,6 @@
 package me.ahoo.wow.spi.json
 
 import com.fasterxml.jackson.annotation.JsonFormat
-import com.fasterxml.jackson.annotation.JsonProperty
 import tools.jackson.core.JsonParser
 import tools.jackson.core.JsonToken
 import tools.jackson.core.exc.InputCoercionException
@@ -27,6 +26,7 @@ import tools.jackson.databind.JavaType
 import tools.jackson.databind.ValueDeserializer
 import tools.jackson.databind.cfg.CoercionAction
 import tools.jackson.databind.cfg.CoercionInputShape
+import tools.jackson.databind.cfg.EnumFeature
 import tools.jackson.databind.cfg.MutableCoercionConfig
 import tools.jackson.databind.deser.BeanDeserializerBuilder
 import tools.jackson.databind.deser.ValueDeserializerModifier
@@ -142,9 +142,10 @@ internal object StrictReads {
             type: JavaType,
             beanDesc: BeanDescription.Supplier,
             deserializer: ValueDeserializer<*>,
-        ): ValueDeserializer<*> = if (deserializer is EnumDeserializer && !numbered(type.rawClass)) {
-            // Jackson's reader alone reads an index: a reader of Wow's ([WowEnums]) or the domain's decides its own.
-            ByName(deserializer, type.rawClass)
+        ): ValueDeserializer<*> = if (deserializer.javaClass == EnumDeserializer::class.java && !numbered(type.rawClass)) {
+            // Jackson's reader alone reads an index: a reader of Wow's ([WowEnums]), a `@JsonCreator`'s or the
+            // domain's decides its own.
+            ByName(deserializer, type.rawClass, Forms(deserializer as EnumDeserializer))
         } else {
             deserializer
         }
@@ -201,18 +202,16 @@ internal object StrictReads {
     private fun numbered(type: Class<*>): Boolean = type.getAnnotation(JsonFormat::class.java)?.shape.numbered()
 
     /**
-     * An enumeration's reader that takes its constants by their names alone: a number, or a number's text, which
-     * Jackson reads as the constant of that index, is refused. A property written as a number reads as one.
+     * Jackson's enumeration reader without its one fallback to the constants' order. It reads a constant from any form
+     * its lookup holds ([Forms]), the forms the mapper writes: its `toString`, or its name when it reads by name, a
+     * `@JsonProperty` name, a `@JsonValue`'s text or number, a naming strategy's name. For a number, or a number's
+     * text, no form names, it falls back to the constant of that index: that fallback alone is refused here. A property
+     * written as a number (`@JsonFormat(shape = NUMBER)`) reads as one; such a class keeps Jackson's reader.
      */
-    private class ByName(
-        delegate: ValueDeserializer<*>,
-        private val type: Class<*>,
-        /** How its constants are written: their names, and the names `@JsonProperty` gives them. */
-        private val names: Set<String> = type.enumConstants.map { (it as Enum<*>).name }.toSet() +
-            type.fields.mapNotNull { it.getAnnotation(JsonProperty::class.java)?.value },
-    ) : DelegatingDeserializer(delegate) {
+    private class ByName(delegate: ValueDeserializer<*>, private val type: Class<*>, private val forms: Forms) :
+        DelegatingDeserializer(delegate) {
         override fun newDelegatingInstance(newDelegatee: ValueDeserializer<*>): ValueDeserializer<*> =
-            ByName(newDelegatee, type, names)
+            ByName(newDelegatee, type, forms)
 
         override fun createContextual(ctxt: DeserializationContext, property: BeanProperty?): ValueDeserializer<*> {
             // A delegating reader's contextual one is of its own class: this one, or one over the new delegate.
@@ -222,18 +221,41 @@ internal object StrictReads {
         }
 
         override fun deserialize(p: JsonParser, ctxt: DeserializationContext): Any? {
-            if (p.currentToken() == JsonToken.VALUE_NUMBER_INT) {
-                throw MismatchedInputException.from(p, type, "${type.simpleName} is read by name, not by number.")
-            }
-            // An index's text, which Jackson reads as the constant of that index unless a constant is named so.
-            if (p.currentToken() == JsonToken.VALUE_STRING && INDEX.matches(p.string) && p.string !in names) {
-                throw InvalidFormatException.from(p, "${p.string} is no name of ${type.simpleName}.", p.string, type)
+            // A `@JsonValue` number is a form of its own, which the lookup holds: Jackson reads no index for one.
+            if (!forms.numbers) {
+                if (p.currentToken() == JsonToken.VALUE_NUMBER_INT) {
+                    throw MismatchedInputException.from(p, type, "${type.simpleName} is read by name, not by number.")
+                }
+                val text = p.takeIf { it.currentToken() == JsonToken.VALUE_STRING }?.string?.trim()
+                if (text != null && INDEX.matches(text) && !forms.holds(text, ctxt)) {
+                    throw InvalidFormatException.from(p, "$text is no name of ${type.simpleName}.", text, type)
+                }
             }
             return super.deserialize(p, ctxt)
         }
 
         private companion object {
             val INDEX = Regex("[0-9]+")
+        }
+    }
+
+    /**
+     * The forms Jackson's reader looks an enumeration's constants up by, copied from it: Jackson keeps them in fields
+     * a subclass alone reads.
+     */
+    private class Forms(base: EnumDeserializer) : EnumDeserializer(base, false, null, null) {
+        /** Whether a number is a form of its own, a `@JsonValue` number's. */
+        val numbers: Boolean = _isFromIntValue
+
+        /** Whether [text] is a form, in the lookup Jackson's reader chooses as its `_resolveCurrentLookup` does. */
+        fun holds(text: String, ctxt: DeserializationContext): Boolean {
+            val lookup = _lookupByEnumNaming
+                ?: if (_hasAsValueAnnotation || !ctxt.isEnabled(EnumFeature.READ_ENUMS_USING_TO_STRING)) {
+                    _lookupByName
+                } else {
+                    _lookupByToString
+                }
+            return lookup.find(text) != null
         }
     }
 

@@ -15,18 +15,24 @@ package me.ahoo.wow.spi.json
 
 import com.fasterxml.jackson.annotation.JsonFormat
 import com.fasterxml.jackson.annotation.JsonProperty
+import com.fasterxml.jackson.annotation.JsonValue
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.spi.json.JsonReadFailure.Reason
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import tools.jackson.core.JacksonException
+import tools.jackson.databind.EnumNamingStrategies
+import tools.jackson.databind.annotation.EnumNaming
+import tools.jackson.databind.cfg.EnumFeature
 import tools.jackson.module.kotlin.readValue
 import java.time.Month
 
 /**
  * An enumeration is read by its name alone: a number, or its text, is refused where Jackson would take the constant
- * of that index. A month's one-based number reads, and an enumeration written as a number reads as one.
+ * of that index. A month's one-based number reads, and an enumeration written as a number reads as one. What Wow
+ * writes for a constant reads back whatever writes it: a `@JsonValue` number or text, a naming strategy, a `toString`.
+ * An enumeration a `@JsonCreator` reads keeps the reader Jackson makes for it, which these refusals leave alone.
  */
 class EnumNumbersTest {
     enum class Status { PAID, SHIPPED }
@@ -35,6 +41,21 @@ class EnumNumbersTest {
     enum class Level { LOW, HIGH }
 
     enum class Grade { PASS, MERIT }
+
+    enum class Coded(@get:JsonValue val code: Int) { LOW(1), HIGH(2) }
+
+    enum class Http(@get:JsonValue val code: String) { NOT_FOUND("404"), GONE("410") }
+
+    @EnumNaming(EnumNamingStrategies.LowerCamelCaseStrategy::class)
+    enum class Phase { FIRST_STEP, LAST_STEP }
+
+    enum class Tagged {
+        SEVENTH,
+        EIGHTH,
+        ;
+
+        override fun toString(): String = if (this == SEVENTH) "7" else "eighth"
+    }
 
     enum class Code {
         @JsonProperty("7")
@@ -55,6 +76,10 @@ class EnumNumbersTest {
         val code: Code = Code.PLAIN,
         @JsonFormat(with = [JsonFormat.Feature.ACCEPT_CASE_INSENSITIVE_PROPERTIES])
         val loose: Status = Status.PAID,
+        val coded: Coded = Coded.LOW,
+        val http: Http = Http.NOT_FOUND,
+        val phase: Phase = Phase.FIRST_STEP,
+        val tagged: Tagged = Tagged.EIGHTH,
     )
 
     private val failures = JsonReadFailures(WowJson.mapper)
@@ -121,5 +146,28 @@ class EnumNumbersTest {
         WowJson.mapper.readValue<Order>("""{"loose":"shipped"}""").loose.assert().isEqualTo(Status.SHIPPED)
         refusal("""{"loose":1}""").reason.assert().isEqualTo(Reason.WRONG_KIND)
         refusal("""{"loose":"1"}""").reason.assert().isEqualTo(Reason.NOT_IN_ENUMERATION)
+    }
+
+    @Test
+    fun `what Wow writes for a constant should read back, and an index no written form names should be refused`() {
+        val order = Order(coded = Coded.HIGH, http = Http.GONE, phase = Phase.LAST_STEP, tagged = Tagged.SEVENTH)
+        val written = WowJson.mapper.writeValueAsString(order)
+        written.assert().contains("\"coded\":2", "\"http\":\"410\"", "\"phase\":\"lastStep\"", "\"tagged\":\"7\"")
+        WowJson.mapper.readValue<Order>(written).assert().isEqualTo(order)
+        // A number no constant's value names, the index 0 included, is refused.
+        listOf("""{"coded":3}""", """{"coded":0}""").forEach { json -> refusal(json).path.assert().isEqualTo("coded") }
+        listOf("http", "phase", "tagged").forEach { field ->
+            refusal("""{"$field":"1"}""").run {
+                path.assert().isEqualTo(field)
+                reason.assert().isEqualTo(Reason.NOT_IN_ENUMERATION)
+            }
+        }
+    }
+
+    @Test
+    fun `a reader by name should read a name, and refuse an index's text`() {
+        val byName = WowJson.mapper.rebuild().disable(EnumFeature.READ_ENUMS_USING_TO_STRING).build()
+        byName.readValue<Order>("""{"tagged":"SEVENTH"}""").tagged.assert().isEqualTo(Tagged.SEVENTH)
+        assertThrows<JacksonException> { byName.readValue<Order>("""{"tagged":"1"}""") }
     }
 }
