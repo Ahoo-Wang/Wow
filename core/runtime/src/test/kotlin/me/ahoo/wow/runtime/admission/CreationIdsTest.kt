@@ -241,7 +241,8 @@ class CreationIdsTest {
             committed.partitionOf(type.ref("t", "o-1")).assert()
                 .isEqualTo(Partitioner.partitionOf(type.ref("t", "o-1"), PARTITIONS))
         }
-        CreationIds(IdGenerators(aggregates = AggregateIdGenerator { "fresh" })).idOf(type, "t", "r-1")
+        CreationIds(IdGenerators(aggregates = AggregateIdGenerator { "fresh" }), CommittedRequests.NONE)
+            .idOf(type, "t", "r-1")
             .assert().isEqualTo("fresh")
     }
 

@@ -116,7 +116,7 @@ class CommandIntake internal constructor(
     models: Collection<AggregateModel<*>>,
     private val coordinator: WaitCoordinator,
     private val topics: SourceTopics,
-    private val creations: CreationIds = CreationIds(),
+    private val creations: CreationIds,
     private val ledger: LedgerCommands = LedgerCommands(ParkedOps { emptyList() }),
     /**
      * The node's in-flight bound, whose [InFlightLimit.intakes] bound the commands the intakes of all

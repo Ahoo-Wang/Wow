@@ -110,7 +110,7 @@ interface CommittedRequests {
 @InternalWowApi
 class CreationIds(
     private val ids: IdGenerators = IdGenerators.DEFAULT,
-    private val committed: CommittedRequests = CommittedRequests.NONE,
+    private val committed: CommittedRequests,
 ) {
     /**
      * The id of the aggregate of [type] that a creation command of request [requestId] in [tenantId], in [scope],

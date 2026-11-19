@@ -61,6 +61,7 @@ import me.ahoo.wow.runtime.admission.CallContext
 import me.ahoo.wow.runtime.admission.CommandBody
 import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.admission.CommittedRequests
+import me.ahoo.wow.runtime.admission.CreationIds
 import me.ahoo.wow.runtime.admission.ModelRegistry
 import me.ahoo.wow.runtime.admission.ServerCommandRequest
 import me.ahoo.wow.runtime.call.SagaCalls
@@ -77,6 +78,7 @@ import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.runtime.wait.WaitRegistry
 import me.ahoo.wow.spi.call.CommandCaller
 import me.ahoo.wow.spi.call.OutgoingCall
+import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.subscription.SubscriptionId
 import me.ahoo.wow.spi.wait.Origin
 import me.ahoo.wow.spi.wait.WaitContext
@@ -399,7 +401,11 @@ class SagaCallBindingTest {
             val shop = node.context(SHOP)
             val receipts = SagaReceipts(
                 listOf(mailingOnCommitted),
-                DerivedCommands(shop.models, shop.coordinator),
+                DerivedCommands(
+                    shop.models,
+                    shop.coordinator,
+                    creations = CreationIds(IdGenerators.DEFAULT, CommittedRequests.NONE),
+                ),
                 context = SHOP,
                 signal = { _, result -> signals += result },
                 commandTypes = shop.commandTypes,
