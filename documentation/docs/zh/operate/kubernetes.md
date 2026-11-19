@@ -284,6 +284,29 @@ service:
 
 chart 随后给节点设置 `wow.peer.dns.namespaces.eshop-payment-service: payments`，节点便到 `_internal._tcp.eshop-payment-service-cluster.payments.svc` 查找对端，内部策略也放行来自那个命名空间的对端 Pod。对端自己的内部策略也须放行本服务的 Pod：在它的 `networkPolicy.internal.from` 中加一个带 `namespaceSelector` 的条目。
 
+### 每个可用区都有集群的 DNS {#the-clusters-dns-in-every-zone}
+
+节点解析的每个名字都经过集群的 DNS：它的存储、Kafka broker、对端的 SRV 记录，以及网关到各服务的路由。让 DNS 在每个可用区运行，每个可用区至少一个副本，而且是必须，不只是倾向。在 `topology.kubernetes.io/zone` 上加一个 `whenUnsatisfiable: DoNotSchedule` 的拓扑分布约束即可做到。在一个三可用区的集群里，CoreDNS 的两个副本恰好落在同一个可用区；失去这个可用区之后，各服务有 256 秒互相解析不到，而每个 Wow 节点本身都是健康的：
+- CoSec 网关对解析不到服务的调用答 500（"Failed to resolve"），入口随之答 502；
+- 这段时间里启动的 Wow 节点会退出，因为它的 Kafka 客户端找不到可以起步的地址（"No resolvable bootstrap urls given in bootstrap.servers"）。它被反复重启，直到名字重新能解析。
+
+```yaml
+# CoreDNS，每个可用区一个副本：kubectl -n kube-system patch deployment coredns --type merge -p "$(cat this-file)"
+spec:
+  replicas: 3
+  template:
+    spec:
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              k8s-app: kube-dns
+          # 只计这个 ReplicaSet 的 Pod，滚动时旧的 Pod 不会占满某个可用区。
+          matchLabelKeys: [pod-template-hash]
+```
+
 ## 探针 {#probes}
 
 宿主把节点的健康状况交给 Spring Boot Actuator 的就绪与存活分组，在 HTTP 端口上：
@@ -484,6 +507,15 @@ helm upgrade eshop-ordering oci://ghcr.io/ahoo-wang/wow-service --version <new-w
 ```
 
 滚动更新一次替换一个节点，新节点就绪之后旧节点才离开，所以有一段时间两个版本并存：[升级](./upgrades)说明哪些可以并存，以及哪些设置永远不能改，日志的分区数就是其中之一。只改共用的设置也会滚动节点：Pod 带着 ConfigMap 的校验和。每次构建都重新生成构建的 values：代码里新增的对端随即被策略放行、被节点找到。
+
+### 在保留的存储上重新安装 {#reinstall-on-the-kept-stores}
+
+在保留下来的存储上卸载并重新安装一个 release 时，要等旧节点都离开之后，再启动新节点。`helm uninstall --wait` 在 release 的对象删除之后就返回，而它的 Pod 仍在优雅停止。这时就重新安装，会让两代节点同时运行在一个存储上；升级自身的滚动从不这样做：新节点只经由旧节点交出的租约加入。先等 Pod 全部消失：
+
+```bash
+helm uninstall eshop-ordering --wait
+kubectl wait --for=delete pod -l app.kubernetes.io/instance=eshop-ordering --timeout=10m
+```
 
 ## 配合 Kustomize {#with-kustomize}
 

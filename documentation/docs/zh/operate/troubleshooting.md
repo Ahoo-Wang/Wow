@@ -114,3 +114,7 @@ ownership 健康组件为 `DOWN`，或者在某个节点离开期间，某些聚
 `wow.query.busy`（429）表示达到了存储的查询上限；存储的追加处于压力之下时，这个上限会自适应地降低。`wow.query.timeout`（504）表示查询运行的时间超出了它的预算：收窄它，而不是再运行一次。给查询一个单独的连接池或只读副本（[PostgreSQL](./postgresql#size-the-pools)）。
 
 按版本或时刻读取状态、或读取轨迹时，返回 `wow.query.invalid`（400）且 violation 为 `replay-too-long`，表示要读的状态离得比 `wow.query.state.max-replay`（10,000）允许的提交数更远：较旧的状态要从第一个版本开始重放。改经事件查询读取聚合的事件，它没有这个上限；或者，如果部署需要读到那么早的状态，就调高上限（[读取状态](../guide/reading-state#replaying-is-bounded)）。
+
+## CoSec 网关偶尔拒绝有效的令牌 {#a-cosec-gateway-refuses-a-valid-token-now-and-then}
+
+时有时无的 `401`、代码为 `TOKEN_INVALID`，每一百次调用里最多几次，而令牌本身有效：这是令牌签发方的时钟比网关的快。每一次这样的拒绝都恰好落在某一秒结束之前。CoSec 网关拒绝 `iat`（签发时间）在它未来的令牌，没有任何容差，也没有可以设置容差的配置，所以几毫秒的偏差就够了。在一次演练中，签发方与网关的时钟相差约 3 毫秒，有 30 次调用这样被拒绝，每次都在 x.988 到 x.999 秒。在网关接受时钟偏差之前（Ahoo-Wang/CoSec#1666），签发令牌时把时间往前放一点，让 `iat` 比当前早 30 秒，并保持时钟同步。
