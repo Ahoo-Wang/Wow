@@ -181,6 +181,16 @@ class JsonReadFailuresTest {
     data class Priced(val price: Int, val quantity: Int) {
         val total: Int get() = price * quantity
         val isFree: Boolean get() = price == 0
+        var note: String = ""
+    }
+
+    /**
+     * A getter alone whose value a creator's parameter of its name gives is a property read, not a computed one; a
+     * creator's parameter with no getter (`offset`) is read too.
+     */
+    class Celsius(degrees: Double, offset: Double = 0.0) {
+        private val value = degrees + offset
+        val degrees: Double get() = value
     }
 
     @Test
@@ -191,6 +201,12 @@ class JsonReadFailuresTest {
         val written = WowJson.mapper.readTree(text).propertyNames()
         written.assert().containsExactlyInAnyOrder("price", "quantity", "total", "isFree")
         reader.readValue<Priced>(text).assert().isEqualTo(Priced(2, 3))
+        reader.readValue<Priced>("""{"price":2,"quantity":3,"total":99,"note":"gift"}""").run {
+            total.assert().isEqualTo(6)
+            note.assert().isEqualTo("gift")
+        }
+        failures.requestReader.forType(Celsius::class.java).with(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+            .readValue<Celsius>("""{"degrees":21.0,"offset":0.5}""").degrees.assert().isEqualTo(21.5)
         val json = """{"price":2,"quantity":3,"Quantity":5}"""
         val failure = assertThrows<JacksonException> { reader.readValue<Priced>(json) }
         failures.of(WowJson.mapper.readTree(json), Priced::class.java, failure)!!.run {

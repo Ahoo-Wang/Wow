@@ -14,6 +14,7 @@
 package me.ahoo.wow.spi.json
 
 import com.fasterxml.jackson.annotation.JsonFormat
+import com.fasterxml.jackson.annotation.JsonProperty
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.spi.json.JsonReadFailure.Reason
@@ -33,12 +34,25 @@ class EnumNumbersTest {
     @JsonFormat(shape = JsonFormat.Shape.NUMBER)
     enum class Level { LOW, HIGH }
 
+    enum class Grade { PASS, MERIT }
+
+    enum class Code {
+        @JsonProperty("7")
+        SEVEN,
+        PLAIN,
+    }
+
     data class Order(
         val status: Status = Status.PAID,
         val month: Month = Month.JANUARY,
         val level: Level = Level.LOW,
         val byStatus: Map<Status, Int> = emptyMap(),
         val wire: CommandResult.Status? = null,
+        @JsonFormat(shape = JsonFormat.Shape.NUMBER)
+        val grade: Grade = Grade.PASS,
+        @JsonFormat(shape = JsonFormat.Shape.NUMBER_INT)
+        val rank: Grade = Grade.PASS,
+        val code: Code = Code.PLAIN,
     )
 
     private val failures = JsonReadFailures(WowJson.mapper)
@@ -59,6 +73,7 @@ class EnumNumbersTest {
             path.assert().isEqualTo("status")
             reason.assert().isEqualTo(Reason.NOT_IN_ENUMERATION)
         }
+        refusal("""{"status":true}""").path.assert().isEqualTo("status")
         refusal("""{"wire":1}""").message.assert().isEqualTo("Expected a string, given an integer.")
         assertThrows<JacksonException> { WowJson.mapper.readValue<Order>("""{"byStatus":{"1":1}}""") }
         WowJson.mapper.readValue<Order>("""{"status":"SHIPPED","byStatus":{"PAID":1}}""").run {
@@ -74,5 +89,28 @@ class EnumNumbersTest {
         val written = WowJson.mapper.writeValueAsString(Order(level = Level.HIGH))
         written.assert().contains("\"level\":1")
         WowJson.mapper.readValue<Order>(written).level.assert().isEqualTo(Level.HIGH)
+    }
+
+    @Test
+    fun `a property written as a number should read its number, on the class or the property`() {
+        val written = WowJson.mapper.writeValueAsString(Order(grade = Grade.MERIT, rank = Grade.MERIT))
+        written.assert().contains("\"grade\":1").contains("\"rank\":1")
+        WowJson.mapper.readValue<Order>(written).run {
+            grade.assert().isEqualTo(Grade.MERIT)
+            rank.assert().isEqualTo(Grade.MERIT)
+        }
+        WowJson.mapper.readValue<Order>("""{"grade":1,"rank":1}""").rank.assert().isEqualTo(Grade.MERIT)
+        refusal("""{"status":1}""").reason.assert().isEqualTo(Reason.WRONG_KIND)
+    }
+
+    @Test
+    fun `a constant named with digits should read by that name, and an index's text for it should be refused`() {
+        WowJson.mapper.writeValueAsString(Order(code = Code.SEVEN)).assert().contains("\"code\":\"7\"")
+        WowJson.mapper.readValue<Order>("""{"code":"7"}""").code.assert().isEqualTo(Code.SEVEN)
+        WowJson.mapper.readValue<Order>("""{"code":"PLAIN"}""").code.assert().isEqualTo(Code.PLAIN)
+        refusal("""{"code":"1"}""").run {
+            path.assert().isEqualTo("code")
+            reason.assert().isEqualTo(Reason.NOT_IN_ENUMERATION)
+        }
     }
 }

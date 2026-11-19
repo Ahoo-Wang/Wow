@@ -203,15 +203,21 @@ internal object StrictReads {
      * An enumeration's reader that takes its constants by their names alone: a number, or a number's text, which
      * Jackson reads as the constant of that index, is refused. A property written as a number reads as one.
      */
-    private class ByName(delegate: ValueDeserializer<*>, private val type: Class<*>) :
-        DelegatingDeserializer(delegate) {
+    private class ByName(
+        delegate: ValueDeserializer<*>,
+        private val type: Class<*>,
+        /** How its constants are written: their names, and the names `@JsonProperty` gives them. */
+        private val names: Set<String> = type.enumConstants.map { (it as Enum<*>).name }.toSet() +
+            type.fields.mapNotNull { it.getAnnotation(JsonProperty::class.java)?.value },
+    ) : DelegatingDeserializer(delegate) {
         override fun newDelegatingInstance(newDelegatee: ValueDeserializer<*>): ValueDeserializer<*> =
-            ByName(newDelegatee, type)
+            ByName(newDelegatee, type, names)
 
         override fun createContextual(ctxt: DeserializationContext, property: BeanProperty?): ValueDeserializer<*> {
-            val contextual = super.createContextual(ctxt, property)
-            val shape = findFormatOverrides(ctxt, property, type)?.shape
-            return if (shape.numbered() && contextual is ByName) contextual._delegatee else contextual
+            // A delegating reader's contextual one is of its own class: this one, or one over the new delegate.
+            val contextual = super.createContextual(ctxt, property) as ByName
+            val numbered = findFormatOverrides(ctxt, property, type).shape.numbered()
+            return if (numbered) contextual._delegatee else contextual
         }
 
         override fun deserialize(p: JsonParser, ctxt: DeserializationContext): Any? {
@@ -219,18 +225,15 @@ internal object StrictReads {
                 return ctxt.handleUnexpectedToken(type, p)
             }
             // An index's text, which Jackson reads as the constant of that index unless a constant is named so.
-            val index = p.takeIf { it.currentToken() == JsonToken.VALUE_STRING }?.string
-                ?.takeIf { it.isNotEmpty() && it.all(Char::isDigit) }
-            val value = super.deserialize(p, ctxt)
-            if (index != null && value is Enum<*> && !value.named(index)) {
-                throw InvalidFormatException.from(p, "$index is no name of ${type.simpleName}.", index, type)
+            if (p.currentToken() == JsonToken.VALUE_STRING && INDEX.matches(p.string) && p.string !in names) {
+                throw InvalidFormatException.from(p, "${p.string} is no name of ${type.simpleName}.", p.string, type)
             }
-            return value
+            return super.deserialize(p, ctxt)
         }
 
-        /** Whether this constant is written as [text]: its name, or the name `@JsonProperty` gives it. */
-        private fun Enum<*>.named(text: String): Boolean =
-            name == text || type.getField(name).getAnnotation(JsonProperty::class.java)?.value == text
+        private companion object {
+            val INDEX = Regex("[0-9]+")
+        }
     }
 
     /** A [TimeZone] read through [ZoneId]: an unknown id is refused, an offset is that offset. */
