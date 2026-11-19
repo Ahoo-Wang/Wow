@@ -486,8 +486,7 @@ class CommandGateway @InternalWowApi constructor(
         // A command whose body names its aggregate is read now, so that its authorization names that aggregate.
         val early = if (fromBody) {
             bodies.bodyProblem(request.body)?.let { return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it) }
-            bodies.decode(request.body, commandType.type)
-                ?: return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, "The body is not a ${commandType.name}.")
+            bodies.decode(request.body, commandType.type).orElse { return facts.undecodable(it, commandType.name) }
         } else {
             null
         }
@@ -524,8 +523,7 @@ class CommandGateway @InternalWowApi constructor(
         // 4. The body, unless it was read for its aggregate.
         val decoded = early ?: run {
             bodies.bodyProblem(request.body)?.let { return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it) }
-            bodies.decode(request.body, commandType.type)
-                ?: return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, "The body is not a ${commandType.name}.")
+            bodies.decode(request.body, commandType.type).orElse { return facts.undecodable(it, commandType.name) }
         }
         AdmissionLimits.oversizedBody(decoded.value)?.let { return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it) }
         // 5. The transformation.

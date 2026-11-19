@@ -94,7 +94,7 @@ class WowJsonTest {
     }
 
     @Test
-    fun `the mapper registers the Kotlin module and Wow's time, transport, state event and enum modules only and ignores unknown properties`() {
+    fun `the mapper registers the Kotlin module and Wow's time, transport, state event, strict read and enum modules only and ignores unknown properties`() {
         WowJson.mapper.registeredModules().map { it.moduleName }
             .assert().containsExactly(
                 KotlinModule.Builder().build().moduleName,
@@ -102,6 +102,7 @@ class WowJsonTest {
                 "wow-kotlin-durations",
                 "wow-transport",
                 "wow-state-event",
+                "wow-strict-reads",
                 WowEnums.MODULE_NAME,
             )
         WowJson.mapper.readValue<Price>("""{"amount":1,"exact":1,"unknown":{"a":[1]}}""")

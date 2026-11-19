@@ -109,7 +109,7 @@ Every error is `application/problem+json`:
 | `status` | The HTTP status |
 | `title` | A short summary of the code for people, the same for every occurrence: a framework code's title ([Error Codes](./error-codes)), a domain code's `@ErrorCode(description)` |
 | `detail` | What happened to this request, for people: the rejection's or failure's message |
-| `violations` | The field-level violations: `path`, `code`, `message`. A command constraint's `code` is the constraint's name in lower-kebab: `NotBlank` is `not-blank`. |
+| `violations` | The field-level violations: `path`, `code`, `message`. A command constraint's `code` is the constraint's name in lower-kebab: `NotBlank` is `not-blank`. A body that does not read as its command (`wow.command.malformed`) gives one violation, the property's path and `wrong-kind`, `out-of-range`, `invalid-format` or `not-in-enumeration` ([JSON Values](./json-values)). |
 | `retry` | What a retry may do, on every problem: `none`, `same-request` (send again with the same `Wow-Request-Id`) or `new-request`; with `Retry-After` when it is not `none` |
 | `result` | A command's whole result, when the command produced one |
 | `version` | The aggregate's version the problem answered: a rejection's, or the current one of a state read below its `minVersion` |

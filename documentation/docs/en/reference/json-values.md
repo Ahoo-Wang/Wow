@@ -1,6 +1,6 @@
 ---
 title: JSON Values
-description: How Wow's JSON writes each platform value class a state, a command or an event holds, and the schema type and format the Manifest gives it.
+description: How Wow's JSON writes each platform value class a state, a command or an event holds, the schema type and format the Manifest gives it, and what it reads besides and refuses.
 ---
 
 # JSON Values
@@ -13,45 +13,47 @@ Wow's JSON (`WowJson`) writes and reads the states, commands and events of a ser
 - A property holding another platform class written as a scalar (a `Charset`, a `Path`, an `AtomicLong`) stops the build, unless its schema is declared ([Manifest](../guide/manifest#a-type-written-by-a-custom-serializer)).
 - A test holds each row to the code: its classes, JSON type and format to what the Manifest describes, and each value it shows to what Wow's JSON writes.
 
-The written form is what Wow promises, and what a client that is not Wow writes. Wow's JSON reads some other forms as well, by its JSON library's defaults: those are not promised, and are being decided ([#6488](https://github.com/Ahoo-Wang/Wow/issues/6488)). Two refusals are decided, and tests hold them:
+The written form is what Wow promises, and what a client that is not Wow writes. The last column says what Wow's JSON reads besides it and what it refuses, and a test holds each:
 
+- A value of another JSON kind than its class's is refused, and so is an empty string for a `java.time` value, a `URL`, a `Currency` or a `Character`, which Jackson would read as `null`. A command whose body holds one is refused as `wow.command.malformed`, with one violation: the property's path in the body (`items[0].quantity`) and its code, `wrong-kind`, `out-of-range`, `invalid-format` or `not-in-enumeration`, with a message that names the kinds expected and given.
+- Wow 1.x to 6.x ran on Jackson 2, which wrote dates, times and durations as numbers and arrays. Each of those forms reads, as its row says, so a store carried from those releases reads; any other number or array for those classes is refused.
 - A `kotlin.time.Duration` refuses a number: it is ISO-8601 text.
 - A `Month` reads its name or its one-based number, and refuses `0`.
 
-| Class | JSON | Written |
-| --- | --- | --- |
-| `boolean`, `Boolean` | `boolean` | `true`, `false` |
-| `int`, `Integer` | `integer`, `int32` | `1`, `2147483647`, `-2147483648` |
-| `short`, `Short` | `integer`, `int32` | `1`, `-32768`, `32767` |
-| `byte`, `Byte` | `integer`, `int32` | `1`, `-128`, `127` |
-| `Year` | `integer`, `int32` | `2026`, `0`, `-1`, `12026` |
-| `long`, `Long` | `integer`, `int64` | `1`, `9223372036854775807` |
-| `BigInteger` | `integer`, `bigint` | `123456789012345678901234567890`, of any length |
-| `float`, `Float` | `number`, `float` | `1.5`, `0.1`, `3.4028235E38`, `-0.0`; not-a-number and the infinities as strings, `"NaN"`, `"Infinity"`, `"-Infinity"` |
-| `double`, `Double` | `number` | `0.1`, `1.0`, `1.0E300`, `-0.0`; not-a-number and the infinities as strings, `"NaN"`, `"Infinity"`, `"-Infinity"` |
-| `BigDecimal` | `number`, `decimal` | Its digits and scale, a trailing zero kept, `2.50`, `0.000001`; a negative scale or a very small value in exponent form, `1E+3`, `1E-7` |
-| `Instant` | `string`, `date-time` | At UTC, `"2026-01-02T03:04:05Z"`; its fraction to the nanosecond as needed, `"2026-01-02T03:04:05.123456789Z"`; a year past 9999 signed, `"+12026-01-01T00:00:00Z"`, and one before 1, `"-0001-01-01T00:00:00Z"` |
-| `OffsetDateTime` | `string`, `date-time` | Its offset kept, `"2026-01-02T03:04:05+08:00"` |
-| `ZonedDateTime` | `string`, `date-time` | Its offset, not its zone: Asia/Shanghai's 03:04:05 on 2 January 2026 is `"2026-01-02T03:04:05+08:00"` |
-| `Date` | `string`, `date-time` | At UTC, the milliseconds always written, `"2026-01-02T03:04:05.123Z"` |
-| `Calendar` | `string`, `date-time` | As a Date is, at UTC: its time zone is not written, `"2026-01-02T03:04:05.123Z"` |
-| `LocalDate` | `string`, `date` | `"2026-01-02"`; a year past 9999 signed, `"+12026-01-01"`; a negative one, `"-0001-01-01"` |
-| `LocalTime` | `string`, `time` | The seconds always written, `"03:04:05"`, `"03:04:00"`; the fraction as needed, `"03:04:05.12"` |
-| `OffsetTime` | `string`, `time` | `"03:04:05+08:00"`; zero seconds left out, `"03:04Z"` |
-| `Duration` | `string`, `duration` | ISO-8601, `"PT1H30M"`, `"PT0S"`; days as hours, `"PT48H"`; a negative one, `"PT-1.5S"`; to the nanosecond, `"PT0.000000001S"` |
-| `Period` | `string`, `duration` | ISO-8601, `"P1Y2M3D"`, `"P0D"`; weeks as days, `"P14D"`; a negative one, `"P-1M"` |
-| `kotlin.time.Duration` | `string`, `duration` | As a Duration is, `"PT1H30M"`; a negative one, `"PT-1H-30M"`; the infinite one, `"PT2562047788015215H30M7S"` |
-| `UUID` | `string`, `uuid` | Lower case, 36 characters, `"00000000-0000-0001-0000-000000000002"` |
-| `URI` | `string`, `uri` | As it is, encoded, `"https://example.com/a%20b"`, `"urn:isbn:123"`, `"/relative"` |
-| `URL` | `string`, `uri` | `"https://example.com/a"` |
-| `byte[]` | `string`, `byte` | Base64 with padding, `"AQID"`, `"//79/A=="`; empty, `""` |
-| `String` | `string` | As it is, escaped as JSON escapes it, `"\u0000"` |
-| `char`, `Character` | `string` | One character, `"c"` |
-| `LocalDateTime` | `string` | The seconds always written, `"2026-01-02T03:04:05"`; a year past 9999 signed, `"+12026-01-01T00:00:00"` |
-| `YearMonth` | `string` | `"2026-01"`, `"0005-01"`; a year past 9999 with no sign, `"12026-01"`; a negative one, `"-0001-01"` |
-| `MonthDay` | `string` | `"--01-02"`, `"--02-29"` |
-| `ZoneId` | `string` | `"Asia/Shanghai"`, `"UTC"`, `"Z"`, `"GMT+08:00"` |
-| `ZoneOffset` | `string` | `"+08:00"`, `"+05:30"`, `"-18:00"`; zero as `"Z"`; seconds as needed, `"+01:02:03"` |
-| `TimeZone` | `string` | Its id, `"UTC"`, `"Asia/Shanghai"`, `"GMT+08:00"` |
-| `Locale` | `string` | A BCP 47 tag, `"zh-CN"`, `"zh-Hans-CN"`, `"en-US-POSIX"`; the root locale as `""` |
-| `Currency` | `string` | Its ISO 4217 code, `"CNY"` |
+| Class | JSON | Written | Read besides, and refused |
+| --- | --- | --- | --- |
+| `boolean`, `Boolean` | `boolean` | `true`, `false` | Refuses a number, `1`, a string, `"true"`, and, for a `boolean`, `null`. |
+| `int`, `Integer` | `integer`, `int32` | `1`, `2147483647`, `-2147483648` | Refuses a float, `1.5`, `1e2` or `1.0`, a string, `"7"`, and a number out of range, `2147483648`. |
+| `short`, `Short` | `integer`, `int32` | `1`, `-32768`, `32767` | Refuses a float or a string, as an `int` does, and a number out of range, `40000`. |
+| `byte`, `Byte` | `integer`, `int32` | `1`, `-128`, `127` | Refuses a number out of range, `200` or `-129`: Jackson alone would wrap 200 to -56. |
+| `Year` | `integer`, `int32` | `2026`, `0`, `-1`, `12026` | Refuses a string, `"2026"`, and a number beyond an `int`, `3000000000`. |
+| `long`, `Long` | `integer`, `int64` | `1`, `9223372036854775807` | Refuses a float or a string, as an `int` does, and a number out of range, `9223372036854775808`. |
+| `BigInteger` | `integer`, `bigint` | `123456789012345678901234567890`, of any length | Refuses a float, `1.5` or `1e3`, and a string, `"12"`. |
+| `float`, `Float` | `number`, `float` | `1.5`, `0.1`, `3.4028235E38`, `-0.0`; not-a-number and the infinities as strings, `"NaN"`, `"Infinity"`, `"-Infinity"` | Reads the three strings, `"NaN"`, `"Infinity"` and `"-Infinity"`, and a number beyond its range, `1e39` as `"Infinity"`, as IEEE 754 rounds it. Refuses any other string, `"1.5"`. |
+| `double`, `Double` | `number` | `0.1`, `1.0`, `1.0E300`, `-0.0`; not-a-number and the infinities as strings, `"NaN"`, `"Infinity"`, `"-Infinity"` | Reads the three strings, `"NaN"`, `"Infinity"` and `"-Infinity"`, and a number beyond its range, `1e400` as `"Infinity"`, as IEEE 754 rounds it. Refuses any other string, `"1.5"`. |
+| `BigDecimal` | `number`, `decimal` | Its digits and scale, a trailing zero kept, `2.50`, `0.000001`; a negative scale or a very small value in exponent form, `1E+3`, `1E-7` | Reads any exponent, `1e400` as `1E+400`, with no overflow. Refuses a string, `"2.50"`. |
+| `Instant` | `string`, `date-time` | At UTC, `"2026-01-02T03:04:05Z"`; its fraction to the nanosecond as needed, `"2026-01-02T03:04:05.123456789Z"`; a year past 9999 signed, `"+12026-01-01T00:00:00Z"`, and one before 1, `"-0001-01-01T00:00:00Z"` | Reads an offset, `"2026-01-02T03:04:05+08:00"` as `"2026-01-01T19:04:05Z"`, and lower case, `"2026-01-02t03:04:05z"` as `"2026-01-02T03:04:05Z"`. Reads a decimal of epoch seconds, `1767323045.123456789` as `"2026-01-02T03:04:05.123456789Z"`, the form Wow 1.x to 6.x wrote, and an integer, `1767323045` as `"2026-01-02T03:04:05Z"`, which no release wrote with its default configuration. Refuses an array, `[2026,1,2]`, a time with no offset, `"2026-01-02T03:04:05"`, and a date alone, `"2026-01-02"`. |
+| `OffsetDateTime` | `string`, `date-time` | Its offset kept, `"2026-01-02T03:04:05+08:00"` | Reads a value back at the offset it was written with, `"2026-01-02T03:04:05+08:00"` as `"2026-01-02T03:04:05+08:00"`. Reads a decimal of epoch seconds, `1767294245.5` as `"2026-01-01T19:04:05.5Z"`, the form Wow 1.x to 6.x wrote: such a stored value carries no offset, and reads at UTC. Refuses an array, `[2026]`, and a time with no offset, `"2026-01-02T03:04:05"`. |
+| `ZonedDateTime` | `string`, `date-time` | Its offset, not its zone: Asia/Shanghai's 03:04:05 on 2 January 2026 is `"2026-01-02T03:04:05+08:00"` | Reads a value back at its offset, a fixed one, since the region is not written: `"2026-01-02T03:04:05+08:00[Asia/Shanghai]"` as `"2026-01-02T03:04:05+08:00"`. Reads a decimal of epoch seconds, `1767294245.000000000` as `"2026-01-01T19:04:05Z"`, the form Wow 1.x to 6.x wrote: such a stored value carries no offset or zone, and reads at UTC. Refuses an array, `[2026]`. |
+| `Date` | `string`, `date-time` | At UTC, the milliseconds always written, `"2026-01-02T03:04:05.123Z"` | Reads an offset, `"2026-01-02T03:04:05.123+08:00"` as `"2026-01-01T19:04:05.123Z"`, and epoch milliseconds, `1767323045123` as `"2026-01-02T03:04:05.123Z"`, the form Wow 1.x to 6.x wrote. Refuses a date alone, `"2026-01-02"`, a fraction of a millisecond, `1767323045.5`, an array, `[1]`, and other text, `"yesterday"`. |
+| `Calendar` | `string`, `date-time` | As a Date is, at UTC: its time zone is not written, `"2026-01-02T03:04:05.123Z"` | Reads epoch milliseconds, `1767323045123` as `"2026-01-02T03:04:05.123Z"`, the form Wow 1.x to 6.x wrote, at UTC, as a `Date` does. Refuses a date alone, `"2026-01-02"`, and a fraction of a millisecond, `1767323045.5`. |
+| `LocalDate` | `string`, `date` | `"2026-01-02"`; a year past 9999 signed, `"+12026-01-01"`; a negative one, `"-0001-01-01"` | Reads `[2026,1,2]` as `"2026-01-02"`, the form Wow 1.x to 6.x wrote. Refuses a date-time, `"2026-01-02T03:04:05"`, a number, `20455`, an empty string, `""`, a year beyond 9999 with no sign, `"12026-01-01"`, `"2026-1-2"`, and a day that does not exist, `"2026-02-30"`. |
+| `LocalTime` | `string`, `time` | The seconds always written, `"03:04:05"`, `"03:04:00"`; the fraction as needed, `"03:04:05.12"` | Reads `[3,4,5,123000000]` as `"03:04:05.123"`, the form Wow 1.x to 6.x wrote. Refuses a number, `3600`, `"3:04"`, and an offset, `"03:04:05+08:00"`. |
+| `OffsetTime` | `string`, `time` | `"03:04:05+08:00"`; zero seconds left out, `"03:04Z"` | Reads `[3,4,5,"+08:00"]` as `"03:04:05+08:00"`, the form Wow 1.x to 6.x wrote. Refuses a number, `3600`, and a time with no offset, `"03:04:05"`. |
+| `Duration` | `string`, `duration` | ISO-8601, `"PT1H30M"`, `"PT0S"`; days as hours, `"PT48H"`; a negative one, `"PT-1.5S"`; to the nanosecond, `"PT0.000000001S"` | Reads days, `"P1D"` as `"PT24H"`, lower case, `"pt1h"` as `"PT1H"`, and a decimal of seconds, `5400.000000000` as `"PT1H30M"`, the form Wow 1.x to 6.x wrote, or an integer of seconds, `5400` as `"PT1H30M"`. Refuses an array, `[1]`, months and years, `"P1M"`, and any other text, `"90m"`. |
+| `Period` | `string`, `duration` | ISO-8601, `"P1Y2M3D"`, `"P0D"`; weeks as days, `"P14D"`; a negative one, `"P-1M"` | Reads weeks, `"P2W"` as `"P14D"`. Refuses a time, `"PT1H"`, a number, `1`, and an array, `[1]`. |
+| `kotlin.time.Duration` | `string`, `duration` | As a Duration is, `"PT1H30M"`; a negative one, `"PT-1H-30M"`; the infinite one, `"PT2562047788015215H30M7S"` | Reads days, `"P1D"` as `"PT24H"`, and the infinite one's text or a longer one, `"PT9999999999999999H"` as `"PT2562047788015215H30M7S"`. Refuses Kotlin's own form, `"1h 30m"`, months, `"P1M"`, and a number, `5`. |
+| `UUID` | `string`, `uuid` | Lower case, 36 characters, `"00000000-0000-0001-0000-000000000002"` | Reads upper case, `"00000000-0000-0001-0000-00000000000A"` as `"00000000-0000-0001-0000-00000000000a"`. Refuses any other form, `"x"`. |
+| `URI` | `string`, `uri` | As it is, encoded, `"https://example.com/a%20b"`, `"urn:isbn:123"`, `"/relative"` | Reads an empty URI, `""`. Refuses an illegal character, `"a b"`. |
+| `URL` | `string`, `uri` | `"https://example.com/a"` | Refuses an empty string, `""`, which Jackson alone would read as null, and text with no protocol, `"example.com"`. |
+| `byte[]` | `string`, `byte` | Base64 with padding, `"AQID"`, `"//79/A=="`; empty, `""` | Refuses an array of numbers, `[1,2,3]`, a missing padding, `"AQI"`, and the URL-safe alphabet, `"_-8="`. |
+| `String` | `string` | As it is, escaped as JSON escapes it, `"\u0000"` | Refuses a number, `1`, a boolean, `true`, and an object, `{}`. |
+| `char`, `Character` | `string` | One character, `"c"` | Refuses a number, `65`, an empty string, `""`, and more than one character, `"ab"`. |
+| `LocalDateTime` | `string` | The seconds always written, `"2026-01-02T03:04:05"`; a year past 9999 signed, `"+12026-01-01T00:00:00"` | Reads `[2026,1,2,3,4,5,123000000]` as `"2026-01-02T03:04:05.123"`, the form Wow 1.x to 6.x wrote. Refuses a trailing `Z`, `"2026-01-02T03:04:05Z"`, an offset, `"2026-01-02T03:04:05+08:00"`, a number, `1767323045`, and a space for the `T`, `"2026-01-02 03:04:05"`. |
+| `YearMonth` | `string` | `"2026-01"`, `"0005-01"`; a year past 9999 with no sign, `"12026-01"`; a negative one, `"-0001-01"` | Reads a year of fewer digits, `"5-01"` as `"0005-01"`, and `[2026,1]` as `"2026-01"`, the form Wow 1.x to 6.x wrote. Refuses a number, `202601`, a plus sign, `"+12026-01"`, `"2026-1"`, and month 13, `"2026-13"`. |
+| `MonthDay` | `string` | `"--01-02"`, `"--02-29"` | Refuses an array, `[1,2]`, which no release wrote, `"01-02"`, and a day that does not exist, `"--02-30"`. |
+| `ZoneId` | `string` | `"Asia/Shanghai"`, `"UTC"`, `"Z"`, `"GMT+08:00"` | Reads an offset, `"+08:00"`. Refuses an unknown region, `"Nowhere/City"`, and one in other case, `"asia/shanghai"`. |
+| `ZoneOffset` | `string` | `"+08:00"`, `"+05:30"`, `"-18:00"`; zero as `"Z"`; seconds as needed, `"+01:02:03"` | Reads `"+8"` as `"+08:00"`, and `"+00:00"` as `"Z"`. Refuses an offset beyond ±18:00, `"+18:30"`, and a region, `"UTC"`. |
+| `TimeZone` | `string` | Its id, `"UTC"`, `"Asia/Shanghai"`, `"GMT+08:00"` | Reads an offset, `"+08:00"` as `"GMT+08:00"`, and a short id Java knows, `"PST"`. Refuses an unknown id, `"Nowhere/City"`, and a number, `1`. |
+| `Locale` | `string` | A BCP 47 tag, `"zh-CN"`, `"zh-Hans-CN"`, `"en-US-POSIX"`; the root locale as `""` | Reads Java's form, `"zh_CN"` as `"zh-CN"`, and any other text: one that is no tag, `"not a tag!"` as `"und"`, the undetermined language. |
+| `Currency` | `string` | Its ISO 4217 code, `"CNY"` | Refuses an empty string, `""`, which Jackson alone would read as null, an unknown code, `"XYZ"`, and one in lower case, `"cny"`. |

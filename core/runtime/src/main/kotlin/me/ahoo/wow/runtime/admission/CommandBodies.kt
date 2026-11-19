@@ -10,13 +10,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package me.ahoo.wow.runtime.admission
 
+import io.github.oshai.kotlinlogging.KotlinLogging
+import me.ahoo.wow.api.result.FrameworkCodes
+import me.ahoo.wow.api.result.Violation
+import me.ahoo.wow.spi.json.JsonReadFailures
 import tools.jackson.core.JacksonException
+import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
 
 /** How admission reads a request's body as its command type, step 4 of admission ([CommandGateway]), with [mapper]. */
 internal class CommandBodies(private val mapper: JsonMapper) {
+    private val failures = JsonReadFailures(mapper)
+
     /**
      * Why [body] cannot be taken, or null when it can: it writes `\u0000` in a string or a key ([AdmissionLimits]); a
      * command object ([CommandBody.Value]) is checked as the JSON it is written as, which it must be.
@@ -35,18 +43,52 @@ internal class CommandBodies(private val mapper: JsonMapper) {
     }
 
     /**
-     * [body] read as [type], or null when it does not decode to one; a command object ([CommandBody.Value]) is taken as
-     * it is when it is one.
+     * [body] read as [type], or why it does not decode to one: the property, by its path, and the reason in Wow's
+     * words, while Jackson's message, which can name the application's classes, goes to the log. A command object
+     * ([CommandBody.Value]) is taken as it is when it is one.
      */
-    fun decode(body: CommandBody, type: Class<*>): Decoded? = try {
+    fun decode(body: CommandBody, type: Class<*>): BodyRead = try {
         when (body) {
             is CommandBody.Bytes -> mapper.readValue(body.bytes, type)
             is CommandBody.Tree -> mapper.treeToValue(body.node, type)
             is CommandBody.Value -> body.command.takeIf { type.isInstance(it) }
-        }?.let(::Decoded)
+        }?.let(::Decoded) ?: Undecodable(emptyList())
+    } catch (failure: JacksonException) {
+        logger.debug(failure) { "The body is not a ${type.name}: ${failure.originalMessage}" }
+        Undecodable(listOfNotNull(violationOf(body, type, failure)))
+    }
+
+    private fun violationOf(body: CommandBody, type: Class<*>, failure: JacksonException): Violation? {
+        // A command object is taken as it is, never read: only text and a tree fail to read.
+        val json = if (body is CommandBody.Bytes) treeOf(body.bytes) else (body as CommandBody.Tree).node
+        return json?.let { failures.of(it, type, failure) }?.let { Violation.of(it.path, it.reason.code, it.message) }
+    }
+
+    /** [bytes] as a tree, or null when they are not JSON. */
+    private fun treeOf(bytes: ByteArray): JsonNode? = try {
+        mapper.readTree(bytes)
     } catch (_: JacksonException) {
         null
     }
 }
 
-internal class Decoded(val value: Any)
+/** Named after the gateway, whose admission this is. */
+private val logger = KotlinLogging.logger(CommandGateway::class.java.name)
+
+/** A body read as its command type ([CommandBodies.decode]). */
+internal sealed interface BodyRead
+
+internal class Decoded(val value: Any) : BodyRead
+
+/** A body that does not read as its command type; [violations] names the property and why, when it is JSON. */
+internal class Undecodable(val violations: List<Violation>) : BodyRead
+
+/** The body decoded, or what [undecodable] makes of one that is not. */
+internal inline fun BodyRead.orElse(undecodable: (Undecodable) -> Nothing): Decoded = when (this) {
+    is Decoded -> this
+    is Undecodable -> undecodable(this)
+}
+
+/** The refusal of a body that does not read as the command [name]. */
+internal fun Facts.undecodable(body: Undecodable, name: String): Admission.Refused =
+    refuse(FrameworkCodes.COMMAND_MALFORMED, "The body is not a $name.", violations = body.violations)

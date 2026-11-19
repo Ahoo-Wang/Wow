@@ -377,6 +377,7 @@ Some 9.x constructs have no V10 form. The Skill reports each one the service use
 - Java tests on `AggregateVerifier`, and Java calls of `suspend` APIs (`DecideScope.reserve`, `SagaContext.call`): Kotlin only;
 - Jackson modules found on the class path, and fields without public getters: `WowJson` applies neither;
 - the host's Jackson settings: Wow's JSON is its own mapper, so `spring.jackson.*`, a Jackson customizer bean and an `ObjectMapper` or `JsonMapper` bean reach none of what Wow reads and writes, a command's body included. A 9.x service that read enum values case-insensitively through its Spring configuration refuses `"paid"` for `PAID`; a property that should accept any case says so itself, `@field:JsonFormat(with = [JsonFormat.Feature.ACCEPT_CASE_INSENSITIVE_VALUES])` (on the enum class it has no effect);
+- a client that sent a value of another JSON kind than its property's, `"7"` for a number, `1` for a `String`, `1.5` for an integer: 9.x's JSON coerced it, Wow's refuses it as `wow.command.malformed`, naming the property ([JSON Values](../reference/json-values)). The client sends the form the Manifest's schema gives;
 - state-event resend and per-version re-dispatch: none until 10.x; a parked entry is retried instead;
 - a `MessageFunction` registered at run time: rewrite it as an annotated processor.
 
