@@ -87,6 +87,20 @@ The spans carry the context, aggregate, tenant, command and subscription as attr
 
 The sampled gauges, the parked entries and the subscriptions' positions, come from the same sample as the health, every `wow.node.sample-interval` (10 s).
 
+**The collector.** The OpenTelemetry Collector the agents send to holds what it receives in memory until it exports it, and a rolling upgrade is its peak: every new node's series beside the old nodes' until those expire, and every node's traces. Give it a `memory_limiter` first in every pipeline, so it refuses data above its limit, which the agents send again, rather than being killed. Size it for that peak. A collector at 512 MiB without one was OOM-killed under the rolling upgrade of eight services with two instrumented nodes each, and the metrics, and the alerts that read them, were lost for about 16 minutes. With the processor below and a 1.5 GiB limit (512 MiB requested), the same collector held through node and store faults, scaling, a drain and a reinstall; it was resized after the upgrade that killed it, so it has not yet been through a rolling upgrade:
+
+```yaml
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_percentage: 80
+    spike_limit_percentage: 20
+service:
+  pipelines:
+    metrics:
+      processors: [memory_limiter, batch]
+```
+
 **Rejection log.** A command its aggregate rejects, and one admission refuses, are logged in one shape under the logger `wow.command.rejection`: a rejection at INFO, since it is a business outcome, and a refusal at DEBUG, since refusing is admission's ordinary work. The message reads as a sentence, and the fields are SLF4J key-values named as the spans' attributes: `wow.context`, `wow.aggregate.name`, `wow.command.name`, `error.type` (the code), `wow.request.id`, and `wow.with_events` on a rejection. A JSON encoder, such as Logback's or the Elastic Common Schema's, writes them as fields to search by. Set the logger's level to silence rejections, or to `DEBUG` to see refusals too.
 
 ## What to alert on

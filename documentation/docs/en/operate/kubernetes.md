@@ -284,6 +284,29 @@ service:
 
 The chart then gives the node `wow.peer.dns.namespaces.eshop-payment-service: payments`, so it looks the peer up at `_internal._tcp.eshop-payment-service-cluster.payments.svc`, and the internal policy admits the peer's pods from that namespace. The peer's own internal policy must admit this service's pods in turn: its `networkPolicy.internal.from`, with a `namespaceSelector`.
 
+### The cluster's DNS in every zone {#the-clusters-dns-in-every-zone}
+
+Every name a node resolves goes through the cluster's DNS: its stores, the Kafka brokers, the peers' SRV records, and the gateway's routes to the services. Run that DNS in every zone, one replica per zone at least, required rather than preferred. A topology spread constraint on `topology.kubernetes.io/zone` with `whenUnsatisfiable: DoNotSchedule` does it. In a three-zone cluster whose two CoreDNS replicas had landed in one zone, losing that zone left the services unable to resolve one another for 256 s, every Wow node otherwise healthy:
+- the CoSec gateway answered the calls whose service it could not resolve with 500 ("Failed to resolve"), and the ingress with 502;
+- a Wow node starting in that time exited, since its Kafka client found no address to start from ("No resolvable bootstrap urls given in bootstrap.servers"). It was restarted until the names resolved again.
+
+```yaml
+# CoreDNS, one replica per zone: kubectl -n kube-system patch deployment coredns --type merge -p "$(cat this-file)"
+spec:
+  replicas: 3
+  template:
+    spec:
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              k8s-app: kube-dns
+          # Only this ReplicaSet's pods count, so a rollout's old pods do not fill a zone.
+          matchLabelKeys: [pod-template-hash]
+```
+
 ## Probes
 
 The host gives the node's health to Spring Boot Actuator's readiness and liveness groups, on the HTTP port:
@@ -484,6 +507,15 @@ helm upgrade eshop-ordering oci://ghcr.io/ahoo-wang/wow-service --version <new-w
 ```
 
 The rollout replaces the nodes one at a time, a new one ready before an old one goes, so for a while two versions run side by side: [Upgrades](./upgrades) says what may, and which settings must never change, the log's partitions among them. A change of the shared settings alone rolls the nodes too: the pods carry a checksum of the ConfigMap. Regenerate the build's values with every build: a peer added in the code is then admitted by the policies and found by the node.
+
+### Reinstall on the kept stores {#reinstall-on-the-kept-stores}
+
+A release uninstalled and installed again on the stores it kept starts its new nodes only once the old ones are gone. `helm uninstall --wait` returns once the release's objects are deleted, while its pods are still stopping gracefully. A release installed again at that moment would run two generations of nodes on one store, which the upgrade's own rollout never does: a new node joins only through the leases the old ones hand over. Wait for the pods to be gone first:
+
+```bash
+helm uninstall eshop-ordering --wait
+kubectl wait --for=delete pod -l app.kubernetes.io/instance=eshop-ordering --timeout=10m
+```
 
 ## With Kustomize
 

@@ -87,6 +87,20 @@ span 以属性的形式带着上下文、聚合、租户、命令和订阅（`wo
 
 采样型 gauge（停放条目和订阅的位置）与健康来自同一次采样，每隔 `wow.node.sample-interval`（10 秒）一次。
 
+**Collector。** 探针（agent）把数据发往 OpenTelemetry Collector，Collector 在导出之前把收到的数据保存在内存里，而滚动升级是它的高峰：每个新节点的序列与旧节点的序列并存，直到旧的过期，还有每个节点的追踪。在每条 pipeline 的最前面给它加上 `memory_limiter`，让它拒绝超过上限的数据（agent 会重发），而不是被杀掉。按这个高峰确定它的大小。一个 512 MiB、没有 `memory_limiter` 的 Collector，在八个服务（每个服务两个带探针的节点）滚动升级时被 OOM 杀掉，指标以及读取指标的告警丢失了大约 16 分钟。加上下面的处理器、上限 1.5 GiB（请求 512 MiB）之后，同一个 Collector 经受住了节点和存储故障、扩缩容、排空和重新安装；它是在被那次升级杀掉之后才调整的，所以还没有经历过一次滚动升级：
+
+```yaml
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_percentage: 80
+    spike_limit_percentage: 20
+service:
+  pipelines:
+    metrics:
+      processors: [memory_limiter, batch]
+```
+
 **拒绝日志。** 被聚合拒绝的命令，以及被准入拒绝的命令，都以同一种形态记录在 logger `wow.command.rejection` 之下：拒绝是业务结果，记为 INFO；准入拒绝是准入的日常工作，记为 DEBUG。消息读起来是一句话，字段则是 SLF4J 的 key-value，与 Span 的属性同名：`wow.context`、`wow.aggregate.name`、`wow.command.name`、`error.type`（错误码）、`wow.request.id`，拒绝还带 `wow.with_events`。JSON 编码器（例如 Logback 的或 Elastic Common Schema 的）会把它们写成可检索的字段。调整这个 logger 的级别即可屏蔽拒绝日志，或设为 `DEBUG` 一并查看准入拒绝。
 
 ## 应当对什么报警 {#what-to-alert-on}
