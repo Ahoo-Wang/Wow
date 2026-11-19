@@ -31,6 +31,7 @@ import tools.jackson.databind.ValueDeserializer
 import tools.jackson.databind.ValueSerializer
 import tools.jackson.databind.annotation.JsonDeserialize
 import tools.jackson.databind.annotation.JsonSerialize
+import tools.jackson.databind.cfg.DateTimeFeature
 import tools.jackson.databind.cfg.JsonNodeFeature
 import tools.jackson.databind.exc.MismatchedInputException
 import tools.jackson.databind.json.JsonMapper
@@ -47,6 +48,10 @@ import tools.jackson.module.kotlin.KotlinModule
  *   ([WowEnums]); a domain's enumerations are written as its Jackson writes them. A `java.time.Month` is written by
  *   its name, as every enumeration is ([MonthNames]).
  * - A `kotlin.time.Duration` is ISO-8601 text, as a `java.time.Duration` is ([KotlinDurations]).
+ * - An `OffsetDateTime` or a `ZonedDateTime` is read back at the offset it was written with, as a `java.time` value
+ *   prints it: `2026-01-02T03:04:05+08:00` reads as `+08:00`, not as the same instant at UTC, which is Jackson's
+ *   default. So a state that holds the offset of its event is the state its log rebuilds. A `ZonedDateTime` is
+ *   written with its offset, not its region's name, and reads back in that fixed offset.
  * - A [me.ahoo.wow.spi.log.Transport] is written in its one form ([TransportCodec]), wherever a
  *   message embeds one.
  * - JSON numbers keep their exact value. A decimal read into an untyped value (`Any`, `Map<String, Any?>`) or a tree
@@ -83,6 +88,7 @@ object WowJson {
         .enable(MapperFeature.ALLOW_FINAL_FIELDS_AS_MUTATORS)
         .enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS)
         .disable(JsonNodeFeature.STRIP_TRAILING_BIGDECIMAL_ZEROES)
+        .disable(DateTimeFeature.ADJUST_DATES_TO_CONTEXT_TIME_ZONE)
 
     /** The mapper of Wow's configuration, as [builder] makes it. */
     val mapper: JsonMapper = builder().build()
