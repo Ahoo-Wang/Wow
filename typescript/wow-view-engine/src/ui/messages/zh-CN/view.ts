@@ -77,6 +77,8 @@ export const viewZhCN = {
     '服务端收到的是空查询：{reason}',
   [wireKey('runtime.query.failed', QueryErrorCodes.UNKNOWN_PROPERTY)]:
     '服务端不认识这条查询的一部分，可能版本比视图引擎旧：{reason}',
+  [wireKey('runtime.query.failed', QueryErrorCodes.DUPLICATE_PROPERTY)]:
+    '这个视图发出的查询重复给出了同一属性：{reason}',
   [wireKey('runtime.query.failed', QueryErrorCodes.UNKNOWN_TYPE)]:
     '服务端不认识这个视图用到的运算或指标，可能版本比视图引擎旧：{reason}',
   [wireKey('runtime.query.failed', QueryErrorCodes.UNKNOWN_VALUE)]:

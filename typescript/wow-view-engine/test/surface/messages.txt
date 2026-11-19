@@ -2107,6 +2107,7 @@ runtime.query.failed.count-requires-filter
 runtime.query.failed.cursor-not-allowed
 runtime.query.failed.cursor-sort-duplicate
 runtime.query.failed.cursor-sort-too-many
+runtime.query.failed.duplicate-property
 runtime.query.failed.element-scope-required
 runtime.query.failed.empty-body
 runtime.query.failed.event-projection-type-required

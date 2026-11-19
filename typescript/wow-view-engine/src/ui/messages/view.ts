@@ -124,6 +124,8 @@ export const viewMessages = {
     'The service received an empty query: {reason}',
   [wireKey('runtime.query.failed', QueryErrorCodes.UNKNOWN_PROPERTY)]:
     'The service does not understand part of this query; it may be older than this view engine: {reason}',
+  [wireKey('runtime.query.failed', QueryErrorCodes.DUPLICATE_PROPERTY)]:
+    'The query this view sent gives a property twice: {reason}',
   [wireKey('runtime.query.failed', QueryErrorCodes.UNKNOWN_TYPE)]:
     'The service does not know an operator or metric this view uses; it may be older than this view engine: {reason}',
   [wireKey('runtime.query.failed', QueryErrorCodes.UNKNOWN_VALUE)]:
