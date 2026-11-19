@@ -18,6 +18,7 @@ import me.ahoo.wow.clickhouse.query.ClickHouseDatasetOptions
 import me.ahoo.wow.clickhouse.sink.AggregateSinkOptions
 import me.ahoo.wow.clickhouse.sink.ClickHouseSinkOptions
 import org.junit.jupiter.api.Test
+import kotlin.time.Duration
 
 /** The options are a plain class (decision D216) that keeps a data class's equality, hash and string. */
 class ClickHouseOptionsTest {
@@ -25,6 +26,11 @@ class ClickHouseOptionsTest {
     fun `an option equals another with the same fields, and prints them`() {
         valueSemantics(AggregateSinkOptions(), AggregateSinkOptions(), AggregateSinkOptions(history = false))
         valueSemantics(ClickHouseSinkOptions(), ClickHouseSinkOptions(), ClickHouseSinkOptions(batchSize = 1))
+        valueSemantics(
+            ClickHouseSinkOptions(),
+            ClickHouseSinkOptions(),
+            ClickHouseSinkOptions(insertInterval = Duration.ZERO),
+        )
         valueSemantics(
             ClickHouseDatasetOptions(),
             ClickHouseDatasetOptions(),

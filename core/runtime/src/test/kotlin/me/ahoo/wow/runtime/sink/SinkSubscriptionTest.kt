@@ -35,13 +35,18 @@ import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.aggregate
+import me.ahoo.wow.kernel.memory.InMemoryCheckpointStore
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
+import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
 import me.ahoo.wow.runtime.Executor
 import me.ahoo.wow.runtime.TestTrace
 import me.ahoo.wow.runtime.state.SharedStateReader
 import me.ahoo.wow.runtime.state.SharedStates
+import me.ahoo.wow.runtime.subscription.RetryPolicy
 import me.ahoo.wow.runtime.subscription.RunEntry
 import me.ahoo.wow.runtime.subscription.Subscription
+import me.ahoo.wow.runtime.subscription.SubscriptionOptions
+import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventRecord
@@ -61,6 +66,8 @@ import java.math.BigDecimal
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.EmptyCoroutineContext
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 /** The records a sink subscription writes (design 04 §4, decisions D58, D133, D140). */
 class SinkSubscriptionTest {
@@ -407,6 +414,46 @@ class SinkSubscriptionTest {
         val handled = runs.map { async { subscription.runHandler!!(it) } }.awaitAll()
         handled.map { it.done }.assert().containsExactly(3, 3, 3)
         sink.writes.map { it.size }.assert().containsExactly(6)
+    }
+
+    /** A batching sink paced to one write every [interval]. */
+    private class Paced(override val maxBatch: Int, override val minWriteInterval: Duration) : Sink {
+        override suspend fun write(records: List<StateEventRecord>) = Unit
+
+        override fun toString(): String = "Paced(wow.test.sink.interval=$minWriteInterval)"
+    }
+
+    @Test
+    fun `a paced sink paces its subscription's runs, and one that takes a record a write is refused`() {
+        val reader = SharedStateReader(NAME, listOf(model), kernel, codec, views)
+        val subscription = SinkSubscription(NAME, type, Paced(MAX_BATCH, 1.seconds), reader).subscription
+        subscription.minRunInterval.assert().isEqualTo(1.seconds)
+        subscription.paced.assert().isEqualTo("Paced(wow.test.sink.interval=1s)")
+        val refused = assertThrows<IllegalArgumentException> {
+            SinkSubscription(NAME, type, Paced(1, 1.seconds), reader)
+        }
+        refused.message.assert().contains("only a batching sink (maxBatch above 1) is paced")
+    }
+
+    @Test
+    fun `a node refuses a paced sink whose interval is more than half its handler timeout, naming both settings`() {
+        val reader = SharedStateReader(NAME, listOf(model), kernel, codec, views)
+        val subscription = SinkSubscription(NAME, type, Paced(MAX_BATCH, 1.seconds), reader).subscription
+        fun runtime(timeout: Duration) = SubscriptionRuntime(
+            "shop",
+            InMemoryEventLog(1),
+            InMemoryCheckpointStore(),
+            InMemoryFailureLedger(),
+            listOf(subscription),
+            SubscriptionOptions(retry = RetryPolicy(timeout = timeout)),
+        )
+        val refused = assertThrows<IllegalArgumentException> { runtime(1.5.seconds) }
+        refused.message.assert().contains("Paced(wow.test.sink.interval=1s)")
+        refused.message.assert().contains("handler timeout of 1.5s")
+        refused.message.assert().contains("wow.subscription.retry.timeout")
+        // Half the timeout, and no timeout at all, take it.
+        runtime(2.seconds).group.assert().isEqualTo("shop")
+        runtime(Duration.INFINITE).group.assert().isEqualTo("shop")
     }
 
     @Test

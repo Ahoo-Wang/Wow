@@ -21,6 +21,8 @@ import me.ahoo.wow.runtime.subscription.LeaderBatches
 import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.sink.Sink
 import me.ahoo.wow.spi.state.StateEventRecord
+import kotlin.time.Duration
+import kotlin.time.TimeSource
 
 /**
  * How much of a run's records [SinkWrites.write] made durable: the first [done] of them; when [failure] is not null,
@@ -36,6 +38,10 @@ internal class Written(val done: Int, val failure: Throwable?)
  * - **One per sink, one write in flight**: the batch grows with the load, up to [maxBatch], whatever partition each
  *   run is of. Group commits by partition would only cut it: on a sink that writes one batch at a time (ClickHouse's
  *   one insert), four of them carried half the commits an insert one did, draining a backlog.
+ * - **Paced** ([Sink.minWriteInterval]): a write starts no sooner than the sink's interval after the previous one
+ *   started, unless [maxBatch] records are waiting, and the runs arriving meanwhile join it. Without it, a sink whose
+ *   write is fast is written as often as it returns, each write carrying only what arrived during the last: the
+ *   ClickHouse sink's inserts took 7 ms under the rc drill's load, 3,250 a minute of a few rows each (#6494).
  *
  * - **One leader, as [LeaderBatches] with one committer**: a run finding no write running leads one at once; the runs
  *   arriving while it runs wait for the next, which the leader writes too, until its own run is written. Then it hands
@@ -52,8 +58,12 @@ internal class Written(val done: Int, val failure: Throwable?)
  *   then handled alone by its lane, with one [Sink.write] of its own outside these batches, so no later batch
  *   carries it.
  */
-internal class SinkWrites(private val sink: Sink, maxBatch: Int) :
-    LeaderBatches<Written, SinkWrites.Run>(maxBatch, committers = 1, catchUp = 1, retireBelow = 0) {
+internal class SinkWrites(
+    private val sink: Sink,
+    maxBatch: Int,
+    interval: Duration = Duration.ZERO,
+    time: TimeSource.WithComparableMarks = TimeSource.Monotonic,
+) : LeaderBatches<Written, SinkWrites.Run>(maxBatch, committers = 1, catchUp = 1, retireBelow = 0, interval, time) {
     init {
         require(maxBatch >= 1) { "A sink write batch holds at least one record." }
     }

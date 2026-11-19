@@ -15,6 +15,7 @@ package me.ahoo.wow.spi.sink
 
 import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.spi.state.StateEventRecord
+import kotlin.time.Duration
 
 /**
  * Where a context's committed state events go: the Kafka Sink's topics, a warehouse's
@@ -32,6 +33,8 @@ import me.ahoo.wow.spi.state.StateEventRecord
  *   aggregate. Some records of a failed batch may have been written already: the retry writes them again.
  * - **Batches** ([maxBatch]): a sink that takes more than one record at once is handed the records of every
  *   aggregate's commits waiting together, at most [maxBatch]; one that does not say is handed one record a call.
+ * - **Paced** ([minWriteInterval]): a batching sink may ask for its writes to start no closer together than an
+ *   interval; the records arriving meanwhile join the next write.
  */
 @WowSpi
 fun interface Sink {
@@ -46,4 +49,16 @@ fun interface Sink {
      * out costs the timeout, and its aggregate's next attempt writes one record alone.
      */
     val maxBatch: Int get() = 1
+
+    /**
+     * The least time between the starts of two [write]s, zero by default: a sink's next write starts no sooner than
+     * this after its previous one started, unless [maxBatch] records are waiting, and the records arriving meanwhile
+     * join it. An idle sink writes at once; under load, one write per interval carries everything that arrived, each
+     * record at most one interval late; a backlog, whose batches are full, drains at the sink's full speed. A store
+     * that takes few large writes better than many small ones sets it (a warehouse's insert, each a part per table).
+     *
+     * Taken only with [maxBatch] above 1. A run of the sink's subscription waits within its handler's timeout, so the
+     * node refuses to start a sink whose interval is more than half that timeout.
+     */
+    val minWriteInterval: Duration get() = Duration.ZERO
 }

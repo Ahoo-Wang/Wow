@@ -268,7 +268,19 @@ The sink is a subscription, so a commit may reach it more than once: a retry, a 
 - Every table remembers its last `wow.clickhouse.sink.deduplication-window` (1,000) insert blocks, so a retried insert is dropped, from the views' tables too.
 - Beyond that window, the history tables are `ReplacingMergeTree`s keyed by the aggregate, version and event: a replayed row is merged away, and a read with `FINAL` counts every commit and event once.
 
-`wow.clickhouse.sink.batch-size` (1,000) is the most commits one insert carries. The sink's subscription hands it the commits of every aggregate waiting together, each aggregate's in version order, in one insert at a time: under load an insert carries many commits, and one part of each table, rather than one each; an idle sink adds no delay. An insert is one attempt within the subscription's handler timeout, so the batch size is sized for one insert to fit it.
+## How often the sink inserts {#how-often-the-sink-inserts}
+
+Each insert makes a part in each table it reaches, in every month its commits touch: in the base table `_state_events` and in the two tables the views fill, `_state` and `_events` (one part, in `_state`, without the history). ClickHouse then merges those parts, so what costs it is how many inserts it takes, more than how many rows they carry.
+
+- **One insert at a time per aggregate type on each node**, carrying the commits of every aggregate waiting together, each aggregate's in version order, at most `wow.clickhouse.sink.batch-size` (1,000).
+- **At most one insert a `wow.clickhouse.sink.insert-interval` (`PT1S`)** under load: an insert starts no sooner than that after the previous one started, unless a full batch is waiting, and the commits arriving meanwhile join it. A commit reaches ClickHouse at most one interval later than it would unpaced. An idle sink inserts at once, and a backlog, in full batches, drains at full speed.
+- **The ceiling under load** is therefore the nodes × the aggregate types the sink writes ÷ the interval: three nodes writing one aggregate type insert at most three times a second, nine parts a second.
+
+Without the interval (`0`) the sink inserts as often as an insert returns, each carrying what arrived during the last: in the release drill, thousands of inserts a minute of a few rows each, which a ClickHouse limited to 2 GiB refused under load ([#6494](https://github.com/Ahoo-Wang/Wow/issues/6494)). No memory figure for the paced sink is given here until a drill has measured it.
+
+An insert is one attempt within the subscription's handler timeout, and it may wait up to the interval before it starts: a node refuses to start a sink whose interval is more than half that timeout (`wow.subscription.retry.timeout`, or `wow.subscriptions.[<context>.<name>].retry.timeout`), naming both. Size the batch so that one insert of it fits the timeout too.
+
+The sink does not use ClickHouse's `async_insert`, and does not need it: it batches its inserts itself. Turned on for the sink's user, it must keep `wait_for_async_insert = 1`, so that an insert is answered once its rows are in a part; answered before, the sink would move its checkpoint past rows that a failed flush loses. With asynchronous inserts, the deduplication of a retried insert by its token holds only on replicated tables (`async_insert_deduplicate`); beyond it, the `ReplacingMergeTree` keys merge a replayed row away.
 
 ## Schema management
 

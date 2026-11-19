@@ -1225,6 +1225,7 @@ public final class me/ahoo/wow/spi/schema/EnsuredOnce {
 
 public abstract interface class me/ahoo/wow/spi/sink/Sink {
 	public fun getMaxBatch ()I
+	public fun getMinWriteInterval-UwyO8pc ()J
 	public abstract fun write (Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 

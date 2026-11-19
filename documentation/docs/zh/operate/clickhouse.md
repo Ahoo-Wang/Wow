@@ -268,7 +268,19 @@ Sink 是一个订阅，所以一次提交可能不止一次到达它：重试、
 - 每张表记住它最近的 `wow.clickhouse.sink.deduplication-window`（1,000）个插入块，所以重试的插入会被丢弃，视图的表也一样。
 - 超出这个窗口时，历史表是以聚合、版本和事件为键的 `ReplacingMergeTree`：重放的行会在合并中去掉，用 `FINAL` 读取时每次提交、每个事件都只计一次。
 
-`wow.clickhouse.sink.batch-size`（1,000）是一次插入最多携带的提交数。Sink 的订阅把所有聚合一同等待的提交交给它，每个聚合的按版本顺序，一次一个插入：负载下一次插入携带许多提交，每张表一个 part，而不是每次提交一个；空闲时 Sink 不增加任何延迟。一次插入是订阅处理器超时之内的一次尝试，所以批大小要让一次插入能在超时之内完成。
+## Sink 多久插入一次 {#how-often-the-sink-inserts}
+
+每次插入都会在它到达的每张表中、在它的提交涉及的每个月份里生成一个 part：基表 `_state_events`，以及两个视图写入的 `_state` 与 `_events`（不保留历史时只有 `_state` 一个 part）。ClickHouse 随后合并这些 part，所以它的开销取决于接收多少次插入，而不是这些插入携带多少行。
+
+- **每个节点上每个聚合类型一次只有一个插入**，携带所有聚合一同等待的提交，每个聚合的按版本顺序，最多 `wow.clickhouse.sink.batch-size`（1,000）条。
+- **负载下每个 `wow.clickhouse.sink.insert-interval`（`PT1S`）最多插入一次**：一次插入不早于上一次开始之后这么久开始，除非已有满批在等待；其间到达的提交并入这次插入。一个提交到达 ClickHouse 的时间，最多比不限速时晚一个间隔。空闲的 Sink 立即插入；积压的提交以满批写入，按全速清空。
+- **因此负载下的上限**是节点数 × Sink 写入的聚合类型数 ÷ 间隔：三个节点写一个聚合类型，每秒最多插入三次，每秒九个 part。
+
+不设间隔（`0`）时，Sink 在每次插入返回后立即开始下一次，每次只携带上一次插入期间到达的提交：在发布演练中，这是每分钟数千次、每次几行的插入，内存限制为 2 GiB 的 ClickHouse 在负载下拒绝了它们（[#6494](https://github.com/Ahoo-Wang/Wow/issues/6494)）。限速后的 Sink 需要多少内存，在演练测得之前，这里不给数字。
+
+一次插入是订阅处理器超时之内的一次尝试，而它开始之前可能要等待最多一个间隔：间隔超过该超时的一半时，节点拒绝启动这个 Sink，并指出两个设置（`wow.subscription.retry.timeout`，或 `wow.subscriptions.[<context>.<name>].retry.timeout`）。批大小也要让一次满批的插入能在超时之内完成。
+
+Sink 不使用 ClickHouse 的 `async_insert`，也不需要它：Sink 自己把插入成批。若为 Sink 的用户开启它，必须保持 `wait_for_async_insert = 1`，让插入在行进入 part 之后才得到应答；若在此之前应答，Sink 会把检查点移过那些在刷写失败时丢失的行。异步插入下，按令牌对重试的插入去重只在复制表上成立（`async_insert_deduplicate`）；除此之外，由 `ReplacingMergeTree` 的键把重放的行合并掉。
 
 ## schema 管理 {#schema-management}
 

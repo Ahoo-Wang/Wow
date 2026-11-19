@@ -16,7 +16,11 @@ package me.ahoo.wow.runtime.subscription
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.selects.select
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.yield
+import kotlin.time.ComparableTimeMark
+import kotlin.time.Duration
+import kotlin.time.TimeSource
 
 /**
  * The leader and follower writes of a subscription's lanes, all partitions together
@@ -29,6 +33,9 @@ import kotlinx.coroutines.yield
  *   writes run wait for the next, which a leader writes too, until its own request is written. Then it hands the lead
  *   to the oldest request still waiting, so each lane goes on as soon as its own request is done. One leader gathers
  *   at a time, so the requests ready together are one batch.
+ * - **Paced** ([interval], zero by default): a write starts no sooner than [interval] after the previous one started,
+ *   unless [maxBatch] is waiting; a leader due to start one earlier waits, and the requests arriving meanwhile join
+ *   its batch. The first write, and one after a pause of [interval] or more, starts at once.
  * - **A leader writes its own request**: a request leading is taken by no other leader's batch, so a leader's batch
  *   always holds its own request until it is written.
  * - **Behind, more writes**: a take that was full with requests still waiting raises the limit from [committers] to
@@ -51,11 +58,21 @@ internal abstract class LeaderBatches<R, W : LeaderBatches.Request<R>>(
     private val committers: Int,
     private val catchUp: Int,
     private val retireBelow: Int,
+    private val interval: Duration = Duration.ZERO,
+    private val time: TimeSource.WithComparableMarks = TimeSource.Monotonic,
 ) {
     init {
         require(committers >= 1) { "Batched writes take at least one committer." }
         require(catchUp >= committers) { "Batched writes catch up with at least their committers." }
+        require(!interval.isNegative()) { "The interval between two batched writes is never negative." }
+        require(!interval.isPositive() || catchUp == 1) { "Paced writes run one at a time." }
     }
+
+    /** When the last write started, by [time]; null before the first. Guarded by this object's monitor. */
+    private var lastStart: ComparableTimeMark? = null
+
+    /** Completed once [maxBatch] is waiting, so a paced leader starts at once. Guarded by this object's monitor. */
+    private var filled = CompletableDeferred<Unit>()
 
     /** How many requests may lead now: [committers], or [catchUp] while behind. Guarded by this object's monitor. */
     private var limit = committers
@@ -94,6 +111,9 @@ internal abstract class LeaderBatches<R, W : LeaderBatches.Request<R>>(
                 throw it
             }
             queue.addLast(request)
+            if (interval.isPositive() && waitingSize() >= maxBatch) {
+                filled.complete(Unit)
+            }
             (leaders < limit && !gathering).also {
                 if (it) {
                     leaders++
@@ -145,8 +165,13 @@ internal abstract class LeaderBatches<R, W : LeaderBatches.Request<R>>(
         try {
             yield()
             while (!own.result.isCompleted) {
+                pace()
                 // The own request waits in the queue until this leader's batch takes it, so a batch is never empty.
                 taken = synchronized(this) {
+                    lastStart = time.markNow()
+                    if (filled.isCompleted) {
+                        filled = CompletableDeferred()
+                    }
                     take(own).also {
                         if (!gathered) {
                             gathered = true
@@ -177,6 +202,26 @@ internal abstract class LeaderBatches<R, W : LeaderBatches.Request<R>>(
             }
         }
     }
+
+    /**
+     * Waits until [interval] has passed since the last write started, or until [maxBatch] is waiting: at once when
+     * the writes are not paced, before the first write, and after a pause of [interval] or more.
+     */
+    private suspend fun pace() {
+        if (!interval.isPositive()) {
+            return
+        }
+        val (signal, remaining) = synchronized(this) {
+            val last = lastStart ?: return
+            val remaining = interval - last.elapsedNow()
+            if (!remaining.isPositive() || waitingSize() >= maxBatch) return
+            filled to remaining
+        }
+        withTimeoutOrNull(remaining) { signal.await() }
+    }
+
+    /** Called under the monitor: the size of the requests waiting, which a paced write (one committer) takes. */
+    private fun waitingSize(): Int = queue.sumOf { it.size }
 
     /**
      * Writes [batch]; when the write throws anything but the leader's cancellation, which puts the batch back, each of

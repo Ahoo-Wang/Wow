@@ -34,6 +34,7 @@ import org.springframework.boot.autoconfigure.AutoConfigurations
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * The ClickHouse Sink, found as the Sink provider of type `clickhouse` (decisions D142, D164, finding R5.B-5): with
@@ -101,6 +102,7 @@ class HostClickHouseSinkTest {
             "wow.clickhouse.ddl=validate",
             "wow.clickhouse.sink.batch-size=50",
             "wow.clickhouse.sink.deduplication-window=200",
+            "wow.clickhouse.sink.insert-interval=250ms",
         ).run { context ->
             val config = SinkConfig.of(
                 "clickhouse",
@@ -112,6 +114,7 @@ class HostClickHouseSinkTest {
             options.ddl.assert().isEqualTo(Ddl.VALIDATE)
             options.batchSize.assert().isEqualTo(50)
             options.deduplicationWindow.assert().isEqualTo(200)
+            options.insertInterval.assert().isEqualTo(250.milliseconds)
         }
         runner.withPropertyValues(
             ENABLED,

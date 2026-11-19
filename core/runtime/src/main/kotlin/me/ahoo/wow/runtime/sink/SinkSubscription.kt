@@ -62,7 +62,8 @@ import me.ahoo.wow.spi.state.StateEventRecord
  * - **Batches**: a sink of [Sink.maxBatch] above 1 is handed runs: the subscription is a batching one
  *   ([Subscription.batching]), whose lane hands [writeRun] the run of an aggregate's entries waiting together, at
  *   most [Sink.maxBatch]; each entry's record is built in its own observation, and the runs of all lanes waiting
- *   together, of every partition, are written with one [Sink.write] ([SinkWrites], one per sink, one write in flight).
+ *   together, of every partition, are written with one [Sink.write] ([SinkWrites], one per sink, one write in flight),
+ *   no sooner than [Sink.minWriteInterval] after the previous one started unless [Sink.maxBatch] records wait.
  *   A run answers how many of its entries are done: those whose records are durable,
  *   and those that have none. A sink of [Sink.maxBatch] 1 is handed one record a call, its entries handled one by one.
  */
@@ -81,10 +82,15 @@ internal class SinkSubscription(
         require(
             reader.reader == name
         ) { "The sink $name reads the shared states as ${reader.reader}, not as itself." }
+        require(!sink.minWriteInterval.isPositive() || sink.maxBatch > 1) {
+            "The sink $sink of $name paces its writes (minWriteInterval ${sink.minWriteInterval}) but takes one " +
+                "record a write: only a batching sink (maxBatch above 1) is paced."
+        }
     }
 
     /** The batched writes of a sink of [Sink.maxBatch] above 1, of all its partitions; null for a sink of 1. */
-    private val writes: SinkWrites? = if (sink.maxBatch > 1) SinkWrites(sink, sink.maxBatch) else null
+    private val writes: SinkWrites? =
+        if (sink.maxBatch > 1) SinkWrites(sink, sink.maxBatch, sink.minWriteInterval) else null
 
     /** The subscription to register: of [type]'s streams only, every event of them. */
     val subscription: Subscription = if (writes == null) {
@@ -101,6 +107,8 @@ internal class SinkSubscription(
             name = name,
             filter = SubscriptionFilter(type.context, setOf(type.name)),
             maxRun = sink.maxBatch,
+            minRunInterval = sink.minWriteInterval,
+            paced = sink.toString(),
             startFrom = startFrom,
             decoder = EntryDecoder.stateEvents(reader, decodeEvents = false),
             runHandler = ::writeRun,
