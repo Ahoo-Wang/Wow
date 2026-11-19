@@ -18,6 +18,8 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.transport.TransportConfig
+import org.apache.kafka.common.KafkaException
+import org.apache.kafka.common.config.ConfigException
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import kotlin.time.Duration.Companion.milliseconds
@@ -121,8 +123,50 @@ class KafkaTransportProviderTest {
     }
 
     @Test
+    fun `brokers whose names do not resolve stop the start with a failure that names them and their setting`() {
+        val failure = assertThrows<WowConfigurationException> {
+            provider.open(config("bootstrap-servers" to "$UNRESOLVABLE:9092, $OTHER_UNRESOLVABLE:9092"))
+        }
+        failure.message.assert().isEqualTo(
+            "The Kafka bootstrap hosts $UNRESOLVABLE:9092, $OTHER_UNRESOLVABLE:9092 do not resolve, and the node " +
+                "cannot start without its brokers. Check the host names and the DNS that resolves them; once they " +
+                "resolve, the node starts.",
+        )
+        failure.key.assert().isEqualTo("wow.kafka.bootstrap-servers")
+        failure.value.assert().isEqualTo("$UNRESOLVABLE:9092, $OTHER_UNRESOLVABLE:9092")
+        // The client's own failure is its cause, and nothing else failed with it.
+        failure.cause.assert().isInstanceOf(KafkaException::class.java)
+        generateSequence(failure as Throwable) { it.cause }.last().assert().isInstanceOf(ConfigException::class.java)
+        failure.suppressed.assert().isEmpty()
+    }
+
+    @Test
+    fun `only the failure of names that do not resolve is reported so`() {
+        val config = config("bootstrap-servers" to "localhost:9092")
+        val options = KafkaTransportProvider.options(config)
+        KafkaTransportProvider.unresolved(config, options, KafkaException("Failed to construct kafka producer"))
+            .assert().isNull()
+        KafkaTransportProvider.unresolved(config, options, KafkaException(ConfigException("Invalid url")))
+            .assert().isNull()
+        // Names that resolve again by the time the failure is read: all of them are named.
+        KafkaTransportProvider.unresolved(
+            config,
+            options,
+            KafkaException(ConfigException("No resolvable bootstrap urls given in bootstrap.servers")),
+        )!!.message.assert().contains("hosts localhost:9092 do not resolve")
+    }
+
+    @Test
     fun `the provider is found on the classpath`() {
         java.util.ServiceLoader.load(me.ahoo.wow.spi.transport.TransportProvider::class.java).map { it.type }
             .assert().contains("kafka")
+    }
+
+    private companion object {
+        /** A name that never resolves: `.invalid` is reserved for that (RFC 6761). */
+        const val UNRESOLVABLE = "wow-unresolvable.invalid"
+
+        /** Another under `.invalid`: a resolver that answers any other name (a proxy's fake IP) answers neither. */
+        const val OTHER_UNRESOLVABLE = "wow-unresolvable-2.invalid"
     }
 }
