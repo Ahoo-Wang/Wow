@@ -199,7 +199,7 @@ class JsonReadFailuresTest {
             .with(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
         val text = WowJson.mapper.writeValueAsString(Priced(2, 3))
         val written = WowJson.mapper.readTree(text).propertyNames()
-        written.assert().containsExactlyInAnyOrder("price", "quantity", "total", "isFree")
+        written.assert().containsExactlyInAnyOrder("price", "quantity", "total", "isFree", "note")
         reader.readValue<Priced>(text).assert().isEqualTo(Priced(2, 3))
         reader.readValue<Priced>("""{"price":2,"quantity":3,"total":99,"note":"gift"}""").run {
             total.assert().isEqualTo(6)
