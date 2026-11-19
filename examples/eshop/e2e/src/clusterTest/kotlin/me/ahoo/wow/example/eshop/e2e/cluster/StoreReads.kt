@@ -46,6 +46,18 @@ interface StoreReads {
     /** The headers (request facts) of the last commit of [aggregate] [id], or a null node while there is none. */
     fun lastHeaders(context: String, aggregate: String, id: String): JsonNode
 
+    /** The ids of every [aggregate] the context's log holds: what a query's list, which lags behind it, must reach. */
+    fun aggregateIds(context: String, aggregate: String): Set<String>
+
+    /**
+     * The commits of [commandType] in the log of the context's [aggregate], each as the causation id the commands they
+     * cause carry: `eshop-<context>.<aggregate>/<tenant>/<id>@<version>`.
+     */
+    fun commitsOf(context: String, aggregate: String, commandType: String): Set<String>
+
+    /** The causation ids of the first commits of the context's [aggregate]: what caused each aggregate. */
+    fun firstCauses(context: String, aggregate: String): Set<String>
+
     companion object {
         /**
          * The reads of the arm [backend]: PostgreSQL through its node port, MongoDB through mongosh in its pod, as
@@ -82,6 +94,20 @@ class PostgresReads(private val url: String) : StoreReads {
 
     override fun snapshotsBehind(context: String): List<Map<String, Any?>> = database(context) { database ->
         database.logTables().values.flatMap(database::snapshotsBehind)
+    }
+
+    override fun aggregateIds(context: String, aggregate: String): Set<String> = database(context) { database ->
+        database.aggregateIds(database.logTables().getValue(aggregate))
+    }
+
+    override fun commitsOf(context: String, aggregate: String, commandType: String): Set<String> =
+        database(context) { database ->
+            database.commitsOf(database.logTables().getValue(aggregate), commandType)
+                .map { (tenant, id, version) -> "eshop-$context.$aggregate/$tenant/$id@$version" }.toSet()
+        }
+
+    override fun firstCauses(context: String, aggregate: String): Set<String> = database(context) { database ->
+        database.firstCauses(database.logTables().getValue(aggregate))
     }
 
     override fun lastHeaders(context: String, aggregate: String, id: String): JsonNode =
@@ -195,6 +221,24 @@ class MongoReads(private val kube: Kube, private val user: String? = null) : Sto
         "const d = db.getCollection('wow_log__eshop_${context}__$aggregate').find({ aggregate_id: '$id' })" +
             ".sort({ version: -1 }).limit(1).toArray(); return d.length ? d[0].headers : null",
     )
+
+    override fun aggregateIds(context: String, aggregate: String): Set<String> = eval(
+        context,
+        "return db.getCollection('wow_log__eshop_${context}__$aggregate').distinct('aggregate_id')",
+    ).values().map { it.asString() }.toSet()
+
+    override fun commitsOf(context: String, aggregate: String, commandType: String): Set<String> = eval(
+        context,
+        "return db.getCollection('wow_log__eshop_${context}__$aggregate').find({ command_type: '$commandType' }, " +
+            "{ _id: 0, tenant_id: 1, aggregate_id: 1, version: 1 }).toArray()" +
+            ".map(c => 'eshop-$context.$aggregate/' + c.tenant_id + '/' + c.aggregate_id + '@' + c.version)",
+    ).values().map { it.asString() }.toSet()
+
+    override fun firstCauses(context: String, aggregate: String): Set<String> = eval(
+        context,
+        "return db.getCollection('wow_log__eshop_${context}__$aggregate').distinct('causation.causation_id', " +
+            "{ version: 1 })",
+    ).values().map { it.asString() }.toSet()
 
     /** An expiry as relaxed Extended JSON writes it: a number of milliseconds, or a `{"${'$'}date": …}`. */
     private fun millis(node: JsonNode?): Long = when {

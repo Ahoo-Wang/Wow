@@ -50,10 +50,12 @@ class SearchStore(
         check(events.status == ShopFlows.OK && json.readTree(events.body).size() > 0) {
             "the product events search answered ${events.status}: ${events.body.take(BODY)}"
         }
-        val indices = indices()
-        check(indices.getOrDefault(SNAPSHOT_INDEX, 0) >= Deployment.PRODUCTS.size) { "Elasticsearch holds $indices" }
-        check(indices.getOrDefault(EVENTS_INDEX, 0) > 0) { "Elasticsearch holds $indices" }
-        return "${listed.size} products found by their search, their events too, from Elasticsearch: $indices"
+        var counts = emptyMap<String, Int?>()
+        flows.eventually("the products' documents counted on Elasticsearch", COUNTED, { "it counts $counts" }) {
+            counts = INDICES.associateWith(::count)
+            (counts[SNAPSHOT_INDEX] ?: 0) >= Deployment.PRODUCTS.size && (counts[EVENTS_INDEX] ?: 0) > 0
+        }
+        return "${listed.size} products found by their search, their events too, from Elasticsearch: $counts"
     }
 
     fun outage(): String {
@@ -117,12 +119,15 @@ class SearchStore(
     private fun found(answer: Answer, id: String): Boolean = answer.status == ShopFlows.OK &&
         json.readTree(answer.body).values().any { it["aggregateId"]?.asString() == id }
 
-    /** The documents of each index Elasticsearch holds, as the shop's probe pod reads them. */
-    private fun indices(): Map<String, Int> =
-        network.elasticsearch("insider", "elasticsearch", ELASTICSEARCH, "/_cat/indices?h=index,docs.count")
-            .lineSequence().map { it.trim().split(Regex("\\s+")) }
-            .filter { it.size == 2 && it[1].all(Char::isDigit) }
-            .associate { (index, count) -> index to count.toInt() }
+    /**
+     * The documents of [index] as a search counts them (`_count`), from the shop's probe pod; null when it does not
+     * answer one. Not `_cat/indices`: its `docs.count` is the primary copy's last refresh, and a copy that has served
+     * no search for 30 s skips its scheduled refreshes (Elasticsearch's `index.search.idle.after`), so it can stay
+     * short of documents written minutes before. A search on such a copy refreshes it first.
+     */
+    private fun count(index: String): Int? =
+        COUNT.find(network.elasticsearch("insider", "elasticsearch", ELASTICSEARCH, "/$index/_count"))
+            ?.groupValues?.get(1)?.toInt()
 
     private fun byId(id: String): String = """{"op":"aggregate-id","value":"$id"}"""
 
@@ -136,10 +141,15 @@ class SearchStore(
         const val PROBE_BASE = 3
         const val PRICES = 5
         const val BODY = 600
+        val INDICES = listOf(SNAPSHOT_INDEX, EVENTS_INDEX)
+        val COUNT = Regex("\"count\"\\s*:\\s*(\\d+)")
 
         /** Commands and states must never wait on the search: no probe may fail. */
         val OUTAGE_BOUND: Duration = Duration.ZERO
         val DOWN: Duration = Duration.ofMinutes(3)
         val CATCH_UP: Duration = Duration.ofMinutes(5)
+
+        /** A count is at most a refresh interval (1 s) behind the writes: the bound only spares a slow answer. */
+        val COUNTED: Duration = Duration.ofSeconds(30)
     }
 }

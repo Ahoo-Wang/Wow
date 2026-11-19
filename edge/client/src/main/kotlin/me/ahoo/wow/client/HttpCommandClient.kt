@@ -63,9 +63,13 @@ import kotlin.time.Duration.Companion.seconds
  *   [CommandRequest.targetTenant]), scope (or [CommandRequest.targetScope]), operator and application as the root
  *   context, a new command id its own root; the peer answers once the command is committed, so [send], [wait] and
  *   [stream] answer that one result, whatever the request's wait plan;
- * - in user mode, on the public routes with the forwarded credential: the wait plan as `Wow-Wait` and its timeout as
- *   `Wow-Wait-Timeout` ([send] waits for ACCEPTED), the target scope as `Wow-Scope`, and [stream] reads the results
- *   as server-sent events, one per hop.
+ * - in user mode, on the public routes with the forwarded credential: the wait plan as `Wow-Wait` ([send] waits for
+ *   ACCEPTED), the target scope as `Wow-Scope`, and [stream] reads the results as server-sent events, one per hop.
+ *
+ * In either mode the plan's timeout goes as `Wow-Wait-Timeout`, and the request waits for its answer that long and
+ * [RESPONSE_GRACE] more, whatever the transport's timeout (`wow.peer.timeout`), which bounds what has no wait: the
+ * peer answers 504 at the wait's end, so a peer that has not answered by then never will, and a request sent on a
+ * connection to a node that is gone without closing it ends then instead of at the transport's timeout (#6517).
  *
  * Every command carries its request id (`Wow-Request-Id`, the request's or a new one, kept by every retry) and its
  * expected version (`If-Match`). A problem the peer answers is a [CommandRejectedException] when the command was
@@ -169,7 +173,9 @@ class HttpCommandClient internal constructor(
             call = root,
             headers = headers,
             body = CommandBodies.of(declared.name, body, declared.idProperty, id),
-            timeout = plan?.timeout?.let { it + RESPONSE_GRACE }?.takeIf { it > transport.timeoutOf(type.context) },
+            // A command with a wait is answered within it: the peer answers 504 at its end, so the request waits no
+            // longer, whatever the transport's timeout. wow.peer.timeout bounds what has no wait.
+            timeout = plan?.timeout?.let { it + RESPONSE_GRACE },
         )
         val what = if (command is NamedCommand) command.name else command.javaClass.simpleName
         return Sent(http, "The command $what to $type${id?.let { "/$it" }.orEmpty()}")
@@ -187,12 +193,11 @@ class HttpCommandClient internal constructor(
     ): Map<String, String> = buildMap {
         put(WowHeaders.REQUEST_ID, currentCoroutineContext().requestIdOf(request.requestId) ?: ids.next())
         request.expectedVersion?.let { put(WowHeaders.IF_MATCH, "\"$it\"") }
+        // The wait the request is bounded by, stated so the peer answers within it, on either port.
+        plan?.timeout?.let { put(WowHeaders.WAIT_TIMEOUT, WaitHeader.formatTimeout(it)) }
         if (transport.mode is ClientMode.User) {
             // The default plan sends no wait: the service picks it, the snapshot or the commit where there is none.
             plan?.takeUnless { it.isDefault }?.let { put(WowHeaders.WAIT, WaitHeader.format(it)) }
-            // A plan's own timeout, or the request's; the peer's default timeout otherwise.
-            plan?.timeout?.takeIf { request.timeout != null || it != WaitPlan.DEFAULT_TIMEOUT }
-                ?.let { put(WowHeaders.WAIT_TIMEOUT, WaitHeader.formatTimeout(it)) }
             if (targeted) {
                 put(
                     WowHeaders.SCOPE,

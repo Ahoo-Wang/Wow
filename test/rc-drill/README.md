@@ -128,13 +128,19 @@ DRILL_KUBECTL=/opt/homebrew/bin/kubectl DRILL_EVIDENCE=build/rc-drill/beta.10 DR
 
 Both runs go one step at a time, each command on its own (`drill.sh tools`, then `drill.sh artifacts 10.0.0-beta.10`, and so on), so a stop is seen when it happens. `tools` and `artifacts` stop the run before any cluster exists.
 
+The window is the machine's batch lock (`test/benchmarks/harness/lock.sh`). Take it first, with `bench.sh lock --owner=<name> --wait`, then export `WOW_BENCH_OWNER=<name>` in the shell that runs the steps. A step, run on its own or re-run by hand, is `drill.sh step <name> <command> [<argument>...]`, as `run` names it: for example `drill.sh step 3-e2e e2e functional`. It is timed into `steps.tsv` like the others. `step` and `run` never wait for the lock, as `quiet.sh` would. Outside the window, or in a shell whose `WOW_BENCH_OWNER` does not name the lock's holder, they stop at once and say which.
+
 With a previous version, the run installs that version first, then upgrades to the new one under load (step 4).
 - `DRILL_UPGRADE` is the drill's decision, taken from `drill.sh compare <previous> <version>`, which lists what changed between the two in the stores, the cluster channel and the configuration:
   - `rolling` when nothing there stops a running deployment from crossing;
   - `restart` otherwise: a fresh install of the new version, then a rolling restart at that version under load.
 - The run refuses to guess.
 
-**Evidence.** Each step is timed in the evidence folder (`steps.tsv`, `steps/<step>.log`), and every pod's logs of the step, its current and previous containers', are kept in `logs/<step>/` before the next step starts, so a later reinstall or drain cannot take them. Beside them:
+**Evidence.** Each step is timed in the evidence folder (`steps.tsv`, `steps/<step>.log`), and every pod's logs of the step, its current and previous containers', are kept in `logs/<step>/` before the next step starts, so a later reinstall or drain cannot take them.
+
+A pod a fault deletes has no logs left to keep, so the services' agents also send their logs to the collector. The collector writes each one to its own output, one OTLP JSON line per batch, each record naming its `k8s.pod.name`. A deleted pod's lines are then in the collector's log of that step, `logs/<step>/otel-collector-*.collector.log`.
+
+Beside the logs:
 - the artifacts' check;
 - the comparison;
 - the end-to-end reports (`e2e/<label>/`);
@@ -163,6 +169,12 @@ The folder stays on the machine. `drill.sh teardown` deletes the cluster.
     - `load`: full-chain checkouts by `ga.load.clients` buyers at once (4), a probe measuring every failure, until a stop file. With `ga.load.stop-file`, `ga.load.bound` (the bound of the failures' window) and `load.started` in its report folder once its first checkout is answered, so `drill.sh` starts an operation only under load.
 
     Every run then checks that no Wow container restarted and every Wow pod is ready, and judges the invariants over the whole drill.
+
+    **The verdict's rule.** It judges a chain from its origin, the basket's checkouts, not from one hop in: a checkout's saga can still be submitting its order after the load stops, for tens of seconds across a partition hand-off. Before it judges, within one bound (5 minutes), it waits twice:
+    1. until every `CheckoutBasket` in the basket's log has its order in the ordering's log, matched by the order's causation;
+    2. until the order list (the ordering's snapshot query, which lags behind that log) holds every order of the log, and every order is settled (paid, shipped or cancelled), which includes its stock and payment legs.
+
+    It reads the stock only after both waits. Nothing is dropped silently: a checkout without an order once the bound has passed, an order the list lacks, or a state read that answers nothing each fails the verdict by name. It prints how long each wait took, and the counts it judged: the orders listed, the orders in the log, the checkouts in the basket's log, and the orders of any other origin.
 
 ## Not covered here
 

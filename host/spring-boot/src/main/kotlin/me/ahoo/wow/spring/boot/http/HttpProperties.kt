@@ -167,8 +167,9 @@ class PeerProperties {
     var mode: PeerMode = PeerMode.SERVICE
 
     /**
-     * How long a request may take to be answered, a command's longer wait aside; `wow.peers.<context>.timeout`
-     * overrides it for one peer.
+     * How long a request without a wait, a query or a read, may take to be answered. A command or a saga's call waits
+     * for its answer its own wait, which it states as `Wow-Wait-Timeout`, and a grace after it: a call's wait at most
+     * this long. `wow.peers.<context>.timeout` overrides it for one peer.
      */
     var timeout: Duration = WowClient.DEFAULT_TIMEOUT.toJavaDuration()
 

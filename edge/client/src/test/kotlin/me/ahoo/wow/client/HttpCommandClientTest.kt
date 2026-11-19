@@ -298,7 +298,8 @@ class HttpCommandClientTest {
         val request = peer.taken.single()
         request.path.assert().isEqualTo("/mail/box/deliver-items")
         request.headers[WowHeaders.WAIT].assert().isEqualTo("accepted")
-        request.headers.containsKey(WowHeaders.WAIT_TIMEOUT).assert().isFalse()
+        // The wait the request is bounded by, stated (#6517): the peer answers within it.
+        request.headers[WowHeaders.WAIT_TIMEOUT].assert().isEqualTo("10s")
         request.headers.containsKey("Authorization").assert().isFalse()
         // A request that waits for more fails before anything is sent.
         caught<IllegalArgumentException> {
