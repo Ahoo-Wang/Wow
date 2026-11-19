@@ -377,6 +377,7 @@ V10 新增、9.x 没有对应的：
 - 基于 `AggregateVerifier` 的 Java 测试，以及对 `suspend` API（`DecideScope.reserve`、`SagaContext.call`）的 Java 调用：只支持 Kotlin；
 - 在类路径上发现的 Jackson 模块，以及没有公共 getter 的字段：`WowJson` 两者都不应用；
 - 宿主的 Jackson 设置：Wow 的 JSON 是它自己的映射器，所以 `spring.jackson.*`、Jackson 定制器 bean，以及 `ObjectMapper` 或 `JsonMapper` bean，都影响不到 Wow 读写的任何内容，包括命令体。通过 Spring 配置不区分大小写地读取枚举值的 9.x 服务，会拒绝把 `"paid"` 读作 `PAID`；应当接受任意大小写的属性要自己声明，`@field:JsonFormat(with = [JsonFormat.Feature.ACCEPT_CASE_INSENSITIVE_VALUES])`（标在枚举类上不起作用）；
+- 发送了 JSON 种类与属性不同的值的客户端，比如数字写成 `"7"`、`String` 写成 `1`、整数写成 `1.5`：9.x 的 JSON 会强制转换它，Wow 的 JSON 以 `wow.command.malformed` 拒绝它，并指出属性（[JSON 中的值](../reference/json-values)）。客户端发送 Manifest 的 schema 给出的形式；
 - 状态事件重发和按版本重新分发：10.x 之前都没有；改为重试停放的条目；
 - 在运行时注册的 `MessageFunction`：把它改写为带注解的处理器。
 

@@ -110,7 +110,7 @@ internal class PeerAdmission(
         val early = if (idProperty != null) {
             bodies.bodyProblem(request.body)?.let { return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it) }
             val decoded = bodies.decode(request.body, commandType.type)
-                ?: return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, "The body is not a ${peer.name}.")
+                .orElse { return facts.undecodable(it, peer.name) }
             val named = bodyId(peer.name, request.aggregateId, peer.creation) {
                 BodyAggregateIds.of(mapper.valueToTree(decoded.value), idProperty)
             }
@@ -131,8 +131,7 @@ internal class PeerAdmission(
         // 4. The body, unless it was read for its aggregate.
         val decoded = early ?: run {
             bodies.bodyProblem(request.body)?.let { return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it) }
-            bodies.decode(request.body, commandType.type)
-                ?: return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, "The body is not a ${peer.name}.")
+            bodies.decode(request.body, commandType.type).orElse { return facts.undecodable(it, peer.name) }
         }
         AdmissionLimits.oversizedBody(decoded.value)?.let { return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it) }
         // 6. Validation.

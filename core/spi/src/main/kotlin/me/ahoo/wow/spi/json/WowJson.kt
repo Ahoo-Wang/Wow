@@ -52,6 +52,9 @@ import tools.jackson.module.kotlin.KotlinModule
  *   prints it: `2026-01-02T03:04:05+08:00` reads as `+08:00`, not as the same instant at UTC, which is Jackson's
  *   default. So a state that holds the offset of its event is the state its log rebuilds. A `ZonedDateTime` is
  *   written with its offset, not its region's name, and reads back in that fixed offset.
+ * - A read refuses what Wow never writes and Jackson would coerce or read loosely ([StrictReads]): a float or a
+ *   string for an integer, a number for a boolean or a `String`, a string for a number, a time on a `LocalDate`. The
+ *   numbers and arrays its JSON wrote for dates and times before 9.0 still read.
  * - A [me.ahoo.wow.spi.log.Transport] is written in its one form ([TransportCodec]), wherever a
  *   message embeds one.
  * - JSON numbers keep their exact value. A decimal read into an untyped value (`Any`, `Map<String, Any?>`) or a tree
@@ -89,6 +92,7 @@ object WowJson {
         .enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS)
         .disable(JsonNodeFeature.STRIP_TRAILING_BIGDECIMAL_ZEROES)
         .disable(DateTimeFeature.ADJUST_DATES_TO_CONTEXT_TIME_ZONE)
+        .let(StrictReads::configure)
 
     /** The mapper of Wow's configuration, as [builder] makes it. */
     val mapper: JsonMapper = builder().build()

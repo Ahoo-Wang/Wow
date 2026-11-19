@@ -93,14 +93,34 @@ class CommandGatewayRefusalsTest : CommandGatewayFixtures() {
     }
 
     @Test
-    fun `a body that does not decode as the command is malformed`(): Unit = runBlocking {
+    fun `a body that does not decode as the command is malformed, naming the property and why`(): Unit = runBlocking {
         val gateway = gateway()
-        gateway.execute(request(body = "{not json")).assertRefused(FrameworkCodes.COMMAND_MALFORMED)
-        gateway.execute(request(body = """{"quantity":2}""")).assertRefused(FrameworkCodes.COMMAND_MALFORMED)
-        gateway.execute(
-            request(body = """{"sku":"apple","quantity":"many"}""")
-        ).assertRefused(FrameworkCodes.COMMAND_MALFORMED)
-        gateway.execute(request(body = "null")).assertRefused(FrameworkCodes.COMMAND_MALFORMED)
+        suspend fun malformed(body: String, vararg violations: Violation) = gateway.execute(request(body = body)).run {
+            assertRefused(FrameworkCodes.COMMAND_MALFORMED)
+            error!!.message.assert().isEqualTo("The body is not a $CONTEXT.cart.AddItem.")
+            error!!.violations.assert().describedAs(body).containsExactly(*violations)
+        }
+        // Not JSON, or no value: nothing to name.
+        malformed("{not json")
+        malformed("null")
+        malformed("""{"quantity":2}""", Violation.of("sku", "wrong-kind", "Expected a string, given none."))
+        malformed(
+            """{"sku":"apple","quantity":"many"}""",
+            Violation.of("quantity", "wrong-kind", "Expected an integer, given a string."),
+        )
+        malformed(
+            """{"sku":"apple","quantity":1.5}""",
+            Violation.of("quantity", "wrong-kind", "Expected an integer, given a number."),
+        )
+        malformed(
+            """{"sku":"apple","quantity":2147483648}""",
+            Violation.of("quantity", "out-of-range", "Out of range: -2147483648 to 2147483647."),
+        )
+        malformed("""["apple"]""", Violation.of("", "wrong-kind", "Expected an object, given an array."))
+        // A tree is read as its text is.
+        val quantity = JsonMapper.builder().build().readTree("""{"sku":"pear","quantity":true}""")
+        gateway.execute(request().copyWith(body = CommandBody.Tree(quantity))).error!!.violations.assert()
+            .containsExactly(Violation.of("quantity", "wrong-kind", "Expected an integer, given a boolean."))
         decided.assert().isEmpty()
         val tree = JsonMapper.builder().build().readTree("""{"sku":"pear","quantity":3}""")
         gateway.execute(request().copyWith(body = CommandBody.Tree(tree))).status
