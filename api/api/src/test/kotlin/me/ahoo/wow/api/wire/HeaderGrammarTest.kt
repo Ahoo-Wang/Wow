@@ -86,7 +86,9 @@ class HeaderGrammarTest {
         WaitHeader.parseTimeout("PT1.5S").assert().isEqualTo(1500.milliseconds)
         WaitHeader.formatTimeout(10.seconds).assert().isEqualTo("10s")
         WaitHeader.formatTimeout(1500.milliseconds).assert().isEqualTo("1500ms")
-        listOf("0s", "PT0S", "-PT1S", "10", "ten seconds", "10h").forEach { value ->
+        WaitHeader.parseTimeout("1ms").assert().isEqualTo(1.milliseconds)
+        // One form for each unit, with no space before it; nothing below a millisecond.
+        listOf("0s", "PT0S", "-PT1S", "10", "ten seconds", "10h", "10 s", "500 ms", "PT0.0001S").forEach { value ->
             assertThrownBy<IllegalArgumentException> { WaitHeader.parseTimeout(value) }
         }
     }
@@ -97,7 +99,6 @@ class HeaderGrammarTest {
             .assert().isEqualTo(TargetScope("t1", Scope("u1", "s1")))
         ScopeHeader.parse("owner=u1").assert().isEqualTo(TargetScope(null, Scope("u1")))
         ScopeHeader.parse("""space="a \"b\" \\ c"""").scope.spaceId.assert().isEqualTo("""a "b" \ c""")
-        ScopeHeader.parse("""owner="u1",owner="u2"""").scope.ownerId.assert().isEqualTo("u2")
         val target = TargetScope("t1", Scope("u\"1", "s1"))
         ScopeHeader.parse(ScopeHeader.format(target)).assert().isEqualTo(target)
     }
@@ -107,6 +108,8 @@ class HeaderGrammarTest {
         strings = [
             "", "owner", "owner=", "region=eu", "owner=u1;x=1", "owner=\"u1", "owner=u1,", "Owner=u1",
             "owner=\"\"", "owner=1", "owner=u1 space=s1",
+            // A member given twice: no proxy that appends one chooses the scope.
+            "owner=\"u1\",owner=\"u2\"", "tenant=a, tenant=b",
         ],
     )
     fun `what is not such a dictionary does not parse`(value: String) {

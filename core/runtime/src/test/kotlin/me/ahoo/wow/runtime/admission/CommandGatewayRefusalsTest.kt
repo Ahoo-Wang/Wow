@@ -191,6 +191,33 @@ class CommandGatewayRefusalsTest : CommandGatewayFixtures() {
     }
 
     @Test
+    fun `an aggregate id no store keeps as given is malformed, whatever its length`(): Unit = runBlocking {
+        // #6501: each was accepted and stored, NUL and the white space as another aggregate than the one without it.
+        val gateway = gateway()
+        mapOf(
+            "a\u0000b" to "control character",
+            "a\u007fb" to "control character",
+            "a\u0085b" to "control character",
+            " c-1" to "white space",
+            "c-1\u00a0" to "white space",
+            "." to "relative path segment",
+            ".." to "relative path segment",
+        ).forEach { (id, why) ->
+            val refused = gateway.execute(request(aggregateId = id))
+            refused.assertRefused(FrameworkCodes.COMMAND_MALFORMED)
+            refused.error!!.message.assert().contains(why)
+        }
+        decided.assert().isEmpty()
+        // A dot inside an id, a space within it, and a unicode id are ids of their own.
+        listOf("a.b", "...", "a b", "购").forEach { id ->
+            gateway.execute(request(aggregateId = id, wait = WaitPlan.COMMITTED)).status
+                .assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+        }
+        AggregateIds.unaddressable(null).assert().isNull()
+        AggregateIds.unaddressable(" ").assert().isNull()
+    }
+
+    @Test
     fun `a request's ids are checked before the creation lookup reads the store for its request id`(): Unit =
         runBlocking {
             val looked = CopyOnWriteArrayList<String>()

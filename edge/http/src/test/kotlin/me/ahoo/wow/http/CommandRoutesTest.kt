@@ -218,11 +218,16 @@ class CommandRoutesTest {
     }
 
     @Test
-    fun `an If-Match no version can meet is 412 before the command runs`() {
-        listOf("\"abc\"", "W/\"0\"", "\"-1\"").forEach { tag ->
+    fun `an If-Match that names no version is malformed, not a mismatch`() {
+        // Weak, not a version, a leading zero, past an Int: no version was given (#6501).
+        listOf("\"abc\"", "W/\"0\"", "\"-1\"", "W/\"1\"", "\"03\"", "\"2147483648\"").forEach { tag ->
             node.post("/shop/cart/c-1/add-item", """{"sku":"apple"}""", headers = mapOf(WowHeaders.IF_MATCH to tag))
-                .assertProblem(412, FrameworkCodes.AGGREGATE_VERSION_MISMATCH, withResult = false)
+                .assertProblem(400, FrameworkCodes.REQUEST_MALFORMED, withResult = false)
         }
+    }
+
+    @Test
+    fun `an If-Match no aggregate can meet is 412 before the command runs`() {
         // A command that always creates its aggregate meets no *: there is none yet.
         node.post("/shop/cart/open-cart", """{"note":"hi"}""", headers = mapOf(WowHeaders.IF_MATCH to "*"))
             .assertProblem(412, FrameworkCodes.AGGREGATE_VERSION_MISMATCH, withResult = false)

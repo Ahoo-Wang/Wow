@@ -26,8 +26,10 @@ import me.ahoo.wow.api.query.CrossTenant
  * every tenant, or an inner list of strings or tokens, `tenant=("t1" "t2")`.
  *
  * A member that is not one of them, one without a value, a value that is not a string or a token (or, for a query's
- * `tenant`, an inner list of them), a member with parameters, and a dictionary without members are malformed. As
- * RFC 8941 says, a member given twice takes its last value.
+ * `tenant`, an inner list of them), a member with parameters, a member given twice, and a dictionary without members
+ * are malformed. RFC 8941 lets a member given twice take its last value; here it is refused, so no proxy that appends
+ * one chooses the scope. The lines of a header given more than once are one dictionary, joined by commas, as the
+ * routes read them.
  *
  * It is public as the one parser of a public header: a gateway in front of a node, or a host of its own, reads
  * `Wow-Scope` exactly as Wow does.
@@ -110,6 +112,7 @@ object ScopeHeader {
             while (at < input.length) {
                 val key = key()
                 require(peek() == '=') { "Wow-Scope member $key has no value." }
+                require(key !in members) { "Wow-Scope names $key twice." }
                 at++
                 members[key] = if (peek() == '(') innerList() else Member(listOf(item()), inner = false)
                 skipSpaces()

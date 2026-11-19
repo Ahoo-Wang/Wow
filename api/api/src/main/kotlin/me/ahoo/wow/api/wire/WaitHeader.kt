@@ -42,7 +42,8 @@ import java.time.Duration as JavaDuration
  * committed(inventory)`. A subscription is named as in the Manifest and may hold dots (`processor.function`), so the
  * context of a `handled` hop is set apart by `/`. `handled(wow.snapshot)` is the same hop as `snapshot`, and
  * `handled(wow.queryable)` as `queryable`: the commit is in the store the aggregate type's snapshot queries read. The
- * timeout is `<n>ms`, `<n>s`, `<n>m` or an ISO-8601 duration (`PT10S`), and positive.
+ * timeout is `<n>ms`, `<n>s`, `<n>m` with no space between the number and its unit, or an ISO-8601 duration (`PT10S`),
+and one millisecond or more.
  *
  * [format] prints a plan as [parse] reads it, the inverse of [parse].
  */
@@ -50,7 +51,7 @@ import java.time.Duration as JavaDuration
 object WaitHeader {
     private val HOP = Regex("""^([A-Za-z]+)\s*(?:\(\s*([^()]*?)\s*\))?$""")
     private val NAME = Regex("""^[A-Za-z0-9_.\-]+$""")
-    private val SHORT_TIMEOUT = Regex("""^(\d{1,9})\s*(ms|s|m)$""")
+    private val SHORT_TIMEOUT = Regex("""^(\d{1,9})(ms|s|m)$""")
 
     /** The plan [value] spells. */
     fun parse(value: String): WaitPlan {
@@ -124,7 +125,7 @@ object WaitHeader {
         } catch (_: DateTimeParseException) {
             throw IllegalArgumentException("Not a timeout: '$value'; write 500ms, 10s or an ISO-8601 duration.")
         }
-        require(duration.isPositive()) { "A wait timeout is positive: '$value'." }
+        require(duration >= 1.milliseconds) { "A wait timeout is one millisecond or more: '$value'." }
         return duration
     }
 

@@ -25,8 +25,10 @@ import java.util.HexFormat
  * - A header is `*` or a comma-separated list of entity tags, each `"<opaque>"` or weak `W/"<opaque>"` ([parse]).
  *   Anything else does not parse.
  * - `If-Match` compares strongly ([versions]): a weak tag never matches, and a strong one names the aggregate's
- *   version as a state read tags it (`"3-…"`) or alone (`"3"`). Any other tag names no version, so matches none.
- *   A command takes one expected version ([ifMatch]).
+ *   version as a state read tags it (`"3-…"`, the digest not compared) or alone (`"3"`), in decimal with no leading
+ *   zero and within an `Int`. Any other tag names no version, so matches none. A command takes one expected version
+ *   ([ifMatch]): a header whose tags name none (`W/"3"`, `"03"`, `"2147483648"`) gave no version, so is malformed,
+ *   not a mismatch.
  * - `If-None-Match` compares weakly ([matchesWeakly]): `W/` is ignored, and `*` matches any tag.
  */
 internal object EntityTags {
@@ -99,7 +101,7 @@ internal object EntityTags {
     /**
      * What the `If-Match` [value] of a command that [creates] its aggregate or not asks: the one version its strong
      * tags name, however many name it; none for `*`, unless the command creates, whose aggregate meets no `*`. Tags
-     * naming two versions or more, or a header that does not parse, are malformed; tags naming none never match.
+     * naming no version or two versions or more, and a header that does not parse, are malformed.
      */
     fun ifMatch(value: String, creates: Boolean): IfMatch = when (val condition = parse(value)) {
         null -> IfMatch.Refused(true, "If-Match is * or a list of entity tags, such as \"3\": '$value'.")
@@ -113,7 +115,10 @@ internal object EntityTags {
         is Condition.Listed -> {
             val versions = versions(condition.tags)
             when (versions.size) {
-                0 -> IfMatch.Refused(false, "If-Match names no version of the aggregate: '$value'.")
+                0 -> IfMatch.Refused(
+                    true,
+                    "If-Match names no version of the aggregate, as a strong tag such as \"3\" does: '$value'.",
+                )
                 1 -> IfMatch.Version(versions.single())
                 else -> IfMatch.Refused(
                     true,

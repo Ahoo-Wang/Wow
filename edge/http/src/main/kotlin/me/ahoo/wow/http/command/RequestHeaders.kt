@@ -83,7 +83,7 @@ internal class RequestHeaders(
         scope(request, malformed, ScopeHeader::parseQuery)
 
     private fun <T> scope(request: ServerRequest, malformed: String, parse: (String) -> T): T? =
-        request.header(WowHeaders.SCOPE)?.let {
+        request.lines(WowHeaders.SCOPE)?.let {
             try {
                 parse(it)
             } catch (invalid: IllegalArgumentException) {
@@ -104,7 +104,7 @@ internal class RequestHeaders(
      * - A header that does not parse is [FrameworkCodes.REQUEST_MALFORMED].
      */
     fun expectedVersion(request: ServerRequest, context: String, creates: Boolean): Int? {
-        val value = request.header(WowHeaders.IF_MATCH) ?: return null
+        val value = request.lines(WowHeaders.IF_MATCH) ?: return null
         return when (val match = EntityTags.ifMatch(value, creates)) {
             is EntityTags.IfMatch.Version -> match.version
             EntityTags.IfMatch.Unconditional -> null
@@ -230,6 +230,13 @@ internal class RequestHeaders(
 
     private fun ServerRequest.header(name: String): String? = headers().firstHeader(name)?.trim()
 
+    /**
+     * The lines of the list header [name] as one, joined by commas: a dictionary (`Wow-Scope`, RFC 8941 §3.2) or a
+     * list (`If-Match`, RFC 9110 §5.3) given in several lines is the one its lines make. Null without it.
+     */
+    private fun ServerRequest.lines(name: String): String? =
+        headers().header(name).takeIf { it.isNotEmpty() }?.joinToString(", ") { it.trim() }
+
     companion object {
         private val logger = KotlinLogging.logger {}
 
@@ -267,19 +274,31 @@ internal object Negotiation {
         }
     }
 
-    /** Fails with 415 when the request body is given as another type than JSON; [what] names what the body is. */
+    /**
+     * Fails with 415 when the request body is given as another type than JSON, `application/json` or an
+     * `application/<name>+json` type (any parameters, such as `charset`); [what] names what the body is. A range (any
+     * type, or any subtype of `application`) is no type, and a `+json` suffix under another top-level type
+     * (`image/x+json`) is no JSON body.
+     */
     fun checkJsonBody(request: ServerRequest, what: String = "A command") {
         val type = try {
             request.headers().contentType().orElse(null)
         } catch (_: InvalidMediaTypeException) {
             throw ProblemException(Problem.ofStatus(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Content-Type does not parse."))
         } ?: return
-        if (!type.isCompatibleWith(MediaType.APPLICATION_JSON) && !type.subtype.endsWith("+json")) {
+        val json = type.type == MediaType.APPLICATION_JSON.type &&
+            (type.subtype == MediaType.APPLICATION_JSON.subtype || type.subtype.endsWith(JSON_SUFFIX))
+        if (!json) {
             throw ProblemException(
-                Problem.ofStatus(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "$what is sent as application/json."),
+                Problem.ofStatus(
+                    HttpStatus.UNSUPPORTED_MEDIA_TYPE,
+                    "$what is sent as application/json or application/*+json, not $type.",
+                ),
             )
         }
     }
+
+    private const val JSON_SUFFIX = "+json"
 
     /** The quality [accept] gives [type]: 1 without `Accept`, else that of the most specific range including it. */
     private fun quality(accept: List<MediaType>, type: MediaType): Double {

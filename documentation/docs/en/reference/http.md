@@ -56,15 +56,34 @@ Any other request under a context's path is a `404` problem.
 | --- | --- | --- |
 | `Wow-Request-Id` | Commands | The caller's id of the request: a retry with the same id is answered as done (`duplicate`), never decided twice; the same id with another command is `wow.command.request-id-reused` |
 | `Wow-Wait` | Commands | How far to wait before answering (below); `snapshot` by default, `committed` for an aggregate without snapshots, where an explicit `snapshot` is `wow.wait.invalid` |
-| `Wow-Wait-Timeout` | Commands | How long to wait: `500ms`, `10s`, `1m` or ISO-8601; `wow.wait.default-timeout` (10 s) by default, at most `wow.wait.max-timeout` (1 min) |
-| `If-Match` | Commands | The version the aggregate must be at; `412 wow.aggregate.version-mismatch` otherwise ([Entity tags](./protocols#entity-tags)) |
-| `If-None-Match` | State reads, descriptors | The last `ETag`; `304` when it still holds ([Entity tags](./protocols#entity-tags)) |
+| `Wow-Wait-Timeout` | Commands | How long to wait: `500ms`, `10s`, `1m`, the unit right after the number, or ISO-8601, one millisecond or more (`10 s` and `PT0.0001S` are `wow.wait.invalid`); `wow.wait.default-timeout` (10 s) by default. A longer one is capped at `wow.wait.max-timeout` (1 min): the timeout is the client's bound on its wait, and the node's maximum bounds it |
+| `If-Match` | Commands | The version the aggregate must be at, as a strong tag: `"3"`, or the `"3-…"` a state read wrote, whose digest is not compared; `412 wow.aggregate.version-mismatch` when the aggregate is at another. Tags that name no version (`W/"3"`, `"03"`, `"2147483648"`) or two are `400 wow.request.malformed`. Its lines are one list ([Entity tags](./protocols#entity-tags)) |
+| `If-None-Match` | State reads, descriptors | The last `ETag`; `304` when it still holds. One that does not parse is ignored: a cache condition fails open ([Entity tags](./protocols#entity-tags)) |
 | `Accept: text/event-stream` | Commands, `list` queries | Server-sent events (below) |
 | `Last-Event-ID` | Streamed `list` queries | The position to resume after |
-| `Wow-Scope` | Every route | For a caller allowed to act across scopes: the tenant, owner and space to act in, an RFC 8941 dictionary, `tenant="t1", owner="u1", space="s1"`. On a query route, `tenant=*` or `tenant=("t1" "t2")` reads across tenants when `wow.query.allow-cross-tenant` is on |
+| `Wow-Scope` | Every route | For a caller allowed to act across scopes: the tenant, owner and space to act in, an RFC 8941 dictionary, `tenant="t1", owner="u1", space="s1"`. On a query route, `tenant=*` or `tenant=("t1" "t2")` reads across tenants when `wow.query.allow-cross-tenant` is on. Its lines are one dictionary, joined by commas; a member given twice is malformed (`wow.command.malformed`, `wow.query.malformed` on a read) |
 | `Wow-Space` | Every route | The space, among the caller's own, to act in |
 
-A command, or a request to a context's own service route, that carries `Wow-Call`, the header of a service's synchronous call, is refused on the public port with `403 wow.auth.forbidden`: calls are taken on the internal port alone. The headers `wow.http.request-facts` lists are copied into the command and written into its event stream.
+The headers `wow.http.request-facts` lists are copied into the command and written into its event stream.
+
+The prefix `Wow-` is Wow's. Besides the headers above, the public port takes `Wow-Service`, which it does not read, and the development identity headers (`Wow-User`, `Wow-Owner`, `Wow-Roles`, `Wow-Tenant`, `Wow-App`), which it reads in a development profile alone. Nodes are upgraded before the clients: a client that sends a `Wow-` header of a newer Wow is refused by an older node. The internal port keeps reading what a peer of the next minor version sends.
+
+### What the public port refuses {#refused}
+
+Nothing a client sends outside the body is read as something else, or dropped:
+
+| Request | Answer |
+| --- | --- |
+| A `Wow-` header the port does not take (`Wow-Wiat`, a typo of `Wow-Wait`) | `400 wow.request.malformed`, naming it |
+| A Wow header given in two lines or more (`Wow-Request-Id: r1` and `Wow-Request-Id: r2`), but `Wow-Scope` | `400 wow.request.malformed`, naming it: a proxy that appends a line does not choose the value |
+| `Wow-Call`, the header of a service's synchronous call, on any route: a command, a query, a state read, a service route | `403 wow.auth.forbidden`, whatever the credential: calls are taken on the internal port alone |
+| Matrix parameters in the path (`/shop/cart/c-1;x=1/add-item`) | `400 wow.request.malformed`: no route takes them |
+| A body of another type than `application/json` or `application/<name>+json`, any parameters aside (`*/*`, `application/*`, `image/x+json`) | `415` |
+| An aggregate id with a control character (`a%00b`), white space at either end (`%20c-1`), or `.` or `..` | `400 wow.command.malformed`. An id with `%2F` is the id `a/b`, and a unicode id (`%E8%B4%AD`) is taken as it is: a client encodes the ids it sends |
+| A blank id on a state read (`/shop/cart/%20/state`) | `400 wow.query.malformed` |
+| A parameter of a state read or a trace it does not take (`?verison=1`), or one given twice (`?version=1&version=9`) | `400 wow.query.invalid`, the violation naming it |
+| `version`, `minVersion`, `from`, `to` or `limit` that is not ASCII digits without a sign or a leading zero (`%2B1`, `001`, `١`) | `400 wow.query.invalid`, the violation naming it |
+| A number parameter of a service route that is not a number as JSON writes one (`NaN`, `Infinity`, a space, `+1`, `01`; for a whole number, a fraction or an exponent) | `400 wow.route.malformed`, the violation naming it |
 
 ## Wow-Wait
 

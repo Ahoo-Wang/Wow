@@ -261,13 +261,17 @@ internal class ServiceRouteHandling(
         private fun elementIn(elements: Iterable<Any?>, type: KType, where: String): String? =
             elements.withIndex().firstNotNullOfOrNull { (index, item) -> nullIn(item, type, "$where's element $index") }
 
+        /**
+         * [value] as a [type] of the route's schema: a number as JSON writes one, ASCII digits with no `+`, leading
+         * zero or white space, and no `NaN` or `Infinity`; a whole number without a fraction or an exponent.
+         */
         @Suppress("UNCHECKED_CAST")
         private fun <T : Any> read(name: String, what: String, value: String, type: KClass<T>): T {
             val read: Any? = when (type) {
                 String::class -> value
-                Int::class -> value.toIntOrNull()
-                Long::class -> value.toLongOrNull()
-                Double::class -> value.toDoubleOrNull()
+                Int::class -> value.takeIf(INTEGER::matches)?.toIntOrNull()
+                Long::class -> value.takeIf(INTEGER::matches)?.toLongOrNull()
+                Double::class -> value.takeIf(NUMBER::matches)?.toDoubleOrNull()
                 Boolean::class -> value.toBooleanStrictOrNull()
                 else -> type.java.enumConstants?.firstOrNull { (it as Enum<*>).name == value }
             }
@@ -280,6 +284,12 @@ internal class ServiceRouteHandling(
 
     private companion object {
         const val BODY = "body"
+
+        /** A whole number as JSON writes it. */
+        val INTEGER = Regex("-?(0|[1-9][0-9]*)")
+
+        /** A number as JSON writes it (RFC 8259 §6). */
+        val NUMBER = Regex("-?(0|[1-9][0-9]*)(\\.[0-9]+)?([eE][+-]?[0-9]+)?")
         val logger = KotlinLogging.logger {}
     }
 }

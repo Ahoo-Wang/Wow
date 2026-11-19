@@ -27,6 +27,9 @@ import tools.jackson.databind.JsonNode
  *   key of more than about 2.7 KB, and a refused append must not look like one whose outcome is unknown, which the
  *   caller retries for ever. The ids a request names are checked before any store is read for it, the creation lookup
  *   by its request id included;
+ * - an aggregate id no route or store keeps as it was given ([AggregateIds.unaddressable]): one with `\u0000` or
+ *   another control character, one with white space at either end (another aggregate than the one without it, to a
+ *   reader), and `.` or `..`, which a proxy normalizing the path would send as another request;
  * - a body that writes the character `\u0000` in a string or a key: PostgreSQL's `jsonb` does not take it, MongoDB
  *   does, and a fact one backend keeps and another refuses would make the choice of backend change what commits.
  */
@@ -35,11 +38,13 @@ internal object AdmissionLimits {
     const val MAX_ID_LENGTH: Int = 256
 
     /**
-     * Why an id of a request is too long, or null when none is; [aggregateId] is null before one is known, and the
-     * owner or space [body] transfers to, when given, is checked as [oversizedBody] does.
+     * Why an id of a request is too long, or its [aggregateId] unaddressable ([AggregateIds]), or null when none is;
+     * [aggregateId] is null before one is known, and the owner or space [body] transfers to, when given, is checked as
+     * [oversizedBody] does.
      */
     fun oversized(requestId: String, aggregateId: String?, tenantId: String, scope: Scope, body: Any? = null): String? =
         oversized("request id", requestId) ?: oversized("aggregate id", aggregateId)
+            ?: AggregateIds.unaddressable(aggregateId)
             ?: oversized("tenant id", tenantId) ?: oversized("owner id", scope.ownerId)
             ?: oversized("space id", scope.spaceId) ?: body?.let(::oversizedBody)
 

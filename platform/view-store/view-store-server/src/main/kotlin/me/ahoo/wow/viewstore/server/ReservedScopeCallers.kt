@@ -29,8 +29,9 @@ import org.springframework.web.reactive.function.server.ServerRequest
 class ReservedScopeCallers(override val decorated: CallerResolver) : DecoratingCallerResolver {
     override suspend fun resolve(request: ServerRequest): Caller? {
         val caller = decorated.resolve(request) ?: return null
-        val reserved = ViewStoreRoles.reservedTarget(request.headers().firstHeader(WowHeaders.SCOPE))
-            ?: return caller
+        // Its lines are one dictionary, as the routes read them.
+        val scope = request.headers().header(WowHeaders.SCOPE).takeIf { it.isNotEmpty() }?.joinToString(", ")
+        val reserved = ViewStoreRoles.reservedTarget(scope) ?: return caller
         return Caller.of(
             tenantId = caller.tenantId,
             scope = reserved.scope,
