@@ -166,8 +166,19 @@ service() {
   entry=$(entry "$name")
   module=${entry##*|}
   values+=(-f "$src/$module/build/wow/helm/values.yaml" -f "$src/deploy/$name/values.yaml")
-  # Every service: the drill's workaround for the OpenTelemetry agent's init container (values/pod-security-workaround.yaml).
-  values+=(-f "$here/values/pod-security-workaround.yaml")
+  # The drill's workaround for the OpenTelemetry agent's init container (values/pod-security-workaround.yaml), only for a
+  # chart that names no user: a chart setting podSecurityContext.runAsUser is proved by its own default. Read from the
+  # chart step 0 checked for this version (artifacts), the one installed.
+  local registry=${CHART%/wow-service} chart_values
+  chart_values="$evidence/artifacts/charts/${registry//[^a-z0-9]/_}/$version/wow-service/values.yaml"
+  [ -f "$chart_values" ] || fail "no checked chart of $version at $chart_values: run \`artifacts $version\` first"
+  if awk '/^podSecurityContext:/ { inside = 1; next } /^[^[:space:]#]/ { inside = 0 }
+    inside && /^[[:space:]]+runAsUser:/ { found = 1 } END { exit !found }' "$chart_values"; then
+    log "$name $version: the chart sets podSecurityContext.runAsUser; no workaround"
+  else
+    log "$name $version: the chart sets no podSecurityContext.runAsUser; the install takes values/pod-security-workaround.yaml"
+    values+=(-f "$here/values/pod-security-workaround.yaml")
+  fi
   [ ! -f "$here/values/$name.yaml" ] || values+=(-f "$here/values/$name.yaml")
   is_eshop "$name" && values+=(--set "image.tag=$version")
   helm --kube-context "kind-$cluster" -n "$namespace" upgrade --install "$name" "$CHART" --version "$version" \
