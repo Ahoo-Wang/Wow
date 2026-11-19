@@ -52,6 +52,12 @@ A subscription's name is its identity, so check the renames before the rollout:
 - **The new nodes warn** at their first start of the checkpoints under names no subscription has any more; `GET /wow/ops/subscriptions` lists them ([The Ops Service and Console](./ops-console#rename-and-rewind)).
 - **A new name is the only rewind**: no checkpoint is ever set back. Deploying a handler under a new name with an earlier `start` is how a stream is read again.
 
+## Calls while a node goes
+
+A node that a rollout stops goes with notice. It hands its partitions off and drains while its internal port still answers, then closes its connections. A saga's call that reaches it meanwhile is answered, and one that comes after fails to connect and goes to the service's next node within the same attempt, at a cost of at most the connect timeout (`wow.peer.connect-timeout`, 2 seconds).
+
+A node lost without notice, such as a pod deleted by force or a machine gone, costs more. A call sent on a connection to it gets no answer and ends at its wait and a grace after it, 12 seconds by default, then its subscription retries it. The node's address stays among the service's nodes until their list is read again, at most 30 seconds later, so a call that lands on another connection to it pays the same.
+
 ## Settings that must not change
 
 `wow.log.partitions` is fixed once the log holds entries, and the nodes of one service share their store layout ([Configure a Service](./configuration#what-must-match-across-nodes)).

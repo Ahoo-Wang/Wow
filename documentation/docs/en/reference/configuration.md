@@ -398,7 +398,7 @@ How the node calls its peers, the services of the other contexts it calls over H
 | `wow.peer.discovery` | `String` | `dns` | How the node finds the internal ports of a peer's nodes: `dns` (the default) looks up the DNS SRV records `wow.peer.dns.name-template` names after the peer's service, as its contract on the class path or its Manifest names it; `static` takes `wow.peers.<context>.url` alone; `spring-cloud`, with wow-spring-cloud on the class path, reads the instances a Spring Cloud service registry has of the service; another value names a community provider's discovery. Each is configured under `wow.peer.<type>` by the options it declares. A peer's `url` wins over any discovery. |
 | `wow.peer.forwarded-headers` | `List<String>` | `Authorization` | The headers of the public request it serves that a user-mode request forwards. |
 | `wow.peer.mode` | `PeerMode` | `service` | The mode of a peer that names none: `service`, through its internal port as this service, or `user`, through its public routes with the end user's credential. |
-| `wow.peer.timeout` | `Duration` | `PT30S` | How long a request may take to be answered, a command's longer wait aside; `wow.peers.<context>.timeout` overrides it for one peer. |
+| `wow.peer.timeout` | `Duration` | `PT30S` | How long a request without a wait, a query or a read, may take to be answered. A command or a saga's call waits for its answer its own wait, which it states as `Wow-Wait-Timeout`, and a grace after it: a call's wait at most this long. `wow.peers.<context>.timeout` overrides it for one peer. |
 
 ## `wow.peer.dns`
 

@@ -23,7 +23,9 @@ import me.ahoo.wow.api.problem.Retry
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.FrameworkCodes
+import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.wire.CallWire
+import me.ahoo.wow.api.wire.WaitHeader
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.manifest.ClassPathContracts
 import me.ahoo.wow.manifest.CommandIndex
@@ -36,6 +38,7 @@ import me.ahoo.wow.spi.wait.toWire
 import java.net.URI
 import java.net.http.HttpClient
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.toJavaDuration
 
@@ -56,10 +59,18 @@ import kotlin.time.toJavaDuration
  * - the calling service's name as `Wow-Service`, which makes the target take `Wow-Call`;
  * - the trace the call runs in.
  *
+ * The call waits as long as the wait it goes on with has left, or [WaitPlan.DEFAULT_TIMEOUT] for one that
+ * goes on with none, at most the context's timeout: it states that as `Wow-Wait-Timeout`, and waits for the answer
+ * that long and [ANSWER_GRACE] more, never the transport's whole timeout (`wow.peer.timeout`, which bounds what has no
+ * wait). The target answers 504 at the wait's end, so a target that has not answered by then never will: a call sent
+ * on a connection to a node that is gone without closing it (a pod deleted by force) ends then (#6517).
+ *
  * The target answers once the command is committed: 200 with its result, or a problem+json whose `result` is its
- * REJECTED or FAILED result. Anything else is a [WowProblemException]: an error answered without a result (401 or 403
+ * REJECTED or FAILED result. A REJECTED result is returned; a FAILED one is its problem's [WowProblemException],
+ * which keeps the problem's `Retry-After` for the subscription's backoff (a 504's second, not the backoff's tenth).
+ * Anything else is a [WowProblemException] too: an error answered without a result (401 or 403
  * for a call the target refuses, such as one of a service its lists do not name) as its own code, a connection that
- * fails or no answer within the timeout as the transport's (`wow.command.unknown`, `wow.peer.unavailable`), and a
+ * fails or no answer within the bound as the transport's (`wow.command.unknown`, `wow.peer.unavailable`), and a
  * success the client cannot read as `wow.command.failed`, retried with the same request id. The saga's handler
  * fails and its subscription retries it, then parks the aggregate. The call itself is not retried here: the
  * subscription's retry budget is the one that counts.
@@ -68,6 +79,8 @@ import kotlin.time.toJavaDuration
 class HttpCommandCaller internal constructor(
     private val transport: HttpTransport,
     private val commands: CommandIndex,
+    /** The time a wait's deadline is read against, in epoch milliseconds. */
+    private val clock: () -> Long = System::currentTimeMillis,
 ) : CommandCaller {
     /**
      * The caller of the contexts' internal ports at the fixed [endpoints], as the service named [service], on
@@ -119,9 +132,10 @@ class HttpCommandCaller internal constructor(
         }
         return when (answer) {
             is Answer.Ok -> CommandResults.readOrNull(answer.value)
-            // A problem without a result (a call the target refuses, a peer no node of which answered) is its own.
+            // A problem without a result (a call the target refuses, a peer no node of which answered) is its own, and
+            // so is a FAILED result's, which keeps the problem's Retry-After.
             is Answer.Problem ->
-                answer.problem.result
+                answer.problem.result?.takeIf { it.status != CommandResult.Status.FAILED }
                     ?: throw answer.problem.exception("The call of ${command.id} to ${command.ref.type.context}")
         } ?: throw failed("The call of ${command.id} to ${command.ref.type.context} was answered without a result.")
     }
@@ -132,6 +146,7 @@ class HttpCommandCaller internal constructor(
         val ref = command.ref
         val idProperty = commands.idPropertyOf(call.type)
         val byId = ref.isAssigned && idProperty == null
+        val bound = boundOf(call)
         val route = checkNotNull(commands.routeOf(call.type, byId)) {
             "No contract lists a route of ${call.type} ${if (byId) "to an aggregate by its id" else "without an id"}: " +
                 "depend on the api module of ${ref.type.context}, whose jar carries its contract."
@@ -145,9 +160,20 @@ class HttpCommandCaller internal constructor(
             headers = buildMap {
                 put(WowHeaders.REQUEST_ID, command.requestId)
                 command.expectedVersion?.let { put(WowHeaders.IF_MATCH, "\"$it\"") }
+                put(WowHeaders.WAIT_TIMEOUT, WaitHeader.formatTimeout(bound))
             },
             body = CommandBodies.of(call.type, command.body, idProperty, ref.id.takeIf { ref.isAssigned }),
+            timeout = bound + ANSWER_GRACE,
         )
+    }
+
+    /**
+     * How long [call] waits for its command: what the wait it goes on with has left (a millisecond at least), else
+     * [WaitPlan.DEFAULT_TIMEOUT]; at most its context's timeout.
+     */
+    private fun boundOf(call: OutgoingCall): Duration {
+        val wait = call.wait?.let { (it.deadline - clock()).milliseconds.coerceAtLeast(1.milliseconds) }
+        return minOf(wait ?: WaitPlan.DEFAULT_TIMEOUT, transport.timeoutOf(call.command.ref.type.context))
     }
 
     /** A call that reached no result it could read: [FrameworkCodes.COMMAND_FAILED], a bad gateway. */
@@ -174,6 +200,12 @@ class HttpCommandCaller internal constructor(
 
         /** The default bound of one call: as long as a wait's default timeout. */
         val DEFAULT_TIMEOUT: Duration = 10.seconds
+
+        /**
+         * How long a call waits for its answer past its wait: the internal port answers a call whose wait ran out
+         * at most this long after it (its forward's answer grace, `InternalHttp.ANSWER_GRACE`).
+         */
+        val ANSWER_GRACE: Duration = 2.seconds
 
         /** The default connect timeout of [client]. */
         val DEFAULT_CONNECT_TIMEOUT: Duration = 2.seconds

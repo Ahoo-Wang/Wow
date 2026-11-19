@@ -66,6 +66,7 @@ import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.admission.CommandTransformer
 import me.ahoo.wow.runtime.admission.CommandValidator
+import me.ahoo.wow.runtime.admission.CommittedRequests
 import me.ahoo.wow.runtime.admission.ModelRegistry
 import me.ahoo.wow.runtime.snapshot.SnapshotRebuildModel
 import me.ahoo.wow.runtime.state.KernelStateReads
@@ -370,6 +371,8 @@ class HttpNode(
         validators = validators,
         ids = ids,
         tenants = tenants,
+        // As a node's: a creation without an id looks its request up first, so its retry keeps the id it took.
+        committed = CommittedRequests.of(store),
     )
     val reads = KernelStateReads(
         models,
