@@ -119,7 +119,7 @@ class SearchStore(
 
     /** The documents of each index Elasticsearch holds, as the shop's probe pod reads them. */
     private fun indices(): Map<String, Int> =
-        network.http("insider", "elasticsearch", ELASTICSEARCH, "GET", "/_cat/indices?h=index,docs.count")
+        network.elasticsearch("insider", "elasticsearch", ELASTICSEARCH, "/_cat/indices?h=index,docs.count")
             .lineSequence().map { it.trim().split(Regex("\\s+")) }
             .filter { it.size == 2 && it[1].all(Char::isDigit) }
             .associate { (index, count) -> index to count.toInt() }

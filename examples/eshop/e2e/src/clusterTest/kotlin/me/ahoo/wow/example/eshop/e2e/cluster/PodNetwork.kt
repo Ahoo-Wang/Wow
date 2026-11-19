@@ -83,16 +83,25 @@ class PodNetwork(private val kube: Kube, private val report: ClusterReport) {
             headers.forEach { (name, value) -> append("$name: $value\r\n") }
             append("Content-Length: ${body.toByteArray().size}\r\n\r\n$body")
         }
-        val script = "exec 3<>/dev/tcp/$host/$port && printf '%s' \"\$REQUEST\" >&3 && cat <&3"
+        // A header value of ELASTIC_AUTH is made in the pod, from its ELASTIC_PASSWORD (probes.yaml).
+        val auth = "[ -z \"\${ELASTIC_PASSWORD:-}\" ] || REQUEST=\"\${REQUEST//$ELASTIC_AUTH/" +
+            "\$(printf 'elastic:%s' \"\$ELASTIC_PASSWORD\" | base64 | tr -d '\\n')}\"; "
+        val script = auth + "exec 3<>/dev/tcp/$host/$port && printf '%s' \"\$REQUEST\" >&3 && cat <&3"
         val result = kube.exec(pod, "env", "REQUEST=$request", "timeout", "5", "bash", "-c", script)
         val status = result.out.lineSequence().firstOrNull()?.split(' ')?.getOrNull(1)
         return if (result.ok && status != null) "$status ${result.out}" else "000 ${result.err.trim()}"
     }
 
+    /** [http] as Elasticsearch's `elastic` user: [pod] holds its password (probes.yaml), and makes the header itself. */
+    fun elasticsearch(pod: String, host: String, port: Int, path: String): String =
+        http(pod, host, port, "GET", path, "", "Authorization" to "Basic $ELASTIC_AUTH")
+
     /** Whether [pod] gets any response from [host]:[port] within 5 seconds: its status, `000` when none. */
     fun reach(pod: String, host: String, port: Int): String = http(pod, host, port, "GET", "/wow/manifest")
 
     private companion object {
+        /** The placeholder [elasticsearch] sends and the pod replaces with `base64(elastic:$ELASTIC_PASSWORD)`. */
+        const val ELASTIC_AUTH = "@ELASTIC_AUTH@"
         const val LISTED = 10
         const val TIMEOUT_EXIT = 124
 
