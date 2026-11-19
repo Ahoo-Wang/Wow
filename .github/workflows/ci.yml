@@ -178,6 +178,11 @@ jobs:
           path: coverage-artifact/
           retention-days: 1
           if-no-files-found: error
+      # On main a failed job still saves its Gradle cache: an artifact Maven Central answered 404 for a moment would
+      # stay missing for this job's next runs, which would fail from the record without asking again.
+      - name: Forget the artifacts a repository answered 404 for
+        if: failure() && hashFiles('gradlew') != ''
+        run: .github/scripts/gradle-forget-missing.sh
 
   # The container-backed tests of the modules, in shards that run in parallel, each on a runner and a Docker of
   # its own; the H2 and H6 spikes' suites skip themselves unless their flags are set. Each project of
@@ -308,6 +313,11 @@ jobs:
             **/build/test-results/integrationTest/
           if-no-files-found: ignore
           retention-days: 14
+      # On main a failed job still saves its Gradle cache: an artifact Maven Central answered 404 for a moment would
+      # stay missing for this job's next runs, which would fail from the record without asking again.
+      - name: Forget the artifacts a repository answered 404 for
+        if: failure() && hashFiles('gradlew') != ''
+        run: .github/scripts/gradle-forget-missing.sh
 
   # Every pull request: tracked files follow the canonical locations of the
   # documentation governance page, the documentation's code samples equal the
@@ -833,6 +843,11 @@ jobs:
         env:
           JAVA_HOME: ${{ env.JAVA_HOME_25_X64 }}
         run: pnpm --filter wow-integration-test test
+      # On main a failed job still saves its Gradle cache: an artifact Maven Central answered 404 for a moment would
+      # stay missing for this job's next runs, which would fail from the record without asking again.
+      - name: Forget the artifacts a repository answered 404 for
+        if: failure() && hashFiles('gradlew') != ''
+        run: .github/scripts/gradle-forget-missing.sh
 
   # The migrate-data image (migration/migrate-data/Dockerfile), built from the
   # commit's distribution and never pushed, then run as a user runs it: its
@@ -904,6 +919,11 @@ jobs:
             -v "$PWD/migration/migrate-data/src/test/resources/image-smoke:/config:ro" \
             wow-migrate-data:ci check --config /config/migrate-data.json | tee check.txt
           grep -q 'Mapping check passed.' check.txt
+      # On main a failed job still saves its Gradle cache: an artifact Maven Central answered 404 for a moment would
+      # stay missing for this job's next runs, which would fail from the record without asking again.
+      - name: Forget the artifacts a repository answered 404 for
+        if: failure() && hashFiles('gradlew') != ''
+        run: .github/scripts/gradle-forget-missing.sh
 
   storybook-build:
     name: Build Storybook
@@ -1121,6 +1141,11 @@ jobs:
           name: eshop-web-e2e
           path: examples/eshop/web/test-results/
           retention-days: 7
+      # On main a failed job still saves its Gradle cache: an artifact Maven Central answered 404 for a moment would
+      # stay missing for this job's next runs, which would fail from the record without asking again.
+      - name: Forget the artifacts a repository answered 404 for
+        if: failure() && hashFiles('gradlew') != ''
+        run: .github/scripts/gradle-forget-missing.sh
 
   ops-console:
     name: Ops Console
@@ -1211,6 +1236,11 @@ jobs:
           name: ops-console-e2e
           path: platform/ops/console/test-results/
           retention-days: 7
+      # On main a failed job still saves its Gradle cache: an artifact Maven Central answered 404 for a moment would
+      # stay missing for this job's next runs, which would fail from the record without asking again.
+      - name: Forget the artifacts a repository answered 404 for
+        if: failure() && hashFiles('gradlew') != ''
+        run: .github/scripts/gradle-forget-missing.sh
 
   # The analytics catalog console (platform/analytics/catalog/console, roadmap
   # 7.2c): its lint, types, unit and component tests with coverage, and build;
@@ -1306,6 +1336,11 @@ jobs:
           name: catalog-console-e2e
           path: platform/analytics/catalog/console/test-results/
           retention-days: 7
+      # On main a failed job still saves its Gradle cache: an artifact Maven Central answered 404 for a moment would
+      # stay missing for this job's next runs, which would fail from the record without asking again.
+      - name: Forget the artifacts a repository answered 404 for
+        if: failure() && hashFiles('gradlew') != ''
+        run: .github/scripts/gradle-forget-missing.sh
 
   # The industry comparison's Axon Framework server (test/benchmarks/axon-server):
   # a Gradle build of its own, outside the repository's (Axon Framework 4 runs
@@ -1333,6 +1368,11 @@ jobs:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
       - name: Test and build the Axon server
         run: ./gradlew -p test/benchmarks/axon-server test installDist --stacktrace
+      # On main a failed job still saves its Gradle cache: an artifact Maven Central answered 404 for a moment would
+      # stay missing for this job's next runs, which would fail from the record without asking again.
+      - name: Forget the artifacts a repository answered 404 for
+        if: failure() && hashFiles('gradlew') != ''
+        run: .github/scripts/gradle-forget-missing.sh
 
   # Judges a pull request's patch coverage from the run's own reports, then
   # hands every report to Codecov. The test jobs keep their reports as

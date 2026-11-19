@@ -68,8 +68,11 @@ import kotlin.time.Duration.Companion.seconds
  * For each command, in its aggregate's lane (one aggregate's commands in order, different aggregates in parallel):
  *
  * 1. **Execute** it through the context's [coordinator] ([WaitCoordinator.forward]) with the wait context its
- *    envelope carries, a creation that names no aggregate given its id first by [creations]: the kernel deduplicates by request id (per aggregate type), so a command delivered twice, or
- *    sent twice by a saga that retried, is not decided again; the waiting node is signalled as for a saga's command.
+ *    envelope carries, a creation that names no aggregate given its id first by [creations]: the id its request
+ *    committed or claimed, so every copy of one request targets one aggregate, a copy handled again after a forward
+ *    that failed while its owner was still deciding included. The kernel deduplicates by request id, so a command
+ *    delivered twice, or sent twice by a saga that retried, is not committed again; the waiting node is signalled as
+ *    for a saga's command.
  * 2. **Settle** the outcome: committed, a duplicate or no change is done; when the command asks for the receipt of its
  *    commit ([me.ahoo.wow.runtime.cluster.ReplyTo.committed]), the receipt, a [CommandReceipt.Committed] with
  *    the aggregate, its version and the command's result, no state, is sent to `wow.<replyTo.context>.receipts` and

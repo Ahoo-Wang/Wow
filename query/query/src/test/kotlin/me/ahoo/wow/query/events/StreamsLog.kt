@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.asFlow
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.spi.log.AppendOutcome
+import me.ahoo.wow.spi.log.CreationClaim
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogEntry
@@ -44,6 +45,13 @@ class StreamsLog : EventLog {
 
     override suspend fun findByRequestId(type: AggregateType, tenantId: String, requestId: String): EventStreamRecord? =
         unused()
+
+    override suspend fun claimCreation(
+        type: AggregateType,
+        tenantId: String,
+        requestId: String,
+        claim: CreationClaim,
+    ): CreationClaim = unused()
 
     override fun tail(partition: Int, after: Long?): Flow<LogEntry> = unused()
 

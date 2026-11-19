@@ -43,6 +43,7 @@ import me.ahoo.wow.spi.access.AggregatePage
 import me.ahoo.wow.spi.log.AggregateTail
 import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.AppendOutcome
+import me.ahoo.wow.spi.log.CreationClaim
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.ExecutionLease
@@ -83,7 +84,8 @@ import kotlin.time.Duration.Companion.seconds
  *
  * **Aggregate collections.** An aggregate type's collection and its indexes are created the first time this log
  * touches the type, or up front by [createCollection]; a new aggregate type needs no restart. Every aggregate collection is recorded in a registry collection ([REGISTRY]) before its first entry is
- * written, and [tail] reads the context's collections from it.
+ * written, and [tail] reads the context's collections from it. Beside each, the claims of its creations
+ * ([MongoCreationClaims]) keep one request to one aggregate, which the request key, unique per partition, does not.
  *
  * **Tail.** [tail] reads a partition in one aggregation: the partition's counter first, then, through `$unionWith`,
  * each aggregate collection's first entries and placeholders after the last sequence; it merges them by sequence and
@@ -194,6 +196,9 @@ class MongoEventLog(
 
     /** Where an aggregate's streams are found. */
     private val lookups = MongoLogLookups(partitions, documents)
+
+    /** The claims of the creations that name no aggregate, beside each aggregate type's collection. */
+    private val creationClaims = MongoCreationClaims(dispatcher, collections)
 
     /** The reads of one aggregate's streams. */
     private val aggregateReads =
@@ -371,6 +376,14 @@ class MongoEventLog(
 
     override suspend fun findByRequestId(type: AggregateType, tenantId: String, requestId: String): EventStreamRecord? =
         aggregateReads.findByRequestId(type, tenantId, requestId)
+
+    /** The request key is unique within a partition: a creation's id is claimed ([MongoCreationClaims]). */
+    override suspend fun claimCreation(
+        type: AggregateType,
+        tenantId: String,
+        requestId: String,
+        claim: CreationClaim,
+    ): CreationClaim = creationClaims.claim(type, tenantId, requestId, claim)
 
     override fun tail(partition: Int, after: Long?): Flow<LogEntry> = flow {
         require(partition in 0 until partitions) { "No partition $partition among $partitions." }

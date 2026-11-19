@@ -107,3 +107,8 @@ jobs:
           path: test/routing-spike/build/h2-stage2/
           if-no-files-found: warn
           retention-days: 30
+      # On main a failed job still saves its Gradle cache: an artifact Maven Central answered 404 for a moment would
+      # stay missing for this job's next runs, which would fail from the record without asking again.
+      - name: Forget the artifacts a repository answered 404 for
+        if: failure() && hashFiles('gradlew') != ''
+        run: .github/scripts/gradle-forget-missing.sh

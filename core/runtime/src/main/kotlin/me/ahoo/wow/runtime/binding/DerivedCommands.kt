@@ -71,7 +71,8 @@ import me.ahoo.wow.spi.wait.WaitContext
  *   with its outcome ([Executed.committed]), for the saga's `@OnCommitted` handler.
  * - **Creations without an id**: a command of its own context that names no aggregate
  *   ([me.ahoo.wow.api.aggregate.AggregateRef.isAssigned]) takes its id from [creations] before it runs: the id its
- *   request already created, else a new one from its aggregate type's generator. One to another context takes it
+ *   request already created or claimed, else a new one from its aggregate type's generator, claimed. One to another
+ *   context takes it
  *   there, at the target's intake.
  * - **Other contexts**: the commands to aggregates of contexts outside the saga's own are sent
  *   to their contexts' command topics through the sender ([CommandSender.sendAll]), those of one topic as one batch, and

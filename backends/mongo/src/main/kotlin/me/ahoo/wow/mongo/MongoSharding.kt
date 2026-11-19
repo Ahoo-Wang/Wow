@@ -112,6 +112,20 @@ internal object MongoShards {
         )
 
     /**
+     * Shards the creation claims of one aggregate type's log, [collection], by tenant, then the request id's hash: a
+     * claim's every write names both, with the `_id` they derive from, so it routes to the one shard the claim lives
+     * on, and the `_id`'s uniqueness there holds one claim per request across the cluster.
+     */
+    fun shardClaims(client: MongoClient, database: MongoDatabase, collection: MongoCollection<Document>) =
+        shard(
+            client,
+            database,
+            collection,
+            Document(TENANT_ID, 1).append(REQUEST_ID, HASHED),
+            Indexes.compoundIndex(Indexes.ascending(TENANT_ID), Indexes.hashed(REQUEST_ID)),
+        )
+
+    /**
      * Shards [collection] by [key], whose index [index] it creates first; when [chunks] are given and the collection
      * is new (empty, one chunk), splits it at each of them and spreads the chunks over the shards in turn.
      */
@@ -177,6 +191,7 @@ internal object MongoShards {
     private const val TENANT_ID = "tenant_id"
     private const val AGGREGATE_ID = "aggregate_id"
     private const val KEY = "key"
+    private const val REQUEST_ID = "request_id"
     private const val HASHED = "hashed"
     private const val ADMIN = "admin"
     private const val CONFIG = "config"
