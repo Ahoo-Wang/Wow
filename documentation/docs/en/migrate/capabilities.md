@@ -162,7 +162,7 @@ Use this page to find out, before you migrate, what happens to each 9.x capabili
 | --- | --- | --- |
 | `wow-metadata.json` and `/wow/metadata` | Replaced | The Manifest and `GET /wow/manifest`. See [One contract](../concepts/contract). |
 | JSON Schema generation | Replaced | Schemas generated at build time from Jackson's own view of the classes. |
-| Registering custom Jackson modules | Dropped | Wow's JSON registers a fixed set of modules, so the wire form does not depend on the host. |
+| Registering custom Jackson modules | Dropped | Wow's JSON registers a fixed set of modules, so the wire form does not depend on the host. [JSON Values](../reference/json-values) gives the form it writes for each platform value class. |
 | OpenAPI document | Kept | Derived from the Manifest; also a Gradle task. |
 | springdoc integration | Kept | — |
 | Error bodies (`ErrorInfo`) | Replaced | `application/problem+json` (RFC 9457) with the error code. |

@@ -62,6 +62,7 @@ export const navbarEn: DefaultTheme.NavItem[] = [
             {text: 'Error Codes', link: '/reference/error-codes'},
             {text: 'Annotations', link: '/reference/annotations'},
             {text: 'Manifest Format', link: '/reference/manifest'},
+            {text: 'JSON Values', link: '/reference/json-values'},
             {text: 'Modules and Artifacts', link: '/reference/modules'},
             {text: 'API Levels', link: '/reference/api-levels'},
             {text: 'HTTP API', link: '/reference/http'},
