@@ -57,9 +57,19 @@ internal object RefusedIds {
         else -> AggregateIds.refused(id)?.let(::shown)?.removeSuffix(".")
     }
 
-    /** [text] with each control character written as its `\uXXXX` escape, so a report shows what an id holds. */
+    /**
+     * [text] with each control character and each white space but the plain one (U+0020) written as its `\uXXXX`
+     * escape, so a report shows what an id holds: a no-break or ideographic space would look like a plain one or
+     * nothing, and a line or paragraph separator would break the line.
+     */
     fun shown(text: String): String = buildString(text.length) {
-        text.forEach { char -> if (char.isISOControl()) append("\\u%04x".format(char.code)) else append(char) }
+        text.forEach { char ->
+            if (char.isISOControl() || char.isWhitespace() && char != ' ') {
+                append("\\u%04x".format(char.code))
+            } else {
+                append(char)
+            }
+        }
     }
 
     /** [id] as the map's `stream` names it: the empty id as [EMPTY], any other as it is. */
@@ -69,8 +79,9 @@ internal object RefusedIds {
     fun idOf(name: String): String = if (name == EMPTY) "" else name
 
     /**
-     * [name], a map's `stream`, as the JSON string a person copies into the map: every control character escaped,
-     * those JSON leaves as they are (`\u007f` to `\u009f`) too.
+     * [name], a map's `stream`, as the JSON string a person copies into the map: every control character and every
+     * white space but the plain one escaped ([shown]), those JSON leaves as they are too, which it still reads as the
+     * same id.
      */
     fun quoted(name: String): String = shown(WowJson.mapper.writeValueAsString(name))
 

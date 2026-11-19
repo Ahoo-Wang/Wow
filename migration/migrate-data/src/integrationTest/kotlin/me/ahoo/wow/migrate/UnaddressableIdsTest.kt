@@ -41,7 +41,8 @@ class UnaddressableIdsTest {
     private val source = MongoNineXEventSource(database)
 
     /** One id of each kind admission refuses. */
-    private val refused = listOf("a\u0000b", "a\u0085b", " o-1", "o-1\t", ".", "..", "o".repeat(LONGEST + 1))
+    private val refused =
+        listOf("a\u0000b", "a\u0085b", " o-1", "o-1\t", "o-1\u3000", ".", "..", "o".repeat(LONGEST + 1))
 
     /** Ids near them that admission takes: the store's pattern matches the last three too; the rule takes them. */
     private val taken = listOf("a.b", "a b", "购物", "...", "o-1.", "o".repeat(LONGEST))
@@ -71,14 +72,15 @@ class UnaddressableIdsTest {
         code.assert().describedAs(printed).isEqualTo(MigrateData.FAILED)
         val problem = printed.lines().single { it.startsWith("PROBLEM example-service.order: V10 refuses") }
         problem.assert()
-            .contains("the aggregate ids of these 7 9.x instances, so no command could reach them")
+            .contains("the aggregate ids of these ${refused.size} 9.x instances, so no command could reach them")
             .contains("\"a\\u0000b\" (The aggregate id holds a control character")
             .contains("\"a\\u0085b\" (The aggregate id holds a control character")
             .contains("\" o-1\" (The aggregate id ' o-1' begins or ends with white space")
             .contains("\"o-1\\t\" (The aggregate id 'o-1\\u0009' begins or ends with white space")
+            .contains("\"o-1\\u3000\" (The aggregate id 'o-1\\u3000' begins or ends with white space")
             .contains("\"..\" (The aggregate id '..' is a relative path segment")
             .contains("(The aggregate id is at most $LONGEST characters; this one has ${LONGEST + 1}: 1 streams")
-        problem.chars().noneMatch { Character.isISOControl(it) }.assert().isTrue()
+        problem.none { it.isISOControl() || it.isWhitespace() && it != ' ' }.assert().isTrue()
         printed.assert().contains("Mapping check failed: 1 problems.")
     }
 

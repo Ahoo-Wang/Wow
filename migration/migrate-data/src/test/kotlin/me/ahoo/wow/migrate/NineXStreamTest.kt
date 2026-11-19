@@ -16,6 +16,7 @@ package me.ahoo.wow.migrate
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.migrate.example.NineXExample
+import me.ahoo.wow.spi.json.WowJson
 import org.bson.BsonUndefined
 import org.bson.Document
 import org.bson.types.Decimal128
@@ -107,6 +108,11 @@ class NineXStreamTest {
         ).forEach { (id, reason) -> RefusedIds.reasonOf(id).assert().describedAs(id).isEqualTo(reason) }
         listOf("a.b", "...", "a b", "o".repeat(256)).map(RefusedIds::reasonOf).assert().containsOnlyNulls()
         RefusedIds.quoted("a\u0001b\u0085").assert().isEqualTo("\"a\\u0001b\\u0085\"")
+        // White space but the plain one is shown escaped too: a line separator would break the report's line.
+        RefusedIds.reasonOf("o-1\u2028").assert()
+            .isEqualTo("The aggregate id 'o-1\\u2028' begins or ends with white space, which a reader would not see")
+        RefusedIds.quoted("o 1\u00a0").assert().isEqualTo("\"o 1\\u00a0\"")
+        WowJson.mapper.readValue(RefusedIds.quoted("o-1\u3000"), String::class.java).assert().isEqualTo("o-1\u3000")
         RefusedIds.nameOf("").assert().isEqualTo(RefusedIds.EMPTY)
         RefusedIds.nameOf("o-1").assert().isEqualTo("o-1")
         RefusedIds.idOf(RefusedIds.EMPTY).assert().isEmpty()
