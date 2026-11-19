@@ -125,6 +125,20 @@ chart 也在 `oci://registry-1.docker.io/ahoowang/wow-service`。它的 `values.
 
 镜像在 JDK 25 基础镜像（按摘要钉住）上以数字非 root 用户运行服务的 Gradle 发行包（`./gradlew :eshop-ordering-server:installDist`），并暴露 HTTP 端口和内部端口。chart 在 Pod 上设置这两个端口（`SERVER_PORT`、`WOW_INTERNAL_PORT`，取自 `ports`），因此 Service、探针和镜像自己的配置不会不一致。
 
+### Pod 的用户 {#the-pod-s-user}
+
+chart 让 Pod 以用户和组 10001 运行，即 Wow 镜像声明的那个（`USER 10001`），并在 Pod 和容器上都设置 `runAsNonRoot`（`podSecurityContext`、`securityContext`）。用户写在 Pod 上，是为了其他控制器加入的容器。`instrumentation.opentelemetry.io/inject-java` 请求的 OpenTelemetry Operator 的 Java agent，由一个 init 容器复制进来，它的镜像没有声明 `USER`。这个容器继承应用容器的安全上下文，其中包括 `runAsNonRoot`。Pod 上没有写用户时，它会以 root 运行，kubelet 就会拒绝这个 Pod：`container has runAsNonRoot and image will run as root`。有了 Pod 的用户，它以 10001 运行，Pod 就能启动。
+
+镜像基于其他基础镜像构建、文件属于另一个 id 的服务，设置那个 id：
+
+```yaml
+podSecurityContext:
+  runAsUser: 1001
+  runAsGroup: 1001
+```
+
+两者都设为 `null`，就又把用户交给镜像决定。这时只要 Pod 里没有加入自身不带 `USER` 的容器，它就能启动。
+
 ## JDK {#the-jdk}
 
 Wow 为 JDK 21 构建，也能在 JDK 21 上运行，但生产环境请用 JDK 25。各后端在虚拟线程上执行阻塞的驱动调用（JDBC、MongoDB 和 Kafka 客户端）。JDK 24 之前，在 `synchronized` 代码中阻塞的虚拟线程（驱动和 Java agent 常常如此）会钉住它所在的载体线程。这样的线程一多，别的线程就没有载体可用：节点的每个存储和主题调用都不再返回，它的租约失效，其他节点接管它的分区。节点的存活检查随后在 `wow.health.liveness.stall-timeout` 之后失败，Kubernetes 重启它（[健康](./observability#health)）。JDK 24 及以后，这些线程可以卸载。运行在更早 JDK 上的节点启动时会就此警告一次。
