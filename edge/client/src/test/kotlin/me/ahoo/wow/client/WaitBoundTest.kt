@@ -23,6 +23,7 @@ import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.Hop
+import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.kernel.FailureClassification
 import me.ahoo.wow.manifest.CommandIndex
@@ -58,7 +59,11 @@ class WaitBoundTest {
     private val contracts = contractOf(BOX, HttpCommandClientTest.DeliverItems::class.java)
 
     /** A saga's caller of the peer, with the transport's [timeout] (`wow.peer.timeout`), reading time at [NOW]. */
-    private fun caller(timeout: Duration = PEER_TIMEOUT, timeouts: Map<String, Duration> = emptyMap()) =
+    private fun caller(
+        timeout: Duration = PEER_TIMEOUT,
+        timeouts: Map<String, Duration> = emptyMap(),
+        defaultWait: Duration = WaitPlan.DEFAULT_TIMEOUT,
+    ) =
         HttpCommandCaller(
             HttpTransport(
                 EndpointResolver.of(emptyMap(), mapOf("mail" to peer.base)),
@@ -70,6 +75,7 @@ class WaitBoundTest {
             ),
             CommandIndex(contracts.map { it.manifest }),
             clock = { NOW },
+            defaultWait = defaultWait,
         )
 
     /** A saga's call of the box, going on with a wait that ends [left] after [NOW], or with none. */
@@ -108,10 +114,13 @@ class WaitBoundTest {
 
     @Test
     fun `a call with no wait of its own is bounded by the default wait, at most its context's timeout`() {
-        // The wait the target applies by default, stated, and the grace: not the transport's 30 seconds.
+        // A caller of no node states the default wait, WaitPlan.DEFAULT_TIMEOUT, and the grace: not the transport's
+        // 30 seconds.
         val defaulted = caller().requestOf(call())
         defaulted.headers[WowHeaders.WAIT_TIMEOUT].assert().isEqualTo("10s")
         defaulted.timeout.assert().isEqualTo(10.seconds + HttpCommandCaller.ANSWER_GRACE)
+        // The calling node's own default wait, which the host gives its caller (wow.wait.default-timeout).
+        caller(defaultWait = 30.seconds).requestOf(call()).headers[WowHeaders.WAIT_TIMEOUT].assert().isEqualTo("30s")
         // A context given a shorter timeout keeps it, its wait too.
         val short = caller(timeouts = mapOf("mail" to 500.milliseconds)).requestOf(call())
         short.headers[WowHeaders.WAIT_TIMEOUT].assert().isEqualTo("500ms")

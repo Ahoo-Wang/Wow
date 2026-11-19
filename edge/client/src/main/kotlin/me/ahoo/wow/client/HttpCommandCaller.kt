@@ -59,8 +59,9 @@ import kotlin.time.toJavaDuration
  * - the calling service's name as `Wow-Service`, which makes the target take `Wow-Call`;
  * - the trace the call runs in.
  *
- * The call waits as long as the wait it goes on with has left, or [WaitPlan.DEFAULT_TIMEOUT] for one that
- * goes on with none, at most the context's timeout: it states that as `Wow-Wait-Timeout`, and waits for the answer
+ * The call waits as long as the wait it goes on with has left, or the calling node's default wait for one that
+ * goes on with none (`wow.wait.default-timeout`, which the host gives it; [WaitPlan.DEFAULT_TIMEOUT] for a caller of no
+ * node), at most the context's timeout: it states that as `Wow-Wait-Timeout`, and waits for the answer
  * that long and [ANSWER_GRACE] more, never the transport's whole timeout (`wow.peer.timeout`, which bounds what has no
  * wait). The target answers 504 at the wait's end, so a target that has not answered by then never will: a call sent
  * on a connection to a node that is gone without closing it (a pod deleted by force) ends then (#6517).
@@ -68,6 +69,8 @@ import kotlin.time.toJavaDuration
  * The target answers once the command is committed: 200 with its result, or a problem+json whose `result` is its
  * REJECTED or FAILED result. A REJECTED result is returned; a FAILED one is its problem's [WowProblemException],
  * which keeps the problem's `Retry-After` for the subscription's backoff (a 504's second, not the backoff's tenth).
+ * The outcome is the one it was: a FAILED result returned failed the handler too, as `CommandCalls.failure` of its
+ * code and result, classified alike; only the `Retry-After` is new.
  * Anything else is a [WowProblemException] too: an error answered without a result (401 or 403
  * for a call the target refuses, such as one of a service its lists do not name) as its own code, a connection that
  * fails or no answer within the bound as the transport's (`wow.command.unknown`, `wow.peer.unavailable`), and a
@@ -81,6 +84,8 @@ class HttpCommandCaller internal constructor(
     private val commands: CommandIndex,
     /** The time a wait's deadline is read against, in epoch milliseconds. */
     private val clock: () -> Long = System::currentTimeMillis,
+    /** The wait of a call that goes on with none: the calling node's default. */
+    private val defaultWait: Duration = WaitPlan.DEFAULT_TIMEOUT,
 ) : CommandCaller {
     /**
      * The caller of the contexts' internal ports at the fixed [endpoints], as the service named [service], on
@@ -97,8 +102,9 @@ class HttpCommandCaller internal constructor(
 
     /**
      * The caller of the contexts' internal ports [endpoints] finds, as the service named [service], each call answered
-     * within its context's timeout of [timeouts], else [timeout], and routed as [contracts] list its command. It builds
-     * what the internal constructor takes: the transport from the endpoints, and the command index from the contracts.
+     * within its context's timeout of [timeouts], else [timeout], and routed as [contracts] list its command. A call
+     * that goes on with no wait waits [defaultWait], the calling node's `wow.wait.default-timeout`. It builds what the
+     * internal constructor takes: the transport from the endpoints, and the command index from the contracts.
      */
     constructor(
         endpoints: EndpointResolver,
@@ -107,9 +113,11 @@ class HttpCommandCaller internal constructor(
         timeout: Duration,
         timeouts: Map<String, Duration> = emptyMap(),
         contracts: List<Manifest> = classPathContracts(),
+        defaultWait: Duration = WaitPlan.DEFAULT_TIMEOUT,
     ) : this(
         HttpTransport(endpoints, ClientMode.Service(service), client, timeout, RetryPolicy.NONE, timeouts),
         CommandIndex(contracts),
+        defaultWait = defaultWait,
     )
 
     /**
@@ -169,11 +177,11 @@ class HttpCommandCaller internal constructor(
 
     /**
      * How long [call] waits for its command: what the wait it goes on with has left (a millisecond at least), else
-     * [WaitPlan.DEFAULT_TIMEOUT]; at most its context's timeout.
+     * [defaultWait]; at most its context's timeout.
      */
     private fun boundOf(call: OutgoingCall): Duration {
         val wait = call.wait?.let { (it.deadline - clock()).milliseconds.coerceAtLeast(1.milliseconds) }
-        return minOf(wait ?: WaitPlan.DEFAULT_TIMEOUT, transport.timeoutOf(call.command.ref.type.context))
+        return minOf(wait ?: defaultWait, transport.timeoutOf(call.command.ref.type.context))
     }
 
     /** A call that reached no result it could read: [FrameworkCodes.COMMAND_FAILED], a bad gateway. */
