@@ -43,7 +43,9 @@ cluster() {
   "$kubectl" --context "kind-$cluster" get nodes -L topology.kubernetes.io/zone
 }
 
-random() { openssl rand -hex "${1:-24}"; }
+# Without a trailing newline: a secret takes the file whole, and a password ending in one breaks the consumers that
+# put it in a URI or an Authorization header (mongodb-init, Elasticsearch's probe) while others strip it.
+random() { openssl rand -hex "${1:-24}" | tr -d '\n'; }
 
 # The run's secrets (README.md, "Secrets"): random values, a CA of the run's own, created in the namespace and kept
 # in the evidence folder only.
