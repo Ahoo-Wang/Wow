@@ -66,7 +66,7 @@ Plus `openssl`, `jq` and `curl`. `curl` and `helm pull` reach the public registr
 | `platform/observability/` | The OpenTelemetry Operator's values and the Instrumentation that injects the Java agent, as `deploy/`'s values expect. The collector. Prometheus with `alerts.yaml`, one rule per row of Operate › Observability's "What to alert on". kube-state-metrics for the pods' readiness. |
 | `platform/probes.yaml` | The boundary's vantage points, `outsider` and `insider`, on the catalog's image. |
 | `eshop-build.sh`, `published-wow.init.gradle.kts` | The eShop's servers built from a release's source against the Wow it published on Maven Central ("Running it"). |
-| `values/` | What the drill sets on top of each service's generated values and `deploy/<service>/values.yaml`: the catalog's `search` profile, the ordering's `clickhouse` profile, and the end-to-end suite's settings (named as such in each file). Every service, the platform's three included, also takes `pod-security-workaround.yaml`: a user of 10001 for the pods, the workaround for the OpenTelemetry agent's init container under the chart's `runAsNonRoot` (the file says why). Otherwise the platform's three take `deploy/`'s values unchanged. |
+| `values/` | What the drill sets on top of each service's generated values and `deploy/<service>/values.yaml`: the catalog's `search` profile, the ordering's `clickhouse` profile, and the end-to-end suite's settings (named as such in each file). Every service, the platform's three included, also takes `pod-security-workaround.yaml` when its chart names no user (step 8): a user of 10001 for the pods, the workaround for the OpenTelemetry agent's init container under the chart's `runAsNonRoot` (the file says why). Otherwise the platform's three take `deploy/`'s values unchanged. |
 
 ### Where the drill differs from `deploy/`, and why
 
@@ -97,7 +97,7 @@ The order, which the drill's script follows:
 8. **The services.** Each with the chart of the release, by version: `helm install <service> oci://ghcr.io/ahoo-wang/wow-service --version <version>`, with, in order:
    - the values its build generates (`generateWowHelmValues`);
    - `deploy/<service>/values.yaml`;
-   - `values/pod-security-workaround.yaml`, for every service;
+   - `values/pod-security-workaround.yaml`, only when the chart of that version sets no `podSecurityContext.runAsUser` (10.0.0-beta.10 and earlier): read from the chart step 0 checked, and logged for each install, so a chart that names its user is proved by its own default;
    - `values/<service>.yaml` when there is one;
    - for the eShop's services, `--set image.tag=<version>`.
 
@@ -134,7 +134,7 @@ With a previous version, the run installs that version first, then upgrades to t
   - `restart` otherwise: a fresh install of the new version, then a rolling restart at that version under load.
 - The run refuses to guess.
 
-**Evidence.** Each step is timed in the evidence folder (`steps.tsv`, `steps/<step>.log`), beside:
+**Evidence.** Each step is timed in the evidence folder (`steps.tsv`, `steps/<step>.log`), and every pod's logs of the step, its current and previous containers', are kept in `logs/<step>/` before the next step starts, so a later reinstall or drain cannot take them. Beside them:
 - the artifacts' check;
 - the comparison;
 - the end-to-end reports (`e2e/<label>/`);

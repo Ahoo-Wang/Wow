@@ -17,7 +17,8 @@ groups:
         expr: max by (service_name, k8s_pod_name) ({__name__=~"wow_subscription_parked_aggregates(_ratio)?"}) > 0
         for: 1m
       - alert: WowPausedPartitions
-        # A downstream store or service is down.
+        # A store or service the subscription depends on fails it systemically: down, refusing, or timing out under
+        # the load. A store only slower, its writes still succeeding, throttles instead (Operate › Observability).
         expr: max by (service_name, k8s_pod_name) ({__name__=~"wow_subscription_paused_partitions(_ratio)?"}) > 0
         for: 5m
       - alert: WowBacklogGrowing
