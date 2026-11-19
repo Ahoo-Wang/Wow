@@ -29,6 +29,9 @@ zone_down() {
   log "node $node stopped"
   sleep 180
   docker start "$node" >/dev/null
+  # For the cluster test's restart check: a container on this node restarts once in place, reason Unknown, and that
+  # restart is the node's (RcDrillTest exempts it, and its report lists each one).
+  grep -qx "$node" "$evidence/e2e/state/restarted-nodes" 2>/dev/null || echo "$node" >>"$evidence/e2e/state/restarted-nodes"
   "$kubectl" --context "kind-$cluster" wait --for=condition=Ready "node/$node" --timeout=600s
   for set in mongodb kafka elasticsearch; do k rollout status "statefulset/$set" --timeout=900s; done
 }

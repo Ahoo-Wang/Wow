@@ -33,6 +33,8 @@ data class Pod(
     val deleting: Boolean,
     /** Why a container of the pod last ended (`OOMKilled`, `Error`), when one did. */
     val lastTerminated: String? = null,
+    /** The node the pod runs on, once it is scheduled. */
+    val node: String? = null,
 )
 
 /**
@@ -85,6 +87,7 @@ class Kube(private val log: (String) -> Unit) {
             lastTerminated = statuses.firstNotNullOfOrNull { status ->
                 status["lastState"]?.get("terminated")?.get("reason")?.asString()
             },
+            node = item["spec"]["nodeName"]?.asString(),
         )
     }
 

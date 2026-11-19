@@ -136,14 +136,26 @@ class RcDrillTest {
     /** No Wow container restarted (liveness, a crash, memory) and every Wow pod ready, at the end of this run. */
     private fun wowPods(): String {
         val wow = kube.allPods().filter { pod -> WOW.any { pod.name.startsWith(it) } }
-        val restarted = wow.filter { it.restarts > 0 }
+        // A node the drill stopped and started (step 5's zone loss, recorded in ga.state) restarts each container on it
+        // once in place, reason Unknown: that restart is the node's, not the container's. Any other restart fails.
+        val (exempted, restarted) = wow.filter { it.restarts > 0 }.partition {
+            it.node in restartedNodes() && it.restarts == 1 && it.lastTerminated == "Unknown"
+        }
         check(restarted.isEmpty()) {
             "restarted: " + restarted.map { "${it.name} ×${it.restarts} (${it.lastTerminated ?: "no reason recorded"})" }
         }
         val unready = wow.filter { !it.ready && !it.deleting }
         check(unready.isEmpty()) { "not ready: ${unready.map { it.name }}" }
-        return "${wow.size} Wow pods, none restarted, all ready"
+        val exemption = exempted.joinToString(prefix = "; exempted, their node stopped and started by the drill: ") {
+            "${it.name} on ${it.node} ×1 (Unknown)"
+        }.takeIf { exempted.isNotEmpty() }.orEmpty()
+        return "${wow.size} Wow pods, none restarted, all ready$exemption"
     }
+
+    /** The nodes the drill stopped and started (faults.sh's zone_down), one per line in ga.state's restarted-nodes. */
+    private fun restartedNodes(): Set<String> = System.getProperty("ga.state")
+        ?.let { File(it, "restarted-nodes") }?.takeIf { it.isFile }
+        ?.readLines()?.map(String::trim)?.filter(String::isNotEmpty)?.toSet().orEmpty()
 
     private fun judge() {
         var failure: Throwable? = null
