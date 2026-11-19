@@ -84,6 +84,7 @@ class BodyIdAdmissionTest {
             actions += action
             Authorization.Allowed
         },
+        committed = CommittedRequests.NONE,
     )
 
     private fun request(command: String, body: String, aggregateId: String? = null, requestId: String? = null) =
@@ -184,6 +185,7 @@ class BodyIdAdmissionTest {
                 ModelRegistry(listOf(product)),
                 mapOf(CONTEXT to coordinator),
                 transformers = listOf(transformer),
+                committed = CommittedRequests.NONE,
             )
         }
             .hasMessageContaining("takes $CONTEXT.product.Restock, whose body names its aggregate (@AggregateId)")

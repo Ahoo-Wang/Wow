@@ -35,6 +35,8 @@ import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.kernel.StartFrom
 import me.ahoo.wow.kernel.eachEvent
 import me.ahoo.wow.runtime.admission.CommandBody
+import me.ahoo.wow.runtime.admission.CommittedRequests
+import me.ahoo.wow.runtime.admission.CreationIds
 import me.ahoo.wow.runtime.admission.ServerCommandRequest
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
 import me.ahoo.wow.runtime.node.InMemoryBackends
@@ -45,6 +47,7 @@ import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.runtime.wait.ResultCodes
+import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.subscription.SubscriptionId
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
@@ -374,7 +377,11 @@ class SubscriptionBindingsTest {
 
     @Test
     fun `a command derived for another context should fail the saga without a command transport`(): Unit = runBlocking {
-        val derived = DerivedCommands(listOf(orderModel()), node.context(SHOP).coordinator)
+        val derived = DerivedCommands(
+            listOf(orderModel()),
+            node.context(SHOP).coordinator,
+            creations = CreationIds(IdGenerators.DEFAULT, CommittedRequests.NONE),
+        )
         val elsewhere = Command("c", "r", me.ahoo.wow.api.aggregate.AggregateType("mail", "box").ref(TENANT, "m"), "x")
         runCatching { derived.execute(listOf(elsewhere), null) }.exceptionOrNull()!!.message.assert()
             .contains("no command transport")

@@ -68,6 +68,7 @@ import me.ahoo.wow.runtime.Executor
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.admission.CommandTransformer
+import me.ahoo.wow.runtime.admission.CommittedRequests
 import me.ahoo.wow.runtime.admission.ModelRegistry
 import me.ahoo.wow.runtime.wait.LocalSignalSender
 import me.ahoo.wow.runtime.wait.SubscriptionDirectory
@@ -342,6 +343,7 @@ class CoSecNode(
         mapOf(CONTEXT to coordinator),
         authorizer = authorizer,
         transformers = transformers,
+        committed = CommittedRequests.NONE,
     )
 
     /** The internal port's call routes (decision D193) of this node, their callers from [internalCallers]. */

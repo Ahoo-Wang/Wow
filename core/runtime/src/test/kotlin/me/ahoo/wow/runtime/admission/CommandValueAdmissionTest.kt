@@ -103,6 +103,7 @@ class CommandValueAdmissionTest {
         authorizer = authorizer,
         transformers = transformers,
         validators = validators,
+        committed = CommittedRequests.NONE,
     )
 
     private val alice = Caller(TENANT, Scope("alice"), subject = "alice")
@@ -231,7 +232,11 @@ class CommandValueAdmissionTest {
                 origin,
                 WaitOptions(maxTimeout = 30.seconds),
             )
-            val gateway = CommandGateway(ModelRegistry(listOf(model)), mapOf(CONTEXT to warm))
+            val gateway = CommandGateway(
+                ModelRegistry(listOf(model)),
+                mapOf(CONTEXT to warm),
+                committed = CommittedRequests.NONE,
+            )
             fun retried(body: Any, requestId: String) =
                 ServerCommandRequest.builder(body, cart.ref(TENANT, "cart-9")).caller(alice).requestId(requestId)
                     .wait(WaitPlan.COMMITTED).build()

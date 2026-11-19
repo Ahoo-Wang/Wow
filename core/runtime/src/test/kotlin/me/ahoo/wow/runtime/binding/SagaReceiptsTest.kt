@@ -35,12 +35,15 @@ import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.kernel.RejectionBinding
 import me.ahoo.wow.runtime.admission.CommandBody
+import me.ahoo.wow.runtime.admission.CommittedRequests
+import me.ahoo.wow.runtime.admission.CreationIds
 import me.ahoo.wow.runtime.admission.ServerCommandRequest
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
 import me.ahoo.wow.runtime.node.InMemoryBackends
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.fastNodeOptions
 import me.ahoo.wow.runtime.subscription.eventually
+import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.subscription.SubscriptionId
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
@@ -435,7 +438,11 @@ class SagaReceiptsTest {
         val node = start(saga())
         val rejections = SagaReceipts(
             listOf(saga(onRemoveRejected)),
-            DerivedCommands(node.context(SHOP).models, node.context(SHOP).coordinator),
+            DerivedCommands(
+                node.context(SHOP).models,
+                node.context(SHOP).coordinator,
+                creations = CreationIds(IdGenerators.DEFAULT, CommittedRequests.NONE),
+            ),
         )
         val rejected = CommandReceipt.Rejected<Any>(
             "c-1",

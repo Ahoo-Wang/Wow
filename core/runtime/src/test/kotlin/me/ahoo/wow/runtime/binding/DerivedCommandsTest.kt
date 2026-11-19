@@ -67,7 +67,11 @@ class DerivedCommandsTest {
         Origin("node-1", "node-1:9090", SHOP_SERVICE),
         WaitOptions(),
     )
-    private val derived = DerivedCommands(listOf(cart), coordinator)
+    private val derived = DerivedCommands(
+        listOf(cart),
+        coordinator,
+        creations = CreationIds(IdGenerators.DEFAULT, CommittedRequests.NONE),
+    )
 
     /** A command a saga execution of the order `o-1` derived. */
     private fun command(id: String, body: Any) = Command(id, id, CART.ref(TENANT, "alice"), body, causation = root)

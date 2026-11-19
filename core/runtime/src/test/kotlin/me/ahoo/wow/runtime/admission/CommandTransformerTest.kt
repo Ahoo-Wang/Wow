@@ -154,6 +154,7 @@ class CommandTransformerTest {
             authorizer.authorize(caller, action)
         },
         transformers = transformers,
+        committed = CommittedRequests.NONE,
     )
 
     private fun request(command: String, body: String, aggregateId: String? = null, requestId: String? = null) =

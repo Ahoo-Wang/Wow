@@ -30,43 +30,64 @@ import me.ahoo.wow.spi.log.Partitioner
 
 /**
  * The streams already committed for a request, and the claims of creations not committed yet: what admission reads
- * before it gives a creation command without an id one.
+ * before it gives a creation command without an id one. None of its members has a default and it is no `fun
+ * interface`, so that a lambda cannot stand for it: one that looked requests up and kept its claims to itself left
+ * the node's own gateway drawing a new id for every attempt (#6518). Build one with [of].
  */
 @InternalWowApi
-fun interface CommittedRequests {
+interface CommittedRequests {
     /** The stream committed for [requestId] within [tenantId] in aggregate type [type], if any. */
     suspend fun find(type: AggregateType, tenantId: String, requestId: String): EventStreamRecord?
 
     /**
      * The claim of the aggregate the creation of [requestId] targets: [claim] when the request has none, else its
-     * first ([EventLog.claimCreation]). By default no claims are kept: [claim].
+     * first ([EventLog.claimCreation]).
      */
-    suspend fun claim(type: AggregateType, tenantId: String, requestId: String, claim: CreationClaim): CreationClaim =
-        claim
+    suspend fun claim(type: AggregateType, tenantId: String, requestId: String, claim: CreationClaim): CreationClaim
 
-    /** The partition of [ref] in the log of its type; 0 by default, as for a log of one partition. */
-    fun partitionOf(ref: AggregateRef): Int = 0
+    /** The partition of [ref] in the log of its type. */
+    fun partitionOf(ref: AggregateRef): Int
 
     @InternalWowApi
     companion object {
-        /** Nothing is ever committed: every creation without an id takes a new one. */
+        /** Nothing is ever committed or claimed: every creation without an id takes a new one, in partition 0. */
         @JvmField
-        val NONE: CommittedRequests = CommittedRequests { _, _, _ -> null }
-
-        /** The streams [log] holds ([EventLog.findByRequestId]) and the claims it keeps ([EventLog.claimCreation]). */
-        @JvmStatic
-        fun of(log: EventLog): CommittedRequests = object : CommittedRequests {
+        val NONE: CommittedRequests = object : CommittedRequests {
             override suspend fun find(type: AggregateType, tenantId: String, requestId: String): EventStreamRecord? =
-                log.findByRequestId(type, tenantId, requestId)
+                null
 
             override suspend fun claim(
                 type: AggregateType,
                 tenantId: String,
                 requestId: String,
                 claim: CreationClaim,
-            ): CreationClaim = log.claimCreation(type, tenantId, requestId, claim)
+            ): CreationClaim = claim
 
-            override fun partitionOf(ref: AggregateRef): Int = Partitioner.partitionOf(ref, log.partitions)
+            override fun partitionOf(ref: AggregateRef): Int = 0
+        }
+
+        /** The streams [log] holds ([EventLog.findByRequestId]) and the claims it keeps ([EventLog.claimCreation]). */
+        @JvmStatic
+        fun of(log: EventLog): CommittedRequests = of { log }
+
+        /**
+         * The streams and claims of each aggregate type's log, [logOf] it; a type with none (of a context the node
+         * does not serve) has nothing committed or claimed, as [NONE].
+         */
+        @JvmStatic
+        fun of(logOf: (AggregateType) -> EventLog?): CommittedRequests = object : CommittedRequests {
+            override suspend fun find(type: AggregateType, tenantId: String, requestId: String): EventStreamRecord? =
+                logOf(type)?.findByRequestId(type, tenantId, requestId)
+
+            override suspend fun claim(
+                type: AggregateType,
+                tenantId: String,
+                requestId: String,
+                claim: CreationClaim,
+            ): CreationClaim = logOf(type)?.claimCreation(type, tenantId, requestId, claim) ?: claim
+
+            override fun partitionOf(ref: AggregateRef): Int =
+                logOf(ref.type)?.let { Partitioner.partitionOf(ref, it.partitions) } ?: 0
         }
     }
 }
@@ -89,7 +110,7 @@ fun interface CommittedRequests {
 @InternalWowApi
 class CreationIds(
     private val ids: IdGenerators = IdGenerators.DEFAULT,
-    private val committed: CommittedRequests = CommittedRequests.NONE,
+    private val committed: CommittedRequests,
 ) {
     /**
      * The id of the aggregate of [type] that a creation command of request [requestId] in [tenantId], in [scope],

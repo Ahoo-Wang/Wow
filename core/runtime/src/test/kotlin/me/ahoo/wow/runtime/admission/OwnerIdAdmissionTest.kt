@@ -98,6 +98,7 @@ class OwnerIdAdmissionTest {
         ModelRegistry(listOf(basket, wishlist)),
         mapOf(CONTEXT to coordinator),
         transformers = listOf(toBasket),
+        committed = CommittedRequests.NONE,
     )
 
     private fun request(

@@ -156,8 +156,11 @@ class CommandGateway @InternalWowApi constructor(
     private val mapper: JsonMapper = ClusterCodec.mapper,
     private val clock: Clock = Clock.systemUTC(),
     detachedContext: CoroutineContext = Dispatchers.Default,
-    /** The streams committed for a request, which a creation without an id looks up first. */
-    committed: CommittedRequests = CommittedRequests.NONE,
+    /**
+     * The streams committed for a request and the claims of creations, which a creation without an id reads first: the
+     * node passes its contexts' logs' ([CommittedRequests.of]), with no default, so that no caller forgets them.
+     */
+    committed: CommittedRequests,
     /** Sees each admission; the admitted command executes in the admission's trace. */
     private val observer: Observer = Observer.NONE,
     /**

@@ -22,6 +22,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.FrameworkCodes
@@ -36,6 +37,7 @@ import me.ahoo.wow.runtime.wait.WaitCoordinator
 import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.log.EventLog
+import me.ahoo.wow.spi.log.EventStreamRecord
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.seconds
 
@@ -144,7 +146,11 @@ class CommandGatewayExecutionTest : CommandGatewayFixtures() {
             WaitOptions(),
             router = { _, _, _, _ -> error("unreachable") },
         )
-        val throwing = CommandGateway(ModelRegistry(listOf(model)), mapOf(CONTEXT to failing))
+        val throwing = CommandGateway(
+            ModelRegistry(listOf(model)),
+            mapOf(CONTEXT to failing),
+            committed = CommittedRequests.NONE,
+        )
         throwing.execute(request(wait = WaitPlan.ACCEPTED)).status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         throwing.close(5.seconds)
         gateway.close(5.seconds)
@@ -192,7 +198,15 @@ class CommandGatewayExecutionTest : CommandGatewayFixtures() {
 
     @Test
     fun `a store unavailable at admission refuses the request as retryable, before it runs (F2)`(): Unit = runBlocking {
-        val committed = CommittedRequests { _, _, _ -> throw StorageUnavailableException("The log is unavailable.") }
+        val committed = CommittedRequests.of(
+            object : EventLog by log {
+                override suspend fun findByRequestId(
+                    type: AggregateType,
+                    tenantId: String,
+                    requestId: String,
+                ): EventStreamRecord? = throw StorageUnavailableException("The log is unavailable.")
+            },
+        )
         val result = gateway(committed = committed).execute(
             request(command = "OpenCart", body = "{}", aggregateId = null, requestId = "open-1"),
         )

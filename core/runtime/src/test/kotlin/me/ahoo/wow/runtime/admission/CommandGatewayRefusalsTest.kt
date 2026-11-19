@@ -16,6 +16,7 @@ package me.ahoo.wow.runtime.admission
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
@@ -28,6 +29,7 @@ import me.ahoo.wow.api.result.TransformedFrom
 import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.kernel.aggregate
+import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.json.JsonMapper
@@ -85,7 +87,11 @@ class CommandGatewayRefusalsTest : CommandGatewayFixtures() {
 
     @Test
     fun `a gateway without an authorizer allows every action and says it has none`(): Unit = runBlocking {
-        val bare = CommandGateway(ModelRegistry(listOf(model)), mapOf(CONTEXT to coordinator))
+        val bare = CommandGateway(
+            ModelRegistry(listOf(model)),
+            mapOf(CONTEXT to coordinator),
+            committed = CommittedRequests.NONE,
+        )
         bare.authorizes.assert().isFalse()
         bare.execute(request()).status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         // An authorizer given, even one that allows everything, is the node's: the public port leaves it to decide.
@@ -236,10 +242,15 @@ class CommandGatewayRefusalsTest : CommandGatewayFixtures() {
     fun `a request's ids are checked before the creation lookup reads the store for its request id`(): Unit =
         runBlocking {
             val looked = CopyOnWriteArrayList<String>()
-            val committed = CommittedRequests { _, _, requestId ->
-                looked += requestId
-                null
-            }
+            val committed = CommittedRequests.of(
+                object : EventLog by log {
+                    override suspend fun findByRequestId(
+                        type: AggregateType,
+                        tenantId: String,
+                        requestId: String,
+                    ): EventStreamRecord? = null.also { looked += requestId }
+                },
+            )
             val long = "x".repeat(AdmissionLimits.MAX_ID_LENGTH + 1)
             gateway(committed = committed).execute(request(aggregateId = null, requestId = long))
                 .assertRefused(FrameworkCodes.COMMAND_MALFORMED)

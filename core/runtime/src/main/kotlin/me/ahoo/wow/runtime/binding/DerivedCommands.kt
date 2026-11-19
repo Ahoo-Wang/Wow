@@ -94,7 +94,7 @@ internal class DerivedCommands(
     models: Collection<AggregateModel<*>>,
     private val coordinator: WaitCoordinator,
     private val sender: CommandSender? = null,
-    private val creations: CreationIds = CreationIds(),
+    private val creations: CreationIds,
     /** The node's command validators, the gateway's. */
     private val validators: List<CommandValidator> = emptyList(),
 ) {

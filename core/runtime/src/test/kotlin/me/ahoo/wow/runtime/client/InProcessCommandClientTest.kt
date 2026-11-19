@@ -48,6 +48,7 @@ import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.admission.CommandInput
 import me.ahoo.wow.runtime.admission.CommandTarget
 import me.ahoo.wow.runtime.admission.CommandTransformer
+import me.ahoo.wow.runtime.admission.CommittedRequests
 import me.ahoo.wow.runtime.admission.ModelRegistry
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
 import me.ahoo.wow.runtime.command.ITEM
@@ -124,6 +125,7 @@ class InProcessCommandClientTest {
             ),
         ),
         transformers = transformers,
+        committed = CommittedRequests.NONE,
     )
 
     private val gateway = gateway()
