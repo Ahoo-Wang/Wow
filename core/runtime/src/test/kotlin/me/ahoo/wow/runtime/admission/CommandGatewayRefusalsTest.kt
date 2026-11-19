@@ -87,7 +87,11 @@ class CommandGatewayRefusalsTest : CommandGatewayFixtures() {
 
     @Test
     fun `a gateway without an authorizer allows every action and says it has none`(): Unit = runBlocking {
-        val bare = CommandGateway(ModelRegistry(listOf(model)), mapOf(CONTEXT to coordinator), committed = CommittedRequests.NONE)
+        val bare = CommandGateway(
+            ModelRegistry(listOf(model)),
+            mapOf(CONTEXT to coordinator),
+            committed = CommittedRequests.NONE,
+        )
         bare.authorizes.assert().isFalse()
         bare.execute(request()).status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         // An authorizer given, even one that allows everything, is the node's: the public port leaves it to decide.

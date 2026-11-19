@@ -65,7 +65,11 @@ class CallWaitOriginTest {
             origin,
             WaitOptions(maxTimeout = 30.seconds),
         )
-        CommandGateway(ModelRegistry(listOf(cartModel(commands))), mapOf(CONTEXT to coordinator), committed = CommittedRequests.NONE)
+        CommandGateway(
+            ModelRegistry(listOf(cartModel(commands))),
+            mapOf(CONTEXT to coordinator),
+            committed = CommittedRequests.NONE,
+        )
     }
     private val tokens = DeclaredServices.resolver(TENANT)
     private val calls: WebTestClient =

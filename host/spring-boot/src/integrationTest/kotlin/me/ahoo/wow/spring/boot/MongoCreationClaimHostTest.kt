@@ -128,7 +128,8 @@ class MongoCreationClaimHostTest {
     /** Two ids of the account in two partitions, queued for the first attempt's draw and the retry's. */
     private fun queueIdsApart(prefix: String): List<String> {
         val first = "$prefix-0"
-        val second = generateSequence(1) { it + 1 }.map { "$prefix-$it" }.first { partitionOf(it) != partitionOf(first) }
+        val second = generateSequence(1) { it + 1 }.map { "$prefix-$it" }
+            .first { partitionOf(it) != partitionOf(first) }
         HeldAdmission.ids.clear()
         HeldAdmission.ids.addAll(listOf(first, second))
         return listOf(first, second)

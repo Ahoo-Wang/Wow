@@ -48,7 +48,6 @@ import me.ahoo.cosec.spi.snapshot.SnapshotKey
 import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
-import me.ahoo.wow.api.decide.Decision as WowDecision
 import me.ahoo.wow.http.WowHttpOptions
 import me.ahoo.wow.http.callRoutes
 import me.ahoo.wow.http.caller.CallerResolver
@@ -89,6 +88,7 @@ import tools.jackson.databind.json.JsonMapper
 import java.time.Duration
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.time.Duration.Companion.seconds
+import me.ahoo.wow.api.decide.Decision as WowDecision
 const val CONTEXT = "shop"
 
 data class OpenCart(val note: String = "")

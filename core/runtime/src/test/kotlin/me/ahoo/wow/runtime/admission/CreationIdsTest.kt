@@ -216,6 +216,21 @@ class CreationIdsTest {
         }
 
     @Test
+    fun `the committed requests of each type are its log's, nothing for a type without one`(): Unit = runBlocking {
+        val log = InMemoryEventLog(partitions = PARTITIONS)
+        val claim = CreationClaim.of("o-1", Scope("alice"))
+        val unserved = AggregateType("elsewhere", "order")
+        val committed = CommittedRequests.of { if (it == type) log else null }
+        committed.find(type, "t", "r-1").assert().isNull()
+        committed.claim(type, "t", "r-1", claim).assert().isSameAs(claim)
+        committed.partitionOf(type.ref("t", "o-1")).assert()
+            .isEqualTo(Partitioner.partitionOf(type.ref("t", "o-1"), PARTITIONS))
+        committed.find(unserved, "t", "r-1").assert().isNull()
+        committed.claim(unserved, "t", "r-1", claim).assert().isSameAs(claim)
+        committed.partitionOf(unserved.ref("t", "o-1")).assert().isEqualTo(0)
+    }
+
+    @Test
     fun `without committed requests every creation draws a new id`(): Unit = runBlocking {
         CommittedRequests.NONE.find(type, "t", "r-1").assert().isNull()
         val claim = CreationClaim.of("fresh", Scope.NONE)
