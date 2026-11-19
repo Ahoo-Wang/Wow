@@ -186,7 +186,6 @@ class ClickHouseSqlCompilerTest {
         assertThrows<RuntimeException> { where(GreaterThanFilter(CREATED_AT, "yesterday")) }
     }
 
-
     @Test
     fun `expression filters should compute in Float64 and never match a missing value`() {
         val amountPlusOne = AggregationExpression.Binary(
