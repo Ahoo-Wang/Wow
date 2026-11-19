@@ -241,9 +241,11 @@ class ClusterVerdict(private val flows: ShopFlows, private val reads: StoreReads
             )
             status in PAID && (succeeded != 1 || payment?.get("status")?.asString() != "SUCCEEDED") ->
                 paymentOnce.violate(evidence + ("reason" to "paid without one succeeded payment"))
-            status in PAID && payment!!["amount"].decimalValue().compareTo(ShopFlows.total(order)) != 0 ->
+            // A paid order's payment is there: the branch above takes one without a succeeded payment.
+            status in PAID && payment?.get("amount")?.decimalValue()?.compareTo(ShopFlows.total(order)) != 0 ->
                 paymentOnce.violate(
-                    evidence + ("reason" to "amount ${payment["amount"]} is not the total ${ShopFlows.total(order)}")
+                    evidence +
+                        ("reason" to "amount ${payment?.get("amount")} is not the total ${ShopFlows.total(order)}")
                 )
             status == "CANCELLED" && succeeded > 0 -> paymentOnce.violate(evidence + ("reason" to "cancelled but paid"))
         }

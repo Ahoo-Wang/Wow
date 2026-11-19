@@ -1,6 +1,8 @@
 # The collector the services' values name (otel-collector:4318): it takes the agents' OTLP and serves the meters to
 # Prometheus (prometheus.yaml) on :8889, each series labelled with its resource's attributes (service.name,
-# k8s.pod.name, ...), so an alert names the pod. Spans are taken and dropped: the drill judges meters, not traces.
+# k8s.pod.name, ...), so an alert names the pod. Spans are taken and dropped: the drill judges meters, not traces. The
+# services' logs are written to the collector's own output, one OTLP JSON line per batch naming each record's pod, so
+# the logs of a pod a fault deletes are still in the collector's log, which drill.sh keeps for every step.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -29,6 +31,8 @@ data:
         resource_to_telemetry_conversion:
           enabled: true
       nop: {}
+      file/stdout:
+        path: /dev/stdout
     service:
       pipelines:
         metrics:
@@ -41,8 +45,8 @@ data:
           exporters: [nop]
         logs:
           receivers: [otlp]
-          processors: [memory_limiter]
-          exporters: [nop]
+          processors: [memory_limiter, batch]
+          exporters: [file/stdout]
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -60,7 +64,7 @@ spec:
       labels:
         app.kubernetes.io/name: otel-collector
       annotations:
-        rc-drill/config: "2"
+        rc-drill/config: "3"
     spec:
       containers:
         - name: collector
