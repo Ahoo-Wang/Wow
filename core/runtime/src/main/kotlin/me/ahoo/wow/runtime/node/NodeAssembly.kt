@@ -24,6 +24,7 @@ import me.ahoo.wow.runtime.InFlightLimit
 import me.ahoo.wow.runtime.StateCacheSizing
 import me.ahoo.wow.runtime.access.AccessStamping
 import me.ahoo.wow.runtime.admission.CommandGateway
+import me.ahoo.wow.runtime.admission.CommittedRequests
 import me.ahoo.wow.runtime.admission.ModelRegistry
 import me.ahoo.wow.runtime.admission.PeerCommands
 import me.ahoo.wow.runtime.cluster.ClusterChannel
@@ -364,9 +365,7 @@ internal class NodeAssembly(
         validators = admission.validators,
         ids = admission.ids,
         tenants = admission.tenants,
-        committed = { type, tenantId, requestId ->
-            contexts[type.context]?.log?.findByRequestId(type, tenantId, requestId)
-        },
+        committed = CommittedRequests.of { type -> contexts[type.context]?.log },
         observer = observer,
         peers = PeerCommands(contracts, sender),
         clock = clock,

@@ -247,7 +247,7 @@ class CommandGatewayTest : CommandGatewayFixtures() {
 
     @Test
     fun `every context of the registry needs a coordinator`() {
-        runCatching { CommandGateway(ModelRegistry(listOf(model)), emptyMap()) }.exceptionOrNull()
+        runCatching { CommandGateway(ModelRegistry(listOf(model)), emptyMap(), committed = CommittedRequests.NONE) }.exceptionOrNull()
             .assert().isInstanceOf(IllegalArgumentException::class.java)
         runCatching { ModelRegistry(listOf(model, model)) }.exceptionOrNull()
             .assert().isInstanceOf(IllegalArgumentException::class.java)

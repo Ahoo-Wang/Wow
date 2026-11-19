@@ -66,6 +66,7 @@ class ClusterAdmissionTest {
             authorized += node.name to action
             Authorization.Allowed
         },
+        committed = CommittedRequests.NONE,
     )
 
     private fun request(id: String, caller: Caller) = ServerCommandRequest(

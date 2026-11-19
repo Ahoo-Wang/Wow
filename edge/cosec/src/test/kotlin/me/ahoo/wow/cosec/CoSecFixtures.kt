@@ -48,6 +48,7 @@ import me.ahoo.cosec.spi.snapshot.SnapshotKey
 import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.decide.Decision as WowDecision
 import me.ahoo.wow.http.WowHttpOptions
 import me.ahoo.wow.http.callRoutes
 import me.ahoo.wow.http.caller.CallerResolver
@@ -68,6 +69,7 @@ import me.ahoo.wow.runtime.Executor
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.admission.CommandTransformer
+import me.ahoo.wow.runtime.admission.CommittedRequests
 import me.ahoo.wow.runtime.admission.ModelRegistry
 import me.ahoo.wow.runtime.wait.LocalSignalSender
 import me.ahoo.wow.runtime.wait.SubscriptionDirectory
@@ -87,7 +89,6 @@ import tools.jackson.databind.json.JsonMapper
 import java.time.Duration
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.time.Duration.Companion.seconds
-import me.ahoo.wow.api.decide.Decision as WowDecision
 const val CONTEXT = "shop"
 
 data class OpenCart(val note: String = "")
@@ -342,6 +343,7 @@ class CoSecNode(
         mapOf(CONTEXT to coordinator),
         authorizer = authorizer,
         transformers = transformers,
+        committed = CommittedRequests.NONE,
     )
 
     /** The internal port's call routes (decision D193) of this node, their callers from [internalCallers]. */

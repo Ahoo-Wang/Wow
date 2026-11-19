@@ -60,6 +60,7 @@ import me.ahoo.wow.runtime.Executor
 import me.ahoo.wow.runtime.admission.CallContext
 import me.ahoo.wow.runtime.admission.CommandBody
 import me.ahoo.wow.runtime.admission.CommandGateway
+import me.ahoo.wow.runtime.admission.CommittedRequests
 import me.ahoo.wow.runtime.admission.ModelRegistry
 import me.ahoo.wow.runtime.admission.ServerCommandRequest
 import me.ahoo.wow.runtime.call.SagaCalls
@@ -540,7 +541,7 @@ class SagaCallBindingTest {
                 Origin("mail-node-1", "127.0.0.1:9191", "mail-service"),
                 WaitOptions(maxTimeout = 5.seconds, defaultTimeout = 5.seconds),
             )
-            return CommandGateway(ModelRegistry(listOf(model)), mapOf("mail" to coordinator))
+            return CommandGateway(ModelRegistry(listOf(model)), mapOf("mail" to coordinator), committed = CommittedRequests.NONE)
         }
 
         fun resultOf(call: OutgoingCall, status: CommandResult.Status) = CommandResult(

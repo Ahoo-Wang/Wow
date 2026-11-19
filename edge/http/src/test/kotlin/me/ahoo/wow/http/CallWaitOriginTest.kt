@@ -30,6 +30,7 @@ import me.ahoo.wow.runtime.Executor
 import me.ahoo.wow.runtime.admission.CallContext
 import me.ahoo.wow.runtime.admission.CallHeaders
 import me.ahoo.wow.runtime.admission.CommandGateway
+import me.ahoo.wow.runtime.admission.CommittedRequests
 import me.ahoo.wow.runtime.admission.ModelRegistry
 import me.ahoo.wow.runtime.wait.LocalSignalSender
 import me.ahoo.wow.runtime.wait.SubscriptionDirectory
@@ -64,7 +65,7 @@ class CallWaitOriginTest {
             origin,
             WaitOptions(maxTimeout = 30.seconds),
         )
-        CommandGateway(ModelRegistry(listOf(cartModel(commands))), mapOf(CONTEXT to coordinator))
+        CommandGateway(ModelRegistry(listOf(cartModel(commands))), mapOf(CONTEXT to coordinator), committed = CommittedRequests.NONE)
     }
     private val tokens = DeclaredServices.resolver(TENANT)
     private val calls: WebTestClient =
