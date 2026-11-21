@@ -16,14 +16,11 @@ package me.ahoo.wow.runtime.timer
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.decide.RequestFacts
-import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.kernel.CommandTypes
 import me.ahoo.wow.manifest.Manifest
-import me.ahoo.wow.runtime.admission.CommandValidator
-import me.ahoo.wow.runtime.admission.candidateOf
-import me.ahoo.wow.runtime.admission.violationsOf
+import me.ahoo.wow.runtime.admission.ServiceCommandAdmission
 import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.cluster.CommandWire
 import me.ahoo.wow.runtime.command.CommandSender
@@ -85,10 +82,15 @@ internal class ContextCommandTypes(models: Collection<AggregateModel<*>>, privat
  * only the request facts that propagate ([RequestFacts.PROPAGATED]), such as the calling application:
  * not where its request came from. It is not waited for: a scheduled command is in no caller's wait chain.
  *
- * A command to an aggregate of its own context is checked by the node's command [validators] before it is
- * forwarded, as the gateway checks an admitted one: one they find violations in is the timer's rejected command
- * ([me.ahoo.wow.api.result.FrameworkCodes.COMMAND_INVALID], logged with them) and is never decided. One to another
- * context is checked there, at its intake.
+ * A command to an aggregate of its own context is admitted as the context's other commands that no caller sent
+ * ([ServiceCommandAdmission], [admission]) before it is forwarded, for the tenant of the aggregate that scheduled it:
+ * it goes to its target's type's fixed tenant unless it names another, which refuses it
+ * ([me.ahoo.wow.api.result.FrameworkCodes.COMMAND_MALFORMED]); the node's command validators check it, as the gateway
+ * checks an admitted one ([me.ahoo.wow.api.result.FrameworkCodes.COMMAND_INVALID]); one to an aggregate whose id is
+ * its owner's that names none takes its owner's, and is refused without one; and a creation that names no aggregate
+ * takes the id its request created, or a new one: its request id is the slot's, so every firing of one slot creates
+ * one aggregate. A refused command is the timer's rejected command, logged with its error, and is never decided. One
+ * to another context is checked there, at its intake.
  *
  * Each firing is observed by [observer], its outcome the [TimerOutcomes] it answers: the command goes
  * on in the firing's trace.
@@ -96,9 +98,10 @@ internal class ContextCommandTypes(models: Collection<AggregateModel<*>>, privat
 internal class ContextTimerFirer(
     models: Collection<AggregateModel<*>>,
     private val coordinator: WaitCoordinator,
+    /** The context's admission of the commands no caller sent: its tenants, validators and creation ids. */
+    private val admission: ServiceCommandAdmission,
     private val sender: CommandSender? = null,
     private val observer: Observer = Observer.NONE,
-    private val validators: List<CommandValidator> = emptyList(),
 ) : TimerFirer {
     private val models: Map<AggregateType, AggregateModel<*>> = models.associateBy { it.type }
     private val contexts: Set<String> = models.mapTo(HashSet()) { it.type.context }
@@ -121,17 +124,19 @@ internal class ContextTimerFirer(
             operator = timer.operator,
         )
         val model = models[timer.target.type] ?: return send(wire)
-        val command = checkNotNull(ClusterCodec.command(model, wire)) {
+        val received = checkNotNull(ClusterCodec.command(model, wire)) {
             "${model.type} has no command type ${timer.commandType}, which the timer ${timer.id} sends."
         }
-        val violations = validators.violationsOf { candidateOf(model.commandType(command.body.javaClass), command) }
-        if (violations.isNotEmpty()) {
+        // Sent for the aggregate that scheduled it: the tenant its target names counts unless it is that one's.
+        val acting = timer.owner.tenantId
+        admission.refusalOf(model, received, acting)?.let { error ->
             logger.info {
-                "The timer ${timer.id} sent ${timer.commandType} to ${timer.target}, which the node's validators " +
-                    "refused: ${FrameworkCodes.COMMAND_INVALID} $violations"
+                "The timer ${timer.id} sent ${timer.commandType} to ${timer.target}, which was refused before any " +
+                    "aggregate decided it: ${error.code} ${error.message} ${error.violations}"
             }
             return ObservedOutcome.REJECTED
         }
+        val command = admission.assign(model, received, acting)
         val settlement = coordinator.forward(model, command, null)
         settlement.rejection?.let { rejection ->
             logger.info {

@@ -25,6 +25,7 @@ import me.ahoo.wow.runtime.access.AccessWalking
 import me.ahoo.wow.runtime.admission.CommandValidator
 import me.ahoo.wow.runtime.admission.CommittedRequests
 import me.ahoo.wow.runtime.admission.CreationIds
+import me.ahoo.wow.runtime.admission.ServiceCommandAdmission
 import me.ahoo.wow.runtime.cluster.ForwardEndpoint
 import me.ahoo.wow.runtime.cluster.LeaseGroup
 import me.ahoo.wow.runtime.cluster.PartitionOwnership
@@ -44,6 +45,7 @@ import me.ahoo.wow.runtime.wait.WaitCoordinator
 import me.ahoo.wow.spi.call.CommandCaller
 import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.log.EventLog
+import me.ahoo.wow.spi.tenant.TenantPolicy
 
 /**
  * The parts of one bounded context on a node: the log it appends through ([log], the partition
@@ -117,12 +119,17 @@ class ContextNode internal constructor(
     val validators: List<CommandValidator> = emptyList(),
     /** The context's access walks: each type's history stamped with its aggregates' current access attributes. */
     val accessWalking: AccessWalking? = null,
+    /** The tenant of each aggregate type, the node's: every path that gives a command its tenant decides it by it. */
+    val tenants: TenantPolicy = TenantPolicy.CALLERS,
 ) {
     /**
      * The ids of the context's creation commands that name no aggregate: a saga's derived command, one
      * its command topic brings, each looked up by its request in the context's [log] first.
      */
     val creations: CreationIds = CreationIds(ids, CommittedRequests.of(log))
+
+    /** The admission of the commands its timers send, in their tenant and with their ids ([creations]). */
+    internal val timerAdmission: ServiceCommandAdmission = ServiceCommandAdmission(validators, creations, tenants)
 
     /**
      * Reads the state after a commit as the state consumer [reader] of [views] ([SharedStateReader]), from the

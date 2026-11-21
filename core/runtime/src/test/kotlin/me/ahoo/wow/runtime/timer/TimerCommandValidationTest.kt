@@ -22,6 +22,9 @@ import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.runtime.Executor
 import me.ahoo.wow.runtime.admission.CommandValidator
+import me.ahoo.wow.runtime.admission.CommittedRequests
+import me.ahoo.wow.runtime.admission.CreationIds
+import me.ahoo.wow.runtime.admission.ServiceCommandAdmission
 import me.ahoo.wow.runtime.binding.CART
 import me.ahoo.wow.runtime.binding.RemoveItems
 import me.ahoo.wow.runtime.binding.SHOP_SERVICE
@@ -32,6 +35,7 @@ import me.ahoo.wow.runtime.wait.SubscriptionDirectory
 import me.ahoo.wow.runtime.wait.WaitCoordinator
 import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.runtime.wait.WaitRegistry
+import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.timer.Timer
 import me.ahoo.wow.spi.timer.TimerOutcomes
 import me.ahoo.wow.spi.wait.Origin
@@ -60,7 +64,11 @@ class TimerCommandValidationTest {
         val body = command.body
         if (body is RemoveItems && POISON in body.items) listOf(VIOLATION) else emptyList()
     }
-    private val firer = ContextTimerFirer(listOf(cart), coordinator, validators = listOf(noPoison))
+    private val firer = ContextTimerFirer(
+        listOf(cart),
+        coordinator,
+        ServiceCommandAdmission(listOf(noPoison), CreationIds(IdGenerators.DEFAULT, CommittedRequests.NONE)),
+    )
 
     private fun timer(id: String, items: String) = Timer(
         id = id,

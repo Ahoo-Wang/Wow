@@ -119,6 +119,9 @@ class CallerAdmissionTest {
         // A type of a fixed tenant is in it, whoever sends the command.
         val fixed = TenantPolicy.fixed(mapOf(cart to "shared"))
         (CallerAdmission.admit(cart, alice, null, null, fixed) as CallerAdmission).tenantId.assert().isEqualTo("shared")
+        // A cross-scope caller's target names its tenant, its own included: one of a fixed type is malformed.
+        refused(CallerAdmission.admit(cart, admin, TargetScope.of(admin.tenantId, Scope("bob")), null, fixed)).first
+            .assert().isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
     }
 
     @Test

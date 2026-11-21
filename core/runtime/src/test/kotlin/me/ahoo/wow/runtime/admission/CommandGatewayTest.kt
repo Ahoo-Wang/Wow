@@ -203,18 +203,14 @@ class CommandGatewayTest : CommandGatewayFixtures() {
         // Another aggregate type stays in its caller's tenant.
         TenantPolicy.fixed(
             mapOf(AggregateType(CONTEXT, "order") to "t0")
-        ).tenantOf(type, alice).assert().isEqualTo(TENANT)
+        ).tenantOf(type, null, alice.tenantId).assert().isEqualTo(TENANT)
     }
 
     @Test
     fun `a fixed tenant is not blank, and no fixed tenant is the callers' policy`() {
         TenantPolicy.fixed(emptyMap()).assert().isSameAs(TenantPolicy.CALLERS)
         assertThrows<IllegalArgumentException> { TenantPolicy.fixed(mapOf(AggregateType(CONTEXT, "cart") to " ")) }
-        TenantPolicy.CALLERS.tenantOf(
-            AggregateType(CONTEXT, "cart"),
-            alice,
-            TargetScope("ops")
-        ).assert().isEqualTo("ops")
+        TenantPolicy.CALLERS.tenantOf(AggregateType(CONTEXT, "cart"), "ops", alice.tenantId).assert().isEqualTo("ops")
     }
 
     @Test

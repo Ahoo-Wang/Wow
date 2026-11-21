@@ -21,9 +21,11 @@ import me.ahoo.wow.api.caller.TargetScope
 /**
  * Which tenant the aggregates of a type are in (replacing 9.x `@StaticTenantId`): by default the
  * caller's, or the one a cross-scope caller names, unless [fixedTenant] fixes one for the type, which
- * then holds whoever the caller is. The command admission of the runtime and the query admission (`QueryTargets`) both
- * decide the tenant through [tenantOf], and which tenants a caller reaches through [reaches]: one rule for the write
- * and the read side.
+ * then holds whoever the caller is. Every path that gives a command its tenant decides it through [tenantOf], the one
+ * rule: the gateway and the test DSL (`CallerAdmission`), a transformer's target, the commands a
+ * saga derives, a timer's and those the command topic delivers; the query admission (`QueryTargets`) decides a read's
+ * tenant through it too, and which tenants a caller reaches through [reaches]: one rule for the write and the read
+ * side.
  */
 @InternalWowApi
 fun interface TenantPolicy {
@@ -31,18 +33,36 @@ fun interface TenantPolicy {
     fun fixedTenant(type: AggregateType): String?
 
     /**
-     * The tenant [caller] addresses an aggregate of [type] in, with the cross-scope [target] it may name (whether the
-     * caller may name one is checked apart): the type's fixed tenant, else the target's, else the caller's. A target
-     * that names another tenant than the type's fixed one is a [TenantConflictException]: it is refused, not ignored.
+     * The tenant a command of [type] is in, sent for the [acting] tenant (the caller's, or the execution's that derived
+     * it: the commit's, the receipt's or the job instance's; the scheduling aggregate's for a timer) to the tenant
+     * [named], if it names one:
+     *
+     * - a tenant the same as [acting] is not named: a handler's `CommandRequest.to(event.ref, …)` acting in the event's
+     *   tenant names none, as Wow's clients drop it ([me.ahoo.wow.api.client.targetTenantOf]). With no [acting] tenant
+     *   known (null), whatever [named] says is named;
+     * - the type's fixed tenant when it has one: a named tenant that is another is a [TenantConflictException], refused,
+     *   never ignored nor rewritten;
+     * - else the named tenant, else [acting]. Whether its sender may name another tenant than its own is checked apart.
      */
-    fun tenantOf(type: AggregateType, caller: Caller, target: TargetScope? = null): String {
-        val fixed = fixedTenant(type) ?: return target?.tenantId ?: caller.tenantId
-        val named = target?.tenantId
-        if (named != null && named != fixed) {
-            throw TenantConflictException(type, fixed, named)
+    fun tenantOf(type: AggregateType, named: String?, acting: String?): String {
+        val fixed = fixedTenant(type) ?: return requireNotNull(named ?: acting) {
+            "A command of $type names no tenant and acts for none."
+        }
+        val asked = named?.takeUnless { it == acting }
+        if (asked != null && asked != fixed) {
+            throw TenantConflictException(type, fixed, asked)
         }
         return fixed
     }
+
+    /**
+     * The tenant [caller] addresses an aggregate of [type] in, with the cross-scope [target] it may name (whether the
+     * caller may name one is checked apart), by the one rule ([tenantOf]): a target's tenant is named, whoever names
+     * it, the caller's own included, since a request names it on purpose; with none, the caller's tenant is the acting
+     * one.
+     */
+    fun tenantOf(type: AggregateType, caller: Caller, target: TargetScope? = null): String =
+        target?.tenantId?.let { tenantOf(type, it, null) } ?: tenantOf(type, null, caller.tenantId)
 
     @InternalWowApi
     companion object {

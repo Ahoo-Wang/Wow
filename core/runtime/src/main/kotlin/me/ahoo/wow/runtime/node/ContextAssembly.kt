@@ -533,7 +533,6 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
                 deadlines = wiring.deadlines,
             )
             val endpoint = ForwardEndpoint(coordinator, models, listOf(ownership), clock, observer = observer)
-            firing.firer = ContextTimerFirer(models, coordinator, sender, observer, admission.validators)
             return ContextNode(
                 context,
                 models,
@@ -564,7 +563,8 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
                 peerEvents,
                 admission.validators,
                 accessWalking,
-            )
+                admission.tenants,
+            ).also { firing.firer = ContextTimerFirer(models, coordinator, it.timerAdmission, sender, observer) }
         }
     }
 

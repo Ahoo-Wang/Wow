@@ -93,6 +93,12 @@ class AggregateSpec<S : Any> private constructor(
      */
     internal var caller: Caller? = null
 
+    /**
+     * The tenant of the specification's aggregate type, as the host fixes it ([aggregateSpec]'s `fixedTenant`): the
+     * callers' tenants by default.
+     */
+    internal var tenants: TenantPolicy = TenantPolicy.CALLERS
+
     /** The points marked with [ref]: a fork from one starts on a copy of it. */
     private val marks = LinkedHashMap<String, Snapshot>(origin?.marks.orEmpty())
     private var forkName: String? = null
@@ -356,11 +362,11 @@ class AggregateSpec<S : Any> private constructor(
 
     /**
      * The admission of [body] that [sender] sends to the specification's aggregate, acting in [target], as the gateway
-     * decides it ([CallerAdmission.admit]); a sender the gateway refuses fails the specification with its answer. A
-     * type's fixed tenant is not applied yet (#6556): every type is in its caller's tenant, or its target's.
+     * decides it ([CallerAdmission.admit]), with the type's fixed tenant when the specification gives one ([tenants]); a
+     * sender the gateway refuses fails the specification with its answer.
      */
     private fun admitted(body: Any, sender: Caller, target: TargetScope?): CallerAdmission =
-        when (val admitted = CallerAdmission.admit(ref.type, sender, target, ref.tenantId, TenantPolicy.CALLERS)) {
+        when (val admitted = CallerAdmission.admit(ref.type, sender, target, ref.tenantId, tenants)) {
             is CallerAdmission -> admitted
             is CallerAdmission.Refused -> throw IllegalArgumentException(
                 "The gateway refuses ${body.javaClass.simpleName} from this caller, ${admitted.code}: " +
@@ -501,6 +507,7 @@ class AggregateSpec<S : Any> private constructor(
             AggregateSpec(model, ref, start, origin, branch).also {
                 it.forkName = path
                 it.caller = caller
+                it.tenants = tenants
             }
         }
         runFork(tree, label, path, fork, block)

@@ -67,9 +67,10 @@ class DerivedCommandValidationTest {
     @Test
     fun `a derived command the validators refuse should be rejected as invalid with its violations, never decided`(): Unit =
         runBlocking {
-            derived.execute(listOf(command("c-1", AddItems(listOf("apple")))), null)
+            derived.execute(listOf(command("c-1", AddItems(listOf("apple")))), TENANT, null)
             val executed = derived.execute(
                 listOf(command("c-2", RemoveItems(listOf(POISON))), command("c-3", RemoveItems(listOf("apple")))),
+                TENANT,
                 null,
             )
             executed.executed.assert().containsExactly("c-2", "c-3")
@@ -90,8 +91,8 @@ class DerivedCommandValidationTest {
 
     @Test
     fun `a derived command no validator refuses should run as before`(): Unit = runBlocking {
-        derived.execute(listOf(command("c-1", AddItems(listOf("apple")))), null)
-        val executed = derived.execute(listOf(command("c-2", RemoveItems(listOf("apple")))), null)
+        derived.execute(listOf(command("c-1", AddItems(listOf("apple")))), TENANT, null)
+        val executed = derived.execute(listOf(command("c-2", RemoveItems(listOf("apple")))), TENANT, null)
         executed.rejected.assert().isEmpty()
         decided.assert().containsExactly("c-2")
     }

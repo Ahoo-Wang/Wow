@@ -16,6 +16,7 @@ package me.ahoo.wow.test
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CallerAdmission
+import me.ahoo.wow.spi.tenant.TenantPolicy
 import org.junit.jupiter.api.DynamicNode
 import java.time.Instant
 import java.util.stream.Stream
@@ -65,7 +66,10 @@ import java.util.stream.Stream
  *
  * The commands are sent by [caller], as the command gateway admits a caller's command: in its scope, by its
  * operator, with its application as the request fact `app_id` ([CallerAdmission]); none (an anonymous caller in no
- * scope) by default. The aggregate is in [tenantId], the caller's tenant by default.
+ * scope) by default. The aggregate is in [tenantId], the caller's tenant by default. [fixedTenant] is the type's
+ * fixed tenant, as the host fixes it (`wow.aggregates.[<context>.<aggregate>].tenant`): the aggregate is in it, and a
+ * caller of any tenant sends its commands there, as the gateway admits them; a cross-scope caller naming another
+ * tenant fails the specification with the gateway's answer.
  *
  * The whole specification is one test; [aggregateSpecTests] makes the same specification a tree of tests instead.
  */
@@ -73,11 +77,12 @@ fun <S : Any> aggregateSpec(
     model: AggregateModel<S>,
     id: String = "aggregate-1",
     caller: Caller? = null,
-    tenantId: String = caller?.tenantId ?: DEFAULT_TENANT,
+    fixedTenant: String? = null,
+    tenantId: String = fixedTenant ?: caller?.tenantId ?: DEFAULT_TENANT,
     start: Instant = DEFAULT_START,
     block: AggregateSpec<S>.() -> Unit,
 ) {
-    AggregateSpec(model, model.type.ref(tenantId, id), start).also { it.caller = caller }.block()
+    AggregateSpec(model, model.type.ref(tenantId, id), start).also { it.admits(caller, fixedTenant) }.block()
 }
 
 /**
@@ -105,14 +110,27 @@ fun <S : Any> aggregateSpecTests(
     model: AggregateModel<S>,
     id: String = "aggregate-1",
     caller: Caller? = null,
-    tenantId: String = caller?.tenantId ?: DEFAULT_TENANT,
+    fixedTenant: String? = null,
+    tenantId: String = fixedTenant ?: caller?.tenantId ?: DEFAULT_TENANT,
     start: Instant = DEFAULT_START,
     block: AggregateSpec<S>.() -> Unit,
 ): Stream<DynamicNode> {
     val tree = TestTree()
-    val spec = AggregateSpec(model, model.type.ref(tenantId, id), start, tree).also { it.caller = caller }
+    val spec = AggregateSpec(model, model.type.ref(tenantId, id), start, tree).also { it.admits(caller, fixedTenant) }
     tree.run { spec.block() }
     return tree.nodes.stream()
+}
+
+/**
+ * Sends the specification's commands by [caller], with the type's [fixedTenant] when it has one: its aggregate must be
+ * in that tenant.
+ */
+private fun AggregateSpec<*>.admits(caller: Caller?, fixedTenant: String?) {
+    require(fixedTenant == null || ref.tenantId == fixedTenant) {
+        "The type ${ref.type} is fixed to tenant $fixedTenant: its aggregate ${ref.id} is in it, not in ${ref.tenantId}."
+    }
+    this.caller = caller
+    tenants = fixedTenant?.let { TenantPolicy.fixed(mapOf(ref.type to it)) } ?: TenantPolicy.CALLERS
 }
 
 /**

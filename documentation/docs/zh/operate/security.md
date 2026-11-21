@@ -376,4 +376,4 @@ kafka-acls.sh --bootstrap-server kafka:9092 --add --allow-principal User:ops --o
 
 ## 租户 {#tenants}
 
-一个系统的所有服务共用一个租户空间：一个租户 ID 在每个服务里都指同一个客户，并原样跨服务传递。在每个服务里都以同样的方式解析调用方的租户。可以给聚合类型指定一个固定租户 `wow.aggregates.[<context>.<aggregate>].tenant`，无论调用方是谁，它的所有命令和读都落在那个租户里。
+一个系统的所有服务共用一个租户空间：一个租户 ID 在每个服务里都指同一个客户，并原样跨服务传递。在每个服务里都以同样的方式解析调用方的租户。可以给聚合类型指定一个固定租户 `wow.aggregates.[<context>.<aggregate>].tenant`，无论调用方是谁，它的所有命令和读都落在那个租户里，saga、定时器和作业发出的命令也一样。这时它的所有者只按 ID 比较，所以所有者 ID 必须在调用方的各个租户之间唯一（[固定的租户](../guide/ownership#a-fixed-tenant)）。
