@@ -18,11 +18,12 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.result.FrameworkCodes
+import me.ahoo.wow.kernel.CallerAdmission
 
 /**
  * The rules that decide a request's identity facts, step 2 of admission ([CommandGateway]), which a command of this
  * node's aggregates and one of a peer context's share: the tenant, the call, the aggregate id an owner's aggregate or a
- * body names, the caller the command acts as, and the facts no request may give.
+ * body names, the caller the command acts as, the request facts it records and the facts no request may give.
  */
 internal object AdmissionIdentity {
     /** Why the tenant [request]'s ref names is not [tenantId], the one admission decided; null when it is, or none. */
@@ -33,13 +34,23 @@ internal object AdmissionIdentity {
         }
 
     /**
-     * The request facts of [request]'s command: a service's synchronous call carries those of its root request that
-     * propagate ([CallContext.facts]) in place of the ones the edge recorded for the calling service.
+     * The request facts of [request]'s command: the ones it carries, with [callerFacts], those admission derives from
+     * its caller ([CallerAdmission.factsOf]), in place of any of their names ([CallerAdmission.FACTS]), which no request
+     * sets, whoever builds it. A service's synchronous call carries those of its root request that propagate
+     * ([CallContext.facts]) instead: its caller is the calling service, whose application is no fact of the request.
      */
-    fun headersOf(request: ServerCommandRequest): Map<String, String> {
-        val call = request.call ?: return request.headers
-        return request.headers.filterKeys { it !in RequestFacts.PROPAGATED } + call.facts
+    fun headersOf(request: ServerCommandRequest, callerFacts: Map<String, String>): Map<String, String> {
+        val call = request.call ?: return request.headers.replacing(CallerAdmission.FACTS, callerFacts)
+        return request.headers.replacing(RequestFacts.PROPAGATED, call.facts)
     }
+
+    /** These headers with [facts] in place of those named [names]; no copy when there is nothing to add or drop. */
+    private fun Map<String, String>.replacing(names: Set<String>, facts: Map<String, String>): Map<String, String> =
+        when {
+            isEmpty() -> facts
+            names.none(::containsKey) -> if (facts.isEmpty()) this else this + facts
+            else -> filterKeys { it !in names } + facts
+        }
 
     /**
      * Why [request]'s synchronous call is refused, with its code, or null when it has none or may

@@ -31,6 +31,8 @@ dependencies {
     // The typed clients, as a peer calls the routes (the main code shares only the wire grammar of `:api`, D286).
     testImplementation(project(":client"))
     testImplementation(project(":manifest"))
+    // CallerFactsPathsTest: a command of one caller records the same facts through the routes and the test DSL.
+    testImplementation(project(":test-dsl"))
     // The answers of the routes, checked against the schemas of the document GET /wow/openapi serves.
     testImplementation(libs.json.schema.validator)
 }

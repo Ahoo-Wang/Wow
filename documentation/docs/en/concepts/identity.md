@@ -58,7 +58,7 @@ Commands that a saga sends, compensations and scheduled commands are not sent by
 
 Admission copies a few facts about the request into the command, and the commit records them:
 
-- the **application** the request came from, `app_id`: recorded only when the caller resolver authenticated it, for example the app of the scope CoSec decided the request in. A header the client sets itself is never trusted;
+- the **application** the request came from, `app_id`: the caller's application, recorded only when the caller resolver authenticated it, for example the app of the scope CoSec decided the request in. Admission takes it from the caller for every command it admits, alike through a route, the service's in-process `CommandClient` (`commandClient.of(caller)`) or a command it sends to another context, and the test DSL records it the same way. A header named `app_id` never stands in for it, whoever sets it;
 - on the public port, the client's **remote address** and **user agent**;
 - any further headers the host lists.
 

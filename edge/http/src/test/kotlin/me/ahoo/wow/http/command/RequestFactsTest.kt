@@ -14,7 +14,6 @@
 package me.ahoo.wow.http.command
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.http.cartManifest
 import me.ahoo.wow.http.problem.ErrorStatuses
@@ -24,8 +23,8 @@ import java.net.InetAddress
 import java.net.InetSocketAddress
 
 /**
- * The request facts a command keeps: the listed headers, the caller's application (decision D232) and, on the public
- * port, the client's address and `User-Agent` (09 §17 G-10).
+ * The request facts the edge records: the listed headers and, on the public port, the client's address and `User-Agent`
+ * (09 §17 G-10); the caller's application (decision D232) is admission's (`CallerAdmission.factsOf`).
  */
 class RequestFactsTest {
     private val statuses = ErrorStatuses(cartManifest(), emptyMap())
@@ -44,13 +43,12 @@ class RequestFactsTest {
         publicPort.facts(
             request("User-Agent" to " shop-app/1.0 ", "X-Forwarded-For" to "203.0.113.9", "X-App-Id" to "app-1"),
             setOf("X-App-Id"),
-            Caller.ANONYMOUS,
         ).assert().isEqualTo(mapOf("X-App-Id" to "app-1", "user_agent" to "shop-app/1.0", "remote_ip" to "10.0.0.7"))
     }
 
     @Test
     fun `a blank user agent or an unknown address records nothing`() {
-        publicPort.facts(request("User-Agent" to "  ", remote = null), emptySet(), Caller.ANONYMOUS).assert().isEmpty()
+        publicPort.facts(request("User-Agent" to "  ", remote = null), emptySet()).assert().isEmpty()
     }
 
     @Test
@@ -58,21 +56,15 @@ class RequestFactsTest {
         publicPort.facts(
             request(remote = InetSocketAddress.createUnresolved("proxied-client", 80)),
             emptySet(),
-            Caller.ANONYMOUS
-        )
-            .assert().isEqualTo(mapOf("remote_ip" to "proxied-client"))
+        ).assert().isEqualTo(mapOf("remote_ip" to "proxied-client"))
     }
 
     @Test
     fun `no listed name sets a default fact, on either port`() {
         val forged = request("REMOTE_IP" to "203.0.113.9", "user_agent" to "forged", "X-App-Id" to "app-1")
         val names = setOf("REMOTE_IP", "user_agent", "X-App-Id")
-        publicPort.facts(
-            forged,
-            names,
-            Caller.ANONYMOUS
-        ).assert().isEqualTo(mapOf("X-App-Id" to "app-1", "remote_ip" to "10.0.0.7"))
-        internalPort.facts(forged, names, Caller.ANONYMOUS).assert().isEqualTo(mapOf("X-App-Id" to "app-1"))
+        publicPort.facts(forged, names).assert().isEqualTo(mapOf("X-App-Id" to "app-1", "remote_ip" to "10.0.0.7"))
+        internalPort.facts(forged, names).assert().isEqualTo(mapOf("X-App-Id" to "app-1"))
     }
 
     @Test
@@ -81,8 +73,7 @@ class RequestFactsTest {
         withoutClient.facts(
             request("User-Agent" to "shop-app/1.0", "X-App-Id" to "app-1"),
             setOf("X-App-Id"),
-            inApp,
-        ).assert().isEqualTo(mapOf("X-App-Id" to "app-1", "app_id" to "console"))
+        ).assert().isEqualTo(mapOf("X-App-Id" to "app-1"))
     }
 
     @Test
@@ -100,30 +91,14 @@ class RequestFactsTest {
 
     @Test
     fun `the internal port records no default fact`() {
-        internalPort.facts(request("User-Agent" to "Java-http-client"), emptySet(), Caller.ANONYMOUS).assert().isEmpty()
-    }
-
-    private val inApp = Caller.of(subject = "alice", attributes = mapOf(Caller.APP to listOf(" console ")))
-
-    @Test
-    fun `the caller's application is recorded on either port`() {
-        publicPort.facts(request(remote = null), emptySet(), inApp).assert().isEqualTo(mapOf("app_id" to "console"))
-        internalPort.facts(request(), emptySet(), inApp).assert().isEqualTo(mapOf("app_id" to "console"))
+        internalPort.facts(request("User-Agent" to "Java-http-client"), emptySet()).assert().isEmpty()
     }
 
     @Test
-    fun `no request header sets the application, whatever the caller`() {
+    fun `no request header sets the application, on either port`() {
         val forged = request("app_id" to "forged", "APP_ID" to "forged", remote = null)
         val names = setOf("app_id", "App_Id")
-        publicPort.facts(forged, names, Caller.ANONYMOUS).assert().isEmpty()
-        internalPort.facts(forged, names, Caller.ANONYMOUS).assert().isEmpty()
-        publicPort.facts(forged, names, inApp).assert().isEqualTo(mapOf("app_id" to "console"))
-    }
-
-    @Test
-    fun `a caller without an application, or with a blank one, records none`() {
-        val blank = Caller.of(subject = "alice", attributes = mapOf(Caller.APP to listOf(" ")))
-        publicPort.facts(request(remote = null), emptySet(), blank).assert().isEmpty()
-        blank.app.assert().isNull()
+        publicPort.facts(forged, names).assert().isEmpty()
+        internalPort.facts(forged, names).assert().isEmpty()
     }
 }

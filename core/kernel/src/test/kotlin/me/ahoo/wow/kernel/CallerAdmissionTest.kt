@@ -58,4 +58,23 @@ class CallerAdmissionTest {
         anonymous.operator.assert().isNull()
         anonymous.facts.assert().isEmpty()
     }
+
+    @Test
+    fun `a caller with a blank application records none`() {
+        val blank = Caller.of(subject = "alice", attributes = mapOf(Caller.APP to listOf(" ")))
+        CallerAdmission.factsOf(blank).assert().isEmpty()
+    }
+
+    @Test
+    fun `an application longer than a fact may be is cut to the most a command records`() {
+        val long = "a".repeat(CallerAdmission.MAX_FACT_LENGTH + 1)
+        val caller = Caller.of(subject = "alice", attributes = mapOf(Caller.APP to listOf(long)))
+        CallerAdmission.factsOf(caller).assert()
+            .isEqualTo(mapOf(RequestFacts.APP_ID to long.take(CallerAdmission.MAX_FACT_LENGTH)))
+    }
+
+    @Test
+    fun `the facts admission derives from the caller are its application's alone`() {
+        CallerAdmission.FACTS.assert().containsExactly(RequestFacts.APP_ID)
+    }
 }

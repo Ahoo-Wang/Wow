@@ -140,7 +140,7 @@ internal class CommandHandler(
             target = headers.target(request),
             requestId = headers.requestId(request, options.requestIdHeaders),
             expectedVersion = expectedVersion,
-            headers = headers.facts(request, options.requestFacts, caller),
+            headers = headers.facts(request, options.requestFacts),
             wait = headers.wait(request, gateway.defaultWaitTimeout(target.context)),
             trace = traceOf(request),
             call = call,

@@ -24,6 +24,7 @@ import me.ahoo.wow.kernel.CallerAdmission
 import me.ahoo.wow.runtime.admission.AdmissionIdentity.BodyId
 import me.ahoo.wow.runtime.admission.AdmissionIdentity.actingCaller
 import me.ahoo.wow.runtime.admission.AdmissionIdentity.bodyId
+import me.ahoo.wow.runtime.admission.AdmissionIdentity.headersOf
 import me.ahoo.wow.runtime.admission.AdmissionIdentity.identityConflict
 import me.ahoo.wow.runtime.admission.AdmissionIdentity.tenantConflict
 import me.ahoo.wow.runtime.admission.CommandGateway.Companion.UNADDRESSED
@@ -158,7 +159,7 @@ internal class PeerAdmission(
             body = decoded.value,
             expectedVersion = request.expectedVersion,
             scope = scope,
-            headers = request.headers,
+            headers = headersOf(request, origin.facts),
             operator = origin.operator,
             wait = plan.within(minOf(plan.timeout, options.maxTimeout)),
             caller = caller,
