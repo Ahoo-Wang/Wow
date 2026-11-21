@@ -17,13 +17,13 @@ outline: deep
 
 ## 添加模块 {#add-the-module}
 
-添加本模块、所用注册中心的 starter，以及与 Spring Boot 4.0、4.1 配套的 Spring Cloud 版本系列 `2025.1.x` 的 BOM：
+添加本模块、所用注册中心的 starter，以及与 Spring Boot 4.2 配套的 Spring Cloud 版本系列 `2026.0.x` 的 BOM：
 
 <!-- sample: fragment -->
 
 ```kotlin
 dependencies {
-    implementation(platform("org.springframework.cloud:spring-cloud-dependencies:2025.1.4"))
+    implementation(platform("org.springframework.cloud:spring-cloud-dependencies:2026.0.0"))
     implementation("me.ahoo.wow:wow-spring-cloud")
     implementation("org.springframework.cloud:spring-cloud-starter-consul-discovery")
 }

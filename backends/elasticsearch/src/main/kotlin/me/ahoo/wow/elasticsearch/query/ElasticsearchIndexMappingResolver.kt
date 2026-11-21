@@ -19,6 +19,7 @@ import co.elastic.clients.elasticsearch._types.mapping.BooleanProperty
 import co.elastic.clients.elasticsearch._types.mapping.CountedKeywordProperty
 import co.elastic.clients.elasticsearch._types.mapping.DateNanosProperty
 import co.elastic.clients.elasticsearch._types.mapping.DateProperty
+import co.elastic.clients.elasticsearch._types.mapping.DocValues
 import co.elastic.clients.elasticsearch._types.mapping.DocValuesPropertyBase
 import co.elastic.clients.elasticsearch._types.mapping.FlattenedProperty
 import co.elastic.clients.elasticsearch._types.mapping.IcuCollationProperty
@@ -358,8 +359,11 @@ private fun Property.isAggregatable(): Boolean = when (_kind()) {
     -> true
     Property.Kind.Flattened -> flattened().docValues() != false
     Property.Kind.Text -> text().fielddata() == true
-    else -> (_get() as? DocValuesPropertyBase)?.let { it.docValues() != false } == true
+    else -> (_get() as? DocValuesPropertyBase)?.let { it.docValues().isOn() } == true
 }
+
+// doc_values is `false`, `true` or an object of options (which keeps it on); absent means on.
+private fun DocValues?.isOn(): Boolean = this?.takeIf { it.isEnabled }?.enabled() != false
 
 private fun Property.isSortable(): Boolean = when (_kind()) {
     Property.Kind.ConstantKeyword,
@@ -367,7 +371,7 @@ private fun Property.isSortable(): Boolean = when (_kind()) {
     -> true
     Property.Kind.Flattened -> flattened().docValues() != false
     Property.Kind.Text -> text().fielddata() == true
-    else -> (_get() as? DocValuesPropertyBase)?.let { it.docValues() != false } == true
+    else -> (_get() as? DocValuesPropertyBase)?.let { it.docValues().isOn() } == true
 }
 
 @Suppress("CyclomaticComplexMethod")
