@@ -36,11 +36,9 @@ import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.StartFrom
 import me.ahoo.wow.runtime.InFlightLimit
-import me.ahoo.wow.runtime.admission.AdmissionIdentity.unaddressed
 import me.ahoo.wow.runtime.admission.CommandValidator
 import me.ahoo.wow.runtime.admission.CreationIds
-import me.ahoo.wow.runtime.admission.candidateOf
-import me.ahoo.wow.runtime.admission.violationsOf
+import me.ahoo.wow.runtime.admission.ServiceCommandAdmission
 import me.ahoo.wow.runtime.client.InProcessCommandClient
 import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.cluster.CommandWire
@@ -95,7 +93,7 @@ import kotlin.time.Duration.Companion.seconds
  * and this service does not yet: it is not this aggregate's failure, and parking it would hold its
  * later commands for an operator. Such a command is rejected as [FrameworkCodes.COMMAND_UNHANDLED], with its receipt as in 2
  * ([unhandled]). A command whose body the node's [validators] (the gateway's) find violations in is rejected as
- * [FrameworkCodes.COMMAND_INVALID], listing them, the same way and before any aggregate decides it ([invalid]), as the
+ * [FrameworkCodes.COMMAND_INVALID], listing them, the same way and before any aggregate decides it ([ServiceCommandAdmission]), as the
  * gateway refuses an admitted one.
  *
  * A command the node refuses as busy is backpressure, not a failure: the intake
@@ -117,7 +115,7 @@ class CommandIntake internal constructor(
     models: Collection<AggregateModel<*>>,
     private val coordinator: WaitCoordinator,
     private val topics: SourceTopics,
-    private val creations: CreationIds,
+    creations: CreationIds,
     private val ledger: LedgerCommands = LedgerCommands(ParkedOps { emptyList() }),
     /**
      * The node's in-flight bound, whose [InFlightLimit.intakes] bound the commands the intakes of all
@@ -135,8 +133,9 @@ class CommandIntake internal constructor(
      */
     private val ledgerOnly: Boolean = false,
     /** The node's command validators, the gateway's. */
-    private val validators: List<CommandValidator> = emptyList(),
+    validators: List<CommandValidator> = emptyList(),
 ) {
+    private val admission = ServiceCommandAdmission(validators, creations)
     private val models: Map<AggregateType, AggregateModel<*>> = models.associateBy { it.type }
     private val producer: TopicProducer = requireNotNull(topics.producer) { "An intake sends receipts." }
 
@@ -162,11 +161,9 @@ class CommandIntake internal constructor(
             ?: return unhandled(wire, wait, "Context $context has no aggregate ${wire.ref.type}.")
         val received = ClusterCodec.command(model, wire)
             ?: return unhandled(wire, wait, "${wire.ref.type} has no command type ${wire.type}.")
-        invalid(model, received)?.let { return refuse(wire, wait, it) }
-        // One that names none of an aggregate whose id is its owner's, and has no owner, is the sender's mistake.
-        unaddressed(model, received)?.let { return refuse(wire, wait, ErrorInfo(it.code, it.message)) }
+        admission.refusalOf(model, received)?.let { return refuse(wire, wait, it) }
         // A creation that names no aggregate takes the id its request created, or a new one.
-        val command = creations.assign(model, received)
+        val command = admission.assign(model, received)
         awaitDue(command)
         val settlement = limit.intakes.withPermit { coordinator.forward(model, command, wait) }
         // A receipt carries the rest of the command's chain on, past its commit.
@@ -195,24 +192,6 @@ class CommandIntake internal constructor(
      */
     private suspend fun unhandled(wire: CommandWire, wait: WaitContext?, message: String) =
         refuse(wire, wait, ErrorInfo(FrameworkCodes.COMMAND_UNHANDLED, message))
-
-    /**
-     * The error of [command] when the node's [validators] find violations in its body,
-     * [FrameworkCodes.COMMAND_INVALID] listing them, as the gateway refuses an admitted command; null when it is valid.
-     */
-    private fun invalid(model: AggregateModel<*>, command: Command<*>): ErrorInfo? {
-        val type = model.commandType(command.body.javaClass)
-        val violations = validators.violationsOf { candidateOf(type, command) }
-        return if (violations.isEmpty()) {
-            null
-        } else {
-            ErrorInfo(
-                FrameworkCodes.COMMAND_INVALID,
-                "${type.name} is invalid.",
-                violations
-            )
-        }
-    }
 
     /**
      * Refuses [wire] with [error] before any aggregate decides it, as [unhandled] says: the waiting node is signalled
