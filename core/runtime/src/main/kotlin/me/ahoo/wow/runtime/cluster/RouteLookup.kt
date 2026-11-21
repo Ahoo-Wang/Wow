@@ -172,5 +172,5 @@ internal class RouteLookup(
 internal fun HandoffOptions.probingAfterAcquiring(cluster: ClusterOptions?): HandoffOptions {
     cluster ?: return this
     val window = cluster.routeRefreshInterval + RouteLookup.INTERVAL + probeInterval
-    return HandoffOptions(capacity, gapWait, probeInterval, window)
+    return copyWith(scheduledProbes = window)
 }
