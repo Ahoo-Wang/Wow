@@ -28,6 +28,9 @@ class StateKey(val tenantId: String, val id: String) {
 
     override fun hashCode(): Int = 31 * tenantId.hashCode() + id.hashCode()
 
-    /** `<tenantId>/<id>`: what the cache stores the state under, after the cache's own prefix. */
+    /**
+     * `<tenantId>/<id>` as they are, to read in a message. The cache stores the state under another text, the tenant
+     * and the id each escaped as an aggregate ref escapes them, so two keys never share one entry.
+     */
     override fun toString(): String = "$tenantId/$id"
 }
