@@ -90,7 +90,11 @@ class FailureProblemsTest {
         problem.detail.assert().isEqualTo("The catalog did not answer.")
         problem.retry.assert().isEqualTo(Retry.SAME_REQUEST)
         problem.retryAfterHeader.assert().isEqualTo(3L)
-        asked.assert().containsExactly("broken:UpstreamException", "other:UpstreamException", "$UPSTREAM:UpstreamException")
+        asked.assert().containsExactly(
+            "broken:UpstreamException",
+            "other:UpstreamException",
+            "$UPSTREAM:UpstreamException",
+        )
     }
 
     @Test
@@ -142,7 +146,8 @@ class FailureProblemsTest {
 
     @Test
     fun `what the framework knows comes before the mappers`() {
-        val problems = problems(mapper("everything") { WowProblemException(CLAIMED, 418, Retry.NONE, null, "Claimed.") })
+        val everything = mapper("everything") { WowProblemException(CLAIMED, 418, Retry.NONE, null, "Claimed.") }
+        val problems = problems(everything)
         problems.problemOf(ProblemException(Problem.ofStatus(HttpStatus.NOT_FOUND))).status.assert().isEqualTo(404)
         problems.problemOf(CommandRejectedException(rejection)).code.assert().isEqualTo(CART_EMPTY)
         problems.problemOf(WowProblemException(IDP_DOWN, 503, Retry.NONE, null, "Down.")).code.assert()
@@ -152,7 +157,8 @@ class FailureProblemsTest {
         forbidden.detail.assert().isEqualTo("Not yours.")
         val unavailable = problems.problemOf(ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "secret"))
         unavailable.detail.assert().isNull()
-        val down = problems.problemOf(IllegalStateException("Wrapped.", StorageUnavailableException("The log is down.")))
+        val wrapped = IllegalStateException("Wrapped.", StorageUnavailableException("The log is down."))
+        val down = problems.problemOf(wrapped)
         down.code.assert().isEqualTo(FrameworkCodes.STORAGE_UNAVAILABLE)
         down.detail.assert().isEqualTo("The log is down.")
         problems.problemOf(DataBufferLimitException("Too large.")).status.assert().isEqualTo(413)

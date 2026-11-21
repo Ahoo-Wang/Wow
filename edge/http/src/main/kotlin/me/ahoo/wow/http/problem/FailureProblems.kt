@@ -43,8 +43,8 @@ import kotlin.coroutines.cancellation.CancellationException
  * 3. Else the branch's answer to an unexpected failure: by default a 500 that says nothing of its cause, which is
  *    logged.
  *
- * A mapped code that no context's errors and no service route's errors of the Manifest ([catalog]) list is answered
- * all the same, and warned of once.
+ * A mapped code that no context's errors and no service route's errors of the Manifest list (its `catalog`) is
+ * answered all the same, and warned of once.
  */
 @InternalWowApi
 class FailureProblems(
@@ -103,12 +103,19 @@ class FailureProblems(
         mapper.problemOf(cause)
     } catch (broken: Exception) {
         broken.addSuppressed(failure)
-        logger.error(broken) { "The problem mapper ${mapper.javaClass.name} failed; the failure is answered without it." }
+        logger.error(broken) {
+            "The problem mapper ${mapper.javaClass.name} failed; the failure is answered without it."
+        }
         null
     }
 
     /** [mapped], the problem [mapper] gave for [failure], as answered; null when it is not one a mapper may give. */
-    private fun answer(mapper: ProblemMapper, mapped: WowProblemException, failure: Throwable, context: String?): Problem? {
+    private fun answer(
+        mapper: ProblemMapper,
+        mapped: WowProblemException,
+        failure: Throwable,
+        context: String?,
+    ): Problem? {
         val refusal = refusalOf(mapped)
         if (refusal != null) {
             if (refused.add(mapper.javaClass.name to mapped.code)) {

@@ -134,14 +134,7 @@ fun wowRoutes(
     val authenticator = Authenticator(callerResolver, statuses)
     // The public port: its commands carry the default request facts.
     val headers = RequestHeaders(statuses, publicPort = true, clientFacts = options.clientFacts)
-    val commands = CommandHandler(
-        gateway = gateway,
-        authenticator = authenticator,
-        headers = headers,
-        statuses = statuses,
-        options = options,
-        scope = scope,
-    )
+    val commands = CommandHandler(gateway, authenticator, headers, statuses, options, scope)
     // The read side's scope rules are:query's, over the tenants commands act in.
     val targets = QueryTargets(gateway.tenants, queries.crossTenant)
     val queryHandler = QueryHandler(queries, authenticator, headers, statuses, targets, scope, problems)

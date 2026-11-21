@@ -144,8 +144,13 @@ class ApplicationProblemsTest {
 
         override suspend fun paged(query: PagedQuery, caller: QueryCaller): PagedList<ObjectNode> = throw unreachable()
 
-        private fun unreachable() =
-            WowProblemException("shop.catalog.unreachable", 502, Retry.SAME_REQUEST, null, "The catalog is unreachable.")
+        private fun unreachable() = WowProblemException(
+            "shop.catalog.unreachable",
+            502,
+            Retry.SAME_REQUEST,
+            null,
+            "The catalog is unreachable.",
+        )
     }
 
     private companion object {

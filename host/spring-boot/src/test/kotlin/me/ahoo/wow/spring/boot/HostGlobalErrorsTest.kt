@@ -58,7 +58,7 @@ class HostGlobalErrorsTest {
 
     @Test
     fun `the application's problem mappers answer its own failures in their order, on its routes and on Wow's`() {
-        startHost(sources = listOf(HostTestApp::class.java, AppRoutes::class.java, AppMappers::class.java)).use { host ->
+        startHost(sources = mapping).use { host ->
             // The mapper ordered first answers the failure it knows, though registered last.
             host.problem("/app/catalog").assert().contains("\"code\":\"bank.catalog.unreachable\"")
             // The other one answers what the first does not know.
@@ -72,7 +72,7 @@ class HostGlobalErrorsTest {
     fun `turned off, the application's own routes are Spring's, and Wow's routes still answer by the mappers`() {
         startHost(
             "wow.http.global-errors.enabled" to false,
-            sources = listOf(HostTestApp::class.java, AppRoutes::class.java, AppMappers::class.java),
+            sources = mapping,
         ).use { host ->
             host.problem("/app/catalog").assert().doesNotContain("bank.catalog.unreachable")
             val manifest = host.client.get().uri("/wow/manifest").header(CATALOG, "down").exchange()
@@ -81,6 +81,8 @@ class HostGlobalErrorsTest {
             manifest.responseBody.assert().contains("\"code\":\"bank.catalog.unreachable\"")
         }
     }
+
+    private val mapping = listOf(HostTestApp::class.java, AppRoutes::class.java, AppMappers::class.java)
 
     private fun Host.problem(path: String): String =
         client.get().uri(path).exchange().expectBody(String::class.java).returnResult().responseBody.orEmpty()
