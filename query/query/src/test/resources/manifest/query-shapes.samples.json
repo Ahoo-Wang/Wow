@@ -1,0 +1,289 @@
+{
+  "me.ahoo.wow.manifest.tools.QueryShapesTest$InMap" : {
+    "plain" : {
+      "k1" : {
+        "name" : "a",
+        "count" : 1
+      }
+    },
+    "tagged" : {
+      "k1" : {
+        "kind" : "circle",
+        "radius" : 1
+      },
+      "k2" : {
+        "kind" : "square",
+        "side" : 2
+      }
+    },
+    "shape" : {
+      "k1" : {
+        "radius" : 1,
+        "type" : "CIRCLE"
+      },
+      "k2" : {
+        "side" : 2,
+        "type" : "SQUARE"
+      }
+    },
+    "switch" : {
+      "k1" : {
+        "state" : "on",
+        "since" : 5
+      },
+      "k2" : {
+        "state" : "off"
+      }
+    },
+    "sku" : {
+      "k1" : "s1"
+    },
+    "nullable" : {
+      "k1" : {
+        "name" : "a",
+        "count" : 1
+      },
+      "k2" : null
+    },
+    "secret" : {
+      "k1" : {
+        "label" : "label",
+        "token" : "s3cr3t"
+      }
+    },
+    "timed" : {
+      "k1" : {
+        "at" : 1700000000
+      }
+    },
+    "holder" : {
+      "k1" : {
+        "name" : "h",
+        "shape" : {
+          "radius" : 3,
+          "type" : "CIRCLE"
+        }
+      }
+    }
+  },
+  "me.ahoo.wow.manifest.tools.QueryShapesTest$InList" : {
+    "plain" : [ {
+      "name" : "a",
+      "count" : 1
+    } ],
+    "tagged" : [ {
+      "kind" : "circle",
+      "radius" : 1
+    }, {
+      "kind" : "square",
+      "side" : 2
+    } ],
+    "shape" : [ {
+      "radius" : 1,
+      "type" : "CIRCLE"
+    }, {
+      "side" : 2,
+      "type" : "SQUARE"
+    } ],
+    "switch" : [ {
+      "state" : "on",
+      "since" : 5
+    }, {
+      "state" : "off"
+    } ],
+    "sku" : [ "s1" ],
+    "nullable" : [ {
+      "name" : "a",
+      "count" : 1
+    }, null ],
+    "secret" : [ {
+      "label" : "label",
+      "token" : "s3cr3t"
+    } ],
+    "timed" : [ {
+      "at" : 1700000000
+    } ],
+    "holder" : [ {
+      "name" : "h",
+      "shape" : {
+        "radius" : 3,
+        "type" : "CIRCLE"
+      }
+    } ]
+  },
+  "me.ahoo.wow.manifest.tools.QueryShapesTest$InNestedMap" : {
+    "plain" : {
+      "k1" : {
+        "k2" : {
+          "name" : "a",
+          "count" : 1
+        }
+      }
+    },
+    "tagged" : {
+      "k1" : {
+        "k2" : {
+          "kind" : "circle",
+          "radius" : 1
+        }
+      }
+    },
+    "shape" : {
+      "k1" : {
+        "k2" : {
+          "side" : 2,
+          "type" : "SQUARE"
+        }
+      }
+    },
+    "switch" : {
+      "k1" : {
+        "k2" : {
+          "state" : "off"
+        }
+      }
+    },
+    "sku" : {
+      "k1" : {
+        "k2" : "s1"
+      }
+    },
+    "nullable" : {
+      "k1" : {
+        "k2" : null
+      }
+    },
+    "secret" : {
+      "k1" : {
+        "k2" : {
+          "label" : "label",
+          "token" : "s3cr3t"
+        }
+      }
+    },
+    "timed" : {
+      "k1" : {
+        "k2" : {
+          "at" : 1700000000
+        }
+      }
+    },
+    "holder" : {
+      "k1" : {
+        "k2" : {
+          "name" : "h",
+          "shape" : {
+            "radius" : 3,
+            "type" : "CIRCLE"
+          }
+        }
+      }
+    }
+  },
+  "me.ahoo.wow.manifest.tools.QueryShapesTest$InMapOfList" : {
+    "plain" : {
+      "k1" : [ {
+        "name" : "a",
+        "count" : 1
+      } ]
+    },
+    "tagged" : {
+      "k1" : [ {
+        "kind" : "square",
+        "side" : 2
+      } ]
+    },
+    "shape" : {
+      "k1" : [ {
+        "radius" : 1,
+        "type" : "CIRCLE"
+      } ]
+    },
+    "switch" : {
+      "k1" : [ {
+        "state" : "on",
+        "since" : 5
+      } ]
+    },
+    "sku" : {
+      "k1" : [ "s1" ]
+    },
+    "nullable" : {
+      "k1" : [ null, {
+        "name" : "a",
+        "count" : 1
+      } ]
+    },
+    "secret" : {
+      "k1" : [ {
+        "label" : "label",
+        "token" : "s3cr3t"
+      } ]
+    },
+    "timed" : {
+      "k1" : [ {
+        "at" : 1700000000
+      } ]
+    },
+    "holder" : {
+      "k1" : [ {
+        "name" : "h",
+        "shape" : {
+          "radius" : 3,
+          "type" : "CIRCLE"
+        }
+      } ]
+    }
+  },
+  "me.ahoo.wow.manifest.tools.QueryShapesTest$InListOfMap" : {
+    "plain" : [ {
+      "k1" : {
+        "name" : "a",
+        "count" : 1
+      }
+    } ],
+    "tagged" : [ {
+      "k1" : {
+        "kind" : "circle",
+        "radius" : 1
+      }
+    } ],
+    "shape" : [ {
+      "k1" : {
+        "side" : 2,
+        "type" : "SQUARE"
+      }
+    } ],
+    "switch" : [ {
+      "k1" : {
+        "state" : "off"
+      }
+    } ],
+    "sku" : [ {
+      "k1" : "s1"
+    } ],
+    "nullable" : [ {
+      "k1" : null
+    } ],
+    "secret" : [ {
+      "k1" : {
+        "label" : "label",
+        "token" : "s3cr3t"
+      }
+    } ],
+    "timed" : [ {
+      "k1" : {
+        "at" : 1700000000
+      }
+    } ],
+    "holder" : [ {
+      "k1" : {
+        "name" : "h",
+        "shape" : {
+          "radius" : 3,
+          "type" : "CIRCLE"
+        }
+      }
+    } ]
+  }
+}

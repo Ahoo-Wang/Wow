@@ -34,7 +34,7 @@ description: 用 wow-migrate Skill 把 9.x 服务的 Kotlin 源码改写为 V10�
 | `ListQuery(limit = 0)`，在查询网关上返回全部匹配 | 不写 `limit` 取入口的默认列表大小，`0` 会被拒绝；要读全部匹配，用 `queryApi.trusted().unbounded()` 或 `stream` |
 | 不写 `size` 的 `CursorQuery`，一页 `CursorQuery.DEFAULT_SIZE`（10）条 | 不写 `size` 取入口的默认列表大小（`default-list-size`，100），至多 `max-page-size`（100）；`DEFAULT_SIZE` 已删除，要保持每页 10 条就写 `size = 10` |
 | 自定义的 `MaskStrategy`，`mask(value: String)` | `mask(value: SensitiveValue)`：原始字符串是 `value.value`，旁边是字段声明的 `level`；lambda 写法读 `it.value` |
-| 用 `limit(Int.MAX_VALUE)` 读全部匹配 | 会被拒绝：进程内的列表至多返回 `max-list-size`（1,000）行，更大的 limit 失败（`size-out-of-range`）。必须看到全部匹配的代码，例如任务、回填或迁移步骤，用 `NodeQueryApi.trusted().unbounded()` 读取或以流读取；代表调用方的读取应改为分页 |
+| 用 `limit(Int.MAX_VALUE)` 读全部匹配 | 会被拒绝：进程内的列表至多返回 `max-list-size`（1,000）行，更大的 limit 失败（`size-out-of-range`）。页也有上限，`max-page-size`（100）：9.x 里读「前 200 行一页」的任务第一次运行就失败（`In-process page size[200] must be between 1 and 100.`），重试之后停放，所以要改为每页 100 行翻页，或用 `unbounded()` 读取（[查询](../guide/queries#bounds)）。必须看到全部匹配的代码，例如任务、回填或迁移步骤，用 `NodeQueryApi.trusted().unbounded()` 读取或以流读取；代表调用方的读取应改为分页 |
 | 在 `limit` 处按分组键截断的聚合 | 加上 `sort` 得到前 N 名；不带排序时，分组多于 `limit` 会以 `wow.query.too-many-groups`（400）失败 |
 | 返回 `Int` 的 `Pagination.offset()` | 返回 `Long` |
 | `wow-test`（`AggregateSpec`） | `wow-test`，带函数式的 `aggregateSpec` 和 `sagaSpec` |
@@ -44,7 +44,7 @@ description: 用 wow-migrate Skill 把 9.x 服务的 Kotlin 源码改写为 V10�
 
 这些插件需要 Gradle 9 或更高版本、Kotlin JVM 插件 2.3 或更高版本：先升级 Gradle 8 的 wrapper。KSP 读取整个源码目录，忽略源码集的 `exclude`，所以每次只编译领域模块一部分的迁移，要把这些文件同步到单独的目录。这样的一部分是一个聚合连同它的闭包，而不是单独一个聚合：一个状态的类型化查询（`<State>Properties`）只在它的根被编译的地方存在。从这部分代码的 import 找出闭包：它用来查询的每个其他状态的 `<State>Properties`，以及 Saga 发出的每个命令类；把它们的聚合加进这一部分，反复进行，直到不再加入任何东西。领域模块重新整体编译、源码集指回 `src/` 之后，先做一次干净构建（`./gradlew :<module>:clean build`）：Gradle 按源码在其根下的路径比较源码，所以这次切换可能让 Kotlin 编译和 KSP 保持 up to date，而它们的增量缓存仍描述同步出来的目录，下一次改动就可能交给处理器的文件太少。在 Wow 的插件下这两种情况都不会发生：它们把源码根作为这两个任务的输入，切换后会完整重跑它们。不经 Wow 插件运行 KSP 的模块，下一次构建会以编译器的 "No Manifest fragment and no model provider" 错误失败（[构建因契约失败](../operate/troubleshooting#a-build-fails-over-contracts)），而不是在缺少模型的情况下构建通过；做一次干净构建即可修复。
 
-api 模块带着其契约的每个领域模块都要设 `wow { contractPackage = "…" }`，即别的服务 import 的生成的 `<Context>Contract` 所在的包；分阶段迁移从第一个聚合起就设好它，之后的聚合迁过来时包不会移动。没设时模块的 `generateWowContract` 失败，并打印要加的那一行，值是当时上下文的命令与事件类共有的包（[api 模块的契约代码](../guide/generated-code#the-contract-code-of-the-api-module)）。
+api 模块带着其契约的每个领域模块都要设 `wow { contractPackage = "…" }`，即别的服务 import 的生成的 `<Context>Contract` 所在的包；分阶段迁移从第一个聚合起就设好它，之后的聚合迁过来时包不会移动。没设时模块的 `generateWowContract` 失败，并打印要加的那一行，值是当时上下文的命令与事件类共有的包（[api 模块的契约代码](../guide/generated-code#the-contract-code-of-the-api-module)）。一个上下文的命令与事件都在这一个 api 模块里：9.x 项目把其中一部分放在第二个 api 模块里（第一个依赖它）时，要把它们移进来，不论构建是指出要加的行，还是指出不在该模块里的类而失败。
 
 先迁移 api 模块时，可以在根构建上声明 api 插件：`id("me.ahoo.wow.api") version "…" apply false`。它不带来 KSP，所以 9.x 模块保留各自的 `id("com.google.devtools.ksp") version "…"`。在根构建上声明 `me.ahoo.wow` 或 `me.ahoo.wow.service` 则会把插件的 KSP 带到每个模块的类路径上，仍写着 KSP 版本的 9.x 模块随即在 Gradle 中失败，早于任何 Wow 代码运行：
 
@@ -79,8 +79,8 @@ Error resolving plugin [id: 'com.google.devtools.ksp', version: '2.3.6']
 | `@StaticTenantId` | 宿主配置：`wow.aggregates.[<context>.<aggregate>].tenant` |
 | `@StaticAggregateId` | 已移除：没有固定的聚合 ID（[V10 中的 9.x 能力](./capabilities)） |
 | `@AggregateRoute`、`@CommandRoute` | 已移除：路由来自 Manifest |
-| `@CommandRoute(enabled = false)` | 取决于谁发送这条命令。只由平台发送（Saga、定时器、进程内网关，以及经内部端口调用的其他服务）：在命令类上标注 `@InternalCommand`，公开端口不挂它的路由（[只在内部受理的命令](../guide/aggregates#keep-a-command-internal)）。由 9.x 服务手写的用户路由发送：命令保持公开，走生成的路由（[路由、租户与所有权](#routes-tenancy-and-ownership)） |
-| `@AggregateOwner(OwnerPolicy.*)`、`@Spaced` | `@AggregateRoot(ownership = Ownership.OWNER \| TENANT)`；所有者和空间来自调用方。`OwnerPolicy.AGGREGATE_ID` 是 `@AggregateRoot(idSource = AggregateIdSource.OWNER)` |
+| `@CommandRoute(enabled = false)` | 取决于谁发送这条命令。只由平台发送（Saga、定时器、进程内网关，以及经内部端口调用的其他服务）：在命令类上标注 `@InternalCommand`，公开端口不挂它的路由；内部端口上在 `wow.callers` 下没有条目的服务仍可发送它，因为这份列表只收窄它点名的服务（[只在内部受理的命令](../guide/aggregates#keep-a-command-internal)）。由 9.x 服务手写的用户路由发送：命令保持公开，走生成的路由（[路由、租户与所有权](#routes-tenancy-and-ownership)） |
+| `@AggregateOwner(OwnerPolicy.*)`、`@Spaced` | `@AggregateRoot(ownership = Ownership.OWNER \| TENANT)`；所有者和空间来自调用方。`OwnerPolicy.AGGREGATE_ID` 是 `@AggregateRoot(idSource = AggregateIdSource.OWNER)`。`TENANT` 聚合没有所有者可转，所以它的默认生命周期里没有 `wow.lifecycle.TransferOwner`，`idSource = OWNER` 的聚合也没有（[生命周期命令](../guide/aggregates#lifecycle-commands)） |
 | `@VoidCommand`、`@Order`、`@EntityObject`、`@ValueObject` | 已移除 |
 | 无 | 拒绝码上的 `@ErrorCode`、用于之后重命名的 `@Alias`、`@QueryIndex`、`@Access` |
 
@@ -108,7 +108,7 @@ data class SubmitOrder(
 )
 ```
 
-9.x 由命令体自己的业务数据得出的 ID（`productId` 这样的字段，或 `"$warehouseId-$code"` 这样的 getter）保留 `@AggregateId`，名称、包和含义都不变（[在命令体中指明聚合](../guide/aggregates#name-the-aggregate-in-the-body)）。命令的路由于是不带 `{id}`，Saga 或客户端发送它时都不带 ID，也不需要 `CommandTransformer`。计算出的 ID 仍是一个 getter，由服务从字段算出：
+9.x 由命令体自己的业务数据得出的 ID（`productId` 这样的字段，或 `"$warehouseId-$code"` 这样的 getter）保留 `@AggregateId`，名称、包和含义都不变（[在命令体中指明聚合](../guide/aggregates#name-the-aggregate-in-the-body)）。命令的路由于是不带 `{id}`，Saga 或客户端发送它时都不带 ID，也不需要 `CommandTransformer`。计算出的 ID 仍是一个 getter，由服务从字段算出。标记放在属性上，写 `@AggregateId`，不放在它的 getter 上：9.x 的 `@get:AggregateId` 无法编译，旁边的 `@get:JsonIgnore` 会让构建失败，因为 Wow 的 JSON 要写出这个 ID：
 
 <!-- sample: fragment -->
 
@@ -192,7 +192,7 @@ fun onOrderSubmitted(
 ): CommandRequest<AwaitStockValidation> = CommandRequest.of(AwaitStockValidation, event.ref.id)
 ```
 
-处理过 9.x `onError` 的 Saga，要为被拒绝的推导命令加上 `@OnRejected` 处理函数。没有处理它的 Saga（9.x 只记录派生命令的失败并继续）有两种移植方式，按命令逐一决定。返回 `Unit`、接受这次拒绝的 `@OnRejected` 处理函数，保留 9.x 的行为。不写处理函数是 V10 的默认：发往 Saga 自身上下文的命令被拒绝，会停放 Saga 的源聚合，直到它被恢复（[处理拒绝](../guide/sagas#handle-a-rejection)）。读取 9.x 只读状态聚合标签的 Saga，改读 `event.state` 的访问属性，即提交之后的状态，而不是快照里的。处理其他上下文事件的处理器，通过那个上下文的 `*-api` jar 读取它发布的事件流（[发布与消费事件流](../guide/published-streams)）。
+处理过 9.x `onError` 的 Saga，要为被拒绝的推导命令加上 `@OnRejected` 处理函数。没有处理它的 Saga（9.x 只记录派生命令的失败并继续）有两种移植方式，按命令逐一决定。返回 `Unit`、接受这次拒绝的 `@OnRejected` 处理函数，保留 9.x 的行为。不写处理函数是 V10 的默认：发往 Saga 自身上下文的命令被拒绝，会停放 Saga 的源聚合，直到它被恢复（[处理拒绝](../guide/sagas#handle-a-rejection)）。补偿不会再被补偿：`@OnRejected` 或 `@OnCommitted` 处理函数派生的命令如果又被拒绝，同样会停放聚合，也不会交给任何处理函数，所以多步交接里每一条需要补偿的命令，都要从 `@OnEvent` 处理函数派生。9.x Saga 为去重而在派生命令上设置的字面请求 ID，不会成为命令的请求 ID：派生命令的请求 ID 来自这次执行、它的目标和类型，而请求的 `requestId` 只在这次执行内作为业务键（[构建命令](../guide/sagas#build-the-commands)）。读取 9.x 只读状态聚合标签的 Saga，改读 `event.state` 的访问属性，即提交之后的状态，而不是快照里的。处理其他上下文事件的处理器，通过那个上下文的 `*-api` jar 读取它发布的事件流（[发布与消费事件流](../guide/published-streams)）。
 
 9.x 服务在 Simba 或 `@Scheduled` 里运行的周期作业，如果是从到期的内容推导命令，就是 Saga 的一个 `@OnSchedule` 处理函数，按 cron 规则运行；要等每条命令的结果再发下一条的作业，留在 Wow 之外，通过 `CommandClient` 发送（[定时命令](../guide/scheduling)）。9.x 把已存储事件重新投递给某个处理函数的回填，在 V10 中是一个新名字的处理函数，带 `@OnEvent(start = OnEvent.Start.BEGINNING)`，从事件流的开头读一遍（[重建与重放](../operate/replay)）。
 
@@ -225,6 +225,8 @@ private suspend fun take(name: String, scope: DecideScope) {
     }
 }
 ```
+
+9.x 里在一个聚合内给键改名的 `reprepare`，是这个聚合的一次决策：预留新键并释放旧键。把键从一个聚合移到另一个聚合的 `reprepare` 在 V10 中没有对应形式，因为预留属于正在决策的聚合，并随它的事件一起提交：持有者的更换经 Saga 交接完成，结果是最终一致的（[把键移给另一个聚合](../guide/unique-keys#move-a-key-to-another-aggregate)）。
 
 [跨聚合的唯一键](../guide/unique-keys)解释预留。
 

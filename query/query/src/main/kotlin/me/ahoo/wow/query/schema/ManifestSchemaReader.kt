@@ -91,7 +91,7 @@ internal class ManifestSchemaReader(
                 }
             }
         }
-        val combined = parts.reduceOrNull { left, right -> left.merge(right, QueryField(field), true) }
+        val combined = parts.reduceOrNull { left, right -> left.merge(right, field, true) }
             ?: QueryFieldDeclaration(kind = DeclarationValue.Set(QueryValueKind.UNKNOWN))
         return combined.withMetadata(schema).withKeywords(schema, field)
     }

@@ -53,7 +53,7 @@ Reads follow the same default rule. Query admission adds it to every query of th
 - An `OWNER` aggregate is read within the caller's tenant, owner and space, each where the caller has one: an owner-level caller reads its own, a tenant-level one the whole tenant.
 - A `TENANT` aggregate is read within the caller's tenant and space; the owner is never added. Every caller of the tenant reads a product, a shopper as much as a member of staff.
 
-So `TENANT` does not restrict reads by role. An aggregate that belongs to its tenant but that only some callers may read, such as the failures an operator console lists or the sources of an analytics catalog, needs a read authorizer of the service's own: a `ReadAuthorizer` bean that refuses a caller without the role ([Authorize reads](../operate/security#authorize-reads)). Which of the aggregates a caller reads is an access policy's to decide ([Write an access policy](#write-an-access-policy)). Trusted code and the handlers of subscriptions read the whole tenant without a caller, and neither a read authorizer nor an access policy is asked for them.
+So `TENANT` does not restrict reads by role. An aggregate that belongs to its tenant but that only some callers may read, such as the failures an operator console lists or the sources of an analytics catalog, needs a read authorizer of the service's own: a `ReadAuthorizer` bean that refuses a caller without the role ([Authorize reads](../operate/security#authorize-reads)). Which of the aggregates a caller reads is an access policy's to decide ([Write an access policy](#write-an-access-policy)). Trusted code reads every tenant without a caller, and the handlers of subscriptions read the whole of the tenant of their commit; neither a read authorizer nor an access policy is asked for them.
 
 ## One aggregate per owner
 
@@ -69,7 +69,7 @@ class Basket(private val state: BasketState) {
 }
 ```
 
-Each owner then has exactly one basket in its tenant, and its id is the buyer's user id. The declaration requires `ownership = OWNER`, the default: an aggregate that belongs to its tenant has no owner to take its id from. Its owner never changes, so the default lifecycle leaves `TransferOwner` out, and the compiler refuses one listed in `lifecycle`, or a command that produces `OwnerTransferred`. The default, `AggregateIdSource.ASSIGNED`, takes the id the request names, or generates one for a creating command.
+Each owner then has exactly one basket in its tenant, and its id is the buyer's user id. The declaration requires `ownership = OWNER`, the default: an aggregate that belongs to its tenant has no owner to take its id from. Its owner never changes, so the aggregate never transfers it ([Transfer an owner or a space](#transfer-an-owner-or-a-space)). The default, `AggregateIdSource.ASSIGNED`, takes the id the request names, or generates one for a creating command.
 
 ### Its routes
 
@@ -112,7 +112,13 @@ Two lifecycle commands change an aggregate's scope; every aggregate handles them
 | `TransferOwner` | `POST /<context>/<aggregate>/{id}/wow.lifecycle.transfer-owner` | `{"ownerId": "…"}` |
 | `TransferSpace` | `POST /<context>/<aggregate>/{id}/wow.lifecycle.transfer-space` | `{"spaceId": "…"}` |
 
-A `TENANT` aggregate handles no `TransferOwner`, and neither does one whose id is its owner's. Every commit records the scope after it, so a projection or a query reads the current owner without replaying the history, and the aggregate's earlier event streams follow it ([Where a policy applies](#where-a-policy-applies)).
+A `TENANT` aggregate has no owner to transfer, and one whose id is its owner's has a fixed owner, so neither transfers its owner:
+
+- without `lifecycle`, it handles no `TransferOwner`, and a `lifecycle` list that names `TransferOwner` fails the compilation, even one that names all four commands;
+- the compiler refuses a command function whose return type or `produces` yields `OwnerTransferred`, and an `@AfterCommand` hook whose return type does;
+- a decision that holds `OwnerTransferred` anyway, from a function whose events the compiler cannot see or a model written with the DSL, fails its command as an undeclared event: the caller gets `wow.command.undeclared-event` (500), the service logs the error with the model, the command and the event, and nothing is committed.
+
+Every commit records the scope after it, so a projection or a query reads the current owner without replaying the history, and the aggregate's earlier event streams follow it ([Where a policy applies](#where-a-policy-applies)).
 
 ## Declare access attributes
 
@@ -248,7 +254,7 @@ The inside of the platform is trusted: the internal port, the cluster channel, t
 
 - **Derived commands.** A command a saga, a timer, a compensation or a synchronous call derives carries the causation of the commit it follows and the scope of the root command, which admission authorized when it arrived. It reaches every aggregate.
 - **A service acting as itself.** A service's identity (`Caller.ofService(...)`) reads and sends commands without a policy. Another service that calls or reads this one on its internal port is bounded by what this one's caller list lets it (`wow.callers.<service>.commands` and `reads`; [Close the internal port](../operate/security#close-the-internal-port)). Code of the service sends as the service with `commandClient.of(Caller.ofService("<wow.service>"))`; the in-process client's default caller is anonymous, holds no claim, and is refused by a policy.
-- **Trusted code.** Code that reads with no caller (`NodeQueryApi.trusted()`) and the handlers of subscriptions read the whole tenant.
+- **Trusted code.** Code that reads with no caller (`NodeQueryApi.trusted()`) reads every tenant, and the handlers of subscriptions read the whole of the tenant of their commit.
 
 A command that carries neither a causation nor a caller, such as one a producer wrote on a command topic without one, is refused under a policy ([Restrict the command topics](../operate/security#restrict-the-command-topics)). A caller allowed to act in another scope changes where it acts, not what the policy grants: a support role that must read every aggregate gets a rule of its own (`allowIf(caller.hasRole("support"))`).
 

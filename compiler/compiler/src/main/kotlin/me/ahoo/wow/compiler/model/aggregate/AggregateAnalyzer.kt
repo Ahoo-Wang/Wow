@@ -190,7 +190,7 @@ internal class AggregateAnalyzer(
             }
         problems += SourcingResolver.producesProblems(commands, sourcing)
         problems += SourcingResolver.yieldProblems(commands, afters, sourcing)
-        problems += LifecycleCompositions.problems(commands, ownership, idSource)
+        problems += LifecycleCompositions.problems(commands, afters, ownership, idSource)
         val eventTypes = sourcingFunctions.mapNotNull { firstParameterClass(it, unwrapCommand = false) }
         problems += annotationProblems(root, state, commandTypes, eventTypes)
         return Handlers(commands, sourcing, afters)

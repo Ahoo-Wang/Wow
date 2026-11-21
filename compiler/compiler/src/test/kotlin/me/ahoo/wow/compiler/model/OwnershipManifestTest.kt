@@ -96,28 +96,80 @@ class OwnershipManifestTest {
     }
 
     @Test
-    fun `an aggregate of its tenant that lists TransferOwner should fail the compilation`() {
-        val catalog = SourceFile.kotlin(
-            "Catalog.kt",
+    fun `an aggregate of its tenant that lists TransferOwner should fail the compilation, all four listed too`() {
+        listOf(
+            "TransferOwner::class",
+            "DeleteAggregate::class, RestoreAggregate::class, TransferOwner::class, TransferSpace::class",
+        ).forEach { listed ->
+            val root = "@AggregateRoot(ownership = Ownership.TENANT, lifecycle = [$listed])"
+            val (_, result) = compileModel("generate", context, product(root))
+            result.exitCode.assert().withFailMessage { listed }.isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+            result.messages.assert().contains(
+                "@AggregateRoot(lifecycle) lists TransferOwner, but the aggregate belongs to its tenant " +
+                    "(ownership = TENANT): it has no owner to transfer. Leave TransferOwner out of the list",
+            )
+        }
+    }
+
+    @Test
+    fun `a Java aggregate of its tenant should leave TransferOwner out by default, and fail when it lists it`() {
+        val messages = SourceFile.kotlin(
+            "Messages.kt",
+            "package sample\n\ndata class Open(val id: String)\ndata class Opened(val id: String)"
+        )
+        fun shelf(lifecycle: String) = SourceFile.java(
+            "Shelf.java",
             """
-            package sample
+            package sample;
 
-            import me.ahoo.wow.api.aggregate.Ownership
-            import me.ahoo.wow.api.annotation.AggregateRoot
-            import me.ahoo.wow.api.lifecycle.TransferOwner
+            import me.ahoo.wow.api.aggregate.Ownership;
+            import me.ahoo.wow.api.annotation.AggregateRoot;
+            import me.ahoo.wow.api.lifecycle.*;
 
-            data class Open(val id: String)
-            data class Opened(val id: String)
+            @AggregateRoot(ownership = Ownership.TENANT$lifecycle)
+            public class Shelf {
+                private final String id;
 
-            @AggregateRoot(ownership = Ownership.TENANT, lifecycle = [TransferOwner::class])
-            class Product(val id: String) {
-                fun onCommand(command: Open): Opened = Opened(command.id)
-                fun onSourcing(event: Opened) = Unit
+                public Shelf(String id) {
+                    this.id = id;
+                }
+
+                public Opened onCommand(Open command) {
+                    return new Opened(command.getId());
+                }
+
+                public void onSourcing(Opened event) {
+                }
             }
             """.trimIndent(),
         )
-        val (_, result) = compileModel("generate", context, catalog)
-        result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
-        result.messages.assert().contains("lists TransferOwner, but the aggregate belongs to its tenant")
+        val (compilation, result) = compileModel("generate", context, messages, shelf(""))
+        result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
+        read(fragments(compilation).single()).contexts.single().aggregates.single().lifecycle.assert()
+            .doesNotContain("wow.lifecycle.TransferOwner").contains("wow.lifecycle.DeleteAggregate")
+        val all = ", lifecycle = {DeleteAggregate.class, RestoreAggregate.class, TransferOwner.class, TransferSpace.class}"
+        val (_, listed) = compileModel("generate", context, messages, shelf(all))
+        listed.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        listed.messages.assert().contains("lists TransferOwner, but the aggregate belongs to its tenant")
     }
+
+    private fun product(aggregateRoot: String): SourceFile = SourceFile.kotlin(
+        "Catalog.kt",
+        """
+        package sample
+
+        import me.ahoo.wow.api.aggregate.Ownership
+        import me.ahoo.wow.api.annotation.AggregateRoot
+        import me.ahoo.wow.api.lifecycle.*
+
+        data class Open(val id: String)
+        data class Opened(val id: String)
+
+        $aggregateRoot
+        class Product(val id: String) {
+            fun onCommand(command: Open): Opened = Opened(command.id)
+            fun onSourcing(event: Opened) = Unit
+        }
+        """.trimIndent(),
+    )
 }

@@ -92,8 +92,9 @@ internal object AggregateRootArguments {
     /**
      * The system names of the lifecycle commands `@AggregateRoot(lifecycle)` lists, sorted; a class
      * that is not a lifecycle command is a problem. Without the argument, every one. An aggregate of its tenant
-     * has no owner to transfer, and one whose id is its owner's ([idSource] `OWNER`) cannot transfer it:
-     * TransferOwner is left out of every one, and a problem when listed with fewer.
+     * has no owner to transfer, and one whose id is its owner's ([idSource] `OWNER`) cannot transfer it: without the
+     * argument TransferOwner is left out, and a list that names it is a problem, however many others it names, since
+     * what a list names is what the aggregate means to handle.
      */
     fun lifecycle(
         arguments: AnnotationArguments?,
@@ -104,7 +105,7 @@ internal object AggregateRootArguments {
         val tenant = ownership == Ownership.TENANT.name
         val owned = idSource == AggregateIdSource.OWNER.name
         val fixed = tenant || owned
-        val listed = arguments?.types(LIFECYCLE)
+        val listed = arguments?.takeIf { it.written(LIFECYCLE) }?.types(LIFECYCLE)
             ?: return AggregateBinding.ALL_LIFECYCLE_COMMANDS.filterNot { fixed && it == TRANSFER_OWNER }
         val commands = LIFECYCLE_COMMANDS
         val names = listed.mapNotNull { type ->
@@ -119,15 +120,12 @@ internal object AggregateRootArguments {
         if (!fixed || TRANSFER_OWNER !in names) {
             return names
         }
-        // Every one, as by default: an aggregate whose owner is fixed drops TransferOwner.
-        if (names != AggregateBinding.ALL_LIFECYCLE_COMMANDS) {
-            problems += if (tenant) {
-                "@AggregateRoot(lifecycle) lists TransferOwner, but the aggregate belongs to its tenant " +
-                    "(ownership = TENANT): it has no owner to transfer"
-            } else {
-                "@AggregateRoot(lifecycle) lists TransferOwner, but the aggregate's id is its owner's " +
-                    "(idSource = OWNER): its owner cannot be transferred"
-            }
+        problems += if (tenant) {
+            "@AggregateRoot(lifecycle) lists TransferOwner, but the aggregate belongs to its tenant " +
+                "(ownership = TENANT): it has no owner to transfer. Leave TransferOwner out of the list"
+        } else {
+            "@AggregateRoot(lifecycle) lists TransferOwner, but the aggregate's id is its owner's " +
+                "(idSource = OWNER): its owner cannot be transferred. Leave TransferOwner out of the list"
         }
         return names - TRANSFER_OWNER
     }
