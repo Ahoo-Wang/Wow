@@ -16,8 +16,12 @@ package me.ahoo.wow.runtime.binding
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateIdSource
+import me.ahoo.wow.api.aggregate.Creation
+import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.lifecycle.DeleteAggregate
 import me.ahoo.wow.api.problem.WowProblemException
@@ -25,6 +29,7 @@ import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.KernelOptions
+import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.runtime.Executor
 import me.ahoo.wow.runtime.admission.CommittedRequests
@@ -103,6 +108,34 @@ class DerivedCommandsTest {
             val remove = Command("c-remove", "c-remove", CART.unassigned(TENANT), RemoveItems(listOf("apple")))
             runCatching { creating.execute(listOf(remove), null) }.exceptionOrNull()!!.message.assert()
                 .contains("only a command that creates its aggregate may leave its id to admission")
+        }
+
+    @Test
+    fun `a command to a wallet naming none and with no owner is rejected as malformed, not failed (#6558)`(): Unit =
+        runBlocking {
+            // A wallet's id is its owner's: a derived or scheduled command with no owner has none to take.
+            val wallet = aggregate<Any>(SHOP, "wallet") {
+                id(AggregateIdSource.OWNER)
+                initial { Any() }
+                decide<AddItems>(Creation.ALLOWED) { _, _ -> Decision.events(ItemsAdded(listOf())) }
+                evolve<ItemsAdded> { }
+            }
+            val owning = DerivedCommands(
+                listOf(wallet),
+                coordinator,
+                creations = CreationIds(IdGenerators.DEFAULT, CommittedRequests.NONE),
+            )
+            val type = wallet.type
+            val unowned = Command("w-1", "w-1", type.unassigned(TENANT), AddItems(listOf("apple")), causation = root)
+            val owned = unowned.copyWith(id = "w-2", requestId = "w-2", scope = Scope("alice"))
+            val executed = owning.execute(listOf(unowned, owned), null)
+            executed.executed.assert().containsExactly("w-1", "w-2")
+            val rejected = executed.rejected.single()
+            rejected.command.assert().isEqualTo(unowned)
+            rejected.commandType.assert().isEqualTo("shop.wallet.AddItems")
+            rejected.rejection.code.assert().isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
+            rejected.rejection.message.assert().isEqualTo("This caller has no owner; address the aggregate by its id.")
+            executed.committed.single().result.ref.assert().isEqualTo(type.ref(TENANT, "alice"))
         }
 
     @Test

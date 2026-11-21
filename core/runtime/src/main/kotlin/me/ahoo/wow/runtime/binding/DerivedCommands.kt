@@ -29,6 +29,8 @@ import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.HandlingRejectedException
+import me.ahoo.wow.runtime.admission.AdmissionIdentity
+import me.ahoo.wow.runtime.admission.AdmissionIdentity.unaddressed
 import me.ahoo.wow.runtime.admission.CommandValidator
 import me.ahoo.wow.runtime.admission.CreationIds
 import me.ahoo.wow.runtime.admission.candidateOf
@@ -73,7 +75,9 @@ import me.ahoo.wow.spi.wait.WaitContext
  *   ([me.ahoo.wow.api.aggregate.AggregateRef.isAssigned]) takes its id from [creations] before it runs: the id its
  *   request already created or claimed, else a new one from its aggregate type's generator, claimed. One to another
  *   context takes it
- *   there, at the target's intake.
+ *   there, at the target's intake. One to an aggregate whose id is its owner's takes its owner's, and is rejected
+ *   without one, as [FrameworkCodes.COMMAND_MALFORMED] ([AdmissionIdentity.unaddressed]), the answer admission gives
+ *   its request: no aggregate decides it, and it is not retried.
  * - **Other contexts**: the commands to aggregates of contexts outside the saga's own are sent
  *   to their contexts' command topics through the sender ([CommandSender.sendAll]), those of one topic as one batch, and
  *   are done once the broker has acknowledged them, a durable ACCEPTED; its outcome is the target's, and a rejection comes back as a receipt to the [ReplyTo] the caller gives
@@ -144,6 +148,10 @@ internal class DerivedCommands(
     private suspend fun executeHere(derived: Command<*>, wait: WaitContext?): Outcome {
         val model = models.getValue(derived.ref.type)
         invalid(model, derived)?.let { return it }
+        unaddressed(model, derived)?.let { refused ->
+            val type = model.commandType(derived.body.javaClass).name
+            return Outcome(derived.id, rejected = Rejected(derived, Rejection(refused.code, refused.message), type))
+        }
         // A creation that names no aggregate takes the id its request created, or a new one.
         val command = creations.assign(model, derived)
         val settlement = coordinator.forward(model, command, wait)

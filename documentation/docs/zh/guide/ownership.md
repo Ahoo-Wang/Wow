@@ -90,7 +90,8 @@ class Basket(private val state: BasketState) {
 
 - **所有者级**调用方的聚合就是它自己的：ID 是它的所有者，无论走不带 ID 的路由还是用它自己的 ID；通过 `Wow-Scope` 在另一个作用域中行事的调用方，接触的是那个作用域的所有者的聚合。指明另一个所有者的 ID 接触不到任何聚合：创建命令被以 `403 wow.aggregate.forbidden` 拒绝，其他命令得到 `404 wow.aggregate.not-found`，无论那个所有者的聚合是否存在。
 - **没有所有者**的调用方，例如租户级的员工、服务或 Saga，没有自己的聚合：它在按 ID 的路由上指明 ID。它走不带 ID 的路由时得到 `400 wow.command.malformed`（"This caller has no owner; address the aggregate by its id."），读取状态时得到 `400 wow.query.malformed`。未认证的调用方得到 `401 wow.auth.unauthenticated`。
-- Saga 派生的命令或定时命令没有指明 ID 时，取它所带作用域的所有者：跟随买家订单的 Saga 接触的是那个买家的购物车。
+- Saga 派生的命令或定时命令没有指明 ID 时，取它所带作用域的所有者：跟随买家订单的 Saga 接触的是那个买家的购物车。没有所有者的这类命令被以 `wow.command.malformed` 拒绝，与没有所有者的调用方得到的答复相同：Saga 的 `@OnRejected` 处理器接收这个拒绝，没有这个处理器时 Saga 停放。另一个服务的接收处从它的命令主题取到的命令也得到同样的答复。
+- 本服务向另一个服务的这类聚合发送的命令（从那个服务的 api jar 所带的契约得知）在发送之前就在这里按同样的规则定出 ID：那个服务会因缺少 ID 而拒绝的请求，在这里就以相同的答复拒绝，什么也不发送。
 
 内核把聚合的 ID 记为它的所有者，无论是谁创建它；所有者不同的命令接触不到它，创建命令也一样。因此命令函数不必核对调用方：上面的购物车不需要自己的所有权检查。
 
