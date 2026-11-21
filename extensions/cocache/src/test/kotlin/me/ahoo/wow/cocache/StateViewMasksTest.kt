@@ -189,6 +189,8 @@ class StateViewMasksTest {
         ).assert().isFalse()
         declared("shop.CustomerState" to mapOf("\$ref" to "https://example.com/schema")).assert().isFalse()
         declared("shop.CustomerState" to mapOf("\$ref" to "#/\$defs/Missing")).assert().isFalse()
+        // A reference that is no name is walked as any other value.
+        declared("shop.CustomerState" to mapOf("\$ref" to listOf(sensitive))).assert().isTrue()
         declared().assert().isFalse()
         SensitiveStates.declared(manifest, AggregateType("shop", "unknown")).assert().isFalse()
         SensitiveStates.declared(manifest, AggregateType("other", "customer")).assert().isFalse()
