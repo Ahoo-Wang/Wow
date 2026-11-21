@@ -168,7 +168,11 @@ class StreamHandoverTest {
         response.statusCode().assert().isEqualTo(HttpStatus.OK)
         val exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/"))
         response.writeTo(exchange, WRITE_CONTEXT).block(Duration.ofSeconds(10))
-        exchange.response.bodyAsString.block(Duration.ofSeconds(10))!!.assert().contains("data:1", "data:2")
+        // Whether a space follows the colon is the writer's spelling (Spring Framework 7.1 writes one); the value is the same.
+        val data = exchange.response.bodyAsString.block(Duration.ofSeconds(10))!!.lines()
+            .filter { it.startsWith("data:") }
+            .map { it.removePrefix("data:").trim() }
+        data.assert().containsExactly("1", "2")
         channel.isClosedForReceive.assert().isTrue()
     }
 
