@@ -29,11 +29,9 @@ import me.ahoo.wow.runtime.admission.AdmissionIdentity.bodyId
 import me.ahoo.wow.runtime.admission.AdmissionIdentity.headersOf
 import me.ahoo.wow.runtime.admission.AdmissionIdentity.identityConflict
 import me.ahoo.wow.runtime.admission.AdmissionIdentity.ownId
-import me.ahoo.wow.runtime.admission.AdmissionIdentity.tenantConflict
 import me.ahoo.wow.runtime.admission.CommandGateway.Companion.UNADDRESSED
 import me.ahoo.wow.runtime.wait.WaitCoordinator
 import me.ahoo.wow.spi.json.BodyAggregateIds
-import me.ahoo.wow.spi.tenant.TenantConflictException
 import me.ahoo.wow.spi.tenant.TenantPolicy
 import tools.jackson.databind.json.JsonMapper
 
@@ -100,16 +98,12 @@ internal class PeerAdmission(
             )
         }
         val target = request.target
-        if (target != null && !request.caller.crossScope) {
-            return facts.refuse(FrameworkCodes.AUTH_FORBIDDEN, "The caller may not act in another scope.")
+        val answer = CallerAdmission.admit(type, request.caller, target, request.tenantId, tenants)
+        val origin = when (answer) {
+            is CallerAdmission.Refused -> return facts.refuse(answer.code, answer.message)
+            is CallerAdmission -> answer
         }
-        val tenantId = try {
-            tenants.tenantOf(type, request.caller, target)
-        } catch (conflict: TenantConflictException) {
-            return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, conflict.message!!)
-        }
-        tenantConflict(request, tenantId)?.let { return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it) }
-        val origin = CallerAdmission.of(request.caller, target)
+        val tenantId = origin.tenantId
         val scope = origin.scope
         facts.ref = type.ref(tenantId, request.aggregateId ?: UNADDRESSED)
         // An aggregate whose id is its owner's, as this node's own: the id decided here, before anything is relayed.

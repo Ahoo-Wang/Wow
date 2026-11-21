@@ -25,17 +25,11 @@ import me.ahoo.wow.kernel.CallerAdmission
 
 /**
  * The rules that decide a request's identity facts, step 2 of admission ([CommandGateway]), which a command of this
- * node's aggregates and one of a peer context's share: the tenant, the call, the aggregate id an owner's aggregate or a
- * body names, the caller the command acts as, the request facts it records and the facts no request may give.
+ * node's aggregates and one of a peer context's share, beside its tenant and scope ([CallerAdmission.admit]): the
+ * call, the aggregate id an owner's aggregate or a body names, the caller the command acts as, the request facts it
+ * records and the facts no request may give.
  */
 internal object AdmissionIdentity {
-    /** Why the tenant [request]'s ref names is not [tenantId], the one admission decided; null when it is, or none. */
-    fun tenantConflict(request: ServerCommandRequest, tenantId: String): String? =
-        request.tenantId?.takeIf { it != tenantId }?.let {
-            "The command's ref names tenant $it, but it is sent in tenant $tenantId: a ref's tenant is the caller's, " +
-                "a cross-scope target's or the one fixed for its type."
-        }
-
     /**
      * The request facts of [request]'s command, sent by the caller [origin] admits: the ones it carries, as the caller
      * records them ([CallerAdmission.headersOf]). A service's synchronous call carries those of its root request that
