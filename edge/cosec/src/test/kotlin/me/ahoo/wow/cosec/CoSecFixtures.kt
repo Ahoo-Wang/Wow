@@ -17,7 +17,6 @@ package me.ahoo.wow.cosec
 
 import io.mockk.coEvery
 import io.mockk.spyk
-import kotlinx.coroutines.reactor.mono
 import kotlinx.coroutines.runBlocking
 import me.ahoo.cosec.annotations.ExperimentalCoSecApi
 import me.ahoo.cosec.api.context.SecurityContext
@@ -37,14 +36,13 @@ import me.ahoo.cosec.runtime.event.Delivery
 import me.ahoo.cosec.runtime.http.Cookies
 import me.ahoo.cosec.runtime.http.Headers
 import me.ahoo.cosec.runtime.http.HttpFacts
-import me.ahoo.cosec.runtime.http.Outcome
-import me.ahoo.cosec.runtime.http.ProblemEncoder
 import me.ahoo.cosec.spi.authn.AuthenticatedPrincipal
 import me.ahoo.cosec.spi.authn.AuthnResult
 import me.ahoo.cosec.spi.authn.Credentials
 import me.ahoo.cosec.spi.membership.MembershipClaims
 import me.ahoo.cosec.spi.snapshot.InMemorySnapshotDocumentStore
 import me.ahoo.cosec.spi.snapshot.SnapshotKey
+import me.ahoo.cosec.webflux.testing.CoSecTestBindings
 import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
@@ -76,13 +74,7 @@ import me.ahoo.wow.runtime.wait.WaitCoordinator
 import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.runtime.wait.WaitRegistry
 import me.ahoo.wow.spi.wait.Origin
-import org.springframework.http.HttpStatusCode
-import org.springframework.http.server.reactive.ServerHttpRequest
 import org.springframework.test.web.reactive.server.WebTestClient
-import org.springframework.web.server.ServerWebExchange
-import org.springframework.web.server.WebFilter
-import org.springframework.web.server.WebFilterChain
-import reactor.core.publisher.Mono
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
 import java.time.Duration
@@ -208,39 +200,6 @@ class CoSecPipeline(
         }
     }
 
-    /**
-     * CoSec's WebFlux adapter as far as wow-cosec reads it, which only CoSec's starter builds: each request's outcome,
-     * its problem written, or its security context put on the exchange and into the Reactor context under
-     * [SecurityContext.KEY], where CoSec's filter puts it.
-     */
-    val filter: WebFilter = WebFilter { exchange, chain ->
-        mono { pipeline.evaluate(factsOf(exchange.request)) }.flatMap { outcome -> proceed(exchange, chain, outcome) }
-    }
-
-    private fun proceed(exchange: ServerWebExchange, chain: WebFilterChain, outcome: Outcome): Mono<Void> {
-        val response = exchange.response
-        outcome.headers.forEach { (name, value) -> response.headers.set(name, value) }
-        val problem = outcome.problem
-        if (problem != null) {
-            response.statusCode = HttpStatusCode.valueOf(outcome.status)
-            return response.writeWith(Mono.just(response.bufferFactory().wrap(ProblemEncoder.encode(problem))))
-        }
-        val context = checkNotNull(outcome.security).securityContext
-        exchange.attributes[SecurityContext.KEY] = context
-        return chain.filter(exchange).contextWrite { it.put(SecurityContext.KEY, context) }
-    }
-
-    private fun factsOf(request: ServerHttpRequest) = HttpFacts(
-        method = request.method.name(),
-        rawPath = request.uri.rawPath,
-        rawQuery = request.uri.rawQuery,
-        // Each line as it came, a comma kept: CoSec reads a header's lines itself.
-        headers = Headers.of(request.headers.headerNames().associateWith { request.headers.get(it).orEmpty() }),
-        cookies = Cookies.of(request.cookies.mapValues { (_, cookies) -> cookies.map { it.value } }),
-        remoteAddress = "10.0.0.1",
-        host = HostScope(host?.let(::AppId)),
-    )
-
     /** The security context the pipeline permits a `POST [path]` with [token] and [headers] in. */
     suspend fun security(
         token: String?,
@@ -351,7 +310,7 @@ class CoSecNode(
         WebTestClient.bindToRouterFunction(callRoutes(cartManifest(), gateway, internalCallers)).build()
     val client: WebTestClient = WebTestClient
         .bindToRouterFunction(wowRoutes(cartManifest(), gateway, callerResolver = callers, options = options))
-        .webFilter<WebTestClient.RouterFunctionSpec>(cosec.filter)
+        .webFilter<WebTestClient.RouterFunctionSpec>(CoSecTestBindings.filter(cosec.pipeline))
         .build()
         .mutate()
         .responseTimeout(Duration.ofSeconds(10))
