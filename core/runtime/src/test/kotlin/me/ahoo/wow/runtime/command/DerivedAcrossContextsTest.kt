@@ -75,7 +75,7 @@ class DerivedAcrossContextsTest {
             order("cancel", CancelOrder()),
             item("i-1", "r-3"),
         )
-        val executed = derived.execute(commands, null)
+        val executed = derived.execute(commands, TENANT, null)
         executed.executed.assert().isEqualTo(commands.map { it.id })
         executed.rejected.map { it.command.id }.assert().containsExactly("confirm")
         executed.committed.map { it.command.id }.assert().containsExactly("place", "cancel")

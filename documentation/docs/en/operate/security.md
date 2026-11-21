@@ -376,4 +376,4 @@ Events are facts. The log keeps them for good, and Wow offers neither erasing ev
 
 ## Tenants
 
-All the services of a system share one tenant space: a tenant id means the same customer in every service, and crosses services as it is. Resolve the caller's tenant the same way in every service. An aggregate type can be given a fixed tenant, `wow.aggregates.[<context>.<aggregate>].tenant`, which puts all its commands and reads in that tenant whoever the caller is.
+All the services of a system share one tenant space: a tenant id means the same customer in every service, and crosses services as it is. Resolve the caller's tenant the same way in every service. An aggregate type can be given a fixed tenant, `wow.aggregates.[<context>.<aggregate>].tenant`, which puts all its commands and reads in that tenant whoever the caller is, a saga's, a timer's and a job's commands included. Its owners are then compared by their ids alone, so its owner ids must be unique across the callers' tenants ([A fixed tenant](../guide/ownership#a-fixed-tenant)).

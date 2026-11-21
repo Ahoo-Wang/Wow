@@ -40,6 +40,7 @@ import me.ahoo.wow.runtime.wait.Settlement
 import me.ahoo.wow.runtime.wait.WaitCoordinator
 import me.ahoo.wow.runtime.wait.busyOf
 import me.ahoo.wow.runtime.wait.toError
+import me.ahoo.wow.spi.tenant.TenantPolicy
 import me.ahoo.wow.spi.wait.WaitContext
 
 /**
@@ -99,18 +100,22 @@ internal class DerivedCommands(
     creations: CreationIds,
     /** The node's command validators, the gateway's. */
     validators: List<CommandValidator> = emptyList(),
+    /** The tenant of each aggregate type, the node's. */
+    tenants: TenantPolicy = TenantPolicy.CALLERS,
 ) {
-    private val admission = ServiceCommandAdmission(validators, creations)
+    private val admission = ServiceCommandAdmission(validators, creations, tenants)
     private val models: Map<AggregateType, AggregateModel<*>> = models.associateBy { it.type }
     private val contexts: Set<String> = models.mapTo(HashSet()) { it.type.context }
 
     /**
-     * Executes every one of [commands], with [wait] when the saga's hop is waited for; returns the ids of those it
-     * executed, in the order they were derived, those that were rejected and those of its own context it committed. A
-     * command to another context is sent with the [replyTo] its receipt goes to, if any.
+     * Executes every one of [commands], derived by an execution of the [acting] tenant (its commit's, its receipt's or
+     * its job instance's), with [wait] when the saga's hop is waited for; returns the ids of those it executed, in the
+     * order they were derived, those that were rejected and those of its own context it committed. A command to another
+     * context is sent with the [replyTo] its receipt goes to, if any.
      */
     suspend fun execute(
         commands: List<Command<*>>,
+        acting: String,
         wait: WaitContext?,
         replyTo: (Command<*>) -> ReplyTo? = { null },
     ): Executed {
@@ -126,11 +131,14 @@ internal class DerivedCommands(
                 }
             }
             val targets = Semaphore(MAX_CONCURRENT_TARGETS)
-            // One target's commands in turn: a creation without an id is a target of its own until it has one.
-            local.groupBy { derived[it].ref.takeIf { ref -> ref.isAssigned } ?: it }.values.forEach { indices ->
+            // One target's commands in turn, in the tenant each is sent in: a creation without an id is a target of
+            // its own until it has one, and so is one refused for its tenant.
+            local.groupBy {
+                admission.targetOf(derived[it], acting)?.takeIf { ref -> ref.isAssigned } ?: it
+            }.values.forEach { indices ->
                 launch {
                     targets.withPermit {
-                        indices.forEach { outcomes[it] = executeHere(derived[it], wait) }
+                        indices.forEach { outcomes[it] = executeHere(derived[it], acting, wait) }
                     }
                 }
             }
@@ -143,16 +151,19 @@ internal class DerivedCommands(
         )
     }
 
-    /** Executes [derived], a command of the saga's own context, through its partition's owner. */
-    private suspend fun executeHere(derived: Command<*>, wait: WaitContext?): Outcome {
+    /**
+     * Executes [derived], a command of the saga's own context derived for the [acting] tenant, through its partition's
+     * owner.
+     */
+    private suspend fun executeHere(derived: Command<*>, acting: String, wait: WaitContext?): Outcome {
         val model = models.getValue(derived.ref.type)
-        admission.refusalOf(model, derived)?.let { refused ->
+        admission.refusalOf(model, derived, acting)?.let { refused ->
             val type = model.commandType(derived.body.javaClass).name
             val rejection = Rejection(refused.code, refused.message)
             return Outcome(derived.id, rejected = Rejected(derived, rejection, type, violations = refused.violations))
         }
-        // A creation that names no aggregate takes the id its request created, or a new one.
-        val command = admission.assign(model, derived)
+        // In its tenant; a creation that names no aggregate takes the id its request created, or a new one.
+        val command = admission.assign(model, derived, acting)
         val settlement = coordinator.forward(model, command, wait)
         failureOf(command, settlement)?.let { throw it }
         val commandType = model.commandType(command.body.javaClass).name

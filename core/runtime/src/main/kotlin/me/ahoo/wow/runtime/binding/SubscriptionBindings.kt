@@ -126,8 +126,7 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
             return emptyList()
         }
         val receipts = receiptsOf(context, bound)
-        val derived =
-            DerivedCommands(context.models, context.coordinator, context.sender, context.creations, context.validators)
+        val derived = derivedOf(context)
         return local.map { handler ->
             val name = handler.name
             val filter = handlerFilter(
@@ -182,8 +181,7 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
             return emptyList()
         }
         val receipts = receiptsOf(context, bound)
-        val derived =
-            DerivedCommands(context.models, context.coordinator, context.sender, context.creations, context.validators)
+        val derived = derivedOf(context)
         return sourced.map { handler ->
             val name = handler.name
             val types = handler.aggregates.mapTo(LinkedHashSet()) {
@@ -243,10 +241,23 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
     override fun committedHandlers(context: String): Set<String> =
         processors[context].orEmpty().flatMapTo(LinkedHashSet()) { saga -> saga.commits.map { it.name } }
 
+    /**
+     * The executor of the commands [context]'s sagas derive: through its coordinator, by its validators and creation
+     * ids, in the tenant of each type its tenants give.
+     */
+    private fun derivedOf(context: ContextNode): DerivedCommands = DerivedCommands(
+        context.models,
+        context.coordinator,
+        context.sender,
+        context.creations,
+        context.validators,
+        context.tenants,
+    )
+
     /** The receipt handlers of the sagas of [bound], of [context], signalling their hops through its coordinator. */
     private fun receiptsOf(context: ContextNode, bound: List<ProcessorBinding<*>>): SagaReceipts = SagaReceipts(
         bound,
-        DerivedCommands(context.models, context.coordinator, context.sender, context.creations, context.validators),
+        derivedOf(context),
         context.ids,
         context.context,
         context.coordinator::signal,
@@ -366,7 +377,7 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
                 return callRejected(rejected, calls, execution.executionId, receipts)
             }
             val replyTo = replyTo(handler, context.context, execution.executionId)
-            val executed = derived.execute(commands, wait, replyTo)
+            val executed = derived.execute(commands, execution.executionId.ref.tenantId, wait, replyTo)
             val withCalls = executed.copy(executed = calls.called + executed.executed)
             return sagaHandled(withCalls, execution.executionId, receipts, wait)
         }

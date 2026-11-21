@@ -263,9 +263,9 @@ class ViewSpec {
         whenCommand(ClaimView, caller = reserved(user(BOB), SYSTEM), scope = SYSTEM) {
             expectRejected(ViewStoreRejections.SYSTEM_VIEW_READ_ONLY)
         }
-        // An interim answer until #6556, which production never gives: the view type's tenant is fixed to `(platform)`,
-        // so there Alice's command lands in that tenant and is answered AGGREGATE_NOT_FOUND. The test DSL does not yet
-        // apply a type's fixed tenant, so it refuses her ref's tenant as malformed. #6556 restores AGGREGATE_NOT_FOUND.
+        // A caller of another tenant naming the system view, in the platform tenant, is refused by the gateway as
+        // malformed: the view type's tenant is not fixed, and a ref's tenant is never a request's choice. Alice's own
+        // request lands in her own tenant, where no such view exists.
         assertThrownBy<IllegalArgumentException> {
             whenCommand(SaveView(recordConfig()), caller = user(ALICE)) { }
         }.hasMessageContaining(FrameworkCodes.COMMAND_MALFORMED)

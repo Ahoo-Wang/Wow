@@ -383,11 +383,11 @@ class SubscriptionBindingsTest {
             creations = CreationIds(IdGenerators.DEFAULT, CommittedRequests.NONE),
         )
         val elsewhere = Command("c", "r", me.ahoo.wow.api.aggregate.AggregateType("mail", "box").ref(TENANT, "m"), "x")
-        runCatching { derived.execute(listOf(elsewhere), null) }.exceptionOrNull()!!.message.assert()
+        runCatching { derived.execute(listOf(elsewhere), TENANT, null) }.exceptionOrNull()!!.message.assert()
             .contains("no command transport")
         val unknown = Command("c", "r", me.ahoo.wow.api.aggregate.AggregateType(SHOP, "box").ref(TENANT, "m"), "x")
-        runCatching { derived.execute(listOf(unknown), null) }.exceptionOrNull()!!.message.assert()
+        runCatching { derived.execute(listOf(unknown), TENANT, null) }.exceptionOrNull()!!.message.assert()
             .contains("an aggregate type its context does not have")
-        derived.execute(emptyList(), null).executed.assert().isEmpty()
+        derived.execute(emptyList(), TENANT, null).executed.assert().isEmpty()
     }
 }

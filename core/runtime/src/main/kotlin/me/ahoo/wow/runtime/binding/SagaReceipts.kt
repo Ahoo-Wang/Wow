@@ -103,7 +103,11 @@ internal class SagaReceipts(
         val handler = sagas[rejected.executionId.subscription]?.rejectionHandlerOf(command) ?: return null
         val calls = SagaCalls(caller, served, commandTypes, wait = null)
         val context = rejectionContextOf(handler, rejected, ids, commandTypes, queries, calls, codec)
-        val executed = derived.execute(handle(handler.blocking) { handler.invoke(rejected, context) }, wait = null)
+        val executed = derived.execute(
+            handle(handler.blocking) { handler.invoke(rejected, context) },
+            rejected.executionId.ref.tenantId,
+            wait = null,
+        )
         executed.rejected.parking()?.let { throw it }
         return calls.called + executed.executed
     }
@@ -129,7 +133,7 @@ internal class SagaReceipts(
             signalHop(wait, handler.name, committed, calls.called, rejected.error)
             throw rejected
         }
-        val executed = derived.execute(commands, next)
+        val executed = derived.execute(commands, committed.executionId.ref.tenantId, next)
         val sent = calls.called + executed.executed
         signalHop(wait, handler.name, committed, sent, executed.rejected.firstOrNull()?.error)
         executed.rejected.parking()?.let { throw it }

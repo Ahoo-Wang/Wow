@@ -51,7 +51,7 @@ internal class Facts(
     val type = AggregateType(request.context, request.aggregate)
     val requestId: String = request.requestId?.takeIf { it.isNotBlank() } ?: commandId
     var ref: AggregateRef = type.ref(
-        tenants.fixedTenant(type) ?: request.caller.tenantId,
+        tenants.tenantOf(type, null, request.caller.tenantId),
         request.aggregateId?.takeIf { it.isNotBlank() } ?: UNADDRESSED,
     )
     private var resolved: FunctionInfo? = null

@@ -291,6 +291,13 @@ The model is the one `aggregateSpec` takes, and the policy the bean function's. 
 
 An aggregate type whose aggregates all live in one tenant, whatever the caller's, takes it from the host: `wow.aggregates.[<context>.<aggregate>].tenant`.
 
+One rule decides the tenant on every path a command takes to the type: a caller's request, a transformer's target, and the commands no caller sent. These are a saga's (from an `@OnEvent`, `@OnRejected` or `@OnCommitted` handler, or an `@OnSchedule` job), a timer's (a saga's `schedule`, a decide function's `schedule`) and those the command topic delivers.
+
+- **A command that names no tenant is in the fixed one.** A caller names a tenant only with a cross-scope target (`Wow-Scope`). A command no caller sent always carries a tenant in its ref, which names none when it is the tenant it acts for: the tenant of the commit, receipt or job instance its handler handles, or of the aggregate that scheduled it. So a handler's `CommandRequest.to(event.ref, …)` acting in the event's tenant lands in the fixed tenant.
+- **A command naming another tenant is refused** as `wow.command.malformed`, never ignored nor rewritten. Each path answers it as it answers any refusal: the caller is answered, a saga's `@OnRejected` handler takes it (without one, or for a command a receipt's handler derived, the aggregate parks), a timer's command is rejected, the command topic's sender gets a rejection receipt.
+- **A command the command topic delivers names its tenant as it comes.** The service that sent it does not say yet which tenant it acted for, so one of a fixed type in another tenant is refused.
+- **An owner is compared by its id alone.** Under a fixed tenant, owner `u1` of a caller in tenant A and `u1` of a caller in tenant B are one owner of the type, and share one aggregate whose id is its owner's. A type with a fixed tenant needs owner ids that are unique across its callers' tenants. Where an identity provider gives each tenant its own user ids, do not fix the tenant of a type its owners own.
+
 ## Act in another scope
 
 A caller allowed to act in another tenant or scope, such as a support tool, names it in the `Wow-Scope` header, or in the command client's `CommandRequest` (`targetTenant`, `targetScope`). The commit records that the operator acted in another scope. An access policy still decides what it reads and changes there ([What is trusted](#what-is-trusted)).
