@@ -30,11 +30,9 @@ import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.HandlingRejectedException
 import me.ahoo.wow.runtime.admission.AdmissionIdentity
-import me.ahoo.wow.runtime.admission.AdmissionIdentity.unaddressed
 import me.ahoo.wow.runtime.admission.CommandValidator
 import me.ahoo.wow.runtime.admission.CreationIds
-import me.ahoo.wow.runtime.admission.candidateOf
-import me.ahoo.wow.runtime.admission.violationsOf
+import me.ahoo.wow.runtime.admission.ServiceCommandAdmission
 import me.ahoo.wow.runtime.client.InProcessCommandClient
 import me.ahoo.wow.runtime.cluster.ReplyTo
 import me.ahoo.wow.runtime.command.CommandSender
@@ -98,10 +96,11 @@ internal class DerivedCommands(
     models: Collection<AggregateModel<*>>,
     private val coordinator: WaitCoordinator,
     private val sender: CommandSender? = null,
-    private val creations: CreationIds,
+    creations: CreationIds,
     /** The node's command validators, the gateway's. */
-    private val validators: List<CommandValidator> = emptyList(),
+    validators: List<CommandValidator> = emptyList(),
 ) {
+    private val admission = ServiceCommandAdmission(validators, creations)
     private val models: Map<AggregateType, AggregateModel<*>> = models.associateBy { it.type }
     private val contexts: Set<String> = models.mapTo(HashSet()) { it.type.context }
 
@@ -147,13 +146,13 @@ internal class DerivedCommands(
     /** Executes [derived], a command of the saga's own context, through its partition's owner. */
     private suspend fun executeHere(derived: Command<*>, wait: WaitContext?): Outcome {
         val model = models.getValue(derived.ref.type)
-        invalid(model, derived)?.let { return it }
-        unaddressed(model, derived)?.let { refused ->
+        admission.refusalOf(model, derived)?.let { refused ->
             val type = model.commandType(derived.body.javaClass).name
-            return Outcome(derived.id, rejected = Rejected(derived, Rejection(refused.code, refused.message), type))
+            val rejection = Rejection(refused.code, refused.message)
+            return Outcome(derived.id, rejected = Rejected(derived, rejection, type, violations = refused.violations))
         }
         // A creation that names no aggregate takes the id its request created, or a new one.
-        val command = creations.assign(model, derived)
+        val command = admission.assign(model, derived)
         val settlement = coordinator.forward(model, command, wait)
         failureOf(command, settlement)?.let { throw it }
         val commandType = model.commandType(command.body.javaClass).name
@@ -164,20 +163,6 @@ internal class DerivedCommands(
             )
         }
         return Outcome(command.id, committed = Committed(command, commandType, settlement.committed))
-    }
-
-    /**
-     * [derived] rejected as [FrameworkCodes.COMMAND_INVALID] with the
-     * violations the node's [validators] find in its body, before it takes an id or runs; null when it is valid.
-     */
-    private fun invalid(model: AggregateModel<*>, derived: Command<*>): Outcome? {
-        val type = model.commandType(derived.body.javaClass)
-        val violations = validators.violationsOf { candidateOf(type, derived) }
-        if (violations.isEmpty()) {
-            return null
-        }
-        val rejection = Rejection(FrameworkCodes.COMMAND_INVALID, "${type.name} is invalid.")
-        return Outcome(derived.id, rejected = Rejected(derived, rejection, type.name, violations = violations))
     }
 
     /** What executing one command came to: its id, and its rejection or its commit of this context. */
