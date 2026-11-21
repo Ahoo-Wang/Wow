@@ -65,6 +65,17 @@ internal object ManifestFixtures {
     }
     const val SEMANTIC_MAPS_STATE = "me.ahoo.wow.manifest.tools.QueryKeywordsTest\$SemanticMapsState"
 
+    /**
+     * The `$defs` of `QueryKeywordsInheritanceTest.InheritedState`, whose `@Sensitive` and `@QueryTemporal` are
+     * declared on the getters of the interface it implements: `manifest/inherited-state.defs.json`.
+     */
+    @Suppress("UNCHECKED_CAST")
+    val INHERITED_DEFS: Map<String, Any?> by lazy {
+        val text = checkNotNull(javaClass.classLoader.getResource("manifest/inherited-state.defs.json")).readText()
+        WowJson.mapper.readValue(text, Map::class.java) as Map<String, Any?>
+    }
+    const val INHERITED_STATE = "me.ahoo.wow.manifest.tools.QueryKeywordsInheritanceTest\$InheritedState"
+
     /** A Manifest of one aggregate `shop.order` with the state [state] (a `$defs` key) among [defs]. */
     fun manifest(
         defs: Map<String, Any?> = ORDER_DEFS,

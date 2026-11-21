@@ -134,6 +134,13 @@ A few more annotations of `me.ahoo.wow.api.query.annotation` tell the query mode
 
 A masked field is masked for every caller, in queries, state reads and traces alike, and in the warehouse's catalog.
 
+### Annotations a property inherits
+
+A property also reads these annotations from the members it overrides: the getters of the interfaces it implements and the properties of its superclasses, through any number of levels. So a read model interface can keep them on its getters (`@get:Sensitive val accessKeySecret: String`) and the state that overrides them carries them.
+
+- `@Sensitive` holds when any overridden member declares it, and the overriding property cannot remove it. It may declare its own, to choose the mask or tighten the level (`DISPLAY` to `CONFIDENTIAL`); declaring a looser level fails the build.
+- Every other annotation (`@QueryTemporal`, `@QueryDecimal`, `@QueryMoney`, `@QueryDuration`, `@QueryReference`, `@QueryAlias`, `@QueryText`, `@QueryIndex`) is the property's own when it declares one, else the one the overridden members declare. When two overridden members declare different ones, the build fails and names both: declare it on the property to say which holds.
+
 ## On which stores
 
 Snapshots are queried on PostgreSQL and MongoDB, in place, and on Elasticsearch when a type's snapshots are indexed there. On the memory backend they are queried from memory, for local runs and tests; `wow.query.memory.enabled: false` turns that off, and the snapshot routes then answer 404.

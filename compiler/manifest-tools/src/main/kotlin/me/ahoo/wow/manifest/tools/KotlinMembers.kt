@@ -40,5 +40,12 @@ internal object KotlinMembers {
         }
     }.getOrNull()
 
+    /**
+     * The name of [member]'s property as its source declares it: the field's, a computed Kotlin property's (`total`,
+     * not its getter `getTotal`), and a Java getter's own name.
+     */
+    fun nameOf(member: MemberScope<*, *>): String =
+        if (member is FieldScope) member.declaredName else propertyOf(member)?.name ?: member.declaredName
+
     private fun Class<*>.isKotlin(): Boolean = isAnnotationPresent(Metadata::class.java)
 }

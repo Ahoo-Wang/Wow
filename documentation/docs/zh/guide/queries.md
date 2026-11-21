@@ -134,6 +134,13 @@ var status: ProductStatus = ProductStatus.DRAFT
 
 脱敏的字段对每个调用方都脱敏：在查询、状态读取和轨迹中都一样，在数仓的目录中也一样。
 
+### 属性继承的注解 {#annotations-a-property-inherits}
+
+属性还会从它覆盖的成员上读这些注解：它实现的接口的 getter、它的父类的属性，不限层数。所以读模型接口可以把它们写在 getter 上（`@get:Sensitive val accessKeySecret: String`），覆盖它们的状态就带着它们。
+
+- 只要任何一个被覆盖的成员声明了 `@Sensitive`，它就成立，覆盖它的属性去不掉它。属性可以声明自己的 `@Sensitive`，用来选择掩码或收紧级别（`DISPLAY` 到 `CONFIDENTIAL`）；声明更宽松的级别会使构建失败。
+- 其余注解（`@QueryTemporal`、`@QueryDecimal`、`@QueryMoney`、`@QueryDuration`、`@QueryReference`、`@QueryAlias`、`@QueryText`、`@QueryIndex`）以属性自己声明的为准，自己没有才取被覆盖成员声明的。两个被覆盖的成员声明了不同的值时，构建失败并点名两处：在属性上声明它，说明哪一个成立。
+
 ## 在哪些存储上 {#on-which-stores}
 
 快照在 PostgreSQL 和 MongoDB 上原地查询；某个类型的快照被索引到 Elasticsearch 时，也在那里查询。在内存后端上，快照从内存中查询，用于本地运行和测试；`wow.query.memory.enabled: false` 关闭它，此时快照路由返回 404。

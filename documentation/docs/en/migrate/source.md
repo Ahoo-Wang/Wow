@@ -82,6 +82,8 @@ The package stays `me.ahoo.wow.api.annotation`, so kept names need no new import
 | `@VoidCommand`, `@Order`, `@EntityObject`, `@ValueObject` | Removed |
 | none | `@ErrorCode` on a rejection code, `@Alias` for a later rename, `@QueryIndex`, `@Access` |
 
+A 9.x read model interface often keeps `@Sensitive` and the `@Query…` annotations on its getters (`@get:Sensitive`), shared by the state and its DTOs. V10 reads them from the members a property overrides, so the state that overrides such a getter carries them: [Annotations a property inherits](../guide/queries#annotations-a-property-inherits). `@Sensitive` cannot be dropped by the override, so a field that was served in clear text because the 9.x state did not repeat it is now masked: read the merged Manifest's `x-wow-sensitive` once.
+
 ## What a command body holds
 
 A command body holds business data. The tenant is the caller's, the owner and space are `command.scope`, taken from the authenticated caller, and the expected version comes from `If-Match`: delete the tenant, owner and version fields and the route annotations. The aggregate is `command.ref`, taken from the route, unless the body names it.
