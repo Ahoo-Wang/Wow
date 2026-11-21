@@ -13,7 +13,8 @@
 
 package me.ahoo.wow.migrate
 
-import me.ahoo.wow.api.aggregate.Ownership
+import me.ahoo.wow.api.aggregate.AggregateIdSource
+import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.manifest.AccessAttributeManifest
 
@@ -93,6 +94,11 @@ internal data class MappingReport(
  *   have a default command;
  * - no instance the map imports has an id V10 refuses ([RefusedIds]), or streams that record no tenant: the problems
  *   list each, by the name the map excludes it by ([Exclusion.stream]);
+ * - no instance of an aggregate whose id is its owner's in V10 has streams that record another owner than their id,
+ *   or none, which V10 records as no caller's own ([AggregatePlan.ownedAsRecorded], the kernel's rule): the problems
+ *   list each, with the owners found, from [check]'s `ownersOf`;
+ * - no event is mapped to `OwnerTransferred` on an aggregate whose owner is fixed ([AggregatePlan.fixedOwner]): one
+ *   of its tenant, or one whose id is its owner's;
  * - every mapping target is in the Manifest, whether or not the store uses it;
  * - every 9.x `PrepareKey` the store holds ([prepareKeys], keys by name) is mapped to a V10 reservation namespace, once;
  * - every 9.x processor function with unresolved executions in the 9.x compensation service ([compensation]), of a
@@ -124,6 +130,7 @@ internal class MappingCheck(private val plan: MigrationPlan) {
         deleted: (NineXAggregate) -> Long = { 0 },
         walkIndexes: Map<String, String> = emptyMap(),
         tags: TagReader = TagReader.NONE,
+        ownersOf: (NineXAggregate) -> Map<NineXInstanceOwner, Long> = { emptyMap() },
     ): MappingReport {
         val problems = mutableListOf<String>()
         val warnings = mutableListOf<String>()
@@ -146,6 +153,7 @@ internal class MappingCheck(private val plan: MigrationPlan) {
                 warnings += "the 9.x store holds no stream of ${aggregate.source}"
             } else {
                 storeProblems(aggregate, inventory, problems, warnings)
+                ownerProblem(aggregate, ownersOf)?.let { problems += it }
                 deletionWarning(aggregate, deleted)?.let { warnings += it }
                 TagCheck(aggregate, tags, problems, warnings).check()
             }
@@ -464,9 +472,11 @@ internal class MappingCheck(private val plan: MigrationPlan) {
             event.to?.let {
                 if (event.retire) aggregate.retiredProblem(it) else aggregate.eventProblem(it, event.toRevision)
             }?.let { "${event.from}: $it" }
-        } + mapping.events.filter {
-            it.lifecycle?.to == Lifecycle.OWNER_TRANSFERRED && aggregate.ownership == Ownership.TENANT
-        }.map { "${it.from}: writes ${Lifecycle.OWNER_TRANSFERRED}, but the V10 aggregate belongs to its tenant" }
+        } + aggregate.fixedOwner?.let { fixed ->
+            mapping.events.filter {
+                it.to == Lifecycle.OWNER_TRANSFERRED || it.lifecycle?.to == Lifecycle.OWNER_TRANSFERRED
+            }.map { "${it.from}: writes ${Lifecycle.OWNER_TRANSFERRED}, but $fixed" }
+        }.orEmpty()
         return duplicates + (commands + events).map { "$subject: $it" }
     }
 
@@ -531,6 +541,40 @@ internal class MappingCheck(private val plan: MigrationPlan) {
         return "$aggregate: V10 refuses the aggregate ids of these ${refused.size} 9.x instances, so no command " +
             "could reach them and their streams cannot be imported; exclude each with {\"aggregate\": \"$aggregate\", \"stream\": <the id as listed>, " +
             "\"reason\": \"…\"}: ${listed.joinToString(", ")}"
+    }
+
+    /**
+     * The problem of the instances of [aggregate], whose id is its owner's in V10, with streams that record another
+     * owner than their id, or none ([AggregatePlan.ownedAsRecorded]), which the map does not exclude; null when it has
+     * none, or its id is not its owner's. Each by the name the map excludes it by, with its owners and its streams.
+     */
+    private fun ownerProblem(
+        aggregate: AggregatePlan,
+        ownersOf: (NineXAggregate) -> Map<NineXInstanceOwner, Long>,
+    ): String? {
+        // Only such an aggregate's streams are read: the store reads them all.
+        if (aggregate.idSource != AggregateIdSource.OWNER) {
+            return null
+        }
+        val subject = aggregate.source
+        val unowned = ownersOf(subject).filterKeys { (instance, ownerId) ->
+            !plan.excludes(subject, instance.id) &&
+                !aggregate.ownedAsRecorded(instance.id, aggregate.ownership.scopeOf(Scope(ownerId.ifBlank { null })))
+        }
+        if (unowned.isEmpty()) {
+            return null
+        }
+        val listed = unowned.entries.groupBy { it.key.instance.id }.toSortedMap().map { (id, streams) ->
+            val owners = streams.map { ownerText(it.key.ownerId) }.distinct().sorted().joinToString(", ")
+            val tenants = RefusedIds.tenantsText(streams.map { it.key.instance.tenantId })
+            "${RefusedIds.quoted(RefusedIds.nameOf(id))} ($owners: ${streams.sumOf { it.value }} streams of the " +
+                "tenants $tenants)"
+        }
+        return "$subject: the id of the V10 aggregate ${aggregate.target} is its owner's, but the streams of these " +
+            "${listed.size} 9.x instances record another owner than their id, or none, so their owners could not " +
+            "reach them; set each stream's ownerId to its aggregate id in the 9.x store before the import, or " +
+            "exclude each with {\"aggregate\": \"$subject\", \"stream\": <the id as listed>, \"reason\": \"…\"}: " +
+            listed.joinToString(", ")
     }
 
     /**

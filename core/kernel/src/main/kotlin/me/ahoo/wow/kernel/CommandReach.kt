@@ -157,7 +157,7 @@ internal class CommandReach(
  */
 internal fun Command<*>.narrowedTo(model: AggregateModel<*>): Command<*> {
     val owned = model.ownsById && (scope.ownerId == null || isDerived)
-    val narrowed = if (owned) scope.copy(ownerId = ref.id) else model.ownership.scopeOf(scope)
+    val narrowed = if (owned) model.idSource.scopeOf(ref.id, scope) else model.ownership.scopeOf(scope)
     return if (narrowed == scope) this else copyWith(scope = narrowed)
 }
 
@@ -169,7 +169,18 @@ internal val AggregateModel<*>.ownsById: Boolean get() = idSource == AggregateId
  * owner is its id whoever creates it ([creatable] refuses a caller of another owner).
  */
 internal fun createdIn(model: AggregateModel<*>, command: Command<*>): Scope =
-    if (model.ownsById) command.scope.copy(ownerId = command.ref.id) else command.scope
+    model.idSource.scopeOf(command.ref.id, command.scope)
+
+/**
+ * The scope an aggregate of this id source whose id is [id] records, given [scope]: for one whose id is its owner's
+ * ([AggregateIdSource.OWNER]), [scope] with [id] for its owner, whoever sends the command; [scope] itself for any
+ * other, or when it already has that owner. The kernel records it when such an aggregate is created ([createdIn]) and
+ * narrows a derived or ownerless command to it ([narrowedTo]); `migrate-data` refuses an imported stream that records
+ * another, which no caller's own aggregate would be.
+ */
+@InternalWowApi
+fun AggregateIdSource.scopeOf(id: String, scope: Scope): Scope =
+    if (this == AggregateIdSource.OWNER && scope.ownerId != id) scope.copy(ownerId = id) else scope
 
 /**
  * Whether this command was derived by the server's own code rather than sent by a caller: a saga's,

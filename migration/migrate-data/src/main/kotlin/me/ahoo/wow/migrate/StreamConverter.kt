@@ -77,6 +77,8 @@ internal class StreamConverter(
             )
         }
         val tenantId = stream.aggregateId.tenantId
+        val scope = aggregate.ownership.scopeOf(scopeOf(stream, events))
+        refuseOwner(aggregate, stream, scope, subject)
         val correlationId = stream.header[NineXHeaders.TRACE_ID]?.takeIf { it.isNotBlank() } ?: stream.commandId
         return EventStreamRecord(
             ref = aggregate.target.ref(tenantId, stream.aggregateId.id),
@@ -86,10 +88,27 @@ internal class StreamConverter(
             commandType = commandType,
             commitTime = stream.createTime,
             events = events,
-            scope = aggregate.ownership.scopeOf(scopeOf(stream, events)),
+            scope = scope,
             causation = Causation(correlationId, correlationId),
             headers = headersOf(aggregate, stream),
             operator = NineXOperators.operatorOf(stream.header, tenantId),
+        )
+    }
+
+    /**
+     * Fails [stream], which [subject] names, when it records [scope] but [aggregate]'s id is its owner's and V10
+     * records another one ([AggregatePlan.ownedAsRecorded]): its owner could not reach it. The mapping check lists such
+     * streams and fails before the import.
+     */
+    private fun refuseOwner(aggregate: AggregatePlan, stream: NineXStream, scope: Scope, subject: String) {
+        if (aggregate.ownedAsRecorded(stream.aggregateId.id, scope)) {
+            return
+        }
+        throw MigrationException(
+            "$subject: ${aggregate.target}'s id is its owner's, but the stream records ${ownerText(scope.ownerId)}; " +
+                "set its ownerId to its aggregate id in the 9.x store, or exclude it with {\"aggregate\": " +
+                "\"${stream.aggregate}\", \"stream\": ${RefusedIds.quoted(RefusedIds.nameOf(stream.aggregateId.id))}, " +
+                "\"reason\": \"…\"}.",
         )
     }
 

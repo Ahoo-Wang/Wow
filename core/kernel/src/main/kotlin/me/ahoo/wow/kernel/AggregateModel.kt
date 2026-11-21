@@ -364,17 +364,6 @@ class AggregateModel<S : Any> @InternalWowApi constructor(
     internal companion object {
         /** The schedule system events, which every aggregate may commit, and the lifecycle events. */
         private val SYSTEM_EVENTS: Map<String, Class<*>> = Lifecycle.EVENTS + Schedules.EVENTS
-
-        /**
-         * Why the owner of an aggregate of [type], of [ownership] and [idSource], is fixed, a sentence to go on with;
-         * null when it is not.
-         */
-        fun fixedOwnerOf(type: AggregateType, ownership: Ownership, idSource: AggregateIdSource): String? = when {
-            ownership == Ownership.TENANT -> "$type belongs to its tenant (Ownership.TENANT): it has no owner to transfer"
-            idSource == AggregateIdSource.OWNER ->
-                "The id of $type is its owner's (AggregateIdSource.OWNER): its owner is fixed"
-            else -> null
-        }
     }
 
     /** The lifecycle commands this model handles, by the kernel or by its own decide functions. */
@@ -626,4 +615,16 @@ class AggregateModel<S : Any> @InternalWowApi constructor(
     /** The name of [commandClass], a command this aggregate decides. */
     fun commandType(commandClass: Class<*>): CommandType =
         requireNotNull(commandsByType[commandClass]) { "${commandClass.name} is not a command of $type." }
+}
+
+/**
+ * Why the owner of an aggregate of [type], of [ownership] and [idSource], is fixed, a sentence to go on with; null when
+ * it is not. The kernel refuses such an aggregate's `TransferOwner` and never commits its `OwnerTransferred`;
+ * `migrate-data` refuses a map that would write one to it.
+ */
+@InternalWowApi
+fun fixedOwnerOf(type: AggregateType, ownership: Ownership, idSource: AggregateIdSource): String? = when {
+    ownership == Ownership.TENANT -> "$type belongs to its tenant (Ownership.TENANT): it has no owner to transfer"
+    idSource == AggregateIdSource.OWNER -> "The id of $type is its owner's (AggregateIdSource.OWNER): its owner is fixed"
+    else -> null
 }

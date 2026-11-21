@@ -62,6 +62,10 @@ internal class InMemoryNineXEventSource(streams: Collection<NineXStream> = empty
         streams.filter { it.aggregate == aggregate && it.aggregateId.id == id && it.version == 1 }
             .map { it.aggregateId.tenantId }.distinct().sorted()
 
+    override fun ownersOtherThanIds(aggregate: NineXAggregate): Map<NineXInstanceOwner, Long> =
+        streams.filter { it.aggregate == aggregate && it.ownerId != it.aggregateId.id }
+            .groupingBy { NineXInstanceOwner(it.aggregateId, it.ownerId) }.eachCount().mapValues { it.value.toLong() }
+
     override fun committedSince(
         aggregate: NineXAggregate,
         from: Long,

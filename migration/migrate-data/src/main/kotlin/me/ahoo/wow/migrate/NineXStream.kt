@@ -39,6 +39,13 @@ internal data class NineXAggregateId(val id: String, val tenantId: String) : Com
     override fun toString(): String = "$tenantId/$id"
 }
 
+/** The owner a 9.x [instance]'s streams record, [ownerId], blank when they record none. */
+internal data class NineXInstanceOwner(val instance: NineXAggregateId, val ownerId: String)
+
+/** How a report names the owner [ownerId] a stream records: quoted and shown safely, or none. */
+internal fun ownerText(ownerId: String?): String =
+    ownerId?.takeIf { it.isNotBlank() }?.let { "the owner ${RefusedIds.quoted(it)}" } ?: "no owner"
+
 /**
  * The 9.x aggregate ids V10 refuses: an empty one (or none at all), a blank one, [AggregateRef.UNASSIGNED], the id of
  * a ref admission has not given one yet, and every id admission refuses ([AggregateIds.refused]): one longer than it

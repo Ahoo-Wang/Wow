@@ -59,6 +59,31 @@ class KernelOwnerIdTest {
     private fun CommandOutcome.rejection(): String = (this as CommandOutcome.Rejected).rejection.code
 
     @Test
+    fun `an aggregate written with no owner or another one than its id is out of its owner's reach (#6560)`(): Unit =
+        runTest {
+            // As migrate-data would write a 9.x stream without the check: the scope it records is the 9.x one.
+            val created = send(CreateCart("alice"), Scope(ownerId = "alice")).committed().stream
+            listOf("carol" to Scope.NONE, "dave" to Scope(ownerId = "erin")).forEach { (id, scope) ->
+                val imported = created.copyWith(
+                    ref = model.type.ref("tenant", id),
+                    commandId = "import-$id",
+                    requestId = "import-$id",
+                    scope = scope,
+                )
+                log.append(imported)
+                val own = kernel.execute(
+                    model,
+                    Command("own-$id", "own-$id", imported.ref, AddItem("apple", 1), scope = Scope(ownerId = id)),
+                )
+                own.rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
+            }
+            // The rule the kernel records such an aggregate's scope by, which migrate-data checks a stream against.
+            AggregateIdSource.OWNER.scopeOf("carol", Scope.NONE).assert().isEqualTo(Scope(ownerId = "carol"))
+            AggregateIdSource.OWNER.scopeOf("alice", created.scope).assert().isSameAs(created.scope)
+            AggregateIdSource.ASSIGNED.scopeOf("carol", Scope.NONE).assert().isEqualTo(Scope.NONE)
+        }
+
+    @Test
     fun `the model should say its id source and leave TransferOwner out`() {
         model.idSource.assert().isEqualTo(AggregateIdSource.OWNER)
         model.lifecycleCommands.assert().doesNotContain(TransferOwner::class.java)

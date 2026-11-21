@@ -62,6 +62,22 @@ class StreamConverterTest {
     }
 
     @Test
+    fun `a stream of an aggregate whose id is its owner's fails unless it records its id as its owner (#6560)`() {
+        val converter = StreamConverter(MigrationPlan(NineXExample.map, NineXExample.ownedCartManifest)) {
+            NineXExample.IMPORTED_AT
+        }
+        val added = NineXExample.stream(NineXExample.CART_STREAMS.first())
+        val id = added.aggregateId.id
+        val exclusion = "set its ownerId to its aggregate id in the 9.x store, or exclude it with {\"aggregate\": " +
+            "\"example-service.cart\", \"stream\": \"$id\", \"reason\": \"…\"}."
+        assertThrows<MigrationException> { converter.convert(added) }.message.assert()
+            .endsWith("example.cart's id is its owner's, but the stream records the owner \"customer-1\"; $exclusion")
+        assertThrows<MigrationException> { converter.convert(added.copy(ownerId = " ")) }.message.assert()
+            .endsWith("example.cart's id is its owner's, but the stream records no owner; $exclusion")
+        converter.convert(added.copy(ownerId = id)).scope.assert().isEqualTo(Scope(ownerId = id))
+    }
+
+    @Test
     fun `a 9x stream converts with its identity, scope, operator and causation`() {
         val record = converter().convert(created)
         record.ref.assert().isEqualTo(AggregateType("example", "order").ref("(0)", "0VY3GwaK4OmV00E"))
