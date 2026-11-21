@@ -159,7 +159,7 @@ internal class PeerAdmission(
             body = decoded.value,
             expectedVersion = request.expectedVersion,
             scope = scope,
-            headers = headersOf(request, origin.facts),
+            headers = headersOf(request, origin),
             operator = origin.operator,
             wait = plan.within(minOf(plan.timeout, options.maxTimeout)),
             caller = caller,
