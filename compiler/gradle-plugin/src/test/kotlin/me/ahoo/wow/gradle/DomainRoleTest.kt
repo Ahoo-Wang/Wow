@@ -95,13 +95,14 @@ class DomainRoleTest {
     }
 
     @Test
-    fun `the fragment task's action should open a worker process queue and submit its fragments to it`() {
+    fun `the fragment task's action should clear a stale fragment through Gradle's own worker queue`() {
         val project = project()
         val task = project.tasks.getByName(WowPlugin.GENERATE_FRAGMENT_TASK) as GenerateManifestFragment
         val stale = File(directory, "build/wow/manifest-fragment/${Manifest.FRAGMENT_DIRECTORY}/stale.json")
         stale.apply { parentFile.mkdirs() }.writeText("{}")
 
-        // No fragment, so no worker is started; the queue is Gradle's own, which takes the isolation as configured.
+        // No fragment: nothing is submitted, so no worker starts. The queue is Gradle's own, which takes the isolation
+        // as `isolate` configures it; that a worker then runs on the toolchain's JVM is ToolchainFunctionalTest's.
         task.generate()
 
         stale.exists().assert().isFalse()
