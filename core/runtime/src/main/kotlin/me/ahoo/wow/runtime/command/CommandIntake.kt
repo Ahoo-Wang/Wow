@@ -36,6 +36,7 @@ import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.StartFrom
 import me.ahoo.wow.runtime.InFlightLimit
+import me.ahoo.wow.runtime.admission.AdmissionIdentity.unaddressed
 import me.ahoo.wow.runtime.admission.CommandValidator
 import me.ahoo.wow.runtime.admission.CreationIds
 import me.ahoo.wow.runtime.admission.candidateOf
@@ -162,6 +163,8 @@ class CommandIntake internal constructor(
         val received = ClusterCodec.command(model, wire)
             ?: return unhandled(wire, wait, "${wire.ref.type} has no command type ${wire.type}.")
         invalid(model, received)?.let { return refuse(wire, wait, it) }
+        // One that names none of an aggregate whose id is its owner's, and has no owner, is the sender's mistake.
+        unaddressed(model, received)?.let { return refuse(wire, wait, ErrorInfo(it.code, it.message)) }
         // A creation that names no aggregate takes the id its request created, or a new one.
         val command = creations.assign(model, received)
         awaitDue(command)

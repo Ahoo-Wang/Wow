@@ -12,12 +12,15 @@
  */
 package me.ahoo.wow.runtime.admission
 
+import me.ahoo.wow.api.aggregate.AggregateIdSource
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.result.FrameworkCodes
+import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CallerAdmission
 
 /**
@@ -64,13 +67,17 @@ internal object AdmissionIdentity {
      * [scope]: the one it names, else an owner-level caller's own; a caller with no owner names it, having no aggregate
      * of its own: unauthenticated, it is answered as such. Whether the caller may act on the aggregate it names is the
      * kernel's to answer, as for any aggregate: one of another owner is out of its reach.
+     *
+     * The one rule of every path a command takes to such an aggregate: admission of this node's aggregates and of a
+     * peer's, and, for a command no caller sent ([caller] null: a derived or scheduled one, or one a producer wrote on
+     * a command topic), the intake and a saga's derived commands ([unaddressed]).
      */
-    fun ownId(requested: String?, scope: Scope, caller: Caller): OwnId {
+    fun ownId(requested: String?, scope: Scope, caller: Caller?): OwnId {
         val owner = scope.ownerId
         return when {
             requested != null -> OwnId.Of(requested)
             owner != null -> OwnId.Of(owner)
-            caller.subject == null -> OwnId.Refused(
+            caller != null && caller.subject == null -> OwnId.Refused(
                 FrameworkCodes.AUTH_UNAUTHENTICATED,
                 "An unauthenticated caller has no aggregate of its own.",
             )
@@ -88,6 +95,18 @@ internal object AdmissionIdentity {
      */
     fun actingCaller(caller: Caller, ref: AggregateRef, scope: Scope): Caller =
         caller.copyWith(tenantId = ref.tenantId, scope = scope)
+
+    /**
+     * Why [command], of [model], which names no aggregate, can be given none ([ownId]): its aggregate's id is its
+     * owner's and it has no owner; null when it names one, or is given one. A command that reaches the intake or a
+     * saga's executor so is rejected with it, a rejection of the sender's, as admission refuses its request.
+     */
+    fun unaddressed(model: AggregateModel<*>, command: Command<*>): OwnId.Refused? =
+        if (command.ref.isAssigned || model.idSource != AggregateIdSource.OWNER) {
+            null
+        } else {
+            ownId(null, command.scope, command.caller) as? OwnId.Refused
+        }
 
     /** The id [ownId] resolves, or why it refuses the request. */
     sealed interface OwnId {
