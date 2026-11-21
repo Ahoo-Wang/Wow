@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
@@ -77,7 +78,11 @@ import kotlin.time.Duration.Companion.seconds
  * The order is fixed by the test, not by timing: the retry is sent only once the first attempt is inside its decide
  * and its caller has its answer, the first attempt is let go only once the retry's caller has its own, and the
  * commits are counted once a later attempt of the request, run after both, is answered. The ids are chosen to fall
- * in the partitions each case needs ([ids]).
+ * in the partitions each case needs (`generated`).
+ *
+ * A type whose generator aims, as Wow's default one does ([aims]), takes no claim on any store: each attempt's id is
+ * aimed at the request's partition, so the retry commits under its own id there, and the first attempt's append meets
+ * it at the request key.
  */
 abstract class CreationRetrySpec {
     data class Place(val sku: String)
@@ -109,30 +114,69 @@ abstract class CreationRetrySpec {
     /** The log of [context] on this backend, its schema created, with [PARTITIONS] partitions. */
     protected abstract fun log(context: String): EventLog
 
+    /**
+     * Whether the type's generator aims at a partition, as Wow's default one does
+     * ([AggregateIdGenerator.nextIn]): this one takes the next of its ids that falls in the partition asked.
+     */
+    protected open val aims: Boolean = false
+
     private val log by lazy { log(context) }
 
     /** Completed with the outcome of the first attempt's append. */
     private val firstAppended = CompletableDeferred<AppendOutcome>()
 
+    /** The id the first attempt took, once its caller has its answer: the append [firstAppended] waits for. */
+    @Volatile
+    private var firstId: String? = null
+
     private val recorded by lazy {
         object : EventLog by log {
             override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome =
                 log.append(stream, transport).also { outcome ->
-                    if (stream.ref.id == ids.first()) firstAppended.complete(outcome)
+                    if (stream.ref.id == firstId) firstAppended.complete(outcome)
                 }
         }
     }
 
     /**
-     * The ids the type's generator gives, in order: the first attempt's, then one in another partition of the log
-     * (the retry's draw), then any other, which a caller of another scope draws from until one falls in the first's.
+     * The first ids the type's generator gives, in order: the first attempt's draw, then one in another partition of
+     * the log (the retry's draw); then any other ([generatedAt]), which an aimed id or a caller of another scope draws
+     * from until one falls in the partition it needs.
      */
-    private val ids: List<String> by lazy {
+    private val generated: List<String> by lazy {
         val first = "order-0"
         val second = generateSequence(1) { it + 1 }.map { "order-$it" }.first { partitionOf(it) != partitionOf(first) }
         listOf(first, second)
     }
+
+    private fun generatedAt(index: Int) = generated.getOrElse(index) { "order-x$it" }
+
+    /**
+     * The ids the first attempt and the retry take: the two drawn, or, when the generator aims, the first two it
+     * generator gives in the request's partition, the first attempt drawing before the retry.
+     */
+    private val taken: List<String> by lazy {
+        if (aims) {
+            val partition = Partitioner.partitionOfRequest(model.type, TENANT, REQUEST, PARTITIONS)
+            generateSequence(0) { it + 1 }.map(::generatedAt).filter { partitionOf(it) == partition }.take(2).toList()
+        } else {
+            generated
+        }
+    }
     private val drawn = CopyOnWriteArrayList<String>()
+
+    /** The type's generator: [generatedAt] in turn, and, when it [aims], the next of them in the partition asked. */
+    private val generator = object : AggregateIdGenerator {
+        override fun next(type: AggregateType): String = generatedAt(drawn.size).also(drawn::add)
+
+        override fun nextIn(type: AggregateType, tenantId: String, partition: Int, partitions: Int): String? =
+            if (aims) {
+                generateSequence { next(type) }
+                    .first { Partitioner.partitionOf(type.ref(tenantId, it), partitions) == partition }
+            } else {
+                null
+            }
+    }
 
     private fun partitionOf(id: String) = Partitioner.partitionOf(model.type.ref(TENANT, id), PARTITIONS)
 
@@ -150,9 +194,7 @@ abstract class CreationRetrySpec {
         CommandGateway(
             ModelRegistry(listOf(model)),
             mapOf(context to coordinator),
-            ids = IdGenerators(
-                aggregates = AggregateIdGenerator { ids.getOrElse(drawn.size) { "order-x$it" }.also(drawn::add) },
-            ),
+            ids = IdGenerators(aggregates = generator),
             committed = CommittedRequests.of(recorded),
         )
     }
@@ -190,6 +232,7 @@ abstract class CreationRetrySpec {
         val first = async { gateway.execute(place(call = call)) }
         withTimeout(TIMEOUT) { deciding.await() }
         val timedOut = withTimeout(TIMEOUT) { first.await() }
+        firstId = timedOut.ref.id
         val retried = withTimeout(TIMEOUT) { gateway.execute(place(call = call)) }
         release.complete(Unit)
         withTimeout(TIMEOUT) { firstAppended.await() }
@@ -206,13 +249,13 @@ abstract class CreationRetrySpec {
     private suspend fun assertOneCreation(call: CallContext?) {
         val (timedOut, retried, later) = attempts(call)
         timedOut.error!!.code.assert().describedAs(timedOut.toString()).isEqualTo(FrameworkCodes.WAIT_TIMEOUT)
-        timedOut.ref.id.assert().isEqualTo(ids[0])
-        val kept = assertRetry(retried, ids)
+        timedOut.ref.id.assert().isEqualTo(taken[0])
+        val kept = assertRetry(retried, taken)
         assertFirstAppend(firstAppended.await())
         later.duplicate.assert().describedAs(later.toString()).isTrue()
         later.ref.id.assert().isEqualTo(kept)
-        // Each attempt drew an id; the retry's fell in another partition than the first attempt's.
-        drawn.take(2).assert().isEqualTo(ids)
+        // The generator's first two ids fell in two partitions: without a claim or an aim, two aggregates.
+        drawn.take(2).assert().isEqualTo(generated)
         commits().map { it.ref.id }.assert().containsExactly(kept)
     }
 
@@ -230,14 +273,14 @@ abstract class CreationRetrySpec {
             release.complete(Unit)
             val opened = gateway.execute(place())
             opened.status.assert().describedAs(opened.toString()).isEqualTo(CommandResult.Status.SUCCEEDED)
-            opened.ref.id.assert().isEqualTo(ids[0])
+            opened.ref.id.assert().isEqualTo(taken[0])
             val stranger = gateway.execute(place(caller = bob))
             stranger.error!!.code.assert().describedAs(stranger.toString())
                 .isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
             // An id of its own, so it learns nothing of alice's order, drawn in her order's partition.
-            stranger.ref.id.assert().isNotEqualTo(ids[0])
-            partitionOf(stranger.ref.id).assert().isEqualTo(partitionOf(ids[0]))
-            commits().map { it.ref.id }.assert().containsExactly(ids[0])
+            stranger.ref.id.assert().isNotEqualTo(taken[0])
+            partitionOf(stranger.ref.id).assert().isEqualTo(partitionOf(taken[0]))
+            commits().map { it.ref.id }.assert().containsExactly(taken[0])
         }
 
     protected companion object {
@@ -265,20 +308,45 @@ class MongoCreationRetryTest : CreationRetrySpec() {
         outcome.assert().isInstanceOf(AppendOutcome.Committed::class.java)
     }
 
-    override fun log(context: String): EventLog =
-        MongoEventLog(client, DATABASE, context, PARTITIONS).also { it.createSchema() }
-
-    private companion object {
-        const val DATABASE = "wow_creation_retry"
-        val client: MongoClient by lazy { MongoClients.create(WowContainers.mongoUrl) }
-    }
+    override fun log(context: String): EventLog = mongoLog(context, PARTITIONS)
 }
+
+/**
+ * [CreationRetrySpec] on MongoDB with a generator that aims: each attempt's id is in the request's partition and nothing
+ * is claimed, so the retry commits under its own id there, and the first attempt's append meets it at the request key.
+ */
+class MongoCreationAimedRetryTest : CreationRetrySpec() {
+    override val aims = true
+
+    private lateinit var context: String
+
+    override fun assertRetry(retried: CommandResult, ids: List<String>): String {
+        retried.status.assert().describedAs(retried.toString()).isEqualTo(CommandResult.Status.SUCCEEDED)
+        retried.duplicate.assert().isFalse()
+        retried.ref.id.assert().isEqualTo(ids[1])
+        mongoClient.getDatabase(MONGO_DATABASE).getCollection("wow_claim__${context}__order")
+            .countDocuments().assert().isEqualTo(0)
+        return ids[1]
+    }
+
+    override fun assertFirstAppend(outcome: AppendOutcome) {
+        outcome.assert().isInstanceOf(AppendOutcome.AlreadyCommitted::class.java)
+    }
+
+    override fun log(context: String): EventLog = mongoLog(context, PARTITIONS).also { this.context = context }
+}
+
+private const val MONGO_DATABASE = "wow_creation_retry"
+private val mongoClient: MongoClient by lazy { MongoClients.create(WowContainers.mongoUrl) }
+
+private fun mongoLog(context: String, partitions: Int): EventLog =
+    MongoEventLog(mongoClient, MONGO_DATABASE, context, partitions).also { it.createSchema() }
 
 /**
  * [CreationRetrySpec] on PostgreSQL: its request key is unique per table, so it keeps no claims; the retry commits
  * under its own id, and the first attempt's append meets it there and is its duplicate.
  */
-class PostgresCreationRetryTest : CreationRetrySpec() {
+open class PostgresCreationRetryTest : CreationRetrySpec() {
     override fun assertRetry(retried: CommandResult, ids: List<String>): String {
         retried.status.assert().describedAs(retried.toString()).isEqualTo(CommandResult.Status.SUCCEEDED)
         retried.duplicate.assert().isFalse()
@@ -307,4 +375,9 @@ class PostgresCreationRetryTest : CreationRetrySpec() {
                 .open(StoreConfig.of("main", "postgres", resources = StoreResources.of(mapOf("data" to dataSource))))
         }
     }
+}
+
+/** [PostgresCreationRetryTest] with a generator that aims: the same answers, its ids in the request's partition. */
+class PostgresCreationAimedRetryTest : PostgresCreationRetryTest() {
+    override val aims = true
 }

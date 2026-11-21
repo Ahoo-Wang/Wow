@@ -45,12 +45,12 @@ interface CommittedRequests {
      */
     suspend fun claim(type: AggregateType, tenantId: String, requestId: String, claim: CreationClaim): CreationClaim
 
-    /** The partition of [ref] in the log of its type. */
-    fun partitionOf(ref: AggregateRef): Int
+    /** The partitions of the log of [type]: 1 for a type without one. */
+    fun partitions(type: AggregateType): Int
 
     @InternalWowApi
     companion object {
-        /** Nothing is ever committed or claimed: every creation without an id takes a new one, in partition 0. */
+        /** Nothing is ever committed or claimed: every creation without an id takes a new one, of one partition. */
         @JvmField
         val NONE: CommittedRequests = object : CommittedRequests {
             override suspend fun find(type: AggregateType, tenantId: String, requestId: String): EventStreamRecord? =
@@ -63,7 +63,7 @@ interface CommittedRequests {
                 claim: CreationClaim,
             ): CreationClaim = claim
 
-            override fun partitionOf(ref: AggregateRef): Int = 0
+            override fun partitions(type: AggregateType): Int = 1
         }
 
         /** The streams [log] holds ([EventLog.findByRequestId]) and the claims it keeps ([EventLog.claimCreation]). */
@@ -86,8 +86,7 @@ interface CommittedRequests {
                 claim: CreationClaim,
             ): CreationClaim = logOf(type)?.claimCreation(type, tenantId, requestId, claim) ?: claim
 
-            override fun partitionOf(ref: AggregateRef): Int =
-                logOf(ref.type)?.let { Partitioner.partitionOf(ref, it.partitions) } ?: 0
+            override fun partitions(type: AggregateType): Int = logOf(type)?.partitions ?: 1
         }
     }
 }
@@ -95,17 +94,22 @@ interface CommittedRequests {
 /**
  * The ids admission gives the creation commands that name none: a command, a client's or one a saga derived, whose
  * request already committed takes the id of the aggregate it created, without drawing a new one, so a retry or a
- * replay keeps it. Any other draws a new one from its aggregate type's generator in [ids] and claims it for its
- * request ([CommittedRequests.claim]): the request's first claim holds, so an attempt that runs while an earlier one
- * of its request is still deciding targets the earlier one's aggregate. On every log, then, one request makes one
- * aggregate, its other attempts answered as duplicates: by the request key of a log that spans the aggregate type,
- * or, where the key is narrower (MongoDB's, within a partition), because every attempt targets one aggregate, in one
- * partition. Committed ids never change. A retry still draws a number that is then not used: ids are stable, not
- * gap-free.
+ * replay keeps it. Any other takes a new one from its aggregate type's generator in [ids], so that every attempt of
+ * the request meets the others in one partition, where every log's request key is unique:
+ *
+ * - aimed at the request's partition ([Partitioner.partitionOfRequest]) when the generator can aim
+ *   ([me.ahoo.wow.spi.id.AggregateIdGenerator.nextIn], as Wow's UUIDv7 ids do): nothing is claimed, and an attempt that
+ *   runs while an earlier one of its request is still deciding commits, or is answered as its duplicate, at the key;
+ * - else drawn and claimed for its request ([CommittedRequests.claim]): the request's first claim holds, so every
+ *   attempt targets the earlier one's aggregate, one partition, on a log whose key is narrower than the aggregate type
+ *   (MongoDB's, within a partition); a log whose key spans the type keeps no claims, and its key meets them.
+ *
+ * A generator aims on every call or on none, so the attempts of one request take one path. Committed ids never
+ * change. A retry still draws a number that is then not used: ids are stable, not gap-free.
  *
  * The committed or claimed request is reused only within the scope that sent it. A caller outside it gets a new id of
- * its own, drawn in the partition of the request's aggregate, so that every log's request key meets it: the kernel
- * refuses it as for any duplicate, and it learns nothing of the aggregate the request created.
+ * its own, in the partition of the request's aggregate, so that every log's request key meets it: the kernel refuses
+ * it as for any duplicate, and it learns nothing of the aggregate the request created.
  */
 @InternalWowApi
 class CreationIds(
@@ -114,7 +118,8 @@ class CreationIds(
 ) {
     /**
      * The id of the aggregate of [type] that a creation command of request [requestId] in [tenantId], in [scope],
-     * targets: that of the stream its request committed, else that of the request's claim, else a new one, claimed.
+     * targets: that of the stream its request committed, else a new one aimed at the request's partition, else that of
+     * the request's claim, else a new one, claimed.
      * An aggregate of [ownership] checks only that part of the scope.
      */
     suspend fun idOf(
@@ -129,6 +134,9 @@ class CreationIds(
         if (stream != null) {
             return if (admits(stream.scope, caller)) stream.ref.id else besides(stream.ref)
         }
+        val partitions = committed.partitions(type)
+        val partition = Partitioner.partitionOfRequest(type, tenantId, requestId, partitions)
+        ids.aggregates.nextIn(type, tenantId, partition, partitions)?.let { return it }
         val drawn = ids.aggregates.next(type)
         val claim = committed.claim(type, tenantId, requestId, CreationClaim(drawn, scope))
         return when {
@@ -140,13 +148,15 @@ class CreationIds(
 
     /**
      * A new id of [request]'s type in the partition of [request], the aggregate a request of another scope created or
-     * claimed: drawn until one falls there, at most [MAX_DRAWS] times.
+     * claimed: aimed there, else drawn until one falls there, at most [MAX_DRAWS] times.
      */
     private fun besides(request: AggregateRef): String {
-        val partition = committed.partitionOf(request)
+        val partitions = committed.partitions(request.type)
+        val partition = Partitioner.partitionOf(request, partitions)
+        ids.aggregates.nextIn(request.type, request.tenantId, partition, partitions)?.let { return it }
         repeat(MAX_DRAWS) {
             val id = ids.aggregates.next(request.type)
-            if (committed.partitionOf(request.type.ref(request.tenantId, id)) == partition) {
+            if (Partitioner.partitionOf(request.type.ref(request.tenantId, id), partitions) == partition) {
                 return id
             }
         }
