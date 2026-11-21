@@ -69,7 +69,7 @@ class Basket(private val state: BasketState) {
 }
 ```
 
-于是每个所有者在它的租户中恰好有一个购物车，它的 ID 就是买家的用户 ID。这个声明要求 `ownership = OWNER`，即默认值：属于租户的聚合没有所有者可以取 ID。它的所有者永不改变，所以默认的生命周期不含 `TransferOwner`，编译器拒绝在 `lifecycle` 中列出它，也拒绝产生 `OwnerTransferred` 的命令。默认的 `AggregateIdSource.ASSIGNED` 取请求指明的 ID，或者为创建命令生成一个。
+于是每个所有者在它的租户中恰好有一个购物车，它的 ID 就是买家的用户 ID。这个声明要求 `ownership = OWNER`，即默认值：属于租户的聚合没有所有者可以取 ID。它的所有者永不改变，所以聚合从不转移它（[转移所有者或空间](#transfer-an-owner-or-a-space)）。默认的 `AggregateIdSource.ASSIGNED` 取请求指明的 ID，或者为创建命令生成一个。
 
 ### 它的路由 {#its-routes}
 
@@ -111,7 +111,13 @@ Saga 派生的命令、补偿和定时命令，带着它们所跟随的那次提
 | `TransferOwner` | `POST /<context>/<aggregate>/{id}/wow.lifecycle.transfer-owner` | `{"ownerId": "…"}` |
 | `TransferSpace` | `POST /<context>/<aggregate>/{id}/wow.lifecycle.transfer-space` | `{"spaceId": "…"}` |
 
-`TENANT` 聚合不处理 `TransferOwner`，ID 即所有者 ID 的聚合也不处理。每次提交都记录提交之后的作用域，所以投影或查询不用重放历史就能读到当前的所有者，聚合更早的事件流也随它而变（[策略在哪里生效](#where-a-policy-applies)）。
+`TENANT` 聚合没有所有者可转，ID 即所有者 ID 的聚合所有者固定，所以两者都不转移所有者：
+
+- 不写 `lifecycle` 时，它不处理 `TransferOwner`；`lifecycle` 列表中写了 `TransferOwner` 就编译失败，四条全列也一样；
+- 编译器拒绝返回类型或 `produces` 含 `OwnerTransferred` 的命令函数，也拒绝返回类型含它的 `@AfterCommand` 钩子；
+- 编译器看不见事件的函数或用 DSL 写的模型，如果决定结果中仍有 `OwnerTransferred`，这条命令按未声明事件失败：调用方得到 `wow.command.undeclared-event`（500），服务记录一条错误日志，写明模型、命令和事件，什么都不提交。
+
+每次提交都记录提交之后的作用域，所以投影或查询不用重放历史就能读到当前的所有者，聚合更早的事件流也随它而变（[策略在哪里生效](#where-a-policy-applies)）。
 
 ## 声明访问属性 {#declare-access-attributes}
 

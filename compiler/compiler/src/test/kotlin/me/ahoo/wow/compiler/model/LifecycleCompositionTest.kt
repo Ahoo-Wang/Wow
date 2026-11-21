@@ -178,6 +178,22 @@ class LifecycleCompositionTest {
     }
 
     @Test
+    fun `an after hook of an aggregate whose owner is fixed should not yield OwnerTransferred`() {
+        val hook = """
+            fun onCommand(command: Touch): Touched = Touched(command.by)
+            fun afterCommand(command: Touch): OwnerTransferred = OwnerTransferred(command.by)
+        """.trimIndent()
+        failing(hook, "@AggregateRoot(ownership = Ownership.TENANT)").assert().contains(
+            "@AfterCommand afterCommand produces OwnerTransferred, but the aggregate belongs to its tenant: it has no " +
+                "owner",
+        )
+        failing(hook, "@AggregateRoot(idSource = me.ahoo.wow.api.aggregate.AggregateIdSource.OWNER)").assert().contains(
+            "@AfterCommand afterCommand produces OwnerTransferred, but the aggregate's id is its owner's: its owner " +
+                "is fixed",
+        )
+    }
+
+    @Test
     fun `a decide function of a lifecycle command names what to do instead`() {
         failing("fun onCommand(command: DeleteAggregate): Closed = Closed(\"x\")").assert().contains(
             "onCommand takes me.ahoo.wow.api.lifecycle.DeleteAggregate, a command the kernel decides: add events to " +

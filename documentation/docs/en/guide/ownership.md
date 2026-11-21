@@ -69,7 +69,7 @@ class Basket(private val state: BasketState) {
 }
 ```
 
-Each owner then has exactly one basket in its tenant, and its id is the buyer's user id. The declaration requires `ownership = OWNER`, the default: an aggregate that belongs to its tenant has no owner to take its id from. Its owner never changes, so the default lifecycle leaves `TransferOwner` out, and the compiler refuses one listed in `lifecycle`, or a command that produces `OwnerTransferred`. The default, `AggregateIdSource.ASSIGNED`, takes the id the request names, or generates one for a creating command.
+Each owner then has exactly one basket in its tenant, and its id is the buyer's user id. The declaration requires `ownership = OWNER`, the default: an aggregate that belongs to its tenant has no owner to take its id from. Its owner never changes, so the aggregate never transfers it ([Transfer an owner or a space](#transfer-an-owner-or-a-space)). The default, `AggregateIdSource.ASSIGNED`, takes the id the request names, or generates one for a creating command.
 
 ### Its routes
 
@@ -111,7 +111,13 @@ Two lifecycle commands change an aggregate's scope; every aggregate handles them
 | `TransferOwner` | `POST /<context>/<aggregate>/{id}/wow.lifecycle.transfer-owner` | `{"ownerId": "…"}` |
 | `TransferSpace` | `POST /<context>/<aggregate>/{id}/wow.lifecycle.transfer-space` | `{"spaceId": "…"}` |
 
-A `TENANT` aggregate handles no `TransferOwner`, and neither does one whose id is its owner's. Every commit records the scope after it, so a projection or a query reads the current owner without replaying the history, and the aggregate's earlier event streams follow it ([Where a policy applies](#where-a-policy-applies)).
+A `TENANT` aggregate has no owner to transfer, and one whose id is its owner's has a fixed owner, so neither transfers its owner:
+
+- without `lifecycle`, it handles no `TransferOwner`, and a `lifecycle` list that names `TransferOwner` fails the compilation, even one that names all four commands;
+- the compiler refuses a command function whose return type or `produces` yields `OwnerTransferred`, and an `@AfterCommand` hook whose return type does;
+- a decision that holds `OwnerTransferred` anyway, from a function whose events the compiler cannot see or a model written with the DSL, fails its command as an undeclared event: the caller gets `wow.command.undeclared-event` (500), the service logs the error with the model, the command and the event, and nothing is committed.
+
+Every commit records the scope after it, so a projection or a query reads the current owner without replaying the history, and the aggregate's earlier event streams follow it ([Where a policy applies](#where-a-policy-applies)).
 
 ## Declare access attributes
 
