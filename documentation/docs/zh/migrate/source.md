@@ -34,7 +34,7 @@ description: 用 wow-migrate Skill 把 9.x 服务的 Kotlin 源码改写为 V10�
 | `ListQuery(limit = 0)`，在查询网关上返回全部匹配 | 不写 `limit` 取入口的默认列表大小，`0` 会被拒绝；要读全部匹配，用 `queryApi.trusted().unbounded()` 或 `stream` |
 | 不写 `size` 的 `CursorQuery`，一页 `CursorQuery.DEFAULT_SIZE`（10）条 | 不写 `size` 取入口的默认列表大小（`default-list-size`，100），至多 `max-page-size`（100）；`DEFAULT_SIZE` 已删除，要保持每页 10 条就写 `size = 10` |
 | 自定义的 `MaskStrategy`，`mask(value: String)` | `mask(value: SensitiveValue)`：原始字符串是 `value.value`，旁边是字段声明的 `level`；lambda 写法读 `it.value` |
-| 用 `limit(Int.MAX_VALUE)` 读全部匹配 | 会被拒绝：进程内的列表至多返回 `max-list-size`（1,000）行，更大的 limit 失败（`size-out-of-range`）。必须看到全部匹配的代码，例如任务、回填或迁移步骤，用 `NodeQueryApi.trusted().unbounded()` 读取或以流读取；代表调用方的读取应改为分页 |
+| 用 `limit(Int.MAX_VALUE)` 读全部匹配 | 会被拒绝：进程内的列表至多返回 `max-list-size`（1,000）行，更大的 limit 失败（`size-out-of-range`）。页也有上限，`max-page-size`（100）：9.x 里读「前 200 行一页」的任务第一次运行就失败（`In-process page size[200] must be between 1 and 100.`），重试之后停放，所以要改为每页 100 行翻页，或用 `unbounded()` 读取（[查询](../guide/queries#bounds)）。必须看到全部匹配的代码，例如任务、回填或迁移步骤，用 `NodeQueryApi.trusted().unbounded()` 读取或以流读取；代表调用方的读取应改为分页 |
 | 在 `limit` 处按分组键截断的聚合 | 加上 `sort` 得到前 N 名；不带排序时，分组多于 `limit` 会以 `wow.query.too-many-groups`（400）失败 |
 | 返回 `Int` 的 `Pagination.offset()` | 返回 `Long` |
 | `wow-test`（`AggregateSpec`） | `wow-test`，带函数式的 `aggregateSpec` 和 `sagaSpec` |
@@ -80,7 +80,7 @@ Error resolving plugin [id: 'com.google.devtools.ksp', version: '2.3.6']
 | `@StaticAggregateId` | 已移除：没有固定的聚合 ID（[V10 中的 9.x 能力](./capabilities)） |
 | `@AggregateRoute`、`@CommandRoute` | 已移除：路由来自 Manifest |
 | `@CommandRoute(enabled = false)` | 取决于谁发送这条命令。只由平台发送（Saga、定时器、进程内网关，以及经内部端口调用的其他服务）：在命令类上标注 `@InternalCommand`，公开端口不挂它的路由；内部端口上在 `wow.callers` 下没有条目的服务仍可发送它，因为这份列表只收窄它点名的服务（[只在内部受理的命令](../guide/aggregates#keep-a-command-internal)）。由 9.x 服务手写的用户路由发送：命令保持公开，走生成的路由（[路由、租户与所有权](#routes-tenancy-and-ownership)） |
-| `@AggregateOwner(OwnerPolicy.*)`、`@Spaced` | `@AggregateRoot(ownership = Ownership.OWNER \| TENANT)`；所有者和空间来自调用方。`OwnerPolicy.AGGREGATE_ID` 是 `@AggregateRoot(idSource = AggregateIdSource.OWNER)` |
+| `@AggregateOwner(OwnerPolicy.*)`、`@Spaced` | `@AggregateRoot(ownership = Ownership.OWNER \| TENANT)`；所有者和空间来自调用方。`OwnerPolicy.AGGREGATE_ID` 是 `@AggregateRoot(idSource = AggregateIdSource.OWNER)`。`TENANT` 聚合没有所有者可转，所以它的默认生命周期里没有 `wow.lifecycle.TransferOwner`，`idSource = OWNER` 的聚合也没有（[生命周期命令](../guide/aggregates#lifecycle-commands)） |
 | `@VoidCommand`、`@Order`、`@EntityObject`、`@ValueObject` | 已移除 |
 | 无 | 拒绝码上的 `@ErrorCode`、用于之后重命名的 `@Alias`、`@QueryIndex`、`@Access` |
 

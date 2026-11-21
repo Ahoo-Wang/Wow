@@ -63,6 +63,29 @@ suspend fun onCommand(command: RenameBrand, scope: DecideScope): BrandRenamed? {
 - **在一个聚合内**，改键是一次决策：预留新键并释放旧键，如上面的改名所做。两者随事件一起生效，否则都不生效。
 - **在聚合之间**，持有者的更换经 Saga 交接完成。想要这个键的聚合记下它的请求；Saga 让持有者交出键，即发一条持有者的命令，它的决策释放这个键；这条命令提交之后，再发一条请求方的命令去预留它。在释放与认领之间，别的聚合可能拿走这个键，所以认领可能被拒绝，Saga 随后撤回请求方的请求。交接要多出自己的命令和事件，切换是最终一致的：有一段时间没有任何聚合持有这个键。
 
+`RequestDefault`、`GiveUpDefault`、`ClaimDefault` 和 `WithdrawDefault` 是这个例子（「每个租户至多一个默认模板」）自己的命令；图里的注解和调用是 Wow 的：
+
+```mermaid
+sequenceDiagram
+    participant X as Template X (wants the key)
+    participant S as Saga
+    participant Y as Template Y (holds the key)
+    X->>X: decide function: RequestDefault, no reserve yet
+    X-->>S: @OnEvent DefaultRequested
+    S->>Y: derived command GiveUpDefault
+    Y->>Y: decide function: scope.release(namespace, key)
+    Y-->>S: @OnEvent DefaultGivenUp (the key is free once it commits)
+    S->>X: derived command ClaimDefault
+    alt scope.reserve(namespace, key) is true
+        X->>X: DefaultClaimed
+    else another aggregate took the key meanwhile
+        X-->>S: @OnRejected of ClaimDefault
+        S->>X: derived command WithdrawDefault
+    end
+```
+
+从聚合出发的每条箭头都是一次提交：它的事件是 Saga 的输入，派生出的命令由它自己的目标决定，且只决定一次（[编写 Saga](./sagas)）。交接进行时，键在 Y 的释放提交之前由 Y 持有，之后在 X 的认领提交之前没有人持有：这段时间里没有默认模板，同类型的任何别的聚合都可能拿走这个键，认领因此可能被拒绝。被拒绝时 Y 已经交出了键，键属于拿走它的聚合：Saga 撤回 X 的请求，选新的默认模板留给一条新的命令。必须看到切换完成的读取方，要等认领的提交，而不是第一条命令的提交。
+
 ## 跨聚合类型唯一的键 {#a-key-unique-across-aggregate-types}
 
 一个键只在同一类型的聚合之间唯一。当一个值必须跨类型唯一时，例如用户和组织共用的电子邮件地址，就把这种唯一性建模为一个独立的聚合：以键为 id 的聚合（或持有这些键的聚合）由其他聚合通过它的命令来认领，由它自己的决策说明每个键归谁。

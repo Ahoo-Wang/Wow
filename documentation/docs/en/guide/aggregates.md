@@ -468,7 +468,7 @@ A function annotated `@AfterCommand`, or named `afterCommand`, runs after the co
 
 ## Lifecycle commands
 
-Every aggregate also handles four system commands of `me.ahoo.wow.api.lifecycle`: `DeleteAggregate`, `RestoreAggregate`, `TransferOwner` and `TransferSpace`. They change the aggregate's metadata, not its state, and a deleted aggregate refuses every command but `RestoreAggregate` and those whose function is marked `@OnCommand(onDeleted = true)`. `@AggregateRoot(lifecycle = [...])` narrows the list; an empty list enables none.
+Every aggregate also handles four system commands of `me.ahoo.wow.api.lifecycle`: `DeleteAggregate`, `RestoreAggregate`, `TransferOwner` and `TransferSpace`. They change the aggregate's metadata, not its state, and a deleted aggregate refuses every command but `RestoreAggregate` and those whose function is marked `@OnCommand(onDeleted = true)`. `@AggregateRoot(lifecycle = [...])` narrows the list; an empty list enables none. The default list leaves `TransferOwner` out of an aggregate whose owner is fixed: one that belongs to its tenant (`ownership = Ownership.TENANT`) has no owner to transfer, and one whose id is its owner's (`idSource = AggregateIdSource.OWNER`) cannot change it. The compiler refuses `TransferOwner` listed in `lifecycle` there ([Ownership and Access](./ownership)).
 
 ## Test it
 

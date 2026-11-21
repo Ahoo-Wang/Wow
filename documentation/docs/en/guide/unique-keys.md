@@ -63,6 +63,29 @@ A reservation belongs to the aggregate that is deciding, and it commits with tha
 - **Within one aggregate**, changing the key is one decision: reserve the new key and release the old one, as the rename above does. Both take effect with the events, or neither does.
 - **Between aggregates**, the holder changes by a handover through a saga. The aggregate that wants the key records its request; the saga has the holder give the key up, in a command of the holder whose decision releases it; once that has committed, a command of the requester reserves it. Between the release and the claim another aggregate may take the key, so the claim can be refused, and the saga then withdraws the requester's request. The handover costs commands and events of its own, and the switch is eventually consistent: for a while no aggregate holds the key.
 
+The names `RequestDefault`, `GiveUpDefault`, `ClaimDefault` and `WithdrawDefault` are the example's own commands, "at most one default template per tenant"; the annotations and calls are Wow's:
+
+```mermaid
+sequenceDiagram
+    participant X as Template X (wants the key)
+    participant S as Saga
+    participant Y as Template Y (holds the key)
+    X->>X: decide function: RequestDefault, no reserve yet
+    X-->>S: @OnEvent DefaultRequested
+    S->>Y: derived command GiveUpDefault
+    Y->>Y: decide function: scope.release(namespace, key)
+    Y-->>S: @OnEvent DefaultGivenUp (the key is free once it commits)
+    S->>X: derived command ClaimDefault
+    alt scope.reserve(namespace, key) is true
+        X->>X: DefaultClaimed
+    else another aggregate took the key meanwhile
+        X-->>S: @OnRejected of ClaimDefault
+        S->>X: derived command WithdrawDefault
+    end
+```
+
+Each arrow out of an aggregate is a commit: its events are the saga's input, and a derived command is decided by its own target, once ([Write a Saga](./sagas)). While the handover runs the key is held by Y until Y's release commits, then by no one until X's claim commits: for that time there is no default, and any other aggregate of the type may take the key, which is why the claim can be refused. When it is, Y has already given the key up, and the key belongs to the aggregate that took it: the saga withdraws X's request and leaves the choice of a new default to a new command. A reader that must see the switch done waits for the claim's commit, not for the first command's.
+
 ## A key unique across aggregate types
 
 A key is unique among the aggregates of one type. When a value must be unique across types, such as an email address that users and organizations share, model the uniqueness as an aggregate of its own: an aggregate whose id is the key (or one that holds the keys) is claimed by the others through its commands, and its own decisions say who holds each key.
