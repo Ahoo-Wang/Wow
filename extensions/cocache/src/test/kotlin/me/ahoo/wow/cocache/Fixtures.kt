@@ -159,3 +159,6 @@ fun recordOf(
         },
         deleted = state == null,
     )
+
+/** The state masks of a node whose types mask nothing, as a test context without the query side declares them. */
+val NO_MASKS: me.ahoo.wow.spi.read.StateMasks = me.ahoo.wow.spi.read.StateMasks { null }

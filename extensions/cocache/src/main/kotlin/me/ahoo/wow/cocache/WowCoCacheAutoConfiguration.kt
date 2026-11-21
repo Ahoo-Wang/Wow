@@ -34,7 +34,6 @@ import org.springframework.context.annotation.Lazy
 import org.springframework.core.env.Environment
 import org.springframework.core.type.AnnotatedTypeMetadata
 import org.springframework.format.datetime.standard.DurationFormatterUtils
-import tools.jackson.databind.JsonNode
 import java.time.Duration
 
 /**
@@ -55,7 +54,8 @@ import java.time.Duration
  * - **The owner**: for each aggregate type `wow.cocache.publish` lists, a sink subscription that writes its states
  *   after each commit (`wow.cocache-sink.<aggregate>`, [StateViewSink]), which the node runs beside the application's.
  *   It writes them masked by the node's [StateMasks] (the query side's, which Wow's Spring Boot host declares), as a
- *   read of the owner returns them, so the cache holds no raw `@Sensitive` value.
+ *   read of the owner returns them, so the cache holds no raw `@Sensitive` value. A node that lists types and has
+ *   no [StateMasks] bean does not start ([masksOf]).
  */
 @Configuration(proxyBeanMethods = false)
 @Conditional(WowCoCacheAutoConfiguration.RunsCoCache::class)
@@ -81,14 +81,17 @@ class WowCoCacheAutoConfiguration {
         manifest: Manifest,
         environment: Environment,
         beanFactory: ConfigurableListableBeanFactory,
-    ): PublishedSinks = sinksOf(
-        publishOf(environment),
-        ttlOf(environment),
-        manifest,
-        ContractViews.onClassPath(classLoaderOf(beanFactory)),
-        caches,
-        beanFactory.getBeanProvider(StateMasks::class.java).ifAvailable,
-    )
+    ): PublishedSinks {
+        val publish = publishOf(environment)
+        return sinksOf(
+            publish,
+            ttlOf(environment),
+            manifest,
+            ContractViews.onClassPath(classLoaderOf(beanFactory)),
+            caches,
+            masksOf(publish, beanFactory.getBeanProvider(StateMasks::class.java).ifAvailable),
+        )
+    }
 
     /**
      * The application runs CoCache: it has CoCache's runtime. Read once the beans are registered, CoCache's
@@ -157,9 +160,8 @@ class WowCoCacheAutoConfiguration {
         /**
          * The sinks of the aggregate types [publish] lists, each writing for [ttl]: each must be one of [manifest]'s,
          * the service's own, and have a view among [views], its api's contract on the class path; the sinks write
-         * through [caches], each state masked by [masks]. A type whose states hold `@Sensitive` values
-         * ([SensitiveStates]) needs [masks]: without them its sink would write the raw values a read masks, so the
-         * start fails.
+         * through [caches], each state masked by [masks]: by the mask [StateMasks.maskOf] gives its type, none for a
+         * type whose schema masks nothing.
          */
         internal fun sinksOf(
             publish: List<String>,
@@ -167,7 +169,7 @@ class WowCoCacheAutoConfiguration {
             manifest: Manifest,
             views: Map<AggregateType, Class<*>>,
             caches: StateViewCaches,
-            masks: StateMasks?,
+            masks: StateMasks,
         ): PublishedSinks {
             val own = manifest.contexts.flatMap { context ->
                 context.aggregates.map { AggregateType(context.name, it.name) }
@@ -191,14 +193,8 @@ class WowCoCacheAutoConfiguration {
                 ) { "wow.cocache.publish lists $name, whose state no contract on the class path has a view of." }
                 type
             }
-            val sinks: Map<AggregateType, Sink> = types.associateWith { type ->
-                check(masks != null || !SensitiveStates.declared(manifest, type)) {
-                    "The states of $type hold @Sensitive values (${SensitiveStates.SENSITIVE} in their schema), and " +
-                        "the node has no ${StateMasks::class.java.name} bean to mask them by: its cache would hold " +
-                        "the raw values a read masks. Run it with Wow's query side, whose PayloadMasks is that bean, " +
-                        "or declare one."
-                }
-                sinkOf(views.getValue(type), ttl, caches, masks?.maskOf(type))
+            val sinks: Map<AggregateType, Sink> = types.associateWith {
+                sinkOf(it, views.getValue(it), ttl, caches, masks)
             }
             val streams = types.groupBy { it.context }.mapValues { (context, ofContext) ->
                 ofContext.map { PublishedManifest(it.name, PublishedManifest.defaultTopic(context, it.name), true) }
@@ -206,6 +202,25 @@ class WowCoCacheAutoConfiguration {
             return PublishedSinks(streams, PROCESSOR) { context, stream ->
                 sinks.getValue(AggregateType(context, stream.aggregate))
             }
+        }
+
+        /**
+         * The node's [masks], which the sinks of the types [publish] lists write through: a node without them does not
+         * start, whatever the types' schemas, so no sink writes a raw `@Sensitive` value that a read masks.
+         */
+        internal fun masksOf(publish: List<String>, masks: StateMasks?): StateMasks {
+            configCheck(
+                masks != null,
+                WowCoCacheProperties.PUBLISH,
+                publish.joinToString(","),
+                "Run the node with Wow's query side, whose PayloadMasks is the node's ${StateMasks::class.java.name} " +
+                    "bean, or declare one.",
+            ) {
+                "wow.cocache.publish lists ${publish.joinToString()}, and the node has no " +
+                    "${StateMasks::class.java.name} bean to mask their states by: the cache would hold the raw " +
+                    "@Sensitive values a read masks."
+            }
+            return masks
         }
 
         private fun typeOf(name: String): AggregateType {
@@ -220,12 +235,17 @@ class WowCoCacheAutoConfiguration {
             return AggregateType(context, aggregate)
         }
 
-        private fun <V : Any> sinkOf(
+        /**
+         * The sink of [type]'s states, written for [ttl] through [caches] as the view [viewType], each masked by the
+         * mask [masks] give [type], none when its schema masks nothing.
+         */
+        internal fun <V : Any> sinkOf(
+            type: AggregateType,
             viewType: Class<V>,
             ttl: Duration?,
             caches: StateViewCaches,
-            mask: ((JsonNode) -> JsonNode)?,
-        ): Sink = StateViewSink(viewType, caches.writerOf(viewType, ttl), mask)
+            masks: StateMasks,
+        ): Sink = StateViewSink(viewType, caches.writerOf(viewType, ttl), masks.maskOf(type))
 
         private fun classLoaderOf(beans: ConfigurableListableBeanFactory): ClassLoader =
             beans.beanClassLoader ?: WowCoCacheAutoConfiguration::class.java.classLoader

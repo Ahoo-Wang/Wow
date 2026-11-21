@@ -112,7 +112,7 @@ Each listed type is written by a sink subscription of its own, `wow.cocache-sink
 - A reader's load of a missing state holds CoCache's lease on the key, and the owner's write takes it over: a load that read an older state never puts it back.
 - The state is written as a read of the owner returns it: every [`@Sensitive`](../queries#describe-what-types-cannot) value, `DISPLAY` and `CONFIDENTIAL` alike, replaced by its mask, with the application's custom mask strategies. So an entry the owner writes is the entry a reader's miss loads, and neither Redis nor any local copy holds a raw phone number or secret.
 
-A state no one reads pays no write: an aggregate type that is not listed is not written. A listed type must be one of the service's own, with a view in its api's contract; otherwise the service does not start, and the error names `wow.cocache.publish`. A listed type whose state has `@Sensitive` fields is masked by the node's state masks (`StateMasks`), which Wow's Spring Boot host declares with the query side; a node without them does not start rather than write the raw values.
+A state no one reads pays no write: an aggregate type that is not listed is not written. A listed type must be one of the service's own, with a view in its api's contract; otherwise the service does not start, and the error names `wow.cocache.publish`. The sinks mask the states by the node's state masks (`StateMasks`), which Wow's Spring Boot host declares with the query side; a node that lists types and has none does not start, whatever their schemas, and the error names `wow.cocache.publish`.
 
 ## Lifetimes and local copies
 

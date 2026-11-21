@@ -112,7 +112,7 @@ wow:
 - 读方回源读取缺失的状态时持有该键在 CoCache 中的 lease，属主的写入会接管它：读到旧状态的回源永远写不回去。
 - 写入的状态与读取属主时返回的一致：每个 [`@Sensitive`](../queries#describe-what-types-cannot) 值，不论 `DISPLAY` 还是 `CONFIDENTIAL`，都替换为它的掩码，应用自定义的掩码策略同样生效。所以属主写入的条目就是读方回源加载的条目，Redis 与本地副本里都没有原始的手机号或密钥。
 
-没人读的状态不付写入成本：未列出的聚合类型不写入。列出的类型必须属于本服务，且其 api 契约中有视图；否则服务不会启动，错误会指出 `wow.cocache.publish`。状态带 `@Sensitive` 字段的列出类型，按节点的状态掩码（`StateMasks`）遮盖，Wow 的 Spring Boot 宿主随查询端声明它；没有它的节点不会启动，而不是写入原始值。
+没人读的状态不付写入成本：未列出的聚合类型不写入。列出的类型必须属于本服务，且其 api 契约中有视图；否则服务不会启动，错误会指出 `wow.cocache.publish`。sink 按节点的状态掩码（`StateMasks`）遮盖状态，Wow 的 Spring Boot 宿主随查询端声明它；列出了类型却没有它的节点不会启动，与类型的 schema 无关，错误会指出 `wow.cocache.publish`。
 
 ## 寿命与本地副本
 

@@ -19,7 +19,6 @@ import me.ahoo.cocache.core.CoCacheFactory
 import me.ahoo.cocache.core.memory.InMemoryBackend
 import me.ahoo.cocache.spring.boot.CoCacheAutoConfiguration
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.query.annotation.MaskStrategy
 import me.ahoo.wow.api.query.annotation.SensitiveValue
 import me.ahoo.wow.api.read.QueryApi
@@ -28,6 +27,7 @@ import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.query.mask.PayloadMasks
 import me.ahoo.wow.query.schema.MaskStrategyResolver
 import me.ahoo.wow.runtime.sink.PublishedSinks
+import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.read.StateMasks
 import me.ahoo.wow.test.query.MemoryQueries
@@ -57,11 +57,8 @@ class StateViewMasksTest {
             val owner = MemoryQueries(manifest, mapOf(CUSTOMER to CustomerView::class.java))
                 .snapshot(CUSTOMER, "c-2", CustomerView("Ann", "13812345678", "s3cr3t"), tenantId = "t")
             val caches = StateViewCaches(CoCacheFactory(runtime)) { owner }
-            StateViewSink(
-                CustomerView::class.java,
-                caches.writerOf(CustomerView::class.java),
-                PayloadMasks(manifest).maskOf(CUSTOMER),
-            ).write(listOf(recordOf(CUSTOMER.ref("t", "c-1"), 1, raw)))
+            WowCoCacheAutoConfiguration.sinkOf(CUSTOMER, CustomerView::class.java, null, caches, PayloadMasks(manifest))
+                .write(listOf(recordOf(CUSTOMER.ref("t", "c-1"), 1, raw)))
             val cache = caches.of<CustomerView>()
             val written = cache.get(StateKey("t", "c-1"))
             val loaded = cache.get(StateKey("t", "c-2"))
@@ -79,7 +76,7 @@ class StateViewMasksTest {
         val custom = customerManifest(secretMask = mapOf("strategy" to LevelMask::class.java.name))
         val masks = PayloadMasks(custom, MaskStrategyResolver.of(mapOf(LevelMask::class.java.name to LevelMask)))
         val caches = StateViewCaches(CoCacheFactory(runtime)) { error("no miss is read") }
-        StateViewSink(CustomerView::class.java, caches.writerOf(CustomerView::class.java), masks.maskOf(CUSTOMER))
+        WowCoCacheAutoConfiguration.sinkOf(CUSTOMER, CustomerView::class.java, null, caches, masks)
             .write(listOf(recordOf(CUSTOMER.ref("t", "c-1"), 1, raw)))
         val read = WowJson.mapper.treeToValue(
             masks.state(CUSTOMER, WowJson.mapper.readTree(raw)),
@@ -95,11 +92,8 @@ class StateViewMasksTest {
         runBlocking<Unit> {
             val caches = StateViewCaches(CoCacheFactory(runtime)) { error("no miss is read") }
             val record = recordOf(CUSTOMER.ref("t", "c-1"), 1, raw)
-            StateViewSink(
-                CustomerView::class.java,
-                caches.writerOf(CustomerView::class.java),
-                PayloadMasks(manifest).maskOf(CUSTOMER),
-            ).write(listOf(record))
+            WowCoCacheAutoConfiguration.sinkOf(CUSTOMER, CustomerView::class.java, null, caches, PayloadMasks(manifest))
+                .write(listOf(record))
             record.state!!.state.assert().isEqualTo(WowJson.mapper.readTree(raw))
             caches.of<CustomerView>().get(StateKey("t", "c-1"))!!.phone.assert().isEqualTo("138****5678")
         }
@@ -107,92 +101,51 @@ class StateViewMasksTest {
     @Test
     fun `a type without sensitive fields should have no mask, its states written unchanged`() = runBlocking<Unit> {
         PayloadMasks(shopManifest()).maskOf(ORDER).assert().isNull()
-        SensitiveStates.declared(shopManifest(), ORDER).assert().isFalse()
         val caches = StateViewCaches(CoCacheFactory(runtime)) { error("no miss is read") }
-        val sinks = WowCoCacheAutoConfiguration.sinksOf(
+        WowCoCacheAutoConfiguration.sinksOf(
             listOf("shop.order"),
             null,
             shopManifest(),
             mapOf(ORDER to OrderView::class.java),
             caches,
             PayloadMasks(shopManifest()),
-        )
-        sinks.toString().assert().isEqualTo("PublishedSinks(wow.cocache-sink)")
-        StateViewSink(OrderView::class.java, caches.writerOf(OrderView::class.java), null)
+        ).toString().assert().isEqualTo("PublishedSinks(wow.cocache-sink)")
+        WowCoCacheAutoConfiguration.sinkOf(ORDER, OrderView::class.java, null, caches, PayloadMasks(shopManifest()))
             .write(listOf(recordOf(ORDER.ref("t", "o-1"), 1, """{"item":"13812345678","quantity":2}""")))
         caches.of<OrderView>().get(StateKey("t", "o-1")).assert().isEqualTo(OrderView("13812345678", 2))
     }
 
     @Test
-    fun `a type with sensitive fields and no state masks should fail the start, naming the type and the bean`() {
-        val caches = StateViewCaches(CoCacheFactory(runtime)) { error("no miss is read") }
-        val views = mapOf(CUSTOMER to CustomerView::class.java)
-        assertThrows<IllegalStateException> {
-            WowCoCacheAutoConfiguration.sinksOf(listOf("shop.customer"), null, manifest, views, caches, null)
-        }.message.assert().contains("shop.customer", "x-wow-sensitive", StateMasks::class.java.name)
-        WowCoCacheAutoConfiguration.sinksOf(
-            listOf("shop.customer"),
-            null,
-            manifest,
-            views,
-            caches,
-            PayloadMasks(manifest)
-        )
-            .toString().assert().isEqualTo("PublishedSinks(wow.cocache-sink)")
-        // A service that does not write the type needs no masks for it.
-        WowCoCacheAutoConfiguration.sinksOf(
-            emptyList(),
-            null,
-            manifest,
-            views,
-            caches,
-            null
-        ).toString().assert().isEqualTo("PublishedSinks(wow.cocache-sink)")
+    fun `a node that publishes states without state masks should fail the start, naming the key and the bean`() {
+        val masks = StateMasks { null }
+        WowCoCacheAutoConfiguration.masksOf(listOf("shop.order"), masks).assert().isSameAs(masks)
+        assertThrows<WowConfigurationException> {
+            WowCoCacheAutoConfiguration.masksOf(listOf("shop.order", "shop.customer"), null)
+        }.message.assert().contains("wow.cocache.publish", "shop.order, shop.customer", StateMasks::class.java.name)
     }
 
-    @Test
-    fun `the owner's sink should take the node's state masks, and fail the start without them`() {
-        val runner = ApplicationContextRunner()
-            .withClassLoader(ContractClassLoader(manifest, javaClass.classLoader))
-            .withConfiguration(
-                AutoConfigurations.of(CoCacheAutoConfiguration::class.java, WowCoCacheAutoConfiguration::class.java),
-            )
-            .withBean(QueryApi::class.java, { mockk<QueryApi>() })
-            .withBean(Manifest::class.java, { manifest })
-            .withPropertyValues("cocache.backend=memory", "wow.cocache.publish=shop.customer")
-        runner.run { context ->
-            generateSequence(context.startupFailure) { it.cause }.filterIsInstance<IllegalStateException>()
-                .first().message.assert().contains("shop.customer", StateMasks::class.java.name)
-        }
-        runner.withBean(PayloadMasks::class.java, { PayloadMasks(manifest) }).run { context ->
-            context.startupFailure.assert().isNull()
-            context.getBean(PublishedSinks::class.java).assert().isNotNull()
-        }
-    }
+    private fun publishing(contract: Manifest, type: String) = ApplicationContextRunner()
+        .withClassLoader(ContractClassLoader(contract, javaClass.classLoader))
+        .withConfiguration(
+            AutoConfigurations.of(CoCacheAutoConfiguration::class.java, WowCoCacheAutoConfiguration::class.java),
+        )
+        .withBean(QueryApi::class.java, { mockk<QueryApi>() })
+        .withBean(Manifest::class.java, { contract })
+        .withPropertyValues("cocache.backend=memory", "wow.cocache.publish=$type")
 
     @Test
-    fun `a state schema should hold sensitive values when one of its schemas does, however referenced`() {
-        fun manifestOf(vararg defs: Pair<String, Any?>) = Manifest(
-            contexts = customerManifest().contexts,
-            defs = mapOf(*defs),
-        )
-        val sensitive = mapOf("type" to "string", SensitiveStates.SENSITIVE to mapOf("level" to "display"))
-        fun declared(vararg defs: Pair<String, Any?>) = SensitiveStates.declared(manifestOf(*defs), CUSTOMER)
-        declared("shop.CustomerState" to sensitive).assert().isTrue()
-        declared(
-            "shop.CustomerState" to mapOf("anyOf" to listOf(mapOf("type" to "null"), mapOf("\$ref" to "#/\$defs/A"))),
-            "A" to mapOf("properties" to mapOf("tags" to mapOf("items" to sensitive))),
-        ).assert().isTrue()
-        // A cycle of references ends; a reference outside the Manifest or to a schema it lacks holds nothing.
-        declared(
-            "shop.CustomerState" to mapOf("properties" to mapOf("next" to mapOf("\$ref" to "#/\$defs/shop.CustomerState"))),
-        ).assert().isFalse()
-        declared("shop.CustomerState" to mapOf("\$ref" to "https://example.com/schema")).assert().isFalse()
-        declared("shop.CustomerState" to mapOf("\$ref" to "#/\$defs/Missing")).assert().isFalse()
-        // A reference that is no name is walked as any other value.
-        declared("shop.CustomerState" to mapOf("\$ref" to listOf(sensitive))).assert().isTrue()
-        declared().assert().isFalse()
-        SensitiveStates.declared(manifest, AggregateType("shop", "unknown")).assert().isFalse()
-        SensitiveStates.declared(manifest, AggregateType("other", "customer")).assert().isFalse()
+    fun `the owner's sinks should take the node's state masks, and fail the start without them, whatever the schema`() {
+        // A type that masks nothing needs the masks too: whether it masks anything is the masks' to say.
+        publishing(shopManifest(), "shop.order").run { context ->
+            generateSequence(context.startupFailure) { it.cause }.filterIsInstance<WowConfigurationException>()
+                .first().message.assert().contains("wow.cocache.publish", StateMasks::class.java.name)
+        }
+        publishing(shopManifest(), "shop.order").withBean(StateMasks::class.java, { StateMasks { null } })
+            .run { context -> context.startupFailure.assert().isNull() }
+        publishing(manifest, "shop.customer").withBean(PayloadMasks::class.java, { PayloadMasks(manifest) })
+            .run { context ->
+                context.startupFailure.assert().isNull()
+                context.getBean(PublishedSinks::class.java).assert().isNotNull()
+            }
     }
 }
