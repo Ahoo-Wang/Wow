@@ -19,7 +19,6 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.client.CommandRejectedException
-import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.client.wait
 import me.ahoo.wow.api.read.Snapshot
 import me.ahoo.wow.api.result.CommandResult
@@ -156,8 +155,7 @@ class OrderingServerTest {
 
     /** Submits an order that names no id, as the basket's checkout does, with the request id [requestId]. */
     private fun submitNew(requestId: String): CommandResult {
-        val request = CommandRequest.builder(SubmitOrder(listOf(MUGS))).requestId(requestId).build()
-        return runBlocking { orders(buyer("alice-numbers")).wait(request) }
+        return runBlocking { orders(buyer("alice-numbers")).wait(SubmitOrder(listOf(MUGS))) { requestId(requestId) } }
     }
     // endregion
 
@@ -210,8 +208,7 @@ class OrderingServerTest {
 
     /** Submits the order [id] as [caller] and waits until the order-process saga set it awaiting its validation. */
     private fun submit(id: String, caller: Caller = Caller.ANONYMOUS) {
-        val request = CommandRequest.builder(SubmitOrder(listOf(MUGS, CAP))).id(id).wait(TO_VALIDATION).build()
-        runBlocking { orders(caller).wait(request) }
+        runBlocking { orders(caller).wait(SubmitOrder(listOf(MUGS, CAP)), id) { wait(TO_VALIDATION) } }
     }
 
     /** Confirms each of [products] of the order [id], as the stock-confirmation saga would. */

@@ -18,7 +18,7 @@ A saga is a class annotated `@Saga`. Each handler, annotated `@OnEvent`, takes a
 @OnEvent
 fun onOrderSubmitted(
     event: StateTypedEvent<OrderState, OrderSubmitted>
-): CommandRequest<AwaitStockValidation> = CommandRequest.of(AwaitStockValidation, event.ref.id)
+): CommandRequest<AwaitStockValidation> = AwaitStockValidation.toCommandRequest(event.ref.id)
 ```
 
 - **What it takes.** A `StateTypedEvent<S, E>` calls the handler once for each event `E` in a committed stream, with `event` that event and `state` the aggregate's state after the whole commit. A `StateEvent<S>` calls it once per stream, with all its `events`. The state type `S` selects the aggregates of the module's context whose state it is. The aggregate's access attributes are members of its state (`@Access`), so a saga reads them from `state`, as of the commit, rather than from the snapshot, which may lag behind it.
@@ -32,10 +32,12 @@ fun onOrderSubmitted(
 
 | Request | Derives |
 | --- | --- |
-| `CommandRequest.of(body, id)` | A command to the aggregate `id` of the type that decides `body`'s class, in the tenant of the commit |
-| `CommandRequest.of(body)` | A creating command to a new aggregate of that type, whose id the target gives it; a command whose body names its aggregate (`@AggregateId`), to that aggregate |
-| `CommandRequest.to(ref, body)` | A command to the aggregate `ref` names, of any type and tenant |
-| `CommandRequest.of(body, type = type)` | A creating command to a new aggregate of `type`, whose id the target gives it |
+| `body.toCommandRequest(id)` | A command to the aggregate `id` of the type that decides `body`'s class, in the tenant of the commit |
+| `body.toCommandRequest()` | A creating command to a new aggregate of that type, whose id the target gives it; a command whose body names its aggregate (`@AggregateId`), to that aggregate |
+| `body.toCommandRequest { to(ref) }` | A command to the aggregate `ref` names, of any type and tenant |
+| `body.toCommandRequest { type(type) }` | A creating command to a new aggregate of `type`, whose id the target gives it |
+
+`toCommandRequest` is a function of every command, imported from the client package: `import me.ahoo.wow.api.client.toCommandRequest`. Its block sets the request's other fields by the names a Java caller chains on `CommandRequest.builder(body)`: `to(ref)`, `type`, `targetTenant`, `targetScope`, `requestId`, `expectedVersion`. `CommandRequest.of`, `CommandRequest.to` and the builder make the same request.
 
 A command whose body names its aggregate ([Name the aggregate in the body](./aggregates#name-the-aggregate-in-the-body)) needs no id, in this context or another: a request that names one beside the body names the same aggregate, and one that names another, or a body that names a blank id, fails the handler. A request without a type finds the target's type from the commands each context declares: this service's own Manifest, and the contract each peer's api jar carries. The handler fails when no context on the class path decides the class, or when several aggregates do; give the request its type then. `targetTenant` and `targetScope` send the command to another tenant or scope, and `expectedVersion` asks the target for that version.
 
@@ -67,7 +69,7 @@ A derived command answers the saga nothing by default: the saga's hop ends once 
   @OnEvent
   fun onPaymentSucceeded(
       event: StateTypedEvent<PaymentState, PaymentSucceeded>
-  ): CommandRequest<PayOrder> = CommandRequest.of(PayOrder(event.ref.id, event.state.amount), event.state.orderId)
+  ): CommandRequest<PayOrder> = PayOrder(event.ref.id, event.state.amount).toCommandRequest(event.state.orderId)
   ```
 
   A target of another context is followed on its published stream: the handler takes that context's event class, whose aggregate its contract names ([Publish and Consume Streams](./published-streams)).
@@ -77,6 +79,9 @@ A derived command answers the saga nothing by default: the saga's hop ends once 
   <!-- sample: fragment -->
 
   ```kotlin
+  import me.ahoo.wow.api.client.toCommandRequest
+  import me.ahoo.wow.api.subscribe.schedule
+
   private const val STOCK_DEADLINE = "stock-deadline"
 
   @OnEvent
@@ -85,10 +90,9 @@ A derived command answers the saga nothing by default: the saga's hop ends once 
       event: StateTypedEvent<OrderState, OrderAwaitingValidation>,
       context: SagaContext,
   ): List<CommandRequest<ReserveStock>> {
-      val deadline = CommandRequest.of(CancelOrder("No stock in time."), event.ref.id)
-      context.schedule(STOCK_DEADLINE, ScheduleRule.after(10.minutes), deadline)
+      context.schedule(STOCK_DEADLINE, ScheduleRule.after(10.minutes), CancelOrder("No stock in time."), event.ref.id)
       return event.state.quantities().map { (productId, quantity) ->
-          CommandRequest.of(ReserveStock(event.ref.id, quantity), productId)
+          ReserveStock(event.ref.id, quantity).toCommandRequest(productId)
       }
   }
 
@@ -114,7 +118,7 @@ A saga that must know that its own command committed, because the target's strea
 fun onReserveCommitted(
     committed: CommandReceipt.Committed<ReserveStock>
 ): CommandRequest<ConfirmOrderStock> =
-    CommandRequest.of(ConfirmOrderStock(committed.ref.id), committed.source.id)
+    ConfirmOrderStock(committed.ref.id).toCommandRequest(committed.source.id)
 ```
 
 `source` is the aggregate whose commit derived the command, here the order; `ref` is the aggregate the command was committed on, here the product's stock. Only the commands an `@OnCommitted` handler takes ask for a receipt of their commit, so no other command costs one; a rejection's receipt is asked for by the commands an `@OnRejected` handler takes. A command to another context carries the request with it, and the target sends the receipt back on `wow.<sender>.receipts` once the command is committed. The receipt carries the command's result, not the target's state.
@@ -131,10 +135,8 @@ A derived command may be refused: the stock is short, the order was cancelled me
 /** A product the inventory cannot reserve cancels the order that asked for it. */
 @OnRejected
 fun onReserveRejected(rejected: CommandReceipt.Rejected<ReserveStock>): CommandRequest<CancelOrder> =
-    CommandRequest.of(
-        CancelOrder("${rejected.ref.id} cannot be reserved: ${rejected.error.message}"),
-        rejected.source.id,
-    )
+    CancelOrder("${rejected.ref.id} cannot be reserved: ${rejected.error.message}")
+        .toCommandRequest(rejected.source.id)
 ```
 
 `CommandReceipt.Rejected` names the command (`commandId`, `commandType`, `ref`), its `error` (code, message, violations, extensions), the saga's `executionId` and its `source`, the aggregate whose commit derived the command; it does not carry the command's body. A rejection from another context comes back as a receipt. The runtime hands each rejection over once.
@@ -169,14 +171,12 @@ By default a saga derives its commands and the command topic delivers them. When
 @Sends(calls = [SubmitOrder::class])
 suspend fun onBasketCheckedOut(event: StateTypedEvent<BasketState, BasketCheckedOut>, context: SagaContext) {
     val checkedOut = event.event
-    context.call(
-        CommandRequest.of(SubmitOrder(checkedOut.items.map { OrderItem(it.productId, it.unitPrice, it.quantity) })),
-    )
+    context.call(SubmitOrder(checkedOut.items.map { OrderItem(it.productId, it.unitPrice, it.quantity) }))
 }
 ```
 
 - The handler declares the classes it calls in `@Sends(calls = [...])`. The Manifest lists them, a wait follows the call, and `call` refuses any other class.
-- `call` takes a `CommandRequest`, derived as a returned one is, and returns the command's result once it is committed on the target: its deterministic request id makes every retry the same request, which the target decides once. A call waits for the commit, so its request takes no `wait` or `timeout`.
+- `call` takes the command, its id and a block of the request's other fields, as `toCommandRequest` does, imported with `import me.ahoo.wow.api.subscribe.call`; a request already built is passed as it is, `context.call(request)`, and a request given with a block fails the handling. The request is derived as a returned one is, and `call` returns the command's result once it is committed on the target: its deterministic request id makes every retry the same request, which the target decides once. A call waits for the commit, so its request takes no `wait` or `timeout`.
 - A creation may name no id, as the checkout's `SubmitOrder` does: the target gives the aggregate its id (the ordering numbers the order, `SO-261031-42`), and the result names it. A retry or a replay is the same request, answered with the same aggregate, and takes no other id.
 - A refusal throws `CommandRejectedException`, a business outcome that is not retried. A handler that lets it through hands it to the saga's `@OnRejected` handler of the called command, as a derived command's rejection; without one, the aggregate parks at once. A call that fails or reaches no result throws `WowProblemException`, retryable with the same request id: the handler fails and is retried, then parks the aggregate. These are the exceptions a `CommandClient` throws.
 - The node reaches the target on its internal port: its nodes are found by DNS from the service its contract names, or at `wow.peers.<context>.url` ([Configure a peer](./calling-services#configure-a-peer-over-http)). A node does not start when a handler calls a context it cannot reach. A command of the saga's own context is derived, never called.
@@ -184,7 +184,7 @@ suspend fun onBasketCheckedOut(event: StateTypedEvent<BasketState, BasketChecked
 
 ## Schedule a command
 
-`context.schedule(key, rule, request)` asks the request's target to schedule its command for itself under `key`; `context.cancelSchedule(key, target)` cancels it. Both record into the context: the runtime sends them after the commands the handler returns, in the order the handler called them. Any handler of the saga may schedule, an `@OnSchedule` job's too. The handler declares the scheduled commands' classes in `@Sends(schedules = [...])`, which the Manifest lists by full type name. An aggregate can also schedule commands from its own decision, with the `DecideScope`: [Write an Aggregate](./aggregates#ask-the-kernel-for-more).
+`context.schedule(key, rule, command, id)` (`import me.ahoo.wow.api.subscribe.schedule`; a block sets the request's other fields, and `context.schedule(key, rule, request)` takes a request already built) asks the target to schedule the command for itself under `key`; `context.cancelSchedule(key, target)` cancels it. Both record into the context: the runtime sends them after the commands the handler returns, in the order the handler called them. Any handler of the saga may schedule, an `@OnSchedule` job's too. The handler declares the scheduled commands' classes in `@Sends(schedules = [...])`, which the Manifest lists by full type name. An aggregate can also schedule commands from its own decision, with the `DecideScope`: [Write an Aggregate](./aggregates#ask-the-kernel-for-more).
 
 ## Where it starts
 

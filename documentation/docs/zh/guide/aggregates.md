@@ -93,7 +93,7 @@ data class RestockProduct(
 )
 ```
 
-这样的命令只提供 `POST /<context>/<aggregate>/<command>` 一条路由，不带 `{id}`，作用于命令体指明的聚合。Saga 用 `CommandRequest.of(body)` 发送它，客户端发送时也不带 ID。发往另一个上下文的这类命令进入该上下文的命令主题时按聚合分区，同一个聚合的命令因此保持顺序。准入在授权之前读取命令体，所以策略看到的仍是聚合 `<aggregate>/<id>`。该聚合的生命周期命令保留带 `{id}` 的路由。
+这样的命令只提供 `POST /<context>/<aggregate>/<command>` 一条路由，不带 `{id}`，作用于命令体指明的聚合。Saga 用 `body.toCommandRequest()` 发送它，客户端发送时也不带 ID。发往另一个上下文的这类命令进入该上下文的命令主题时按聚合分区，同一个聚合的命令因此保持顺序。准入在授权之前读取命令体，所以策略看到的仍是聚合 `<aggregate>/<id>`。该聚合的生命周期命令保留带 `{id}` 的路由。
 
 | 属性 | 承载 |
 | --- | --- |
@@ -101,13 +101,13 @@ data class RestockProduct(
 | 计算属性 `String`，如 `val stockId: String get() = "$warehouseId-$sku"` | 由其他字段算出的 ID：只发送那些字段的发送方可以不带它，由服务算出 |
 | 可创建聚合的命令上的 `String?` | ID；为 null 时交给服务端分配，与任何不指明 ID 的创建一样，重试沿用第一次的 ID |
 
-准入会检查这个 ID：空白的 ID 是 `wow.command.malformed`（400）；在命令体之外又指明了另一个聚合的请求（例如 Kotlin 客户端的 `CommandRequest.to(ref, body)`）同样是 `wow.command.malformed`。指明同一个聚合的请求会被接受。
+准入会检查这个 ID：空白的 ID 是 `wow.command.malformed`（400）；在命令体之外又指明了另一个聚合的请求（例如 Kotlin 客户端的 `wait(body) { to(ref) }`）同样是 `wow.command.malformed`。指明同一个聚合的请求会被接受。
 
 这个属性由命令类或它实现的接口声明，是 public 或 internal，并且 Wow 的 JSON 会写出它（没有 `@JsonIgnore`），所以每个发送方的命令体里都有它。在 Kotlin 属性上，标记要放在属性本身：`@get:AggregateId` 无法编译，因为这个注解不适用于 getter；属性或它的 getter 上的 `@JsonIgnore` 会让构建失败，因为 Wow 的 JSON 必须写出这个 ID。计算出的 `val` 同样可以标：发送方只发送计算 ID 所用的那些属性时，可以不带 ID，命令会由这些属性算出它。一条命令只有一个属性指明聚合。编译器拒绝把它用在 `@Unaddressed` 命令或挂载命令上（它们的聚合由转换器找到），也拒绝用在 ID 即所有者 ID 的聚合上。接收这类命令的 `CommandTransformer` 会让服务在启动时失败。
 
 Wow 10 只按 `@AggregateId` 从命令体取得命令的聚合，从不按属性名推断。因此，命令有 `String` 类型、名为 `id` 的属性却没有 `@AggregateId`，而它本可以指明聚合时，无论命令在哪里编译（包括上下文的 api 模块），编译器都会报告它。这个 `id` 可以是存储的或计算的，可以是命令自己的、超类的，也可以来自接口，例如 9.x 的 `Identifier.id`。由于 9.x 是从命令对象读取这个 `id` 的，报告也涵盖 Wow 的 JSON 不写出的（`@JsonIgnore`）或私有的 `id`，并指出这个 `id` 来自哪里、是什么使它无法标注。
 
-对创建聚合的命令（`@CreateAggregate` 或 `@AllowCreate`），这个报告是编译错误：创建命令不带 ID 发送时（例如 Saga 用 `CommandRequest.of(body)` 发送），会得到生成的 ID，无论它的 `id` 是什么，都会成为一个新聚合。其他命令不带 ID 发送时会在发送处被拒绝，所以对它们，报告是一个更早说明这一点的警告。如果这个 `id` 指明的是聚合，就给它标注 `@AggregateId`：命令体指明聚合的 9.x 命令都需要这样做；如果它还不是 Wow 的 JSON 写出的公开属性，先把它改成这样。如果 9.x 从路径绑定它，它只是重复了路由：删掉它，改读 `command.ref.id`（[命令体承载什么](../migrate/source#what-a-command-body-holds)）。指明其他东西的 `id` 保留不动，用 `@Suppress("UnmarkedAggregateId")` 说明这一点：标在命令类上；命令类在另一个模块中编译时（例如上下文的 api 模块，它的 `@Suppress` 到不了领域模块的编译），标在它的命令函数上。Java 命令标注它的字段，由公开的 getter 读取；Java record 标注它的组件，如 `public record RenameAccount(@AggregateId String id, String owner)`，无论在领域模块还是 api 模块中编译都一样。在函数中只有 record 的组件接受这个标注：标在其他任何函数上都是编译错误。
+对创建聚合的命令（`@CreateAggregate` 或 `@AllowCreate`），这个报告是编译错误：创建命令不带 ID 发送时（例如 Saga 用 `body.toCommandRequest()` 发送），会得到生成的 ID，无论它的 `id` 是什么，都会成为一个新聚合。其他命令不带 ID 发送时会在发送处被拒绝，所以对它们，报告是一个更早说明这一点的警告。如果这个 `id` 指明的是聚合，就给它标注 `@AggregateId`：命令体指明聚合的 9.x 命令都需要这样做；如果它还不是 Wow 的 JSON 写出的公开属性，先把它改成这样。如果 9.x 从路径绑定它，它只是重复了路由：删掉它，改读 `command.ref.id`（[命令体承载什么](../migrate/source#what-a-command-body-holds)）。指明其他东西的 `id` 保留不动，用 `@Suppress("UnmarkedAggregateId")` 说明这一点：标在命令类上；命令类在另一个模块中编译时（例如上下文的 api 模块，它的 `@Suppress` 到不了领域模块的编译），标在它的命令函数上。Java 命令标注它的字段，由公开的 getter 读取；Java record 标注它的组件，如 `public record RenameAccount(@AggregateId String id, String owner)`，无论在领域模块还是 api 模块中编译都一样。在函数中只有 record 的组件接受这个标注：标在其他任何函数上都是编译错误。
 
 ### 只在内部受理的命令 {#keep-a-command-internal}
 

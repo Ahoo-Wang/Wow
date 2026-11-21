@@ -133,7 +133,7 @@ data class CreateShelf(override val warehouseId: String, override val code: Stri
 }
 ```
 
-不标注的话，不带 id 发出的创建命令，无论是 Saga 的 `CommandRequest.of(body)` 还是客户端发的，都会得到一个生成的 id：指向的不是 9.x 那个聚合，用同一业务键第二次创建也会被接受，而不是回答 `wow.aggregate.exists`。
+不标注的话，不带 id 发出的创建命令，无论是 Saga 的 `body.toCommandRequest()` 还是客户端发的，都会得到一个生成的 id：指向的不是 9.x 那个聚合，用同一业务键第二次创建也会被接受，而不是回答 `wow.aggregate.exists`。
 
 在 decide 中，`CommandMessage<X>` 是 `Command<X>`，`command.aggregateId.id` 是 `command.ref.id`，`command.ownerId` 是 `command.scope.ownerId`，9.x 的 `CommandResultAccessor` 是 `DecideScope.putResult`，在 decide 中生成的 ID 来自 `scope.ids.next()`。
 
@@ -189,7 +189,7 @@ Saga、投影或反应器恰好带有 `@Saga`、`@Projection`、`@Reactor` 之�
 @OnEvent
 fun onOrderSubmitted(
     event: StateTypedEvent<OrderState, OrderSubmitted>
-): CommandRequest<AwaitStockValidation> = CommandRequest.of(AwaitStockValidation, event.ref.id)
+): CommandRequest<AwaitStockValidation> = AwaitStockValidation.toCommandRequest(event.ref.id)
 ```
 
 处理过 9.x `onError` 的 Saga，要为被拒绝的推导命令加上 `@OnRejected` 处理函数。没有处理它的 Saga（9.x 只记录派生命令的失败并继续）有两种移植方式，按命令逐一决定。返回 `Unit`、接受这次拒绝的 `@OnRejected` 处理函数，保留 9.x 的行为。不写处理函数是 V10 的默认：发往 Saga 自身上下文的命令被拒绝，会停放 Saga 的源聚合，直到它被恢复（[处理拒绝](../guide/sagas#handle-a-rejection)）。补偿不会再被补偿：`@OnRejected` 或 `@OnCommitted` 处理函数派生的命令如果又被拒绝，同样会停放聚合，也不会交给任何处理函数，所以多步交接里每一条需要补偿的命令，都要从 `@OnEvent` 处理函数派生。9.x Saga 为去重而在派生命令上设置的字面请求 ID，不会成为命令的请求 ID：派生命令的请求 ID 来自这次执行、它的目标和类型，而请求的 `requestId` 只在这次执行内作为业务键（[构建命令](../guide/sagas#build-the-commands)）。读取 9.x 只读状态聚合标签的 Saga，改读 `event.state` 的访问属性，即提交之后的状态，而不是快照里的。处理其他上下文事件的处理器，通过那个上下文的 `*-api` jar 读取它发布的事件流（[发布与消费事件流](../guide/published-streams)）。

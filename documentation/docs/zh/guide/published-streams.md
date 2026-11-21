@@ -32,10 +32,8 @@ ordering 原样发布它的订单，主题是 `wow.eshop-ordering.order.state`�
 @OnEvent
 fun onOrderStockConfirmed(
     event: StateTypedEvent<OrderStateView, OrderStockConfirmed>
-): CommandRequest<RequestPayment> = CommandRequest.of(
-    RequestPayment(event.ref.id, event.state.totalAmount),
-    event.ref.id
-)
+): CommandRequest<RequestPayment> =
+    RequestPayment(event.ref.id, event.state.totalAmount).toCommandRequest(event.ref.id)
 ```
 
 - **事件类。** `OrderStockConfirmed` 是 ordering api 中的类。payment 的领域模块为生成的 `OrderStateView` 索取 ordering api 的契约，`implementation(wow.contract(project(":eshop-ordering-api")))`；payment 的服务无需写一行就能找到 ordering 的契约（`META-INF/wow/contract.json`）。
@@ -75,10 +73,10 @@ fun onOrderStockConfirmed(
 @OnEvent
 fun onPaymentSucceeded(
     event: StateTypedEvent<PaymentState, PaymentSucceeded>
-): CommandRequest<PayOrder> = CommandRequest.of(PayOrder(event.ref.id, event.state.amount), event.state.orderId)
+): CommandRequest<PayOrder> = PayOrder(event.ref.id, event.state.amount).toCommandRequest(event.state.orderId)
 ```
 
-`CommandRequest.of(body, id)` 从 ordering api 的契约找到 ordering 的订单，命令发往 ordering 的命令主题 `wow.eshop-ordering.commands`。拒绝以回执的形式返回到 Saga 的 `@OnRejected` 处理函数：
+`body.toCommandRequest(id)` 从 ordering api 的契约找到 ordering 的订单，命令发往 ordering 的命令主题 `wow.eshop-ordering.commands`。拒绝以回执的形式返回到 Saga 的 `@OnRejected` 处理函数：
 
 <!-- sample: examples/eshop/payment/payment-domain/src/main/kotlin/me/ahoo/wow/example/eshop/payment/domain/payment/OrderPaymentSaga.kt#peer-rejected -->
 
@@ -86,10 +84,8 @@ fun onPaymentSucceeded(
 /** An order that refuses its payment has the payment refunded. */
 @OnRejected
 fun onPayRejected(rejected: CommandReceipt.Rejected<PayOrder>): CommandRequest<RefundPayment> =
-    CommandRequest.of(
-        RefundPayment("The order ${rejected.ref.id} refused the payment: ${rejected.error.message}"),
-        rejected.source.id,
-    )
+    RefundPayment("The order ${rejected.ref.id} refused the payment: ${rejected.error.message}")
+        .toCommandRequest(rejected.source.id)
 ```
 
 派生命令、回执和拒绝的完整说明，见[编写 Saga](./sagas)。

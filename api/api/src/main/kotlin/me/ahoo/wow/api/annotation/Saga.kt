@@ -20,15 +20,18 @@ package me.ahoo.wow.api.annotation
  * Each handler is compiled into its own subscription, named `processor.function` (or its [Name]). A handler takes the
  * committed stream, or each of its events of a type, with the state after it, and optionally the
  * [me.ahoo.wow.api.subscribe.SagaContext], and returns the commands it derives as requests: one
- * [me.ahoo.wow.api.client.CommandRequest], or several (an `Iterable`, a `Sequence`, a `Flow`; empty or null for none).
+ * [me.ahoo.wow.api.client.CommandRequest], or several (an `Iterable`, a `Sequence`, a `Flow`; empty or null for none),
+ * each the command's [toCommandRequest][me.ahoo.wow.api.client.toCommandRequest] with the id of its aggregate.
  * [me.ahoo.wow.api.subscribe.SagaContext] says how each becomes a command.
  *
  * ```kotlin
+ * import me.ahoo.wow.api.client.toCommandRequest
+ *
  * @Saga
  * class PaymentSaga {
  *     @OnEvent
  *     fun onOrderPlaced(event: StateTypedEvent<OrderState, OrderPlaced>): CommandRequest<RequestPayment> =
- *         CommandRequest.of(RequestPayment(event.event.amount), event.ref.id)
+ *         RequestPayment(event.event.amount).toCommandRequest(event.ref.id)
  * }
  * ```
  *

@@ -18,7 +18,7 @@ Saga 是一个标注了 `@Saga` 的类。每个处理函数标注 `@OnEvent`，�
 @OnEvent
 fun onOrderSubmitted(
     event: StateTypedEvent<OrderState, OrderSubmitted>
-): CommandRequest<AwaitStockValidation> = CommandRequest.of(AwaitStockValidation, event.ref.id)
+): CommandRequest<AwaitStockValidation> = AwaitStockValidation.toCommandRequest(event.ref.id)
 ```
 
 - **它接收什么。** `StateTypedEvent<S, E>` 对已提交流中的每个事件 `E` 调用一次处理函数，`event` 是那个事件，`state` 是整次提交之后聚合的状态。`StateEvent<S>` 每条流调用一次，带着它全部的 `events`。状态类型 `S` 选出模块所在上下文中以它为状态的聚合。聚合的访问属性是它状态的成员（`@Access`），所以 Saga 从 `state` 读取提交时的访问属性，不必去读可能滞后于提交的快照。
@@ -32,10 +32,12 @@ fun onOrderSubmitted(
 
 | 请求 | 派生 |
 | --- | --- |
-| `CommandRequest.of(body, id)` | 一条发往聚合 `id` 的命令，聚合类型是决定 `body` 类的那个类型，在这次提交的租户中 |
-| `CommandRequest.of(body)` | 一条发往该类型新聚合的创建命令，由目标为它分配 ID；命令体指明了聚合的命令（`@AggregateId`）则发往那个聚合 |
-| `CommandRequest.to(ref, body)` | 一条发往 `ref` 所指聚合的命令，可以是任何类型和租户 |
-| `CommandRequest.of(body, type = type)` | 一条发往 `type` 类型新聚合的创建命令，由目标为它分配 ID |
+| `body.toCommandRequest(id)` | 一条发往聚合 `id` 的命令，聚合类型是决定 `body` 类的那个类型，在这次提交的租户中 |
+| `body.toCommandRequest()` | 一条发往该类型新聚合的创建命令，由目标为它分配 ID；命令体指明了聚合的命令（`@AggregateId`）则发往那个聚合 |
+| `body.toCommandRequest { to(ref) }` | 一条发往 `ref` 所指聚合的命令，可以是任何类型和租户 |
+| `body.toCommandRequest { type(type) }` | 一条发往 `type` 类型新聚合的创建命令，由目标为它分配 ID |
+
+`toCommandRequest` 是每个命令都有的函数，从客户端的包导入：`import me.ahoo.wow.api.client.toCommandRequest`。它的块按 Java 调用方在 `CommandRequest.builder(body)` 上链式调用的名字设置请求的其他字段：`to(ref)`、`type`、`targetTenant`、`targetScope`、`requestId`、`expectedVersion`。`CommandRequest.of`、`CommandRequest.to` 与 builder 造出的是同一个请求。
 
 命令体指明了聚合的命令（[在命令体中指明聚合](./aggregates#name-the-aggregate-in-the-body)）不需要 ID，无论发往本上下文还是另一个上下文：在命令体之外又给出 ID 的请求必须指明同一个聚合，指明另一个聚合，或命令体里的 ID 为空白时，处理函数失败。没有类型的请求从各上下文声明的命令中找出目标的类型：本服务自己的 Manifest，以及每个对端 api jar 携带的契约。类路径上没有任何上下文决定这个类，或者有多个聚合决定它时，处理函数失败；这时给请求指定类型。`targetTenant` 和 `targetScope` 把命令发往另一个租户或作用域，`expectedVersion` 要求目标处于那个版本。
 
@@ -67,7 +69,7 @@ fun onOrderSubmitted(
   @OnEvent
   fun onPaymentSucceeded(
       event: StateTypedEvent<PaymentState, PaymentSucceeded>
-  ): CommandRequest<PayOrder> = CommandRequest.of(PayOrder(event.ref.id, event.state.amount), event.state.orderId)
+  ): CommandRequest<PayOrder> = PayOrder(event.ref.id, event.state.amount).toCommandRequest(event.state.orderId)
   ```
 
   另一个上下文的目标通过它发布的事件流跟随：处理函数接收那个上下文的事件类，由其契约指明所属聚合（[发布与消费事件流](./published-streams)）。
@@ -77,6 +79,9 @@ fun onOrderSubmitted(
   <!-- sample: fragment -->
 
   ```kotlin
+  import me.ahoo.wow.api.client.toCommandRequest
+  import me.ahoo.wow.api.subscribe.schedule
+
   private const val STOCK_DEADLINE = "stock-deadline"
 
   @OnEvent
@@ -85,10 +90,9 @@ fun onOrderSubmitted(
       event: StateTypedEvent<OrderState, OrderAwaitingValidation>,
       context: SagaContext,
   ): List<CommandRequest<ReserveStock>> {
-      val deadline = CommandRequest.of(CancelOrder("No stock in time."), event.ref.id)
-      context.schedule(STOCK_DEADLINE, ScheduleRule.after(10.minutes), deadline)
+      context.schedule(STOCK_DEADLINE, ScheduleRule.after(10.minutes), CancelOrder("No stock in time."), event.ref.id)
       return event.state.quantities().map { (productId, quantity) ->
-          CommandRequest.of(ReserveStock(event.ref.id, quantity), productId)
+          ReserveStock(event.ref.id, quantity).toCommandRequest(productId)
       }
   }
 
@@ -114,7 +118,7 @@ fun onOrderSubmitted(
 fun onReserveCommitted(
     committed: CommandReceipt.Committed<ReserveStock>
 ): CommandRequest<ConfirmOrderStock> =
-    CommandRequest.of(ConfirmOrderStock(committed.ref.id), committed.source.id)
+    ConfirmOrderStock(committed.ref.id).toCommandRequest(committed.source.id)
 ```
 
 `source` 是那次派生出命令的提交所属的聚合，这里是订单；`ref` 是提交了命令的聚合，这里是商品的库存。只有 `@OnCommitted` 处理函数接收的命令才会要求提交的回执，所以其他命令不需要为此付出任何代价；拒绝的回执由 `@OnRejected` 处理函数接收的命令要求。发往另一个上下文的命令随身带着这个请求，目标在命令提交后通过 `wow.<sender>.receipts` 发回回执。回执带着命令的结果，而不是目标的状态。
@@ -131,10 +135,8 @@ fun onReserveCommitted(
 /** A product the inventory cannot reserve cancels the order that asked for it. */
 @OnRejected
 fun onReserveRejected(rejected: CommandReceipt.Rejected<ReserveStock>): CommandRequest<CancelOrder> =
-    CommandRequest.of(
-        CancelOrder("${rejected.ref.id} cannot be reserved: ${rejected.error.message}"),
-        rejected.source.id,
-    )
+    CancelOrder("${rejected.ref.id} cannot be reserved: ${rejected.error.message}")
+        .toCommandRequest(rejected.source.id)
 ```
 
 `CommandReceipt.Rejected` 写明了命令（`commandId`、`commandType`、`ref`）、它的 `error`（错误码、消息、violations、扩展）Saga 的 `executionId`，以及 `source`，即派生出命令的提交所属的聚合；它不带命令体。来自另一个上下文的拒绝以回执的形式返回。运行时把每个拒绝只交出一次。
@@ -169,14 +171,12 @@ fun onReleaseRejected(rejected: CommandReceipt.Rejected<ReleaseReservation>) = U
 @Sends(calls = [SubmitOrder::class])
 suspend fun onBasketCheckedOut(event: StateTypedEvent<BasketState, BasketCheckedOut>, context: SagaContext) {
     val checkedOut = event.event
-    context.call(
-        CommandRequest.of(SubmitOrder(checkedOut.items.map { OrderItem(it.productId, it.unitPrice, it.quantity) })),
-    )
+    context.call(SubmitOrder(checkedOut.items.map { OrderItem(it.productId, it.unitPrice, it.quantity) }))
 }
 ```
 
 - 处理函数在 `@Sends(calls = [...])` 里声明它调用的类。Manifest 列出它们，等待会跟随这次调用，`call` 拒绝其他任何类。
-- `call` 接收一个 `CommandRequest`，像返回的请求一样派生，在命令于目标上提交后返回它的结果：确定的请求 ID 让每次重试都是同一个请求，目标只决定一次。调用等待的是提交，所以它的请求不带 `wait` 或 `timeout`。
+- `call` 接收命令、它的 ID 和设置请求其他字段的块，与 `toCommandRequest` 相同，用 `import me.ahoo.wow.api.subscribe.call` 导入；已经造好的请求直接传入，`context.call(request)`，带着块传入请求会让这次处理失败。请求像返回的请求一样派生，在命令于目标上提交后返回它的结果：确定的请求 ID 让每次重试都是同一个请求，目标只决定一次。调用等待的是提交，所以它的请求不带 `wait` 或 `timeout`。
 - 创建命令可以不带 ID，就像结账的 `SubmitOrder`：由目标给聚合分配 ID（ordering 为订单编号，`SO-261031-42`），结果里写明它。重试或重放是同一个请求，得到同一个聚合，不会再取别的 ID。
 - 拒绝会抛出 `CommandRejectedException`，这是业务结果，不会重试。处理函数放过它时，它像派生命令的拒绝一样交给 Saga 处理被调用命令的 `@OnRejected` 处理函数；没有这样的处理函数时，聚合立即停放。失败或没有得到结果的调用抛出 `WowProblemException`，可以用同一个请求 ID 重试：处理函数失败并重试，之后停放这个聚合。它们就是 `CommandClient` 抛出的异常。
 - 节点通过目标的内部端口访问它：按目标契约声明的服务经 DNS 找到它的节点，或者使用 `wow.peers.<context>.url`（[配置对端](./calling-services#configure-a-peer-over-http)）。处理函数调用的上下文无法到达时，节点不会启动。Saga 自己上下文的命令总是派生，从不调用。
@@ -184,7 +184,7 @@ suspend fun onBasketCheckedOut(event: StateTypedEvent<BasketState, BasketChecked
 
 ## 定时命令 {#schedule-a-command}
 
-`context.schedule(key, rule, request)` 要求请求的目标在 `key` 下为自己定时它的命令；`context.cancelSchedule(key, target)` 取消它。两者都记录到上下文中：运行时在处理函数返回的命令之后、按调用顺序发送它们。Saga 的任何处理函数都可以定时，`@OnSchedule` 任务的处理函数也可以。处理函数要在 `@Sends(schedules = [...])` 里声明被定时命令的类，Manifest 按完整类型名列出它们。聚合也可以在自己的决定中用 `DecideScope` 定时命令：见[编写聚合](./aggregates#ask-the-kernel-for-more)。
+`context.schedule(key, rule, command, id)`（`import me.ahoo.wow.api.subscribe.schedule`；块设置请求的其他字段，`context.schedule(key, rule, request)` 接收已经造好的请求）要求目标在 `key` 下为自己定时这条命令；`context.cancelSchedule(key, target)` 取消它。两者都记录到上下文中：运行时在处理函数返回的命令之后、按调用顺序发送它们。Saga 的任何处理函数都可以定时，`@OnSchedule` 任务的处理函数也可以。处理函数要在 `@Sends(schedules = [...])` 里声明被定时命令的类，Manifest 按完整类型名列出它们。聚合也可以在自己的决定中用 `DecideScope` 定时命令：见[编写聚合](./aggregates#ask-the-kernel-for-more)。
 
 ## 从哪里开始 {#where-it-starts}
 

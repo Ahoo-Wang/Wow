@@ -177,6 +177,9 @@ interface SagaContext : SubscriptionContext {
      * A cron rule whose expression or time zone cannot be read, or that names no time that ever comes, is the
      * handler's mistake: its handling fails for good and parks. A rule from input is checked by the domain before it
      * is scheduled.
+     *
+     * The shorthand takes the command itself, its id and a block of the request's other fields
+     * (`context.schedule(key, rule, CancelOrder(reason), orderId)`, `import me.ahoo.wow.api.subscribe.schedule`).
      */
     fun schedule(key: String, rule: ScheduleRule, request: CommandRequest<*>)
 
@@ -204,6 +207,9 @@ interface SagaContext : SubscriptionContext {
      *
      * It is a `suspend` function, so a Java saga cannot call it (a blocking bridge is planned for
      * 10.x): a Java saga derives its commands instead.
+     *
+     * The shorthand takes the command itself, its id and a block of the request's other fields
+     * (`context.call(SubmitOrder(items))`, `import me.ahoo.wow.api.subscribe.call`).
      *
      * @throws CommandRejectedException when the target refuses it, a business outcome that is not retried.
      * @throws WowProblemException when it reaches no result or fails there: the handler fails, is retried within its

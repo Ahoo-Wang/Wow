@@ -18,7 +18,6 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandRejectedException
-import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.client.wait
 import me.ahoo.wow.api.lifecycle.DeleteAggregate
 import me.ahoo.wow.api.lifecycle.RestoreAggregate
@@ -106,14 +105,13 @@ class OrderLifecycleTest {
     private fun submitted(buyer: Caller): String {
         val id = "order-" + UUID.randomUUID()
         val items = listOf(OrderItem("mug", BigDecimal("8.50"), 2), OrderItem("cap", BigDecimal("12.00"), 1))
-        val request = CommandRequest.builder(SubmitOrder(items)).id(id).wait(TO_VALIDATION).build()
-        runBlocking { server.commands(buyer).wait(request) }
+        runBlocking { server.commands(buyer).wait(SubmitOrder(items), id) { wait(TO_VALIDATION) } }
         return id
     }
 
     /** Sends the lifecycle [command] (`wow.lifecycle.*`) to the order [id] as [caller]. */
     private fun lifecycle(id: String, command: Any, caller: Caller): CommandResult = runBlocking {
-        server.commands(caller).wait(CommandRequest.of(command, id = id, type = EshopOrderingContract.Order.TYPE))
+        server.commands(caller).wait(command, id) { type(EshopOrderingContract.Order.TYPE) }
     }
 
     private fun confirm(id: String, caller: Caller) {

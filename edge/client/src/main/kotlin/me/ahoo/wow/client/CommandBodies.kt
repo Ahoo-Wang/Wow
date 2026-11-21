@@ -42,7 +42,7 @@ internal object CommandBodies {
         }
         requireUse(inBody == null || inBody == id) {
             "The request names the aggregate $id, but the body of $name names $inBody: send it without an id, " +
-                "CommandRequest.of(body)."
+                "body.toCommandRequest()."
         }
         if (inBody == null) {
             requireUse(tree is ObjectNode) { "The body of $name is no JSON object." }

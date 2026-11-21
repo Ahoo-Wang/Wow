@@ -222,7 +222,7 @@ internal class ProcessorHandling(
             "The saga sends ${body.javaClass.name} naming no ${ref.type} to act on, which the service refuses: only " +
                 "a command that creates its aggregate, one its body names the aggregate of (@AggregateId), or one " +
                 "a transformer addresses (@Unaddressed) may leave its id out. Name the aggregate: " +
-                "CommandRequest.of(command, id)."
+                "command.toCommandRequest(id)."
         }
         return this
     }

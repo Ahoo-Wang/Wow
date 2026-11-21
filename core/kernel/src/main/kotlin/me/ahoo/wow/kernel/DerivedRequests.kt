@@ -134,8 +134,8 @@ suspend fun requestsOf(result: Any?): List<CommandRequest<*>> = when (result) {
 private fun requestOf(element: Any?): CommandRequest<*> = when (element) {
     is CommandRequest<*> -> element
     is Command<*> -> throw InvalidDerivedRequestException(
-        "A saga returns command requests, not the command ${element.id}: return CommandRequest.to(ref, body), " +
-            "or CommandRequest.of(body, id).",
+        "A saga returns command requests, not the command ${element.id}: return body.toCommandRequest(id), " +
+            "or body.toCommandRequest { to(ref) }.",
     )
 
     else -> throw InvalidDerivedRequestException("A saga derives command requests, not $element.")

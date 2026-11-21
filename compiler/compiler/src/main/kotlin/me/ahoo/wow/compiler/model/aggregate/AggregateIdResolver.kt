@@ -165,7 +165,7 @@ internal object AggregateIdResolver {
      *
      * The caller makes it an error for a command that [creates] its aggregate and a warning for any other, and the
      * two severities are the two outcomes of the same send. A creation sent without an aggregate id, as a saga's
-     * `CommandRequest.of(body)` or a client's route without an id sends it, takes a generated id: a new aggregate
+     * `body.toCommandRequest()` or a client's route without an id sends it, takes a generated id: a new aggregate
      * where 9.x addressed the one its `id` named, silently, so the build refuses it until the `id` is marked or the
      * command says it is not the aggregate's. Any other command sent without an id is refused where it is sent, by
      * admission or for want of a route, so the warning only says so earlier.
@@ -192,7 +192,7 @@ internal object AggregateIdResolver {
             "command function where the class is compiled in another module."
         if (creates) {
             return "command $name creates its aggregate and $has: sent without an aggregate id, as a saga's " +
-                "CommandRequest.of(body) or a client's route without an id sends it, it creates a new aggregate " +
+                "body.toCommandRequest() or a client's route without an id sends it, it creates a new aggregate " +
                 "under a generated id, whatever its $ID holds. If $ID names $name's aggregate, $mark; if it names " +
                 "something else, $suppress"
         }

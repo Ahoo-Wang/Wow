@@ -90,9 +90,7 @@ basket 上下文不创建订单：订单归 ordering 上下文所有。basket �
 @Sends(calls = [SubmitOrder::class])
 suspend fun onBasketCheckedOut(event: StateTypedEvent<BasketState, BasketCheckedOut>, context: SagaContext) {
     val checkedOut = event.event
-    context.call(
-        CommandRequest.of(SubmitOrder(checkedOut.items.map { OrderItem(it.productId, it.unitPrice, it.quantity) })),
-    )
+    context.call(SubmitOrder(checkedOut.items.map { OrderItem(it.productId, it.unitPrice, it.quantity) }))
 }
 ```
 

@@ -16,6 +16,7 @@ package me.ahoo.wow.viewstore.domain.view
 import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.Saga
 import me.ahoo.wow.api.client.CommandRequest
+import me.ahoo.wow.api.client.toCommandRequest
 import me.ahoo.wow.api.lifecycle.TransferOwner
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.viewstore.api.ViewStoreContext
@@ -39,6 +40,6 @@ class ViewAudienceSaga {
                 else -> null
             }
         } ?: return null
-        return CommandRequest.to(event.ref, TransferOwner.of(ownerId))
+        return TransferOwner.of(ownerId).toCommandRequest { to(event.ref) }
     }
 }

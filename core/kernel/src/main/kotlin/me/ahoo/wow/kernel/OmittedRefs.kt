@@ -30,17 +30,17 @@ internal fun CommandTypes.omittedTargetOf(command: Class<*>, handler: String): A
         when {
             Lifecycle.nameOf(command) != null ->
                 "$handler sends the lifecycle command ${command.name} without its target: every aggregate type " +
-                    "takes it, so give the request its type, CommandRequest.to(ref, body)."
+                    "takes it, so give the request its type, body.toCommandRequest { to(ref) }."
 
             targets.isEmpty() ->
                 "$handler sends ${command.name} without its target, and no contract assigns it an aggregate: " +
                     "neither the service's Manifest nor a peer contract on the class path " +
                     "(META-INF/wow/contract.json of an api jar) names it. Add the api module of the bounded context " +
-                    "that decides it to the dependencies, or give the request its type, CommandRequest.to(ref, body)."
+                    "that decides it to the dependencies, or give the request its type, body.toCommandRequest { to(ref) }."
 
             else ->
                 "$handler sends ${command.name} without its target, but several aggregate types decide it: " +
-                    "${targets.joinToString()}. Give the request one of them as its type, CommandRequest.to(ref, body)."
+                    "${targets.joinToString()}. Give the request one of them as its type, body.toCommandRequest { to(ref) }."
         },
     )
 }
@@ -82,7 +82,7 @@ private fun CommandRequest<*>.idOf(handler: String, inBody: String?): String? {
     if (id != null && inBody != id) {
         throw InvalidDerivedRequestException(
             "$handler derives ${command.javaClass.name} to the aggregate $id, but its body names $inBody: leave the " +
-                "id out, CommandRequest.of(body), and the body names its aggregate.",
+                "id out, body.toCommandRequest(), and the body names its aggregate.",
         )
     }
     return inBody

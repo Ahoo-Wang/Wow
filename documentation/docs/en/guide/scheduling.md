@@ -88,13 +88,13 @@ fun onSchedule(tick: ScheduleTick): List<CommandRequest<ReceiveStock>> {
     val days = (tick.skipped + 1 downTo 1).map { today.minusDays(it) }
     return days.flatMap { day -> deliveries.deliveredOn(tick.tenantId, day) }.map { delivery ->
         // The stock of the product, in the job instance's tenant: ReceiveStock names its aggregate type.
-        CommandRequest.of(ReceiveStock(delivery.quantity), delivery.productId)
+        ReceiveStock(delivery.quantity).toCommandRequest(delivery.productId)
     }
 }
 ```
 
 - **The tick.** `tenantId` is the instance's tenant and `job` the job's name. `slot` is the time that was due, counted from 1 since the instance was last enabled or rescheduled, and `due` when, in epoch milliseconds. `skipped` counts the slots before it that were missed while no node ran the job. `partition` is the instance's log partition, for a `SHARDED` job only.
-- **The commands.** A job's commands go to its instance's tenant, as a saga's go to the tenant of its commit: `CommandRequest.of(body, id)` names the aggregate `id` of the type that decides the body, in that tenant, as in the sample, and `targetTenant` sends one to another tenant. Their ids come from the tick's execution, so handling the tick again sends the same requests.
+- **The commands.** A job's commands go to its instance's tenant, as a saga's go to the tenant of its commit: `body.toCommandRequest(id)` names the aggregate `id` of the type that decides the body, in that tenant, as in the sample, and `targetTenant` in its block sends one to another tenant. Their ids come from the tick's execution, so handling the tick again sends the same requests.
 - **The instance.** Each job is kept by the context's built-in aggregate `<context>.schedule`: a `SYSTEM` or `TENANT` instance's id is the job's name, and a `SHARDED` job has one instance per partition. Each time the rule is due it commits a tick, and the job's subscription, `<processor>.<function>` (or the function's `@Name`), hands it to the handler, retried and parked as any subscription is. A job whose handler a new version removes, the last of its context's included, is disabled at its instances' next tick, and their schedule cancelled.
 
 `@OnSchedule` sets the job:
