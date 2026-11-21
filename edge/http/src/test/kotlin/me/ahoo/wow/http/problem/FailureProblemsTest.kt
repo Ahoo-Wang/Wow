@@ -35,9 +35,9 @@ import me.ahoo.wow.http.cartManifest
 import me.ahoo.wow.http.cartType
 import me.ahoo.wow.spi.StorageUnavailableException
 import org.junit.jupiter.api.Test
+import org.slf4j.LoggerFactory
 import org.springframework.core.io.buffer.DataBufferLimitException
 import org.springframework.http.HttpStatus
-import org.slf4j.LoggerFactory
 import org.springframework.web.server.ResponseStatusException
 import java.util.concurrent.CompletionException
 import kotlin.coroutines.cancellation.CancellationException
@@ -176,7 +176,8 @@ class FailureProblemsTest {
     fun `a failure of the framework's own is never offered to a mapper, even as the cause of another`() {
         // Claims whatever it is asked about but the wrapper an async boundary puts around a failure.
         val claiming = mapper("claiming") { failure ->
-            WowProblemException(CLAIMED, 418, Retry.NONE, null, "Claimed.").takeUnless { failure is CompletionException }
+            val claimed = WowProblemException(CLAIMED, 418, Retry.NONE, null, "Claimed.")
+            claimed.takeUnless { failure is CompletionException }
         }
         val problems = problems(claiming)
         val unauthenticated = ProblemException(
@@ -218,10 +219,18 @@ class FailureProblemsTest {
             repeat(FailureProblems.MAX_LOGGED + 10) { problems.problemOf(IllegalStateException("code-$it")) }
             // Logged once already: not again.
             problems.problemOf(IllegalStateException("code-0"))
+            // And one whose codes the framework reserves, each refused.
+            val reserving = mapper("reserved") { failure ->
+                WowProblemException("wow.${failure.message}", 502, Retry.NONE, null, "No.")
+            }
+            val reserved = problems(reserving)
+            repeat(FailureProblems.MAX_LOGGED + 10) { reserved.problemOf(IllegalStateException("code-$it")) }
         }
         events.count { it.level == Level.WARN && "no context's errors" in it.formattedMessage }.assert()
             .isEqualTo(FailureProblems.MAX_LOGGED)
-        events.count { "further ones are not logged" in it.formattedMessage }.assert().isEqualTo(1)
+        events.count { it.level == Level.ERROR && "a code the framework reserves" in it.formattedMessage }.assert()
+            .isEqualTo(FailureProblems.MAX_LOGGED)
+        events.count { "further ones are not logged" in it.formattedMessage }.assert().isEqualTo(2)
     }
 
     @Test

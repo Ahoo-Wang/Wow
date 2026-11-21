@@ -220,9 +220,6 @@ internal class OnceSet<T : Any>(private val limit: Int, private val full: () -> 
     private val keys: MutableSet<T> = ConcurrentHashMap.newKeySet()
     private val filled = AtomicBoolean()
 
-    /** The number of keys remembered. */
-    val size: Int get() = keys.size
-
     /** Whether [key] is offered for the first time, and remembered. */
     fun first(key: T): Boolean {
         if (key in keys) return false
