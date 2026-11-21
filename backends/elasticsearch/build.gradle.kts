@@ -15,3 +15,10 @@ dependencies {
     integrationTestImplementation(project(":tck-containers"))
     integrationTestImplementation(project(":query-tck"))
 }
+
+tasks.named<Test>("integrationTest") {
+    // ElasticsearchImageTest holds the GA end-to-end cluster's Elasticsearch image to the tests' one.
+    val gaE2e = rootProject.file(".github/ga-e2e/backends/elasticsearch.yaml")
+    inputs.file(gaE2e).withPathSensitivity(PathSensitivity.RELATIVE).withPropertyName("gaE2eYaml")
+    systemProperty("wow-test.elasticsearch.ga-e2e-yaml", gaE2e.absolutePath)
+}

@@ -17,8 +17,9 @@
 # shellcheck source=raw.sh
 . "$HARNESS/raw.sh"
 
-# The measure programs' Elasticsearch: the version CI runs (WowContainers.ELASTICSEARCH_IMAGE), one node, on its own
-# port; bench.sh's down removes it with ClickHouse.
+# The measure programs' Elasticsearch: the version the recorded sink-es measurements ran, kept as their record and
+# apart from the tests' image (WowContainers.ELASTICSEARCH_IMAGE); one node, on its own port; bench.sh's down removes
+# it with ClickHouse.
 ELASTICSEARCH=wow-e2e-bench-elasticsearch
 ELASTICSEARCH_IMAGE=docker.elastic.co/elasticsearch/elasticsearch:9.2.6
 ELASTICSEARCH_URL=http://127.0.0.1:19200
