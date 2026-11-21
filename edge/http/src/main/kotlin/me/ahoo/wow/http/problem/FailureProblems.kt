@@ -24,6 +24,7 @@ import me.ahoo.wow.spi.StorageUnavailableException
 import org.springframework.http.HttpStatus
 import org.springframework.web.server.ResponseStatusException
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
@@ -36,15 +37,18 @@ import kotlin.coroutines.cancellation.CancellationException
  *    application's own) as its code, status, result and retry, a [ResponseStatusException] as its status alone, a
  *    store that is unavailable (or a failure caused by one) as 503 `wow.storage.unavailable`, and a body larger than
  *    the codecs take as 413.
- * 2. Then the application's [mappers], in order, for the failure and then each of its causes: the first problem one
- *    gives is the answer, as the host configures its code's status, once it passes the checks a mapped problem must
- *    ([ProblemMapper]); one that fails them is answered as no mapper's, logged once by the mapper and code. A mapper
- *    that throws is taken as one that does not know the failure, its failure logged.
+ * 2. Then the application's [mappers], in order, for the failure and then each of its causes, but a cause that is
+ *    one of the framework's own (the kinds of 1. it answers by themselves, `frameworkOf`): a mapper never sees one,
+ *    even wrapped. The first problem one gives is the answer, as the host configures its code's status, once it
+ *    passes the checks a mapped problem must ([ProblemMapper]); one that fails them is answered as no mapper's,
+ *    logged once by the mapper and code. A mapper that throws is taken as one that does not know the failure, its
+ *    failure logged.
  * 3. Else the branch's answer to an unexpected failure: by default a 500 that says nothing of its cause, which is
  *    logged.
  *
  * A mapped code that no context's errors and no service route's errors of the Manifest list (its `catalog`) is
- * answered all the same, and warned of once.
+ * answered all the same, and warned of once. What is logged once is remembered for at most [MAX_LOGGED] codes, since
+ * a mapper may build its codes from a downstream system's: past them, that is said once, and no more are logged.
  */
 @InternalWowApi
 class FailureProblems(
@@ -52,8 +56,12 @@ class FailureProblems(
     private val mappers: List<ProblemMapper> = emptyList(),
     private val catalog: Set<String> = emptySet(),
 ) {
-    private val refused: MutableSet<Pair<String, String>> = ConcurrentHashMap.newKeySet()
-    private val uncatalogued: MutableSet<String> = ConcurrentHashMap.newKeySet()
+    private val refused = OnceSet<Pair<String, String>>(MAX_LOGGED) {
+        logger.error { "More than $MAX_LOGGED problem mappers' codes were refused: further ones are not logged." }
+    }
+    private val uncatalogued = OnceSet<String>(MAX_LOGGED) {
+        logger.warn { "More than $MAX_LOGGED mapped codes are in no catalog: further ones are not logged." }
+    }
 
     /**
      * The problem [failure] is answered with on a route of [context] (null outside one): what the framework knows,
@@ -65,7 +73,19 @@ class FailureProblems(
         unexpected: (Throwable) -> Problem = ::unexpected,
     ): Problem = known(failure, context) ?: mapped(failure, context) ?: unexpected(failure)
 
-    private fun known(failure: Throwable, context: String?): Problem? = when (failure) {
+    /**
+     * What the framework knows of [failure]: one of its own kinds ([frameworkOf]), or a store that is unavailable or a
+     * body too large anywhere among its causes.
+     */
+    private fun known(failure: Throwable, context: String?): Problem? =
+        frameworkOf(failure, context) ?: unavailable(failure, context) ?: tooLargeProblem(failure)
+
+    /**
+     * The problem of [failure] when it is one of the framework's own kinds, which it answers by itself, the exception
+     * alone and not its causes: the one list of those kinds, which [known] answers and no mapper is offered, even as a
+     * cause; null for any other.
+     */
+    private fun frameworkOf(failure: Throwable, context: String?): Problem? = when (failure) {
         is ProblemException -> failure.problem
         is CommandRejectedException -> statuses.problemOf(failure.result)
         is WowProblemException -> statuses.problemOf(failure, context)
@@ -73,7 +93,7 @@ class FailureProblems(
             val status = HttpStatus.resolve(failure.statusCode.value()) ?: HttpStatus.INTERNAL_SERVER_ERROR
             Problem.ofStatus(status, failure.reason.takeIf { status.is4xxClientError })
         }
-        else -> unavailable(failure, context) ?: tooLargeProblem(failure)
+        else -> null
     }
 
     private fun unavailable(failure: Throwable, context: String?): Problem? {
@@ -90,7 +110,9 @@ class FailureProblems(
     private fun mapped(failure: Throwable, context: String?): Problem? {
         if (mappers.isEmpty()) return null
         causes(failure).forEach { cause ->
-            if (cause !is Exception || cause is CancellationException) return@forEach
+            if (cause !is Exception || cause is CancellationException || frameworkOf(cause, context) != null) {
+                return@forEach
+            }
             mappers.forEach { mapper ->
                 val mapped = ask(mapper, cause, failure)
                 if (mapped != null) return answer(mapper, mapped, failure, context)
@@ -119,7 +141,7 @@ class FailureProblems(
     ): Problem? {
         val refusal = refusalOf(mapped)
         if (refusal != null) {
-            if (refused.add(mapper.javaClass.name to mapped.code)) {
+            if (refused.first(mapper.javaClass.name to mapped.code)) {
                 logger.error(failure) {
                     "The problem mapper ${mapper.javaClass.name} answered ${mapped.code} with status ${mapped.status}, " +
                         "$refusal: the failure is answered as no mapper's."
@@ -127,25 +149,31 @@ class FailureProblems(
             }
             return null
         }
-        if (mapped.code !in catalog && uncatalogued.add(mapped.code)) {
+        if (mapped.code !in catalog && uncatalogued.first(mapped.code)) {
             logger.warn {
                 "The problem mapper ${mapper.javaClass.name} answered ${mapped.code}, which no context's errors and no " +
                     "service route's errors list: declare it among the errors of a context."
             }
         }
-        val problem = statuses.problemOf(mapped, context)
+        val problem = statuses.problemOf(mapped, context).let { problem ->
+            statuses.configured(mapped.code)?.let { problem.copyWith(status = it) } ?: problem
+        }
+        // The level of the status answered, the host's when it configures one.
         if (problem.status >= SERVER_ERROR) {
             logger.warn(failure) { "A request failed: answered ${mapped.code} by ${mapper.javaClass.name}." }
         } else {
             logger.debug(failure) { "A request failed: answered ${mapped.code} by ${mapper.javaClass.name}." }
         }
-        return statuses.configured(mapped.code)?.let { problem.copyWith(status = it) } ?: problem
+        return problem
     }
 
     @InternalWowApi
     companion object {
         /** The causes a failure is walked through at most: the failure, its cause, and so on. */
         private const val MAX_CAUSES = 16
+
+        /** The codes, or mappers and codes, each set of what is logged once remembers at most. */
+        const val MAX_LOGGED: Int = 256
         private const val SERVER_ERROR = 500
         private const val UNAUTHORIZED = 401
         private val ERROR_STATUSES = 400..599
@@ -181,5 +209,27 @@ class FailureProblems(
             val seen = HashSet<Throwable>()
             return generateSequence(failure) { it.cause }.takeWhile { seen.add(it) }.take(MAX_CAUSES)
         }
+    }
+}
+
+/**
+ * The keys something was logged once for, at most [limit] of them: [first] is true the first time a key is offered
+ * while there is room; once full, [full] runs once, and no key is first any more.
+ */
+internal class OnceSet<T : Any>(private val limit: Int, private val full: () -> Unit) {
+    private val keys: MutableSet<T> = ConcurrentHashMap.newKeySet()
+    private val filled = AtomicBoolean()
+
+    /** The number of keys remembered. */
+    val size: Int get() = keys.size
+
+    /** Whether [key] is offered for the first time, and remembered. */
+    fun first(key: T): Boolean {
+        if (key in keys) return false
+        if (keys.size >= limit) {
+            if (filled.compareAndSet(false, true)) full()
+            return false
+        }
+        return keys.add(key)
     }
 }

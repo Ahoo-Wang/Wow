@@ -13,6 +13,10 @@
 
 package me.ahoo.wow.http.problem
 
+import ch.qos.logback.classic.Level
+import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.core.read.ListAppender
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.problem.ProblemMapper
@@ -33,7 +37,9 @@ import me.ahoo.wow.spi.StorageUnavailableException
 import org.junit.jupiter.api.Test
 import org.springframework.core.io.buffer.DataBufferLimitException
 import org.springframework.http.HttpStatus
+import org.slf4j.LoggerFactory
 import org.springframework.web.server.ResponseStatusException
+import java.util.concurrent.CompletionException
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration.Companion.seconds
 
@@ -164,6 +170,86 @@ class FailureProblemsTest {
         down.detail.assert().isEqualTo("The log is down.")
         problems.problemOf(DataBufferLimitException("Too large.")).status.assert().isEqualTo(413)
         asked.assert().isEmpty()
+    }
+
+    @Test
+    fun `a failure of the framework's own is never offered to a mapper, even as the cause of another`() {
+        // Claims whatever it is asked about but the wrapper an async boundary puts around a failure.
+        val claiming = mapper("claiming") { failure ->
+            WowProblemException(CLAIMED, 418, Retry.NONE, null, "Claimed.").takeUnless { failure is CompletionException }
+        }
+        val problems = problems(claiming)
+        val unauthenticated = ProblemException(
+            statuses.problemOf(FrameworkCodes.AUTH_UNAUTHENTICATED, "No credentials accepted here."),
+        )
+        val wrapped = listOf(
+            unauthenticated,
+            WowProblemException(IDP_DOWN, 503, Retry.NONE, null, "Down."),
+            CommandRejectedException(rejection),
+        ).map { CompletionException(it) }
+        wrapped.forEach { failure ->
+            // Answered as today, as no mapper's: a 500 that says nothing.
+            val problem = problems.problemOf(failure)
+            problem.status.assert().isEqualTo(500)
+            problem.code.assert().isNull()
+        }
+        asked.assert().containsOnly("claiming:CompletionException")
+        asked.size.assert().isEqualTo(3)
+    }
+
+    @Test
+    fun `the application's own exception that wraps a Wow problem is mapped by the outer one`() {
+        val problem = problems(upstream()).problemOf(
+            UpstreamException(WowProblemException(IDP_DOWN, 503, Retry.NONE, null, "Down.")),
+        )
+        problem.code.assert().isEqualTo(UPSTREAM)
+        problem.status.assert().isEqualTo(502)
+        asked.assert().containsExactly("$UPSTREAM:UpstreamException")
+    }
+
+    @Test
+    fun `what is logged once is remembered for a bounded number of codes, the bound said once`() {
+        val events = logged {
+            // A mapper that builds its codes from a downstream system's.
+            val downstream = mapper("downstream") { failure ->
+                WowProblemException("pay.${failure.message}", 502, Retry.NONE, null, "The payment failed.")
+            }
+            val problems = problems(downstream)
+            repeat(FailureProblems.MAX_LOGGED + 10) { problems.problemOf(IllegalStateException("code-$it")) }
+            // Logged once already: not again.
+            problems.problemOf(IllegalStateException("code-0"))
+        }
+        events.count { it.level == Level.WARN && "no context's errors" in it.formattedMessage }.assert()
+            .isEqualTo(FailureProblems.MAX_LOGGED)
+        events.count { "further ones are not logged" in it.formattedMessage }.assert().isEqualTo(1)
+    }
+
+    @Test
+    fun `a mapped problem is logged at the level of the status answered, the host's when it configures one`() {
+        val configured = ErrorStatuses(cartManifest(), mapOf(UPSTREAM to 404, CART_EMPTY to 503))
+        val events = logged {
+            problems(upstream(), statuses = configured).problemOf(UpstreamException())
+            problems(upstream(code = CART_EMPTY, status = 409), statuses = configured).problemOf(UpstreamException())
+        }
+        val answered = events.filter { "answered" in it.formattedMessage && "A request failed" in it.formattedMessage }
+        answered.single { UPSTREAM in it.formattedMessage }.level.assert().isEqualTo(Level.DEBUG)
+        answered.single { CART_EMPTY in it.formattedMessage }.level.assert().isEqualTo(Level.WARN)
+    }
+
+    /** The events [FailureProblems] logs while [block] runs, at debug and above. */
+    private fun logged(block: () -> Unit): List<ILoggingEvent> {
+        val logger = LoggerFactory.getLogger(FailureProblems::class.java.name) as Logger
+        val appender = ListAppender<ILoggingEvent>().apply { start() }
+        val level = logger.level
+        logger.level = Level.DEBUG
+        logger.addAppender(appender)
+        try {
+            block()
+        } finally {
+            logger.detachAppender(appender)
+            logger.level = level
+        }
+        return appender.list
     }
 
     @Test

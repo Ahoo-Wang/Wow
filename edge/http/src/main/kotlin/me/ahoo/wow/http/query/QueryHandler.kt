@@ -119,7 +119,7 @@ internal class QueryHandler(
     private val statuses: ErrorStatuses,
     private val targets: QueryTargets,
     private val scope: CoroutineScope,
-    private val problems: FailureProblems = FailureProblems(statuses),
+    private val problems: FailureProblems,
 ) {
     suspend fun query(request: ServerRequest, target: QueryTarget): ServerResponse =
         answering(target.type.context) {

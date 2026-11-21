@@ -23,8 +23,9 @@ package me.ahoo.wow.api.problem
  * `wow.query.failed` among them): on the application's own routes, a service route's handler, Wow's state reads and
  * queries, a streamed list that fails after its first record. It never sees what the framework answers itself (a
  * [WowProblemException], a command's rejection, an authentication or admission refusal, a store that is unavailable),
- * nor a command's failure, which is the command's result (`wow.command.failed`): a decide function that calls another
- * system and fails rejects the command itself.
+ * nor one of these as the cause of another failure (the application's own exception that wraps one may still be
+ * mapped), nor a command's failure, which is the command's result (`wow.command.failed`): a decide function that
+ * calls another system and fails rejects the command itself.
  *
  * The framework asks the mappers, in order, for the failure and then each of its causes, and the first problem one
  * gives is the answer. That problem is checked: a code the framework reserves (`wow.*`), a status outside 4xx and 5xx
