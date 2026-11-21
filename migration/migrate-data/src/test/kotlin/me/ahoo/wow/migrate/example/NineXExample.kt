@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.migrate.example
 
+import me.ahoo.wow.api.aggregate.AggregateIdSource
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.kernel.AggregateModel
@@ -25,6 +26,7 @@ import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestTree
 import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.manifest.SystemCommands
+import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.migrate.Exclusion
 import me.ahoo.wow.migrate.MigrationMap
 import me.ahoo.wow.migrate.MigrationPlan
@@ -146,6 +148,20 @@ internal object NineXExample {
                             retired = if (retired) listOf("OrderArchived") else emptyList(),
                         )
                     }
+                },
+            )
+        },
+    )
+
+    /**
+     * The Manifest of a port whose cart is one aggregate per owner, its id its owner's (`idSource = OWNER`), as 9.x's
+     * `OwnerPolicy.AGGREGATE_ID` was: the example's cart streams record the owner `customer-1`, not their ids.
+     */
+    val ownedCartManifest: Manifest = manifest.copyWith(
+        contexts = manifest.contexts.map { context ->
+            context.copyWith(
+                aggregates = context.aggregates.map {
+                    if (it.name == "cart") it.copyWith(idSource = AggregateIdSource.OWNER) else it
                 },
             )
         },

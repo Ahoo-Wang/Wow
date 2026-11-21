@@ -453,7 +453,7 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
             "$type gives aliases to ${unknown.map { it.name }}, which are none of its command or event types."
         }
         if (lifecycle.orEmpty().contains(TransferOwner::class.java)) {
-            AggregateModel.fixedOwnerOf(type, ownership, idSource)?.let { fixed ->
+            fixedOwnerOf(type, ownership, idSource)?.let { fixed ->
                 throw IllegalArgumentException("$fixed, so its lifecycle(...) names no TransferOwner.")
             }
         }
