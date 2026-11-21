@@ -72,6 +72,9 @@ GA 前要做、已排期的事见 §4 与[进度](progress.md)的「距离 GA �
 
 | 事项 | 为什么，或卡在哪 | 来源 |
 | --- | --- | --- |
+| 应用自己的异常到 problem+json 的映射端口 | `GlobalErrors` 只认 `WowProblemException`，其余一律 500；今天靠自己抛或靠处理器的顺序。映射是应用的策略，按 D447 ① 应有一个有文档的端口而不是顺序上的技巧。新增的，GA 前有余力就做，否则 10.1 | issue #6510 |
+| `migrate-data`：按 id 补上缺失的所有者 | id 即所有者的目标上，9.x 的流没有记所有者时，按 id 补上是确定的（内核对每个这样的聚合都把 id 记为所有者）；现在只能在 9.x 的库里改或排除该实例。做成映射里显式的选项，只管没有所有者的流，记了别的所有者的仍要人定 | #6570 |
+| `migrate-data check` 得知类型的固定租户 | 9.x `@StaticTenantId` 的数据导入时已在它自己的租户里；10 的配置若给了另一个租户，这些流就够不到，而 `check` 看不到宿主的配置。要一个映射里的键或一个指向宿主配置的选项；等 #6556 合并后定 | #6556 的设计说明，#6570 |
 | Skill 插件的版本在 GA 时定为 `1.0.0` | `skills/plugins.json` 现为 `0.2.0`；随 GA 的发布准备改 | 文档方案 §4.1（`2c08f318ea` 的 `docs-plan.md`） |
 | `wow-migrate` Skill 里只对预发布版本成立的内容 | 文档核对列出六组（W1～W6）；等用户的评测（8a.2）结束后删，评测期间不动 Skill | rc 前的文档核对 |
 | `wow-migrate` Skill 的范围 | 文档方案原定把它收窄为只讲 9.x 到 10，没有做：它仍带 Spring Boot 3 到 4 等更早的迁移路径与一个相应的评测，D266 ③ 也写着它不受影响。GA 前定：收窄，或把保留写进决定 | 文档方案 §9（同上） |
@@ -110,7 +113,6 @@ GA 前要做、已排期的事见 §4 与[进度](progress.md)的「距离 GA �
 | ClickHouse Sink 生成集群 DDL | Sink 不建 `ON CLUSTER`、复制表与分布式表；`operate/clickhouse` 给出列 DDL 与集群示例，由运维自建（#5352） | 审查 M-4 |
 | ClickHouse 的 `events` 查询后端（`ARRAY JOIN`） | 三种查询模型共用一个引擎（D235）的第二步；数仓分析已由数据集覆盖，放 10.x | D242 |
 | `@QueryIndex` 的字段带排序方向 | 现在只有 `name`、`on` 与 `with`，9.x 里手建的降序索引（「最新在前」的列表）声明不出来；注解加一个带默认值的元素是源码兼容的，GA 后可加。须先定各后端怎么落（MongoDB 的索引方向、PostgreSQL 的 `DESC`、Elasticsearch 的索引排序） | issue #6514 |
-| 应用自己的异常到 problem+json 的映射 | `GlobalErrors` 只认 `WowProblemException`，其余一律 500；今天的做法是自己抛 `WowProblemException`，或在 Wow 之前排一个 `WebExceptionHandler`。要加的是一个有文档的映射端口，取代靠处理器顺序的做法 | issue #6510 |
 | 测试里构造失败的命令结果 | `CommandCall` 的构造函数是内部的，命令客户端对不成功的命令抛异常，桩一个对端的失败结果要靠内部 API；`Snapshot`、`PagedList` 已有公开的 `of`。落点是测试 DSL 或一个公开工厂，先定哪一个 | issue #6512 |
 
 ### 性能优化
