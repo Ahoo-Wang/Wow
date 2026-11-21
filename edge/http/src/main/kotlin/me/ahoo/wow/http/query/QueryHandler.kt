@@ -44,9 +44,9 @@ import me.ahoo.wow.http.command.Negotiation
 import me.ahoo.wow.http.command.RequestHeaders
 import me.ahoo.wow.http.handingOver
 import me.ahoo.wow.http.problem.ErrorStatuses
+import me.ahoo.wow.http.problem.FailureProblems
 import me.ahoo.wow.http.problem.Problem
 import me.ahoo.wow.http.problem.ProblemException
-import me.ahoo.wow.http.problem.tooLargeProblem
 import me.ahoo.wow.http.receiveFirst
 import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.query.QueryCaller
@@ -119,6 +119,7 @@ internal class QueryHandler(
     private val statuses: ErrorStatuses,
     private val targets: QueryTargets,
     private val scope: CoroutineScope,
+    private val problems: FailureProblems = FailureProblems(statuses),
 ) {
     suspend fun query(request: ServerRequest, target: QueryTarget): ServerResponse =
         answering(target.type.context) {
@@ -419,26 +420,27 @@ internal class QueryHandler(
     @Suppress("TooGenericExceptionCaught") // Every failure of a query is answered as a problem.
     private suspend inline fun answering(context: String?, block: () -> ServerResponse): ServerResponse = try {
         block()
-    } catch (problem: ProblemException) {
-        problem.problem.respond()
     } catch (cancelled: CancellationException) {
         throw cancelled
     } catch (failure: Exception) {
         problemOf(failure, context).respond()
     }
 
-    /** The problem a query that failed with [failure] answers. */
+    /**
+     * The problem a query that failed with [failure] answers: its storage's and its query error's here, any other
+     * as the public routes answer it ([FailureProblems]), `wow.query.failed` for one nothing knows.
+     */
     private fun problemOf(failure: Throwable, context: String?): Problem {
-        if (failure is ProblemException) return failure.problem
-        tooLargeProblem(failure)?.let { return it }
         // From a backend primitive through the core, or from a read of the log (the events model).
         if (failure is QueryStorageUnavailableException || failure is StorageUnavailableException) {
             logger.warn(failure) { "A query failed: its storage is unavailable." }
             return statuses.problemOf(QueryErrors.STORAGE_UNAVAILABLE, QUERY_STORAGE_UNAVAILABLE, context)
         }
         if (failure !is QueryError) {
-            logger.error(failure) { "A query failed." }
-            return statuses.problemOf(FrameworkCodes.QUERY_FAILED, "The query failed.", context)
+            return problems.problemOf(failure, context) {
+                logger.error(failure) { "A query failed." }
+                statuses.problemOf(FrameworkCodes.QUERY_FAILED, "The query failed.", context)
+            }
         }
         if (failure.errorCode == FrameworkCodes.QUERY_FAILED) {
             logger.error(failure) { "A query failed: ${failure.errorMsg}" }

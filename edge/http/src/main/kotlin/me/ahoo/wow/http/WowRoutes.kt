@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.http
 
-import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -23,7 +22,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
-import me.ahoo.wow.api.result.FrameworkCodes
+import me.ahoo.wow.api.problem.ProblemMapper
 import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.http.caller.Authenticator
 import me.ahoo.wow.http.caller.CallPermits
@@ -33,9 +32,8 @@ import me.ahoo.wow.http.command.CommandTarget
 import me.ahoo.wow.http.command.Negotiation
 import me.ahoo.wow.http.command.RequestHeaders
 import me.ahoo.wow.http.problem.ErrorStatuses
+import me.ahoo.wow.http.problem.FailureProblems
 import me.ahoo.wow.http.problem.Problem
-import me.ahoo.wow.http.problem.ProblemException
-import me.ahoo.wow.http.problem.tooLargeProblem
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.http.query.QueryHandler
 import me.ahoo.wow.http.query.QueryTarget
@@ -60,7 +58,6 @@ import me.ahoo.wow.query.mask.PayloadMasks
 import me.ahoo.wow.query.policy.QueryOwnership
 import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.state.StateReads
-import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.snapshot.SnapshotRebuilds
 import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
@@ -108,7 +105,9 @@ import reactor.core.publisher.Mono
  * synchronous calls are taken on the internal port alone ([callRoutes]). So is a system command of a built-in
  * aggregate, a job's or the snapshot rebuild's, on a node without an authorizer ([CommandGateway.authorizes]): never
  * allowed by default, it needs an authorizer that allows it. Errors are
- * RFC 9457 problems whose statuses come from the Manifest's error tables ([ErrorStatuses]). A context's service
+ * RFC 9457 problems whose statuses come from the Manifest's error tables ([ErrorStatuses]); a failure the framework
+ * does not know is answered by the first of the application's [mappers] that knows it ([FailureProblems]), else as a
+ * 500 that says nothing of its cause. A context's service
  * routes ([ServiceRoutes]) are mounted from the Manifest too, each with the handler its module binds:
  * a route without one, or a handler of no route, fails here, so the node does not start. The host serves other
  * routes under a context's path only by composing them before these.
@@ -127,8 +126,10 @@ fun wowRoutes(
     masks: PayloadMasks = PayloadMasks(manifest),
     scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
     routes: ServiceRoutes = ServiceRoutes.NONE,
+    mappers: List<ProblemMapper> = emptyList(),
 ): RouterFunction<ServerResponse> {
     val statuses = ErrorStatuses(manifest, options.errorStatuses)
+    val problems = FailureProblems.of(manifest, statuses, mappers)
     val boundRoutes = routes.bind(manifest)
     val authenticator = Authenticator(callerResolver, statuses)
     // The public port: its commands carry the default request facts.
@@ -143,7 +144,7 @@ fun wowRoutes(
     )
     // The read side's scope rules are:query's, over the tenants commands act in.
     val targets = QueryTargets(gateway.tenants, queries.crossTenant)
-    val queryHandler = QueryHandler(queries, authenticator, headers, statuses, targets, scope)
+    val queryHandler = QueryHandler(queries, authenticator, headers, statuses, targets, scope, problems)
     val ownerships = QueryOwnership.of(manifest)
     val states =
         StateHandler(reads, authenticator, headers, statuses, targets, ownerships::ownershipOf, queries, masks)
@@ -151,34 +152,34 @@ fun wowRoutes(
     return coRouter {
         if (options.manifestEndpoint) {
             val document = HttpJson.write(ManifestTree.write(manifest.withoutClassNames()))
-            document(WowPaths.MANIFEST, document, statuses, authenticator)
+            document(WowPaths.MANIFEST, document, problems, authenticator)
         }
         if (options.openApiEndpoint) {
-            document(WowPaths.OPENAPI, HttpJson.write(openApiOf(manifest, options, queries)), statuses, authenticator)
+            document(WowPaths.OPENAPI, HttpJson.write(openApiOf(manifest, options, queries)), problems, authenticator)
         }
         if (queries.datasets !== DatasetQueryGateways.NONE) {
             datasetRoutes(queryHandler)
         }
         aggregateRoutes(manifest) { context, aggregate ->
-            commandRoutes(context, aggregate, commands, statuses, publicPort = true)
+            commandRoutes(context, aggregate, commands, problems, publicPort = true)
             val type = AggregateType(context, aggregate.name)
             val state = "/$context/${aggregate.name}/${CommandRoutes.ID}/${WowPaths.STATE}"
-            GET(state) { request -> statuses.answering { states.handle(request, type) } }
-            GET("$state/${WowPaths.TRACE}") { request -> statuses.answering { states.trace(request, type) } }
+            GET(state) { request -> problems.answering { states.handle(request, type) } }
+            GET("$state/${WowPaths.TRACE}") { request -> problems.answering { states.trace(request, type) } }
             if (aggregate.idSource == AggregateIdSource.OWNER) {
                 // The caller's own aggregate, whose id is its owner's: the same reads by no id.
                 val own = "/$context/${aggregate.name}/${WowPaths.STATE}"
-                GET(own) { request -> statuses.answering { states.handle(request, type) } }
-                GET("$own/${WowPaths.TRACE}") { request -> statuses.answering { states.trace(request, type) } }
+                GET(own) { request -> problems.answering { states.handle(request, type) } }
+                GET("$own/${WowPaths.TRACE}") { request -> problems.answering { states.trace(request, type) } }
             }
             queryRoutes(type, aggregate, queries, queryHandler)
         }
-        manifest.contexts.forEach { context -> contextRoutes(context, commands, statuses) }
+        manifest.contexts.forEach { context -> contextRoutes(context, commands, problems) }
         manifest.contexts.forEach { context ->
             context.routes.forEach { route ->
                 val handler = boundRoutes.getValue(context.name to route.name)
                 (method(HttpMethod.valueOf(route.route.method)) and path(route.route.path)).invoke { request ->
-                    statuses.answering { serviceRoutes.handle(request, context, route, handler) }
+                    problems.answering(context.name) { serviceRoutes.handle(request, context, route, handler) }
                 }
             }
         }
@@ -245,11 +246,11 @@ private fun HttpQueries.serves(type: AggregateType, model: String): Boolean = ga
 private fun CoRouterFunctionDsl.document(
     path: String,
     body: ByteArray,
-    statuses: ErrorStatuses,
+    problems: FailureProblems,
     authenticator: Authenticator,
 ) {
     GET(path) { request ->
-        statuses.answering {
+        problems.answering {
             authenticator.authenticate(request)
             Negotiation.checkAcceptable(request, alsoEventStream = false)
             ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).bodyValueAndAwait(body)
@@ -299,22 +300,24 @@ fun callRoutes(
         internal = true,
         permits = permits,
     )
+    // The internal port: the failures the framework knows, never the application's mappers.
+    val problems = FailureProblems(statuses)
     return coRouter {
         aggregateRoutes(manifest) { context, aggregate ->
-            commandRoutes(context, aggregate, commands, statuses, publicPort = false)
+            commandRoutes(context, aggregate, commands, problems, publicPort = false)
         }
         // The job commands, which a service calls when its permits list them.
-        manifest.contexts.forEach { context -> contextRoutes(context, commands, statuses) }
+        manifest.contexts.forEach { context -> contextRoutes(context, commands, problems) }
         // A command route of a served context that is none of the above: a command the caller's contract names and
         // this service does not decide, such as one of a newer version of it. The gateway refuses it as
         // `wow.command.unhandled` with its REJECTED result, which the calling saga takes as a rejection, not as a
         // failure to retry.
         manifest.contexts.forEach { context ->
             POST("/${context.name}/{$AGGREGATE}/${CommandRoutes.ID}/{$COMMAND}") { request ->
-                statuses.answering { commands.handle(request, unknownTarget(context.name, request, byId = true)) }
+                problems.answering { commands.handle(request, unknownTarget(context.name, request, byId = true)) }
             }
             POST("/${context.name}/{$AGGREGATE}/{$COMMAND}") { request ->
-                statuses.answering { commands.handle(request, unknownTarget(context.name, request, byId = false)) }
+                problems.answering { commands.handle(request, unknownTarget(context.name, request, byId = false)) }
             }
         }
     }
@@ -384,7 +387,7 @@ private fun CoRouterFunctionDsl.commandRoutes(
     context: String,
     aggregate: AggregateManifest,
     handler: CommandHandler,
-    statuses: ErrorStatuses,
+    problems: FailureProblems,
     publicPort: Boolean,
 ) {
     aggregate.commands.filterNot { publicPort && it.internal }.forEach { command ->
@@ -401,7 +404,7 @@ private fun CoRouterFunctionDsl.commandRoutes(
                     creates = command.creation == Creation.REQUIRED,
                 )
             }
-            route(route, target, handler, statuses)
+            route(route, target, handler, problems)
         }
     }
 }
@@ -414,11 +417,11 @@ private fun CoRouterFunctionDsl.commandRoutes(
 private fun CoRouterFunctionDsl.contextRoutes(
     context: ContextManifest,
     handler: CommandHandler,
-    statuses: ErrorStatuses,
+    problems: FailureProblems,
 ) {
     context.commands.forEach { command ->
         val target = systemTarget(context.name, null, command.name)
-        command.routes.forEach { route(it, target, handler, statuses) }
+        command.routes.forEach { route(it, target, handler, problems) }
     }
 }
 
@@ -427,10 +430,10 @@ private fun CoRouterFunctionDsl.route(
     route: RouteManifest,
     target: CommandTarget,
     handler: CommandHandler,
-    statuses: ErrorStatuses,
+    problems: FailureProblems,
 ) {
     (method(HttpMethod.valueOf(route.method)) and path(route.path)).invoke { request ->
-        statuses.answering { handler.handle(request, target) }
+        problems.answering { handler.handle(request, target) }
     }
 }
 
@@ -512,27 +515,19 @@ private fun datasetOf(request: ServerRequest): AggregateType? = try {
 }
 
 /**
- * [block]'s response, or the problem it was answered with: a store that is unavailable where no result carries it
- * (a state read, say) is `wow.storage.unavailable`, as a command's result would be. Any other failure is a 500
- * problem that says nothing of its cause, which is logged: never Spring's bare error page.
+ * [block]'s response, or the problem it was answered with on a route of [context] ([FailureProblems]): what the
+ * framework knows, a store that is unavailable where no result carries it (a state read, say) among it, as the
+ * application's routes answer it; else the application's mappers' problem; else a 500 that says nothing of its cause,
+ * which is logged: never Spring's bare error page.
  */
 @Suppress("TooGenericExceptionCaught") // Whatever else a route throws is answered as a problem, not a bare 500.
-private suspend inline fun ErrorStatuses.answering(block: () -> ServerResponse): ServerResponse = try {
+private suspend inline fun FailureProblems.answering(
+    context: String? = null,
+    block: () -> ServerResponse,
+): ServerResponse = try {
     block()
-} catch (problem: ProblemException) {
-    problem.problem.respond()
-} catch (unavailable: StorageUnavailableException) {
-    logger.warn(unavailable) { "A request failed: a store is unavailable." }
-    problemOf(FrameworkCodes.STORAGE_UNAVAILABLE, unavailable.message!!).respond()
 } catch (cancelled: CancellationException) {
     throw cancelled
 } catch (failure: Exception) {
-    // A body larger than the codecs take is the client's (413); anything else is a 500.
-    val problem = tooLargeProblem(failure) ?: run {
-        logger.error(failure) { "A request failed with an unexpected error." }
-        Problem.ofStatus(HttpStatus.INTERNAL_SERVER_ERROR, "The request failed with an unexpected error.")
-    }
-    problem.respond()
+    problemOf(failure, context).respond()
 }
-
-private val logger = KotlinLogging.logger {}

@@ -47,6 +47,7 @@ outline: deep
 | 命令过滤器与埋点 | 替代 | 一个观测端口，由观测模块（`wow-observability`）实现。 |
 | 错误码到 HTTP 状态的映射 | 保留 | 用 `@ErrorCode` 声明，或按错误码配置。 |
 | 领域异常转换为 `ErrorInfo` | 替代 | 决定结果返回一个带已声明错误码的拒绝。 |
+| 其他异常转换为 `ErrorInfo`（`ErrorInfoConverterFactory`，经 `ServiceLoader`） | 替代 | `ProblemMapper` bean 按顺序用应用的错误码回答应用自己的失败；命令的失败仍是命令的结果（[HTTP API](../reference/http#mapped-failures)）。 |
 
 ## 领域模型 {#domain-model}
 

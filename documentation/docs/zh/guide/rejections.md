@@ -22,6 +22,8 @@ outline: deep
 
 只有这两个类本身才算拒绝：它们的子类，例如 `NumberFormatException` 或某个库自己的异常，是失败，取消也是。失败是程序或它的服务的缺陷，绝不是对调用方请求的回答。不要用 `catch (e: Exception)` 包住 `reject`、`require` 或 `check`：那会吞掉拒绝，命令照常继续。
 
+决策函数调用另一个系统时，由它决定那次调用的失败对命令意味着什么：捕获失败，再用聚合的错误码拒绝。应用的 problem 映射器（[HTTP API](../reference/http#mapped-failures)）绝不回答命令的失败：那是命令的结果。
+
 请求在聚合的当前状态下、或对它的调用方无法满足时拒绝：结账时为空的购物车、要发货却未支付的订单、库存不足、不拥有该购物车的买家。调用方要根据原因行动时，优先使用声明过的错误码（`Decision.reject` 或 `reject`）；消息就足够的守卫条件适合 `require` 和 `check`。
 
 只关乎命令本身形状的规则，例如数量不为正、名称为空白、订单没有条目，不是拒绝：它是命令类上的 Jakarta 约束，网关在聚合决定之前以 `wow.command.invalid`（400）拒绝该命令（[编写聚合](./aggregates#check-its-shape)）。于是聚合只为需要它状态的规则声明错误码。

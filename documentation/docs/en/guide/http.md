@@ -82,7 +82,7 @@ A snapshot `list` streams its rows the same way, resumable with `Last-Event-ID` 
 
 ## Read an error
 
-Every error is an RFC 9457 problem, `application/problem+json`: its `type` is `urn:wow:error:<code>`, `code` and `status` repeat it, `violations` list what a request broke field by field, and a command's problem carries its whole result under `result`. A client branches on `code`. The status of a domain code is its `@ErrorCode(status)` ([Rejections and Error Codes](./rejections)); [Error Codes](../reference/error-codes) lists the framework's.
+Every error is an RFC 9457 problem, `application/problem+json`: its `type` is `urn:wow:error:<code>`, `code` and `status` repeat it, `violations` list what a request broke field by field, and a command's problem carries its whole result under `result`. A client branches on `code`. The status of a domain code is its `@ErrorCode(status)` ([Rejections and Error Codes](./rejections)); [Error Codes](../reference/error-codes) lists the framework's. A failure of the application's own, such as a failed call to another system, is answered with the application's code when one of its problem mappers knows it ([HTTP API](../reference/http#mapped-failures)), else as a 500 that says nothing of its cause.
 
 ## Generated clients
 

@@ -135,3 +135,26 @@ hop  := "accepted" ["(" context ")"]
 | 其他任何成员 | 拒绝的结构化扩展，按名字；与上面某个成员或 `instance` 同名的扩展会被略去 |
 
 领域错误码的状态是它的 `@ErrorCode(status)`，默认 422，可以用 `wow.http.errors.[<code>].status` 按错误码覆盖。框架的错误码见[错误码](./error-codes)。应用自己的路由也以 problem 回答它们的失败（`wow.http.global-errors.enabled`，默认打开）。
+
+### 应用自己的失败 {#mapped-failures}
+
+框架不认识的失败（例如调用另一个系统失败）回答为一个 500，不说明原因，原因写进日志。应用通过 `ProblemMapper` bean（`me.ahoo.wow.api.problem`）用自己的错误码回答自己的失败：映射器拿到失败，返回用来回答的 `WowProblemException`；失败不是它的，就返回 null。共享库也这样提供映射器，通过它自己的自动配置。
+
+```kotlin
+@Bean
+@Order(0)
+fun catalogProblems(): ProblemMapper = ProblemMapper { failure ->
+    (failure as? WebClientResponseException)?.let {
+        WowProblemException("shop.catalog.unreachable", 502, Retry.SAME_REQUEST, null, "The catalog did not answer.")
+    }
+}
+```
+
+- **在哪里。** 应用自己的路由（`wow.http.global-errors.enabled`）、服务路由的处理函数、状态读取、命令路由和查询，包括流式列表的 `error` 事件。内部端口和运维路由不用它；命令的失败也绝不用它：决策函数抛出的异常是命令的结果 `wow.command.failed`（[拒绝与错误码](../guide/rejections)）。saga 的同步调用和命令客户端也不用它，它们收到的是另一个服务按自己的映射给出的回答。
+- **映射器看到什么。** 只看到本来会回答为不说明原因的 500 的失败（查询的 `wow.query.failed`）：绝不会看到 `WowProblemException`、命令的拒绝、认证或准入的拒绝、不可用的存储，或超过编解码器上限的请求体。
+- **顺序。** 按 bean 的顺序（`@Order`）询问映射器，先问失败本身，再依次问它的每个 cause；第一个给出 problem 的映射器作答。抛出异常的映射器被跳过，它的异常写进日志。
+- **检查。** 映射出的 problem 如果用了框架保留的错误码（`wow.*`），状态不是 4xx 或 5xx 或者是 401（只有认证能回答 401），或者带着命令的结果，就不采用：失败回答为不说明原因的 500，映射器和错误码记一次日志。映射出的错误码的状态仍由 `wow.http.errors.[<code>].status` 决定。
+- **目录。** 在上下文里用 `@ErrorCode` 声明映射出的错误码，或写进服务路由的 `errors`，让客户端和 Manifest 知道它。哪里都没列出的错误码照样作答，并警告一次。
+- **日志。** 映射出的 5xx 连同失败记为警告，映射出的 4xx 记为 debug。
+
+problem 的消息就是它的 `detail`，调用方会读到：不要在里面写调用方不该看到的东西。

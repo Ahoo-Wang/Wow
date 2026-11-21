@@ -22,6 +22,8 @@ A decide function refuses a command in one of three ways, and each is answered t
 
 Only those two classes themselves are refusals: a subclass, such as `NumberFormatException` or a library's own exception, is a failure, and so is a cancellation. A failure is a defect of the program or its services, never an answer to the caller's request. Do not catch exceptions around `reject`, `require` or `check` with a `catch (e: Exception)`: that swallows the refusal, and the command goes on.
 
+A decide function that calls another system decides what that call's failure means for the command: catch the failure and reject with a code of the aggregate. The application's problem mappers ([HTTP API](../reference/http#mapped-failures)) never answer a command's failure: it is the command's result.
+
 Reject when the request cannot be granted in the aggregate's current state, or by its caller: a basket checked out empty, an unpaid order that is shipped, a short stock, a buyer who does not own the basket. Prefer a declared code (`Decision.reject` or `reject`) when a caller acts on the reason; `require` and `check` suit the guards whose message is enough.
 
 A rule about the command's own shape, such as a quantity that is not positive, a blank name or an order of no items, is no rejection: it is a Jakarta constraint on the command class, and the gateway refuses the command with `wow.command.invalid` (400) before the aggregate decides ([Write an Aggregate](./aggregates#check-its-shape)). The aggregate then declares codes only for what needs its state.

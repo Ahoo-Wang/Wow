@@ -47,6 +47,7 @@ Use this page to find out, before you migrate, what happens to each 9.x capabili
 | Command filters and instrumentation | Replaced | An observation port, implemented by the observability module (`wow-observability`). |
 | Error code to HTTP status mapping | Kept | Declared with `@ErrorCode`, or configured per code. |
 | Domain exceptions converted to `ErrorInfo` | Replaced | A decision returns a rejection with a declared error code. |
+| Other exceptions converted to `ErrorInfo` (`ErrorInfoConverterFactory`, by `ServiceLoader`) | Replaced | `ProblemMapper` beans, in their order, answer the application's own failures with its codes; a command's failure stays its result ([HTTP API](../reference/http#mapped-failures)). |
 
 ## Domain model
 
