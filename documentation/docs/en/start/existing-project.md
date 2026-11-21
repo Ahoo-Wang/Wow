@@ -140,7 +140,7 @@ application {
 }
 
 dependencies {
-    implementation(platform("org.springframework.boot:spring-boot-dependencies:4.1.1"))
+    implementation(platform("org.springframework.boot:spring-boot-dependencies:4.2.0"))
     implementation(project(":catalog-domain"))
     // The host: Spring Boot auto-configuration, the public routes and the internal port.
     implementation("me.ahoo.wow:wow-spring-boot")

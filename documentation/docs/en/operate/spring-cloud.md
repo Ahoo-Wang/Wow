@@ -17,13 +17,13 @@ The module is experimental, as the peer discovery it implements is: its shape ma
 
 ## Add the module
 
-Add the module, the starter of your registry, and the Spring Cloud BOM of the train that matches Spring Boot 4.0 and 4.1, `2025.1.x`:
+Add the module, the starter of your registry, and the Spring Cloud BOM of the train that matches Spring Boot 4.2, `2026.0.x`:
 
 <!-- sample: fragment -->
 
 ```kotlin
 dependencies {
-    implementation(platform("org.springframework.cloud:spring-cloud-dependencies:2025.1.4"))
+    implementation(platform("org.springframework.cloud:spring-cloud-dependencies:2026.0.0"))
     implementation("me.ahoo.wow:wow-spring-cloud")
     implementation("org.springframework.cloud:spring-cloud-starter-consul-discovery")
 }
