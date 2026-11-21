@@ -24,6 +24,7 @@ import me.ahoo.wow.analytics.catalog.domain.source.SourceState
 import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.Saga
 import me.ahoo.wow.api.client.CommandRequest
+import me.ahoo.wow.api.client.toCommandRequest
 import me.ahoo.wow.api.query.dsl.listQuery
 import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.api.subscribe.SagaContext
@@ -51,7 +52,7 @@ class DatasetRecompilation {
             .toList()
         return readers.map { dataset ->
             val id = AnalyticsCatalogContext.datasetIdOf(dataset.context, dataset.name)
-            CommandRequest.to(DATASET.ref(AnalyticsCatalogContext.TENANT_ID, id), RecompileDataset)
+            RecompileDataset.toCommandRequest { to(DATASET.ref(AnalyticsCatalogContext.TENANT_ID, id)) }
         }
     }
 

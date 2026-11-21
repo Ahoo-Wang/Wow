@@ -16,9 +16,9 @@ package me.ahoo.wow.example.eshop.basket.domain.basket
 import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.Saga
 import me.ahoo.wow.api.annotation.Sends
-import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateTypedEvent
+import me.ahoo.wow.api.subscribe.call
 import me.ahoo.wow.example.eshop.basket.api.basket.BasketCheckedOut
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderItem
 import me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder
@@ -47,9 +47,7 @@ class BasketCheckoutSaga {
     @Sends(calls = [SubmitOrder::class])
     suspend fun onBasketCheckedOut(event: StateTypedEvent<BasketState, BasketCheckedOut>, context: SagaContext) {
         val checkedOut = event.event
-        context.call(
-            CommandRequest.of(SubmitOrder(checkedOut.items.map { OrderItem(it.productId, it.unitPrice, it.quantity) })),
-        )
+        context.call(SubmitOrder(checkedOut.items.map { OrderItem(it.productId, it.unitPrice, it.quantity) }))
     }
     // endregion
 }

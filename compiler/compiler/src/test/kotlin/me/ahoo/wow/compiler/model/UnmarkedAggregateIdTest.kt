@@ -136,7 +136,7 @@ class UnmarkedAggregateIdTest {
             .contains(
                 "sample.Stock: command OpenStock creates its aggregate and has a String property id (declared by " +
                     "sample.OpenStock) and no @AggregateId property: sent without an aggregate id, as a saga's " +
-                    "CommandRequest.of(body) or a client's route without an id sends it, it creates a new aggregate " +
+                    "body.toCommandRequest() or a client's route without an id sends it, it creates a new aggregate " +
                     "under a generated id, whatever its id holds. If id names OpenStock's aggregate, mark it " +
                     "@AggregateId (an inherited id is marked where the command overrides it); if it names something " +
                     "else, suppress this with @Suppress(\"UnmarkedAggregateId\") on the command class, or on its " +

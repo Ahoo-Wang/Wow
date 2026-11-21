@@ -19,7 +19,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandRejectedException
-import me.ahoo.wow.api.client.CommandRequest
+import me.ahoo.wow.api.client.toCommandRequest
 import me.ahoo.wow.api.client.wait
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.FrameworkCodes
@@ -81,14 +81,14 @@ class InventoryServerTest {
 
     @Test
     fun `the scheduled job's commands should be an employee's alone (UI-50)`() {
-        val disable = CommandRequest.of(DisableJob(), id = RECEIVE_DELIVERIES, type = JOBS)
+        val disable = DisableJob().toCommandRequest(RECEIVE_DELIVERIES) { type(JOBS) }
         for (caller in listOf(Caller.ANONYMOUS, BUYER)) {
             rejected { server.commands(caller).wait(disable) }.result.error!!.message.assert()
                 .contains("Only an employee sends wow.schedule.DisableJob")
         }
         runBlocking { server.commands(EMPLOYEE).wait(disable) }
             .status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
-        val enable = CommandRequest.of(EnableJob.of(RECEIVE_DELIVERIES), id = RECEIVE_DELIVERIES, type = JOBS)
+        val enable = EnableJob.of(RECEIVE_DELIVERIES).toCommandRequest(RECEIVE_DELIVERIES) { type(JOBS) }
         runBlocking { server.commands(EMPLOYEE).wait(enable) }
             .status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
     }

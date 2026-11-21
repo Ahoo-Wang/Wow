@@ -88,7 +88,7 @@ class UnaddressedSendSpecTest {
                             "The saga sends ${Dispatch::class.java.name} naming no shipping.shipment to act on, " +
                                 "which the service refuses: only a command that creates its aggregate, one its body " +
                                 "names the aggregate of (@AggregateId), or one a transformer addresses (@Unaddressed) " +
-                                "may leave its id out. Name the aggregate: CommandRequest.of(command, id).",
+                                "may leave its id out. Name the aggregate: command.toCommandRequest(id).",
                         )
                     }
                 }

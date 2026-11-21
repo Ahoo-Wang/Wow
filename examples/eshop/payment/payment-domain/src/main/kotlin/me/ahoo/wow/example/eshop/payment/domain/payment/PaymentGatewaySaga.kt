@@ -17,6 +17,7 @@ import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.Saga
 import me.ahoo.wow.api.annotation.Sends
 import me.ahoo.wow.api.client.CommandRequest
+import me.ahoo.wow.api.client.toCommandRequest
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateTypedEvent
 import me.ahoo.wow.cocache.api.StateViewCache
@@ -56,8 +57,8 @@ class PaymentGatewaySaga(
         val orderId = event.state.orderId
         val description = orderOf(event.ref.tenantId, orderId)?.let(::describe) ?: "order $orderId"
         return when (val outcome = gateway.charge(event.ref.id, requested.amount, description, context.invocationKey)) {
-            is GatewayOutcome.Approved -> CommandRequest.of(ConfirmPayment(outcome.transactionId), event.ref.id)
-            is GatewayOutcome.Declined -> CommandRequest.of(FailPayment(outcome.reason), event.ref.id)
+            is GatewayOutcome.Approved -> ConfirmPayment(outcome.transactionId).toCommandRequest(event.ref.id)
+            is GatewayOutcome.Declined -> FailPayment(outcome.reason).toCommandRequest(event.ref.id)
         }
     }
 

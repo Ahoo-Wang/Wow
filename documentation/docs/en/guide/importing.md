@@ -89,13 +89,13 @@ The import program reads the source and sends one command per aggregate through 
 
 ```kotlin
 import me.ahoo.wow.api.caller.Caller
-import me.ahoo.wow.api.client.CommandRequest
+import me.ahoo.wow.api.client.wait
 
 val importer = commandClient.of(Caller.ofService("order-import"))
 val importedAt = System.currentTimeMillis()
 for (row in batch) {
     val command = ImportOrder(row.key, row.placedAt, importedAt)
-    importer.wait(CommandRequest.of(command, requestId = "import:legacy-shop:${row.key}"))
+    importer.wait(command) { requestId("import:legacy-shop:${row.key}") }
 }
 ```
 

@@ -17,7 +17,6 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandRejectedException
-import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.client.wait
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.Hop
@@ -121,7 +120,6 @@ val TO_THE_GATEWAY: WaitPlan = WaitPlan.of(
 /** Requests the payment of [amount] for [order] and waits to the end of its gateway's chain: the payment it became. */
 fun WowServer.charge(order: String, amount: String): PaymentStateView = runBlocking {
     val command = RequestPayment(order, BigDecimal(amount))
-    val request = CommandRequest.builder(command).id(order).wait(TO_THE_GATEWAY).build()
-    commands(Caller.ANONYMOUS).wait(request)
+    commands(Caller.ANONYMOUS).wait(command, order) { wait(TO_THE_GATEWAY) }
     queries(Caller.ANONYMOUS).snapshots(PaymentStateView::class.java).state(order)!!.state
 }

@@ -17,6 +17,7 @@ import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.OnRejected
 import me.ahoo.wow.api.annotation.Saga
 import me.ahoo.wow.api.client.CommandRequest
+import me.ahoo.wow.api.client.toCommandRequest
 import me.ahoo.wow.api.ledger.ApplyParkedRetrySpec
 import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.ledger.LedgerCommand
@@ -96,14 +97,12 @@ class ParkedOperationSaga {
 
             else -> return null
         }
-        return CommandRequest.to(Ledger.targetOf(state.context, event.ref.id), command)
+        return command.toCommandRequest { to(Ledger.targetOf(state.context, event.ref.id)) }
     }
 
     /** The owning service refused a command this saga sent for the entry: the entry records the refusal. */
     @OnRejected
     fun onActionRejected(rejected: CommandReceipt.Rejected<*>): CommandRequest<RecordActionRefused> =
-        CommandRequest.to(
-            rejected.source,
-            RecordActionRefused(rejected.commandType, rejected.error.code, rejected.error.message),
-        )
+        RecordActionRefused(rejected.commandType, rejected.error.code, rejected.error.message)
+            .toCommandRequest { to(rejected.source) }
 }

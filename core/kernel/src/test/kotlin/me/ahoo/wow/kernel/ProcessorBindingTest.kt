@@ -281,7 +281,7 @@ class ProcessorBindingTest {
             .hasMessageContaining("A saga derives command requests, not 1")
         val command = Command("c", "r", cart.ref("t", "alice"), "x")
         val returned = assertThrownBy<InvalidDerivedRequestException> { runBlocking { requestsOf(command) } }
-            .hasMessageContaining("return CommandRequest.to(ref, body)").actual()
+            .hasMessageContaining("return body.toCommandRequest(id)").actual()
         // A defect in the saga, which no retry changes: the aggregate parks at once.
         FailureClassification.DEFAULT.classify(returned, HandlerRetry(maxAttempts = 5))
             .assert().isEqualTo(FailureClass.UNRECOVERABLE)

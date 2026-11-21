@@ -22,7 +22,9 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.subscribe.ExecutionId
+import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateEvent
+import me.ahoo.wow.api.subscribe.call
 import me.ahoo.wow.kernel.CallRejectedHandlingException
 import me.ahoo.wow.kernel.CommittedBinding
 import me.ahoo.wow.kernel.ProcessorBinding
@@ -169,6 +171,38 @@ class ProcessorForkTest {
         sagaSpec(undeclared) {
             answerCalls { committedResult(it) }
             whenEvent(placed(1)) { expectError<UndeclaredSendException>() }
+        }
+    }
+
+    private fun checking(call: suspend (SagaContext, StateEvent<Order>) -> Unit) = listOf(
+        ProcessorBinding.saga(
+            "Checker",
+            "onOrder",
+            Order::class.java,
+            calls = listOf(Check::class.java),
+        ) { event: StateEvent<Order>, context ->
+            call(context, event)
+            emptyList()
+        },
+    )
+
+    @Test
+    fun `a call of a command with a block should call the command's request`() {
+        sagaSpec(checking { context, event -> context.call(Check(event.ref.id)) { to(stock) } }) {
+            answerCalls { committedResult(it) }
+            whenEvent(placed(1)) { expectCalls(Check("order-1")) }
+        }
+    }
+
+    @Test
+    fun `a call of a built request with a block should fail the handling, saying to pass the request as it is`() {
+        sagaSpec(checking { context, event -> context.call(CommandRequest.to(stock, Check(event.ref.id))) { } }) {
+            answerCalls { committedResult(it) }
+            whenEvent(placed(1)) {
+                expectError<IllegalArgumentException> {
+                    message.assert().contains("not another request: pass a request that is built as it is")
+                }
+            }
         }
     }
 

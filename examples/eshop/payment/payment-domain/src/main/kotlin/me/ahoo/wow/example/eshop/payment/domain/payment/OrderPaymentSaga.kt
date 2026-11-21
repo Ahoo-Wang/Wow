@@ -17,6 +17,7 @@ import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.OnRejected
 import me.ahoo.wow.api.annotation.Saga
 import me.ahoo.wow.api.client.CommandRequest
+import me.ahoo.wow.api.client.toCommandRequest
 import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.api.subscribe.StateTypedEvent
 import me.ahoo.wow.example.eshop.ordering.api.order.CancelOrder
@@ -56,32 +57,28 @@ class OrderPaymentSaga {
     @OnEvent
     fun onOrderStockConfirmed(
         event: StateTypedEvent<OrderStateView, OrderStockConfirmed>
-    ): CommandRequest<RequestPayment> = CommandRequest.of(
-        RequestPayment(event.ref.id, event.state.totalAmount),
-        event.ref.id
-    )
+    ): CommandRequest<RequestPayment> =
+        RequestPayment(event.ref.id, event.state.totalAmount).toCommandRequest(event.ref.id)
     // endregion
 
     // region peer-command
     @OnEvent
     fun onPaymentSucceeded(
         event: StateTypedEvent<PaymentState, PaymentSucceeded>
-    ): CommandRequest<PayOrder> = CommandRequest.of(PayOrder(event.ref.id, event.state.amount), event.state.orderId)
+    ): CommandRequest<PayOrder> = PayOrder(event.ref.id, event.state.amount).toCommandRequest(event.state.orderId)
     // endregion
 
     @OnEvent
     fun onPaymentFailed(
         event: StateTypedEvent<PaymentState, PaymentFailed>
     ): CommandRequest<CancelOrder> =
-        CommandRequest.of(CancelOrder("The payment failed: ${event.event.reason}"), event.state.orderId)
+        CancelOrder("The payment failed: ${event.event.reason}").toCommandRequest(event.state.orderId)
 
     // region peer-rejected
     /** An order that refuses its payment has the payment refunded. */
     @OnRejected
     fun onPayRejected(rejected: CommandReceipt.Rejected<PayOrder>): CommandRequest<RefundPayment> =
-        CommandRequest.of(
-            RefundPayment("The order ${rejected.ref.id} refused the payment: ${rejected.error.message}"),
-            rejected.source.id,
-        )
+        RefundPayment("The order ${rejected.ref.id} refused the payment: ${rejected.error.message}")
+            .toCommandRequest(rejected.source.id)
     // endregion
 }

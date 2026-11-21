@@ -17,6 +17,7 @@ import me.ahoo.wow.api.annotation.Blocking
 import me.ahoo.wow.api.annotation.OnSchedule
 import me.ahoo.wow.api.annotation.Saga
 import me.ahoo.wow.api.client.CommandRequest
+import me.ahoo.wow.api.client.toCommandRequest
 import me.ahoo.wow.api.schedule.ScheduleTick
 import me.ahoo.wow.example.eshop.inventory.api.stock.ReceiveStock
 import java.time.Instant
@@ -57,7 +58,7 @@ class SupplierDeliverySaga(private val deliveries: SupplierDeliveries) {
         val days = (tick.skipped + 1 downTo 1).map { today.minusDays(it) }
         return days.flatMap { day -> deliveries.deliveredOn(tick.tenantId, day) }.map { delivery ->
             // The stock of the product, in the job instance's tenant: ReceiveStock names its aggregate type.
-            CommandRequest.of(ReceiveStock(delivery.quantity), delivery.productId)
+            ReceiveStock(delivery.quantity).toCommandRequest(delivery.productId)
         }
     }
     // endregion

@@ -133,7 +133,7 @@ data class CreateShelf(override val warehouseId: String, override val code: Stri
 }
 ```
 
-Left unmarked, a creating command sent without an id, by a saga's `CommandRequest.of(body)` or by a client, gets a generated id: another aggregate than the one 9.x addressed, and a second creation with the same business key is accepted instead of answered `wow.aggregate.exists`.
+Left unmarked, a creating command sent without an id, by a saga's `body.toCommandRequest()` or by a client, gets a generated id: another aggregate than the one 9.x addressed, and a second creation with the same business key is accepted instead of answered `wow.aggregate.exists`.
 
 In decide, `CommandMessage<X>` is `Command<X>`, `command.aggregateId.id` is `command.ref.id`, `command.ownerId` is `command.scope.ownerId`, a 9.x `CommandResultAccessor` is `DecideScope.putResult`, and an id generated inside decide comes from `scope.ids.next()`.
 
@@ -189,7 +189,7 @@ A saga, a projection or a reactor carries exactly one of `@Saga`, `@Projection`,
 @OnEvent
 fun onOrderSubmitted(
     event: StateTypedEvent<OrderState, OrderSubmitted>
-): CommandRequest<AwaitStockValidation> = CommandRequest.of(AwaitStockValidation, event.ref.id)
+): CommandRequest<AwaitStockValidation> = AwaitStockValidation.toCommandRequest(event.ref.id)
 ```
 
 A saga that handled a 9.x `onError` gains an `@OnRejected` handler for a rejected derived command. One that did nothing about it, since 9.x logged a failed derived command and went on, is ported one of two ways, decided per command. An `@OnRejected` handler that accepts the rejection by returning `Unit` keeps 9.x's behaviour. Leaving the handler out is V10's default: the rejection of a command to the saga's own context parks the saga's source aggregate until it is resumed ([Handle a rejection](../guide/sagas#handle-a-rejection)). A compensation is not compensated: a command that an `@OnRejected` or `@OnCommitted` handler derives and that is rejected in turn parks the aggregate too, and is handed to no handler, so a multi-step handover derives each step that needs a compensation from an `@OnEvent` handler. A request id the 9.x saga set on a derived command for deduplication is not the command's: a derived command's request id comes from the execution, its target and type, and the request's `requestId` only as a business key within that execution ([Build the commands](../guide/sagas#build-the-commands)). A saga that read the tags of 9.x's read-only state aggregate reads the access attributes of `event.state`, the state after the commit, not the snapshot's. A processor of another context's events reads that context's published stream, through its `*-api` jar ([Published Streams](../guide/published-streams)).

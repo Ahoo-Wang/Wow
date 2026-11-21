@@ -34,7 +34,7 @@ import kotlin.time.toKotlinDuration
  * - [type]: the aggregate type; null to derive it from the command's class, from the models of the service's own
  *   contexts and the contracts of its peers. A class no aggregate known to the client decides, or several decide, fails
  *   when it is sent, as does a lifecycle command (`DeleteAggregate`, ...), which every aggregate takes:
- *   `CommandRequest.of(DeleteAggregate, id, type = ShopContract.Cart.TYPE)`.
+ *   `DeleteAggregate().toCommandRequest(id) { type(ShopContract.Cart.TYPE) }`.
  * - [targetTenant] and [targetScope]: the tenant and scope a cross-scope caller acts in (`Wow-Scope`); the caller's
  *   own when unset. They are the only source of the tenant and scope: a target tenant that is the caller's own changes
  *   nothing.
@@ -44,7 +44,9 @@ import kotlin.time.toKotlinDuration
  *   application-level retry, set [requestId] (or keep the one the first result reports) and send that request again.
  * - [expectedVersion] of the aggregate (`If-Match`; 0 for one never written).
  *
- * Build it with [of], [builder] or [to]; the constructor is internal to Wow. Fields may be added.
+ * Build it with [toCommandRequest] (`PayOrder(amount).toCommandRequest(orderId) { wait(WaitPlan.COMMITTED) }`), which
+ * the entries that take a command build it with (`context.call(command, id) { ... }`, `client.wait(command, id)`), or with
+ * [of], [builder] or [to]; the constructor is internal to Wow. Fields may be added.
  */
 class CommandRequest<C : Any> @InternalWowApi constructor(
     val command: C,
@@ -58,7 +60,11 @@ class CommandRequest<C : Any> @InternalWowApi constructor(
     val expectedVersion: Int? = null,
 ) {
     init {
-        require(command !is CommandRequest<*>) { "A CommandRequest sends a command object, not another request." }
+        require(command !is CommandRequest<*>) {
+            "A CommandRequest sends a command object, not another request: pass a request that is built as it is " +
+                "(context.call(request), client.wait(request)), and change its fields with request.toBuilder(), " +
+                "not in a block."
+        }
         require(command !is Command<*>) {
             "A CommandRequest sends the command object, not a Command: its id and scope are the request's."
         }
@@ -96,7 +102,11 @@ class CommandRequest<C : Any> @InternalWowApi constructor(
     private fun valueFields(): List<Any?> =
         listOf(command, id, type, targetTenant, targetScope, wait, timeout, requestId, expectedVersion)
 
-    /** Builds a [CommandRequest], one setter per field; [build] checks it as the constructor does. */
+    /**
+     * Builds a [CommandRequest], one setter per field; [build] checks it as the constructor does. It is also the
+     * receiver of the block of [toCommandRequest] and of the entries that take a command, with the same names.
+     */
+    @CommandRequestDsl
     class Builder<C : Any> internal constructor(private val command: C) {
         private var id: String? = null
         private var type: AggregateType? = null
@@ -125,6 +135,13 @@ class CommandRequest<C : Any> @InternalWowApi constructor(
         fun requestId(requestId: String?): Builder<C> = apply { this.requestId = requestId }
 
         fun expectedVersion(expectedVersion: Int?): Builder<C> = apply { this.expectedVersion = expectedVersion }
+
+        /**
+         * To the aggregate [ref] names: its type, its id when assigned, and its tenant as the [targetTenant], as
+         * [CommandRequest.to] sends.
+         */
+        fun to(ref: AggregateRef): Builder<C> =
+            type(ref.type).id(ref.id.takeIf { ref.isAssigned }).targetTenant(ref.tenantId)
 
         fun build(): CommandRequest<C> =
             CommandRequest(command, id, type, targetTenant, targetScope, wait, timeout, requestId, expectedVersion)
@@ -162,7 +179,6 @@ class CommandRequest<C : Any> @InternalWowApi constructor(
 
         /** A [Builder] of a request of [command] to the aggregate [ref] names, as [to] builds. */
         @JvmStatic
-        fun <C : Any> builder(ref: AggregateRef, command: C): Builder<C> = Builder(command).type(ref.type)
-            .id(ref.id.takeIf { ref.isAssigned }).targetTenant(ref.tenantId)
+        fun <C : Any> builder(ref: AggregateRef, command: C): Builder<C> = Builder(command).to(ref)
     }
 }

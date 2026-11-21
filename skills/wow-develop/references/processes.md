@@ -34,6 +34,7 @@ import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.OnRejected
 import me.ahoo.wow.api.annotation.Saga
 import me.ahoo.wow.api.client.CommandRequest
+import me.ahoo.wow.api.client.toCommandRequest
 import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.api.subscribe.StateTypedEvent
 import me.ahoo.wow.example.eshop.inventory.api.stock.CommitReservation
@@ -74,13 +75,13 @@ class OrderProcessSaga {
     @OnEvent
     fun onOrderSubmitted(
         event: StateTypedEvent<OrderState, OrderSubmitted>
-    ): CommandRequest<AwaitStockValidation> = CommandRequest.of(AwaitStockValidation, event.ref.id)
+    ): CommandRequest<AwaitStockValidation> = AwaitStockValidation.toCommandRequest(event.ref.id)
 
     @OnEvent
     fun onOrderAwaitingValidation(
         event: StateTypedEvent<OrderState, OrderAwaitingValidation>
     ): List<CommandRequest<ReserveStock>> = event.state.quantities().map { (productId, quantity) ->
-        CommandRequest.of(ReserveStock(event.ref.id, quantity), productId)
+        ReserveStock(event.ref.id, quantity).toCommandRequest(productId)
     }
 
     /** A product the inventory reserved confirms it on the order that asked for it. */
@@ -88,21 +89,19 @@ class OrderProcessSaga {
     fun onReserveCommitted(
         committed: CommandReceipt.Committed<ReserveStock>
     ): CommandRequest<ConfirmOrderStock> =
-        CommandRequest.of(ConfirmOrderStock(committed.ref.id), committed.source.id)
+        ConfirmOrderStock(committed.ref.id).toCommandRequest(committed.source.id)
 
     /** A product the inventory cannot reserve cancels the order that asked for it. */
     @OnRejected
     fun onReserveRejected(rejected: CommandReceipt.Rejected<ReserveStock>): CommandRequest<CancelOrder> =
-        CommandRequest.of(
-            CancelOrder("${rejected.ref.id} cannot be reserved: ${rejected.error.message}"),
-            rejected.source.id,
-        )
+        CancelOrder("${rejected.ref.id} cannot be reserved: ${rejected.error.message}")
+            .toCommandRequest(rejected.source.id)
 
     @OnEvent
     fun onOrderCancelled(
         event: StateTypedEvent<OrderState, OrderCancelled>
     ): List<CommandRequest<ReleaseReservation>> = event.state.products().map { productId ->
-        CommandRequest.of(ReleaseReservation(event.ref.id), productId)
+        ReleaseReservation(event.ref.id).toCommandRequest(productId)
     }
 
     /**
@@ -118,7 +117,7 @@ class OrderProcessSaga {
     fun onOrderShipped(
         event: StateTypedEvent<OrderState, OrderShipped>
     ): List<CommandRequest<CommitReservation>> = event.state.products().map { productId ->
-        CommandRequest.of(CommitReservation(event.ref.id), productId)
+        CommitReservation(event.ref.id).toCommandRequest(productId)
     }
 }
 ```

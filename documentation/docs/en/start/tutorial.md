@@ -90,9 +90,7 @@ The basket context does not create orders: the ordering context owns them. A sag
 @Sends(calls = [SubmitOrder::class])
 suspend fun onBasketCheckedOut(event: StateTypedEvent<BasketState, BasketCheckedOut>, context: SagaContext) {
     val checkedOut = event.event
-    context.call(
-        CommandRequest.of(SubmitOrder(checkedOut.items.map { OrderItem(it.productId, it.unitPrice, it.quantity) })),
-    )
+    context.call(SubmitOrder(checkedOut.items.map { OrderItem(it.productId, it.unitPrice, it.quantity) }))
 }
 ```
 

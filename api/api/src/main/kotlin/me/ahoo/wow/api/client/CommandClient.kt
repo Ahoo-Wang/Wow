@@ -29,8 +29,9 @@ import me.ahoo.wow.api.result.CommandResult
  * unless the command's class says, its [type][CommandRequest.type]), and how it is sent. The tenant and scope are the
  * caller's, or the target's a cross-scope caller names ([CommandRequest.targetTenant], [CommandRequest.targetScope]);
  * a target tenant that is the caller's own is the caller's, so a request built from a ref of the caller's tenant
- * (`CommandRequest.to(event.ref, command)` in a saga) is an ordinary one. Shorthands send a command by its id alone
- * (`client.wait(command, id)`).
+ * (`toCommandRequest { to(event.ref) }` in a saga) is an ordinary one. Shorthands take the command itself, its id and
+ * a block of the request's other fields (`client.wait(command, id) { wait(WaitPlan.COMMITTED) }`, imported from
+ * `me.ahoo.wow.api.client`).
  *
  * A client sends as one caller ([of]); the host's client sends as an anonymous one until [of] gives it another.
  * Commands have no trusted mode by design: a write always carries an accountable caller and goes through the

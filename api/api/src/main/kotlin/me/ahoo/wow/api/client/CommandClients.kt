@@ -25,14 +25,35 @@ import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.wire.WaitHeader
 
-/** Sends [command] to the aggregate [id] names, its type derived from its class ([CommandClient.send]). */
-suspend fun CommandClient.send(command: Any, id: String? = null): CommandResult = send(CommandRequest.of(command, id))
+/**
+ * Sends [command] to the aggregate [id] names, with the fields [block] sets, its type derived from its class unless the
+ * block sets it: [CommandClient.send] of [command]'s [toCommandRequest].
+ */
+suspend fun <C : Any> CommandClient.send(
+    command: C,
+    id: String? = null,
+    block: CommandRequest.Builder<C>.() -> Unit = {},
+): CommandResult = send(command.toCommandRequest(id, block))
 
-/** Sends [command] to the aggregate [id] names, and waits for its result ([CommandClient.wait]). */
-suspend fun CommandClient.wait(command: Any, id: String? = null): CommandResult = wait(CommandRequest.of(command, id))
+/**
+ * Sends [command] to the aggregate [id] names, with the fields [block] sets (`wait(plan)` among them), and waits for
+ * its result: [CommandClient.wait] of [command]'s [toCommandRequest].
+ */
+suspend fun <C : Any> CommandClient.wait(
+    command: C,
+    id: String? = null,
+    block: CommandRequest.Builder<C>.() -> Unit = {},
+): CommandResult = wait(command.toCommandRequest(id, block))
 
-/** The results of [command] sent to the aggregate [id] names ([CommandClient.stream]). */
-fun CommandClient.stream(command: Any, id: String? = null): Flow<CommandResult> = stream(CommandRequest.of(command, id))
+/**
+ * The results of [command] sent to the aggregate [id] names, with the fields [block] sets: [CommandClient.stream] of
+ * [command]'s [toCommandRequest].
+ */
+fun <C : Any> CommandClient.stream(
+    command: C,
+    id: String? = null,
+    block: CommandRequest.Builder<C>.() -> Unit = {},
+): Flow<CommandResult> = stream(command.toCommandRequest(id, block))
 
 /**
  * The aggregate type of [request]: its own, else the one [candidates] (the types that decide its command's class, as
