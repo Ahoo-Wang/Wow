@@ -35,6 +35,20 @@ class ServerSentEventsTest {
     }
 
     @Test
+    fun `a field's value should drop at most one space after the colon, so both spellings read the same`() {
+        events("data:1", "").single().data.assert().isEqualTo("1")
+        events("data: 1", "").single().data.assert().isEqualTo("1")
+        events("data:  1", "").single().data.assert().isEqualTo(" 1")
+        val spellings = listOf(
+            events("event:row", "id:7", "data:{}", ""),
+            events("event: row", "id: 7", "data: {}", ""),
+        )
+        spellings.forEach { read ->
+            read.map { Triple(it.event, it.data, it.id) }.assert().containsExactly(Triple("row", "{}", "7"))
+        }
+    }
+
+    @Test
     fun `comments, unknown fields, events without data and a cut event should not be dispatched`() {
         val read = events(": keep-alive", "retry: 100", "event: end", "", "id", "data", "", "data: cut")
         read.map { it.data to it.id }.assert().containsExactly("" to "")
