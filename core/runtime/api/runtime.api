@@ -524,7 +524,6 @@ public final class me/ahoo/wow/runtime/log/AppendQueueOptions$Companion {
 
 public final class me/ahoo/wow/runtime/log/HandoffOptions {
 	public static final field Companion Lme/ahoo/wow/runtime/log/HandoffOptions$Companion;
-	public fun <init> ()V
 	public synthetic fun <init> (IJJJILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getCapacity ()I

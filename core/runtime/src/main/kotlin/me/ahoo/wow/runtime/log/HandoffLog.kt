@@ -90,6 +90,11 @@ class HandoffOptions @InternalWowApi constructor(
 
     private fun valueFields(): List<Any?> = listOf(capacity, gapWait, probeInterval, scheduledProbes)
 
+    /** These options with [scheduledProbes] in place of their own. */
+    @InternalWowApi
+    fun copyWith(scheduledProbes: Duration): HandoffOptions =
+        HandoffOptions(capacity, gapWait, probeInterval, scheduledProbes)
+
     companion object {
         private const val DEFAULT_CAPACITY = 1_024
     }
