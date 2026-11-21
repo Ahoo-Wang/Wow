@@ -298,6 +298,8 @@ fun `an order awaiting validation should reserve each product's stock in the inv
 
 `sagaSpec`、`projectionSpec` 和 `reactorSpec` 的步骤相同。每个 `when…` 步骤的检查块都是可选的：没有块时，步骤只在处理函数抛出异常时失败。
 
+Saga 规格展示的是内核派生出的命令，每条都在它的请求指名的租户里，否则在执行的租户里。类型的固定租户（[固定的租户](./ownership#a-fixed-tenant)）由运行时在其后应用：发给固定在另一个租户的类型的命令会落到那个租户，若指名了别的租户则被拒绝。断言派生命令的租户时要知道这一点。
+
 | 步骤 | 作用 |
 | --- | --- |
 | `givenAggregate(model, id, vararg history, tenantId, scope)` | 给出聚合，`whenEvent` 交出的是它之后的提交；它处于其历史留下的状态和版本。分叉推进的是自己的副本。 |

@@ -298,6 +298,8 @@ fun `an order awaiting validation should reserve each product's stock in the inv
 
 `sagaSpec`, `projectionSpec` and `reactorSpec` take the same steps. Each `when…` step's checks are optional: without a block, a step only fails when a handler throws.
 
+A saga spec shows the commands as the kernel derives them, each in the tenant its request names, else the execution's. A type's fixed tenant ([A fixed tenant](./ownership#a-fixed-tenant)) is applied after that, by the runtime: a command to a type fixed to another tenant lands there, or is refused if it names one. Keep this in mind when a check asserts a derived command's tenant.
+
 | Step | Does |
 | --- | --- |
 | `givenAggregate(model, id, vararg history, tenantId, scope)` | Gives the aggregate whose next commits `whenEvent` hands over, at the state and version its history leaves it in. A fork advances copies of its own. |
