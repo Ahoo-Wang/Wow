@@ -7,6 +7,8 @@ description: 在 Elasticsearch 上保存服务的快照，作为供查询的副�
 
 Elasticsearch 从不保存 Wow 日志：每个聚合的日志都保存在 PostgreSQL 或 MongoDB 上，它们是事实的来源。Elasticsearch 得到快照，让快照查询在搜索引擎上运行：聚合自己的快照存储旁的一份副本，或者就是那个存储（[下文](#only-snapshot-store)）。它还得到通过 Sink 写入的事件流，让 `events` 模型可以跨聚合检索。两者随时都可以从日志重建。模块是 `wow-elasticsearch`。
 
+Wow 针对 Elasticsearch 9.5.6 测试。Elasticsearch Java 客户端的版本由 Spring Boot 管理（Spring Boot 4.2 下是 9.5），它只保证对同等或更高小版本的服务端（[客户端的兼容规则](https://github.com/elastic/elasticsearch-java#compatibility)），所以服务端请用 9.5 或之后的 9.x。
+
 ## `elasticsearch` 类型的存储 {#a-store-of-type-elasticsearch}
 
 `elasticsearch` 类型的存储基于应用的底层 `Rest5Client` 打开，这个客户端由 Spring Boot 的 Elasticsearch 支持配置。在日志的存储旁边为它命名，并让某个聚合的查询指向它，这个存储就为该聚合的快照查询保存一份快照副本：
