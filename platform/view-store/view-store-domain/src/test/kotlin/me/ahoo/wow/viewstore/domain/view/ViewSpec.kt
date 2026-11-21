@@ -14,6 +14,8 @@
 package me.ahoo.wow.viewstore.domain.view
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.lifecycle.AggregateDeleted
 import me.ahoo.wow.api.lifecycle.DeleteAggregate
@@ -39,13 +41,16 @@ import me.ahoo.wow.viewstore.domain.ViewFixtures.ALICE
 import me.ahoo.wow.viewstore.domain.ViewFixtures.APP
 import me.ahoo.wow.viewstore.domain.ViewFixtures.BOB
 import me.ahoo.wow.viewstore.domain.ViewFixtures.OTHER_APP
+import me.ahoo.wow.viewstore.domain.ViewFixtures.SAGA
 import me.ahoo.wow.viewstore.domain.ViewFixtures.SHARED
 import me.ahoo.wow.viewstore.domain.ViewFixtures.SYSTEM
 import me.ahoo.wow.viewstore.domain.ViewFixtures.TENANT
+import me.ahoo.wow.viewstore.domain.ViewFixtures.crossing
 import me.ahoo.wow.viewstore.domain.ViewFixtures.dashboardConfig
 import me.ahoo.wow.viewstore.domain.ViewFixtures.nobody
 import me.ahoo.wow.viewstore.domain.ViewFixtures.owner
 import me.ahoo.wow.viewstore.domain.ViewFixtures.recordConfig
+import me.ahoo.wow.viewstore.domain.ViewFixtures.reserved
 import me.ahoo.wow.viewstore.domain.ViewFixtures.user
 import me.ahoo.wow.viewstore.domain.ViewStoreRejections
 import org.junit.jupiter.api.Test
@@ -76,9 +81,13 @@ class ViewSpec {
         block = block,
     )
 
-    /** The view, created by no user in [ownerId]'s scope from the application. */
-    private fun AggregateSpec<ViewState>.created(ownerId: String, config: Map<String, Any?> = recordConfig()) {
-        givenCommands(CreateView("orders", "Orders", config), caller = nobody(owner(ownerId)))
+    /** The view, created by no user in [ownerId]'s scope from the application, or by [caller] in [scope]. */
+    private fun AggregateSpec<ViewState>.created(
+        ownerId: String,
+        caller: Caller = nobody(owner(ownerId)),
+        scope: Scope? = null,
+    ) {
+        givenCommands(CreateView("orders", "Orders", recordConfig()), caller = caller, scope = scope)
     }
 
     @Test
@@ -178,7 +187,7 @@ class ViewSpec {
             expectState { audience.assert().isEqualTo(ViewAudience.SHARED) }
         }
         // The saga's TransferOwner, derived from the share and not checked against the target's scope (D199).
-        whenCommand(TransferOwner.of(ViewStoreContext.SHARED_OWNER_ID), caller = Caller.ANONYMOUS) {
+        whenCommand(TransferOwner.of(ViewStoreContext.SHARED_OWNER_ID), caller = SAGA) {
             expectEvents(OwnerTransferred.of(ViewStoreContext.SHARED_OWNER_ID))
             expectScope(SHARED)
         }
@@ -189,12 +198,12 @@ class ViewSpec {
     @Test
     fun `a shared view should be claimed by the user who sends the claim`() = viewSpec {
         created(ViewStoreContext.SHARED_OWNER_ID)
-        whenCommand(ClaimView, caller = user(BOB), scope = SHARED) {
+        whenCommand(ClaimView, caller = reserved(user(BOB), SHARED), scope = SHARED) {
             expectEvents(ViewClaimed(BOB))
             expectState { audience.assert().isEqualTo(ViewAudience.PERSONAL) }
         }
         asked.assert().containsExactly(Triple(TENANT, APP, ID))
-        whenCommand(TransferOwner.of(BOB), caller = Caller.ANONYMOUS) { expectScope(owner(BOB)) }
+        whenCommand(TransferOwner.of(BOB), caller = SAGA) { expectScope(owner(BOB)) }
         // Claimed again by its owner: nothing changes; by anyone else as themselves, it is out of their reach.
         whenCommand(ClaimView, caller = user(BOB)) { expectUnchanged() }
         whenCommand(ClaimView) {
@@ -205,13 +214,14 @@ class ViewSpec {
     @Test
     fun `a personal view should not be claimed for another user, nor by nobody`() = viewSpec {
         created(ALICE)
-        whenCommand(ClaimView, caller = user(BOB), scope = owner(ALICE)) {
+        // Only a caller that crosses scopes names another owner's (a user who does is forbidden at admission).
+        whenCommand(ClaimView, caller = crossing(BOB), scope = owner(ALICE)) {
             expectRejected(ViewStoreRejections.INVALID) { message.assert().contains("shared") }
         }
         whenCommand(ClaimView, caller = nobody(owner(ALICE))) {
             expectRejected(ViewStoreRejections.OWNER_REQUIRED)
         }
-        whenCommand(ClaimView, caller = user("(shared)"), scope = owner(ALICE)) {
+        whenCommand(ClaimView, caller = crossing("(shared)"), scope = owner(ALICE)) {
             expectRejected(ViewStoreRejections.OWNER_REQUIRED)
         }
     }
@@ -221,7 +231,7 @@ class ViewSpec {
         created(ViewStoreContext.SHARED_OWNER_ID)
         boards += BoardReference(ID, "Itself")
         boards += BoardReference("board-1", "Weekly board")
-        whenCommand(ClaimView, caller = user(BOB), scope = SHARED) {
+        whenCommand(ClaimView, caller = reserved(user(BOB), SHARED), scope = SHARED) {
             expectRejected(ViewStoreRejections.REFERENCED_BY_SHARED_DASHBOARD) {
                 message.assert().contains("Weekly board").contains("board-1").doesNotContain("Itself")
                 extensions.assert().isEqualTo(
@@ -231,7 +241,7 @@ class ViewSpec {
             expectState { audience.assert().isEqualTo(ViewAudience.SHARED) }
         }
         boards.removeAt(1)
-        whenCommand(ClaimView, caller = user(BOB), scope = SHARED) {
+        whenCommand(ClaimView, caller = reserved(user(BOB), SHARED), scope = SHARED) {
             expectEvents(ViewClaimed(BOB))
         }
     }
@@ -239,23 +249,27 @@ class ViewSpec {
     @Test
     fun `a stored system view should be global and never move audience`() = viewSpec(
         ViewStoreContext.SYSTEM_TENANT_ID,
-        caller = nobody(SYSTEM),
+        caller = reserved(nobody(), SYSTEM),
     ) {
-        created(ViewStoreContext.SYSTEM_OWNER_ID)
-        whenCommand(SaveView(dashboardConfig("v1"))) {
+        // Every command names the tenant `(platform)` through its reserved scope, as the server's requests do.
+        created(ViewStoreContext.SYSTEM_OWNER_ID, caller = reserved(nobody(), SYSTEM), scope = SYSTEM)
+        whenCommand(SaveView(dashboardConfig("v1")), scope = SYSTEM) {
             expectEventTypes(ViewSaved::class)
             expectState { audience.assert().isEqualTo(ViewAudience.SYSTEM) }
         }
-        whenCommand(ShareView) {
+        whenCommand(ShareView, scope = SYSTEM) {
             expectRejected(ViewStoreRejections.SYSTEM_VIEW_READ_ONLY)
         }
-        whenCommand(ClaimView, caller = user(BOB), scope = SYSTEM) {
+        whenCommand(ClaimView, caller = reserved(user(BOB), SYSTEM), scope = SYSTEM) {
             expectRejected(ViewStoreRejections.SYSTEM_VIEW_READ_ONLY)
         }
-        whenCommand(SaveView(recordConfig()), caller = user(ALICE)) {
-            expectRejected(FrameworkCodes.AGGREGATE_NOT_FOUND)
+        // A user in their own scope sends to their own tenant, not the platform's: the gateway refuses the ref.
+        assertThrownBy<IllegalArgumentException> {
+            whenCommand(SaveView(recordConfig()), caller = user(ALICE)) { }
+        }.hasMessageContaining(FrameworkCodes.COMMAND_MALFORMED)
+        whenCommand(DeleteAggregate(), caller = reserved(nobody(app = null), SYSTEM), scope = SYSTEM) {
+            expectEvents(AggregateDeleted())
         }
-        whenCommand(DeleteAggregate(), caller = nobody(SYSTEM, app = null)) { expectEvents(AggregateDeleted()) }
     }
 
     @Test

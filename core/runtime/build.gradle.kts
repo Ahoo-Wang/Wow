@@ -8,6 +8,8 @@ description = "Wow Runtime: gateway, router, cluster channel, executor, subscrip
 dependencies {
     // The guard of the hand-written equals (finding R5.B-13).
     testImplementation(project(":tck"))
+    // TenantScopePathsTest: one command decides its tenant and scope alike through the gateway and the test DSL.
+    testImplementation(project(":test-dsl"))
     api(project(":kernel"))
     // The Manifest the node is built from: its contexts, routes and contracts (decision D231 ③: the kernel does not
     // bring it).

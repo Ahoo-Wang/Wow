@@ -72,8 +72,8 @@ class AccountSpec {
 | `givenRecords(vararg records, scope, operator, commitTime)` | 把存储的记录按日志中的样子作为一条流提交：模型的类已经写不出的历史，例如聚合已退役的事件（内核会跳过它的记录），或者旧修订版的记录（经它的升级读取）。 |
 | `givenReservation(namespace, key, owner)` | 把一个预留键交给同一类型的另一个聚合，于是预留它的命令会被拒绝。 |
 | `givenCommands(vararg commands)` | 把这些命令作为场景的准备发出；被拒绝或抛出异常的命令会让规格失败，并指出是哪一条。 |
-| `whenCommand(command, requestId, expectedVersion, caller, scope, …) { … }` | 把命令送进内核，并在块中检查它的结果。`caller`（默认为 `aggregateSpec(model, caller = …)` 给出的调用方）像命令网关那样，给出命令的作用域、操作人和应用；`scope` 指定调用方去往的另一个作用域。`headers` 可以添加请求事实，但不能写 `app_id`，它只由调用方给出：`headers` 里写了它的规格直接失败，有没有调用方都一样，因为网关从不记录请求自己写的 `app_id`。 |
-| `asCaller(caller) { … }` | 以另一个调用方发出块中的命令。 |
+| `whenCommand(command, requestId, expectedVersion, caller, scope, …) { … }` | 把命令送进内核，并在块中检查它的结果。`caller`（默认为 `aggregateSpec(model, caller = …)` 给出的调用方）像命令网关那样，给出命令的作用域、操作人和应用；`scope` 像 `Wow-Scope` 那样指定调用方去往的作用域。网关会拒绝的调用方让规格直接失败，并给出网关的答复：租户不是规格的租户的调用方（`400 wow.command.malformed`），或没有 `crossScope` 却指定了 `scope` 的调用方（`403 wow.auth.forbidden`）。可以跨作用域的调用方在规格的租户和它指定的 `scope` 中行事。类型的固定租户（[固定的租户](./ownership#a-fixed-tenant)）暂不应用。`headers` 可以添加请求事实，但不能写 `app_id`，它只由调用方给出：`headers` 里写了它的规格直接失败，有没有调用方都一样，因为网关从不记录请求自己写的 `app_id`。 |
+| `asCaller(caller) { … }` | 以另一个调用方发出块中的命令，与 `whenCommand` 的调用方一样经过准入：另一个租户的调用方让规格失败。 |
 | `advanceTime(duration) { … }` | 拨动时钟，并把聚合给自己定时、到那时已到期的每条命令发给它；块检查最后一条。 |
 | `expectNothingDue(within)` | 拨动时钟；到那时若有聚合给自己定时的命令到期，就失败。 |
 | `ref(name)`、`fork(name, from) { … }` | 标记一个位置；在聚合的副本上运行一个场景，从现在或从标记的位置开始。 |
