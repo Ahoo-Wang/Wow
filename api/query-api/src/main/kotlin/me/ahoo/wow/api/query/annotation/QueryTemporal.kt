@@ -22,6 +22,11 @@ import java.util.concurrent.TimeUnit
  * - An integer field holds an epoch timestamp in [unit]: `@field:QueryTemporal(unit = TimeUnit.SECONDS)`.
  * - A string field holds a formatted time: `@field:QueryTemporal(pattern = "yyyy-MM-dd HH:mm:ss")`; [unit] then
  *   keeps its default.
+ *
+ * A property also takes it from the members it overrides, a getter of an interface the state implements or a
+ * property of its superclass, when it declares none itself: `@get:QueryTemporal` on a read model interface's getter
+ * holds for the state's property that overrides it. Two overridden members that declare different ones fail the
+ * build, naming both; the property declares its own to say which holds.
  */
 @Target(AnnotationTarget.FIELD, AnnotationTarget.PROPERTY_GETTER)
 @Retention(AnnotationRetention.RUNTIME)

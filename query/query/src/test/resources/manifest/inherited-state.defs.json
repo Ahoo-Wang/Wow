@@ -1,0 +1,33 @@
+{
+  "me.ahoo.wow.manifest.tools.QueryKeywordsInheritanceTest$InheritedState" : {
+    "type" : "object",
+    "properties" : {
+      "accessKeySecret" : {
+        "type" : "string",
+        "x-wow-sensitive" : {
+          "level" : "confidential"
+        },
+        "x-wow-mask" : {
+          "keepPrefix" : 0,
+          "keepSuffix" : 0
+        }
+      },
+      "name" : {
+        "type" : "string"
+      },
+      "updatedAt" : {
+        "type" : "integer",
+        "format" : "int64",
+        "x-wow-temporal" : {
+          "unit" : "seconds"
+        }
+      }
+    },
+    "required" : [
+      "accessKeySecret",
+      "name",
+      "updatedAt"
+    ],
+    "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryKeywordsInheritanceTest$InheritedState"
+  }
+}

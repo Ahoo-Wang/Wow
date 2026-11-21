@@ -82,6 +82,8 @@ Error resolving plugin [id: 'com.google.devtools.ksp', version: '2.3.6']
 | `@VoidCommand`、`@Order`、`@EntityObject`、`@ValueObject` | 已移除 |
 | 无 | 拒绝码上的 `@ErrorCode`、用于之后重命名的 `@Alias`、`@QueryIndex`、`@Access` |
 
+9.x 的读模型接口常把 `@Sensitive` 和 `@Query…` 注解写在它的 getter 上（`@get:Sensitive`），由状态和它的 DTO 共用。V10 从属性覆盖的成员上读它们，所以覆盖这种 getter 的状态也带着它们：见[属性继承的注解](../guide/queries#annotations-a-property-inherits)。覆盖去不掉 `@Sensitive`，所以 9.x 状态没有重复声明而一直明文返回的字段，现在会被脱敏：合并后的 Manifest 里的 `x-wow-sensitive` 值得看一遍。
+
 ## 命令体承载什么 {#what-a-command-body-holds}
 
 命令体保存业务数据。租户是调用方的，所有者和空间是 `command.scope`，取自已认证的调用方，期望版本来自 `If-Match`：删除租户、所有者和版本字段以及路由注解。聚合是 `command.ref`，取自路由，除非命令体指明了它。
