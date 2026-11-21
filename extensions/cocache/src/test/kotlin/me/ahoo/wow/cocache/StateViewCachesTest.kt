@@ -90,6 +90,28 @@ class StateViewCachesTest {
     }
 
     @Test
+    fun `a slash in a tenant or an id should not make two aggregates share one entry`() = runBlocking<Unit> {
+        // Joined as they are, tenant `a/b` with id `c` and tenant `a` with id `b/c` were one entry, `a/b/c`.
+        writer.write(StateKey("a/b", "c"), OrderView("book"), 1).assert().isTrue()
+        coEvery { snapshots.state("b/c") } returns null
+        readers.of<OrderView>().get(StateKey("a", "b/c")).assert().isNull()
+        readers.of<OrderView>().get(StateKey("a/b", "c")).assert().isEqualTo(OrderView("book"))
+        coVerify(exactly = 1) { snapshots.state("b/c") }
+    }
+
+    @Test
+    fun `a key should be stored as the aggregate ref escapes its tenant and its id`() {
+        StateViewCaches.textOf(key).assert().isEqualTo("t/o-1")
+        StateViewCaches.textOf(StateKey("a/b", "c")).assert().isEqualTo("a%2Fb/c")
+        StateViewCaches.textOf(StateKey("a", "b/c")).assert().isEqualTo("a/b%2Fc")
+        StateViewCaches.textOf(StateKey("50%", "c")).assert().isEqualTo("50%25/c")
+        // The key's text is the part of its ref's text after the type, whatever its tenant and id hold.
+        listOf(key, StateKey("a/b", "c"), StateKey("a", "b/c"), StateKey("%2F", "/%")).forEach {
+            ORDER.ref(it.tenantId, it.id).toString().assert().isEqualTo("$ORDER/${StateViewCaches.textOf(it)}")
+        }
+    }
+
+    @Test
     fun `an absent aggregate should be cached as absent, a deleted one read as absent`() = runBlocking<Unit> {
         coEvery { snapshots.state("o-1") } returns null
         coEvery { snapshots.state("o-2") } returns stateOf("o-2", 4, "pen", deleted = true)

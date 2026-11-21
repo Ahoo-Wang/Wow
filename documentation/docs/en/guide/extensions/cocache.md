@@ -81,7 +81,7 @@ private suspend fun orderOf(tenantId: String, orderId: String): OrderStateView? 
 - `get(key)` and `get(tenantId, id)` answer the view, or `null` when the aggregate does not exist or is deleted.
 - `getAll(keys)` answers the views of the aggregates that exist: one read of the cache, and one query of the owner per tenant for those it misses, their ids in one `IN`.
 
-Everything about the cache follows from the view. Its name is `wow.<context>.<aggregate>`, the aggregate the view's `@StateView` names; its key is the aggregate's tenant and id; its value is the view's JSON. The owner and every reader derive the same, so nothing is configured to make them meet. Each view the contracts on the class path name gets a `StateViewCache<V>` bean. Outside Spring, `StateViewCaches.of<V>()` gives the same cache, created by CoCache's `CoCacheFactory`:
+Everything about the cache follows from the view. Its name is `wow.<context>.<aggregate>`, the aggregate the view's `@StateView` names; its key is the aggregate's tenant and id, `<tenantId>/<id>`, each with `%` and `/` escaped as `%25` and `%2F` as the aggregate's ref escapes them, so tenant `a/b` with id `c` and tenant `a` with id `b/c` are two keys; its value is the view's JSON. The owner and every reader derive the same, so nothing is configured to make them meet. Each view the contracts on the class path name gets a `StateViewCache<V>` bean. Outside Spring, `StateViewCaches.of<V>()` gives the same cache, created by CoCache's `CoCacheFactory`:
 
 <!-- sample: fragment -->
 
@@ -131,7 +131,7 @@ cocache:
 
 ## Drop a state from the cache
 
-A state the cache must give up before it expires is dropped with CoCache's actuator endpoint on a node of any service that runs the cache, its key the aggregate's tenant and id. The endpoint is exposed only where `management.endpoints.web.exposure.include` lists `cocache`; keep it to operators.
+A state the cache must give up before it expires is dropped with CoCache's actuator endpoint on a node of any service that runs the cache, its key the aggregate's tenant and id as the cache stores them (a `%` or a `/` in either escaped, `%25` and `%2F`, and that `%` encoded again in the URL). The endpoint is exposed only where `management.endpoints.web.exposure.include` lists `cocache`; keep it to operators.
 
 ```bash
 curl -X DELETE "http://<node>/actuator/cocache/wow.eshop-ordering.order/<tenantId>/<id>"
