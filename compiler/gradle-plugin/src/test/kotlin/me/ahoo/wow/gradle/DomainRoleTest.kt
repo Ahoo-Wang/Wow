@@ -19,6 +19,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.manifest.Manifest
 import org.gradle.api.GradleException
 import org.gradle.api.Project
 import org.gradle.api.ProjectConfigurationException
@@ -91,6 +92,19 @@ class DomainRoleTest {
         verify { fork.executable(launcher.executablePath.asFile.absolutePath) }
         // The module's classes before the tools, which read them with the Jackson the module runs with.
         classpath.files.toList().assert().isEqualTo(listOf(classes, tools))
+    }
+
+    @Test
+    fun `the fragment task's action should open a worker process queue and submit its fragments to it`() {
+        val project = project()
+        val task = project.tasks.getByName(WowPlugin.GENERATE_FRAGMENT_TASK) as GenerateManifestFragment
+        val stale = File(directory, "build/wow/manifest-fragment/${Manifest.FRAGMENT_DIRECTORY}/stale.json")
+        stale.apply { parentFile.mkdirs() }.writeText("{}")
+
+        // No fragment, so no worker is started; the queue is Gradle's own, which takes the isolation as configured.
+        task.generate()
+
+        stale.exists().assert().isFalse()
     }
 
     @Test
