@@ -52,7 +52,7 @@ internal class QuerySchemaMerger {
             val fields = linkedMapOf<QueryField<*>, QueryFieldDeclaration>()
             sources.forEach { source ->
                 source.declaration.fields.forEach { (field, declaration) ->
-                    fields[field] = fields[field]?.merge(declaration, field, true) ?: declaration
+                    fields[field] = fields[field]?.merge(declaration, field.path, true) ?: declaration
                 }
             }
             // Validate overlaps between nested declarations and path patches in the same priority.
@@ -107,7 +107,7 @@ private fun QueryFieldDeclaration.patchAt(
     field: QueryField<*>,
     rejectDifferent: Boolean,
 ): QueryFieldDeclaration {
-    if (path.isEmpty()) return merge(patch, field, rejectDifferent)
+    if (path.isEmpty()) return merge(patch, field.path, rejectDifferent)
     if (inferredKind() == QueryValueKind.ARRAY) {
         return copy(
             items = DeclarationValue.Set(checkNotNull(items.valueOr(null)).patchAt(path, patch, field, rejectDifferent))

@@ -76,6 +76,23 @@ internal object ManifestFixtures {
     }
     const val INHERITED_STATE = "me.ahoo.wow.manifest.tools.QueryKeywordsInheritanceTest\$InheritedState"
 
+    /**
+     * The `$defs` `manifest-tools` writes for each state of `QueryShapesTest` (every container of every kind of value),
+     * keyed by the state's `$defs` key: `manifest/query-shapes.defs.json`.
+     */
+    @Suppress("UNCHECKED_CAST")
+    val SHAPE_DEFS: Map<String, Map<String, Any?>> by lazy {
+        val text = checkNotNull(javaClass.classLoader.getResource("manifest/query-shapes.defs.json")).readText()
+        WowJson.mapper.readValue(text, Map::class.java) as Map<String, Map<String, Any?>>
+    }
+
+    /** One state of each of [SHAPE_DEFS], as Wow's state JSON writes it: `manifest/query-shapes.samples.json`. */
+    @Suppress("UNCHECKED_CAST")
+    val SHAPE_SAMPLES: Map<String, Any?> by lazy {
+        val text = checkNotNull(javaClass.classLoader.getResource("manifest/query-shapes.samples.json")).readText()
+        WowJson.mapper.readValue(text, Map::class.java) as Map<String, Any?>
+    }
+
     /** A Manifest of one aggregate `shop.order` with the state [state] (a `$defs` key) among [defs]. */
     fun manifest(
         defs: Map<String, Any?> = ORDER_DEFS,
