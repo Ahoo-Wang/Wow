@@ -53,7 +53,7 @@ class Product(private val state: ProductState) {
 - `OWNER` 聚合在调用方的租户、所有者和空间之内读取，每一项都以调用方有值为前提：所有者级调用方读取自己的，租户级调用方读取整个租户。
 - `TENANT` 聚合在调用方的租户和空间之内读取，从不加上所有者。租户里的每个调用方都能读取商品，购物者与员工一样。
 
-所以 `TENANT` 不按角色限制读取。属于租户、但只有部分调用方可以读取的聚合，例如运维控制台列出的失败、分析目录的数据源，需要服务自己的读取授权器：一个 `ReadAuthorizer` bean，拒绝没有该角色的调用方（[授权读取](../operate/security#authorize-reads)）。调用方能读到其中哪些聚合，由访问策略决定（[编写访问策略](#write-an-access-policy)）。受信代码和订阅的处理函数不带调用方地读取整个租户，既不询问读取授权器，也不询问访问策略。
+所以 `TENANT` 不按角色限制读取。属于租户、但只有部分调用方可以读取的聚合，例如运维控制台列出的失败、分析目录的数据源，需要服务自己的读取授权器：一个 `ReadAuthorizer` bean，拒绝没有该角色的调用方（[授权读取](../operate/security#authorize-reads)）。调用方能读到其中哪些聚合，由访问策略决定（[编写访问策略](#write-an-access-policy)）。受信代码不带调用方地读取所有租户，订阅的处理函数读取其提交所属的整个租户；两者既不询问读取授权器，也不询问访问策略。
 
 ## 每个所有者一个聚合 {#one-aggregate-per-owner}
 
@@ -253,7 +253,7 @@ private val documentAccess = accessPolicy<Document> {
 
 - **派生的命令。** Saga、定时器、补偿或同步调用派生的命令，带着它所跟随的提交的因果和根命令的作用域，根命令在到达时已由准入授权。它能接触每个聚合。
 - **以自身身份行事的服务。** 服务的身份（`Caller.ofService(...)`）读取和发送命令时不受策略约束。另一个服务在内部端口上调用或读取本服务时，受本服务调用方清单的约束（`wow.callers.<service>.commands` 与 `reads`；[关上内部端口](../operate/security#close-the-internal-port)）。服务的代码以服务身份发送命令：`commandClient.of(Caller.ofService("<wow.service>"))`；进程内客户端的默认调用方是匿名的，没有任何声明，会被策略拒绝。
-- **受信代码。** 不带调用方读取的代码（`NodeQueryApi.trusted()`）和订阅的处理函数读取整个租户。
+- **受信代码。** 不带调用方读取的代码（`NodeQueryApi.trusted()`）读取所有租户，订阅的处理函数读取其提交所属的整个租户。
 
 既没有因果、也没有调用方的命令，例如生产者在命令主题上写入时没带调用方的，在策略下被拒绝（[限制命令主题](../operate/security#restrict-the-command-topics)）。被允许在另一个作用域中行事的调用方，改变的是它在哪里行事，而不是策略授予什么：必须读取每个聚合的客服角色，在策略里有它自己的规则（`allowIf(caller.hasRole("support"))`）。
 

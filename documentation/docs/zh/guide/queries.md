@@ -90,7 +90,7 @@ streamed.assert().containsExactlyInAnyOrderElementsOf(filed)
 
 ## 上限 {#bounds}
 
-每个查询都在一个预算下运行：HTTP 用 `wow.query.budgets.http.*`，Kotlin 中用 `wow.query.budgets.in-process.*`。列表至多返回 `max-list-size`（1,000）行，不指明 limit 时为 100；一页至多 `max-page-size`（100）行；计数在 `count-limit` 处停止，并说明是否精确；查询至多运行 `timeout`（30 秒）。超出上限的查询会被拒绝，而不是不声不响地截断。9.x 的 `limit(Int.MAX_VALUE)` 同样会被拒绝：必须读全部匹配的代码（任务或迁移步骤，而不是代表调用方的读取）用 `NodeQueryApi.trusted().unbounded()`，它不受进程内预算限制、改用自己的超时（`wow.query.unbounded-timeout`），并读取所有租户；或者以流读取。超时的查询返回 `504 wow.query.timeout`：收窄它，而不是再运行一次。存储上运行的查询已达到允许的数量时，返回 `429 wow.query.busy` 并带上 `Retry-After`。
+每个查询都在一个预算下运行：HTTP 用 `wow.query.budgets.http.*`，Kotlin 中用 `wow.query.budgets.in-process.*`。列表至多返回 `max-list-size`（1,000）行，不指明 limit 时为 100；一页至多 `max-page-size`（100）行；计数在 `count-limit` 处停止，并说明是否精确；查询至多运行 `timeout`（30 秒）。超出上限的查询会被拒绝，而不是不声不响地截断。进程内的一页同样有上限，`trusted()` 也不例外：多于 `max-page-size` 行的分页查询会失败，报 `In-process page size[200] must be between 1 and 100.`，9.x 里读「前 200 行一页」的任务第一次运行就失败。它和处理函数的任何异常一样，在处理函数的预算内重试，然后停放它的条目（[失败与重试](./failures)）。每页至多读 `max-page-size` 行，任务的页必须更大时调高 `wow.query.budgets.in-process.max-page-size`，或者用 `unbounded()` 或流读取。9.x 的 `limit(Int.MAX_VALUE)` 同样会被拒绝：必须读全部匹配的代码（任务或迁移步骤，而不是代表调用方的读取）用 `NodeQueryApi.trusted().unbounded()`，它不受进程内预算限制、改用自己的超时（`wow.query.unbounded-timeout`），并读取所有租户；或者以流读取。超时的查询返回 `504 wow.query.timeout`：收窄它，而不是再运行一次。存储上运行的查询已达到允许的数量时，返回 `429 wow.query.busy` 并带上 `Retry-After`。
 
 ## 声明索引 {#declare-indexes}
 
@@ -133,6 +133,12 @@ var status: ProductStatus = ProductStatus.DRAFT
 | `@Sensitive` | 在每个结果中脱敏的字符串：`DISPLAY` 仍可以过滤和排序，`CONFIDENTIAL` 永远不可以 |
 
 脱敏的字段对每个调用方都脱敏：在查询、状态读取和轨迹中都一样，在数仓的目录中也一样。
+
+### 服务需要读回的密钥 {#a-secret-a-service-reads-back}
+
+脱敏不取决于谁在问，服务自己也是调用方。进程内的读取，`of(caller)`、`trusted()` 及其 `unbounded()`、订阅处理函数的 `context.queries`，走的是和公开端口相同的遮蔽，没有任何设置或调用方能解除。原始值只出现在 Wow 把状态本身交给代码的地方，而不是对它的查询：decide 函数持有的状态，以及订阅处理函数收到的 `StateEvent`。
+
+所以服务必须读回的密钥，比如它向第三方出示的 API key，不是状态里的 `@Sensitive` 字段。状态里只放一个引用，即查找密钥所用的名字，密钥本身另存：放在服务能读到的配置或密钥库里，或者以密文放在不是 `@Sensitive` 的字段里，由服务解密。Wow 按写入时的样子保存状态与事件，不对它们加密，所以状态里的原始密钥会留在日志和每一份快照里，不论查询在上面加了什么遮蔽。
 
 ### 属性继承的注解 {#annotations-a-property-inherits}
 

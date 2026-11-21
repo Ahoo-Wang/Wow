@@ -50,7 +50,7 @@ Callers come in two levels. An **owner-level** caller, whose scope has an owner,
 
 ## Identity comes from the principal
 
-Tenant, owner and space come from the authenticated caller, never from the path or the body of a request. A route does not change with the tenant, and a client cannot claim another tenant by writing it into a URL. The only way to act elsewhere is to be a caller that is allowed to, and to say so in `Wow-Scope`.
+Tenant, owner and space come from the authenticated caller, never from the path or the body of a request. The one exception is an aggregate whose id is its owner's: a caller with no owner, a member of staff say, names the aggregate by the id in the path, and that id is the owner ([Who names the id](../guide/ownership#who-names-the-id)). A route does not change with the tenant, and a client cannot claim another tenant by writing it into a URL. The only way to act elsewhere is to be a caller that is allowed to, and to say so in `Wow-Scope`.
 
 Commands that a saga sends, compensations and scheduled commands are not sent by a person. They **inherit** the scope and the operator of the root command, so an aggregate a saga creates belongs to whoever sent the first command, and the log says in whose name it was done. The `causation` of each commit says what triggered it. Admission checked the root command's authority; the kernel does not check an inherited scope against an aggregate that already exists.
 
