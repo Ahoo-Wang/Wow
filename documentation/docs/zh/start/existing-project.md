@@ -92,6 +92,10 @@ kotlin {
     jvmToolchain(21)
 }
 
+wow {
+    contractPackage = "com.example.catalog.api"
+}
+
 dependencies {
     api(project(":catalog-api"))
     // The aggregate test DSL, package me.ahoo.wow.test.
@@ -117,6 +121,7 @@ tasks.test {
 | 属性 | 默认值 | 含义 |
 | --- | --- | --- |
 | `context` | 模块中唯一的 `@BoundedContext` | 模块中的聚合和处理器所属的上下文 |
+| `contractPackage` | 无：必填 | api 模块为上下文生成的代码（`<Context>Contract`）所在的包，别的服务从这里 import，所以设一次就保持不变，不随模块增加聚合而变；模块有上下文却没设时 `generateWowContract` 失败，并给出要加的那一行（[编译器生成什么](../guide/generated-code#the-contract-code-of-the-api-module)） |
 | `schemaOverrides` | 空 | 每个 JVM 类名对应一个 JSON Schema，用于由自定义序列化器写出的类型（[由自定义序列化器写出的类型](../guide/manifest#a-type-written-by-a-custom-serializer)） |
 | `service` | 无 | 承载模块上下文的服务，写进其契约，服务的 Manifest 也取这个名字（[编译器生成什么](../guide/generated-code)） |
 

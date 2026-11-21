@@ -8,6 +8,7 @@ plugins {
 }
 
 wow {
+    contractPackage = "me.ahoo.wow.ops.api.parked"
     service = "ops-service"
 }
 

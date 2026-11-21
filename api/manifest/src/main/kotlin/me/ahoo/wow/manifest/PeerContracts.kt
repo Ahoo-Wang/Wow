@@ -120,21 +120,20 @@ object PeerContracts {
 
     /**
      * The `<State>View` of each state of [context] an api module generates, by aggregate name: the binary name
-     * `<package>.<State>View`, its package the one the aggregate's command and event classes share (else the one all the
-     * context's classes share), its name the state class's simple name followed by `View` (its `x-wow-class` in
-     * [defs], else its schema key). A state the contract withholds (its stream published without it) has none, nor has
-     * a state of no field.
+     * `<package>.<State>View`, its package the one the aggregate's command and event classes share, else the context's
+     * [contractPackage] (`wow { contractPackage }` of its domain module), its name the state class's simple name
+     * followed by `View` (its `x-wow-class` in [defs], else its schema key). A state the contract withholds (its stream
+     * published without it) has none, nor has a state of no field.
      *
      * @throws IllegalStateException when two aggregates share a state, or two states would have one view name: a
      *   view is of one aggregate.
      */
     @InternalWowApi
-    fun viewsOf(context: ContextManifest, defs: Map<String, Any?>): Map<String, String> {
+    fun viewsOf(context: ContextManifest, defs: Map<String, Any?>, contractPackage: String): Map<String, String> {
         val withheld = context.published.filterNot { it.includeState }.map { it.aggregate }.toSet()
         val viewed = context.aggregates.filter { aggregate ->
             aggregate.name !in withheld && fieldsOf(defs[Manifest.schemaKey(aggregate.state.schema)]).isNotEmpty()
         }
-        val contextPackage = packageOf(classesOf(context))
         val names = mutableMapOf<String, String>()
         return viewed.groupBy { Manifest.schemaKey(it.state.schema) }.entries.associate { (state, aggregates) ->
             check(aggregates.size == 1) {
@@ -142,7 +141,7 @@ object PeerContracts {
                     "which a state view cannot name: give each aggregate a state class of its own."
             }
             val aggregate = aggregates.single()
-            val pkg = packageOf(classesOf(aggregate)).ifEmpty { contextPackage }
+            val pkg = packageOf(classesOf(aggregate)).ifEmpty { contractPackage }
             val stateClass = (defs[state] as? Map<*, *>)?.get(CLASS_KEYWORD) as? String ?: state
             val simple = stateClass.substringAfterLast('.').substringAfterLast('$')
             val view = if (pkg.isEmpty()) "${simple}View" else "$pkg.${simple}View"
@@ -156,11 +155,14 @@ object PeerContracts {
         }
     }
 
-    /** [contract] with each state's [StateManifest.view] set ([viewsOf]), as an api module's jar carries it. */
+    /**
+     * [contract] with each state's [StateManifest.view] set ([viewsOf]), as an api module's jar carries it, each
+     * context's views falling back to its package in [contractPackages], by context name.
+     */
     @InternalWowApi
-    fun withViews(contract: Manifest): Manifest = contract.copyWith(
+    fun withViews(contract: Manifest, contractPackages: Map<String, String>): Manifest = contract.copyWith(
         contexts = contract.contexts.map { context ->
-            val views = viewsOf(context, contract.defs)
+            val views = viewsOf(context, contract.defs, contractPackageOf(context, contractPackages))
             context.copyWith(
                 aggregates = context.aggregates.map { aggregate ->
                     aggregate.copyWith(state = aggregate.state.copyWith(view = views[aggregate.name]))
@@ -168,6 +170,19 @@ object PeerContracts {
             )
         },
     )
+
+    /**
+     * The package of [context]'s generated `<Context>Contract` among [contractPackages], by context name: what its
+     * domain module's `wow { contractPackage }` sets, which the domain module's build refuses to leave unset.
+     *
+     * @throws IllegalStateException when it has none: its domain module was built by another version of the plugin.
+     */
+    @InternalWowApi
+    fun contractPackageOf(context: ContextManifest, contractPackages: Map<String, String>): String =
+        checkNotNull(contractPackages[context.name]) {
+            "The context ${context.name} has no contract package: build its domain module with this version of the " +
+                "Wow Gradle plugin, which writes its wow { contractPackage } beside its contract."
+        }
 
     /** The package the binary names [classes] share: the longest common one, empty when they share none. */
     @InternalWowApi
@@ -196,12 +211,18 @@ object PeerContracts {
      * The contract the api module [owner] carries: of the contexts of the domain modules' [contracts], those whose
      * command and event classes are its own ([owns], by binary name). A context with none of its classes is another
      * api module's, and is left out; a context with some of them and not others fails, as does a context two
-     * contracts declare. Null when no context is the api module's.
+     * contracts declare. Null when no context is the api module's. Each state's view ([withViews]) falls back to its
+     * context's package in [contractPackages].
      *
      * @throws IllegalStateException listing every problem.
      */
     @InternalWowApi
-    fun assemble(owner: String, contracts: List<ManifestFragment>, owns: (String) -> Boolean): Manifest? {
+    fun assemble(
+        owner: String,
+        contracts: List<ManifestFragment>,
+        contractPackages: Map<String, String>,
+        owns: (String) -> Boolean,
+    ): Manifest? {
         val problems = mutableListOf<String>()
         val kept = contracts.flatMap { contract ->
             contract.manifest.contexts.mapNotNull { context ->
@@ -251,7 +272,7 @@ object PeerContracts {
             contexts = kept.map { it.second }.sortedBy { it.name },
             errors = kept.flatMap { it.first.manifest.errors }.distinctBy { it.code },
         )
-        return withViews(contract.copyWith(defs = referenced(contract.schemaRefs, defs)))
+        return withViews(contract.copyWith(defs = referenced(contract.schemaRefs, defs)), contractPackages)
     }
 
     /**

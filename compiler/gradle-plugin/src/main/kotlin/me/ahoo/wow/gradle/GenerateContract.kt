@@ -49,6 +49,11 @@ internal abstract class GenerateContract @Inject constructor(private val workers
     @get:Optional
     abstract val service: Property<String>
 
+    /** [WowExtension.contractPackage]: required once the module has a context, which only the [fragments] tell. */
+    @get:Input
+    @get:Optional
+    abstract val contractPackage: Property<String>
+
     /** The module's project path, which a failure names. */
     @get:Input
     abstract val module: Property<String>
@@ -81,6 +86,13 @@ internal abstract class GenerateContract @Inject constructor(private val workers
     @get:OutputFile
     abstract val outputFile: RegularFileProperty
 
+    /**
+     * The package of each of the module's contexts, [contractPackage], beside [outputFile] for the api modules: a file
+     * of the plugin's own, which they read and never publish.
+     */
+    @get:OutputFile
+    abstract val packagesFile: RegularFileProperty
+
     @TaskAction
     fun generate() {
         submit(workers.classLoaderIsolation { spec -> spec.classpath.from(tools) })
@@ -103,9 +115,11 @@ internal abstract class GenerateContract @Inject constructor(private val workers
         queue.submit(ManifestToolsWork.GenerateContract::class.java) { parameters ->
             parameters.fragments.from(fragments)
             parameters.service.set(service)
+            parameters.contractPackage.set(contractPackage)
             parameters.module.set(module)
             parameters.unpaired.set(unpaired())
             parameters.output.set(outputFile)
+            parameters.packages.set(packagesFile)
         }
     }
 }

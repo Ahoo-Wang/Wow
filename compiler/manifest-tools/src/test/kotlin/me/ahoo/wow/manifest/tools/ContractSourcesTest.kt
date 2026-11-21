@@ -25,6 +25,7 @@ import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.ErrorManifest
 import me.ahoo.wow.manifest.EventManifest
 import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.manifest.PeerContracts
 import me.ahoo.wow.manifest.QueryManifest
 import me.ahoo.wow.manifest.SnapshotManifest
 import me.ahoo.wow.manifest.StateManifest
@@ -104,7 +105,7 @@ class ContractSourcesTest {
 
     /** The `<Context>Contract` of the one context of [contract]. */
     private fun contractOf(contract: Manifest, queryFields: Boolean): ContractSources.Source =
-        ContractSources.of(contract.contexts.single(), contract.defs, queryFields)
+        ContractSources.of(contract.contexts.single(), contract.defs, PACKAGES, queryFields)
 
     @Test
     fun `the state's paths should be named as the compiler names them`() {
@@ -290,7 +291,8 @@ class ContractSourcesTest {
     }
 
     @Test
-    fun `a context of the default package should be generated at the source root`() {
+    fun `a context's code should be in its contract package, wherever its classes are`() {
+        // Its classes are in no package: the package is the one its domain module declares.
         val aggregate = AggregateManifest(
             name = "stock-item",
             state = StateManifest(Manifest.schemaRef("StockState")),
@@ -301,18 +303,31 @@ class ContractSourcesTest {
             Manifest(contexts = listOf(ContextManifest("inventory", aggregates = listOf(aggregate)))),
             queryFields = false,
         )
-        source.path.assert().isEqualTo("InventoryContract.kt")
-        source.text.assert().doesNotContain(
-            "package "
-        ).contains("public object StockItem {", "kotlin.collections.listOf()")
+        source.path.assert().isEqualTo("inventory/api/InventoryContract.kt")
+        source.text.assert().contains("package inventory.api\n", "public object StockItem {")
+    }
+
+    @Test
+    fun `a segment of the contract package that is a Kotlin keyword should be quoted`() {
+        val context = contract(aggregate()).contexts.single()
+        val source = ContractSources.of(
+            context,
+            contract(aggregate()).defs,
+            mapOf(context.name to "shop.object.in"),
+            false
+        )
+        source.path.assert().isEqualTo("shop/object/in/ShopOrderingContract.kt")
+        source.text.assert().contains("package shop.`object`.`in`\n")
+        KotlinNames.qualified("a.fun.Outer\$val").assert().isEqualTo("a.`fun`.Outer.`val`")
+        KotlinNames.qualified("com.example.order.OrderView").assert().isEqualTo("com.example.order.OrderView")
     }
 
     @Test
     fun `the package should be the one the context's classes share`() {
-        ContractSources.packageOf(listOf("shop.api.AddItem", "shop.api.cart.ItemAdded")).assert().isEqualTo("shop.api")
-        ContractSources.packageOf(listOf("shop.api.AddItem", "billing.Pay")).assert().isEmpty()
-        ContractSources.packageOf(listOf("AddItem")).assert().isEmpty()
-        ContractSources.packageOf(emptyList()).assert().isEmpty()
+        PeerContracts.packageOf(listOf("shop.api.AddItem", "shop.api.cart.ItemAdded")).assert().isEqualTo("shop.api")
+        PeerContracts.packageOf(listOf("shop.api.AddItem", "billing.Pay")).assert().isEmpty()
+        PeerContracts.packageOf(listOf("AddItem")).assert().isEmpty()
+        PeerContracts.packageOf(emptyList()).assert().isEmpty()
     }
 
     @Test
@@ -328,16 +343,27 @@ class ContractSourcesTest {
         val stale = File(output, "Stale.kt").apply { writeText("") }
         val contractFile = File(directory, "contract.json").also { ManifestJson.write(contract(aggregate()), it) }
         val classpath = System.getProperty("java.class.path").split(File.pathSeparator).map(::File)
-        ManifestTools.generateContractSources(listOf(contractFile, File(directory, "absent.json")), classpath, output)
+        val packages = File(directory, "contract-package.properties").apply { writeText("shop-ordering=shop.api\n") }
+        ManifestTools.generateContractSources(
+            listOf(contractFile, File(directory, "absent.json")),
+            listOf(packages),
+            classpath,
+            output,
+        )
             .assert().isEqualTo(2)
         stale.exists().assert().isFalse()
         File(output, "shop/api/ShopOrderingContract.kt").readText().assert().contains("STATE__LINES__SKU")
         File(output, "shop/api/OrderStateView.kt").readText().assert()
             .contains("@me.ahoo.wow.api.read.StateView(\"shop-ordering.order\")")
         // Without wow-query-api on the class path, no query field.
-        ManifestTools.generateContractSources(listOf(contractFile), emptyList(), output)
+        ManifestTools.generateContractSources(listOf(contractFile), listOf(packages), emptyList(), output)
         File(output, "shop/api/ShopOrderingContract.kt").readText().assert().doesNotContain("STATE__")
-        ManifestTools.generateContractSources(emptyList(), classpath, output).assert().isZero()
+        ManifestTools.generateContractSources(emptyList(), emptyList(), classpath, output).assert().isZero()
         output.exists().assert().isFalse()
+    }
+
+    private companion object {
+        /** The contract package of each context of the tests, as its domain module declares it. */
+        val PACKAGES = mapOf("shop-ordering" to "shop.api", "probe" to "probe.api", "inventory" to "inventory.api")
     }
 }

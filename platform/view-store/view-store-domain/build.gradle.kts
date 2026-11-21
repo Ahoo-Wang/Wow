@@ -8,6 +8,7 @@ plugins {
 }
 
 wow {
+    contractPackage = "me.ahoo.wow.viewstore.api"
     service = "view-store-service"
 }
 

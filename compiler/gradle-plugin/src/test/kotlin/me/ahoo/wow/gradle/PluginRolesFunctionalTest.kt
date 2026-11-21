@@ -41,7 +41,14 @@ class PluginRolesFunctionalTest {
     }
 
     /** The build file of the module at [path] (the root for an empty one), applying the Wow plugin [id]. */
-    private fun module(root: File, path: String, id: String, dependencies: String = "") {
+    /** A module of the plugin [id]; a domain module's generated contract in [contractPackage]. */
+    private fun module(
+        root: File,
+        path: String,
+        id: String,
+        dependencies: String = "",
+        contractPackage: String? = null,
+    ) {
         val compiler = if (id == WowPlugin.API_ID) {
             ""
         } else {
@@ -67,6 +74,7 @@ class PluginRolesFunctionalTest {
                 wowTools(files(${classpath("wow-test.fixture.toolsClasspath")}))
                 $dependencies
             }
+            ${contractPackage?.let { "wow { contractPackage = \"$it\" }" }.orEmpty()}
             """,
         )
     }
@@ -124,7 +132,7 @@ class PluginRolesFunctionalTest {
     @Test
     fun `a single module should be its domain and its service with the service plugin alone`(@TempDir root: File) {
         settings(root, "bank")
-        module(root, "", WowPlugin.SERVICE_ID)
+        module(root, "", WowPlugin.SERVICE_ID, contractPackage = "bank")
         // One fact, one place: the module's contexts are hosted by bank-service, its contract and Manifest alike.
         File(root, "build.gradle.kts").appendText("\nwow { service = \"bank-service\" }\n")
         bank(root, "")
@@ -175,7 +183,13 @@ class PluginRolesFunctionalTest {
             data class AccountOpened(val owner: String)
             """,
         )
-        module(root, "bank-domain", WowPlugin.ID, dependencies = """api(project(":bank-api"))""")
+        module(
+            root,
+            "bank-domain",
+            WowPlugin.ID,
+            dependencies = """api(project(":bank-api"))""",
+            contractPackage = "bankapi"
+        )
         write(
             root,
             "bank-domain/src/main/kotlin/bank/Account.kt",
@@ -331,7 +345,13 @@ class PluginRolesFunctionalTest {
             data class AccountOpened(val owner: String)
             """,
         )
-        module(root, "bank-domain", WowPlugin.ID, dependencies = """api(project(":bank-api"))""")
+        module(
+            root,
+            "bank-domain",
+            WowPlugin.ID,
+            dependencies = """api(project(":bank-api"))""",
+            contractPackage = "bankapi"
+        )
         write(
             root,
             "bank-domain/src/main/kotlin/bank/Account.kt",
@@ -428,7 +448,7 @@ class PluginRolesFunctionalTest {
         val contexts = listOf("bank", "shop", "mail", "post")
         settings(root, "bank", *contexts.map { "$it-domain" }.toTypedArray(), "bank-server")
         contexts.forEach { context ->
-            module(root, "$context-domain", WowPlugin.ID)
+            module(root, "$context-domain", WowPlugin.ID, contractPackage = context)
             bank(root, "$context-domain", pkg = context, context = context)
         }
         module(
