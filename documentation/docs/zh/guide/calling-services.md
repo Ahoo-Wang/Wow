@@ -42,6 +42,8 @@ submitted.ref.assert().isEqualTo(ref)
 | `CommandRejectedException` | 聚合拒绝了命令，或者准入拒绝了它（未知、格式错误或无效的命令，被禁止的调用方）。`code` 是错误码 | 否：同一个请求会再次被拒绝 |
 | `WowProblemException` | 技术故障：节点繁忙或正在关闭、存储或 broker 不可用、等待超时。`code` 和 `status` 说明是哪一种 | 按它的 `retry` 和 `retryAfter`：是否重试、是否用同一个请求 ID，以及多久之后 |
 
+要区分结果已经确定的命令和结果未知的命令，除了异常类型，还要读异常的 `retry`。`CommandRejectedException` 是已决定的答复，同一个请求会再次被拒绝。`retry` 为 `SAME_REQUEST` 的 `WowProblemException` 可能已经提交（`wow.command.unknown`、`wow.wait.timeout`）：用同一个请求 ID 再发一次，已经提交的命令会作为重复被答复，绝不会提交两次。`NEW_REQUEST` 表示没有做过重试会重复的事，`NONE` 表示再试同样失败（`wow.command.failed` 什么也没提交）。不带 `requestId` 的请求每次发送都取新的，所以自己重试时要设置它，或者沿用第一个结果报告的那个。
+
 `stream` 发出每个结果，无论状态如何。按错误码捕获拒绝的例子，见[拒绝与错误码](./rejections#what-the-caller-receives)。
 
 ## 每条命令发往哪里 {#where-each-command-goes}

@@ -41,7 +41,7 @@ A command whose body names its aggregate ([Name the aggregate in the body](./agg
 
 Every derived command is deterministic:
 
-- Its id and request id come from the execution (`subscription:ref@version`) and what it asks: its target, its command type, and how many commands of that type to that target the execution derived before it. Handling the commit again derives the same requests in whatever order the handler builds them, even when a read answers in another order, and each target decides each one once. A request that gives a `requestId` takes it as its business key instead of the count, so a command keeps its id whatever else the handler derives.
+- Its id and request id come from the execution (`subscription:ref@version`) and what it asks: its target, its command type, and how many commands of that type to that target the execution derived before it. Handling the commit again derives the same requests in whatever order the handler builds them, even when a read answers in another order, and each target decides each one once. A request that gives a `requestId` takes it as its business key instead of the count, so a command keeps its id whatever else the handler derives. The command's own request id is that derived id, never the `requestId` the request gives, and the derived id includes the commit being handled: a business key set there tells requests of one execution apart, and does not deduplicate the commands of two commits.
 - It carries the operator, the owner and the space of the commit it is derived from. An aggregate it creates belongs to the same owner: a basket's checkout creates an order that belongs to the basket's buyer. Derived commands are trusted, so the target's scope guard does not check them: a wrong target is not refused. Test the targets in `sagaSpec`.
 - The subscription sends it and waits for nothing: a request with a `wait` or a `timeout` fails the handler.
 - `context.ids` draws an id for an aggregate the command creates. Handling the commit again draws a new one, so use it only for the creating command itself, whose request id keeps the target from creating it twice. A creating request without an id leaves the id to the target and keeps the first one on every retry.
@@ -155,6 +155,8 @@ fun onReleaseRejected(rejected: CommandReceipt.Rejected<ReleaseReservation>) = U
 ```
 
 `CommandReceipt.Rejected<*>` and `CommandReceipt.Committed<*>` take every command the saga derives, and `Rejected<*>` the commands it calls too.
+
+A compensation is not compensated. A command that an `@OnRejected` or an `@OnCommitted` handler derives, and that is rejected in turn, is not handed to an `@OnRejected` handler: every command the handler derived is still executed, and their rejections park the aggregate once, listing each, as a rejection no handler takes does. A handover of several steps, where one receipt derives the next command and that command's rejection must be compensated, therefore derives the next command from an `@OnEvent` handler, from an event the first command commits, so that its rejection reaches its own `@OnRejected` handler.
 
 ## Call another context synchronously
 

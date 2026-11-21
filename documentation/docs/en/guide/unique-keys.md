@@ -56,6 +56,13 @@ suspend fun onCommand(command: RenameBrand, scope: DecideScope): BrandRenamed? {
 
 Deleting an aggregate releases none of its keys, so a restored aggregate still holds them. A delete that should give a key up releases it in the aggregate's own command before the delete.
 
+## Move a key to another aggregate {#move-a-key-to-another-aggregate}
+
+A reservation belongs to the aggregate that is deciding, and it commits with that aggregate's events. `reserve` and `release` act for the deciding aggregate alone: a decision releases only a key its aggregate holds, and no decision takes over a key another aggregate holds. 10.0 has no transfer of a reservation and no compare-and-swap of its holder, so the two changes of a key are different things:
+
+- **Within one aggregate**, changing the key is one decision: reserve the new key and release the old one, as the rename above does. Both take effect with the events, or neither does.
+- **Between aggregates**, the holder changes by a handover through a saga. The aggregate that wants the key records its request; the saga has the holder give the key up, in a command of the holder whose decision releases it; once that has committed, a command of the requester reserves it. Between the release and the claim another aggregate may take the key, so the claim can be refused, and the saga then withdraws the requester's request. The handover costs commands and events of its own, and the switch is eventually consistent: for a while no aggregate holds the key.
+
 ## A key unique across aggregate types
 
 A key is unique among the aggregates of one type. When a value must be unique across types, such as an email address that users and organizations share, model the uniqueness as an aggregate of its own: an aggregate whose id is the key (or one that holds the keys) is claimed by the others through its commands, and its own decisions say who holds each key.

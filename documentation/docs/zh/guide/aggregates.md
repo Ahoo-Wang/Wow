@@ -103,7 +103,7 @@ data class RestockProduct(
 
 准入会检查这个 ID：空白的 ID 是 `wow.command.malformed`（400）；在命令体之外又指明了另一个聚合的请求（例如 Kotlin 客户端的 `CommandRequest.to(ref, body)`）同样是 `wow.command.malformed`。指明同一个聚合的请求会被接受。
 
-这个属性由命令类或它实现的接口声明，是 public 或 internal，并且 Wow 的 JSON 会写出它（没有 `@JsonIgnore`），所以每个发送方的命令体里都有它。一条命令只有一个属性指明聚合。编译器拒绝把它用在 `@Unaddressed` 命令或挂载命令上（它们的聚合由转换器找到），也拒绝用在 ID 即所有者 ID 的聚合上。接收这类命令的 `CommandTransformer` 会让服务在启动时失败。
+这个属性由命令类或它实现的接口声明，是 public 或 internal，并且 Wow 的 JSON 会写出它（没有 `@JsonIgnore`），所以每个发送方的命令体里都有它。在 Kotlin 属性上，标记要放在属性本身：`@get:AggregateId` 无法编译，因为这个注解不适用于 getter；属性或它的 getter 上的 `@JsonIgnore` 会让构建失败，因为 Wow 的 JSON 必须写出这个 ID。计算出的 `val` 同样可以标，只发送部分属性的发送方可以不带它。一条命令只有一个属性指明聚合。编译器拒绝把它用在 `@Unaddressed` 命令或挂载命令上（它们的聚合由转换器找到），也拒绝用在 ID 即所有者 ID 的聚合上。接收这类命令的 `CommandTransformer` 会让服务在启动时失败。
 
 Wow 10 只按 `@AggregateId` 从命令体取得命令的聚合，从不按属性名推断。因此，命令有 `String` 类型、名为 `id` 的属性却没有 `@AggregateId`，而它本可以指明聚合时，无论命令在哪里编译（包括上下文的 api 模块），编译器都会报告它。这个 `id` 可以是存储的或计算的，可以是命令自己的、超类的，也可以来自接口，例如 9.x 的 `Identifier.id`。由于 9.x 是从命令对象读取这个 `id` 的，报告也涵盖 Wow 的 JSON 不写出的（`@JsonIgnore`）或私有的 `id`，并指出这个 `id` 来自哪里、是什么使它无法标注。
 
@@ -128,7 +128,7 @@ data class ConfirmPayment(
 )
 ```
 
-内部命令只由平台发送：本服务的 Saga 与定时器、进程内的 `CommandClient`，以及别的服务经内部端口的调用；后者与任何命令一样，受 [`wow.callers.<service>.commands`](../reference/configuration#wow-callers-service) 的许可约束（[调用其他服务](./calling-services)）。Manifest 把它记为 `"internal": true`，路由与同类命令一样照写，内部端口按相同路径受理。公开端口不挂这些路由：在公开端口请求 `POST /eshop-payment/payment/{id}/confirm-payment` 答 `404`，与任何未知路径的 problem 相同，不透露这条命令存在。公开端口的 OpenAPI 文档与 `wow-generator` 生成的客户端都不含这条命令，也不含只有它用到的类型。内部端口受理的每次调用仍由命令授权器裁决。
+内部命令只由平台发送：本服务的 Saga 与定时器、进程内的 `CommandClient`，以及别的服务经内部端口的调用；后者与任何命令一样，受 [`wow.callers.<service>.commands`](../reference/configuration#wow-callers-service) 的许可约束（[调用其他服务](./calling-services)）。这份列表只收窄有条目的服务：没有条目的服务可以发送每一条领域命令，内部命令也不例外，所以挡住其他调用方的是内部端口外面的网络（[关闭内部端口](../operate/security#close-the-internal-port)）。Manifest 把它记为 `"internal": true`，路由与同类命令一样照写，内部端口按相同路径受理。公开端口不挂这些路由：在公开端口请求 `POST /eshop-payment/payment/{id}/confirm-payment` 答 `404`，与任何未知路径的 problem 相同，不透露这条命令存在。公开端口的 OpenAPI 文档与 `wow-generator` 生成的客户端都不含这条命令，也不含只有它用到的类型。内部端口受理的每次调用仍由命令授权器裁决。
 
 404 让探测分不清内部命令与未知路径；契约本身仍是公开的。公开端口的 `GET /wow/manifest` 与列出其他命令一样列出它，并标注 `"internal": true`：按名字调用服务的工具从那里读取契约，Saga 的 `derives` 与等待链也指向这条命令。不想公开契约的部署，用 [`wow.http.manifest.enabled: false`](../reference/configuration#wow-http-manifest) 关闭这个端点。
 

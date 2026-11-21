@@ -134,6 +134,12 @@ var status: ProductStatus = ProductStatus.DRAFT
 
 脱敏的字段对每个调用方都脱敏：在查询、状态读取和轨迹中都一样，在数仓的目录中也一样。
 
+### 服务需要读回的密钥 {#a-secret-a-service-reads-back}
+
+脱敏不取决于谁在问，服务自己也是调用方。进程内的读取，`of(caller)`、`trusted()` 及其 `unbounded()`、订阅处理函数的 `context.queries`，走的是和公开端口相同的遮蔽，没有任何设置或调用方能解除。原始值只出现在 Wow 把状态本身交给代码的地方，而不是对它的查询：decide 函数持有的状态，以及订阅处理函数收到的 `StateEvent`。
+
+所以服务必须读回的密钥，比如它向第三方出示的 API key，不是状态里的 `@Sensitive` 字段。状态里只放一个引用，即查找密钥所用的名字，密钥本身另存：放在服务能读到的配置或密钥库里，或者以密文放在不是 `@Sensitive` 的字段里，由服务解密。Wow 按写入时的样子保存状态与事件，不对它们加密，所以状态里的原始密钥会留在日志和每一份快照里，不论查询在上面加了什么遮蔽。
+
 ### 属性继承的注解 {#annotations-a-property-inherits}
 
 属性还会从它覆盖的成员上读这些注解：它实现的接口的 getter、它的父类的属性，不限层数。所以读模型接口可以把它们写在 getter 上（`@get:Sensitive val accessKeySecret: String`），覆盖它们的状态就带着它们。
