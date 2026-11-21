@@ -16,14 +16,24 @@ package me.ahoo.wow.cocache
 import me.ahoo.wow.cocache.api.StateKey
 import me.ahoo.wow.spi.sink.Sink
 import me.ahoo.wow.spi.state.StateEventRecord
+import tools.jackson.databind.JsonNode
 
 /**
  * The sink that writes one aggregate type's states into its cache: each commit, in version order per aggregate, its
  * state after the commit as the view [viewType], or its tombstone when the commit deleted it ([StateViewWriter]). It
  * runs as a sink subscription of the owner's node, so it checkpoints, retries and parks as every subscription does,
  * and a record written again changes nothing.
+ *
+ * The cache holds what a read of the owner returns, as a miss loads it: each state is masked by [mask], the node's
+ * mask of the type's states ([me.ahoo.wow.spi.read.StateMasks]), on a copy of the record's tree, which other
+ * subscriptions of the record read too. A type whose schema masks nothing has none, and its states are written as they
+ * are, with no copy.
  */
-internal class StateViewSink<V : Any>(viewType: Class<V>, private val writer: StateViewWriter<V>) : Sink {
+internal class StateViewSink<V : Any>(
+    viewType: Class<V>,
+    private val writer: StateViewWriter<V>,
+    private val mask: ((JsonNode) -> JsonNode)?,
+) : Sink {
     private val codec = StateViewCodec(viewType)
 
     override suspend fun write(records: List<StateEventRecord>) {
@@ -32,8 +42,8 @@ internal class StateViewSink<V : Any>(viewType: Class<V>, private val writer: St
             if (record.deleted) {
                 writer.delete(key, record.version)
             } else {
-                val state = checkNotNull(record.state) { "The state of ${record.id} is left out of its record." }
-                writer.write(key, codec.viewOf(state.state), record.version)
+                val state = checkNotNull(record.state) { "The state of ${record.id} is left out of its record." }.state
+                writer.write(key, codec.viewOf(mask?.invoke(state.deepCopy()) ?: state), record.version)
             }
         }
     }

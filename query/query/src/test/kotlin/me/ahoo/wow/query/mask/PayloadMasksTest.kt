@@ -20,6 +20,7 @@ import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.EventManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.StateManifest
+import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.query.error.QueryExecutionException
 import me.ahoo.wow.query.schema.ManifestFixtures
 import me.ahoo.wow.spi.json.WowJson
@@ -108,6 +109,18 @@ class PayloadMasksTest {
         masks.event(ManifestFixtures.ORDER, "Unknown", body).assert().isSameAs(body)
         masks.state(AggregateType("shop", "other"), body).assert().isSameAs(body)
         PayloadMasks.NONE.state(ManifestFixtures.ORDER, body).assert().isSameAs(body)
+    }
+
+    @Test
+    fun `the state mask a writer takes should be the state read's, and none for a type that masks nothing`() {
+        val raw = """{"password":"secret","phone":"13812345678","email":"a@b.c","address":{"street":"main"}}"""
+        val mask = masks.maskOf(ManifestFixtures.ORDER)!!
+        mask(tree(raw)).assert().isEqualTo(masks.state(ManifestFixtures.ORDER, tree(raw)))
+        mask(tree(raw))["email"].asString().assert().isEqualTo("[redacted]")
+        masks.maskOf(AggregateType("shop", "other")).assert().isNull()
+        val unmarked = mapOf(ManifestFixtures.ORDER_STATE to mapOf("type" to "object"))
+        val plain = manifest.copyWith(defs = manifest.defs + unmarked)
+        PayloadMasks(plain).maskOf(ManifestFixtures.ORDER).assert().isNull()
     }
 
     @Test

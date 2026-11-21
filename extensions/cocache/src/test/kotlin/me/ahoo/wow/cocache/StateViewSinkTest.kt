@@ -31,7 +31,7 @@ import java.time.Duration
 class StateViewSinkTest {
     private val runtime = runtimeOn(InMemoryBackend())
     private val caches = StateViewCaches(CoCacheFactory(runtime)) { error("no miss is read") }
-    private val sink = StateViewSink(OrderView::class.java, caches.writerOf(OrderView::class.java))
+    private val sink = StateViewSink(OrderView::class.java, caches.writerOf(OrderView::class.java), null)
     private val key = StateKey("t", "o-1")
 
     @AfterEach
@@ -77,7 +77,7 @@ class StateViewSinkTest {
     @Test
     fun `states written for a lifetime of their own should be read as written`() = runBlocking<Unit> {
         val writer = caches.writerOf(OrderView::class.java, Duration.ofMinutes(5))
-        StateViewSink(OrderView::class.java, writer).write(
+        StateViewSink(OrderView::class.java, writer, null).write(
             listOf(
                 recordOf(1, """{"item":"book"}"""),
                 recordOf(2, null, deleted = true),

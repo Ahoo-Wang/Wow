@@ -134,6 +134,7 @@ The two lists below are generated from the sources of the published modules: the
 | `me.ahoo.wow.spi.peer.PeerDiscovery` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.peer.PeerTargets` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.peer.PeerDiscoveryConfig` | class | `wow-spi` |
+| `me.ahoo.wow.spi.read.StateMasks` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.read.TenantQueryApi` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.reservation.ReservationStore` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.reservation.ConfirmOutcome` | interface | `wow-spi` |

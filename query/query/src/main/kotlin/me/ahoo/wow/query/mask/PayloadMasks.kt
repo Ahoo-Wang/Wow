@@ -26,6 +26,7 @@ import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaDeclaration
 import me.ahoo.wow.query.schema.QuerySchemaMerger
 import me.ahoo.wow.spi.json.query.SnapshotFields
+import me.ahoo.wow.spi.read.StateMasks
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.JsonNodeFactory
 import java.util.Optional
@@ -40,18 +41,29 @@ import java.util.concurrent.ConcurrentHashMap
  *
  * Each schema is compiled once, on first use; [strategies] resolves the custom mask strategies, and one it does not
  * know fails the read rather than return the raw value.
+ *
+ * They are the node's [StateMasks] too ([maskOf]): a writer that stores a state where a reader takes it as a read, the
+ * state view cache's sink, masks it by the very function a state read applies.
  */
 @InternalWowApi
 class PayloadMasks(
     private val manifest: Manifest,
     private val strategies: MaskStrategyResolver = MaskStrategyResolver.NONE,
-) {
+) : StateMasks {
     private val maskers = ConcurrentHashMap<MaskKey, Optional<SchemaMasker>>()
 
     /** [state], a state of [type], masked in place where it can be; the masked value. */
     fun state(type: AggregateType, state: JsonNode): JsonNode {
         val aggregate = aggregate(type) ?: return state
         return mask(MaskKey(type.context, aggregate.state.schema), state)
+    }
+
+    /** [state] as a function of a state of [type]: null when its schema masks nothing, compiled now otherwise. */
+    override fun maskOf(type: AggregateType): ((JsonNode) -> JsonNode)? {
+        val aggregate = aggregate(type) ?: return null
+        val key = MaskKey(type.context, aggregate.state.schema)
+        masker(key) ?: return null
+        return { state -> mask(key, state) }
     }
 
     /**
@@ -69,8 +81,11 @@ class PayloadMasks(
     private fun aggregate(type: AggregateType): AggregateManifest? =
         manifest.contexts.firstOrNull { it.name == type.context }?.aggregates?.firstOrNull { it.name == type.name }
 
+    private fun masker(key: MaskKey): SchemaMasker? =
+        maskers.computeIfAbsent(key) { Optional.ofNullable(compile(it)) }.orElse(null)
+
     private fun mask(key: MaskKey, payload: JsonNode): JsonNode {
-        val masker = maskers.computeIfAbsent(key) { Optional.ofNullable(compile(it)) }.orElse(null) ?: return payload
+        val masker = masker(key) ?: return payload
         val record = JsonNodeFactory.instance.objectNode().set(PAYLOAD.path, payload)
         return masker.mask(record).get(PAYLOAD.path)
     }
