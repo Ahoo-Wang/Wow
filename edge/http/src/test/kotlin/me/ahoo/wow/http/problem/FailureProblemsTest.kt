@@ -129,8 +129,9 @@ class FailureProblemsTest {
             problem.detail.assert().isEqualTo("The request failed with an unexpected error.")
         }
         asked.none { it.startsWith("$CONTEXT.later") }.assert().isTrue()
-        // Twice the same refusal answers alike.
-        problems(upstream(status = 401)).problemOf(UpstreamException()).status.assert().isEqualTo(500)
+        // The same refusal again answers alike, logged once.
+        val unauthorized = problems(upstream(status = 401))
+        repeat(2) { unauthorized.problemOf(UpstreamException()).status.assert().isEqualTo(500) }
     }
 
     @Test

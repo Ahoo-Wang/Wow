@@ -81,7 +81,8 @@ class FailureProblems(
         logger.warn(failure) { "A request failed: a store is unavailable." }
         return statuses.problemOf(
             FrameworkCodes.STORAGE_UNAVAILABLE,
-            unavailable.message ?: STORAGE_UNAVAILABLE,
+            // A StorageUnavailableException always says what is down.
+            unavailable.message!!,
             context,
         )
     }
@@ -148,7 +149,6 @@ class FailureProblems(
         private const val SERVER_ERROR = 500
         private const val UNAUTHORIZED = 401
         private val ERROR_STATUSES = 400..599
-        private const val STORAGE_UNAVAILABLE = "A store is unavailable; retry later."
         private val logger = KotlinLogging.logger {}
 
         /**
