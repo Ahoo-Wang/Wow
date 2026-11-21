@@ -91,11 +91,13 @@ class CommandRequestsTest {
             client.send(AddItem("a")).assert().isSameAs(result)
             client.wait(AddItem("b"), "c-2") { wait(WaitPlan.COMMITTED) }.assert().isSameAs(result)
             client.stream(AddItem("c"), "c-3") { requestId("r-3") }.toList().assert().isEmpty()
+            client.stream(AddItem("d")).toList().assert().isEmpty()
         }
         sent.assert().containsExactly(
             AddItem("a").toCommandRequest(),
             AddItem("b").toCommandRequest("c-2") { wait(WaitPlan.COMMITTED) },
             CommandRequest.of(AddItem("c"), "c-3", requestId = "r-3"),
+            CommandRequest.of(AddItem("d")),
         )
     }
 
