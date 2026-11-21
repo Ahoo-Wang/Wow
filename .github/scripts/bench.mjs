@@ -1728,12 +1728,28 @@ export function correctnessOf({
 }
 
 /**
+ * The Spring Boot version the build resolves (`spring-boot` in `gradle/libs.versions.toml`, the one the Wow side of the
+ * Axon comparison runs on), read from [catalog] (the catalog's text; the repository's by default) so the report never
+ * names a version the build has left.
+ */
+export function springBootVersion(
+  catalog = readFileSync(
+    join(import.meta.dirname, '../../gradle/libs.versions.toml'),
+    'utf8',
+  ),
+) {
+  const found = /^spring-boot\s*=\s*"([^"]+)"/m.exec(catalog);
+  if (!found) throw new Error('no spring-boot version in the version catalog');
+  return found[1];
+}
+
+/**
  * What each server of the Axon comparison does for a command, side by side (the report's feature parity): Wow's
  * benchmark server (`test/benchmarks/server`, `--wow.transport=none`) and the Axon server (`test/benchmarks/axon-server`),
  * as their code configures them. What a run measures of it, such as PostgreSQL's transactions per command, is in the
  * tables.
  */
-export const AXON_PARITY = [
+export const axonParity = springBoot => [
   [
     'Event store',
     'Its PostgreSQL log: a row per command, its events in one jsonb array, 64 partitions',
@@ -1792,7 +1808,7 @@ export const AXON_PARITY = [
   ['Bus', 'None (wow.transport=none)', 'None (no Axon Server)'],
   [
     'HTTP',
-    'Spring Boot 4.1.2, WebFlux on Reactor Netty',
+    `Spring Boot ${springBoot}, WebFlux on Reactor Netty`,
     'Spring Boot 3.5.16, WebFlux on Reactor Netty (Axon Framework 4 runs on Spring Boot 3): other Spring, Reactor and Netty versions',
   ],
 ];
@@ -4050,7 +4066,7 @@ export function renderReport(suites, meta = {}) {
       '',
       '| | Wow | Axon |',
       '| --- | --- | --- |',
-      ...AXON_PARITY.map(
+      ...axonParity(springBootVersion()).map(
         ([what, wow, axon]) => `| ${what} | ${wow} | ${axon} |`,
       ),
       '',

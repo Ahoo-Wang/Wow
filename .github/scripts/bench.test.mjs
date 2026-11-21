@@ -21,6 +21,7 @@ import {
   anomaliesOf,
   AXON_INSTALL,
   axonInstall,
+  axonParity,
   CLUSTER,
   measuredWindow,
   mergeSignals,
@@ -28,6 +29,7 @@ import {
   mergeSaturations,
   OWN,
   parseJob,
+  springBootVersion,
   peakRatio,
   correctnessOf,
   cpuSplit,
@@ -2160,9 +2162,11 @@ test('the Axon comparison runs one session per arm ABBA: one rate for both, the 
     /\| Idempotency \| Each command stored with its request id/,
   );
   assert.equal(report.match(/\| Metrics and tracing \|/g).length, 1);
-  assert.match(
-    report,
-    /\| HTTP \| Spring Boot 4\.1\.2, WebFlux on Reactor Netty \| Spring Boot 3\.5\.16/,
+  // The Wow side is the build's Spring Boot, read from the catalog, not a version written here.
+  assert.ok(
+    report.includes(
+      `| HTTP | Spring Boot ${springBootVersion()}, WebFlux on Reactor Netty | Spring Boot 3.5.16`,
+    ),
   );
   // Each same rate beside the slower arm's sustainable rate: the fake Axon holds 800/s, under E1's 1,000/s.
   assert.deepEqual(
@@ -3365,5 +3369,32 @@ test('a diagnostic suite dumps its sweeps, its second arm set by properties when
       'wow-pg-same-rate-ab',
       'wow-pg-same-rate-ab-slow-disk',
     ],
+  );
+});
+
+test('the Wow side of the Axon comparison names the Spring Boot the build resolves, never a literal', () => {
+  assert.equal(
+    springBootVersion(
+      '[versions]\nspring-boot = "9.8.7"\nspring-cloud = "1"\n',
+    ),
+    '9.8.7',
+  );
+  assert.throws(
+    () => springBootVersion('[versions]\nspring-cloud = "1"\n'),
+    /no spring-boot version/,
+  );
+  const http = axonParity('9.8.7').find(([what]) => what === 'HTTP');
+  assert.equal(http[1], 'Spring Boot 9.8.7, WebFlux on Reactor Netty');
+  // The repository's own catalog: what the report prints is what libs.versions.toml says, so a Boot bump moves it.
+  const catalog = readFileSync(
+    join(import.meta.dirname, '../../gradle/libs.versions.toml'),
+    'utf8',
+  );
+  const boot = /^spring-boot = "([^"]+)"/m.exec(catalog)[1];
+  assert.equal(springBootVersion(), boot);
+  assert.ok(
+    axonParity(springBootVersion())
+      .flat()
+      .some(cell => cell.includes(`Spring Boot ${boot},`)),
   );
 });
