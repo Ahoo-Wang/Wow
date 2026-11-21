@@ -103,7 +103,7 @@ data class RestockProduct(
 
 准入会检查这个 ID：空白的 ID 是 `wow.command.malformed`（400）；在命令体之外又指明了另一个聚合的请求（例如 Kotlin 客户端的 `CommandRequest.to(ref, body)`）同样是 `wow.command.malformed`。指明同一个聚合的请求会被接受。
 
-这个属性由命令类或它实现的接口声明，是 public 或 internal，并且 Wow 的 JSON 会写出它（没有 `@JsonIgnore`），所以每个发送方的命令体里都有它。在 Kotlin 属性上，标记要放在属性本身：`@get:AggregateId` 无法编译，因为这个注解不适用于 getter；属性或它的 getter 上的 `@JsonIgnore` 会让构建失败，因为 Wow 的 JSON 必须写出这个 ID。计算出的 `val` 同样可以标，只发送部分属性的发送方可以不带它。一条命令只有一个属性指明聚合。编译器拒绝把它用在 `@Unaddressed` 命令或挂载命令上（它们的聚合由转换器找到），也拒绝用在 ID 即所有者 ID 的聚合上。接收这类命令的 `CommandTransformer` 会让服务在启动时失败。
+这个属性由命令类或它实现的接口声明，是 public 或 internal，并且 Wow 的 JSON 会写出它（没有 `@JsonIgnore`），所以每个发送方的命令体里都有它。在 Kotlin 属性上，标记要放在属性本身：`@get:AggregateId` 无法编译，因为这个注解不适用于 getter；属性或它的 getter 上的 `@JsonIgnore` 会让构建失败，因为 Wow 的 JSON 必须写出这个 ID。计算出的 `val` 同样可以标：发送方只发送计算 ID 所用的那些属性时，可以不带 ID，命令会由这些属性算出它。一条命令只有一个属性指明聚合。编译器拒绝把它用在 `@Unaddressed` 命令或挂载命令上（它们的聚合由转换器找到），也拒绝用在 ID 即所有者 ID 的聚合上。接收这类命令的 `CommandTransformer` 会让服务在启动时失败。
 
 Wow 10 只按 `@AggregateId` 从命令体取得命令的聚合，从不按属性名推断。因此，命令有 `String` 类型、名为 `id` 的属性却没有 `@AggregateId`，而它本可以指明聚合时，无论命令在哪里编译（包括上下文的 api 模块），编译器都会报告它。这个 `id` 可以是存储的或计算的，可以是命令自己的、超类的，也可以来自接口，例如 9.x 的 `Identifier.id`。由于 9.x 是从命令对象读取这个 `id` 的，报告也涵盖 Wow 的 JSON 不写出的（`@JsonIgnore`）或私有的 `id`，并指出这个 `id` 来自哪里、是什么使它无法标注。
 
