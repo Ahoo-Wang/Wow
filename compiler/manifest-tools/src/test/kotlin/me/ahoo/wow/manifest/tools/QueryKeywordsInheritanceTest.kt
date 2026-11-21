@@ -16,6 +16,7 @@ package me.ahoo.wow.manifest.tools
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.annotation.Mask
 import me.ahoo.wow.api.query.annotation.QueryAlias
+import me.ahoo.wow.api.query.annotation.QueryDecimal
 import me.ahoo.wow.api.query.annotation.QueryIndex
 import me.ahoo.wow.api.query.annotation.QueryTemporal
 import me.ahoo.wow.api.query.annotation.QueryText
@@ -138,6 +139,59 @@ class QueryKeywordsInheritanceTest {
         sensitive(GenericState::class.java, "secret").assert().isEqualTo(confidential)
     }
 
+    interface Plain<T> {
+        val secret: T
+    }
+
+    /** A superclass that overrides the generic getter with `String`: it also declares the bridge `Object getSecret()`. */
+    abstract class SecretBase : Plain<String> {
+        @get:Sensitive(SensitivityLevel.CONFIDENTIAL)
+        abstract override val secret: String
+    }
+
+    class BridgedState : SecretBase() {
+        override val secret: String = ""
+    }
+
+    class JavaBridgedState : JavaSecretBase() {
+        override val secret: String = ""
+    }
+
+    @Test
+    fun `a superclass that overrides a generic member should be read by its own getter, not by its bridge`() {
+        // Kotlin copies no annotation onto the bridge, javac does: both are inherited from the getter itself, which is
+        // found whichever of the two the JVM lists first.
+        listOf(SecretBase::class.java, JavaSecretBase::class.java).forEach { type ->
+            val getters = type.declaredMethods.filter { it.name == "getSecret" }
+            getters.map { it.isBridge }.assert().containsExactlyInAnyOrder(true, false)
+            listOf(getters.sortedBy { it.isBridge }, getters.sortedByDescending { it.isBridge }).forEach { order ->
+                OverriddenMembers.getterAmong(order, "getSecret")?.returnType.assert().isEqualTo(String::class.java)
+            }
+        }
+        sensitive(BridgedState::class.java, "secret").assert().isEqualTo(confidential)
+        sensitive(JavaBridgedState::class.java, "secret").assert().isEqualTo(confidential)
+    }
+
+    /** Methods named like a getter that are none: private, taking a parameter, static. */
+    @Suppress("UnusedPrivateMember", "unused", "FunctionOnlyReturningConstant")
+    class Decoys {
+        private fun getSecret(): String = ""
+
+        fun getSecret(prefix: String): String = prefix
+
+        companion object {
+            @JvmStatic
+            fun getSecret(prefix: Int): String = "$prefix"
+        }
+    }
+
+    @Test
+    fun `a private, static or parameterized method should not be taken for the getter`() {
+        val decoys = Decoys::class.java.declaredMethods.filter { it.name == "getSecret" }
+        decoys.size.assert().isEqualTo(3)
+        OverriddenMembers.getterAmong(decoys, "getSecret").assert().isNull()
+    }
+
     @Target(AnnotationTarget.PROPERTY_GETTER)
     @Retention(AnnotationRetention.RUNTIME)
     @Sensitive(SensitivityLevel.CONFIDENTIAL)
@@ -231,8 +285,10 @@ class QueryKeywordsInheritanceTest {
         val message = failure(ConflictState::class.java)
         message.assert().startsWith(
             "@Sensitive on ${ConflictState::class.java.name}.moment is inherited from the members it overrides, " +
-                "which disagree: ${Left::class.java.name}.moment declares DISPLAY and " +
-                "${Right::class.java.name}.moment declares CONFIDENTIAL.",
+                "which disagree: ${Left::class.java.name}.moment declares " +
+                "@Sensitive(level=DISPLAY, keepPrefix=0, keepSuffix=0) and ${Right::class.java.name}.moment declares " +
+                "@Sensitive(level=CONFIDENTIAL, keepPrefix=0, keepSuffix=0). Declare @Sensitive on " +
+                "${ConflictState::class.java.name}.moment, at the stricter level, to choose the mask.",
         )
     }
 
@@ -266,16 +322,91 @@ class QueryKeywordsInheritanceTest {
 
     @Test
     fun `members that disagree on another annotation should fail unless the property declares it`() {
-        val message = failure(DisagreeingState::class.java)
-        message.assert().startsWith("A semantic type on ${DisagreeingState::class.java.name}.moment is inherited")
-        message.assert().contains(
-            "${LeftTime::class.java.name}.moment declares @QueryTemporal(",
-            "${RightTime::class.java.name}.moment declares @QueryTemporal(",
-            "Declare it on ${DisagreeingState::class.java.name}.moment to say which holds.",
+        // The values are written by their elements, never by Annotation.toString, which each JDK writes its own way.
+        failure(DisagreeingState::class.java).assert().isEqualTo(
+            "A semantic type on ${DisagreeingState::class.java.name}.moment is inherited from the members it " +
+                "overrides, which disagree: ${LeftTime::class.java.name}.moment declares " +
+                "@QueryTemporal(pattern=\"\", unit=SECONDS) and ${RightTime::class.java.name}.moment declares " +
+                "@QueryTemporal(pattern=\"\", unit=MILLISECONDS). Declare it on " +
+                "${DisagreeingState::class.java.name}.moment to say which holds.",
         )
         property(AgreeingState::class.java, "moment")["x-wow-temporal"].assert().isEqualTo(mapOf("unit" to "seconds"))
         property(ChosenState::class.java, "moment")["x-wow-temporal"].assert()
             .isEqualTo(mapOf("unit" to "microseconds"))
+    }
+
+    class ComputedDisagreeingState : LeftTime, RightTime {
+        override val moment: Long get() = 0
+    }
+
+    @Test
+    fun `a failure should name a computed property and the members it overrides by the property's name`() {
+        failure(ComputedDisagreeingState::class.java).assert().startsWith(
+            "A semantic type on ${ComputedDisagreeingState::class.java.name}.moment is inherited from the members " +
+                "it overrides, which disagree: ${LeftTime::class.java.name}.moment declares",
+        )
+    }
+
+    interface Indexed {
+        @get:QueryIndex(name = "by_code", with = ["lastEventTime"])
+        val code: String
+    }
+
+    interface OtherIndexed {
+        @get:QueryIndex(name = "by_code_and_version", with = ["version"])
+        val code: String
+    }
+
+    class IndexConflictState : Indexed, OtherIndexed {
+        override val code: String = ""
+    }
+
+    @Test
+    fun `an annotation's array and string elements should be written as declared`() {
+        failure(IndexConflictState::class.java).assert().contains(
+            "${Indexed::class.java.name}.code declares @QueryIndex(name=\"by_code\", on=\"\", with=[\"lastEventTime\"])",
+        )
+    }
+
+    interface Prefixed {
+        @get:Sensitive(SensitivityLevel.DISPLAY, mask = Mask(keepPrefix = 1))
+        val phone: String
+    }
+
+    interface Redacted {
+        @get:Sensitive(SensitivityLevel.DISPLAY, mask = Mask(strategy = QueryKeywordsTest.Redact::class))
+        val phone: String
+    }
+
+    class MaskConflictState : Prefixed, Redacted {
+        override val phone: String = ""
+    }
+
+    interface Scaled {
+        @get:QueryDecimal(scale = 2)
+        val rate: java.math.BigDecimal
+    }
+
+    interface Finer {
+        @get:QueryDecimal(scale = 4)
+        val rate: java.math.BigDecimal
+    }
+
+    class ScaleConflictState : Scaled, Finer {
+        override val rate: java.math.BigDecimal = java.math.BigDecimal.ZERO
+    }
+
+    @Test
+    fun `a conflict should name a mask by its counts or strategy, and a number as declared`() {
+        failure(MaskConflictState::class.java).assert().contains(
+            "${Prefixed::class.java.name}.phone declares @Sensitive(level=DISPLAY, keepPrefix=1, keepSuffix=0) and " +
+                "${Redacted::class.java.name}.phone declares " +
+                "@Sensitive(level=DISPLAY, strategy=${QueryKeywordsTest.Redact::class.java.name}).",
+        )
+        failure(ScaleConflictState::class.java).assert().contains(
+            "${Scaled::class.java.name}.rate declares @QueryDecimal(scale=2) and " +
+                "${Finer::class.java.name}.rate declares @QueryDecimal(scale=4).",
+        )
     }
 
     interface Searched {

@@ -129,7 +129,7 @@ internal class QueryFieldKeywords(private val states: Set<Class<*>>) : TypeAttri
         }
         val overridden = OverriddenMembers.of(scope)
         val own = members.flatMap { it.annotations.asList() }
-        val field = "${scope.declaringType.erasedType.name}.${scope.declaredName}"
+        val field = "${scope.declaringType.erasedType.name}.${KotlinMembers.nameOf(scope)}"
         val annotations = own + INHERITED.flatMap { kind -> inheritedAnnotations(kind, own, overridden, field) }
         writeSensitive(attributes, scope, own, overridden, field)
         val aliases = annotations.filterIsInstance<QueryAlias>().flatMap { it.value.asList() }.distinct()
@@ -140,7 +140,7 @@ internal class QueryFieldKeywords(private val states: Set<Class<*>>) : TypeAttri
         writeText(attributes, scope, annotations, field)
         // A repeated @QueryIndex is held by its Kotlin-generated container, which getAnnotationsByType unwraps.
         val indexes = members.flatMap { it.getAnnotationsByType(QueryIndex::class.java).asList() }
-            .ifEmpty { agreed("@QueryIndex", field, overridden) { it.indexes } }
+            .ifEmpty { inherited("@QueryIndex", field, overridden) { it.indexes } }
         collectIndexes(scope, indexes, field)
     }
 
@@ -154,37 +154,26 @@ internal class QueryFieldKeywords(private val states: Set<Class<*>>) : TypeAttri
         if (own.any(kind::declares)) {
             emptyList()
         } else {
-            agreed(kind.label, field, overridden) { member -> member.annotations.filter(kind::declares).distinct() }
+            inherited(kind.label, field, overridden) { member -> member.annotations.filter(kind::declares).distinct() }
         }
 
     /**
-     * What the [overridden] members that [read] a declaration of [what] give: nothing when none does, the one value
-     * they all give otherwise.
-     *
-     * @throws IllegalStateException when two give different ones, naming both: the property declares it itself to say
-     * which holds.
+     * The annotations of [what] the [overridden] members that [read] one declare, when they agree; none when none
+     * declares one.
      */
-    private fun <T : Annotation> agreed(
+    private fun <T : Annotation> inherited(
         what: String,
         field: String,
         overridden: List<OverriddenMember>,
         read: (OverriddenMember) -> List<T>,
     ): List<T> {
-        val declared = overridden.map { it to read(it) }.filter { it.second.isNotEmpty() }
-        val first = declared.firstOrNull() ?: return emptyList()
-        val other = declared.firstOrNull { it.second != first.second }
-        if (other != null) {
-            error(
-                "$what on $field is inherited from the members it overrides, which disagree: ${first.first} declares " +
-                    "${describe(first.second)} and ${other.first} declares ${describe(other.second)}. Declare it on " +
-                    "$field to say which holds."
-            )
+        val declared = overridden.mapNotNull { member ->
+            read(member).takeIf { it.isNotEmpty() }?.let { Declared(member, it) }
         }
-        return first.second
-    }
-
-    private fun describe(annotations: List<Annotation>): String = annotations.joinToString(" ") {
-        "@${it.annotationClass.java.simpleName}(${it.toString().substringAfter('(')}"
+        val agreed = declared.agreed(what, field, { values -> values.joinToString(" ") { it.declaration() } }) {
+            "Declare it on $field to say which holds."
+        }
+        return agreed.orEmpty()
     }
 
     private fun writeSemanticType(attributes: ObjectNode, annotations: List<Annotation>, field: String) {
@@ -268,7 +257,7 @@ internal class QueryFieldKeywords(private val states: Set<Class<*>>) : TypeAttri
         val inherited = valueType.sensitiveValueType()?.let { SensitiveRule.of(it, valueType.name) }
         val own = sensitiveOf(annotations, field)
         val members = overridden.mapNotNull { member ->
-            sensitiveOf(member.annotations, member.toString())?.let { member to it }
+            sensitiveOf(member.annotations, member.toString())?.let { Declared(member, it) }
         }
         val declared = if (own != null) {
             members.forEach { (member, rule) ->
@@ -279,7 +268,9 @@ internal class QueryFieldKeywords(private val states: Set<Class<*>>) : TypeAttri
             }
             own
         } else {
-            agreedSensitive(members, field)
+            members.agreed("@Sensitive", field, SensitiveRule::declaration) {
+                "Declare @Sensitive on $field, at the stricter level, to choose the mask."
+            }
         }
         if (declared != null) {
             check(scope.type.erasedType == String::class.java || inherited != null) {
@@ -314,24 +305,6 @@ internal class QueryFieldKeywords(private val states: Set<Class<*>>) : TypeAttri
         return declared.singleOrNull()
     }
 
-    /**
-     * The `@Sensitive` the overridden [members] agree on, none when none declares it.
-     *
-     * @throws IllegalStateException when two declare different ones, naming both.
-     */
-    private fun agreedSensitive(members: List<Pair<OverriddenMember, SensitiveRule>>, field: String): SensitiveRule? {
-        val first = members.firstOrNull() ?: return null
-        val other = members.firstOrNull { it.second != first.second }
-        if (other != null) {
-            error(
-                "@Sensitive on $field is inherited from the members it overrides, which disagree: ${first.first} " +
-                    "declares ${first.second.level} and ${other.first} declares ${other.second.level}. Declare " +
-                    "@Sensitive on $field, at the stricter level, to choose the mask."
-            )
-        }
-        return first.second
-    }
-
     private fun collectIndexes(scope: MemberScope<*, *>, indexes: List<QueryIndex>, field: String) {
         if (indexes.isEmpty()) return
         val declaringType = scope.declaringType.erasedType
@@ -355,6 +328,13 @@ internal class QueryFieldKeywords(private val states: Set<Class<*>>) : TypeAttri
         val keepSuffix: Int,
         val strategy: Class<*>?,
     ) {
+        /** The rule as a failure names it: `@Sensitive(level=DISPLAY, keepPrefix=3, keepSuffix=4)`. */
+        fun declaration(): String = if (strategy == null) {
+            "@Sensitive(level=$level, keepPrefix=$keepPrefix, keepSuffix=$keepSuffix)"
+        } else {
+            "@Sensitive(level=$level, strategy=${strategy.name})"
+        }
+
         companion object {
             fun of(sensitive: Sensitive, declarer: String): SensitiveRule {
                 val keepPrefix = sensitive.mask.keepPrefix
