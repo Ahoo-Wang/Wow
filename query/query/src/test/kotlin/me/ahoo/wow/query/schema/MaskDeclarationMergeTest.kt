@@ -62,7 +62,7 @@ class MaskDeclarationMergeTest {
     )
 
     private fun QueryFieldDeclaration.over(lower: QueryFieldDeclaration, rejectDifferent: Boolean = false) =
-        lower.merge(this, field, rejectDifferent)
+        lower.merge(this, field.path, rejectDifferent)
 
     @Test
     fun `replacing array items keeps the masks of their properties`() {

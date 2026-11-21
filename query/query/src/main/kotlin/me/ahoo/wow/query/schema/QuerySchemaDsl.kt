@@ -34,7 +34,7 @@ class QuerySchemaDeclarationBuilder {
         val logicalField = QueryField(field)
         val declaration = QueryFieldDeclarationBuilder().apply(block).build()
         fields[logicalField] = fields[logicalField]
-            ?.merge(declaration, logicalField, rejectDifferent = true)
+            ?.merge(declaration, field, rejectDifferent = true)
             ?: declaration
     }
 
@@ -139,7 +139,7 @@ class QueryFieldDeclarationBuilder {
         requireQueryPathSegment(name)
         val declaration = QueryFieldDeclarationBuilder().apply(block).build()
         val children = properties.valueOr(emptyMap()).toMutableMap()
-        children[name] = children[name]?.merge(declaration, QueryField(name), true) ?: declaration
+        children[name] = children[name]?.merge(declaration, name, true) ?: declaration
         properties = DeclarationValue.Set(children)
     }
 

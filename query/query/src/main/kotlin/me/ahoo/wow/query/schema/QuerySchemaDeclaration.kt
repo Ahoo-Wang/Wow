@@ -272,9 +272,15 @@ internal data class PrioritizedQuerySchemaDeclaration(
     val declaration: QuerySchemaDeclaration,
 )
 
+/**
+ * This declaration merged with [higher], a declaration of the same [field] from a higher priority (or, with
+ * [rejectDifferent], one of the same priority, which may not state a different fact). [field] is the logical path,
+ * as a schema states it: properties joined by `.`, array items implicit, and a map value's key as `{key}`, which no
+ * [QueryField] takes; it names the field in a conflict's message.
+ */
 internal fun QueryFieldDeclaration.merge(
     higher: QueryFieldDeclaration,
-    field: QueryField<*>,
+    field: String,
     rejectDifferent: Boolean,
 ): QueryFieldDeclaration = QueryFieldDeclaration(
     title = title.merge(higher.title, field, "title", rejectDifferent),
@@ -325,7 +331,7 @@ private fun QueryFieldDeclaration.openedValueTypes(
 
 private fun DeclarationValue<MaskRule>.mergeMaskRule(
     higher: DeclarationValue<MaskRule>,
-    field: QueryField<*>,
+    field: String,
 ): DeclarationValue<MaskRule> {
     if (this is DeclarationValue.Unset) return higher
     if (higher is DeclarationValue.Unset) return this
@@ -335,7 +341,7 @@ private fun DeclarationValue<MaskRule>.mergeMaskRule(
 
 private fun <T> DeclarationValue<T>.merge(
     higher: DeclarationValue<T>,
-    field: QueryField<*>,
+    field: String,
     leaf: String,
     rejectDifferent: Boolean,
 ): DeclarationValue<T> {
@@ -357,7 +363,7 @@ internal fun <T> DeclarationValue<T>.valueOr(default: T): T = when (this) {
 
 private fun QueryFieldDeclaration.mergeProperties(
     higher: QueryFieldDeclaration,
-    field: QueryField<*>,
+    field: String,
     rejectDifferent: Boolean,
 ): DeclarationValue<Map<String, QueryFieldDeclaration>> {
     val incoming = higher.properties.valueOr(emptyMap())
@@ -365,11 +371,11 @@ private fun QueryFieldDeclaration.mergeProperties(
     if (rejectDifferent) {
         // Separate declarations at the same priority must preserve protection in either source order.
         merged.replaceAll { name, child ->
-            if (name in incoming) child else higher.inheritDynamicMasks(child, QueryField("${field.path}.$name"))
+            if (name in incoming) child else higher.inheritDynamicMasks(child, "$field.$name")
         }
     }
     incoming.forEach { (name, child) ->
-        val childField = QueryField("${field.path}.$name")
+        val childField = "$field.$name"
         merged[name] = merged[name]?.merge(child, childField, rejectDifferent) ?: inheritDynamicMasks(child, childField)
     }
     return if (merged.isEmpty() && higher.properties === DeclarationValue.Unset) {
@@ -381,12 +387,12 @@ private fun QueryFieldDeclaration.mergeProperties(
     }
 }
 
-private fun QueryFieldDeclaration.inheritDynamicMasks(child: QueryFieldDeclaration, field: QueryField<*>): QueryFieldDeclaration =
+private fun QueryFieldDeclaration.inheritDynamicMasks(child: QueryFieldDeclaration, field: String): QueryFieldDeclaration =
     additionalProperties.valueOr(null)?.takeIf(QueryFieldDeclaration::hasMasks)?.merge(child, field, false) ?: child
 
 private fun DeclarationValue<QueryFieldDeclaration?>.replaceStructure(
     higher: DeclarationValue<QueryFieldDeclaration?>,
-    field: QueryField<*>,
+    field: String,
     leaf: String,
     rejectDifferent: Boolean,
 ): DeclarationValue<QueryFieldDeclaration?> {
@@ -399,7 +405,7 @@ private fun DeclarationValue<QueryFieldDeclaration?>.replaceStructure(
 private fun preserveAlternativeMasks(
     previous: List<QueryFieldDeclaration>,
     replacements: List<QueryFieldDeclaration>,
-    field: QueryField<*>,
+    field: String,
 ): List<QueryFieldDeclaration> {
     val result = replacements.toMutableList()
     previous.filter(QueryFieldDeclaration::hasMasks).forEach { protected ->
@@ -447,7 +453,7 @@ private fun QueryFieldDeclaration.compatibleMaskShape(other: QueryFieldDeclarati
 
 private fun QueryFieldDeclaration.preserveMasks(
     replacement: QueryFieldDeclaration?,
-    field: QueryField<*>,
+    field: String,
 ): QueryFieldDeclaration? {
     if (!hasMasks()) return replacement
     if (replacement == null || !compatibleMaskShape(replacement)) {
@@ -459,7 +465,7 @@ private fun QueryFieldDeclaration.preserveMasks(
         } else {
             inheritDynamicMasks(
                 child,
-                QueryField("${field.path}.$name")
+                "$field.$name"
             )
         }
     }.toMutableMap()
