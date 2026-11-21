@@ -142,7 +142,9 @@ class CreationIdsTest {
             claim: CreationClaim,
         ): CreationClaim = held.putIfAbsent("$type/$tenantId/$requestId", claim) ?: claim
 
-        override fun partitionOf(ref: AggregateRef): Int = Partitioner.partitionOf(ref, PARTITIONS)
+        override fun partitions(type: AggregateType): Int = PARTITIONS
+
+        fun partitionOf(ref: AggregateRef): Int = Partitioner.partitionOf(ref, PARTITIONS)
     }
 
     @Test
@@ -216,6 +218,49 @@ class CreationIdsTest {
         }
 
     @Test
+    fun `a generator that aims gives every attempt of a request an id in its partition, and nothing is claimed`(): Unit =
+        runBlocking {
+            val claims = Claims()
+            val creations = CreationIds(IdGenerators.DEFAULT, claims)
+            val partition = Partitioner.partitionOfRequest(type, "t", "r-1", PARTITIONS)
+            val attempts = (1..8).map { creations.idOf(type, "t", "r-1", Scope("alice", "s-1")) }
+            attempts.toSet().assert().hasSize(8)
+            attempts.forEach { claims.partitionOf(type.ref("t", it)).assert().isEqualTo(partition) }
+            // A caller of another scope is aimed there too: the request key meets it, as besides gives it.
+            val stranger = creations.idOf(type, "t", "r-1", Scope("bob"))
+            claims.partitionOf(type.ref("t", stranger)).assert().isEqualTo(partition)
+            claims.held.assert().isEmpty()
+        }
+
+    @Test
+    fun `a caller of another scope reusing a committed request is aimed at the partition of its aggregate`(): Unit =
+        runBlocking {
+            val log = InMemoryEventLog(partitions = PARTITIONS)
+            val creations = CreationIds(IdGenerators.DEFAULT, Claims(log))
+            committedIn(log, "o-1", Scope("alice", "s-1"))
+            val stranger = creations.idOf(type, "t", "r-1", Scope("bob", "s-1"))
+            stranger.assert().isNotEqualTo("o-1")
+            Partitioner.partitionOf(type.ref("t", stranger), PARTITIONS).assert()
+                .isEqualTo(Partitioner.partitionOf(type.ref("t", "o-1"), PARTITIONS))
+        }
+
+    private suspend fun committedIn(log: InMemoryEventLog, id: String, scope: Scope) {
+        log.append(
+            EventStreamRecord(
+                ref = type.ref("t", id),
+                version = 1,
+                commandId = "c-1",
+                requestId = "r-1",
+                commandType = "shop.order.Open",
+                commitTime = 1L,
+                events = listOf(EventRecord("shop.order.Opened", 1, "{}")),
+                scope = scope,
+            ),
+            null,
+        )
+    }
+
+    @Test
     fun `the committed requests of each type are its log's, nothing for a type without one`(): Unit = runBlocking {
         val log = InMemoryEventLog(partitions = PARTITIONS)
         val claim = CreationClaim.of("o-1", Scope("alice"))
@@ -223,11 +268,10 @@ class CreationIdsTest {
         val committed = CommittedRequests.of { if (it == type) log else null }
         committed.find(type, "t", "r-1").assert().isNull()
         committed.claim(type, "t", "r-1", claim).assert().isSameAs(claim)
-        committed.partitionOf(type.ref("t", "o-1")).assert()
-            .isEqualTo(Partitioner.partitionOf(type.ref("t", "o-1"), PARTITIONS))
+        committed.partitions(type).assert().isEqualTo(PARTITIONS)
         committed.find(unserved, "t", "r-1").assert().isNull()
         committed.claim(unserved, "t", "r-1", claim).assert().isSameAs(claim)
-        committed.partitionOf(unserved.ref("t", "o-1")).assert().isEqualTo(0)
+        committed.partitions(unserved).assert().isEqualTo(1)
     }
 
     @Test
@@ -235,11 +279,10 @@ class CreationIdsTest {
         CommittedRequests.NONE.find(type, "t", "r-1").assert().isNull()
         val claim = CreationClaim.of("fresh", Scope.NONE)
         CommittedRequests.NONE.claim(type, "t", "r-1", claim).assert().isSameAs(claim)
-        CommittedRequests.NONE.partitionOf(type.ref("t", "fresh")).assert().isEqualTo(0)
+        CommittedRequests.NONE.partitions(type).assert().isEqualTo(1)
         CommittedRequests.of(InMemoryEventLog(partitions = PARTITIONS)).let { committed ->
             committed.claim(type, "t", "r-1", claim).assert().isSameAs(claim)
-            committed.partitionOf(type.ref("t", "o-1")).assert()
-                .isEqualTo(Partitioner.partitionOf(type.ref("t", "o-1"), PARTITIONS))
+            committed.partitions(type).assert().isEqualTo(PARTITIONS)
         }
         CreationIds(IdGenerators(aggregates = AggregateIdGenerator { "fresh" }), CommittedRequests.NONE)
             .idOf(type, "t", "r-1")

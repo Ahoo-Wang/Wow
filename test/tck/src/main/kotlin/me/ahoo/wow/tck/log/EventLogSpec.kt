@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.spi.id.AggregateIdGenerator
 import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.CreationClaim
@@ -121,6 +122,19 @@ abstract class EventLogSpec : EventLogBatchCases() {
             val outcomes = listOf(claimed, again).map { log.append(stream(it.aggregateId, 1, requestId = "request")) }
             outcomes.count { it is AppendOutcome.Committed }.assert().describedAs(outcomes.toString()).isEqualTo(1)
             (outcomes[1] as AppendOutcome.AlreadyCommitted).existing.ref.id.assert().isEqualTo(first)
+        }
+
+    @Test
+    fun `the attempts of one creation aimed at its request's partition commit one aggregate, with no claim`(): Unit =
+        runBlocking {
+            // Wow's UUIDv7 ids aimed at the request's partition: every log's request key meets the attempts there.
+            val log = createLog(partitions = 4)
+            val partition = Partitioner.partitionOfRequest(type, "tenant", "request", 4)
+            val attempts = (1..2).map { AggregateIdGenerator.UUID_V7.nextIn(type, "tenant", partition, 4)!! }
+            attempts.toSet().assert().hasSize(2)
+            val outcomes = attempts.map { log.append(stream(it, 1, requestId = "request")) }
+            outcomes.count { it is AppendOutcome.Committed }.assert().describedAs(outcomes.toString()).isEqualTo(1)
+            (outcomes[1] as AppendOutcome.AlreadyCommitted).existing.ref.id.assert().isEqualTo(attempts[0])
         }
 
     @Test
