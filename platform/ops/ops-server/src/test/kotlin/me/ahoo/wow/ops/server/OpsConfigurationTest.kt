@@ -14,14 +14,14 @@
 package me.ahoo.wow.ops.server
 
 import io.mockk.coEvery
-import io.mockk.every
 import io.mockk.mockk
-import kotlinx.coroutines.reactor.ReactorContext
+import kotlinx.coroutines.reactor.mono
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withContext
+import me.ahoo.cosec.annotations.ExperimentalCoSecApi
 import me.ahoo.cosec.api.context.SecurityContext
-import me.ahoo.cosec.api.context.SecurityScope
 import me.ahoo.cosec.runtime.AuthorizationChecker
+import me.ahoo.cosec.testkit.PermittedRequest
+import me.ahoo.cosec.webflux.testing.CoSecTestBindings
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Creation
@@ -48,10 +48,12 @@ import me.ahoo.wow.spring.boot.security.CoSecAutoConfiguration
 import org.junit.jupiter.api.Test
 import org.springframework.context.annotation.AnnotationConfigApplicationContext
 import org.springframework.core.env.MapPropertySource
-import reactor.util.context.Context
 import java.util.function.Supplier
 
-@OptIn(InternalWowApi::class) // The host's settings, as the configuration reads them.
+@OptIn(
+    InternalWowApi::class, // The host's settings, as the configuration reads them.
+    ExperimentalCoSecApi::class, // CoSec's test kit and its test bindings, which are experimental in 8.0.
+)
 class OpsConfigurationTest {
     private val retry = CommandAction(
         CommandType("ops.parked.Retry", Retry::class.java),
@@ -75,13 +77,11 @@ class OpsConfigurationTest {
         coEvery { check(any<SecurityContext>(), any<String>(), any<String>()) } returns permits
     }
 
-    /** The security context CoSec's pipeline permitted [subject]'s request in, in CoSec's default tenant. */
-    private fun request(subject: String): SecurityContext = mockk(relaxed = true) {
-        every { scope } returns mockk<SecurityScope>(relaxed = true)
-        every { principal.id } returns subject
-        every { principal.authenticated } returns true
-        every { tenantId } returns SecurityContext.DEFAULT_TENANT_ID
-    }
+    /**
+     * The security context CoSec's pipeline permitted [subject]'s request in, in CoSec's default tenant. A context made
+     * by hand reads as none (PIP-27), so it is the kit's.
+     */
+    private fun request(subject: String): SecurityContext = PermittedRequest.forSubject(subject)
 
     /**
      * The node's decision on [action] by [caller], within the request [security] when there is one: every authorizer
@@ -96,9 +96,12 @@ class OpsConfigurationTest {
         security: SecurityContext? = request(caller.subject!!),
     ): Authorization = configured(checker, authorizerEnabled) { context ->
         val authorizers = context.getBeanProvider(CommandAuthorizer::class.java).orderedStream().toList()
-        runBlocking {
-            val reactor = security?.let { Context.of(SecurityContext.KEY, it) } ?: Context.empty()
-            withContext(ReactorContext(reactor)) { CommandAuthorizer.allOf(authorizers).authorize(caller, action) }
+        val authorize = mono { CommandAuthorizer.allOf(authorizers).authorize(caller, action) }
+        // Without a request: a command of a saga, which carries what admission authorized at its root.
+        if (security == null) {
+            authorize.block()!!
+        } else {
+            CoSecTestBindings.withSecurityContext(authorize, security).block()!!
         }
     }
 
