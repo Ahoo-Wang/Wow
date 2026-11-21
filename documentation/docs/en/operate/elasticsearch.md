@@ -7,6 +7,8 @@ description: Keep a service's snapshots on Elasticsearch, as a copy for their qu
 
 Elasticsearch never holds a Wow log: every aggregate's log stays on PostgreSQL or MongoDB, the source of truth. Elasticsearch gets the snapshots, so their queries run on a search engine: a copy beside the aggregate's own snapshot store, or that store itself ([below](#only-snapshot-store)). It also gets the event streams, through a sink, so the `events` model can be searched across aggregates. Both can be rebuilt from the log at any time. The module is `wow-elasticsearch`.
 
+Wow is tested against Elasticsearch 9.5.6. The Elasticsearch Java client, whose version Spring Boot manages (9.5 with Spring Boot 4.2), is supported only against a server of the same or a later minor version ([the client's compatibility rule](https://github.com/elastic/elasticsearch-java#compatibility)), so run a 9.5 or later 9.x server.
+
 ## A store of type `elasticsearch`
 
 A store of type `elasticsearch` opens over the application's low-level `Rest5Client`, which Spring Boot's Elasticsearch support configures. Name it beside the log's store and point an aggregate's queries at it. The store then keeps a copy of the aggregate's snapshots for its snapshot queries:

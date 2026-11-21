@@ -2,6 +2,8 @@
 
 Elasticsearch for Wow: the snapshot store and its queries, and event search through a Sink. Elasticsearch never holds a log: the log of every aggregate stays on PostgreSQL or MongoDB. Elasticsearch holds an aggregate type's snapshots, as a copy its snapshot queries read beside its own snapshot store or as that store itself, and copies of the event streams.
 
+Tested against Elasticsearch 9.5.6. The Elasticsearch Java client, whose version Spring Boot manages (9.5 with Spring Boot 4.2), is supported only against a server of the same or a later minor version ([the client's compatibility rule](https://github.com/elastic/elasticsearch-java#compatibility)), so run a 9.5 or later 9.x server.
+
 ## Stores
 
 A store of type `elasticsearch` opens over the application's low-level `Rest5Client` (Spring Boot's `spring-boot-elasticsearch` auto-configures one):

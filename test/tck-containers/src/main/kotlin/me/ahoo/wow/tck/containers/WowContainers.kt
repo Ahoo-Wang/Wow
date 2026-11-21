@@ -38,8 +38,11 @@ object WowContainers {
     const val KAFKA_IMAGE = "confluentinc/cp-kafka:7.4.0"
     const val CLICKHOUSE_IMAGE = "clickhouse/clickhouse-server:25.3.14.14-alpine"
 
-    /** The Elasticsearch image, the one 9.x's wow-tck tests against (`ContainerImages.ELASTICSEARCH_*`). */
-    const val ELASTICSEARCH_IMAGE = "docker.elastic.co/elasticsearch/elasticsearch:9.2.6"
+    /**
+     * The Elasticsearch image: a patch of the minor of the Java client the Spring Boot BOM manages, as that client is
+     * supported only against a server of its own or a later minor.
+     */
+    const val ELASTICSEARCH_IMAGE = "docker.elastic.co/elasticsearch/elasticsearch:9.5.6"
 
     val postgres: PostgreSQLContainer by lazy { newPostgres().also { it.start() } }
 
