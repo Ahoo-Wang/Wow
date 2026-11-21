@@ -49,6 +49,14 @@ internal abstract class GenerateContractSources @Inject constructor(
     @get:PathSensitive(PathSensitivity.NAME_ONLY)
     abstract val contract: ConfigurableFileCollection
 
+    /**
+     * The package of each context's generated code ([WowExtension.contractPackage] of its domain module), which the
+     * domain modules' contract variants carry beside their contracts ([GenerateContract.packagesFile]).
+     */
+    @get:InputFiles
+    @get:PathSensitive(PathSensitivity.NONE)
+    abstract val contractPackages: ConfigurableFileCollection
+
     /** The class path the generated code compiles against. */
     @get:CompileClasspath
     abstract val classpath: ConfigurableFileCollection
@@ -70,6 +78,7 @@ internal abstract class GenerateContractSources @Inject constructor(
     internal fun submit(queue: WorkQueue) {
         queue.submit(ManifestToolsWork.GenerateContractSources::class.java) { parameters ->
             parameters.contracts.from(contract)
+            parameters.contractPackages.from(contractPackages)
             parameters.classpath.from(classpath)
             parameters.output.set(outputDirectory)
         }

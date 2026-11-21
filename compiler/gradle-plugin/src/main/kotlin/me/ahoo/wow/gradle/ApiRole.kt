@@ -23,9 +23,11 @@ import me.ahoo.wow.gradle.WowPlugin.Companion.CONTRACT_CONFIGURATION
 import me.ahoo.wow.gradle.WowPlugin.Companion.CONTRACT_DOCS_TYPE
 import me.ahoo.wow.gradle.WowPlugin.Companion.KOTLIN_JVM
 import org.gradle.api.Project
+import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.api.attributes.Category
 import org.gradle.api.attributes.Usage
+import org.gradle.api.file.FileCollection
 import org.gradle.api.plugins.JavaLibraryPlugin
 import org.gradle.api.plugins.JavaPlugin
 import org.gradle.api.tasks.SourceSet
@@ -66,7 +68,8 @@ internal object ApiRole {
             .getByName(SourceSet.MAIN_SOURCE_SET_NAME)
         val assemble = project.tasks.register(ASSEMBLE_CONTRACT_TASK, AssembleContract::class.java) { task ->
             task.description = "Takes the contracts of this api module's contexts from the domain modules it declares."
-            task.contracts.from(contracts)
+            task.contracts.from(contractsOf(contracts))
+            task.contractPackages.from(contractPackagesOf(contracts))
             task.owners.set(ownersOf(contracts))
             task.classes.from(main.output.classesDirs)
             task.owner.set(project.path)
@@ -137,6 +140,21 @@ internal object ApiRole {
 
     /** The property of the pairing file that lists the domain modules' paths. */
     internal const val PAIRING_DOMAINS = "domains"
+
+    /**
+     * The file a domain module's contract variant carries beside its contract: the package of each of its contexts'
+     * generated code ([WowExtension.contractPackage]), `<context>=<package>` lines, which the api module's
+     * [AssembleContract] and [GenerateContractSources] read. A build input of the plugin's own: never published, no
+     * other tool reads it, and it has no schema and no version.
+     */
+    const val CONTRACT_PACKAGES_FILE = "contract-package.properties"
+
+    /** The domain modules' contracts among the files of [contracts] ([CONTRACTS_CONFIGURATION]). */
+    fun contractsOf(contracts: Configuration): FileCollection = contracts.filter { it.name != CONTRACT_PACKAGES_FILE }
+
+    /** The domain modules' [CONTRACT_PACKAGES_FILE]s among the files of [contracts] ([CONTRACTS_CONFIGURATION]). */
+    fun contractPackagesOf(contracts: Configuration): FileCollection =
+        contracts.filter { it.name == CONTRACT_PACKAGES_FILE }
 
     /** The peer contract an api module's contract jar carries. */
     const val CONTRACT_RESOURCE = "META-INF/wow/contract.json"

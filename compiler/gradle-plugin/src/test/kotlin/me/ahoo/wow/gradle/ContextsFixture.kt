@@ -97,6 +97,8 @@ internal object ContextsFixture {
         val peerApi: String = "project(\":$peer-api\")",
         /** A Maven repository the modules resolve from too: the one another build publishes to. */
         val repository: String? = null,
+        /** The domain module's `wow { contractPackage }`: its api package, where its commands and events are; none when null. */
+        val contractPackage: String? = "$name.api",
     )
 
     fun context(root: File, context: Context) {
@@ -137,7 +139,15 @@ internal object ContextsFixture {
             contract -> "implementation(wow.contract($peerApi))"
             else -> "implementation($peerApi)"
         }
-        module(root, "$name-domain", WowPlugin.ID, "api(project(\":$name-api\"))\n$peerDependency", extra, repository)
+        val domainExtra = contractPackage?.let { "$extra\nwow { contractPackage = \"$it\" }" } ?: extra
+        module(
+            root,
+            "$name-domain",
+            WowPlugin.ID,
+            "api(project(\":$name-api\"))\n$peerDependency",
+            domainExtra,
+            repository
+        )
         write(
             root,
             "$name-domain/src/main/kotlin/$name/domain/$aggregate.kt",

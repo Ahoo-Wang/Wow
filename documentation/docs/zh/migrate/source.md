@@ -44,6 +44,8 @@ description: 用 wow-migrate Skill 把 9.x 服务的 Kotlin 源码改写为 V10�
 
 这些插件需要 Gradle 9 或更高版本、Kotlin JVM 插件 2.3 或更高版本：先升级 Gradle 8 的 wrapper。KSP 读取整个源码目录，忽略源码集的 `exclude`，所以每次只编译领域模块一部分的迁移，要把这些文件同步到单独的目录。这样的一部分是一个聚合连同它的闭包，而不是单独一个聚合：一个状态的类型化查询（`<State>Properties`）只在它的根被编译的地方存在。从这部分代码的 import 找出闭包：它用来查询的每个其他状态的 `<State>Properties`，以及 Saga 发出的每个命令类；把它们的聚合加进这一部分，反复进行，直到不再加入任何东西。领域模块重新整体编译、源码集指回 `src/` 之后，先做一次干净构建（`./gradlew :<module>:clean build`）：Gradle 按源码在其根下的路径比较源码，所以这次切换可能让 Kotlin 编译和 KSP 保持 up to date，而它们的增量缓存仍描述同步出来的目录，下一次改动就可能交给处理器的文件太少。在 Wow 的插件下这两种情况都不会发生：它们把源码根作为这两个任务的输入，切换后会完整重跑它们。不经 Wow 插件运行 KSP 的模块，下一次构建会以编译器的 "No Manifest fragment and no model provider" 错误失败（[构建因契约失败](../operate/troubleshooting#a-build-fails-over-contracts)），而不是在缺少模型的情况下构建通过；做一次干净构建即可修复。
 
+api 模块带着其契约的每个领域模块都要设 `wow { contractPackage = "…" }`，即别的服务 import 的生成的 `<Context>Contract` 所在的包；分阶段迁移从第一个聚合起就设好它，之后的聚合迁过来时包不会移动。没设时模块的 `generateWowContract` 失败，并打印要加的那一行，值是当时上下文的命令与事件类共有的包（[api 模块的契约代码](../guide/generated-code#the-contract-code-of-the-api-module)）。
+
 先迁移 api 模块时，可以在根构建上声明 api 插件：`id("me.ahoo.wow.api") version "…" apply false`。它不带来 KSP，所以 9.x 模块保留各自的 `id("com.google.devtools.ksp") version "…"`。在根构建上声明 `me.ahoo.wow` 或 `me.ahoo.wow.service` 则会把插件的 KSP 带到每个模块的类路径上，仍写着 KSP 版本的 9.x 模块随即在 Gradle 中失败，早于任何 Wow 代码运行：
 
 ```text

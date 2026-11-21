@@ -37,7 +37,8 @@ import java.util.Properties
  * - registers [GENERATE_CONTRACT_TASK] ([GenerateContract]), which filters the completed fragment down to the peer
  *   contract of the module's contexts, offered as the variant [CONTRACT_ELEMENTS] (empty for a module of no fragment),
  *   which an api module declares in [CONTRACT_CONFIGURATION] (`me.ahoo.wow.api`, [WowApiPlugin]); the task fails,
- *   naming the line to add, when the classes of a context are in a project that does not pair with the module.
+ *   naming the line to add, when the classes of a context are in a project that does not pair with the module, and
+ *   when the module has a context and no [WowExtension.contractPackage], the package of its generated code.
  *
  * It needs Gradle [MIN_GRADLE] or later and the Kotlin Gradle plugin [minKotlin] or later, and fails naming both
  * versions otherwise. A failure names the projects and modules involved, not their build directories. No plugin

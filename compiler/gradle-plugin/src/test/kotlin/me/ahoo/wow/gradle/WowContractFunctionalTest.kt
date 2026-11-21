@@ -181,9 +181,14 @@ class WowContractFunctionalTest {
         )
         messages("shop-api", "shopapi", "Cart")
         messages("shop-api", "shopapi.audit", "Record")
-        module("shop-domain", WowPlugin.ID, dependencies = """api(project(":shop-api"))""", extra = HOSTED)
+        module("shop-domain", WowPlugin.ID, dependencies = """api(project(":shop-api"))""", extra = hosted("shopapi"))
         aggregate("shop-domain", "shop", "Cart", "shopapi")
-        module("audit-domain", WowPlugin.ID, dependencies = """api(project(":shop-api"))""", extra = HOSTED)
+        module(
+            "audit-domain",
+            WowPlugin.ID,
+            dependencies = """api(project(":shop-api"))""",
+            extra = hosted("shopapi.audit")
+        )
         aggregate("audit-domain", "audit", "Record", "shopapi.audit")
         module("billing-api", WowPlugin.API_ID, dependencies = """wowContract(project(":billing-domain"))""")
         messages("billing-api", "billingapi", "Invoice")
@@ -191,7 +196,7 @@ class WowContractFunctionalTest {
             "billing-domain",
             WowPlugin.ID,
             dependencies = """api(project(":billing-api")); api(project(":shop-api"))""",
-            extra = """wow { service = "billing-service" }""",
+            extra = """wow { service = "billing-service"; contractPackage = "billingapi" }""",
         )
         aggregate("billing-domain", "billing", "Invoice", "billingapi")
         module("orders", WowPlugin.SERVICE_ID, dependencies = """implementation(project(":shop-api"))""")
@@ -224,7 +229,12 @@ class WowContractFunctionalTest {
             data class CreateThing(val name: String)
             """,
         )
-        module("broken-domain", WowPlugin.ID, dependencies = """api(project(":broken-api"))""")
+        module(
+            "broken-domain",
+            WowPlugin.ID,
+            """api(project(":broken-api"))""",
+            """wow { contractPackage = "brokenapi" }"""
+        )
         write(
             "broken-domain/src/main/kotlin/brokenapi/ThingCreated.kt",
             """
@@ -362,6 +372,9 @@ class WowContractFunctionalTest {
     private companion object {
         /** The service that hosts the shop's contexts, which its contract names (decision D330). */
         const val HOSTED = """wow { service = "shop-service" }"""
+
+        /** A module of the contexts shop-service hosts, its generated contract in [contractPackage]. */
+        fun hosted(contractPackage: String): String = "$HOSTED\nwow { contractPackage = \"$contractPackage\" }"
 
         /** The tasks of the build the tests read. */
         val BUILT = arrayOf(

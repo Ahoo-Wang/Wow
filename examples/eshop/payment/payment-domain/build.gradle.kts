@@ -8,6 +8,7 @@ plugins {
 }
 
 wow {
+    contractPackage = "me.ahoo.wow.example.eshop.payment.api.payment"
     service = "eshop-payment-service"
 }
 

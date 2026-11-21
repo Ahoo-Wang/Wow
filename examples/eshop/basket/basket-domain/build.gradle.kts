@@ -8,6 +8,7 @@ plugins {
 }
 
 wow {
+    contractPackage = "me.ahoo.wow.example.eshop.basket.api.basket"
     service = "eshop-basket-service"
 }
 

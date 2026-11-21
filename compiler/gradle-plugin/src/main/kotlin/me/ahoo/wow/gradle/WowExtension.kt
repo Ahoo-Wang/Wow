@@ -30,6 +30,7 @@ import javax.inject.Inject
  * ```kotlin
  * wow {
  *     context = "shop"
+ *     contractPackage = "com.example.shop.api"
  *     service = "shop-service"
  *     schemaOverrides.put("sample.Money", """{"type":"string"}""")
  * }
@@ -100,6 +101,15 @@ abstract class WowExtension {
      * Unset, the module's one `@BoundedContext` names it.
      */
     abstract val context: Property<String>
+
+    /**
+     * The package of the code the api module generates for the module's contexts, `<Context>Contract` (and a view of
+     * a state whose aggregate's classes share no package): the package other services import it from, so it is set
+     * once and then kept, whatever aggregates the module gains. Required once the module has a context:
+     * `generateWowContract` fails without it, naming the line to add. A Java package name; a segment that is a Kotlin
+     * keyword is quoted in the generated code.
+     */
+    abstract val contractPackage: Property<String>
 
     /**
      * The service that hosts the module's contexts, as it names itself (`spring.application.name`): the module's

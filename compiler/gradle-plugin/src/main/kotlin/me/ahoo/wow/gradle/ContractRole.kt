@@ -15,6 +15,7 @@ package me.ahoo.wow.gradle
 
 import me.ahoo.wow.gradle.WowArtifacts.documentationAttributes
 import me.ahoo.wow.gradle.WowArtifacts.toolsConfiguration
+import me.ahoo.wow.gradle.WowPlugin.Companion.CONTRACTS_CONFIGURATION
 import me.ahoo.wow.gradle.WowPlugin.Companion.CONTRACT_JAR_TASK
 import me.ahoo.wow.gradle.WowPlugin.Companion.CONTRACT_SOURCE_SET
 import me.ahoo.wow.gradle.WowPlugin.Companion.GENERATE_CONTRACT_SOURCES_TASK
@@ -212,6 +213,8 @@ internal object ContractRole {
             task.description = "Generates the constants, refs, query fields and state views of this api module's " +
                 "contexts from its contract."
             task.contract.from(assemble.map { it.outputDirectory.file(ApiRole.CONTRACT_RESOURCE) })
+            val contracts = api.configurations.getByName(CONTRACTS_CONFIGURATION)
+            task.contractPackages.from(ApiRole.contractPackagesOf(contracts))
             task.classpath.from(api.provider { generated.compileClasspath })
             task.tools.from(tools)
             task.outputDirectory.set(api.layout.buildDirectory.dir("generated/wow/contract/kotlin"))

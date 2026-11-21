@@ -50,13 +50,15 @@ api 模块在插件 `me.ahoo.wow.api` 下声明它的领域模块，`wowContract
 
 ```kotlin
 wow {
+    contractPackage = "me.ahoo.wow.example.eshop.ordering.api.order"
     service = "eshop-ordering-service"
 }
 ```
 
 依赖这个 api 模块的对端按这个名字找到服务，服务若以其他 `spring.application.name` 启动则会拒绝启动。服务自己的 Manifest 从它承载的上下文的契约中取得名字，所以承载这些上下文的服务器模块无需重复写明；契约写明不同服务时构建失败，都没写明时以服务器模块的项目路径命名。eShop 的领域模块也是这样声明的，例如 ordering 的 `wow { service = "eshop-ordering-service" }`。
 
-api 模块还从中编译出 `<Context>Contract`，例如 `EshopOrderingContract`：
+api 模块还从中编译出 `<Context>Contract`，例如 `EshopOrderingContract`，放在领域模块的 `contractPackage` 指定的包里。别的服务从这里 import 它，所以这个包由构建声明，不按类恰好所在的位置推导：上下文以后增加多少聚合，它都不动。有上下文而没有 `contractPackage` 的领域模块会使 `generateWowContract` 失败，并打印要加的那一行，值是上下文的命令与事件类今天共有的包。某一段是 Kotlin 关键字（`object`、`in`、`fun`……）时，生成的代码给它加上反引号。`<State>View` 放在它的聚合的命令与事件类共有的包里，没有共有的包时放在 `contractPackage` 里。
+
 
 | 成员 | 包含 |
 | --- | --- |

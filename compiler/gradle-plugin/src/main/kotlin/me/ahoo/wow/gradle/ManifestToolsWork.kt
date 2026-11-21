@@ -90,9 +90,11 @@ internal object ManifestToolsWork {
         interface Parameters : WorkParameters {
             val fragments: ConfigurableFileCollection
             val service: Property<String>
+            val contractPackage: Property<String>
             val module: Property<String>
             val unpaired: MapProperty<String, String>
             val output: RegularFileProperty
+            val packages: RegularFileProperty
         }
 
         override fun execute() {
@@ -101,9 +103,11 @@ internal object ManifestToolsWork {
                 "generateContract",
                 parameters.fragments.files.toList<File>(),
                 parameters.service.orNull,
+                parameters.contractPackage.orNull,
                 parameters.module.get(),
                 parameters.unpaired.get(),
                 parameters.output.get().asFile,
+                parameters.packages.get().asFile,
             )
         }
     }
@@ -112,6 +116,7 @@ internal object ManifestToolsWork {
     abstract class AssembleContract : WorkAction<AssembleContract.Parameters> {
         interface Parameters : WorkParameters {
             val contracts: ConfigurableFileCollection
+            val contractPackages: ConfigurableFileCollection
             val owners: MapProperty<String, String>
             val classes: ConfigurableFileCollection
             val owner: Property<String>
@@ -123,6 +128,7 @@ internal object ManifestToolsWork {
                 javaClass.classLoader,
                 "assembleContract",
                 parameters.contracts.files.toList<File>(),
+                parameters.contractPackages.files.toList<File>(),
                 parameters.owners.get(),
                 parameters.classes.files.toList<File>(),
                 parameters.owner.get(),
@@ -171,6 +177,7 @@ internal object ManifestToolsWork {
     abstract class GenerateContractSources : WorkAction<GenerateContractSources.Parameters> {
         interface Parameters : WorkParameters {
             val contracts: ConfigurableFileCollection
+            val contractPackages: ConfigurableFileCollection
             val classpath: ConfigurableFileCollection
             val output: DirectoryProperty
         }
@@ -180,6 +187,7 @@ internal object ManifestToolsWork {
                 javaClass.classLoader,
                 "generateContractSources",
                 parameters.contracts.files.toList<File>(),
+                parameters.contractPackages.files.toList<File>(),
                 parameters.classpath.files.toList<File>(),
                 parameters.output.get().asFile,
             )

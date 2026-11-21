@@ -195,10 +195,16 @@ class DomainRoleTest {
             DocsType.DOCS_TYPE_ATTRIBUTE
         )?.name.assert().isEqualTo(WowPlugin.CONTRACT_DOCS_TYPE)
         contract.attributes.getAttribute(Category.CATEGORY_ATTRIBUTE)?.name.assert().isEqualTo(Category.DOCUMENTATION)
-        contract.outgoing.artifacts.single().file.canonicalFile
-            .assert().isEqualTo(File(directory, "build/wow/contract.json").canonicalFile)
+        // The contract, and beside it the package of its contexts' generated code, which only the api modules read.
+        contract.outgoing.artifacts.map { it.file.canonicalFile }.assert().containsExactly(
+            File(directory, "build/wow/contract.json").canonicalFile,
+            File(directory, "build/wow/${ApiRole.CONTRACT_PACKAGES_FILE}").canonicalFile,
+        )
         val generate = project.tasks.getByName(WowPlugin.GENERATE_CONTRACT_TASK) as GenerateContract
         generate.outputFile.get().asFile.name.assert().isEqualTo("contract.json")
+        generate.packagesFile.get().asFile.name.assert().isEqualTo(ApiRole.CONTRACT_PACKAGES_FILE)
+        project.extensions.getByType(WowExtension::class.java).contractPackage.set("com.example.shop.api")
+        generate.contractPackage.get().assert().isEqualTo("com.example.shop.api")
         // The service's contract is its committed baseline: the java component offers no Manifest, nor the contract.
         project.configurations.findByName("wowManifestElements").assert().isNull()
         val component = project.components.getByName("java") as SoftwareComponentInternal

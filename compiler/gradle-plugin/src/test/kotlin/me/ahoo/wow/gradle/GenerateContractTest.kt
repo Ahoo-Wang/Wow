@@ -39,6 +39,7 @@ class GenerateContractTest {
     @Test
     fun `generating should filter the completed fragments down to the contract`() {
         val project = project()
+        project.extensions.getByType(WowExtension::class.java).contractPackage.set("com.example.shop.api")
         val fragment = File(directory, "fragments/${Manifest.FRAGMENT_DIRECTORY}/shop.json")
         ManifestJson.write(Manifest(contexts = listOf(ContextManifest("shop"))), fragment)
         val task = (project.tasks.getByName(WowPlugin.GENERATE_CONTRACT_TASK) as GenerateContract).apply {
@@ -53,12 +54,15 @@ class GenerateContractTest {
         val contract = ManifestJson.read(File(directory, "build/wow/contract.json"))
         contract.service.assert().isNull()
         contract.contexts.map { it.name }.assert().containsExactly("shop")
+        File(directory, "build/wow/${ApiRole.CONTRACT_PACKAGES_FILE}").readText().assert()
+            .isEqualTo("shop=com.example.shop.api\n")
     }
 
     @Test
     fun `a contract names the service its module declares`() {
         val project = project()
         project.extensions.getByType(WowExtension::class.java).service.set("shop-service")
+        project.extensions.getByType(WowExtension::class.java).contractPackage.set("com.example.shop.api")
         val fragment = File(directory, "fragments/${Manifest.FRAGMENT_DIRECTORY}/shop.json")
         ManifestJson.write(Manifest(contexts = listOf(ContextManifest("shop"))), fragment)
         (project.tasks.getByName(WowPlugin.GENERATE_CONTRACT_TASK) as GenerateContract).apply {
@@ -74,6 +78,7 @@ class GenerateContractTest {
     @Test
     fun `a context whose classes are in a project that does not pair should fail, naming the line to add`() {
         val project = project(id = WowPlugin.ID)
+        project.extensions.getByType(WowExtension::class.java).contractPackage.set("sample")
         val fragment = File(directory, "fragments/${Manifest.FRAGMENT_DIRECTORY}/shop.json")
         val aggregate = AggregateManifest(
             name = "cart",
