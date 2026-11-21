@@ -184,6 +184,17 @@ val fixtureRepository = tasks.register("fixtureRepository") {
     }
 }
 
+// The two JDKs of ToolchainFunctionalTest: Gradle runs a fixture's build on the build's own toolchain (21), and its
+// modules compile for a newer one, which is resolved as the JDK of `-Pwow.test.java` is: found on the machine, else
+// downloaded by the toolchain resolver. A machine that has no such JDK and cannot download one skips that test.
+val toolchainTestVersion = 25
+val toolchainService = extensions.getByType<JavaToolchainService>()
+fun jdkHome(version: Int): Provider<String> = toolchainService
+    .launcherFor { languageVersion = JavaLanguageVersion.of(version) }
+    .map { it.metadata.installationPath.asFile.path }
+val daemonJdk = jdkHome(21)
+val moduleJdk = jdkHome(toolchainTestVersion)
+
 tasks.test {
     dependsOn(fixtureRepository)
     inputs.files(fixtureCompileClasspath, fixtureProcessorClasspath, fixtureToolsClasspath)
@@ -227,6 +238,9 @@ tasks.test {
         systemProperty("wow-test.fixture.toolsClasspath", toolsClasspath.asPath)
         systemProperty("wow-test.gradle.home", gradleHome)
         systemProperty("wow-test.tooling.home", toolingHome.get().asFile.path)
+        systemProperty("wow-test.jdk.daemon", daemonJdk.get())
+        runCatching { moduleJdk.get() }.onSuccess { systemProperty("wow-test.jdk.module", it) }
+        systemProperty("wow-test.jdk.module.version", toolchainTestVersion)
     }
 }
 
