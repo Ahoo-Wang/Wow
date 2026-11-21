@@ -41,12 +41,14 @@ import org.gradle.api.attributes.Usage
 import org.gradle.api.file.FileCollection
 import org.gradle.api.file.FileTree
 import org.gradle.api.plugins.JavaPlugin
+import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.plugins.UnknownPluginException
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.SourceSet
 import org.gradle.api.tasks.SourceSetContainer
+import org.gradle.jvm.toolchain.JavaToolchainService
 import org.gradle.language.jvm.tasks.ProcessResources
 import org.gradle.process.CommandLineArgumentProvider
 
@@ -104,6 +106,11 @@ internal object DomainRole {
             task.fragments.from(compilerFragments)
             task.classpath.from(main.output.classesDirs, classesOf(project, runtimeClasspath.get()))
             task.tools.from(tools)
+            // The module's classes are read on the JVM that compiled them, not on the Gradle daemon's.
+            task.launcher.set(
+                project.extensions.getByType(JavaToolchainService::class.java)
+                    .launcherFor(project.extensions.getByType(JavaPluginExtension::class.java).toolchain),
+            )
             task.schemaOverrides.set(extension.schemaOverrides)
             task.outputDirectory.set(fragmentDirectory)
         }

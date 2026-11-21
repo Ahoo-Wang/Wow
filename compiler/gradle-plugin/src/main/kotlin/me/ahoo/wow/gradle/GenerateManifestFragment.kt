@@ -17,24 +17,33 @@ import org.gradle.api.DefaultTask
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.provider.MapProperty
+import org.gradle.api.provider.Property
 import org.gradle.api.tasks.CacheableTask
 import org.gradle.api.tasks.Classpath
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFiles
+import org.gradle.api.tasks.Nested
 import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.SkipWhenEmpty
 import org.gradle.api.tasks.TaskAction
+import org.gradle.jvm.toolchain.JavaLauncher
+import org.gradle.workers.ProcessWorkerSpec
 import org.gradle.workers.WorkQueue
 import org.gradle.workers.WorkerExecutor
 import javax.inject.Inject
 
 /**
  * Completes the module's Manifest fragment that `wow-compiler` wrote: fills in the schemas and the
- * state fingerprints in a worker with an isolated class loader that holds the tools ([tools]) and the compiled
- * classes, so neither the tools nor the module's classes reach the build's class path. The completed
- * fragment replaces the compiler's in the module's resources.
+ * state fingerprints in a worker process that holds the tools ([tools]) and the compiled classes, so neither the tools
+ * nor the module's classes reach the build's class path. The worker runs on the module's Java toolchain ([launcher]):
+ * it loads the classes the module compiled, which a JVM older than the toolchain cannot read, and the Gradle daemon
+ * may be older (Gradle on 21, the module on 25). The completed fragment replaces the compiler's in the module's
+ * resources.
+ *
+ * The other tasks of the plugin read Manifests and contracts as files and load no class of the module, so they stay in
+ * the daemon's JVM, in a worker with an isolated class loader ([MergeManifest]).
  */
 @CacheableTask
 internal abstract class GenerateManifestFragment @Inject constructor(
@@ -54,6 +63,13 @@ internal abstract class GenerateManifestFragment @Inject constructor(
     @get:Classpath
     abstract val tools: ConfigurableFileCollection
 
+    /**
+     * The JVM the worker runs on: the module's Java toolchain, the one that compiled [classpath]'s classes. An input,
+     * so the fragment is not reused from a build that ran on another JVM.
+     */
+    @get:Nested
+    abstract val launcher: Property<JavaLauncher>
+
     /** [WowExtension.schemaOverrides]. */
     @get:Input
     abstract val schemaOverrides: MapProperty<String, String>
@@ -64,8 +80,14 @@ internal abstract class GenerateManifestFragment @Inject constructor(
 
     @TaskAction
     fun generate() {
+        submit(workers.processIsolation(::isolate))
+    }
+
+    /** The worker process: the module's class path and the tools, on the JVM of the module's toolchain. */
+    internal fun isolate(spec: ProcessWorkerSpec) {
         // The module's class path first: its classes are read with the Jackson it runs with.
-        submit(workers.classLoaderIsolation { spec -> spec.classpath.from(classpath, tools) })
+        spec.classpath.from(classpath, tools)
+        spec.forkOptions.executable(launcher.get().executablePath.asFile.absolutePath)
     }
 
     /** One work item per fragment, each completing it into [outputDirectory]. */

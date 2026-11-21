@@ -15,7 +15,11 @@ package me.ahoo.wow.gradle
 
 import com.google.devtools.ksp.gradle.KspAATask
 import com.google.devtools.ksp.gradle.KspExtension
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.verify
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.manifest.Manifest
 import org.gradle.api.GradleException
 import org.gradle.api.Project
 import org.gradle.api.ProjectConfigurationException
@@ -25,7 +29,11 @@ import org.gradle.api.attributes.DocsType
 import org.gradle.api.internal.TaskInternal
 import org.gradle.api.internal.component.SoftwareComponentInternal
 import org.gradle.api.internal.project.ProjectInternal
+import org.gradle.api.plugins.JavaPluginExtension
+import org.gradle.jvm.toolchain.JavaLanguageVersion
+import org.gradle.process.JavaForkOptions
 import org.gradle.testfixtures.ProjectBuilder
+import org.gradle.workers.ProcessWorkerSpec
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir
@@ -52,6 +60,52 @@ class DomainRoleTest {
         val failure = assertThrows<ProjectConfigurationException> { (project as ProjectInternal).evaluate() }
         generateSequence<Throwable>(failure) { it.cause }.map { it.message }.toList().assert()
             .contains(WowPlugin.missingKotlinJvm(":", WowPlugin.SERVICE_ID))
+    }
+
+    @Test
+    fun `the fragment task should run on the Java toolchain of the module, not on the JVM that runs Gradle`() {
+        val project = project()
+        // The toolchain is declared after the plugin is applied, as `kotlin { jvmToolchain(21) }` does in a build file.
+        val toolchain = project.extensions.getByType(JavaPluginExtension::class.java).toolchain
+        toolchain.languageVersion.set(JavaLanguageVersion.of(TOOLCHAIN))
+        val registered = project.tasks.getByName(WowPlugin.GENERATE_FRAGMENT_TASK) as GenerateManifestFragment
+        // A task of its own with the registered one's launcher: its class path resolves the module's dependencies.
+        val task = project.tasks.register("fragmentProbe", GenerateManifestFragment::class.java).get()
+        task.launcher.set(registered.launcher)
+        val classes = File(directory, "classes")
+        val tools = File(directory, "tools.jar")
+        task.classpath.from(classes)
+        task.tools.from(tools)
+
+        val classpath = project.files()
+        val fork = mockk<JavaForkOptions>(relaxed = true)
+        val spec = mockk<ProcessWorkerSpec> {
+            every { this@mockk.classpath } returns classpath
+            every { forkOptions } returns fork
+        }
+        task.isolate(spec)
+
+        val launcher = task.launcher.get()
+        launcher.metadata.languageVersion.asInt().assert().isEqualTo(TOOLCHAIN)
+        val jdk = requireNotNull(System.getProperty("wow-test.jdk.daemon"))
+        launcher.executablePath.asFile.path.assert().startsWith(jdk)
+        verify { fork.executable(launcher.executablePath.asFile.absolutePath) }
+        // The module's classes before the tools, which read them with the Jackson the module runs with.
+        classpath.files.toList().assert().isEqualTo(listOf(classes, tools))
+    }
+
+    @Test
+    fun `the fragment task's action should clear a stale fragment through Gradle's own worker queue`() {
+        val project = project()
+        val task = project.tasks.getByName(WowPlugin.GENERATE_FRAGMENT_TASK) as GenerateManifestFragment
+        val stale = File(directory, "build/wow/manifest-fragment/${Manifest.FRAGMENT_DIRECTORY}/stale.json")
+        stale.apply { parentFile.mkdirs() }.writeText("{}")
+
+        // No fragment: nothing is submitted, so no worker starts. The queue is Gradle's own, which takes the isolation
+        // as `isolate` configures it; that a worker then runs on the toolchain's JVM is ToolchainFunctionalTest's.
+        task.generate()
+
+        stale.exists().assert().isFalse()
     }
 
     @Test
@@ -200,5 +254,10 @@ class DomainRoleTest {
         val decorated = project().objects.newInstance(DecoratedArgs::class.java)
         decorated.javaClass.name.assert().endsWith("_Decorated")
         DomainRole.versionOf(decorated.javaClass).assert().isNull()
+    }
+
+    private companion object {
+        /** The toolchain of the module, the JDK the build compiles with (Wow's floor); the tests may run on a newer one. */
+        const val TOOLCHAIN = 21
     }
 }
