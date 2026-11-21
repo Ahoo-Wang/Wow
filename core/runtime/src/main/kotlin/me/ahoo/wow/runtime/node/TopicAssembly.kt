@@ -185,13 +185,11 @@ internal class TopicAssembly(private val wiring: NodeWiring, private val manifes
             it.models,
             it.coordinator,
             topics!!,
-            it.creations,
+            it.admission,
             ledger,
             inFlight,
             ledgerOnly = ledgerOnly,
             clock = clock,
-            validators = it.validators,
-            tenants = it.tenants,
         )
     }
 

@@ -19,7 +19,6 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.Operator
-import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.kernel.CommandType
@@ -214,10 +213,6 @@ internal inline fun List<CommandValidator>.violationsOf(candidate: () -> Command
     val command = candidate()
     return flatMap { it.validate(command) }
 }
-
-/** [command], of [type], as a validator sees it: its target, scope, operator and the caller it carries, if any. */
-internal fun candidateOf(type: CommandType, command: Command<*>): CommandCandidate =
-    CommandCandidate(type, command.body, command.ref, command.scope, command.operator, command.caller)
 
 /** The command an admitted request becomes, [command], as a validator sees it: sent to [ref] in [scope]. */
 internal fun candidateOf(command: Resolved, ref: AggregateRef, scope: Scope, operator: Operator?, caller: Caller?) =

@@ -32,8 +32,7 @@ import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
 import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.runtime.Executor
-import me.ahoo.wow.runtime.admission.CommittedRequests
-import me.ahoo.wow.runtime.admission.CreationIds
+import me.ahoo.wow.runtime.admission.admissionOf
 import me.ahoo.wow.runtime.cluster.TopicRouter
 import me.ahoo.wow.runtime.command.CommandIntake
 import me.ahoo.wow.runtime.command.MessageEntries
@@ -44,7 +43,6 @@ import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
 import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
 import me.ahoo.wow.runtime.subscription.testOptions
-import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.transport.TopicMessage
 import me.ahoo.wow.spi.transport.TopicProducer
 import me.ahoo.wow.spi.wait.Origin
@@ -169,7 +167,7 @@ class TopicWaitProgressTest {
             listOf(order),
             coordinator,
             SourceTopics(topics, producer = topics),
-            creations = CreationIds(IdGenerators.DEFAULT, CommittedRequests.NONE),
+            admissionOf(),
         )
         val intakeRuntime = runtime("intake", MessageEntries.commands(TOPIC, topics, 1), intake.subscription)
         try {

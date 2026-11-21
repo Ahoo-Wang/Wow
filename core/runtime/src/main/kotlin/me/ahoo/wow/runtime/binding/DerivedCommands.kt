@@ -30,8 +30,6 @@ import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.HandlingRejectedException
 import me.ahoo.wow.runtime.admission.AdmissionIdentity
-import me.ahoo.wow.runtime.admission.CommandValidator
-import me.ahoo.wow.runtime.admission.CreationIds
 import me.ahoo.wow.runtime.admission.ServiceCommandAdmission
 import me.ahoo.wow.runtime.client.InProcessCommandClient
 import me.ahoo.wow.runtime.cluster.ReplyTo
@@ -40,7 +38,6 @@ import me.ahoo.wow.runtime.wait.Settlement
 import me.ahoo.wow.runtime.wait.WaitCoordinator
 import me.ahoo.wow.runtime.wait.busyOf
 import me.ahoo.wow.runtime.wait.toError
-import me.ahoo.wow.spi.tenant.TenantPolicy
 import me.ahoo.wow.spi.wait.WaitContext
 
 /**
@@ -61,7 +58,7 @@ import me.ahoo.wow.spi.wait.WaitContext
  *   the chain on ([WaitContext.derived]): [WaitCoordinator.forward] signals their own hops to the waiting node, and the
  *   saga's hop, signalled by the subscription with their ids, is complete once each of them reached the next hop; with
  *   none derived, it is complete at once.
- * - **Validation**: a command of its own context is checked by the node's [validators] before it runs, as the gateway
+ * - **Validation**: a command of its own context is checked by the node's validators ([admission]) before it runs, as the gateway
  *   checks an admitted one: one they find violations in is rejected as
  *   [FrameworkCodes.COMMAND_INVALID], listing them, and no aggregate
  *   decides it. One to another context is checked there, at the target's intake.
@@ -71,7 +68,7 @@ import me.ahoo.wow.spi.wait.WaitContext
  * - **Commits** of its own context: the result lists each command committed (or already committed, or unchanged)
  *   with its outcome ([Executed.committed]), for the saga's `@OnCommitted` handler.
  * - **Creations without an id**: a command of its own context that names no aggregate
- *   ([me.ahoo.wow.api.aggregate.AggregateRef.isAssigned]) takes its id from [creations] before it runs: the id its
+ *   ([me.ahoo.wow.api.aggregate.AggregateRef.isAssigned]) takes its id from the context's creation ids ([admission]) before it runs: the id its
  *   request already created or claimed, else a new one from its aggregate type's generator, claimed. One to another
  *   context takes it
  *   there, at the target's intake. One to an aggregate whose id is its owner's takes its owner's, and is rejected
@@ -97,13 +94,9 @@ internal class DerivedCommands(
     models: Collection<AggregateModel<*>>,
     private val coordinator: WaitCoordinator,
     private val sender: CommandSender? = null,
-    creations: CreationIds,
-    /** The node's command validators, the gateway's. */
-    validators: List<CommandValidator> = emptyList(),
-    /** The tenant of each aggregate type, the node's. */
-    tenants: TenantPolicy = TenantPolicy.CALLERS,
+    /** The context's admission ([me.ahoo.wow.runtime.node.ContextNode.admission]): the tenant, validation and id. */
+    private val admission: ServiceCommandAdmission,
 ) {
-    private val admission = ServiceCommandAdmission(validators, creations, tenants)
     private val models: Map<AggregateType, AggregateModel<*>> = models.associateBy { it.type }
     private val contexts: Set<String> = models.mapTo(HashSet()) { it.type.context }
 

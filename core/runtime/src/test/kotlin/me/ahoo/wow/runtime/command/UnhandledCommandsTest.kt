@@ -25,8 +25,7 @@ import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.runtime.Executor
-import me.ahoo.wow.runtime.admission.CommittedRequests
-import me.ahoo.wow.runtime.admission.CreationIds
+import me.ahoo.wow.runtime.admission.admissionOf
 import me.ahoo.wow.runtime.binding.AddItems
 import me.ahoo.wow.runtime.binding.CART
 import me.ahoo.wow.runtime.binding.SHOP
@@ -43,7 +42,6 @@ import me.ahoo.wow.runtime.wait.SubscriptionDirectory
 import me.ahoo.wow.runtime.wait.WaitCoordinator
 import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.runtime.wait.WaitRegistry
-import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.transport.EnvelopeCodec
 import me.ahoo.wow.spi.wait.Origin
 import me.ahoo.wow.spi.wait.WaitContext
@@ -73,8 +71,8 @@ class UnhandledCommandsTest {
         listOf(cart),
         coordinator,
         sourceTopics,
+        admissionOf(),
         clock = clockOf { NOW },
-        creations = CreationIds(IdGenerators.DEFAULT, CommittedRequests.NONE),
     )
 
     private fun wire(causation: Causation? = null): CommandWire = ClusterCodec.wire(

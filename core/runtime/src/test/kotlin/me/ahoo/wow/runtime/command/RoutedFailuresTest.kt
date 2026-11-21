@@ -22,9 +22,7 @@ import me.ahoo.wow.kernel.KernelOptions
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.runtime.Executor
-import me.ahoo.wow.runtime.admission.CommittedRequests
-import me.ahoo.wow.runtime.admission.CreationIds
-import me.ahoo.wow.runtime.admission.ServiceCommandAdmission
+import me.ahoo.wow.runtime.admission.admissionOf
 import me.ahoo.wow.runtime.binding.AddItems
 import me.ahoo.wow.runtime.binding.CART
 import me.ahoo.wow.runtime.binding.SHOP
@@ -41,7 +39,6 @@ import me.ahoo.wow.runtime.wait.SubscriptionDirectory
 import me.ahoo.wow.runtime.wait.WaitCoordinator
 import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.runtime.wait.WaitRegistry
-import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -92,12 +89,12 @@ class RoutedFailuresTest {
         listOf(cart),
         coordinator,
         SourceTopics(topics, "", topics, intake = true),
-        creations = CreationIds(IdGenerators.DEFAULT, CommittedRequests.NONE),
+        admissionOf(),
     )
     private val timers = ContextTimerFirer(
         listOf(cart),
         coordinator,
-        ServiceCommandAdmission(emptyList(), CreationIds(IdGenerators.DEFAULT, CommittedRequests.NONE)),
+        admissionOf(),
     )
 
     private fun wire(id: String) = ClusterCodec.wire(
