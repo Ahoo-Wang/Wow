@@ -132,14 +132,27 @@ internal object KernelLifecycle {
         else -> throw IllegalArgumentException("${body.javaClass.name} is not a lifecycle command.")
     }
 
-    /** [metadata] after [event]: only the lifecycle and schedule events change it. */
-    fun evolve(metadata: Metadata, event: Any): Metadata = when (event) {
+    /**
+     * [metadata] after [event]: only the lifecycle and schedule events change it. [decided] is the model whose decision
+     * of the command [body] holds [event], null when the log is replayed: one whose owner is fixed fails the command on
+     * [OwnerTransferred] ([AggregateModel.refuseOwnerTransfer]). Checked in the event's own branch, so a decision
+     * without the event, and a model whose owner is not fixed, pay nothing for it.
+     */
+    fun evolve(
+        metadata: Metadata,
+        event: Any,
+        decided: AggregateModel<*>? = null,
+        body: Any = Unit,
+    ): Metadata = when (event) {
         // Deleting cancels the aggregate's schedules; restoring does not bring them back.
         is AggregateDeleted -> metadata.copy(deleted = true, schedules = emptyMap())
         is ScheduleSet -> metadata.copy(schedules = metadata.schedules - event.key + (event.key to event.rule))
         is ScheduleCancelled -> metadata.copy(schedules = metadata.schedules - event.key)
         is AggregateRestored -> metadata.copy(deleted = false)
-        is OwnerTransferred -> metadata.copy(scope = metadata.scope.copy(ownerId = event.ownerId))
+        is OwnerTransferred -> {
+            decided?.refuseOwnerTransfer(body)
+            metadata.copy(scope = metadata.scope.copy(ownerId = event.ownerId))
+        }
         is SpaceTransferred -> metadata.copy(scope = metadata.scope.copy(spaceId = event.spaceId))
         else -> metadata
     }

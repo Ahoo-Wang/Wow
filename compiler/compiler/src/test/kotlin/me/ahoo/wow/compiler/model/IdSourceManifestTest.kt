@@ -158,19 +158,24 @@ class IdSourceManifestTest {
     }
 
     @Test
-    fun `an aggregate whose id is its owner's that lists TransferOwner should fail the compilation`() {
-        val (_, result) = compileModel(
-            "generate",
-            context,
-            basket(
-                "@AggregateRoot(idSource = AggregateIdSource.OWNER, lifecycle = [TransferOwner::class, DeleteAggregate::class])",
-                "import me.ahoo.wow.api.lifecycle.DeleteAggregate\nimport me.ahoo.wow.api.lifecycle.TransferOwner",
-            ),
-        )
-        result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
-        result.messages.assert().contains(
-            "@AggregateRoot(lifecycle) lists TransferOwner, but the aggregate's id is its owner's (idSource = OWNER): " +
-                "its owner cannot be transferred",
-        )
+    fun `an aggregate whose id is its owner's that lists TransferOwner should fail the compilation, all four listed too`() {
+        listOf(
+            "TransferOwner::class, DeleteAggregate::class",
+            "DeleteAggregate::class, RestoreAggregate::class, TransferOwner::class, TransferSpace::class",
+        ).forEach { listed ->
+            val (_, result) = compileModel(
+                "generate",
+                context,
+                basket(
+                    "@AggregateRoot(idSource = AggregateIdSource.OWNER, lifecycle = [$listed])",
+                    "import me.ahoo.wow.api.lifecycle.*",
+                ),
+            )
+            result.exitCode.assert().withFailMessage { listed }.isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+            result.messages.assert().contains(
+                "@AggregateRoot(lifecycle) lists TransferOwner, but the aggregate's id is its owner's " +
+                    "(idSource = OWNER): its owner cannot be transferred. Leave TransferOwner out of the list",
+            )
+        }
     }
 }
