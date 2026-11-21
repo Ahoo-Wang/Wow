@@ -24,6 +24,7 @@ import me.ahoo.wow.cocache.api.StateViewCache
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.sink.PublishedSinks
 import me.ahoo.wow.spi.config.WowConfigurationException
+import me.ahoo.wow.spi.read.StateMasks
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.boot.LazyInitializationBeanFactoryPostProcessor
@@ -112,7 +113,7 @@ class WowCoCacheAutoConfigurationTest {
 
     @Test
     fun `the owner should write the states it publishes through a sink subscription of its own`() {
-        runner.withBean(Manifest::class.java, { shopManifest() })
+        runner.withBean(Manifest::class.java, { shopManifest() }).withBean(StateMasks::class.java, { NO_MASKS })
             .withPropertyValues("cocache.backend=memory", "wow.cocache.publish[0]=shop.order")
             .run { context ->
                 context.startupFailure.assert().isNull()
@@ -124,7 +125,7 @@ class WowCoCacheAutoConfigurationTest {
 
     @Test
     fun `a listed aggregate type the service does not serve should fail the startup, naming the key`() {
-        runner.withBean(Manifest::class.java, { Manifest() })
+        runner.withBean(Manifest::class.java, { Manifest() }).withBean(StateMasks::class.java, { NO_MASKS })
             .withPropertyValues("cocache.backend=memory", "wow.cocache.publish=shop.order")
             .run { context ->
                 val failure = generateSequence(
@@ -140,7 +141,9 @@ class WowCoCacheAutoConfigurationTest {
         val caches = StateViewCaches(CoCacheFactory(runtime)) { mockk() }
         val views = mapOf(ORDER to OrderView::class.java)
         fun sinksOf(publish: String, views: Map<AggregateType, Class<*>>) =
-            runCatching { WowCoCacheAutoConfiguration.sinksOf(listOf(publish), null, shopManifest(), views, caches) }
+            runCatching {
+                WowCoCacheAutoConfiguration.sinksOf(listOf(publish), null, shopManifest(), views, caches, NO_MASKS)
+            }
         sinksOf("shop.order", views).getOrThrow().toString().assert().isEqualTo("PublishedSinks(wow.cocache-sink)")
         (sinksOf("shop.order", emptyMap()).exceptionOrNull() as WowConfigurationException).message.assert()
             .contains("no contract on the class path")

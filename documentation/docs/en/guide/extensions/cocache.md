@@ -110,8 +110,9 @@ Each listed type is written by a sink subscription of its own, `wow.cocache-sink
 - A commit writes the aggregate's state after it, at the commit's version, and only over an older version. A commit delivered again, a replay, or an old owner beside the new one never takes the cache back.
 - A deleting commit writes a tombstone at its version, which reads as absent and which no older state undoes.
 - A reader's load of a missing state holds CoCache's lease on the key, and the owner's write takes it over: a load that read an older state never puts it back.
+- The state is written as a read of the owner returns it: every [`@Sensitive`](../queries#describe-what-types-cannot) value, `DISPLAY` and `CONFIDENTIAL` alike, replaced by its mask, with the application's custom mask strategies. So an entry the owner writes is the entry a reader's miss loads, and neither Redis nor any local copy holds a raw phone number or secret.
 
-A state no one reads pays no write: an aggregate type that is not listed is not written. A listed type must be one of the service's own, with a view in its api's contract; otherwise the service does not start, and the error names `wow.cocache.publish`.
+A state no one reads pays no write: an aggregate type that is not listed is not written. A listed type must be one of the service's own, with a view in its api's contract; otherwise the service does not start, and the error names `wow.cocache.publish`. The sinks mask the states by the node's state masks (`StateMasks`), which Wow's Spring Boot host declares with the query side; a node that lists types and has none does not start, whatever their schemas, and the error names `wow.cocache.publish`.
 
 ## Lifetimes and local copies
 
@@ -144,7 +145,9 @@ The owner's next commit of the aggregate writes the state again either way. A st
 
 ## A trusted read
 
-The cache holds the full view as the service's identity sees it, for every tenant and owner. It is a read for trusted code: a Saga, a name in a message, an internal computation. Never return it to an end user as it is: a user reads the owner's routes, which apply the user's scope.
+The cache holds the full view as the service's identity sees it, for every tenant and owner, its `@Sensitive` fields masked as in every read. It is a read for trusted code: a Saga, a name in a message, an internal computation. Never return it to an end user as it is: a user reads the owner's routes, which apply the user's scope.
+
+A handler that needs a sensitive value raw does not get it from the cache, which holds only its mask.
 
 The cache is not where a decision is made. A command decides on its own aggregate's state; a check that must be consistent with another aggregate belongs to that aggregate, which rejects the command it cannot accept ([Rejections](../rejections)).
 

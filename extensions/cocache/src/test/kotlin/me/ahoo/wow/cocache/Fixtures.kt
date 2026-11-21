@@ -87,3 +87,78 @@ class ContractClassLoader(contract: me.ahoo.wow.manifest.Manifest, parent: Class
             super.getResources(name)
         }
 }
+
+/** A generated view of the aggregate `shop.customer`, whose state holds a `DISPLAY` and a `CONFIDENTIAL` field. */
+@StateView("shop.customer")
+data class CustomerView(val name: String, val phone: String, val secret: String)
+
+val CUSTOMER = AggregateType("shop", "customer")
+
+/**
+ * A Manifest of the context `shop` and its aggregate `customer`, whose snapshots are queried: its state's `phone` is
+ * `@Sensitive(DISPLAY, mask = Mask(keepPrefix = 3, keepSuffix = 4))`, its `secret` `@Sensitive(CONFIDENTIAL)` with
+ * [secretMask] (the built-in mask, keeping nothing, by default).
+ */
+fun customerManifest(secretMask: Map<String, Any?> = emptyMap()): me.ahoo.wow.manifest.Manifest =
+    me.ahoo.wow.manifest.Manifest(
+        contexts = listOf(
+            me.ahoo.wow.manifest.ContextManifest(
+                name = "shop",
+                aggregates = listOf(
+                    me.ahoo.wow.manifest.AggregateManifest(
+                        name = "customer",
+                        state = me.ahoo.wow.manifest.StateManifest(
+                            me.ahoo.wow.manifest.Manifest.schemaRef("shop.CustomerState"),
+                            view = CustomerView::class.java.name,
+                        ),
+                        queries = listOf(me.ahoo.wow.manifest.QueryManifest(me.ahoo.wow.manifest.QueryRoutes.SNAPSHOT)),
+                    ),
+                ),
+            ),
+        ),
+        defs = mapOf(
+            "shop.CustomerState" to mapOf(
+                "type" to "object",
+                "properties" to mapOf(
+                    "name" to mapOf("type" to "string"),
+                    "phone" to mapOf("\$ref" to "#/\$defs/shop.Phone"),
+                    "secret" to buildMap<String, Any?> {
+                        put("type", "string")
+                        put("x-wow-sensitive", mapOf("level" to "confidential"))
+                        if (secretMask.isNotEmpty()) put("x-wow-mask", secretMask)
+                    },
+                ),
+            ),
+            // Behind a reference, as a value class carrying @Sensitive is written.
+            "shop.Phone" to mapOf(
+                "type" to "string",
+                "x-wow-sensitive" to mapOf("level" to "display"),
+                "x-wow-mask" to mapOf("keepPrefix" to 3, "keepSuffix" to 4),
+            ),
+        ),
+    )
+
+/** A commit of [ref] at [version] that leaves its state as [state], a JSON text; a deleting one when it is null. */
+fun recordOf(
+    ref: me.ahoo.wow.api.aggregate.AggregateRef,
+    version: Int,
+    state: String?
+): me.ahoo.wow.spi.state.StateEventRecord =
+    me.ahoo.wow.spi.state.StateEventRecord.of(
+        ref = ref,
+        version = version,
+        commandId = "c-$version",
+        requestId = "r-$version",
+        commandType = "${ref.type}.Change",
+        commitTime = 0,
+        events = listOf(
+            me.ahoo.wow.spi.state.StateEventPayload.of("Changed", 1, me.ahoo.wow.spi.json.WowJson.mapper.readTree("{}"))
+        ),
+        state = state?.let {
+            me.ahoo.wow.spi.state.PublishedState.of(version, "f", me.ahoo.wow.spi.json.WowJson.mapper.readTree(it))
+        },
+        deleted = state == null,
+    )
+
+/** The state masks of a node whose types mask nothing, as a test context without the query side declares them. */
+val NO_MASKS: me.ahoo.wow.spi.read.StateMasks = me.ahoo.wow.spi.read.StateMasks { null }
