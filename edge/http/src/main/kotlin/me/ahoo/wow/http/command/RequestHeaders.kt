@@ -176,16 +176,12 @@ internal class RequestHeaders(
             ?: names.firstNotNullOfOrNull { name -> request.header(name)?.takeIf { it.isNotEmpty() } }
 
     /**
-     * The request facts [names] lists that [request] carries, as named in [names], and the standard request facts
-     * ([RequestFacts]) the framework fills itself:
-     *
-     * - [RequestFacts.APP_ID], the [app][Caller.app] of the [caller] its resolver authenticated, on
-     *   either port: on the internal port the calling service's own, which admission replaces with the root
-     *   request's, the facts its `Wow-Call` carries; none for a caller without one;
-     * - on the public port, as 9.x's header appenders wrote them, [RequestFacts.USER_AGENT], the
-     *   request's `User-Agent`, when it has one, and [RequestFacts.REMOTE_IP], the address literal of the request's
-     *   remote address (never a host name, which a reverse DNS lookup would block the event loop for; an unresolved
-     *   address as it was given), when the server knows it.
+     * The request facts [names] lists that [request] carries, as named in [names], and, on the public port, the standard
+     * request facts ([RequestFacts]) the edge records itself, as 9.x's header appenders wrote them:
+     * [RequestFacts.USER_AGENT], the request's `User-Agent`, when it has one, and [RequestFacts.REMOTE_IP], the address
+     * literal of the request's remote address (never a host name, which a reverse DNS lookup would block the event loop
+     * for; an unresolved address as it was given), when the server knows it. [RequestFacts.APP_ID] is not the edge's:
+     * admission derives it from the caller, as for every request ([CallerAdmission.factsOf]).
      *
      * The remote address is the server's: the connection's peer or, when the host trusts a proxy in front of it, the
      * client that proxy forwarded for. `X-Forwarded-For` and `Forwarded` are never read here: 9.x took the first
@@ -202,12 +198,11 @@ internal class RequestHeaders(
      * neither the address nor the `User-Agent` is recorded. A command forwarded to its owner over the cluster channel
      * keeps the facts the edge recorded.
      */
-    fun facts(request: ServerRequest, names: Set<String>, caller: Caller): Map<String, String> {
+    fun facts(request: ServerRequest, names: Set<String>): Map<String, String> {
         val listed = names.filter { it.lowercase() !in RequestFacts.STANDARD }
             .mapNotNull { name -> request.header(name)?.let { name to it } }
             .toMap()
         val standard = buildMap {
-            putAll(CallerAdmission.factsOf(caller))
             if (publicPort && clientFacts) {
                 request.header(HttpHeaders.USER_AGENT)?.takeIf { it.isNotEmpty() }
                     ?.let { put(RequestFacts.USER_AGENT, it) }
@@ -241,7 +236,7 @@ internal class RequestHeaders(
         private val logger = KotlinLogging.logger {}
 
         /** The most characters of one request fact a command records; the rest is cut off. */
-        const val MAX_FACT_LENGTH: Int = 512
+        const val MAX_FACT_LENGTH: Int = CallerAdmission.MAX_FACT_LENGTH
     }
 }
 

@@ -72,7 +72,7 @@ class AccountSpec {
 | `givenRecords(vararg records, scope, operator, commitTime)` | 把存储的记录按日志中的样子作为一条流提交：模型的类已经写不出的历史，例如聚合已退役的事件（内核会跳过它的记录），或者旧修订版的记录（经它的升级读取）。 |
 | `givenReservation(namespace, key, owner)` | 把一个预留键交给同一类型的另一个聚合，于是预留它的命令会被拒绝。 |
 | `givenCommands(vararg commands)` | 把这些命令作为场景的准备发出；被拒绝或抛出异常的命令会让规格失败，并指出是哪一条。 |
-| `whenCommand(command, requestId, expectedVersion, caller, scope, …) { … }` | 把命令送进内核，并在块中检查它的结果。`caller`（默认为 `aggregateSpec(model, caller = …)` 给出的调用方）像命令网关那样，给出命令的作用域、操作人和应用；`scope` 指定调用方去往的另一个作用域。 |
+| `whenCommand(command, requestId, expectedVersion, caller, scope, …) { … }` | 把命令送进内核，并在块中检查它的结果。`caller`（默认为 `aggregateSpec(model, caller = …)` 给出的调用方）像命令网关那样，给出命令的作用域、操作人和应用；`scope` 指定调用方去往的另一个作用域。`headers` 可以添加请求事实，但不能写 `app_id`，它只由调用方给出：`headers` 里写了它的规格直接失败，有没有调用方都一样，因为网关从不记录请求自己写的 `app_id`。 |
 | `asCaller(caller) { … }` | 以另一个调用方发出块中的命令。 |
 | `advanceTime(duration) { … }` | 拨动时钟，并把聚合给自己定时、到那时已到期的每条命令发给它；块检查最后一条。 |
 | `expectNothingDue(within)` | 拨动时钟；到那时若有聚合给自己定时的命令到期，就失败。 |

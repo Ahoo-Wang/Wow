@@ -530,7 +530,7 @@ class CommandGateway @InternalWowApi constructor(
         }
         AdmissionLimits.oversizedBody(decoded.value)?.let { return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it) }
         // 5. The transformation.
-        val headers = headersOf(request)
+        val headers = headersOf(request, origin)
         var command = Resolved(model, commandType, decoded.value, headers)
         if (transformer != null) {
             val transformed = transformations.transform(

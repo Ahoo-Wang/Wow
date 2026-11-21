@@ -285,7 +285,9 @@ class AggregateSpec<S : Any> private constructor(
      * names another scope it acts in, as a caller crossing scopes does (its operator then acting elsewhere);
      * [headers] adds request facts (a scheduled command's [me.ahoo.wow.api.schedule.ScheduleContext.headers], say)
      * and [operator] replaces the caller's. Without a caller, the command is an anonymous one in [scope], none by
-     * default.
+     * default. [headers] never name a fact admission takes from the caller ([CallerAdmission.FACTS], `app_id`): such a
+     * header fails the specification, with or without a caller, since the gateway never records it; give the
+     * application with [caller] instead.
      *
      * A command whose body names its aggregate ([me.ahoo.wow.api.annotation.AggregateId]) names the specification's,
      * or none: one that names another fails the specification, as admission refuses it.
@@ -307,8 +309,8 @@ class AggregateSpec<S : Any> private constructor(
 
     /**
      * The command [commandId] of [body], sent by [caller] or the specification's, as [whenCommand] describes: its scope,
-     * operator and request facts are the caller's admission ([CallerAdmission]), [scope], [headers] and [operator]
-     * overriding them.
+     * operator and request facts are the caller's admission ([CallerAdmission]), [scope] and [operator]
+     * overriding them, and [headers] adding to them, refused when they name one of the caller's ([callerFactIn]).
      */
     private fun commandOf(
         commandId: String,
@@ -325,6 +327,13 @@ class AggregateSpec<S : Any> private constructor(
             "${body.javaClass.simpleName} names the aggregate $inBody in its body, but the specification is of " +
                 "${ref.id}: admission refuses it as malformed."
         }
+        callerFactIn(headers)?.let { name ->
+            throw IllegalArgumentException(
+                "A specification's headers do not name $name: it is the caller's application, which admission takes " +
+                    "from the caller alone, never from a request. Give it with caller(…), a Caller whose " +
+                    "'${Caller.APP}' attribute names the application."
+            )
+        }
         val sender = caller ?: this.caller
         // A scope other than the sender's own is one it acts in elsewhere.
         val target = scope?.takeIf { sender != null && it != sender.scope }?.let { TargetScope.of(ref.tenantId, it) }
@@ -336,10 +345,14 @@ class AggregateSpec<S : Any> private constructor(
             body,
             expectedVersion,
             origin?.scope ?: scope ?: Scope.NONE,
-            headers = origin?.facts.orEmpty() + headers,
+            headers = origin?.headersOf(headers) ?: headers,
             operator = operator ?: origin?.operator,
         )
     }
+
+    /** The name in [headers] of a fact admission takes from the caller ([CallerAdmission.FACTS]); null when none. */
+    private fun callerFactIn(headers: Map<String, String>): String? =
+        headers.keys.firstOrNull { it in CallerAdmission.FACTS }
 
     /**
      * Sends [commands] in order, as [whenCommand] sends one (by [caller], in [scope], with [headers], in the name of

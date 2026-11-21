@@ -269,4 +269,32 @@ class ScenarioDslTest {
             }
         }
     }
+
+    private val inConsole = Caller.of(subject = "alice", attributes = mapOf(Caller.APP to listOf("console")))
+
+    @Test
+    fun `a caller's application should be recorded beside the request facts a specification adds`() =
+        aggregateSpec(plenty, caller = inConsole) {
+            givenCommands(Open("alice"))
+            whenCommand(Reserve("mug", 1), headers = mapOf("X-Trace" to "t-1")) {
+                expectEventEnvelope<Reserved> {
+                    headers.assert().isEqualTo(mapOf("X-Trace" to "t-1", RequestFacts.APP_ID to "console"))
+                }
+            }
+        }
+
+    @Test
+    fun `headers naming the caller's application should fail the specification, with or without a caller`() {
+        val named = mapOf(RequestFacts.APP_ID to "forged")
+        val advice = "Give it with caller(…), a Caller whose 'app' attribute names the application."
+        assertThrownBy<IllegalArgumentException> {
+            aggregateSpec(plenty, caller = inConsole) { whenCommand(Reserve("mug", 1), headers = named) { } }
+        }.hasMessageStartingWith("A specification's headers do not name app_id").hasMessageEndingWith(advice)
+        assertThrownBy<IllegalArgumentException> {
+            aggregateSpec(plenty) { whenCommand(Reserve("mug", 1), headers = named) { } }
+        }.hasMessageEndingWith(advice)
+        assertThrownBy<IllegalArgumentException> {
+            aggregateSpec(plenty) { givenCommands(Reserve("mug", 1), headers = named) }
+        }.hasMessageEndingWith(advice)
+    }
 }

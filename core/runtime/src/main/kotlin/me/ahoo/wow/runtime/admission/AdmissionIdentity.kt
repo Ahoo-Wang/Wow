@@ -18,11 +18,12 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.result.FrameworkCodes
+import me.ahoo.wow.kernel.CallerAdmission
 
 /**
  * The rules that decide a request's identity facts, step 2 of admission ([CommandGateway]), which a command of this
  * node's aggregates and one of a peer context's share: the tenant, the call, the aggregate id an owner's aggregate or a
- * body names, the caller the command acts as, and the facts no request may give.
+ * body names, the caller the command acts as, the request facts it records and the facts no request may give.
  */
 internal object AdmissionIdentity {
     /** Why the tenant [request]'s ref names is not [tenantId], the one admission decided; null when it is, or none. */
@@ -33,11 +34,13 @@ internal object AdmissionIdentity {
         }
 
     /**
-     * The request facts of [request]'s command: a service's synchronous call carries those of its root request that
-     * propagate ([CallContext.facts]) in place of the ones the edge recorded for the calling service.
+     * The request facts of [request]'s command, sent by the caller [origin] admits: the ones it carries, as the caller
+     * records them ([CallerAdmission.headersOf]). A service's synchronous call carries those of its root request that
+     * propagate ([CallContext.facts]) instead: its caller is the calling service, whose application is no fact of the
+     * request.
      */
-    fun headersOf(request: ServerCommandRequest): Map<String, String> {
-        val call = request.call ?: return request.headers
+    fun headersOf(request: ServerCommandRequest, origin: CallerAdmission): Map<String, String> {
+        val call = request.call ?: return origin.headersOf(request.headers)
         return request.headers.filterKeys { it !in RequestFacts.PROPAGATED } + call.facts
     }
 

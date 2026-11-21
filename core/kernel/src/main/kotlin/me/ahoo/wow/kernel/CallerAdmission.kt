@@ -22,8 +22,10 @@ import me.ahoo.wow.api.decide.RequestFacts
 
 /**
  * What a command records of the caller that sends it, as admission derives it: the [scope] it acts in, the
- * [operator] that sends it and the request [facts] of the caller, its application's among them. The command gateway,
- * the edge and the test DSL derive them alike ([of]); the tenant is [me.ahoo.wow.spi.tenant.TenantPolicy]'s.
+ * [operator] that sends it and the request [facts] of the caller, its application's among them. The command gateway
+ * (for every request: the edge's, the node's own `CommandClient`'s, a relayed peer command's) and the test DSL derive
+ * them alike ([of]), and record the request's facts under them alike ([headersOf]); the tenant is
+ * [me.ahoo.wow.spi.tenant.TenantPolicy]'s.
  */
 @InternalWowApi
 class CallerAdmission private constructor(
@@ -34,6 +36,16 @@ class CallerAdmission private constructor(
     /** The caller's request facts: its application as [RequestFacts.APP_ID] when it has one. */
     val facts: Map<String, String>,
 ) {
+    /**
+     * The request facts [headers] as a command of this caller records them: with the caller's [facts] in place of any
+     * of their names ([FACTS]), which no request sets, whoever builds it; no copy when there is nothing to add or drop.
+     */
+    fun headersOf(headers: Map<String, String>): Map<String, String> = when {
+        headers.isEmpty() -> facts
+        FACTS.none(headers::containsKey) -> if (facts.isEmpty()) headers else headers + facts
+        else -> headers.filterKeys { it !in FACTS } + facts
+    }
+
     override fun equals(other: Any?): Boolean =
         this === other || other is CallerAdmission && scope == other.scope && operator == other.operator &&
             facts == other.facts
@@ -56,9 +68,22 @@ class CallerAdmission private constructor(
             facts = factsOf(caller),
         )
 
-        /** The request facts of [caller]: its application as [RequestFacts.APP_ID] when it has one. */
+        /** The most characters of one request fact a command records; the rest is cut off. */
+        const val MAX_FACT_LENGTH: Int = 512
+
+        /**
+         * The names of the request facts admission derives from the caller ([factsOf]): a command's headers take them
+         * from its caller alone, in place of any of the same name its request carries.
+         */
+        @JvmField
+        val FACTS: Set<String> = setOf(RequestFacts.APP_ID)
+
+        /**
+         * The request facts of [caller]: its application as [RequestFacts.APP_ID] when it has one, cut to
+         * [MAX_FACT_LENGTH] characters, since a fact lands in the immutable log.
+         */
         @JvmStatic
         fun factsOf(caller: Caller): Map<String, String> =
-            caller.app?.let { mapOf(RequestFacts.APP_ID to it.trim()) }.orEmpty()
+            caller.app?.let { mapOf(RequestFacts.APP_ID to it.trim().take(MAX_FACT_LENGTH)) }.orEmpty()
     }
 }
