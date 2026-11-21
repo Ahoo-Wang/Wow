@@ -97,7 +97,9 @@ class CallerAdmission private constructor(
          *   [FrameworkCodes.AUTH_FORBIDDEN] else. A service's synchronous call ([called]) names its root's scope, which
          *   is checked apart;
          * - the tenant is [tenants]' ([TenantPolicy.tenantOf]): a target naming another than the type's fixed one is
-         *   [FrameworkCodes.COMMAND_MALFORMED];
+         *   [FrameworkCodes.COMMAND_MALFORMED]. A call's root tenant is its target's, and the call says which tenant
+         *   its saga acts for ([acting]): a root tenant that is that one names none, so a type of a fixed tenant is in
+         *   it, as the saga's own derived command would be;
          * - a ref naming another tenant than that one is [FrameworkCodes.COMMAND_MALFORMED]: a ref's tenant is the
          *   caller's, a cross-scope target's or the type's fixed one, never a request's choice.
          *
@@ -111,12 +113,13 @@ class CallerAdmission private constructor(
             named: String?,
             tenants: TenantPolicy,
             called: Boolean = false,
+            acting: String? = null,
         ): CallerAnswer {
             if (!called && target != null && !caller.crossScope) {
                 return Refused(FrameworkCodes.AUTH_FORBIDDEN, "The caller may not act in another scope.")
             }
             val tenantId = try {
-                tenants.tenantOf(type, caller, target)
+                if (called) tenants.tenantOf(type, target?.tenantId, acting) else tenants.tenantOf(type, caller, target)
             } catch (conflict: TenantConflictException) {
                 return Refused(FrameworkCodes.COMMAND_MALFORMED, conflict.message!!)
             }

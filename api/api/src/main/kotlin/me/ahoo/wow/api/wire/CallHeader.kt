@@ -46,7 +46,9 @@ object CallHeader {
 /**
  * The root command of a call on the wire ([CallHeader]): the call's [commandId], the root command's [tenantId],
  * [ownerId] and [spaceId], its [causation] and [operator], the [wait] context a wait that follows the calling saga goes
- * on with, and [facts], the root request's facts that propagate (such as `{"app_id":"console"}`).
+ * on with, [facts], the root request's facts that propagate (such as `{"app_id":"console"}`), and the [actingTenant]
+ * the calling saga's execution acts for, which the target decides its type's tenant from (an addition within format
+ * 1; none from an older writer, [tenantId] then counting as named).
  */
 @InternalWowApi
 data class CallWire(
@@ -58,6 +60,7 @@ data class CallWire(
     val operator: Operator? = null,
     val wait: WaitWire? = null,
     val facts: Map<String, String> = emptyMap(),
+    val actingTenant: String? = null,
 )
 
 /**

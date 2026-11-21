@@ -24,13 +24,16 @@ import me.ahoo.wow.spi.wait.WaitContext
  * One synchronous call to another context's command gateway: [command], of the full type name [type]
  * (`context.aggregate.Command`), with the [wait] context a wait that follows the calling saga goes on with, or null.
  * The command carries the root command's scope, operator and causation, which the client asserts on the target's
- * internal port, naming its service.
+ * internal port, naming its service. [actingTenant] is the tenant the calling saga's execution acts for (its commit's,
+ * receipt's or job instance's), which the target decides the tenant of its type from; null when it is not known, the
+ * tenant the command's ref names then counting as named.
  */
 @WowSpi
 class OutgoingCall @InternalWowApi constructor(
     val type: String,
     val command: Command<*>,
-    val wait: WaitContext? = null
+    val wait: WaitContext? = null,
+    val actingTenant: String? = null,
 ) {
     init {
         require(type.startsWith("${command.ref.type}.")) { "$type is not a command of ${command.ref.type}." }
@@ -41,18 +44,23 @@ class OutgoingCall @InternalWowApi constructor(
     val name: String get() = type.removePrefix("${command.ref.type}.")
 
     override fun equals(other: Any?): Boolean =
-        this === other || other is OutgoingCall && type == other.type && command == other.command && wait == other.wait
+        this === other || other is OutgoingCall && type == other.type && command == other.command &&
+            wait == other.wait && actingTenant == other.actingTenant
 
-    override fun hashCode(): Int = listOf(type, command, wait).hashCode()
+    override fun hashCode(): Int = listOf(type, command, wait, actingTenant).hashCode()
 
-    override fun toString(): String = "OutgoingCall(type=$type, command=$command, wait=$wait)"
+    override fun toString(): String = "OutgoingCall(type=$type, command=$command, wait=$wait, actingTenant=$actingTenant)"
 
     companion object {
-        /** The call of [command], of the full type name [type], carrying [wait] on. */
+        /** The call of [command], of the full type name [type], carrying [wait] on, made for the [actingTenant]. */
         @JvmStatic
         @JvmOverloads
-        fun of(type: String, command: Command<*>, wait: WaitContext? = null): OutgoingCall =
-            OutgoingCall(type, command, wait)
+        fun of(
+            type: String,
+            command: Command<*>,
+            wait: WaitContext? = null,
+            actingTenant: String? = null,
+        ): OutgoingCall = OutgoingCall(type, command, wait, actingTenant)
     }
 }
 

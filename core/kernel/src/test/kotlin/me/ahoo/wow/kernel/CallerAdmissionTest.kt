@@ -134,6 +134,19 @@ class CallerAdmissionTest {
     }
 
     @Test
+    fun `a call's root tenant that is the one its saga acts for names none, so a fixed type is in its tenant`() {
+        val fixed = TenantPolicy.fixed(mapOf(cart to "shared"))
+        val root = TargetScope.of("acme", Scope("bob"))
+        (CallerAdmission.admit(cart, alice, root, null, fixed, called = true, acting = "acme") as CallerAdmission)
+            .tenantId.assert().isEqualTo("shared")
+        // A root tenant another than the one its saga acts for is named, and one without an acting tenant too.
+        refused(CallerAdmission.admit(cart, alice, root, null, fixed, called = true, acting = "globex")).first
+            .assert().isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
+        refused(CallerAdmission.admit(cart, alice, root, null, fixed, called = true)).first
+            .assert().isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
+    }
+
+    @Test
     fun `a ref or a target naming another tenant than the one decided is malformed`() {
         refused(CallerAdmission.admit(cart, alice, null, "globex", TenantPolicy.CALLERS)).assert().isEqualTo(
             FrameworkCodes.COMMAND_MALFORMED to

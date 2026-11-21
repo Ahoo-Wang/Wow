@@ -288,6 +288,11 @@ class CallContext @InternalWowApi constructor(
     val operator: Operator? = null,
     val wait: WaitContext? = null,
     facts: Map<String, String> = emptyMap(),
+    /**
+     * The tenant the calling saga's execution acts for, which the target decides the tenant of its type from: a
+     * [tenantId] that is it names none. Null when the caller does not say, [tenantId] then counting as named.
+     */
+    val actingTenant: String? = null,
 ) {
     /** The root request's facts that propagate ([RequestFacts.PROPAGATED]), such as `app_id`. */
     val facts: Map<String, String> = RequestFacts.propagatedOf(facts)
@@ -304,9 +309,10 @@ class CallContext @InternalWowApi constructor(
 
     override fun toString(): String =
         "CallContext(commandId=$commandId, tenantId=$tenantId, scope=$scope, causation=$causation, " +
-            "operator=$operator, wait=$wait, facts=$facts)"
+            "operator=$operator, wait=$wait, facts=$facts, actingTenant=$actingTenant)"
 
-    private fun valueFields(): List<Any?> = listOf(commandId, tenantId, scope, causation, operator, wait, facts)
+    private fun valueFields(): List<Any?> =
+        listOf(commandId, tenantId, scope, causation, operator, wait, facts, actingTenant)
 
     companion object {
         /**

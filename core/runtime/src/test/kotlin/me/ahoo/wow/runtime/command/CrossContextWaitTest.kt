@@ -54,6 +54,7 @@ import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.spi.call.CommandCaller
 import me.ahoo.wow.spi.call.OutgoingCall
 import me.ahoo.wow.spi.config.WowConfigurationException
+import me.ahoo.wow.spi.tenant.TenantPolicy
 import me.ahoo.wow.spi.wait.Origin
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
@@ -349,6 +350,18 @@ class CrossContextWaitTest {
             signalled.single { it.result.hop == Hop.committed(STOCK) }.result.commandId.assert()
                 .isEqualTo(reserved.commandId)
             sales.waits.size.assert().isEqualTo(0)
+        }
+
+    @Test
+    fun `a saga's command to a type the other service fixes to a tenant should land there (#6556)`(): Unit =
+        runBlocking {
+            val fixed = AdmissionPlugins(tenants = TenantPolicy.fixed(mapOf(ITEM to "stock-shared")))
+            val sales = started(stockAdmission = fixed)
+            val results = sales.place("o-9", 2, Hop.committed(), SAGA_HOP, Hop.committed(STOCK)).toList()
+            results.all { it.status == CommandResult.Status.SUCCEEDED }.assert().isTrue()
+            // The sales saga knows nothing of the stock service's fixed tenant: it sends for the order's tenant, and
+            // the stock intake decides its type's tenant, which its COMMITTED names.
+            results.last().ref.assert().isEqualTo(ITEM.ref("stock-shared", "o-9"))
         }
 
     @Test

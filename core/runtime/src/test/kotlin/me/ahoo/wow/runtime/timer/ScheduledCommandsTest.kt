@@ -37,6 +37,7 @@ import me.ahoo.wow.kernel.memory.InMemoryTimerStore
 import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.runtime.binding.SubscriptionBindings
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
+import me.ahoo.wow.runtime.command.CommandMessages
 import me.ahoo.wow.runtime.command.ITEM
 import me.ahoo.wow.runtime.command.StockItems
 import me.ahoo.wow.runtime.command.peer
@@ -57,6 +58,7 @@ import me.ahoo.wow.spi.timer.TimerChange
 import me.ahoo.wow.spi.timer.TimerOutcomes
 import me.ahoo.wow.spi.timer.TimerStatus
 import me.ahoo.wow.spi.timer.TimerStore
+import me.ahoo.wow.spi.transport.EnvelopeCodec
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.node.JsonNodeFactory
@@ -450,6 +452,9 @@ class ScheduledCommandsTest {
         eventually { stock.decided.size == 1 }
         stock.decided.single().assert().isEqualTo("${order("o-1")}#reserve@1#1")
         topics.messages(STOCK_COMMANDS).single().key.assert().isEqualTo(ITEM.ref(TENANT, "o-1").toString())
+        // Sent for the order that scheduled it: the stock intake decides its type's tenant from it (#6556).
+        CommandMessages.commandOf(EnvelopeCodec.decode(topics.messages(STOCK_COMMANDS).single().value))
+            .actingTenant.assert().isEqualTo(TENANT)
     }
 
     /** A timer store that loses the first outcome recorded as fired, as a crash right after the send would. */

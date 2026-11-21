@@ -106,6 +106,9 @@ class PlainValuesTest {
             wire.copyWith(id = "c-2"),
             "CommandWire("
         )
+        // Every field, the acting tenant last (#6556).
+        val acting = CommandWire.of("shop.order.Pay", "c-1", "r-1", ref, body, actingTenant = "t")
+        checks(acting, wire.copyWith(actingTenant = "t"), wire, "CommandWire(")
         val reply = ReplyTo.of("shop", "saga", ref, 1)
         checks(reply, ReplyTo.of("shop", "saga", ref, 1, false), reply.copyWith(committed = true), "ReplyTo(")
         checks(LeaseGroup.of("svc", "shop"), LeaseGroup.of("svc", "shop"), LeaseGroup.of("svc", "bank"), "svc/shop")

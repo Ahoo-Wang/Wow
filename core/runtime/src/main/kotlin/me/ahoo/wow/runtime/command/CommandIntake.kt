@@ -157,10 +157,10 @@ class CommandIntake internal constructor(
             ?: return unhandled(wire, wait, "Context $context has no aggregate ${wire.ref.type}.")
         val received = ClusterCodec.command(model, wire)
             ?: return unhandled(wire, wait, "${wire.ref.type} has no command type ${wire.type}.")
-        // It names its tenant, whoever sent it: one of a type fixed to another tenant is refused.
-        admission.refusalOf(model, received, acting = null)?.let { return refuse(wire, wait, it) }
-        // A creation that names no aggregate takes the id its request created, or a new one.
-        val command = admission.assign(model, received, acting = null)
+        // For the tenant its sender sent it for: without one, the tenant its ref names counts.
+        admission.refusalOf(model, received, wire.actingTenant)?.let { return refuse(wire, wait, it) }
+        // In its tenant; a creation that names no aggregate takes the id its request created, or a new one.
+        val command = admission.assign(model, received, wire.actingTenant)
         awaitDue(command)
         val settlement = limit.intakes.withPermit { coordinator.forward(model, command, wait) }
         // A receipt carries the rest of the command's chain on, past its commit.

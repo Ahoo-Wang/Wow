@@ -87,15 +87,16 @@ class PeerCommands(
 
     /**
      * Where a command of the command type [name] (`ctx.agg.Command`, or a system command's system name) to an aggregate
-     * of [context] is written: that context's command topic; null without a transport.
+     * of [context], sent for the [actingTenant] ([me.ahoo.wow.runtime.cluster.CommandWire.actingTenant]), is written:
+     * that context's command topic; null without a transport.
      */
-    fun relayOf(context: String, name: String): CommandRelay? {
+    fun relayOf(context: String, name: String, actingTenant: String?): CommandRelay? {
         val commands = sender ?: return null
         return object : CommandRelay {
             override val topic: String = commands.topicOf(context)
 
             override suspend fun send(command: Command<*>, wait: WaitContext?) =
-                commands.send(ClusterCodec.wire(name, command), wait)
+                commands.send(ClusterCodec.wire(name, command, actingTenant = actingTenant), wait)
         }
     }
 

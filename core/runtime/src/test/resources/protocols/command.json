@@ -47,7 +47,8 @@
       "version": 1,
       "committed": false
     },
-    "caller": null
+    "caller": null,
+    "actingTenant": null
   },
   "transport": {
     "wait": {

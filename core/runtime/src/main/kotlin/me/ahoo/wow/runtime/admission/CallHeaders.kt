@@ -41,6 +41,7 @@ object CallHeaders {
         operator = operator,
         wait = wait?.toWire(),
         facts = facts,
+        actingTenant = actingTenant,
     )
 
     private fun CallWire.toContext(): CallContext = CallContext(
@@ -51,5 +52,6 @@ object CallHeaders {
         operator = operator,
         wait = wait?.toContext(),
         facts = facts,
+        actingTenant = actingTenant,
     )
 }

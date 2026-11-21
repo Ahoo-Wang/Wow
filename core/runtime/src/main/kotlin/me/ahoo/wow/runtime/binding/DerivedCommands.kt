@@ -119,7 +119,7 @@ internal class DerivedCommands(
         coroutineScope {
             if (remote.isNotEmpty()) {
                 launch {
-                    send(remote.map { derived[it] }, wait, replyTo)
+                    send(remote.map { derived[it] }, acting, wait, replyTo)
                     remote.forEach { outcomes[it] = Outcome(derived[it].id) }
                 }
             }
@@ -172,8 +172,16 @@ internal class DerivedCommands(
     /** What executing one command came to: its id, and its rejection or its commit of this context. */
     private class Outcome(val id: String, val rejected: Rejected? = null, val committed: Committed? = null)
 
-    /** Sends [commands], to aggregates of other contexts, to their command topics and waits for the broker. */
-    private suspend fun send(commands: List<Command<*>>, wait: WaitContext?, replyTo: (Command<*>) -> ReplyTo?) {
+    /**
+     * Sends [commands], to aggregates of other contexts, derived for the [acting] tenant, to their command topics and
+     * waits for the broker: each target decides the tenant of its own type from it.
+     */
+    private suspend fun send(
+        commands: List<Command<*>>,
+        acting: String,
+        wait: WaitContext?,
+        replyTo: (Command<*>) -> ReplyTo?,
+    ) {
         commands.forEach { command ->
             check(command.ref.type.context !in contexts) {
                 "A saga derived ${command.id} for ${command.ref}, an aggregate type its context does not have."
@@ -184,7 +192,7 @@ internal class DerivedCommands(
             "A saga derived ${command.id} for ${command.ref}, of the context ${command.ref.type.context}: a command " +
                 "across contexts goes through the command topic, and this node has no command transport."
         }
-        sender.sendAll(commands.map { it to replyTo(it) }, wait)
+        sender.sendAll(commands.map { it to replyTo(it) }, wait, acting)
     }
 
     /**

@@ -341,7 +341,7 @@ class PeerCommandsTest {
                 ContractDirectory(salesManifest(), listOf(peer(stockManifest()))),
                 CommandSender(ContractDirectory(stockManifest()), SourceTopics(topics, PREFIX, topics)),
             )
-            peers.relayOf(STOCK, Lifecycle.TRANSFER_OWNER)!!.topic.assert().isEqualTo(COMMANDS)
+            peers.relayOf(STOCK, Lifecycle.TRANSFER_OWNER, null)!!.topic.assert().isEqualTo(COMMANDS)
         }
 
     @Test
@@ -466,6 +466,21 @@ class PeerCommandsTest {
     }
 
     @Test
+    fun `a peer's command should be sent for its caller's tenant unless its request names one (#6556)`(): Unit =
+        runBlocking {
+            val sales = started()
+            // A request that names no tenant: the peer decides its type's tenant from the caller's.
+            val unnamed = ServerCommandRequest.builder(Reserve(1), ITEM.ref(TENANT, "i-7")).tenantId(null)
+                .caller(clerk).wait(WaitPlan.ACCEPTED).build()
+            sales.gateway.execute(unnamed).status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+            // One whose ref names its tenant names it: the peer holds it to that tenant.
+            sales.gateway.execute(reserve(1, item = "i-8", wait = WaitPlan.ACCEPTED))
+                .status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+            topics.messages(COMMANDS).map { CommandMessages.commandOf(EnvelopeCodec.decode(it.value)) }
+                .associate { it.ref.id to it.actingTenant }.assert().isEqualTo(mapOf("i-7" to TENANT, "i-8" to null))
+        }
+
+    @Test
     fun `a cross-scope caller should send a peer's command in the scope it names`(): Unit = runBlocking {
         val sales = started()
         val crossScope = clerk.copyWith(crossScope = true)
@@ -477,6 +492,8 @@ class PeerCommandsTest {
         val wire = CommandMessages.commandOf(EnvelopeCodec.decode(topics.messages(COMMANDS).single().value))
         wire.scope.assert().isEqualTo(Scope("x"))
         wire.ref.assert().isEqualTo(ITEM.ref(TENANT, "i-5"))
+        // A target names its tenant: the peer holds the command to it.
+        wire.actingTenant.assert().isNull()
     }
 
     @Test

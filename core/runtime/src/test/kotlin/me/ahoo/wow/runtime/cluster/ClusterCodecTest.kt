@@ -135,6 +135,18 @@ class ClusterCodecTest {
     }
 
     @Test
+    fun `a command's acting tenant travels with it, and an older writer's command has none`() {
+        val wire = ClusterCodec.wire("bank.account.Deposit", command, actingTenant = "t1")
+        val read = ClusterCodec.decodeCommand(ClusterCodec.encode(ForwardCommand(command = wire, deadline = 500L)))
+        read.command.actingTenant.assert().isEqualTo("t1")
+        read.command.assert().isEqualTo(wire)
+        // A writer of the version before sends none: the tenant its ref names counts as named.
+        val older = ClusterCodec.mapper.readTree(ClusterCodec.encode(ForwardCommand(command = wire, deadline = 500L)))
+        (older["command"] as tools.jackson.databind.node.ObjectNode).remove("actingTenant")
+        ClusterCodec.decodeCommand(ClusterCodec.mapper.writeValueAsBytes(older)).command.actingTenant.assert().isNull()
+    }
+
+    @Test
     fun `the codec registers the Kotlin module and Wow's time, transport, state event, strict read and enum modules only, whatever else is on the class path`() {
         ClusterCodec.mapper.registeredModules().map { it.moduleName }
             .assert().containsExactly(

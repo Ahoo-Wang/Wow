@@ -184,6 +184,7 @@ Wow 写入 Kafka 的每条消息都是一个信封。
 | `scope`、`operator`、`headers`、`causation` | 准入为根命令确定的值；Saga 的命令继承它们。 |
 | `replyTo` | 只出现在 Saga 发往另一个上下文的命令上：`{context, subscription, ref, version, committed}`，即要为之发回执的那次 Saga 提交；`committed` 要求成功时也发回执。 |
 | `caller` | 不是由提交派生的命令的发送方，即准入解析出的调用方：`{tenantId, scope, subject, crossScope, attributes, service}`，目标的访问策略比较其中的声明，从不包含凭据或请求头。带 `causation` 的命令没有它。在访问策略下，两者都没有的命令被拒绝。它从不记入日志。 |
+| `actingTenant` | 发送方代行的租户：请求没有指名租户时是调用方的；saga 的命令是执行的租户；定时器的命令是设定计划的聚合的租户。目标根据它和 `ref` 所写的租户决定命令的租户：`ref` 在代行租户里时不算指名，所以目标固定了租户的类型会落在那个租户。发送方没有说明时为 null（请求指名了租户，或来自旧版本的写入方），此时 `ref` 的租户算作指名。 |
 
 主题的分区就是目标上下文的日志分配给 `ref` 的那个分区，所以主题的分区数与那份日志相同。不是 Wow 节点的生产者要在记录上自己设置分区，因为 Kafka 自带的分区器会选另一个：对 UTF-8 文本 `context.aggregate/tenant/id` 取 64 位 FNV-1a 哈希（偏移基数 `0xcbf29ce484222325`，质数 `0x100000001b3`），取它的低位 `hash & (partitions - 1)`，分区数是 2 的幂。这个哈希是日志存储格式的一部分，各版本之间不会改变。等待计划不随命令传递；未结束的等待的等待上下文放在 `transport` 里：
 
@@ -239,7 +240,8 @@ Wow 写入 Kafka 的每条消息都是一个信封。
       "version": 1,
       "committed": false
     },
-    "caller": null
+    "caller": null,
+    "actingTenant": null
   },
   "transport": {
     "wait": {

@@ -29,6 +29,7 @@ import me.ahoo.wow.runtime.binding.SHOP
 import me.ahoo.wow.runtime.binding.SHOP_SERVICE
 import me.ahoo.wow.runtime.binding.cartModel
 import me.ahoo.wow.runtime.cluster.ClusterCodec
+import me.ahoo.wow.runtime.cluster.CommandWire
 import me.ahoo.wow.runtime.cluster.ReplyTo
 import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.runtime.wait.LocalSignalSender
@@ -44,7 +45,8 @@ import org.junit.jupiter.api.Test
 /**
  * A command the command topic delivers names its tenant, whoever sent it (#6556): one of a type fixed to another
  * tenant is rejected as `wow.command.malformed`, with its receipt, before any aggregate decides it; one in the fixed
- * tenant runs there. Its sender's tenant reaches the intake in a later change; until then a tenant it names counts.
+ * tenant runs there. A command its sender sent for the tenant its ref names ([CommandWire.actingTenant]) names none,
+ * and lands in the fixed tenant; one without an acting tenant (an older writer's) names the tenant of its ref.
  */
 class IntakeTenantTest {
     private val log = InMemoryEventLog()
@@ -67,11 +69,16 @@ class IntakeTenantTest {
         admissionOf(tenants = TenantPolicy.fixed(mapOf(CART to SHARED))),
     )
 
-    private fun wire(id: String, tenant: String) = ClusterCodec.wire(
+    private fun wire(id: String, tenant: String, acting: String? = null) = ClusterCodec.wire(
         "shop.cart.AddItems",
         Command(id, id, CART.ref(tenant, "alice"), AddItems(listOf("apple"))),
         ReplyTo("sales", "OrderSaga.onOrderPlaced", CART.ref(tenant, "order-1"), 1),
+        actingTenant = acting,
     )
+
+    private fun receipts() = topics.messages(sourceTopics.receiptsOf("sales")).map {
+        CommandMessages.rejectedOf(EnvelopeCodec.decode(it.value))
+    }
 
     @Test
     fun `a command in the type's fixed tenant runs there, one naming another is rejected with its receipt`(): Unit =
@@ -81,14 +88,25 @@ class IntakeTenantTest {
 
             intake.execute(wire("c-2", "acme"), null)
             log.read(CART.ref("acme", "alice")).toList().assert().isEmpty()
-            val receipt = CommandMessages.rejectedOf(
-                EnvelopeCodec.decode(topics.messages(sourceTopics.receiptsOf("sales")).single().value),
-            )
+            val receipt = receipts().single()
             receipt.commandId.assert().isEqualTo("c-2")
             receipt.error.code.assert().isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
             receipt.error.message.assert().isEqualTo(
                 "The tenant of shop.cart is fixed to shared; the request names acme."
             )
+        }
+
+    @Test
+    fun `a command sent for the tenant its ref names lands in the fixed tenant, one naming another is rejected`(): Unit =
+        runBlocking {
+            // A saga of acme, a timer of an acme aggregate, a caller of acme relayed: the ref's tenant is the acting one.
+            intake.execute(wire("c-1", "acme", acting = "acme"), null)
+            log.read(CART.ref(SHARED, "alice")).toList().size.assert().isEqualTo(1)
+            log.read(CART.ref("acme", "alice")).toList().assert().isEmpty()
+
+            intake.execute(wire("c-2", "globex", acting = "acme"), null)
+            log.read(CART.ref("globex", "alice")).toList().assert().isEmpty()
+            receipts().single().error.code.assert().isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
         }
 
     private companion object {
