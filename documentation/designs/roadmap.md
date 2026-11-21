@@ -109,6 +109,9 @@ GA 前要做、已排期的事见 §4 与[进度](progress.md)的「距离 GA �
 | 列表查询的位置令牌 | `ACCEPTED`、`COMMITTED` 等待之后，单个聚合的读已有 `?minVersion=`（#4687）；列表没有可带的一致性位置 | 审查 Q-13 |
 | ClickHouse Sink 生成集群 DDL | Sink 不建 `ON CLUSTER`、复制表与分布式表；`operate/clickhouse` 给出列 DDL 与集群示例，由运维自建（#5352） | 审查 M-4 |
 | ClickHouse 的 `events` 查询后端（`ARRAY JOIN`） | 三种查询模型共用一个引擎（D235）的第二步；数仓分析已由数据集覆盖，放 10.x | D242 |
+| `@QueryIndex` 的字段带排序方向 | 现在只有 `name`、`on` 与 `with`，9.x 里手建的降序索引（「最新在前」的列表）声明不出来；注解加一个带默认值的元素是源码兼容的，GA 后可加。须先定各后端怎么落（MongoDB 的索引方向、PostgreSQL 的 `DESC`、Elasticsearch 的索引排序） | issue #6514 |
+| 应用自己的异常到 problem+json 的映射 | `GlobalErrors` 只认 `WowProblemException`，其余一律 500；今天的做法是自己抛 `WowProblemException`，或在 Wow 之前排一个 `WebExceptionHandler`。要加的是一个有文档的映射端口，取代靠处理器顺序的做法 | issue #6510 |
+| 测试里构造失败的命令结果 | `CommandCall` 的构造函数是内部的，命令客户端对不成功的命令抛异常，桩一个对端的失败结果要靠内部 API；`Snapshot`、`PagedList` 已有公开的 `of`。落点是测试 DSL 或一个公开工厂，先定哪一个 | issue #6512 |
 
 ### 性能优化
 
