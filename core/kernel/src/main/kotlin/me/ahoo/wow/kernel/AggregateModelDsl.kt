@@ -25,6 +25,7 @@ import me.ahoo.wow.api.decide.DecideScope
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.lifecycle.RestoreAggregate
+import me.ahoo.wow.api.lifecycle.TransferOwner
 import me.ahoo.wow.api.naming.TypeNames
 import me.ahoo.wow.api.read.EventStream
 import me.ahoo.wow.spi.SystemCommandGroups
@@ -69,7 +70,9 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
     private val eventNames = LinkedHashMap<Class<*>, Pair<String, Int>>()
     private val upgrades = HashMap<Class<*>, MutableMap<Int, EventUpgrade>>()
     private val aliases = HashMap<Class<*>, MutableSet<String>>()
-    private var lifecycle: Set<Class<*>> = Lifecycle.COMMANDS.values.toSet()
+
+    /** The lifecycle commands [lifecycle] enables; null when it is not called: every one. */
+    private var lifecycle: Set<Class<*>>? = null
     private val mounted = LinkedHashMap<Class<*>, String>()
     private var ownership: Ownership = Ownership.OWNER
     private var idSource: AggregateIdSource = AggregateIdSource.ASSIGNED
@@ -307,7 +310,9 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
     /**
      * Enables only the lifecycle commands [commands]; all are enabled unless this is called, and calling
      * it with none disables them. A command disabled is not handled, as any command the model does not decide; the
-     * lifecycle events stay readable. A decide function declared for a lifecycle command enables it too.
+     * lifecycle events stay readable. A decide function declared for a lifecycle command enables it too. An aggregate
+     * whose owner is fixed (of its tenant, or its id its owner's) handles no `TransferOwner`: left out when this is
+     * not called, refused when [commands] names it.
      */
     fun lifecycle(vararg commands: Class<*>) {
         lifecycle = commands.toSet()
@@ -447,6 +452,11 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
         require(unknown.isEmpty()) {
             "$type gives aliases to ${unknown.map { it.name }}, which are none of its command or event types."
         }
+        if (lifecycle.orEmpty().contains(TransferOwner::class.java)) {
+            fixedOwnerOf(type, ownership, idSource)?.let { fixed ->
+                throw IllegalArgumentException("$fixed, so its lifecycle(...) names no TransferOwner.")
+            }
+        }
         return model()
     }
 
@@ -470,7 +480,7 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
             CommandType(name, commandClass, aliases[commandClass].orEmpty().toSet())
         },
         afterFunctions = afterFunctions.toList(),
-        lifecycle = lifecycle,
+        lifecycle = lifecycle ?: Lifecycle.COMMANDS.values.toSet(),
         mountedCommandTypes = mounted.map { (commandClass, name) ->
             CommandType(name, commandClass, aliases[commandClass].orEmpty().toSet())
         },

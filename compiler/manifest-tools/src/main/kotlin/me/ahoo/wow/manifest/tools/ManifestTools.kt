@@ -272,20 +272,25 @@ object ManifestTools {
 
     /**
      * Writes the peer contract of the domain module [module]'s completed [fragments] into [output]
-     * ([PeerContracts.contractOf]), naming the [service] that hosts its contexts when given; what the Gradle plugin's
-     * `generateWowContract` does. A context whose command or event classes are in an entry of [unpaired] (a class path
-     * entry of a project that does not pair with the module, to that project's path) fails, naming the line that pairs
-     * them: the contract would reach no api module, and no peer would see the context.
+     * ([PeerContracts.contractOf]), naming the [service] that hosts its contexts when given, and the package of its
+     * contexts' generated code, its [contractPackage], into [packages] ([ContractPackages]); what the Gradle plugin's
+     * `generateWowContract` does. A module with a context and no [contractPackage] fails, naming the line to add, and so
+     * does one whose [contractPackage] is no Java package name. A context whose command or event classes are in an
+     * entry of [unpaired] (a class path entry of a project that does not pair with the module, to that project's path)
+     * fails, naming the line that pairs them: the contract would reach no api module, and no peer would see the context.
      */
     @JvmStatic
     fun generateContract(
         fragments: List<File>,
         service: String?,
+        contractPackage: String?,
         module: String,
         unpaired: Map<String, String>,
         output: File,
+        packages: File,
     ) {
         val contract = PeerContracts.contractOf(fragments.sortedBy { it.name }.map(ManifestJson::read), service)
+        val pkg = ContractPackages.of(contractPackage, contract.contexts, module)
         val owners = ClassPath(unpaired.keys.map(::File))
         val problems = contract.contexts.flatMap { context ->
             PeerContracts.classesOf(context).mapNotNull { binary ->
@@ -300,19 +305,26 @@ object ManifestTools {
             "The contract of project '$module' reaches no api module:\n" + problems.joinToString("\n") { "- $it" }
         }
         ManifestJson.write(contract, output)
+        ContractPackages.write(
+            pkg?.let { value -> contract.contexts.associate { it.name to value } }.orEmpty(),
+            packages
+        )
     }
 
     /**
      * Writes the contract the api module [owner] carries, `META-INF/wow/contract.json` ([PeerContracts.RESOURCE])
      * under [output], which it clears first: of the [contracts] of the domain modules it declares (each named by
      * [owners], by its path), the contexts whose command and event classes are all in its [classes] directories
-     * ([PeerContracts.assemble]); what the Gradle plugin's `assembleWowContract` does. A declared module of no context
+     * ([PeerContracts.assemble]), each state's view falling back to its context's package in [contractPackages] (the
+     * files [ContractPackages] the domain modules wrote beside their contracts); what the Gradle plugin's
+     * `assembleWowContract` does. A declared module of no context
      * (it compiles no model) fails, naming it. Returns whether the api module carries a contract: with no context of
      * its own, it carries none.
      */
     @JvmStatic
     fun assembleContract(
         contracts: List<File>,
+        contractPackages: List<File>,
         owners: Map<String, String>,
         classes: List<File>,
         owner: String,
@@ -327,7 +339,7 @@ object ManifestTools {
                 "module carries."
         }
         val directories = classes.filter { it.isDirectory }
-        val contract = PeerContracts.assemble(owner, fragments) { binary ->
+        val contract = PeerContracts.assemble(owner, fragments, ContractPackages.read(contractPackages)) { binary ->
             val path = binary.replace('.', '/') + ".class"
             directories.any { File(it, path).isFile }
         } ?: return false
@@ -364,18 +376,25 @@ object ManifestTools {
 
     /**
      * Writes the Kotlin sources generated from the api module's [contracts] (none, or the one `assembleWowContract`
-     * wrote) under [output], which it clears first ([ContractSources]): the `<Context>Contract`s and the views of
-     * the states, which reference the classes of the [classpath] the code compiles against; with `wow-query-api` on
+     * wrote) under [output], which it clears first ([ContractSources]): the `<Context>Contract`s, each in its context's
+     * package in [contractPackages] (the files [ContractPackages] the domain modules wrote), and the views of the
+     * states, which reference the classes of the [classpath] the code compiles against; with `wow-query-api` on
      * it, the query field constants of the states too. What the Gradle plugin's `generateWowContractSources` does.
      * Returns the number of files written.
      */
     @JvmStatic
-    fun generateContractSources(contracts: List<File>, classpath: List<File>, output: File): Int {
+    fun generateContractSources(
+        contracts: List<File>,
+        contractPackages: List<File>,
+        classpath: List<File>,
+        output: File,
+    ): Int {
         output.deleteRecursively()
         val classes = ClassPath(classpath)
         val queryFields = QUERY_FIELD in classes
+        val packages = ContractPackages.read(contractPackages)
         val sources = contracts.filter { it.isFile }.map(ManifestJson::read).flatMap {
-            ContractSources.of(it, queryFields) { binary -> binary in classes }
+            ContractSources.of(it, packages, queryFields) { binary -> binary in classes }
         }
         sources.forEach { source ->
             File(output, source.path).apply { parentFile.mkdirs() }.writeText(source.text)

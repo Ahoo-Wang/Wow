@@ -1,0 +1,1450 @@
+{
+  "me.ahoo.wow.manifest.tools.QueryShapesTest$InMap" : {
+    "me.ahoo.wow.manifest.tools.QueryShapesTest$Holder" : {
+      "type" : "object",
+      "properties" : {
+        "name" : {
+          "type" : "string"
+        },
+        "shape" : {
+          "$ref" : "#/$defs/me.ahoo.wow.manifest.tools.QueryShapesTest$Shape"
+        }
+      },
+      "required" : [ "name", "shape" ],
+      "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Holder"
+    },
+    "me.ahoo.wow.manifest.tools.QueryShapesTest$InMap" : {
+      "type" : "object",
+      "properties" : {
+        "holder" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "$ref" : "#/$defs/me.ahoo.wow.manifest.tools.QueryShapesTest$Holder"
+          }
+        },
+        "nullable" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "$ref" : "#/$defs/me.ahoo.wow.manifest.tools.QueryShapesTest$Plain"
+            } ]
+          }
+        },
+        "plain" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "$ref" : "#/$defs/me.ahoo.wow.manifest.tools.QueryShapesTest$Plain"
+          }
+        },
+        "secret" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "$ref" : "#/$defs/me.ahoo.wow.manifest.tools.QueryShapesTest$Secret"
+          }
+        },
+        "shape" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "$ref" : "#/$defs/me.ahoo.wow.manifest.tools.QueryShapesTest$Shape"
+          }
+        },
+        "sku" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "$ref" : "#/$defs/me.ahoo.wow.manifest.tools.QueryShapesTest$Sku"
+          }
+        },
+        "switch" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "$ref" : "#/$defs/me.ahoo.wow.manifest.tools.QueryShapesTest$Switch"
+          }
+        },
+        "tagged" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "$ref" : "#/$defs/me.ahoo.wow.manifest.tools.QueryShapesTest$Tagged"
+          }
+        },
+        "timed" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "$ref" : "#/$defs/me.ahoo.wow.manifest.tools.QueryShapesTest$Timed"
+          }
+        }
+      },
+      "required" : [ "holder", "nullable", "plain", "secret", "shape", "sku", "switch", "tagged", "timed" ],
+      "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$InMap"
+    },
+    "me.ahoo.wow.manifest.tools.QueryShapesTest$Plain" : {
+      "type" : "object",
+      "properties" : {
+        "count" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "name" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "count", "name" ],
+      "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Plain"
+    },
+    "me.ahoo.wow.manifest.tools.QueryShapesTest$Secret" : {
+      "type" : "object",
+      "properties" : {
+        "label" : {
+          "type" : "string"
+        },
+        "token" : {
+          "type" : "string",
+          "x-wow-sensitive" : {
+            "level" : "confidential"
+          },
+          "x-wow-mask" : {
+            "keepPrefix" : 0,
+            "keepSuffix" : 0
+          }
+        }
+      },
+      "required" : [ "label", "token" ],
+      "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Secret"
+    },
+    "me.ahoo.wow.manifest.tools.QueryShapesTest$Shape" : {
+      "anyOf" : [ {
+        "allOf" : [ {
+          "type" : "object",
+          "properties" : {
+            "radius" : {
+              "type" : "integer",
+              "format" : "int32"
+            },
+            "type" : {
+              "type" : "string"
+            }
+          },
+          "required" : [ "radius", "type" ],
+          "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Shape$Circle"
+        }, {
+          "type" : "object",
+          "properties" : {
+            "type" : {
+              "const" : "CIRCLE"
+            }
+          },
+          "required" : [ "type" ]
+        } ],
+        "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Shape$Circle"
+      }, {
+        "allOf" : [ {
+          "type" : "object",
+          "properties" : {
+            "side" : {
+              "type" : "integer",
+              "format" : "int32"
+            },
+            "type" : {
+              "type" : "string"
+            }
+          },
+          "required" : [ "side", "type" ],
+          "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Shape$Square"
+        }, {
+          "type" : "object",
+          "properties" : {
+            "type" : {
+              "const" : "SQUARE"
+            }
+          },
+          "required" : [ "type" ]
+        } ],
+        "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Shape$Square"
+      } ],
+      "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Shape"
+    },
+    "me.ahoo.wow.manifest.tools.QueryShapesTest$Sku" : {
+      "type" : "string",
+      "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Sku"
+    },
+    "me.ahoo.wow.manifest.tools.QueryShapesTest$Switch" : {
+      "anyOf" : [ {
+        "allOf" : [ {
+          "type" : "object",
+          "properties" : {
+            "since" : {
+              "type" : "integer",
+              "format" : "int64"
+            }
+          },
+          "required" : [ "since" ],
+          "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Switch$On"
+        }, {
+          "type" : "object",
+          "properties" : {
+            "state" : {
+              "const" : "on"
+            }
+          },
+          "required" : [ "state" ]
+        } ],
+        "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Switch$On"
+      }, {
+        "allOf" : [ {
+          "type" : "object",
+          "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Switch$Off"
+        }, {
+          "type" : "object",
+          "properties" : {
+            "state" : {
+              "const" : "off"
+            }
+          },
+          "required" : [ "state" ]
+        } ],
+        "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Switch$Off"
+      } ],
+      "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Switch"
+    },
+    "me.ahoo.wow.manifest.tools.QueryShapesTest$Tagged" : {
+      "anyOf" : [ {
+        "allOf" : [ {
+          "type" : "object",
+          "properties" : {
+            "radius" : {
+              "type" : "integer",
+              "format" : "int32"
+            }
+          },
+          "required" : [ "radius" ],
+          "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Tagged$Circle"
+        }, {
+          "type" : "object",
+          "properties" : {
+            "kind" : {
+              "const" : "circle"
+            }
+          },
+          "required" : [ "kind" ]
+        } ],
+        "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Tagged$Circle"
+      }, {
+        "allOf" : [ {
+          "type" : "object",
+          "properties" : {
+            "side" : {
+              "type" : "integer",
+              "format" : "int32"
+            }
+          },
+          "required" : [ "side" ],
+          "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Tagged$Square"
+        }, {
+          "type" : "object",
+          "properties" : {
+            "kind" : {
+              "const" : "square"
+            }
+          },
+          "required" : [ "kind" ]
+        } ],
+        "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Tagged$Square"
+      } ],
+      "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Tagged"
+    },
+    "me.ahoo.wow.manifest.tools.QueryShapesTest$Timed" : {
+      "type" : "object",
+      "properties" : {
+        "at" : {
+          "type" : "integer",
+          "format" : "int64",
+          "x-wow-temporal" : {
+            "unit" : "seconds"
+          }
+        }
+      },
+      "required" : [ "at" ],
+      "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Timed"
+    }
+  },
+  "me.ahoo.wow.manifest.tools.QueryShapesTest$InList" : {
+    "me.ahoo.wow.manifest.tools.QueryShapesTest$InList" : {
+      "type" : "object",
+      "properties" : {
+        "holder" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "properties" : {
+              "name" : {
+                "type" : "string"
+              },
+              "shape" : {
+                "$ref" : "#/$defs/me.ahoo.wow.manifest.tools.QueryShapesTest$Shape"
+              }
+            },
+            "required" : [ "name", "shape" ],
+            "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Holder"
+          }
+        },
+        "nullable" : {
+          "type" : "array",
+          "items" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "$ref" : "#/$defs/me.ahoo.wow.manifest.tools.QueryShapesTest$Plain"
+            } ]
+          }
+        },
+        "plain" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/me.ahoo.wow.manifest.tools.QueryShapesTest$Plain"
+          }
+        },
+        "secret" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "properties" : {
+              "label" : {
+                "type" : "string"
+              },
+              "token" : {
+                "type" : "string",
+                "x-wow-sensitive" : {
+                  "level" : "confidential"
+                },
+                "x-wow-mask" : {
+                  "keepPrefix" : 0,
+                  "keepSuffix" : 0
+                }
+              }
+            },
+            "required" : [ "label", "token" ],
+            "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Secret"
+          }
+        },
+        "shape" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/me.ahoo.wow.manifest.tools.QueryShapesTest$Shape"
+          }
+        },
+        "sku" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string",
+            "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Sku"
+          }
+        },
+        "switch" : {
+          "type" : "array",
+          "items" : {
+            "anyOf" : [ {
+              "allOf" : [ {
+                "type" : "object",
+                "properties" : {
+                  "since" : {
+                    "type" : "integer",
+                    "format" : "int64"
+                  }
+                },
+                "required" : [ "since" ],
+                "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Switch$On"
+              }, {
+                "type" : "object",
+                "properties" : {
+                  "state" : {
+                    "const" : "on"
+                  }
+                },
+                "required" : [ "state" ]
+              } ],
+              "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Switch$On"
+            }, {
+              "allOf" : [ {
+                "type" : "object",
+                "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Switch$Off"
+              }, {
+                "type" : "object",
+                "properties" : {
+                  "state" : {
+                    "const" : "off"
+                  }
+                },
+                "required" : [ "state" ]
+              } ],
+              "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Switch$Off"
+            } ],
+            "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Switch"
+          }
+        },
+        "tagged" : {
+          "type" : "array",
+          "items" : {
+            "anyOf" : [ {
+              "allOf" : [ {
+                "type" : "object",
+                "properties" : {
+                  "radius" : {
+                    "type" : "integer",
+                    "format" : "int32"
+                  }
+                },
+                "required" : [ "radius" ],
+                "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Tagged$Circle"
+              }, {
+                "type" : "object",
+                "properties" : {
+                  "kind" : {
+                    "const" : "circle"
+                  }
+                },
+                "required" : [ "kind" ]
+              } ],
+              "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Tagged$Circle"
+            }, {
+              "allOf" : [ {
+                "type" : "object",
+                "properties" : {
+                  "side" : {
+                    "type" : "integer",
+                    "format" : "int32"
+                  }
+                },
+                "required" : [ "side" ],
+                "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Tagged$Square"
+              }, {
+                "type" : "object",
+                "properties" : {
+                  "kind" : {
+                    "const" : "square"
+                  }
+                },
+                "required" : [ "kind" ]
+              } ],
+              "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Tagged$Square"
+            } ],
+            "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Tagged"
+          }
+        },
+        "timed" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "properties" : {
+              "at" : {
+                "type" : "integer",
+                "format" : "int64",
+                "x-wow-temporal" : {
+                  "unit" : "seconds"
+                }
+              }
+            },
+            "required" : [ "at" ],
+            "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Timed"
+          }
+        }
+      },
+      "required" : [ "holder", "nullable", "plain", "secret", "shape", "sku", "switch", "tagged", "timed" ],
+      "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$InList"
+    },
+    "me.ahoo.wow.manifest.tools.QueryShapesTest$Plain" : {
+      "type" : "object",
+      "properties" : {
+        "count" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "name" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "count", "name" ],
+      "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Plain"
+    },
+    "me.ahoo.wow.manifest.tools.QueryShapesTest$Shape" : {
+      "anyOf" : [ {
+        "allOf" : [ {
+          "type" : "object",
+          "properties" : {
+            "radius" : {
+              "type" : "integer",
+              "format" : "int32"
+            },
+            "type" : {
+              "type" : "string"
+            }
+          },
+          "required" : [ "radius", "type" ],
+          "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Shape$Circle"
+        }, {
+          "type" : "object",
+          "properties" : {
+            "type" : {
+              "const" : "CIRCLE"
+            }
+          },
+          "required" : [ "type" ]
+        } ],
+        "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Shape$Circle"
+      }, {
+        "allOf" : [ {
+          "type" : "object",
+          "properties" : {
+            "side" : {
+              "type" : "integer",
+              "format" : "int32"
+            },
+            "type" : {
+              "type" : "string"
+            }
+          },
+          "required" : [ "side", "type" ],
+          "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Shape$Square"
+        }, {
+          "type" : "object",
+          "properties" : {
+            "type" : {
+              "const" : "SQUARE"
+            }
+          },
+          "required" : [ "type" ]
+        } ],
+        "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Shape$Square"
+      } ],
+      "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Shape"
+    }
+  },
+  "me.ahoo.wow.manifest.tools.QueryShapesTest$InNestedMap" : {
+    "java.util.Map(java.lang.String,me.ahoo.wow.manifest.tools.QueryShapesTest$Holder)" : {
+      "type" : "object",
+      "additionalProperties" : {
+        "$ref" : "#/$defs/me.ahoo.wow.manifest.tools.QueryShapesTest$Holder"
+      }
+    },
+    "java.util.Map(java.lang.String,me.ahoo.wow.manifest.tools.QueryShapesTest$Plain)" : {
+      "type" : "object",
+      "additionalProperties" : {
+        "$ref" : "#/$defs/me.ahoo.wow.manifest.tools.QueryShapesTest$Plain"
+      }
+    },
+    "java.util.Map(java.lang.String,me.ahoo.wow.manifest.tools.QueryShapesTest$Plain?)" : {
+      "type" : "object",
+      "additionalProperties" : {
+        "anyOf" : [ {
+          "type" : "null"
+        }, {
+          "$ref" : "#/$defs/me.ahoo.wow.manifest.tools.QueryShapesTest$Plain"
+        } ]
+      }
+    },
+    "java.util.Map(java.lang.String,me.ahoo.wow.manifest.tools.QueryShapesTest$Secret)" : {
+      "type" : "object",
+      "additionalProperties" : {
+        "$ref" : "#/$defs/me.ahoo.wow.manifest.tools.QueryShapesTest$Secret"
+      }
+    },
+    "java.util.Map(java.lang.String,me.ahoo.wow.manifest.tools.QueryShapesTest$Shape)" : {
+      "type" : "object",
+      "additionalProperties" : {
+        "$ref" : "#/$defs/me.ahoo.wow.manifest.tools.QueryShapesTest$Shape"
+      }
+    },
+    "java.util.Map(java.lang.String,me.ahoo.wow.manifest.tools.QueryShapesTest$Sku)" : {
+      "type" : "object",
+      "additionalProperties" : {
+        "$ref" : "#/$defs/me.ahoo.wow.manifest.tools.QueryShapesTest$Sku"
+      }
+    },
+    "java.util.Map(java.lang.String,me.ahoo.wow.manifest.tools.QueryShapesTest$Switch)" : {
+      "type" : "object",
+      "additionalProperties" : {
+        "$ref" : "#/$defs/me.ahoo.wow.manifest.tools.QueryShapesTest$Switch"
+      }
+    },
+    "java.util.Map(java.lang.String,me.ahoo.wow.manifest.tools.QueryShapesTest$Tagged)" : {
+      "type" : "object",
+      "additionalProperties" : {
+        "$ref" : "#/$defs/me.ahoo.wow.manifest.tools.QueryShapesTest$Tagged"
+      }
+    },
+    "java.util.Map(java.lang.String,me.ahoo.wow.manifest.tools.QueryShapesTest$Timed)" : {
+      "type" : "object",
+      "additionalProperties" : {
+        "$ref" : "#/$defs/me.ahoo.wow.manifest.tools.QueryShapesTest$Timed"
+      }
+    },
+    "me.ahoo.wow.manifest.tools.QueryShapesTest$Holder" : {
+      "type" : "object",
+      "properties" : {
+        "name" : {
+          "type" : "string"
+        },
+        "shape" : {
+          "$ref" : "#/$defs/me.ahoo.wow.manifest.tools.QueryShapesTest$Shape"
+        }
+      },
+      "required" : [ "name", "shape" ],
+      "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Holder"
+    },
+    "me.ahoo.wow.manifest.tools.QueryShapesTest$InNestedMap" : {
+      "type" : "object",
+      "properties" : {
+        "holder" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "$ref" : "#/$defs/me.ahoo.wow.manifest.tools.QueryShapesTest$Holder"
+            }
+          }
+        },
+        "nullable" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "anyOf" : [ {
+                "type" : "null"
+              }, {
+                "$ref" : "#/$defs/me.ahoo.wow.manifest.tools.QueryShapesTest$Plain"
+              } ]
+            }
+          }
+        },
+        "plain" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "$ref" : "#/$defs/me.ahoo.wow.manifest.tools.QueryShapesTest$Plain"
+            }
+          }
+        },
+        "secret" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "$ref" : "#/$defs/me.ahoo.wow.manifest.tools.QueryShapesTest$Secret"
+            }
+          }
+        },
+        "shape" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "$ref" : "#/$defs/me.ahoo.wow.manifest.tools.QueryShapesTest$Shape"
+            }
+          }
+        },
+        "sku" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "$ref" : "#/$defs/me.ahoo.wow.manifest.tools.QueryShapesTest$Sku"
+            }
+          }
+        },
+        "switch" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "$ref" : "#/$defs/me.ahoo.wow.manifest.tools.QueryShapesTest$Switch"
+            }
+          }
+        },
+        "tagged" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "$ref" : "#/$defs/me.ahoo.wow.manifest.tools.QueryShapesTest$Tagged"
+            }
+          }
+        },
+        "timed" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "$ref" : "#/$defs/me.ahoo.wow.manifest.tools.QueryShapesTest$Timed"
+            }
+          }
+        }
+      },
+      "required" : [ "holder", "nullable", "plain", "secret", "shape", "sku", "switch", "tagged", "timed" ],
+      "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$InNestedMap"
+    },
+    "me.ahoo.wow.manifest.tools.QueryShapesTest$Plain" : {
+      "type" : "object",
+      "properties" : {
+        "count" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "name" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "count", "name" ],
+      "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Plain"
+    },
+    "me.ahoo.wow.manifest.tools.QueryShapesTest$Secret" : {
+      "type" : "object",
+      "properties" : {
+        "label" : {
+          "type" : "string"
+        },
+        "token" : {
+          "type" : "string",
+          "x-wow-sensitive" : {
+            "level" : "confidential"
+          },
+          "x-wow-mask" : {
+            "keepPrefix" : 0,
+            "keepSuffix" : 0
+          }
+        }
+      },
+      "required" : [ "label", "token" ],
+      "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Secret"
+    },
+    "me.ahoo.wow.manifest.tools.QueryShapesTest$Shape" : {
+      "anyOf" : [ {
+        "allOf" : [ {
+          "type" : "object",
+          "properties" : {
+            "radius" : {
+              "type" : "integer",
+              "format" : "int32"
+            },
+            "type" : {
+              "type" : "string"
+            }
+          },
+          "required" : [ "radius", "type" ],
+          "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Shape$Circle"
+        }, {
+          "type" : "object",
+          "properties" : {
+            "type" : {
+              "const" : "CIRCLE"
+            }
+          },
+          "required" : [ "type" ]
+        } ],
+        "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Shape$Circle"
+      }, {
+        "allOf" : [ {
+          "type" : "object",
+          "properties" : {
+            "side" : {
+              "type" : "integer",
+              "format" : "int32"
+            },
+            "type" : {
+              "type" : "string"
+            }
+          },
+          "required" : [ "side", "type" ],
+          "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Shape$Square"
+        }, {
+          "type" : "object",
+          "properties" : {
+            "type" : {
+              "const" : "SQUARE"
+            }
+          },
+          "required" : [ "type" ]
+        } ],
+        "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Shape$Square"
+      } ],
+      "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Shape"
+    },
+    "me.ahoo.wow.manifest.tools.QueryShapesTest$Sku" : {
+      "type" : "string",
+      "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Sku"
+    },
+    "me.ahoo.wow.manifest.tools.QueryShapesTest$Switch" : {
+      "anyOf" : [ {
+        "allOf" : [ {
+          "type" : "object",
+          "properties" : {
+            "since" : {
+              "type" : "integer",
+              "format" : "int64"
+            }
+          },
+          "required" : [ "since" ],
+          "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Switch$On"
+        }, {
+          "type" : "object",
+          "properties" : {
+            "state" : {
+              "const" : "on"
+            }
+          },
+          "required" : [ "state" ]
+        } ],
+        "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Switch$On"
+      }, {
+        "allOf" : [ {
+          "type" : "object",
+          "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Switch$Off"
+        }, {
+          "type" : "object",
+          "properties" : {
+            "state" : {
+              "const" : "off"
+            }
+          },
+          "required" : [ "state" ]
+        } ],
+        "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Switch$Off"
+      } ],
+      "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Switch"
+    },
+    "me.ahoo.wow.manifest.tools.QueryShapesTest$Tagged" : {
+      "anyOf" : [ {
+        "allOf" : [ {
+          "type" : "object",
+          "properties" : {
+            "radius" : {
+              "type" : "integer",
+              "format" : "int32"
+            }
+          },
+          "required" : [ "radius" ],
+          "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Tagged$Circle"
+        }, {
+          "type" : "object",
+          "properties" : {
+            "kind" : {
+              "const" : "circle"
+            }
+          },
+          "required" : [ "kind" ]
+        } ],
+        "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Tagged$Circle"
+      }, {
+        "allOf" : [ {
+          "type" : "object",
+          "properties" : {
+            "side" : {
+              "type" : "integer",
+              "format" : "int32"
+            }
+          },
+          "required" : [ "side" ],
+          "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Tagged$Square"
+        }, {
+          "type" : "object",
+          "properties" : {
+            "kind" : {
+              "const" : "square"
+            }
+          },
+          "required" : [ "kind" ]
+        } ],
+        "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Tagged$Square"
+      } ],
+      "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Tagged"
+    },
+    "me.ahoo.wow.manifest.tools.QueryShapesTest$Timed" : {
+      "type" : "object",
+      "properties" : {
+        "at" : {
+          "type" : "integer",
+          "format" : "int64",
+          "x-wow-temporal" : {
+            "unit" : "seconds"
+          }
+        }
+      },
+      "required" : [ "at" ],
+      "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Timed"
+    }
+  },
+  "me.ahoo.wow.manifest.tools.QueryShapesTest$InMapOfList" : {
+    "me.ahoo.wow.manifest.tools.QueryShapesTest$Holder" : {
+      "type" : "object",
+      "properties" : {
+        "name" : {
+          "type" : "string"
+        },
+        "shape" : {
+          "$ref" : "#/$defs/me.ahoo.wow.manifest.tools.QueryShapesTest$Shape"
+        }
+      },
+      "required" : [ "name", "shape" ],
+      "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Holder"
+    },
+    "me.ahoo.wow.manifest.tools.QueryShapesTest$InMapOfList" : {
+      "type" : "object",
+      "properties" : {
+        "holder" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/$defs/me.ahoo.wow.manifest.tools.QueryShapesTest$Holder"
+            }
+          }
+        },
+        "nullable" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "array",
+            "items" : {
+              "anyOf" : [ {
+                "type" : "null"
+              }, {
+                "$ref" : "#/$defs/me.ahoo.wow.manifest.tools.QueryShapesTest$Plain"
+              } ]
+            }
+          }
+        },
+        "plain" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/$defs/me.ahoo.wow.manifest.tools.QueryShapesTest$Plain"
+            }
+          }
+        },
+        "secret" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/$defs/me.ahoo.wow.manifest.tools.QueryShapesTest$Secret"
+            }
+          }
+        },
+        "shape" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/$defs/me.ahoo.wow.manifest.tools.QueryShapesTest$Shape"
+            }
+          }
+        },
+        "sku" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/$defs/me.ahoo.wow.manifest.tools.QueryShapesTest$Sku"
+            }
+          }
+        },
+        "switch" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/$defs/me.ahoo.wow.manifest.tools.QueryShapesTest$Switch"
+            }
+          }
+        },
+        "tagged" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/$defs/me.ahoo.wow.manifest.tools.QueryShapesTest$Tagged"
+            }
+          }
+        },
+        "timed" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/$defs/me.ahoo.wow.manifest.tools.QueryShapesTest$Timed"
+            }
+          }
+        }
+      },
+      "required" : [ "holder", "nullable", "plain", "secret", "shape", "sku", "switch", "tagged", "timed" ],
+      "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$InMapOfList"
+    },
+    "me.ahoo.wow.manifest.tools.QueryShapesTest$Plain" : {
+      "type" : "object",
+      "properties" : {
+        "count" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "name" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "count", "name" ],
+      "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Plain"
+    },
+    "me.ahoo.wow.manifest.tools.QueryShapesTest$Secret" : {
+      "type" : "object",
+      "properties" : {
+        "label" : {
+          "type" : "string"
+        },
+        "token" : {
+          "type" : "string",
+          "x-wow-sensitive" : {
+            "level" : "confidential"
+          },
+          "x-wow-mask" : {
+            "keepPrefix" : 0,
+            "keepSuffix" : 0
+          }
+        }
+      },
+      "required" : [ "label", "token" ],
+      "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Secret"
+    },
+    "me.ahoo.wow.manifest.tools.QueryShapesTest$Shape" : {
+      "anyOf" : [ {
+        "allOf" : [ {
+          "type" : "object",
+          "properties" : {
+            "radius" : {
+              "type" : "integer",
+              "format" : "int32"
+            },
+            "type" : {
+              "type" : "string"
+            }
+          },
+          "required" : [ "radius", "type" ],
+          "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Shape$Circle"
+        }, {
+          "type" : "object",
+          "properties" : {
+            "type" : {
+              "const" : "CIRCLE"
+            }
+          },
+          "required" : [ "type" ]
+        } ],
+        "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Shape$Circle"
+      }, {
+        "allOf" : [ {
+          "type" : "object",
+          "properties" : {
+            "side" : {
+              "type" : "integer",
+              "format" : "int32"
+            },
+            "type" : {
+              "type" : "string"
+            }
+          },
+          "required" : [ "side", "type" ],
+          "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Shape$Square"
+        }, {
+          "type" : "object",
+          "properties" : {
+            "type" : {
+              "const" : "SQUARE"
+            }
+          },
+          "required" : [ "type" ]
+        } ],
+        "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Shape$Square"
+      } ],
+      "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Shape"
+    },
+    "me.ahoo.wow.manifest.tools.QueryShapesTest$Sku" : {
+      "type" : "string",
+      "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Sku"
+    },
+    "me.ahoo.wow.manifest.tools.QueryShapesTest$Switch" : {
+      "anyOf" : [ {
+        "allOf" : [ {
+          "type" : "object",
+          "properties" : {
+            "since" : {
+              "type" : "integer",
+              "format" : "int64"
+            }
+          },
+          "required" : [ "since" ],
+          "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Switch$On"
+        }, {
+          "type" : "object",
+          "properties" : {
+            "state" : {
+              "const" : "on"
+            }
+          },
+          "required" : [ "state" ]
+        } ],
+        "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Switch$On"
+      }, {
+        "allOf" : [ {
+          "type" : "object",
+          "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Switch$Off"
+        }, {
+          "type" : "object",
+          "properties" : {
+            "state" : {
+              "const" : "off"
+            }
+          },
+          "required" : [ "state" ]
+        } ],
+        "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Switch$Off"
+      } ],
+      "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Switch"
+    },
+    "me.ahoo.wow.manifest.tools.QueryShapesTest$Tagged" : {
+      "anyOf" : [ {
+        "allOf" : [ {
+          "type" : "object",
+          "properties" : {
+            "radius" : {
+              "type" : "integer",
+              "format" : "int32"
+            }
+          },
+          "required" : [ "radius" ],
+          "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Tagged$Circle"
+        }, {
+          "type" : "object",
+          "properties" : {
+            "kind" : {
+              "const" : "circle"
+            }
+          },
+          "required" : [ "kind" ]
+        } ],
+        "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Tagged$Circle"
+      }, {
+        "allOf" : [ {
+          "type" : "object",
+          "properties" : {
+            "side" : {
+              "type" : "integer",
+              "format" : "int32"
+            }
+          },
+          "required" : [ "side" ],
+          "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Tagged$Square"
+        }, {
+          "type" : "object",
+          "properties" : {
+            "kind" : {
+              "const" : "square"
+            }
+          },
+          "required" : [ "kind" ]
+        } ],
+        "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Tagged$Square"
+      } ],
+      "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Tagged"
+    },
+    "me.ahoo.wow.manifest.tools.QueryShapesTest$Timed" : {
+      "type" : "object",
+      "properties" : {
+        "at" : {
+          "type" : "integer",
+          "format" : "int64",
+          "x-wow-temporal" : {
+            "unit" : "seconds"
+          }
+        }
+      },
+      "required" : [ "at" ],
+      "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Timed"
+    }
+  },
+  "me.ahoo.wow.manifest.tools.QueryShapesTest$InListOfMap" : {
+    "me.ahoo.wow.manifest.tools.QueryShapesTest$InListOfMap" : {
+      "type" : "object",
+      "properties" : {
+        "holder" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "object",
+              "properties" : {
+                "name" : {
+                  "type" : "string"
+                },
+                "shape" : {
+                  "$ref" : "#/$defs/me.ahoo.wow.manifest.tools.QueryShapesTest$Shape"
+                }
+              },
+              "required" : [ "name", "shape" ],
+              "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Holder"
+            }
+          }
+        },
+        "nullable" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "anyOf" : [ {
+                "type" : "null"
+              }, {
+                "$ref" : "#/$defs/me.ahoo.wow.manifest.tools.QueryShapesTest$Plain"
+              } ]
+            }
+          }
+        },
+        "plain" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "$ref" : "#/$defs/me.ahoo.wow.manifest.tools.QueryShapesTest$Plain"
+            }
+          }
+        },
+        "secret" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "object",
+              "properties" : {
+                "label" : {
+                  "type" : "string"
+                },
+                "token" : {
+                  "type" : "string",
+                  "x-wow-sensitive" : {
+                    "level" : "confidential"
+                  },
+                  "x-wow-mask" : {
+                    "keepPrefix" : 0,
+                    "keepSuffix" : 0
+                  }
+                }
+              },
+              "required" : [ "label", "token" ],
+              "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Secret"
+            }
+          }
+        },
+        "shape" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "$ref" : "#/$defs/me.ahoo.wow.manifest.tools.QueryShapesTest$Shape"
+            }
+          }
+        },
+        "sku" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "string",
+              "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Sku"
+            }
+          }
+        },
+        "switch" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "anyOf" : [ {
+                "allOf" : [ {
+                  "type" : "object",
+                  "properties" : {
+                    "since" : {
+                      "type" : "integer",
+                      "format" : "int64"
+                    }
+                  },
+                  "required" : [ "since" ],
+                  "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Switch$On"
+                }, {
+                  "type" : "object",
+                  "properties" : {
+                    "state" : {
+                      "const" : "on"
+                    }
+                  },
+                  "required" : [ "state" ]
+                } ],
+                "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Switch$On"
+              }, {
+                "allOf" : [ {
+                  "type" : "object",
+                  "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Switch$Off"
+                }, {
+                  "type" : "object",
+                  "properties" : {
+                    "state" : {
+                      "const" : "off"
+                    }
+                  },
+                  "required" : [ "state" ]
+                } ],
+                "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Switch$Off"
+              } ],
+              "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Switch"
+            }
+          }
+        },
+        "tagged" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "anyOf" : [ {
+                "allOf" : [ {
+                  "type" : "object",
+                  "properties" : {
+                    "radius" : {
+                      "type" : "integer",
+                      "format" : "int32"
+                    }
+                  },
+                  "required" : [ "radius" ],
+                  "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Tagged$Circle"
+                }, {
+                  "type" : "object",
+                  "properties" : {
+                    "kind" : {
+                      "const" : "circle"
+                    }
+                  },
+                  "required" : [ "kind" ]
+                } ],
+                "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Tagged$Circle"
+              }, {
+                "allOf" : [ {
+                  "type" : "object",
+                  "properties" : {
+                    "side" : {
+                      "type" : "integer",
+                      "format" : "int32"
+                    }
+                  },
+                  "required" : [ "side" ],
+                  "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Tagged$Square"
+                }, {
+                  "type" : "object",
+                  "properties" : {
+                    "kind" : {
+                      "const" : "square"
+                    }
+                  },
+                  "required" : [ "kind" ]
+                } ],
+                "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Tagged$Square"
+              } ],
+              "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Tagged"
+            }
+          }
+        },
+        "timed" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "object",
+              "properties" : {
+                "at" : {
+                  "type" : "integer",
+                  "format" : "int64",
+                  "x-wow-temporal" : {
+                    "unit" : "seconds"
+                  }
+                }
+              },
+              "required" : [ "at" ],
+              "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Timed"
+            }
+          }
+        }
+      },
+      "required" : [ "holder", "nullable", "plain", "secret", "shape", "sku", "switch", "tagged", "timed" ],
+      "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$InListOfMap"
+    },
+    "me.ahoo.wow.manifest.tools.QueryShapesTest$Plain" : {
+      "type" : "object",
+      "properties" : {
+        "count" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "name" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "count", "name" ],
+      "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Plain"
+    },
+    "me.ahoo.wow.manifest.tools.QueryShapesTest$Shape" : {
+      "anyOf" : [ {
+        "allOf" : [ {
+          "type" : "object",
+          "properties" : {
+            "radius" : {
+              "type" : "integer",
+              "format" : "int32"
+            },
+            "type" : {
+              "type" : "string"
+            }
+          },
+          "required" : [ "radius", "type" ],
+          "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Shape$Circle"
+        }, {
+          "type" : "object",
+          "properties" : {
+            "type" : {
+              "const" : "CIRCLE"
+            }
+          },
+          "required" : [ "type" ]
+        } ],
+        "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Shape$Circle"
+      }, {
+        "allOf" : [ {
+          "type" : "object",
+          "properties" : {
+            "side" : {
+              "type" : "integer",
+              "format" : "int32"
+            },
+            "type" : {
+              "type" : "string"
+            }
+          },
+          "required" : [ "side", "type" ],
+          "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Shape$Square"
+        }, {
+          "type" : "object",
+          "properties" : {
+            "type" : {
+              "const" : "SQUARE"
+            }
+          },
+          "required" : [ "type" ]
+        } ],
+        "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Shape$Square"
+      } ],
+      "x-wow-class" : "me.ahoo.wow.manifest.tools.QueryShapesTest$Shape"
+    }
+  }
+}

@@ -21,6 +21,7 @@ import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.TargetScope
+import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.lifecycle.TransferOwner
 import me.ahoo.wow.api.result.CommandResult
@@ -477,6 +478,20 @@ class PeerCommandsTest {
         wire.scope.assert().isEqualTo(Scope("x"))
         wire.ref.assert().isEqualTo(ITEM.ref(TENANT, "i-5"))
     }
+
+    @Test
+    fun `a peer's command should carry its caller's application, never one its request names (#6536)`(): Unit =
+        runBlocking {
+            val sales = started()
+            val inApp = clerk.copyWith(attributes = mapOf(Caller.APP to listOf("app-a")))
+            val forged = mapOf(RequestFacts.APP_ID to "forged", "X-Trace" to "t-1")
+            sales.gateway.execute(
+                ServerCommandRequest.builder(Reserve(1), ITEM.ref(TENANT, "i-6")).caller(inApp).headers(forged)
+                    .wait(WaitPlan.ACCEPTED).build(),
+            ).status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+            val wire = CommandMessages.commandOf(EnvelopeCodec.decode(topics.messages(COMMANDS).single().value))
+            wire.headers.assert().isEqualTo(mapOf("X-Trace" to "t-1", RequestFacts.APP_ID to "app-a"))
+        }
 
     @Test
     fun `a target naming another tenant than the one fixed for a peer's aggregate type should be refused`(): Unit =

@@ -123,6 +123,40 @@ class PartitionerTest {
     }
 
     @Test
+    fun `a request's partition is the slot of its type, tenant and request id, whatever the id it creates`() {
+        val cart = AggregateType("example", "cart")
+        // Over `context.aggregate/tenant?request`, fixed across nodes and versions: these values are the contract.
+        Partitioner.partitionOfRequest(cart, "tenant", "request-1", 64).assert()
+            .isEqualTo(Math.floorMod(Partitioner.hash("example.cart/tenant?request-1"), Partitioner.SLOTS) % 64)
+            .isEqualTo(60)
+        Partitioner.partitionOfRequest(cart, "tenant", "request-2", 64).assert().isEqualTo(21)
+        Partitioner.partitionOfRequest(cart, "other", "request-1", 64).assert().isEqualTo(18)
+        // Among P it is its partition among 2P, folded; two attempts on either side of a split agree only modulo P.
+        Partitioner.partitionOfRequest(cart, "tenant", "request-1", 32).assert().isEqualTo(60 % 32)
+        (0 until 1000).map { Partitioner.partitionOfRequest(cart, "tenant", "$it", 16) }.toSet().assert().hasSize(16)
+        assertThrows<IllegalArgumentException> { Partitioner.partitionOfRequest(cart, "tenant", "request-1", 3) }
+            .message.assert().contains("3 partitions")
+    }
+
+    @Test
+    fun `the hash continued over texts and the bytes between them is the hash of the whole, whatever the characters`() {
+        val random = Random(4096)
+        // ASCII, two-byte, three-byte and four-byte characters, and lone surrogates, which UTF-8 spells `?`.
+        val pool = listOf("a", "/", "%", "\u0000", "\u007F", "\u0080", "é", "ß", "\u07FF", "\u0800", "租", "户", "\uFFFF") +
+            listOf("\uD83D\uDE00", "\uD83D", "\uDE00")
+        fun text() = (0 until random.nextInt(8)).joinToString("") { pool[random.nextInt(pool.size)] }
+        // As a key's parts: texts with an ASCII separator between them, so that no two of them join into one character.
+        repeat(2_000) {
+            val (head, tail) = text() to text()
+            Partitioner.hash(Partitioner.hash(Partitioner.hash(Partitioner.EMPTY, head), '/'.code), tail).assert()
+                .describedAs("$head / $tail").isEqualTo(Partitioner.hash("$head/$tail"))
+            Partitioner.hash(Partitioner.EMPTY, head).assert().describedAs(head).isEqualTo(Partitioner.hash(head))
+        }
+        Partitioner.hash(Partitioner.EMPTY, "").assert().isEqualTo(Partitioner.hash(""))
+        Partitioner.hash(Partitioner.hash(Partitioner.EMPTY, "a"), '/'.code).assert().isEqualTo(Partitioner.hash("a/"))
+    }
+
+    @Test
     fun `a small partition count sees only the low bits of each character`() {
         val lower = AggregateType("c", "a").ref("t", "a")
         val upper = AggregateType("c", "a").ref("t", "A")

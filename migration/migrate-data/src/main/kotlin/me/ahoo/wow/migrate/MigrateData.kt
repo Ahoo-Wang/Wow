@@ -299,6 +299,7 @@ internal class MigrateData(
             connections.snapshots::deleted,
             connections.source.missingWalkIndexes(plan.aggregates.keys),
             TagReader.of(connections.source, connections.snapshots),
+            connections.source::ownersOtherThanIds,
         )
         out.println(report.render())
         return if (report.passed) OK else FAILED

@@ -72,8 +72,8 @@ class AccountSpec {
 | `givenRecords(vararg records, scope, operator, commitTime)` | 把存储的记录按日志中的样子作为一条流提交：模型的类已经写不出的历史，例如聚合已退役的事件（内核会跳过它的记录），或者旧修订版的记录（经它的升级读取）。 |
 | `givenReservation(namespace, key, owner)` | 把一个预留键交给同一类型的另一个聚合，于是预留它的命令会被拒绝。 |
 | `givenCommands(vararg commands)` | 把这些命令作为场景的准备发出；被拒绝或抛出异常的命令会让规格失败，并指出是哪一条。 |
-| `whenCommand(command, requestId, expectedVersion, caller, scope, …) { … }` | 把命令送进内核，并在块中检查它的结果。`caller`（默认为 `aggregateSpec(model, caller = …)` 给出的调用方）像命令网关那样，给出命令的作用域、操作人和应用；`scope` 指定调用方去往的另一个作用域。 |
-| `asCaller(caller) { … }` | 以另一个调用方发出块中的命令。 |
+| `whenCommand(command, requestId, expectedVersion, caller, scope, …) { … }` | 把命令送进内核，并在块中检查它的结果。`caller`（默认为 `aggregateSpec(model, caller = …)` 给出的调用方）像命令网关那样，给出命令的作用域、操作人和应用；`scope` 像 `Wow-Scope` 那样指定调用方去往的作用域。网关会拒绝的调用方让规格直接失败，并给出网关的答复：租户不是规格的租户的调用方（`400 wow.command.malformed`），或没有 `crossScope` 却指定了 `scope` 的调用方（`403 wow.auth.forbidden`）。可以跨作用域的调用方在规格的租户和它指定的 `scope` 中行事。类型的固定租户（[固定的租户](./ownership#a-fixed-tenant)）暂不应用。`headers` 可以添加请求事实，但不能写 `app_id`，它只由调用方给出：`headers` 里写了它的规格直接失败，有没有调用方都一样，因为网关从不记录请求自己写的 `app_id`。 |
+| `asCaller(caller) { … }` | 以另一个调用方发出块中的命令，与 `whenCommand` 的调用方一样经过准入：另一个租户的调用方让规格失败。 |
 | `advanceTime(duration) { … }` | 拨动时钟，并把聚合给自己定时、到那时已到期的每条命令发给它；块检查最后一条。 |
 | `expectNothingDue(within)` | 拨动时钟；到那时若有聚合给自己定时的命令到期，就失败。 |
 | `ref(name)`、`fork(name, from) { … }` | 标记一个位置；在聚合的副本上运行一个场景，从现在或从标记的位置开始。 |
@@ -111,6 +111,8 @@ class AccountSpec {
 **决定函数不能修改状态。** 在规格中，内核比较每个命令函数和 after 钩子前后的状态，若其中某个直接修改了状态，测试失败。不经过事件的修改在运行时会与日志渐渐不一致；测试会把它抓出来。
 
 **状态是其事件的函数。** 每条提交了事件的命令之后，规格等 JVM 的时钟走过（不到一毫秒），再从它被给定的内容（事件，或给定的状态）以及此后的事件流重建状态。状态的 JSON 若不是命令留下的那个，测试失败，并指出每个不同的属性、两个值以及改法。所以无论在属性里还是在演化函数里，读取精确到毫秒或更细的时钟，或读取随机源，每次运行都会失败。读取日期或截到分钟的时间，以及与截止时间的比较，只在跨过各自的边界时才不同，而规格几乎不会跨过：detekt 规则拒绝这些（[不读时钟](./aggregates#read-no-clock)）。这项检查无法关闭：事件不能决定的状态，在重建它的各个节点上各不相同。
+
+**块先看见自己的接收者。** DSL 的接收者标有 `@WowTestDsl`，一个 `@DslMarker`：在一个块里，不指明接收者就够不到外层块接收者的成员，所以处理器 `whenEvent { … }` 检查里的 `fork { … }` 看不到外层那个块的 `commands`。把分叉要用的值先绑定到一个 `val`，或者指明接收者（`this@whenEvent`）。Kotlin 还会先把名字解析到最近接收者的成员，再考虑测试类的属性：在 `expectEvent<E> { … }` 里块的接收者就是事件，所以一个名字既是 `E` 的字段又是测试类的属性时，它指的是事件的字段，把它与那个属性比较的断言就是拿字段和自己比较，必然通过。给期望值起一个不是事件字段的名字。
 
 ### 从某个状态开始 {#start-from-a-state}
 

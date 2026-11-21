@@ -248,13 +248,18 @@ class SagaCallBindingTest {
         wait: WaitPlan,
         headers: Map<String, String> = emptyMap(),
         on: ServiceNode = node,
+        app: String? = null,
     ) = on.gateway.send(
         ServerCommandRequest(
             context = SHOP,
             aggregate = "order",
             command = "Place",
             body = CommandBody.of("""{"items":["apple"]}"""),
-            caller = Caller(TENANT, Scope(ownerId = owner)),
+            caller = Caller(
+                TENANT,
+                Scope(ownerId = owner),
+                attributes = app?.let { mapOf(Caller.APP to listOf(it)) }.orEmpty(),
+            ),
             aggregateId = id,
             headers = headers,
             wait = wait,
@@ -315,8 +320,9 @@ class SagaCallBindingTest {
                 )
             }
             node.start()
-            val root = mapOf(RequestFacts.APP_ID to "console", RequestFacts.REMOTE_IP to "203.0.113.9")
-            val handled = place("o-9", "dave", toSaga, root).toList().last()
+            // The root request's application is its caller's: admission records it, as the edge's request facts do not.
+            val root = mapOf(RequestFacts.REMOTE_IP to "203.0.113.9")
+            val handled = place("o-9", "dave", toSaga, root, app = "console").toList().last()
             handled.status.assert().describedAs(handled.toString()).isEqualTo(CommandResult.Status.SUCCEEDED)
             calls.single().command.headers.assert().isEqualTo(mapOf(RequestFacts.APP_ID to "console"))
             delivered.single().headers.assert().isEqualTo(mapOf(RequestFacts.APP_ID to "console"))

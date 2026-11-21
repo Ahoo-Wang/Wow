@@ -41,12 +41,14 @@ import org.gradle.api.attributes.Usage
 import org.gradle.api.file.FileCollection
 import org.gradle.api.file.FileTree
 import org.gradle.api.plugins.JavaPlugin
+import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.plugins.UnknownPluginException
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.SourceSet
 import org.gradle.api.tasks.SourceSetContainer
+import org.gradle.jvm.toolchain.JavaToolchainService
 import org.gradle.language.jvm.tasks.ProcessResources
 import org.gradle.process.CommandLineArgumentProvider
 
@@ -104,6 +106,11 @@ internal object DomainRole {
             task.fragments.from(compilerFragments)
             task.classpath.from(main.output.classesDirs, classesOf(project, runtimeClasspath.get()))
             task.tools.from(tools)
+            // The module's classes are read on the JVM that compiled them, not on the Gradle daemon's.
+            task.launcher.set(
+                project.extensions.getByType(JavaToolchainService::class.java)
+                    .launcherFor(project.extensions.getByType(JavaPluginExtension::class.java).toolchain),
+            )
             task.schemaOverrides.set(extension.schemaOverrides)
             task.outputDirectory.set(fragmentDirectory)
         }
@@ -146,6 +153,7 @@ internal object DomainRole {
             task.description = "Filters the module's Manifest fragment down to the contract its api modules carry."
             task.fragments.from(fragments.matching { it.include("${FRAGMENT_RESOURCES}/**/*.json") })
             task.service.set(extension.service)
+            task.contractPackage.set(extension.contractPackage)
             task.module.set(project.path)
             task.classpathProjects.set(projects)
             task.classpathProjectPaths.set(projects.map { it.values.distinct().sorted() })
@@ -154,6 +162,7 @@ internal object DomainRole {
             task.pairingProjects.set(pairings)
             task.tools.from(toolsConfiguration(project))
             task.outputFile.set(project.layout.buildDirectory.file("wow/contract.json"))
+            task.packagesFile.set(project.layout.buildDirectory.file("wow/${ApiRole.CONTRACT_PACKAGES_FILE}"))
         }
         val elements = project.configurations.create(CONTRACT_ELEMENTS) { configuration ->
             configuration.description = "The peer contract of the module's contexts, which its api modules carry."
@@ -162,6 +171,7 @@ internal object DomainRole {
             documentationAttributes(project, configuration, CONTRACT_DOCS_TYPE)
         }
         project.artifacts.add(elements.name, generate.flatMap { it.outputFile }) { it.builtBy(generate) }
+        project.artifacts.add(elements.name, generate.flatMap { it.packagesFile }) { it.builtBy(generate) }
     }
 
     /** The project entries of [compileClasspath], each to its project's path. */

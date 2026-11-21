@@ -40,6 +40,7 @@ import me.ahoo.wow.mongo.snapshot.MongoSnapshotStore
 import me.ahoo.wow.runtime.LruStateCache
 import me.ahoo.wow.runtime.admission.CommittedRequests
 import me.ahoo.wow.runtime.admission.CreationIds
+import me.ahoo.wow.spi.id.AggregateIdGenerator
 import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.ExecutionLease
@@ -119,7 +120,9 @@ abstract class KernelRoundTripsSpec {
 
     /**
      * The round trips of claiming a creation's id for its request ([me.ahoo.wow.spi.log.EventLog.claimCreation]),
-     * which admission adds to a creation that names no aggregate: none where the log's request key spans the type.
+     * which admission adds to a creation that names no aggregate when its type's ids are a domain generator's: none
+     * where the log's request key spans the type. Wow's default generator aims at the request's partition instead,
+     * with none.
      */
     protected abstract val claim: Int
 
@@ -148,7 +151,7 @@ abstract class KernelRoundTripsSpec {
     private fun ref(name: String) = model.type.ref("tenant", "$name-${UUID.randomUUID()}")
 
     @Test
-    fun `a creation that names no aggregate adds its request's lookup and claim, one that names it neither`(): Unit =
+    fun `a creation that names no aggregate adds its request's lookup and a domain generator's claim, one that names it neither`(): Unit =
         runBlocking {
             val kernel = kernel(256)
             // The type's collection or table made sure of first, and each partition appended to once, as by earlier
@@ -158,13 +161,17 @@ abstract class KernelRoundTripsSpec {
                     .first { Partitioner.partitionOf(model.type.ref("tenant", it), PARTITIONS) == partition }
                 kernel.execute(model, command(model.type.ref("tenant", id), Open("ahoo")))
             }
-            val creations = CreationIds(IdGenerators.DEFAULT, CommittedRequests.of(log))
-            val mark = mark()
-            val id = creations.idOf(model.type, "tenant", "unnamed")
-            val created = command(model.type.ref("tenant", id), Open("ahoo"), requestId = "unnamed")
-            val unnamed = kernel.execute(model, created)
-            unnamed.assert().isInstanceOf(CommandOutcome.Committed::class.java)
-            since(mark).assert().describedAs("unnamed").isEqualTo(1 + claim + load + append)
+            // Wow's default generator, which aims at the request's partition, and a domain's, which is claimed.
+            val domain = IdGenerators(aggregates = AggregateIdGenerator { "domain-${UUID.randomUUID()}" })
+            listOf(IdGenerators.DEFAULT to 0, domain to claim).forEach { (ids, claimed) ->
+                val creations = CreationIds(ids, CommittedRequests.of(log))
+                val request = "unnamed-${sequence.incrementAndGet()}"
+                val mark = mark()
+                val id = creations.idOf(model.type, "tenant", request)
+                val unnamed = kernel.execute(model, command(model.type.ref("tenant", id), Open("ahoo"), request))
+                unnamed.assert().isInstanceOf(CommandOutcome.Committed::class.java)
+                since(mark).assert().describedAs("unnamed, $ids").isEqualTo(1 + claimed + load + append)
+            }
             val (named, trips) = kernel.trips(command(ref("named"), Open("ahoo")))
             named.assert().isInstanceOf(CommandOutcome.Committed::class.java)
             trips.assert().describedAs("named").isEqualTo(load + append)

@@ -53,7 +53,7 @@ class Product(private val state: ProductState) {
 - `OWNER` 聚合在调用方的租户、所有者和空间之内读取，每一项都以调用方有值为前提：所有者级调用方读取自己的，租户级调用方读取整个租户。
 - `TENANT` 聚合在调用方的租户和空间之内读取，从不加上所有者。租户里的每个调用方都能读取商品，购物者与员工一样。
 
-所以 `TENANT` 不按角色限制读取。属于租户、但只有部分调用方可以读取的聚合，例如运维控制台列出的失败、分析目录的数据源，需要服务自己的读取授权器：一个 `ReadAuthorizer` bean，拒绝没有该角色的调用方（[授权读取](../operate/security#authorize-reads)）。调用方能读到其中哪些聚合，由访问策略决定（[编写访问策略](#write-an-access-policy)）。受信代码和订阅的处理函数不带调用方地读取整个租户，既不询问读取授权器，也不询问访问策略。
+所以 `TENANT` 不按角色限制读取。属于租户、但只有部分调用方可以读取的聚合，例如运维控制台列出的失败、分析目录的数据源，需要服务自己的读取授权器：一个 `ReadAuthorizer` bean，拒绝没有该角色的调用方（[授权读取](../operate/security#authorize-reads)）。调用方能读到其中哪些聚合，由访问策略决定（[编写访问策略](#write-an-access-policy)）。受信代码不带调用方地读取所有租户，订阅的处理函数读取其提交所属的整个租户；两者既不询问读取授权器，也不询问访问策略。
 
 ## 每个所有者一个聚合 {#one-aggregate-per-owner}
 
@@ -69,7 +69,7 @@ class Basket(private val state: BasketState) {
 }
 ```
 
-于是每个所有者在它的租户中恰好有一个购物车，它的 ID 就是买家的用户 ID。这个声明要求 `ownership = OWNER`，即默认值：属于租户的聚合没有所有者可以取 ID。它的所有者永不改变，所以默认的生命周期不含 `TransferOwner`，编译器拒绝在 `lifecycle` 中列出它，也拒绝产生 `OwnerTransferred` 的命令。默认的 `AggregateIdSource.ASSIGNED` 取请求指明的 ID，或者为创建命令生成一个。
+于是每个所有者在它的租户中恰好有一个购物车，它的 ID 就是买家的用户 ID。这个声明要求 `ownership = OWNER`，即默认值：属于租户的聚合没有所有者可以取 ID。它的所有者永不改变，所以聚合从不转移它（[转移所有者或空间](#transfer-an-owner-or-a-space)）。默认的 `AggregateIdSource.ASSIGNED` 取请求指明的 ID，或者为创建命令生成一个。
 
 ### 它的路由 {#its-routes}
 
@@ -90,7 +90,8 @@ class Basket(private val state: BasketState) {
 
 - **所有者级**调用方的聚合就是它自己的：ID 是它的所有者，无论走不带 ID 的路由还是用它自己的 ID；通过 `Wow-Scope` 在另一个作用域中行事的调用方，接触的是那个作用域的所有者的聚合。指明另一个所有者的 ID 接触不到任何聚合：创建命令被以 `403 wow.aggregate.forbidden` 拒绝，其他命令得到 `404 wow.aggregate.not-found`，无论那个所有者的聚合是否存在。
 - **没有所有者**的调用方，例如租户级的员工、服务或 Saga，没有自己的聚合：它在按 ID 的路由上指明 ID。它走不带 ID 的路由时得到 `400 wow.command.malformed`（"This caller has no owner; address the aggregate by its id."），读取状态时得到 `400 wow.query.malformed`。未认证的调用方得到 `401 wow.auth.unauthenticated`。
-- Saga 派生的命令或定时命令没有指明 ID 时，取它所带作用域的所有者：跟随买家订单的 Saga 接触的是那个买家的购物车。
+- Saga 派生的命令或定时命令没有指明 ID 时，取它所带作用域的所有者：跟随买家订单的 Saga 接触的是那个买家的购物车。没有所有者的这类命令被以 `wow.command.malformed` 拒绝，与没有所有者的调用方得到的答复相同：Saga 的 `@OnRejected` 处理器接收这个拒绝，没有这个处理器时 Saga 停放。另一个服务的接收处从它的命令主题取到的命令也得到同样的答复。
+- 本服务向另一个服务的这类聚合发送的命令（从那个服务的 api jar 所带的契约得知）在发送之前就在这里按同样的规则定出 ID：那个服务会因缺少 ID 而拒绝的请求，在这里就以相同的答复拒绝，什么也不发送。
 
 内核把聚合的 ID 记为它的所有者，无论是谁创建它；所有者不同的命令接触不到它，创建命令也一样。因此命令函数不必核对调用方：上面的购物车不需要自己的所有权检查。
 
@@ -111,7 +112,13 @@ Saga 派生的命令、补偿和定时命令，带着它们所跟随的那次提
 | `TransferOwner` | `POST /<context>/<aggregate>/{id}/wow.lifecycle.transfer-owner` | `{"ownerId": "…"}` |
 | `TransferSpace` | `POST /<context>/<aggregate>/{id}/wow.lifecycle.transfer-space` | `{"spaceId": "…"}` |
 
-`TENANT` 聚合不处理 `TransferOwner`，ID 即所有者 ID 的聚合也不处理。每次提交都记录提交之后的作用域，所以投影或查询不用重放历史就能读到当前的所有者，聚合更早的事件流也随它而变（[策略在哪里生效](#where-a-policy-applies)）。
+`TENANT` 聚合没有所有者可转，ID 即所有者 ID 的聚合所有者固定，所以两者都不转移所有者：
+
+- 不写 `lifecycle` 时，它不处理 `TransferOwner`；`lifecycle` 列表中写了 `TransferOwner` 就编译失败，四条全列也一样；
+- 编译器拒绝返回类型或 `produces` 含 `OwnerTransferred` 的命令函数，也拒绝返回类型含它的 `@AfterCommand` 钩子；
+- 编译器看不见事件的函数或用 DSL 写的模型，如果决定结果中仍有 `OwnerTransferred`，这条命令按未声明事件失败：调用方得到 `wow.command.undeclared-event`（500），服务记录一条错误日志，写明模型、命令和事件，什么都不提交。
+
+每次提交都记录提交之后的作用域，所以投影或查询不用重放历史就能读到当前的所有者，聚合更早的事件流也随它而变（[策略在哪里生效](#where-a-policy-applies)）。
 
 ## 声明访问属性 {#declare-access-attributes}
 
@@ -247,7 +254,7 @@ private val documentAccess = accessPolicy<Document> {
 
 - **派生的命令。** Saga、定时器、补偿或同步调用派生的命令，带着它所跟随的提交的因果和根命令的作用域，根命令在到达时已由准入授权。它能接触每个聚合。
 - **以自身身份行事的服务。** 服务的身份（`Caller.ofService(...)`）读取和发送命令时不受策略约束。另一个服务在内部端口上调用或读取本服务时，受本服务调用方清单的约束（`wow.callers.<service>.commands` 与 `reads`；[关上内部端口](../operate/security#close-the-internal-port)）。服务的代码以服务身份发送命令：`commandClient.of(Caller.ofService("<wow.service>"))`；进程内客户端的默认调用方是匿名的，没有任何声明，会被策略拒绝。
-- **受信代码。** 不带调用方读取的代码（`NodeQueryApi.trusted()`）和订阅的处理函数读取整个租户。
+- **受信代码。** 不带调用方读取的代码（`NodeQueryApi.trusted()`）读取所有租户，订阅的处理函数读取其提交所属的整个租户。
 
 既没有因果、也没有调用方的命令，例如生产者在命令主题上写入时没带调用方的，在策略下被拒绝（[限制命令主题](../operate/security#restrict-the-command-topics)）。被允许在另一个作用域中行事的调用方，改变的是它在哪里行事，而不是策略授予什么：必须读取每个聚合的客服角色，在策略里有它自己的规则（`allowIf(caller.hasRole("support"))`）。
 

@@ -7,6 +7,10 @@ kotlin {
     jvmToolchain(21)
 }
 
+wow {
+    contractPackage = "com.example.catalog.api"
+}
+
 dependencies {
     api(project(":catalog-api"))
     // The aggregate test DSL, package me.ahoo.wow.test.

@@ -93,6 +93,20 @@ describe('client edges', () => {
     ).toEqual({ notModified: true, version: 4, etag: '4-0123456789abcdef' });
   });
 
+  it('reads a data field with or without a space after the colon alike', async () => {
+    // The writer's spelling: Spring Framework 7.0 wrote `data:{…}`, 7.1 writes `data: {…}`.
+    for (const colon of ['data:', 'data: ']) {
+      const body =
+        `${colon}{"a":1}\n\n${colon}{"a":2}\n\n` +
+        `event:end\n${colon}{"reason":"complete","resumable":false}\n\n`;
+      stubFetch(() => sseResponse(body));
+      const stream = await new EventQueryClient(PRODUCT, client()).stream({
+        filter: filter.eq('aggregateId', 'p1'),
+      });
+      expect(await readAll(stream)).toEqual([{ a: 1 }, { a: 2 }]);
+    }
+  });
+
   it('reads unnamed events as rows and skips others', async () => {
     stubFetch(() =>
       sseResponse(

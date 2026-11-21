@@ -55,6 +55,8 @@ class ElasticsearchIndexMappingTest {
                 "s": { "type": "short", "null_value": 1 },
                 "i": { "type": "integer", "null_value": 1 },
                 "l": { "type": "long", "null_value": 1, "doc_values": false },
+                "tuned": { "type": "long", "doc_values": { "multi_value": true } },
+                "kept": { "type": "long", "doc_values": true },
                 "u": { "type": "unsigned_long", "null_value": 1 },
                 "h": { "type": "half_float", "null_value": 1.5 },
                 "f": { "type": "float", "null_value": 1.5 },
@@ -98,6 +100,11 @@ class ElasticsearchIndexMappingTest {
         fields.getValue("state.counted").indexed.assert().isFalse()
         fields.getValue("state.flag").indexed.assert().isFalse()
         fields.getValue("state.l").sortable.assert().isFalse()
+        fields.getValue("state.l").aggregatable.assert().isFalse()
+        listOf("tuned", "kept", "i").forEach {
+            fields.getValue("state.$it").sortable.assert().isTrue()
+            fields.getValue("state.$it").aggregatable.assert().isTrue()
+        }
         fields.getValue("state.day").indexed.assert().isFalse()
         fields.getValue("state.range").indexed.assert().isFalse()
         fields.getValue("state.suggest").indexed.assert().isTrue()

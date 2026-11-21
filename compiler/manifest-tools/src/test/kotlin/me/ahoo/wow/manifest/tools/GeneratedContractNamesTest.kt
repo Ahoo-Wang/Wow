@@ -61,7 +61,7 @@ class GeneratedContractNamesTest {
 
     /** The contract's sources, its query fields included, with no domain class on the api's class path. */
     private fun sources(vararg aggregates: Pair<String, Class<*>>): List<ContractSources.Source> =
-        ContractSources.of(contract(*aggregates), queryFields = true) { false }
+        ContractSources.of(contract(*aggregates), mapOf("audit" to "audit.api"), queryFields = true) { false }
 
     /** Compiles [sources] against the test's class path, as an api module compiles its generated contract. */
     private fun compile(sources: List<ContractSources.Source>) {

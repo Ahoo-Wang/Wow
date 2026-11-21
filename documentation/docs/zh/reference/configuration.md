@@ -228,7 +228,7 @@ The HTTP edge: its routes and its error answers.
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `wow.http.errors` | `Map<String,Error>` |  | The HTTP status of an error code, by code (bracketed in a property name: `wow.http.errors.[a.b].status`). |
-| `wow.http.request-facts` | `Set<String>` |  | The request headers copied into a command's headers, beside the standard request facts the edge records: `app_id`, the application the caller resolver authenticated, and on the public port `user_agent` and `remote_ip`; none of the three can be listed, and each fact is cut to 512 characters. `remote_ip` is the server's remote address, which the host takes from the gateway's `X-Forwarded-For` (`server.forward-headers-strategy` is `native` unless the application sets it, `none` included). |
+| `wow.http.request-facts` | `Set<String>` |  | The request headers copied into a command's headers, beside the standard request facts: `app_id`, the application the caller resolver authenticated, which admission records for every command of a caller, and on the public port `user_agent` and `remote_ip`; none of the three can be listed, and each fact is cut to 512 characters. `remote_ip` is the server's remote address, which the host takes from the gateway's `X-Forwarded-For` (`server.forward-headers-strategy` is `native` unless the application sets it, `none` included). |
 
 ## `wow.http.client-facts`
 

@@ -184,7 +184,8 @@ class TypeArgumentsTest {
     @Test
     fun `a state view should name the nullable instantiation apart when it refuses it`() {
         val failure = assertThrows<IllegalStateException> {
-            StateViewSources(completed.defs) { false }.of(completed.contexts.single())
+            val context = completed.contexts.single()
+            StateViewSources(completed.defs, mapOf(context.name to "shop.api")) { false }.of(context)
         }
         failure.message.assert().contains(key(Box::class.java, "java.lang.String?"))
     }

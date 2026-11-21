@@ -23,11 +23,13 @@ import com.mongodb.client.model.Projections
 import com.mongodb.client.model.Sorts
 import me.ahoo.wow.migrate.NineXBson.toNode
 import me.ahoo.wow.migrate.NineXMongoFields.AGGREGATE_ID
+import me.ahoo.wow.migrate.NineXMongoFields.AGGREGATE_NAME
 import me.ahoo.wow.migrate.NineXMongoFields.BODY
 import me.ahoo.wow.migrate.NineXMongoFields.CONTEXT_NAME
 import me.ahoo.wow.migrate.NineXMongoFields.CREATE_TIME
 import me.ahoo.wow.migrate.NineXMongoFields.EVENT_NAME
 import me.ahoo.wow.migrate.NineXMongoFields.ID
+import me.ahoo.wow.migrate.NineXMongoFields.OWNER_ID
 import me.ahoo.wow.migrate.NineXMongoFields.TENANT_ID
 import me.ahoo.wow.migrate.NineXMongoFields.VERSION
 import org.bson.Document
@@ -396,6 +398,35 @@ internal class MongoNineXEventSource(private val database: MongoDatabase) : Nine
         .toList()
         .distinct()
         .sorted()
+
+    override fun ownersOtherThanIds(aggregate: NineXAggregate): Map<NineXInstanceOwner, Long> {
+        val owner = Document("\$ifNull", listOf("\$$OWNER_ID", ""))
+        val id = Document("\$ifNull", listOf("\$$AGGREGATE_ID", ""))
+        return collectionOf(aggregate).aggregate(
+            listOf(
+                Aggregates.match(
+                    Filters.and(
+                        Filters.eq(CONTEXT_NAME, aggregate.context),
+                        Filters.eq(AGGREGATE_NAME, aggregate.name),
+                        Filters.expr(Document("\$ne", listOf(owner, id))),
+                    ),
+                ),
+                Document(
+                    "\$group",
+                    Document(
+                        "_id",
+                        Document("id", id).append("tenant", "\$$TENANT_ID").append("owner", owner),
+                    ).append("count", Document("\$sum", 1)),
+                ),
+            ),
+        ).associate { group ->
+            val key = group.get("_id", Document::class.java)
+            NineXInstanceOwner(
+                NineXAggregateId(key.getString("id"), key.getString("tenant").orEmpty()),
+                key.getString("owner"),
+            ) to (group.get("count") as Number).toLong()
+        }
+    }
 
     override fun missingCommitTimeIndexes(aggregates: Collection<NineXAggregate>): Map<String, String> =
         aggregates.map { it.name + SUFFIX }.distinct().filterNot { name ->

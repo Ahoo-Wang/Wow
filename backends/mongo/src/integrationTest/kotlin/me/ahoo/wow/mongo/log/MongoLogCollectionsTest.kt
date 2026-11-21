@@ -207,12 +207,15 @@ class MongoLogCollectionsTest : MongoLogFixtures() {
             }
         }
         outcomes.assert().allMatch { it is AppendOutcome.Committed }
-        // Its two indexes, and on a sharded cluster the shard key's, which sharding the collection creates.
-        sent.count { it.name == "createIndexes" }.assert().isEqualTo(2 + MongoLogFixture.shardIndexes.size)
-        MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE)
-            .getCollection(MongoNames.of("wow_log", context, "order"))
-            .listIndexes().mapNotNull { it.getString("name") }.toList()
-            .assert().containsAll(MongoLogFixture.shardIndexes)
+        // Its two indexes, and on a sharded cluster the shard key's of the log and of its creation claims, which
+        // sharding each collection creates.
+        sent.count { it.name == "createIndexes" }.assert().isEqualTo(2 + 2 * MongoLogFixture.shardIndexes.size)
+        val database = MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE)
+        listOf("wow_log", "wow_claim").forEach { prefix ->
+            database.getCollection(MongoNames.of(prefix, context, "order"))
+                .listIndexes().mapNotNull { it.getString("name") }.toList()
+                .assert().containsAll(MongoLogFixture.shardIndexes)
+        }
     }
 
     private companion object {

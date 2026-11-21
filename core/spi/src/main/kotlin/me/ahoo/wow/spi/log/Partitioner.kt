@@ -14,6 +14,7 @@
 package me.ahoo.wow.spi.log
 
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.aggregate.AggregateType
 
 /**
  * Assigns an aggregate to a partition. The hash is part of the storage format: it is fixed across JVMs, processes and
@@ -47,6 +48,32 @@ object Partitioner {
 
     /** The slot of [ref], in `0 until` [SLOTS]: fixed whatever the partition count. */
     fun slotOf(ref: AggregateRef): Int = Math.floorMod(hash(key(ref)), SLOTS)
+
+    /**
+     * The partition of the request [requestId] within [tenantId] in aggregate type [type], among [partitions]: the slot
+     * of `context.aggregate/tenant?request` modulo [partitions], a function of these alone. A creation that names no
+     * id takes one in its request's partition where its type's generator can aim there
+     * ([me.ahoo.wow.spi.id.AggregateIdGenerator.nextIn]), so that every attempt of the request meets the others at the
+     * log's request key. Nothing stores it, but it is fixed across nodes and versions as the aggregates' partition is:
+     * during a rolling upgrade the nodes of two versions must give one request one partition. Request ids spread over
+     * the partitions as ids do (the distribution above): with at most 32 partitions, ids that differ only in the high
+     * bits of a character share one, and with them the aggregates their creations make.
+     *
+     * It holds while the partition count does not change: an online split that doubles it must aim at the request's
+     * slot first, since two attempts taken before and after the split agree only modulo the older count.
+     */
+    fun partitionOfRequest(type: AggregateType, tenantId: String, requestId: String, partitions: Int): Int {
+        var hash = hash(OFFSET_BASIS, type.context)
+        hash = hash(hash, '.'.code)
+        hash = hash(hash, type.name)
+        hash = hash(hash, '/'.code)
+        hash = hash(hash, tenantId)
+        hash = hash(hash, '?'.code)
+        return Math.floorMod(hash(hash, requestId), SLOTS) % requirePartitions(partitions)
+    }
+
+    /** The hash an empty text starts from: [hash] continues from it ([hash] of a seed). */
+    internal const val EMPTY: Long = OFFSET_BASIS
 
     /** Whether [partitions] is a valid partition count: a power of two that divides [SLOTS]. */
     fun isValidPartitions(partitions: Int): Boolean =
@@ -83,4 +110,43 @@ object Partitioner {
         }
         return hash
     }
+
+    /**
+     * [hash] continued from [seed] over the UTF-8 bytes of [text], encoded in place, with nothing allocated:
+     * `hash(EMPTY, a)` is [hash] of `a`, and continued over a separator byte and `b`, it is [hash] of `a/b`. A lone
+     * surrogate is encoded as `encodeToByteArray` encodes it, `?`, so a text that ends in a high surrogate, continued
+     * directly by one that starts with a low surrogate, is not the hash of the two joined: a key's parts are separated.
+     */
+    internal fun hash(seed: Long, text: String): Long {
+        var hash = seed
+        var index = 0
+        while (index < text.length) {
+            val char = text[index++]
+            val code = char.code
+            when {
+                code < 0x80 -> hash = hash(hash, code)
+                code < 0x800 -> {
+                    hash = hash(hash, 0xC0 or (code shr 6))
+                    hash = hash(hash, 0x80 or (code and 0x3F))
+                }
+                char.isHighSurrogate() && index < text.length && text[index].isLowSurrogate() -> {
+                    val point = Character.toCodePoint(char, text[index++])
+                    hash = hash(hash, 0xF0 or (point shr 18))
+                    hash = hash(hash, 0x80 or ((point shr 12) and 0x3F))
+                    hash = hash(hash, 0x80 or ((point shr 6) and 0x3F))
+                    hash = hash(hash, 0x80 or (point and 0x3F))
+                }
+                char.isSurrogate() -> hash = hash(hash, '?'.code)
+                else -> {
+                    hash = hash(hash, 0xE0 or (code shr 12))
+                    hash = hash(hash, 0x80 or ((code shr 6) and 0x3F))
+                    hash = hash(hash, 0x80 or (code and 0x3F))
+                }
+            }
+        }
+        return hash
+    }
+
+    /** [hash] continued from [seed] over one byte, [byte] (`0 until 256`). */
+    internal fun hash(seed: Long, byte: Int): Long = (seed xor byte.toLong()) * PRIME
 }

@@ -168,7 +168,11 @@ class StreamHandoverTest {
         response.statusCode().assert().isEqualTo(HttpStatus.OK)
         val exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/"))
         response.writeTo(exchange, WRITE_CONTEXT).block(Duration.ofSeconds(10))
-        exchange.response.bodyAsString.block(Duration.ofSeconds(10))!!.assert().contains("data:1", "data:2")
+        // A field's value drops at most one space after the colon (the HTML Standard); whether the writer puts one there is its spelling.
+        val data = exchange.response.bodyAsString.block(Duration.ofSeconds(10))!!.lines()
+            .filter { it.startsWith("data:") }
+            .map { it.removePrefix("data:").removePrefix(" ") }
+        data.assert().containsExactly("1", "2")
         channel.isClosedForReceive.assert().isTrue()
     }
 

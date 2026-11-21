@@ -8,6 +8,7 @@ plugins {
 }
 
 wow {
+    contractPackage = "me.ahoo.wow.analytics.catalog.api"
     service = "analytics-catalog-service"
 }
 

@@ -187,9 +187,9 @@ class PeerContractsTest {
             "secret" to "shop.Secret",
             published = listOf(PublishedManifest("secret", "t", includeState = false)),
         )
-        PeerContracts.viewsOf(context, defs).assert()
+        PeerContracts.viewsOf(context, defs, "shop.contract").assert()
             .isEqualTo(mapOf("order" to "shop.api.OrderView", "cart" to "shop.api.CartStateView"))
-        val contract = PeerContracts.withViews(Manifest(contexts = listOf(context), defs = defs))
+        val contract = PeerContracts.withViews(Manifest(contexts = listOf(context), defs = defs), PACKAGES)
         contract.contexts.single().aggregates.associate { it.name to it.state.view }.assert().isEqualTo(
             mapOf(
                 "order" to "shop.api.OrderView",
@@ -201,28 +201,60 @@ class PeerContractsTest {
     }
 
     @Test
+    fun `a view whose aggregate's classes share no package should be in the context's contract package`() {
+        val scattered = viewed("order" to "shop.OrderState").let { context ->
+            context.copyWith(
+                aggregates = context.aggregates.map { aggregate ->
+                    aggregate.copyWith(
+                        events = aggregate.events + EventManifest("Moved", schema = Manifest.schemaRef("Moved"))
+                    )
+                },
+            )
+        }
+        PeerContracts.viewsOf(scattered, mapOf("shop.OrderState" to fields), "shop.contract").assert()
+            .isEqualTo(mapOf("order" to "shop.contract.OrderStateView"))
+        val unpackaged = Manifest(contexts = listOf(scattered))
+        assertThrows<IllegalStateException> { PeerContracts.withViews(unpackaged, emptyMap()) }
+            .message.assert().isEqualTo(
+                "The context shop has no contract package: build its domain module with this version of the Wow " +
+                    "Gradle plugin, which writes its wow { contractPackage } beside its contract.",
+            )
+    }
+
+    @Test
     fun `a state two aggregates share, or two states of one view name, should have no view`() {
         val shared = viewed("order" to "shop.OrderState", "copy" to "shop.OrderState")
-        assertThrows<IllegalStateException> { PeerContracts.viewsOf(shared, mapOf("shop.OrderState" to fields)) }
+        assertThrows<IllegalStateException> {
+            PeerContracts.viewsOf(shared, mapOf("shop.OrderState" to fields), "shop.contract")
+        }
             .message.assert().contains("share the state shop.OrderState")
         val clash = viewed("order" to "shop.a.OrderState", "other" to "shop.b.OrderState")
         assertThrows<IllegalStateException> {
-            PeerContracts.viewsOf(clash, mapOf("shop.a.OrderState" to fields, "shop.b.OrderState" to fields))
+            PeerContracts.viewsOf(
+                clash,
+                mapOf("shop.a.OrderState" to fields, "shop.b.OrderState" to fields),
+                "shop.contract"
+            )
         }.message.assert().contains("would both be viewed as shop.api.OrderStateView")
     }
 
     @Test
     fun `an api module should carry the contexts whose classes are all its own`() {
         val owned = setOf("sample.CreateCart", "sample.AddItem", "sample.CartCreated", "sample.ItemAdded")
-        val assembled = PeerContracts.assemble(":shop-api", listOf(contract("shop", "shop")), owned::contains)!!
+        val assembled = PeerContracts.assemble(
+            ":shop-api",
+            listOf(contract("shop", "shop")),
+            PACKAGES,
+            owned::contains
+        )!!
         assembled.contexts.map { it.name }.assert().containsExactly("shop")
         assembled.defs.keys.assert().containsExactly("sample.CartState", "sample.CreateCart", "sample.Item")
         assembled.errors.assert().isEqualTo(Manifests.fragment().errors)
         // A context with none of its classes is another api module's.
-        PeerContracts.assemble(":other-api", listOf(contract("shop", "shop"))) { false }.assert().isNull()
+        PeerContracts.assemble(":other-api", listOf(contract("shop", "shop")), PACKAGES) { false }.assert().isNull()
         // A context without commands and events is any api module's.
         val empty = ManifestFragment("empty", Manifest(contexts = listOf(ContextManifest("audit"))))
-        PeerContracts.assemble(":other-api", listOf(empty)) { false }!!.contexts.map { it.name }
+        PeerContracts.assemble(":other-api", listOf(empty), PACKAGES) { false }!!.contexts.map { it.name }
             .assert().containsExactly("audit")
     }
 
@@ -233,6 +265,7 @@ class PeerContractsTest {
             PeerContracts.assemble(
                 ":shop-api",
                 listOf(contract("a", "shop"), contract("b", "sales")),
+                PACKAGES,
                 owned::contains,
             )
         }
@@ -242,7 +275,7 @@ class PeerContractsTest {
             "- context sales of b has classes that are not in :shop-api: sample.ItemAdded",
         )
         assertThrows<IllegalStateException> {
-            PeerContracts.assemble(":shop-api", listOf(contract("a", "shop"), contract("b", "shop"))) { true }
+            PeerContracts.assemble(":shop-api", listOf(contract("a", "shop"), contract("b", "shop")), PACKAGES) { true }
         }.message.assert().contains("- context shop of :shop-api is declared by a and b")
     }
 
@@ -252,7 +285,9 @@ class PeerContractsTest {
             it.copyWith(defs = it.defs + ("sample.CartState" to mapOf("type" to "string")))
         }
         assertThrows<IllegalStateException> {
-            PeerContracts.assemble(":api", listOf(contract("a", "shop"), ManifestFragment("b", other))) { true }
+            PeerContracts.assemble(":api", listOf(contract("a", "shop"), ManifestFragment("b", other)), PACKAGES) {
+                true
+            }
         }.message.assert().contains("- schema sample.CartState of b differs from that of another contract of :api")
     }
 
@@ -264,12 +299,17 @@ class PeerContractsTest {
         fun named(source: String, context: String, service: String?) = contract(source, context).let {
             ManifestFragment(it.source, PeerContracts.contractOf(listOf(fragment(context)), service))
         }
-        PeerContracts.assemble(":api", listOf(named("a", "shop", "shop-service"), named("b", "sales", null))) { true }!!
+        PeerContracts.assemble(
+            ":api",
+            listOf(named("a", "shop", "shop-service"), named("b", "sales", null)),
+            PACKAGES,
+        ) { true }!!
             .service.assert().isEqualTo(ServiceInfo("shop-service"))
         assertThrows<IllegalStateException> {
             PeerContracts.assemble(
                 ":api",
-                listOf(named("a", "shop", "shop-service"), named("b", "sales", "sales-service"))
+                listOf(named("a", "shop", "shop-service"), named("b", "sales", "sales-service")),
+                PACKAGES,
             ) {
                 true
             }
@@ -303,5 +343,10 @@ class PeerContractsTest {
         PeerContracts.conflicts(listOf(peer("inventory-api", "stock"), peer("warehouse-api", "stock", "bin")))
             .assert().containsExactly("context stock is declared by the contracts inventory-api and warehouse-api")
         PeerContracts.RESOURCE.assert().isEqualTo("META-INF/wow/contract.json")
+    }
+
+    private companion object {
+        /** The contract package of each context the tests' contracts hold, as their domain modules declare it. */
+        val PACKAGES = mapOf("shop" to "shop.contract", "sales" to "sales.contract", "audit" to "audit.contract")
     }
 }

@@ -8,7 +8,7 @@ Spring Cloud service discovery for Wow, for deployments off Kubernetes (virtual 
 
 ```kotlin
 dependencies {
-    implementation(platform("org.springframework.cloud:spring-cloud-dependencies:2025.1.4"))
+    implementation(platform("org.springframework.cloud:spring-cloud-dependencies:2026.0.0"))
     implementation("me.ahoo.wow:wow-spring-cloud")
     implementation("org.springframework.cloud:spring-cloud-starter-consul-discovery")
 }

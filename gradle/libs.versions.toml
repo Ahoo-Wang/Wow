@@ -1,14 +1,14 @@
 [versions]
 # libraries
-spring-boot = "4.1.2"
+spring-boot = "4.2.0"
 cosid = "5.0.1"
 cocache = "8.1.0"
-# The train of Spring Boot 4.0.x and 4.1.x (spring-cloud-commons 5.0.x; 2026.0 is the 4.2 train), for wow-spring-cloud (D396)
-spring-cloud = "2025.1.4"
+# The train of Spring Boot 4.2.x (spring-cloud-commons 5.1.x; 2025.1 is the 4.0.x and 4.1.x train), for wow-spring-cloud (D396)
+spring-cloud = "2026.0.0"
 cosec = "8.0.0-beta.4"
 testcontainers = "2.0.5"
 opentelemetry = "1.68.0"
-opentelemetry-instrumentation = "2.33.1"
+opentelemetry-instrumentation = "2.34.0"
 guava = "33.7.2-jre"
 kotlin-logging = "8.0.7"
 swagger = "2.2.56"

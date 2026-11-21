@@ -50,13 +50,17 @@ The api module declares its domain module, `wowContract(project(":ordering-domai
 
 ```kotlin
 wow {
+    contractPackage = "me.ahoo.wow.example.eshop.ordering.api.order"
     service = "eshop-ordering-service"
 }
 ```
 
 A peer that depends on the api module finds the service by that name, and the service refuses to start under any other `spring.application.name`. The service's own Manifest takes its name from the contracts of the contexts it hosts, so the server module that hosts them does not repeat it; contracts that name different services fail its build, and with none it is named after the server's project path. The eShop's domain modules declare it the same way, as the ordering's `wow { service = "eshop-ordering-service" }` does.
 
-An api module also compiles `<Context>Contract` from it, such as `EshopOrderingContract`:
+An api module also compiles `<Context>Contract` from it, such as `EshopOrderingContract`, in the package the domain module's `contractPackage` names. Other services import it from there, so the package is the build's to declare, never derived from where the classes happen to be: it stays where it is whatever aggregates the context gains. A domain module with a context and no `contractPackage` fails `generateWowContract`, which prints the line to add, with the package the context's command and event classes share today. A segment that is a Kotlin keyword (`object`, `in`, `fun`, …) is quoted in the generated code. A `<State>View` is in the package its aggregate's command and event classes share, else in `contractPackage`.
+
+A context's command and event classes are all in one api module, the one that declares its domain module in `wowContract`. A context whose classes are in another project of the domain module's class path, one that applies no `me.ahoo.wow.api` or does not declare the domain module, fails `generateWowContract`, which names the project and the lines to add to its build. A context whose classes are split between api modules fails the assembly of the contract, naming the classes that are not in the module: no peer would see a context whose contract no api module carries. So an api module that holds part of a context moves those classes to the one that carries it.
+
 
 | Member | Holds |
 | --- | --- |

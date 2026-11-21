@@ -26,6 +26,7 @@ internal object NineXMongoFields {
     const val AGGREGATE_NAME = "aggregateName"
     const val AGGREGATE_ID = "aggregateId"
     const val TENANT_ID = "tenantId"
+    const val OWNER_ID = "ownerId"
     const val VERSION = "version"
     const val CREATE_TIME = "createTime"
     const val COMMAND_ID = "commandId"

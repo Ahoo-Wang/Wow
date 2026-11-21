@@ -155,7 +155,9 @@ class WowApiPluginTest {
         val task = api.tasks.getByName(WowPlugin.GENERATE_CONTRACT_SOURCES_TASK) as GenerateContractSources
         val output = task.outputDirectory.get().asFile
         File(output, "stale.kt").apply { parentFile.mkdirs() }.writeText("stale")
-        task.contract.setFrom(contractFile("shop-cart", "sample.AddItem"), File(directory, "missing.json"))
+        val contract = contractFile("shop-cart", "sample.AddItem")
+        task.contract.setFrom(contract, File(directory, "missing.json"))
+        task.contractPackages.setFrom(packagesOf(contract))
         // The generator of the api's own tools, which compiles against the api's main classes and dependencies.
         task.tools.from.assert().contains(api.configurations.getByName(WowPlugin.TOOLS_CONFIGURATION))
         task.classpath.buildDependencies.getDependencies(null).map { it.name }.assert().contains("compileKotlin")
@@ -241,7 +243,12 @@ class WowApiPluginTest {
                 ),
                 file,
             )
+            // Beside it, as the domain module's contract variant carries them, the package of its context's code.
+            packagesOf(file).writeText("$name=sample\n")
         }
+
+    /** The package file the domain module of [contract] wrote beside it. */
+    private fun packagesOf(contract: File): File = File(contract.parentFile, ApiRole.CONTRACT_PACKAGES_FILE)
 
     private fun assembleTask(vararg contracts: File): AssembleContract {
         val api = paired("shop-domain")
@@ -249,6 +256,7 @@ class WowApiPluginTest {
         File(classes, "sample/AddItem.class").apply { parentFile.mkdirs() }.writeText("")
         return (api.tasks.getByName(WowPlugin.ASSEMBLE_CONTRACT_TASK) as AssembleContract).apply {
             this.contracts.setFrom(*contracts)
+            this.contractPackages.setFrom(contracts.map(::packagesOf).filter { it.isFile })
             // The domain module each contract comes from, as the build resolves it once the domain's task has run; a
             // contract of no known owner (the second) is named by its file.
             this.owners.set(contracts.take(1).associate { it.path to "project ':${it.nameWithoutExtension}-domain'" })

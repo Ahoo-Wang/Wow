@@ -13,52 +13,139 @@
 
 package me.ahoo.wow.kernel
 
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.caller.TargetScope
 import me.ahoo.wow.api.decide.RequestFacts
+import me.ahoo.wow.api.result.FrameworkCodes
+import me.ahoo.wow.spi.tenant.TenantConflictException
+import me.ahoo.wow.spi.tenant.TenantPolicy
+
+/** What [CallerAdmission.admit] answers: the caller's [CallerAdmission], or why it is [CallerAdmission.Refused]. */
+@InternalWowApi
+sealed interface CallerAnswer
 
 /**
- * What a command records of the caller that sends it, as admission derives it: the [scope] it acts in, the
- * [operator] that sends it and the request [facts] of the caller, its application's among them. The command gateway,
- * the edge and the test DSL derive them alike ([of]); the tenant is [me.ahoo.wow.spi.tenant.TenantPolicy]'s.
+ * What a command records of the caller that sends it, as admission derives it: the tenant it is sent in ([tenantId]),
+ * the [scope] it acts in, the [operator] that sends it and the request [facts] of the caller, its application's among
+ * them. The command gateway (for every request: the edge's, the node's own `CommandClient`'s, a relayed peer
+ * command's) and the test DSL decide them alike ([admit]), refusing alike a caller that may not send the command
+ * there, and record the request's facts under them alike ([headersOf]).
  */
 @InternalWowApi
 class CallerAdmission private constructor(
+    /** The tenant the command is sent in: the type's fixed one, else the target's, else the caller's. */
+    val tenantId: String,
     /** The target's scope when there is one, else the caller's. */
     val scope: Scope,
     /** The caller's operator, acting elsewhere when there is a target; null for an anonymous caller. */
     val operator: Operator?,
     /** The caller's request facts: its application as [RequestFacts.APP_ID] when it has one. */
     val facts: Map<String, String>,
-) {
+) : CallerAnswer {
+    /** The refusal [admit] answers, with its [code] ([FrameworkCodes]) and its [message], as the gateway gives it. */
+    @InternalWowApi
+    class Refused(val code: String, val message: String) : CallerAnswer
+
+    /**
+     * The request facts [headers] as a command of this caller records them: with the caller's [facts] in place of any
+     * of their names ([FACTS]), which no request sets, whoever builds it; no copy when there is nothing to add or drop.
+     */
+    fun headersOf(headers: Map<String, String>): Map<String, String> = when {
+        headers.isEmpty() -> facts
+        FACTS.none(headers::containsKey) -> if (facts.isEmpty()) headers else headers + facts
+        else -> headers.filterKeys { it !in FACTS } + facts
+    }
+
     override fun equals(other: Any?): Boolean =
-        this === other || other is CallerAdmission && scope == other.scope && operator == other.operator &&
-            facts == other.facts
+        this === other || other is CallerAdmission && tenantId == other.tenantId && scope == other.scope &&
+            operator == other.operator && facts == other.facts
 
-    override fun hashCode(): Int = listOf(scope, operator, facts).hashCode()
+    override fun hashCode(): Int = listOf(tenantId, scope, operator, facts).hashCode()
 
-    override fun toString(): String = "CallerAdmission(scope=$scope, operator=$operator, facts=$facts)"
+    override fun toString(): String =
+        "CallerAdmission(tenantId=$tenantId, scope=$scope, operator=$operator, facts=$facts)"
 
     @InternalWowApi
     companion object {
         /**
          * The admission of a command of [caller], acting in [target] when given (a crossing `Wow-Scope`, a call's
-         * root), else in its own scope.
+         * root), else in its own scope, and in the target's tenant, else the caller's ([tenantId] for a type of no
+         * fixed tenant). Whether the caller may send it there is [admit]'s to answer.
          */
         @JvmStatic
         @JvmOverloads
-        fun of(caller: Caller, target: TargetScope? = null): CallerAdmission = CallerAdmission(
+        fun of(
+            caller: Caller,
+            target: TargetScope? = null,
+            tenantId: String = target?.tenantId ?: caller.tenantId,
+        ): CallerAdmission = CallerAdmission(
+            tenantId = tenantId,
             scope = target?.scope ?: caller.scope,
             operator = caller.toOperator(actingElsewhere = target != null),
             facts = factsOf(caller),
         )
 
-        /** The request facts of [caller]: its application as [RequestFacts.APP_ID] when it has one. */
+        /**
+         * The admission of a command of [type] that [caller] sends, acting in [target] when it names one, to an
+         * aggregate whose ref names the tenant [named] (null for none), or why it is refused:
+         *
+         * - a target is the caller's to name only when it acts across scopes ([Caller.crossScope]):
+         *   [FrameworkCodes.AUTH_FORBIDDEN] else. A service's synchronous call ([called]) names its root's scope, which
+         *   is checked apart;
+         * - the tenant is [tenants]' ([TenantPolicy.tenantOf]): a target naming another than the type's fixed one is
+         *   [FrameworkCodes.COMMAND_MALFORMED];
+         * - a ref naming another tenant than that one is [FrameworkCodes.COMMAND_MALFORMED]: a ref's tenant is the
+         *   caller's, a cross-scope target's or the type's fixed one, never a request's choice.
+         *
+         * The one rule of the gateway, for this node's aggregates and a peer's, and of the test DSL.
+         */
+        @JvmStatic
+        fun admit(
+            type: AggregateType,
+            caller: Caller,
+            target: TargetScope?,
+            named: String?,
+            tenants: TenantPolicy,
+            called: Boolean = false,
+        ): CallerAnswer {
+            if (!called && target != null && !caller.crossScope) {
+                return Refused(FrameworkCodes.AUTH_FORBIDDEN, "The caller may not act in another scope.")
+            }
+            val tenantId = try {
+                tenants.tenantOf(type, caller, target)
+            } catch (conflict: TenantConflictException) {
+                return Refused(FrameworkCodes.COMMAND_MALFORMED, conflict.message!!)
+            }
+            if (named != null && named != tenantId) {
+                return Refused(
+                    FrameworkCodes.COMMAND_MALFORMED,
+                    "The command's ref names tenant $named, but it is sent in tenant $tenantId: a ref's tenant is " +
+                        "the caller's, a cross-scope target's or the one fixed for its type.",
+                )
+            }
+            return of(caller, target, tenantId)
+        }
+
+        /** The most characters of one request fact a command records; the rest is cut off. */
+        const val MAX_FACT_LENGTH: Int = 512
+
+        /**
+         * The names of the request facts admission derives from the caller ([factsOf]): a command's headers take them
+         * from its caller alone, in place of any of the same name its request carries.
+         */
+        @JvmField
+        val FACTS: Set<String> = setOf(RequestFacts.APP_ID)
+
+        /**
+         * The request facts of [caller]: its application as [RequestFacts.APP_ID] when it has one, cut to
+         * [MAX_FACT_LENGTH] characters, since a fact lands in the immutable log.
+         */
         @JvmStatic
         fun factsOf(caller: Caller): Map<String, String> =
-            caller.app?.let { mapOf(RequestFacts.APP_ID to it.trim()) }.orEmpty()
+            caller.app?.let { mapOf(RequestFacts.APP_ID to it.trim().take(MAX_FACT_LENGTH)) }.orEmpty()
     }
 }

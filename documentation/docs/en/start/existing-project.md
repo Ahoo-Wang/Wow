@@ -92,6 +92,10 @@ kotlin {
     jvmToolchain(21)
 }
 
+wow {
+    contractPackage = "com.example.catalog.api"
+}
+
 dependencies {
     api(project(":catalog-api"))
     // The aggregate test DSL, package me.ahoo.wow.test.
@@ -117,6 +121,7 @@ The `wow { }` block configures it:
 | Property | Default | Means |
 | --- | --- | --- |
 | `context` | The module's one `@BoundedContext` | The context of the module's aggregates and processors |
+| `contractPackage` | None: required | The package of the code the api module generates for the context (`<Context>Contract`), which other services import, so it is set once and kept whatever aggregates the module gains; a module with a context and none fails `generateWowContract`, naming the line to add ([What the Compiler Generates](../guide/generated-code#the-contract-code-of-the-api-module)) |
 | `schemaOverrides` | Empty | A JSON Schema per JVM class name, for a type a custom serializer writes ([A type written by a custom serializer](../guide/manifest#a-type-written-by-a-custom-serializer)) |
 | `service` | None | The service that hosts the module's contexts, which its contract names and the service's Manifest takes ([What the Compiler Generates](../guide/generated-code)) |
 
@@ -140,7 +145,7 @@ application {
 }
 
 dependencies {
-    implementation(platform("org.springframework.boot:spring-boot-dependencies:4.1.1"))
+    implementation(platform("org.springframework.boot:spring-boot-dependencies:4.2.0"))
     implementation(project(":catalog-domain"))
     // The host: Spring Boot auto-configuration, the public routes and the internal port.
     implementation("me.ahoo.wow:wow-spring-boot")

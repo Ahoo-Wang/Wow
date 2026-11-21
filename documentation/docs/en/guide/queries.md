@@ -90,7 +90,7 @@ A query is admitted as its caller:
 
 ## Bounds
 
-Every query runs under a budget: `wow.query.budgets.http.*` for HTTP, `wow.query.budgets.in-process.*` in Kotlin. A list returns at most `max-list-size` (1,000), 100 when it names no limit; a page at most `max-page-size` (100) rows; a count stops at `count-limit` and says whether it is exact; a query runs at most `timeout` (30 s). A query over the bound is refused, not truncated without notice. So is 9.x's `limit(Int.MAX_VALUE)`: code that must read every match, a job or a migration step rather than a read for a caller, uses `NodeQueryApi.trusted().unbounded()`, which drops the in-process budget for its own timeout (`wow.query.unbounded-timeout`) and reads every tenant, or streams them. A query that runs out of time answers `504 wow.query.timeout`: narrow it rather than run it again. A store that has as many queries running as it allows answers `429 wow.query.busy` with `Retry-After`.
+Every query runs under a budget: `wow.query.budgets.http.*` for HTTP, `wow.query.budgets.in-process.*` in Kotlin. A list returns at most `max-list-size` (1,000), 100 when it names no limit; a page at most `max-page-size` (100) rows; a count stops at `count-limit` and says whether it is exact; a query runs at most `timeout` (30 s). A query over the bound is refused, not truncated without notice. A page is bounded the same way in process, `trusted()` included: a paged query of more than `max-page-size` rows fails with `In-process page size[200] must be between 1 and 100.`, and a 9.x job that read "the first page of 200" fails on its first run. As any exception of a handler, it is retried within the handler's budget and then its entry is parked ([Failures and Retries](./failures)). Page by at most `max-page-size`, raise `wow.query.budgets.in-process.max-page-size` if the job's pages must be larger, or read with `unbounded()` or a stream. So is 9.x's `limit(Int.MAX_VALUE)`: code that must read every match, a job or a migration step rather than a read for a caller, uses `NodeQueryApi.trusted().unbounded()`, which drops the in-process budget for its own timeout (`wow.query.unbounded-timeout`) and reads every tenant, or streams them. A query that runs out of time answers `504 wow.query.timeout`: narrow it rather than run it again. A store that has as many queries running as it allows answers `429 wow.query.busy` with `Retry-After`.
 
 ## Declare indexes
 
@@ -133,6 +133,19 @@ A few more annotations of `me.ahoo.wow.api.query.annotation` tell the query mode
 | `@Sensitive` | A string masked in every result: `DISPLAY` may still be filtered and sorted, `CONFIDENTIAL` never is |
 
 A masked field is masked for every caller, in queries, state reads and traces alike, and in the warehouse's catalog.
+
+### A secret a service reads back {#a-secret-a-service-reads-back}
+
+Masking does not depend on who asks, and the service itself is a caller. A read in process, `of(caller)`, `trusted()` and its `unbounded()`, a subscription handler's `context.queries`, goes through the masks of the public port, and no setting or caller lifts them. The raw value is only where Wow hands code the state itself, not a query of it: the state a decide function holds and the `StateEvent` a subscription handler receives.
+
+So a secret the service must read back, such as the API key it presents to a third party, is not a `@Sensitive` field of a state. Keep a reference in the state, the name the secret is looked up under, and store the secret apart: in configuration or a secrets store the service reads, or as ciphertext in a field that is not `@Sensitive`, which the service decrypts. Wow keeps a state and its events as they were written and encrypts none of them, so a raw secret in a state is in the log and in every snapshot, whatever masks the queries put over it.
+
+### Annotations a property inherits
+
+A property also reads these annotations from the members it overrides: the getters of the interfaces it implements and the properties of its superclasses, through any number of levels. So a read model interface can keep them on its getters (`@get:Sensitive val accessKeySecret: String`) and the state that overrides them carries them.
+
+- `@Sensitive` holds when any overridden member declares it, and the overriding property cannot remove it. It may declare its own, to choose the mask or tighten the level (`DISPLAY` to `CONFIDENTIAL`); declaring a looser level fails the build.
+- Every other annotation (`@QueryTemporal`, `@QueryDecimal`, `@QueryMoney`, `@QueryDuration`, `@QueryReference`, `@QueryAlias`, `@QueryText`, `@QueryIndex`) is the property's own when it declares one, else the one the overridden members declare. When two overridden members declare different ones, the build fails and names both: declare it on the property to say which holds.
 
 ## On which stores
 

@@ -39,6 +39,7 @@ import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.reservation.ReservationKey
 import me.ahoo.wow.spi.reservation.ReservationScope
 import me.ahoo.wow.spi.reservation.ReservationStore
+import me.ahoo.wow.spi.tenant.TenantPolicy
 import me.ahoo.wow.spi.timer.Timer
 import java.time.Instant
 import kotlin.time.Duration
@@ -282,10 +283,15 @@ class AggregateSpec<S : Any> private constructor(
      *
      * [caller] sends it, the specification's by default ([aggregateSpec], [asCaller]), as the gateway admits a
      * caller's command: in its scope, by its operator, with its application as the request fact `app_id`. [scope]
-     * names another scope it acts in, as a caller crossing scopes does (its operator then acting elsewhere);
+     * names a scope it acts in, in the specification's tenant, as `Wow-Scope` does for a caller crossing scopes (its
+     * operator then acting elsewhere). A caller the gateway refuses fails the specification with the gateway's answer:
+     * one of another tenant than the specification's that names no scope, or one naming a scope without
+     * [Caller.crossScope];
      * [headers] adds request facts (a scheduled command's [me.ahoo.wow.api.schedule.ScheduleContext.headers], say)
      * and [operator] replaces the caller's. Without a caller, the command is an anonymous one in [scope], none by
-     * default.
+     * default. [headers] never name a fact admission takes from the caller ([CallerAdmission.FACTS], `app_id`): such a
+     * header fails the specification, with or without a caller, since the gateway never records it; give the
+     * application with [caller] instead.
      *
      * A command whose body names its aggregate ([me.ahoo.wow.api.annotation.AggregateId]) names the specification's,
      * or none: one that names another fails the specification, as admission refuses it.
@@ -307,8 +313,8 @@ class AggregateSpec<S : Any> private constructor(
 
     /**
      * The command [commandId] of [body], sent by [caller] or the specification's, as [whenCommand] describes: its scope,
-     * operator and request facts are the caller's admission ([CallerAdmission]), [scope], [headers] and [operator]
-     * overriding them.
+     * operator and request facts are the caller's admission ([CallerAdmission]), [scope] and [operator]
+     * overriding them, and [headers] adding to them, refused when they name one of the caller's ([callerFactIn]).
      */
     private fun commandOf(
         commandId: String,
@@ -325,10 +331,17 @@ class AggregateSpec<S : Any> private constructor(
             "${body.javaClass.simpleName} names the aggregate $inBody in its body, but the specification is of " +
                 "${ref.id}: admission refuses it as malformed."
         }
+        callerFactIn(headers)?.let { name ->
+            throw IllegalArgumentException(
+                "A specification's headers do not name $name: it is the caller's application, which admission takes " +
+                    "from the caller alone, never from a request. Give it with caller(…), a Caller whose " +
+                    "'${Caller.APP}' attribute names the application."
+            )
+        }
         val sender = caller ?: this.caller
-        // A scope other than the sender's own is one it acts in elsewhere.
-        val target = scope?.takeIf { sender != null && it != sender.scope }?.let { TargetScope.of(ref.tenantId, it) }
-        val origin = sender?.let { CallerAdmission.of(it, target) }
+        // The scope a sender names is a target in the specification's tenant, as `Wow-Scope` names one.
+        val target = scope?.takeIf { sender != null }?.let { TargetScope.of(ref.tenantId, it) }
+        val origin = sender?.let { admitted(body, it, target) }
         return Command(
             commandId,
             requestId,
@@ -336,10 +349,29 @@ class AggregateSpec<S : Any> private constructor(
             body,
             expectedVersion,
             origin?.scope ?: scope ?: Scope.NONE,
-            headers = origin?.facts.orEmpty() + headers,
+            headers = origin?.headersOf(headers) ?: headers,
             operator = operator ?: origin?.operator,
         )
     }
+
+    /**
+     * The admission of [body] that [sender] sends to the specification's aggregate, acting in [target], as the gateway
+     * decides it ([CallerAdmission.admit]); a sender the gateway refuses fails the specification with its answer. A
+     * type's fixed tenant is not applied yet (#6556): every type is in its caller's tenant, or its target's.
+     */
+    private fun admitted(body: Any, sender: Caller, target: TargetScope?): CallerAdmission =
+        when (val admitted = CallerAdmission.admit(ref.type, sender, target, ref.tenantId, TenantPolicy.CALLERS)) {
+            is CallerAdmission -> admitted
+            is CallerAdmission.Refused -> throw IllegalArgumentException(
+                "The gateway refuses ${body.javaClass.simpleName} from this caller, ${admitted.code}: " +
+                    "${admitted.message} A specification sends only what admission takes: give a caller of the " +
+                    "specification's tenant, or one that acts across scopes (crossScope) for another tenant or scope."
+            )
+        }
+
+    /** The name in [headers] of a fact admission takes from the caller ([CallerAdmission.FACTS]); null when none. */
+    private fun callerFactIn(headers: Map<String, String>): String? =
+        headers.keys.firstOrNull { it in CallerAdmission.FACTS }
 
     /**
      * Sends [commands] in order, as [whenCommand] sends one (by [caller], in [scope], with [headers], in the name of

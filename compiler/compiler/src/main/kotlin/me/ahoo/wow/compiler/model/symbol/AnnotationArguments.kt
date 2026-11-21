@@ -19,6 +19,7 @@ import com.google.devtools.ksp.symbol.KSDeclaration
 import com.google.devtools.ksp.symbol.KSPropertyAccessor
 import com.google.devtools.ksp.symbol.KSType
 import com.google.devtools.ksp.symbol.KSValueParameter
+import com.google.devtools.ksp.symbol.Origin
 import kotlin.reflect.KClass
 
 /**
@@ -36,7 +37,7 @@ import kotlin.reflect.KClass
  * An element that is not a constant fails the Kotlin compilation that follows anyway, and KSP evaluates a constant of
  * another module when no other KSP run of the build overlaps its own, which the Wow Gradle plugin sees to.
  */
-internal class AnnotationArguments(private val type: KClass<out Annotation>, annotation: KSAnnotation) {
+internal class AnnotationArguments(private val type: KClass<out Annotation>, private val annotation: KSAnnotation) {
     /** The value of each argument KSP lists, by name: as given, else by default; null when it has none. */
     private val values: Map<String?, Any?> = (annotation.arguments + annotation.defaultArguments)
         .distinctBy { it.name?.asString() }
@@ -54,6 +55,13 @@ internal class AnnotationArguments(private val type: KClass<out Annotation>, ann
                 method.defaultValue == null
             }
         }.map { it.name }.sorted()
+
+    /**
+     * Whether the annotation writes the argument [name], rather than taking the annotation class's default: KSP lists a
+     * default among the arguments too, as a synthetic one.
+     */
+    fun written(name: String): Boolean =
+        annotation.arguments.any { it.name?.asString() == name && it.origin != Origin.SYNTHETIC }
 
     fun string(name: String): String = value(name) as String
 

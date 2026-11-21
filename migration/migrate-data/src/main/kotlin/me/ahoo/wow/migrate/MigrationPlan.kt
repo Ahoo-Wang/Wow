@@ -13,9 +13,13 @@
 
 package me.ahoo.wow.migrate
 
+import me.ahoo.wow.api.aggregate.AggregateIdSource
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Ownership
+import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.lifecycle.Lifecycle
+import me.ahoo.wow.kernel.fixedOwnerOf
+import me.ahoo.wow.kernel.scopeOf
 import me.ahoo.wow.manifest.AccessAttributeManifest
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.Manifest
@@ -95,6 +99,19 @@ internal class AggregatePlan(
         me.ahoo.wow.api.aggregate.Ownership.TENANT -> Ownership.TENANT
         else -> Ownership.OWNER
     }
+
+    /** Where the aggregate's id comes from in V10; a missing Manifest entry reads as ASSIGNED. */
+    val idSource: AggregateIdSource = manifest?.idSource ?: AggregateIdSource.ASSIGNED
+
+    /** Why the V10 aggregate's owner is fixed ([fixedOwnerOf]), the kernel's sentence; null when it is not. */
+    val fixedOwner: String? = fixedOwnerOf(target, ownership, idSource)
+
+    /**
+     * Whether V10 reaches the instance [id] in [scope] as the kernel records it ([AggregateIdSource.scopeOf]): always,
+     * but for an aggregate whose id is its owner's, whose owner is its id. One that records another owner, or none,
+     * is out of reach of its owner's routes without an id, and of a command naming it by its id.
+     */
+    fun ownedAsRecorded(id: String, scope: Scope): Boolean = idSource.scopeOf(id, scope) == scope
 
     private val commands: Map<String, String> = mapping.commands.associate { it.from to fullName(it.to) }
 

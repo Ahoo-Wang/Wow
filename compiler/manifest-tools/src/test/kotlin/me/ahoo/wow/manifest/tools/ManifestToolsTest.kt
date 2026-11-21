@@ -256,33 +256,53 @@ class ManifestToolsTest {
         }
         val fragmentFile = File(directory, "fragment/shop.json").also { ManifestJson.write(shop, it) }
         val contractFile = File(directory, "domain/contract.json")
-        ManifestTools.generateContract(listOf(fragmentFile), null, ":shop-domain", emptyMap(), contractFile)
+        val packagesFile = File(directory, "domain/contract-package.properties")
+        fun generate(unpaired: Map<String, String>) = ManifestTools.generateContract(
+            listOf(fragmentFile),
+            null,
+            "com.example.shop.api",
+            ":shop-domain",
+            unpaired,
+            contractFile,
+            packagesFile,
+        )
+        generate(emptyMap())
         ManifestJson.read(contractFile).contexts.map { it.name }.assert().containsExactly("shop")
+        packagesFile.readText().assert().isEqualTo("shop=com.example.shop.api\n")
 
         val classes = File(directory, "api-classes")
         File(classes, CreateCart::class.java.name.replace('.', '/') + ".class").apply { parentFile.mkdirs() }
             .writeText("")
         val output = File(directory, "api")
         val owners = mapOf(contractFile.path to "project ':shop-domain'")
-        ManifestTools.assembleContract(listOf(contractFile), owners, listOf(classes), "project ':shop-api'", output)
+        val packages = listOf(packagesFile)
+        ManifestTools.assembleContract(
+            listOf(contractFile),
+            packages,
+            owners,
+            listOf(classes),
+            "project ':shop-api'",
+            output
+        )
             .assert().isTrue()
         ManifestJson.read(File(output, PeerContracts.RESOURCE)).contexts.single().aggregates.single().commands
             .map { it.name }.assert().containsExactly("CreateCart")
 
         // The classes are in another api module: it carries no contract, and clears what it carried.
-        ManifestTools.assembleContract(listOf(contractFile), owners, emptyList(), "project ':other-api'", output)
+        ManifestTools.assembleContract(
+            listOf(contractFile),
+            packages,
+            owners,
+            emptyList(),
+            "project ':other-api'",
+            output
+        )
             .assert().isFalse()
         File(output, PeerContracts.RESOURCE).exists().assert().isFalse()
 
         // A project whose classes hold the context's, and that does not pair with the domain module, is named.
         assertThrows<IllegalStateException> {
-            ManifestTools.generateContract(
-                listOf(fragmentFile),
-                null,
-                ":shop-domain",
-                mapOf(classes.path to ":shop-api"),
-                contractFile,
-            )
+            generate(mapOf(classes.path to ":shop-api"))
         }.message.assert().isEqualTo(
             "The contract of project ':shop-domain' reaches no api module:\n- context shop has its classes " +
                 "${CreateCart::class.java.name} in project ':shop-api', which does not pair with project " +
@@ -297,6 +317,7 @@ class ManifestToolsTest {
         assertThrows<IllegalStateException> {
             ManifestTools.assembleContract(
                 listOf(empty),
+                emptyList(),
                 mapOf(empty.path to "project ':empty-domain'"),
                 emptyList(),
                 "project ':shop-api'",

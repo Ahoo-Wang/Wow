@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.compiler.model.aggregate
 
+import me.ahoo.wow.api.aggregate.AggregateIdSource
 import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.lifecycle.AggregateRestored
 import me.ahoo.wow.api.lifecycle.OwnerTransferred
@@ -26,8 +27,9 @@ import me.ahoo.wow.compiler.model.symbol.ModelNames.SYSTEM_EVENTS
  *   other reaches a deleted aggregate;
  * - such a command produces `AggregateRestored` and the aggregate's own events alone: a deleted aggregate's owner,
  *   space or schedules change once it is restored;
- * - an aggregate of its tenant ([Ownership.TENANT]) has no owner to transfer: none of its commands produces
- *   `OwnerTransferred`.
+ * - an aggregate whose owner is fixed, of its tenant ([Ownership.TENANT]) or its id its owner's, transfers no owner:
+ *   none of its decide functions or after hooks yields `OwnerTransferred`. One whose events are not known here is
+ *   held to it by the kernel, which fails the command.
  *
  * `@AggregateRoot(lifecycle)` narrows the lifecycle commands the kernel decides, not the events a command composes: a
  * model that disables `DeleteAggregate` for its own `CloseCart` still deletes by it.
@@ -38,6 +40,7 @@ internal object LifecycleCompositions {
 
     fun problems(
         commands: List<CommandBinding>,
+        afters: List<AfterBinding>,
         ownership: String,
         idSource: String,
     ): List<String> = commands.flatMap { command ->
@@ -59,12 +62,19 @@ internal object LifecycleCompositions {
                     )
                 }
             }
-            if (ownership == Ownership.TENANT.name && OWNER_TRANSFERRED in yields) {
-                add("$subject produces OwnerTransferred, but the aggregate belongs to its tenant: it has no owner")
-            }
-            if (idSource == "OWNER" && OWNER_TRANSFERRED in yields) {
-                add("$subject produces OwnerTransferred, but the aggregate's id is its owner's: its owner is fixed")
-            }
+            fixedOwner(subject, yields, ownership, idSource)?.let(::add)
         }
+    } + afters.mapNotNull { after ->
+        fixedOwner("@AfterCommand ${after.function}", after.yields.orEmpty(), ownership, idSource)
+    }
+
+    /** The problem of [subject], which yields [yields], when it transfers the owner of an aggregate whose owner is fixed. */
+    private fun fixedOwner(subject: String, yields: List<String>, ownership: String, idSource: String): String? = when {
+        OWNER_TRANSFERRED !in yields -> null
+        ownership == Ownership.TENANT.name ->
+            "$subject produces OwnerTransferred, but the aggregate belongs to its tenant: it has no owner"
+        idSource == AggregateIdSource.OWNER.name ->
+            "$subject produces OwnerTransferred, but the aggregate's id is its owner's: its owner is fixed"
+        else -> null
     }
 }

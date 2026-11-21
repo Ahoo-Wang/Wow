@@ -37,16 +37,20 @@ import java.util.Properties
  * - registers [GENERATE_CONTRACT_TASK] ([GenerateContract]), which filters the completed fragment down to the peer
  *   contract of the module's contexts, offered as the variant [CONTRACT_ELEMENTS] (empty for a module of no fragment),
  *   which an api module declares in [CONTRACT_CONFIGURATION] (`me.ahoo.wow.api`, [WowApiPlugin]); the task fails,
- *   naming the line to add, when the classes of a context are in a project that does not pair with the module.
+ *   naming the line to add, when the classes of a context are in a project that does not pair with the module, and
+ *   when the module has a context and no [WowExtension.contractPackage], the package of its generated code.
  *
  * It needs Gradle [MIN_GRADLE] or later and the Kotlin Gradle plugin [minKotlin] or later, and fails naming both
  * versions otherwise. A failure names the projects and modules involved, not their build directories. No plugin
  * configures another project: a domain module and its api module each configure themselves, so the build may use
  * Gradle's isolated projects; the configuration cache is supported.
  *
- * Every task that reads or writes a Manifest runs its work in a worker with an isolated class loader over
- * [TOOLS_CONFIGURATION]: the plugin's jar depends on nothing, so it brings no Wow module, Jackson, victools or Kotlin
- * reflection to the build script, and a build of Wow itself can include it to apply it. It applies KSP by its id and
+ * Every task that reads or writes a Manifest runs its work over [TOOLS_CONFIGURATION], never on the build script's
+ * class path: the plugin's jar depends on nothing, so it brings no Wow module, Jackson, victools or Kotlin
+ * reflection to the build script, and a build of Wow itself can include it to apply it. [GenerateManifestFragment]
+ * loads the module's compiled classes, so its worker is a process on the module's Java toolchain (a module that
+ * compiles for a JDK newer than the one that runs Gradle builds); the others read Manifests and contracts as files, and
+ * run in a worker with an isolated class loader in Gradle's JVM. It applies KSP by its id and
  * refers to none of its classes: the markers of `me.ahoo.wow` and `me.ahoo.wow.service` bring the KSP Gradle plugin,
  * `me.ahoo.wow.api`'s does not, so the api plugin on a root build's class path leaves a 9.x module of a staged
  * migration free to apply KSP of its own version.

@@ -19,7 +19,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CommandClient, requestIdOf, WowHeaders } from '../src/index.js';
 import { commandResultOf } from '../src/testing.js';
-import { stubFetch, testFetcher } from './fixtures/fetchStub';
+import { readAll, stubFetch, testFetcher } from './fixtures/fetchStub';
 import { TEST_MANIFEST } from './fixtures/manifest';
 
 const REF = { type: { context: 'c', name: 'a' }, tenantId: 't', id: '1' };
@@ -60,6 +60,27 @@ describe('a command stream', () => {
     const sent = requests[0].headers.get(WowHeaders.REQUEST_ID);
     expect(sent).toBeTypeOf('string');
     expect(requestIdOf(failure)).toBe(sent);
+  });
+
+  it('reads the results of a command stream with or without a space after the colon alike', async () => {
+    const result = commandResultOf(REF);
+    for (const field of ['data:', 'data: ']) {
+      stubFetch(
+        () =>
+          new Response(
+            `event:committed\n${field}${JSON.stringify(result)}\n\n`,
+            {
+              headers: { 'Content-Type': 'text/event-stream' },
+            },
+          ),
+      );
+      const stream = await new CommandClient(client(), {
+        manifest: TEST_MANIFEST,
+      }).stream({ command: 'c.a.X', id: '1' });
+      expect(await readAll(stream)).toMatchObject([
+        { hop: { stage: 'committed' } },
+      ]);
+    }
   });
 
   it('cancels the response of a command stream its reader cancels', async () => {

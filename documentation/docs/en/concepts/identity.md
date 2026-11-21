@@ -50,7 +50,7 @@ Callers come in two levels. An **owner-level** caller, whose scope has an owner,
 
 ## Identity comes from the principal
 
-Tenant, owner and space come from the authenticated caller, never from the path or the body of a request. A route does not change with the tenant, and a client cannot claim another tenant by writing it into a URL. The only way to act elsewhere is to be a caller that is allowed to, and to say so in `Wow-Scope`.
+Tenant, owner and space come from the authenticated caller, never from the path or the body of a request. The one exception is an aggregate whose id is its owner's: a caller with no owner, a member of staff say, names the aggregate by the id in the path, and that id is the owner ([Who names the id](../guide/ownership#who-names-the-id)). A route does not change with the tenant, and a client cannot claim another tenant by writing it into a URL. The only way to act elsewhere is to be a caller that is allowed to, and to say so in `Wow-Scope`.
 
 Commands that a saga sends, compensations and scheduled commands are not sent by a person. They **inherit** the scope and the operator of the root command, so an aggregate a saga creates belongs to whoever sent the first command, and the log says in whose name it was done. The `causation` of each commit says what triggered it. Admission checked the root command's authority; the kernel does not check an inherited scope against an aggregate that already exists.
 
@@ -58,7 +58,7 @@ Commands that a saga sends, compensations and scheduled commands are not sent by
 
 Admission copies a few facts about the request into the command, and the commit records them:
 
-- the **application** the request came from, `app_id`: recorded only when the caller resolver authenticated it, for example the app of the scope CoSec decided the request in. A header the client sets itself is never trusted;
+- the **application** the request came from, `app_id`: the caller's application, recorded only when the caller resolver authenticated it, for example the app of the scope CoSec decided the request in. Admission takes it from the caller for every command it admits, alike through a route, the service's in-process `CommandClient` (`commandClient.of(caller)`) or a command it sends to another context, and the test DSL records it the same way. A header named `app_id` never stands in for it, whoever sets it;
 - on the public port, the client's **remote address** and **user agent**;
 - any further headers the host lists.
 

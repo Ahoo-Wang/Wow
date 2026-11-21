@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.runtime.admission
 
+import me.ahoo.wow.api.aggregate.AggregateIdSource
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.FrameworkCodes
@@ -22,14 +23,15 @@ import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.kernel.CallerAdmission
 import me.ahoo.wow.runtime.admission.AdmissionIdentity.BodyId
+import me.ahoo.wow.runtime.admission.AdmissionIdentity.OwnId
 import me.ahoo.wow.runtime.admission.AdmissionIdentity.actingCaller
 import me.ahoo.wow.runtime.admission.AdmissionIdentity.bodyId
+import me.ahoo.wow.runtime.admission.AdmissionIdentity.headersOf
 import me.ahoo.wow.runtime.admission.AdmissionIdentity.identityConflict
-import me.ahoo.wow.runtime.admission.AdmissionIdentity.tenantConflict
+import me.ahoo.wow.runtime.admission.AdmissionIdentity.ownId
 import me.ahoo.wow.runtime.admission.CommandGateway.Companion.UNADDRESSED
 import me.ahoo.wow.runtime.wait.WaitCoordinator
 import me.ahoo.wow.spi.json.BodyAggregateIds
-import me.ahoo.wow.spi.tenant.TenantConflictException
 import me.ahoo.wow.spi.tenant.TenantPolicy
 import tools.jackson.databind.json.JsonMapper
 
@@ -51,7 +53,8 @@ internal class PeerAdmission(
      * whose contract the class path carries ([peers]) is checked as a command of this node is, up to its wait plan, and
      * sent to that context's command topic; any other is [FrameworkCodes.COMMAND_UNHANDLED]. Its command type is resolved
      * from the contract; its identity is decided as for this node's own aggregates, an aggregate id left out only for
-     * a command that creates its aggregate, which the peer's intake then gives one, and read from the body by the
+     * a command that creates its aggregate, which the peer's intake then gives one, or for one of an aggregate whose id
+     * is its owner's ([AdmissionIdentity.ownId], the contract's `idSource`), and read from the body by the
      * property the contract names for a command whose body names its aggregate; the caller is
      * authorized and the body decoded and validated here. The peer runs no transformer of this node, and a synchronous
      * call goes to the context that serves the aggregate, not through here. Its plan
@@ -84,7 +87,8 @@ internal class PeerAdmission(
         )
         // 2. The identity.
         val idProperty = peer.idProperty
-        identityConflict(request, peer.creation, transformed = idProperty != null)?.let {
+        val owned = aggregate.idSource == AggregateIdSource.OWNER
+        identityConflict(request, peer.creation, transformed = idProperty != null || owned)?.let {
             return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it)
         }
         if (request.call != null) {
@@ -94,18 +98,21 @@ internal class PeerAdmission(
             )
         }
         val target = request.target
-        if (target != null && !request.caller.crossScope) {
-            return facts.refuse(FrameworkCodes.AUTH_FORBIDDEN, "The caller may not act in another scope.")
+        val answer = CallerAdmission.admit(type, request.caller, target, request.tenantId, tenants)
+        val origin = when (answer) {
+            is CallerAdmission.Refused -> return facts.refuse(answer.code, answer.message)
+            is CallerAdmission -> answer
         }
-        val tenantId = try {
-            tenants.tenantOf(type, request.caller, target)
-        } catch (conflict: TenantConflictException) {
-            return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, conflict.message!!)
-        }
-        tenantConflict(request, tenantId)?.let { return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it) }
-        val origin = CallerAdmission.of(request.caller, target)
+        val tenantId = origin.tenantId
         val scope = origin.scope
         facts.ref = type.ref(tenantId, request.aggregateId ?: UNADDRESSED)
+        // An aggregate whose id is its owner's, as this node's own: the id decided here, before anything is relayed.
+        if (owned) {
+            when (val id = ownId(request.aggregateId, scope, request.caller)) {
+                is OwnId.Refused -> return facts.refuse(id.code, id.message)
+                is OwnId.Of -> facts.ref = type.ref(tenantId, id.id)
+            }
+        }
         // A command whose body names its aggregate is read now, by the property its contract names.
         val early = if (idProperty != null) {
             bodies.bodyProblem(request.body)?.let { return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it) }
@@ -158,7 +165,7 @@ internal class PeerAdmission(
             body = decoded.value,
             expectedVersion = request.expectedVersion,
             scope = scope,
-            headers = request.headers,
+            headers = headersOf(request, origin),
             operator = origin.operator,
             wait = plan.within(minOf(plan.timeout, options.maxTimeout)),
             caller = caller,

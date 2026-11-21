@@ -25,6 +25,7 @@ import org.junit.jupiter.api.Test
 
 class MappingCheckTest {
     private val order = NineXAggregate("example-service", "order")
+    private val cart = NineXAggregate("example-service", "cart")
     private val example = InMemoryNineXEventSource(NineXExample.streams()).inventory()
 
     private fun check(
@@ -153,9 +154,70 @@ class MappingCheckTest {
             )
         }
         check(map, manifest = tenantOwned).problems.assert().containsExactly(
-            "example-service.order -> example.order: order_handed_over: writes wow.lifecycle.OwnerTransferred, but the " +
-                "V10 aggregate belongs to its tenant",
+            "example-service.order -> example.order: order_handed_over: writes wow.lifecycle.OwnerTransferred, but " +
+                "example.order belongs to its tenant (Ownership.TENANT): it has no owner to transfer",
         )
+    }
+
+    @Test
+    fun `an owner transfer mapped to an aggregate whose id is its owner's fails it, written or composed (#6560)`() {
+        val handedOver = LifecycleMapping(Lifecycle.OWNER_TRANSFERRED, mapOf("toOwnerId" to "ownerId"))
+        val map = NineXExample.map.copy(
+            aggregates = NineXExample.map.aggregates.map { mapping ->
+                if (mapping.source() != cart) {
+                    mapping
+                } else {
+                    mapping.copy(
+                        events = mapping.events +
+                            EventMapping("cart_handed_over", to = "CartItemAdded", lifecycle = handedOver) +
+                            EventMapping("cart_transferred", to = Lifecycle.OWNER_TRANSFERRED),
+                    )
+                }
+            },
+        )
+        check(map).problems.assert().isEmpty()
+        val fixed = "but The id of example.cart is its owner's (AggregateIdSource.OWNER): its owner is fixed"
+        check(map, manifest = NineXExample.ownedCartManifest).problems.assert().containsExactly(
+            "example-service.cart -> example.cart: cart_handed_over: writes wow.lifecycle.OwnerTransferred, $fixed",
+            "example-service.cart -> example.cart: cart_transferred: writes wow.lifecycle.OwnerTransferred, $fixed",
+        )
+    }
+
+    @Test
+    fun `instances of an aggregate whose id is its owner's that record another owner, or none, fail it (#6560)`() {
+        val source = InMemoryNineXEventSource(NineXExample.streams())
+        val id = NineXExample.CART_STREAMS.map(NineXExample::stream).first().aggregateId.id
+        // The example's cart streams record the owner customer-1; one more instance records none.
+        NineXExample.CART_STREAMS.map(NineXExample::stream).forEach {
+            source.add(it.copy(id = "${it.id}-n", aggregateId = it.aggregateId.copy(id = "cart-n"), ownerId = ""))
+        }
+        // One whose owner is its id is taken.
+        NineXExample.CART_STREAMS.map(NineXExample::stream).forEach {
+            source.add(it.copy(id = "${it.id}-o", aggregateId = it.aggregateId.copy(id = "cart-o"), ownerId = "cart-o"))
+        }
+        fun checked(map: MigrationMap = NineXExample.map, manifest: Manifest = NineXExample.ownedCartManifest) =
+            MappingCheck(MigrationPlan(map, manifest)).check(source.inventory(), ownersOf = source::ownersOtherThanIds)
+        checked().problems.assert().containsExactly(
+            "example-service.cart: the id of the V10 aggregate example.cart is its owner's, but the streams of these " +
+                "2 9.x instances record another owner than their id, or none, so their owners could not reach them; " +
+                "set each stream's ownerId to its aggregate id in the 9.x store before the import, or exclude each " +
+                "with {\"aggregate\": \"example-service.cart\", \"stream\": <the id as listed>, \"reason\": \"…\"}: " +
+                "\"$id\" (the owner \"customer-1\": 4 streams of the tenants [(0)]), " +
+                "\"cart-n\" (no owner: 4 streams of the tenants [(0)])",
+        )
+        // Excluded, or of an aggregate whose id is not its owner's, they pass.
+        val excluding = NineXExample.map.copy(
+            excluded = listOf(id, "cart-n").map {
+                Exclusion(aggregate = "example-service.cart", reason = "A 9.x defect", stream = it)
+            },
+        )
+        checked(excluding).problems.assert().isEmpty()
+        checked(manifest = NineXExample.manifest).problems.assert().isEmpty()
+        // The source gives candidates; the kernel's rule decides: one whose owner is its id is taken.
+        val owned = NineXInstanceOwner(NineXAggregateId("cart-o", "(0)"), "cart-o")
+        MappingCheck(MigrationPlan(excluding, NineXExample.ownedCartManifest))
+            .check(source.inventory(), ownersOf = { source.ownersOtherThanIds(it) + (owned to 4L) })
+            .problems.assert().isEmpty()
     }
 
     @Test

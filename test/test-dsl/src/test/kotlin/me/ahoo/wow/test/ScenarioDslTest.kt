@@ -259,7 +259,7 @@ class ScenarioDslTest {
                     whenCommand(Reserve("cap", 1)) { expectRejected(FrameworkCodes.AGGREGATE_NOT_FOUND) }
                 }
             }
-            // A scope other than the caller's is one it crosses into, its operator acting elsewhere.
+            // A scope it names is one it crosses into, its operator acting elsewhere.
             val admin = Caller.of(tenantId = "acme", subject = "admin", crossScope = true)
             whenCommand(Reserve("hat", 1), scope = Scope("alice"), caller = admin) {
                 expectEventEnvelope<Reserved> { operator.assert().isEqualTo(Operator("admin", "acme", true)) }
@@ -268,5 +268,67 @@ class ScenarioDslTest {
                 expectEventEnvelope<Reserved> { operator.assert().isEqualTo(Operator.system("importer")) }
             }
         }
+    }
+
+    @Test
+    fun `a caller the gateway refuses for its tenant or scope should fail the specification with that answer`() {
+        val alice = Caller.of(tenantId = "acme", scope = Scope("alice"), subject = "alice")
+        val carol = Caller.of(tenantId = "globex", scope = Scope("carol"), subject = "carol")
+        val advice = " A specification sends only what admission takes: give a caller of the specification's " +
+            "tenant, or one that acts across scopes (crossScope) for another tenant or scope."
+        // A caller of another tenant, in asCaller as on the command.
+        val otherTenant = "The gateway refuses Reserve from this caller, ${FrameworkCodes.COMMAND_MALFORMED}: The " +
+            "command's ref names tenant acme, but it is sent in tenant globex: a ref's tenant is the caller's, a " +
+            "cross-scope target's or the one fixed for its type." + advice
+        assertThrownBy<IllegalArgumentException> {
+            aggregateSpec(plenty, caller = alice) { asCaller(carol) { whenCommand(Reserve("cap", 1)) { } } }
+        }.hasMessage(otherTenant)
+        assertThrownBy<IllegalArgumentException> {
+            aggregateSpec(plenty, caller = alice) { givenCommands(Reserve("cap", 1), caller = carol) }
+        }.hasMessage(otherTenant)
+        // Another scope, without crossScope.
+        assertThrownBy<IllegalArgumentException> {
+            aggregateSpec(plenty, caller = alice) { whenCommand(Reserve("cap", 1), scope = Scope("bob")) { } }
+        }.hasMessage(
+            "The gateway refuses Reserve from this caller, ${FrameworkCodes.AUTH_FORBIDDEN}: The caller may not act " +
+                "in another scope." + advice,
+        )
+        // A cross-scope caller of another tenant acts in the specification's, in the scope it names.
+        val admin = Caller.of(tenantId = "ops", subject = "admin", crossScope = true)
+        aggregateSpec(plenty, caller = alice) {
+            givenCommands(Open("alice"))
+            whenCommand(Reserve("hat", 1), scope = Scope("alice"), caller = admin) {
+                expectScope(Scope("alice"))
+                expectEventEnvelope<Reserved> { operator.assert().isEqualTo(Operator("admin", "ops", true)) }
+            }
+        }
+    }
+
+    private val inConsole = Caller.of(subject = "alice", attributes = mapOf(Caller.APP to listOf("console")))
+
+    @Test
+    fun `a caller's application should be recorded beside the request facts a specification adds`() =
+        aggregateSpec(plenty, caller = inConsole) {
+            givenCommands(Open("alice"))
+            whenCommand(Reserve("mug", 1), headers = mapOf("X-Trace" to "t-1")) {
+                expectEventEnvelope<Reserved> {
+                    headers.assert().isEqualTo(mapOf("X-Trace" to "t-1", RequestFacts.APP_ID to "console"))
+                }
+            }
+        }
+
+    @Test
+    fun `headers naming the caller's application should fail the specification, with or without a caller`() {
+        val named = mapOf(RequestFacts.APP_ID to "forged")
+        val advice = "Give it with caller(…), a Caller whose 'app' attribute names the application."
+        assertThrownBy<IllegalArgumentException> {
+            aggregateSpec(plenty, caller = inConsole) { whenCommand(Reserve("mug", 1), headers = named) { } }
+        }.hasMessageStartingWith("A specification's headers do not name app_id").hasMessageEndingWith(advice)
+        assertThrownBy<IllegalArgumentException> {
+            aggregateSpec(plenty) { whenCommand(Reserve("mug", 1), headers = named) { } }
+        }.hasMessageEndingWith(advice)
+        assertThrownBy<IllegalArgumentException> {
+            aggregateSpec(plenty) { givenCommands(Reserve("mug", 1), headers = named) }
+        }.hasMessageEndingWith(advice)
     }
 }

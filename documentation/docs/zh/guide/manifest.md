@@ -11,7 +11,7 @@ outline: deep
 ## 从片段到服务的 Manifest {#from-fragments-to-the-service-s-manifest}
 
 1. **编译器**写出每个领域模块的片段 `META-INF/wow/manifest/<module>.json`（[编译器生成什么](./generated-code#the-manifest-fragment)）。
-2. **Gradle 插件**（`generateWowManifestFragment`）用片段中类型的 JSON Schema、查询关键字和状态的指纹补全片段。类型上的 Jakarta Bean Validation 约束成为它的 schema 的校验关键字，客户端在发送之前就能看到：`@Positive` 是值为 0 的 `exclusiveMinimum`，`@NotBlank` 是值为 1 的 `minLength`，`@Size` 是长度或条目数的上下界，`@Pattern` 是 `pattern`，`@Email` 是 `email` 格式。字段是否必填、能否为 null，仍然由它的 Kotlin 类型决定。补全后的片段替换模块资源中编译器写出的那个。
+2. **Gradle 插件**（`generateWowManifestFragment`）用片段中类型的 JSON Schema、查询关键字和状态的指纹补全片段。类型上的 Jakarta Bean Validation 约束成为它的 schema 的校验关键字，客户端在发送之前就能看到：`@Positive` 是值为 0 的 `exclusiveMinimum`，`@NotBlank` 是值为 1 的 `minLength`，`@Size` 是长度或条目数的上下界，`@Pattern` 是 `pattern`，`@Email` 是 `email` 格式。字段是否必填、能否为 null，仍然由它的 Kotlin 类型决定。补全后的片段替换模块资源中编译器写出的那个。这个任务要加载模块编译出的类，所以它运行在模块的 Java 工具链（`kotlin { jvmToolchain(25) }`）上，而不是运行 Gradle 的 JVM 上：Gradle 可以比模块的 JDK 更旧。
 3. **在构建时**，`mergeWowManifest` 把服务运行时类路径上的片段合并成 `build/wow/manifest.json`。
 4. **在启动时**，宿主合并同样的片段，加上框架的错误码，并在 `GET /wow/manifest` 上提供结果；它与公开端口的每条路由一样需要认证：没有调用者的请求得到 401。
 

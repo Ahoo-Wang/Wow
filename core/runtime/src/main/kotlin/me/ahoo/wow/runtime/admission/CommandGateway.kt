@@ -50,7 +50,6 @@ import me.ahoo.wow.runtime.admission.AdmissionIdentity.callProblem
 import me.ahoo.wow.runtime.admission.AdmissionIdentity.headersOf
 import me.ahoo.wow.runtime.admission.AdmissionIdentity.identityConflict
 import me.ahoo.wow.runtime.admission.AdmissionIdentity.ownId
-import me.ahoo.wow.runtime.admission.AdmissionIdentity.tenantConflict
 import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.wait.WaitCoordinator
 import me.ahoo.wow.runtime.wait.isAcceptedOnly
@@ -59,7 +58,6 @@ import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.observation.observe
-import me.ahoo.wow.spi.tenant.TenantConflictException
 import me.ahoo.wow.spi.tenant.TenantPolicy
 import tools.jackson.databind.json.JsonMapper
 import java.time.Clock
@@ -472,16 +470,13 @@ class CommandGateway @InternalWowApi constructor(
         val call = request.call
         callProblem(request)?.let { (code, message) -> return facts.refuse(code, message) }
         val target = call?.let { TargetScope(it.tenantId, it.scope) } ?: request.target
-        if (call == null && target != null && !request.caller.crossScope) {
-            return facts.refuse(FrameworkCodes.AUTH_FORBIDDEN, "The caller may not act in another scope.")
+        val answer =
+            CallerAdmission.admit(facts.type, request.caller, target, request.tenantId, tenants, called = call != null)
+        val origin = when (answer) {
+            is CallerAdmission.Refused -> return facts.refuse(answer.code, answer.message)
+            is CallerAdmission -> answer
         }
-        val tenantId = try {
-            tenants.tenantOf(facts.type, request.caller, target)
-        } catch (conflict: TenantConflictException) {
-            return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, conflict.message!!)
-        }
-        tenantConflict(request, tenantId)?.let { return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it) }
-        val origin = CallerAdmission.of(request.caller, target)
+        val tenantId = origin.tenantId
         val scope = origin.scope
         // Before any store is read for the request, the creation lookup by its request id included.
         AdmissionLimits.oversized(facts.requestId, request.aggregateId, tenantId, scope)
@@ -530,7 +525,7 @@ class CommandGateway @InternalWowApi constructor(
         }
         AdmissionLimits.oversizedBody(decoded.value)?.let { return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it) }
         // 5. The transformation.
-        val headers = headersOf(request)
+        val headers = headersOf(request, origin)
         var command = Resolved(model, commandType, decoded.value, headers)
         if (transformer != null) {
             val transformed = transformations.transform(

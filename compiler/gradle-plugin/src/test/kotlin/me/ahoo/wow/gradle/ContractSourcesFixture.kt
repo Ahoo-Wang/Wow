@@ -295,7 +295,12 @@ internal class ContractSourcesFixture(val projectDir: File) {
         )
         write("gradle.properties", "kotlin.compiler.execution.strategy=in-process\norg.gradle.jvmargs=-Xmx1g")
         shopApi()
-        module("shop-domain", plugins = """id("${WowPlugin.ID}")""", dependencies = """api(project(":shop-api"))""")
+        module(
+            "shop-domain",
+            plugins = """id("${WowPlugin.ID}")""",
+            dependencies = """api(project(":shop-api"))""",
+            extra = """wow { contractPackage = "shopapi" }""",
+        )
         write(
             "shop-domain/src/main/kotlin/shopdomain/ShopContext.kt",
             """

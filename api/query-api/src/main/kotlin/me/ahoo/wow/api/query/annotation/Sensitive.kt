@@ -62,6 +62,12 @@ enum class SensitivityLevel {
  * ```
  *
  * Any other class carrying `@Sensitive` fails the schema build.
+ *
+ * A property also carries the `@Sensitive` of the members it overrides, a getter of an interface the state implements
+ * or a property of its superclass, so a read model interface can declare it once (`@get:Sensitive`) for the states
+ * that implement it, and an override cannot drop it. The overriding property may declare its own, to choose the mask
+ * or tighten the level, never to loosen it. Two overridden members that declare different ones fail the build,
+ * naming both; the property declares its own, at the stricter level, to choose.
  */
 @Target(AnnotationTarget.FIELD, AnnotationTarget.PROPERTY_GETTER, AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.RUNTIME)

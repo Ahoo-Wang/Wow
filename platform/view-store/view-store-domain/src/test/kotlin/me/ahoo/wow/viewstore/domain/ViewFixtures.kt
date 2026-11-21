@@ -35,6 +35,27 @@ object ViewFixtures {
     fun nobody(scope: Scope = Scope.NONE, app: String? = APP): Caller =
         Caller.of(tenantId = TENANT, scope = scope, attributes = appOf(app))
 
+    /**
+     * [caller] as the view store's server admits a request of theirs whose `Wow-Scope` names the reserved [scope]
+     * (`ReservedScopeCallers`): acting as that owner, across scopes. A specification names [scope] beside it, as the
+     * request names it.
+     */
+    fun reserved(caller: Caller, scope: Scope): Caller = Caller.of(
+        tenantId = caller.tenantId,
+        scope = scope,
+        subject = caller.subject,
+        crossScope = true,
+        attributes = caller.attributes,
+        service = caller.service,
+    )
+
+    /** The user [id] of [TENANT], in their own scope from [app], allowed to act across scopes (an operator's). */
+    fun crossing(id: String, app: String? = APP): Caller =
+        Caller.of(tenantId = TENANT, scope = owner(id), subject = id, crossScope = true, attributes = appOf(app))
+
+    /** The saga's derived command, sent by no caller: an anonymous one of [TENANT], from no application. */
+    val SAGA: Caller = Caller.of(tenantId = TENANT)
+
     private fun appOf(app: String?): Map<String, List<String>> = app?.let { mapOf(Caller.APP to listOf(it)) }.orEmpty()
 
     val SHARED: Scope = owner(ViewStoreContext.SHARED_OWNER_ID)
