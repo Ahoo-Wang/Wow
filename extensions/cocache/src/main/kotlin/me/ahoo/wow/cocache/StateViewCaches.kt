@@ -26,6 +26,7 @@ import me.ahoo.cocache.core.suspendingVersionedLoader
 import me.ahoo.cocache.core.versionedCacheSpec
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.naming.Escapes
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.dsl.listQuery
@@ -49,7 +50,8 @@ import java.util.concurrent.atomic.AtomicBoolean
  *
  * Everything about a cache follows from its view, the same on the owner and on every reader ([specOf]):
  * - its name is `wow.<context>.<aggregate>` ([nameOf]), the aggregate the view's `@StateView` names;
- * - its key is the aggregate's [StateKey], stored as `<tenantId>/<id>`;
+ * - its key is the aggregate's [StateKey], stored as `<tenantId>/<id>`, each escaped as the aggregate's ref escapes
+ *   them ([textOf]), so no two aggregates share one entry whatever their tenants and ids hold;
  * - its value is the view, stored as its JSON ([StateViewCodec]), at the aggregate's version: a versioned cache, so
  *   a state is written only over an older one, and a deleted aggregate is a tombstone at its version that no older
  *   state undoes;
@@ -175,10 +177,22 @@ class StateViewCaches(private val factory: CoCacheFactory, private val queries: 
             "${viewType.name} is no state view: a StateViewCache reads a generated <State>View, marked @StateView."
         }
 
+        /**
+         * The text [key] is stored under: its tenant and its id, each with `%` and `/` percent-escaped ([Escapes]) as
+         * the aggregate's ref escapes them, joined by `/`, which is the part of the ref's text after its type. A tenant
+         * or an id that holds neither reads as it is. Tenant `a/b` with id `c` is `a%2Fb/c`, tenant `a` with id `b/c`
+         * is `a/b%2Fc`.
+         */
+        internal fun textOf(key: StateKey): String =
+            "${Escapes.escaped(key.tenantId, RESERVED)}/${Escapes.escaped(key.id, RESERVED)}"
+
+        /** The characters an aggregate ref's text escapes in a tenant and an id. */
+        private const val RESERVED = "%/"
+
         /** The spec of the cache of the states [viewType] views, misses read through [queries]. */
         fun <V : Any> specOf(viewType: Class<V>, queries: () -> QueryApi): VersionedCacheSpec<StateKey, V> =
             versionedCacheSpec(nameOf(typeOf(viewType))) {
-                keyEncoder = KeyEncoder { it.toString() }
+                keyEncoder = KeyEncoder(::textOf)
                 codec = StateViewCodec(viewType)
                 suspendingVersionedLoader(StateViewLoader(viewType, queries))
                 policy { refreshWindow = off() }

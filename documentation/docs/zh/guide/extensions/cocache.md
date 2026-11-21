@@ -81,7 +81,7 @@ private suspend fun orderOf(tenantId: String, orderId: String): OrderStateView? 
 - `get(key)` 与 `get(tenantId, id)` 返回视图；聚合不存在或已删除时返回 `null`。
 - `getAll(keys)` 返回存在的聚合的视图：读一次缓存，未命中的按租户各向属主查询一次，ID 放在一个 `IN` 里。
 
-缓存的一切都由视图推导：名字是 `wow.<context>.<aggregate>`，即视图的 `@StateView` 指明的聚合；键是聚合的租户与 ID；值是视图的 JSON。属主与每个读方推导出的完全相同，所以不需要任何配置让两侧对上。类路径上的契约指明的每个视图都有一个 `StateViewCache<V>` bean；Spring 之外用 `StateViewCaches.of<V>()` 得到同一个缓存，由 CoCache 的 `CoCacheFactory` 创建：
+缓存的一切都由视图推导：名字是 `wow.<context>.<aggregate>`，即视图的 `@StateView` 指明的聚合；键是聚合的租户与 ID，即 `<tenantId>/<id>`，两者中的 `%` 与 `/` 按聚合 ref 的方式转义为 `%25` 与 `%2F`，所以租户 `a/b` 的 ID `c` 与租户 `a` 的 ID `b/c` 是两个键；值是视图的 JSON。属主与每个读方推导出的完全相同，所以不需要任何配置让两侧对上。类路径上的契约指明的每个视图都有一个 `StateViewCache<V>` bean；Spring 之外用 `StateViewCaches.of<V>()` 得到同一个缓存，由 CoCache 的 `CoCacheFactory` 创建：
 
 <!-- sample: fragment -->
 
@@ -131,7 +131,7 @@ cocache:
 
 ## 从缓存中删除状态 {#drop-a-state-from-the-cache}
 
-要让缓存在到期之前放弃某个状态，在任一运行该缓存的服务的节点上调用 CoCache 的 actuator 端点，键是聚合的租户与 ID。只有 `management.endpoints.web.exposure.include` 列出 `cocache` 时端点才会暴露；只开放给运维。
+要让缓存在到期之前放弃某个状态，在任一运行该缓存的服务的节点上调用 CoCache 的 actuator 端点，键是缓存存储时的聚合租户与 ID（其中的 `%` 与 `/` 转义为 `%25` 与 `%2F`，这个 `%` 在 URL 里还要再编码一次）。只有 `management.endpoints.web.exposure.include` 列出 `cocache` 时端点才会暴露；只开放给运维。
 
 ```bash
 curl -X DELETE "http://<node>/actuator/cocache/wow.eshop-ordering.order/<tenantId>/<id>"
