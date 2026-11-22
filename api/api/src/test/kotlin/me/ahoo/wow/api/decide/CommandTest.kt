@@ -17,6 +17,8 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.caller.Operator
 import org.junit.jupiter.api.Test
 
 class CommandTest {
@@ -36,6 +38,43 @@ class CommandTest {
         Scope(null, "space").spaceId.assert().isEqualTo("space")
         assertThrownBy<IllegalArgumentException> { Scope(ownerId = " ") }
         assertThrownBy<IllegalArgumentException> { Scope(spaceId = "") }
+    }
+
+    @Test
+    fun `the recorded caller acts in the aggregate's tenant and the command's scope, as its operator`() {
+        val scope = Scope(ownerId = "alice", spaceId = "s-1")
+        val command = Command("c-3", "r-3", ref, "body", scope = scope, operator = Operator.of("alice", "tenant"))
+        command.recordedCaller.assert().isEqualTo(Caller.of("tenant", scope, subject = "alice"))
+        command.recordedCaller.attributes.assert().isEmpty()
+    }
+
+    @Test
+    fun `an operator acting in another tenant is recorded in the aggregate's, not its own`() {
+        val scope = Scope(ownerId = "bob")
+        val admin = Operator.of("admin", "headquarters", actedElsewhere = true)
+        val command = Command("c-4", "r-4", ref, "body", scope = scope, operator = admin)
+        command.recordedCaller.apply {
+            tenantId.assert().isEqualTo("tenant")
+            this.scope.assert().isEqualTo(scope)
+            subject.assert().isEqualTo("admin")
+            crossScope.assert().isFalse()
+        }
+    }
+
+    @Test
+    fun `the recorded caller is never a service identity, and anonymous without an operator`() {
+        val billing = Command("c-5", "r-5", ref, "body", operator = Operator.of("service:billing", "tenant"))
+        billing.recordedCaller.subject.assert().isEqualTo("service:billing")
+        billing.recordedCaller.service.assert().isFalse()
+        Command("c-6", "r-6", ref, "body", operator = Operator.system("timer", "tenant")).recordedCaller.apply {
+            subject.assert().isEqualTo("system:timer")
+            service.assert().isFalse()
+        }
+        Command("c-7", "r-7", ref, "body").recordedCaller.apply {
+            subject.assert().isNull()
+            tenantId.assert().isEqualTo("tenant")
+            scope.assert().isEqualTo(Scope.NONE)
+        }
     }
 
     @Test

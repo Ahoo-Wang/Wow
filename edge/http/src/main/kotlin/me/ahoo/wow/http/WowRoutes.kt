@@ -436,8 +436,8 @@ private fun CoRouterFunctionDsl.route(
  * built-in rebuild aggregate named by [aggregate], whose snapshots it rebuilds; a job command to the instance of the
  * built-in job aggregate the path's id names. Each is sent through the gateway like any command, so its authorizer
  * (CoSec's, by the action of the route) decides who may send it in their tenant. The built-in aggregates' commands, the
- * rebuild and the jobs', need one on the public port: a node without an authorizer refuses them there
- * ([CommandTarget.builtIn]), as it refuses the operator's actions.
+ * rebuild and the jobs', are operational ones: a node without an authorizer refuses them on the public port
+ * ([CommandTarget.operational]), as it refuses the operator's actions.
  */
 private fun systemTarget(
     context: String,
@@ -451,10 +451,9 @@ private fun systemTarget(
         name,
         byId = false,
         id = checkNotNull(aggregate),
-        builtIn = true,
     )
 
-    name in ScheduleJobs.COMMANDS -> CommandTarget(context, ScheduleJobs.AGGREGATE, name, byId = true, builtIn = true)
+    name in ScheduleJobs.COMMANDS -> CommandTarget(context, ScheduleJobs.AGGREGATE, name, byId = true)
     else -> CommandTarget(
         context,
         checkNotNull(aggregate) { "The system command $name has no aggregate." },

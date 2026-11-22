@@ -20,6 +20,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.ledger.LedgerRequest
 import me.ahoo.wow.api.ledger.Recoverable
 import me.ahoo.wow.api.result.FrameworkCodes
@@ -61,6 +62,7 @@ import me.ahoo.wow.spi.timer.TimerOutcomes
 import me.ahoo.wow.spi.timer.TimerStatus
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.springframework.test.web.reactive.server.WebTestClient
 import java.time.Clock
 import java.util.concurrent.CopyOnWriteArrayList
@@ -126,6 +128,15 @@ class ParkedRoutesTest {
             Scope.NONE,
         )
         (log.append(stream) as AppendOutcome.Committed).position.assert().isNotNull()
+    }
+
+    @Test
+    fun `the operator's actions and read are the operational commands, and nothing else is one of them`() {
+        listOf(OpsCommands.RETRY, OpsCommands.SKIP, OpsCommands.MARK_RECOVERABLE, OpsCommands.APPLY_RETRY_SPEC)
+            .forEach { OpsCommands.typeOf(it).name.assert().isEqualTo(it) }
+        OpsCommands.typeOf(OpsPaths.READ).name.assert().isEqualTo(Ledger.READ)
+        assertThrows<IllegalArgumentException> { OpsCommands.typeOf("wow.lifecycle.DeleteAggregate") }
+            .message.assert().contains("no operational command")
     }
 
     @Test

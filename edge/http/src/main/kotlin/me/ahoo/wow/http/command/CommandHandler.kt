@@ -39,6 +39,7 @@ import me.ahoo.wow.http.receiveFirst
 import me.ahoo.wow.runtime.admission.CommandBody
 import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.admission.ServerCommandRequest
+import me.ahoo.wow.spi.SystemCommandGroups
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.http.codec.ServerSentEvent
@@ -61,12 +62,13 @@ internal data class CommandTarget(
     val id: String? = null,
     /** Whether the command always creates its aggregate ([me.ahoo.wow.api.aggregate.Creation.REQUIRED]). */
     val creates: Boolean = false,
+) {
     /**
-     * Whether the command is a system command of one of Wow's built-in aggregates, a job's or the snapshot rebuild's,
-     * which the public port refuses on a node without an authorizer.
+     * Whether the command is an operational one ([SystemCommandGroups.OPERATIONAL]), a job's or the snapshot rebuild
+     * on this port, which the public port refuses on a node without an authorizer.
      */
-    val builtIn: Boolean = false,
-)
+    val operational: Boolean get() = command in SystemCommandGroups.OPERATIONAL
+}
 
 /**
  * Sends the command of a route through [gateway] (–):
@@ -76,7 +78,7 @@ internal data class CommandTarget(
  *   headers; the request facts [WowHttpOptions.requestFacts] lists as the command's headers; an empty body is `{}`;
  * - the W3C trace context headers (`traceparent`, `tracestate`, `baggage`) as the request's trace,
  *   which the command's admission continues;
- * - a system command of a built-in aggregate ([CommandTarget.builtIn]): on the public port, refused (403
+ * - an operational command ([CommandTarget.operational]), a job's or the snapshot rebuild: on the public port, refused (403
  *   `wow.auth.forbidden`) when the node has no authorizer ([CommandGateway.authorizes]), never allowed by default, and
  *   authorized by it otherwise, as any command;
  * - `Wow-Call`, the root command of a service's synchronous call: refused (403) on the public port;
@@ -110,7 +112,7 @@ internal class CommandHandler(
 ) {
     suspend fun handle(request: ServerRequest, target: CommandTarget): ServerResponse {
         val caller = authenticator.authenticate(request)
-        if (target.builtIn && !internal && !gateway.authorizes) {
+        if (target.operational && !internal && !gateway.authorizes) {
             throw ProblemException(statuses.problemOf(FrameworkCodes.AUTH_FORBIDDEN, refusedWithoutAuthorizer(target)))
         }
         val call = headers.call(request, caller, internal)

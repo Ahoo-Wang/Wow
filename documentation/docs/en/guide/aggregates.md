@@ -230,22 +230,20 @@ A service may do I/O. A function that blocks its thread, such as one that calls 
 
 A command function that needs more than its aggregate's state, such as whether an account it refers to exists, takes the node's read API as a service: a `QueryApi`, or a `NodeQueryApi` for trusted reads. Both are in `wow-api` (`me.ahoo.wow.api.read`), so the domain module needs nothing more, and the host gives the model the node's own. When the caller already knows the fact, put it in the command instead (a `CommandTransformer`, or the saga that sends it): a read runs again on every retry after a version conflict, and what it read may change before the events are appended.
 
-Read as the command's caller, rebuilt from the command: its tenant, its owner and space, and its operator. The read sees what that caller sees:
+Read as the caller the command records, `scope.command.recordedCaller`: the aggregate's tenant, the command's owner and space, and its operator. The read sees what that caller sees, in the tenant and scope the command acts in, also when an operator acts there from another tenant:
 
 <!-- sample: fragment -->
 
 ```kotlin
 @OnCommand
 suspend fun onCommand(command: LendBook, queries: QueryApi, scope: DecideScope): BookLent {
-    val admitted = scope.command
-    val caller = Caller.of(admitted.ref.tenantId, admitted.scope, admitted.operator?.id)
-    queries.of(caller).snapshots<AccountState>().state(command.accountId)
+    queries.of(scope.command.recordedCaller).snapshots<AccountState>().state(command.accountId)
         ?: reject("library.book.no-account", "No account ${command.accountId}.")
     return BookLent(command.accountId)
 }
 ```
 
-The rebuilt caller has no roles, policies or claims. They live only with the request, and a command may be decided on another node, or taken from its command topic. A read authorizer that reads them sees none, and one that requires a role refuses the read.
+The recorded caller has no roles, policies or claims, and is never a service identity. A decision reads the same whether its command was admitted from a request, derived by a saga, taken from a command topic or decided again after a version conflict, and only what the command records is the same in all of them. A read authorizer that reads roles or claims sees none, and one that requires a role refuses the read.
 
 For a read that no policy should restrict, take a `NodeQueryApi` and read with `trusted()`.
 

@@ -228,7 +228,7 @@ const val OPERATOR = "olivia"
  * any other command, as an authorizer of one concern.
  */
 val operatorsOnly = CommandAuthorizer { caller, action ->
-    if (action.type.name.startsWith("wow.") && caller.subject != OPERATOR) {
+    if (action.isSystem && caller.subject != OPERATOR) {
         Authorization.Denied.of("Only an operator sends ${action.type.name}.")
     } else {
         Authorization.Allowed

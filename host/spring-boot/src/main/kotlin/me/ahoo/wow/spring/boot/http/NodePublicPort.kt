@@ -29,13 +29,13 @@ import me.ahoo.wow.http.route.ServiceRoutes
 import me.ahoo.wow.http.wowRoutes
 import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.manifest.Manifest
-import me.ahoo.wow.manifest.SystemCommands
 import me.ahoo.wow.query.mask.PayloadMasks
 import me.ahoo.wow.query.schema.MaskStrategyResolver
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.runtime.admission.ServiceRouteAuthorizer
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.state.StateReads
+import me.ahoo.wow.spi.SystemCommandGroups
 import me.ahoo.wow.spi.config.configCheck
 import me.ahoo.wow.spring.boot.WowAutoConfiguration
 import me.ahoo.wow.spring.boot.WowProperties
@@ -182,13 +182,7 @@ internal class NodePublicPort {
         queryApi: ObjectProvider<NodeQueryApi>,
         mappers: ObjectProvider<ProblemMapper>,
     ): RouterFunction<ServerResponse> {
-        if (!node.gateway.authorizes && manifest.hasBuiltInSystemCommands()) {
-            logger.info {
-                "No CommandAuthorizer bean: the public port refuses Wow's system commands of its built-in aggregates " +
-                    "(wow.schedule.*, wow.snapshot.RebuildSnapshot) with 403 until the application gives one; the jobs, the " +
-                    "sagas and the internal port's calls send them as before."
-            }
-        }
+        manifest.refusedWithoutAuthorizer(node.gateway.authorizes)?.let { notice -> logger.info { notice } }
         return wowRoutes(
             manifest,
             node.gateway,
@@ -234,10 +228,22 @@ internal class NodePublicPort {
     }
 
     internal companion object {
-        /** Whether the Manifest routes a system command of a built-in aggregate: a job's or a snapshot rebuild. */
-        internal fun Manifest.hasBuiltInSystemCommands(): Boolean = contexts.any { context ->
-            context.commands.isNotEmpty() ||
-                context.aggregates.any { aggregate -> aggregate.commands.any { it.name == SystemCommands.REBUILD_SNAPSHOT } }
+        /**
+         * The operational commands ([SystemCommandGroups.OPERATIONAL]) the Manifest routes, by their names: a context's
+         * jobs and an aggregate type's snapshot rebuild, which the public port refuses without an authorizer.
+         */
+        internal fun Manifest.operationalCommands(): Set<String> = contexts.flatMap { context ->
+            context.commands + context.aggregates.flatMap { it.commands }
+        }.map { it.name }.filter { it in SystemCommandGroups.OPERATIONAL }.toSortedSet()
+
+        /**
+         * The startup notice of a public port that refuses the operational commands the Manifest routes, for want of an
+         * authorizer; null when the node [authorizes] or routes none.
+         */
+        internal fun Manifest.refusedWithoutAuthorizer(authorizes: Boolean): String? {
+            val operational = operationalCommands().takeUnless { authorizes || it.isEmpty() } ?: return null
+            return "No CommandAuthorizer bean: the public port refuses Wow's operational commands $operational with 403 " +
+                "until the application gives one; the jobs, the sagas and the internal port's calls send them as before."
         }
 
         /** The host's log category: the lines that moved here from [WowAutoConfiguration] keep it. */

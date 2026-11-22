@@ -35,32 +35,25 @@ import me.ahoo.wow.runtime.admission.CommandAuthorizer
  * policies of their actions where CoSec decides the commands, else [OperatorRole].
  */
 class OpsAuthorizer : CommandAuthorizer {
-    override suspend fun authorize(caller: Caller, action: CommandAction): Authorization {
-        val name = action.type.name
-        return if (name.startsWith(SYSTEM_PREFIX) || name in ACTIONS) {
+    override suspend fun authorize(caller: Caller, action: CommandAction): Authorization =
+        if (action.isSystem || ACTIONS.any(action::commandIs)) {
             Authorization.Allowed
         } else {
             Authorization.Denied.of(
-                "$name is published by the owning service's ledger through ${OpsContext.NAME}'s command topic alone.",
+                "${action.type.name} is published by the owning service's ledger through ${OpsContext.NAME}'s " +
+                    "command topic alone.",
             )
         }
-    }
 
     companion object {
-        /** The namespace of the framework's system commands. */
-        const val SYSTEM_PREFIX: String = "wow."
-
-        /** An operator's actions on an entry, by their command's name. */
+        /** An operator's actions on an entry, by their command's class. */
         @JvmField
-        val ACTIONS: Set<String> = setOf(
-            commandOf(Retry::class.java),
-            commandOf(Skip::class.java),
-            commandOf(MarkRecoverable::class.java),
-            commandOf(ApplyRetrySpec::class.java),
+        val ACTIONS: List<Class<*>> = listOf(
+            Retry::class.java,
+            Skip::class.java,
+            MarkRecoverable::class.java,
+            ApplyRetrySpec::class.java,
         )
-
-        /** The name of the command [type] of the `parked` aggregate. */
-        private fun commandOf(type: Class<*>): String = "${OpsContext.NAME}.${OpsContext.PARKED}.${type.simpleName}"
     }
 }
 

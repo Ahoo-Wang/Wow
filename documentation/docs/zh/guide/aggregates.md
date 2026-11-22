@@ -230,22 +230,20 @@ fun onCommand(command: ConfirmOrderStock, paymentPolicy: PaymentPolicy, scope: D
 
 命令函数需要聚合状态以外的信息时，例如它引用的账户是否存在，就把节点的读取 API 作为服务接收：`QueryApi`，或者用于受信读取的 `NodeQueryApi`。两者都在 `wow-api`（`me.ahoo.wow.api.read`）里，领域模块不需要别的依赖，宿主会把节点自己的读取 API 交给模型。如果调用方已经知道这个事实，就把它放进命令（用 `CommandTransformer`，或由发送命令的 Saga 放入）：读取会在每次版本冲突后的重试中再跑一遍，而且读到的内容可能在事件追加之前就变了。
 
-以命令的调用方身份读取，调用方从命令重建：它的租户、所有者和空间，以及它的操作员。读取能看到的，就是这个调用方能看到的：
+以命令记录下来的调用方身份读取，即 `scope.command.recordedCaller`：聚合的租户、命令的所有者和空间，以及它的操作员。读取能看到的，就是这个调用方在命令所在的租户和作用域里能看到的；操作员从别的租户到这里行事时也是如此：
 
 <!-- sample: fragment -->
 
 ```kotlin
 @OnCommand
 suspend fun onCommand(command: LendBook, queries: QueryApi, scope: DecideScope): BookLent {
-    val admitted = scope.command
-    val caller = Caller.of(admitted.ref.tenantId, admitted.scope, admitted.operator?.id)
-    queries.of(caller).snapshots<AccountState>().state(command.accountId)
+    queries.of(scope.command.recordedCaller).snapshots<AccountState>().state(command.accountId)
         ?: reject("library.book.no-account", "No account ${command.accountId}.")
     return BookLent(command.accountId)
 }
 ```
 
-重建的调用方没有角色、策略或声明。它们只随请求存在，而命令可能在另一个节点上决定，或者从它的命令主题取来。读取这些属性的读取授权器什么也看不到，要求某个角色的授权器会拒绝这次读取。
+记录下来的调用方没有角色、策略或声明，也从不是服务身份。同一条命令，不论是从请求接纳的、由 Saga 派生的、从命令主题取来的，还是版本冲突后重新决策的，决策读到的都必须相同，而这几种情况下都相同的只有命令记录下来的东西。读取角色或声明的读取授权器什么也看不到，要求某个角色的授权器会拒绝这次读取。
 
 不应受任何策略限制的读取，接收 `NodeQueryApi` 并用 `trusted()` 读取。
 

@@ -32,31 +32,30 @@ import org.springframework.context.annotation.Configuration
 class InventoryAuthorization {
     /**
      * Only an employee, a service, or the anonymous caller of a service tried out, changes the stock: a buyer reads
-     * it. A scheduled job's commands and the snapshot rebuild, Wow's built-in aggregates' system commands, are an
-     * employee's alone.
+     * it. Wow's operational commands (a scheduled job's, the snapshot rebuild, an operator's action on a parked entry)
+     * are an employee's alone.
      */
     @Bean
     fun inventoryAuthorizer(): CommandAuthorizer = CommandAuthorizer { caller, action ->
-        builtIn(caller, action) ?: if (caller.service || caller.scope.ownerId == null) {
-            Authorization.Allowed
-        } else {
-            Authorization.Denied.of(
+        when {
+            action.isOperational -> operational(caller, action)
+            caller.service || caller.scope.ownerId == null -> Authorization.Allowed
+            else -> Authorization.Denied.of(
                 "Only an employee changes the stock; ${caller.subject} may not ${action.type.name}."
             )
         }
     }
 
     private companion object {
-        val BUILT_IN = listOf("wow.schedule.", "wow.snapshot.")
-
-        /** The answer to a built-in aggregate's system command: an employee's, a tenant-level caller with a subject. */
-        fun builtIn(caller: Caller, action: CommandAction): Authorization? {
-            if (BUILT_IN.none { action.type.name.startsWith(it) }) return null
-            return if (caller.subject != null && caller.scope.ownerId == null) {
+        /**
+         * The answer to one of Wow's operational commands ([CommandAction.isOperational]): an employee's, a
+         * tenant-level caller with a subject.
+         */
+        fun operational(caller: Caller, action: CommandAction): Authorization =
+            if (caller.subject != null && caller.scope.ownerId == null) {
                 Authorization.Allowed
             } else {
                 Authorization.Denied.of("Only an employee sends ${action.type.name}.")
             }
-        }
     }
 }

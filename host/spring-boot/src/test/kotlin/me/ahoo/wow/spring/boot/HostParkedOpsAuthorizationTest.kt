@@ -17,7 +17,8 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.http.ops.OpsPaths
 import me.ahoo.wow.manifest.SystemCommands
 import me.ahoo.wow.manifest.copyWith
-import me.ahoo.wow.spring.boot.http.NodePublicPort.Companion.hasBuiltInSystemCommands
+import me.ahoo.wow.spring.boot.http.NodePublicPort.Companion.operationalCommands
+import me.ahoo.wow.spring.boot.http.NodePublicPort.Companion.refusedWithoutAuthorizer
 import org.junit.jupiter.api.Test
 
 /**
@@ -33,11 +34,17 @@ class HostParkedOpsAuthorizationTest {
             // aggregates' system commands.
             bare.node.gateway.authorizes.assert().isFalse()
             val manifest = bare.node.manifest
-            manifest.hasBuiltInSystemCommands().assert().isFalse()
+            // Its aggregates' lifecycle commands are listed, and none of them is operational.
+            manifest.contexts.flatMap { it.aggregates }.flatMap { it.commands }.any { it.system }.assert().isTrue()
+            manifest.operationalCommands().assert().isEmpty()
             val withJobs = manifest.copyWith(
                 contexts = manifest.contexts.map { it.copyWith(commands = SystemCommands.jobs(it.name)) },
             )
-            withJobs.hasBuiltInSystemCommands().assert().isTrue()
+            withJobs.operationalCommands().assert().containsExactlyInAnyOrderElementsOf(SystemCommands.JOBS)
+            // The startup says so, naming them, unless the node authorizes or routes none.
+            withJobs.refusedWithoutAuthorizer(authorizes = false).assert().contains(SystemCommands.JOBS.first())
+            withJobs.refusedWithoutAuthorizer(authorizes = true).assert().isNull()
+            manifest.refusedWithoutAuthorizer(authorizes = false).assert().isNull()
             val withRebuild = manifest.copyWith(
                 contexts = manifest.contexts.map { context ->
                     context.copyWith(
@@ -49,7 +56,7 @@ class HostParkedOpsAuthorizationTest {
                     )
                 },
             )
-            withRebuild.hasBuiltInSystemCommands().assert().isTrue()
+            withRebuild.operationalCommands().assert().containsExactly(SystemCommands.REBUILD_SNAPSHOT)
         }
     }
 }

@@ -14,10 +14,11 @@
 package me.ahoo.wow.viewstore.server
 
 import me.ahoo.wow.api.caller.Caller
-import me.ahoo.wow.api.lifecycle.Lifecycle
+import me.ahoo.wow.api.lifecycle.TransferOwner
 import me.ahoo.wow.runtime.admission.Authorization
 import me.ahoo.wow.runtime.admission.CommandAction
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
+import me.ahoo.wow.runtime.admission.commandIs
 import me.ahoo.wow.viewstore.api.ViewStoreContext
 import me.ahoo.wow.viewstore.api.ViewStoreContract
 
@@ -26,6 +27,8 @@ import me.ahoo.wow.viewstore.api.ViewStoreContract
  *
  * - `wow.lifecycle.TransferOwner` is never sent over HTTP: an owner changes only by sharing or claiming, which the view
  *   decides and its saga carries out.
+ * - Wow's operational commands (a scheduled job's, the snapshot rebuild, an operator's action on a parked entry) need
+ *   [ViewStoreRoles.SYSTEM_WRITER], the platform's administrator of the stored system views, whatever scope they name.
  * - The owner `(shared)`'s writes (a shared view's save, rename, delete and claim; shared preferences) need
  *   [ViewStoreRoles.SHARED_WRITER], as the dataset wording, the whole tenant's, does.
  * - The owner `(system)`'s writes need [ViewStoreRoles.SYSTEM_WRITER].
@@ -43,6 +46,7 @@ class ViewStoreAuthorizer : CommandAuthorizer {
     override suspend fun authorize(caller: Caller, action: CommandAction): Authorization {
         refusal(caller, action)?.let { return Authorization.Denied.of(it) }
         val role = when {
+            action.isOperational -> ViewStoreRoles.SYSTEM_WRITER
             action.ref.type.name == ViewStoreContract.DatasetWording.NAME -> ViewStoreRoles.SHARED_WRITER
             action.scope.ownerId == ViewStoreContext.SHARED_OWNER_ID -> ViewStoreRoles.SHARED_WRITER
             action.scope.ownerId == ViewStoreContext.SYSTEM_OWNER_ID -> ViewStoreRoles.SYSTEM_WRITER
@@ -58,7 +62,9 @@ class ViewStoreAuthorizer : CommandAuthorizer {
 
     /** Why [action] is refused to [caller] whatever its roles, or null when its roles decide. */
     private fun refusal(caller: Caller, action: CommandAction): String? = when {
-        action.type.name == Lifecycle.TRANSFER_OWNER -> "A view's owner changes only by sharing or claiming it."
+        action.commandIs<TransferOwner>() -> "A view's owner changes only by sharing or claiming it."
+        // An operational command acts on no owner's views: its role decides, whatever scope it names.
+        action.isOperational -> null
         action.ref.type.name == ViewStoreContract.ViewPreferences.NAME && action.scope.ownerId != caller.scope.ownerId ->
             "${nameOf(caller)} may not ${action.type.name} as ${action.scope.ownerId ?: "no owner"}: preferences are " +
                 "found by their caller's own owner (${caller.scope.ownerId ?: "none"}), so they are written in its " +
