@@ -136,6 +136,22 @@ Every error is `application/problem+json`:
 
 A domain code's status is its `@ErrorCode(status)`, 422 by default, overridable per code with `wow.http.errors.[<code>].status`. [Error Codes](./error-codes) lists the framework's codes. The application's own routes answer their failures as problems too (`wow.http.global-errors.enabled`, on by default).
 
+### The application's own routes {#application-routes}
+
+What Spring WebFlux raises on a route the application serves beside Wow's, annotated or functional, is answered so:
+
+| The request | Answer |
+| --- | --- |
+| Matches no route | 404 `about:blank`, its detail the method and path: `No route GET /orders.` |
+| Uses a method the route does not serve | 405 `about:blank`, with `Allow` |
+| Sends a body of a media type the route does not take | 415 `about:blank`, with `Accept` |
+| Accepts none of the types the route answers in | 406 `about:blank` |
+| Cannot be read: a body the codecs cannot read, a parameter, header or path variable missing or of the wrong type | 400 `wow.request.malformed`, Spring's reason as its detail, and one violation naming what does not read: the parameter by its name, or `body`, with the code `wow.request.malformed` |
+| Fails a `@Valid` body's or a method's constraints | 400 `about:blank` |
+| Meets a `ResponseStatusException` the application throws | Its status alone, `about:blank`, its reason as the detail of a 4xx |
+
+A status that has nothing to add to itself is answered as `about:blank`, RFC 9457's problem of the status alone, on Wow's routes too. With `wow.http.global-errors.enabled` off, the application's routes answer as Spring does.
+
 ### The application's own failures {#mapped-failures}
 
 A failure the framework does not know, such as a failed call to another system, is answered as a 500 that says nothing of its cause, which is logged. The application answers its own failures with its own codes through `ProblemMapper` beans (`me.ahoo.wow.api.problem`): given the failure, a mapper returns the `WowProblemException` to answer with, or null when the failure is not its own. A shared library contributes one the same way, through its own auto-configuration.

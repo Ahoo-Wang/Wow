@@ -18,12 +18,14 @@ import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.problem.ProblemMapper
 import me.ahoo.wow.api.problem.Retry
 import me.ahoo.wow.api.problem.WowProblemException
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.spi.StorageUnavailableException
 import org.junit.jupiter.api.Test
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.core.annotation.Order
+import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.server.RouterFunction
 import org.springframework.web.reactive.function.server.ServerResponse
 import org.springframework.web.reactive.function.server.coRouter
@@ -79,6 +81,19 @@ class HostGlobalErrorsTest {
                 .expectBody(String::class.java).returnResult()
             manifest.status.value().assert().isEqualTo(502)
             manifest.responseBody.assert().contains("\"code\":\"bank.catalog.unreachable\"")
+        }
+    }
+
+    @Test
+    fun `turned off, the application's routes answer an unreadable request as Spring does`() {
+        startHost(
+            "wow.http.global-errors.enabled" to false,
+            sources = listOf(HostTestApp::class.java, ProblemRoutesApp::class.java),
+        ).use { host ->
+            val result = host.client.get().uri("/app/count").exchange().expectBody(String::class.java).returnResult()
+            result.status.value().assert().isEqualTo(400)
+            result.responseHeaders.contentType.assert().isEqualTo(MediaType.APPLICATION_JSON)
+            result.responseBody.orEmpty().assert().doesNotContain(FrameworkCodes.REQUEST_MALFORMED)
         }
     }
 
