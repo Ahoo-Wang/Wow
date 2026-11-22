@@ -164,18 +164,15 @@ class SilentPeers @JvmOverloads constructor(
      */
     internal fun silenced(context: String, port: Port, target: String) {
         val state = stateOf(context, port)
-        val added = synchronized(state) {
+        synchronized(state) {
             if (target in state.marks) return
             state.marks = state.marks + (target to Mark(clock(), state.generation))
-            true
         }
-        if (added) {
-            logger.warn {
-                "$target of $context took a request and did not answer it within its bound: the requests to $context " +
-                    "go to its other nodes until it answers one, its list is read again, or $lapse pass."
-            }
-            observer.observed(ObservedEvent.PeerBypassed(context, target))
+        logger.warn {
+            "$target of $context took a request and did not answer it within its bound: the requests to $context " +
+                "go to its other nodes until it answers one, its list is read again, or $lapse pass."
         }
+        observer.observed(ObservedEvent.PeerBypassed(context, target))
     }
 
     /** [target] of [context] on [port] answered a request, a whole response: it is back if that list bypassed it. */
@@ -196,12 +193,7 @@ class SilentPeers @JvmOverloads constructor(
 
     private fun restored(context: String, target: String, mark: Mark, reason: Reason, now: Long) {
         val millis = (now - mark.since) / NANOS_PER_MILLI
-        logger.info {
-            when (reason) {
-                Reason.UNLISTED -> "$target of $context, bypassed for $millis ms, is no longer listed: it is gone."
-                else -> "$target of $context is back in its rotation after $millis ms bypassed: ${reasonOf(reason)}."
-            }
-        }
+        logger.info { "$target of $context, bypassed for $millis ms, ${outcomeOf(reason)}." }
         observer.observed(ObservedEvent.PeerRestored(context, target, millis, reason))
     }
 
@@ -209,11 +201,12 @@ class SilentPeers @JvmOverloads constructor(
         private val logger = KotlinLogging.logger {}
         private const val NANOS_PER_MILLI = 1_000_000L
 
-        fun reasonOf(reason: Reason): String = when (reason) {
-            Reason.ANSWERED -> "it answered a request"
-            Reason.RELISTED -> "its list was read again and still lists it"
-            Reason.LAPSED -> "no list was read again within the time a list is kept"
-            else -> reason.value
+        /** What a return for [reason] means, as the log says it. */
+        fun outcomeOf(reason: Reason): String = when (reason) {
+            Reason.ANSWERED -> "is back in its rotation: it answered a request"
+            Reason.RELISTED -> "is back in its rotation: its list was read again and still lists it"
+            Reason.UNLISTED -> "is gone: its list was read again and no longer lists it"
+            Reason.LAPSED -> "is back in its rotation: no list was read again within the time a list is kept"
         }
     }
 }

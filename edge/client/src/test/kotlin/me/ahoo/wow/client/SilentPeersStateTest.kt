@@ -71,6 +71,19 @@ class SilentPeersStateTest {
     }
 
     @Test
+    fun `a list read again should end only the bypasses it ends, the others held`() {
+        val three = targets + "http://c:9093"
+        silent.choose("mail", Port.INTERNAL, three, 1)
+        silent.silenced("mail", Port.INTERNAL, "http://a:9093")
+        silent.silenced("mail", Port.INTERNAL, "http://c:9093")
+        // Read again without c, of the same generation: c is gone, a still bypassed.
+        silent.choose("mail", Port.INTERNAL, targets, 1).assert().containsExactly("http://b:9093")
+        silent.bypassed("mail").assert().containsExactly("http://a:9093")
+        events.filterIsInstance<ObservedEvent.PeerRestored>().map { it.target to it.reason }.assert()
+            .containsExactly("http://c:9093" to Reason.UNLISTED)
+    }
+
+    @Test
     fun `a peer list should say its generation and its targets`() {
         val list = PeerList(listOf(URI.create("http://a:9093")), 3)
         list.generation.assert().isEqualTo(3)
