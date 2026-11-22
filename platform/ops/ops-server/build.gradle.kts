@@ -58,8 +58,7 @@ dependencies {
     testImplementation("me.ahoo.wow:wow-test-spring-boot")
     // A command within a request CoSec permitted: CoSec's filter writes its security context into the Reactor context.
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor")
-    // The security contexts of CoSec's pipeline that a test binds (PIP-27, a context made by hand reads as none), and
-    // its statement, for a test of the `cosec` profile, that only the gateway reaches it (IdentityHeader).
+    // The security contexts of CoSec's pipeline that a test binds: PIP-27, a context made by hand reads as none.
     testImplementation(libs.cosec.testkit)
     // The same flow on PostgreSQL in a container (decision D196).
     integrationTestImplementation(sourceSets["test"].output)

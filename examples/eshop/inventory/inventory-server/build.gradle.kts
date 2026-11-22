@@ -44,8 +44,6 @@ dependencies {
     implementation(libs.cosec.spring.boot)
     implementation(libs.cosec.webflux)
     testImplementation("me.ahoo.wow:wow-test-spring-boot")
-    // CoSec's statement, for a test of the `cosec` profile, that only the gateway reaches it (IdentityHeader).
-    testImplementation(libs.cosec.testkit)
 }
 
 // `./gradlew :eshop-inventory-server:run` is a local run: the `dev` profile joins whatever profiles `--args` activates,

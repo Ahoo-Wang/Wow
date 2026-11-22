@@ -42,8 +42,6 @@ dependencies {
     runtimeOnly("com.zaxxer:HikariCP")
     implementation("io.github.oshai:kotlin-logging-jvm")
     testImplementation("me.ahoo.wow:wow-test-spring-boot")
-    // CoSec's statement, for a test of the `cosec` profile, that only the gateway reaches it (IdentityHeader).
-    testImplementation(libs.cosec.testkit)
     // ViewStoreDevelopmentCallersTest resolves callers of a MockServerRequest.
     testImplementation("org.springframework:spring-test")
     // The generator of the configuration metadata of the service's own keys (design rule K8).
