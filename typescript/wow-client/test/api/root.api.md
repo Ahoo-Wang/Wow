@@ -1108,6 +1108,7 @@ export const FrameworkErrorCodes: {
     readonly AUTH_FORBIDDEN: "wow.auth.forbidden";
     readonly AGGREGATE_FORBIDDEN: "wow.aggregate.forbidden";
     readonly REQUEST_MALFORMED: "wow.request.malformed";
+    readonly REQUEST_INVALID: "wow.request.invalid";
     readonly COMMAND_MALFORMED: "wow.command.malformed";
     readonly COMMAND_INVALID: "wow.command.invalid";
     readonly WAIT_INVALID: "wow.wait.invalid";

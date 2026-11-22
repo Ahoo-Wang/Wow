@@ -147,7 +147,8 @@ hop  := "accepted" ["(" context ")"]
 | 请求体的媒体类型路由不接受 | 415 `about:blank`，带 `Accept` |
 | 路由给出的类型都不在 `Accept` 里 | 406 `about:blank` |
 | 读不出：编解码器读不出的请求体，缺少或类型不对的参数、请求头、路径变量 | 400 `wow.request.malformed`，detail 是 Spring 给的原因，并带一条 violation 指出读不出的是什么：参数用它的名字，请求体用 `body`，code 为 `wow.request.malformed` |
-| `@Valid` 请求体或方法的约束不满足 | 400 `about:blank` |
+| `@Valid` 请求体或方法的约束不满足 | 400 `wow.request.invalid`，每条被违反的约束一条 violation，形状与命令的相同：路径（请求体的字段 `items[0].quantity`；参数名，约束在元素上时带上下标或键 `ids[1]`；请求体本身或跨参数的约束为空），约束名的线上写法（`not-blank`；错误没有约束名时为 `invalid`），以及消息 |
+| 它调用的服务抛出 `ConstraintViolationException` | 什么也不说的 500：服务方法的约束是它自己的契约，不是请求的。`ProblemMapper` 可以认领它 |
 | 应用自己抛出 `ResponseStatusException` | 只有它的状态，`about:blank`，4xx 时以它的原因作 detail |
 
 除了状态本身没有更多可说的，就回答为 `about:blank`，即 RFC 9457 所说的只有状态的 problem；Wow 自己的路由也是这样。关掉 `wow.http.global-errors.enabled` 后，应用自己的路由按 Spring 的方式回答。

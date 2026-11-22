@@ -44,7 +44,8 @@ import tools.jackson.databind.json.JsonMapper
 
 /**
  * #6591: what each failure Spring WebFlux raises on the application's own routes is answered with, row by row: a
- * request that cannot be read is `wow.request.malformed` naming what does not read; a status with nothing more to say
+ * request that cannot be read is `wow.request.malformed` naming what does not read; one that fails its constraints is
+ * `wow.request.invalid` listing what it broke, in a command's shape; a status with nothing more to say
  * (no route, a method, a media type) stays the problem of its status alone (`about:blank`), on purpose, with the
  * headers its status calls for.
  */
@@ -83,6 +84,20 @@ class HostRouteProblemsTest {
         } else {
             body["detail"].asString().assert().isEqualTo(detail)
         }
+    }
+
+    private fun Answered.assertInvalid(vararg violations: Pair<Pair<String, String>, String>) {
+        status.assert().isEqualTo(400)
+        contentType.assert().isEqualTo("application/problem+json")
+        body["type"].asString().assert().isEqualTo("urn:wow:error:${FrameworkCodes.REQUEST_INVALID}")
+        body["code"].asString().assert().isEqualTo(FrameworkCodes.REQUEST_INVALID)
+        body["title"].asString().assert().isEqualTo("Invalid request")
+        body["detail"].asString().assert().isEqualTo("The request failed validation; the violations list what it broke.")
+        body["retry"].asString().assert().isEqualTo("none")
+        val listed = body["violations"].values().map { violation ->
+            (violation["path"].asString() to violation["code"].asString()) to violation["message"].asString()
+        }
+        listed.assert().containsExactly(*violations)
     }
 
     private fun Answered.assertMalformed(path: String, detail: String) {
@@ -150,13 +165,16 @@ class HostRouteProblemsTest {
     }
 
     @Test
-    fun `a body that fails its @Valid constraints is 400 of its status alone, saying only that validation failed`() {
-        postJson("/app/items", """{"name":" ","quantity":0}""").assertStatusAlone(400, "Validation failure")
+    fun `a body that fails its @Valid constraints is wow-request-invalid listing each field's violation`() {
+        postJson("/app/items", """{"name":" ","quantity":0}""").assertInvalid(
+            "name" to "not-blank" to "must not be blank",
+            "quantity" to "min" to "must be greater than or equal to 1",
+        )
     }
 
     @Test
-    fun `a parameter that fails its method's constraints is 400 of its status alone, saying only validation failed`() {
-        get("/app/limit?limit=0").assertStatusAlone(400, "Validation failure")
+    fun `a parameter that fails its method's constraints is wow-request-invalid naming it`() {
+        get("/app/limit?limit=0").assertInvalid("limit" to "min" to "must be greater than or equal to 1")
     }
 
     @Test

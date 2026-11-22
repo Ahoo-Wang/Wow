@@ -42,10 +42,8 @@ import org.springframework.core.MethodParameter
 import org.springframework.core.codec.DecodingException
 import org.springframework.core.io.buffer.DataBufferLimitException
 import org.springframework.http.HttpStatus
-import org.springframework.validation.BeanPropertyBindingResult
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestParam
-import org.springframework.web.bind.support.WebExchangeBindException
 import org.springframework.web.server.MissingRequestValueException
 import org.springframework.web.server.ResponseStatusException
 import org.springframework.web.server.ServerWebInputException
@@ -304,14 +302,9 @@ class FailureProblemsTest {
     }
 
     @Test
-    fun `a body too large to read is 413, and a body that fails @Valid is its status alone`() {
+    fun `a body too large to read is 413, not malformed`() {
         val tooLarge = unnamedInput("Failed to read HTTP message", DataBufferLimitException("Big."))
         problems().problemOf(tooLarge).status.assert().isEqualTo(413)
-        val binding = WebExchangeBindException(parameter(0), BeanPropertyBindingResult(Any(), "item"))
-        val invalid = problems().problemOf(binding)
-        invalid.status.assert().isEqualTo(400)
-        invalid.code.assert().isNull()
-        invalid.detail.assert().isEqualTo("Validation failure")
     }
 
     private fun Problem.assertMalformed(path: String, detail: String) {

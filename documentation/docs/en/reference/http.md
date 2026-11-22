@@ -147,7 +147,8 @@ What Spring WebFlux raises on a route the application serves beside Wow's, annot
 | Sends a body of a media type the route does not take | 415 `about:blank`, with `Accept` |
 | Accepts none of the types the route answers in | 406 `about:blank` |
 | Cannot be read: a body the codecs cannot read, a parameter, header or path variable missing or of the wrong type | 400 `wow.request.malformed`, Spring's reason as its detail, and one violation naming what does not read: the parameter by its name, or `body`, with the code `wow.request.malformed` |
-| Fails a `@Valid` body's or a method's constraints | 400 `about:blank` |
+| Fails a `@Valid` body's or a method's constraints | 400 `wow.request.invalid`, one violation per constraint it broke, in a command's shape: the path (a body's field, `items[0].quantity`; a parameter's name, with its element's index or key, `ids[1]`; empty for the body itself or across parameters), the constraint's name on the wire (`not-blank`; `invalid` when the error names none), and the message |
+| Meets a `ConstraintViolationException` of a service it calls | A 500 that says nothing: a service method's constraints are its own contract, not the request's. A `ProblemMapper` may answer it |
 | Meets a `ResponseStatusException` the application throws | Its status alone, `about:blank`, its reason as the detail of a 4xx |
 
 A status that has nothing to add to itself is answered as `about:blank`, RFC 9457's problem of the status alone, on Wow's routes too. With `wow.http.global-errors.enabled` off, the application's routes answer as Spring does.

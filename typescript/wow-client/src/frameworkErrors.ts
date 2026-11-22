@@ -25,6 +25,8 @@ export const FrameworkErrorCodes = {
   AGGREGATE_FORBIDDEN: 'wow.aggregate.forbidden',
   /** 400 Malformed request: A request header or parameter does not parse, or names what Wow does not take. */
   REQUEST_MALFORMED: 'wow.request.malformed',
+  /** 400 Invalid request: A request to the application's own route failed validation; the problem lists the violations. */
+  REQUEST_INVALID: 'wow.request.invalid',
   /** 400 Malformed command: The command body cannot be read as the command type. */
   COMMAND_MALFORMED: 'wow.command.malformed',
   /** 400 Invalid command: The command failed validation; the problem lists the violations. */
