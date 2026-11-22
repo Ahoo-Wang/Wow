@@ -140,12 +140,17 @@ internal class ErrorResponses(manifest: Manifest, private val overrides: Map<Str
             "A rejection by the domain, with the code it chose; the problem carries the command's result."
 
         /** The framework codes no documented route answers, initialized before [COMMAND] reads them. */
-        private val NOT_ROUTED = setOf(FrameworkCodes.CALL_COMMAND_FORBIDDEN, FrameworkCodes.LEDGER_STALE)
+        private val NOT_ROUTED = setOf(
+            FrameworkCodes.CALL_COMMAND_FORBIDDEN,
+            FrameworkCodes.LEDGER_STALE,
+            FrameworkCodes.REQUEST_INVALID,
+        )
 
         /**
          * The codes a command route answers: every framework code but the query ones, the internal port's call code
-         * ([FrameworkCodes.CALL_COMMAND_FORBIDDEN]) and the ledger's stale action ([FrameworkCodes.LEDGER_STALE],
-         * answered to a ledger command, which arrives on the command topic), which no documented route answers.
+         * ([FrameworkCodes.CALL_COMMAND_FORBIDDEN]), the ledger's stale action ([FrameworkCodes.LEDGER_STALE],
+         * answered to a ledger command, which arrives on the command topic) and an application route's failed
+         * validation ([FrameworkCodes.REQUEST_INVALID]), which no documented route answers.
          */
         val COMMAND: List<String> = FrameworkErrors.ALL.map { it.code }
             .filterNot { it.startsWith(QUERY_PREFIX) || it in NOT_ROUTED }

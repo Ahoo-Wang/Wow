@@ -82,6 +82,11 @@ object FrameworkErrors {
             400,
             "A request header or parameter does not parse, or names what Wow does not take.",
         ),
+        ErrorManifest(
+            FrameworkCodes.REQUEST_INVALID,
+            400,
+            "A request to the application's own route failed validation; the problem lists the violations.",
+        ),
         ErrorManifest(FrameworkCodes.COMMAND_MALFORMED, 400, "The command body cannot be read as the command type."),
         ErrorManifest(
             FrameworkCodes.COMMAND_INVALID,
@@ -274,6 +279,7 @@ object FrameworkErrors {
         FrameworkCodes.AUTH_FORBIDDEN to "Forbidden",
         FrameworkCodes.AGGREGATE_FORBIDDEN to "Aggregate change forbidden",
         FrameworkCodes.REQUEST_MALFORMED to "Malformed request",
+        FrameworkCodes.REQUEST_INVALID to "Invalid request",
         FrameworkCodes.COMMAND_MALFORMED to "Malformed command",
         FrameworkCodes.COMMAND_INVALID to "Invalid command",
         FrameworkCodes.WAIT_INVALID to "Invalid wait",

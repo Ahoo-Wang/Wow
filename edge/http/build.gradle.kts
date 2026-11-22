@@ -11,6 +11,8 @@ dependencies {
     // GET /wow/openapi: the OpenAPI document of the routes, from the same Manifest (roadmap 5a.2).
     implementation(project(":openapi"))
     api("org.springframework:spring-webflux")
+    // Spring's validation results, which a @Valid body's and a method's failures carry (#6591).
+    implementation("org.springframework:spring-context")
     // The internal port's own server (decisions D89, D109), whose security floor every host gets (review R5.C-2).
     implementation("io.projectreactor.netty:reactor-netty-http")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor")
@@ -24,7 +26,6 @@ dependencies {
     testImplementation("org.springframework:spring-test")
     testImplementation("io.projectreactor:reactor-test")
     // The default handler strategies of a router function served without Spring Boot read the locale context.
-    testImplementation("org.springframework:spring-context")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test")
     // The in-memory reference query backend, behind the snapshot query routes.
     testImplementation(project(":query-tck"))

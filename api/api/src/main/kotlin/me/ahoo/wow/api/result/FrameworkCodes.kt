@@ -26,6 +26,7 @@ object FrameworkCodes {
     const val AUTH_FORBIDDEN: String = "wow.auth.forbidden"
     const val AGGREGATE_FORBIDDEN: String = "wow.aggregate.forbidden"
     const val REQUEST_MALFORMED: String = "wow.request.malformed"
+    const val REQUEST_INVALID: String = "wow.request.invalid"
     const val COMMAND_MALFORMED: String = "wow.command.malformed"
     const val COMMAND_INVALID: String = "wow.command.invalid"
     const val WAIT_INVALID: String = "wow.wait.invalid"
@@ -75,6 +76,7 @@ object FrameworkCodes {
         AUTH_FORBIDDEN,
         AGGREGATE_FORBIDDEN,
         REQUEST_MALFORMED,
+        REQUEST_INVALID,
         COMMAND_MALFORMED,
         COMMAND_INVALID,
         WAIT_INVALID,

@@ -26,6 +26,7 @@ import org.springframework.core.codec.CodecException
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.support.WebExchangeBindException
+import org.springframework.web.method.annotation.HandlerMethodValidationException
 import org.springframework.web.server.MissingRequestValueException
 import org.springframework.web.server.ResponseStatusException
 import org.springframework.web.server.ServerWebInputException
@@ -40,7 +41,8 @@ import kotlin.coroutines.cancellation.CancellationException
  *
  * 1. What the framework knows: a [ProblemException] as its problem, a [CommandRejectedException] (a command a route
  *    sent through a `CommandClient`) as its result, a [WowProblemException] (another service's answer relayed, or the
- *    application's own) as its code, status, result and retry, a request that cannot be read
+ *    application's own) as its code, status, result and retry, a request that fails its constraints (a `@Valid`
+ *    body's, a method's) as `wow.request.invalid` with its violations ([RequestViolations]), a request that cannot be read
  *    ([ServerWebInputException]: a body the codecs cannot read, a parameter missing or of the wrong type) as
  *    `wow.request.malformed` naming what does not read, any other [ResponseStatusException] as its status alone, a
  *    store that is unavailable (or a failure caused by one) as 503 `wow.storage.unavailable`, and a body larger than
@@ -97,15 +99,24 @@ class FailureProblems(
         is ProblemException -> failure.problem
         is CommandRejectedException -> statuses.problemOf(failure.result)
         is WowProblemException -> statuses.problemOf(failure, context)
-        // A @Valid body that fails its constraints is read: its status alone, as any other.
-        is ServerWebInputException if failure !is WebExchangeBindException ->
-            tooLargeProblem(failure) ?: malformed(failure, context)
+        is WebExchangeBindException -> invalid(RequestViolations.of(failure), context)
+        // A return value that fails its method's constraints is the server's own: a 500, its status alone.
+        is HandlerMethodValidationException if !failure.isForReturnValue ->
+            invalid(RequestViolations.of(failure), context)
+        is ServerWebInputException -> tooLargeProblem(failure) ?: malformed(failure, context)
         is ResponseStatusException -> {
             val status = HttpStatus.resolve(failure.statusCode.value()) ?: HttpStatus.INTERNAL_SERVER_ERROR
             Problem.ofStatus(status, failure.reason.takeIf { status.is4xxClientError })
         }
         else -> null
     }
+
+    /**
+     * The problem of a request that was read but fails its constraints (#6591): `wow.request.invalid` with its
+     * [violations], in the shape of a command's.
+     */
+    private fun invalid(violations: List<Violation>, context: String?): Problem =
+        statuses.problemOf(FrameworkCodes.REQUEST_INVALID, INVALID, context).copyWith(violations = violations)
 
     /**
      * The problem of a request that cannot be read (#6591): `wow.request.malformed` with Spring's reason, and a
@@ -227,6 +238,9 @@ class FailureProblems(
             mapped.result != null -> "with a command's result, which no mapped failure has"
             else -> null
         }
+
+        /** The detail of a request that fails its constraints. */
+        private const val INVALID = "The request failed validation; the violations list what it broke."
 
         /** The path of the violation of a body that cannot be read. */
         const val BODY: String = "body"
