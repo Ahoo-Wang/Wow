@@ -148,6 +148,7 @@ interface PublishedManifest {
     readonly aggregate: string;
     // (undocumented)
     readonly includeState: boolean;
+    readonly revealsDisplay?: boolean;
     // (undocumented)
     readonly topic: string;
 }

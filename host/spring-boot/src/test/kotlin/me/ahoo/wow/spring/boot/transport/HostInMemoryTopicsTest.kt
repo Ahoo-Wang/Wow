@@ -23,10 +23,13 @@ import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.runtime.sink.PublishedSinks
 import me.ahoo.wow.spi.read.StateMasks
 import me.ahoo.wow.spring.boot.BANK
+import me.ahoo.wow.spring.boot.query.QueryProperties
 import me.ahoo.wow.spring.boot.startHost
 import org.junit.jupiter.api.Test
 import org.springframework.boot.autoconfigure.AutoConfigurations
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
+import org.springframework.core.env.MapPropertySource
+import org.springframework.core.env.StandardEnvironment
 
 /**
  * DX gap G27: `wow.transport` gives a node in development its topics in its JVM, for trying a service out without
@@ -74,6 +77,15 @@ class HostInMemoryTopicsTest {
                 generateSequence(context.startupFailure) { it.cause }.joinToString { it.message.orEmpty() }.assert()
                     .contains(StateMasks::class.java.name)
             }
+    }
+
+    @Test
+    fun `the sinks should publish by the service's display-shared switch, on by default, whether queries run or not`() {
+        fun environment(vararg properties: Pair<String, Any>) =
+            StandardEnvironment().apply { propertySources.addFirst(MapPropertySource("test", properties.toMap())) }
+        QueryProperties.displaySharedOf(environment()).assert().isTrue()
+        QueryProperties.displaySharedOf(environment(QueryProperties.DISPLAY_SHARED to "false")).assert().isFalse()
+        QueryProperties.displaySharedOf(environment("wow.query.enabled" to "false")).assert().isTrue()
     }
 
     @Test

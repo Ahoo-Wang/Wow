@@ -92,11 +92,16 @@ fun onPayRejected(rejected: CommandReceipt.Rejected<PayOrder>): CommandRequest<R
 
 ## Sensitive values {#sensitive-values}
 
-A published record carries each [`@Sensitive`](./queries#where-masking-stops) `CONFIDENTIAL` value of its state and of its events' bodies masked, as a read masks it. The ordering's transport sink masks them as it writes the record, so a password hash or an API key in the ordering's state reaches neither the payment's handler nor any other reader of the topic, and the topic does not hold it. The ordering's own subscriptions read its log, and get the values as they were committed.
+A published record carries the [`@Sensitive`](./queries#where-masking-stops) values of its state and of its events' bodies masked, as a read masks them: every `CONFIDENTIAL` value, and every `DISPLAY` value unless the ordering declares that the stream reveals them. The ordering's transport sink masks them as it writes the record. So a password hash or a phone number in the ordering's state reaches neither the payment's handler nor any other reader of the topic, and the topic does not hold it. The ordering's own subscriptions read its log, and get the values as they were committed.
 
 - **What a reader gets:** the same fields and the same schema fingerprint, with the mask in place of the value. A mask is still a string, but a value type of the contract that checks its content when it is constructed may refuse it.
-- **`DISPLAY` values:** still published as written, and kept in the topic for its retention. Who may read the topic is its ACL's to decide. They will be masked too, unless the ordering declares that the stream reveals them ([#6586](https://github.com/Ahoo-Wang/Wow/issues/6586)). Until then, keep a `DISPLAY` value no peer may see out of a published aggregate's state and events, or leave the aggregate unpublished (`published = false`).
-- **Records published before the upgrade:** they keep every value as it was written, `CONFIDENTIAL` ones included, until the topic's retention removes them.
+- **A stream that reveals its `DISPLAY` values:** the ordering declares it on the aggregate, `@AggregateRoot(revealsDisplay = true)`, when its peers need them raw, such as the phone number a payment sends a text to. Its `CONFIDENTIAL` values stay masked. The Manifest's `published` and the peer contract carry the declaration, so a consumer knows what it receives; turning it off later is a breaking change of the contract. The build refuses it on an aggregate whose published state and events hold no `DISPLAY` value, and the compiler on one that is not published.
+- **How it differs from a revealing read:**
+  - the ordering says the word, not the reader;
+  - every reader of the topic gets the raw values, external consumers included: the topic's ACL is the boundary, and no read of it is audited;
+  - the values stay in the topic for its retention.
+- **The ordering's switch:** `wow.query.sensitivity.display-shared` off masks a revealing stream's `DISPLAY` values all the same, as it refuses a peer's revealing read.
+- **Records published before the upgrade:** they keep every value as it was written ([Upgrade a Deployment](../operate/upgrades#sensitive-values-on-a-published-stream)).
 
 ## External consumers
 

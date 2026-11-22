@@ -149,7 +149,7 @@ data class OrderState(
 | `@QueryText` | 供人按词检索的文字，例如名称或描述：`search` 可以指定它，不指定字段的 `search` 也会读它（[Elasticsearch 上](../operate/elasticsearch#full-text-search)） |
 | `@Sensitive` | 在每个结果中脱敏的字符串：`DISPLAY` 仍可以过滤和排序，`CONFIDENTIAL` 永远不可以 |
 
-脱敏的字段对每个调用方都脱敏：在查询、状态读取、事件查询和轨迹中都一样，在数仓的目录中、在[状态视图缓存](./extensions/cocache)中也一样。它在 Wow 作为读取返回它的地方脱敏，`CONFIDENTIAL` 的值在 Wow 把它发布给别的上下文时也脱敏，而在 Wow 存储它的地方不脱敏：见[脱敏止步之处](#where-masking-stops)。唯一的例外是服务自己明确要求读取的 `DISPLAY` 值（[见下文](#read-a-display-value-raw)）。
+脱敏的字段对每个调用方都脱敏：在查询、状态读取、事件查询和轨迹中都一样，在数仓的目录中、在[状态视图缓存](./extensions/cocache)中也一样。它在 Wow 作为读取返回它的地方和 Wow 把它发布给别的上下文的地方脱敏，而在 Wow 存储它的地方不脱敏：见[脱敏止步之处](#where-masking-stops)。`DISPLAY` 值有两个例外，都要明确说出来：服务自己明确要求读取的（[见下文](#read-a-display-value-raw)），以及属主声明为揭示它的发布事件流（[脱敏止步之处](#where-masking-stops)）。
 
 ### 读取 `DISPLAY` 值的原值 {#read-a-display-value-raw}
 
@@ -186,7 +186,7 @@ sms.send(customer.state.phone, text)
 
 ### 脱敏止步之处 {#where-masking-stops}
 
-`@Sensitive` 决定的是一次读取返回什么：查询、状态读取、事件查询、轨迹、状态视图缓存的条目。对 `CONFIDENTIAL` 的值，它也决定发布的事件流携带什么。它不改变 Wow 存储的内容，也不是静态加密。下面这些地方按写入时的样子保存每个 `@Sensitive` 值，`CONFIDENTIAL` 的也一样：
+`@Sensitive` 决定的是一次读取返回什么：查询、状态读取、事件查询、轨迹、状态视图缓存的条目。它也决定发布的事件流携带什么。它不改变 Wow 存储的内容，也不是静态加密。下面这些地方按写入时的样子保存每个 `@Sensitive` 值，`CONFIDENTIAL` 的也一样：
 
 | 位置 | 保存什么 | 边界 |
 | --- | --- | --- |
@@ -197,7 +197,13 @@ sms.send(customer.state.phone, text)
 
 直接读这些地方的人，无论用 SQL 还是存储的客户端，读到的都是原始值。
 
-[发布的事件流](./published-streams#sensitive-values) `wow.<context>.<aggregate>.state` 在写入时脱敏：状态和每个事件体里的每个 `CONFIDENTIAL` 值都按读取时的方式换成掩码，主题里不保存它。它的 `DISPLAY` 值仍按写入时的样子发布；之后它们也会脱敏，除非属主声明这个事件流揭示它们（[#6586](https://github.com/Ahoo-Wang/Wow/issues/6586)）。在那之前，谁能读到它们由主题的 ACL（[Kafka](../operate/kafka#topics)）决定。升级之前发布的记录保留写入时的每个值，直到主题的保留期删掉它们。
+[发布的事件流](./published-streams#sensitive-values) `wow.<context>.<aggregate>.state` 在写入时脱敏：状态和每个事件体里的每个 `@Sensitive` 值都按读取时的方式换成掩码，主题里不保存它。属主可以声明一个事件流揭示它的 `DISPLAY` 值（`@AggregateRoot(revealsDisplay = true)`）；它的 `CONFIDENTIAL` 值仍然脱敏。这样的事件流与揭示读取有三点不同：
+
+- **说出这个词的是属主，不是读方。** 一条记录只写一次，给所有读者，所以由属主在契约里决定。Manifest 的 `published` 和对端契约都带着这个声明，消费者由此知道它拿到的是不是原值。
+- **它对主题的每个读者都成立。** 别的上下文、别的服务和外部消费者拿到的都是原值。边界是主题的 ACL（[Kafka](../operate/kafka#topics)），对主题的读取也没有审计。
+- **揭示出去的值留在 broker 上**，直到主题的保留期结束。
+
+属主关掉 `wow.query.sensitivity.display-shared` 时，声明为揭示的事件流照样遮盖它的 `DISPLAY` 值。10.0.0-beta.14 及更早版本发布的记录保留写入时的每个值，直到主题的保留期删掉它们（[升级部署](../operate/upgrades#sensitive-values-on-a-published-stream)）。
 
 ### 属性继承的注解 {#annotations-a-property-inherits}
 

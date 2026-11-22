@@ -173,6 +173,8 @@ export interface PublishedManifest {
   readonly aggregate: string;
   readonly topic: string;
   readonly includeState: boolean;
+  /** The stream carries its DISPLAY values raw, as its owner declares; masked when left out. */
+  readonly revealsDisplay?: boolean;
 }
 
 /** A subscription of a bounded context: what it reads and what its handler derives. */

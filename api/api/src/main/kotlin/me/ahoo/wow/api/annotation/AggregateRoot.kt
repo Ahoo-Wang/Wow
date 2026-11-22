@@ -36,6 +36,14 @@ import kotlin.reflect.KClass
  * Kafka topic, `wow.<context>.<aggregate>.state` when empty. A topic is at most 249 characters of `a-z`, `A-Z`,
  * `0-9`, `.`, `_` and `-`, and neither `.` nor `..`.
  *
+ * The stream carries the state and the events' bodies masked as a read masks them (`@Sensitive` of `wow-query-api`):
+ * every `CONFIDENTIAL` value, and every `DISPLAY` value unless [revealsDisplay] is true. [revealsDisplay] declares that
+ * the stream reveals its `DISPLAY` values raw, to every reader of the topic, other contexts, other services and
+ * external consumers alike, for as long as the topic retains them; the Manifest's `published` and the peer contract
+ * carry it, so a consumer knows what it receives. The service's `wow.query.sensitivity.display-shared` off masks them
+ * all the same. The compiler rejects it on an aggregate that is not published, and the build on one whose published
+ * state and events hold no `DISPLAY` value. Turning it off later is a breaking change of the contract.
+ *
  * [ownership] says who the aggregate belongs to besides its tenant: [Ownership.OWNER] by default, the
  * owner of the command that creates it; [Ownership.TENANT] for a resource every caller of the tenant reads, such as a
  * product, whose owner is not recorded and whose reads are not restricted by owner. The compiler passes it to the
@@ -82,6 +90,7 @@ annotation class AggregateRoot(
     val published: Boolean = true,
     val publishState: Boolean = true,
     val topic: String = "",
+    val revealsDisplay: Boolean = false,
     val ownership: Ownership = Ownership.OWNER,
     val idSource: AggregateIdSource = AggregateIdSource.ASSIGNED,
     val snapshot: Boolean = true,

@@ -59,7 +59,12 @@ object ManifestTree {
         "aggregates" to context.aggregates.map(::writeAggregate),
         "subscriptions" to context.subscriptions.map(::writeSubscription),
         "published" to context.published.map {
-            obj("aggregate" to it.aggregate, "topic" to it.topic, "includeState" to it.includeState)
+            obj(
+                "aggregate" to it.aggregate,
+                "topic" to it.topic,
+                "includeState" to it.includeState,
+                "revealsDisplay" to it.revealsDisplay.takeIf { reveals -> reveals },
+            )
         },
         "errors" to context.errors.map(::writeError),
         "commands" to context.commands.map(::writeCommand).ifEmpty { null },
@@ -244,6 +249,7 @@ object ManifestTree {
                 aggregate = it.string("aggregate"),
                 topic = it.string("topic"),
                 includeState = it.booleanOrNull("includeState") ?: true,
+                revealsDisplay = it.booleanOrNull("revealsDisplay") ?: false,
             )
         },
         errors = node.objects("errors").map(::readError),

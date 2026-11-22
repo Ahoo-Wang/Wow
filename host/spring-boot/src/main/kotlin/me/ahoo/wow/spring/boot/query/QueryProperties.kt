@@ -33,6 +33,8 @@ import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spring.boot.WowProperties
 import me.ahoo.wow.spring.boot.store.StoreProperties
 import org.springframework.boot.context.properties.ConfigurationProperties
+import org.springframework.boot.context.properties.bind.Binder
+import org.springframework.core.env.Environment
 import java.time.Duration
 import kotlin.time.toJavaDuration
 import kotlin.time.toKotlinDuration
@@ -232,11 +234,14 @@ class QueryProperties {
         var displayComparable: Boolean = QuerySensitivityPolicy.DEFAULT.displayComparable
 
         /**
-         * Whether this service shares the raw value of its `DISPLAY` fields outside itself: with a peer service that
-         * asks for it on the internal port (`Wow-Reveal`). Off, it shares none, whatever service a peer names, and a
-         * read that asks is refused (403). Its own revealing reads in process are unaffected. A control that does not
-         * depend on who asks: a deployment that turns `display-comparable` off, so that no range condition approaches
-         * a `DISPLAY` value either, turns this off too and has a barrier that needs no service authentication.
+         * Whether this service shares the raw value of its `DISPLAY` fields outside itself, both ways a value leaves
+         * it: with a peer service that asks for it on the internal port (`Wow-Reveal`), and on a published stream its
+         * owner declares revealing (`@AggregateRoot(revealsDisplay = true)`). Off, it shares none: a peer's read that
+         * asks is refused (403), whatever service the peer names, and every published stream masks its `DISPLAY`
+         * values, a stream declared revealing included. It only tightens: on, a stream still masks them unless it is
+         * declared revealing. Its own revealing reads in process are unaffected. A control that does not depend on
+         * who asks: a deployment that turns `display-comparable` off, so that no range condition approaches a
+         * `DISPLAY` value either, turns this off too and has a barrier that needs no service authentication.
          */
         var displayShared: Boolean = true
 
@@ -394,6 +399,17 @@ class QueryProperties {
 
         /** How many dataset queries a node runs at once by default. */
         const val DEFAULT_DATASET_MAX_CONCURRENT: Int = DatasetQueryLimits.DEFAULT_MAX_CONCURRENT
+
+        /** The key of [Sensitivity.displayShared]. */
+        const val DISPLAY_SHARED: String = "$PREFIX.sensitivity.display-shared"
+
+        /**
+         * [Sensitivity.displayShared] as [environment] sets it, read from it so that a node with the query side off
+         * (`wow.query.enabled=false`), which has no [QueryProperties], publishes by the same switch.
+         */
+        fun displaySharedOf(environment: Environment): Boolean =
+            Binder.get(environment).bind(DISPLAY_SHARED, Boolean::class.javaObjectType).orElse(null)
+                ?: Sensitivity().displayShared
     }
 }
 

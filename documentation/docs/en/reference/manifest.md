@@ -34,6 +34,7 @@ Absent optional values (a null description, unknown `produces`, `derives`, `sche
   - `aggregate`
   - `topic`
   - `includeState`
+  - `revealsDisplay`: left out when absent or at its default
 - `errors`: array of [`Error`](#error)
 - `commands`: array of [`Command`](#command); left out when absent or at its default
 - `routes`: array of [`ServiceRoute`](#serviceroute); left out when absent or at its default

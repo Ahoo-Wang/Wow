@@ -72,7 +72,7 @@ import me.ahoo.wow.manifest.SystemCommands
  *   with its routes ([QueryRoutes]);
  * - the context's `published` streams: the state events of every aggregate whose
  *   `@AggregateRoot(published)` is not false, with its state unless `publishState` is false, on its `topic`, else
- *   on `wow.<context>.<aggregate>.state`;
+ *   on `wow.<context>.<aggregate>.state`, revealing its `DISPLAY` values when `revealsDisplay` is true;
  * - a subscription's `start`: what `@OnEvent(start)` declares, else the beginning for a
  *   projection or a handler of another context's stream, the end for a reactor or a saga of its own context's log;
  * - a saga's `derives`, of any of its handlers: the classes `@Sends(derives)` declares, else the commands its return
@@ -117,6 +117,7 @@ internal object ManifestFragmentBuilder {
                             it.aggregateName,
                             it.publication.topic ?: PublishedManifest.defaultTopic(context, it.aggregateName),
                             it.publication.includeState,
+                            revealsDisplay = it.publication.revealsDisplay,
                         )
                     }.sortedBy { it.aggregate },
                     errors = errors.sortedBy { it.code },

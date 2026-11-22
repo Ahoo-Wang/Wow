@@ -47,8 +47,8 @@ import me.ahoo.wow.runtime.node.InMemoryBackends
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.runtime.node.fastNodeOptions
-import me.ahoo.wow.runtime.sink.NoMasks
 import me.ahoo.wow.runtime.sink.PublishedSinks
+import me.ahoo.wow.runtime.sink.UNMASKED
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.runtime.wait.ResultCodes
 import me.ahoo.wow.runtime.wait.SignalSender
@@ -213,7 +213,7 @@ class CrossContextWaitTest {
         remoteSignals = signals,
         options = fastNodeOptions(),
         subscriptions = SubscriptionBindings(mapOf(SALES to listOf(orderSaga(rejections)))) +
-            PublishedSinks.topics(salesManifest, topics, NoMasks, PREFIX).factory,
+            PublishedSinks.topics(salesManifest, topics, UNMASKED, PREFIX).factory,
         contracts = ContractDirectory(salesManifest, listOf(peer(stockContract))),
         topics = SourceTopics(topics, PREFIX, topics),
     ).also {

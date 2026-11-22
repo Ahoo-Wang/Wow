@@ -92,11 +92,16 @@ fun onPayRejected(rejected: CommandReceipt.Rejected<PayOrder>): CommandRequest<R
 
 ## 敏感值 {#sensitive-values}
 
-发布的记录里，状态和各事件体中的每个 [`@Sensitive`](./queries#where-masking-stops) `CONFIDENTIAL` 值都按读取时的方式脱敏。订单的 transport sink 在写记录时脱敏，所以订单状态里的密码哈希或 API key 既不会到达支付的处理函数，也不会到达主题的任何其他读者，主题里也不保存它。订单自己的订阅读它的日志，拿到的是提交时的值。
+发布的记录里，状态和各事件体中的 [`@Sensitive`](./queries#where-masking-stops) 值都按读取时的方式脱敏：每个 `CONFIDENTIAL` 值，以及每个 `DISPLAY` 值，除非订单声明这个事件流揭示它们。订单的 transport sink 在写记录时脱敏。所以订单状态里的密码哈希或手机号既不会到达支付的处理函数，也不会到达主题的任何其他读者，主题里也不保存它。订单自己的订阅读它的日志，拿到的是提交时的值。
 
 - **读者拿到什么：** 字段和 schema 指纹都不变，值换成了掩码。掩码仍是字符串，但契约里在构造时校验内容的值类型可能拒绝它。
-- **`DISPLAY` 值：** 仍按写入时的样子发布，并在主题的保留期内一直留在主题里。谁能读主题由它的 ACL 决定。之后它们也会脱敏，除非订单声明这个事件流揭示它们（[#6586](https://github.com/Ahoo-Wang/Wow/issues/6586)）。在那之前，不能让任何对端看到的 `DISPLAY` 值不要放进发布的聚合的状态和事件，或者不发布这个聚合（`published = false`）。
-- **升级之前发布的记录：** 保留写入时的每个值，`CONFIDENTIAL` 的也一样，直到主题的保留期删掉它们。
+- **揭示 `DISPLAY` 值的事件流：** 对端需要原值时，比如支付要给这个手机号发短信，订单在聚合上声明 `@AggregateRoot(revealsDisplay = true)`。它的 `CONFIDENTIAL` 值仍然脱敏。Manifest 的 `published` 和对端契约都带着这个声明，消费者由此知道它拿到的是什么；以后关掉它是契约的破坏性变更。发布的状态和事件里没有 `DISPLAY` 值的聚合，构建会拒绝这个声明；没有发布的聚合，编译器会拒绝。
+- **它与揭示读取的不同：**
+  - 说出这个词的是订单，不是读方；
+  - 主题的每个读者都拿到原值，外部消费者也一样：边界是主题的 ACL，对它的读取没有审计；
+  - 这些值在主题的保留期内一直留在主题里。
+- **订单的开关：** 关掉 `wow.query.sensitivity.display-shared` 时，声明为揭示的事件流照样遮盖它的 `DISPLAY` 值，就像它拒绝对端的揭示读取一样。
+- **升级之前发布的记录：** 保留写入时的每个值（[升级部署](../operate/upgrades#sensitive-values-on-a-published-stream)）。
 
 ## 外部消费者 {#external-consumers}
 

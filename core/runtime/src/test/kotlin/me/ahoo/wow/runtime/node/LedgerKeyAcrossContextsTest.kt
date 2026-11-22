@@ -56,8 +56,8 @@ import me.ahoo.wow.runtime.command.orderModel
 import me.ahoo.wow.runtime.command.salesManifest
 import me.ahoo.wow.runtime.command.stockManifest
 import me.ahoo.wow.runtime.contract.ContractDirectory
-import me.ahoo.wow.runtime.sink.NoMasks
 import me.ahoo.wow.runtime.sink.PublishedSinks
+import me.ahoo.wow.runtime.sink.UNMASKED
 import me.ahoo.wow.runtime.snapshot.SnapshotTargets
 import me.ahoo.wow.runtime.subscription.ParkedRetryOptions
 import me.ahoo.wow.runtime.subscription.RetryPolicy
@@ -203,7 +203,7 @@ class LedgerKeyAcrossContextsTest {
         name: String,
         bindings: SubscriptionFactory = SubscriptionBindings(
             mapOf(SALES to listOf(salesBoard), STOCK to listOf(stockBoard))
-        ) + PublishedSinks.topics(this.manifest, topics, NoMasks, PREFIX).factory,
+        ) + PublishedSinks.topics(this.manifest, topics, UNMASKED, PREFIX).factory,
         manifest: Manifest = this.manifest,
         options: ServiceNodeOptions = fastNodeOptions(),
     ): ServiceNode = ServiceNode(

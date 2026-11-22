@@ -18,6 +18,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.SourceTopics
+import me.ahoo.wow.runtime.sink.PublicationMasks
 import me.ahoo.wow.runtime.sink.PublishedSinks
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.config.configNotNull
@@ -33,6 +34,7 @@ import me.ahoo.wow.spi.transport.TransportConfig
 import me.ahoo.wow.spi.transport.TransportProvider
 import me.ahoo.wow.spring.boot.WowProperties
 import me.ahoo.wow.spring.boot.config.DevelopmentMode
+import me.ahoo.wow.spring.boot.query.QueryProperties
 import me.ahoo.wow.spring.boot.store.BeanStoreResources
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory
@@ -59,7 +61,8 @@ import kotlin.time.Duration
  *   its [TopicProducer], [PartitionedSource] and [TopicAdmin] as beans, unless the application has its own.
  * - **Sink**: [PublishedSinks.topics] over the producer, one subscription per stream the Manifest publishes, each
  *   written to its topic after the transport's `topics.prefix` (`wow.kafka.topics.prefix`), masked by the node's
- *   [StateMasks] (the query side's, which the host declares).
+ *   [StateMasks] (the query side's, which the host declares): its `DISPLAY` values too, unless the stream is declared
+ *   revealing and `wow.query.sensitivity.display-shared` is on ([PublicationMasks]).
  * - **Source**: the [SourceTopics] over the source, the producer and the admin, after the same prefix, with the
  *   transport's `command-intake.enabled`, `ddl` and `topics.partition-refresh` ([TopicTransportOptions], which every
  *   topic transport has): the subscriptions of other contexts' streams read through it, and a saga's commands to
@@ -150,8 +153,13 @@ class TransportAutoConfiguration {
             producer: TopicProducer,
             selected: SelectedTransport,
             masks: StateMasks,
-        ): PublishedSinks =
-            PublishedSinks.topics(manifest, producer, masks, selected.topicPrefix)
+            environment: Environment,
+        ): PublishedSinks = PublishedSinks.topics(
+            manifest,
+            producer,
+            PublicationMasks(masks, QueryProperties.displaySharedOf(environment)),
+            selected.topicPrefix,
+        )
 
         @Bean
         @ConditionalOnMissingBean

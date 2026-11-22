@@ -357,7 +357,8 @@ class SinkSubscriptionTest {
                 NAME,
                 type,
                 this,
-                SharedStateReader(NAME, listOf(model), kernel, codec, views)
+                SharedStateReader(NAME, listOf(model), kernel, codec, views),
+                masks = null,
             ).subscription
     }
 
@@ -438,7 +439,7 @@ class SinkSubscriptionTest {
             override suspend fun write(records: List<StateEventRecord>): Unit = throw OutOfMemoryError("test")
         }
         val reader = SharedStateReader(NAME, listOf(model), kernel, codec, views)
-        val subscription = SinkSubscription(NAME, type, sink, reader).subscription
+        val subscription = SinkSubscription(NAME, type, sink, reader, masks = null).subscription
         assertThrows<OutOfMemoryError> { runBlocking { subscription.runHandler!!(runOf(subscription)) } }
     }
 
@@ -467,11 +468,11 @@ class SinkSubscriptionTest {
     @Test
     fun `a paced sink paces its subscription's runs, and one that takes a record a write is refused`() {
         val reader = SharedStateReader(NAME, listOf(model), kernel, codec, views)
-        val subscription = SinkSubscription(NAME, type, Paced(MAX_BATCH, 1.seconds), reader).subscription
+        val subscription = SinkSubscription(NAME, type, Paced(MAX_BATCH, 1.seconds), reader, masks = null).subscription
         subscription.minRunInterval.assert().isEqualTo(1.seconds)
         subscription.paced.assert().isEqualTo("Paced(wow.test.sink.interval=1s)")
         val refused = assertThrows<IllegalArgumentException> {
-            SinkSubscription(NAME, type, Paced(1, 1.seconds), reader)
+            SinkSubscription(NAME, type, Paced(1, 1.seconds), reader, masks = null)
         }
         refused.message.assert().contains("only a batching sink (maxBatch above 1) is paced")
     }
@@ -479,7 +480,7 @@ class SinkSubscriptionTest {
     @Test
     fun `a node refuses a paced sink whose interval is more than half its handler timeout, naming both settings`() {
         val reader = SharedStateReader(NAME, listOf(model), kernel, codec, views)
-        val subscription = SinkSubscription(NAME, type, Paced(MAX_BATCH, 1.seconds), reader).subscription
+        val subscription = SinkSubscription(NAME, type, Paced(MAX_BATCH, 1.seconds), reader, masks = null).subscription
         fun runtime(timeout: Duration) = SubscriptionRuntime(
             "shop",
             InMemoryEventLog(1),
@@ -500,7 +501,13 @@ class SinkSubscriptionTest {
     @Test
     fun `a sink should read the shared states under its own name`() {
         assertThrows<IllegalArgumentException> {
-            SinkSubscription(NAME, type, {}, SharedStateReader("other", listOf(model), kernel, codec, views))
+            SinkSubscription(
+                NAME,
+                type,
+                {},
+                SharedStateReader("other", listOf(model), kernel, codec, views),
+                masks = null,
+            )
         }
     }
 

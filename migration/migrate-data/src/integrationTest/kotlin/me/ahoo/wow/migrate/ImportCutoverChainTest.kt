@@ -62,6 +62,7 @@ import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.ServiceNodeOptions
 import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.runtime.node.SubscriptionFactory
+import me.ahoo.wow.runtime.sink.PublicationMasks
 import me.ahoo.wow.runtime.sink.PublishedSinks
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
 import me.ahoo.wow.spi.log.EventLog
@@ -217,7 +218,7 @@ class ImportCutoverChainTest {
             listOf(NineXExample.orderModel(payable = true), NineXExample.cartModel),
             EXAMPLE,
             BackendFactory { stores },
-            PublishedSinks.topics(EXAMPLE, topics, NO_MASKS, topicPrefix = PREFIX).factory,
+            PublishedSinks.topics(EXAMPLE, topics, PublicationMasks(NO_MASKS, true), topicPrefix = PREFIX).factory,
             ContractDirectory(EXAMPLE),
             topics = null,
         )

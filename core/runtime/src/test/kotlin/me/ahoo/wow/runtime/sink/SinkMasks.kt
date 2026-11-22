@@ -27,6 +27,9 @@ internal object NoMasks : StateMasks {
         null
 }
 
+/** The publication masks of a node whose schemas declare nothing sensitive. */
+internal val UNMASKED: PublicationMasks = PublicationMasks(NoMasks, displayShared = true)
+
 /**
  * Masks that replace [field] of every state, when [masksStates], and of the bodies of the events [events] names by
  * `***`, as the query side's masks would a sensitive field; each mask asked for is recorded in [asked], with how.

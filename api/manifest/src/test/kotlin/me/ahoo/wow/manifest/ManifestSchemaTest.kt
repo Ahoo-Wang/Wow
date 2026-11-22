@@ -87,6 +87,7 @@ class ManifestSchemaTest {
                 context.copyWith(
                     aggregates = aggregates,
                     subscriptions = subscriptions,
+                    published = context.published.map { it.copyWith(revealsDisplay = true) },
                     commands = SystemCommands.jobs(context.name),
                     routes = listOf(
                         ServiceRouteManifest(

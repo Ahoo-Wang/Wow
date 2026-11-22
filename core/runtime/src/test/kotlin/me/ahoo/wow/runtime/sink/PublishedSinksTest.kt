@@ -81,7 +81,7 @@ class PublishedSinksTest {
     private fun node(
         producer: TopicProducer = topics,
         subscriptions: SubscriptionFactory =
-            PublishedSinks.topics(manifest, producer, NoMasks, topicPrefix = "dev.").factory,
+            PublishedSinks.topics(manifest, producer, UNMASKED, topicPrefix = "dev.").factory,
     ): ServiceNode =
         ServiceNode(
             SHOP_SERVICE,
@@ -159,10 +159,10 @@ class PublishedSinksTest {
     }
 
     @Test
-    fun `the transport sink should publish states and event bodies masked as a read revealing DISPLAY asks`(): Unit =
+    fun `the transport sink should publish states and event bodies masked as a read that reveals nothing`(): Unit =
         runBlocking {
             val masks = FieldMasks("items", setOf("shop.order.Placed"))
-            val sinks = PublishedSinks.topics(manifest, topics, masks, topicPrefix = "dev.")
+            val sinks = PublishedSinks.topics(manifest, topics, PublicationMasks(masks, true), topicPrefix = "dev.")
             val node = node(subscriptions = sinks.factory)
             node.start()
             node.place("o-1")
@@ -170,13 +170,46 @@ class PublishedSinksTest {
             val order = records("dev.wow.shop.order.state").single()
             order.state!!.state.assert().isEqualTo(WowJson.mapper.readTree("""{"items":"***"}"""))
             order.events.single().payload["items"].asString().assert().isEqualTo("***")
-            // CONFIDENTIAL values alone: the masks of a read that reveals DISPLAY values.
+            // Every sensitive value, DISPLAY ones too: no stream is declared revealing.
             masks.asked.assert().contains(
-                "state shop.order revealsDisplay=true",
-                "event shop.order shop.order.Placed revealsDisplay=true",
+                "state shop.order revealsDisplay=false",
+                "event shop.order shop.order.Placed revealsDisplay=false",
             )
-            masks.asked.assert().allMatch { it.endsWith("revealsDisplay=true") }
+            masks.asked.assert().allMatch { it.endsWith("revealsDisplay=false") }
         }
+
+    @Test
+    fun `a stream declared revealing should keep its DISPLAY values raw only while the service shares them`(): Unit =
+        runBlocking {
+            val revealing = manifest.copyWith(
+                contexts = manifest.contexts.map { context ->
+                    context.copyWith(
+                        published = context.published.map { it.copyWith(revealsDisplay = it.aggregate == "order") },
+                    )
+                },
+            )
+            mapOf(true to "true", false to "false").forEach { (shared, orderReveals) ->
+                val masks = FieldMasks("items", emptySet())
+                val sinks = PublishedSinks.topics(revealing, topics, PublicationMasks(masks, shared))
+                val node = node(subscriptions = sinks.factory)
+                node.start()
+                // The cart's stream is not declared revealing; the order's is, and the switch off masks it all the same.
+                masks.asked.assert().contains(
+                    "state shop.order revealsDisplay=$orderReveals",
+                    "state shop.cart revealsDisplay=false",
+                )
+                node.stop()
+            }
+        }
+
+    @Test
+    fun `a stream reveals its DISPLAY values when declared so and shared, the switch only tightening`() {
+        val stream = PublishedManifest("order", "t")
+        PublicationMasks(NoMasks, true).revealsDisplay(stream).assert().isFalse()
+        PublicationMasks(NoMasks, true).revealsDisplay(stream.copyWith(revealsDisplay = true)).assert().isTrue()
+        PublicationMasks(NoMasks, false).revealsDisplay(stream.copyWith(revealsDisplay = true)).assert().isFalse()
+        PublicationMasks(NoMasks, false).toString().assert().contains("displayShared=false")
+    }
 
     @Test
     fun `a migrated log should publish its history up to the cut-over marked imported, and V10's commits unmarked`(): Unit =
@@ -215,7 +248,7 @@ class PublishedSinksTest {
 
     @Test
     fun `each sink should be a state reader of the type it publishes`(): Unit = runBlocking {
-        val sinks = PublishedSinks.topics(manifest, topics, NoMasks)
+        val sinks = PublishedSinks.topics(manifest, topics, UNMASKED)
         val models = listOf(orderModel(), cartModel())
         sinks.factory.stateReaders(SHOP, models).assert()
             .isEqualTo(mapOf("wow.transport-sink.order" to setOf(ORDER), "wow.transport-sink.cart" to setOf(CART)))
@@ -322,11 +355,11 @@ class PublishedSinksTest {
             PublishedSinks(
                 PublishedSinks.publishedOf(wrong),
                 PublishedSinks.TRANSPORT_SINK,
-                NoMasks,
+                UNMASKED,
             ) { _, _ -> TopicSink(topics, "t") }
         assertThrows<IllegalArgumentException> { sinks.factory.stateReaders(SHOP, listOf(orderModel())) }
         assertThrows<IllegalArgumentException> {
-            PublishedSinks(emptyMap(), " ", NoMasks) { _, _ -> TopicSink(topics, "t") }
+            PublishedSinks(emptyMap(), " ", UNMASKED) { _, _ -> TopicSink(topics, "t") }
         }
         PublishedSinks.publishedOf(shopManifest()).assert().isEmpty()
     }

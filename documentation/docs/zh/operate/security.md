@@ -16,7 +16,7 @@ Wow 服务有两扇门：公开端口，调用方在这里发送命令和查询�
 - 第一个请求到达之前，CoSec 的文档已经发布到一个以 `maxmemory-policy noeviction` 运行的 Redis。
 - 只按路由授权不够的地方，命令按动作授权。
 - 每个服务列出其他服务可以在它的内部端口上调用的系统命令；有助于发现错误时，也列出领域命令和模型。
-- `DISPLAY` 值不能到达对端的服务，关掉 `wow.query.sensitivity.display-shared`：否则能访问它内部端口的任何工作负载都能读到原值（[内部端口上的 `DISPLAY` 值](#display-values-on-the-internal-port)）。
+- `DISPLAY` 值不能到达对端的服务，关掉 `wow.query.sensitivity.display-shared`：否则能访问它内部端口的任何工作负载都能读到原值（[内部端口上的 `DISPLAY` 值](#display-values-on-the-internal-port)），它声明为揭示的事件流的每个读者也一样（[敏感值](../guide/published-streams#sensitive-values)）。
 - 只有服务自己的节点、给它发命令的服务和 ops 能写它的命令主题。
 - 数据库和消息代理的密码是密钥。
 - 事件里没有你可能不得不删除的个人数据。
@@ -354,7 +354,7 @@ spec:
 
 Wow 不在内部端口上认证服务。能访问某个服务内部端口的工作负载，可以在 `Wow-Service` 里声明任何服务名，在 `Wow-Call` 里声明服务自己的根，再用 `Wow-Reveal` 读到该服务 `DISPLAY` 值的原值。限制谁能访问内部端口，用上面的网络策略，或者用能认证工作负载的服务网格，是运维方的控制手段。
 
-`DISPLAY` 值不能离开本服务时，关掉 `wow.query.sensitivity.display-shared`。这时它不向任何对端揭示，不论对端声明自己是哪个服务，要求揭示的读取一律以 403 拒绝；它自己在进程内的揭示读取不受影响。这个控制不取决于是谁在问。同时关掉 `wow.query.sensitivity.display-comparable` 的部署，过滤条件也无法用范围条件逼近 `DISPLAY` 值，无需服务认证，就在 `DISPLAY` 值周围有了一道屏障。
+`DISPLAY` 值不能离开本服务时，关掉 `wow.query.sensitivity.display-shared`。这时它不向任何对端揭示，不论对端声明自己是哪个服务，要求揭示的读取一律以 403 拒绝。它发布的每个事件流也都遮盖这些值，契约声明为揭示的也一样。它自己在进程内的揭示读取不受影响。这个控制不取决于是谁在问。同时关掉 `wow.query.sensitivity.display-comparable` 的部署，过滤条件也无法用范围条件逼近 `DISPLAY` 值，无需服务认证，就在 `DISPLAY` 值周围有了一道屏障。
 
 遮蔽 `DISPLAY` 值是一种显示控制，不是保密：过滤条件默认就会比较它的原值。`@Sensitive` 管的是查询和读取返回什么，不管 Wow 存储什么，它也不是静态加密（[脱敏止步之处](../guide/queries#where-masking-stops)）。
 
