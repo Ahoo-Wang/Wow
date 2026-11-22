@@ -87,8 +87,15 @@ class HostParkedOpsTest {
     private fun openAccount(): String =
         host.post("/bank/account/open-account", """{"owner":"alice"}""").body!!["ref"]["id"].asString()
 
-    private fun entry(subscription: String, id: String) = "${OpsPaths.PARKED}/$BANK.$subscription/$BANK/account/" +
-        "${Caller.DEFAULT_TENANT}/$id"
+    /** [action] on [subscription]'s entry of the account [id], [members] beside the ones that name it in the body. */
+    private fun act(action: String, subscription: String, id: String, members: String = ""): Answer = host.post(
+        "${OpsPaths.PARKED}/$action",
+        """{"subscription":"$BANK.$subscription","context":"$BANK","aggregate":"account",""" +
+            """"tenantId":"${Caller.DEFAULT_TENANT}","id":"$id"${if (members.isEmpty()) "" else ",$members"}}""",
+    )
+
+    private fun listed(subscription: String): Answer =
+        host.post("${OpsPaths.PARKED}/${OpsPaths.LIST}", """{"subscription":"$BANK.$subscription"}""")
 
     private fun eventually(condition: () -> Boolean) {
         val deadline = System.nanoTime() + 20.seconds.inWholeNanoseconds
@@ -132,7 +139,7 @@ class HostParkedOpsTest {
     fun `a handler that fails twice recovers on its own after it parks, and the webhook hears it parked`() {
         val id = openAccount()
         eventually { failing.attempts(FLAKY, id) == 3 }
-        eventually { host.get(entry(FLAKY, id)).status == 404 }
+        eventually { act(OpsPaths.ENTRY, FLAKY, id).status == 404 }
         failing.handled.assert().contains("$FLAKY:$id")
         val parked = hooks.filter {
             it["entry"]["aggregate"]["id"].asString() == id && it["entry"]["subscription"].asString() == "$BANK.$FLAKY"
@@ -148,10 +155,10 @@ class HostParkedOpsTest {
         eventually { hooks.any { it["event"].asString() == "exhausted" && it["entry"]["aggregate"]["id"].asString() == id } }
         failing.attempts(BROKEN, id).assert().isEqualTo(2)
 
-        val listed = host.get("${OpsPaths.PARKED}?subscription=$BANK.$BROKEN")
+        val listed = listed(BROKEN)
         listed.status.assert().isEqualTo(200)
         listed.body!!["entries"].toList().map { it["aggregate"]["id"].asString() }.assert().contains(id)
-        val exhausted = host.get(entry(BROKEN, id)).body!!
+        val exhausted = act(OpsPaths.ENTRY, BROKEN, id).body!!
         exhausted["status"].asString().assert().isEqualTo("exhausted")
         exhausted["retries"].asInt().assert().isEqualTo(1)
         exhausted["retrySpec"]["maxRetries"].asInt().assert().isEqualTo(1)
@@ -162,19 +169,16 @@ class HostParkedOpsTest {
         hooks.first { it["entry"]["aggregate"]["id"].asString() == id }["entry"]["reason"].asString()
             .assert().isEqualTo(reason)
 
-        val retried = host.post("${entry(BROKEN, id)}/${OpsPaths.RETRY}", null)
+        val retried = act(OpsPaths.RETRY, BROKEN, id)
         retried.status.assert().isEqualTo(200)
         retried.body!!["outcome"].asString().assert().isEqualTo("parked")
         failing.attempts(BROKEN, id).assert().isEqualTo(3)
 
-        val marked = host.post(
-            "${entry(BROKEN, id)}/${OpsPaths.MARK_RECOVERABLE}",
-            """{"recoverable":"unrecoverable"}"""
-        )
+        val marked = act(OpsPaths.MARK_RECOVERABLE, BROKEN, id, """"recoverable":"unrecoverable"""")
         marked.body!!["status"].asString().assert().isEqualTo("unrecoverable")
-        host.post("${entry(BROKEN, id)}/${OpsPaths.MARK_RECOVERABLE}", """{"recoverable":"recoverable"}""")
+        act(OpsPaths.MARK_RECOVERABLE, BROKEN, id, """"recoverable":"recoverable"""")
         // A spec with another retry takes it up again; it still fails, and is spent again.
-        val applied = host.post("${entry(BROKEN, id)}/${OpsPaths.APPLY_RETRY_SPEC}", """{"maxRetries":2}""")
+        val applied = act(OpsPaths.APPLY_RETRY_SPEC, BROKEN, id, """"maxRetries":2""")
         applied.status.assert().isEqualTo(200)
         applied.body!!["retrySpec"]["applied"].asBoolean().assert().isTrue()
         eventually { failing.attempts(BROKEN, id) == 4 }
@@ -183,19 +187,19 @@ class HostParkedOpsTest {
         }
 
         // A skip names the parking it discards, as the operator reads it from the listing.
-        val failedAt = host.get("${OpsPaths.PARKED}?subscription=$BANK.$BROKEN").body!!["entries"].toList()
+        val failedAt = listed(BROKEN).body!!["entries"].toList()
             .single { it["aggregate"]["id"].asString() == id }["failedAt"].asLong()
-        val skipped = host.post("${entry(BROKEN, id)}/${OpsPaths.SKIP}", """{"failedAt":$failedAt}""")
+        val skipped = act(OpsPaths.SKIP, BROKEN, id, """"failedAt":$failedAt""")
         skipped.status.assert().isEqualTo(200)
         skipped.body!!["outcome"].asString().assert().isEqualTo("resolved")
-        host.get(entry(BROKEN, id)).status.assert().isEqualTo(404)
-        host.post("${entry(BROKEN, id)}/${OpsPaths.RETRY}", null).status.assert().isEqualTo(404)
+        act(OpsPaths.ENTRY, BROKEN, id).status.assert().isEqualTo(404)
+        act(OpsPaths.RETRY, BROKEN, id).status.assert().isEqualTo(404)
     }
 
     @Test
     fun `an operator who reaches every tenant reads the node's subscriptions over HTTP`() {
         val id = openAccount()
-        eventually { host.get(entry(BROKEN, id)).status == 200 }
+        eventually { act(OpsPaths.ENTRY, BROKEN, id).status == 200 }
         // The anonymous caller is its tenant's alone: the view is the whole service's.
         host.get(OpsPaths.SUBSCRIPTIONS).status.assert().isEqualTo(403)
 

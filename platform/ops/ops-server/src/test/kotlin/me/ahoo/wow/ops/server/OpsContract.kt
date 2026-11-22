@@ -347,7 +347,7 @@ abstract class OpsContract {
 
     @Test
     fun `the node's own parked entries should be an operator's to read`() {
-        ops.get("/wow/ops/parked", Who.OPERATOR).assertOk().json["entries"].isArray.assert().isTrue()
+        ops.post("/wow/ops/parked/list", "{}", Who.OPERATOR).assertOk().json["entries"].isArray.assert().isTrue()
     }
 
     private fun eq(field: String, value: String): String = """{"op":"eq","field":"$field","value":"$value"}"""

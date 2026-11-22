@@ -105,3 +105,9 @@ outline: deep
 - **转发头策略的键是 `server.request.header.forwarded.strategy`**，这是 Spring Boot 4.2 的键，其中 `native` 即 `web-server`。除非应用设了它或已弃用的 `server.forward-headers-strategy`，宿主把它设为 `web-server`；两个键都设时 Spring Boot 不启动（[记录客户端地址](./security#record-the-client-address)）。设了弃用键的应用，取值照旧生效，宿主的启动日志会指出应改用的键。
 - **前面的 CoSec 部署。** 网关模式的 Wow 服务不持有文档、Redis 和控制面，所以除了版本号没有要改的。网关和控制面按 CoSec 的那一页升级：先升级每个控制面实例，再升级网关，网关的状态记录现在分成两部分；数据面的 Redis 用户需要新的 resident 键；网关保留多少文档取决于它的堆（[配置 CoSec 网关](./security#configure-the-cosec-gateway)）。
 - **网关模式服务的测试。** 启动这种服务的测试，用 `cosec-testkit` 的 `IdentityHeader.ONLY_GATEWAY_CAN_REACH` 声明边界（`@SpringBootTest(properties = [IdentityHeader.ONLY_GATEWAY_CAN_REACH])`），不再自己写一份测试配置。
+
+失败账本的停放条目改用有界的形式命名和访问，所以任何可能存在的聚合的条目，ops 服务都记录得下，运维人员也都能经网关访问到（[运维控制台](./ops-console)）：
+
+- **ops 服务的 `parked` 聚合以哈希命名。** 条目的 id 是 `p` 加 32 位十六进制数字，即它的服务、订阅与聚合 SHA-256 的前 128 位，原先这些字段是拼接起来的。服务、订阅、租户与 id 仍是条目的字段，与以前一样。ops 服务只在字段算出的那个 id 之下记录条目。本版本的 ops 服务从空库开始，和预发布版本的所有存储一样：记录在旧 id 之下的条目会一直未决，因为服务之后的记录都去了新 id。各服务自己的账本保留着条目，下一次扫描会重新发布它们。
+- **服务的运维路由在请求体里指明条目。** 每条都是 `/wow/ops/parked` 之下、路径不含数据的 `POST`：`list`（请求体里是 `subscription`、`after`、`limit`）、`entry`、`retry`、`skip`、`mark-recoverable` 与 `apply-retry-spec`，条目由 `subscription`、`context`、`aggregate`、`tenantId` 与 `id` 指明。拼过 `GET /wow/ops/parked?…`、`GET /wow/ops/parked/{subscription}/{context}/{aggregate}/{tenant}/{id}` 或其 `POST …/retry` 路径的脚本、Webhook 接收方或网关策略，都改用这些路由。
+- **`Ledger.parkedId` 返回哈希**，签名不变；解析过它旧形式的代码，改读条目的字段。

@@ -18,6 +18,8 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.naming.Escapes
+import java.security.MessageDigest
+import java.util.HexFormat
 
 /**
  * The failure ledger across services: each service keeps its own ledger, atomic with its
@@ -84,19 +86,25 @@ object Ledger {
 
     /**
      * The id of the ops aggregate recording the entry of [ref] that [subscription], of [context], parked in [service]:
-     * `<service>:<context>:<subscription>:<aggregate context>.<aggregate>:<tenant>:<id>`, so one service's entry of one
-     * aggregate is one ops aggregate, whichever node publishes it, and two contexts' subscriptions of one name keep
-     * entries of their own. Each field has its `%` and `:` percent-escaped (`%25`, `%3A`, [Escapes]), and the aggregate
-     * type's context its `.` too ([Escapes.typeText]), so two entries never share an id however their names join:
-     * tenant `a:b` with id `c` and tenant `a` with id `b:c` stay apart, as do context `a.b`'s aggregate `c` and context
-     * `a`'s `b.c`.
+     * [PARKED_ID_PREFIX] and the first 128 bits of the SHA-256 of
+     * `<service>:<context>:<subscription>:<aggregate context>.<aggregate>:<tenant>:<id>`, in 32 lowercase hexadecimal
+     * digits, so one service's entry of one aggregate is one ops aggregate, whichever node publishes it, and two
+     * contexts' subscriptions of one name keep entries of their own. Its length is 33 whatever the tenant and the id
+     * (#6626): the id of an aggregate that may exist, and a tenant the rules allow, always make an ops aggregate id
+     * that may exist too, and a path that carries it stays short. The entry's fields are in the entry, not in its id.
+     *
+     * Each field has its `%` and `:` percent-escaped (`%25`, `%3A`, [Escapes]), and the aggregate type's context its
+     * `.` too ([Escapes.typeText]), before they are joined and hashed, so two entries never share the text hashed
+     * however their names join: tenant `a:b` with id `c` and tenant `a` with id `b:c` stay apart, as do context `a.b`'s
+     * aggregate `c` and context `a`'s `b.c`. The ops context checks that a recorded entry's fields hash to the id it
+     * is recorded under.
      */
     @JvmStatic
     fun parkedId(service: String, context: String, subscription: String, ref: AggregateRef): String {
         require(service.isNotBlank()) { "A ledger entry names its service." }
         require(context.isNotBlank()) { "A ledger entry names its subscription's context." }
         require(subscription.isNotBlank()) { "A ledger entry names its subscription." }
-        return listOf(
+        val hashed = listOf(
             Escapes.escaped(service, RESERVED),
             Escapes.escaped(context, RESERVED),
             Escapes.escaped(subscription, RESERVED),
@@ -104,7 +112,15 @@ object Ledger {
             Escapes.escaped(ref.tenantId, RESERVED),
             Escapes.escaped(ref.id, RESERVED),
         ).joinToString(":")
+        val digest = MessageDigest.getInstance("SHA-256").digest(hashed.toByteArray(Charsets.UTF_8))
+        return PARKED_ID_PREFIX + HexFormat.of().formatHex(digest, 0, PARKED_ID_BYTES)
     }
+
+    /** The first character of every [parkedId]: an id is never a bare hexadecimal number. */
+    const val PARKED_ID_PREFIX: String = "p"
+
+    /** The bytes of the SHA-256 a [parkedId] keeps: 128 bits. */
+    private const val PARKED_ID_BYTES = 16
 
     /** The characters a field of a parked entry's ops id escapes: its separator and `%`. */
     private const val RESERVED = "%:"

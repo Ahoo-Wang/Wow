@@ -3,10 +3,10 @@
   "files": {
     "index.ts": "2c05d9d9d9b5b1c837df82b64fb5c87ee5695e2a6fbdd0aca4d4a67331653e06",
     "ops/client.ts": "fcf3561857ba9fec92c12caa937c890710dc3e7e8e15b324fb7b2688dc94c9b0",
-    "ops/contract.ts": "464e33c36da316ac324ef52f290a4a8e8ce2ffb7052ddb8af79786d28a5651ca",
+    "ops/contract.ts": "e7ef310c36324d6be6ba46f2b2d3dc1857f2cfda347828839fa3236c76095222",
     "ops/index.ts": "f2121f9db18076911b430dae06a60a4663089682852422c1c4d5a1fdf240497d",
     "ops/manifest.ts": "25cbe3a2cc6280cc4e383780319de360afd2b9f6bbf47dd82842cac8d98e7304",
-    "ops/parked/aggregate.ts": "198da55844516ca60ba023c8217b6b8aaccefbcf08b54576d30c0ab05480c746",
+    "ops/parked/aggregate.ts": "523222a35ae7d768f99943d63ff452e97b153477fce8addb88a1618b3b26c3c6",
     "ops/parked/commandClient.ts": "ebb77ce3bbcaed1a2741b55c4952231bbe6069c209fa6806fb0beff7afbab2c6",
     "ops/parked/index.ts": "93009e30d8920000d82a5628a33424d1dd4c38c65d6a354bdad8e4e8634633b7",
     "ops/parked/queryClient.ts": "39125bcd66972b94554a48ec77588bb58475fa6ce95ce7f6bf0e8df0e4c562ff",

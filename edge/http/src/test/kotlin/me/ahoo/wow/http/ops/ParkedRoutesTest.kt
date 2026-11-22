@@ -63,6 +63,7 @@ import me.ahoo.wow.spi.timer.TimerStatus
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.springframework.http.MediaType
 import org.springframework.test.web.reactive.server.WebTestClient
 import java.time.Clock
 import java.util.concurrent.CopyOnWriteArrayList
@@ -99,16 +100,41 @@ class ParkedRoutesTest {
     @AfterEach
     fun stop(): Unit = runBlocking { owner.stop() }
 
-    private fun entry(id: String) = "${OpsPaths.PARKED}/$KEY/shop/cart/$TENANT/$id"
+    /** The members of a route's body that name [id]'s entry, of [tenant], parked by [subscription]. */
+    private fun named(id: String, tenant: String = TENANT, subscription: String = KEY): String =
+        """"subscription":"$subscription","context":"shop","aggregate":"cart","tenantId":"$tenant","id":"$id""""
 
-    private fun WebTestClient.get(path: String, user: String? = "alice"): Answer =
-        get().uri(path).headers { if (user != null) it.set("X-User", user) }.answer()
-
-    private fun WebTestClient.post(path: String, body: String? = null, user: String = "alice", json: Boolean = true) =
+    private fun WebTestClient.post(path: String, body: String? = null, user: String? = "alice", json: Boolean = true) =
         post().uri(path).headers {
-            it.set("X-User", user)
+            if (user != null) it.set("X-User", user)
             it.set("Content-Type", if (json) "application/json" else "text/plain")
         }.let { if (body == null) it else it.bodyValue(body) }.answer()
+
+    /** [action] on [id]'s entry, [members] beside the ones that name it. */
+    private fun WebTestClient.act(
+        action: String,
+        id: String,
+        members: String = "",
+        user: String? = "alice",
+        tenant: String = TENANT,
+        subscription: String = KEY,
+    ): Answer = post(
+        "${OpsPaths.PARKED}/$action",
+        "{${named(id, tenant, subscription)}${if (members.isEmpty()) "" else ",$members"}}",
+        user,
+    )
+
+    /** One entry. */
+    private fun WebTestClient.read(
+        id: String,
+        user: String? = "alice",
+        tenant: String = TENANT,
+        subscription: String = KEY,
+    ): Answer = act(OpsPaths.ENTRY, id, user = user, tenant = tenant, subscription = subscription)
+
+    /** A page of the entries, [members] its body's. */
+    private fun WebTestClient.list(members: String = "", user: String? = "alice"): Answer =
+        post("${OpsPaths.PARKED}/${OpsPaths.LIST}", "{$members}", user)
 
     private suspend fun park(id: String, version: Int = 1) {
         ledger.park(
@@ -143,16 +169,16 @@ class ParkedRoutesTest {
     fun `entries are listed in pages and read one at a time`(): Unit = runBlocking {
         listOf("b", "a", "c").forEach { park(it) }
         val client = client(other)
-        val first = client.get("${OpsPaths.PARKED}?limit=2")
+        val first = client.list(""""limit":2""")
         first.status.assert().isEqualTo(200)
         first.body!!["entries"].toList().map { it["aggregate"]["id"].asString() }.assert().containsExactly("a", "b")
         val next = first.body!!["next"].asString()
         next.assert().isEqualTo(encodeCursor(ParkedKey(ID, type.ref(TENANT, "b"))))
-        val second = client.get("${OpsPaths.PARKED}?subscription=$KEY&after=$next")
+        val second = client.list(""""subscription":"$KEY","after":"$next"""")
         second.body!!["entries"].toList().map { it["aggregate"]["id"].asString() }.assert().containsExactly("c")
         second.body!!["next"].isNull.assert().isTrue()
 
-        val one = client.get(entry("a"))
+        val one = client.read("a")
         one.status.assert().isEqualTo(200)
         val body = one.body!!
         body["subscription"].asString().assert().isEqualTo(KEY)
@@ -172,24 +198,72 @@ class ParkedRoutesTest {
         body["status"].asString().assert().isEqualTo("scheduled")
         body["nextRetryAt"].asLong().assert().isEqualTo(FAILED_AT + 1.hours.inWholeMilliseconds)
 
-        client.get(entry("absent")).status.assert().isEqualTo(404)
-        client.get("${OpsPaths.PARKED}?after=bm90LWEtY3Vyc29y").status.assert().isEqualTo(400)
-        client.get("${OpsPaths.PARKED}?limit=0").status.assert().isEqualTo(400)
-        client.get("${OpsPaths.PARKED}?limit=x").status.assert().isEqualTo(400)
-        // A subscription is named <context>.<name>, as the configuration keys it.
-        client.get("${OpsPaths.PARKED}?subscription=nodot").status.assert().isEqualTo(400)
-        client.get("${OpsPaths.PARKED}/nodot/shop/cart/$TENANT/a").status.assert().isEqualTo(400)
-        client.get(OpsPaths.PARKED, user = null).status.assert().isEqualTo(401)
+        client.read("absent").status.assert().isEqualTo(404)
+        client.list(user = null).status.assert().isEqualTo(401)
         // Reads are authorized as wow.ledger.Read on each entry's aggregate (review R2.3-9).
         actions.map { it.second.type.name }.toSet().assert().containsExactly(OpsPaths.READ)
         actions.first().second.ref.assert().isEqualTo(type.ref(TENANT, "a"))
-        val hidden = client.get("${OpsPaths.PARKED}?limit=2", user = "mallory")
+        val hidden = client.list(""""limit":2""", user = "mallory")
         hidden.status.assert().isEqualTo(200)
         hidden.body!!["entries"].toList().assert().isEmpty()
-        val refused = client.get(entry("a"), user = "mallory")
+        val refused = client.read("a", user = "mallory")
         refused.status.assert().isEqualTo(403)
         refused.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
     }
+
+    @Test
+    fun `a listing or an entry its body does not name rightly is refused, and a blank listing is the first page`(): Unit =
+        runBlocking {
+            listOf("b", "a", "c").forEach { park(it) }
+            val client = client(other)
+            client.list(""""after":"bm90LWEtY3Vyc29y"""").status.assert().isEqualTo(400)
+            client.list(""""limit":0""").status.assert().isEqualTo(400)
+            client.list(""""limit":"x"""").status.assert().isEqualTo(400)
+            client.list(""""after":1""").status.assert().isEqualTo(400)
+            // A listing's body may be left out, or its members blank or null: the first page of every subscription.
+            client.post("${OpsPaths.PARKED}/${OpsPaths.LIST}").status.assert().isEqualTo(200)
+            client.list(""""subscription":"","after":"","limit":null""").body!!["entries"].toList()
+                .map { it["aggregate"]["id"].asString() }.assert().containsExactly("a", "b", "c")
+            // A subscription is named <context>.<name>, as the configuration keys it.
+            client.list(""""subscription":"nodot"""").status.assert().isEqualTo(400)
+            client.read("a", subscription = "nodot").status.assert().isEqualTo(400)
+            // The body names the entry, each member a string.
+            client.post("${OpsPaths.PARKED}/${OpsPaths.ENTRY}", """{"subscription":"$KEY","context":"shop"}""")
+                .let {
+                    it.assertMalformed()
+                    it.body!!["detail"].asString().assert().contains("aggregate is missing")
+                }
+            val numbered = """{"subscription":"$KEY","context":"shop","aggregate":"cart","tenantId":"$TENANT","id":1}"""
+            client.post("${OpsPaths.PARKED}/${OpsPaths.ENTRY}", numbered).assertMalformed()
+            // A null member is a missing one; a blank tenant names no aggregate.
+            client.post("${OpsPaths.PARKED}/${OpsPaths.ENTRY}", numbered.replace("\"id\":1", "\"id\":null"))
+                .body!!["detail"].asString().assert().contains("id is missing")
+            client.read("a", tenant = " ").assertMalformed()
+        }
+
+    @Test
+    fun `an entry of the longest tenant and id is read, retried and skipped by routes whose paths hold no data`(): Unit =
+        runBlocking {
+            // A tenant of 256 characters that percent-encode to nine each, and a long id (#6626): no path holds them.
+            val tenant = "租".repeat(256)
+            val id = "i".repeat(256)
+            ledger.park(ParkedAggregate(SubscriptionId("shop", NAME), type.ref(tenant, id), 0, 1, "failed", FAILED_AT))
+            val client = client(other)
+            val admin = "root"
+            fun act(action: String, members: String = "") = client.post().uri("${OpsPaths.PARKED}/$action")
+                .headers {
+                    it.set("X-User", admin)
+                    it.set("X-Admin", "true")
+                    it.set("Content-Type", "application/json")
+                }.bodyValue("{${named(id, tenant)}${if (members.isEmpty()) "" else ",$members"}}").answer()
+            val read = act(OpsPaths.ENTRY)
+            read.status.assert().isEqualTo(200)
+            read.body!!["aggregate"]["tenantId"].asString().assert().isEqualTo(tenant)
+            read.body!!["aggregate"]["id"].asString().assert().isEqualTo(id)
+            act(OpsPaths.RETRY).status.assert().isEqualTo(202)
+            act(OpsPaths.SKIP, """"failedAt":$FAILED_AT""").status.assert().isEqualTo(202)
+            actions.map { it.second.ref }.toSet().assert().containsExactly(type.ref(tenant, id))
+        }
 
     @Test
     fun `retry and skip run on the owner and are requests elsewhere`(): Unit = runBlocking {
@@ -200,37 +274,34 @@ class ParkedRoutesTest {
         val local = client(owner)
 
         // Nothing of "gone" is in the log: retrying it handles nothing and resolves it.
-        val resolved = local.post("${entry("gone")}/${OpsPaths.RETRY}")
+        val resolved = local.act(OpsPaths.RETRY, "gone")
         resolved.status.assert().isEqualTo(200)
         resolved.body!!["outcome"].asString().assert().isEqualTo("resolved")
         resolved.body!!.has("entry").assert().isFalse()
-        val parked = local.post("${entry("x")}/${OpsPaths.RETRY}")
+        val parked = local.act(OpsPaths.RETRY, "x")
         parked.status.assert().isEqualTo(200)
         parked.body!!["outcome"].asString().assert().isEqualTo("parked")
         parked.body!!["entry"]["reason"].asString().assert().isEqualTo("java.lang.IllegalStateException")
 
         val remote = client(other)
-        val requested = remote.post("${entry("x")}/${OpsPaths.RETRY}")
+        val requested = remote.act(OpsPaths.RETRY, "x")
         requested.status.assert().isEqualTo(202)
         requested.body!!["outcome"].asString().assert().isEqualTo("requested")
         requested.body!!["entry"]["request"].asString().assert().isEqualTo("retry")
         // A skip names the parking it discards; without it the skip is refused.
-        val x = """{"failedAt":${ledger.parked(SubscriptionId("shop", NAME), type.ref(TENANT, "x"))!!.failedAt}}"""
-        remote.post("${entry("x")}/${OpsPaths.SKIP}").assertMalformed()
-        remote.post(
-            "${entry("x")}/${OpsPaths.SKIP}",
-            x
-        ).body!!["entry"]["request"].asString().assert().isEqualTo("skip")
+        val x = """"failedAt":${ledger.parked(SubscriptionId("shop", NAME), type.ref(TENANT, "x"))!!.failedAt}"""
+        remote.act(OpsPaths.SKIP, "x").assertMalformed()
+        remote.act(OpsPaths.SKIP, "x", x).body!!["entry"]["request"].asString().assert().isEqualTo("skip")
         ledger.parked(
             SubscriptionId("shop", NAME),
             type.ref(TENANT, "x")
         )!!.request.assert().isEqualTo(LedgerRequest.SKIP)
 
-        val skipped = local.post("${entry("x")}/${OpsPaths.SKIP}", x)
+        val skipped = local.act(OpsPaths.SKIP, "x", x)
         skipped.status.assert().isEqualTo(200)
         skipped.body!!["outcome"].asString().assert().isEqualTo("resolved")
-        local.post("${entry("x")}/${OpsPaths.SKIP}", x).status.assert().isEqualTo(404)
-        local.post("${entry("x")}/${OpsPaths.RETRY}").status.assert().isEqualTo(404)
+        local.act(OpsPaths.SKIP, "x", x).status.assert().isEqualTo(404)
+        local.act(OpsPaths.RETRY, "x").status.assert().isEqualTo(404)
 
         actions.map { it.second.type.name }.assert().containsExactly(
             OpsCommands.RETRY,
@@ -253,14 +324,14 @@ class ParkedRoutesTest {
         val client = client(other)
         val failedAt = ledger.parked(SubscriptionId("shop", NAME), type.ref(TENANT, "a"))!!.failedAt
         listOf(OpsPaths.RETRY, OpsPaths.SKIP).forEach { action ->
-            val stale = client.post("${entry("a")}/$action", """{"failedAt":${failedAt - 1}}""")
+            val stale = client.act(action, "a", """"failedAt":${failedAt - 1}""")
             stale.status.assert().isEqualTo(409)
             stale.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.LEDGER_STALE)
-            client.post("${entry("a")}/$action", """{"failedAt":"yesterday"}""").assertMalformed()
+            client.act(action, "a", """"failedAt":"yesterday"""").assertMalformed()
         }
         ledger.parked(SubscriptionId("shop", NAME), type.ref(TENANT, "a"))!!.request.assert().isNull()
         // The parking the operator saw: acted on, here a request to the owner.
-        val requested = client.post("${entry("a")}/${OpsPaths.SKIP}", """{"failedAt":$failedAt}""")
+        val requested = client.act(OpsPaths.SKIP, "a", """"failedAt":$failedAt""")
         requested.status.assert().isEqualTo(202)
         ledger.parked(
             SubscriptionId("shop", NAME),
@@ -280,14 +351,13 @@ class ParkedRoutesTest {
                 OpsPaths.APPLY_RETRY_SPEC to "\"maxRetries\":0",
             )
             bodies.forEach { (action, body) ->
-                val stale = client.post("${entry("a")}/$action", "{$body,\"failedAt\":${before.failedAt - 1}}")
+                val stale = client.act(action, "a", "$body,\"failedAt\":${before.failedAt - 1}")
                 stale.status.assert().isEqualTo(409)
                 stale.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.LEDGER_STALE)
             }
             ledger.parked(SubscriptionId("shop", NAME), ref).assert().isEqualTo(before)
             bodies.forEach { (action, body) ->
-                client.post("${entry("a")}/$action", "{$body,\"failedAt\":${before.failedAt}}").status.assert()
-                    .isEqualTo(200)
+                client.act(action, "a", "$body,\"failedAt\":${before.failedAt}").status.assert().isEqualTo(200)
             }
             ledger.parked(SubscriptionId("shop", NAME), ref)!!.recoverable.assert().isEqualTo(Recoverable.UNRECOVERABLE)
         }
@@ -311,35 +381,33 @@ class ParkedRoutesTest {
             parkTimer(timers, "pay", "t-1")
             parkTimer(timers, "remind", "t-2")
             val subscription = "shop.${TimerOptions.PARKED_SUBSCRIPTION}"
-            val listed = client.get("${OpsPaths.PARKED}?subscription=$subscription")
+            val listed = client.list(""""subscription":"$subscription"""")
             listed.status.assert().isEqualTo(200)
             listed.body!!["entries"].toList().map { it["aggregate"]["id"].asString() }.assert()
                 .containsExactly("t-1", "t-2")
-            val one = client.get(timerEntry("t-1"))
+            val one = client.read("t-1", subscription = subscription)
             one.status.assert().isEqualTo(200)
             one.body!!["reason"].asString().assert().isEqualTo("pay: down")
             // Nothing retries a parked timer: it waits for an operator.
             one.body!!["status"].asString().assert().isEqualTo("exhausted")
 
-            val retried = client.post("${timerEntry("t-1")}/${OpsPaths.RETRY}")
+            val retried = client.act(OpsPaths.RETRY, "t-1", subscription = subscription)
             retried.status.assert().isEqualTo(200)
             retried.body!!["outcome"].asString().assert().isEqualTo("resolved")
             timers.find(type.ref(TENANT, "o-1"), "pay")!!.status.assert().isEqualTo(TimerStatus.PENDING)
-            val parkedAt = client.get(timerEntry("t-2")).body!!["failedAt"].asLong()
-            val skipped = client.post("${timerEntry("t-2")}/${OpsPaths.SKIP}", """{"failedAt":$parkedAt}""")
+            val parkedAt = client.read("t-2", subscription = subscription).body!!["failedAt"].asLong()
+            val skipped = client.act(OpsPaths.SKIP, "t-2", """"failedAt":$parkedAt""", subscription = subscription)
             skipped.status.assert().isEqualTo(200)
             skipped.body!!["outcome"].asString().assert().isEqualTo("resolved")
             val remind = timers.find(type.ref(TENANT, "o-1"), "remind")!!
             remind.status.assert().isEqualTo(TimerStatus.CANCELLED)
             remind.outcome.assert().isEqualTo(TimerOutcomes.SKIPPED)
-            client.get("${OpsPaths.PARKED}?subscription=$subscription").body!!["entries"].toList().assert().isEmpty()
-            client.post("${timerEntry("t-1")}/${OpsPaths.RETRY}").status.assert().isEqualTo(404)
+            client.list(""""subscription":"$subscription"""").body!!["entries"].toList().assert().isEmpty()
+            client.act(OpsPaths.RETRY, "t-1", subscription = subscription).status.assert().isEqualTo(404)
         } finally {
             loop.close()
         }
     }
-
-    private fun timerEntry(id: String) = "${OpsPaths.PARKED}/shop.${TimerOptions.PARKED_SUBSCRIPTION}/shop/cart/$TENANT/$id"
 
     /** A timer of an aggregate's, [key], parked after its attempts, its [target]'s entry in the ledger. */
     private suspend fun parkTimer(timers: InMemoryTimerStore, key: String, target: String) {
@@ -375,7 +443,7 @@ class ParkedRoutesTest {
     fun `an operator marks an entry recoverable or not`(): Unit = runBlocking {
         park("a")
         val client = client(other)
-        val marked = client.post("${entry("a")}/${OpsPaths.MARK_RECOVERABLE}", """{"recoverable":"unrecoverable"}""")
+        val marked = client.act(OpsPaths.MARK_RECOVERABLE, "a", """"recoverable":"unrecoverable"""")
         marked.status.assert().isEqualTo(200)
         marked.body!!["recoverable"].asString().assert().isEqualTo("unrecoverable")
         marked.body!!["status"].asString().assert().isEqualTo("unrecoverable")
@@ -385,16 +453,17 @@ class ParkedRoutesTest {
             type.ref(TENANT, "a")
         )!!.recoverable.assert().isEqualTo(Recoverable.UNRECOVERABLE)
 
-        val mark = "${entry("a")}/${OpsPaths.MARK_RECOVERABLE}"
-        client.post(mark, """{"recoverable":"maybe"}""").assertMalformed()
+        val mark = "${OpsPaths.PARKED}/${OpsPaths.MARK_RECOVERABLE}"
+        client.act(OpsPaths.MARK_RECOVERABLE, "a", """"recoverable":"maybe"""").assertMalformed()
+        client.act(OpsPaths.MARK_RECOVERABLE, "a").assertMalformed()
         client.post(mark, """{}""").assertMalformed()
         client.post(mark, null).assertMalformed()
-        client.post(mark, """{"recoverable":1}""").assertMalformed()
+        client.act(OpsPaths.MARK_RECOVERABLE, "a", """"recoverable":1""").assertMalformed()
         client.post(mark, "[]").assertMalformed()
         client.post(mark, "{").assertMalformed()
-        client.post(mark, """{"recoverable":"recoverable"}""", json = false).status.assert().isEqualTo(415)
-        client.post("${entry("absent")}/${OpsPaths.MARK_RECOVERABLE}", """{"recoverable":"recoverable"}""")
-            .status.assert().isEqualTo(404)
+        val recoverable = """"recoverable":"recoverable""""
+        client.post(mark, "{${named("a")},$recoverable}", json = false).status.assert().isEqualTo(415)
+        client.act(OpsPaths.MARK_RECOVERABLE, "absent", recoverable).status.assert().isEqualTo(404)
         actions.map { it.second.type.name }.toSet().assert().containsExactly(OpsCommands.MARK_RECOVERABLE)
     }
 
@@ -402,8 +471,8 @@ class ParkedRoutesTest {
     fun `an operator applies a retry spec, the members left out kept`(): Unit = runBlocking {
         park("a")
         val client = client(other)
-        val apply = "${entry("a")}/${OpsPaths.APPLY_RETRY_SPEC}"
-        val applied = client.post(apply, """{"maxRetries":5,"initialBackoff":"10s"}""")
+        fun apply(members: String = "") = client.act(OpsPaths.APPLY_RETRY_SPEC, "a", members)
+        val applied = apply(""""maxRetries":5,"initialBackoff":"10s"""")
         applied.status.assert().isEqualTo(200)
         applied.body!!["retrySpec"]["maxRetries"].asInt().assert().isEqualTo(5)
         applied.body!!["retrySpec"]["initialBackoff"].asString().assert().isEqualTo("PT10S")
@@ -414,57 +483,58 @@ class ParkedRoutesTest {
             .isEqualTo(ParkedRetrySpec(5, 10.seconds, 1.minutes))
 
         // The durations the ops context's ApplyRetrySpec and the configuration take: the short forms, ISO-8601, zero.
-        client.post(apply, """{"initialBackoff":"3m","claimTtl":"PT2M"}""").body!!["retrySpec"].let {
+        apply(""""initialBackoff":"3m","claimTtl":"PT2M"""").body!!["retrySpec"].let {
             it["initialBackoff"].asString().assert().isEqualTo("PT3M")
             it["claimTtl"].asString().assert().isEqualTo("PT2M")
             it["maxRetries"].asInt().assert().isEqualTo(5)
         }
-        client.post(apply, """{"initialBackoff":"0s","claimTtl":"500ms"}""").body!!["retrySpec"].let {
+        apply(""""initialBackoff":"0s","claimTtl":"500ms"""").body!!["retrySpec"].let {
             it["initialBackoff"].asString().assert().isEqualTo("PT0S")
             it["claimTtl"].asString().assert().isEqualTo("PT0.500S")
         }
-        val none = client.post(apply, """{"maxRetries":0}""").body!!
+        val none = apply(""""maxRetries":0""").body!!
         none["status"].asString().assert().isEqualTo("exhausted")
-        client.post(apply, null).status.assert().isEqualTo(200)
+        apply().status.assert().isEqualTo(200)
 
-        client.post(apply, """{"maxRetries":-1}""").assertMalformed()
-        client.post(apply, """{"maxRetries":"5"}""").assertMalformed()
-        client.post(apply, """{"initialBackoff":"soon"}""").assertMalformed()
-        client.post(apply, """{"initialBackoff":-1}""").assertMalformed()
+        apply(""""maxRetries":-1""").assertMalformed()
+        apply(""""maxRetries":"5"""").assertMalformed()
+        apply(""""initialBackoff":"soon"""").assertMalformed()
+        apply(""""initialBackoff":-1""").assertMalformed()
         // One body shape: a bare number of seconds, as 9.x took it, is not a duration.
-        client.post(apply, """{"initialBackoff":180}""").assertMalformed()
-        client.post(apply, """{"initialBackoff":"-1m"}""").assertMalformed()
-        client.post(apply, """{"claimTtl":true}""").assertMalformed()
-        client.post("${entry("absent")}/${OpsPaths.APPLY_RETRY_SPEC}", "{}").status.assert().isEqualTo(404)
+        apply(""""initialBackoff":180""").assertMalformed()
+        apply(""""initialBackoff":"-1m"""").assertMalformed()
+        apply(""""claimTtl":true""").assertMalformed()
+        client.act(OpsPaths.APPLY_RETRY_SPEC, "absent").status.assert().isEqualTo(404)
     }
 
     @Test
     fun `the actions are authenticated and authorized`(): Unit = runBlocking {
         park("a")
         val client = client(other)
-        val denied = client.post("${entry("a")}/${OpsPaths.SKIP}", user = "mallory")
+        val denied = client.act(OpsPaths.SKIP, "a", user = "mallory")
         denied.status.assert().isEqualTo(403)
         denied.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
         denied.body!!["detail"].asString().assert().isEqualTo("Mallory may not.")
         ledger.parked(SubscriptionId("shop", NAME), type.ref(TENANT, "a"))!!.request.assert().isNull()
         actions.single().first.assert().isEqualTo("mallory")
 
-        val anonymous = client.post().uri("${entry("a")}/${OpsPaths.RETRY}").answer()
+        val anonymous = client.act(OpsPaths.RETRY, "a", user = null)
         anonymous.status.assert().isEqualTo(401)
         anonymous.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.AUTH_UNAUTHENTICATED)
-        client.post().uri("${OpsPaths.PARKED}/$KEY/shop/cart/$TENANT/a/${OpsPaths.RETRY}")
-            .header("X-User", "alice").header("Accept", "text/html").answer().status.assert().isEqualTo(406)
+        client.post().uri("${OpsPaths.PARKED}/${OpsPaths.RETRY}")
+            .header("X-User", "alice").header("Accept", "text/html").contentType(MediaType.APPLICATION_JSON)
+            .bodyValue("{${named("a")}}").answer().status.assert().isEqualTo(406)
         // Without an authorizer every action is refused, never allowed by default (review A3-3).
         val unauthorized = WebTestClient
             .bindToRouterFunction(parkedRoutes(ParkedOps.of(listOf(other)), cartManifest(), null, headerCallers))
             .build()
-        val refused = unauthorized.post("${entry("a")}/${OpsPaths.RETRY}")
+        val refused = unauthorized.act(OpsPaths.RETRY, "a")
         refused.status.assert().isEqualTo(403)
         refused.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
         refused.body!!["detail"].asString().assert().contains("no CommandAuthorizer")
         // Nor is any read (review R2.3-9).
-        unauthorized.get(entry("a")).status.assert().isEqualTo(403)
-        val list = unauthorized.get(OpsPaths.PARKED)
+        unauthorized.read("a").status.assert().isEqualTo(403)
+        val list = unauthorized.list()
         list.status.assert().isEqualTo(403)
         list.body!!["detail"].asString().assert().contains("no CommandAuthorizer")
         ledger.parked(SubscriptionId("shop", NAME), type.ref(TENANT, "a"))!!.request.assert().isNull()
@@ -481,20 +551,19 @@ class ParkedRoutesTest {
                 ParkedAggregate(SubscriptionId("shop", NAME), type.ref("other", "c"), 0, 1, "c failed", FAILED_AT)
             )
             val client = client(other)
-            val foreign = "${OpsPaths.PARKED}/$KEY/shop/cart/other/b"
-
-            val listed = client.get("${OpsPaths.PARKED}?limit=1")
+            val listed = client.list(""""limit":1""")
             listed.body!!["entries"].toList().map { it["aggregate"]["id"].asString() }.assert().containsExactly("a")
             listed.body!!["next"].asString().assert().isEqualTo(encodeCursor(ParkedKey(ID, type.ref(TENANT, "a"))))
-            client.get("${OpsPaths.PARKED}?after=${listed.body!!["next"].asString()}").body!!["entries"].toList()
+            client.list(""""after":"${listed.body!!["next"].asString()}"""").body!!["entries"].toList()
                 .assert().isEmpty()
-            client.get(foreign).status.assert().isEqualTo(404)
+            client.read("b", tenant = "other").status.assert().isEqualTo(404)
             listOf(OpsPaths.RETRY, OpsPaths.SKIP).forEach { action ->
-                client.post("$foreign/$action").status.assert().isEqualTo(404)
+                client.act(action, "b", tenant = "other").status.assert().isEqualTo(404)
             }
-            client.post("$foreign/${OpsPaths.MARK_RECOVERABLE}", """{"recoverable":"unrecoverable"}""")
+            client.act(OpsPaths.MARK_RECOVERABLE, "b", """"recoverable":"unrecoverable"""", tenant = "other")
                 .status.assert().isEqualTo(404)
-            client.post("$foreign/${OpsPaths.APPLY_RETRY_SPEC}", """{"maxRetries":0}""").status.assert().isEqualTo(404)
+            client.act(OpsPaths.APPLY_RETRY_SPEC, "b", """"maxRetries":0""", tenant = "other").status.assert()
+                .isEqualTo(404)
             ledger.parked(SubscriptionId("shop", NAME), type.ref("other", "b"))!!.let {
                 it.request.assert().isNull()
                 it.recoverable.assert().isEqualTo(Recoverable.UNKNOWN)
@@ -503,19 +572,21 @@ class ParkedRoutesTest {
             // Refused before it is authorized: the authorizer never hears of another tenant's entry.
             actions.map { it.second.ref.tenantId }.toSet().assert().containsExactly(TENANT)
 
-            val admin = client.get().uri("${OpsPaths.PARKED}?limit=10")
-                .headers {
-                    it.set("X-User", "root")
-                    it.set("X-Admin", "true")
-                }.answer()
-            admin.body!!["entries"].toList().map { it["aggregate"]["id"].asString() }.assert()
-                .containsExactly("a", "b", "c")
-            client.post().uri("$foreign/${OpsPaths.SKIP}")
+            val admin = client.post().uri("${OpsPaths.PARKED}/${OpsPaths.LIST}")
                 .headers {
                     it.set("X-User", "root")
                     it.set("X-Admin", "true")
                     it.set("Content-Type", "application/json")
-                }.bodyValue("""{"failedAt":$FAILED_AT}""").answer().status.assert().isEqualTo(202)
+                }.bodyValue("""{"limit":10}""").answer()
+            admin.body!!["entries"].toList().map { it["aggregate"]["id"].asString() }.assert()
+                .containsExactly("a", "b", "c")
+            client.post().uri("${OpsPaths.PARKED}/${OpsPaths.SKIP}")
+                .headers {
+                    it.set("X-User", "root")
+                    it.set("X-Admin", "true")
+                    it.set("Content-Type", "application/json")
+                }.bodyValue("""{${named("b", "other")},"failedAt":$FAILED_AT}""").answer()
+                .status.assert().isEqualTo(202)
         }
 
     @Test
@@ -528,7 +599,7 @@ class ParkedRoutesTest {
         val answer = WebTestClient
             .bindToRouterFunction(parkedRoutes(ParkedOps.of(listOf(broken)), cartManifest(), authorizer, headerCallers))
             .build()
-            .get(entry("a"))
+            .read("a")
         answer.status.assert().isEqualTo(503)
         answer.contentType.assert().contains("problem+json")
         answer.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.STORAGE_UNAVAILABLE)

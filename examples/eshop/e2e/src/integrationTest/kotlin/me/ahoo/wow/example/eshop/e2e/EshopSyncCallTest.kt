@@ -40,7 +40,6 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import tools.jackson.databind.JsonNode
 import java.net.InetSocketAddress
-import java.net.URLEncoder
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
@@ -99,21 +98,24 @@ class EshopSyncCallTest {
             checkedOut.status.assert().describedAs(checkedOut.text).isEqualTo(OK)
 
             // Retried within the subscription's budget, then parked.
-            val parked = "/wow/ops/parked/$CHECKOUT_KEY/eshop-basket/basket/${encode(Caller.DEFAULT_TENANT)}/bob"
-            eventually("the basket parked", DEADLINE) { basket.get(parked).status == OK }
+            // The entry, named in the body of the operator's routes (#6626).
+            val parked = """"subscription":"$CHECKOUT_KEY","context":"eshop-basket","aggregate":"basket",""" +
+                """"tenantId":"${Caller.DEFAULT_TENANT}","id":"bob""""
+            fun read() = basket.post("/wow/ops/parked/entry", "{$parked}", emptyMap())
+            eventually("the basket parked", DEADLINE) { read().status == OK }
             down.calls.assert().isEqualTo(MAX_ATTEMPTS)
-            basket.get(parked).body!!["reason"].asString().assert().contains("503")
+            read().body!!["reason"].asString().assert().contains("503")
             down.close()
 
             ordering(port).use { ordering ->
-                val retried = basket.post("$parked/retry", """{"reason":"The ordering is back."}""", emptyMap())
+                val retried = basket.post("/wow/ops/parked/retry", "{$parked}", emptyMap())
                 retried.status.assert().describedAs(retried.text).isEqualTo(OK)
                 // The checkout waited for the basket's commit alone, so its answer named no order: bob's order is the
                 // ordering's one order that bob owns.
                 eventually("bob's order submitted", DEADLINE) { ordering.ordersOf("bob").isNotEmpty() }
                 val number = ordering.ordersOf("bob").single()
                 ordering.ownerOf(number).assert().isEqualTo("bob")
-                eventually("the basket retried", DEADLINE) { basket.get(parked).status == NOT_FOUND }
+                eventually("the basket retried", DEADLINE) { read().status == NOT_FOUND }
 
                 // The saga's call again (a replay of the checkout's commit, version 2) is the same request, naming no
                 // order: the ordering answers it with the same order and number, which it does not submit twice.
@@ -316,8 +318,6 @@ class EshopSyncCallTest {
         val DEADLINE: Duration = 30.seconds
 
         fun buyer(id: String): Map<String, String> = EshopStack.buyer(id)
-
-        fun encode(segment: String): String = URLEncoder.encode(segment, Charsets.UTF_8)
 
         /**
          * The ordering service, taking the basket service's calls on its [internalPort] (one the system chooses by

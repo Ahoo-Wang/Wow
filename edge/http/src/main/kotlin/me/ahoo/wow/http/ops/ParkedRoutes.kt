@@ -22,6 +22,7 @@ import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.ledger.Ledger
+import me.ahoo.wow.api.ledger.LedgerCommand
 import me.ahoo.wow.api.ledger.Recoverable
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.wire.WireNames
@@ -61,25 +62,29 @@ import java.util.Base64
 import kotlin.time.Duration
 
 /**
- * The operator's routes over a node's parked entries, under [OpsPaths.PARKED]:
+ * The operator's routes over a node's parked entries, under [OpsPaths.PARKED]. Every one is a `POST` whose path holds
+ * no data (#6626): the entry it acts on, its tenant and id among them, is in its JSON body, so a route an entry may
+ * exist for is always one a gateway carries, whatever the length of the tenant and the id the rules allow.
  *
- * - `GET /wow/ops/parked?subscription=&after=&limit=`: a page of entries, by subscription and aggregate, with the
- *   cursor of the next page (`next`, passed back as `after`);
- * - `GET /wow/ops/parked/{subscription}/{context}/{aggregate}/{tenant}/{id}`: one entry, of the subscription
- *   `{subscription}` names as the configuration keys it, `<context>.<name>` ([SubscriptionId.key]), on the aggregate
- *   `{context}.{aggregate}`;
- * - `POST …/retry` and `POST …/skip`: Retry and Skip, 200 when this node ran it (the entry resolved or still
- *   parked), 202 when it was left for the owner of the entry's partition. The body `{"failedAt": <epoch ms>}` names
- *   the parking the operator saw (the entry's `failedAt`): an entry parked at another time since, resolved and parked
- *   again, is refused as 409 `wow.ledger.stale`, as the ops context's `RetryParked` and `SkipParked` are. A skip
- *   requires it (400 without), since it discards what was parked; a retry may leave it out and acts on the current
- *   parking, since it only handles the parked streams again;
- * - `POST …/mark-recoverable` (`{"recoverable": "recoverable" | "unrecoverable" | "unknown"}`) and
- *   `POST …/apply-retry-spec` (`{"maxRetries": 5, "initialBackoff": "1m", "claimTtl": "2m"}`, each duration written
- *   as the ops context's `ApplyRetrySpec` and the configuration write one, `500ms`, `1h 30m` or `PT3M`; a member
- *   left out keeps the value the entry is retried by now): 9.x's `MarkRecoverable` and `ApplyRetrySpec`, answering
- *   the entry. Their body's `failedAt`, which the console always sends, names the parking as a retry's does, checked
- *   in the ledger's own write (409 `wow.ledger.stale` for another); left out, they act on whichever parking is there.
+ * - `POST /wow/ops/parked/list` (`{"subscription": ..., "after": ..., "limit": ...}`, each member optional): a page of
+ *   entries, by subscription and aggregate, with the cursor of the next page (`next`, passed back as `after`);
+ * - `POST /wow/ops/parked/entry`: one entry. Its body names it, the body of every action below too:
+ *   `{"subscription": ..., "context": ..., "aggregate": ..., "tenantId": ..., "id": ...}`, the members of a ledger
+ *   command ([LedgerCommand]), the subscription by its key, `<context>.<name>` ([SubscriptionId.key]), as the views
+ *   write it, on the aggregate `{context}.{aggregate}`;
+ * - `POST /wow/ops/parked/retry` and `POST /wow/ops/parked/skip`: Retry and Skip, 200 when this node ran it (the entry
+ *   resolved or still parked), 202 when it was left for the owner of the entry's partition. The body's
+ *   `failedAt` (epoch ms) names the parking the operator saw (the entry's `failedAt`): an entry parked at another time
+ *   since, resolved and parked again, is refused as 409 `wow.ledger.stale`, as the ops context's `RetryParked` and
+ *   `SkipParked` are. A skip requires it (400 without), since it discards what was parked; a retry may leave it out
+ *   and acts on the current parking, since it only handles the parked streams again;
+ * - `POST /wow/ops/parked/mark-recoverable` (`"recoverable": "recoverable" | "unrecoverable" | "unknown"`) and
+ *   `POST /wow/ops/parked/apply-retry-spec` (`"maxRetries": 5, "initialBackoff": "1m", "claimTtl": "2m"`, each duration
+ *   written as the ops context's `ApplyRetrySpec` and the configuration write one, `500ms`, `1h 30m` or `PT3M`; a
+ *   member left out keeps the value the entry is retried by now): 9.x's `MarkRecoverable` and `ApplyRetrySpec`,
+ *   answering the entry. Their body's `failedAt`, which the console always sends, names the parking as a retry's
+ *   does, checked in the ledger's own write (409 `wow.ledger.stale` for another); left out, they act on whichever
+ *   parking is there.
  *
  * An action's `outcome` (`resolved`, `parked` or `requested`) and the entry's `recoverable`, `request` and `status` are
  * written, and `recoverable` read, by their wire names ([WireNames]), as every Wow enumeration on the wire; the
@@ -91,7 +96,7 @@ import kotlin.time.Duration
  * parked. The four actions are
  * then authorized by [authorizer] as the system commands [OpsCommands] names on the parked aggregate (a
  * [CommandAction] without creation, in the caller's scope), so a CoSec policy guards them as it guards a command, and
- * CoSec's WebFilter can guard the routes by their paths too; without an [authorizer] every action is refused (403
+ * CoSec's WebFilter can guard the routes by their paths (one per action) too; without an [authorizer] every action is refused (403
  * `wow.auth.forbidden`), never allowed by default. The reads are authorized the same way, as `wow.ledger.Read`
  * ([OpsPaths.READ]) on each entry's aggregate, since an entry shows its failure's message: a listing
  * leaves out the entries the caller may not read, and without an [authorizer] both reads are refused too. Errors are
@@ -108,16 +113,16 @@ fun parkedRoutes(
 ): RouterFunction<ServerResponse> {
     val statuses = ErrorStatuses(manifest, options.errorStatuses)
     val handler = ParkedHandler(ops, Authenticator(callerResolver, statuses), authorizer ?: UNAUTHORIZED, statuses)
-    val entry = "${OpsPaths.PARKED}/{$SUBSCRIPTION}/{$CONTEXT}/{$AGGREGATE}/{$TENANT}/{$ID}"
+    val parked = OpsPaths.PARKED
     return coRouter {
-        GET(OpsPaths.PARKED) { request -> statuses.answering { handler.list(request) } }
-        GET(entry) { request -> statuses.answering { handler.get(request) } }
-        POST("$entry/${OpsPaths.RETRY}") { request -> statuses.answering { handler.retry(request) } }
-        POST("$entry/${OpsPaths.SKIP}") { request -> statuses.answering { handler.skip(request) } }
-        POST("$entry/${OpsPaths.MARK_RECOVERABLE}") { request ->
+        POST("$parked/${OpsPaths.LIST}") { request -> statuses.answering { handler.list(request) } }
+        POST("$parked/${OpsPaths.ENTRY}") { request -> statuses.answering { handler.get(request) } }
+        POST("$parked/${OpsPaths.RETRY}") { request -> statuses.answering { handler.retry(request) } }
+        POST("$parked/${OpsPaths.SKIP}") { request -> statuses.answering { handler.skip(request) } }
+        POST("$parked/${OpsPaths.MARK_RECOVERABLE}") { request ->
             statuses.answering { handler.markRecoverable(request) }
         }
-        POST("$entry/${OpsPaths.APPLY_RETRY_SPEC}") { request ->
+        POST("$parked/${OpsPaths.APPLY_RETRY_SPEC}") { request ->
             statuses.answering { handler.applyRetrySpec(request) }
         }
     }
@@ -126,14 +131,17 @@ fun parkedRoutes(
 /** The paths of the operator's routes, under the reserved context `wow`. */
 @ExperimentalWowApi
 object OpsPaths {
-    /**
-     * The parked entries; one entry is `{subscription}/{context}/{aggregate}/{tenant}/{id}` under it, its subscription
-     * by its key, `<context>.<name>`.
-     */
+    /** The parked entries: each route under it is an action, the entry it acts on in its body ([parkedRoutes]). */
     const val PARKED: String = "/wow/ops/parked"
 
     /** The node's subscriptions, read-only ([subscriptionRoutes]). */
     const val SUBSCRIPTIONS: String = "/wow/ops/subscriptions"
+
+    /** A page of the entries. */
+    const val LIST: String = "list"
+
+    /** One entry. */
+    const val ENTRY: String = "entry"
     const val RETRY: String = "retry"
     const val SKIP: String = "skip"
     const val MARK_RECOVERABLE: String = "mark-recoverable"
@@ -145,7 +153,7 @@ object OpsPaths {
      */
     const val READ: String = Ledger.READ
 
-    /** The query parameters of a listing. */
+    /** The members of a listing's body. */
     const val SUBSCRIPTION: String = "subscription"
     const val AFTER: String = "after"
     const val LIMIT: String = "limit"
@@ -187,7 +195,7 @@ private fun refusedWithoutAuthorizer(action: String): String =
 private const val SUBSCRIPTION = "subscription"
 private const val CONTEXT = "context"
 private const val AGGREGATE = "aggregate"
-private const val TENANT = "tenant"
+private const val TENANT = "tenantId"
 private const val ID = "id"
 private const val FAILED_AT = "failedAt"
 
@@ -199,11 +207,11 @@ private class ParkedHandler(
 ) {
     suspend fun list(request: ServerRequest): ServerResponse {
         val caller = authenticate(request)
-        val subscription = request.queryParam(OpsPaths.SUBSCRIPTION).orElse(null)?.takeIf { it.isNotBlank() }
-            ?.let(::subscriptionOf)
-        val after = request.queryParam(OpsPaths.AFTER).orElse(null)?.takeIf { it.isNotBlank() }?.let(::decodeCursor)
-        val limit = request.queryParam(OpsPaths.LIMIT).orElse(null)?.let { value ->
-            value.toIntOrNull()?.takeIf { it in 1..ParkedOps.MAX_LIMIT }
+        val body = body(request)
+        val subscription = textOf(body, OpsPaths.SUBSCRIPTION)?.takeIf { it.isNotBlank() }?.let(::subscriptionOf)
+        val after = textOf(body, OpsPaths.AFTER)?.takeIf { it.isNotBlank() }?.let(::decodeCursor)
+        val limit = body.get(OpsPaths.LIMIT)?.takeUnless { it.isNull }?.let { value ->
+            value.takeIf { it.isInt }?.asInt()?.takeIf { it in 1..ParkedOps.MAX_LIMIT }
                 ?: throw badRequest("limit is a number from 1 to ${ParkedOps.MAX_LIMIT}: '$value'.")
         } ?: ParkedOps.DEFAULT_LIMIT
         if (authorizer === UNAUTHORIZED) {
@@ -222,7 +230,7 @@ private class ParkedHandler(
     }
 
     suspend fun get(request: ServerRequest): ServerResponse {
-        val (subscription, ref) = authorized(request, OpsPaths.READ)
+        val (subscription, ref) = authorized(request, body(request), OpsPaths.READ)
         return ok(viewOf(ops.get(subscription, ref) ?: throw notParked(subscription, ref)))
     }
 
@@ -249,8 +257,9 @@ private class ParkedHandler(
         command: String,
         action: suspend (SubscriptionId, AggregateRef, Long?) -> ParkedOps.Outcome,
     ): ServerResponse {
-        val (subscription, ref) = authorized(request, command)
-        val failedAt = failedAtOf(body(request))
+        val body = body(request)
+        val (subscription, ref) = authorized(request, body, command)
+        val failedAt = failedAtOf(body)
         val outcome = action(subscription, ref, failedAt)
         if (outcome == ParkedOps.Outcome.NOT_PARKED) {
             throw notParked(subscription, ref)
@@ -259,16 +268,16 @@ private class ParkedHandler(
             throw stale(subscription, ref, failedAt)
         }
         val status = if (outcome == ParkedOps.Outcome.REQUESTED) HttpStatus.ACCEPTED else HttpStatus.OK
-        val body = buildMap {
+        val answer = buildMap {
             put("outcome", WireNames.of(outcome))
             ops.get(subscription, ref)?.let { put("entry", viewOf(it)) }
         }
-        return respond(status, body)
+        return respond(status, answer)
     }
 
     suspend fun markRecoverable(request: ServerRequest): ServerResponse {
-        val (subscription, ref) = authorized(request, OpsCommands.MARK_RECOVERABLE)
         val body = body(request)
+        val (subscription, ref) = authorized(request, body, OpsCommands.MARK_RECOVERABLE)
         val failedAt = failedAtOf(body)
         val view = ops.markRecoverable(subscription, ref, recoverableOf(body), failedAt)
             ?: throw missed(subscription, ref, failedAt)
@@ -302,8 +311,8 @@ private class ParkedHandler(
     }
 
     suspend fun applyRetrySpec(request: ServerRequest): ServerResponse {
-        val (subscription, ref) = authorized(request, OpsCommands.APPLY_RETRY_SPEC)
         val body = body(request)
+        val (subscription, ref) = authorized(request, body, OpsCommands.APPLY_RETRY_SPEC)
         val current = ops.get(subscription, ref)?.spec ?: throw notParked(subscription, ref)
         val failedAt = failedAtOf(body)
         val view = ops.applyRetrySpec(subscription, ref, specOf(body, current), failedAt)
@@ -333,10 +342,14 @@ private class ParkedHandler(
         return caller
     }
 
-    /** The entry [request] names, once [command] on its aggregate is authorized for the caller. */
-    private suspend fun authorized(request: ServerRequest, command: String): Pair<SubscriptionId, AggregateRef> {
+    /** The entry [body] names, once [command] on its aggregate is authorized for [request]'s caller. */
+    private suspend fun authorized(
+        request: ServerRequest,
+        body: JsonNode,
+        command: String,
+    ): Pair<SubscriptionId, AggregateRef> {
         val caller = authenticate(request)
-        val target = target(request, caller)
+        val target = target(body, caller)
         authorize(caller, command, target.second)
         return target
     }
@@ -352,15 +365,15 @@ private class ParkedHandler(
     private fun actionOf(caller: Caller, command: String, ref: AggregateRef): CommandAction =
         CommandAction(OpsCommands.typeOf(command), ref, caller.scope, Creation.NONE)
 
-    /** The entry [request] names: one of [caller]'s tenant, else a 404 as for an entry that is not parked. */
-    private fun target(request: ServerRequest, caller: Caller): Pair<SubscriptionId, AggregateRef> {
-        val subscription = subscriptionOf(request.pathVariable(SUBSCRIPTION))
+    /** The entry [body] names: one of [caller]'s tenant, else a 404 as for an entry that is not parked. */
+    private fun target(body: JsonNode, caller: Caller): Pair<SubscriptionId, AggregateRef> {
+        val subscription = subscriptionOf(required(body, SUBSCRIPTION))
         val target = try {
             subscription to
-                AggregateType(request.pathVariable(CONTEXT), request.pathVariable(AGGREGATE))
-                    .ref(request.pathVariable(TENANT), request.pathVariable(ID))
+                AggregateType(required(body, CONTEXT), required(body, AGGREGATE))
+                    .ref(required(body, TENANT), required(body, ID))
         } catch (invalid: IllegalArgumentException) {
-            throw badRequest(invalid.message ?: "Not a parked entry's path.")
+            throw badRequest(invalid.message ?: "Not a parked entry.")
         }
         if (!caller.sees(target.second)) {
             throw notParked(target.first, target.second)
@@ -384,6 +397,19 @@ private class ParkedHandler(
         }
         return node
     }
+
+    /** [body]'s member [name], a string; null when it has none. */
+    private fun textOf(body: JsonNode, name: String): String? {
+        val node = body.get(name)?.takeUnless { it.isNull } ?: return null
+        return node.takeIf { it.isString }?.asString() ?: throw badRequest("$name is a string: '$node'.")
+    }
+
+    /** [body]'s member [name], which names the entry: `subscription`, `context`, `aggregate`, `tenantId` or `id`. */
+    private fun required(body: JsonNode, name: String): String = textOf(body, name)
+        ?: throw badRequest(
+            "The body names the entry: $SUBSCRIPTION (<context>.<name>), $CONTEXT, $AGGREGATE, $TENANT and $ID; " +
+                "$name is missing.",
+        )
 
     /** The parking an action names: the body's `failedAt`, epoch milliseconds; null when it names none. */
     private fun failedAtOf(body: JsonNode): Long? {

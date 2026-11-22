@@ -124,6 +124,11 @@ class ParkedState {
         retryAt, retrySpec, recoverable, request, status, nextRetryAt,
     )
 
+    /** Whether [record] is of the entry this state records: its service, subscription and aggregate. */
+    fun names(record: ParkedEntry): Boolean =
+        listOf(record.service, record.context, record.subscription, record.aggregate) ==
+            listOf(service, context, subscription, aggregate)
+
     /** The fields of [record] this state keeps, in the order [holds] compares them; it never builds an entry. */
     private fun heldFields(record: ParkedEntry): List<Any?> = with(record) {
         listOf(

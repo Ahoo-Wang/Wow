@@ -28,4 +28,10 @@ object ParkedRejections {
         status = 409,
     )
     const val STALE = "ops.parked.stale"
+
+    @ErrorCode(
+        description = "The record's service, subscription and aggregate do not name the entry it is recorded under.",
+        status = 409,
+    )
+    const val MISMATCHED = "ops.parked.mismatched"
 }

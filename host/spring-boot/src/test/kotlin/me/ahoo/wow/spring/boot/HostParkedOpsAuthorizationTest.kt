@@ -29,7 +29,7 @@ class HostParkedOpsAuthorizationTest {
     @Test
     fun `without an authorizer the operator's routes are served, and every read and action refused`() {
         startHost("wow.http.ops.enabled" to true).use { bare ->
-            bare.get(OpsPaths.PARKED).status.assert().isEqualTo(403)
+            bare.post("${OpsPaths.PARKED}/${OpsPaths.LIST}").status.assert().isEqualTo(403)
             // No CommandAuthorizer bean: the node's gateway has none, so the public port refuses the built-in
             // aggregates' system commands.
             bare.node.gateway.authorizes.assert().isFalse()

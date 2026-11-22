@@ -16,7 +16,9 @@ package me.ahoo.wow.ops.domain.parked
 import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.Description
+import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.reject
+import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.ops.api.parked.ActionRefused
 import me.ahoo.wow.ops.api.parked.ApplyRetrySpec
 import me.ahoo.wow.ops.api.parked.ApplyRetrySpecRequested
@@ -35,13 +37,15 @@ import me.ahoo.wow.ops.api.parked.SkipRequested
 import java.time.Instant
 
 /**
- * One service's entry of one parked aggregate, its id `<service>:<subscription>:<aggregate>`
+ * One service's entry of one parked aggregate, its id a hash of the entry's service, subscription and aggregate
  * (`Ledger.parkedId`): the read model of the owning service's failure ledger, and where an operator acts on it.
  *
  * - **Records**: the owning service publishes the entry as it stands ([RecordParked]), again on every scan, and that
  *   it is resolved ([RecordResolved]). A record that says what the entry holds already changes nothing, so the scans
  *   leave the log as it is; a record of a parking at or before the latest one resolved (one a scan sent before the
  *   resolution, delivered after it), and one published before the record the entry holds, change nothing either.
+ *   A record whose service, subscription and aggregate do not hash to the entry's id, or that names another entry
+ *   than the one recorded under that id, is refused ([ParkedRejections.MISMATCHED]): two entries never merge.
  * - **Actions**: [Retry], [Skip], [MarkRecoverable] and [ApplyRetrySpec] record the operator's request
  *   ([RetryRequested], ...), which [ParkedOperationSaga] sends to the owning service; what came of it arrives as the
  *   service's next record, or, when the service refuses the request, as the saga's [RecordActionRefused]
@@ -55,7 +59,35 @@ import java.time.Instant
 @AggregateRoot(lifecycle = [], ownership = Ownership.TENANT)
 @Description("One service's parked entry, as its failure ledger publishes it, and an operator's actions on it")
 class Parked(private val state: ParkedState) {
-    fun onCommand(command: RecordParked): ParkedRecorded? = recorded(command.entry)
+    fun onCommand(command: Command<RecordParked>): ParkedRecorded? {
+        val entry = command.body.entry
+        rejectMismatched(command.ref.id, entry)
+        return recorded(entry)
+    }
+
+    /**
+     * Refuses a record that is not this entry's: its fields hash to another id than [id] (`Ledger.parkedId`), or the
+     * entry recorded under [id] is another one, which only a hash collision could bring.
+     */
+    private fun rejectMismatched(id: String, entry: ParkedEntry) {
+        val named = runCatching {
+            Ledger.parkedId(entry.service, entry.context, entry.subscription, entry.aggregate.toRef())
+        }.getOrElse { reject(ParkedRejections.INVALID, it.message ?: "Not a ledger entry.") }
+        if (named != id) {
+            reject(
+                ParkedRejections.MISMATCHED,
+                "The entry of ${entry.service}'s ${entry.subscription} on ${entry.aggregate.toRef()} is named $named, " +
+                    "not $id: it is recorded under its own id.",
+            )
+        }
+        if (state.service.isNotEmpty() && !state.names(entry)) {
+            reject(
+                ParkedRejections.MISMATCHED,
+                "$id records ${state.service}'s ${state.subscription} on ${state.aggregate.toRef()}, not " +
+                    "${entry.service}'s ${entry.subscription} on ${entry.aggregate.toRef()}.",
+            )
+        }
+    }
 
     private fun recorded(entry: ParkedEntry): ParkedRecorded? = when {
         state.holds(entry) -> null

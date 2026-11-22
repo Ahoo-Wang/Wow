@@ -87,6 +87,52 @@ class ParkedSpec {
     }
 
     @Test
+    fun `a record under an id its fields do not hash to is refused, and records nothing`() {
+        val another = Ledger.parkedId("another-service", "eshop-payment", SUBSCRIPTION, AGGREGATE.toRef())
+        aggregateSpec(parkedModel(), id = another) {
+            whenCommand(RecordParked(ENTRY)) {
+                expectRejected(ParkedRejections.MISMATCHED) { message.assert().contains(ID) }
+            }
+        }
+    }
+
+    @Test
+    fun `a record that names no service is refused as invalid`() {
+        parkedSpec {
+            whenCommand(RecordParked(entry("service" to " "))) { expectRejected(ParkedRejections.INVALID) }
+        }
+    }
+
+    @Test
+    fun `a record of another entry than the one recorded under its id is refused, not merged`() {
+        // What only a collision of the hash could bring: the entry recorded under ID is another aggregate's.
+        parkedSpec {
+            given(ParkedRecorded(entry("aggregate" to AGGREGATE.copy(id = "bob-2"))))
+            whenCommand(RecordParked(ENTRY)) {
+                expectRejected(ParkedRejections.MISMATCHED) { message.assert().contains("bob-2", "alice-1") }
+            }
+        }
+    }
+
+    @Test
+    fun `an entry of the longest tenant and id the rules allow is recorded with every field`() {
+        // A tenant of 256 characters that percent-encode to nine each, and an id of 256 (#6626).
+        val longest = AGGREGATE.copy(tenantId = "租".repeat(256), id = "i".repeat(256))
+        val entry = entry("aggregate" to longest)
+        val id = Ledger.parkedId("eshop-payment-service", "eshop-payment", SUBSCRIPTION, longest.toRef())
+        aggregateSpec(parkedModel(), id = id) {
+            whenCommand(RecordParked(entry)) {
+                expectEvents(ParkedRecorded(entry))
+                expectState {
+                    aggregate.assert().isEqualTo(longest)
+                    service.assert().isEqualTo("eshop-payment-service")
+                    subscription.assert().isEqualTo(SUBSCRIPTION)
+                }
+            }
+        }
+    }
+
+    @Test
     fun `a resolution resolves the entry once, and a late record of its parking changes nothing`() {
         parkedSpec {
             given(ParkedRecorded(ENTRY))
@@ -327,7 +373,7 @@ class ParkedSpec {
     companion object {
         const val SUBSCRIPTION = "PaymentGatewaySaga.onPaymentRequested"
         val AGGREGATE = EntryAggregate("eshop-payment", "payment", "(0)", "alice-1")
-        const val ID = "eshop-payment-service:eshop-payment:$SUBSCRIPTION:eshop-payment.payment:(0):alice-1"
+        val ID = Ledger.parkedId("eshop-payment-service", "eshop-payment", SUBSCRIPTION, AGGREGATE.toRef())
 
         /**
          * The fields of the entry the tests record. A [ParkedEntry] is a wire record whose constructor is Wow's own
