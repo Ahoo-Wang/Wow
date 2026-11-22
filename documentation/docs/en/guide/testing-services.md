@@ -69,7 +69,7 @@ fun `an order not paid within its grace period should cancel itself`() {
     // The order cancels itself by a scheduled command of its own, which no command of the test's waits for.
     eventually("order-unpaid cancelled") { order("order-unpaid").status == OrderStatus.CANCELLED }
     order("order-unpaid").cancelReason.assert().contains("payment grace period")
-    rejected { orders().wait(PayOrder("p-2", BigDecimal("29.00")), "order-unpaid") }
+    assertRejected { orders().wait(PayOrder("p-2", BigDecimal("29.00")), "order-unpaid") }
         .code.assert().isEqualTo("eshop-ordering.order.wrong-status")
 }
 ```
@@ -83,23 +83,23 @@ The server's typed clients send the commands of the service's api module and rea
 ```kotlin
 @Test
 fun `the typed clients should send commands and read states as the caller`() {
-    val alice = Caller.of(subject = "alice", scope = Scope(ownerId = "alice"))
+    val alice = Caller.owner("alice")
     val commands = server.commands(alice)
     runBlocking {
-        commands.wait(OpenAccount("Alice"), "alice").status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+        // wait answers only a result that succeeded: a rejection is thrown.
+        commands.wait(OpenAccount("Alice"), "alice")
         commands.wait(Deposit(100), "alice").version.assert().isEqualTo(2)
 
-        val account = server.queries(alice).snapshots(AccountState::class.java).state("alice")!!
+        val account = server.queries(alice).snapshots<AccountState>().state("alice")!!
         account.state.balance.assert().isEqualTo(100L)
         account.operator!!.id.assert().isEqualTo("alice")
-
-        val rejected = assertThrows<CommandRejectedException> { commands.wait(Withdraw(150), "alice") }
-        rejected.code.assert().isEqualTo("bank.account.insufficient-balance")
     }
+    assertRejected { commands.wait(Withdraw(150), "alice") }
+        .code.assert().isEqualTo("bank.account.insufficient-balance")
 }
 ```
 
-- `wait` answers with the result the command's wait plan ends with, which may wait to the end of a saga's chain. A rejection, by the aggregate or at admission (an invalid or unknown command, a forbidden caller), is a `CommandRejectedException` with its error code; any other problem a `WowProblemException`.
+- `wait` answers with the result the command's wait plan ends with, which may wait to the end of a saga's chain. A rejection, by the aggregate or at admission (an invalid or unknown command, a forbidden caller), is a `CommandRejectedException` with its error code; any other problem a `WowProblemException`. A test expects a rejection with `assertRejected { … }`, which answers it and fails when the command was answered otherwise; its block may call the clients' `suspend` functions.
 - A system command goes the same way, by its class, to the aggregate type the request names: a lifecycle command (`DeleteAggregate().toCommandRequest(id) { type(…) }`), a snapshot rebuild (`RebuildSnapshot.of(ids)`), a job's command (`DisableJob`, to `<context>.schedule` by the job's name).
 - A server that authenticates its callers otherwise, behind CoSec or with a `CallerResolver` of its own, takes the credential it reads: `commands(caller, credential)` and `queries(caller, credential)`, a `UserCredential` that writes the caller as that server's headers. Behind the CoSec gateway (`wow.cosec.mode: gateway`) that is the identity the gateway forwards, which `wow-cosec`'s `CoSecIdentity` writes as CoSec documents it: `UserCredential { caller -> CoSecIdentity(caller.subject!!, listOf("buyer"), tenant = caller.tenantId).headers() }`, which carries the caller it is given: its subject and tenant, and its app and space (`app = caller.app.orEmpty()`, `space = caller.scope.spaceId.orEmpty()`) for a caller that has them. It is experimental with the module (`@OptIn(ExperimentalWowApi::class)`).
 - What no wait plan sees, a scheduled command that fires or a call another service received, a test polls with `eventually("what") { condition }`, every 100 milliseconds for at most 20 seconds by default. A condition that throws, an assertion among them, has not held yet; the failure says what was not reached, with the `detail` given (the services' output, say) and the condition's last failure as its cause.
@@ -136,7 +136,7 @@ A saga that calls another service synchronously, a command to that service's int
 ```kotlin
 fakePeer("eshop-ordering").use { ordering ->
     wowServer<BasketServer>("dev", peers = listOf(ordering)).use { basket ->
-        val alice = Caller.of(subject = "alice", scope = Scope(ownerId = "alice"))
+        val alice = Caller.owner("alice")
         runBlocking { basket.commands(alice).wait(CheckoutBasket, "alice") }
         val call = ordering.called<SubmitOrder>()
         call.service.assert().isEqualTo("eshop-basket-service")

@@ -183,4 +183,4 @@ open class HandlingRejectedException(val error: ErrorInfo, message: String, caus
  */
 @InternalWowApi
 class CallRejectedHandlingException(val rejected: CommandRejectedException) :
-    HandlingRejectedException(rejected.result.error!!, rejected.message!!, rejected)
+    HandlingRejectedException(rejected.error, rejected.message!!, rejected)

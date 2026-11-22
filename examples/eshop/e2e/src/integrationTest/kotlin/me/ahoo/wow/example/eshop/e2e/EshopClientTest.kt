@@ -20,7 +20,6 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
-import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.client.stream
 import me.ahoo.wow.api.client.wait
 import me.ahoo.wow.api.query.ListQuery
@@ -38,6 +37,7 @@ import me.ahoo.wow.example.eshop.ordering.api.order.OrderStateView
 import me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder
 import me.ahoo.wow.example.eshop.ordering.server.OrderingServer
 import me.ahoo.wow.http.internal.InternalPort
+import me.ahoo.wow.test.server.assertRejected
 import org.junit.jupiter.api.Test
 import org.springframework.boot.builder.SpringApplicationBuilder
 import org.springframework.context.ConfigurableApplicationContext
@@ -72,7 +72,6 @@ class EshopClientTest {
                 // region send
                 val ref = EshopOrderingContract.Order.ref(Caller.DEFAULT_TENANT, "client-alice-1")
                 val submitted = basket.bean<CommandClient>().of(alice).wait(SubmitOrder(items), "client-alice-1")
-                submitted.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
                 submitted.ref.assert().isEqualTo(ref)
                 // endregion
 
@@ -97,11 +96,11 @@ class EshopClientTest {
 
                 // region rejected
                 // An order of no items breaks SubmitOrder's constraints: the ordering refuses it at admission, typed.
-                val rejected = runCatching {
+                val rejected = assertRejected {
                     basket.bean<CommandClient>().of(alice).wait(SubmitOrder(emptyList()), "client-alice-2")
-                }.exceptionOrNull() as CommandRejectedException
+                }
                 rejected.code.assert().isEqualTo("wow.command.invalid")
-                rejected.result.error!!.violations.single().path.assert().isEqualTo("items")
+                rejected.violations.single().path.assert().isEqualTo("items")
                 // endregion
             }
         }

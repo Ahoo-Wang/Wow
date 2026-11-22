@@ -16,8 +16,8 @@ package me.ahoo.wow.example.eshop.payment.server
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.caller.Caller
-import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.client.wait
+import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitPlan
@@ -30,6 +30,7 @@ import me.ahoo.wow.manifest.PeerContracts
 import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.test.server.WowServer
+import me.ahoo.wow.test.server.assertRejected
 import me.ahoo.wow.test.server.wowServer
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
@@ -97,11 +98,9 @@ class PaymentServerTest {
     @Test
     fun `a payment of nothing should be invalid before the payment decides`() {
         val nothing = RequestPayment("order-free", BigDecimal.ZERO)
-        val invalid = assertThrows<CommandRejectedException> {
-            runBlocking { server.commands(Caller.ANONYMOUS).wait(nothing, "order-free") }
-        }
+        val invalid = assertRejected { server.commands(Caller.ANONYMOUS).wait(nothing, "order-free") }
         invalid.code.assert().isEqualTo(FrameworkCodes.COMMAND_INVALID)
-        invalid.result.error!!.violations.single().let {
+        invalid.violations.single().let {
             it.path.assert().isEqualTo("amount")
             it.code.assert().isEqualTo("positive")
         }
@@ -121,5 +120,5 @@ val TO_THE_GATEWAY: WaitPlan = WaitPlan.of(
 fun WowServer.charge(order: String, amount: String): PaymentStateView = runBlocking {
     val command = RequestPayment(order, BigDecimal(amount))
     commands(Caller.ANONYMOUS).wait(command, order) { wait(TO_THE_GATEWAY) }
-    queries(Caller.ANONYMOUS).snapshots(PaymentStateView::class.java).state(order)!!.state
+    queries(Caller.ANONYMOUS).snapshots<PaymentStateView>().state(order)!!.state
 }

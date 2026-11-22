@@ -15,6 +15,7 @@
 
 package me.ahoo.wow.api.subscribe
 
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.client.toCommandRequest
 import me.ahoo.wow.api.result.CommandResult
@@ -27,8 +28,9 @@ import me.ahoo.wow.api.schedule.ScheduleRule
 suspend fun <C : Any> SagaContext.call(
     command: C,
     id: String? = null,
+    to: AggregateRef? = null,
     block: CommandRequest.Builder<C>.() -> Unit = {},
-): CommandResult = call(command.toCommandRequest(id, block))
+): CommandResult = call(command.toCommandRequest(id, to, block))
 
 /**
  * Schedules [command] on the aggregate [id] names under [key] as [rule] says, with the fields [block] sets:
@@ -40,7 +42,8 @@ fun <C : Any> SagaContext.schedule(
     rule: ScheduleRule,
     command: C,
     id: String? = null,
+    to: AggregateRef? = null,
     block: CommandRequest.Builder<C>.() -> Unit = {},
 ) {
-    schedule(key, rule, command.toCommandRequest(id, block))
+    schedule(key, rule, command.toCommandRequest(id, to, block))
 }

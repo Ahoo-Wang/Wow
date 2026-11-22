@@ -43,6 +43,13 @@ class CallerTest {
     }
 
     @Test
+    fun `an owner should be its subject and its scope's owner, in the default tenant unless it names one`() {
+        Caller.owner("alice").assert().isEqualTo(Caller.of(subject = "alice", scope = Scope(ownerId = "alice")))
+        Caller.owner("alice", "t1").assert()
+            .isEqualTo(Caller.of(tenantId = "t1", subject = "alice", scope = Scope(ownerId = "alice")))
+    }
+
+    @Test
     fun `a system operator names its component`() {
         Operator.system("timers").assert().isEqualTo(Operator("system:timers", Caller.DEFAULT_TENANT))
         Operator.system("ledger", "t1").tenantId.assert().isEqualTo("t1")

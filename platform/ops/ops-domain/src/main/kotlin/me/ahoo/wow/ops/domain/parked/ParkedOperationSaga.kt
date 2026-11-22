@@ -97,12 +97,12 @@ class ParkedOperationSaga {
 
             else -> return null
         }
-        return command.toCommandRequest { to(Ledger.targetOf(state.context, event.ref.id)) }
+        return command.toCommandRequest(to = Ledger.targetOf(state.context, event.ref.id))
     }
 
     /** The owning service refused a command this saga sent for the entry: the entry records the refusal. */
     @OnRejected
     fun onActionRejected(rejected: CommandReceipt.Rejected<*>): CommandRequest<RecordActionRefused> =
         RecordActionRefused(rejected.commandType, rejected.error.code, rejected.error.message)
-            .toCommandRequest { to(rejected.source) }
+            .toCommandRequest(to = rejected.source)
 }

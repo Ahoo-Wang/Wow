@@ -15,15 +15,14 @@ package me.ahoo.wow.example.eshop.ordering.server
 
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
-import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.client.wait
 import me.ahoo.wow.api.lifecycle.DeleteAggregate
 import me.ahoo.wow.api.lifecycle.RestoreAggregate
 import me.ahoo.wow.api.lifecycle.TransferOwner
 import me.ahoo.wow.api.lifecycle.TransferSpace
 import me.ahoo.wow.api.read.Snapshot
+import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.Hop
@@ -34,11 +33,11 @@ import me.ahoo.wow.example.eshop.ordering.api.order.EshopOrderingContract
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderItem
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderStateView
 import me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder
+import me.ahoo.wow.test.server.assertRejected
 import me.ahoo.wow.test.server.wowServer
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import org.junit.jupiter.api.assertThrows
 import java.math.BigDecimal
 import java.util.UUID
 
@@ -64,7 +63,7 @@ class OrderLifecycleTest {
         lifecycle(id, DeleteAggregate(), alice).version.assert().isEqualTo(VERSION_AFTER_VALIDATION + 1)
         read(id, alice)!!.deleted.assert().isTrue()
 
-        rejected { confirm(id, alice) }.code.assert().isEqualTo(FrameworkCodes.AGGREGATE_DELETED)
+        assertRejected { confirm(id, alice) }.code.assert().isEqualTo(FrameworkCodes.AGGREGATE_DELETED)
 
         lifecycle(id, RestoreAggregate(), alice)
         read(id, alice)!!.deleted.assert().isFalse()
@@ -82,7 +81,7 @@ class OrderLifecycleTest {
         // The former owner neither reads nor changes it: its state is not found for it (decision D254 ④), and neither
         // is the aggregate its commands name (decision D94, the kernel's scope guard).
         read(id, second).assert().isNull()
-        rejected { confirm(id, second) }.code.assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
+        assertRejected { confirm(id, second) }.code.assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
         confirm(id, main)
     }
 
@@ -99,7 +98,7 @@ class OrderLifecycleTest {
 
     /** A buyer of this test only: the user, and the owner of what it creates. */
     private fun buyer(): Caller =
-        ("buyer-" + UUID.randomUUID().toString().take(8)).let { Caller.of(subject = it, scope = Scope(ownerId = it)) }
+        ("buyer-" + UUID.randomUUID().toString().take(8)).let { Caller.owner(it) }
 
     /** Submits an order as [buyer] and waits until the order process has it await its stock validation; its id. */
     private fun submitted(buyer: Caller): String {
@@ -119,9 +118,7 @@ class OrderLifecycleTest {
     }
 
     private fun read(id: String, caller: Caller): Snapshot<OrderStateView>? =
-        runBlocking { server.queries(caller).snapshots(OrderStateView::class.java).state(id) }
-
-    private fun rejected(send: () -> Unit): CommandRejectedException = assertThrows<CommandRejectedException> { send() }
+        runBlocking { server.queries(caller).snapshots<OrderStateView>().state(id) }
 
     private companion object {
         /** The order's version once the order process had it await its validation: submitted, then awaiting. */

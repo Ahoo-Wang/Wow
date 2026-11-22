@@ -17,7 +17,6 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.client.wait
-import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.example.eshop.catalog.api.brand.CreateBrand
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.node.ServiceNode
@@ -49,7 +48,6 @@ class CatalogServerTest {
             val commands = server.bean<CommandClient>()
             // The type comes from the command's class; a creation names no id.
             val result = runBlocking { commands.wait(CreateBrand("In-process brand")) }
-            result.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
             result.ref.id.assert().isNotBlank()
             result.version.assert().isEqualTo(1)
         }

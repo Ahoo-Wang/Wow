@@ -189,16 +189,9 @@ class ThrownRejectionsTest {
     }
 
     @Test
-    fun `a refusal without a message, or a remote rejection without an error, should still be classified`() {
+    fun `a refusal without a message should still be classified`() {
         ThrownRejections.rejectionOf(IllegalArgumentException())!!.message.assert().isEmpty()
         ThrownRejections.rejectionOf(IllegalStateException())!!.message.assert().isEmpty()
-        val bare = CommandRejectedException(
-            mockk<CommandResult>(relaxed = true) {
-                every { status } returns CommandResult.Status.REJECTED
-                every { error } returns null
-            },
-        )
-        ThrownRejections.rejectionOf(bare).assert().isNull()
     }
 
     @Test

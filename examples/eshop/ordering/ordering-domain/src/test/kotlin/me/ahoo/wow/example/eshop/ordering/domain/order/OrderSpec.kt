@@ -165,7 +165,7 @@ class OrderSpec {
         given(submitted, OrderAwaitingValidation, OrderStockItemConfirmed(MUG))
         whenCommand(
             ConfirmOrderStock(CAP)
-        ) { expectEventTypes(OrderStockItemConfirmed::class.java, OrderStockConfirmed::class.java) }
+        ) { expectEventTypes(OrderStockItemConfirmed::class, OrderStockConfirmed::class) }
         whenCommand(PayOrder(PAYMENT, TOTAL)) { expectScheduleCancelled(Order.PAYMENT_GRACE_PERIOD) }
         // The schedule is cancelled, so nothing is due once the period has passed; were it sent late anyway, the
         // order would reject it.

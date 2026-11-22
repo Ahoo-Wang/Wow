@@ -34,7 +34,7 @@ fun onOrderSubmitted(
 | --- | --- |
 | `body.toCommandRequest(id)` | A command to the aggregate `id` of the type that decides `body`'s class, in the tenant of the commit |
 | `body.toCommandRequest()` | A creating command to a new aggregate of that type, whose id the target gives it; a command whose body names its aggregate (`@AggregateId`), to that aggregate |
-| `body.toCommandRequest { to(ref) }` | A command to the aggregate `ref` names, of any type and tenant |
+| `body.toCommandRequest(to = ref)` | A command to the aggregate `ref` names, of any type and tenant |
 | `body.toCommandRequest { type(type) }` | A creating command to a new aggregate of `type`, whose id the target gives it |
 
 `toCommandRequest` is a function of every command, imported from the client package: `import me.ahoo.wow.api.client.toCommandRequest`. Its block sets the request's other fields by the names a Java caller chains on `CommandRequest.builder(body)`: `to(ref)`, `type`, `targetTenant`, `targetScope`, `requestId`, `expectedVersion`. `CommandRequest.of`, `CommandRequest.to` and the builder make the same request.

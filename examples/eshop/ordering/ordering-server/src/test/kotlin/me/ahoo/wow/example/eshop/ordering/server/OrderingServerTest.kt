@@ -15,12 +15,11 @@ package me.ahoo.wow.example.eshop.ordering.server
 
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
-import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.client.wait
 import me.ahoo.wow.api.read.Snapshot
+import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.Hop
@@ -36,12 +35,12 @@ import me.ahoo.wow.example.eshop.ordering.api.order.ShipOrder
 import me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.node.ServiceNode
+import me.ahoo.wow.test.server.assertRejected
 import me.ahoo.wow.test.server.eventually
 import me.ahoo.wow.test.server.wowServer
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import org.junit.jupiter.api.assertThrows
 import java.math.BigDecimal
 import java.time.Duration
 import java.time.LocalDate
@@ -88,7 +87,7 @@ class OrderingServerTest {
         confirm("order-paid", "cap")
         order("order-paid").status.assert().isEqualTo(OrderStatus.STOCK_CONFIRMED)
 
-        rejected { orders().wait(PayOrder("p-1", BigDecimal.ONE), "order-paid") }
+        assertRejected { orders().wait(PayOrder("p-1", BigDecimal.ONE), "order-paid") }
             .code.assert().isEqualTo("eshop-ordering.order.wrong-amount")
         runBlocking { orders().wait(PayOrder("p-1", BigDecimal("29.00")), "order-paid") }
         runBlocking { orders(EMPLOYEE).wait(ShipOrder, "order-paid") }
@@ -107,7 +106,7 @@ class OrderingServerTest {
         // The order cancels itself by a scheduled command of its own, which no command of the test's waits for.
         eventually("order-unpaid cancelled") { order("order-unpaid").status == OrderStatus.CANCELLED }
         order("order-unpaid").cancelReason.assert().contains("payment grace period")
-        rejected { orders().wait(PayOrder("p-2", BigDecimal("29.00")), "order-unpaid") }
+        assertRejected { orders().wait(PayOrder("p-2", BigDecimal("29.00")), "order-unpaid") }
             .code.assert().isEqualTo("eshop-ordering.order.wrong-status")
     }
     // endregion
@@ -161,16 +160,16 @@ class OrderingServerTest {
 
     @Test
     fun `an order without items, or with an invalid one, should be invalid before the order decides`() {
-        val empty = rejected { orders().wait(SubmitOrder(emptyList()), "order-empty") }
+        val empty = assertRejected { orders().wait(SubmitOrder(emptyList()), "order-empty") }
         empty.code.assert().isEqualTo(FrameworkCodes.COMMAND_INVALID)
-        empty.result.error!!.violations.single().let {
+        empty.violations.single().let {
             it.path.assert().isEqualTo("items")
             it.code.assert().isEqualTo("not-empty")
         }
 
         val item = OrderItem("mug", BigDecimal("-1"), 0)
-        val invalid = rejected { orders().wait(SubmitOrder(listOf(item)), "order-invalid") }
-        invalid.result.error!!.violations.map { it.path to it.code }
+        val invalid = assertRejected { orders().wait(SubmitOrder(listOf(item)), "order-invalid") }
+        invalid.violations.map { it.path to it.code }
             .assert().containsExactly("items[0].quantity" to "positive", "items[0].unitPrice" to "positive-or-zero")
         read("order-invalid", Caller.ANONYMOUS).assert().isNull()
     }
@@ -181,9 +180,9 @@ class OrderingServerTest {
         submit("order-shipped", alice)
         confirm("order-shipped", "mug", "cap", caller = alice)
         runBlocking { orders(alice).wait(PayOrder("p-2", BigDecimal("29.00")), "order-shipped") }
-        val refused = rejected { orders(alice).wait(ShipOrder, "order-shipped") }
+        val refused = assertRejected { orders(alice).wait(ShipOrder, "order-shipped") }
         refused.code.assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
-        refused.result.error!!.message.assert().contains("Only an employee ships an order")
+        refused.error.message.assert().contains("Only an employee ships an order")
         order("order-shipped").status.assert().isEqualTo(OrderStatus.PAID)
         runBlocking { orders(EMPLOYEE).wait(ShipOrder, "order-shipped") }
         order("order-shipped").status.assert().isEqualTo(OrderStatus.SHIPPED)
@@ -218,12 +217,9 @@ class OrderingServerTest {
 
     /** The order [id] as [caller] reads it; null when it sees none. */
     private fun read(id: String, caller: Caller): Snapshot<OrderStateView>? =
-        runBlocking { server.queries(caller).snapshots(OrderStateView::class.java).state(id) }
+        runBlocking { server.queries(caller).snapshots<OrderStateView>().state(id) }
 
     private fun order(id: String): OrderStateView = read(id, Caller.ANONYMOUS)!!.state
-
-    private fun rejected(send: suspend () -> Unit): CommandRejectedException =
-        assertThrows<CommandRejectedException> { runBlocking { send() } }
 
     private companion object {
         val MUGS = OrderItem("mug", BigDecimal("8.50"), 2)
@@ -245,6 +241,6 @@ class OrderingServerTest {
         val DAY: DateTimeFormatter = DateTimeFormatter.ofPattern("yyMMdd")
 
         /** The buyer [id]: the user, and the owner of what it creates. */
-        fun buyer(id: String): Caller = Caller.of(subject = id, scope = Scope(ownerId = id))
+        fun buyer(id: String): Caller = Caller.owner(id)
     }
 }

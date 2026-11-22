@@ -69,7 +69,7 @@ fun `an order not paid within its grace period should cancel itself`() {
     // The order cancels itself by a scheduled command of its own, which no command of the test's waits for.
     eventually("order-unpaid cancelled") { order("order-unpaid").status == OrderStatus.CANCELLED }
     order("order-unpaid").cancelReason.assert().contains("payment grace period")
-    rejected { orders().wait(PayOrder("p-2", BigDecimal("29.00")), "order-unpaid") }
+    assertRejected { orders().wait(PayOrder("p-2", BigDecimal("29.00")), "order-unpaid") }
         .code.assert().isEqualTo("eshop-ordering.order.wrong-status")
 }
 ```
@@ -83,23 +83,23 @@ fun `an order not paid within its grace period should cancel itself`() {
 ```kotlin
 @Test
 fun `the typed clients should send commands and read states as the caller`() {
-    val alice = Caller.of(subject = "alice", scope = Scope(ownerId = "alice"))
+    val alice = Caller.owner("alice")
     val commands = server.commands(alice)
     runBlocking {
-        commands.wait(OpenAccount("Alice"), "alice").status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+        // wait answers only a result that succeeded: a rejection is thrown.
+        commands.wait(OpenAccount("Alice"), "alice")
         commands.wait(Deposit(100), "alice").version.assert().isEqualTo(2)
 
-        val account = server.queries(alice).snapshots(AccountState::class.java).state("alice")!!
+        val account = server.queries(alice).snapshots<AccountState>().state("alice")!!
         account.state.balance.assert().isEqualTo(100L)
         account.operator!!.id.assert().isEqualTo("alice")
-
-        val rejected = assertThrows<CommandRejectedException> { commands.wait(Withdraw(150), "alice") }
-        rejected.code.assert().isEqualTo("bank.account.insufficient-balance")
     }
+    assertRejected { commands.wait(Withdraw(150), "alice") }
+        .code.assert().isEqualTo("bank.account.insufficient-balance")
 }
 ```
 
-- `wait` 回答命令的等待计划最终的结果，等待计划可以一直等到 Saga 链尾。拒绝，无论来自聚合还是来自准入（无效或未知的命令、被禁止的调用者），是带错误码的 `CommandRejectedException`；其他问题是 `WowProblemException`。
+- `wait` 回答命令的等待计划最终的结果，等待计划可以一直等到 Saga 链尾。拒绝，无论来自聚合还是来自准入（无效或未知的命令、被禁止的调用者），是带错误码的 `CommandRejectedException`；其他问题是 `WowProblemException`。测试用 `assertRejected { … }` 断言拒绝：它返回这个拒绝，命令得到其他答复时断言失败；块里可以调用客户端的 `suspend` 函数。
 - 系统命令也一样按类发送，发往请求指名的聚合类型：生命周期命令（`DeleteAggregate().toCommandRequest(id) { type(…) }`）、快照重建（`RebuildSnapshot.of(ids)`）、作业命令（`DisableJob`，按作业名发往 `<context>.schedule`）。
 - 以其他方式认证调用者的服务器（在 CoSec 之后，或有应用自己的 `CallerResolver`）接受它读取的凭据：`commands(caller, credential)` 与 `queries(caller, credential)`，用一个把调用者写成那台服务器所读请求头的 `UserCredential`。在 CoSec 网关之后（`wow.cosec.mode: gateway`），这个凭据就是网关转发的身份，由 `wow-cosec` 的 `CoSecIdentity` 按 CoSec 文档的格式写出：`UserCredential { caller -> CoSecIdentity(caller.subject!!, listOf("buyer"), tenant = caller.tenantId).headers() }`，它携带所给的调用者：它的主体和租户，以及对有应用和空间的调用者，它的应用和空间（`app = caller.app.orEmpty()`、`space = caller.scope.spaceId.orEmpty()`）。它与这个模块一样是实验性的（`@OptIn(ExperimentalWowApi::class)`）。
 - 等待计划看不到的东西，例如到期触发的定时命令、另一个服务收到的调用，测试用 `eventually("what") { condition }` 轮询，默认每 100 毫秒一次，最多 20 秒。条件抛出异常（包括断言失败）视为尚未成立；失败时说明哪件事没有达到，附上给出的 `detail`（例如各服务的输出），并以条件最后一次的失败为原因。
@@ -136,7 +136,7 @@ Saga 同步调用另一个服务（向那个服务的内部端口发命令）时
 ```kotlin
 fakePeer("eshop-ordering").use { ordering ->
     wowServer<BasketServer>("dev", peers = listOf(ordering)).use { basket ->
-        val alice = Caller.of(subject = "alice", scope = Scope(ownerId = "alice"))
+        val alice = Caller.owner("alice")
         runBlocking { basket.commands(alice).wait(CheckoutBasket, "alice") }
         val call = ordering.called<SubmitOrder>()
         call.service.assert().isEqualTo("eshop-basket-service")

@@ -17,7 +17,6 @@ The host provides a `CommandClient` bean. Choose the caller with `of(caller)`, t
 ```kotlin
 val ref = EshopOrderingContract.Order.ref(Caller.DEFAULT_TENANT, "client-alice-1")
 val submitted = basket.bean<CommandClient>().of(alice).wait(SubmitOrder(items), "client-alice-1")
-submitted.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
 submitted.ref.assert().isEqualTo(ref)
 ```
 
@@ -29,7 +28,7 @@ A command names no path and no type name: the client finds the aggregate type fr
 | `wait(command, id)` | The result of the command's wait plan, the server's default plan unless the request names one |
 | `stream(command, id)` | A flow of the results of each hop of the wait, the last one the result `wait` answers; collecting the flow sends the command |
 
-These calls are imported from the client package (`import me.ahoo.wow.api.client.wait`). Each takes a block, `wait(command, id) { wait(WaitPlan.COMMITTED); requestId(key) }`, which sets the rest of the request by the names of `CommandRequest.Builder`, the ones a Java caller chains on `CommandRequest.builder(command)`: `to(ref)` for the aggregate a ref names, and the aggregate `type` (a lifecycle command such as `DeleteAggregate`, which every aggregate takes, always names it), the `wait` plan and its `timeout`, the `requestId` that makes the command idempotent (a new one when left out), the `expectedVersion` of the aggregate, and, for a caller allowed to act in another scope, the `targetTenant` and `targetScope`. The tenant and scope are otherwise the caller's: a target tenant that is the caller's own changes nothing. Each call also takes a request built beforehand, passed as it is: `command.toCommandRequest(id) { … }` (`import me.ahoo.wow.api.client.toCommandRequest`), or `CommandRequest.builder(command)` from Java; a request given with a block fails, since a request is no command.
+These calls are imported from the client package (`import me.ahoo.wow.api.client.wait`). A ref names the aggregate in place of its id, `wait(command, to = ref)`: its type, its id when assigned, and its tenant; a call given both an id and a ref fails. Each takes a block, `wait(command, id) { wait(WaitPlan.COMMITTED); requestId(key) }`, which sets the rest of the request by the names of `CommandRequest.Builder`, the ones a Java caller chains on `CommandRequest.builder(command)`: `to(ref)`, and the aggregate `type` (a lifecycle command such as `DeleteAggregate`, which every aggregate takes, always names it), the `wait` plan and its `timeout`, the `requestId` that makes the command idempotent (a new one when left out), the `expectedVersion` of the aggregate, and, for a caller allowed to act in another scope, the `targetTenant` and `targetScope`. The tenant and scope are otherwise the caller's: a target tenant that is the caller's own changes nothing. Each call also takes a request built beforehand, passed as it is: `command.toCommandRequest(id) { … }` (`import me.ahoo.wow.api.client.toCommandRequest`), or `CommandRequest.builder(command)` from Java; a request given with a block fails, since a request is no command.
 
 A command always has an accountable caller: the client sends as the anonymous caller until `of` gives it another, and there is no trusted mode for commands. A system sender passes its own service caller.
 
@@ -39,7 +38,7 @@ A command always has an accountable caller: the client sends as the anonymous ca
 
 | Exception | When | Retry |
 | --- | --- | --- |
-| `CommandRejectedException` | The aggregate rejected the command, or admission did (unknown, malformed or invalid command, forbidden caller). `code` is the error code | No: the same request is rejected again |
+| `CommandRejectedException` | The aggregate rejected the command, or admission did (unknown, malformed or invalid command, forbidden caller). `code` is the error code, `error` the whole error and `violations` the fields the command broke | No: the same request is rejected again |
 | `WowProblemException` | A technical failure: a busy or closing node, a store or broker down, a wait that timed out. `code` and `status` say which, and `violations` the fields the peer refused (a `wow.request.invalid`'s) | As its `retry` and `retryAfter` say: whether to retry, whether with the same request id, and after how long |
 
 To tell a command whose outcome is decided from one whose outcome is unknown, read the exception's `retry` as well as its type. A `CommandRejectedException` is a decided answer, and the same request is rejected again. A `WowProblemException` with `retry` `SAME_REQUEST` may have committed (`wow.command.unknown`, `wow.wait.timeout`): send it again with the same request id and a command that did commit is answered as the duplicate it is, never committed twice. One with `NEW_REQUEST` did nothing a retry could repeat, and `NONE` fails alike again (`wow.command.failed` committed nothing). A request without a `requestId` takes a new one on every send, so set it, or keep the one the first result reports, for a retry of your own.

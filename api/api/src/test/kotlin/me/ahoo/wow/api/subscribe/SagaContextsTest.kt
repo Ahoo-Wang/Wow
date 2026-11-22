@@ -46,10 +46,12 @@ class SagaContextsTest {
         runBlocking {
             context.call(SubmitOrder("a")).assert().isSameAs(result)
             context.call(SubmitOrder("b"), "o-2") { requestId("r-2") }.assert().isSameAs(result)
+            context.call(SubmitOrder("c"), to = order.ref("t", "o-3"))
         }
         called.assert().containsExactly(
             SubmitOrder("a").toCommandRequest(),
             CommandRequest.of(SubmitOrder("b"), "o-2", requestId = "r-2"),
+            CommandRequest.to(order.ref("t", "o-3"), SubmitOrder("c")),
         )
     }
 
@@ -60,7 +62,7 @@ class SagaContextsTest {
         val rule = ScheduleRule.after(10.minutes)
         every { context.schedule("deadline", rule, capture(scheduled)) } just Runs
         context.schedule("deadline", rule, CancelOrder("late"), "o-1")
-        context.schedule("deadline", rule, CancelOrder("late")) { to(order.ref("t", "o-2")) }
+        context.schedule("deadline", rule, CancelOrder("late"), to = order.ref("t", "o-2"))
         scheduled.assert().containsExactly(
             CommandRequest.of(CancelOrder("late"), "o-1"),
             CommandRequest.to(order.ref("t", "o-2"), CancelOrder("late")),

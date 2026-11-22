@@ -36,7 +36,7 @@ val EVENTUALLY_POLL: Duration = 100.milliseconds
  *
  * ```kotlin
  * eventually("the order is cancelled") {
- *     server.queries(alice).snapshots(OrderState::class.java).state(orderId)?.state?.status == OrderStatus.CANCELLED
+ *     server.queries(alice).snapshots<OrderState>().state(orderId)?.state?.status == OrderStatus.CANCELLED
  * }
  * ```
  *

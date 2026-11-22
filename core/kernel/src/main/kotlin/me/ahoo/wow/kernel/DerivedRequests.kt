@@ -135,7 +135,7 @@ private fun requestOf(element: Any?): CommandRequest<*> = when (element) {
     is CommandRequest<*> -> element
     is Command<*> -> throw InvalidDerivedRequestException(
         "A saga returns command requests, not the command ${element.id}: return body.toCommandRequest(id), " +
-            "or body.toCommandRequest { to(ref) }.",
+            "or body.toCommandRequest(to = ref).",
     )
 
     else -> throw InvalidDerivedRequestException("A saga derives command requests, not $element.")

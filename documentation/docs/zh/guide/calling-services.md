@@ -17,7 +17,6 @@ outline: deep
 ```kotlin
 val ref = EshopOrderingContract.Order.ref(Caller.DEFAULT_TENANT, "client-alice-1")
 val submitted = basket.bean<CommandClient>().of(alice).wait(SubmitOrder(items), "client-alice-1")
-submitted.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
 submitted.ref.assert().isEqualTo(ref)
 ```
 
@@ -29,7 +28,7 @@ submitted.ref.assert().isEqualTo(ref)
 | `wait(command, id)` | 命令的等待计划的结果，除非请求指定了计划，否则是服务端的默认计划 |
 | `stream(command, id)` | 等待中每一跳结果的 flow，最后一个就是 `wait` 返回的结果；收集这个 flow 才会发送命令 |
 
-这些调用从客户端的包导入（`import me.ahoo.wow.api.client.wait`）。每个调用都接受一个块，`wait(command, id) { wait(WaitPlan.COMMITTED); requestId(key) }`，按 `CommandRequest.Builder` 的名字设置请求的其余内容，也就是 Java 调用方在 `CommandRequest.builder(command)` 上链式调用的名字：`to(ref)` 指向 ref 所指的聚合，以及聚合 `type`（`DeleteAggregate` 这类每个聚合都接受的生命周期命令总要指明它）、`wait` 计划及其 `timeout`、让命令幂等的 `requestId`（不写时生成新的）、聚合的 `expectedVersion`，以及对被允许在另一个作用域行事的调用方，`targetTenant` 和 `targetScope`。否则租户和作用域就是调用方自己的：与调用方相同的目标租户不改变任何东西。每个调用也接受事先造好的请求，原样传入：`command.toCommandRequest(id) { … }`（`import me.ahoo.wow.api.client.toCommandRequest`），或者 Java 里的 `CommandRequest.builder(command)`；带着块传入请求会失败，因为请求不是命令。
+这些调用从客户端的包导入（`import me.ahoo.wow.api.client.wait`）。ref 可以代替 ID 指明聚合，`wait(command, to = ref)`：它的类型、已分配时的 ID 和它的租户；同时给出 ID 和 ref 的调用会失败。每个调用都接受一个块，`wait(command, id) { wait(WaitPlan.COMMITTED); requestId(key) }`，按 `CommandRequest.Builder` 的名字设置请求的其余内容，也就是 Java 调用方在 `CommandRequest.builder(command)` 上链式调用的名字：`to(ref)`，以及聚合 `type`（`DeleteAggregate` 这类每个聚合都接受的生命周期命令总要指明它）、`wait` 计划及其 `timeout`、让命令幂等的 `requestId`（不写时生成新的）、聚合的 `expectedVersion`，以及对被允许在另一个作用域行事的调用方，`targetTenant` 和 `targetScope`。否则租户和作用域就是调用方自己的：与调用方相同的目标租户不改变任何东西。每个调用也接受事先造好的请求，原样传入：`command.toCommandRequest(id) { … }`（`import me.ahoo.wow.api.client.toCommandRequest`），或者 Java 里的 `CommandRequest.builder(command)`；带着块传入请求会失败，因为请求不是命令。
 
 命令总有一个可追责的调用方：在 `of` 给出别的调用方之前，客户端以匿名调用方发送，命令没有受信任模式。系统发送方传入它自己的服务调用方。
 
@@ -39,7 +38,7 @@ submitted.ref.assert().isEqualTo(ref)
 
 | 异常 | 何时 | 重试 |
 | --- | --- | --- |
-| `CommandRejectedException` | 聚合拒绝了命令，或者准入拒绝了它（未知、格式错误或无效的命令，被禁止的调用方）。`code` 是错误码 | 否：同一个请求会再次被拒绝 |
+| `CommandRejectedException` | 聚合拒绝了命令，或者准入拒绝了它（未知、格式错误或无效的命令，被禁止的调用方）。`code` 是错误码，`error` 是整个错误，`violations` 是命令违反的字段 | 否：同一个请求会再次被拒绝 |
 | `WowProblemException` | 技术故障：节点繁忙或正在关闭、存储或 broker 不可用、等待超时。`code` 和 `status` 说明是哪一种，`violations` 列出对方拒绝的字段（例如 `wow.request.invalid` 的） | 按它的 `retry` 和 `retryAfter`：是否重试、是否用同一个请求 ID，以及多久之后 |
 
 要区分结果已经确定的命令和结果未知的命令，除了异常类型，还要读异常的 `retry`。`CommandRejectedException` 是已决定的答复，同一个请求会再次被拒绝。`retry` 为 `SAME_REQUEST` 的 `WowProblemException` 可能已经提交（`wow.command.unknown`、`wow.wait.timeout`）：用同一个请求 ID 再发一次，已经提交的命令会作为重复被答复，绝不会提交两次。`NEW_REQUEST` 表示没有做过重试会重复的事，`NONE` 表示再试同样失败（`wow.command.failed` 什么也没提交）。不带 `requestId` 的请求每次发送都取新的，所以自己重试时要设置它，或者沿用第一个结果报告的那个。

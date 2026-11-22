@@ -30,17 +30,17 @@ internal fun CommandTypes.omittedTargetOf(command: Class<*>, handler: String): A
         when {
             Lifecycle.nameOf(command) != null ->
                 "$handler sends the lifecycle command ${command.name} without its target: every aggregate type " +
-                    "takes it, so give the request its type, body.toCommandRequest { to(ref) }."
+                    "takes it, so give the request its type, body.toCommandRequest(to = ref)."
 
             targets.isEmpty() ->
                 "$handler sends ${command.name} without its target, and no contract assigns it an aggregate: " +
                     "neither the service's Manifest nor a peer contract on the class path " +
                     "(META-INF/wow/contract.json of an api jar) names it. Add the api module of the bounded context " +
-                    "that decides it to the dependencies, or give the request its type, body.toCommandRequest { to(ref) }."
+                    "that decides it to the dependencies, or give the request its type, body.toCommandRequest(to = ref)."
 
             else ->
                 "$handler sends ${command.name} without its target, but several aggregate types decide it: " +
-                    "${targets.joinToString()}. Give the request one of them as its type, body.toCommandRequest { to(ref) }."
+                    "${targets.joinToString()}. Give the request one of them as its type, body.toCommandRequest(to = ref)."
         },
     )
 }

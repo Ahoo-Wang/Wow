@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.example.eshop.payment.api.payment.EshopPaymentContract
@@ -58,7 +59,7 @@ class PaymentNode(vararg sources: Class<*>, topics: InMemoryTopics? = null) : Au
 
     /** The payment [id]'s state; null before it is requested. */
     fun payment(id: String): PaymentStateView? =
-        runBlocking { server.queries(Caller.ANONYMOUS).snapshots(PaymentStateView::class.java).state(id)?.state }
+        runBlocking { server.queries(Caller.ANONYMOUS).snapshots<PaymentStateView>().state(id)?.state }
 
     /** Requests the payment of [order] and waits until the simulated gateway approved it. */
     fun succeeded(order: String, amount: String = "29.00") {

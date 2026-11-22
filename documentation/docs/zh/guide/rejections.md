@@ -129,17 +129,17 @@ override suspend fun transform(input: CommandInput): CommandTarget {
 
 **在 HTTP 上**，拒绝以错误码的状态回答，响应体是 `application/problem+json`，其 `type` 是 `urn:wow:error:<code>`，`code` 成员是完整的错误码。它的 `version` 成员是拒绝所回答的聚合版本：事件到达的版本，否则是决策所见的版本；创建命令的拒绝没有。完整的形状见[线上协议](../reference/protocols)。
 
-**在 Kotlin 中**，命令客户端抛出 `CommandRejectedException`，它的 `code` 是完整的错误码，聚合的拒绝和准入时的拒绝都一样：
+**在 Kotlin 中**，命令客户端抛出 `CommandRejectedException`，它的 `code` 是完整的错误码，`error` 是整个错误，`violations` 是命令违反的字段，聚合的拒绝和准入时的拒绝都一样：
 
 <!-- sample: examples/eshop/e2e/src/integrationTest/kotlin/me/ahoo/wow/example/eshop/e2e/EshopClientTest.kt#rejected -->
 
 ```kotlin
 // An order of no items breaks SubmitOrder's constraints: the ordering refuses it at admission, typed.
-val rejected = runCatching {
+val rejected = assertRejected {
     basket.bean<CommandClient>().of(alice).wait(SubmitOrder(emptyList()), "client-alice-2")
-}.exceptionOrNull() as CommandRejectedException
+}
 rejected.code.assert().isEqualTo("wow.command.invalid")
-rejected.result.error!!.violations.single().path.assert().isEqualTo("items")
+rejected.violations.single().path.assert().isEqualTo("items")
 ```
 
 **对端**用常量而不是字符串来比较错误码。api 模块生成的契约以完整的名字列出其上下文的每个错误码，例如 `EshopOrderingContract.Order.Errors.WRONG_STATUS`，所以依赖 ordering 的 api 的对端，读到的值与 ordering 拒绝时用的值相同。

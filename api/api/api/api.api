@@ -428,6 +428,8 @@ public final class me/ahoo/wow/api/caller/Caller {
 	public static final fun of (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;Ljava/lang/String;ZLjava/util/Map;Z)Lme/ahoo/wow/api/caller/Caller;
 	public static final fun ofService (Ljava/lang/String;)Lme/ahoo/wow/api/caller/Caller;
 	public static final fun ofService (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/caller/Caller;
+	public static final fun owner (Ljava/lang/String;)Lme/ahoo/wow/api/caller/Caller;
+	public static final fun owner (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/caller/Caller;
 	public final fun toOperator (Z)Lme/ahoo/wow/api/caller/Operator;
 	public static synthetic fun toOperator$default (Lme/ahoo/wow/api/caller/Caller;ZILjava/lang/Object;)Lme/ahoo/wow/api/caller/Operator;
 	public fun toString ()Ljava/lang/String;
@@ -445,6 +447,9 @@ public final class me/ahoo/wow/api/caller/Caller$Companion {
 	public final fun ofService (Ljava/lang/String;)Lme/ahoo/wow/api/caller/Caller;
 	public final fun ofService (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/caller/Caller;
 	public static synthetic fun ofService$default (Lme/ahoo/wow/api/caller/Caller$Companion;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/api/caller/Caller;
+	public final fun owner (Ljava/lang/String;)Lme/ahoo/wow/api/caller/Caller;
+	public final fun owner (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/caller/Caller;
+	public static synthetic fun owner$default (Lme/ahoo/wow/api/caller/Caller$Companion;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/api/caller/Caller;
 }
 
 public final class me/ahoo/wow/api/caller/Operator {
@@ -498,18 +503,20 @@ public abstract interface class me/ahoo/wow/api/client/CommandClient {
 }
 
 public final class me/ahoo/wow/api/client/CommandClients {
-	public static final fun send (Lme/ahoo/wow/api/client/CommandClient;Ljava/lang/Object;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public static synthetic fun send$default (Lme/ahoo/wow/api/client/CommandClient;Ljava/lang/Object;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
-	public static final fun stream (Lme/ahoo/wow/api/client/CommandClient;Ljava/lang/Object;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lkotlinx/coroutines/flow/Flow;
-	public static synthetic fun stream$default (Lme/ahoo/wow/api/client/CommandClient;Ljava/lang/Object;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lkotlinx/coroutines/flow/Flow;
-	public static final fun wait (Lme/ahoo/wow/api/client/CommandClient;Ljava/lang/Object;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public static synthetic fun wait$default (Lme/ahoo/wow/api/client/CommandClient;Ljava/lang/Object;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public static final fun send (Lme/ahoo/wow/api/client/CommandClient;Ljava/lang/Object;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun send$default (Lme/ahoo/wow/api/client/CommandClient;Ljava/lang/Object;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public static final fun stream (Lme/ahoo/wow/api/client/CommandClient;Ljava/lang/Object;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Lkotlin/jvm/functions/Function1;)Lkotlinx/coroutines/flow/Flow;
+	public static synthetic fun stream$default (Lme/ahoo/wow/api/client/CommandClient;Ljava/lang/Object;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lkotlinx/coroutines/flow/Flow;
+	public static final fun wait (Lme/ahoo/wow/api/client/CommandClient;Ljava/lang/Object;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun wait$default (Lme/ahoo/wow/api/client/CommandClient;Ljava/lang/Object;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 }
 
 public final class me/ahoo/wow/api/client/CommandRejectedException : java/lang/RuntimeException {
 	public fun <init> (Lme/ahoo/wow/api/result/CommandResult;)V
 	public final fun getCode ()Ljava/lang/String;
+	public final fun getError ()Lme/ahoo/wow/api/result/ErrorInfo;
 	public final fun getResult ()Lme/ahoo/wow/api/result/CommandResult;
+	public final fun getViolations ()Ljava/util/List;
 }
 
 public final class me/ahoo/wow/api/client/CommandRequest {
@@ -577,8 +584,8 @@ public abstract interface annotation class me/ahoo/wow/api/client/CommandRequest
 }
 
 public final class me/ahoo/wow/api/client/CommandRequests {
-	public static final fun toCommandRequest (Ljava/lang/Object;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/api/client/CommandRequest;
-	public static synthetic fun toCommandRequest$default (Ljava/lang/Object;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lme/ahoo/wow/api/client/CommandRequest;
+	public static final fun toCommandRequest (Ljava/lang/Object;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/api/client/CommandRequest;
+	public static synthetic fun toCommandRequest$default (Ljava/lang/Object;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lme/ahoo/wow/api/client/CommandRequest;
 }
 
 public final class me/ahoo/wow/api/decide/Causation {
@@ -1906,10 +1913,10 @@ public abstract interface class me/ahoo/wow/api/subscribe/SagaContext : me/ahoo/
 }
 
 public final class me/ahoo/wow/api/subscribe/SagaContexts {
-	public static final fun call (Lme/ahoo/wow/api/subscribe/SagaContext;Ljava/lang/Object;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public static synthetic fun call$default (Lme/ahoo/wow/api/subscribe/SagaContext;Ljava/lang/Object;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
-	public static final fun schedule (Lme/ahoo/wow/api/subscribe/SagaContext;Ljava/lang/String;Lme/ahoo/wow/api/schedule/ScheduleRule;Ljava/lang/Object;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)V
-	public static synthetic fun schedule$default (Lme/ahoo/wow/api/subscribe/SagaContext;Ljava/lang/String;Lme/ahoo/wow/api/schedule/ScheduleRule;Ljava/lang/Object;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+	public static final fun call (Lme/ahoo/wow/api/subscribe/SagaContext;Ljava/lang/Object;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun call$default (Lme/ahoo/wow/api/subscribe/SagaContext;Ljava/lang/Object;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public static final fun schedule (Lme/ahoo/wow/api/subscribe/SagaContext;Ljava/lang/String;Lme/ahoo/wow/api/schedule/ScheduleRule;Ljava/lang/Object;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Lkotlin/jvm/functions/Function1;)V
+	public static synthetic fun schedule$default (Lme/ahoo/wow/api/subscribe/SagaContext;Ljava/lang/String;Lme/ahoo/wow/api/schedule/ScheduleRule;Ljava/lang/Object;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
 }
 
 public abstract interface class me/ahoo/wow/api/subscribe/StateEvent {

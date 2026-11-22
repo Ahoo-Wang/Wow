@@ -160,7 +160,7 @@ internal class ProcessorHandling(
             commandId = command.id,
             commandType = commandTypes.nameOf(command.ref.type, type) ?: type.name,
             ref = command.ref,
-            error = checkNotNull(rejected.result.error) { "A rejected result carries its error." },
+            error = rejected.error,
             causation = checkNotNull(command.causation) { "A called command carries its causation." },
             executionId = execution,
             operator = command.operator,
