@@ -3,7 +3,7 @@
 # before the gateway starts), and forwards the principal it verified in the CoSec-Identity header, without the token;
 # every service behind it reads its callers from that header in CoSec's gateway mode, with no secret, documents or
 # Redis of its own. It routes by the context prefix. It writes the TCP peer it accepted as the one X-Forwarded-For
-# (trusted-proxies, for-append: false), never believing a client's (forward-headers-strategy: none), so a service's
+# (trusted-proxies, for-append: false), never believing a client's (forwarded strategy none), so a service's
 # remote_ip is the client's. Its pods carry app.kubernetes.io/component: gateway, which every service's public
 # NetworkPolicy admits: a service believes any CoSec-Identity, so nothing else may reach it.
 apiVersion: v1
@@ -17,8 +17,12 @@ data:
     server:
       port: 8080
       # The gateway is the edge: it never takes a client's Forwarded or X-Forwarded-For as its remote address. Spring
-      # Boot defaults to the native strategy on Kubernetes, which would (run 7 recorded the claimed 203.0.113.9).
-      forward-headers-strategy: none
+      # Boot defaults to the web-server strategy on Kubernetes, which would (run 7 recorded the claimed 203.0.113.9).
+      # Spring Boot 4.2's key, which the image (on Spring Boot 4.2 from CoSec 8.0.0-beta.6) reads.
+      request:
+        header:
+          forwarded:
+            strategy: none
     spring:
       data:
         redis:
@@ -30,7 +34,7 @@ data:
             webflux:
               # The X-Forwarded headers filter writes X-Forwarded-* only for a peer trusted-proxies matches (Spring Cloud
               # Gateway 4.1+); unset, it writes none and the service sees the gateway's own address. Every peer matches:
-              # the gateway is the edge, its peer is the client (server.forward-headers-strategy: none above), and
+              # the gateway is the edge, its peer is the client (the forwarded strategy none above), and
               # for-append: false writes that peer as the one X-Forwarded-For, whatever the client sent.
               trusted-proxies: ".*"
               x-forwarded:
@@ -128,13 +132,6 @@ data:
     logging:
       level:
         root: info
-    management:
-      endpoint:
-        health:
-          # /actuator/health/liveness and /readiness for the probes; readiness refuses traffic until the platform
-          # document and the prewarmed tenant's are installed.
-          probes:
-            enabled: true
 ---
 apiVersion: v1
 kind: Secret
@@ -169,7 +166,7 @@ spec:
       enableServiceLinks: false
       containers:
         - name: cosec-gateway
-          image: ghcr.io/ahoo-wang/cosec-gateway:8.0.0-beta.1@sha256:50ffb29f25544a28709458e3375579babbb6ed15a8b61fd8d116d8e1c632ee91
+          image: ghcr.io/ahoo-wang/cosec-gateway:8.0.0-beta.6@sha256:09928d1720f1c08decac276caad1c3270c465cc8b993878e075cd8e422c31e04
           imagePullPolicy: IfNotPresent
           envFrom:
             - secretRef:
@@ -177,26 +174,30 @@ spec:
           env:
             # The image's start script sets -Xms2048M -Xmx2048M and 512M of direct memory; JAVA_OPTS comes after it
             # and wins. Heap, direct memory, metaspace and threads fit the 768Mi limit below, as main's CoSec 6
-            # gateway did: the mongo arm's single kind node has no room for more.
+            # gateway did: the mongo arm's single kind node has no room for more. CoSec sizes its caches and how many
+            # documents it keeps from the heap (a quarter of it for the documents), far more than the run's two.
             - name: JAVA_OPTS
               value: -Xms256m -Xmx384m -XX:MaxDirectMemorySize=128m -Djava.net.preferIPv4Stack=true
           ports:
             - name: http
               containerPort: 8080
+          # Spring Boot's probe groups on the gateway's own port, /livez and /readyz (the image's defaults): the actuator
+          # is on its management port, 8081, where /actuator/health/* answers instead. Readiness refuses traffic until
+          # the platform document and the prewarmed tenant's are installed.
           startupProbe:
             httpGet:
-              path: /actuator/health/liveness
+              path: /livez
               port: http
             periodSeconds: 5
             failureThreshold: 60
           readinessProbe:
             httpGet:
-              path: /actuator/health/readiness
+              path: /readyz
               port: http
             periodSeconds: 5
           livenessProbe:
             httpGet:
-              path: /actuator/health/liveness
+              path: /livez
               port: http
             periodSeconds: 10
           volumeMounts:

@@ -166,13 +166,13 @@ The gateway authenticates and authorizes each request and forwards what it verif
 
 The CoSec Gateway (`cosec-gateway-server`, the image `ghcr.io/ahoo-wang/cosec-gateway`), built on Spring Cloud Gateway, is the gateway Wow's end-to-end tests run in front of the eShop and the platform services, with the settings below. They are the requirements above in that gateway's terms:
 
-- **It is the edge.** `server.forward-headers-strategy: none`: it never takes a client's `Forwarded` or `X-Forwarded-For` as its own remote address, as Spring Boot's default on Kubernetes would.
+- **It is the edge.** `server.request.header.forwarded.strategy: none` (Spring Boot 4.2's key; the image runs on Spring Boot 4.2 from CoSec 8.0.0-beta.6): it never takes a client's `Forwarded` or `X-Forwarded-For` as its own remote address, as Spring Boot's default on Kubernetes would.
 - **It writes the client's address once.** From Spring Cloud Gateway 4.1, the X-Forwarded headers filter writes nothing unless `trusted-proxies` matches the peer, so `for-append: false` alone does nothing. `trusted-proxies: ".*"` with `for-append: false` writes the peer it accepted as the one `X-Forwarded-For`, replacing a client's, and `forwarded.enabled: false` sends no `Forwarded` header, which a service would prefer.
 - **It retries a lost connection, never an answer.** The `Retry` filter resends a request once on an `IOException` or a `TimeoutException`, `POST` included: the retry carries the same `CoSec-Request-Id`, or the client's `Wow-Request-Id`, so the service answers it as a duplicate. `series: INFORMATIONAL` matches no final status, so no response is retried. Pooled connections idle at most 15 seconds, so one to a pod that has gone is rarely reused.
 - **It decides with CoSec's documents in its Redis.** The gateway reads CoSec 8's documents (schema 2: the platform document, and one per app and per tenant) from a Redis that must run with `maxmemory-policy noeviction`: it checks the policy at startup and does not start otherwise. Publish the documents before traffic arrives, with `cosec-migrate publish --to-redis`: until a platform document exists, the gateway answers every routed request 503 and reports itself not ready. No Wow service connects to this Redis. How many documents it keeps in memory follows from its heap, a quarter of it, not from a setting: about 14,500 typical tenant documents at a 2 GiB heap, so give it more heap to hold more; the gauge `cosec.snapshot.bound` and its startup line say what it came to. A Redis with ACL users gives the gateway's user the keys CoSec's [Storage](https://cosec.ahoo.me/operations/storage#redis-keys) lists for the data plane; one that lacks them fails the gateway's start with `NOPERM`.
 - **It forwards the identity only to the routes that say so.** `CoSec-Identity` goes to a route to a registered service (`lb://`), or to one whose metadata says `cosec-identity: true`. The routes below target a Kubernetes Service's URL, so each carries that metadata; a service behind a route without it reads no caller and answers 401. Do not add it to a route to a third party.
 - **It forwards no credentials.** By default it removes the `Authorization` header, the API key header, the `authorization` query parameter and the `authorization` cookie from every request it forwards. A service in gateway mode reads none of them.
-- **It exposes only Actuator's `health` on its own port.** A gateway that decides with documents does not start while any other Actuator endpoint is exposed over HTTP on the application port. Expose only `health`, as here, or serve Actuator on its own port (`management.server.port`) behind a network policy.
+- **Its probes are on its own port, the actuator on another.** The image serves `/livez` and `/readyz` on 8080, the port clients use, and Actuator (`/actuator/health`, `/actuator/prometheus`) on its management port 8081, which nothing in CoSec authorizes: keep 8081 inside the cluster. A gateway that decides with documents does not start while an Actuator endpoint other than `health` is exposed over HTTP on the application port. The end-to-end manifest probes `/livez` and `/readyz`; readiness waits for the platform document and the prewarmed tenant's.
 
 <!-- sample: .github/ga-e2e/gateway/gateway.yaml#settings -->
 
@@ -180,8 +180,12 @@ The CoSec Gateway (`cosec-gateway-server`, the image `ghcr.io/ahoo-wang/cosec-ga
 server:
   port: 8080
   # The gateway is the edge: it never takes a client's Forwarded or X-Forwarded-For as its remote address. Spring
-  # Boot defaults to the native strategy on Kubernetes, which would (run 7 recorded the claimed 203.0.113.9).
-  forward-headers-strategy: none
+  # Boot defaults to the web-server strategy on Kubernetes, which would (run 7 recorded the claimed 203.0.113.9).
+  # Spring Boot 4.2's key, which the image (on Spring Boot 4.2 from CoSec 8.0.0-beta.6) reads.
+  request:
+    header:
+      forwarded:
+        strategy: none
 spring:
   data:
     redis:
@@ -193,7 +197,7 @@ spring:
         webflux:
           # The X-Forwarded headers filter writes X-Forwarded-* only for a peer trusted-proxies matches (Spring Cloud
           # Gateway 4.1+); unset, it writes none and the service sees the gateway's own address. Every peer matches:
-          # the gateway is the edge, its peer is the client (server.forward-headers-strategy: none above), and
+          # the gateway is the edge, its peer is the client (the forwarded strategy none above), and
           # for-append: false writes that peer as the one X-Forwarded-For, whatever the client sent.
           trusted-proxies: ".*"
           x-forwarded:
