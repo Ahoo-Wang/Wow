@@ -134,6 +134,21 @@ What is known of a failure is never its message, which may quote the value that 
 - **The message of a failure written for a caller**: a `WowProblemException`, a command's rejection, a decide function's rejection, which the caller reads anyway.
 - **Nothing**: a failure none describes, the application's own exceptions among them, is recorded by its class name alone.
 
+Since the application's own exceptions are recorded by their class name alone, give a failure an operator should tell apart a class of its own, named for what failed, rather than an `IllegalStateException` with a message. The eShop's payment gateway throws one when it cannot be reached, and a parked payment's reason reads `…PaymentGatewayUnreachableException`, without the payment its message names:
+
+<!-- sample: examples/eshop/payment/payment-domain/src/main/kotlin/me/ahoo/wow/example/eshop/payment/domain/payment/PaymentGateway.kt#unreachable -->
+
+```kotlin
+/**
+ * The payment gateway could not be reached: a technical failure, which a retry may get past. A parked payment's reason
+ * records a failure of the application's own by its class name alone, never its message, which names the payment; so
+ * the class says what failed, and the message stays in the node's log.
+ */
+class PaymentGatewayUnreachableException(message: String) : IllegalStateException(message)
+```
+
+When the class is not enough, declare a `FailureDescriber` for it, which describes it from its fields.
+
 The full failure, its message and its stack trace, is in the node's log, logged when the aggregate parks with the subscription, the aggregate and the version; search for those to read it. The class name comes first, so the console's error type, and the type the ops context groups the entries by, is the text before the first `: `.
 
 ## How a command is retried

@@ -134,6 +134,21 @@ me.ahoo.wow.kernel.UnreadableEventException: event 'shop.order.Placed' revision 
 - **为调用方而写的失败消息**：`WowProblemException`、命令的拒绝、决策函数的拒绝，这些调用方本来就会读到。
 - **什么都没有**：没有描述器描述的失败，包括应用自己的异常，只记录它的类名。
 
+应用自己的异常只按类名记录，所以运维人员需要区分的失败，应当有一个以“什么失败了”命名的类，而不是带着消息的 `IllegalStateException`。eShop 的支付网关连不上时抛出这样的异常，停放的支付的原因就是 `…PaymentGatewayUnreachableException`，不含它的消息里写的支付：
+
+<!-- sample: examples/eshop/payment/payment-domain/src/main/kotlin/me/ahoo/wow/example/eshop/payment/domain/payment/PaymentGateway.kt#unreachable -->
+
+```kotlin
+/**
+ * The payment gateway could not be reached: a technical failure, which a retry may get past. A parked payment's reason
+ * records a failure of the application's own by its class name alone, never its message, which names the payment; so
+ * the class says what failed, and the message stays in the node's log.
+ */
+class PaymentGatewayUnreachableException(message: String) : IllegalStateException(message)
+```
+
+类名不够时，为它声明一个 `FailureDescriber`，由它的字段描述它。
+
 完整的失败，即它的消息和堆栈，在节点日志里，停放时随订阅、聚合和版本一起记录；按这些去搜索就能读到。类名在最前面，所以控制台的错误类型，以及运维上下文用来给条目分组的类型，就是第一个 `: ` 之前的文本。
 
 ## 命令怎样重试 {#how-a-command-is-retried}
