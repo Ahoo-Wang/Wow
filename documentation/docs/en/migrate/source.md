@@ -226,7 +226,7 @@ private suspend fun take(name: String, scope: DecideScope) {
 }
 ```
 
-A 9.x `reprepare` that renamed a key of one aggregate is one decision of that aggregate: reserve the new key and release the old one. One that moved a key from one aggregate to another has no V10 form, since a reservation belongs to the aggregate that decides and commits with its events: the holder changes by a handover through a saga, and the change is eventually consistent ([Move a key to another aggregate](../guide/unique-keys#move-a-key-to-another-aggregate)).
+A 9.x `reprepare` that renamed a key of one aggregate is one decision of that aggregate: reserve the new key and release the old one. One that moved a key from one aggregate to another has no single call in V10, since a reservation belongs to the aggregate that decides and commits with its events. It becomes one of two patterns ([Move a key to another aggregate](../guide/unique-keys#move-a-key-to-another-aggregate)): a [handover through a saga](../guide/unique-keys#handover-through-a-saga), eventually consistent, when the change may lose to a concurrent request; or the key held as [an aggregate of its own](../guide/unique-keys#key-held-as-an-aggregate), a slot whose one command changes the holder in one commit, as 9.x `reprepare` did, when the key must have a holder at every moment.
 
 [Unique Keys](../guide/unique-keys) explains reservations.
 

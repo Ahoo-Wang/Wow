@@ -226,7 +226,7 @@ private suspend fun take(name: String, scope: DecideScope) {
 }
 ```
 
-9.x 里在一个聚合内给键改名的 `reprepare`，是这个聚合的一次决策：预留新键并释放旧键。把键从一个聚合移到另一个聚合的 `reprepare` 在 V10 中没有对应形式，因为预留属于正在决策的聚合，并随它的事件一起提交：持有者的更换经 Saga 交接完成，结果是最终一致的（[把键移给另一个聚合](../guide/unique-keys#move-a-key-to-another-aggregate)）。
+9.x 里在一个聚合内给键改名的 `reprepare`，是这个聚合的一次决策：预留新键并释放旧键。把键从一个聚合移到另一个聚合的 `reprepare` 在 V10 中没有单个调用能对应，因为预留属于正在决策的聚合，并随它的事件一起提交。它对应两种做法之一（[把键移给另一个聚合](../guide/unique-keys#move-a-key-to-another-aggregate)）：更换可以输给并发请求时，[经 Saga 交接](../guide/unique-keys#handover-through-a-saga)，结果是最终一致的；键必须任何时刻都有持有者时，把键建成[一个独立的聚合](../guide/unique-keys#key-held-as-an-aggregate)，即槽位，它的一条命令在一次提交里换掉持有者，和 9.x 的 `reprepare` 一样。
 
 [跨聚合的唯一键](../guide/unique-keys)解释预留。
 
