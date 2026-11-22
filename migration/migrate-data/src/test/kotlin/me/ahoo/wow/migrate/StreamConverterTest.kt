@@ -14,12 +14,14 @@
 package me.ahoo.wow.migrate
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateIdSource
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.lifecycle.Lifecycle
+import me.ahoo.wow.kernel.scopeOf
 import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.migrate.example.NineXExample
 import me.ahoo.wow.spi.json.WowJson
@@ -72,9 +74,33 @@ class StreamConverterTest {
             "\"example-service.cart\", \"stream\": \"$id\", \"reason\": \"…\"}."
         assertThrows<MigrationException> { converter.convert(added) }.message.assert()
             .endsWith("example.cart's id is its owner's, but the stream records the owner \"customer-1\"; $exclusion")
-        assertThrows<MigrationException> { converter.convert(added.copy(ownerId = " ")) }.message.assert()
-            .endsWith("example.cart's id is its owner's, but the stream records no owner; $exclusion")
+        // A stream that records none may also take its id, by the map.
+        assertThrows<MigrationException> { converter.convert(added.copy(ownerId = " ")) }.message.assert().endsWith(
+            "example.cart's id is its owner's, but the stream records no owner; " +
+                exclusion.replace("9.x store,", "9.x store,$MISSING_OWNER_WAY"),
+        )
         converter.convert(added.copy(ownerId = id)).scope.assert().isEqualTo(Scope(ownerId = id))
+    }
+
+    @Test
+    fun `a stream that records no owner takes its id as V10 records it, when the map fills a missing owner`() {
+        val plan = MigrationPlan(MigrationMap.read(NineXExample.fillingMapText()), NineXExample.ownedCartManifest)
+        val converter = StreamConverter(plan) { NineXExample.IMPORTED_AT }
+        val unowned = NineXExample.cartAs("cart-n").first().copy(spaceId = "space-1")
+        val record = converter.convert(unowned)
+        // The kernel's own rule, never a copy of it: the id for the owner, the space as recorded.
+        record.scope.assert().isEqualTo(AggregateIdSource.OWNER.scopeOf("cart-n", Scope(spaceId = "space-1")))
+        record.scope.assert().isEqualTo(Scope("cart-n", "space-1"))
+        record.headers[FILLED_OWNER_HEADER].assert().isEqualTo("aggregate-id")
+        // A stream that records its id, or another owner, is not filled: the one is taken as it is, the other refused.
+        converter.convert(unowned.copy(ownerId = "cart-n")).headers.assert().doesNotContainKey(FILLED_OWNER_HEADER)
+        assertThrows<MigrationException> { converter.convert(unowned.copy(ownerId = "customer-2")) }.message.assert()
+            .contains("but the stream records the owner \"customer-2\"").doesNotContain("missingOwner")
+        // On an aggregate whose id is not its owner's, the key fills nothing (the check refuses it).
+        val unowning = MigrationPlan(MigrationMap.read(NineXExample.fillingMapText()), NineXExample.manifest)
+        val unfilled = StreamConverter(unowning) { NineXExample.IMPORTED_AT }.convert(unowned)
+        unfilled.scope.assert().isEqualTo(Scope(spaceId = "space-1"))
+        unfilled.headers.assert().doesNotContainKey(FILLED_OWNER_HEADER)
     }
 
     @Test

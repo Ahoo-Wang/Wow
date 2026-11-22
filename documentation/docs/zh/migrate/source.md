@@ -80,7 +80,7 @@ Error resolving plugin [id: 'com.google.devtools.ksp', version: '2.3.6']
 | `@StaticAggregateId` | 已移除：没有固定的聚合 ID（[V10 中的 9.x 能力](./capabilities)） |
 | `@AggregateRoute`、`@CommandRoute` | 已移除：路由来自 Manifest |
 | `@CommandRoute(enabled = false)` | 取决于谁发送这条命令。只由平台发送（Saga、定时器、进程内网关，以及经内部端口调用的其他服务）：在命令类上标注 `@InternalCommand`，公开端口不挂它的路由；内部端口上在 `wow.callers` 下没有条目的服务仍可发送它，因为这份列表只收窄它点名的服务（[只在内部受理的命令](../guide/aggregates#keep-a-command-internal)）。由 9.x 服务手写的用户路由发送：命令保持公开，走生成的路由（[路由、租户与所有权](#routes-tenancy-and-ownership)） |
-| `@AggregateOwner(OwnerPolicy.*)`、`@Spaced` | `@AggregateRoot(ownership = Ownership.OWNER \| TENANT)`；所有者和空间来自调用方。`OwnerPolicy.AGGREGATE_ID` 是 `@AggregateRoot(idSource = AggregateIdSource.OWNER)`。`TENANT` 聚合没有所有者可转，所以它的默认生命周期里没有 `wow.lifecycle.TransferOwner`，`idSource = OWNER` 的聚合也没有（[生命周期命令](../guide/aggregates#lifecycle-commands)） |
+| `@AggregateOwner(OwnerPolicy.*)`、`@Spaced` | `@AggregateRoot(ownership = Ownership.OWNER \| TENANT)`；所有者和空间来自调用方。`OwnerPolicy.AGGREGATE_ID` 是 `@AggregateRoot(idSource = AggregateIdSource.OWNER)`；9.x 的 saga 或服务代码建的实例没有记所有者，数据导入只在映射这样写时才补上它（[检查映射文件](./data#_2-check-the-map)）。`TENANT` 聚合没有所有者可转，所以它的默认生命周期里没有 `wow.lifecycle.TransferOwner`，`idSource = OWNER` 的聚合也没有（[生命周期命令](../guide/aggregates#lifecycle-commands)） |
 | `@VoidCommand`、`@Order`、`@EntityObject`、`@ValueObject` | 已移除 |
 | 无 | 拒绝码上的 `@ErrorCode`、用于之后重命名的 `@Alias`、`@QueryIndex`、`@Access` |
 

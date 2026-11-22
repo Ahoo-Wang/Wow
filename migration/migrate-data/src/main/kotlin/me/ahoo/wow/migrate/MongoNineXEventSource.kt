@@ -428,6 +428,26 @@ internal class MongoNineXEventSource(private val database: MongoDatabase) : Nine
         }
     }
 
+    override fun instancesOwnedById(aggregate: NineXAggregate): Set<NineXAggregateId> =
+        collectionOf(aggregate).aggregate(
+            listOf(
+                Aggregates.match(
+                    Filters.and(
+                        Filters.eq(CONTEXT_NAME, aggregate.context),
+                        Filters.eq(AGGREGATE_NAME, aggregate.name),
+                        Filters.expr(Document("\$eq", listOf("\$$OWNER_ID", "\$$AGGREGATE_ID"))),
+                    ),
+                ),
+                Document(
+                    "\$group",
+                    Document("_id", Document("id", "\$$AGGREGATE_ID").append("tenant", "\$$TENANT_ID")),
+                ),
+            ),
+        ).mapTo(HashSet()) { group ->
+            val key = group.get("_id", Document::class.java)
+            NineXAggregateId(key.getString("id"), key.getString("tenant").orEmpty())
+        }
+
     override fun instancesOutsideTenant(aggregate: NineXAggregate, tenant: String): Map<NineXAggregateId, Long> =
         collectionOf(aggregate).aggregate(
             listOf(

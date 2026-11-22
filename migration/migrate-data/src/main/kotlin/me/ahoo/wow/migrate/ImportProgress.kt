@@ -52,6 +52,8 @@ internal data class ImportProgress(
     val done: Boolean,
     val excluded: Long = 0,
     val phases: ImportPhases = ImportPhases(),
+    /** The streams whose owner the import filled with their id ([MissingOwner]). */
+    val filled: Long = 0,
 ) {
     /** The streams handled per second. */
     val streamsPerSecond: Double
@@ -60,6 +62,7 @@ internal data class ImportProgress(
     fun render(): String =
         "$aggregate${if (done) " done" else ""}: $instances instances, $imported streams imported, $skipped skipped, " +
             "$events events, $rewritten request ids rewritten, ${if (excluded > 0) "$excluded excluded, " else ""}" +
+            (if (filled > 0) "$filled owners filled with their id, " else "") +
             "${"%.1f".format(streamsPerSecond)} streams/s" +
             if (done) " in ${seconds(elapsedMillis)}; ${phases.render()}" else ""
 
@@ -82,6 +85,7 @@ internal class ImportStats(val aggregate: NineXAggregate, val startedAt: Long, p
     val events = AtomicLong()
     val rewritten = AtomicLong()
     val excluded = AtomicLong()
+    val filled = AtomicLong()
     val read = AtomicLong()
     val convert = AtomicLong()
     val append = AtomicLong()
@@ -103,6 +107,9 @@ internal class ImportStats(val aggregate: NineXAggregate, val startedAt: Long, p
     fun imported(record: EventStreamRecord) {
         imported.incrementAndGet()
         events.addAndGet(record.events.size.toLong())
+        if (FILLED_OWNER_HEADER in record.headers) {
+            filled.incrementAndGet()
+        }
     }
 
     fun report(done: Boolean): ImportProgress = ImportProgress(
@@ -115,6 +122,7 @@ internal class ImportStats(val aggregate: NineXAggregate, val startedAt: Long, p
         elapsedMillis = clock() - startedAt,
         done = done,
         excluded = excluded.get(),
+        filled = filled.get(),
         phases = ImportPhases(
             readMillis = read.get() / NANOS_PER_MILLI,
             convertMillis = convert.get() / NANOS_PER_MILLI,

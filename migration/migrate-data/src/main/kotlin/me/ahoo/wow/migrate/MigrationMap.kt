@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.migrate
 
+import com.fasterxml.jackson.annotation.JsonProperty
 import me.ahoo.wow.api.decide.ReservationTenancy
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.spi.json.WowJson
@@ -153,6 +154,26 @@ internal data class Exclusion(
 }
 
 /**
+ * What the import records as the owner of a 9.x stream that records none, of an aggregate whose id is its owner's in
+ * V10 ([AggregateMapping.missingOwner]).
+ */
+internal enum class MissingOwner(val wire: String) {
+    /**
+     * The instance's id, as V10 records the owner of every such aggregate ([AggregatePlan.importedScope]): the stream
+     * carries the header [FILLED_OWNER_HEADER] with this value, which says so.
+     */
+    @JsonProperty("aggregate-id")
+    AGGREGATE_ID("aggregate-id"),
+}
+
+/** The header a stream whose owner the import filled ([MissingOwner]) carries, its value how it was filled. */
+internal const val FILLED_OWNER_HEADER: String = "wow.migrate.owner"
+
+/** The way out a problem of a stream that records no owner gives besides the others: the map fills it. */
+internal const val MISSING_OWNER_WAY: String =
+    " let the map fill a missing owner with the id (\"missingOwner\": \"aggregate-id\" on its mapping),"
+
+/**
  * One 9.x aggregate [from] (`contextName.aggregateName`) imported as the V10 aggregate type [to]
  * (`context.aggregate`).
  *
@@ -168,6 +189,9 @@ internal data class Exclusion(
  * - [tags] map the 9.x tag keys the aggregate's tags events wrote and its snapshots hold to V10 access attributes
  *   ([TagMapping]), or leave one out for a reason: every key the store holds needs one. The tags event itself maps to
  *   the V10 domain event that sets them ([EventMapping.tags]).
+ * - [missingOwner] is what the import records as the owner of a stream that records none, for an aggregate whose id
+ *   is its owner's in V10 ([MissingOwner]): unset, such a stream fails the check, as one that records another owner
+ *   always does. A person writes it, never `draft-map`: it gives the data an owner.
  *
  * A V10 name without a dot is the simple name in [to]'s namespace (`OrderCreated` is `example.order.OrderCreated`);
  * one with a dot is a system name such as `wow.lifecycle.AggregateDeleted`.
@@ -181,6 +205,7 @@ internal data class AggregateMapping(
     val state: StateMapping = StateMapping(),
     val reservations: List<ReservationMapping> = emptyList(),
     val tags: List<TagMapping> = emptyList(),
+    val missingOwner: MissingOwner? = null,
 ) {
     init {
         val dot = from.lastIndexOf('.')

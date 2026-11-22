@@ -224,6 +224,13 @@ internal interface NineXEventSource {
     fun ownersOtherThanIds(aggregate: NineXAggregate): Map<NineXInstanceOwner, Long>
 
     /**
+     * The instances of [aggregate] with a stream that records their id as their owner: for an aggregate whose map fills
+     * a missing owner with the id, [MappingCheck] tells those whose owner the store already holds from those whose
+     * owner is inferred. A full read of the aggregate's streams, once per such aggregate.
+     */
+    fun instancesOwnedById(aggregate: NineXAggregate): Set<NineXAggregateId>
+
+    /**
      * The number of streams of each of [aggregate]'s instances in another tenant than [tenant], those that record no
      * tenant or a blank one left out: the instances [MappingCheck] refuses for a V10 type whose tenant is fixed to
      * [tenant]. A full read of the aggregate's streams, once per such aggregate.
