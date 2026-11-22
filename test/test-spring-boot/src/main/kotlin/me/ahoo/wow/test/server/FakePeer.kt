@@ -22,12 +22,14 @@ import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.FunctionInfo
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
+import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.http.internal.InternalPort
 import me.ahoo.wow.http.internal.InternalPortSettings
 import me.ahoo.wow.http.problem.ErrorStatuses
 import me.ahoo.wow.manifest.ClassPathContracts
 import me.ahoo.wow.manifest.CommandManifest
+import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.admission.CallContext
 import me.ahoo.wow.runtime.admission.CallHeaders
@@ -94,8 +96,8 @@ class FakePeer internal constructor(val context: String, classLoader: ClassLoade
     val calls: List<PeerCall> get() = lock.withLock { recorded.toList() }
 
     /**
-     * Answers each call from now on as [rule] says: [PeerAnswer.succeeded], [PeerAnswer.rejected] or
-     * [PeerAnswer.timedOut].
+     * Answers each call from now on as [rule] says: [PeerAnswer.succeeded], [PeerAnswer.rejected],
+     * [PeerAnswer.failed] or [PeerAnswer.timedOut].
      */
     fun answer(rule: (PeerCall) -> PeerAnswer) {
         this.rule = rule
@@ -235,9 +237,10 @@ class PeerCall internal constructor(
 }
 
 /**
- * How a [FakePeer] answers a call ([FakePeer.answer]): it [succeeded] (the default), was [rejected], or [timedOut]. A
- * problem is the one the peer's own routes answer: its status from the peer's contract (a code its error tables
- * declare takes their status, an undeclared domain rejection 422), its title, its result and what a retry may do.
+ * How a [FakePeer] answers a call ([FakePeer.answer]): it [succeeded] (the default), was [rejected], [failed] or
+ * [timedOut]. A problem is the one the peer's own routes answer: its status from the peer's contract (a code its error
+ * tables declare takes their status, an undeclared domain rejection 422), its title, its result and what a retry may
+ * do, as the error catalog says of its code.
  */
 class PeerAnswer private constructor(
     private val id: String?,
@@ -245,6 +248,11 @@ class PeerAnswer private constructor(
     private val code: String?,
     private val message: String?,
     private val status: Int?,
+    private val results: Map<String, Any> = emptyMap(),
+    private val violations: List<Violation> = emptyList(),
+    private val extensions: Map<String, Any?> = emptyMap(),
+    /** Whether the answer is a problem by [code] alone, the command reaching no result: a failure, not a rejection. */
+    private val failure: Boolean = false,
 ) {
     internal suspend fun respond(
         call: PeerCall,
@@ -252,8 +260,8 @@ class PeerAnswer private constructor(
         statuses: ErrorStatuses
     ): ServerResponse {
         val type = command.aggregate
-        if (code == FrameworkCodes.WAIT_TIMEOUT) {
-            return statuses.problemOf(code, message.orEmpty(), type.context).respond()
+        if (failure) {
+            return statuses.problemOf(checkNotNull(code), message.orEmpty(), type.context).respond()
         }
         val ref = type.ref(call.tenantId, id ?: call.aggregateId ?: GlobalIdGenerator.UUID_V7.next())
         val function = FunctionInfo.of(FunctionKind.COMMAND, type.context, type.name, command.manifest.name)
@@ -271,11 +279,11 @@ class PeerAnswer private constructor(
                 function,
                 version,
                 signalTime,
-            )
+            ).copyWith(results = results)
             return ServerResponse.ok().contentType(MediaType.APPLICATION_JSON)
                 .bodyValueAndAwait(WowJson.mapper.writeValueAsBytes(result))
         }
-        val error = ErrorInfo.of(code, message.orEmpty())
+        val error = ErrorInfo.of(code, message.orEmpty(), violations, extensions)
         val result = CommandResult.rejected(
             call.call.commandId, requestId, correlationId, ref, hop, function, null, error, signalTime,
         )
@@ -286,33 +294,51 @@ class PeerAnswer private constructor(
     companion object {
         /**
          * The command committed at [version], to the aggregate [id]: the call's own by default, else a new one, as a
-         * creation that names none gets.
+         * creation that names none gets; with the values its decision answered ([results]), which the caller reads
+         * from [CommandResult.results].
          */
         @JvmStatic
         @JvmOverloads
-        fun succeeded(id: String? = null, version: Int = 1): PeerAnswer = PeerAnswer(id, version, null, null, null)
+        fun succeeded(id: String? = null, version: Int = 1, results: Map<String, Any> = emptyMap()): PeerAnswer =
+            PeerAnswer(id, version, null, null, null, results = results)
 
         /**
          * The peer's aggregate rejected the command with the error [code] and [message], answered with the status the
-         * peer's contract gives the code, or [status] when given.
+         * peer's contract gives the code, or [status] when given; naming the fields the command broke ([violations])
+         * and the rejection's structured [extensions], which the caller reads from its `CommandRejectedException`.
          */
         @JvmStatic
         @JvmOverloads
-        fun rejected(code: String, message: String = code, status: Int? = null): PeerAnswer =
-            PeerAnswer(null, 0, code, message, status)
+        fun rejected(
+            code: String,
+            message: String = code,
+            status: Int? = null,
+            violations: List<Violation> = emptyList(),
+            extensions: Map<String, Any?> = emptyMap(),
+        ): PeerAnswer = PeerAnswer(null, 0, code, message, status, violations = violations, extensions = extensions)
+
+        /**
+         * The peer's node failed the call for a reason of its own, the error catalog's [code] (`wow.storage.unavailable`,
+         * `wow.command.busy`, ...), said as [message]: answered with the code's status and what a retry may do, as the
+         * peer's node answers it, which the caller gets as a `WowProblemException`. A domain's code is a rejection
+         * ([rejected]), not a failure: it is refused.
+         */
+        @JvmStatic
+        @JvmOverloads
+        fun failed(code: String, message: String = code): PeerAnswer {
+            require(code in FrameworkErrors.BY_CODE) {
+                "$code is no code of the error catalog: a peer's node fails with one, and a domain's code is rejected."
+            }
+            return PeerAnswer(null, 0, code, message, null, failure = true)
+        }
 
         /**
          * The peer's node waited for the commit past its timeout: 504 `wow.wait.timeout`, whether the command
          * committed unknown, which the caller may send again with the same request id.
          */
         @JvmStatic
-        fun timedOut(): PeerAnswer = PeerAnswer(
-            null,
-            0,
-            FrameworkCodes.WAIT_TIMEOUT,
-            "The call's commit was not seen within the wait timeout.",
-            null,
-        )
+        fun timedOut(): PeerAnswer =
+            failed(FrameworkCodes.WAIT_TIMEOUT, "The call's commit was not seen within the wait timeout.")
     }
 }
 

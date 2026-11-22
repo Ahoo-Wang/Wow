@@ -53,24 +53,35 @@ public final class me/ahoo/wow/test/server/LocalPorts$Companion {
 
 public final class me/ahoo/wow/test/server/PeerAnswer {
 	public static final field Companion Lme/ahoo/wow/test/server/PeerAnswer$Companion;
+	public static final fun failed (Ljava/lang/String;)Lme/ahoo/wow/test/server/PeerAnswer;
+	public static final fun failed (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/test/server/PeerAnswer;
 	public static final fun rejected (Ljava/lang/String;)Lme/ahoo/wow/test/server/PeerAnswer;
 	public static final fun rejected (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/test/server/PeerAnswer;
 	public static final fun rejected (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;)Lme/ahoo/wow/test/server/PeerAnswer;
+	public static final fun rejected (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;Ljava/util/List;)Lme/ahoo/wow/test/server/PeerAnswer;
+	public static final fun rejected (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;Ljava/util/List;Ljava/util/Map;)Lme/ahoo/wow/test/server/PeerAnswer;
 	public static final fun succeeded ()Lme/ahoo/wow/test/server/PeerAnswer;
 	public static final fun succeeded (Ljava/lang/String;)Lme/ahoo/wow/test/server/PeerAnswer;
 	public static final fun succeeded (Ljava/lang/String;I)Lme/ahoo/wow/test/server/PeerAnswer;
+	public static final fun succeeded (Ljava/lang/String;ILjava/util/Map;)Lme/ahoo/wow/test/server/PeerAnswer;
 	public static final fun timedOut ()Lme/ahoo/wow/test/server/PeerAnswer;
 }
 
 public final class me/ahoo/wow/test/server/PeerAnswer$Companion {
+	public final fun failed (Ljava/lang/String;)Lme/ahoo/wow/test/server/PeerAnswer;
+	public final fun failed (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/test/server/PeerAnswer;
+	public static synthetic fun failed$default (Lme/ahoo/wow/test/server/PeerAnswer$Companion;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/test/server/PeerAnswer;
 	public final fun rejected (Ljava/lang/String;)Lme/ahoo/wow/test/server/PeerAnswer;
 	public final fun rejected (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/test/server/PeerAnswer;
 	public final fun rejected (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;)Lme/ahoo/wow/test/server/PeerAnswer;
-	public static synthetic fun rejected$default (Lme/ahoo/wow/test/server/PeerAnswer$Companion;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;ILjava/lang/Object;)Lme/ahoo/wow/test/server/PeerAnswer;
+	public final fun rejected (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;Ljava/util/List;)Lme/ahoo/wow/test/server/PeerAnswer;
+	public final fun rejected (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;Ljava/util/List;Ljava/util/Map;)Lme/ahoo/wow/test/server/PeerAnswer;
+	public static synthetic fun rejected$default (Lme/ahoo/wow/test/server/PeerAnswer$Companion;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;Ljava/util/List;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/test/server/PeerAnswer;
 	public final fun succeeded ()Lme/ahoo/wow/test/server/PeerAnswer;
 	public final fun succeeded (Ljava/lang/String;)Lme/ahoo/wow/test/server/PeerAnswer;
 	public final fun succeeded (Ljava/lang/String;I)Lme/ahoo/wow/test/server/PeerAnswer;
-	public static synthetic fun succeeded$default (Lme/ahoo/wow/test/server/PeerAnswer$Companion;Ljava/lang/String;IILjava/lang/Object;)Lme/ahoo/wow/test/server/PeerAnswer;
+	public final fun succeeded (Ljava/lang/String;ILjava/util/Map;)Lme/ahoo/wow/test/server/PeerAnswer;
+	public static synthetic fun succeeded$default (Lme/ahoo/wow/test/server/PeerAnswer$Companion;Ljava/lang/String;ILjava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/test/server/PeerAnswer;
 	public final fun timedOut ()Lme/ahoo/wow/test/server/PeerAnswer;
 }
 

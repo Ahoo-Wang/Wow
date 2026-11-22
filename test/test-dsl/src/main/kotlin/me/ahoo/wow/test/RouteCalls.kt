@@ -24,6 +24,7 @@ import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.read.Queries
 import me.ahoo.wow.api.result.CommandResult
+import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.api.route.RouteCall
 import me.ahoo.wow.kernel.CommandCalls
 import java.util.concurrent.CopyOnWriteArrayList
@@ -116,13 +117,28 @@ class CommandCall internal constructor(val caller: Caller?, val request: Command
             return type.ref(request.targetTenant ?: caller?.tenantId ?: Caller.DEFAULT_TENANT, id)
         }
 
-    /** The result of the call when its target committed it at [version], on [ref]. */
-    fun committed(version: Int = 1, ref: AggregateRef = required()): CommandResult =
-        committedResult(commandOf(ref), version)
+    /**
+     * The result of the call when its target committed it at [version], on [ref], with the values its decision answered
+     * ([results]), which the caller reads from [CommandResult.results].
+     */
+    fun committed(
+        version: Int = 1,
+        ref: AggregateRef = required(),
+        results: Map<String, Any> = emptyMap(),
+    ): CommandResult = committedResult(commandOf(ref), version, results = results)
 
-    /** The result of the call when its target refused it with [code], on [ref]. */
-    fun rejected(code: String, message: String = code, ref: AggregateRef = required()): CommandResult =
-        rejectedResult(commandOf(ref), code, message)
+    /**
+     * The result of the call when its target refused it with [code] and [message], on [ref], naming the fields the
+     * command broke ([violations]) and the rejection's structured [extensions]: the caller reads them from the
+     * [CommandRejectedException] it gets ([CommandRejectedException.violations], [CommandRejectedException.error]).
+     */
+    fun rejected(
+        code: String,
+        message: String = code,
+        ref: AggregateRef = required(),
+        violations: List<Violation> = emptyList(),
+        extensions: Map<String, Any?> = emptyMap(),
+    ): CommandResult = rejectedResult(commandOf(ref), code, message, violations, extensions)
 
     /** The result of the call when its target failed it for a technical reason [code], on [ref]. */
     fun failed(code: String, message: String = code, ref: AggregateRef = required()): CommandResult =

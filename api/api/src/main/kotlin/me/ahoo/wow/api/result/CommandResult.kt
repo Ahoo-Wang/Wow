@@ -173,8 +173,9 @@ class ErrorInfo @InternalWowApi constructor(
  *   result stays at that hop, with its own status: it is not the plan's last hop reached. [pending] lists the hops of
  *   the plan that were not reached, in order; it is empty unless [chainEnded].
  *
- * Fields may be added: construct a result with [succeeded], [rejected] or [failed], such as a fake of
- * a command gateway answers in a test; the constructor is internal to Wow.
+ * Fields may be added: construct a result with [succeeded], [rejected] or [failed]; the constructor is internal to
+ * Wow. A test answers a peer's command by name instead, the identity taken from the call: `answeringCommandClient`'s
+ * call of `wow-test` or `fakePeer`'s `PeerAnswer` of `wow-test-spring-boot`, a success with its values among them.
  */
 class CommandResult @InternalWowApi constructor(
     val format: Int = FORMAT,
