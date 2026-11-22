@@ -66,7 +66,7 @@ For each aggregate type, named after its context and aggregate (`eshop_ordering_
 
 `wow.aggregates.[<context>.<aggregate>].clickhouse.history.enabled: false` keeps only the current state: the sink then writes `_state` directly, and there is no `_state_events` or `_events`. `...history.ttl` keeps the history for a time instead of forever.
 
-The tables hold each state and event as written, its [`@Sensitive`](../guide/queries#where-masking-stops) values unmasked: a read through Wow masks what it returns (a dataset the fields its declaration marks [`sensitive`](../guide/datasets#declare-a-dataset)), but whoever queries the tables directly reads the raw values. The database's grants are the boundary.
+The tables hold each state and event as written, its [`@Sensitive`](../guide/queries#where-masking-stops) values unmasked: a read through Wow masks what it returns (a dataset the columns that [hold a protected value](../guide/datasets#protection) of the state, and those its declaration marks `sensitive`), but whoever queries the tables directly reads the raw values. The database's grants are the boundary.
 
 ## The columns and the DDL
 

@@ -194,6 +194,7 @@ So a secret the service must read back, such as the API key it presents to a thi
 | The [ClickHouse sink's tables](../operate/clickhouse#the-tables) | The states and events as written; a query of them masks what it returns | The database's grants |
 | The [Elasticsearch event sink's index](../operate/elasticsearch#event-search) | The events as written; the `events` queries mask what they return | The index's privileges |
 | The report of [`migrate-data compare`](../migrate/data#_5-compare) | The values of the fields that differ, 9.x's and V10's | Who reads the report |
+| A service's [dataset](./datasets#protection) that states `"lineage": "none"` | Whatever its table holds: it masks only the fields it declares `sensitive` | Its author's assertion that the table holds no value a state marks `@Sensitive` |
 | The node's log | A failure's full text, its message and stack trace, which may quote a value it failed on; a parked aggregate's reason holds none ([Parked aggregates](./failures#what-a-parked-aggregate-records)) | The log's access |
 | The failure ledger, the park webhooks already sent, and the ops context's events and snapshots | Before 10.0.0-beta.16, a parked aggregate's reason was its failure's message as it was, which may quote a value; those reasons are kept as they were | The store's grants; the webhook's receiver; the ops context's store |
 

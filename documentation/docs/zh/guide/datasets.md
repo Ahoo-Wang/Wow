@@ -43,11 +43,26 @@ outline: deep
 | `eventTime` | 相对时间过滤默认读取的列 |
 | `scope` | 每一行的租户、所有者和空间所在的列：只有作用域包含某一行的调用方才能看到它。改用 `"platform": true` 则表示每个租户都能读取的数据集。`access` 指明每一行属于哪个聚合，此时由该聚合的访问策略决定能读哪些行（[见下文](#rows-of-an-aggregate-with-an-access-policy)） |
 | `storage` | 后端的绑定：在 ClickHouse 上，是它读取的 `table` |
+| `lineage` | 它的保护从哪里来：`source`（默认）或 `none`（[见下文](#protection)） |
 | `fields` | 每一列：它的 `types`、`nullable`、可选的 `semantic` 类型、`enum` 值和 `description` |
 
-字段也可以用 `"sensitive": {"level": "confidential", "keepSuffix": 4}` 脱敏，与带 `@Sensitive` 的状态字段一样。
+字段也可以用 `"sensitive": {"level": "confidential", "keepSuffix": 4}` 声明自己的脱敏方式，只能比它的来源更严（[见下文](#protection)）。
 
 工作目录中 `<wow.query.dataset.config-directory>/wow/dataset/`（默认 `config/wow/dataset/`）下的文件，优先于类路径上的同名文件，所以运维人员不用重新构建就能调整一个数据集。
+
+## 保护跟随来源 {#protection}
+
+数据集的列按它的来源受保护，无论数据集是否把它声明为 `sensitive`。当表是 ClickHouse sink 为本服务 Manifest 中某个聚合写的表时，持有状态标为 [`@Sensitive`](./queries#describe-what-types-cannot) 的值的列，在每个结果里都被脱敏，比较时也像状态读取那样受限：`CONFIDENTIAL` 的列不能按值过滤或排序。Wow 用 sink 写 `wow_catalog` 行时的同一个函数、从同一份 Manifest 读出这份保护，所以数据集里从不另存一份。
+
+| 表 | 它受保护的列 |
+| --- | --- |
+| `<ctx>_<agg>_state_flat` | 状态属性带 `@Sensitive` 的每个扁平列，按状态的方式脱敏 |
+| `<ctx>_<agg>_state` | 同样的扁平列；以及 `state`、`state_numbers` 列，即含有受保护值的文档 |
+| `<ctx>_<agg>_state_events`、`<ctx>_<agg>_events` | `state`、`state_numbers`、`events` 和 `payload` 列，即含有受保护值的文档 |
+
+- **声明只能收紧。** 字段可以声明 `sensitive`：级别更高，或者脱敏后保留的部分更少，就按声明脱敏。比来源更松的声明（级别更低，或保留得更多）会被拒绝，节点不会启动；错误信息指明状态里的路径。服务自己的数据集没有审批人，所以放宽保护就是修改状态上的 `@Sensitive`，随代码评审。需要降低保护的数据集应放在[分析目录](../data/datasets#sources)里。
+- **不读文档列。** 字段只能整列脱敏，不能只遮其中一个值，所以读取含有受保护值的文档列的数据集会被拒绝。请从这个值自己的列读它，即 `_state_flat` 里的那一列。
+- **不是状态的表要声明 `"lineage": "none"`。** 运营方自己的视图、关联的结果、别的服务的表或非 Wow 服务的表里有什么，Wow 无从得知。基于这类表的数据集要声明 `"lineage": "none"`，这是作者的断言：这张表里没有状态标为 `@Sensitive` 的值；这样的数据集只按它声明的 `sensitive` 脱敏。没有这一声明时，数据集以不可用状态提供：它的查询答 `409 wow.query.dataset-unavailable`，节点启动时在日志里写明原因。
 
 ## 有访问策略的聚合的行 {#rows-of-an-aggregate-with-an-access-policy}
 
