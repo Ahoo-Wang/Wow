@@ -85,6 +85,18 @@ class MissingOwnerCheckTest {
     }
 
     @Test
+    fun `the warning lists no cart when each records its id elsewhere, and is not given when nothing is filled`() {
+        fun warnings(excluded: List<String>) = checked(NineXExample.fillingMapText(excluded)).warnings
+            .filter { "missingOwner" in it }
+        // Only cart-p, which records its id on two streams: none inferred, none listed.
+        warnings(listOf(NineXExample.CART_ID, "cart-n", "cart-m")).single().assert()
+            .contains("1 of them record the id as their owner on other streams, 0 on none")
+            .endsWith("check each instance whose owner is inferred")
+        // Every cart with a stream that records no owner excluded: nothing to fill, nothing said.
+        warnings(listOf(NineXExample.CART_ID, "cart-n", "cart-p", "cart-m")).assert().isEmpty()
+    }
+
+    @Test
     fun `the warning lists the first twenty carts whose owner it infers, and counts the others`() {
         val many = InMemoryNineXEventSource(emptyList()).also { many ->
             (1..22).forEach { NineXExample.cartAs("cart-%02d".format(it)).forEach(many::add) }
