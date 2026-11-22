@@ -235,6 +235,7 @@ class OrderingServerTest {
             EshopOrderingContract.Wait.SNAPSHOT,
         )
         // endregion
+
         val GRACE_AND_POLL: Duration = Duration.ofMillis(3_000)
 
         /** An order's number: `SO-`, the day it was issued (`yyMMdd`), `-`, its sequence. */

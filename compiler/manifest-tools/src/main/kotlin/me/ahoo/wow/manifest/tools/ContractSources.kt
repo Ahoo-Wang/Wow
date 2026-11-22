@@ -280,7 +280,11 @@ internal object ContractSources {
     private fun wait(owner: String, context: ContextManifest): String = buildString {
         val stages = listOf(
             Triple("ACCEPTED", "accepted", "a command of `${comment(context.name)}` passed admission"),
-            Triple("COMMITTED", "committed", "a command's events are appended to the log of `${comment(context.name)}`"),
+            Triple(
+                "COMMITTED",
+                "committed",
+                "a command's events are appended to the log of `${comment(context.name)}`"
+            ),
             Triple("SNAPSHOT", "snapshot", "the snapshot of `${comment(context.name)}` holds the commit"),
             Triple(
                 "QUERYABLE",
@@ -301,8 +305,12 @@ internal object ContractSources {
             constant to subscription
         }
         appendLine("    /**")
-        appendLine("     * The hops of a wait chain (`Wow-Wait`) in `${comment(context.name)}`: its stages, and each of its")
-        appendLine("     * subscriptions handling the commit. `WaitPlan.of(...)` chains them, those of other contexts too.")
+        appendLine(
+            "     * The hops of a wait chain (`Wow-Wait`) in `${comment(context.name)}`: its stages, and each of its"
+        )
+        appendLine(
+            "     * subscriptions handling the commit. `WaitPlan.of(...)` chains them, those of other contexts too."
+        )
         appendLine("     */")
         appendLine("    public object Wait {")
         stages.forEachIndexed { index, (constant, factory, doc) ->
