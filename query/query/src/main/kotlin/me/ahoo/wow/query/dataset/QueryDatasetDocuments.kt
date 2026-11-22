@@ -57,6 +57,7 @@ import tools.jackson.databind.node.ObjectNode
  *     "access": { "aggregate": "shop.order", "id": "order_id" }
  *   },
  *   "storage": { "table": "db.shop_order_state_flat" },
+ *   "lineage": "source",
  *   "fields": {
  *     "id": { "types": ["string"], "nullable": false },
  *     "phone": { "types": ["string"], "sensitive": { "level": "confidential", "keepSuffix": 4 } }
@@ -69,6 +70,10 @@ import tools.jackson.databind.node.ObjectNode
  * row's aggregate id ([QueryDatasetAccess]). A field is a query schema declaration (`kind`,
  * `types`, `nullable`, `enum`, `semantic`, `description`, `properties`, `items`, `values`) and may also declare its
  * sensitivity (`sensitive`: `level`, `keepPrefix`, `keepSuffix`). `storage` is the backend's opaque binding.
+ *
+ * `lineage` says where its protection comes from ([QueryDatasetLineage]): `source`, the default, masks each column
+ * its table's source protects, at least as strictly as the source; `none` asserts the table holds no value a state
+ * marks sensitive, for a table whose source the backend cannot tell.
  */
 @ExperimentalWowApi
 internal object QueryDatasetProperties {
@@ -84,6 +89,7 @@ internal object QueryDatasetProperties {
     const val AGGREGATE = "aggregate"
     const val ID = "id"
     const val STORAGE = "storage"
+    const val LINEAGE = "lineage"
     const val FIELDS = "fields"
     const val SENSITIVE = "sensitive"
     const val LEVEL = "level"
@@ -101,7 +107,10 @@ internal object QueryDatasetProperties {
     const val ITEMS = "items"
     const val VALUES = "values"
 
-    internal val ROOT = setOf(TITLE, IDENTITY, EVENT_TIME, SCOPE, STORAGE, FIELDS)
+    internal val ROOT = setOf(TITLE, IDENTITY, EVENT_TIME, SCOPE, STORAGE, LINEAGE, FIELDS)
+
+    /** The lineages a file may state: [QueryDatasetLineage.DECLARED] is the analytics catalog's alone. */
+    internal val FILE_LINEAGES = listOf(QueryDatasetLineage.SOURCE, QueryDatasetLineage.NONE)
     internal val SCOPE_PROPERTIES = setOf(TENANT, OWNER, SPACE, PLATFORM, ACCESS)
     internal val ACCESS_PROPERTIES = setOf(AGGREGATE, ID)
     internal val SENSITIVE_PROPERTIES = setOf(LEVEL, KEEP_PREFIX, KEEP_SUFFIX)
@@ -165,7 +174,18 @@ internal fun parseDatasetDocument(name: AggregateType, json: String): QueryDatas
             it.stringValue()
         },
         storage = storage,
+        lineage = root.get(QueryDatasetProperties.LINEAGE)?.let(::lineageOf) ?: QueryDatasetLineage.SOURCE,
     )
+}
+
+/** The `lineage` of a dataset file, by its wire name: one of [QueryDatasetProperties.FILE_LINEAGES]. */
+private fun lineageOf(lineage: JsonNode): QueryDatasetLineage {
+    val named = lineage.takeIf(JsonNode::isString)?.stringValue()?.let { WireNames.entryOf<QueryDatasetLineage>(it) }
+    require(named in QueryDatasetProperties.FILE_LINEAGES) {
+        "Dataset [${QueryDatasetProperties.LINEAGE}] must be one of " +
+            "${QueryDatasetProperties.FILE_LINEAGES.map(WireNames::of)}, not $lineage."
+    }
+    return checkNotNull(named)
 }
 
 /** The `scope.access` of a dataset file: the aggregate whose policy decides its rows, and their aggregate id column. */

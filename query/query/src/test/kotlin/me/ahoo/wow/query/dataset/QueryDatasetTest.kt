@@ -253,6 +253,25 @@ class QueryDatasetTest {
     }
 
     @Test
+    fun `a dataset file states its lineage, its source's unless it says none`() {
+        val document = """{ "scope": { "tenant": "t" }, "fields": { "t": {} }%s }"""
+        QueryDataset.parse(ORDERS, document.format("")).lineage.assert().isEqualTo(QueryDatasetLineage.SOURCE)
+        QueryDataset.parse(ORDERS, document.format(""", "lineage": "source"""")).lineage
+            .assert().isEqualTo(QueryDatasetLineage.SOURCE)
+        val none = QueryDataset.parse(ORDERS, document.format(""", "lineage": "none""""))
+        none.lineage.assert().isEqualTo(QueryDatasetLineage.NONE)
+        // A dataset unavailable for a while keeps its lineage, and it tells datasets apart.
+        none.withUnavailable("needs revision").lineage.assert().isEqualTo(QueryDatasetLineage.NONE)
+        none.assert().isNotEqualTo(QueryDataset.parse(ORDERS, document.format("")))
+        none.toString().assert().endsWith("lineage=NONE)")
+        QueryDataset.of(ORDERS) {
+            tenant("t")
+            field("t") {}
+            lineage(QueryDatasetLineage.DECLARED)
+        }.lineage.assert().isEqualTo(QueryDatasetLineage.DECLARED)
+    }
+
+    @Test
     fun `every malformed part of a dataset file is refused`() {
         val scope = """"scope": { "tenant": "t" }"""
         val fields = """"fields": { "t": {} }"""
@@ -305,6 +324,10 @@ class QueryDatasetTest {
             """{ $scope, "fields": { "t": { "properties": { "a": 1 } } } }""",
             """{ $scope, "fields": { "t": { "items": [] } } }""",
             """{ $scope, "fields": { "t": { "values": 1 } } }""",
+            // A file states its source's lineage or none, never the analytics catalog's own.
+            """{ $scope, $fields, "lineage": "declared" }""",
+            """{ $scope, $fields, "lineage": "NONE" }""",
+            """{ $scope, $fields, "lineage": 1 }""",
         )
         invalid.forEach { json ->
             assertThrows<IllegalArgumentException>(json) { QueryDataset.parse(ORDERS, json) }

@@ -20,6 +20,8 @@ import me.ahoo.wow.query.backend.CachedQueryBindings
 import me.ahoo.wow.query.backend.QueryBackendBinding
 import me.ahoo.wow.query.dataset.QueryDataset
 import me.ahoo.wow.query.dataset.QueryDatasetScope
+import me.ahoo.wow.query.dataset.QueryDatasetSource
+import me.ahoo.wow.query.dataset.QueryDatasetSources
 import me.ahoo.wow.spi.access.AccessValues
 import me.ahoo.wow.spi.json.WowJson
 import tools.jackson.databind.JsonNode
@@ -39,13 +41,20 @@ import java.util.concurrent.ConcurrentHashMap
  * its id column holds ([me.ahoo.wow.query.dataset.DatasetAccess]); a row whose aggregate has none matches no access
  * restriction.
  *
+ * It knows the source of each of its tables ([QueryDatasetSources]): one that holds no value a state marks sensitive,
+ * unless [protect] says which of its columns do, or the [sources] it is given tell them, as a host's test gives it the
+ * ClickHouse backend's own reading of the Sink's tables.
+ *
  * [delay] holds every primitive back that long before it answers, as [InMemoryQueryStorage] does.
  */
 @InternalWowApi
 class InMemoryDatasetStorage(
     private val delay: Duration = Duration.ZERO,
-) : CachedQueryBindings<QueryDataset>(QueryDataset::name) {
+    /** What its tables hold, when not its own reading of them: a table they know nothing of is unknown. */
+    private val sources: QueryDatasetSources? = null,
+) : CachedQueryBindings<QueryDataset>(QueryDataset::name), QueryDatasetSources {
     private val tables = ConcurrentHashMap<String, List<ObjectNode>>()
+    private val protections = ConcurrentHashMap<String, Map<String, QueryDatasetSource.Column>>()
     private val access = ConcurrentHashMap<AccessKey, Recorded>()
 
     /** Replaces the rows of [table]; returns the storage binding a dataset of that table declares. */
@@ -56,6 +65,17 @@ class InMemoryDatasetStorage(
 
     /** The rows of [table], each a fresh tree; none when there is no such table. */
     fun rows(table: String): List<ObjectNode> = tables[table].orEmpty().map(ObjectNode::deepCopy)
+
+    /** Says which [columns] of [table] hold a value a state marks sensitive, as its source would. */
+    fun protect(table: String, columns: Map<String, QueryDatasetSource.Column>) {
+        protections[table] = columns.toMap()
+    }
+
+    override fun sourceOf(dataset: QueryDataset): QueryDatasetSource? {
+        sources?.let { return it.sourceOf(dataset) }
+        val table = dataset.storage.get(TABLE)?.takeIf { it.isString }?.stringValue() ?: return null
+        return QueryDatasetSource("the in-memory table $table", protections[table].orEmpty())
+    }
 
     /**
      * Records the access attributes of [aggregate]'s [aggregateId] in [tenantId] after its commit of [version] (a
