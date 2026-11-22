@@ -28,6 +28,7 @@ import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.FunctionInfo
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
+import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.http.CART_EMPTY
 import me.ahoo.wow.http.CONTEXT
 import me.ahoo.wow.http.TENANT
@@ -36,9 +37,18 @@ import me.ahoo.wow.http.cartType
 import me.ahoo.wow.spi.StorageUnavailableException
 import org.junit.jupiter.api.Test
 import org.slf4j.LoggerFactory
+import org.springframework.core.DefaultParameterNameDiscoverer
+import org.springframework.core.MethodParameter
+import org.springframework.core.codec.DecodingException
 import org.springframework.core.io.buffer.DataBufferLimitException
 import org.springframework.http.HttpStatus
+import org.springframework.validation.BeanPropertyBindingResult
+import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.RequestParam
+import org.springframework.web.bind.support.WebExchangeBindException
+import org.springframework.web.server.MissingRequestValueException
 import org.springframework.web.server.ResponseStatusException
+import org.springframework.web.server.ServerWebInputException
 import java.util.concurrent.CompletionException
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration.Companion.seconds
@@ -259,6 +269,72 @@ class FailureProblemsTest {
             logger.level = level
         }
         return appender.list
+    }
+
+    @Test
+    fun `a request that cannot be read is wow-request-malformed naming the parameter or the body (#6591)`() {
+        val problems = problems(mapper("everything") { WowProblemException(CLAIMED, 418, Retry.NONE, null, "Claimed.") })
+        // A header is named as the request names it, not as the parameter that reads it.
+        val missing = MissingRequestValueException("X-Tenant", String::class.java, "header", parameter(1))
+        problems.problemOf(missing).assertMalformed("X-Tenant", "Required header 'X-Tenant' is not present.")
+        val mistyped = ServerWebInputException("Type mismatch.", parameter(1), IllegalArgumentException())
+        problems.problemOf(mistyped).assertMalformed("n", "Type mismatch.")
+        val annotatedBody = ServerWebInputException("Failed to read HTTP message", parameter(0))
+        problems.problemOf(annotatedBody).assertMalformed(FailureProblems.BODY, "Failed to read HTTP message")
+        val functionalBody = unnamedInput("Failed to read HTTP message", DecodingException("Bad JSON."))
+        problems.problemOf(functionalBody).assertMalformed(FailureProblems.BODY, "Failed to read HTTP message")
+        // A mapper is never offered one, not even wrapped.
+        problems.problemOf(IllegalStateException("Wrapped.", mistyped)).status.assert().isEqualTo(418)
+        asked.assert().containsExactly("everything:IllegalStateException")
+    }
+
+    @Test
+    fun `a request that cannot be read and names nothing is wow-request-malformed without a violation`() {
+        // A parameter of a class compiled without its names (the JDK's): Spring cannot name it.
+        val unnamedParameter = MethodParameter(String::class.java.getMethod("substring", Int::class.javaPrimitiveType), 0)
+        val unnamed = problems().problemOf(ServerWebInputException("Type mismatch.", unnamedParameter))
+        unnamed.code.assert().isEqualTo(FrameworkCodes.REQUEST_MALFORMED)
+        unnamed.violations.assert().isEmpty()
+        val bare = problems().problemOf(ServerWebInputException("Not this way."))
+        bare.code.assert().isEqualTo(FrameworkCodes.REQUEST_MALFORMED)
+        bare.detail.assert().isEqualTo("Not this way.")
+        bare.violations.assert().isEmpty()
+    }
+
+    @Test
+    fun `a body too large to read is 413, and a body that fails @Valid is its status alone`() {
+        val tooLarge = unnamedInput("Failed to read HTTP message", DataBufferLimitException("Big."))
+        problems().problemOf(tooLarge).status.assert().isEqualTo(413)
+        val binding = WebExchangeBindException(parameter(0), BeanPropertyBindingResult(Any(), "item"))
+        val invalid = problems().problemOf(binding)
+        invalid.status.assert().isEqualTo(400)
+        invalid.code.assert().isNull()
+        invalid.detail.assert().isEqualTo("Validation failure")
+    }
+
+    private fun Problem.assertMalformed(path: String, detail: String) {
+        status.assert().isEqualTo(400)
+        code.assert().isEqualTo(FrameworkCodes.REQUEST_MALFORMED)
+        this.detail.assert().isEqualTo(detail)
+        violations.assert().containsExactly(Violation.of(path, FrameworkCodes.REQUEST_MALFORMED, detail))
+    }
+
+    /** A request that cannot be read with no parameter, as a functional route's body decoding gives one. */
+    private fun unnamedInput(reason: String, cause: Throwable): ServerWebInputException =
+        ServerWebInputException::class.java
+            .getConstructor(String::class.java, MethodParameter::class.java, Throwable::class.java)
+            .newInstance(reason, null, cause)
+
+    /** The [index]th parameter of [Routes.route]: its body `item`, then `n`, its name discovered as Spring does. */
+    private fun parameter(index: Int): MethodParameter {
+        val method = Routes::class.java.getMethod("route", String::class.java, Int::class.javaPrimitiveType)
+        return MethodParameter(method, index).apply { initParameterNameDiscovery(DefaultParameterNameDiscoverer()) }
+    }
+
+    /** An annotated route: its body, and a parameter. */
+    class Routes {
+        @Suppress("UNUSED_PARAMETER", "FunctionOnlyReturningConstant")
+        fun route(@RequestBody item: String, @RequestParam n: Int): String = "routed"
     }
 
     @Test

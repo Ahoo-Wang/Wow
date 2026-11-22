@@ -82,7 +82,7 @@ curl -X POST localhost:8083/eshop-ordering/order/order-1/pay-order \
 
 ## 读取错误 {#read-an-error}
 
-每个错误都是一个 RFC 9457 problem，即 `application/problem+json`：它的 `type` 是 `urn:wow:error:<code>`，`code` 和 `status` 重复给出错误码和状态，`violations` 逐个字段列出请求违反了什么，命令的 problem 还在 `result` 下带着它完整的结果。客户端依据 `code` 分支。领域错误码的状态是它的 `@ErrorCode(status)`（[拒绝与错误码](./rejections)）；框架的错误码见[错误码](../reference/error-codes)。应用自己的失败（例如调用另一个系统失败），如果它的某个 problem 映射器认识，就用应用的错误码回答（[HTTP API](../reference/http#mapped-failures)），否则回答为不说明原因的 500。
+每个错误都是一个 RFC 9457 problem，即 `application/problem+json`：它的 `type` 是 `urn:wow:error:<code>`，`code` 和 `status` 重复给出错误码和状态，`violations` 逐个字段列出请求违反了什么，命令的 problem 还在 `result` 下带着它完整的结果。客户端依据 `code` 分支。领域错误码的状态是它的 `@ErrorCode(status)`（[拒绝与错误码](./rejections)）；框架的错误码见[错误码](../reference/error-codes)。在应用自己的路由上，读不出的请求是 `wow.request.malformed`，它的 violation 指出参数或 `body`；没有路由、方法或媒体类型不被支持，则是只有状态的 problem（[HTTP API](../reference/http#application-routes)）。应用自己的失败（例如调用另一个系统失败），如果它的某个 problem 映射器认识，就用应用的错误码回答（[HTTP API](../reference/http#mapped-failures)），否则回答为不说明原因的 500。
 
 ## 生成的客户端 {#generated-clients}
 

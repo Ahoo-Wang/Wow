@@ -19,10 +19,16 @@ import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.problem.ProblemMapper
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.FrameworkCodes
+import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.spi.StorageUnavailableException
+import org.springframework.core.codec.CodecException
 import org.springframework.http.HttpStatus
+import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.support.WebExchangeBindException
+import org.springframework.web.server.MissingRequestValueException
 import org.springframework.web.server.ResponseStatusException
+import org.springframework.web.server.ServerWebInputException
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.cancellation.CancellationException
@@ -34,7 +40,9 @@ import kotlin.coroutines.cancellation.CancellationException
  *
  * 1. What the framework knows: a [ProblemException] as its problem, a [CommandRejectedException] (a command a route
  *    sent through a `CommandClient`) as its result, a [WowProblemException] (another service's answer relayed, or the
- *    application's own) as its code, status, result and retry, a [ResponseStatusException] as its status alone, a
+ *    application's own) as its code, status, result and retry, a request that cannot be read
+ *    ([ServerWebInputException]: a body the codecs cannot read, a parameter missing or of the wrong type) as
+ *    `wow.request.malformed` naming what does not read, any other [ResponseStatusException] as its status alone, a
  *    store that is unavailable (or a failure caused by one) as 503 `wow.storage.unavailable`, and a body larger than
  *    the codecs take as 413.
  * 2. Then the application's [mappers], in order, for the failure and then each of its causes, but a cause that is
@@ -89,11 +97,26 @@ class FailureProblems(
         is ProblemException -> failure.problem
         is CommandRejectedException -> statuses.problemOf(failure.result)
         is WowProblemException -> statuses.problemOf(failure, context)
+        // A @Valid body that fails its constraints is read: its status alone, as any other.
+        is ServerWebInputException if failure !is WebExchangeBindException ->
+            tooLargeProblem(failure) ?: malformed(failure, context)
         is ResponseStatusException -> {
             val status = HttpStatus.resolve(failure.statusCode.value()) ?: HttpStatus.INTERNAL_SERVER_ERROR
             Problem.ofStatus(status, failure.reason.takeIf { status.is4xxClientError })
         }
         else -> null
+    }
+
+    /**
+     * The problem of a request that cannot be read (#6591): `wow.request.malformed` with Spring's reason, and a
+     * violation naming what does not read ([inputOf]) when Spring names it.
+     */
+    private fun malformed(failure: ServerWebInputException, context: String?): Problem {
+        // A ServerWebInputException is always built with its reason.
+        val detail = failure.reason!!
+        val problem = statuses.problemOf(FrameworkCodes.REQUEST_MALFORMED, detail, context)
+        val input = inputOf(failure) ?: return problem
+        return problem.copyWith(violations = listOf(Violation(input, FrameworkCodes.REQUEST_MALFORMED, detail)))
     }
 
     private fun unavailable(failure: Throwable, context: String?): Problem? {
@@ -203,6 +226,24 @@ class FailureProblems(
             mapped.status == UNAUTHORIZED -> "which only authentication answers"
             mapped.result != null -> "with a command's result, which no mapped failure has"
             else -> null
+        }
+
+        /** The path of the violation of a body that cannot be read. */
+        const val BODY: String = "body"
+
+        /**
+         * What [failure] could not read: the parameter (a query parameter, a header, a path variable) by its name, or
+         * the body ([BODY]) a codec could not read, on an annotated route (`@RequestBody`) or a functional one; null
+         * when Spring names neither.
+         */
+        private fun inputOf(failure: ServerWebInputException): String? {
+            if (failure is MissingRequestValueException) return failure.name
+            val parameter = failure.methodParameter
+            return when {
+                parameter != null && !parameter.hasParameterAnnotation(RequestBody::class.java) -> parameter.parameterName
+                parameter != null || causes(failure).any { it is CodecException } -> BODY
+                else -> null
+            }
         }
 
         private fun causes(failure: Throwable): Sequence<Throwable> {

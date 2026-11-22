@@ -25,6 +25,7 @@ import org.springframework.core.Ordered
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
+import org.springframework.web.reactive.resource.NoResourceFoundException
 import org.springframework.web.server.ResponseStatusException
 import org.springframework.web.server.ServerWebExchange
 import org.springframework.web.server.WebExceptionHandler
@@ -41,8 +42,11 @@ import reactor.core.publisher.Mono
  * - a [WowProblemException] as its code, status, result, retry and `Retry-After`;
  * - a [StorageUnavailableException] as 503 `wow.storage.unavailable` with `Retry-After`, a body larger than the
  *   codecs take as 413, as on the framework routes;
- * - a [ResponseStatusException] (no route, a method or media type not served, a body that cannot be read) as the
- *   problem of its status alone (`about:blank`), its reason as the detail for a 4xx;
+ * - a request that cannot be read (a body the codecs cannot read, a parameter missing or of the wrong type) as
+ *   `wow.request.malformed`, its violation naming the parameter or the body;
+ * - any other [ResponseStatusException] (no route, a method or media type not served, the application's own) as the
+ *   problem of its status alone (`about:blank`), with the headers it carries (a 405's `Allow`, a 415's `Accept`), its
+ *   reason as the detail for a 4xx; no route's detail is the method and path, not the request's URL;
  * - anything else as the first of the application's [mappers] answers it ([ProblemMapper]), else as a 500 that says
  *   nothing of its cause, which is logged.
  *
@@ -64,14 +68,25 @@ class GlobalErrors(
         if (response.isCommitted) {
             return Mono.error(ex)
         }
-        val problem = problemOf(ex)
+        val problem = if (ex is NoResourceFoundException) noRoute(exchange) else problemOf(ex)
         response.statusCode = HttpStatus.valueOf(problem.status)
+        // The headers its status calls for: a 405's Allow, a 415's Accept.
+        (ex as? ResponseStatusException)?.let { response.headers.addAll(it.headers) }
         response.headers.contentType = MediaType.APPLICATION_PROBLEM_JSON
         problem.retryAfterHeader?.let { response.headers.set(HttpHeaders.RETRY_AFTER, it.toString()) }
         return response.writeWith(
             Mono.fromSupplier { response.bufferFactory().wrap(HttpJson.write(problem.members())) }
         )
     }
+
+    /**
+     * No route of the application's or Wow's takes the request (Spring's resource handling did not find it either):
+     * 404 with the sentence of Wow's own routes, never the request's URL, which names the host.
+     */
+    private fun noRoute(exchange: ServerWebExchange): Problem = Problem.ofStatus(
+        HttpStatus.NOT_FOUND,
+        "No route ${exchange.request.method.name()} ${exchange.request.path.value()}.",
+    )
 
     /** The problem [failure] is answered with. */
     internal fun problemOf(failure: Throwable): Problem = problems.problemOf(failure)

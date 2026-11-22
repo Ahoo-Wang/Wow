@@ -136,6 +136,22 @@ hop  := "accepted" ["(" context ")"]
 
 领域错误码的状态是它的 `@ErrorCode(status)`，默认 422，可以用 `wow.http.errors.[<code>].status` 按错误码覆盖。框架的错误码见[错误码](./error-codes)。应用自己的路由也以 problem 回答它们的失败（`wow.http.global-errors.enabled`，默认打开）。
 
+### 应用自己的路由 {#application-routes}
+
+在 Wow 的路由之外，应用自己提供的路由（注解式或函数式）上，Spring WebFlux 抛出的失败这样回答：
+
+| 请求 | 回答 |
+| --- | --- |
+| 没有路由匹配 | 404 `about:blank`，detail 是方法与路径：`No route GET /orders.` |
+| 用了路由不提供的方法 | 405 `about:blank`，带 `Allow` |
+| 请求体的媒体类型路由不接受 | 415 `about:blank`，带 `Accept` |
+| 路由给出的类型都不在 `Accept` 里 | 406 `about:blank` |
+| 读不出：编解码器读不出的请求体，缺少或类型不对的参数、请求头、路径变量 | 400 `wow.request.malformed`，detail 是 Spring 给的原因，并带一条 violation 指出读不出的是什么：参数用它的名字，请求体用 `body`，code 为 `wow.request.malformed` |
+| `@Valid` 请求体或方法的约束不满足 | 400 `about:blank` |
+| 应用自己抛出 `ResponseStatusException` | 只有它的状态，`about:blank`，4xx 时以它的原因作 detail |
+
+除了状态本身没有更多可说的，就回答为 `about:blank`，即 RFC 9457 所说的只有状态的 problem；Wow 自己的路由也是这样。关掉 `wow.http.global-errors.enabled` 后，应用自己的路由按 Spring 的方式回答。
+
 ### 应用自己的失败 {#mapped-failures}
 
 框架不认识的失败（例如调用另一个系统失败）回答为一个 500，不说明原因，原因写进日志。应用通过 `ProblemMapper` bean（`me.ahoo.wow.api.problem`）用自己的错误码回答自己的失败：映射器拿到失败，返回用来回答的 `WowProblemException`；失败不是它的，就返回 null。共享库也这样提供映射器，通过它自己的自动配置。
