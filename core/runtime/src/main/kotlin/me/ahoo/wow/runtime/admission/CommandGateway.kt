@@ -470,8 +470,15 @@ class CommandGateway @InternalWowApi constructor(
         val call = request.call
         callProblem(request)?.let { (code, message) -> return facts.refuse(code, message) }
         val target = call?.let { TargetScope(it.tenantId, it.scope) } ?: request.target
-        val answer =
-            CallerAdmission.admit(facts.type, request.caller, target, request.tenantId, tenants, called = call != null)
+        val answer = CallerAdmission.admit(
+            facts.type,
+            request.caller,
+            target,
+            request.tenantId,
+            tenants,
+            called = call != null,
+            acting = call?.actingTenant,
+        )
         val origin = when (answer) {
             is CallerAdmission.Refused -> return facts.refuse(answer.code, answer.message)
             is CallerAdmission -> answer

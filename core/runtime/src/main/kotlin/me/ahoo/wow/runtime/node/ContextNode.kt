@@ -116,11 +116,11 @@ class ContextNode internal constructor(
      * The node's command validators, the gateway's: the commands the context's sagas derive, and those its intake
      * takes from its topic, are checked as admitted ones are.
      */
-    val validators: List<CommandValidator> = emptyList(),
+    validators: List<CommandValidator>,
     /** The context's access walks: each type's history stamped with its aggregates' current access attributes. */
     val accessWalking: AccessWalking? = null,
     /** The tenant of each aggregate type, the node's: every path that gives a command its tenant decides it by it. */
-    val tenants: TenantPolicy = TenantPolicy.CALLERS,
+    tenants: TenantPolicy,
 ) {
     /**
      * The ids of the context's creation commands that name no aggregate: a saga's derived command, one
@@ -128,8 +128,12 @@ class ContextNode internal constructor(
      */
     val creations: CreationIds = CreationIds(ids, CommittedRequests.of(log))
 
-    /** The admission of the commands its timers send, in their tenant and with their ids ([creations]). */
-    internal val timerAdmission: ServiceCommandAdmission = ServiceCommandAdmission(validators, creations, tenants)
+    /**
+     * The one admission of the commands no caller sent to the context: those its sagas derive, those its command topic
+     * brings and those its timers send, each in its tenant by the node's tenants, checked by its validators and given
+     * its id by [creations].
+     */
+    internal val admission: ServiceCommandAdmission = ServiceCommandAdmission(validators, creations, tenants)
 
     /**
      * Reads the state after a commit as the state consumer [reader] of [views] ([SharedStateReader]), from the

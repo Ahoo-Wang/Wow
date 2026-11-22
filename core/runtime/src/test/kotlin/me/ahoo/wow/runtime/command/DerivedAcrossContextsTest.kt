@@ -20,8 +20,7 @@ import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.runtime.Executor
-import me.ahoo.wow.runtime.admission.CommittedRequests
-import me.ahoo.wow.runtime.admission.CreationIds
+import me.ahoo.wow.runtime.admission.admissionOf
 import me.ahoo.wow.runtime.binding.DerivedCommands
 import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.node.SourceTopics
@@ -30,7 +29,6 @@ import me.ahoo.wow.runtime.wait.SubscriptionDirectory
 import me.ahoo.wow.runtime.wait.WaitCoordinator
 import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.runtime.wait.WaitRegistry
-import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.transport.EnvelopeCodec
 import me.ahoo.wow.spi.wait.Origin
 import org.junit.jupiter.api.Test
@@ -57,7 +55,7 @@ class DerivedAcrossContextsTest {
         listOf(orderModel(confirmable = { false })),
         coordinator,
         sender,
-        creations = CreationIds(IdGenerators.DEFAULT, CommittedRequests.NONE),
+        admission = admissionOf(),
     )
 
     private fun order(id: String, body: Any) = Command(id, id, ORDER.ref(TENANT, "o-1"), body)

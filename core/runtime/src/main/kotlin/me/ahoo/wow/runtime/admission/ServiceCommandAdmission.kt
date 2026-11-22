@@ -49,7 +49,7 @@ internal class ServiceCommandAdmission(
     private val validators: List<CommandValidator>,
     private val creations: CreationIds,
     /** The tenant of each aggregate type: the node's ([me.ahoo.wow.runtime.node.AdmissionPlugins.tenants]). */
-    private val tenants: TenantPolicy = TenantPolicy.CALLERS,
+    private val tenants: TenantPolicy,
 ) {
     /**
      * Why [command], of [model], sent for the [acting] tenant (null when none is known), is refused (1 to 3), or null

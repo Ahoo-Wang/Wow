@@ -241,18 +241,9 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
     override fun committedHandlers(context: String): Set<String> =
         processors[context].orEmpty().flatMapTo(LinkedHashSet()) { saga -> saga.commits.map { it.name } }
 
-    /**
-     * The executor of the commands [context]'s sagas derive: through its coordinator, by its validators and creation
-     * ids, in the tenant of each type its tenants give.
-     */
-    private fun derivedOf(context: ContextNode): DerivedCommands = DerivedCommands(
-        context.models,
-        context.coordinator,
-        context.sender,
-        context.creations,
-        context.validators,
-        context.tenants,
-    )
+    /** The executor of the commands [context]'s sagas derive: through its coordinator, by its one admission. */
+    private fun derivedOf(context: ContextNode): DerivedCommands =
+        DerivedCommands(context.models, context.coordinator, context.sender, context.admission)
 
     /** The receipt handlers of the sagas of [bound], of [context], signalling their hops through its coordinator. */
     private fun receiptsOf(context: ContextNode, bound: List<ProcessorBinding<*>>): SagaReceipts = SagaReceipts(
@@ -369,7 +360,9 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
         ): HandledEntry {
             val name = handler.name
             val wait = DerivedCommands.waitOf(entry.transport?.wait, context.context, name)
-            val calls = SagaCalls(context.caller, context.served, context.commandTypes, wait)
+            // The tenant the execution acts for, its commit's or its job instance's: its calls' and its derived commands'.
+            val acting = event.ref.tenantId
+            val calls = SagaCalls(context.caller, context.served, context.commandTypes, wait, acting)
             val execution = executionOf(handler, name, event, context, calls)
             val commands = try {
                 call(handler, event, execution)
@@ -377,7 +370,7 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
                 return callRejected(rejected, calls, execution.executionId, receipts)
             }
             val replyTo = replyTo(handler, context.context, execution.executionId)
-            val executed = derived.execute(commands, execution.executionId.ref.tenantId, wait, replyTo)
+            val executed = derived.execute(commands, acting, wait, replyTo)
             val withCalls = executed.copy(executed = calls.called + executed.executed)
             return sagaHandled(withCalls, execution.executionId, receipts, wait)
         }

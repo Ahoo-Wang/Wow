@@ -35,9 +35,8 @@ import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.kernel.StartFrom
 import me.ahoo.wow.kernel.eachEvent
 import me.ahoo.wow.runtime.admission.CommandBody
-import me.ahoo.wow.runtime.admission.CommittedRequests
-import me.ahoo.wow.runtime.admission.CreationIds
 import me.ahoo.wow.runtime.admission.ServerCommandRequest
+import me.ahoo.wow.runtime.admission.admissionOf
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
 import me.ahoo.wow.runtime.node.InMemoryBackends
 import me.ahoo.wow.runtime.node.ServiceNode
@@ -47,7 +46,6 @@ import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.runtime.wait.ResultCodes
-import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.subscription.SubscriptionId
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
@@ -380,7 +378,7 @@ class SubscriptionBindingsTest {
         val derived = DerivedCommands(
             listOf(orderModel()),
             node.context(SHOP).coordinator,
-            creations = CreationIds(IdGenerators.DEFAULT, CommittedRequests.NONE),
+            admission = admissionOf(),
         )
         val elsewhere = Command("c", "r", me.ahoo.wow.api.aggregate.AggregateType("mail", "box").ref(TENANT, "m"), "x")
         runCatching { derived.execute(listOf(elsewhere), TENANT, null) }.exceptionOrNull()!!.message.assert()

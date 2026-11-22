@@ -71,6 +71,7 @@ public final class me/ahoo/wow/runtime/admission/Authorization$Denied$Companion 
 public final class me/ahoo/wow/runtime/admission/CallContext {
 	public static final field Companion Lme/ahoo/wow/runtime/admission/CallContext$Companion;
 	public fun equals (Ljava/lang/Object;)Z
+	public final fun getActingTenant ()Ljava/lang/String;
 	public final fun getCausation ()Lme/ahoo/wow/api/decide/Causation;
 	public final fun getCommandId ()Ljava/lang/String;
 	public final fun getFacts ()Ljava/util/Map;
@@ -370,6 +371,7 @@ public final class me/ahoo/wow/runtime/cluster/ClusterOptions {
 public final class me/ahoo/wow/runtime/cluster/CommandWire {
 	public static final field Companion Lme/ahoo/wow/runtime/cluster/CommandWire$Companion;
 	public fun equals (Ljava/lang/Object;)Z
+	public final fun getActingTenant ()Ljava/lang/String;
 	public final fun getBody ()Ltools/jackson/databind/JsonNode;
 	public final fun getCaller ()Lme/ahoo/wow/runtime/cluster/CallerWire;
 	public final fun getCausation ()Lme/ahoo/wow/api/decide/Causation;
@@ -391,6 +393,7 @@ public final class me/ahoo/wow/runtime/cluster/CommandWire {
 	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ltools/jackson/databind/JsonNode;Ljava/lang/Integer;Lme/ahoo/wow/api/aggregate/Scope;Ljava/util/Map;Lme/ahoo/wow/api/decide/Causation;Lme/ahoo/wow/api/caller/Operator;)Lme/ahoo/wow/runtime/cluster/CommandWire;
 	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ltools/jackson/databind/JsonNode;Ljava/lang/Integer;Lme/ahoo/wow/api/aggregate/Scope;Ljava/util/Map;Lme/ahoo/wow/api/decide/Causation;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/runtime/cluster/ReplyTo;)Lme/ahoo/wow/runtime/cluster/CommandWire;
 	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ltools/jackson/databind/JsonNode;Ljava/lang/Integer;Lme/ahoo/wow/api/aggregate/Scope;Ljava/util/Map;Lme/ahoo/wow/api/decide/Causation;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/runtime/cluster/ReplyTo;Lme/ahoo/wow/runtime/cluster/CallerWire;)Lme/ahoo/wow/runtime/cluster/CommandWire;
+	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ltools/jackson/databind/JsonNode;Ljava/lang/Integer;Lme/ahoo/wow/api/aggregate/Scope;Ljava/util/Map;Lme/ahoo/wow/api/decide/Causation;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/runtime/cluster/ReplyTo;Lme/ahoo/wow/runtime/cluster/CallerWire;Ljava/lang/String;)Lme/ahoo/wow/runtime/cluster/CommandWire;
 	public fun toString ()Ljava/lang/String;
 }
 
@@ -403,7 +406,8 @@ public final class me/ahoo/wow/runtime/cluster/CommandWire$Companion {
 	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ltools/jackson/databind/JsonNode;Ljava/lang/Integer;Lme/ahoo/wow/api/aggregate/Scope;Ljava/util/Map;Lme/ahoo/wow/api/decide/Causation;Lme/ahoo/wow/api/caller/Operator;)Lme/ahoo/wow/runtime/cluster/CommandWire;
 	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ltools/jackson/databind/JsonNode;Ljava/lang/Integer;Lme/ahoo/wow/api/aggregate/Scope;Ljava/util/Map;Lme/ahoo/wow/api/decide/Causation;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/runtime/cluster/ReplyTo;)Lme/ahoo/wow/runtime/cluster/CommandWire;
 	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ltools/jackson/databind/JsonNode;Ljava/lang/Integer;Lme/ahoo/wow/api/aggregate/Scope;Ljava/util/Map;Lme/ahoo/wow/api/decide/Causation;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/runtime/cluster/ReplyTo;Lme/ahoo/wow/runtime/cluster/CallerWire;)Lme/ahoo/wow/runtime/cluster/CommandWire;
-	public static synthetic fun of$default (Lme/ahoo/wow/runtime/cluster/CommandWire$Companion;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ltools/jackson/databind/JsonNode;Ljava/lang/Integer;Lme/ahoo/wow/api/aggregate/Scope;Ljava/util/Map;Lme/ahoo/wow/api/decide/Causation;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/runtime/cluster/ReplyTo;Lme/ahoo/wow/runtime/cluster/CallerWire;ILjava/lang/Object;)Lme/ahoo/wow/runtime/cluster/CommandWire;
+	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ltools/jackson/databind/JsonNode;Ljava/lang/Integer;Lme/ahoo/wow/api/aggregate/Scope;Ljava/util/Map;Lme/ahoo/wow/api/decide/Causation;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/runtime/cluster/ReplyTo;Lme/ahoo/wow/runtime/cluster/CallerWire;Ljava/lang/String;)Lme/ahoo/wow/runtime/cluster/CommandWire;
+	public static synthetic fun of$default (Lme/ahoo/wow/runtime/cluster/CommandWire$Companion;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ltools/jackson/databind/JsonNode;Ljava/lang/Integer;Lme/ahoo/wow/api/aggregate/Scope;Ljava/util/Map;Lme/ahoo/wow/api/decide/Causation;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/runtime/cluster/ReplyTo;Lme/ahoo/wow/runtime/cluster/CallerWire;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/runtime/cluster/CommandWire;
 }
 
 public final class me/ahoo/wow/runtime/cluster/LeaseGroup {

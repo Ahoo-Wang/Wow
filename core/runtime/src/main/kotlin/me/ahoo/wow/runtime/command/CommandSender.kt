@@ -55,23 +55,35 @@ class CommandSender(private val contracts: ContractDirectory, private val topics
     /** The command topic of [context], where its commands are sent. */
     fun topicOf(context: String): String = topics.commandsOf(context)
 
-    /** Sends [command] to its context's command topic, with [wait] and the [replyTo] of a rejection. */
-    suspend fun send(command: Command<*>, wait: WaitContext? = null, replyTo: ReplyTo? = null) =
-        send(ClusterCodec.wire(typeOf(command), command, replyTo), wait)
+    /**
+     * Sends [command] to its context's command topic, with [wait] and the [replyTo] of a rejection, sent for the
+     * [actingTenant] ([CommandWire.actingTenant]).
+     */
+    suspend fun send(
+        command: Command<*>,
+        wait: WaitContext? = null,
+        replyTo: ReplyTo? = null,
+        actingTenant: String? = null,
+    ) = send(ClusterCodec.wire(typeOf(command), command, replyTo, actingTenant), wait)
 
     /**
-     * Sends [commands], each with the [ReplyTo] of its receipt, to their contexts' command topics, with [wait]: those of
-     * one topic as one batch, in their order, so the commands to one aggregate keep theirs in its partition. Returns
-     * once the broker has acknowledged every batch; throws when it has not acknowledged one.
+     * Sends [commands], each with the [ReplyTo] of its receipt, to their contexts' command topics, with [wait], sent for
+     * the [actingTenant] ([CommandWire.actingTenant]): those of one topic as one batch, in their order, so the commands
+     * to one aggregate keep theirs in its partition. Returns once the broker has acknowledged every batch; throws when
+     * it has not acknowledged one.
      */
-    suspend fun sendAll(commands: List<Pair<Command<*>, ReplyTo?>>, wait: WaitContext? = null) {
+    suspend fun sendAll(
+        commands: List<Pair<Command<*>, ReplyTo?>>,
+        wait: WaitContext?,
+        actingTenant: String?,
+    ) {
         val trace = currentCoroutineContext().trace
         commands.groupBy { (command) -> topics.commandsOf(command.ref.type.context) }.forEach { (topic, batch) ->
             val count = partitionsOf(topic)
             producer.send(
                 topic,
                 batch.map { (command, replyTo) ->
-                    val wire = ClusterCodec.wire(typeOf(command), command, replyTo)
+                    val wire = ClusterCodec.wire(typeOf(command), command, replyTo, actingTenant)
                     CommandMessages.command(
                         wire,
                         Partitioner.partitionOf(CommandMessages.laneOf(wire), count),

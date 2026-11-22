@@ -395,6 +395,17 @@ class ServiceCallRoutesTest {
         assertThrownBy<IllegalArgumentException> { CallHeaders.parse(blank) }
     }
 
+    @Test
+    fun `a call header should carry the tenant its saga acts for, and an older writer's none`() {
+        val call = CallContext("c-1", TENANT, Scope("alice"), root, actingTenant = TENANT)
+        CallHeaders.parse(CallHeaders.format(call)).actingTenant.assert().isEqualTo(TENANT)
+        CallHeaders.parse(CallHeaders.format(call)).assert().isEqualTo(call)
+        val older = java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(
+            """{"commandId":"c","tenantId":"t","causation":{"correlationId":"a","causationId":"b"}}""".toByteArray(),
+        )
+        CallHeaders.parse(older).actingTenant.assert().isNull()
+    }
+
     private companion object {
         const val SERVICE = "basket-service"
     }

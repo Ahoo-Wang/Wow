@@ -58,6 +58,16 @@ A node that a rollout stops goes with notice. It hands its partitions off and dr
 
 A node lost without notice, such as a pod deleted by force or a machine gone, costs more. A call sent on a connection to it gets no answer and ends at its wait and a grace after it, 12 seconds by default, then its subscription retries it. The node's address stays among the service's nodes until their list is read again, at most 30 seconds later, so a call that lands on another connection to it pays the same.
 
+## A fixed tenant across services
+
+A type's fixed tenant (`wow.aggregates.[<context>.<aggregate>].tenant`) is its own service's configuration. A command that goes to another service, a saga's, a timer's or a caller's relayed through the command topic, says the tenant its sender acted for (`actingTenant`, [Commands on a topic](../reference/protocols#commands-on-a-topic)), and the target's service decides its own type's tenant from it ([A fixed tenant](../guide/ownership#a-fixed-tenant)). 10.0.0-beta.12 and earlier send none, and their intakes apply no fixed tenant. So while either side of such a command still runs one of those nodes:
+
+- **An older sender, a newer target.** The command says no acting tenant, so the tenant its ref names counts as named: one to a type the target fixes to another tenant is refused as `wow.command.malformed`. A saga's `@OnRejected` handler takes it, or the subscription parks the aggregate that derived it; nothing lands outside the fixed tenant. Retry the parked entries once the sender's nodes all run the new version: the command is derived again, with its acting tenant, and lands in the fixed tenant.
+- **A newer sender, an older target.** The older intake reads no acting tenant and applies no fixed tenant: it runs the command in the tenant its ref names, where the target's other nodes do not look for it. Upgrade a service that fixes a type's tenant before the services that send commands to that type.
+- **Within one service**, an older node still derives and fires its commands in the tenant of their execution, as before, until it stops.
+
+**The ref of ACCEPTED and of COMMITTED.** A command relayed through the command topic is answered `ACCEPTED` by the node that sent it, with the ref its sender gave, in the sender's tenant. Its `COMMITTED`, which the target's intake signals, names the tenant the target decided. A client that waits only for `ACCEPTED` of a command to another service's fixed type reads the sender's tenant in it; wait for `COMMITTED` to read where the command landed.
+
 ## Settings that must not change
 
 `wow.log.partitions` is fixed once the log holds entries, and the nodes of one service share their store layout ([Configure a Service](./configuration#what-must-match-across-nodes)).

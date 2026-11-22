@@ -42,6 +42,8 @@ internal class SagaCalls(
     private val contexts: Set<String>,
     private val commandTypes: CommandTypes,
     private val wait: WaitContext?,
+    /** The tenant the execution acts for, which each target decides the tenant of its type from. */
+    private val acting: String,
 ) : CommandCalls {
     private val answered: MutableList<String> = Collections.synchronizedList(ArrayList())
 
@@ -87,7 +89,7 @@ internal class SagaCalls(
             "No Manifest of the service or its peers declares the command ${command.body.javaClass.name} called on " +
                 "${command.ref}: depend on the api module of $context, whose jar carries its contract."
         }
-        val result = client.call(OutgoingCall(type, command, wait))
+        val result = client.call(OutgoingCall(type, command, wait, acting))
         if (result.status != CommandResult.Status.FAILED) {
             answered += command.id
         }

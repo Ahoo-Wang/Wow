@@ -36,8 +36,6 @@ import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.StartFrom
 import me.ahoo.wow.runtime.InFlightLimit
-import me.ahoo.wow.runtime.admission.CommandValidator
-import me.ahoo.wow.runtime.admission.CreationIds
 import me.ahoo.wow.runtime.admission.ServiceCommandAdmission
 import me.ahoo.wow.runtime.client.InProcessCommandClient
 import me.ahoo.wow.runtime.cluster.ClusterCodec
@@ -51,7 +49,6 @@ import me.ahoo.wow.runtime.wait.WaitCoordinator
 import me.ahoo.wow.runtime.wait.busyOf
 import me.ahoo.wow.runtime.wait.toError
 import me.ahoo.wow.spi.observation.trace
-import me.ahoo.wow.spi.tenant.TenantPolicy
 import me.ahoo.wow.spi.transport.PartitionedSource
 import me.ahoo.wow.spi.transport.TopicProducer
 import me.ahoo.wow.spi.wait.WaitContext
@@ -68,7 +65,7 @@ import kotlin.time.Duration.Companion.seconds
  * For each command, in its aggregate's lane (one aggregate's commands in order, different aggregates in parallel):
  *
  * 1. **Execute** it through the context's [coordinator] ([WaitCoordinator.forward]) with the wait context its
- *    envelope carries, a creation that names no aggregate given its id first by [creations]: the id its request
+ *    envelope carries, a creation that names no aggregate given its id first by the context's creation ids ([admission]): the id its request
  *    committed or claimed, so every copy of one request targets one aggregate, a copy handled again after a forward
  *    that failed while its owner was still deciding included. The kernel deduplicates by request id, so a command
  *    delivered twice, or sent twice by a saga that retried, is not committed again; the waiting node is signalled as
@@ -93,7 +90,7 @@ import kotlin.time.Duration.Companion.seconds
  * An aggregate type or command type the context does not know is the sender's mistake, or a contract the sender has
  * and this service does not yet: it is not this aggregate's failure, and parking it would hold its
  * later commands for an operator. Such a command is rejected as [FrameworkCodes.COMMAND_UNHANDLED], with its receipt as in 2
- * ([unhandled]). A command whose body the node's [validators] (the gateway's) find violations in is rejected as
+ * ([unhandled]). A command whose body the node's validators (the gateway's) find violations in is rejected as
  * [FrameworkCodes.COMMAND_INVALID], listing them, the same way and before any aggregate decides it ([ServiceCommandAdmission]), as the
  * gateway refuses an admitted one.
  *
@@ -116,7 +113,8 @@ class CommandIntake internal constructor(
     models: Collection<AggregateModel<*>>,
     private val coordinator: WaitCoordinator,
     private val topics: SourceTopics,
-    creations: CreationIds,
+    /** The context's admission ([me.ahoo.wow.runtime.node.ContextNode.admission]): the tenant, validation and id. */
+    private val admission: ServiceCommandAdmission,
     private val ledger: LedgerCommands = LedgerCommands(ParkedOps { emptyList() }),
     /**
      * The node's in-flight bound, whose [InFlightLimit.intakes] bound the commands the intakes of all
@@ -133,12 +131,7 @@ class CommandIntake internal constructor(
      * topic: an action sent before it first ran is not run long after, on an entry parked again since.
      */
     private val ledgerOnly: Boolean = false,
-    /** The node's command validators, the gateway's. */
-    validators: List<CommandValidator> = emptyList(),
-    /** The tenant of each aggregate type, the node's. */
-    tenants: TenantPolicy = TenantPolicy.CALLERS,
 ) {
-    private val admission = ServiceCommandAdmission(validators, creations, tenants)
     private val models: Map<AggregateType, AggregateModel<*>> = models.associateBy { it.type }
     private val producer: TopicProducer = requireNotNull(topics.producer) { "An intake sends receipts." }
 
@@ -164,10 +157,10 @@ class CommandIntake internal constructor(
             ?: return unhandled(wire, wait, "Context $context has no aggregate ${wire.ref.type}.")
         val received = ClusterCodec.command(model, wire)
             ?: return unhandled(wire, wait, "${wire.ref.type} has no command type ${wire.type}.")
-        // It names its tenant, whoever sent it: one of a type fixed to another tenant is refused.
-        admission.refusalOf(model, received, acting = null)?.let { return refuse(wire, wait, it) }
-        // A creation that names no aggregate takes the id its request created, or a new one.
-        val command = admission.assign(model, received, acting = null)
+        // For the tenant its sender sent it for: without one, the tenant its ref names counts.
+        admission.refusalOf(model, received, wire.actingTenant)?.let { return refuse(wire, wait, it) }
+        // In its tenant; a creation that names no aggregate takes the id its request created, or a new one.
+        val command = admission.assign(model, received, wire.actingTenant)
         awaitDue(command)
         val settlement = limit.intakes.withPermit { coordinator.forward(model, command, wait) }
         // A receipt carries the rest of the command's chain on, past its commit.

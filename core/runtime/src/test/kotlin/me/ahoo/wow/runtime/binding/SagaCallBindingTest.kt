@@ -61,9 +61,9 @@ import me.ahoo.wow.runtime.admission.CallContext
 import me.ahoo.wow.runtime.admission.CommandBody
 import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.admission.CommittedRequests
-import me.ahoo.wow.runtime.admission.CreationIds
 import me.ahoo.wow.runtime.admission.ModelRegistry
 import me.ahoo.wow.runtime.admission.ServerCommandRequest
+import me.ahoo.wow.runtime.admission.admissionOf
 import me.ahoo.wow.runtime.call.SagaCalls
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
 import me.ahoo.wow.runtime.contract.ContractDirectory
@@ -78,7 +78,6 @@ import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.runtime.wait.WaitRegistry
 import me.ahoo.wow.spi.call.CommandCaller
 import me.ahoo.wow.spi.call.OutgoingCall
-import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.subscription.SubscriptionId
 import me.ahoo.wow.spi.wait.Origin
 import me.ahoo.wow.spi.wait.WaitContext
@@ -284,6 +283,8 @@ class SagaCallBindingTest {
         call.type.assert().isEqualTo("mail.box.Deliver")
         call.name.assert().isEqualTo("Deliver")
         call.command.scope.assert().isEqualTo(Scope(ownerId = "alice"))
+        // Made for the order's tenant, which the mail context decides the tenant of its type from (#6556).
+        call.actingTenant.assert().isEqualTo(TENANT)
         // The rest of the chain, after the saga's hop, goes with the call to the mail context.
         call.wait!!.remaining.assert().containsExactly(Hop.committed("mail"))
     }
@@ -410,7 +411,7 @@ class SagaCallBindingTest {
                 DerivedCommands(
                     shop.models,
                     shop.coordinator,
-                    creations = CreationIds(IdGenerators.DEFAULT, CommittedRequests.NONE),
+                    admission = admissionOf(),
                 ),
                 context = SHOP,
                 signal = { _, result -> signals += result },
@@ -493,6 +494,7 @@ class SagaCallBindingTest {
             setOf(SHOP),
             names,
             null,
+            TENANT,
         )
         // A command of the node's own context is derived, not called.
         assertThrownBy<IllegalArgumentException> {
@@ -509,7 +511,7 @@ class SagaCallBindingTest {
         recorded.single().command.causation.assert().isEqualTo(root)
         calls.called.assert().isEmpty()
         // Without a client, a call fails.
-        val none = SagaCalls(null, setOf(SHOP), names, null)
+        val none = SagaCalls(null, setOf(SHOP), names, null, TENANT)
         assertThrownBy<WowProblemException> {
             runBlocking { none.call(Command("c", "r", BOX.ref(TENANT, "alice"), Deliver(emptyList()))) }
         }
@@ -520,6 +522,12 @@ class SagaCallBindingTest {
         val command = Command("c", "r", BOX.ref(TENANT, "alice"), Deliver(emptyList()), causation = Causation("a", "b"))
         val wait = WaitContext("w", Origin("n", "a:1", "s"), listOf(Hop.committed("mail")), 1L)
         OutgoingCall("mail.box.Deliver", command, wait).name.assert().isEqualTo("Deliver")
+        // The tenant its saga acts for is part of the call (#6556).
+        val acting = OutgoingCall.of("mail.box.Deliver", command, wait, TENANT)
+        acting.assert().isEqualTo(OutgoingCall("mail.box.Deliver", command, wait, TENANT))
+            .isNotEqualTo(OutgoingCall.of("mail.box.Deliver", command, wait))
+        acting.hashCode().assert().isEqualTo(OutgoingCall("mail.box.Deliver", command, wait, TENANT).hashCode())
+        acting.toString().assert().endsWith(", actingTenant=$TENANT)")
         assertThrownBy<IllegalArgumentException> { OutgoingCall("mail.other.Deliver", command) }
         assertThrownBy<IllegalArgumentException> {
             OutgoingCall(

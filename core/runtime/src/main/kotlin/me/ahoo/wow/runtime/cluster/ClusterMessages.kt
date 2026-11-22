@@ -45,6 +45,13 @@ import tools.jackson.databind.json.JsonMapper
  * command nor one a producer wrote without one: under an access policy, a command that is not derived and has no
  * caller is refused. Its claims travel in the cluster channel's requests and stay in the command topic's records
  * for the topic's retention; they are never recorded in the log.
+ *
+ * [actingTenant] (an addition within format 1 too) is the tenant its sender sent it for: the caller's, when the
+ * caller named no target; the execution's for a saga's command (its commit's, receipt's or job instance's); the
+ * scheduling aggregate's for a timer's. The target decides the command's tenant from it and the tenant [ref] names, by
+ * the one rule of every path (`TenantPolicy.tenantOf`): a ref naming its acting tenant names none, so a type the
+ * target fixes to a tenant is in it. A command without one (an older writer's, a producer's, a caller's that named its
+ * target) names the tenant of its ref.
  */
 class CommandWire @InternalWowApi constructor(
     val type: String,
@@ -59,6 +66,7 @@ class CommandWire @InternalWowApi constructor(
     val operator: Operator? = null,
     val replyTo: ReplyTo? = null,
     val caller: CallerWire? = null,
+    val actingTenant: String? = null,
 ) {
     override fun equals(other: Any?): Boolean =
         this === other || other is CommandWire && valueFields() == other.valueFields()
@@ -66,10 +74,10 @@ class CommandWire @InternalWowApi constructor(
     override fun hashCode(): Int = valueFields().hashCode()
 
     override fun toString(): String = "CommandWire(" +
-        "type=$type, id=$id, requestId=$requestId, ref=$ref, body=$body, expectedVersion=$expectedVersion, scope=$scope, headers=$headers, causation=$causation, operator=$operator, replyTo=$replyTo)"
+        "type=$type, id=$id, requestId=$requestId, ref=$ref, body=$body, expectedVersion=$expectedVersion, scope=$scope, headers=$headers, causation=$causation, operator=$operator, replyTo=$replyTo, actingTenant=$actingTenant)"
 
     private fun valueFields(): List<Any?> =
-        listOf(type, id, requestId, ref, body, expectedVersion, scope, headers, causation, operator, replyTo, caller)
+        listOf(type, id, requestId, ref, body, expectedVersion, scope, headers, causation, operator, replyTo, caller, actingTenant)
 
     /** This CommandWire with the given fields replaced: Wow's own copy, left out of the ABI. */
     @InternalWowApi
@@ -86,8 +94,22 @@ class CommandWire @InternalWowApi constructor(
         operator: Operator? = this.operator,
         replyTo: ReplyTo? = this.replyTo,
         caller: CallerWire? = this.caller,
-    ): CommandWire =
-        CommandWire(type, id, requestId, ref, body, expectedVersion, scope, headers, causation, operator, replyTo, caller)
+        actingTenant: String? = this.actingTenant,
+    ): CommandWire = CommandWire(
+        type,
+        id,
+        requestId,
+        ref,
+        body,
+        expectedVersion,
+        scope,
+        headers,
+        causation,
+        operator,
+        replyTo,
+        caller,
+        actingTenant,
+    )
 
     companion object {
         /** A CommandWire of the given fields; parameters added later come last, with a default. */
@@ -106,8 +128,22 @@ class CommandWire @InternalWowApi constructor(
             operator: Operator? = null,
             replyTo: ReplyTo? = null,
             caller: CallerWire? = null,
-        ): CommandWire =
-            CommandWire(type, id, requestId, ref, body, expectedVersion, scope, headers, causation, operator, replyTo, caller)
+            actingTenant: String? = null,
+        ): CommandWire = CommandWire(
+            type,
+            id,
+            requestId,
+            ref,
+            body,
+            expectedVersion,
+            scope,
+            headers,
+            causation,
+            operator,
+            replyTo,
+            caller,
+            actingTenant,
+        )
     }
 }
 
@@ -333,21 +369,26 @@ object ClusterCodec {
     fun wire(model: AggregateModel<*>, command: Command<*>): CommandWire =
         wire(model.commandType(command.body.javaClass).name, command)
 
-    /** [command], of the command type named [type], in its wire form, with the [replyTo] of a rejection. */
-    fun wire(type: String, command: Command<*>, replyTo: ReplyTo? = null): CommandWire = CommandWire(
-        type = type,
-        id = command.id,
-        requestId = command.requestId,
-        ref = command.ref,
-        body = mapper.valueToTree(command.body),
-        expectedVersion = command.expectedVersion,
-        scope = command.scope,
-        headers = command.headers,
-        causation = command.causation,
-        operator = command.operator,
-        replyTo = replyTo,
-        caller = command.caller?.let(CallerWire::of),
-    )
+    /**
+     * [command], of the command type named [type], in its wire form, with the [replyTo] of a rejection, sent for the
+     * [actingTenant] ([CommandWire.actingTenant]).
+     */
+    fun wire(type: String, command: Command<*>, replyTo: ReplyTo? = null, actingTenant: String? = null): CommandWire =
+        CommandWire(
+            type = type,
+            id = command.id,
+            requestId = command.requestId,
+            ref = command.ref,
+            body = mapper.valueToTree(command.body),
+            expectedVersion = command.expectedVersion,
+            scope = command.scope,
+            headers = command.headers,
+            causation = command.causation,
+            operator = command.operator,
+            replyTo = replyTo,
+            caller = command.caller?.let(CallerWire::of),
+            actingTenant = actingTenant,
+        )
 
     /** The command [wire] holds, its body read as [model]'s command type of that name; null when it has none. */
     fun command(model: AggregateModel<*>, wire: CommandWire): Command<*>? {

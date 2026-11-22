@@ -122,12 +122,14 @@ internal class ContextTimerFirer(
             scope = timer.scope,
             causation = timer.causation,
             operator = timer.operator,
+            // Sent for the aggregate that scheduled it: another context's intake decides its tenant from it.
+            actingTenant = timer.owner.tenantId,
         )
         val model = models[timer.target.type] ?: return send(wire)
         val received = checkNotNull(ClusterCodec.command(model, wire)) {
             "${model.type} has no command type ${timer.commandType}, which the timer ${timer.id} sends."
         }
-        // Sent for the aggregate that scheduled it: the tenant its target names counts unless it is that one's.
+        // The tenant its target names counts unless it is the scheduling aggregate's.
         val acting = timer.owner.tenantId
         admission.refusalOf(model, received, acting)?.let { error ->
             logger.info {

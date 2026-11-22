@@ -24,14 +24,12 @@ import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.runtime.Executor
 import me.ahoo.wow.runtime.admission.CommandValidator
-import me.ahoo.wow.runtime.admission.CommittedRequests
-import me.ahoo.wow.runtime.admission.CreationIds
+import me.ahoo.wow.runtime.admission.admissionOf
 import me.ahoo.wow.runtime.wait.LocalSignalSender
 import me.ahoo.wow.runtime.wait.SubscriptionDirectory
 import me.ahoo.wow.runtime.wait.WaitCoordinator
 import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.runtime.wait.WaitRegistry
-import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.wait.Origin
 import org.junit.jupiter.api.Test
 
@@ -58,8 +56,7 @@ class DerivedCommandValidationTest {
     private val derived = DerivedCommands(
         listOf(cart),
         coordinator,
-        validators = listOf(noPoison),
-        creations = CreationIds(IdGenerators.DEFAULT, CommittedRequests.NONE),
+        admission = admissionOf(validators = listOf(noPoison)),
     )
 
     private fun command(id: String, body: Any) = Command(id, id, CART.ref(TENANT, "alice"), body, causation = root)

@@ -564,7 +564,7 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
                 admission.validators,
                 accessWalking,
                 admission.tenants,
-            ).also { firing.firer = ContextTimerFirer(models, coordinator, it.timerAdmission, sender, observer) }
+            ).also { firing.firer = ContextTimerFirer(models, coordinator, it.admission, sender, observer) }
         }
     }
 

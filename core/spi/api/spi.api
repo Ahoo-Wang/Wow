@@ -46,6 +46,7 @@ public abstract interface class me/ahoo/wow/spi/call/CommandCaller {
 public final class me/ahoo/wow/spi/call/OutgoingCall {
 	public static final field Companion Lme/ahoo/wow/spi/call/OutgoingCall$Companion;
 	public fun equals (Ljava/lang/Object;)Z
+	public final fun getActingTenant ()Ljava/lang/String;
 	public final fun getCommand ()Lme/ahoo/wow/api/decide/Command;
 	public final fun getName ()Ljava/lang/String;
 	public final fun getType ()Ljava/lang/String;
@@ -53,13 +54,15 @@ public final class me/ahoo/wow/spi/call/OutgoingCall {
 	public fun hashCode ()I
 	public static final fun of (Ljava/lang/String;Lme/ahoo/wow/api/decide/Command;)Lme/ahoo/wow/spi/call/OutgoingCall;
 	public static final fun of (Ljava/lang/String;Lme/ahoo/wow/api/decide/Command;Lme/ahoo/wow/spi/wait/WaitContext;)Lme/ahoo/wow/spi/call/OutgoingCall;
+	public static final fun of (Ljava/lang/String;Lme/ahoo/wow/api/decide/Command;Lme/ahoo/wow/spi/wait/WaitContext;Ljava/lang/String;)Lme/ahoo/wow/spi/call/OutgoingCall;
 	public fun toString ()Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/spi/call/OutgoingCall$Companion {
 	public final fun of (Ljava/lang/String;Lme/ahoo/wow/api/decide/Command;)Lme/ahoo/wow/spi/call/OutgoingCall;
 	public final fun of (Ljava/lang/String;Lme/ahoo/wow/api/decide/Command;Lme/ahoo/wow/spi/wait/WaitContext;)Lme/ahoo/wow/spi/call/OutgoingCall;
-	public static synthetic fun of$default (Lme/ahoo/wow/spi/call/OutgoingCall$Companion;Ljava/lang/String;Lme/ahoo/wow/api/decide/Command;Lme/ahoo/wow/spi/wait/WaitContext;ILjava/lang/Object;)Lme/ahoo/wow/spi/call/OutgoingCall;
+	public final fun of (Ljava/lang/String;Lme/ahoo/wow/api/decide/Command;Lme/ahoo/wow/spi/wait/WaitContext;Ljava/lang/String;)Lme/ahoo/wow/spi/call/OutgoingCall;
+	public static synthetic fun of$default (Lme/ahoo/wow/spi/call/OutgoingCall$Companion;Ljava/lang/String;Lme/ahoo/wow/api/decide/Command;Lme/ahoo/wow/spi/wait/WaitContext;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/spi/call/OutgoingCall;
 }
 
 public class me/ahoo/wow/spi/config/ProviderOption {

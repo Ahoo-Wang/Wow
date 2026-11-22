@@ -34,6 +34,7 @@ import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.runtime.Executor
 import me.ahoo.wow.runtime.admission.CommittedRequests
 import me.ahoo.wow.runtime.admission.CreationIds
+import me.ahoo.wow.runtime.admission.admissionOf
 import me.ahoo.wow.runtime.wait.LocalSignalSender
 import me.ahoo.wow.runtime.wait.SubscriptionDirectory
 import me.ahoo.wow.runtime.wait.WaitCoordinator
@@ -72,11 +73,7 @@ class DerivedCommandsTest {
         Origin("node-1", "node-1:9090", SHOP_SERVICE),
         WaitOptions(),
     )
-    private val derived = DerivedCommands(
-        listOf(cart),
-        coordinator,
-        creations = CreationIds(IdGenerators.DEFAULT, CommittedRequests.NONE),
-    )
+    private val derived = DerivedCommands(listOf(cart), coordinator, admission = admissionOf())
 
     /** A command a saga execution of the order `o-1` derived. */
     private fun command(id: String, body: Any) = Command(id, id, CART.ref(TENANT, "alice"), body, causation = root)
@@ -97,7 +94,11 @@ class DerivedCommandsTest {
             var drawn = 0
             val ids = IdGenerators(aggregates = AggregateIdGenerator { "cart-n${++drawn}" })
             val creating =
-                DerivedCommands(listOf(cart), coordinator, creations = CreationIds(ids, CommittedRequests.of(log)))
+                DerivedCommands(
+                    listOf(cart),
+                    coordinator,
+                    admission = admissionOf(CreationIds(ids, CommittedRequests.of(log)))
+                )
             val add = Command("c-new", "c-new", CART.unassigned(TENANT), AddItems(listOf("apple")))
             creating.execute(listOf(add), TENANT, null).executed.assert().containsExactly("c-new")
             log.findByRequestId(CART, TENANT, "c-new")!!.ref.id.assert().isEqualTo("cart-n1")
@@ -120,11 +121,7 @@ class DerivedCommandsTest {
                 decide<AddItems>(Creation.ALLOWED) { _, _ -> Decision.events(ItemsAdded(listOf())) }
                 evolve<ItemsAdded> { }
             }
-            val owning = DerivedCommands(
-                listOf(wallet),
-                coordinator,
-                creations = CreationIds(IdGenerators.DEFAULT, CommittedRequests.NONE),
-            )
+            val owning = DerivedCommands(listOf(wallet), coordinator, admission = admissionOf())
             val type = wallet.type
             val unowned = Command("w-1", "w-1", type.unassigned(TENANT), AddItems(listOf("apple")), causation = root)
             val owned = unowned.copyWith(id = "w-2", requestId = "w-2", scope = Scope("alice"))

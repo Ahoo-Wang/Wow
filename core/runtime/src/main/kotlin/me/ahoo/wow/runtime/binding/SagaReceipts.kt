@@ -101,7 +101,7 @@ internal class SagaReceipts(
      */
     override suspend fun rejected(rejected: CommandReceipt.Rejected<*>, command: Class<*>): List<String>? {
         val handler = sagas[rejected.executionId.subscription]?.rejectionHandlerOf(command) ?: return null
-        val calls = SagaCalls(caller, served, commandTypes, wait = null)
+        val calls = SagaCalls(caller, served, commandTypes, wait = null, rejected.executionId.ref.tenantId)
         val context = rejectionContextOf(handler, rejected, ids, commandTypes, queries, calls, codec)
         val executed = derived.execute(
             handle(handler.blocking) { handler.invoke(rejected, context) },
@@ -125,7 +125,7 @@ internal class SagaReceipts(
     ): List<String>? {
         val handler = sagas[committed.executionId.subscription]?.committedHandlerOf(command) ?: return null
         val next = DerivedCommands.waitOf(wait, context, handler.name)
-        val calls = SagaCalls(caller, served, commandTypes, next)
+        val calls = SagaCalls(caller, served, commandTypes, next, committed.executionId.ref.tenantId)
         val sagaContext = committedContextOf(handler, committed, ids, commandTypes, queries, calls, codec)
         val commands = try {
             handle(handler.blocking) { handler.invoke(committed, sagaContext) }

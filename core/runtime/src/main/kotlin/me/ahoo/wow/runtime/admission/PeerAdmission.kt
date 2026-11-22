@@ -80,7 +80,10 @@ internal class PeerAdmission(
             "The class of ${peer.name} is not on the class path: depend on the api module of ${type.context}, whose " +
                 "jar carries its contract and its commands.",
         )
-        val relay = peers.relayOf(type.context, peer.name) ?: return facts.refuse(
+        // The peer decides the tenant of its type, which this node cannot know: it is told the tenant the caller acts
+        // for when the request names none, its own target's or its ref's, so a type it fixes lands in its fixed tenant.
+        val acting = request.caller.tenantId.takeIf { request.target?.tenantId == null && request.tenantId == null }
+        val relay = peers.relayOf(type.context, peer.name, acting) ?: return facts.refuse(
             FrameworkCodes.COMMAND_UNHANDLED,
             "$type is of context ${type.context}, which another service serves: its commands go through its command " +
                 "topic, and this node has no command transport.",

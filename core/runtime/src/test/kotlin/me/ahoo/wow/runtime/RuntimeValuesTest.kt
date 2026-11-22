@@ -158,7 +158,7 @@ class RuntimeValuesTest {
         )
         call.toString().assert().isEqualTo(
             "CallContext(commandId=call-1, tenantId=t-1, scope=${Scope("alice")}, causation=$causation, " +
-                "operator=null, wait=null, facts={})",
+                "operator=null, wait=null, facts={}, actingTenant=null)",
         )
         call.wait.assert().isNull()
         // Only the facts that propagate travel with a call (decision D236).

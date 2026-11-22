@@ -241,6 +241,7 @@ class HttpCommandCaller internal constructor(
                 operator = command.operator,
                 wait = call.wait?.toWire(),
                 facts = RequestFacts.propagatedOf(command.headers),
+                actingTenant = call.actingTenant,
             )
         }
     }
