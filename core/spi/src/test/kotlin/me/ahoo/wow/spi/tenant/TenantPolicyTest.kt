@@ -55,8 +55,9 @@ class TenantPolicyTest {
 
     @Test
     fun `a configured fixed tenant is of a type named, and not blank, in the words of whose configuration it is`() {
+        val types = listOf(cart, order)
         fun configured(tenants: Map<String, String>) =
-            TenantPolicy.configured(tenants, listOf(cart, order), "this node serves", { "x.[$it]" }, { "x.[$it].tenant" })
+            TenantPolicy.configured(tenants, types, "this node serves", { "x.[$it]" }, { "x.[$it].tenant" })
         configured(mapOf("shop.cart" to "shared")).fixedTenant(cart).assert().isEqualTo("shared")
         configured(emptyMap()).assert().isSameAs(TenantPolicy.CALLERS)
         val unknown = assertThrows<WowConfigurationException> { configured(mapOf("shop.carts" to "shared")) }

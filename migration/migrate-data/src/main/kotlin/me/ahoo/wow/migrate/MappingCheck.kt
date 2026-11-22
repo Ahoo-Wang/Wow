@@ -163,8 +163,8 @@ internal class MappingCheck(private val plan: MigrationPlan) {
             } else {
                 storeProblems(aggregate, inventory, problems, warnings)
                 ownerProblem(aggregate, ownersOf)?.let { problems += it }
-                tenantProblem(aggregate, outsideTenant)?.let { problems += it }
-                tenantWarning(aggregate, inventory)?.let { warnings += it }
+                problems += listOfNotNull(tenantProblem(aggregate, outsideTenant))
+                warnings += listOfNotNull(tenantWarning(aggregate, inventory))
                 deletionWarning(aggregate, deleted)?.let { warnings += it }
                 TagCheck(aggregate, tags, problems, warnings).check()
             }
