@@ -145,6 +145,21 @@ class CoSecAddressableIdsTest {
         over.byId(id, "state/trace", "GET", root = overRoot).first.assert().isEqualTo(BAD_REQUEST)
     }
 
+    @Test
+    fun `a name longer than a segment CoSec takes should be refused by the build, as CoSec refuses its routes`() {
+        val fits = "a".repeat(AggregateIds.MAX_LENGTH)
+        ManifestMerger.merge(listOf(ManifestFragment("a.json", cartManifest(fits))))
+        val within = CoSecNode(CoSecCallerResolver(CoSecCallerOptions()), aggregate = fits)
+        within.byId("c-1", "open-cart", root = "/shop/$fits").first.assert().isEqualTo(OK)
+        val long = "a".repeat(AggregateIds.MAX_LENGTH + 1)
+        val conflicts = runCatching { ManifestMerger.merge(listOf(ManifestFragment("a.json", cartManifest(long)))) }
+            .exceptionOrNull().let { (it as ManifestConflictException).conflicts }
+        conflicts.assert().allMatch { "has a segment of 257 characters" in it && it.endsWith("aggregate $long") }
+        val over = CoSecNode(CoSecCallerResolver(CoSecCallerOptions()), aggregate = long)
+        over.byId("c-1", "open-cart", root = "/shop/$long").first.assert().isEqualTo(BAD_REQUEST)
+        over.cosec.asked.assert().isEmpty()
+    }
+
     private fun assertConflict(manifest: Manifest) {
         val conflicts = runCatching { ManifestMerger.merge(listOf(ManifestFragment("a.json", manifest))) }
             .exceptionOrNull().let { (it as ManifestConflictException).conflicts }

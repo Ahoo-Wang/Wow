@@ -82,7 +82,7 @@ A type's fixed tenant (`wow.aggregates.[<context>.<aggregate>].tenant`) is its o
 
 - **The gateway first.** CoSec 8.0.0-beta.5 and earlier refuse a path segment longer than 256 characters as received, encoded, with 400 before the service sees the request. Upgrade the gateway to CoSec 8.0.0-beta.6 or later, which counts a segment decoded, before the services.
 - **Then every node.** While a service still runs older nodes, they refuse a longer id as `wow.command.malformed`, and so does an older peer that relays a call. A creation that a newer node took may be followed by a command that an older node refuses. A saga's command to an older target is refused the same way. Let no client or saga create an aggregate with a longer id until every node of the service, and of each service that sends commands to it, runs the new version.
-- **Routes.** The build refuses a Manifest whose route by id takes more than 512 characters besides the id, naming the route and the name to shorten.
+- **Routes.** The build refuses a Manifest whose route by id takes more than 512 characters besides the id, or has a segment of more than 256 characters, naming the route and the name to shorten.
 - **Elasticsearch.** A document's id is the tenant and the aggregate id. It stays as it was while it is at most 512 bytes in UTF-8, so indices need no rebuild. A longer one, a long id behind a long tenant, which an earlier release failed to write, is its prefix and the SHA-256 of the whole.
 
 ## Settings that must not change
