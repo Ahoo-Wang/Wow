@@ -161,6 +161,10 @@ class OtelObserver(
             is ObservedEvent.TailRead -> tailRead(event.context, event.reason.value)
             is ObservedEvent.Undecodable -> undecodable(event.topic, event.parked)
             is ObservedEvent.OffsetGap -> cached.counter(WowMetrics.OFFSET_GAPS, event.topic).increment()
+            is ObservedEvent.PeerBypassed ->
+                cached.counter(WowMetrics.PEER_BYPASS_NOTICES, event.context, WowMetrics.BYPASSED_KIND).increment()
+            is ObservedEvent.PeerRestored ->
+                cached.counter(WowMetrics.PEER_BYPASS_NOTICES, event.context, event.reason.value).increment()
             is ObservedEvent.Fatal ->
                 cached.counter(WowMetrics.FATAL_ERRORS, event.component.value, event.error).increment()
         }

@@ -353,6 +353,49 @@ sealed class ObservedEvent {
     }
 
     /**
+     * A client of this node sent a request to [target], a node of [context]'s peer service (its base URL, text: an
+     * address), and the node took it and did not answer it within the request's bound: the requests to [context] that
+     * follow go to its other nodes, until it answers a request, the peer list is read again or it lapses
+     * ([PeerRestored]). No probe is sent, and the unanswered request is not sent again.
+     */
+    class PeerBypassed @InternalWowApi constructor(val context: String, val target: String) : ObservedEvent() {
+        override fun fields() = listOf("context" to context, "target" to target)
+    }
+
+    /**
+     * [target], a node of [context]'s peer service bypassed for [bypassedMillis] ([PeerBypassed]), is back in the
+     * rotation, or gone from it, as [reason] says.
+     */
+    class PeerRestored @InternalWowApi constructor(
+        val context: String,
+        val target: String,
+        val bypassedMillis: Long,
+        val reason: Reason,
+    ) : ObservedEvent() {
+        override fun fields() =
+            listOf("context" to context, "target" to target, "bypassedMillis" to bypassedMillis, "reason" to reason)
+
+        /**
+         * Why a bypassed node is back.
+         *
+         * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+         */
+        enum class Reason(val value: String) {
+            /** It answered a request, any whole response: it is back in the rotation. */
+            ANSWERED("answered"),
+
+            /** The peer list was read again and still lists it: it is back in the rotation. */
+            RELISTED("relisted"),
+
+            /** The peer list no longer lists it: it is gone from the rotation. */
+            UNLISTED("unlisted"),
+
+            /** Its bypass outlived the time a peer list is kept, with no list read again: it is back in the rotation. */
+            LAPSED("lapsed"),
+        }
+    }
+
+    /**
      * [subscription] of the subscription [group] paused [partition] on a systemic failure, [reason] describing it (the
      * failure's own words, so text): it handles nothing there but one probe at a time, spending no aggregate's retries
      * and parking none, until a handling succeeds ([PartitionResumed]).

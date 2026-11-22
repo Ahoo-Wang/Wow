@@ -114,8 +114,10 @@ class HttpCommandCaller internal constructor(
         timeouts: Map<String, Duration> = emptyMap(),
         contracts: List<Manifest> = classPathContracts(),
         defaultWait: Duration = WaitPlan.DEFAULT_TIMEOUT,
+        /** The nodes that took a request and did not answer it: the node's, which its clients share. */
+        silent: SilentPeers = SilentPeers(),
     ) : this(
-        HttpTransport(endpoints, ClientMode.Service(service), client, timeout, RetryPolicy.NONE, timeouts),
+        HttpTransport(endpoints, ClientMode.Service(service), client, timeout, RetryPolicy.NONE, timeouts, silent),
         CommandIndex(contracts),
         defaultWait = defaultWait,
     )

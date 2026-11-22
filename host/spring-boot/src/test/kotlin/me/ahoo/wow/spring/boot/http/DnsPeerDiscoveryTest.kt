@@ -16,6 +16,7 @@ package me.ahoo.wow.spring.boot.http
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.decide.Misuse
+import me.ahoo.wow.client.PeerList
 import me.ahoo.wow.client.Port
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.Manifest
@@ -161,6 +162,40 @@ class DnsPeerDiscoveryTest {
     }
 
     @Test
+    fun `each lookup that finds a peer's nodes should be a generation of its list, the cached and failed ones not`(
+        @TempDir dir: Path
+    ): Unit = runBlocking {
+        val clock = TestTimeSource()
+        val targets = DnsPeerTargets(
+            DnsPeerDiscovery.DEFAULT_NAME_TEMPLATE,
+            lookup(dir),
+            namespace = "default",
+            clock = clock,
+        )
+        fun generation() = runBlocking {
+            (
+                targets.targetsOf(
+                    "eshop-ordering",
+                    "eshop-ordering"
+                ) as PeerList
+                ).generation
+        }
+        val first = generation()
+        // Kept as it was looked up: the same generation, so a node the client bypassed stays bypassed.
+        generation().assert().isEqualTo(first)
+        clock += DnsPeerTargets.REFRESH
+        // Looked up again and found, the same nodes: a new generation, which brings a bypassed node back.
+        val second = generation()
+        second.assert().isGreaterThan(first)
+        clock += DnsPeerTargets.REFRESH
+        failing = true
+        // A lookup that fails keeps the list found last, and its generation: the nodes were not read again.
+        generation().assert().isEqualTo(second)
+        // The list is kept as long as a client bypasses a node of it, one constant for both.
+        DnsPeerTargets.REFRESH.assert().isEqualTo(PeerList.REFRESH)
+    }
+
+    @Test
     fun `a peer in another namespace should be found by its namespace, the others in the node's own`(
         @TempDir dir: Path
     ): Unit = runBlocking {
@@ -211,6 +246,13 @@ class DnsPeerDiscoveryTest {
             endpoints.resolve("mail", Port.INTERNAL).assert().isEqualTo(URI.create("http://mail:9090"))
             endpoints.resolve("mail", Port.PUBLIC).assert().isEqualTo(URI.create("http://mail:8080"))
             endpoints.resolveAll("eshop-ordering", Port.INTERNAL).assert().hasSize(2)
+            // What the client reads is the lookup's own list, its generation with it, not a copy: a bypassed node
+            // comes back when the records are read again, not only when a bypass lapses.
+            val found = endpoints.resolveAll("eshop-ordering", Port.INTERNAL)
+            found.assert().isInstanceOf(PeerList::class.java)
+            endpoints.resolveAll("eshop-ordering", Port.INTERNAL).assert().isSameAs(found)
+            // A fixed url is a plain list, of no generation.
+            endpoints.resolveAll("mail", Port.INTERNAL).assert().isNotInstanceOf(PeerList::class.java)
             endpoints.resolveAll("eshop-ordering", Port.PUBLIC).assert().isEmpty()
             // A saga's call needs no listing: its contract names the service.
             endpoints.reaches("eshop-payment", Port.INTERNAL).assert().isTrue()

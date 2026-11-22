@@ -20,6 +20,7 @@ import me.ahoo.wow.client.HttpCommandCaller
 import me.ahoo.wow.client.PeerClients
 import me.ahoo.wow.client.RetryPolicy
 import me.ahoo.wow.client.RoutedCommandClient
+import me.ahoo.wow.client.SilentPeers
 import me.ahoo.wow.client.UserCredential
 import me.ahoo.wow.client.WowClient
 import me.ahoo.wow.runtime.admission.CommandGateway
@@ -27,6 +28,7 @@ import me.ahoo.wow.runtime.client.InProcessCommandClient
 import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.spi.call.CommandCaller
 import me.ahoo.wow.spi.id.GlobalIdGenerator
+import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.peer.PeerDiscovery
 import me.ahoo.wow.spring.boot.WowAutoConfiguration
 import me.ahoo.wow.spring.boot.WowAutoConfiguration.Companion.PEER_HTTP_CLIENT
@@ -96,6 +98,7 @@ internal class NodePeers {
         endpoints: EndpointResolver,
         @Qualifier(PEER_HTTP_CLIENT) client: HttpClient,
         contracts: ContractDirectory,
+        silent: SilentPeers,
     ): CommandCaller = HttpCommandCaller(
         endpoints,
         identity.service,
@@ -105,7 +108,17 @@ internal class NodePeers {
         contracts.fragments.map { it.manifest },
         // A call that goes on with no wait states this node's own: the side that pays for the wait sets it.
         properties.wait.defaultTimeout.toKotlinDuration(),
+        silent,
     )
+
+    /**
+     * The peers' nodes that took a request and did not answer it, which the node's clients, its sagas' calls, its
+     * commands and its queries, pass over together for a while ([SilentPeers]).
+     */
+    @Bean
+    @InternalWowApi
+    fun wowSilentPeers(observers: ObjectProvider<Observer>): SilentPeers =
+        SilentPeers(Observer.of(observers.orderedStream().toList()))
 
     /**
      * The peer contexts reached over HTTP, `wow.peers`, and their clients in either mode, each
@@ -122,6 +135,7 @@ internal class NodePeers {
         contracts: ContractDirectory,
         globalIds: GlobalIdGenerator,
         @Qualifier(PEER_HTTP_CLIENT) httpClient: HttpClient,
+        silent: SilentPeers,
     ): PeerClients {
         val peer = properties.peer
         val described = properties.peers
@@ -143,6 +157,7 @@ internal class NodePeers {
                 .contracts(contracts.fragments)
                 .ids(globalIds)
                 .manifestPeers(described)
+                .silentPeers(silent)
             properties.peerTimeouts().forEach { (context, timeout) -> builder.timeout(context, timeout) }
             builder.apply(mode).build()
         }

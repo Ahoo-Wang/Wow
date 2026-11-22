@@ -907,6 +907,29 @@ public final class me/ahoo/wow/spi/observation/ObservedEvent$PartitionThrottled 
 	public final fun getThrottled ()Z
 }
 
+public final class me/ahoo/wow/spi/observation/ObservedEvent$PeerBypassed : me/ahoo/wow/spi/observation/ObservedEvent {
+	public final fun getContext ()Ljava/lang/String;
+	public final fun getTarget ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/observation/ObservedEvent$PeerRestored : me/ahoo/wow/spi/observation/ObservedEvent {
+	public final fun getBypassedMillis ()J
+	public final fun getContext ()Ljava/lang/String;
+	public final fun getReason ()Lme/ahoo/wow/spi/observation/ObservedEvent$PeerRestored$Reason;
+	public final fun getTarget ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/observation/ObservedEvent$PeerRestored$Reason : java/lang/Enum {
+	public static final field ANSWERED Lme/ahoo/wow/spi/observation/ObservedEvent$PeerRestored$Reason;
+	public static final field LAPSED Lme/ahoo/wow/spi/observation/ObservedEvent$PeerRestored$Reason;
+	public static final field RELISTED Lme/ahoo/wow/spi/observation/ObservedEvent$PeerRestored$Reason;
+	public static final field UNLISTED Lme/ahoo/wow/spi/observation/ObservedEvent$PeerRestored$Reason;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public final fun getValue ()Ljava/lang/String;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/spi/observation/ObservedEvent$PeerRestored$Reason;
+	public static fun values ()[Lme/ahoo/wow/spi/observation/ObservedEvent$PeerRestored$Reason;
+}
+
 public final class me/ahoo/wow/spi/observation/ObservedEvent$Refused : me/ahoo/wow/spi/observation/ObservedEvent {
 	public final fun getCode ()Ljava/lang/String;
 	public final fun getType ()Lme/ahoo/wow/api/aggregate/AggregateType;

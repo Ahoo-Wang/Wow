@@ -290,6 +290,21 @@ service:
 
 chart 随后给节点设置 `wow.peer.dns.namespaces.eshop-payment-service: payments`，节点便到 `_internal._tcp.eshop-payment-service-cluster.payments.svc` 查找对端，内部策略也放行来自那个命名空间的对端 Pod。对端自己的内部策略也须放行本服务的 Pod：在它的 `networkPolicy.internal.from` 中加一个带 `namespaceSelector` 的条目。
 
+### 不再答复的对端节点 {#a-peer-node-that-stops-answering}
+
+无声消失的节点，例如被强制删除的 Pod 或宕掉的机器，它的地址可能只丢包、不回复位，而它还留在节点缓存 30 秒的 SRV 记录里。走到它的连接上的请求得不到答复：命令或调用到它的等待加一段宽限、查询到 `wow.peer.timeout` 时结束，结果是 `wow.command.unknown`、`wow.query.timeout` 或 `wow.peer.unavailable`。它不会被重发，因为它是否执行过无从得知。
+
+之后节点的客户端会绕开这个节点：发往该上下文同一端口的后续请求改发给它的其他节点。Saga 的调用和服务模式客户端的命令、查询都发往对端的内部端口，所以它们共用这一点：一个没得到答复的查询，也会让调用绕开这个节点。用户模式客户端的请求发往对端的公开端口，那是另一份名单，各自结算：这个节点在那里答不答复，要由那个端口自己的请求来证明。所以消失的节点只让一个请求付出时限，而不是在记录重新读取之前轮到它的每个请求。这个节点在以下情况回来：
+
+- 它答复了一个仍在途中的请求，不论答复什么；
+- 记录重新读取后仍列着它：它重新接收请求，若仍不答复，就再让一个请求付出时限，并再次被绕开；
+- 记录重新读取后不再列着它：它被移除；
+- 没有任何东西重新读取记录时（例如固定的 `url`，或不给出查找代次的发现方式），过了记录的保留时长 30 秒。
+
+只是接受了连接不会让它回来：一个接受连接却从不答复的节点也能通过这种判断。一个上下文的所有节点都被绕开时，请求照旧发往全部节点，就像没有绕开一样：请求绝不会因此不发。
+
+它不是健康检查：不发任何探测，答复慢但在时限内的节点也绝不会被绕开。每次绕开和每次回归都由 `me.ahoo.wow.client.SilentPeers` 记一行日志，写明被绕开多久，并计入 `wow.peer.bypass.notices`（[可观测性](../reference/observability)）。
+
 ### 每个可用区都有集群的 DNS {#the-clusters-dns-in-every-zone}
 
 节点解析的每个名字都经过集群的 DNS：它的存储、Kafka broker、对端的 SRV 记录，以及网关到各服务的路由。让 DNS 在每个可用区运行，每个可用区至少一个副本，而且是必须，不只是倾向。在 `topology.kubernetes.io/zone` 上加一个 `whenUnsatisfiable: DoNotSchedule` 的拓扑分布约束即可做到。在一个三可用区的集群里，CoreDNS 的两个副本恰好落在同一个可用区；失去这个可用区之后，各服务有 256 秒互相解析不到，而每个 Wow 节点本身都是健康的：
