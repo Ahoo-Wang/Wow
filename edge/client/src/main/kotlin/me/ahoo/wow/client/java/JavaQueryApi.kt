@@ -115,6 +115,9 @@ class JavaTrustedQueries internal constructor(private val delegate: TrustedQueri
 
     /** These queries without a budget ([TrustedQueries.unbounded]). */
     fun unbounded(): JavaTrustedQueries = JavaTrustedQueries(delegate.unbounded())
+
+    /** These queries returning `DISPLAY` values raw, `CONFIDENTIAL` ones still masked ([TrustedQueries.revealed]). */
+    fun revealed(): JavaTrustedQueries = JavaTrustedQueries(delegate.revealed())
 }
 
 /** [RowQueries] for Java callers: each query blocking, or asynchronous with the `Async` suffix. */

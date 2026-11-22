@@ -18,7 +18,9 @@ import kotlin.reflect.KClass
 
 /**
  * How much the query subsystem protects a [Sensitive] field's raw value. Both levels mask the value in every query
- * result; they differ in what a query may do with the raw value.
+ * result; they differ in what a query may do with the raw value, and in whether the service's own code may ask for it:
+ * a revealing read (`TrustedQueries.revealed()`, a subscription handler's `queries.revealed()`) returns a `DISPLAY`
+ * value raw, never a `CONFIDENTIAL` one.
  *
  * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
@@ -113,7 +115,8 @@ fun interface MaskStrategy {
 /**
  * A sensitive value as a [MaskStrategy] sees it: the raw [value] of a query result and the [level] its field declares.
  * Fields may be added in a minor release: construct it with [of]; the constructor is internal to Wow. Masking does not
- * depend on the caller, every caller seeing the same mask, so no caller is among its fields.
+ * depend on the caller, every caller seeing the same mask, so no caller is among its fields. A revealing read, which
+ * returns a `DISPLAY` value raw, does not ask the strategy for it at all.
  *
  * Its [toString] names the level only, so a logged value never shows the raw one.
  */

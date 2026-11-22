@@ -37,6 +37,7 @@ import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.read.TenantQueryApi
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import tools.jackson.databind.node.ObjectNode
 
 /** Decision D259: every handler reads through its context's queries, in the tenant of the commit it handles. */
@@ -87,6 +88,12 @@ class ContextQueriesTest {
             read.trusted().assert().isSameAs(trusted)
         }
         caller.captured.assert().isEqualTo(Caller.of(tenantId = "acme"))
+    }
+
+    @Test
+    fun `a handler's revealing queries should be refused over an API that pins no tenant, naming what does`() {
+        assertThrows<UnsupportedOperationException> { ContextQueries.of(api).of("acme").revealed() }
+            .message.assert().contains("tenant acme", "TenantQueryApi", "memoryQueries")
     }
 
     @Test

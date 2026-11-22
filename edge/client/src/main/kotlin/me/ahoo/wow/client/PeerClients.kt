@@ -183,15 +183,30 @@ class RoutedQueryApi(
      */
     override fun tenant(tenantId: String): SubscriptionQueries {
         val pinned = checkNotNull(local as? TenantQueryApi) { "The local queries pin no tenant." }.tenant(tenantId)
-        val service = Caller.ofService(peers.serviceName, tenantId)
-        return object : SubscriptionQueries, Queries by Routed(pinned, service) {
-            override val tenantId: String = tenantId
-
-            override fun trusted(): TrustedQueries = pinned.trusted()
-        }
+        return TenantRouted(tenantId, pinned, Caller.ofService(peers.serviceName, tenantId))
     }
 
-    private inner class Routed(private val local: Queries, private val caller: Caller) : Queries {
+    /**
+     * A handler's queries of [pinned]'s tenant: its own models in process, a peer's as [service]. [revealed] ones read
+     * the node's own models revealing `DISPLAY` values, and refuse a peer's until the peers reveal (#6509).
+     */
+    private inner class TenantRouted(
+        override val tenantId: String,
+        private val pinned: SubscriptionQueries,
+        private val service: Caller,
+        private val revealing: Boolean = false,
+    ) : SubscriptionQueries, Queries by Routed(pinned, service, revealing) {
+        override fun trusted(): TrustedQueries = pinned.trusted()
+
+        override fun revealed(): SubscriptionQueries =
+            if (revealing) this else TenantRouted(tenantId, pinned.revealed(), service, revealing = true)
+    }
+
+    private inner class Routed(
+        private val local: Queries,
+        private val caller: Caller,
+        private val revealing: Boolean = false,
+    ) : Queries {
         override fun <S : Any> snapshots(stateType: Class<S>): TenantSnapshotQueries<S> {
             if (stateType in localStates || peers.contexts.isEmpty()) return local.snapshots(stateType)
             val type = peers.client.queries.of(caller).snapshots(stateType).type
@@ -207,7 +222,13 @@ class RoutedQueryApi(
         override fun <R : Any> datasets(name: DatasetName, rowType: Class<R>): RowQueries<R> =
             peerOf(name.context)?.datasets(name, rowType) ?: local.datasets(name, rowType)
 
-        private fun peerOf(context: String): Queries? =
-            if (peers.reaches(context)) peers.clientOf(context).queries.of(caller) else null
+        private fun peerOf(context: String): Queries? {
+            if (!peers.reaches(context)) return null
+            check(!revealing) {
+                "$context is a peer: its DISPLAY values are not revealed to this service yet, so its models are not " +
+                    "read through revealed queries. Read it through the handler's queries, masked."
+            }
+            return peers.clientOf(context).queries.of(caller)
+        }
     }
 }

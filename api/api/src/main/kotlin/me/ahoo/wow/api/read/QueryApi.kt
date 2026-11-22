@@ -143,13 +143,23 @@ interface SubscriptionQueries : Queries {
     /** The tenant these queries read: the commit's. */
     val tenantId: String
 
-    /** The queries of trusted code across every tenant; see [NodeQueryApi.trusted]. */
+    /** The queries of trusted code across every tenant; see [NodeQueryApi.trusted]. Revealing when these are. */
     fun trusted(): TrustedQueries
+
+    /**
+     * These queries returning the raw value of every `@Sensitive(DISPLAY)` field, still pinned to [tenantId]: the
+     * handler's own read of a value it must use, such as a phone number it sends a message to. Every `CONFIDENTIAL`
+     * value is still masked, and every query derived from these ([trusted]) reveals too. A peer's model read through
+     * them is refused until the peers reveal (#6509).
+     */
+    fun revealed(): SubscriptionQueries
 }
 
 /**
  * The queries of trusted code ([NodeQueryApi.trusted]): no tenant restricts them, so a state is read by its ref alone
- * ([SnapshotQueries]). [unbounded] lifts the in-process budget for a job that must read everything.
+ * ([SnapshotQueries]). [unbounded] lifts the in-process budget for a job that must read everything; [revealed] returns
+ * the raw `DISPLAY` values the queries mask otherwise. Each keeps the other: `revealed().unbounded()` and
+ * `unbounded().revealed()` are the same queries.
  *
  * Wow implements it and an application calls it: implementing it needs an opt-in to [InternalWowApi], which an
  * application does not give, so members may be added in a minor release.
@@ -161,11 +171,22 @@ interface TrustedQueries : QueryModels {
      * (`wow.query.unbounded-timeout`) applies. For jobs that read a whole model, not for anything a request drives.
      */
     fun unbounded(): TrustedQueries
+
+    /**
+     * These queries returning the raw value of every `@Sensitive(DISPLAY)` field, which every other query masks: the
+     * service's own read of a value it must use, asked in so many words, because the result of a trusted read often
+     * goes straight into a response, where a default would leak the field the day it is marked `DISPLAY`. Every
+     * `CONFIDENTIAL` value is still masked, and so is a state of an aggregate's history; a custom mask strategy is not
+     * asked for a revealed value. A dataset's `DISPLAY` columns are revealed alike. Never hand these to a caller: a
+     * caller's queries ([QueryApi.of]) have no such member.
+     */
+    fun revealed(): TrustedQueries
 }
 
 /**
  * The query operations of one model, each row decoded as [R]. A row a policy hides is never returned; a field the
- * schema masks is masked as on the public port.
+ * schema masks is masked as on the public port, but for a `DISPLAY` field of revealing queries
+ * ([TrustedQueries.revealed], [SubscriptionQueries.revealed]).
  *
  * Wow implements it and an application calls it: implementing it needs an opt-in to [InternalWowApi], which an
  * application does not give, so members may be added in a minor release.

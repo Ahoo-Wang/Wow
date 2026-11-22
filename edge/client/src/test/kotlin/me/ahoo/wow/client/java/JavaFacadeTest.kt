@@ -16,6 +16,7 @@ package me.ahoo.wow.client.java
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import me.ahoo.test.asserts.assert
@@ -95,9 +96,11 @@ class JavaFacadeTest {
             every { dynamic(String::class.java) } returns rows
         }
         val unbounded = mockk<TrustedQueries>(relaxed = true)
+        val revealed = mockk<TrustedQueries> { every { events(type) } returns events }
         val trusted = mockk<TrustedQueries> {
             every { events(type) } returns events
             every { unbounded() } returns unbounded
+            every { revealed() } returns revealed
             @OptIn(me.ahoo.wow.api.annotation.ExperimentalWowApi::class)
             every { datasets(DatasetName.of("shop", "sales"), String::class.java) } returns rows
         }
@@ -111,6 +114,9 @@ class JavaFacadeTest {
             String::class.java
         ).single(SingleQuery(all)).assert().isEqualTo("one")
         queries.unbounded().assert().isNotNull()
+        // The revealing queries are the delegate's own.
+        queries.revealed().events(type).type.assert().isEqualTo(type)
+        verify { revealed.events(type) }
     }
 
     @Test

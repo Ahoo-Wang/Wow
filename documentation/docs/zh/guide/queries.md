@@ -132,11 +132,38 @@ var status: ProductStatus = ProductStatus.DRAFT
 | `@QueryText` | 供人按词检索的文字，例如名称或描述：`search` 可以指定它，不指定字段的 `search` 也会读它（[Elasticsearch 上](../operate/elasticsearch#full-text-search)） |
 | `@Sensitive` | 在每个结果中脱敏的字符串：`DISPLAY` 仍可以过滤和排序，`CONFIDENTIAL` 永远不可以 |
 
-脱敏的字段对每个调用方都脱敏：在查询、状态读取、事件查询和轨迹中都一样，在数仓的目录中、在[状态视图缓存](./extensions/cocache)中也一样。它在 Wow 作为读取返回它的地方脱敏，而不是在 Wow 存储或发布它的地方：见[脱敏止步之处](#where-masking-stops)。
+脱敏的字段对每个调用方都脱敏：在查询、状态读取、事件查询和轨迹中都一样，在数仓的目录中、在[状态视图缓存](./extensions/cocache)中也一样。它在 Wow 作为读取返回它的地方脱敏，而不是在 Wow 存储或发布它的地方：见[脱敏止步之处](#where-masking-stops)。唯一的例外是服务自己明确要求读取的 `DISPLAY` 值（[见下文](#read-a-display-value-raw)）。
+
+### 读取 `DISPLAY` 值的原值 {#read-a-display-value-raw}
+
+服务自己的代码可能需要 `DISPLAY` 值本身：要发短信的手机号，要写信的邮箱地址。它要明确说出来。`revealed()` 给出的查询会返回每个 `DISPLAY` 值的原值：
+
+- 节点的 `NodeQueryApi` 上的 `trusted().revealed()`；
+- 订阅处理函数里的 `context.queries.revealed()`，仍固定在它所处理提交的租户上。
+
+<!-- sample: fragment -->
+
+```kotlin
+val customer = queries.trusted().revealed().snapshots(CustomerState::class.java).state(ref) ?: return
+sms.send(customer.state.phone, text)
+```
+
+- **仍然脱敏的。**
+  - 每个 `CONFIDENTIAL` 值。
+  - 聚合历史中的状态（按版本或时间读取的状态）以及轨迹。
+  - 调用方的查询 `of(caller)`，它没有 `revealed()`，所以为用户做的读取永远不会揭示，不论由谁转发。
+  - 策略或缓存加载器在查询内部发起的查询。状态视图缓存里存的是普通读取返回的值（[通过 CoCache 共享状态](./extensions/cocache)）。
+- **可以组合。** `revealed().unbounded()` 与 `unbounded().revealed()` 是同一组查询，处理函数的 `revealed().trusted()` 也会揭示。
+- **数据集也一样。** 数据集的查询共用同样的遮蔽，所以揭示读取会返回数据集中受 `DISPLAY` 保护的列的原值。
+- **不调用策略。** 被揭示的值不会调用自定义的 `MaskStrategy`。
+- **对端。** 通过处理函数的 `revealed()` 查询读取对端的模型会被拒绝，而不是读到脱敏值：对端目前还不向本服务揭示。
+- **审计。** 每次揭示读取都会被记录：它的审计把原样返回的字段（`revealedFields`）与脱敏的字段分开列出。
+
+为什么必须明确说出来：受信读取的结果常常直接写进响应，默认揭示的读取会在某个字段被标为 `DISPLAY` 的那天把它泄露出去。不要把揭示查询的结果返回给调用方。Java 代码写作 `JavaQueryApi.of(nodeQueryApi).trusted().revealed()`。
 
 ### 服务需要读回的密钥 {#a-secret-a-service-reads-back}
 
-脱敏不取决于谁在问，服务自己也是调用方。进程内的读取，`of(caller)`、`trusted()` 及其 `unbounded()`、订阅处理函数的 `context.queries`，走的是和公开端口相同的遮蔽，没有任何设置或调用方能解除。原始值只出现在 Wow 把状态本身交给代码的地方，而不是对它的查询：decide 函数持有的状态，以及订阅处理函数收到的 `StateEvent`。
+`CONFIDENTIAL` 值对每个读取方都脱敏，服务自己也不例外：进程内的读取，`of(caller)`、`trusted()` 及其 `unbounded()` 或 `revealed()`、订阅处理函数的 `context.queries`，都无法解除，也没有任何设置能解除。原始值只出现在 Wow 把状态本身交给代码的地方，而不是对它的查询：decide 函数持有的状态，以及订阅处理函数收到的 `StateEvent`。
 
 所以服务必须读回的密钥，比如它向第三方出示的 API key，不是状态里的 `@Sensitive` 字段。状态里只放一个引用，即查找密钥所用的名字，密钥本身另存：放在服务能读到的配置或密钥库里，或者以密文放在不是 `@Sensitive` 的字段里，由服务解密。Wow 按写入时的样子保存状态与事件，不对它们加密，所以状态里的原始密钥会留在日志和每一份快照里，不论查询在上面加了什么遮蔽。
 

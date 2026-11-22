@@ -90,7 +90,9 @@ import tools.jackson.databind.node.ObjectNode
  *   policies see its attributes; the in-process budget (the engine's [me.ahoo.wow.query.policy.QueryEntryPolicy.inProcess])
  *   bounds it.
  * - [trusted] code queries with no caller on the same entry and budget, [TrustedQueries.unbounded] on
- *   [QueryEntry.UNBOUNDED] without the budget.
+ *   [QueryEntry.UNBOUNDED] without the budget, and [TrustedQueries.revealed] with the caller's
+ *   [revealsDisplay][QueryCaller.revealsDisplay] set; each keeps the other, and a handler's [SubscriptionQueries.revealed]
+ *   keeps its tenant.
  * - A `list` that names no limit runs with the budget's list default ([defaultListSize], at most its list size), as over
  *   HTTP, and a `cursor` page that names no size with the same default, at most the budget's page size; a `stream`
  *   reads keyset chunks of [chunkSize].
@@ -142,22 +144,36 @@ class InProcessQueryApi @InternalWowApi constructor(
         }
     }
 
-    /** Trusted code's queries, of [caller]'s entry: the in-process budget's, or none ([unbounded]). */
+    /**
+     * Trusted code's queries, of [caller]'s entry, the in-process budget's or none ([unbounded]), revealing `DISPLAY`
+     * values or not ([revealed]): each keeps the other.
+     */
     private inner class Trusted(caller: QueryCaller = QueryCaller.IN_PROCESS) : Scoped(caller), TrustedQueries {
         private val unbounded: TrustedQueries by lazy {
-            if (caller.entry == QueryEntry.UNBOUNDED) this else Trusted(QueryCaller(entry = QueryEntry.UNBOUNDED))
+            if (caller.entry == QueryEntry.UNBOUNDED) this else Trusted(caller.copy(entry = QueryEntry.UNBOUNDED))
+        }
+
+        private val revealed: TrustedQueries by lazy {
+            if (caller.revealsDisplay) this else Trusted(caller.copy(revealsDisplay = true))
         }
 
         override fun unbounded(): TrustedQueries = unbounded
+
+        override fun revealed(): TrustedQueries = revealed
     }
 
-    private inner class TenantScoped(override val tenantId: String) :
+    private inner class TenantScoped(override val tenantId: String, revealsDisplay: Boolean = false) :
         Scoped(
-            QueryCaller(entry = QueryEntry.IN_PROCESS).withScope(QueryScope(authenticated = TenantIdFilter(tenantId))),
+            QueryCaller(entry = QueryEntry.IN_PROCESS, revealsDisplay = revealsDisplay)
+                .withScope(QueryScope(authenticated = TenantIdFilter(tenantId))),
             tenantId,
         ),
         SubscriptionQueries {
-        override fun trusted(): TrustedQueries = this@InProcessQueryApi.trusted
+        override fun trusted(): TrustedQueries =
+            if (caller.revealsDisplay) this@InProcessQueryApi.trusted.revealed() else this@InProcessQueryApi.trusted
+
+        override fun revealed(): SubscriptionQueries =
+            if (caller.revealsDisplay) this else TenantScoped(tenantId, revealsDisplay = true)
     }
 
     /** The queries of [gateway] for [caller], each record read by [row]; refused by [check] first when typed. */
