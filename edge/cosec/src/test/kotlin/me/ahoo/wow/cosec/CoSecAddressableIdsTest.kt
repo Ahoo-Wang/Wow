@@ -100,7 +100,10 @@ class CoSecAddressableIdsTest {
     fun `an id CoSec's pipeline refuses in a path should be one admission refuses`() {
         // Longer than 256 characters decoded, in one or two units each, and what the path check refuses encoded.
         val refused = listOf(
-            "semi;colon", "slash/inside", "back\\slash", "x".repeat(AggregateIds.MAX_LENGTH + 1),
+            "semi;colon",
+            "slash/inside",
+            "back\\slash",
+            "x".repeat(AggregateIds.MAX_LENGTH + 1),
             "😀".repeat(128) + "x",
         )
         refused.forEach { id ->

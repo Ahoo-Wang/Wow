@@ -104,18 +104,17 @@ internal class ElasticsearchNames(prefix: String = "") {
             return prefixOf(id, MAX_DOCUMENT_ID_BYTES - 1 - DIGEST_LENGTH) + "/" + digest
         }
 
-        /** The longest prefix of [text] of at most [bytes] bytes in UTF-8, never cutting a surrogate pair. */
+        /**
+         * The longest prefix of [text] of at most [bytes] bytes in UTF-8, never cutting a surrogate pair: its code
+         * points while their bytes fit, as [AggregateIdLimits.utf8Length] counts them.
+         */
         private fun prefixOf(text: String, bytes: Int): String {
-            var end = 0
             var taken = 0
-            while (end < text.length) {
-                val next = text.offsetByCodePoints(end, 1)
-                val size = AggregateIdLimits.utf8Length(text.substring(end, next))
-                if (taken + size > bytes) break
-                taken += size
-                end = next
-            }
-            return text.substring(0, end)
+            val kept = text.codePoints().takeWhile { code ->
+                taken += AggregateIdLimits.utf8Length(String(Character.toChars(code)))
+                taken <= bytes
+            }.toArray()
+            return String(kept, 0, kept.size)
         }
     }
 }
