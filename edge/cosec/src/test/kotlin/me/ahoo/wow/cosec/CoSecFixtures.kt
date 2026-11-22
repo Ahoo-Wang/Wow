@@ -39,10 +39,11 @@ import me.ahoo.cosec.runtime.http.HttpFacts
 import me.ahoo.cosec.spi.authn.AuthenticatedPrincipal
 import me.ahoo.cosec.spi.authn.AuthnResult
 import me.ahoo.cosec.spi.authn.Credentials
+import me.ahoo.cosec.spi.identity.Identity
 import me.ahoo.cosec.spi.membership.MembershipClaims
 import me.ahoo.cosec.spi.snapshot.InMemorySnapshotDocumentStore
 import me.ahoo.cosec.spi.snapshot.SnapshotKey
-import me.ahoo.cosec.webflux.testing.CoSecTestBindings
+import me.ahoo.cosec.testkit.webflux.CoSecTestBindings
 import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
@@ -237,7 +238,7 @@ class CoSecPipeline(
                 attributes,
                 app = parts[3].ifBlank { null }?.let(::AppId),
             ),
-            "test",
+            Identity.Method("test"),
         )
     }
 

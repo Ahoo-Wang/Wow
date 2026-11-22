@@ -9,6 +9,8 @@ dependencies {
     compileOnly(libs.cosec.webflux)
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor")
     testImplementation(libs.cosec.webflux)
+    // CoSecTestBindings: the test kit's from CoSec 8.0.0-beta.5, no longer cosec-webflux's.
+    testImplementation(libs.cosec.testkit)
     testImplementation("org.springframework:spring-test")
     testImplementation("io.projectreactor:reactor-test")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test")

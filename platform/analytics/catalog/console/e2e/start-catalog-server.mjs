@@ -104,8 +104,12 @@ const server = spawn(
     "--wow.analytics.catalog.refresh-interval=500ms",
     "--wow.analytics.catalog.datasets.refresh-interval=200ms",
     ...(cosec
-      ? // A deployment's callers: the identity the CoSec gateway forwards.
-        ["--spring.profiles.active=cosec"]
+      ? // A deployment's callers: the identity the CoSec gateway forwards. The server listens on 127.0.0.1 behind
+        // the stand-in alone, which states CoSec's boundary (a deployment's chart writes it with its NetworkPolicy).
+        [
+          "--spring.profiles.active=cosec",
+          "--cosec.pipeline.identity.only-gateway-can-reach=true",
+        ]
       : // The console names its caller in headers, which the server reads in development alone (a local run).
         ["--spring.profiles.active=dev"]),
     `--spring.main.sources=${SOURCES.join(",")}`,

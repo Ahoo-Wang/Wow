@@ -18,6 +18,13 @@ data:
   WOW_WAIT_MAXTIMEOUT: {{ printf "%ds" (int .Values.shutdown.waitMaxTimeoutSeconds) | quote }}
   WOW_CLUSTER_DRAINTIMEOUT: {{ printf "%ds" (int .Values.shutdown.drainTimeoutSeconds) | quote }}
   WOW_SUBSCRIPTION_STOPTIMEOUT: {{ printf "%ds" (int .Values.shutdown.subscriptionStopTimeoutSeconds) | quote }}
+  {{- if and .Values.networkPolicy.enabled .Values.networkPolicy.public.onlyGateway (not (hasKey .Values.config "COSEC_PIPELINE_IDENTITY_ONLYGATEWAYCANREACH")) }}
+  # The statement CoSec asks of a service behind its gateway (wow.cosec.mode: gateway), which believes the CoSec-Identity
+  # header it is sent: only the gateway can reach the public port, which the public NetworkPolicy makes true while
+  # networkPolicy.public.from names the gateway's pods alone (networkPolicy.public.onlyGateway says so). A service that
+  # does not run CoSec in gateway mode reads nothing of it.
+  COSEC_PIPELINE_IDENTITY_ONLYGATEWAYCANREACH: "true"
+  {{- end }}
   {{- range $key, $value := .Values.config }}
   {{ $key }}: {{ $value | toString | quote }}
   {{- end }}

@@ -1,0 +1,7 @@
+# The tests' statement that only the CoSec gateway can reach this service, which CoSec 8.0.0-beta.5 asks of a host in
+# its gateway mode (the `cosec` profile's `wow.cosec.mode: gateway`): a deployment makes it true with the wow-service
+# chart's NetworkPolicy, which writes it there; a test is reached by its own client alone.
+cosec:
+  pipeline:
+    identity:
+      only-gateway-can-reach: true

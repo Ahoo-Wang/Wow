@@ -17,7 +17,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import me.ahoo.cosec.annotations.ExperimentalCoSecApi
 import me.ahoo.cosec.runtime.http.CoSecParameters
-import me.ahoo.cosec.webflux.testing.CoSecTestBindings
+import me.ahoo.cosec.testkit.webflux.CoSecTestBindings
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller

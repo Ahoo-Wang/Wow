@@ -247,6 +247,12 @@ spec:
 networkPolicy:
   enabled: true
   public:
+    # Whether the chart tells CoSec that only the gateway can reach the public port
+    # (COSEC_PIPELINE_IDENTITY_ONLYGATEWAYCANREACH=true), the statement a service in wow.cosec.mode: gateway needs to
+    # start. It holds only while `from` names the gateway's pods alone: each pod `from` admits can claim any identity to
+    # such a service. Set it false when `from` admits anything else; a service in gateway mode then does not start until
+    # you state it yourself (where it is true) or change its mode.
+    onlyGateway: true
     # Who reaches the public port: the gateway's pods by default, in any namespace.
     from:
       - namespaceSelector: {}

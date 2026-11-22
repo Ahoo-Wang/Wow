@@ -305,6 +305,9 @@
           "type": "object",
           "additionalProperties": false,
           "properties": {
+            "onlyGateway": {
+              "type": "boolean"
+            },
             "from": {
               "type": "array",
               "items": {
