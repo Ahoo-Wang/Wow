@@ -16,6 +16,7 @@ package me.ahoo.wow.example.eshop.e2e
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.example.eshop.payment.api.payment.EshopPaymentContract
+import me.ahoo.wow.example.eshop.payment.domain.payment.PaymentGatewayUnreachableException
 import me.ahoo.wow.ops.api.parked.ParkedStatus
 import org.apache.kafka.clients.admin.Admin
 import org.apache.kafka.clients.admin.AdminClientConfig
@@ -144,7 +145,10 @@ class EshopLedgerOpsTest {
         entry["service"].asString().assert().isEqualTo("eshop-payment-service")
         entry["subscription"].asString().assert().isEqualTo(GATEWAY_SAGA)
         entry["aggregate"]["id"].asString().assert().isEqualTo("carol-1")
-        entry["reason"].asString().assert().contains("unreachable")
+        // The reason is the gateway's failure by its class, which says what failed: its message names the payment.
+        entry["reason"].asString().assert()
+            .isEqualTo(PaymentGatewayUnreachableException::class.java.name)
+            .doesNotContain("carol-1")
         orderStatus("carol-1").assert().isEqualTo("STOCK_CONFIRMED")
 
         // Only an operator acts on it.
