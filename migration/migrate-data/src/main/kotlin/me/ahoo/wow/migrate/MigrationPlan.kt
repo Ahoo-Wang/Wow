@@ -23,18 +23,43 @@ import me.ahoo.wow.kernel.scopeOf
 import me.ahoo.wow.manifest.AccessAttributeManifest
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.spi.config.WowConfigurationException
+import me.ahoo.wow.spi.tenant.TenantPolicy
 
 /**
  * [map] resolved against the V10 [manifest]: for each 9.x aggregate, the V10 aggregate type its streams go to and how
  * their commands, events and headers are named there. [MappingCheck] reports what does not resolve; the import runs
  * only on a plan whose check passed.
  */
-internal class MigrationPlan(val map: MigrationMap, val manifest: Manifest) {
+internal class MigrationPlan(
+    val map: MigrationMap,
+    val manifest: Manifest,
+    /** The fixed tenants of `migrate-data.json`'s `tenants`, by the name of their type ([MigrationConfig.tenants]). */
+    tenants: Map<String, String> = emptyMap(),
+) {
+    /**
+     * The tenant each V10 type of [tenants] is fixed to, read and checked as the host reads its
+     * `wow.aggregates.[<context>.<aggregate>].tenant` ([TenantPolicy.configured]): a name of no type of the Manifests,
+     * or a blank tenant, fails every command with the host's wording.
+     */
+    val fixedTenants: TenantPolicy = try {
+        TenantPolicy.configured(
+            tenants,
+            manifest.contexts.flatMap { context -> context.aggregates.map { AggregateType(context.name, it.name) } },
+            "the Manifests declare",
+            { "$TENANTS.$it" },
+            { "$TENANTS.$it" },
+        )
+    } catch (invalid: WowConfigurationException) {
+        throw MigrationException("migrate-data.json: ${invalid.message}")
+    }
+
     /** The plans of the mapped 9.x aggregates. */
     val aggregates: Map<NineXAggregate, AggregatePlan> = map.aggregates.associate { mapping ->
         val dot = mapping.to.indexOf('.')
         val target = AggregateType(mapping.to.substring(0, dot), mapping.to.substring(dot + 1))
-        mapping.source() to AggregatePlan(mapping, target, manifestOf(target), map.headers)
+        mapping.source() to
+            AggregatePlan(mapping, target, manifestOf(target), map.headers, fixedTenants.fixedTenant(target))
     }
 
     /**
@@ -79,6 +104,11 @@ internal class MigrationPlan(val map: MigrationMap, val manifest: Manifest) {
 
     private fun manifestOf(type: AggregateType): AggregateManifest? =
         manifest.contexts.firstOrNull { it.name == type.context }?.aggregates?.firstOrNull { it.name == type.name }
+
+    private companion object {
+        /** The key of `migrate-data.json` that gives the fixed tenants. */
+        const val TENANTS = "tenants"
+    }
 }
 
 /**
@@ -90,6 +120,8 @@ internal class AggregatePlan(
     val target: AggregateType,
     val manifest: AggregateManifest?,
     val headers: Map<String, String>,
+    /** The tenant the V10 type is fixed to ([MigrationPlan.fixedTenants]); null when the caller's. */
+    val fixedTenant: String? = null,
 ) {
     /** The 9.x aggregate. */
     val source: NineXAggregate = mapping.source()

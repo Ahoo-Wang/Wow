@@ -78,6 +78,25 @@ class StreamConverterTest {
     }
 
     @Test
+    fun `a stream of a type whose tenant is fixed fails unless it is in that tenant`() {
+        val converter = StreamConverter(MigrationPlan(NineXExample.map, NineXExample.manifest, mapping("acme"))) {
+            NineXExample.IMPORTED_AT
+        }
+        val added = NineXExample.stream(NineXExample.CART_STREAMS.first())
+        assertThrows<MigrationException> { converter.convert(added) }.message.assert().endsWith(
+            "the tenant of example.cart is fixed to \"acme\" (tenants), but the stream is in \"(0)\", where V10 serves " +
+                "it to no caller; fix the tenant to the one it is in, in the host and in tenants, or exclude it with " +
+                "{\"aggregate\": \"example-service.cart\", \"stream\": \"${added.aggregateId.id}\", \"reason\": \"…\"}.",
+        )
+        val inAcme = added.copy(aggregateId = added.aggregateId.copy(tenantId = "acme"))
+        converter.convert(inAcme).ref.tenantId.assert().isEqualTo("acme")
+        // A type it does not fix takes the stream's tenant.
+        converter.convert(created).ref.tenantId.assert().isEqualTo("(0)")
+    }
+
+    private fun mapping(tenant: String) = mapOf("example.cart" to tenant)
+
+    @Test
     fun `a 9x stream converts with its identity, scope, operator and causation`() {
         val record = converter().convert(created)
         record.ref.assert().isEqualTo(AggregateType("example", "order").ref("(0)", "0VY3GwaK4OmV00E"))

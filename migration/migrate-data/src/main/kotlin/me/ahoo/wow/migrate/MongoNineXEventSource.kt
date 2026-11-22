@@ -428,6 +428,31 @@ internal class MongoNineXEventSource(private val database: MongoDatabase) : Nine
         }
     }
 
+    override fun instancesOutsideTenant(aggregate: NineXAggregate, tenant: String): Map<NineXAggregateId, Long> =
+        collectionOf(aggregate).aggregate(
+            listOf(
+                Aggregates.match(
+                    Filters.and(
+                        Filters.eq(CONTEXT_NAME, aggregate.context),
+                        Filters.eq(AGGREGATE_NAME, aggregate.name),
+                        Filters.ne(TENANT_ID, tenant),
+                        Filters.regex(TENANT_ID, "\\S"),
+                    ),
+                ),
+                Document(
+                    "\$group",
+                    Document(
+                        "_id",
+                        Document("id", Document("\$ifNull", listOf("\$$AGGREGATE_ID", "")))
+                            .append("tenant", "\$$TENANT_ID"),
+                    ).append("count", Document("\$sum", 1)),
+                ),
+            ),
+        ).associate { group ->
+            val key = group.get("_id", Document::class.java)
+            NineXAggregateId(key.getString("id"), key.getString("tenant")) to (group.get("count") as Number).toLong()
+        }
+
     override fun missingCommitTimeIndexes(aggregates: Collection<NineXAggregate>): Map<String, String> =
         aggregates.map { it.name + SUFFIX }.distinct().filterNot { name ->
             database.getCollection(name).listIndexes().any { isCommitTimeKey(it.get("key", Document::class.java)) }

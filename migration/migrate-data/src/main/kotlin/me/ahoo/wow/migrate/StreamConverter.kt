@@ -66,6 +66,7 @@ internal class StreamConverter(
         val aggregate = plan.of(stream.aggregate)
         val subject = subjectOf(stream)
         refuseId(stream, subject)
+        refuseTenant(aggregate, stream, subject)
         val commandType = aggregate.commandTypeOf(stream.commandName)
             ?: throw MigrationException("$subject: the 9.x command ${stream.commandName} has no mapping.")
         val events = eventsOf(aggregate, stream, subject).flatMap { it.second }
@@ -107,6 +108,25 @@ internal class StreamConverter(
         throw MigrationException(
             "$subject: ${aggregate.target}'s id is its owner's, but the stream records ${ownerText(scope.ownerId)}; " +
                 "set its ownerId to its aggregate id in the 9.x store, or exclude it with {\"aggregate\": " +
+                "\"${stream.aggregate}\", \"stream\": ${RefusedIds.quoted(RefusedIds.nameOf(stream.aggregateId.id))}, " +
+                "\"reason\": \"…\"}.",
+        )
+    }
+
+    /**
+     * Fails [stream], which [subject] names, when [aggregate]'s V10 type is fixed to another tenant than the stream's
+     * ([AggregatePlan.fixedTenant]): V10 would serve it to no caller. The mapping check lists such instances and fails
+     * before the import.
+     */
+    private fun refuseTenant(aggregate: AggregatePlan, stream: NineXStream, subject: String) {
+        val fixed = aggregate.fixedTenant ?: return
+        if (stream.aggregateId.tenantId == fixed) {
+            return
+        }
+        throw MigrationException(
+            "$subject: the tenant of ${aggregate.target} is fixed to ${RefusedIds.quoted(fixed)} (tenants), but the " +
+                "stream is in ${RefusedIds.quoted(stream.aggregateId.tenantId)}, where V10 serves it to no caller; fix " +
+                "the tenant to the one it is in, in the host and in tenants, or exclude it with {\"aggregate\": " +
                 "\"${stream.aggregate}\", \"stream\": ${RefusedIds.quoted(RefusedIds.nameOf(stream.aggregateId.id))}, " +
                 "\"reason\": \"…\"}.",
         )
