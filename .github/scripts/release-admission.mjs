@@ -5,7 +5,9 @@
  */
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
+import { workflowCheckShards, workflowShards } from './integration-shards.mjs';
 import {
   compareVersions,
   parseVersion,
@@ -40,10 +42,15 @@ import {
 //    BREAKING CHANGE footer (typescript/RELEASING.md「发版准入」).
 //
 // ci.yml is the one CI workflow; its dispatch run turns every scope on, the
-// JVM jobs included, with their tests on JDK 25 and, as the floor, on JDK 21,
-// and the release workflow's preflight still runs
-// `./gradlew :check :integrationTest` on this very commit before anything is
-// published.
+// JVM jobs included, with their tests on JDK 25 and, as the floor, on JDK 21.
+// It is the release's test gate: the release workflow's preflight runs no
+// tests of its own, only the build, signing and check of what is published
+// (publicationCheck) and the npm packages'. So beside `ci-gate`, which also
+// passes a job its scope skipped, admission requires that run's JVM test jobs
+// by name (jvmTestJobs): every check and integration shard of the run's
+// ci.yml, on each JDK of TEST_JDKS, ran and passed. Together the shards are
+// `./gradlew :check :integrationTest` (integration-shards.mjs holds them to
+// build.gradle.kts).
 
 /** Workflows that must pass in full on the release commit, with their gate job. */
 export const REQUIRED = [{ workflow: 'ci.yml', gate: 'ci-gate' }];
@@ -88,6 +95,27 @@ export function requireSuccessfulJob(jobs, name = REQUIRED[0].gate) {
     latest && latest.status === 'completed' && latest.conclusion === 'success',
     `${name}: must pass in that run`,
   );
+}
+
+/** The JDKs a full ci.yml run tests the JVM on: 25, as Wow runs (D368), and 21, the floor (D29). */
+export const TEST_JDKS = ['25', '21'];
+
+/**
+ * The JVM test jobs of a full run of `workflow` (ci.yml's text): the check
+ * and integration jobs of each shard, on each of TEST_JDKS, by the names
+ * ci.yml gives them (`Check (host)`, `Integration Test (eshop) / JDK 21`).
+ */
+export function jvmTestJobs(workflow) {
+  const legs = job => shard =>
+    TEST_JDKS.map(
+      java => `${job} (${shard})${java === '25' ? '' : ` / JDK ${java}`}`,
+    );
+  return [
+    ...workflowCheckShards(workflow).flatMap(legs('Check')),
+    ...workflowShards(workflow)
+      .map(({ shard }) => shard)
+      .flatMap(legs('Integration Test')),
+  ];
 }
 
 const BREAKING_SUBJECT = /^[a-z]+(?:\([^)]*\))?!:/i;
@@ -304,13 +332,21 @@ if (
   for (const { workflow, gate } of REQUIRED) {
     const run = runs.get(workflow);
     requireSuccessfulRun(run, sha, workflow);
-    requireSuccessfulJob(
-      pages(`repos/${repo}/actions/runs/${run.id}/jobs?per_page=100`).flatMap(
-        page => page.jobs,
-      ),
-      gate,
-    );
+    const jobs = pages(
+      `repos/${repo}/actions/runs/${run.id}/jobs?per_page=100`,
+    ).flatMap(page => page.jobs);
+    requireSuccessfulJob(jobs, gate);
     console.log(`${workflow}: run ${run.id} and ${gate} passed for ${sha}`);
+    if (workflow === 'ci.yml') {
+      // The release's test gate: the preflight runs no tests of its own.
+      const tests = jvmTestJobs(
+        readFileSync('.github/workflows/ci.yml', 'utf8'),
+      );
+      for (const name of tests) requireSuccessfulJob(jobs, name);
+      console.log(
+        `${workflow}: run ${run.id} ran and passed its ${tests.length} JVM test jobs (${tests.join(', ')})`,
+      );
+    }
   }
 
   const tags = execFileSync(
