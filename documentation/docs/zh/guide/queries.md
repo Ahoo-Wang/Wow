@@ -194,6 +194,8 @@ sms.send(customer.state.phone, text)
 | [ClickHouse Sink 的表](../operate/clickhouse#the-tables) | 写入时的状态与事件；对它们的查询在返回时脱敏 | 数据库的授权 |
 | [Elasticsearch 事件 Sink 的索引](../operate/elasticsearch#event-search) | 写入时的事件；`events` 查询在返回时脱敏 | 索引的权限 |
 | [`migrate-data compare`](../migrate/data#_5-compare) 的报告 | 有差异的字段的值，9.x 的和 V10 的 | 谁读这份报告 |
+| 节点日志 | 失败的完整文本，即它的消息和堆栈，可能引用它失败时的值；停放聚合的原因不含任何值（[停放的聚合](./failures#what-a-parked-aggregate-records)） | 日志的访问权限 |
+| 失败账本、已经发出的停放 Webhook，以及运维上下文的事件和快照 | 10.0.0-beta.16 之前，停放聚合的原因就是失败的原始消息，可能引用某个值；这些原因按原样保留 | 存储的授权；Webhook 的接收方；运维上下文的存储 |
 
 直接读这些地方的人，无论用 SQL 还是存储的客户端，读到的都是原始值。
 

@@ -26,10 +26,12 @@ const HOUR = 3_600_000;
 /** A few hours ago: inside the overview's default window, the last 7 days. */
 export const FAILED_AT = Date.now() - 6 * HOUR;
 
-/** The failure an entry is parked with: the runtime's `<class>: <message>`. */
-export function connectionRefused(aggregateId: string): string {
-  return `java.net.ConnectException: The gateway is unreachable for ${aggregateId}.`;
-}
+/**
+ * The failure an entry is parked with, as the runtime records it: the class of
+ * the gateway's failure alone, which no describer describes, never its message.
+ */
+export const UNREACHABLE =
+  "me.ahoo.wow.example.eshop.payment.domain.payment.PaymentGatewayUnreachableException";
 
 export type Status = "scheduled" | "exhausted" | "unrecoverable";
 
@@ -54,7 +56,7 @@ export async function publish(
   aggregateId: string,
   status: Status,
   hoursLater = 0,
-  reason = connectionRefused(aggregateId),
+  reason = UNREACHABLE,
   skipOnly = false,
 ): Promise<Parked> {
   const failedAt = FAILED_AT + hoursLater * HOUR;

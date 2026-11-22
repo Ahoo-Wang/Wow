@@ -14,7 +14,9 @@
 package me.ahoo.wow.ops.domain.parked
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.ledger.Ledger
+import me.ahoo.wow.kernel.FailureReasons
 import me.ahoo.wow.ops.api.parked.ActionRefused
 import me.ahoo.wow.ops.api.parked.ApplyRetrySpec
 import me.ahoo.wow.ops.api.parked.ApplyRetrySpecRequested
@@ -41,6 +43,8 @@ import org.junit.jupiter.api.Test
 
 /** The ops view of one parked entry (decision D141): the records of its service, and an operator's actions. */
 class ParkedSpec {
+    data class Card(val holder: String, val digits: Int)
+
     private fun parkedSpec(block: AggregateSpec<ParkedState>.() -> Unit) =
         aggregateSpec(parkedModel(), id = ID, block = block)
 
@@ -160,8 +164,36 @@ class ParkedSpec {
     }
 
     @Test
+    @OptIn(InternalWowApi::class) // The service's own reasons, as its node records them.
+    fun `an entry its service parked for a value should hold no value, in its event and its state`() {
+        // #6588: the reason its service records for the probe's handler, whose event's value does not read.
+        val failure = runCatching {
+            val card = WowJson.mapper.readTree("""{"holder":"a","digits":"$NUMBER"}""")
+            WowJson.mapper.treeToValue(card, Card::class.java)
+        }.exceptionOrNull()!!
+        val parked = entry("reason" to FailureReasons.DEFAULT.reasonOf(failure))
+        parkedSpec {
+            whenCommand(RecordParked(parked)) {
+                expectEvents(ParkedRecorded(parked))
+                expectState {
+                    reason.assert().isEqualTo(
+                        "tools.jackson.databind.exc.MismatchedInputException: cannot read 'digits' as int",
+                    )
+                    errorType.assert().isEqualTo("tools.jackson.databind.exc.MismatchedInputException")
+                }
+            }
+        }
+        WowJson.mapper.writeValueAsString(parked).assert().doesNotContain(NUMBER)
+    }
+
+    @Test
     fun `the error type is what the reason names before its message, else the whole reason`() {
         ParkedState.errorTypeOf("java.lang.IllegalStateException: a: b").assert()
+            .isEqualTo("java.lang.IllegalStateException")
+        // A reason of a failure only its causes say something of, and one of its class name alone (#6588).
+        ParkedState.errorTypeOf("java.lang.IllegalStateException: caused by java.net.ConnectException").assert()
+            .isEqualTo("java.lang.IllegalStateException")
+        ParkedState.errorTypeOf("java.lang.IllegalStateException").assert()
             .isEqualTo("java.lang.IllegalStateException")
         ParkedState.errorTypeOf("The gateway is down.").assert().isEqualTo("The gateway is down.")
         parkedSpec {
@@ -316,6 +348,8 @@ class ParkedSpec {
         )
 
         /** The entry with [changes] to its fields. */
+        const val NUMBER = "4111 1111 1111 1111"
+
         fun entry(vararg changes: Pair<String, Any?>): ParkedEntry =
             WowJson.mapper.convertValue(ENTRY_FIELDS + changes, ParkedEntry::class.java)
 

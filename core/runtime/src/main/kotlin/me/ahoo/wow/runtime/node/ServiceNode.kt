@@ -49,6 +49,7 @@ import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.call.CommandCaller
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.subscription.FailureClassifier
+import me.ahoo.wow.spi.subscription.FailureDescriber
 import java.time.Clock
 
 /**
@@ -168,6 +169,12 @@ class ServiceNode @InternalWowApi constructor(
     replayGate: ReplayGate = ReplayGate.OPEN,
     /** Ends the node's waits at their deadlines: the runtime's deadline threads, unless a test holds them. */
     deadlines: WaitDeadlines = WaitDeadlines.SHARDED,
+    /**
+     * The application's describers of its handlers' failures, for the reason a parked aggregate records, asked
+     * before the backends' and the runtime's own ([RuntimeFailures.of]); none by default, and the application's own
+     * exceptions are recorded by their class names.
+     */
+    failureDescribers: List<FailureDescriber> = emptyList(),
 ) {
     private val assembly = NodeAssembly(
         service,
@@ -192,6 +199,7 @@ class ServiceNode @InternalWowApi constructor(
         queries,
         replayGate,
         deadlines,
+        failureDescribers,
     )
 
     /** This node's internal address: the cluster channel and the signals reach it there. Known once [hasAddress]. */

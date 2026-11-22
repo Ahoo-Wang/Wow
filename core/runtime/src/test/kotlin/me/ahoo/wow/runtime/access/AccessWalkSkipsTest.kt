@@ -118,7 +118,7 @@ class AccessWalkSkipsTest : AccessWalkingFixtures() {
         history(log, "b").assert().containsExactly(null, null)
         val entry = runBlocking { ledger.parked(parked, poisoned) }!!
         entry.fromVersion.assert().isEqualTo(1)
-        entry.reason.assert().startsWith("Its history did not replay").contains(POISON)
+        entry.reason.assert().startsWith("Its history did not replay: ").doesNotContain(POISON)
         skipped().map { it.type to it.work }.assert().containsExactly(type to Work.ACCESS_WALK)
         observed.filterIsInstance<ObservedEvent.AccessWalked>().sumOf { it.aggregates }.assert().isEqualTo(2)
     }
@@ -166,7 +166,8 @@ class AccessWalkSkipsTest : AccessWalkingFixtures() {
 
         walk.completed.assert().isTrue()
         walk.walked.assert().isEqualTo(2L)
-        runBlocking { ledger.parked(parked, poisoned) }!!.reason.assert().startsWith("It failed").contains("larger")
+        runBlocking { ledger.parked(parked, poisoned) }!!.reason.assert()
+            .isEqualTo("It failed: me.ahoo.wow.spi.StorageRefusedException")
         skipped().assert().hasSize(1)
     }
 

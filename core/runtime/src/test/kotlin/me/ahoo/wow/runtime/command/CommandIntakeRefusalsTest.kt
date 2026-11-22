@@ -131,7 +131,10 @@ class CommandIntakeRefusalsTest : CommandIntakeFixtures() {
         val after = reserve("c-after-garbled", 1, item = "i-garbled")
         val ledger = stockBackends.backends(STOCK).ledger
         eventually { ledger.isParked(INTAKE, ref) }
-        ledger.parked(INTAKE, ref)!!.reason.assert().contains("cannot be decoded")
+        ledger.parked(INTAKE, ref)!!.reason.assert().isEqualTo(
+            "me.ahoo.wow.runtime.subscription.UndecodableEntryException: not decodable by this version; caused by " +
+                "tools.jackson.core.exc.StreamReadException: malformed json at line 1 column 1",
+        )
         eventually { checkpoint(node, ref) == topics.offsets(COMMANDS, partition).end }
         stock.decided.assert().doesNotContain(after.id)
         // Skipped by an operator, the aggregate takes its commands again.

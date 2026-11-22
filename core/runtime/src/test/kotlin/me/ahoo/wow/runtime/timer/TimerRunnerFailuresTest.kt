@@ -79,7 +79,7 @@ class TimerRunnerFailuresTest : TimerRunnerFixtures() {
         runner().startPartition(0)
         eventually { status("pay").attempts == 1 && status("remind").attempts == 1 }
         status("pay").status.assert().isEqualTo(TimerStatus.PENDING)
-        status("pay").outcome.assert().isEqualTo("java.lang.NoClassDefFoundError: shop/CancelOrder")
+        status("pay").outcome.assert().isEqualTo("java.lang.NoClassDefFoundError")
         status("remind").status.assert().isEqualTo(TimerStatus.PENDING)
         answers.clear()
         clock.advance(1.seconds)

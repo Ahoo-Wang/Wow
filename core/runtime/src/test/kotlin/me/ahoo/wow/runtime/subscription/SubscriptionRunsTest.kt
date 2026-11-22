@@ -454,7 +454,7 @@ class SubscriptionRunsTest {
         releaseX()
         eventually { watermark(runtime) == sequences.last() }
         runs.assert().containsExactly(listOf("x@1"), listOf("x@2"))
-        ledger.parked(id, cart("x"))!!.reason.assert().contains("x@3 does not decode.")
+        ledger.parked(id, cart("x"))!!.reason.assert().isEqualTo("java.lang.IllegalStateException")
     }
 
     @Test

@@ -158,7 +158,8 @@ class SnapshotRewriteSkipsTest {
             store.pending(type, 2, limit = 10).assert().containsExactly(b)
             store.table(type)!!.rebuilding.assert().isFalse()
             maintenance.rebuilding(type).assert().isFalse()
-            ledger.parked(parked, b)!!.reason.assert().startsWith("Its history did not replay").contains("$POISON")
+            ledger.parked(parked, b)!!.reason.assert().startsWith("Its history did not replay: ")
+                .doesNotContain("$POISON")
             skipped().map { it.type to it.work }.assert().containsExactly(type to Work.SNAPSHOT_REWRITE)
         }
 
@@ -177,7 +178,8 @@ class SnapshotRewriteSkipsTest {
         store.load(c)!!.stateRevision.assert().isEqualTo(2)
         store.load(b)!!.stateRevision.assert().isEqualTo(1)
         store.table(type)!!.rebuilding.assert().isFalse()
-        ledger.parked(parked, b)!!.reason.assert().startsWith("Its history did not replay").contains("$POISON")
+        ledger.parked(parked, b)!!.reason.assert().startsWith("Its history did not replay: ")
+            .doesNotContain("$POISON")
     }
 
     @Test

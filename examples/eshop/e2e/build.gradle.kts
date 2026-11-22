@@ -75,6 +75,8 @@ dependencies {
     }
     // ... read as the catalog's ProductState through QueryApi (R4-Q3).
     integrationTestImplementation(project(":eshop-catalog-domain"))
+    // EshopLedgerOpsTest: a parked payment's reason, the class of the gateway's failure.
+    integrationTestImplementation(project(":eshop-payment-domain"))
     // EshopFullChainTest and EshopLoad: the ordering's order stream in ClickHouse, for the sales dataset (E.6).
     integrationTestImplementation("org.testcontainers:testcontainers-clickhouse")
     // EshopSharedJvmTest: a request's trace through a service (decision D174), its spans exported to memory.

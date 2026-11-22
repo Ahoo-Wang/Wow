@@ -47,8 +47,8 @@ sealed interface GatewayOutcome {
  * or declines by a setting. Its answer is a function of the amount, so a test chooses the outcome by the order's total:
  * it approves an amount up to [limit] and declines one above it. Its transaction id is the charge's idempotency key.
  *
- * While [down] says so, the gateway is unreachable: a charge fails with a technical error, which the saga retries and
- * then parks the payment for (the failure ledger's end-to-end test).
+ * While [down] says so, the gateway is unreachable: a charge fails with a [PaymentGatewayUnreachableException], which
+ * the saga retries and then parks the payment for (the failure ledger's end-to-end test).
  */
 class SimulatedPaymentGateway(val limit: BigDecimal, private val down: () -> Boolean = { false }) : PaymentGateway {
     init {
@@ -62,7 +62,7 @@ class SimulatedPaymentGateway(val limit: BigDecimal, private val down: () -> Boo
         idempotencyKey: String,
     ): GatewayOutcome =
         if (down()) {
-            throw IllegalStateException("The payment gateway is unreachable: $paymentId is not charged.")
+            throw PaymentGatewayUnreachableException("The payment gateway is unreachable: $paymentId is not charged.")
         } else if (amount <= limit) {
             GatewayOutcome.Approved("simulated-$idempotencyKey")
         } else {
@@ -71,3 +71,12 @@ class SimulatedPaymentGateway(val limit: BigDecimal, private val down: () -> Boo
             )
         }
 }
+
+// region unreachable
+/**
+ * The payment gateway could not be reached: a technical failure, which a retry may get past. A parked payment's reason
+ * records a failure of the application's own by its class name alone, never its message, which names the payment; so
+ * the class says what failed, and the message stays in the node's log.
+ */
+class PaymentGatewayUnreachableException(message: String) : IllegalStateException(message)
+// endregion

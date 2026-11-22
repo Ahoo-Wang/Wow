@@ -82,7 +82,7 @@ class TimerRunnerTest : TimerRunnerFixtures() {
         eventually { status("pay").attempts == 1 }
         status("pay").status.assert().isEqualTo(TimerStatus.PENDING)
         status("pay").dueAt.assert().isEqualTo(clock.millis() + 1_000)
-        status("pay").outcome.assert().isEqualTo("java.lang.IllegalStateException: down")
+        status("pay").outcome.assert().isEqualTo("java.lang.IllegalStateException")
         // Three rounds, not two: a send dispatched in a round runs in its own coroutine, which records it
         // maybe after the next round starts.
         rounds(3)

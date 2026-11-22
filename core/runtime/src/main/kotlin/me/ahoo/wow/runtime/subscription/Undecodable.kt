@@ -27,7 +27,7 @@ import me.ahoo.wow.spi.log.LogPosition
  * operator sees it and decides: retry it once a version reads it, or skip it. A message whose key names no aggregate
  * cannot be parked: its source passes over it, counted ([me.ahoo.wow.spi.observation.ObservedEvent.Undecodable]).
  */
-internal class UndecodableMessage(val reason: String) {
+internal class UndecodableMessage(val failure: Throwable) {
     companion object {
         /** The event name of the entry of an undecodable message: no model has it. */
         const val EVENT: String = "wow.undecodable"
@@ -38,8 +38,8 @@ internal class UndecodableMessage(val reason: String) {
          */
         fun refOf(key: String?): AggregateRef? = key?.let(AggregateRef::parse)
 
-        /** The entry of an undecodable message about [ref] at [position], failing for [reason]. */
-        fun entryOf(ref: AggregateRef, position: LogPosition, reason: String): SourcedEntry = SourcedEntry(
+        /** The entry of an undecodable message about [ref] at [position], which [failure] decoding it threw. */
+        fun entryOf(ref: AggregateRef, position: LogPosition, failure: Throwable): SourcedEntry = SourcedEntry(
             position,
             EventStreamRecord(
                 ref = ref,
@@ -52,7 +52,7 @@ internal class UndecodableMessage(val reason: String) {
                 scope = Scope.NONE,
             ),
             null,
-            message = UndecodableMessage(reason),
+            message = UndecodableMessage(failure),
         )
 
         /** Whether [entry] is that of an undecodable message. */
@@ -65,6 +65,9 @@ internal class UndecodableMessage(val reason: String) {
     }
 }
 
-/** A subscription met an undecodable message about an aggregate it takes: it parks the aggregate there. */
-internal class UndecodableEntryException(reason: String) :
-    IllegalStateException("The message cannot be decoded by this version: $reason")
+/**
+ * A subscription met an undecodable message about an aggregate it takes: it parks the aggregate there. What decoding it
+ * threw is its [cause]: its message, which may quote the message's values, is no part of its own (#6588).
+ */
+internal class UndecodableEntryException(cause: Throwable) :
+    IllegalStateException("The message cannot be decoded by this version.", cause)

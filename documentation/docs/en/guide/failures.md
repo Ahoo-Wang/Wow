@@ -110,13 +110,46 @@ The failure ledger lives in the service's own store, beside the checkpoints. The
 
 An unrecoverable failure is parked but not retried automatically: no retry would change it.
 
-Operators see the parked aggregates of every service in the ops console, with the error and the version each stopped at, and retry or skip them there: [The Ops Service and Console](../operate/ops-console). A webhook can tell a team when an aggregate parks or spends its retries.
+Operators see the parked aggregates of every service in the ops console, with the error ([what it records](#what-a-parked-aggregate-records)) and the version each stopped at, and retry or skip them there: [The Ops Service and Console](../operate/ops-console). A webhook can tell a team when an aggregate parks or spends its retries.
 
 Parked timers are listed there too, under the subscription `wow.timers.sends`, one entry per target aggregate. Nothing retries them automatically. Retrying the entry sends its timers again with fresh attempts; skipping it cancels them with the outcome `SKIPPED`. The entry is recorded before its timer is parked, so a parked timer always has one; when the ledger cannot be written, the timer is not parked but sent again after its backoff. A node that stops between the two leaves an entry whose timer is sent again and parked once more; an entry with no timer parked behind it is resolved by a retry or a skip, which find nothing to send.
 
 So are the aggregates the background work on a type's histories could not read: those the access walk skipped, under `wow.access.walk`, and the snapshots a rebuild could not rewrite, under `wow.snapshot.rewrite` ([Rebuild and Replay](../operate/replay#access-attributes)). Nothing retries them automatically. Retrying an entry runs the work on that aggregate again; skipping it resolves the entry and leaves undone what the work could not do.
 
 Before retrying, fix the cause: deploy the corrected handler, or bring the outside system back. A retried aggregate reads its stream again from the version it stopped at, so its handler sees every event it missed, in order; an operator's retry spends none of its automatic retries. Skipping marks the entry resolved: the events it held back are never handled, and the aggregate's next events are. What a skip discards ends when the skip has settled in the subscription, not when its entry left the ledger: an event of the aggregate the subscription takes between the two is skipped with the ones held back, and every event it takes after the skip answers is handled.
+
+
+### What a parked aggregate records {#what-a-parked-aggregate-records}
+
+A parked aggregate's reason tells an operator what failed, never a value it failed on. It leaves the service: the ops routes, the console, the park webhook and the ops context all carry it. A reason is the failure's class name, then, after `: `, what is known of it, then each of at most three of its causes, `caused by` its class name and what is known of it:
+
+```text
+me.ahoo.wow.kernel.UnreadableEventException: event 'shop.order.Placed' revision 1 not readable;
+  caused by tools.jackson.databind.exc.MismatchedInputException: cannot read 'quantity' as int
+```
+
+What is known of a failure is never its message, which may quote the value that failed (a card number in a field that takes a number, the key of a row a unique index refused). It is one of:
+
+- **A description** a `FailureDescriber` gives from the failure's structured fields: where in a document it failed and the type it read as (Jackson), a write's error code and category (MongoDB), the SQL state and the constraint, table and column the server names (JDBC), the protocol's error and the topics it names (Kafka). A describer returns a `FailureDescription`, built only from enum constants, names (letters, digits, `_`, `$`, `.` and `-`), paths, types and numbers: no part of it takes free text, so it cannot carry a message on. The modules on the classpath bring theirs; the application declares its own as `FailureDescriber` beans, for the exceptions of its own code and clients, and they are asked first.
+- **The message of a failure written for a caller**: a `WowProblemException`, a command's rejection, a decide function's rejection, which the caller reads anyway.
+- **Nothing**: a failure none describes, the application's own exceptions among them, is recorded by its class name alone.
+
+Since the application's own exceptions are recorded by their class name alone, give a failure an operator should tell apart a class of its own, named for what failed, rather than an `IllegalStateException` with a message. The eShop's payment gateway throws one when it cannot be reached, and a parked payment's reason reads `…PaymentGatewayUnreachableException`, without the payment its message names:
+
+<!-- sample: examples/eshop/payment/payment-domain/src/main/kotlin/me/ahoo/wow/example/eshop/payment/domain/payment/PaymentGateway.kt#unreachable -->
+
+```kotlin
+/**
+ * The payment gateway could not be reached: a technical failure, which a retry may get past. A parked payment's reason
+ * records a failure of the application's own by its class name alone, never its message, which names the payment; so
+ * the class says what failed, and the message stays in the node's log.
+ */
+class PaymentGatewayUnreachableException(message: String) : IllegalStateException(message)
+```
+
+When the class is not enough, declare a `FailureDescriber` for it, which describes it from its fields.
+
+The full failure, its message and its stack trace, is in the node's log, logged when the aggregate parks with the subscription, the aggregate and the version; search for those to read it. The class name comes first, so the console's error type, and the type the ops context groups the entries by, is the text before the first `: `.
 
 ## How a command is retried
 

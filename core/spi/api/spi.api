@@ -1659,6 +1659,55 @@ public abstract interface class me/ahoo/wow/spi/subscription/FailureClassifier {
 public final class me/ahoo/wow/spi/subscription/FailureClassifier$Companion {
 }
 
+public abstract interface class me/ahoo/wow/spi/subscription/FailureDescriber {
+	public static final field Companion Lme/ahoo/wow/spi/subscription/FailureDescriber$Companion;
+	public static final field NONE Lme/ahoo/wow/spi/subscription/FailureDescriber;
+	public abstract fun describe (Ljava/lang/Throwable;)Lme/ahoo/wow/spi/subscription/FailureDescription;
+}
+
+public final class me/ahoo/wow/spi/subscription/FailureDescriber$Companion {
+}
+
+public final class me/ahoo/wow/spi/subscription/FailureDescription {
+	public static final field Companion Lme/ahoo/wow/spi/subscription/FailureDescription$Companion;
+	public static final field MAX_NAME_LENGTH I
+	public static final fun code (J)Lme/ahoo/wow/spi/subscription/FailureDescription$Part;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getText ()Ljava/lang/String;
+	public fun hashCode ()I
+	public static final fun name (Ljava/lang/String;)Lme/ahoo/wow/spi/subscription/FailureDescription$Part;
+	public static final fun of ([Lme/ahoo/wow/spi/subscription/FailureDescription$Part;)Lme/ahoo/wow/spi/subscription/FailureDescription;
+	public static final fun path (Ljava/util/List;)Lme/ahoo/wow/spi/subscription/FailureDescription$Part;
+	public static final fun phrase (Ljava/lang/Enum;)Lme/ahoo/wow/spi/subscription/FailureDescription$Part;
+	public fun toString ()Ljava/lang/String;
+	public static final fun type (Ljava/lang/Class;)Lme/ahoo/wow/spi/subscription/FailureDescription$Part;
+}
+
+public final class me/ahoo/wow/spi/subscription/FailureDescription$Companion {
+	public final fun code (J)Lme/ahoo/wow/spi/subscription/FailureDescription$Part;
+	public final fun name (Ljava/lang/String;)Lme/ahoo/wow/spi/subscription/FailureDescription$Part;
+	public final fun of ([Lme/ahoo/wow/spi/subscription/FailureDescription$Part;)Lme/ahoo/wow/spi/subscription/FailureDescription;
+	public final fun path (Ljava/util/List;)Lme/ahoo/wow/spi/subscription/FailureDescription$Part;
+	public final fun phrase (Ljava/lang/Enum;)Lme/ahoo/wow/spi/subscription/FailureDescription$Part;
+	public final fun type (Ljava/lang/Class;)Lme/ahoo/wow/spi/subscription/FailureDescription$Part;
+}
+
+public final class me/ahoo/wow/spi/subscription/FailureDescription$Part {
+	public final fun getText ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/subscription/FailureDescription$PathSegment {
+	public static final field Companion Lme/ahoo/wow/spi/subscription/FailureDescription$PathSegment$Companion;
+	public static final field KEY Lme/ahoo/wow/spi/subscription/FailureDescription$PathSegment;
+	public static final fun index (I)Lme/ahoo/wow/spi/subscription/FailureDescription$PathSegment;
+	public static final fun property (Ljava/lang/String;)Lme/ahoo/wow/spi/subscription/FailureDescription$PathSegment;
+}
+
+public final class me/ahoo/wow/spi/subscription/FailureDescription$PathSegment$Companion {
+	public final fun index (I)Lme/ahoo/wow/spi/subscription/FailureDescription$PathSegment;
+	public final fun property (Ljava/lang/String;)Lme/ahoo/wow/spi/subscription/FailureDescription$PathSegment;
+}
+
 public final class me/ahoo/wow/spi/subscription/Lease {
 	public static final field Companion Lme/ahoo/wow/spi/subscription/Lease$Companion;
 	public fun equals (Ljava/lang/Object;)Z

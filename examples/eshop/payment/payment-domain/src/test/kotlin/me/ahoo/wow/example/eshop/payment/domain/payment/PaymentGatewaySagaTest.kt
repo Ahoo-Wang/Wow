@@ -111,7 +111,8 @@ class PaymentGatewaySagaTest {
     ) {
         requested("10.00") {
             // A technical failure, not a decline: the runtime's budget retries it before it parks.
-            expectRetried().message.assert().contains("unreachable")
+            expectRetried().assert().isInstanceOf(PaymentGatewayUnreachableException::class.java)
+                .hasMessageContaining("unreachable")
             expectParked(attempt = HandlerRetry.DEFAULT_MAX_ATTEMPTS)
         }
     }

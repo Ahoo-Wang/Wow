@@ -17,6 +17,7 @@ import {
   listed,
   publish,
   resolve,
+  UNREACHABLE,
   type Parked,
 } from "./ledger.ts";
 
@@ -139,13 +140,11 @@ test("the overview counts the entries and clusters them by what failed", async (
   });
   const refused = clusters
     .getByRole("row")
-    .filter({ hasText: "java.net.ConnectException" });
+    .filter({ hasText: "PaymentGatewayUnreachableException" });
   await expect(refused).toContainText(context);
   await expect(refused).toContainText("2");
   await expect(
-    clusters
-      .getByRole("row")
-      .filter({ hasText: "skip-only" }),
+    clusters.getByRole("row").filter({ hasText: "skip-only" }),
   ).toContainText("1");
   for (const panel of [
     "Parked over time, by status",
@@ -157,7 +156,7 @@ test("the overview counts the entries and clusters them by what failed", async (
     ).toBeVisible();
 
   // A cluster opens its parked entries in the workbench.
-  await refused.getByText("java.net.ConnectException").click();
+  await refused.getByText(UNREACHABLE).click();
   await expect(page).toHaveURL(/#\/parked\?view=system%3Aops-parked%3Aactive/);
   await expect(row(page, exhausted)).toBeVisible();
   await expect(row(page, scheduled)).toBeVisible();
@@ -173,10 +172,9 @@ test("an entry's detail reads its cause, attempts, retry spec and owning aggrega
     .click();
   const detail = page.getByTestId("parked-reading");
   const failure = detail.getByTestId("parked-failure");
-  await expect(failure).toContainText("java.net.ConnectException");
-  await expect(failure).toContainText(
-    `The gateway is unreachable for ${exhausted.aggregateId}.`,
-  );
+  // The class says what failed; the payment it failed on is not in it.
+  await expect(failure).toContainText(UNREACHABLE);
+  await expect(failure).not.toContainText(exhausted.aggregateId);
   // Its history: the owning service parked it.
   const history = detail.getByTestId("parked-history");
   await expect(history.getByRole("listitem")).toHaveCount(1);

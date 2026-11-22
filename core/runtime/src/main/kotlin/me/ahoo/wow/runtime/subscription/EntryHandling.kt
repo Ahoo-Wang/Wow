@@ -245,7 +245,7 @@ internal class EntryHandling(
 
     /** [sourced] as its subscription's handler gets it: decoded, with its message, publication and import marked. */
     suspend fun decode(sourced: SourcedEntry): SubscribedEntry {
-        (sourced.message as? UndecodableMessage)?.let { throw UndecodableEntryException(it.reason) }
+        (sourced.message as? UndecodableMessage)?.let { throw UndecodableEntryException(it.failure) }
         val decoded = subscription.decoder.decode(sourced.stream, sourced.position, sourced.transport)
         val imported = sourced.published?.imported ?: (sourced.position.sequence <= importedThrough)
         return if (sourced.published == null && sourced.message == null && !imported) {

@@ -196,7 +196,7 @@ class ParkedRoutesTest {
         val parked = local.post("${entry("x")}/${OpsPaths.RETRY}")
         parked.status.assert().isEqualTo(200)
         parked.body!!["outcome"].asString().assert().isEqualTo("parked")
-        parked.body!!["entry"]["reason"].asString().assert().contains("x is broken")
+        parked.body!!["entry"]["reason"].asString().assert().isEqualTo("java.lang.IllegalStateException")
 
         val remote = client(other)
         val requested = remote.post("${entry("x")}/${OpsPaths.RETRY}")

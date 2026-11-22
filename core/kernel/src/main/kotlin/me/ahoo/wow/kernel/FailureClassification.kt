@@ -39,9 +39,18 @@ import kotlin.time.Duration
  * does. [of] orders them: the application's, then the modules' found on the classpath ([MODULES]), then the caller's
  * own, then the built-in rules for Wow's SPI failures ([BuiltInFailures]). A [HandlingRejectedException] is no
  * failure to classify: a business outcome, it parks the aggregate at once.
+ *
+ * It also gives the reason a parked aggregate records for a failure ([reasonOf]), by its [reasons]: the class name and
+ * a value-free description, never the failure's message (#6588).
  */
 @InternalWowApi
-class FailureClassification(private val classifiers: List<FailureClassifier>) {
+class FailureClassification(
+    private val classifiers: List<FailureClassifier>,
+    private val reasons: FailureReasons = FailureReasons.DEFAULT,
+) {
+    /** The reason a parked aggregate records for [failure] ([FailureReasons.reasonOf]). */
+    fun reasonOf(failure: Throwable): String = reasons.reasonOf(failure)
+
     /** The class of [failure] of a handler whose budget is [retry]. */
     fun classify(failure: Throwable, retry: HandlerRetry?): FailureClass {
         // An event the kernel could not read classifies as what it could not read (its cause).
@@ -78,13 +87,14 @@ class FailureClassification(private val classifiers: List<FailureClassifier>) {
 
         /**
          * The [application]'s classifiers, then the [modules]', then the caller's [own] (the runtime's), then the
-         * built-in one: the first that knows a failure decides.
+         * built-in one: the first that knows a failure decides; [reasons] gives the reasons ([reasonOf]).
          */
         fun of(
             application: List<FailureClassifier> = emptyList(),
             own: List<FailureClassifier> = emptyList(),
             modules: List<FailureClassifier> = MODULES,
-        ): FailureClassification = FailureClassification(application + modules + own + BuiltInFailures)
+            reasons: FailureReasons = FailureReasons.DEFAULT,
+        ): FailureClassification = FailureClassification(application + modules + own + BuiltInFailures, reasons)
 
         /**
          * The wait [failure] asks for before a retry, the server's `Retry-After` ([WowProblemException.retryAfter]),

@@ -72,7 +72,7 @@ internal class ParkWrites(
             stream.ref,
             partition,
             stream.version,
-            reasonOf(failure),
+            classification.reasonOf(failure),
             clock.millis(),
             source.sourcePosition(sourced),
             // As 9.x records its RecoverableType: an unrecoverable failure is not retried automatically either.
@@ -110,7 +110,7 @@ internal class ParkWrites(
             stream.ref,
             partition,
             stream.version,
-            reasonOf(failure),
+            classification.reasonOf(failure),
             clock.millis(),
             source.sourcePosition(sourced),
         ).also { repark(it, from) }
@@ -118,7 +118,8 @@ internal class ParkWrites(
 
     /**
      * Records in the ledger that [parked]'s aggregate can no longer be retried, only skipped: the source does not
-     * hold what it is parked from any more ([gone]).
+     * hold what it is parked from any more ([gone]). Its reason is [gone]'s message as it is, not a failure's reason
+     * (`FailureReasons`): Wow writes that message from positions alone, so it holds no value ([UnrecoverableException]).
      */
     suspend fun unrecoverable(parked: ParkedAggregate, gone: UnrecoverableException) {
         logger.error {
@@ -146,9 +147,6 @@ internal class ParkWrites(
         private val logger = KotlinLogging.logger("me.ahoo.wow.runtime.subscription.RetryWrites")
     }
 }
-
-/** The reason a parked entry records for [failure]: its class and its message. */
-internal fun reasonOf(failure: Throwable): String = "${failure.javaClass.name}: ${failure.message}"
 
 /** The worker's: the park's warning is logged as it was. */
 private val workerLogger = KotlinLogging.logger(SubscriptionWorker::class.java.name)

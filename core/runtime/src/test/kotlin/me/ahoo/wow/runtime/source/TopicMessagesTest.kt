@@ -136,7 +136,9 @@ class TopicMessagesTest : TopicSubscriptionsFixtures() {
             topics.publish(orderRecord("o-1", 2))
             eventually { ledger.parked(BOARD_ID, order("o-1")) != null }
             val parked = ledger.parked(BOARD_ID, order("o-1"))!!
-            parked.reason.assert().contains("cannot be decoded")
+            parked.reason.assert().startsWith(
+                "me.ahoo.wow.runtime.subscription.UndecodableEntryException: not decodable by this version; caused by ",
+            )
             undecodable.assert().containsExactly(parked.fromPosition!! to true)
             parked.fromPosition.assert().isEqualTo(
                 topics.messages(ORDER_TOPIC).single { String(it.value) == BAD }.offset
@@ -165,7 +167,9 @@ class TopicMessagesTest : TopicSubscriptionsFixtures() {
             subscriptions.retry(BOARD, order("o-1")).assert().isFalse()
             handled.versionsOf("o-1").assert().containsExactly(1, 2)
             val parked = ledger.parked(BOARD_ID, order("o-1"))!!
-            parked.reason.assert().contains("cannot be decoded")
+            parked.reason.assert().startsWith(
+                "me.ahoo.wow.runtime.subscription.UndecodableEntryException: not decodable by this version; caused by ",
+            )
             parked.fromPosition.assert().isEqualTo(
                 topics.messages(ORDER_TOPIC).single { String(it.value) == BAD }.offset
             )

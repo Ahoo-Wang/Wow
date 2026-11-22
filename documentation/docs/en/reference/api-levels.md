@@ -155,6 +155,8 @@ The two lists below are generated from the sources of the published modules: the
 | `me.ahoo.wow.spi.subscription.CheckpointStore` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.subscription.FailureClass` | class | `wow-spi` |
 | `me.ahoo.wow.spi.subscription.FailureClassifier` | interface | `wow-spi` |
+| `me.ahoo.wow.spi.subscription.FailureDescriber` | interface | `wow-spi` |
+| `me.ahoo.wow.spi.subscription.FailureDescription` | class | `wow-spi` |
 | `me.ahoo.wow.spi.subscription.LeaseStore` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.timer.TimerStatus` | class | `wow-spi` |
 | `me.ahoo.wow.spi.timer.TimerStore` | interface | `wow-spi` |
