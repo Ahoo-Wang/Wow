@@ -10,11 +10,13 @@ public final class me/ahoo/wow/clickhouse/ClickHouseClients {
 	public static synthetic fun of$default (Ljava/util/Map;Ljava/lang/String;ILjava/lang/Object;)Lcom/clickhouse/client/api/Client;
 }
 
-public final class me/ahoo/wow/clickhouse/query/ClickHouseDatasetBindings : me/ahoo/wow/query/backend/CachedQueryBindings {
+public final class me/ahoo/wow/clickhouse/query/ClickHouseDatasetBindings : me/ahoo/wow/query/backend/CachedQueryBindings, me/ahoo/wow/query/dataset/QueryDatasetSources {
 	public fun <init> (Lcom/clickhouse/client/api/Client;)V
 	public fun <init> (Lcom/clickhouse/client/api/Client;Lme/ahoo/wow/clickhouse/query/ClickHouseDatasetOptions;)V
-	public synthetic fun <init> (Lcom/clickhouse/client/api/Client;Lme/ahoo/wow/clickhouse/query/ClickHouseDatasetOptions;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lcom/clickhouse/client/api/Client;Lme/ahoo/wow/clickhouse/query/ClickHouseDatasetOptions;Lme/ahoo/wow/query/dataset/QueryDatasetSources;)V
+	public synthetic fun <init> (Lcom/clickhouse/client/api/Client;Lme/ahoo/wow/clickhouse/query/ClickHouseDatasetOptions;Lme/ahoo/wow/query/dataset/QueryDatasetSources;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public synthetic fun createBinding (Ljava/lang/Object;)Lme/ahoo/wow/query/backend/QueryBackendBinding;
+	public fun sourceOf (Lme/ahoo/wow/query/dataset/QueryDataset;)Lme/ahoo/wow/query/dataset/QueryDatasetSource;
 }
 
 public final class me/ahoo/wow/clickhouse/query/ClickHouseDatasetOptions {

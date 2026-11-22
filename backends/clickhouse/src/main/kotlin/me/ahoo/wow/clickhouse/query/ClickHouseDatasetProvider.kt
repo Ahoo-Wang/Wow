@@ -15,10 +15,12 @@ package me.ahoo.wow.clickhouse.query
 
 import com.clickhouse.client.api.Client
 import me.ahoo.wow.clickhouse.ClickHouseClients
+import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.query.backend.QueryBindings
 import me.ahoo.wow.query.dataset.QueryDataset
 import me.ahoo.wow.query.dataset.QueryDatasetConfig
 import me.ahoo.wow.query.dataset.QueryDatasetProvider
+import me.ahoo.wow.query.dataset.QueryDatasetSources
 import me.ahoo.wow.spi.config.ProviderOption
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.toJavaDuration
@@ -30,6 +32,10 @@ import kotlin.time.toJavaDuration
  * closes them. It is available when
  * either is there and `wow.clickhouse.query.enabled` is not `false`. A dataset's bare `table` is in
  * `wow.clickhouse.database`, where the Sink writes; its statements run under `wow.clickhouse.query.settings.*`.
+ *
+ * Its bindings tell the engine what the Sink's tables of the node's Manifest (a resource of the application, as the
+ * Sink takes it) hold, so a dataset over one inherits its state's protection ([ClickHouseDatasetSources]). Without a
+ * Manifest they know no table's source.
  */
 internal class ClickHouseDatasetProvider : QueryDatasetProvider {
     override val type: String = TYPE
@@ -50,9 +56,19 @@ internal class ClickHouseDatasetProvider : QueryDatasetProvider {
     override fun open(config: QueryDatasetConfig): QueryBindings<QueryDataset> {
         val client =
             ClickHouseClients.clientOf(config.resources, config.key, "The ClickHouse datasets", config.settings::option)
-        val bindings = ClickHouseDatasetBindings(client.client, optionsOf(config))
+        val options = optionsOf(config)
+        val bindings = ClickHouseDatasetBindings(client.client, options, sourcesOf(config, options))
         return if (client.owned) OwnedClientBindings(bindings, client) else bindings
     }
+
+    /** What the Sink's tables of the node's Manifest hold, in [options]' database; none known without a Manifest. */
+    private fun sourcesOf(config: QueryDatasetConfig, options: ClickHouseDatasetOptions): QueryDatasetSources =
+        if (config.resources.has(Manifest::class.java)) {
+            val manifest = config.resources.resource(Manifest::class.java, null, config.key)
+            ClickHouseDatasetSources(manifest, options.database)
+        } else {
+            QueryDatasetSources.NONE
+        }
 
     /** The dataset options [config] gives: its database, the metadata's time to live and the statements' settings. */
     fun optionsOf(config: QueryDatasetConfig): ClickHouseDatasetOptions = ClickHouseDatasetOptions(
@@ -63,9 +79,9 @@ internal class ClickHouseDatasetProvider : QueryDatasetProvider {
 
     /** [bindings] over a [client] of their own, which closing them closes. */
     private class OwnedClientBindings(
-        private val bindings: QueryBindings<QueryDataset>,
+        private val bindings: ClickHouseDatasetBindings,
         private val client: ClickHouseClients.OwnedClient,
-    ) : QueryBindings<QueryDataset> by bindings, AutoCloseable {
+    ) : QueryBindings<QueryDataset> by bindings, QueryDatasetSources by bindings, AutoCloseable {
         override fun close() = client.close()
     }
 
