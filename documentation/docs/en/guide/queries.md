@@ -132,7 +132,7 @@ A few more annotations of `me.ahoo.wow.api.query.annotation` tell the query mode
 | `@QueryText` | Prose a reader searches by words, such as a name or a description: a `search` may name it, and one that names no field reads it ([on Elasticsearch](../operate/elasticsearch#full-text-search)) |
 | `@Sensitive` | A string masked in every result: `DISPLAY` may still be filtered and sorted, `CONFIDENTIAL` never is |
 
-A masked field is masked for every caller, in queries, state reads and traces alike, and in the warehouse's catalog. The one exception is the service's own read of a `DISPLAY` value, which it asks for in so many words (below).
+A masked field is masked for every caller, in queries, state reads, event queries and traces alike, in the warehouse's catalog, and in the [state view cache](./extensions/cocache). It is masked where Wow returns it as a read, not where Wow stores or publishes it: [Where masking stops](#where-masking-stops). The one exception is the service's own read of a `DISPLAY` value, which it asks for in so many words ([below](#read-a-display-value-raw)).
 
 ### Read a `DISPLAY` value raw {#read-a-display-value-raw}
 
@@ -166,6 +166,20 @@ Why the word must be said: the result of a trusted read often goes straight into
 A `CONFIDENTIAL` value is masked for every reader, the service itself included: no read in process, `of(caller)`, `trusted()` and its `unbounded()` or `revealed()`, a subscription handler's `context.queries`, and no setting lifts it. The raw value is only where Wow hands code the state itself, not a query of it: the state a decide function holds and the `StateEvent` a subscription handler receives.
 
 So a secret the service must read back, such as the API key it presents to a third party, is not a `@Sensitive` field of a state. Keep a reference in the state, the name the secret is looked up under, and store the secret apart: in configuration or a secrets store the service reads, or as ciphertext in a field that is not `@Sensitive`, which the service decrypts. Wow keeps a state and its events as they were written and encrypts none of them, so a raw secret in a state is in the log and in every snapshot, whatever masks the queries put over it.
+
+### Where masking stops {#where-masking-stops}
+
+`@Sensitive` decides what a read returns: a query, a state read, an event query, a trace, an entry of the state view cache. It does not change what Wow stores or publishes, and it is not encryption at rest. These hold each `@Sensitive` value as it was written, `CONFIDENTIAL` ones included:
+
+| Where | What it holds | The boundary |
+| --- | --- | --- |
+| The log and the snapshots | Each event and each state as written | The store's grants |
+| A [published stream](./published-streams#sensitive-values), `wow.<context>.<aggregate>.state` | Each commit's events and the state after it, as written: another context's handler, another service and any consumer of the topic receive the raw values | The topic's ACL ([Kafka](../operate/kafka#topics)) |
+| The [ClickHouse sink's tables](../operate/clickhouse#the-tables) | The states and events as written; a query of them masks what it returns | The database's grants |
+| The [Elasticsearch event sink's index](../operate/elasticsearch#event-search) | The events as written; the `events` queries mask what they return | The index's privileges |
+| The report of [`migrate-data compare`](../migrate/data#_5-compare) | The values of the fields that differ, 9.x's and V10's | Who reads the report |
+
+Whoever reads one of these directly, with SQL, a Kafka consumer or a store's client, reads the raw values. Masking a published stream is planned ([#6586](https://github.com/Ahoo-Wang/Wow/issues/6586)); until it lands, the stream carries the values as written.
 
 ### Annotations a property inherits
 

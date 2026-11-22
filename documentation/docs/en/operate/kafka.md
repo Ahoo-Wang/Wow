@@ -53,6 +53,8 @@ Each context owns its topics; the topics of other contexts are theirs.
 
 An aggregate is published by default; it can stay unpublished, publish without its state, or name another topic. `wow.kafka.topics.prefix` puts a prefix before every topic name, such as `staging.`, on both the writing and the reading side. Every record is an envelope keyed by the aggregate, so one aggregate's records stay in order ([Wire protocols](../reference/protocols#kafka-envelope)).
 
+A state topic holds each state and event as written, with its [`@Sensitive`](../guide/queries#where-masking-stops) values unmasked, for as long as the topic retains it. Wow does not mask what it publishes (planned, [#6586](https://github.com/Ahoo-Wang/Wow/issues/6586)), so the topic's ACL is what decides who reads them: grant read on a context's state topics to the services that subscribe to it and to the external consumers meant to read it.
+
 ### Partitions
 
 - **A command topic has exactly as many partitions as its context's log** (`wow.log.partitions`). A command's partition in the topic is its aggregate's partition in the log, so the node that reads it is the node that owns the aggregate. With another count, commands would reach nodes that do not own their aggregates, so a node that reads a command topic checks it at startup, whatever `wow.kafka.ddl` says, and refuses to start while it is missing or has another count. A context whose commands the node does not take, only the ledger's, is checked for the topic alone: on another count the node warns and runs without the ledger's commands. Never add partitions to a command topic.

@@ -90,6 +90,10 @@ fun onPayRejected(rejected: CommandReceipt.Rejected<PayOrder>): CommandRequest<R
 
 [Write a Saga](./sagas) covers derived commands, receipts and rejections in full.
 
+## Sensitive values {#sensitive-values}
+
+A published record holds the state and the events as the upstream wrote them, its [`@Sensitive`](./queries#where-masking-stops) values unmasked, `CONFIDENTIAL` ones included: a password hash or an API key in the ordering's state reaches the payment's handler, every other service that reads the topic and any external consumer, and stays in the topic for its retention. Who may read the topic is its ACL's to decide. Masking published streams is planned ([#6586](https://github.com/Ahoo-Wang/Wow/issues/6586)); until it lands, keep a value no peer may see out of a published aggregate's state and events, or leave the aggregate unpublished (`published = false`).
+
 ## External consumers
 
 A system that is not a Wow service reads the same topics. Each record is an envelope keyed by the aggregate, so one aggregate's records stay in order: [Wire Protocols](../reference/protocols#kafka-envelope) describes it.
