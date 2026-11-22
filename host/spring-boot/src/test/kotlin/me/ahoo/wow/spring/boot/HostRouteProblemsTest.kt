@@ -78,7 +78,11 @@ class HostRouteProblemsTest {
         body["type"].asString().assert().isEqualTo("about:blank")
         body.has("code").assert().isFalse()
         body["title"].asString().assert().isEqualTo(HttpStatus.valueOf(status).reasonPhrase)
-        if (detail == null) body.has("detail").assert().isFalse() else body["detail"].asString().assert().isEqualTo(detail)
+        if (detail == null) {
+            body.has("detail").assert().isFalse()
+        } else {
+            body["detail"].asString().assert().isEqualTo(detail)
+        }
     }
 
     private fun Answered.assertMalformed(path: String, detail: String) {
@@ -151,7 +155,7 @@ class HostRouteProblemsTest {
     }
 
     @Test
-    fun `a parameter that fails its method's constraints is 400 of its status alone, saying only that validation failed`() {
+    fun `a parameter that fails its method's constraints is 400 of its status alone, saying only validation failed`() {
         get("/app/limit?limit=0").assertStatusAlone(400, "Validation failure")
     }
 

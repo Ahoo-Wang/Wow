@@ -273,7 +273,8 @@ class FailureProblemsTest {
 
     @Test
     fun `a request that cannot be read is wow-request-malformed naming the parameter or the body (#6591)`() {
-        val problems = problems(mapper("everything") { WowProblemException(CLAIMED, 418, Retry.NONE, null, "Claimed.") })
+        val everything = mapper("everything") { WowProblemException(CLAIMED, 418, Retry.NONE, null, "Claimed.") }
+        val problems = problems(everything)
         // A header is named as the request names it, not as the parameter that reads it.
         val missing = MissingRequestValueException("X-Tenant", String::class.java, "header", parameter(1))
         problems.problemOf(missing).assertMalformed("X-Tenant", "Required header 'X-Tenant' is not present.")
@@ -291,7 +292,8 @@ class FailureProblemsTest {
     @Test
     fun `a request that cannot be read and names nothing is wow-request-malformed without a violation`() {
         // A parameter of a class compiled without its names (the JDK's): Spring cannot name it.
-        val unnamedParameter = MethodParameter(String::class.java.getMethod("substring", Int::class.javaPrimitiveType), 0)
+        val substring = String::class.java.getMethod("substring", Int::class.javaPrimitiveType)
+        val unnamedParameter = MethodParameter(substring, 0)
         val unnamed = problems().problemOf(ServerWebInputException("Type mismatch.", unnamedParameter))
         unnamed.code.assert().isEqualTo(FrameworkCodes.REQUEST_MALFORMED)
         unnamed.violations.assert().isEmpty()
