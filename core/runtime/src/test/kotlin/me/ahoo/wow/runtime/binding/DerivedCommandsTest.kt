@@ -136,6 +136,31 @@ class DerivedCommandsTest {
         }
 
     @Test
+    fun `a command naming an id admission refuses, or taking such an owner's, is rejected as malformed`(): Unit =
+        runBlocking {
+            // #6594: a saga's command reaches no aggregate the gateway's routes could not, as admission refuses it.
+            val wallet = aggregate<Any>(SHOP, "wallet") {
+                id(AggregateIdSource.OWNER)
+                initial { Any() }
+                decide<AddItems>(Creation.ALLOWED) { _, _ -> Decision.events(ItemsAdded(listOf())) }
+                evolve<ItemsAdded> { }
+            }
+            val deriving = DerivedCommands(listOf(wallet), coordinator, admission = admissionOf())
+            val add = AddItems(listOf("apple"))
+            val named = Command("w-1", "w-1", wallet.type.ref(TENANT, "a/b"), add, causation = root)
+            val owned = Command("w-2", "w-2", wallet.type.unassigned(TENANT), add, causation = root)
+                .copyWith(scope = Scope("a;b"))
+            val executed = deriving.execute(listOf(named, owned), TENANT, null)
+            executed.rejected.map { it.command.id to it.rejection.code }.assert().containsExactly(
+                "w-1" to FrameworkCodes.COMMAND_MALFORMED,
+                "w-2" to FrameworkCodes.COMMAND_MALFORMED,
+            )
+            executed.rejected.first().rejection.message.assert().contains("'a/b' holds '/'")
+            executed.rejected.last().rejection.message.assert().contains("'a;b' holds ';'")
+            executed.committed.assert().isEmpty()
+        }
+
+    @Test
     fun `a command whose outcome is unknown or contended should fail the saga`(): Unit = runBlocking {
         derived.execute(listOf(command("c-1", AddItems(listOf("apple")))), TENANT, null)
         answer = AppendOutcome.Unknown(IOException("The log is gone."))

@@ -25,6 +25,7 @@ import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.api.subscribe.SubscriptionContext
+import me.ahoo.wow.kernel.AggregateIds
 import me.ahoo.wow.kernel.BlockingDispatcher
 import me.ahoo.wow.kernel.CallRejectedHandlingException
 import me.ahoo.wow.kernel.CommandCalls
@@ -215,9 +216,14 @@ internal class ProcessorHandling(
      * This command, a saga sent or called, as the service admits it: one that names no aggregate is refused where its
      * contract routes it by an id alone ([ClassPathCommandTypes.needsAggregateId]), as admission refuses it on the
      * node, so the specification fails where the service would, and does not pass on an aggregate the send never
-     * reaches.
+     * reaches; and so is one that names an aggregate id admission refuses ([AggregateIds.refused]), as malformed.
      */
     private fun Command<*>.admitted(): Command<*> {
+        if (ref.isAssigned) {
+            AggregateIds.refused(ref.id)?.let { refused ->
+                error("The saga sends ${body.javaClass.name}, which the service refuses as malformed: $refused")
+            }
+        }
         check(ref.isAssigned || !commandTypes.needsAggregateId(body.javaClass)) {
             "The saga sends ${body.javaClass.name} naming no ${ref.type} to act on, which the service refuses: only " +
                 "a command that creates its aggregate, one its body names the aggregate of (@AggregateId), or one " +

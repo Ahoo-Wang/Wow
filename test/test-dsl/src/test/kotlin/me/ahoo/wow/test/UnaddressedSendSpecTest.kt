@@ -96,6 +96,22 @@ class UnaddressedSendSpecTest {
         }
 
     @Test
+    fun `a command naming an id admission refuses should fail the specification as malformed`() = withContract {
+        // #6594: the service refuses it, as no route by its id reaches it behind a gateway.
+        sagaSpec(listOf(saga(CommandRequest.of(Dispatch("dhl"), "s/1")))) {
+            whenEvent(placed) {
+                expectError<IllegalStateException> {
+                    message.assert().isEqualTo(
+                        "The saga sends ${Dispatch::class.java.name}, which the service refuses as malformed: The " +
+                            "aggregate id 's/1' holds '/', which a gateway's path check refuses in a path, so no route " +
+                            "by its id would reach it: an aggregate id holds no '/', ';' or '\\'.",
+                    )
+                }
+            }
+        }
+    }
+
+    @Test
     fun `a call naming no aggregate, or a receipt handler's send or call, should fail the specification too`() =
         withContract {
             val dispatch = CommandRequest.of(Dispatch("dhl"))

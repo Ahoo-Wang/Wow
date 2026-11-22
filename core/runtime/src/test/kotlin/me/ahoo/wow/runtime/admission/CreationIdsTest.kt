@@ -289,6 +289,41 @@ class CreationIdsTest {
             .assert().isEqualTo("fresh")
     }
 
+    @Test
+    fun `an id a generator gives that admission refuses as an id should fail the creation, drawn or aimed`(): Unit =
+        runBlocking {
+            // #6594: no aggregate is created that no route by its id reaches; the generator's defect, not the sender's.
+            val drawing = CreationIds(
+                IdGenerators(aggregates = AggregateIdGenerator { "o/1" }),
+                CommittedRequests.of(log),
+            )
+            val aiming = CreationIds(
+                IdGenerators(
+                    aggregates = object : AggregateIdGenerator {
+                        override fun next(type: AggregateType): String = "o-1"
+
+                        override fun nextIn(type: AggregateType, tenantId: String, partition: Int, partitions: Int) =
+                            "o;1"
+                    },
+                ),
+                CommittedRequests.of(log),
+            )
+            assertThrownBy<IllegalStateException> { runBlocking { drawing.idOf(type, "t", "r-1") } }
+                .hasMessage(
+                    "The id generator of shop.order gave an id admission refuses: The aggregate id 'o/1' holds '/', " +
+                        "which a gateway's path check refuses in a path, so no route by its id would reach it: an " +
+                        "aggregate id holds no '/', ';' or '\\'.",
+                )
+            assertThrownBy<IllegalStateException> { runBlocking { aiming.idOf(type, "t", "r-1") } }
+                .hasMessageContaining("'o;1'")
+            // Beside a request of another scope, drawn or aimed alike.
+            committed("r-2", "o-2", Scope("alice"))
+            assertThrownBy<IllegalStateException> { runBlocking { drawing.idOf(type, "t", "r-2", Scope("bob")) } }
+                .hasMessageContaining("'o/1'")
+            assertThrownBy<IllegalStateException> { runBlocking { aiming.idOf(type, "t", "r-2", Scope("bob")) } }
+                .hasMessageContaining("'o;1'")
+        }
+
     private companion object {
         const val PARTITIONS = 4
     }

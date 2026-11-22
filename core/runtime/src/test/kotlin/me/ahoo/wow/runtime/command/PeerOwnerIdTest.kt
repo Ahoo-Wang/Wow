@@ -204,6 +204,59 @@ class PeerOwnerIdTest {
         }
 
     @Test
+    fun `an id admission refuses, named or the owner's, gets the same answer from the node and through a peer`(): Unit =
+        runBlocking {
+            // #6594: the peer path refuses before anything is relayed, as the basket's own node does.
+            val (stock, sales) = started()
+            val slashed = Caller(TENANT, Scope("a/b"), subject = "a/b")
+            listOf(
+                request(PutItem("apple"), clerk, id = "a;b"),
+                request(OpenBasket(), clerk, id = "购".repeat(29)),
+                request(OpenBasket(), slashed),
+            ).forEach { request ->
+                val local = stock.gateway.execute(request)
+                val relayed = sales.gateway.execute(request)
+                local.error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
+                listOf(relayed.status, relayed.error!!.code, relayed.error!!.message, relayed.ref).assert()
+                    .isEqualTo(listOf(local.status, local.error!!.code, local.error!!.message, local.ref))
+            }
+            topics.messages(COMMANDS).assert().isEmpty()
+            decided.assert().isEmpty()
+        }
+
+    @Test
+    fun `an intake command naming an id admission refuses, or such an owner's, is rejected, not parked`(): Unit =
+        runBlocking {
+            // #6594: answered as the intake answers its other malformed commands, a rejection receipt.
+            val (stock, _) = started()
+            val replyTo = ReplyTo(SALES, "OrderSaga.onOrderPlaced", ORDER.ref(TENANT, "o-n"), 1)
+            val named = Command("c-s", "r-c-s", BASKET.ref(TENANT, "a/b"), PutItem("apple"))
+            val owned = Command("c-o", "r-c-o", BASKET.unassigned(TENANT), PutItem("apple"))
+                .copyWith(scope = Scope("a;b"))
+            val lanes = listOf(named to named.ref, owned to BASKET.ref(TENANT, "(none):r-c-o"))
+            lanes.forEach { (it, lane) ->
+                topics.send(
+                    COMMANDS,
+                    CommandMessages.command(
+                        ClusterCodec.wire("stock.basket.PutItem", it, replyTo),
+                        Partitioner.partitionOf(lane, PARTITIONS),
+                    ),
+                )
+            }
+            eventually { topics.messages(RECEIPTS).size == 2 }
+            val rejected = topics.messages(RECEIPTS).map { CommandMessages.rejectedOf(EnvelopeCodec.decode(it.value)) }
+            rejected.associate { it.commandId to it.error.code }.assert().isEqualTo(
+                mapOf("c-s" to FrameworkCodes.COMMAND_MALFORMED, "c-o" to FrameworkCodes.COMMAND_MALFORMED),
+            )
+            rejected.single { it.commandId == "c-s" }.error.message.assert().contains("'a/b' holds '/'")
+            rejected.single { it.commandId == "c-o" }.error.message.assert().contains("'a;b' holds ';'")
+            stockBackends.backends(STOCK).ledger.isParked(INTAKE, named.ref).assert().isFalse()
+            decided.assert().isEmpty()
+            stock.gateway.execute(request(OpenBasket(), alice)).status.assert()
+                .isEqualTo(CommandResult.Status.SUCCEEDED)
+        }
+
+    @Test
     fun `a command the intake takes that names no basket and has no owner is rejected, not parked`(): Unit =
         runBlocking {
             val (stock, _) = started()

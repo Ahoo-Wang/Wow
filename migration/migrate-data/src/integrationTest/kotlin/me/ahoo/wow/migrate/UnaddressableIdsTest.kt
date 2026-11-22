@@ -28,7 +28,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 /**
- * The 9.x aggregate ids V10's admission refuses ([me.ahoo.wow.runtime.admission.AggregateIds.refused]), in the 9.x
+ * The 9.x aggregate ids V10's admission refuses ([me.ahoo.wow.kernel.AggregateIds.refused]), in the 9.x
  * example's MongoDB store: `check` lists every instance of one, and fails, as no command could reach it after the
  * migration.
  */
@@ -41,11 +41,14 @@ class UnaddressableIdsTest {
     private val source = MongoNineXEventSource(database)
 
     /** One id of each kind admission refuses. */
-    private val refused =
-        listOf("a\u0000b", "a\u0085b", " o-1", "o-1\t", "o-1\u3000", ".", "..", "o".repeat(LONGEST + 1))
+    private val refused = listOf(
+        "a\u0000b", "a\u0085b", " o-1", "o-1\t", "o-1\u3000", ".", "..", "o".repeat(LONGEST + 1),
+        // #6594: what a gateway's path check refuses, so no route by its id reaches it.
+        "o/1", "o;1", "o\\1", "购".repeat(29),
+    )
 
-    /** Ids near them that admission takes: the store's pattern matches the last three too; the rule takes them. */
-    private val taken = listOf("a.b", "a b", "购物", "...", "o-1.", "o".repeat(LONGEST))
+    /** Ids near them that admission takes: the store's pattern matches the last four too; the rule takes them. */
+    private val taken = listOf("a.b", "a b", "购物", "a%b", "...", "o-1.", "o".repeat(LONGEST), "购".repeat(28))
 
     private fun insert(ids: List<String>) {
         ids.forEachIndexed { index, id ->
@@ -80,6 +83,10 @@ class UnaddressableIdsTest {
             .contains("\"o-1\\u3000\" (The aggregate id 'o-1\\u3000' begins or ends with white space")
             .contains("\"..\" (The aggregate id '..' is a relative path segment")
             .contains("(The aggregate id is at most $LONGEST characters; this one has ${LONGEST + 1}: 1 streams")
+            .contains("\"o/1\" (The aggregate id 'o/1' holds '/', which a gateway's path check refuses")
+            .contains("\"o;1\" (The aggregate id 'o;1' holds ';'")
+            .contains("\"o\\\\1\" (The aggregate id 'o\\1' holds '\\'")
+            .contains("(The aggregate id is 261 characters percent-encoded as UTF-8, which a gateway's path check")
         problem.none { it.isISOControl() || it.isWhitespace() && it != ' ' }.assert().isTrue()
         printed.assert().contains("Mapping check failed: 1 problems.")
     }
@@ -106,8 +113,8 @@ class UnaddressableIdsTest {
                 examined.assert().isEqualTo((stats["nReturned"] as Number).toInt())
             }
         }
-        // The refused ids and the three near ones the pattern matches: no other stream is fetched.
-        fetched.assert().isEqualTo(refused.size + 3)
+        // The refused ids and the four near ones the pattern matches: no other stream is fetched.
+        fetched.assert().isEqualTo(refused.size + 4)
     }
 
     private fun config(): Path {

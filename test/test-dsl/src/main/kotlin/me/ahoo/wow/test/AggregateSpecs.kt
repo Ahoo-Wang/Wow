@@ -14,6 +14,7 @@
 package me.ahoo.wow.test
 
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.kernel.AggregateIds
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CallerAdmission
 import me.ahoo.wow.spi.tenant.TenantPolicy
@@ -123,9 +124,13 @@ fun <S : Any> aggregateSpecTests(
 
 /**
  * Sends the specification's commands by [caller], with the type's [fixedTenant] when it has one: its aggregate must be
- * in that tenant.
+ * in that tenant, and its id one admission takes ([AggregateIds.refused]), as no command of the service reaches an
+ * aggregate of another.
  */
 private fun AggregateSpec<*>.admits(caller: Caller?, fixedTenant: String?) {
+    AggregateIds.refused(ref.id)?.let { refused ->
+        throw IllegalArgumentException("Admission refuses the specification's aggregate id as malformed: $refused")
+    }
     require(fixedTenant == null || ref.tenantId == fixedTenant) {
         "The type ${ref.type} is fixed to tenant $fixedTenant: its aggregate ${ref.id} is in it, not in ${ref.tenantId}."
     }

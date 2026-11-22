@@ -74,6 +74,17 @@ class FixedTenantSpecTest {
     }
 
     @Test
+    fun `a specification's aggregate id should be one admission takes`() {
+        // #6594: no command of the service reaches an aggregate of another.
+        assertThrownBy<IllegalArgumentException> { aggregateSpec(account, id = "a;b") { } }.hasMessage(
+            "Admission refuses the specification's aggregate id as malformed: The aggregate id 'a;b' holds ';', " +
+                "which a gateway's path check refuses in a path, so no route by its id would reach it: an aggregate " +
+                "id holds no '/', ';' or '\\'.",
+        )
+        assertThrownBy<IllegalArgumentException> { aggregateSpecTests(account, id = "a/b") { } }
+    }
+
+    @Test
     fun `under a fixed tenant one owner id is one owner, whichever tenant its caller is of`() =
         aggregateSpec(wallet, id = "u1", fixedTenant = SHARED) {
             // An aggregate whose id is its owner's: u1 of acme and u1 of globex share one wallet.

@@ -157,6 +157,12 @@ class BodyIdAdmissionTest {
                 request("Restock", """{"productId":" mug","quantity":1}"""),
                 "The aggregate id ' mug' begins or ends with white space, which a reader would not see.",
             )
+            // #6594: and one no route by its id reaches behind a gateway.
+            refused(
+                request("Restock", """{"productId":"mug;2","quantity":1}"""),
+                "The aggregate id 'mug;2' holds ';', which a gateway's path check refuses in a path, so no route by " +
+                    "its id would reach it: an aggregate id holds no '/', ';' or '\\'.",
+            )
             refused(
                 request("Audit", """{"productId":"mug"}"""),
                 "The aggregate the body of $CONTEXT.product.Audit names cannot be read: No product is audited as mug.",
