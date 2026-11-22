@@ -30,6 +30,7 @@ import me.ahoo.wow.api.read.StateView
 import me.ahoo.wow.api.read.dynamic
 import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.api.result.FrameworkCodes
+import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CLASS_KEYWORD
 import me.ahoo.wow.manifest.ContextManifest
@@ -294,6 +295,42 @@ class HttpQueryApiTest {
             val other = AggregateType("mail", "other").ref("t1", "x")
             caught<IllegalArgumentException> { runBlocking { boxes.state(other, 1) } }
         }
+    }
+
+    @Test
+    fun `a service's revealing reads should ask the peer for DISPLAY values, each of them, and only in service mode`():
+        Unit = runBlocking {
+        val client = WowClient.builder()
+            .endpoints(EndpointResolver.of(mapOf("mail" to peer.base), mapOf("mail" to peer.base)))
+            .service("reader-service")
+            .build()
+        val queries = (client.queries as HttpQueryApi).revealing(Caller.ofService("reader-service", "t1"))
+        peer.reply(
+            Reply.json(listOf(WowJson.mapper.readTree(record("b-1")))),
+            Reply.json(WowJson.mapper.readTree(record("b-1"))),
+            Reply.json(emptyList<Any>()),
+            Reply.json(emptyList<Any>()),
+            Reply.json(emptyList<Any>()),
+        )
+        queries.snapshots(BOX).list(ListQuery(MatchAllFilter)).toList().assert().hasSize(1)
+        queries.snapshots(BOX).state("b-1").assert().isNotNull()
+        queries.events(BOX).list(ListQuery(MatchAllFilter)).toList().assert().isEmpty()
+        queries.snapshots(BOX).dynamic(Map::class.java).list(ListQuery(MatchAllFilter)).toList().assert().isEmpty()
+        queries.events(BOX).dynamic(Map::class.java).list(ListQuery(MatchAllFilter)).toList().assert().isEmpty()
+        peer.taken.map { it.headers[WowHeaders.REVEAL] }.assert().containsOnly(WowHeaders.REVEAL_DISPLAY)
+        // A caller's reads do not ask.
+        peer.reply(Reply.json(emptyList<Any>()))
+        boxes.list(ListQuery(MatchAllFilter)).toList()
+        peer.taken.last().headers[WowHeaders.REVEAL].assert().isNull()
+        // An end caller's reads are never revealed, nor a user-mode client's, which reads for an end user.
+        caught<IllegalArgumentException> { (client.queries as HttpQueryApi).revealing(Caller.of(tenantId = "t1")) }
+        val user = WowClient.builder()
+            .endpoints(EndpointResolver.of(mapOf("mail" to peer.base), mapOf("mail" to peer.base)))
+            .user(UserCredential.NONE)
+            .build()
+        caught<IllegalStateException> {
+            (user.queries as HttpQueryApi).revealing(Caller.ofService("reader-service", "t1"))
+        }.message.assert().contains("user mode")
     }
 
     @Test

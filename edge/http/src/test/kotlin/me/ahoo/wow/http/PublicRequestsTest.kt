@@ -28,6 +28,7 @@ class PublicRequestsTest {
     /** The `Wow-` constants that are no request header of the public port, each with why. */
     private val notTaken = mapOf(
         WowHeaders.CALL to "a service's call, taken on the internal port alone (403 on the public one)",
+        WowHeaders.REVEAL to "a service's read of its peer's DISPLAY values, on the internal port alone (403 here)",
         WowHeaders.REBUILDING to "a response's header, on a snapshot query's answer",
     )
 

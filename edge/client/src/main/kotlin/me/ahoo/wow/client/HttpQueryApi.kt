@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.transformWhile
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.RequestFacts
@@ -52,6 +53,7 @@ import me.ahoo.wow.api.read.StateView
 import me.ahoo.wow.api.read.TenantSnapshotQueries
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.wire.CallWire
+import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.manifest.CLASS_KEYWORD
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.QueryRoutes
@@ -96,6 +98,10 @@ import kotlin.time.Duration
  * transport (`wow.peer.unavailable`, `wow.query.timeout`). A single row or a state that is not found, or that the caller
  * may not see, is null. There are no trusted queries over HTTP: a peer reads for a caller ([of]); trusted code
  * reads its own node ([me.ahoo.wow.api.read.NodeQueryApi]).
+ *
+ * A service's own read of a peer's `@Sensitive(DISPLAY)` values, [revealing], sends `Wow-Reveal: display` with each of
+ * its reads, in service mode alone: the peer answers them raw when the read's root is the service's own and the peer
+ * shares them, and refuses it (403) otherwise.
  */
 class HttpQueryApi internal constructor(
     private val transport: HttpTransport,
@@ -104,18 +110,33 @@ class HttpQueryApi internal constructor(
 ) : QueryApi {
     override fun of(caller: Caller): Queries = Scoped(caller)
 
-    private inner class Scoped(val caller: Caller) : Queries {
+    /**
+     * The queries of [caller], a service's own identity, asking the peer for the raw value of its `DISPLAY` fields
+     * (`Wow-Reveal`): a subscription handler's revealing queries of a peer's model. Only in service mode, the peer's
+     * internal port; a user-mode client reads for an end user, whose values are masked.
+     */
+    @InternalWowApi
+    fun revealing(caller: Caller): Queries {
+        requireUse(caller.service) { "$caller is not a service's own identity: its reads are never revealed." }
+        check(transport.mode is ClientMode.Service) {
+            "A peer reveals its DISPLAY values to a service on its internal port alone: this client calls its public " +
+                "routes for an end user (user mode)."
+        }
+        return Scoped(caller, revealing = true)
+    }
+
+    private inner class Scoped(val caller: Caller, val revealing: Boolean = false) : Queries {
         override fun <S : Any> snapshots(stateType: Class<S>): TenantSnapshotQueries<S> =
-            Snapshots(models.typeOf(stateType), stateType, caller)
+            Snapshots(models.typeOf(stateType), stateType, caller, revealing)
 
         override fun snapshots(type: AggregateType): TenantSnapshotQueries<ObjectNode> =
-            Snapshots(type, ObjectNode::class.java, caller)
+            Snapshots(type, ObjectNode::class.java, caller, revealing)
 
-        override fun events(type: AggregateType): EventQueries = Events(type, caller)
+        override fun events(type: AggregateType): EventQueries = Events(type, caller, revealing)
 
         @ExperimentalWowApi
         override fun <R : Any> datasets(name: DatasetName, rowType: Class<R>): RowQueries<R> =
-            Rows(name.context, "/wow/dataset/${name.context}/${name.name}/${QueryRoutes.SEGMENT}", caller) {
+            Rows(name.context, "/wow/dataset/${name.context}/${name.name}/${QueryRoutes.SEGMENT}", caller, revealing) {
                 decode(it, rowType)
             }
     }
@@ -125,6 +146,7 @@ class HttpQueryApi internal constructor(
         val context: String,
         val path: String,
         val caller: Caller,
+        val revealing: Boolean,
         private val check: (Any) -> Unit = {},
         private val row: (ObjectNode) -> R,
     ) : RowQueries<R> {
@@ -308,7 +330,7 @@ class HttpQueryApi internal constructor(
                 path,
                 caller,
                 rootOf(caller),
-                headers,
+                headers + revealed(revealing),
                 QueryProtocolJson.mapper.writeValueAsBytes(body)
             )
         }
@@ -325,12 +347,13 @@ class HttpQueryApi internal constructor(
         override val type: AggregateType,
         private val stateType: Class<S>,
         caller: Caller,
-    ) : Rows<Snapshot<S>>(type.context, queryPath(type, QueryRoutes.SNAPSHOT), caller, ::wholeRecords, {
+        revealing: Boolean,
+    ) : Rows<Snapshot<S>>(type.context, queryPath(type, QueryRoutes.SNAPSHOT), caller, revealing, ::wholeRecords, {
         it.toSnapshot(type, stateType)
     }),
         TenantSnapshotQueries<S> {
         override fun <T : Any> dynamic(rowType: Class<T>): RowQueries<T> =
-            Rows(context, path, caller) { decode(it, rowType) }
+            Rows(context, path, caller, revealing) { decode(it, rowType) }
 
         override suspend fun state(id: String): Snapshot<S>? = read(type.ref(caller.tenantId, id), null)
 
@@ -356,7 +379,7 @@ class HttpQueryApi internal constructor(
             minVersion?.let { requireUse(it >= 1) { "A committed state has a version from 1." } }
             val query = minVersion?.let { "?$MIN_VERSION=$it" }.orEmpty()
             val path = "/${type.context}/${type.name}/${HttpTransport.encode(ref.id)}/state$query"
-            val request = PeerRequest(type.context, path, caller, rootOf(caller))
+            val request = PeerRequest(type.context, path, caller, rootOf(caller), revealed(revealing))
             val view = when (val answer = transport.exchange(request, Exchange.QUERY)) {
                 is Answer.Ok -> tree(answer.value)
                 is Answer.Problem -> when {
@@ -372,14 +395,23 @@ class HttpQueryApi internal constructor(
         }
     }
 
-    private inner class Events(override val type: AggregateType, caller: Caller) :
-        Rows<EventStream>(type.context, queryPath(type, QueryRoutes.EVENTS), caller, ::wholeRecords, { record ->
-            record.toEventStream(type) { models.eventClassOf(type, it) }
-        }),
+    private inner class Events(override val type: AggregateType, caller: Caller, revealing: Boolean) :
+        Rows<EventStream>(
+            type.context,
+            queryPath(type, QueryRoutes.EVENTS),
+            caller,
+            revealing,
+            ::wholeRecords,
+            { record -> record.toEventStream(type) { models.eventClassOf(type, it) } },
+        ),
         EventQueries {
         override fun <T : Any> dynamic(rowType: Class<T>): RowQueries<T> =
-            Rows(context, path, caller) { decode(it, rowType) }
+            Rows(context, path, caller, revealing) { decode(it, rowType) }
     }
+
+    /** The header a revealing read sends ([WowHeaders.REVEAL]), none for any other. */
+    private fun revealed(revealing: Boolean): Map<String, String> =
+        if (revealing) REVEAL_HEADER else emptyMap()
 
     /**
      * The root context a service-mode read asserts: [caller]'s tenant, scope, operator and
@@ -406,6 +438,8 @@ class HttpQueryApi internal constructor(
     private fun PeerProblem.isNotFound(code: String): Boolean = status == NOT_FOUND && this.code == code
 
     companion object {
+        /** The header of a revealing read: `Wow-Reveal: display`. */
+        private val REVEAL_HEADER = mapOf(WowHeaders.REVEAL to WowHeaders.REVEAL_DISPLAY)
         private const val NOT_FOUND = 404
         private const val KIND = "kind"
         private const val KIND_SINGLE = "single"

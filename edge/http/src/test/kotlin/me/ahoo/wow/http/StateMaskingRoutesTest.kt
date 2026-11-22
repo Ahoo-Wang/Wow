@@ -41,7 +41,7 @@ class StateMaskingRoutesTest {
     private val tenantLevel = mapOf("X-Tenant-Level" to "true")
 
     /** A cart opened with [SECRET] as its note by alice, its snapshot stored where the state and the queries read it. */
-    private fun opened(node: QueryNode): QueryNode {
+    internal fun opened(node: QueryNode): QueryNode {
         node.http.post("/shop/cart/c-1/open-cart", """{"note":"$SECRET"}""").status.assert().isEqualTo(200)
         node.http.post("/shop/cart/c-1/add-item", """{"sku":"apple"}""").status.assert().isEqualTo(200)
         runBlocking {
@@ -181,7 +181,7 @@ class StateMaskingRoutesTest {
             .assert().isEqualTo(SECRET)
     }
 
-    private companion object {
+    internal companion object {
         const val SECRET = "hunter-2048"
         const val DISPLAYED = "hu*********"
         const val CONFIDENTIAL = "***********"

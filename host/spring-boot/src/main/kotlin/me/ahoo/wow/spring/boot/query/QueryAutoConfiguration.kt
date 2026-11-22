@@ -461,6 +461,7 @@ class QueryAutoConfiguration {
                 properties.budgets.http.defaultListSize,
                 node.snapshotStatus,
                 properties.stream.streams(),
+                properties.sensitivity.displayShared,
             )
 
         /**

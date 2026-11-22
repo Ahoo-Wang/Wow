@@ -92,5 +92,8 @@ A signal completes a wait and hands its result to the caller, so whoever can sen
 | A forwarded command | a node of the same service |
 | A wait signal | any service that names itself |
 | A synchronous call or a read | any service that names itself, as that service's identity (subject `service:<name>`) |
+| A read that asks for `DISPLAY` values raw (`Wow-Reveal: display`) | any service that names itself, for a read whose root is a service's own, unless the owner turns `wow.query.sensitivity.display-shared` off |
+
+Wow does not authenticate the service a request names. A workload that can reach a service's internal port can declare any service name and, with `Wow-Reveal`, read that service's `@Sensitive(DISPLAY)` values raw; `CONFIDENTIAL` values stay masked. Restricting who reaches the internal port is the operator's control ([`DISPLAY` values on the internal port](../operate/security#display-values-on-the-internal-port)).
 
 A synchronous call may invoke every domain command unless the service lists the commands each caller may call (`wow.callers.<service>.commands`). Lifecycle and system commands, such as delete or rebuild a snapshot, must be listed for the calling service explicitly. A call carries the scope, operator and request facts of the root command it acts for, and the target takes that claim only on its internal port, from a service that names itself.

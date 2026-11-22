@@ -156,6 +156,8 @@ class QueryNode(
     crossTenant: Boolean = false,
     /** The application's problem mappers, in order (#6510). */
     mappers: List<ProblemMapper> = emptyList(),
+    /** Whether the node shares its `DISPLAY` values with a peer that asks (`wow.query.sensitivity.display-shared`). */
+    displayShared: Boolean = true,
 ) {
     private val cart =
         cartSnapshots(storage, entryPolicy, policies = policies, manifest = manifest, crossTenant = crossTenant)
@@ -190,6 +192,7 @@ class QueryNode(
             policies = listOfNotNull(policyGateway),
             streams = streams,
             crossTenant = crossTenant,
+            displayShared = displayShared,
         )
     }
 

@@ -72,6 +72,14 @@ class HttpQueries @InternalWowApi constructor(
     val crossTenant: Boolean = false,
     @InternalWowApi
     val access: AccessPolicies = AccessPolicies.NONE,
+    /**
+     * Whether this service shares the raw value of its `@Sensitive(DISPLAY)` fields with a peer that asks
+     * (`Wow-Reveal`, `wow.query.sensitivity.display-shared`): on by default, a call between services being trusted.
+     * Off, every peer read that asks is refused (403), whatever service it names: a control that does not depend on
+     * who asks, where a list keyed on a peer's self-declared name would be none. It has no default, so no construction
+     * shares what the operator turned off by leaving it out.
+     */
+    val displayShared: Boolean,
 ) {
     private val snapshots: Map<AggregateType, QueryGateway> = snapshots.associateBy { it.aggregateType }
     private val events: Map<AggregateType, QueryGateway> = events.associateBy { it.aggregateType }
@@ -111,9 +119,9 @@ class HttpQueries @InternalWowApi constructor(
         /** The default of [defaultListSize], as in 9.x. */
         const val DEFAULT_LIST_SIZE: Int = 100
 
-        /** No query model: the query routes are not served. */
+        /** No query model: the query routes are not served, and no `DISPLAY` value is shared. */
         @JvmField
-        val NONE: HttpQueries = HttpQueries()
+        val NONE: HttpQueries = HttpQueries(displayShared = false)
 
         /**
          * The query models [engine] composed, with [defaultListSize], the [snapshotStatus] of the
@@ -126,6 +134,7 @@ class HttpQueries @InternalWowApi constructor(
             defaultListSize: Int = DEFAULT_LIST_SIZE,
             snapshotStatus: SnapshotStatus = SnapshotStatus.NONE,
             streams: QueryStreams = QueryStreams(),
+            displayShared: Boolean,
         ): HttpQueries = HttpQueries(
             engine.snapshots,
             engine.events,
@@ -138,6 +147,7 @@ class HttpQueries @InternalWowApi constructor(
             streams,
             engine.crossTenant,
             engine.access,
+            displayShared,
         )
     }
 }

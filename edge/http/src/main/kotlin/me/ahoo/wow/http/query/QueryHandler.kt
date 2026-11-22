@@ -48,6 +48,7 @@ import me.ahoo.wow.http.problem.FailureProblems
 import me.ahoo.wow.http.problem.Problem
 import me.ahoo.wow.http.problem.ProblemException
 import me.ahoo.wow.http.receiveFirst
+import me.ahoo.wow.http.revealedFor
 import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
@@ -240,7 +241,7 @@ internal class QueryHandler(
     private suspend fun caller(request: ServerRequest, type: AggregateType): QueryCaller {
         val caller = authenticator.authenticate(request)
         val named = named(request)
-        return targets.of(type, caller, named?.target, named?.crossTenant)
+        return targets.of(type, caller, named?.target, named?.crossTenant).revealedFor(request)
     }
 
     /** The position a resumed stream continues after: the request's `Last-Event-ID`. */

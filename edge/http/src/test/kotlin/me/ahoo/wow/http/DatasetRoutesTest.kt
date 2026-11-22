@@ -152,7 +152,7 @@ class DatasetRoutesTest {
             policies = listOf(ScopeQueryPolicy()),
         )
         return HttpNode(manifest = queryManifest()) {
-            HttpQueries(datasets = gateways, datasetVisibility = visibility)
+            HttpQueries(datasets = gateways, datasetVisibility = visibility, displayShared = true)
         }
     }
 
@@ -344,7 +344,7 @@ class DatasetRoutesTest {
 
     @Test
     fun `no dataset gateways should serve no dataset route`() {
-        val plain = HttpNode(manifest = queryManifest()) { HttpQueries() }
+        val plain = HttpNode(manifest = queryManifest()) { HttpQueries(displayShared = true) }
         plain.get("/wow/dataset", "alice").status.assert().isEqualTo(404)
         plain.get(SALES, "alice").status.assert().isEqualTo(404)
     }

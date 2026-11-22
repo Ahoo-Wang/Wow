@@ -97,7 +97,7 @@ fun peerReadRoutes(
     scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
 ): RouterFunction<ServerResponse> {
     val statuses = ErrorStatuses(manifest, options.errorStatuses)
-    val roots = PeerRoots(callerResolver, permits, statuses)
+    val roots = PeerRoots(callerResolver, permits, statuses, queries.displayShared)
     val authenticator =
         Authenticator(CallerResolver { request -> request.attribute(ROOT_CALLER).orElse(null) as Caller? }, statuses)
     val headers = RequestHeaders(statuses)
@@ -175,6 +175,8 @@ internal class PeerRoots(
     private val services: CallerResolver,
     private val permits: CallPermits,
     private val statuses: ErrorStatuses,
+    /** Whether this service reveals `DISPLAY` values to a peer that asks ([HttpQueries.displayShared]); no default. */
+    private val displayShared: Boolean,
 ) {
     /**
      * [read]'s response once [request] is admitted to read [model] (any service's read when null), or the problem it
@@ -183,7 +185,9 @@ internal class PeerRoots(
     @Suppress("TooGenericExceptionCaught") // Whatever fails admitting a read is answered as a problem.
     suspend fun reading(request: ServerRequest, model: String?, read: suspend () -> ServerResponse): ServerResponse =
         try {
-            request.attributes()[ROOT_CALLER] = rootOf(request, model)
+            val root = rootOf(request, model)
+            request.attributes()[ROOT_CALLER] = root
+            if (reveals(request, root)) request.attributes()[REVEALS_DISPLAY] = true
             read()
         } catch (problem: ProblemException) {
             problem.problem.respond()
@@ -220,6 +224,36 @@ internal class PeerRoots(
             attributes = call.facts[RequestFacts.APP_ID]?.let { mapOf(Caller.APP to listOf(it)) }.orEmpty(),
             service = subject != null && SERVICES.any(subject::startsWith),
         )
+    }
+
+    /**
+     * Whether [request] asks to reveal `DISPLAY` values ([WowHeaders.REVEAL]), once it may: its root, [root], is a
+     * service's own and this service shares them ([displayShared]). A read on behalf of an end caller is refused, as
+     * is any read that asks while the owner shares nothing: never answered masked, so the reader learns why.
+     */
+    @Suppress("ThrowsCount") // Each refusal of a reveal, answered with its own problem.
+    private fun reveals(request: ServerRequest, root: Caller): Boolean {
+        val value = request.headers().firstHeader(WowHeaders.REVEAL) ?: return false
+        if (value.trim() != WowHeaders.REVEAL_DISPLAY) {
+            throw ProblemException(
+                statuses.problemOf(
+                    FrameworkCodes.QUERY_INVALID,
+                    "${WowHeaders.REVEAL} is '$value': it asks for '${WowHeaders.REVEAL_DISPLAY}' alone.",
+                ),
+            )
+        }
+        if (!root.service) {
+            throw forbidden(
+                "This read is on behalf of an end caller, whose DISPLAY values are masked whoever relays the read: " +
+                    "${WowHeaders.REVEAL} is a service's read for itself."
+            )
+        }
+        if (!displayShared) {
+            throw forbidden(
+                "This service shares no DISPLAY value with its peers: wow.query.sensitivity.display-shared is off."
+            )
+        }
+        return true
     }
 
     private fun forbidden(detail: String) =
