@@ -183,7 +183,7 @@ class DatasetReferenceActions(
             statusOf(manifest, failure.code),
             Retry.NONE,
             null,
-            failure.result.error?.message ?: failure.message.orEmpty(),
+            failure.error.message,
             failure.result,
         )
 

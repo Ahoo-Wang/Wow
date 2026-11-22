@@ -23,6 +23,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.decide.Misuse
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.WaitPlan
 import org.junit.jupiter.api.Test
@@ -59,6 +60,20 @@ class CommandRequestsTest {
     }
 
     @Test
+    fun `a request to a ref should be the request CommandRequest-to builds, with the fields its block sets`() {
+        AddItem("a").toCommandRequest(to = cart.ref("t", "c-1")).assert()
+            .isEqualTo(CommandRequest.to(cart.ref("t", "c-1"), AddItem("a")))
+        AddItem("a").toCommandRequest(to = cart.unassigned("t")) { requestId("r-1") }.assert()
+            .isEqualTo(CommandRequest.of(AddItem("a"), type = cart, targetTenant = "t", requestId = "r-1"))
+    }
+
+    @Test
+    fun `a request should be refused an id and a ref together, which name its aggregate twice`() {
+        assertThrows<Misuse.Argument> { AddItem("a").toCommandRequest("c-1", to = cart.ref("t", "c-1")) }
+            .message.assert().isEqualTo("A request names its aggregate by an id or by a ref, not both.")
+    }
+
+    @Test
     fun `a request to a ref in the block should be the request CommandRequest-to builds`() {
         AddItem("a").toCommandRequest { to(cart.ref("t", "c-1")) }.assert()
             .isEqualTo(CommandRequest.to(cart.ref("t", "c-1"), AddItem("a")))
@@ -92,12 +107,18 @@ class CommandRequestsTest {
             client.wait(AddItem("b"), "c-2") { wait(WaitPlan.COMMITTED) }.assert().isSameAs(result)
             client.stream(AddItem("c"), "c-3") { requestId("r-3") }.toList().assert().isEmpty()
             client.stream(AddItem("d")).toList().assert().isEmpty()
+            client.send(AddItem("e"), to = cart.ref("t", "c-5"))
+            client.wait(AddItem("f"), to = cart.ref("t", "c-6"))
+            client.stream(AddItem("g"), to = cart.ref("t", "c-7")).toList()
         }
         sent.assert().containsExactly(
             AddItem("a").toCommandRequest(),
             AddItem("b").toCommandRequest("c-2") { wait(WaitPlan.COMMITTED) },
             CommandRequest.of(AddItem("c"), "c-3", requestId = "r-3"),
             CommandRequest.of(AddItem("d")),
+            CommandRequest.to(cart.ref("t", "c-5"), AddItem("e")),
+            CommandRequest.to(cart.ref("t", "c-6"), AddItem("f")),
+            CommandRequest.to(cart.ref("t", "c-7"), AddItem("g")),
         )
     }
 

@@ -15,6 +15,9 @@
 
 package me.ahoo.wow.api.client
 
+import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.decide.requireUse
+
 /**
  * Marks the receiver of a block that sets a [CommandRequest]'s fields ([CommandRequest.Builder]), so that a block of
  * it nested in another sees the inner receiver's names only.
@@ -25,13 +28,16 @@ annotation class CommandRequestDsl
 
 /**
  * A request of this command: to the aggregate [id] names (none for a creation, whose id the server assigns, or a
- * command its body or a transformer addresses), with the fields [block] sets, by the names of [CommandRequest.Builder]:
+ * command its body or a transformer addresses), or to the one the ref [to] names, as [CommandRequest.to] sends (its
+ * type, its id when assigned, its tenant), with the fields [block] sets, by the names of [CommandRequest.Builder]:
  *
  * ```kotlin
  * PayOrder(amount).toCommandRequest(orderId)
  * PayOrder(amount).toCommandRequest(orderId) { wait(WaitPlan.COMMITTED); requestId(paymentId) }
- * RecordActionRefused(code).toCommandRequest { to(rejected.source) }
+ * RecordActionRefused(code).toCommandRequest(to = rejected.source)
  * ```
+ *
+ * A request names its aggregate by an id or by a ref, not both: giving both fails.
  *
  * It is the request a saga's handler returns, and the one every entry that takes a command sends
  * ([SagaContext.call][me.ahoo.wow.api.subscribe.call], [SagaContext.schedule][me.ahoo.wow.api.subscribe.schedule],
@@ -43,5 +49,12 @@ annotation class CommandRequestDsl
  */
 fun <C : Any> C.toCommandRequest(
     id: String? = null,
+    to: AggregateRef? = null,
     block: CommandRequest.Builder<C>.() -> Unit = {},
-): CommandRequest<C> = CommandRequest.builder(this).id(id).apply(block).build()
+): CommandRequest<C> {
+    requireUse(id == null || to == null) {
+        "A request names its aggregate by an id or by a ref, not both."
+    }
+    val builder = to?.let { CommandRequest.builder(it, this) } ?: CommandRequest.builder(this).id(id)
+    return builder.apply(block).build()
+}

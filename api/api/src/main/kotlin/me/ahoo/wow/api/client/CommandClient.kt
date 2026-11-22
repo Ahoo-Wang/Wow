@@ -18,6 +18,8 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.CommandResult
+import me.ahoo.wow.api.result.ErrorInfo
+import me.ahoo.wow.api.result.Violation
 
 /**
  * Sends command objects to aggregates, wherever they are served: the same calls reach an
@@ -29,7 +31,7 @@ import me.ahoo.wow.api.result.CommandResult
  * unless the command's class says, its [type][CommandRequest.type]), and how it is sent. The tenant and scope are the
  * caller's, or the target's a cross-scope caller names ([CommandRequest.targetTenant], [CommandRequest.targetScope]);
  * a target tenant that is the caller's own is the caller's, so a request built from a ref of the caller's tenant
- * (`toCommandRequest { to(event.ref) }` in a saga) is an ordinary one. Shorthands take the command itself, its id and
+ * (`toCommandRequest(to = event.ref)` in a saga) is an ordinary one. Shorthands take the command itself, its id and
  * a block of the request's other fields (`client.wait(command, id) { wait(WaitPlan.COMMITTED) }`, imported from
  * `me.ahoo.wow.api.client`).
  *
@@ -83,8 +85,8 @@ interface CommandClient {
 
 /**
  * The command was rejected ([CommandResult.Status.REJECTED]): by its aggregate, a business outcome with the domain's
- * [code], or at admission (an unknown command, a malformed or invalid one, a forbidden caller). Sending it again with the
- * same request id is rejected again.
+ * [code], or at admission (an unknown command, a malformed or invalid one, a forbidden caller), with the fields it broke
+ * ([violations]). Sending it again with the same request id is rejected again.
  */
 class CommandRejectedException(val result: CommandResult) :
     RuntimeException("${result.ref} rejected the command: ${result.error?.code} ${result.error?.message}") {
@@ -92,6 +94,12 @@ class CommandRejectedException(val result: CommandResult) :
         require(result.status == CommandResult.Status.REJECTED) { "A rejection has a REJECTED result." }
     }
 
+    /** Why the command was rejected: the [result]'s error, which a rejected result always has. */
+    val error: ErrorInfo = result.error!!
+
     /** The rejection's error code. */
-    val code: String get() = result.error!!.code
+    val code: String get() = error.code
+
+    /** The fields the command broke, each with its path, code and message: its [error]'s, none when it names none. */
+    val violations: List<Violation> get() = error.violations
 }

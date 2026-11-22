@@ -31,6 +31,7 @@ import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.FunctionInfo
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
+import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.schedule.CancelSchedule
 import me.ahoo.wow.api.wire.WireNames
@@ -40,7 +41,10 @@ import kotlin.time.Duration.Companion.seconds
 
 /** The values of the [CommandClient] (decisions D257, D259): plain values that check their facts. */
 class CommandClientTypesTest {
-    private fun result(status: CommandResult.Status) = CommandResult(
+    private fun result(
+        status: CommandResult.Status,
+        error: ErrorInfo = ErrorInfo("shop.cart.full", "Full."),
+    ) = CommandResult(
         commandId = "c",
         requestId = "r",
         correlationId = "c",
@@ -48,7 +52,7 @@ class CommandClientTypesTest {
         hop = Hop.committed("shop"),
         function = FunctionInfo(FunctionKind.COMMAND, "shop", "cart", "AddItem"),
         status = status,
-        error = ErrorInfo("shop.cart.full", "Full."),
+        error = error,
         signalTime = 0,
     )
 
@@ -185,6 +189,16 @@ class CommandClientTypesTest {
         targetTenantOf(CommandRequest.to(cart.ref("t", "c-1"), AddItem("a")), "t").assert().isNull()
         targetTenantOf(CommandRequest.to(cart.ref("t2", "c-1"), AddItem("a")), "t").assert().isEqualTo("t2")
         targetTenantOf(CommandRequest.of(AddItem("a")), "t").assert().isNull()
+    }
+
+    @Test
+    fun `a rejection should carry its error and violations, so a caller reads them without the result's`() {
+        val blank = Violation.of("item", "not-blank", "blank")
+        val invalid = ErrorInfo.of("wow.command.invalid", "Invalid.", listOf(blank))
+        val rejected = CommandRejectedException(result(CommandResult.Status.REJECTED, invalid))
+        rejected.error.assert().isEqualTo(invalid)
+        rejected.violations.assert().containsExactly(blank)
+        CommandRejectedException(result(CommandResult.Status.REJECTED)).violations.assert().isEmpty()
     }
 
     @Test

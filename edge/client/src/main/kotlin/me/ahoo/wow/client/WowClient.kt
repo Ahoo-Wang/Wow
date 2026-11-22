@@ -45,7 +45,7 @@ import kotlin.time.toKotlinDuration
  *     .service("basket-service")
  *     .build()
  *     .use { client ->
- *         client.commands.of(caller).wait(body) { to(EshopOrderingContract.Order.ref(tenantId, id)) }
+ *         client.commands.of(caller).wait(body, to = EshopOrderingContract.Order.ref(tenantId, id))
  *     }
  * ```
  */

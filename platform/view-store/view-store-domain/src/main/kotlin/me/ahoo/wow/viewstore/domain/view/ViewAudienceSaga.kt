@@ -40,6 +40,6 @@ class ViewAudienceSaga {
                 else -> null
             }
         } ?: return null
-        return TransferOwner.of(ownerId).toCommandRequest { to(event.ref) }
+        return TransferOwner.of(ownerId).toCommandRequest(to = event.ref)
     }
 }

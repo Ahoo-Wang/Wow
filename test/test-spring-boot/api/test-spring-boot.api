@@ -10,6 +10,10 @@ public final class me/ahoo/wow/test/server/Answer {
 	public fun toString ()Ljava/lang/String;
 }
 
+public final class me/ahoo/wow/test/server/AssertRejectedKt {
+	public static final fun assertRejected (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/api/client/CommandRejectedException;
+}
+
 public final class me/ahoo/wow/test/server/EventuallyKt {
 	public static final fun eventually-jKevqZI (Ljava/lang/String;JJLkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;)V
 	public static synthetic fun eventually-jKevqZI$default (Ljava/lang/String;JJLkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;ILjava/lang/Object;)V

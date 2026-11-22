@@ -15,11 +15,10 @@ package me.ahoo.wow.test.server
 
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
-import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.client.wait
 import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.api.wire.DevelopmentHeaders
@@ -52,31 +51,29 @@ class TypedClientsTest {
     // region typed-clients
     @Test
     fun `the typed clients should send commands and read states as the caller`() {
-        val alice = Caller.of(subject = "alice", scope = Scope(ownerId = "alice"))
+        val alice = Caller.owner("alice")
         val commands = server.commands(alice)
         runBlocking {
-            commands.wait(OpenAccount("Alice"), "alice").status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+            // wait answers only a result that succeeded: a rejection is thrown.
+            commands.wait(OpenAccount("Alice"), "alice")
             commands.wait(Deposit(100), "alice").version.assert().isEqualTo(2)
 
-            val account = server.queries(alice).snapshots(AccountState::class.java).state("alice")!!
+            val account = server.queries(alice).snapshots<AccountState>().state("alice")!!
             account.state.balance.assert().isEqualTo(100L)
             account.operator!!.id.assert().isEqualTo("alice")
-
-            val rejected = assertThrows<CommandRejectedException> { commands.wait(Withdraw(150), "alice") }
-            rejected.code.assert().isEqualTo("bank.account.insufficient-balance")
         }
+        assertRejected { commands.wait(Withdraw(150), "alice") }
+            .code.assert().isEqualTo("bank.account.insufficient-balance")
     }
     // endregion typed-clients
 
     @Test
     fun `a command refused at admission should be a rejection with its code`() {
         val bob = Caller.of(subject = "bob")
-        runBlocking {
-            server.commands(bob).wait(OpenAccount("Bob"), "bob")
-            val invalid = assertThrows<CommandRejectedException> { server.commands(bob).wait(Deposit(0), "bob") }
-            invalid.code.assert().isEqualTo("wow.command.invalid")
-            invalid.result.error!!.violations.map { it.path }.assert().containsExactly("amount")
-        }
+        runBlocking { server.commands(bob).wait(OpenAccount("Bob"), "bob") }
+        val invalid = assertRejected { server.commands(bob).wait(Deposit(0), "bob") }
+        invalid.code.assert().isEqualTo("wow.command.invalid")
+        invalid.violations.map { it.path }.assert().containsExactly("amount")
     }
 
     @Test

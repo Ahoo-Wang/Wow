@@ -52,7 +52,7 @@ class DatasetRecompilation {
             .toList()
         return readers.map { dataset ->
             val id = AnalyticsCatalogContext.datasetIdOf(dataset.context, dataset.name)
-            RecompileDataset.toCommandRequest { to(DATASET.ref(AnalyticsCatalogContext.TENANT_ID, id)) }
+            RecompileDataset.toCommandRequest(to = DATASET.ref(AnalyticsCatalogContext.TENANT_ID, id))
         }
     }
 

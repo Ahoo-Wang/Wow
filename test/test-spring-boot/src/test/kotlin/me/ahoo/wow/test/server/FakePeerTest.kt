@@ -18,7 +18,6 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
-import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.client.wait
 import me.ahoo.wow.api.decide.Causation
@@ -71,7 +70,7 @@ class FakePeerTest {
 
     @Test
     fun `a call should be recorded as the peer decodes it, and answered committed`() {
-        val alice = Caller.of(tenantId = "acme", scope = Scope(ownerId = "alice"), subject = "alice")
+        val alice = Caller.owner("alice", "acme")
         val result = runBlocking { commands(alice).wait(ShipParcel("1 Main St"), "parcel-1") }
         result.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         result.ref.id.assert().isEqualTo("parcel-1")
@@ -115,11 +114,9 @@ class FakePeerTest {
     fun `a rejection should reach the caller as a rejection with its code`() {
         shipping.answer { PeerAnswer.rejected("shipping.parcel.no-address", "No such address.") }
         try {
-            val rejected = assertThrows<CommandRejectedException> {
-                runBlocking { commands(Caller.ANONYMOUS).wait(ShipParcel("nowhere"), "parcel-2") }
-            }
+            val rejected = assertRejected { commands(Caller.ANONYMOUS).wait(ShipParcel("nowhere"), "parcel-2") }
             rejected.code.assert().isEqualTo("shipping.parcel.no-address")
-            rejected.result.error!!.message.assert().isEqualTo("No such address.")
+            rejected.error.message.assert().isEqualTo("No such address.")
             rejected.result.ref.id.assert().isEqualTo("parcel-2")
         } finally {
             shipping.answer { PeerAnswer.succeeded() }

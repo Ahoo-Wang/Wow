@@ -96,7 +96,7 @@ class CatalogWatcher(
             commands().of(CALLER).wait(SyncSource(database, table), id)
             true
         } catch (rejected: CommandRejectedException) {
-            logger.warn { "SyncSource of $database.$table was rejected: ${rejected.code} ${rejected.result.error?.message}" }
+            logger.warn { "SyncSource of $database.$table was rejected: ${rejected.code} ${rejected.error.message}" }
             false
         } catch (failed: WowProblemException) {
             logger.warn { "SyncSource of $database.$table did not succeed: ${failed.code} ${failed.message}" }

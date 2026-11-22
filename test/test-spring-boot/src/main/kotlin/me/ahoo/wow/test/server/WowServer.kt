@@ -50,7 +50,7 @@ import java.util.concurrent.ConcurrentHashMap
  * wowServer<BankServer>("dev").use { server ->
  *     val alice = Caller.of(subject = "alice")
  *     server.commands(alice).wait(OpenAccount("Alice"), "alice")
- *     server.queries(alice).snapshots(AccountState::class.java).state("alice")!!.state.owner.assert().isEqualTo("Alice")
+ *     server.queries(alice).snapshots<AccountState>().state("alice")!!.state.owner.assert().isEqualTo("Alice")
  * }
  * ```
  */
@@ -167,10 +167,10 @@ private object OwnEventLoops : BeanPostProcessor {
  * members ([Answer.problem]). Closing it closes the application and every client.
  *
  * ```kotlin
- * val alice = Caller.of(subject = "alice", scope = Scope(ownerId = "alice"))
+ * val alice = Caller.owner("alice")
  * server.commands(alice).wait(Deposit(100), "alice").version.assert().isEqualTo(2)
- * val account = server.queries(alice).snapshots(AccountState::class.java).state("alice")!!
- * assertThrows<CommandRejectedException> { server.commands(alice).wait(Withdraw(150), "alice") }
+ * val account = server.queries(alice).snapshots<AccountState>().state("alice")!!
+ * assertRejected { server.commands(alice).wait(Withdraw(150), "alice") }
  *     .code.assert().isEqualTo("bank.account.insufficient-balance")
  * ```
  */

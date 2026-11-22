@@ -41,9 +41,7 @@ internal object ThrownRejections {
         if (thrown is CancellationException) return null
         val rejection = when {
             thrown is RejectedException -> thrown.rejection
-            thrown is CommandRejectedException -> thrown.result.error?.let {
-                Rejection(it.code, it.message, it.extensions)
-            }
+            thrown is CommandRejectedException -> Rejection(thrown.code, thrown.error.message, thrown.error.extensions)
             thrown.javaClass == IllegalArgumentException::class.java ->
                 Rejection(FrameworkCodes.COMMAND_INVALID, thrown.message.orEmpty())
             thrown.javaClass == IllegalStateException::class.java ->

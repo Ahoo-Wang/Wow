@@ -117,6 +117,16 @@ class Caller @InternalWowApi constructor(
         fun ofService(name: String, tenantId: String = DEFAULT_TENANT): Caller =
             Caller(tenantId = tenantId, subject = SERVICE_SUBJECT_PREFIX + name, service = true)
 
+        /**
+         * The caller [id] of [tenantId] that owns what it acts on: its [subject] and the owner of its [scope], as a
+         * principal signed in as an owner is resolved (`Caller.owner("alice")`). It has no attributes: one an
+         * authorizer reads is given with [of].
+         */
+        @JvmStatic
+        @JvmOverloads
+        fun owner(id: String, tenantId: String = DEFAULT_TENANT): Caller =
+            Caller(tenantId, Scope(ownerId = id), subject = id)
+
         /** A Caller of the given fields; parameters added later come last, with a default. */
         @JvmStatic
         @JvmOverloads

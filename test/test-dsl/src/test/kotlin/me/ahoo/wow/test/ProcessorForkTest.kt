@@ -188,7 +188,7 @@ class ProcessorForkTest {
 
     @Test
     fun `a call of a command with a block should call the command's request`() {
-        sagaSpec(checking { context, event -> context.call(Check(event.ref.id)) { to(stock) } }) {
+        sagaSpec(checking { context, event -> context.call(Check(event.ref.id), to = stock) }) {
             answerCalls { committedResult(it) }
             whenEvent(placed(1)) { expectCalls(Check("order-1")) }
         }

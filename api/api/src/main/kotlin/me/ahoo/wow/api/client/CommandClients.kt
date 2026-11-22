@@ -16,6 +16,7 @@
 package me.ahoo.wow.api.client
 
 import kotlinx.coroutines.flow.Flow
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Misuse
@@ -32,8 +33,9 @@ import me.ahoo.wow.api.wire.WaitHeader
 suspend fun <C : Any> CommandClient.send(
     command: C,
     id: String? = null,
+    to: AggregateRef? = null,
     block: CommandRequest.Builder<C>.() -> Unit = {},
-): CommandResult = send(command.toCommandRequest(id, block))
+): CommandResult = send(command.toCommandRequest(id, to, block))
 
 /**
  * Sends [command] to the aggregate [id] names, with the fields [block] sets (`wait(plan)` among them), and waits for
@@ -42,8 +44,9 @@ suspend fun <C : Any> CommandClient.send(
 suspend fun <C : Any> CommandClient.wait(
     command: C,
     id: String? = null,
+    to: AggregateRef? = null,
     block: CommandRequest.Builder<C>.() -> Unit = {},
-): CommandResult = wait(command.toCommandRequest(id, block))
+): CommandResult = wait(command.toCommandRequest(id, to, block))
 
 /**
  * The results of [command] sent to the aggregate [id] names, with the fields [block] sets: [CommandClient.stream] of
@@ -52,8 +55,9 @@ suspend fun <C : Any> CommandClient.wait(
 fun <C : Any> CommandClient.stream(
     command: C,
     id: String? = null,
+    to: AggregateRef? = null,
     block: CommandRequest.Builder<C>.() -> Unit = {},
-): Flow<CommandResult> = stream(command.toCommandRequest(id, block))
+): Flow<CommandResult> = stream(command.toCommandRequest(id, to, block))
 
 /**
  * The aggregate type of [request]: its own, else the one [candidates] (the types that decide its command's class, as
