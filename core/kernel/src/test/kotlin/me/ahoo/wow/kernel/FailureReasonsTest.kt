@@ -81,10 +81,8 @@ class FailureReasonsTest {
         }
         reasons.reasonOf(digits).assert()
             .isEqualTo("tools.jackson.databind.exc.MismatchedInputException: cannot read 'digits' as int")
-        // A map's key is data: written {key}.
-        val price = failureOf {
-            WowJson.mapper.readValue("""{"prices":{"alice.smith@example.com":"many"}}""", Prices::class.java)
-        }
+        // A map's key is data, even one a name would take: written {key}.
+        val price = failureOf { WowJson.mapper.readValue("""{"prices":{"alice":"many"}}""", Prices::class.java) }
         reasons.reasonOf(price).assert().contains("cannot read 'prices.{key}' as").doesNotContain("alice")
     }
 
