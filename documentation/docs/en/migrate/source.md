@@ -76,7 +76,7 @@ The package stays `me.ahoo.wow.api.annotation`, so kept names need no new import
 | `@PreparableKey` | `DecideScope.reserve(namespace, key, tenancy)` |
 | `@AggregateId` on a command property | Kept, with the same meaning: the body names the aggregate, and the command's route has no `{id}`. A field 9.x bound from the path only repeated the route: delete it ([What a command body holds](#what-a-command-body-holds)) |
 | `@TenantId`, `@OwnerId`, `@AggregateVersion` on command fields | Removed: the tenant and owner are the caller's, the expected version is `If-Match` |
-| `@StaticTenantId` | Host configuration: `wow.aggregates.[<context>.<aggregate>].tenant` |
+| `@StaticTenantId` | Host configuration: `wow.aggregates.[<context>.<aggregate>].tenant`; the same in `migrate-data.json`'s `tenants` for the data's check ([Check the map](./data#_2-check-the-map)) |
 | `@StaticAggregateId` | Removed: no fixed aggregate id ([9.x Capabilities in V10](./capabilities)) |
 | `@AggregateRoute`, `@CommandRoute` | Removed: routes come from the Manifest |
 | `@CommandRoute(enabled = false)` | It depends on who sent the command. Only the platform (sagas, timers, the in-process gateway, other services on the internal port): `@InternalCommand` on the command class, and the public port serves no route of it; a service on the internal port that has no entry under `wow.callers` may still send it, since the list narrows only the services it names ([Keep a command internal](../guide/aggregates#keep-a-command-internal)). A hand-written user route of the 9.x service: the command stays public on its generated route ([Routes, tenancy and ownership](#routes-tenancy-and-ownership)) |
