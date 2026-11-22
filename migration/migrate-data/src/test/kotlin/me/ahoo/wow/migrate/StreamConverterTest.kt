@@ -97,9 +97,8 @@ class StreamConverterTest {
         assertThrows<MigrationException> { converter.convert(unowned.copy(ownerId = "customer-2")) }.message.assert()
             .contains("but the stream records the owner \"customer-2\"").doesNotContain("missingOwner")
         // On an aggregate whose id is not its owner's, the key fills nothing (the check refuses it).
-        val unfilled = StreamConverter(MigrationPlan(MigrationMap.read(NineXExample.fillingMapText()), NineXExample.manifest)) {
-            NineXExample.IMPORTED_AT
-        }.convert(unowned)
+        val unowning = MigrationPlan(MigrationMap.read(NineXExample.fillingMapText()), NineXExample.manifest)
+        val unfilled = StreamConverter(unowning) { NineXExample.IMPORTED_AT }.convert(unowned)
         unfilled.scope.assert().isEqualTo(Scope(spaceId = "space-1"))
         unfilled.headers.assert().doesNotContainKey(FILLED_OWNER_HEADER)
     }

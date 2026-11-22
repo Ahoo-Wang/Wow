@@ -377,7 +377,8 @@ internal class StateComparison(
 
     private fun differencesOf(plan: AggregatePlan, snapshot: NineXSnapshot, rebuilt: CachedState): List<FieldDifference> {
         // The owner as the import holds it: filled with the id when the map fills a missing one.
-        val recorded = plan.ownership.scopeOf(Scope(snapshot.ownerId.ifBlank { null }, snapshot.spaceId.ifBlank { null }))
+        val recorded =
+            plan.ownership.scopeOf(Scope(snapshot.ownerId.ifBlank { null }, snapshot.spaceId.ifBlank { null }))
         val scope = plan.importedScope(snapshot.aggregateId.id, recorded)
         val metadata = listOf(
             Triple(DELETED, node(snapshot.deleted), node(rebuilt.deleted)),

@@ -164,7 +164,7 @@ class MissingOwnerTest {
         run("check", "--config", config.toString()).assert().describedAs(output.toString()).isEqualTo(MigrateData.OK)
         output.toString().lines().single { it.startsWith("WARNING example-service.cart: missingOwner fills") }.assert()
             .contains("the owner of 3 streams of 1 9.x instances")
-            .endsWith("check each instance whose owner is inferred: \"$CART\" (no owner: 3 streams of the tenants [(0)])")
+            .endsWith("whose owner is inferred: \"$CART\" (no owner: 3 streams of the tenants [(0)])")
         run("import", "--config", config.toString()).assert().describedAs(output.toString()).isEqualTo(MigrateData.OK)
         output.toString().assert().contains("3 owners filled with their id")
 

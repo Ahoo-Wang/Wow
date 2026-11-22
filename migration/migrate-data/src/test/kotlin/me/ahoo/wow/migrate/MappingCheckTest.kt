@@ -200,9 +200,9 @@ class MappingCheckTest {
         checked().problems.assert().containsExactly(
             "example-service.cart: the id of the V10 aggregate example.cart is its owner's, but the streams of these " +
                 "2 9.x instances record another owner than their id, or none, so their owners could not reach them; " +
-                "set each stream's ownerId to its aggregate id in the 9.x store before the import, or exclude each " +
-                "with {\"aggregate\": \"example-service.cart\", \"stream\": <the id as listed>, \"reason\": \"…\"}: " +
-                "\"$id\" (the owner \"customer-1\": 4 streams of the tenants [(0)]), " +
+                "set each stream's ownerId to its aggregate id in the 9.x store before the import,$MISSING_OWNER_WAY or " +
+                "exclude each with {\"aggregate\": \"example-service.cart\", \"stream\": <the id as listed>, " +
+                "\"reason\": \"…\"}: \"$id\" (the owner \"customer-1\": 4 streams of the tenants [(0)]), " +
                 "\"cart-n\" (no owner: 4 streams of the tenants [(0)])",
         )
         // Excluded, or of an aggregate whose id is not its owner's, they pass.

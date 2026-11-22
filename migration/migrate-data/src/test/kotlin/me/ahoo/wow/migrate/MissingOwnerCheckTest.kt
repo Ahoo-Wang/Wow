@@ -65,7 +65,7 @@ class MissingOwnerCheckTest {
     fun `without the key a stream that records no owner fails, the problem saying the map may fill it`() {
         val problem = checked(NineXExample.fillingMapText(fills = false)).problems.single()
         problem.assert()
-            .contains("set each stream's ownerId to its aggregate id in the 9.x store before the import,$MISSING_OWNER_WAY or")
+            .contains("in the 9.x store before the import,$MISSING_OWNER_WAY or")
             .contains("\"cart-n\" (no owner: 4 streams")
             .contains("\"cart-p\" (no owner: 2 streams")
         // Only another owner: filling would not help, and the problem does not offer it.

@@ -183,8 +183,9 @@ internal object NineXExample {
     fun fillingMapText(excluded: List<String> = listOf(CART_ID), fills: Boolean = true): String {
         val map = WowJson.mapper.readTree(MAP_TEXT) as ObjectNode
         if (fills) {
-            map.get("aggregates").values().map { it as ObjectNode }.single { it.get("from").asString() == "example-service.cart" }
-                .put("missingOwner", "aggregate-id")
+            val cart = map.get("aggregates").values().map { it as ObjectNode }
+                .single { it.get("from").asString() == "example-service.cart" }
+            cart.put("missingOwner", "aggregate-id")
         }
         val exclusions = (map.get("excluded") as? ArrayNode) ?: map.putArray("excluded")
         excluded.forEach {
