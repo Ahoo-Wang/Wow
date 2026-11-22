@@ -186,9 +186,9 @@ internal class RequestHeaders(
      * The remote address is the server's: the connection's peer or, when the host trusts a proxy in front of it, the
      * client that proxy forwarded for. `X-Forwarded-For` and `Forwarded` are never read here: 9.x took the first
      * `X-Forwarded-For` entry as it came, which any client can forge. Trusting a proxy is the host's decision, made
-     * where its server is configured: Spring Boot's `server.forward-headers-strategy` (`native` or `framework`)
-     * rewrites the remote address from the forwarded headers before the routes see the request; the Wow host makes it
-     * `native` unless the application sets it.
+     * where its server is configured: Spring Boot's `server.request.header.forwarded.strategy` (`web-server` or
+     * `framework`) rewrites the remote address from the forwarded headers before the routes see the request; the Wow
+     * host makes it `web-server` unless the application sets it.
      *
      * Each fact is cut to [MAX_FACT_LENGTH] characters: a fact lands in the immutable log, so no client
      * makes an entry grow with a header of its choosing.

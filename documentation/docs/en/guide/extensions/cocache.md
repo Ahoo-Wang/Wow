@@ -35,7 +35,7 @@ dependencies {
 }
 ```
 
-`wow-cocache-api` holds `StateKey` and `StateViewCache` and nothing else, so a domain module that uses them pulls in neither CoCache nor Redis. `wow-cocache` turns itself on when the application runs CoCache, that is, when CoCache's starter has a backend (`cocache.backend: redis`, with Spring's `spring.data.redis.*`; `memory` for one JVM). It runs on CoCache 8 (`cocache-core`; its suspending views are in the core, so there is no `cocache-coroutines`).
+`wow-cocache-api` holds `StateKey` and `StateViewCache` and nothing else, so a domain module that uses them pulls in neither CoCache nor Redis. `wow-cocache` turns itself on when the application runs CoCache, that is, when CoCache's starter has a backend (`cocache.backend: redis`, with Spring's `spring.data.redis.*`; `memory` for one JVM). It runs on CoCache 8 (`cocache-core`; its suspending views are in the core, so there is no `cocache-coroutines`). Declare CoCache's starter and `cocache-redis` at 8.2.0 or later: on Spring Boot 4.2, the Redis backend of 8.1.0 and earlier rejects its first command to each primary of a Redis Cluster.
 
 ## Read a state
 
