@@ -84,18 +84,37 @@ object SystemCommandGroups {
     @JvmField
     val SENT_BY_A_SAGA: SystemCommandSet = of(Group.LIFECYCLE, Group.SCHEDULE, Group.LEDGER)
 
-    /** Every system command: each is decided by the framework somewhere, so none needs a user's context to decide it. */
+    /**
+     * Every system command: each is decided by the framework somewhere, so none needs a user's context to decide it;
+     * and the read of the failure ledger's entries ([Ledger.READ]), an action authorized as a system command is.
+     */
     @JvmField
-    val ALL: SystemCommandSet = of(*Group.entries.toTypedArray())
+    val ALL: SystemCommandSet = of(*Group.entries.toTypedArray(), actions = setOf(Ledger.READ))
 
-    private fun of(vararg groups: Group): SystemCommandSet = SystemCommandSet(groups.toSet())
+    /**
+     * The commands that run a service rather than its domain, and that Wow allows no caller by default: a node without
+     * a command authorizer refuses them to every caller, on the public port (a context's schedule jobs, an aggregate
+     * type's snapshot rebuild) and on the operator's routes (the failure ledger's actions and the read of its entries,
+     * [Ledger.READ]). This is the one list of them: whatever refuses them, and an authorizer's
+     * `CommandAction.isOperational`, reads it.
+     */
+    @JvmField
+    val OPERATIONAL: SystemCommandSet = of(Group.JOB, Group.REBUILD, Group.LEDGER, actions = setOf(Ledger.READ))
+
+    private fun of(vararg groups: Group, actions: Set<String> = emptySet()): SystemCommandSet =
+        SystemCommandSet(groups.toSet(), actions)
 }
 
-/** System commands of some [groups], by their names and by their classes. */
+/**
+ * System commands of some [groups], by their names and by their classes, and the system [actions] the set holds beside
+ * them: names authorized as a system command is, of which no command runs (the ledger's read).
+ */
 @InternalWowApi
 class SystemCommandSet internal constructor(
     /** The groups whose commands the set holds. */
     val groups: Set<SystemCommandGroups.Group>,
+    /** The system actions the set holds beside its commands, by their names: no command of theirs runs. */
+    val actions: Set<String> = emptySet(),
 ) {
     /** The commands, by their system names. */
     val commands: Map<String, Class<*>> = groups.flatMap { it.commands.entries }.associate { it.key to it.value }
@@ -114,8 +133,8 @@ class SystemCommandSet internal constructor(
     /** The system name of [type], a command class, or null when it is none of the set's. */
     fun nameOf(type: Class<*>): String? = byClass[type]
 
-    /** Whether the command [name] is one of the set's. */
-    operator fun contains(name: String): Boolean = name in commands
+    /** Whether the command [name] is one of the set's, or one of its [actions]. */
+    operator fun contains(name: String): Boolean = name in commands || name in actions
 
     /** Whether [type] is the class of one of the set's commands. */
     operator fun contains(type: Class<*>): Boolean = type in byClass

@@ -65,9 +65,34 @@ class SystemCommandGroupsTest {
         SystemCommandGroups.SENT_BY_A_SAGA.groups.assert()
             .containsExactlyInAnyOrder(Group.LIFECYCLE, Group.SCHEDULE, Group.LEDGER)
         SystemCommandGroups.ALL.groups.assert().containsExactlyInAnyOrder(*Group.entries.toTypedArray())
+        SystemCommandGroups.OPERATIONAL.groups.assert().containsExactlyInAnyOrder(
+            Group.JOB,
+            Group.REBUILD,
+            Group.LEDGER
+        )
         (TransferOwner::class.java in SystemCommandGroups.SENT_BY_A_SAGA).assert().isTrue()
         (RebuildSnapshot::class.java in SystemCommandGroups.SENT_BY_A_SAGA).assert().isFalse()
         (SnapshotRebuilds.REBUILD_SNAPSHOT in SystemCommandGroups.LISTED_BY_A_CONTRACT).assert().isTrue()
         (Schedules.SET_SCHEDULE in SystemCommandGroups.LISTED_BY_A_CONTRACT).assert().isFalse()
+    }
+
+    @Test
+    fun `the operational commands should be the jobs', the rebuild and the ledger's, with the ledger's read`() {
+        val operational = SystemCommandGroups.OPERATIONAL
+        operational.names.assert().containsExactlyInAnyOrderElementsOf(
+            ScheduleJobs.COMMANDS.keys + SnapshotRebuilds.COMMANDS.keys + Ledger.COMMANDS.keys,
+        )
+        operational.actions.assert().containsExactly(Ledger.READ)
+        (Ledger.READ in operational).assert().isTrue()
+        (Ledger.RETRY_PARKED in operational).assert().isTrue()
+        (ScheduleJobs.ENABLE_JOB in operational).assert().isTrue()
+        (SnapshotRebuilds.REBUILD_SNAPSHOT in operational).assert().isTrue()
+        // An aggregate's own lifecycle and schedule are not operational, whoever may send them.
+        (Lifecycle.DELETE_AGGREGATE in operational).assert().isFalse()
+        (Schedules.SET_SCHEDULE in operational).assert().isFalse()
+        // The read is a system action of every set that holds it, a name without a command class.
+        (Ledger.READ in SystemCommandGroups.ALL).assert().isTrue()
+        SystemCommandGroups.ALL.classOf(Ledger.READ).assert().isNull()
+        (Ledger.READ in SystemCommandGroups.SENT_BY_A_SAGA).assert().isFalse()
     }
 }

@@ -43,6 +43,7 @@ import me.ahoo.wow.runtime.node.ParkedKey
 import me.ahoo.wow.runtime.node.ParkedOps
 import me.ahoo.wow.runtime.node.ParkedView
 import me.ahoo.wow.spi.StorageUnavailableException
+import me.ahoo.wow.spi.SystemCommandGroups
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 import me.ahoo.wow.spi.subscription.SubscriptionId
 import me.ahoo.wow.spi.tenant.TenantPolicy
@@ -142,7 +143,7 @@ object OpsPaths {
      * The system action a read of the entries is authorized as, on each entry's aggregate, as the four
      * actions are: a CoSec policy grants it to the operators.
      */
-    const val READ: String = "${Ledger.NAMESPACE}.Read"
+    const val READ: String = Ledger.READ
 
     /** The query parameters of a listing. */
     const val SUBSCRIPTION: String = "subscription"
@@ -166,10 +167,13 @@ internal object OpsCommands {
 
     /**
      * The command type of [name], one of these or [OpsPaths.READ]: the class of its ledger command, as the intakes
-     * authorize it.
+     * authorize it. Each is an operational one ([SystemCommandGroups.OPERATIONAL]), which a node without an
+     * authorizer refuses ([UNAUTHORIZED]) and an authorizer reads as `CommandAction.isOperational`.
      */
-    fun typeOf(name: String): CommandType =
-        if (name == OpsPaths.READ) READ_TYPE else CommandType(name, Ledger.COMMANDS.getValue(name))
+    fun typeOf(name: String): CommandType {
+        require(name in SystemCommandGroups.OPERATIONAL) { "$name is no operational command of the ledger." }
+        return if (name == OpsPaths.READ) READ_TYPE else CommandType(name, Ledger.COMMANDS.getValue(name))
+    }
 }
 
 /** The operator routes' authorizer when the application has none: every action is refused. */

@@ -45,6 +45,12 @@ object Ledger {
     const val MARK_PARKED_RECOVERABLE: String = "$NAMESPACE.MarkParkedRecoverable"
     const val APPLY_PARKED_RETRY_SPEC: String = "$NAMESPACE.ApplyParkedRetrySpec"
 
+    /**
+     * The action a read of the parked entries is authorized as, on each entry's aggregate, as the commands above are:
+     * no command runs, since an entry is only read, but it shows its failure's message.
+     */
+    const val READ: String = "$NAMESPACE.Read"
+
     /** The context a service publishes its ledger to unless it is configured otherwise. */
     const val OPS_CONTEXT: String = "ops"
 

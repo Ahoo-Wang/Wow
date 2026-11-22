@@ -58,6 +58,23 @@ CoSec 怎样认证请求、怎样检查客户端声明的应用和空间，见 C
 
 Wow 内置聚合的系统命令在公开端口上遵循同一规则：定时任务的命令（`POST /<context>/wow.schedule/{id}/enable-job`、`reschedule-job` 和 `disable-job`）以及聚合类型的快照重建（`POST /<context>/<aggregate>/wow.snapshot.rebuild-snapshot`）。没有命令授权器时，公开端口对所有调用方（包括匿名调用方）都拒绝它们（403 `wow.auth.forbidden`），宿主在启动时说明这一点。有授权器时由授权器决定：在 CoSec 下，由策略把它们的动作（[见下文](#action-names)）授予运维人员。网关模式的服务没有 CoSec 授权器，需要自己的授权器才能放行它们。只有公开端口拒绝它们：任务自己的命令、Saga 发出的命令，以及其他服务（如 ops）在内部端口调用的命令照常发送。聚合的生命周期命令（`wow.lifecycle.*`）作用于聚合本身，与它的领域命令一样授权并检查作用域。
 
+应用自己的授权器按框架对这些命令的了解来区分它们，而不是按名字的前缀。`CommandAction.isOperational` 对 Wow 在没有授权器时拒绝的每个命令为真：定时任务的命令、快照重建，以及运维人员对停放条目的操作和对它们的读取（`wow.ledger.*`），运维路由同样拒绝后者。`CommandAction.isSystem` 对每个系统命令为真，生命周期命令也在其中；把「只有员工能发」这类规则放在 `isSystem` 上，会连所有者删除自己的聚合也一起挡住，所以这类规则要的是 `isOperational`。`action.commandIs<ShipOrder>()` 比较命令的类，多个命令共有的标记接口也算：
+
+<!-- sample: fragment -->
+
+```kotlin
+CommandAuthorizer { caller, action ->
+    when {
+        action.isOperational ->
+            if (caller.subject != null && caller.scope.ownerId == null) Authorization.Allowed
+            else Authorization.Denied.of("Only an employee sends ${action.type.name}.")
+        action.commandIs<ShipOrder>() && caller.scope.ownerId != null ->
+            Authorization.Denied.of("Only an employee ships an order.")
+        else -> Authorization.Allowed
+    }
+}
+```
+
 客户端永远不该发送的命令，例如由 Saga 记录的支付网关答复，应标注 `@InternalCommand`，而不是只靠策略挡住：漏配一条规则就会失守。公开端口不挂它的路由：无论调用方是谁、策略怎样，请求它都答 `404`，与任何未知路径的 problem 相同；CoSec 的路由映射也不含它（[只在内部受理的命令](../guide/aggregates#keep-a-command-internal)）。内部端口照常受理 `wow.callers.<service>.commands` 许可的服务发来的调用，节点的授权器与对任何命令一样裁决它。
 
 ### 动作名称 {#action-names}

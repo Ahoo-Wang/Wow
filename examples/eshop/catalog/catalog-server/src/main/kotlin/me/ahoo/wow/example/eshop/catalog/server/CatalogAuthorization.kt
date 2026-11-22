@@ -29,32 +29,31 @@ import org.springframework.context.annotation.Configuration
 @Configuration(proxyBeanMethods = false)
 class CatalogAuthorization {
     /**
-     * Only an employee, or the anonymous caller of a service tried out, changes the catalog: a buyer reads it. The
-     * snapshot rebuild, a system command of Wow's built-in aggregates, is an employee's alone: with an authorizer of
-     * the service's, the public port leaves those to it.
+     * Only an employee, or the anonymous caller of a service tried out, changes the catalog: a buyer reads it. Wow's
+     * operational commands (the snapshot rebuild, an operator's action on a parked entry) are an employee's alone:
+     * with an authorizer of the service's, Wow leaves those to it.
      */
     @Bean
     fun catalogAuthorizer(): CommandAuthorizer = CommandAuthorizer { caller, action ->
-        builtIn(caller, action) ?: if (caller.scope.ownerId == null) {
-            Authorization.Allowed
-        } else {
-            Authorization.Denied.of(
+        when {
+            action.isOperational -> operational(caller, action)
+            caller.scope.ownerId == null -> Authorization.Allowed
+            else -> Authorization.Denied.of(
                 "Only an employee changes the catalog; ${caller.subject} may not ${action.type.name}."
             )
         }
     }
 
     private companion object {
-        val BUILT_IN = listOf("wow.schedule.", "wow.snapshot.")
-
-        /** The answer to a built-in aggregate's system command: an employee's, a tenant-level caller with a subject. */
-        fun builtIn(caller: Caller, action: CommandAction): Authorization? {
-            if (BUILT_IN.none { action.type.name.startsWith(it) }) return null
-            return if (caller.subject != null && caller.scope.ownerId == null) {
+        /**
+         * The answer to one of Wow's operational commands ([CommandAction.isOperational]): an employee's, a
+         * tenant-level caller with a subject.
+         */
+        fun operational(caller: Caller, action: CommandAction): Authorization =
+            if (caller.subject != null && caller.scope.ownerId == null) {
                 Authorization.Allowed
             } else {
                 Authorization.Denied.of("Only an employee sends ${action.type.name}.")
             }
-        }
     }
 }

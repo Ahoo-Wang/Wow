@@ -22,6 +22,8 @@ import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.kernel.CommandType
+import me.ahoo.wow.spi.SystemCommandGroups
+import me.ahoo.wow.spi.SystemCommandSet
 
 /**
  * What a caller asks to do, as action-level authorization sees it before the body is decoded: a
@@ -38,6 +40,36 @@ class CommandAction @InternalWowApi constructor(
     val scope: Scope,
     val creation: Creation
 ) {
+    /**
+     * Whether the command is one of Wow's system commands (`wow.*`), of any group: an aggregate's lifecycle commands
+     * (`wow.lifecycle.DeleteAggregate`, `RestoreAggregate`, `TransferOwner`, `TransferSpace`) and its schedule's, a
+     * context's schedule jobs, an aggregate type's snapshot rebuild, the failure ledger's actions and its read.
+     *
+     * It includes the lifecycle commands, which an aggregate's owner sends for its own aggregate: a rule such as "only
+     * an employee sends it" put on [isSystem] keeps an owner from deleting its own aggregate too. Such a rule most
+     * likely wants [isOperational].
+     */
+    val isSystem: Boolean get() = isIn(SystemCommandGroups.ALL)
+
+    /**
+     * Whether the command runs the service rather than its domain: a context's schedule jobs
+     * (`wow.schedule.EnableJob`, `RescheduleJob`, `DisableJob`), an aggregate type's snapshot rebuild
+     * (`wow.snapshot.RebuildSnapshot`), and an operator's actions on the failure ledger (`wow.ledger.*`, its read
+     * `wow.ledger.Read` among them). These are the commands Wow allows no caller by default: a node without an
+     * authorizer refuses them to every caller. The commands of an aggregate's own lifecycle are not among them.
+     */
+    val isOperational: Boolean get() = isIn(SystemCommandGroups.OPERATIONAL)
+
+    /**
+     * Whether the command is a [commandClass], or a subtype of it: a command class, or a marker interface or sealed
+     * family several commands share. It compares the class, so a command's former names ([CommandType.aliases]) are the
+     * same command. A mounted command is authorized as it arrives and, when a transformer changed its type, again as
+     * the command it became: it is the one, then the other.
+     */
+    fun commandIs(commandClass: Class<*>): Boolean = commandClass.isAssignableFrom(type.type)
+
+    private fun isIn(set: SystemCommandSet): Boolean = type.type in set || type.name in set.actions
+
     override fun equals(other: Any?): Boolean =
         this === other || other is CommandAction && valueFields() == other.valueFields()
 
@@ -58,6 +90,9 @@ class CommandAction @InternalWowApi constructor(
         )
     }
 }
+
+/** Whether [this] action's command is a [C], or a subtype of it ([CommandAction.commandIs]). */
+inline fun <reified C : Any> CommandAction.commandIs(): Boolean = commandIs(C::class.java)
 
 /**
  * An authorizer's answer: [Allowed], or [Denied] with a [Denied.code] and a [Denied.message].

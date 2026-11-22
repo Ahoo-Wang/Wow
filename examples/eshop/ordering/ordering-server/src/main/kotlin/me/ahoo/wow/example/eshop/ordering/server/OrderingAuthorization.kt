@@ -18,6 +18,7 @@ import me.ahoo.wow.example.eshop.ordering.api.order.ShipOrder
 import me.ahoo.wow.runtime.admission.Authorization
 import me.ahoo.wow.runtime.admission.CommandAction
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
+import me.ahoo.wow.runtime.admission.commandIs
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 
@@ -31,31 +32,33 @@ import org.springframework.context.annotation.Configuration
 @Configuration(proxyBeanMethods = false)
 class OrderingAuthorization {
     /**
-     * A buyer may not ship its order; a scheduled job's commands and the snapshot rebuild, Wow's built-in aggregates'
-     * system commands, are an employee's alone. Every other command is the kernel's to keep in the caller's scope.
+     * A buyer may not ship its order; Wow's operational commands (a scheduled job's, the snapshot rebuild, an
+     * operator's action on a parked entry) are an employee's alone. Every other command, a buyer's delete of its own
+     * order among them, is the kernel's to keep in the caller's scope.
      */
     @Bean
     fun orderingAuthorizer(): CommandAuthorizer = CommandAuthorizer { caller, action ->
-        builtIn(caller, action) ?: if (
-            action.type.type == ShipOrder::class.java && !caller.service && caller.scope.ownerId != null
-        ) {
-            Authorization.Denied.of("Only an employee ships an order; ${caller.subject} may not ship ${action.ref.id}.")
-        } else {
-            Authorization.Allowed
+        when {
+            action.isOperational -> operational(caller, action)
+            action.commandIs<ShipOrder>() && !caller.service && caller.scope.ownerId != null ->
+                Authorization.Denied.of(
+                    "Only an employee ships an order; ${caller.subject} may not ship ${action.ref.id}."
+                )
+
+            else -> Authorization.Allowed
         }
     }
 
     private companion object {
-        val BUILT_IN = listOf("wow.schedule.", "wow.snapshot.")
-
-        /** The answer to a built-in aggregate's system command: an employee's, a tenant-level caller with a subject. */
-        fun builtIn(caller: Caller, action: CommandAction): Authorization? {
-            if (BUILT_IN.none { action.type.name.startsWith(it) }) return null
-            return if (caller.subject != null && caller.scope.ownerId == null) {
+        /**
+         * The answer to one of Wow's operational commands ([CommandAction.isOperational]): an employee's, a
+         * tenant-level caller with a subject.
+         */
+        fun operational(caller: Caller, action: CommandAction): Authorization =
+            if (caller.subject != null && caller.scope.ownerId == null) {
                 Authorization.Allowed
             } else {
                 Authorization.Denied.of("Only an employee sends ${action.type.name}.")
             }
-        }
     }
 }
