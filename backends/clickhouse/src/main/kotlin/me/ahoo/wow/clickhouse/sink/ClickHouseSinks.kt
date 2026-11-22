@@ -24,9 +24,9 @@ import me.ahoo.wow.query.policy.GovernedAggregates
  * [manifest] declares, its tables in [options]' database, its flat view's columns from the aggregate's state schema
  * in the Manifest's `$defs` ([FlatColumns]).
  *
- * The runtime assembles them as the published streams' sinks, `PublishedSinks(published, PROCESSOR) { context,
- * stream -> sinks.sinkOf(context, stream.aggregate) }`, so each is a sink subscription named
- * `clickhouse-sink.<aggregate>`.
+ * The runtime assembles them as the published streams' sinks, `PublishedSinks(published, PROCESSOR, masks = null)
+ * { context, stream -> sinks.sinkOf(context, stream.aggregate) }`, so each is a sink subscription named
+ * `clickhouse-sink.<aggregate>`, writing the values as committed: a read of the tables masks what it returns.
  */
 @InternalWowApi
 class ClickHouseSinks internal constructor(

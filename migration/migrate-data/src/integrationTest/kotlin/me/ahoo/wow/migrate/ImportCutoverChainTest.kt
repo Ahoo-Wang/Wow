@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.result.FunctionKind
@@ -64,12 +65,14 @@ import me.ahoo.wow.runtime.node.SubscriptionFactory
 import me.ahoo.wow.runtime.sink.PublishedSinks
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
 import me.ahoo.wow.spi.log.EventLog
+import me.ahoo.wow.spi.read.StateMasks
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.tck.containers.WowContainers
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import org.postgresql.ds.PGSimpleDataSource
+import tools.jackson.databind.JsonNode
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
 import java.nio.file.Files
@@ -214,7 +217,7 @@ class ImportCutoverChainTest {
             listOf(NineXExample.orderModel(payable = true), NineXExample.cartModel),
             EXAMPLE,
             BackendFactory { stores },
-            PublishedSinks.topics(EXAMPLE, topics, topicPrefix = PREFIX).factory,
+            PublishedSinks.topics(EXAMPLE, topics, NO_MASKS, topicPrefix = PREFIX).factory,
             ContractDirectory(EXAMPLE),
             topics = null,
         )
@@ -378,4 +381,12 @@ class ImportCutoverChainTest {
             ),
         )
     }
+}
+
+/** The masks of the example's node: its schemas declare nothing sensitive, so they mask nothing. */
+private val NO_MASKS = object : StateMasks {
+    override fun stateMaskOf(type: AggregateType, revealsDisplay: Boolean): ((JsonNode) -> JsonNode)? = null
+
+    override fun eventMaskOf(type: AggregateType, event: String, revealsDisplay: Boolean): ((JsonNode) -> JsonNode)? =
+        null
 }
