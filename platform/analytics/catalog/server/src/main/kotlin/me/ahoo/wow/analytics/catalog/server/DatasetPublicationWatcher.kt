@@ -34,6 +34,7 @@ import me.ahoo.wow.api.read.NodeQueryApi
 import me.ahoo.wow.api.read.Snapshot
 import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.query.dataset.QueryDataset
+import me.ahoo.wow.query.dataset.QueryDatasetLineage
 import me.ahoo.wow.query.dataset.QueryDatasets
 import me.ahoo.wow.query.schema.QueryMask
 import me.ahoo.wow.spi.json.WowJson
@@ -197,7 +198,10 @@ class DatasetPublicationWatcher(
 
         private fun nameOf(state: DatasetState) = AggregateType(state.context, state.name)
 
-        /** The dataset a query node serves for [artifact]: its version's view, its scope, its fields' protection. */
+        /**
+         * The dataset a query node serves for [artifact]: its version's view, its scope, its fields' protection, which
+         * the catalog compiled from its sources' ([QueryDatasetLineage.DECLARED]).
+         */
         fun datasetOf(artifact: DatasetArtifact): QueryDataset =
             QueryDataset.of(AggregateType(artifact.context, artifact.name)) {
                 val scope = artifact.scope
@@ -208,6 +212,8 @@ class DatasetPublicationWatcher(
                 artifact.eventTime?.let { eventTime(it) }
                 artifact.title?.let { title(it) }
                 storage(WowJson.mapper.createObjectNode().put("table", "${artifact.database}.${artifact.view}"))
+                // Its fields' protection is compiled from wow_catalog's, where loosening one takes an approver.
+                lineage(QueryDatasetLineage.DECLARED)
                 val types = artifact.columns.associate { it.name to it.type }
                 (listOfNotNull(scope.tenant, scope.owner, scope.space) + artifact.fields.map { it.name }).forEach { name ->
                     val column = artifact.fields.firstOrNull { it.name == name }
