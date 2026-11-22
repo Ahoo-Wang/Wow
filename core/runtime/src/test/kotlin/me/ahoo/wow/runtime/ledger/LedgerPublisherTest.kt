@@ -39,6 +39,7 @@ import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
 import me.ahoo.wow.runtime.subscription.cart
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.runtime.subscription.testOptions
+import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.ledger.ParkedAmendment
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 import me.ahoo.wow.spi.subscription.SubscriptionId
@@ -61,7 +62,16 @@ class LedgerPublisherTest {
     private val log = InMemoryEventLog(partitions = 2)
     private val appender = Appender(log)
     private val ledger = InMemoryFailureLedger()
+    data class Card(val holder: String, val digits: Int)
+
     private val subscription = Subscription(NAME, SubscriptionFilter("shop")) { entry ->
+        if (entry.ref.id == "card") {
+            // #6588: an event whose value does not read into the handler's class, as the probe's.
+            WowJson.mapper.treeToValue(
+                WowJson.mapper.readTree("""{"holder":"Alice Smith","digits":"4111 1111 1111 1111"}"""),
+                Card::class.java,
+            )
+        }
         error("${entry.ref.id} is broken")
     }
     private val spec = ParkedRetrySpec(maxRetries = 2, initialBackoff = 1.hours, claimTtl = 1.seconds)
@@ -85,6 +95,16 @@ class LedgerPublisherTest {
     }
 
     @Test
+    fun `an entry parked for a value it could not read should be published without the value`(): Unit = runBlocking {
+        parkAll("card")
+        publisher.scan()
+        val record = ClusterCodec.mapper.treeToValue(sent.single().record, LedgerEntry::class.java)
+        record.reason.assert()
+            .isEqualTo("tools.jackson.databind.exc.MismatchedInputException: cannot read 'digits' as int")
+        sent.single().record.toString().assert().doesNotContain("4111")
+    }
+
+    @Test
     fun `a scan publishes each entry of the partitions this node runs as a command of its ops aggregate`(): Unit =
         runBlocking {
             parkAll("x1")
@@ -103,7 +123,8 @@ class LedgerPublisherTest {
             record.subscription.assert().isEqualTo(NAME)
             record.aggregate.assert().isEqualTo(LedgerAggregate.of(cart("x1")))
             record.fromVersion.assert().isEqualTo(1)
-            record.reason.assert().contains("x1 is broken")
+            // #6588: the failure's class, never its message.
+            record.reason.assert().isEqualTo("java.lang.IllegalStateException")
             record.status.assert().isEqualTo("scheduled")
             record.recoverable.assert().isEqualTo("unknown")
             record.request.assert().isNull()

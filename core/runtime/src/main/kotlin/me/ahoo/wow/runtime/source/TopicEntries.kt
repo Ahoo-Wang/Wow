@@ -154,7 +154,7 @@ internal class TopicEntries(
             return null
         }
         logger.error(failure) { "Parking $ref at $at: it holds no state event this version reads." }
-        return UndecodableMessage.entryOf(ref, LogPosition(partition, message.offset + 1), failure.toString())
+        return UndecodableMessage.entryOf(ref, LogPosition(partition, message.offset + 1), failure)
     }
 
     internal companion object {

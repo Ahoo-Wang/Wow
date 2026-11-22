@@ -16,6 +16,9 @@ package me.ahoo.wow.runtime.timer
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.decide.RequestFacts
+import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.WowProblemException
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.kernel.CommandTypes
@@ -149,9 +152,16 @@ internal class ContextTimerFirer(
         }
         // A busy node is backpressure: the runner sends it again without counting an attempt.
         settlement.busyOf(command)?.let { throw it }
-        check(!settlement.failed) {
+        if (settlement.failed) {
+            // The result's error is written for a caller: the reason the timer parks with keeps its code (#6588).
             val error = settlement.committed.error
-            "The command of the timer ${timer.id} on ${timer.target} failed: ${error?.code} ${error?.message}"
+            throw WowProblemException(
+                error?.code ?: FrameworkCodes.COMMAND_FAILED,
+                FAILED_STATUS,
+                Retry.SAME_REQUEST,
+                null,
+                "The command of the timer ${timer.id} on ${timer.target} failed: ${error?.code} ${error?.message}",
+            )
         }
         return when {
             settlement.committed.duplicate -> ObservedOutcome.DUPLICATE
@@ -175,5 +185,8 @@ internal class ContextTimerFirer(
 
     private companion object {
         val logger = KotlinLogging.logger {}
+
+        /** The status of the problem a failed command of a timer is: a failure of the service, not the sender's. */
+        const val FAILED_STATUS = 500
     }
 }

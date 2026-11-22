@@ -72,7 +72,7 @@ internal class ParkWrites(
             stream.ref,
             partition,
             stream.version,
-            reasonOf(failure),
+            classification.reasonOf(failure),
             clock.millis(),
             source.sourcePosition(sourced),
             // As 9.x records its RecoverableType: an unrecoverable failure is not retried automatically either.
@@ -110,7 +110,7 @@ internal class ParkWrites(
             stream.ref,
             partition,
             stream.version,
-            reasonOf(failure),
+            classification.reasonOf(failure),
             clock.millis(),
             source.sourcePosition(sourced),
         ).also { repark(it, from) }
@@ -146,9 +146,6 @@ internal class ParkWrites(
         private val logger = KotlinLogging.logger("me.ahoo.wow.runtime.subscription.RetryWrites")
     }
 }
-
-/** The reason a parked entry records for [failure]: its class and its message. */
-internal fun reasonOf(failure: Throwable): String = "${failure.javaClass.name}: ${failure.message}"
 
 /** The worker's: the park's warning is logged as it was. */
 private val workerLogger = KotlinLogging.logger(SubscriptionWorker::class.java.name)

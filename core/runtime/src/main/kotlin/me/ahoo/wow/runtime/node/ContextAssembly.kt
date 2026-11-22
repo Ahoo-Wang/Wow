@@ -440,7 +440,7 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
      */
     private fun timersOf(context: String, group: GroupParts, firer: TimerFirer): ContextTimers? =
         group.timers?.let { store ->
-            val runner = TimerRunner(context, store, group.ledger, firer, timerLoop)
+            val runner = TimerRunner(context, store, group.ledger, firer, timerLoop, classification)
             ContextTimers(TimersSubscription(context, store, group.log.partitions, runner::offer), runner)
         }
 

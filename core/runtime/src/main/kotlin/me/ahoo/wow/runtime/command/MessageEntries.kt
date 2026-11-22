@@ -138,7 +138,7 @@ internal class MessageEntries private constructor(
                 return null
             }
             logger.error(failure) { "Parking $ref at $at: it holds no $kind this version reads." }
-            return UndecodableMessage.entryOf(ref, LogPosition(partition, message.offset + 1), failure.toString())
+            return UndecodableMessage.entryOf(ref, LogPosition(partition, message.offset + 1), failure)
         }
         val stream = EventStreamRecord(
             ref = decoded.ref,

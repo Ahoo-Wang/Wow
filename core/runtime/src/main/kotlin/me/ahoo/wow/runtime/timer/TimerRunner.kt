@@ -25,9 +25,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.kernel.FailureClassification
 import me.ahoo.wow.kernel.schedule.ScheduleSlots
 import me.ahoo.wow.runtime.CommandBusyException
 import me.ahoo.wow.runtime.health.NodeFatals
+import me.ahoo.wow.runtime.subscription.RuntimeFailures
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.observation.ObservedEvent.Fatal.Component
@@ -90,6 +92,8 @@ class TimerRunner(
     internal val ledger: FailureLedger,
     private val firer: TimerFirer,
     private val loop: TimerLoop,
+    /** The reasons a failed send parks its target with, and the timer records as its outcome: the node's. */
+    private val classification: FailureClassification = RuntimeFailures.DEFAULT,
 ) {
     private val options: TimerOptions get() = loop.options
     private val parts = ConcurrentHashMap<Int, Part>()
@@ -346,7 +350,7 @@ class TimerRunner(
      * parked once its attempts are spent.
      */
     private suspend fun failed(part: Part, timer: Timer, failure: Throwable, now: Long) {
-        val reason = "${failure.javaClass.name}: ${failure.message}"
+        val reason = classification.reasonOf(failure)
         val busy = failure is CommandBusyException
         if (busy && (part.busy.merge(timer.id, 1, Int::plus) ?: 1) <= options.maxBusyRetries) {
             // Backpressure, not a failure: sent again after the first backoff, no attempt counted.

@@ -20,6 +20,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.kernel.FailureClassification
 import me.ahoo.wow.runtime.health.NodeFatals
+import me.ahoo.wow.runtime.subscription.RuntimeFailures
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.log.Partitioner
@@ -61,7 +62,7 @@ class MaintenanceSkips(
     val work: Work,
     /** The ledger of each type's log group; none for a type whose failures stop the work. */
     private val ledgers: (AggregateType) -> SkipLedger?,
-    private val classification: FailureClassification = FailureClassification.DEFAULT,
+    private val classification: FailureClassification = RuntimeFailures.DEFAULT,
     private val observer: Observer = Observer.NONE,
     private val clock: Clock = Clock.systemUTC(),
 ) {
@@ -195,6 +196,16 @@ class MaintenanceSkips(
 
     override fun toString(): String = "MaintenanceSkips($context, ${work.value})"
 
+    /**
+     * The reason [failure] parks the aggregate with: the phase it failed in, then the node's reason for what failed
+     * ([FailureClassification.reasonOf]: its class and a value-free description, never its message).
+     */
+    private fun reasonOf(failure: Exception): String {
+        val cause = (failure as? UnreplayableHistoryException)?.cause ?: failure
+        val phase = if (failure is UnreplayableHistoryException) "Its history did not replay" else "It failed"
+        return "$phase: ${classification.reasonOf(cause)}".take(MAX_REASON)
+    }
+
     @InternalWowApi
     companion object {
         /** What the access walks park the aggregates they skip under. */
@@ -212,12 +223,6 @@ class MaintenanceSkips(
         fun subscriptionOf(work: Work): String = when (work) {
             Work.ACCESS_WALK -> ACCESS_WALK
             Work.SNAPSHOT_REWRITE -> SNAPSHOT_REWRITE
-        }
-
-        private fun reasonOf(failure: Exception): String {
-            val cause = (failure as? UnreplayableHistoryException)?.cause ?: failure
-            val phase = if (failure is UnreplayableHistoryException) "Its history did not replay" else "It failed"
-            return "$phase: ${cause.javaClass.name}: ${cause.message}".take(MAX_REASON)
         }
 
         private val logger = KotlinLogging.logger {}

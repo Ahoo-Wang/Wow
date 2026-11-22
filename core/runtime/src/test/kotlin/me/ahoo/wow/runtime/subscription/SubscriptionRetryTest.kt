@@ -93,8 +93,7 @@ class SubscriptionRetryTest {
 
             slowAttempts.get().assert().isEqualTo(2)
             ledger.parked(SubscriptionId("shop", "slow"), cart("x"))!!.reason.assert()
-                .contains(HandlerTimeoutException::class.java.name)
-                .contains("within 50ms")
+                .isEqualTo("${HandlerTimeoutException::class.java.name}: timed out after 50 ms")
             failingAttempts.get().assert().isEqualTo(3)
             ledger.isParked(SubscriptionId("shop", "slow"), cart("y")).assert().isFalse()
             ledger.isParked(SubscriptionId("shop", "failing"), cart("y")).assert().isFalse()

@@ -202,7 +202,7 @@ class SubscriptionPauseTest {
 
         own.get().assert().isEqualTo(MAX_ATTEMPTS)
         ledger.parked(SubscriptionId("shop", "projection"), cart("x"))!!.assert().satisfies({
-            it.reason.assert().contains("x is broken on its own")
+            it.reason.assert().isEqualTo("java.lang.IllegalStateException")
             it.recoverable.assert().isEqualTo(Recoverable.UNKNOWN)
         })
         pauses.events.assert().containsExactly("paused projection@0", "resumed projection@0")

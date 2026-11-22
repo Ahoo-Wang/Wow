@@ -46,6 +46,7 @@ import me.ahoo.wow.spi.id.GlobalIdGenerator
 import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.subscription.FailureClassifier
+import me.ahoo.wow.spi.subscription.FailureDescriber
 import me.ahoo.wow.spi.transport.TransportProvider
 import me.ahoo.wow.spring.boot.WowAutoConfiguration
 import me.ahoo.wow.spring.boot.WowAutoConfiguration.Companion.WOW_AGGREGATE_ID_GENERATOR
@@ -114,6 +115,7 @@ internal class NodeService {
         observers: ObjectProvider<Observer>,
         callers: ObjectProvider<CommandCaller>,
         classifiers: ObjectProvider<FailureClassifier>,
+        describers: ObjectProvider<FailureDescriber>,
         queries: ObjectProvider<ContextQueries>,
         access: ObjectProvider<AccessPolicy<*>>,
         clock: Clock,
@@ -185,6 +187,7 @@ internal class NodeService {
             queries = lazyQueries(queries),
             // The gate over the query bulkheads, built before the node: its state rebuilds replay under it.
             replayGate = replayGates.getIfAvailable { ReplayGate.OPEN },
+            failureDescribers = describers.orderedStream().toList(),
         )
     }
 

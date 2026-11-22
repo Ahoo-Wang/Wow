@@ -93,6 +93,7 @@ class ParkedSignalTest {
                 .isEqualTo("${command.ref}@1 is parked by order.failing; the failure ledger has the cause.")
             result.error!!.message.assert().doesNotContain("10.0.3.5")
             val parked = ledger.parked(SubscriptionId("shop", "order.failing"), command.ref)!!
-            parked.reason.assert().contains("IllegalStateException").contains("10.0.3.5")
+            // #6588: the ledger records the failure's class; its message, the address it quotes, is in the log alone.
+            parked.reason.assert().isEqualTo("java.lang.IllegalStateException")
         }
 }

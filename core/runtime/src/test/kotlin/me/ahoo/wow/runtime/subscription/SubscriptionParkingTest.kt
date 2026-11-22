@@ -124,7 +124,7 @@ class SubscriptionParkingTest {
         attempts.get().assert().isEqualTo(3)
         val parked = ledger.parked(SubscriptionId("shop", "parking"), cart("x"))!!
         parked.fromVersion.assert().isEqualTo(2)
-        parked.reason.assert().contains("x-2 is broken")
+        parked.reason.assert().isEqualTo("java.lang.IllegalStateException")
         parked.failedAt.assert().isEqualTo(clock.millis())
         handled.versionsOf("x").assert().isEqualTo(listOf(1))
         handled.versionsOf("y").assert().isEqualTo(listOf(1, 2, 3))
@@ -194,7 +194,8 @@ class SubscriptionParkingTest {
             runtime.retry("parking", cart("x")).assert().isFalse()
             val parked = ledger.parked(SubscriptionId("shop", "parking"), cart("x"))!!
             parked.fromVersion.assert().isEqualTo(3)
-            parked.reason.assert().contains("x-3 is broken")
+            // #6588: the failure's class; its message, which may quote a value, is in the log alone.
+            parked.reason.assert().isEqualTo("java.lang.IllegalStateException")
             handled.versionsOf("x").assert().isEqualTo(listOf(1, 2))
 
             // A new entry of x is skipped while it is parked; the next retry starts at version 3, not 2.

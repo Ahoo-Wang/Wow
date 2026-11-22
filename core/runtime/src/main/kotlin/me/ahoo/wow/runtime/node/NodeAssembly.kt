@@ -65,6 +65,7 @@ import me.ahoo.wow.spi.call.CommandCaller
 import me.ahoo.wow.spi.observation.ObservedEvent.Fatal.Component
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.subscription.FailureClassifier
+import me.ahoo.wow.spi.subscription.FailureDescriber
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.subscription.SubscriptionId
 import me.ahoo.wow.spi.wait.Origin
@@ -123,6 +124,8 @@ internal class NodeAssembly(
     /** How the rebuilds of the subscriptions' states replay the log: the [ServiceNode]'s gate. */
     replayGate: ReplayGate,
     deadlines: WaitDeadlines,
+    /** The application's describers of its handlers' failures ([RuntimeFailures.of]); none by default. */
+    failureDescribers: List<FailureDescriber> = emptyList(),
 ) {
     /** The jobs of each context's `@OnSchedule` handlers, by the name of the subscription that runs each. */
     private val declaredJobs: Map<String, Map<String, ScheduleJob>> =
@@ -140,8 +143,8 @@ internal class NodeAssembly(
         ),
     )
 
-    /** How every subscription of the node classifies its handler's failures. */
-    private val classification = RuntimeFailures.of(failureClassifiers)
+    /** How every subscription of the node classifies its handler's failures, and the reasons it parks them with. */
+    private val classification = RuntimeFailures.of(failureClassifiers, failureDescribers)
 
     /** The fatal errors the node's work meets: the first makes the node fatal, until the process ends. */
     val fatals = NodeFatals(node, observer, clock)

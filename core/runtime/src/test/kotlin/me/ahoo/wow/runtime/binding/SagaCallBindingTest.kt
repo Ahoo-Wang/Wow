@@ -461,7 +461,7 @@ class SagaCallBindingTest {
             val ledger = backends.opened.getValue(SHOP).ledger
             eventually { ledger.isParked(SubscriptionId(SHOP, undeclared.name), ORDER.ref(TENANT, "o-7")) }
             ledger.parked(SubscriptionId(SHOP, undeclared.name), ORDER.ref(TENANT, "o-7"))!!.reason
-                .assert().contains("which its @Sends(calls) does not declare")
+                .assert().isEqualTo("me.ahoo.wow.kernel.UndeclaredSendException")
             calls.assert().isEmpty()
         }
 

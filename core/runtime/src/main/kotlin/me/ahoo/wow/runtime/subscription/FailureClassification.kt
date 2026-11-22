@@ -14,9 +14,12 @@
 package me.ahoo.wow.runtime.subscription
 
 import me.ahoo.wow.kernel.FailureClassification
+import me.ahoo.wow.kernel.FailureReasons
 import me.ahoo.wow.runtime.CommandBusyException
 import me.ahoo.wow.spi.subscription.FailureClass
 import me.ahoo.wow.spi.subscription.FailureClassifier
+import me.ahoo.wow.spi.subscription.FailureDescriber
+import me.ahoo.wow.spi.subscription.FailureDescription
 
 /**
  * How the subscriptions of a runtime classify their handlers' failures: the kernel's classification
@@ -25,12 +28,39 @@ import me.ahoo.wow.spi.subscription.FailureClassifier
  * then the built-in rules.
  */
 internal object RuntimeFailures {
-    /** The runtime's own classification, with no application classifier. */
+    /** The runtime's own classification, with no application classifier or describer. */
     val DEFAULT: FailureClassification by lazy { of() }
 
-    /** The [application]'s classifiers, then the modules', then the runtime's own. */
-    fun of(application: List<FailureClassifier> = emptyList()): FailureClassification =
-        FailureClassification.of(application, own = listOf(ExecutorFailures))
+    /**
+     * The [application]'s classifiers, then the modules', then the runtime's own; and the reasons of the
+     * [describers]' descriptions, then the modules', then the runtime's own ([RuntimeDescriptions]).
+     */
+    fun of(
+        application: List<FailureClassifier> = emptyList(),
+        describers: List<FailureDescriber> = emptyList(),
+    ): FailureClassification = FailureClassification.of(
+        application,
+        own = listOf(ExecutorFailures),
+        reasons = FailureReasons.of(describers, own = listOf(RuntimeDescriptions)),
+    )
+}
+
+/** The words of the runtime's descriptions. */
+internal enum class RuntimePhrase {
+    NOT_DECODABLE_BY_THIS_VERSION,
+}
+
+/**
+ * What only the runtime throws, described: a message of a topic this version cannot decode
+ * ([UndecodableEntryException]); what it could not decode is its cause's.
+ */
+internal object RuntimeDescriptions : FailureDescriber {
+    override fun describe(failure: Throwable): FailureDescription? =
+        if (failure is UndecodableEntryException) {
+            FailureDescription.of(FailureDescription.phrase(RuntimePhrase.NOT_DECODABLE_BY_THIS_VERSION))
+        } else {
+            null
+        }
 }
 
 /**
