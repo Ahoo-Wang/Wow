@@ -83,7 +83,7 @@ class PeerProblem(
 
     /**
      * The exception of this problem for [what] was asked: a [CommandRejectedException] for a command's rejection,
-     * else a [WowProblemException].
+     * else a [WowProblemException] with its [violations].
      */
     fun exception(what: String): RuntimeException {
         if (result?.status == CommandResult.Status.REJECTED) {
@@ -91,7 +91,16 @@ class PeerProblem(
         }
         val message = "$what was answered HTTP $status${code?.let { " $it" }.orEmpty()}" +
             detail?.let { ": $it" }.orEmpty()
-        return WowProblemException(code ?: "http.$status", status, retry, retryAfter, message, result, cause)
+        return WowProblemException(
+            code ?: "http.$status",
+            status,
+            retry,
+            retryAfter,
+            message,
+            result,
+            cause,
+            violations,
+        )
     }
 
     @InternalWowApi

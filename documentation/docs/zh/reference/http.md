@@ -174,4 +174,4 @@ fun catalogProblems(): ProblemMapper = ProblemMapper { failure ->
 - **目录。** 在上下文里用 `@ErrorCode` 声明映射出的错误码，或写进服务路由的 `errors`，让客户端和 Manifest 知道它。哪里都没列出的错误码照样作答，并警告一次。
 - **日志。** 映射出的 5xx 连同失败记为警告，映射出的 4xx 记为 debug。
 
-problem 的消息就是它的 `detail`，调用方会读到：不要在里面写调用方不该看到的东西。
+problem 的消息就是它的 `detail`，调用方会读到：不要在里面写调用方不该看到的东西。映射器可以把请求违反的字段列为 problem 的 `violations`（`WowProblemException(…, violations = listOf(Violation.of(path, code, message)))`），形状与命令的相同。

@@ -174,4 +174,4 @@ fun catalogProblems(): ProblemMapper = ProblemMapper { failure ->
 - **Catalog.** Declare a mapped code in a context with `@ErrorCode`, or in a service route's `errors`, so that clients and the Manifest know it. A code that none lists is answered all the same, and warned of once.
 - **Logs.** A mapped 5xx is logged as a warning with its failure, a mapped 4xx at debug.
 
-The problem's message is its `detail`, which the caller reads: say nothing in it that the caller should not see.
+The problem's message is its `detail`, which the caller reads: say nothing in it that the caller should not see. A mapper may list the fields the request broke as the problem's `violations` (`WowProblemException(…, violations = listOf(Violation.of(path, code, message)))`), in the shape of a command's.
