@@ -11,8 +11,7 @@ opentelemetry = "1.68.0"
 opentelemetry-instrumentation = "2.34.0"
 guava = "33.7.2-jre"
 kotlin-logging = "8.0.7"
-swagger = "2.2.56"
-springdoc = "3.2.0"
+springdoc = "3.2.1"
 jsonschema-generator = "5.0.0"
 json-schema-validator = "3.0.9"
 kotlinx-coroutines = "1.11.0"
@@ -53,8 +52,6 @@ ksp-symbol-processing-common-deps = { module = "com.google.devtools.ksp:symbol-p
 kotlin-compile-testing = { module = "dev.zacsweers.kctfork:ksp", version.ref = "kotlin-compile-testing" }
 guava = { module = "com.google.guava:guava", version.ref = "guava" }
 kotlin-logging = { module = "io.github.oshai:kotlin-logging-jvm", version.ref = "kotlin-logging" }
-swagger-annotations = { module = "io.swagger.core.v3:swagger-annotations-jakarta", version.ref = "swagger" }
-swagger-core = { module = "io.swagger.core.v3:swagger-core-jakarta", version.ref = "swagger" }
 springdoc-bom = { module = "org.springdoc:springdoc-openapi-bom", version.ref = "springdoc" }
 junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
 clickhouse-client-v2 = { module = "com.clickhouse:client-v2", version.ref = "clickhouse-java" }

@@ -13,6 +13,7 @@
 
 import io.gitlab.arturbosch.detekt.DetektPlugin
 import io.gitlab.arturbosch.detekt.extensions.DetektExtension
+import org.gradle.api.artifacts.result.UnresolvedDependencyResult
 import org.gradle.api.tasks.SourceSet
 import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.logging.Logger
@@ -409,6 +410,31 @@ fun Project.registerJvmTestLayer(
 // The repository build's platform (`allprojects` below): never published.
 val BUILD_PLATFORM = "wowBuildPlatform"
 
+// The Jackson 3 Spring Boot's BOM manages, read from the BOM as `:wow-dependencies` reads its constraints, never
+// written here: every classpath the build resolves takes its `jackson-bom`, enforced, so a library that asks for a
+// later one (swagger-core 3 asks for 3.2) does not lift it. One Jackson, the one Wow's codecs are tested on, for its
+// modules, their tests and its services alike: the one a Maven build under Boot's parent resolves, springdoc's own
+// among them. Each project reads it by a resolution of its own, and only when one of its classpaths resolves or its
+// `checkJackson` runs (`allprojects` below): configuring the build resolves nothing, before the root's repositories
+// are declared or after, and no project resolves another's configuration.
+val bootBom = libs.spring.boot.dependencies.get()
+fun Project.readBootJackson(): String {
+    val databind = "tools.jackson.core:jackson-databind"
+    val result = configurations.detachedConfiguration(
+        dependencies.platform(bootBom.toString()),
+        dependencies.create(databind),
+    ).incoming.resolutionResult
+    return result.allComponents.mapNotNull { it.moduleVersion }
+        .singleOrNull { "${it.group}:${it.name}" == databind }?.version
+        ?: throw GradleException(
+            "Cannot read the version of $databind from spring-boot-dependencies ${bootBom.version} in $path: " +
+                result.allDependencies.filterIsInstance<UnresolvedDependencyResult>().joinToString("; ") { unresolved ->
+                    generateSequence(unresolved.failure) { it.cause }.mapNotNull { it.message }.distinct()
+                        .joinToString(": ")
+                }.ifEmpty { "the BOM resolves, and manages no such module" },
+        )
+}
+
 // The classpaths the build resolves for Wow's own code: every resolvable configuration (the source sets' compile and
 // runtime classpaths, KSP's, the fixtures', `wowTools`, detekt's plugins, ...) but the tools' own (the Kotlin
 // compiler's, Dokka's, JaCoCo's, the detekt CLI's, the TestKit's plugin classpath and the fixtures' external modules),
@@ -429,6 +455,14 @@ allprojects {
         isCanBeConsumed = false
         isCanBeResolved = false
     }
+    // Boot's Jackson ([readBootJackson]), read at most once, when this project first resolves a classpath or checks
+    // it. Its `jackson-bom` joins the platform as a classpath resolves (`withDependencies`), not as a provider in its
+    // dependencies: KSP asks whether its configurations, which extend the platform, have any while the project is
+    // configured, which would read it then.
+    val bootJackson by lazy { this@allprojects.readBootJackson() }
+    buildPlatform.withDependencies {
+        add(dependencies.enforcedPlatform("tools.jackson:jackson-bom:$bootJackson"))
+    }
     dependencies {
         buildPlatform(platform(dependenciesProject))
         buildPlatform(platform(rootProject.libs.spring.boot.dependencies))
@@ -445,14 +479,37 @@ allprojects {
             // The Guava com.clickhouse:client-v2 brings to :clickhouse (33.4.6), lifted for the build alone: a 9.x
             // carry-over (wow-core used Guava), for no advisory, so a wow-clickhouse application keeps client-v2's.
             buildPlatform(rootProject.libs.guava)
-            buildPlatform(rootProject.libs.swagger.annotations)
-            buildPlatform(rootProject.libs.swagger.core)
             buildPlatform(rootProject.libs.mockk)
             buildPlatform(rootProject.libs.detekt.formatting)
         }
     }
     configurations.matching { it.isCanBeResolved && it.name.isBuildClasspath() }.configureEach {
         extendsFrom(buildPlatform)
+    }
+    // Guards the one Jackson: `check` fails when a classpath the platform reaches resolves a Jackson 3 module at
+    // another version than Boot's ([readBootJackson]), whatever brought it. All of them, not the runtime classpaths
+    // alone: Wow's codecs also run on KSP's processor classpaths, `wowTools`, the fixtures' and the contracts'
+    // classpaths, and a compile classpath at another version would compile against an API the tests do not run.
+    val checkJackson = tasks.register("checkJackson") {
+        group = LifecycleBasePlugin.VERIFICATION_GROUP
+        description = "Fails when a classpath of the build resolves a Jackson 3 module at another version than Boot's."
+        val classpaths = configurations.matching { it.isCanBeResolved && it.name.isBuildClasspath() }
+        val owner = this@allprojects.path
+        doLast {
+            val boot = bootJackson
+            val others = classpaths.flatMap { classpath ->
+                classpath.incoming.resolutionResult.allComponents.mapNotNull { it.moduleVersion }
+                    .filter { it.group.startsWith("tools.jackson") && it.version != boot }
+                    .map { "${classpath.name}: ${it.group}:${it.name}:${it.version}" }
+            }
+            check(others.isEmpty()) {
+                "Jackson is $boot, Spring Boot's, on every classpath of the build, but $owner resolves " +
+                    others.joinToString()
+            }
+        }
+    }
+    plugins.withType<LifecycleBasePlugin> {
+        tasks.named(LifecycleBasePlugin.CHECK_TASK_NAME) { dependsOn(checkJackson) }
     }
     // A project of the build declares Wow by its coordinates, as a user's build does: the examples, the platform
     // services, the test applications, and what the Gradle plugin adds (wow-bom, wow-kernel, wow-api, wow-compiler,
