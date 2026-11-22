@@ -117,4 +117,9 @@ class SnapshotPolicyGatewayTest {
             refused.errorMsg.assert().isEqualTo("The snapshots of $type are not queried.")
         }
     }
+
+    @Test
+    fun `the schema its records are masked by should be the one its policies decide on`(): Unit = runBlocking {
+        gateway.recordSchema().assert().isSameAs(catalog.policyProvider(type).schema())
+    }
 }

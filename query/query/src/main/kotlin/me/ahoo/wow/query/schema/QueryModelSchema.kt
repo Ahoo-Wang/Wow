@@ -256,7 +256,7 @@ class QueryModelSchema(
 
     /** The logical paths of the masked fields a query that reveals `DISPLAY` values returns raw, in declaration order. */
     val displayFields: List<String> by lazy {
-        maskedValues.filter { it.second.maskRule?.level == SensitivityLevel.DISPLAY }
+        maskedValues.filter { it.second.maskRule!!.level == SensitivityLevel.DISPLAY }
             .map { it.first.logicalPath() }.distinct()
     }
 

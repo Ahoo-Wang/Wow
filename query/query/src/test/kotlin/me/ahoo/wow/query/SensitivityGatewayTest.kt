@@ -274,7 +274,8 @@ class SensitivityGatewayTest {
             admitted.path("password").stringValue().assert().isEqualTo("******")
             schema.maskRecord(order("o1", "13812345678").toQueryRecord(), revealsDisplay = true)
                 .path("state").path("email").stringValue().assert().isEqualTo("a@b.c")
-            val (gateway, _) = gateway()
+            val (gateway, compiled) = gateway()
+            gateway.recordSchema().assert().isSameAs(compiled)
             gateway.maskRecord(order("o1", "13812345678").toQueryRecord())
                 .path("state").path("phone").stringValue().assert().isEqualTo("138****5678")
         }

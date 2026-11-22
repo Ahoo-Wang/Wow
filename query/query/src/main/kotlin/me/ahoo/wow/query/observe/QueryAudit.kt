@@ -181,8 +181,8 @@ internal class QueryAuditTrail(
         val schema = schema
         val fields = schema ?: readSchema
         val masked = fields?.let { fieldsOf(it, it.maskedFields) }.orEmpty()
-        val revealed = if (caller.revealsDisplay && !history) {
-            fields?.let { fieldsOf(it, it.displayFields) }.orEmpty()
+        val revealed = if (fields != null && caller.revealsDisplay && !history) {
+            fieldsOf(fields, fields.displayFields)
         } else {
             emptyList()
         }
@@ -205,9 +205,12 @@ internal class QueryAuditTrail(
         )
     }
 
-    /** Those of [paths], masked paths of [schema], the response carries: all of a state read's. */
+    /**
+     * Those of [paths], masked paths of [schema], the response carries: all of a state read's, which has no query
+     * schema, its fields named from [readSchema].
+     */
     private fun fieldsOf(schema: QueryModelSchema, paths: List<String>): List<String> {
-        if (this.schema == null && schema === readSchema) return paths
+        if (this.schema == null) return paths
         if (queryType == QueryType.COUNT || queryType == QueryType.AGGREGATION) return emptyList()
         val projection = projection ?: return emptyList()
         return paths.filter { path ->

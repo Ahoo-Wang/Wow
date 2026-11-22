@@ -89,7 +89,7 @@ internal class QueryMaskDefinition private constructor(
         fun create(schema: QueryModelSchema, revealsDisplay: Boolean = false): QueryMaskDefinition? {
             if (!schema.hasMaskedFields) return null
             val paths = schema.protectedSources.responseMasks.let { masks ->
-                if (revealsDisplay) masks.filterNot { it.second.masked.maskRule?.level == SensitivityLevel.DISPLAY } else masks
+                if (revealsDisplay) masks.filterNot { it.second.masked.maskRule!!.level == SensitivityLevel.DISPLAY } else masks
             }
             if (paths.isEmpty()) return null
             val profile = schema.profile

@@ -219,4 +219,20 @@ class ReadFacadeTest {
             version.revealedFields.assert().isEmpty()
             version.maskedFields.assert().contains("state.phone")
         }
+
+    @Test
+    fun `a state read of a type whose state masks nothing should name no fields, revealing or not`(): Unit =
+        runBlocking {
+            val plain = mockk<QueryGateway> { coEvery { recordSchema() } answers { callOriginal() } }
+            plain.recordSchema().assert().isNull()
+            val observer = Recording()
+            val revealing = QueryCaller(entry = QueryEntry.IN_PROCESS, revealsDisplay = true)
+            ReadFacade({ plain }, observer = observer).observed(cart, StateRead.LATEST, revealing) { Unit }
+            ReadFacade({ null }, observer = observer).observed(cart, StateRead.LATEST, revealing) { Unit }
+            observer.audited.forEach { audit ->
+                audit.maskedFields.assert().isEmpty()
+                audit.revealedFields.assert().isEmpty()
+            }
+            observer.audited.assert().hasSize(2)
+        }
 }
