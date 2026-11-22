@@ -92,5 +92,8 @@ Saga 发出的命令只继承那些本该随行的事实，例如应用；第一
 | 转发的命令 | 同一服务的节点 |
 | 等待信号 | 任何声明了自己的服务 |
 | 同步调用或读 | 任何声明了自己的服务，以该服务的身份（主体 `service:<name>`） |
+| 要求 `DISPLAY` 原值的读取（`Wow-Reveal: display`） | 任何声明了自己的服务，读取的根须是服务自己的；属主关掉 `wow.query.sensitivity.display-shared` 时不接受 |
+
+Wow 不认证请求所声明的服务。能访问某个服务内部端口的工作负载可以声明任何服务名，并用 `Wow-Reveal` 读到该服务 `@Sensitive(DISPLAY)` 值的原值；`CONFIDENTIAL` 值保持脱敏。限制谁能访问内部端口，是运维方的控制手段（[内部端口上的 `DISPLAY` 值](../operate/security#display-values-on-the-internal-port)）。
 
 除非服务列出了每个调用方可以调用的命令（`wow.callers.<service>.commands`），同步调用可以调用所有领域命令。生命周期命令和系统命令（例如删除、重建快照）必须为调用方服务显式列出。一次调用带着它所代表的根命令的作用域、操作人和请求事实，目标只在内部端口上、从声明了自己的服务那里接受这些声明。

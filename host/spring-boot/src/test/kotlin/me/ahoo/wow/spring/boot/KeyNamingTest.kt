@@ -128,6 +128,7 @@ class KeyNamingTest {
             "wow.query.budgets.in-process.unindexed-sort-expensive" to "what the budget counts as an expensive operator",
             "wow.query.count-cache.paged-totals" to "what the count cache covers, not a switch of its own",
             "wow.query.sensitivity.display-comparable" to "a policy on sensitive fields, named by what it permits",
+            "wow.query.sensitivity.display-shared" to "a policy on sensitive fields, named by what it permits",
         )
 
         /**

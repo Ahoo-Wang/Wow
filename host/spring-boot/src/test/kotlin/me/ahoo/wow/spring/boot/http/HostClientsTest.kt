@@ -208,7 +208,7 @@ class HostClientsTest {
     }
 
     @Test
-    fun `a handler's revealing queries should read the node's own models revealed, and refuse a peer's`() {
+    fun `a handler's revealing queries should read the node's own models revealed, and ask a peer to reveal`() {
         val localQueries = mockk<TenantQueryApi>(relaxed = true)
         val pinned = mockk<SubscriptionQueries>(relaxed = true)
         val revealing = mockk<SubscriptionQueries>(relaxed = true)
@@ -221,10 +221,16 @@ class HostClientsTest {
         revealed.snapshots<Account>().assert().isSameAs(revealing.snapshots(Account::class.java))
         revealed.trusted().assert().isSameAs(revealing.trusted())
         revealed.revealed().assert().isSameAs(revealed)
-        // A peer's DISPLAY values are not revealed to this service: its models are refused, not read masked.
-        listOf<() -> Any>({ revealed.snapshots(account) }, { revealed.events(account) }).forEach { read ->
-            assertThrows<IllegalStateException> { read() }.message.assert().contains(BANK, "not revealed")
-        }
+        // A peer's models are read over HTTP, asking the peer to reveal (Wow-Reveal), as the service itself.
+        revealed.snapshots(account).javaClass.name.assert().contains("HttpQueryApi")
+        revealed.events(account).javaClass.name.assert().contains("HttpQueryApi")
+        // A peer reached in user mode reads for an end user: it is refused, not read masked.
+        val user = RoutedQueryApi(
+            localQueries,
+            peers(PeerMode.USER),
+            setOf(Account::class.java)
+        ).tenant("t1").revealed()
+        assertThrows<IllegalStateException> { user.snapshots(account) }.message.assert().contains("user mode")
     }
 
     @Test

@@ -144,7 +144,7 @@ The service's own code may need a `DISPLAY` value as it is: the phone number it 
 <!-- sample: fragment -->
 
 ```kotlin
-val customer = queries.trusted().revealed().snapshots(CustomerState::class.java).state(ref) ?: return
+val customer = queries.trusted().revealed().snapshots<CustomerState>().state(ref) ?: return
 sms.send(customer.state.phone, text)
 ```
 
@@ -156,10 +156,10 @@ sms.send(customer.state.phone, text)
 - **It combines.** `revealed().unbounded()` and `unbounded().revealed()` are the same queries, and a handler's `revealed().trusted()` reveals too.
 - **Datasets too.** A dataset's queries share the same masks, so a revealing read of a dataset returns its `DISPLAY`-protected columns raw.
 - **No strategy.** A custom `MaskStrategy` is not called for a revealed value.
-- **Peers.** A peer's model read through a handler's `revealed()` queries is refused, not read masked: the peers do not reveal to this service yet.
+- **Peers.** A handler's `revealed()` queries ask a peer for its `DISPLAY` values too (`Wow-Reveal`, on its internal port). The peer answers them raw unless it turns `wow.query.sensitivity.display-shared` off, and then refuses with 403 rather than answer masked; a peer reached in user mode reads for an end user and refuses. Wow does not authenticate services on the internal port, so whoever reaches it can ask the same ([`DISPLAY` values on the internal port](../operate/security#display-values-on-the-internal-port)).
 - **Audit.** Each revealing read is recorded as one: its audit names the fields it returned raw (`revealedFields`) apart from those it masked.
 
-Why the word must be said: the result of a trusted read often goes straight into a response, so a read that revealed by default would leak a field the day it is marked `DISPLAY`. Never return revealed queries' results to a caller. Java code writes `JavaQueryApi.of(nodeQueryApi).trusted().revealed()`.
+Masking a `DISPLAY` value is a display control, not secrecy: filters compare its raw value by default, and `@Sensitive` governs what queries and reads return, not what Wow stores ([Where masking stops](#where-masking-stops)). Why the word must be said all the same: the result of a trusted read often goes straight into a response, so a read that revealed by default would leak a field the day it is marked `DISPLAY`. Never return revealed queries' results to a caller. Java code writes `JavaQueryApi.of(nodeQueryApi).trusted().revealed()`.
 
 ### A secret a service reads back {#a-secret-a-service-reads-back}
 

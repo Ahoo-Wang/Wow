@@ -53,6 +53,19 @@ object WowHeaders {
      */
     const val SERVICE: String = "Wow-Service"
 
+    /**
+     * A service's read of another service's model asking for the raw value of its `@Sensitive(DISPLAY)` fields,
+     * [REVEAL_DISPLAY]: a subscription handler's revealing queries (`context.queries.revealed()`) send it with their
+     * peer reads. Taken on the internal port alone, for a read whose root context is a service's own (its operator a
+     * service or a framework component, never an end user), and only while the owner shares its `DISPLAY` values
+     * (`wow.query.sensitivity.display-shared`); refused (403) otherwise, and on the public port. A `CONFIDENTIAL` value
+     * is masked whatever it says.
+     */
+    const val REVEAL: String = "Wow-Reveal"
+
+    /** The one value of [REVEAL]: the `DISPLAY` values. */
+    const val REVEAL_DISPLAY: String = "display"
+
     /** The expected version of the aggregate, as an entity tag: `If-Match: "3"`. */
     const val IF_MATCH: String = "If-Match"
 

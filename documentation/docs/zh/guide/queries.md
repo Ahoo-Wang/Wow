@@ -144,7 +144,7 @@ var status: ProductStatus = ProductStatus.DRAFT
 <!-- sample: fragment -->
 
 ```kotlin
-val customer = queries.trusted().revealed().snapshots(CustomerState::class.java).state(ref) ?: return
+val customer = queries.trusted().revealed().snapshots<CustomerState>().state(ref) ?: return
 sms.send(customer.state.phone, text)
 ```
 
@@ -156,10 +156,10 @@ sms.send(customer.state.phone, text)
 - **可以组合。** `revealed().unbounded()` 与 `unbounded().revealed()` 是同一组查询，处理函数的 `revealed().trusted()` 也会揭示。
 - **数据集也一样。** 数据集的查询共用同样的遮蔽，所以揭示读取会返回数据集中受 `DISPLAY` 保护的列的原值。
 - **不调用策略。** 被揭示的值不会调用自定义的 `MaskStrategy`。
-- **对端。** 通过处理函数的 `revealed()` 查询读取对端的模型会被拒绝，而不是读到脱敏值：对端目前还不向本服务揭示。
+- **对端。** 处理函数的 `revealed()` 查询也会向对端要 `DISPLAY` 值（`Wow-Reveal`，在对端的内部端口上）。对端返回原值，除非它关掉了 `wow.query.sensitivity.display-shared`，那时它以 403 拒绝，而不是返回脱敏值；以用户模式访问的对端是为终端用户读取，会拒绝。Wow 不在内部端口上认证服务，所以能访问它的任何工作负载都能这样要（[内部端口上的 `DISPLAY` 值](../operate/security#display-values-on-the-internal-port)）。
 - **审计。** 每次揭示读取都会被记录：它的审计把原样返回的字段（`revealedFields`）与脱敏的字段分开列出。
 
-为什么必须明确说出来：受信读取的结果常常直接写进响应，默认揭示的读取会在某个字段被标为 `DISPLAY` 的那天把它泄露出去。不要把揭示查询的结果返回给调用方。Java 代码写作 `JavaQueryApi.of(nodeQueryApi).trusted().revealed()`。
+遮蔽 `DISPLAY` 值是一种显示控制，不是保密：过滤条件默认就会比较它的原值，`@Sensitive` 管的是查询和读取返回什么，不管 Wow 存储什么（[脱敏止步之处](#where-masking-stops)）。即便如此仍必须明确说出来，原因是：受信读取的结果常常直接写进响应，默认揭示的读取会在某个字段被标为 `DISPLAY` 的那天把它泄露出去。不要把揭示查询的结果返回给调用方。Java 代码写作 `JavaQueryApi.of(nodeQueryApi).trusted().revealed()`。
 
 ### 服务需要读回的密钥 {#a-secret-a-service-reads-back}
 

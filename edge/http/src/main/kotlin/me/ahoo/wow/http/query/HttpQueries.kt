@@ -72,6 +72,13 @@ class HttpQueries @InternalWowApi constructor(
     val crossTenant: Boolean = false,
     @InternalWowApi
     val access: AccessPolicies = AccessPolicies.NONE,
+    /**
+     * Whether this service shares the raw value of its `@Sensitive(DISPLAY)` fields with a peer that asks
+     * (`Wow-Reveal`, `wow.query.sensitivity.display-shared`): on by default, a call between services being trusted.
+     * Off, every peer read that asks is refused (403), whatever service it names: a control that does not depend on
+     * who asks, where a list keyed on a peer's self-declared name would be none.
+     */
+    val displayShared: Boolean = true,
 ) {
     private val snapshots: Map<AggregateType, QueryGateway> = snapshots.associateBy { it.aggregateType }
     private val events: Map<AggregateType, QueryGateway> = events.associateBy { it.aggregateType }
@@ -126,6 +133,7 @@ class HttpQueries @InternalWowApi constructor(
             defaultListSize: Int = DEFAULT_LIST_SIZE,
             snapshotStatus: SnapshotStatus = SnapshotStatus.NONE,
             streams: QueryStreams = QueryStreams(),
+            displayShared: Boolean = true,
         ): HttpQueries = HttpQueries(
             engine.snapshots,
             engine.events,
@@ -138,6 +146,7 @@ class HttpQueries @InternalWowApi constructor(
             streams,
             engine.crossTenant,
             engine.access,
+            displayShared,
         )
     }
 }

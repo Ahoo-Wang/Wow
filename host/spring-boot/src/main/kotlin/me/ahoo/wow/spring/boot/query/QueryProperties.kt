@@ -225,11 +225,20 @@ class QueryProperties {
     @InternalWowApi
     class InProcess : Budget(QueryBudget.IN_PROCESS_DEFAULT)
 
-    /** What the queries may do with sensitive fields. */
+    /** What the queries may do with sensitive fields, and whether their `DISPLAY` values leave the service raw. */
     @InternalWowApi
     class Sensitivity {
         /** Whether filters and sorts may compare a field whose sensitivity is `DISPLAY`. */
         var displayComparable: Boolean = QuerySensitivityPolicy.DEFAULT.displayComparable
+
+        /**
+         * Whether this service shares the raw value of its `DISPLAY` fields outside itself: with a peer service that
+         * asks for it on the internal port (`Wow-Reveal`). Off, it shares none, whatever service a peer names, and a
+         * read that asks is refused (403). Its own revealing reads in process are unaffected. A control that does not
+         * depend on who asks: a deployment that turns `display-comparable` off, so that no range condition approaches
+         * a `DISPLAY` value either, turns this off too and has a barrier that needs no service authentication.
+         */
+        var displayShared: Boolean = true
 
         fun policy(): QuerySensitivityPolicy = QuerySensitivityPolicy(displayComparable)
     }

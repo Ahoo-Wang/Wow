@@ -1248,6 +1248,12 @@
     "sourceType" : "me.ahoo.wow.spring.boot.query.QueryProperties$Sensitivity",
     "defaultValue" : true
   }, {
+    "name" : "wow.query.sensitivity.display-shared",
+    "type" : "java.lang.Boolean",
+    "description" : "Whether this service shares the raw value of its `DISPLAY` fields outside itself: with a peer service that asks for it on the internal port (`Wow-Reveal`). Off, it shares none, whatever service a peer names, and a read that asks is refused (403). Its own revealing reads in process are unaffected. A control that does not depend on who asks: a deployment that turns `display-comparable` off, so that no range condition approaches a `DISPLAY` value either, turns this off too and has a barrier that needs no service authentication.",
+    "sourceType" : "me.ahoo.wow.spring.boot.query.QueryProperties$Sensitivity",
+    "defaultValue" : true
+  }, {
     "name" : "wow.query.state.max-replay",
     "type" : "java.lang.Integer",
     "description" : "The most commits a state read at a version or an instant, or a trace, replays from the aggregate's snapshot, or from version 1: the snapshot holds only the latest state, so an older one is replayed from the first version. A state further away is 400 `wow.query.invalid` (`replay-too-long`). It keeps one read from holding the node; raise it where states that far back are read. An aggregate's events are not bounded by it: the events query reads them page by page.",

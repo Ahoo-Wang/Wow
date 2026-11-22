@@ -149,8 +149,9 @@ interface SubscriptionQueries : Queries {
     /**
      * These queries returning the raw value of every `@Sensitive(DISPLAY)` field, still pinned to [tenantId]: the
      * handler's own read of a value it must use, such as a phone number it sends a message to. Every `CONFIDENTIAL`
-     * value is still masked, and every query derived from these ([trusted]) reveals too. A peer's model read through
-     * them is refused until the peers reveal (#6509).
+     * value is still masked, and every query derived from these ([trusted]) reveals too. A peer's model is read asking
+     * the peer to reveal (`Wow-Reveal`, as this service): the peer answers raw unless it shares none
+     * (`wow.query.sensitivity.display-shared` off), and then refuses; a peer reached in user mode refuses.
      */
     fun revealed(): SubscriptionQueries
 }

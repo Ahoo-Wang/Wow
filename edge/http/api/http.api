@@ -118,6 +118,7 @@ public final class me/ahoo/wow/http/query/HttpQueries {
 	public final fun getDatasetVisibility ()Lme/ahoo/wow/query/dataset/DatasetVisibility;
 	public final fun getDatasets ()Lme/ahoo/wow/query/dataset/DatasetQueryGateways;
 	public final fun getDefaultListSize ()I
+	public final fun getDisplayShared ()Z
 	public final fun snapshots (Lme/ahoo/wow/api/aggregate/AggregateType;)Lme/ahoo/wow/query/QueryGateway;
 }
 

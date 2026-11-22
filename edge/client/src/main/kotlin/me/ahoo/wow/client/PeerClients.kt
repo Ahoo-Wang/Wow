@@ -188,7 +188,8 @@ class RoutedQueryApi(
 
     /**
      * A handler's queries of [pinned]'s tenant: its own models in process, a peer's as [service]. [revealed] ones read
-     * the node's own models revealing `DISPLAY` values, and refuse a peer's until the peers reveal (#6509).
+     * the node's own models revealing `DISPLAY` values, and a peer's asking it to reveal them (`Wow-Reveal`), which the
+     * peer answers while it shares them; a peer reached in user mode reads for an end user and refuses.
      */
     private inner class TenantRouted(
         override val tenantId: String,
@@ -224,11 +225,10 @@ class RoutedQueryApi(
 
         private fun peerOf(context: String): Queries? {
             if (!peers.reaches(context)) return null
-            check(!revealing) {
-                "$context is a peer: its DISPLAY values are not revealed to this service yet, so its models are not " +
-                    "read through revealed queries. Read it through the handler's queries, masked."
-            }
-            return peers.clientOf(context).queries.of(caller)
+            val queries = peers.clientOf(context).queries
+            if (!revealing) return queries.of(caller)
+            check(queries is HttpQueryApi) { "The queries of the peer $context, $queries, cannot ask it to reveal." }
+            return queries.revealing(caller)
         }
     }
 }

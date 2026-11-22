@@ -16,6 +16,7 @@ A Wow service has two doors: the public port, where callers send commands and qu
 - CoSec's documents are published, to a Redis that runs with `maxmemory-policy noeviction`, before the first request.
 - Commands are authorized per action, not only per route, where routes alone are not enough.
 - Each service lists the system commands other services may call on its internal port, and, where it helps catch a mistake, the domain commands and models.
+- A service whose `DISPLAY` values must not reach its peers turns `wow.query.sensitivity.display-shared` off: whoever reaches its internal port reads them raw otherwise ([`DISPLAY` values on the internal port](#display-values-on-the-internal-port)).
 - Only a service's own nodes, the services that send it commands, and ops write its command topic.
 - Database and broker passwords are secrets.
 - Events hold no personal data you may have to erase.
@@ -346,6 +347,16 @@ spec:
 A network plugin that does not enforce network policies ignores them. Then keep the internal port off every network but the platform's by other means, such as the nodes' firewall, because nothing else closes it.
 
 **Encryption.** The internal port speaks plaintext HTTP/2 (h2c) by design. When traffic inside the platform must be encrypted, run the services in a service mesh with mutual TLS, such as Istio or Linkerd. Wow has no native TLS on the internal port, and none is planned.
+
+### `DISPLAY` values on the internal port {#display-values-on-the-internal-port}
+
+A service reads a peer's `@Sensitive(DISPLAY)` values raw by asking for them: a subscription handler's `context.queries.revealed()` sends `Wow-Reveal: display` with each read of a peer's model. The peer answers them raw when the read's root is a service's own and it shares its `DISPLAY` values (`wow.query.sensitivity.display-shared`, on by default). It refuses with 403 a read on behalf of an end caller, whoever relays it, and the public port refuses the header. `CONFIDENTIAL` values stay masked for every reader.
+
+Wow does not authenticate services on the internal port. A workload that can reach a service's internal port can declare any service name in `Wow-Service`, assert a service's own root in `Wow-Call`, and with `Wow-Reveal` read that service's `DISPLAY` values raw. Restricting who reaches the internal port, with the network policies above or a service mesh that authenticates its workloads, is the operator's control.
+
+A service whose `DISPLAY` values must not leave it turns `wow.query.sensitivity.display-shared` off. It then reveals them to no peer, whatever service the peer names, and refuses a read that asks with 403; its own revealing reads in process are unchanged. That control does not depend on who asks. A deployment that also turns `wow.query.sensitivity.display-comparable` off, so that no filter approaches a `DISPLAY` value by range conditions either, has a barrier around its `DISPLAY` values without service authentication.
+
+Masking a `DISPLAY` value is a display control, not secrecy: filters compare its raw value by default. `@Sensitive` governs what queries and reads return, not what Wow stores, and it is not encryption at rest ([Where masking stops](../guide/queries#where-masking-stops)).
 
 ## Restrict the command topics
 

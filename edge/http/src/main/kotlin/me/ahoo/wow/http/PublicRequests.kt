@@ -78,6 +78,12 @@ internal class PublicRequests(
             "${WowHeaders.CALL} is taken on the internal port alone, never on the public one.",
         )
 
+        name.equals(WowHeaders.REVEAL, ignoreCase = true) -> statuses.problemOf(
+            FrameworkCodes.AUTH_FORBIDDEN,
+            "${WowHeaders.REVEAL} is a service's read of its peer on the internal port: a read on the public port is " +
+                "a caller's, whose DISPLAY values are masked.",
+        )
+
         name !in known -> malformed(
             "$name is not a header of Wow's: the public port takes ${KNOWN.joinToString()} under the prefix $PREFIX.",
         )

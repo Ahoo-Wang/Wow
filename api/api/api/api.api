@@ -2001,6 +2001,8 @@ public final class me/ahoo/wow/api/wire/WowHeaders {
 	public static final field INSTANCE Lme/ahoo/wow/api/wire/WowHeaders;
 	public static final field REBUILDING Ljava/lang/String;
 	public static final field REQUEST_ID Ljava/lang/String;
+	public static final field REVEAL Ljava/lang/String;
+	public static final field REVEAL_DISPLAY Ljava/lang/String;
 	public static final field SCOPE Ljava/lang/String;
 	public static final field SERVICE Ljava/lang/String;
 	public static final field SPACE Ljava/lang/String;

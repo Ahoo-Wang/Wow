@@ -33,6 +33,7 @@ import me.ahoo.wow.http.command.RequestHeaders
 import me.ahoo.wow.http.problem.ErrorStatuses
 import me.ahoo.wow.http.problem.ProblemException
 import me.ahoo.wow.http.query.HttpQueries
+import me.ahoo.wow.http.revealedFor
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.admission.QueryTargets
 import me.ahoo.wow.query.engine.ReadFacade
@@ -187,7 +188,7 @@ internal class StateHandler(
         Negotiation.checkAcceptable(request, alsoEventStream = false)
         answering(type) { checkParameters(request, parameters) }
         val target = headers.target(request, FrameworkCodes.QUERY_MALFORMED)
-        val queryCaller = answering(type) { targets.of(type, caller, target) }
+        val queryCaller = answering(type) { targets.of(type, caller, target) }.revealedFor(request)
         val acting = checkNotNull(queryCaller.caller)
         // An aggregate's own access policy decides its owner and space, as its snapshot queries' policy does.
         val scope = queries.access.scopeOf(type, ownerships(type), acting.scope)
