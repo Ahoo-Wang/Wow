@@ -15,7 +15,7 @@ package me.ahoo.wow.cosec
 
 import me.ahoo.cosec.api.context.SecurityContext
 import me.ahoo.cosec.api.principal.CoSecPrincipal
-import me.ahoo.cosec.webflux.ServerWebExchanges.getSecurityContext
+import me.ahoo.cosec.webflux.ServerWebExchanges.securityContextOrNull
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.annotation.InternalWowApi
@@ -88,7 +88,7 @@ class CoSecCallerOptions @InternalWowApi constructor(
 @ExperimentalWowApi
 class CoSecCallerResolver(private val options: CoSecCallerOptions = CoSecCallerOptions()) : CallerResolver {
     override suspend fun resolve(request: ServerRequest): Caller? =
-        request.exchange().getSecurityContext()?.let(::callerOf)
+        request.exchange().securityContextOrNull()?.let(::callerOf)
 
     /** The caller of [context]; null when it is anonymous, or not one CoSec's pipeline built. */
     fun callerOf(context: SecurityContext): Caller? {

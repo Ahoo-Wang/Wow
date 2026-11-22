@@ -16,7 +16,7 @@ package me.ahoo.wow.cosec
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.reactor.ReactorContext
 import me.ahoo.cosec.api.context.SecurityContext
-import me.ahoo.cosec.webflux.ReactiveSecurityContexts.getSecurityContextOrEmpty
+import me.ahoo.cosec.webflux.ReactiveSecurityContexts.securityContextOrNull
 import me.ahoo.wow.api.caller.Caller
 
 /**
@@ -36,7 +36,7 @@ internal object CoSecRequests {
             return null
         }
         val subject = caller.subject ?: return null
-        val context = currentCoroutineContext()[ReactorContext]?.context?.getSecurityContextOrEmpty() ?: return null
+        val context = currentCoroutineContext()[ReactorContext]?.context?.securityContextOrNull() ?: return null
         if (!context.principal.authenticated || context.principal.id != subject) {
             return null
         }

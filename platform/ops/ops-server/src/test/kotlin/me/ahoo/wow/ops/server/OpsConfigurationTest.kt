@@ -21,7 +21,7 @@ import me.ahoo.cosec.annotations.ExperimentalCoSecApi
 import me.ahoo.cosec.api.context.SecurityContext
 import me.ahoo.cosec.runtime.AuthorizationChecker
 import me.ahoo.cosec.testkit.PermittedRequest
-import me.ahoo.cosec.webflux.testing.CoSecTestBindings
+import me.ahoo.cosec.testkit.webflux.CoSecTestBindings
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Creation

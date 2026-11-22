@@ -5,7 +5,7 @@ set:
   service.name: eshop-basket-service
   image.repository: ghcr.io/example/eshop-basket-server
 tests:
-  - it: holds the JVM's options, the service's name for OpenTelemetry and the shutdown's bounds
+  - it: holds the JVM's options, the service's name for OpenTelemetry, the shutdown's bounds and the gateway statement
     asserts:
       - equal:
           path: metadata.name
@@ -18,6 +18,22 @@ tests:
             WOW_WAIT_MAXTIMEOUT: 60s
             WOW_CLUSTER_DRAINTIMEOUT: 10s
             WOW_SUBSCRIPTION_STOPTIMEOUT: 10s
+            COSEC_PIPELINE_IDENTITY_ONLYGATEWAYCANREACH: "true"
+
+  - it: states that only the gateway can reach the public port only while the public NetworkPolicy makes it true
+    set:
+      networkPolicy.enabled: false
+    asserts:
+      - notExists:
+          path: data.COSEC_PIPELINE_IDENTITY_ONLYGATEWAYCANREACH
+
+  - it: leaves the gateway statement to the config when it names one, once
+    set:
+      config.COSEC_PIPELINE_IDENTITY_ONLYGATEWAYCANREACH: false
+    asserts:
+      - equal:
+          path: data.COSEC_PIPELINE_IDENTITY_ONLYGATEWAYCANREACH
+          value: "false"
 
   - it: gives every config value as text
     set:
