@@ -42,20 +42,18 @@ internal class DatasetLineages(
     private val strategies: MaskStrategyResolver,
 ) {
     fun resolve(dataset: QueryDataset): QueryDataset {
-        if (dataset.lineage != QueryDatasetLineage.SOURCE) {
-            return dataset
+        when (dataset.lineage) {
+            QueryDatasetLineage.NONE, QueryDatasetLineage.DECLARED -> return dataset
+            // SOURCE, and a lineage this version does not know: given its source's protection, never served as is.
+            else -> Unit
         }
         val source = sources.sourceOf(dataset) ?: return unresolved(dataset)
         val fields = dataset.declaration.fields.mapValues { (field, declaration) ->
             when (val column = source.columns[field.path.substringBefore('.')]) {
                 null -> declaration
-                is QueryDatasetSource.Opaque -> throw IllegalArgumentException(
-                    "Dataset [${dataset.name}] reads [$field], a column of ${source.description} that holds the " +
-                        "protected values ${column.paths}: a field masks a column whole, never one value in it. Read " +
-                        "the value from its own column, as the state's flat table (_state_flat) holds it.",
-                )
-
                 is QueryDatasetSource.Masked -> inherited(dataset, field, declaration, source, column)
+                // An opaque column, and a protection this version does not know, cannot be masked: refused, closed.
+                else -> throw unreadable(dataset, field, source, column)
             }
         }
         return dataset.withDeclaration(QuerySchemaDeclaration(fields))
@@ -79,6 +77,22 @@ internal class DatasetLineages(
         }
         return declaration
     }
+
+    private fun unreadable(
+        dataset: QueryDataset,
+        field: QueryField<*>,
+        source: QueryDatasetSource,
+        column: QueryDatasetSource.Column,
+    ): IllegalArgumentException = IllegalArgumentException(
+        if (column is QueryDatasetSource.Opaque) {
+            "Dataset [${dataset.name}] reads [$field], a column of ${source.description} that holds the protected " +
+                "values ${column.paths}: a field masks a column whole, never one value in it. Read the value from " +
+                "its own column, as the state's flat table (_state_flat) holds it."
+        } else {
+            "Dataset [${dataset.name}] reads [$field], a column of ${source.description} protected as $column, " +
+                "which this version cannot mask: it cannot be read."
+        },
+    )
 
     private fun unresolved(dataset: QueryDataset): QueryDataset {
         logger.error {

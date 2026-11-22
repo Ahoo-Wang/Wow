@@ -23,6 +23,9 @@ import me.ahoo.wow.query.schema.QueryMask
  * Where a dataset's protection comes from ([QueryDataset.lineage]).
  *
  * A dataset file states it as `"lineage"`, by its wire name: `source` (the default) or `none`.
+ *
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+ * Wow's own serves a lineage it does not know as [SOURCE], never as one that masks less.
  */
 @ExperimentalWowApi
 enum class QueryDatasetLineage {
@@ -76,7 +79,12 @@ class QueryDatasetSource @InternalWowApi constructor(
     /** The protected columns, by name. */
     val columns: Map<String, Column> = emptyMap(),
 ) {
-    /** A column that holds a value a state marks sensitive. */
+    /**
+     * A column that holds a value a state marks sensitive.
+     *
+     * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+     * Wow's own refuses to read a column it does not know, as it refuses an [Opaque] one.
+     */
     sealed interface Column
 
     /**
