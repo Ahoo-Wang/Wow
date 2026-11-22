@@ -27,6 +27,13 @@ tests:
       - notExists:
           path: data.COSEC_PIPELINE_IDENTITY_ONLYGATEWAYCANREACH
 
+  - it: makes no gateway statement when the operator says the public port admits more than the gateway
+    set:
+      networkPolicy.public.onlyGateway: false
+    asserts:
+      - notExists:
+          path: data.COSEC_PIPELINE_IDENTITY_ONLYGATEWAYCANREACH
+
   - it: leaves the gateway statement to the config when it names one, once
     set:
       config.COSEC_PIPELINE_IDENTITY_ONLYGATEWAYCANREACH: false
