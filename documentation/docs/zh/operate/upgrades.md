@@ -96,4 +96,4 @@ outline: deep
 
 - **工件改名。** 应用自己声明了 swagger 工件的，要改名：`io.swagger.core.v3:swagger-annotations-jakarta`、`swagger-models-jakarta` 和 `swagger-core-jakarta` 改为 `swagger-annotations`、`swagger-models` 和 `swagger-core`，版本 3.0.0，由 springdoc 的 BOM 管理。修改过 `Json.mapper()` 或 `Json31.mapper()` 的代码，改用 `ObjectMapperFactory.addCustomizer` 定制 swagger 的 mapper：Jackson 3 的 mapper 不可变。
 - **应用自己的 schema。** springdoc 从应用的类推导出的 schema 可能有变化：以缩写开头的 getter 保留其大小写（`getETag()` 是 `ETag`，不再是 `etag`）；Kotlin 类的非空属性列为 `required`；唯一公开构造函数的、不对应任何属性的参数，成为 `writeOnly` 属性。由 `/v3/api-docs` 生成的客户端会看到这些变化。Wow 路由的文档不变，`/v3/api-docs` 中和 `GET /wow/openapi` 中都一样。
-- **Jackson。** 类路径上有 springdoc 时，Jackson 解析为 3.2.x，即 swagger-core 3 所需的版本，高于 Spring Boot 4.2.0 管理的 3.1.x。
+- **Jackson。** swagger-core 3 要求 Jackson 3.2，高于 Spring Boot 4.2.0 管理的 3.1。在 Boot parent 之下的 Maven 构建，以及使用 Spring 依赖管理插件的 Gradle 构建，都解析为 Boot 的版本，springdoc 自己的构建也是这样。用 `platform(...)` 引入 Boot BOM 的 Gradle 构建，在类路径上有 springdoc 的地方会解析为较高的 3.2，于是它的服务与其他模块运行的是不同的 Jackson。Wow 的构建让每条类路径都保持 Boot 的版本：对 `tools.jackson:jackson-bom` 使用 `enforcedPlatform`，版本取自 Boot 的 BOM；Gradle 应用可以照此保持只有一个 Jackson。
