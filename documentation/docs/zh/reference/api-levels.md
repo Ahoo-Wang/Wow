@@ -155,6 +155,8 @@ API 只是升级要保持兼容的三样东西之一。在同一个主版本内�
 | `me.ahoo.wow.spi.subscription.CheckpointStore` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.subscription.FailureClass` | class | `wow-spi` |
 | `me.ahoo.wow.spi.subscription.FailureClassifier` | interface | `wow-spi` |
+| `me.ahoo.wow.spi.subscription.FailureDescriber` | interface | `wow-spi` |
+| `me.ahoo.wow.spi.subscription.FailureDescription` | class | `wow-spi` |
 | `me.ahoo.wow.spi.subscription.LeaseStore` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.timer.TimerStatus` | class | `wow-spi` |
 | `me.ahoo.wow.spi.timer.TimerStore` | interface | `wow-spi` |
