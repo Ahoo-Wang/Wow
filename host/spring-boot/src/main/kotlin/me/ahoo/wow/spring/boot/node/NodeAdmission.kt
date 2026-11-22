@@ -72,27 +72,23 @@ internal class NodeAdmission {
     internal companion object {
         private const val JAKARTA_VALIDATOR = "jakarta.validation.Validator"
 
-        private fun servedFix(served: Set<String>): String = "Name one of the aggregate types this node serves: $served."
+        /** Whose aggregate types a node's configuration names: those it serves. */
+        private const val SERVED = "this node serves"
+
+        private fun servedFix(served: Set<String>): String = "Name one of the aggregate types $SERVED: $served."
 
         /**
          * The fixed tenants of `wow.aggregates.[<context>.<aggregate>].tenant`, each of an aggregate
          * type of [models]: a key that names no such type, or a blank tenant, is refused.
          */
-        internal fun tenants(properties: WowProperties, models: List<AggregateModel<*>>): TenantPolicy {
-            val served = models.associateBy { "${it.type.context}.${it.type.name}" }
-            val fixed = properties.aggregates.mapNotNull { (key, aggregate) ->
-                aggregate.tenant?.let { tenant ->
-                    val model = configNotNull(served[key], "wow.aggregates.[$key]", servedFix(served.keys)) {
-                        "wow.aggregates.[$key].tenant names no aggregate type this node serves."
-                    }
-                    configCheck(tenant.isNotBlank(), "wow.aggregates.[$key].tenant", tenant, "Name the tenant.") {
-                        "wow.aggregates.[$key].tenant is blank."
-                    }
-                    model.type to tenant
-                }
-            }.toMap()
-            return TenantPolicy.fixed(fixed)
-        }
+        internal fun tenants(properties: WowProperties, models: List<AggregateModel<*>>): TenantPolicy =
+            TenantPolicy.configured(
+                properties.aggregates.mapNotNull { (key, aggregate) -> aggregate.tenant?.let { key to it } }.toMap(),
+                models.map { it.type },
+                SERVED,
+                { "wow.aggregates.[$it]" },
+                { "wow.aggregates.[$it].tenant" },
+            )
 
         /**
          * The generator of each aggregate type's new ids: for each type of [models] that

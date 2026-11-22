@@ -446,11 +446,15 @@ class WowPropertiesTest {
         val fixed = bind("wow.aggregates.[bank.account].tenant" to "t0")
         NodeAdmission.tenants(fixed, models).fixedTenant(account).assert().isEqualTo("t0")
         val unknown = bind("wow.aggregates.[shop.cart].tenant" to "t0")
+        // The host's wording, which migrate-data's tenants shares (TenantPolicy.configured).
         assertThrows<IllegalStateException> { NodeAdmission.tenants(unknown, models) }
-            .message.assert().contains("shop.cart")
+            .message.assert().isEqualTo(
+                "wow.aggregates.[shop.cart].tenant names no aggregate type this node serves. Name one of the " +
+                    "aggregate types this node serves: ${models.map { "${it.type.context}.${it.type.name}" }.toSet()}.",
+            )
         val blank = WowProperties().apply { aggregates["bank.account"] = AggregateProperties().apply { tenant = " " } }
         assertThrows<IllegalStateException> { NodeAdmission.tenants(blank, models) }
-            .message.assert().contains("blank")
+            .message.assert().isEqualTo("wow.aggregates.[bank.account].tenant is blank. Name the tenant.")
     }
 
     @Test

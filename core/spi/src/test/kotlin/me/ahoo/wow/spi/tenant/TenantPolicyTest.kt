@@ -16,7 +16,9 @@ package me.ahoo.wow.spi.tenant
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.spi.config.WowConfigurationException
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 /** The one rule of a command's tenant ([TenantPolicy.tenantOf], #6556): every path decides it alike. */
 class TenantPolicyTest {
@@ -49,5 +51,23 @@ class TenantPolicyTest {
         // With no acting tenant known, the tenant it names is named, whatever it is.
         assertThrownBy<TenantConflictException> { fixed.tenantOf(cart, "acme", null) }
             .hasMessage("The tenant of shop.cart is fixed to shared; the request names acme.")
+    }
+
+    @Test
+    fun `a configured fixed tenant is of a type named, and not blank, in the words of whose configuration it is`() {
+        fun configured(tenants: Map<String, String>) =
+            TenantPolicy.configured(tenants, listOf(cart, order), "this node serves", { "x.[$it]" }, { "x.[$it].tenant" })
+        configured(mapOf("shop.cart" to "shared")).fixedTenant(cart).assert().isEqualTo("shared")
+        configured(emptyMap()).assert().isSameAs(TenantPolicy.CALLERS)
+        val unknown = assertThrows<WowConfigurationException> { configured(mapOf("shop.carts" to "shared")) }
+        unknown.message.assert().isEqualTo(
+            "x.[shop.carts].tenant names no aggregate type this node serves. " +
+                "Name one of the aggregate types this node serves: [shop.cart, shop.order].",
+        )
+        unknown.key.assert().isEqualTo("x.[shop.carts]")
+        val blank = assertThrows<WowConfigurationException> { configured(mapOf("shop.cart" to " ")) }
+        blank.message.assert().isEqualTo("x.[shop.cart].tenant is blank. Name the tenant.")
+        blank.key.assert().isEqualTo("x.[shop.cart].tenant")
+        blank.value.assert().isEqualTo(" ")
     }
 }
