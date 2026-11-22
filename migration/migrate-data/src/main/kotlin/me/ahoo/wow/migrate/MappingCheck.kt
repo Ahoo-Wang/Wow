@@ -99,7 +99,10 @@ internal data class MappingReport(
  *   list each, by the name the map excludes it by ([Exclusion.stream]);
  * - no instance of an aggregate whose id is its owner's in V10 has streams that record another owner than their id,
  *   or none, which V10 records as no caller's own ([AggregatePlan.ownedAsRecorded], the kernel's rule): the problems
- *   list each, with the owners found, from [check]'s `ownersOf`;
+ *   list each, with the owners found, from [check]'s `ownersOf`. A stream that records none the map may fill with its
+ *   id ([AggregateMapping.missingOwner]): a warning then counts them, and lists the instances no stream of which
+ *   records the id as its owner ([check]'s `idOwned`), whose owner is inferred from the id alone; `missingOwner` on
+ *   an aggregate whose id is not its owner's is a problem;
  * - no event is mapped to `OwnerTransferred` on an aggregate whose owner is fixed ([AggregatePlan.fixedOwner]): one
  *   of its tenant, or one whose id is its owner's;
  * - no instance the map imports of a V10 type whose tenant `migrate-data.json` fixes ([AggregatePlan.fixedTenant],
@@ -139,6 +142,7 @@ internal class MappingCheck(private val plan: MigrationPlan) {
         walkIndexes: Map<String, String> = emptyMap(),
         tags: TagReader = TagReader.NONE,
         ownersOf: (NineXAggregate) -> Map<NineXInstanceOwner, Long> = { emptyMap() },
+        idOwned: (NineXAggregate) -> Set<NineXAggregateId> = { emptySet() },
         outsideTenant: (NineXAggregate, String) -> Map<NineXAggregateId, Long> = { _, _ -> emptyMap() },
     ): MappingReport {
         val problems = mutableListOf<String>()
@@ -162,7 +166,7 @@ internal class MappingCheck(private val plan: MigrationPlan) {
                 warnings += "the 9.x store holds no stream of ${aggregate.source}"
             } else {
                 storeProblems(aggregate, inventory, problems, warnings)
-                ownerProblem(aggregate, ownersOf)?.let { problems += it }
+                ownerFindings(aggregate, ownersOf, idOwned, problems, warnings)
                 problems += listOfNotNull(tenantProblem(aggregate, outsideTenant))
                 warnings += listOfNotNull(tenantWarning(aggregate, inventory))
                 deletionWarning(aggregate, deleted)?.let { warnings += it }
@@ -488,7 +492,13 @@ internal class MappingCheck(private val plan: MigrationPlan) {
                 it.to == Lifecycle.OWNER_TRANSFERRED || it.lifecycle?.to == Lifecycle.OWNER_TRANSFERRED
             }.map { "${it.from}: writes ${Lifecycle.OWNER_TRANSFERRED}, but $fixed" }
         }.orEmpty()
-        return duplicates + (commands + events).map { "$subject: $it" }
+        val missingOwner = listOfNotNull(
+            (
+                "missingOwner fills a missing owner with the id, but the id of ${aggregate.target} is not its " +
+                    "owner's (idSource = OWNER): remove it"
+                ).takeIf { mapping.missingOwner != null && !aggregate.fillsOwner },
+        )
+        return duplicates + (commands + events + missingOwner).map { "$subject: $it" }
     }
 
     private fun storeProblems(
@@ -556,36 +566,80 @@ internal class MappingCheck(private val plan: MigrationPlan) {
 
     /**
      * The problem of the instances of [aggregate], whose id is its owner's in V10, with streams that record another
-     * owner than their id, or none ([AggregatePlan.ownedAsRecorded]), which the map does not exclude; null when it has
-     * none, or its id is not its owner's. Each by the name the map excludes it by, with its owners and its streams.
+     * owner than their id, or none the map fills ([AggregatePlan.importedScope]), which the map does not exclude; and,
+     * when the map fills a missing owner with the id ([AggregatePlan.fillsOwner]), the warning of the streams it fills.
+     * Each instance by the name the map excludes it by, with its owners and its streams.
      */
-    private fun ownerProblem(
+    private fun ownerFindings(
         aggregate: AggregatePlan,
         ownersOf: (NineXAggregate) -> Map<NineXInstanceOwner, Long>,
-    ): String? {
+        idOwned: (NineXAggregate) -> Set<NineXAggregateId>,
+        problems: MutableList<String>,
+        warnings: MutableList<String>,
+    ) {
         // Only such an aggregate's streams are read: the store reads them all.
         if (aggregate.idSource != AggregateIdSource.OWNER) {
+            return
+        }
+        val subject = aggregate.source
+        val candidates = ownersOf(subject).filterKeys { !plan.excludes(subject, it.instance.id) }
+        val unowned = candidates.filterKeys { (instance, ownerId) ->
+            val recorded = aggregate.ownership.scopeOf(Scope(ownerId.ifBlank { null }))
+            !aggregate.ownedAsRecorded(instance.id, aggregate.importedScope(instance.id, recorded))
+        }
+        if (unowned.isNotEmpty()) {
+            val way = MISSING_OWNER_WAY.takeIf { !aggregate.fillsOwner && unowned.keys.any { it.ownerId.isBlank() } }
+            problems += "$subject: the id of the V10 aggregate ${aggregate.target} is its owner's, but the streams of " +
+                "these ${unowned.keys.map { it.instance.id }.distinct().size} 9.x instances record another owner " +
+                "than their id, or none, so their owners could not reach them; set each stream's ownerId to its " +
+                "aggregate id in the 9.x store before the import,${way.orEmpty()} or exclude each with " +
+                "{\"aggregate\": \"$subject\", \"stream\": <the id as listed>, \"reason\": \"…\"}: " +
+                listedOf(unowned).joinToString(", ")
+        }
+        if (aggregate.fillsOwner) {
+            val refused = unowned.keys.mapTo(HashSet()) { it.instance }
+            val filled = candidates.filterKeys { it.ownerId.isBlank() && it.instance !in refused }
+            fillWarning(aggregate, filled, idOwned)?.let { warnings += it }
+        }
+    }
+
+    /** Each instance of [streams], by the name the map excludes it by, with its owners, its streams and its tenants. */
+    private fun listedOf(streams: Map<NineXInstanceOwner, Long>): List<String> =
+        streams.entries.groupBy { it.key.instance.id }.toSortedMap().map { (id, owned) ->
+            val owners = owned.map { ownerText(it.key.ownerId) }.distinct().sorted().joinToString(", ")
+            val tenants = RefusedIds.tenantsText(owned.map { it.key.instance.tenantId })
+            "${RefusedIds.quoted(RefusedIds.nameOf(id))} ($owners: ${owned.sumOf { it.value }} streams of the " +
+                "tenants $tenants)"
+        }
+
+    /**
+     * The warning of the streams of [aggregate] the map fills the owner of with their instance's id ([filled]), null
+     * when there is none: how many, of how many instances; how many of those record the id as their owner on other
+     * streams ([idOwned]), and the others, whose owner is inferred from the id alone, the first [LISTED] by name. Filling
+     * gives the user whose id it is an aggregate 9.x did not let them reach, so a person checks those.
+     */
+    private fun fillWarning(
+        aggregate: AggregatePlan,
+        filled: Map<NineXInstanceOwner, Long>,
+        idOwned: (NineXAggregate) -> Set<NineXAggregateId>,
+    ): String? {
+        if (filled.isEmpty()) {
             return null
         }
         val subject = aggregate.source
-        val unowned = ownersOf(subject).filterKeys { (instance, ownerId) ->
-            !plan.excludes(subject, instance.id) &&
-                !aggregate.ownedAsRecorded(instance.id, aggregate.ownership.scopeOf(Scope(ownerId.ifBlank { null })))
-        }
-        if (unowned.isEmpty()) {
-            return null
-        }
-        val listed = unowned.entries.groupBy { it.key.instance.id }.toSortedMap().map { (id, streams) ->
-            val owners = streams.map { ownerText(it.key.ownerId) }.distinct().sorted().joinToString(", ")
-            val tenants = RefusedIds.tenantsText(streams.map { it.key.instance.tenantId })
-            "${RefusedIds.quoted(RefusedIds.nameOf(id))} ($owners: ${streams.sumOf { it.value }} streams of the " +
-                "tenants $tenants)"
-        }
-        return "$subject: the id of the V10 aggregate ${aggregate.target} is its owner's, but the streams of these " +
-            "${listed.size} 9.x instances record another owner than their id, or none, so their owners could not " +
-            "reach them; set each stream's ownerId to its aggregate id in the 9.x store before the import, or " +
-            "exclude each with {\"aggregate\": \"$subject\", \"stream\": <the id as listed>, \"reason\": \"…\"}: " +
-            listed.joinToString(", ")
+        val instances = filled.keys.mapTo(sortedSetOf(compareBy({ it.id }, { it.tenantId }))) { it.instance }
+        val recorded = idOwned(subject)
+        val inferred = filled.filterKeys { it.instance !in recorded }
+        val inferredIds = inferred.keys.map { it.instance }.distinct()
+        val listed = listedOf(inferred)
+        val named = listed.take(LISTED).joinToString(", ") +
+            if (listed.size > LISTED) " and ${listed.size - LISTED} more" else ""
+        return "$subject: missingOwner fills the owner of ${filled.values.sum()} streams of ${instances.size} 9.x " +
+            "instances with their id, as V10 records the owner of ${aggregate.target}; " +
+            "${instances.size - inferredIds.size} of them record the id as their owner on other streams, " +
+            "${inferredIds.size} on none, so their owner is inferred from the id alone. A filled owner reaches an " +
+            "aggregate 9.x did not let it reach, and an id that is another user's gives that user the aggregate: " +
+            "check each instance whose owner is inferred" + if (listed.isEmpty()) "" else ": $named"
     }
 
     /**

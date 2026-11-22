@@ -78,8 +78,10 @@ internal class StreamConverter(
             )
         }
         val tenantId = stream.aggregateId.tenantId
-        val scope = aggregate.ownership.scopeOf(scopeOf(stream, events))
+        val recorded = aggregate.ownership.scopeOf(scopeOf(stream, events))
+        val scope = aggregate.importedScope(stream.aggregateId.id, recorded)
         refuseOwner(aggregate, stream, scope, subject)
+        val filled = mapOf(FILLED_OWNER_HEADER to MissingOwner.AGGREGATE_ID.wire).takeIf { aggregate.fills(recorded) }
         val correlationId = stream.header[NineXHeaders.TRACE_ID]?.takeIf { it.isNotBlank() } ?: stream.commandId
         return EventStreamRecord(
             ref = aggregate.target.ref(tenantId, stream.aggregateId.id),
@@ -91,7 +93,7 @@ internal class StreamConverter(
             events = events,
             scope = scope,
             causation = Causation(correlationId, correlationId),
-            headers = headersOf(aggregate, stream),
+            headers = headersOf(aggregate, stream) + filled.orEmpty(),
             operator = NineXOperators.operatorOf(stream.header, tenantId),
         )
     }
@@ -105,9 +107,10 @@ internal class StreamConverter(
         if (aggregate.ownedAsRecorded(stream.aggregateId.id, scope)) {
             return
         }
+        val fill = if (scope.ownerId == null) MISSING_OWNER_WAY else ""
         throw MigrationException(
             "$subject: ${aggregate.target}'s id is its owner's, but the stream records ${ownerText(scope.ownerId)}; " +
-                "set its ownerId to its aggregate id in the 9.x store, or exclude it with {\"aggregate\": " +
+                "set its ownerId to its aggregate id in the 9.x store,$fill or exclude it with {\"aggregate\": " +
                 "\"${stream.aggregate}\", \"stream\": ${RefusedIds.quoted(RefusedIds.nameOf(stream.aggregateId.id))}, " +
                 "\"reason\": \"…\"}.",
         )

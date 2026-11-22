@@ -108,7 +108,8 @@ internal data class ComparisonReport(
  *
  * - **What is compared.** The state, by [StateDiff], the 9.x state read through the aggregate's
  *   [AggregateMapping.state]; the deleted mark (`$deleted`); the owner and the space (`$ownerId`, `$spaceId`), the
- *   9.x ones narrowed by the V10 ownership as the import narrows them. A version the V10 log does not hold is the
+ *   9.x ones narrowed by the V10 ownership and a missing owner filled as the import holds them
+ *   ([AggregatePlan.importedScope]). A version the V10 log does not hold is the
  *   difference `$version`. The 9.x tags the map maps to access attributes ([AggregateMapping.tags]): each against the
  *   attribute V10 derives from the rebuilt state (`$access.<attribute>`), both sides in the stored form.
  * - **Report.** Each instance that differs is printed with its aggregate id, version and fields
@@ -375,7 +376,9 @@ internal class StateComparison(
     }
 
     private fun differencesOf(plan: AggregatePlan, snapshot: NineXSnapshot, rebuilt: CachedState): List<FieldDifference> {
-        val scope = plan.ownership.scopeOf(Scope(snapshot.ownerId.ifBlank { null }, snapshot.spaceId.ifBlank { null }))
+        // The owner as the import holds it: filled with the id when the map fills a missing one.
+        val recorded = plan.ownership.scopeOf(Scope(snapshot.ownerId.ifBlank { null }, snapshot.spaceId.ifBlank { null }))
+        val scope = plan.importedScope(snapshot.aggregateId.id, recorded)
         val metadata = listOf(
             Triple(DELETED, node(snapshot.deleted), node(rebuilt.deleted)),
             Triple(OWNER_ID, node(scope.ownerId), node(rebuilt.scope.ownerId)),

@@ -300,6 +300,7 @@ internal class MigrateData(
             connections.source.missingWalkIndexes(plan.aggregates.keys),
             TagReader.of(connections.source, connections.snapshots),
             connections.source::ownersOtherThanIds,
+            connections.source::instancesOwnedById,
             connections.source::instancesOutsideTenant,
         )
         out.println(report.render())

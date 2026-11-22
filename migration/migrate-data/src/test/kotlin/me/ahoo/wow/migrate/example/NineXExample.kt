@@ -34,6 +34,7 @@ import me.ahoo.wow.migrate.NineXSnapshot
 import me.ahoo.wow.migrate.NineXStream
 import me.ahoo.wow.spi.json.WowJson
 import tools.jackson.databind.JsonNode
+import tools.jackson.databind.node.ArrayNode
 import tools.jackson.databind.node.ObjectNode
 import java.math.BigDecimal
 
@@ -166,6 +167,31 @@ internal object NineXExample {
             )
         },
     )
+
+    /** The example's cart, whose streams record the owner `customer-1`, not its id. */
+    val CART_ID: String get() = stream(CART_STREAMS.first()).aggregateId.id
+
+    /** The example's cart streams as those of the cart [id], each recording the owner [ownerId] (blank: none). */
+    fun cartAs(id: String, ownerId: String = ""): List<NineXStream> = CART_STREAMS.map(::stream).map {
+        it.copy(id = "${it.id}-$id", aggregateId = it.aggregateId.copy(id = id), ownerId = ownerId)
+    }
+
+    /**
+     * The map whose cart fills a missing owner with the id (`missingOwner`), the carts [excluded] left out: by default
+     * the example's own, whose streams record another owner.
+     */
+    fun fillingMapText(excluded: List<String> = listOf(CART_ID), fills: Boolean = true): String {
+        val map = WowJson.mapper.readTree(MAP_TEXT) as ObjectNode
+        if (fills) {
+            map.get("aggregates").values().map { it as ObjectNode }.single { it.get("from").asString() == "example-service.cart" }
+                .put("missingOwner", "aggregate-id")
+        }
+        val exclusions = (map.get("excluded") as? ArrayNode) ?: map.putArray("excluded")
+        excluded.forEach {
+            exclusions.addObject().put("aggregate", "example-service.cart").put("stream", it).put("reason", "Its owner")
+        }
+        return WowJson.mapper.writeValueAsString(map)
+    }
 
     /** [Manifest] as the JSON a service's build writes. */
     fun manifestText(manifest: Manifest): String = WowJson.mapper.writeValueAsString(ManifestTree.write(manifest))

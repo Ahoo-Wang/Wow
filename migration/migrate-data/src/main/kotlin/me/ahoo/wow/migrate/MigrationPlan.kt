@@ -145,6 +145,24 @@ internal class AggregatePlan(
      */
     fun ownedAsRecorded(id: String, scope: Scope): Boolean = idSource.scopeOf(id, scope) == scope
 
+    /**
+     * Whether the map fills a missing owner with the instance's id ([AggregateMapping.missingOwner]): only for an
+     * aggregate whose id is its owner's, the check refusing the key on another.
+     */
+    val fillsOwner: Boolean =
+        mapping.missingOwner == MissingOwner.AGGREGATE_ID && idSource == AggregateIdSource.OWNER
+
+    /** Whether the import fills the owner of a stream or snapshot that records [scope] ([importedScope]). */
+    fun fills(scope: Scope): Boolean = fillsOwner && scope.ownerId == null
+
+    /**
+     * The scope V10 holds for the instance [id] of a 9.x stream or snapshot that records [scope], narrowed by the V10
+     * ownership: with no owner, when the map fills it ([fills]), the scope the kernel records for such an aggregate
+     * ([AggregateIdSource.scopeOf]), its id for its owner; [scope] as recorded otherwise. The one judgment of `check`,
+     * the import, the tail and `compare`.
+     */
+    fun importedScope(id: String, scope: Scope): Scope = if (fills(scope)) idSource.scopeOf(id, scope) else scope
+
     private val commands: Map<String, String> = mapping.commands.associate { it.from to fullName(it.to) }
 
     /** Whether the map deletes an instance in V10: an event of it maps to, or is composed with, `AggregateDeleted`. */
