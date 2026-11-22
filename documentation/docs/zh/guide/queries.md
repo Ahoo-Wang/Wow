@@ -118,6 +118,23 @@ var status: ProductStatus = ProductStatus.DRAFT
 
 注解写在字段上（`@field:`），因为编译器从编译后的状态读取它们。
 
+### 排序方向 {#index-sort-direction}
+
+索引在两个方向上都能服务按其键的排序：存储可以正向读，也可以反向读。所以 `@QueryIndex` 没有方向，“最新在前”的列表也不需要方向：
+
+- **全部按最新在前：** 只给时间建索引。按快照最后变更的时间排，就在状态类上写 `@QueryIndex(on = "lastEventTime")`；按状态里的时间字段排（例如 `createdAt`），就在该字段上写 `@field:QueryIndex`。
+- **某个状态内按最新在前：** 在 `status` 上写 `@field:QueryIndex(with = ["lastEventTime"])`。查询对领头键是等值条件时，下一个键按顺序读，两个方向都行。
+
+```kotlin
+@QueryIndex(on = "lastEventTime")
+data class OrderState(
+    @field:QueryIndex(with = ["lastEventTime"])
+    val status: OrderStatus,
+)
+```
+
+只有当排序让两个键朝相反方向排、且两者都没有被等值条件固定时，方向才有意义，例如先按状态升序，再在每个状态内按最新在前。建在这两个键上的索引给不出这种顺序：存储要对读到的匹配记录排序，匹配越多，代价越高。
+
 ## 描述类型说明不了的东西 {#describe-what-types-cannot}
 
 `me.ahoo.wow.api.query.annotation` 中还有几个注解，告诉查询模型字段的类型本身说明不了的东西：
