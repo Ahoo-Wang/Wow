@@ -66,14 +66,22 @@ class RevealedDisplaysTest {
         val referring = objectOf("phones" to mapOf("type" to "array", "items" to Manifest.schemaRef("shop.Phone")))
         RevealedDisplays.problems(contract(objectOf(), referring, extra = mapOf("shop.Phone" to level("display"))))
             .assert().isEmpty()
-        // A stream that does not reveal is not checked.
+        // Through the alternatives of a union, past the keywords of other values: lists, numbers, booleans.
+        val union = objectOf(
+            "contact" to mapOf("anyOf" to listOf(mapOf("type" to "null"), level("display"))),
+            "pin" to mapOf("type" to "string", "maxLength" to 4, "readOnly" to true),
+        ) + ("required" to listOf("pin"))
+        RevealedDisplays.problems(contract(union, objectOf())).assert().isEmpty()
+        // A stream that does not reveal is not checked, nor one of an aggregate the contract does not hold.
         val masked = PublishedManifest("card", "wow.shop.card.state")
         RevealedDisplays.problems(contract(objectOf(), objectOf(), masked)).assert().isEmpty()
+        val elsewhere = PublishedManifest("wallet", "wow.shop.wallet.state", revealsDisplay = true)
+        RevealedDisplays.problems(contract(objectOf(), objectOf(), elsewhere)).assert().isEmpty()
     }
 
     @Test
     fun `a revealing stream that publishes no DISPLAY value should be a problem, naming the aggregate`() {
-        val confidential = objectOf("pin" to level("confidential"))
+        val confidential = objectOf("pin" to level("confidential"), "tags" to mapOf("type" to "array", "minItems" to 1))
         RevealedDisplays.problems(contract(confidential, objectOf())).assert().containsExactly(
             "shop.card declares @AggregateRoot(revealsDisplay = true), but its published state and events hold no " +
                 "DISPLAY value: remove revealsDisplay, or mark the value @Sensitive(SensitivityLevel.DISPLAY).",
