@@ -118,7 +118,8 @@ internal class ParkWrites(
 
     /**
      * Records in the ledger that [parked]'s aggregate can no longer be retried, only skipped: the source does not
-     * hold what it is parked from any more ([gone]).
+     * hold what it is parked from any more ([gone]). Its reason is [gone]'s message as it is, not a failure's reason
+     * (`FailureReasons`): Wow writes that message from positions alone, so it holds no value ([UnrecoverableException]).
      */
     suspend fun unrecoverable(parked: ParkedAggregate, gone: UnrecoverableException) {
         logger.error {

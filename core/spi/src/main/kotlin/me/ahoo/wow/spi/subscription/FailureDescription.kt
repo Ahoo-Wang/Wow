@@ -69,8 +69,12 @@ class FailureDescription private constructor(
     }
 
     companion object {
-        /** The longest name a description takes. */
-        const val MAX_NAME_LENGTH: Int = 64
+        /**
+         * The longest name a description takes. What keeps free text out is the characters a name takes; the bound
+         * keeps a name a name, and is long enough for a Wow qualified name (`<context>.<aggregate>.<Event>`) and a
+         * driver's (a MongoDB index, a schema-qualified PostgreSQL constraint).
+         */
+        const val MAX_NAME_LENGTH: Int = 128
 
         private val NAME = Regex("[A-Za-z0-9_$.-]{1,$MAX_NAME_LENGTH}")
 

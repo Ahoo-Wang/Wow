@@ -109,7 +109,14 @@ internal interface EntrySource {
     fun ordinalOf(parked: ParkedAggregate): Long = parked.fromVersion.toLong()
 }
 
-/** The source no longer holds what a parked aggregate is retried from: it can only be skipped. */
+/**
+ * The source no longer holds what a parked aggregate is retried from: it can only be skipped.
+ *
+ * Its message is the skip-only entry's reason as it is ([ParkWrites.unrecoverable]), the one reason that does not go
+ * through `FailureReasons` (#6588): Wow writes it itself, from where the source stands (its topic, its partition, an
+ * offset), and it holds no value of any message. A new place that throws one writes its message so too: positions and
+ * names, never a value read from a record.
+ */
 internal class UnrecoverableException(message: String) : IllegalStateException(message)
 
 /**

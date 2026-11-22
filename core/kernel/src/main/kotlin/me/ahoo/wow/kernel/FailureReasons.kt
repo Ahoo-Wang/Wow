@@ -143,17 +143,18 @@ internal enum class KernelPhrase {
 /**
  * The kernel's own failures, described from their fields: an event the kernel cannot read ([UnreadableEventException],
  * by its name and revision; what it could not read is its cause's), and an attempt past its timeout
- * ([HandlerTimeoutException]).
+ * ([HandlerTimeoutException]). A name a description does not take (too long, or holding a character a name does not)
+ * is left out, the rest kept.
  */
 internal object KernelDescriptions : FailureDescriber {
     override fun describe(failure: Throwable): FailureDescription? = when (failure) {
-        is UnreadableEventException -> FailureDescription.of(
+        is UnreadableEventException -> listOfNotNull(
             phrase(KernelPhrase.EVENT),
-            name(failure.name),
+            runCatching { name(failure.name) }.getOrNull(),
             phrase(KernelPhrase.REVISION),
             code(failure.revision.toLong()),
             phrase(KernelPhrase.NOT_READABLE),
-        )
+        ).let { FailureDescription.of(*it.toTypedArray()) }
 
         is HandlerTimeoutException -> FailureDescription.of(
             phrase(KernelPhrase.TIMED_OUT_AFTER),

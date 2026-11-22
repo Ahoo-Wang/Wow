@@ -54,10 +54,11 @@ class FailureDescriptionTest {
 
     @Test
     fun `a name should take what names a property, an index or a code, and no free text or value`() {
-        listOf("email_1", "readers_email_key", "23505", "42P01", "\$type", "a.b-c").forEach {
+        listOf("email_1", "readers_email_key", "23505", "42P01", "\$type", "a.b-c", "x".repeat(128)).forEach {
             name(it).text.assert().isEqualTo("'$it'")
         }
-        listOf("", "alice smith", "alice.smith@example.com", "4111 1111 1111 1111", "a'b", "x".repeat(65), "a/b")
+        val tooLong = "x".repeat(FailureDescription.MAX_NAME_LENGTH + 1)
+        listOf("", "alice smith", "alice.smith@example.com", "4111 1111 1111 1111", "a'b", tooLong, "a/b")
             .forEach { value ->
                 assertThrownBy<IllegalArgumentException> { name(value) }
                 assertThrownBy<IllegalArgumentException> { PathSegment.property(value) }

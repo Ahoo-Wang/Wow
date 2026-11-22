@@ -123,6 +123,12 @@ class FailureReasonsTest {
             "me.ahoo.wow.kernel.UnreadableEventException: event 'shop.order.Placed' revision 1 not readable; " +
                 "caused by tools.jackson.databind.exc.MismatchedInputException: cannot read 'digits' as int",
         )
+        // An event's name a description does not take, too long or holding a space, is left out; the rest stays.
+        listOf("shop.order." + "Placed".repeat(25), "shop order.Placed").forEach { name ->
+            reasons.reasonOf(UnreadableEventException(order, 2, name, 1, digits)).assert().startsWith(
+                "me.ahoo.wow.kernel.UnreadableEventException: event revision 1 not readable; caused by ",
+            )
+        }
         // Undescribed, its causes follow its class name; a fifth link is not named.
         val fifth = Error("d", Error("e"))
         val deep = IllegalStateException("a", IllegalStateException("b", IllegalArgumentException("c", fifth)))
