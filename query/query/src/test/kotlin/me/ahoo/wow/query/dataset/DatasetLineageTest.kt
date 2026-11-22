@@ -135,6 +135,26 @@ class DatasetLineageTest {
     }
 
     @Test
+    fun `a custom strategy declared over a source's kept ends should be refused, naming the strategy`() {
+        protect(CONFIDENTIAL)
+        val strategy = dataset { sensitive("phone", CONFIDENTIAL, QueryMask.Strategy.of("redact"), STRATEGIES) }
+        assertThrows<IllegalArgumentException> {
+            QueryEngine.Builder(Manifest()).datasets(QueryDatasets(listOf(strategy)), storage)
+                .maskStrategies(STRATEGIES).build()
+        }.message.assert().contains("CONFIDENTIAL, masked by the strategy [redact], looser than its source")
+    }
+
+    @Test
+    fun `an x-wow-mask keyword should read as a snapshot read reads it`() {
+        QueryMask.ofKeyword(null).assert().isEqualTo(QueryMask.FULL)
+        QueryMask.ofKeyword(mapOf("keepSuffix" to 4)).assert().isEqualTo(QueryMask.Keep.of(suffix = 4))
+        QueryMask.ofKeyword(mapOf("strategy" to "redact")).assert().isEqualTo(QueryMask.Strategy.of("redact"))
+        assertThrows<IllegalArgumentException> { QueryMask.ofKeyword(mapOf("strategy" to "redact", "keepPrefix" to 1)) }
+        // The datasets of none never change, nor are they resolved.
+        QueryDatasets.NONE.resolveLineage { error("never") }
+    }
+
+    @Test
     fun `a source's custom strategy should be resolved by the engine's strategies`() = runTest {
         storage.protect(
             TABLE,
