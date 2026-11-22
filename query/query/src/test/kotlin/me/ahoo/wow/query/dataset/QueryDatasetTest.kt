@@ -401,7 +401,8 @@ class QueryDatasetTest {
         val OTHER = AggregateType("analytics", "missing")
         val CLASSPATH_ORDERS = AggregateType("analytics", "classpath_orders")
 
-        fun orders(): QueryDataset = QueryDataset.of(ORDERS) {
+        /** The orders dataset, its `phone` column sensitive at [phone]. */
+        fun orders(phone: SensitivityLevel = SensitivityLevel.CONFIDENTIAL): QueryDataset = QueryDataset.of(ORDERS) {
             tenant("tenant_id")
             owner("owner_id")
             identity("order_id")
@@ -435,7 +436,7 @@ class QueryDatasetTest {
                 types(QueryValueType.STRING)
                 nullable(true)
             }
-            sensitive("phone", SensitivityLevel.CONFIDENTIAL, QueryMask.Keep(suffix = 4))
+            sensitive("phone", phone, QueryMask.Keep(suffix = 4))
         }
     }
 }

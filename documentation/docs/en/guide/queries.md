@@ -132,11 +132,38 @@ A few more annotations of `me.ahoo.wow.api.query.annotation` tell the query mode
 | `@QueryText` | Prose a reader searches by words, such as a name or a description: a `search` may name it, and one that names no field reads it ([on Elasticsearch](../operate/elasticsearch#full-text-search)) |
 | `@Sensitive` | A string masked in every result: `DISPLAY` may still be filtered and sorted, `CONFIDENTIAL` never is |
 
-A masked field is masked for every caller, in queries, state reads and traces alike, and in the warehouse's catalog.
+A masked field is masked for every caller, in queries, state reads and traces alike, and in the warehouse's catalog. The one exception is the service's own read of a `DISPLAY` value, which it asks for in so many words (below).
+
+### Read a `DISPLAY` value raw {#read-a-display-value-raw}
+
+The service's own code may need a `DISPLAY` value as it is: the phone number it sends a message to, or the e-mail address it writes to. It asks for it by name. `revealed()` gives queries that return every `DISPLAY` value raw:
+
+- `trusted().revealed()` on the node's `NodeQueryApi`;
+- `context.queries.revealed()` in a subscription handler, still pinned to the tenant of its commit.
+
+<!-- sample: fragment -->
+
+```kotlin
+val customer = queries.trusted().revealed().snapshots(CustomerState::class.java).state(ref) ?: return
+sms.send(customer.state.phone, text)
+```
+
+- **What is still masked.**
+  - Every `CONFIDENTIAL` value.
+  - A state of the aggregate's history (a state read at a version or a time) and a trace.
+  - A caller's queries, `of(caller)`, which have no `revealed()`, so a read for a user is never revealed, whoever relays it.
+  - The queries a policy or a cache loader runs inside a query. The state view cache holds what a plain read returns ([Share State through CoCache](./extensions/cocache)).
+- **It combines.** `revealed().unbounded()` and `unbounded().revealed()` are the same queries, and a handler's `revealed().trusted()` reveals too.
+- **Datasets too.** A dataset's queries share the same masks, so a revealing read of a dataset returns its `DISPLAY`-protected columns raw.
+- **No strategy.** A custom `MaskStrategy` is not called for a revealed value.
+- **Peers.** A peer's model read through a handler's `revealed()` queries is refused, not read masked: the peers do not reveal to this service yet.
+- **Audit.** Each revealing read is recorded as one: its audit names the fields it returned raw (`revealedFields`) apart from those it masked.
+
+Why the word must be said: the result of a trusted read often goes straight into a response, so a read that revealed by default would leak a field the day it is marked `DISPLAY`. Never return revealed queries' results to a caller. Java code writes `JavaQueryApi.of(nodeQueryApi).trusted().revealed()`.
 
 ### A secret a service reads back {#a-secret-a-service-reads-back}
 
-Masking does not depend on who asks, and the service itself is a caller. A read in process, `of(caller)`, `trusted()` and its `unbounded()`, a subscription handler's `context.queries`, goes through the masks of the public port, and no setting or caller lifts them. The raw value is only where Wow hands code the state itself, not a query of it: the state a decide function holds and the `StateEvent` a subscription handler receives.
+A `CONFIDENTIAL` value is masked for every reader, the service itself included: no read in process, `of(caller)`, `trusted()` and its `unbounded()` or `revealed()`, a subscription handler's `context.queries`, and no setting lifts it. The raw value is only where Wow hands code the state itself, not a query of it: the state a decide function holds and the `StateEvent` a subscription handler receives.
 
 So a secret the service must read back, such as the API key it presents to a third party, is not a `@Sensitive` field of a state. Keep a reference in the state, the name the secret is looked up under, and store the secret apart: in configuration or a secrets store the service reads, or as ciphertext in a field that is not `@Sensitive`, which the service decrypts. Wow keeps a state and its events as they were written and encrypts none of them, so a raw secret in a state is in the log and in every snapshot, whatever masks the queries put over it.
 

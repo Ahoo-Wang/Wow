@@ -243,6 +243,7 @@ public final class me/ahoo/wow/client/java/JavaTenantSnapshotQueries : me/ahoo/w
 }
 
 public final class me/ahoo/wow/client/java/JavaTrustedQueries : me/ahoo/wow/client/java/JavaQueryModels {
+	public final fun revealed ()Lme/ahoo/wow/client/java/JavaTrustedQueries;
 	public final fun snapshots (Ljava/lang/Class;)Lme/ahoo/wow/client/java/JavaSnapshotQueries;
 	public final fun snapshots (Lme/ahoo/wow/api/aggregate/AggregateType;)Lme/ahoo/wow/client/java/JavaSnapshotQueries;
 	public final fun unbounded ()Lme/ahoo/wow/client/java/JavaTrustedQueries;

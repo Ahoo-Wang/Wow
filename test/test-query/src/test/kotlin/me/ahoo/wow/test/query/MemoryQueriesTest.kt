@@ -55,6 +55,19 @@ class MemoryQueriesTest {
     }
 
     @Test
+    fun `a spec's revealing queries should be the node's, a handler's still pinned to its tenant`(): Unit = runBlocking {
+        val queries = memoryQueries {
+            snapshot(STOCK, "mug", Stock(7), tenantId = "acme")
+            snapshot(STOCK, "pen", Stock(3), tenantId = "other")
+        }
+        val handler = queries.tenant("acme").revealed()
+        handler.tenantId.assert().isEqualTo("acme")
+        handler.snapshots<Stock>().list(listQuery { }).toList().map { it.ref.id }.assert().containsExactly("mug")
+        queries.trusted().revealed().snapshots<Stock>().list(listQuery { }).toList().map { it.ref.id }
+            .assert().containsExactlyInAnyOrder("mug", "pen")
+    }
+
+    @Test
     fun `an owner's snapshots should be hidden from another owner by the scope policy`(): Unit = runBlocking {
         val queries = memoryQueries {
             snapshot(CART, "c-1", Cart(2), tenantId = "acme", owner = Scope("alice"))

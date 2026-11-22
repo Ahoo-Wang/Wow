@@ -208,6 +208,26 @@ class HostClientsTest {
     }
 
     @Test
+    fun `a handler's revealing queries should read the node's own models revealed, and refuse a peer's`() {
+        val localQueries = mockk<TenantQueryApi>(relaxed = true)
+        val pinned = mockk<SubscriptionQueries>(relaxed = true)
+        val revealing = mockk<SubscriptionQueries>(relaxed = true)
+        every { localQueries.tenant("t1") } returns pinned
+        every { pinned.revealed() } returns revealing
+        val ledger = AggregateType("ledger", "entry")
+        val revealed = RoutedQueryApi(localQueries, peers(), setOf(Account::class.java)).tenant("t1").revealed()
+        revealed.tenantId.assert().isEqualTo("t1")
+        revealed.snapshots(ledger).assert().isSameAs(revealing.snapshots(ledger))
+        revealed.snapshots<Account>().assert().isSameAs(revealing.snapshots(Account::class.java))
+        revealed.trusted().assert().isSameAs(revealing.trusted())
+        revealed.revealed().assert().isSameAs(revealed)
+        // A peer's DISPLAY values are not revealed to this service: its models are refused, not read masked.
+        listOf<() -> Any>({ revealed.snapshots(account) }, { revealed.events(account) }).forEach { read ->
+            assertThrows<IllegalStateException> { read() }.message.assert().contains(BANK, "not revealed")
+        }
+    }
+
+    @Test
     fun `a subscription should read a peer as the service its Manifest names`() {
         val callers = mutableListOf<Caller>()
         val client = mockk<WowClient>(relaxed = true)

@@ -46,6 +46,7 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.TenantIdFilter
+import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.QueryScope
@@ -312,6 +313,18 @@ internal class DatasetQueryGatewayTest : DatasetQueryGatewayFixtures() {
         assertThrows<QuerySchemaValidationException> {
             gateway().list(ListQuery(EqualFilter(QueryField("phone"), "13800001234")), QueryCaller.IN_PROCESS).toList()
         }
+    }
+
+    @Test
+    fun `a revealing query should read a DISPLAY column raw, a CONFIDENTIAL one masked`() = runTest {
+        val revealing = QueryCaller(entry = QueryEntry.IN_PROCESS, revealsDisplay = true)
+        val display = gateway(dataset = QueryDatasetTest.orders(SensitivityLevel.DISPLAY))
+        display.list(ListQuery(MatchAllFilter, limit = 10), revealing).toList().single()
+            .get("phone").stringValue().assert().isEqualTo("13800001234")
+        display.list(ListQuery(MatchAllFilter, limit = 10), QueryCaller.IN_PROCESS).toList().single()
+            .get("phone").stringValue().assert().isEqualTo("*******1234")
+        gateway().list(ListQuery(MatchAllFilter, limit = 10), revealing).toList().single()
+            .get("phone").stringValue().assert().isEqualTo("*******1234")
     }
 
     @Test

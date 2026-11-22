@@ -1175,6 +1175,7 @@ public final class me/ahoo/wow/api/read/StateView$Companion {
 
 public abstract interface class me/ahoo/wow/api/read/SubscriptionQueries : me/ahoo/wow/api/read/Queries {
 	public abstract fun getTenantId ()Ljava/lang/String;
+	public abstract fun revealed ()Lme/ahoo/wow/api/read/SubscriptionQueries;
 	public abstract fun trusted ()Lme/ahoo/wow/api/read/TrustedQueries;
 }
 
@@ -1184,6 +1185,7 @@ public abstract interface class me/ahoo/wow/api/read/TenantSnapshotQueries : me/
 }
 
 public abstract interface class me/ahoo/wow/api/read/TrustedQueries : me/ahoo/wow/api/read/QueryModels {
+	public abstract fun revealed ()Lme/ahoo/wow/api/read/TrustedQueries;
 	public abstract fun unbounded ()Lme/ahoo/wow/api/read/TrustedQueries;
 }
 

@@ -77,4 +77,14 @@ private class TenantQueries(private val api: NodeQueryApi, override val tenantId
         queries.datasets(name, rowType)
 
     override fun trusted(): TrustedQueries = api.trusted()
+
+    /**
+     * Refused: these queries read as a caller of the tenant, whose reads are never revealed, and [api] pins no tenant
+     * for trusted code. A test reads a handler's revealed queries through the node's query API (`memoryQueries`),
+     * a [TenantQueryApi].
+     */
+    override fun revealed(): SubscriptionQueries = throw UnsupportedOperationException(
+        "$api pins no tenant for trusted code, so it has no revealing queries of tenant $tenantId: a handler's " +
+            "revealed() needs the node's query API (a TenantQueryApi), as memoryQueries gives a test."
+    )
 }
