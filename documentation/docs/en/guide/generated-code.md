@@ -68,7 +68,7 @@ A context's command and event classes are all in one api module, the one that de
 | `<Aggregate>.TYPE`, `<Aggregate>.ref(tenant, id)` | The aggregate's type, and a ref to one of its aggregates |
 | `<Aggregate>.Errors.*` | Its error codes, by their full names |
 | `<Aggregate>.STATE__*` | The query fields of its state, with `wow-query-api` |
-| `Wait.*` | The hops of a wait chain in the context: `ACCEPTED`, `COMMITTED`, `SNAPSHOT`, `QUERYABLE`, and one per subscription its contract lists, `<PROCESSOR>__<FUNCTION>` (`ORDER_PROCESS_SAGA__ON_ORDER_SUBMITTED`) |
+| `Wait.*` | The hops of a wait chain in the context: `ACCEPTED`, `COMMITTED`, `SNAPSHOT`, `QUERYABLE`, and one per subscription its contract lists, `<PROCESSOR>__<FUNCTION>` (`ORDER_PROCESS_SAGA__ON_ORDER_SUBMITTED`); the TypeScript generator's `<context>Wait` gives the same hops |
 
 A peer writes no path, name or code by hand: `EshopOrderingContract.Order.ref(tenant, id)` addresses an order, and `EshopOrderingContract.Order.Errors.WRONG_STATUS` compares a rejection ([Call Other Services](./calling-services), [Rejections and Error Codes](./rejections#what-the-caller-receives)).
 

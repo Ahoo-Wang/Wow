@@ -124,6 +124,6 @@ export function emitContract(
   }
   addStatement(
     module,
-    `${doc([`The hops of a wait chain (\`Wow-Wait\`) in \`${context.name}\`, as the Kotlin \`${context.typeName}Contract.Wait\` holds them.`])}export const ${camelCase(context.name)}Wait = {\n${hops.join('\n')}\n} as const;`,
+    `${doc([`The hops of a wait chain (\`Wow-Wait\`) in \`${context.name}\`.`])}export const ${camelCase(context.name)}Wait = {\n${hops.join('\n')}\n} as const;`,
   );
 }
