@@ -22,6 +22,7 @@ import me.ahoo.wow.runtime.node.ContextNode
 import me.ahoo.wow.runtime.node.SubscriptionFactory
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.spi.access.AccessStamps
+import me.ahoo.wow.spi.read.StateMasks
 import me.ahoo.wow.spi.sink.Sink
 import me.ahoo.wow.spi.transport.TopicProducer
 
@@ -31,6 +32,12 @@ import me.ahoo.wow.spi.transport.TopicProducer
  * writing to the sink [sinkOf] gives its stream, with or without the state as the stream says
  * ([PublishedManifest.includeState]).
  *
+ * [masks] are what each record is masked by before its sink writes it, its state and each event's body. The transport
+ * sink, which publishes the records to other contexts, takes the node's [StateMasks] and masks the `CONFIDENTIAL`
+ * values; its `DISPLAY` values are published raw until #6586 masks them too, unless the owner declares that the stream
+ * reveals them. Null for sinks that write each value as it was committed: a store of the owner's own, which masks what
+ * a read of it returns (the warehouse's), or a sink that masks the states itself (the state view cache's).
+ *
  * The host gives it to the node through its [factory], beside the application's subscriptions (a Spring host does so
  * for every `PublishedSinks` bean): each sink subscription is one of its context's state readers, under its own
  * name, of its aggregate type, so the context's executor keeps the views it reads. A context that
@@ -39,6 +46,7 @@ import me.ahoo.wow.spi.transport.TopicProducer
 class PublishedSinks(
     private val published: Map<String, List<PublishedManifest>>,
     private val processor: String,
+    private val masks: StateMasks?,
     private val sinkOf: (context: String, stream: PublishedManifest) -> Sink,
 ) {
     init {
@@ -70,6 +78,7 @@ class PublishedSinks(
                     sink = sink,
                     reader = context.stateReader(name),
                     includeState = stream.includeState,
+                    masks = masks?.let { RecordMasks(it, type, revealsDisplay = true) },
                 ).subscription
             }
 
@@ -94,14 +103,15 @@ class PublishedSinks(
 
         /**
          * The transport sink: every stream [manifest] publishes, written to its topic
-         * ([PublishedManifest.topic], after [topicPrefix]) through [producer].
+         * ([PublishedManifest.topic], after [topicPrefix]) through [producer], masked by [masks], the node's.
          */
         fun topics(
             manifest: Manifest,
             producer: TopicProducer,
+            masks: StateMasks,
             topicPrefix: String = "",
             processor: String = TRANSPORT_SINK,
-        ): PublishedSinks = PublishedSinks(publishedOf(manifest), processor) { _, stream ->
+        ): PublishedSinks = PublishedSinks(publishedOf(manifest), processor, masks) { _, stream ->
             TopicSink(producer, topicPrefix + stream.topic)
         }
     }

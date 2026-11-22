@@ -80,7 +80,8 @@ class PublishedSinksTest {
 
     private fun node(
         producer: TopicProducer = topics,
-        subscriptions: SubscriptionFactory = PublishedSinks.topics(manifest, producer, topicPrefix = "dev.").factory,
+        subscriptions: SubscriptionFactory =
+            PublishedSinks.topics(manifest, producer, NoMasks, topicPrefix = "dev.").factory,
     ): ServiceNode =
         ServiceNode(
             SHOP_SERVICE,
@@ -158,6 +159,26 @@ class PublishedSinksTest {
     }
 
     @Test
+    fun `the transport sink should publish states and event bodies masked as a read revealing DISPLAY asks`(): Unit =
+        runBlocking {
+            val masks = FieldMasks("items", setOf("shop.order.Placed"))
+            val sinks = PublishedSinks.topics(manifest, topics, masks, topicPrefix = "dev.")
+            val node = node(subscriptions = sinks.factory)
+            node.start()
+            node.place("o-1")
+            eventually { topics.messages("dev.wow.shop.order.state").size == 1 }
+            val order = records("dev.wow.shop.order.state").single()
+            order.state!!.state.assert().isEqualTo(WowJson.mapper.readTree("""{"items":"***"}"""))
+            order.events.single().payload["items"].asString().assert().isEqualTo("***")
+            // CONFIDENTIAL values alone: the masks of a read that reveals DISPLAY values.
+            masks.asked.assert().contains(
+                "state shop.order revealsDisplay=true",
+                "event shop.order shop.order.Placed revealsDisplay=true",
+            )
+            masks.asked.assert().allMatch { it.endsWith("revealsDisplay=true") }
+        }
+
+    @Test
     fun `a migrated log should publish its history up to the cut-over marked imported, and V10's commits unmarked`(): Unit =
         runBlocking {
             imported("o-1", "o-2")
@@ -182,7 +203,7 @@ class PublishedSinksTest {
     fun `a sink of data should take the imported history as every commit, marked`(): Unit = runBlocking {
         imported("o-1")
         val written = CopyOnWriteArrayList<StateEventRecord>()
-        val data = PublishedSinks(PublishedSinks.publishedOf(manifest), "analytics-sink") { _, _ ->
+        val data = PublishedSinks(PublishedSinks.publishedOf(manifest), "analytics-sink", masks = null) { _, _ ->
             Sink { written += it }
         }
         val node = node(subscriptions = data.factory)
@@ -194,7 +215,7 @@ class PublishedSinksTest {
 
     @Test
     fun `each sink should be a state reader of the type it publishes`(): Unit = runBlocking {
-        val sinks = PublishedSinks.topics(manifest, topics)
+        val sinks = PublishedSinks.topics(manifest, topics, NoMasks)
         val models = listOf(orderModel(), cartModel())
         sinks.factory.stateReaders(SHOP, models).assert()
             .isEqualTo(mapOf("wow.transport-sink.order" to setOf(ORDER), "wow.transport-sink.cart" to setOf(CART)))
@@ -244,7 +265,8 @@ class PublishedSinksTest {
                 }
             }
             val published = manifest.contexts.associate { it.name to it.published }
-            val node = node(subscriptions = PublishedSinks(published, "wow.test-sink") { _, _ -> batching }.factory)
+            val sinks = PublishedSinks(published, "wow.test-sink", masks = null) { _, _ -> batching }
+            val node = node(subscriptions = sinks.factory)
             node.start()
             node.fill("c-1")
             eventually { writes.size == 1 }
@@ -299,10 +321,13 @@ class PublishedSinksTest {
         val sinks =
             PublishedSinks(
                 PublishedSinks.publishedOf(wrong),
-                PublishedSinks.TRANSPORT_SINK
+                PublishedSinks.TRANSPORT_SINK,
+                NoMasks,
             ) { _, _ -> TopicSink(topics, "t") }
         assertThrows<IllegalArgumentException> { sinks.factory.stateReaders(SHOP, listOf(orderModel())) }
-        assertThrows<IllegalArgumentException> { PublishedSinks(emptyMap(), " ") { _, _ -> TopicSink(topics, "t") } }
+        assertThrows<IllegalArgumentException> {
+            PublishedSinks(emptyMap(), " ", NoMasks) { _, _ -> TopicSink(topics, "t") }
+        }
         PublishedSinks.publishedOf(shopManifest()).assert().isEmpty()
     }
 

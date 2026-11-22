@@ -92,7 +92,11 @@ fun onPayRejected(rejected: CommandReceipt.Rejected<PayOrder>): CommandRequest<R
 
 ## 敏感值 {#sensitive-values}
 
-发布的记录按上游写入时的样子保存状态与事件，其中的 [`@Sensitive`](./queries#where-masking-stops) 值没有脱敏，`CONFIDENTIAL` 的也一样：订单状态里的密码哈希或 API key 会到达支付的处理函数、读这个主题的每一个其他服务以及任何外部消费者，并在主题的保留期内一直留在主题里。谁能读主题由它的 ACL 决定。对发布的事件流脱敏已在计划中（[#6586](https://github.com/Ahoo-Wang/Wow/issues/6586)）；在它落地之前，不能让任何对端看到的值不要放进发布的聚合的状态和事件，或者不发布这个聚合（`published = false`）。
+发布的记录里，状态和各事件体中的每个 [`@Sensitive`](./queries#where-masking-stops) `CONFIDENTIAL` 值都按读取时的方式脱敏。订单的 transport sink 在写记录时脱敏，所以订单状态里的密码哈希或 API key 既不会到达支付的处理函数，也不会到达主题的任何其他读者，主题里也不保存它。订单自己的订阅读它的日志，拿到的是提交时的值。
+
+- **读者拿到什么：** 字段和 schema 指纹都不变，值换成了掩码。掩码仍是字符串，但契约里在构造时校验内容的值类型可能拒绝它。
+- **`DISPLAY` 值：** 仍按写入时的样子发布，并在主题的保留期内一直留在主题里。谁能读主题由它的 ACL 决定。之后它们也会脱敏，除非订单声明这个事件流揭示它们（[#6586](https://github.com/Ahoo-Wang/Wow/issues/6586)）。在那之前，不能让任何对端看到的 `DISPLAY` 值不要放进发布的聚合的状态和事件，或者不发布这个聚合（`published = false`）。
+- **升级之前发布的记录：** 保留写入时的每个值，`CONFIDENTIAL` 的也一样，直到主题的保留期删掉它们。
 
 ## 外部消费者 {#external-consumers}
 

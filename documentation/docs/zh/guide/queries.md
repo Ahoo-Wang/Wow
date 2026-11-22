@@ -132,7 +132,7 @@ var status: ProductStatus = ProductStatus.DRAFT
 | `@QueryText` | 供人按词检索的文字，例如名称或描述：`search` 可以指定它，不指定字段的 `search` 也会读它（[Elasticsearch 上](../operate/elasticsearch#full-text-search)） |
 | `@Sensitive` | 在每个结果中脱敏的字符串：`DISPLAY` 仍可以过滤和排序，`CONFIDENTIAL` 永远不可以 |
 
-脱敏的字段对每个调用方都脱敏：在查询、状态读取、事件查询和轨迹中都一样，在数仓的目录中、在[状态视图缓存](./extensions/cocache)中也一样。它在 Wow 作为读取返回它的地方脱敏，而不是在 Wow 存储或发布它的地方：见[脱敏止步之处](#where-masking-stops)。唯一的例外是服务自己明确要求读取的 `DISPLAY` 值（[见下文](#read-a-display-value-raw)）。
+脱敏的字段对每个调用方都脱敏：在查询、状态读取、事件查询和轨迹中都一样，在数仓的目录中、在[状态视图缓存](./extensions/cocache)中也一样。它在 Wow 作为读取返回它的地方脱敏，`CONFIDENTIAL` 的值在 Wow 把它发布给别的上下文时也脱敏，而在 Wow 存储它的地方不脱敏：见[脱敏止步之处](#where-masking-stops)。唯一的例外是服务自己明确要求读取的 `DISPLAY` 值（[见下文](#read-a-display-value-raw)）。
 
 ### 读取 `DISPLAY` 值的原值 {#read-a-display-value-raw}
 
@@ -169,17 +169,18 @@ sms.send(customer.state.phone, text)
 
 ### 脱敏止步之处 {#where-masking-stops}
 
-`@Sensitive` 决定的是一次读取返回什么：查询、状态读取、事件查询、轨迹、状态视图缓存的条目。它不改变 Wow 存储或发布的内容，也不是静态加密。下面这些地方按写入时的样子保存每个 `@Sensitive` 值，`CONFIDENTIAL` 的也一样：
+`@Sensitive` 决定的是一次读取返回什么：查询、状态读取、事件查询、轨迹、状态视图缓存的条目。对 `CONFIDENTIAL` 的值，它也决定发布的事件流携带什么。它不改变 Wow 存储的内容，也不是静态加密。下面这些地方按写入时的样子保存每个 `@Sensitive` 值，`CONFIDENTIAL` 的也一样：
 
 | 位置 | 保存什么 | 边界 |
 | --- | --- | --- |
 | 日志与快照 | 写入时的每个事件和每个状态 | 存储的授权 |
-| [发布的事件流](./published-streams#sensitive-values) `wow.<context>.<aggregate>.state` | 每次提交的事件及其后的状态，按写入时的样子：另一个上下文的处理函数、另一个服务以及主题的任何消费者拿到的都是原始值 | 主题的 ACL（[Kafka](../operate/kafka#topics)） |
 | [ClickHouse Sink 的表](../operate/clickhouse#the-tables) | 写入时的状态与事件；对它们的查询在返回时脱敏 | 数据库的授权 |
 | [Elasticsearch 事件 Sink 的索引](../operate/elasticsearch#event-search) | 写入时的事件；`events` 查询在返回时脱敏 | 索引的权限 |
 | [`migrate-data compare`](../migrate/data#_5-compare) 的报告 | 有差异的字段的值，9.x 的和 V10 的 | 谁读这份报告 |
 
-直接读这些地方的人，无论用 SQL、Kafka 消费者还是存储的客户端，读到的都是原始值。对发布的事件流脱敏已在计划中（[#6586](https://github.com/Ahoo-Wang/Wow/issues/6586)）；在它落地之前，事件流携带的是写入时的值。
+直接读这些地方的人，无论用 SQL 还是存储的客户端，读到的都是原始值。
+
+[发布的事件流](./published-streams#sensitive-values) `wow.<context>.<aggregate>.state` 在写入时脱敏：状态和每个事件体里的每个 `CONFIDENTIAL` 值都按读取时的方式换成掩码，主题里不保存它。它的 `DISPLAY` 值仍按写入时的样子发布；之后它们也会脱敏，除非属主声明这个事件流揭示它们（[#6586](https://github.com/Ahoo-Wang/Wow/issues/6586)）。在那之前，谁能读到它们由主题的 ACL（[Kafka](../operate/kafka#topics)）决定。升级之前发布的记录保留写入时的每个值，直到主题的保留期删掉它们。
 
 ### 属性继承的注解 {#annotations-a-property-inherits}
 

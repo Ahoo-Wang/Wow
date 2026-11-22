@@ -44,8 +44,9 @@ import java.util.concurrent.ConcurrentHashMap
  * ([me.ahoo.wow.query.QueryCaller.revealsDisplay]) is masked by the schema's `CONFIDENTIAL` masks alone, compiled on
  * its first such read.
  *
- * They are the node's [StateMasks] too ([maskOf]): a writer that stores a state where a reader takes it as a read, the
- * state view cache's sink, masks it by the very function a state read applies.
+ * They are the node's [StateMasks] too ([stateMaskOf], [eventMaskOf]): a writer that stores or publishes a state or an
+ * event's body where a reader takes it as a read, the state view cache's sink or the transport sink, masks it by the
+ * very function a read applies. An event is found by its name once, then by the name it was asked by.
  */
 @InternalWowApi
 class PayloadMasks(
@@ -53,6 +54,9 @@ class PayloadMasks(
     private val strategies: MaskStrategyResolver = MaskStrategyResolver.NONE,
 ) : StateMasks {
     private val maskers = ConcurrentHashMap<MaskKey, Optional<SchemaMasker>>()
+
+    /** The schema of each event by the type and the name it was asked by; empty when the Manifest has none. */
+    private val eventSchemas = ConcurrentHashMap<EventKey, Optional<String>>()
 
     /**
      * [state], a state of [type], masked in place where it can be; the masked value. With [revealsDisplay], its
@@ -64,12 +68,9 @@ class PayloadMasks(
         return mask(MaskKey(type.context, aggregate.state.schema, revealsDisplay), state)
     }
 
-    /** [state] as a function of a state of [type]: null when its schema masks nothing, compiled now otherwise. */
-    override fun maskOf(type: AggregateType): ((JsonNode) -> JsonNode)? {
+    override fun stateMaskOf(type: AggregateType, revealsDisplay: Boolean): ((JsonNode) -> JsonNode)? {
         val aggregate = aggregate(type) ?: return null
-        val key = MaskKey(type.context, aggregate.state.schema)
-        masker(key) ?: return null
-        return { state -> mask(key, state) }
+        return maskOf(MaskKey(type.context, aggregate.state.schema, revealsDisplay))
     }
 
     /**
@@ -79,12 +80,29 @@ class PayloadMasks(
      */
     @JvmOverloads
     fun event(type: AggregateType, name: String, body: JsonNode, revealsDisplay: Boolean = false): JsonNode {
-        val local = name.removePrefix("${type.context}.${type.name}.")
-        val event = aggregate(type)?.events?.firstOrNull { event ->
-            event.name == local || name in event.aliases || local in event.aliases
-        } ?: return body
-        return mask(MaskKey(type.context, event.schema, revealsDisplay), body)
+        val schema = eventSchema(type, name) ?: return body
+        return mask(MaskKey(type.context, schema, revealsDisplay), body)
     }
+
+    override fun eventMaskOf(type: AggregateType, event: String, revealsDisplay: Boolean): ((JsonNode) -> JsonNode)? {
+        val schema = eventSchema(type, event) ?: return null
+        return maskOf(MaskKey(type.context, schema, revealsDisplay))
+    }
+
+    /** The mask of [key]'s schema, its masker compiled now: null when it masks nothing. */
+    private fun maskOf(key: MaskKey): ((JsonNode) -> JsonNode)? {
+        val masker = masker(key) ?: return null
+        return { payload -> mask(masker, payload) }
+    }
+
+    private fun eventSchema(type: AggregateType, name: String): String? =
+        eventSchemas.computeIfAbsent(EventKey(type, name)) { key ->
+            val local = key.name.removePrefix("${type.context}.${type.name}.")
+            val event = aggregate(type)?.events?.firstOrNull { event ->
+                event.name == local || key.name in event.aliases || local in event.aliases
+            }
+            Optional.ofNullable(event?.schema)
+        }.orElse(null)
 
     private fun aggregate(type: AggregateType): AggregateManifest? =
         manifest.contexts.firstOrNull { it.name == type.context }?.aggregates?.firstOrNull { it.name == type.name }
@@ -94,6 +112,10 @@ class PayloadMasks(
 
     private fun mask(key: MaskKey, payload: JsonNode): JsonNode {
         val masker = masker(key) ?: return payload
+        return mask(masker, payload)
+    }
+
+    private fun mask(masker: SchemaMasker, payload: JsonNode): JsonNode {
         val record = JsonNodeFactory.instance.objectNode().set(PAYLOAD.path, payload)
         return masker.mask(record).get(PAYLOAD.path)
     }
@@ -116,6 +138,8 @@ class PayloadMasks(
     }
 
     private data class MaskKey(val context: String, val schema: String, val revealsDisplay: Boolean = false)
+
+    private data class EventKey(val type: AggregateType, val name: String)
 
     @InternalWowApi
     companion object {
