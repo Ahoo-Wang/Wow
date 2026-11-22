@@ -445,8 +445,6 @@ allprojects {
             // The Guava com.clickhouse:client-v2 brings to :clickhouse (33.4.6), lifted for the build alone: a 9.x
             // carry-over (wow-core used Guava), for no advisory, so a wow-clickhouse application keeps client-v2's.
             buildPlatform(rootProject.libs.guava)
-            buildPlatform(rootProject.libs.swagger.annotations)
-            buildPlatform(rootProject.libs.swagger.core)
             buildPlatform(rootProject.libs.mockk)
             buildPlatform(rootProject.libs.detekt.formatting)
         }

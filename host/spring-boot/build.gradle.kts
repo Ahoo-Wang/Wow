@@ -50,7 +50,8 @@ dependencies {
     compileOnly("org.springframework.boot:spring-boot-health")
     // The springdoc bridge (decision D233): the Wow routes join springdoc's documents when the application has it.
     compileOnly("org.springdoc:springdoc-openapi-starter-common")
-    compileOnly(libs.swagger.core)
+    // swagger-core 3, which springdoc's BOM manages: Jackson 3, as Wow is.
+    compileOnly("io.swagger.core.v3:swagger-core")
     testImplementation("org.springframework.boot:spring-boot-test")
     testImplementation(testFixtures(project(":runtime")))
     testImplementation("org.springframework.boot:spring-boot-health")
