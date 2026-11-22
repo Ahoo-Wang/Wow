@@ -34,7 +34,7 @@ class HttpProperties {
      * caller, and on the public port `user_agent` and `remote_ip`; none of the three can be listed, and each fact is
      * cut to 512 characters.
      * `remote_ip` is the server's remote address, which the host takes from the gateway's `X-Forwarded-For`
-     * (`server.forward-headers-strategy` is `native` unless the application sets it, `none` included).
+     * (`server.request.header.forwarded.strategy` is `web-server` unless the application sets it, `none` included).
      */
     var requestFacts: MutableSet<String> = LinkedHashSet()
 

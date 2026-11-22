@@ -159,6 +159,21 @@ class HostSpringdocTest {
         processor.postProcessBeforeInitialization("other", "other").assert().isEqualTo("other")
     }
 
+    @Test
+    fun `behind a proxy that strips a prefix, the document should carry it only with use-prefix`() {
+        // What guide/openapi says: Spring Boot 4.2 ignores X-Forwarded-Prefix unless use-prefix is set, under the
+        // host's web-server strategy too.
+        val forwarded = mapOf("X-Forwarded-Prefix" to "/bank-api")
+        springdocHost().use { host ->
+            host.get(API_DOCS, forwarded).body!!["servers"][0]["url"].asString()
+                .assert().isEqualTo("http://127.0.0.1:${host.publicPort}")
+        }
+        springdocHost("server.request.header.forwarded.use-prefix" to true).use { host ->
+            host.get(API_DOCS, forwarded).body!!["servers"][0]["url"].asString()
+                .assert().isEqualTo("http://127.0.0.1:${host.publicPort}/bank-api")
+        }
+    }
+
     private fun springdocHost(
         vararg properties: Pair<String, Any>,
         sources: List<Class<*>> = emptyList(),
