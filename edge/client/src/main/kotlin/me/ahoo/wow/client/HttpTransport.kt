@@ -238,7 +238,7 @@ internal class HttpTransport(
                 unsent = failure
                 continue
             }
-            silent.answered(request.context, base)
+            silent.answered(request.context, mode.port, base)
             if (answer is Answer.Problem && answer.problem.refusedBeforeHandling) {
                 refused = answer
                 continue
@@ -255,7 +255,7 @@ internal class HttpTransport(
      * without an answer, has the requests that follow pass [base] over ([SilentPeers.silenced]).
      */
     private fun unanswered(context: String, base: String, failure: IOException): IOException {
-        if (failure is HttpTimeoutException) silent.silenced(context, base)
+        if (failure is HttpTimeoutException) silent.silenced(context, mode.port, base)
         return failure
     }
 
@@ -269,6 +269,7 @@ internal class HttpTransport(
         val listed = endpoints.resolveAll(context, mode.port)
         val targets = silent.choose(
             context,
+            mode.port,
             listed.map { it.toString().trimEnd('/') },
             (listed as? PeerList)?.generation,
         )

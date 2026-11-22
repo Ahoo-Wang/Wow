@@ -246,6 +246,13 @@ class DnsPeerDiscoveryTest {
             endpoints.resolve("mail", Port.INTERNAL).assert().isEqualTo(URI.create("http://mail:9090"))
             endpoints.resolve("mail", Port.PUBLIC).assert().isEqualTo(URI.create("http://mail:8080"))
             endpoints.resolveAll("eshop-ordering", Port.INTERNAL).assert().hasSize(2)
+            // What the client reads is the lookup's own list, its generation with it, not a copy: a bypassed node
+            // comes back when the records are read again, not only when a bypass lapses.
+            val found = endpoints.resolveAll("eshop-ordering", Port.INTERNAL)
+            found.assert().isInstanceOf(PeerList::class.java)
+            endpoints.resolveAll("eshop-ordering", Port.INTERNAL).assert().isSameAs(found)
+            // A fixed url is a plain list, of no generation.
+            endpoints.resolveAll("mail", Port.INTERNAL).assert().isNotInstanceOf(PeerList::class.java)
             endpoints.resolveAll("eshop-ordering", Port.PUBLIC).assert().isEmpty()
             // A saga's call needs no listing: its contract names the service.
             endpoints.reaches("eshop-payment", Port.INTERNAL).assert().isTrue()

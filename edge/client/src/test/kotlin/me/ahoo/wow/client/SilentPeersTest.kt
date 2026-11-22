@@ -102,7 +102,7 @@ class SilentPeersTest {
         started.elapsedNow().assert().isLessThan(BOUND * 2)
         held.taken.assert().hasSize(1)
         live.taken.assert().hasSize(4)
-        silent.bypassed("mail").assert().containsExactly(keyOf(held))
+        silent.bypassed("mail", Port.INTERNAL).assert().containsExactly(keyOf(held))
         events.assert().containsExactly(ObservedEvent.PeerBypassed("mail", keyOf(held)))
     }
 
@@ -116,7 +116,7 @@ class SilentPeersTest {
         listed = listOf(live.base)
         generation = 2
         transport.send().assert().isInstanceOf(Answer.Ok::class.java)
-        silent.bypassed("mail").assert().isEmpty()
+        silent.bypassed("mail", Port.INTERNAL).assert().isEmpty()
         events.last().assert().isEqualTo(ObservedEvent.PeerRestored("mail", keyOf(held), 0, Reason.UNLISTED))
     }
 
@@ -136,7 +136,7 @@ class SilentPeersTest {
         // Still silent, it took one more request, which paid its bound, and is bypassed again.
         held.taken.assert().hasSize(2)
         answers.map { it.code() }.assert().contains(FrameworkCodes.COMMAND_UNKNOWN)
-        silent.bypassed("mail").assert().containsExactly(keyOf(held))
+        silent.bypassed("mail", Port.INTERNAL).assert().containsExactly(keyOf(held))
         events.filterIsInstance<ObservedEvent.PeerBypassed>().assert().hasSize(2)
     }
 
@@ -150,10 +150,10 @@ class SilentPeersTest {
         transport.send()
         now.addAndGet(LAPSE.inWholeNanoseconds - 1)
         transport.send()
-        silent.bypassed("mail").assert().containsExactly(keyOf(held))
+        silent.bypassed("mail", Port.INTERNAL).assert().containsExactly(keyOf(held))
         now.addAndGet(1)
         transport.send()
-        silent.bypassed("mail").assert().isEmpty()
+        silent.bypassed("mail", Port.INTERNAL).assert().isEmpty()
         events.assert().contains(
             ObservedEvent.PeerRestored("mail", keyOf(held), LAPSE.inWholeMilliseconds, Reason.LAPSED)
         )
@@ -168,7 +168,7 @@ class SilentPeersTest {
         // Its only node is bypassed: the request goes to it all the same, which takes the connection and the request.
         transport.send().code().assert().isEqualTo(FrameworkCodes.COMMAND_UNKNOWN)
         held.taken.assert().hasSize(2)
-        silent.bypassed("mail").assert().containsExactly(keyOf(held))
+        silent.bypassed("mail", Port.INTERNAL).assert().containsExactly(keyOf(held))
         // Logged and observed once, however many requests it left unanswered.
         events.assert().containsExactly(ObservedEvent.PeerBypassed("mail", keyOf(held)))
     }
@@ -181,7 +181,7 @@ class SilentPeersTest {
         transport.send()
         now.addAndGet(2.seconds.inWholeNanoseconds)
         transport.send().assert().isInstanceOf(Answer.Problem::class.java)
-        silent.bypassed("mail").assert().isEmpty()
+        silent.bypassed("mail", Port.INTERNAL).assert().isEmpty()
         events.last().assert().isEqualTo(ObservedEvent.PeerRestored("mail", keyOf(slow), 2_000, Reason.ANSWERED))
     }
 
@@ -192,11 +192,68 @@ class SilentPeersTest {
         listed = listOf(held.base, live.base)
         val queries = transport()
         queries.send(Exchange.QUERY).code().assert().isEqualTo(FrameworkCodes.QUERY_TIMEOUT)
-        silent.bypassed("mail").assert().containsExactly(keyOf(held))
+        silent.bypassed("mail", Port.INTERNAL).assert().containsExactly(keyOf(held))
         // Another transport of the node, its commands', shares the bypass.
         val commands = transport()
         repeat(3) { commands.send().assert().isInstanceOf(Answer.Ok::class.java) }
         held.taken.assert().hasSize(1)
+    }
+
+    @Test
+    fun `a port's list should keep its own bypasses, the other port's choices and lookups ending none of them`() {
+        val held = peer(Reply.HELD)
+        val live = peer(Reply(200))
+        val public = peer(Reply(200))
+        listed = listOf(held.base, live.base)
+        // The context's public port: its fixed URL, a list of its own, of another generation.
+        val ports = object : EndpointResolver {
+            override suspend fun resolve(context: String, port: Port): URI? = resolveAll(context, port).firstOrNull()
+
+            override suspend fun resolveAll(context: String, port: Port): List<URI> = when (port) {
+                Port.INTERNAL -> PeerList(listed, 1)
+                else -> PeerList(listOf(public.base), 7)
+            }
+        }
+        // The node's saga caller or service-mode client, and its user-mode client, sharing one set of bypasses.
+        val internal = HttpTransport(
+            ports,
+            ClientMode.Service("basket-service"),
+            HttpCommandCaller.client(),
+            BOUND,
+            RetryPolicy.NONE,
+            silent = silent,
+        )
+        val user = HttpTransport(
+            ports,
+            ClientMode.User(UserCredential.FORWARDED),
+            HttpCommandCaller.client(),
+            BOUND,
+            RetryPolicy.NONE,
+            silent = silent,
+        )
+        internal.send().code().assert().isEqualTo(FrameworkCodes.COMMAND_UNKNOWN)
+        repeat(3) { user.send().assert().isInstanceOf(Answer.Ok::class.java) }
+        // The public list neither lists the internal node nor shares its generation: the bypass holds all the same.
+        silent.bypassed("mail", Port.INTERNAL).assert().containsExactly(keyOf(held))
+        silent.bypassed("mail", Port.PUBLIC).assert().isEmpty()
+        events.assert().containsExactly(ObservedEvent.PeerBypassed("mail", keyOf(held)))
+        repeat(3) { internal.send().assert().isInstanceOf(Answer.Ok::class.java) }
+        held.taken.assert().hasSize(1)
+        // Each list settles its own: the internal list read again brings its node back.
+        listed = listOf(held.base, live.base)
+        val relisted = object : EndpointResolver by ports {
+            override suspend fun resolveAll(context: String, port: Port): List<URI> =
+                if (port == Port.INTERNAL) PeerList(listed, 2) else ports.resolveAll(context, port)
+        }
+        HttpTransport(
+            relisted,
+            ClientMode.Service("basket-service"),
+            HttpCommandCaller.client(),
+            BOUND,
+            RetryPolicy.NONE,
+            silent = silent,
+        ).send()
+        events.filterIsInstance<ObservedEvent.PeerRestored>().single().reason.assert().isEqualTo(Reason.RELISTED)
     }
 
     @Test
@@ -206,7 +263,7 @@ class SilentPeersTest {
             listed = listOf(URI.create("http://127.0.0.1:$port"), live.base)
             val transport = transport()
             repeat(2) { transport.send().assert().isInstanceOf(Answer.Ok::class.java) }
-            silent.bypassed("mail").assert().isEmpty()
+            silent.bypassed("mail", Port.INTERNAL).assert().isEmpty()
             events.assert().isEmpty()
         }
     }

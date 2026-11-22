@@ -65,7 +65,7 @@ class TargetChoiceProbe {
     fun `choosing the targets`() {
         measure("none-bypassed", transport())
         val silent = SilentPeers()
-        silent.silenced("mail", "http://10.0.0.2:9093")
+        silent.silenced("mail", Port.INTERNAL, "http://10.0.0.2:9093")
         measure("one-bypassed", transport(silent))
     }
 

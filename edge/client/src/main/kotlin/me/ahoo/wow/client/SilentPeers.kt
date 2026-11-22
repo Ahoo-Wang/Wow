@@ -19,6 +19,7 @@ import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.ObservedEvent.PeerRestored.Reason
 import me.ahoo.wow.spi.observation.Observer
 import java.net.URI
+import java.util.EnumMap
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
@@ -55,12 +56,16 @@ class PeerList(targets: List<URI>, val generation: Long) : List<URI> by targets 
  *   A list read again without it removes it.
  * - **Every node bypassed:** the requests go to them all, as if none were: a request is never left unsent for it.
  *
- * One per node, shared by its clients of every port and kind, a saga's calls, commands and queries alike: what one of
- * them learned of a node, the others need not pay for. Each bypass and each return is logged once, and observed
+ * One per node, shared by its clients of every kind: a saga's calls, a service-mode client's commands and queries go
+ * to a peer's internal port, a user-mode client's to its public port. The bypasses are kept per list, a context's
+ * on one [Port]: a request to the internal port that was not answered passes the node over for the next requests to
+ * that port, a saga's call, a command or a query alike, and never for the other port's, whose list is another. A
+ * node is the same machine on both ports, but whether it answers on the other is that port's requests' to show, and
+ * one list's lookup ends no bypass of the other's. Each bypass and each return is logged once, and observed
  * ([ObservedEvent.PeerBypassed], [ObservedEvent.PeerRestored]).
  *
- * The choice of a request's targets reads it on every request: with nothing bypassed it is a map lookup and a
- * volatile read, without a lock or an allocation. A bypass and a return take the context's lock; they are rare.
+ * The choice of a request's targets reads it on every request: with nothing bypassed it is two map lookups (the
+ * port's, then the context's) and a volatile read, without a lock or an allocation. A bypass and a return take the context's lock; they are rare.
  */
 @InternalWowApi
 class SilentPeers @JvmOverloads constructor(
@@ -69,12 +74,16 @@ class SilentPeers @JvmOverloads constructor(
     /** The monotonic time in nanoseconds a bypass is timed by. */
     private val clock: () -> Long = System::nanoTime,
 ) {
-    private val contexts = ConcurrentHashMap<String, Context>()
+    /** The bypasses of each port's lists, by context: one list per context and port. */
+    private val ports: Map<Port, ConcurrentHashMap<String, Context>> =
+        EnumMap<Port, ConcurrentHashMap<String, Context>>(Port::class.java).apply {
+            Port.entries.forEach { put(it, ConcurrentHashMap()) }
+        }
 
     /** When a node was bypassed, and the [generation] of its context's list then, null when the list has none. */
     private class Mark(val since: Long, val generation: Long?)
 
-    /** The bypassed nodes of one context, by base URL, and the generation of the list last chosen from. */
+    /** The bypassed nodes of one list, a context's on a port, by base URL, and its generation last chosen from. */
     private class Context {
         @Volatile
         var marks: Map<String, Mark> = emptyMap()
@@ -83,17 +92,23 @@ class SilentPeers @JvmOverloads constructor(
         var generation: Long? = null
     }
 
-    private fun contextOf(context: String): Context = contexts[context] ?: contexts.computeIfAbsent(context) { Context() }
+    private fun listsOf(port: Port): ConcurrentHashMap<String, Context> = ports.getValue(port)
+
+    private fun stateOf(context: String, port: Port): Context {
+        val lists = listsOf(port)
+        return lists[context] ?: lists.computeIfAbsent(context) { Context() }
+    }
 
     /**
-     * The [targets] of [context] a request goes to, the bypassed ones left out unless all are, in their order. Before
-     * it chooses it settles the bypasses against the list, its [generation] (null when it has none) and the time.
+     * The [targets] of [context] on [port] a request goes to, the bypassed ones left out unless all are, in their
+     * order. Before it chooses it settles that list's bypasses against it, its [generation] (null when it has none)
+     * and the time; another port's list is not touched.
      */
-    internal fun choose(context: String, targets: List<String>, generation: Long?): List<String> {
-        val state = contexts[context]
+    internal fun choose(context: String, port: Port, targets: List<String>, generation: Long?): List<String> {
+        val state = listsOf(port)[context]
         if (state == null) {
             if (generation == null) return targets
-            contextOf(context).generation = generation
+            stateOf(context, port).generation = generation
             return targets
         }
         if (generation != null && state.generation != generation) {
@@ -144,10 +159,11 @@ class SilentPeers @JvmOverloads constructor(
     }
 
     /**
-     * [target] of [context] took a request and did not answer it within its bound: bypass it, unless it is already.
+     * [target] of [context] on [port] took a request and did not answer it within its bound: bypass it in that list,
+     * unless it is already.
      */
-    internal fun silenced(context: String, target: String) {
-        val state = contextOf(context)
+    internal fun silenced(context: String, port: Port, target: String) {
+        val state = stateOf(context, port)
         val added = synchronized(state) {
             if (target in state.marks) return
             state.marks = state.marks + (target to Mark(clock(), state.generation))
@@ -162,9 +178,9 @@ class SilentPeers @JvmOverloads constructor(
         }
     }
 
-    /** [target] of [context] answered a request, a whole response: it is back if it was bypassed. */
-    internal fun answered(context: String, target: String) {
-        val state = contexts[context] ?: return
+    /** [target] of [context] on [port] answered a request, a whole response: it is back if that list bypassed it. */
+    internal fun answered(context: String, port: Port, target: String) {
+        val state = listsOf(port)[context] ?: return
         if (state.marks.isEmpty() || target !in state.marks) return
         val mark = synchronized(state) {
             val mark = state.marks[target] ?: return
@@ -174,8 +190,9 @@ class SilentPeers @JvmOverloads constructor(
         restored(context, target, mark, Reason.ANSWERED, clock())
     }
 
-    /** The nodes of [context] bypassed now, for a test. */
-    internal fun bypassed(context: String): Set<String> = contexts[context]?.marks?.keys.orEmpty()
+    /** The nodes of [context] on [port] bypassed now, for a test. */
+    internal fun bypassed(context: String, port: Port = Port.INTERNAL): Set<String> =
+        listsOf(port)[context]?.marks?.keys.orEmpty()
 
     private fun restored(context: String, target: String, mark: Mark, reason: Reason, now: Long) {
         val millis = (now - mark.since) / NANOS_PER_MILLI

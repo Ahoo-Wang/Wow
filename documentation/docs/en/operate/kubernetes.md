@@ -294,7 +294,7 @@ The chart then gives the node `wow.peer.dns.namespaces.eshop-payment-service: pa
 
 A node lost without notice, such as a pod deleted by force or a machine gone, may leave its address dropping packets without a reset, and stays in the SRV records a node caches for 30 seconds. A request that goes out on a connection to it is not answered: it ends at its bound, its wait and a grace for a command or a call, `wow.peer.timeout` for a query, as `wow.command.unknown`, `wow.query.timeout` or `wow.peer.unavailable`. It is not sent again, since whether it ran is unknown.
 
-The node's clients then pass that node over: the requests that follow, a saga's calls, commands and queries alike, go to the context's other nodes. So the lost node costs one request its bound, not every request that rotates onto it until the records are read again. The node comes back:
+The node's clients then pass that node over: the requests that follow to the same port of the context go to its other nodes. A saga's calls and the commands and queries of a service-mode client all go to a peer's internal port, so they share this: a query that was not answered passes the node over for the calls too. A user-mode client's requests go to the peer's public port, a list of its own, which keeps its own: whether the node answers there is for that port's requests to show. So the lost node costs one request its bound, not every request that rotates onto it until the records are read again. The node comes back:
 
 - when it answers a request still in flight to it, whatever it answers;
 - when the records are read again and still list it: it takes requests again, and if it still does not answer, it costs one more request its bound and is passed over again;
