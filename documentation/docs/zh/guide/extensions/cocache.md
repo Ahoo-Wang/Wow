@@ -35,7 +35,7 @@ dependencies {
 }
 ```
 
-`wow-cocache-api` 只有 `StateKey` 与 `StateViewCache`，领域模块用它们时既不会引入 CoCache，也不会引入 Redis。应用运行 CoCache 时，即 CoCache 的 starter 有后端时（`cocache.backend: redis`，配合 Spring 的 `spring.data.redis.*`；单个 JVM 用 `memory`），`wow-cocache` 自动启用。它运行在 CoCache 8 上（`cocache-core`；挂起视图就在核心模块中，没有 `cocache-coroutines`）。
+`wow-cocache-api` 只有 `StateKey` 与 `StateViewCache`，领域模块用它们时既不会引入 CoCache，也不会引入 Redis。应用运行 CoCache 时，即 CoCache 的 starter 有后端时（`cocache.backend: redis`，配合 Spring 的 `spring.data.redis.*`；单个 JVM 用 `memory`），`wow-cocache` 自动启用。它运行在 CoCache 8 上（`cocache-core`；挂起视图就在核心模块中，没有 `cocache-coroutines`）。CoCache 的 starter 和 `cocache-redis` 要声明为 8.2.0 或更高：在 Spring Boot 4.2 上，8.1.0 及更早版本的 Redis 后端会拒绝发往 Redis Cluster 每个主节点的第一条命令。
 
 ## 读取状态
 
