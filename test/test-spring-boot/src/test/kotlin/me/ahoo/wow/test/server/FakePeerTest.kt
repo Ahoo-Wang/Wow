@@ -24,6 +24,8 @@ import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.problem.Retry
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.CommandResult
+import me.ahoo.wow.api.result.FrameworkCodes
+import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.client.EndpointResolver
 import me.ahoo.wow.client.WowClient
@@ -148,6 +150,60 @@ class FakePeerTest {
         } finally {
             shipping.answer { PeerAnswer.succeeded() }
         }
+    }
+
+    @Test
+    fun `an answer should give the caller the values, the violations and the problem it reads`() {
+        val alice = Caller.owner("alice", "acme")
+        try {
+            // region answers
+            shipping.answer { PeerAnswer.succeeded(results = mapOf("trackingNo" to "TN-1")) }
+            runBlocking { commands(alice).wait(ShipParcel("1 Main St"), "parcel-1") }
+                .results["trackingNo"].assert().isEqualTo("TN-1")
+
+            shipping.answer {
+                PeerAnswer.rejected(
+                    "shipping.parcel.no-address",
+                    violations = listOf(Violation.of("address", "unknown", "No such street.")),
+                )
+            }
+            assertRejected { commands(alice).wait(ShipParcel("9 Nowhere"), "parcel-2") }
+                .violations.single().path.assert().isEqualTo("address")
+
+            shipping.answer { PeerAnswer.failed(FrameworkCodes.STORAGE_UNAVAILABLE) }
+            val failed = assertThrows<WowProblemException> {
+                runBlocking { commands(alice).wait(ShipParcel("1 Main St"), "parcel-3") }
+            }
+            failed.retryable.assert().isTrue()
+            // endregion
+        } finally {
+            shipping.answer { PeerAnswer.succeeded() }
+        }
+        repeat(3) { shipping.called<ShipParcel>() }
+    }
+
+    @Test
+    fun `a rejection should carry its extensions, and a failure its catalog status`() {
+        try {
+            shipping.answer {
+                PeerAnswer.rejected("shipping.parcel.lost", "Lost.", extensions = mapOf("depot" to "D-4"))
+            }
+            val rejected = assertRejected { commands(Caller.ANONYMOUS).wait(ShipParcel("5 Far St"), "parcel-7") }
+            rejected.error.extensions.assert().isEqualTo(mapOf("depot" to "D-4"))
+            rejected.error.message.assert().isEqualTo("Lost.")
+            shipping.answer { PeerAnswer.failed(FrameworkCodes.COMMAND_BUSY, "Too many commands.") }
+            val busy = assertThrows<WowProblemException> {
+                runBlocking { commands(Caller.ANONYMOUS).wait(ShipParcel("6 Far St"), "parcel-8") }
+            }
+            busy.code.assert().isEqualTo(FrameworkCodes.COMMAND_BUSY)
+            busy.status.assert().isEqualTo(429)
+            busy.result.assert().isNull()
+        } finally {
+            shipping.answer { PeerAnswer.succeeded() }
+        }
+        repeat(2) { shipping.called<ShipParcel>() }
+        assertThrows<IllegalArgumentException> { PeerAnswer.failed("shipping.parcel.lost") }
+            .message.assert().contains("no code of the error catalog")
     }
 
     @Test

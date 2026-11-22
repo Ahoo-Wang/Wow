@@ -148,8 +148,75 @@ fakePeer("eshop-ordering").use { ordering ->
 ```
 
 - `called<C>()` takes the first call of the command class `C` that it has not given back yet, waiting at most 20 seconds; `calls` lists them all.
-- The fake answers each call as `answer { call -> … }` says. `PeerAnswer.succeeded(id, version)`, the default, commits the command at version 1 to the call's aggregate, or to a new one for a creation that names none. `PeerAnswer.rejected(code, message)` answers with the status the peer's contract gives the code: its error tables, else 422 for a domain rejection. `PeerAnswer.timedOut()` answers 504 `wow.wait.timeout`, which the caller may send again with the same request id.
+- The fake answers each call as `answer { call -> … }` says. `PeerAnswer.succeeded(id, version, results)`, the default, commits the command at version 1 to the call's aggregate, or to a new one for a creation that names none, with the values its decision answered. `PeerAnswer.rejected(code, message, status, violations, extensions)` answers with the status the peer's contract gives the code: its error tables, else 422 for a domain rejection. `PeerAnswer.failed(code, message)` answers a failure of the peer's node, a code of the error catalog with its status and what a retry may do. `PeerAnswer.timedOut()` answers 504 `wow.wait.timeout`, which the caller may send again with the same request id.
 - It refuses a request that names no service (`Wow-Service`) or no root command (`Wow-Call`) with 403 `wow.auth.forbidden`, as a peer's internal port does.
+
+## Answer as the peer would {#answer-as-the-peer-would}
+
+Code that calls another service handles three answers: a success, whose values its decision answered (`CommandResult.results`); a rejection, a `CommandRejectedException` with its code and the fields the command broke (`violations`); and a failure, a `WowProblemException` that says whether a retry may get past it. A test gives each by name, without opting into Wow's internals, from either fake.
+
+In a unit test, the code takes the `CommandClient` it calls the peer with, and the test gives it an `answeringCommandClient` of `wow-test` ([Testing](./testing#service-routes)):
+
+<!-- sample: test/test-dsl/src/test/kotlin/me/ahoo/wow/test/PeerAnswersTest.kt#code -->
+
+```kotlin
+/** Reserves [sku] at the inventory and says how it went: the code under test, which calls a peer. */
+suspend fun reserve(inventory: CommandClient, sku: String): String = try {
+    val result = inventory.wait(Reserve(sku).toCommandRequest(to = STOCK.ref("acme", sku)))
+    "reserved as ${result.results["reservationId"]}"
+} catch (rejected: CommandRejectedException) {
+    "refused: ${rejected.code} at ${rejected.violations.map { it.path }}"
+} catch (problem: WowProblemException) {
+    if (problem.retryable) "try again later" else throw problem
+}
+```
+
+<!-- sample: test/test-dsl/src/test/kotlin/me/ahoo/wow/test/PeerAnswersTest.kt#answers -->
+
+```kotlin
+val inventory = answeringCommandClient { call ->
+    when ((call.request.command as Reserve).sku) {
+        "mug" -> call.committed(results = mapOf("reservationId" to "R-1"))
+        "x" -> call.rejected(
+            "inventory.stock.unknown-sku",
+            violations = listOf(Violation.of("sku", "unknown", "No product has this SKU.")),
+        )
+        else -> call.failed(FrameworkCodes.STORAGE_UNAVAILABLE)
+    }
+}
+runBlocking { reserve(inventory, "mug") }.assert().isEqualTo("reserved as R-1")
+runBlocking { reserve(inventory, "x") }.assert().isEqualTo("refused: inventory.stock.unknown-sku at [sku]")
+runBlocking { reserve(inventory, "cup") }.assert().isEqualTo("try again later")
+```
+
+- `call.committed(version, ref, results)` is the success, with its values.
+- `call.rejected(code, message, ref, violations, extensions)` is thrown as the `CommandRejectedException` a real client throws.
+- `call.failed(code, message)` is thrown as the `WowProblemException` of a call that failed, which a retry with the same request id may get past. To give another status or retry, the lambda throws a `WowProblemException` of its own.
+
+Against the server, `fakePeer` answers the same three over HTTP, as the peer's routes would, and the server's client reads them back:
+
+<!-- sample: test/test-spring-boot/src/test/kotlin/me/ahoo/wow/test/server/FakePeerTest.kt#answers -->
+
+```kotlin
+shipping.answer { PeerAnswer.succeeded(results = mapOf("trackingNo" to "TN-1")) }
+runBlocking { commands(alice).wait(ShipParcel("1 Main St"), "parcel-1") }
+    .results["trackingNo"].assert().isEqualTo("TN-1")
+
+shipping.answer {
+    PeerAnswer.rejected(
+        "shipping.parcel.no-address",
+        violations = listOf(Violation.of("address", "unknown", "No such street.")),
+    )
+}
+assertRejected { commands(alice).wait(ShipParcel("9 Nowhere"), "parcel-2") }
+    .violations.single().path.assert().isEqualTo("address")
+
+shipping.answer { PeerAnswer.failed(FrameworkCodes.STORAGE_UNAVAILABLE) }
+val failed = assertThrows<WowProblemException> {
+    runBlocking { commands(alice).wait(ShipParcel("1 Main St"), "parcel-3") }
+}
+failed.retryable.assert().isTrue()
+```
 
 ## Run it on real stores
 

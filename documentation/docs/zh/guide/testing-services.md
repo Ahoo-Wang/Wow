@@ -148,8 +148,75 @@ fakePeer("eshop-ordering").use { ordering ->
 ```
 
 - `called<C>()` 取命令类 `C` 中尚未交出的第一个调用，最多等 20 秒；`calls` 列出全部调用。
-- 假对端按 `answer { call -> … }` 答复每次调用。默认的 `PeerAnswer.succeeded(id, version)` 把命令提交到调用的聚合，版本 1；没有指名聚合的创建则提交到一个新聚合。`PeerAnswer.rejected(code, message)` 用对端契约给这个错误码的状态答复：取它的错误表，领域拒绝没有声明时是 422。`PeerAnswer.timedOut()` 答 504 `wow.wait.timeout`，调用方可以用同一个请求 ID 再发一次。
+- 假对端按 `answer { call -> … }` 答复每次调用。默认的 `PeerAnswer.succeeded(id, version, results)` 把命令提交到调用的聚合，版本 1，没有指名聚合的创建则提交到一个新聚合，并带上它的决策答复的值。`PeerAnswer.rejected(code, message, status, violations, extensions)` 用对端契约给这个错误码的状态答复：取它的错误表，领域拒绝没有声明时是 422。`PeerAnswer.failed(code, message)` 答复对端节点的一次失败，错误码取自错误目录，带上它的状态和重试能做什么。`PeerAnswer.timedOut()` 答 504 `wow.wait.timeout`，调用方可以用同一个请求 ID 再发一次。
 - 没有指名服务（`Wow-Service`）或根命令（`Wow-Call`）的请求，它以 403 `wow.auth.forbidden` 拒绝，与对端的内部端口一样。
+
+## 按对端的方式答复 {#answer-as-the-peer-would}
+
+调用别的服务的代码要处理三种答复：成功，带着它的决策答复的值（`CommandResult.results`）；拒绝，即一个 `CommandRejectedException`，带着错误码和命令违反的字段（`violations`）；失败，即一个 `WowProblemException`，说明重试能否越过它。测试按名字给出每一种，不必选择加入 Wow 的内部 API，两种假对端都可以。
+
+在单元测试里，代码接收它用来调用对端的 `CommandClient`，测试给它 `wow-test` 的 `answeringCommandClient`（[测试](./testing#service-routes)）：
+
+<!-- sample: test/test-dsl/src/test/kotlin/me/ahoo/wow/test/PeerAnswersTest.kt#code -->
+
+```kotlin
+/** Reserves [sku] at the inventory and says how it went: the code under test, which calls a peer. */
+suspend fun reserve(inventory: CommandClient, sku: String): String = try {
+    val result = inventory.wait(Reserve(sku).toCommandRequest(to = STOCK.ref("acme", sku)))
+    "reserved as ${result.results["reservationId"]}"
+} catch (rejected: CommandRejectedException) {
+    "refused: ${rejected.code} at ${rejected.violations.map { it.path }}"
+} catch (problem: WowProblemException) {
+    if (problem.retryable) "try again later" else throw problem
+}
+```
+
+<!-- sample: test/test-dsl/src/test/kotlin/me/ahoo/wow/test/PeerAnswersTest.kt#answers -->
+
+```kotlin
+val inventory = answeringCommandClient { call ->
+    when ((call.request.command as Reserve).sku) {
+        "mug" -> call.committed(results = mapOf("reservationId" to "R-1"))
+        "x" -> call.rejected(
+            "inventory.stock.unknown-sku",
+            violations = listOf(Violation.of("sku", "unknown", "No product has this SKU.")),
+        )
+        else -> call.failed(FrameworkCodes.STORAGE_UNAVAILABLE)
+    }
+}
+runBlocking { reserve(inventory, "mug") }.assert().isEqualTo("reserved as R-1")
+runBlocking { reserve(inventory, "x") }.assert().isEqualTo("refused: inventory.stock.unknown-sku at [sku]")
+runBlocking { reserve(inventory, "cup") }.assert().isEqualTo("try again later")
+```
+
+- `call.committed(version, ref, results)` 是成功，带着它的值。
+- `call.rejected(code, message, ref, violations, extensions)` 会作为真实客户端抛出的 `CommandRejectedException` 抛出。
+- `call.failed(code, message)` 会作为一次失败调用的 `WowProblemException` 抛出，用同一个请求 ID 重试可能越过它。要给出别的状态或重试方式，lambda 自己抛出一个 `WowProblemException`。
+
+对着服务器测试时，`fakePeer` 经 HTTP 给出同样三种答复，与对端的路由一样，服务器的客户端再把它们读回来：
+
+<!-- sample: test/test-spring-boot/src/test/kotlin/me/ahoo/wow/test/server/FakePeerTest.kt#answers -->
+
+```kotlin
+shipping.answer { PeerAnswer.succeeded(results = mapOf("trackingNo" to "TN-1")) }
+runBlocking { commands(alice).wait(ShipParcel("1 Main St"), "parcel-1") }
+    .results["trackingNo"].assert().isEqualTo("TN-1")
+
+shipping.answer {
+    PeerAnswer.rejected(
+        "shipping.parcel.no-address",
+        violations = listOf(Violation.of("address", "unknown", "No such street.")),
+    )
+}
+assertRejected { commands(alice).wait(ShipParcel("9 Nowhere"), "parcel-2") }
+    .violations.single().path.assert().isEqualTo("address")
+
+shipping.answer { PeerAnswer.failed(FrameworkCodes.STORAGE_UNAVAILABLE) }
+val failed = assertThrows<WowProblemException> {
+    runBlocking { commands(alice).wait(ShipParcel("1 Main St"), "parcel-3") }
+}
+failed.retryable.assert().isTrue()
+```
 
 ## 在真实存储上运行 {#run-it-on-real-stores}
 

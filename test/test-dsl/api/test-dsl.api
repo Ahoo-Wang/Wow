@@ -76,25 +76,28 @@ public final class me/ahoo/wow/test/CallResultsKt {
 	public static final fun committedResult (Lme/ahoo/wow/api/decide/Command;I)Lme/ahoo/wow/api/result/CommandResult;
 	public static final fun committedResult (Lme/ahoo/wow/api/decide/Command;ILjava/lang/String;)Lme/ahoo/wow/api/result/CommandResult;
 	public static final fun committedResult (Lme/ahoo/wow/api/decide/Command;ILjava/lang/String;Z)Lme/ahoo/wow/api/result/CommandResult;
-	public static synthetic fun committedResult$default (Lme/ahoo/wow/api/decide/Command;ILjava/lang/String;ZILjava/lang/Object;)Lme/ahoo/wow/api/result/CommandResult;
+	public static final fun committedResult (Lme/ahoo/wow/api/decide/Command;ILjava/lang/String;ZLjava/util/Map;)Lme/ahoo/wow/api/result/CommandResult;
+	public static synthetic fun committedResult$default (Lme/ahoo/wow/api/decide/Command;ILjava/lang/String;ZLjava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/api/result/CommandResult;
 	public static final fun failedResult (Lme/ahoo/wow/api/decide/Command;Ljava/lang/String;)Lme/ahoo/wow/api/result/CommandResult;
 	public static final fun failedResult (Lme/ahoo/wow/api/decide/Command;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/result/CommandResult;
 	public static synthetic fun failedResult$default (Lme/ahoo/wow/api/decide/Command;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/api/result/CommandResult;
 	public static final fun rejectedResult (Lme/ahoo/wow/api/decide/Command;Ljava/lang/String;)Lme/ahoo/wow/api/result/CommandResult;
 	public static final fun rejectedResult (Lme/ahoo/wow/api/decide/Command;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/result/CommandResult;
-	public static synthetic fun rejectedResult$default (Lme/ahoo/wow/api/decide/Command;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/api/result/CommandResult;
+	public static final fun rejectedResult (Lme/ahoo/wow/api/decide/Command;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;)Lme/ahoo/wow/api/result/CommandResult;
+	public static final fun rejectedResult (Lme/ahoo/wow/api/decide/Command;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/util/Map;)Lme/ahoo/wow/api/result/CommandResult;
+	public static synthetic fun rejectedResult$default (Lme/ahoo/wow/api/decide/Command;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/api/result/CommandResult;
 }
 
 public final class me/ahoo/wow/test/CommandCall {
-	public final fun committed (ILme/ahoo/wow/api/aggregate/AggregateRef;)Lme/ahoo/wow/api/result/CommandResult;
-	public static synthetic fun committed$default (Lme/ahoo/wow/test/CommandCall;ILme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/Object;)Lme/ahoo/wow/api/result/CommandResult;
+	public final fun committed (ILme/ahoo/wow/api/aggregate/AggregateRef;Ljava/util/Map;)Lme/ahoo/wow/api/result/CommandResult;
+	public static synthetic fun committed$default (Lme/ahoo/wow/test/CommandCall;ILme/ahoo/wow/api/aggregate/AggregateRef;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/api/result/CommandResult;
 	public final fun failed (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;)Lme/ahoo/wow/api/result/CommandResult;
 	public static synthetic fun failed$default (Lme/ahoo/wow/test/CommandCall;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/Object;)Lme/ahoo/wow/api/result/CommandResult;
 	public final fun getCaller ()Lme/ahoo/wow/api/caller/Caller;
 	public final fun getRef ()Lme/ahoo/wow/api/aggregate/AggregateRef;
 	public final fun getRequest ()Lme/ahoo/wow/api/client/CommandRequest;
-	public final fun rejected (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;)Lme/ahoo/wow/api/result/CommandResult;
-	public static synthetic fun rejected$default (Lme/ahoo/wow/test/CommandCall;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/Object;)Lme/ahoo/wow/api/result/CommandResult;
+	public final fun rejected (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/util/List;Ljava/util/Map;)Lme/ahoo/wow/api/result/CommandResult;
+	public static synthetic fun rejected$default (Lme/ahoo/wow/test/CommandCall;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/util/List;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/api/result/CommandResult;
 	public fun toString ()Ljava/lang/String;
 }
 

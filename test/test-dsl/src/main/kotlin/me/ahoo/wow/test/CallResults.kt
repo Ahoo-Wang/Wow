@@ -19,11 +19,13 @@ import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.FunctionInfo
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
+import me.ahoo.wow.api.result.Violation
 
 /**
  * The result a target answers a synchronous call of [command] with when it committed it: at its
  * COMMITTED hop, on the aggregate [aggregateId] (the command's, or `<aggregate>-1` for a creation that left its id to
- * the target), at [version], [duplicate] when the target had already committed the request.
+ * the target), at [version], [duplicate] when the target had already committed the request, with the values its
+ * decision answered ([results], `DecideScope.putResult`).
  */
 @JvmOverloads
 fun committedResult(
@@ -31,15 +33,26 @@ fun committedResult(
     version: Int = 1,
     aggregateId: String = if (command.ref.isAssigned) command.ref.id else "${command.ref.type.name}-1",
     duplicate: Boolean = false,
+    results: Map<String, Any> = emptyMap(),
 ): CommandResult = resultOf(command, aggregateId, CommandResult.Status.SUCCEEDED).copyWith(
     version = version,
     duplicate = duplicate,
+    results = results,
 )
 
-/** The result a target answers a synchronous call of [command] with when it refused it with [code]. */
+/**
+ * The result a target answers a synchronous call of [command] with when it refused it with [code] and [message], the
+ * fields the command broke ([violations]) and the rejection's structured [extensions].
+ */
 @JvmOverloads
-fun rejectedResult(command: Command<*>, code: String, message: String = code): CommandResult =
-    resultOf(command, command.ref.id, CommandResult.Status.REJECTED).copyWith(error = ErrorInfo(code, message))
+fun rejectedResult(
+    command: Command<*>,
+    code: String,
+    message: String = code,
+    violations: List<Violation> = emptyList(),
+    extensions: Map<String, Any?> = emptyMap(),
+): CommandResult = resultOf(command, command.ref.id, CommandResult.Status.REJECTED)
+    .copyWith(error = ErrorInfo.of(code, message, violations, extensions))
 
 /**
  * The result a target answers a synchronous call of [command] with when it failed for a technical reason [code],
