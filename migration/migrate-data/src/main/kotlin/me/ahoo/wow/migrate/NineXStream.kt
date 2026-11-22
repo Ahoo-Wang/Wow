@@ -14,7 +14,7 @@
 package me.ahoo.wow.migrate
 
 import me.ahoo.wow.api.aggregate.AggregateRef
-import me.ahoo.wow.runtime.admission.AggregateIds
+import me.ahoo.wow.kernel.AggregateIds
 import me.ahoo.wow.spi.json.WowJson
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
@@ -49,8 +49,9 @@ internal fun ownerText(ownerId: String?): String =
 /**
  * The 9.x aggregate ids V10 refuses: an empty one (or none at all), a blank one, [AggregateRef.UNASSIGNED], the id of
  * a ref admission has not given one yet, and every id admission refuses ([AggregateIds.refused]): one longer than it
- * takes, one holding a control character, one with white space at either end, `.` and `..`. A 9.x data defect, an
- * instance of such an id cannot be imported: no command could reach it in V10.
+ * takes, one holding a control character, one with white space at either end, `.` and `..`, and one no route by its
+ * id reaches behind a gateway's path check: holding `/`, `;` or `\`, or longer than 256 characters percent-encoded. A
+ * 9.x data defect, an instance of such an id cannot be imported: no command could reach it in V10.
  */
 internal object RefusedIds {
     /** How the map's `stream` names the empty 9.x aggregate id, which a JSON string shows as nothing. */

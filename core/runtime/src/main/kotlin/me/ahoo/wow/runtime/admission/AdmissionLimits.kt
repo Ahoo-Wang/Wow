@@ -16,6 +16,7 @@ package me.ahoo.wow.runtime.admission
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.lifecycle.TransferOwner
 import me.ahoo.wow.api.lifecycle.TransferSpace
+import me.ahoo.wow.kernel.AggregateIds
 import tools.jackson.databind.JsonNode
 
 /**
@@ -29,13 +30,14 @@ import tools.jackson.databind.JsonNode
  *   by its request id included;
  * - an aggregate id no route or store keeps as it was given ([AggregateIds.unaddressable]): one with `\u0000` or
  *   another control character, one with white space at either end (another aggregate than the one without it, to a
- *   reader), and `.` or `..`, which a proxy normalizing the path would send as another request;
+ *   reader), `.` or `..`, which a proxy normalizing the path would send as another request, and one a gateway's path
+ *   check refuses: holding `/`, `;` or `\`, or longer than 256 characters percent-encoded;
  * - a body that writes the character `\u0000` in a string or a key: PostgreSQL's `jsonb` does not take it, MongoDB
  *   does, and a fact one backend keeps and another refuses would make the choice of backend change what commits.
  */
 internal object AdmissionLimits {
     /** The longest id admission takes, in characters. */
-    const val MAX_ID_LENGTH: Int = 256
+    const val MAX_ID_LENGTH: Int = AggregateIds.MAX_LENGTH
 
     /**
      * Why an id of a request is too long, or its [aggregateId] unaddressable ([AggregateIds]), or null when none is;

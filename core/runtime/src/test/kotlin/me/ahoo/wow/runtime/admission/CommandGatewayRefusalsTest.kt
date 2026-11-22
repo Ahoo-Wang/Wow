@@ -207,8 +207,9 @@ class CommandGatewayRefusalsTest : CommandGatewayFixtures() {
     }
 
     @Test
-    fun `an aggregate id no store keeps as given is malformed, whatever its length`(): Unit = runBlocking {
+    fun `an aggregate id no store keeps, or no route reaches behind a gateway, is malformed`(): Unit = runBlocking {
         // #6501: each was accepted and stored, NUL and the white space as another aggregate than the one without it.
+        // #6594: and a '/', ';' or '\', or more than 256 characters percent-encoded, which CoSec's path check refuses.
         val gateway = gateway()
         mapOf(
             "a\u0000b" to "control character",
@@ -218,24 +219,22 @@ class CommandGatewayRefusalsTest : CommandGatewayFixtures() {
             "c-1\u00a0" to "white space",
             "." to "relative path segment",
             ".." to "relative path segment",
+            "a/b" to "holds '/'",
+            "a;b" to "holds ';'",
+            "a\\b" to "holds '\\'",
+            "购".repeat(29) to "261 characters percent-encoded",
         ).forEach { (id, why) ->
             val refused = gateway.execute(request(aggregateId = id))
             refused.assertRefused(FrameworkCodes.COMMAND_MALFORMED)
             refused.error!!.message.assert().contains(why)
         }
         decided.assert().isEmpty()
-        // A dot inside an id, a space within it, and a unicode id are ids of their own.
-        listOf("a.b", "...", "a b", "购").forEach { id ->
+        // A dot inside an id, a space within it, a unicode id, and the other characters a path encodes are ids of their
+        // own, up to 256 characters encoded.
+        listOf("a.b", "...", "a b", "购", "a%b", "q?m", "h#t", "p+s", "购".repeat(28)).forEach { id ->
             gateway.execute(request(aggregateId = id, wait = WaitPlan.COMMITTED)).status
                 .assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         }
-        AggregateIds.unaddressable(null).assert().isNull()
-        AggregateIds.unaddressable(" ").assert().isNull()
-        // The one rule migrate-data reports a 9.x id by: admission's length, then unaddressable.
-        AggregateIds.refused("x".repeat(AdmissionLimits.MAX_ID_LENGTH + 1)).assert()
-            .isEqualTo("The aggregate id is at most ${AdmissionLimits.MAX_ID_LENGTH} characters; this one has 257.")
-        AggregateIds.refused(".").assert().isEqualTo(AggregateIds.unaddressable("."))
-        AggregateIds.refused("x".repeat(AdmissionLimits.MAX_ID_LENGTH)).assert().isNull()
     }
 
     @Test

@@ -17,6 +17,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.FrameworkCodes
+import me.ahoo.wow.kernel.AggregateIds
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.runtime.admission.AdmissionIdentity.unaddressed
 import me.ahoo.wow.spi.tenant.TenantConflictException
@@ -33,11 +34,13 @@ import me.ahoo.wow.spi.tenant.TenantPolicy
  * 1. Its tenant is [tenants]' ([TenantPolicy.tenantOf], the one rule of every path): the tenant its ref names counts
  *    as named unless it is the acting one. One that names another tenant than its type's fixed one is refused as
  *    [FrameworkCodes.COMMAND_MALFORMED], as the gateway refuses a request that does.
- * 2. The node's [validators] (the gateway's) check its body, sent to its aggregate in that tenant: one they find
+ * 2. One that names an aggregate id admission refuses ([AggregateIds.refused]: too long, or one no route by its id
+ *    reaches) is refused as [FrameworkCodes.COMMAND_MALFORMED], as the gateway refuses a request naming it.
+ * 3. The node's [validators] (the gateway's) check its body, sent to its aggregate in that tenant: one they find
  *    violations in is refused as [FrameworkCodes.COMMAND_INVALID], listing them ([invalid]).
- * 3. One that names no aggregate whose id is its owner's, and has no owner, is refused as admission refuses its
- *    request ([AdmissionIdentity.unaddressed]).
- * 4. It is sent in that tenant, and a creation that names no aggregate takes the id its request created, or a new
+ * 4. One that names no aggregate whose id is its owner's, and has no owner, or whose owner is an id admission refuses,
+ *    is refused as admission refuses its request ([AdmissionIdentity.unaddressed]).
+ * 5. It is sent in that tenant, and a creation that names no aggregate takes the id its request created, or a new
  *    one, from [creations].
  *
  * A refusal ([refusalOf]) is answered by the caller before any aggregate decides the command, as its path answers
@@ -52,7 +55,7 @@ internal class ServiceCommandAdmission(
     private val tenants: TenantPolicy,
 ) {
     /**
-     * Why [command], of [model], sent for the [acting] tenant (null when none is known), is refused (1 to 3), or null
+     * Why [command], of [model], sent for the [acting] tenant (null when none is known), is refused (1 to 4), or null
      * when it is admitted, to [assign] its tenant and its id next. It does not suspend: its caller answers a refusal
      * before its first suspension, and keeps no more across it than before.
      */
@@ -62,6 +65,9 @@ internal class ServiceCommandAdmission(
         } catch (conflict: TenantConflictException) {
             return ErrorInfo(FrameworkCodes.COMMAND_MALFORMED, conflict.message!!)
         }
+        if (ref.isAssigned) {
+            AggregateIds.refused(ref.id)?.let { return ErrorInfo(FrameworkCodes.COMMAND_MALFORMED, it) }
+        }
         invalid(model, command, ref)?.let { return it }
         // One that names none of an aggregate whose id is its owner's, and has no owner, is the sender's mistake.
         unaddressed(model, command)?.let { return ErrorInfo(it.code, it.message) }
@@ -70,7 +76,7 @@ internal class ServiceCommandAdmission(
 
     /**
      * [command], of [model], sent for the [acting] tenant and admitted ([refusalOf]), in its tenant and with its aggregate
-     * id assigned when it names none (4): a creation that names no aggregate takes the id its request created, or a new
+     * id assigned when it names none (5): a creation that names no aggregate takes the id its request created, or a new
      * one.
      */
     suspend fun <C : Any> assign(model: AggregateModel<*>, command: Command<C>, acting: String?): Command<C> {

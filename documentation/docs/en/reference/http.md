@@ -79,11 +79,36 @@ Nothing a client sends outside the body is read as something else, or dropped:
 | `Wow-Call`, the header of a service's synchronous call, on any route: a command, a query, a state read, a service route | `403 wow.auth.forbidden`, whatever the credential: calls are taken on the internal port alone |
 | Matrix parameters in the path (`/shop/cart/c-1;x=1/add-item`) | `400 wow.request.malformed`: no route takes them |
 | A body of another type than `application/json` or `application/<name>+json`, any parameters aside (`*/*`, `application/*`, `image/x+json`) | `415` |
-| An aggregate id with a control character (`a%00b`), white space at either end (`%20c-1`), or `.` or `..` | `400 wow.command.malformed`. An id with `%2F` is the id `a/b`, and a unicode id (`%E8%B4%AD`) is taken as it is: a client encodes the ids it sends |
+| An aggregate id the [id rule](#aggregate-ids) refuses: a control character (`a%00b`), white space at either end (`%20c-1`), `.` or `..`, a `/`, `;` or `\` (`a%2Fb`), or longer than 256 characters encoded | `400 wow.command.malformed`. A unicode id (`%E8%B4%AD`) is taken as it is: a client encodes the ids it sends |
 | A blank id on a state read (`/shop/cart/%20/state`) | `400 wow.query.malformed` |
 | A parameter of a state read or a trace it does not take (`?verison=1`), or one given twice (`?version=1&version=9`) | `400 wow.query.invalid`, the violation naming it |
 | `version`, `minVersion`, `from`, `to` or `limit` that is not ASCII digits without a sign or a leading zero (`%2B1`, `001`, `١`) | `400 wow.query.invalid`, the violation naming it |
 | A number parameter of a service route that is not a number as JSON writes one (`NaN`, `Infinity`, a space, `+1`, `01`; for a whole number, a fraction or an exponent) | `400 wow.route.malformed`, the violation naming it |
+
+### Aggregate ids {#aggregate-ids}
+
+One rule decides which aggregate ids exist, on every path a command takes: the public and internal ports, the in-process `CommandClient`, a peer's call, a context's command topic, a saga's and a timer's commands, an id a generator gives, and the test DSL. It refuses an id:
+
+| The id | Why |
+| --- | --- |
+| Longer than 256 characters | Not every store's index keys take a longer one |
+| Holding a control character (`\u0000` to `\u001f`, `\u007f` to `\u009f`) | Not every store keeps it |
+| With white space at either end | A reader would not see it: another aggregate than the one without it |
+| `.` or `..` | A proxy normalizing the path resolves it away |
+| Holding `/`, `;` or `\` | A gateway's path check refuses it encoded in a path: CoSec 8 answers `%2F`, `%3B` and `%5C` with 400, before the service sees the request |
+| Longer than 256 characters percent-encoded as UTF-8 | The same check refuses a longer path segment. A letter, a digit, `-`, `.`, `_` or `~` counts one; any other character counts three for each byte of its UTF-8 form (`é` 6, `购` 9), so 28 characters such as `购` fit and 29 do not |
+
+So every aggregate is reachable by each route that names its id, behind such a gateway too. Everything else is an id: a dot or a space inside it, `%`, `?`, `#`, `+`, and any unicode character, which a client encodes in the path.
+
+| Where the id comes from | Answer |
+| --- | --- |
+| A request on a port, the in-process `CommandClient`, a peer's call: the id in the path or the body, or the caller's owner for an aggregate whose id is its owner's | `400 wow.command.malformed`, naming the rule the id broke |
+| A command a context's topic delivers | Rejected as `wow.command.malformed`, with the rejection receipt when one is asked; the aggregate is not parked |
+| A saga's derived command, a timer's command | Rejected as `wow.command.malformed`: the saga's `@OnRejected` handler takes it; a timer's rejection is recorded as for any other |
+| An aggregate's id generator | The command fails: a generator that gives such an id is the service's defect |
+| The test DSL | The specification fails, as the service would refuse its command |
+
+An aggregate stored with such an id before this rule held is not changed: a command naming it is refused as malformed, without a gateway in front too, and a query still returns it. A 9.x store is checked before the cut-over: `migrate-data check` lists each instance whose id the rule refuses ([Migrate the Data](../migrate/data#_2-check-the-map)).
 
 ## Wow-Wait
 

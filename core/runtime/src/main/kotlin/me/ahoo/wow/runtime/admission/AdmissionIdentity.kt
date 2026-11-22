@@ -20,6 +20,7 @@ import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.result.FrameworkCodes
+import me.ahoo.wow.kernel.AggregateIds
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CallerAdmission
 
@@ -59,7 +60,9 @@ internal object AdmissionIdentity {
     /**
      * The id of an aggregate whose id is its owner's, for a request of [caller] naming [requested] (null for none) in
      * [scope]: the one it names, else an owner-level caller's own; a caller with no owner names it, having no aggregate
-     * of its own: unauthenticated, it is answered as such. Whether the caller may act on the aggregate it names is the
+     * of its own: unauthenticated, it is answered as such. An owner taken as the id is an aggregate id like any other:
+     * one admission refuses as an id ([AggregateIds.refused]) is refused as [FrameworkCodes.COMMAND_MALFORMED], as the
+     * same value named as the id would be. Whether the caller may act on the aggregate it names is the
      * kernel's to answer, as for any aggregate: one of another owner is out of its reach.
      *
      * The one rule of every path a command takes to such an aggregate: admission of this node's aggregates and of a
@@ -70,7 +73,9 @@ internal object AdmissionIdentity {
         val owner = scope.ownerId
         return when {
             requested != null -> OwnId.Of(requested)
-            owner != null -> OwnId.Of(owner)
+            owner != null -> AggregateIds.refused(owner)
+                ?.let { OwnId.Refused(FrameworkCodes.COMMAND_MALFORMED, "The caller's owner is its aggregate's id: $it") }
+                ?: OwnId.Of(owner)
             caller != null && caller.subject == null -> OwnId.Refused(
                 FrameworkCodes.AUTH_UNAUTHENTICATED,
                 "An unauthenticated caller has no aggregate of its own.",

@@ -21,6 +21,7 @@ import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.kernel.AggregateIds
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.log.CreationClaim
@@ -104,8 +105,9 @@ interface CommittedRequests {
  *   attempt targets the earlier one's aggregate, one partition, on a log whose key is narrower than the aggregate type
  *   (MongoDB's, within a partition); a log whose key spans the type keeps no claims, and its key meets them.
  *
- * A generator aims on every call or on none, so the attempts of one request take one path. Committed ids never
- * change. A retry still draws a number that is then not used: ids are stable, not gap-free.
+ * A generator aims on every call or on none, so the attempts of one request take one path. An id it gives that
+ * admission refuses as an aggregate id ([AggregateIds.refused]) fails the command, the generator's defect, not the
+ * sender's: no aggregate is created that no route by its id reaches. Committed ids never change. A retry still draws a number that is then not used: ids are stable, not gap-free.
  *
  * The committed or claimed request is reused only within the scope that sent it. A caller outside it gets a new id of
  * its own, in the partition of the request's aggregate, so that every log's request key meets it: the kernel refuses
@@ -136,8 +138,8 @@ class CreationIds(
         }
         val partitions = committed.partitions(type)
         val partition = Partitioner.partitionOfRequest(type, tenantId, requestId, partitions)
-        ids.aggregates.nextIn(type, tenantId, partition, partitions)?.let { return it }
-        val drawn = ids.aggregates.next(type)
+        ids.aggregates.nextIn(type, tenantId, partition, partitions)?.let { return generated(type, it) }
+        val drawn = generated(type, ids.aggregates.next(type))
         val claim = committed.claim(type, tenantId, requestId, CreationClaim(drawn, scope))
         return when {
             claim.aggregateId == drawn -> drawn
@@ -153,9 +155,10 @@ class CreationIds(
     private fun besides(request: AggregateRef): String {
         val partitions = committed.partitions(request.type)
         val partition = Partitioner.partitionOf(request, partitions)
-        ids.aggregates.nextIn(request.type, request.tenantId, partition, partitions)?.let { return it }
+        ids.aggregates.nextIn(request.type, request.tenantId, partition, partitions)
+            ?.let { return generated(request.type, it) }
         repeat(MAX_DRAWS) {
-            val id = ids.aggregates.next(request.type)
+            val id = generated(request.type, ids.aggregates.next(request.type))
             if (Partitioner.partitionOf(request.type.ref(request.tenantId, id), partitions) == partition) {
                 return id
             }
@@ -193,6 +196,12 @@ class CreationIds(
         }
         val id = idOf(ref.type, ref.tenantId, command.requestId, command.scope, model.ownership)
         return command.copyWith(ref = ref.type.ref(ref.tenantId, id))
+    }
+
+    /** [id], which the generator of [type] gave, unless admission refuses it as an aggregate id: then it fails. */
+    private fun generated(type: AggregateType, id: String): String {
+        AggregateIds.refused(id)?.let { error("The id generator of $type gave an id admission refuses: $it") }
+        return id
     }
 
     private companion object {

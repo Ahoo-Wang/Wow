@@ -93,6 +93,8 @@ Admission takes the id from the caller:
 - A command a saga derives, or a scheduled command, that names no id takes the owner of the scope it carries: a saga that follows a buyer's order reaches that buyer's basket. One that carries no owner is rejected with `wow.command.malformed`, as a caller with no owner is: the saga's `@OnRejected` handler takes the rejection, or the saga parks without one. A command that another service's intake takes from its command topic gets the same answer.
 - A command this service sends to another service's aggregate of this kind, known from the contract its api jar carries, has its id decided here by the same rules, before it is sent: a request the other service would refuse for want of an id is refused here with the same answer, and nothing is sent.
 
+The owner taken as the id is an aggregate id like a named one, held to the [id rule](../reference/http#aggregate-ids): an owner holding `/`, `;` or `\`, say, is answered `400 wow.command.malformed`, as the same value named as the id is.
+
 The kernel records the aggregate's id as its owner, whoever creates it, and a command whose owner is another does not reach it, a creating one included. The command functions therefore check no caller: the basket above needs no ownership check of its own.
 
 ## Check the caller in a command

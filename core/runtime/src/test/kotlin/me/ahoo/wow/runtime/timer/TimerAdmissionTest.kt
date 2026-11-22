@@ -132,6 +132,16 @@ class TimerAdmissionTest {
             log.read(wallet.type.ref(TENANT, "alice")).toList().size.assert().isEqualTo(1)
         }
 
+    @Test
+    fun `a command naming an id admission refuses, or taking such an owner's, is rejected`(): Unit = runBlocking {
+        // #6594: a timer creates no aggregate the gateway's routes could not reach.
+        firer.fire(timer(CART.ref(TENANT, "a/b"))).assert().isEqualTo(TimerOutcomes.REJECTED)
+        firer.fire(timer(wallet.type.unassigned(TENANT)).copyWith(scope = Scope("a;b")))
+            .assert().isEqualTo(TimerOutcomes.REJECTED)
+        log.read(CART.ref(TENANT, "a/b")).toList().assert().isEmpty()
+        log.read(wallet.type.ref(TENANT, "a;b")).toList().assert().isEmpty()
+    }
+
     private companion object {
         const val SHARED = "shared"
         const val OTHER = "other"

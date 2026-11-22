@@ -189,6 +189,25 @@ class OwnerIdAdmissionTest {
     }
 
     @Test
+    fun `an owner admission refuses as an id is malformed taken as the id, as it is named as the id`(): Unit =
+        runBlocking {
+            // Review TO-2, #6594: the owner taken as the id passes the rule a named id passes.
+            val slashed = Caller(TENANT, Scope("a/b"), subject = "a/b")
+            val taken = gateway.execute(request("Open", "{}", caller = slashed))
+            taken.assertRefused(FrameworkCodes.COMMAND_MALFORMED, CommandGateway.UNADDRESSED)
+            taken.error!!.message.assert().isEqualTo(
+                "The caller's owner is its aggregate's id: The aggregate id 'a/b' holds '/', which a gateway's path " +
+                    "check refuses in a path, so no route by its id would reach it: an aggregate id holds no '/', ';' " +
+                    "or '\\'.",
+            )
+            val named = gateway.execute(request("Open", "{}", caller = clerk, aggregateId = "a/b"))
+            named.assertRefused(FrameworkCodes.COMMAND_MALFORMED, "a/b")
+            gateway.execute(request(caller = Caller(TENANT, Scope("购".repeat(29)), subject = "x")))
+                .assertRefused(FrameworkCodes.COMMAND_MALFORMED, CommandGateway.UNADDRESSED)
+            decided.assert().isEmpty()
+        }
+
+    @Test
     fun `an unauthenticated caller without an id is unauthenticated`(): Unit = runBlocking {
         gateway.execute(request("Open", "{}", caller = Caller(TENANT)))
             .assertRefused(FrameworkCodes.AUTH_UNAUTHENTICATED, CommandGateway.UNADDRESSED)

@@ -155,7 +155,7 @@ class OutsideTheBodyRoutesTest {
     }
 
     @Test
-    fun `an aggregate id no store keeps as given is refused, and matrix parameters are`() {
+    fun `an aggregate id no store keeps as given or no gateway carries is refused, and matrix parameters are`() {
         mapOf(
             "a%00b" to "control character",
             "a%07b" to "control character",
@@ -163,14 +163,20 @@ class OutsideTheBodyRoutesTest {
             "c-1%09" to "white space",
             "%2E" to "relative path segment",
             "%2E%2E" to "relative path segment",
+            // #6594: what a gateway's path check refuses in a path, which no route by the id would reach behind it.
+            "a%2Fb" to "holds '/'",
+            "a%3Bb" to "holds ';'",
+            "a%5Cb" to "holds '\\'",
+            "%E8%B4%AD".repeat(29) to "261 characters percent-encoded",
         ).forEach { (id, why) ->
             post("/shop/cart/$id/add-item").refused(400, FrameworkCodes.COMMAND_MALFORMED, why)
         }
         node.commands.assert().isEmpty()
         post("/shop/cart/c-1;x=1/add-item").refused(400, FrameworkCodes.REQUEST_MALFORMED, "matrix parameters")
-        // Kept as they are: an encoded slash and a unicode id are ids of their own.
-        post("/shop/cart/a%2Fb/add-item").body!!["ref"]["id"].asString().assert().isEqualTo("a/b")
+        // Kept as they are: a unicode id is an id of its own, up to 256 characters encoded.
         post("/shop/cart/%E8%B4%AD/add-item").body!!["ref"]["id"].asString().assert().isEqualTo("购")
+        post("/shop/cart/${"%E8%B4%AD".repeat(28)}/add-item").body!!["ref"]["id"].asString().assert()
+            .isEqualTo("购".repeat(28))
     }
 
     @Test
