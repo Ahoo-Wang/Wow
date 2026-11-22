@@ -28,6 +28,7 @@ import java.net.URI
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
 
 /** A request the fake peer took: its method, path with query, headers and body. */
 data class Taken(val method: String, val path: String, val headers: Map<String, String>, val body: String)
@@ -87,7 +88,11 @@ class FakePeer : AutoCloseable {
     /** Released as the peer closes: the requests it holds end then. */
     private val released = CountDownLatch(1)
 
+    /** One thread per request, so a request it holds does not hold the next: each is taken as a node takes it. */
+    private val handlers = Executors.newVirtualThreadPerTaskExecutor()
+
     private val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0).apply {
+        executor = handlers
         createContext("/") { exchange ->
             exchange.use {
                 taken += Taken(
@@ -131,6 +136,7 @@ class FakePeer : AutoCloseable {
     override fun close() {
         released.countDown()
         server.stop(0)
+        handlers.shutdownNow()
     }
 }
 

@@ -41,6 +41,7 @@ import me.ahoo.wow.client.PeerMode
 import me.ahoo.wow.client.Port
 import me.ahoo.wow.client.RoutedCommandClient
 import me.ahoo.wow.client.RoutedQueryApi
+import me.ahoo.wow.client.SilentPeers
 import me.ahoo.wow.client.UserCredential
 import me.ahoo.wow.client.WowClient
 import me.ahoo.wow.manifest.Manifest
@@ -51,6 +52,7 @@ import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.id.GlobalIdGenerator
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.read.TenantQueryApi
 import me.ahoo.wow.spring.boot.Account
 import me.ahoo.wow.spring.boot.BANK
@@ -63,6 +65,7 @@ import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.assertThrows
+import org.springframework.beans.factory.support.StaticListableBeanFactory
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest
 import org.springframework.mock.web.server.MockServerWebExchange
 import org.springframework.web.server.CoWebFilter
@@ -246,6 +249,7 @@ class HostClientsTest {
             named,
             GlobalIdGenerator.UUID_V7,
             HttpCommandCaller.client(),
+            SilentPeers(),
         )
         peers.serviceName.assert().isEqualTo("basket-service")
         // The peer clients are lazy: hand the routed queries a client that records its caller.
@@ -275,6 +279,7 @@ class HostClientsTest {
                 ContractDirectory(Manifest(), contracts.peers),
                 GlobalIdGenerator.UUID_V7,
                 HttpCommandCaller.client(),
+                SilentPeers(),
             )
         }.message.assert().contains("names no service")
     }
@@ -387,6 +392,7 @@ class HostClientsTest {
             ContractDirectory(Manifest(service = ServiceInfo(SERVICE)), emptyList()),
             GlobalIdGenerator.UUID_V7,
             HttpCommandCaller.client(),
+            SilentPeers(),
         )
         peers.described.assert().containsExactly("mail")
     }
@@ -411,19 +417,43 @@ class HostClientsTest {
         resolver.resolve("mail", Port.PUBLIC).assert().isEqualTo(URI.create("http://mail:8080"))
         resolver.resolve("mail", Port.INTERNAL).assert().isEqualTo(URI.create("http://mail:9090"))
         resolver.resolve("box", Port.INTERNAL).assert().isEqualTo(URI.create("http://box:9090"))
+        val silent = NodePeers().wowSilentPeers(StaticListableBeanFactory().getBeanProvider(Observer::class.java))
+        val identity = NodeIdentity(SERVICE, "n-1", null, "127.0.0.1", "127.0.0.1")
+        val properties2 = WowProperties().apply {
+            peers[BANK] = PeerTargetProperties().apply { timeout = java.time.Duration.ofSeconds(5) }
+        }
         val peers = NodePeers().wowPeerClients(
-            WowProperties().apply {
-                peers[BANK] = PeerTargetProperties().apply { timeout = java.time.Duration.ofSeconds(5) }
-            },
+            properties2,
             endpoints,
-            NodeIdentity(SERVICE, "n-1", null, "127.0.0.1", "127.0.0.1"),
+            identity,
             contracts,
             GlobalIdGenerator.UUID_V7,
             HttpCommandCaller.client(),
+            silent,
         )
         peers.contexts.assert().containsExactly(BANK)
         NodePeers().wowClient(peers).assert().isSameAs(peers.client)
+        // The node's saga caller and its clients of either mode pass over the same silent nodes: one bypass for all.
+        val caller = NodePeers().wowCommandCaller(
+            properties2,
+            identity,
+            endpoints,
+            HttpCommandCaller.client(),
+            contracts,
+            silent
+        )
+        silentOf(caller).assert().isSameAs(silent)
+        listOf("service", "user").forEach { mode ->
+            val client = (peers.field(mode) as Lazy<*>).value!!
+            silentOf(client.field("http")!!).assert().isSameAs(silent)
+        }
     }
+
+    /** The bypasses the transport of [client], a saga's caller or a command client, reads. */
+    private fun silentOf(client: Any): Any? = client.field("transport")!!.field("silent")
+
+    private fun Any.field(name: String): Any? =
+        javaClass.getDeclaredField(name).apply { isAccessible = true }.get(this)
 
     @Test
     fun `the public requests' credential headers should be in the coroutine context of their handling`() {

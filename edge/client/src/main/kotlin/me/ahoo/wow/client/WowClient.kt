@@ -85,6 +85,7 @@ class WowClient private constructor(
         private var contracts: List<ManifestFragment>? = null
         private var ids: GlobalIdGenerator = GlobalIdGenerator.UUID_V7
         private var manifestPeers: Set<String> = emptySet()
+        private var silent: SilentPeers? = null
 
         /** Where each context's service is (none by default: every call fails until it is given). */
         fun endpoints(endpoints: EndpointResolver): Builder = apply { this.endpoints = endpoints }
@@ -156,6 +157,13 @@ class WowClient private constructor(
         @InternalWowApi
         fun ids(ids: GlobalIdGenerator): Builder = apply { this.ids = ids }
 
+        /**
+         * The nodes that took a request and did not answer it, which the requests that follow pass over: the node's,
+         * which its clients share; the client's own by default.
+         */
+        @InternalWowApi
+        fun silentPeers(silent: SilentPeers): Builder = apply { this.silent = silent }
+
         /** The client; refused until its mode is named ([service] or [user]): a client of no identity calls no peer. */
         fun build(): WowClient {
             val mode = checkNotNull(mode) {
@@ -170,6 +178,7 @@ class WowClient private constructor(
                 timeout,
                 retry,
                 timeouts.toMap(),
+                silent ?: SilentPeers(),
             )
             // The class path's contracts through:manifest's one reader, named by its one rule.
             val contracts = contracts ?: ClassPathContracts.load(

@@ -16,6 +16,7 @@ package me.ahoo.wow.spring.boot.http
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.decide.Misuse
+import me.ahoo.wow.client.PeerList
 import me.ahoo.wow.client.Port
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.Manifest
@@ -158,6 +159,40 @@ class DnsPeerDiscoveryTest {
         targets.targetsOf("payment", "payment").assert().isEmpty()
         targets.nameOf("eshop-ordering-service").assert()
             .isEqualTo("_internal._tcp.eshop-ordering-service-cluster.default.svc")
+    }
+
+    @Test
+    fun `each lookup that finds a peer's nodes should be a generation of its list, the cached and failed ones not`(
+        @TempDir dir: Path
+    ): Unit = runBlocking {
+        val clock = TestTimeSource()
+        val targets = DnsPeerTargets(
+            DnsPeerDiscovery.DEFAULT_NAME_TEMPLATE,
+            lookup(dir),
+            namespace = "default",
+            clock = clock,
+        )
+        fun generation() = runBlocking {
+            (
+                targets.targetsOf(
+                    "eshop-ordering",
+                    "eshop-ordering"
+                ) as PeerList
+                ).generation
+        }
+        val first = generation()
+        // Kept as it was looked up: the same generation, so a node the client bypassed stays bypassed.
+        generation().assert().isEqualTo(first)
+        clock += DnsPeerTargets.REFRESH
+        // Looked up again and found, the same nodes: a new generation, which brings a bypassed node back.
+        val second = generation()
+        second.assert().isGreaterThan(first)
+        clock += DnsPeerTargets.REFRESH
+        failing = true
+        // A lookup that fails keeps the list found last, and its generation: the nodes were not read again.
+        generation().assert().isEqualTo(second)
+        // The list is kept as long as a client bypasses a node of it, one constant for both.
+        DnsPeerTargets.REFRESH.assert().isEqualTo(PeerList.REFRESH)
     }
 
     @Test

@@ -125,6 +125,8 @@ internal class HttpTransport(
     val timeout: Duration,
     val retry: RetryPolicy,
     val timeouts: Map<String, Duration> = emptyMap(),
+    /** The nodes that took a request and did not answer it, which the requests that follow pass over. */
+    val silent: SilentPeers = SilentPeers(),
 ) {
     init {
         require(timeout.isPositive()) { "A request's timeout is positive." }
@@ -219,7 +221,11 @@ internal class HttpTransport(
         }
     }
 
-    /** One attempt at [request]'s targets, in turn, failing over as [withRetries] says. */
+    /**
+     * One attempt at [request]'s targets, in turn, failing over as [withRetries] says. A target that took the request
+     * and did not answer it within its bound is bypassed by the requests that follow ([SilentPeers.silenced]); one that
+     * answered, whatever it answered, is not ([SilentPeers.answered]).
+     */
     private suspend fun <T> failover(request: PeerRequest, attempt: suspend (base: String) -> Answer<T>): Answer<T> {
         val targets = targetsOf(request.context)
         var unsent: IOException? = null
@@ -228,10 +234,11 @@ internal class HttpTransport(
             val answer = try {
                 attempt(base)
             } catch (failure: IOException) {
-                if (!failure.unsent()) throw failure
+                if (!failure.unsent()) throw unanswered(request.context, base, failure)
                 unsent = failure
                 continue
             }
+            silent.answered(request.context, base)
             if (answer is Answer.Problem && answer.problem.refusedBeforeHandling) {
                 refused = answer
                 continue
@@ -244,12 +251,27 @@ internal class HttpTransport(
     }
 
     /**
-     * The targets of [context], each a base URL without its trailing slash, from the next one in turn; none while the
-     * lookup lists no node of a context the resolver reaches, such as a service whose instances are all down for a
-     * moment. A context it does not reach has no URL at all: the code's mistake, not an outage.
+     * [failure], of a request sent to [base] of [context] and not answered; a timeout, the request's bound passed
+     * without an answer, has the requests that follow pass [base] over ([SilentPeers.silenced]).
      */
-    private suspend fun targetsOf(context: String): List<String> {
-        val targets = endpoints.resolveAll(context, mode.port).map { it.toString().trimEnd('/') }
+    private fun unanswered(context: String, base: String, failure: IOException): IOException {
+        if (failure is HttpTimeoutException) silent.silenced(context, base)
+        return failure
+    }
+
+    /**
+     * The targets of [context], each a base URL without its trailing slash, from the next one in turn, those
+     * [silent] bypasses left out unless all are; none while the lookup lists no node of a context the resolver
+     * reaches, such as a service whose instances are all down for a moment. A context it does not reach has no URL at
+     * all: the code's mistake, not an outage.
+     */
+    internal suspend fun targetsOf(context: String): List<String> {
+        val listed = endpoints.resolveAll(context, mode.port)
+        val targets = silent.choose(
+            context,
+            listed.map { it.toString().trimEnd('/') },
+            (listed as? PeerList)?.generation,
+        )
         if (targets.isEmpty()) {
             checkUse(endpoints.reaches(context, mode.port)) {
                 "No URL calls context $context on its ${mode.port.name.lowercase()} port: set " +

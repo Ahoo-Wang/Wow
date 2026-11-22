@@ -290,6 +290,21 @@ service:
 
 The chart then gives the node `wow.peer.dns.namespaces.eshop-payment-service: payments`, so it looks the peer up at `_internal._tcp.eshop-payment-service-cluster.payments.svc`, and the internal policy admits the peer's pods from that namespace. The peer's own internal policy must admit this service's pods in turn: its `networkPolicy.internal.from`, with a `namespaceSelector`.
 
+### A peer node that stops answering {#a-peer-node-that-stops-answering}
+
+A node lost without notice, such as a pod deleted by force or a machine gone, may leave its address dropping packets without a reset, and stays in the SRV records a node caches for 30 seconds. A request that goes out on a connection to it is not answered: it ends at its bound, its wait and a grace for a command or a call, `wow.peer.timeout` for a query, as `wow.command.unknown`, `wow.query.timeout` or `wow.peer.unavailable`. It is not sent again, since whether it ran is unknown.
+
+The node's clients then pass that node over: the requests that follow, a saga's calls, commands and queries alike, go to the context's other nodes. So the lost node costs one request its bound, not every request that rotates onto it until the records are read again. The node comes back:
+
+- when it answers a request still in flight to it, whatever it answers;
+- when the records are read again and still list it: it takes requests again, and if it still does not answer, it costs one more request its bound and is passed over again;
+- when the records are read again without it: it is gone;
+- after 30 seconds, the time the records are kept, when nothing reads them again, as with a fixed `url` or a discovery that gives no lookup of its own.
+
+A connection it takes does not bring it back: a node that takes connections and never answers would pass that test. When every node of a context is passed over, the requests go to them all, as if none were: a request is never left unsent for it.
+
+It is not a health check: no probe is sent, and a node that answers slowly but within the bound is never passed over. Each bypass and each return is logged once, by `me.ahoo.wow.client.SilentPeers`, with how long the node was passed over, and counted by `wow.peer.bypass.notices` ([Observability](../reference/observability)).
+
 ### The cluster's DNS in every zone {#the-clusters-dns-in-every-zone}
 
 Every name a node resolves goes through the cluster's DNS: its stores, the Kafka brokers, the peers' SRV records, and the gateway's routes to the services. Run that DNS in every zone, one replica per zone at least, required rather than preferred. A topology spread constraint on `topology.kubernetes.io/zone` with `whenUnsatisfiable: DoNotSchedule` does it. In a three-zone cluster whose two CoreDNS replicas had landed in one zone, losing that zone left the services unable to resolve one another for 256 s, every Wow node otherwise healthy:

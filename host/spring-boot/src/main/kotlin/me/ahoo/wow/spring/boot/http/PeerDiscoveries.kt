@@ -19,6 +19,7 @@ import kotlinx.coroutines.sync.withLock
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.checkUse
 import me.ahoo.wow.client.EndpointResolver
+import me.ahoo.wow.client.PeerList
 import me.ahoo.wow.client.PeerMode
 import me.ahoo.wow.client.Port
 import me.ahoo.wow.runtime.cluster.NodeAddress
@@ -40,7 +41,6 @@ import java.util.concurrent.ConcurrentHashMap
 import javax.naming.NamingException
 import javax.naming.directory.InitialDirContext
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeMark
 import kotlin.time.TimeSource
 
@@ -210,6 +210,9 @@ internal class DnsPeerTargets(
         @Volatile
         var warned: Boolean = false
 
+        /** The generation of [targets], counted by the lookups that found the nodes; under [lock]. */
+        var generation: Long = 0
+
         fun fresh(): Boolean = looked?.let { it.elapsedNow() < REFRESH } == true
     }
 
@@ -228,7 +231,8 @@ internal class DnsPeerTargets(
             val targets = found.sortedWith(compareBy<SrvRecord> { it.priority }.thenByDescending { it.weight })
                 .map { URI.create("http://${NodeAddress.of(it.target.trimEnd('.'), it.port)}") }
             if (targets.isNotEmpty()) {
-                peer.targets = targets
+                // A new generation for every lookup that found the nodes: the client brings back a node it bypassed.
+                peer.targets = PeerList(targets, ++peer.generation)
             } else if (!peer.warned) {
                 peer.warned = true
                 logger.warn {
@@ -270,8 +274,11 @@ internal class DnsPeerTargets(
         private const val SERVICE = "{service}"
         private const val NAMESPACE = "{namespace}"
 
-        /** How long a peer's records are kept before they are looked up again. */
-        val REFRESH: Duration = 30.seconds
+        /**
+         * How long a peer's records are kept before they are looked up again: a peer list's, which bounds how long a
+         * client bypasses a node that did not answer ([PeerList.REFRESH]).
+         */
+        val REFRESH: Duration = PeerList.REFRESH
     }
 }
 

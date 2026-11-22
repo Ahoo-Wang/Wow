@@ -118,6 +118,9 @@ object WowMetrics {
     const val FENCED_KIND: String = "fenced"
     const val RECOVERED_KIND: String = "recovered"
 
+    /** The kind of a peer node's bypass notice: bypassed; its returns are the reasons of `PeerRestored`. */
+    const val BYPASSED_KIND: String = "bypassed"
+
     /** The kinds of a shared state's rebuild: its replay was longer than a page and met the replay gate, or not. */
     const val GATED_KIND: String = "gated"
     const val UNGATED_KIND: String = "ungated"
@@ -298,6 +301,16 @@ object WowMetrics {
             "check restarts the node: alert on it.",
         tags = listOf(GROUP, KIND),
         values = mapOf(KIND to listOf(FENCED_KIND, RECOVERED_KIND)),
+    )
+
+    val PEER_BYPASS_NOTICES: MetricSpec = MetricSpec.counter(
+        "wow.peer.bypass.notices",
+        "The peer nodes this node's clients passed over, a node of the context having taken a request and not answered " +
+            "it within its bound (wow.kind=bypassed), and their returns, by why: a request answered, the peer list read " +
+            "again with it or without it, or the time a list is kept passed. A bypass with no return for long is a " +
+            "node lost without notice that the list still names.",
+        tags = listOf(CONTEXT, KIND),
+        values = mapOf(KIND to listOf(BYPASSED_KIND) + ObservedEvent.PeerRestored.Reason.entries.map { it.value }),
     )
 
     val RESERVATION_LOSSES: MetricSpec = MetricSpec.counter(
@@ -496,7 +509,7 @@ object WowMetrics {
         WAIT_TIMEOUTS, SIGNAL_DROPS,
         EXECUTOR_IN_FLIGHT, EXECUTOR_LANES, APPEND_QUEUE_DEPTH, TAIL_READS, STATE_CACHE_LOOKUPS, STATE_CACHE_EVICTIONS,
         STATE_CACHE_INVALIDATIONS, SHARED_STATE_REBUILDS, SHARED_STATE_REBUILD_WAIT, STORE_FALLBACKS, FENCE_NOTICES,
-        RESERVATION_LOSSES, ACCESS_STAMPED, ACCESS_STAMP_DURATION,
+        PEER_BYPASS_NOTICES, RESERVATION_LOSSES, ACCESS_STAMPED, ACCESS_STAMP_DURATION,
         ACCESS_WALKED, MAINTENANCE_SKIPPED, ACCESS_WALK_PENDING, ACCESS_WALK_WALKED,
         SUBSCRIPTION_LAG, POSITION, BACKLOG, PROGRESS, PARKED_AGGREGATES,
         PARKED_NOTICES, PAUSED_PARTITIONS, PAUSED_NOTICES, THROTTLED_PARTITIONS, THROTTLED_NOTICES,

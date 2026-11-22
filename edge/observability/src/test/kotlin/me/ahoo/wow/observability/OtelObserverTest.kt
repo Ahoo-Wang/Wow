@@ -179,6 +179,22 @@ class OtelObserverTest {
     }
 
     @Test
+    fun `a peer node's bypass and its return should be counted by context and kind, never by its address`() {
+        observer.observed(ObservedEvent.PeerBypassed(SALES, "http://10.0.0.7:9093"))
+        observer.observed(
+            ObservedEvent.PeerRestored(SALES, "http://10.0.0.7:9093", 4_000, ObservedEvent.PeerRestored.Reason.RELISTED)
+        )
+        val meters = telemetry.meters
+        listOf(WowMetrics.BYPASSED_KIND, "relisted").forEach { kind ->
+            meters.get(WowMetrics.PEER_BYPASS_NOTICES.name)
+                .tags(WowMetrics.CONTEXT, SALES, WowMetrics.KIND, kind).counter().count()
+                .assert().isEqualTo(1.0)
+        }
+        meters.get(WowMetrics.PEER_BYPASS_NOTICES.name).counters().flatMap { it.id.tags }.map { it.key }.toSet()
+            .assert().containsExactlyInAnyOrder(WowMetrics.CONTEXT, WowMetrics.KIND)
+    }
+
+    @Test
     fun `refusals, wait timeouts, dropped signals, failed forwards, tail reads and store fallbacks should be counted`() {
         observer.observed(ObservedEvent.Refused(ORDER, "wow.command.busy"))
         observer.observed(ObservedEvent.Refused(ORDER, "wow.command.busy"))
