@@ -59,6 +59,26 @@ class PostgresQueryIndexesTest {
         index.fingerprint.assert().isEqualTo("wow:737e78848e0e429f8d62c589bbd460ca")
     }
 
+    @Test
+    fun `a NOT NULL system column is indexed in the order the compiler sorts it by, plainly`() {
+        fun columns(vararg keys: String): String = PostgresQueryIndexes.plan(
+            "shop",
+            "order",
+            QueryIndexPlan.of(schema, listOf(QueryIndexDeclaration("ix", keys.toList()))),
+        ).single().ddl.substringAfter(" ON \"wow_snapshot__shop__order\" ").substringBefore(" WHERE ")
+        val name = PostgresSnapshotQueryExpressions.value(QueryField("state.name"), PostgresQueryType.TEXT)
+        // Each of the six as the compiler orders it ([PostgresSnapshotSqlCompiler.direction]): `ASC` and `DESC`, whose
+        // NULLS placement only an index written without one matches. A field that may be null keeps NULLS FIRST.
+        columns("lastEventTime", "state.name", "version", "firstEventTime", "deleted").assert().isEqualTo(
+            "(tenant_id, last_event_time, ($name) NULLS FIRST, version, first_event_time, deleted, aggregate_id)",
+        )
+        columns("state.name", "lastEventTime").assert()
+            .isEqualTo("(tenant_id, ($name) NULLS FIRST, last_event_time, aggregate_id)")
+        columns("tenantId", "aggregateId").assert().isEqualTo("(tenant_id, tenant_id, aggregate_id)")
+        columns("ownerId", "spaceId").assert()
+            .isEqualTo("(tenant_id, owner_id NULLS FIRST, space_id NULLS FIRST, aggregate_id)")
+    }
+
     /** The `events` model of `shop.order`, whose Manifest declares a single and a multiple access attribute. */
     private val events: QueryModelSchema by lazy {
         val type = AggregateType("shop", "order")

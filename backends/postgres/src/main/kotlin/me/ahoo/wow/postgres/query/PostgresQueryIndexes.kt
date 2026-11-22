@@ -65,8 +65,12 @@ data class PostgresQueryIndexReport(
  * on that aggregate's own table, led by the tenant, which admission adds to every query, and partial on the snapshots
  * that are not deleted, its default scope. A key is a system column or the typed expression of a `state.*` path, exactly the text
  * the SQL compiler compares and sorts by ([PostgresSnapshotQueryExpressions.value], with the type of the binding the
- * query model compiles for it), so the planner matches the two; `NULLS FIRST` is the compiler's ascending order. The
- * name is [PostgresIdentifiers.limited], since PostgreSQL index names are unique per schema, not per table.
+ * query model compiles for it), so the planner matches the two. Each key is in the compiler's ascending order
+ * ([PostgresSnapshotSqlCompiler.direction]): `NULLS FIRST`, but a column that holds no `NULL` (`aggregate_id`,
+ * `version`, `last_event_time`, …), which it orders plainly. The planner matches an order to an index by its `NULLS`
+ * placement too, never by the column's constraint, so a NOT NULL column written `NULLS FIRST` would serve no sort by
+ * it, in either direction. The name is [PostgresIdentifiers.limited], since PostgreSQL index names are unique per
+ * schema, not per table.
  *
  * A B-tree index ends with the columns the compiler ends a snapshot sort with ([PostgresQueryLayout.SNAPSHOT]'s
  * tie-breakers but the tenant): `aggregate_id`. A sort by its keys whose tie-breaker runs in the same direction is the
@@ -134,9 +138,13 @@ object PostgresQueryIndexes {
             "USING gin ($node jsonb_path_ops)" to node
         } else {
             val keys = index.keys.map { key(index, it, expressions) }
-            // Ended by the tie-breakers, NOT NULL columns the compiler orders plainly: a sort by the keys whose
-            // tie-breaker runs in the same direction is the index's order, forward or backward.
-            val columns = keys.map { "$it NULLS FIRST" } + tieBreakers.filterNot { it in keys }
+            // Each key in the compiler's ascending order: NULLS FIRST, but a NOT NULL column, which it orders
+            // plainly, as the index must for the planner to match the two. Ended by the tie-breakers, NOT NULL
+            // columns too: a sort by the keys whose tie-breaker runs in the same direction is the index's order,
+            // forward or backward.
+            val columns = index.keys.zip(keys) { key, expression ->
+                if (expressions.notNull(key.physicalField)) expression else "$expression NULLS FIRST"
+            } + tieBreakers.filterNot { it in keys }
             "(tenant_id, ${columns.joinToString(", ")})" to keys.first()
         }
         PostgresQueryIndex(
