@@ -28,6 +28,8 @@ outline: deep
 
 `wow.http.openapi.springdoc.enabled: false` 关闭这个桥接。
 
+如果代理把服务挂在一个路径前缀下、转发时去掉这个前缀，并用 `X-Forwarded-Prefix` 送出它，Spring Boot 4.2 默认忽略这个头，除非设置 `server.request.header.forwarded.use-prefix: true`：不设置时，Swagger UI 的 URL 缺少这个前缀。按上下文前缀路由并保留前缀的网关（Wow 的路由正是这样设计的）无需设置。
+
 ## 安全方案 {#security-schemes}
 
 springdoc 的文档（`/v3/api-docs`、`/v3/api-docs/wow`）声明调用方怎样出示它的身份，这样 Swagger UI 的 “Try it out” 就会发送它；`GET /wow/openapi` 和构建产出的文档不声明。宿主根据它的调用方解析器填写这部分：CoSec 的解析器接收 bearer 令牌，开发调用方接收 `Wow-*` 身份请求头，每个请求头一个方案。它们的全局 `security` 是一条列出它们全部的要求：它们是同一个身份的各个部分，由请求一起发送，而不是几选一。使用自己的解析器的应用，用一个 `WowOpenApiSecurity` Bean 声明它的方案，这个 Bean 会替换宿主的。

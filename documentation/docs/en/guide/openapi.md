@@ -28,6 +28,8 @@ When the application has springdoc on its class path, the Wow document joins spr
 
 `wow.http.openapi.springdoc.enabled: false` turns the bridge off.
 
+Behind a proxy that serves the service under a path prefix it strips, and sends that prefix as `X-Forwarded-Prefix`, Spring Boot 4.2 ignores the header unless `server.request.header.forwarded.use-prefix: true` is set: without it, Swagger UI's URLs lack the prefix. A gateway that routes by the context prefix and keeps it, as Wow's routes expect, needs nothing.
+
 ## Security schemes
 
 Springdoc's documents (`/v3/api-docs`, `/v3/api-docs/wow`) declare how a caller presents its identity, so Swagger UI's "Try it out" sends it; `GET /wow/openapi` and the build's document declare none. The host fills that from its caller resolver: CoSec's resolver takes a bearer token, and the development callers take the `Wow-*` identity headers, one scheme each. Their global `security` is one requirement naming them all: they are the parts of one identity, which a request sends together, not alternatives. An application with a resolver of its own declares its schemes with a `WowOpenApiSecurity` bean, which replaces the host's.
