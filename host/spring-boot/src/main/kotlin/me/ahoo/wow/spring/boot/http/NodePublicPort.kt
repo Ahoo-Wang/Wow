@@ -182,13 +182,7 @@ internal class NodePublicPort {
         queryApi: ObjectProvider<NodeQueryApi>,
         mappers: ObjectProvider<ProblemMapper>,
     ): RouterFunction<ServerResponse> {
-        val operational = manifest.operationalCommands()
-        if (!node.gateway.authorizes && operational.isNotEmpty()) {
-            logger.info {
-                "No CommandAuthorizer bean: the public port refuses Wow's operational commands $operational with 403 " +
-                    "until the application gives one; the jobs, the sagas and the internal port's calls send them as before."
-            }
-        }
+        manifest.refusedWithoutAuthorizer(node.gateway.authorizes)?.let { notice -> logger.info { notice } }
         return wowRoutes(
             manifest,
             node.gateway,
@@ -241,6 +235,16 @@ internal class NodePublicPort {
         internal fun Manifest.operationalCommands(): Set<String> = contexts.flatMap { context ->
             context.commands + context.aggregates.flatMap { it.commands }
         }.map { it.name }.filter { it in SystemCommandGroups.OPERATIONAL }.toSortedSet()
+
+        /**
+         * The startup notice of a public port that refuses the operational commands the Manifest routes, for want of an
+         * authorizer; null when the node [authorizes] or routes none.
+         */
+        internal fun Manifest.refusedWithoutAuthorizer(authorizes: Boolean): String? {
+            val operational = operationalCommands().takeUnless { authorizes || it.isEmpty() } ?: return null
+            return "No CommandAuthorizer bean: the public port refuses Wow's operational commands $operational with 403 " +
+                "until the application gives one; the jobs, the sagas and the internal port's calls send them as before."
+        }
 
         /** The host's log category: the lines that moved here from [WowAutoConfiguration] keep it. */
         private val logger = KotlinLogging.logger(WowAutoConfiguration::class.java.name)

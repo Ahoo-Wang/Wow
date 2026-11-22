@@ -18,6 +18,7 @@ import me.ahoo.wow.http.ops.OpsPaths
 import me.ahoo.wow.manifest.SystemCommands
 import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.spring.boot.http.NodePublicPort.Companion.operationalCommands
+import me.ahoo.wow.spring.boot.http.NodePublicPort.Companion.refusedWithoutAuthorizer
 import org.junit.jupiter.api.Test
 
 /**
@@ -40,6 +41,10 @@ class HostParkedOpsAuthorizationTest {
                 contexts = manifest.contexts.map { it.copyWith(commands = SystemCommands.jobs(it.name)) },
             )
             withJobs.operationalCommands().assert().containsExactlyInAnyOrderElementsOf(SystemCommands.JOBS)
+            // The startup says so, naming them, unless the node authorizes or routes none.
+            withJobs.refusedWithoutAuthorizer(authorizes = false).assert().contains(SystemCommands.JOBS.first())
+            withJobs.refusedWithoutAuthorizer(authorizes = true).assert().isNull()
+            manifest.refusedWithoutAuthorizer(authorizes = false).assert().isNull()
             val withRebuild = manifest.copyWith(
                 contexts = manifest.contexts.map { context ->
                     context.copyWith(
