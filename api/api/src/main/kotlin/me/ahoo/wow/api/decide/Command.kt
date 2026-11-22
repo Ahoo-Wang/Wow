@@ -79,6 +79,20 @@ class Command<C : Any> @InternalWowApi constructor(
      */
     val schedule: ScheduleContext? = ScheduleContext.of(headers)
 
+    /**
+     * The caller this command records: in the aggregate's tenant ([ref]'s, not the operator's own, when the operator
+     * acts in another through `Wow-Scope`), in the command's [scope], its subject the [operator]'s id (none for an
+     * anonymous command), with no roles, policies or claims, which no fact keeps. It is never a service identity,
+     * whatever its operator's id says, and never acts across scopes. What a decide function reads the read side as:
+     * `queries.of(scope.command.recordedCaller)` reads what the command's caller sees, in the tenant and scope the
+     * command acts in.
+     *
+     * It is the same however the command came to be decided: admitted from a request, derived by a saga, taken from a
+     * command topic, or decided again after a version conflict, so a decision that reads with it reads the same.
+     */
+    val recordedCaller: Caller
+        get() = Caller.of(tenantId = ref.tenantId, scope = scope, subject = operator?.id)
+
     /** This Command with the given fields replaced: Wow's own copy, left out of the ABI. */
     @InternalWowApi
     fun copyWith(
