@@ -65,6 +65,7 @@ import java.util.concurrent.ConcurrentHashMap
  *   "target": { "type": "postgres", "jdbcUrl": "jdbc:postgresql://localhost:5432/wow", "username": "wow",
  *               "password": "env:WOW_PG_PASSWORD", "poolSize": 16 },
  *   "partitions": { "example": 16 },
+ *   "tenants": { "example.inventory": "acme" },
  *   "classpath": ["libs"],
  *   "compensation": { "database": "compensation_db", "service": "example-service" }
  * }
@@ -82,6 +83,9 @@ import java.util.concurrent.ConcurrentHashMap
  * - [compensation], when given, is the 9.x compensation service's database, whose unresolved executions are imported
  *   into the V10 service's failure ledger ([CompensationConfig]).
  * - [partitions] gives each V10 context its partition count, which must be the services' own: a log refuses another.
+ * - [tenants] gives each V10 aggregate type whose tenant the services fix its tenant, as the host's
+ *   `wow.aggregates.[<context>.<aggregate>].tenant` states it: the check refuses the 9.x instances of such a type in
+ *   another tenant, which V10 would serve to no caller ([MigrationPlan.fixedTenants]).
  * - [pageSize], [streamBatch], [concurrency], [readParallelism] and [lookbackMillis] are [ImportOptions];
  *   [pollIntervalMillis] is the pause between two tail passes.
  * - [final] is the final pass after 9.x stops (`import --final`, [FinalPassConfig]).
@@ -93,6 +97,7 @@ internal data class MigrationConfig(
     val source: SourceConfig,
     val target: TargetConfig,
     val partitions: Map<String, Int> = emptyMap(),
+    val tenants: Map<String, String> = emptyMap(),
     val pageSize: Int = 500,
     val streamBatch: Int = 200,
     val concurrency: Int = 8,

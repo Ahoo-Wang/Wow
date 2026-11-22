@@ -224,6 +224,13 @@ internal interface NineXEventSource {
     fun ownersOtherThanIds(aggregate: NineXAggregate): Map<NineXInstanceOwner, Long>
 
     /**
+     * The number of streams of each of [aggregate]'s instances in another tenant than [tenant], those that record no
+     * tenant or a blank one left out: the instances [MappingCheck] refuses for a V10 type whose tenant is fixed to
+     * [tenant]. A full read of the aggregate's streams, once per such aggregate.
+     */
+    fun instancesOutsideTenant(aggregate: NineXAggregate, tenant: String): Map<NineXAggregateId, Long>
+
+    /**
      * The collections of [aggregates] that lack the index the walk reads them in ([aggregateIds], [instances]), each
      * with the command that creates it: the walk refuses them. None for a store that needs no index.
      */

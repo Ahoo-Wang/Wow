@@ -76,7 +76,7 @@ Error resolving plugin [id: 'com.google.devtools.ksp', version: '2.3.6']
 | `@PreparableKey` | `DecideScope.reserve(namespace, key, tenancy)` |
 | 命令属性上的 `@AggregateId` | 保留，含义不变：命令体指明聚合，命令的路由不带 `{id}`。9.x 从路径绑定的字段只是重复了路由：删除它（[命令体承载什么](#what-a-command-body-holds)） |
 | 命令字段上的 `@TenantId`、`@OwnerId`、`@AggregateVersion` | 已移除：租户和所有者是调用方的，期望版本是 `If-Match` |
-| `@StaticTenantId` | 宿主配置：`wow.aggregates.[<context>.<aggregate>].tenant` |
+| `@StaticTenantId` | 宿主配置：`wow.aggregates.[<context>.<aggregate>].tenant`；数据检查时在 `migrate-data.json` 的 `tenants` 里写同样的租户（[检查映射文件](./data#_2-check-the-map)） |
 | `@StaticAggregateId` | 已移除：没有固定的聚合 ID（[V10 中的 9.x 能力](./capabilities)） |
 | `@AggregateRoute`、`@CommandRoute` | 已移除：路由来自 Manifest |
 | `@CommandRoute(enabled = false)` | 取决于谁发送这条命令。只由平台发送（Saga、定时器、进程内网关，以及经内部端口调用的其他服务）：在命令类上标注 `@InternalCommand`，公开端口不挂它的路由；内部端口上在 `wow.callers` 下没有条目的服务仍可发送它，因为这份列表只收窄它点名的服务（[只在内部受理的命令](../guide/aggregates#keep-a-command-internal)）。由 9.x 服务手写的用户路由发送：命令保持公开，走生成的路由（[路由、租户与所有权](#routes-tenancy-and-ownership)） |

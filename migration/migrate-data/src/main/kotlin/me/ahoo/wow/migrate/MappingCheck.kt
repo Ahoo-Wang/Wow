@@ -15,6 +15,7 @@ package me.ahoo.wow.migrate
 
 import me.ahoo.wow.api.aggregate.AggregateIdSource
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.manifest.AccessAttributeManifest
 
@@ -27,8 +28,9 @@ internal data class NineXEventType(val name: String, val revision: String) {
  * What the 9.x store holds of [aggregate], found by scanning it: how many [streams], the [events] of each type and the
  * [commands] of each name (the number of streams each produced), how many streams record no command name,
  * [streamEventTypes]: the number of streams by the set of event types each holds, which tells the streams a mapping
- * would leave empty, [refusedIds]: the number of streams of each instance whose id V10 refuses ([RefusedIds]), and
- * [tenantless]: the number of streams of each 9.x aggregate id that record no tenant, which V10 refuses too.
+ * would leave empty, [refusedIds]: the number of streams of each instance whose id V10 refuses ([RefusedIds]),
+ * [tenantless]: the number of streams of each 9.x aggregate id that record no tenant, which V10 refuses too, and
+ * [instancesByTenant]: the number of instances in each tenant, by their version-1 streams.
  */
 internal data class NineXInventory(
     val aggregate: NineXAggregate,
@@ -39,6 +41,7 @@ internal data class NineXInventory(
     val streamEventTypes: Map<Set<NineXEventType>, Long> = emptyMap(),
     val refusedIds: Map<NineXAggregateId, Long> = emptyMap(),
     val tenantless: Map<String, Long> = emptyMap(),
+    val instancesByTenant: Map<String, Long> = emptyMap(),
 )
 
 /**
@@ -99,6 +102,11 @@ internal data class MappingReport(
  *   list each, with the owners found, from [check]'s `ownersOf`;
  * - no event is mapped to `OwnerTransferred` on an aggregate whose owner is fixed ([AggregatePlan.fixedOwner]): one
  *   of its tenant, or one whose id is its owner's;
+ * - no instance the map imports of a V10 type whose tenant `migrate-data.json` fixes ([AggregatePlan.fixedTenant],
+ *   the host's `wow.aggregates.[<context>.<aggregate>].tenant`) is in another tenant, where V10 would serve it to no
+ *   caller: the problem counts them by tenant and lists them, from [check]'s `outsideTenant`. A type it does not fix
+ *   whose instances are all in one tenant other than the default one (`(0)`) is a warning: 9.x may have fixed it
+ *   (`@StaticTenantId`), and V10 then serves them to that tenant's callers only;
  * - every mapping target is in the Manifest, whether or not the store uses it;
  * - every 9.x `PrepareKey` the store holds ([prepareKeys], keys by name) is mapped to a V10 reservation namespace, once;
  * - every 9.x processor function with unresolved executions in the 9.x compensation service ([compensation]), of a
@@ -131,6 +139,7 @@ internal class MappingCheck(private val plan: MigrationPlan) {
         walkIndexes: Map<String, String> = emptyMap(),
         tags: TagReader = TagReader.NONE,
         ownersOf: (NineXAggregate) -> Map<NineXInstanceOwner, Long> = { emptyMap() },
+        outsideTenant: (NineXAggregate, String) -> Map<NineXAggregateId, Long> = { _, _ -> emptyMap() },
     ): MappingReport {
         val problems = mutableListOf<String>()
         val warnings = mutableListOf<String>()
@@ -154,6 +163,8 @@ internal class MappingCheck(private val plan: MigrationPlan) {
             } else {
                 storeProblems(aggregate, inventory, problems, warnings)
                 ownerProblem(aggregate, ownersOf)?.let { problems += it }
+                problems += listOfNotNull(tenantProblem(aggregate, outsideTenant))
+                warnings += listOfNotNull(tenantWarning(aggregate, inventory))
                 deletionWarning(aggregate, deleted)?.let { warnings += it }
                 TagCheck(aggregate, tags, problems, warnings).check()
             }
@@ -578,6 +589,56 @@ internal class MappingCheck(private val plan: MigrationPlan) {
     }
 
     /**
+     * The problem of the instances of [aggregate], whose V10 type's tenant is fixed ([AggregatePlan.fixedTenant]), in
+     * another tenant, which the map does not exclude ([outsideTenant]): V10 serves the type in its fixed tenant only, so
+     * no caller could reach them, and a command would create them again there. Null when it has none, or its tenant is
+     * not fixed. Counted by tenant, the first [LISTED] by the name the map excludes them by.
+     */
+    private fun tenantProblem(
+        aggregate: AggregatePlan,
+        outsideTenant: (NineXAggregate, String) -> Map<NineXAggregateId, Long>,
+    ): String? {
+        val fixed = aggregate.fixedTenant ?: return null
+        val subject = aggregate.source
+        val outside = outsideTenant(subject, fixed).filterKeys { !plan.excludes(subject, it.id) }
+        if (outside.isEmpty()) {
+            return null
+        }
+        val tenants = outside.entries.groupBy { it.key.tenantId }.toSortedMap().map { (tenant, instances) ->
+            "${RefusedIds.quoted(tenant)} (${instances.size} instances, ${instances.sumOf { it.value }} streams)"
+        }
+        val ids = outside.keys.map { it.id }.distinct().sorted()
+        val listed = ids.take(LISTED).joinToString(", ") { RefusedIds.quoted(RefusedIds.nameOf(it)) } +
+            if (ids.size > LISTED) " and ${ids.size - LISTED} more" else ""
+        val target = aggregate.target
+        return "$subject: the tenant of the V10 aggregate $target is fixed to ${RefusedIds.quoted(fixed)} " +
+            "(migrate-data.json tenants, as the host's wow.aggregates.[$target].tenant), but ${outside.size} 9.x " +
+            "instances are in other tenants: ${tenants.joinToString(", ")}. V10 serves $target in that tenant only, " +
+            "so no caller could reach them, and a command would create them again there; fix the tenant to the one " +
+            "they are in, in the host and in tenants, or exclude each with {\"aggregate\": \"$subject\", \"stream\": " +
+            "<the id as listed>, \"reason\": \"…\"}: $listed"
+    }
+
+    /**
+     * The warning of [aggregate], whose V10 type's tenant is not fixed, when [inventory] holds all its instances in
+     * one tenant other than the default one ([Caller.DEFAULT_TENANT]): 9.x may have fixed it (`@StaticTenantId`), and
+     * V10 then serves them to that tenant's callers only. Null when its tenant is fixed, or its instances are in the
+     * default tenant or in several.
+     */
+    private fun tenantWarning(aggregate: AggregatePlan, inventory: NineXInventory): String? {
+        if (aggregate.fixedTenant != null) {
+            return null
+        }
+        val tenant = inventory.instancesByTenant.keys.singleOrNull()?.takeUnless { it == Caller.DEFAULT_TENANT }
+            ?: return null
+        val target = aggregate.target
+        return "${aggregate.source}: all ${inventory.instancesByTenant.getValue(tenant)} 9.x instances are in the " +
+            "tenant ${RefusedIds.quoted(tenant)}, where V10 serves $target to that tenant's callers only, unless its " +
+            "tenant is fixed: if 9.x fixed it (@StaticTenantId), fix it in the host " +
+            "(wow.aggregates.[$target].tenant: $tenant) and in migrate-data.json (tenants)"
+    }
+
+    /**
      * The problem of the 9.x aggregate ids of [aggregate] with streams that record no tenant, the number of streams of
      * each, which the map does not exclude: each by the name the map excludes it by.
      */
@@ -589,5 +650,9 @@ internal class MappingCheck(private val plan: MigrationPlan) {
         return "$aggregate: streams of these 9.x aggregate ids record no tenant, which V10 refuses, so they cannot be " +
             "imported; exclude each with {\"aggregate\": \"$aggregate\", \"stream\": <the id as listed>, " +
             "\"reason\": \"…\"}: ${listed.joinToString(", ")}"
+    }
+    private companion object {
+        /** The instances a problem lists by name at most; it counts the others. */
+        const val LISTED = 20
     }
 }

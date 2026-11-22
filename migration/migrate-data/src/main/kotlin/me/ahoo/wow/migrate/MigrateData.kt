@@ -129,7 +129,7 @@ internal class MigrateData(
                 connect(config, emptyList()).use { draftMap(config, manifest, it, options) }
             } else {
                 val map = MigrationMap.read(Files.readString(Path.of(config.map)))
-                val plan = MigrationPlan(map, manifestOf(config, map))
+                val plan = MigrationPlan(map, manifestOf(config, map), config.tenants)
                 val line = (listOf(command) + options.filter { it.startsWith("--") && it != CONFIG }).joinToString(" ")
                 connect(config, plan.aggregates.values.map { it.target }.distinct()).use { connections ->
                     runBlocking { run(command, plan, config, Checkpoints(config, connections, line), options, sample) }
@@ -300,6 +300,7 @@ internal class MigrateData(
             connections.source.missingWalkIndexes(plan.aggregates.keys),
             TagReader.of(connections.source, connections.snapshots),
             connections.source::ownersOtherThanIds,
+            connections.source::instancesOutsideTenant,
         )
         out.println(report.render())
         return if (report.passed) OK else FAILED

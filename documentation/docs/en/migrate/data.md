@@ -114,6 +114,15 @@ In the rehearsal's kind cluster, the full import of 50,000 orders took 99 second
 
   What to do with such an instance is the team's decision, per aggregate. The tool has no rule that renames an id as it imports. So today there are two ways: correct the id in the 9.x store before the import (in its streams, its snapshot, and whatever names it elsewhere), or leave the instance out with an `excluded` entry whose `reason` says why. An excluded instance is not imported: its history stays in 9.x alone, and V10 has no aggregate of that id.
 - an instance of an aggregate that is one per owner in V10 (`@AggregateRoot(idSource = AggregateIdSource.OWNER)`, 9.x `OwnerPolicy.AGGREGATE_ID`) has streams that record another owner than its id, or none. V10 records such an aggregate's id as its owner ([One aggregate per owner](../guide/ownership#one-aggregate-per-owner)), so its owner could not reach an instance imported with another one, neither through the routes without an id nor by naming it: the kernel answers `404 wow.aggregate.not-found`. The check reads each such aggregate's streams once, and the kernel's own rule decides each. The problem lists each instance as `excluded` names it, with the owners its streams record (`the owner "customer-1"`, or `no owner`), its streams and its tenants. The two ways are those above: set each stream's `ownerId` to its aggregate id in the 9.x store before the import, or exclude the instance with its reason. `import` refuses such a stream too, if the store changed since the check.
+- an instance of an aggregate type whose tenant the services fix (`wow.aggregates.[<context>.<aggregate>].tenant`, 9.x `@StaticTenantId`) is in another tenant. V10 serves such a type in its fixed tenant only, to writes and reads alike, so no caller could reach the instance, and a command would create the aggregate again in the fixed tenant. The check does not read the services' configuration: state the same fixed tenants in `migrate-data.json`, copied from the hosts ([Configuration file](../reference/migrate-data#configuration-file)):
+
+  <!-- sample: fragment -->
+
+  ```json
+  "tenants": { "example.region": "platform" }
+  ```
+
+  The problem counts the instances in each other tenant and lists the first 20 as `excluded` names them. The two ways: fix the type's tenant to the one they are in, in the hosts and in `tenants` alike, or exclude them. `import` refuses such a stream too, if the store changed since the check. A type `tenants` does not fix whose instances are all in one tenant other than the default one, `(0)`, is a warning: 9.x may have fixed it with `@StaticTenantId`, and V10 then serves them to that tenant's callers only.
 - a map writes `wow.lifecycle.OwnerTransferred`, as an event's `to` or its `lifecycle`, for an aggregate whose owner is fixed in V10: one of its tenant, or one per owner. V10 never commits that event for it, so the map may not write it either. Map the 9.x event without the transfer, or drop it.
 
 Fix the map, or the source, and check again until it passes. `import --dry-run` goes one step further: it reads and converts every stream without writing.

@@ -114,6 +114,15 @@ Job 以工具的退出码结束。检查失败、用法错误和发现差异会�
 
   如何处理这样的实例，由团队按聚合决定。工具没有在导入时重命名 ID 的规则，所以目前有两种做法：在导入之前修正 9.x 存储中的 ID（它的事件流、快照，以及其他地方对它的引用），或者用一个 `excluded` 项把这个实例排除在外，并在 `reason` 中写明原因。被排除的实例不会被导入：它的历史只留在 9.x 中，V10 中没有这个 ID 的聚合。
 - 在 V10 中每个所有者一个的聚合（`@AggregateRoot(idSource = AggregateIdSource.OWNER)`，即 9.x 的 `OwnerPolicy.AGGREGATE_ID`），它的某个实例的事件流记录的所有者不是它的 ID，或者没有所有者。V10 把这种聚合的 ID 记为它的所有者（[每个所有者一个聚合](../guide/ownership#one-aggregate-per-owner)），所以以别的所有者导入的实例，它的所有者够不到：不带 ID 的路由不行，指明它的 ID 也不行，内核答复 `404 wow.aggregate.not-found`。检查对每个这样的聚合读一遍它的事件流，由内核自己的规则逐条判定。问题按 `excluded` 的命名方式列出每个实例，并给出它的事件流记录的所有者（`the owner "customer-1"` 或 `no owner`）、事件流数量和租户。做法同上两种：在导入之前把 9.x 存储中每条事件流的 `ownerId` 设为它的聚合 ID，或者带着原因排除这个实例。若检查之后存储又有变化，`import` 也会拒绝这样的事件流。
+- 服务固定了租户的聚合类型（`wow.aggregates.[<context>.<aggregate>].tenant`，即 9.x 的 `@StaticTenantId`），它的实例在别的租户里。V10 只在固定的租户里提供这种类型，写和读都一样，所以没有调用方能够到这个实例，而且命令会在固定的租户里把聚合重新建出来。`check` 不读服务的配置：在 `migrate-data.json` 里写上同样的固定租户，从宿主抄过来（[配置文件](../reference/migrate-data#configuration-file)）：
+
+  <!-- sample: fragment -->
+
+  ```json
+  "tenants": { "example.region": "platform" }
+  ```
+
+  问题按其他租户统计实例数，并按 `excluded` 的写法列出前 20 个。两条出路：把这个类型的固定租户改成它们所在的租户，宿主和 `tenants` 一起改；或者排除它们。如果检查之后库又变了，`import` 也会拒绝这样的流。`tenants` 没有固定的类型，若所有实例都在同一个非默认（`(0)` 以外的）租户里，报一条警告：9.x 可能用 `@StaticTenantId` 固定过它，而 V10 只把它们提供给那个租户的调用方。
 - 映射为所有者固定的聚合写出 `wow.lifecycle.OwnerTransferred`（作为事件的 `to` 或它的 `lifecycle`）：只属租户的聚合，或每个所有者一个的聚合。V10 从不为它提交这个事件，所以映射也不能写出它。映射这个 9.x 事件时去掉转移，或者丢弃它。
 
 修正映射文件或源码，再检查，直到通过。`import --dry-run` 更进一步：它读取并转换每条流，但不写入。

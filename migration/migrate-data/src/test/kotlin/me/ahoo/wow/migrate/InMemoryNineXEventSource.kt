@@ -38,6 +38,8 @@ internal class InMemoryNineXEventSource(streams: Collection<NineXStream> = empty
                 .eachCount().mapValues { it.value.toLong() },
             tenantless = held.filter { it.aggregateId.tenantId.isBlank() }.groupingBy { it.aggregateId.id }.eachCount()
                 .mapValues { it.value.toLong() },
+            instancesByTenant = held.filter { it.version == 1 && it.aggregateId.tenantId.isNotBlank() }
+                .groupingBy { it.aggregateId.tenantId }.eachCount().mapValues { it.value.toLong() },
         )
     }
 
@@ -65,6 +67,11 @@ internal class InMemoryNineXEventSource(streams: Collection<NineXStream> = empty
     override fun ownersOtherThanIds(aggregate: NineXAggregate): Map<NineXInstanceOwner, Long> =
         streams.filter { it.aggregate == aggregate && it.ownerId != it.aggregateId.id }
             .groupingBy { NineXInstanceOwner(it.aggregateId, it.ownerId) }.eachCount().mapValues { it.value.toLong() }
+
+    override fun instancesOutsideTenant(aggregate: NineXAggregate, tenant: String): Map<NineXAggregateId, Long> =
+        streams.filter {
+            it.aggregate == aggregate && it.aggregateId.tenantId != tenant && it.aggregateId.tenantId.isNotBlank()
+        }.groupingBy { it.aggregateId }.eachCount().mapValues { it.value.toLong() }
 
     override fun committedSince(
         aggregate: NineXAggregate,

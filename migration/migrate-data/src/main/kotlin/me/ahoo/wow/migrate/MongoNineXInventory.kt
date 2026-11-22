@@ -26,13 +26,14 @@ import me.ahoo.wow.migrate.NineXMongoFields.EVENT_NAME
 import me.ahoo.wow.migrate.NineXMongoFields.EVENT_REVISION
 import me.ahoo.wow.migrate.NineXMongoFields.HEADER
 import me.ahoo.wow.migrate.NineXMongoFields.TENANT_ID
+import me.ahoo.wow.migrate.NineXMongoFields.VERSION
 import org.bson.Document
 import org.bson.conversions.Bson
 
 /**
  * What the mapping check and `draft-map` count of a 9.x MongoDB event store ([MongoNineXEventSource.inventory]), one
  * collection of [database] at a time: events by type, commands, streams without a command, the sets of event types
- * streams hold, the instances whose id V10 refuses, and those that record no tenant.
+ * streams hold, the instances whose id V10 refuses, those that record no tenant, and the instances in each tenant.
  */
 internal class MongoNineXInventory(private val database: MongoDatabase) {
     fun inventoryOf(collectionName: String): List<NineXInventory> {
@@ -65,6 +66,7 @@ internal class MongoNineXInventory(private val database: MongoDatabase) {
         val shapes = streamEventTypesOf(collection)
         val refused = refusedIdsOf(collection)
         val tenantless = tenantlessOf(collection)
+        val tenants = instancesByTenantOf(collection)
         return (events.map { it.first.aggregate() } + commands.map { it.first.aggregate() }).distinct().map { aggregate ->
             val ofAggregate = commands.filter { it.first.aggregate() == aggregate }
             NineXInventory(
@@ -84,6 +86,7 @@ internal class MongoNineXInventory(private val database: MongoDatabase) {
                 streamEventTypes = shapes.getValue(aggregate),
                 refusedIds = refused[aggregate].orEmpty(),
                 tenantless = tenantless[aggregate].orEmpty(),
+                instancesByTenant = tenants[aggregate].orEmpty(),
             )
         }
     }
@@ -176,6 +179,27 @@ internal class MongoNineXInventory(private val database: MongoDatabase) {
         ).map { it.get("_id", Document::class.java) to it.count() }.toList()
             .groupBy({ it.first.aggregate() }) { (id, count) -> id.getString("id") to count }
             .mapValues { (_, ids) -> ids.toMap() }
+
+    /**
+     * The number of instances in each tenant, per aggregate: their version-1 streams, one per instance, those that
+     * record no tenant or a blank one left out ([tenantlessOf] counts them).
+     */
+    private fun instancesByTenantOf(collection: MongoCollection<Document>): Map<NineXAggregate, Map<String, Long>> =
+        collection.aggregate(
+            listOf(
+                Aggregates.match(Filters.and(Filters.eq(VERSION, 1), Filters.regex(TENANT_ID, "\\S"))),
+                Document(
+                    "\$group",
+                    Document(
+                        "_id",
+                        Document("context", "\$$CONTEXT_NAME").append("aggregate", "\$$AGGREGATE_NAME")
+                            .append("tenant", "\$$TENANT_ID"),
+                    ).append("count", Document("\$sum", 1)),
+                ),
+            ),
+        ).map { it.get("_id", Document::class.java) to it.count() }.toList()
+            .groupBy({ it.first.aggregate() }) { (id, count) -> id.getString("tenant") to count }
+            .mapValues { (_, tenants) -> tenants.toMap() }
 
     private fun Document.aggregate(): NineXAggregate = NineXAggregate(getString("context"), getString("aggregate"))
 

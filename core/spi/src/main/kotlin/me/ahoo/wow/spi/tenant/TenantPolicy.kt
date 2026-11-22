@@ -17,6 +17,9 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.TargetScope
+import me.ahoo.wow.spi.config.WowConfigurationException
+import me.ahoo.wow.spi.config.configCheck
+import me.ahoo.wow.spi.config.configNotNull
 
 /**
  * Which tenant the aggregates of a type are in (replacing 9.x `@StaticTenantId`): by default the
@@ -93,6 +96,37 @@ fun interface TenantPolicy {
             }
             val fixed = tenants.toMap()
             return TenantPolicy { fixed[it] }
+        }
+
+        /**
+         * The fixed tenants a configuration names ([fixed]): [tenants] maps the name of a type,
+         * `<context>.<aggregate>`, to its tenant, and each name is one of [types], which [whose] says whose they are.
+         * A name of no such type, or a blank tenant, is a [WowConfigurationException] of the key [entryKey] or
+         * [tenantKey] gives the name: one rule and one wording wherever a fixed tenant is configured, the host's
+         * `wow.aggregates.[<name>].tenant` and migrate-data's `tenants`, whose check reads the same fixed tenants
+         * the host's configuration states.
+         */
+        @JvmStatic
+        fun configured(
+            tenants: Map<String, String>,
+            types: Collection<AggregateType>,
+            whose: String,
+            entryKey: (String) -> String,
+            tenantKey: (String) -> String,
+        ): TenantPolicy {
+            val named = types.associateBy { "${it.context}.${it.name}" }
+            return fixed(
+                tenants.map { (name, tenant) ->
+                    val fix = "Name one of the aggregate types $whose: ${named.keys}."
+                    val type = configNotNull(named[name], entryKey(name), fix) {
+                        "${tenantKey(name)} names no aggregate type $whose."
+                    }
+                    configCheck(tenant.isNotBlank(), tenantKey(name), tenant, "Name the tenant.") {
+                        "${tenantKey(name)} is blank."
+                    }
+                    type to tenant
+                }.toMap(),
+            )
         }
     }
 }
