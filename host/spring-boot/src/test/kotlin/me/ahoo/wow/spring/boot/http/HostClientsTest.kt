@@ -261,6 +261,11 @@ class HostClientsTest {
         RoutedQueryApi(mockk<TenantQueryApi>(relaxed = true), routed, emptySet()).tenant("t1").events(account)
         callers.single().assert().isEqualTo(Caller.ofService("basket-service", "t1"))
         callers.single().subject.assert().isEqualTo("service:basket-service")
+        // A peer client whose queries are no HTTP query API cannot ask the peer to reveal.
+        assertThrows<IllegalStateException> {
+            RoutedQueryApi(mockk<TenantQueryApi>(relaxed = true), routed, emptySet()).tenant("t1").revealed()
+                .events(account)
+        }.message.assert().contains("cannot ask it to reveal")
         // A Manifest that names no service has no identity to read a peer as.
         assertThrows<IllegalStateException> {
             NodePeers().wowPeerClients(

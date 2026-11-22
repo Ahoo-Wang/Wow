@@ -133,7 +133,7 @@ class HttpQueries @InternalWowApi constructor(
             defaultListSize: Int = DEFAULT_LIST_SIZE,
             snapshotStatus: SnapshotStatus = SnapshotStatus.NONE,
             streams: QueryStreams = QueryStreams(),
-            displayShared: Boolean = true,
+            displayShared: Boolean,
         ): HttpQueries = HttpQueries(
             engine.snapshots,
             engine.events,

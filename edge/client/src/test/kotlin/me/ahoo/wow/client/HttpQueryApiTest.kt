@@ -310,11 +310,13 @@ class HttpQueryApiTest {
             Reply.json(WowJson.mapper.readTree(record("b-1"))),
             Reply.json(emptyList<Any>()),
             Reply.json(emptyList<Any>()),
+            Reply.json(emptyList<Any>()),
         )
         queries.snapshots(BOX).list(ListQuery(MatchAllFilter)).toList().assert().hasSize(1)
         queries.snapshots(BOX).state("b-1").assert().isNotNull()
         queries.events(BOX).list(ListQuery(MatchAllFilter)).toList().assert().isEmpty()
         queries.snapshots(BOX).dynamic(Map::class.java).list(ListQuery(MatchAllFilter)).toList().assert().isEmpty()
+        queries.events(BOX).dynamic(Map::class.java).list(ListQuery(MatchAllFilter)).toList().assert().isEmpty()
         peer.taken.map { it.headers[WowHeaders.REVEAL] }.assert().containsOnly(WowHeaders.REVEAL_DISPLAY)
         // A caller's reads do not ask.
         peer.reply(Reply.json(emptyList<Any>()))
