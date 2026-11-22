@@ -79,7 +79,7 @@ Nothing a client sends outside the body is read as something else, or dropped:
 | `Wow-Call`, the header of a service's synchronous call, on any route: a command, a query, a state read, a service route | `403 wow.auth.forbidden`, whatever the credential: calls are taken on the internal port alone |
 | Matrix parameters in the path (`/shop/cart/c-1;x=1/add-item`) | `400 wow.request.malformed`: no route takes them |
 | A body of another type than `application/json` or `application/<name>+json`, any parameters aside (`*/*`, `application/*`, `image/x+json`) | `415` |
-| An aggregate id the [id rule](#aggregate-ids) refuses: a control character (`a%00b`), white space at either end (`%20c-1`), `.` or `..`, a `/`, `;` or `\` (`a%2Fb`), or longer than 256 characters encoded | `400 wow.command.malformed`. A unicode id (`%E8%B4%AD`) is taken as it is: a client encodes the ids it sends |
+| An aggregate id the [id rule](#aggregate-ids) refuses: a control character (`a%00b`), white space at either end (`%20c-1`), `.` or `..`, a `/`, `;` or `\` (`a%2Fb`), longer than 256 characters, or longer than 512 bytes in UTF-8 | `400 wow.command.malformed`. A unicode id (`%E8%B4%AD`) is taken as it is: a client encodes the ids it sends |
 | A blank id on a state read (`/shop/cart/%20/state`) | `400 wow.query.malformed` |
 | A parameter of a state read or a trace it does not take (`?verison=1`), or one given twice (`?version=1&version=9`) | `400 wow.query.invalid`, the violation naming it |
 | `version`, `minVersion`, `from`, `to` or `limit` that is not ASCII digits without a sign or a leading zero (`%2B1`, `001`, `١`) | `400 wow.query.invalid`, the violation naming it |
@@ -91,14 +91,16 @@ One rule decides which aggregate ids exist, on every path a command takes: the p
 
 | The id | Why |
 | --- | --- |
-| Longer than 256 characters | Not every store's index keys take a longer one |
+| Longer than 256 characters, counted in UTF-16 code units (an emoji counts two) | A gateway's path check refuses a longer path segment: CoSec 8 counts a segment decoded, at most 256. Not every store's index keys take a longer one either |
 | Holding a control character (`\u0000` to `\u001f`, `\u007f` to `\u009f`) | Not every store keeps it |
 | With white space at either end | A reader would not see it: another aggregate than the one without it |
 | `.` or `..` | A proxy normalizing the path resolves it away |
 | Holding `/`, `;` or `\` | A gateway's path check refuses it encoded in a path: CoSec 8 answers `%2F`, `%3B` and `%5C` with 400, before the service sees the request |
-| Longer than 256 characters percent-encoded as UTF-8 | The same check refuses a longer path segment. A letter, a digit, `-`, `.`, `_` or `~` counts one; any other character counts three for each byte of its UTF-8 form (`é` 6, `购` 9), so 28 characters such as `购` fit and 29 do not |
+| Longer than 512 bytes in UTF-8 | The same check refuses a path longer than 2,048 characters as received, percent-encoded. A route by id leaves its id 1,536 of them, and a client writes at most three characters for each byte (`%E8`), so an id of 512 bytes fits however it is encoded. That is 256 characters of most scripts (`x`, `é`), 170 of Chinese, Japanese or Korean (`购`; 171 do not fit), and 128 emoji |
 
-So every aggregate is reachable by each route that names its id, behind such a gateway too. Everything else is an id: a dot or a space inside it, `%`, `?`, `#`, `+`, and any unicode character, which a client encodes in the path.
+So every aggregate is reachable by each route that names its id, behind such a gateway too. The rest of a route by id, its context, its aggregate, its command and its separators, takes at most the other 512 characters, percent-encoded, and each of its segments at most 256 characters, as the gateway counts one: the build refuses a Manifest with a longer one, naming the route and the name to shorten. The longest route by id of an aggregate is usually a lifecycle command's (`…/{id}/wow.lifecycle.transfer-space`) or the trace of its state (`…/{id}/state/trace`).
+
+The gateway counts a segment decoded from CoSec 8.0.0-beta.6; an earlier one refuses a segment longer than 256 characters as received, so an id of more than 28 characters such as `购` is not reachable behind it ([Longer aggregate ids](../operate/upgrades#longer-aggregate-ids)). A gateway whose route patterns read a path as received, without decoding it, matches a segment of at most 256 characters as written, encoded. Everything else is an id: a dot or a space inside it, `%`, `?`, `#`, `+`, and any unicode character, which a client encodes in the path.
 
 | Where the id comes from | Answer |
 | --- | --- |

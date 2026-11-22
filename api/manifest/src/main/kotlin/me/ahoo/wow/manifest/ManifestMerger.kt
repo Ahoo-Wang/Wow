@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.manifest
 
+import me.ahoo.wow.api.aggregate.AggregateIdLimits
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.result.FrameworkCodes
 
@@ -40,6 +41,9 @@ import me.ahoo.wow.api.result.FrameworkCodes
  * - only a saga's subscription handles receipts, of rejections or of commits;
  * - no context takes the name of the framework's endpoints, and no command route ends in a segment the framework
  *   keeps for itself ([CommandRoutes]);
+ * - a route by id, a command's or the state read's, leaves its id the share of a gateway's path an id may take: its
+ *   other segments take at most [AggregateIdLimits.MAX_ROUTE_REST] characters percent-encoded, and each of them at
+ *   most [AggregateIdLimits.MAX_LENGTH] characters, the longest segment a gateway takes;
  * - a context documents an error code once, and not a framework (`wow.*`) one; a fragment's top-level errors, if
  *   any, are the framework's as [FrameworkErrors] defines them.
  *
@@ -68,6 +72,9 @@ object ManifestMerger {
         }
         conflicts += typeNameConflicts(contexts, "event") { aggregate -> aggregate.events.map { it.name to it.aliases } }
         conflicts += routeConflicts(contexts)
+        val byId = routesById(contexts)
+        conflicts += routeLengthConflicts(byId)
+        conflicts += segmentLengthConflicts(byId)
         conflicts += topicConflicts(contexts)
         conflicts += fragments.flatMap(::frameworkErrorConflicts)
 
@@ -272,6 +279,63 @@ object ManifestMerger {
             .map { (_, declared) -> shared(declared) }
         return names + reserved + reservedServiceRoutes + shared
     }
+
+    /**
+     * The routes by id: each command's route with `{id}`, and the longest the framework serves of each aggregate, the
+     * trace of its state ([CommandRoutes.tracePath]).
+     */
+    private fun routesById(contexts: List<Pair<String, ContextManifest>>): List<LongRoute> =
+        contexts.flatMap { (source, context) ->
+            val jobs = context.commands.flatMap { command ->
+                command.routes.map { route ->
+                    LongRoute(route, "${context.name}.${command.name} ($source)", listOf("context" to context.name))
+                }
+            }
+            jobs + context.aggregates.flatMap { aggregate ->
+                val names = listOf("context" to context.name, "aggregate" to aggregate.name)
+                val owner = "${context.name}.${aggregate.name}"
+                val trace = RouteManifest("GET", CommandRoutes.tracePath(context.name, aggregate.name))
+                aggregate.commands.flatMap { command ->
+                    val named = if (command.system) names else names + ("command" to command.name)
+                    command.routes.map { LongRoute(it, "$owner.${command.name} ($source)", named) }
+                } + LongRoute(trace, "the state read of $owner ($source)", names)
+            }
+        }.filter { CommandRoutes.ID in it.route.path }
+
+    /**
+     * The routes by id whose other segments take more than [AggregateIdLimits.MAX_ROUTE_REST] characters
+     * percent-encoded, so that an id of [AggregateIdLimits.MAX_BYTES] bytes would make the path longer than a gateway
+     * takes ([AggregateIdLimits.MAX_PATH_LENGTH]). Each names the longest of its names, the one to shorten.
+     */
+    private fun routeLengthConflicts(byId: List<LongRoute>): List<String> = byId.mapNotNull { long ->
+        val rest = AggregateIdLimits.encodedLength(long.route.path.replace(CommandRoutes.ID, ""))
+        if (rest <= AggregateIdLimits.MAX_ROUTE_REST) return@mapNotNull null
+        val (kind, name) = long.names.maxBy { (_, name) -> AggregateIdLimits.encodedLength(name) }
+        "route ${long.route.method} ${long.route.path} of ${long.owner} takes $rest characters percent-encoded " +
+            "besides its id, more than the ${AggregateIdLimits.MAX_ROUTE_REST} a route by id may take of a " +
+            "gateway's ${AggregateIdLimits.MAX_PATH_LENGTH}-character path: shorten the $kind $name, its longest name"
+    }.distinct()
+
+    /**
+     * The segments of the routes by id, `{id}` aside, longer than [AggregateIdLimits.MAX_LENGTH] characters (UTF-16
+     * code units, as a gateway counts a segment decoded), which a gateway refuses whatever the id. Each names the
+     * segment's name: its context's, its aggregate's or its command's, or the segment itself where a hand-written
+     * route spells none of them.
+     */
+    private fun segmentLengthConflicts(byId: List<LongRoute>): List<String> = byId.flatMap { long ->
+        long.route.path.split('/').filter { it != CommandRoutes.ID && it.length > AggregateIdLimits.MAX_LENGTH }
+            .map { segment ->
+                val (kind, name) = long.names.firstOrNull { (_, name) ->
+                    segment == name || segment == CommandRoutes.segment(name)
+                } ?: ("segment" to segment)
+                "route ${long.route.method} ${long.route.path} of ${long.owner} has a segment of ${segment.length} " +
+                    "characters, more than the ${AggregateIdLimits.MAX_LENGTH} a gateway takes of one: shorten the " +
+                    "$kind $name"
+            }
+    }.distinct()
+
+    /** A route by id of [owner], and the names its path is made of that its owner may shorten, by kind. */
+    private class LongRoute(val route: RouteManifest, val owner: String, val names: List<Pair<String, String>>)
 
     /** The conflict of routes [declared] by their owners that match the same requests. */
     private fun shared(declared: List<Pair<RouteManifest, String>>): String {

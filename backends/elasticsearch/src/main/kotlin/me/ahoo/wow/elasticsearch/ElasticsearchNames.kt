@@ -13,7 +13,9 @@
 
 package me.ahoo.wow.elasticsearch
 
+import me.ahoo.wow.api.aggregate.AggregateIdLimits
 import me.ahoo.wow.api.aggregate.AggregateRef
+import java.nio.ByteBuffer
 import java.security.MessageDigest
 
 /**
@@ -66,16 +68,53 @@ internal class ElasticsearchNames(prefix: String = "") {
 
         /**
          * The document id of [ref]'s snapshot in its index: the tenant's length, the tenant and the id
-         * (`<length>:<tenant>:<id>`), so no two refs share one whatever characters their parts hold.
+         * (`<length>:<tenant>:<id>`), so no two refs share one whatever characters their parts hold; within
+         * Elasticsearch's [MAX_DOCUMENT_ID_BYTES] as [bounded] makes it.
          */
         fun documentId(ref: AggregateRef): String = documentId(ref.tenantId, ref.id)
 
-        fun documentId(tenantId: String, id: String): String = "${tenantId.length}:$tenantId:$id"
+        fun documentId(tenantId: String, id: String): String = bounded(naturalId(tenantId, id))
 
         /**
          * The document id of [ref]'s event stream at [version] in its events index: its snapshot's id and the version
-         * (`<length>:<tenant>:<id>@<version>`), the commit's identity, so a stream written again replaces nothing.
+         * (`<length>:<tenant>:<id>@<version>`), the commit's identity, so a stream written again replaces nothing;
+         * within [MAX_DOCUMENT_ID_BYTES] as [bounded] makes it.
          */
-        fun streamId(ref: AggregateRef, version: Int): String = documentId(ref) + "@" + version
+        fun streamId(ref: AggregateRef, version: Int): String = bounded(naturalId(ref.tenantId, ref.id) + "@" + version)
+
+        /** The most bytes Elasticsearch takes in a document's `_id`, in UTF-8. */
+        const val MAX_DOCUMENT_ID_BYTES = 512
+
+        /** The characters of a SHA-256, in hex. */
+        private const val DIGEST_LENGTH = 64
+
+        private fun naturalId(tenantId: String, id: String): String = "${tenantId.length}:$tenantId:$id"
+
+        /**
+         * [id] as it is, when Elasticsearch takes it ([MAX_DOCUMENT_ID_BYTES] bytes in UTF-8 or fewer), so the id of
+         * every document written before is the same; else its longest prefix that leaves room, `/` and the SHA-256 of
+         * the whole [id] in hex. No id as it is holds a `/` after its tenant, which an aggregate id never holds, so a
+         * bounded id is never another's as it is, and two long ids sharing their prefix stay distinct.
+         */
+        fun bounded(id: String): String {
+            if (AggregateIdLimits.utf8Length(id) <= MAX_DOCUMENT_ID_BYTES) return id
+            // Digested as its UTF-16 units, which keep a lone surrogate an encoder to UTF-8 would replace.
+            val units = ByteBuffer.allocate(id.length * Char.SIZE_BYTES).apply { asCharBuffer().put(id) }.array()
+            val digest = MessageDigest.getInstance("SHA-256").digest(units).joinToString("") { "%02x".format(it) }
+            return prefixOf(id, MAX_DOCUMENT_ID_BYTES - 1 - DIGEST_LENGTH) + "/" + digest
+        }
+
+        /**
+         * The longest prefix of [text] of at most [bytes] bytes in UTF-8, never cutting a surrogate pair: its code
+         * points while their bytes fit, as [AggregateIdLimits.utf8Length] counts them.
+         */
+        private fun prefixOf(text: String, bytes: Int): String {
+            var taken = 0
+            val kept = text.codePoints().takeWhile { code ->
+                taken += AggregateIdLimits.utf8Length(String(Character.toChars(code)))
+                taken <= bytes
+            }.toArray()
+            return String(kept, 0, kept.size)
+        }
     }
 }

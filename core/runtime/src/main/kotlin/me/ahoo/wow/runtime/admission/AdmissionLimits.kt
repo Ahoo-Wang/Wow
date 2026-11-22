@@ -31,7 +31,8 @@ import tools.jackson.databind.JsonNode
  * - an aggregate id no route or store keeps as it was given ([AggregateIds.unaddressable]): one with `\u0000` or
  *   another control character, one with white space at either end (another aggregate than the one without it, to a
  *   reader), `.` or `..`, which a proxy normalizing the path would send as another request, and one a gateway's path
- *   check refuses: holding `/`, `;` or `\`, or longer than 256 characters percent-encoded;
+ *   check refuses: holding `/`, `;` or `\`, or more than 512 bytes in UTF-8, past the share of its path a route by
+ *   id leaves the id ([me.ahoo.wow.api.aggregate.AggregateIdLimits]);
  * - a body that writes the character `\u0000` in a string or a key: PostgreSQL's `jsonb` does not take it, MongoDB
  *   does, and a fact one backend keeps and another refuses would make the choice of backend change what commits.
  */

@@ -62,8 +62,8 @@ object PositiveRules {
         // And the stability markers of wow-annotations (D282); of wow-api, the problem its error catalog declares and
         // maps a code to (Retry, WowProblemException of a command's result, D366 ②), and the vocabulary it states in
         // wow-api's own types rather than copies of them: creation, ownership, id source, function kind, framework
-        // codes, a job's scope and misfire, the lifecycle and job command names, and the wire names. No behaviour of
-        // the programming model.
+        // codes, a job's scope and misfire, the lifecycle and job command names, the wire names, and the limits of an
+        // aggregate id that its routes by id are checked against. No behaviour of the programming model.
         ImportAllowList(
             "wow-manifest imports only its own packages, the stability markers, the problem vocabulary and the " +
                 "programming model's vocabulary",
@@ -73,7 +73,7 @@ object PositiveRules {
                 "$WOW.api.aggregate.Creation", "$WOW.api.aggregate.Ownership", "$WOW.api.aggregate.AggregateIdSource",
                 "$WOW.api.result.FunctionKind", "$WOW.api.result.FrameworkCodes", "$WOW.api.schedule.JobScope",
                 "$WOW.api.schedule.Misfire", "$WOW.api.schedule.ScheduleJobs", "$WOW.api.lifecycle.Lifecycle",
-                "$WOW.api.wire.WireNames",
+                "$WOW.api.wire.WireNames", "$WOW.api.aggregate.AggregateIdLimits",
             ),
         ),
         ImportAllowList(

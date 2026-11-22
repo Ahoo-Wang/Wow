@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.kernel
 
+import me.ahoo.wow.api.aggregate.AggregateIdLimits
 import me.ahoo.wow.api.annotation.InternalWowApi
 
 /**
@@ -24,20 +25,17 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  */
 @InternalWowApi
 object AggregateIds {
-    /** The longest aggregate id admission takes, in characters. */
-    const val MAX_LENGTH: Int = 256
+    /** The longest aggregate id admission takes, in UTF-16 units ([AggregateIdLimits.MAX_LENGTH]). */
+    const val MAX_LENGTH: Int = AggregateIdLimits.MAX_LENGTH
 
-    /**
-     * The longest aggregate id admission takes percent-encoded as UTF-8 ([encodedLength]): what a gateway's path check
-     * counts of a path segment. CoSec 8 refuses a segment longer than this.
-     */
-    const val MAX_ENCODED_LENGTH: Int = 256
+    /** The most bytes in UTF-8 of an aggregate id admission takes ([AggregateIdLimits.MAX_BYTES]). */
+    const val MAX_BYTES: Int = AggregateIdLimits.MAX_BYTES
 
     /** The characters a gateway's path check refuses in a path segment, encoded: `/`, `;` and `\`. */
     const val UNCARRIED: String = "/;\\"
 
     /**
-     * Why [id], an aggregate id, is one admission refuses whatever its length in characters, as text, or null when it
+     * Why [id], an aggregate id, is one admission refuses whatever its length in UTF-16 units, as text, or null when it
      * is not:
      *
      * - `.` or `..`, a relative path segment, which a proxy normalizing the path would send as another request;
@@ -46,8 +44,8 @@ object AggregateIds {
      *   keeps;
      * - `/`, `;` or `\` ([UNCARRIED]), which a gateway's path check refuses encoded in a path (CoSec 8 answers
      *   `%2F`, `%3B` and `%5C` with 400), so no by-id route would reach it;
-     * - one longer than [MAX_ENCODED_LENGTH] characters percent-encoded as UTF-8 ([encodedLength]), which the same
-     *   check refuses as too long a segment.
+     * - more than [MAX_BYTES] bytes in UTF-8, past the share of the gateway's path a route by id leaves its id
+     *   ([AggregateIdLimits]).
      *
      * A blank id is refused where it is read, and an id longer than admission takes ([MAX_LENGTH]) is refused by its
      * length ([refused]): neither is answered here.
@@ -68,10 +66,10 @@ object AggregateIds {
                 "The aggregate id '$id' holds '$uncarried', which a gateway's path check refuses in a path, so no route " +
                     "by its id would reach it: an aggregate id holds no '/', ';' or '\\'."
 
-            encodedLength(id) > MAX_ENCODED_LENGTH ->
-                "The aggregate id is ${encodedLength(id)} characters percent-encoded as UTF-8, which a gateway's path " +
-                    "check refuses past $MAX_ENCODED_LENGTH: a shorter id, or one of letters, digits, '-', '.', '_' " +
-                    "and '~', fits."
+            AggregateIdLimits.utf8Length(id) > MAX_BYTES ->
+                "The aggregate id has ${id.length} characters, ${AggregateIdLimits.utf8Length(id)} bytes in UTF-8, " +
+                    "more than the $MAX_BYTES bytes a route by it carries behind a gateway: $MAX_BYTES bytes are " +
+                    "$MAX_LENGTH characters of most scripts and ${MAX_BYTES / THREE_BYTE} of Chinese, Japanese or Korean."
 
             else -> null
         }
@@ -79,39 +77,12 @@ object AggregateIds {
 
     /**
      * Why admission refuses [id] as an aggregate id, as text, or null when it takes it: longer than [MAX_LENGTH]
-     * characters, or [unaddressable]. A blank id is refused where it is read.
+     * UTF-16 units, or [unaddressable]. A blank id is refused where it is read.
      */
     fun refused(id: String?): String? = id?.takeIf { it.length > MAX_LENGTH }
         ?.let { "The aggregate id is at most $MAX_LENGTH characters; this one has ${it.length}." }
         ?: unaddressable(id)
 
-    /**
-     * The length of [id] percent-encoded as UTF-8, as a client that encodes every character but the unreserved ones
-     * (RFC 3986: letters, digits, `-`, `.`, `_` and `~`) writes it in a path: one character for each unreserved
-     * character, three for each other byte of its UTF-8 form. A lone surrogate counts as the three bytes of the
-     * replacement character an encoder writes for it.
-     */
-    fun encodedLength(id: String): Int {
-        var length = 0
-        var index = 0
-        while (index < id.length) {
-            val code = id.codePointAt(index)
-            length += when {
-                isUnreserved(code) -> 1
-                code < 0x80 -> ESCAPED
-                code < 0x800 -> 2 * ESCAPED
-                code < 0x10000 -> 3 * ESCAPED
-                else -> 4 * ESCAPED
-            }
-            index += Character.charCount(code)
-        }
-        return length
-    }
-
-    private fun isUnreserved(code: Int): Boolean =
-        code in 'a'.code..'z'.code || code in 'A'.code..'Z'.code || code in '0'.code..'9'.code ||
-            code == '-'.code || code == '.'.code || code == '_'.code || code == '~'.code
-
-    /** The characters of one percent-encoded byte: `%` and two hex digits. */
-    private const val ESCAPED = 3
+    /** The bytes in UTF-8 of a character of Chinese, Japanese or Korean, as of most of the Basic Multilingual Plane. */
+    private const val THREE_BYTE = 3
 }

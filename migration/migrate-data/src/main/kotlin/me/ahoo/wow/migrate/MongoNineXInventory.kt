@@ -216,17 +216,15 @@ internal class MongoNineXInventory(private val database: MongoDatabase) {
         /**
          * The ids that may be refused ([RefusedIds]): the empty one, one beginning or ending with one of
          * [ENDS], one holding a control character, one of 129 code points or more, as an id longer than admission
-         * takes (256 UTF-16 characters) has, one holding `/`, `;` or `\`, and one of 22 code points or more holding a
-         * character a path encodes, as one longer than 256 characters percent-encoded has (a code point is at most 12
-         * of them); then none at all, and [AggregateRef.UNASSIGNED]. Two matches on 9.x's
+         * takes (256 UTF-16 units) or of more than its 512 bytes in UTF-8 has (a code point is at most 4 of them),
+         * and one holding `/`, `;` or `\`; then none at all, and [AggregateRef.UNASSIGNED]. Two matches on 9.x's
          * `(aggregateId, version)` index, each fetching only the streams it matches: the regular expression alone is
          * matched against the index's keys, and one match of it and of null would fetch every stream to tell a null.
          */
         val REFUSED_CANDIDATES: List<Bson> = listOf(
             Filters.regex(
                 AGGREGATE_ID,
-                "^$|^[$ENDS]|[$ENDS]$|[\\x{0}-\\x{1f}\\x{7f}-\\x{9f}]|^.{129}|[/;\\\\]" +
-                    "|^(?=.{22})(?=.*[^A-Za-z0-9._~-])",
+                "^$|^[$ENDS]|[$ENDS]$|[\\x{0}-\\x{1f}\\x{7f}-\\x{9f}]|^.{129}|[/;\\\\]",
                 "s",
             ),
             Filters.`in`(AGGREGATE_ID, null, AggregateRef.UNASSIGNED),

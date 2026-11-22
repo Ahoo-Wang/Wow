@@ -54,6 +54,7 @@ import me.ahoo.wow.http.wowRoutes
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
+import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.CommandRoutes
@@ -69,6 +70,7 @@ import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.admission.CommandTransformer
 import me.ahoo.wow.runtime.admission.CommittedRequests
 import me.ahoo.wow.runtime.admission.ModelRegistry
+import me.ahoo.wow.runtime.state.KernelStateReads
 import me.ahoo.wow.runtime.wait.LocalSignalSender
 import me.ahoo.wow.runtime.wait.SubscriptionDirectory
 import me.ahoo.wow.runtime.wait.WaitCoordinator
@@ -94,7 +96,8 @@ class Cart {
 data class CartOpened(val note: String)
 data class ItemAdded(val sku: String)
 
-val cartModel = aggregate<Cart>(CONTEXT, "cart") {
+/** The cart named [name] of [context]: `cart` of [CONTEXT], or longer names a test of the routes' lengths gives. */
+fun cartModelOf(name: String, context: String = CONTEXT) = aggregate<Cart>(context, name) {
     initial { Cart() }
     decide<OpenCart>(Creation.REQUIRED) { _, body -> WowDecision.events(CartOpened(body.note)) }
     decide<AddItem> { _, body -> WowDecision.events(ItemAdded(body.sku)) }
@@ -102,32 +105,37 @@ val cartModel = aggregate<Cart>(CONTEXT, "cart") {
     evolve<ItemAdded> { items++ }
 }
 
-/** The Manifest of [cartModel] as the compiler writes it: its commands, `DeleteAggregate`, its rebuild, and jobs. */
-fun cartManifest(): Manifest {
+val cartModel = cartModelOf("cart")
+
+/**
+ * The Manifest of [cartModel], or of the cart named [aggregate] of [context], as the compiler writes it: its commands,
+ * `DeleteAggregate`, its rebuild, and jobs.
+ */
+fun cartManifest(aggregate: String = "cart", context: String = CONTEXT): Manifest {
     fun command(name: String, creation: Creation) = CommandManifest(
         name = name,
         schema = Manifest.schemaRef(name),
         creation = creation,
-        routes = CommandRoutes.of(CONTEXT, "cart", name, creation),
+        routes = CommandRoutes.of(context, aggregate, name, creation),
     )
     return Manifest(
         service = ServiceInfo("shop-service"),
         contexts = listOf(
             ContextManifest(
-                name = CONTEXT,
+                name = context,
                 aggregates = listOf(
                     AggregateManifest(
-                        name = "cart",
+                        name = aggregate,
                         state = StateManifest(Manifest.schemaRef("Cart")),
                         commands = listOf(
                             command("AddItem", Creation.NONE),
                             command("OpenCart", Creation.REQUIRED),
-                            SystemCommands.lifecycle(CONTEXT, "cart", SystemCommands.DELETE_AGGREGATE),
-                            SystemCommands.rebuild(CONTEXT, "cart"),
+                            SystemCommands.lifecycle(context, aggregate, SystemCommands.DELETE_AGGREGATE),
+                            SystemCommands.rebuild(context, aggregate),
                         ),
                     ),
                 ),
-                commands = SystemCommands.jobs(CONTEXT),
+                commands = SystemCommands.jobs(context),
             ),
         ),
         errors = FrameworkErrors.ALL,
@@ -281,17 +289,31 @@ fun editor(): Caller = Caller(
     attributes = mapOf(CoSecCallerResolver.ROLES to listOf("editor")),
 )
 
-/** An in-memory node serving [cartModel] behind [wowRoutes], authenticated by [callers] behind CoSec's [cosec]. */
+/**
+ * An in-memory node serving [cartModel], or the cart named [aggregate] of [context], behind [wowRoutes], its commands and its state
+ * reads, authenticated by [callers] behind CoSec's [cosec].
+ */
 class CoSecNode(
     callers: CallerResolver,
     val cosec: CoSecPipeline = CoSecPipeline(),
     options: WowHttpOptions = WowHttpOptions(),
     transformers: List<CommandTransformer> = emptyList(),
     authorizer: CommandAuthorizer = CommandAuthorizer.ALLOW_ALL,
+    aggregate: String = "cart",
+    context: String = CONTEXT,
 ) {
     private val registry = WaitRegistry()
+    private val kernel = Kernel(InMemoryEventLog(partitions = 2))
+    private val models = ModelRegistry(
+        listOf(if (aggregate == "cart" && context == CONTEXT) cartModel else cartModelOf(aggregate, context)),
+    )
+    private val manifest = cartManifest(aggregate, context)
+    private val reads = KernelStateReads(
+        models,
+        mapOf(context to KernelStateReads.ContextReads(kernel, InMemorySnapshotStore())),
+    )
     private val coordinator = WaitCoordinator(
-        Executor(Kernel(InMemoryEventLog(partitions = 2))),
+        Executor(kernel),
         registry,
         SubscriptionDirectory.NONE,
         LocalSignalSender("node-1", registry),
@@ -299,8 +321,8 @@ class CoSecNode(
         WaitOptions(maxTimeout = 30.seconds),
     )
     private val gateway = CommandGateway(
-        ModelRegistry(listOf(cartModel)),
-        mapOf(CONTEXT to coordinator),
+        models,
+        mapOf(context to coordinator),
         authorizer = authorizer,
         transformers = transformers,
         committed = CommittedRequests.NONE,
@@ -308,9 +330,11 @@ class CoSecNode(
 
     /** The internal port's call routes (decision D193) of this node, their callers from [internalCallers]. */
     fun calls(internalCallers: CallerResolver): WebTestClient =
-        WebTestClient.bindToRouterFunction(callRoutes(cartManifest(), gateway, internalCallers)).build()
+        WebTestClient.bindToRouterFunction(callRoutes(manifest, gateway, internalCallers)).build()
     val client: WebTestClient = WebTestClient
-        .bindToRouterFunction(wowRoutes(cartManifest(), gateway, callerResolver = callers, options = options))
+        .bindToRouterFunction(
+            wowRoutes(manifest, gateway, reads = reads, callerResolver = callers, options = options),
+        )
         .webFilter<WebTestClient.RouterFunctionSpec>(CoSecTestBindings.filter(cosec.pipeline))
         .build()
         .mutate()

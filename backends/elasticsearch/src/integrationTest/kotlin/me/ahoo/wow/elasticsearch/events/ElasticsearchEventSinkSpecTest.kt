@@ -15,11 +15,14 @@ package me.ahoo.wow.elasticsearch.events
 
 import co.elastic.clients.elasticsearch._types.SortOrder
 import kotlinx.coroutines.future.await
+import kotlinx.coroutines.runBlocking
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.elasticsearch.ElasticsearchFixture
 import me.ahoo.wow.spi.sink.Sink
 import me.ahoo.wow.tck.sink.SinkSpec
+import org.junit.jupiter.api.Test
 import tools.jackson.databind.node.ObjectNode
 
 /** The [SinkSpec] on the event search Sink: what a search of the events index finds, written again included. */
@@ -44,7 +47,21 @@ class ElasticsearchEventSinkSpecTest : SinkSpec() {
         return response.hits().hits().map { checkNotNull(it.source()).path("version").intValue() }
     }
 
+    @Test
+    fun `a stream of the longest id the rule takes, behind a long tenant, is written once whatever its retries`(): Unit =
+        runBlocking {
+            val ref = aggregateType.ref("t".repeat(LONG_TENANT), "购".repeat(170) + "xx")
+            val sink = createSink()
+            sink.write(listOf(record(ref, 1), record(ref, 2)))
+            // Written again: the bounded ids are the same, so the streams already written are known and kept.
+            sink.write(listOf(record(ref, 1), record(ref, 2), record(ref, 3)))
+            val index = ElasticsearchFixture.names.events(ref.type.context, ref.type.name)
+            ElasticsearchFixture.client.indices().refresh { it.index(index) }.await()
+            written(ref).assert().containsExactly(1, 2, 3)
+        }
+
     private companion object {
         const val MAX_HITS = 100
+        const val LONG_TENANT = 64
     }
 }
