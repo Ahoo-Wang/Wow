@@ -50,7 +50,7 @@ class MongoFailureDescriberTest {
     @Test
     fun `a write's duplicate key should be its code and category, without the key`() {
         val error = WriteError(11000, DUPLICATE, BsonDocument())
-        told(MongoWriteException(error, server)).assert()
+        told(MongoWriteException(error, server, emptySet())).assert()
             .isEqualTo("write error code 11000 duplicate key")
         val bulk = MongoBulkWriteException(
             BulkWriteResult.unacknowledged(),
@@ -73,13 +73,15 @@ class MongoFailureDescriberTest {
         told(MongoCommandException(response, server)).assert()
             .isEqualTo("command failed code 11000 'DuplicateKey'")
         val concern = WriteConcernError(64, "WriteConcernFailed", "waiting for alice.smith@example.com", BsonDocument())
-        told(MongoWriteConcernException(concern, server)).assert()
+        told(MongoWriteConcernException(concern, null, server, emptySet())).assert()
             .isEqualTo("write concern error code 64 'WriteConcernFailed'")
         // A name a description does not take is left out.
         val unnamed = WriteConcernError(64, "has space", "x", BsonDocument())
-        told(MongoWriteConcernException(unnamed, server)).assert().isEqualTo("write concern error code 64")
-        told(MongoWriteConcernException(WriteConcernError(64, "", "x", BsonDocument()), server)).assert()
-            .isEqualTo("write concern error code 64")
+        val empty = WriteConcernError(64, "", "x", BsonDocument())
+        listOf(unnamed, empty).forEach { error ->
+            told(MongoWriteConcernException(error, null, server, emptySet())).assert()
+                .isEqualTo("write concern error code 64")
+        }
     }
 
     @Test
