@@ -246,6 +246,20 @@ class QueryModelSchema(
     /** How responses are masked, or `null` when the model masks nothing. */
     internal val maskDefinition = QueryMaskDefinition.create(this)
 
+    /**
+     * How the responses of a query that reveals `DISPLAY` values are masked ([QueryCaller.revealsDisplay][me.ahoo.wow.
+     * query.QueryCaller.revealsDisplay]), or `null` when the model masks nothing else: compiled on the first such query.
+     */
+    internal val revealedMaskDefinition: QueryMaskDefinition? by lazy(LazyThreadSafetyMode.PUBLICATION) {
+        QueryMaskDefinition.create(this, revealsDisplay = true)
+    }
+
+    /** The logical paths of the masked fields a query that reveals `DISPLAY` values returns raw, in declaration order. */
+    val displayFields: List<String> by lazy {
+        maskedValues.filter { it.second.maskRule!!.level == SensitivityLevel.DISPLAY }
+            .map { it.first.logicalPath() }.distinct()
+    }
+
     /** The logical paths of the masked fields (`{key}` for a map key), in declaration order. */
     val maskedFields: List<String> by lazy { maskedValues.map { it.first.logicalPath() }.distinct() }
 

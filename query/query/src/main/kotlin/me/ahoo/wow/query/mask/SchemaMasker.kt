@@ -167,7 +167,12 @@ internal class SchemaMasker private constructor(private val definition: QueryMas
     private fun fail(message: String): Nothing = throw QueryExecutionException(message)
 
     companion object {
-        fun create(schema: QueryModelSchema): SchemaMasker? = schema.maskDefinition?.let(::SchemaMasker)
+        /**
+         * The masker of [schema]'s responses, or `null` when they mask nothing; with [revealsDisplay], of a query that
+         * reveals `DISPLAY` values, which masks `CONFIDENTIAL` ones alone.
+         */
+        fun create(schema: QueryModelSchema, revealsDisplay: Boolean = false): SchemaMasker? =
+            (if (revealsDisplay) schema.revealedMaskDefinition else schema.maskDefinition)?.let(::SchemaMasker)
     }
 }
 

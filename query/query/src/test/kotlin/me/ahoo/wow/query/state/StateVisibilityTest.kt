@@ -26,8 +26,10 @@ import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IdFilter
 import me.ahoo.wow.api.read.Snapshot
 import me.ahoo.wow.query.QueryCaller
+import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.mask.PayloadMasks
+import me.ahoo.wow.query.schema.ManifestFixtures
 import me.ahoo.wow.spi.json.WowJson
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.JsonNode
@@ -87,4 +89,21 @@ class StateVisibilityTest {
         StateVisibility.admitted(null, QueryCaller.IN_PROCESS, state, PayloadMasks.NONE)!!["items"].asInt().assert()
             .isEqualTo(2)
     }
+
+    @Test
+    fun `without a gateway a caller that reveals DISPLAY values should get them raw, CONFIDENTIAL ones masked`(): Unit =
+        runBlocking {
+            val masks = PayloadMasks(ManifestFixtures.manifest(), ManifestFixtures.STRATEGIES)
+            fun stateOf() = Snapshot.of<JsonNode>(
+                ManifestFixtures.ORDER.ref("acme", "o-1"), 1, Scope.NONE, emptyMap(), false, null, 0, 0,
+                WowJson.mapper.readTree("""{"phone":"13812345678","email":"a@b.c","password":"secret"}"""),
+            )
+            val revealing = QueryCaller(entry = QueryEntry.IN_PROCESS, revealsDisplay = true)
+            StateVisibility.admitted(null, revealing, stateOf(), masks)!!.toString().assert()
+                .isEqualTo("""{"phone":"13812345678","email":"a@b.c","password":"******"}""")
+            StateVisibility.admitted(null, QueryCaller.IN_PROCESS, stateOf(), masks)!!.toString().assert()
+                .isEqualTo("""{"phone":"138****5678","email":"[redacted]","password":"******"}""")
+            // A state of the history is masked whole.
+            StateVisibility.masked(null, stateOf(), masks).path("phone").stringValue().assert().isEqualTo("138****5678")
+        }
 }

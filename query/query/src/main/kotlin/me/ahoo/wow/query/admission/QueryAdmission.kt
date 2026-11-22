@@ -172,7 +172,8 @@ class QueryAdmission(
         record: ObjectNode,
         schema: QueryModelSchema,
         caller: QueryCaller,
-    ): ObjectNode? = record.takeIf(recordFilter(selection, schema, caller))?.let { schema.maskRecord(it) }
+    ): ObjectNode? =
+        record.takeIf(recordFilter(selection, schema, caller))?.let { schema.maskRecord(it, caller.revealsDisplay) }
 
     /** The in-memory condition [admitRecord] evaluates on the record [selection] chooses. */
     private suspend fun recordFilter(

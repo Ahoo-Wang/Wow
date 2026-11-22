@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.query.engine
 
+import io.mockk.coEvery
+import io.mockk.mockk
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
@@ -27,10 +29,12 @@ import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
+import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.error.QueryErrors
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.observe.QueryAudit
 import me.ahoo.wow.query.observe.QueryObserver
+import me.ahoo.wow.query.schema.ManifestFixtures
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.state.InvalidStateReadException
 import me.ahoo.wow.query.state.StateNotFoundException
@@ -192,4 +196,43 @@ class ReadFacadeTest {
         engine.reads.observed(cart, StateRead.LATEST, caller) { Unit }
         observer.audited.single().queryType.assert().isEqualTo(QueryType.STATE)
     }
+
+    @Test
+    fun `a state read's audit should name its state's masked fields, and those a revealing latest read returns raw`(): Unit =
+        runBlocking {
+            val schema = ManifestFixtures.orderSchema()
+            val gateway = mockk<QueryGateway> { coEvery { recordSchema() } returns schema }
+            val observer = Recording()
+            val facade = ReadFacade({ gateway }, observer = observer)
+            val order = ManifestFixtures.ORDER
+            val revealing = QueryCaller(entry = QueryEntry.IN_PROCESS, revealsDisplay = true)
+            facade.observed(order, StateRead.LATEST, revealing) { Unit }
+            facade.observed(order, StateRead.LATEST, QueryCaller.IN_PROCESS) { Unit }
+            facade.observed(order, StateRead.VERSION, revealing) { Unit }
+            val (latest, masked, version) = observer.audited
+            latest.revealedFields.assert().containsExactlyInAnyOrder("state.phone", "state.email")
+            latest.maskedFields.assert().contains("state.password").doesNotContain("state.phone")
+            latest.model.assert().isNull()
+            masked.revealedFields.assert().isEmpty()
+            masked.maskedFields.assert().contains("state.phone", "state.password")
+            // A state of the history is masked whole, whoever reads it.
+            version.revealedFields.assert().isEmpty()
+            version.maskedFields.assert().contains("state.phone")
+        }
+
+    @Test
+    fun `a state read of a type whose state masks nothing should name no fields, revealing or not`(): Unit =
+        runBlocking {
+            val plain = mockk<QueryGateway> { coEvery { recordSchema() } answers { callOriginal() } }
+            plain.recordSchema().assert().isNull()
+            val observer = Recording()
+            val revealing = QueryCaller(entry = QueryEntry.IN_PROCESS, revealsDisplay = true)
+            ReadFacade({ plain }, observer = observer).observed(cart, StateRead.LATEST, revealing) { Unit }
+            ReadFacade({ null }, observer = observer).observed(cart, StateRead.LATEST, revealing) { Unit }
+            observer.audited.forEach { audit ->
+                audit.maskedFields.assert().isEmpty()
+                audit.revealedFields.assert().isEmpty()
+            }
+            observer.audited.assert().hasSize(2)
+        }
 }

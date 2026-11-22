@@ -49,8 +49,13 @@ import java.time.Duration
  * @property scopeFields the fields the caller's scope restricts (`tenantId`, `ownerId`, ...), not their values.
  * @property policies the [QueryPolicy] classes that restricted the query (those that returned anything but match-all).
  * @property rows the records or aggregation rows delivered; a count delivers one.
- * @property maskedFields the masked fields of the model the response carries, read from the admitted (canonical)
- * projection so an alias cannot hide one; empty for a count, an aggregation or a query rejected before admission.
+ * @property maskedFields the fields of the model the response carries masked, read from the admitted (canonical)
+ * projection so an alias cannot hide one; a state read's are its state's. Empty for a count, an aggregation, a trace
+ * or a query rejected before admission. A query that reveals `DISPLAY` values ([QueryCaller.revealsDisplay]) masks
+ * its `CONFIDENTIAL` fields alone.
+ * @property revealedFields the `DISPLAY` fields the response carries raw: those of [maskedFields]' kind that a query
+ * revealing them returns as they are; empty for any other query. A non-empty list is the record of a revealing read,
+ * with [caller] for who read it (no caller for trusted code, the service itself).
  * @property outcome how the query ended.
  * @property errorCode the error code of a failed query ([QueryError.errorCode] and, when it states one, the rule code
  * of its first binding error); for a state read answered as not found, `wow.aggregate.not-found:<reason>`
@@ -69,6 +74,7 @@ class QueryAudit internal constructor(
     val policies: List<String>,
     val rows: Long,
     val maskedFields: List<String>,
+    val revealedFields: List<String>,
     val outcome: Outcome,
     val errorCode: String?,
     val caller: QueryCaller,
@@ -107,7 +113,8 @@ class QueryAudit internal constructor(
     override fun toString(): String =
         "QueryAudit(aggregateType=$aggregateType, queryType=$queryType, entry=$entry, model=$model, " +
             "modelVersion=$modelVersion, fingerprint=$fingerprint, scopeFields=$scopeFields, policies=$policies, " +
-            "rows=$rows, maskedFields=$maskedFields, outcome=$outcome, errorCode=$errorCode, elapsed=$elapsed" +
+            "rows=$rows, maskedFields=$maskedFields, revealedFields=$revealedFields, outcome=$outcome, " +
+            "errorCode=$errorCode, elapsed=$elapsed" +
             crossTenant?.let { ", crossTenant=${it.tenantIds ?: "*"}" }.orEmpty() + ")"
 }
 
@@ -137,6 +144,22 @@ internal class QueryAuditTrail(
         this.schema = schema
     }
 
+    /**
+     * The schema a state read's state is masked by: its masked and revealed fields are named from it, the whole
+     * record's, while [QueryAudit.model] stays null, as for every state read. A state of the aggregate's history
+     * ([history]) is masked whole, whoever reads it, so it reveals nothing.
+     */
+    @Volatile
+    private var readSchema: QueryModelSchema? = null
+
+    @Volatile
+    private var history = false
+
+    fun stateSchema(schema: QueryModelSchema, history: Boolean) {
+        this.readSchema = schema
+        this.history = history
+    }
+
     fun policy(policy: QueryPolicy) {
         synchronized(policies) { policies += policy::class.java.name }
     }
@@ -156,6 +179,13 @@ internal class QueryAuditTrail(
 
     fun audit(outcome: QueryAudit.Outcome): QueryAudit {
         val schema = schema
+        val fields = schema ?: readSchema
+        val masked = fields?.let { fieldsOf(it, it.maskedFields) }.orEmpty()
+        val revealed = if (fields != null && caller.revealsDisplay && !history) {
+            fieldsOf(fields, fields.displayFields)
+        } else {
+            emptyList()
+        }
         return QueryAudit(
             aggregateType = aggregateType,
             queryType = queryType,
@@ -166,7 +196,8 @@ internal class QueryAuditTrail(
             scopeFields = scopeFieldsOf(caller.scope.filter, schema?.profile),
             policies = synchronized(policies) { policies.toList() },
             rows = rows,
-            maskedFields = schema?.let(::maskedFieldsOf).orEmpty(),
+            maskedFields = masked - revealed.toSet(),
+            revealedFields = revealed,
             outcome = outcome,
             errorCode = error?.let(::errorCodeOf),
             caller = caller,
@@ -174,10 +205,15 @@ internal class QueryAuditTrail(
         )
     }
 
-    private fun maskedFieldsOf(schema: QueryModelSchema): List<String> {
+    /**
+     * Those of [paths], masked paths of [schema], the response carries: all of a state read's, which has no query
+     * schema, its fields named from [readSchema].
+     */
+    private fun fieldsOf(schema: QueryModelSchema, paths: List<String>): List<String> {
+        if (this.schema == null) return paths
         if (queryType == QueryType.COUNT || queryType == QueryType.AGGREGATION) return emptyList()
         val projection = projection ?: return emptyList()
-        return schema.maskedFields.filter { path ->
+        return paths.filter { path ->
             val masked = path.split('.')
             (projection.include.isEmpty() || projection.include.any { it.reads(masked) }) &&
                 projection.exclude.none { it.removes(masked) }

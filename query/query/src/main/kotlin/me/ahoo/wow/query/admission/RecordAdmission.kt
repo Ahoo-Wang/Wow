@@ -19,9 +19,11 @@ import tools.jackson.databind.node.ObjectNode
 
 /**
  * Masks [record], a record of this schema's model, by the schema's response masks, in place: every sensitive value,
- * whatever its level, is replaced by its mask in every response, whoever the caller is (9.x semantics; the level only
- * decides what a query may do with the raw value).
+ * whatever its level, is replaced by its mask, whoever the caller is (the level decides what a query may do with the
+ * raw value), except a `DISPLAY` value of a query that reveals them ([revealsDisplay],
+ * [me.ahoo.wow.query.QueryCaller.revealsDisplay]), which is returned as it is.
  */
 internal fun QueryModelSchema.maskRecord(
-    record: ObjectNode
-): ObjectNode = SchemaMasker.create(this)?.mask(record) ?: record
+    record: ObjectNode,
+    revealsDisplay: Boolean = false,
+): ObjectNode = SchemaMasker.create(this, revealsDisplay)?.mask(record) ?: record

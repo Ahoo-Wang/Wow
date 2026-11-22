@@ -221,6 +221,96 @@ class SensitivityGatewayTest {
         }
     }
 
+    @Test
+    fun `a query that reveals DISPLAY values should return them raw, each CONFIDENTIAL one masked`() {
+        runTest {
+            val (gateway, _) = gateway()
+            listOf(
+                QueryCaller(entry = QueryEntry.IN_PROCESS, revealsDisplay = true),
+                QueryCaller(entry = QueryEntry.UNBOUNDED, revealsDisplay = true),
+                QueryCaller(Caller.ofService("billing", "tenant"), QueryEntry.HTTP, revealsDisplay = true),
+            ).forEach { caller ->
+                val sorted = ListQuery(MatchAllFilter, sort = listOf(Sort(ID, Sort.Direction.ASC)), limit = 10)
+                val first = gateway.list(sorted, caller)
+                    .toList().first()
+                first.path("state").run {
+                    path("phone").stringValue().assert().isEqualTo("13812345678")
+                    // DISPLAY with a custom strategy: the strategy is not asked.
+                    path("email").stringValue().assert().isEqualTo("a@b.c")
+                    path("password").stringValue().assert().isEqualTo("******")
+                    path("token").stringValue().assert().isEqualTo("***")
+                    path("backupPhone").stringValue().assert().isEqualTo("*****")
+                    path("address").path("street").stringValue().assert().isEqualTo("**********")
+                }
+                gateway.single(SingleQuery(AggregateIdFilter("o2")), caller)!!
+                    .path("state").path("phone").stringValue().assert().isEqualTo("13900000000")
+                gateway.paged(PagedQuery(MatchAllFilter), caller).list
+                    .map { it.path("state").path("phone").stringValue() }.assert()
+                    .containsExactlyInAnyOrder("13812345678", "13900000000")
+                gateway.cursor(CursorQuery(MatchAllFilter, size = 1), caller).list.single()
+                    .path("state").path("phone").stringValue().assert().isEqualTo("13812345678")
+                gateway.stream(sorted, caller)
+                    .toList().map { it.record.path("state").path("phone").stringValue() }.assert()
+                    .containsExactly("13812345678", "13900000000")
+            }
+            // The same queries of a caller that does not ask stay masked.
+            gateway.single(SingleQuery(AggregateIdFilter("o2")), QueryCaller.IN_PROCESS)!!
+                .path("state").path("phone").stringValue().assert().isEqualTo("139****0000")
+        }
+    }
+
+    @Test
+    fun `a point read that reveals DISPLAY values should return them raw, its history masked whole`() {
+        runTest {
+            val (_, schema) = gateway()
+            val revealing = QueryCaller(entry = QueryEntry.IN_PROCESS, revealsDisplay = true)
+            val admitted = QueryAdmission(ManifestFixtures.ORDER).admitRecord(
+                AggregateIdFilter("o1"),
+                order("o1", "13812345678").toQueryRecord(),
+                schema,
+                revealing,
+            )!!.path("state")
+            admitted.path("phone").stringValue().assert().isEqualTo("13812345678")
+            admitted.path("password").stringValue().assert().isEqualTo("******")
+            schema.maskRecord(order("o1", "13812345678").toQueryRecord(), revealsDisplay = true)
+                .path("state").path("email").stringValue().assert().isEqualTo("a@b.c")
+            val (gateway, compiled) = gateway()
+            gateway.recordSchema().assert().isSameAs(compiled)
+            gateway.maskRecord(order("o1", "13812345678").toQueryRecord())
+                .path("state").path("phone").stringValue().assert().isEqualTo("138****5678")
+        }
+    }
+
+    @Test
+    fun `the audit of a revealing query should name the fields it returned raw apart from those it masked`() {
+        runTest {
+            val audits = mutableListOf<QueryAudit>()
+            val observer = object : QueryObserver {
+                override val audits: Boolean = true
+
+                override fun onAudit(audit: QueryAudit) {
+                    audits += audit
+                }
+            }
+            val (gateway, _) = gateway(observer = observer)
+            gateway.list(ListQuery(MatchAllFilter), QueryCaller(entry = QueryEntry.IN_PROCESS, revealsDisplay = true))
+                .toList()
+            gateway.list(ListQuery(MatchAllFilter), QueryCaller.IN_PROCESS).toList()
+            gateway.list(
+                ListQuery(MatchAllFilter, projection = Projection(include = listOf(QueryField("state.address")))),
+                QueryCaller(entry = QueryEntry.IN_PROCESS, revealsDisplay = true),
+            ).toList()
+            audits[0].revealedFields.assert().containsExactlyInAnyOrder("state.phone", "state.email")
+            audits[0].maskedFields.assert().contains("state.password", "state.address.street")
+                .doesNotContain("state.phone", "state.email")
+            audits[1].revealedFields.assert().isEmpty()
+            audits[1].maskedFields.assert().contains("state.phone", "state.email", "state.password")
+            audits[2].revealedFields.assert().isEmpty()
+            audits[2].maskedFields.assert().containsExactly("state.address.street")
+            audits[0].toString().assert().contains("revealedFields=[")
+        }
+    }
+
     private suspend fun rejected(code: String, block: suspend () -> Unit) {
         val error = runCatching { block() }.exceptionOrNull()
         (error as QueryError).bindingErrors.first().code.assert().isEqualTo(code)

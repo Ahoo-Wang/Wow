@@ -113,6 +113,11 @@ enum class QueryEntry {
  *   [CrossTenant].
  * - [target]: the scope the request named (`Wow-Scope`), which [QueryTargets] admitted: the [caller]
  *   then already acts in it.
+ * - [revealsDisplay]: whether the query returns the raw value of a `@Sensitive(DISPLAY)` field, which every other
+ *   query masks. Only code that asks in so many words sets it (`TrustedQueries.revealed()`, a subscription handler's
+ *   `revealed()`), and only for itself: a caller with an end caller is refused at construction, so a query on behalf
+ *   of a user never reveals, whoever relays it. A `CONFIDENTIAL` value is masked whatever it says, and so is a
+ *   query issued from inside one ([inProcess] drops it).
  *
  * An edge never decides the tenant, the scope or the cross-tenant reach itself: it builds the caller of a request
  * through [QueryTargets.of], the one home of those rules. The constructor that states the cross-tenant
@@ -127,7 +132,15 @@ class QueryCaller @InternalWowApi constructor(
     val scope: QueryScope = QueryScope.NONE,
     val crossTenant: CrossTenant? = null,
     val target: TargetScope? = null,
+    val revealsDisplay: Boolean = false,
 ) {
+    init {
+        require(!revealsDisplay || caller == null || caller.service) {
+            "A query that reveals DISPLAY values is trusted code's or a service's own: $caller is an end caller, " +
+                "whose queries are masked whoever relays them."
+        }
+    }
+
     /** The [caller]'s subject, for policies and audit; null for an anonymous or in-process caller. */
     val subject: String? get() = caller?.subject
 
@@ -152,8 +165,9 @@ class QueryCaller @InternalWowApi constructor(
 
     /**
      * The caller of a query issued from inside a query extension, a policy or a cache loader: trusted in-process code,
-     * [IN_PROCESS]. The caller, scope, route selection, cross-tenant reach and entry are all dropped, so an HTTP
-     * caller's budgets, tenant, scope and claims do not leak into a nested lookup.
+     * [IN_PROCESS]. The caller, scope, route selection, cross-tenant reach, entry and [revealsDisplay] are all dropped,
+     * so an HTTP caller's budgets, tenant, scope and claims do not leak into a nested lookup, and a nested lookup masks
+     * what the query it serves reveals.
      */
     fun inProcess(): QueryCaller = IN_PROCESS
 
@@ -166,17 +180,20 @@ class QueryCaller @InternalWowApi constructor(
         scope: QueryScope = this.scope,
         crossTenant: CrossTenant? = this.crossTenant,
         target: TargetScope? = this.target,
-    ): QueryCaller = QueryCaller(caller, entry, selection, scope, crossTenant, target)
+        revealsDisplay: Boolean = this.revealsDisplay,
+    ): QueryCaller = QueryCaller(caller, entry, selection, scope, crossTenant, target, revealsDisplay)
 
     override fun equals(other: Any?): Boolean = this === other ||
         other is QueryCaller && caller == other.caller && entry == other.entry && selection == other.selection &&
-        scope == other.scope && crossTenant == other.crossTenant && target == other.target
+        scope == other.scope && crossTenant == other.crossTenant && target == other.target &&
+        revealsDisplay == other.revealsDisplay
 
-    override fun hashCode(): Int = listOf(caller, entry, selection, scope, crossTenant, target).hashCode()
+    override fun hashCode(): Int =
+        listOf(caller, entry, selection, scope, crossTenant, target, revealsDisplay).hashCode()
 
     override fun toString(): String =
         "QueryCaller(caller=$caller, entry=$entry, selection=$selection, scope=$scope, crossTenant=$crossTenant, " +
-            "target=$target)"
+            "target=$target, revealsDisplay=$revealsDisplay)"
 
     companion object {
         /** Trusted in-process code with no caller and no scope. */

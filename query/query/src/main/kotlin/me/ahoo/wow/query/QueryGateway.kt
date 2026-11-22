@@ -60,6 +60,7 @@ import me.ahoo.wow.query.policy.QueryEntryPolicy
 import me.ahoo.wow.query.policy.QueryPolicy
 import me.ahoo.wow.query.policy.ReadAuthorizer
 import me.ahoo.wow.query.schema.QueryModel
+import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.query.schema.describe
@@ -148,6 +149,12 @@ interface QueryGateway {
      */
     suspend fun maskRecord(record: ObjectNode): ObjectNode = record
 
+    /**
+     * The schema [admitRecord] and [maskRecord] mask a record by, whose masked fields a state read's audit names
+     * ([me.ahoo.wow.query.observe.QueryAudit.maskedFields]); null for a gateway that masks none.
+     */
+    suspend fun recordSchema(): QueryModelSchema? = null
+
     companion object {
         /** The records a [stream] reads per chunk by default. */
         const val DEFAULT_STREAM_CHUNK_SIZE: Int = 500
@@ -190,11 +197,11 @@ class DefaultQueryGateway(
 
     override suspend fun single(query: SingleQuery, caller: QueryCaller): ObjectNode? =
         run(QueryOperation.SINGLE, query, caller, rows = { if (it == null) 0 else 1 }) { admitted, _ ->
-            backend.single(admitted)?.let(admitted.reader())
+            backend.single(admitted)?.let(admitted.reader(caller))
         }
 
     override fun list(query: ListQuery, caller: QueryCaller): Flow<ObjectNode> =
-        stream(QueryOperation.LIST, query, caller) { admitted -> backend.list(admitted).map(admitted.reader()) }
+        stream(QueryOperation.LIST, query, caller) { admitted -> backend.list(admitted).map(admitted.reader(caller)) }
 
     override suspend fun resumes(query: ListQuery): Boolean = schemaProvider.schema().streamsByKeyset(query.sort)
 
@@ -206,7 +213,7 @@ class DefaultQueryGateway(
     ): Flow<PositionedRecord> {
         val chunks = CursorQuery(query.filter, query.projection, query.sort, chunkSize, after)
         return stream(QueryOperation.STREAM, chunks, caller) { admitted ->
-            val reader = admitted.reader()
+            val reader = admitted.reader(caller)
             backend.chunks(admitted, query.limit).map { PositionedRecord(reader(it.record), it.position) }
         }
     }
@@ -214,13 +221,13 @@ class DefaultQueryGateway(
     override suspend fun paged(query: PagedQuery, caller: QueryCaller): PagedList<ObjectNode> =
         run(QueryOperation.PAGED, query, caller, rows = { it.list.size.toLong() }) { admitted, observation ->
             val page = page(admitted, caller, observation)
-            page.copy(list = page.list.map(admitted.reader()))
+            page.copy(list = page.list.map(admitted.reader(caller)))
         }
 
     override suspend fun cursor(query: CursorQuery, caller: QueryCaller): CursorPage<ObjectNode> =
         run(QueryOperation.CURSOR, query, caller, rows = { it.list.size.toLong() }) { admitted, _ ->
             val page = backend.cursor(admitted)
-            page.copy(list = page.list.map(admitted.reader()))
+            page.copy(list = page.list.map(admitted.reader(caller)))
         }
 
     override suspend fun count(query: CountQuery, caller: QueryCaller): CountResult =
@@ -239,17 +246,21 @@ class DefaultQueryGateway(
 
     override suspend fun maskRecord(record: ObjectNode): ObjectNode = schemaProvider.schema().maskRecord(record)
 
+    override suspend fun recordSchema(): QueryModelSchema = schemaProvider.schema()
+
     override suspend fun describe(entry: QueryEntry, defaultListSize: Int?): QueryModelDescriptor =
         schemaProvider.schema().describe(entryPolicy.budget(entryPolicy.admit(entry)), defaultListSize)
             .withConstraints(constraints)
 
     /**
-     * Reads each backend record by [records], else masks it by the schema's response masks (every caller sees masked
-     * values).
+     * Reads each backend record by [records], else masks it by the schema's response masks: every caller sees masked
+     * values, but for the `DISPLAY` values of a [caller] that reveals them ([QueryCaller.revealsDisplay]). The masker is
+     * chosen once per query.
      */
-    private fun AdmittedQuery<*>.reader(): (ObjectNode) -> ObjectNode {
-        records?.let { return it::read }
-        val masker = SchemaMasker.create(schema) ?: return { it }
+    private fun AdmittedQuery<*>.reader(caller: QueryCaller): (ObjectNode) -> ObjectNode {
+        val reveals = caller.revealsDisplay
+        records?.let { reader -> return { reader.read(it, reveals) } }
+        val masker = SchemaMasker.create(schema, reveals) ?: return { it }
         return masker::mask
     }
 
@@ -363,9 +374,10 @@ class DefaultQueryGateway(
 /**
  * How a gateway reads the records its backend returns, in place of the schema's response masks: a model whose records
  * the backend returns as stored and the gateway reads as the model shows them (the `events` model).
- * The record is the backend's own, fresh instance; the reader may change it in place and return it.
+ * The record is the backend's own, fresh instance; the reader may change it in place and return it. [revealsDisplay]
+ * says whether the query reveals `DISPLAY` values ([QueryCaller.revealsDisplay]), which the reader then returns raw.
  */
 @InternalWowApi
 fun interface QueryRecordReader {
-    fun read(record: ObjectNode): ObjectNode
+    fun read(record: ObjectNode, revealsDisplay: Boolean): ObjectNode
 }
