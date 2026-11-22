@@ -55,6 +55,20 @@ test('workspace configuration, CI scripts and unknown paths run every gate', () 
     assert.ok(all([path]), path);
 });
 
+// A run with no base (a manual dispatch, the full run release admission
+// reads, which is the release's test gate) has the one path `*`: every scope
+// is on, the JVM jobs' above all.
+test('a run with no base turns every scope on, the JVM jobs included', () => {
+  const result = scopes(['*']);
+  assert.deepEqual(
+    Object.entries(result).filter(([, value]) => value !== true),
+    [],
+  );
+  assert.equal(result.jvm, true);
+  const source = readFileSync(script, 'utf8');
+  assert.match(source, /: \['\*'\];/);
+});
+
 test("a Node script under scripts/ runs the static checks, whose Quality job runs the scripts' tests", () => {
   for (const path of [
     'scripts/patch-coverage-local.mjs',

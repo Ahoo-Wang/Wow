@@ -11,6 +11,8 @@ import { ROOT } from './project-version.mjs';
 import {
   isBreaking,
   isBreakingCommit,
+  jvmTestJobs,
+  TEST_JDKS,
   missingFromNotes,
   pullRequestOf,
   REQUIRED,
@@ -98,6 +100,83 @@ test('each gate must have passed in its run', () => {
   ])
     assert.throws(() => requireSuccessfulJob(jobs));
   assert.throws(() => requireSuccessfulJob([gate], 'Check'));
+});
+
+test("the release's tests are ci.yml's JVM jobs: every check and integration shard on JDK 25 and 21", () => {
+  const workflow = readFileSync(join(ROOT, '.github/workflows/ci.yml'), 'utf8');
+  const names = jvmTestJobs(workflow);
+  assert.deepEqual(TEST_JDKS, ['25', '21']);
+  for (const name of [
+    'Check (host)',
+    'Check (rest) / JDK 21',
+    'Integration Test (eshop)',
+    'Integration Test (mongo-postgres) / JDK 21',
+  ])
+    assert.ok(names.includes(name), `${name} is not required`);
+  // Every shard of each matrix, on each JDK, once.
+  assert.equal(new Set(names).size, names.length);
+  assert.equal(
+    names.filter(name => name.startsWith('Check (')).length % TEST_JDKS.length,
+    0,
+  );
+  // The names admission derives are the ones ci.yml gives its jobs, and a
+  // full (non pull request) run runs both JDKs.
+  for (const job of ['Check', 'Integration Test'])
+    assert.ok(
+      workflow.includes(
+        `    name: ${job} (\${{ matrix.shard }})\${{ matrix.java != '25' && format(' / JDK {0}', matrix.java) || '' }}`,
+      ),
+      `ci.yml's ${job} job is not named as jvmTestJobs expects`,
+    );
+  assert.equal(
+    workflow.split(
+      `java: \${{ fromJSON(github.event_name == 'pull_request' && '["25"]' || '["25", "21"]') }}`,
+    ).length - 1,
+    2,
+  );
+});
+
+test('a JVM test job a run skipped, or failed, fails admission whatever ci-gate says', () => {
+  const workflow = readFileSync(join(ROOT, '.github/workflows/ci.yml'), 'utf8');
+  const passed = jvmTestJobs(workflow).map((name, id) => ({
+    id,
+    name,
+    status: 'completed',
+    conclusion: 'success',
+  }));
+  for (const job of passed)
+    assert.doesNotThrow(() => requireSuccessfulJob(passed, job.name));
+  for (const conclusion of ['skipped', 'failure', 'cancelled']) {
+    const jobs = passed.map(job =>
+      job.name === 'Integration Test (eshop) / JDK 21'
+        ? { ...job, conclusion }
+        : job,
+    );
+    assert.throws(
+      () =>
+        jvmTestJobs(workflow).forEach(name => requireSuccessfulJob(jobs, name)),
+      /Integration Test \(eshop\) \/ JDK 21: must pass in that run/,
+    );
+  }
+  assert.throws(
+    () =>
+      jvmTestJobs(workflow).forEach(name =>
+        requireSuccessfulJob(
+          passed.filter(job => job.name !== 'Check (apps)'),
+          name,
+        ),
+      ),
+    /Check \(apps\): must pass/,
+  );
+  // The script requires them of ci.yml's run, read from the release commit.
+  const script = readFileSync(
+    join(ROOT, '.github/scripts/release-admission.mjs'),
+    'utf8',
+  );
+  assert.match(
+    script,
+    /jvmTestJobs\(\s*readFileSync\('\.github\/workflows\/ci\.yml'/,
+  );
 });
 
 test('a release commit comes from main or a release-x.y branch', () => {
