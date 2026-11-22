@@ -35,6 +35,18 @@ A wait plan is a chain of hops. Each hop is a stage, with a context and, for `ha
 
 Over HTTP, the chain is a request header: `Wow-Wait: committed > handled(payment/PaymentSaga.onOrderSubmitted) > committed(inventory)`, with `Wow-Wait-Timeout: 10s`. A hop without a context is in the command's own context; `handled(context/subscription)` sets the context apart with `/`, since a subscription's name (`Processor.function`) holds a dot. The commands along a chain are related by the id of the root command, so a hop recognizes the commands that belong to the wait.
 
+In Kotlin a plan chains the hops a context's `<Context>Contract.Wait` holds, generated in its api module: one per stage of the context, and one per subscription its contract lists, so no subscription's name is written by hand ([The contract code of the api module](../guide/generated-code#the-contract-code-of-the-api-module)). The ordering's tests wait for its saga and its snapshot so:
+
+<!-- sample: examples/eshop/ordering/ordering-server/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/server/OrderingServerTest.kt#wait-plan -->
+
+```kotlin
+/** A submission's plan to its chain's end: the order-process saga set the order awaiting its validation. */
+val TO_VALIDATION: WaitPlan = WaitPlan.of(
+    EshopOrderingContract.Wait.ORDER_PROCESS_SAGA__ON_ORDER_SUBMITTED,
+    EshopOrderingContract.Wait.SNAPSHOT,
+)
+```
+
 The rules for a chain:
 
 - **Only a saga hop can be followed by another hop.** The hops after it apply to the commands that saga sent for this commit. A projection or reactor hop ends the chain.

@@ -48,6 +48,12 @@ import me.ahoo.wow.manifest.QueryFieldNames
  *   `"eshop-basket.basket.invalid-item"`, what a peer compares a rejection's code with. The TypeScript generator's
  *   `<Context>Contract` nests the same codes alike.
  *
+ * - The context's wait hops are the `@JvmField`s of a `Wait` object: `ACCEPTED`, `COMMITTED`, `SNAPSHOT` and
+ *   `QUERYABLE` of the context, and per subscription its contract lists the hop of it handling the commit, named
+ *   after it ([waitName]: `OrderProcessSaga.onOrderSubmitted` is `ORDER_PROCESS_SAGA__ON_ORDER_SUBMITTED`), what a
+ *   caller chains in a `WaitPlan` without writing a subscription's name. Two names of one constant fail the generation.
+ *   The TypeScript generator's `<context>Wait` builds the same hops.
+ *
  * Constants are `const val` or `@JvmField` and `ref` is `@JvmStatic`, so Java reads them as static members
  * (`EshopOrderingContract.Order.TYPE`). The views of the states are classes of their own beside it
  * ([StateViewSources]).
@@ -114,6 +120,8 @@ internal object ContractSources {
                     ) { it.removePrefix("${context.name}.") }
                 )
             }
+            appendLine()
+            append(wait(name, context))
             context.aggregates.forEach { aggregate ->
                 appendLine()
                 append(
@@ -225,6 +233,7 @@ internal object ContractSources {
     private const val ID_SOURCE = "me.ahoo.wow.api.aggregate.AggregateIdSource"
     private const val QUERY_FIELD = "me.ahoo.wow.api.query.QueryField"
     private const val SNAPSHOT_PROPERTIES = "me.ahoo.wow.api.query.SnapshotProperties"
+    private const val HOP = "me.ahoo.wow.api.result.Hop"
 
     /** The functions of an aggregate object that refer to one of its instances. */
     private val REFS: String = buildString {
@@ -261,6 +270,75 @@ internal object ContractSources {
             appendLine("        }")
         }
     }
+
+    /**
+     * The object `Wait` of [context] in the context object [owner]: the hops of a wait chain in the context, its four
+     * stages and, per subscription its contract lists, the hop of that subscription handling the commit, named
+     * [waitName]. Two subscriptions, or a subscription and a stage, of one constant name fail the generation, naming
+     * both: a constant renamed in silence would wait for another subscription than the one its name says.
+     */
+    private fun wait(owner: String, context: ContextManifest): String = buildString {
+        val stages = listOf(
+            Triple("ACCEPTED", "accepted", "a command of `${comment(context.name)}` passed admission"),
+            Triple(
+                "COMMITTED",
+                "committed",
+                "a command's events are appended to the log of `${comment(context.name)}`"
+            ),
+            Triple("SNAPSHOT", "snapshot", "the snapshot of `${comment(context.name)}` holds the commit"),
+            Triple(
+                "QUERYABLE",
+                "queryable",
+                "the store the snapshot queries of `${comment(context.name)}` read holds the commit",
+            ),
+        )
+        val taken = stages.associate { (constant) -> constant to "the stage $constant" }.toMutableMap()
+        val subscriptions = context.subscriptions.sortedBy { it.name }.map { subscription ->
+            val constant = waitName(subscription.name)
+            taken[constant]?.let { other ->
+                error(
+                    "The subscription ${subscription.name} of ${context.name} and $other are both " +
+                        "$owner.Wait.$constant: rename one of them, so that each hop names the subscription it waits for.",
+                )
+            }
+            taken[constant] = "the subscription ${subscription.name}"
+            constant to subscription
+        }
+        appendLine("    /**")
+        appendLine(
+            "     * The hops of a wait chain (`Wow-Wait`) in `${comment(context.name)}`: its stages, and each of its"
+        )
+        appendLine(
+            "     * subscriptions handling the commit. `WaitPlan.of(...)` chains them, those of other contexts too."
+        )
+        appendLine("     */")
+        appendLine("    public object Wait {")
+        stages.forEachIndexed { index, (constant, factory, doc) ->
+            if (index > 0) {
+                appendLine()
+            }
+            appendLine("        /** Until $doc. */")
+            appendLine("        @kotlin.jvm.JvmField")
+            appendLine("        public val $constant: $HOP = $HOP.$factory($owner.NAME)")
+        }
+        subscriptions.forEach { (constant, subscription) ->
+            appendLine()
+            appendLine(
+                "        /** Until `${comment(subscription.name)}`, a ${subscription.kind.name.lowercase()}, " +
+                    "handled the commit. */",
+            )
+            appendLine("        @kotlin.jvm.JvmField")
+            appendLine("        public val $constant: $HOP = $HOP.handled(${literal(subscription.name)}, $owner.NAME)")
+        }
+        appendLine("    }")
+    }
+
+    /**
+     * The constant name of the hop of the subscription [name] (`processor.function`): each segment in upper snake case
+     * ([commandName]), joined by `__` for the dot; `OrderProcessSaga.onOrderSubmitted` is
+     * `ORDER_PROCESS_SAGA__ON_ORDER_SUBMITTED`.
+     */
+    fun waitName(name: String): String = name.split('.').joinToString("__") { commandName(it) }
 
     /** The local name of [code] when it is a code of the aggregate [aggregate] of [context]; null otherwise. */
     private fun aggregateCodeOf(context: String, aggregate: String, code: String): String? =
