@@ -90,6 +90,10 @@ fun onPayRejected(rejected: CommandReceipt.Rejected<PayOrder>): CommandRequest<R
 
 派生命令、回执和拒绝的完整说明，见[编写 Saga](./sagas)。
 
+## 敏感值 {#sensitive-values}
+
+发布的记录按上游写入时的样子保存状态与事件，其中的 [`@Sensitive`](./queries#where-masking-stops) 值没有脱敏，`CONFIDENTIAL` 的也一样：订单状态里的密码哈希或 API key 会到达支付的处理函数、读这个主题的每一个其他服务以及任何外部消费者，并在主题的保留期内一直留在主题里。谁能读主题由它的 ACL 决定。对发布的事件流脱敏已在计划中（[#6586](https://github.com/Ahoo-Wang/Wow/issues/6586)）；在它落地之前，不能让任何对端看到的值不要放进发布的聚合的状态和事件，或者不发布这个聚合（`published = false`）。
+
 ## 外部消费者 {#external-consumers}
 
 不是 Wow 服务的系统读取同样的主题。每条记录都是一个以聚合为键的信封，所以一个聚合的记录保持顺序：见[线上协议](../reference/protocols#kafka-envelope)。

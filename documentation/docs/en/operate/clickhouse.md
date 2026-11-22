@@ -66,6 +66,8 @@ For each aggregate type, named after its context and aggregate (`eshop_ordering_
 
 `wow.aggregates.[<context>.<aggregate>].clickhouse.history.enabled: false` keeps only the current state: the sink then writes `_state` directly, and there is no `_state_events` or `_events`. `...history.ttl` keeps the history for a time instead of forever.
 
+The tables hold each state and event as written, its [`@Sensitive`](../guide/queries#where-masking-stops) values unmasked: a read through Wow masks what it returns (a dataset the fields its declaration marks [`sensitive`](../guide/datasets#declare-a-dataset)), but whoever queries the tables directly reads the raw values. The database's grants are the boundary.
+
 ## The columns and the DDL
 
 With `wow.clickhouse.ddl: auto`, the default, the sink runs these statements before its first write. They are the tables of the `order` aggregate of a `shop` context in the `default` database, with the history kept without a TTL. A test holds this file to the statements the sink runs, so the page cannot differ from the code:
