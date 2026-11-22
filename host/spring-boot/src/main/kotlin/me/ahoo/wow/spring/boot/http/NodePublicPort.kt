@@ -115,9 +115,9 @@ internal class NodePublicPort {
     @ConditionalOnMissingBean
     @InternalWowApi
     fun wowHttpOptions(properties: WowProperties, environment: Environment): WowHttpOptions {
-        val strategy = environment.getProperty(ForwardHeadersEnvironmentPostProcessor.FORWARD_HEADERS_STRATEGY)
+        val strategy = ForwardHeadersEnvironmentPostProcessor.inEffect(environment)
         logger.info {
-            "The public port reads the client's address with server.forward-headers-strategy=$strategy: " +
+            "The public port reads the client's address with $strategy: " +
                 "the gateway in front of it must overwrite X-Forwarded-For."
         }
         return WowHttpOptions(

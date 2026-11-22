@@ -14,13 +14,14 @@
 package me.ahoo.wow.spring.boot
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.spring.boot.http.ForwardHeadersEnvironmentPostProcessor
 import org.junit.jupiter.api.Test
 
 /**
  * The default request facts of the public port (09 §17 G-10) as a host serves them: `remote_ip` is the client the
- * gateway forwarded for, since the host makes `server.forward-headers-strategy` `native` by default (decision
- * D303; not `framework`, under which CoSec does not start), unless the application says `none`; each fact is capped
- * (review S-10).
+ * gateway forwarded for, since the host makes `server.request.header.forwarded.strategy` `web-server` by default
+ * (decision D303; not `framework`, under which CoSec does not start), unless the application says otherwise under
+ * that key or the deprecated `server.forward-headers-strategy`; each fact is capped (review S-10).
  */
 class HostRequestFactsTest {
     private val facts = mapOf("User-Agent" to "bank-app/1.0", "X-Forwarded-For" to "203.0.113.9")
@@ -33,7 +34,9 @@ class HostRequestFactsTest {
     @Test
     fun `a command records the user agent and the client the gateway forwarded for`() {
         startHost().use { host ->
-            host.context.environment.getProperty("server.forward-headers-strategy").assert().isEqualTo("native")
+            ForwardHeadersEnvironmentPostProcessor.inEffect(host.context.environment)
+                .assert().isEqualTo("server.request.header.forwarded.strategy=web-server")
+            host.context.environment.getProperty("server.forward-headers-strategy").assert().isNull()
             val headers = host.opened()
             headers["user_agent"].assert().isEqualTo("bank-app/1.0")
             headers["remote_ip"].assert().isEqualTo("203.0.113.9")
@@ -42,8 +45,28 @@ class HostRequestFactsTest {
 
     @Test
     fun `a host that says none records the connection's address`() {
-        startHost("server.forward-headers-strategy" to "none").use { host ->
+        startHost("server.request.header.forwarded.strategy" to "none").use { host ->
             host.opened()["remote_ip"].assert().isEqualTo("127.0.0.1")
+        }
+    }
+
+    @Test
+    fun `a host that says none under the deprecated key starts, and records the connection's address`() {
+        // The key through Spring Boot 4.1: the host sets the new one beside it, which Spring Boot refuses to start with.
+        startHost("server.forward-headers-strategy" to "none").use { host ->
+            ForwardHeadersEnvironmentPostProcessor.inEffect(host.context.environment).assert().isEqualTo(
+                "server.forward-headers-strategy=none (deprecated in Spring Boot 4.2: set " +
+                    "server.request.header.forwarded.strategy, where native is web-server)",
+            )
+            host.opened()["remote_ip"].assert().isEqualTo("127.0.0.1")
+        }
+    }
+
+    @Test
+    fun `a host that says native under the deprecated key records the client the gateway forwarded for`() {
+        startHost("server.forward-headers-strategy" to "native").use { host ->
+            host.context.environment.getProperty("server.request.header.forwarded.strategy").assert().isNull()
+            host.opened()["remote_ip"].assert().isEqualTo("203.0.113.9")
         }
     }
 
