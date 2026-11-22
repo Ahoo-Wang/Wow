@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.analytics.catalog.server
 
+import me.ahoo.cosec.annotations.ExperimentalCoSecApi
+import me.ahoo.cosec.testkit.IdentityHeader
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContext
 import me.ahoo.wow.api.caller.Caller
@@ -126,10 +128,22 @@ fun startCatalog(
     wowServer(
         AnalyticsCatalogServer::class.java,
         profiles,
-        mapOf("wow.log.partitions" to 2) + properties.toMap(),
+        mapOf("wow.log.partitions" to 2) + gatewayBoundary(profiles) + properties.toMap(),
         sources,
     ),
 )
+
+/**
+ * CoSec's statement that only its gateway reaches the node ([IdentityHeader.ONLY_GATEWAY_CAN_REACH]), which the
+ * gateway mode of the `cosec` profile asks of every host: a test is reached by its own client alone. A deployment
+ * states it with the wow-service chart's NetworkPolicy.
+ */
+@OptIn(ExperimentalCoSecApi::class) // CoSec's test kit is experimental in 8.0.
+private fun gatewayBoundary(profiles: List<String>): Map<String, Any> = if ("cosec" in profiles) {
+    IdentityHeader.ONLY_GATEWAY_CAN_REACH.split('=', limit = 2).let { (key, value) -> mapOf(key to value) }
+} else {
+    emptyMap()
+}
 
 /** Waits until [condition] holds, polling, for at most [timeout]. */
 fun eventually(what: String, timeout: Duration = Duration.ofSeconds(30), condition: () -> Boolean) {
