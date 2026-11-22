@@ -19,7 +19,6 @@ import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.wait
 import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.api.result.FrameworkCodes
-import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.example.eshop.payment.api.payment.EshopPaymentContract
 import me.ahoo.wow.example.eshop.payment.api.payment.PaymentStateView
@@ -112,8 +111,8 @@ class PaymentServerTest {
  * command it derives (`ConfirmPayment` or `FailPayment`) is in the payment's snapshot.
  */
 val TO_THE_GATEWAY: WaitPlan = WaitPlan.of(
-    Hop.handled("PaymentGatewaySaga.onPaymentRequested", EshopPaymentContract.NAME),
-    Hop.snapshot(EshopPaymentContract.NAME),
+    EshopPaymentContract.Wait.PAYMENT_GATEWAY_SAGA__ON_PAYMENT_REQUESTED,
+    EshopPaymentContract.Wait.SNAPSHOT,
 )
 
 /** Requests the payment of [amount] for [order] and waits to the end of its gateway's chain: the payment it became. */

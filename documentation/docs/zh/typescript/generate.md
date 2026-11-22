@@ -118,7 +118,7 @@ export type EshopOrderingErrorCode = 'eshop-ordering.order.wrong-amount' | 'esho
 /** The subscriptions of `eshop-ordering` a `handled` hop names. */
 export type EshopOrderingSubscription = 'OrderProcessSaga.onOrderAwaitingValidation' | 'OrderProcessSaga.onOrderCancelled' | 'OrderProcessSaga.onOrderShipped' | 'OrderProcessSaga.onOrderSubmitted' | 'OrderProcessSaga.onReleaseRejected' | 'OrderProcessSaga.onReserveCommitted' | 'OrderProcessSaga.onReserveRejected' | 'OrderSummaryProjection.onEvent' | 'ShipmentNotifier.onOrderShipped';
 
-/** The hops of a wait chain (`Wow-Wait`) in `eshop-ordering`. */
+/** The hops of a wait chain (`Wow-Wait`) in `eshop-ordering`, as the Kotlin `EshopOrderingContract.Wait` holds them. */
 export const eshopOrderingWait = {
   /** Until a command of `eshop-ordering` passed admission. */
   accepted: (): Hop => wait.accepted(EshopOrderingContract.NAME),

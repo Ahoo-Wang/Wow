@@ -18,7 +18,7 @@ export type EshopPaymentErrorCode = 'eshop-payment.payment.wrong-status';
 /** The subscriptions of `eshop-payment` a `handled` hop names. */
 export type EshopPaymentSubscription = 'OrderPaymentSaga.onOrderStockConfirmed' | 'OrderPaymentSaga.onPaymentFailed' | 'OrderPaymentSaga.onPaymentSucceeded' | 'OrderPaymentSaga.onPayRejected' | 'PaymentGatewaySaga.onPaymentRequested';
 
-/** The hops of a wait chain (`Wow-Wait`) in `eshop-payment`. */
+/** The hops of a wait chain (`Wow-Wait`) in `eshop-payment`, as the Kotlin `EshopPaymentContract.Wait` holds them. */
 export const eshopPaymentWait = {
   /** Until a command of `eshop-payment` passed admission. */
   accepted: (): Hop => wait.accepted(EshopPaymentContract.NAME),

@@ -18,7 +18,7 @@ export type EshopInventoryErrorCode = 'eshop-inventory.stock.insufficient' | 'es
 /** The subscriptions of `eshop-inventory` a `handled` hop names. */
 export type EshopInventorySubscription = 'SupplierDeliverySaga.onSchedule';
 
-/** The hops of a wait chain (`Wow-Wait`) in `eshop-inventory`. */
+/** The hops of a wait chain (`Wow-Wait`) in `eshop-inventory`, as the Kotlin `EshopInventoryContract.Wait` holds them. */
 export const eshopInventoryWait = {
   /** Until a command of `eshop-inventory` passed admission. */
   accepted: (): Hop => wait.accepted(EshopInventoryContract.NAME),

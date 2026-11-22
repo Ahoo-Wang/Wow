@@ -68,6 +68,7 @@ api 模块还从中编译出 `<Context>Contract`，例如 `EshopOrderingContract
 | `<Aggregate>.TYPE`、`<Aggregate>.ref(tenant, id)` | 聚合的类型，以及指向其中某个聚合的 ref |
 | `<Aggregate>.Errors.*` | 它的错误码，按完整名字 |
 | `<Aggregate>.STATE__*` | 它的状态的查询字段，需要 `wow-query-api` |
+| `Wait.*` | 上下文里等待链的跳点：`ACCEPTED`、`COMMITTED`、`SNAPSHOT`、`QUERYABLE`，以及契约列出的每个订阅一个，`<PROCESSOR>__<FUNCTION>`（`ORDER_PROCESS_SAGA__ON_ORDER_SUBMITTED`） |
 
 对端不用手写任何路径、名字或错误码：`EshopOrderingContract.Order.ref(tenant, id)` 寻址一个订单，`EshopOrderingContract.Order.Errors.WRONG_STATUS` 用于比较拒绝（[调用其他服务](./calling-services)、[拒绝与错误码](./rejections#what-the-caller-receives)）。
 

@@ -25,7 +25,6 @@ import me.ahoo.wow.api.read.Snapshot
 import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.FrameworkCodes
-import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.wire.DevelopmentHeaders
 import me.ahoo.wow.example.eshop.ordering.api.order.ConfirmOrderStock
@@ -128,8 +127,8 @@ class OrderLifecycleTest {
             attributes = mapOf(DevelopmentHeaders.ROLES_ATTRIBUTE to listOf("employee")),
         )
         val TO_VALIDATION: WaitPlan = WaitPlan.of(
-            Hop.handled("OrderProcessSaga.onOrderSubmitted", EshopOrderingContract.NAME),
-            Hop.snapshot(EshopOrderingContract.NAME),
+            EshopOrderingContract.Wait.ORDER_PROCESS_SAGA__ON_ORDER_SUBMITTED,
+            EshopOrderingContract.Wait.SNAPSHOT,
         )
     }
 }

@@ -19,18 +19,24 @@ import com.fasterxml.jackson.annotation.JsonProperty
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateIdSource
 import me.ahoo.wow.api.aggregate.Ownership
+import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.ErrorManifest
 import me.ahoo.wow.manifest.EventManifest
+import me.ahoo.wow.manifest.FunctionManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.PeerContracts
 import me.ahoo.wow.manifest.QueryManifest
 import me.ahoo.wow.manifest.SnapshotManifest
 import me.ahoo.wow.manifest.StateManifest
+import me.ahoo.wow.manifest.SubscriptionKind
+import me.ahoo.wow.manifest.SubscriptionManifest
+import me.ahoo.wow.manifest.SubscriptionSource
 import me.ahoo.wow.manifest.copyWith
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
 
@@ -213,6 +219,66 @@ class ContractSourcesTest {
         contractOf(contract(owned), queryFields = false).text.assert().contains(
             "public val ID_SOURCE: me.ahoo.wow.api.aggregate.AggregateIdSource = me.ahoo.wow.api.aggregate.AggregateIdSource.OWNER",
         )
+    }
+
+    private fun subscription(name: String, kind: SubscriptionKind = SubscriptionKind.SAGA): SubscriptionManifest {
+        val (processor, function) = name.substringBeforeLast('.', "") to name.substringAfterLast('.')
+        return SubscriptionManifest(
+            name = name,
+            kind = kind,
+            source = SubscriptionSource(context = "shop-ordering", aggregates = listOf("order")),
+            function = FunctionManifest(FunctionKind.SAGA, "shop-ordering", processor.ifEmpty { name }, function),
+        )
+    }
+
+    /** The `<Context>Contract` of a context `shop-ordering` with [subscriptions]. */
+    private fun waitsOf(vararg subscriptions: SubscriptionManifest): String {
+        val contract = contract(aggregate())
+        val context = contract.contexts.single().copyWith(subscriptions = subscriptions.toList())
+        return ContractSources.of(context, contract.defs, PACKAGES, queryFields = false).text
+    }
+
+    @Test
+    fun `the context object should hold its wait hops, a stage's and each subscription's`() {
+        val text = waitsOf(
+            subscription("OrderProcessSaga.onOrderSubmitted"),
+            subscription("OrderSummaryProjection.onEvent", SubscriptionKind.PROJECTION),
+        )
+        text.assert().contains(
+            "public object Wait {",
+            "public val ACCEPTED: me.ahoo.wow.api.result.Hop = me.ahoo.wow.api.result.Hop.accepted(ShopOrderingContract.NAME)",
+            "public val COMMITTED: me.ahoo.wow.api.result.Hop = me.ahoo.wow.api.result.Hop.committed(ShopOrderingContract.NAME)",
+            "public val SNAPSHOT: me.ahoo.wow.api.result.Hop = me.ahoo.wow.api.result.Hop.snapshot(ShopOrderingContract.NAME)",
+            "public val QUERYABLE: me.ahoo.wow.api.result.Hop = me.ahoo.wow.api.result.Hop.queryable(ShopOrderingContract.NAME)",
+            "/** Until `OrderProcessSaga.onOrderSubmitted`, a saga, handled the commit. */",
+            "public val ORDER_PROCESS_SAGA__ON_ORDER_SUBMITTED: me.ahoo.wow.api.result.Hop = " +
+                "me.ahoo.wow.api.result.Hop.handled(\"OrderProcessSaga.onOrderSubmitted\", ShopOrderingContract.NAME)",
+            "/** Until `OrderSummaryProjection.onEvent`, a projection, handled the commit. */",
+            "public val ORDER_SUMMARY_PROJECTION__ON_EVENT: me.ahoo.wow.api.result.Hop",
+        )
+        // A context without subscriptions still has its stages.
+        waitsOf().assert().contains("public object Wait {", "public val QUERYABLE:")
+            .doesNotContain("Hop.handled(")
+    }
+
+    @Test
+    fun `a subscription's hop is named after its processor and its function`() {
+        ContractSources.waitName("OrderProcessSaga.onOrderSubmitted").assert()
+            .isEqualTo("ORDER_PROCESS_SAGA__ON_ORDER_SUBMITTED")
+        ContractSources.waitName("HTTPNotifier.onOrderShipped").assert().isEqualTo("HTTP_NOTIFIER__ON_ORDER_SHIPPED")
+        ContractSources.waitName("audit").assert().isEqualTo("AUDIT")
+    }
+
+    @Test
+    fun `two subscriptions, or a subscription and a stage, of one constant name should fail the generation`() {
+        assertThrows<IllegalStateException> {
+            waitsOf(subscription("OrderSaga.onPaid"), subscription("Order_Saga.on_paid"))
+        }.message.assert().contains(
+            "The subscription Order_Saga.on_paid of shop-ordering and the subscription OrderSaga.onPaid",
+            "ShopOrderingContract.Wait.ORDER_SAGA__ON_PAID",
+        )
+        assertThrows<IllegalStateException> { waitsOf(subscription("snapshot")) }
+            .message.assert().contains("the stage SNAPSHOT")
     }
 
     @Test

@@ -18,7 +18,7 @@ export type EshopBasketErrorCode = 'eshop-basket.basket.empty' | 'eshop-basket.b
 /** The subscriptions of `eshop-basket` a `handled` hop names. */
 export type EshopBasketSubscription = 'BasketCheckoutSaga.onBasketCheckedOut';
 
-/** The hops of a wait chain (`Wow-Wait`) in `eshop-basket`. */
+/** The hops of a wait chain (`Wow-Wait`) in `eshop-basket`, as the Kotlin `EshopBasketContract.Wait` holds them. */
 export const eshopBasketWait = {
   /** Until a command of `eshop-basket` passed admission. */
   accepted: (): Hop => wait.accepted(EshopBasketContract.NAME),

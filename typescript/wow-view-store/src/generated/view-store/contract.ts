@@ -36,7 +36,7 @@ export type ViewStoreErrorCode = 'view-store.app-required' | 'view-store.invalid
 /** The subscriptions of `view-store` a `handled` hop names. */
 export type ViewStoreSubscription = 'ViewAudienceSaga.onAudienceChanged';
 
-/** The hops of a wait chain (`Wow-Wait`) in `view-store`. */
+/** The hops of a wait chain (`Wow-Wait`) in `view-store`, as the Kotlin `ViewStoreContract.Wait` holds them. */
 export const viewStoreWait = {
   /** Until a command of `view-store` passed admission. */
   accepted: (): Hop => wait.accepted(ViewStoreContract.NAME),

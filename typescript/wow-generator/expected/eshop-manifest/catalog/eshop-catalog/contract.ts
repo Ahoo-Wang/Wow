@@ -19,7 +19,7 @@ export const EshopCatalogContract = {
 /** An error code of `eshop-catalog`, of the context or of one of its aggregates. */
 export type EshopCatalogErrorCode = 'eshop-catalog.brand.name-taken' | 'eshop-catalog.category.name-taken' | 'eshop-catalog.product.incomplete' | 'eshop-catalog.product.not-published';
 
-/** The hops of a wait chain (`Wow-Wait`) in `eshop-catalog`. */
+/** The hops of a wait chain (`Wow-Wait`) in `eshop-catalog`, as the Kotlin `EshopCatalogContract.Wait` holds them. */
 export const eshopCatalogWait = {
   /** Until a command of `eshop-catalog` passed admission. */
   accepted: (): Hop => wait.accepted(EshopCatalogContract.NAME),

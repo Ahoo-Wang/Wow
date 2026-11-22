@@ -22,7 +22,6 @@ import me.ahoo.wow.api.read.Snapshot
 import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.FrameworkCodes
-import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.wire.DevelopmentHeaders
 import me.ahoo.wow.example.eshop.ordering.api.order.ConfirmOrderStock
@@ -229,11 +228,13 @@ class OrderingServerTest {
             attributes = mapOf(DevelopmentHeaders.ROLES_ATTRIBUTE to listOf("employee")),
         )
 
+        // region wait-plan
         /** A submission's plan to its chain's end: the order-process saga set the order awaiting its validation. */
         val TO_VALIDATION: WaitPlan = WaitPlan.of(
-            Hop.handled("OrderProcessSaga.onOrderSubmitted", EshopOrderingContract.NAME),
-            Hop.snapshot(EshopOrderingContract.NAME),
+            EshopOrderingContract.Wait.ORDER_PROCESS_SAGA__ON_ORDER_SUBMITTED,
+            EshopOrderingContract.Wait.SNAPSHOT,
         )
+        // endregion
         val GRACE_AND_POLL: Duration = Duration.ofMillis(3_000)
 
         /** An order's number: `SO-`, the day it was issued (`yyMMdd`), `-`, its sequence. */
