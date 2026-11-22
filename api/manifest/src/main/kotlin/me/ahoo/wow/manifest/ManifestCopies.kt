@@ -243,7 +243,8 @@ fun PublishedManifest.copyWith(
     aggregate: String = this.aggregate,
     topic: String = this.topic,
     includeState: Boolean = this.includeState,
-): PublishedManifest = PublishedManifest(aggregate, topic, includeState)
+    revealsDisplay: Boolean = this.revealsDisplay,
+): PublishedManifest = PublishedManifest(aggregate, topic, includeState, revealsDisplay)
 
 @InternalWowApi
 fun FunctionManifest.copyWith(

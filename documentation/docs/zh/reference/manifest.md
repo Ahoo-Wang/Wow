@@ -34,6 +34,7 @@ Absent optional values (a null description, unknown `produces`, `derives`, `sche
   - `aggregate`
   - `topic`
   - `includeState`
+  - `revealsDisplay`: 缺省或取默认值时省略
 - `errors`: 数组，元素为 [`Error`](#error)
 - `commands`: 数组，元素为 [`Command`](#command); 缺省或取默认值时省略
 - `routes`: 数组，元素为 [`ServiceRoute`](#serviceroute); 缺省或取默认值时省略

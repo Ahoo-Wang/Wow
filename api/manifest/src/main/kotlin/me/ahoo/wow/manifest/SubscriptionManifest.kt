@@ -232,12 +232,17 @@ class SubscriptionSource @InternalWowApi constructor(
  * [includeState] is false, for an aggregate whose state is too large (a subscriber of such a stream
  * declares a nullable state).
  *
+ * The state and the events' bodies are masked as a read masks them: every `CONFIDENTIAL` value, and every `DISPLAY`
+ * value unless [revealsDisplay], which the owner declares (`@AggregateRoot(revealsDisplay = true)`) and the owner's
+ * `wow.query.sensitivity.display-shared` off overrides.
+ *
  * Fields may be added: pass the constructor's arguments by name.
  */
 class PublishedManifest @InternalWowApi constructor(
     val aggregate: String,
     val topic: String,
     val includeState: Boolean = true,
+    val revealsDisplay: Boolean = false,
 ) {
     override fun equals(other: Any?): Boolean =
         this === other || other is PublishedManifest && valueFields() == other.valueFields()
@@ -245,9 +250,10 @@ class PublishedManifest @InternalWowApi constructor(
     override fun hashCode(): Int = valueFields().hashCode()
 
     override fun toString(): String =
-        "PublishedManifest(aggregate=$aggregate, topic=$topic, includeState=$includeState)"
+        "PublishedManifest(aggregate=$aggregate, topic=$topic, includeState=$includeState, " +
+            "revealsDisplay=$revealsDisplay)"
 
-    private fun valueFields(): List<Any?> = listOf(aggregate, topic, includeState)
+    private fun valueFields(): List<Any?> = listOf(aggregate, topic, includeState, revealsDisplay)
 
     companion object {
         /** The topic of the state events of [aggregate] of [context]: `wow.<context>.<aggregate>.state`. */

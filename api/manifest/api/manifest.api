@@ -236,6 +236,7 @@ public final class me/ahoo/wow/manifest/PublishedManifest {
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getAggregate ()Ljava/lang/String;
 	public final fun getIncludeState ()Z
+	public final fun getRevealsDisplay ()Z
 	public final fun getTopic ()Ljava/lang/String;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;

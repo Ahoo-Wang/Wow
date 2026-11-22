@@ -97,7 +97,8 @@ class HostKafkaSinkTest {
         topic.assert().isEqualTo("test.wow.bank.account.state")
         val record = EnvelopeCodec.stateEventOf(message.value)
         record.ref.type.assert().isEqualTo(AggregateType(BANK, "account"))
-        // The owner is CONFIDENTIAL in the account's state and in the event (KafkaBeans): masked on the topic.
+        // The owner is DISPLAY in the account's state and CONFIDENTIAL in the event (KafkaBeans): both masked on the
+        // topic, the DISPLAY one as the stream is not declared revealing.
         record.state!!.state["owner"].asString().assert().isEqualTo("***")
         record.events.single().payload["owner"].asString().assert().isEqualTo("***")
         message.key.assert().isEqualTo(record.ref.toString())
@@ -199,8 +200,8 @@ class HostKafkaSinkTest {
     }
 
     /**
-     * A recording producer, the Manifest publishing every aggregate, the account's owner `CONFIDENTIAL` in its state
-     * and its event, and a subscription of the application's own.
+     * A recording producer, the Manifest publishing every aggregate, the account's owner `DISPLAY` in its state and
+     * `CONFIDENTIAL` in its event, and a subscription of the application's own.
      */
     @Configuration(proxyBeanMethods = false)
     class KafkaBeans {
@@ -225,19 +226,19 @@ class HostKafkaSinkTest {
                             },
                         )
                     },
-                    defs = manifest.defs + confidentialOwner(manifest.defs),
+                    defs = manifest.defs + sensitiveOwner(manifest.defs),
                 )
             }
 
-        private fun confidentialOwner(defs: Map<String, Any?>): Map<String, Any?> {
-            val owner = mapOf("type" to "string", "x-wow-sensitive" to mapOf("level" to "confidential"))
+        private fun sensitiveOwner(defs: Map<String, Any?>): Map<String, Any?> {
+            fun owner(level: String) = mapOf("type" to "string", "x-wow-sensitive" to mapOf("level" to level))
 
             @Suppress("UNCHECKED_CAST")
             val account = defs.getValue("Account") as Map<String, Any?>
             val properties = account.getValue("properties") as Map<String, Any?>
             return mapOf(
-                "Account" to account + ("properties" to properties + ("owner" to owner)),
-                "AccountOpened" to mapOf("type" to "object", "properties" to mapOf("owner" to owner)),
+                "Account" to account + ("properties" to properties + ("owner" to owner("display"))),
+                "AccountOpened" to mapOf("type" to "object", "properties" to mapOf("owner" to owner("confidential"))),
             )
         }
 

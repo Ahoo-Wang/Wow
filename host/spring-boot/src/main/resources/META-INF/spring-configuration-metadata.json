@@ -1250,7 +1250,7 @@
   }, {
     "name" : "wow.query.sensitivity.display-shared",
     "type" : "java.lang.Boolean",
-    "description" : "Whether this service shares the raw value of its `DISPLAY` fields outside itself: with a peer service that asks for it on the internal port (`Wow-Reveal`). Off, it shares none, whatever service a peer names, and a read that asks is refused (403). Its own revealing reads in process are unaffected. A control that does not depend on who asks: a deployment that turns `display-comparable` off, so that no range condition approaches a `DISPLAY` value either, turns this off too and has a barrier that needs no service authentication.",
+    "description" : "Whether this service shares the raw value of its `DISPLAY` fields outside itself, both ways a value leaves it: with a peer service that asks for it on the internal port (`Wow-Reveal`), and on a published stream its owner declares revealing (`@AggregateRoot(revealsDisplay = true)`). Off, it shares none: a peer's read that asks is refused (403), whatever service the peer names, and every published stream masks its `DISPLAY` values, a stream declared revealing included. It only tightens: on, a stream still masks them unless it is declared revealing. Its own revealing reads in process are unaffected. A control that does not depend on who asks: a deployment that turns `display-comparable` off, so that no range condition approaches a `DISPLAY` value either, turns this off too and has a barrier that needs no service authentication.",
     "sourceType" : "me.ahoo.wow.spring.boot.query.QueryProperties$Sensitivity",
     "defaultValue" : true
   }, {

@@ -31,6 +31,7 @@ internal object AggregateRootArguments {
     private const val PUBLISHED = "published"
     private const val PUBLISH_STATE = "publishState"
     private const val TOPIC = "topic"
+    private const val REVEALS_DISPLAY = "revealsDisplay"
     private const val SNAPSHOT = "snapshot"
     private const val STATE_REVISION = "stateRevision"
     private val TRANSFER_OWNER: String = Lifecycle.nameOf(TransferOwner::class.java)!!
@@ -41,17 +42,24 @@ internal object AggregateRootArguments {
     }
 
     /**
-     * The aggregate's published stream as `@AggregateRoot(published, publishState, topic)` declares it;
-     * a topic Kafka would refuse is a problem ([Publication.topicProblem]).
+     * The aggregate's published stream as `@AggregateRoot(published, publishState, topic, revealsDisplay)` declares it;
+     * a topic Kafka would refuse is a problem ([Publication.topicProblem]), and so is a stream declared to reveal its
+     * `DISPLAY` values on an aggregate that is not published.
      */
     fun publication(arguments: AnnotationArguments?, problems: MutableList<String>): Publication {
         val topic = arguments?.string(TOPIC).orEmpty().ifEmpty { null }
         topic?.let(Publication::topicProblem)?.let { problems += it }
-        return Publication(
+        val publication = Publication(
             published = arguments?.boolean(PUBLISHED) ?: true,
             includeState = arguments?.boolean(PUBLISH_STATE) ?: true,
             topic = topic,
+            revealsDisplay = arguments?.boolean(REVEALS_DISPLAY) ?: false,
         )
+        if (publication.revealsDisplay && !publication.published) {
+            problems += "@AggregateRoot(revealsDisplay = true) declares what the published stream reveals, but " +
+                "published is false: the aggregate publishes no stream"
+        }
+        return publication
     }
 
     /** Whether the aggregate keeps snapshots, as `@AggregateRoot(snapshot)` says: true by default. */

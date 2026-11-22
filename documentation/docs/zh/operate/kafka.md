@@ -53,7 +53,12 @@ wow:
 
 聚合默认会被发布；它也可以不发布、发布时不带状态，或者指定另一个主题。`wow.kafka.topics.prefix` 在每个主题名前加一个前缀，例如 `staging.`，写入和读取两侧都加。每条记录都是以聚合为键的信封，所以一个聚合的记录保持顺序（[线上协议](../reference/protocols#kafka-envelope)）。
 
-状态主题保存的每个状态和事件里，[`@Sensitive`](../guide/queries#where-masking-stops) 的 `CONFIDENTIAL` 值都已脱敏：transport sink 在写入时脱敏。它的 `DISPLAY` 值按提交时的样子写入，之后它们也会脱敏，除非属主声明这个事件流揭示它们（[#6586](https://github.com/Ahoo-Wang/Wow/issues/6586)）。升级之前写入的记录保留提交时的每个值。主题保留它们的期间这些值一直都在，所以谁能读到它们由主题的 ACL 决定：只把一个上下文的状态主题的读权限授予订阅它的服务和应当读它的外部消费者。
+状态主题保存的每个状态和事件里，[`@Sensitive`](../guide/queries#where-masking-stops) 值都已脱敏：transport sink 在写入时脱敏。有两种记录保存原值：
+
+- **属主声明为揭示的事件流**（`@AggregateRoot(revealsDisplay = true)`）按原值保存它的 `DISPLAY` 值，除非属主关掉了 `wow.query.sensitivity.display-shared`。
+- **10.0.0-beta.14 及更早版本写入的记录**保存提交时的每个值（[升级部署](./upgrades#sensitive-values-on-a-published-stream)）。
+
+主题保留它们的期间这些值一直都在，所以谁能读到它们由主题的 ACL 决定：只把一个上下文的状态主题的读权限授予订阅它的服务和应当读它的外部消费者。
 
 ### 分区 {#partitions}
 

@@ -467,6 +467,21 @@ class ManifestCompatibilityTest {
     }
 
     @Test
+    fun `a stream that stops revealing its DISPLAY values should break its consumers, one that starts should not`() {
+        fun changes(baseline: Manifest, current: Manifest) =
+            ManifestCompatibility.compare(baseline, current).changes.map { it.toString() }
+
+        changes(BASELINE, BASELINE.published { it.copyWith(revealsDisplay = true) })
+            .assert().containsExactly(
+                "ADDITIVE $CONTEXT.published[cart].revealsDisplay: the DISPLAY values are now published raw"
+            )
+        changes(BASELINE.published { it.copyWith(revealsDisplay = true) }, BASELINE)
+            .assert().containsExactly(
+                "BREAKING $CONTEXT.published[cart].revealsDisplay: the DISPLAY values are now published masked"
+            )
+    }
+
+    @Test
     fun `the reverse changes should be classified too`() {
         fun changes(baseline: Manifest, current: Manifest) =
             ManifestCompatibility.compare(baseline, current).changes.map { it.toString() }

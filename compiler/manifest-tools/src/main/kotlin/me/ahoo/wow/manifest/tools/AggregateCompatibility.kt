@@ -368,6 +368,13 @@ internal fun Changes.comparePublished(path: String, baseline: PublishedManifest,
             breaking("$path.includeState", "the state is no longer included")
         }
     }
+    if (baseline.revealsDisplay != current.revealsDisplay) {
+        if (current.revealsDisplay) {
+            additive("$path.revealsDisplay", "the DISPLAY values are now published raw")
+        } else {
+            breaking("$path.revealsDisplay", "the DISPLAY values are now published masked")
+        }
+    }
 }
 
 /** One side of a comparison. */

@@ -278,6 +278,7 @@ object ManifestTools {
      * does one whose [contractPackage] is no Java package name. A context whose command or event classes are in an
      * entry of [unpaired] (a class path entry of a project that does not pair with the module, to that project's path)
      * fails, naming the line that pairs them: the contract would reach no api module, and no peer would see the context.
+     * A stream declared to reveal its `DISPLAY` values that publishes none fails too ([RevealedDisplays]).
      */
     @JvmStatic
     fun generateContract(
@@ -303,6 +304,11 @@ object ManifestTools {
         }
         check(problems.isEmpty()) {
             "The contract of project '$module' reaches no api module:\n" + problems.joinToString("\n") { "- $it" }
+        }
+        val revealing = RevealedDisplays.problems(contract)
+        check(revealing.isEmpty()) {
+            "The contract of project '$module' declares streams that reveal nothing:\n" +
+                revealing.joinToString("\n") { "- $it" }
         }
         ManifestJson.write(contract, output)
         ContractPackages.write(

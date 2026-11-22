@@ -2661,6 +2661,10 @@
           },
           "includeState" : {
             "type" : "boolean"
+          },
+          "revealsDisplay" : {
+            "type" : "boolean",
+            "description" : "The stream carries its DISPLAY values raw, as its owner declares; masked when left out."
           }
         }
       },

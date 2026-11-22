@@ -53,7 +53,12 @@ Each context owns its topics; the topics of other contexts are theirs.
 
 An aggregate is published by default; it can stay unpublished, publish without its state, or name another topic. `wow.kafka.topics.prefix` puts a prefix before every topic name, such as `staging.`, on both the writing and the reading side. Every record is an envelope keyed by the aggregate, so one aggregate's records stay in order ([Wire protocols](../reference/protocols#kafka-envelope)).
 
-A state topic holds each state and event with its [`@Sensitive`](../guide/queries#where-masking-stops) `CONFIDENTIAL` values masked: the transport sink masks them as it writes. Its `DISPLAY` values are written as committed, until they are masked too unless the owner declares that the stream reveals them ([#6586](https://github.com/Ahoo-Wang/Wow/issues/6586)). Records written before the upgrade keep every value as committed. The topic keeps both for as long as it retains them, so the topic's ACL is what decides who reads them: grant read on a context's state topics to the services that subscribe to it and to the external consumers meant to read it.
+A state topic holds each state and event with its [`@Sensitive`](../guide/queries#where-masking-stops) values masked: the transport sink masks them as it writes. Two kinds of record hold raw values:
+
+- **A stream the owner declares revealing** (`@AggregateRoot(revealsDisplay = true)`) holds its `DISPLAY` values raw, unless the owner turns `wow.query.sensitivity.display-shared` off.
+- **Records written by 10.0.0-beta.14 or earlier** hold every value as committed ([Upgrade a Deployment](./upgrades#sensitive-values-on-a-published-stream)).
+
+The topic keeps them for as long as it retains them, so the topic's ACL is what decides who reads them: grant read on a context's state topics to the services that subscribe to it and to the external consumers meant to read it.
 
 ### Partitions
 

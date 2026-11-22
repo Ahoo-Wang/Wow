@@ -221,12 +221,13 @@ internal data class AfterBinding(
 /**
  * The published stream of an aggregate's state events, as `@AggregateRoot` declares it: none unless
  * [published]; with the state after each commit unless [includeState] is false; on [topic], or on
- * `wow.<context>.<aggregate>.state` when it is null.
+ * `wow.<context>.<aggregate>.state` when it is null; its `DISPLAY` values raw when [revealsDisplay], masked else.
  */
 internal data class Publication(
     val published: Boolean = true,
     val includeState: Boolean = true,
     val topic: String? = null,
+    val revealsDisplay: Boolean = false,
 ) {
     companion object {
         /** The longest topic name Kafka accepts. */

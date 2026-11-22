@@ -730,18 +730,26 @@ public final class me/ahoo/wow/runtime/schedule/JobOptions {
 	public fun toString ()Ljava/lang/String;
 }
 
+public final class me/ahoo/wow/runtime/sink/PublicationMasks {
+	public fun <init> (Lme/ahoo/wow/spi/read/StateMasks;Z)V
+	public final fun getDisplayShared ()Z
+	public final fun getMasks ()Lme/ahoo/wow/spi/read/StateMasks;
+	public final fun revealsDisplay (Lme/ahoo/wow/manifest/PublishedManifest;)Z
+	public fun toString ()Ljava/lang/String;
+}
+
 public final class me/ahoo/wow/runtime/sink/PublishedSinks {
 	public static final field Companion Lme/ahoo/wow/runtime/sink/PublishedSinks$Companion;
 	public static final field TRANSPORT_SINK Ljava/lang/String;
-	public fun <init> (Ljava/util/Map;Ljava/lang/String;Lme/ahoo/wow/spi/read/StateMasks;Lkotlin/jvm/functions/Function2;)V
+	public fun <init> (Ljava/util/Map;Ljava/lang/String;Lme/ahoo/wow/runtime/sink/PublicationMasks;Lkotlin/jvm/functions/Function2;)V
 	public final fun nameOf (Lme/ahoo/wow/manifest/PublishedManifest;)Ljava/lang/String;
 	public fun toString ()Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/runtime/sink/PublishedSinks$Companion {
 	public final fun publishedOf (Lme/ahoo/wow/manifest/Manifest;)Ljava/util/Map;
-	public final fun topics (Lme/ahoo/wow/manifest/Manifest;Lme/ahoo/wow/spi/transport/TopicProducer;Lme/ahoo/wow/spi/read/StateMasks;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/runtime/sink/PublishedSinks;
-	public static synthetic fun topics$default (Lme/ahoo/wow/runtime/sink/PublishedSinks$Companion;Lme/ahoo/wow/manifest/Manifest;Lme/ahoo/wow/spi/transport/TopicProducer;Lme/ahoo/wow/spi/read/StateMasks;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/runtime/sink/PublishedSinks;
+	public final fun topics (Lme/ahoo/wow/manifest/Manifest;Lme/ahoo/wow/spi/transport/TopicProducer;Lme/ahoo/wow/runtime/sink/PublicationMasks;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/runtime/sink/PublishedSinks;
+	public static synthetic fun topics$default (Lme/ahoo/wow/runtime/sink/PublishedSinks$Companion;Lme/ahoo/wow/manifest/Manifest;Lme/ahoo/wow/spi/transport/TopicProducer;Lme/ahoo/wow/runtime/sink/PublicationMasks;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/runtime/sink/PublishedSinks;
 }
 
 public final class me/ahoo/wow/runtime/snapshot/SnapshotOptions {

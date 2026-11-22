@@ -68,6 +68,14 @@ outline: deep
 
 **ACCEPTED 与 COMMITTED 的 ref。** 经命令主题转发的命令，由发送它的节点回答 `ACCEPTED`，带着发送方给出的 ref，即发送方的租户。它的 `COMMITTED` 由目标的命令入口发出信号，指名目标决定的租户。客户端如果只等待发往另一个服务的固定类型的命令的 `ACCEPTED`，读到的是发送方的租户；要读到命令落在哪里，就等待 `COMMITTED`。
 
+## 发布的事件流里的敏感值 {#sensitive-values-on-a-published-stream}
+
+10.0.0-beta.14 及更早版本按提交时的样子发布每个值，`@Sensitive` 的也一样。之后的版本在写入时脱敏，每个 `DISPLAY` 值也脱敏，除非属主声明这个事件流揭示它们（[敏感值](../guide/published-streams#sensitive-values)）。之前发布的内容仍然留着：
+
+- **主题上。** 旧节点写的记录保留它们的值，直到主题的保留期删掉它们；transport sink 不会重新发布它们。要更早清掉，就新建一个主题（`@AggregateRoot(topic)`，这是契约的破坏性变更），等消费者都读新主题后删掉旧的。新主题只带从那以后发布的内容，所以从它开头重建的投影也从那时开始。
+- **发布期间。** 属主的旧节点在停下之前一直发布原值，所以这段时间消费者可能同时收到原值和掩码的记录。
+- **需要 `DISPLAY` 原值的消费者**在属主升级后拿到的是掩码，除非属主声明这个事件流揭示它们。在属主开始遮盖它们的那个版本里一并声明，消费者就永远看不到掩码。
+
 ## 不能改变的设置 {#settings-that-must-not-change}
 
 `wow.log.partitions` 在日志有了条目之后就固定了，一个服务的节点共用它们的存储布局（[配置服务](./configuration#what-must-match-across-nodes)）。

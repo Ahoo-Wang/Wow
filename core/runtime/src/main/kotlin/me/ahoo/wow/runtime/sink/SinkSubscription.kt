@@ -76,7 +76,7 @@ internal class SinkSubscription(
     private val sink: Sink,
     private val reader: SharedStateReader,
     private val includeState: Boolean = true,
-    private val masks: RecordMasks? = null,
+    private val masks: RecordMasks?,
     startFrom: StartFrom = StartFrom.BEGINNING,
 ) {
     private val model: AggregateModel<*> = reader.modelOf(type)

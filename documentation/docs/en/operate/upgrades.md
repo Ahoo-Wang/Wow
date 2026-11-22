@@ -68,6 +68,14 @@ A type's fixed tenant (`wow.aggregates.[<context>.<aggregate>].tenant`) is its o
 
 **The ref of ACCEPTED and of COMMITTED.** A command relayed through the command topic is answered `ACCEPTED` by the node that sent it, with the ref its sender gave, in the sender's tenant. Its `COMMITTED`, which the target's intake signals, names the tenant the target decided. A client that waits only for `ACCEPTED` of a command to another service's fixed type reads the sender's tenant in it; wait for `COMMITTED` to read where the command landed.
 
+## Sensitive values on a published stream {#sensitive-values-on-a-published-stream}
+
+10.0.0-beta.14 and earlier publish every value as committed, `@Sensitive` ones included. A later release masks them as it writes, every `DISPLAY` value too unless the owner declares the stream revealing ([Sensitive values](../guide/published-streams#sensitive-values)). What was published before stays:
+
+- **On the topic.** The records an older node wrote keep their values until the topic's retention removes them; the transport sink does not publish them again. To remove them sooner, start a new topic (`@AggregateRoot(topic)`, a breaking change of the contract) and delete the old one once its consumers read the new. The new topic carries only what is published from then on, so a projection rebuilt from its beginning starts from that point.
+- **During the rollout.** An older node of the owner publishes raw values until it stops, so a consumer may receive raw and masked records side by side meanwhile.
+- **A consumer that needs `DISPLAY` values raw** receives them masked once the owner upgrades, unless the owner declares the stream revealing. Declare it in the owner's release that masks them, so its consumers never see the masks.
+
 ## Settings that must not change
 
 `wow.log.partitions` is fixed once the log holds entries, and the nodes of one service share their store layout ([Configure a Service](./configuration#what-must-match-across-nodes)).

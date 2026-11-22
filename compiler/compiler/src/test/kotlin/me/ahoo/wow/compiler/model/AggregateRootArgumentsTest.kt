@@ -56,14 +56,22 @@ class AggregateRootArgumentsTest {
                 fun onCommand(command: Open): Opened = Opened(command.id)
                 fun onSourcing(event: Opened) = Unit
             }
+
+            @AggregateRoot(revealsDisplay = true)
+            class Card(val id: String) {
+                fun onCommand(command: Open): Opened = Opened(command.id)
+                fun onSourcing(event: Opened) = Unit
+            }
             """.trimIndent(),
         )
         val (compilation, result) = compileModel("generate", context, streams)
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
         val published = read(fragments(compilation).single()).contexts.single().published
-        // Decision D156: no stream of the ledger; the account's without its state, on its own topic.
+        // Decision D156: no stream of the ledger; the account's without its state, on its own topic; the card's
+        // declared to reveal its DISPLAY values (#6586), the others masking them.
         published.assert().containsExactly(
             PublishedManifest("account", "shop.accounts-v2", includeState = false),
+            PublishedManifest("card", "wow.shop.card.state", includeState = true, revealsDisplay = true),
             PublishedManifest("wallet", "wow.shop.wallet.state", includeState = true),
         )
     }
@@ -98,6 +106,12 @@ class AggregateRootArgumentsTest {
                 fun onCommand(command: Open): Opened = Opened(command.id)
                 fun onSourcing(event: Opened) = Unit
             }
+
+            @AggregateRoot(published = false, revealsDisplay = true)
+            class Vault(val id: String) {
+                fun onCommand(command: Open): Opened = Opened(command.id)
+                fun onSourcing(event: Opened) = Unit
+            }
             """.trimIndent(),
         )
         val (compilation, result) = compileModel("generate", context, broken)
@@ -106,6 +120,7 @@ class AggregateRootArgumentsTest {
             .contains("@AggregateRoot(topic) \"shop/accounts\" is not a Kafka topic name")
             .contains("@AggregateRoot(topic) is 250 characters long: a Kafka topic has at most 249")
             .contains("@AggregateRoot(topic) \"..\" is not a Kafka topic name")
+            .contains("@AggregateRoot(revealsDisplay = true) declares what the published stream reveals, but published")
         fragments(compilation).assert().isEmpty()
         Publication.topicProblem("wow.shop.cart.state").assert().isNull()
         Publication.topicProblem("t".repeat(Publication.MAX_TOPIC_LENGTH)).assert().isNull()

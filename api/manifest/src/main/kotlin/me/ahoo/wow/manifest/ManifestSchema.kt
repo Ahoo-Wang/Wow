@@ -192,6 +192,9 @@ object ManifestSchema {
                 "aggregate" to string(),
                 "topic" to string(),
                 "includeState" to boolean(),
+                "revealsDisplay" to boolean(
+                    "The stream carries its DISPLAY values raw, as its owner declares; masked when left out.",
+                ),
             ),
             SUBSCRIPTION to objectOf(
                 "A subscription of a bounded context: what it reads and what its handler derives.",

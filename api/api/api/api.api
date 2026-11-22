@@ -251,6 +251,7 @@ public abstract interface annotation class me/ahoo/wow/api/annotation/AggregateR
 	public abstract fun publishState ()Z
 	public abstract fun published ()Z
 	public abstract fun retiredEvents ()[Ljava/lang/String;
+	public abstract fun revealsDisplay ()Z
 	public abstract fun snapshot ()Z
 	public abstract fun stateRevision ()I
 	public abstract fun topic ()Ljava/lang/String;
