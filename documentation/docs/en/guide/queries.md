@@ -118,6 +118,23 @@ var status: ProductStatus = ProductStatus.DRAFT
 
 The annotations go on the field (`@field:`), since the compiler reads them from the compiled state.
 
+### Sort direction {#index-sort-direction}
+
+An index serves a sort by its keys in both directions: the store reads it forward or backward. So `@QueryIndex` has no direction, and a "latest first" list needs none:
+
+- **Latest first, over all of them:** index the time alone. That is `@QueryIndex(on = "lastEventTime")` on the state class for when a snapshot last changed, or `@field:QueryIndex` on a time field of the state, such as `createdAt`.
+- **Latest first within a status:** `@field:QueryIndex(with = ["lastEventTime"])` on `status`. A query equal on the leading key reads the next one in order, either way.
+
+```kotlin
+@QueryIndex(on = "lastEventTime")
+data class OrderState(
+    @field:QueryIndex(with = ["lastEventTime"])
+    val status: OrderStatus,
+)
+```
+
+A direction would matter only for a sort that runs two keys in opposite directions, neither of them fixed by an equality: status ascending, then the newest first within each status. An index on those keys does not give that order: the store sorts the matches it reads, which costs more as they grow.
+
 ## Describe what types cannot
 
 A few more annotations of `me.ahoo.wow.api.query.annotation` tell the query model what a field's type alone does not:
