@@ -43,6 +43,12 @@ class FailureDescriptionTest {
             .isEqualTo("write error 11000 'email_1'")
         FailureDescription.of(type(IntArray::class.java)).text.assert().isEqualTo("int[]")
         FailureDescription.of(code(1)).assert().isEqualTo(FailureDescription.of(code(1)))
+        val one = FailureDescription.of(code(1))
+        one.assert().isEqualTo(one)
+        one.assert().isNotEqualTo(code(1))
+        // A class without a simple name, an anonymous one, by its name.
+        val anonymous = object : Any() {}.javaClass
+        FailureDescription.of(type(anonymous)).text.assert().isEqualTo(anonymous.name)
         FailureDescription.of(code(1)).hashCode().assert().isEqualTo("1".hashCode())
     }
 

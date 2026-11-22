@@ -54,5 +54,6 @@ class JdbcFailureDescriberTest {
         told(SQLException("alice.smith@example.com")).assert().isNull()
         val quoted = ServerErrorMessage("SERROR\u0000C23505\u0000Mm\u0000n\"my constraint\"\u0000")
         told(PSQLException(quoted)).assert().isEqualTo("sql state '23505'")
+        told(SQLException("x", "")).assert().isNull()
     }
 }

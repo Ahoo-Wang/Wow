@@ -189,7 +189,8 @@ internal object JacksonDescriptions : FailureDescriber {
             is MismatchedInputException -> listOfNotNull(phrase(JacksonPhrase.CANNOT_READ), at) +
                 failure.targetType?.let { listOf(phrase(JacksonPhrase.AS), type(it)) }.orEmpty()
 
-            is StreamReadException -> failure.location?.let {
+            // A location without a line (`-1`) is none.
+            is StreamReadException -> failure.location?.takeIf { it.lineNr > 0 }?.let {
                 listOf(
                     phrase(JacksonPhrase.MALFORMED_JSON_AT_LINE),
                     code(it.lineNr.toLong()),

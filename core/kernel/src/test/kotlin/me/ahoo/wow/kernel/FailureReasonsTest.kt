@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.kernel
 
+import com.fasterxml.jackson.annotation.JsonProperty
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.decide.RejectedException
@@ -24,7 +25,9 @@ import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.subscription.FailureDescriber
 import me.ahoo.wow.spi.subscription.FailureDescription
 import org.junit.jupiter.api.Test
+import tools.jackson.core.exc.StreamReadException
 import tools.jackson.databind.DeserializationFeature
+import tools.jackson.databind.exc.MismatchedInputException
 import tools.jackson.databind.json.JsonMapper
 import kotlin.time.Duration.Companion.seconds
 
@@ -37,6 +40,10 @@ class FailureReasonsTest {
     data class Card(val holder: String, val digits: Int)
 
     data class Prices(val prices: Map<String, Int>)
+
+    data class Wallet(val cards: List<Card>)
+
+    data class Named(@param:JsonProperty("first name") val first: Int)
 
     private val reasons = FailureReasons.DEFAULT
 
@@ -79,6 +86,21 @@ class FailureReasonsTest {
             WowJson.mapper.readValue("""{"prices":{"alice.smith@example.com":"many"}}""", Prices::class.java)
         }
         reasons.reasonOf(price).assert().contains("cannot read 'prices.{key}' as").doesNotContain("alice")
+    }
+
+    @Test
+    fun `an array's item should be named by its index, and a property no name fits as a key`() {
+        val item = failureOf {
+            WowJson.mapper.readValue("""{"cards":[{"holder":"a","digits":"x"}]}""", Wallet::class.java)
+        }
+        reasons.reasonOf(item).assert().endsWith(": cannot read 'cards[0].digits' as int")
+        val spaced = failureOf { WowJson.mapper.readValue("""{"first name":"alice"}""", Named::class.java) }
+        reasons.reasonOf(spaced).assert().endsWith(": cannot read '{key}' as int")
+        // Without the type it read as, or the place it failed at, what is known is said.
+        reasons.reasonOf(MismatchedInputException.from(null, null as Class<*>?, "alice")).assert()
+            .isEqualTo("tools.jackson.databind.exc.MismatchedInputException: cannot read")
+        reasons.reasonOf(StreamReadException(null, "alice")).assert()
+            .isEqualTo("tools.jackson.core.exc.StreamReadException: unreadable")
     }
 
     @Test

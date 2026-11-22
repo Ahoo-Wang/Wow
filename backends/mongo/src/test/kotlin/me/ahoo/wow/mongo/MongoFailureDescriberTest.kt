@@ -60,6 +60,10 @@ class MongoFailureDescriberTest {
             emptySet(),
         )
         told(bulk).assert().isEqualTo("write error code 11000 duplicate key")
+        // A bulk write that failed on its write concern alone has no write error to describe.
+        val concernOnly =
+            MongoBulkWriteException(BulkWriteResult.unacknowledged(), emptyList(), null, server, emptySet())
+        told(concernOnly).assert().isNull()
     }
 
     @Test
@@ -74,6 +78,8 @@ class MongoFailureDescriberTest {
         // A name a description does not take is left out.
         val unnamed = WriteConcernError(64, "has space", "x", BsonDocument())
         told(MongoWriteConcernException(unnamed, server)).assert().isEqualTo("write concern error code 64")
+        told(MongoWriteConcernException(WriteConcernError(64, "", "x", BsonDocument()), server)).assert()
+            .isEqualTo("write concern error code 64")
     }
 
     @Test
