@@ -180,6 +180,36 @@ class ElasticsearchSnapshotStoreTest : SnapshotStoreSpec() {
         }
 
     @Test
+    fun `the longest id the rule takes, behind a long tenant, is saved and read back by its bounded document id`(): Unit =
+        runBlocking {
+            val context = ElasticsearchFixture.newContext()
+            val store = createStore(context) as ElasticsearchSnapshotStore
+            store.createIndex("aggregate")
+            val type = AggregateType(context, "aggregate")
+            // 512 bytes of id behind 64 characters of tenant: more than the 512 bytes Elasticsearch takes in an _id.
+            val tenant = "t".repeat(LONG_TENANT)
+            val ids = listOf("购".repeat(170) + "xx", "😀".repeat(128), "x".repeat(256))
+            ids.forEach { id ->
+                store.save(snapshot(id, 1, tenant = tenant, aggregate = type)).assert().isTrue()
+                store.save(snapshot(id, 2, tenant = tenant, aggregate = type)).assert().isTrue()
+                store.save(snapshot(id, 1, tenant = tenant, aggregate = type)).assert().isFalse()
+                store.load(type.ref(tenant, id))?.version.assert().isEqualTo(2)
+            }
+            store.saveAll(ids.map { snapshot(it, 3, tenant = tenant, aggregate = type) })
+                .assert().containsOnly(SnapshotSaveOutcome.Written)
+            ids.map { store.load(type.ref(tenant, it))?.version }.assert().containsOnly(3)
+            // One document each, its _id within the bytes Elasticsearch takes.
+            val index = ElasticsearchFixture.names.snapshots(context, "aggregate")
+            ElasticsearchFixture.client.indices().refresh { it.index(index) }.get()
+            val documentIds = ElasticsearchFixture.client.search(
+                { it.index(index).size(ids.size + 1) },
+                Void::class.java,
+            ).get().hits().hits().map { checkNotNull(it.id()) }
+            documentIds.assert().hasSize(ids.size)
+            documentIds.forEach { it.toByteArray(Charsets.UTF_8).size.assert().isLessThanOrEqualTo(512) }
+        }
+
+    @Test
     fun `a store that waits for the refresh keeps four writes in flight, the others the default two`() {
         fun inFlight(refresh: String?): Int {
             val options = refresh?.let { mapOf(ElasticsearchStoreProvider.REFRESH.key to it) } ?: emptyMap()
@@ -194,6 +224,7 @@ class ElasticsearchSnapshotStoreTest : SnapshotStoreSpec() {
 
     private companion object {
         const val ALLOCATION_DELAY = 1_500L
+        const val LONG_TENANT = 64
         const val ROUNDS = 10
         const val STORES = 8
         const val WRITERS = 64

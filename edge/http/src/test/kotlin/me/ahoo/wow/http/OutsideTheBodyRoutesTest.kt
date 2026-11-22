@@ -167,16 +167,16 @@ class OutsideTheBodyRoutesTest {
             "a%2Fb" to "holds '/'",
             "a%3Bb" to "holds ';'",
             "a%5Cb" to "holds '\\'",
-            "%E8%B4%AD".repeat(29) to "261 characters percent-encoded",
+            "%E8%B4%AD".repeat(171) to "171 characters, 513 bytes in UTF-8",
         ).forEach { (id, why) ->
             post("/shop/cart/$id/add-item").refused(400, FrameworkCodes.COMMAND_MALFORMED, why)
         }
         node.commands.assert().isEmpty()
         post("/shop/cart/c-1;x=1/add-item").refused(400, FrameworkCodes.REQUEST_MALFORMED, "matrix parameters")
-        // Kept as they are: a unicode id is an id of its own, up to 256 characters encoded.
+        // Kept as they are: a unicode id is an id of its own, up to 512 bytes in UTF-8.
         post("/shop/cart/%E8%B4%AD/add-item").body!!["ref"]["id"].asString().assert().isEqualTo("购")
-        post("/shop/cart/${"%E8%B4%AD".repeat(28)}/add-item").body!!["ref"]["id"].asString().assert()
-            .isEqualTo("购".repeat(28))
+        post("/shop/cart/${"%E8%B4%AD".repeat(170)}/add-item").body!!["ref"]["id"].asString().assert()
+            .isEqualTo("购".repeat(170))
     }
 
     @Test

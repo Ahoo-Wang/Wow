@@ -209,7 +209,8 @@ class CommandGatewayRefusalsTest : CommandGatewayFixtures() {
     @Test
     fun `an aggregate id no store keeps, or no route reaches behind a gateway, is malformed`(): Unit = runBlocking {
         // #6501: each was accepted and stored, NUL and the white space as another aggregate than the one without it.
-        // #6594: and a '/', ';' or '\', or more than 256 characters percent-encoded, which CoSec's path check refuses.
+        // #6594: and a '/', ';' or '\', which CoSec's path check refuses, or more than 512 bytes in UTF-8, past the
+        // share of the gateway's path a route by id leaves its id.
         val gateway = gateway()
         mapOf(
             "a\u0000b" to "control character",
@@ -222,7 +223,7 @@ class CommandGatewayRefusalsTest : CommandGatewayFixtures() {
             "a/b" to "holds '/'",
             "a;b" to "holds ';'",
             "a\\b" to "holds '\\'",
-            "购".repeat(29) to "261 characters percent-encoded",
+            "购".repeat(171) to "171 characters, 513 bytes in UTF-8",
         ).forEach { (id, why) ->
             val refused = gateway.execute(request(aggregateId = id))
             refused.assertRefused(FrameworkCodes.COMMAND_MALFORMED)
@@ -230,8 +231,8 @@ class CommandGatewayRefusalsTest : CommandGatewayFixtures() {
         }
         decided.assert().isEmpty()
         // A dot inside an id, a space within it, a unicode id, and the other characters a path encodes are ids of their
-        // own, up to 256 characters encoded.
-        listOf("a.b", "...", "a b", "购", "a%b", "q?m", "h#t", "p+s", "购".repeat(28)).forEach { id ->
+        // own, up to 512 bytes in UTF-8.
+        listOf("a.b", "...", "a b", "购", "a%b", "q?m", "h#t", "p+s", "购".repeat(170), "😀".repeat(128)).forEach { id ->
             gateway.execute(request(aggregateId = id, wait = WaitPlan.COMMITTED)).status
                 .assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         }

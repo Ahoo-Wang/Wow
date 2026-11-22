@@ -184,6 +184,62 @@ class ManifestMergerTest {
     }
 
     @Test
+    fun `a route by id whose other segments take more than its share of a gateway's path should be refused`() {
+        fun conflictsOf(fragment: Manifest): List<String> = runCatching {
+            ManifestMerger.merge(listOf(ManifestFragment("a.json", fragment)))
+        }.exceptionOrNull()?.let { (it as ManifestConflictException).conflicts }.orEmpty()
+        // The cart's longest route by id: "/shop/" (6), the aggregate, "/" "/" (2) and its lifecycle command's
+        // segment, wow.lifecycle.transfer-space (28): 476 characters of aggregate leave it 512, as many as it may take.
+        val fits = "a".repeat(476)
+        conflictsOf(Manifests.fragment(aggregates = listOf(Manifests.cart(aggregate = fits)))).assert().isEmpty()
+        val long = "a".repeat(477)
+        conflictsOf(Manifests.fragment(aggregates = listOf(Manifests.cart(aggregate = long)))).assert().containsExactly(
+            "route POST /shop/$long/{id}/wow.lifecycle.transfer-space of shop.$long.wow.lifecycle.TransferSpace " +
+                "(a.json) takes 513 characters percent-encoded besides its id, more than the 512 a route by id may " +
+                "take of a gateway's 2048-character path: shorten the aggregate $long, its longest name",
+        )
+        // A command's own name, the longest of its route, is the one to shorten; a name a path escapes counts three
+        // characters a byte.
+        val cart = Manifests.cart()
+        val name = "Put" + "Item".repeat(124)
+        val command = CommandManifest(
+            name = name,
+            schema = Manifest.schemaRef("sample.PutItem2"),
+            routes = CommandRoutes.of("shop", "cart", name, Creation.NONE),
+        )
+        conflictsOf(Manifests.fragment(aggregates = listOf(cart.copyWith(commands = cart.commands + command))))
+            .single().assert().startsWith("route POST /shop/cart/{id}/put-item-item")
+            .contains("of shop.cart.$name (a.json) takes 635 characters")
+            .endsWith("shorten the command $name, its longest name")
+        // The state read's trace, the framework's longest route by id of an aggregate: 6 + 2 + "state/trace" (11).
+        val unicode = "购".repeat(167)
+        val traced = Manifests.cart(aggregate = unicode).copyWith(commands = emptyList())
+        conflictsOf(Manifests.fragment(aggregates = listOf(traced))).assert().containsExactly(
+            "route GET /shop/$unicode/{id}/state/trace of the state read of shop.$unicode (a.json) takes 1522 " +
+                "characters percent-encoded besides its id, more than the 512 a route by id may take of a gateway's " +
+                "2048-character path: shorten the aggregate $unicode, its longest name",
+        )
+    }
+
+    @Test
+    fun `a context's job routes should be held to the same share, naming the context to shorten`() {
+        // "/" (1), the context, "/wow.schedule/" (14), "/reschedule-job" (15): 483 characters of context take 513.
+        val context = "c".repeat(483)
+        val fragment = Manifests.fragment(context, aggregates = emptyList()).let { fragment ->
+            fragment.copyWith(
+                contexts = fragment.contexts.map { it.copyWith(commands = SystemCommands.jobs(context)) },
+            )
+        }
+        assertThrows<ManifestConflictException> {
+            ManifestMerger.merge(listOf(ManifestFragment("a.json", fragment)))
+        }.conflicts.assert().contains(
+            "route POST /$context/wow.schedule/{id}/reschedule-job of $context.wow.schedule.RescheduleJob (a.json) " +
+                "takes 513 characters percent-encoded besides its id, more than the 512 a route by id may take of a " +
+                "gateway's 2048-character path: shorten the context $context, its longest name",
+        )
+    }
+
+    @Test
     fun `a system command should be named in the system namespace, and its routes the framework's alone`() {
         val cart = Manifests.cart()
         val misnamed = CommandManifest(

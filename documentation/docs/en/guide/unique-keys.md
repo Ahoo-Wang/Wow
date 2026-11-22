@@ -166,7 +166,7 @@ class DefaultTemplateSaga {
 
 - **The truth is the slot's state.** A query reads a kind's default from the slot, by the kind as its id ([Reading State](./reading-state)), not from the templates' marks, which follow a little later. A command meant for "the default template" reads the slot first.
 - **The slot does not see the templates**, as no aggregate sees another: check that the template exists before choosing it, and let the template's own rejection of `MarkDefault` say when it no longer does.
-- **The key is an aggregate id**, so it follows the [rules of an aggregate id](../reference/http#aggregate-ids): a key that may hold `/`, `;` or `\`, or run past 256 characters encoded, is encoded or hashed into the id.
+- **The key is an aggregate id**, so it follows the [rules of an aggregate id](../reference/http#aggregate-ids): a key that may hold `/`, `;` or `\`, or run past 256 characters or 512 bytes in UTF-8 (170 characters of Chinese), is encoded or hashed into the id.
 
 Both are tested as any aggregate and saga are ([Test Domain Code](./testing)):
 

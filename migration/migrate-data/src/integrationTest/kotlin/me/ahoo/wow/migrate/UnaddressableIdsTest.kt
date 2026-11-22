@@ -44,11 +44,11 @@ class UnaddressableIdsTest {
     private val refused = listOf(
         "a\u0000b", "a\u0085b", " o-1", "o-1\t", "o-1\u3000", ".", "..", "o".repeat(LONGEST + 1),
         // #6594: what a gateway's path check refuses, so no route by its id reaches it.
-        "o/1", "o;1", "o\\1", "购".repeat(29),
+        "o/1", "o;1", "o\\1", "购".repeat(171), "😀".repeat(128) + "x",
     )
 
     /** Ids near them that admission takes: the store's pattern matches the last four too; the rule takes them. */
-    private val taken = listOf("a.b", "a b", "购物", "a%b", "...", "o-1.", "o".repeat(LONGEST), "购".repeat(28))
+    private val taken = listOf("a.b", "a b", "购物", "a%b", "...", "o-1.", "o".repeat(LONGEST), "购".repeat(170))
 
     private fun insert(ids: List<String>) {
         ids.forEachIndexed { index, id ->
@@ -86,7 +86,7 @@ class UnaddressableIdsTest {
             .contains("\"o/1\" (The aggregate id 'o/1' holds '/', which a gateway's path check refuses")
             .contains("\"o;1\" (The aggregate id 'o;1' holds ';'")
             .contains("\"o\\\\1\" (The aggregate id 'o\\1' holds '\\'")
-            .contains("(The aggregate id is 261 characters percent-encoded as UTF-8, which a gateway's path check")
+            .contains("(The aggregate id has 171 characters, 513 bytes in UTF-8, more than the 512 bytes a route")
         problem.none { it.isISOControl() || it.isWhitespace() && it != ' ' }.assert().isTrue()
         printed.assert().contains("Mapping check failed: 1 problems.")
     }

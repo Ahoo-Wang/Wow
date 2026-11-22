@@ -21,8 +21,10 @@ import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 
 /**
- * #6594: every aggregate id admission takes is reachable by its path behind CoSec's pipeline, which refuses an
- * encoded `/`, `;` or `\` and a segment longer than 256 characters; the ids it refuses, admission refuses too.
+ * #6594: an aggregate id admission takes is reachable by its path behind CoSec's pipeline, which refuses an encoded
+ * `/`, `;` or `\`; the ids it refuses for them, admission refuses too. CoSec 8.0.0-beta.5 also refuses a segment of
+ * more than 256 characters as received, percent-encoded: the ids longer than that encoded and within 512 bytes in
+ * UTF-8, which admission takes, are reachable from 8.0.0-beta.6, which counts a segment decoded.
  */
 class CoSecAddressableIdsTest {
     private val node = CoSecNode(callers = CoSecCallerResolver(CoSecCallerOptions()))
@@ -42,7 +44,7 @@ class CoSecAddressableIdsTest {
     fun `an id admission takes should be reachable by its path behind CoSec's pipeline`() {
         val taken = listOf(
             "plain", "pct%sign", "space inside", "q?mark", "hash#tag", "plus+sign", "é-accent", "nbsp inside",
-            "dot.inside", "dots..inside", "x".repeat(AggregateIds.MAX_ENCODED_LENGTH), "购".repeat(28),
+            "dot.inside", "dots..inside", "x".repeat(AggregateIds.MAX_LENGTH), "购".repeat(28),
         )
         taken.forEach { id ->
             AggregateIds.refused(id).assert().describedAs(id).isNull()
@@ -52,7 +54,7 @@ class CoSecAddressableIdsTest {
 
     @Test
     fun `an id CoSec's pipeline refuses in a path should be one admission refuses`() {
-        listOf("semi;colon", "slash/inside", "back\\slash", "购".repeat(29)).forEach { id ->
+        listOf("semi;colon", "slash/inside", "back\\slash").forEach { id ->
             open(id).assert().describedAs(id).isEqualTo(BAD_REQUEST)
             AggregateIds.refused(id).assert().describedAs(id).isNotNull()
         }

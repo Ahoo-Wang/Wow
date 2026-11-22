@@ -15,6 +15,7 @@ package me.ahoo.wow.http
 
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.wire.WowHeaders
+import me.ahoo.wow.manifest.CommandRoutes
 import me.ahoo.wow.spi.json.WowJson
 import tools.jackson.databind.json.JsonMapper
 
@@ -105,7 +106,7 @@ internal object WowPaths {
     const val DATASETS: String = "/wow/dataset"
 
     /** The last segment of a state read: `GET /{context}/{aggregate}/{id}/state`. */
-    const val STATE: String = "state"
+    const val STATE: String = CommandRoutes.STATE
 
     /** The query parameter of a state read at a version. */
     const val VERSION: String = "version"
@@ -120,7 +121,7 @@ internal object WowPaths {
     const val AT: String = "at"
 
     /** The segment after [STATE] of a trace: `GET /{context}/{aggregate}/{id}/state/trace`. */
-    const val TRACE: String = "trace"
+    const val TRACE: String = CommandRoutes.TRACE
 
     /** The query parameter of a trace's first version. */
     const val FROM: String = "from"

@@ -211,7 +211,7 @@ class PeerOwnerIdTest {
             val slashed = Caller(TENANT, Scope("a/b"), subject = "a/b")
             listOf(
                 request(PutItem("apple"), clerk, id = "a;b"),
-                request(OpenBasket(), clerk, id = "购".repeat(29)),
+                request(OpenBasket(), clerk, id = "购".repeat(171)),
                 request(OpenBasket(), slashed),
             ).forEach { request ->
                 val local = stock.gateway.execute(request)

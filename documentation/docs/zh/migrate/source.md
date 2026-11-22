@@ -234,7 +234,7 @@ private suspend fun take(name: String, scope: DecideScope) {
 
 路由由 Manifest 推导：`POST /<context>/<aggregate>/<id>/<command>`，没有租户或所有者前缀，没有自定义动作或方法。固定的租户是宿主配置，9.x 中整个租户共用一个所有者的资源是 `Ownership.TENANT`，ID 即所有者 ID 的资源（`OwnerPolicy.AGGREGATE_ID`，例如用户的购物车）是 `idSource = AggregateIdSource.OWNER`：它不带 ID 地作为调用方自己的聚合提供，命令函数中不再留所有权检查（[每个所有者一个聚合](../guide/ownership#one-aggregate-per-owner)）。只有 `wow.lifecycle.TransferOwner` 能移动所有者：实现了 `OwnerTransferred` 的 9.x 事件，变成一个领域事件和一个推导出转移命令的 Saga。9.x starter 自带的路由按它们所做的事改写，用转换器、快照查询和 `Decision.NoOp`（[HTTP 与 TypeScript 客户端](./http-and-clients)列出了每个路由和请求头）。
 
-聚合 ID 受一条规则约束（[聚合 ID](../reference/http#aggregate-ids)），9.x 没有这条规则：除了控制字符、两端的空白、`.` 和 `..`，V10 还拒绝含 `/`、`;` 或 `\`、或按 UTF-8 百分号编码后长于 256 个字符的 ID。用这类分隔符拼出 ID 的 9.x 服务（比如计算出的 `"$warehouseId/$sku"`），在切换之前改用另一个分隔符（`-`）拼出它，创建时的生成器也不给出这类 ID。已经以这类 ID 存储的实例要按数据来决定：`migrate-data check` 列出每一个，团队在 9.x 存储里改正 ID，或者把实例排除在导入之外（[迁移数据](./data#_2-check-the-map)）。
+聚合 ID 受一条规则约束（[聚合 ID](../reference/http#aggregate-ids)），9.x 没有这条规则：除了控制字符、两端的空白、`.` 和 `..`，V10 还拒绝含 `/`、`;` 或 `\`、或 UTF-8 编码后长于 512 字节的 ID。用这类分隔符拼出 ID 的 9.x 服务（比如计算出的 `"$warehouseId/$sku"`），在切换之前改用另一个分隔符（`-`）拼出它，创建时的生成器也不给出这类 ID。已经以这类 ID 存储的实例要按数据来决定：`migrate-data check` 列出每一个，团队在 9.x 存储里改正 ID，或者把实例排除在导入之外（[迁移数据](./data#_2-check-the-map)）。
 
 标了 `@CommandRoute(enabled = false)` 的命令在 9.x 中没有生成的路由，原因有两种，移植前先弄清是哪一种。如果只有服务自己的流程或其他服务发送它，标注 `@InternalCommand`。如果是 9.x 服务手写的路由应用户的请求发送它，它就是用户的命令，保持公开：生成的路由取代手写的路由。手写路由算出的东西由 `CommandTransformer` 来做，例如由调用方和命令体推导出的 ID；调用方可以操作的另一个范围由 `Wow-Scope` 请求头指明。9.x 视图存储的 `SetViewPreferences`、`SetDatasetWording`、`ClearDatasetWording` 和 `ClaimView` 属于第二种。它们由手写路由发送，所以在 10 中保持公开。前三条走生成的路由，由转换器推导 ID；`ClaimView` 带上指明共享所有者的 `Wow-Scope` 发送。
 

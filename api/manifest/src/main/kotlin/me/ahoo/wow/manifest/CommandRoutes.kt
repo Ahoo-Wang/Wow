@@ -57,8 +57,16 @@ object CommandRoutes {
     /** The context name the framework's own endpoints live under. */
     const val RESERVED_CONTEXT: String = "wow"
 
+    /** The last segment of a state read: `GET /{context}/{aggregate}/{id}/state`. */
+    @InternalWowApi
+    const val STATE: String = "state"
+
+    /** The segment after [STATE] of a trace: `GET /{context}/{aggregate}/{id}/state/trace`. */
+    @InternalWowApi
+    const val TRACE: String = "trace"
+
     /** Last path segments of the framework's routes beside the command routes. */
-    val RESERVED_SEGMENTS: Set<String> = setOf("query", "state")
+    val RESERVED_SEGMENTS: Set<String> = setOf("query", STATE)
 
     /** The prefix of the system commands' names and segments, `wow.lifecycle.` among them. */
     const val SYSTEM_SEGMENT_PREFIX: String = "wow."
@@ -107,6 +115,13 @@ object CommandRoutes {
             listOf(byId, unaddressed(context, aggregate, name))
         }
     }
+
+    /**
+     * The longest route by id the framework serves of [aggregate] in [context] beside its commands': the trace of its
+     * state, `/{context}/{aggregate}/{id}/state/trace`.
+     */
+    @InternalWowApi
+    fun tracePath(context: String, aggregate: String): String = "/$context/$aggregate/$ID/$STATE/$TRACE"
 
     /** The path of the command [name] of [aggregate] in [context] to the aggregate of the path's id. */
     @InternalWowApi

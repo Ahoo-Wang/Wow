@@ -202,7 +202,7 @@ class OwnerIdAdmissionTest {
             )
             val named = gateway.execute(request("Open", "{}", caller = clerk, aggregateId = "a/b"))
             named.assertRefused(FrameworkCodes.COMMAND_MALFORMED, "a/b")
-            gateway.execute(request(caller = Caller(TENANT, Scope("购".repeat(29)), subject = "x")))
+            gateway.execute(request(caller = Caller(TENANT, Scope("购".repeat(171)), subject = "x")))
                 .assertRefused(FrameworkCodes.COMMAND_MALFORMED, CommandGateway.UNADDRESSED)
             decided.assert().isEmpty()
         }
