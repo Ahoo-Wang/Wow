@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.viewstore.server
 
+import me.ahoo.cosec.annotations.ExperimentalCoSecApi
+import me.ahoo.cosec.testkit.IdentityHeader
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.wire.DevelopmentHeaders.OWNER
 import me.ahoo.wow.api.wire.DevelopmentHeaders.ROLES
@@ -121,4 +123,18 @@ fun startViewStore(
     // A development profile: the requests name their callers in the Wow-* headers.
     profiles: List<String> = listOf("dev"),
     sources: List<Class<*>> = emptyList(),
-): ViewStoreNode = ViewStoreNode(wowServer(ViewStoreServer::class.java, profiles, properties.toMap(), sources))
+): ViewStoreNode = ViewStoreNode(
+    wowServer(ViewStoreServer::class.java, profiles, gatewayBoundary(profiles) + properties.toMap(), sources),
+)
+
+/**
+ * CoSec's statement that only its gateway reaches the node ([IdentityHeader.ONLY_GATEWAY_CAN_REACH]), which the
+ * gateway mode of the `cosec` profile asks of every host: a test is reached by its own client alone. A deployment
+ * states it with the wow-service chart's NetworkPolicy.
+ */
+@OptIn(ExperimentalCoSecApi::class) // CoSec's test kit is experimental in 8.0.
+private fun gatewayBoundary(profiles: List<String>): Map<String, Any> = if ("cosec" in profiles) {
+    IdentityHeader.ONLY_GATEWAY_CAN_REACH.split('=', limit = 2).let { (key, value) -> mapOf(key to value) }
+} else {
+    emptyMap()
+}

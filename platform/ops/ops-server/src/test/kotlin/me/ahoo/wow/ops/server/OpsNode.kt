@@ -14,6 +14,8 @@
 package me.ahoo.wow.ops.server
 
 import kotlinx.coroutines.runBlocking
+import me.ahoo.cosec.annotations.ExperimentalCoSecApi
+import me.ahoo.cosec.testkit.IdentityHeader
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
@@ -152,10 +154,22 @@ fun startOps(
     wowServer(
         OpsServer::class.java,
         profiles,
-        mapOf("wow.log.partitions" to 2) + properties.toMap(),
+        mapOf("wow.log.partitions" to 2) + gatewayBoundary(profiles) + properties.toMap(),
         listOf(InMemoryOpsTopics::class.java) + sources,
     ),
 )
+
+/**
+ * CoSec's statement that only its gateway reaches the node ([IdentityHeader.ONLY_GATEWAY_CAN_REACH]), which the
+ * gateway mode of the `cosec` profile asks of every host: a test is reached by its own client alone. A deployment
+ * states it with the wow-service chart's NetworkPolicy.
+ */
+@OptIn(ExperimentalCoSecApi::class) // CoSec's test kit is experimental in 8.0.
+private fun gatewayBoundary(profiles: List<String>): Map<String, Any> = if ("cosec" in profiles) {
+    IdentityHeader.ONLY_GATEWAY_CAN_REACH.split('=', limit = 2).let { (key, value) -> mapOf(key to value) }
+} else {
+    emptyMap()
+}
 
 /** Waits until [condition] holds, polling, for at most [timeout]. */
 fun eventually(what: String, timeout: Duration = Duration.ofSeconds(30), condition: () -> Boolean) {

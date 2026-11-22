@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.example.eshop.inventory.server
 
+import me.ahoo.cosec.annotations.ExperimentalCoSecApi
+import me.ahoo.cosec.testkit.IdentityHeader
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.cosec.CoSecCallerResolver
@@ -31,7 +33,7 @@ class InventoryCoSecTest {
     @Test
     @OptIn(ExperimentalWowApi::class) // wow-cosec is experimental in 10.0
     fun `behind the gateway the caller should be CoSec's`() {
-        wowServer<InventoryServer>("cosec").use { server ->
+        wowServer<InventoryServer>("cosec", properties = ONLY_GATEWAY_CAN_REACH).use { server ->
             server.bean<CallerResolver>().assert().isInstanceOf(CoSecCallerResolver::class.java)
         }
     }
@@ -52,3 +54,12 @@ class InventoryCoSecTest {
             .assert().contains("No durable backend", "A development profile")
     }
 }
+
+/**
+ * CoSec's statement that only its gateway reaches the node ([IdentityHeader.ONLY_GATEWAY_CAN_REACH]), which the
+ * gateway mode of the `cosec` profile asks of every host: a test is reached by its own client alone. A deployment
+ * states it with the wow-service chart's NetworkPolicy.
+ */
+@OptIn(ExperimentalCoSecApi::class) // CoSec's test kit is experimental in 8.0.
+private val ONLY_GATEWAY_CAN_REACH: Map<String, Any> =
+    IdentityHeader.ONLY_GATEWAY_CAN_REACH.split('=', limit = 2).let { (key, value) -> mapOf(key to value) }
