@@ -58,10 +58,18 @@ Deleting an aggregate releases none of its keys, so a restored aggregate still h
 
 ## Move a key to another aggregate {#move-a-key-to-another-aggregate}
 
-A reservation belongs to the aggregate that is deciding, and it commits with that aggregate's events. `reserve` and `release` act for the deciding aggregate alone: a decision releases only a key its aggregate holds, and no decision takes over a key another aggregate holds. 10.0 has no transfer of a reservation and no compare-and-swap of its holder, so the two changes of a key are different things:
+A reservation belongs to the aggregate that is deciding, and it commits with that aggregate's events. `reserve` and `release` act for the deciding aggregate alone: a decision releases only a key its aggregate holds, and no decision takes over a key another aggregate holds. **Within one aggregate**, changing the key is one decision: reserve the new key and release the old one, as the rename above does. **Between aggregates**, pick the pattern by what may happen while the holder changes:
 
-- **Within one aggregate**, changing the key is one decision: reserve the new key and release the old one, as the rename above does. Both take effect with the events, or neither does.
-- **Between aggregates**, the holder changes by a handover through a saga. The aggregate that wants the key records its request; the saga has the holder give the key up, in a command of the holder whose decision releases it; once that has committed, a command of the requester reserves it. Between the release and the claim another aggregate may take the key, so the claim can be refused, and the saga then withdraws the requester's request. The handover costs commands and events of its own, and the switch is eventually consistent: for a while no aggregate holds the key.
+| What the change must give | The pattern |
+| --- | --- |
+| The change may lose to a concurrent request, and for a while no aggregate holds the key | [The handover through a saga](#handover-through-a-saga): the key stays a reservation of the aggregates themselves |
+| The key has a holder at every moment, and no other aggregate can take it in between | [The key held as an aggregate of its own](#key-held-as-an-aggregate), a slot: one commit of the slot changes the holder |
+
+Why the holder cannot hand its reservation to another aggregate in its own decision: the key would then be held by an aggregate that never committed for it, so a release of the receiver's, replayed late from its log, could free it, and a receiver that does not exist, is deleted or refuses could never give it back. Making that sound needs the receiver's own commit too, which is the handover again with a new store operation, while the slot already changes the holder in one commit.
+
+### The handover through a saga {#handover-through-a-saga}
+
+The aggregate that wants the key records its request; the saga has the holder give the key up, in a command of the holder whose decision releases it; once that has committed, a command of the requester reserves it. Between the release and the claim another aggregate may take the key, so the claim can be refused, and the saga then withdraws the requester's request. The handover costs commands and events of its own, and the switch is eventually consistent: for a while no aggregate holds the key.
 
 The names `RequestDefault`, `GiveUpDefault`, `ClaimDefault` and `WithdrawDefault` are the example's own commands, "at most one default template per tenant"; the annotations and calls are Wow's:
 
@@ -86,9 +94,113 @@ sequenceDiagram
 
 Each arrow out of an aggregate is a commit: its events are the saga's input, and a derived command is decided by its own target, once ([Write a Saga](./sagas)). While the handover runs the key is held by Y until Y's release commits, then by no one until X's claim commits: for that time there is no default, and any other aggregate of the type may take the key, which is why the claim can be refused. When it is, Y has already given the key up, and the key belongs to the aggregate that took it: the saga withdraws X's request and leaves the choice of a new default to a new command. A reader that must see the switch done waits for the claim's commit, not for the first command's.
 
+### The key held as an aggregate of its own {#key-held-as-an-aggregate}
+
+When the key must never be free, make it an aggregate: a **slot** whose id is the key and whose state names the holder. Changing the holder is then one command of the slot, decided on its state and committed once, so there is no moment without a holder and no other aggregate can take the key in between. No reservation is involved: an aggregate's id is unique within its type and tenant, so there is one slot per key. Two choices sent at once are ordered by the slot's version: the later one is decided again on the holder the first set, and replaces it.
+
+For "at most one default template per tenant and kind", the slot's id is the kind (`invoice`), its tenant the templates' tenant, and `ChooseDefaultTemplate` is the one command that changes the holder:
+
+<!-- sample: test/test-dsl/src/test/kotlin/me/ahoo/wow/test/DefaultTemplateSlotSpecTest.kt#slot -->
+
+```kotlin
+/** Makes [templateId] the default template of its [kind]: the command goes to the slot whose id is the kind. */
+@AllowCreate
+data class ChooseDefaultTemplate(@AggregateId val kind: String, val templateId: String)
+
+/** [templateId] is the default template of the slot's kind, in place of [previous] (null when there was none). */
+data class DefaultTemplateChosen(val templateId: String, val previous: String?)
+
+class DefaultTemplateState {
+    /** The default template of the kind: the truth a query reads. */
+    var templateId: String? = null
+        private set
+
+    fun onSourcing(event: DefaultTemplateChosen) {
+        templateId = event.templateId
+    }
+}
+
+/** One per tenant and kind: its id is the kind, and its tenant the templates'. */
+@AggregateRoot(ownership = Ownership.TENANT)
+class DefaultTemplate(private val state: DefaultTemplateState) {
+    fun onCommand(command: ChooseDefaultTemplate): DefaultTemplateChosen? =
+        if (command.templateId == state.templateId) {
+            null
+        } else {
+            DefaultTemplateChosen(command.templateId, previous = state.templateId)
+        }
+}
+```
+
+The templates follow the slot through a saga: the new default is marked, and the one it replaced unmarked, by commands of their own.
+
+<!-- sample: test/test-dsl/src/test/kotlin/me/ahoo/wow/test/DefaultTemplateSlotSpecTest.kt#saga -->
+
+```kotlin
+/** A command of the template aggregate: whether the template is its kind's default, as its own state shows it. */
+data class MarkDefault(val isDefault: Boolean)
+
+/** Lets the new default and the one it replaced follow the slot. */
+@Saga
+class DefaultTemplateSaga {
+    @OnEvent
+    fun onDefaultTemplateChosen(
+        event: StateTypedEvent<DefaultTemplateState, DefaultTemplateChosen>,
+    ): List<CommandRequest<MarkDefault>> {
+        val tenantId = event.ref.tenantId
+        return listOfNotNull(
+            MarkDefault(true).toCommandRequest(to = TEMPLATE.ref(tenantId, event.event.templateId)),
+            event.event.previous?.let { MarkDefault(false).toCommandRequest(to = TEMPLATE.ref(tenantId, it)) },
+        )
+    }
+
+    companion object {
+        /**
+         * The templates' aggregate type. In a service the api's contract names it for the command's class, and
+         * `toCommandRequest(templateId)` is enough.
+         */
+        val TEMPLATE = AggregateType("docs", "template")
+    }
+}
+```
+
+- **The truth is the slot's state.** A query reads a kind's default from the slot, by the kind as its id ([Reading State](./reading-state)), not from the templates' marks, which follow a little later. A command meant for "the default template" reads the slot first.
+- **The slot does not see the templates**, as no aggregate sees another: check that the template exists before choosing it, and let the template's own rejection of `MarkDefault` say when it no longer does.
+- **The key is an aggregate id**, so it follows the [rules of an aggregate id](../reference/http#aggregate-ids): a key that may hold `/`, `;` or `\`, or run past 256 characters encoded, is encoded or hashed into the id.
+
+Both are tested as any aggregate and saga are ([Test Domain Code](./testing)):
+
+<!-- sample: test/test-dsl/src/test/kotlin/me/ahoo/wow/test/DefaultTemplateSlotSpecTest.kt#slot-spec -->
+
+```kotlin
+aggregateSpec(slot, id = "invoice") {
+    given(DefaultTemplateChosen("template-1", previous = null))
+    whenCommand(ChooseDefaultTemplate("invoice", "template-2")) {
+        expectEvents(DefaultTemplateChosen("template-2", previous = "template-1"))
+        expectState { templateId.assert().isEqualTo("template-2") }
+    }
+    // Choosing the default again changes nothing.
+    whenCommand(ChooseDefaultTemplate("invoice", "template-2")) { expectUnchanged() }
+}
+```
+
+<!-- sample: test/test-dsl/src/test/kotlin/me/ahoo/wow/test/DefaultTemplateSlotSpecTest.kt#saga-spec -->
+
+```kotlin
+sagaSpec(sagaBindings) {
+    givenAggregate(slot, "invoice", DefaultTemplateChosen("template-1", previous = null))
+    whenEvent(DefaultTemplateChosen("template-2", previous = "template-1")) {
+        expectCommands(
+            DefaultTemplateSaga.TEMPLATE.ref(DEFAULT_TENANT, "template-2") to MarkDefault(true),
+            DefaultTemplateSaga.TEMPLATE.ref(DEFAULT_TENANT, "template-1") to MarkDefault(false),
+        )
+    }
+}
+```
+
 ## A key unique across aggregate types
 
-A key is unique among the aggregates of one type. When a value must be unique across types, such as an email address that users and organizations share, model the uniqueness as an aggregate of its own: an aggregate whose id is the key (or one that holds the keys) is claimed by the others through its commands, and its own decisions say who holds each key.
+A key is unique among the aggregates of one type. When a value must be unique across types, such as an email address that users and organizations share, model the uniqueness as an aggregate of its own, as [the slot above](#key-held-as-an-aggregate) is: an aggregate whose id is the key (or one that holds the keys) is claimed by the others through its commands, and its own decisions say who holds each key.
 
 ## Where reservations are kept
 
