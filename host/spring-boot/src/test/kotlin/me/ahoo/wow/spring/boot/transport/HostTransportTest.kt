@@ -20,8 +20,10 @@ import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.PublishedManifest
 import me.ahoo.wow.manifest.ServiceInfo
+import me.ahoo.wow.query.mask.PayloadMasks
 import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.spi.config.WowConfigurationException
+import me.ahoo.wow.spi.read.StateMasks
 import me.ahoo.wow.spring.boot.AnonymousCallers
 import me.ahoo.wow.spring.boot.BANK
 import me.ahoo.wow.spring.boot.HostTestApp
@@ -223,6 +225,7 @@ class HostTransportTest {
             .withConfiguration(AutoConfigurations.of(TransportAutoConfiguration::class.java))
             .withPropertyValues("wow.transport=kafka")
             .withBean(Manifest::class.java, { Manifest(service = ServiceInfo("bank-service")) })
+            .withBean(StateMasks::class.java, { PayloadMasks.NONE })
             .withBean(WowProperties::class.java, { WowProperties().apply { transport = "kafka" } })
             .run { context ->
                 generateSequence(context.startupFailure) { it.cause }.mapNotNull { it.message }.joinToString()

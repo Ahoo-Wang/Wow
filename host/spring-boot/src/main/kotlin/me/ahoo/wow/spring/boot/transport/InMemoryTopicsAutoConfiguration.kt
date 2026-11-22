@@ -20,6 +20,7 @@ import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.runtime.sink.PublishedSinks
 import me.ahoo.wow.spi.Ddl
+import me.ahoo.wow.spi.read.StateMasks
 import me.ahoo.wow.spring.boot.WowProperties
 import me.ahoo.wow.spring.boot.config.DevelopmentMode
 import org.springframework.boot.autoconfigure.AutoConfiguration
@@ -43,7 +44,7 @@ import org.springframework.core.type.AnnotatedTypeMetadata
  *
  * - the [SourceTopics] with the producer and the intake, so each context the node hosts executes its command topic,
  *   whose topics the node creates at its start ([Ddl.AUTO]);
- * - the [PublishedSinks] of the streams the Manifest publishes.
+ * - the [PublishedSinks] of the streams the Manifest publishes, masked by the node's [StateMasks].
  *
  * It warns at startup that nothing leaves the JVM. `wow.transport=memory` outside development is refused.
  */
@@ -72,8 +73,8 @@ class InMemoryTopicsAutoConfiguration(environment: Environment) {
         SourceTopics(topics, producer = topics, intake = true, admin = topics, ddl = Ddl.AUTO)
 
     @Bean(IN_MEMORY_SINKS)
-    fun wowInMemorySinks(manifest: Manifest, topics: InMemoryTopics): PublishedSinks =
-        PublishedSinks.topics(manifest, topics)
+    fun wowInMemorySinks(manifest: Manifest, topics: InMemoryTopics, masks: StateMasks): PublishedSinks =
+        PublishedSinks.topics(manifest, topics, masks)
 
     /** Warns, once the application is ready, that the node's topics are in its JVM. */
     @Bean

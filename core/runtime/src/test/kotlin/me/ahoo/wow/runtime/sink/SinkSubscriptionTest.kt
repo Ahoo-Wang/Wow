@@ -109,12 +109,13 @@ class SinkSubscriptionTest {
     private val written = CopyOnWriteArrayList<StateEventRecord>()
     private val commands = AtomicInteger()
 
-    private fun sink(includeState: Boolean = true) = SinkSubscription(
+    private fun sink(includeState: Boolean = true, masks: RecordMasks? = null) = SinkSubscription(
         NAME,
         type,
         { written += it },
         SharedStateReader(NAME, listOf(model), kernel, codec, views),
         includeState,
+        masks,
     )
 
     private suspend fun commit(body: Any, scope: Scope = Scope.NONE): EventStreamRecord {
@@ -181,6 +182,46 @@ class SinkSubscriptionTest {
             )
             runCatching { sink.recordOf(broken) }.exceptionOrNull().assert().isInstanceOf(JacksonException::class.java)
         }
+
+    @Test
+    fun `a masked state and event body should be written masked, parsed for it, the rest of each as committed`(): Unit =
+        runBlocking {
+            val masks = FieldMasks("currency", setOf("shop.order.Priced"))
+            val sink = sink(masks = RecordMasks(masks, type, revealsDisplay = true))
+            val stream = commit(SetPrice(BigDecimal("2.50")))
+            val entry = sink.subscription.decoder.decode(stream, log.positionOf(stream.ref, stream.version), null)
+            val record = checkNotNull(sink.recordOf(entry))
+            record.state!!.stateText.assert().isNull()
+            record.state!!.state.assert().isEqualTo(tree("""{"amount":2.50,"currency":"***"}"""))
+            record.state!!.schemaFingerprint.assert().isEqualTo(codec.stateSchemaFingerprint(model))
+            record.events.single().payloadText.assert().isNull()
+            record.events.single().payload.assert().isEqualTo(tree("""{"amount":2.50,"currency":"***"}"""))
+            // An imported commit's payload, parsed anyway, is masked as well.
+            val imported = checkNotNull(sink.recordOf(entry.copy(imported = true)))
+            imported.events.single().payload.assert().isEqualTo(tree("""{"amount":2.50,"currency":"***"}"""))
+            // The state's mask is taken once, with the sink; an event's on its first record.
+            masks.asked.assert().containsExactly(
+                "state shop.order revealsDisplay=true",
+                "event shop.order shop.order.Priced revealsDisplay=true",
+            )
+        }
+
+    @Test
+    fun `a type whose masks mask nothing should go as the codec's text, its masks asked once`(): Unit = runBlocking {
+        val masks = FieldMasks("currency", emptySet(), masksStates = false)
+        val sink = sink(masks = RecordMasks(masks, type, revealsDisplay = true))
+        repeat(2) {
+            val stream = commit(SetPrice(BigDecimal("2.50")))
+            val entry = sink.subscription.decoder.decode(stream, log.positionOf(stream.ref, stream.version), null)
+            val record = checkNotNull(sink.recordOf(entry))
+            record.events.single().payloadText.assert().isEqualTo(stream.events.single().payload)
+            record.state!!.stateText.assert().isEqualTo(entry.state().state)
+        }
+        masks.asked.assert().containsExactly(
+            "state shop.order revealsDisplay=true",
+            "event shop.order shop.order.Priced revealsDisplay=true",
+        )
+    }
 
     @Test
     fun `an event of an older revision under a former name should be written upgraded`(): Unit = runBlocking {

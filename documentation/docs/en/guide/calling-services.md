@@ -39,7 +39,7 @@ A command always has an accountable caller: the client sends as the anonymous ca
 | Exception | When | Retry |
 | --- | --- | --- |
 | `CommandRejectedException` | The aggregate rejected the command, or admission did (unknown, malformed or invalid command, forbidden caller). `code` is the error code, `error` the whole error and `violations` the fields the command broke | No: the same request is rejected again |
-| `WowProblemException` | A technical failure: a busy or closing node, a store or broker down, a wait that timed out. `code` and `status` say which | As its `retry` and `retryAfter` say: whether to retry, whether with the same request id, and after how long |
+| `WowProblemException` | A technical failure: a busy or closing node, a store or broker down, a wait that timed out. `code` and `status` say which, and `violations` the fields the peer refused (a `wow.request.invalid`'s) | As its `retry` and `retryAfter` say: whether to retry, whether with the same request id, and after how long |
 
 To tell a command whose outcome is decided from one whose outcome is unknown, read the exception's `retry` as well as its type. A `CommandRejectedException` is a decided answer, and the same request is rejected again. A `WowProblemException` with `retry` `SAME_REQUEST` may have committed (`wow.command.unknown`, `wow.wait.timeout`): send it again with the same request id and a command that did commit is answered as the duplicate it is, never committed twice. One with `NEW_REQUEST` did nothing a retry could repeat, and `NONE` fails alike again (`wow.command.failed` committed nothing). A request without a `requestId` takes a new one on every send, so set it, or keep the one the first result reports, for a retry of your own.
 

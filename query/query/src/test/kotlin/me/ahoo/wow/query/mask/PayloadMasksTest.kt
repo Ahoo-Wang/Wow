@@ -132,13 +132,33 @@ class PayloadMasksTest {
     @Test
     fun `the state mask a writer takes should be the state read's, and none for a type that masks nothing`() {
         val raw = """{"password":"secret","phone":"13812345678","email":"a@b.c","address":{"street":"main"}}"""
-        val mask = masks.maskOf(ManifestFixtures.ORDER)!!
+        val mask = masks.stateMaskOf(ManifestFixtures.ORDER, revealsDisplay = false)!!
         mask(tree(raw)).assert().isEqualTo(masks.state(ManifestFixtures.ORDER, tree(raw)))
         mask(tree(raw))["email"].asString().assert().isEqualTo("[redacted]")
-        masks.maskOf(AggregateType("shop", "other")).assert().isNull()
+        val revealing = masks.stateMaskOf(ManifestFixtures.ORDER, revealsDisplay = true)!!
+        revealing(tree(raw)).assert().isEqualTo(masks.state(ManifestFixtures.ORDER, tree(raw), revealsDisplay = true))
+        revealing(tree(raw))["phone"].asString().assert().isEqualTo("13812345678")
+        masks.stateMaskOf(AggregateType("shop", "other"), revealsDisplay = false).assert().isNull()
         val unmarked = mapOf(ManifestFixtures.ORDER_STATE to mapOf("type" to "object"))
         val plain = manifest.copyWith(defs = manifest.defs + unmarked)
-        PayloadMasks(plain).maskOf(ManifestFixtures.ORDER).assert().isNull()
+        PayloadMasks(plain).stateMaskOf(ManifestFixtures.ORDER, revealsDisplay = false).assert().isNull()
+    }
+
+    @Test
+    fun `the event mask a writer takes should be the event read's, found by name or alias, none where nothing masks`() {
+        val raw = """{"phone":"13812345678","sku":"s"}"""
+        listOf("OrderPlaced", "order_placed", "shop.order.OrderPlaced", "shop.order.order_placed").forEach { name ->
+            val mask = masks.eventMaskOf(ManifestFixtures.ORDER, name, revealsDisplay = false)!!
+            mask(tree(raw)).assert().isEqualTo(masks.event(ManifestFixtures.ORDER, name, tree(raw)))
+            mask(tree(raw))["phone"].asString().assert().isEqualTo("138****5678")
+        }
+        // Its one sensitive value is DISPLAY: the masks of a read that reveals DISPLAY values mask nothing of it.
+        masks.eventMaskOf(ManifestFixtures.ORDER, "shop.order.OrderPlaced", revealsDisplay = true).assert().isNull()
+        masks.eventMaskOf(ManifestFixtures.ORDER, "OrderNoted", revealsDisplay = false).assert().isNull()
+        masks.eventMaskOf(ManifestFixtures.ORDER, "OrderLost", revealsDisplay = false).assert().isNull()
+        masks.eventMaskOf(ManifestFixtures.ORDER, "Unknown", revealsDisplay = false).assert().isNull()
+        masks.eventMaskOf(AggregateType("shop", "other"), "OrderPlaced", revealsDisplay = false).assert().isNull()
+        PayloadMasks.NONE.eventMaskOf(ManifestFixtures.ORDER, "OrderPlaced", revealsDisplay = false).assert().isNull()
     }
 
     @Test

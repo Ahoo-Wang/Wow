@@ -100,7 +100,7 @@ class StateViewMasksTest {
 
     @Test
     fun `a type without sensitive fields should have no mask, its states written unchanged`() = runBlocking<Unit> {
-        PayloadMasks(shopManifest()).maskOf(ORDER).assert().isNull()
+        PayloadMasks(shopManifest()).stateMaskOf(ORDER, revealsDisplay = false).assert().isNull()
         val caches = StateViewCaches(CoCacheFactory(runtime)) { error("no miss is read") }
         WowCoCacheAutoConfiguration.sinksOf(
             listOf("shop.order"),
@@ -117,7 +117,7 @@ class StateViewMasksTest {
 
     @Test
     fun `a node that publishes states without state masks should fail the start, naming the key and the bean`() {
-        val masks = StateMasks { null }
+        val masks = NO_MASKS
         WowCoCacheAutoConfiguration.masksOf(listOf("shop.order"), masks).assert().isSameAs(masks)
         assertThrows<WowConfigurationException> {
             WowCoCacheAutoConfiguration.masksOf(listOf("shop.order", "shop.customer"), null)
@@ -140,7 +140,7 @@ class StateViewMasksTest {
             generateSequence(context.startupFailure) { it.cause }.filterIsInstance<WowConfigurationException>()
                 .first().message.assert().contains("wow.cocache.publish", StateMasks::class.java.name)
         }
-        publishing(shopManifest(), "shop.order").withBean(StateMasks::class.java, { StateMasks { null } })
+        publishing(shopManifest(), "shop.order").withBean(StateMasks::class.java, { NO_MASKS })
             .run { context -> context.startupFailure.assert().isNull() }
         publishing(manifest, "shop.customer").withBean(PayloadMasks::class.java, { PayloadMasks(manifest) })
             .run { context ->

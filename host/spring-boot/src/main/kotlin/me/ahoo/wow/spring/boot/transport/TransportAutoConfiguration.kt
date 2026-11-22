@@ -22,6 +22,7 @@ import me.ahoo.wow.runtime.sink.PublishedSinks
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.config.configNotNull
 import me.ahoo.wow.spi.observation.Observer
+import me.ahoo.wow.spi.read.StateMasks
 import me.ahoo.wow.spi.sink.SinkProvider
 import me.ahoo.wow.spi.transport.PartitionedSource
 import me.ahoo.wow.spi.transport.TopicAdmin
@@ -57,7 +58,8 @@ import kotlin.time.Duration
  * - **Transport**: the [TopicTransport] the configured provider opens, closed with the context after the node stopped;
  *   its [TopicProducer], [PartitionedSource] and [TopicAdmin] as beans, unless the application has its own.
  * - **Sink**: [PublishedSinks.topics] over the producer, one subscription per stream the Manifest publishes, each
- *   written to its topic after the transport's `topics.prefix` (`wow.kafka.topics.prefix`).
+ *   written to its topic after the transport's `topics.prefix` (`wow.kafka.topics.prefix`), masked by the node's
+ *   [StateMasks] (the query side's, which the host declares).
  * - **Source**: the [SourceTopics] over the source, the producer and the admin, after the same prefix, with the
  *   transport's `command-intake.enabled`, `ddl` and `topics.partition-refresh` ([TopicTransportOptions], which every
  *   topic transport has): the subscriptions of other contexts' streams read through it, and a saga's commands to
@@ -147,8 +149,9 @@ class TransportAutoConfiguration {
             manifest: Manifest,
             producer: TopicProducer,
             selected: SelectedTransport,
+            masks: StateMasks,
         ): PublishedSinks =
-            PublishedSinks.topics(manifest, producer, selected.topicPrefix)
+            PublishedSinks.topics(manifest, producer, masks, selected.topicPrefix)
 
         @Bean
         @ConditionalOnMissingBean

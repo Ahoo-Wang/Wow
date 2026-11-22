@@ -40,9 +40,10 @@ enum class SensitivityLevel {
  * Declares a sensitive field of a query model: its [level] and how query results [mask] it.
  *
  * It decides what a read returns: a query, a state read, an event query, a trace, an entry of the state view cache.
- * It does not change what Wow stores or publishes, and it is not encryption at rest: the log, the snapshots, a
- * published stream and what the sinks store (ClickHouse's tables, Elasticsearch's event index) hold the value as
- * written, so a store's grants and a topic's ACL are what protect it there.
+ * A published stream carries a [SensitivityLevel.CONFIDENTIAL] value masked, and a [SensitivityLevel.DISPLAY] one as
+ * written for now, so a topic's ACL is what protects that one there. It does not change what Wow stores, and it is
+ * not encryption at rest: the log, the snapshots and what the sinks store (ClickHouse's tables, Elasticsearch's event
+ * index) hold the value as written, so a store's grants are what protect it there.
  *
  * Sensitivity is declared only on the domain field, never in a declaration file or by a string path, so renaming the
  * field cannot silently drop the protection. The field must be a JVM `String` that serializes as a JSON string.

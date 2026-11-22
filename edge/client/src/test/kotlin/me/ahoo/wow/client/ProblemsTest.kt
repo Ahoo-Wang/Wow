@@ -15,6 +15,7 @@ package me.ahoo.wow.client
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.Violation
 import org.junit.jupiter.api.Test
@@ -111,5 +112,14 @@ class ProblemsTest {
             extensions.assert().isEqualTo(mapOf("limit" to mapOf("max" to 5)))
         }
         Problems.read(400, none, """{"violations":{}}""".toByteArray()).violations.assert().isEmpty()
+    }
+
+    @Test
+    fun `the exception of a problem should carry its violations, so the caller reads which fields the peer refused`() {
+        val body = """{"type":"urn:wow:error:wow.request.invalid","title":"Invalid request","status":400,""" +
+            """"code":"wow.request.invalid","violations":[{"path":"name","code":"not-blank","message":"blank"}]}"""
+        val failure = Problems.read(400, none, body.toByteArray()).exception("The catalog's items")
+        (failure as WowProblemException).code.assert().isEqualTo(FrameworkCodes.REQUEST_INVALID)
+        failure.violations.assert().containsExactly(Violation.of("name", "not-blank", "blank"))
     }
 }

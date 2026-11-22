@@ -1132,7 +1132,8 @@ public abstract interface class me/ahoo/wow/spi/peer/PeerTargets : java/lang/Aut
 }
 
 public abstract interface class me/ahoo/wow/spi/read/StateMasks {
-	public abstract fun maskOf (Lme/ahoo/wow/api/aggregate/AggregateType;)Lkotlin/jvm/functions/Function1;
+	public abstract fun eventMaskOf (Lme/ahoo/wow/api/aggregate/AggregateType;Ljava/lang/String;Z)Lkotlin/jvm/functions/Function1;
+	public abstract fun stateMaskOf (Lme/ahoo/wow/api/aggregate/AggregateType;Z)Lkotlin/jvm/functions/Function1;
 }
 
 public abstract interface class me/ahoo/wow/spi/read/TenantQueryApi : me/ahoo/wow/api/read/NodeQueryApi {

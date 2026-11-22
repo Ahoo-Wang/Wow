@@ -75,7 +75,8 @@ class SinkAutoConfiguration {
                         "(${config.key})."
                 }
                 val sinks = PortProviders.configured(config.key) { provider.open(config) }
-                sinks to PublishedSinks(streams, sinks.processor) { context, stream ->
+                // A Sink writes into a store of the owner's, which masks what a read of it returns: as committed.
+                sinks to PublishedSinks(streams, sinks.processor, masks = null) { context, stream ->
                     sinks.sinkOf(context, stream.aggregate)
                 }
             },
