@@ -14,13 +14,15 @@
 package me.ahoo.wow.api.problem
 
 import me.ahoo.wow.api.result.CommandResult
+import me.ahoo.wow.api.result.Violation
 import kotlin.time.Duration
 
 /**
  * A request Wow did not carry out for a reason of its code: the [code] (`wow.command.busy`, `wow.storage.unavailable`,
  * `wow.query.invalid`, ...), the HTTP [status] it is answered with (problem+json), the command's [result] when it had
- * one, and what a retry may do ([retry], after [retryAfter]), as the error catalog says of the code. The same failure is
- * the same exception in process and over HTTP: each boundary maps its own errors to it once.
+ * one, what a retry may do ([retry], after [retryAfter]), as the error catalog says of the code, and the fields the
+ * request broke ([violations]), each with its path, code and message. The same failure is the same exception in
+ * process and over HTTP: each boundary maps its own errors to it once.
  */
 class WowProblemException @JvmOverloads constructor(
     val code: String,
@@ -30,6 +32,11 @@ class WowProblemException @JvmOverloads constructor(
     message: String,
     val result: CommandResult? = null,
     cause: Throwable? = null,
+    /**
+     * The fields the request broke, a problem's `violations`: a peer's answer's, as the client read it, or those an
+     * application's [ProblemMapper] gives; none by default.
+     */
+    val violations: List<Violation> = emptyList(),
 ) : RuntimeException(message, cause) {
     /** Whether a retry may get past it ([Retry.NONE] is not). */
     val retryable: Boolean get() = retry != Retry.NONE

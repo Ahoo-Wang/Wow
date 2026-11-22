@@ -90,9 +90,9 @@ class ErrorStatuses(manifest: Manifest, private val overrides: Map<String, Int> 
 
     /**
      * The problem of [failure], answered as it is wherever it is thrown (an application route, a service route relaying
-     * another service's answer): its status, its code and its result, and what a retry may do with its `Retry-After`,
+     * another service's answer): its status, its code and its result, what a retry may do with its `Retry-After`,
      * in whole seconds rounded up, as the failure says, not as the catalog would for its code, which may not even know
-     * it. Its title is the code's in [context].
+     * it, and its violations, else its result's. Its title is the code's in [context].
      */
     fun problemOf(failure: WowProblemException, context: String? = null): Problem {
         val answered = failure.result?.let(::problemOf)
@@ -101,6 +101,7 @@ class ErrorStatuses(manifest: Manifest, private val overrides: Map<String, Int> 
             status = failure.status,
             retry = failure.retry,
             retryAfter = failure.retryAfter?.let { ceil(it.inWholeMilliseconds / MILLIS_PER_SECOND).toLong() },
+            violations = failure.violations.ifEmpty { answered.violations },
         )
     }
 

@@ -333,6 +333,35 @@ class FailureProblemsTest {
     }
 
     @Test
+    fun `a Wow problem's violations are its problem's, a relayed answer's and a mapped one's alike`() {
+        val refused = listOf(Violation.of("name", "not-blank", "must not be blank"))
+        val relayed =
+            WowProblemException(FrameworkCodes.REQUEST_INVALID, 400, Retry.NONE, null, "Invalid.", violations = refused)
+        problems().problemOf(relayed).violations.assert().isEqualTo(refused)
+        val mapping = mapper("mapping") { failure ->
+            (failure as? UpstreamException)?.let {
+                WowProblemException(UPSTREAM, 422, Retry.NONE, null, "The catalog refused it.", violations = refused)
+            }
+        }
+        problems(mapping).problemOf(UpstreamException()).violations.assert().isEqualTo(refused)
+        // A rejection's own violations, when the exception names none.
+        val rejected = CommandResult(
+            commandId = "c",
+            requestId = "r",
+            correlationId = "c",
+            ref = cartType.ref(TENANT, "c-1"),
+            hop = Hop.committed(CONTEXT),
+            function = FunctionInfo(FunctionKind.COMMAND, CONTEXT, "cart", "AddItem"),
+            status = CommandResult.Status.FAILED,
+            error = ErrorInfo(FrameworkCodes.COMMAND_INVALID, "Invalid.", violations = refused),
+            signalTime = 1,
+        )
+        val withResult =
+            WowProblemException(FrameworkCodes.COMMAND_INVALID, 400, Retry.NONE, null, "Invalid.", rejected)
+        problems().problemOf(withResult).violations.assert().isEqualTo(refused)
+    }
+
+    @Test
     fun `a failure nothing knows is the branch's own answer, by default a 500 that says nothing`() {
         val failure = IllegalStateException("secret jdbc:postgresql://db-internal:5432")
         val silent = problems().problemOf(failure)
