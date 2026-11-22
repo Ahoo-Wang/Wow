@@ -25,6 +25,8 @@ import me.ahoo.wow.runtime.node.SubscriptionFactory
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
+import me.ahoo.wow.spi.subscription.FailureDescriber
+import me.ahoo.wow.spi.subscription.FailureDescription
 import me.ahoo.wow.spi.subscription.SubscriptionId
 import me.ahoo.wow.spring.boot.node.ParkedProperties
 import me.ahoo.wow.spring.boot.node.ParkedSpecProperties
@@ -153,6 +155,12 @@ class HostParkedOpsTest {
         exhausted["status"].asString().assert().isEqualTo("exhausted")
         exhausted["retries"].asInt().assert().isEqualTo(1)
         exhausted["retrySpec"]["maxRetries"].asInt().assert().isEqualTo(1)
+        // #6588: the application's describer bean describes its own failure, which the webhook carries too; the
+        // message, naming the account, is in the log alone.
+        val reason = "${AccountRefused::class.java.name}: account refused"
+        exhausted["reason"].asString().assert().isEqualTo(reason)
+        hooks.first { it["entry"]["aggregate"]["id"].asString() == id }["entry"]["reason"].asString()
+            .assert().isEqualTo(reason)
 
         val retried = host.post("${entry(BROKEN, id)}/${OpsPaths.RETRY}", null)
         retried.status.assert().isEqualTo(200)
@@ -224,6 +232,14 @@ class HostParkedOpsTest {
             request.headers().firstHeader(OPERATOR)?.let { Caller(subject = it, crossScope = true) } ?: Caller.ANONYMOUS
         }
 
+        /** Describes the application's own failure, which no module knows. */
+        @Bean
+        fun accountDescriber(): FailureDescriber = FailureDescriber { failure ->
+            (failure as? AccountRefused)?.let {
+                FailureDescription.of(FailureDescription.phrase(HostPhrase.ACCOUNT_REFUSED))
+            }
+        }
+
         @Bean
         fun failingSubscriptionFactory(): SubscriptionFactory = SubscriptionFactory { context ->
             if (context.context != BANK) {
@@ -236,10 +252,15 @@ class HostParkedOpsTest {
         private fun subscription(name: String, failures: Int) = Subscription(name, SubscriptionFilter(BANK)) { entry ->
             val key = "$name:${entry.ref.id}"
             val attempt = attempts.computeIfAbsent(key) { AtomicInteger() }.incrementAndGet()
-            if (attempt <= failures) error("$name fails ${entry.ref.id} (attempt $attempt)")
+            if (attempt <= failures) throw AccountRefused("$name fails ${entry.ref.id} (attempt $attempt)")
             handled.add(key)
         }
     }
+
+    /** The application's own failure of an account. */
+    class AccountRefused(message: String) : IllegalStateException(message)
+
+    enum class HostPhrase { ACCOUNT_REFUSED }
 
     private companion object {
         const val FLAKY = "HostOps.flaky"
