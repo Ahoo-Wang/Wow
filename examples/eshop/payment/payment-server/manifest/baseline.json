@@ -285,6 +285,10 @@
     "status" : 400,
     "description" : "A request header or parameter does not parse, or names what Wow does not take."
   }, {
+    "code" : "wow.request.invalid",
+    "status" : 400,
+    "description" : "A request to the application's own route failed validation; the problem lists the violations."
+  }, {
     "code" : "wow.command.malformed",
     "status" : 400,
     "description" : "The command body cannot be read as the command type."

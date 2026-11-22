@@ -92,7 +92,8 @@ class HostRouteProblemsTest {
         body["type"].asString().assert().isEqualTo("urn:wow:error:${FrameworkCodes.REQUEST_INVALID}")
         body["code"].asString().assert().isEqualTo(FrameworkCodes.REQUEST_INVALID)
         body["title"].asString().assert().isEqualTo("Invalid request")
-        body["detail"].asString().assert().isEqualTo("The request failed validation; the violations list what it broke.")
+        body["detail"].asString().assert()
+            .isEqualTo("The request failed validation; the violations list what it broke.")
         body["retry"].asString().assert().isEqualTo("none")
         val listed = body["violations"].values().map { violation ->
             (violation["path"].asString() to violation["code"].asString()) to violation["message"].asString()
