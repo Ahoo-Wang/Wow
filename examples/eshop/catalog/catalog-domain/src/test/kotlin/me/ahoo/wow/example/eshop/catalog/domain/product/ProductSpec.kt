@@ -103,7 +103,7 @@ class ProductSpec {
         given(draft)
         whenCommand(PublishProduct) { expectRejected(Product.Rejections.INCOMPLETE) }
         whenCommand(UpdateProduct("Wow mug", brandId = "wow", categoryId = "mugs")) {
-            expectEventTypes(ProductUpdated::class.java)
+            expectEventTypes(ProductUpdated::class)
         }
         whenCommand(PublishProduct) {
             expectEvents(ProductPublished)

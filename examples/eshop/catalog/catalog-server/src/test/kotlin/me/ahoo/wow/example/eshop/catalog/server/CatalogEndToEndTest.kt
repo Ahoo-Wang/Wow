@@ -17,10 +17,10 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
-import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.client.wait
 import me.ahoo.wow.api.query.dsl.countQuery
 import me.ahoo.wow.api.read.Snapshot
+import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.example.eshop.catalog.api.brand.CreateBrand
 import me.ahoo.wow.example.eshop.catalog.api.brand.RenameBrand
@@ -34,11 +34,11 @@ import me.ahoo.wow.example.eshop.catalog.api.product.ProductStatus
 import me.ahoo.wow.example.eshop.catalog.api.product.PublishProduct
 import me.ahoo.wow.example.eshop.catalog.api.product.UpdateProduct
 import me.ahoo.wow.example.eshop.catalog.domain.product.Storefront
+import me.ahoo.wow.test.server.assertRejected
 import me.ahoo.wow.test.server.wowServer
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import org.junit.jupiter.api.assertThrows
 import java.math.BigDecimal
 import java.util.UUID
 
@@ -61,7 +61,7 @@ class CatalogEndToEndTest {
         val category = send { catalog.wait(CreateCategory(unique("Mugs")), "mugs") }.ref.id
         category.assert().isEqualTo("mugs")
         val id = send { catalog.wait(CreateProduct("Wow mug", BigDecimal("8.50"))) }.ref.id
-        rejected { catalog.wait(PublishProduct, id) }.code.assert().isEqualTo("eshop-catalog.product.incomplete")
+        assertRejected { catalog.wait(PublishProduct, id) }.code.assert().isEqualTo("eshop-catalog.product.incomplete")
         send { catalog.wait(UpdateProduct("Wow mug", "Half a litre", brand, category), id) }
         send { catalog.wait(ChangeProductPrice(BigDecimal("9.00")), id) }.version.assert().isEqualTo(3)
         send { catalog.wait(PublishProduct, id) }
@@ -71,7 +71,8 @@ class CatalogEndToEndTest {
             state.categoryId.assert().isEqualTo("mugs")
         }
         send { catalog.wait(DelistProduct("Out of season"), id) }
-        rejected { catalog.wait(DelistProduct(), id) }.code.assert().isEqualTo("eshop-catalog.product.not-published")
+        assertRejected { catalog.wait(DelistProduct(), id) }
+            .code.assert().isEqualTo("eshop-catalog.product.not-published")
         send { catalog.wait(PublishProduct, id) }.version.assert().isEqualTo(6)
     }
 
@@ -93,9 +94,9 @@ class CatalogEndToEndTest {
         val catalog = catalog()
         val name = unique("Contoso")
         send { catalog.wait(CreateBrand(name)) }
-        rejected { catalog.wait(CreateBrand(" ${name.uppercase()} ")) }.code.assert().isEqualTo(BRAND_NAME_TAKEN)
+        assertRejected { catalog.wait(CreateBrand(" ${name.uppercase()} ")) }.code.assert().isEqualTo(BRAND_NAME_TAKEN)
         val other = send { catalog.wait(CreateBrand(unique("Fabrikam"))) }.ref.id
-        rejected { catalog.wait(RenameBrand(name), other) }.code.assert().isEqualTo(BRAND_NAME_TAKEN)
+        assertRejected { catalog.wait(RenameBrand(name), other) }.code.assert().isEqualTo(BRAND_NAME_TAKEN)
         invalid { catalog.wait(CreateBrand("  ")) }.assert().containsExactly("name" to "not-blank")
         invalid { catalog.wait(RenameBrand(""), other) }.assert().containsExactly("name" to "not-blank")
     }
@@ -105,7 +106,8 @@ class CatalogEndToEndTest {
         val catalog = catalog()
         val name = unique("Cups")
         send { catalog.wait(CreateCategory(name)) }
-        rejected { catalog.wait(CreateCategory(name)) }.code.assert().isEqualTo("eshop-catalog.category.name-taken")
+        assertRejected { catalog.wait(CreateCategory(name)) }
+            .code.assert().isEqualTo("eshop-catalog.category.name-taken")
         invalid { catalog.wait(CreateCategory("")) }.assert().containsExactly("name" to "not-blank")
         val id = send { catalog.wait(CreateCategory(unique("Plates"))) }.ref.id
         invalid { catalog.wait(RenameCategory(" "), id) }.assert().containsExactly("name" to "not-blank")
@@ -114,11 +116,11 @@ class CatalogEndToEndTest {
     @Test
     fun `an employee should change the catalog, a buyer only read it (D189)`() {
         val id = send { catalog(EMPLOYEE).wait(CreateProduct("Wow cap", BigDecimal("12"))) }.ref.id
-        rejected { catalog(BUYER).wait(CreateProduct("Mine", BigDecimal.ONE)) }
+        assertRejected { catalog(BUYER).wait(CreateProduct("Mine", BigDecimal.ONE)) }
             .code.assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
         // The product belongs to the tenant: it records no owner, and the buyer reads it.
         product(id, BUYER)!!.scope.ownerId.assert().isNull()
-        rejected { catalog(BUYER).wait(ChangeProductPrice(BigDecimal("13")), id) }
+        assertRejected { catalog(BUYER).wait(ChangeProductPrice(BigDecimal("13")), id) }
             .code.assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
         send { catalog(EMPLOYEE).wait(ChangeProductPrice(BigDecimal("13")), id) }
     }
@@ -175,7 +177,7 @@ class CatalogEndToEndTest {
     @Test
     fun `the memory backend should serve its snapshot queries by default`() {
         val count = runBlocking {
-            server.queries(Caller.ANONYMOUS).snapshots(ProductStateView::class.java).count(countQuery { })
+            server.queries(Caller.ANONYMOUS).snapshots<ProductStateView>().count(countQuery { })
         }
         count.count.assert().isGreaterThanOrEqualTo(0L)
     }
@@ -183,18 +185,15 @@ class CatalogEndToEndTest {
     private fun catalog(caller: Caller = Caller.ANONYMOUS): CommandClient = server.commands(caller)
 
     private fun product(id: String, caller: Caller = Caller.ANONYMOUS): Snapshot<ProductStateView>? =
-        runBlocking { server.queries(caller).snapshots(ProductStateView::class.java).state(id) }
+        runBlocking { server.queries(caller).snapshots<ProductStateView>().state(id) }
 
     private fun <T> send(send: suspend () -> T): T = runBlocking { send() }
 
-    private fun rejected(send: suspend () -> Unit): CommandRejectedException =
-        assertThrows<CommandRejectedException> { runBlocking { send() } }
-
     /** The violations (path to constraint) of the command [send] sends, which the gateway refuses as invalid. */
     private fun invalid(send: suspend () -> Unit): List<Pair<String, String>> {
-        val refused = rejected(send)
+        val refused = assertRejected(send)
         refused.code.assert().isEqualTo(FrameworkCodes.COMMAND_INVALID)
-        return refused.result.error!!.violations.map { it.path to it.code }
+        return refused.violations.map { it.path to it.code }
     }
 
     private companion object {

@@ -17,9 +17,9 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
-import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.client.wait
 import me.ahoo.wow.api.read.Snapshot
+import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.wire.DevelopmentHeaders
 import me.ahoo.wow.example.eshop.basket.api.basket.AddBasketItem
@@ -31,12 +31,12 @@ import me.ahoo.wow.example.eshop.basket.api.basket.RemoveBasketItem
 import me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.node.ServiceNode
+import me.ahoo.wow.test.server.assertRejected
 import me.ahoo.wow.test.server.fakePeer
 import me.ahoo.wow.test.server.wowServer
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import org.junit.jupiter.api.assertThrows
 import java.math.BigDecimal
 
 /**
@@ -86,13 +86,13 @@ class BasketServerTest {
         call.aggregateId.assert().isNull()
         (call.command as SubmitOrder).items.single().productId.assert().isEqualTo("mug")
 
-        rejected { alice.wait(CheckoutBasket) }.code.assert().isEqualTo(EshopBasketContract.Basket.Errors.EMPTY)
+        assertRejected { alice.wait(CheckoutBasket) }.code.assert().isEqualTo(EshopBasketContract.Basket.Errors.EMPTY)
     }
 
     @Test
     fun `a basket should be its buyer's alone`() {
         val dave = server.commands(buyer("dave"))
-        rejected { dave.wait(AddBasketItem("mug", BigDecimal("8.50"), 1), "carol") }
+        assertRejected { dave.wait(AddBasketItem("mug", BigDecimal("8.50"), 1), "carol") }
             .code.assert().isEqualTo(FrameworkCodes.AGGREGATE_FORBIDDEN)
         // By its own id, the buyer reaches the basket the commands without one do.
         runBlocking { dave.wait(AddBasketItem("mug", BigDecimal("8.50"), 1), "dave") }
@@ -102,15 +102,15 @@ class BasketServerTest {
     @Test
     fun `an item of no quantity or a negative price should be invalid before the basket decides`() {
         val frank = server.commands(buyer("frank"))
-        val invalid = rejected { frank.wait(AddBasketItem("mug", BigDecimal("-1"), 0)) }
+        val invalid = assertRejected { frank.wait(AddBasketItem("mug", BigDecimal("-1"), 0)) }
         invalid.code.assert().isEqualTo(FrameworkCodes.COMMAND_INVALID)
-        invalid.result.error!!.violations.map { it.path to it.code }
+        invalid.violations.map { it.path to it.code }
             .assert().containsExactly("quantity" to "positive", "unitPrice" to "positive-or-zero")
         // Nothing was decided: the basket was not created.
         basket("frank", buyer("frank")).assert().isNull()
 
         runBlocking { frank.wait(AddBasketItem("mug", BigDecimal("8.50"), 1)) }
-        rejected { frank.wait(ChangeBasketItemQuantity("mug", 0)) }.result.error!!.violations.single()
+        assertRejected { frank.wait(ChangeBasketItemQuantity("mug", 0)) }.violations.single()
             .path.assert().isEqualTo("quantity")
     }
 
@@ -133,10 +133,7 @@ class BasketServerTest {
 
     /** The basket [id] as [caller] reads it; null when the caller sees none. */
     private fun basket(id: String, caller: Caller): Snapshot<BasketStateView>? =
-        runBlocking { server.queries(caller).snapshots(BasketStateView::class.java).state(id) }
-
-    private fun rejected(send: suspend () -> Unit): CommandRejectedException =
-        assertThrows<CommandRejectedException> { runBlocking { send() } }
+        runBlocking { server.queries(caller).snapshots<BasketStateView>().state(id) }
 
     private companion object {
         const val BAD_REQUEST = 400
@@ -146,6 +143,6 @@ class BasketServerTest {
         )
 
         /** The buyer [id]: the user, and the owner of what it creates. */
-        fun buyer(id: String): Caller = Caller.of(subject = id, scope = Scope(ownerId = id))
+        fun buyer(id: String): Caller = Caller.owner(id)
     }
 }

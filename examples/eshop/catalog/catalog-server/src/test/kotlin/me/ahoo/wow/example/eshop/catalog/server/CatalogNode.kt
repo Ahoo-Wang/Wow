@@ -14,7 +14,6 @@
 package me.ahoo.wow.example.eshop.catalog.server
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.wire.DevelopmentHeaders.ROLES_ATTRIBUTE
 import me.ahoo.wow.spring.boot.security.DevelopmentCallerResolver
@@ -85,7 +84,7 @@ class CatalogNode(private val server: WowServer) : AutoCloseable {
 val EMPLOYEE: Caller = Caller.of(subject = "erin", attributes = mapOf(ROLES_ATTRIBUTE to listOf("employee")))
 
 /** A buyer of the default tenant, an owner-level caller ([DevelopmentCallerResolver]): it reads the catalog. */
-val BUYER: Caller = Caller.of(subject = "alice", scope = Scope(ownerId = "alice"))
+val BUYER: Caller = Caller.owner("alice")
 
 /**
  * Starts the catalog server on random ports of the loopback interface, with [properties] over its `application.yaml`,

@@ -15,15 +15,13 @@ package me.ahoo.wow.example.quickstart
 
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.client.CommandRejectedException
-import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.test.server.Answer
 import me.ahoo.wow.test.server.WowServer
+import me.ahoo.wow.test.server.assertRejected
 import me.ahoo.wow.test.server.wowServer
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import org.junit.jupiter.api.assertThrows
 
 /**
  * What the quickstart page does with the running service: its `application.yaml`, on random ports. Each request is the
@@ -73,13 +71,11 @@ class BankServerTest {
     fun `the teller should deposit in process through the CommandClient`() {
         post("/bank/account/bob/open-account", """{"owner":"Bob"}""").status(OK)
         val teller = server.bean<Teller>()
-        val result = runBlocking { teller.deposit("bob", 40) }
-        result.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
-        result.version.assert().isEqualTo(2)
+        runBlocking { teller.deposit("bob", 40) }.version.assert().isEqualTo(2)
         get("/bank/account/bob/state").status(OK).body!!["state"]["balance"].asLong().assert().isEqualTo(40L)
         // The gateway checks an in-process command's constraints too.
-        val invalid = assertThrows<CommandRejectedException> { runBlocking { teller.deposit("bob", 0) } }
-        invalid.result.error?.code.assert().isEqualTo("wow.command.invalid")
+        val invalid = assertRejected { teller.deposit("bob", 0) }
+        invalid.code.assert().isEqualTo("wow.command.invalid")
     }
 
     private fun Answer.status(expected: Int): Answer = apply { status.assert().describedAs(text).isEqualTo(expected) }

@@ -129,17 +129,17 @@ Anything else a transformer throws fails the request: a 500 that says nothing of
 
 **Over HTTP**, a rejection is answered with the code's status and an `application/problem+json` body whose `type` is `urn:wow:error:<code>` and whose `code` member is the full code. Its `version` member is the aggregate's version the rejection answered: the one its events reached, else the one the decision saw; a creation's rejection has none. [Wire Protocols](../reference/protocols) describes the whole shape.
 
-**In Kotlin**, the command client throws a `CommandRejectedException` whose `code` is the full code, for a rejection by the aggregate as for one at admission:
+**In Kotlin**, the command client throws a `CommandRejectedException` whose `code` is the full code, `error` the whole error and `violations` the fields the command broke, for a rejection by the aggregate as for one at admission:
 
 <!-- sample: examples/eshop/e2e/src/integrationTest/kotlin/me/ahoo/wow/example/eshop/e2e/EshopClientTest.kt#rejected -->
 
 ```kotlin
 // An order of no items breaks SubmitOrder's constraints: the ordering refuses it at admission, typed.
-val rejected = runCatching {
+val rejected = assertRejected {
     basket.bean<CommandClient>().of(alice).wait(SubmitOrder(emptyList()), "client-alice-2")
-}.exceptionOrNull() as CommandRejectedException
+}
 rejected.code.assert().isEqualTo("wow.command.invalid")
-rejected.result.error!!.violations.single().path.assert().isEqualTo("items")
+rejected.violations.single().path.assert().isEqualTo("items")
 ```
 
 **A peer** compares the code with a constant instead of a string. The api module's generated contract holds every code of its context by its full name, `EshopOrderingContract.Order.Errors.WRONG_STATUS`, so a peer that depends on the ordering's api reads the same value the ordering rejects with.

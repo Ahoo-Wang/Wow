@@ -19,6 +19,7 @@ import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.wait
 import me.ahoo.wow.api.read.Snapshot
+import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.api.wire.DevelopmentHeaders.ROLES
 import me.ahoo.wow.api.wire.DevelopmentHeaders.ROLES_ATTRIBUTE
 import me.ahoo.wow.api.wire.DevelopmentHeaders.USER
@@ -104,7 +105,7 @@ class OrderingCoSecTest {
     }
 
     private fun read(id: String, caller: Caller): Snapshot<OrderStateView>? =
-        runBlocking { server.queries(caller, gateway).snapshots(OrderStateView::class.java).state(id) }
+        runBlocking { server.queries(caller, gateway).snapshots<OrderStateView>().state(id) }
 
     private companion object {
         const val UNAUTHORIZED = 401

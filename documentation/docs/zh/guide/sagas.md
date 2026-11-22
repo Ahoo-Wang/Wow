@@ -34,7 +34,7 @@ fun onOrderSubmitted(
 | --- | --- |
 | `body.toCommandRequest(id)` | 一条发往聚合 `id` 的命令，聚合类型是决定 `body` 类的那个类型，在这次提交的租户中 |
 | `body.toCommandRequest()` | 一条发往该类型新聚合的创建命令，由目标为它分配 ID；命令体指明了聚合的命令（`@AggregateId`）则发往那个聚合 |
-| `body.toCommandRequest { to(ref) }` | 一条发往 `ref` 所指聚合的命令，可以是任何类型和租户 |
+| `body.toCommandRequest(to = ref)` | 一条发往 `ref` 所指聚合的命令，可以是任何类型和租户 |
 | `body.toCommandRequest { type(type) }` | 一条发往 `type` 类型新聚合的创建命令，由目标为它分配 ID |
 
 `toCommandRequest` 是每个命令都有的函数，从客户端的包导入：`import me.ahoo.wow.api.client.toCommandRequest`。它的块按 Java 调用方在 `CommandRequest.builder(body)` 上链式调用的名字设置请求的其他字段：`to(ref)`、`type`、`targetTenant`、`targetScope`、`requestId`、`expectedVersion`。`CommandRequest.of`、`CommandRequest.to` 与 builder 造出的是同一个请求。
