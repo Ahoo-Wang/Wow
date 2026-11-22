@@ -42,6 +42,7 @@ import me.ahoo.wow.query.backend.QueryBackend
 import me.ahoo.wow.query.backend.QueryBackendBinding
 import me.ahoo.wow.query.backend.tieBreakerDirection
 import me.ahoo.wow.query.dataset.QueryDataset
+import me.ahoo.wow.query.dataset.QueryDatasetSources
 import me.ahoo.wow.query.error.QueryExecutionException
 import me.ahoo.wow.query.schema.QueryViolation
 import tools.jackson.databind.JsonNode
@@ -56,7 +57,9 @@ import tools.jackson.databind.node.ObjectNode
 class ClickHouseDatasetBindings @JvmOverloads constructor(
     private val client: Client,
     private val options: ClickHouseDatasetOptions = ClickHouseDatasetOptions(),
-) : CachedQueryBindings<QueryDataset>(QueryDataset::name) {
+    /** What the tables of its datasets hold: the Sink's tables of the node's Manifest; none known by default. */
+    private val sources: QueryDatasetSources = QueryDatasetSources.NONE,
+) : CachedQueryBindings<QueryDataset>(QueryDataset::name), QueryDatasetSources by sources {
     private val executor = ClickHouseExecutor(client, options.settings)
 
     override fun createBinding(key: QueryDataset): QueryBackendBinding<QueryBackend> {

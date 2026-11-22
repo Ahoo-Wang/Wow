@@ -412,19 +412,7 @@ private class ManifestKeywords(private val schema: Map<*, *>, private val field:
                 "Not a sensitivity level: '$name'; one of ${WireNames.namesOf<SensitivityLevel>().joinToString()}."
             }
         }
-        val queryMask = mask?.let {
-            declared(ManifestQueryKeywords.MASK) {
-                when (val strategy = it["strategy"] as? String) {
-                    null -> QueryMask.Keep(it.int("keepPrefix", 0), it.int("keepSuffix", 0))
-                    else -> {
-                        require("keepPrefix" !in it && "keepSuffix" !in it) {
-                            "a custom strategy keeps no prefix or suffix"
-                        }
-                        QueryMask.Strategy(strategy)
-                    }
-                }
-            }
-        } ?: QueryMask.FULL
+        val queryMask = mask?.let { declared(ManifestQueryKeywords.MASK) { QueryMask.ofKeyword(it) } } ?: QueryMask.FULL
         return MaskRule(level, queryMask, strategies)
     }
 

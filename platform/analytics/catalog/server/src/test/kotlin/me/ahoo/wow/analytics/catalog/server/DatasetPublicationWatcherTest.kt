@@ -42,6 +42,7 @@ import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.api.read.NodeQueryApi
 import me.ahoo.wow.api.read.Snapshot
 import me.ahoo.wow.query.dataset.QueryDataset
+import me.ahoo.wow.query.dataset.QueryDatasetLineage
 import me.ahoo.wow.query.dataset.QueryDatasets
 import org.junit.jupiter.api.Test
 import java.time.Clock
@@ -90,6 +91,8 @@ class DatasetPublicationWatcherTest {
             served.scope.owner.assert().isEqualTo(QueryField("owner_id"))
             served.identity.assert().isEqualTo(QueryField("phone"))
             served.title.assert().isEqualTo("Orders")
+            // Its protection is compiled from wow_catalog's, approved: the node serves it as declared (#6587).
+            served.lineage.assert().isEqualTo(QueryDatasetLineage.DECLARED)
             served.declaration.fields.keys.assert()
                 .containsExactlyInAnyOrder(
                     QueryField("tenant_id"),

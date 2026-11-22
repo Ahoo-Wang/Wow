@@ -32,16 +32,15 @@ import me.ahoo.wow.query.policy.GovernedAggregates
 class ClickHouseSinks internal constructor(
     /** The statements the Sinks run: over a client-v2 client, [ClientStatements], which stays the caller's to close. */
     private val statements: ClickHouseStatements,
-    private val manifest: Manifest,
+    manifest: Manifest,
     val options: ClickHouseSinkOptions = ClickHouseSinkOptions(),
     /** Which aggregates an access policy governs, which `wow_catalog` records; null: unknown, empty in each row. */
     private val governed: GovernedAggregates? = null,
 ) {
+    private val tables = SinkTables(manifest, options)
+
     init {
-        val types = manifest.contexts.flatMap { context ->
-            context.aggregates.map { AggregateType(context.name, it.name) }
-        }
-        val collisions = ClickHouseSinkSchema.collisionsOf(types)
+        val collisions = ClickHouseSinkSchema.collisionsOf(tables.types)
         check(collisions.isEmpty()) {
             "The ClickHouse Sink would write several aggregates of the Manifest into the same tables: " +
                 collisions.entries.joinToString("; ") { (name, shared) -> "$name of ${shared.joinToString(" and ")}" } +
@@ -70,7 +69,7 @@ class ClickHouseSinks internal constructor(
     fun catalogOf(type: AggregateType): List<CatalogEntry> = catalogOf(schemaOf(type))
 
     private fun catalogOf(schema: ClickHouseSinkSchema): List<CatalogEntry> =
-        CatalogEntries.of(manifest, aggregateOf(schema.type), schema, accessOf(schema.type))
+        tables.catalogOf(schema, accessOf(schema.type))
 
     /** [type]'s [CatalogEntry.access]: whether its policy decides its rows, empty when [governed] is unknown. */
     private fun accessOf(type: AggregateType): String = when {
@@ -79,7 +78,34 @@ class ClickHouseSinks internal constructor(
         else -> ClickHouseCatalog.ACCESS_DEFAULT
     }
 
-    private fun aggregateOf(type: AggregateType): AggregateManifest {
+    /** The tables and views of [type]. */
+    fun schemaOf(type: AggregateType): ClickHouseSinkSchema = tables.schemaOf(type)
+
+    override fun toString(): String = "ClickHouseSinks(${options.database})"
+
+    @InternalWowApi
+    companion object {
+        /** The processor name of the ClickHouse Sink's subscriptions: `wow.clickhouse-sink.<aggregate>`. */
+        const val PROCESSOR: String = "wow.clickhouse-sink"
+    }
+}
+
+/**
+ * The tables the ClickHouse Sink writes for the aggregates of [manifest] in [options]' database, read without a
+ * client: each one's [schemaOf] (names, flat columns) and the `wow_catalog` entries of its tables ([catalogOf]). The
+ * Sink writes by them; the dataset backend tells by them what a Sink's table holds (`ClickHouseDatasetSources`).
+ */
+internal class SinkTables(private val manifest: Manifest, private val options: ClickHouseSinkOptions) {
+    /** The aggregate types of [manifest]. */
+    val types: List<AggregateType> = manifest.contexts.flatMap { context ->
+        context.aggregates.map { AggregateType(context.name, it.name) }
+    }
+
+    /** The `wow_catalog` entries of [schema]'s tables, their rows read as [access] says ([CatalogEntry.access]). */
+    fun catalogOf(schema: ClickHouseSinkSchema, access: String = ""): List<CatalogEntry> =
+        CatalogEntries.of(manifest, aggregateOf(schema.type), schema, access)
+
+    fun aggregateOf(type: AggregateType): AggregateManifest {
         val aggregate = manifest.contexts.firstOrNull { it.name == type.context }
             ?.aggregates?.firstOrNull { it.name == type.name }
         return requireNotNull(aggregate) { "The Manifest declares no aggregate $type." }
@@ -104,13 +130,7 @@ class ClickHouseSinks internal constructor(
         )
     }
 
-    override fun toString(): String = "ClickHouseSinks(${options.database})"
-
-    @InternalWowApi
-    companion object {
-        /** The processor name of the ClickHouse Sink's subscriptions: `wow.clickhouse-sink.<aggregate>`. */
-        const val PROCESSOR: String = "wow.clickhouse-sink"
-
-        private val STORED_NAMES: Set<String> = ClickHouseSinkSchema.STATE_COLUMNS.mapTo(HashSet()) { it.name }
+    private companion object {
+        val STORED_NAMES: Set<String> = ClickHouseSinkSchema.STATE_COLUMNS.mapTo(HashSet()) { it.name }
     }
 }

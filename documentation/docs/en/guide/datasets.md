@@ -43,11 +43,26 @@ A dataset is a JSON file named `<context>.<dataset>.json`, on the class path und
 | `eventTime` | The column a relative-time filter reads by default |
 | `scope` | The columns of each row's tenant, owner and space: a row is shown only to callers whose scope it is in. `"platform": true` instead marks a dataset every tenant reads. `access` names the aggregate each row is of, whose access policy then decides the rows ([below](#rows-of-an-aggregate-with-an-access-policy)) |
 | `storage` | The backend's binding: on ClickHouse, the `table` it reads |
+| `lineage` | Where its protection comes from: `source`, the default, or `none` ([below](#protection)) |
 | `fields` | Each column: its `types`, `nullable`, an optional `semantic` type, `enum` values and a `description` |
 
-A field may also be masked, with `"sensitive": {"level": "confidential", "keepSuffix": 4}`, as a `@Sensitive` state field is.
+A field may also declare its own mask, with `"sensitive": {"level": "confidential", "keepSuffix": 4}`, stricter than its source's ([below](#protection)).
 
 A file in the working directory, `<wow.query.dataset.config-directory>/wow/dataset/` (`config/wow/dataset/` by default), takes precedence over the class path's file of the same name, so an operator can adjust a dataset without a new build.
+
+## Protection follows the source {#protection}
+
+A dataset's columns are protected as their source is, whether the dataset declares them `sensitive` or not. When the table is one the ClickHouse sink writes for an aggregate of the service's own Manifest, a column that holds a value the state marks [`@Sensitive`](./queries#describe-what-types-cannot) is masked in every result, and compared only as a state read compares it: a `CONFIDENTIAL` column cannot be filtered on or sorted by its value. Wow reads the protection with the function the sink uses for its `wow_catalog` rows, from the same Manifest, so the dataset never holds a second copy of it.
+
+| Table | Its protected columns |
+| --- | --- |
+| `<ctx>_<agg>_state_flat` | Each flat column whose state property is `@Sensitive`, masked as the state masks it |
+| `<ctx>_<agg>_state` | The same flat columns. The `state` and `state_numbers` columns, documents holding the protected values |
+| `<ctx>_<agg>_state_events`, `<ctx>_<agg>_events` | The `state`, `state_numbers`, `events` and `payload` columns, documents holding the protected values |
+
+- **A declaration only tightens.** A field may declare `sensitive`: at a higher level, or with a mask that keeps less of the value, it is masked as declared. A declaration looser than its source, a lower level or a mask that keeps more, is refused, and the node does not start; the message names the state's path. A service's dataset has no approver, so loosening a protection is a change to the state's `@Sensitive`, reviewed with the code. A dataset that must lower one belongs in the [analytics catalog](../data/datasets#sources).
+- **A document column is not read.** A field masks a column whole, never one value inside it, so a dataset that reads a document column holding a protected value is refused. Read the value from its own column, as `_state_flat` holds it.
+- **A table of no state needs `"lineage": "none"`.** Wow cannot tell what an operator's own view, a join's result, another service's table or a table of no Wow service holds. A dataset over one states `"lineage": "none"`, its author's assertion that the table holds no value a state marks `@Sensitive`, and is masked only where it declares `sensitive`. Without it the dataset is served unavailable: its queries are answered `409 wow.query.dataset-unavailable`, and the node logs why when it starts.
 
 ## Rows of an aggregate with an access policy
 

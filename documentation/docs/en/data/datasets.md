@@ -18,6 +18,8 @@ Every table and view of the warehouse's configured databases is a source, its id
 
 A Wow table's protection can only be tightened in the catalog. When the sink's row lowers it, an approver accepts the change (`ApproveSensitivityChange`) before the datasets see it.
 
+A service's own datasets inherit the same protection, from the service's own Manifest rather than `wow_catalog`, but have no approver: their declarations can only tighten it, and a table of no state of the service needs the author's `"lineage": "none"` ([Protection follows the source](../guide/datasets#protection)). A dataset that must lower a protection, or that reads another service's tables, is defined here.
+
 ## Define a dataset
 
 A definition names the sources under aliases, the joins that bring them in, the columns, the filters and the subject, the source whose tenant, owner and space each row takes. Orders with their customers' names:

@@ -117,6 +117,9 @@ class QueryDatasetScope @InternalWowApi constructor(
  * A dataset whose [unavailable] names a reason is served but cannot be queried: each of its queries and its
  * descriptor are answered `wow.query.dataset-unavailable` (HTTP 409) with that reason, fixed words such as
  * `needs revision` (7.2b-2), instead of reading a table that may no longer hold what it declares.
+ *
+ * Its [lineage] says where its protection comes from: by default its source's, so that the engine masks a column its
+ * table's source protects whether the declaration marks it `sensitive` or not ([QueryDatasetLineage]).
  */
 @ExperimentalWowApi
 class QueryDataset @InternalWowApi constructor(
@@ -131,10 +134,16 @@ class QueryDataset @InternalWowApi constructor(
     val storage: ObjectNode = WowJson.mapper.createObjectNode(),
     /** Why the dataset cannot be queried now, or `null` when it can. */
     val unavailable: String? = null,
+    /** Where its protection comes from: its table's source by default. */
+    val lineage: QueryDatasetLineage = QueryDatasetLineage.SOURCE,
 ) {
     /** This dataset, [unavailable] for [reason] now, or available again with null. */
     fun withUnavailable(reason: String?): QueryDataset =
-        QueryDataset(name, scope, declaration, identity, eventTime, title, storage, reason)
+        QueryDataset(name, scope, declaration, identity, eventTime, title, storage, reason, lineage)
+
+    /** This dataset with the fields [declaration] declares: its source's protection given to its own. */
+    internal fun withDeclaration(declaration: QuerySchemaDeclaration): QueryDataset =
+        QueryDataset(name, scope, declaration, identity, eventTime, title, storage, unavailable, lineage)
 
     init {
         require(unavailable == null || unavailable.isNotBlank()) { "Dataset [$name] names why it is unavailable." }
@@ -183,7 +192,7 @@ class QueryDataset @InternalWowApi constructor(
 
     override fun toString(): String =
         "QueryDataset(name=$name, scope=$scope, declaration=$declaration, identity=$identity, eventTime=$eventTime, " +
-            "title=$title, storage=$storage, unavailable=$unavailable)"
+            "title=$title, storage=$storage, unavailable=$unavailable, lineage=$lineage)"
 
     private fun valueFields(): List<Any?> = listOf(
         name,
@@ -193,7 +202,8 @@ class QueryDataset @InternalWowApi constructor(
         eventTime,
         title,
         storage,
-        unavailable
+        unavailable,
+        lineage,
     )
 }
 
@@ -209,6 +219,7 @@ class QueryDatasetBuilder(private val name: AggregateType) {
     private var eventTime: QueryField<*>? = null
     private var title: String? = null
     private var storage: ObjectNode = WowJson.mapper.createObjectNode()
+    private var lineage: QueryDatasetLineage = QueryDatasetLineage.SOURCE
     private val fields = QuerySchemaDeclarationBuilder()
     private val sensitive = linkedMapOf<QueryField<*>, MaskRule>()
 
@@ -251,6 +262,11 @@ class QueryDatasetBuilder(private val name: AggregateType) {
         storage = value
     }
 
+    /** Where the dataset's protection comes from: its table's source unless set ([QueryDatasetLineage]). */
+    fun lineage(value: QueryDatasetLineage) {
+        lineage = value
+    }
+
     fun field(field: String, block: QueryFieldDeclarationBuilder.() -> Unit) = fields.field(field, block)
 
     /**
@@ -289,6 +305,7 @@ class QueryDatasetBuilder(private val name: AggregateType) {
             eventTime = eventTime,
             title = title,
             storage = storage,
+            lineage = lineage,
         )
     }
 }

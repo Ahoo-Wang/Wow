@@ -26,12 +26,14 @@ import me.ahoo.wow.query.admission.under
 import me.ahoo.wow.query.backend.QueryBackendStorages
 import me.ahoo.wow.query.backend.QueryBindings
 import me.ahoo.wow.query.cache.QueryCountCache
+import me.ahoo.wow.query.dataset.DatasetLineages
 import me.ahoo.wow.query.dataset.DatasetQueryGateways
 import me.ahoo.wow.query.dataset.DatasetVisibility
 import me.ahoo.wow.query.dataset.QueryDataset
 import me.ahoo.wow.query.dataset.QueryDatasetChange
 import me.ahoo.wow.query.dataset.QueryDatasetListener
 import me.ahoo.wow.query.dataset.QueryDatasetScope
+import me.ahoo.wow.query.dataset.QueryDatasetSources
 import me.ahoo.wow.query.dataset.QueryDatasets
 import me.ahoo.wow.query.events.EventQueryGateways
 import me.ahoo.wow.query.events.UnpinnedEvents
@@ -278,6 +280,11 @@ class QueryEngine private constructor(
 
         fun build(): QueryEngine {
             val masks = masks ?: PayloadMasks(manifest, strategies)
+            // Each dataset is served with its source's protection, as its backend tells the source of its table.
+            datasetBackend?.let { backend ->
+                val sources = backend as? QueryDatasetSources ?: QueryDatasetSources.NONE
+                datasets.resolveLineage(DatasetLineages(sources, strategies)::resolve)
+            }
             val catalog = catalog()
             val observer = QueryObserver.of(listOf(QueryLogObserver()) + observers)
             val ownerships = QueryOwnership.of(manifest)

@@ -70,6 +70,8 @@ API 只是升级要保持兼容的三样东西之一。在同一个主版本内�
 | `me.ahoo.wow.query.dataset.QueryDataset` | class | `wow-query` |
 | `me.ahoo.wow.query.dataset.QueryDatasetBuilder` | class | `wow-query` |
 | `me.ahoo.wow.query.dataset.QueryDatasetFiles` | class | `wow-query` |
+| `me.ahoo.wow.query.dataset.QueryDatasetLineage` | class | `wow-query` |
+| `me.ahoo.wow.query.dataset.QueryDatasetSource` | class | `wow-query` |
 | `me.ahoo.wow.query.dataset.QueryDatasetChange` | interface | `wow-query` |
 | `me.ahoo.wow.query.dataset.QueryDatasetListener` | interface | `wow-query` |
 | `me.ahoo.wow.query.dataset.QueryDatasets` | class | `wow-query` |
@@ -174,6 +176,7 @@ API 只是升级要保持兼容的三样东西之一。在同一个主版本内�
 | `me.ahoo.wow.query.backend.QueryBackend` | interface | `wow-query` |
 | `me.ahoo.wow.query.backend.QueryBindings` | interface | `wow-query` |
 | `me.ahoo.wow.query.backend.CachedQueryBindings` | class | `wow-query` |
+| `me.ahoo.wow.query.dataset.QueryDatasetSources` | interface | `wow-query` |
 | `me.ahoo.wow.query.dataset.QueryDatasetProvider` | interface | `wow-query` |
 | `me.ahoo.wow.query.dataset.QueryDatasetConfig` | class | `wow-query` |
 | `me.ahoo.wow.query.schema.QueryStorageAdapter` | interface | `wow-query` |

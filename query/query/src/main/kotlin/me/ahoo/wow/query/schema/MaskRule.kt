@@ -74,8 +74,35 @@ sealed interface QueryMask {
         /** The default mask: every code point masked. */
         @JvmField
         val FULL: QueryMask = Keep()
+
+        /**
+         * The mask an `x-wow-mask` keyword states, as the Manifest writes it: `{keepPrefix, keepSuffix}` (each 0 when
+         * left out) or `{strategy}`, which keeps no prefix or suffix; [FULL] for none. A snapshot read's schema and a
+         * dataset's source read it so ([me.ahoo.wow.query.dataset.QueryDatasetSource.Masked]).
+         */
+        @InternalWowApi
+        @JvmStatic
+        fun ofKeyword(keyword: Map<*, *>?): QueryMask {
+            if (keyword == null) return FULL
+            return when (val strategy = keyword[STRATEGY] as? String) {
+                null -> Keep(keyword.count(KEEP_PREFIX), keyword.count(KEEP_SUFFIX))
+                else -> {
+                    require(KEEP_PREFIX !in keyword && KEEP_SUFFIX !in keyword) {
+                        "a custom strategy keeps no prefix or suffix"
+                    }
+                    Strategy(strategy)
+                }
+            }
+        }
     }
 }
+
+// The members of an `x-wow-mask` keyword ([QueryMask.ofKeyword]): an interface's companion holds only its fields.
+private const val STRATEGY = "strategy"
+private const val KEEP_PREFIX = "keepPrefix"
+private const val KEEP_SUFFIX = "keepSuffix"
+
+private fun Map<*, *>.count(key: String): Int = (this[key] as? Number)?.toInt() ?: 0
 
 /**
  * Supplies the instance of each custom mask strategy a Manifest names. The runtime does not load classes by name,

@@ -107,12 +107,24 @@ interface QueryDatasetListener {
  * The runtime catalog of the datasets this node serves: declared in code, read from files
  * ([QueryDatasetFiles]) or registered while the node runs, as dataset-registry does. The schema Catalog, the dataset
  * gateways and the storages follow it through [listen].
+ *
+ * The engine serving them gives each dataset its source's protection ([QueryDatasetLineage], [resolveLineage]): a
+ * dataset is held as it is declared and served, and shown by [all], [get] and every change, as resolved.
  */
 @ExperimentalWowApi
 class QueryDatasets(datasets: Collection<QueryDataset> = emptyList()) {
+    /** Each dataset as it is declared: what [resolveLineage] resolves again. */
+    @Volatile
+    private var declared: Map<AggregateType, QueryDataset> = datasets.associateBy { it.name }
+
+    /** Each dataset as it is served. */
     @Volatile
     private var byName: Map<AggregateType, QueryDataset> = datasets.associateBy { it.name }
     private val listeners = CopyOnWriteArrayList<QueryDatasetListener>()
+
+    /** Gives a declared dataset its source's protection: none until [resolveLineage]. */
+    @Volatile
+    private var lineage: (QueryDataset) -> QueryDataset = { it }
 
     init {
         require(byName.size == datasets.size) { "Datasets must have unique names: ${datasets.map { it.name }}." }
@@ -157,15 +169,41 @@ class QueryDatasets(datasets: Collection<QueryDataset> = emptyList()) {
         return removed
     }
 
+    /**
+     * Serves each dataset, here now and as one joins, as [resolve] gives it its source's protection
+     * ([DatasetLineages]); a dataset it refuses is refused: here now by this call, joining by its change. Called by the
+     * engine that serves them before it follows them, and again by each engine built over them.
+     */
+    @InternalWowApi
+    fun resolveLineage(resolve: (QueryDataset) -> QueryDataset) {
+        if (this === NONE) return
+        synchronized(this) {
+            byName = declared.mapValues { (_, dataset) -> resolve(dataset) }
+            lineage = resolve
+        }
+    }
+
     private inline fun change(propose: () -> QueryDatasetChange?) {
         check(this !== NONE) { "QueryDatasets.NONE never changes." }
         synchronized(this) {
-            val change = propose() ?: return
+            val proposed = propose() ?: return
+            // The listeners follow the dataset as it is served: its source's protection given to it.
+            val change = when (proposed) {
+                is QueryDatasetChange.Added -> QueryDatasetChange.Added(lineage(proposed.dataset))
+                is QueryDatasetChange.Replaced ->
+                    QueryDatasetChange.Replaced(proposed.previous, lineage(proposed.dataset))
+
+                is QueryDatasetChange.Removed -> proposed
+            }
             listeners.forEach { it.validate(change) }
             val name = change.dataset.name
             byName = when (change) {
                 is QueryDatasetChange.Removed -> byName - name
                 else -> byName + (name to change.dataset)
+            }
+            declared = when (proposed) {
+                is QueryDatasetChange.Removed -> declared - name
+                else -> declared + (name to proposed.dataset)
             }
             listeners.forEach { it.apply(change) }
         }

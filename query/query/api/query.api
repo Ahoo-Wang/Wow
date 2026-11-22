@@ -391,6 +391,7 @@ public final class me/ahoo/wow/query/dataset/QueryDataset {
 	public final fun getDeclaration ()Lme/ahoo/wow/query/schema/QuerySchemaDeclaration;
 	public final fun getEventTime ()Lme/ahoo/wow/api/query/QueryField;
 	public final fun getIdentity ()Lme/ahoo/wow/api/query/QueryField;
+	public final fun getLineage ()Lme/ahoo/wow/query/dataset/QueryDatasetLineage;
 	public final fun getName ()Lme/ahoo/wow/api/aggregate/AggregateType;
 	public final fun getScope ()Lme/ahoo/wow/query/dataset/QueryDatasetScope;
 	public final fun getStorage ()Ltools/jackson/databind/node/ObjectNode;
@@ -431,6 +432,7 @@ public final class me/ahoo/wow/query/dataset/QueryDatasetBuilder {
 	public final fun eventTime (Ljava/lang/String;)V
 	public final fun field (Ljava/lang/String;Lkotlin/jvm/functions/Function1;)V
 	public final fun identity (Ljava/lang/String;)V
+	public final fun lineage (Lme/ahoo/wow/query/dataset/QueryDatasetLineage;)V
 	public final fun owner (Ljava/lang/String;)V
 	public final fun platform ()V
 	public final fun sensitive (Ljava/lang/String;Lme/ahoo/wow/api/query/annotation/SensitivityLevel;Lme/ahoo/wow/query/schema/QueryMask;Lme/ahoo/wow/query/schema/MaskStrategyResolver;)V
@@ -523,6 +525,15 @@ public final class me/ahoo/wow/query/dataset/QueryDatasetFiles {
 public final class me/ahoo/wow/query/dataset/QueryDatasetFiles$Companion {
 }
 
+public final class me/ahoo/wow/query/dataset/QueryDatasetLineage : java/lang/Enum {
+	public static final field DECLARED Lme/ahoo/wow/query/dataset/QueryDatasetLineage;
+	public static final field NONE Lme/ahoo/wow/query/dataset/QueryDatasetLineage;
+	public static final field SOURCE Lme/ahoo/wow/query/dataset/QueryDatasetLineage;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/query/dataset/QueryDatasetLineage;
+	public static fun values ()[Lme/ahoo/wow/query/dataset/QueryDatasetLineage;
+}
+
 public abstract interface class me/ahoo/wow/query/dataset/QueryDatasetListener {
 	public abstract fun apply (Lme/ahoo/wow/query/dataset/QueryDatasetChange;)V
 	public fun validate (Lme/ahoo/wow/query/dataset/QueryDatasetChange;)V
@@ -564,6 +575,66 @@ public final class me/ahoo/wow/query/dataset/QueryDatasetScope$Companion {
 	public final fun of (Lme/ahoo/wow/api/query/QueryField;Lme/ahoo/wow/api/query/QueryField;Lme/ahoo/wow/api/query/QueryField;Z)Lme/ahoo/wow/query/dataset/QueryDatasetScope;
 	public final fun of (Lme/ahoo/wow/api/query/QueryField;Lme/ahoo/wow/api/query/QueryField;Lme/ahoo/wow/api/query/QueryField;ZLme/ahoo/wow/query/dataset/QueryDatasetAccess;)Lme/ahoo/wow/query/dataset/QueryDatasetScope;
 	public static synthetic fun of$default (Lme/ahoo/wow/query/dataset/QueryDatasetScope$Companion;Lme/ahoo/wow/api/query/QueryField;Lme/ahoo/wow/api/query/QueryField;Lme/ahoo/wow/api/query/QueryField;ZLme/ahoo/wow/query/dataset/QueryDatasetAccess;ILjava/lang/Object;)Lme/ahoo/wow/query/dataset/QueryDatasetScope;
+}
+
+public final class me/ahoo/wow/query/dataset/QueryDatasetSource {
+	public static final field Companion Lme/ahoo/wow/query/dataset/QueryDatasetSource$Companion;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getColumns ()Ljava/util/Map;
+	public final fun getDescription ()Ljava/lang/String;
+	public fun hashCode ()I
+	public static final fun of (Ljava/lang/String;)Lme/ahoo/wow/query/dataset/QueryDatasetSource;
+	public static final fun of (Ljava/lang/String;Ljava/util/Map;)Lme/ahoo/wow/query/dataset/QueryDatasetSource;
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class me/ahoo/wow/query/dataset/QueryDatasetSource$Column {
+}
+
+public final class me/ahoo/wow/query/dataset/QueryDatasetSource$Companion {
+	public final fun of (Ljava/lang/String;)Lme/ahoo/wow/query/dataset/QueryDatasetSource;
+	public final fun of (Ljava/lang/String;Ljava/util/Map;)Lme/ahoo/wow/query/dataset/QueryDatasetSource;
+	public static synthetic fun of$default (Lme/ahoo/wow/query/dataset/QueryDatasetSource$Companion;Ljava/lang/String;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/query/dataset/QueryDatasetSource;
+}
+
+public final class me/ahoo/wow/query/dataset/QueryDatasetSource$Masked : me/ahoo/wow/query/dataset/QueryDatasetSource$Column {
+	public static final field Companion Lme/ahoo/wow/query/dataset/QueryDatasetSource$Masked$Companion;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getLevel ()Lme/ahoo/wow/api/query/annotation/SensitivityLevel;
+	public final fun getMask ()Lme/ahoo/wow/query/schema/QueryMask;
+	public final fun getPath ()Ljava/lang/String;
+	public fun hashCode ()I
+	public static final fun of (Ljava/lang/String;Lme/ahoo/wow/api/query/annotation/SensitivityLevel;)Lme/ahoo/wow/query/dataset/QueryDatasetSource$Masked;
+	public static final fun of (Ljava/lang/String;Lme/ahoo/wow/api/query/annotation/SensitivityLevel;Lme/ahoo/wow/query/schema/QueryMask;)Lme/ahoo/wow/query/dataset/QueryDatasetSource$Masked;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/query/dataset/QueryDatasetSource$Masked$Companion {
+	public final fun of (Ljava/lang/String;Lme/ahoo/wow/api/query/annotation/SensitivityLevel;)Lme/ahoo/wow/query/dataset/QueryDatasetSource$Masked;
+	public final fun of (Ljava/lang/String;Lme/ahoo/wow/api/query/annotation/SensitivityLevel;Lme/ahoo/wow/query/schema/QueryMask;)Lme/ahoo/wow/query/dataset/QueryDatasetSource$Masked;
+	public static synthetic fun of$default (Lme/ahoo/wow/query/dataset/QueryDatasetSource$Masked$Companion;Ljava/lang/String;Lme/ahoo/wow/api/query/annotation/SensitivityLevel;Lme/ahoo/wow/query/schema/QueryMask;ILjava/lang/Object;)Lme/ahoo/wow/query/dataset/QueryDatasetSource$Masked;
+}
+
+public final class me/ahoo/wow/query/dataset/QueryDatasetSource$Opaque : me/ahoo/wow/query/dataset/QueryDatasetSource$Column {
+	public static final field Companion Lme/ahoo/wow/query/dataset/QueryDatasetSource$Opaque$Companion;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getPaths ()Ljava/util/List;
+	public fun hashCode ()I
+	public static final fun of (Ljava/util/List;)Lme/ahoo/wow/query/dataset/QueryDatasetSource$Opaque;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/query/dataset/QueryDatasetSource$Opaque$Companion {
+	public final fun of (Ljava/util/List;)Lme/ahoo/wow/query/dataset/QueryDatasetSource$Opaque;
+}
+
+public abstract interface class me/ahoo/wow/query/dataset/QueryDatasetSources {
+	public static final field Companion Lme/ahoo/wow/query/dataset/QueryDatasetSources$Companion;
+	public static final field NONE Lme/ahoo/wow/query/dataset/QueryDatasetSources;
+	public abstract fun sourceOf (Lme/ahoo/wow/query/dataset/QueryDataset;)Lme/ahoo/wow/query/dataset/QueryDatasetSource;
+}
+
+public final class me/ahoo/wow/query/dataset/QueryDatasetSources$Companion {
 }
 
 public final class me/ahoo/wow/query/dataset/QueryDatasets {

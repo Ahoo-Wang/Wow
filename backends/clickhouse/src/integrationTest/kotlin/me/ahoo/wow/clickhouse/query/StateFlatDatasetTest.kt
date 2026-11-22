@@ -26,6 +26,7 @@ import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.CursorQuery
+import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.GreaterThanOrEqualFilter
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
@@ -38,6 +39,8 @@ import me.ahoo.wow.clickhouse.sink.ClickHouseSinkOptions
 import me.ahoo.wow.clickhouse.sink.ClickHouseSinks
 import me.ahoo.wow.clickhouse.sink.ClientStatements
 import me.ahoo.wow.clickhouse.sink.SinkFixtures
+import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.admission.QueryAdmission
@@ -47,11 +50,15 @@ import me.ahoo.wow.query.backend.cursor
 import me.ahoo.wow.query.backend.list
 import me.ahoo.wow.query.dataset.DatasetQueryGateways
 import me.ahoo.wow.query.dataset.QueryDataset
+import me.ahoo.wow.query.dataset.QueryDatasets
+import me.ahoo.wow.query.engine.QueryEngine
 import me.ahoo.wow.query.policy.ScopeQueryPolicy
+import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryValueType
 import me.ahoo.wow.query.schema.Temporal
 import me.ahoo.wow.spi.json.WowJson
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import java.math.BigDecimal
 import java.time.Instant
 
@@ -106,12 +113,12 @@ class StateFlatDatasetTest {
         }
     }
 
-    private suspend fun target(): DatasetTarget {
+    private suspend fun target(manifest: Manifest = SinkFixtures.MANIFEST): DatasetTarget {
         ClickHouseContainers.execute("DROP DATABASE IF EXISTS $database")
         ClickHouseContainers.execute("CREATE DATABASE $database")
         val sink = ClickHouseSinks(
             ClientStatements(ClickHouseSinkIntegrationTest.client),
-            SinkFixtures.MANIFEST,
+            manifest,
             ClickHouseSinkOptions(database = database)
         )
             .sinkOf("shop", "order")
@@ -206,6 +213,30 @@ class StateFlatDatasetTest {
         gateway.count(CountQuery(MatchAllFilter), tenant2)
             .count.assert().isEqualTo(0L)
     }
+
+    @Test
+    fun `a flat column the state marks sensitive should be masked and not compared, though undeclared`(): Unit =
+        runBlocking {
+            // The order's status CONFIDENTIAL in its state; the dataset declares it as any other column.
+            @Suppress("UNCHECKED_CAST")
+            val properties = SinkFixtures.ORDER_STATE_SCHEMA.getValue("properties") as Map<String, Any?>
+            val status = mapOf("type" to "string", "x-wow-sensitive" to mapOf("level" to "confidential"))
+            val state = SinkFixtures.ORDER_STATE_SCHEMA + ("properties" to properties + ("status" to status))
+            val manifest = SinkFixtures.MANIFEST.copyWith(defs = mapOf("OrderState" to state))
+            target(manifest)
+            val bindings = ClickHouseDatasetBindings(
+                ClickHouseContainers.client,
+                ClickHouseDatasetOptions(database = database),
+                ClickHouseDatasetSources(manifest, database),
+            )
+            val engine = QueryEngine.Builder(manifest).datasets(QueryDatasets(listOf(dataset)), bindings).build()
+            val gateway = checkNotNull(engine.datasets[dataset.name])
+            gateway.list(ListQuery(MatchAllFilter, limit = 10), QueryCaller.IN_PROCESS).toList()
+                .map { it.get("status").stringValue() }.assert().isNotEmpty().containsOnly("*******")
+            assertThrows<QuerySchemaValidationException> {
+                gateway.count(CountQuery(EqualFilter(QueryField("status"), "CREATED")), QueryCaller.IN_PROCESS)
+            }
+        }
 
     @Test
     fun `a cursor should walk the flat view by its event time`(): Unit = runBlocking {
