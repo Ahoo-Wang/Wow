@@ -41,8 +41,8 @@ const ENTRIES = [
         id: "p-1",
       },
       fromVersion: 2,
-      reason: "The gateway is unreachable.",
-      errorType: "The gateway is unreachable.",
+      reason: "java.net.ConnectException",
+      errorType: "java.net.ConnectException",
       failedAt: Date.parse("2026-10-01T08:00:00Z"),
       recordedAt: Date.parse("2026-10-01T08:00:01Z"),
       retries: 3,
@@ -151,7 +151,7 @@ describe("the console", () => {
     expect(callers.get()).toEqual(OPERATOR);
     const table = await screen.findByRole("table", { name: "Needs attention" });
     expect(
-      await within(table).findByText("The gateway is unreachable."),
+      await within(table).findByText("java.net.ConnectException"),
     ).toBeVisible();
     expect(within(table).queryByText("Retrying.")).toBeNull();
     expect(screen.getByRole("link", { name: "Caller: alice" })).toBeVisible();
@@ -275,7 +275,7 @@ describe("the console", () => {
     expect(await within(timeline).findByText("Parked")).toBeVisible();
     expect(history).toHaveBeenCalledWith(ENTRIES[0].aggregateId);
     expect(screen.getByTestId("parked-failure")).toHaveTextContent(
-      "The gateway is unreachable.",
+      "java.net.ConnectException",
     );
   });
 });

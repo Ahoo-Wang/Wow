@@ -30,7 +30,7 @@ function entry(extra: Record<string, unknown> = {}) {
     subscription: "Saga.onEvent",
     aggregate: { context: "shop", name: "payment", tenantId: "(0)", id: "p-1" },
     fromVersion: 2,
-    reason: "java.net.ConnectException: refused",
+    reason: "java.net.ConnectException",
     failedAt: AT,
     retries: 0,
     retrySpec: SPEC,
@@ -90,7 +90,8 @@ const STREAMS: EventStream[] = [
   stream(8, "ParkedRecorded", {
     entry: entry({
       failedAt: AT + 1,
-      reason: "java.lang.IllegalStateException: closed",
+      reason:
+        "me.ahoo.wow.kernel.HandlerTimeoutException: timed out after 10000 ms",
     }),
   }),
   stream(9, "ParkedResolved", { outcome: "retried", resolvedAt: AT + 2 }),
@@ -131,7 +132,7 @@ describe("an entry's history", () => {
       status: "scheduled",
       retries: 0,
       maxRetries: 3,
-      reason: "java.net.ConnectException: refused",
+      reason: "java.net.ConnectException",
     });
     expect(byVersion[2].facts).toEqual({
       status: "scheduled",
@@ -233,7 +234,7 @@ describe("an entry's timeline", () => {
     expect(steps[1]).toHaveTextContent("Retried");
     expect(steps[2]).toHaveTextContent("Parked again");
     expect(steps[2]).toHaveTextContent(
-      "java.lang.IllegalStateException: closed",
+      "me.ahoo.wow.kernel.HandlerTimeoutException: timed out after 10000 ms",
     );
     expect(steps[3]).toHaveTextContent("Retry requested");
     expect(steps[3]).toHaveTextContent("by alice");

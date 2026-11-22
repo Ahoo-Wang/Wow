@@ -46,7 +46,8 @@ const PARKED = rowOf({
   },
   fromVersion: 2,
   fromPosition: 41,
-  reason: "java.net.ConnectException: the gateway is unreachable",
+  reason:
+    "me.ahoo.wow.kernel.HandlerTimeoutException: timed out after 10000 ms",
   failedAt: FAILED_AT,
   recordedAt: FAILED_AT + 1,
   retries: 3,
@@ -75,8 +76,10 @@ describe("a parked entry's reading", () => {
   it("says why it is parked, where, how far its retries went and what was asked", () => {
     const reading = read(PARKED);
     const failure = screen.getByTestId("parked-failure");
-    expect(failure).toHaveTextContent("Error typejava.net.ConnectException");
-    expect(failure).toHaveTextContent("the gateway is unreachable");
+    expect(failure).toHaveTextContent(
+      "Error typeme.ahoo.wow.kernel.HandlerTimeoutException",
+    );
+    expect(failure).toHaveTextContent("timed out after 10000 ms");
     expect(reading).toHaveTextContent("payment-service");
     expect(reading).toHaveTextContent("eshop-payment.payment");
     expect(reading).toHaveTextContent("From position41");
@@ -156,7 +159,7 @@ describe("a parked entry's reading", () => {
       screen.getByRole("button", { name: "Copy the cause" }),
     );
     expect(writeText).toHaveBeenCalledWith(
-      "java.net.ConnectException: the gateway is unreachable",
+      "me.ahoo.wow.kernel.HandlerTimeoutException: timed out after 10000 ms",
     );
   });
 
