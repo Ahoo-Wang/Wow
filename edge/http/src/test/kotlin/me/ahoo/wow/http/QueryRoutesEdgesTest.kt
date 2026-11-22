@@ -57,7 +57,7 @@ class QueryRoutesEdgesTest {
         }
         val storage = InMemoryQueryStorage()
         val node = HttpNode(manifest = manifest) { log ->
-            HttpQueries(listOf(cartSnapshots(storage)), listOf(cartEvents(log)))
+            HttpQueries(listOf(cartSnapshots(storage)), listOf(cartEvents(log)), displayShared = true)
         }
         node.post("/shop/cart/projection/query", """{"kind":"list","filter":{"op":"match-all"}}""")
             .status.assert().isEqualTo(404)
@@ -69,19 +69,28 @@ class QueryRoutesEdgesTest {
     fun `the queries should hold one gateway per aggregate type`() {
         val storage = InMemoryQueryStorage()
         val log = InMemoryEventLog()
-        assertThrownBy<IllegalArgumentException> { HttpQueries(defaultListSize = -1) }
-        assertThrownBy<IllegalArgumentException> { HttpQueries(listOf(cartSnapshots(storage), cartSnapshots(storage))) }
+        assertThrownBy<IllegalArgumentException> { HttpQueries(defaultListSize = -1, displayShared = true) }
+        // No query served, nothing shared: a construction states whether it shares, and the empty one does not.
+        HttpQueries.NONE.displayShared.assert().isFalse()
         assertThrownBy<IllegalArgumentException> {
-            HttpQueries(events = listOf(cartEvents(log), cartEvents(log)))
+            HttpQueries(listOf(cartSnapshots(storage), cartSnapshots(storage)), displayShared = true)
+        }
+        assertThrownBy<IllegalArgumentException> {
+            HttpQueries(events = listOf(cartEvents(log), cartEvents(log)), displayShared = true)
         }
         val snapshots = cartSnapshots(storage)
         assertThrownBy<IllegalArgumentException> {
-            HttpQueries(policies = listOf(snapshots, cartSnapshots(storage)))
+            HttpQueries(policies = listOf(snapshots, cartSnapshots(storage)), displayShared = true)
         }
         // A policy gateway is for a type whose snapshots are not queried (review R3.3-3).
-        assertThrownBy<IllegalArgumentException> { HttpQueries(listOf(snapshots), policies = listOf(snapshots)) }
-        HttpQueries(listOf(snapshots)).visibility(cartType).assert().isSameAs(snapshots)
-        HttpQueries(policies = listOf(snapshots)).visibility(cartType).assert().isSameAs(snapshots)
+        assertThrownBy<IllegalArgumentException> {
+            HttpQueries(listOf(snapshots), policies = listOf(snapshots), displayShared = true)
+        }
+        HttpQueries(listOf(snapshots), displayShared = true).visibility(cartType).assert().isSameAs(snapshots)
+        HttpQueries(
+            policies = listOf(snapshots),
+            displayShared = true
+        ).visibility(cartType).assert().isSameAs(snapshots)
         HttpQueries.NONE.snapshots(cartType).assert().isNull()
         HttpQueries.NONE.events(cartType).assert().isNull()
         HttpQueries.NONE.visibility(cartType).assert().isNull()

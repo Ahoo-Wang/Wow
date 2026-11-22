@@ -273,7 +273,9 @@ class StatePointReadRoutesTest {
                 audits += audit
             }
         }
-        val node = HttpNode(queries = { HttpQueries(reads = ReadFacade({ null }, observer = observer)) })
+        val node = HttpNode(
+            queries = { HttpQueries(reads = ReadFacade({ null }, observer = observer), displayShared = true) }
+        )
         node.history(3)
         node.snapshot(3)
         node.get("/shop/cart/c-1/state").status.assert().isEqualTo(200)

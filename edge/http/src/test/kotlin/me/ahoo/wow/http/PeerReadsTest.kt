@@ -264,7 +264,7 @@ class PeerReadsTest {
 
     @Test
     fun `a root no end user sent should read as a service, and one an end user sent as that user (D298)`() {
-        val roots = PeerRoots(services, CallPermits(emptyMap()), ErrorStatuses(manifest))
+        val roots = PeerRoots(services, CallPermits(emptyMap()), ErrorStatuses(manifest), displayShared = true)
         fun rootOf(operator: Operator?): Caller {
             val call = CallHeaders.format(
                 CallContext.of("c", TENANT, Scope("alice"), me.ahoo.wow.api.decide.Causation("c", "c"), operator),

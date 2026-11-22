@@ -175,8 +175,8 @@ internal class PeerRoots(
     private val services: CallerResolver,
     private val permits: CallPermits,
     private val statuses: ErrorStatuses,
-    /** Whether this service reveals `DISPLAY` values to a peer that asks ([HttpQueries.displayShared]). */
-    private val displayShared: Boolean = true,
+    /** Whether this service reveals `DISPLAY` values to a peer that asks ([HttpQueries.displayShared]); no default. */
+    private val displayShared: Boolean,
 ) {
     /**
      * [read]'s response once [request] is admitted to read [model] (any service's read when null), or the problem it
