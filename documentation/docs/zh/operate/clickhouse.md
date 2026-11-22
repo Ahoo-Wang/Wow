@@ -66,6 +66,8 @@ fun analyticsCatalogClickHouseClient(environment: Environment): Client {
 
 `wow.aggregates.[<context>.<aggregate>].clickhouse.history.enabled: false` 只保留当前状态：Sink 随后直接写 `_state`，也就没有 `_state_events` 和 `_events`。`...history.ttl` 则让历史保留一段时间，而不是永久保留。
 
+这些表按写入时的样子保存每个状态和事件，其中的 [`@Sensitive`](../guide/queries#where-masking-stops) 值没有脱敏：经 Wow 的读取在返回时脱敏（数据集按其声明里标为 [`sensitive`](../guide/datasets#declare-a-dataset) 的字段），但直接查询这些表的人读到的是原始值。数据库的授权就是边界。
+
 ## 列与 DDL {#the-columns-and-the-ddl}
 
 `wow.clickhouse.ddl: auto`（默认）时，Sink 在第一次写入之前运行下面这些语句。它们是 `shop` 上下文的 `order` 聚合在 `default` 数据库中的表，历史不设 TTL。一个测试把这个文件与 Sink 实际运行的语句比对，所以本页不会与代码走样：

@@ -164,6 +164,8 @@ DIFFERS example-service.order (0)/0VY3GwaK4OmV00E v4: paidAmount: 9.x 25.00, V10
 
 The summary of each aggregate gives the share of instances that have a 9.x snapshot, how many were compared, and the differing fields by kind. The command exits with `3` when anything differs.
 
+The values are printed as both stores hold them, a [`@Sensitive`](../guide/queries#where-masking-stops) value unmasked, so the report is as sensitive as the stores it reads: keep it where only those who may read the stores read it.
+
 **The imported streams themselves.** A state is compared at its 9.x snapshot's version, so a stream after an instance's latest snapshot is not seen: with 9.x's `version_offset` snapshot strategy, before 9.x writes the snapshot, or for an instance without one. So `compare` also reads the streams 9.x committed since each full import started (less the tail's `lookbackMillis`), on the tail's commit-time index, and checks that the log holds the latest of each instance, by version and command, one log read per instance. It reads up to `final.lookbackMillis` before the tail's checkpoint: during the dual run the tail may still be reading what came after, and after `import --final` that last window is what the final pass read once 9.x had stopped. Each stream missing is printed, and the command exits with `3`:
 
 ```text
