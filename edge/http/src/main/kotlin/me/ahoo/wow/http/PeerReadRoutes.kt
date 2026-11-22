@@ -30,6 +30,7 @@ import me.ahoo.wow.http.caller.CallPermits
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.http.command.RequestHeaders
 import me.ahoo.wow.http.problem.ErrorStatuses
+import me.ahoo.wow.http.problem.FailureProblems
 import me.ahoo.wow.http.problem.Problem
 import me.ahoo.wow.http.problem.ProblemException
 import me.ahoo.wow.http.query.HttpQueries
@@ -102,7 +103,9 @@ fun peerReadRoutes(
     val headers = RequestHeaders(statuses)
     // The read side's scope rules are:query's, over the tenants commands act in.
     val targets = QueryTargets(gateway.tenants, queries.crossTenant)
-    val queryHandler = QueryHandler(queries, authenticator, headers, statuses, targets, scope)
+    // A peer's reads: the failures the framework knows, never the application's mappers.
+    val problems = FailureProblems(statuses)
+    val queryHandler = QueryHandler(queries, authenticator, headers, statuses, targets, scope, problems)
     val ownerships = QueryOwnership.of(manifest)
     val states =
         StateHandler(reads, authenticator, headers, statuses, targets, ownerships::ownershipOf, queries, masks)

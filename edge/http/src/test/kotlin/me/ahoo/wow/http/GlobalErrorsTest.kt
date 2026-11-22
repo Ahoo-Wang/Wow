@@ -16,6 +16,7 @@ package me.ahoo.wow.http
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.client.CommandRejectedException
+import me.ahoo.wow.api.problem.ProblemMapper
 import me.ahoo.wow.api.problem.Retry
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.CommandResult
@@ -143,6 +144,35 @@ class GlobalErrorsTest {
         val large = get("/app/large")
         large.status.assert().isEqualTo(413)
         large.contentType.assert().isEqualTo("application/problem+json")
+    }
+
+    @Test
+    fun `an application route's own failure should be answered as the application's mapper maps it`() {
+        val upstream = ProblemMapper { failure ->
+            (failure as? UnsupportedOperationException)?.let {
+                WowProblemException("$CONTEXT.catalog.unreachable", 502, Retry.SAME_REQUEST, null, "No catalog.")
+            }
+        }
+        val mapped = WebTestClient.bindToServer(
+            HttpHandlerConnector(
+                WebHttpHandlerBuilder.webHandler(
+                    RouterFunctions.toWebHandler(
+                        coRouter {
+                            GET("/app/catalog") { throw UnsupportedOperationException("secret upstream") }
+                            GET("/app/broken") { throw IllegalStateException("secret") }
+                        },
+                    ),
+                ).exceptionHandler(GlobalErrors(cartManifest(), mappers = listOf(upstream))).build(),
+            ),
+        ).build()
+        val catalog = mapped.get().uri("/app/catalog").answer()
+        catalog.status.assert().isEqualTo(502)
+        catalog.body!!["code"].asString().assert().isEqualTo("$CONTEXT.catalog.unreachable")
+        catalog.body["detail"].asString().assert().isEqualTo("No catalog.")
+        // A failure no mapper knows is the 500 that says nothing.
+        val broken = mapped.get().uri("/app/broken").answer()
+        broken.status.assert().isEqualTo(500)
+        broken.body.toString().assert().doesNotContain("secret")
     }
 
     @Test

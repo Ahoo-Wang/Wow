@@ -17,6 +17,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
+import me.ahoo.wow.api.problem.ProblemMapper
 import me.ahoo.wow.api.read.NodeQueryApi
 import me.ahoo.wow.api.wire.DevelopmentHeaders
 import me.ahoo.wow.http.WowHttpOptions
@@ -130,7 +131,8 @@ internal class NodePublicPort {
 
     /**
      * The error handling of the application's own routes: their failures answered as the
-     * framework routes' problem+json, unless `wow.http.global-errors.enabled` is off.
+     * framework routes' problem+json, a failure of the application's own by its [ProblemMapper]s in their order, unless
+     * `wow.http.global-errors.enabled` is off.
      */
     @Bean
     @ConditionalOnProperty(
@@ -140,7 +142,11 @@ internal class NodePublicPort {
         matchIfMissing = true,
     )
     @InternalWowApi
-    fun wowGlobalErrors(manifest: Manifest, options: WowHttpOptions): GlobalErrors = GlobalErrors(manifest, options)
+    fun wowGlobalErrors(
+        manifest: Manifest,
+        options: WowHttpOptions,
+        mappers: ObjectProvider<ProblemMapper>,
+    ): GlobalErrors = GlobalErrors(manifest, options, mappers.orderedStream().toList())
 
     /**
      * The response masks of the state reads and the `events` model: the Manifest's sensitive fields, with
@@ -156,7 +162,7 @@ internal class NodePublicPort {
      * The public routes, served by the application's WebFlux server; the query routes when [QueryAutoConfiguration]
      * gives them; the service routes the modules' model providers bind, each handler's instance its
      * bean, every call asked of the application's [ServiceRouteAuthorizer]s, and the handlers' commands sent through
-     * the node's [CommandClient].
+     * the node's [CommandClient]; a failure of the application's own answered by its [ProblemMapper]s in their order.
      */
     @Bean
     @InternalWowApi
@@ -174,6 +180,7 @@ internal class NodePublicPort {
         routeAuthorizers: ObjectProvider<ServiceRouteAuthorizer>,
         commands: ObjectProvider<CommandClient>,
         queryApi: ObjectProvider<NodeQueryApi>,
+        mappers: ObjectProvider<ProblemMapper>,
     ): RouterFunction<ServerResponse> {
         if (!node.gateway.authorizes && manifest.hasBuiltInSystemCommands()) {
             logger.info {
@@ -197,6 +204,7 @@ internal class NodePublicPort {
                 commands = commands.getIfAvailable(),
                 queries = queryApi.getIfAvailable(),
             ),
+            mappers.orderedStream().toList(),
         )
     }
 

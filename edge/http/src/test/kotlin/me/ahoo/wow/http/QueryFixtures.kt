@@ -15,6 +15,7 @@ package me.ahoo.wow.http
 
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.problem.ProblemMapper
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.http.query.QueryStreams
 import me.ahoo.wow.manifest.EventManifest
@@ -153,6 +154,8 @@ class QueryNode(
     val streams: QueryStreams = QueryStreams(),
     /** Whether queries may cross tenants (`wow.query.allow-cross-tenant`). */
     crossTenant: Boolean = false,
+    /** The application's problem mappers, in order (#6510). */
+    mappers: List<ProblemMapper> = emptyList(),
 ) {
     private val cart =
         cartSnapshots(storage, entryPolicy, policies = policies, manifest = manifest, crossTenant = crossTenant)
@@ -170,7 +173,7 @@ class QueryNode(
     } else {
         null
     }
-    val http: HttpNode = HttpNode(manifest = manifest, tenants = tenants) { log ->
+    val http: HttpNode = HttpNode(manifest = manifest, tenants = tenants, mappers = mappers) { log ->
         HttpQueries(
             snapshots = listOfNotNull(gateway),
             events = listOf(

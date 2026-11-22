@@ -42,6 +42,9 @@ class ErrorStatuses(manifest: Manifest, private val overrides: Map<String, Int> 
     private val byContext: Map<String, Map<String, ErrorManifest>> =
         manifest.contexts.associate { context -> context.name to context.errors.associateBy { it.code } }
 
+    /** The status the host configures for [code] (`wow.http.errors.[<code>].status`), or null when it configures none. */
+    fun configured(code: String): Int? = overrides[code]
+
     /** The status of [code] for a command of [context]; [ifMatch] when the request carried `If-Match`. */
     fun status(code: String, context: String? = null, ifMatch: Boolean = false): Int {
         overrides[code]?.let { return it }

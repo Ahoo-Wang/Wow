@@ -29,6 +29,7 @@ import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.Lifecycle
+import me.ahoo.wow.api.problem.ProblemMapper
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.schedule.ScheduleJobs
@@ -279,6 +280,8 @@ class HttpNode(
      * held, the waits and their executions run on one thread of their own ([passDeadlinesAfter]).
      */
     private val deadlines: HeldDeadlines? = null,
+    /** The application's problem mappers, in order (#6510). */
+    mappers: List<ProblemMapper> = emptyList(),
     queries: (EventLog) -> HttpQueries = { HttpQueries.NONE },
 ) {
     val log = InMemoryEventLog(partitions = 2)
@@ -397,6 +400,7 @@ class HttpNode(
         options,
         httpQueries,
         routes = serviceRoutes,
+        mappers = mappers,
     )
     val client: WebTestClient = WebTestClient
         .bindToRouterFunction(routes)

@@ -13,11 +13,10 @@
 
 package me.ahoo.wow.http.problem
 
-import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.client.CommandRejectedException
+import me.ahoo.wow.api.problem.ProblemMapper
 import me.ahoo.wow.api.problem.WowProblemException
-import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.http.HttpJson
 import me.ahoo.wow.http.WowHttpOptions
 import me.ahoo.wow.manifest.Manifest
@@ -35,23 +34,28 @@ import reactor.core.publisher.Mono
  * The error handling of the application's own routes (review M; 9.x
  * `DefaultGlobalExceptionHandler`): a failure that escapes a route the application serves beside Wow's is answered as
  * an RFC 9457 problem of the same shape and codes as the framework routes' ([Problem]), never Spring's default error
- * body:
+ * body, by the step Wow's routes take ([FailureProblems]):
  *
  * - a [CommandRejectedException] (a command an application route sent through a `CommandClient`) as its result, the
  *   status of its code in the Manifest's tables ([ErrorStatuses]) and its result as `result`;
  * - a [WowProblemException] as its code, status, result, retry and `Retry-After`;
  * - a [StorageUnavailableException] as 503 `wow.storage.unavailable` with `Retry-After`, a body larger than the
- *   codecs take as 413, as on the framework routes ([Problem.ofFailure]);
+ *   codecs take as 413, as on the framework routes;
  * - a [ResponseStatusException] (no route, a method or media type not served, a body that cannot be read) as the
  *   problem of its status alone (`about:blank`), its reason as the detail for a 4xx;
- * - anything else as a 500 that says nothing of its cause, which is logged.
+ * - anything else as the first of the application's [mappers] answers it ([ProblemMapper]), else as a 500 that says
+ *   nothing of its cause, which is logged.
  *
  * It runs before Spring Boot's error handler ([order]); a response already committed is left as it is. Wow's own routes
  * answer their problems themselves, so it sees what escapes the application's routes only.
  */
 @InternalWowApi
-class GlobalErrors(manifest: Manifest, options: WowHttpOptions = WowHttpOptions()) : WebExceptionHandler, Ordered {
-    private val statuses = ErrorStatuses(manifest, options.errorStatuses)
+class GlobalErrors(
+    manifest: Manifest,
+    options: WowHttpOptions = WowHttpOptions(),
+    mappers: List<ProblemMapper> = emptyList(),
+) : WebExceptionHandler, Ordered {
+    private val problems = FailureProblems.of(manifest, ErrorStatuses(manifest, options.errorStatuses), mappers)
 
     override fun getOrder(): Int = ORDER
 
@@ -70,28 +74,11 @@ class GlobalErrors(manifest: Manifest, options: WowHttpOptions = WowHttpOptions(
     }
 
     /** The problem [failure] is answered with. */
-    internal fun problemOf(failure: Throwable): Problem = when (failure) {
-        is CommandRejectedException -> statuses.problemOf(failure.result)
-        is WowProblemException -> statuses.problemOf(failure)
-        is ResponseStatusException -> {
-            val status = HttpStatus.resolve(failure.statusCode.value()) ?: HttpStatus.INTERNAL_SERVER_ERROR
-            Problem.ofStatus(status, failure.reason.takeIf { status.is4xxClientError })
-        }
-        else -> {
-            val problem = Problem.ofFailure(failure)
-            if (problem.status == HttpStatus.INTERNAL_SERVER_ERROR.value()) {
-                logger.error(failure) { "An application route failed with an unexpected error." }
-            } else if (problem.code == FrameworkCodes.STORAGE_UNAVAILABLE) {
-                logger.warn(failure) { "An application route failed: a store is unavailable." }
-            }
-            problem
-        }
-    }
+    internal fun problemOf(failure: Throwable): Problem = problems.problemOf(failure)
 
     @InternalWowApi
     companion object {
         /** Before Spring Boot's `DefaultErrorWebExceptionHandler` (-1) and WebFlux's status handler (0). */
         const val ORDER: Int = -2
-        private val logger = KotlinLogging.logger {}
     }
 }

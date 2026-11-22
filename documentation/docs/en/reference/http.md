@@ -135,3 +135,26 @@ Every error is `application/problem+json`:
 | Any other member | A rejection's structured extensions, by name; one named like a member above, or `instance`, is left out |
 
 A domain code's status is its `@ErrorCode(status)`, 422 by default, overridable per code with `wow.http.errors.[<code>].status`. [Error Codes](./error-codes) lists the framework's codes. The application's own routes answer their failures as problems too (`wow.http.global-errors.enabled`, on by default).
+
+### The application's own failures {#mapped-failures}
+
+A failure the framework does not know, such as a failed call to another system, is answered as a 500 that says nothing of its cause, which is logged. The application answers its own failures with its own codes through `ProblemMapper` beans (`me.ahoo.wow.api.problem`): given the failure, a mapper returns the `WowProblemException` to answer with, or null when the failure is not its own. A shared library contributes one the same way, through its own auto-configuration.
+
+```kotlin
+@Bean
+@Order(0)
+fun catalogProblems(): ProblemMapper = ProblemMapper { failure ->
+    (failure as? WebClientResponseException)?.let {
+        WowProblemException("shop.catalog.unreachable", 502, Retry.SAME_REQUEST, null, "The catalog did not answer.")
+    }
+}
+```
+
+- **Where.** On the application's own routes (`wow.http.global-errors.enabled`), a service route's handler, the state reads, the command routes and the queries, a streamed list's `error` event included. Not on the internal port or the operator's routes, and never for a command's failure: a decide function that throws is the command's result, `wow.command.failed` ([Rejections and Error Codes](../guide/rejections)). Nor for a saga's synchronous call or the command client, which receive the other service's answer as that service mapped it.
+- **What a mapper sees.** Only what would otherwise be answered as a 500 that says nothing (a query's `wow.query.failed`): never a `WowProblemException`, a command's rejection, an authentication or admission refusal, a store that is unavailable, or a body larger than the codecs take, nor one of these as the cause of another failure. The application's own exception that wraps one may still be mapped.
+- **Order.** The mappers are asked in their bean order (`@Order`), for the failure and then each of its causes; the first that gives a problem answers. A mapper that throws is passed over, and its failure logged.
+- **Checks.** A mapped problem whose code the framework reserves (`wow.*`), whose status is not 4xx or 5xx or is 401 (authentication's alone), or which carries a command's result is not taken: the failure is answered as a 500 that says nothing, and the mapper and code are logged once. `wow.http.errors.[<code>].status` still decides a mapped code's status.
+- **Catalog.** Declare a mapped code in a context with `@ErrorCode`, or in a service route's `errors`, so that clients and the Manifest know it. A code that none lists is answered all the same, and warned of once.
+- **Logs.** A mapped 5xx is logged as a warning with its failure, a mapped 4xx at debug.
+
+The problem's message is its `detail`, which the caller reads: say nothing in it that the caller should not see.
