@@ -30,6 +30,7 @@ import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.PublishedManifest
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.copyWith
+import me.ahoo.wow.query.mask.PayloadMasks
 import me.ahoo.wow.runtime.manifest.ManifestLoader
 import me.ahoo.wow.runtime.node.ContextNode
 import me.ahoo.wow.runtime.node.SourceTopics
@@ -38,6 +39,7 @@ import me.ahoo.wow.runtime.sink.PublishedSinks
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
 import me.ahoo.wow.spi.Ddl
+import me.ahoo.wow.spi.read.StateMasks
 import me.ahoo.wow.spi.transport.EnvelopeCodec
 import me.ahoo.wow.spi.transport.TopicAdmin
 import me.ahoo.wow.spi.transport.TopicMessage
@@ -95,7 +97,9 @@ class HostKafkaSinkTest {
         topic.assert().isEqualTo("test.wow.bank.account.state")
         val record = EnvelopeCodec.stateEventOf(message.value)
         record.ref.type.assert().isEqualTo(AggregateType(BANK, "account"))
-        record.state.assert().isNotNull()
+        // The owner is CONFIDENTIAL in the account's state and in the event (KafkaBeans): masked on the topic.
+        record.state!!.state["owner"].asString().assert().isEqualTo("***")
+        record.events.single().payload["owner"].asString().assert().isEqualTo("***")
         message.key.assert().isEqualTo(record.ref.toString())
         // The application's own subscription runs beside the sink.
         beans.handled.first().assert().isEqualTo(record.ref.toString())
@@ -126,6 +130,7 @@ class HostKafkaSinkTest {
                 "wow.kafka.offset-gap=earliest",
             )
             .withBean(Manifest::class.java, { Manifest(service = ServiceInfo("bank-service")) })
+            .withBean(StateMasks::class.java, { PayloadMasks.NONE })
             .withBean(MeterRegistry::class.java, { SimpleMeterRegistry() })
             .run { context ->
                 context.getBean(TopicProducer::class.java).assert().isInstanceOf(KafkaTopicProducer::class.java)
@@ -167,6 +172,7 @@ class HostKafkaSinkTest {
             .withConfiguration(AutoConfigurations.of(TransportAutoConfiguration::class.java))
             .withPropertyValues("wow.kafka.bootstrap-servers=127.0.0.1:1", "wow.kafka.command-intake.enabled=true")
             .withBean(Manifest::class.java, { Manifest(service = ServiceInfo("bank-service")) })
+            .withBean(StateMasks::class.java, { PayloadMasks.NONE })
             .run { context ->
                 context.getBean(SourceTopics::class.java).intake.assert().isTrue()
                 // The topics follow wow.ddl, auto by default.
@@ -176,6 +182,7 @@ class HostKafkaSinkTest {
             .withConfiguration(AutoConfigurations.of(TransportAutoConfiguration::class.java))
             .withPropertyValues("wow.kafka.bootstrap-servers=127.0.0.1:1", "wow.kafka.ddl=none")
             .withBean(Manifest::class.java, { Manifest(service = ServiceInfo("bank-service")) })
+            .withBean(StateMasks::class.java, { PayloadMasks.NONE })
             .withBean(WowProperties::class.java, { WowProperties().apply { ddl = Ddl.VALIDATE } })
             .run { context ->
                 context.getBean(SourceTopics::class.java).intake.assert().isFalse()
@@ -186,11 +193,15 @@ class HostKafkaSinkTest {
             .withConfiguration(AutoConfigurations.of(TransportAutoConfiguration::class.java))
             .withPropertyValues("wow.kafka.bootstrap-servers=127.0.0.1:1")
             .withBean(Manifest::class.java, { Manifest(service = ServiceInfo("bank-service")) })
+            .withBean(StateMasks::class.java, { PayloadMasks.NONE })
             .withBean(WowProperties::class.java, { WowProperties().apply { ddl = Ddl.VALIDATE } })
             .run { context -> context.getBean(SourceTopics::class.java).ddl.assert().isEqualTo(Ddl.VALIDATE) }
     }
 
-    /** A recording producer, the Manifest publishing every aggregate, and a subscription of the application's own. */
+    /**
+     * A recording producer, the Manifest publishing every aggregate, the account's owner `CONFIDENTIAL` in its state
+     * and its event, and a subscription of the application's own.
+     */
     @Configuration(proxyBeanMethods = false)
     class KafkaBeans {
         val sent = CopyOnWriteArrayList<Pair<String, TopicMessage>>()
@@ -214,8 +225,21 @@ class HostKafkaSinkTest {
                             },
                         )
                     },
+                    defs = manifest.defs + confidentialOwner(manifest.defs),
                 )
             }
+
+        private fun confidentialOwner(defs: Map<String, Any?>): Map<String, Any?> {
+            val owner = mapOf("type" to "string", "x-wow-sensitive" to mapOf("level" to "confidential"))
+
+            @Suppress("UNCHECKED_CAST")
+            val account = defs.getValue("Account") as Map<String, Any?>
+            val properties = account.getValue("properties") as Map<String, Any?>
+            return mapOf(
+                "Account" to account + ("properties" to properties + ("owner" to owner)),
+                "AccountOpened" to mapOf("type" to "object", "properties" to mapOf("owner" to owner)),
+            )
+        }
 
         @Bean
         fun applicationSubscriptions(): SubscriptionFactory = object : SubscriptionFactory {

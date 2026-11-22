@@ -52,6 +52,9 @@ import me.ahoo.wow.spi.state.StateEventRecord
  *   must be [name], so the sink is one of the context's state consumers: the view the executor took when the stream
  *   committed, else the nearest view or snapshot evolved with the log's tail, else the log replayed. It is mapped to
  *   the published form, a JSON tree with its schema's fingerprint ([PublishedState]).
+ * - **Masks**: with [masks], the state and each event's body are masked as the masks give them before the sink writes
+ *   them, parsed for it; a state or a body whose schema masks nothing is written as the codec's text, unparsed. Without
+ *   them, every value is written as it was committed.
  * - **Transport**: the entry's wait context and trace go with the record, the trace of the sink's
  *   handling instead when it is observed; its reservations stay in the context.
  * - **Imported history**: an entry migrate-data imported from 9.x, at or before the context's cut-over, is written
@@ -73,6 +76,7 @@ internal class SinkSubscription(
     private val sink: Sink,
     private val reader: SharedStateReader,
     private val includeState: Boolean = true,
+    private val masks: RecordMasks? = null,
     startFrom: StartFrom = StartFrom.BEGINNING,
 ) {
     private val model: AggregateModel<*> = reader.modelOf(type)
@@ -176,12 +180,7 @@ internal class SinkSubscription(
             commandType = stream.commandType,
             commitTime = stream.commitTime,
             events = events.map { payloadOf(it, entry.imported) },
-            // The view's text is the codec's own: written as it is, parsed only by a sink that reads the tree.
-            state = if (includeState) {
-                PublishedState.ofText(view.version, codec.stateSchemaFingerprint(model), view.state)
-            } else {
-                null
-            },
+            state = if (includeState) stateOf(view.version, view.state) else null,
             scope = stream.scope,
             deleted = view.deleted,
             access = access,
@@ -192,6 +191,16 @@ internal class SinkSubscription(
             imported = entry.imported,
             accessVersion = accessVersion,
         )
+    }
+
+    /**
+     * The published state of [text] at [version]: the view's text is the codec's own, written as it is and parsed only
+     * by a sink that reads the tree, unless the type's states are masked, which parses it to mask it.
+     */
+    private fun stateOf(version: Int, text: String): PublishedState {
+        val fingerprint = codec.stateSchemaFingerprint(model)
+        val mask = masks?.state ?: return PublishedState.ofText(version, fingerprint, text)
+        return PublishedState.of(version, fingerprint, mask(WowJson.mapper.readTree(text)))
     }
 
     /**
@@ -210,9 +219,9 @@ internal class SinkSubscription(
     /**
      * [record] at its event type's current name and revision: as stored when it is, upgraded through the model else.
      * Its text is the codec's own, the stored payload as Wow's mapper wrote it, so it is published as it is and parsed
-     * only by a sink that reads the tree. An [imported] commit's payload is the one text this node's codec did not
-     * write (migrate-data's, from 9.x): it is parsed here, so a text that is not JSON fails its entry and is never
-     * written into an envelope.
+     * only by a sink that reads the tree, unless the event's bodies are masked, which parses it to mask it. An
+     * [imported] commit's payload is the one text this node's codec did not write (migrate-data's, from 9.x): it is
+     * parsed here, so a text that is not JSON fails its entry and is never written into an envelope.
      */
     private fun payloadOf(record: EventRecord, imported: Boolean): StateEventPayload {
         val current = model.eventType(record.name)
@@ -221,11 +230,12 @@ internal class SinkSubscription(
         } else {
             codec.encode(model, codec.decode(model, record)).payload
         }
-        return if (imported) {
-            StateEventPayload(current.name, current.revision, WowJson.mapper.readTree(text))
-        } else {
-            StateEventPayload.ofText(current.name, current.revision, text)
+        val mask = masks?.event(current.name)
+        if (!imported && mask == null) {
+            return StateEventPayload.ofText(current.name, current.revision, text)
         }
+        val payload = WowJson.mapper.readTree(text)
+        return StateEventPayload(current.name, current.revision, mask?.invoke(payload) ?: payload)
     }
 
     /**

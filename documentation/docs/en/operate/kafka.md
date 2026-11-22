@@ -53,7 +53,7 @@ Each context owns its topics; the topics of other contexts are theirs.
 
 An aggregate is published by default; it can stay unpublished, publish without its state, or name another topic. `wow.kafka.topics.prefix` puts a prefix before every topic name, such as `staging.`, on both the writing and the reading side. Every record is an envelope keyed by the aggregate, so one aggregate's records stay in order ([Wire protocols](../reference/protocols#kafka-envelope)).
 
-A state topic holds each state and event as written, with its [`@Sensitive`](../guide/queries#where-masking-stops) values unmasked, for as long as the topic retains it. Wow does not mask what it publishes (planned, [#6586](https://github.com/Ahoo-Wang/Wow/issues/6586)), so the topic's ACL is what decides who reads them: grant read on a context's state topics to the services that subscribe to it and to the external consumers meant to read it.
+A state topic holds each state and event with its [`@Sensitive`](../guide/queries#where-masking-stops) `CONFIDENTIAL` values masked: the transport sink masks them as it writes. Its `DISPLAY` values are written as committed, until they are masked too unless the owner declares that the stream reveals them ([#6586](https://github.com/Ahoo-Wang/Wow/issues/6586)). Records written before the upgrade keep every value as committed. The topic keeps both for as long as it retains them, so the topic's ACL is what decides who reads them: grant read on a context's state topics to the services that subscribe to it and to the external consumers meant to read it.
 
 ### Partitions
 

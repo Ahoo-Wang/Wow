@@ -132,7 +132,7 @@ A few more annotations of `me.ahoo.wow.api.query.annotation` tell the query mode
 | `@QueryText` | Prose a reader searches by words, such as a name or a description: a `search` may name it, and one that names no field reads it ([on Elasticsearch](../operate/elasticsearch#full-text-search)) |
 | `@Sensitive` | A string masked in every result: `DISPLAY` may still be filtered and sorted, `CONFIDENTIAL` never is |
 
-A masked field is masked for every caller, in queries, state reads, event queries and traces alike, in the warehouse's catalog, and in the [state view cache](./extensions/cocache). It is masked where Wow returns it as a read, not where Wow stores or publishes it: [Where masking stops](#where-masking-stops). The one exception is the service's own read of a `DISPLAY` value, which it asks for in so many words ([below](#read-a-display-value-raw)).
+A masked field is masked for every caller, in queries, state reads, event queries and traces alike, in the warehouse's catalog, and in the [state view cache](./extensions/cocache). It is masked where Wow returns it as a read, and a `CONFIDENTIAL` one where Wow publishes it to other contexts, not where Wow stores it: [Where masking stops](#where-masking-stops). The one exception is the service's own read of a `DISPLAY` value, which it asks for in so many words ([below](#read-a-display-value-raw)).
 
 ### Read a `DISPLAY` value raw {#read-a-display-value-raw}
 
@@ -169,17 +169,18 @@ So a secret the service must read back, such as the API key it presents to a thi
 
 ### Where masking stops {#where-masking-stops}
 
-`@Sensitive` decides what a read returns: a query, a state read, an event query, a trace, an entry of the state view cache. It does not change what Wow stores or publishes, and it is not encryption at rest. These hold each `@Sensitive` value as it was written, `CONFIDENTIAL` ones included:
+`@Sensitive` decides what a read returns: a query, a state read, an event query, a trace, an entry of the state view cache. It also decides what a published stream carries, for its `CONFIDENTIAL` values. It does not change what Wow stores, and it is not encryption at rest. These hold each `@Sensitive` value as it was written, `CONFIDENTIAL` ones included:
 
 | Where | What it holds | The boundary |
 | --- | --- | --- |
 | The log and the snapshots | Each event and each state as written | The store's grants |
-| A [published stream](./published-streams#sensitive-values), `wow.<context>.<aggregate>.state` | Each commit's events and the state after it, as written: another context's handler, another service and any consumer of the topic receive the raw values | The topic's ACL ([Kafka](../operate/kafka#topics)) |
 | The [ClickHouse sink's tables](../operate/clickhouse#the-tables) | The states and events as written; a query of them masks what it returns | The database's grants |
 | The [Elasticsearch event sink's index](../operate/elasticsearch#event-search) | The events as written; the `events` queries mask what they return | The index's privileges |
 | The report of [`migrate-data compare`](../migrate/data#_5-compare) | The values of the fields that differ, 9.x's and V10's | Who reads the report |
 
-Whoever reads one of these directly, with SQL, a Kafka consumer or a store's client, reads the raw values. Masking a published stream is planned ([#6586](https://github.com/Ahoo-Wang/Wow/issues/6586)); until it lands, the stream carries the values as written.
+Whoever reads one of these directly, with SQL or a store's client, reads the raw values.
+
+A [published stream](./published-streams#sensitive-values), `wow.<context>.<aggregate>.state`, is masked as it is written: each `CONFIDENTIAL` value of the state and of every event's body is replaced by its mask, as a read masks it, so the topic does not hold it. Its `DISPLAY` values are still published as written. They will be masked too, unless the owner declares that the stream reveals them ([#6586](https://github.com/Ahoo-Wang/Wow/issues/6586)). Until then, the topic's ACL ([Kafka](../operate/kafka#topics)) is what decides who reads them. Records published before the upgrade keep every value as written until the topic's retention removes them.
 
 ### Annotations a property inherits
 

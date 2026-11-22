@@ -18,8 +18,10 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ServiceInfo
+import me.ahoo.wow.query.mask.PayloadMasks
 import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.runtime.sink.PublishedSinks
+import me.ahoo.wow.spi.read.StateMasks
 import me.ahoo.wow.spring.boot.BANK
 import me.ahoo.wow.spring.boot.startHost
 import org.junit.jupiter.api.Test
@@ -34,6 +36,7 @@ class HostInMemoryTopicsTest {
     private val runner = ApplicationContextRunner()
         .withConfiguration(AutoConfigurations.of(InMemoryTopicsAutoConfiguration::class.java))
         .withBean(Manifest::class.java, { Manifest(service = ServiceInfo("bank-service")) })
+        .withBean(StateMasks::class.java, { PayloadMasks.NONE })
         .withPropertyValues("wow.internal.host=127.0.0.1")
 
     @Test
@@ -55,6 +58,22 @@ class HostInMemoryTopicsTest {
                 .isNotNull()
             runBlocking { topics.partitions("wow.bank.commands") }.assert().hasSize(4)
         }
+    }
+
+    @Test
+    fun `the sinks should publish through the node's state masks, and a node without them should not start`() {
+        runner.run { context ->
+            context.getBean(InMemoryTopicsAutoConfiguration.IN_MEMORY_SINKS, PublishedSinks::class.java).assert()
+                .isNotNull()
+        }
+        ApplicationContextRunner()
+            .withConfiguration(AutoConfigurations.of(InMemoryTopicsAutoConfiguration::class.java))
+            .withBean(Manifest::class.java, { Manifest(service = ServiceInfo("bank-service")) })
+            .withPropertyValues("wow.internal.host=127.0.0.1")
+            .run { context ->
+                generateSequence(context.startupFailure) { it.cause }.joinToString { it.message.orEmpty() }.assert()
+                    .contains(StateMasks::class.java.name)
+            }
     }
 
     @Test

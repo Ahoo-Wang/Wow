@@ -160,8 +160,8 @@ class WowCoCacheAutoConfiguration {
         /**
          * The sinks of the aggregate types [publish] lists, each writing for [ttl]: each must be one of [manifest]'s,
          * the service's own, and have a view among [views], its api's contract on the class path; the sinks write
-         * through [caches], each state masked by [masks]: by the mask [StateMasks.maskOf] gives its type, none for a
-         * type whose schema masks nothing.
+         * through [caches], each state masked by [masks]: by the mask [StateMasks.stateMaskOf] gives its type, none
+         * for a type whose schema masks nothing.
          */
         internal fun sinksOf(
             publish: List<String>,
@@ -199,7 +199,8 @@ class WowCoCacheAutoConfiguration {
             val streams = types.groupBy { it.context }.mapValues { (context, ofContext) ->
                 ofContext.map { PublishedManifest(it.name, PublishedManifest.defaultTopic(context, it.name), true) }
             }
-            return PublishedSinks(streams, PROCESSOR) { context, stream ->
+            // Each sink masks the states it writes itself, as a read of the owner returns them.
+            return PublishedSinks(streams, PROCESSOR, masks = null) { context, stream ->
                 sinks.getValue(AggregateType(context, stream.aggregate))
             }
         }
@@ -245,7 +246,8 @@ class WowCoCacheAutoConfiguration {
             ttl: Duration?,
             caches: StateViewCaches,
             masks: StateMasks,
-        ): Sink = StateViewSink(viewType, caches.writerOf(viewType, ttl), masks.maskOf(type))
+        ): Sink =
+            StateViewSink(viewType, caches.writerOf(viewType, ttl), masks.stateMaskOf(type, revealsDisplay = false))
 
         private fun classLoaderOf(beans: ConfigurableListableBeanFactory): ClassLoader =
             beans.beanClassLoader ?: WowCoCacheAutoConfiguration::class.java.classLoader
