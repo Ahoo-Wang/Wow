@@ -8,6 +8,7 @@ public final class me/ahoo/wow/query/QueryCaller {
 	public final fun getCrossTenant ()Lme/ahoo/wow/api/query/CrossTenant;
 	public final fun getEntry ()Lme/ahoo/wow/query/QueryEntry;
 	public final fun getPrincipal ()Lme/ahoo/wow/api/aggregate/Scope;
+	public final fun getRevealsDisplay ()Z
 	public final fun getScope ()Lme/ahoo/wow/query/QueryScope;
 	public final fun getSelection ()Lme/ahoo/wow/api/query/FilterExpression;
 	public final fun getSubject ()Ljava/lang/String;
@@ -52,6 +53,7 @@ public abstract interface class me/ahoo/wow/query/QueryGateway {
 	public abstract fun list (Lme/ahoo/wow/api/query/ListQuery;Lme/ahoo/wow/query/QueryCaller;)Lkotlinx/coroutines/flow/Flow;
 	public fun maskRecord (Ltools/jackson/databind/node/ObjectNode;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun paged (Lme/ahoo/wow/api/query/PagedQuery;Lme/ahoo/wow/query/QueryCaller;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun recordSchema (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun resumes (Lme/ahoo/wow/api/query/ListQuery;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun single (Lme/ahoo/wow/api/query/SingleQuery;Lme/ahoo/wow/query/QueryCaller;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun stream (Lme/ahoo/wow/api/query/ListQuery;Lme/ahoo/wow/query/QueryCaller;Ljava/lang/String;I)Lkotlinx/coroutines/flow/Flow;
@@ -377,6 +379,7 @@ public final class me/ahoo/wow/query/dataset/DefaultDatasetQueryGateway : me/aho
 	public fun list (Lme/ahoo/wow/api/query/ListQuery;Lme/ahoo/wow/query/QueryCaller;)Lkotlinx/coroutines/flow/Flow;
 	public fun maskRecord (Ltools/jackson/databind/node/ObjectNode;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun paged (Lme/ahoo/wow/api/query/PagedQuery;Lme/ahoo/wow/query/QueryCaller;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun recordSchema (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun resumes (Lme/ahoo/wow/api/query/ListQuery;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun single (Lme/ahoo/wow/api/query/SingleQuery;Lme/ahoo/wow/query/QueryCaller;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun stream (Lme/ahoo/wow/api/query/ListQuery;Lme/ahoo/wow/query/QueryCaller;Ljava/lang/String;I)Lkotlinx/coroutines/flow/Flow;
@@ -778,6 +781,7 @@ public final class me/ahoo/wow/query/observe/QueryAudit {
 	public final fun getOutcome ()Lme/ahoo/wow/query/observe/QueryAudit$Outcome;
 	public final fun getPolicies ()Ljava/util/List;
 	public final fun getQueryType ()Lme/ahoo/wow/query/filter/QueryType;
+	public final fun getRevealedFields ()Ljava/util/List;
 	public final fun getRows ()J
 	public final fun getScopeFields ()Ljava/util/List;
 	public fun toString ()Ljava/lang/String;

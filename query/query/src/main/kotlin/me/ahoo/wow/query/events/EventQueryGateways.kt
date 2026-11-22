@@ -51,7 +51,8 @@ import tools.jackson.databind.node.ObjectNode
  * - **Reading.** The backend returns streams as stored ([EventStreamRecords.stored]); each record is read as
  *   [EventStreamRecords.reader] says: every event as the aggregate's model reads it now ([reading]), an
  *   event the aggregate retired left out, and each body masked by its event's schema ([masks]),
- * for every caller alike.
+ * for every caller alike, but for the `DISPLAY` values of a query that reveals them
+ * ([me.ahoo.wow.query.QueryCaller.revealsDisplay]).
  * - **Visibility.** The scope and the access policies filter the streams on what each records, the aggregate's
  *   current owner, space and access attributes: an events query need not name its aggregates, unless the store refuses
  *   one that does not ([UnpinnedEvents.REFUSE]), and its descriptor then lists
@@ -149,15 +150,15 @@ object EventStreamRecords {
 
     /**
      * Reads a stored record of [type] as the model shows it: each event as [reading] gives it (its current name and
-     * revision, its body upgraded; null leaves it out), its body masked by [masks]. A record without `events` (a
-     * projection dropped them) is returned as it is.
+     * revision, its body upgraded; null leaves it out), its body masked by [masks], its `DISPLAY` values raw for a
+     * query that reveals them. A record without `events` (a projection dropped them) is returned as it is.
      */
     @JvmStatic
     fun reader(
         type: AggregateType,
         masks: PayloadMasks = PayloadMasks.NONE,
         reading: (EventRecord) -> EventRecord? = { it },
-    ): QueryRecordReader = QueryRecordReader { record ->
+    ): QueryRecordReader = QueryRecordReader { record, revealsDisplay ->
         val stored = record.get(EventStreamFields.EVENTS)
         if (stored != null && stored.isArray) {
             val events = record.putArray(EventStreamFields.EVENTS)
@@ -172,7 +173,10 @@ object EventStreamRecords {
                 events.addObject()
                     .put(EventFields.NAME, read.name)
                     .put(EventFields.REVISION, read.revision)
-                    .set(EventFields.BODY, masks.event(type, read.name, WowJson.mapper.readTree(read.payload)))
+                    .set(
+                        EventFields.BODY,
+                        masks.event(type, read.name, WowJson.mapper.readTree(read.payload), revealsDisplay),
+                    )
             }
         }
         record

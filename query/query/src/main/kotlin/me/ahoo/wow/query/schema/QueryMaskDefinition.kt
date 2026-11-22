@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.schema
 
 import me.ahoo.wow.api.query.QueryValueKind
+import me.ahoo.wow.api.query.annotation.SensitivityLevel
 
 /** Generation-owned data. Runtime masking neither resolves schema paths nor builds plans. */
 internal class QueryMaskDefinition private constructor(
@@ -80,9 +81,17 @@ internal class QueryMaskDefinition private constructor(
     }
 
     companion object {
-        fun create(schema: QueryModelSchema): QueryMaskDefinition? {
+        /**
+         * How [schema]'s responses are masked, or `null` when they mask nothing. With [revealsDisplay], the masks of a
+         * query that reveals `DISPLAY` values: their paths are left out, so only `CONFIDENTIAL` values are masked (each
+         * path has one rule, its value's level, so leaving one out reveals that value and nothing else).
+         */
+        fun create(schema: QueryModelSchema, revealsDisplay: Boolean = false): QueryMaskDefinition? {
             if (!schema.hasMaskedFields) return null
-            val paths = schema.protectedSources.responseMasks
+            val paths = schema.protectedSources.responseMasks.let { masks ->
+                if (revealsDisplay) masks.filterNot { it.second.masked.maskRule?.level == SensitivityLevel.DISPLAY } else masks
+            }
+            if (paths.isEmpty()) return null
             val profile = schema.profile
                 ?: throw QuerySchemaConflictException("Unsupported masked model: [${schema.model}].")
             if (!profile.masksResponses) return null

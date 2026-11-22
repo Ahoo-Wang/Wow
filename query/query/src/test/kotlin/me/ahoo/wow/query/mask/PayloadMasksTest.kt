@@ -102,6 +102,24 @@ class PayloadMasksTest {
     }
 
     @Test
+    fun `a read that reveals DISPLAY values should get them raw, CONFIDENTIAL ones masked, state and event alike`() {
+        val state = masks.state(
+            ManifestFixtures.ORDER,
+            tree("""{"password":"secret","phone":"13812345678","email":"a@b.c","address":{"street":"main"}}"""),
+            revealsDisplay = true,
+        )
+        state.toString().assert()
+            .isEqualTo("""{"password":"******","phone":"13812345678","email":"a@b.c","address":{"street":"****"}}""")
+        masks.event(ManifestFixtures.ORDER, "OrderPlaced", tree("""{"phone":"13812345678","sku":"s"}"""), true)
+            .toString().assert().isEqualTo("""{"phone":"13812345678","sku":"s"}""")
+        // The masks a read that does not ask is given are compiled apart, and stay whole.
+        masks.state(ManifestFixtures.ORDER, tree("""{"phone":"13812345678"}"""))["phone"].asString().assert()
+            .isEqualTo("138****5678")
+        masks.event(ManifestFixtures.ORDER, "OrderPlaced", tree("""{"phone":"13812345678"}"""))["phone"]
+            .asString().assert().isEqualTo("138****5678")
+    }
+
+    @Test
     fun `a payload without a sensitive schema is returned as it is`() {
         val body = tree("""{"phone":"13812345678"}""")
         masks.event(ManifestFixtures.ORDER, "OrderNoted", body).assert().isSameAs(body)

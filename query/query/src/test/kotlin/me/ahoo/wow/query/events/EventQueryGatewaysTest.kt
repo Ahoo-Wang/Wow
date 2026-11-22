@@ -38,11 +38,17 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.query.TotalMode
+import me.ahoo.wow.manifest.AggregateManifest
+import me.ahoo.wow.manifest.ContextManifest
+import me.ahoo.wow.manifest.EventManifest
+import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.admission.QueryBudget
 import me.ahoo.wow.query.error.QueryError
+import me.ahoo.wow.query.mask.PayloadMasks
 import me.ahoo.wow.query.memory.InMemoryEventQueryStorage
 import me.ahoo.wow.query.policy.QueryEntryPolicy
 import me.ahoo.wow.query.policy.QueryOwnership
@@ -51,9 +57,11 @@ import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelCompiler
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.spi.access.AccessValues
+import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import org.junit.jupiter.api.Test
+import tools.jackson.databind.node.ObjectNode
 import java.math.BigDecimal
 import java.math.BigInteger
 
@@ -253,5 +261,45 @@ class EventQueryGatewaysTest {
 
     private companion object {
         const val TENANT = "acme"
+    }
+
+    @Test
+    fun `an event body read for a query that reveals DISPLAY values should have them raw, CONFIDENTIAL ones masked`() {
+        val manifest = Manifest(
+            contexts = listOf(
+                ContextManifest(
+                    "shop",
+                    aggregates = listOf(
+                        AggregateManifest(
+                            "cart",
+                            state = StateManifest(Manifest.schemaRef("Cart")),
+                            events = listOf(EventManifest("Noted", schema = Manifest.schemaRef("Noted"))),
+                        ),
+                    ),
+                ),
+            ),
+            defs = mapOf(
+                "Cart" to mapOf("type" to "object"),
+                "Noted" to mapOf(
+                    "type" to "object",
+                    "properties" to mapOf(
+                        "phone" to mapOf(
+                            "type" to "string",
+                            "x-wow-sensitive" to mapOf("level" to "display"),
+                            "x-wow-mask" to mapOf("keepPrefix" to 3, "keepSuffix" to 4),
+                        ),
+                        "secret" to mapOf("type" to "string", "x-wow-sensitive" to mapOf("level" to "confidential")),
+                    ),
+                ),
+            ),
+        )
+        val reader = EventStreamRecords.reader(type, PayloadMasks(manifest))
+        fun record() = WowJson.mapper.readTree(
+            """{"events":[{"name":"shop.cart.Noted","revision":1,"body":{"phone":"13812345678","secret":"s3"}}]}""",
+        ) as ObjectNode
+        reader.read(record(), true).path("events")[0].path("body").toString().assert()
+            .isEqualTo("""{"phone":"13812345678","secret":"**"}""")
+        reader.read(record(), false).path("events")[0].path("body").toString().assert()
+            .isEqualTo("""{"phone":"138****5678","secret":"**"}""")
     }
 }

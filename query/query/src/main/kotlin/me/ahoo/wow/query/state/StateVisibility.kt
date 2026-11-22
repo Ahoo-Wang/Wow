@@ -34,7 +34,9 @@ import tools.jackson.databind.JsonNode
  * of it is visible.
  *
  * What a state read returns is [admitted]: the state masked as the snapshot queries mask it (the 9.x
- * `PointReadAdmission`), for every caller alike, as a query masks every row whoever asks.
+ * `PointReadAdmission`), for every caller alike, as a query masks every row whoever asks, but for the `DISPLAY` values
+ * of a caller that reveals them ([QueryCaller.revealsDisplay]). [masked], a state of an aggregate's history, is masked
+ * whole for every caller.
  *
  * The record is read by id with every deletion state: a state read answers a deleted aggregate as any other.
  */
@@ -46,7 +48,7 @@ object StateVisibility {
 
     /**
      * The tree of [state] as [caller] may see it: masked as the snapshot queries of its type mask it, or
-     * null when they hide it. With a [gateway], its admitted record's state, masked by the schema its queries are
+     * null when they hide it; its `DISPLAY` values raw for a caller that reveals them. With a [gateway], its admitted record's state, masked by the schema its queries are
      * masked by; without one, the tree masked by [masks], the masks the Manifest declares. The tree may be masked in
      * place.
      */
@@ -57,7 +59,7 @@ object StateVisibility {
         masks: PayloadMasks = PayloadMasks.NONE,
     ): JsonNode? {
         val ref = state.ref
-        gateway ?: return masks.state(ref.type, state.state)
+        gateway ?: return masks.state(ref.type, state.state, caller.revealsDisplay)
         val record = state.toRecord()
         return gateway.admitRecord(selection(ref.id), record, caller)?.get(SnapshotFields.STATE)
     }

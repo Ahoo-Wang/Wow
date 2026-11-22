@@ -170,6 +170,10 @@ class ReadFacade(
                     authorizer.authorizeOrThrow(caller) {
                         ReadAction(type, QueryModel.SNAPSHOT, queryType, caller.entry.admitted())
                     }
+                    if (trail != null && queryType == QueryType.STATE) {
+                        val schema = visibility(type)?.recordSchema()
+                        schema?.let { trail.stateSchema(it, history = what != StateRead.LATEST) }
+                    }
                     read().also { result ->
                         trail?.rows(rows(result))
                         observer.finished(type, queryType, trail, null)

@@ -23,6 +23,7 @@ import me.ahoo.wow.api.query.OwnerIdFilter
 import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.TenantIdFilter
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 class QueryCallerTest {
     @Test
@@ -109,5 +110,33 @@ class QueryCallerTest {
         plain.assert().isNotEqualTo(alice)
         plain.copy(entry = QueryEntry.IN_PROCESS).entry.assert().isEqualTo(QueryEntry.IN_PROCESS)
         plain.toString().assert().contains("alice").contains("HTTP")
+    }
+
+    @Test
+    fun `a caller that reveals DISPLAY values should be trusted code or a service, never an end caller`() {
+        assertThrows<IllegalArgumentException> {
+            QueryCaller(Caller(tenantId = "t1", subject = "alice"), QueryEntry.HTTP, revealsDisplay = true)
+        }.message.assert().contains("end caller")
+        assertThrows<IllegalArgumentException> {
+            QueryCaller.of(Caller(tenantId = "t1", subject = "alice")).copy(revealsDisplay = true)
+        }
+        QueryCaller(entry = QueryEntry.IN_PROCESS, revealsDisplay = true).revealsDisplay.assert().isTrue()
+        QueryCaller(Caller.ofService("billing", "t1"), QueryEntry.HTTP, revealsDisplay = true).revealsDisplay
+            .assert().isTrue()
+        QueryCaller.IN_PROCESS.revealsDisplay.assert().isFalse()
+        QueryCaller.of(Caller.ofService("billing", "t1")).revealsDisplay.assert().isFalse()
+    }
+
+    @Test
+    fun `a revealing caller should keep it through its scope, selection and entry, and a nested lookup drop it`() {
+        val revealing = QueryCaller.IN_PROCESS.copy(revealsDisplay = true)
+        revealing.withScope(QueryScope(authenticated = TenantIdFilter("t1"))).revealsDisplay.assert().isTrue()
+        revealing.withSelection(IdFilter("a1")).revealsDisplay.assert().isTrue()
+        revealing.copy(entry = QueryEntry.UNBOUNDED).revealsDisplay.assert().isTrue()
+        revealing.inProcess().assert().isSameAs(QueryCaller.IN_PROCESS)
+        revealing.inProcess().revealsDisplay.assert().isFalse()
+        revealing.assert().isNotEqualTo(QueryCaller.IN_PROCESS)
+        revealing.hashCode().assert().isNotEqualTo(QueryCaller.IN_PROCESS.hashCode())
+        revealing.toString().assert().contains("revealsDisplay=true")
     }
 }

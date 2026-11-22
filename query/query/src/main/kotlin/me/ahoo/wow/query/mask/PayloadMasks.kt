@@ -40,7 +40,9 @@ import java.util.concurrent.ConcurrentHashMap
  * does not carry, or that declares nothing sensitive, is returned as it is.
  *
  * Each schema is compiled once, on first use; [strategies] resolves the custom mask strategies, and one it does not
- * know fails the read rather than return the raw value.
+ * know fails the read rather than return the raw value. A read that reveals `DISPLAY` values
+ * ([me.ahoo.wow.query.QueryCaller.revealsDisplay]) is masked by the schema's `CONFIDENTIAL` masks alone, compiled on
+ * its first such read.
  *
  * They are the node's [StateMasks] too ([maskOf]): a writer that stores a state where a reader takes it as a read, the
  * state view cache's sink, masks it by the very function a state read applies.
@@ -52,10 +54,14 @@ class PayloadMasks(
 ) : StateMasks {
     private val maskers = ConcurrentHashMap<MaskKey, Optional<SchemaMasker>>()
 
-    /** [state], a state of [type], masked in place where it can be; the masked value. */
-    fun state(type: AggregateType, state: JsonNode): JsonNode {
+    /**
+     * [state], a state of [type], masked in place where it can be; the masked value. With [revealsDisplay], its
+     * `DISPLAY` values are left raw.
+     */
+    @JvmOverloads
+    fun state(type: AggregateType, state: JsonNode, revealsDisplay: Boolean = false): JsonNode {
         val aggregate = aggregate(type) ?: return state
-        return mask(MaskKey(type.context, aggregate.state.schema), state)
+        return mask(MaskKey(type.context, aggregate.state.schema, revealsDisplay), state)
     }
 
     /** [state] as a function of a state of [type]: null when its schema masks nothing, compiled now otherwise. */
@@ -68,14 +74,16 @@ class PayloadMasks(
 
     /**
      * [body], the body of [type]'s event named [name], masked in place where it can be. [name] is the event's name in
-     * the log (`<context>.<aggregate>.<Name>`) or the Manifest's, or one of its aliases.
+     * the log (`<context>.<aggregate>.<Name>`) or the Manifest's, or one of its aliases. With [revealsDisplay], its
+     * `DISPLAY` values are left raw.
      */
-    fun event(type: AggregateType, name: String, body: JsonNode): JsonNode {
+    @JvmOverloads
+    fun event(type: AggregateType, name: String, body: JsonNode, revealsDisplay: Boolean = false): JsonNode {
         val local = name.removePrefix("${type.context}.${type.name}.")
         val event = aggregate(type)?.events?.firstOrNull { event ->
             event.name == local || name in event.aliases || local in event.aliases
         } ?: return body
-        return mask(MaskKey(type.context, event.schema), body)
+        return mask(MaskKey(type.context, event.schema, revealsDisplay), body)
     }
 
     private fun aggregate(type: AggregateType): AggregateManifest? =
@@ -103,10 +111,11 @@ class PayloadMasks(
             emptyList(),
             extensionRoots = null,
         )
-        return SchemaMasker.create(QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), logical, emptyMap()))
+        val schema = QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), logical, emptyMap())
+        return SchemaMasker.create(schema, key.revealsDisplay)
     }
 
-    private data class MaskKey(val context: String, val schema: String)
+    private data class MaskKey(val context: String, val schema: String, val revealsDisplay: Boolean = false)
 
     @InternalWowApi
     companion object {
