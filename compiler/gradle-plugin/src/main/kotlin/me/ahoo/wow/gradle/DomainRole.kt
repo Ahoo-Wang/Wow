@@ -82,6 +82,8 @@ internal object DomainRole {
         requireKotlin(project.path, kotlinPluginVersion(project))
         wowDependencies(project, JavaPlugin.IMPLEMENTATION_CONFIGURATION_NAME, KERNEL)
         configureKsp(project, extension, id)
+        // Its tests run Wow's JSON, and a service's runtime too.
+        CheckJackson.register(project, service = id == WowPlugin.SERVICE_ID)
 
         val tools = toolsConfiguration(project)
         val sourceSets = project.extensions.getByType(SourceSetContainer::class.java)

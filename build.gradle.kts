@@ -733,6 +733,39 @@ configure(jacksonTestProjects) {
     tasks.named(LifecycleBasePlugin.CHECK_TASK_NAME) { dependsOn(springdocTest) }
 }
 
+// The Jackson 3 minors Wow's JSON is verified on, Boot's and springdoc's (the two its codecs' tests run on, above), and
+// the modules it runs on, which Wow's own code links to: written into wow-spi, so that what checks an application's
+// Jackson reads them from the wow-spi it runs: the plugins' `checkWowJackson`, and the host at start (#6657).
+val JACKSON_MODULES = listOf(
+    "tools.jackson.core:jackson-core",
+    "tools.jackson.core:jackson-databind",
+    "tools.jackson.module:jackson-module-kotlin",
+)
+project(":spi") {
+    val versions = layout.buildDirectory.dir("generated/jackson-versions")
+    val minors = provider {
+        listOf(readBootJackson(), readSpringdocJackson()).map { it.split('.').take(2).joinToString(".") }.distinct()
+    }
+    val generate = tasks.register("generateJacksonVersions") {
+        description = "Writes the Jackson minors Wow's JSON is verified on, and the modules it runs on, into wow-spi."
+        inputs.property("minors", minors)
+        inputs.property("modules", JACKSON_MODULES)
+        outputs.dir(versions)
+        doLast {
+            val file = versions.get().file("META-INF/wow/jackson.properties").asFile
+            file.parentFile.mkdirs()
+            file.writeText(
+                "# The Jackson 3 minors Wow's JSON is verified on, and the modules it runs on (#6657).\n" +
+                    "minors=${minors.get().joinToString(",")}\n" +
+                    "modules=${JACKSON_MODULES.joinToString(",")}\n",
+            )
+        }
+    }
+    extensions.getByType<SourceSetContainer>().named(SourceSet.MAIN_SOURCE_SET_NAME) {
+        resources.srcDir(generate)
+    }
+}
+
 tasks.register("allLocalTest") {
     description = "Runs all local-safe tests."
     group = LifecycleBasePlugin.VERIFICATION_GROUP

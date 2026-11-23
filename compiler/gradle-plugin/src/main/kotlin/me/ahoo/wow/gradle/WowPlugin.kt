@@ -100,6 +100,9 @@ class WowPlugin : Plugin<Project> {
         /** The api module's jar of its contract and the code generated from it ([ContractRole]). */
         const val CONTRACT_JAR_TASK = "wowContractJar"
         const val CHECK_TASK = "checkWowManifest"
+
+        /** The Jackson gate of a domain or service module, part of `check` ([CheckJackson]). */
+        const val JACKSON_CHECK_TASK = "checkWowJackson"
         const val UPDATE_BASELINE_TASK = "updateWowManifestBaseline"
 
         /**
