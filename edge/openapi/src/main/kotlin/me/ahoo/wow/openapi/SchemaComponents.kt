@@ -93,17 +93,22 @@ internal class SchemaComponents(
 
     /**
      * [node] with every `$ref` into `$defs` pointing to its component; as an [input], to the input where there is one,
-     * and with each read-only property out of each object's `required`.
+     * and with each read-only property out of each object's `required`, which goes when that leaves it empty.
      */
     private fun rewrite(node: Any?, input: Boolean): Any? = when (node) {
-        is Map<*, *> -> node.entries.associateTo(LinkedHashMap<String, Any?>()) { (key, value) ->
-            val name = key.toString()
-            name to when {
-                name == Json.REF && value is String && Manifest.isSchemaRef(value) ->
-                    Json.schemaRef(componentOf(Manifest.schemaKey(value), input)).getValue(Json.REF)
+        is Map<*, *> -> LinkedHashMap<String, Any?>().also { rewritten ->
+            node.forEach { (key, value) ->
+                val name = key.toString()
+                when {
+                    name == Json.REF && value is String && Manifest.isSchemaRef(value) ->
+                        rewritten[name] = Json.schemaRef(componentOf(Manifest.schemaKey(value), input)).getValue(Json.REF)
 
-                input && name == REQUIRED && value is List<*> -> value.filterNot { readOnly(node, it) }
-                else -> rewrite(value, input)
+                    // An object that requires nothing has no `required`, as every schema Wow writes.
+                    input && name == REQUIRED && value is List<*> ->
+                        value.filterNot { readOnly(node, it) }.takeIf { it.isNotEmpty() }?.let { rewritten[name] = it }
+
+                    else -> rewritten[name] = rewrite(value, input)
+                }
             }
         }
 

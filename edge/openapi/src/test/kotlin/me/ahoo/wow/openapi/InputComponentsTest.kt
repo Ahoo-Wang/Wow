@@ -195,6 +195,30 @@ class InputComponentsTest {
     }
 
     @Test
+    fun `an object whose only required properties are computed should require nothing in its input`() {
+        val lengths = mapOf("length" to computed)
+        val note = mapOf("type" to "object", "required" to listOf("length"), "properties" to lengths)
+        val only = mapOf(
+            "type" to "object",
+            "required" to listOf("hash"),
+            "properties" to mapOf("hash" to computed, "note" to note),
+        )
+        val components = SchemaComponents(mapOf("t.Only" to only), emptySet(), setOf("t.Only"))
+        components.schemas.getValue("t.Only").assert().isEqualTo(only)
+        // An object that requires nothing has no `required`, in the component and in an inline object of it.
+        components.schemas.getValue("t.OnlyInput").assert().isEqualTo(
+            mapOf(
+                "type" to "object",
+                "properties" to mapOf(
+                    "hash" to computed,
+                    "note" to mapOf("type" to "object", "properties" to lengths),
+                ),
+            ),
+        )
+        components.inlineInput(note).assert().isEqualTo(mapOf("type" to "object", "properties" to lengths))
+    }
+
+    @Test
     fun `a route's parameter and a system command the framework does not declare should take their inputs`() {
         fun holding(name: String) = mapOf(
             "type" to "object",
