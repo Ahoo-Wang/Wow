@@ -102,7 +102,14 @@ class DatasetReferenceActionsTest {
         DatasetReferenceActions.inputsOf(MANIFEST, "#/\$defs/crm.Untyped").assert().isNull()
         DatasetReferenceActions.inputsOf(MANIFEST, "#/\$defs/crm.Odd").assert().isNull()
         DatasetReferenceActions.inputsOf(MANIFEST, "#/\$defs/crm.Two").assert().isNull()
-        DatasetReferenceActions.offered(MANIFEST, reference).map { it.first.name }.assert().containsExactly("Bare")
+        DatasetReferenceActions.offered(MANIFEST, reference).map { it.first.name }
+            .assert().containsExactly("Bare", "Searched")
+    }
+
+    @Test
+    fun `a read-only property, which the service computes, is no input, whatever its shape`() {
+        DatasetReferenceActions.inputsOf(MANIFEST, "#/\$defs/crm.Searched").assert()
+            .containsExactly(CommandInput("code", "string", required = true, nullable = false))
     }
 
     @Test
@@ -221,6 +228,7 @@ class DatasetReferenceActionsTest {
                                 command(name = "Untyped", schema = "#/\$defs/crm.Untyped"),
                                 command(name = "Odd", schema = "#/\$defs/crm.Odd"),
                                 command(name = "Two", schema = "#/\$defs/crm.Two"),
+                                command(name = "Searched", schema = "#/\$defs/crm.Searched"),
                                 command(name = "Mounted", schema = "#/\$defs/crm.Bare", mounted = true),
                             ),
                         ),
@@ -232,6 +240,16 @@ class DatasetReferenceActionsTest {
                 "crm.Text" to mapOf("type" to "string"),
                 "crm.Untyped" to mapOf("type" to "object", "properties" to mapOf("a" to mapOf("format" to "x"))),
                 "crm.Odd" to mapOf("type" to "object", "properties" to mapOf("a" to "not a schema")),
+                // A computed scalar and a computed list: neither is an input, nor makes the body other than flat.
+                "crm.Searched" to mapOf(
+                    "type" to "object",
+                    "required" to listOf("code", "searchCode", "keys"),
+                    "properties" to mapOf(
+                        "code" to mapOf("type" to "string"),
+                        "searchCode" to mapOf("type" to "string", "readOnly" to true),
+                        "keys" to mapOf("type" to "array", "items" to mapOf("type" to "string"), "readOnly" to true),
+                    ),
+                ),
                 "crm.Two" to mapOf(
                     "type" to "object",
                     "properties" to mapOf("a" to mapOf("type" to listOf("string", "integer"))),

@@ -254,14 +254,17 @@ class DatasetReferenceActions(
                 .mapNotNull { command -> inputsOf(manifest, command.schema)?.let { command to it } }
         }
 
-        /** The inputs of the body [schema] names, or null when it is not flat. */
+        /**
+         * The inputs of the body [schema] names, or null when it is not flat. A read-only property, a computed one the
+         * service writes and never reads, is no input: the form offers no field for it, required or not.
+         */
         fun inputsOf(manifest: Manifest, schema: String): List<CommandInput>? {
             if (!Manifest.isSchemaRef(schema)) return null
             val definition = manifest.defs[Manifest.schemaKey(schema)] as? Map<*, *> ?: return null
             if (definition["type"] != "object") return null
             val required = (definition["required"] as? List<*>).orEmpty().toSet()
             val properties = definition["properties"] as? Map<*, *> ?: return emptyList()
-            return properties.map { (name, property) ->
+            return properties.filterValues { (it as? Map<*, *>)?.get("readOnly") != true }.map { (name, property) ->
                 val spec = property as? Map<*, *> ?: return null
                 val types = when (val type = spec["type"]) {
                     is String -> listOf(type)
