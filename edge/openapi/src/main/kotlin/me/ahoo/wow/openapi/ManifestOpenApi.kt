@@ -68,7 +68,7 @@ object ManifestOpenApi {
         // framework's; the framework's describes the other system commands' bodies, with their bounds.
         val framework = WowSchemas.all().filterKeys { it !in WowSchemas.LIFECYCLE || it !in manifest.defs }
         val defs = manifest.defs.filterKeys { it !in WowSchemas.SYSTEM_COMMANDS || it in WowSchemas.LIFECYCLE }
-        val schemas = SchemaComponents(defs, framework.keys)
+        val schemas = SchemaComponents(defs, framework.keys, SchemaComponents.inputRoots(manifest))
         val routes = OpenApiPaths(manifest, options, schemas)
         val paths = routes.write()
         return Json.obj(
