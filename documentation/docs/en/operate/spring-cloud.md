@@ -75,7 +75,7 @@ The discovery has no `wow.peer.spring-cloud.*` setting. It needs Spring Cloud's 
 | `wow-internal-host` | The host of the node's internal address |
 | `wow-internal-port` | The port of the node's internal address |
 
-The internal address is the one the node gives the other nodes of its service in its lease membership: `wow.node.address`, else the internal server's bind host and port. The registry therefore names the address the node's own members reach it at, not one Spring Cloud detects on its own. On a machine with several interfaces, set `wow.node.address` (or `wow.internal.host`) to the private address the other machines reach.
+The internal address is the one the node gives the other nodes of its service in its lease membership: `wow.node.address`, else the internal server's bind host and port, the address the machine's name resolves to unless `wow.internal.host` names one. The registry therefore names the address the node's own members reach it at, not one Spring Cloud detects on its own. On a machine with several interfaces, set `wow.node.address` (or `wow.internal.host`) to the private address the other machines reach.
 
 Spring Cloud announces each registration just before it sends it, once the public server is up, so after the internal port is bound, even on a port the system chose. CoSky, Consul, Nacos and Zookeeper send the registration's metadata, so the node writes the keys there. Eureka copies its metadata earlier, so the node also gives the keys to Eureka's `ApplicationInfoManager`. A registration that takes no metadata fails the node's start.
 
@@ -97,7 +97,7 @@ The internal port takes no token: each caller names its service, and the port ta
    ```
 
    In a cloud, allow the port in the node's security group from the platform's own security group alone, and from no address range wider than it.
-2. **Bind it to the private interface** with `wow.internal.host`, never to every interface of a machine with a public address.
+2. **Bind it to the private interface** with `wow.internal.host`, never to every interface of a machine with a public address. Unset, the port binds the address the machine's name resolves to, and the node refuses to start when that is a public address.
 3. **Restrict who reads the registry**, with the registry's own authentication (CoSky's tokens, Consul's ACLs, Nacos's authentication), so its list of internal addresses stays inside the platform.
 4. **Keep the public port behind the gateway**, as on Kubernetes ([Put the gateway in front](./security#put-the-gateway-in-front)).
 

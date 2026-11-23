@@ -14,7 +14,7 @@ The host refuses to start rather than run with a setting that would quietly do t
 
 | The log says | Cause | Do |
 | --- | --- | --- |
-| No durable backend | No `DataSource` or `MongoClient` bean, outside a development profile and with an internal port that binds more than loopback | Set `spring.datasource.url` (with HikariCP on the class path) or `spring.mongodb.uri`, give the application its store bean, or set `wow.backend: memory` on purpose |
+| No durable backend | No `DataSource` or `MongoClient` bean, outside a development profile and without a loopback `wow.internal.host` | Set `spring.datasource.url` (with HikariCP on the class path) or `spring.mongodb.uri`, give the application its store bean, or set `wow.backend: memory` on purpose |
 | The service's name is no name its nodes can state on the internal port | `wow.service`, or `spring.application.name` without it, holds a character other than letters, digits, `.`, `_` and `-`, starts with a character other than a letter or a digit, or is longer than 253 | Rename the service, the same on every node and in the peers' `wow.callers` |
 | Unknown Wow configuration keys | A mistyped `wow.*` key, a key of an earlier version, or a key of a module that is not on the class path | Fix the key, take today's key from the migration guide's configuration page the message links, or add the module ([Configure a Service](./configuration#keys-are-checked)) |
 | A subscription, aggregate or context the node does not serve | A name under `wow.subscriptions`, `wow.aggregates` or `wow.contexts` that matches nothing | Fix the name, or remove the entry |
@@ -69,7 +69,7 @@ A saga or a reactor skips events, or a projection rebuilds from the beginning, r
 
 The ownership health component is `DOWN`, or commands for some aggregates are slow while a node is gone. Leases of a node that died expire after `wow.cluster.lease-ttl` (10 s), then the partitions move. When they do not:
 
-- The nodes cannot reach each other's internal port: check the network policy and `wow.node.address`, the address each node advertises.
+- The nodes cannot reach each other's internal port: check the network policy and `wow.node.address`, the address each node advertises. A node in a development profile binds and advertises `127.0.0.1` unless `wow.internal.host` names another address.
 - The lease store is down: the ownership health component's `leaseStore` detail says so.
 
 ## A topic of another context

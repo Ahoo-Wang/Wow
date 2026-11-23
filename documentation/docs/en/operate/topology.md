@@ -69,8 +69,8 @@ The internal port is HTTP/2 without TLS (h2c). It must never be reachable from o
 Each node advertises the address other nodes reach its internal port at:
 
 - `wow.node.id` names the node among the service's members; a new one is generated at each start unless set.
-- `wow.internal.host` is the interface the internal port binds. Bind it to the node's private address.
-- `wow.node.address` is the `host:port` other nodes use. By default it is the bound address, else this host's address, with the internal port; set it only when the peers reach the node at another address, as behind NAT, on a host with several interfaces, or in a StatefulSet whose pods have stable DNS names.
+- `wow.internal.host` is the interface the internal port binds. Bind it to the node's private address. Unset, a node in a development profile binds `127.0.0.1`, and any other the address this host's name resolves to; a node refuses to start when that address is a public one, since the port takes no credential. An address you name is taken as written.
+- `wow.node.address` is the `host:port` other nodes use. By default it is the bound address with the internal port (this host's address when the port binds every interface); set it only when the peers reach the node at another address, as behind NAT, on a host with several interfaces, or in a StatefulSet whose pods have stable DNS names.
 
 On Kubernetes, the eShop's ordering manifests take the node id and the bound address from the pod, and advertise that address, the pod's IP:
 
@@ -129,7 +129,7 @@ A node keeps its log, snapshots, checkpoints, leases, failure ledger, reserved k
 | `mongo` | `wow-mongo` | a `com.mongodb.client.MongoClient` on a replica set: the host's of `spring.mongodb.uri`, or the application's bean; the database is `wow.mongo.database` |
 | `memory` | none | nothing: one node, whose data does not outlive it |
 
-`auto`, the default, takes PostgreSQL or MongoDB by the bean the application has. Without either, a node refuses to start, unless a development profile is active or its internal port binds the loopback interface alone; then it runs in memory and says so. The eShop's ordering service moves to PostgreSQL with its `postgres` profile:
+`auto`, the default, takes PostgreSQL or MongoDB by the bean the application has. Without either, a node refuses to start, unless a development profile is active or `wow.internal.host` names a loopback address; then it runs in memory and says so. The eShop's ordering service moves to PostgreSQL with its `postgres` profile:
 
 <!-- sample: examples/eshop/ordering/ordering-server/src/main/resources/application.yaml#postgres -->
 

@@ -354,7 +354,7 @@
   }, {
     "name" : "wow.backend",
     "type" : "java.lang.String",
-    "description" : "The backend of a node that names no `wow.stores`: `auto` (the default) takes PostgreSQL or MongoDB by the application's `DataSource` or `MongoClient`, and refuses to start without either, so that data is not lost by mistake, unless a profile of `wow.dev-profiles` is active or the internal port binds the loopback interface alone; `memory` keeps the data in memory on purpose, for one node whose data does not outlive it. `postgres`, `mongo` or the type of a community backend's store provider (`me.ahoo.wow.spi.store.StoreProvider`) name one.",
+    "description" : "The backend of a node that names no `wow.stores`: `auto` (the default) takes PostgreSQL or MongoDB by the application's `DataSource` or `MongoClient`, and refuses to start without either, so that data is not lost by mistake, unless a profile of `wow.dev-profiles` is active or `wow.internal.host` names a loopback address; `memory` keeps the data in memory on purpose, for one node whose data does not outlive it. `postgres`, `mongo` or the type of a community backend's store provider (`me.ahoo.wow.spi.store.StoreProvider`) name one.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties",
     "defaultValue" : "auto"
   }, {
@@ -542,7 +542,7 @@
   }, {
     "name" : "wow.dev-profiles",
     "type" : "java.util.Set<java.lang.String>",
-    "description" : "The profiles in which the node runs for development, as it does when its internal port binds a loopback address alone: `wow.backend=auto` falls back to memory when no durable backend is available, the public port serves without a `CallerResolver` bean, a single Kafka broker gives no durability warning, and a platform service may take its callers from request headers. None of them is allowed in a deployment.",
+    "description" : "The profiles in which the node runs for development, as it does when the operator names a loopback address alone for its internal port (`wow.internal.host`): `wow.backend=auto` falls back to memory when no durable backend is available, the public port serves without a `CallerResolver` bean, a single Kafka broker gives no durability warning, and a platform service may take its callers from request headers. None of them is allowed in a deployment. In one of these profiles the internal port binds `127.0.0.1` unless `wow.internal.host` or `wow.node.address` names another address.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties",
     "defaultValue" : [ "dev", "local", "test", "demo" ]
   }, {
@@ -701,7 +701,7 @@
   }, {
     "name" : "wow.internal.host",
     "type" : "java.lang.String",
-    "description" : "The address the internal server binds, `0.0.0.0` for every interface; when not set, the host of the member address the node advertises (`wow.node.address`, else this host's address).",
+    "description" : "The address the internal server binds, `0.0.0.0` for every interface; when not set, the host of `wow.node.address`, else `127.0.0.1` in a profile of `wow.dev-profiles`, else the address this host's name resolves to, which refuses the start when it is a public address: the port takes no credential. A loopback address named here makes the node a development one.",
     "sourceType" : "me.ahoo.wow.spring.boot.node.InternalProperties"
   }, {
     "name" : "wow.internal.port",
@@ -1588,7 +1588,7 @@
   }, {
     "name" : "wow.transport",
     "type" : "java.lang.String",
-    "description" : "The node's topic transport: `auto` (the default) takes the transport a provider finds configured (Kafka with `wow.kafka.bootstrap-servers`); without one, the topics are in the node's JVM when it runs for development (a profile of `wow.dev-profiles`, or a loopback internal port), and otherwise it has none: the node then publishes no stream, and refuses to start when it needs topics (topic routing, command intake, ledger publishing set to true). `memory` keeps the topics in the JVM on purpose, for development alone; `none` gives the node no topics in any profile, whatever is configured, with the same refusal; `kafka`, or a community provider's type, names the transport. A blank `wow.kafka.bootstrap-servers` is no way to turn the topics off: in development it falls back to the topics in the JVM.",
+    "description" : "The node's topic transport: `auto` (the default) takes the transport a provider finds configured (Kafka with `wow.kafka.bootstrap-servers`); without one, the topics are in the node's JVM when it runs for development (a profile of `wow.dev-profiles`, or a loopback `wow.internal.host`), and otherwise it has none: the node then publishes no stream, and refuses to start when it needs topics (topic routing, command intake, ledger publishing set to true). `memory` keeps the topics in the JVM on purpose, for development alone; `none` gives the node no topics in any profile, whatever is configured, with the same refusal; `kafka`, or a community provider's type, names the transport. A blank `wow.kafka.bootstrap-servers` is no way to turn the topics off: in development it falls back to the topics in the JVM.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties",
     "defaultValue" : "auto"
   }, {

@@ -75,7 +75,7 @@ wow:
 | `wow-internal-host` | 节点内部地址的主机 |
 | `wow-internal-port` | 节点内部地址的端口 |
 
-内部地址就是节点在租约成员中告诉本服务其他节点的地址：`wow.node.address`，否则是内部服务器绑定的主机与端口。因此注册中心写的是节点自己的成员访问它的地址，而不是 Spring Cloud 自行探测的地址。在有多块网卡的机器上，把 `wow.node.address`（或 `wow.internal.host`）设为其他机器能访问的私有地址。
+内部地址就是节点在租约成员中告诉本服务其他节点的地址：`wow.node.address`，否则是内部服务器绑定的主机与端口：除非 `wow.internal.host` 指定了地址，就是机器名字解析到的地址。因此注册中心写的是节点自己的成员访问它的地址，而不是 Spring Cloud 自行探测的地址。在有多块网卡的机器上，把 `wow.node.address`（或 `wow.internal.host`）设为其他机器能访问的私有地址。
 
 Spring Cloud 在发送每次登记之前宣告它，时机在公开服务器启动之后，因此内部端口已经绑定，系统选定的端口也不例外。CoSky、Consul、Nacos 与 Zookeeper 发送登记信息里的元数据，节点就把这些键写在那里。Eureka 更早就复制了元数据，所以节点同时把这些键交给 Eureka 的 `ApplicationInfoManager`。登记信息不接受元数据时，节点拒绝启动。
 
@@ -97,7 +97,7 @@ CoSky 把实例登记在 Spring Cloud 找到的第一个非回环地址上，自
    ```
 
    在云上，在节点的安全组里只对平台自己的安全组放行这个端口，不对比它更宽的地址段放行。
-2. **把它绑定到私有网卡**，用 `wow.internal.host`；有公网地址的机器上，绝不绑定到所有网卡。
+2. **把它绑定到私有网卡**，用 `wow.internal.host`；有公网地址的机器上，绝不绑定到所有网卡。不设置时，端口绑定机器名字解析到的地址，这个地址是公网地址时节点拒绝启动。
 3. **限制谁能读注册中心**，用注册中心自己的认证（CoSky 的令牌、Consul 的 ACL、Nacos 的鉴权），让其中的内部地址列表留在平台之内。
 4. **让公开端口留在网关之后**，与 Kubernetes 上一样（[把网关放在前面](./security#put-the-gateway-in-front)）。
 

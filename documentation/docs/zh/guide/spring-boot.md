@@ -97,7 +97,7 @@ dependencies {
 
 - **模型。** 类路径上的每个领域模块都带有一个绑定索引。宿主加载每个模块的模型，用应用的 Bean 作为领域服务构建它们，并把各模块的 Manifest 片段合并成服务的 Manifest。`wow.contexts.include` 和 `wow.contexts.exclude` 选择节点提供哪些上下文；默认提供全部。
 - **存储。** 每个上下文的日志、快照和定时器，放在宿主选择的后端上（见下文）。
-- **端口。** 应用的 WebFlux 服务器上的公开路由，以及在它自己的服务器上的内部端口 `wow.internal.port`：集群通道、等待信号、服务之间的同步调用和读（[部署模型](../operate/topology#two-ports)）。
+- **端口。** 应用的 WebFlux 服务器上的公开路由，以及在它自己的服务器上的内部端口 `wow.internal.port`：集群通道、等待信号、服务之间的同步调用和读（[部署模型](../operate/topology#two-ports)）。在开发 profile 中内部端口绑定 `127.0.0.1`，除非 `wow.internal.host` 指定了别的地址。
 - **订阅。** 绑定索引列出的每个处理器处理函数，以及类路径上各模块的 Sink。
 - **生命周期。** 节点在存储就绪、内部端口已绑定并加入了同伴之后启动，并按相反的顺序停止。
 
@@ -111,7 +111,7 @@ dependencies {
 | `postgres`、`mongo` 或社区存储提供者的类型 | 使用该后端；应用缺少它所需的东西时拒绝启动 |
 | `memory` | 有意把一切放在内存里：一个节点，数据不会比它活得更久 |
 
-在 `auto` 下两个 Bean 都没有时，节点拒绝启动，除非处于开发 profile（`wow.dev-profiles`），或者它的内部端口只绑定在回环网卡上；这时它在内存中运行并发出警告。生产节点绝不会意外地退回到内存。
+在 `auto` 下两个 Bean 都没有时，节点拒绝启动，除非处于开发 profile（`wow.dev-profiles`），或者 `wow.internal.host` 指定了回环地址；这时它在内存中运行并发出警告。生产节点绝不会意外地退回到内存。
 
 聚合把数据放在不同存储里的服务，在 `wow.stores.<name>` 下命名存储实例（每个带它的 `type`，例如 `postgres`、`mongo`、`elasticsearch` 或 `memory`，以及它运行所基于的 Bean），并把每个聚合类型的日志和快照放到这些实例上：`wow.log.store`、`wow.snapshot.store`，以及按类型的 `wow.aggregates.[<context>.<aggregate>].log.store` 和 `.snapshot.store`。`query.snapshot.store` 指向另一个存储的类型，会在那里为它的查询保存一份快照副本。布局示例见 [PostgreSQL](../operate/postgresql)。`query.events.store` 指向 Elasticsearch 存储的类型，它的事件由宿主自行启动的 Sink 在那里建立索引（[Elasticsearch](../operate/elasticsearch#store-combinations)）。[选择存储](../operate/choosing-storage)说明了什么时候用哪种存储：默认用 MongoDB，在它旁边用 Elasticsearch 做检索副本。
 
@@ -124,7 +124,7 @@ dependencies {
 | Bean | 作用 |
 | --- | --- |
 | 领域服务 | 命令函数和处理器的参数，按类型获取，或用 `@Name` 按名字获取 |
-| `CallerResolver` | 把已认证的主体变成调用方。没有它时，开发 profile 下宿主读取开发请求头，内部端口只在回环地址上时使用匿名调用方，其他情况下不启动 |
+| `CallerResolver` | 把已认证的主体变成调用方。没有它时，开发 profile 下宿主读取开发请求头，`wow.internal.host` 指定了回环地址时使用匿名调用方，其他情况下不启动 |
 | `CommandAuthorizer` | 说明它是否反对调用方向某个聚合发送命令 |
 | `ReadAuthorizer` | 说明它是否反对调用方读取某个模型：查询、状态读取或 trace，在读取任何东西之前询问（[授权读取](../operate/security#authorize-reads)） |
 | `CommandTransformer`、`CommandValidator` | 在命令被决定之前改写或检查它 |
@@ -152,6 +152,6 @@ Wow 分组下的环境变量（如 `WOW_KAFKA_…`）也按同样方式检查。
 
 ## 运行 {#run-it}
 
-`./gradlew bootRun` 或应用的 main 函数会启动一个节点。没有 `DataSource` 或 `MongoClient` 时，数据保存在内存中，这只在开发 profile 或内部端口只绑定在回环网卡上时允许。没有 Kafka 时，只要它做的事都不需要主题，它在任何地方都能启动，并在启动时说明它不发布任何流；在开发中，它改为把主题保存在 JVM 里（[服务什么时候需要 Kafka](../operate/kafka#when-a-service-needs-kafka)）。生产服务需要什么，见[部署模型](../operate/topology)。
+`./gradlew bootRun` 或应用的 main 函数会启动一个节点。没有 `DataSource` 或 `MongoClient` 时，数据保存在内存中，这只在开发 profile 中或 `wow.internal.host` 指定了回环地址时允许。没有 Kafka 时，只要它做的事都不需要主题，它在任何地方都能启动，并在启动时说明它不发布任何流；在开发中，它改为把主题保存在 JVM 里（[服务什么时候需要 Kafka](../operate/kafka#when-a-service-needs-kafka)）。生产服务需要什么，见[部署模型](../operate/topology)。
 
 公开端口的每条路由都需要认证，包括 `GET /wow/manifest` 和 `GET /wow/openapi`：没有调用者的请求得到 401（`wow.auth.unauthenticated`）。开发时，请求用开发身份请求头指明调用者（[调用者是谁](./http#who-the-caller-is)）。`cosec` profile 下、位于 CoSec 网关之后的节点，相信网关转发的 `CoSec-Identity` 请求头：直接调用它的本地客户端或测试，发送网关会转发的身份，即 `wow-cosec` 的 `CoSecIdentity("alice", listOf("buyer")).headers()`，按 CoSec 文档的格式写出（[把网关放在前面](../operate/security#put-the-gateway-in-front)）。

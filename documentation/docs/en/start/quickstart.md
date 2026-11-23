@@ -57,6 +57,12 @@ application {
     mainClass.set("me.ahoo.wow.example.quickstart.BankServerKt")
 }
 
+// `./gradlew run` runs the service for development, the `dev` profile: its data in memory, its internal port on the
+// loopback interface alone, its callers named by request headers.
+tasks.named<JavaExec>("run") {
+    systemProperty("spring.profiles.include", "dev")
+}
+
 dependencies {
     // The Spring Boot host: auto-configuration, the HTTP routes, the memory backend.
     implementation("me.ahoo.wow:wow-spring-boot")
@@ -265,16 +271,6 @@ wow:
   # MongoDB, the `postgres` profile on PostgreSQL (application-mongo.yaml, application-postgres.yaml).
   internal:
     port: 9090
----
-# On this machine alone, where Spring Boot detects no cloud platform: the internal port on the loopback interface, and
-# the node serves the anonymous caller. A deployment binds the address its nodes reach.
-spring:
-  config:
-    activate:
-      on-cloud-platform: none
-wow:
-  internal:
-    host: 127.0.0.1
 ```
 
 ```bash
@@ -283,7 +279,7 @@ wow:
 
 With `wow-mongo` on the class path, or `wow-postgres` and a connection pool (`com.zaxxer:HikariCP`, from which the host makes the `DataSource`), `--args='--spring.profiles.active=mongo'` (or `postgres`) keeps the data on MongoDB or PostgreSQL instead, as the module's `application-mongo.yaml` and `application-postgres.yaml` set it ([MongoDB](../operate/mongodb), [PostgreSQL](../operate/postgresql)).
 
-The node serves its routes on port 8080 and its internal port on 9090. It warns that its data is in memory, and that every request is the anonymous caller until the application authenticates callers ([Serve and Call the HTTP API](../guide/http#who-the-caller-is)): only a node in development, here one whose internal port is on the loopback interface, starts without a caller resolver.
+The node serves its routes on port 8080 and its internal port on 9090, the internal port on the loopback interface alone, as in every development profile unless `wow.internal.host` names another address. It warns that its data is in memory, and that its callers come from request headers until the application authenticates callers ([Serve and Call the HTTP API](../guide/http#who-the-caller-is)): a request without `Wow-User` is the anonymous caller. Only a node in development, here the `dev` profile `./gradlew run` adds, starts without a caller resolver.
 
 ## Send commands
 

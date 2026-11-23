@@ -63,7 +63,7 @@ Spring 会忽略没有属性绑定的键，所以拼错的键会一声不响地�
 | --- | --- | --- |
 | 服务名 | `spring.application.name` | `wow.service` |
 | 节点 ID | 每次启动新生成一个 | `wow.node.id` |
-| 节点对外公布的地址，以及内部端口绑定的地址 | 本机地址 | `wow.node.address`、`wow.internal.host` |
+| 节点对外公布的地址，以及内部端口绑定的地址 | 开发 profile 中是 `127.0.0.1`；否则是本机名字解析到的地址，它是公网地址时拒绝启动 | `wow.node.address`、`wow.internal.host` |
 | 状态缓存 | 最大堆的十分之一，由节点的各上下文分摊 | `wow.state-cache.capacity` |
 | 一个存储同时运行的查询数 | 它的连接池：与追加共用的连接池的四分之一（至少 2），如 MongoDB，或没有 `query-data-source` 的 PostgreSQL；查询自己的连接池（如 PostgreSQL 的 `query-data-source`）的全部；连接池不说明大小时为 16 | `wow.query.max-concurrent` |
 | 主题的分区、副本数和 `min.insync.replicas` | 日志的分区数；broker 的默认值 | `wow.log.partitions`、`wow.kafka.topics.*` |
@@ -75,11 +75,12 @@ Spring 会忽略没有属性绑定的键，所以拼错的键会一声不响地�
 
 ## 开发与生产 {#development-and-production}
 
-在开发 profile（`dev`、`local`、`test` 或 `demo`，即 `wow.dev-profiles`）中，或者内部端口只绑定在回环网卡上时，有几个默认值会放宽：
+在开发 profile（`dev`、`local`、`test` 或 `demo`，即 `wow.dev-profiles`）中，或者 `wow.internal.host` 指定了回环地址时，有几个默认值会放宽。只有你写下的才算：本机名字恰好解析到回环地址的节点（Debian 的 `/etc/hosts` 给出 `127.0.1.1`）是生产节点。
 
 | 没有 | 开发环境中 | 生产环境中 |
 | --- | --- | --- |
 | `DataSource` 或 `MongoClient` | 在内存中运行，并发出警告 | 拒绝启动 |
+| `wow.internal.host` | 内部端口绑定 `127.0.0.1` | 内部端口绑定本机名字解析到的地址，拒绝公网地址 |
 
 所以笔记本上不需要数据库，而生产节点没有数据库就无法启动。`wow.ddl: validate` 防止生产节点建表（[PostgreSQL](./postgresql#manage-the-schema)）。
 

@@ -63,7 +63,7 @@ A node derives these values from its environment, so most services set none of t
 | --- | --- | --- |
 | The service's name | `spring.application.name` | `wow.service` |
 | The node's id | A new one each start | `wow.node.id` |
-| The address the node advertises, and the one its internal port binds | This host's address | `wow.node.address`, `wow.internal.host` |
+| The address the node advertises, and the one its internal port binds | `127.0.0.1` in a development profile; otherwise the address this host's name resolves to, refused when it is a public address | `wow.node.address`, `wow.internal.host` |
 | The state cache | A tenth of the maximum heap, split between the node's contexts | `wow.state-cache.capacity` |
 | How many queries a store runs at once | Its pool: a quarter of a pool the appends share (at least 2), as on MongoDB or on PostgreSQL without a `query-data-source`; all of a pool of the queries' own, such as a PostgreSQL `query-data-source`; 16 when the pool does not say its size | `wow.query.max-concurrent` |
 | A topic's partitions, replication and `min.insync.replicas` | The log's partitions; the broker's defaults | `wow.log.partitions`, `wow.kafka.topics.*` |
@@ -75,11 +75,12 @@ A node derives these values from its environment, so most services set none of t
 
 ## Development and production
 
-A few defaults relax in a development profile, `dev`, `local`, `test` or `demo` (`wow.dev-profiles`), or when the internal port binds the loopback interface alone:
+A few defaults relax in a development profile, `dev`, `local`, `test` or `demo` (`wow.dev-profiles`), or when `wow.internal.host` names a loopback address. Only what you write counts: a node whose host name happens to resolve to a loopback address (`127.0.1.1` in Debian's `/etc/hosts`) is a production node.
 
 | Without | In development | In production |
 | --- | --- | --- |
 | A `DataSource` or `MongoClient` | Runs in memory, with a warning | Refuses to start |
+| `wow.internal.host` | The internal port binds `127.0.0.1` | The internal port binds the address this host's name resolves to, and refuses a public one |
 
 So a laptop needs no database, and a production node cannot start without one. `wow.ddl: validate` keeps a production node from creating tables ([PostgreSQL](./postgresql#manage-the-schema)).
 

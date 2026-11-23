@@ -14,7 +14,7 @@ outline: deep
 
 | 日志说 | 原因 | 处置 |
 | --- | --- | --- |
-| 没有持久后端 | 没有 `DataSource` 或 `MongoClient` Bean，又不在开发 profile 中，且内部端口不只绑定在回环网卡上 | 设置 `spring.datasource.url`（类路径上要有 HikariCP）或 `spring.mongodb.uri`，给应用提供它的存储 Bean，或者有意设置 `wow.backend: memory` |
+| 没有持久后端 | 没有 `DataSource` 或 `MongoClient` Bean，又不在开发 profile 中，`wow.internal.host` 也没有指定回环地址 | 设置 `spring.datasource.url`（类路径上要有 HikariCP）或 `spring.mongodb.uri`，给应用提供它的存储 Bean，或者有意设置 `wow.backend: memory` |
 | 服务名不是节点能在内部端口上声明的名字 | `wow.service`（没有时为 `spring.application.name`）含有字母、数字、`.`、`_` 和 `-` 之外的字符，不以字母或数字开头，或者超过 253 个字符 | 重命名服务，每个节点以及对端的 `wow.callers` 里都一致 |
 | 未知的 Wow 配置键 | 拼错的 `wow.*` 键、更早版本的键，或不在类路径上的模块的键 | 修正这个键、按消息链接的迁移指南配置页改用现在的键，或加上那个模块（[配置服务](./configuration#keys-are-checked)） |
 | 节点不提供的订阅、聚合或上下文 | `wow.subscriptions`、`wow.aggregates` 或 `wow.contexts` 下有一个什么都不匹配的名字 | 修正名字，或删除这一项 |
@@ -69,7 +69,7 @@ outline: deep
 
 ownership 健康组件为 `DOWN`，或者在某个节点离开期间，某些聚合的命令变慢了。宕掉的节点的租约在 `wow.cluster.lease-ttl`（10 秒）后过期，然后分区会移动。如果没有移动：
 
-- 节点之间访问不到彼此的内部端口：检查网络策略和 `wow.node.address`，即每个节点公布的地址。
+- 节点之间访问不到彼此的内部端口：检查网络策略和 `wow.node.address`，即每个节点公布的地址。开发 profile 中的节点绑定并公布 `127.0.0.1`，除非 `wow.internal.host` 指定了别的地址。
 - 租约存储不可用：ownership 健康组件的 `leaseStore` 详情会说明这一点。
 
 ## 另一个上下文的主题 {#a-topic-of-another-context}

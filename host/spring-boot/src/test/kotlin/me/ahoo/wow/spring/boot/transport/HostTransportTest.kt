@@ -29,7 +29,6 @@ import me.ahoo.wow.spring.boot.BANK
 import me.ahoo.wow.spring.boot.HostTestApp
 import me.ahoo.wow.spring.boot.WowProperties
 import me.ahoo.wow.spring.boot.config.DevelopmentMode
-import me.ahoo.wow.spring.boot.node.NodeIdentity
 import me.ahoo.wow.spring.boot.startHost
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -201,7 +200,7 @@ class HostTransportTest {
     }
 
     @Test
-    fun `development should be derived from the profiles or a loopback internal port`() {
+    fun `development should be derived from the profiles or a loopback internal port the operator named`() {
         val loopback = WowProperties().apply { internal.host = "127.0.0.1" }
         DevelopmentMode.of(loopback, environment()).reason.assert().contains("127.0.0.1")
         val everywhere = WowProperties().apply { internal.host = "0.0.0.0" }
@@ -213,10 +212,12 @@ class HostTransportTest {
         DevelopmentMode.of(everywhere, defaulted).profiles.assert().containsExactly("dev")
         DevelopmentMode.of(everywhere, environment(profiles = arrayOf("prod"))).byProfile.assert().isFalse()
         DevelopmentMode.of(loopback, environment()).byProfile.assert().isFalse()
-        NodeIdentity.bindHostOf(WowProperties().apply { node.address = "[::1]:9090" }).assert().isEqualTo("::1")
-        NodeIdentity.bindHostOf(WowProperties().apply { node.address = "10.0.0.1:9090" })
+        DevelopmentMode.of(WowProperties().apply { node.address = "[::1]:9090" }, environment()).reason
+            .assert().isEqualTo("internal port on loopback ::1")
+        DevelopmentMode.namedHostOf(WowProperties().apply { node.address = "10.0.0.1:9090" })
             .assert().isEqualTo("10.0.0.1")
-        NodeIdentity.bindHostOf(WowProperties()).assert().isNotBlank()
+        // A host the operator names nothing for binds a resolved default, which never makes a development node.
+        DevelopmentMode.namedHostOf(WowProperties()).assert().isNull()
     }
 
     @Test
