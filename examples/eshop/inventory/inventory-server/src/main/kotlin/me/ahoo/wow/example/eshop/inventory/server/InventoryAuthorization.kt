@@ -13,9 +13,7 @@
 
 package me.ahoo.wow.example.eshop.inventory.server
 
-import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.runtime.admission.Authorization
-import me.ahoo.wow.runtime.admission.CommandAction
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -31,31 +29,31 @@ import org.springframework.context.annotation.Configuration
 @Configuration(proxyBeanMethods = false)
 class InventoryAuthorization {
     /**
+     * Wow's operational commands (a scheduled job's, the snapshot rebuild, an operator's action on a parked entry) are
+     * an employee's alone, a tenant-level caller with a subject: this authorizer decides them, so the public port and
+     * the operator's routes serve them ([CommandAuthorizer.operational]).
+     */
+    @Bean
+    fun inventoryOperators(): CommandAuthorizer = CommandAuthorizer.operational { caller, action ->
+        if (caller.subject != null && caller.scope.ownerId == null) {
+            Authorization.Allowed
+        } else {
+            Authorization.Denied.of("Only an employee sends ${action.type.name}.")
+        }
+    }
+
+    /**
      * Only an employee, a service, or the anonymous caller of a service tried out, changes the stock: a buyer reads
      * it. Wow's operational commands (a scheduled job's, the snapshot rebuild, an operator's action on a parked entry)
-     * are an employee's alone.
+     * are [inventoryOperators]'.
      */
     @Bean
     fun inventoryAuthorizer(): CommandAuthorizer = CommandAuthorizer { caller, action ->
         when {
-            action.isOperational -> operational(caller, action)
             caller.service || caller.scope.ownerId == null -> Authorization.Allowed
             else -> Authorization.Denied.of(
                 "Only an employee changes the stock; ${caller.subject} may not ${action.type.name}."
             )
         }
-    }
-
-    private companion object {
-        /**
-         * The answer to one of Wow's operational commands ([CommandAction.isOperational]): an employee's, a
-         * tenant-level caller with a subject.
-         */
-        fun operational(caller: Caller, action: CommandAction): Authorization =
-            if (caller.subject != null && caller.scope.ownerId == null) {
-                Authorization.Allowed
-            } else {
-                Authorization.Denied.of("Only an employee sends ${action.type.name}.")
-            }
     }
 }

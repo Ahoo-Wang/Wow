@@ -23,7 +23,6 @@ import me.ahoo.wow.api.client.wait
 import me.ahoo.wow.api.read.Snapshot
 import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.api.wire.DevelopmentHeaders.ROLES
-import me.ahoo.wow.api.wire.DevelopmentHeaders.ROLES_ATTRIBUTE
 import me.ahoo.wow.api.wire.DevelopmentHeaders.USER
 import me.ahoo.wow.client.UserCredential
 import me.ahoo.wow.cosec.CoSecCallerResolver
@@ -70,7 +69,7 @@ class OrderingCoSecTest {
 
     /** The credential the gateway forwards: the caller as the principal it verified, with the roles it has. */
     private val gateway = UserCredential { caller ->
-        signedIn(caller.subject!!, *caller.attributes[ROLES_ATTRIBUTE].orEmpty().toTypedArray())
+        signedIn(caller.subject!!, *caller.attributes[Caller.ROLES].orEmpty().toTypedArray())
     }
 
     @Test
@@ -80,7 +79,7 @@ class OrderingCoSecTest {
         runBlocking { server.commands(alice, gateway).wait(SubmitOrder(items), "cosec-alice-1") }
         read("cosec-alice-1", alice)!!.scope.ownerId.assert().isEqualTo("alice")
         read("cosec-alice-1", Caller.of(subject = "bob")).assert().isNull()
-        read("cosec-alice-1", Caller.of(subject = "erin", attributes = mapOf(ROLES_ATTRIBUTE to listOf("employee"))))
+        read("cosec-alice-1", Caller.of(subject = "erin", attributes = mapOf(Caller.ROLES to listOf("employee"))))
             .assert().isNotNull()
     }
 

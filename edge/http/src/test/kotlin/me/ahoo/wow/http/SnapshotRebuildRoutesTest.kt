@@ -71,8 +71,9 @@ class SnapshotRebuildRoutesTest {
             refused.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
             refused.body!!["detail"].asString().assert()
                 .isEqualTo(
-                    "wow.snapshot.RebuildSnapshot is refused on the public port: the service has no CommandAuthorizer for " +
-                        "Wow's system commands (CoSec's, wow.cosec.authorizer.enabled, or the application's own).",
+                    "wow.snapshot.RebuildSnapshot is refused on the public port: no CommandAuthorizer of the service " +
+                        "decides Wow's operational commands (CommandAuthorizer.operational, or CoSec's with " +
+                        "wow.cosec.authorizer.enabled).",
                 )
         }
         // The cart's own commands are no system commands of a built-in aggregate: a node without an authorizer

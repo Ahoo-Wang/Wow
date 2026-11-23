@@ -19,14 +19,11 @@ import me.ahoo.wow.api.wire.ScopeHeader
 import me.ahoo.wow.viewstore.api.ViewStoreContext
 
 /**
- * The view store's roles, which a caller lists in its attribute [ROLES_ATTRIBUTE] (from the identity the CoSec gateway
+ * The view store's roles, which a caller lists in its `Caller.roles` (from the identity the CoSec gateway
  * forwards, or the `Wow-Roles` header in development), and its reserved owners, which a caller acts as by naming them
  * in `Wow-Scope` ([ReservedScopeCallers]).
  */
 object ViewStoreRoles {
-    /** The caller attribute listing its roles, as CoSec's resolver names it. */
-    const val ROLES_ATTRIBUTE: String = "roles"
-
     /** The role that writes the owner `(shared)`'s views and preferences and the tenant's dataset wording. */
     const val SHARED_WRITER: String = "view-store.shared-writer"
 

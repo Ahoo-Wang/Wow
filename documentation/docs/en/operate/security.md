@@ -54,26 +54,32 @@ Authorization happens at admission, before the command runs:
 - **Per scope.** Whatever the authorizer says, the kernel refuses a command on an aggregate outside the caller's scope, as if the aggregate did not exist (`404 wow.aggregate.not-found`), and queries only return what the caller may see ([Authorize reads](#authorize-reads)).
 - **Per access policy.** An aggregate with an access policy of its own (an `AccessPolicy` bean of its state) takes a command only when the policy's `write` lets the caller change it, in place of the scope. The kernel answers a refused caller `404 wow.aggregate.not-found` when the policy's `read` hides the aggregate from it too and `403 wow.aggregate.forbidden` when it may read it, and checks a creation, and a change of the aggregate's access attributes, again on the aggregate it leaves. Commands the service derives, and a service sending as itself, are trusted; the in-process client's default caller is anonymous and is refused ([Where a policy applies](../guide/ownership#where-a-policy-applies), [What is trusted](../guide/ownership#what-is-trusted)).
 
-The operator's routes over parked aggregates, `/wow/ops/parked`, are off by default (`wow.http.ops.enabled`). Turned on, their actions and reads are authorized as the system commands `wow.ledger.*`. Without a command authorizer every one of them is refused (403 `wow.auth.forbidden`), never allowed by default, and the host warns at startup.
+The operator's routes over parked aggregates, `/wow/ops/parked`, are off by default (`wow.http.ops.enabled`). Turned on, their actions and reads are authorized as the system commands `wow.ledger.*`, Wow's operational commands. Unless an authorizer decides them (below), every one of them is refused (403 `wow.auth.forbidden`), never allowed by default, and the host warns at startup.
 
-The system commands of Wow's built-in aggregates follow the same rule on the public port: a scheduled job's commands (`POST /<context>/wow.schedule/{id}/enable-job`, `reschedule-job` and `disable-job`) and the snapshot rebuild of an aggregate type (`POST /<context>/<aggregate>/wow.snapshot.rebuild-snapshot`). Without a command authorizer the public port refuses them to every caller (403 `wow.auth.forbidden`), the anonymous one included, and the host says so at startup. With one, the authorizer decides: under CoSec, a policy grants their actions ([below](#action-names)) to the operators. A service in gateway mode, which has no CoSec authorizer, needs an authorizer of its own for them. Only the public port refuses them: the jobs' own commands, the sagas' and the commands another service, such as ops, calls on the internal port are sent as before. An aggregate's lifecycle commands (`wow.lifecycle.*`) are on the aggregate itself, authorized and scope-checked as its domain commands are.
+The system commands of Wow's built-in aggregates follow the same rule on the public port: a scheduled job's commands (`POST /<context>/wow.schedule/{id}/enable-job`, `reschedule-job` and `disable-job`) and the snapshot rebuild of an aggregate type (`POST /<context>/<aggregate>/wow.snapshot.rebuild-snapshot`). The public port refuses them to every caller (403 `wow.auth.forbidden`), the anonymous one included, unless one of the service's authorizers decides them, and the host says so at startup. An authorizer of another concern, which allows what it does not know, does not open them: one that decides them says so (`CommandAuthorizer.decidesOperational`). CoSec's authorizer (`wow.cosec.authorizer.enabled`) decides them, a policy granting their actions ([below](#action-names)) to the operators. A service in gateway mode, which has no CoSec authorizer, gives an authorizer of its own with `CommandAuthorizer.operational`. Only the public port refuses them: the jobs' own commands, the sagas' and the commands another service, such as ops, calls on the internal port are sent as before. An aggregate's lifecycle commands (`wow.lifecycle.*`) are on the aggregate itself, authorized and scope-checked as its domain commands are.
 
-An application's own authorizer tells these commands apart by what the framework knows of them, not by their names' prefixes. `CommandAction.isOperational` is true for every command Wow refuses without an authorizer: a scheduled job's, the snapshot rebuild, and an operator's actions on parked entries with their read (`wow.ledger.*`), which the operator's routes refuse alike. `CommandAction.isSystem` is true for every system command, the lifecycle commands among them; a rule such as "only an employee sends it" put on `isSystem` keeps an owner from deleting its own aggregate too, so such a rule wants `isOperational`. `action.commandIs<ShipOrder>()` compares the command's class, a marker interface several commands share included:
+`CommandAuthorizer.operational` makes the authorizer that decides them: it is asked about Wow's operational commands alone (`CommandAction.isOperational`: a scheduled job's, the snapshot rebuild, an operator's actions on parked entries with their read, `wow.ledger.*`) and has no objection to any other action. A service identity (`caller.service`) is not asked about: a call between services is trusted, and the internal port serves a system command only to a service its `wow.callers.<service>.commands` names it for. A caller's roles are `caller.roles`, `caller.hasRole("operator")`, whichever resolver gave them: the development callers from `Wow-Roles`, CoSec's from the principal's roles in the request's scope, an application's own resolver under the attribute `Caller.ROLES`. The service's other authorizers are asked too, each about its own concern; an authorizer tells commands apart by what the framework knows of them, not by their names' prefixes. `CommandAction.isSystem` is true for every system command, the lifecycle commands among them, so a rule such as "only an employee sends it" put on `isSystem` keeps an owner from deleting its own aggregate too; `action.commandIs<ShipOrder>()` compares the command's class, a marker interface several commands share included:
 
 <!-- sample: fragment -->
 
 ```kotlin
-CommandAuthorizer { caller, action ->
-    when {
-        action.isOperational ->
-            if (caller.subject != null && caller.scope.ownerId == null) Authorization.Allowed
-            else Authorization.Denied.of("Only an employee sends ${action.type.name}.")
-        action.commandIs<ShipOrder>() && caller.scope.ownerId != null ->
-            Authorization.Denied.of("Only an employee ships an order.")
-        else -> Authorization.Allowed
+@Bean
+fun operators(): CommandAuthorizer = CommandAuthorizer.operational { caller, action ->
+    if (caller.hasRole("operator")) Authorization.Allowed
+    else Authorization.Denied.of("Only an operator sends ${action.type.name}.")
+}
+
+@Bean
+fun shipping(): CommandAuthorizer = CommandAuthorizer { caller, action ->
+    if (action.commandIs<ShipOrder>() && caller.scope.ownerId != null) {
+        Authorization.Denied.of("Only an employee ships an order.")
+    } else {
+        Authorization.Allowed
     }
 }
 ```
+
+A test names a caller with roles as `Caller.of(subject = "olivia", roles = listOf("operator"))`.
 
 A command no client should ever send, such as a payment gateway's answer that a saga records, is marked `@InternalCommand` instead of being guarded by a policy alone, which one missing rule would undo. The public port serves no route of it: a request to one is answered `404`, the problem of any unknown path, whatever the caller and the policies, and the CoSec route map leaves it out ([Keep a command internal](../guide/aggregates#keep-a-command-internal)). The internal port still takes it from the services `wow.callers.<service>.commands` permits, and the node's authorizers decide it as any command.
 

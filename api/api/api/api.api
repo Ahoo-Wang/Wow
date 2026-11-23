@@ -134,7 +134,6 @@ public final class me/ahoo/wow/api/access/AccessScope {
 	public final fun containsAny (Lme/ahoo/wow/api/access/AccessAttribute$Multiple;Ljava/util/Collection;)Lme/ahoo/wow/api/access/AccessPredicate;
 	public final fun denyAll ()Lme/ahoo/wow/api/access/AccessPredicate;
 	public final fun eq (Lme/ahoo/wow/api/access/AccessAttribute$Single;Ljava/lang/Object;)Lme/ahoo/wow/api/access/AccessPredicate;
-	public final fun hasRole (Lme/ahoo/wow/api/caller/Caller;Ljava/lang/String;)Z
 	public final fun isEmpty (Lme/ahoo/wow/api/access/AccessAttribute$Multiple;)Lme/ahoo/wow/api/access/AccessPredicate;
 	public final fun isIn (Lme/ahoo/wow/api/access/AccessAttribute$Single;Ljava/util/Collection;)Lme/ahoo/wow/api/access/AccessPredicate;
 	public final fun isNull (Lme/ahoo/wow/api/access/AccessAttribute$Single;)Lme/ahoo/wow/api/access/AccessPredicate;
@@ -410,15 +409,18 @@ public final class me/ahoo/wow/api/caller/Caller {
 	public static final field APP Ljava/lang/String;
 	public static final field Companion Lme/ahoo/wow/api/caller/Caller$Companion;
 	public static final field DEFAULT_TENANT Ljava/lang/String;
+	public static final field ROLES Ljava/lang/String;
 	public static final field SERVICE_SUBJECT_PREFIX Ljava/lang/String;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getApp ()Ljava/lang/String;
 	public final fun getAttributes ()Ljava/util/Map;
 	public final fun getCrossScope ()Z
+	public final fun getRoles ()Ljava/util/List;
 	public final fun getScope ()Lme/ahoo/wow/api/aggregate/Scope;
 	public final fun getService ()Z
 	public final fun getSubject ()Ljava/lang/String;
 	public final fun getTenantId ()Ljava/lang/String;
+	public final fun hasRole (Ljava/lang/String;)Z
 	public fun hashCode ()I
 	public static final fun of ()Lme/ahoo/wow/api/caller/Caller;
 	public static final fun of (Ljava/lang/String;)Lme/ahoo/wow/api/caller/Caller;
@@ -427,6 +429,7 @@ public final class me/ahoo/wow/api/caller/Caller {
 	public static final fun of (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;Ljava/lang/String;Z)Lme/ahoo/wow/api/caller/Caller;
 	public static final fun of (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;Ljava/lang/String;ZLjava/util/Map;)Lme/ahoo/wow/api/caller/Caller;
 	public static final fun of (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;Ljava/lang/String;ZLjava/util/Map;Z)Lme/ahoo/wow/api/caller/Caller;
+	public static final fun of (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;Ljava/lang/String;ZLjava/util/Map;ZLjava/util/Collection;)Lme/ahoo/wow/api/caller/Caller;
 	public static final fun ofService (Ljava/lang/String;)Lme/ahoo/wow/api/caller/Caller;
 	public static final fun ofService (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/caller/Caller;
 	public static final fun owner (Ljava/lang/String;)Lme/ahoo/wow/api/caller/Caller;
@@ -444,7 +447,8 @@ public final class me/ahoo/wow/api/caller/Caller$Companion {
 	public final fun of (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;Ljava/lang/String;Z)Lme/ahoo/wow/api/caller/Caller;
 	public final fun of (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;Ljava/lang/String;ZLjava/util/Map;)Lme/ahoo/wow/api/caller/Caller;
 	public final fun of (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;Ljava/lang/String;ZLjava/util/Map;Z)Lme/ahoo/wow/api/caller/Caller;
-	public static synthetic fun of$default (Lme/ahoo/wow/api/caller/Caller$Companion;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;Ljava/lang/String;ZLjava/util/Map;ZILjava/lang/Object;)Lme/ahoo/wow/api/caller/Caller;
+	public final fun of (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;Ljava/lang/String;ZLjava/util/Map;ZLjava/util/Collection;)Lme/ahoo/wow/api/caller/Caller;
+	public static synthetic fun of$default (Lme/ahoo/wow/api/caller/Caller$Companion;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;Ljava/lang/String;ZLjava/util/Map;ZLjava/util/Collection;ILjava/lang/Object;)Lme/ahoo/wow/api/caller/Caller;
 	public final fun ofService (Ljava/lang/String;)Lme/ahoo/wow/api/caller/Caller;
 	public final fun ofService (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/caller/Caller;
 	public static synthetic fun ofService$default (Lme/ahoo/wow/api/caller/Caller$Companion;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/api/caller/Caller;
@@ -1979,7 +1983,6 @@ public final class me/ahoo/wow/api/wire/DevelopmentHeaders {
 	public static final field INSTANCE Lme/ahoo/wow/api/wire/DevelopmentHeaders;
 	public static final field OWNER Ljava/lang/String;
 	public static final field ROLES Ljava/lang/String;
-	public static final field ROLES_ATTRIBUTE Ljava/lang/String;
 	public static final field TENANT Ljava/lang/String;
 	public static final field USER Ljava/lang/String;
 	public static final fun of (Lme/ahoo/wow/api/caller/Caller;)Ljava/util/Map;

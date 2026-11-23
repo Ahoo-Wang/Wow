@@ -78,14 +78,14 @@ class AccessPolicySpec<S : Any> internal constructor(
         AccessExpectations { write, granted -> check(caller, write, granted) }.block()
     }
 
-    /** Checks what a caller [subject] may do, holding [claims], with [roles] (its `roles` claim). */
+    /** Checks what a caller [subject] may do, holding [claims], with [roles] ([Caller.roles]). */
     fun whenCaller(
         subject: String? = null,
         claims: Map<String, List<String>> = emptyMap(),
         roles: List<String> = emptyList(),
         block: AccessExpectations.() -> Unit,
     ) {
-        val attributes = if (roles.isEmpty()) claims else claims + (ROLES to roles)
+        val attributes = if (roles.isEmpty()) claims else claims + (Caller.ROLES to roles)
         whenCaller(Caller(subject = subject, attributes = attributes), block)
     }
 
@@ -118,7 +118,6 @@ class AccessPolicySpec<S : Any> internal constructor(
 
     private companion object {
         const val ID = "access-1"
-        const val ROLES = "roles"
 
         fun attributesOf(predicate: AccessPredicate): List<AccessAttribute<*, *>> = when (predicate) {
             is AccessPredicate.Comparison -> listOf(predicate.attribute)

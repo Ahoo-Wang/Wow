@@ -50,12 +50,12 @@ class OpsSystemCommandsTest {
         "operator" to Caller.of(
             "acme",
             subject = "olga",
-            attributes = mapOf(OpsRoles.ROLES_ATTRIBUTE to listOf(OpsRoles.OPERATOR)),
+            attributes = mapOf(Caller.ROLES to listOf(OpsRoles.OPERATOR)),
         ),
         "viewer" to Caller.of(
             "acme",
             subject = "victor",
-            attributes = mapOf(OpsRoles.ROLES_ATTRIBUTE to listOf(OpsRoles.VIEWER)),
+            attributes = mapOf(Caller.ROLES to listOf(OpsRoles.VIEWER)),
         ),
     )
 

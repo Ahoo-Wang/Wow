@@ -220,19 +220,27 @@ val headerCallers = CallerResolver { request ->
     )
 }
 
-/** The operator [operatorsOnly] lets send Wow's system commands. */
+/** The operator [operatorsOnly] lets send Wow's operational commands. */
 const val OPERATOR = "olivia"
 
 /**
- * An application's authorizer of Wow's system commands (`wow.*`): only [OPERATOR] sends them. It has no objection to
- * any other command, as an authorizer of one concern.
+ * An application's authorizer of Wow's operational commands ([CommandAuthorizer.operational]): only [OPERATOR] sends
+ * them. It has no objection to any other command.
  */
-val operatorsOnly = CommandAuthorizer { caller, action ->
-    if (action.isSystem && caller.subject != OPERATOR) {
+val operatorsOnly = CommandAuthorizer.operational { caller, action ->
+    if (caller.subject != OPERATOR) {
         Authorization.Denied.of("Only an operator sends ${action.type.name}.")
     } else {
         Authorization.Allowed
     }
+}
+
+/**
+ * An application's authorizer of another concern: it rules on one aggregate and has no objection to any other action,
+ * operational ones included, so it decides none of them.
+ */
+val otherConcern = CommandAuthorizer { _, action ->
+    if (action.ref.id == "forbidden") Authorization.Denied.of("No one acts on it.") else Authorization.Allowed
 }
 
 /** A projection that never signals: a wait for it times out. */

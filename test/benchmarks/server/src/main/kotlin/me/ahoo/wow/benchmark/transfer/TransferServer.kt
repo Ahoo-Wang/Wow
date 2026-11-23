@@ -108,7 +108,7 @@ class BenchCallers {
         const val POLICY = "policy"
         const val DATASET = "dataset"
         const val OWNERS = "owners"
-        val TELLER = Caller.of(subject = "bench-teller", attributes = mapOf("roles" to listOf("teller")))
+        val TELLER = Caller.of(subject = "bench-teller", roles = listOf("teller"))
 
         /** Reads the accounts of 10 of the scale check's 100 owners (`u0` to `u9`): a tenth of them. */
         val ANALYST = Caller.of(subject = "bench-analyst", attributes = mapOf(OWNERS to (0 until 10).map { "u$it" }))

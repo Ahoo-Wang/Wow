@@ -39,7 +39,10 @@ import org.junit.jupiter.api.Test
 
 /** The inventory's authorizer: who changes the stock, and who sends Wow's operational commands. */
 class InventoryAuthorizationTest {
-    private val authorizer: CommandAuthorizer = InventoryAuthorization().inventoryAuthorizer()
+    /** The service's authorizers as its node asks them: the operational one, then the domain one. */
+    private val authorizer: CommandAuthorizer = InventoryAuthorization().run {
+        CommandAuthorizer.allOf(listOf(inventoryOperators(), inventoryAuthorizer()))
+    }
     private val type = AggregateType("eshop-inventory", "stock")
 
     /** The callers of the tenant `acme`: a buyer acts in its own scope, the others in the tenant's. */

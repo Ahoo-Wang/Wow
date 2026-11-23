@@ -82,9 +82,9 @@ class CoSecCallerOptions @InternalWowApi constructor(
  * - **Cross scope**: [CoSecCallerOptions.crossScopeRoles].
  * - **Never a service identity**: a service names itself on the internal port (`Wow-Service`), never
  *   through CoSec, so no principal asserts a synchronous call's root command, whatever headers its request carries.
- * - **Attributes**: the principal's roles in its scope ([ROLES]), and every other attribute of the principal under its
+ * - **Attributes**: the principal's roles in its scope ([Caller.ROLES], its [Caller.roles]), and every other attribute of the principal under its
  *   own name, the claims an access policy reads (`caller.claims("departments")`); a value is a list, an array or a
- *   comma-separated string. An attribute named as one of those the caller holds already ([ROLES], [Caller.APP]) is
+ *   comma-separated string. An attribute named as one of those the caller holds already ([Caller.ROLES], [Caller.APP]) is
  *   not a claim: CoSec's roles and application win.
  */
 @ExperimentalWowApi
@@ -120,7 +120,7 @@ class CoSecCallerResolver(private val options: CoSecCallerOptions = CoSecCallerO
 
     private fun attributesOf(roles: List<String>, principal: CoSecPrincipal): Map<String, List<String>> {
         val attributes = LinkedHashMap<String, List<String>>()
-        roles.takeIf { it.isNotEmpty() }?.let { attributes[ROLES] = it.distinct().sorted() }
+        roles.takeIf { it.isNotEmpty() }?.let { attributes[Caller.ROLES] = it.distinct().sorted() }
         principal.attributes.forEach { (key, value) ->
             val values = valuesOf(value)
             if (key.isNotBlank() && key !in RESERVED && values.isNotEmpty()) {
@@ -131,11 +131,8 @@ class CoSecCallerResolver(private val options: CoSecCallerOptions = CoSecCallerO
     }
 
     companion object {
-        /** The attribute of a [Caller] listing its principal's CoSec roles in the scope of its request. */
-        const val ROLES: String = "roles"
-
         /** The attributes a caller holds from CoSec itself, which no attribute of the principal takes. */
-        private val RESERVED = setOf(ROLES, Caller.APP)
+        private val RESERVED = setOf(Caller.ROLES, Caller.APP)
 
         /** The Wow tenant of [context]: its CoSec tenant, CoSec's default one being [defaultTenant]. */
         internal fun tenantOf(context: SecurityContext, defaultTenant: String): String =

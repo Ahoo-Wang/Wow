@@ -46,7 +46,7 @@ class ViewStoreOperationalTest {
         tenantId = "t1",
         scope = Scope(ownerId = owner),
         subject = owner ?: "operator",
-        attributes = mapOf(ViewStoreRoles.ROLES_ATTRIBUTE to roles.toList()),
+        attributes = mapOf(Caller.ROLES to roles.toList()),
     )
 
     /** Each acts in its own scope: a user as its owner, the platform's operator as none. */

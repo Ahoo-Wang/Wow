@@ -21,7 +21,6 @@ public final class me/ahoo/wow/cosec/CoSecCallerOptions {
 
 public final class me/ahoo/wow/cosec/CoSecCallerResolver : me/ahoo/wow/http/caller/CallerResolver {
 	public static final field Companion Lme/ahoo/wow/cosec/CoSecCallerResolver$Companion;
-	public static final field ROLES Ljava/lang/String;
 	public fun <init> ()V
 	public fun <init> (Lme/ahoo/wow/cosec/CoSecCallerOptions;)V
 	public synthetic fun <init> (Lme/ahoo/wow/cosec/CoSecCallerOptions;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
@@ -36,6 +35,7 @@ public final class me/ahoo/wow/cosec/CoSecCommandAuthorizer : me/ahoo/wow/runtim
 	public fun <init> (Lme/ahoo/cosec/runtime/AuthorizationChecker;Ljava/lang/String;)V
 	public synthetic fun <init> (Lme/ahoo/cosec/runtime/AuthorizationChecker;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun authorize (Lme/ahoo/wow/api/caller/Caller;Lme/ahoo/wow/runtime/admission/CommandAction;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun getDecidesOperational ()Z
 }
 
 public final class me/ahoo/wow/cosec/CoSecIdentity {

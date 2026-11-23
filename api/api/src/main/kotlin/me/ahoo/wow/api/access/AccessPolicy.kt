@@ -181,9 +181,6 @@ class AccessScope<S : Any> internal constructor(private val ownership: Ownership
     /** The values of the caller's claim [name], none when the caller does not hold it. */
     fun Caller.claims(name: String): List<String> = attributes[name].orEmpty()
 
-    /** Whether the caller holds the role [role]: one of the values of its `roles` claim. */
-    fun Caller.hasRole(role: String): Boolean = role in claims(ROLES)
-
     /**
      * The default rule of [caller] ([ScopeAccess]): the aggregates whose owner is the owner of the scope the caller acts
      * in and whose space is its space, each part compared only when the scope names it, as the aggregate's ownership
@@ -195,11 +192,6 @@ class AccessScope<S : Any> internal constructor(private val ownership: Ownership
 
     private fun compare(attribute: AccessAttribute<*, *>, operator: AccessOperator, values: List<Any>): AccessPredicate =
         if (values.isEmpty()) AccessPredicate.Unknown else AccessPredicate.Comparison(attribute, operator, values)
-
-    private companion object {
-        /** The claim of the caller's roles. */
-        const val ROLES = "roles"
-    }
 }
 
 /**

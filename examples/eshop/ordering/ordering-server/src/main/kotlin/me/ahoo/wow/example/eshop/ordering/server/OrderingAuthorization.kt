@@ -13,10 +13,8 @@
 
 package me.ahoo.wow.example.eshop.ordering.server
 
-import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.example.eshop.ordering.api.order.ShipOrder
 import me.ahoo.wow.runtime.admission.Authorization
-import me.ahoo.wow.runtime.admission.CommandAction
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.runtime.admission.commandIs
 import org.springframework.context.annotation.Bean
@@ -32,14 +30,26 @@ import org.springframework.context.annotation.Configuration
 @Configuration(proxyBeanMethods = false)
 class OrderingAuthorization {
     /**
-     * A buyer may not ship its order; Wow's operational commands (a scheduled job's, the snapshot rebuild, an
-     * operator's action on a parked entry) are an employee's alone. Every other command, a buyer's delete of its own
-     * order among them, is the kernel's to keep in the caller's scope.
+     * Wow's operational commands (a scheduled job's, the snapshot rebuild, an operator's action on a parked entry) are
+     * an employee's alone, a tenant-level caller with a subject: this authorizer decides them, so the public port and
+     * the operator's routes serve them ([CommandAuthorizer.operational]).
+     */
+    @Bean
+    fun orderingOperators(): CommandAuthorizer = CommandAuthorizer.operational { caller, action ->
+        if (caller.subject != null && caller.scope.ownerId == null) {
+            Authorization.Allowed
+        } else {
+            Authorization.Denied.of("Only an employee sends ${action.type.name}.")
+        }
+    }
+
+    /**
+     * A buyer may not ship its order. Every other command, a buyer's delete of its own order among them, is the
+     * kernel's to keep in the caller's scope; Wow's operational commands are [orderingOperators]'.
      */
     @Bean
     fun orderingAuthorizer(): CommandAuthorizer = CommandAuthorizer { caller, action ->
         when {
-            action.isOperational -> operational(caller, action)
             action.commandIs<ShipOrder>() && !caller.service && caller.scope.ownerId != null ->
                 Authorization.Denied.of(
                     "Only an employee ships an order; ${caller.subject} may not ship ${action.ref.id}."
@@ -47,18 +57,5 @@ class OrderingAuthorization {
 
             else -> Authorization.Allowed
         }
-    }
-
-    private companion object {
-        /**
-         * The answer to one of Wow's operational commands ([CommandAction.isOperational]): an employee's, a
-         * tenant-level caller with a subject.
-         */
-        fun operational(caller: Caller, action: CommandAction): Authorization =
-            if (caller.subject != null && caller.scope.ownerId == null) {
-                Authorization.Allowed
-            } else {
-                Authorization.Denied.of("Only an employee sends ${action.type.name}.")
-            }
     }
 }

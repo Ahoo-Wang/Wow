@@ -188,7 +188,7 @@ class ServiceNodeOptions @InternalWowApi constructor(
  * The admission plug-ins of a node's [me.ahoo.wow.runtime.admission.CommandGateway], and the
  * [tenants] of its aggregate types. [ids] are the node's id generators: admission's
  * command and aggregate ids, the wait ids, and the ids its decide functions and sagas take. [authorizer] is null when
- * the application gives none ([me.ahoo.wow.runtime.admission.CommandGateway.authorizes]). [policies] are the access
+ * the application gives none ([me.ahoo.wow.runtime.admission.CommandGateway.decidesOperational]). [policies] are the access
  * policies the node's kernel holds each command to, before and after deciding.
  */
 @InternalWowApi

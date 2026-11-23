@@ -124,7 +124,7 @@ wow:
 
 An instance's own rule comes before the host's: a tenant's of a `TENANT` job, or one an operator set with `reschedule-job`. It is kept by the instance, so it outlives a restart.
 
-The job's instances also take commands over HTTP, `POST /<context>/wow.schedule/{id}/<command>`: `enable-job`, `reschedule-job`, `disable-job`, the job's name as the id. They are Wow's system commands, so the public port never allows them by default: a service without a command authorizer refuses them (403 `wow.auth.forbidden`), and with one, the authorizer decides. Under CoSec the action is `<context>:wow.schedule.EnableJob` (and the other job commands) on `schedule/<job>`, which a policy grants to the operators ([Action names](../operate/security#action-names)). The jobs' own commands, the sagas' and the commands ops sends on the internal port are not refused.
+The job's instances also take commands over HTTP, `POST /<context>/wow.schedule/{id}/<command>`: `enable-job`, `reschedule-job`, `disable-job`, the job's name as the id. They are Wow's system commands, so the public port never allows them by default: a service refuses them (403 `wow.auth.forbidden`) unless an authorizer decides them, `CommandAuthorizer.operational { … }` or CoSec's, and then it decides. Under CoSec the action is `<context>:wow.schedule.EnableJob` (and the other job commands) on `schedule/<job>`, which a policy grants to the operators ([Action names](../operate/security#action-names)). The jobs' own commands, the sagas' and the commands ops sends on the internal port are not refused.
 
 ## Test it
 

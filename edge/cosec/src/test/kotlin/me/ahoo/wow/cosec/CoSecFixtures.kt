@@ -286,7 +286,7 @@ fun editor(): Caller = Caller(
     tenantId = "acme",
     scope = Scope("alice", "s1"),
     subject = "alice",
-    attributes = mapOf(CoSecCallerResolver.ROLES to listOf("editor")),
+    attributes = mapOf(Caller.ROLES to listOf("editor")),
 )
 
 /**

@@ -39,7 +39,10 @@ import org.junit.jupiter.api.Test
 
 /** The catalog's authorizer: who changes the catalog, and who sends Wow's operational commands. */
 class CatalogAuthorizationTest {
-    private val authorizer: CommandAuthorizer = CatalogAuthorization().catalogAuthorizer()
+    /** The service's authorizers as its node asks them: the operational one, then the domain one. */
+    private val authorizer: CommandAuthorizer = CatalogAuthorization().run {
+        CommandAuthorizer.allOf(listOf(catalogOperators(), catalogAuthorizer()))
+    }
     private val type = AggregateType("eshop-catalog", "brand")
 
     /** The callers of the tenant `acme`: a buyer acts in its own scope, the others in the tenant's. */

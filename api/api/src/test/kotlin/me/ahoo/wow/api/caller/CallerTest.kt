@@ -50,6 +50,24 @@ class CallerTest {
     }
 
     @Test
+    fun `a caller's roles are its roles attribute, given once`() {
+        val editor = Caller.of(subject = "e1", roles = listOf("editor", "auditor"))
+        editor.roles.assert().containsExactly("editor", "auditor")
+        editor.attributes[Caller.ROLES].assert().containsExactly("editor", "auditor")
+        editor.hasRole("editor").assert().isTrue()
+        editor.hasRole("admin").assert().isFalse()
+        Caller.of(subject = "e1", attributes = mapOf(Caller.ROLES to listOf("editor"))).assert().isEqualTo(
+            Caller.of(subject = "e1", roles = listOf("editor")),
+        )
+        Caller.ANONYMOUS.roles.assert().isEmpty()
+        Caller.of(subject = "e1", attributes = mapOf("departments" to listOf("hr")), roles = listOf("editor"))
+            .attributes.keys.assert().containsExactlyInAnyOrder("departments", Caller.ROLES)
+        assertThrownBy<IllegalArgumentException> {
+            Caller.of(attributes = mapOf(Caller.ROLES to listOf("a")), roles = listOf("b"))
+        }
+    }
+
+    @Test
     fun `a system operator names its component`() {
         Operator.system("timers").assert().isEqualTo(Operator("system:timers", Caller.DEFAULT_TENANT))
         Operator.system("ledger", "t1").tenantId.assert().isEqualTo("t1")

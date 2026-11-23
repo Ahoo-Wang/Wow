@@ -43,6 +43,9 @@ import me.ahoo.wow.viewstore.api.ViewStoreContract
  *   transformers see the target scope.
  */
 class ViewStoreAuthorizer : CommandAuthorizer {
+    /** It decides Wow's operational commands: [ViewStoreRoles.SYSTEM_WRITER] sends them. */
+    override val decidesOperational: Boolean get() = true
+
     override suspend fun authorize(caller: Caller, action: CommandAction): Authorization {
         refusal(caller, action)?.let { return Authorization.Denied.of(it) }
         val role = when {
@@ -52,8 +55,7 @@ class ViewStoreAuthorizer : CommandAuthorizer {
             action.scope.ownerId == ViewStoreContext.SYSTEM_OWNER_ID -> ViewStoreRoles.SYSTEM_WRITER
             else -> return Authorization.Allowed
         }
-        val roles = caller.attributes[ViewStoreRoles.ROLES_ATTRIBUTE].orEmpty()
-        return if (role in roles) {
+        return if (caller.hasRole(role)) {
             Authorization.Allowed
         } else {
             Authorization.Denied.of("${nameOf(caller)} may not ${action.type.name}: it needs $role.")

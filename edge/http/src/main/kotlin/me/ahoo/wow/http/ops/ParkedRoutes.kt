@@ -96,10 +96,11 @@ import kotlin.time.Duration
  * parked. The four actions are
  * then authorized by [authorizer] as the system commands [OpsCommands] names on the parked aggregate (a
  * [CommandAction] without creation, in the caller's scope), so a CoSec policy guards them as it guards a command, and
- * CoSec's WebFilter can guard the routes by their paths (one per action) too; without an [authorizer] every action is refused (403
- * `wow.auth.forbidden`), never allowed by default. The reads are authorized the same way, as `wow.ledger.Read`
+ * CoSec's WebFilter can guard the routes by their paths (one per action) too; without an [authorizer] that decides
+ * operational commands ([CommandAuthorizer.decidesOperational]) every action is refused (403 `wow.auth.forbidden`),
+ * never allowed by default. The reads are authorized the same way, as `wow.ledger.Read`
  * ([OpsPaths.READ]) on each entry's aggregate, since an entry shows its failure's message: a listing
- * leaves out the entries the caller may not read, and without an [authorizer] both reads are refused too. Errors are
+ * leaves out the entries the caller may not read, and without such an [authorizer] both reads are refused too. Errors are
  * problems as on the other public routes, a store that is unavailable `wow.storage.unavailable` with `Retry-After`.
  */
 @ExperimentalWowApi
@@ -112,7 +113,12 @@ fun parkedRoutes(
     options: WowHttpOptions = WowHttpOptions(),
 ): RouterFunction<ServerResponse> {
     val statuses = ErrorStatuses(manifest, options.errorStatuses)
-    val handler = ParkedHandler(ops, Authenticator(callerResolver, statuses), authorizer ?: UNAUTHORIZED, statuses)
+    val handler = ParkedHandler(
+        ops,
+        Authenticator(callerResolver, statuses),
+        authorizer?.takeIf { it.decidesOperational } ?: UNAUTHORIZED,
+        statuses,
+    )
     val parked = OpsPaths.PARKED
     return coRouter {
         POST("$parked/${OpsPaths.LIST}") { request -> statuses.answering { handler.list(request) } }
@@ -176,7 +182,7 @@ internal object OpsCommands {
     /**
      * The command type of [name], one of these or [OpsPaths.READ]: the class of its ledger command, as the intakes
      * authorize it. Each is an operational one ([SystemCommandGroups.OPERATIONAL]), which a node without an
-     * authorizer refuses ([UNAUTHORIZED]) and an authorizer reads as `CommandAction.isOperational`.
+     * authorizer that decides them refuses ([UNAUTHORIZED]) and an authorizer reads as `CommandAction.isOperational`.
      */
     fun typeOf(name: String): CommandType {
         require(name in SystemCommandGroups.OPERATIONAL) { "$name is no operational command of the ledger." }
@@ -184,13 +190,13 @@ internal object OpsCommands {
     }
 }
 
-/** The operator routes' authorizer when the application has none: every action is refused. */
+/** The operator routes' authorizer when none of the application's decides operational commands: all are refused. */
 private val UNAUTHORIZED =
     CommandAuthorizer { _, action -> Authorization.Denied(refusedWithoutAuthorizer(action.type.name)) }
 
 private fun refusedWithoutAuthorizer(action: String): String =
-    "$action is refused: the service has no CommandAuthorizer for the operator's actions " +
-        "(CoSec's, wow.cosec.authorizer.enabled, or the application's own)."
+    "$action is refused: no CommandAuthorizer of the service decides the operator's actions, Wow's operational " +
+        "commands (CommandAuthorizer.operational, or CoSec's with wow.cosec.authorizer.enabled)."
 
 private const val SUBSCRIPTION = "subscription"
 private const val CONTEXT = "context"

@@ -54,26 +54,32 @@ CoSec 怎样认证请求、怎样检查客户端声明的应用和空间，见 C
 - **按作用域。** 无论授权器怎么说，内核都会拒绝作用于调用方作用域之外的聚合的命令，如同聚合不存在（`404 wow.aggregate.not-found`），查询也只返回调用方可以看的东西（[授权读取](#authorize-reads)）。
 - **按访问策略。** 有自己访问策略（其状态的 `AccessPolicy` Bean）的聚合，只在策略的 `write` 允许调用方修改它时才接受命令，取代作用域。被拒绝的调用方，若策略的 `read` 也对它隐藏该聚合，内核答 `404 wow.aggregate.not-found`，若它能读，答 `403 wow.aggregate.forbidden`；创建，以及改变聚合访问属性的命令，会在它留下的聚合上再检查一次。服务派生的命令和以服务自身身份发送的命令受信任；进程内客户端的默认调用方是匿名的，会被拒绝（[策略在哪里生效](../guide/ownership#where-a-policy-applies)、[哪些是受信的](../guide/ownership#what-is-trusted)）。
 
-运维人员操作停放聚合的路由 `/wow/ops/parked` 默认关闭（`wow.http.ops.enabled`）。打开后，它们的动作和读取按系统命令 `wow.ledger.*` 授权。没有命令授权器时，它们全部被拒绝（403 `wow.auth.forbidden`），默认从不放行，宿主在启动时发出警告。
+运维人员操作停放聚合的路由 `/wow/ops/parked` 默认关闭（`wow.http.ops.enabled`）。打开后，它们的动作和读取按系统命令 `wow.ledger.*`（Wow 的运维命令）授权。除非有授权器决定它们（见下文），它们全部被拒绝（403 `wow.auth.forbidden`），默认从不放行，宿主在启动时发出警告。
 
-Wow 内置聚合的系统命令在公开端口上遵循同一规则：定时任务的命令（`POST /<context>/wow.schedule/{id}/enable-job`、`reschedule-job` 和 `disable-job`）以及聚合类型的快照重建（`POST /<context>/<aggregate>/wow.snapshot.rebuild-snapshot`）。没有命令授权器时，公开端口对所有调用方（包括匿名调用方）都拒绝它们（403 `wow.auth.forbidden`），宿主在启动时说明这一点。有授权器时由授权器决定：在 CoSec 下，由策略把它们的动作（[见下文](#action-names)）授予运维人员。网关模式的服务没有 CoSec 授权器，需要自己的授权器才能放行它们。只有公开端口拒绝它们：任务自己的命令、Saga 发出的命令，以及其他服务（如 ops）在内部端口调用的命令照常发送。聚合的生命周期命令（`wow.lifecycle.*`）作用于聚合本身，与它的领域命令一样授权并检查作用域。
+Wow 内置聚合的系统命令在公开端口上遵循同一规则：定时任务的命令（`POST /<context>/wow.schedule/{id}/enable-job`、`reschedule-job` 和 `disable-job`）以及聚合类型的快照重建（`POST /<context>/<aggregate>/wow.snapshot.rebuild-snapshot`）。除非服务的某个授权器决定它们，公开端口对所有调用方（包括匿名调用方）都拒绝它们（403 `wow.auth.forbidden`），宿主在启动时说明这一点。只管别的事、对不认识的命令不提异议的授权器不会放开它们：决定它们的授权器要说明这一点（`CommandAuthorizer.decidesOperational`）。CoSec 的授权器（`wow.cosec.authorizer.enabled`）决定它们，由策略把它们的动作（[见下文](#action-names)）授予运维人员。网关模式的服务没有 CoSec 授权器，用 `CommandAuthorizer.operational` 给出自己的授权器。只有公开端口拒绝它们：任务自己的命令、Saga 发出的命令，以及其他服务（如 ops）在内部端口调用的命令照常发送。聚合的生命周期命令（`wow.lifecycle.*`）作用于聚合本身，与它的领域命令一样授权并检查作用域。
 
-应用自己的授权器按框架对这些命令的了解来区分它们，而不是按名字的前缀。`CommandAction.isOperational` 对 Wow 在没有授权器时拒绝的每个命令为真：定时任务的命令、快照重建，以及运维人员对停放条目的操作和对它们的读取（`wow.ledger.*`），运维路由同样拒绝后者。`CommandAction.isSystem` 对每个系统命令为真，生命周期命令也在其中；把「只有员工能发」这类规则放在 `isSystem` 上，会连所有者删除自己的聚合也一起挡住，所以这类规则要的是 `isOperational`。`action.commandIs<ShipOrder>()` 比较命令的类，多个命令共有的标记接口也算：
+`CommandAuthorizer.operational` 构造决定它们的授权器：它只被问到 Wow 的运维命令（`CommandAction.isOperational`：定时任务的命令、快照重建，以及运维人员对停放条目的操作和对它们的读取，`wow.ledger.*`），对其他动作不提异议。服务身份（`caller.service`）不会被问到：服务之间的调用是受信的，内部端口只把系统命令交给 `wow.callers.<service>.commands` 为它列出的服务。调用方的角色是 `caller.roles`、`caller.hasRole("operator")`，不论由哪个解析器给出：开发调用方取自 `Wow-Roles`，CoSec 的取自主体在请求作用域中的角色，应用自己的解析器放在属性 `Caller.ROLES` 下。服务的其他授权器也会被询问，各管各的事；授权器按框架对命令的了解来区分它们，而不是按名字的前缀。`CommandAction.isSystem` 对每个系统命令为真，生命周期命令也在其中，所以把「只有员工能发」这类规则放在 `isSystem` 上，会连所有者删除自己的聚合也一起挡住；`action.commandIs<ShipOrder>()` 比较命令的类，多个命令共有的标记接口也算：
 
 <!-- sample: fragment -->
 
 ```kotlin
-CommandAuthorizer { caller, action ->
-    when {
-        action.isOperational ->
-            if (caller.subject != null && caller.scope.ownerId == null) Authorization.Allowed
-            else Authorization.Denied.of("Only an employee sends ${action.type.name}.")
-        action.commandIs<ShipOrder>() && caller.scope.ownerId != null ->
-            Authorization.Denied.of("Only an employee ships an order.")
-        else -> Authorization.Allowed
+@Bean
+fun operators(): CommandAuthorizer = CommandAuthorizer.operational { caller, action ->
+    if (caller.hasRole("operator")) Authorization.Allowed
+    else Authorization.Denied.of("Only an operator sends ${action.type.name}.")
+}
+
+@Bean
+fun shipping(): CommandAuthorizer = CommandAuthorizer { caller, action ->
+    if (action.commandIs<ShipOrder>() && caller.scope.ownerId != null) {
+        Authorization.Denied.of("Only an employee ships an order.")
+    } else {
+        Authorization.Allowed
     }
 }
 ```
+
+测试用 `Caller.of(subject = "olivia", roles = listOf("operator"))` 构造带角色的调用方。
 
 客户端永远不该发送的命令，例如由 Saga 记录的支付网关答复，应标注 `@InternalCommand`，而不是只靠策略挡住：漏配一条规则就会失守。公开端口不挂它的路由：无论调用方是谁、策略怎样，请求它都答 `404`，与任何未知路径的 problem 相同；CoSec 的路由映射也不含它（[只在内部受理的命令](../guide/aggregates#keep-a-command-internal)）。内部端口照常受理 `wow.callers.<service>.commands` 许可的服务发来的调用，节点的授权器与对任何命令一样裁决它。
 

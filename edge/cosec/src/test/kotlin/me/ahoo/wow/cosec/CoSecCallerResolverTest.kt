@@ -91,8 +91,8 @@ class CoSecCallerResolverTest {
     @Test
     fun `the roles are the principal's in its scope`() {
         callerOf("alice;acme;editor@s1,viewer", mapOf(CoSecParameters.SPACE_ID to "s1"))!!
-            .attributes[CoSecCallerResolver.ROLES].assert().isEqualTo(listOf("editor"))
-        callerOf("alice;acme;editor@s1,viewer")!!.attributes[CoSecCallerResolver.ROLES].assert()
+            .attributes[Caller.ROLES].assert().isEqualTo(listOf("editor"))
+        callerOf("alice;acme;editor@s1,viewer")!!.attributes[Caller.ROLES].assert()
             .isEqualTo(listOf("viewer"))
     }
 
@@ -132,7 +132,7 @@ class CoSecCallerResolverTest {
     fun `roles and the principal's attributes are the caller's attributes, each by its own name`() {
         callerOf("alice;acme;b,a;;dept=sales,name=Alice,abac.region=eu")!!.attributes.assert().isEqualTo(
             mapOf(
-                CoSecCallerResolver.ROLES to listOf("a", "b"),
+                Caller.ROLES to listOf("a", "b"),
                 "dept" to listOf("sales"),
                 "name" to listOf("Alice"),
                 "abac.region" to listOf("eu"),
@@ -144,7 +144,7 @@ class CoSecCallerResolverTest {
     @Test
     fun `an attribute of the principal named as one CoSec gives the caller is not a claim`() {
         callerOf("alice;acme;editor;;roles=admin,app=other,dept=, =x")!!.attributes.assert().isEqualTo(
-            mapOf(CoSecCallerResolver.ROLES to listOf("editor")),
+            mapOf(Caller.ROLES to listOf("editor")),
         )
     }
 

@@ -51,7 +51,7 @@ class AnalyticsCatalogAuthorizerTest {
 
     private fun caller(vararg roles: String): Caller = Caller.of(
         subject = "u",
-        attributes = mapOf(AnalyticsCatalogRoles.ROLES_ATTRIBUTE to roles.toList()),
+        attributes = mapOf(Caller.ROLES to roles.toList()),
     )
 
     @Test

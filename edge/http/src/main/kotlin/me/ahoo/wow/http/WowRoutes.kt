@@ -103,8 +103,8 @@ import reactor.core.publisher.Mono
  * [PublicRequests] refuses what the port does not read outside a body: an unknown `Wow-` header, a Wow header given
  * twice, matrix parameters, and `Wow-Call` (403 `wow.auth.forbidden`) whatever the credential: the services'
  * synchronous calls are taken on the internal port alone ([callRoutes]). So is a system command of a built-in
- * aggregate, a job's or the snapshot rebuild's, on a node without an authorizer ([CommandGateway.authorizes]): never
- * allowed by default, it needs an authorizer that allows it. Errors are
+ * aggregate, a job's or the snapshot rebuild's, on a node none of whose authorizers decides them
+ * ([CommandGateway.decidesOperational]): never allowed by default, it needs an authorizer that decides them and allows it. Errors are
  * RFC 9457 problems whose statuses come from the Manifest's error tables ([ErrorStatuses]); a failure the framework
  * does not know is answered by the first of the application's [mappers] that knows it ([FailureProblems]), else as a
  * 500 that says nothing of its cause. A context's service

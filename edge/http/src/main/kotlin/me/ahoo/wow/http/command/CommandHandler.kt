@@ -79,8 +79,8 @@ internal data class CommandTarget(
  * - the W3C trace context headers (`traceparent`, `tracestate`, `baggage`) as the request's trace,
  *   which the command's admission continues;
  * - an operational command ([CommandTarget.operational]), a job's or the snapshot rebuild: on the public port, refused (403
- *   `wow.auth.forbidden`) when the node has no authorizer ([CommandGateway.authorizes]), never allowed by default, and
- *   authorized by it otherwise, as any command;
+ *   `wow.auth.forbidden`) unless one of the node's authorizers decides them ([CommandGateway.decidesOperational]),
+ *   never allowed by default, and authorized by the node's authorizers otherwise, as any command;
  * - `Wow-Call`, the root command of a service's synchronous call: refused (403) on the public port;
  *   on the internal port (`internal`) required, from a service identity only, for a command [permits] lets it call
  *   (403 [CallPermits.COMMAND_FORBIDDEN] otherwise), and answered once its command is committed, never
@@ -112,7 +112,7 @@ internal class CommandHandler(
 ) {
     suspend fun handle(request: ServerRequest, target: CommandTarget): ServerResponse {
         val caller = authenticator.authenticate(request)
-        if (target.operational && !internal && !gateway.authorizes) {
+        if (target.operational && !internal && !gateway.decidesOperational) {
             throw ProblemException(statuses.problemOf(FrameworkCodes.AUTH_FORBIDDEN, refusedWithoutAuthorizer(target)))
         }
         val call = headers.call(request, caller, internal)
@@ -188,8 +188,8 @@ internal class CommandHandler(
     companion object {
         /** Why the public port refuses [target], a built-in aggregate's system command, on a node without an authorizer. */
         internal fun refusedWithoutAuthorizer(target: CommandTarget): String =
-            "${target.command} is refused on the public port: the service has no CommandAuthorizer for Wow's " +
-                "system commands (CoSec's, wow.cosec.authorizer.enabled, or the application's own)."
+            "${target.command} is refused on the public port: no CommandAuthorizer of the service decides Wow's " +
+                "operational commands (CommandAuthorizer.operational, or CoSec's with wow.cosec.authorizer.enabled)."
 
         private val CommandResult.isAdmissionRefusal: Boolean
             get() = hop.stage == Stage.ACCEPTED && status != CommandResult.Status.SUCCEEDED

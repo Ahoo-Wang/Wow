@@ -121,9 +121,9 @@ class HostCustomizationTest {
     }
 
     @Test
-    fun `the application's command authorizer should be the node's`() {
-        // With one, the public port leaves the built-in aggregates' system commands to it (UI-50).
-        host.node.gateway.authorizes.assert().isTrue()
+    fun `the application's command authorizer should be the node's, and decide no operational command`() {
+        // Its authorizer rules on one account, allowing the rest: the built-in aggregates' system commands stay refused.
+        host.node.gateway.decidesOperational.assert().isFalse()
     }
 
     @Test

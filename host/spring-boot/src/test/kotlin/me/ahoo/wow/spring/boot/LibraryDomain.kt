@@ -23,7 +23,6 @@ import me.ahoo.wow.api.query.dsl.countQuery
 import me.ahoo.wow.api.query.dsl.listQuery
 import me.ahoo.wow.api.read.NodeQueryApi
 import me.ahoo.wow.api.read.QueryApi
-import me.ahoo.wow.api.wire.DevelopmentHeaders
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.ModelProvider
@@ -120,7 +119,7 @@ class LibraryModels : ModelProvider {
  */
 class LibrarianRole : ReadAuthorizer {
     override suspend fun authorize(caller: Caller, read: ReadAction): ReadAuthorization {
-        val roles = caller.attributes[DevelopmentHeaders.ROLES_ATTRIBUTE].orEmpty()
+        val roles = caller.attributes[Caller.ROLES].orEmpty()
         return if (read.type.context != LIBRARY || LIBRARIAN in roles) {
             ReadAuthorization.Allowed
         } else {

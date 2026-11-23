@@ -30,7 +30,7 @@ import me.ahoo.wow.query.policy.ReadAuthorizer
  */
 class ReaderRole : ReadAuthorizer {
     override suspend fun authorize(caller: Caller, read: ReadAction): ReadAuthorization =
-        if (OpsRoles.rolesOf(caller).any { it in OpsRoles.READERS }) {
+        if (caller.roles.any { it in OpsRoles.READERS }) {
             ReadAuthorization.Allowed
         } else {
             ReadAuthorization.Denied.of(

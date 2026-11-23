@@ -198,7 +198,7 @@ fun wordingAccess(): AccessPolicy<DatasetWordingState> = accessPolicy {
 | `allowIf(condition)` | 只关于调用方的条件（例如角色）成立时为每个聚合，否则为没有 |
 | `allowAll()`、`denyAll()` | 每个聚合，明确表示公开的数据；没有聚合 |
 
-调用方是宿主为请求解析出的那个（[认证调用方](../operate/security#authenticate-callers)）。策略读取 `caller.subject`、`caller.app` 和 `caller.scope`，并按名字读取它的声明：`caller.claim("org")` 是一项声明的第一个值或 null，`caller.claims("departments")` 是它的值或空，`caller.hasRole("auditor")` 是它的 `roles` 声明是否含有该角色。
+调用方是宿主为请求解析出的那个（[认证调用方](../operate/security#authenticate-callers)）。策略读取 `caller.subject`、`caller.app` 和 `caller.scope`，并按名字读取它的声明：`caller.claim("org")` 是一项声明的第一个值或 null，`caller.claims("departments")` 是它的值或空，`caller.hasRole("auditor")` 是它的角色（`caller.roles`，即属性 `Caller.ROLES`）是否含有该角色。
 
 **缺失即拒绝。** 与调用方没有的声明（null 或没有值）比较，正反都不成立；与聚合没有的值比较也是如此。`not` 只对聚合已有的值成立，所以无论谓词怎样取反，缺失的值和缺失的声明都不会授予访问。公开的数据要在策略里说明：`allowAll()`，或者在 `anyOf` 中写 `A.isNull()`。在 PostgreSQL 和 MongoDB 上，`isNull` 分支不走任何索引，含有它的策略会读取该租户的每一个流：公开数据多的模型应给它一个自己的值，例如取值为 `public` 的 `visibility` 属性，`eq` 会通过它的索引读取。
 

@@ -168,13 +168,13 @@ class CommandGateway @InternalWowApi constructor(
     private val peers: PeerCommands? = null,
 ) {
     /**
-     * Whether the node has an authorizer ([CommandGateway]'s `authorizer`): without one, every action is allowed at
-     * step 3, and the public port refuses the system commands of Wow's built-in aggregates, the jobs' and the snapshot
-     * rebuild's, never allowing them by default. Their senders in the process and on the internal port are not
-     * refused.
+     * Whether one of the node's authorizers decides Wow's operational commands
+     * ([CommandAuthorizer.decidesOperational]): without one, the public port refuses the system commands of Wow's
+     * built-in aggregates, the jobs' and the snapshot rebuild's, never allowing them by default, whatever the node's
+     * other authorizers allow. Their senders in the process and on the internal port are not refused.
      */
     @InternalWowApi
-    val authorizes: Boolean = authorizer != null
+    val decidesOperational: Boolean = authorizer?.decidesOperational == true
 
     private val authorizer: CommandAuthorizer = authorizer ?: CommandAuthorizer.ALLOW_ALL
 
