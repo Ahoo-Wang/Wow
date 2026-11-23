@@ -89,6 +89,38 @@ A type's fixed tenant (`wow.aggregates.[<context>.<aggregate>].tenant`) is its o
 
 `wow.log.partitions` is fixed once the log holds entries, and the nodes of one service share their store layout ([Configure a Service](./configuration#what-must-match-across-nodes)).
 
+## Jackson {#jackson}
+
+Wow's JSON runs on Jackson 3.1 and 3.2, the two minors its tests run on. 3.1 is the one Spring Boot 4.2 manages, which a Maven build under Boot's parent and a Gradle build with Spring's dependency-management plugin resolve. 3.2 is the one a Gradle build that imports Boot's BOM with `platform(...)` resolves where springdoc is on the class path, since swagger-core 3 asks for it. On either, with Jackson's modules at one version, there is nothing to do.
+
+On another Jackson, Wow says what to change before the first read:
+
+- **At build time.** `checkWowJackson`, part of `check`, fails when `jackson-core`, `jackson-databind` or `jackson-module-kotlin` resolve at a minor Wow's JSON was not verified on, or at two minors, naming the versions, what asked for them and the change to make. It checks a domain module's test class path (`me.ahoo.wow`) and a service's runtime and test class paths (`me.ahoo.wow.service`).
+- **At start.** The Spring Boot host does not start on such a Jackson, and names the versions it found and the change to make. This covers a Maven build and a build without Wow's Gradle plugin. The host reads each module's version from the Maven metadata its jar carries (`META-INF/maven/.../pom.properties`), so a jar repackaged without it, a shaded or stripped jar, is not seen: such a build relies on the build-time check, or on its own.
+
+A Jackson module only the application uses, a data format or a datatype, is the application's to keep in line: Wow checks the modules its own JSON runs on.
+
+To keep one Jackson, Spring Boot's, on every class path of a Gradle 9 build, put Jackson's BOM in a dependency scope that every resolvable configuration extends, at the version Boot's BOM gives, read from it rather than copied:
+
+```kotlin
+// One Jackson, Spring Boot's, on every class path this build resolves. A dependency scope: nothing is published.
+val bootBom = "org.springframework.boot:spring-boot-dependencies:4.2.0"
+val jacksonPlatform = configurations.dependencyScope("jacksonPlatform") {
+    withDependencies {
+        val databind = "tools.jackson.core:jackson-databind"
+        val bootJackson = project.configurations
+            .detachedConfiguration(project.dependencies.platform(bootBom), project.dependencies.create(databind))
+            .incoming.resolutionResult.allComponents.mapNotNull { it.moduleVersion }
+            .single { "${it.group}:${it.name}" == databind }.version
+        add(project.dependencies.enforcedPlatform("tools.jackson:jackson-bom:$bootJackson"))
+    }
+}
+configurations.matching { it.isCanBeResolved && !it.isCanBeConsumed && it.name != jacksonPlatform.name }
+    .configureEach { extendsFrom(jacksonPlatform.get()) }
+```
+
+A dependency scope is never published, so the module's POM and Gradle metadata name no enforced platform. The version moves with `bootBom`, so the update that moves Spring Boot moves Jackson with it. Declared on `implementation` instead, the enforced platform would be published, and Gradle refuses to write a publication's metadata that holds one; declared on `testRuntimeClasspath`, it is refused at once, since no dependency is declared on a resolvable configuration.
+
 ## A major version
 
 A new major version may change formats and protocols. Its nodes do not run beside the previous major's: it comes with a migration, run before or during a cut-over, as V10 does from 9.x ([Migrating from 9.x](../migrate/)).
@@ -105,7 +137,7 @@ This version runs springdoc-openapi 3.2.1, on swagger-core 3.0 and Jackson 3:
 
 - **Renamed artifacts.** An application that declares swagger's artifacts itself renames them: `io.swagger.core.v3:swagger-annotations-jakarta`, `swagger-models-jakarta` and `swagger-core-jakarta` are `swagger-annotations`, `swagger-models` and `swagger-core`, version 3.0.0, which springdoc's BOM manages. Code that changed `Json.mapper()` or `Json31.mapper()` customizes swagger's mappers with `ObjectMapperFactory.addCustomizer` instead: Jackson 3's mappers are immutable.
 - **The application's own schemas.** What springdoc derives from the application's classes may read otherwise. A getter that starts with an acronym keeps its case (`getETag()` is `ETag`, not `etag`); the non-null properties of a Kotlin class are listed as `required`; the parameter of a single public constructor that names no property is a `writeOnly` property. A client generated from `/v3/api-docs` sees these. The Wow routes' document is unchanged, in `/v3/api-docs` as in `GET /wow/openapi`.
-- **Jackson.** swagger-core 3 asks for Jackson 3.2, above the 3.1 Spring Boot 4.2.0 manages. A Maven build under Boot's parent, and a Gradle build with Spring's dependency-management plugin, resolve Boot's version, as springdoc's own build does. A Gradle build that imports Boot's BOM with `platform(...)` resolves the higher one, 3.2, where springdoc is on the class path, so its services run another Jackson than its other modules. Wow's build keeps Boot's on every class path, with `enforcedPlatform` on `tools.jackson:jackson-bom` at the version Boot's BOM gives; a Gradle application does the same to keep one Jackson.
+- **Jackson.** swagger-core 3 asks for Jackson 3.2, above the 3.1 Spring Boot 4.2.0 manages, and a Gradle build that imports Boot's BOM with `platform(...)` resolves 3.2 where springdoc is on the class path. Wow's JSON runs on both; [Jackson](#jackson) says what the build and the start check, and how to keep one Jackson.
 
 This version runs CoSec 8.0.0-beta.7 and CoCache 8.2.0. From 8.0.0-beta.6 there is nothing to act on; from beta.5, CoSec's [Upgrading: from 8.0.0-beta.5](https://cosec.ahoo.me/operations/upgrading-previews#from-8-0-0-beta-5) has every change; the ones a Wow deployment meets:
 
