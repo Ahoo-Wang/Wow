@@ -81,8 +81,9 @@ import java.util.TimeZone
  * - **A `TimeZone`** is read through `ZoneId`, so an unknown id is refused where Jackson reads it as `GMT`, and an
  *   offset, `"+08:00"`, is that offset. A short id Java knows (`PST`) reads as the zone it names.
  * - **A `Locale` of one subtag** (a text with no `-` or `_`) is read as a BCP 47 tag, so one that is no tag,
- *   `"not a tag!"`, is refused. Jackson 3.1 reads such a text as a language of that name and 3.2 as a tag: where the
- *   minors Wow runs on answer one input differently, Wow answers as the stricter does, on every one of them.
+ *   `"not a tag!"`, is refused, and **a `Locale` from a number or a boolean** is refused. Jackson 3.1 reads such a text,
+ *   and a number's or a boolean's text, as a language of that name; 3.2 reads it as a tag, and fails on one that is
+ *   none: where the minors Wow runs on answer one input differently, Wow answers as the stricter does, on all of them.
  *
  * One input has one answer on every Jackson minor Wow runs on. Where a minor's reader differs, Wow decides the input
  * before it, as the `Locale` above; the enumeration's refusals are Jackson's own switches (`FAIL_ON_NUMBERS_FOR_ENUMS`
@@ -198,9 +199,19 @@ internal object StrictReads {
                 Check.DATE -> if (token == JsonToken.VALUE_STRING && DATE_ALONE.matches(p.string.trim())) {
                     throw InvalidFormatException.from(p, "A date alone is not a ${type.simpleName}.", p.string, type)
                 }
-                Check.LOCALE -> if (token == JsonToken.VALUE_STRING) subtag(p)?.let { return it }
+                Check.LOCALE -> locale(p, ctxt)?.let { return it }
             }
             return super.deserialize(p, ctxt)
+        }
+
+        /** A locale Wow reads before Jackson's reader, or refuses; null for any other input, which Jackson reads. */
+        private fun locale(p: JsonParser, ctxt: DeserializationContext): Any? {
+            val token = p.currentToken()
+            return when {
+                token == JsonToken.VALUE_STRING -> subtag(p)
+                token.isNumeric || token.isBoolean -> ctxt.handleUnexpectedToken(type, p)
+                else -> null
+            }
         }
 
         /** The locale of a text of one subtag, read as a BCP 47 tag; null for any other text, which Jackson reads. */
