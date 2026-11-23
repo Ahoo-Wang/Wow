@@ -15,9 +15,11 @@ Every code the framework answers a request with, as `code` of the `application/p
 | --- | --- | --- | --- | --- |
 | `wow.auth.unauthenticated` | 401 | `none` | Unauthenticated | The request carries no valid credentials. |
 | `wow.auth.forbidden` | 403 | `none` | Forbidden | The caller may not do what the request asks: send this command, call this route, or act or read across scopes. |
+| `wow.auth.unavailable` | 503 | `new-request` | Authorization unavailable | CoSec could not decide whether the request may proceed; nothing was done, so it may be sent again. Only CoSec's refusals carry it, when wow.cosec.problems is wow: their headers are CoSec's, which sets no Retry-After on a 503, so the wait here is the catalog's default for a client, not a header. |
 | `wow.aggregate.forbidden` | 403 | `none` | Aggregate change forbidden | The caller may read the aggregate but may not change it, or the command would create one outside the caller's reach. |
 | `wow.request.malformed` | 400 | `none` | Malformed request | A request header or parameter does not parse, or names what Wow does not take. |
 | `wow.request.invalid` | 400 | `none` | Invalid request | A request to the application's own route failed validation; the problem lists the violations. |
+| `wow.request.rate-limited` | 429 | `new-request` | Rate limited | CoSec refused the request for a rate limit it spent; nothing was done, so it may be sent again after the Retry-After CoSec sets. Written for CoSec's refusals when wow.cosec.problems is wow. |
 | `wow.command.malformed` | 400 | `none` | Malformed command | The command body cannot be read as the command type. |
 | `wow.command.invalid` | 400 | `none` | Invalid command | The command failed validation; the problem lists the violations. |
 | `wow.wait.invalid` | 400 | `none` | Invalid wait | The wait is not a chain the runtime can follow; the command was not run. |

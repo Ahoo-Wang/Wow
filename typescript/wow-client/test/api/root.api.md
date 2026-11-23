@@ -1106,9 +1106,11 @@ export type FrameworkErrorCode = (typeof FrameworkErrorCodes)[keyof typeof Frame
 export const FrameworkErrorCodes: {
     readonly AUTH_UNAUTHENTICATED: "wow.auth.unauthenticated";
     readonly AUTH_FORBIDDEN: "wow.auth.forbidden";
+    readonly AUTH_UNAVAILABLE: "wow.auth.unavailable";
     readonly AGGREGATE_FORBIDDEN: "wow.aggregate.forbidden";
     readonly REQUEST_MALFORMED: "wow.request.malformed";
     readonly REQUEST_INVALID: "wow.request.invalid";
+    readonly REQUEST_RATE_LIMITED: "wow.request.rate-limited";
     readonly COMMAND_MALFORMED: "wow.command.malformed";
     readonly COMMAND_INVALID: "wow.command.invalid";
     readonly WAIT_INVALID: "wow.wait.invalid";

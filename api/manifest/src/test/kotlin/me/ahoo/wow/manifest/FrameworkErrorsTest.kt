@@ -32,9 +32,12 @@ class FrameworkErrorsTest {
             mapOf(
                 "wow.auth.unauthenticated" to 401,
                 "wow.auth.forbidden" to 403,
+                // CoSec's refusals, written so when wow.cosec.problems is wow.
+                "wow.auth.unavailable" to 503,
                 "wow.aggregate.forbidden" to 403,
                 "wow.request.malformed" to 400,
                 "wow.request.invalid" to 400,
+                "wow.request.rate-limited" to 429,
                 "wow.command.malformed" to 400,
                 "wow.command.invalid" to 400,
                 "wow.wait.invalid" to 400,
@@ -100,6 +103,8 @@ class FrameworkErrorsTest {
     @Test
     fun `a code a retry may get past should say with which request, and wait a second`() {
         FrameworkErrors.ALL.filter { it.retry != Retry.NONE }.map { it.code }.assert().containsExactlyInAnyOrder(
+            "wow.auth.unavailable",
+            "wow.request.rate-limited",
             "wow.command.contended",
             "wow.command.busy",
             "wow.command.unknown",
@@ -113,7 +118,13 @@ class FrameworkErrorsTest {
             "wow.peer.unavailable",
         )
         FrameworkErrors.ALL.filter { it.retry == Retry.NEW_REQUEST }.map { it.code }.assert()
-            .containsExactlyInAnyOrder("wow.query.min-version-not-reached", "wow.query.busy", "wow.peer.unavailable")
+            .containsExactlyInAnyOrder(
+                "wow.auth.unavailable",
+                "wow.request.rate-limited",
+                "wow.query.min-version-not-reached",
+                "wow.query.busy",
+                "wow.peer.unavailable",
+            )
         FrameworkErrors.ALL.forEach { error ->
             error.retryAfter.assert().describedAs(error.code)
                 .isEqualTo(FrameworkErrors.RETRY_AFTER_SECONDS.takeIf { error.retry != Retry.NONE })

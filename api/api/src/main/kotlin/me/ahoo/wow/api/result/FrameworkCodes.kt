@@ -24,9 +24,22 @@ package me.ahoo.wow.api.result
 object FrameworkCodes {
     const val AUTH_UNAUTHENTICATED: String = "wow.auth.unauthenticated"
     const val AUTH_FORBIDDEN: String = "wow.auth.forbidden"
+
+    /**
+     * CoSec could not decide whether the request may proceed (its `unavailable`), as Wow writes CoSec's refusals when
+     * `wow.cosec.problems` is `wow`. Wow itself answers no request with it. Its headers are CoSec's, which sets no
+     * `Retry-After` on a 503: the catalog's wait for it is the default a client waits, never a header's value.
+     */
+    const val AUTH_UNAVAILABLE: String = "wow.auth.unavailable"
     const val AGGREGATE_FORBIDDEN: String = "wow.aggregate.forbidden"
     const val REQUEST_MALFORMED: String = "wow.request.malformed"
     const val REQUEST_INVALID: String = "wow.request.invalid"
+
+    /**
+     * CoSec refused the request for a rate limit it spent (its `too-many-requests`), as Wow writes CoSec's refusals
+     * when `wow.cosec.problems` is `wow`. Wow itself answers no request with it.
+     */
+    const val REQUEST_RATE_LIMITED: String = "wow.request.rate-limited"
     const val COMMAND_MALFORMED: String = "wow.command.malformed"
     const val COMMAND_INVALID: String = "wow.command.invalid"
     const val WAIT_INVALID: String = "wow.wait.invalid"
@@ -74,9 +87,11 @@ object FrameworkCodes {
     val ALL: Set<String> = setOf(
         AUTH_UNAUTHENTICATED,
         AUTH_FORBIDDEN,
+        AUTH_UNAVAILABLE,
         AGGREGATE_FORBIDDEN,
         REQUEST_MALFORMED,
         REQUEST_INVALID,
+        REQUEST_RATE_LIMITED,
         COMMAND_MALFORMED,
         COMMAND_INVALID,
         WAIT_INVALID,

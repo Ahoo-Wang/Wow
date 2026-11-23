@@ -103,6 +103,26 @@ With `wow.cosec.authorizer.enabled: true`, `CoSecCommandAuthorizer` and `CoSecSe
 
 A command that no request carries gets no objection from the CoSec authorizers: a command a saga, a timer or a compensation sends, a scheduled job's command, and a call another service makes on the internal port. CoSec has no request of theirs to decide. Such a command carries the scope and operator of the root command, which admission authorized when the root request arrived; the node's other authorizers still apply to it, and a service's calls on the internal port are what its caller list allows ([Close the internal port](#close-the-internal-port)).
 
+### CoSec's refusals {#cosec-refusals}
+
+A request CoSec refuses is answered before any route, by CoSec: its status, its headers (`CoSec-Request-Id`, `Retry-After` and the `RateLimit-*` headers where it sets them) and its problem, `https://cosec.ahoo.me/problems/<type>` with CoSec's `code` (`TOKEN_EXPIRED`, …). That is the default, `wow.cosec.problems: cosec`. With `wow.cosec.problems: wow`, the body is Wow's problem instead, its status and headers still CoSec's:
+
+| CoSec's refusal | Wow's `code` |
+| --- | --- |
+| `invalid-request` (400) | `wow.request.malformed` |
+| `unauthorized`, `token-invalid`, `token-expired`, `token-revoked` (401) | `wow.auth.unauthenticated` |
+| `forbidden`, `scope-rejected` (403) | `wow.auth.forbidden` |
+| `too-many-requests` (429) | `wow.request.rate-limited` |
+| `unavailable` (503) | `wow.auth.unavailable`, with no `Retry-After`: CoSec sets none on it |
+| `internal-error` (500) | none, `about:blank`, as Wow's own unexpected failures |
+
+CoSec's `type` and `code` stay in the member `cosec`, and its `requestId` and `traceId` under their names. A refusal of a type CoSec adds later keeps CoSec's body. An application that declares its own `ProblemRenderer` (CoSec's, experimental) writes the bodies itself, whatever the switch; the startup log says which renderer writes them.
+
+Two things decide whether to turn it on:
+
+1. **It is for a service that decides its requests itself.** In the recommended deployment, the CoSec gateway in front answers most 401s and 403s, and its bodies keep CoSec's shape, since the switch is the service's. A service behind it that turns the switch on gives its clients two shapes, CoSec's from the gateway and Wow's from the service, where they had one.
+2. **CoSec's TypeScript client stops reading these refusals.** With `wow`, the top-level `type` and `code` are Wow's, and `@ahoo-wang/cosec-fetcher` no longer tells an expired token from another refusal. An application that calls the service directly and refreshes its tokens with it reads `cosec.code`, or leaves the switch at `cosec`.
+
 ## Authorize reads {#authorize-reads}
 
 A query, a state read and a trace are authorized in layers, each narrowing what the one before allowed:

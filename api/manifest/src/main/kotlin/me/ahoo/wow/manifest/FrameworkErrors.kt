@@ -72,6 +72,15 @@ object FrameworkErrors {
                 "scopes.",
         ),
         ErrorManifest(
+            FrameworkCodes.AUTH_UNAVAILABLE,
+            503,
+            "CoSec could not decide whether the request may proceed; nothing was done, so it may be sent again. " +
+                "Only CoSec's refusals carry it, when wow.cosec.problems is wow: their headers are CoSec's, which " +
+                "sets no Retry-After on a 503, so the wait here is the catalog's default for a client, not a header.",
+            retry = Retry.NEW_REQUEST,
+            retryAfter = RETRY_AFTER_SECONDS,
+        ),
+        ErrorManifest(
             FrameworkCodes.AGGREGATE_FORBIDDEN,
             403,
             "The caller may read the aggregate but may not change it, or the command would create one outside the " +
@@ -86,6 +95,14 @@ object FrameworkErrors {
             FrameworkCodes.REQUEST_INVALID,
             400,
             "A request to the application's own route failed validation; the problem lists the violations.",
+        ),
+        ErrorManifest(
+            FrameworkCodes.REQUEST_RATE_LIMITED,
+            429,
+            "CoSec refused the request for a rate limit it spent; nothing was done, so it may be sent again after " +
+                "the Retry-After CoSec sets. Written for CoSec's refusals when wow.cosec.problems is wow.",
+            retry = Retry.NEW_REQUEST,
+            retryAfter = RETRY_AFTER_SECONDS,
         ),
         ErrorManifest(FrameworkCodes.COMMAND_MALFORMED, 400, "The command body cannot be read as the command type."),
         ErrorManifest(
@@ -277,9 +294,11 @@ object FrameworkErrors {
     val TITLES: Map<String, String> = mapOf(
         FrameworkCodes.AUTH_UNAUTHENTICATED to "Unauthenticated",
         FrameworkCodes.AUTH_FORBIDDEN to "Forbidden",
+        FrameworkCodes.AUTH_UNAVAILABLE to "Authorization unavailable",
         FrameworkCodes.AGGREGATE_FORBIDDEN to "Aggregate change forbidden",
         FrameworkCodes.REQUEST_MALFORMED to "Malformed request",
         FrameworkCodes.REQUEST_INVALID to "Invalid request",
+        FrameworkCodes.REQUEST_RATE_LIMITED to "Rate limited",
         FrameworkCodes.COMMAND_MALFORMED to "Malformed command",
         FrameworkCodes.COMMAND_INVALID to "Invalid command",
         FrameworkCodes.WAIT_INVALID to "Invalid wait",

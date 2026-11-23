@@ -1276,6 +1276,7 @@ public final class me/ahoo/wow/api/result/FrameworkCodes {
 	public static final field ALL Ljava/util/Set;
 	public static final field AUTH_FORBIDDEN Ljava/lang/String;
 	public static final field AUTH_UNAUTHENTICATED Ljava/lang/String;
+	public static final field AUTH_UNAVAILABLE Ljava/lang/String;
 	public static final field CALL_COMMAND_FORBIDDEN Ljava/lang/String;
 	public static final field COMMAND_BUSY Ljava/lang/String;
 	public static final field COMMAND_CONTENDED Ljava/lang/String;
@@ -1305,6 +1306,7 @@ public final class me/ahoo/wow/api/result/FrameworkCodes {
 	public static final field QUERY_TOO_MANY_GROUPS Ljava/lang/String;
 	public static final field REQUEST_INVALID Ljava/lang/String;
 	public static final field REQUEST_MALFORMED Ljava/lang/String;
+	public static final field REQUEST_RATE_LIMITED Ljava/lang/String;
 	public static final field ROUTE_MALFORMED Ljava/lang/String;
 	public static final field SCHEDULE_JOB_INVALID Ljava/lang/String;
 	public static final field SCHEDULE_NOT_DUE Ljava/lang/String;

@@ -57,6 +57,21 @@ public final class me/ahoo/wow/cosec/CoSecIdentity {
 public final class me/ahoo/wow/cosec/CoSecIdentity$Companion {
 }
 
+public final class me/ahoo/wow/cosec/CoSecProblemRenderer : me/ahoo/cosec/runtime/http/ProblemRenderer {
+	public static final field COSEC Ljava/lang/String;
+	public static final field Companion Lme/ahoo/wow/cosec/CoSecProblemRenderer$Companion;
+	public static final field KNOWN Ljava/util/Set;
+	public fun <init> ()V
+	public static final fun codeOf (Lme/ahoo/cosec/runtime/http/ProblemType;)Ljava/lang/String;
+	public static final fun problemOf (Lme/ahoo/cosec/runtime/http/Problem;)Lme/ahoo/wow/http/problem/Problem;
+	public fun render (Lme/ahoo/cosec/runtime/http/Problem;)[B
+}
+
+public final class me/ahoo/wow/cosec/CoSecProblemRenderer$Companion {
+	public final fun codeOf (Lme/ahoo/cosec/runtime/http/ProblemType;)Ljava/lang/String;
+	public final fun problemOf (Lme/ahoo/cosec/runtime/http/Problem;)Lme/ahoo/wow/http/problem/Problem;
+}
+
 public final class me/ahoo/wow/cosec/CoSecServiceRouteAuthorizer : me/ahoo/wow/runtime/admission/ServiceRouteAuthorizer {
 	public fun <init> (Lme/ahoo/cosec/runtime/AuthorizationChecker;Ljava/lang/String;)V
 	public synthetic fun <init> (Lme/ahoo/cosec/runtime/AuthorizationChecker;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V

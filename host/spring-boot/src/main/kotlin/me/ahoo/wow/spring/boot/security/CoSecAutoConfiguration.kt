@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.spring.boot.security
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.cosec.document.route.RouteMap
 import me.ahoo.cosec.runtime.AuthorizationChecker
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
@@ -22,6 +23,7 @@ import me.ahoo.wow.cosec.CoSecActions
 import me.ahoo.wow.cosec.CoSecCallerOptions
 import me.ahoo.wow.cosec.CoSecCallerResolver
 import me.ahoo.wow.cosec.CoSecCommandAuthorizer
+import me.ahoo.wow.cosec.CoSecProblemRenderer
 import me.ahoo.wow.cosec.CoSecRequestFacts
 import me.ahoo.wow.cosec.CoSecRequestIds
 import me.ahoo.wow.cosec.CoSecServiceRouteAuthorizer
@@ -30,6 +32,8 @@ import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.spring.boot.WowAutoConfiguration
 import me.ahoo.wow.spring.boot.WowProperties
+import org.springframework.beans.factory.ListableBeanFactory
+import org.springframework.beans.factory.SmartInitializingSingleton
 import org.springframework.beans.factory.config.BeanPostProcessor
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
@@ -42,6 +46,7 @@ import org.springframework.context.annotation.Condition
 import org.springframework.context.annotation.ConditionContext
 import org.springframework.context.annotation.Conditional
 import org.springframework.core.type.AnnotatedTypeMetadata
+import org.springframework.util.ClassUtils
 
 /**
  * Wires CoSec into the host when the application has wow-cosec and CoSec's WebFlux module: the host
@@ -96,6 +101,33 @@ class CoSecAutoConfiguration {
         properties: WowProperties,
     ): CoSecServiceRouteAuthorizer = CoSecServiceRouteAuthorizer(checker, defaultTenant(properties))
 
+    /**
+     * Writes CoSec's refusals as Wow's problems when `wow.cosec.problems` is `wow` and the application declares no
+     * `ProblemRenderer` of its own, which wins: CoSec takes one renderer and refuses to start with two.
+     */
+    @Bean
+    @ConditionalOnProperty(PROBLEMS, havingValue = "wow")
+    @ConditionalOnMissingBean(type = [PROBLEM_RENDERER])
+    @InternalWowApi
+    fun wowCoSecProblemRenderer(): CoSecProblemRenderer = CoSecProblemRenderer()
+
+    /** Says at startup who writes CoSec's refusals when `wow.cosec.problems` is `wow`: Wow, or the application. */
+    @Bean
+    @ConditionalOnProperty(PROBLEMS, havingValue = "wow")
+    @InternalWowApi
+    fun wowCoSecProblemsNotice(beans: ListableBeanFactory): SmartInitializingSingleton = SmartInitializingSingleton {
+        val type = ClassUtils.resolveClassName(PROBLEM_RENDERER, beans.javaClass.classLoader)
+        val renderers = beans.getBeanNamesForType(type, true, false).toList()
+        if (renderers.any { beans.getType(it) == CoSecProblemRenderer::class.java }) {
+            logger.info { "CoSec's refusals are written as Wow's problems ($PROBLEMS=wow)." }
+        } else {
+            logger.info {
+                "$PROBLEMS is wow, but the application declares its own ProblemRenderer ${renderers.joinToString()}: " +
+                    "it writes CoSec's refusals, not Wow."
+            }
+        }
+    }
+
     /** No [CallerResolver] is defined yet: the application's own one wins over CoSec's. */
     internal class NoCallerResolver : Condition {
         override fun matches(context: ConditionContext, metadata: AnnotatedTypeMetadata): Boolean =
@@ -120,6 +152,12 @@ class CoSecAutoConfiguration {
 
     companion object {
         const val AUTHORIZER_ENABLED: String = "wow.cosec.authorizer.enabled"
+
+        /** How the body of CoSec's refusals is written ([CoSecProperties.problems]). */
+        const val PROBLEMS: String = "wow.cosec.problems"
+
+        /** CoSec's renderer of a refusal's body, by name: its type is CoSec's experimental API. */
+        private const val PROBLEM_RENDERER: String = "me.ahoo.cosec.runtime.http.ProblemRenderer"
 
         /**
          * Adds the CoSec request facts and `CoSec-Request-Id`, the request id of a command without `Wow-Request-Id`
@@ -190,3 +228,5 @@ internal const val COSEC_MODULE = "me.ahoo.wow.cosec.CoSecCallerResolver"
 
 /** A class of CoSec's WebFlux module, which wow-cosec reads the resolved security context from. */
 internal const val COSEC_WEBFLUX = "me.ahoo.cosec.webflux.ServerWebExchanges"
+
+private val logger = KotlinLogging.logger {}

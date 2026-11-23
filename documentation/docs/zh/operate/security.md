@@ -103,6 +103,26 @@ CommandAuthorizer { caller, action ->
 
 不由请求携带的命令，CoSec 的授权器不提出异议：Saga、定时器或补偿发出的命令，定时任务的命令，以及其他服务在内部端口上的调用。CoSec 没有属于它们的请求可以决定。这样的命令带着根命令的作用域和操作人，而根命令在根请求到达时已经由准入授权过；节点的其他授权器仍然作用于它，服务在内部端口上的调用由它的调用方列表决定（[关上内部端口](#close-the-internal-port)）。
 
+### CoSec 的拒绝 {#cosec-refusals}
+
+CoSec 拒绝的请求在任何路由之前由 CoSec 回答：它的状态、它的响应头（`CoSec-Request-Id`，以及它设置时的 `Retry-After` 与 `RateLimit-*`）和它的 problem，即 `https://cosec.ahoo.me/problems/<type>` 加上 CoSec 的 `code`（`TOKEN_EXPIRED` 等）。这是默认的 `wow.cosec.problems: cosec`。设为 `wow.cosec.problems: wow` 时，回答体改为 Wow 的 problem，状态与响应头仍是 CoSec 的：
+
+| CoSec 的拒绝 | Wow 的 `code` |
+| --- | --- |
+| `invalid-request`（400） | `wow.request.malformed` |
+| `unauthorized`、`token-invalid`、`token-expired`、`token-revoked`（401） | `wow.auth.unauthenticated` |
+| `forbidden`、`scope-rejected`（403） | `wow.auth.forbidden` |
+| `too-many-requests`（429） | `wow.request.rate-limited` |
+| `unavailable`（503） | `wow.auth.unavailable`，不带 `Retry-After`：CoSec 对它不设这个头 |
+| `internal-error`（500） | 没有码，`about:blank`，与 Wow 自己的意外错误一样 |
+
+CoSec 的 `type` 与 `code` 放在成员 `cosec` 里，`requestId` 和 `traceId` 保留 CoSec 的名字。CoSec 以后新增的拒绝类型保持 CoSec 的回答体。应用自己声明了 `ProblemRenderer`（CoSec 的试验性 API）时，无论开关怎样，都由它写回答体；启动日志会说明由哪个渲染器写。
+
+是否打开，取决于两件事：
+
+1. **它是给自己做决定的服务用的。** 在推荐的部署里，大多数 401 和 403 由前面的 CoSec 网关答出，网关的回答体仍是 CoSec 的形状，因为这个开关属于服务。网关之后的服务打开它，客户端就会看到两种形状：网关给的 CoSec 形状和服务给的 Wow 形状，而原本只有一种。
+2. **CoSec 的 TypeScript 客户端认不出这些拒绝。** 设为 `wow` 后，顶层的 `type` 与 `code` 是 Wow 的，`@ahoo-wang/cosec-fetcher` 不再能把令牌过期与其他拒绝区分开。直连服务、并用它刷新令牌的应用，要改读 `cosec.code`，或者把开关留在 `cosec`。
+
 ## 授权读取 {#authorize-reads}
 
 查询、状态读取和 trace 分层授权，每一层收窄前一层允许的范围：

@@ -120,3 +120,5 @@ outline: deep
 - **ops 服务的 `parked` 聚合以哈希命名。** 条目的 id 是 `p` 加 32 位十六进制数字，即它的服务、订阅与聚合 SHA-256 的前 128 位，原先这些字段是拼接起来的。服务、订阅、租户与 id 仍是条目的字段，与以前一样。ops 服务只在字段算出的那个 id 之下记录条目。本版本的 ops 服务从空库开始，和预发布版本的所有存储一样：记录在旧 id 之下的条目会一直未决，因为服务之后的记录都去了新 id。各服务自己的账本保留着条目，下一次扫描会重新发布它们。
 - **服务的运维路由在请求体里指明条目。** 每条都是 `/wow/ops/parked` 之下、路径不含数据的 `POST`：`list`（请求体里是 `subscription`、`after`、`limit`）、`entry`、`retry`、`skip`、`mark-recoverable` 与 `apply-retry-spec`，条目由 `subscription`、`context`、`aggregate`、`tenantId` 与 `id` 指明。拼过 `GET /wow/ops/parked?…`、`GET /wow/ops/parked/{subscription}/{context}/{aggregate}/{tenant}/{id}` 或其 `POST …/retry` 路径的脚本、Webhook 接收方或网关策略，都改用这些路由。
 - **`Ledger.parkedId` 返回哈希**，签名不变；解析过它旧形式的代码，改读条目的字段。
+
+本版本可以把 CoSec 的拒绝写成 Wow 的 problem，默认关闭：`wow.cosec.problems: wow`（[CoSec 的拒绝](./security#cosec-refusals)）。保持 `cosec` 时，每个回答与以前逐字节相同。它基于 CoSec 的 `ProblemRenderer`，那在 CoSec 8 里是试验性的，形状可能随 CoSec 的 RC 改变。新增两个码：`wow.request.rate-limited`（429）与 `wow.auth.unavailable`（503），只有这些拒绝会用到它们。
