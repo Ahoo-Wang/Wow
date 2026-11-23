@@ -162,6 +162,7 @@ dependencies {
 - merges every part on the runtime class path into the service's Manifest, `build/wow/manifest.json` (`mergeWowManifest`), and writes its OpenAPI document (`generateWowOpenApi`);
 - writes the values of the `wow-service` Helm chart that the build knows, `build/wow/helm/values.yaml` (`generateWowHelmValues`): the service's name, the peers whose contracts are on its class path and its Manifest's route ([Kubernetes](../operate/kubernetes));
 - checks every build's Manifest against the committed baseline (`checkWowManifest`, part of `check`; `updateWowManifestBaseline` records it);
+- checks that its runtime and test class paths resolve Jackson at a minor Wow's JSON is verified on, its modules at one minor (`checkWowJackson`, part of `check`, which `me.ahoo.wow` runs on a domain module's test class path too), and says what to change otherwise ([Upgrading](../operate/upgrades));
 - registers the `integrationTest` test suite for the tests that run on containers, outside `check` ([Run it on real stores](../guide/testing-services#run-it-on-real-stores)).
 
 The merged Manifest describes the service the contracts of its contexts name (`wow { service }` of their domain modules, its own included), which must agree, else the server's project path (`:catalog-server` is `catalog-server`), at the project's version. Its `wow { }` block adds:

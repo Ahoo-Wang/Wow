@@ -162,6 +162,7 @@ dependencies {
 - 把运行时类路径上的各部分合并成服务的 Manifest，即 `build/wow/manifest.json`（`mergeWowManifest`），并写出它的 OpenAPI 文档（`generateWowOpenApi`）；
 - 写出构建所知道的 `wow-service` Helm chart 的 values，即 `build/wow/helm/values.yaml`（`generateWowHelmValues`）：服务名、类路径上有契约的对端，以及 Manifest 的路由（[Kubernetes](../operate/kubernetes)）；
 - 每次构建都对照提交到仓库的基线检查 Manifest（`checkWowManifest`，属于 `check`；`updateWowManifestBaseline` 记录基线）；
+- 检查运行时与测试类路径解析到的 Jackson 是 Wow 的 JSON 验证过的次版本，且其模块属于同一次版本（`checkWowJackson`，属于 `check`；`me.ahoo.wow` 也在领域模块的测试类路径上运行它），否则说明要改什么（[升级](../operate/upgrades)）；
 - 注册测试套件 `integrationTest`，供在容器上运行的测试使用，不属于 `check`（[在真实存储上运行](../guide/testing-services#run-it-on-real-stores)）。
 
 合并后的 Manifest 描述其上下文的契约写明的服务（各领域模块的 `wow { service }`，包括它自己的），这些名字须一致，否则以服务器的项目路径命名（`:catalog-server` 即 `catalog-server`），版本取项目的版本。它的 `wow { }` 块另有：
