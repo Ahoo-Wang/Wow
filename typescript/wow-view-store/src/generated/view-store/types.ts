@@ -60,7 +60,7 @@ export interface DatasetWordingState {
   appId: string;
   dataset: string;
   fields?: Record<string, unknown> | null;
-  isEmpty: boolean;
+  readonly isEmpty: boolean;
   recordNoun?: string | null;
   title?: string | null;
 }

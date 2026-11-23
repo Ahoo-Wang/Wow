@@ -28,7 +28,7 @@ description: '生成产物与重新生成 — @ahoo-wang/wow-generator'
 | `client.ts` | `<Context>Client`：上下文的 `CommandClient`（`commands`），以及每个聚合的命令、快照、事件和状态客户端；有服务路由时还有它们（`routes`） |
 | `routes.ts` | `<Context>Routes`：每个服务路由一个方法，基于 `@ahoo-wang/wow-client/routes` 的 `ServiceRoutes`；只在 Manifest 列出服务路由时写出 |
 | `textNumbers.ts` | 递归类型在哪里持有精确数字，标记一次；只在有这种类型时写出 |
-| `types.ts` | Manifest 的 schema 中的命令、事件和状态，各以其类的简单名命名；两个类共用的名字，或生成模块已经绑定的名字，以类的包名限定 |
+| `types.ts` | Manifest 的 schema 中的命令、事件和状态，各以其类的简单名命名；两个类共用的名字，或生成模块已经绑定的名字，以类的包名限定。计算属性（schema 中的 `readOnly`）是 `readonly`。调用方发送的类型（命令或生命周期命令的命令体、服务路由的请求或参数）若在任何深度含有计算属性，会再声明为 `<Name>Input`，Manifest 已用这个名字时加上编号：它是方法接收的类型，其中该属性可选 |
 | `<aggregate>/aggregate.ts` | `<Aggregate>Aggregate`，聚合的描述符；`<Aggregate>StateField`，查询能指明的 `state.*` 字段；`<Aggregate>Access`，它的访问属性；`<Aggregate>Event`，它的事件的联合类型 |
 | `<aggregate>/commandClient.ts` | `<Aggregate>CommandClient`：每条命令一个方法，每个方法有一个答出每一跳的 `…Stream` 孪生方法，以及聚合列出的生命周期命令；经由它的 `client`（基于上下文 `manifest.ts` 的 `CommandClient`）发送 |
 | `<aggregate>/queryClient.ts` | `<Aggregate>SnapshotQueryClient`、`<Aggregate>EventQueryClient` 和 `<Aggregate>StateClient` |
@@ -85,7 +85,7 @@ search(@path('item-id') itemId: string, @query('q') q: string,
 | path 参数                                  | 始终必填；`ignorePathParameters` 会省略其中一部分                                   |
 | query 或 header 参数                       | 文档写 `required: true` 时必填；原始类型枚举生成为其字面量的联合                    |
 | cookie 参数                                | 省略并给出警告：cookie 由浏览器发送，fetch 无法设置                                 |
-| JSON 请求体（`application/json`、`+json`） | schema 的类型；schema 未要求的属性通过 `PartialBy<Item, 'id'>` 保持可选             |
+| JSON 请求体（`application/json`、`+json`） | schema 的类型；schema 未要求的属性和只读属性通过 `PartialBy<Item, 'id'>` 保持可选，限于请求体顶层 |
 | `multipart/form-data`                      | `FormData`                                                                          |
 | `application/x-www-form-urlencoded`        | `URLSearchParams`                                                                   |
 | `text/*`                                   | `string`                                                                            |

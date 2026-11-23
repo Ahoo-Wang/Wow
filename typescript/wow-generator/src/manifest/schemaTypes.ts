@@ -25,11 +25,22 @@ import { compound, join, literal } from './typeText';
 const MAX_FIELD_DEPTH = 4;
 
 /**
+ * Where a type is written: `output`, what the service writes (a state, an
+ * event, an answer), or `input`, what a caller sends (a command's body, a
+ * route's request). A read-only property, a computed one the service writes
+ * and never reads back, is required where the schema says in an output and
+ * never in an input, at any depth: it may be handed back, never has to be.
+ */
+export type Position = 'output' | 'input';
+
+/**
  * Turns the schemas of a Manifest into types: names for `$defs` keys and
  * type text for any schema.
  */
 export class SchemaTypes {
   readonly names = new Map<string, string>();
+  /** The input types' names, of the keys whose input differs from their output ([nameInputs]). */
+  readonly inputNames = new Map<string, string>();
   readonly warnings: string[] = [];
 
   constructor(readonly defs: Readonly<Record<string, JsonSchema>>) {}
@@ -83,6 +94,47 @@ export class SchemaTypes {
         }
       }
     }
+  }
+
+  /**
+   * Names the input type of each of `keys` `<Name>Input`, numbered when the
+   * name is taken: by a type of `$defs`, an input named before or `reserved`.
+   */
+  nameInputs(keys: readonly string[], reserved: ReadonlySet<string>): void {
+    const taken = new Set([...reserved, ...this.names.values()]);
+    for (const key of keys) {
+      const name = `${this.names.get(key)}Input`;
+      let unique = name;
+      for (let index = 2; taken.has(unique); index++) {
+        unique = `${name}${index}`;
+      }
+      taken.add(unique);
+      this.inputNames.set(key, unique);
+    }
+  }
+
+  /**
+   * Of `keys`, those whose input type differs from their output type: the
+   * keys whose schema holds a read-only property, in itself or through the
+   * keys it refers to.
+   */
+  inputsOf(keys: Iterable<string>): string[] {
+    const holding = new Set(
+      Object.keys(this.defs).filter(key => readOnlyWithin(this.schemaOf(key))),
+    );
+    for (let grown = true; grown;) {
+      grown = false;
+      for (const key of Object.keys(this.defs)) {
+        if (holding.has(key)) continue;
+        if (
+          [...this.references(this.schemaOf(key))].some(ref => holding.has(ref))
+        ) {
+          holding.add(key);
+          grown = true;
+        }
+      }
+    }
+    return [...keys].filter(key => holding.has(key));
   }
 
   /** The schema of a key, or undefined with a warning. */
@@ -146,13 +198,15 @@ export class SchemaTypes {
     return [...reached];
   }
 
-  /** The type of a reference to `key`. */
-  refType(key: string, where: string): string {
+  /** The type of a reference to `key`, at `position`. */
+  refType(key: string, where: string, position: Position = 'output'): string {
     const schema = this.schemaOf(key);
     if (schema !== undefined && this.inlined(key)) {
-      return this.type(schema, where);
+      return this.type(schema, where, position);
     }
-    const name = this.names.get(key);
+    const name =
+      (position === 'input' ? this.inputNames.get(key) : undefined) ??
+      this.names.get(key);
     if (name !== undefined && this.schemaOf(key)) return name;
     this.warnings.push(
       `${where} refers to the schema ${key}, which the Manifest's $defs does not hold; it is typed as unknown.`,
@@ -160,14 +214,14 @@ export class SchemaTypes {
     return 'unknown';
   }
 
-  /** The type text of a schema. */
-  type(schema: unknown, where: string): string {
+  /** The type text of a schema, at `position`. */
+  type(schema: unknown, where: string, position: Position = 'output'): string {
     if (schema === true || schema === undefined) return 'unknown';
     if (schema === false) return 'never';
     if (!isObject(schema)) return 'unknown';
     if (typeof schema.$ref === 'string') {
       const key = schemaKey(schema.$ref);
-      return key === undefined ? 'unknown' : this.refType(key, where);
+      return key === undefined ? 'unknown' : this.refType(key, where, position);
     }
     if ('const' in schema) return literal(schema.const);
     if (Array.isArray(schema.enum)) {
@@ -183,7 +237,7 @@ export class SchemaTypes {
       const options = schema[member];
       if (Array.isArray(options) && options.length > 0) {
         return join(
-          options.map(option => this.type(option, where)),
+          options.map(option => this.type(option, where, position)),
           separator,
         );
       }
@@ -191,16 +245,21 @@ export class SchemaTypes {
     const types = typesOf(schema);
     if (types.length === 0) {
       return isObject(schema.properties)
-        ? this.objectType(schema, where)
+        ? this.objectType(schema, where, position)
         : 'unknown';
     }
     return join(
-      types.map(type => this.primitive(type, schema, where)),
+      types.map(type => this.primitive(type, schema, where, position)),
       ' | ',
     );
   }
 
-  private primitive(type: string, schema: JsonSchema, where: string): string {
+  private primitive(
+    type: string,
+    schema: JsonSchema,
+    where: string,
+    position: Position,
+  ): string {
     switch (type) {
       case 'string':
         return 'string';
@@ -218,54 +277,78 @@ export class SchemaTypes {
         const item =
           schema.items === undefined
             ? 'unknown'
-            : this.type(schema.items, where);
+            : this.type(schema.items, where, position);
         return compound(item) ? `(${item})[]` : `${item}[]`;
       }
       case 'object':
-        return this.objectType(schema, where);
+        return this.objectType(schema, where, position);
       default:
         return 'unknown';
     }
   }
 
   /** An inline object type. */
-  private objectType(schema: JsonSchema, where: string): string {
-    const properties = this.properties(schema, where);
-    const extra = this.additional(schema, where);
+  private objectType(
+    schema: JsonSchema,
+    where: string,
+    position: Position,
+  ): string {
+    const properties = this.properties(schema, where, position);
+    const extra = this.additional(schema, where, position);
     if (properties.length === 0) {
       return `Record<string, ${extra ?? 'unknown'}>`;
     }
     const members = properties.map(
       property =>
-        `${property.name}${property.optional ? '?' : ''}: ${property.type}`,
+        `${property.readonly ? 'readonly ' : ''}${property.name}${property.optional ? '?' : ''}: ${property.type}`,
     );
     // A typed index signature would have to admit every property's type.
     if (extra !== undefined) members.push('[key: string]: unknown');
     return `{ ${members.join('; ')} }`;
   }
 
-  /** The properties of an object schema, in their order. */
-  properties(schema: JsonSchema, where: string): PropertyModel[] {
+  /** The properties of an object schema at `position`, in their order. */
+  properties(
+    schema: JsonSchema,
+    where: string,
+    position: Position = 'output',
+  ): PropertyModel[] {
     if (!isObject(schema.properties)) return [];
-    const required = new Set(
-      Array.isArray(schema.required) ? (schema.required as string[]) : [],
-    );
+    const required = this.required(schema, position);
     return Object.entries(schema.properties).map(([name, property]) => {
       const description = isObject(property) ? property.description : undefined;
       return {
         name: resolvePropertyName(name),
-        type: this.type(property, `${where}.${name}`),
+        type: this.type(property, `${where}.${name}`, position),
         optional: !required.has(name),
+        ...(readOnly(property) ? { readonly: true } : {}),
         ...(typeof description === 'string' ? { description } : {}),
       };
     });
   }
 
+  /**
+   * The properties an object schema requires at `position`: what `required`
+   * lists, but for a read-only property in an input.
+   */
+  required(schema: JsonSchema, position: Position): Set<string> {
+    const listed = Array.isArray(schema.required)
+      ? (schema.required as string[])
+      : [];
+    if (position === 'output') return new Set(listed);
+    const properties = isObject(schema.properties) ? schema.properties : {};
+    return new Set(listed.filter(name => !readOnly(properties[name])));
+  }
+
   /** The type of an object's additional properties, if it allows a typed set. */
-  additional(schema: JsonSchema, where: string): string | undefined {
+  additional(
+    schema: JsonSchema,
+    where: string,
+    position: Position = 'output',
+  ): string | undefined {
     const extra = schema.additionalProperties;
     if (extra === undefined || extra === false) return undefined;
-    return this.type(extra, where);
+    return this.type(extra, where, position);
   }
 
   /** Whether a schema is an object with properties, so it names an interface. */
@@ -307,4 +390,25 @@ export class SchemaTypes {
     }
     return paths;
   }
+}
+
+/** Whether a property's schema is read-only: computed, written by the service and never read back. */
+function readOnly(property: unknown): boolean {
+  return isObject(property) && property.readOnly === true;
+}
+
+/** Whether a schema holds a read-only property anywhere within it, its references not followed. */
+function readOnlyWithin(schema: unknown): boolean {
+  if (Array.isArray(schema)) return schema.some(readOnlyWithin);
+  if (!isObject(schema)) return false;
+  if (
+    isObject(schema.properties) &&
+    Object.values(schema.properties).some(readOnly)
+  ) {
+    return true;
+  }
+  return Object.entries(schema).some(
+    ([member, value]) =>
+      member !== 'enum' && member !== 'const' && readOnlyWithin(value),
+  );
 }

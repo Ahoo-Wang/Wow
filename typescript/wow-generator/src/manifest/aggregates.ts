@@ -28,7 +28,7 @@ import type {
   Route,
 } from './model';
 import { aggregateTypeName } from './names';
-import type { SchemaTypes } from './schemaTypes';
+import type { Position, SchemaTypes } from './schemaTypes';
 import type { TextNumbers, TextNumbersModel } from './textNumbers';
 
 /** The TypeScript type of an access attribute's value of the Manifest's `type`. */
@@ -61,17 +61,14 @@ const LIFECYCLE_COMMANDS: ReadonlySet<string> = new Set([
   'wow.lifecycle.TransferSpace',
 ]);
 
-/** Whether `schema` requires nothing but `omitted`, a property the method does not take. */
+/** Whether a command's body `schema` requires nothing a caller sends. */
 function emptyBody(
   types: SchemaTypes,
   schema: JsonSchema | undefined,
-  omitted?: string,
 ): boolean {
-  if (schema === undefined) return true;
-  const resolved = types.resolve(schema);
   return (
-    !Array.isArray(resolved.required) ||
-    resolved.required.every(name => name === omitted)
+    schema === undefined ||
+    types.required(types.resolve(schema), 'input').size === 0
   );
 }
 
@@ -108,6 +105,17 @@ function lifecycleCommands(
     command =>
       command.system === true && command.name.startsWith('wow.lifecycle.'),
   );
+}
+
+/** The keys a caller sends of `aggregate`: its domain commands' bodies and its lifecycle bodies. */
+export function aggregateInputs(
+  types: SchemaTypes,
+  aggregate: ManifestAggregate,
+): string[] {
+  return domainCommands(aggregate)
+    .map(command => schemaKey(command.schema))
+    .filter((key): key is string => key !== undefined)
+    .concat(lifecycleBodies(types, aggregate));
 }
 
 export function aggregateRoots(
@@ -147,9 +155,14 @@ function routesOf(command: ManifestCommand): readonly Route[] {
   }));
 }
 
-function typeOfRef(types: SchemaTypes, ref: string, where: string): string {
+function typeOfRef(
+  types: SchemaTypes,
+  ref: string,
+  where: string,
+  position?: Position,
+): string {
   const key = schemaKey(ref);
-  return key === undefined ? 'unknown' : types.refType(key, where);
+  return key === undefined ? 'unknown' : types.refType(key, where, position);
 }
 export function aggregateModel(
   types: SchemaTypes,
@@ -178,7 +191,10 @@ export function aggregateModel(
         routes: routesOf(command),
         ...(own ? { ownMethod: `${method}Own` } : {}),
         ...(generated.has(name)
-          ? { bodyType: types.refType(name, where), bodyGenerated: true }
+          ? {
+              bodyType: types.refType(name, where, 'input'),
+              bodyGenerated: true,
+            }
           : LIFECYCLE_BODIES[name]
             ? { bodyType: LIFECYCLE_BODIES[name] }
             : {}),
@@ -218,12 +234,13 @@ export function aggregateModel(
       ...(byId ? { byIdPath: { path: byId.path } } : {}),
       ...(unaddressed ? { unaddressedPath: { path: unaddressed.path } } : {}),
       ...(ownMethod === undefined ? {} : { ownMethod }),
-      bodyType: typeOfRef(types, command.schema, `${where}.${command.name}`),
-      bodyOptional: emptyBody(
+      bodyType: typeOfRef(
         types,
-        bodySchema,
-        idComputed ? idProperty : undefined,
+        command.schema,
+        `${where}.${command.name}`,
+        'input',
       ),
+      bodyOptional: emptyBody(types, bodySchema),
       ...(idProperty === undefined ? {} : { idProperty }),
       ...(idComputed ? { idComputed } : {}),
       creation: command.creation ?? 'none',

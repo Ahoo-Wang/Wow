@@ -63,7 +63,7 @@ console.log(result.ref.id, result.version, result.status);
 
 ### 命令体指明了聚合 {#a-body-that-names-its-aggregate}
 
-命令体指明了聚合的命令（命令类上的 `@AggregateId`，Manifest 中的 `idProperty`）没有 ID 参数，也没有 `id` 选项。它的方法把命令体发往不带 `{id}` 的路由，服务作用于命令体指明的聚合。这个属性由其他字段算出时，方法接收的命令体不含它，即 `Omit<Body, 'stockId'>`，由服务算出 ID。
+命令体指明了聚合的命令（命令类上的 `@AggregateId`，Manifest 中的 `idProperty`）没有 ID 参数，也没有 `id` 选项。它的方法把命令体发往不带 `{id}` 的路由，服务作用于命令体指明的聚合。这个属性由其他字段算出时，命令体可以省略它，由服务算出 ID，与任何[计算属性](#a-computed-property)一样。
 
 手写的 `CommandClient` 请求同样按这条路由发送这类命令。eShop 没有这类命令，所以这里发送的是[在命令体中指明聚合](../guide/aggregates#name-the-aggregate-in-the-body)里的 `RestockProduct`：
 
@@ -80,6 +80,10 @@ await commands.wait({
 ```
 
 这类请求给出的 `id` 必须就是命令体指明的那个：命令体没有指明时，客户端把它写入命令体；命令体指明了另一个 ID 时，在发出任何请求之前抛出 `TypeError`。计算出的 ID 属于服务：为它给出的 `id` 会被忽略，因为服务从字段算出 ID，所以不要传 `id`。
+
+### 计算属性 {#a-computed-property}
+
+命令体的计算属性，即背后没有字段的 getter（`val searchCode: String get() = "$code|$brandName"`），属于服务：Wow 的 JSON 写出它，却不读入任何值，所以命令体在任何深度都可以省略它，给出的值也会被忽略。schema 仍把它列为必填，因为服务写出的每个值都含有它，所以生成的客户端以单独的输入类型接收这样的命令体：`CreateOrder` 旁有 `CreateOrderInput`，`ProductRef` 旁有 `ProductRefInput`，命令体中每个含有计算属性的类型都如此，无论它是嵌套的、在列表中、在映射中，还是在某个分支中。在输入类型中，计算属性是可选的，仍是 `readonly`：`createOrder({ product: { id, code, brandName } })` 能通过编译，从状态读到的、含有该属性的值原样交回也能通过。`CreateOrder` 和 `ProductRef` 是服务写出的类型，其中该属性必填。所以，为自己构造的命令体标注方法接收的类型（`CreateOrderInput`，即方法的参数类型），而不是不带后缀的名字。不含计算属性的命令体没有输入类型，方法按原类型接收它。若 Manifest 已把这个名字给了自己的某个类型，输入类型的名字会加上编号（`ProductRefInput2`）。
 
 ## 等待命令带来的结果 {#wait-for-what-the-command-leads-to}
 

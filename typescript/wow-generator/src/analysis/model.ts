@@ -100,7 +100,7 @@ export interface BodyModel {
  * What a body holds:
  *
  * - `json`: the schema's type, with the properties the schema does not
- *   require optional (`PartialBy<Item, 'id'>`);
+ *   require, and the read-only ones, optional (`PartialBy<Item, 'id'>`);
  * - `formData`: `FormData`; `urlEncoded`: `URLSearchParams`;
  * - `text`: a string; `binary`: whatever a fetch request accepts.
  */

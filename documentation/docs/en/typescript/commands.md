@@ -63,7 +63,7 @@ The result says where the command got to:
 
 ### A body that names its aggregate
 
-A command whose body names its aggregate (its class's `@AggregateId`, the Manifest's `idProperty`) has no id parameter and no `id` option. Its method sends the body to the route without `{id}`, and the service acts on the aggregate the body names. When that property is computed from the other fields, the method takes the body without it, `Omit<Body, 'stockId'>`, and the service computes the id.
+A command whose body names its aggregate (its class's `@AggregateId`, the Manifest's `idProperty`) has no id parameter and no `id` option. Its method sends the body to the route without `{id}`, and the service acts on the aggregate the body names. When that property is computed from the other fields, the body may leave it out and the service computes the id, as for any [computed property](#a-computed-property).
 
 A `CommandClient` request written by hand sends such a command by the same route. The eShop has none, so this one sends the `RestockProduct` of [Name the aggregate in the body](../guide/aggregates#name-the-aggregate-in-the-body):
 
@@ -80,6 +80,10 @@ await commands.wait({
 ```
 
 An `id` given with such a request must be the one its body names: the client writes it into a body that names none, and a body that names another id throws a `TypeError` before anything is sent. A computed id is the service's: an `id` given for it is ignored, because the service computes the id from the fields, so leave `id` out.
+
+### A computed property
+
+A computed property of a command's body, a getter with no field behind it (`val searchCode: String get() = "$code|$brandName"`), is the service's: Wow's JSON writes it and reads nothing into it, so a body may leave it out, at any depth, and a value given for it is ignored. The schema still lists it as required, since every value the service writes holds it, so the generated client takes such a body as an input type of its own: `CreateOrderInput` beside `CreateOrder`, `ProductRefInput` beside `ProductRef`, for every type of the body that holds a computed property, nested, in a list, in a map or in one of its alternatives. In the input a computed property is optional and still `readonly`: `createOrder({ product: { id, code, brandName } })` compiles, and so does a value read from a state, which holds the property, handed back as it is. `CreateOrder` and `ProductRef` are what the service writes, with the property required. So annotate a body you build with the type the method takes (`CreateOrderInput`, the method's parameter type), not with the bare name. A body that holds no computed property has no input type, and the method takes its type as it is. A name the Manifest already gives one of its own types is numbered (`ProductRefInput2`).
 
 ## Wait for what the command leads to
 
