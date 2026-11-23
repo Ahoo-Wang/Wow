@@ -54,7 +54,7 @@
 | --- | --- | --- |
 | #6642：计算属性（只读）在命令体里被要求必填 | fix-6642-readonly（Opus，high） | 设计说明已交、协调者已定（[D461](decisions.md) ②）：Manifest 的 schema 不变；TypeScript 的 Manifest 路径给只读属性加 `readonly`，并只在输入位置够得到只读属性的类型旁生成 `<Name>Input`，取代原先只照顾计算出的 id 属性的 `Omit` 特例；兼容性检查按「谁在读」定必填（读的一侧：输入与存储，`required` 且非 `readOnly`；写的一侧不变）；分析目录的行操作不再把只读属性当作要填的输入；生成器的 OpenAPI 路径先只在顶层按 `readOnly` 办。Wow 发出的 OpenAPI 3.1 文档要有输入一侧的组件，原则上做，形状等会话的补充说明。三个 PR 在做；issue 等报告者自己的复现在它来的那条路径上通过才关 |
 | 租户与所有者走查的余项 | ga-tenant-owner-tail（Opus，medium） | TO-2 已随 #6608 在主干上，不用 PR。余 TO-8 缺的两条测试（跨租户复用请求 id；eShop 端到端同一所有者在两个租户是两个购物车）与 TO-1 的一句文档。**带出一个缺陷**：CoSec 认证通过而 id 为空白的主体让 `CoSecCallerResolver` 抛异常；协调者定为按未认证作答（[D461](decisions.md) ③），会话立 issue、单独出 PR，并起草给 CoSec 的 issue |
-| Spring Cloud 模块以 CoSky 作案例（用户的 TODO，2026-11-23） | 未派，等名额 | CoSky 是一方库。`:spring-cloud` 的案例今天是 Consul（集成测试 `ConsulDiscoveryTest`、README、`operate/spring-cloud` 中英文）。协调者的理解（[D461](decisions.md) ④）：文档与 README 的示例换成 CoSky `8.0.0-beta.10`，集成测试加 CoSky 的一套，Consul 的测试留着作第三方注册中心的证据；CoSky 注册时带不带得上内部端口的元数据由会话核实，缺口提到 CoSky 的仓库 |
+| Spring Cloud 模块以 CoSky 作案例（用户的 TODO，2026-11-23） | 未派，等名额 | CoSky 是一方库。`:spring-cloud` 的案例今天是 Consul（集成测试 `ConsulDiscoveryTest`、README、`operate/spring-cloud` 中英文）。范围用户已确认（[D461](decisions.md) ④）：案例整个换成 CoSky `8.0.0-beta.10`，文档与 README 的示例、集成测试都换，Consul 的集成测试不留；CoSky 注册时带不带得上内部端口的元数据由会话核实，缺口提到 CoSky 的仓库 |
 
 
 不挡发版、排在后面的：
@@ -81,7 +81,6 @@
 | 兼容性检查里只读属性的必填按「谁在读」定 | 输入与存储同一条规则：给状态或命令里的类型加计算属性不再报破坏，计算属性改成必填字段开始报破坏（原先漏报）。存储一侧会话建议不动，协调者没有采纳；旧快照里没有新属性、按它查询会漏掉这些行直到重写，写进文档 | D461 ② |
 | Wow 的 OpenAPI 文档加输入一侧的组件 | 原则上做（3.1 的规则下现在的文档要求调用方送服务端忽略的值），形状等补充说明；它改的是发出的契约 | D461 ② |
 | CoSec 的空白主体按未认证作答 | 没有采纳「当作没有所有者的调用方」 | D461 ③ |
-| Spring Cloud 模块以 CoSky 作案例的范围 | 示例与文档换成 CoSky，Consul 的集成测试留着；是协调者对用户 TODO 的理解 | D461 ④ |
 
 ## 3. 距离 GA 还剩
 
