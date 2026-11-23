@@ -71,6 +71,7 @@ class HelmServiceTest {
         offline: Boolean = false,
         executable: String? = null,
         cache: File = File(directory, "cache"),
+        mirror: String? = this.mirror,
     ): HelmService = project.gradle.sharedServices.registerIfAbsent("helm${services++}", HelmService::class.java) {
         it.parameters.cache.set(cache)
         it.parameters.offline.set(offline)
@@ -86,6 +87,7 @@ class HelmServiceTest {
         HelmRelease.platformOf("Linux", "aarch64").assert().isEqualTo("linux-arm64")
         HelmRelease.platformOf("Mac OS X", "x86_64").assert().isEqualTo("darwin-amd64")
         HelmRelease.platformOf("Mac OS X", "aarch64").assert().isEqualTo("darwin-arm64")
+        HelmRelease.platformOf("Darwin", "arm64").assert().isEqualTo("darwin-arm64")
         HelmRelease.platformOf("Windows 11", "amd64").assert().isEqualTo("windows-amd64")
         HelmRelease.platformOf("Linux", "s390x").assert().isEqualTo("linux-s390x")
         HelmRelease.platformOf("FreeBSD", "amd64").assert().isNull()
@@ -125,10 +127,30 @@ class HelmServiceTest {
         binary.assert().isEqualTo(File(directory, "cache/linux-amd64/helm"))
         binary.readText().assert().isEqualTo(SCRIPT)
         binary.canExecute().assert().isTrue()
+        // The same build asks again: the same binary, nothing looked up again.
+        val same = service(digests = mapOf("linux-amd64" to sha256(archive)))
+        same.executable().assert().isEqualTo(same.executable())
         // Another build, the same cache: nothing fetched again.
         service(digests = mapOf("linux-amd64" to sha256(archive))).executable().assert().isEqualTo(binary)
         requests.get().assert().isEqualTo(1)
         File(directory, "cache/linux-amd64").list()!!.toList().assert().containsExactly("helm")
+    }
+
+    @Test
+    fun `a tar archive should be read whatever its entries' less common shapes`() {
+        // A prefixed name, a link of the binary's name before it, an empty size field and no closing blocks.
+        val archive = tarGz("linux-amd64", "helm", SCRIPT, unusual = true)
+        served["helm-v4.3.1-linux-amd64.tar.gz"] = archive
+        service(digests = mapOf("linux-amd64" to sha256(archive))).executable().readText().assert().isEqualTo(SCRIPT)
+    }
+
+    @Test
+    fun `an archive cut short inside the binary should fail, and nothing be kept`() {
+        val archive = tarGz("linux-amd64", "helm", SCRIPT, truncated = true)
+        served["helm-v4.3.1-linux-amd64.tar.gz"] = archive
+        assertThrows<java.io.IOException> { service(digests = mapOf("linux-amd64" to sha256(archive))).executable() }
+            .message.assert().contains("ended inside an entry")
+        File(directory, "cache/linux-amd64").list()!!.toList().assert().isEmpty()
     }
 
     @Test
@@ -137,6 +159,24 @@ class HelmServiceTest {
         served["helm-v4.3.1-windows-amd64.zip"] = archive
         service(platform = "windows-amd64", digests = mapOf("windows-amd64" to sha256(archive))).executable()
             .readText().assert().isEqualTo(SCRIPT)
+        val empty = zip("windows-arm64", "README.md", "not helm")
+        served["helm-v4.3.1-windows-arm64.zip"] = empty
+        assertThrows<GradleException> {
+            service(platform = "windows-arm64", digests = mapOf("windows-arm64" to sha256(empty))).executable()
+        }.message.assert().contains("holds no windows-arm64/helm.exe")
+    }
+
+    @Test
+    fun `a mirror that cannot be reached should fail naming the remedy`() {
+        val closed = java.net.ServerSocket(0).use { it.localPort }
+        assertThrows<GradleException> {
+            service(digests = mapOf("linux-amd64" to "0".repeat(64)), mirror = "http://127.0.0.1:$closed")
+                .executable()
+        }.message.assert().contains(
+            "Cannot fetch Helm v4.3.1 from http://127.0.0.1:$closed/helm-v4.3.1-linux-amd64.tar.gz",
+            HelmService.MIRROR_PROPERTY,
+            HelmService.EXECUTABLE_PROPERTY,
+        )
     }
 
     @Test
@@ -168,9 +208,11 @@ class HelmServiceTest {
 
     @Test
     fun `offline without a cached binary should fail naming both properties, and fetch nothing`() {
-        assertThrows<GradleException> {
-            service(digests = mapOf("linux-amd64" to "0".repeat(64)), offline = true).executable()
-        }.message.assert().contains("offline", HelmService.MIRROR_PROPERTY, HelmService.EXECUTABLE_PROPERTY)
+        listOf(mirror, null).forEach { mirror ->
+            assertThrows<GradleException> {
+                service(digests = mapOf("linux-amd64" to "0".repeat(64)), offline = true, mirror = mirror).executable()
+            }.message.assert().contains("offline", HelmService.MIRROR_PROPERTY, HelmService.EXECUTABLE_PROPERTY)
+        }
         requests.get().assert().isEqualTo(0)
     }
 
@@ -212,15 +254,26 @@ class HelmServiceTest {
         fun sha256(bytes: ByteArray): String =
             MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
 
-        /** A gzipped ustar archive as Helm's: the platform's directory, a license, then [name] with [content]. */
-        fun tarGz(platform: String, name: String, content: String): ByteArray {
+        /**
+         * A gzipped ustar archive as Helm's: the platform's directory, a license, then [name] with [content]. [unusual]:
+         * the binary named by the prefix field after a link of its name, an entry with an empty size field, and no
+         * closing blocks. [truncated]: the archive ends inside the binary.
+         */
+        fun tarGz(
+            platform: String,
+            name: String,
+            content: String,
+            unusual: Boolean = false,
+            truncated: Boolean = false,
+        ): ByteArray {
             val tar = ByteArrayOutputStream()
-            fun entry(path: String, type: Char, data: ByteArray) {
+            fun entry(path: String, type: Char, data: ByteArray, prefix: String = "", size: Boolean = true) {
                 val header = ByteArray(512)
                 fun put(offset: Int, value: String) = value.toByteArray().copyInto(header, offset)
                 put(0, path)
                 put(100, "0000755\u0000")
-                put(124, "%011o\u0000".format(data.size))
+                if (size) put(124, "%011o\u0000".format(data.size))
+                put(345, prefix)
                 header[156] = type.code.toByte()
                 put(257, "ustar\u000000")
                 put(148, "        ")
@@ -229,10 +282,20 @@ class HelmServiceTest {
                 tar.write(data)
                 tar.write(ByteArray((512 - data.size % 512) % 512))
             }
-            entry("$platform/", '5', ByteArray(0))
+            entry("$platform/", '5', ByteArray(0), size = !unusual)
             entry("$platform/LICENSE", '0', "Apache License 2.0, and some more text.".toByteArray())
-            entry("$platform/$name", '0', content.toByteArray())
-            tar.write(ByteArray(1024))
+            if (unusual) {
+                entry("$platform/$name", '2', ByteArray(0))
+                entry(name, '0', content.toByteArray(), prefix = platform)
+            } else {
+                entry("$platform/$name", '0', content.toByteArray())
+            }
+            if (!unusual) tar.write(ByteArray(1024))
+            if (truncated) {
+                val whole = tar.toByteArray()
+                tar.reset()
+                tar.write(whole, 0, whole.size - 1024 - 512 + 4)
+            }
             return ByteArrayOutputStream().also { out -> GZIPOutputStream(out).use { it.write(tar.toByteArray()) } }
                 .toByteArray()
         }
