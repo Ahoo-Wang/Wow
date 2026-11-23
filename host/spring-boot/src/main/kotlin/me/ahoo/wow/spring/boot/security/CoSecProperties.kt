@@ -36,6 +36,25 @@ class CoSecProperties {
     /** CoSec's authorization of the commands. */
     var authorizer: Authorizer = Authorizer()
 
+    /**
+     * How the body of CoSec's refusals is written: `cosec`, CoSec's own problems, as they are; `wow`, Wow's problems,
+     * their type and code Wow's (`wow.auth.unauthenticated`, `wow.auth.forbidden`, `wow.request.malformed`,
+     * `wow.request.rate-limited`, `wow.auth.unavailable`), CoSec's own in their member `cosec`, the status and the
+     * headers CoSec's. For a service that decides its requests itself: behind a CoSec gateway, the gateway's refusals
+     * keep CoSec's bodies. An application's own `ProblemRenderer` writes them instead, either way.
+     */
+    var problems: Problems = Problems.COSEC
+
+    /** How the body of CoSec's refusals is written (`wow.cosec.problems`). */
+    @InternalWowApi
+    enum class Problems {
+        /** CoSec's own problems. */
+        COSEC,
+
+        /** Wow's problems. */
+        WOW,
+    }
+
     /** How CoSec runs in a service (`wow.cosec.mode`). */
     @InternalWowApi
     enum class CoSecMode {

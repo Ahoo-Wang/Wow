@@ -101,8 +101,11 @@ class Problem @InternalWowApi constructor(
     suspend fun respond(): ServerResponse {
         val response = ServerResponse.status(status).contentType(MediaType.APPLICATION_PROBLEM_JSON)
         retryAfterHeader?.let { response.header(HttpHeaders.RETRY_AFTER, it.toString()) }
-        return response.bodyValueAndAwait(HttpJson.write(members()))
+        return response.bodyValueAndAwait(body())
     }
+
+    /** The body [respond] writes: [members] as JSON, for a writer of its own status and headers. */
+    fun body(): ByteArray = HttpJson.write(members())
 
     override fun equals(other: Any?): Boolean =
         this === other || other is Problem && valueFields() == other.valueFields()

@@ -98,6 +98,7 @@ API 只是升级要保持兼容的三样东西之一。在同一个主版本内�
 | `me.ahoo.wow.cosec.CoSecCallerResolver` | class | `wow-cosec` |
 | `me.ahoo.wow.cosec.CoSecCommandAuthorizer` | class | `wow-cosec` |
 | `me.ahoo.wow.cosec.CoSecIdentity` | class | `wow-cosec` |
+| `me.ahoo.wow.cosec.CoSecProblemRenderer` | class | `wow-cosec` |
 | `me.ahoo.wow.cosec.CoSecServiceRouteAuthorizer` | class | `wow-cosec` |
 | `me.ahoo.wow.spring.boot.security.CoSecAutoConfiguration` | class | `wow-spring-boot` |
 | `me.ahoo.wow.spring.boot.security.CoSecRouteMapAutoConfiguration` | class | `wow-spring-boot` |

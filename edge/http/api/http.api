@@ -72,6 +72,7 @@ public final class me/ahoo/wow/http/problem/Problem {
 	public static final field RETRY Ljava/lang/String;
 	public static final field TYPE_PREFIX Ljava/lang/String;
 	public static final field VERSION Ljava/lang/String;
+	public final fun body ()[B
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getCode ()Ljava/lang/String;
 	public final fun getDetail ()Ljava/lang/String;

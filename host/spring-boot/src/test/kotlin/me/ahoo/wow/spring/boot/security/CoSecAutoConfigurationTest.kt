@@ -14,9 +14,11 @@
 package me.ahoo.wow.spring.boot.security
 
 import io.mockk.mockk
+import me.ahoo.cosec.annotations.ExperimentalCoSecApi
 import me.ahoo.cosec.document.route.RouteMap
 import me.ahoo.cosec.document.route.RouteResolution
 import me.ahoo.cosec.runtime.AuthorizationChecker
+import me.ahoo.cosec.runtime.http.ProblemRenderer
 import me.ahoo.cosec.webflux.ServerWebExchanges
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Creation
@@ -24,6 +26,7 @@ import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.cosec.CoSecCallerOptions
 import me.ahoo.wow.cosec.CoSecCallerResolver
 import me.ahoo.wow.cosec.CoSecCommandAuthorizer
+import me.ahoo.wow.cosec.CoSecProblemRenderer
 import me.ahoo.wow.cosec.CoSecRequestFacts
 import me.ahoo.wow.cosec.CoSecRequestIds
 import me.ahoo.wow.cosec.CoSecServiceRouteAuthorizer
@@ -40,14 +43,20 @@ import me.ahoo.wow.runtime.admission.ServiceRouteAuthorizer
 import me.ahoo.wow.spring.boot.WowAutoConfiguration
 import me.ahoo.wow.spring.boot.WowProperties
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.ExtendWith
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.AutoConfigurations
 import org.springframework.boot.autoconfigure.ImportAutoConfiguration
 import org.springframework.boot.context.annotation.ImportCandidates
 import org.springframework.boot.test.context.FilteredClassLoader
+import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
+import org.springframework.boot.test.system.CapturedOutput
+import org.springframework.boot.test.system.OutputCaptureExtension
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+@ExtendWith(OutputCaptureExtension::class)
+@OptIn(ExperimentalCoSecApi::class)
 class CoSecAutoConfigurationTest {
     private val runner = ApplicationContextRunner()
         .withConfiguration(AutoConfigurations.of(CoSecAutoConfiguration::class.java))
@@ -112,6 +121,35 @@ class CoSecAutoConfigurationTest {
                     .contains(CommandAuthorizer.ALLOW_ALL)
                     .anyMatch { it is CoSecCommandAuthorizer }
             }
+    }
+
+    @Test
+    fun `CoSec's refusals are written by CoSec unless wow-cosec-problems is wow, and an application's renderer wins`(
+        output: CapturedOutput,
+    ) {
+        val renderers = { context: AssertableApplicationContext ->
+            context.getBeansOfType(ProblemRenderer::class.java).mapValues { it.value.javaClass }
+        }
+        runner.run { context -> renderers(context).assert().isEmpty() }
+        runner.withPropertyValues("${CoSecAutoConfiguration.PROBLEMS}=cosec").run { context ->
+            renderers(context).assert().isEmpty()
+        }
+        runner.withPropertyValues("${CoSecAutoConfiguration.PROBLEMS}=wow").run { context ->
+            renderers(context).assert().isEqualTo(mapOf("wowCoSecProblemRenderer" to CoSecProblemRenderer::class.java))
+        }
+        output.out.assert().contains("CoSec's refusals are written as Wow's problems (wow.cosec.problems=wow).")
+        runner.withUserConfiguration(OwnRenderer::class.java)
+            .withPropertyValues("${CoSecAutoConfiguration.PROBLEMS}=wow")
+            .run { context -> renderers(context).keys.assert().containsExactly("ownRenderer") }
+        output.out.assert()
+            .contains("wow.cosec.problems is wow, but the application declares its own ProblemRenderer ownRenderer")
+    }
+
+    /** An application's own renderer of CoSec's refusals. */
+    @Configuration(proxyBeanMethods = false)
+    class OwnRenderer {
+        @Bean
+        fun ownRenderer(): ProblemRenderer = ProblemRenderer.DEFAULT
     }
 
     @Test

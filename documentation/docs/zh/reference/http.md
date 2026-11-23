@@ -156,12 +156,14 @@ hop  := "accepted" ["(" context ")"]
 | `title` | 给人看的错误码简短摘要，每次出现都相同：框架错误码的标题（[错误码](./error-codes)），领域错误码的 `@ErrorCode(description)` |
 | `detail` | 给人看的、这次请求发生了什么：拒绝或失败的消息 |
 | `violations` | 字段级的违规：`path`、`code`、`message`。命令约束的 `code` 是约束名的小写 kebab 形式：`NotBlank` 是 `not-blank`。命令体不能读作其命令时（`wow.command.malformed`），给出一条违规：属性的路径，以及 `wrong-kind`、`out-of-range`、`invalid-format`、`not-in-enumeration`、`duplicate-property` 或 `unknown-property`（[JSON 中的值](./json-values)）。 |
-| `retry` | 每个 problem 都有：重试能做什么，`none`、`same-request`（用同一个 `Wow-Request-Id` 重发）或 `new-request`；不是 `none` 时带 `Retry-After` |
+| `retry` | 每个 problem 都有：重试能做什么，`none`、`same-request`（用同一个 `Wow-Request-Id` 重发）或 `new-request`；不是 `none` 时带 `Retry-After`，`wow.auth.unavailable` 除外，它的响应头是 CoSec 的（见下） |
 | `result` | 命令产生了结果时，命令完整的结果 |
 | `version` | problem 所回答的聚合版本：拒绝的版本，或低于 `minVersion` 的状态读取时的当前版本 |
 | 其他任何成员 | 拒绝的结构化扩展，按名字；与上面某个成员或 `instance` 同名的扩展会被略去 |
 
 领域错误码的状态是它的 `@ErrorCode(status)`，默认 422，可以用 `wow.http.errors.[<code>].status` 按错误码覆盖。框架的错误码见[错误码](./error-codes)。应用自己的路由也以 problem 回答它们的失败（`wow.http.global-errors.enabled`，默认打开）。
+
+CoSec 拒绝的请求在任何路由之前回答，用 CoSec 的状态、响应头和 problem（`https://cosec.ahoo.me/problems/<type>`，CoSec 的 `code`）。设为 `wow.cosec.problems: wow` 时，回答体是 Wow 的 problem：`wow.request.malformed`、`wow.auth.unauthenticated`、`wow.auth.forbidden`、`wow.request.rate-limited` 或 `wow.auth.unavailable`，CoSec 的内部错误是 `about:blank`，CoSec 的 `type` 与 `code` 在成员 `cosec` 里（[CoSec 的拒绝](../operate/security#cosec-refusals)）。响应头仍是 CoSec 的，所以 `wow.auth.unavailable`（503）的 `retry` 是 `new-request` 而没有 `Retry-After`：CoSec 对它不设这个头。目录给这个码的等待（一秒）是 Wow 的客户端在没有这个头时等待的默认值（[错误码](./error-codes)），不是响应里会出现的值。只有这些拒绝会带出 `wow.request.rate-limited` 与 `wow.auth.unavailable`。
 
 ### 应用自己的路由 {#application-routes}
 

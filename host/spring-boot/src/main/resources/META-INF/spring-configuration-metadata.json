@@ -523,6 +523,12 @@
     "description" : "How CoSec runs in this service, as defaults its own `cosec.*` keys override (CoSecModeEnvironmentPostProcessor): `gateway`, behind a CoSec gateway (`cosec.pipeline.mode=gateway`: the caller read from the `CoSec-Identity` the gateway verified, with its app and space, and no token verified here); `disabled`, CoSec off (`cosec.enabled=false`). Unset, CoSec's own defaults: CoSec decides the requests itself, the Manifest's routes its route map.",
     "sourceType" : "me.ahoo.wow.spring.boot.security.CoSecProperties"
   }, {
+    "name" : "wow.cosec.problems",
+    "type" : "me.ahoo.wow.spring.boot.security.CoSecProperties$Problems",
+    "description" : "How the body of CoSec's refusals is written: `cosec`, CoSec's own problems, as they are; `wow`, Wow's problems, their type and code Wow's (`wow.auth.unauthenticated`, `wow.auth.forbidden`, `wow.request.malformed`, `wow.request.rate-limited`, `wow.auth.unavailable`), CoSec's own in their member `cosec`, the status and the headers CoSec's. For a service that decides its requests itself: behind a CoSec gateway, the gateway's refusals keep CoSec's bodies. An application's own `ProblemRenderer` writes them instead, either way.",
+    "sourceType" : "me.ahoo.wow.spring.boot.security.CoSecProperties",
+    "defaultValue" : "cosec"
+  }, {
     "name" : "wow.cosec.tenant-level.roles",
     "type" : "java.util.Set<java.lang.String>",
     "description" : "The CoSec roles of these callers.",

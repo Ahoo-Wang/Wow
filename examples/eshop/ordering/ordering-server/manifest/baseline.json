@@ -372,6 +372,12 @@
     "status" : 403,
     "description" : "The caller may not do what the request asks: send this command, call this route, or act or read across scopes."
   }, {
+    "code" : "wow.auth.unavailable",
+    "status" : 503,
+    "description" : "CoSec could not decide whether the request may proceed; nothing was done, so it may be sent again. Only CoSec's refusals carry it, when wow.cosec.problems is wow: their headers are CoSec's, which sets no Retry-After on a 503, so the wait here is the catalog's default for a client, not a header.",
+    "retry" : "new-request",
+    "retryAfter" : 1
+  }, {
     "code" : "wow.aggregate.forbidden",
     "status" : 403,
     "description" : "The caller may read the aggregate but may not change it, or the command would create one outside the caller's reach."
@@ -383,6 +389,12 @@
     "code" : "wow.request.invalid",
     "status" : 400,
     "description" : "A request to the application's own route failed validation; the problem lists the violations."
+  }, {
+    "code" : "wow.request.rate-limited",
+    "status" : 429,
+    "description" : "CoSec refused the request for a rate limit it spent; nothing was done, so it may be sent again after the Retry-After CoSec sets. Written for CoSec's refusals when wow.cosec.problems is wow.",
+    "retry" : "new-request",
+    "retryAfter" : 1
   }, {
     "code" : "wow.command.malformed",
     "status" : 400,
