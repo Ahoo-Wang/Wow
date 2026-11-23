@@ -31,6 +31,7 @@ class LocaleFormsTest {
         "en-x-private",
         "sr-Latn-RS-u-nu-latn",
         "de-Latn-DE-1996",
+        "en-x-a-b",
     ).map(Locale::forLanguageTag)
 
     private val locales = Locale.getAvailableLocales().toList() + built
@@ -55,7 +56,7 @@ class LocaleFormsTest {
 
     @Test
     fun `a text of Java's form that no locale writes should be refused`() {
-        listOf("zh_CN_#Hanss", "zh_CN_#Hans_", "en__#-x", "en__#Latn_q", "zh_CN_#").forEach { text ->
+        listOf("zh_CN_#Hanss", "zh_CN_#Hans_", "en__#-x", "en__#Latn_q", "zh_CN_#", "en_#Latn").forEach { text ->
             read(text).exceptionOrNull().assert().describedAs(text).isInstanceOf(JacksonException::class.java)
         }
     }

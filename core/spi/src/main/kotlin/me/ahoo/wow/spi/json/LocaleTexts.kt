@@ -35,13 +35,11 @@ internal object LocaleTexts {
 
     private const val SCRIPT_LENGTH = 4
 
-    /** The locale [text] is, by its form, or null for a text Jackson reads; [refuse] for one that is no locale. */
-    fun read(text: String, refuse: (String) -> Nothing): Locale? = when {
-        text.isEmpty() -> null
-        MARKER in text -> javaForm(text) ?: refuse("$text is not the text of a locale.")
-        text.none { it == '-' || it == '_' } -> subtag(text) ?: refuse("$text is not a language tag.")
-        else -> null
-    }
+    /** Whether Wow reads [text] ([read]), not Jackson: Java's form with `_#`, or a single subtag. */
+    fun owns(text: String): Boolean = text.isNotEmpty() && (MARKER in text || text.none { it == '-' || it == '_' })
+
+    /** The locale [text], a text Wow [owns], is by its form; null when it is none, which is refused. */
+    fun read(text: String): Locale? = if (MARKER in text) javaForm(text) else subtag(text)
 
     /** [text], a single subtag, as a BCP 47 tag; null when it is none. */
     private fun subtag(text: String): Locale? = try {

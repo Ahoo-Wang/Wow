@@ -210,9 +210,8 @@ internal object StrictReads {
         private fun locale(p: JsonParser, ctxt: DeserializationContext): Any? {
             val token = p.currentToken()
             return when {
-                token == JsonToken.VALUE_STRING -> {
-                    val text = p.string.trim()
-                    LocaleTexts.read(text) { message -> throw InvalidFormatException.from(p, message, text, type) }
+                token == JsonToken.VALUE_STRING -> p.string.trim().takeIf(LocaleTexts::owns)?.let { text ->
+                    LocaleTexts.read(text) ?: throw InvalidFormatException.from(p, "$text is not a locale.", text, type)
                 }
                 token.isNumeric || token.isBoolean -> ctxt.handleUnexpectedToken(type, p)
                 else -> null
