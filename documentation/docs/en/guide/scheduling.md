@@ -58,7 +58,7 @@ fun onCommand(command: ConfirmOrderStock, paymentPolicy: PaymentPolicy, scope: D
 ```
 
 - `scope.schedule(key, rule, command, target)` sends `command` to `target`, this aggregate unless another ref is given. The schedule is committed with the decision's events, as the system event `wow.schedule.ScheduleSet`; a decision that only schedules commits just that. A cron rule whose expression or time zone cannot be read, or that names no time that ever comes (`0 0 0 30 2 *`), fails the command (`wow.command.failed`), and nothing is committed: a rule from input is checked by the domain before it is scheduled, so that it rejects it with a code of its own.
-- `scope.cancelSchedule(key)` cancels it. The order cancels `payment-grace-period` when it is paid. A command already sent is not recalled: its target's state guards it.
+- `scope.cancelSchedule(key)` cancels it; for a key the aggregate keeps no schedule of, it changes nothing, as `wow.schedule.CancelSchedule` does. The order cancels `payment-grace-period` when it is paid. A command already sent is not recalled: its target's state guards it.
 - The function declares the scheduled commands' classes in `@OnCommand(schedules = [...])`. The compiler cannot read the calls in a function's body, and the Manifest lists them by full type name. The declaration is what the Manifest says; the kernel does not refuse a schedule it leaves out.
 
 ## Schedule from a saga

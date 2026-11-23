@@ -58,7 +58,7 @@ fun onCommand(command: ConfirmOrderStock, paymentPolicy: PaymentPolicy, scope: D
 ```
 
 - `scope.schedule(key, rule, command, target)` 把 `command` 发往 `target`，除非给出另一个 ref，否则就是这个聚合。定时与决定的事件一起提交，表现为系统事件 `wow.schedule.ScheduleSet`；只定时的决定就只提交这一个事件。表达式或时区读不出来、或者永远不会到来的 cron 规则（`0 0 0 30 2 *`）会让命令失败（`wow.command.failed`），什么都不提交：来自输入的规则由领域在定时之前检查，以便用它自己的错误码拒绝。
-- `scope.cancelSchedule(key)` 取消它。订单在支付后取消 `payment-grace-period`。已经发出的命令不会被撤回：由它的目标的状态来把关。
+- `scope.cancelSchedule(key)` 取消它；聚合没有这个键的调度时，它什么也不改变，与 `wow.schedule.CancelSchedule` 一致。订单在支付后取消 `payment-grace-period`。已经发出的命令不会被撤回：由它的目标的状态来把关。
 - 函数要在 `@OnCommand(schedules = [...])` 里声明被定时命令的类。编译器读不到函数体里的调用，而 Manifest 按完整类型名列出它们。这个声明只是 Manifest 的内容；内核不会拒绝它没有列出的定时。
 
 ## 从 Saga 中定时 {#schedule-from-a-saga}

@@ -88,7 +88,11 @@ internal class Preparation(
         val rejection = (decision as? Decision.Rejected)?.let {
             RejectionCodes.qualified(it.rejection, model.type, commandType)
         }
-        val domain = decision.events
+        // A lifecycle event that changes nothing is no event ([KernelLifecycle.changing]). A rejection carries none
+        // ([Decisions] refuses one that does), so only a decision of events loses any here.
+        val domain = KernelLifecycle.changing(decision.events, model, command.body) {
+            metadataBefore(model, loaded, command)
+        }
         // A rejection commits its own events alone: what the refused decision scheduled is not.
         val schedules = if (rejection == null) scope.scheduleEvents() else emptyList()
         val events = domain + schedules
@@ -208,13 +212,19 @@ internal class Preparation(
         loaded: CachedState,
         command: Command<*>,
         events: List<Any>,
-    ): KernelLifecycle.Metadata {
-        val before = if (loaded.version == 0) {
-            loaded.metadata.copy(scope = createdIn(model, command))
-        } else {
-            loaded.metadata
-        }
-        return events.fold(before) { metadata, event -> KernelLifecycle.evolve(metadata, event, model, command.body) }
+    ): KernelLifecycle.Metadata = events.fold(metadataBefore(model, loaded, command)) { metadata, event ->
+        KernelLifecycle.evolve(metadata, event, model, command.body)
+    }
+
+    /** The aggregate's metadata [command]'s events start from: [loaded]'s, in the caller's scope when it creates it. */
+    private fun metadataBefore(
+        model: AggregateModel<*>,
+        loaded: CachedState,
+        command: Command<*>,
+    ): KernelLifecycle.Metadata = if (loaded.version == 0) {
+        loaded.metadata.copy(scope = createdIn(model, command))
+    } else {
+        loaded.metadata
     }
 
     /**

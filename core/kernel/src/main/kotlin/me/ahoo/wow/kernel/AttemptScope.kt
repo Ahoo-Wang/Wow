@@ -91,9 +91,10 @@ internal class AttemptScope(
     override fun cancelSchedule(key: String) {
         if (key.isBlank()) throw Misuse.Argument("A schedule needs a key.")
         changes().apply {
-            // A key set earlier in this decision and not kept before: the set is undone, nothing to cancel.
-            val undone = remove(key) is ScheduleSet && key !in loaded.schedules
-            if (!undone) {
+            // Only a schedule the aggregate keeps is cancelled: a key set earlier in this decision and not kept before
+            // is undone, and a key it keeps no schedule of changes nothing, as the kernel's `CancelSchedule` is a no-op.
+            remove(key)
+            if (key in loaded.schedules) {
                 put(key, ScheduleCancelled(key))
             }
         }
