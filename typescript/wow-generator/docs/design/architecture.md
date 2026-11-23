@@ -123,12 +123,13 @@ sequenceDiagram
 - **`GenerationModel`**（`analysis/model.ts`）：`contexts`、`models`、`aggregates`、`apiClients`，只含名字、文件、schema 与种类，不含 ts-morph 节点和原始 `Operation`。body 分 `json`（带可省字段）、`formData`、`urlEncoded`、`text`、`binary`；返回分 `json`（`wildcard` 时解析成 `string` 的按文本）、`eventStream`（数组项的引用，及是否取 `ServerSentEvent` 的 `data`）、`text`、`response`。模型「写成 interface、enum 还是 type alias」由发射器按 schema 判断，它和类型解析交织，不另建镜像。
 - **类型解析**（`types/typeResolver.ts`）：`(schema, scope) → { text, imports }` 的纯函数；调用方在下一次解析前把 `imports` 交给 `ImportRegistry.apply`，所以后一个引用看到的别名和逐条添加时相同。
 - **`ModuleBuilder` / `ModuleSet`**（`emit/moduleBuilder.ts`）：发射器往里加 ts-morph 结构，每个文件最后只插入一次，打印器和逐条添加时相同；空行、枚举尾逗号、索引签名位置三处对齐逐条添加的打印结果（附录 B4 记录）。
-- **`OutputStore`**（`output/outputStore.ts`）：`open`（读清单并兼容旧名，把上次清单里的文件和上一个 store 的文件移出 project）、`claim`（防越界、登记所有权、首次领取清空）、`forgetStale`、`commit`（落盘 → 删未改动的陈旧文件 → 写清单 → 删旧清单）。`CodeGenerator` 持有上一次运行的 store，同一个实例重跑时由它带走草稿。
-- **接缝**（`pipeline/seams.ts`）：`PROJECT_SEAM` 让测试交入 ts-morph 项目；`SIGNAL_SEAM` 让 CLI 交入中断信号。两者都是包不导出的 symbol，不属于公开选项。
+- **`OutputStore`**（`output/outputStore.ts`）：`open`（读清单并兼容旧名，把上次清单里的文件和上一个 store 的文件移出 project）、`claim`（防越界、登记所有权、首次领取清空）、`forgetStale`、`commit`（落盘 → 删未改动的陈旧文件 → 写清单 → 删旧清单）、`differences`（只读：`commit` 会改变的文件，即内容不同或缺失的要写文件、上次清单记录而本次不再写且仍在盘上的文件、内容不同的清单；清单没记录的文件从不比较）。`CodeGenerator` 持有上一次运行的 store，同一个实例重跑时由它带走草稿。
+- **接缝**（`pipeline/seams.ts`）：`PROJECT_SEAM` 让测试交入 ts-morph 项目；`SIGNAL_SEAM` 让 CLI 交入中断信号；`CHECK_SEAM` 是 `generate --check`：运行照常生成，最后不 `commit`，而把 `differences` 放进 CLI 交入的列表。三者都是包不导出的 symbol，不属于公开选项。
 
 ### 2.5 失败、警告与中断
 
 - 用户能处理的失败是 `GeneratorError`：`input`（2）、`configuration`（3，含读不到的 tsconfig）、`specification`（4）、`output`（5）；其余是生成器的缺陷（1）。
+- `--check` 发现输出目录与本次运行要写的不同时退出码 6，逐个列出相对输出目录的路径，什么也不写；它先于 `--strict` 的 4 判定。
 - 命令行本身不合法（缺少必填选项或选项的值、未知选项或命令、没有给出命令）时，commander 输出它的提示，`runCLI`（`cli/program.ts`）经 `exitOverride()` 把 `CommanderError` 映射为 `input`（2），和 `--timeout abc` 这类非法选项值同一类；`--help`、`help`、`--version` 仍以 0 退出。退出码 1 只留给生成器的缺陷。
 - 警告由读配置、Wow 模型、分析、index 文件四处返回，流水线按到达顺序记日志并计数：配置的警告排在最前。
 - Ctrl-C：`generateAction` abort 一个信号，不再 `process.exit`。流水线在每个 await 之后检查，远程读取把它和超时合成一个；一旦开始写，就写完已开始的文件，之后不删陈旧文件、不写清单，退出码 130。再按一次 Ctrl-C 按默认行为立即结束进程。
