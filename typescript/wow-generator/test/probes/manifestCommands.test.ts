@@ -263,7 +263,13 @@ describe('Manifest clients', () => {
             { code: 'probe.thing.gone', status: 410 },
             { code: 'other', status: 422, description: 'Not prefixed' },
           ],
-          subscriptions: [{ name: 'P.f' }, { name: 'P.f' }],
+          subscriptions: [
+            { name: 'P.f' },
+            { name: 'P.f' },
+            { name: 'P.onRejected', rejected: [] },
+            { name: 'P.onCommitted', committed: [] },
+            { name: 'P.onSettled', rejected: [], committed: [] },
+          ],
         },
       ),
     );
@@ -281,7 +287,10 @@ describe('Manifest clients', () => {
     const context = read('probe/contract.ts');
     expect(context).toContain("OTHER: 'other',");
     expect(context).not.toContain("probe.thing.gone',\n  },");
-    expect(context).toContain("export type ProbeSubscription = 'P.f';");
+    // A handled hop names a subscription that handles a commit: not an @OnRejected handler alone.
+    expect(context).toContain(
+      "export type ProbeSubscription = 'P.f' | 'P.onCommitted' | 'P.onSettled';",
+    );
   });
   it('types lifecycle bodies from $defs and documents what the Manifest describes', async () => {
     const { read } = await generateCompiling(

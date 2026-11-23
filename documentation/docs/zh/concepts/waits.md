@@ -35,7 +35,7 @@ description: 发出命令后调用方可以等待什么、为什么默认等待�
 
 在 HTTP 上，等待链是一个请求头：`Wow-Wait: committed > handled(payment/PaymentSaga.onOrderSubmitted) > committed(inventory)`，配合 `Wow-Wait-Timeout: 10s`。不带上下文的跳在命令自己的上下文里；`handled(context/subscription)` 用 `/` 隔开上下文，因为订阅名（`Processor.function`）里有点号。链上的命令通过根命令的 ID 关联起来，所以每一跳都能认出属于这次等待的命令。
 
-在 Kotlin 里，等待计划串起上下文的 `<Context>Contract.Wait` 里的跳点，它生成在上下文的 api 模块中：上下文的每个阶段一个，契约列出的每个订阅一个，所以不必手写任何订阅的名字（[api 模块的契约代码](../guide/generated-code#the-contract-code-of-the-api-module)）。订单服务的测试这样等它的 Saga 和快照：
+在 Kotlin 里，等待计划串起上下文的 `<Context>Contract.Wait` 里的跳点，它生成在上下文的 api 模块中：上下文的每个阶段一个，契约列出的每个处理提交的订阅一个（Saga 只处理拒绝的 `@OnRejected` 处理器没有：它处理的拒绝已结束了等待），所以不必手写任何订阅的名字（[api 模块的契约代码](../guide/generated-code#the-contract-code-of-the-api-module)）。订单服务的测试这样等它的 Saga 和快照：
 
 <!-- sample: examples/eshop/ordering/ordering-server/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/server/OrderingServerTest.kt#wait-plan -->
 

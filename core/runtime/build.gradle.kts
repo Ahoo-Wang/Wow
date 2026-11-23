@@ -10,6 +10,8 @@ dependencies {
     testImplementation(project(":tck"))
     // TenantScopePathsTest: one command decides its tenant and scope alike through the gateway and the test DSL.
     testImplementation(project(":test-dsl"))
+    // ContractWaitHopsTest: every hop the contract generator names for a context is one its own node and a peer accept.
+    testImplementation(project(":manifest-tools"))
     api(project(":kernel"))
     // The Manifest the node is built from: its contexts, routes and contracts (decision D231 ③: the kernel does not
     // bring it).

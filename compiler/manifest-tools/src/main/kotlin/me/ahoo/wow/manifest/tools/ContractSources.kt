@@ -49,7 +49,8 @@ import me.ahoo.wow.manifest.QueryFieldNames
  *   `<Context>Contract` nests the same codes alike.
  *
  * - The context's wait hops are the `@JvmField`s of a `Wait` object: `ACCEPTED`, `COMMITTED`, `SNAPSHOT` and
- *   `QUERYABLE` of the context, and per subscription its contract lists the hop of it handling the commit, named
+ *   `QUERYABLE` of the context, and per subscription its contract lists that a wait chain can follow
+ *   (`SubscriptionManifest.isWaitHop`) the hop of it handling the commit, named
  *   after it ([waitName]: `OrderProcessSaga.onOrderSubmitted` is `ORDER_PROCESS_SAGA__ON_ORDER_SUBMITTED`), what a
  *   caller chains in a `WaitPlan` without writing a subscription's name. Two names of one constant fail the generation.
  *   The TypeScript generator's `<context>Wait` builds the same hops.
@@ -273,8 +274,9 @@ internal object ContractSources {
 
     /**
      * The object `Wait` of [context] in the context object [owner]: the hops of a wait chain in the context, its four
-     * stages and, per subscription its contract lists, the hop of that subscription handling the commit, named
-     * [waitName]. Two subscriptions, or a subscription and a stage, of one constant name fail the generation, naming
+     * stages and, per subscription its contract lists that a wait chain can follow
+     * (`SubscriptionManifest.isWaitHop`: not an `@OnRejected` handler alone), the hop of that subscription handling
+     * the commit, named [waitName]. Two subscriptions, or a subscription and a stage, of one constant name fail the generation, naming
      * both: a constant renamed in silence would wait for another subscription than the one its name says.
      */
     private fun wait(owner: String, context: ContextManifest): String = buildString {
@@ -293,7 +295,7 @@ internal object ContractSources {
             ),
         )
         val taken = stages.associate { (constant) -> constant to "the stage $constant" }.toMutableMap()
-        val subscriptions = context.subscriptions.sortedBy { it.name }.map { subscription ->
+        val subscriptions = context.subscriptions.filter { it.isWaitHop }.sortedBy { it.name }.map { subscription ->
             val constant = waitName(subscription.name)
             taken[constant]?.let { other ->
                 error(

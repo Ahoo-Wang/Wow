@@ -375,6 +375,7 @@ public final class me/ahoo/wow/manifest/SubscriptionManifest {
 	public final fun getStart ()Lme/ahoo/wow/manifest/SubscriptionStart;
 	public fun hashCode ()I
 	public final fun isReceiptHandler ()Z
+	public final fun isWaitHop ()Z
 	public fun toString ()Ljava/lang/String;
 }
 

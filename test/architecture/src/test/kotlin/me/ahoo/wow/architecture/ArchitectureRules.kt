@@ -216,8 +216,9 @@ object ArchitectureRules {
         // query-api: the query protocol whose JSON :spi holds (decision D293).
         SPI to setOf("api", "query-api"),
         KERNEL to setOf("spi"),
-        // manifest: the node is built from the Manifest (decision D231 ③).
-        RUNTIME to setOf("kernel", "manifest"),
+        // manifest: the node is built from the Manifest (decision D231 ③). manifest-tools only for the tests, which
+        // hold every hop the contract generator names to one the node and a peer accept (#6661).
+        RUNTIME to setOf("kernel", "manifest", "manifest-tools"),
         // The kernel only: a domain module with Reactor handlers depends on the kernel and this (decision D149).
         REACTOR to setOf("kernel"),
         // The query engine and its backend SPI (decision D126).

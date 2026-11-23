@@ -66,6 +66,15 @@ class SubscriptionManifest @InternalWowApi constructor(
     /** Whether it is a saga's `@OnRejected` or `@OnCommitted` handler: it reads receipts, not the log. */
     val isReceiptHandler: Boolean get() = rejected != null || committed != null
 
+    /**
+     * Whether a wait chain can follow it: a `handled` hop may name it, the contract's `Wait` object names it, and a
+     * node accepts it. A subscription is a hop when it handles a commit: an event handler (of the log, a job's
+     * included), and an `@OnCommitted` handler, which the success receipt of a command it answers signals. An
+     * `@OnRejected` handler alone is not: the rejection it handles ended the wait. A handler of both receipts handles
+     * a commit, so it is one.
+     */
+    val isWaitHop: Boolean get() = rejected == null || committed != null
+
     override fun equals(other: Any?): Boolean =
         this === other || other is SubscriptionManifest && valueFields() == other.valueFields()
 

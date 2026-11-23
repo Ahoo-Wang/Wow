@@ -172,7 +172,9 @@ function contextModel(
       ...(error.description ? { description: error.description } : {}),
     })),
     subscriptions: [
-      ...new Set((context.subscriptions ?? []).map(s => s.name)),
+      ...new Set(
+        (context.subscriptions ?? []).filter(isWaitHop).map(s => s.name),
+      ),
     ].sort(compareNames),
     aggregates: (context.aggregates ?? []).map(aggregate =>
       aggregateModel(types, numbers, context, aggregate),
@@ -181,4 +183,20 @@ function contextModel(
       serviceRouteModel(types, numbers, context, route),
     ),
   };
+}
+
+/**
+ * Whether a wait chain can follow [subscription], so a `handled` hop may name
+ * it: the Kotlin `SubscriptionManifest.isWaitHop`. A subscription is a hop when
+ * it handles a commit: an event handler, and a saga's `@OnCommitted` handler; a
+ * saga's `@OnRejected` handler alone is not, since the rejection it handles
+ * ended the wait, and a handler of both receipts is.
+ */
+function isWaitHop(subscription: {
+  readonly rejected?: readonly string[];
+  readonly committed?: readonly string[];
+}): boolean {
+  return (
+    subscription.rejected === undefined || subscription.committed !== undefined
+  );
 }

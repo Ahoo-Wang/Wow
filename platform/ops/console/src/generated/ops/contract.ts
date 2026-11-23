@@ -16,7 +16,7 @@ export const OpsContract = {
 export type OpsErrorCode = 'ops.parked.invalid' | 'ops.parked.mismatched' | 'ops.parked.resolved' | 'ops.parked.stale';
 
 /** The subscriptions of `ops` a `handled` hop names. */
-export type OpsSubscription = 'ParkedOperationSaga.onActionRejected' | 'ParkedOperationSaga.onParkedChanged';
+export type OpsSubscription = 'ParkedOperationSaga.onParkedChanged';
 
 /** The hops of a wait chain (`Wow-Wait`) in `ops`. */
 export const opsWait = {

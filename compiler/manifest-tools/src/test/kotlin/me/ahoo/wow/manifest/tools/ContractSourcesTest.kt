@@ -262,6 +262,21 @@ class ContractSourcesTest {
     }
 
     @Test
+    fun `a saga's receipt handler should have a hop when it handles a commit, and none when it handles rejections alone`() {
+        val text = waitsOf(
+            subscription("OrderSaga.onPaid"),
+            subscription("OrderSaga.onReserveRejected").copyWith(rejected = emptyList()),
+            subscription("OrderSaga.onReserved").copyWith(committed = emptyList()),
+            subscription("OrderSaga.onRestockSettled").copyWith(rejected = emptyList(), committed = emptyList()),
+        )
+        text.assert().contains(
+            "public val ORDER_SAGA__ON_PAID: me.ahoo.wow.api.result.Hop",
+            "public val ORDER_SAGA__ON_RESERVED: me.ahoo.wow.api.result.Hop",
+            "public val ORDER_SAGA__ON_RESTOCK_SETTLED: me.ahoo.wow.api.result.Hop",
+        ).doesNotContain("ON_RESERVE_REJECTED", "onReserveRejected")
+    }
+
+    @Test
     fun `a subscription's hop is named after its processor and its function`() {
         ContractSources.waitName("OrderProcessSaga.onOrderSubmitted").assert()
             .isEqualTo("ORDER_PROCESS_SAGA__ON_ORDER_SUBMITTED")
