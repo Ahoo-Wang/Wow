@@ -106,7 +106,8 @@ object BackendSelection {
     /**
      * Why a node may fall back to memory when `wow.backend` is auto and no durable backend is available, or null when
      * it may not: an active profile of [devProfiles] (`wow.dev-profiles`), or an internal port bound to
-     * [bindHost], a loopback address, alone, the development exemption the host's safeguards share.
+     * [bindHost], a loopback address the operator named, alone (never one the host resolved by default), the
+     * development exemption the host's safeguards share.
      */
     fun memoryOptIn(activeProfiles: Collection<String>, devProfiles: Set<String>, bindHost: String?): String? {
         val dev = activeProfiles.filter { it in devProfiles }
@@ -133,6 +134,6 @@ object BackendSelection {
 
     const val NO_DURABLE_BACKEND_FIX: String =
         "Add the backend's module and its DataSource or MongoClient, or name the memory backend to keep the data in " +
-            "memory on purpose. A development profile, or an internal port bound to the loopback interface alone, " +
+            "memory on purpose. A development profile, or a loopback address named in wow.internal.host, " +
             "also runs in memory."
 }

@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.spring.boot.node
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.http.caller.DeclaredServices
 import me.ahoo.wow.kernel.AggregateModel
@@ -22,7 +23,10 @@ import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.config.configCheck
 import me.ahoo.wow.spring.boot.WowProperties
+import me.ahoo.wow.spring.boot.config.DevelopmentMode
 import org.springframework.core.env.Environment
+import java.net.Inet4Address
+import java.net.Inet6Address
 import java.net.InetAddress
 import java.util.UUID
 
@@ -33,7 +37,9 @@ import java.util.UUID
  *
  * [bindHost] is the interface the internal server binds: `wow.internal.host` when set
  * (`0.0.0.0` or `::` for every interface), else the host the node advertises to its members, that of
- * `wow.node.address` or [host], so the unauthenticated internal port is not open on every interface by default.
+ * `wow.node.address` or [host], so the unauthenticated internal port is not open on every interface by default. With
+ * neither set, [host] is the loopback address in a profile of `wow.dev-profiles`, and otherwise the address this host's
+ * name resolves to, refused when that is a public one.
  */
 @InternalWowApi
 data class NodeIdentity(
@@ -60,8 +66,17 @@ data class NodeIdentity(
          * when that port is 0, the port the internal server is bound at, known once it is, written as
          * [NodeAddress.of] writes an address (`[::1]:9191` for an IPv6 host); the [bindHost], `wow.internal.host`,
          * else the host of that member address. A `wow.node.address` that is a bare IPv6 literal with a port fails.
+         *
+         * With neither `wow.internal.host` nor `wow.node.address`, the node in a profile of `wow.dev-profiles` binds
+         * and advertises [LOOPBACK]; any other binds and advertises [local], the address this host's name resolves
+         * to, and fails when that is a public address ([isPublic]): the internal port takes no credential. An address
+         * the operator names is taken as written.
          */
-        fun of(properties: WowProperties, environment: Environment): NodeIdentity {
+        fun of(
+            properties: WowProperties,
+            environment: Environment,
+            local: InetAddress = InetAddress.getLocalHost(),
+        ): NodeIdentity {
             val service = properties.service?.takeIf { it.isNotBlank() }
                 ?: environment.getProperty("spring.application.name")?.takeIf { it.isNotBlank() }
                 ?: throw WowConfigurationException(
@@ -77,24 +92,73 @@ data class NodeIdentity(
                 service,
                 "Name it with letters, digits, '.', '_' and '-' alone, such as ordering-service.",
             ) { "The service's name [$service] is no name its nodes can state on the internal port." }
-            val local = InetAddress.getLocalHost()
             val node = properties.node.id?.takeIf { it.isNotBlank() }
                 ?: "${local.hostName}-${UUID.randomUUID().toString().take(SUFFIX_LENGTH)}"
-            val host = properties.internal.host?.takeUnless { it.isBlank() || it == "0.0.0.0" || it == "::" }
-                ?: local.hostAddress
-            val port = properties.internal.port
+            val named = properties.internal.host?.takeIf { it.isNotBlank() }
             val configured = properties.node.address?.takeIf { it.isNotBlank() }?.also(::checkAddress)
+            val host = named?.takeUnless { it == "0.0.0.0" || it == "::" }
+                ?: if (named == null && configured == null) {
+                    defaultHost(properties, environment, local)
+                } else {
+                    local.hostAddress
+                }
+            val port = properties.internal.port
             val address = configured ?: NodeAddress.of(host, port).takeIf { port != 0 }
-            val bindHost = properties.internal.host?.takeIf { it.isNotBlank() }
-                ?: configured?.let(NodeAddress::hostOf)
-                ?: host
+            val bindHost = named ?: configured?.let(NodeAddress::hostOf) ?: host
             return NodeIdentity(service, node, address, host, bindHost)
         }
 
-        /** The interface the internal server of a node of [properties] binds, as [of] gives it. */
-        fun bindHostOf(properties: WowProperties): String = properties.internal.host?.takeIf { it.isNotBlank() }
-            ?: properties.node.address?.takeIf { it.isNotBlank() }?.let(NodeAddress::hostOf)
-            ?: InetAddress.getLocalHost().hostAddress
+        /** The address the internal port binds and advertises by default in a profile of `wow.dev-profiles`. */
+        const val LOOPBACK: String = "127.0.0.1"
+
+        /**
+         * Whether [address] is reachable from outside a private network: none of the loopback, private (`10/8`,
+         * `172.16/12`, `192.168/16`), link-local, shared (`100.64/10`, carrier-grade NAT) or IPv6 unique-local
+         * (`fc00::/7`) and site-local addresses, nor the wildcard.
+         */
+        fun isPublic(address: InetAddress): Boolean {
+            val bytes = address.address
+            val shared = address is Inet4Address &&
+                bytes[0].toInt() and BYTE == SHARED_FIRST && bytes[1].toInt() and SHARED_MASK == SHARED_SECOND
+            val uniqueLocal = address is Inet6Address && bytes[0].toInt() and ULA_MASK == ULA_PREFIX
+            return !(
+                address.isAnyLocalAddress || address.isLoopbackAddress || address.isSiteLocalAddress ||
+                    address.isLinkLocalAddress || shared || uniqueLocal
+                )
+        }
+
+        /**
+         * The host of a node of [properties] whose operator names no address: [LOOPBACK] in a profile of
+         * `wow.dev-profiles`, else [local], the address this host's name resolves to, refused when it is public.
+         */
+        private fun defaultHost(properties: WowProperties, environment: Environment, local: InetAddress): String {
+            if (DevelopmentMode.of(properties, environment).byProfile) {
+                logger.info {
+                    "The internal port binds $LOOPBACK, in a development profile: nodes on other machines cannot " +
+                        "reach it. Set wow.internal.host to run the service across machines."
+                }
+                return LOOPBACK
+            }
+            checkPrivate(local)
+            return local.hostAddress
+        }
+
+        /**
+         * Refuses [local], the address this host's name resolves to, as the default of a port that takes no credential
+         * when it is public: the operator names the address instead.
+         */
+        private fun checkPrivate(local: InetAddress) {
+            configCheck(
+                !isPublic(local),
+                "wow.internal.host",
+                local.hostAddress,
+                "Set wow.internal.host to the private address the other nodes reach this node at, or to this " +
+                    "address itself where a firewall admits the platform's machines alone.",
+            ) {
+                "The internal port would listen on ${local.hostAddress}, a public address this host's name " +
+                    "(${local.hostName}) resolves to; it takes no credential."
+            }
+        }
 
         /** Refuses a `wow.node.address` the internal port's clients cannot reach: a bare IPv6 literal. */
         private fun checkAddress(address: String) {
@@ -105,6 +169,15 @@ data class NodeIdentity(
                 "Write an IPv6 host in brackets, such as [::1]:9191, as RFC 3986 does.",
             ) { "wow.node.address [$address] is no host and port the other nodes can reach." }
         }
+
+        private const val BYTE = 0xFF
+        private const val SHARED_FIRST = 100
+        private const val SHARED_SECOND = 64
+        private const val SHARED_MASK = 0xC0
+        private const val ULA_PREFIX = 0xFC
+        private const val ULA_MASK = 0xFE
+
+        private val logger = KotlinLogging.logger {}
     }
 }
 

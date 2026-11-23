@@ -69,8 +69,8 @@ flowchart LR
 每个节点公布其他节点访问它内部端口所用的地址：
 
 - `wow.node.id` 是节点在服务成员中的名字；不设置时每次启动生成一个新的。
-- `wow.internal.host` 是内部端口绑定的网卡。把它绑定到节点的内网地址。
-- `wow.node.address` 是其他节点使用的 `host:port`。默认是绑定的地址（没有时是本机地址）加内部端口；只有同伴要通过别的地址访问节点时才设置它，例如在 NAT 之后、有多块网卡的主机上，或 Pod 有稳定 DNS 名字的 StatefulSet 里。
+- `wow.internal.host` 是内部端口绑定的网卡。把它绑定到节点的内网地址。不设置时，开发 profile 中的节点绑定 `127.0.0.1`，其他节点绑定本机名字解析到的地址；这个地址是公网地址时节点拒绝启动，因为这个端口不要求任何凭据。你指定的地址按原样使用。
+- `wow.node.address` 是其他节点使用的 `host:port`。默认是绑定的地址加内部端口（端口绑定所有网卡时是本机地址）；只有同伴要通过别的地址访问节点时才设置它，例如在 NAT 之后、有多块网卡的主机上，或 Pod 有稳定 DNS 名字的 StatefulSet 里。
 
 在 Kubernetes 上，eShop 的 ordering 清单从 Pod 取得节点 ID 和绑定的地址，并公布这个地址，即 Pod 的 IP：
 
@@ -129,7 +129,7 @@ Deployment 的 Pod 没有属于自己的 DNS 名字（headless Service 只为设
 | `mongo` | `wow-mongo` | 一个连接副本集的 `com.mongodb.client.MongoClient`：宿主用 `spring.mongodb.uri` 建的，或应用自己的 Bean；数据库由 `wow.mongo.database` 指定 |
 | `memory` | 无 | 什么都不用：一个节点，数据不会比它活得更久 |
 
-默认的 `auto` 按应用提供的 Bean 选择 PostgreSQL 或 MongoDB。两者都没有时节点拒绝启动，除非处于开发 profile，或者它的内部端口只绑定在回环网卡上；这时它在内存中运行，并说明这一点。eShop 的 ordering 服务用它的 `postgres` profile 切换到 PostgreSQL：
+默认的 `auto` 按应用提供的 Bean 选择 PostgreSQL 或 MongoDB。两者都没有时节点拒绝启动，除非处于开发 profile，或者 `wow.internal.host` 指定了回环地址；这时它在内存中运行，并说明这一点。eShop 的 ordering 服务用它的 `postgres` profile 切换到 PostgreSQL：
 
 <!-- sample: examples/eshop/ordering/ordering-server/src/main/resources/application.yaml#postgres -->
 

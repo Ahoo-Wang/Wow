@@ -52,6 +52,8 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.core.env.Environment
 import org.springframework.web.reactive.function.server.RouterFunction
 import org.springframework.web.reactive.function.server.ServerResponse
+import java.net.InetAddress
+import java.net.UnknownHostException
 
 /**
  * The node's public port, on the application's WebFlux server: its routes ([wowRoutes]) and the operator's routes of the
@@ -68,14 +70,18 @@ internal class NodePublicPort {
      *
      * - In a profile of `wow.dev-profiles`, the callers the request's identity headers name
      *   ([DevelopmentCallerResolver]): an explicit choice to run for development, so a client may name any caller.
-     * - In development by a loopback internal port alone, the anonymous caller of `wow.tenant.default`: the internal
-     *   port says nothing of who reaches the public one, so no header names a caller.
+     * - In development by a loopback internal port the operator named alone, the anonymous caller of
+     *   `wow.tenant.default`: the internal port says nothing of who reaches the public one, so no header names a caller.
      * - Otherwise the node refuses to start.
      */
     @Bean
     @ConditionalOnMissingBean
     @InternalWowApi
-    fun wowCallerResolver(properties: WowProperties, development: DevelopmentMode): CallerResolver {
+    fun wowCallerResolver(
+        properties: WowProperties,
+        development: DevelopmentMode,
+        environment: Environment,
+    ): CallerResolver {
         configCheck(
             development.active,
             "wow.dev-profiles",
@@ -86,7 +92,7 @@ internal class NodePublicPort {
                 "CallerResolver.ANONYMOUS.",
         ) {
             "No CallerResolver bean, and the node is not in development (neither a profile of wow.dev-profiles nor " +
-                "a loopback internal port): the public port would have no caller to serve."
+                "a loopback wow.internal.host): the public port would have no caller to serve."
         }
         val tenant = properties.tenant.default
         if (development.byProfile) {
@@ -95,7 +101,8 @@ internal class NodePublicPort {
                     "its callers from the ${DevelopmentHeaders.USER}, ${DevelopmentHeaders.OWNER}, " +
                     "${DevelopmentHeaders.ROLES}, ${DevelopmentHeaders.TENANT} and " +
                     "${DevelopmentHeaders.APP} headers any client sets, and serves a request without " +
-                    "${DevelopmentHeaders.USER} as the anonymous caller of tenant $tenant."
+                    "${DevelopmentHeaders.USER} as the anonymous caller of tenant $tenant." +
+                    exposure(environment.getProperty(SERVER_ADDRESS))
             }
             return DevelopmentCallerResolver(tenant)
         }
@@ -244,6 +251,30 @@ internal class NodePublicPort {
             val operational = operationalCommands().takeUnless { authorizes || it.isEmpty() } ?: return null
             return "No CommandAuthorizer bean: the public port refuses Wow's operational commands $operational with 403 " +
                 "until the application gives one; the jobs, the sagas and the internal port's calls send them as before."
+        }
+
+        /** Spring Boot's key of the address the public server binds. */
+        private const val SERVER_ADDRESS = "server.address"
+
+        /**
+         * What a development node's startup line adds about where its public port listens, at [address]
+         * (`server.address`, null when not set): which address other machines reach it at, so a developer on a shared
+         * network reads that any of them names its caller; nothing when it listens on the loopback interface alone.
+         */
+        internal fun exposure(address: String?): String {
+            val bound = address?.takeIf { it.isNotBlank() }
+            if (bound != null && isLoopback(bound)) {
+                return ""
+            }
+            val where = bound ?: "every interface ($SERVER_ADDRESS is not set)"
+            return " The public port listens on $where: any machine that reaches it names its caller; set " +
+                "$SERVER_ADDRESS=127.0.0.1 to keep it to this one."
+        }
+
+        private fun isLoopback(host: String): Boolean = try {
+            InetAddress.getByName(host).isLoopbackAddress
+        } catch (_: UnknownHostException) {
+            false
         }
 
         /** The host's log category: the lines that moved here from [WowAutoConfiguration] keep it. */

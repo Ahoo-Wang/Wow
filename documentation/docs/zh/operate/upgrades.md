@@ -129,6 +129,12 @@ configurations.matching { it.isCanBeResolved && !it.isCanBeConsumed && it.name !
 
 10.0.0 的预发布版（`alpha`、`beta`、`rc`）对它存储的数据与它的 API 都不做兼容承诺。它的存储不会带过来：请在空的存储上启动本版本。预发布版写入的 MongoDB 日志没有按租户限定的访问键，所以在一次盖章重写这些流的属性之前，对 owner 或 space 的相等查不到它们。从 9.x 迁移的服务请按 [从 9.x 迁移](../migrate/) 进行。
 
+节点的端口监听在哪里、何时运行于开发模式，取决于你写下的配置，而不是机器（[配置服务](./configuration#development-and-production)）：
+
+- **在开发 profile 中**（`wow.dev-profiles`），内部端口绑定 `127.0.0.1`，除非 `wow.internal.host` 或 `wow.node.address` 指定了地址。公开端口不变：它监听在 `server.address` 指定的地址上；从请求头读取调用方的节点，在这个地址不是回环网卡时会在启动时说明。在 Spring Boot 没有检测到云平台时把内部端口绑定到回环网卡的 profile（`spring.config.activate.on-cloud-platform: none` 加 `wow.internal.host: 127.0.0.1`）可以删去。需要从别的机器访问的开发节点要指定它的地址。
+- **在开发 profile 之外**，内部端口和以前一样绑定本机名字解析到的地址，但这个地址是公网地址时节点拒绝启动：这个端口不要求任何凭据。用 `wow.internal.host` 指定内网地址；你指定的地址按原样使用。
+- **本机名字解析到回环地址**（Debian 的 `/etc/hosts` 给出 `127.0.1.1`）不再使节点处于开发模式。这样的节点不在开发 profile 中就是部署：没有持久后端或没有 `CallerResolver` 时，它拒绝启动，而以前它会在内存中运行并以匿名调用方提供服务。指定 `wow.internal.host`，并给它后端和解析器，或者有意激活一个开发 profile。
+
 列出了快照存储的预发布版，要在启动本版本之前修改配置。配置项 `wow.snapshot.stores`、`wow.snapshot.primary`，以及聚合的 `snapshot.stores` 和 `snapshot.primary` 已经移除，每一个都会拒绝启动，并指出它自己。用 `wow.snapshot.store` 或聚合的 `snapshot.store` 为每个类型指定它唯一的存储。保留了检索副本的部署（`snapshot.stores: [main, search]` 加 `query.snapshot.store: search`）去掉 `snapshot.stores`、保留 `query.snapshot.store`：副本的订阅名不变，仍是 `wow.snapshot:search`，所以它的索引和检查点都保留，也不会重新读取任何东西。
 
 预发布版本拒绝把 Elasticsearch 存储作为聚合类型自己的快照存储；这个版本接受它（[Elasticsearch](./elasticsearch#only-snapshot-store)）。快照留在数据库、在 Elasticsearch 上另有副本的部署无需改动。想让类型的状态只存一份的部署，在类型的 `snapshot.store` 中指定 Elasticsearch 存储。这个存储随后从日志回填，期间该类型答 `rebuilding`（[重建与重放](./replay)）。

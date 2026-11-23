@@ -25,7 +25,7 @@ This service runs without a topic transport, so it does not publish its streams 
 
 什么也不发布的节点则记录 `This service needs no topic transport: it publishes no stream and takes no topic.`。回执没有单独的需要：它们为发往另一个上下文的命令而返回，而这些命令本来就需要传输。等待和 Saga 的同步调用走内部 HTTP 端口，不经过 Kafka。
 
-`wow.transport` 选择节点的主题传输。默认的 `auto` 取已配置的传输（设置了 `wow.kafka.bootstrap-servers` 就是 Kafka）。没有配置时，开发中的节点（`wow.dev-profiles` 中的某个 profile 处于激活状态，或者内部端口只绑定回环地址）把主题保存在 JVM 里：同一进程中的服务不需要 broker 就能互相访问，它承载的每个上下文都接收自己的命令，并且在 ops 上下文运行于同一个 JVM 时（或设置 `wow.ops.publish.enabled: true` 时）发布失败台账。其他节点没有主题。`wow.transport=memory` 有意把主题保存在 JVM 里；开发以外会被拒绝。这些主题的每个分区只保留最近的 `wow.memory.topic-retention` 条记录（默认 1,000 条），更早的像 broker 的保留策略那样丢弃，落后更多的订阅从保留的最早一条接着读。它们只用于试用服务，不能用于压测或部署。`wow.transport=none` 在任何 profile 下都不给节点主题，不论配置了什么；需要主题的节点会拒绝启动。把 `wow.kafka.bootstrap-servers` 设为空并不能关掉主题：开发中的节点这时会把主题保存在 JVM 里。
+`wow.transport` 选择节点的主题传输。默认的 `auto` 取已配置的传输（设置了 `wow.kafka.bootstrap-servers` 就是 Kafka）。没有配置时，开发中的节点（`wow.dev-profiles` 中的某个 profile 处于激活状态，或者 `wow.internal.host` 指定了回环地址）把主题保存在 JVM 里：同一进程中的服务不需要 broker 就能互相访问，它承载的每个上下文都接收自己的命令，并且在 ops 上下文运行于同一个 JVM 时（或设置 `wow.ops.publish.enabled: true` 时）发布失败台账。其他节点没有主题。`wow.transport=memory` 有意把主题保存在 JVM 里；开发以外会被拒绝。这些主题的每个分区只保留最近的 `wow.memory.topic-retention` 条记录（默认 1,000 条），更早的像 broker 的保留策略那样丢弃，落后更多的订阅从保留的最早一条接着读。它们只用于试用服务，不能用于压测或部署。`wow.transport=none` 在任何 profile 下都不给节点主题，不论配置了什么；需要主题的节点会拒绝启动。把 `wow.kafka.bootstrap-servers` 设为空并不能关掉主题：开发中的节点这时会把主题保存在 JVM 里。
 
 类路径上有 `wow-kafka` 模块并设置了 `wow.kafka.bootstrap-servers` 时，传输会被装配。eShop 的 ordering 服务用它的 `kafka` profile 连接：
 
@@ -89,7 +89,7 @@ kafka-topics --bootstrap-server kafka:9092 --create --topic wow.eshop-ordering.o
 
 ## 持久性 {#durability}
 
-命令主题上接收的命令，必须挺过一个 broker 的丢失。只有当主题的副本数和 `min.insync.replicas` 都至少为 2 时才成立。启动时，节点对它的上下文中每个低于此要求的命令主题、以及会创建这种主题的配置发出警告，除非节点处于开发中：`wow.dev-profiles` 中的某个 profile 处于激活状态（默认为 `dev`、`local`、`test` 和 `demo`），或者它的内部端口只绑定回环地址。
+命令主题上接收的命令，必须挺过一个 broker 的丢失。只有当主题的副本数和 `min.insync.replicas` 都至少为 2 时才成立。启动时，节点对它的上下文中每个低于此要求的命令主题、以及会创建这种主题的配置发出警告，除非节点处于开发中：`wow.dev-profiles` 中的某个 profile 处于激活状态（默认为 `dev`、`local`、`test` 和 `demo`），或者 `wow.internal.host` 指定了回环地址。
 
 无论 `wow.kafka.properties` 怎么设，生产者都是幂等的，并等待所有同步副本确认（`acks=all`）。
 

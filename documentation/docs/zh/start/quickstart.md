@@ -57,6 +57,12 @@ application {
     mainClass.set("me.ahoo.wow.example.quickstart.BankServerKt")
 }
 
+// `./gradlew run` runs the service for development, the `dev` profile: its data in memory, its internal port on the
+// loopback interface alone, its callers named by request headers.
+tasks.named<JavaExec>("run") {
+    systemProperty("spring.profiles.include", "dev")
+}
+
 dependencies {
     // The Spring Boot host: auto-configuration, the HTTP routes, the memory backend.
     implementation("me.ahoo.wow:wow-spring-boot")
@@ -265,16 +271,6 @@ wow:
   # MongoDB, the `postgres` profile on PostgreSQL (application-mongo.yaml, application-postgres.yaml).
   internal:
     port: 9090
----
-# On this machine alone, where Spring Boot detects no cloud platform: the internal port on the loopback interface, and
-# the node serves the anonymous caller. A deployment binds the address its nodes reach.
-spring:
-  config:
-    activate:
-      on-cloud-platform: none
-wow:
-  internal:
-    host: 127.0.0.1
 ```
 
 ```bash
@@ -283,7 +279,7 @@ wow:
 
 类路径上有 `wow-mongo`，或者有 `wow-postgres` 和连接池（`com.zaxxer:HikariCP`，宿主用它创建 `DataSource`）时，`--args='--spring.profiles.active=mongo'`（或 `postgres`）会改为把数据放在 MongoDB 或 PostgreSQL 中，配置见模块的 `application-mongo.yaml` 和 `application-postgres.yaml`（[MongoDB](../operate/mongodb)、[PostgreSQL](../operate/postgresql)）。
 
-节点在 8080 端口上提供路由，在 9090 端口上提供内部端口。它会警告数据在内存中，并且在应用认证调用方之前，每个请求都是匿名调用方（[提供和调用 HTTP API](../guide/http#who-the-caller-is)）：只有开发中的节点（这里是内部端口只绑定回环接口的节点）才能在没有调用方解析器时启动。
+节点在 8080 端口上提供路由，在 9090 端口上提供内部端口，内部端口只绑定回环接口：开发 profile 中都是这样，除非 `wow.internal.host` 指定了别的地址。它会警告数据在内存中，并且在应用认证调用方之前，调用方取自请求头（[提供和调用 HTTP API](../guide/http#who-the-caller-is)）：不带 `Wow-User` 的请求是匿名调用方。只有开发中的节点（这里是 `./gradlew run` 加上的 `dev` profile）才能在没有调用方解析器时启动。
 
 ## 发送命令 {#send-commands}
 
