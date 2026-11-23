@@ -51,7 +51,7 @@ An environment variable named after a Wow group (`WOW_KAFKA_â€¦`, `WOW_CLUSTER_â
 
 The nodes of one service form one cluster, so some settings must be the same on every node, and should change only as the reference describes:
 
-- `wow.service`, the service's name, `spring.application.name` by default.
+- The service's name: `spring.application.name`, or `wow.service` when that is set. It is the name the service's build gives it (`wow { service }`): a node built with Wow's Gradle plugin refuses to start under another, naming the key to change. A node built without the plugin carries no build name, and its name is not checked ([Add Wow to an Existing Service](../start/existing-project)).
 - `wow.log.partitions`: a power of two that divides 4,096 (64 by default), fixed once the log holds entries. Choose it before the first deployment.
 - The stores and the placement of each aggregate type: `wow.backend`, `wow.stores`, `wow.log.store`, `wow.snapshot.*`, `wow.aggregates.*.log`.
 
@@ -61,7 +61,7 @@ A node derives these values from its environment, so most services set none of t
 
 | Value | Derived from | Key |
 | --- | --- | --- |
-| The service's name | `spring.application.name` | `wow.service` |
+| The service's name, which must be its build's | `spring.application.name` | `wow.service` |
 | The node's id | A new one each start | `wow.node.id` |
 | The address the node advertises, and the one its internal port binds | `127.0.0.1` in a development profile; otherwise the address this host's name resolves to, refused when it is a public address | `wow.node.address`, `wow.internal.host` |
 | The state cache | A tenth of the maximum heap, split between the node's contexts | `wow.state-cache.capacity` |

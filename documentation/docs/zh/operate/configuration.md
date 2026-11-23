@@ -51,7 +51,7 @@ Spring 会忽略没有属性绑定的键，所以拼错的键会一声不响地�
 
 一个服务的节点组成一个集群，所以有些设置必须在每个节点上相同，并且只能按参考所说的方式改变：
 
-- `wow.service`，服务的名字，默认是 `spring.application.name`。
+- 服务的名字：`spring.application.name`，设置了 `wow.service` 时则是 `wow.service`。它就是服务的构建给它的名字（`wow { service }`）：用 Wow 的 Gradle 插件构建的节点以别的名字运行时拒绝启动，并指明要改的键。不用这个插件构建的节点不带构建的名字，它的名字也不受检查（[在已有服务中引入 Wow](../start/existing-project)）。
 - `wow.log.partitions`：能整除 4,096 的 2 的幂（默认 64），日志有了条目之后就固定不变。在首次部署之前选定。
 - 存储以及每个聚合类型的放置：`wow.backend`、`wow.stores`、`wow.log.store`、`wow.snapshot.*`、`wow.aggregates.*.log`。
 
@@ -61,7 +61,7 @@ Spring 会忽略没有属性绑定的键，所以拼错的键会一声不响地�
 
 | 值 | 推导自 | 键 |
 | --- | --- | --- |
-| 服务名 | `spring.application.name` | `wow.service` |
+| 服务名，须与构建的一致 | `spring.application.name` | `wow.service` |
 | 节点 ID | 每次启动新生成一个 | `wow.node.id` |
 | 节点对外公布的地址，以及内部端口绑定的地址 | 开发 profile 中是 `127.0.0.1`；否则是本机名字解析到的地址，它是公网地址时拒绝启动 | `wow.node.address`、`wow.internal.host` |
 | 状态缓存 | 最大堆的十分之一，由节点的各上下文分摊 | `wow.state-cache.capacity` |

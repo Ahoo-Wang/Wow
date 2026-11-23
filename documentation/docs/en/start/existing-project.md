@@ -160,6 +160,7 @@ dependencies {
 `me.ahoo.wow.service` does what `me.ahoo.wow` does for the server's own sources (its routes, sagas and projections; nothing when it has none), and:
 
 - merges every part on the runtime class path into the service's Manifest, `build/wow/manifest.json` (`mergeWowManifest`), and writes its OpenAPI document (`generateWowOpenApi`);
+- writes the service's name and the contexts it serves into the server's own resources, `META-INF/wow/service.json`, with the merge: the name its nodes must run under (below);
 - writes the values of the `wow-service` Helm chart that the build knows, `build/wow/helm/values.yaml` (`generateWowHelmValues`, part of `assemble`): the service's name, the peers whose contracts are on its class path and its Manifest's route ([Kubernetes](../operate/kubernetes));
 - checks every build's Manifest against the committed baseline (`checkWowManifest`, part of `check`; `updateWowManifestBaseline` records it);
 - checks that its runtime and test class paths resolve Jackson at a minor Wow's JSON is verified on, its modules at one minor (`checkWowJackson`, part of `check`, which `me.ahoo.wow` runs on a domain module's test class path too), and says what to change otherwise ([Upgrading](../operate/upgrades));
@@ -170,6 +171,8 @@ The merged Manifest describes the service the contracts of its contexts name (`w
 | Property | Default | Means |
 | --- | --- | --- |
 | `manifestBaseline` | `manifest/baseline.json` | The committed baseline of the compatibility check |
+
+The service has one name, the merged Manifest's: its peers find it by that name, its chart values carry it and its baseline records it. The server's configuration repeats it, in `spring.application.name`, or in `wow.service` when that is set. A node whose class path holds the server's `META-INF/wow/service.json` refuses to start under another name for the contexts it names. The refusal names the key that gave the running name and the line to change: `Set spring.application.name: catalog-server`, or a new name in the build. A server built without the plugin, with Maven for example, carries no such file, and nothing compares its name with its build's.
 
 The host brings Spring Boot and WebFlux with it. Choose `wow-mongo` instead of `wow-postgres` for MongoDB, add `wow-kafka` to reach other contexts and `wow-clickhouse` for the warehouse ([Host on Spring Boot](../guide/spring-boot#what-the-class-path-decides)).
 
@@ -222,4 +225,4 @@ Domain services the command functions take are beans of the application. A `Data
 
 ## Run it
 
-Once the server's `application.yaml` names the service (`spring.application.name`) and, as above, gives it a database or a development profile, `./gradlew :catalog-server:run` starts one node on this machine. Commands, state reads and queries are served as in the [Quickstart](./quickstart#send-commands). Before production, go through [Running Wow](../operate/).
+Once the server's `application.yaml` names the service as its build does (`spring.application.name`) and, as above, gives it a database or a development profile, `./gradlew :catalog-server:run` starts one node on this machine. Commands, state reads and queries are served as in the [Quickstart](./quickstart#send-commands). Before production, go through [Running Wow](../operate/).

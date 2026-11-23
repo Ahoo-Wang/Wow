@@ -1303,7 +1303,7 @@
   }, {
     "name" : "wow.service",
     "type" : "java.lang.String",
-    "description" : "The service's name; `spring.application.name` when not set.",
+    "description" : "The service's name; `spring.application.name` when not set. Where Wow's Gradle plugin built the service, its build's name (`wow { service }`): a node refuses to start under another.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
   }, {
     "name" : "wow.shared-states.capacity",

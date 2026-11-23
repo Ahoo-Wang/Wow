@@ -67,16 +67,23 @@ internal class NodeModels {
     fun wowManifest(loader: ManifestLoader, models: WowModels, identity: NodeIdentity): Manifest =
         loader.load(ServiceInfo(identity.service), models.providers)
 
-    /** The contracts of the service's Manifest and the peer contracts on the class path. */
+    /**
+     * The contracts of the service's Manifest and the peer contracts on the class path; the service refuses to start
+     * under another name than the one its build gives it, where Wow's Gradle plugin built it ([ContractDirectory.load]).
+     */
     @Bean
     @ConditionalOnMissingBean
     @InternalWowApi
-    fun wowContractDirectory(manifest: Manifest, beanFactory: ConfigurableListableBeanFactory): ContractDirectory =
-        ContractDirectory.load(
-            manifest,
-            beanFactory.beanClassLoader ?: ClassUtils.getDefaultClassLoader()!!,
-            WowJson.mapper
-        )
+    fun wowContractDirectory(
+        manifest: Manifest,
+        identity: NodeIdentity,
+        beanFactory: ConfigurableListableBeanFactory,
+    ): ContractDirectory = ContractDirectory.load(
+        manifest,
+        beanFactory.beanClassLoader ?: ClassUtils.getDefaultClassLoader()!!,
+        WowJson.mapper,
+        identity.serviceKey,
+    )
 
     internal companion object {
         /** The service of the peer [context], as its contract on the class path names it. */

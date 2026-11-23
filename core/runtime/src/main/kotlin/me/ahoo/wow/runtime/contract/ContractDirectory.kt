@@ -28,9 +28,11 @@ import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestFragment
 import me.ahoo.wow.manifest.PeerContracts
 import me.ahoo.wow.manifest.PublishedManifest
+import me.ahoo.wow.manifest.ServiceBuild
 import me.ahoo.wow.manifest.SubscriptionKind
 import me.ahoo.wow.manifest.SubscriptionManifest
 import me.ahoo.wow.runtime.wait.SubscriptionDirectory
+import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.config.configCheck
 import me.ahoo.wow.spi.log.EventStreamRecord
 import tools.jackson.databind.json.JsonMapper
@@ -345,26 +347,56 @@ class ContractDirectory(
 
         /**
          * The directory of [local] and the peer contracts on [classLoader] ([ClassPathContracts], the one reader of
-         * them); fails with a [ContractException] when a contract cannot be read, as when the directory cannot be built.
+         * them); fails with a [ContractException] when a contract or a service build cannot be read, as when the
+         * directory cannot be built, and with a [WowConfigurationException] naming [serviceKey], the property that gave
+         * [local]'s service its name, when the builds on [classLoader] ([ServiceBuild]) name the service otherwise
+         * ([requireBuilt]) or a contract says another service hosts one of its contexts ([requireHosted]).
          */
         fun load(
             local: Manifest,
             classLoader: ClassLoader = Thread.currentThread().contextClassLoader,
             mapper: JsonMapper = JsonMapper.builder().build(),
+            serviceKey: String = SERVICE_KEY,
         ): ContractDirectory {
-            val contracts = ClassPathContracts.load(classLoader, { contractLogger.warn { it } }) { bytes ->
-                mapper.readValue(bytes, Map::class.java)
-            }
-            requireHosted(local, contracts)
+            val parse: (ByteArray) -> Any? = { bytes -> mapper.readValue(bytes, Map::class.java) }
+            requireBuilt(local, ServiceBuild.load(classLoader, parse), serviceKey)
+            val contracts = ClassPathContracts.load(classLoader, { contractLogger.warn { it } }, parse)
+            requireHosted(local, contracts, serviceKey)
             return ContractDirectory(local, contracts)
+        }
+
+        /** The property that names a node's service unless the host says which did: `wow.service`. */
+        const val SERVICE_KEY: String = "wow.service"
+
+        /**
+         * Fails unless every build of [builds] that serves a context [local] serves names [local]'s service: the name
+         * its peers, its chart and its baseline know it by, which the build gave it (`wow { service }`). A class path
+         * without a build, as when the service is built without Wow's Gradle plugin, is not checked.
+         */
+        internal fun requireBuilt(local: Manifest, builds: List<ServiceBuild>, serviceKey: String) {
+            val service = local.service?.name ?: return
+            val served = local.contexts.mapTo(HashSet()) { it.name }
+            val build = builds.firstOrNull { build -> build.name != service && build.contexts.any { it in served } }
+                ?: return
+            throw WowConfigurationException(
+                serviceKey,
+                service,
+                "The service runs as $service ($serviceKey), but its build names it ${build.name} (${build.source}): " +
+                    "peers, its chart and its baseline know it by the name its build gives it.",
+                "Set $serviceKey: ${build.name}, or name the service $service in its build (wow { service }).",
+            )
         }
 
         /**
          * Fails unless every contract on the class path that declares a context [local] serves, and names the service
-         * that hosts it, names [local]'s service: the service a peer finds by that name, which would
-         * otherwise be another than this one.
+         * that hosts it, names [local]'s service: the service a peer finds by that name, which would otherwise be
+         * another than this one. The failure names [serviceKey], the property that gave the service its name.
          */
-        internal fun requireHosted(local: Manifest, contracts: List<ManifestFragment>) {
+        internal fun requireHosted(
+            local: Manifest,
+            contracts: List<ManifestFragment>,
+            serviceKey: String = SERVICE_KEY,
+        ) {
             val service = local.service?.name ?: return
             val served = local.contexts.mapTo(HashSet()) { it.name }
             contracts.forEach { contract ->
@@ -372,13 +404,13 @@ class ContractDirectory(
                 val contexts = contract.manifest.contexts.map { it.name }.filter { it in served }
                 configCheck(
                     contexts.isEmpty() || declared == service,
-                    "wow.service",
+                    serviceKey,
                     service,
-                    "Name the service $declared, or declare $service in the api module's domain module " +
+                    "Set $serviceKey: $declared, or declare $service in the api module's domain module " +
                         "(wow { service }).",
                 ) {
                     "The contract of $contexts (${contract.source}) says the service $declared hosts them, but this " +
-                        "service is $service: peers find it by the name its api module declares."
+                        "service is $service ($serviceKey): peers find it by the name its api module declares."
                 }
             }
         }

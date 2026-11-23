@@ -30,6 +30,7 @@ import me.ahoo.wow.manifest.ContractException
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestFragment
 import me.ahoo.wow.manifest.PublishedManifest
+import me.ahoo.wow.manifest.ServiceBuild
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.manifest.SubscriptionKind
@@ -66,9 +67,42 @@ class ContractDirectoryTest {
         failure.key.assert().isEqualTo("wow.service")
         failure.message.assert().contains(
             "The contract of [shop] (shop-api.jar) says the service eshop-shop-service hosts them",
-            "this service is shop-service",
-            "Name the service eshop-shop-service",
+            "this service is shop-service (wow.service)",
+            "Set wow.service: eshop-shop-service",
         )
+        // The property that gave the name is the one the failure names.
+        val named = assertThrows<WowConfigurationException> {
+            ContractDirectory.requireHosted(
+                local,
+                listOf(contract("eshop-shop-service", "shop")),
+                "spring.application.name",
+            )
+        }
+        named.key.assert().isEqualTo("spring.application.name")
+        named.fix.assert().startsWith("Set spring.application.name: eshop-shop-service,")
+    }
+
+    @Test
+    fun `a build of a context the service serves should name this service`() {
+        val local = Manifest(service = ServiceInfo("bank"), contexts = listOf(ContextManifest("bank")))
+        fun build(service: String, vararg contexts: String) = ServiceBuild(service, contexts.toList(), "$service.jar")
+        ContractDirectory.requireBuilt(local, listOf(build("bank", "bank"), build("ledger-service", "ledger")), KEY)
+        ContractDirectory.requireBuilt(local, emptyList(), KEY)
+        // No service, nothing to compare: a Manifest the node did not assemble.
+        ContractDirectory.requireBuilt(Manifest(contexts = local.contexts), listOf(build("bank-service", "bank")), KEY)
+        val failure = assertThrows<WowConfigurationException> {
+            ContractDirectory.requireBuilt(local, listOf(build("bank-service", "bank", "audit")), KEY)
+        }
+        failure.key.assert().isEqualTo(KEY)
+        failure.value.assert().isEqualTo("bank")
+        failure.reason.assert().isEqualTo(
+            "The service runs as bank (spring.application.name), but its build names it bank-service " +
+                "(bank-service.jar): peers, its chart and its baseline know it by the name its build gives it.",
+        )
+        failure.fix.assert()
+            .isEqualTo(
+                "Set spring.application.name: bank-service, or name the service bank in its build (wow { service }).",
+            )
     }
 
     @Test
@@ -468,5 +502,9 @@ class ContractDirectoryTest {
         val loaded = ContractDirectory.load(shop(), contractsLoader("inventory", "payment"))
         loaded.peers.map { it.manifest.contexts.single().name }.assert().containsExactly("inventory", "payment")
         loaded.local.assert().isEqualTo(shop())
+    }
+
+    private companion object {
+        const val KEY = "spring.application.name"
     }
 }

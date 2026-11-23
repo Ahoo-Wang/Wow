@@ -121,6 +121,10 @@ class ServiceRoleTest {
             .isEqualTo("shop-service")
         merge.serviceVersion.get().assert().isEqualTo("2.0.0")
         merge.outputFile.get().asFile.assert().isEqualTo(File(project.projectDir, "build/wow/manifest.json"))
+        // The service's name goes into its own resources with the merge, for the node to run under.
+        val service = File(project.projectDir, "build/wow/service")
+        merge.serviceResources.get().asFile.assert().isEqualTo(service)
+        main.resources.srcDirs.assert().contains(service)
     }
 
     @Test
