@@ -47,7 +47,6 @@ import java.util.Calendar
 import java.util.Currency
 import java.util.Date
 import java.util.GregorianCalendar
-import java.util.IllformedLocaleException
 import java.util.Locale
 import java.util.TimeZone
 
@@ -80,6 +79,9 @@ import java.util.TimeZone
  *   integer and the text Wow writes. No release wrote a `MonthDay` as an array: 1.x to 6.x wrote `"--01-02"` too.
  * - **A `TimeZone`** is read through `ZoneId`, so an unknown id is refused where Jackson reads it as `GMT`, and an
  *   offset, `"+08:00"`, is that offset. A short id Java knows (`PST`) reads as the zone it names.
+ * - **A `Locale` in Java's form with a script or extensions**, `"zh_CN_#Hans"`, which Wow 9.x wrote, reads as the
+ *   locale that writes it, script included, where Jackson 3 keeps `#Hans` as a variant ([LocaleTexts]); a text of
+ *   that form no locale writes is refused.
  * - **A `Locale` of one subtag** (a text with no `-` or `_`) is read as a BCP 47 tag, so one that is no tag,
  *   `"not a tag!"`, is refused, and **a `Locale` from a number or a boolean** is refused. Jackson 3.1 reads such a text,
  *   and a number's or a boolean's text, as a language of that name; 3.2 reads it as a tag, and fails on one that is
@@ -204,24 +206,15 @@ internal object StrictReads {
             return super.deserialize(p, ctxt)
         }
 
-        /** A locale Wow reads before Jackson's reader, or refuses; null for any other input, which Jackson reads. */
+        /** A locale Wow reads before Jackson's reader ([LocaleTexts]), or refuses; null for an input Jackson reads. */
         private fun locale(p: JsonParser, ctxt: DeserializationContext): Any? {
             val token = p.currentToken()
             return when {
-                token == JsonToken.VALUE_STRING -> subtag(p)
+                token == JsonToken.VALUE_STRING -> p.string.trim().takeIf(LocaleTexts::owns)?.let { text ->
+                    LocaleTexts.read(text) ?: throw InvalidFormatException.from(p, "$text is not a locale.", text, type)
+                }
                 token.isNumeric || token.isBoolean -> ctxt.handleUnexpectedToken(type, p)
                 else -> null
-            }
-        }
-
-        /** The locale of a text of one subtag, read as a BCP 47 tag; null for any other text, which Jackson reads. */
-        private fun subtag(p: JsonParser): Locale? {
-            val text = p.string.trim()
-            if (text.isEmpty() || text.any { it == '-' || it == '_' }) return null
-            return try {
-                Locale.Builder().setLanguageTag(text).build()
-            } catch (_: IllformedLocaleException) {
-                throw InvalidFormatException.from(p, "$text is not a language tag.", text, type)
             }
         }
 
