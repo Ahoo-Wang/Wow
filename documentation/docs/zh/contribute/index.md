@@ -61,6 +61,7 @@ flowchart BT
 - Reactor 只出现在 `:reactor` 和 WebFlux 边缘，只有 `:spring-boot` 依赖 Spring Boot。
 - eShop 的 domain 和 API 模块从不触及运行时，每个应用都针对公开 API 编译：没有哪个选择使用 `@InternalWowApi`。
 - 生产源码中没有兼容代码：没有 `@Deprecated` 声明、没有 `compat(...)` 标记、没有 9.x 类型或已删除的 9.x 项目。
+- Wow 自己的路由在路径里除聚合 id 外不放数据：`:http` 的路由声明的路径变量，以及 `:http` 或 `:spring-boot` 读取的路径变量，只能是聚合 id 或 Manifest 声明的名字（聚合、命令、数据集），所以租户、所有者或任何长度由数据决定的值都放在请求体里（`RouteSegmentRules`）。应用在自己的服务路由上声明的路径变量由应用负责。
 
 `./gradlew :architecture:test` 运行它们，`:check` 包含它。
 

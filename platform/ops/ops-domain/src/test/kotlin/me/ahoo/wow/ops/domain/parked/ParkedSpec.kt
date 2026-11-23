@@ -116,8 +116,9 @@ class ParkedSpec {
 
     @Test
     fun `an entry of the longest tenant and id the rules allow is recorded with every field`() {
-        // A tenant of 256 characters that percent-encode to nine each, and an id of 256 (#6626).
-        val longest = AGGREGATE.copy(tenantId = "租".repeat(256), id = "i".repeat(256))
+        // A tenant of 256 characters that percent-encode to nine each, and the longest id the rules allow: 256
+        // characters of two bytes each, 512 in UTF-8 (#6626, #6628).
+        val longest = AGGREGATE.copy(tenantId = "租".repeat(256), id = "é".repeat(256))
         val entry = entry("aggregate" to longest)
         val id = Ledger.parkedId("eshop-payment-service", "eshop-payment", SUBSCRIPTION, longest.toRef())
         aggregateSpec(parkedModel(), id = id) {

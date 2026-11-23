@@ -15,6 +15,7 @@ package me.ahoo.wow.api.ledger
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.api.aggregate.AggregateIdLimits
 import me.ahoo.wow.api.aggregate.AggregateType
 import org.junit.jupiter.api.Test
 
@@ -53,9 +54,11 @@ class LedgerTest {
 
     @Test
     fun `an entry's ops id has one length, whatever its tenant and id`() {
-        // The longest tenant the rules allow, in a script that percent-encodes to nine characters each, and a long id.
+        // The longest tenant the rules allow, in a script that percent-encodes to nine characters each, and the longest
+        // id: 256 characters of two bytes each, 512 in UTF-8 (AggregateIdLimits, #6628).
         val tenant = "租".repeat(256)
-        val id = "i".repeat(256)
+        val id = "é".repeat(AggregateIdLimits.MAX_LENGTH)
+        AggregateIdLimits.utf8Length(id).assert().isEqualTo(AggregateIdLimits.MAX_BYTES)
         val longest = Ledger.parkedId("svc", "c", "s", ref.type.ref(tenant, id))
         longest.assert().matches("p[0-9a-f]{32}")
         Ledger.parkedId("svc", "c", "s", ref.type.ref("t", "i")).length.assert().isEqualTo(longest.length)

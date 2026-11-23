@@ -61,6 +61,7 @@ The authoritative list is `ArchitectureRules.ALLOWED_PROJECT_DEPENDENCIES` in `:
 - Reactor appears only in `:reactor` and the WebFlux edge, and only `:spring-boot` depends on Spring Boot.
 - The eShop's domain and API modules never reach the runtime, and every application compiles against the public API: none opts into `@InternalWowApi`.
 - No production source carries compatibility code: no `@Deprecated` declaration, no `compat(...)` marker, no 9.x type or deleted 9.x project.
+- Wow's own routes hold no data in their paths but an aggregate's id: a path variable of `:http`'s routes, and one `:http` or `:spring-boot` reads, is the aggregate id or a name the Manifest declares (an aggregate, a command, a dataset), so a tenant, an owner or any other value of the data's length travels in the body (`RouteSegmentRules`). The path variables an application declares on its own service routes are the application's.
 
 `./gradlew :architecture:test` runs them, and `:check` includes it.
 

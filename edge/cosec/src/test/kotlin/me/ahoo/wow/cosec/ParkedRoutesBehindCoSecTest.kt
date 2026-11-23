@@ -17,6 +17,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.cosec.annotations.ExperimentalCoSecApi
 import me.ahoo.cosec.testkit.webflux.CoSecTestBindings
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateIdLimits
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.annotation.InternalWowApi
@@ -95,10 +96,11 @@ class ParkedRoutesBehindCoSecTest {
     @Test
     fun `an entry of the longest tenant and id is read, retried and skipped through CoSec's pipeline`(): Unit =
         runBlocking {
-            // A tenant of 256 characters that percent-encode to nine each, and ids of 256 characters.
+            // A tenant of 256 characters that percent-encode to nine each, and two of the longest ids the rules allow,
+            // 256 characters of two bytes each (#6628).
             val tenant = "租".repeat(256)
-            val retried = "r".repeat(256)
-            val skipped = "s".repeat(256)
+            val retried = "é".repeat(AggregateIdLimits.MAX_LENGTH)
+            val skipped = "è".repeat(AggregateIdLimits.MAX_LENGTH)
             park(tenant, retried)
             park(tenant, skipped)
             owner.start(setOf(0, 1))
@@ -130,7 +132,8 @@ class ParkedRoutesBehindCoSecTest {
     @Test
     fun `the path that held the tenant and the id is one CoSec's pipeline refuses before deciding`() {
         val tenant = URLEncoder.encode("租".repeat(256), Charsets.UTF_8)
-        val old = "${OpsPaths.PARKED}/$CONTEXT.$NAME/$CONTEXT/cart/$tenant/${"i".repeat(256)}"
+        val id = URLEncoder.encode("é".repeat(AggregateIdLimits.MAX_LENGTH), Charsets.UTF_8)
+        val old = "${OpsPaths.PARKED}/$CONTEXT.$NAME/$CONTEXT/cart/$tenant/$id"
         // As received, already encoded: the client encodes no '%' again.
         val refused = client.get().uri(URI.create("http://localhost$old"))
             .header("Authorization", "Bearer root;(0);$OPERATOR")
