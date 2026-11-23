@@ -85,6 +85,15 @@ class ComputedPropertyCompatibilityTest {
             .assert().containsExactly("ADDITIVE C.product.initial: optional field added")
     }
 
+    @ParameterizedTest
+    @EnumSource(value = SchemaDirection::class, names = ["INPUT", "STORED"])
+    fun `a property whose schema is no object, which cannot be readOnly, should be required as listed`(
+        direction: SchemaDirection,
+    ) {
+        nested(direction, schema("any" to true), schema("any" to true, required = listOf("any")))
+            .assert().containsExactly("BREAKING C.product.any: field made required")
+    }
+
     @Test
     fun `a computed property added to a command's body and to a state should be additive in a Manifest`() {
         val current = BASELINE
