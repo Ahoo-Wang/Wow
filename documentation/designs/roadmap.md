@@ -72,7 +72,6 @@ GA 前要做、已排期的事见 §4 与[进度](progress.md)的「距离 GA �
 
 | 事项 | 为什么，或卡在哪 | 来源 |
 | --- | --- | --- |
-| CoSec 的拒绝按 Wow 的形状作答 | CoSec 8.0.0-beta.6 提供了 `ProblemRenderer`；设计说明 `cosec-problem-renderer-design.md` 已出。默认开、可选默认关还是不做，等用户定 | issue #6591，Ahoo-Wang/CoSec#1840，D458 ④ |
 | Skill 插件的版本在 GA 时定为 `1.0.0` | `skills/plugins.json` 现为 `0.2.0`；随 GA 的发布准备改 | 文档方案 §4.1（`2c08f318ea` 的 `docs-plan.md`） |
 | `wow-migrate` Skill 里只对预发布版本成立的内容 | 文档核对列出六组（W1～W6）；等用户的评测（8a.2）结束后删，评测期间不动 Skill | rc 前的文档核对 |
 | `wow-migrate` Skill 的范围 | 文档方案原定把它收窄为只讲 9.x 到 10，没有做：它仍带 Spring Boot 3 到 4 等更早的迁移路径与一个相应的评测，D266 ③ 也写着它不受影响。GA 前定：收窄，或把保留写进决定 | 文档方案 §9（同上） |
