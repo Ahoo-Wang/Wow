@@ -21,12 +21,21 @@ import tools.jackson.databind.json.JsonMapper
 
 /**
  * How admission reads a command's body ([CommandBodies]): a property given twice at any depth, and one the command
- * does not have, are refused with their path; a value of another kind keeps its own reason.
+ * does not have, are refused with their path; a value of another kind keeps its own reason; a computed property, which
+ * the schema marks `readOnly`, may be given or left out.
  */
 class CommandBodiesTest {
     data class Line(val sku: String, val quantity: Int = 1)
 
     data class PlaceOrder(val lines: List<Line>, val meta: Map<String, String> = emptyMap(), val note: String = "")
+
+    data class ProductRef(val id: String, val code: String, val brandName: String) {
+        val searchCode: String get() = "$code|$brandName"
+    }
+
+    data class CreateOrder(val product: ProductRef, val lines: List<ProductRef> = emptyList()) {
+        val label: String get() = "order of ${product.id}"
+    }
 
     private val bodies = CommandBodies(WowJson.mapper)
 
@@ -61,5 +70,23 @@ class CommandBodiesTest {
         val tree = JsonMapper.builder().build().readTree("""{"lines":[{"sku":"a","qty":2}]}""")
         (bodies.decode(CommandBody.Tree(tree), PlaceOrder::class.java) as Undecodable).violations.assert()
             .containsExactly(Violation.of("lines[0].qty", "unknown-property", "Not a property of its type."))
+    }
+
+    @Test
+    fun `a computed property should be read into nothing, given or not, at any depth`() {
+        fun decoded(json: String) =
+            (bodies.decode(CommandBody.Bytes(json.toByteArray()), CreateOrder::class.java) as Decoded).value
+        val expected = CreateOrder(ProductRef("p", "c", "b"), listOf(ProductRef("q", "x", "y")))
+        decoded("""{"product":{"id":"p","code":"c","brandName":"b"},"lines":[{"id":"q","code":"x","brandName":"y"}]}""")
+            .assert().isEqualTo(expected)
+        val stale = """{"product":{"id":"p","code":"c","brandName":"b","searchCode":"stale"},""" +
+            """"lines":[{"id":"q","code":"x","brandName":"y","searchCode":"stale"}],"label":"stale"}"""
+        (decoded(stale) as CreateOrder).let { order ->
+            order.assert().isEqualTo(expected)
+            order.product.searchCode.assert().isEqualTo("c|b")
+            order.lines.single().searchCode.assert().isEqualTo("x|y")
+            order.label.assert().isEqualTo("order of p")
+        }
+        decoded(WowJson.mapper.writeValueAsString(expected)).assert().isEqualTo(expected)
     }
 }
