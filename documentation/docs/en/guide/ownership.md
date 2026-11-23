@@ -46,6 +46,8 @@ An aggregate without an access policy of its own is changed by the **default rul
 
 A `TENANT` aggregate records no owner, so its writes are not checked against one; the caller's space still is. Action-level authorization alone decides who may change a product: without an authorizer, any caller its route admits may send its commands ([Authorize commands](../operate/security#authorize-commands)). An aggregate with an access policy is checked by its policy instead ([Where a policy applies](#where-a-policy-applies)).
 
+Within a tenant a request id is not a secret boundary. A command whose request id its aggregate type already committed in the tenant is answered with that commit, whoever sent the first ([How a command is retried](./failures#how-a-command-is-retried)), but only to a caller who may reach the aggregate it committed. Another owner of the same tenant who reuses the request id is answered that its own aggregate does not exist, `404 wow.aggregate.not-found`. From that it may infer that the request id was used, and it learns nothing else: not whose aggregate, nor which, nor what the commit holds. An application that must not let even that be inferred sends request ids that cannot be guessed, such as random UUIDs; a command sent without one takes its command id, which cannot be guessed either.
+
 ## Who reads it
 
 Reads follow the same default rule. Query admission adds it to every query of the aggregate type, its event streams included, and the state routes check it on a state read and a trace:
