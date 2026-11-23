@@ -81,6 +81,30 @@ class ReadRecordsTest {
         read.counts.assert().isEqualTo(mapOf("apple" to 2))
     }
 
+    /** A state holding an enumeration, which every state, event and command may (#6657). */
+    data class Order(val id: String, val status: Status) {
+        enum class Status { PAID, SHIPPED }
+    }
+
+    @Test
+    fun `a typed snapshot record should read the state's enumerations by name`() {
+        val order = Order("o-1", Order.Status.SHIPPED)
+        val snapshot = Snapshot.of(
+            ref,
+            2,
+            Scope.NONE,
+            emptyMap(),
+            false,
+            null,
+            10,
+            20,
+            WowJson.mapper.valueToTree<JsonNode>(order),
+            null,
+            emptyMap(),
+        )
+        snapshot.toRecord().toSnapshot(type, Order::class.java).state.assert().isEqualTo(order)
+    }
+
     @Test
     fun `a record without operators or schedules should read as none`() {
         val record = WowJson.mapper.createObjectNode()

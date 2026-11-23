@@ -9,7 +9,8 @@ Wow 的 JSON（`WowJson`）写出并读取服务的状态、命令和事件：�
 
 - 这些类是 JVM 的类：Kotlin 的 `Int` 是 `int`，可空或作为类型实参时是 `Integer`；`ByteArray` 是 `byte[]`。一行只匹配它的类本身，不匹配子类。
 - JavaScript 的 `number` 只能精确持有至多 2^53 − 1（`9007199254740991`）的整数：客户端把更大的 `long` 读作 `bigint`。
-- 枚举按名字写出，与其 schema 的 `enum` 列出的一样：`Month` 写作 `"JANUARY"`。读取时只按名字：数字或数字的文本会被拒绝（`wrong-kind`、`not-in-enumeration`），而 Jackson 会把它读作该序号的常量。`Month` 也读取从 1 开始的序号，写成数字的枚举（`@JsonFormat(shape = NUMBER)`）按数字读取。
+- 枚举按名字写出，与其 schema 的 `enum` 列出的一样：`Month` 写作 `"JANUARY"`。读取时只按名字：数字，或不是其名字的数字文本，会被拒绝（`wrong-kind`、`not-in-enumeration`），而 Jackson 会把它读作该序号的常量。不指向任何常量的文本是未知值：只有在应用开启 Jackson 的 `READ_UNKNOWN_ENUM_VALUES_USING_DEFAULT_VALUE` 或 `READ_UNKNOWN_ENUM_VALUES_AS_NULL` 时，才读作默认常量或 null。`Month` 也读取从 1 开始的序号，写成数字的枚举（`@JsonFormat(shape = NUMBER)`）读取其数字，不读取数字的文本。
+- 同一输入在 Wow 支持的每个 Jackson 次版本上只有一个结果。两个次版本对同一输入读法不同时，Wow 在所有次版本上都按更严格的那个回答：只有一个子标签的 `Locale` 按 BCP 47 标签读取，与 Jackson 3.2 一样。
 - 请求体（命令的或查询的）在同一对象中多次给出同一属性时会被拒绝（`duplicate-property`），而 JSON 读取方通常保留最后一个。给出其类型没有的属性时也会被拒绝（`unknown-property`）；Wow 写出的计算属性（只有 getter）是已知属性，读取时不写入任何值。事件、快照和集群消息忽略未知属性，因此较旧或较新的写入方的消息都能读取。
 - 属性若持有另一个写成标量的平台类（`Charset`、`Path`、`AtomicLong`），构建会停下，除非声明了它的 schema（[Manifest](../guide/manifest#a-type-written-by-a-custom-serializer)）。
 - 有一个测试让每一行与代码一致：它的类、JSON 类型和格式与 Manifest 的描述一致，它列出的每个值与 Wow 的 JSON 写出的一致。
@@ -56,5 +57,5 @@ Wow 的 JSON（`WowJson`）写出并读取服务的状态、命令和事件：�
 | `ZoneId` | `string` | `"Asia/Shanghai"`、`"UTC"`、`"Z"`、`"GMT+08:00"` | 读取偏移 `"+08:00"`。拒绝未知地区 `"Nowhere/City"` 和大小写不同的地区 `"asia/shanghai"`。 |
 | `ZoneOffset` | `string` | `"+08:00"`、`"+05:30"`、`"-18:00"`；零写作 `"Z"`；秒按需，`"+01:02:03"` | 读取 `"+8"`，读作 `"+08:00"`，以及 `"+00:00"`，读作 `"Z"`。拒绝超出 ±18:00 的偏移 `"+18:30"` 和地区 `"UTC"`。 |
 | `TimeZone` | `string` | 它的 ID，`"UTC"`、`"Asia/Shanghai"`、`"GMT+08:00"` | 读取偏移，`"+08:00"` 读作 `"GMT+08:00"`，以及 Java 认识的短 ID `"PST"`。拒绝未知 ID `"Nowhere/City"` 和数字 `1`。 |
-| `Locale` | `string` | BCP 47 标签，`"zh-CN"`、`"zh-Hans-CN"`、`"en-US-POSIX"`；根语言环境写作 `""` | 读取 Java 的形式，`"zh_CN"` 读作 `"zh-CN"`，也读取任何其他文本：不是标签的文本，`"not a tag!"` 读作 `"und"`，即未确定的语言。 |
+| `Locale` | `string` | BCP 47 标签，`"zh-CN"`、`"zh-Hans-CN"`、`"en-US-POSIX"`；根语言环境写作 `""` | 读取 Java 的形式（Wow 9.x 写出的形式），`"zh_CN"` 读作 `"zh-CN"`，`"en_US"` 读作 `"en-US"`；只有一个子标签的文本按 BCP 47 标签读取，`"en"`，`"und"` 读作 `""`，即根语言环境。读取 9.x 带文字（script）的语言环境形式，`"zh_CN_#Hans"` 读作 `"zh-CN"`：文字不保留。拒绝只有一个子标签而不是标签的文本，`"not a tag!"`。 |
 | `Currency` | `string` | ISO 4217 代码，`"CNY"` | 拒绝空字符串 `""`（单凭 Jackson 会把它读作 null）、未知代码 `"XYZ"` 和小写代码 `"cny"`。 |

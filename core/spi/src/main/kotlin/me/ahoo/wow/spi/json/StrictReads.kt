@@ -47,6 +47,8 @@ import java.util.Calendar
 import java.util.Currency
 import java.util.Date
 import java.util.GregorianCalendar
+import java.util.IllformedLocaleException
+import java.util.Locale
 import java.util.TimeZone
 
 /**
@@ -69,13 +71,23 @@ import java.util.TimeZone
  *   `LocalTime` and an `OffsetTime`. Any other number or array for them is refused.
  * - **A computed property** (a getter alone) that Wow's JSON writes is known to its reader, which reads nothing into
  *   it: a reader that refuses an unknown property, a command's body's, reads what Wow wrote of the command.
- * - **A number for an enumeration**, or a number's text, which Jackson reads as the constant of that index: Wow
- *   writes an enumeration by its name. A `Month` reads its one-based number, and an enumeration written as a number
- *   (`@JsonFormat(shape = NUMBER)`, on the class or the property) reads as one.
+ * - **A number for an enumeration**, or a number's text that is no name of it, which Jackson reads as the constant of
+ *   that index: Wow writes an enumeration by its name. A `Month` reads its one-based number, and an enumeration
+ *   written as a number (`@JsonFormat(shape = NUMBER)`, on the class or the property) reads its number, not its text.
+ *   A text that names no constant is an unknown value, which `READ_UNKNOWN_ENUM_VALUES_USING_DEFAULT_VALUE` or
+ *   `READ_UNKNOWN_ENUM_VALUES_AS_NULL` reads where the application enables them, and which is refused otherwise.
  * - **A `Year` from a string**, and **a `byte[]` or a `MonthDay` from an array**: one shape for each schema, the
  *   integer and the text Wow writes. No release wrote a `MonthDay` as an array: 1.x to 6.x wrote `"--01-02"` too.
  * - **A `TimeZone`** is read through `ZoneId`, so an unknown id is refused where Jackson reads it as `GMT`, and an
  *   offset, `"+08:00"`, is that offset. A short id Java knows (`PST`) reads as the zone it names.
+ * - **A `Locale` of one subtag** (a text with no `-` or `_`) is read as a BCP 47 tag, so one that is no tag,
+ *   `"not a tag!"`, is refused. Jackson 3.1 reads such a text as a language of that name and 3.2 as a tag: where the
+ *   minors Wow runs on answer one input differently, Wow answers as the stricter does, on every one of them.
+ *
+ * One input has one answer on every Jackson minor Wow runs on. Where a minor's reader differs, Wow decides the input
+ * before it, as the `Locale` above; the enumeration's refusals are Jackson's own switches (`FAIL_ON_NUMBERS_FOR_ENUMS`
+ * and a coercion), which every minor reads the same way, so the text Jackson takes for a constant is the one its own
+ * lookup holds.
  */
 internal object StrictReads {
     fun configure(builder: JsonMapper.Builder): JsonMapper.Builder = builder
@@ -94,6 +106,12 @@ internal object StrictReads {
         .withCoercionConfig(URL::class.java) { it.fail(CoercionInputShape.EmptyString) }
         .withCoercionConfig(Currency::class.java) { it.fail(CoercionInputShape.EmptyString) }
         .defaultLeniency(false)
+        // A number's text that is no name is refused by Jackson's reader itself, from its own lookup; a number stays
+        // Jackson's to read, for an enumeration written as one, and [ByName] refuses it for the others.
+        .enable(EnumFeature.FAIL_ON_NUMBERS_FOR_ENUMS)
+        .withCoercionConfig(LogicalType.Enum) {
+            it.setCoercion(CoercionInputShape.Integer, CoercionAction.TryConvert)
+        }
         .addModule(module)
 
     private fun MutableCoercionConfig.fail(vararg shapes: CoercionInputShape) {
@@ -120,6 +138,7 @@ internal object StrictReads {
             Year::class.java -> Checked(deserializer, type, Check.YEAR)
             MonthDay::class.java -> Checked(deserializer, type, Check.NO_ARRAY)
             in DATES -> Checked(deserializer, type, Check.DATE)
+            Locale::class.java -> Checked(deserializer, type, Check.LOCALE)
             else -> deserializer
         }
 
@@ -145,7 +164,7 @@ internal object StrictReads {
         ): ValueDeserializer<*> = if (deserializer.javaClass == EnumDeserializer::class.java && !numbered(type.rawClass)) {
             // Jackson's reader alone reads an index: a reader of Wow's ([WowEnums]), a `@JsonCreator`'s or the
             // domain's decides its own.
-            ByName(deserializer, type.rawClass, Forms(deserializer as EnumDeserializer))
+            ByName(deserializer, type.rawClass, isInteger(beanDesc.get().findJsonValueAccessor()?.rawType))
         } else {
             deserializer
         }
@@ -162,7 +181,7 @@ internal object StrictReads {
         }
     }
 
-    private enum class Check { BYTE, YEAR, DATE, NO_ARRAY }
+    private enum class Check { BYTE, YEAR, DATE, NO_ARRAY, LOCALE }
 
     /** Jackson's reader of [type], refusing first what [check] says it takes and Wow does not. */
     private class Checked(delegate: ValueDeserializer<*>, private val type: Class<*>, private val check: Check) :
@@ -179,8 +198,20 @@ internal object StrictReads {
                 Check.DATE -> if (token == JsonToken.VALUE_STRING && DATE_ALONE.matches(p.string.trim())) {
                     throw InvalidFormatException.from(p, "A date alone is not a ${type.simpleName}.", p.string, type)
                 }
+                Check.LOCALE -> if (token == JsonToken.VALUE_STRING) subtag(p)?.let { return it }
             }
             return super.deserialize(p, ctxt)
+        }
+
+        /** The locale of a text of one subtag, read as a BCP 47 tag; null for any other text, which Jackson reads. */
+        private fun subtag(p: JsonParser): Locale? {
+            val text = p.string.trim()
+            if (text.isEmpty() || text.any { it == '-' || it == '_' }) return null
+            return try {
+                Locale.Builder().setLanguageTag(text).build()
+            } catch (_: IllformedLocaleException) {
+                throw InvalidFormatException.from(p, "$text is not a language tag.", text, type)
+            }
         }
 
         private fun checkByte(p: JsonParser) {
@@ -201,17 +232,26 @@ internal object StrictReads {
 
     private fun numbered(type: Class<*>): Boolean = type.getAnnotation(JsonFormat::class.java)?.shape.numbered()
 
+    /** The types of a `@JsonValue` Jackson reads a number by, as its `EnumResolver` decides: an integer's. */
+    private val INTEGERS = setOf(
+        Long::class.javaObjectType,
+        Int::class.javaObjectType,
+        Short::class.javaObjectType,
+        Byte::class.javaObjectType,
+    )
+
+    private fun isInteger(type: Class<*>?): Boolean = type != null && type.kotlin.javaObjectType in INTEGERS
+
     /**
-     * Jackson's enumeration reader without its one fallback to the constants' order. It reads a constant from any form
-     * its lookup holds ([Forms]), the forms the mapper writes: its `toString`, or its name when it reads by name, a
-     * `@JsonProperty` name, a `@JsonValue`'s text or number, a naming strategy's name. For a number, or a number's
-     * text, no form names, it falls back to the constant of that index: that fallback alone is refused here. A property
-     * written as a number (`@JsonFormat(shape = NUMBER)`) reads as one; such a class keeps Jackson's reader.
+     * Jackson's enumeration reader, refusing a number where it would read the constant of that index. A `@JsonValue`
+     * integer is a form of its own, which Jackson reads by its lookup ([numbers]); a property written as a number
+     * (`@JsonFormat(shape = NUMBER)`) reads as one, and a class written so keeps Jackson's reader. A number's text that
+     * is no form is refused by Jackson's reader itself (`FAIL_ON_NUMBERS_FOR_ENUMS`), from the forms it writes.
      */
-    private class ByName(delegate: ValueDeserializer<*>, private val type: Class<*>, private val forms: Forms) :
+    private class ByName(delegate: ValueDeserializer<*>, private val type: Class<*>, private val numbers: Boolean) :
         DelegatingDeserializer(delegate) {
         override fun newDelegatingInstance(newDelegatee: ValueDeserializer<*>): ValueDeserializer<*> =
-            ByName(newDelegatee, type, forms)
+            ByName(newDelegatee, type, numbers)
 
         override fun createContextual(ctxt: DeserializationContext, property: BeanProperty?): ValueDeserializer<*> {
             // A delegating reader's contextual one is of its own class: this one, or one over the new delegate.
@@ -221,41 +261,10 @@ internal object StrictReads {
         }
 
         override fun deserialize(p: JsonParser, ctxt: DeserializationContext): Any? {
-            // A `@JsonValue` number is a form of its own, which the lookup holds: Jackson reads no index for one.
-            if (!forms.numbers) {
-                if (p.currentToken() == JsonToken.VALUE_NUMBER_INT) {
-                    throw MismatchedInputException.from(p, type, "${type.simpleName} is read by name, not by number.")
-                }
-                val text = p.takeIf { it.currentToken() == JsonToken.VALUE_STRING }?.string?.trim()
-                if (text != null && INDEX.matches(text) && !forms.holds(text, ctxt)) {
-                    throw InvalidFormatException.from(p, "$text is no name of ${type.simpleName}.", text, type)
-                }
+            if (!numbers && p.currentToken() == JsonToken.VALUE_NUMBER_INT) {
+                throw MismatchedInputException.from(p, type, "${type.simpleName} is read by name, not by number.")
             }
             return super.deserialize(p, ctxt)
-        }
-
-        private companion object {
-            val INDEX = Regex("[0-9]+")
-        }
-    }
-
-    /**
-     * The forms Jackson's reader looks an enumeration's constants up by, copied from it: Jackson keeps them in fields
-     * a subclass alone reads.
-     */
-    private class Forms(base: EnumDeserializer) : EnumDeserializer(base, false, null, null) {
-        /** Whether a number is a form of its own, a `@JsonValue` number's. */
-        val numbers: Boolean = _isFromIntValue
-
-        /** Whether [text] is a form, in the lookup Jackson's reader chooses as its `_resolveCurrentLookup` does. */
-        fun holds(text: String, ctxt: DeserializationContext): Boolean {
-            val lookup = _lookupByEnumNaming
-                ?: if (_hasAsValueAnnotation || !ctxt.isEnabled(EnumFeature.READ_ENUMS_USING_TO_STRING)) {
-                    _lookupByName
-                } else {
-                    _lookupByToString
-                }
-            return lookup.find(text) != null
         }
     }
 
