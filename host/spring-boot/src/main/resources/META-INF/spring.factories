@@ -5,4 +5,7 @@ me.ahoo.wow.spring.boot.observability.HealthGroupsEnvironmentPostProcessor,\
 me.ahoo.wow.spring.boot.security.CoSecModeEnvironmentPostProcessor,\
 me.ahoo.wow.spring.boot.config.ConnectionDefaultsEnvironmentPostProcessor
 org.springframework.boot.diagnostics.FailureAnalyzer=\
-me.ahoo.wow.spring.boot.config.WowConfigurationFailureAnalyzer
+me.ahoo.wow.spring.boot.config.WowConfigurationFailureAnalyzer,\
+me.ahoo.wow.spring.boot.config.JacksonVersionFailureAnalyzer
+org.springframework.context.ApplicationContextInitializer=\
+me.ahoo.wow.spring.boot.config.JacksonVersionsInitializer
