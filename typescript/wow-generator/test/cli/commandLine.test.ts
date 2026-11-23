@@ -121,7 +121,7 @@ describe('the command line', () => {
   });
 
   it('hands a valid command line to the generate action', async () => {
-    const result = await run('generate', '-i', 'x.json', '--strict');
+    const result = await run('generate', '-i', 'x.json', '--strict', '--check');
 
     expect(result.code).toBeUndefined();
     expect(generateAction).toHaveBeenCalledWith(
@@ -129,6 +129,7 @@ describe('the command line', () => {
         input: 'x.json',
         output: 'src/generated',
         strict: true,
+        check: true,
       }),
       expect.anything(),
     );

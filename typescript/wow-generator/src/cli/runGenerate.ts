@@ -19,7 +19,7 @@ import type { Logger, LogLevel } from '../api/logger';
 import { ConsoleLogger } from '../api/logger';
 import type { SchemaDocs } from '../api/options';
 import type { SeamOptions, Seams } from '../pipeline/seams';
-import { SIGNAL_SEAM } from '../pipeline/seams';
+import { CHECK_SEAM, SIGNAL_SEAM } from '../pipeline/seams';
 
 /**
  * Options of the `generate` command, as commander parses them.
@@ -37,6 +37,8 @@ export interface GenerateCommandOptions {
   schemaDocs?: string;
   /** Exit with a non-zero code when the run logged a warning. */
   strict?: boolean;
+  /** Write nothing: compare what the run would write with the output directory. */
+  check?: boolean;
   verbose?: boolean;
   quiet?: boolean;
 }
@@ -171,8 +173,10 @@ export async function runGenerate(
   }
   try {
     logger.debug(`wow-generator v${VERSION}`);
+    const differences: string[] | undefined = options.check ? [] : undefined;
     const generatorOptions: SeamOptions = {
       ...seams,
+      ...(differences ? { [CHECK_SEAM]: differences } : {}),
       inputPath: options.input,
       outputDir: options.output,
       configPath: options.config,
@@ -189,8 +193,17 @@ export async function runGenerate(
     const config = result.configPath
       ? ` with ${relative(process.cwd(), result.configPath) || result.configPath}`
       : '';
+    if (differences && differences.length > 0) {
+      logger.error(
+        `--check: ${differences.length} file${differences.length === 1 ? '' : 's'} of ${options.output} differ${differences.length === 1 ? 's' : ''} from what the run would write; regenerate without --check:`,
+      );
+      for (const path of differences) logger.error(`  ${path}`);
+      return EXIT_CODES.check;
+    }
     logger.info(
-      `Generated ${result.files.length} files into ${options.output}${config}${warnings}`,
+      differences
+        ? `Checked ${result.files.length} files in ${options.output}${config}${warnings}: up to date`
+        : `Generated ${result.files.length} files into ${options.output}${config}${warnings}`,
     );
     if (options.strict && result.warnings > 0) {
       logger.error(

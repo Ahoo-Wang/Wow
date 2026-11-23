@@ -72,6 +72,7 @@ A command rejected by its aggregate or at admission (`wow.command.invalid` among
 | Exit 3 | The configuration cannot be read, parsed or validated | Fix the file the message names ([configuration](../reference/typescript/wow-generator/configuration)) |
 | Exit 4 | The document cannot be generated, or `--strict` and the run logged a warning | Read the warnings of the run |
 | Exit 5 | The output cannot be written, a path escapes it, or a newer generator wrote its `.wow-generator.json` | Generate with the generator of the version that wrote it |
+| Exit 6 | `--check`: the committed clients differ from what the run would write | Regenerate without `--check` and commit the output with the change that caused it |
 | The committed clients differ from a new run | The Manifest baseline changed, or the generator's version did | Commit the new output with the change that caused it |
 
 Run with `--verbose` for every step and the stack trace of a failure.

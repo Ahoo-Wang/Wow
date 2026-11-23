@@ -104,6 +104,10 @@ describe('CLI setup', () => {
       'Exit with code 4 when the run logs a warning',
     );
     expect(result.option).toHaveBeenCalledWith(
+      '--check',
+      'Write nothing; exit with code 6, listing the files, when the output directory differs from what the run would write',
+    );
+    expect(result.option).toHaveBeenCalledWith(
       '--verbose',
       'Log every step, and the stack trace of a failure',
     );

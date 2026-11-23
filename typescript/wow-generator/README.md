@@ -57,7 +57,9 @@ console.log(page.total);
 ```
 
 `--strict` fails a run that logged a warning, which a CI step that regenerates
-the clients from a service's committed Manifest wants.
+the clients from a service's committed Manifest wants. `--check` writes nothing
+and exits with code 6, listing the files, when the committed output differs
+from what the run would write.
 
 ## From an OpenAPI document
 
@@ -101,6 +103,7 @@ Generated 12 files into src/generated with /work/app/wow-generator.config.json, 
 | `--timeout <ms>`                   | Abandon an http(s) fetch after this many milliseconds, 30000 by default     |
 | `--schema-docs <mode>`             | `summary` (default) or `full`, which also embeds each model's JSON schema   |
 | `--strict`                         | Exit with code 4 when the run logged a warning                              |
+| `--check`                          | Write nothing; exit with code 6, listing the files, when the output differs |
 | `--verbose`                        | Log every step with timestamps, and the stack trace of a failure            |
 | `--quiet`                          | Log only warnings and errors                                                |
 
@@ -115,6 +118,7 @@ Swagger 2.0 documents are refused; convert them to OpenAPI 3 first.
 | 3         | Configuration: cannot be read, parsed or validated                                                                         |
 | 4         | Specification: the document cannot be generated, or `--strict` and the run had warnings                                    |
 | 5         | Output: the manifest cannot be parsed or a newer generator wrote it, a path escapes the output, or a write or delete fails |
+| 6         | Check: with `--check`, the output directory differs from what the run would write; the files are listed                    |
 | 130       | Interrupted (Ctrl-C)                                                                                                       |
 
 A failure prints one line naming what failed; `--verbose` adds the cause.

@@ -35,7 +35,7 @@ import { openApiDocument } from '../openapi/document';
 import { findDanglingReferences } from '../openapi/references';
 import { OutputStore } from '../output/outputStore';
 import type { SeamOptions } from './seams';
-import { PROJECT_SEAM, SIGNAL_SEAM } from './seams';
+import { CHECK_SEAM, PROJECT_SEAM, SIGNAL_SEAM } from './seams';
 
 /**
  * Main code generator class that orchestrates the generation of TypeScript code
@@ -58,6 +58,8 @@ export class CodeGenerator {
   private readonly project: Project;
   private readonly logger: Logger;
   private readonly signal?: AbortSignal;
+  /** Where a `--check` run puts what writing would change; absent, the run writes. */
+  private readonly check?: string[];
   /** The output of the last run, whose files the next run starts without. */
   private output?: OutputStore;
 
@@ -71,6 +73,7 @@ export class CodeGenerator {
   constructor(private readonly options: GeneratorOptions) {
     this.logger = options.logger ?? new ConsoleLogger();
     this.signal = (options as SeamOptions)[SIGNAL_SEAM];
+    this.check = (options as SeamOptions)[CHECK_SEAM];
     this.project =
       (options as SeamOptions)[PROJECT_SEAM] ??
       createProject(options.tsConfigFilePath);
@@ -207,7 +210,7 @@ export class CodeGenerator {
     }
 
     logger.debug('Saving project to disk');
-    await output.commit(signal);
+    await this.settle(output);
     logger.debug('Code generation completed successfully');
     return {
       files: [...output.files].sort(),
@@ -228,7 +231,7 @@ export class CodeGenerator {
     warn: (lines: readonly string[]) => void,
     warnings: () => number,
   ): Promise<GenerationResult> {
-    const { logger, signal, options } = this;
+    const { logger, options } = this;
     const output = OutputStore.open(
       this.project,
       options.outputDir,
@@ -256,13 +259,25 @@ export class CodeGenerator {
         logger,
       );
     }
-    await output.commit(signal);
+    await this.settle(output);
     logger.debug('Code generation from the Manifest completed successfully');
     return {
       files: [...output.files].sort(),
       configPath,
       warnings: warnings(),
     };
+  }
+
+  /**
+   * Writes the run's files ([OutputStore.commit]), or, for a `--check` run,
+   * puts what writing would change into its list and writes nothing.
+   */
+  private async settle(output: OutputStore): Promise<void> {
+    if (this.check) {
+      this.check.push(...output.differences());
+      return;
+    }
+    await output.commit(this.signal);
   }
 }
 

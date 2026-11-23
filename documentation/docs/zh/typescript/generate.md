@@ -33,8 +33,10 @@ pnpm exec wow-generator generate \
 //   pnpm --filter @ahoo-wang/wow-generator... build
 //   pnpm --filter wow-eshop-web generate
 //
-// The output is committed byte for byte; src/generated.test.ts fails when it
-// differs from what this writes.
+// The output is committed byte for byte. With `--check` (`node
+// scripts/generate.mjs --check`), wow-generator writes nothing and fails,
+// listing the files, when src/generated/<context>/ differs from what it would
+// write; src/generated.test.ts runs it for each service.
 
 import { execFileSync } from 'node:child_process';
 import { rmSync } from 'node:fs';
@@ -52,20 +54,25 @@ export function baselineOf(context) {
   return join(ESHOP, context, `${context}-server`, 'manifest', 'baseline.json');
 }
 
-/** Writes the clients of `context` into `output`. */
-export function generate(context, output) {
+/** Writes the clients of `context` into `output`, or with `--check` compares them. */
+export function generate(context, output, ...options) {
   execFileSync(
     process.execPath,
-    [CLI, 'generate', '-i', baselineOf(context), '-o', output, '--strict', '--quiet'],
+    [CLI, 'generate', '-i', baselineOf(context), '-o', output, '--strict', '--quiet', ...options],
     { stdio: 'inherit' },
   );
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  const check = process.argv.includes('--check');
   for (const context of CONTEXTS) {
     const output = join(WEB, 'src', 'generated', context);
-    rmSync(output, { recursive: true, force: true });
-    generate(context, output);
+    if (check) {
+      generate(context, output, '--check');
+    } else {
+      rmSync(output, { recursive: true, force: true });
+      generate(context, output);
+    }
   }
 }
 ```
@@ -235,7 +242,7 @@ pnpm exec wow-generator generate --input ../ordering-server/manifest/baseline.js
 git diff --exit-code -- src/generated
 ```
 
-然后编译：命令体改变了、字段被删除了或聚合改了名，都会让使用它的代码在 `tsc` 中失败。eShop 在一个测试 `src/generated.test.ts` 中让它的客户端与基线保持一致，这个测试生成到一个临时目录，并比较每个文件。
+然后编译：命令体改变了、字段被删除了或聚合改了名，都会让使用它的代码在 `tsc` 中失败。eShop 在一个测试 `src/generated.test.ts` 中让它的客户端与基线保持一致，这个测试运行 `generate --check`：它什么也不写，已提交的客户端与它要写的不同时失败，并列出这些文件。
 
 让生成器与生成代码所编译依赖的 `wow-client` 保持同一个版本，也就是它所调用的服务的版本。
 
