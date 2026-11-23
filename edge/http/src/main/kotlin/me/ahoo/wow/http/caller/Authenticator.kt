@@ -21,23 +21,44 @@ import me.ahoo.wow.http.problem.ProblemException
 import org.springframework.web.reactive.function.server.ServerRequest
 
 /**
- * The caller of every public route: [resolver]'s, or a 401 problem when it accepts no credentials; a 403 problem when
- * the request named a space (`Wow-Space`) the caller does not act in.
+ * The caller of a route: [resolver]'s, or a 401 problem when it accepts no credentials; a 403 problem when the request
+ * named a space (`Wow-Space`) the caller does not act in.
+ *
+ * A [service][Caller.service] identity is taken on the [internal port][internalPort] alone, where a service names
+ * itself and only the platform's own services reach: on any other route (the public routes, the operator's routes, the
+ * subscription routes) a resolver's service identity is refused with 403 `wow.auth.forbidden`, so no request to them
+ * is trusted as a service, whatever its resolver says. A service's own code in the process is no request and passes
+ * through none of these.
  */
-internal class Authenticator(private val resolver: CallerResolver, private val statuses: ErrorStatuses) {
+internal class Authenticator(
+    private val resolver: CallerResolver,
+    private val statuses: ErrorStatuses,
+    /** Whether these are the internal port's routes, which alone take a service identity. */
+    private val internalPort: Boolean = false,
+) {
     suspend fun authenticate(request: ServerRequest): Caller {
         val caller = resolver.resolve(request) ?: throw ProblemException(
             statuses.problemOf(FrameworkCodes.AUTH_UNAUTHENTICATED, "The request carries no credentials accepted here."),
         )
-        val space = request.headers().firstHeader(WowHeaders.SPACE)
-        if (space != null && space.trim() != caller.scope.spaceId) {
-            throw ProblemException(
-                statuses.problemOf(
-                    FrameworkCodes.AUTH_FORBIDDEN,
-                    "The caller does not act in space '${space.trim()}'."
-                ),
-            )
+        forbidden(request, caller)?.let { detail ->
+            throw ProblemException(statuses.problemOf(FrameworkCodes.AUTH_FORBIDDEN, detail))
         }
         return caller
     }
+
+    /** Why [caller] may not make [request] here, or null when it may. */
+    private fun forbidden(request: ServerRequest, caller: Caller): String? {
+        if (caller.service && !internalPort) {
+            return serviceRefused(caller)
+        }
+        val space = request.headers().firstHeader(WowHeaders.SPACE)
+        return "The caller does not act in space '${space?.trim()}'."
+            .takeIf { space != null && space.trim() != caller.scope.spaceId }
+    }
 }
+
+/** Why [caller], a service identity a resolver gave a request outside the internal port, is refused. */
+internal fun serviceRefused(caller: Caller): String =
+    "The caller resolved for this request is a service identity (${caller.subject}), which is taken on the " +
+        "internal port alone: a client of this port is an ordinary caller, with its roles " +
+        "(Caller.of(subject = ..., roles = ...))."

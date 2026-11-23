@@ -24,7 +24,10 @@ import java.util.concurrent.atomic.AtomicBoolean
  * A resolver reads the request's credentials, and answers null when it accepts none: the request is answered 401
  * `wow.auth.unauthenticated`. It also decides the space of a request that names one (`Wow-Space`):
  * the caller it returns acts in that space when the principal belongs to it; a caller whose space is not the one
- * the request named is answered 403 `wow.auth.forbidden`, never served in another space.
+ * the request named is answered 403 `wow.auth.forbidden`, never served in another space. It returns no
+ * [service][Caller.service] identity: a service names itself on the internal port alone, and a caller this port's
+ * resolver returns as one is answered 403 `wow.auth.forbidden`. A machine client of the public port is an ordinary
+ * caller, with its roles.
  */
 fun interface CallerResolver {
     suspend fun resolve(request: ServerRequest): Caller?

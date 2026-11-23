@@ -163,12 +163,10 @@ fun interface CommandAuthorizer {
          * asked about: a call between services is trusted, as CoSec's authorizer trusts it, and the internal port
          * serves a system command only to a service whose `wow.callers` entries name it.
          *
-         * The exemption holds because no request to the public port or the operator's routes is a service identity by
-         * anything it sends: those take their caller from the application's `CallerResolver`, and neither the
-         * development callers nor CoSec's ever resolve one (the public port reads no `Wow-Service`, and refuses
-         * `Wow-Call`). Only the internal port's resolver, from the `Wow-Service` a service states, and code in the
-         * process, which is the service itself, make one. An application's own resolver that returns
-         * `Caller.ofService` or `service = true` for a public request hands that request the exemption.
+         * The exemption holds by construction: a request reaches an authorizer as a service identity only through
+         * the internal port, where a service names itself; the public port, the operator's routes and the
+         * subscription routes refuse a resolver's service identity (403 `wow.auth.forbidden`), and a service's own
+         * code in the process is the service itself.
          */
         @JvmStatic
         fun operational(decide: suspend (Caller, CommandAction) -> Authorization): CommandAuthorizer =

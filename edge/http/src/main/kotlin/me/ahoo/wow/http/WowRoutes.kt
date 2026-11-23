@@ -99,7 +99,8 @@ import reactor.core.publisher.Mono
  *   [WowHttpOptions.openApiEndpoint] is off;
  * - any other request under a context of the Manifest is a 404 problem.
  *
- * Every route is authenticated by [callerResolver] (401 `wow.auth.unauthenticated` when it returns null). Before it,
+ * Every route is authenticated by [callerResolver] (401 `wow.auth.unauthenticated` when it returns null; 403
+ * `wow.auth.forbidden` when it returns a service identity, which the internal port alone takes). Before it,
  * [PublicRequests] refuses what the port does not read outside a body: an unknown `Wow-` header, a Wow header given
  * twice, matrix parameters, and `Wow-Call` (403 `wow.auth.forbidden`) whatever the credential: the services'
  * synchronous calls are taken on the internal port alone ([callRoutes]). So is a system command of a built-in
@@ -285,6 +286,7 @@ fun callRoutes(
         authenticator = Authenticator(
             CallerResolver { request -> callerResolver.resolve(request) ?: Caller.ANONYMOUS },
             statuses,
+            internalPort = true,
         ),
         headers = RequestHeaders(statuses),
         statuses = statuses,
