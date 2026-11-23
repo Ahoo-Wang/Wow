@@ -30,6 +30,9 @@ import me.ahoo.wow.manifest.Manifest
  * out of `required`, its schema and `readOnly` kept, and every reference to a type that has an input pointing to that
  * input: a request may leave the property out, or hand back a value read from the service, which holds it. A request's
  * schema refers to the inputs ([input], [inlineInput]); a response, an event and a state to the types themselves.
+ * Read-only is read per object, beside its `required`: a name an object requires without declaring it in its own
+ * `properties` (an `allOf` member that is only `{"required": ["a"]}`, which only a hand-written schema has) stays
+ * required, whatever a sibling member says of it.
  */
 internal class SchemaComponents(
     private val defs: Map<String, Any?>,

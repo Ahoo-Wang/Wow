@@ -219,6 +219,19 @@ class InputComponentsTest {
     }
 
     @Test
+    fun `a name an object requires without declaring it should stay required, whatever a sibling says of it`() {
+        val split = mapOf(
+            "allOf" to listOf(
+                mapOf("type" to "object", "properties" to mapOf("a" to computed, "b" to mapOf("type" to "string"))),
+                mapOf("required" to listOf("a", "b")),
+            ),
+        )
+        val components = SchemaComponents(mapOf("t.Split" to split), emptySet(), setOf("t.Split"))
+        components.inputs.assert().isEqualTo(mapOf("t.Split" to "t.SplitInput"))
+        components.schemas.getValue("t.SplitInput").assert().isEqualTo(split)
+    }
+
+    @Test
     fun `a route's parameter and a system command the framework does not declare should take their inputs`() {
         fun holding(name: String) = mapOf(
             "type" to "object",
