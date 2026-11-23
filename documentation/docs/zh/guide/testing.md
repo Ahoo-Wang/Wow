@@ -460,6 +460,8 @@ fun `the binding index should name the context and the fragment and build the or
 
 `processors(dependencies)` 构建模块的所有处理器，所以需要它们全部的服务。只需要自己服务的处理器测试，改用它生成的处理函数。
 
+生成的代码带有 `@WowGenerated`，所以覆盖率报告只度量你自己的代码：JaCoCo 自动跳过它，Kover 用 `annotatedBy` 排除它；JaCoCo 仍需要的两个名字模式见[编译器生成了什么](./generated-code#coverage)。
+
 ## 领域测试之外 {#beyond-domain-tests}
 
 领域测试覆盖模型。服务测试启动应用并经 HTTP 调用它；只把它用在只有运行中的服务才能体现的东西上，例如路由、授权和配置：

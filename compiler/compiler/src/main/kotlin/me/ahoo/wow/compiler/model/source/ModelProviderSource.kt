@@ -73,6 +73,7 @@ internal object ModelProviderSource {
         }
         appendLine()
         appendLine("/** The binding index of the module of Manifest fragment [fragment]. */")
+        appendLine(GeneratedMarks.CLASS)
         appendLine("public class $className : $MODEL_PROVIDER {")
         appendLine("    override val binding: kotlin.Int = $BINDING")
         appendLine()

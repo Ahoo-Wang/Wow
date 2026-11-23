@@ -79,6 +79,7 @@ internal object AccessSource {
         appendLine(" * [$ATTRIBUTES] and the state's own (`@Access`).")
         appendLine(" */")
         val stateType = state.sourceName()!!
+        appendLine(GeneratedMarks.CLASS)
         appendLine("$visibility object ${KotlinNames.quoted(className(state))} : $ATTRIBUTES<$stateType>() {")
         attributes.forEachIndexed { index, attribute ->
             if (index > 0) {

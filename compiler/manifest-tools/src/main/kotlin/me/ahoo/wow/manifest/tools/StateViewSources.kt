@@ -123,6 +123,8 @@ internal class StateViewSources(
                 }
             }
             return buildString {
+                // The view and each class it copies: an annotation marks the class file it is on alone.
+                append("$indent${ContractSources.GENERATED}\n")
                 append("${indent}public data class $name(\n")
                 fields.forEach { appendLine(it) }
                 if (indent.isEmpty()) {
@@ -264,6 +266,7 @@ internal class StateViewSources(
                 constant
             }
             appendLine("    /** `${comment(binary)}`, as the view copies it. */")
+            appendLine("    ${ContractSources.GENERATED}")
             appendLine("    public enum class $name {")
             constants.forEach { appendLine("        $it,") }
             appendLine("    }")

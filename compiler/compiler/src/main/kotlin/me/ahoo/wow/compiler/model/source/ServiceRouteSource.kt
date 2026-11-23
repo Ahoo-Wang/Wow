@@ -40,7 +40,8 @@ internal object ServiceRouteSource {
         appendLine("        return kotlin.collections.listOf(")
         routes.sortedBy { it.name }.forEach { route ->
             val handler = "handler${handlers.indexOf(route.handlerType)}"
-            appendLine("            object : $HANDLER {")
+            // An object expression's annotation is written onto its class, as a declared class's is.
+            appendLine("            ${GeneratedMarks.CLASS} object : $HANDLER {")
             appendLine("                override val context: kotlin.String = \"${escape(context)}\"")
             appendLine()
             appendLine("                override val name: kotlin.String = \"${escape(route.name)}\"")

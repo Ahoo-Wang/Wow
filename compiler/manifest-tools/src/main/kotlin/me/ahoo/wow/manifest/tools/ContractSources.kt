@@ -104,6 +104,7 @@ internal object ContractSources {
             appendLine(" * The context `${comment(context.name)}`, from its peer contract.")
             context.description?.let { appendLine(" * ${comment(it)}") }
             appendLine(" */")
+            appendLine(GENERATED)
             appendLine("public object $name {")
             appendLine("    /** The context's name. */")
             appendLine("    public const val NAME: kotlin.String = ${literal(context.name)}")
@@ -157,6 +158,7 @@ internal object ContractSources {
         aggregate.description?.let { appendLine("     * ${comment(it)}") }
         appendLine("     */")
         val supertype = if (queryFields) " : $SNAPSHOT_PROPERTIES()" else ""
+        appendLine("    $GENERATED")
         appendLine("    public object ${pascal(aggregate.name)}$supertype {")
         appendLine("        /** The name of the aggregate's context. */")
         appendLine("        public const val CONTEXT: kotlin.String = $owner.NAME")
@@ -228,6 +230,12 @@ internal object ContractSources {
     }
 
     /** Wow's types a `<Context>Contract` names, by their qualified names: it imports nothing. */
+    /**
+     * The mark of generated code, `@WowGenerated` (`wow-annotations`), which coverage tools exclude it by: on the
+     * context object and on each object nested in it, since an annotation marks the class file it is on alone. The
+     * state views carry it too ([StateViewSources]).
+     */
+    const val GENERATED = "@me.ahoo.wow.api.annotation.WowGenerated"
     private const val AGGREGATE_TYPE = "me.ahoo.wow.api.aggregate.AggregateType"
     private const val AGGREGATE_REF = "me.ahoo.wow.api.aggregate.AggregateRef"
     private const val OWNERSHIP = "me.ahoo.wow.api.aggregate.Ownership"
@@ -257,6 +265,7 @@ internal object ContractSources {
         if (commands.isNotEmpty()) {
             appendLine()
             appendLine("        /** The full type names of the aggregate's commands, `context.aggregate.Command`. */")
+            appendLine("        $GENERATED")
             appendLine("        public object Commands {")
             commands.sortedBy { it.name }.forEachIndexed { index, command ->
                 if (index > 0) {
@@ -314,6 +323,7 @@ internal object ContractSources {
             "     * subscriptions handling the commit. `WaitPlan.of(...)` chains them, those of other contexts too."
         )
         appendLine("     */")
+        appendLine("    $GENERATED")
         appendLine("    public object Wait {")
         stages.forEachIndexed { index, (constant, factory, doc) ->
             if (index > 0) {
@@ -353,6 +363,7 @@ internal object ContractSources {
     private fun errors(indent: String, doc: String, errors: List<ErrorManifest>, nameOf: (String) -> String): String =
         buildString {
             appendLine("$indent/** $doc */")
+            appendLine("$indent$GENERATED")
             appendLine("${indent}public object Errors {")
             errors.distinctBy { errorName(nameOf(it.code)) }.forEachIndexed { index, error ->
                 if (index > 0) {

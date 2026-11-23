@@ -107,6 +107,7 @@ class StateViewSourcesTest {
              * The state of `shop.cart` as another context reads it, from its contract.
              */
             @me.ahoo.wow.api.read.StateView("shop.cart")
+            @me.ahoo.wow.api.annotation.WowGenerated
             public data class CartStateView(
                 /** Where the cart goes. */
                 val address: CartStateView.Address? = null,
@@ -123,18 +124,21 @@ class StateViewSourcesTest {
                 val tree: CartStateView.Node? = null,
             ) {
                 /** `me.ahoo.wow.manifest.tools.StateViewSourcesTest${'$'}Address`, as the view copies it. */
+                @me.ahoo.wow.api.annotation.WowGenerated
                 public data class Address(
                     val city: kotlin.String,
                     val zip: kotlin.String? = null,
                 )
 
                 /** `me.ahoo.wow.manifest.tools.StateViewSourcesTest${'$'}Status`, as the view copies it. */
+                @me.ahoo.wow.api.annotation.WowGenerated
                 public enum class Status {
                     OPEN,
                     CLOSED,
                 }
 
                 /** `me.ahoo.wow.manifest.tools.StateViewSourcesTest${'$'}Node`, as the view copies it. */
+                @me.ahoo.wow.api.annotation.WowGenerated
                 public data class Node(
                     val children: kotlin.collections.List<CartStateView.Node>? = null,
                     val name: kotlin.String,

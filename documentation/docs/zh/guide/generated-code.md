@@ -77,3 +77,26 @@ api 模块还从中编译出 `<Context>Contract`，例如 `EshopOrderingContract
 - **服务**无需写一行就能看到它所触及的每个 api 模块的契约，包括它自己的 api。
 - **领域模块的测试**能看到本构建中各 api 模块的契约，包括自己的 api：多数测试用它的 `<Context>Contract`。从另一个仓库发布的对端要显式索取：`testImplementation(wow.contract(...))`。
 - **用到另一个上下文生成代码的代码**要索取它：`implementation(wow.contract(project(":eshop-ordering-api")))`、`wow.contract("com.example:ordering-api:1.0.0")` 或 `wow.contract(libs.ordering.api)`。没有应用 Wow 插件的模块写 `implementation(project(":eshop-ordering-api")) { capabilities { requireFeature("contract") } }`；Maven 构建加上该模块分类器为 `contract`、版本相同的 jar。
+
+## 覆盖率 {#coverage}
+
+编译器和契约插件生成的每个类都带有 `@WowGenerated`（`me.ahoo.wow.api.annotation`，在 `wow-annotations` 中，由 `wow-api` 带入）：模型、访问属性和查询字段的对象，绑定索引，每个服务路由的对象，`<Context>Contract` 及其中嵌套的每个对象，`<State>View` 及它复制的每个类，以及生成函数的文件门面类（`<Root>ModelKt`、`<Processor>SubscriptionsKt`）。它的保留策略是 binary：写在类文件里，运行时什么也不需要。覆盖率工具按它排除生成代码，而不是按名字（名字还会误伤你自己的类）：
+
+- **JaCoCo** 无需任何配置，就会跳过带有保留策略为 class 或 runtime、简单名包含 `Generated` 的注解的类。它只看每个类文件自己的注解。Kotlin 编译器在生成函数内部合成的类（挂起 lambda、内联函数的副本）不带注解，所以按名字排除两个门面类的这些类：`*ModelKt$*` 和 `*SubscriptionsKt$*`。手写的类不会叫这些名字。
+- **Kover** 用 `annotatedBy` 排除它：
+
+```kotlin
+kover {
+    reports {
+        filters {
+            excludes {
+                annotatedBy("me.ahoo.wow.api.annotation.WowGenerated")
+            }
+        }
+    }
+}
+```
+
+  在 Kover 0.9.8 上观察到：这个过滤也排除了带注解的门面类的合成类，不需要名字模式。
+
+生成的视图上的 `@StateView` 是另一回事：读取端靠它找到聚合类型，手写的视图也带着它。生成的视图两者都带。
