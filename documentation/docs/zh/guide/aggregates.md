@@ -466,7 +466,7 @@ style:
 
 ## 生命周期命令 {#lifecycle-commands}
 
-每个聚合还处理 `me.ahoo.wow.api.lifecycle` 中的四条系统命令：`DeleteAggregate`、`RestoreAggregate`、`TransferOwner` 和 `TransferSpace`。它们改变的是聚合的元数据，而不是它的状态；已删除的聚合拒绝除 `RestoreAggregate` 和函数标有 `@OnCommand(onDeleted = true)` 的命令之外的每条命令。`@AggregateRoot(lifecycle = [...])` 可以收窄这份列表；空列表则一条都不启用。所有者固定的聚合，默认列表不含 `TransferOwner`：属于租户的聚合（`ownership = Ownership.TENANT`）没有所有者可转，ID 即所有者 ID 的聚合（`idSource = AggregateIdSource.OWNER`）又改不了所有者。在这两种聚合上把 `TransferOwner` 列进 `lifecycle`，编译器会拒绝（[所有权与访问](./ownership)）。
+每个聚合还处理 `me.ahoo.wow.api.lifecycle` 中的四条系统命令：`DeleteAggregate`、`RestoreAggregate`、`TransferOwner` 和 `TransferSpace`。它们改变的是聚合的元数据，而不是它的状态；已删除的聚合拒绝除 `RestoreAggregate` 和函数标有 `@OnCommand(onDeleted = true)` 的命令之外的每条命令。不会带来任何改变的命令是空操作：恢复一个未删除的聚合，把它转给它已有的所有者或空间。你自己的函数返回的生命周期事件也是如此：在未删除的聚合上返回 `AggregateRestored`，或在已删除的聚合上返回 `AggregateDeleted`，这个事件会从决策中去掉、永远不会提交；去掉后没有事件的决策即为未改变，并像任何未改变的决策一样放弃它预留的键。`@AggregateRoot(lifecycle = [...])` 可以收窄这份列表；空列表则一条都不启用。所有者固定的聚合，默认列表不含 `TransferOwner`：属于租户的聚合（`ownership = Ownership.TENANT`）没有所有者可转，ID 即所有者 ID 的聚合（`idSource = AggregateIdSource.OWNER`）又改不了所有者。在这两种聚合上把 `TransferOwner` 列进 `lifecycle`，编译器会拒绝（[所有权与访问](./ownership)）。
 
 ## 测试 {#test-it}
 

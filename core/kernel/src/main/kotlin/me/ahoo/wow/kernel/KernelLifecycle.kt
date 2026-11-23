@@ -157,6 +157,66 @@ internal object KernelLifecycle {
         else -> metadata
     }
 
+    /**
+     * [events], a decision's, without the lifecycle and schedule events that change nothing, folded in the list's order
+     * over the aggregate's metadata before them ([before]): `AggregateDeleted` on an aggregate already deleted,
+     * `AggregateRestored` on one that is not, `OwnerTransferred` to the owner it has, `SpaceTransferred` to its space,
+     * `ScheduleCancelled` of a key it keeps no schedule of. Each is judged on the metadata the events before it left,
+     * so `[AggregateDeleted, AggregateRestored]` on a live aggregate keeps both, and `[AggregateRestored,
+     * AggregateDeleted]` keeps the deletion alone. An event that records no change is no event, whichever path produced
+     * it: the answer the kernel's own lifecycle commands give (a NoOp), so a decision left with no event appends nothing
+     * and is answered as unchanged, its reservations given up as any unchanged decision's are. An event left out is never
+     * appended: no subscription, snapshot or wait ever sees it, and the model's own evolve function of it does not run.
+     *
+     * An `OwnerTransferred` of [decided], a model whose owner is fixed, fails the command [body] whether or not it
+     * changes anything ([AggregateModel.refuseOwnerTransfer]): the event is a bug of the model, never left out in
+     * silence.
+     *
+     * The same list when nothing is left out. A decision with no lifecycle or schedule event pays one type test per
+     * event and nothing else: [before] is read only at the first such event, and nothing is allocated or evolved.
+     * Inlined so that [before] is no lambda object on the decide path.
+     */
+    inline fun changing(
+        events: List<Any>,
+        decided: AggregateModel<*>,
+        body: Any,
+        before: () -> Metadata,
+    ): List<Any> {
+        var current: Metadata? = null
+        var kept: MutableList<Any>? = null
+        events.forEachIndexed { index, event ->
+            if (!isMetadataEvent(event)) {
+                kept?.add(event)
+                return@forEachIndexed
+            }
+            if (event is OwnerTransferred) decided.refuseOwnerTransfer(body)
+            val metadata = current ?: before()
+            if (changesNothing(metadata, event)) {
+                if (kept == null) kept = ArrayList(events.subList(0, index))
+                current = metadata
+            } else {
+                kept?.add(event)
+                current = evolve(metadata, event)
+            }
+        }
+        return kept ?: events
+    }
+
+    /** Whether [event] is one of the events that change the aggregate's metadata ([evolve]). */
+    fun isMetadataEvent(event: Any): Boolean =
+        event is AggregateDeleted || event is AggregateRestored || event is OwnerTransferred ||
+            event is SpaceTransferred || event is ScheduleCancelled || event is ScheduleSet
+
+    /** Whether the metadata event [event] would leave [metadata] as it is. A schedule set always changes it. */
+    fun changesNothing(metadata: Metadata, event: Any): Boolean = when (event) {
+        is AggregateDeleted -> metadata.deleted
+        is AggregateRestored -> !metadata.deleted
+        is OwnerTransferred -> metadata.scope.ownerId == event.ownerId
+        is SpaceTransferred -> metadata.scope.spaceId == event.spaceId
+        is ScheduleCancelled -> event.key !in metadata.schedules
+        else -> false
+    }
+
     private inline fun changeOrNoOp(unchanged: Boolean, event: () -> Any): Decision =
         if (unchanged) Decision.NoOp else Decision.events(event())
 
