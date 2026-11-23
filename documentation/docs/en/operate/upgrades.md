@@ -96,7 +96,7 @@ Wow's JSON runs on Jackson 3.1 and 3.2, the two minors its tests run on. 3.1 is 
 On another Jackson, Wow says what to change before the first read:
 
 - **At build time.** `checkWowJackson`, part of `check`, fails when `jackson-core`, `jackson-databind` or `jackson-module-kotlin` resolve at a minor Wow's JSON was not verified on, or at two minors, naming the versions, what asked for them and the change to make. It checks a domain module's test class path (`me.ahoo.wow`) and a service's runtime and test class paths (`me.ahoo.wow.service`).
-- **At start.** The Spring Boot host does not start on such a Jackson, and names the versions it found and the change to make. This covers a Maven build and a build without Wow's Gradle plugin.
+- **At start.** The Spring Boot host does not start on such a Jackson, and names the versions it found and the change to make. This covers a Maven build and a build without Wow's Gradle plugin. The host reads each module's version from the Maven metadata its jar carries (`META-INF/maven/.../pom.properties`), so a jar repackaged without it, a shaded or stripped jar, is not seen: such a build relies on the build-time check, or on its own.
 
 A Jackson module only the application uses, a data format or a datatype, is the application's to keep in line: Wow checks the modules its own JSON runs on.
 

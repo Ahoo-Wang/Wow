@@ -96,7 +96,7 @@ Wow 的 JSON 运行在 Jackson 3.1 和 3.2 上，也就是它的测试运行的�
 在其他 Jackson 上，Wow 在第一次读取之前就说明要改什么：
 
 - **构建时。** `checkWowJackson` 属于 `check`：当 `jackson-core`、`jackson-databind` 或 `jackson-module-kotlin` 解析到 Wow 的 JSON 没有验证过的次版本，或分属两个次版本时，它会失败，写明各版本、是谁要求的，以及要改什么。它检查领域模块的测试类路径（`me.ahoo.wow`），以及服务的运行时与测试类路径（`me.ahoo.wow.service`）。
-- **启动时。** Spring Boot 宿主在这样的 Jackson 上不会启动，并写明它找到的版本和要改什么。这覆盖 Maven 构建，以及不使用 Wow Gradle 插件的构建。
+- **启动时。** Spring Boot 宿主在这样的 Jackson 上不会启动，并写明它找到的版本和要改什么。这覆盖 Maven 构建，以及不使用 Wow Gradle 插件的构建。宿主从每个模块的 jar 自带的 Maven 元数据（`META-INF/maven/.../pom.properties`）读取其版本，所以重新打包时去掉了这些元数据的 jar（shaded 或精简过的 jar）不会被看到：这样的构建依靠构建时的检查，或自己保证。
 
 只有应用自己使用的 Jackson 模块（数据格式、数据类型）由应用自己保持一致：Wow 检查的是它自己的 JSON 运行所用的模块。
 
