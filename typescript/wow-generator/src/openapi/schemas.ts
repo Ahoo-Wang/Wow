@@ -177,6 +177,22 @@ export function isReadOnly(schema: Schema | Reference): boolean {
 }
 
 /**
+ * Whether a model declares the property `name` of `schema` optional. A model
+ * declares every property without `?`, required or not; the one exception is
+ * a read-only property the schema does not require, because the document says
+ * a reader may not find it: the input of a type whose computed property a
+ * request may leave out.
+ */
+export function isOptionalProperty(schema: Schema, name: string): boolean {
+  const property = schema.properties?.[name];
+  return (
+    property !== undefined &&
+    isReadOnly(property) &&
+    !(schema.required ?? []).includes(name)
+  );
+}
+
+/**
  * Resolves a schema type to its TypeScript equivalent.
  * @param type - The schema type(s) to resolve
  * @returns The TypeScript type string

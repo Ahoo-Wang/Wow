@@ -213,6 +213,70 @@ describe('typed parameters and request bodies', () => {
     );
   });
 
+  it("compiles the issue's nested reproduction from a document's input components (#6642)", async () => {
+    const ref = (name: string) => ({ $ref: `#/components/schemas/${name}` });
+    const productRef = (required: string[]) => ({
+      type: 'object',
+      required,
+      properties: {
+        id: { type: 'string' },
+        code: { type: 'string' },
+        brandName: { type: 'string' },
+        searchCode: { type: 'string', readOnly: true },
+      },
+    });
+    // The shape of Wow's own document for it: the request refers to the input.
+    const { read } = await generateCompiling(
+      document(
+        {
+          '/orders': {
+            post: {
+              tags: ['Orders'],
+              operationId: 'create',
+              requestBody: {
+                required: true,
+                content: {
+                  'application/json': { schema: ref('CreateOrderInput') },
+                },
+              },
+              responses: { '204': { description: 'Created' } },
+            },
+          },
+        },
+        {
+          ProductRef: productRef(['id', 'code', 'brandName', 'searchCode']),
+          ProductRefInput: productRef(['id', 'code', 'brandName']),
+          CreateOrderInput: {
+            type: 'object',
+            required: ['product'],
+            properties: { product: ref('ProductRefInput') },
+          },
+          OrderState: {
+            type: 'object',
+            required: ['product'],
+            properties: { product: ref('ProductRef') },
+          },
+        },
+      ),
+      `import { OrdersApiClient, type OrderState, type ProductRef } from './out/index.js';
+       declare const client: OrdersApiClient;
+       declare const state: OrderState;
+       client.create({ product: { id: 'p', code: 'c', brandName: 'b' } });
+       client.create({ product: state.product });
+       client.create({ product: { id: 'p', code: 'c', brandName: 'b', searchCode: 'c|b' } });
+       // @ts-expect-error a property the service reads is still required
+       client.create({ product: { id: 'p', code: 'c' } });
+       // @ts-expect-error what the service writes holds it
+       const written: ProductRef = { id: 'p', code: 'c', brandName: 'b' };
+       // @ts-expect-error it is read-only
+       state.product.searchCode = 'x';
+       void written;`,
+    );
+    const types = read('types.ts');
+    expect(types).toContain('readonly searchCode: string;');
+    expect(types).toContain('readonly searchCode?: string;');
+  });
+
   it('sends each parameter where the document says, and omits an absent one', async () => {
     const { dir } = await generateCompiling(spec);
     const output = runGenerated(

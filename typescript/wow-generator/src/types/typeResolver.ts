@@ -22,6 +22,7 @@ import {
   isEnum,
   isMap,
   isObject,
+  isOptionalProperty,
   isReadOnly,
   resolvePrimitiveType,
   toArrayType,
@@ -199,7 +200,8 @@ class Resolution {
       const type = this.type(propSchema);
       const resolvedPropName =
         (isReadOnly(propSchema) ? 'readonly ' : '') +
-        resolvePropertyName(propName);
+        resolvePropertyName(propName) +
+        (isOptionalProperty(schema, propName) ? '?' : '');
       if (!isReference(propSchema)) {
         const jsDocDescriptions = schemaJSDoc(propSchema);
         const doc = jsDoc(jsDocDescriptions, '\n * ');

@@ -47,6 +47,7 @@ import {
   isEnum,
   isMap,
   isObject,
+  isOptionalProperty,
   isReadOnly,
   toArrayType,
 } from '../openapi/schemas';
@@ -299,6 +300,7 @@ export class ModelEmitter {
    */
   private addPropertyToInterface(
     interfaceDeclaration: InterfaceDeclarationStructure,
+    schema: ObjectSchema,
     propName: string,
     propSchema: Schema | Reference,
   ): void {
@@ -306,6 +308,7 @@ export class ModelEmitter {
       name: resolvePropertyName(propName),
       type: this.resolveType(propSchema),
       isReadonly: isReadOnly(propSchema),
+      hasQuestionToken: isOptionalProperty(schema, propName),
     };
     (interfaceDeclaration.properties ??= []).push(propertySignature);
     addSchemaJSDoc(propertySignature, propSchema);
@@ -330,7 +333,12 @@ export class ModelEmitter {
     const schemaProperties = schema.properties || {};
 
     Object.entries(schemaProperties).forEach(([propName, propSchema]) => {
-      this.addPropertyToInterface(interfaceDeclaration, propName, propSchema);
+      this.addPropertyToInterface(
+        interfaceDeclaration,
+        schema,
+        propName,
+        propSchema,
+      );
     });
 
     for (const name of schema.required ?? []) {
