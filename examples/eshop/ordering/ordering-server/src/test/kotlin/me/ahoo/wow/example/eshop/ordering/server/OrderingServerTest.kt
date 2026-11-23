@@ -13,15 +13,18 @@
 
 package me.ahoo.wow.example.eshop.ordering.server
 
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
+import me.ahoo.wow.api.client.stream
 import me.ahoo.wow.api.client.wait
 import me.ahoo.wow.api.read.Snapshot
 import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.FrameworkCodes
+import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.wire.DevelopmentHeaders
 import me.ahoo.wow.example.eshop.ordering.api.order.ConfirmOrderStock
@@ -42,6 +45,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import java.math.BigDecimal
 import java.time.Duration
+import java.util.UUID
 import java.time.LocalDate
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
@@ -202,6 +206,27 @@ class OrderingServerTest {
         server.http.post(rebuild, """{"ids":["order-1"]}""", caller = EMPLOYEE).problem.assert().isNull()
     }
 
+    /**
+     * What the contract generates and what the node accepts, decided by the contract generator and by the runtime's
+     * wait chain, held to each other: every hop of the generated `EshopOrderingContract.Wait` is one this node's
+     * admission accepts. The order-process saga has `@OnEvent`, `@OnCommitted` and `@OnRejected` handlers.
+     */
+    @Test
+    fun `every hop the contract generates should be one the node waits for`() {
+        val hops = EshopOrderingContract.Wait::class.java.fields
+            .filter { it.type == Hop::class.java }
+            .associate { it.name to it.get(null) as Hop }
+        val refused = hops.mapNotNull { (name, hop) ->
+            val first = runBlocking {
+                orders().stream(SubmitOrder(listOf(MUGS)), "hop-${UUID.randomUUID()}") {
+                    wait(WaitPlan.of(hop).within(Duration.ofMillis(HOP_TIMEOUT)))
+                }.first()
+            }
+            "$name: ${first.error?.message}".takeIf { first.error?.code == FrameworkCodes.WAIT_INVALID }
+        }
+        refused.assert().isEmpty()
+    }
+
     private fun orders(caller: Caller = Caller.ANONYMOUS): CommandClient = server.commands(caller)
 
     /** Submits the order [id] as [caller] and waits until the order-process saga set it awaiting its validation. */
@@ -237,6 +262,9 @@ class OrderingServerTest {
         // endregion
 
         val GRACE_AND_POLL: Duration = Duration.ofMillis(3_000)
+
+        /** How long a hop's wait lasts: only its admission is read. */
+        const val HOP_TIMEOUT = 500L
 
         /** An order's number: `SO-`, the day it was issued (`yyMMdd`), `-`, its sequence. */
         val NUMBER = Regex("""SO-(\d{6})-(\d+)""")
