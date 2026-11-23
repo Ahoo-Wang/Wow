@@ -250,7 +250,7 @@ class OrderingServerTest {
         val CAP = OrderItem("cap", BigDecimal("12.00"), 1)
         val EMPLOYEE = Caller.of(
             subject = "erin",
-            attributes = mapOf(DevelopmentHeaders.ROLES_ATTRIBUTE to listOf("employee")),
+            attributes = mapOf(Caller.ROLES to listOf("employee")),
         )
 
         // region wait-plan

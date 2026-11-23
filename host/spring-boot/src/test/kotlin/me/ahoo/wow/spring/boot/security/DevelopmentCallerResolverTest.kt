@@ -17,7 +17,6 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
-import me.ahoo.wow.api.wire.DevelopmentHeaders
 import me.ahoo.wow.api.wire.DevelopmentHeaders.APP
 import me.ahoo.wow.api.wire.DevelopmentHeaders.OWNER
 import me.ahoo.wow.api.wire.DevelopmentHeaders.ROLES
@@ -49,7 +48,7 @@ class DevelopmentCallerResolverTest {
             Caller.of(
                 tenantId = "acme",
                 subject = "erin",
-                attributes = mapOf(DevelopmentHeaders.ROLES_ATTRIBUTE to listOf("employee", "auditor")),
+                attributes = mapOf(Caller.ROLES to listOf("employee", "auditor")),
             ),
         )
     }
@@ -83,7 +82,7 @@ class DevelopmentCallerResolverTest {
                 tenantId = "acme",
                 subject = "erin",
                 attributes = mapOf(
-                    DevelopmentHeaders.ROLES_ATTRIBUTE to listOf("employee", "auditor"),
+                    Caller.ROLES to listOf("employee", "auditor"),
                     Caller.APP to listOf("console"),
                 ),
             ),

@@ -24,7 +24,7 @@ import me.ahoo.wow.api.caller.Caller
  * - [USER]: the caller's subject. Without it, the request is the anonymous caller of the default tenant, and the other
  *   identity headers are ignored but [APP].
  * - [OWNER]: the owner of its scope, an owner-level caller; without it, a tenant-level caller.
- * - [ROLES]: its roles, comma-separated, the caller attribute [ROLES_ATTRIBUTE].
+ * - [ROLES]: its roles, comma-separated, its [Caller.roles].
  * - [TENANT]: its tenant; the host's default tenant (`wow.tenant.default`) without it.
  * - [APP]: the application it calls in, its standard attribute `app` (`Caller.APP`).
  */
@@ -44,11 +44,8 @@ object DevelopmentHeaders {
     /** The header naming the application the caller calls in. */
     const val APP: String = "Wow-App"
 
-    /** The caller attribute listing its roles, which [ROLES] gives, as CoSec's resolver names it. */
-    const val ROLES_ATTRIBUTE: String = "roles"
-
     /**
-     * [caller] as these headers: its subject, tenant, owner, roles (the attribute [ROLES_ATTRIBUTE]) and application
+     * [caller] as these headers: its subject, tenant, owner, roles ([Caller.roles]) and application
      * ([Caller.app]). A caller without a subject is the anonymous caller of the host's default tenant, written with its
      * application alone. The space, a cross-scope grant and every other attribute have no header: the host's
      * development callers have none of them.
@@ -60,7 +57,7 @@ object DevelopmentHeaders {
         put(USER, subject)
         put(TENANT, caller.tenantId)
         caller.scope.ownerId?.let { put(OWNER, it) }
-        caller.attributes[ROLES_ATTRIBUTE]?.filter { it.isNotBlank() }?.takeIf { it.isNotEmpty() }
+        caller.roles.filter { it.isNotBlank() }.takeIf { it.isNotEmpty() }
             ?.let { put(ROLES, it.joinToString(",")) }
     }
 }

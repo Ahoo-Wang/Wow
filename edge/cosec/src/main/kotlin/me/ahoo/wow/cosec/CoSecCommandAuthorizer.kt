@@ -30,13 +30,17 @@ import me.ahoo.wow.runtime.admission.CommandAuthorizer
  * the scope and operator of the root command admission authorized, gets no objection: CoSec has no
  * request of its to evaluate, and the node's other authorizers still apply. On the public port CoSec's pipeline has
  * already decided the command's route by the same action, so the host leaves this authorizer off unless
- * `wow.cosec.authorizer.enabled` asks for it.
+ * `wow.cosec.authorizer.enabled` asks for it. It decides Wow's operational commands ([decidesOperational]): a policy
+ * grants their actions to the operators.
  */
 @ExperimentalWowApi
 class CoSecCommandAuthorizer(
     private val checker: AuthorizationChecker,
     private val defaultTenant: String = Caller.DEFAULT_TENANT,
 ) : CommandAuthorizer {
+    /** CoSec's policies decide Wow's operational commands as they decide any action. */
+    override val decidesOperational: Boolean get() = true
+
     override suspend fun authorize(caller: Caller, action: CommandAction): Authorization {
         val security = CoSecRequests.securityOf(caller, defaultTenant) ?: return Authorization.Allowed
         val name = CoSecActions.command(action)

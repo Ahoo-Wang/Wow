@@ -16,15 +16,12 @@ package me.ahoo.wow.ops.server
 import me.ahoo.wow.api.caller.Caller
 
 /**
- * The ops service's roles, which a caller lists in its attribute [ROLES_ATTRIBUTE]: from the identity the CoSec
+ * The ops service's roles, which a caller lists in its [Caller.roles]: from the identity the CoSec
  * gateway verified and forwarded (the `cosec` profile, its operators' roles listed in `wow.cosec.tenant-level.roles`),
  * or, in development, from the `Wow-Roles` header (the host's development callers). An entry is its tenant's, so no
  * caller's owner restricts its reads: these roles do ([ReaderRole]), and a caller with neither reads nothing.
  */
 object OpsRoles {
-    /** The caller attribute listing its roles, as CoSec's resolver names it. */
-    const val ROLES_ATTRIBUTE: String = "roles"
-
     /** The role that acts on the entries: the ledger's system commands, `wow.ledger.*` ([OperatorRole]). */
     const val OPERATOR: String = "ops.operator"
 
@@ -34,7 +31,4 @@ object OpsRoles {
     /** The roles that read the entries ([ReaderRole]): an operator reads what it acts on. */
     @JvmField
     val READERS: Set<String> = setOf(VIEWER, OPERATOR)
-
-    /** The roles of [caller]. */
-    fun rolesOf(caller: Caller): List<String> = caller.attributes[ROLES_ATTRIBUTE].orEmpty()
 }

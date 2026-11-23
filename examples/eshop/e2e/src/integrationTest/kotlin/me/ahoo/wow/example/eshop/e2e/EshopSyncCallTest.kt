@@ -27,6 +27,7 @@ import me.ahoo.wow.example.eshop.ordering.api.order.EshopOrderingContract
 import me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder
 import me.ahoo.wow.example.eshop.ordering.server.OrderingServer
 import me.ahoo.wow.kernel.ExecutionSagaContext
+import me.ahoo.wow.runtime.admission.Authorization
 import me.ahoo.wow.runtime.admission.CallContext
 import me.ahoo.wow.runtime.admission.CallHeaders
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
@@ -407,5 +408,5 @@ class EshopSyncCallTest {
 @Configuration(proxyBeanMethods = false)
 class OperatorActions {
     @Bean
-    fun basketOperatorAuthorizer(): CommandAuthorizer = CommandAuthorizer.ALLOW_ALL
+    fun basketOperatorAuthorizer(): CommandAuthorizer = CommandAuthorizer.operational { _, _ -> Authorization.Allowed }
 }

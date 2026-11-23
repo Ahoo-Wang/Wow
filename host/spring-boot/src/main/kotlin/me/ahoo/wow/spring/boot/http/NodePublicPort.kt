@@ -189,7 +189,7 @@ internal class NodePublicPort {
         queryApi: ObjectProvider<NodeQueryApi>,
         mappers: ObjectProvider<ProblemMapper>,
     ): RouterFunction<ServerResponse> {
-        manifest.refusedWithoutAuthorizer(node.gateway.authorizes)?.let { notice -> logger.info { notice } }
+        manifest.refusedWithoutAuthorizer(node.gateway.decidesOperational)?.let { notice -> logger.info { notice } }
         return wowRoutes(
             manifest,
             node.gateway,
@@ -212,7 +212,7 @@ internal class NodePublicPort {
     /**
      * The operator's routes over the parked entries, when `wow.http.ops.enabled`: authenticated by the
      * application's [CallerResolver], each caller kept in its tenant, their actions authorized by its
-     * [CommandAuthorizer], and refused when it has none.
+     * [CommandAuthorizer]s, and refused when none of them decides operational commands.
      */
     @Bean
     @ConditionalOnProperty(prefix = "${WowProperties.PREFIX}.http.ops", name = ["enabled"], havingValue = "true")
@@ -225,10 +225,11 @@ internal class NodePublicPort {
         authorizers: ObjectProvider<CommandAuthorizer>,
     ): RouterFunction<ServerResponse> {
         val authorizer = authorizers.orderedStream().toList().takeIf { it.isNotEmpty() }?.let(CommandAuthorizer::allOf)
-        if (authorizer == null) {
+        if (authorizer?.decidesOperational != true) {
             logger.warn {
-                "wow.http.ops.enabled without a CommandAuthorizer bean: the operator's actions on parked entries are " +
-                    "refused (403) until the application gives one."
+                "wow.http.ops.enabled, but no CommandAuthorizer decides Wow's operational commands: the operator's " +
+                    "actions on parked entries are refused (403) until the application gives one " +
+                    "(CommandAuthorizer.operational, or CoSec's with wow.cosec.authorizer.enabled)."
             }
         }
         return parkedRoutes(node.parked, manifest, authorizer, callers, options)
@@ -237,7 +238,7 @@ internal class NodePublicPort {
     internal companion object {
         /**
          * The operational commands ([SystemCommandGroups.OPERATIONAL]) the Manifest routes, by their names: a context's
-         * jobs and an aggregate type's snapshot rebuild, which the public port refuses without an authorizer.
+         * jobs and an aggregate type's snapshot rebuild, which the public port refuses unless an authorizer decides them.
          */
         internal fun Manifest.operationalCommands(): Set<String> = contexts.flatMap { context ->
             context.commands + context.aggregates.flatMap { it.commands }
@@ -245,12 +246,14 @@ internal class NodePublicPort {
 
         /**
          * The startup notice of a public port that refuses the operational commands the Manifest routes, for want of an
-         * authorizer; null when the node [authorizes] or routes none.
+         * authorizer that decides them; null when one of the node's authorizers [decides] them or it routes none.
          */
-        internal fun Manifest.refusedWithoutAuthorizer(authorizes: Boolean): String? {
-            val operational = operationalCommands().takeUnless { authorizes || it.isEmpty() } ?: return null
-            return "No CommandAuthorizer bean: the public port refuses Wow's operational commands $operational with 403 " +
-                "until the application gives one; the jobs, the sagas and the internal port's calls send them as before."
+        internal fun Manifest.refusedWithoutAuthorizer(decides: Boolean): String? {
+            val operational = operationalCommands().takeUnless { decides || it.isEmpty() } ?: return null
+            return "No CommandAuthorizer decides Wow's operational commands: the public port refuses " +
+                "$operational with 403 until the application gives one (CommandAuthorizer.operational, or CoSec's " +
+                "with wow.cosec.authorizer.enabled); the jobs, the sagas and the internal port's calls send them as " +
+                "before."
         }
 
         /** Spring Boot's key of the address the public server binds. */

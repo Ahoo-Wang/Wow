@@ -53,7 +53,7 @@ class ViewStoreAuthorizerTest {
         scope = Scope(ownerId = owner),
         subject = owner,
         crossScope = true,
-        attributes = mapOf(ViewStoreRoles.ROLES_ATTRIBUTE to roles.toList()),
+        attributes = mapOf(Caller.ROLES to roles.toList()),
     )
 
     private fun allowed(caller: Caller, action: CommandAction): Boolean =

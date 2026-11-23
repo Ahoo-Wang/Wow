@@ -62,6 +62,11 @@ class CoSecCommandAuthorizerTest {
     }
 
     @Test
+    fun `it decides Wow's operational commands, by CoSec's policies of their actions`() {
+        authorizer.decidesOperational.assert().isTrue()
+    }
+
+    @Test
     fun `a command CoSec does not permit is denied`() = runTest {
         val security = alice()
         cosec.permits = { it.action != "shop:AddItem" }

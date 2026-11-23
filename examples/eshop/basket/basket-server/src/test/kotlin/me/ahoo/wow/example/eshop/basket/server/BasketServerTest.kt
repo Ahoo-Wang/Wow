@@ -21,7 +21,6 @@ import me.ahoo.wow.api.client.wait
 import me.ahoo.wow.api.read.Snapshot
 import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.api.result.FrameworkCodes
-import me.ahoo.wow.api.wire.DevelopmentHeaders
 import me.ahoo.wow.example.eshop.basket.api.basket.AddBasketItem
 import me.ahoo.wow.example.eshop.basket.api.basket.BasketStateView
 import me.ahoo.wow.example.eshop.basket.api.basket.ChangeBasketItemQuantity
@@ -139,7 +138,7 @@ class BasketServerTest {
         const val BAD_REQUEST = 400
         val EMPLOYEE = Caller.of(
             subject = "erin",
-            attributes = mapOf(DevelopmentHeaders.ROLES_ATTRIBUTE to listOf("employee")),
+            attributes = mapOf(Caller.ROLES to listOf("employee")),
         )
 
         /** The buyer [id]: the user, and the owner of what it creates. */

@@ -26,7 +26,6 @@ import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.WaitPlan
-import me.ahoo.wow.api.wire.DevelopmentHeaders
 import me.ahoo.wow.example.eshop.ordering.api.order.ConfirmOrderStock
 import me.ahoo.wow.example.eshop.ordering.api.order.EshopOrderingContract
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderItem
@@ -124,7 +123,7 @@ class OrderLifecycleTest {
         const val VERSION_AFTER_VALIDATION = 2
         val EMPLOYEE = Caller.of(
             subject = "erin",
-            attributes = mapOf(DevelopmentHeaders.ROLES_ATTRIBUTE to listOf("employee")),
+            attributes = mapOf(Caller.ROLES to listOf("employee")),
         )
         val TO_VALIDATION: WaitPlan = WaitPlan.of(
             EshopOrderingContract.Wait.ORDER_PROCESS_SAGA__ON_ORDER_SUBMITTED,

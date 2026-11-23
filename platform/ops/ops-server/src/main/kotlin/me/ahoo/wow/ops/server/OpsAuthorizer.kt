@@ -63,8 +63,11 @@ class OpsAuthorizer : CommandAuthorizer {
  * system commands, and no other caller may.
  */
 class OperatorRole : CommandAuthorizer {
+    /** It decides Wow's operational commands too: an operator sends them, as any other action. */
+    override val decidesOperational: Boolean get() = true
+
     override suspend fun authorize(caller: Caller, action: CommandAction): Authorization =
-        if (OpsRoles.OPERATOR in OpsRoles.rolesOf(caller)) {
+        if (caller.hasRole(OpsRoles.OPERATOR)) {
             Authorization.Allowed
         } else {
             Authorization.Denied.of(

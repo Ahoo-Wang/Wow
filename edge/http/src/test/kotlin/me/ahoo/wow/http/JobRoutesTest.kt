@@ -83,7 +83,7 @@ class JobRoutesTest {
             refusals.forEach { refused ->
                 refused.status.assert().withFailMessage { refused.body.toString() }.isEqualTo(403)
                 refused.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
-                refused.body!!["detail"].asString().assert().contains("has no CommandAuthorizer")
+                refused.body!!["detail"].asString().assert().contains("no CommandAuthorizer of the service decides")
             }
         }
     }

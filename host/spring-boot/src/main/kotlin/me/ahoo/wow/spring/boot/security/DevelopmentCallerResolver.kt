@@ -20,7 +20,6 @@ import me.ahoo.wow.api.wire.DevelopmentHeaders
 import me.ahoo.wow.api.wire.DevelopmentHeaders.APP
 import me.ahoo.wow.api.wire.DevelopmentHeaders.OWNER
 import me.ahoo.wow.api.wire.DevelopmentHeaders.ROLES
-import me.ahoo.wow.api.wire.DevelopmentHeaders.ROLES_ATTRIBUTE
 import me.ahoo.wow.api.wire.DevelopmentHeaders.TENANT
 import me.ahoo.wow.api.wire.DevelopmentHeaders.USER
 import me.ahoo.wow.http.caller.CallerResolver
@@ -36,7 +35,7 @@ import org.springframework.web.reactive.function.server.ServerRequest
  *   identity headers are ignored but [APP].
  * - [OWNER]: the owner of its scope, an owner-level caller that reads and writes its own aggregates alone; without it,
  *   a tenant-level caller. The owner is never the user unless the header says so.
- * - [ROLES]: its roles, comma-separated, the attribute [ROLES_ATTRIBUTE] as CoSec's resolver names it.
+ * - [ROLES]: its roles, comma-separated, its [Caller.roles].
  * - [TENANT]: its tenant; [defaultTenant] (`wow.tenant.default`) without it.
  * - [APP]: the application it calls in, its standard attribute [Caller.APP], which the edge records as each command's
  *   request fact `app_id`; CoSec's resolver takes the one CoSec authorized instead. The anonymous caller keeps it too.
@@ -63,7 +62,8 @@ class DevelopmentCallerResolver(private val defaultTenant: String = Caller.DEFAU
             tenantId = headers.firstHeader(TENANT).value() ?: defaultTenant,
             scope = headers.firstHeader(OWNER).value()?.let { Scope(ownerId = it) } ?: Scope.NONE,
             subject = user,
-            attributes = (if (roles.isEmpty()) emptyMap() else mapOf(ROLES_ATTRIBUTE to roles)) + app,
+            attributes = app,
+            roles = roles,
         )
     }
 

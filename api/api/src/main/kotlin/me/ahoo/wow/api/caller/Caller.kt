@@ -27,7 +27,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  * - [subject] is the principal's opaque id, for authorizers, logs and the [Operator] of what it commits; null for an
  *   anonymous caller.
  * - [crossScope] says the caller may act in another tenant or scope by naming it (the `Wow-Scope` header).
- * - [attributes] are further facts about the principal (roles, policies, claims) that an authorizer, a read authorizer
+ * - [attributes] are further facts about the principal (its [roles], policies, claims) that an authorizer, a read authorizer
  *   (`ReadAuthorizer`) or an access policy ([me.ahoo.wow.api.access.AccessPolicy]) may read. They live only as long
  *   as the request: none of them is written into a fact, but for the standard attribute [APP], the calling
  *   application, which the edge records as the command's request fact [me.ahoo.wow.api.decide.RequestFacts.APP_ID].
@@ -71,6 +71,17 @@ class Caller @InternalWowApi constructor(
      */
     val app: String? get() = attributes[APP]?.firstOrNull()?.takeIf { it.isNotBlank() }
 
+    /**
+     * The caller's roles: the values of its [ROLES] attribute, none when it has none. Wow's resolvers set it, the
+     * development callers from the `Wow-Roles` header and CoSec's from the principal's roles in the request's scope,
+     * and an application's own resolver puts the roles it authenticated there. A role is the identity system's name;
+     * Wow gives none a meaning.
+     */
+    val roles: List<String> get() = attributes[ROLES].orEmpty()
+
+    /** Whether the caller holds the role [role], one of its [roles]. */
+    fun hasRole(role: String): Boolean = role in roles
+
     /** This Caller with the given fields replaced: Wow's own copy, left out of the ABI. */
     @InternalWowApi
     fun copyWith(
@@ -100,6 +111,9 @@ class Caller @InternalWowApi constructor(
         /** The standard attribute naming the caller's [app]. */
         const val APP: String = "app"
 
+        /** The standard attribute listing the caller's [roles]. */
+        const val ROLES: String = "roles"
+
         /** An unauthenticated caller: the default tenant, no scope, no subject. */
         @JvmField
         val ANONYMOUS: Caller = Caller()
@@ -127,7 +141,11 @@ class Caller @InternalWowApi constructor(
         fun owner(id: String, tenantId: String = DEFAULT_TENANT): Caller =
             Caller(tenantId, Scope(ownerId = id), subject = id)
 
-        /** A Caller of the given fields; parameters added later come last, with a default. */
+        /**
+         * A Caller of the given fields; parameters added later come last, with a default. [roles] are its [ROLES]
+         * attribute (`Caller.of(subject = "e1", roles = listOf("editor"))`): given with [attributes] that name
+         * [ROLES] too, it fails, since the two would say different things.
+         */
         @JvmStatic
         @JvmOverloads
         fun of(
@@ -137,6 +155,13 @@ class Caller @InternalWowApi constructor(
             crossScope: Boolean = false,
             attributes: Map<String, List<String>> = emptyMap(),
             service: Boolean = false,
-        ): Caller = Caller(tenantId, scope, subject, crossScope, attributes, service)
+            roles: Collection<String> = emptyList(),
+        ): Caller {
+            require(roles.isEmpty() || ROLES !in attributes) {
+                "A caller's roles are given once: by roles or by the attribute $ROLES, not both."
+            }
+            val all = if (roles.isEmpty()) attributes else attributes + (ROLES to roles.toList())
+            return Caller(tenantId, scope, subject, crossScope, all, service)
+        }
     }
 }

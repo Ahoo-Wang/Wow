@@ -40,9 +40,12 @@ import me.ahoo.wow.runtime.admission.CommandAuthorizer
  * roles decide: the catalog asks this authorizer only without CoSec's.
  */
 class AnalyticsCatalogAuthorizer : CommandAuthorizer {
+    /** It decides Wow's operational commands: an [AnalyticsCatalogRoles.ADMIN] sends them, as every system command. */
+    override val decidesOperational: Boolean get() = true
+
     override suspend fun authorize(caller: Caller, action: CommandAction): Authorization {
         val needed = ROLES[action.type.name] ?: setOf(AnalyticsCatalogRoles.ADMIN)
-        return if (AnalyticsCatalogRoles.rolesOf(caller).any { it in needed }) {
+        return if (caller.roles.any { it in needed }) {
             Authorization.Allowed
         } else {
             Authorization.Denied.of(

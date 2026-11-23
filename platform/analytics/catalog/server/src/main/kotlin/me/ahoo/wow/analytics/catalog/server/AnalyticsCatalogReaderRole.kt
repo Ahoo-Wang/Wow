@@ -33,7 +33,7 @@ import me.ahoo.wow.query.schema.QueryModel
 class AnalyticsCatalogReaderRole : ReadAuthorizer {
     override suspend fun authorize(caller: Caller, read: ReadAction): ReadAuthorization {
         val catalog = read.type.context == AnalyticsCatalogContext.NAME && read.model != QueryModel.DATASET
-        return if (!catalog || AnalyticsCatalogRoles.rolesOf(caller).any { it in AnalyticsCatalogRoles.READERS }) {
+        return if (!catalog || caller.roles.any { it in AnalyticsCatalogRoles.READERS }) {
             ReadAuthorization.Allowed
         } else {
             ReadAuthorization.Denied.of(

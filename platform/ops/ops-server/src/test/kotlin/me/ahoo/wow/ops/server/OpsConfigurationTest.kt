@@ -143,7 +143,7 @@ class OpsConfigurationTest {
             .isInstanceOf(Authorization.Denied::class.java)
         val operator = Caller.of(
             subject = "alice",
-            attributes = mapOf(OpsRoles.ROLES_ATTRIBUTE to listOf(OpsRoles.OPERATOR))
+            attributes = mapOf(Caller.ROLES to listOf(OpsRoles.OPERATOR))
         )
         authorize(null, authorizerEnabled = false, caller = operator, action = record).assert()
             .isInstanceOf(Authorization.Denied::class.java)
@@ -177,7 +177,7 @@ class OpsConfigurationTest {
         reads(null, authorizerEnabled = true).assert().isFalse()
         val viewer = Caller.of(
             subject = "victor",
-            attributes = mapOf(OpsRoles.ROLES_ATTRIBUTE to listOf(OpsRoles.VIEWER))
+            attributes = mapOf(Caller.ROLES to listOf(OpsRoles.VIEWER))
         )
         reads(null, authorizerEnabled = false, caller = viewer).assert().isTrue()
     }

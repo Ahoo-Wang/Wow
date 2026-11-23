@@ -89,7 +89,7 @@ class ParkedRoutesTest {
     /** A node that runs none: its actions are requests to the owner. */
     private val other = SubscriptionRuntime("group", log, InMemoryCheckpointStore(), ledger, listOf(failing), options)
     private val actions = CopyOnWriteArrayList<Pair<String, CommandAction>>()
-    private val authorizer = CommandAuthorizer { caller, action ->
+    private val authorizer = CommandAuthorizer.operational { caller, action ->
         actions += caller.subject.orEmpty() to action
         if (caller.subject == "mallory") Authorization.Denied("Mallory may not.") else Authorization.Allowed
     }

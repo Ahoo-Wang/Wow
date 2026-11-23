@@ -16,14 +16,11 @@ package me.ahoo.wow.analytics.catalog.server
 import me.ahoo.wow.api.caller.Caller
 
 /**
- * The analytics catalog's roles, which a caller lists in its attribute [ROLES_ATTRIBUTE]: from the identity the CoSec
+ * The analytics catalog's roles, which a caller lists in its [Caller.roles]: from the identity the CoSec
  * gateway verified and forwarded (the `cosec` profile), or, in development, from the `Wow-Roles` header (the host's
  * development callers). Its callers are of the platform's tenant, `(platform)`, and have no owner.
  */
 object AnalyticsCatalogRoles {
-    /** The caller attribute listing its roles, as CoSec's resolver names it. */
-    const val ROLES_ATTRIBUTE: String = "roles"
-
     /** Manages the warehouse connections and the trusted writers, and syncs the sources; acts as an editor too. */
     const val ADMIN: String = "analytics.catalog.admin"
 
@@ -42,7 +39,4 @@ object AnalyticsCatalogRoles {
     /** The roles that read the sources. */
     @JvmField
     val READERS: Set<String> = setOf(ADMIN, APPROVER, EDITOR, VIEWER)
-
-    /** The roles of [caller]. */
-    fun rolesOf(caller: Caller): List<String> = caller.attributes[ROLES_ATTRIBUTE].orEmpty()
 }

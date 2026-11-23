@@ -132,18 +132,45 @@ sealed interface Authorization {
  * A node's authorizers are all asked ([allOf]): [Authorization.Allowed] means this authorizer has no objection, not
  * that the command is allowed whatever the others say, and there is no abstaining. An authorizer of one concern (the
  * service identities' calls, the commands no caller may forge) allows the actions outside it.
+ *
+ * Wow's operational commands ([CommandAction.isOperational]: a context's jobs, an aggregate type's snapshot rebuild,
+ * the failure ledger's actions and read) are allowed on the public port and the operator's routes only when one of the
+ * node's authorizers [decidesOperational]: an authorizer of another concern, which allows what it does not know, never
+ * opens them. [operational] makes one.
  */
 fun interface CommandAuthorizer {
     suspend fun authorize(caller: Caller, action: CommandAction): Authorization
 
+    /**
+     * Whether this authorizer decides who sends Wow's operational commands ([CommandAction.isOperational]), so that
+     * its [Authorization.Allowed] of one is a grant rather than no objection. False unless it says so: a node whose
+     * authorizers none decide them refuses them on the public port and the operator's routes (403
+     * `wow.auth.forbidden`). CoSec's authorizer decides them by its policies; [operational] makes an authorizer that
+     * does.
+     */
+    val decidesOperational: Boolean get() = false
+
     companion object {
-        /** Allows every action. */
+        /** Allows every action; it decides no operational command ([decidesOperational] is false). */
         @JvmField
         val ALLOW_ALL: CommandAuthorizer = CommandAuthorizer { _, _ -> Authorization.Allowed }
 
         /**
+         * An authorizer that decides Wow's operational commands by [decide] and has no objection to any other action:
+         * `CommandAuthorizer.operational { caller, action -> if (caller.hasRole("operator")) Allowed else
+         * Denied.of("Only an operator sends ${action.type.name}.") }`. A node with one allows an operational command
+         * when [decide] does and its other authorizers do not object. A service identity ([Caller.service]) is not
+         * asked about: a call between services is trusted, as CoSec's authorizer trusts it, and the internal port
+         * serves a system command only to a service whose `wow.callers` entries name it.
+         */
+        @JvmStatic
+        fun operational(decide: suspend (Caller, CommandAction) -> Authorization): CommandAuthorizer =
+            Operational(decide)
+
+        /**
          * [authorizers] as one: asked in their order, the first [Authorization.Denied] is the answer and the rest are
-         * not asked; a command every one allows is allowed. [ALLOW_ALL] for none, the authorizer itself for one.
+         * not asked; a command every one allows is allowed. It [decidesOperational] when one of them does. [ALLOW_ALL]
+         * for none, the authorizer itself for one.
          */
         @JvmStatic
         fun allOf(authorizers: List<CommandAuthorizer>): CommandAuthorizer = when (authorizers.size) {
@@ -153,7 +180,20 @@ fun interface CommandAuthorizer {
         }
     }
 
+    private class Operational(
+        private val decide: suspend (Caller, CommandAction) -> Authorization,
+    ) : CommandAuthorizer {
+        override val decidesOperational: Boolean get() = true
+
+        override suspend fun authorize(caller: Caller, action: CommandAction): Authorization =
+            if (action.isOperational && !caller.service) decide(caller, action) else Authorization.Allowed
+
+        override fun toString(): String = "CommandAuthorizer.operational($decide)"
+    }
+
     private class AllOf(private val authorizers: List<CommandAuthorizer>) : CommandAuthorizer {
+        override val decidesOperational: Boolean = authorizers.any { it.decidesOperational }
+
         override suspend fun authorize(caller: Caller, action: CommandAction): Authorization {
             authorizers.forEach { authorizer ->
                 val decision = authorizer.authorize(caller, action)

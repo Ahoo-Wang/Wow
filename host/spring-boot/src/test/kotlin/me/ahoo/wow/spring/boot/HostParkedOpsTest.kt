@@ -19,6 +19,7 @@ import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.http.ops.OpsPaths
 import me.ahoo.wow.http.ops.WebhookNotifier
+import me.ahoo.wow.runtime.admission.Authorization
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.runtime.ledger.LedgerPublishing
 import me.ahoo.wow.runtime.node.SubscriptionFactory
@@ -226,9 +227,12 @@ class HostParkedOpsTest {
 
         fun attempts(subscription: String, id: String): Int = attempts["$subscription:$id"]?.get() ?: 0
 
-        /** The operator's actions are refused without an authorizer (review A3-3): this host allows them all. */
+        /**
+         * The operator's actions are refused unless an authorizer decides them (review A3-3): this host's allows them
+         * all.
+         */
         @Bean
-        fun operators(): CommandAuthorizer = CommandAuthorizer.ALLOW_ALL
+        fun operators(): CommandAuthorizer = CommandAuthorizer.operational { _, _ -> Authorization.Allowed }
 
         /** The anonymous caller, or with [OPERATOR] an operator who acts across every tenant. */
         @Bean

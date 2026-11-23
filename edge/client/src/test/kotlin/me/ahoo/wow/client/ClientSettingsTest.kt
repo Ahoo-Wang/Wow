@@ -19,7 +19,6 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
-import me.ahoo.wow.api.wire.DevelopmentHeaders
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandIndex
 import me.ahoo.wow.manifest.CommandManifest
@@ -83,7 +82,7 @@ class ClientSettingsTest {
             subject = "erin",
             crossScope = true,
             attributes = mapOf(
-                DevelopmentHeaders.ROLES_ATTRIBUTE to listOf("employee", " ", "auditor"),
+                Caller.ROLES to listOf("employee", " ", "auditor"),
                 Caller.APP to listOf("console"),
                 "region" to listOf("eu"),
             ),

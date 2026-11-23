@@ -54,7 +54,7 @@ class ViewStoreDevelopmentCallersTest {
         caller.scope.assert().isEqualTo(Scope(ownerId = "alice"))
         caller.subject.assert().isEqualTo("alice")
         caller.crossScope.assert().isFalse()
-        caller.attributes.assert().containsEntry(ViewStoreRoles.ROLES_ATTRIBUTE, listOf("a", "b"))
+        caller.attributes.assert().containsEntry(Caller.ROLES, listOf("a", "b"))
             .containsEntry(Caller.APP, listOf("console"))
     }
 

@@ -23,7 +23,6 @@ import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.schedule.DisableJob
 import me.ahoo.wow.api.schedule.EnableJob
 import me.ahoo.wow.api.schedule.ScheduleJobs
-import me.ahoo.wow.api.wire.DevelopmentHeaders
 import me.ahoo.wow.example.eshop.inventory.api.stock.ReceiveStock
 import me.ahoo.wow.example.eshop.inventory.api.stock.ReserveStock
 import me.ahoo.wow.manifest.Manifest
@@ -91,7 +90,7 @@ class InventoryServerTest {
         val BUYER = Caller.owner("alice")
         val EMPLOYEE = Caller.of(
             subject = "erin",
-            attributes = mapOf(DevelopmentHeaders.ROLES_ATTRIBUTE to listOf("employee"))
+            attributes = mapOf(Caller.ROLES to listOf("employee"))
         )
         const val RECEIVE_DELIVERIES = "receive-deliveries"
 

@@ -42,11 +42,11 @@ class OpsAuthorizerTest {
     private val parked = AggregateType("ops", "parked").ref(Caller.DEFAULT_TENANT, "svc:Saga.on:shop.payment:(0):p-1")
     private val operator = Caller.of(
         subject = "alice",
-        attributes = mapOf(OpsRoles.ROLES_ATTRIBUTE to listOf(OpsRoles.OPERATOR))
+        attributes = mapOf(Caller.ROLES to listOf(OpsRoles.OPERATOR))
     )
     private val viewer = Caller.of(
         subject = "victor",
-        attributes = mapOf(OpsRoles.ROLES_ATTRIBUTE to listOf(OpsRoles.VIEWER))
+        attributes = mapOf(Caller.ROLES to listOf(OpsRoles.VIEWER))
     )
 
     private fun action(name: String, type: Class<*>): CommandAction =
@@ -96,7 +96,7 @@ class OpsAuthorizerTest {
             role.authorize(viewer, read).assert().isEqualTo(ReadAuthorization.Allowed)
             val stranger = Caller.of(
                 subject = "sam",
-                attributes = mapOf(OpsRoles.ROLES_ATTRIBUTE to listOf("someone.else"))
+                attributes = mapOf(Caller.ROLES to listOf("someone.else"))
             )
             listOf(Caller.of(subject = "nora"), stranger).forEach { reader ->
                 val refused = role.authorize(reader, read) as ReadAuthorization.Denied
