@@ -88,6 +88,7 @@ class JacksonVersionsTest {
         val read = JacksonVersions.verifiedOf(properties)
         read.assert().isEqualTo(Verified(listOf("3.1", "3.2"), listOf(CORE, DATABIND)))
         JacksonVersions.verifiedOf(Properties()).assert().isNull()
+        JacksonVersions.verifiedOf(Properties().apply { setProperty("minors", "3.1") }).assert().isNull()
     }
 
     /** A class path's resources: `wow-spi`'s list naming [minors], and a `pom.properties` for each of [versions]. */
