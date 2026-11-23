@@ -54,7 +54,98 @@ suspend fun onCommand(command: RenameBrand, scope: DecideScope): BrandRenamed? {
 }
 ```
 
-删除聚合不会释放它的任何键，所以恢复的聚合仍持有它们。应当让出某个键的删除，要在删除之前，在聚合自己的命令里释放它。
+## 已删除的聚合与它的键 {#a-deleted-aggregate-and-its-keys}
+
+删除聚合不会释放它的任何键，这是有意的。内置的 `DeleteAggregate` 只改变聚合的元数据，不改变别的，所以由内置的 `RestoreAggregate` 恢复的聚合仍持有它的键，在它被删除期间也没有别的聚合拿走它们。
+
+如果聚合被删除期间它的键应当空出来，就在它自己的删除命令里让出这个键，在它自己的恢复命令里把键拿回来。恢复命令声明为 `@OnCommand(onDeleted = true)`，这样已删除的聚合也会受理它：
+
+<!-- sample: test/test-dsl/src/test/kotlin/me/ahoo/wow/test/ReleasedKeyRestoreSpecTest.kt#article -->
+
+```kotlin
+@CreateAggregate
+data class PublishArticle(@AggregateId val id: String, val slug: String)
+
+data class RemoveArticle(@AggregateId val id: String)
+
+data class RestoreArticle(@AggregateId val id: String)
+
+data class ArticlePublished(val slug: String)
+
+class ArticleState {
+    var slug: String = ""
+        private set
+
+    fun onSourcing(event: ArticlePublished) {
+        slug = event.slug
+    }
+}
+
+/**
+ * Its own delete and restore are its only ones: the built-in `DeleteAggregate` releases no key, and the built-in
+ * `RestoreAggregate` passes through no code of the aggregate, so it would bring the article back without its slug.
+ */
+@AggregateRoot(lifecycle = [TransferOwner::class, TransferSpace::class])
+class Article(private val state: ArticleState) {
+    suspend fun onCommand(command: PublishArticle, scope: DecideScope): ArticlePublished {
+        take(command.slug, scope)
+        return ArticlePublished(command.slug)
+    }
+
+    /** Deletes the article and gives its slug up, so that another article may take it. */
+    @Suppress("UnusedParameter") // The command names its aggregate alone: its type is what the function handles.
+    suspend fun onCommand(command: RemoveArticle, scope: DecideScope): AggregateDeleted {
+        scope.release(SLUGS, state.slug)
+        return AggregateDeleted()
+    }
+
+    /** Restores the article with its slug, or rejects the command when another article took it meanwhile. */
+    @OnCommand(onDeleted = true)
+    @Suppress("UnusedParameter") // The command names its aggregate alone: its type is what the function handles.
+    suspend fun onCommand(command: RestoreArticle, scope: DecideScope): AggregateRestored {
+        take(state.slug, scope)
+        return AggregateRestored()
+    }
+
+    private suspend fun take(slug: String, scope: DecideScope) {
+        if (!scope.reserve(SLUGS, slug)) {
+            scope.reject(SLUG_TAKEN, "Another article's slug is \"$slug\".")
+        }
+    }
+
+    companion object {
+        const val SLUGS = "article-slugs"
+        const val SLUG_TAKEN = "slug-taken"
+    }
+}
+```
+
+- **删除**随它的 `AggregateDeleted` 一同提交时释放 slug，删除提交之后，别的文章就可以拿走这个 slug。
+- **恢复**再次预留 slug。slug 空闲时，它连同预留一起提交 `AggregateRestored`。如果期间别的文章拿走了 slug，`reserve` 返回 false，恢复被拒绝：那篇文章保留 slug，这一篇仍是已删除的。
+- **恢复一篇没有被删除的文章**不改变任何东西：内核会去掉没有被删除的聚合上的 `AggregateRestored`，没有留下任何事件的决策就是未改变（[聚合](./aggregates)）。
+- **不要内置的 `RestoreAggregate`。**内置的恢复不经过聚合的任何代码，它会在不预留 slug 的情况下把文章恢复回来，而 slug 此时可能被别的文章持有，于是两篇存活的文章会显示同一个 slug。`@AggregateRoot(lifecycle = [...])` 列出聚合受理的内置生命周期命令；这篇文章既不列 `RestoreAggregate` 也不列 `DeleteAggregate`，所以删除和恢复它的只有它自己的命令。
+
+规格：slug 空闲时与 slug 被拿走时：
+
+<!-- sample: test/test-dsl/src/test/kotlin/me/ahoo/wow/test/ReleasedKeyRestoreSpecTest.kt#restore-spec -->
+
+```kotlin
+aggregateSpec(model, id = "article-1") {
+    givenCommands(PublishArticle("article-1", "hello-wow"))
+    whenCommand(RemoveArticle("article-1")) { expectDeleted() }
+    holds(Article.SLUGS, "hello-wow").assert().isFalse()
+    fork("the slug is free") {
+        whenCommand(RestoreArticle("article-1")) { expectEvents(AggregateRestored()) }
+        holds(Article.SLUGS, "hello-wow").assert().isTrue()
+        // Restoring an article that is not deleted changes nothing.
+        whenCommand(RestoreArticle("article-1")) { expectUnchanged() }
+    }
+    fork("another article took the slug") {
+        givenReservation(Article.SLUGS, "hello-wow")
+        whenCommand(RestoreArticle("article-1")) { expectRejected(Article.SLUG_TAKEN) }
+    }
+}
+```
 
 ## 把键移给另一个聚合 {#move-a-key-to-another-aggregate}
 

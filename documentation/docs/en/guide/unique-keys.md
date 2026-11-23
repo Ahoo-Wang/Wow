@@ -54,7 +54,98 @@ suspend fun onCommand(command: RenameBrand, scope: DecideScope): BrandRenamed? {
 }
 ```
 
-Deleting an aggregate releases none of its keys, so a restored aggregate still holds them. A delete that should give a key up releases it in the aggregate's own command before the delete.
+## A deleted aggregate and its keys {#a-deleted-aggregate-and-its-keys}
+
+Deleting an aggregate releases none of its keys, by design. The built-in `DeleteAggregate` changes the aggregate's metadata and nothing else, so an aggregate the built-in `RestoreAggregate` brings back still holds its keys, and no other aggregate took them while it was deleted.
+
+An aggregate whose key should be free while it is deleted gives the key up in a delete command of its own, and takes it back in a restore command of its own. The restore is declared `@OnCommand(onDeleted = true)`, so that a deleted aggregate takes it:
+
+<!-- sample: test/test-dsl/src/test/kotlin/me/ahoo/wow/test/ReleasedKeyRestoreSpecTest.kt#article -->
+
+```kotlin
+@CreateAggregate
+data class PublishArticle(@AggregateId val id: String, val slug: String)
+
+data class RemoveArticle(@AggregateId val id: String)
+
+data class RestoreArticle(@AggregateId val id: String)
+
+data class ArticlePublished(val slug: String)
+
+class ArticleState {
+    var slug: String = ""
+        private set
+
+    fun onSourcing(event: ArticlePublished) {
+        slug = event.slug
+    }
+}
+
+/**
+ * Its own delete and restore are its only ones: the built-in `DeleteAggregate` releases no key, and the built-in
+ * `RestoreAggregate` passes through no code of the aggregate, so it would bring the article back without its slug.
+ */
+@AggregateRoot(lifecycle = [TransferOwner::class, TransferSpace::class])
+class Article(private val state: ArticleState) {
+    suspend fun onCommand(command: PublishArticle, scope: DecideScope): ArticlePublished {
+        take(command.slug, scope)
+        return ArticlePublished(command.slug)
+    }
+
+    /** Deletes the article and gives its slug up, so that another article may take it. */
+    @Suppress("UnusedParameter") // The command names its aggregate alone: its type is what the function handles.
+    suspend fun onCommand(command: RemoveArticle, scope: DecideScope): AggregateDeleted {
+        scope.release(SLUGS, state.slug)
+        return AggregateDeleted()
+    }
+
+    /** Restores the article with its slug, or rejects the command when another article took it meanwhile. */
+    @OnCommand(onDeleted = true)
+    @Suppress("UnusedParameter") // The command names its aggregate alone: its type is what the function handles.
+    suspend fun onCommand(command: RestoreArticle, scope: DecideScope): AggregateRestored {
+        take(state.slug, scope)
+        return AggregateRestored()
+    }
+
+    private suspend fun take(slug: String, scope: DecideScope) {
+        if (!scope.reserve(SLUGS, slug)) {
+            scope.reject(SLUG_TAKEN, "Another article's slug is \"$slug\".")
+        }
+    }
+
+    companion object {
+        const val SLUGS = "article-slugs"
+        const val SLUG_TAKEN = "slug-taken"
+    }
+}
+```
+
+- **The delete** releases the slug with the commit of its `AggregateDeleted`, so another article may take the slug once the delete has committed.
+- **The restore** reserves the slug again. When the slug is free, it commits `AggregateRestored` with the reservation. When another article took the slug meanwhile, `reserve` answers false and the restore is rejected: that article keeps the slug, and this one stays deleted.
+- **A restore of an article that is not deleted** changes nothing: the kernel leaves out an `AggregateRestored` on an aggregate that is not deleted, and a decision left with no event is unchanged ([Aggregates](./aggregates)).
+- **No built-in `RestoreAggregate`.** The built-in restore passes through no code of the aggregate, so it would bring the article back without reserving its slug, while another article may hold it, and two live articles would show the same slug. `@AggregateRoot(lifecycle = [...])` lists the built-in lifecycle commands an aggregate takes; the article lists neither `RestoreAggregate` nor `DeleteAggregate`, so its own commands are the only way to delete and restore it.
+
+The specification, the slug free and the slug taken:
+
+<!-- sample: test/test-dsl/src/test/kotlin/me/ahoo/wow/test/ReleasedKeyRestoreSpecTest.kt#restore-spec -->
+
+```kotlin
+aggregateSpec(model, id = "article-1") {
+    givenCommands(PublishArticle("article-1", "hello-wow"))
+    whenCommand(RemoveArticle("article-1")) { expectDeleted() }
+    holds(Article.SLUGS, "hello-wow").assert().isFalse()
+    fork("the slug is free") {
+        whenCommand(RestoreArticle("article-1")) { expectEvents(AggregateRestored()) }
+        holds(Article.SLUGS, "hello-wow").assert().isTrue()
+        // Restoring an article that is not deleted changes nothing.
+        whenCommand(RestoreArticle("article-1")) { expectUnchanged() }
+    }
+    fork("another article took the slug") {
+        givenReservation(Article.SLUGS, "hello-wow")
+        whenCommand(RestoreArticle("article-1")) { expectRejected(Article.SLUG_TAKEN) }
+    }
+}
+```
 
 ## Move a key to another aggregate {#move-a-key-to-another-aggregate}
 
