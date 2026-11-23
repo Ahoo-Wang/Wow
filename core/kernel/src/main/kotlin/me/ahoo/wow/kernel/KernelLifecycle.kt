@@ -184,10 +184,12 @@ internal object KernelLifecycle {
     ): List<Any> {
         var current: Metadata? = null
         var kept: MutableList<Any>? = null
-        events.forEachIndexed { index, event ->
+        // By index: an iterator would be an object per decision, and a decision's list is short.
+        for (index in events.indices) {
+            val event = events[index]
             if (!isMetadataEvent(event)) {
                 kept?.add(event)
-                return@forEachIndexed
+                continue
             }
             if (event is OwnerTransferred) decided.refuseOwnerTransfer(body)
             val metadata = current ?: before()

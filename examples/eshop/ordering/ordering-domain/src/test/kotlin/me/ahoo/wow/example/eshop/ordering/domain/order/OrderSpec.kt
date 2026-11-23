@@ -43,12 +43,15 @@ class OrderSpec {
 
     private fun orderSpec(block: AggregateSpec<OrderState>.() -> Unit) = aggregateSpec(model, id = ORDER, block = block)
 
-    /** The order's stock confirmed: every product reserved, the payment awaited. */
+    /**
+     * The order's stock confirmed: every product reserved, the payment awaited. The last confirmation is the command
+     * itself, so the order keeps the payment grace period's schedule it sets, as on a node.
+     */
     private fun AggregateSpec<OrderState>.givenStockConfirmed() {
         given(submitted)
         given(OrderAwaitingValidation)
         given(OrderStockItemConfirmed(MUG))
-        given(OrderStockItemConfirmed(CAP), OrderStockConfirmed)
+        givenCommands(ConfirmOrderStock(CAP))
     }
 
     @Test
