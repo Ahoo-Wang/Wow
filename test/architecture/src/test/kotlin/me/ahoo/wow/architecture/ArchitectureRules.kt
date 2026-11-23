@@ -406,6 +406,9 @@ object ArchitectureRules {
         TEST_SPRING_BOOT to setOf("spring-boot", "test-dsl"),
         // A non-Wow application takes the module for its `lb://` endpoints: its POM names neither the host nor a domain.
         SPRING_CLOUD to setOf("spi", "client", "runtime"),
+        // The node never runs the contract tools, which run in the Gradle plugin's workers (D83): manifest-tools is its
+        // tests' alone, which hold the hops the contract generator names to those the node accepts (#6661).
+        RUNTIME to setOf("kernel", "manifest"),
     )
 
     private val CONFIGURED_PROJECT_DEPENDENCY =

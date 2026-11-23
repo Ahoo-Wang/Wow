@@ -45,10 +45,10 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import java.math.BigDecimal
 import java.time.Duration
-import java.util.UUID
 import java.time.LocalDate
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
+import java.util.UUID
 
 /**
  * The ordering service as its `application.yaml` configures it, on random ports, with a payment grace period of two
