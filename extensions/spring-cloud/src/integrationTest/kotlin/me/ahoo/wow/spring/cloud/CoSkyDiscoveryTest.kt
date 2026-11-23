@@ -57,7 +57,7 @@ import java.util.UUID
 @TestMethodOrder(MethodOrderer.OrderAnnotation::class)
 class CoSkyDiscoveryTest {
     /** CoSky's server in its development mode, which keeps its registry in memory: the registry is the case here. */
-    private val cosky = GenericContainer(COSKY_IMAGE)
+    private val cosky = GenericContainer(coskyImage())
         .withCommand("--dev")
         .withExposedPorts(COSKY_GRPC_PORT, COSKY_HTTP_PORT)
         .waitingFor(Wait.forHttp("/actuator/health/readiness").forPort(COSKY_HTTP_PORT))
@@ -205,7 +205,17 @@ class CoSkyDiscoveryTest {
     }
 
     private companion object {
-        const val COSKY_IMAGE = "ahoowang/cosky:8.0.0-beta.11"
+        const val COSKY_VERSION = "wow-test.cosky.version"
+
+        /** CoSky's server of the starter's version, the catalog's, which the build gives the test. */
+        fun coskyImage(): String {
+            val version = checkNotNull(System.getProperty(COSKY_VERSION)) {
+                "$COSKY_VERSION is not set: run the test through Gradle (:spring-cloud:integrationTest), which gives " +
+                    "it the catalog's cosky version, or set it to that version."
+            }
+            return "ahoowang/cosky:$version"
+        }
+
         const val COSKY_GRPC_PORT = 9090
         const val COSKY_HTTP_PORT = 8080
         const val LOOPBACK = "127.0.0.1"

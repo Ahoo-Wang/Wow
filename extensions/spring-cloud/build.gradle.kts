@@ -50,3 +50,9 @@ dependencies {
     integrationTestImplementation("org.springframework.cloud:spring-cloud-starter-loadbalancer")
     integrationTestImplementation("org.testcontainers:testcontainers")
 }
+
+tasks.named<Test>("integrationTest") {
+    // The CoSky server the test runs is the starter's own version, the catalog's, so a bump moves client and server
+    // together (CoSky promises no compatibility between pre-releases). A system property is an input of the task.
+    systemProperty("wow-test.cosky.version", libs.versions.cosky.get())
+}
