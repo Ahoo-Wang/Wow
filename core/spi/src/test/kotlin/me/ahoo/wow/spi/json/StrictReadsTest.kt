@@ -293,10 +293,20 @@ internal object StrictReadsTable {
         reads(TimeZone::class.java, "\"PST\"")
         invalid(TimeZone::class.java, "\"Nowhere/City\"")
         wrongKind(TimeZone::class.java, "1", "a string", "an integer")
+        // Java's form, which Wow 9.x wrote (Jackson 2's `toString`), and the root locale.
         reads(Locale::class.java, "\"zh_CN\"", "\"zh-CN\"")
+        reads(Locale::class.java, "\"en_US\"", "\"en-US\"")
         reads(Locale::class.java, "\"\"")
-        // Any text reads: one that is no tag is the undetermined language.
-        reads(Locale::class.java, "\"not a tag!\"", "\"und\"")
+        reads(Locale::class.java, "\"zh-Hans-CN\"")
+        wrongKind(Locale::class.java, "1", "a string", "an integer")
+        wrongKind(Locale::class.java, "true", "a string", "a boolean")
+        wrongKind(Locale::class.java, "{}", "a string", "an object")
+        // 9.x's form of a locale with a script: Jackson 3 keeps no script of it, on every minor.
+        reads(Locale::class.java, "\"zh_CN_#Hans\"", "\"zh-CN\"")
+        // A text of one subtag is a BCP 47 tag on every Jackson minor, as 3.2 reads it: 3.1 read it as a language.
+        reads(Locale::class.java, "\"en\"")
+        reads(Locale::class.java, "\"und\"", "\"\"")
+        invalid(Locale::class.java, "\"not a tag!\"")
         invalid(Currency::class.java, "\"\"")
         invalid(Currency::class.java, "\"XYZ\"")
         invalid(Currency::class.java, "\"cny\"")

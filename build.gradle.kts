@@ -418,22 +418,41 @@ val BUILD_PLATFORM = "wowBuildPlatform"
 // `checkJackson` runs (`allprojects` below): configuring the build resolves nothing, before the root's repositories
 // are declared or after, and no project resolves another's configuration.
 val bootBom = libs.spring.boot.dependencies.get()
-fun Project.readBootJackson(): String {
+fun Project.readBootJackson(): String = readJackson(
+    "spring-boot-dependencies ${bootBom.version}",
+    dependencies.platform(bootBom.toString()),
+)
+
+// The Jackson 3 a Gradle application resolves that imports Boot's BOM with `platform(...)` and takes Wow's springdoc:
+// swagger-core asks for a later one than Boot manages, which Gradle's conflict resolution takes (3.2 over Boot 4.2's
+// 3.1, #6657). Read as [readBootJackson] reads Boot's, never written here. Wow's JSON runs on both: the codecs' tests
+// run on this one too ([SPRINGDOC_JACKSON_TEST] below), so the minors Wow supports are Boot's and this one.
+val springdocBom = libs.springdoc.bom.get()
+fun Project.readSpringdocJackson(): String = readJackson(
+    "springdoc-openapi-bom ${springdocBom.version} under spring-boot-dependencies ${bootBom.version}",
+    dependencies.platform(bootBom.toString()),
+    dependencies.platform(springdocBom.toString()),
+    dependencies.create("org.springdoc:springdoc-openapi-starter-common"),
+)
+
+/** The version of `jackson-databind` a detached resolution of [declared] (and `jackson-databind`) selects. */
+fun Project.readJackson(source: String, vararg declared: Dependency): String {
     val databind = "tools.jackson.core:jackson-databind"
-    val result = configurations.detachedConfiguration(
-        dependencies.platform(bootBom.toString()),
-        dependencies.create(databind),
-    ).incoming.resolutionResult
+    val result = configurations.detachedConfiguration(*declared, dependencies.create(databind)).incoming.resolutionResult
     return result.allComponents.mapNotNull { it.moduleVersion }
         .singleOrNull { "${it.group}:${it.name}" == databind }?.version
         ?: throw GradleException(
-            "Cannot read the version of $databind from spring-boot-dependencies ${bootBom.version} in $path: " +
+            "Cannot read the version of $databind from $source in $path: " +
                 result.allDependencies.filterIsInstance<UnresolvedDependencyResult>().joinToString("; ") { unresolved ->
                     generateSequence(unresolved.failure) { it.cause }.mapNotNull { it.message }.distinct()
                         .joinToString(": ")
-                }.ifEmpty { "the BOM resolves, and manages no such module" },
+                }.ifEmpty { "it resolves, and manages no such module" },
         )
 }
+
+// The test runtime classpath of the codecs' second suite: the test runtime classpath on springdoc's Jackson.
+val SPRINGDOC_JACKSON_CLASSPATH = "springdocJacksonTestRuntimeClasspath"
+val SPRINGDOC_JACKSON_TEST = "testOnSpringdocJackson"
 
 // The classpaths the build resolves for Wow's own code: every resolvable configuration (the source sets' compile and
 // runtime classpaths, KSP's, the fixtures', `wowTools`, detekt's plugins, ...) but the tools' own (the Kotlin
@@ -460,6 +479,7 @@ allprojects {
     // dependencies: KSP asks whether its configurations, which extend the platform, have any while the project is
     // configured, which would read it then.
     val bootJackson by lazy { this@allprojects.readBootJackson() }
+    val springdocJackson by lazy { this@allprojects.readSpringdocJackson() }
     buildPlatform.withDependencies {
         add(dependencies.enforcedPlatform("tools.jackson:jackson-bom:$bootJackson"))
     }
@@ -489,7 +509,9 @@ allprojects {
     // Guards the one Jackson: `check` fails when a classpath the platform reaches resolves a Jackson 3 module at
     // another version than Boot's ([readBootJackson]), whatever brought it. All of them, not the runtime classpaths
     // alone: Wow's codecs also run on KSP's processor classpaths, `wowTools`, the fixtures' and the contracts'
-    // classpaths, and a compile classpath at another version would compile against an API the tests do not run.
+    // classpaths, and a compile classpath at another version would compile against an API the tests do not run. The
+    // one exception is exact: the codecs' second suite runs on springdoc's Jackson ([readSpringdocJackson]), its
+    // classpath on that version and no other.
     val checkJackson = tasks.register("checkJackson") {
         group = LifecycleBasePlugin.VERIFICATION_GROUP
         description = "Fails when a classpath of the build resolves a Jackson 3 module at another version than Boot's."
@@ -498,13 +520,14 @@ allprojects {
         doLast {
             val boot = bootJackson
             val others = classpaths.flatMap { classpath ->
+                val expected = if (classpath.name == SPRINGDOC_JACKSON_CLASSPATH) springdocJackson else boot
                 classpath.incoming.resolutionResult.allComponents.mapNotNull { it.moduleVersion }
-                    .filter { it.group.startsWith("tools.jackson") && it.version != boot }
+                    .filter { it.group.startsWith("tools.jackson") && it.version != expected }
                     .map { "${classpath.name}: ${it.group}:${it.name}:${it.version}" }
             }
             check(others.isEmpty()) {
-                "Jackson is $boot, Spring Boot's, on every classpath of the build, but $owner resolves " +
-                    others.joinToString()
+                "Jackson is $boot, Spring Boot's, on every classpath of the build (springdoc's on " +
+                    "$SPRINGDOC_JACKSON_CLASSPATH), but $owner resolves " + others.joinToString()
             }
         }
     }
@@ -659,6 +682,55 @@ configure(libraryProjects) {
 
 configure(integrationTestProjects) {
     registerJvmTestLayer(WowTestLayer.INTEGRATION, includeInCheck = false)
+}
+
+// The modules whose tests hold Wow's codecs run them twice in `check`: on Boot's Jackson (`test`), and on the one a
+// `platform(...)` application with springdoc resolves ([readSpringdocJackson]), as an application runs Wow's jars,
+// compiled against Boot's (#6657). The second suite is `test` with its classpath's Jackson moved, and nothing else;
+// it does nothing when the two are one.
+val jacksonTestProjects = listOf(
+    ":spi", ":kernel", ":runtime", ":query", ":manifest-tools", ":http", ":client", ":openapi", ":test-dsl",
+).map(::project)
+configure(jacksonTestProjects) {
+    val testRuntime = configurations.named(JavaPlugin.TEST_RUNTIME_CLASSPATH_CONFIGURATION_NAME)
+    val springdocRuntime = configurations.resolvable(SPRINGDOC_JACKSON_CLASSPATH) {
+        val test = testRuntime.get()
+        test.extendsFrom.forEach { extendsFrom(it) }
+        attributes {
+            test.attributes.keySet().forEach { key ->
+                @Suppress("UNCHECKED_CAST")
+                attribute(key as Attribute<Any>, test.attributes.getAttribute(key)!!)
+            }
+        }
+        val springdoc = lazy { readSpringdocJackson() }
+        resolutionStrategy.eachDependency {
+            if (requested.group.startsWith("tools.jackson")) useVersion(springdoc.value)
+        }
+    }
+    val springdocTest = tasks.register<Test>(SPRINGDOC_JACKSON_TEST) {
+        description = "Runs the unit tests on the Jackson springdoc lifts a platform(...) application to."
+        group = LifecycleBasePlugin.VERIFICATION_GROUP
+        shouldRunAfter(tasks.named(JavaPlugin.TEST_TASK_NAME))
+        val boot = provider { readBootJackson() }
+        val springdoc = provider { readSpringdocJackson() }
+        onlyIf("springdoc's Jackson is another than Boot's") { springdoc.get() != boot.get() }
+    }
+    // The module's own `test`, as its build script configured it, on the other classpath: copied once that script ran.
+    afterEvaluate {
+        val test = tasks.named<Test>(JavaPlugin.TEST_TASK_NAME).get()
+        springdocTest.configure {
+            testClassesDirs = test.testClassesDirs
+            classpath = test.classpath - testRuntime.get() + springdocRuntime.get()
+            systemProperties(test.systemProperties)
+            // JaCoCo's agent excepted, which JaCoCo gives every test task, writing its own task's coverage.
+            jvmArgumentProviders.addAll(
+                test.jvmArgumentProviders.filterNot { it.javaClass.name.startsWith("org.gradle.testing.jacoco.") },
+            )
+            inputs.files(test.inputs.files).withPropertyName("testInputs")
+                .withPathSensitivity(PathSensitivity.RELATIVE)
+        }
+    }
+    tasks.named(LifecycleBasePlugin.CHECK_TASK_NAME) { dependsOn(springdocTest) }
 }
 
 tasks.register("allLocalTest") {

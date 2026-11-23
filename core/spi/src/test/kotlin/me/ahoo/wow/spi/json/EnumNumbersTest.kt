@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.spi.json
 
+import com.fasterxml.jackson.annotation.JsonEnumDefaultValue
 import com.fasterxml.jackson.annotation.JsonFormat
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.annotation.JsonValue
@@ -169,5 +170,43 @@ class EnumNumbersTest {
         val byName = WowJson.mapper.rebuild().disable(EnumFeature.READ_ENUMS_USING_TO_STRING).build()
         byName.readValue<Order>("""{"tagged":"SEVENTH"}""").tagged.assert().isEqualTo(Tagged.SEVENTH)
         assertThrows<JacksonException> { byName.readValue<Order>("""{"tagged":"1"}""") }
+    }
+
+    @Test
+    fun `an enumeration written as a number should refuse its number's text`() {
+        listOf("level", "grade", "rank").forEach { field ->
+            refusal("""{"$field":"1"}""").run {
+                path.assert().isEqualTo(field)
+                reason.assert().isEqualTo(Reason.NOT_IN_ENUMERATION)
+            }
+        }
+    }
+
+    enum class Size {
+        SMALL,
+        LARGE,
+
+        @JsonEnumDefaultValue
+        UNKNOWN,
+    }
+
+    data class Box(
+        val size: Size = Size.SMALL,
+        @JsonFormat(with = [JsonFormat.Feature.READ_UNKNOWN_ENUM_VALUES_AS_NULL])
+        val maybe: Size? = Size.SMALL,
+    )
+
+    @Test
+    fun `a number's text that names no constant should read as the application reads an unknown value`() {
+        // Refused where the application reads no unknown value, as any unknown name is.
+        assertThrows<JacksonException> { WowJson.mapper.readValue<Box>("""{"size":"1"}""") }
+        WowJson.mapper.readValue<Box>("""{"maybe":"1"}""").maybe.assert().isNull()
+        val defaulting = WowJson.mapper.rebuild()
+            .enable(EnumFeature.READ_UNKNOWN_ENUM_VALUES_USING_DEFAULT_VALUE)
+            .build()
+        defaulting.readValue<Box>("""{"size":"1"}""").size.assert().isEqualTo(Size.UNKNOWN)
+        defaulting.readValue<Box>("""{"size":"PURPLE"}""").size.assert().isEqualTo(Size.UNKNOWN)
+        // A number is no unknown value: it is refused still.
+        assertThrows<JacksonException> { defaulting.readValue<Box>("""{"size":1}""") }
     }
 }
