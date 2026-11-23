@@ -67,7 +67,9 @@ class CoSecCallerOptions @InternalWowApi constructor(
  * context into a [Caller].
  *
  * - **Unauthenticated**: no security context, or one whose principal no credential proved (CoSec's
- *   `authenticated`), is no caller: the edge answers 401.
+ *   `authenticated`), is no caller: the edge answers 401. So is a principal whose id is blank (empty or white space
+ *   alone), whatever its roles: it proves no identity, and a tenant-level role does not make it one. An id is not
+ *   trimmed: ` a ` is an id.
  * - **Tenant**: the security context's; CoSec's default tenant `(0)` is [CoSecCallerOptions.defaultTenant].
  * - **Owner and subject**: the principal's id, the subject always. The owner is the principal's id for an owner-level
  *   caller, and none for a tenant-level one ([CoSecCallerOptions.tenantRoles]),
@@ -90,10 +92,14 @@ class CoSecCallerResolver(private val options: CoSecCallerOptions = CoSecCallerO
     override suspend fun resolve(request: ServerRequest): Caller? =
         request.exchange().securityContextOrNull()?.let(::callerOf)
 
-    /** The caller of [context]; null when it is anonymous, or not one CoSec's pipeline built. */
+    /**
+     * The caller of [context]; null when it is anonymous, its principal's id is blank, or not one CoSec's pipeline
+     * built.
+     */
     fun callerOf(context: SecurityContext): Caller? {
         val principal = context.principal
-        if (!principal.authenticated) {
+        // A blank id proves no identity, a tenant-level role or not; Scope and Caller refuse it too.
+        if (!principal.authenticated || principal.id.isBlank()) {
             return null
         }
         val scope = context.scope

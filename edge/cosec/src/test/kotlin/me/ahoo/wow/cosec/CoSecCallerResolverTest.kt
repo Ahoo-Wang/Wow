@@ -71,6 +71,17 @@ class CoSecCallerResolverTest {
     }
 
     @Test
+    fun `an authenticated principal whose id is blank is no caller, a tenant-level role or not`() {
+        // A blank id proves no identity: answered as an unproven principal is (#6645).
+        callerOf(" ;acme").assert().isNull()
+        callerOf("\t;acme;admin").assert().isNull()
+        val tenantLevel = CoSecCallerResolver(CoSecCallerOptions(tenantRoles = setOf("employee")))
+        callerOf(" ;acme;employee", resolver = tenantLevel).assert().isNull()
+        // An id with white space around it is still an id: nothing is trimmed.
+        callerOf(" a ;acme").assert().isEqualTo(Caller("acme", Scope(" a "), subject = " a "))
+    }
+
+    @Test
     fun `the space is the one CoSec validated, none in its default space, and Wow-Space is not read`() {
         callerOf("alice;acme;editor@s1,viewer@s2", mapOf(CoSecParameters.SPACE_ID to "s2"))!!.scope
             .assert().isEqualTo(Scope("alice", "s2"))

@@ -67,6 +67,12 @@ class CoSecEdgeTest {
     }
 
     @Test
+    fun `a principal CoSec authenticated with a blank id is answered 401`() {
+        node.post("/shop/cart/open-cart", headers = token(" ;acme"))
+            .assertProblem(401, FrameworkCodes.AUTH_UNAUTHENTICATED)
+    }
+
+    @Test
     fun `the principal's tenant and id are the command's tenant and owner`() {
         val result = node.post("/shop/cart/open-cart", headers = token("alice;acme")).assertSucceeded()
         result["ref"]["tenantId"].asString().assert().isEqualTo("acme")
