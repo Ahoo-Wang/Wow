@@ -30,6 +30,7 @@ import me.ahoo.wow.gradle.WowPlugin.Companion.version
 import org.gradle.api.GradleException
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
+import org.gradle.api.plugins.BasePlugin
 import org.gradle.api.plugins.JavaPlugin
 import org.gradle.api.plugins.jvm.JvmTestSuite
 import org.gradle.api.tasks.SourceSet
@@ -93,7 +94,7 @@ internal object ServiceRole {
             task.tools.from(tools)
             task.outputFile.set(project.layout.buildDirectory.file("wow/openapi.json"))
         }
-        project.tasks.register(HELM_VALUES_TASK, GenerateHelmValues::class.java) { task ->
+        val helmValues = project.tasks.register(HELM_VALUES_TASK, GenerateHelmValues::class.java) { task ->
             task.group = GROUP_NAME
             task.description = "Writes the values of the wow-service Helm chart the build knows: the service's name, " +
                 "its peers and its Manifest's route."
@@ -102,6 +103,8 @@ internal object ServiceRole {
             task.tools.from(tools)
             task.outputFile.set(project.layout.buildDirectory.file("wow/helm/values.yaml"))
         }
+        // A build leaves the values a deployment passes to the chart first, as it leaves the jar (#6662).
+        project.tasks.named(BasePlugin.ASSEMBLE_TASK_NAME) { it.dependsOn(helmValues) }
         compatibility(project, extension, merge, tools)
     }
 

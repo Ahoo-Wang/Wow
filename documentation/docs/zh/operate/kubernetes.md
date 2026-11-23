@@ -12,7 +12,7 @@ Wow 服务在 Kubernetes 上以一个 Deployment 运行：它的 Pod 就是服�
 
 一个 release 取两个 values 文件，后一个覆盖前一个：
 
-1. **构建知道的 values。** `./gradlew :<server>:generateWowHelmValues` 按服务的契约把它们写进 `build/wow/helm/values.yaml`：服务名，chart 以它命名每个对象；类路径上有契约的对端，各带托管它的服务；以及节点提供 Manifest 的路由。它们随代码变化，不要手抄。basket 的：
+1. **构建知道的 values。** `./gradlew :<server>:generateWowHelmValues`（`assemble` 会运行它）按服务的契约把它们写进 `build/wow/helm/values.yaml`：服务名，chart 以它命名每个对象；类路径上有契约的对端，各带托管它的服务；以及节点提供 Manifest 的路由。它们随代码变化，不要手抄。basket 的：
 
    ```yaml
    service:

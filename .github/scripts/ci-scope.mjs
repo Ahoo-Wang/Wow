@@ -39,10 +39,13 @@ const PACKAGE = 'package';
 // reports), the migration rehearsal's host and scripts (test/migration-rehearsal, roadmap 8c.1), the platform
 // they import, the coverage reports ci.yml uploads (test/code-coverage-report:
 // coverageReport), and the root build and Gradle configuration every module
-// reads.
+// reads. Also two files of the wow-service chart that a JVM test reads:
+// core/runtime's ChartGracePeriodTest holds the grace periods the chart's unit
+// tests assert, from its shutdown values, to ServiceNodeOptions.stopBound, so a
+// change to either runs it before the merge, not in the next nightly.
 const JVM = 'jvm';
 const JVM_PATH =
-  /^(?:(?:api|bom|build-logic|compiler|core|query|backends|edge|host|extensions|migration|platform|test\/(?:architecture|code-coverage-report|routing-spike|lease-spike|test-dsl|test-query|test-spring-boot|tck|tck-containers|benchmarks\/(?:server|load|harness)|migration-rehearsal|spi-consumer|publication-consumer)|examples\/(?:eshop|quickstart|java-smoke)|gradle|config)\/|(?:build\.gradle\.kts|settings\.gradle\.kts|gradle\.properties|gradlew)$|\.github\/workflows\/ci\.yml$)/;
+  /^(?:deploy\/helm\/wow-service\/(?:values\.yaml|tests\/deployment_test\.yaml)$|(?:api|bom|build-logic|compiler|core|query|backends|edge|host|extensions|migration|platform|test\/(?:architecture|code-coverage-report|routing-spike|lease-spike|test-dsl|test-query|test-spring-boot|tck|tck-containers|benchmarks\/(?:server|load|harness)|migration-rehearsal|spi-consumer|publication-consumer)|examples\/(?:eshop|quickstart|java-smoke)|gradle|config)\/|(?:build\.gradle\.kts|settings\.gradle\.kts|gradle\.properties|gradlew)$|\.github\/workflows\/ci\.yml$)/;
 // ci.yml's architecture job: `:architecture:test`, for a change no JVM
 // job runs but the design-ID rule reads (DesignIdRule.designIdScope in
 // test/architecture): every page of the user documentation and every README

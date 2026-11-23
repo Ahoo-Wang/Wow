@@ -160,7 +160,7 @@ dependencies {
 `me.ahoo.wow.service` does what `me.ahoo.wow` does for the server's own sources (its routes, sagas and projections; nothing when it has none), and:
 
 - merges every part on the runtime class path into the service's Manifest, `build/wow/manifest.json` (`mergeWowManifest`), and writes its OpenAPI document (`generateWowOpenApi`);
-- writes the values of the `wow-service` Helm chart that the build knows, `build/wow/helm/values.yaml` (`generateWowHelmValues`): the service's name, the peers whose contracts are on its class path and its Manifest's route ([Kubernetes](../operate/kubernetes));
+- writes the values of the `wow-service` Helm chart that the build knows, `build/wow/helm/values.yaml` (`generateWowHelmValues`, part of `assemble`): the service's name, the peers whose contracts are on its class path and its Manifest's route ([Kubernetes](../operate/kubernetes));
 - checks every build's Manifest against the committed baseline (`checkWowManifest`, part of `check`; `updateWowManifestBaseline` records it);
 - checks that its runtime and test class paths resolve Jackson at a minor Wow's JSON is verified on, its modules at one minor (`checkWowJackson`, part of `check`, which `me.ahoo.wow` runs on a domain module's test class path too), and says what to change otherwise ([Upgrading](../operate/upgrades));
 - registers the `integrationTest` test suite for the tests that run on containers, outside `check` ([Run it on real stores](../guide/testing-services#run-it-on-real-stores)).

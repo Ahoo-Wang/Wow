@@ -12,7 +12,7 @@ A Wow service runs on Kubernetes as a Deployment: its pods are the service's nod
 
 A release takes two values files, the second over the first:
 
-1. **The values the build knows.** `./gradlew :<server>:generateWowHelmValues` writes them from the service's contract into `build/wow/helm/values.yaml`: the service's name, after which the chart names every object; the peers whose contracts are on its class path, each with the service that hosts it; and the route its nodes serve the Manifest at. They follow the code, so never copy them by hand. The basket's:
+1. **The values the build knows.** `./gradlew :<server>:generateWowHelmValues`, which `assemble` runs, writes them from the service's contract into `build/wow/helm/values.yaml`: the service's name, after which the chart names every object; the peers whose contracts are on its class path, each with the service that hosts it; and the route its nodes serve the Manifest at. They follow the code, so never copy them by hand. The basket's:
 
    ```yaml
    service:
