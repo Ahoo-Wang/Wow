@@ -134,13 +134,13 @@ fun startCatalog(
 )
 
 /**
- * CoSec's statement that only its gateway reaches the node ([IdentityHeader.ONLY_GATEWAY_CAN_REACH]), which the
+ * CoSec's statement that only its gateway reaches the node ([IdentityHeader.ONLY_GATEWAY_CAN_REACH_KEY]), which the
  * gateway mode of the `cosec` profile asks of every host: a test is reached by its own client alone. A deployment
  * states it with the wow-service chart's NetworkPolicy.
  */
 @OptIn(ExperimentalCoSecApi::class) // CoSec's test kit is experimental in 8.0.
 private fun gatewayBoundary(profiles: List<String>): Map<String, Any> = if ("cosec" in profiles) {
-    IdentityHeader.ONLY_GATEWAY_CAN_REACH.split('=', limit = 2).let { (key, value) -> mapOf(key to value) }
+    mapOf(IdentityHeader.ONLY_GATEWAY_CAN_REACH_KEY to "true")
 } else {
     emptyMap()
 }
