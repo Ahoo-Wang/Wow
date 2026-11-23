@@ -116,7 +116,8 @@ internal abstract class CheckJackson : DefaultTask() {
                 components(root).mapNotNull { component ->
                     val module = component.moduleVersion ?: return@mapNotNull null
                     if (!module.group.startsWith(JacksonVersions.GROUP)) return@mapNotNull null
-                    JacksonVersions.Found("${module.group}:${module.name}", module.version, askedBy(component)).format()
+                    val name = "${module.group}:${module.name}"
+                    JacksonVersions.Found(name, module.version, askedBy(component, module.version)).format()
                 }.sorted()
             }
 
@@ -132,16 +133,14 @@ internal abstract class CheckJackson : DefaultTask() {
             return seen
         }
 
-        /** The first module outside Jackson that asked for [component] at the version selected, if one did. */
-        private fun askedBy(component: ResolvedComponentResult): String? {
-            val version = component.moduleVersion?.version
-            return component.dependents.firstNotNullOfOrNull { dependent ->
+        /** The first module outside Jackson that asked for [component] at its [version], the one selected, if one did. */
+        private fun askedBy(component: ResolvedComponentResult, version: String): String? =
+            component.dependents.firstNotNullOfOrNull { dependent ->
                 val requested = dependent.requested as? ModuleComponentSelector
                 val from = dependent.from.moduleVersion
                 from?.takeIf { requested?.version == version && !it.group.startsWith(JacksonVersions.GROUP) }
                     ?.let { "${it.group}:${it.name}:${it.version}" }
             }
-        }
     }
 }
 

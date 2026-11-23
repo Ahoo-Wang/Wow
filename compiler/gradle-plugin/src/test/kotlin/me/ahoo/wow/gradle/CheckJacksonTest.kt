@@ -55,12 +55,19 @@ class CheckJacksonTest {
         }
     }
 
-    /** A service that resolves jackson-databind [jackson], asked for by `sample:asker`, beside [wowSpi]. */
+    private fun databind(version: String) = "<dependency><groupId>tools.jackson.core</groupId>" +
+        "<artifactId>jackson-databind</artifactId><version>$version</version></dependency>"
+
+    /**
+     * A service that resolves jackson-databind [jackson], asked for at that version by `sample:asker` and by Jackson's
+     * Kotlin module, and at an older one by `sample:older`, beside [wowSpi].
+     */
     private fun service(jackson: String, wowSpi: File): CheckJackson {
         pom("tools.jackson.core", "jackson-databind", jackson)
-        val asks = "<dependency><groupId>tools.jackson.core</groupId><artifactId>jackson-databind</artifactId>" +
-            "<version>$jackson</version></dependency>"
-        pom("sample", "asker", "1", asks)
+        pom("tools.jackson.core", "jackson-databind", "3.0.0")
+        pom("tools.jackson.module", "jackson-module-kotlin", jackson, databind(jackson))
+        pom("sample", "asker", "1", databind(jackson))
+        pom("sample", "older", "1", databind("3.0.0"))
         val version = WowPlugin.version
         pom("me.ahoo.wow", "wow-kernel", version)
         File(repository, "me/ahoo/wow/wow-bom/$version/wow-bom-$version.pom").apply { parentFile.mkdirs() }.writeText(
@@ -73,6 +80,8 @@ class CheckJacksonTest {
         shop.pluginManager.apply("org.jetbrains.kotlin.jvm")
         shop.repositories.maven { it.url = repository.toURI() }
         shop.dependencies.add("implementation", "me.ahoo.wow:wow-kernel:$version")
+        shop.dependencies.add("implementation", "tools.jackson.module:jackson-module-kotlin:$jackson")
+        shop.dependencies.add("implementation", "sample:older:1")
         shop.dependencies.add("implementation", "sample:asker:1")
         shop.dependencies.add("implementation", shop.files(wowSpi))
         (shop as ProjectInternal).evaluate()
