@@ -19,8 +19,10 @@
 //   pnpm --filter @ahoo-wang/wow-generator... build
 //   pnpm --filter wow-eshop-web generate
 //
-// The output is committed byte for byte; src/generated.test.ts fails when it
-// differs from what this writes.
+// The output is committed byte for byte. With `--check` (`node
+// scripts/generate.mjs --check`), wow-generator writes nothing and fails,
+// listing the files, when src/generated/<context>/ differs from what it would
+// write; src/generated.test.ts runs it for each service.
 
 import { execFileSync } from 'node:child_process';
 import { rmSync } from 'node:fs';
@@ -38,19 +40,24 @@ export function baselineOf(context) {
   return join(ESHOP, context, `${context}-server`, 'manifest', 'baseline.json');
 }
 
-/** Writes the clients of `context` into `output`. */
-export function generate(context, output) {
+/** Writes the clients of `context` into `output`, or with `--check` compares them. */
+export function generate(context, output, ...options) {
   execFileSync(
     process.execPath,
-    [CLI, 'generate', '-i', baselineOf(context), '-o', output, '--strict', '--quiet'],
+    [CLI, 'generate', '-i', baselineOf(context), '-o', output, '--strict', '--quiet', ...options],
     { stdio: 'inherit' },
   );
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  const check = process.argv.includes('--check');
   for (const context of CONTEXTS) {
     const output = join(WEB, 'src', 'generated', context);
-    rmSync(output, { recursive: true, force: true });
-    generate(context, output);
+    if (check) {
+      generate(context, output, '--check');
+    } else {
+      rmSync(output, { recursive: true, force: true });
+      generate(context, output);
+    }
   }
 }

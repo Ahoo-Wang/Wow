@@ -40,6 +40,11 @@ export const EXIT_CODES = {
   configuration: 3,
   specification: 4,
   output: 5,
+  /**
+   * `generate --check`: the output directory differs from what the run
+   * would write, and nothing was written.
+   */
+  check: 6,
   interrupted: 130,
 } as const;
 

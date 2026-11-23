@@ -18,13 +18,13 @@
  * own `check` holds to what it serves; so a change of a route or a shape
  * there fails here until the client is generated again (`pnpm generate`,
  * after `pnpm --filter @ahoo-wang/wow-generator build`).
+ * `generate --check` compares and writes nothing; it fails, listing the
+ * files, when the committed client differs.
  */
 
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join, relative } from "node:path";
-import { afterAll, describe, expect, it } from "vitest";
+import { join } from "node:path";
+import { describe, it } from "vitest";
 
 const CONSOLE = join(import.meta.dirname, "..");
 const ROOT = join(CONSOLE, "../../..");
@@ -32,32 +32,13 @@ const BASELINE = join(ROOT, "platform/ops/ops-server/manifest/baseline.json");
 const COMMITTED = join(CONSOLE, "src/generated");
 const CLI = join(ROOT, "typescript/wow-generator/dist/cli.js");
 
-/** Every file under `directory`, by its path relative to it. */
-function files(directory: string): Map<string, string> {
-  return new Map(
-    readdirSync(directory, { recursive: true, withFileTypes: true })
-      .filter((entry) => entry.isFile())
-      .map((entry) => {
-        const path = join(entry.parentPath, entry.name);
-        return [relative(directory, path), readFileSync(path, "utf8")];
-      }),
-  );
-}
-
 describe("the generated ops client", () => {
-  const output = mkdtempSync(join(tmpdir(), "wow-ops-console-generated-"));
-  afterAll(() => rmSync(output, { recursive: true, force: true }));
-
   it("is what wow-generator writes from the ops service's Manifest", () => {
+    // Writes nothing; exits non-zero, naming the files, when the committed output differs.
     execFileSync(
       process.execPath,
-      [CLI, "generate", "-i", BASELINE, "-o", output, "--strict", "--quiet"],
+      [CLI, "generate", "-i", BASELINE, "-o", COMMITTED, "--strict", "--quiet", "--check"],
       { stdio: "pipe" },
     );
-    const expected = files(output);
-    const actual = files(COMMITTED);
-    expect([...actual.keys()].sort()).toEqual([...expected.keys()].sort());
-    for (const [path, content] of expected)
-      expect(actual.get(path), path).toBe(content);
   });
 });

@@ -33,12 +33,22 @@ export const PROJECT_SEAM = Symbol('project');
 export const SIGNAL_SEAM = Symbol('signal');
 
 /**
+ * The CLI's `--check`: an option under this key makes a run write nothing.
+ * Where it would write, it puts into this list the paths, relative to the
+ * output directory, of what writing would change
+ * (`OutputStore.differences`); an empty list means the directory is
+ * what the run would leave.
+ */
+export const CHECK_SEAM = Symbol('check');
+
+/**
  * What the package itself may hand a generator beyond its public options,
  * each under a symbol it does not export.
  */
 export interface Seams {
   readonly [PROJECT_SEAM]?: Project;
   readonly [SIGNAL_SEAM]?: AbortSignal;
+  readonly [CHECK_SEAM]?: string[];
 }
 
 /** The options, with the {@link Seams} the package may add. */

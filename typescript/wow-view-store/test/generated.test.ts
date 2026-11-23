@@ -22,13 +22,13 @@
  *   node typescript/wow-generator/dist/cli.js generate \
  *     -i platform/view-store/view-store-server/manifest/baseline.json \
  *     -o typescript/wow-view-store/src/generated --strict
+ * `generate --check` compares and writes nothing; it fails, listing the
+ * files, when the committed client differs.
  */
 
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join, relative } from 'node:path';
-import { afterAll, describe, expect, it } from 'vitest';
+import { join } from 'node:path';
+import { describe, it } from 'vitest';
 
 const ROOT = join(import.meta.dirname, '../../..');
 const BASELINE = join(
@@ -38,32 +38,23 @@ const BASELINE = join(
 const COMMITTED = join(import.meta.dirname, '../src/generated');
 const CLI = join(ROOT, 'typescript/wow-generator/dist/cli.js');
 
-/** Every file under `directory`, by its path relative to it. */
-function files(directory: string): Map<string, string> {
-  return new Map(
-    readdirSync(directory, { recursive: true, withFileTypes: true })
-      .filter(entry => entry.isFile())
-      .map(entry => {
-        const path = join(entry.parentPath, entry.name);
-        return [relative(directory, path), readFileSync(path, 'utf8')];
-      }),
-  );
-}
-
 describe('the generated view store clients', () => {
-  const output = mkdtempSync(join(tmpdir(), 'wow-view-store-generated-'));
-  afterAll(() => rmSync(output, { recursive: true, force: true }));
-
   it('are what wow-generator writes from the service’s Manifest', () => {
+    // Writes nothing; exits non-zero, naming the files, when the committed output differs.
     execFileSync(
       process.execPath,
-      [CLI, 'generate', '-i', BASELINE, '-o', output, '--strict', '--quiet'],
+      [
+        CLI,
+        'generate',
+        '-i',
+        BASELINE,
+        '-o',
+        COMMITTED,
+        '--strict',
+        '--quiet',
+        '--check',
+      ],
       { stdio: 'pipe' },
     );
-    const expected = files(output);
-    const actual = files(COMMITTED);
-    expect([...actual.keys()].sort()).toEqual([...expected.keys()].sort());
-    for (const [path, content] of expected)
-      expect(actual.get(path), path).toBe(content);
   });
 });

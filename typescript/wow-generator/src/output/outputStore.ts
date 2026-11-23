@@ -208,24 +208,71 @@ export class OutputStore {
       }
     }
     const manifestPath = join(this.outputDir, GENERATION_MANIFEST);
-    const manifest =
+    const manifest = this.manifestText(
+      files.map(file => [
+        file.getFilePath(),
+        fs.readFileSync(file.getFilePath()),
+      ]),
+    );
+    await attempt('write', manifestPath, async () => {
+      fs.mkdirSync(this.outputDir);
+      await fs.writeFile(manifestPath, manifest);
+    });
+  }
+
+  /**
+   * What {@link commit} would change, read and never written: the paths,
+   * relative to the output directory and sorted, of each file this run
+   * writes whose bytes on disk differ or that is missing; of each file of
+   * the last run's manifest that this run no longer writes and that is still
+   * on disk, whether {@link commit} would remove it or keep it as hand-edited
+   * (either way the directory is not what a generation holds); and of the
+   * manifest, when the one it would write differs from the one on disk. A
+   * file the manifest does not name is never compared, as {@link commit}
+   * never touches it. Empty when the directory is what a run would leave.
+   */
+  differences(): string[] {
+    const fs = this.project.getFileSystem();
+    const different: string[] = [];
+    const files = [...this.written].sort().map(path => {
+      const text = this.project.getSourceFileOrThrow(path).getFullText();
+      if (!fs.fileExistsSync(path) || fs.readFileSync(path) !== text)
+        different.push(path);
+      return [path, text] as const;
+    });
+    for (const path of this.previous.keys()) {
+      if (!this.written.has(path) && fs.fileExistsSync(path))
+        different.push(path);
+    }
+    const manifestPath = join(this.outputDir, GENERATION_MANIFEST);
+    if (
+      !fs.fileExistsSync(manifestPath) ||
+      fs.readFileSync(manifestPath) !== this.manifestText(files)
+    ) {
+      different.push(manifestPath);
+    }
+    return different
+      .map(path => relative(this.outputDir, path).split(sep).join('/'))
+      .sort();
+  }
+
+  /** The manifest recording [files], each by its absolute path and the text it holds, in that order. */
+  private manifestText(files: readonly (readonly [string, string])[]): string {
+    return (
       JSON.stringify(
         {
           version: MANIFEST_VERSION,
           files: Object.fromEntries(
-            files.map(file => [
-              relative(this.outputDir, file.getFilePath()).split(sep).join('/'),
-              fileHash(fs.readFileSync(file.getFilePath())),
+            files.map(([path, text]) => [
+              relative(this.outputDir, path).split(sep).join('/'),
+              fileHash(text),
             ]),
           ),
         },
         null,
         2,
-      ) + '\n';
-    await attempt('write', manifestPath, async () => {
-      fs.mkdirSync(this.outputDir);
-      await fs.writeFile(manifestPath, manifest);
-    });
+      ) + '\n'
+    );
   }
 
   /**

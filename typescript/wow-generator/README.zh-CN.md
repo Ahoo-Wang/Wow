@@ -48,7 +48,7 @@ const page = await basket.snapshots.paged({ filter: filter.matchAll() });
 console.log(page.total);
 ```
 
-`--strict` 让有警告的运行失败；在 CI 里从服务提交的 Manifest 重新生成客户端时正需要它。
+`--strict` 让有警告的运行失败；在 CI 里从服务提交的 Manifest 重新生成客户端时正需要它。`--check` 什么也不写，已提交的输出与本次运行要写的不同时，列出这些文件并以退出码 6 结束。
 
 ## 从 OpenAPI 文档生成
 
@@ -91,6 +91,7 @@ Generated 12 files into src/generated with /work/app/wow-generator.config.json, 
 | `--timeout <ms>`                   | http(s) 请求超过这个毫秒数即放弃，默认 30000                     |
 | `--schema-docs <mode>`             | `summary`（默认）或 `full`，后者还嵌入每个模型的 JSON schema     |
 | `--strict`                         | 本次运行有警告时以退出码 4 结束                                  |
+| `--check`                          | 什么也不写；输出不同时列出这些文件并以退出码 6 结束              |
 | `--verbose`                        | 输出每一步（带时间戳），失败时输出堆栈                           |
 | `--quiet`                          | 只输出警告和错误                                                 |
 
@@ -104,6 +105,7 @@ http(s) 输入的响应不是 2xx 或超时都会失败。Swagger 2.0 文档会�
 | 3      | 配置：读不到、解析不了或校验不通过                                                       |
 | 4      | 规范：文档无法生成代码，或开启 `--strict` 且本次运行有警告                               |
 | 5      | 输出：清单解析不了或由更新版本的生成器写出、路径越出输出目录，或写入、删除文件失败       |
+| 6      | 检查：开启 `--check` 时输出目录与本次运行要写的不同，并列出这些文件                      |
 | 130    | 被中断（Ctrl-C）                                                                         |
 
 失败时只输出一行，说明哪里失败；`--verbose` 会附上原因。

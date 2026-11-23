@@ -28,6 +28,7 @@ Exit codes:
   ${EXIT_CODES.configuration}    configuration: cannot be read, parsed or validated
   ${EXIT_CODES.specification}    specification: cannot be generated, or --strict and the run had warnings
   ${EXIT_CODES.output}    output: the manifest, a path outside the output, or a failed write
+  ${EXIT_CODES.check}    --check: the output directory differs from what the run would write
   ${EXIT_CODES.interrupted}  interrupted (Ctrl-C)`;
 
 /** Collects the values of an option given more than once, such as `--header`. */
@@ -94,6 +95,10 @@ export function setupCLI(target: Command = program): Command {
       'summary',
     )
     .option('--strict', 'Exit with code 4 when the run logs a warning')
+    .option(
+      '--check',
+      'Write nothing; exit with code 6, listing the files, when the output directory differs from what the run would write',
+    )
     .option('--verbose', 'Log every step, and the stack trace of a failure')
     .option('--quiet', 'Log only warnings and errors')
     .addHelpText('after', EXIT_CODE_HELP)
