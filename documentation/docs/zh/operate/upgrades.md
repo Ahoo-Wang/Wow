@@ -89,6 +89,38 @@ outline: deep
 
 `wow.log.partitions` 在日志有了条目之后就固定了，一个服务的节点共用它们的存储布局（[配置服务](./configuration#what-must-match-across-nodes)）。
 
+## Jackson {#jackson}
+
+Wow 的 JSON 运行在 Jackson 3.1 和 3.2 上，也就是它的测试运行的两个次版本。3.1 是 Spring Boot 4.2 管理的版本，在 Boot parent 之下的 Maven 构建和使用 Spring 依赖管理插件的 Gradle 构建解析到它。3.2 是用 `platform(...)` 引入 Boot BOM 的 Gradle 构建在类路径上有 springdoc 时解析到的版本，因为 swagger-core 3 要求它。在两者之一上、且 Jackson 的各模块版本一致时，不需要做任何事。
+
+在其他 Jackson 上，Wow 在第一次读取之前就说明要改什么：
+
+- **构建时。** `checkWowJackson` 属于 `check`：当 `jackson-core`、`jackson-databind` 或 `jackson-module-kotlin` 解析到 Wow 的 JSON 没有验证过的次版本，或分属两个次版本时，它会失败，写明各版本、是谁要求的，以及要改什么。它检查领域模块的测试类路径（`me.ahoo.wow`），以及服务的运行时与测试类路径（`me.ahoo.wow.service`）。
+- **启动时。** Spring Boot 宿主在这样的 Jackson 上不会启动，并写明它找到的版本和要改什么。这覆盖 Maven 构建，以及不使用 Wow Gradle 插件的构建。
+
+只有应用自己使用的 Jackson 模块（数据格式、数据类型）由应用自己保持一致：Wow 检查的是它自己的 JSON 运行所用的模块。
+
+要在 Gradle 9 构建的每条类路径上只保留一个 Jackson，即 Spring Boot 的那个，就把 Jackson 的 BOM 放进一个依赖作用域（dependency scope），让每个可解析的配置都继承它，版本从 Boot 的 BOM 读出，而不是抄写：
+
+```kotlin
+// One Jackson, Spring Boot's, on every class path this build resolves. A dependency scope: nothing is published.
+val bootBom = "org.springframework.boot:spring-boot-dependencies:4.2.0"
+val jacksonPlatform = configurations.dependencyScope("jacksonPlatform") {
+    withDependencies {
+        val databind = "tools.jackson.core:jackson-databind"
+        val bootJackson = project.configurations
+            .detachedConfiguration(project.dependencies.platform(bootBom), project.dependencies.create(databind))
+            .incoming.resolutionResult.allComponents.mapNotNull { it.moduleVersion }
+            .single { "${it.group}:${it.name}" == databind }.version
+        add(project.dependencies.enforcedPlatform("tools.jackson:jackson-bom:$bootJackson"))
+    }
+}
+configurations.matching { it.isCanBeResolved && !it.isCanBeConsumed && it.name != jacksonPlatform.name }
+    .configureEach { extendsFrom(jacksonPlatform.get()) }
+```
+
+依赖作用域永远不会被发布，所以模块的 POM 和 Gradle 元数据里不会出现 enforced platform。版本随 `bootBom` 变化，所以升级 Spring Boot 的那次更新会同时升级 Jackson。如果改为声明在 `implementation` 上，enforced platform 会随模块发布，Gradle 拒绝写出含有它的发布元数据；声明在 `testRuntimeClasspath` 上则立刻被拒绝，因为不能在可解析的配置上声明依赖。
+
 ## 主版本 {#a-major-version}
 
 新的主版本可能改变格式和协议。它的节点不会与上一个主版本的节点并行运行：它附带一次迁移，在切换之前或切换期间运行，就像 V10 从 9.x 迁移那样（[从 9.x 迁移](../migrate/)）。
@@ -105,7 +137,7 @@ outline: deep
 
 - **工件改名。** 应用自己声明了 swagger 工件的，要改名：`io.swagger.core.v3:swagger-annotations-jakarta`、`swagger-models-jakarta` 和 `swagger-core-jakarta` 改为 `swagger-annotations`、`swagger-models` 和 `swagger-core`，版本 3.0.0，由 springdoc 的 BOM 管理。修改过 `Json.mapper()` 或 `Json31.mapper()` 的代码，改用 `ObjectMapperFactory.addCustomizer` 定制 swagger 的 mapper：Jackson 3 的 mapper 不可变。
 - **应用自己的 schema。** springdoc 从应用的类推导出的 schema 可能有变化：以缩写开头的 getter 保留其大小写（`getETag()` 是 `ETag`，不再是 `etag`）；Kotlin 类的非空属性列为 `required`；唯一公开构造函数的、不对应任何属性的参数，成为 `writeOnly` 属性。由 `/v3/api-docs` 生成的客户端会看到这些变化。Wow 路由的文档不变，`/v3/api-docs` 中和 `GET /wow/openapi` 中都一样。
-- **Jackson。** swagger-core 3 要求 Jackson 3.2，高于 Spring Boot 4.2.0 管理的 3.1。在 Boot parent 之下的 Maven 构建，以及使用 Spring 依赖管理插件的 Gradle 构建，都解析为 Boot 的版本，springdoc 自己的构建也是这样。用 `platform(...)` 引入 Boot BOM 的 Gradle 构建，在类路径上有 springdoc 的地方会解析为较高的 3.2，于是它的服务与其他模块运行的是不同的 Jackson。Wow 的构建让每条类路径都保持 Boot 的版本：对 `tools.jackson:jackson-bom` 使用 `enforcedPlatform`，版本取自 Boot 的 BOM；Gradle 应用可以照此保持只有一个 Jackson。
+- **Jackson。** swagger-core 3 要求 Jackson 3.2，高于 Spring Boot 4.2.0 管理的 3.1；用 `platform(...)` 引入 Boot BOM 的 Gradle 构建，在类路径上有 springdoc 的地方会解析为 3.2。Wow 的 JSON 在两者上都能运行；[Jackson](#jackson) 说明构建和启动时检查什么，以及如何只保留一个 Jackson。
 
 本版本使用 CoSec 8.0.0-beta.7 和 CoCache 8.2.0。从 8.0.0-beta.6 升级无须做任何事；从 beta.5 升级，全部变化见 CoSec 的[升级：从 8.0.0-beta.5](https://cosec.ahoo.me/operations/upgrading-previews#from-8-0-0-beta-5)；Wow 的部署会遇到的是：
 
