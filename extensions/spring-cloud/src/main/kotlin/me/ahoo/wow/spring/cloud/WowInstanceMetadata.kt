@@ -24,8 +24,9 @@ import java.net.URI
  * dashes, not dots: Consul takes no dot in a metadata key.
  *
  * A node of a service with wow-spring-cloud on its class path registers them itself; an instance registered otherwise
- * names them in its registry's own metadata configuration (`spring.cloud.consul.discovery.metadata.*`,
- * `eureka.instance.metadata-map.*`, `spring.cloud.nacos.discovery.metadata.*`, ...).
+ * names them in its registry's own metadata configuration (`cosky.registry.metadata.*`,
+ * `spring.cloud.consul.discovery.metadata.*`, `eureka.instance.metadata-map.*`,
+ * `spring.cloud.nacos.discovery.metadata.*`, ...).
  */
 @ExperimentalWowApi
 object WowInstanceMetadata {

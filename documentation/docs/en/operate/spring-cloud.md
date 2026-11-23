@@ -1,6 +1,6 @@
 ---
 title: Spring Cloud Discovery
-description: Off Kubernetes, find a service's peers through a Spring Cloud service registry (Consul, Eureka, Nacos, Zookeeper) with wow-spring-cloud, register each node's internal address there, and keep the internal port behind a firewall.
+description: Off Kubernetes, find a service's peers through a Spring Cloud service registry (CoSky, Consul, Eureka, Nacos, Zookeeper) with wow-spring-cloud, register each node's internal address there, and keep the internal port behind a firewall.
 outline: deep
 ---
 
@@ -11,7 +11,7 @@ On Kubernetes a service finds its peers' nodes by DNS, through the headless Serv
 - each node registers its internal address in its instance's metadata;
 - a service that calls a peer reads the peer's instances with `wow.peer.discovery: spring-cloud`, and needs no `wow.peers.<context>.url`.
 
-One adapter covers every registry with a Spring Cloud starter: Consul, Eureka, Nacos and Zookeeper. You choose the registry by adding its starter. The nodes of one service still find each other through the lease table in their database: only the calls between services go through the registry.
+One adapter covers every registry with a Spring Cloud starter: CoSky, Consul, Eureka, Nacos and Zookeeper. You choose the registry by adding its starter. The examples on this page use [CoSky](https://cosky.ahoo.me/), a registry maintained beside Wow, on which this module's tests run. The nodes of one service still find each other through the lease table in their database: only the calls between services go through the registry.
 
 The module is experimental, as the peer discovery it implements is: its shape may still change in 10.x.
 
@@ -25,9 +25,11 @@ Add the module, the starter of your registry, and the Spring Cloud BOM of the tr
 dependencies {
     implementation(platform("org.springframework.cloud:spring-cloud-dependencies:2026.0.0"))
     implementation("me.ahoo.wow:wow-spring-cloud")
-    implementation("org.springframework.cloud:spring-cloud-starter-consul-discovery")
+    implementation("me.ahoo.cosky:cosky-spring-boot-starter:8.0.0-beta.11")
 }
 ```
+
+The applications talk to the CoSky server, which keeps the registry on Redis: [CoSky's deployment guide](https://cosky.ahoo.me/guide/deployment) says how to run it. CoSky 8 is a pre-release, as Wow 10 is.
 
 Each node of a service with the module registers its internal address as soon as Spring Cloud registers the instance. A node that still finds its peers another way logs, once at startup, how to switch.
 
@@ -41,11 +43,8 @@ A service that calls a peer sets the discovery, and lists the peer without a `ur
 spring:
   application:
     name: eshop-basket-service
-  cloud:
-    consul:
-      host: consul.internal
-      discovery:
-        prefer-ip-address: true
+cosky:
+  endpoints: cosky.internal:9090
 wow:
   peer:
     discovery: spring-cloud
@@ -78,11 +77,13 @@ The discovery has no `wow.peer.spring-cloud.*` setting. It needs Spring Cloud's 
 
 The internal address is the one the node gives the other nodes of its service in its lease membership: `wow.node.address`, else the internal server's bind host and port. The registry therefore names the address the node's own members reach it at, not one Spring Cloud detects on its own. On a machine with several interfaces, set `wow.node.address` (or `wow.internal.host`) to the private address the other machines reach.
 
-Spring Cloud announces each registration just before it sends it, once the public server is up, so after the internal port is bound, even on a port the system chose. Consul, Nacos and Zookeeper send the registration's metadata, so the node writes the keys there. Eureka copies its metadata earlier, so the node also gives the keys to Eureka's `ApplicationInfoManager`. A registration that takes no metadata fails the node's start.
+Spring Cloud announces each registration just before it sends it, once the public server is up, so after the internal port is bound, even on a port the system chose. CoSky, Consul, Nacos and Zookeeper send the registration's metadata, so the node writes the keys there. Eureka copies its metadata earlier, so the node also gives the keys to Eureka's `ApplicationInfoManager`. A registration that takes no metadata fails the node's start.
 
-An instance that a Wow node does not register itself names the three keys in its registry's own metadata settings: `spring.cloud.consul.discovery.metadata.*`, `eureka.instance.metadata-map.*`, `spring.cloud.nacos.discovery.metadata.*` or `spring.cloud.zookeeper.discovery.metadata.*`. The keys have dashes because Consul refuses a dot in a metadata key.
+An instance that a Wow node does not register itself names the three keys in its registry's own metadata settings: `cosky.registry.metadata.*`, `spring.cloud.consul.discovery.metadata.*`, `eureka.instance.metadata-map.*`, `spring.cloud.nacos.discovery.metadata.*` or `spring.cloud.zookeeper.discovery.metadata.*`. The keys have dashes because Consul refuses a dot in a metadata key.
 
-The registry's health checks reach the public port, as for any Spring Boot application. Consul returns failing instances too unless `spring.cloud.consul.discovery.query-passing` is `true`. The client passes over a node that does not answer anyway, but reading the passing instances alone avoids trying it at all.
+CoSky checks no health: an instance stays registered as long as its process renews its lease. Measured on CoSky 8.0.0-beta.11 with its default lease, a node that stopped cleanly had left the other services' view by the time its stop returned, and a node killed with `SIGKILL` left it about 38 seconds later ([CoSky's leases](https://cosky.ahoo.me/guide/service-discovery#leases)). The client passes over a node that does not answer in the meantime. A registry with health checks (Consul, Eureka, Nacos) checks the public port, as for any Spring Boot application.
+
+CoSky registers the instance at the first address Spring Cloud finds that is not loopback, and has no setting of its own for it: choose the interface with `spring.cloud.inetutils.preferred-networks` (or `ignored-interfaces`). Only the public port is called at that address; the internal address comes from the metadata.
 
 ## Keep the internal port behind a firewall
 
@@ -97,7 +98,7 @@ The internal port takes no token: each caller names its service, and the port ta
 
    In a cloud, allow the port in the node's security group from the platform's own security group alone, and from no address range wider than it.
 2. **Bind it to the private interface** with `wow.internal.host`, never to every interface of a machine with a public address.
-3. **Restrict who reads the registry**, with the registry's own authentication (Consul's ACLs, Nacos's authentication), so its list of internal addresses stays inside the platform.
+3. **Restrict who reads the registry**, with the registry's own authentication (CoSky's tokens, Consul's ACLs, Nacos's authentication), so its list of internal addresses stays inside the platform.
 4. **Keep the public port behind the gateway**, as on Kubernetes ([Put the gateway in front](./security#put-the-gateway-in-front)).
 
 ## Resolve `lb://` in an application that is no Wow service {#load-balancer}

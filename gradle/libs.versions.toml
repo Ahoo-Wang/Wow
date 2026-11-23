@@ -6,6 +6,8 @@ cocache = "8.2.0"
 # The train of Spring Boot 4.2.x (spring-cloud-commons 5.1.x; 2025.1 is the 4.0.x and 4.1.x train), for wow-spring-cloud (D396)
 spring-cloud = "2026.0.0"
 cosec = "8.0.0-beta.7"
+# The worked example of wow-spring-cloud's registry (D396, D461), on its integration test class path only
+cosky = "8.0.0-beta.11"
 testcontainers = "2.0.5"
 opentelemetry = "1.68.0"
 opentelemetry-instrumentation = "2.34.0"
@@ -39,6 +41,7 @@ cocache-spring-boot-starter = { module = "me.ahoo.cocache:cocache-spring-boot-st
 cosec-webflux = { module = "me.ahoo.cosec:cosec-webflux", version.ref = "cosec" }
 cosec-spring-boot = { module = "me.ahoo.cosec:cosec-spring-boot", version.ref = "cosec" }
 cosec-testkit = { module = "me.ahoo.cosec:cosec-testkit", version.ref = "cosec" }
+cosky-spring-boot-starter = { module = "me.ahoo.cosky:cosky-spring-boot-starter", version.ref = "cosky" }
 jsonschema-generator-bom = { module = "com.github.victools:jsonschema-generator-bom", version.ref = "jsonschema-generator" }
 json-schema-validator = { module = "com.networknt:json-schema-validator", version.ref = "json-schema-validator" }
 kotlinx-coroutines-bom = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-bom", version.ref = "kotlinx-coroutines" }

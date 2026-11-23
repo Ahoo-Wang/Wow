@@ -9,7 +9,7 @@ dependencies {
     api(project(":spi"))
     api(project(":client"))
     // DiscoveryClient, ServiceInstance, the registration events and LoadBalancer's interfaces; the application's
-    // registry starter (Consul, Eureka, Nacos, Zookeeper) and LoadBalancer bring the implementations.
+    // registry starter (CoSky, Consul, Eureka, Nacos, Zookeeper) and LoadBalancer bring the implementations.
     api("org.springframework.cloud:spring-cloud-commons")
     // The node whose address a registration carries: a Wow service's, so a non-Wow application that only resolves
     // `lb://` endpoints pulls in neither the runtime nor the host.
@@ -38,14 +38,21 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-test")
     // The host, which takes the module's discovery and checks the keys (D302).
     testImplementation(project(":spring-boot"))
-    // The quickstart's bank service, two nodes of it registered in Consul, and a node of the eShop's catalog service,
+    // The quickstart's bank service, two nodes of it registered in CoSky, and a node of the eShop's catalog service,
     // a peer of another service, calling them.
     integrationTestImplementation(project(":test-spring-boot"))
     integrationTestImplementation(project(":quickstart"))
     integrationTestImplementation(project(":eshop-catalog-domain"))
     // ... and its contract, which names the catalog's service for discovery: this module applies no Wow plugin.
     integrationTestImplementation(project(":eshop-catalog-api")) { capabilities { requireFeature("contract") } }
-    integrationTestImplementation("org.springframework.cloud:spring-cloud-starter-consul-discovery")
+    // CoSky, the first-party registry, whose server runs in a container (CoSkyDiscoveryTest).
+    integrationTestImplementation(libs.cosky.spring.boot.starter)
     integrationTestImplementation("org.springframework.cloud:spring-cloud-starter-loadbalancer")
-    integrationTestImplementation("org.testcontainers:testcontainers-consul")
+    integrationTestImplementation("org.testcontainers:testcontainers")
+}
+
+tasks.named<Test>("integrationTest") {
+    // The CoSky server the test runs is the starter's own version, the catalog's, so a bump moves client and server
+    // together (CoSky promises no compatibility between pre-releases). A system property is an input of the task.
+    systemProperty("wow-test.cosky.version", libs.versions.cosky.get())
 }
