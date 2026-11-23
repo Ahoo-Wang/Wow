@@ -68,7 +68,7 @@ class LedgerPublisherTest {
         if (entry.ref.id == "card") {
             // #6588: an event whose value does not read into the handler's class, as the probe's.
             WowJson.mapper.treeToValue(
-                WowJson.mapper.readTree("""{"holder":"Alice Smith","digits":"4111 1111 1111 1111"}"""),
+                WowJson.mapper.readTree("""{"holder":"$CARD_HOLDER","digits":"$CARD_NUMBER"}"""),
                 Card::class.java,
             )
         }
@@ -96,12 +96,32 @@ class LedgerPublisherTest {
 
     @Test
     fun `an entry parked for a value it could not read should be published without the value`(): Unit = runBlocking {
-        parkAll("card")
-        publisher.scan()
+        // The entry's times from a clock the test sets, not the wall clock (#6639): the record says the same each run.
+        val parkedAt = Clock.fixed(Instant.ofEpochMilli(PARKED_AT), ZoneOffset.UTC)
+        val fixed = SubscriptionRuntime(
+            "group",
+            log,
+            InMemoryCheckpointStore(),
+            ledger,
+            listOf(subscription),
+            testOptions(maxAttempts = 1).copyWith(parked = ParkedRetryOptions(spec, scanInterval = 1.hours)),
+            parkedAt,
+        )
+        val scope = ParkedOps { listOf(ParkedOps.Scope.of(fixed)) }
+        appender.append("card")
+        fixed.start(setOf(0, 1))
+        try {
+            eventually { ledger.list(SubscriptionId("shop", NAME)).size == 1 }
+            LedgerPublisher(SERVICE, LedgerPublishing(), scope, { sent += it }, clock).scan()
+        } finally {
+            fixed.stop()
+        }
         val record = ClusterCodec.mapper.treeToValue(sent.single().record, LedgerEntry::class.java)
         record.reason.assert()
             .isEqualTo("tools.jackson.databind.exc.MismatchedInputException: cannot read 'digits' as int")
-        sent.single().record.toString().assert().doesNotContain("4111")
+        record.failedAt.assert().isEqualTo(PARKED_AT)
+        // The values that failed, as they were sent: text no timestamp, number or id of the record can make.
+        sent.single().record.toString().assert().doesNotContain(CARD_NUMBER, CARD_HOLDER)
     }
 
     @Test
@@ -471,6 +491,13 @@ class LedgerPublisherTest {
     private companion object {
         const val SERVICE = "shop-service"
         const val NAME = "Projector.onCart"
+
+        /** The card's number and holder, the value an event carries that its handler cannot read. */
+        const val CARD_NUMBER = "4111 1111 1111 1111"
+        const val CARD_HOLDER = "Alice Smith"
+
+        /** When the card's entry parks: any time does, the record says the same at each. */
+        const val PARKED_AT = 1_700_000_000_000L
         val ID = SubscriptionId("shop", NAME)
     }
 }
