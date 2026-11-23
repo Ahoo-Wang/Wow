@@ -14,6 +14,7 @@
 package me.ahoo.wow.example.eshop.e2e
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.wire.DevelopmentHeaders.TENANT
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.MethodOrderer
 import org.junit.jupiter.api.Order
@@ -148,6 +149,26 @@ class EshopFullChainTest {
         val frank = submitted["ref"]["id"].asString()
         frank.assert().matches(ORDER_NUMBER.toPattern()).isNotEqualTo(number)
         stack.eventually("$frank cancelled") { stack.orderStatus(frank) == "CANCELLED" }
+    }
+
+    @Test
+    @Order(7)
+    fun `the same owner id in two tenants should have two baskets, each reading its own`() {
+        val home = EshopStack.buyer("grace")
+        val globex = home + (TENANT to "globex")
+        addItem(home, "mug", "8.50", 1)
+        addItem(globex, "cap", "12.00", 3)
+        // A basket's id is its owner's; the tenant is part of its identity, so each tenant has a basket of grace's.
+        for ((headers, product, quantity) in listOf(Triple(home, "mug", 1), Triple(globex, "cap", 3))) {
+            val own = checkNotNull(stack.state(stack.basket, "/eshop-basket/basket/state", headers))
+            val named = checkNotNull(stack.state(stack.basket, "/eshop-basket/basket/grace/state", headers))
+            for (basket in listOf(own, named)) {
+                val items = basket["items"].values().toList()
+                items.map { it["productId"].asString() }.assert().describedAs(basket.toString())
+                    .containsExactly(product)
+                items.single()["quantity"].asInt().assert().isEqualTo(quantity)
+            }
+        }
     }
 
     /**
@@ -373,11 +394,14 @@ class EshopFullChainTest {
         received.status.assert().describedAs(received.body).isEqualTo(OK)
     }
 
-    private fun addItem(buyer: String, product: String, price: String, quantity: Int) {
+    private fun addItem(buyer: String, product: String, price: String, quantity: Int) =
+        addItem(EshopStack.buyer(buyer), product, price, quantity)
+
+    private fun addItem(headers: Map<String, String>, product: String, price: String, quantity: Int) {
         val added = stack.basket.post(
             "/eshop-basket/basket/add-basket-item",
             """{"productId":"$product","unitPrice":$price,"quantity":$quantity}""",
-            EshopStack.buyer(buyer),
+            headers,
         )
         added.status.assert().describedAs(added.body).isEqualTo(OK)
     }
