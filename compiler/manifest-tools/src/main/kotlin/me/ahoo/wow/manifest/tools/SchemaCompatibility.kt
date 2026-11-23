@@ -51,6 +51,8 @@ import me.ahoo.wow.manifest.tools.SchemaShapes.types
  * | a property removed (no `x-wow-alias` of a state property keeps its query path) | breaking |
  * | a required property added, or an optional one made required | breaking |
  * | an optional property added, or a required one made optional | additive |
+ * | a `readOnly` property added (a computed property: written, never read back) | additive |
+ * | a `readOnly` property made a field the schema requires / a required field made `readOnly` | breaking / additive |
  * | a type narrowed (`["string","null"]` to `"string"`, `number` to `integer`, any to a type) | breaking |
  * | a type widened | additive |
  * | an enum value removed, or an enum imposed | breaking |
@@ -81,6 +83,12 @@ import me.ahoo.wow.manifest.tools.SchemaShapes.types
  * cannot coincide, a discriminator (`kind: {"const": "wallet"}` beside `"card"`), so a discriminated `oneOf` may grow.
  * `anyOf` takes a value any alternative accepts.
  *
+ * What is required depends on who reads. A reader, an input or a stored record read back, never requires a `readOnly`
+ * property, whatever `required` lists: it is a computed property, which Wow's JSON writes and reads nothing into, so a
+ * body or a record without it reads. A writer's promise, an output, is `required` as it stands: the property is always
+ * written. A `readOnly` property removed is still a property removed: a reader that refuses an unknown property, a
+ * command's body's, refuses the value an old client hands back.
+ *
  * Annotations (`description`, `title`, `default`, …), `x-wow-index` and `x-wow-text` are not contract and are
  * ignored: what a field can be searched by is the capability descriptor's, which a store's mapping decides as much as
  * the marker. So are `x-wow-class`, the class a value is written from (a class renamed with its shape kept is no
@@ -94,7 +102,8 @@ import me.ahoo.wow.manifest.tools.SchemaShapes.types
  * it, and a required field added or an optional one removed does not. A [STORED] schema is what the service's own
  * records were written with, an event's or a state's, which it reads back: an input for the structure, but no stored
  * record is checked against a constraint (a bound, a `pattern`, a `multipleOf`), so a constraint changed either way
- * is additive there; whether it breaks is its readers' to say, an [OUTPUT]'s.
+ * is additive there; whether it breaks is its readers' to say, an [OUTPUT]'s. An [INPUT] and a [STORED] schema are read,
+ * so neither requires a `readOnly` property; an [OUTPUT] requires what `required` lists.
  */
 enum class SchemaDirection { INPUT, OUTPUT, STORED }
 
@@ -231,8 +240,8 @@ internal class SchemaCompatibility(
         private fun compareProperties(path: String, old: Map<String, Any?>, new: Map<String, Any?>, queryPath: String?) {
             val oldProperties = properties(old)
             val newProperties = properties(new)
-            val oldRequired = required(old)
-            val newRequired = required(new)
+            val oldRequired = requiredOf(old)
+            val newRequired = requiredOf(new)
             val renamedTo = mutableSetOf<String>()
             oldProperties.forEach { (name, schema) ->
                 val fieldQueryPath = queryPath?.let { "$it.$name" }
@@ -263,6 +272,17 @@ internal class SchemaCompatibility(
                     additive("$path.$name", "optional field added")
                 }
             }
+        }
+
+        /**
+         * The properties [schema] requires on the side this comparison judges: what `required` lists, but for a `readOnly`
+         * property when the side reads ([SchemaDirection.INPUT], [SchemaDirection.STORED]), which reads nothing into it.
+         */
+        private fun requiredOf(schema: Map<String, Any?>): Set<String> {
+            val required = required(schema)
+            if (direction == SchemaDirection.OUTPUT) return required
+            val properties = properties(schema)
+            return required.filterTo(mutableSetOf()) { (properties[it] as? Map<*, *>)?.get(READ_ONLY) != true }
         }
 
         /** The current property [name] became: itself, or the one whose `x-wow-alias` keeps its [queryPath]. */
@@ -489,6 +509,7 @@ internal class SchemaCompatibility(
 
     private companion object {
         const val STATE = "state"
+        const val READ_ONLY = "readOnly"
         val ALTERNATIVES = listOf(ANY_OF, ONE_OF)
 
         val HANDLED = setOf(
