@@ -16,7 +16,7 @@ export const EshopPaymentContract = {
 export type EshopPaymentErrorCode = 'eshop-payment.payment.wrong-status';
 
 /** The subscriptions of `eshop-payment` a `handled` hop names. */
-export type EshopPaymentSubscription = 'OrderPaymentSaga.onOrderStockConfirmed' | 'OrderPaymentSaga.onPaymentFailed' | 'OrderPaymentSaga.onPaymentSucceeded' | 'OrderPaymentSaga.onPayRejected' | 'PaymentGatewaySaga.onPaymentRequested';
+export type EshopPaymentSubscription = 'OrderPaymentSaga.onOrderStockConfirmed' | 'OrderPaymentSaga.onPaymentFailed' | 'OrderPaymentSaga.onPaymentSucceeded' | 'PaymentGatewaySaga.onPaymentRequested';
 
 /** The hops of a wait chain (`Wow-Wait`) in `eshop-payment`. */
 export const eshopPaymentWait = {

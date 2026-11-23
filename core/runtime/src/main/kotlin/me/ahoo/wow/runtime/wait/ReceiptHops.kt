@@ -19,6 +19,10 @@ import me.ahoo.wow.api.result.FunctionKind
  * The subscriptions of [context] as [runtime] knows them, and the `@OnCommitted` handlers of its sagas, [handlers]:
  * each is a saga's hop, which the receipt of a command it answers signals with the commands it
  * derived, though no subscription of the log runs it. It handles no stream, so it covers no aggregate type.
+ *
+ * [handlers] are the bound `@OnCommitted` handlers the node runs, not their Manifest entries: each handles a commit, so
+ * a wait chain can follow it (`SubscriptionManifest.isWaitHop`), a handler of both receipts included; an `@OnRejected`
+ * handler alone is never among them. `ContractWaitHopsTest` holds this to the contract and to a peer's directory.
  */
 internal class ReceiptHops(
     private val runtime: SubscriptionDirectory,

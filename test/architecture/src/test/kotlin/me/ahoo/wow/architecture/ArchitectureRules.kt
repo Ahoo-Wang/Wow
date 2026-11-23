@@ -216,8 +216,9 @@ object ArchitectureRules {
         // query-api: the query protocol whose JSON :spi holds (decision D293).
         SPI to setOf("api", "query-api"),
         KERNEL to setOf("spi"),
-        // manifest: the node is built from the Manifest (decision D231 ③).
-        RUNTIME to setOf("kernel", "manifest"),
+        // manifest: the node is built from the Manifest (decision D231 ③). manifest-tools only for the tests, which
+        // hold every hop the contract generator names to one the node and a peer accept (#6661).
+        RUNTIME to setOf("kernel", "manifest", "manifest-tools"),
         // The kernel only: a domain module with Reactor handlers depends on the kernel and this (decision D149).
         REACTOR to setOf("kernel"),
         // The query engine and its backend SPI (decision D126).
@@ -405,6 +406,9 @@ object ArchitectureRules {
         TEST_SPRING_BOOT to setOf("spring-boot", "test-dsl"),
         // A non-Wow application takes the module for its `lb://` endpoints: its POM names neither the host nor a domain.
         SPRING_CLOUD to setOf("spi", "client", "runtime"),
+        // The node never runs the contract tools, which run in the Gradle plugin's workers (D83): manifest-tools is its
+        // tests' alone, which hold the hops the contract generator names to those the node accepts (#6661).
+        RUNTIME to setOf("kernel", "manifest"),
     )
 
     private val CONFIGURED_PROJECT_DEPENDENCY =

@@ -158,16 +158,15 @@ class ContractDirectory(
     /**
      * The kind of [subscription] of [context], as the context's Manifest lists it, or the built-in snapshot
      * subscription ([SystemSubscriptions.SNAPSHOT], and the `queryable` hop, [SystemSubscriptions.QUERYABLE]) of a
-     * context with an aggregate that keeps snapshots. A saga's
-     * `@OnRejected` handler is not a wait's hop: its rejection ended the wait; an `@OnCommitted` handler is a saga's
-     * hop, which the receipts of the commands it answers signal.
+     * context with an aggregate that keeps snapshots. A subscription is known only when a wait chain can follow it
+     * ([SubscriptionManifest.isWaitHop]): an `@OnRejected` handler alone is not.
      */
     override fun kindOf(context: String, subscription: String): FunctionKind? {
         val owned = contextOf(context) ?: return null
         if (subscription == SystemSubscriptions.SNAPSHOT || subscription == SystemSubscriptions.QUERYABLE) {
             return FunctionKind.SYSTEM.takeIf { owned.aggregates.any { it.snapshot.enabled } }
         }
-        val declared = subscriptionOf(context, subscription)?.takeIf { it.rejected == null } ?: return null
+        val declared = subscriptionOf(context, subscription)?.takeIf { it.isWaitHop } ?: return null
         return when (declared.kind) {
             SubscriptionKind.PROJECTION -> FunctionKind.PROJECT
             SubscriptionKind.REACTOR -> FunctionKind.REACT
