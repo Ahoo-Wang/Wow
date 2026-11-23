@@ -24,6 +24,7 @@ import me.ahoo.wow.api.lifecycle.DeleteAggregate
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.lifecycle.OwnerTransferred
 import me.ahoo.wow.api.lifecycle.SpaceTransferred
+import me.ahoo.wow.api.schedule.ScheduleCancelled
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.schedule.Schedules
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
@@ -170,6 +171,8 @@ class LifecycleEventsTest {
         send("cart", Remind("late")).names().assert().containsExactly(Schedules.SCHEDULE_SET)
         send("cart", Forget("late")).names().assert().containsExactly(Schedules.SCHEDULE_CANCELLED)
         send("cart", Forget("late")).assert().isEqualTo(CommandOutcome.Unchanged(3))
+        // A function of the kernel's own that returns the event: the same answer.
+        send("cart", Events(listOf(ScheduleCancelled("late")))).assert().isEqualTo(CommandOutcome.Unchanged(3))
     }
 
     private companion object {
