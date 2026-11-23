@@ -72,7 +72,7 @@ internal abstract class CheckJackson : DefaultTask() {
             }
             if (refusals.isNotEmpty()) throw GradleException(refusals.joinToString("\n\n"))
         }
-        passed.get().asFile.writeText("passed\n")
+        passed.get().asFile.apply { parentFile.mkdirs() }.writeText("passed\n")
     }
 
     private fun verifiedIn(jar: File): JacksonVersions.Verified? = ZipFile(jar).use { zip ->
