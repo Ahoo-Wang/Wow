@@ -192,7 +192,7 @@ internal class OpenApiPaths(
                     "name" to parameter.name,
                     "in" to WireNames.of(parameter.location),
                     "required" to parameter.required,
-                    "schema" to parameter.schema,
+                    "schema" to schemas.inlineInput(parameter.schema),
                 )
             }
             val noBody = obj("204" to obj("description" to "The route answers no body."))
@@ -211,7 +211,7 @@ internal class OpenApiPaths(
                     "deprecated" to route.deprecated.takeIf { it },
                     "parameters" to parameters.ifEmpty { null },
                     "requestBody" to route.request?.let {
-                        obj("required" to true, "content" to json(schemas.inline(it)))
+                        obj("required" to true, "content" to json(schemas.inlineInput(it)))
                     },
                     "responses" to answer + errors.ofRoute(context.name, route.name, route.errors),
                     "x-wow-route" to obj("name" to route.name, "errors" to route.errors.ifEmpty { null }),
@@ -261,9 +261,9 @@ internal class OpenApiPaths(
             "parameters" to commandParameters(byId),
             "requestBody" to body(
                 when {
-                    key in WowSchemas.LIFECYCLE && key in manifest.defs -> schemas.ref(command.schema)
+                    key in WowSchemas.LIFECYCLE && key in manifest.defs -> schemas.input(command.schema)
                     key in WowSchemas.SYSTEM_COMMANDS -> schemaRef(key)
-                    key in manifest.defs -> schemas.ref(command.schema)
+                    key in manifest.defs -> schemas.input(command.schema)
                     else -> obj("type" to "object", "properties" to emptyMap<String, Any?>())
                 },
             ),
@@ -286,7 +286,7 @@ internal class OpenApiPaths(
             "description" to commandDescription(type, command, byId, owned),
             "operationId" to if (byId) type else "$type.$WITHOUT_ID",
             "parameters" to commandParameters(byId),
-            "requestBody" to body(schemas.ref(command.schema)),
+            "requestBody" to body(schemas.input(command.schema)),
             "responses" to commandResponses(context, byId, domain = true),
             "x-wow-command" to obj(
                 "type" to type,

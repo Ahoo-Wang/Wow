@@ -17,6 +17,8 @@ outline: deep
 
 文档是 OpenAPI 3.1，使用 JSON Schema 2020-12 的 schema。它不声明 `jsonSchemaDialect`：OpenAPI 3.1 的默认方言就是 JSON Schema 2020-12 再加上 OpenAPI 自己的关键字，schema 在它之下含义不变，而 Swagger UI 不接受其他方言。它只描述公开端口：内部端口的调用、集群通道和信号从不出现在其中；公开端口不提供的内部命令（`@InternalCommand`）及只有它们用到的 schema 也不在其中（[只在内部受理的命令](./aggregates#keep-a-command-internal)）。
 
+请求按服务读取的内容描述。计算属性，即背后没有字段的 getter（`val searchCode: String get() = ...`），在 schema 中是 `readOnly` 且必填，因为服务写出的每个值都含有它，但服务不读入任何值。所以请求携带的每个类型（命令的命令体、生命周期命令的命令体、服务路由的请求或参数）若在任何深度含有计算属性，旁边就有第二个组件，即它的输入，名为 `<组件名>Input`（`me.ahoo.shop.ProductRefInput`）。输入是该类型的 schema：每个计算属性不再列于 `required`，其 schema 和 `readOnly` 保留，指向有输入的类型的每个引用都改为指向那个输入：请求可以省略该属性，也可以把从服务读到的、含有它的值交回。请求引用输入；响应、事件和状态引用类型本身。若 Manifest 已把这个名字给了自己的某个类型，该类型先取得名字，输入取第一个空闲的 `_<n>` 后缀（`me.ahoo.shop.ProductRefInput_2`）。TypeScript 客户端为同样的类型声明输入（`ProductRefInput`，冲突时编号为 `ProductRefInput2`）。
+
 ## 配合 springdoc {#with-springdoc}
 
 应用的类路径上有 springdoc 时，Wow 的文档会并入 springdoc 的文档，所以 `/v3/api-docs` 和 Swagger UI 会同时列出应用自己的控制器和 Wow 的路由：

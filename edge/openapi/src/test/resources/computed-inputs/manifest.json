@@ -1,0 +1,113 @@
+{
+  "format": 1,
+  "service": { "name": "probe-service", "version": "1.0.0" },
+  "contexts": [
+    {
+      "name": "probe",
+      "aggregates": [
+        {
+          "name": "thing",
+          "state": { "schema": "#/$defs/me.ahoo.probe.OrderState" },
+          "commands": [
+            {
+              "name": "CreateOrder",
+              "schema": "#/$defs/me.ahoo.probe.CreateOrder",
+              "creation": "required",
+              "routes": [{ "method": "POST", "path": "/probe/thing" }]
+            },
+            {
+              "name": "Rename",
+              "schema": "#/$defs/me.ahoo.probe.Rename",
+              "creation": "none",
+              "routes": [{ "method": "POST", "path": "/probe/thing/{id}/rename" }]
+            }
+          ]
+        }
+      ],
+      "routes": [
+        {
+          "name": "search",
+          "route": { "method": "POST", "path": "/probe/search" },
+          "request": { "$ref": "#/$defs/me.ahoo.probe.Search" },
+          "response": { "$ref": "#/$defs/me.ahoo.probe.ProductRefInput" }
+        }
+      ]
+    }
+  ],
+  "$defs": {
+    "me.ahoo.probe.ProductRef": {
+      "type": "object",
+      "required": ["id", "code", "brandName", "searchCode"],
+      "properties": {
+        "id": { "type": "string" },
+        "code": { "type": "string" },
+        "brandName": { "type": "string" },
+        "searchCode": { "type": "string", "readOnly": true }
+      }
+    },
+    "me.ahoo.probe.Card": {
+      "type": "object",
+      "required": ["kind", "masked"],
+      "properties": {
+        "kind": { "const": "card" },
+        "masked": { "type": "string", "readOnly": true }
+      }
+    },
+    "me.ahoo.probe.Wallet": {
+      "type": "object",
+      "required": ["kind"],
+      "properties": { "kind": { "const": "wallet" } }
+    },
+    "me.ahoo.probe.CreateOrder": {
+      "type": "object",
+      "required": ["product", "lines", "byCode", "payment", "note", "label"],
+      "properties": {
+        "product": { "$ref": "#/$defs/me.ahoo.probe.ProductRef" },
+        "lines": { "type": "array", "items": { "$ref": "#/$defs/me.ahoo.probe.ProductRef" } },
+        "byCode": { "type": "object", "additionalProperties": { "$ref": "#/$defs/me.ahoo.probe.ProductRef" } },
+        "payment": { "oneOf": [{ "$ref": "#/$defs/me.ahoo.probe.Card" }, { "$ref": "#/$defs/me.ahoo.probe.Wallet" }] },
+        "note": {
+          "type": "object",
+          "required": ["text", "length"],
+          "properties": {
+            "text": { "type": "string" },
+            "length": { "type": "string", "readOnly": true }
+          }
+        },
+        "label": { "type": "string", "readOnly": true }
+      }
+    },
+    "me.ahoo.probe.Rename": {
+      "type": "object",
+      "required": ["name"],
+      "properties": { "name": { "type": "string" } }
+    },
+    "me.ahoo.probe.OrderState": {
+      "type": "object",
+      "required": ["id", "product", "audit"],
+      "properties": {
+        "id": { "type": "string" },
+        "product": { "$ref": "#/$defs/me.ahoo.probe.ProductRef" },
+        "audit": { "$ref": "#/$defs/me.ahoo.probe.Audit" }
+      }
+    },
+    "me.ahoo.probe.Audit": {
+      "type": "object",
+      "required": ["by", "summary"],
+      "properties": {
+        "by": { "type": "string" },
+        "summary": { "type": "string", "readOnly": true }
+      }
+    },
+    "me.ahoo.probe.ProductRefInput": {
+      "type": "object",
+      "required": ["raw"],
+      "properties": { "raw": { "type": "string" } }
+    },
+    "me.ahoo.probe.Search": {
+      "type": "object",
+      "required": ["product"],
+      "properties": { "product": { "$ref": "#/$defs/me.ahoo.probe.ProductRef" } }
+    }
+  }
+}

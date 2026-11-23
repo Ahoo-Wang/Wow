@@ -229,6 +229,13 @@ const RULES = [
     /^platform\/view-store\/view-store-api\/src\/main\/kotlin\/me\/ahoo\/wow\/viewstore\/api\/ViewStoreContext\.kt$/,
     [SDK],
   ],
+  // The Manifest of computed inputs: edge/openapi's InputComponentsTest and
+  // wow-generator's test/probes/inputParity.test.ts both read it, so that the
+  // two projections name the same types as inputs; a change reruns both.
+  [
+    /^edge\/openapi\/src\/test\/resources\/computed-inputs\/manifest\.json$/,
+    [SDK],
+  ],
   // The single version source: quality checks every package.json against it.
   [/^gradle\.properties$/, [TYPESCRIPT]],
   // The Gradle build: the JVM jobs (JVM_PATH).
@@ -341,6 +348,10 @@ const UNIT_RULES = [
   [
     /^api\/manifest\/src\/main\/resources\/META-INF\/wow\/manifest\.schema\.json$/,
     () => ['wow-client', 'wow-generator'],
+  ],
+  [
+    /^edge\/openapi\/src\/test\/resources\/computed-inputs\/manifest\.json$/,
+    () => ['wow-generator'],
   ],
 ];
 

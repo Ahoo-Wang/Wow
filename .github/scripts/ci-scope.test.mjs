@@ -847,6 +847,14 @@ test('the unit matrix reruns a package and the packages built on it', () => {
   assert.deepEqual(unitPackages([viewStoreContext]), ['wow-view-store']);
   assert.ok(scopes([viewStoreContext]).sdk);
   assert.ok(scopes([viewStoreContext]).jvm);
+  // The Manifest of computed inputs, which edge/openapi's InputComponentsTest
+  // and wow-generator's test/probes/inputParity.test.ts both read, reruns
+  // wow-generator and the JVM jobs.
+  const computedInputs =
+    'edge/openapi/src/test/resources/computed-inputs/manifest.json';
+  assert.deepEqual(unitPackages([computedInputs]), ['wow-generator']);
+  assert.ok(scopes([computedInputs]).sdk);
+  assert.ok(scopes([computedInputs]).jvm);
   // Whatever else turns the sdk scope on reruns them all.
   for (const path of [
     '.github/workflows/ci.yml',
