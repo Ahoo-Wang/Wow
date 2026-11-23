@@ -30,10 +30,10 @@ import org.springframework.util.ClassUtils
  * its internal port. Spring Cloud announces the registration ([InstancePreRegisteredEvent]) just before it registers
  * it, once the public server is up, so after the node has bound its internal port, a port the system chose included.
  *
- * Consul, Nacos and Zookeeper send the registration's metadata as it is when they register it, so it is written there;
- * Eureka copies it when its instance's bean is built, so it is given to Eureka's [ApplicationInfoManager] too, and
- * Zookeeper builds its instance on first use, so it is built first. A registration whose metadata takes no entry fails
- * the start: its peers would never find the node.
+ * CoSky, Consul, Nacos and Zookeeper send the registration's metadata as it is when they register it, so it is
+ * written there; Eureka copies it when its instance's bean is built, so it is given to Eureka's
+ * [ApplicationInfoManager] too, and Zookeeper builds its instance on first use, so it is built first. A registration
+ * whose metadata takes no entry fails the start: its peers would never find the node.
  */
 @ExperimentalWowApi
 class WowRegistrationMetadata(

@@ -31,7 +31,7 @@ import org.springframework.cloud.zookeeper.serviceregistry.ServiceInstanceRegist
 
 /**
  * A node's registration carries the address it advertises to its members (decision D396), in whichever registry: the
- * registration's own metadata (Consul, Nacos), Eureka's instance and Zookeeper's payload.
+ * registration's own metadata (CoSky, Consul, Nacos), Eureka's instance and Zookeeper's payload.
  */
 class WowRegistrationMetadataTest {
     private val node = mockk<ServiceNode> {
@@ -127,7 +127,7 @@ class WowRegistrationMetadataTest {
         }
     }
 
-    /** A class loader that has neither Eureka nor Zookeeper, as an application registering with Consul. */
+    /** A class loader that has neither Eureka nor Zookeeper, as an application registering with CoSky or Consul. */
     private class Hiding(parent: ClassLoader) : ClassLoader(parent) {
         override fun loadClass(name: String, resolve: Boolean): Class<*> {
             if (name.startsWith("org.springframework.cloud.netflix") || name.startsWith("org.springframework.cloud.zookeeper")) {

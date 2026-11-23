@@ -37,8 +37,8 @@ import kotlin.time.TimeSource
 
 /**
  * `wow.peer.discovery=spring-cloud`: a peer service's nodes are the instances the application's
- * Spring Cloud service registry (Consul, Eureka, Nacos, Zookeeper, through their starters) has of the service, each at
- * the internal address its [WowInstanceMetadata] names. It reads them through the application's
+ * Spring Cloud service registry (CoSky, Consul, Eureka, Nacos, Zookeeper, through their starters) has of the service,
+ * each at the internal address its [WowInstanceMetadata] names. It reads them through the application's
  * [ReactiveDiscoveryClient], Spring Cloud's composite one by default; it declares no setting of its own.
  *
  * Experimental, as [PeerDiscovery] is.
@@ -57,7 +57,7 @@ class SpringCloudPeerDiscovery(
         val client = configNotNull(
             client(),
             "wow.peer.discovery",
-            "Add the starter of the service registry (spring-cloud-starter-consul-discovery, say), and keep " +
+            "Add the starter of the service registry (cosky-spring-boot-starter, say), and keep " +
                 "spring.cloud.discovery.reactive.enabled true, its default.",
             TYPE,
         ) { "wow.peer.discovery is $TYPE, and the application has no ReactiveDiscoveryClient." }

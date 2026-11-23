@@ -41,12 +41,13 @@ import org.junit.jupiter.api.assertThrows
 import org.springframework.cloud.client.ServiceInstance
 import org.springframework.cloud.client.discovery.ReactiveDiscoveryClient
 import org.springframework.cloud.client.loadbalancer.reactive.ReactiveLoadBalancer
-import org.testcontainers.consul.ConsulContainer
+import org.testcontainers.containers.GenericContainer
+import org.testcontainers.containers.wait.strategy.Wait
 import java.net.URI
 import java.util.UUID
 
 /**
- * A Wow service off Kubernetes finds its peer's nodes in Consul, with no `wow.peers.<context>.url` (decision D396): two
+ * A Wow service off Kubernetes finds its peer's nodes in CoSky, with no `wow.peers.<context>.url` (decision D396): two
  * nodes of the eShop's catalog service register their internal addresses there, and a node of the quickstart's bank
  * service calls the catalog through `wow.peer.discovery=spring-cloud`, reaching either node and passing over one that
  * stopped. An application's `WowClient` reaches them as `lb://eshop-catalog-service` through Spring Cloud LoadBalancer.
@@ -54,17 +55,19 @@ import java.util.UUID
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @TestMethodOrder(MethodOrderer.OrderAnnotation::class)
-class ConsulDiscoveryTest {
-    private val consul = ConsulContainer(CONSUL_IMAGE).also { it.start() }
+class CoSkyDiscoveryTest {
+    /** CoSky's server in its development mode, which keeps its registry in memory: the registry is the case here. */
+    private val cosky = GenericContainer(COSKY_IMAGE)
+        .withCommand("--dev")
+        .withExposedPorts(COSKY_GRPC_PORT, COSKY_HTTP_PORT)
+        .waitingFor(Wait.forHttp("/actuator/health/readiness").forPort(COSKY_HTTP_PORT))
+        .also { it.start() }
 
-    /** Consul, and the registries the test class path also has turned off. */
+    /** CoSky, and the registries the test class path also has turned off. */
     private val registry: Map<String, Any?> = mapOf(
-        "spring.cloud.consul.host" to consul.host,
-        "spring.cloud.consul.port" to consul.getMappedPort(CONSUL_PORT),
-        // Consul's agent runs in a container, which reaches no loopback port of this machine to check.
-        "spring.cloud.consul.discovery.register-health-check" to false,
-        "spring.cloud.consul.discovery.prefer-ip-address" to true,
-        "spring.cloud.consul.discovery.ip-address" to LOOPBACK,
+        "cosky.endpoints" to "${cosky.host}:${cosky.getMappedPort(COSKY_GRPC_PORT)}",
+        // No snapshot of the registry in the home directory: each run starts from the server.
+        "cosky.snapshot.enabled" to false,
         "eureka.client.enabled" to false,
         "spring.cloud.zookeeper.enabled" to false,
     )
@@ -77,11 +80,9 @@ class ConsulDiscoveryTest {
                 "spring.application.name" to CATALOG_SERVICE,
                 "wow.contexts.include" to CATALOG,
                 "wow.node.id" to "catalog-$node",
-                // Consul's default instance id is the application's name and port, the same for two nodes on port 0.
-                "spring.cloud.consul.discovery.instance-id" to "catalog-$node",
             ),
             // The catalog's service routes are built from an instance the host gives.
-            sources = listOf(CatalogStorefront::class.java),
+            sources = listOf(CatalogStorefront::class.java, LoopbackAddress::class.java),
         )
     }
 
@@ -89,11 +90,11 @@ class ConsulDiscoveryTest {
         "dev",
         properties = registry + mapOf(
             "wow.contexts.include" to "bank",
-            "spring.cloud.consul.discovery.instance-id" to "bank-1",
             "wow.peer.discovery" to SpringCloudPeerDiscovery.TYPE,
             // The catalog is called over HTTP, in service mode, at the nodes the registry has: no url.
             "wow.peers.$CATALOG.mode" to "service",
         ),
+        sources = listOf(LoopbackAddress::class.java),
     )
 
     private val alice = Caller.of(subject = "alice")
@@ -101,7 +102,7 @@ class ConsulDiscoveryTest {
     @AfterAll
     fun close() {
         (catalogs + bank).forEach { runCatching { it.close() } }
-        consul.stop()
+        cosky.stop()
     }
 
     @Test
@@ -169,7 +170,6 @@ class ConsulDiscoveryTest {
                 "dev",
                 properties = registry + mapOf(
                     "wow.contexts.include" to "bank",
-                    "spring.cloud.consul.discovery.instance-id" to "bank-2",
                     "wow.peer.discovery" to SpringCloudPeerDiscovery.TYPE,
                     "wow.peer.spring-cloud.refresh" to "1s",
                 ),
@@ -184,7 +184,7 @@ class ConsulDiscoveryTest {
     }
 
     private fun awaitRegistered() {
-        eventually("the running catalog nodes are in Consul") {
+        eventually("the running catalog nodes are in CoSky") {
             instancesOf(CATALOG_SERVICE).size == catalogs.count { it.context.isActive }
         }
     }
@@ -205,8 +205,9 @@ class ConsulDiscoveryTest {
     }
 
     private companion object {
-        const val CONSUL_IMAGE = "hashicorp/consul:1.22"
-        const val CONSUL_PORT = 8500
+        const val COSKY_IMAGE = "ahoowang/cosky:8.0.0-beta.11"
+        const val COSKY_GRPC_PORT = 9090
+        const val COSKY_HTTP_PORT = 8080
         const val LOOPBACK = "127.0.0.1"
         const val CATALOG = "eshop-catalog"
         const val CATALOG_SERVICE = "eshop-catalog-service"

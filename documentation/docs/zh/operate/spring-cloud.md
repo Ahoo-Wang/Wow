@@ -1,6 +1,6 @@
 ---
 title: Spring Cloud 服务发现
-description: 不在 Kubernetes 上时，用 wow-spring-cloud 经 Spring Cloud 的注册中心（Consul、Eureka、Nacos、Zookeeper）找到服务的对端，在注册中心登记每个节点的内部地址，并用防火墙挡住内部端口。
+description: 不在 Kubernetes 上时，用 wow-spring-cloud 经 Spring Cloud 的注册中心（CoSky、Consul、Eureka、Nacos、Zookeeper）找到服务的对端，在注册中心登记每个节点的内部地址，并用防火墙挡住内部端口。
 outline: deep
 ---
 
@@ -11,7 +11,7 @@ outline: deep
 - 每个节点把自己的内部地址写进实例的元数据；
 - 调用对端的服务用 `wow.peer.discovery: spring-cloud` 读取对端的实例，不需要 `wow.peers.<context>.url`。
 
-一个适配覆盖所有有 Spring Cloud starter 的注册中心：Consul、Eureka、Nacos 与 Zookeeper。注册中心由你添加的 starter 决定。同一服务的节点仍经数据库里的租约表互相发现：只有服务之间的调用经过注册中心。
+一个适配覆盖所有有 Spring Cloud starter 的注册中心：CoSky、Consul、Eureka、Nacos 与 Zookeeper。注册中心由你添加的 starter 决定。本页的示例用 [CoSky](https://cosky.ahoo.me/zh/)，与 Wow 一同维护的注册中心，本模块的测试就运行在它上面。同一服务的节点仍经数据库里的租约表互相发现：只有服务之间的调用经过注册中心。
 
 模块是实验性的，与它实现的对端发现一样：其形态在 10.x 中仍可能变化。
 
@@ -25,9 +25,11 @@ outline: deep
 dependencies {
     implementation(platform("org.springframework.cloud:spring-cloud-dependencies:2026.0.0"))
     implementation("me.ahoo.wow:wow-spring-cloud")
-    implementation("org.springframework.cloud:spring-cloud-starter-consul-discovery")
+    implementation("me.ahoo.cosky:cosky-spring-boot-starter:8.0.0-beta.11")
 }
 ```
+
+应用与 CoSky 服务器通信，服务器把注册信息存在 Redis 上：如何运行它见 [CoSky 的部署指南](https://cosky.ahoo.me/zh/guide/deployment)。CoSky 8 是预发布版本，与 Wow 10 一样。
 
 带本模块的服务，其每个节点在 Spring Cloud 登记实例时就写入自己的内部地址。仍用别的方式找对端的节点，会在启动时记一条日志，说明如何切换。
 
@@ -41,11 +43,8 @@ dependencies {
 spring:
   application:
     name: eshop-basket-service
-  cloud:
-    consul:
-      host: consul.internal
-      discovery:
-        prefer-ip-address: true
+cosky:
+  endpoints: cosky.internal:9090
 wow:
   peer:
     discovery: spring-cloud
@@ -78,11 +77,13 @@ wow:
 
 内部地址就是节点在租约成员中告诉本服务其他节点的地址：`wow.node.address`，否则是内部服务器绑定的主机与端口。因此注册中心写的是节点自己的成员访问它的地址，而不是 Spring Cloud 自行探测的地址。在有多块网卡的机器上，把 `wow.node.address`（或 `wow.internal.host`）设为其他机器能访问的私有地址。
 
-Spring Cloud 在发送每次登记之前宣告它，时机在公开服务器启动之后，因此内部端口已经绑定，系统选定的端口也不例外。Consul、Nacos 与 Zookeeper 发送登记信息里的元数据，节点就把这些键写在那里。Eureka 更早就复制了元数据，所以节点同时把这些键交给 Eureka 的 `ApplicationInfoManager`。登记信息不接受元数据时，节点拒绝启动。
+Spring Cloud 在发送每次登记之前宣告它，时机在公开服务器启动之后，因此内部端口已经绑定，系统选定的端口也不例外。CoSky、Consul、Nacos 与 Zookeeper 发送登记信息里的元数据，节点就把这些键写在那里。Eureka 更早就复制了元数据，所以节点同时把这些键交给 Eureka 的 `ApplicationInfoManager`。登记信息不接受元数据时，节点拒绝启动。
 
-不是由 Wow 节点自己登记的实例，在注册中心自己的元数据配置里写这三个键：`spring.cloud.consul.discovery.metadata.*`、`eureka.instance.metadata-map.*`、`spring.cloud.nacos.discovery.metadata.*` 或 `spring.cloud.zookeeper.discovery.metadata.*`。键用短横线，因为 Consul 不接受带点的元数据键。
+不是由 Wow 节点自己登记的实例，在注册中心自己的元数据配置里写这三个键：`cosky.registry.metadata.*`、`spring.cloud.consul.discovery.metadata.*`、`eureka.instance.metadata-map.*`、`spring.cloud.nacos.discovery.metadata.*` 或 `spring.cloud.zookeeper.discovery.metadata.*`。键用短横线，因为 Consul 不接受带点的元数据键。
 
-注册中心的健康检查访问公开端口，与任何 Spring Boot 应用一样。除非 `spring.cloud.consul.discovery.query-passing` 为 `true`，Consul 也返回检查失败的实例。客户端反正会跳过不答复的节点，但只读通过检查的实例，就不必去试它。
+CoSky 不做健康检查：只要进程续租，实例就一直登记着。在 CoSky 8.0.0-beta.11 上用默认租约测得：正常停止的节点在停止返回时已从其他服务的视图中消失，用 `SIGKILL` 杀掉的节点约 38 秒后消失（[CoSky 的租约](https://cosky.ahoo.me/zh/guide/service-discovery#租约)）。在此期间，客户端会跳过不答复的节点。有健康检查的注册中心（Consul、Eureka、Nacos）访问公开端口，与任何 Spring Boot 应用一样。
+
+CoSky 把实例登记在 Spring Cloud 找到的第一个非回环地址上，自己没有相应的配置：用 `spring.cloud.inetutils.preferred-networks`（或 `ignored-interfaces`）选择网卡。只有公开端口在这个地址上被调用；内部地址来自元数据。
 
 ## 用防火墙挡住内部端口 {#keep-the-internal-port-behind-a-firewall}
 
@@ -97,7 +98,7 @@ Spring Cloud 在发送每次登记之前宣告它，时机在公开服务器启�
 
    在云上，在节点的安全组里只对平台自己的安全组放行这个端口，不对比它更宽的地址段放行。
 2. **把它绑定到私有网卡**，用 `wow.internal.host`；有公网地址的机器上，绝不绑定到所有网卡。
-3. **限制谁能读注册中心**，用注册中心自己的认证（Consul 的 ACL、Nacos 的鉴权），让其中的内部地址列表留在平台之内。
+3. **限制谁能读注册中心**，用注册中心自己的认证（CoSky 的令牌、Consul 的 ACL、Nacos 的鉴权），让其中的内部地址列表留在平台之内。
 4. **让公开端口留在网关之后**，与 Kubernetes 上一样（[把网关放在前面](./security#put-the-gateway-in-front)）。
 
 ## 在非 Wow 应用中解析 `lb://` {#load-balancer}
