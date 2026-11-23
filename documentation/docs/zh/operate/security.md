@@ -23,7 +23,7 @@ Wow 服务有两扇门：公开端口，调用方在这里发送命令和查询�
 
 ## 认证调用方 {#authenticate-callers}
 
-宿主用它的 `CallerResolver` 把每个请求变成一个调用方。没有解析器时，开发 profile（`wow.dev-profiles` 中的某个 profile）中的节点从任何客户端都能设置的 `Wow-User`、`Wow-Owner`、`Wow-Roles`、`Wow-Tenant` 和 `Wow-App` 请求头读取调用方，不带 `Wow-User` 的请求是默认租户的匿名调用方（[调用方是谁](../guide/http#who-the-caller-is)）；`wow.internal.host` 指定了回环地址、又不在这种 profile 中的节点，以这个匿名调用方处理每个请求。两者都会记录一条警告；其他节点拒绝启动。公开端口监听在 Spring Boot 绑定它的地址上（`server.address`，不设置时是所有网卡）；这个地址不是回环网卡时，开发 profile 中的节点在启动时会说明：能访问它的任何机器都能指定调用方。有意匿名的服务用一个返回 `CallerResolver.ANONYMOUS` 的 `CallerResolver` Bean 表明这一点。
+宿主用它的 `CallerResolver` 把每个请求变成一个调用方。没有解析器时，开发 profile（`wow.dev-profiles` 中的某个 profile）中的节点从任何客户端都能设置的 `Wow-User`、`Wow-Owner`、`Wow-Roles`、`Wow-Tenant` 和 `Wow-App` 请求头读取调用方，不带 `Wow-User` 的请求是默认租户的匿名调用方（[调用方是谁](../guide/http#who-the-caller-is)）；`wow.internal.host` 指定了回环地址、又不在这种 profile 中的节点，以这个匿名调用方处理每个请求。两者都会记录一条警告；其他节点拒绝启动。公开端口监听在 Spring Boot 绑定它的地址上（`server.address`，不设置时是所有网卡）；这个地址不是回环网卡时，开发 profile 中的节点在启动时会说明：能访问它的任何机器都能指定调用方。有意匿名的服务用一个返回 `CallerResolver.ANONYMOUS` 的 `CallerResolver` Bean 表明这一点。解析器从不返回服务身份（`Caller.ofService`、`service = true`）：服务只在内部端口上声明自己，公开路由、运维路由和订阅路由对这样的调用方返回 403 `wow.auth.forbidden`，所以客户端发送的任何内容都不会被当作服务信任。公开端口的机器客户端是普通调用方，带着它的角色（`Caller.of(subject = "billing-job", roles = listOf("operator"))`）。
 
 ::: warning wow-cosec 在 10.0 中是实验性的
 `wow-cosec` 跟随 CoSec 8.0.0，而 CoSec 8.0.0 仍是预发布版本，所以 `wow-cosec` 在 10.x 内可能改变。它的类型（`CoSecCallerResolver`、`CoSecCallerOptions`、`CoSecCommandAuthorizer`、`CoSecServiceRouteAuthorizer`、`CoSecActions`）以及宿主的 `CoSecAutoConfiguration` 和 `CoSecRouteMapAutoConfiguration` 都是 `@ExperimentalWowApi`（[API 级别](../reference/api-levels)），`wow.cosec.*` 配置键也可能随之改变。只靠依赖和配置键启用 CoSec 的服务无需再做什么；在 Kotlin 代码里用到这些类型时，以 `@OptIn(ExperimentalWowApi::class)` 选择使用。CoSec 8 正式发布后，一个 10.x 的次版本会去掉这个标记。不用 CoSec 的服务不受影响：其余 API 的级别不变。
@@ -280,7 +280,7 @@ routes:
 1. **把它留在平台之内。** 不能有公网负载均衡、Ingress 或端口映射指向它，并用网络策略只让平台自己的 Pod 访问它。Kafka 和存储也一样。
 2. **用 `wow.internal.host` 把它绑定到内网网卡。** 不设置时，开发 profile 中的节点绑定 `127.0.0.1`，其他节点绑定本机名字解析到的地址，这个地址是公网地址时拒绝启动；你指定的地址按原样使用。
 3. **每个请求都声明自己的服务。** 节点或服务在每次转发、信号、调用和读的 `Wow-Service` 请求头里放上自己的服务名，即 `wow.service`，没有时为 `spring.application.name`。服务名由字母、数字、`.`、`_` 和 `-` 组成，以字母或数字开头，最多 253 个字符；服务名不符合的节点不会启动。这个请求头是声明，不是凭据：它能发现配置错误，例如某个服务的列表不允许的调用，或者发到另一个服务节点上的转发。
-4. **每条路由只接受它服务的那些服务。** 转发，以及待机和激活路由（`GET /wow/node/standby`、`POST /wow/node/activate`），只接受同一个服务的节点：没有这个请求头时返回 401 `wow.auth.unauthenticated`，来自另一个服务时返回 403 `wow.auth.forbidden`。等待信号接受任何声明了自己的服务，没有请求头时返回 401。同步调用（`Wow-Call`）或读接受任何声明了自己的服务，并以该服务的身份（主体 `service:<name>`）处理；没有声明服务的请求返回 403。公开端口从不读取 `Wow-Service`，并以 403 拒绝 `Wow-Call`。
+4. **每条路由只接受它服务的那些服务。** 转发，以及待机和激活路由（`GET /wow/node/standby`、`POST /wow/node/activate`），只接受同一个服务的节点：没有这个请求头时返回 401 `wow.auth.unauthenticated`，来自另一个服务时返回 403 `wow.auth.forbidden`。等待信号接受任何声明了自己的服务，没有请求头时返回 401。同步调用（`Wow-Call`）或读接受任何声明了自己的服务，并以该服务的身份（主体 `service:<name>`）处理；没有声明服务的请求返回 403。公开端口从不读取 `Wow-Service`，以 403 拒绝 `Wow-Call`，也以 403 拒绝解析器返回为服务身份的调用方：服务身份受访问策略、运维授权器（`CommandAuthorizer.operational`）和揭示原值的读取信任，只在内部端口上被接受。
 5. **在有帮助的地方，列出每个服务可以调用什么。** 在 `wow.callers.<service>` 下，以调用方声明的名字为键，`commands` 列出该服务可以调用的命令，`reads` 列出它可以读的模型。两者都是可选的：没有 `commands` 时，服务可以调用所有领域命令；没有 `reads` 时，可以读所有模型。系统命令（`wow.*`，例如删除、恢复、重建快照）不列出就永远不能调用。这些列表用来发现错误，挡不住谎报名字的 Pod。
 
 eShop 的 ordering 服务把这些组合在一起。它的 basket 服务同步调用一条命令，别的都不调用；它的 inventory 和 payment 服务为跨进它们的等待发信号，这不需要配置项：

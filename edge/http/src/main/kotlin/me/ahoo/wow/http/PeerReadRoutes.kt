@@ -98,8 +98,7 @@ fun peerReadRoutes(
 ): RouterFunction<ServerResponse> {
     val statuses = ErrorStatuses(manifest, options.errorStatuses)
     val roots = PeerRoots(callerResolver, permits, statuses, queries.displayShared)
-    val authenticator =
-        Authenticator(CallerResolver { request -> request.attribute(ROOT_CALLER).orElse(null) as Caller? }, statuses)
+    val authenticator = rootAuthenticator(statuses)
     val headers = RequestHeaders(statuses)
     // The read side's scope rules are:query's, over the tenants commands act in.
     val targets = QueryTargets(gateway.tenants, queries.crossTenant)
@@ -163,6 +162,13 @@ private const val DATASET_NAME = "dataset"
 
 /** The request attribute that holds the root context's caller a peer read runs as. */
 private const val ROOT_CALLER = "me.ahoo.wow.http.peerReadCaller"
+
+/** The caller of a peer's read: the root caller [PeerRoots] put on the request, on the internal port. */
+private fun rootAuthenticator(statuses: ErrorStatuses): Authenticator = Authenticator(
+    CallerResolver { request -> request.attribute(ROOT_CALLER).orElse(null) as Caller? },
+    statuses,
+    internalPort = true,
+)
 
 private suspend fun notServed(model: String): ServerResponse =
     Problem.ofStatus(HttpStatus.NOT_FOUND, "No query of $model is served on this node.").respond()

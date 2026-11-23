@@ -137,6 +137,8 @@ configurations.matching { it.isCanBeResolved && !it.isCanBeConsumed && it.name !
 
 Wow 的运维命令（定时作业的命令、快照重建、对停放条目的操作及其读取）只有在某个授权器决定它们时，才在公开端口和运维路由上被允许（[授权命令](./security#authorize-commands)）。应用自己的 `CommandAuthorizer` 若是因为不反对而放行了它们，或在 `action.isOperational` 的 `when` 分支里裁决它们，现在会被拒绝（403 `wow.auth.forbidden`），宿主在启动时会说明。把这条规则移到它自己的 Bean：`CommandAuthorizer.operational { caller, action -> … }`，它只被问到这些命令；裁决它们的授权器类把 `decidesOperational` 覆写为 `true`。由 CoSec 决定运维人员的服务（`wow.cosec.authorizer.enabled`）无需改动。调用方的角色是 `caller.roles` 和 `caller.hasRole(…)`：`DevelopmentHeaders.ROLES_ATTRIBUTE` 和 `CoSecCallerResolver.ROLES` 已移除，由 `Caller.ROLES` 代替，测试中的调用方用 `Caller.of(…, roles = listOf(…))` 给出角色。`CommandGateway.authorizes` 改为 `decidesOperational`。
 
+服务身份只在内部端口上被接受。应用自己的 `CallerResolver` 若为公开端口的请求返回了服务身份（`Caller.ofService` 或 `service = true`），这个请求现在在公开路由、运维路由和订阅路由上被拒绝（403 `wow.auth.forbidden`），而以前它会被当作服务信任：访问策略、运维授权器和揭示原值的读取都信任它。改为返回带角色的普通调用方（`Caller.of(subject = …, roles = listOf(…))`）；调用另一个服务的服务经它的内部端口访问，在那里声明自己（[关闭内部端口](./security#close-the-internal-port)）。
+
 列出了快照存储的预发布版，要在启动本版本之前修改配置。配置项 `wow.snapshot.stores`、`wow.snapshot.primary`，以及聚合的 `snapshot.stores` 和 `snapshot.primary` 已经移除，每一个都会拒绝启动，并指出它自己。用 `wow.snapshot.store` 或聚合的 `snapshot.store` 为每个类型指定它唯一的存储。保留了检索副本的部署（`snapshot.stores: [main, search]` 加 `query.snapshot.store: search`）去掉 `snapshot.stores`、保留 `query.snapshot.store`：副本的订阅名不变，仍是 `wow.snapshot:search`，所以它的索引和检查点都保留，也不会重新读取任何东西。
 
 预发布版本拒绝把 Elasticsearch 存储作为聚合类型自己的快照存储；这个版本接受它（[Elasticsearch](./elasticsearch#only-snapshot-store)）。快照留在数据库、在 Elasticsearch 上另有副本的部署无需改动。想让类型的状态只存一份的部署，在类型的 `snapshot.store` 中指定 Elasticsearch 存储。这个存储随后从日志回填，期间该类型答 `rebuilding`（[重建与重放](./replay)）。
