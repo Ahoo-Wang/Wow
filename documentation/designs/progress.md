@@ -2,7 +2,7 @@
 
 日期：2026-11-23。状态：持续维护。上位文档：[路线图](roadmap.md)。
 
-本文只写现状：Wow 10 现在在哪、正在做什么、到 GA 还剩什么，以及审查的标准与用户的长期要求。一项做完即从本文删去，不在这里追加合并流水；已合并的明细以 `git log origin/main` 为准，决定在[决策台账](decisions.md)（D1～D461 已定），未处理的审查发现在[审查台账](reviews.md)，已登记、未排期的事项在[路线图](roadmap.md) §6。2026-11-10 压缩前的最后一版为 `2c08f318ea`。
+本文只写现状：Wow 10 现在在哪、正在做什么、到 GA 还剩什么，以及审查的标准与用户的长期要求。一项做完即从本文删去，不在这里追加合并流水；已合并的明细以 `git log origin/main` 为准，决定在[决策台账](decisions.md)（D1～D462 已定），未处理的审查发现在[审查台账](reviews.md)，已登记、未排期的事项在[路线图](roadmap.md) §6。2026-11-10 压缩前的最后一版为 `2c08f318ea`。
 
 ## 1. 位置
 
@@ -48,13 +48,12 @@
 
 **`10.0.0-beta.18` 已发布**（2026-11-23，[D459](decisions.md)），紧接 `10.0.0-beta.17`（[D458](decisions.md)）。beta.18 是个小版本：CoSec `8.0.0-beta.7`（#6636）与 CoSec 的拒绝可选地按 Wow 的形状作答（#6635，默认关）。
 
-**beta.18 之后在办**（2026-11-23，[D460](decisions.md)、[D461](decisions.md)）。带 bug 标签的 issue 挡着下一个 beta：#6642，以及走查带出的 CoSec 空白主体（issue 由会话在立）：
+**beta.18 之后在办**（2026-11-23，[D460](decisions.md)～[D462](decisions.md)）。带 bug 标签的 issue 只剩 #6642，它挡着下一个 beta。当天已合并：CoSec 空白主体按未认证作答（#6645，#6647）、跨租户复用请求 id 与两个租户两个购物车的测试（#6649）、归属页的请求 id 一段（#6650），租户与所有者走查的余项至此办完。
 
 | 事项 | 谁在做 | 现状 |
 | --- | --- | --- |
-| #6642：计算属性（只读）在命令体里被要求必填 | fix-6642-readonly（Opus，high） | 设计说明已交、协调者已定（[D461](decisions.md) ②）：Manifest 的 schema 不变；TypeScript 的 Manifest 路径给只读属性加 `readonly`，并只在输入位置够得到只读属性的类型旁生成 `<Name>Input`，取代原先只照顾计算出的 id 属性的 `Omit` 特例；兼容性检查按「谁在读」定必填（读的一侧：输入与存储，`required` 且非 `readOnly`；写的一侧不变）；分析目录的行操作不再把只读属性当作要填的输入；生成器的 OpenAPI 路径先只在顶层按 `readOnly` 办。Wow 发出的 OpenAPI 3.1 文档要有输入一侧的组件，原则上做，形状等会话的补充说明。三个 PR 在做；issue 等报告者自己的复现在它来的那条路径上通过才关 |
-| 租户与所有者走查的余项 | ga-tenant-owner-tail（Opus，medium） | TO-2 已随 #6608 在主干上，不用 PR。余 TO-8 缺的两条测试（跨租户复用请求 id；eShop 端到端同一所有者在两个租户是两个购物车）与 TO-1 的一句文档。**带出一个缺陷**：CoSec 认证通过而 id 为空白的主体让 `CoSecCallerResolver` 抛异常；协调者定为按未认证作答（[D461](decisions.md) ③），会话立 issue、单独出 PR，并起草给 CoSec 的 issue |
-| Spring Cloud 模块以 CoSky 作案例（用户的 TODO，2026-11-23） | 未派，等名额 | CoSky 是一方库。`:spring-cloud` 的案例今天是 Consul（集成测试 `ConsulDiscoveryTest`、README、`operate/spring-cloud` 中英文）。范围用户已确认（[D461](decisions.md) ④）：案例整个换成 CoSky `8.0.0-beta.10`，文档与 README 的示例、集成测试都换，Consul 的集成测试不留；CoSky 注册时带不带得上内部端口的元数据由会话核实，缺口提到 CoSky 的仓库 |
+| #6642：计算属性（只读）在命令体里被要求必填 | fix-6642-readonly（Opus，high） | 前三个 PR 已合并：兼容性检查按「谁在读」定必填（#6651）、分析目录的行操作不为只读属性画输入（#6652）、生成器的 Manifest 路径加 `readonly` 并生成 `<Name>Input`、OpenAPI 路径在顶层按 `readOnly` 办（#6653）。从 Manifest 生成的已完整修好。**余两个 PR**（[D462](decisions.md) ①）：Wow 发出的 OpenAPI 文档在请求一侧引用输入组件；生成器的 OpenAPI 路径把只读且不必填的属性声明为可选。两者都合并后，报告者自己的复现（OpenAPI 路径、嵌套类型）才通过，issue 随后一个关 |
+| Spring Cloud 模块以 CoSky 作案例（用户的 TODO，2026-11-23） | spring-cloud-cosky（Opus，medium），停在等 CoSky | 案例整个换成 CoSky `8.0.0-beta.10`，Consul 的集成测试不留（[D461](decisions.md) ④）。**卡在 CoSky**（[D462](decisions.md) ②）：它的注册对象默认交出只读的元数据，Wow 的节点经它注册会启动失败；已提 Ahoo-Wang/CoSky#1287，Wow 不加特例、不教变通，等带修复的 CoSky 版本。谁来修、何时发由用户定。恢复时已定的：制品 `cosky-spring-boot-starter`，测试用服务端镜像的 `--dev`，Consul 测试的五个用例全部照搬 |
 
 
 不挡发版、排在后面的：
@@ -79,7 +78,7 @@
 | --- | --- | --- |
 | `<Name>Input`：生成的 TypeScript 里输入一侧的声明（#6642） | 协调者原先倾向在输入位置套一个类型运算，会话的证据推翻了它：只在够得到只读属性的类型旁另发一个声明，没有这种情形的 Manifest 生成物逐字节不变，报错说得出类型名，`wow-client` 不加公开类型 | D461 ② |
 | 兼容性检查里只读属性的必填按「谁在读」定 | 输入与存储同一条规则：给状态或命令里的类型加计算属性不再报破坏，计算属性改成必填字段开始报破坏（原先漏报）。存储一侧会话建议不动，协调者没有采纳；旧快照里没有新属性、按它查询会漏掉这些行直到重写，写进文档 | D461 ② |
-| Wow 的 OpenAPI 文档加输入一侧的组件 | 原则上做（3.1 的规则下现在的文档要求调用方送服务端忽略的值），形状等补充说明；它改的是发出的契约 | D461 ② |
+| Wow 的 OpenAPI 文档加输入一侧的组件 | 做，它改的是发出的契约：请求一侧引用 `<名字>Input` 组件，其中只读属性留着、不在 `required` 里；名字撞上时编号，不让构建失败。生成器的 OpenAPI 路径配一条窄规则：只读且不必填的属性声明为可选 | D461 ②、D462 ① |
 | CoSec 的空白主体按未认证作答 | 没有采纳「当作没有所有者的调用方」 | D461 ③ |
 
 ## 3. 距离 GA 还剩
