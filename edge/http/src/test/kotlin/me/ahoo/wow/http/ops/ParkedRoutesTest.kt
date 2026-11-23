@@ -17,6 +17,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateIdLimits
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
@@ -244,9 +245,10 @@ class ParkedRoutesTest {
     @Test
     fun `an entry of the longest tenant and id is read, retried and skipped by routes whose paths hold no data`(): Unit =
         runBlocking {
-            // A tenant of 256 characters that percent-encode to nine each, and a long id (#6626): no path holds them.
+            // A tenant of 256 characters that percent-encode to nine each, and the longest id the rules allow, 256
+            // characters of two bytes each (#6626, #6628): no path holds them.
             val tenant = "租".repeat(256)
-            val id = "i".repeat(256)
+            val id = "é".repeat(AggregateIdLimits.MAX_LENGTH)
             ledger.park(ParkedAggregate(SubscriptionId("shop", NAME), type.ref(tenant, id), 0, 1, "failed", FAILED_AT))
             val client = client(other)
             val admin = "root"
