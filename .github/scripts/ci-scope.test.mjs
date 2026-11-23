@@ -1133,6 +1133,24 @@ test('the chart, its CI fixtures and ci.yml run the chart jobs', () => {
   assert.ok(!scopes(['deploy/helm/wow-service/templates/deployment.yaml']).jvm);
 });
 
+test("the chart's shutdown values and grace periods run the JVM test that reads them", () => {
+  // core/runtime's ChartGracePeriodTest holds them to ServiceNodeOptions.stopBound.
+  for (const path of [
+    'deploy/helm/wow-service/values.yaml',
+    'deploy/helm/wow-service/tests/deployment_test.yaml',
+  ]) {
+    const scope = scopes([path]);
+    assert.ok(scope.jvm && scope.helm, path);
+  }
+  // The chart's other files are the chart jobs' alone.
+  for (const path of [
+    'deploy/helm/wow-service/tests/services_test.yaml',
+    'deploy/helm/wow-service/templates/_helpers.tpl',
+    'deploy/eshop-basket/values.yaml',
+  ])
+    assert.ok(!scopes([path]).jvm, path);
+});
+
 test('the YAML of deploy/ checks its WOW_ variables, unless the JVM jobs run', () => {
   for (const path of [
     'deploy/helm/wow-service/templates/configmap.yaml',
