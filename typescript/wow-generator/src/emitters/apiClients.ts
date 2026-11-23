@@ -178,8 +178,9 @@ function apiMethod(
 
 /**
  * The type of a body. A JSON body leaves optional the properties its schema
- * does not require, as a command body does (`PartialBy<Item, 'id'>`), unless
- * its type is a union, an intersection or `any`.
+ * does not require and the read-only ones, as a command body does
+ * (`PartialBy<Item, 'id'>`), unless its type is a union, an intersection or
+ * `any`.
  */
 function bodyType(body: BodyModel, types: ClientTypes): string {
   const { content } = body;

@@ -28,7 +28,7 @@ For each bounded context, a directory named after it:
 | `client.ts` | `<Context>Client`: the context's `CommandClient` (`commands`) and, per aggregate, its command, snapshot, event and state clients; its service routes (`routes`) when it has any |
 | `routes.ts` | `<Context>Routes`: a method per service route, on `ServiceRoutes` of `@ahoo-wang/wow-client/routes`; written only when the Manifest lists service routes |
 | `textNumbers.ts` | Where a recursive type holds exact numbers, marked once; written only when one does |
-| `types.ts` | The commands, events and states of the Manifest's schemas, each named after its class's simple name; a name two classes share, or one the generated modules already bind, is qualified by the class's package |
+| `types.ts` | The commands, events and states of the Manifest's schemas, each named after its class's simple name; a name two classes share, or one the generated modules already bind, is qualified by the class's package. A computed property (`readOnly` in its schema) is `readonly`. A type a caller sends (a command's or a lifecycle command's body, a service route's request or parameter) that holds a computed property, at any depth, is declared again as `<Name>Input`, numbered when the Manifest already uses the name: the type the method takes, in which that property is optional |
 | `<aggregate>/aggregate.ts` | `<Aggregate>Aggregate`, the aggregate's descriptor; `<Aggregate>StateField`, the `state.*` fields a query names; `<Aggregate>Access`, its access attributes; `<Aggregate>Event`, the union of its events |
 | `<aggregate>/commandClient.ts` | `<Aggregate>CommandClient`: a method per command, a `…Stream` twin of each answering each hop, and the lifecycle commands the aggregate lists, sending through its `client`, a `CommandClient` over the context's `manifest.ts` |
 | `<aggregate>/queryClient.ts` | `<Aggregate>SnapshotQueryClient`, `<Aggregate>EventQueryClient` and `<Aggregate>StateClient` |
@@ -85,7 +85,7 @@ search(@path('item-id') itemId: string, @query('q') q: string,
 | Path parameter                             | Always required; `ignorePathParameters` leaves some out                                                 |
 | Query or header parameter                  | Required when the document says `required: true`; a primitive enum is the union of its literals        |
 | Cookie parameter                           | Left out with a warning: the browser sends cookies, and fetch cannot set them                           |
-| JSON body (`application/json`, `+json`)    | The schema's type; properties the schema does not require stay optional through `PartialBy<Item, 'id'>` |
+| JSON body (`application/json`, `+json`)    | The schema's type; properties the schema does not require, and the read-only ones, stay optional through `PartialBy<Item, 'id'>`, at the body's top level |
 | `multipart/form-data`                      | `FormData`                                                                                              |
 | `application/x-www-form-urlencoded`        | `URLSearchParams`                                                                                       |
 | `text/*`                                   | `string`                                                                                                |

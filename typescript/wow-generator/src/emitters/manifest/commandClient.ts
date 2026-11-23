@@ -79,11 +79,7 @@ function commandMethods(
   stream: boolean,
   own?: boolean,
 ): string {
-  const type = command.bodyType === 'unknown' ? 'object' : command.bodyType;
-  // A computed id is the service's to compute from the fields: no input here.
-  const body = command.idComputed
-    ? `Omit<${type}, ${quoteStringLiteral(command.idProperty!)}>`
-    : type;
+  const body = command.bodyType === 'unknown' ? 'object' : command.bodyType;
   const bodyParam = command.bodyOptional
     ? `body: ${body} = {}`
     : `body: ${body}`;

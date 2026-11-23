@@ -27,14 +27,20 @@ export function emitType(
   outputDir: string,
 ): void {
   importTypes(module, outputDir, files, type.references, type.file);
-  const comment = doc([type.description, `- key: \`${type.key}\``]);
+  const comment = doc([
+    type.description,
+    type.inputOf === undefined
+      ? undefined
+      : `What a caller sends for \`${type.inputOf}\`: its read-only properties, at any depth, which the service computes and never reads, may be left out or handed back.`,
+    `- key: \`${type.key}\``,
+  ]);
   if (type.properties === undefined) {
     addStatement(module, `${comment}export type ${type.name} = ${type.type};`);
     return;
   }
   const members = type.properties.map(
     property =>
-      `${doc([property.description], '  ')}  ${property.name}${property.optional ? '?' : ''}: ${property.type};`,
+      `${doc([property.description], '  ')}  ${property.readonly ? 'readonly ' : ''}${property.name}${property.optional ? '?' : ''}: ${property.type};`,
   );
   if (type.type !== undefined) members.push(`  [key: string]: ${type.type};`);
   addStatement(

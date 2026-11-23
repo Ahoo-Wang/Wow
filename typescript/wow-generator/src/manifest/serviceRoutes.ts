@@ -14,6 +14,7 @@
 import type { ServiceRouteManifest } from '@ahoo-wang/wow-client';
 import type { ManifestContext } from './document';
 import { routeMethodParameters, routeParameterIdentifier } from './names';
+import type { Position } from './schemaTypes';
 import type { TextNumbers, TextNumbersModel } from './textNumbers';
 
 /** A parameter of a service route: a path variable or a query parameter, and its TypeScript type. */
@@ -52,7 +53,7 @@ export interface ServiceRouteModel {
 
 /** What a service route's model needs of a Manifest's types: the TypeScript type of a schema. */
 interface RouteTypes {
-  type(schema: unknown, where: string): string;
+  type(schema: unknown, where: string, position?: Position): string;
 }
 
 /**
@@ -77,12 +78,12 @@ export function serviceRouteModel(
       name: parameter.name,
       identifier: routeParameterIdentifier(parameter, used),
       location: parameter.in === 'path' ? 'path' : 'query',
-      type: types.type(parameter.schema, `${where} ${parameter.name}`),
+      type: types.type(parameter.schema, `${where} ${parameter.name}`, 'input'),
       required: parameter.required,
     })),
     ...(route.request === undefined
       ? {}
-      : { requestType: types.type(route.request, `${where} body`) }),
+      : { requestType: types.type(route.request, `${where} body`, 'input') }),
     ...(route.response === undefined
       ? {}
       : {

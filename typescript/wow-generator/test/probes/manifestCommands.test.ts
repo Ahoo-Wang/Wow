@@ -198,6 +198,8 @@ describe('Manifest clients', () => {
        void [
          commands.restock({ thingId: 't1', n: 1 }), commands.restockStream({ thingId: 't1', n: 1 }),
          commands.count({ sku: 's' }), commands.countStream({ sku: 's' }), commands.audit(),
+         // A computed id may be handed back, as a value read from the service holds it.
+         commands.count({ sku: 's', thingId: 't1' }),
          commands.tag({ thingId: 't1' }), commands.tag(), commands.mark({ thingId: 't1' }),
        ];
        // @ts-expect-error the body names the aggregate, and the method takes no id
@@ -214,20 +216,20 @@ describe('Manifest clients', () => {
     );
     expect(client).toContain('Its body names its aggregate: `thingId`.');
     expect(client).toContain(
-      "count(body: Omit<Count, 'thingId'>, options?: CommandOptions)",
+      'count(body: CountInput, options?: CommandOptions)',
     );
     expect(client).toContain(
       'Its body names its aggregate: `thingId`, which the service computes from the fields given.',
     );
     // A body that requires nothing but its computed id may be left out.
     expect(client).toContain(
-      "audit(body: Omit<Audit, 'thingId'> = {}, options?: CommandOptions)",
+      'audit(body: AuditInput = {}, options?: CommandOptions)',
     );
+    expect(client).not.toContain('Omit<');
     expect(client).toContain(
       'tag(body: object = {}, options?: CommandOptions)',
     );
     expect(client).toContain('mark(body: Mark = {}, options?: CommandOptions)');
-    expect(client).not.toContain("Omit<Mark, 'thingId'>");
     expect(read('probe/manifest.ts')).toContain(
       "{ name: 'Restock', routes: [{ method: 'POST', path: '/probe/thing/restock' }], idProperty: 'thingId' },",
     );

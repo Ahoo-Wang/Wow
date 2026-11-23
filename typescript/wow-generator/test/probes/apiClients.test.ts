@@ -166,6 +166,53 @@ describe('typed parameters and request bodies', () => {
     ]);
   });
 
+  it("leaves a request body's read-only properties optional, as OpenAPI 3.0 requires them of a response only", async () => {
+    const { read } = await generateCompiling(
+      document(
+        {
+          '/orders': {
+            post: {
+              tags: ['Orders'],
+              operationId: 'create',
+              requestBody: {
+                required: true,
+                content: {
+                  'application/json': {
+                    schema: { $ref: '#/components/schemas/Order' },
+                  },
+                },
+              },
+              responses: { '204': { description: 'Created' } },
+            },
+          },
+        },
+        {
+          Order: {
+            type: 'object',
+            properties: {
+              code: { type: 'string' },
+              searchCode: { type: 'string', readOnly: true },
+            },
+            required: ['code', 'searchCode'],
+          },
+        },
+      ),
+      `import { OrdersApiClient, type Order } from './out/index.js';
+       declare const client: OrdersApiClient;
+       declare const read: Order;
+       client.create({ code: 'c' });
+       client.create(read);
+       // @ts-expect-error code is required
+       client.create({ searchCode: 's' });
+       // @ts-expect-error what the service writes holds it
+       const written: Order = { code: 'c' };
+       void written;`,
+    );
+    expect(read('ordersApiClient.ts')).toContain(
+      "create(@body() body: PartialBy<Order, 'searchCode'>,",
+    );
+  });
+
   it('sends each parameter where the document says, and omits an absent one', async () => {
     const { dir } = await generateCompiling(spec);
     const output = runGenerated(

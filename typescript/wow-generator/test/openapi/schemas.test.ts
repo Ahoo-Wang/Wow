@@ -260,6 +260,28 @@ describe('resolveOptionalFields', () => {
     ).toEqual(['b', 'c']);
   });
 
+  it('lists a read-only property even when it is required: OpenAPI 3.0 requires it of a response only', () => {
+    expect(
+      resolveOptionalFields({
+        allOf: [
+          {
+            type: 'object',
+            properties: {
+              a: { type: 'string' },
+              computed: { type: 'string', readOnly: true },
+            },
+            required: ['a', 'computed'],
+          },
+          {
+            type: 'object',
+            properties: { label: { type: 'string', readOnly: true } },
+            required: ['label'],
+          },
+        ],
+      }),
+    ).toEqual(['computed', 'label']);
+  });
+
   it('treats a property any branch requires as required', () => {
     expect(
       resolveOptionalFields({

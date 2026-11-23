@@ -210,13 +210,15 @@ export function resolvePrimitiveType(type: SchemaType | SchemaType[]): string {
  * properties there - reading only the top level would demand fields the
  * document leaves optional.
  *
- * A property is optional when no branch requires it. `anyOf` and `oneOf` are
- * not followed: a branch an instance need not match says nothing about the
- * properties a command carries.
+ * A property is optional when no branch requires it, or when it is read-only:
+ * OpenAPI 3.0 applies `required` to a `readOnly` property in a response only,
+ * and the service computes it from what a request carries. `anyOf` and
+ * `oneOf` are not followed: a branch an instance need not match says nothing
+ * about the properties a command carries.
  *
  * @param schema - The command body schema, or a reference to it
  * @param components - The components a reference resolves against
- * @returns The declared property names absent from every `required` list
+ * @returns The declared property names absent from every `required` list, and the read-only ones
  */
 export function resolveOptionalFields(
   schema: Schema | Reference,
@@ -224,6 +226,7 @@ export function resolveOptionalFields(
 ): string[] {
   const declared: string[] = [];
   const required = new Set<string>();
+  const readOnly = new Set<string>();
   const visited = new Set<Schema | Reference>();
   // A schema that admits null generates `T | null`, whose `keyof` is `never`:
   // naming a field of it would make `PartialBy<Model, 'field'>` violate
@@ -247,13 +250,18 @@ export function resolveOptionalFields(
     for (const name of current.required ?? []) {
       required.add(name);
     }
-    for (const name of Object.keys(current.properties ?? {})) {
+    for (const [name, property] of Object.entries(current.properties ?? {})) {
       if (!declared.includes(name)) {
         declared.push(name);
+      }
+      if (isReadOnly(property)) {
+        readOnly.add(name);
       }
     }
     current.allOf?.forEach(walk);
   };
   walk(schema);
-  return admitsNull ? [] : declared.filter(name => !required.has(name));
+  return admitsNull
+    ? []
+    : declared.filter(name => !required.has(name) || readOnly.has(name));
 }

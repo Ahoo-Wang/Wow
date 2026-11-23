@@ -14,10 +14,10 @@
 import { camelCase, upperSnakeCase } from '../naming/naming';
 import { compareNames } from '../naming/order';
 import { type ManifestContext, type ManifestDocument } from './document';
-import { aggregateModel, aggregateRoots } from './aggregates';
+import { aggregateInputs, aggregateModel, aggregateRoots } from './aggregates';
 import type { ContextModel, ManifestModel, TypeModel } from './model';
 import { contextTypeName, generatedNames } from './names';
-import { SchemaTypes } from './schemaTypes';
+import { type Position, SchemaTypes } from './schemaTypes';
 import { serviceRouteModel } from './serviceRoutes';
 import { TextNumbers } from './textNumbers';
 
@@ -55,15 +55,29 @@ export function analyzeManifest(manifest: ManifestDocument): {
   const keys = [...reach.keys()].filter(
     key => types.schemaOf(key) && !types.inlined(key),
   );
-  types.name([...keys].sort(compareNames), generatedNames(manifest));
+  const reserved = generatedNames(manifest);
+  types.name([...keys].sort(compareNames), reserved);
+  // A type a caller sends that holds a read-only property, at any depth, is
+  // declared again as its input, which leaves that property optional.
+  const declared = new Set(keys);
+  const inputs = types
+    .inputsOf(
+      types.closure(contexts.flatMap(context => inputRoots(types, context))),
+    )
+    .filter(key => declared.has(key))
+    .sort(compareNames);
+  types.nameInputs(inputs, reserved);
 
-  const typeModels: TypeModel[] = keys
-    .map(key => typeModel(types, key, `${reach.get(key)}/types.ts`))
-    .sort(
-      (left, right) =>
-        compareNames(left.file, right.file) ||
-        compareNames(left.name, right.name),
-    );
+  const typeModels: TypeModel[] = [
+    ...keys.map(key => typeModel(types, key, `${reach.get(key)}/types.ts`)),
+    ...inputs.map(key =>
+      typeModel(types, key, `${reach.get(key)}/types.ts`, 'input'),
+    ),
+  ].sort(
+    (left, right) =>
+      compareNames(left.file, right.file) ||
+      compareNames(left.name, right.name),
+  );
 
   const numbers = new TextNumbers(manifest.$defs ?? {}, key => ({
     name: `${camelCase(types.names.get(key) ?? key)}Numbers`,
@@ -90,31 +104,55 @@ export function analyzeManifest(manifest: ManifestDocument): {
   };
 }
 
-function typeModel(types: SchemaTypes, key: string, file: string): TypeModel {
+/** The keys a caller of `context` sends: its commands' and lifecycle bodies, its routes' requests and parameters. */
+function inputRoots(types: SchemaTypes, context: ManifestContext): string[] {
+  return [
+    ...(context.aggregates ?? []).flatMap(aggregate =>
+      aggregateInputs(types, aggregate),
+    ),
+    ...(context.routes ?? []).flatMap(route => [
+      ...types.references(route.request),
+      ...types.references(route.parameters),
+    ]),
+  ];
+}
+
+function typeModel(
+  types: SchemaTypes,
+  key: string,
+  file: string,
+  position: Position = 'output',
+): TypeModel {
   const schema = types.schemaOf(key)!;
-  const name = types.names.get(key)!;
+  const output = types.names.get(key)!;
+  const name = position === 'input' ? types.inputNames.get(key)! : output;
   const description =
     typeof schema.description === 'string' ? schema.description : undefined;
   const references = [...types.namedReferences(schema)]
-    .map(ref => types.names.get(ref))
+    .map(ref =>
+      position === 'input'
+        ? (types.inputNames.get(ref) ?? types.names.get(ref))
+        : types.names.get(ref),
+    )
     .filter((ref): ref is string => ref !== undefined && ref !== name);
   const base = {
     key,
     name,
     file,
     ...(description === undefined ? {} : { description }),
+    ...(position === 'input' ? { inputOf: output } : {}),
     references: [...new Set(references)].sort(compareNames),
   };
   if (types.isInterface(schema)) {
     // A typed index signature would have to admit every property's type.
-    const extra = types.additional(schema, key);
+    const extra = types.additional(schema, key, position);
     return {
       ...base,
-      properties: types.properties(schema, key),
+      properties: types.properties(schema, key, position),
       ...(extra === undefined ? {} : { type: 'unknown' }),
     };
   }
-  return { ...base, type: types.type(schema, key) };
+  return { ...base, type: types.type(schema, key, position) };
 }
 
 function contextModel(

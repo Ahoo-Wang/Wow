@@ -20,6 +20,8 @@ export interface PropertyModel {
   readonly name: string;
   readonly type: string;
   readonly optional: boolean;
+  /** Read-only: computed, written by the service and never read back. */
+  readonly readonly?: true;
   readonly description?: string;
 }
 
@@ -31,6 +33,8 @@ export interface TypeModel {
   /** The file it is declared in, relative to the output directory. */
   readonly file: string;
   readonly description?: string;
+  /** Of an input type, the name of the type it is the input of. */
+  readonly inputOf?: string;
   /** An interface's properties, or undefined for a type alias. */
   readonly properties?: readonly PropertyModel[];
   /** A type alias's type; or, for an interface, its index signature's. */
@@ -53,9 +57,12 @@ export interface CommandModel {
    * to the caller's own aggregate (`addItemOwn`); `method` then sends it by id.
    */
   readonly ownMethod?: string;
-  /** The body's type name, or undefined when its schema is unknown. */
+  /**
+   * The body's type name, its input's when it has one (`CreateOrderInput`),
+   * or `unknown` when its schema is unknown.
+   */
   readonly bodyType: string;
-  /** The body may be left out: its schema requires nothing the method takes. */
+  /** The body may be left out: its schema requires nothing a caller sends. */
   readonly bodyOptional: boolean;
   /**
    * The property of its body that names its aggregate (the Manifest's
@@ -64,7 +71,7 @@ export interface CommandModel {
   readonly idProperty?: string;
   /**
    * Its `idProperty` is computed (`readOnly` in its schema): the service
-   * computes it from the body's fields, so the method takes the body without it.
+   * computes it from the body's fields, so the body's input type leaves it out.
    */
   readonly idComputed?: boolean;
   readonly creation: string;
