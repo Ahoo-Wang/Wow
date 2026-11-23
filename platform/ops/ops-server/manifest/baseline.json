@@ -217,6 +217,10 @@
       "status" : 422,
       "description" : "The action's arguments are not valid."
     }, {
+      "code" : "ops.parked.mismatched",
+      "status" : 409,
+      "description" : "The record's service, subscription and aggregate do not name the entry it is recorded under."
+    }, {
       "code" : "ops.parked.resolved",
       "status" : 409,
       "description" : "The entry is resolved: nothing is parked to act on."

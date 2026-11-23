@@ -31,8 +31,10 @@ public final class me/ahoo/wow/http/internal/InternalPort$Companion {
 public final class me/ahoo/wow/http/ops/OpsPaths {
 	public static final field AFTER Ljava/lang/String;
 	public static final field APPLY_RETRY_SPEC Ljava/lang/String;
+	public static final field ENTRY Ljava/lang/String;
 	public static final field INSTANCE Lme/ahoo/wow/http/ops/OpsPaths;
 	public static final field LIMIT Ljava/lang/String;
+	public static final field LIST Ljava/lang/String;
 	public static final field MARK_RECOVERABLE Ljava/lang/String;
 	public static final field PARKED Ljava/lang/String;
 	public static final field READ Ljava/lang/String;

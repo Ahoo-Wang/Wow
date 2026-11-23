@@ -38,15 +38,33 @@ class LedgerTest {
     }
 
     @Test
-    fun `an entry's ops id names its service, its subscription's context and name, and its aggregate`() {
+    fun `an entry's ops id is a hash of its service, its subscription's context and name, and its aggregate`() {
+        // SHA-256 of the escaped fields joined by ':', its first 128 bits in hexadecimal, after 'p' (#6626).
         Ledger.parkedId("eshop-payment-service", "eshop-payment", "PaymentGatewaySaga.onPaymentRequested", ref)
-            .assert().isEqualTo(
-                "eshop-payment-service:eshop-payment:PaymentGatewaySaga.onPaymentRequested:" +
-                    "eshop-payment.payment:(0):alice-1",
-            )
-        Ledger.targetOf("eshop-payment", "svc:c:s:eshop-payment.payment:(0):alice-1").toString().assert()
-            .isEqualTo("eshop-payment.wow.ledger/(0)/svc:c:s:eshop-payment.payment:(0):alice-1")
-        // One id per entry, however a ':' or '%' in a name joins the fields.
+            .assert().isEqualTo("p2a5de1e311ba2b01cceadee4acca4271")
+        Ledger.parkedId("svc", "c", "s", ref.type.ref("a:b", "50%")).assert()
+            .isEqualTo("pd0c2a05b7b82db392fbd5032d8cd2f2e")
+        Ledger.targetOf("eshop-payment", "p2a5de1e311ba2b01cceadee4acca4271").toString().assert()
+            .isEqualTo("eshop-payment.wow.ledger/(0)/p2a5de1e311ba2b01cceadee4acca4271")
+        assertThrownBy<IllegalArgumentException> { Ledger.parkedId(" ", "c", "s", ref) }
+        assertThrownBy<IllegalArgumentException> { Ledger.parkedId("svc", " ", "s", ref) }
+        assertThrownBy<IllegalArgumentException> { Ledger.parkedId("svc", "c", " ", ref) }
+    }
+
+    @Test
+    fun `an entry's ops id has one length, whatever its tenant and id`() {
+        // The longest tenant the rules allow, in a script that percent-encodes to nine characters each, and a long id.
+        val tenant = "租".repeat(256)
+        val id = "i".repeat(256)
+        val longest = Ledger.parkedId("svc", "c", "s", ref.type.ref(tenant, id))
+        longest.assert().matches("p[0-9a-f]{32}")
+        Ledger.parkedId("svc", "c", "s", ref.type.ref("t", "i")).length.assert().isEqualTo(longest.length)
+        // Only the fields decide it.
+        Ledger.parkedId("svc", "c", "s", ref.type.ref(tenant, id)).assert().isEqualTo(longest)
+    }
+
+    @Test
+    fun `two entries whose fields join alike have ops ids of their own`() {
         val type = ref.type
         val shifted = listOf(
             Ledger.parkedId("svc", "c", "s", type.ref("a:b", "c")),
@@ -59,11 +77,7 @@ class LedgerTest {
             Ledger.parkedId("svc", "c", "s", AggregateType("a", "b.c").ref("t", "i")),
         )
         shifted.toSet().assert().hasSize(shifted.size)
-        Ledger.parkedId("svc", "c", "s", type.ref("a:b", "50%")).assert()
-            .isEqualTo("svc:c:s:eshop-payment.payment:a%3Ab:50%25")
-        assertThrownBy<IllegalArgumentException> { Ledger.parkedId(" ", "c", "s", ref) }
-        assertThrownBy<IllegalArgumentException> { Ledger.parkedId("svc", " ", "s", ref) }
-        assertThrownBy<IllegalArgumentException> { Ledger.parkedId("svc", "c", " ", ref) }
+        shifted.forEach { it.assert().matches("p[0-9a-f]{32}") }
     }
 
     @Test

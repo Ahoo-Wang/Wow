@@ -87,7 +87,7 @@ wow:
 
 ## 不用 ops 服务 {#without-the-ops-service}
 
-单个服务也可以公开它自己的停放条目：`wow.http.ops.enabled: true` 在它的公开端口上提供 `/wow/ops/parked`，带有同样的四个操作：`retry`、`skip`、`mark-recoverable` 与 `apply-retry-spec`。它默认关闭。条目的路径先以订阅的键 `<context>.<processor.function>` 指明订阅，再指明聚合：`/wow/ops/parked/{subscription}/{context}/{aggregate}/{tenant}/{id}`。读取按系统命令 `wow.ledger.Read` 授权，每个操作按它的 `wow.ledger.*` 命令授权，由应用的 `CommandAuthorizer` 决定：没有它时，读取和操作都以 403 拒绝，宿主会在启动时警告。
+单个服务也可以公开它自己的停放条目：`wow.http.ops.enabled: true` 在它的公开端口上提供 `/wow/ops/parked`，带有同样的四个操作：`retry`、`skip`、`mark-recoverable` 与 `apply-retry-spec`。它默认关闭。每条路由都是路径里不含数据的 `POST`，所以无论租户和 id 有多长，网关都能转发：`/wow/ops/parked/list`（`{"subscription", "after", "limit"}`，都可省略）分页列出条目，`/wow/ops/parked/entry` 读取一条，`/wow/ops/parked/retry`、`skip`、`mark-recoverable` 与 `apply-retry-spec` 对一条执行操作。请求体用账本命令的成员指明条目，订阅用它的键 `<context>.<processor.function>`，与列表写出的一致：`{"subscription": "eshop-payment.PaymentGatewaySaga.onPaymentRequested", "context": "eshop-payment", "aggregate": "payment", "tenantId": "(0)", "id": "…"}`，旁边是各操作自己的成员（`failedAt`、`recoverable`、重试规格的成员）。读取按系统命令 `wow.ledger.Read` 授权，每个操作按它的 `wow.ledger.*` 命令授权，由应用的 `CommandAuthorizer` 决定：没有它时，读取和操作都以 403 拒绝，宿主会在启动时警告。
 
 - **跳过要指明它跳过的那次停放**：请求体为 `{"failedAt": <纪元毫秒>}`，即运维人员读到的条目的 `failedAt`，没有它的跳过以 400 拒绝。跳过会丢弃停放的内容，所以它必须是有人看过的那次。
 - **重试可以不带 `failedAt`**，作用于条目现在的停放，因为它只是把停放的事件再交给订阅一次。

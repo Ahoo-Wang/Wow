@@ -13,7 +13,7 @@ export const OpsContract = {
 } as const;
 
 /** An error code of `ops`, of the context or of one of its aggregates. */
-export type OpsErrorCode = 'ops.parked.invalid' | 'ops.parked.resolved' | 'ops.parked.stale';
+export type OpsErrorCode = 'ops.parked.invalid' | 'ops.parked.mismatched' | 'ops.parked.resolved' | 'ops.parked.stale';
 
 /** The subscriptions of `ops` a `handled` hop names. */
 export type OpsSubscription = 'ParkedOperationSaga.onActionRejected' | 'ParkedOperationSaga.onParkedChanged';

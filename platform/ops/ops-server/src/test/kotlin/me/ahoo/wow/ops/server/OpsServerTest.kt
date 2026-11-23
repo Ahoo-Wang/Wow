@@ -65,7 +65,7 @@ class OpsServerTest {
             ops.post(OpsContract.QUERY, """{"kind":"list","filter":{"op":"match-all"}}""", Who.NOBODY)
                 .assertProblem(UNAUTHORIZED, "wow.auth.unauthenticated")
             ops.get("/ops/parked/p-1/state", Who.NOBODY).assertProblem(UNAUTHORIZED, "wow.auth.unauthenticated")
-            ops.get("/wow/ops/parked", Who.NOBODY).assertProblem(UNAUTHORIZED, "wow.auth.unauthenticated")
+            ops.post("/wow/ops/parked/list", "{}", Who.NOBODY).assertProblem(UNAUTHORIZED, "wow.auth.unauthenticated")
             ops.get("/actuator/health/liveness", Who.NOBODY).status.assert().isEqualTo(OK)
             ops.get("/actuator/health/readiness", Who.NOBODY).status.assert().isNotEqualTo(UNAUTHORIZED)
             ops.get("/index.html", Who.NOBODY).status.assert().isNotEqualTo(UNAUTHORIZED)
