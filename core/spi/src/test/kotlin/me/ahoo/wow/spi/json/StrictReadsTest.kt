@@ -301,8 +301,12 @@ internal object StrictReadsTable {
         wrongKind(Locale::class.java, "1", "a string", "an integer")
         wrongKind(Locale::class.java, "true", "a string", "a boolean")
         wrongKind(Locale::class.java, "{}", "a string", "an object")
-        // 9.x's form of a locale with a script: Jackson 3 keeps no script of it, on every minor.
-        reads(Locale::class.java, "\"zh_CN_#Hans\"", "\"zh-CN\"")
+        // 9.x's form of a locale with a script or extensions reads as the locale that writes it ([LocaleFormsTest]).
+        reads(Locale::class.java, "\"zh_CN_#Hans\"", "\"zh-Hans-CN\"")
+        reads(Locale::class.java, "\"az__#Cyrl\"", "\"az-Cyrl\"")
+        reads(Locale::class.java, "\"zh_TW_#Hant_x-java\"", "\"zh-Hant-TW-x-java\"")
+        reads(Locale::class.java, "\"ja_JP_JP_#u-ca-japanese\"", "\"ja-JP-u-ca-japanese-x-lvariant-JP\"")
+        invalid(Locale::class.java, "\"zh_CN_#Hanss\"")
         // A text of one subtag is a BCP 47 tag on every Jackson minor, as 3.2 reads it: 3.1 read it as a language.
         reads(Locale::class.java, "\"en\"")
         reads(Locale::class.java, "\"und\"", "\"\"")
