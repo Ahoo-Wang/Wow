@@ -23,3 +23,10 @@ dependencies {
 dependencies {
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test")
 }
+
+// ChartGracePeriodTest reads the wow-service chart's shutdown values and the grace periods its unit tests assert.
+tasks.named<Test>("test") {
+    inputs.files(
+        rootProject.fileTree("deploy/helm/wow-service") { include("values.yaml", "tests/deployment_test.yaml") },
+    ).withPropertyName("chartGracePeriods").withPathSensitivity(PathSensitivity.RELATIVE)
+}

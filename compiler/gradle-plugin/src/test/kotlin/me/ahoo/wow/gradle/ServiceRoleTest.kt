@@ -152,6 +152,13 @@ class ServiceRoleTest {
     }
 
     @Test
+    fun `assemble should write the chart's values, so a build always leaves them`() {
+        val project = project()
+        val values = project.tasks.getByName(WowPlugin.HELM_VALUES_TASK)
+        project.tasks.getByName("assemble").taskDependencies.getDependencies(null).assert().contains(values)
+    }
+
+    @Test
     fun `the service plugin should register the integration test suite, unless the build does`() {
         val service = project(id = WowPlugin.SERVICE_ID)
         val suite = service.extensions.getByType(org.gradle.testing.base.TestingExtension::class.java).suites
