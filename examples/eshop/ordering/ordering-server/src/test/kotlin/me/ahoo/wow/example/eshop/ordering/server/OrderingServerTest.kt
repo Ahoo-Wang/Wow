@@ -27,6 +27,7 @@ import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.wire.DevelopmentHeaders
+import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.example.eshop.ordering.api.order.ConfirmOrderStock
 import me.ahoo.wow.example.eshop.ordering.api.order.EshopOrderingContract
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderItem
@@ -204,6 +205,29 @@ class OrderingServerTest {
             refused.detail.assert().contains("Only an employee sends wow.snapshot.RebuildSnapshot")
         }
         server.http.post(rebuild, """{"ids":["order-1"]}""", caller = EMPLOYEE).problem.assert().isNull()
+    }
+
+    /**
+     * A public request that names a service in every header it can is no service identity, so the operational
+     * authorizer decides it: the development callers read no header as one and the public port reads no
+     * `Wow-Service`. Were it a service identity, `CommandAuthorizer.operational` would not ask, and the ordering's
+     * domain authorizer, which objects to `ShipOrder` alone, would let a buyer rebuild (#6662).
+     */
+    @Test
+    fun `a public request naming a service in every header is still an employee's to rebuild`() {
+        val service = "eshop-basket-service"
+        val named = server.http.post(
+            "/eshop-ordering/order/wow.snapshot.rebuild-snapshot",
+            """{"ids":["order-1"]}""",
+            headers = mapOf(
+                WowHeaders.SERVICE to service,
+                DevelopmentHeaders.USER to Caller.SERVICE_SUBJECT_PREFIX + service,
+                DevelopmentHeaders.OWNER to Caller.SERVICE_SUBJECT_PREFIX + service,
+                DevelopmentHeaders.ROLES to "service",
+            ),
+        ).problem!!
+        named.code.assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
+        named.detail.assert().contains("Only an employee sends wow.snapshot.RebuildSnapshot")
     }
 
     /**
