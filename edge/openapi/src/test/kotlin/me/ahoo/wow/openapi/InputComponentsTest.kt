@@ -16,6 +16,11 @@ package me.ahoo.wow.openapi
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestTree
+import me.ahoo.wow.manifest.RouteManifest
+import me.ahoo.wow.manifest.RouteParameterManifest
+import me.ahoo.wow.manifest.ServiceRouteManifest
+import me.ahoo.wow.manifest.SystemCommands
+import me.ahoo.wow.manifest.copyWith
 import org.junit.jupiter.api.Test
 
 /**
@@ -157,7 +162,83 @@ class InputComponentsTest {
             .assert().isNotEmpty()
     }
 
+    private val computed = mapOf("type" to "string", "readOnly" to true)
+
+    @Test
+    fun `a property named required, a property any value takes and an enum should read as in any schema`() {
+        val odd = mapOf(
+            "type" to "object",
+            "required" to listOf("required", "any", "computed"),
+            "properties" to mapOf(
+                "required" to mapOf("type" to "string"),
+                "any" to true,
+                "kind" to mapOf("enum" to listOf("a", "b")),
+                "computed" to computed,
+            ),
+        )
+        val plain = mapOf("type" to "object", "properties" to mapOf("kind" to mapOf("enum" to listOf("a"))))
+        // A computed property only inside an inline object: the type holds it all the same.
+        val nested = mapOf(
+            "type" to "object",
+            "properties" to mapOf("note" to mapOf("type" to "object", "properties" to mapOf("length" to computed))),
+        )
+        val components = SchemaComponents(
+            mapOf("t.Odd" to odd, "t.Plain" to plain, "t.Nested" to nested),
+            emptySet(),
+            setOf("t.Odd", "t.Plain", "t.Nested"),
+        )
+        components.inputs.assert().isEqualTo(mapOf("t.Nested" to "t.NestedInput", "t.Odd" to "t.OddInput"))
+        @Suppress("UNCHECKED_CAST")
+        val input = components.schemas.getValue("t.OddInput") as Map<String, Any?>
+        input["required"].assert().isEqualTo(listOf("required", "any"))
+        input["properties"].assert().isEqualTo(odd["properties"])
+    }
+
+    @Test
+    fun `a route's parameter and a system command the framework does not declare should take their inputs`() {
+        fun holding(name: String) = mapOf(
+            "type" to "object",
+            "required" to listOf(name, "hash"),
+            "properties" to mapOf(name to mapOf("type" to "string"), "hash" to computed),
+        )
+        val context = manifest.contexts.single()
+        val extended = manifest.copyWith(
+            contexts = listOf(
+                context.copyWith(
+                    aggregates = context.aggregates.map {
+                        it.copyWith(commands = it.commands + SystemCommands.lifecycle("probe", "thing", ARCHIVE))
+                    },
+                    routes = context.routes + ServiceRouteManifest(
+                        name = "find",
+                        route = RouteManifest("GET", "/probe/find"),
+                        parameters = listOf(
+                            RouteParameterManifest(
+                                "filter",
+                                RouteParameterManifest.Location.QUERY,
+                                mapOf("\$ref" to "#/\$defs/$PROBE.Filter"),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            defs = manifest.defs + ("$PROBE.Filter" to holding("q")) + (ARCHIVE to holding("reason")),
+        )
+        val written = ManifestOpenApi.write(extended)
+        OpenApiChecks.check(written)
+        @Suppress("UNCHECKED_CAST")
+        val paths = written["paths"] as Map<String, Map<String, Map<String, Any?>>>
+
+        @Suppress("UNCHECKED_CAST")
+        val parameters = paths.getValue("/probe/find").getValue("get")["parameters"] as List<Map<String, Any?>>
+        parameters.single()["schema"].assert().isEqualTo(ref("$PROBE.FilterInput"))
+        @Suppress("UNCHECKED_CAST")
+        val archive = paths.getValue("/probe/thing/{id}/wow.lifecycle.archive").getValue("post")["requestBody"]
+            as Map<String, Map<String, Map<String, Any?>>>
+        archive.getValue("content").getValue("application/json")["schema"].assert().isEqualTo(ref("$ARCHIVE" + "Input"))
+    }
+
     private companion object {
+        const val ARCHIVE = "wow.lifecycle.Archive"
         const val FIXTURE = "computed-inputs/manifest.json"
         const val PROBE = "me.ahoo.probe"
     }
