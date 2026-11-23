@@ -409,7 +409,7 @@
     "imports": []
   },
   "object with properties": {
-    "text": "{\n  readonly id: string;\n  \n          /**\n           * Shown to people\n           */\n          'display-name': string\n          ;\n  item: Item; \n}",
+    "text": "{\n  readonly id?: string;\n  \n          /**\n           * Shown to people\n           */\n          'display-name': string\n          ;\n  item: Item; \n}",
     "imports": []
   },
   "object without additional properties": {

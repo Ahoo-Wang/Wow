@@ -17,6 +17,7 @@ import { isReference } from '../openapi/references';
 import {
   isAllOf,
   isComposition,
+  isOptionalProperty,
   resolvePrimitiveType,
 } from '../openapi/schemas';
 
@@ -116,11 +117,14 @@ function schemaKind(
  */
 function clashesWithIndexSignature(
   propSchema: Schema | Reference,
+  optional: boolean,
   additionalProperties: Schema | Reference,
   components?: Components,
 ): boolean {
   const indexKind = schemaKind(additionalProperties, components);
   if (typeof indexKind !== 'object') return false;
+  // An optional property is `T | undefined`, which no primitive index takes.
+  if (optional) return true;
   const propertyKind = schemaKind(propSchema, components);
   if (propertyKind === undefined) return true;
   return (
@@ -134,9 +138,10 @@ function clashesWithIndexSignature(
  * signature.
  *
  * An interface may only carry a named property whose type is assignable to
- * its index signature (TS2411). Every generated property is required, so
- * only a clash that can be PROVEN off the schemas moves one - see
- * {@link clashesWithIndexSignature}. Anything undecided keeps the interface,
+ * its index signature (TS2411). Every generated property is required but a
+ * read-only one the schema does not require ({@link isOptionalProperty}),
+ * whose `undefined` no primitive index takes; otherwise only a clash that can
+ * be PROVEN off the schemas moves one - see {@link clashesWithIndexSignature}. Anything undecided keeps the interface,
  * which is the only form that can reference itself through an index
  * signature: an alias reaching itself through `Record` is circular (TS2456),
  * which is what a dictionary of its own type would generate.
@@ -153,7 +158,12 @@ export function requiresAdditionalPropertiesIntersection(
   if (typeof additionalProperties !== 'object') {
     return false;
   }
-  return Object.values(schema.properties ?? {}).some(propSchema =>
-    clashesWithIndexSignature(propSchema, additionalProperties, components),
+  return Object.entries(schema.properties ?? {}).some(([name, propSchema]) =>
+    clashesWithIndexSignature(
+      propSchema,
+      isOptionalProperty(schema, name),
+      additionalProperties,
+      components,
+    ),
   );
 }
