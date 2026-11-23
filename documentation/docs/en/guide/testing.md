@@ -460,6 +460,8 @@ fun `the binding index should name the context and the fragment and build the or
 
 `processors(dependencies)` constructs every processor of the module, so it needs the services of all of them. A processor test that needs only its own uses its generated handlers instead.
 
+The generated code carries `@WowGenerated`, so a coverage report measures your code alone: JaCoCo skips it by itself, and Kover with `annotatedBy`; see [What the Compiler Generates](./generated-code#coverage) for the two name patterns JaCoCo still needs.
+
 ## Beyond domain tests
 
 Domain tests cover the model. A service test starts the application and calls it over HTTP; keep it for what only a running service shows, such as routes, authorization and configuration:

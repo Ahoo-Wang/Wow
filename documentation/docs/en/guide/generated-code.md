@@ -77,3 +77,26 @@ The contract and this code are the api module's feature `contract`, published wi
 - **A service** sees the contract of every api module it reaches, its own api's included, without a line.
 - **A domain module's tests** see those of the build's api modules, their own api's included: most use its `<Context>Contract`. A peer published from another repository is asked for: `testImplementation(wow.contract(...))`.
 - **Code that uses another context's generated code** asks for it: `implementation(wow.contract(project(":eshop-ordering-api")))`, `wow.contract("com.example:ordering-api:1.0.0")` or `wow.contract(libs.ordering.api)`. A module without a Wow plugin writes `implementation(project(":eshop-ordering-api")) { capabilities { requireFeature("contract") } }`; a Maven build adds the module's jar of classifier `contract`, of the same version.
+
+## Coverage
+
+Every class the compiler and the contract plugins generate carries `@WowGenerated` (`me.ahoo.wow.api.annotation`, in `wow-annotations`, which `wow-api` brings): the model, access and query-field objects, the binding index, the object of each service route, the `<Context>Contract` and each object nested in it, the `<State>View` and each class it copies, and the file facades of the generated functions (`<Root>ModelKt`, `<Processor>SubscriptionsKt`). Its retention is binary: it is in the class files and needs nothing at run time. A coverage tool excludes generated code by it, not by names that also catch your own classes:
+
+- **JaCoCo** skips a class annotated with anything of class or runtime retention whose simple name contains `Generated`, with no configuration. It judges each class file by its own annotations. The classes the Kotlin compiler synthesizes inside the generated functions, for their suspending lambdas and the copies of inline functions, carry none, so exclude those of the two facades by name: `*ModelKt$*` and `*SubscriptionsKt$*`. No hand-written class has those names.
+- **Kover** excludes it with `annotatedBy`:
+
+```kotlin
+kover {
+    reports {
+        filters {
+            excludes {
+                annotatedBy("me.ahoo.wow.api.annotation.WowGenerated")
+            }
+        }
+    }
+}
+```
+
+  Observed with Kover 0.9.8: the filter also leaves out the synthetic classes of an annotated facade, so no name pattern is needed.
+
+`@StateView` on a generated view is another thing: the read side finds the aggregate type by it, and a hand-written view carries it too. A generated view carries both.

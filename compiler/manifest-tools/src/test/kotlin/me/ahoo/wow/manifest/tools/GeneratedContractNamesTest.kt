@@ -122,7 +122,10 @@ class GeneratedContractNamesTest {
                 "me.ahoo.wow.api.query.QueryField<kotlin.String> = me.ahoo.wow.api.query.QueryField.of(\"state.path\")"
             )
         sources.single { it.path.endsWith("/StateView.kt") }.text.assert()
-            .contains("@me.ahoo.wow.api.read.StateView(\"audit.state\")\npublic data class StateView(")
+            .contains(
+                "@me.ahoo.wow.api.read.StateView(\"audit.state\")\n@me.ahoo.wow.api.annotation.WowGenerated\n" +
+                    "public data class StateView(",
+            )
         compile(sources)
     }
 }

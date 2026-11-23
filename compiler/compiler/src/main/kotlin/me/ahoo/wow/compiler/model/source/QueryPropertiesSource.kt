@@ -153,6 +153,7 @@ internal object QueryPropertiesSource {
         appendLine(" */")
         // As visible as its state: an internal state's fields may be of the module's internal types.
         val visibility = if (state.isModuleInternal()) "internal" else "public"
+        appendLine(GeneratedMarks.CLASS)
         appendLine("$visibility object ${KotlinNames.quoted(className(state))} : $SNAPSHOT_PROPERTIES() {")
         properties.forEach {
             appendLine("    public val ${it.name}: $QUERY_FIELD<${it.type}> = $QUERY_FIELD.of(\"${it.path}\")")

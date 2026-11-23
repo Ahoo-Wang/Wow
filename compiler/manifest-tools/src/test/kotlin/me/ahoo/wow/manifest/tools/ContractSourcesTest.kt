@@ -316,11 +316,11 @@ class ContractSourcesTest {
         val context = ContextManifest("shop-ordering", aggregates = listOf(aggregate()), errors = errors)
         val text = contractOf(Manifest(contexts = listOf(context)), queryFields = false).text
         text.assert().contains(
-            "    /** The rejection codes the context shares. */\n    public object Errors {",
+            "    /** The rejection codes the context shares. */\n    @me.ahoo.wow.api.annotation.WowGenerated\n    public object Errors {",
             "        /** The shop is closed. (HTTP 503) */\n        public const val CLOSED: kotlin.String = \"shop-ordering.closed\"",
             "public const val ORDER__NESTED__CODE: kotlin.String = \"shop-ordering.order.nested.code\"",
             "public const val _404: kotlin.String = \"shop-ordering.404\"",
-            "        /** The aggregate's rejection codes, each the full code. */\n        public object Errors {",
+            "        /** The aggregate's rejection codes, each the full code. */\n        @me.ahoo.wow.api.annotation.WowGenerated\n        public object Errors {",
             "            /** An order has items. (HTTP 422) */\n" +
                 "            public const val INVALID_ITEMS: kotlin.String = \"shop-ordering.order.invalid-items\"",
             "public const val WRONG_STATUS: kotlin.String = \"shop-ordering.order.wrong-status\"",
