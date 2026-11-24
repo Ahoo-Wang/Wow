@@ -142,7 +142,7 @@ test/benchmarks/harness/lease-storm/lease-storm.sh run --label=base --install=/p
 
 `run` builds the catalog server, starts the replica set and the nodes, runs the storm, then the takeovers, and stops everything; its samples, summary and the nodes' logs go to `test/benchmarks/results/e2e/lease-storm-<label>/`, which git ignores. The steps also run one at a time (`up`, `nodes start`, `sample`, `storm`, `takeover <i>`, `nodes stop`, `down`). The heavy steps go through `quiet.sh`.
 
-What #6706's description gives, **measured on an Apple M4 Pro (14 cores, 24 GB, Docker Desktop) and to be repeated on the Apple M5 Max**, the reports' machine, before any of it is cited:
+What #6706's description gives, **measured on an Apple M4 Pro (14 cores, 24 GB; Docker: OrbStack 29.8.2, 14 CPUs, 12.6 GB, as `docker info` reports it) and to be repeated on the Apple M5 Max**, the reports' machine, before any of it is cited:
 
 | | Lease writes in flight while degraded, avg (max) | Longest wait | Recovery | Takeover after a node's `SIGKILL` |
 | --- | --- | --- | --- | --- |
