@@ -266,11 +266,24 @@ class CoSecPipeline(
 
 /** A security context whose principal [id] no credential proved: one no request of CoSec's pipeline gives a caller. */
 fun unproven(id: String, tenant: String = "acme", roles: List<String> = emptyList()): SecurityContext =
+    handBuilt(id, tenant, roles, authenticated = false)
+
+/**
+ * A security context of the principal [id], [authenticated] or not, built by code of the application's own rather
+ * than by CoSec's pipeline: the only way to one whose authenticated principal's id is blank, since CoSec 8.0.0-beta.8
+ * makes no principal of a blank id (`IDN-38`).
+ */
+fun handBuilt(
+    id: String,
+    tenant: String = "acme",
+    roles: List<String> = emptyList(),
+    authenticated: Boolean = true,
+): SecurityContext =
     object : SecurityContext {
         override val tenantId = tenant
         override val principal = object : CoSecPrincipal {
             override val id = id
-            override val authenticated = false
+            override val authenticated = authenticated
             override val attributes = emptyMap<String, Any>()
         }
         override val scope = object : SecurityScope {

@@ -72,11 +72,12 @@ class CoSecCallerResolverTest {
 
     @Test
     fun `an authenticated principal whose id is blank is no caller, a tenant-level role or not`() {
-        // A blank id proves no identity: answered as an unproven principal is (#6645).
-        callerOf(" ;acme").assert().isNull()
-        callerOf("\t;acme;admin").assert().isNull()
+        // A blank id proves no identity: answered as an unproven principal is (#6645). CoSec's pipeline makes no
+        // principal of one since 8.0.0-beta.8 (CoSecEdgeTest), so such a context is one the application's code built.
+        resolver.callerOf(handBuilt(" ")).assert().isNull()
+        resolver.callerOf(handBuilt("\t", roles = listOf("admin"))).assert().isNull()
         val tenantLevel = CoSecCallerResolver(CoSecCallerOptions(tenantRoles = setOf("employee")))
-        callerOf(" ;acme;employee", resolver = tenantLevel).assert().isNull()
+        tenantLevel.callerOf(handBuilt("", roles = listOf("employee"))).assert().isNull()
         // An id with white space around it is still an id: nothing is trimmed.
         callerOf(" a ;acme").assert().isEqualTo(Caller("acme", Scope(" a "), subject = " a "))
     }
