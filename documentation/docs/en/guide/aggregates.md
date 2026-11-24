@@ -289,6 +289,7 @@ The `DecideScope` is what a decision can ask of the kernel besides its events:
 | `reserve(namespace, key)` | Reserves a unique key, such as a user name, for this aggregate; `false` when another aggregate holds it. A `ReservationTenancy` argument widens its scope ([Unique Keys](./unique-keys#reserve-a-key)) |
 | `release(namespace, key)` | Releases a key this aggregate holds, once the events are appended; with the `ReservationTenancy` it was reserved with |
 | `onAppendFailure { … }` | Undoes an outside act when the events are surely not appended ([below](#undo-an-outside-act)) |
+| `callId()` | A request id no other attempt or retry takes, new at each call: the key of an outside act this attempt undoes ([below](#undo-an-outside-act)) |
 | `afterAppend { … }` | Runs once the events are appended; a failure is logged, not raised ([below](#undo-an-outside-act)) |
 | `schedule(key, rule, command, target)` | Schedules a command, to this aggregate unless `target` names another. It is written with the events, or not at all |
 | `cancelSchedule(key)` | Cancels the schedule this aggregate keeps under `key` |
@@ -311,18 +312,23 @@ A function that schedules a command declares the command's class in `@OnCommand(
 
 ## Undo an outside act
 
-A decision may act outside the aggregate before its events are appended: authorize a card, hold a seat in another system. `onAppendFailure` registers how to undo the act, and the kernel runs it when it knows the events were not appended:
+A decision may act outside the aggregate before its events are appended: authorize a card, hold a seat in another system, send a command to another context. `onAppendFailure` registers how to undo the act, and the kernel runs it when it knows the events were not appended. An act it undoes is keyed on the attempt, with `callId()`:
 
 <!-- sample: fragment -->
 
 ```kotlin
 @OnCommand
 suspend fun onCommand(command: PayOrder, scope: DecideScope): Decision {
-    val authorization = payments.authorize(state.totalAmount, key = scope.command.requestId)
+    val authorization = payments.authorize(state.totalAmount, key = scope.callId())
     scope.onAppendFailure { payments.void(authorization) }
     return Decision.events(OrderPaid(authorization.id))
 }
 ```
+
+An outside act is one of two kinds, each keyed its own way:
+
+- **An act that is undone** takes `callId()`, an id no other attempt or retry takes, as above; a Wow call takes it as its request id (`CommandRequest.requestId = scope.callId()`). Once the compensation ran, the next attempt (after a version conflict) or a caller's retry of the request (after a rejection) makes the act again under a new key. Keyed on the command instead, by its `requestId` or by the id a Wow client derives, the next attempt would repeat the request just undone, and a system that answers a repeated key with its first answer would hand back what was undone, the voided authorization.
+- **An act that stands** is never undone, and is keyed on the command. A Wow client does so by default: it derives the request id of each command it sends from the deciding command's aggregate, its request id and the call's order, so the next attempt sends the same requests, which their targets answer as repeats ([Rejections](./rejections#remote-calls-in-a-decide-function)). Such a call must be the same call in every attempt. When the next attempt, decided on a newer state, sends another target, command type or body in the same place, the command fails (`wow.command.failed`), naming the call, rather than being answered with the first call's commit. Another node committing between two attempts, a race the caller cannot avoid, then fails the command instead of committing on another call's answer. A call that may change undoes it and takes `callId()`, or carries a business request id of its own (`CommandRequest.requestId`).
 
 The compensation runs when:
 
@@ -332,11 +338,11 @@ The compensation runs when:
 - the store refuses the append, or fails in a way that surely wrote nothing;
 - the append finds the request already committed by another attempt.
 
-It does not run when the append's outcome is unknown. The kernel first reads the version the append would have taken. Only when that still cannot tell does it answer `wow.command.unknown`, and then the events may be committed. Nor can it run when the process dies. An act that must not outlive a lost command needs a clean-up of its own besides: an expiry in the outside system, or a reconciliation that reads the log.
+It does not run when the append's outcome is unknown. The kernel first reads the version the append would have taken. Only when that still cannot tell does it answer `wow.command.unknown`, and then the events may be committed. Nor can it run when the process dies. An act that must not outlive a lost command needs a clean-up of its own besides: an expiry in the outside system, or a reconciliation that reads the log. An act keyed on `callId()` is made again by the retry of such a command, under a new key, while the first stays made until that clean-up.
 
 - **Order.** Compensations run latest first, one after another, and each is awaited, even when the caller has gone away. There is no timeout: a compensation that hangs holds the aggregate's commands, so bound its call.
 - **Failure.** A failing compensation does not stop the others. It is logged, or added to the failure it undoes, and the command's answer does not change.
-- **Twice.** A command refused, or left unchanged, on a cached state that the log has moved past is decided again, its first attempt compensated first. The outside act may then be done twice and undone once, so key it on the command, as `requestId` does above.
+- **Twice.** A command refused, or left unchanged, on a cached state that the log has moved past is decided again, its first attempt compensated first. An act keyed on `callId()` is then done, undone and done again; an act that stands is sent again under the same key and answered as a repeat.
 - **Reserved keys.** `reserve` registers its own compensation: the hold this attempt took is given up when the events are not appended, while a key the aggregate already held stays held. The keys an attempt reserves and releases travel with its appended events, so when the outcome is unknown, or the process dies after the append, the built-in `wow.reservation` subscription confirms and releases them from the log. Only a hold that no appended entry carries, because the process died before appending, expires, after 30 seconds, for the next reservation of the key to take.
 
 `afterAppend` is the other side: it runs once the events are appended, before the caller is answered, in the order the actions were registered. It does not run on a duplicate, nor on any outcome that appended nothing, nor on a rejection, even one that commits events: the compensations run there instead. A failure is logged, and the events stay committed. Subscriptions may see the commit before the action ends, and a process that dies in between skips it. So it suits work that may be lost, such as warming a cache. Work that must follow every commit belongs in a reactor or a saga, which reads the committed events.
