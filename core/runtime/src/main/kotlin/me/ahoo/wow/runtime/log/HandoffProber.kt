@@ -50,7 +50,11 @@ import kotlin.time.TimeSource
  * round, a busy tail's too: a store that answers from what it remembers forgets a partition a call leaves out.
  *
  * A read owed is kept until the tail is woken for it, and a wake until the tail takes it, so no report is lost: the
- * prober keeps the set of tails owed a read, a private set of its own, and each tail its wake. A tail whose read of the store fails
+ * prober keeps the set of tails owed a read, a private set of its own, and each tail its wake. A tail whose read
+ * brought nothing (its cursor did not move by the next round) is woken once more: the log may name a partition as soon
+ * as another node's block is listed, before that node's stream is in the head (MongoDB reserves an append's sequence in
+ * one write and inserts its stream in the next, #6760), and names that block no more. The second read costs one read of
+ * the head, once; a stream that lands later still is the backstop's. A tail whose read of the store fails
  * ends, and its next one reads the store up to the head as it opens. A call of the log that fails is made again at the
  * next round, the backstop's included: the prober logs a warning as the call starts failing and a line as it answers
  * again. It runs while the log has tails open, on [scope], and stops with the last.
@@ -80,6 +84,9 @@ internal class HandoffProber(
 
     /** The tails whose partition the probe named and that have not been woken for it yet. */
     private val owed = ConcurrentHashMap.newKeySet<Probed>()
+
+    /** The tails the last round woke for a named partition, with the cursor each had: woken once more if it is unmoved. */
+    private val rechecks = ConcurrentHashMap<Probed, Long>()
     private val running = AtomicBoolean()
 
     // The loop's alone: one loop runs at a time, and the next starts after the last has ended.
@@ -103,6 +110,7 @@ internal class HandoffProber(
     fun unregister(tail: Probed) {
         tails -= tail
         owed -= tail
+        rechecks -= tail
     }
 
     private fun start() {
@@ -142,13 +150,7 @@ internal class HandoffProber(
             return false
         }
         probeOutage.answered()
-        // A tail that closed while the last round marked it is not owed any more.
-        owed.retainAll(tails)
-        open.filterTo(owed) { it.partition in named }
-        open.filter { it in owed && it.idleFor >= options.probeInterval / 2 }.forEach {
-            owed -= it
-            it.wake(Reason.IDLE)
-        }
+        wakeNamed(open, named)
         if (!backstop) return false
         val heads = try {
             log.heads(cursors.keys)
@@ -164,6 +166,26 @@ internal class HandoffProber(
                 (heads[tail.partition] ?: 0L) > tail.cursor
         }.forEach { it.wake(Reason.BACKSTOP) }
         return true
+    }
+
+    /**
+     * Wakes each of [open]'s tails idle half a probe interval that the probe owes a read ([named] now, or before while
+     * it was busy), and once more each one the last round woke whose read brought nothing (its cursor did not move):
+     * the stream of the block named may have landed since.
+     */
+    private fun wakeNamed(open: List<Probed>, named: Set<Int>) {
+        // A tail that closed while the last round marked it is not owed any more.
+        owed.retainAll(tails)
+        open.filterTo(owed) { it.partition in named }
+        val again = rechecks.filter { (tail, cursor) -> tail in tails && tail !in owed && tail.cursor == cursor }.keys
+        rechecks.clear()
+        val idle = options.probeInterval / 2
+        again.filter { it.idleFor >= idle }.forEach { it.wake(Reason.IDLE) }
+        open.filter { it in owed && it.idleFor >= idle }.forEach {
+            owed -= it
+            rechecks[it] = it.cursor
+            it.wake(Reason.IDLE)
+        }
     }
 
     /**

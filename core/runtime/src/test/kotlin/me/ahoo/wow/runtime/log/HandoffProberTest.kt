@@ -26,6 +26,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.testTimeSource
+import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.spi.log.EventLog
@@ -80,8 +81,11 @@ class HandoffProberTest : HandoffLogFixtures() {
         }
     }
 
-    /** A tail as the prober sees it, idle for as long as the test says. */
-    private class FakeTail(override val partition: Int, override val cursor: Long = 0) : HandoffProber.Probed {
+    /** A tail as the prober sees it, idle for as long as the test says, at the cursor the test sets. */
+    private class FakeTail(
+        override val partition: Int,
+        @Volatile override var cursor: Long = 0,
+    ) : HandoffProber.Probed {
         @Volatile
         var idle: Duration = Duration.ZERO
 
@@ -176,11 +180,55 @@ class HandoffProberTest : HandoffLogFixtures() {
             tail.idle = PROBE / 2
             advanceTimeBy(PROBE / 2)
             tail.wakes.assert().containsExactly(Reason.IDLE)
+            // Its read brought the other node's entry.
+            tail.cursor = 1
             advanceTimeBy(PROBE * 2)
             tail.wakes.assert().containsExactly(Reason.IDLE)
             log.asked.assert().allMatch { 0 in it }
             prober.unregister(tail)
         }
+
+    @Test
+    fun `another node's entry that lands after the probe named its reservation is read within a probe round`(): Unit =
+        runBlocking {
+            // #6760: MongoDB lists another node's block, and names its partition, before that node's stream is in the
+            // head, and names the block no more. The read the probe calls for finds nothing; the next round reads again.
+            val reserved = java.util.concurrent.atomic.AtomicBoolean()
+            val log = ProbedLog(store, named = { cursors ->
+                if (0 in cursors && reserved.compareAndSet(true, false)) setOf(0) else emptySet()
+            })
+            val handoff = probed(log)
+            val (seen, job) = collect(handoff)
+            awaitOpen(handoff)
+            handoff.append(next(refs[0]))
+            seen.take(1)
+            val headsBefore = log.headReads(0)
+            // Another node reserves its sequence: the probe names the partition, and the woken tail's read finds nothing.
+            reserved.set(true)
+            eventually { log.headReads(0) > headsBefore }
+            // The other node's stream lands.
+            store.append(next(refs[1]))
+            // Within the backstop's ten seconds it would come anyway: a few probe rounds is the bound held here.
+            withTimeoutOrNull(PROBE * 10) { seen.receive() }.assert()
+                .describedAs("another node's entry, past the read that found nothing").isNotNull()
+            job.cancelAndJoin()
+        }
+
+    @Test
+    fun `a tail whose read brought nothing is woken once more, and no more`(): Unit = runTest {
+        val calls = AtomicInteger()
+        // A block named once, whose stream never lands (its node stopped between the two writes).
+        val log = ProbedLog(store, named = { if (calls.incrementAndGet() == 1) setOf(0) else emptySet() })
+        val prober = HandoffProber(log, "bank", HandoffOptions(probeInterval = PROBE), backgroundScope)
+        val tail = FakeTail(partition = 0).apply { idle = PROBE }
+        prober.register(tail)
+        advanceTimeBy(PROBE / 2 + 1.milliseconds)
+        tail.wakes.assert().containsExactly(Reason.IDLE)
+        // Its cursor did not move: one more read the next round, then nothing; the backstop's interval is far off.
+        advanceTimeBy(PROBE * 3)
+        tail.wakes.assert().containsExactly(Reason.IDLE, Reason.IDLE)
+        prober.unregister(tail)
+    }
 
     @Test
     fun `a probe or a backstop read that fails is the next round's to do`(): Unit = runTest {
@@ -214,6 +262,8 @@ class HandoffProberTest : HandoffLogFixtures() {
         advanceTimeBy(PROBE / 2)
         tail.wakes.assert().containsExactly(Reason.IDLE)
         backstops.get().assert().isEqualTo(1)
+        // Its read brought the other node's entry: no second read of it.
+        tail.cursor = 1
         // 80 ms: still due, the backstop finds no head, so nothing past the cursor.
         advanceTimeBy(PROBE / 2)
         backstops.get().assert().isEqualTo(2)

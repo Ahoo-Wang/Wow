@@ -409,7 +409,8 @@ class HandoffLog(
                 logger.warn {
                     "The backstop read $readBackCount entries of partition $partition of $context that the probe did " +
                         "not name: a node wrote to a partition it no longer owned, after its routes moved and the " +
-                        "scheduled probes ended, or the probe's answer missed a case of another node's appends."
+                        "scheduled probes ended; another node's stream landed more than a probe round after its block " +
+                        "was named; or the probe's answer missed a case of another node's appends."
                 }
             }
             pending.headMap(cursor, true).clear()
