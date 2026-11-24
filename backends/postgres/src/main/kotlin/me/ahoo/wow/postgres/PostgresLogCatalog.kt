@@ -48,16 +48,21 @@ internal class PostgresLogCatalog(
     var registered: List<AggregateLogTable>? = null
         private set
 
-    /** See [PostgresEventLog.createSchema]. */
+    /**
+     * See [PostgresEventLog.createSchema]. The counters are filled in the creation's transaction, under its lock
+     * ([PostgresFormat.creating]): of two first starts, the second's insert runs once the first's has committed, finds
+     * its counters and adds none, so the count after it is the stored one and the start of another count is refused
+     * (#6750). Filled outside the lock, each start's insert could see the table empty and both counts open the log.
+     */
     fun createSchema() {
         dataSource.autoCommitted { connection ->
             val structures = listOf(tables.partitionsBase, PostgresEventLogTables.REGISTRY)
                 .map { it to PostgresEventLogTables.FORMAT }
             PostgresFormat.schema(connection, ddl, structures) {
                 PostgresSchema.execute(connection, tables.ddl())
+                connection.createStatement().use { it.execute(tables.initializePartitions(partitions)) }
             }
             if (ddl.creates) {
-                connection.createStatement().use { it.execute(tables.initializePartitions(partitions)) }
                 // Read again on first use, with the tables created from now on.
                 registered = null
             }

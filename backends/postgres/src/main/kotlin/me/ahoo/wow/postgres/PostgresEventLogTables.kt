@@ -54,7 +54,8 @@ internal class PostgresEventLogTables(val context: String) {
 
     /**
      * Creates the partition counters of an empty counter table, each with no parent at epoch 0; a table that has
-     * counters keeps them.
+     * counters keeps them. Run under the creation's lock, since its emptiness is read by the statement's own snapshot
+     * ([PostgresLogCatalog.createSchema]).
      */
     fun initializePartitions(partitionCount: Int) =
         "INSERT INTO $partitions (partition, sequence, parent, epoch) " +
