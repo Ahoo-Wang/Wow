@@ -142,6 +142,19 @@ class KubernetesManifestsFunctionalTest {
     }
 
     @Test
+    fun `a values file that does not exist should fail naming it and the line to correct`() {
+        try {
+            server(files = listOf("deploy/valeus.yaml"))
+            runner(task).buildAndFail().output.assert().contains(
+                "wow { kubernetes { values.from(…) } } names \"",
+                "deploy/valeus.yaml\", which does not exist: correct the path in values.from(…), or remove it.",
+            )
+        } finally {
+            server()
+        }
+    }
+
+    @Test
     fun `a value the chart's schema refuses should fail the build with the chart's message`() {
         values("image:\n  repository: a-server\nreplicaz: 3\n")
         try {

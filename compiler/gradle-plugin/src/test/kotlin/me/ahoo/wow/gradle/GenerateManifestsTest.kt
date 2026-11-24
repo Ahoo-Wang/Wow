@@ -116,6 +116,17 @@ class GenerateManifestsTest {
     }
 
     @Test
+    fun `a values file that does not exist should fail naming it and the line to correct`() {
+        val task = task(helm())
+        val missing = File(directory, "deploy/valeus.yaml")
+        task.values.from(missing)
+        assertThrows<GradleException> { task.valuesOrder.get() }.message.assert().isEqualTo(
+            "wow { kubernetes { values.from(…) } } names \"${missing.path}\", which does not exist: correct the path " +
+                "in values.from(…), or remove it.",
+        )
+    }
+
+    @Test
     fun `assemble should render only when the build names the deployment's values`() {
         val assemble = project.tasks.getByName("assemble")
         fun dependsOnManifests() =

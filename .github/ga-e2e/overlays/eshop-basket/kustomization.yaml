@@ -1,0 +1,16 @@
+# The basket on the GA cluster through Kustomize instead of Helm (#6662): the Kustomize base its build renders with
+# generateWowManifests (cluster.sh renders it for this cluster's namespace, with the run's values files after the
+# deployment's), and a patch of what the chart does not derive. The base's namespace is the render's; this overlay does
+# not move it.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../../../examples/eshop/basket/basket-server/build/wow/k8s
+patches:
+  - target:
+      kind: Deployment
+      name: eshop-basket-service
+    patch: |-
+      - op: add
+        path: /spec/template/metadata/annotations/wow.ahoo.me~1deployed-by
+        value: kustomize
