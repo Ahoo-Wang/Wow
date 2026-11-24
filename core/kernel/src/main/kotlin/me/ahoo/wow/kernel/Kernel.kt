@@ -537,8 +537,8 @@ class Kernel(
 
     /**
      * The commits of [ref] from version [fromVersion] up to [toVersion], at most [limit] of them, in version order,
-     * read-only: each stream with its events, read as the model's current schema,
-     * and the state and metadata after it. The state before [fromVersion] is the one [stateAt] gives for its version,
+     * read-only: each stream with its events, read as the model's current schema as the log holds them (never the
+     * objects the state evolved with, which a later event may change), and the state and metadata after it. The state before [fromVersion] is the one [stateAt] gives for its version,
      * from [snapshot] and the tail when it fits, so the log is not replayed from version 1 then; reaching it folds at
      * most [maxReplay] streams. The state cache is not touched.
      *

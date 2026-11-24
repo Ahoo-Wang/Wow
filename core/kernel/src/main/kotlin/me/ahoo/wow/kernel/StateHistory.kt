@@ -138,10 +138,12 @@ internal class StateHistory(
         val last = minOf(toVersion.toLong(), fromVersion.toLong() + limit - 1).toInt()
         val traces = ArrayList<CommitTrace>()
         log.read(ref, fromVersion, last).collect { stream ->
-            val events = ArrayList<Any>(stream.events.size)
-            current = source.evolve(model, current, stream, events)
+            current = source.evolve(model, current, stream)
             // The state may be mutable and evolve further: the trace keeps a tree of it as it is now.
             val state = current.state
+            // Decoded apart from those that evolved the state, which an evolve function may keep and a later one
+            // change: the trace shows each event as the log holds it.
+            val events = codec.decodeEvents(model, stream.events)
             traces += CommitTrace(stream, events, codec.stateTree(state), current.deleted, codec.accessOf(model, state))
         }
         return traces

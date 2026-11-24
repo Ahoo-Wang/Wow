@@ -189,15 +189,15 @@ internal class StateSourcing(
     }
 
     /**
-     * Evolves [current] with the events of [stream], adding each event, read as the model's current schema, to
-     * [events] when given: the state, and the deleted mark and schedules by the lifecycle and schedule events; the
-     * version and the scope become the stream's.
+     * Evolves [current] with the events of [stream], read as the model's current schema: the state, and the deleted
+     * mark and schedules by the lifecycle and schedule events; the version and the scope become the stream's. The
+     * events it decodes are the state's from then on, which an evolve function may keep and a later one change: they
+     * are never handed out.
      */
     internal fun <S : Any> evolve(
         model: AggregateModel<S>,
         current: CachedState,
         stream: EventStreamRecord,
-        events: MutableList<Any>? = null,
     ): CachedState {
         @Suppress("UNCHECKED_CAST") // The state is built by this model, or read as its state type.
         var state = current.state as S
@@ -228,7 +228,6 @@ internal class StateSourcing(
             null
         }
         decoded.forEach { event ->
-            events?.add(event)
             state = model.evolve(state, event, commit)
             metadata = KernelLifecycle.evolve(metadata, event)
         }

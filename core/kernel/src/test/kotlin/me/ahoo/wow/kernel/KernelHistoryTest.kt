@@ -223,6 +223,50 @@ class KernelHistoryTest {
         }
     }
 
+    data class Stocked(val items: MutableList<String>)
+    data class Shelved(val item: String)
+
+    class Shelf(val id: String) {
+        var items: MutableList<String> = mutableListOf()
+    }
+
+    /** A state that keeps its first event's list as its own, which the next commit's event adds to. */
+    private val shelfModel = aggregate<Shelf>("example", "shelf") {
+        initial { Shelf(it.id) }
+        evolve<Stocked> { items = it.items }
+        evolve<Shelved> { items.add(it.item) }
+    }
+
+    @Test
+    fun `a trace shows each commit's events as the log holds them, whatever later commits evolve`(): Unit =
+        runBlocking {
+            val shelf = shelfModel.type.ref("tenant", "shelf-1")
+            listOf(
+                EventRecord("example.shelf.Stocked", 1, """{"items":["a"]}"""),
+                EventRecord("example.shelf.Shelved", 1, """{"item":"b"}"""),
+            ).forEachIndexed { index, event ->
+                val version = index + 1
+                log.append(
+                    EventStreamRecord(
+                        ref = shelf,
+                        version = version,
+                        commandId = "c-$version",
+                        requestId = "r-$version",
+                        commandType = "example.shelf.Stock",
+                        commitTime = 1000L * version,
+                        events = listOf(event),
+                        scope = Scope.NONE,
+                    ),
+                )
+            }
+
+            val trace = kernel.trace(shelfModel, shelf, 1, 2, 10)
+
+            trace[0].events.assert().isEqualTo(listOf(Stocked(mutableListOf("a"))))
+            trace[0].state["items"].toString().assert().isEqualTo("""["a"]""")
+            trace[1].state["items"].toString().assert().isEqualTo("""["a","b"]""")
+        }
+
     /** Revision 2 of an event that began as `{"amount": ...}` and then named its note. */
     data class Counted(val amount: BigDecimal, val note: String)
 
