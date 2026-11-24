@@ -186,6 +186,9 @@ internal class AttemptScope(
         (compensations ?: ArrayList<suspend () -> Unit>().also { compensations = it }) += compensation
     }
 
+    /** A new id of the node's generators: UUIDv7 on a node, a new sequential id in the test DSL. */
+    override fun callId(): String = ids.next()
+
     override fun afterAppend(action: suspend () -> Unit) {
         readsAfterAppend = true
         onCommitted(action)

@@ -191,7 +191,7 @@ class HttpCommandClient internal constructor(
         targetTenant: String?,
         targeted: Boolean,
     ): Map<String, String> = buildMap {
-        put(WowHeaders.REQUEST_ID, currentCoroutineContext().requestIdOf(request.requestId) ?: ids.next())
+        put(WowHeaders.REQUEST_ID, currentCoroutineContext().requestIdOf(request) ?: ids.next())
         request.expectedVersion?.let { put(WowHeaders.IF_MATCH, "\"$it\"") }
         // The wait the request is bounded by, stated so the peer answers within it, on either port.
         plan?.timeout?.let { put(WowHeaders.WAIT_TIMEOUT, WaitHeader.formatTimeout(it)) }

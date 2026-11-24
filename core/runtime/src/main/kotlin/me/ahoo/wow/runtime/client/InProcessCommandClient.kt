@@ -77,7 +77,7 @@ class InProcessCommandClient @InternalWowApi constructor(
         return ServerCommandRequest.builder(type.context, type.name, command.javaClass.name, CommandBody.Value(command))
             .aggregateId(request.id)
             .caller(caller)
-            .requestId(currentCoroutineContext().requestIdOf(request.requestId))
+            .requestId(currentCoroutineContext().requestIdOf(request))
             .expectedVersion(request.expectedVersion)
             .target(
                 if (targetTenant != null || request.targetScope != null) {

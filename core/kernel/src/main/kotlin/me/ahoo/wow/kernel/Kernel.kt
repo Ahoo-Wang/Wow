@@ -28,6 +28,7 @@ import me.ahoo.wow.api.decide.DecideScope
 import me.ahoo.wow.api.id.Ids
 import me.ahoo.wow.api.lifecycle.RestoreAggregate
 import me.ahoo.wow.api.result.FrameworkCodes
+import me.ahoo.wow.spi.call.DecidingCommand
 import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -297,6 +298,8 @@ class Kernel(
         awaitScheduled(command)
         val waitBeyondCommitted = wait.beyondCommitted()
         val encode = scopes.encoder(model)
+        // Every attempt's: the calls a decision sends while deciding are the same requests in each attempt.
+        val deciding = DecidingCommand(command.ref, command.requestId)
         var attempts = 0
         while (attempts < maxAttempts) {
             val (loaded, cached) = source.load(model, requests)
@@ -308,7 +311,7 @@ class Kernel(
             val attempt =
                 attemptOn(command, loaded, waitBeyondCommitted, encode, declaredTimeOf(model, command, loaded))
             val prepared = try {
-                preparation.prepare(model, decider, attempt, loaded, command, commandType.name, reach)
+                preparation.prepare(model, decider, attempt, loaded, command, commandType.name, reach, deciding)
             } catch (
                 @Suppress("TooGenericExceptionCaught") // Compensates whatever failed, then rethrows it unchanged.
                 failure: Throwable,
