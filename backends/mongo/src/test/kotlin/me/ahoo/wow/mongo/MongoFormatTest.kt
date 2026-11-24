@@ -13,14 +13,22 @@
 
 package me.ahoo.wow.mongo
 
+import com.mongodb.MongoCommandException
+import com.mongodb.ServerAddress
 import com.mongodb.client.FindIterable
 import com.mongodb.client.ListCollectionNamesIterable
 import com.mongodb.client.MongoCollection
 import com.mongodb.client.MongoDatabase
+import com.mongodb.client.model.IndexOptions
+import com.mongodb.client.model.Indexes
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.spi.Ddl
+import org.bson.BsonDocument
+import org.bson.BsonInt32
+import org.bson.BsonString
 import org.bson.Document
 import org.bson.conversions.Bson
 import org.junit.jupiter.api.Test
@@ -57,7 +65,26 @@ class MongoFormatTest {
         verify(exactly = 0) { formats.insertOne(any()) }
     }
 
+    @Test
+    fun `a creation the server refuses for another reason than a conflicting index is thrown as it is`() {
+        val collection = mockk<MongoCollection<Document>>(relaxed = true)
+        every { collection.withTimeout(any(), any()) } returns collection
+        val refused = MongoCommandException(
+            BsonDocument(
+                "ok",
+                BsonInt32(0)
+            ).append("code", BsonInt32(UNAUTHORIZED)).append("errmsg", BsonString("not authorized")),
+            ServerAddress(),
+        )
+        every { collection.createIndex(any(), any<IndexOptions>()) } throws refused
+
+        assertThrows<MongoCommandException> {
+            MongoFormat.index(collection, Indexes.ascending("version"), IndexOptions().name("version_key"), Ddl.AUTO)
+        }.code.assert().isEqualTo(UNAUTHORIZED)
+    }
+
     private companion object {
         const val STRUCTURE = "wow_log__shop"
+        const val UNAUTHORIZED = 13
     }
 }
