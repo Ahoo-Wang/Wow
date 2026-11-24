@@ -65,6 +65,11 @@ idle_machine() {
   echo "machine.actions=${GITHUB_ACTIONS:-false}"
 }
 
+# The script that writes idle.json, run with node (a runner's measure job has Node, not pnpm): this tree's, or the one
+# in WOW_BENCH_SCRIPTS, which the idle suite sets to its own scripts: a runner checks out the measured tree's
+# test/benchmarks alone (bench.yml).
+idle_builder() { echo "${WOW_BENCH_SCRIPTS:-$REPO/.github/scripts}/bench-idle.mjs"; }
+
 # The chip idle_machine reads, for the report's environment name.
 idle_chip() { idle_machine | sed -n 's/^machine\.chip=//p'; }
 
@@ -120,7 +125,7 @@ idle() {
   local out; out=$(opt out "$REPO/test/benchmarks/results/e2e/$stamp-idle-$backend-n$nodes")
   local report; report=$(opt report "")
   if [ -n "$report" ]; then
-    local environment; environment=$(cd "$REPO" && node .github/scripts/bench-idle.mjs --environment "$(idle_chip)")
+    local environment; environment=$(node "$(idle_builder)" --environment "$(idle_chip)")
     if [ "$report" = true ]; then
       report="$backend-$nodes-node"
       if [ "$nodes" -gt 1 ]; then report="${report}s"; fi
@@ -158,7 +163,6 @@ out=$out
     idle_machine
     echo "meta=$META"
   } >"$OUT/session.txt"
-  # node, not pnpm: a runner's measure job has Node alone (bench.yml).
-  (cd "$REPO" && node .github/scripts/bench-idle.mjs "$OUT") >&2
+  node "$(idle_builder)" "$OUT" >&2
   log "idle measurement in $OUT (idle.json, idle.txt)"
 }

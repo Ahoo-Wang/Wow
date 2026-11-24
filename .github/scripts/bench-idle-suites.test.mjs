@@ -9,7 +9,8 @@
 import assert from 'node:assert/strict';
 import { chmodSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 import { SUITES, suitesOf } from './bench.mjs';
 import {
@@ -44,7 +45,7 @@ if [ "$install:$nodes" = /head:3 ] && [ -n "${threeHeads}" ]; then heads=${three
 mkdir -p "$out"
 cat >"$out/idle.json" <<JSON
 {"schema":"wow-idle/1","backend":"mongo","nodes":$nodes,"logHeadReadsPerSecond":$heads,
- "machine":{"chip":"AMD EPYC 7763 64-Core Processor","cores":4},
+ "machine":{"chip":"AMD EPYC 7763 64-Core Processor","cores":4},"scripts":"$WOW_BENCH_SCRIPTS",
  "storeCpu":{"withNodes":18.3,"withoutNodes":11.7,"added":$added},
  "reads":{"opcountersPerSecond":{"command":$heads,"query":4},
   "operations":[{"operation":"command aggregate transfer.wow_log__transfer__partition","perSecond":$heads}]}}
@@ -121,6 +122,11 @@ test('each arm runs at one node and three, and the report gives the head reads e
     ],
   );
   assert.equal(suite.failures, 0);
+  // bench.sh idle is told where this suite's scripts are: a runner checks out the measured tree's test/benchmarks alone.
+  assert.equal(
+    suite.runs[0].idle.scripts,
+    dirname(fileURLToPath(new URL('./bench-idle-suites.mjs', import.meta.url))),
+  );
   const table = idleTable(suite);
   assert.equal(table.length, 6);
   assert.match(

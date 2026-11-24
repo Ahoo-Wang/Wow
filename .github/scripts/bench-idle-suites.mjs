@@ -4,7 +4,8 @@
  * you may obtain a copy at http://www.apache.org/licenses/LICENSE-2.0
  */
 import { existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   anomalyTable,
   bench,
@@ -70,6 +71,8 @@ export function runIdle(
   { benchPath, out, cpuset, arms, installs, save },
 ) {
   suite.nodes = IDLE.nodes;
+  // idle.sh writes idle.json with these scripts' bench-idle.mjs: a runner's checkout of the measured tree has none.
+  process.env.WOW_BENCH_SCRIPTS ??= dirname(fileURLToPath(import.meta.url));
   for (const nodes of IDLE.nodes) {
     for (const arm of arms) {
       const name = `${arm.id}-${nodes}`;
