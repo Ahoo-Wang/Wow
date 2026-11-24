@@ -24,6 +24,7 @@ import me.ahoo.wow.kernel.memory.InMemoryLeaseStore
 import me.ahoo.wow.kernel.memory.InMemoryReservationStore
 import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.runtime.access.AccessStampOptions
 import me.ahoo.wow.runtime.cluster.Account
 import me.ahoo.wow.runtime.cluster.Deposit
 import me.ahoo.wow.runtime.cluster.Deposited
@@ -33,6 +34,7 @@ import me.ahoo.wow.runtime.snapshot.SnapshotTargets
 import me.ahoo.wow.runtime.subscription.testOptions
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
+import kotlin.time.Duration.Companion.milliseconds
 
 const val NODE_SERVICE = "bank-service"
 
@@ -69,8 +71,13 @@ class InMemoryBackends(private val partitions: Int = 8) : BackendFactory {
     }
 }
 
-/** Node options with the short cluster and subscription timings of the other runtime tests. */
+/**
+ * Node options with the short cluster and subscription timings of the other runtime tests, and access walks every
+ * 100 ms: at the default 5 s, a type without a store as the node starts is skipped for a run and walked at the third,
+ * about 10 s in, which a test's wait for the walk meets at its own 10 s bound (#6828, #6829).
+ */
 fun fastNodeOptions(): ServiceNodeOptions = ServiceNodeOptions(
     cluster = fastOptions(),
     subscription = testOptions(),
+    access = AccessStampOptions(interval = 100.milliseconds),
 )
