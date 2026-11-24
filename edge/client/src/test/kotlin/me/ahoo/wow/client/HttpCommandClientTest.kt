@@ -226,8 +226,8 @@ class HttpCommandClientTest {
                 client().of(alice).send(CommandRequest.to(ref, DeliverItems(listOf("cup"))))
             }
             peer.taken.map { it.headers[WowHeaders.REQUEST_ID] }.assert().containsExactly(
-                DecidingCommand.requestIdOf(ref, "r-deciding", 0),
-                DecidingCommand.requestIdOf(ref, "r-deciding", 1),
+                DecidingCommand.requestIdOf(ref.type, ref.tenantId, "r-deciding", 0),
+                DecidingCommand.requestIdOf(ref.type, ref.tenantId, "r-deciding", 1),
             )
         }
 
