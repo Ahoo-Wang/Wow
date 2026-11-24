@@ -13,7 +13,7 @@ V10 is measured against itself: each change against the code before it (alternat
 | `subscriptions-server/` | `:benchmark-subscriptions-server` | The benchmark server with `benchmark.projections` no-op projections of the account, from 0 to 16: the cost of a subscription, measured locally at one, two and four against none ([its README](subscriptions-server/README.md)) |
 | `load/` | `:benchmark-load` | The load generator: a JVM of its own on the JDK alone, no Wow module and no library |
 | `axon-server/` | none (a build of its own) | The industry comparison's server: the same domain on Axon Framework 4 with its JDBC event storage engine on PostgreSQL, no Axon Server, behind the routes E1 and E3 use. Axon Framework 4 runs on Spring Boot 3, Wow on 4, so it builds alone: `./gradlew -p test/benchmarks/axon-server installDist` |
-| `harness/` | none | `compose.yml` (MongoDB, PostgreSQL, Kafka) and `bench.sh` (start, seed, check, run, collect, clean up), with the files it sources: `measure.sh` (the `measure` programs), `raw.sh` (the raw-driver ceiling), `diagnostics.sh` (flight recordings and dumps), `idle.sh` (`bench.sh idle`: what idle nodes cost their store) |
+| `harness/` | none | `compose.yml` (MongoDB, PostgreSQL, Kafka) and `bench.sh` (start, seed, check, run, collect, clean up), with the files it sources: `measure.sh` (the `measure` programs), `raw.sh` (the raw-driver ceiling), `diagnostics.sh` (flight recordings and dumps), `idle.sh` (`bench.sh idle`: what idle nodes cost their store); `lease-storm/` (#6675's lease storm and takeover, [below](#lease-storm-and-takeover)) |
 | `results/` | none | The committed performance evidence: every report with the commit, command, environment and raw results that reproduce it |
 
 None of them is published; the root build keeps them out of the ABI checks and the coverage reports (`e2eBenchmarkProjects`). V10 has no JMH level (D244, D262). The reports in `results/` remain evidence under the conditions they record, and keep the paths and project names of their time.
@@ -123,6 +123,33 @@ An ABAB compares two builds (or two configurations) on one machine: fresh sessio
 A run writes `result.json` (load, results, histogram, resources, machine, commit, JVM and configuration) and `summary.md` beside the servers' logs to `test/benchmarks/results/e2e/<time>-<label>-<version>-<backend>-n<nodes>-<scenario>/`, which git ignores; a report copies the results it cites into `results/reports/`. Ports: public 18080 to 18082, V10 internal 19090 to 19092, MongoDB 27017, PostgreSQL 5432, Kafka 9092.
 
 On one machine every service, store and the load generator share the CPU: results are directional, and the report says so (D224).
+
+## Lease storm and takeover
+
+What a node does to a MongoDB lease store that cannot acknowledge a write, and how long a crashed node's partitions take to move (#6675): `test/benchmarks/harness/lease-storm/lease-storm.sh`, apart from `bench.sh`, since it runs the eShop catalog server, not the benchmark's.
+
+- **What it starts.** A `mongo:7.0` container, `wow-lease-storm`, with a replica set of a primary (27117), a secondary (27118) and an arbiter (27119), each published on 127.0.0.1 under its own port so the members' names resolve inside the container and on the host alike. The default write concern is `w:1` so that the arbiter can be added; Wow writes with `w: majority` itself. Then three eShop catalog nodes from this tree's `installDist` (or `--install=<dir>`, another build's), profiles `mongo,dev`, default `wow.cluster.*` settings, one lease group of 64 partitions, ports 18301 to 18303 and 19301 to 19303.
+- **What it samples**, every ~2 s on the primary (`sample.js`): its connections, the lease writes in flight on `wow_lease` (`findAndModify` and `update` from `$currentOp`), those waiting for flow control, the median and longest seconds a `findAndModify` has run, and the live leases by owner. Reads of the lease collection still answer while the store cannot acknowledge a write.
+- **The storm** stops the secondary for `--degraded=120` seconds, so the set has no majority, starts it again, and samples until every partition is owned for five samples in a row. Its summary: the degraded window's average connections, lease writes in flight (average and most), longest wait, the recovery time, and the sockets dropped (counted twice: the nodes' `MongoSocketReadTimeoutException` causes, and the node connections the primary's log ended).
+- **The takeover** kills a node with `SIGKILL` on fresh nodes and polls the lease collection every 100 ms until none of its leases is live and the survivors own all 64 partitions; `run` does it `--takeovers=3` times, killing node 3, then 2, then 1.
+
+From the repository root, with Docker and `JAVA_HOME` set to a JDK 25, wherever the checkout is (the script finds the repository from its own path):
+
+```bash
+test/benchmarks/harness/lease-storm/lease-storm.sh run --label=head
+test/benchmarks/harness/lease-storm/lease-storm.sh run --label=base --install=/path/to/baseline/examples/eshop/catalog/catalog-server/build/install/eshop-catalog-server
+```
+
+`run` builds the catalog server, starts the replica set and the nodes, runs the storm, then the takeovers, and stops everything; its samples, summary and the nodes' logs go to `test/benchmarks/results/e2e/lease-storm-<label>/`, which git ignores. The steps also run one at a time (`up`, `nodes start`, `sample`, `storm`, `takeover <i>`, `nodes stop`, `down`). The heavy steps go through `quiet.sh`.
+
+What #6706's description gives, **measured on an Apple M4 Pro (14 cores, 24 GB, Docker Desktop) and to be repeated on the Apple M5 Max**, the reports' machine, before any of it is cited:
+
+| | Lease writes in flight while degraded, avg (max) | Longest wait | Recovery | Takeover after a node's `SIGKILL` |
+| --- | --- | --- | --- | --- |
+| `main` before #6706 | 37.2 (48) | 29 s | 12 s | 8.7, 9.8, 9.9 s |
+| #6706 (the acquisition gate) | 2.4 (3) | 29 s | 17 s | 9.9, 9.3, 9.8 s |
+
+The 29 s wait is the store's operation timeout, which #6710 bounds by the lease's TTL; the bound's storm (the longest wait beside 29 s, and the sockets dropped) has not been measured. No report is committed from these runs.
 
 ## The industry comparison
 
