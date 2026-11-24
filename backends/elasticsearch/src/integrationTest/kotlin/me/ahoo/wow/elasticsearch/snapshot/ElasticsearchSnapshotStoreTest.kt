@@ -27,6 +27,7 @@ import me.ahoo.wow.elasticsearch.ElasticsearchIndices
 import me.ahoo.wow.elasticsearch.ElasticsearchStore
 import me.ahoo.wow.elasticsearch.ElasticsearchStoreProvider
 import me.ahoo.wow.spi.Ddl
+import me.ahoo.wow.spi.StorageRefusedException
 import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.tck.snapshot.SnapshotStoreSpec
@@ -102,6 +103,32 @@ class ElasticsearchSnapshotStoreTest : SnapshotStoreSpec() {
         assertThrownBy<IllegalStateException> {
             runBlocking { store.load(AggregateType(context, "unwritten").ref("tenant", "a")) }
         }.hasMessageContaining("[$unwritten] is not the write alias")
+    }
+
+    @Test
+    fun `an alias made by hand without is_write_index is its one index's write alias`(): Unit = runBlocking {
+        val context = ElasticsearchFixture.newContext()
+        val type = AggregateType(context, "aggregate")
+        val index = ElasticsearchFixture.names.snapshots(context, type.name)
+        // As the operate page has an operator create the pair, but with the alias's flag left out.
+        ElasticsearchFixture.client.indices().create {
+            it.withJson(java.io.StringReader(ElasticsearchSnapshotIndex.DEFINITION))
+                .index(ElasticsearchIndices.concreteOf(index)).aliases(index) { alias -> alias }
+        }.get()
+        val store = ElasticsearchFixture.store(Ddl.VALIDATE).snapshots(context)
+        store.save(snapshot("a", 1, aggregate = type)).assert().isTrue()
+        store.load(type.ref("tenant", "a"))?.version.assert().isEqualTo(1)
+    }
+
+    @Test
+    fun `a single document Elasticsearch refuses fails its save as refused`(): Unit = runBlocking {
+        val context = ElasticsearchFixture.newContext()
+        val type = AggregateType(context, "aggregate")
+        val store = createStore(context)
+        // A field name Elasticsearch cannot map, written through the index API rather than a batch.
+        assertThrownBy<StorageRefusedException> {
+            runBlocking { store.save(snapshot("a", 1, aggregate = type).copyWith(state = """{"":1}""")) }
+        }
     }
 
     @Test
