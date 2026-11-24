@@ -63,7 +63,7 @@ class DataSourceAutoConfiguration {
         environment.getProperty("$PREFIX.username")?.let { dataSource.username = it }
         environment.getProperty("$PREFIX.password")?.let { dataSource.password = it }
         environment.getProperty("$PREFIX.driver-class-name")?.let { dataSource.driverClassName = it }
-        logger.info { "The host's DataSource connects to ${dataSource.jdbcUrl} (spring.datasource.url)." }
+        logger.info { "The host's DataSource connects to ${withoutCredentials(dataSource.jdbcUrl)} ($PREFIX.url)." }
         return dataSource
     }
 
@@ -72,6 +72,39 @@ class DataSourceAutoConfiguration {
         const val PREFIX: String = "spring.datasource"
 
         private val logger = KotlinLogging.logger {}
+
+        /**
+         * [url], a JDBC URL, as a log line may show it: a part of it only where that part cannot hold a credential,
+         * else less, since no reading of every driver's syntax finds every credential (#6848).
+         *
+         * - A URL with an `@` anywhere, or not of the form `jdbc:<driver>://`, is its driver alone (`jdbc:mysql`,
+         *   `jdbc:oracle`, `jdbc:h2`): user info needs an `@`, and the other forms put properties anywhere, a `//`
+         *   among them (H2's `jdbc:h2:mem:shop?password=a//b`). The host of a MySQL URL with user info, or of one
+         *   whose parameter holds an `@`, is not shown: the price of never showing a password.
+         * - Otherwise, after that `//`, its hosts, the longest run of letters, digits and `.`, `_`, `-`, `[`,
+         *   `]`, `:` and `,`, and after one `/` its database, the longest run of letters, digits and `.`, `_`, `-`;
+         *   whatever comes next ends it. So no `=`, `?`, `;`, `#`, `&`, `%` or `@` is shown, and no parameter or
+         *   property: PostgreSQL's `?password=…`, SQL Server's `;password=…`, DB2's and Informix's `:password=…`
+         *   after the database.
+         */
+        internal fun withoutCredentials(url: String): String {
+            val driver = "jdbc:" + url.removePrefix("jdbc:").takeIf { url.startsWith("jdbc:") }.orEmpty()
+                .takeWhile { it in NAME }
+            if ('@' in url || !url.startsWith("$driver://")) {
+                return driver
+            }
+            val rest = url.removePrefix("$driver://")
+            val hosts = rest.takeWhile { it in HOSTS }
+            val after = rest.substring(hosts.length)
+            val database = if (after.startsWith('/')) after.drop(1).takeWhile { it in NAME } else ""
+            return "$driver://$hosts" + if (database.isEmpty()) "" else "/$database"
+        }
+
+        /** What a driver's or a database's name shows: letters, digits, `.`, `_` and `-`. */
+        private val NAME: Set<Char> = (('a'..'z') + ('A'..'Z') + ('0'..'9') + listOf('.', '_', '-')).toSet()
+
+        /** What hosts show: a name's characters, and the brackets, colons and commas of their addresses and ports. */
+        private val HOSTS: Set<Char> = NAME + setOf('[', ']', ':', ',')
     }
 }
 

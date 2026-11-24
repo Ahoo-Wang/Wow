@@ -13,6 +13,9 @@
 
 package me.ahoo.wow.spring.boot.store
 
+import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.core.read.ListAppender
 import com.mongodb.client.MongoClient
 import com.mongodb.client.MongoClients
 import com.zaxxer.hikari.HikariDataSource
@@ -20,6 +23,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.mongo.MongoPoolGauge
 import me.ahoo.wow.spring.boot.startHost
 import org.junit.jupiter.api.Test
+import org.slf4j.LoggerFactory
 import org.springframework.asm.ClassWriter
 import org.springframework.asm.Opcodes
 import org.springframework.boot.autoconfigure.AutoConfigurations
@@ -91,6 +95,94 @@ class DatabaseAutoConfigurationTest {
             dataSource.poolName.assert().isEqualTo("shop-pool")
             // The pool opens at the first connection, not at startup.
             dataSource.isRunning.assert().isFalse()
+        }
+    }
+
+    @Test
+    fun `the DataSource's start-up line should name where it connects, never a password its URL carries`() {
+        // PostgreSQL's driver takes the credentials as URL parameters as well as from username and password (#6848).
+        val root = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME) as Logger
+        val lines = ListAppender<ILoggingEvent>().apply { start() }
+        root.addAppender(lines)
+        try {
+            hostAlone.withPropertyValues(
+                "spring.datasource.url=jdbc:postgresql://db:5432/shop?user=shop&password=$SECRET"
+            )
+                .run { context ->
+                    // The pool connects with the URL as it is.
+                    (context.getBean(DataSource::class.java) as HikariDataSource).jdbcUrl.assert().contains(SECRET)
+                }
+        } finally {
+            root.detachAppender(lines)
+        }
+        val logged = lines.list.map { it.formattedMessage }
+        logged.single { "spring.datasource.url" in it }.assert()
+            .isEqualTo("The host's DataSource connects to jdbc:postgresql://db:5432/shop (spring.datasource.url).")
+        logged.filter { SECRET in it }.assert().isEmpty()
+    }
+
+    @Test
+    fun `a JDBC URL without a credential should still show its hosts and database`() {
+        mapOf(
+            "jdbc:postgresql://db:5432/shop" to "jdbc:postgresql://db:5432/shop",
+            "jdbc:postgresql://db1:5432,db2:5432/shop?ssl=true" to "jdbc:postgresql://db1:5432,db2:5432/shop",
+            "jdbc:postgresql://[::1]:5432/shop" to "jdbc:postgresql://[::1]:5432/shop",
+            "jdbc:postgresql://db" to "jdbc:postgresql://db",
+            "jdbc:sqlserver://db:1433;databaseName=shop" to "jdbc:sqlserver://db:1433",
+            "jdbc:db2://db:50000/shop:currentSchema=sales;" to "jdbc:db2://db:50000/shop",
+            // The forms that may hold a credential anywhere show their driver alone (#6848).
+            "jdbc:h2:mem:shop" to "jdbc:h2",
+            "jdbc:oracle:thin:@//db:1521/shop" to "jdbc:oracle",
+            "jdbc:postgresql://db/shop?user=a@b.example" to "jdbc:postgresql",
+            // Not a JDBC URL, which no driver takes: nothing of it.
+            "postgresql://db/shop?password=$SECRET" to "jdbc:",
+        ).forEach { (url, shown) ->
+            DataSourceAutoConfiguration.withoutCredentials(url).assert().describedAs(url).isEqualTo(shown)
+        }
+    }
+
+    @Test
+    fun `no part of a credential should be shown, whatever its URL's form, its place and what it is made of`() {
+        val forms = listOf(
+            "jdbc:postgresql://db:5432/shop",
+            "jdbc:postgresql://db1:5432,db2:5432/shop",
+            "jdbc:postgresql://[::1]:5432/shop",
+            "jdbc:mysql://db:3306/shop",
+            "jdbc:oracle:thin:@//db:1521/shop",
+            "jdbc:oracle:thin:@db:1521:orcl",
+            "jdbc:sqlserver://db:1433;databaseName=shop",
+            "jdbc:h2:mem:shop",
+            "jdbc:db2://db:50000/shop",
+            "jdbc:informix-sqli://db:1533/shop:INFORMIXSERVER=srv",
+        )
+        // Where a driver takes a credential: user info, a `?` or `&` parameter, a `;` property, a `:` property after
+        // the database (DB2's, Informix's).
+        val places: List<(String, String) -> String?> = listOf(
+            { url, secret ->
+                when {
+                    "thin:@" in url -> url.replace("thin:@", "thin:shop/$secret@")
+                    "//" in url -> url.replaceFirst("//", "//shop:$secret@")
+                    else -> null
+                }
+            },
+            { url, secret -> "$url?password=$secret" },
+            { url, secret -> "$url?ssl=true&password=$secret" },
+            { url, secret -> "$url;password=$secret" },
+            { url, secret -> "$url:password=$secret;user=shop;" },
+        )
+        // Letters no form holds, around each of a URL's delimiters.
+        val secrets = listOf("@", "/", "//", "?", ";", ":", "#", "&", "=", "%").map { "ZQ${it}JK${it}W" }
+        forms.forEach { form ->
+            places.forEach { place ->
+                secrets.forEach { secret ->
+                    val url = place(form, secret) ?: return@forEach
+                    val shown = DataSourceAutoConfiguration.withoutCredentials(url)
+                    // Every substring of two characters or more, but the URL's own syntax ("//") alone.
+                    val parts = (2..secret.length).flatMap { length -> secret.windowed(length) }
+                        .filter { part -> part.any(Char::isLetter) }
+                    parts.filter { it in shown }.assert().describedAs("$url shown as $shown").isEmpty()
+                }
+            }
         }
     }
 
@@ -181,5 +273,9 @@ class DatabaseAutoConfigurationTest {
             host.context.getBeansOfType(MongoClient::class.java).assert().isEmpty()
             host.context.getBean(HostBackends::class.java).type.assert().isEqualTo("memory")
         }
+    }
+
+    private companion object {
+        const val SECRET = "s3cret-pw"
     }
 }
