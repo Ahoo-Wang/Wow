@@ -86,7 +86,7 @@ node-1 holds back its lease acquisitions in shop-service on its lease store: ren
 node-1 acquires leases in shop-service again: its probe, an acquisition of partition 2 of shop-service/shop, was answered, 117.6s after its lease store first failed (8 failed calls).
 ```
 
-并在下一次调和中接手缺失的分区。节点没有缺失分区时单次失败的续约或心跳，以同一行结束，写明那次调用（"a heartbeat succeeded"）。这两行之间要查的是存储，而不是 Wow：在 MongoDB 上，带仲裁节点、又失去一个数据节点的副本集无法确认多数派写入（[生产环境中的 MongoDB](./mongodb#in-production)）；在 PostgreSQL 上，查主库或到主库的网络。
+并在下一次调和中接手缺失的分区。节点没有缺失分区时单次失败的续约或心跳，以同一行结束，写明那次调用（"a heartbeat succeeded"）。这两行之间要查的是存储，而不是 Wow：在 MongoDB 上，带仲裁节点、又失去一个数据节点的副本集无法确认多数派写入（[生产环境中的 MongoDB](./mongodb#in-production)），节点在启动时已对此发出警告（"connects to a replica set with an arbiter"）；在 PostgreSQL 上，查主库或到主库的网络。
 
 ## 另一个上下文的主题 {#a-topic-of-another-context}
 

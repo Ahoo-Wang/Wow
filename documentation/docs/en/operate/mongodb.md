@@ -97,6 +97,14 @@ The backend's integration tests run on a replica set of three every night: appen
 ## In production
 
 - **Three data-bearing members, no arbiter.** Majority writes and reads need two of three members up; an arbiter counts for elections but holds no data, so with one data member down the majority cannot commit and the tails stall. Put the members in three failure domains (zones or racks).
+
+  A node outside development warns at start, once per store, when its client connects to a replica set that lists an arbiter (a primary, a secondary and an arbiter, say):
+
+  ```text
+  The client of wow.mongo connects to a replica set with an arbiter (mongo-3:27017): while one of its data-bearing members is down, MongoDB cannot acknowledge a majority write, so the log's appends and the lease writes wait until they time out, the nodes stop their partitions, and the subscriptions' tails stall. Replace the arbiter with a third data-bearing member, or bring a member that goes down back at once.
+  ```
+
+  It is a warning, not a refusal: such a set works while both data-bearing members are up. Through a `mongos` the shards' members are not visible, so a sharded cluster is not warned: check that no shard has an arbiter.
 - **Latency.** Each append waits for a majority, one replication round trip; keep the members within a few milliseconds of each other. A distant member for disaster recovery takes `priority: 0` and `votes: 0` so it neither becomes primary nor slows the majority.
 - **Disk and cache.** The log is append-mostly; give the members local SSDs with `fsync` that does not stall, and size WiredTiger's cache (half the RAM less 1 GB by default) to hold the snapshot collections' working set and the log's recent entries.
 - **Oplog.** Size it for the longest maintenance a secondary may be away (hours to a day): a secondary that falls off the oplog needs a full resync.
