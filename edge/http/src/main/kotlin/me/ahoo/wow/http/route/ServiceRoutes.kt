@@ -28,6 +28,7 @@ import me.ahoo.wow.api.route.RouteRefusal
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.http.HttpJson
 import me.ahoo.wow.http.caller.Authenticator
+import me.ahoo.wow.http.command.Negotiation
 import me.ahoo.wow.http.command.RequestHeaders
 import me.ahoo.wow.http.problem.ErrorStatuses
 import me.ahoo.wow.http.problem.ProblemException
@@ -42,12 +43,16 @@ import me.ahoo.wow.query.admission.QueryTargets
 import me.ahoo.wow.runtime.admission.Authorization
 import me.ahoo.wow.runtime.admission.RouteAction
 import me.ahoo.wow.runtime.admission.ServiceRouteAuthorizer
+import me.ahoo.wow.spi.json.JsonReadFailures
 import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import org.springframework.web.reactive.function.server.awaitBodyOrNull
 import org.springframework.web.reactive.function.server.bodyValueAndAwait
 import org.springframework.web.reactive.function.server.buildAndAwait
+import tools.jackson.databind.DeserializationFeature
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.ObjectReader
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.reflect.KClass
@@ -121,6 +126,11 @@ internal class ServiceRouteHandling(
         handler: ServiceRouteHandler,
     ): ServerResponse {
         val acting = admit(request, context, route)
+        // As a command's: an Accept it cannot answer is 406, and a body it takes is JSON or 415 (#6818).
+        Negotiation.checkAcceptable(request, alsoEventStream = false)
+        if (route.request != null) {
+            Negotiation.checkJsonBody(request, "A route's body")
+        }
         val body = if (route.request != null) request.awaitBodyOrNull<ByteArray>() else null
         val call = Call(
             caller = acting,
@@ -228,10 +238,17 @@ internal class ServiceRouteHandling(
         override fun <T> body(type: KType): T {
             val bytes = body?.takeIf { it.isNotEmpty() }
                 ?: throw MalformedRouteRequestException(BODY, "The route takes a body, and the request has none.")
+            val javaType = HttpJson.mapper.typeFactory.constructType(type.javaType)
+            // Read as a command's body is (reference/json-values.md): a property given twice, or one its type does not
+            // have, is refused, where the node's lenient reader keeps the last and ignores the other.
             val value: T = try {
-                HttpJson.mapper.readValue(bytes, HttpJson.mapper.typeFactory.constructType(type.javaType))
+                STRICT.forType(javaType).readValue(bytes)
             } catch (failure: tools.jackson.core.JacksonException) {
-                throw MalformedRouteRequestException(BODY, "The body does not read as the route's request.", failure)
+                val why = FAILURES.duplicateIn(bytes)
+                    ?: treeOf(bytes)?.let { FAILURES.of(it, javaType.rawClass, failure) }
+                val where = why?.let { ": ${it.path.ifEmpty { "the body" }}: ${it.message}" }.orEmpty()
+                val detail = "The body does not read as the route's request$where"
+                throw MalformedRouteRequestException(BODY, detail, failure)
             }
             nullIn(value, type, "The body")?.let { where ->
                 throw MalformedRouteRequestException(BODY, "$where is null, which the route's request does not allow.")
@@ -283,6 +300,19 @@ internal class ServiceRouteHandling(
 
     private companion object {
         const val BODY = "body"
+
+        /** Why a body does not read, by its property's path and in Wow's words. */
+        val FAILURES = JsonReadFailures(HttpJson.mapper)
+
+        /** The reader of a route's body: duplicates and unknown properties refused, as a command's. */
+        val STRICT: ObjectReader = FAILURES.requestReader.with(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+
+        /** [bytes] as a tree, or null when they are not JSON. */
+        fun treeOf(bytes: ByteArray): JsonNode? = try {
+            HttpJson.mapper.readTree(bytes)
+        } catch (_: tools.jackson.core.JacksonException) {
+            null
+        }
 
         /** A whole number as JSON writes it. */
         val INTEGER = Regex("-?(0|[1-9][0-9]*)")

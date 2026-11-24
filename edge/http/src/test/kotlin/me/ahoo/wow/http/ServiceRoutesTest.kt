@@ -203,6 +203,35 @@ class ServiceRoutesTest {
     }
 
     @Test
+    fun `a route's body is JSON, read as a command's is, and its answer one the caller accepts`() {
+        // #6818: a service route took any content type and read its body leniently.
+        val plain = node.client.post().uri("/$CONTEXT/notes").header("X-User", "alice")
+            .header("Content-Type", "text/plain")
+            .bodyValue("""{"text":"hello"}""")
+            .answer()
+        plain.status.assert().isEqualTo(415)
+        // A property given twice, or one the route's request does not have, is refused, naming it.
+        val twice = node.post("/$CONTEXT/notes", """{"text":"a","text":"b"}""")
+        twice.status.assert().isEqualTo(400)
+        twice.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.ROUTE_MALFORMED)
+        twice.body["detail"].asString().assert().contains("text", "more than once")
+        val unknown = node.post("/$CONTEXT/notes", """{"text":"a","tags":[]}""")
+        unknown.status.assert().isEqualTo(400)
+        unknown.body!!["detail"].asString().assert().contains("tags")
+        // A body of another kind than the route's request, at its root, is named as the body.
+        val array = node.post("/$CONTEXT/notes", "[]")
+        array.status.assert().isEqualTo(400)
+        array.body!!["detail"].asString().assert().contains("the body")
+        // An answer the caller does not accept is 406, as on a command's route.
+        val html = node.client.post().uri("/$CONTEXT/notes").header("X-User", "alice")
+            .header("Content-Type", "application/json").header("Accept", "text/html")
+            .bodyValue("""{"text":"hello"}""")
+            .answer()
+        html.status.assert().isEqualTo(406)
+        notes.assert().isEmpty()
+    }
+
+    @Test
     fun `a route with a body takes it and answers no content for Unit`() {
         node.post("/$CONTEXT/notes", """{"text":"hello"}""").status.assert().isEqualTo(204)
         notes.assert().containsExactly("hello")
