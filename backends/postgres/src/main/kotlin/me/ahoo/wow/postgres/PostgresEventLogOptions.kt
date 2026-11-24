@@ -43,12 +43,19 @@ class PostgresEventLogOptions(
      * its size ([PostgresBatches.ARRAYS_ABOVE]); 0 binds every such group so.
      */
     val arraysAbove: Int = PostgresBatches.ARRAYS_ABOVE,
+    /**
+     * How long a tail may read nothing while its partition's counter is past what it read before it warns, naming the
+     * partition and the sequence it waits for, and again each time as long ([TailStall]): its entry's table is not in
+     * the registry, or the entry was deleted.
+     */
+    val stallWarning: Duration = DEFAULT_STALL_WARNING,
 ) {
     init {
         require(pollInterval.isPositive()) { "The poll interval is positive." }
         require(maxPollInterval >= pollInterval) { "The longest poll interval is at least the poll interval." }
         require(tailBatch >= 1) { "A tail reads at least one entry at a time." }
         require(arraysAbove >= 0) { "The rows above which an append binds as arrays are never negative." }
+        require(stallWarning.isPositive()) { "A stalled tail warns after a positive time." }
     }
 
     override fun equals(other: Any?): Boolean =
@@ -58,13 +65,15 @@ class PostgresEventLogOptions(
 
     override fun toString(): String =
         "PostgresEventLogOptions(pollInterval=$pollInterval, maxPollInterval=$maxPollInterval, " +
-            "tailBatch=$tailBatch, ddl=$ddl, arraysAbove=$arraysAbove)"
+            "tailBatch=$tailBatch, ddl=$ddl, arraysAbove=$arraysAbove, stallWarning=$stallWarning)"
 
-    private fun valueFields(): List<Any?> = listOf(pollInterval, maxPollInterval, tailBatch, ddl, arraysAbove)
+    private fun valueFields(): List<Any?> =
+        listOf(pollInterval, maxPollInterval, tailBatch, ddl, arraysAbove, stallWarning)
 
     internal companion object {
         val DEFAULT_POLL_INTERVAL: Duration = 50.milliseconds
         val DEFAULT_MAX_POLL_INTERVAL: Duration = 1.seconds
         const val DEFAULT_TAIL_BATCH: Int = 500
+        val DEFAULT_STALL_WARNING: Duration = 30.seconds
     }
 }

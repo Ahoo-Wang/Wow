@@ -68,7 +68,8 @@ import javax.sql.DataSource
  * **Tail.** [tail] merges the partition's entries of every aggregate table by sequence, in one statement and so one
  * snapshot, which also reads the partition's counter. It emits only a contiguous run from the last sequence: entries
  * the snapshot should hold but does not (a table registered after this log last read the registry) make it read the
- * registry again and retry, and it never steps over a missing sequence.
+ * registry again and retry, and it never steps over a missing sequence; one that waits at a missing sequence for
+ * [PostgresEventLogOptions.stallWarning] warns, naming the partition and the sequence ([TailStall]).
  *
  * **Request ids.** The request key is `(tenant_id, request_id)` within each aggregate table: a request id reused by
  * two aggregate types commits twice (the reuse is the caller's error). The kernel's pre-check, the
@@ -95,6 +96,9 @@ class PostgresEventLog(
 ) : EventLog,
     AccessWalks {
     private val ddl = options.ddl
+
+    /** How long a tail reads nothing behind its partition's counter before it warns ([TailStall]). */
+    private val stallWarning = options.stallWarning
 
     private val tables = PostgresEventLogTables(context)
 
@@ -258,9 +262,11 @@ class PostgresEventLog(
         var last = after ?: 0L
         var idle = pacer.interval
         var woken = false
+        val stall = TailStall(context, partition, stallWarning)
         while (true) {
             val mark = pacer.mark(partition)
             val batch = dispatcher.jdbc { dataSource.autoCommitted { tailReads.readTail(it, partition, last) } }
+            stall.observe(batch, last)
             batch.entries.forEach {
                 emit(it)
                 last = it.position.sequence

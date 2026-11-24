@@ -63,6 +63,8 @@ A log table's keys are the position (`partition`, `sequence`), the version (`ten
 
 A deployment whose database account may not create tables runs once with an account that may, or applies the schema itself, and then runs with `validate`. `wow.stores.<name>.ddl` sets it for one store.
 
+**The registries are data.** The tails find a context's log tables only in `wow_log_aggregate`, and the timer loop its timer tables only in `wow_timer_aggregate`. Under every `wow.ddl`, a store that finds an existing table without its row there writes the row at the table's first use, so the account needs `INSERT` on both. A schema applied by hand, such as a schema-only copy of a database, has the registries' tables but not their rows. `validate` and `none` refuse a table whose row they cannot write, naming the row to insert. A tail that waits at a sequence its counter has passed, an entry no registered table holds, warns after 30 seconds, naming the partition and the sequence.
+
 The query indexes an aggregate declares (`@QueryIndex`) come from one start under `auto`: it builds each with `CREATE INDEX CONCURRENTLY` and records a fingerprint of the planned definition as the index's comment. `validate` checks that comment, so an index of the name built by hand, without it, or one of an earlier definition is refused, and the next start under `auto` rebuilds it. A release that changes how an index is planned rebuilds the declared indexes once.
 
 ## Server settings {#server-settings}
