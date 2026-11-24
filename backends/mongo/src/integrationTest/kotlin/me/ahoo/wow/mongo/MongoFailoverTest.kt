@@ -23,12 +23,14 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.flow.transformWhile
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.mongo.log.MongoEventLog
+import me.ahoo.wow.mongo.log.MongoEventLogOptions
 import me.ahoo.wow.mongo.log.MongoLogFixture
 import me.ahoo.wow.mongo.query.MongoEventQueryStorage
 import me.ahoo.wow.mongo.subscription.MongoLeaseStore
@@ -142,6 +144,59 @@ class MongoFailoverTest {
         retrying { events.find(byId(UNCOMMITTED)).first() }.assert().isNull()
         retrying { events.find(byId(COMMITTED)).first() }.assert().isNotNull()
     }
+
+    @Test
+    fun `a sequence whose stream a failover rolls back after its placeholder met it does not stall the tail`(): Unit =
+        runBlocking {
+            // #6745 on a real failover: the stream reaches the primary alone, so its append is unknown, and the
+            // placeholder written at its sequence meets it there. While the placeholder waits for a majority, the
+            // primary steps down: it then answers the placeholder with the duplicate key alone (its write concern
+            // error, InterruptedDueToReplStateChange, is dropped by the driver for a single write). The secondaries
+            // elect one of themselves without the stream, and the old primary rolls it back: the sequence holds
+            // nothing, and the tail must fill it. A step-down outside the placeholder's wait leaves it unfilled at
+            // once; the test then passes the way it would before the fix, never the other way.
+            assumeTrue(
+                System.getProperty(CONTAINER) != null,
+                "Pauses members in the cluster's container: -D$CONTAINER."
+            )
+            val context = MongoLogFixture.newContext()
+            val type = AggregateType(context, "order")
+            val log = MongoEventLog(
+                client,
+                MongoLogFixture.DATABASE,
+                context,
+                1,
+                options = MongoEventLogOptions(appendTimeout = APPEND_TIMEOUT),
+            ).also {
+                it.createSchema()
+                it.createCollection(type.name)
+            }
+            log.append(stream(type, COMMITTED)).assert().isInstanceOf(AppendOutcome.Committed::class.java)
+            val primary = checkNotNull(hello().getString("primary")).substringAfterLast(':')
+            val secondaries = secondaryPorts()
+            secondaries.forEach { signal(it, "STOP") }
+            try {
+                // The insert waits the append timeout, then the placeholder as long again: step down within the latter.
+                val stepping = launch(Dispatchers.IO) {
+                    delay(APPEND_TIMEOUT * 3 / 2)
+                    stepDown()
+                }
+                log.append(stream(type, UNCOMMITTED)).assert().isInstanceOf(AppendOutcome.Unknown::class.java)
+                stepping.join()
+                signal(primary, "STOP")
+            } finally {
+                secondaries.forEach { signal(it, "KILL") }
+            }
+            try {
+                awaitPrimary()
+            } finally {
+                signal(primary, "CONT")
+            }
+            awaitHealthy()
+            retrying { log.append(stream(type, AFTER)) }.assert().isInstanceOf(AppendOutcome.Committed::class.java)
+
+            tailed(log).assert().containsExactly(COMMITTED, AFTER)
+        }
 
     /** The ports of the members that are secondaries now. */
     private fun secondaryPorts(): List<String> {
@@ -314,6 +369,9 @@ class MongoFailoverTest {
         const val UNCOMMITTED = "uncommitted"
         const val POLL_MS = 100L
         val ELECTION_TIMEOUT = 60.seconds
+
+        /** The append timeout of the rolled-back placeholder's test: its insert's wait, then its placeholder's. */
+        val APPEND_TIMEOUT = 3.seconds
         val TAIL_TIMEOUT = 60.seconds
     }
 }

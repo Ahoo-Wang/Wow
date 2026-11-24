@@ -15,6 +15,7 @@ package me.ahoo.wow.mongo.log
 
 import com.mongodb.client.MongoCollection
 import com.mongodb.client.model.Filters
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineDispatcher
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.GAP_UNKNOWN
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.ID
@@ -38,6 +39,7 @@ import org.bson.Document
  * the node's next append there one counter update for a new block, both of which the grace path paid as well, later.
  */
 internal class MongoMissingSequences(
+    private val context: String,
     private val partition: Int,
     private val sequencer: MongoSequencer,
     private val placeholders: MongoLogPlaceholders,
@@ -49,6 +51,9 @@ internal class MongoMissingSequences(
     private var stalled = 0L
     private var since = 0L
 
+    /** How many graces in a row the sequence waited at has had no open block holding it. */
+    private var unheld = 0
+
     /**
      * The tail's read found [missing], null for none: closed at once when it is this node's never given out, else
      * resolved once it has been missing for the grace. True when it was closed at once: the tail reads again unpaced.
@@ -56,13 +61,19 @@ internal class MongoMissingSequences(
     suspend fun met(missing: Long?): Boolean {
         if (missing != null && closedAtOnce(missing)) {
             stalled = 0L
+            unheld = 0
             return true
         }
         when {
-            missing == null -> stalled = 0L
+            missing == null -> {
+                stalled = 0L
+                unheld = 0
+            }
+
             missing != stalled -> {
                 stalled = missing
                 since = System.nanoTime()
+                unheld = 0
             }
 
             System.nanoTime() - since >= STALL_GRACE.inWholeNanoseconds -> {
@@ -86,7 +97,9 @@ internal class MongoMissingSequences(
      */
     private fun resolve(sequence: Long) {
         val counter = counters.find(Filters.eq(ID, partition)).first()
-        when (val resolution = sequencer.resolve(partition, sequence, sequencer.openBlocks(counter))) {
+        val blocks = sequencer.openBlocks(counter)
+        unheld(sequence, blocks)
+        when (val resolution = sequencer.resolve(partition, sequence, blocks)) {
             MongoSequencer.Resolution.Wait -> Unit
             is MongoSequencer.Resolution.Close -> placeholders.close(resolution.closing)
             is MongoSequencer.Resolution.Fill ->
@@ -95,4 +108,43 @@ internal class MongoMissingSequences(
             is MongoSequencer.Resolution.Seal -> placeholders.seal(partition, sequence, resolution.block)
         }
     }
+
+    /**
+     * Counts the graces [sequence] has had no open block of [blocks] holding it, and warns once it has had none for
+     * [UNHELD_WARN] graces, then every [UNHELD_REPEAT]. Nothing resolves such a sequence (its writer settled it), and
+     * nothing heals it on its own: a log written by an earlier pre-release may hold one, a write a failover rolled back
+     * after the log took it as settled (#6745). The warning names the placeholder an operator inserts once they have
+     * checked that no stream is at that position (Operate › MongoDB).
+     */
+    private fun unheld(sequence: Long, blocks: List<MongoSequencer.OpenBlock>) {
+        if (blocks.any { sequence in it.from..it.to }) {
+            unheld = 0
+            return
+        }
+        unheld++
+        if (!warnsAt(unheld)) return
+        val id = MongoEventLog.positionId(partition, sequence)
+        val where = collections.known().firstOrNull()?.name ?: "a log collection of $context"
+        logger.warn {
+            "The tail of partition $partition of $context has waited at sequence $sequence, which no open block holds, " +
+                "for $unheld graces: no append can land there any more, and a tail never steps over a missing " +
+                "sequence. Once no collection of $context holds a stream at that position, insert the placeholder " +
+                "{_id: NumberLong(\"$id\"), partition: $partition, sequence: NumberLong(\"$sequence\"), " +
+                "gap: \"recovered\", gap_node: \"operator\"} into $where with w: majority (Operate > MongoDB)."
+        }
+    }
+
+    internal companion object {
+        /** The graces without a holder after which the tail warns: ten, about ten seconds. */
+        const val UNHELD_WARN = 10
+
+        /** The graces without a holder after which it warns again: sixty, about a minute. */
+        const val UNHELD_REPEAT = 60
+
+        /** Whether a tail warns at its [graces]-th grace without a holder: the [UNHELD_WARN]-th, then each [UNHELD_REPEAT]-th. */
+        fun warnsAt(graces: Int): Boolean = graces == UNHELD_WARN || graces % UNHELD_REPEAT == 0
+    }
 }
+
+// The log's category, which the tail's lines keep.
+private val logger = KotlinLogging.logger(MongoEventLog::class.java.name)
