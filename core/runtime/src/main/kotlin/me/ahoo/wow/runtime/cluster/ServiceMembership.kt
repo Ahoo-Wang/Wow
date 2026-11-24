@@ -96,6 +96,13 @@ class ServiceMembership(
     @Volatile
     private var readsEnded = false
 
+    /**
+     * Set before a leave of the last group, or an abort, stops the loops: their end is that stop's, which their watches
+     * take for no end of the membership; cleared when a join starts loops again.
+     */
+    @Volatile
+    private var stopping = false
+
     /** The service's live members as last read, each with the groups it serves. */
     @Volatile
     var members: List<Member> = emptyList()
@@ -127,6 +134,7 @@ class ServiceMembership(
             throw failure
         }
         if (running == null) {
+            stopping = false
             running = CoroutineScope(context + SupervisorJob()).launch {
                 watch(every(options.heartbeatInterval, "heartbeat") { lock.withLock { heartbeat() } }, HEARTBEATS_ENDED)
                 val reading = minOf(options.reconcileInterval, options.routeRefreshInterval)
@@ -150,8 +158,7 @@ class ServiceMembership(
     /** After a [leave]: the record without the groups left, or, with none joined, no record nor heartbeat. */
     private suspend fun heartbeatWithout() {
         if (joined.isEmpty()) {
-            running?.cancelAndJoin()
-            running = null
+            stopLoops()
             leaveService()
         } else {
             heartbeat()
@@ -167,10 +174,16 @@ class ServiceMembership(
         reads -= read
         stuckGroups -= group
         if (joined.isEmpty()) {
-            running?.cancelAndJoin()
-            running = null
+            stopLoops()
             listed = null
         }
+    }
+
+    /** Stops the heartbeats and the reads, marked [stopping] first, so their watches end no membership (#6872). */
+    private suspend fun stopLoops() {
+        stopping = true
+        running?.cancelAndJoin()
+        running = null
     }
 
     /**
@@ -225,10 +238,15 @@ class ServiceMembership(
 
     /**
      * Watches [loop]: one that ends while the membership runs ended on an error no round catches, and the membership
-     * ends with [why]. A leave that stops the loops cancels the watch with them.
+     * ends with [why]. A loop a leave or an abort stopped ([stopping]) ended no membership, however it completed: the
+     * stop cancels the loops one after the other, so a loop may complete, and resume its watch, before the stop
+     * cancels the watch (#6872).
      */
     private fun CoroutineScope.watch(loop: Job, why: String) = launch {
         loop.join()
+        if (stopping) {
+            return@launch
+        }
         when (why) {
             HEARTBEATS_ENDED -> heartbeatsEnded = true
             else -> readsEnded = true
