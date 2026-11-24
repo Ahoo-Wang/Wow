@@ -19,13 +19,15 @@ import me.ahoo.wow.spi.access.AccessWalk
 import me.ahoo.wow.spi.schema.EnsuredOnce
 import org.postgresql.util.PSQLException
 import java.sql.Connection
+import java.sql.SQLException
 import javax.sql.DataSource
 
 /**
  * The catalogue of a context's log on PostgreSQL: its partition counters and registry ([createSchema]), and the
  * table of each aggregate type, created and registered once in one transaction under an advisory lock when the log
- * first touches the type ([tableOf]), found in the registry when another node created it ([existing], [register]),
- * and made sure of again when it was dropped since ([withTable]).
+ * first touches the type ([tableOf]), or only registered when the `ddl` creates nothing and the table exists, found in
+ * the registry when another node created it ([existing], [register]), and made sure of again when it was dropped since
+ * ([withTable]).
  */
 internal class PostgresLogCatalog(
     private val dataSource: DataSource,
@@ -112,31 +114,81 @@ internal class PostgresLogCatalog(
     /**
      * Claims [table]'s format, creates it and records it in the registry, in one transaction under an advisory lock,
      * so that nodes creating tables at once neither race the format record nor two aggregates take one table name.
+     * A [ddl] that creates nothing still records an existing table ([ensureRecord]): the tails find a table only there.
      */
     private fun ensure(connection: Connection, table: AggregateLogTable): AggregateLogTable = table.also {
         PostgresFormat.schema(connection, ddl, listOf(table.base to PostgresEventLogTables.FORMAT)) {
             PostgresSchema.execute(connection, listOf(table.ddl()))
-            connection.prepareStatement(tables.register).use { register ->
-                register.setString(1, context)
-                register.setString(2, table.aggregate)
-                register.setString(3, table.base)
-                val created = served[table.aggregate]?.let { PostgresAccessWalks.textOf(AccessWalk.created(it)) }
-                register.setString(4, created)
-                register.executeUpdate()
-            }
-            val holder = connection.prepareStatement(tables.holder).use { query ->
-                query.setString(1, table.base)
-                query.executeQuery().use { rows ->
-                    rows.next()
-                    rows.getString(1) to rows.getString(2)
-                }
-            }
-            check(holder == context to table.aggregate) {
-                "The aggregate ${table.aggregate} of $context takes the log table ${table.base}, " +
-                    "which the aggregate ${holder.second} of ${holder.first} has."
-            }
+            record(connection, table)
+        }
+        if (!ddl.creates) {
+            ensureRecord(connection, table)
         }
     }
+
+    /**
+     * Records [table] in the registry, keeping a record already there, and refuses a table name another aggregate
+     * holds. The registry's keys, `(context, aggregate)` and the table name, make two nodes recording at once leave one
+     * record, which the check then reads.
+     */
+    private fun record(connection: Connection, table: AggregateLogTable) {
+        connection.prepareStatement(tables.register).use { register ->
+            register.setString(1, context)
+            register.setString(2, table.aggregate)
+            register.setString(3, table.base)
+            val created = served[table.aggregate]?.let { PostgresAccessWalks.textOf(AccessWalk.created(it)) }
+            register.setString(4, created)
+            register.executeUpdate()
+        }
+        checkHeld(table, holderOf(connection, table))
+    }
+
+    /** Refuses [table] unless [holder], who the registry says holds its name, is its own aggregate. */
+    private fun checkHeld(table: AggregateLogTable, holder: Pair<String, String>?) {
+        checkNotNull(holder) {
+            "The aggregate ${table.aggregate} of $context is recorded in ${PostgresEventLogTables.REGISTRY} with " +
+                "another log table than ${table.base}."
+        }
+        check(holder == context to table.aggregate) {
+            "The aggregate ${table.aggregate} of $context takes the log table ${table.base}, " +
+                "which the aggregate ${holder.second} of ${holder.first} has."
+        }
+    }
+
+    /**
+     * Under a [ddl] that creates nothing, the registry record of [table], which the tails read to find it: written when
+     * missing, since a record is data an account without DDL rights may still insert, as `auto` writes it when it
+     * creates the table. A table that does not exist (`none` checks nothing) is not recorded: its first use fails on
+     * it, where a record would fail every tail of the context. A record that cannot be written is refused, naming it,
+     * rather than leaving the table's entries to no tail; a transient failure is thrown as it is.
+     */
+    private fun ensureRecord(connection: Connection, table: AggregateLogTable) {
+        if (!PostgresSchema.exists(connection, table.log)) return
+        val holder = holderOf(connection, table)
+        if (holder != null) {
+            checkHeld(table, holder)
+            return
+        }
+        try {
+            record(connection, table)
+        } catch (failure: SQLException) {
+            if (PostgresFailures.isTransient(failure)) throw failure
+            throw IllegalStateException(
+                "The log table ${table.base} of ${table.aggregate} in $context has no record in " +
+                    "${PostgresEventLogTables.REGISTRY}, where the tails find it, and ddl ${ddl.name.lowercase()} " +
+                    "could not write it (${failure.message}). Grant INSERT on ${PostgresEventLogTables.REGISTRY}, " +
+                    "or insert its record: ('$context', '${table.aggregate}', '${table.base}').",
+                failure,
+            )
+        }
+    }
+
+    /** Who holds [table]'s name in the registry, context and aggregate; null when no record has it. */
+    private fun holderOf(connection: Connection, table: AggregateLogTable): Pair<String, String>? =
+        connection.prepareStatement(tables.holder).use { query ->
+            query.setString(1, table.base)
+            query.executeQuery().use { rows -> if (rows.next()) rows.getString(1) to rows.getString(2) else null }
+        }
 
     /**
      * The table of [type] when it exists: one this log made sure of, or one the registry lists, read again when this

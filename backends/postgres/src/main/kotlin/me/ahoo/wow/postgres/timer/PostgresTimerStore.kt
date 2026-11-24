@@ -21,6 +21,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.schedule.ScheduleRule
+import me.ahoo.wow.postgres.PostgresFailures
 import me.ahoo.wow.postgres.PostgresFormat
 import me.ahoo.wow.postgres.PostgresSchema
 import me.ahoo.wow.postgres.autoCommitted
@@ -36,6 +37,7 @@ import me.ahoo.wow.spi.timer.TimerStore
 import java.sql.Connection
 import java.sql.PreparedStatement
 import java.sql.ResultSet
+import java.sql.SQLException
 import java.sql.Types
 import javax.sql.DataSource
 
@@ -93,29 +95,80 @@ class PostgresTimerStore(
     /**
      * Claims [table]'s format, creates it and records it in the registry under the format's advisory lock, so that
      * nodes creating tables at once neither race the format record nor two aggregates take one table name.
+     * A [ddl] that creates nothing still records an existing table ([ensureRecord]): the due read finds a table only
+     * there.
      */
     private fun ensure(connection: Connection, table: AggregateTimerTable): AggregateTimerTable = table.also {
         PostgresFormat.schema(connection, ddl, listOf(table.base to PostgresTimerTables.FORMAT)) {
             PostgresSchema.execute(connection, table.ddl())
-            connection.prepareStatement(tables.register).use { register ->
-                register.setString(1, ownerContext)
-                register.setString(2, table.aggregate)
-                register.setString(3, table.base)
-                register.executeUpdate()
-            }
-            val holder = connection.prepareStatement(tables.holder).use { query ->
-                query.setString(1, table.base)
-                query.executeQuery().use { rows ->
-                    rows.next()
-                    rows.getString(1) to rows.getString(2)
-                }
-            }
-            check(holder == ownerContext to table.aggregate) {
-                "The aggregate ${table.aggregate} of $ownerContext takes the timer table ${table.base}, " +
-                    "which the aggregate ${holder.second} of ${holder.first} has."
-            }
+            record(connection, table)
+        }
+        if (!ddl.creates) {
+            ensureRecord(connection, table)
         }
     }
+
+    /**
+     * Records [table] in the registry, keeping a record already there, and refuses a table name another aggregate
+     * holds. The registry's keys, `(context, aggregate)` and the table name, make two nodes recording at once leave one
+     * record, which the check then reads.
+     */
+    private fun record(connection: Connection, table: AggregateTimerTable) {
+        connection.prepareStatement(tables.register).use { register ->
+            register.setString(1, ownerContext)
+            register.setString(2, table.aggregate)
+            register.setString(3, table.base)
+            register.executeUpdate()
+        }
+        checkHeld(table, holderOf(connection, table))
+    }
+
+    /** Refuses [table] unless [holder], who the registry says holds its name, is its own aggregate. */
+    private fun checkHeld(table: AggregateTimerTable, holder: Pair<String, String>?) {
+        checkNotNull(holder) {
+            "The aggregate ${table.aggregate} of $ownerContext is recorded in ${PostgresTimerTables.REGISTRY} with " +
+                "another timer table than ${table.base}."
+        }
+        check(holder == ownerContext to table.aggregate) {
+            "The aggregate ${table.aggregate} of $ownerContext takes the timer table ${table.base}, " +
+                "which the aggregate ${holder.second} of ${holder.first} has."
+        }
+    }
+
+    /**
+     * Under a [ddl] that creates nothing, the registry record of [table], which the due read reads to find it: written
+     * when missing, since a record is data an account without DDL rights may still insert, as `auto` writes it when it
+     * creates the table. A table that does not exist (`none` checks nothing) is not recorded: its first use fails on
+     * it, where a record would fail every due read of the context. A record that cannot be written is refused, naming
+     * it, rather than leaving the table's timers to no due read; a transient failure is thrown as it is.
+     */
+    private fun ensureRecord(connection: Connection, table: AggregateTimerTable) {
+        if (!PostgresSchema.exists(connection, table.table)) return
+        val holder = holderOf(connection, table)
+        if (holder != null) {
+            checkHeld(table, holder)
+            return
+        }
+        try {
+            record(connection, table)
+        } catch (failure: SQLException) {
+            if (PostgresFailures.isTransient(failure)) throw failure
+            throw IllegalStateException(
+                "The timer table ${table.base} of ${table.aggregate} in $ownerContext has no record in " +
+                    "${PostgresTimerTables.REGISTRY}, where the due read finds it, and ddl ${ddl.name.lowercase()} " +
+                    "could not write it (${failure.message}). Grant INSERT on ${PostgresTimerTables.REGISTRY}, " +
+                    "or insert its record: ('$ownerContext', '${table.aggregate}', '${table.base}').",
+                failure,
+            )
+        }
+    }
+
+    /** Who holds [table]'s name in the registry, context and aggregate; null when no record has it. */
+    private fun holderOf(connection: Connection, table: AggregateTimerTable): Pair<String, String>? =
+        connection.prepareStatement(tables.holder).use { query ->
+            query.setString(1, table.base)
+            query.executeQuery().use { rows -> if (rows.next()) rows.getString(1) to rows.getString(2) else null }
+        }
 
     /** Reads the registry again: the timer tables of the context. */
     private fun register(connection: Connection): List<AggregateTimerTable> {

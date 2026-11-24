@@ -13,9 +13,15 @@
 
 package me.ahoo.wow.postgres
 
+import ch.qos.logback.classic.Level
+import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.core.read.ListAppender
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
@@ -28,7 +34,9 @@ import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.PartitionLineage
 import org.junit.jupiter.api.Test
+import org.slf4j.LoggerFactory
 import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /** The reads of a partition: a run longer than one read takes, and the head of a partition. */
@@ -121,6 +129,37 @@ class PostgresTailReadsTest : PostgresLogFixtures() {
         withTimeout(TAIL_TIMEOUT_MS) { log.tail(0).first() }.position.sequence.assert().isEqualTo(1L)
     }
 
+    @Test
+    fun `a tail that waits at a missing sequence warns, naming the partition, the sequence and the counter`(): Unit =
+        runBlocking {
+            val context = PostgresFixture.newContext()
+            val options = PostgresEventLogOptions(stallWarning = STALL_WARNING)
+            val log = PostgresFixture.log(1, context, options = options)
+            for (version in 1..3) {
+                log.append(stream("a", version, aggregate = AggregateType(context, "order")))
+            }
+            PostgresFixture.dataSource.connection.use { connection ->
+                val order = table(context, "order")
+                connection.createStatement().use { it.execute("DELETE FROM \"$order\" WHERE sequence = 2") }
+            }
+            val logger = LoggerFactory.getLogger(PostgresEventLog::class.java) as Logger
+            val appender = ListAppender<ILoggingEvent>().apply { start() }
+            logger.addAppender(appender)
+            fun warnings() = appender.list.filter { it.level == Level.WARN && context in it.formattedMessage }
+            try {
+                val tail = launch { log.tail(0).take(2).toList() }
+                withTimeout(TAIL_TIMEOUT_MS) {
+                    while (warnings().isEmpty()) delay(POLL_MS)
+                }
+                tail.cancel()
+            } finally {
+                logger.detachAppender(appender)
+            }
+            warnings().first().formattedMessage.assert().startsWith(
+                "The tail of partition 0 of the log of $context has waited ",
+            ).contains("for sequence 2: the partition's counter is at 3, but no log table that wow_log_aggregate lists")
+        }
+
     private fun stream(ref: AggregateRef) = EventStreamRecord(
         ref,
         1,
@@ -136,5 +175,7 @@ class PostgresTailReadsTest : PostgresLogFixtures() {
         const val BATCH = 2
         const val ENTRIES = 5
         const val TAIL_STALL_MS = 500L
+        const val POLL_MS = 10L
+        val STALL_WARNING = 100.milliseconds
     }
 }
