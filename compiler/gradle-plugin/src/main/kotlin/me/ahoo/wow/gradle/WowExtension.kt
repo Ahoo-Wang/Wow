@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.gradle
 
+import org.gradle.api.Action
 import org.gradle.api.artifacts.ExternalModuleDependency
 import org.gradle.api.artifacts.ModuleDependency
 import org.gradle.api.artifacts.ProjectDependency
@@ -21,6 +22,7 @@ import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
+import org.gradle.api.tasks.Nested
 import javax.inject.Inject
 
 /**
@@ -147,4 +149,13 @@ abstract class WowServiceExtension : WowExtension() {
      * rewrites; `manifest/baseline.json` of the project by default. Commit it.
      */
     abstract val manifestBaseline: RegularFileProperty
+
+    /** The service's Kubernetes manifests, rendered from the `wow-service` chart ([WowKubernetesExtension]). */
+    @get:Nested
+    abstract val kubernetes: WowKubernetesExtension
+
+    /** Configures the service's Kubernetes manifests ([kubernetes]). */
+    fun kubernetes(action: Action<in WowKubernetesExtension>) {
+        action.execute(kubernetes)
+    }
 }

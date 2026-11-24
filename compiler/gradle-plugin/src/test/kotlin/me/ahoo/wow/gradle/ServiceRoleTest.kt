@@ -99,6 +99,7 @@ class ServiceRoleTest {
             WowPlugin.MERGE_TASK,
             WowPlugin.OPENAPI_TASK,
             WowPlugin.HELM_VALUES_TASK,
+            WowPlugin.MANIFESTS_TASK,
             WowPlugin.UPDATE_BASELINE_TASK,
         )
         generate.schemaOverrides.get().assert().containsEntry("a.Money", """{"type":"string"}""")

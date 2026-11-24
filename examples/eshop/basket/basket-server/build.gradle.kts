@@ -12,6 +12,22 @@ application {
     mainClass.set("me.ahoo.wow.example.eshop.basket.server.BasketServerKt")
 }
 
+// Its Kubernetes manifests (generateWowManifests, in assemble): the wow-service chart rendered with the deployment's
+// values for the namespace it runs in, a Kustomize base of plain YAML in build/wow/k8s that deploy/eshop-basket/prod
+// overlays. BasketManifestsTest holds the objects it renders.
+wow {
+    kubernetes {
+        values.from(rootProject.file("deploy/eshop-basket/values.yaml"))
+        namespace = "eshop"
+    }
+}
+
+tasks.test {
+    val manifests = tasks.named("generateWowManifests")
+    inputs.files(manifests).withPropertyName("manifests").withPathSensitivity(PathSensitivity.RELATIVE)
+    systemProperty("eshop.manifests", layout.buildDirectory.dir("wow/k8s").get().asFile.path)
+}
+
 // The service module (decision D363 ①): `me.ahoo.wow.service` merges the service's Manifest from its class path,
 // writes its OpenAPI document and gates `check` on manifest/baseline.json (decision D76).
 // The ordering's contract comes in the jar of :eshop-ordering-api, which the domain depends on (decision D234): the

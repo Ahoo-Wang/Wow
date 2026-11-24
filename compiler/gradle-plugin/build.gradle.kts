@@ -148,6 +148,11 @@ afterEvaluate {
     }
 }
 
+// The wow-service chart in the plugin's resources: deploy/helm/wow-service, at the plugin's version.
+extra["wowChartDirectory"] = rootProject.file("deploy/helm/wow-service")
+extra["wowChartVersion"] = project.version.toString()
+apply(from = "wow-service-chart.gradle.kts")
+
 tasks.processResources {
     val version = project.version.toString()
     // The Kotlin Wow builds with: the plugin requires the Kotlin Gradle plugin of one minor version before it at least.
@@ -208,6 +213,12 @@ tasks.test {
     val apiClasspath = files(tasks.jar, configurations.runtimeClasspath, functionalPluginClasspath)
     inputs.files(apiClasspath).withPropertyName("apiClasspath").withNormalizer(ClasspathNormalizer::class.java)
     systemProperty("wow-test.ksp.version", libs.versions.ksp.get())
+    // KubernetesManifestsFunctionalTest fetches the pinned Helm into this build's Gradle user home, once.
+    systemProperty("wow-test.gradle.userHome", gradle.gradleUserHomeDir.path)
+    // KubernetesChartTest holds the plugin's chart to the repository's, deploy/helm/wow-service.
+    val chartDirectory = rootProject.file("deploy/helm/wow-service")
+    inputs.dir(chartDirectory).withPropertyName("wowServiceChart").withPathSensitivity(PathSensitivity.RELATIVE)
+    systemProperty("wow-test.chart.directory", chartDirectory.path)
     // The JUnit and fluent-assert a fixture's own tests run on (PluginRolesFunctionalTest, IncrementalKspFunctionalTest).
     systemProperty("wow-test.junit.version", libs.versions.junit.get())
     systemProperty("wow-test.fluent-assert.version", libs.versions.fluent.assert.get())
