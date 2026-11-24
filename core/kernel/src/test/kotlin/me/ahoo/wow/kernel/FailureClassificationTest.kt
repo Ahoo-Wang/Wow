@@ -16,18 +16,24 @@ package me.ahoo.wow.kernel
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.client.CommandRejectedException
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Misuse
+import me.ahoo.wow.api.lifecycle.DeleteAggregate
 import me.ahoo.wow.api.problem.Retry
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.FrameworkCodes
+import me.ahoo.wow.api.schedule.ScheduleRule
+import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.UnrecoverableHandlingException
 import me.ahoo.wow.spi.StorageBusyException
 import me.ahoo.wow.spi.StorageRefusedException
 import me.ahoo.wow.spi.StorageUnavailableException
+import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.subscription.FailureClass
 import me.ahoo.wow.spi.subscription.FailureClassifier
 import me.ahoo.wow.test.rejectedResult
+import me.ahoo.wow.test.stateEvent
 import org.junit.jupiter.api.Test
 import java.net.ConnectException
 import java.sql.SQLException
@@ -147,5 +153,59 @@ class FailureClassificationTest {
         thrown.rejected.assert().isSameAs(rejected)
         thrown.error.code.assert().isEqualTo("cart.full")
         (thrown is HandlingRejectedException).assert().isTrue()
+    }
+
+    data class Order(val id: String)
+    data class OrderPlaced(val note: String)
+    data class Ship(val orderId: String)
+
+    /** A saga context whose contracts name no command: as a node whose peer's api module is missing. */
+    private fun sagaContext(): ExecutionSagaContext {
+        val order = AggregateType("shop", "order").ref("t", "o-1")
+        val execution = ExecutionId("shop", "ShipmentSaga.onPlaced", order, 1)
+        return ExecutionSagaContext(
+            execution,
+            stateEvent(order, Order("o-1"), OrderPlaced("n")),
+            IdGenerators.DEFAULT,
+            CommandTypes.NONE,
+        )
+    }
+
+    private val shipment = AggregateType("shop", "shipment")
+
+    private fun classOf(mistake: () -> Unit): FailureClass =
+        classification.classify(checkNotNull(runCatching(mistake).exceptionOrNull()), null)
+
+    @Test
+    fun `a saga's own mistakes should be unrecoverable wherever its derivation finds them`() {
+        // #6795: each fails the same way on every retry, so the aggregate parks at once, as a wait or a timeout on a
+        // request does (InvalidDerivedRequestException) and as a decide function's misused schedule does (Misuse).
+        val mistakes = mapOf<String, () -> Unit>(
+            "a request with a timeout" to {
+                sagaContext().commandsOf(listOf(CommandRequest.of(Ship("o-1"), type = shipment, timeout = 1.seconds)))
+            },
+            "a request whose target no contract names" to {
+                sagaContext().commandsOf(listOf(CommandRequest.of(Ship("o-1"))))
+            },
+            "a lifecycle command without its target" to {
+                sagaContext().commandsOf(listOf(CommandRequest.of(DeleteAggregate(), "o-1")))
+            },
+            "a schedule of a command no Manifest names" to {
+                sagaContext().schedule("remind", ScheduleRule.At(1_000), CommandRequest.of(Ship("o-1"), "s-1", shipment))
+            },
+            "a schedule with an expected version" to {
+                sagaContext().schedule(
+                    "remind",
+                    ScheduleRule.At(1_000),
+                    CommandRequest.of(Ship("o-1"), "s-1", shipment, expectedVersion = 3),
+                )
+            },
+            "a context that is not the kernel's" to {
+                derivationOf(ExecutionContext(ExecutionId("shop", "ShipmentSaga.onPlaced", shipment.ref("t", "s"), 1)))
+            },
+        )
+        mistakes.forEach { (mistake, make) ->
+            classOf(make).assert().describedAs(mistake).isEqualTo(FailureClass.UNRECOVERABLE)
+        }
     }
 }

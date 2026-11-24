@@ -19,6 +19,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.decide.Misuse
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.SubscriptionContext
 import me.ahoo.wow.spi.id.DerivedIds
@@ -113,7 +114,7 @@ internal fun derivationOf(context: SubscriptionContext): Derivation = when (cont
     is Derivation -> context
     // The saga's context is public; it derives through its execution without naming the internal interface.
     is ExecutionSagaContext -> Derivation(context::commandsOf)
-    else -> throw IllegalArgumentException(
+    else -> throw Misuse.Argument(
         "$context derives no commands: a saga's handler gets the kernel's context of its kind (contextOf).",
     )
 }

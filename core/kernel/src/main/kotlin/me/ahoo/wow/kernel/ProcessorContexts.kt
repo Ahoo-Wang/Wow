@@ -23,6 +23,7 @@ import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Misuse
 import me.ahoo.wow.api.decide.RequestFacts
+import me.ahoo.wow.api.decide.requireUse
 import me.ahoo.wow.api.id.Ids
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.read.SubscriptionQueries
@@ -271,15 +272,16 @@ internal class SagaDerivation(
         ScheduleSlots.problemOf(key, rule)?.let { throw Misuse.Argument("$it ${ScheduleSlots.FROM_INPUT}") }
         val command = request.command
         sends?.checkSchedules(executionId.subscription, command.javaClass)
-        require(request.expectedVersion == null) {
+        // The saga's own mistakes, unrecoverable (Misuse), as a decide function's schedule finds them (#6795).
+        requireUse(request.expectedVersion == null) {
             "${executionId.subscription} schedules ${command.javaClass.name} with an expected version: the " +
                 "target runs a scheduled command at its due time, against its version then."
         }
         val target = request.derivedTarget(executionId.subscription, tenantId, commandTypes)
-        val type = requireNotNull(commandTypes.nameOf(target.type, command.javaClass)) {
+        val type = commandTypes.nameOf(target.type, command.javaClass) ?: throw Misuse.Argument(
             "${executionId.subscription} schedules ${command.javaClass.name} for $target, a command no Manifest of the " +
-                "service or its peers names."
-        }
+                "service or its peers names.",
+        )
         val body = SetSchedule(key, rule, type, codec.commandBody(command))
         recorded += derive(
             target,
