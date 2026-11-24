@@ -86,7 +86,7 @@ What failed first is named: an acquisition, a renewal, a heartbeat, or leases le
 node-1 acquires leases in shop-service again: its probe, an acquisition of partition 2 of shop-service/shop, was answered, 117.6s after its lease store first failed (8 failed calls).
 ```
 
-and takes its missing partitions on the next reconcile. A single renewal or heartbeat that failed while the node missed no partition ends with the same line naming that call ("a heartbeat succeeded"). Between the two lines, look at the store, not at Wow: on MongoDB a replica set that lost a data-bearing member and has an arbiter cannot acknowledge a majority write ([MongoDB in production](./mongodb#in-production)); on PostgreSQL, the primary or the network to it.
+and takes its missing partitions on the next reconcile. A single renewal or heartbeat that failed while the node missed no partition ends with the same line naming that call ("a heartbeat succeeded"). Between the two lines, look at the store, not at Wow: on MongoDB a replica set that lost a data-bearing member and has an arbiter cannot acknowledge a majority write ([MongoDB in production](./mongodb#in-production)), which the node warned of at start ("connects to a replica set with an arbiter"); on PostgreSQL, the primary or the network to it.
 
 ## A topic of another context
 

@@ -224,14 +224,16 @@ internal class MongoStore(
             operationTimeout = operationTimeout
         ).let { Opened.of(it, it::createSchema) }
 
-    override fun openLeases(): Opened<LeaseStore> =
-        MongoLeaseStore(
+    override fun openLeases(): Opened<LeaseStore> {
+        arbitersWarned.value
+        return MongoLeaseStore(
             client,
             database,
             clock = config.clock,
             ddl = ddl,
             operationTimeout = operationTimeout
         ).let { Opened.of(it, it::createSchema) }
+    }
 
     override fun openLedger(): Opened<FailureLedger> =
         MongoFailureLedger(
@@ -252,11 +254,29 @@ internal class MongoStore(
             operationTimeout = operationTimeout
         ).let { Opened.of(it, it::createSchema) }
 
-    /** Whether the server holds a log's guarantees: asked once, by the first log the store opens. */
-    private val replicated = lazy { MongoTopology.requireReplicated(client, config.key, config.development) }
+    /** What the server says of itself: asked once, outside development, by the first log or lease store opened. */
+    private val hello = lazy { MongoTopology.hello(client) }
+
+    /** Whether the server holds a log's guarantees: checked once, by the first log the store opens. */
+    private val replicated = lazy {
+        if (!config.development) {
+            MongoTopology.requireReplicated(hello.value, config.key)
+        }
+    }
+
+    /**
+     * Whether the replica set has an arbiter, which the log and the leases need warning of: once, outside development.
+     * A server that does not answer is warned of by the store's own calls, not here: the warning never fails an open.
+     */
+    private val arbitersWarned = lazy {
+        if (!config.development) {
+            runCatching { hello.value }.onSuccess { MongoTopology.warnOfArbiters(it, config.key) }
+        }
+    }
 
     override fun openLog(context: String, partitions: Int): Opened<EventLog> {
         replicated.value
+        arbitersWarned.value
         return MongoEventLog(client, database, context, partitions, options = logOptions)
             .let { Opened.of(it, it::createSchema) }
     }

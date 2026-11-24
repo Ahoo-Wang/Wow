@@ -97,6 +97,14 @@ MongoDB 是 Wow 服务的默认存储（[选择存储](./choosing-storage)）。
 ## 生产部署 {#in-production}
 
 - **三个数据成员，不用仲裁节点。** 多数派写入和读取需要三个成员中的两个在线；仲裁节点参与选举但不存数据，一个数据成员宕机时多数派就无法提交，尾随读停滞。把成员放在三个故障域（可用区或机架）。
+
+  节点在开发模式之外启动时，如果它的客户端连到一个列出仲裁节点的副本集（例如一个主节点、一个从节点和一个仲裁节点），每个存储警告一次：
+
+  ```text
+  The client of wow.mongo connects to a replica set with an arbiter (mongo-3:27017): while one of its data-bearing members is down, MongoDB cannot acknowledge a majority write, so the log's appends and the lease writes wait until they time out, the nodes stop their partitions, and the subscriptions' tails stall. Replace the arbiter with a third data-bearing member, or bring a member that goes down back at once.
+  ```
+
+  这是警告而不是拒绝：两个数据成员都在线时，这样的副本集可以工作。通过 `mongos` 看不到分片的成员，所以分片集群不会收到警告：请确认没有分片带仲裁节点。
 - **延迟。** 每次追加都等多数派确认，即一次复制往返；成员之间的延迟保持在几毫秒内。用于灾备的远端成员设为 `priority: 0`、`votes: 0`，它既不会成为主节点，也不拖慢多数派。
 - **磁盘与缓存。** 日志以追加为主；给成员不会因 `fsync` 停顿的本地 SSD，并让 WiredTiger 缓存（默认为内存的一半减 1 GB）装得下快照集合的工作集和日志的近期条目。
 - **oplog。** 按从节点可能离开的最长维护时间（几小时到一天）设定大小：落后出 oplog 的从节点需要全量重新同步。
