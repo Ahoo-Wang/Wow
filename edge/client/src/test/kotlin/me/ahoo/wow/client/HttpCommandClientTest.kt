@@ -581,6 +581,67 @@ class HttpCommandClientTest {
     }
 
     @Test
+    fun `a user's command stream cut after its head should fail as an unknown outcome`() {
+        val accepted = WowJson.mapper.writeValueAsString(resultOf(ref, hop = Hop.accepted("mail")))
+        val user = client(ClientMode.User(UserCredential.NONE))
+        val streams = mapOf(
+            // The connection lost after an event, as a pod deleted mid-stream leaves it.
+            "cut" to Reply.cut("id: 0\nevent: accepted\ndata: $accepted\n\n"),
+            // A clean end before the event a stream ends with: its outcome is as unknown.
+            "ended early" to Reply.events("id: 0\nevent: accepted\ndata: $accepted\n\n"),
+            "ended with no event" to Reply.events(": keep-alive\n\n"),
+            // An event that holds no result.
+            "unreadable" to Reply.events("id: 0\nevent: committed\ndata: {\"no\":1}\n\n"),
+        )
+        streams.forEach { (name, reply) ->
+            peer.reply(reply)
+            val failure = runCatching {
+                runBlocking { user.stream(CommandRequest.to(ref, DeliverItems(emptyList()))).toList() }
+            }.exceptionOrNull()
+            // One kind of failure, whatever met it: the command was taken and its outcome is unknown (#6808).
+            failure.assert().describedAs(name).isInstanceOf(WowProblemException::class.java)
+            (failure as WowProblemException).code.assert().describedAs(name).isEqualTo(FrameworkCodes.COMMAND_UNKNOWN)
+            failure.retry.assert().isEqualTo(Retry.SAME_REQUEST)
+        }
+    }
+
+    @Test
+    fun `a user's command stream should end at the event a stream ends with, whatever the plan`(): Unit = runBlocking {
+        val user = client(ClientMode.User(UserCredential.NONE))
+        fun events(vararg results: CommandResult) = Reply.events(
+            *results.mapIndexed { index, result ->
+                "id: $index\nevent: x\ndata: ${WowJson.mapper.writeValueAsString(result)}\n\n"
+            }.toTypedArray(),
+        )
+        val accepted = resultOf(ref, hop = Hop.accepted("mail"))
+        // A plan's last hop, its context the command's when it names none.
+        peer.reply(events(accepted, resultOf(ref, hop = Hop.snapshot("mail"))))
+        user.stream(CommandRequest.builder(ref, DeliverItems(emptyList())).wait(WaitPlan.SNAPSHOT).build())
+            .toList().assert().hasSize(2)
+        // The default plan's ends at the commit, where the aggregate has no snapshot.
+        peer.reply(events(accepted, committed()))
+        user.stream(CommandRequest.to(ref, DeliverItems(emptyList()))).toList().assert().hasSize(2)
+        // A result that did not reach its hop ends the stream wherever it is: a rejection, a timeout.
+        val timedOut = resultOf(
+            ref,
+            CommandResult.Status.FAILED,
+            ErrorInfo(FrameworkCodes.WAIT_TIMEOUT, "The wait ran out."),
+            Hop.accepted("mail"),
+        )
+        peer.reply(events(accepted, timedOut))
+        user.stream(CommandRequest.builder(ref, DeliverItems(emptyList())).wait(WaitPlan.SNAPSHOT).build())
+            .toList().last().status.assert().isEqualTo(CommandResult.Status.FAILED)
+        // A plan's commit, when it waits for the snapshot, does not end it.
+        peer.reply(events(accepted, committed()))
+        caught<WowProblemException> {
+            runBlocking {
+                user.stream(CommandRequest.builder(ref, DeliverItems(emptyList())).wait(WaitPlan.SNAPSHOT).build())
+                    .toList()
+            }
+        }.code.assert().isEqualTo(FrameworkCodes.COMMAND_UNKNOWN)
+    }
+
+    @Test
     fun `a stream answered with a problem should emit its result, or throw without one`(): Unit = runBlocking {
         val user = client(ClientMode.User(UserCredential.NONE))
         val refused = resultOf(

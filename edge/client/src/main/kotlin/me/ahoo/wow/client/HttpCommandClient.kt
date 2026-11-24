@@ -15,7 +15,9 @@ package me.ahoo.wow.client
 
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
@@ -35,6 +37,7 @@ import me.ahoo.wow.api.problem.Retry
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.FrameworkCodes
+import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.wire.CallWire
 import me.ahoo.wow.api.wire.ScopeHeader
@@ -48,6 +51,7 @@ import me.ahoo.wow.spi.SystemCommandGroups
 import me.ahoo.wow.spi.call.requestIdOf
 import me.ahoo.wow.spi.id.GlobalIdGenerator
 import tools.jackson.core.JacksonException
+import java.io.IOException
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -76,7 +80,9 @@ import kotlin.time.Duration.Companion.seconds
  * rejected, a [me.ahoo.wow.api.problem.WowProblemException] otherwise, with the retry of its code; one a retry with the
  * same request id may get past is retried first, as the transport's [RetryPolicy] says (never a 504). A connection that
  * cannot be made is `wow.peer.unavailable` once the retries are spent, one lost before the answer `wow.command.unknown`;
- * a context the endpoints give no URL is an [IllegalStateException].
+ * so is a user-mode [stream] whose connection is lost after its head, that passes its bound, whose event holds no
+ * result, or that ends before the event a stream ends with (#6808); a context the endpoints give no URL is an
+ * [IllegalStateException].
  *
  * A peer described by its Manifest alone ([WowClient.Builder.manifestPeers]) takes [NamedCommand]s, named by their
  * type and checked against its Manifest before any request; a command object to it is a configuration error.
@@ -108,12 +114,35 @@ class HttpCommandClient internal constructor(
             return@flow
         }
         when (val answer = transport.stream(peer.http, Exchange.COMMAND)) {
-            is Answer.Ok -> answer.value.serverSentEvents().collect { event ->
-                emit(ClientJson.mapper.readValue(event.data, CommandResult::class.java))
+            is Answer.Ok -> {
+                var last: CommandResult? = null
+                answer.value.serverSentEvents()
+                    .map { event -> decode(peer.what, event.data.toByteArray()) }
+                    // Upstream of the collector: only the connection's failures, its bound's included.
+                    .catch { lost -> throw if (lost is IOException) unknown(peer, lost).exception(peer.what) else lost }
+                    .collect { result ->
+                        last = result
+                        emit(result)
+                    }
+                if (last?.let { endsStream(it, request.plan, peer.http.context) } != true) {
+                    throw unknown(peer, IOException("The stream ended before its last event.")).exception(peer.what)
+                }
             }
             is Answer.Problem -> emit(answer.problem.result ?: throw answer.problem.exception(peer.what))
         }
     }
+
+    /**
+     * The problem of a command whose stream of results failed after its head ([lost]), or ended before the event that
+     * ends it ([endsStream]): it was taken, and whether it committed is unknown, as a command whose answer was lost is
+     * (`wow.command.unknown`, a retry with its request id is safe). A caller sees one kind of failure, whatever met it.
+     */
+    private fun unknown(peer: Sent, lost: IOException): PeerProblem = PeerProblem.of(
+        FrameworkCodes.COMMAND_UNKNOWN,
+        "The stream of results of the command sent to ${peer.http.context} was lost (${lost.javaClass.name}): " +
+            "whether it committed is unknown.",
+        lost,
+    )
 
     /** The result [answer] holds, of whatever status, or the exception of a problem that holds none. */
     private fun resultOf(peer: Sent, answer: Answer<ByteArray>): CommandResult = when (answer) {
@@ -318,6 +347,25 @@ class HttpCommandClient internal constructor(
 
         /** The status of the problem of a result whose status this client does not know: a bad gateway, as a call's. */
         private const val NEWER_PEER_STATUS = 502
+
+        /**
+         * Whether [result], the last of a command's stream to [context] waiting with [plan] (the default plan when
+         * null), is the event a whole stream ends with: a result that did not reach its hop (rejected, failed, timed
+         * out, of a status a newer peer sent), or one at the plan's last hop; the default plan's ends at the
+         * snapshot, or at the commit where the aggregate has none. A stream cut short of it, though it ends cleanly,
+         * leaves the command's outcome unknown.
+         */
+        fun endsStream(result: CommandResult, plan: WaitPlan?, context: String): Boolean {
+            if (result.status != CommandResult.Status.SUCCEEDED) return true
+            val asked = plan ?: WaitPlan.DEFAULT
+            val reached = result.hop.inContext(context)
+            val last = asked.hops.last().inContext(context)
+            return reached == last || asked.isDefault && reached == Hop.committed(context)
+        }
+
+        /** This hop, its context the command's, [context], when it names none. */
+        private fun Hop.inContext(context: String): Hop =
+            if (this.context == null) copyWith(context = context) else this
 
         /**
          * The result [body] holds, the answer to [what]. An answer that holds none is the wire's or the peer's fault, as
