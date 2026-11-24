@@ -330,13 +330,23 @@ class SnapshotMaintenance(
         return here
     }
 
+    /**
+     * Rebuilds the snapshot of each aggregate an operator's request names, as [rebuild] does; one whose history does not
+     * replay is skipped as the in-place rebuild skips it ([MaintenanceSkips.attempt], parked under
+     * `wow.snapshot.rewrite`), so the request's other ids are rebuilt, and the request is done with. Without [skips], it
+     * stops the request as before.
+     */
     private suspend fun rebuildRequested(entry: SubscribedEntry) {
         val stream = entry.stream
         val type = AggregateType(context, stream.ref.id)
         stream.events.filter { it.name == SnapshotRebuilds.SNAPSHOT_REBUILD_REQUESTED }
             .flatMap { json.readValue(it.payload, SnapshotRebuildRequested::class.java).ids }
             .distinct()
-            .forEach { rebuild(type.ref(stream.ref.tenantId, it)) }
+            .forEach { id ->
+                val ref = type.ref(stream.ref.tenantId, id)
+                val skipping = skips
+                if (skipping == null) rebuild(ref) else skipping.attempt(ref) { rebuild(ref) }
+            }
     }
 
     /** Keeps this node a member of its revision of each type. */

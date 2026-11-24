@@ -34,11 +34,15 @@ import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.runtime.ledger.MaintenanceSkips
 import me.ahoo.wow.runtime.ledger.SkipLedger
 import me.ahoo.wow.runtime.ledger.UnreplayableHistoryException
+import me.ahoo.wow.runtime.subscription.SubscribedEntry
 import me.ahoo.wow.spi.StorageUnavailableException
+import me.ahoo.wow.spi.log.EventRecord
+import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.ObservedEvent.MaintenanceSkipped.Work
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.snapshot.SnapshotRebuildStore
+import me.ahoo.wow.spi.snapshot.SnapshotRebuilds
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.subscription.SubscriptionId
@@ -161,6 +165,23 @@ class SnapshotRewriteSkipsTest {
             ledger.parked(parked, b)!!.reason.assert().startsWith("Its history did not replay: ")
                 .doesNotContain("$POISON")
             skipped().map { it.type to it.work }.assert().containsExactly(type to Work.SNAPSHOT_REWRITE)
+        }
+
+    @Test
+    fun `an id of a rebuild request whose history does not replay should be parked, and the others rebuilt`(): Unit =
+        runBlocking {
+            // #6759: the request's ids are rebuilt one after another; one that does not replay stopped the others, and
+            // the request instance parked, holding back every later request to it.
+            val store = InMemorySnapshotStore()
+            val (a, b, c) = stored(store)
+            val maintenance = maintenance(model(2, poisoned = true), store)
+            maintenance.prepare()
+            maintenance.rebuildSubscription.handle(SubscribedEntry(rebuildRequest("b", "c"), null, emptyList()))
+            store.load(c)!!.stateRevision.assert().isEqualTo(2)
+            store.load(b)!!.stateRevision.assert().isEqualTo(1)
+            ledger.parked(parked, b)!!.reason.assert().startsWith("Its history did not replay: ")
+            // Not named by the request: left as it was.
+            store.load(a)!!.stateRevision.assert().isEqualTo(1)
         }
 
     @Test
@@ -294,6 +315,40 @@ class SnapshotRewriteSkipsTest {
             maintenance(model(2), store).retry(AggregateType(CONTEXT, "other").ref("tenant", "a")).assert().isFalse()
             maintenance(model(2), store, skips = false).retry(type.ref("tenant", "a")).assert().isFalse()
         }
+
+    @Test
+    fun `a rebuild request without skips should rebuild its ids, and stop at one whose history does not replay`():
+        Unit = runBlocking {
+        val store = InMemorySnapshotStore()
+        val (a, b, c) = stored(store)
+        val maintenance = maintenance(model(2, poisoned = true), store, skips = false)
+        maintenance.prepare()
+        maintenance.rebuildSubscription.handle(SubscribedEntry(rebuildRequest("a"), null, emptyList()))
+        store.load(a)!!.stateRevision.assert().isEqualTo(2)
+        // Nowhere to park it: the request fails as it did, and its subscription retries and parks it.
+        val failing = SubscribedEntry(rebuildRequest("b", "c"), null, emptyList())
+        assertThrows<UnreplayableHistoryException> { runBlocking { maintenance.rebuildSubscription.handle(failing) } }
+        store.load(c)!!.stateRevision.assert().isEqualTo(1)
+        store.load(b)!!.stateRevision.assert().isEqualTo(1)
+    }
+
+    /** An operator's request to rebuild the counters [ids], as the rebuild subscription reads it. */
+    private fun rebuildRequest(vararg ids: String) = EventStreamRecord(
+        ref = AggregateType(CONTEXT, SnapshotRebuilds.AGGREGATE).ref("tenant", type.name),
+        version = 1,
+        commandId = "c-rebuild",
+        requestId = "r-rebuild",
+        commandType = "$CONTEXT.${SnapshotRebuilds.AGGREGATE}.RebuildSnapshot",
+        commitTime = 0L,
+        events = listOf(
+            EventRecord(
+                SnapshotRebuilds.SNAPSHOT_REBUILD_REQUESTED,
+                1,
+                ids.joinToString(prefix = """{"ids":[""", postfix = "]}") { "\"$it\"" },
+            ),
+        ),
+        scope = Scope.NONE,
+    )
 
     @Test
     fun `a rebuild without skips should stop at a snapshot whose history does not replay, as it did`(): Unit =

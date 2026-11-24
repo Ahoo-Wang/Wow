@@ -38,7 +38,7 @@ curl -X POST "http://<service>/<context>/<aggregate>/wow.snapshot.rebuild-snapsh
   -d '{"ids": ["SO-261031-1", "SO-261031-2"]}'
 ```
 
-这个路由把系统命令 `wow.snapshot.RebuildSnapshot` 发给上下文内置的重建聚合，像任何命令一样经过准入，所以由授权器决定谁能发送它；除非有授权器决定 Wow 的运维命令，服务在公开端口上拒绝它（403 `wow.auth.forbidden`），默认从不放行（[授权命令](./security#authorize-commands)）。随后一个内置的订阅从日志重写每个指定的快照，写入每个目标存储。
+这个路由把系统命令 `wow.snapshot.RebuildSnapshot` 发给上下文内置的重建聚合，像任何命令一样经过准入，所以由授权器决定谁能发送它；除非有授权器决定 Wow 的运维命令，服务在公开端口上拒绝它（403 `wow.auth.forbidden`），默认从不放行（[授权命令](./security#authorize-commands)）。随后一个内置的订阅从日志重写每个指定的快照，写入每个目标存储。历史不再能重放的 id 会像原地重建重写不了的快照那样，停放在 `wow.snapshot.rewrite` 之下（[快照：提高状态修订号](#snapshots-raise-the-state-revision)），请求中的其他 id 照常重写。
 
 ## 新的快照存储 {#a-new-snapshot-store}
 
