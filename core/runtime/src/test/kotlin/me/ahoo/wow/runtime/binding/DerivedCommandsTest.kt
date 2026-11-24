@@ -13,8 +13,10 @@
 
 package me.ahoo.wow.runtime.binding
 
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateIdSource
 import me.ahoo.wow.api.aggregate.Creation
@@ -48,6 +50,7 @@ import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.wait.Origin
 import org.junit.jupiter.api.Test
 import java.io.IOException
+import kotlin.time.Duration.Companion.milliseconds
 
 /** The outcomes of a saga's derived commands (design 01 §1): only a settled command completes the saga. */
 class DerivedCommandsTest {
@@ -276,6 +279,30 @@ class DerivedCommandsTest {
             executed.executed.assert().containsExactly("c-2")
             executed.rejected.single().rejection.code.assert().isEqualTo(FrameworkCodes.COMMAND_INVALID)
             executed.rejected.single().rejection.message.assert().isEqualTo("An item has a name.")
+        }
+
+    class Quote
+    class Quoted
+
+    /** An aggregate whose decide function bounds a call with `withTimeout`, and the call does not answer in time. */
+    private val quote = aggregate<Any>(SHOP, "quote") {
+        initial { Any() }
+        decideSuspending<Quote>(Creation.ALLOWED) { _, _ -> withTimeout(10.milliseconds) { awaitCancellation() } }
+        evolve<Quoted> { }
+    }
+
+    @Test
+    fun `a derived command whose decide function's own call timed out should fail the saga, saying so`(): Unit =
+        runBlocking {
+            // #6737: the timeout is a failure of the command's handling, retried and then parked as any failure; the
+            // saga's handling is not cancelled by it, nor does the command vanish from its outcomes.
+            val quoting = DerivedCommands(listOf(quote), coordinator, admission = admissionOf())
+            val command = Command("q-1", "q-1", quote.type.ref(TENANT, "q"), Quote(), causation = root)
+            val failure = runCatching { quoting.execute(listOf(command), TENANT, null) }.exceptionOrNull()
+
+            failure.assert().isInstanceOf(WowProblemException::class.java)
+            (failure as WowProblemException).code.assert().isEqualTo(FrameworkCodes.COMMAND_FAILED)
+            failure.message.assert().contains("q-1", "CancelledDecisionException", "withTimeout")
         }
 
     @Test

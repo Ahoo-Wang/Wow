@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.http
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
@@ -145,6 +146,8 @@ fun cartModel(commands: MutableList<Command<*>>, mounted: Boolean = false) = agg
         when {
             body.note == "closed" -> Decision.reject(CART_CLOSED, "The cart is closed.")
             body.note == "throw" -> throw UnsupportedOperationException("secret jdbc:postgresql://db-internal:5432")
+            // A call the decision bounded that did not answer in time: a cancellation of its own, the caller waits.
+            body.note == "cancelled" -> throw CancellationException("secret: the call timed out")
             state.items == 0 -> Decision.reject(CART_EMPTY, "The cart is empty.")
             else -> Decision.NoOp
         }
