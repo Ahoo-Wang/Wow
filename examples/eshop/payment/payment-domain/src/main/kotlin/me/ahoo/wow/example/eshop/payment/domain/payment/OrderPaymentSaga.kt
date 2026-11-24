@@ -21,6 +21,7 @@ import me.ahoo.wow.api.client.toCommandRequest
 import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.api.subscribe.StateTypedEvent
 import me.ahoo.wow.example.eshop.ordering.api.order.CancelOrder
+import me.ahoo.wow.example.eshop.ordering.api.order.EshopOrderingContract
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderStateView
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderStockConfirmed
 import me.ahoo.wow.example.eshop.ordering.api.order.PayOrder
@@ -43,9 +44,8 @@ import me.ahoo.wow.example.eshop.payment.api.payment.RequestPayment
  *   any cancelled order does (the ordering's order-process saga).
  * - [onPayRejected]: an order that refuses its payment (it was cancelled meanwhile, its grace period passed, say)
  *   comes back as a receipt on `wow.eshop-payment.receipts`, and the payment is refunded.
- *
- * A `CancelOrder` the order rejects has no handler: only a paid order rejects it, and a failed payment paid nothing,
- * so such a rejection parks the payment for [onPaymentFailed], to be looked at.
+ * - [onCancelRejected]: an order that refuses its cancellation is already paid or shipped, so the failed payment has
+ *   nothing left to undo: the handler accepts that code. Any other parks the payment.
  *
  * Each handler names only its target's id: the contract the ordering api's jar carries assigns
  * `PayOrder` and `CancelOrder` to the ordering's order, the payment's own Manifest assigns `RequestPayment` and
@@ -81,4 +81,15 @@ class OrderPaymentSaga {
         RefundPayment("The order ${rejected.ref.id} refused the payment: ${rejected.error.message}")
             .toCommandRequest(rejected.source.id)
     // endregion
+
+    /**
+     * An order refuses its cancellation only once it is paid or shipped ([EshopOrderingContract.Order.Errors.WRONG_STATUS]):
+     * it was paid, so the failed payment cancels nothing, and its own failure is recorded on the payment already. The
+     * handler accepts that code and derives nothing; the acceptance is logged in the payment service. Any other code
+     * is one the saga does not expect, so the payment parks at once, its reason naming the code. Without this handler,
+     * the order's refusal, which comes back from the ordering context as a receipt, would park the payment too.
+     */
+    @OnRejected
+    fun onCancelRejected(rejected: CommandReceipt.Rejected<CancelOrder>) =
+        rejected.accept(EshopOrderingContract.Order.Errors.WRONG_STATUS)
 }

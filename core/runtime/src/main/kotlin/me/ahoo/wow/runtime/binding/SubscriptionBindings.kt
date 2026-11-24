@@ -232,10 +232,12 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
 
     /**
      * The `@OnRejected` and `@OnCommitted` handlers of [context]'s sagas, for the receipts of the commands they sent to
-     * other contexts; null when none of its sagas has one.
+     * other contexts; null when none of its sagas sends a command to another context ([asksReceipts]).
      */
-    override fun receipts(context: ContextNode): ReceiptHandler? =
-        receiptsOf(context, processors[context.context].orEmpty()).takeUnless { it.isEmpty }
+    override fun receipts(context: ContextNode): ReceiptHandler? {
+        val bound = processors[context.context].orEmpty()
+        return if (asksReceipts(bound, context.models)) receiptsOf(context, bound) else null
+    }
 
     /** The names of the `@OnCommitted` handlers of [context]'s sagas, each a hop of its waits. */
     override fun committedHandlers(context: String): Set<String> =
@@ -426,18 +428,33 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
 
         /**
          * Where the receipts of a command the saga [handler] of [context] derived in its [execution] go, when another
-         * context rejects or commits it: back to the saga, when it has an `@OnRejected` or an
-         * `@OnCommitted` handler for the command's class, asking for the receipt of the commit only with the latter;
-         * otherwise nowhere, and the target only logs a rejection.
+         * context rejects or commits it: back to the saga, always for its rejection, which goes to the saga's
+         * `@OnRejected` handler of the command's class or parks the saga's aggregate when it has none, as a rejection
+         * within the context does; for its commit only when the saga has an `@OnCommitted` handler for that class.
          */
         internal fun replyTo(
             handler: ProcessorBinding<*>,
             context: String,
             execution: ExecutionId,
         ): (Command<*>) -> ReplyTo? = { command ->
-            val type = command.body.javaClass
-            val committed = handler.committedHandlerOf(type) != null
-            ReplyTo.of(context, execution, committed).takeIf { committed || handler.rejectionHandlerOf(type) != null }
+            ReplyTo.of(context, execution, committed = handler.committedHandlerOf(command.body.javaClass) != null)
+        }
+
+        /**
+         * Whether a saga of [bound] sends a command to another context than that of [models], whose receipts come
+         * back on the context's receipts topic: one that declares an `@OnRejected` or `@OnCommitted` handler, or
+         * derives a command class none of [models] decides (`@Sends`, else its return type), which may be another
+         * context's, as a supertype may be. A saga that derives only its own context's commands asks for none.
+         */
+        internal fun asksReceipts(
+            bound: Collection<ProcessorBinding<*>>,
+            models: Collection<AggregateModel<*>>,
+        ): Boolean {
+            val own = models.flatMapTo(HashSet()) { model -> model.commandTypes.map { it.type } }
+            return bound.any { saga ->
+                saga.kind == FunctionKind.SAGA &&
+                    (saga.rejections.isNotEmpty() || saga.commits.isNotEmpty() || saga.sends.derives.any { it !in own })
+            }
         }
 
         /**

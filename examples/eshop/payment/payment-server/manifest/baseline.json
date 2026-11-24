@@ -178,6 +178,21 @@
       } ]
     } ],
     "subscriptions" : [ {
+      "name" : "OrderPaymentSaga.onCancelRejected",
+      "kind" : "saga",
+      "source" : {
+        "aggregates" : [ ],
+        "events" : [ ]
+      },
+      "function" : {
+        "kind" : "saga",
+        "context" : "eshop-payment",
+        "processor" : "OrderPaymentSaga",
+        "name" : "onCancelRejected"
+      },
+      "derives" : [ ],
+      "rejected" : [ "#/$defs/me.ahoo.wow.example.eshop.ordering.api.order.CancelOrder" ]
+    }, {
       "name" : "OrderPaymentSaga.onOrderStockConfirmed",
       "kind" : "saga",
       "source" : {

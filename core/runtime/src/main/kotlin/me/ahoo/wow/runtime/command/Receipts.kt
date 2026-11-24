@@ -17,6 +17,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.subscribe.CommandReceipt
+import me.ahoo.wow.kernel.HandlingRejectedException
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.subscription.Subscription
@@ -61,7 +62,12 @@ interface ReceiptHandler {
  *   reaches the handler again, whose commands the kernel does not decide twice. A commit after a rejection of the same
  *   command is not a copy: the target logs no rejection, so the command sent again was decided
  *   again; the commit reaches the `@OnCommitted` handler, with a warning that the rejection was compensated before.
- * - A receipt no handler takes is logged and passed over: the saga's hop was complete when the command was accepted.
+ * - A rejection no `@OnRejected` handler takes parks the saga's aggregate at once, without a retry
+ *   ([UnhandledReceiptRejectionException]), as a rejection of a command the saga derived within its own context does.
+ *   Its entry is under the receipts subscription's name, and holds the aggregate's later receipts until it is retried,
+ *   which parks it again while no handler takes it, or skipped.
+ * - A commit's receipt no handler takes is logged and passed over: the saga's hop was complete when the command was
+ *   accepted.
  * - A command type the contracts do not know, a class that cannot be loaded, a handler that throws, or a command it
  *   derives that fails, fails the receipt: retried, then the saga's aggregate parks under the subscription's name, at
  *   the receipt's offset. A rejection the handler meets, of a command it derives or of a call it lets through, parks
@@ -86,13 +92,13 @@ internal class Receipts internal constructor(
         }
     }
 
-    /** Hands [rejected] to the handler once per command id. */
+    /**
+     * Hands [rejected] to the handler once per command id; parks the saga's aggregate when no handler takes it
+     * ([UnhandledReceiptRejectionException]).
+     */
     internal suspend fun handle(rejected: CommandReceipt.Rejected<*>) = once(rejected.commandId, REJECTED) {
         if (handler.rejected(rejected, commandClassOf(rejected.commandType)) == null) {
-            logger.warn {
-                "No @OnRejected handler of ${rejected.executionId.subscription} in $context takes the rejection of " +
-                    "${rejected.commandType} ${rejected.commandId} on ${rejected.ref}: ${rejected.error.code}."
-            }
+            throw UnhandledReceiptRejectionException(context, rejected)
         }
     }
 
@@ -161,3 +167,17 @@ internal class Receipts internal constructor(
         fun nameOf(context: String): String = "wow.receipts.$context"
     }
 }
+
+/**
+ * Another context rejected a command a saga of [context] derived, and the saga has no `@OnRejected` handler for it:
+ * the receipts subscription parks the saga's aggregate once, at once, without a retry, as a rejection of a command
+ * derived within the context does ([me.ahoo.wow.runtime.binding.DerivedCommandRejectedException]), its reason naming
+ * the rejection's code and message.
+ */
+internal class UnhandledReceiptRejectionException(val context: String, val rejected: CommandReceipt.Rejected<*>) :
+    HandlingRejectedException(
+        rejected.error,
+        "${rejected.executionId.subscription} in $context takes no rejection of ${rejected.commandType}: " +
+            "the derived command ${rejected.commandId} on ${rejected.ref} was rejected: " +
+            "${rejected.error.code} ${rejected.error.message}",
+    )

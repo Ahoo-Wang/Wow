@@ -91,11 +91,6 @@ internal class SagaReceipts(
         sagas.filter { it.kind == FunctionKind.SAGA }.associateBy { it.name }
 
     /**
-     * Whether no saga of this context has an `@OnRejected` or `@OnCommitted` handler: only those ask for receipts.
-     */
-    val isEmpty: Boolean get() = sagas.values.all { it.rejections.isEmpty() && it.commits.isEmpty() }
-
-    /**
      * Hands [rejected], the rejection of a command of the class [command], to the `@OnRejected` handler of the saga
      * whose handler derived it, executes what that derives and returns their ids; null when the saga has no handler
      * for it, or [rejected] names no saga handler of this context.
