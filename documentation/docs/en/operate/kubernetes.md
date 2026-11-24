@@ -540,7 +540,12 @@ kubectl wait --for=delete pod -l app.kubernetes.io/instance=eshop-ordering --tim
 
 ## With Kustomize {#with-kustomize}
 
-A deployment that keeps its own manifests and never runs Helm takes them from the build. The service's build renders the chart, the one the plugin carries at its own version, with the values it generates and the deployment's own, into a Kustomize base of plain YAML. An overlay then changes what the chart does not derive, and `kubectl apply -k` applies it. The objects are the chart's, so the chart's schema still checks every value that feeds a derivation; a deployment that installs the chart from its OCI repository changes nothing.
+A service deploys one of two ways, both from the same chart and the same values:
+
+- **The chart, with Helm**, as above: `helm install` and `helm upgrade` from its OCI repository. It fits a platform that runs Helm: its releases, their history and rollback, an umbrella chart.
+- **The base the build renders, with an overlay**: the service's build renders the chart, the one the plugin carries at its own version, with the values it generates and the deployment's own, into a Kustomize base of plain YAML. An overlay changes what the chart does not derive, and `kubectl apply -k` applies it. It fits a deployment that applies plain manifests, by hand or through a GitOps tool that reads a kustomization, with no Helm on the operator's side.
+
+The objects are the chart's either way, so the chart's schema still checks every value that feeds a derivation, and a deployment that installs the chart changes nothing. The GA end-to-end run deploys the eShop basket the second way every night (`.github/ga-e2e/cluster.sh`), beside the other services' releases. The basket is this section's example.
 
 Name the deployment's values files and the namespace in the server's build. The basket's:
 
@@ -575,7 +580,14 @@ build/wow/k8s/
 └── serviceaccount-eshop-basket-service.yaml
 ```
 
-A value the schema refuses fails the build with the chart's message; a values file that does not exist, a render without values or without a namespace fails it naming the line to change. The task is cached: the same values, namespace and Wow version render the same base on every machine.
+The task is cached: the same values, namespace and Wow version render the same base on every machine. What a build says when it cannot render:
+
+| Mistake | The build says |
+| --- | --- |
+| No values named | `generateWowManifests renders the wow-service chart with the deployment's values, which the build names: wow { kubernetes { values.from("deploy/<service>/values.yaml") } }.` |
+| No namespace | `generateWowManifests renders the service for the namespace it is deployed to, which the chart derives from (…): set wow { kubernetes { namespace = "<namespace>" } }.` |
+| A values file that does not exist | `wow { kubernetes { values.from(…) } } names "…/deploy/eshop-basket/valeus.yaml", which does not exist: correct the path in values.from(…), or remove it.` |
+| A value the schema refuses | `Helm refused to render the wow-service chart:`, then the chart's own message, such as `additional properties 'replicaz' not allowed` |
 
 The production overlay changes the image, the replicas and a limit:
 
@@ -642,6 +654,18 @@ The operator needs `kubectl` alone; the build renders with Helm v4.3.1, the vers
 A Helm on the `PATH` is never used, so the base does not depend on the machine. Offline, the build uses the binary it fetched before, and without one fails naming both properties.
 
 Render again on each Wow upgrade: the chart is the plugin's, at its version.
+
+### Render with Helm, then overlay {#render-with-helm-then-overlay}
+
+A deployment that keeps Helm for rendering, but not for applying, renders the chart from its OCI repository with the build's values and its own, and lays its overlay over the output:
+
+```bash
+helm template eshop-ordering oci://ghcr.io/ahoo-wang/wow-service --version <wow-version> --namespace shop \
+  -f examples/eshop/ordering/ordering-server/build/wow/helm/values.yaml \
+  -f deploy/eshop-ordering/values.yaml > base/eshop-ordering.yaml
+```
+
+List `eshop-ordering.yaml` among the `resources` of `base/kustomization.yaml`, set its `namespace:` to the one it was rendered for, and render it again on each upgrade and with each build's values. What goes in the values and what in the overlay is the same as above, and so is the namespace: an overlay does not move it.
 
 ## In an umbrella chart
 

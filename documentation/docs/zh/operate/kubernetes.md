@@ -540,7 +540,12 @@ kubectl wait --for=delete pod -l app.kubernetes.io/instance=eshop-ordering --tim
 
 ## 配合 Kustomize {#with-kustomize}
 
-自己保管清单、从不运行 Helm 的部署，从构建取得清单。服务的构建用它生成的 values 和部署自己的 values，渲染插件自带的、与插件同版本的 chart，得到一个纯 YAML 的 Kustomize base；再由一个 overlay 修改 chart 不派生的部分，用 `kubectl apply -k` 应用。对象就是 chart 的对象，所以凡是参与派生的值仍由 chart 的 schema 检查；从 OCI 仓库安装 chart 的部署什么也不用改。
+服务有两种部署方式，都出自同一个 chart、同一份 values：
+
+- **用 Helm 安装 chart**，即上文所述：从 OCI 仓库 `helm install`、`helm upgrade`。适合运行 Helm 的平台：它的 release、release 的历史与回滚、总 chart。
+- **构建渲染的 base 加一个 overlay**：服务的构建用它生成的 values 和部署自己的 values，渲染插件自带的、与插件同版本的 chart，得到一个纯 YAML 的 Kustomize base；overlay 修改 chart 不派生的部分，用 `kubectl apply -k` 应用。适合应用纯清单的部署，无论是手工应用，还是由读取 kustomization 的 GitOps 工具应用，运维方都不需要 Helm。
+
+两种方式下对象都是 chart 的对象，所以凡是参与派生的值仍由 chart 的 schema 检查，安装 chart 的部署什么也不用改。GA 端到端测试每晚用第二种方式部署 eShop 的 basket（`.github/ga-e2e/cluster.sh`），与其他服务的 release 并列。本节以 basket 为例。
 
 在服务器的构建中写明部署的 values 文件和命名空间。basket 的：
 
@@ -575,7 +580,14 @@ build/wow/k8s/
 └── serviceaccount-eshop-basket-service.yaml
 ```
 
-schema 拒绝的值会让构建失败，并给出 chart 的消息；values 文件不存在、渲染时没有 values 或没有命名空间，构建也会失败，并指出要改的那一行。这个任务可以缓存：相同的 values、命名空间和 Wow 版本，在每台机器上渲染出相同的 base。
+这个任务可以缓存：相同的 values、命名空间和 Wow 版本，在每台机器上渲染出相同的 base。构建无法渲染时会这样说：
+
+| 错误 | 构建的输出 |
+| --- | --- |
+| 没有写 values | `generateWowManifests renders the wow-service chart with the deployment's values, which the build names: wow { kubernetes { values.from("deploy/<service>/values.yaml") } }.` |
+| 没有命名空间 | `generateWowManifests renders the service for the namespace it is deployed to, which the chart derives from (…): set wow { kubernetes { namespace = "<namespace>" } }.` |
+| values 文件不存在 | `wow { kubernetes { values.from(…) } } names "…/deploy/eshop-basket/valeus.yaml", which does not exist: correct the path in values.from(…), or remove it.` |
+| schema 拒绝的值 | `Helm refused to render the wow-service chart:`，后面是 chart 自己的消息，例如 `additional properties 'replicaz' not allowed` |
 
 生产环境的 overlay 修改镜像、副本数和一项限额：
 
@@ -642,6 +654,18 @@ kubectl apply -k deploy/eshop-basket/prod
 `PATH` 上的 Helm 从不使用，所以 base 不依赖于机器。离线时，构建使用之前获取的二进制，没有则失败并指出这两个属性。
 
 每次升级 Wow 都重新渲染：chart 是插件的，版本即插件的版本。
+
+### 先用 Helm 渲染，再叠加 overlay {#render-with-helm-then-overlay}
+
+保留 Helm 用于渲染、但不用它应用的部署，用构建的 values 和自己的 values 渲染 OCI 仓库中的 chart，再把 overlay 叠加在输出上：
+
+```bash
+helm template eshop-ordering oci://ghcr.io/ahoo-wang/wow-service --version <wow-version> --namespace shop \
+  -f examples/eshop/ordering/ordering-server/build/wow/helm/values.yaml \
+  -f deploy/eshop-ordering/values.yaml > base/eshop-ordering.yaml
+```
+
+把 `eshop-ordering.yaml` 列入 `base/kustomization.yaml` 的 `resources`，把它的 `namespace:` 设为渲染时所用的命名空间，每次升级、每次构建出新的 values 时重新渲染。哪些写进 values、哪些写进 overlay 与上文相同，命名空间也一样：overlay 不挪动它。
 
 ## 在总 chart 中 {#in-an-umbrella-chart}
 
