@@ -75,9 +75,9 @@ class KernelDerivedRequestsTest {
     fun `a decision sends its n-th command as the n-th request derived from the deciding request`() = runTest {
         Kernel(opened()).execute(model, Command("c-1", "r-1", ref, Charge(1)))
         sent.single().assert().containsExactly(
-            DecidingCommand.requestIdOf(ref, "r-1", 0),
+            DecidingCommand.requestIdOf(ref.type, ref.tenantId, "r-1", 0),
             "own",
-            DecidingCommand.requestIdOf(ref, "r-1", 1),
+            DecidingCommand.requestIdOf(ref.type, ref.tenantId, "r-1", 1),
         )
     }
 

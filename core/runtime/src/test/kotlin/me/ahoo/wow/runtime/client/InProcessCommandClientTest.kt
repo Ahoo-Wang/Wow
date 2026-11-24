@@ -21,6 +21,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.client.send
@@ -44,12 +45,14 @@ import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.runtime.Executor
+import me.ahoo.wow.runtime.admission.CommandBody
 import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.admission.CommandInput
 import me.ahoo.wow.runtime.admission.CommandTarget
 import me.ahoo.wow.runtime.admission.CommandTransformer
 import me.ahoo.wow.runtime.admission.CommittedRequests
 import me.ahoo.wow.runtime.admission.ModelRegistry
+import me.ahoo.wow.runtime.admission.ServerCommandRequest
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
 import me.ahoo.wow.runtime.command.ITEM
 import me.ahoo.wow.runtime.command.PREFIX
@@ -75,6 +78,9 @@ import me.ahoo.wow.runtime.wait.WaitCoordinator
 import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.runtime.wait.WaitRegistry
 import me.ahoo.wow.spi.call.DecidingCommand
+import me.ahoo.wow.spi.log.AppendOutcome
+import me.ahoo.wow.spi.log.EventLog
+import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.wait.Origin
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -90,6 +96,13 @@ class InProcessCommandClientTest {
     data class AddItem(val sku: String, val quantity: Int = 1)
 
     class Cart
+
+    data class OpenInvoice(val amount: Int)
+    data class Charge(val amount: Int)
+
+    class Invoice
+
+    class Payment
 
     private val commands = CopyOnWriteArrayList<Command<*>>()
 
@@ -113,11 +126,12 @@ class InProcessCommandClientTest {
     private fun gateway(
         models: List<me.ahoo.wow.kernel.AggregateModel<*>> = listOf(model),
         transformers: List<CommandTransformer> = emptyList(),
+        log: EventLog = InMemoryEventLog(partitions = 2),
     ) = CommandGateway(
         ModelRegistry(models),
         mapOf(
             CONTEXT to WaitCoordinator(
-                Executor(Kernel(InMemoryEventLog(partitions = 2))),
+                Executor(Kernel(log)),
                 registry,
                 SubscriptionDirectory.NONE,
                 LocalSignalSender(origin.node, registry),
@@ -222,15 +236,66 @@ class InProcessCommandClientTest {
     @Test
     fun `a command sent while deciding takes a request id derived from the deciding request`(): Unit = runBlocking {
         val deciding = AggregateType(CONTEXT, "order").ref(TENANT, "o-1")
+        fun derived(index: Int) = DecidingCommand.requestIdOf(deciding.type, deciding.tenantId, "r-deciding", index)
         withContext(DecidingCommand(deciding, "r-deciding")) {
             client.wait(CommandRequest.of(AddItem("plum"), "c-8", wait = WaitPlan.COMMITTED))
-            commands.last().requestId.assert().isEqualTo(DecidingCommand.requestIdOf(deciding, "r-deciding", 0))
+            commands.last().requestId.assert().isEqualTo(derived(0))
             client.stream(CommandRequest.of(AddItem("plum"), "c-8", wait = WaitPlan.COMMITTED)).toList()
-            commands.last().requestId.assert().isEqualTo(DecidingCommand.requestIdOf(deciding, "r-deciding", 1))
+            commands.last().requestId.assert().isEqualTo(derived(1))
             client.wait(CommandRequest.of(AddItem("plum"), "c-8", requestId = "own"))
             commands.last().requestId.assert().isEqualTo("own")
         }
     }
+
+    @Test
+    fun `a retried creation that names no aggregate sends its calls under the same request ids`(): Unit =
+        runBlocking {
+            // The invoice's first append is refused: that attempt committed nothing, and the caller retries.
+            val stored = InMemoryEventLog(partitions = 2)
+            val log = object : EventLog by stored {
+                @Volatile
+                var refused = false
+
+                override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome {
+                    if (stream.ref.type.name == "invoice" && !refused) {
+                        refused = true
+                        return AppendOutcome.Rejected.of(IllegalStateException("The store refused the append."))
+                    }
+                    return stored.append(stream, transport)
+                }
+            }
+            lateinit var calls: CommandClient
+            val invoices = aggregate<Invoice>(CONTEXT, "invoice") {
+                initial { Invoice() }
+                decideSuspending<OpenInvoice>(Creation.REQUIRED) { _, body ->
+                    calls.wait(CommandRequest.of(Charge(body.amount), "pay-1", wait = WaitPlan.COMMITTED))
+                    Decision.events(body)
+                }
+                evolve<OpenInvoice> { }
+            }
+            val payments = aggregate<Payment>(CONTEXT, "payment") {
+                initial { Payment() }
+                decide<Charge>(Creation.ALLOWED) { _, body -> Decision.events(body) }
+                evolve<Charge> { }
+            }
+            val gateway = gateway(listOf(invoices, payments), log = log)
+            calls = InProcessCommandClient(gateway).of(alice)
+            val open = ServerCommandRequest.builder(
+                CONTEXT,
+                "invoice",
+                OpenInvoice::class.java.name,
+                CommandBody.Value(OpenInvoice(10)),
+            ).caller(alice).requestId("open-1").wait(WaitPlan.COMMITTED).build()
+
+            val first = gateway.execute(open)
+            first.status.assert().isEqualTo(CommandResult.Status.FAILED)
+            val retried = gateway.execute(open)
+            retried.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+
+            // Admission gave each attempt an invoice id of its own; the retry's charge was the first one's repeat.
+            retried.ref.id.assert().isNotEqualTo(first.ref.id)
+            stored.read(payments.type.ref(TENANT, "pay-1")).toList().assert().hasSize(1)
+        }
 
     @Test
     fun `send answers at ACCEPTED, and stream emits each result once collected`(): Unit = runBlocking {

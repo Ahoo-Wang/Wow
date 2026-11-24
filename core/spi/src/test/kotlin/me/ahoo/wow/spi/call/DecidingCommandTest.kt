@@ -50,8 +50,8 @@ class DecidingCommandTest {
 
         first.assert().isEqualTo(second)
         first.assert().containsExactly(
-            DecidingCommand.requestIdOf(ref, "r-1", 0),
-            DecidingCommand.requestIdOf(ref, "r-1", 1),
+            DecidingCommand.requestIdOf(ref.type, ref.tenantId, "r-1", 0),
+            DecidingCommand.requestIdOf(ref.type, ref.tenantId, "r-1", 1),
         )
         runBlocking {
             withContext(deciding) {
@@ -61,6 +61,21 @@ class DecidingCommandTest {
                 requestIdOf(reserve()).assert().isEqualTo(first[0])
             }
         }
+    }
+
+    @Test
+    fun `every execution of a request derives the same request ids, whatever aggregate id it was given`() {
+        // Admission gives each attempt of a creation that names no aggregate a new id: the derivation leaves it out.
+        val first = deciding()
+        val retried = DecidingCommand(ref.type.ref(ref.tenantId, "o-2"), "r-1")
+        listOf(retried.nextRequestId(reserve()), retried.nextRequestId(reserve(2))).assert()
+            .containsExactly(first.nextRequestId(reserve()), first.nextRequestId(reserve(2)))
+        // Another request, tenant or aggregate type is another request.
+        val id = deciding().nextRequestId(reserve())
+        DecidingCommand(ref, "r-2").nextRequestId(reserve()).assert().isNotEqualTo(id)
+        DecidingCommand(ref.type.ref("t2", "o-1"), "r-1").nextRequestId(reserve()).assert().isNotEqualTo(id)
+        DecidingCommand(AggregateType("shop", "cart").ref("t", "o-1"), "r-1").nextRequestId(reserve()).assert()
+            .isNotEqualTo(id)
     }
 
     @Test

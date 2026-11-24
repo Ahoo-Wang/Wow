@@ -14,6 +14,7 @@
 package me.ahoo.wow.spi.call
 
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.decide.Misuse
@@ -33,6 +34,11 @@ import kotlin.coroutines.CoroutineContext
  * after a version conflict or for a caller's retry of an attempt that called a peer and did not commit, sends the same
  * requests again, which their targets answer as repeats rather than run twice: the n-th command an attempt sends is
  * the n-th request of every attempt, as long as the decision sends them in order.
+ *
+ * The aggregate's id is not part of it, its type and tenant are: a request id names one request of its aggregate type
+ * in its tenant, whichever aggregate it names (the log's request key), and admission gives a creation that names no
+ * aggregate a new id each time it handles it. So a caller's retry of such a creation, a copy its command topic
+ * delivers again and a saga's derived creation handled again send the same requests too.
  *
  * A repeat is answered with the first call's commit, so a call decided again must be that same call. Within an
  * execution, a call whose target, command type or body differs from the call that first took its index fails the
@@ -71,7 +77,7 @@ class DecidingCommand(val ref: AggregateRef, val requestId: String) : AbstractCo
             }
             index
         }
-        return requestIdOf(ref, requestId, index)
+        return requestIdOf(ref.type, ref.tenantId, requestId, index)
     }
 
     private fun changed(index: Int, first: CommandRequest<*>, call: CommandRequest<*>): Misuse.State = Misuse.State(
@@ -88,19 +94,12 @@ class DecidingCommand(val ref: AggregateRef, val requestId: String) : AbstractCo
         private const val CALL = "call"
 
         /**
-         * The request id of the [index]-th command (from 0) sent while deciding the request [requestId] to [ref]: a
-         * name-based UUID of the aggregate, the request id and the index, in [DerivedIds.encoded].
+         * The request id of the [index]-th command (from 0) sent while deciding the request [requestId] of [type] in
+         * [tenantId]: a name-based UUID of the aggregate type, the tenant, the request id and the index, in
+         * [DerivedIds.encoded]. It leaves out the aggregate's id, which every attempt of a request does not share.
          */
-        fun requestIdOf(ref: AggregateRef, requestId: String, index: Int): String = DerivedIds.idOf(
-            DerivedIds.encoded(
-                CALL,
-                ref.type.context,
-                ref.type.name,
-                ref.tenantId,
-                ref.id,
-                requestId,
-                index.toString(),
-            ),
+        fun requestIdOf(type: AggregateType, tenantId: String, requestId: String, index: Int): String = DerivedIds.idOf(
+            DerivedIds.encoded(CALL, type.context, type.name, tenantId, requestId, index.toString()),
         )
 
         /**
