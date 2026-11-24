@@ -129,10 +129,7 @@ export function idleAnomalies(suite) {
     if (run.status === 'ok' && one) {
       const three = run.idle.logHeadReadsPerSecond;
       const single = one.idle.logHeadReadsPerSecond;
-      if (
-        three >
-        single * HEAD_READS_SLACK.ratio + HEAD_READS_SLACK.perSecond
-      )
+      if (three > single * HEAD_READS_SLACK.ratio + HEAD_READS_SLACK.perSecond)
         row(
           'three nodes read more than one',
           `${num(three, 2)} log head reads a second at three nodes, ${num(single, 2)} at one: the nodes' probes do not split the partitions' reads`,
