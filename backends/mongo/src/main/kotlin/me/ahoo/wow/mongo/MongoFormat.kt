@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.mongo
 
+import com.mongodb.MongoCommandException
 import com.mongodb.MongoWriteException
 import com.mongodb.client.MongoCollection
 import com.mongodb.client.MongoDatabase
@@ -55,15 +56,43 @@ internal object MongoFormat {
 
     /**
      * Makes sure of the index [options] names on [collection] as [ddl] says ([Ddl.ensure]): creating it is
-     * idempotent, validating it checks that the collection has it.
+     * idempotent; validating it checks that the collection has it as Wow creates it, its keys in order, `unique`,
+     * `sparse`, its partial filter and no collation ([MongoIndexDefinition]), and refuses one that differs, naming each
+     * difference (#6748). Under `ddl: auto`, an index of that name and another definition fails the creation; it is
+     * then named the same way.
      */
     fun index(collection: MongoCollection<Document>, keys: Bson, options: IndexOptions, ddl: Ddl) {
         val bounded = MongoTimeouts.ddl(collection)
+        val definition = MongoIndexDefinition(keys, options)
+        val described = "The index ${definition.name} of ${collection.namespace.collectionName}"
         ddl.ensure(
-            "The index ${options.name} of ${collection.namespace.collectionName}",
-            create = { bounded.createIndex(keys, options) },
+            described,
+            create = {
+                try {
+                    bounded.createIndex(keys, options)
+                } catch (conflict: MongoCommandException) {
+                    // An index of this name, or of these keys, with another definition: the check names it.
+                    if (conflict.code !in INDEX_CONFLICTS) throw conflict
+                }
+            },
         ) {
-            options.name in bounded.listIndexes().mapNotNull { it.getString("name") }.toSet()
+            val indexes = bounded.listIndexes().into(ArrayList())
+            val existing = indexes.firstOrNull { it.getString(NAME) == definition.name }
+            if (existing == null) {
+                indexes.firstOrNull(definition::hasKeys)?.let { other ->
+                    error(
+                        "$described is missing: its keys are the index ${other.getString(NAME)}'s, which Wow does " +
+                            "not read under that name. Drop it, or create the index as ${definition.specification}.",
+                    )
+                }
+                return@ensure false
+            }
+            val differences = definition.differences(existing)
+            check(differences.isEmpty()) {
+                "$described is not the one this version of Wow creates: ${differences.joinToString("; ")}. Drop it " +
+                    "and start once with ddl auto, which creates it, or create it as ${definition.specification}."
+            }
+            true
         }
     }
 
@@ -73,8 +102,14 @@ internal object MongoFormat {
     private const val ID = "_id"
     private const val VERSION = "version"
 
-    /** A collection's name in a listing of a database's collections. */
+    /** A collection's name in a listing of a database's collections, an index's in a listing of its indexes. */
     private const val NAME = "name"
+
+    /**
+     * The server's refusals of an index whose name or keys an index of another definition has: `IndexOptionsConflict`
+     * and `IndexKeySpecsConflict`.
+     */
+    private val INDEX_CONFLICTS = setOf(85, 86)
 
     /**
      * Records [structure], the collection about to be created in [database], at [version] when it has no version
