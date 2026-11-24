@@ -77,7 +77,7 @@ outline: deep
 | 端口不接收的 `Wow-` 请求头（`Wow-Wiat`，`Wow-Wait` 的拼写错误） | `400 wow.request.malformed`，指出它 |
 | 分两行或更多行给出的 Wow 请求头（`Wow-Request-Id: r1` 和 `Wow-Request-Id: r2`），`Wow-Scope` 除外 | `400 wow.request.malformed`，指出它：追加一行的代理不能决定取值 |
 | 任何路由上的 `Wow-Call`（服务同步调用的请求头）：命令、查询、状态读取、服务路由 | `403 wow.auth.forbidden`，无论凭据如何：调用只在内部端口上接收 |
-| 路径中的矩阵参数（`/shop/cart/c-1;x=1/add-item`） | `400 wow.request.malformed`：没有路由接收它们 |
+| 路径中的矩阵参数（`/shop/cart/c-1;x=1/add-item`），包括不带参数名的 `;`（`c-1;`、`c-1;=v`） | `400 wow.request.malformed`：没有路由接收它们 |
 | 类型不是 `application/json` 或 `application/<name>+json` 的请求体，参数不计（`*/*`、`application/*`、`image/x+json`） | `415` |
 | [ID 规则](#aggregate-ids)拒绝的聚合 ID：含控制字符（`a%00b`）、两端有空白（`%20c-1`）、`.` 或 `..`、含 `/`、`;` 或 `\`（`a%2Fb`）、长于 256 个字符，或者 UTF-8 编码后长于 512 字节 | `400 wow.command.malformed`。Unicode ID（`%E8%B4%AD`）按原样接收：客户端会编码它发送的 ID |
 | 状态读取上的空白 ID（`/shop/cart/%20/state`） | `400 wow.query.malformed` |

@@ -43,11 +43,12 @@ import java.util.TreeSet
  * - **`Wow-Call`** (403 `wow.auth.forbidden`), whatever the request's credential: a service's call is taken on the
  *   internal port alone, on every route.
  * - **Matrix parameters** in the path (`/shop/cart/c-1;x=1/add-item`, 400 `wow.request.malformed`): Wow defines
- *   none, and the router would drop them.
+ *   none, and the router would drop them. Any `;` in a segment counts, one that names no parameter too (`c-1;`,
+ *   `c-1;=v`), which the path's own parse lists none for and would route as `c-1` (#6816).
  *
  * Its cost per request is one pass over the request's header names, a case-insensitive comparison of four characters
  * each and, for each `Wow-` one, a case-insensitive lookup in a sorted set of a dozen names (no copy of the name), and
- * one pass over the path's segments, which the router has parsed already.
+ * one pass over the characters of the path's segments, which the router has parsed already.
  */
 internal class PublicRequests(
     private val statuses: ErrorStatuses,
@@ -94,10 +95,10 @@ internal class PublicRequests(
         else -> null
     }
 
-    /** The problem of a path segment with matrix parameters, or null when it has none. */
+    /** The problem of a path segment with matrix parameters, any `;` in its raw value, or null when it has none. */
     private fun matrix(request: ServerRequest): Problem? {
         val segment = request.requestPath().pathWithinApplication().elements()
-            .firstOrNull { it is PathContainer.PathSegment && !it.parameters().isEmpty() } ?: return null
+            .firstOrNull { it is PathContainer.PathSegment && ';' in it.value() } ?: return null
         return malformed("The path segment '${segment.value()}' has matrix parameters, which no route of Wow takes.")
     }
 

@@ -175,6 +175,21 @@ class OutsideTheBodyRoutesTest {
     }
 
     @Test
+    fun `a path segment with a matrix parameter that names none is refused, not routed without it`() {
+        // #6816: Spring's path parse cuts `c-1;` and `c-1;=v` at `;` and lists no parameter, so they routed as c-1.
+        val paths = listOf(
+            "/shop/cart/c-1;/add-item",
+            "/shop/cart/c-1;=v/add-item",
+            "/shop/cart/c-1;;/add-item",
+            "/shop/cart/c-1/add-item;",
+        )
+        paths.forEach { path -> post(path).refused(400, FrameworkCodes.REQUEST_MALFORMED, "matrix parameters") }
+        node.commands.assert().isEmpty()
+        // An encoded `;` is a character of the id, which the id rule refuses: not a matrix parameter.
+        post("/shop/cart/a%3Bb/add-item").refused(400, FrameworkCodes.COMMAND_MALFORMED, "holds ';'")
+    }
+
+    @Test
     fun `an aggregate id no store keeps as given or no gateway carries is refused, and matrix parameters are`() {
         mapOf(
             "a%00b" to "control character",
