@@ -14,16 +14,25 @@
 package me.ahoo.wow.http
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.ChannelResult
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.buffer
+import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.selects.select
 import org.springframework.web.reactive.function.server.ServerResponse
 import org.springframework.web.server.ServerWebExchange
 import reactor.core.publisher.Mono
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.time.Duration
 
 /**
  * The first element of a stream a producer hands to a server-sent response, read before the response starts (so a
@@ -45,6 +54,44 @@ internal suspend fun <T> ReceiveChannel<T>.receiveFirst(): T? {
     first.exceptionOrNull()?.let { throw it }
     return first.getOrNull()
 }
+
+/**
+ * The first element of this channel when it arrives before [signal] completes, else null, the element left to read:
+ * the head of a command's event stream goes out once its command is accepted, and a result before that refuses it. As
+ * [receiveFirst], a request cancelled while it waits cancels the channel, and a failure the channel ended with first is
+ * thrown.
+ */
+internal suspend fun <T> ReceiveChannel<T>.receiveBefore(signal: Deferred<*>): T? {
+    val first = try {
+        select<ChannelResult<T>?> {
+            // First: once both are ready, the signal wins, and the element stays in the channel for the stream.
+            signal.onAwait { null }
+            onReceiveCatching { it }
+        }
+    } catch (cancelled: CancellationException) {
+        cancel(cancelled)
+        throw cancelled
+    }
+    first?.exceptionOrNull()?.let { throw it }
+    return first?.getOrNull()
+}
+
+/**
+ * This flow, with [keepAlive] emitted at once and then every [interval] while it runs: a response's head goes out with
+ * its first element, so the first one sends it now, and a gateway's idle timeout does not close a stream whose next
+ * element is a long time coming. It hands each element on one at a time, as the flow does.
+ */
+internal fun <T> Flow<T>.withKeepAlive(interval: Duration, keepAlive: T): Flow<T> = channelFlow {
+    send(keepAlive)
+    val ticks = launch {
+        while (true) {
+            delay(interval)
+            send(keepAlive)
+        }
+    }
+    collect { send(it) }
+    ticks.cancel()
+}.buffer(Channel.RENDEZVOUS)
 
 /**
  * The response [respond] builds to answer [body], a flow that reads the rest of this channel after the handler

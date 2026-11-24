@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.http.command
 
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.produce
@@ -35,10 +36,12 @@ import me.ahoo.wow.http.handingOver
 import me.ahoo.wow.http.problem.ErrorStatuses
 import me.ahoo.wow.http.problem.Problem
 import me.ahoo.wow.http.problem.ProblemException
-import me.ahoo.wow.http.receiveFirst
+import me.ahoo.wow.http.receiveBefore
+import me.ahoo.wow.http.withKeepAlive
 import me.ahoo.wow.runtime.admission.CommandBody
 import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.admission.ServerCommandRequest
+import me.ahoo.wow.runtime.wait.StreamedWait
 import me.ahoo.wow.spi.SystemCommandGroups
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
@@ -49,6 +52,8 @@ import org.springframework.web.reactive.function.server.awaitBodyOrNull
 import org.springframework.web.reactive.function.server.bodyAndAwait
 import org.springframework.web.reactive.function.server.bodyValueAndAwait
 import kotlin.coroutines.EmptyCoroutineContext
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * The command a route sends: [command] of [aggregate] in [context], to the aggregate of the path's id when [byId], or
@@ -87,11 +92,15 @@ internal data class CommandTarget(
  *   as an event stream;
  * - without `Accept: text/event-stream`, the result the wait ends with: 200, or 202 for a plan that ends at ACCEPTED,
  *   with the [CommandResult]; a problem with the result when it did not succeed;
- * - with it, the first result decides: an admission refusal (a result at ACCEPTED that did not succeed) is a problem,
- *   else 200 and one event per result, its id the result's index, its name the hop's stage, its data the result,
- *   until the wait ends; a rejection or a failure after admission is the stream's last event, and so is a chain that
- *   ended before its plan did, its result marked `chainEnded` with the hops not reached as `pending`,
- *   which is also the result answered without the event stream.
+ * - with it, the head waits for the command to be accepted ([StreamedWait]): a refusal before that (an admission
+ *   refusal, a full node, an invalid plan, a command topic that did not take it: a result at ACCEPTED that did not
+ *   succeed) is a problem with its status and `Retry-After`; once it is accepted, 200, whatever hop the plan names
+ *   first, then one event per result, its id the result's index, its name the hop's stage, its data the result, as
+ *   each hop is reached, until the wait ends. A rejection, a timeout or a failure after the head is the stream's last
+ *   event, and so is a chain that ended before its plan did, its result marked `chainEnded` with the hops not reached
+ *   as `pending`, which is also the result answered without the event stream. A comment (`: keep-alive`) is written
+ *   at once, which sends the head, then every [KEEP_ALIVE], so a gateway's idle timeout does not close the stream
+ *   (#6817); a reader of server-sent events skips comments.
  *
  * The SSE results are collected in [scope], apart from the request, and handed over as the response is written; a
  * client that goes away, or a response that is never written, cancels the collection. The collection keeps the
@@ -164,22 +173,27 @@ internal class CommandHandler(
     @OptIn(ExperimentalCoroutinesApi::class) // produce: the results of one collection, handed to the response.
     private suspend fun stream(command: ServerCommandRequest, ifMatch: Boolean): ServerResponse {
         val request = currentCoroutineContext()[ReactorContext] ?: EmptyCoroutineContext
-        val results = scope.produce(request) { gateway.send(command).collect { send(it) } }
-        // A wait's results end with a final one: a stream never ends without a first result.
-        val first = checkNotNull(results.receiveFirst()) { "The command's results ended without one." }
-        if (first.isAdmissionRefusal) {
+        val accepted = CompletableDeferred<Unit>()
+        val streamed = StreamedWait { accepted.complete(Unit) }
+        val results = scope.produce(request + streamed) { gateway.send(command).collect { send(it) } }
+        // The head goes out once the command is accepted: a result before it is a refusal, a problem with its status,
+        // or the one result of a plan answered on acceptance alone.
+        val first = results.receiveBefore(accepted)
+        if (first == null) {
+            check(accepted.isCompleted) { "The command's results ended without one." }
+        } else if (first.isAdmissionRefusal) {
             results.cancel()
             return statuses.problemOf(first, ifMatch).respond()
         }
         val events = flow {
-            emit(first)
+            first?.let { emit(it) }
             emitAll(results)
         }.withIndex().map { (index, result) ->
             ServerSentEvent.builder(HttpJson.writeString(result))
                 .id(index.toString())
                 .event(WireNames.of(result.hop.stage))
                 .build()
-        }
+        }.withKeepAlive(KEEP_ALIVE, KEEP_ALIVE_COMMENT)
         return results.handingOver(events) {
             ServerResponse.ok().contentType(MediaType.TEXT_EVENT_STREAM).bodyAndAwait(it)
         }
@@ -193,6 +207,13 @@ internal class CommandHandler(
 
         private val CommandResult.isAdmissionRefusal: Boolean
             get() = hop.stage == Stage.ACCEPTED && status != CommandResult.Status.SUCCEEDED
+
+        /** How often a command's event stream writes a comment, events or not: below common idle timeouts. */
+        val KEEP_ALIVE: Duration = 15.seconds
+
+        /** The comment it writes, which a reader of server-sent events skips. */
+        private val KEEP_ALIVE_COMMENT: ServerSentEvent<String> =
+            ServerSentEvent.builder<String>().comment("keep-alive").build()
 
         /** The path variable of the aggregate id. */
         const val ID: String = "id"

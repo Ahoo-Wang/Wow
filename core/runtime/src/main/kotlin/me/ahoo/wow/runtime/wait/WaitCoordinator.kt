@@ -16,11 +16,13 @@ package me.ahoo.wow.runtime.wait
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -42,6 +44,7 @@ import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.runtime.Executor
 import me.ahoo.wow.runtime.cluster.CommandRouter
 import me.ahoo.wow.runtime.cluster.TopicRouter
+import me.ahoo.wow.runtime.health.NodeFatals
 import me.ahoo.wow.spi.id.GlobalIdGenerator
 import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
@@ -175,7 +178,7 @@ class WaitCoordinator(
      */
     suspend fun execute(model: AggregateModel<*>, command: Command<*>): CommandResult = withContext(executionContext) {
         var last: CommandResult? = null
-        run(model, command) { last = it }
+        run(model, command, null) { last = it }
         checkNotNull(last) { "The wait of ${command.id} ended without a result." }
     }
 
@@ -200,9 +203,13 @@ class WaitCoordinator(
      * - Outcomes are results, never errors: the flow fails only when the execution itself throws while it is waited
      *   for, and is cancelled with its collector. Either way the wait is unregistered, and later signals for it are
      *   dropped.
+     * - Collected with a [StreamedWait] in its context, an event stream's, the flow tells it once the command is
+     *   accepted, emits each result as its hop is reached while the command still executes (a plan that names
+     *   ACCEPTED emits it at once), and ends a wait whose execution throws after that with a FAILED result instead
+     *   of failing (#6817). Without one, the command settles before the first result is emitted.
      */
     fun stream(model: AggregateModel<*>, command: Command<*>): Flow<CommandResult> = flow {
-        run(model, command) { emit(it) }
+        run(model, command, currentCoroutineContext()[StreamedWait]) { emit(it) }
     }.flowOn(executionContext)
 
     /**
@@ -214,14 +221,14 @@ class WaitCoordinator(
      * refuses any other.
      */
     fun relay(command: Command<*>, function: FunctionInfo, relay: CommandRelay): Flow<CommandResult> = flow {
-        run(null, command, function, relay) { emit(it) }
+        run(null, command, function, relay, currentCoroutineContext()[StreamedWait]) { emit(it) }
     }.flowOn(executionContext)
 
     /** Sends [command] as [relay] does and returns the result its wait ends with: the last one [relay] would emit. */
     suspend fun executeRelayed(command: Command<*>, function: FunctionInfo, relay: CommandRelay): CommandResult =
         withContext(executionContext) {
             var last: CommandResult? = null
-            run(null, command, function, relay) { last = it }
+            run(null, command, function, relay, null) { last = it }
             checkNotNull(last) { "The wait of ${command.id} ended without a result." }
         }
 
@@ -245,14 +252,20 @@ class WaitCoordinator(
     }
 
     /** Runs [command]'s wait as [stream] describes, handing each result to [emit]; the caller picks the context. */
-    private suspend fun run(model: AggregateModel<*>, command: Command<*>, results: suspend (CommandResult) -> Unit) {
+    private suspend fun run(
+        model: AggregateModel<*>,
+        command: Command<*>,
+        streamed: StreamedWait?,
+        results: suspend (CommandResult) -> Unit,
+    ) {
         val relay = topicRouter?.takeIf { it.routes(command.ref.type) }?.relayOf(model)
-        run(model, command, commandFunction(model, command), relay, results)
+        run(model, command, commandFunction(model, command), relay, streamed, results)
     }
 
     /**
      * Runs [command]'s wait, handing each result to [emit]: through [relay] when there is one (the topic router's
-     * command topic, or a peer's), else executed on [model]'s aggregate, routed by [router].
+     * command topic, or a peer's), else executed on [model]'s aggregate, routed by [router]. [streamed] is an event
+     * stream's, null for any other caller, whose wait runs as before #6817.
      */
     @Suppress("LongMethod") // One wait from admission to its end, the command topic's branch included.
     private suspend fun run(
@@ -260,6 +273,7 @@ class WaitCoordinator(
         command: Command<*>,
         function: FunctionInfo,
         relay: CommandRelay?,
+        streamed: StreamedWait?,
         results: suspend (CommandResult) -> Unit,
     ) {
         val emit: suspend (CommandResult) -> Unit = { observed(command, it, results) }
@@ -307,6 +321,7 @@ class WaitCoordinator(
                             "owner signalled its wait: it was written."
                     }
                 }
+                streamed?.accepted()
                 waiting.offer(reachedResult(command, function, Hop.accepted(context), clock.millis()))
                 expiry = expireAt(deadline, waiting)
                 for (result in waiting.results) {
@@ -314,24 +329,29 @@ class WaitCoordinator(
                 }
                 return
             }
+            streamed?.accepted()
             waiting.offer(reachedResult(command, function, Hop.accepted(context), clock.millis()))
             // Once ACCEPTED is reached: a timeout answers at the last hop reached.
             expiry = expireAt(deadline, waiting)
             val wait = WaitContext(waitId, origin, chain.hops, deadline)
-            settle(checkNotNull(model), command, wait, waiting)?.let { settlement ->
-                if (withdrawn(settlement)) {
-                    // Withdrawn because the deadline passed: the wait ends as the deadline ends it,
-                    // whichever of the lane's timer and the deadline thread fired first.
-                    waiting.expire(clock.millis(), ::timedOut)
-                    return@let
+            val executed = checkNotNull(model)
+            if (streamed == null) {
+                settle(executed, command, wait, waiting)?.let { settled(it, waiting) }
+                // Until the wait ends: with its final result, or with the timeout its deadline put there.
+                for (result in waiting.results) {
+                    emit(waiting.carry(result))
                 }
-                // The later hops it reached at once first: a duplicate's commit then ends the wait (WaitState).
-                settlement.reached.forEach { waiting.offer(it) }
-                waiting.offer(settlement.committed)
+                return
             }
-            // Until the wait ends: with its final result, or with the timeout its deadline put there.
-            for (result in waiting.results) {
-                emit(waiting.carry(result))
+            coroutineScope {
+                // An event stream's: settled apart from its results, which are handed on as their hops are reached
+                // (#6817). Started undispatched, the execution starts here, and the drain once settling suspends.
+                launch(start = CoroutineStart.UNDISPATCHED) {
+                    settleStreamed(executed, command, function, wait, waiting)
+                }
+                for (result in waiting.results) {
+                    emit(waiting.carry(result))
+                }
             }
         } finally {
             expiry?.cancel(false)
@@ -447,6 +467,41 @@ class WaitCoordinator(
         } catch (failure: Exception) {
             logger.warn(failure) { "Detached command ${command.id} on ${command.ref} failed." }
         }
+    }
+
+    /** As [settled], for an event stream: an execution that throws ends it ([StreamedWait]), a fatal one fails it. */
+    @Suppress("TooGenericExceptionCaught") // Whatever the execution threw, a streamed wait ends with a result.
+    private suspend fun settleStreamed(
+        model: AggregateModel<*>,
+        command: Command<*>,
+        function: FunctionInfo,
+        wait: WaitContext,
+        waiting: Waiting,
+    ) {
+        val settlement = try {
+            settle(model, command, wait, waiting)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Throwable) {
+            if (NodeFatals.isFatal(failure)) throw failure
+            logger.warn(failure) { "Command ${command.id} on ${command.ref} failed after it was accepted." }
+            waiting.offer(failedAfterAcceptance(command, function, failure, clock.millis()))
+            return
+        }
+        settlement?.let { settled(it, waiting) }
+    }
+
+    /** Hands [settlement] to [waiting]: the hops reached at once, then its commit; the deadline's end if withdrawn. */
+    private fun settled(settlement: Settlement, waiting: Waiting) {
+        if (withdrawn(settlement)) {
+            // Withdrawn because the deadline passed: the wait ends as the deadline ends it,
+            // whichever of the lane's timer and the deadline thread fired first.
+            waiting.expire(clock.millis(), ::timedOut)
+            return
+        }
+        // The later hops it reached at once first: a duplicate's commit then ends the wait (WaitState).
+        settlement.reached.forEach { waiting.offer(it) }
+        waiting.offer(settlement.committed)
     }
 
     /**

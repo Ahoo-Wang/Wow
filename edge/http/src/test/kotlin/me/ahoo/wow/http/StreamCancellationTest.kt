@@ -165,6 +165,45 @@ class StreamCancellationTest {
     }
 
     @Test
+    fun `a client that leaves a command stream after its head leaves its command running, its wait unregistered`() {
+        // #6817: the head goes out once the command is accepted; a client that leaves then cancels its wait, not its
+        // command, which commits, and a retry with its request id is answered as the duplicate it is.
+        val node = HttpNode()
+        val held = CompletableDeferred<Unit>()
+        node.appendGate = held
+        serving(node.routes) { client ->
+            val received = CopyOnWriteArrayList<String>()
+            val subscription = client.post().uri("/shop/cart/c-1/add-item")
+                .header("X-User", "alice")
+                .header("Wow-Wait", "accepted > committed")
+                .header("Wow-Request-Id", "leaving")
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.TEXT_EVENT_STREAM)
+                .bodyValue("""{"sku":"apple"}""")
+                .retrieve()
+                .bodyToFlux<String>()
+                .subscribe({ received += it }, {})
+            try {
+                // The accepted event arrived, while the append waits: the head is sent, and nothing has committed.
+                runBlocking { withTimeout(10.seconds) { while (received.isEmpty()) delay(10) } }
+            } finally {
+                subscription.dispose()
+            }
+            held.complete(Unit)
+            runBlocking {
+                withTimeout(10.seconds) {
+                    while (node.registry.size > 0 || node.log.heads(listOf(0, 1)).values.all { it == null }) delay(10)
+                }
+            }
+        }
+        node.registry.size.assert().isZero()
+        val again = mapOf("Wow-Request-Id" to "leaving")
+        val retried = node.post("/shop/cart/c-1/add-item", """{"sku":"apple"}""", headers = again)
+        retried.status.assert().isEqualTo(200)
+        retried.body!!["duplicate"].asBoolean().assert().isTrue()
+    }
+
+    @Test
     fun `a client that leaves a command stream before its admission starts never starts it`() {
         val authenticating = CompletableDeferred<Unit>()
         val authenticationEnded = CompletableDeferred<Throwable?>()

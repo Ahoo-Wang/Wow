@@ -21,6 +21,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.produce
 import kotlinx.coroutines.delay
@@ -29,9 +30,11 @@ import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onCompletion
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
@@ -295,5 +298,46 @@ class StreamHandoverTest {
 
             override fun viewResolvers(): List<ViewResolver> = emptyList()
         }
+    }
+
+    @Test
+    fun `the results' channel closed with a failure before the command was accepted throws it`() {
+        // #6817: a gateway whose flow fails before acceptance fails the handler, as a JSON answer's does.
+        val results = Channel<Int>().apply { close(IllegalStateException("The gateway failed.")) }
+        assertThrownBy<IllegalStateException> {
+            runBlocking { results.receiveBefore(CompletableDeferred<Unit>()) }
+        }.hasMessage("The gateway failed.")
+    }
+
+    @Test
+    fun `a keep-alive is emitted at once, then every interval while the stream waits, and ends with it`() = runTest {
+        // #6817, on virtual time: three elements 37 s apart, a comment at once and every 15 s, none at the same time.
+        val stream = flow {
+            repeat(3) {
+                delay(37.seconds)
+                emit("event-$it")
+            }
+        }
+        val started = testScheduler.currentTime
+        val seen = stream.withKeepAlive(15.seconds, ": keep-alive")
+            .map { (testScheduler.currentTime - started) to it }
+            .toList()
+        seen.assert().isEqualTo(
+            listOf(
+                0L to ": keep-alive",
+                15_000L to ": keep-alive",
+                30_000L to ": keep-alive",
+                37_000L to "event-0",
+                45_000L to ": keep-alive",
+                60_000L to ": keep-alive",
+                74_000L to "event-1",
+                75_000L to ": keep-alive",
+                90_000L to ": keep-alive",
+                105_000L to ": keep-alive",
+                111_000L to "event-2",
+            ),
+        )
+        // Nothing after the stream's end: the ticks end with it.
+        testScheduler.currentTime.assert().isEqualTo(started + 111_000L)
     }
 }

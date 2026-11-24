@@ -20,14 +20,17 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.Hop
+import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.runtime.subscription.eventually
 import org.junit.jupiter.api.Test
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -112,6 +115,23 @@ class WaitSlowExecutionTest : WaitCoordinatorFixtures() {
     }
 
     @Test
+    fun `a command answered as JSON settles in its caller's coroutine, with no scope and no child`(): Unit =
+        runBlocking {
+            started()
+            // An event stream's element in its caller's context: stream and relay read it, execute never (#6817).
+            val accepted = AtomicBoolean()
+            val answering = background.async(StreamedWait { accepted.set(true) }) {
+                coordinator.execute(order, placeSlowly(WaitPlan.COMMITTED))
+            }
+            deciding.await()
+            // While the command decides: execute's own coroutine, its withContext's, settles it with no child.
+            answering.children.single().children.toList().assert().isEmpty()
+            decideGate.complete(Unit)
+            withTimeout(5.seconds) { answering.await() }.hop.assert().isEqualTo(Hop.committed("shop"))
+            accepted.get().assert().isFalse()
+        }
+
+    @Test
     fun `a forward that does not settle by the deadline times out at ACCEPTED, and the owner still commits`(): Unit =
         runBlocking {
             started()
@@ -139,6 +159,38 @@ class WaitSlowExecutionTest : WaitCoordinatorFixtures() {
             retry.duplicate.assert().isTrue()
             retry.version.assert().isEqualTo(1)
         }
+
+    @Test
+    fun `an event stream that leaves while its command decides leaves it running, its wait unregistered`(): Unit =
+        runBlocking {
+            started()
+            val command = placeSlowly(WaitPlan.COMMITTED)
+            // #6817: the stream's command settles in a child of its collection, which leaving cancels.
+            val streaming = background.async(StreamedWait {}) { coordinator.stream(order, command).toList() }
+            deciding.await()
+            streaming.cancel()
+            eventually { registry.size == 0 }
+            decideGate.complete(Unit)
+            retried(coordinator, command).duplicate.assert().isTrue()
+        }
+
+    @Test
+    fun `an event stream whose deadline passes while its command decides ends at ACCEPTED, and the command commits`():
+        Unit = runBlocking {
+        started()
+        val command = placeSlowly(WaitPlan.of(Hop.accepted(), Hop.committed()))
+        // #6817: its results drain while the command settles, so a named ACCEPTED is emitted, and the deadline passed,
+        // at once; a JSON answer's would wait for the decision the gate holds.
+        val results = withContext(StreamedWait {}) {
+            held.timedOut(holding.stream(order, command)) { it.hop.stage == Stage.ACCEPTED }
+        }
+        results.map { it.status }.assert().containsExactly(CommandResult.Status.SUCCEEDED, CommandResult.Status.FAILED)
+        results.last().error!!.code.assert().isEqualTo(ResultCodes.WAIT_TIMEOUT)
+        results.last().hop.assert().isEqualTo(Hop.accepted("shop"))
+        registry.size.assert().isZero()
+        decideGate.complete(Unit)
+        retried(holding, command).duplicate.assert().isTrue()
+    }
 
     @Test
     fun `a waiter that leaves does not cancel the execution`(): Unit = runBlocking {

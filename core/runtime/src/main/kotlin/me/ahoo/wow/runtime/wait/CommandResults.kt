@@ -26,6 +26,7 @@ import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.manifest.FrameworkErrors
+import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.log.EventStreamRecord
 
 /**
@@ -213,6 +214,37 @@ internal fun reachedResult(command: Command<*>, function: FunctionInfo, hop: Hop
     status = CommandResult.Status.SUCCEEDED,
     signalTime = now,
 )
+
+/**
+ * The result a streamed wait ends with ([WaitCoordinator.stream]) when [command]'s execution threw [failure] after it
+ * was accepted, FAILED at the COMMITTED hop it did not reach, at [now]: `wow.storage.unavailable` when a store was
+ * unavailable, among its first causes, else `wow.command.unknown`. Either way a retry with its request id is safe.
+ */
+internal fun failedAfterAcceptance(
+    command: Command<*>,
+    function: FunctionInfo,
+    failure: Throwable,
+    now: Long,
+): CommandResult {
+    val unavailable = generateSequence(failure) { it.cause }.take(MAX_CAUSES)
+        .any { it is StorageUnavailableException }
+    val committed = reachedResult(command, function, Hop.committed(command.ref.type.context), now)
+    return if (unavailable) {
+        committed.failed(
+            FrameworkCodes.STORAGE_UNAVAILABLE,
+            "A store was unavailable after the command was accepted; retry it with its request id.",
+        )
+    } else {
+        committed.failed(
+            FrameworkCodes.COMMAND_UNKNOWN,
+            "The command's execution failed after it was accepted: whether it committed is unknown; retry it with " +
+                "its request id.",
+        )
+    }
+}
+
+/** The causes [failedAfterAcceptance] looks through at most. */
+private const val MAX_CAUSES = 16
 
 /** The result of [command] refused at admission with [code], before anything was reached. */
 internal fun admissionRejected(
