@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { TokenStorage } from "@ahoo-wang/fetcher-cosec";
+import { TokenStorage } from "@ahoo-wang/cosec-fetcher";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it } from "vitest";

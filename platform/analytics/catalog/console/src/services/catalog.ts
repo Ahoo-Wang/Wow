@@ -12,7 +12,7 @@
  */
 
 import { Fetcher } from "@ahoo-wang/fetcher";
-import { TokenStorage } from "@ahoo-wang/fetcher-cosec";
+import { TokenStorage } from "@ahoo-wang/cosec-fetcher";
 import { DatasetClient, WowProblemError } from "@ahoo-wang/wow-client";
 import {
   DatasetResources,

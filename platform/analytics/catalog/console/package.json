@@ -13,9 +13,11 @@
     "generate": "node ../../../../typescript/wow-generator/dist/cli.js generate -i ../server/manifest/baseline.json -o src/generated --strict"
   },
   "dependencies": {
+    "@ahoo-wang/cosec-fetcher": "catalog:",
     "@ahoo-wang/fetcher": "catalog:",
-    "@ahoo-wang/fetcher-cosec": "catalog:",
+    "@ahoo-wang/fetcher-eventbus": "catalog:",
     "@ahoo-wang/fetcher-eventstream": "catalog:",
+    "@ahoo-wang/fetcher-storage": "catalog:",
     "@ahoo-wang/wow-client": "workspace:*",
     "@ahoo-wang/wow-view-engine": "workspace:*",
     "@ahoo-wang/wow-view-store": "workspace:*",

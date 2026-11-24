@@ -87,17 +87,21 @@ test('pinning overrides every development fetcher to the floor', () => {
 
 snapshots:
 
-  '@ahoo-wang/fetcher-cosec@6.0.0(@ahoo-wang/fetcher-storage@6.0.0)':
+  '@ahoo-wang/fetcher-decorator@6.0.0(@ahoo-wang/fetcher@6.0.0)':
+    dependencies: {}
+
+  '@ahoo-wang/cosec-fetcher@8.0.0-beta.8(@ahoo-wang/fetcher-storage@6.0.0)':
     dependencies: {}
 `;
+  // CoSec's client is versioned with CoSec, not with fetcher: not pinned.
   assert.deepEqual(lockedFetchers(lockfile), [
     '@ahoo-wang/fetcher-storage',
     '@ahoo-wang/fetcher',
-    '@ahoo-wang/fetcher-cosec',
+    '@ahoo-wang/fetcher-decorator',
   ]);
   assert.equal(
     withFloorOverrides(YAML, lockfile),
-    `${YAML}\noverrides:\n  '@ahoo-wang/fetcher': '5.1.5'\n  '@ahoo-wang/fetcher-cosec': '5.1.5'\n  '@ahoo-wang/fetcher-openapi': '5.1.5'\n  '@ahoo-wang/fetcher-storage': '5.1.5'\n`,
+    `${YAML}\noverrides:\n  '@ahoo-wang/fetcher': '5.1.5'\n  '@ahoo-wang/fetcher-decorator': '5.1.5'\n  '@ahoo-wang/fetcher-openapi': '5.1.5'\n  '@ahoo-wang/fetcher-storage': '5.1.5'\n`,
   );
   // The workspace's own overrides are kept and the floor merged into them.
   assert.equal(
@@ -111,6 +115,20 @@ snapshots:
       ),
     /the floor job owns those/,
   );
+});
+
+test("the workspace's lockfile pins fetcher's packages, and not CoSec's client", () => {
+  const lockfile = readFileSync(join(ROOT, 'pnpm-lock.yaml'), 'utf8');
+  assert.ok(lockfile.includes("\n  '@ahoo-wang/cosec-fetcher@"));
+  const pinned = withFloorOverrides(workspace, lockfile);
+  const block = pinned.split(/^overrides:$/m)[1];
+  assert.doesNotMatch(block, /cosec-fetcher/);
+  for (const name of [
+    '@ahoo-wang/fetcher',
+    '@ahoo-wang/fetcher-storage',
+    '@ahoo-wang/fetcher-eventbus',
+  ])
+    assert.ok(block.includes(`'${name}': '${fetcherFloor(workspace)}'`), name);
 });
 
 test('the floor merges into the workspace overrides', () => {

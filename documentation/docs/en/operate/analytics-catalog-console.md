@@ -26,7 +26,7 @@ The console uses a hash router (`/#/sources`, `/#/datasets`), so the server need
 
 ## Who may do what
 
-The data owner signs in to the console by pasting a CoSec access token, which the console sends with every request (`Authorization: Bearer`). The gateway decides the request in the app the token is issued for (its `aud`), and on a route that names an app (`cosec-app-id`) takes only that app's tokens: CoSec 8 reads no `CoSec-App-Id`, which the console still sends (`analytics-catalog-console`). A token refused by the gateway or the service (401) signs the console out, and the sign-in page says why, expired or refused. The catalog's callers are of the platform's tenant and have no owner; the catalog reads their roles from the identity:
+The data owner signs in to the console by pasting a CoSec access token, which the console sends with every request (`Authorization: Bearer`). The gateway decides the request in the app the token is issued for (its `aud`), and on a route that names an app (`cosec-app-id`) takes only that app's tokens: no header names the app, and the console sends no `CoSec-App-Id`, which CoSec 8 would not read. A token refused by the gateway or the service (401) signs the console out, and the sign-in page says why, expired or refused. The catalog's callers are of the platform's tenant and have no owner; the catalog reads their roles from the identity:
 
 | Role | May |
 | --- | --- |

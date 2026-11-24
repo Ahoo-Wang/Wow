@@ -12,7 +12,7 @@
  */
 
 import { Fetcher } from "@ahoo-wang/fetcher";
-import { TokenStorage } from "@ahoo-wang/fetcher-cosec";
+import { TokenStorage } from "@ahoo-wang/cosec-fetcher";
 import { MemoryViewStore } from "@ahoo-wang/wow-view-engine";
 import { memorySource } from "@ahoo-wang/wow-view-engine/testing";
 import { render, screen, within } from "@testing-library/react";

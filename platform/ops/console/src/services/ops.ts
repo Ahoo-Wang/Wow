@@ -12,7 +12,7 @@
  */
 
 import { Fetcher } from "@ahoo-wang/fetcher";
-import { TokenStorage } from "@ahoo-wang/fetcher-cosec";
+import { TokenStorage } from "@ahoo-wang/cosec-fetcher";
 import type { ViewEngine } from "@ahoo-wang/wow-view-engine";
 import { historySource, type HistorySource } from "@/detail/entryHistory.ts";
 import { createOpsEngine, parkedSource } from "@/views/engine.ts";

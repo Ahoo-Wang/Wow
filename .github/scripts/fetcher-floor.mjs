@@ -73,8 +73,9 @@ export function fetcherFloor(yaml) {
 
 /**
  * The fetcher packages pnpm-lock.yaml resolves, whichever package pulls them
- * in: fetcher-cosec and fetcher-react bring fetcher-storage and
- * fetcher-eventbus as peers no workspace package names.
+ * in (CoSec's client brings fetcher-storage and fetcher-eventbus as peers).
+ * Only `@ahoo-wang/fetcher*`: CoSec's client, `@ahoo-wang/cosec-fetcher`, is
+ * versioned with CoSec and stays as the lockfile has it.
  */
 export function lockedFetchers(lockfile) {
   return [

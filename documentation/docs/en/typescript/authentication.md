@@ -11,36 +11,42 @@ The service decides who the caller is from those credentials: its tenant, its ow
 
 ## CoSec
 
-[CoSec](https://github.com/Ahoo-Wang/CoSec) is the authorization framework a Wow service authenticates with ([Secure a Deployment](../operate/security)). `@ahoo-wang/fetcher-cosec` configures a Fetcher for it:
+[CoSec](https://github.com/Ahoo-Wang/CoSec) is the authorization framework a Wow service authenticates with ([Secure a Deployment](../operate/security)). `@ahoo-wang/cosec-fetcher`, CoSec 8's client, configures a Fetcher for it. It is released with CoSec at CoSec's version, and until CoSec 8.0 is released its `latest` tag is a placeholder: install the tag of the CoSec release you run (`@beta` for an 8.0.0 beta) or an exact version.
 
 ```bash
-pnpm add @ahoo-wang/fetcher-cosec @ahoo-wang/fetcher-eventbus @ahoo-wang/fetcher-storage
+pnpm add @ahoo-wang/cosec-fetcher@beta @ahoo-wang/fetcher-eventbus @ahoo-wang/fetcher-storage
 ```
 
 ```ts
 import { Fetcher } from '@ahoo-wang/fetcher';
-import { CoSecConfigurer, CoSecTokenRefresher } from '@ahoo-wang/fetcher-cosec';
+import {
+  CoSecConfigurer,
+  CoSecTokenRefresher,
+  CoSecTokenRevoker,
+} from '@ahoo-wang/cosec-fetcher';
 
 export const service = new Fetcher({ baseURL: 'https://api.example.com' });
+// Refresh and log out through a Fetcher without the CoSec interceptors.
+const bare = new Fetcher({ baseURL: 'https://api.example.com' });
 
 export const cosec = new CoSecConfigurer({
-  appId: 'order-console',
-  // Refresh through a Fetcher without the CoSec interceptors.
-  tokenRefresher: new CoSecTokenRefresher({
-    fetcher: new Fetcher({ baseURL: 'https://api.example.com' }),
-    endpoint: '/auth/refresh',
-  }),
+  tokenRefresher: new CoSecTokenRefresher({ fetcher: bare, endpoint: '/auth/refresh' }),
+  tokenRevoker: new CoSecTokenRevoker({ fetcher: bare, endpoint: '/auth/logout' }),
   onUnauthorized: () => window.location.assign('/login'),
   onForbidden: async () => console.warn('Access denied'),
+  onScopeRejected: async (_exchange, problem) =>
+    console.warn('Not allowed in this app or space', problem.requestId),
 });
 
 cosec.applyTo(service);
 ```
 
+The endpoints are the CoSec application's: its refresh route (`cosec.authentication.login.refresh.path`) and its logout route (`cosec.authentication.login.logout.path`). `cosec.tokenManager?.logout()` ends the session at the server and forgets the pair here.
+
 After sign-in, store the token pair; from then on every request of that Fetcher carries it:
 
 ```ts
-import type { CoSecConfigurer } from '@ahoo-wang/fetcher-cosec';
+import type { CoSecConfigurer } from '@ahoo-wang/cosec-fetcher';
 
 export function onSignedIn(
   cosec: CoSecConfigurer,
@@ -50,7 +56,9 @@ export function onSignedIn(
 }
 ```
 
-`applyTo` adds `Authorization: Bearer <access token>`, refreshes the token before it expires (once for concurrent requests), retries a request answered 401 after a refresh, and calls `onUnauthorized` on a 401 the refresh could not fix and `onForbidden` on a 403. It also sends `CoSec-App-Id`, a `CoSec-Device-Id` and a `CoSec-Request-Id`. The service records as the commit's `app_id` the app CoSec decided the request in: the host's own, or the one the token is issued for (its `aud`), or behind a CoSec gateway the app the gateway forwarded; a CoSec 8 service reads no `CoSec-App-Id`.
+`applyTo` adds `Authorization: Bearer <access token>`, a `CoSec-Device-Id` and a `CoSec-Request-Id`, only to a request on the origin of an absolute `baseURL` or on the page's own origin: `isTrusted` decides, `sameOriginTrust` by default, so a link to another origin is sent without them, and its 401 refreshes nothing. It refreshes an expired access token before a request is sent, once for concurrent requests. A request answered 401 is refreshed and retried once only when CoSec's problem is `token-expired`, or when the 401 carries no CoSec problem; `token-invalid` and `token-revoked` remove the stored pair instead, and `unauthorized` is not refreshed. Only a 401 from the refresh route ends the session: a refresh that fails otherwise keeps it, and one that takes longer than 10 seconds is cut short. `onUnauthorized` is called on a 401 that is not retried and when the refresh route refuses a refresh, `onScopeRejected` on a 403 `scope-rejected` (the token is not for the service's app, or the space is not one the caller has a role in), and `onForbidden` on any other 403, or on `scope-rejected` too when there is no `onScopeRejected`; each receives CoSec's problem, when the answer carries one, as its second argument.
+
+No header names the application: the service records as the commit's `app_id` the app CoSec decided the request in, the host's own, the one the token is issued for (its `aud`), or behind a CoSec gateway the app the gateway forwarded.
 
 A request the service refuses rejects with a `WowProblemError`: 401 `wow.auth.unauthenticated`, 403 `wow.auth.forbidden`, or 403 `wow.aggregate.forbidden` for a creation of an aggregate outside the caller's scope. Any other command on such an aggregate is answered 404 `wow.aggregate.not-found`, as a missing one is.
 
@@ -105,7 +113,7 @@ Give each service a Fetcher of its own and apply CoSec to each. One `CoSecConfig
 
 ```ts
 import { Fetcher } from '@ahoo-wang/fetcher';
-import type { CoSecConfigurer } from '@ahoo-wang/fetcher-cosec';
+import type { CoSecConfigurer } from '@ahoo-wang/cosec-fetcher';
 
 export function services(cosec: CoSecConfigurer) {
   const ordering = new Fetcher({ baseURL: 'https://ordering.example.com' });

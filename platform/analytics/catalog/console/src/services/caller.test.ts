@@ -12,7 +12,7 @@
  */
 
 import type { FetchExchange } from "@ahoo-wang/fetcher";
-import { TokenStorage } from "@ahoo-wang/fetcher-cosec";
+import { TokenStorage } from "@ahoo-wang/cosec-fetcher";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   callerHeaders,

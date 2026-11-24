@@ -28,6 +28,12 @@ export const COSEC_SECRET =
  */
 export const APP = "analytics-catalog-console";
 
+/**
+ * The `jti` the gateway's stand-in holds as revoked, as CoSec's gateway holds
+ * a token whose session was logged out: it answers it 401 `token-revoked`.
+ */
+export const REVOKED_JTI = "e2e-revoked";
+
 /** How a token of {@link accessToken} differs from a valid one of the console's. */
 export interface TokenOptions {
   /** Seconds it is valid for: an hour; a negative one gives a token that has expired. */
@@ -36,6 +42,8 @@ export interface TokenOptions {
   secret?: string;
   /** The app it is issued for, {@link APP}; null for a token of no app. */
   app?: string | null;
+  /** Its id, unique by default; {@link REVOKED_JTI} for one the gateway revoked. */
+  jti?: string;
 }
 
 function part(value: object): string {
@@ -50,11 +58,11 @@ function part(value: object): string {
 export function accessToken(
   sub: string,
   roles: string[],
-  { validFor = 3600, secret = COSEC_SECRET, app = APP }: TokenOptions = {},
+  { validFor = 3600, secret = COSEC_SECRET, app = APP, jti }: TokenOptions = {},
 ): string {
   const now = Math.floor(Date.now() / 1000);
   const unsigned = `${part({ alg: "HS256", typ: "JWT" })}.${part({
-    jti: `e2e-${sub}-${now}`,
+    jti: jti ?? `e2e-${sub}-${now}`,
     sub,
     tenantId: "(0)",
     roles,
