@@ -77,7 +77,7 @@ Nothing a client sends outside the body is read as something else, or dropped:
 | A `Wow-` header the port does not take (`Wow-Wiat`, a typo of `Wow-Wait`) | `400 wow.request.malformed`, naming it |
 | A Wow header given in two lines or more (`Wow-Request-Id: r1` and `Wow-Request-Id: r2`), but `Wow-Scope` | `400 wow.request.malformed`, naming it: a proxy that appends a line does not choose the value |
 | `Wow-Call`, the header of a service's synchronous call, on any route: a command, a query, a state read, a service route | `403 wow.auth.forbidden`, whatever the credential: calls are taken on the internal port alone |
-| Matrix parameters in the path (`/shop/cart/c-1;x=1/add-item`) | `400 wow.request.malformed`: no route takes them |
+| Matrix parameters in the path (`/shop/cart/c-1;x=1/add-item`), a `;` that names none included (`c-1;`, `c-1;=v`) | `400 wow.request.malformed`: no route takes them |
 | A body of another type than `application/json` or `application/<name>+json`, any parameters aside (`*/*`, `application/*`, `image/x+json`) | `415` |
 | An aggregate id the [id rule](#aggregate-ids) refuses: a control character (`a%00b`), white space at either end (`%20c-1`), `.` or `..`, a `/`, `;` or `\` (`a%2Fb`), longer than 256 characters, or longer than 512 bytes in UTF-8 | `400 wow.command.malformed`. A unicode id (`%E8%B4%AD`) is taken as it is: a client encodes the ids it sends |
 | A blank id on a state read (`/shop/cart/%20/state`) | `400 wow.query.malformed` |
