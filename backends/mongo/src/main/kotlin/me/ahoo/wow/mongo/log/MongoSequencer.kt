@@ -58,7 +58,7 @@ import kotlin.concurrent.withLock
  * sealed like any stopped node's.
  */
 internal class MongoSequencer(
-    /** The partition counters, written with a majority's acknowledgement. */
+    /** The partition counters, written with a majority's acknowledgement; a reservation within its append's bound. */
     private val counters: MongoCollection<Document>,
     val node: String,
     private val blockSize: Long,
@@ -78,14 +78,17 @@ internal class MongoSequencer(
      * [exact] for an append whose command runs without the partition's lease: the sequence comes from a block of its
      * own, of that one sequence, and the current block is closed, so the node leaves nothing open in a partition
      * another node may own. One reservation per stream, only while a partition changes hands.
+     *
+     * A reservation is a round trip of the append, within its bound ([deadline]).
      */
     fun allocate(
         partition: Int,
         collection: String,
         after: Long,
         exact: Boolean,
+        deadline: AppendDeadline,
         registered: () -> Collection<String>,
-    ): Allocation = lanes[partition].allocate(collection, after, exact, registered)
+    ): Allocation = lanes[partition].allocate(collection, after, exact, deadline, registered)
 
     /**
      * This node handed [partition] off: its current block is closed at its next sequence, the [Closing] to write, null
@@ -164,6 +167,7 @@ internal class MongoSequencer(
             collection: String,
             after: Long,
             exact: Boolean,
+            deadline: AppendDeadline,
             registered: () -> Collection<String>,
         ): Allocation =
             lock.withLock {
@@ -176,7 +180,7 @@ internal class MongoSequencer(
                     // the current block and the list as they were.
                     // The current block among them when it is used up and settled, as it usually is by now.
                     val done = finished + retired.filter { it.done } + listOfNotNull(current?.takeIf { it.done })
-                    val fresh = reserve(registered() + collection, done, if (exact) 1L else blockSize)
+                    val fresh = reserve(registered() + collection, done, if (exact) 1L else blockSize, deadline)
                     closing = current?.let(::retire)
                     // Every done block was taken out, the current one too when it was: none is left in `retired`.
                     finished.clear()
@@ -208,9 +212,15 @@ internal class MongoSequencer(
 
         /**
          * Reserves the next block of [size] sequences for [collections], and takes this node's [done] blocks out of the
-         * list in the same update, each by its node and first sequence.
+         * list in the same update, each by its node and first sequence: a round trip of the append, within its bound
+         * ([deadline]).
          */
-        private fun reserve(collections: Collection<String>, done: List<Block>, size: Long): Block {
+        private fun reserve(
+            collections: Collection<String>,
+            done: List<Block>,
+            size: Long,
+            deadline: AppendDeadline,
+        ): Block {
             val names = collections.distinct()
             val add = Document(NODE, node)
                 .append(FROM, Document("\$add", listOf("\$${MongoEventLog.SEQUENCE}", 1L)))
@@ -225,7 +235,7 @@ internal class MongoSequencer(
             // A position holds 51 bits of sequence: a block past them would run into the next partition's positions.
             val room = Filters.lte(MongoEventLog.SEQUENCE, MongoEventLog.MAX_SEQUENCE - size)
             val to = checkNotNull(
-                counters.findOneAndUpdate(
+                deadline.of(counters).findOneAndUpdate(
                     Filters.and(Filters.eq(MongoEventLog.ID, partition), room),
                     update,
                     FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER),

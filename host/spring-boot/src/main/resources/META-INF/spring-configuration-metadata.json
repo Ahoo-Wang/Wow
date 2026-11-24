@@ -807,7 +807,7 @@
   }, {
     "name" : "wow.mongo.append-timeout",
     "type" : "java.time.Duration",
-    "description" : "How long an append's insert may take: below the default wait timeout, so a command appending during an outage is answered before its wait ends.",
+    "description" : "How long an append may take, all its round trips together (a block's reservation, the read of the aggregate's previous stream, the insert and what follows a refusal): below the default wait timeout, so a command appending during an outage is answered before its wait ends.",
     "sourceType" : "me.ahoo.wow.mongo.MongoStoreProvider",
     "defaultValue" : "PT5S"
   }, {

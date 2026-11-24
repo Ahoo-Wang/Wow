@@ -52,14 +52,14 @@ internal class MongoLogPlaceholders(
     /**
      * Writes a placeholder at each of [gaps] in [collection] with one unordered `insertMany`, and settles each that is
      * settled: written and acknowledged, or held by a majority after a duplicate key (a stream that landed there first).
-     * The others are left to the tail, as [fill] leaves one.
+     * The others are left to the tail, as [fill] leaves one. An append writes them within its bound ([deadline]).
      */
-    fun fillAll(collection: AggregateCollection, gaps: List<Gap>) {
+    fun fillAll(collection: AggregateCollection, gaps: List<Gap>, deadline: AppendDeadline?) {
         if (gaps.size == 1) {
-            return gaps.single().let { fill(collection, it.partition, it.sequence, it.reason) }
+            return gaps.single().let { fill(collection, it.partition, it.sequence, it.reason, deadline) }
         }
         val unwritten: Set<Int> = try {
-            collection.appends.insertMany(
+            collection.writes(deadline).insertMany(
                 gaps.map { placeholder(it.partition, it.sequence, it.reason) },
                 InsertManyOptions().ordered(false),
             )
@@ -70,7 +70,7 @@ internal class MongoLogPlaceholders(
                 gaps.indices.toSet()
             } else {
                 val duplicates = bulk.writeErrors.filter { it.category == ErrorCategory.DUPLICATE_KEY }.map { it.index }
-                val held = held(collection, duplicates.map { gaps[it].id })
+                val held = held(collection, duplicates.map { gaps[it].id }, deadline)
                 bulk.writeErrors.map { it.index }.filterTo(HashSet()) { gaps[it].id !in held }
             }
         } catch (
@@ -91,14 +91,20 @@ internal class MongoLogPlaceholders(
     /**
      * Writes a placeholder at [sequence] of [partition] in [collection] and settles the sequence when it is settled:
      * written and acknowledged, or, after a duplicate key, held by a majority ([taken]). A placeholder that cannot be
-     * written now is left to the tail.
+     * written now is left to the tail. An append writes it within its bound ([deadline]), the tail without one.
      */
-    fun fill(collection: AggregateCollection, partition: Int, sequence: Long, reason: String) {
+    fun fill(
+        collection: AggregateCollection,
+        partition: Int,
+        sequence: Long,
+        reason: String,
+        deadline: AppendDeadline?
+    ) {
         try {
-            collection.appends.insertOne(placeholder(partition, sequence, reason))
+            collection.writes(deadline).insertOne(placeholder(partition, sequence, reason))
         } catch (failure: MongoException) {
             if (failure.isDuplicateKey()) {
-                taken(collection, partition, sequence)
+                taken(collection, partition, sequence, deadline)
             } else {
                 sequencer.unfilled(partition, sequence, collection.name)
             }
@@ -109,10 +115,11 @@ internal class MongoLogPlaceholders(
 
     /**
      * [sequence] of [partition], whose write in [collection] met a duplicate key at its position: settled when a
-     * majority holds a stream or placeholder there, else left unfilled, for the tail to fill again.
+     * majority holds a stream or placeholder there, else left unfilled, for the tail to fill again. An append reads it
+     * within its bound ([deadline]).
      */
-    fun taken(collection: AggregateCollection, partition: Int, sequence: Long) {
-        if (positionId(partition, sequence) in held(collection, listOf(positionId(partition, sequence)))) {
+    fun taken(collection: AggregateCollection, partition: Int, sequence: Long, deadline: AppendDeadline?) {
+        if (positionId(partition, sequence) in held(collection, listOf(positionId(partition, sequence)), deadline)) {
             sequencer.settle(partition, sequence)
         } else {
             sequencer.unfilled(partition, sequence, collection.name)
@@ -123,15 +130,16 @@ internal class MongoLogPlaceholders(
      * Writes [closing], a block's unused remainder, as one range placeholder, and settles it: written and
      * acknowledged, or, after a duplicate key at its first sequence, every sequence of it held by a majority (an
      * earlier closing of it, or a seal). A closing that is not settled is left to the tail, which closes the block
-     * again ([MongoSequencer.resolve]).
+     * again ([MongoSequencer.resolve]). An append writes it within its bound ([deadline]), the tail and a hand-off
+     * without one.
      */
-    fun close(closing: MongoSequencer.Closing) {
+    fun close(closing: MongoSequencer.Closing, deadline: AppendDeadline?) {
         val collection = collections.named(closing.collection)
         val placeholder = placeholder(closing.partition, closing.from, GAP_CLOSED).append(GAP_TO, closing.to)
         try {
-            collection.appends.insertOne(placeholder)
+            collection.writes(deadline).insertOne(placeholder)
         } catch (failure: MongoException) {
-            if (!failure.isDuplicateKey() || !covered(collection, closing)) return
+            if (!failure.isDuplicateKey() || !covered(collection, closing, deadline)) return
         }
         sequencer.settle(closing)
     }
@@ -169,14 +177,18 @@ internal class MongoLogPlaceholders(
         } catch (failure: MongoBulkWriteException) {
             if (failure.writeErrors.any { it.category != ErrorCategory.DUPLICATE_KEY }) throw failure
             val duplicates = failure.writeErrors.map { ids[it.index] }
-            failure.writeConcernError == null && held(collection, duplicates).size == duplicates.size
+            failure.writeConcernError == null && held(collection, duplicates, deadline = null).size == duplicates.size
         }
 
     /** Whether every sequence of [closing] is held by a majority in [collection]: one range, or each sequence. */
-    private fun covered(collection: AggregateCollection, closing: MongoSequencer.Closing): Boolean {
+    private fun covered(
+        collection: AggregateCollection,
+        closing: MongoSequencer.Closing,
+        deadline: AppendDeadline?,
+    ): Boolean {
         val first = positionId(closing.partition, closing.from)
         val found = try {
-            collection.committed.find(
+            collection.confirms(deadline).find(
                 Filters.and(
                     Filters.eq(PARTITION, closing.partition),
                     Filters.gte(ID, first),
@@ -193,18 +205,25 @@ internal class MongoLogPlaceholders(
     /**
      * Of [ids], the positions of [collection] where a majority holds a stream or a placeholder: none when the read
      * fails, so nothing is settled on it. The filter names their partitions, the shard key of a sharded collection.
+     * An append reads it within its bound ([deadline]).
      */
-    private fun held(collection: AggregateCollection, ids: List<Long>): Set<Long> {
+    private fun held(collection: AggregateCollection, ids: List<Long>, deadline: AppendDeadline?): Set<Long> {
         if (ids.isEmpty()) return emptySet()
         val partitions = ids.map { (it ushr SEQUENCE_BITS).toInt() }.distinct()
         return try {
-            collection.committed.find(Filters.and(Filters.`in`(PARTITION, partitions), Filters.`in`(ID, ids)))
+            collection.confirms(deadline).find(Filters.and(Filters.`in`(PARTITION, partitions), Filters.`in`(ID, ids)))
                 .projection(Projections.include(ID))
                 .mapTo(HashSet()) { it.getLong(ID) }
         } catch (failure: MongoException) {
             emptySet()
         }
     }
+
+    /** [AggregateCollection.appends] for one more round trip of an append within [deadline], as it is without one. */
+    private fun AggregateCollection.writes(deadline: AppendDeadline?) = deadline?.of(appends) ?: appends
+
+    /** What a majority holds of this collection, read within an append's [deadline], or as the tail reads it. */
+    private fun AggregateCollection.confirms(deadline: AppendDeadline?) = deadline?.of(committed) ?: committed
 
     /** The placeholder document at [sequence] of [partition], written by this node for [reason]. */
     fun placeholder(partition: Int, sequence: Long, reason: String): Document =

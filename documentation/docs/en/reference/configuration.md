@@ -342,7 +342,7 @@ The settings of every mongo store; a store's own options override them.
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `wow.mongo.append-timeout` | `Duration` | `PT5S` | How long an append's insert may take: below the default wait timeout, so a command appending during an outage is answered before its wait ends. |
+| `wow.mongo.append-timeout` | `Duration` | `PT5S` | How long an append may take, all its round trips together (a block's reservation, the read of the aggregate's previous stream, the insert and what follows a refusal): below the default wait timeout, so a command appending during an outage is answered before its wait ends. |
 | `wow.mongo.database` | `String` | `wow` | The database of the log and the stores on MongoDB: unset, the one spring.mongodb.uri names, else wow. |
 | `wow.mongo.operation-timeout` | `Duration` | `PT30S` | How long each call of a MongoDB store may take besides appends (append-timeout) and the schema's commands (5 minutes): a reply lost on the way fails the call instead of blocking it forever. |
 | `wow.mongo.query-read-preference` | `String` |  | The read preference of the snapshot and events queries of a MongoDB store (secondaryPreferred, say), so a free filter scans a secondary rather than the primary the log appends to; the primary when not set. A snapshot read from a secondary may be behind the one a command's wait waited for. |
@@ -641,7 +641,7 @@ The named store instances, by name: `wow.stores.<name>.type` and its settings. T
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `wow.stores.<name>.append-timeout` | `Duration` | `PT5S` | On mongo: how long an append's insert may take: below the default wait timeout, so a command appending during an outage is answered before its wait ends. |
+| `wow.stores.<name>.append-timeout` | `Duration` | `PT5S` | On mongo: how long an append may take, all its round trips together (a block's reservation, the read of the aggregate's previous stream, the insert and what follows a refusal): below the default wait timeout, so a command appending during an outage is answered before its wait ends. |
 | `wow.stores.<name>.client` | `String` |  | On elasticsearch: the name of the Rest5Client bean the store opens over; the only one when not set. On mongo: the name of the MongoClient bean the store opens over; the only one when not set. |
 | `wow.stores.<name>.data-source` | `String` |  | On postgres: the name of the DataSource bean the store opens over; the only one when not set. |
 | `wow.stores.<name>.database` | `String` | `wow` | On mongo: the database of the log and the stores on MongoDB: unset, the one spring.mongodb.uri names, else wow. |

@@ -63,14 +63,26 @@ internal class MongoLogAppender(
     private val lastSequences: LastSequences,
     private val placeholders: MongoLogPlaceholders,
 ) {
-    /** [stream] alone; [exact] when its command runs without the partition's lease ([MongoSequencer.allocate]). */
-    fun appendNow(stream: EventStreamRecord, transport: ByteArray?, exact: Boolean): AppendOutcome {
+    /**
+     * [stream] alone; [exact] when its command runs without the partition's lease ([MongoSequencer.allocate]). Its
+     * round trips, the placeholders included, are within [deadline], the call's.
+     */
+    fun appendNow(
+        stream: EventStreamRecord,
+        transport: ByteArray?,
+        exact: Boolean,
+        deadline: AppendDeadline,
+    ): AppendOutcome {
         require(stream.ref.type.context == context) { "${stream.ref} is not in context $context." }
         val collection = collections.of(stream.ref.type)
         val partition = Partitioner.partitionOf(stream.ref, partitions)
         val document = encode(partition, stream, transport).getOrElse { return AppendOutcome.Rejected(it) }
-        val after = previousOf(collection, stream)
-            ?: return duplicateOr(collection, stream, AppendOutcome.Conflict(lookups.currentVersion(collection, stream.ref)))
+        val after = previousOf(collection, stream, deadline) ?: return duplicateOr(
+            collection,
+            stream,
+            AppendOutcome.Conflict(lookups.currentVersion(collection, stream.ref, deadline)),
+            deadline,
+        )
         // A taken position is a block another node sealed: the next allocation comes from a new block.
         repeat(MAX_SEALED) {
             val allocation = sequencer.allocate(
@@ -78,8 +90,9 @@ internal class MongoLogAppender(
                 collection.name,
                 after,
                 exact,
+                deadline,
             ) { collections.known().map { it.name } }
-            insert(collection, stream, document, allocation)?.let { return it }
+            insert(collection, stream, document, allocation, deadline)?.let { return it }
         }
         error("The blocks of partition $partition of $context were sealed under $MAX_SEALED appends in a row.")
     }
@@ -105,13 +118,19 @@ internal class MongoLogAppender(
      *
      * [marks], when the call is clocked: sent once every stream's document is built and sequenced, before the first
      * insert, and read after the last insert or placeholder; the streams appended again alone after it are its release.
-     * [exact] when the group's commands run without their partitions' leases ([MongoSequencer.allocate]).
+     * [exact] when the group's commands run without their partitions' leases ([MongoSequencer.allocate]). Every round
+     * trip of the call, its streams appended again alone included, is within [deadline], the call's.
      */
-    fun appendGroup(streams: List<Append>, marks: StoreCallMarks?, exact: Boolean): List<AppendOutcome> {
+    fun appendGroup(
+        streams: List<Append>,
+        marks: StoreCallMarks?,
+        exact: Boolean,
+        deadline: AppendDeadline,
+    ): List<AppendOutcome> {
         val outcomes = arrayOfNulls<AppendOutcome>(streams.size)
-        val members = prepare(streams, outcomes, marks, exact)
+        val members = prepare(streams, outcomes, marks, exact, deadline)
         marks?.sent()
-        insertMembers(members, outcomes)
+        insertMembers(members, outcomes, deadline)
         marks?.read()
         // A member whose position was taken (its block sealed), one after it of its aggregate, or one a too-large
         // document's insert did not reach, has no outcome yet: it is appended again, alone, in order, unless one of
@@ -125,7 +144,7 @@ internal class MongoLogAppender(
             val transport = streams[index].transport
             failed[stream.ref]?.let { return@mapIndexed it }
             val settled = outcome ?: stopped?.let { AppendOutcome.Unknown(it) } ?: try {
-                appendNow(stream, transport, exact)
+                appendNow(stream, transport, exact, deadline)
             } catch (failure: MongoException) {
                 if (!written) throw failure
                 stopped = failure
@@ -147,6 +166,7 @@ internal class MongoLogAppender(
         outcomes: Array<AppendOutcome?>,
         marks: StoreCallMarks?,
         exact: Boolean,
+        deadline: AppendDeadline,
     ): List<Member> {
         val failed = HashMap<AggregateRef, AppendOutcome>()
         val previous = HashMap<AggregateRef, Long>()
@@ -166,9 +186,9 @@ internal class MongoLogAppender(
                     failed[stream.ref] = notAppendedAfter(stream, AppendOutcome.Rejected(it))
                     return@forEachIndexed
                 }
-                val after = previous[stream.ref] ?: previousOf(collection, stream, marks) ?: run {
-                    val conflict = AppendOutcome.Conflict(lookups.currentVersion(collection, stream.ref))
-                    outcomes[index] = duplicateOr(collection, stream, conflict)
+                val after = previous[stream.ref] ?: previousOf(collection, stream, deadline, marks) ?: run {
+                    val conflict = AppendOutcome.Conflict(lookups.currentVersion(collection, stream.ref, deadline))
+                    outcomes[index] = duplicateOr(collection, stream, conflict, deadline)
                     failed[stream.ref] = notAppendedAfter(stream, checkNotNull(outcomes[index]))
                     return@forEachIndexed
                 }
@@ -177,18 +197,19 @@ internal class MongoLogAppender(
                     collection.name,
                     after,
                     exact,
+                    deadline,
                 ) { collections.known().map { it.name } }
                 document[SEQUENCE] = allocation.sequence
                 document[ID] = positionId(partition, allocation.sequence)
                 previous[stream.ref] = allocation.sequence
                 members += Member(index, stream, collection, document, allocation.sequence)
-                allocation.closing?.let(placeholders::close)
+                allocation.closing?.let { placeholders.close(it, deadline) }
             }
         } catch (
             @Suppress("TooGenericExceptionCaught") // Whatever failed, no member was tried: each is filled.
             failure: RuntimeException,
         ) {
-            Gaps().apply { members.forEach { add(it, GAP_FAILED) } }.write()
+            Gaps(deadline).apply { members.forEach { add(it, GAP_FAILED) } }.write()
             throw failure
         }
         return members
@@ -204,11 +225,11 @@ internal class MongoLogAppender(
      * It is thrown only while no member may have committed: once one did (an earlier collection's, or an earlier
      * round's), the members without an outcome are [AppendOutcome.Unknown] instead ([EventLog.appendAll]).
      */
-    private fun insertMembers(members: List<Member>, outcomes: Array<AppendOutcome?>) {
-        val gaps = Gaps()
+    private fun insertMembers(members: List<Member>, outcomes: Array<AppendOutcome?>, deadline: AppendDeadline) {
+        val gaps = Gaps(deadline)
         try {
             members.groupBy { it.collection }.forEach { (collection, group) ->
-                insertAll(collection, group, outcomes, gaps)
+                insertAll(collection, group, outcomes, gaps, deadline)
             }
         } catch (failure: MongoException) {
             // Answered by the store, the insert wrote nothing: no member without an outcome lands now.
@@ -235,6 +256,7 @@ internal class MongoLogAppender(
         group: List<Member>,
         outcomes: Array<AppendOutcome?>,
         gaps: Gaps,
+        deadline: AppendDeadline,
     ) {
         var pending = group
         var ordered = true
@@ -242,7 +264,7 @@ internal class MongoLogAppender(
             val tried = if (ordered) pending else pending.distinctBy { it.stream.ref }
             val stopped = HashSet<AggregateRef>()
             val reached = HashSet<Int>()
-            insertCall(collection, tried, ordered, gaps).forEach { (member, outcome) ->
+            insertCall(collection, tried, ordered, gaps, deadline).forEach { (member, outcome) ->
                 outcomes[member.index] = outcome
                 reached += member.index
                 if (outcome !is AppendOutcome.Committed) stopped += member.stream.ref
@@ -265,9 +287,11 @@ internal class MongoLogAppender(
         members: List<Member>,
         ordered: Boolean,
         gaps: Gaps,
+        deadline: AppendDeadline,
     ): List<Pair<Member, AppendOutcome?>> {
         val failures: Map<Int, WriteError> = try {
-            collection.appends.insertMany(members.map { it.document }, InsertManyOptions().ordered(ordered))
+            deadline.of(collection.appends)
+                .insertMany(members.map { it.document }, InsertManyOptions().ordered(ordered))
             emptyMap()
         } catch (bulk: MongoBulkWriteException) {
             if (bulk.writeConcernError != null) {
@@ -279,12 +303,12 @@ internal class MongoLogAppender(
             // went: a member that landed is committed, the others are appended alone, so it fails alone.
             return members.map { member ->
                 val landed = try {
-                    landed(collection, member)
+                    landed(collection, member, deadline)
                 } catch (failure: MongoException) {
                     return@map member to unknown(member, failure, gaps)
                 }
                 if (landed) {
-                    member to outcomeOf(collection, member, null, gaps)
+                    member to outcomeOf(collection, member, null, gaps, deadline)
                 } else {
                     gaps.add(member, GAP_FAILED)
                     member to null
@@ -297,7 +321,7 @@ internal class MongoLogAppender(
         // Ordered, the insert stopped at its first failure: the members after it were not tried.
         val reached = if (ordered) (failures.keys.minOrNull()?.plus(1) ?: members.size) else members.size
         return members.take(reached).mapIndexed { at, member ->
-            member to outcomeOf(collection, member, failures[at], gaps)
+            member to outcomeOf(collection, member, failures[at], gaps, deadline)
         }
     }
 
@@ -312,6 +336,7 @@ internal class MongoLogAppender(
         member: Member,
         error: WriteError?,
         gaps: Gaps,
+        deadline: AppendDeadline,
     ): AppendOutcome? {
         val partition = lookups.partitionOf(member.stream.ref)
         val stream = member.stream
@@ -323,20 +348,25 @@ internal class MongoLogAppender(
         if (error.category == ErrorCategory.DUPLICATE_KEY && isPositionTaken(error.message)) {
             sequencer.abandon(partition, member.sequence)
             // Settled once a majority holds what took it, a seal's placeholder that may yet be rolled back (#6745).
-            placeholders.taken(collection, partition, member.sequence)
+            placeholders.taken(collection, partition, member.sequence, deadline)
             return null
         }
         lastSequences.remove(stream.ref)
         gaps.add(member, GAP_FAILED)
         return try {
-            refusedOutcome(collection, stream, error)
+            refusedOutcome(collection, stream, error, deadline)
         } catch (failure: MongoException) {
             AppendOutcome.Unknown(failure)
         }
     }
 
     /** The outcome of [stream], which its insert refused with [error], looked up when a key refused it. */
-    private fun refusedOutcome(collection: AggregateCollection, stream: EventStreamRecord, error: WriteError) =
+    private fun refusedOutcome(
+        collection: AggregateCollection,
+        stream: EventStreamRecord,
+        error: WriteError,
+        deadline: AppendDeadline,
+    ) =
         when {
             error.code == MongoFailures.BSON_OBJECT_TOO_LARGE -> AppendOutcome.Rejected(
                 MongoException(error.code, error.message)
@@ -345,25 +375,26 @@ internal class MongoLogAppender(
                 MongoException(error.code, error.message)
             )
             error.message.contains(REQUEST_KEY) ->
-                lookups.requestIn(collection, stream.ref, stream.requestId)
+                lookups.requestIn(collection, stream.ref, stream.requestId, deadline)
                     ?.let { AppendOutcome.AlreadyCommitted(it) }
                     ?: AppendOutcome.Unknown(MongoException(error.code, error.message))
 
             else -> duplicateOr(
                 collection,
                 stream,
-                AppendOutcome.Conflict(lookups.currentVersion(collection, stream.ref))
+                AppendOutcome.Conflict(lookups.currentVersion(collection, stream.ref, deadline)),
+                deadline,
             )
         }
 
     /** Whether [member]'s stream is at its position: the document there has its request. */
-    private fun landed(collection: AggregateCollection, member: Member): Boolean {
+    private fun landed(collection: AggregateCollection, member: Member, deadline: AppendDeadline): Boolean {
         val partition = lookups.partitionOf(member.stream.ref)
         val position = Filters.and(
             Filters.eq(PARTITION, partition),
             Filters.eq(ID, positionId(partition, member.sequence))
         )
-        return collection.committed.find(position).projection(Projections.include(REQUEST_ID)).first()
+        return deadline.of(collection.committed).find(position).projection(Projections.include(REQUEST_ID)).first()
             ?.getString(REQUEST_ID) == member.stream.requestId
     }
 
@@ -381,7 +412,7 @@ internal class MongoLogAppender(
      * The sequences of a group that hold no stream, by collection: written as placeholders with one unordered
      * `insertMany` per collection ([fillAll]) once the group's inserts are done.
      */
-    private inner class Gaps {
+    private inner class Gaps(private val deadline: AppendDeadline) {
         private val byCollection = LinkedHashMap<AggregateCollection, MutableList<MongoLogPlaceholders.Gap>>()
         private val members = HashSet<Int>()
 
@@ -394,7 +425,7 @@ internal class MongoLogAppender(
         }
 
         fun write() {
-            byCollection.forEach { (collection, gaps) -> placeholders.fillAll(collection, gaps) }
+            byCollection.forEach { (collection, gaps) -> placeholders.fillAll(collection, gaps, deadline) }
             byCollection.clear()
         }
     }
@@ -411,12 +442,13 @@ internal class MongoLogAppender(
     private fun previousOf(
         collection: AggregateCollection,
         stream: EventStreamRecord,
+        deadline: AppendDeadline,
         marks: StoreCallMarks? = null,
     ): Long? {
         if (stream.version == 1) return 0
         lastSequences[stream.ref]?.takeIf { it.version == stream.version - 1 }?.let { return it.sequence }
         val looking = if (marks == null) 0L else System.nanoTime()
-        val latest = collection.committed.find(lookups.refFilter(stream.ref))
+        val latest = deadline.of(collection.committed).find(lookups.refFilter(stream.ref))
             .sort(Sorts.descending(VERSION))
             .projection(Projections.include(VERSION, SEQUENCE))
             .limit(1)
@@ -437,14 +469,15 @@ internal class MongoLogAppender(
         stream: EventStreamRecord,
         document: Document,
         allocation: MongoSequencer.Allocation,
+        deadline: AppendDeadline,
     ): AppendOutcome? {
         val partition = allocation.partition
         val sequence = allocation.sequence
         document[SEQUENCE] = sequence
         document[ID] = positionId(partition, sequence)
         val outcome = try {
-            allocation.closing?.let(placeholders::close)
-            collection.appends.insertOne(document)
+            allocation.closing?.let { placeholders.close(it, deadline) }
+            deadline.of(collection.appends).insertOne(document)
             sequencer.settle(partition, sequence)
             lastSequences[stream.ref] = LastSequence(stream.version, sequence)
             return AppendOutcome.Committed(LogPosition(partition, sequence))
@@ -455,26 +488,26 @@ internal class MongoLogAppender(
             if (failure.isDuplicateKey() && isPositionTaken(failure.message.orEmpty())) {
                 sequencer.abandon(partition, sequence)
                 // Settled once a majority holds what took it, a seal's placeholder that may yet be rolled back (#6745).
-                placeholders.taken(collection, partition, sequence)
+                placeholders.taken(collection, partition, sequence, deadline)
                 return null
             }
             try {
-                outcomeOf(failure, collection, stream)
+                outcomeOf(failure, collection, stream, deadline)
             } catch (thrown: MongoException) {
-                placeholders.fill(collection, partition, sequence, GAP_FAILED)
+                placeholders.fill(collection, partition, sequence, GAP_FAILED, deadline)
                 throw thrown
             }
         } catch (
             @Suppress("TooGenericExceptionCaught") // Whatever else failed, the sequence is filled before it is thrown.
             failure: RuntimeException,
         ) {
-            placeholders.fill(collection, partition, sequence, GAP_FAILED)
+            placeholders.fill(collection, partition, sequence, GAP_FAILED, deadline)
             throw failure
         }
         lastSequences.remove(stream.ref)
         val reason = if (outcome is AppendOutcome.Unknown) GAP_UNKNOWN else GAP_FAILED
-        placeholders.fill(collection, partition, sequence, reason)
-        return if (outcome is AppendOutcome.Conflict) duplicateOr(collection, stream, outcome) else outcome
+        placeholders.fill(collection, partition, sequence, reason, deadline)
+        return if (outcome is AppendOutcome.Conflict) duplicateOr(collection, stream, outcome, deadline) else outcome
     }
 
     /**
@@ -483,16 +516,21 @@ internal class MongoLogAppender(
      * a failed socket) is unknown; any other failure the server answered wrote nothing and is thrown,
      * so the command is answered with the storage error.
      */
-    private fun outcomeOf(failure: MongoException, collection: AggregateCollection, stream: EventStreamRecord) =
+    private fun outcomeOf(
+        failure: MongoException,
+        collection: AggregateCollection,
+        stream: EventStreamRecord,
+        deadline: AppendDeadline,
+    ) =
         when {
             MongoFailures.isTooLarge(failure) -> AppendOutcome.Rejected(failure)
             MongoFailures.isWriteUnknown(failure) -> AppendOutcome.Unknown(failure)
             !failure.isDuplicateKey() -> throw failure
             failure.message.orEmpty().contains(REQUEST_KEY) ->
-                lookups.requestIn(collection, stream.ref, stream.requestId)
+                lookups.requestIn(collection, stream.ref, stream.requestId, deadline)
                     ?.let { AppendOutcome.AlreadyCommitted(it) } ?: AppendOutcome.Unknown(failure)
 
-            else -> AppendOutcome.Conflict(lookups.currentVersion(collection, stream.ref))
+            else -> AppendOutcome.Conflict(lookups.currentVersion(collection, stream.ref, deadline))
         }
 
     /**
@@ -525,7 +563,8 @@ internal class MongoLogAppender(
         collection: AggregateCollection,
         stream: EventStreamRecord,
         conflict: AppendOutcome.Conflict,
+        deadline: AppendDeadline,
     ): AppendOutcome =
-        lookups.requestIn(collection, stream.ref, stream.requestId)?.let { AppendOutcome.AlreadyCommitted(it) }
+        lookups.requestIn(collection, stream.ref, stream.requestId, deadline)?.let { AppendOutcome.AlreadyCommitted(it) }
             ?: conflict
 }

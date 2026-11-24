@@ -35,17 +35,19 @@ import java.util.concurrent.TimeUnit
  * The fixture's client whose log collections run each insert through [insert], given the document and the real
  * insert to call or not: a fault injected where a stream or a placeholder is written. [find] is called before each
  * read of a log collection by a filter, [reserve] before each reservation of a block in the partition counters, and
- * [record] before each insert of a record into the log's or the timers' registry: each throws to fail it.
+ * [record] before each insert of a record into the log's or the timers' registry: each throws to fail it. [slowed]
+ * gives the filter such a read sends, to which a test adds a wait on the server (a `$where` that sleeps).
  */
 internal fun faulty(
     many: (List<Document>, (List<Document>) -> Unit) -> Unit = { documents, insert -> insert(documents) },
     find: (Bson) -> Unit = {},
+    slowed: (Bson) -> Bson = { it },
     reserve: () -> Unit = {},
     record: (Document) -> Unit = {},
     insert: (Document, () -> Unit) -> Unit = { _, write -> write() },
 ): MongoClient {
     val real = MongoLogFixture.client
-    val faults = Faults(insert, many, find, reserve, record)
+    val faults = Faults(insert, many, find, slowed, reserve, record)
     return object : MongoClient by real {
         override fun getDatabase(databaseName: String): MongoDatabase =
             FaultyDatabase(real.getDatabase(databaseName), faults)
@@ -56,6 +58,7 @@ private class Faults(
     val insert: (Document, () -> Unit) -> Unit,
     val many: (List<Document>, (List<Document>) -> Unit) -> Unit,
     val find: (Bson) -> Unit,
+    val slowed: (Bson) -> Bson,
     val reserve: () -> Unit,
     val record: (Document) -> Unit,
 )
@@ -109,7 +112,7 @@ private class Faulty(
 
     override fun find(filter: Bson): FindIterable<Document> {
         faults.find(filter)
-        return real.find(filter)
+        return real.find(faults.slowed(filter))
     }
 }
 

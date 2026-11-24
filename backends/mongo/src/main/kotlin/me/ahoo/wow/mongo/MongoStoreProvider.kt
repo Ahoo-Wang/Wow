@@ -46,8 +46,8 @@ import kotlin.time.Duration
 /**
  * The MongoDB stores (`wow.stores.<name>.type: mongo`), each over the application's `MongoClient` that
  * its `client` option names (else the only one), in the database its `database` option names (`wow` when not set);
- * its `append-timeout` option bounds an append's insert ([MongoEventLogOptions.DEFAULT_APPEND_TIMEOUT] when not
- * set), and its `sharding` option, `auto` (the default) or `none`, whether it shards its collections on a sharded
+ * its `append-timeout` option bounds an append, all its round trips ([MongoEventLogOptions.DEFAULT_APPEND_TIMEOUT]
+ * when not set), and its `sharding` option, `auto` (the default) or `none`, whether it shards its collections on a sharded
  * cluster ([MongoSharding]), and its `operation-timeout` option how long each of its other calls may take
  * ([MongoTimeouts.OPERATION] when not set). Its pool is the client's [MongoPoolGauge] bean its `pool-gauge` option names
  * (else the only one); without one, it says nothing of its pool, and its queries take the default bound.
@@ -128,11 +128,12 @@ internal class MongoStoreProvider : StoreProvider {
             DEFAULT_DATABASE,
         )
 
-        /** The option bounding an append's insert. */
+        /** The option bounding an append, all its round trips. */
         val APPEND_TIMEOUT = ProviderOption.duration(
             "append-timeout",
-            "how long an append's insert may take: below the default wait timeout, so a command appending during an " +
-                "outage is answered before its wait ends.",
+            "how long an append may take, all its round trips together (a block's reservation, the read of the " +
+                "aggregate's previous stream, the insert and what follows a refusal): below the default wait timeout, " +
+                "so a command appending during an outage is answered before its wait ends.",
             MongoEventLogOptions.DEFAULT_APPEND_TIMEOUT,
         )
 

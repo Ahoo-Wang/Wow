@@ -71,7 +71,7 @@ class MongoLogPlaceholdersTest {
         val (placeholders, collection) = placeholdersOn()
         collection.log.insertMany((2L..MongoEventLog.BLOCK).map { placeholder(it) })
 
-        placeholders.close(closing)
+        placeholders.close(closing, deadline = null)
 
         verify(exactly = 1) { sequencer.settle(closing) }
     }
@@ -83,7 +83,7 @@ class MongoLogPlaceholdersTest {
             placeholder(2, MongoEventLog.GAP_CLOSED).append(MongoEventLog.GAP_TO, MongoEventLog.BLOCK)
         )
 
-        placeholders.close(closing)
+        placeholders.close(closing, deadline = null)
 
         verify(exactly = 1) { sequencer.settle(closing) }
     }
@@ -93,7 +93,7 @@ class MongoLogPlaceholdersTest {
         val (placeholders, collection) = placeholdersOn()
         collection.log.insertMany((2L..PART).map { placeholder(it) })
 
-        placeholders.close(closing)
+        placeholders.close(closing, deadline = null)
 
         verify(exactly = 0) { sequencer.settle(any<MongoSequencer.Closing>()) }
     }
@@ -113,7 +113,7 @@ class MongoLogPlaceholdersTest {
             ),
         )
 
-        placeholders.close(closing)
+        placeholders.close(closing, deadline = null)
 
         verify(exactly = 0) { sequencer.settle(any<MongoSequencer.Closing>()) }
     }
@@ -127,7 +127,7 @@ class MongoLogPlaceholdersTest {
             ),
         )
 
-        placeholders.fill(collection, 0, SEQUENCE, MongoEventLog.GAP_UNKNOWN)
+        placeholders.fill(collection, 0, SEQUENCE, MongoEventLog.GAP_UNKNOWN, deadline = null)
 
         verify(exactly = 1) { sequencer.unfilled(0, SEQUENCE, collection.name) }
         verify(exactly = 0) { sequencer.settle(0, SEQUENCE) }

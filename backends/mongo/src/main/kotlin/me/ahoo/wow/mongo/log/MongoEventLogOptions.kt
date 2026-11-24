@@ -38,8 +38,10 @@ class MongoEventLogOptions(
     /** How many sequences a tail reads past its last at a time. */
     val tailBatch: Int = DEFAULT_TAIL_BATCH,
     /**
-     * How long an append's insert may take: a server that does not answer fails it, so a command appending during an
-     * outage is answered before its wait ends, as unknown. Below the default wait timeout.
+     * How long an append may take, all its round trips together (the reservation of a block, the read of the
+     * aggregate's previous stream, the inserts, the lookups after a refusal, the placeholders, [AppendDeadline]): a
+     * server that does not answer fails it, so a command appending during an outage is answered before its wait ends,
+     * as unknown when it may have written. Below the default wait timeout.
      */
     val appendTimeout: Duration = DEFAULT_APPEND_TIMEOUT,
     /** How long each of its calls may take (`wow.mongo.operation-timeout`, [MongoTimeouts]). */
@@ -81,7 +83,7 @@ class MongoEventLogOptions(
         val DEFAULT_MAX_POLL_INTERVAL: Duration = 1.seconds
         const val DEFAULT_TAIL_BATCH: Int = 500
 
-        /** How long an append's insert may take by default: below the default wait timeout of 10 seconds. */
+        /** How long an append may take by default, all its round trips: below the default wait timeout of 10 seconds. */
         val DEFAULT_APPEND_TIMEOUT: Duration = 5.seconds
     }
 }
