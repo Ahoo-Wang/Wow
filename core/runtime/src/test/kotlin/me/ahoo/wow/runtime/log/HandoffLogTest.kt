@@ -211,6 +211,9 @@ class HandoffLogTest : HandoffLogFixtures() {
         assertThrows<IllegalArgumentException> { HandoffOptions(capacity = 0) }
         assertThrows<IllegalArgumentException> { HandoffOptions(gapWait = Duration.ZERO) }
         assertThrows<IllegalArgumentException> { HandoffOptions(probeInterval = Duration.ZERO) }
+        assertThrows<IllegalArgumentException> {
+            HandoffOptions(probeInterval = 2.seconds, backstopInterval = 1.seconds)
+        }
         HandoffOptions().assert().isEqualTo(HandoffOptions())
         HandoffOptions().hashCode().assert().isEqualTo(HandoffOptions().hashCode())
         HandoffOptions(capacity = 1).assert().isNotEqualTo(HandoffOptions())

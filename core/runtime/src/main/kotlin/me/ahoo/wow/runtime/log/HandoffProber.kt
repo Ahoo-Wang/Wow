@@ -50,7 +50,7 @@ import kotlin.time.TimeSource
  * round, a busy tail's too: a store that answers from what it remembers forgets a partition a call leaves out.
  *
  * A read owed is kept until the tail is woken for it, and a wake until the tail takes it, so no report is lost: the
- * prober keeps the set of tails owed a read ([owed]), and each tail its wake. A tail whose read of the store fails
+ * prober keeps the set of tails owed a read, a private set of its own, and each tail its wake. A tail whose read of the store fails
  * ends, and its next one reads the store up to the head as it opens. A call of the log that fails is made again at the
  * next round, the backstop's included: the prober logs a warning as the call starts failing and a line as it answers
  * again. It runs while the log has tails open, on [scope], and stops with the last.
