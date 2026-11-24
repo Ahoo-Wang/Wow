@@ -24,6 +24,7 @@ import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.postgres.timer.PostgresTimerStore
 import me.ahoo.wow.postgres.timer.PostgresTimerTables
 import me.ahoo.wow.spi.Ddl
+import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -33,6 +34,11 @@ import me.ahoo.wow.tck.containers.WowContainers
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.postgresql.ds.PGSimpleDataSource
+import java.lang.reflect.InvocationTargetException
+import java.lang.reflect.Method
+import java.lang.reflect.Proxy
+import java.sql.Connection
+import java.sql.SQLException
 import java.util.UUID
 import javax.sql.DataSource
 
@@ -108,8 +114,14 @@ class PostgresStoreDdlTest {
     fun `none records no table that does not exist, whose record would fail every tail of the context`() {
         val context = PostgresFixture.newContext("ddl")
         PostgresEventLog(dataSource, context, 2).createSchema()
+        PostgresTimerStore(dataSource, context).createSchema()
         PostgresEventLog(dataSource, context, 2, options = PostgresEventLogOptions(ddl = Ddl.NONE)).createTable("order")
         records(PostgresEventLogTables.REGISTRY, context).assert().isEmpty()
+
+        val owner = AggregateType(context, "order").ref("tenant", "o-1")
+        val timers = PostgresTimerStore(dataSource, context, ddl = Ddl.NONE)
+        assertThrows<SQLException> { runBlocking { timers.find(owner, "k") } }.sqlState.assert().isEqualTo("42P01")
+        records(PostgresTimerTables.REGISTRY, context).assert().isEmpty()
     }
 
     @Test
@@ -196,6 +208,42 @@ class PostgresStoreDdlTest {
         }
 
     @Test
+    fun `a record that fails to be written for the connection's sake is that failure, not a refusal`(): Unit =
+        runBlocking {
+            val context = PostgresFixture.newContext("ddl")
+            val owner = AggregateType(context, "order").ref("tenant", "o-1")
+            PostgresFixture.log(PARTITIONS, context, aggregates = listOf("order"))
+            PostgresTimerStore(dataSource, context).also { it.createSchema() }.put(timer(owner, "first"))
+            deleteRecords(PostgresEventLogTables.REGISTRY, context)
+            deleteRecords(PostgresTimerTables.REGISTRY, context)
+            val cut = cutOnRecord()
+
+            assertThrows<SQLException> {
+                PostgresEventLog(cut, context, PARTITIONS, options = PostgresEventLogOptions(ddl = Ddl.NONE))
+                    .createTable("order")
+            }.sqlState.assert().isEqualTo(CONNECTION_FAILURE)
+            assertThrows<StorageUnavailableException> {
+                runBlocking { PostgresTimerStore(cut, context, ddl = Ddl.NONE).find(owner, "first") }
+            }
+            records(PostgresEventLogTables.REGISTRY, context).assert().isEmpty()
+            records(PostgresTimerTables.REGISTRY, context).assert().isEmpty()
+        }
+
+    @Test
+    fun `an aggregate whose timer table name another aggregate holds is refused, naming both`(): Unit = runBlocking {
+        val context = PostgresFixture.newContext("ddl")
+        val store = PostgresTimerStore(dataSource, context).also { it.createSchema() }
+        store.put(timer(AggregateType(context, "Order-Line").ref("tenant", "o-1"), "k"))
+        val base = PostgresTimerTables(context).aggregate("order_line").base
+        assertThrows<IllegalStateException> {
+            runBlocking { store.find(AggregateType(context, "order_line").ref("tenant", "o-1"), "k") }
+        }.message.assert().isEqualTo(
+            "The aggregate order_line of $context takes the timer table $base, which the aggregate Order-Line of " +
+                "$context has.",
+        )
+    }
+
+    @Test
     fun `an aggregate recorded with another table than its own is refused, naming it`(): Unit = runBlocking {
         val context = PostgresFixture.newContext("ddl")
         val elsewhere = "elsewhere_" + context.replace('-', '_')
@@ -267,6 +315,37 @@ class PostgresStoreDdlTest {
         }
     }
 
+    /**
+     * [dataSource], its connection failing as a connection ([CONNECTION_FAILURE]) on the statement that writes a
+     * registry record, as a connection lost between the read of the record and its write.
+     */
+    private fun cutOnRecord(): DataSource = proxy(DataSource::class.java, dataSource) { method, args, result ->
+        if (method.name == "getConnection") {
+            proxy(Connection::class.java, result as Connection) { statement, sql, prepared ->
+                val text = sql?.firstOrNull() as? String
+                if (statement.name == "prepareStatement" && text != null && RECORD.containsMatchIn(text)) {
+                    throw SQLException("An I/O error occurred while sending to the backend.", CONNECTION_FAILURE)
+                }
+                prepared
+            }
+        } else {
+            result
+        }
+    }
+
+    /** [target] behind a proxy whose [around] gets each call's method, arguments and result, and answers in its place. */
+    private fun <T : Any> proxy(type: Class<T>, target: T, around: (Method, Array<Any?>?, Any?) -> Any?): T =
+        type.cast(
+            Proxy.newProxyInstance(type.classLoader, arrayOf(type)) { _, method, args ->
+                val result = try {
+                    method.invoke(target, *(args ?: emptyArray()))
+                } catch (failure: InvocationTargetException) {
+                    throw failure.targetException
+                }
+                around(method, args, result)
+            },
+        )
+
     private fun stream(ref: AggregateRef) = EventStreamRecord(
         ref,
         1,
@@ -297,5 +376,11 @@ class PostgresStoreDdlTest {
         const val PARTITIONS = 4
         const val TAIL_TIMEOUT_MS = 30_000L
         const val ROLE_SUFFIX = 12
+
+        /** SQLSTATE `08006`: the connection failed, a transient failure. */
+        const val CONNECTION_FAILURE = "08006"
+
+        /** The statements that write a record of the log's or the timers' registry. */
+        val RECORD = Regex("""^INSERT INTO (wow_log_aggregate|wow_timer_aggregate) """)
     }
 }
