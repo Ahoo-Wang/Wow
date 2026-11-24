@@ -87,7 +87,8 @@ idle_measure_mongo() {
   # shellcheck disable=SC2016 # the aggregation's $ paths are MongoDB's, not the shell's
   idle_mongo 'db.setProfilingLevel(0);
     const ops = db.system.profile.aggregate([
-      {$project: {op: 1, ns: 1, command: {$arrayElemAt: [{$map: {input: {$objectToArray: {$ifNull: ["$command", {}]}}, in: "$$this.k"}}, 0]}}},
+      {$project: {op: 1, ns: 1, command: {$arrayElemAt: [
+        {$map: {input: {$objectToArray: {$ifNull: ["$command", {}]}}, in: "$$this.k"}}, 0]}}},
       {$group: {_id: {op: "$op", ns: "$ns", command: "$command"}, count: {$sum: 1}}}, {$sort: {count: -1}}]).toArray();
     const first = db.system.profile.find().sort({ts: 1}).limit(1).toArray()[0];
     const last = db.system.profile.find().sort({ts: -1}).limit(1).toArray()[0];
