@@ -177,7 +177,8 @@ internal class HandoffProber(
         // A tail that closed while the last round marked it is not owed any more.
         owed.retainAll(tails)
         open.filterTo(owed) { it.partition in named }
-        val again = rechecks.filter { (tail, cursor) -> tail in tails && tail !in owed && tail.cursor == cursor }.keys
+        // A tail that closed meanwhile left `rechecks` as it unregistered; one named again is owed its read anyway.
+        val again = rechecks.filter { (tail, cursor) -> tail !in owed && tail.cursor == cursor }.keys
         rechecks.clear()
         val idle = options.probeInterval / 2
         again.filter { it.idleFor >= idle }.forEach { it.wake(Reason.IDLE) }

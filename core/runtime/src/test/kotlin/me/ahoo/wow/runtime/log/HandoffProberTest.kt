@@ -36,6 +36,7 @@ import org.junit.jupiter.api.Test
 import org.slf4j.LoggerFactory
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -193,7 +194,7 @@ class HandoffProberTest : HandoffLogFixtures() {
         runBlocking {
             // #6760: MongoDB lists another node's block, and names its partition, before that node's stream is in the
             // head, and names the block no more. The read the probe calls for finds nothing; the next round reads again.
-            val reserved = java.util.concurrent.atomic.AtomicBoolean()
+            val reserved = AtomicBoolean()
             val log = ProbedLog(store, named = { cursors ->
                 if (0 in cursors && reserved.compareAndSet(true, false)) setOf(0) else emptySet()
             })
@@ -227,6 +228,32 @@ class HandoffProberTest : HandoffLogFixtures() {
         // Its cursor did not move: one more read the next round, then nothing; the backstop's interval is far off.
         advanceTimeBy(PROBE * 3)
         tail.wakes.assert().containsExactly(Reason.IDLE, Reason.IDLE)
+        prober.unregister(tail)
+    }
+
+    @Test
+    fun `a second read is owed only to a tail still idle, and not twice to one named again`(): Unit = runTest {
+        val calls = AtomicInteger()
+        // Named at the first and second rounds, then at the fifth: the second naming meets the recheck the first left.
+        val log = ProbedLog(store, named = { if (calls.incrementAndGet() in setOf(1, 2, 5)) setOf(0) else emptySet() })
+        val prober = HandoffProber(log, "bank", HandoffOptions(probeInterval = PROBE), backgroundScope)
+        val tail = FakeTail(partition = 0).apply { idle = PROBE }
+        prober.register(tail)
+        advanceTimeBy(PROBE / 2 + 1.milliseconds)
+        tail.wakes.assert().containsExactly(Reason.IDLE)
+        // Named again as its recheck is due: one read, for the naming, and its recheck the round after.
+        advanceTimeBy(PROBE / 2)
+        tail.wakes.assert().containsExactly(Reason.IDLE, Reason.IDLE)
+        advanceTimeBy(PROBE / 2)
+        tail.wakes.assert().hasSize(3)
+        advanceTimeBy(PROBE / 2)
+        tail.wakes.assert().hasSize(3)
+        // Named once more, woken, then busy when its recheck is due: no second read.
+        advanceTimeBy(PROBE / 2)
+        tail.wakes.assert().hasSize(4)
+        tail.idle = Duration.ZERO
+        advanceTimeBy(PROBE * 2)
+        tail.wakes.assert().hasSize(4)
         prober.unregister(tail)
     }
 
