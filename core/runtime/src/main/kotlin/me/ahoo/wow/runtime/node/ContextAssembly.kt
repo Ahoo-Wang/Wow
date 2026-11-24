@@ -401,7 +401,12 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
      */
     private fun progressOf(group: LeaseGroup, groups: List<GroupParts>): List<LogProgress> =
         groups.mapIndexed { index, part ->
-            LogProgress(if (index == 0) group.name else "${group.name}#${part.store}", part.log, part.checkpoints)
+            LogProgress(
+                if (index == 0) group.name else "${group.name}#${part.store}",
+                part.log,
+                part.checkpoints,
+                part.ledger,
+            )
         }
 
     /** The kernel of a context over its [log], with its state cache, snapshot and reservation stores. */

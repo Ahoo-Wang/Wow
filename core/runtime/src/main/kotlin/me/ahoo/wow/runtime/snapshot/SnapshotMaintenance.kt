@@ -36,6 +36,7 @@ import me.ahoo.wow.runtime.subscription.SubscribedEntry
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.observation.ObservedEvent
@@ -51,9 +52,12 @@ import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.LeaseStore
 import java.util.concurrent.ConcurrentHashMap
 
-/** Where the subscriptions of one log group of a context keep their checkpoints: [group]'s, over [log]. */
+/**
+ * Where the subscriptions of one log group of a context keep their checkpoints, [group]'s over [log], and park their
+ * aggregates ([ledger]).
+ */
 @InternalWowApi
-class LogProgress(val group: String, val log: EventLog, val checkpoints: CheckpointStore)
+class LogProgress(val group: String, val log: EventLog, val checkpoints: CheckpointStore, val ledger: FailureLedger)
 
 /**
  * Keeps the snapshot targets of one bounded context in step with the log and the code, on every node,

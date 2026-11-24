@@ -35,6 +35,7 @@ import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.kernel.memory.InMemoryCheckpointStore
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
+import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
 import me.ahoo.wow.kernel.memory.InMemoryLeaseStore
 import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.runtime.subscription.eventually
@@ -96,7 +97,7 @@ class SnapshotMaintenanceTest {
         codec,
         rebuildLog,
         leases,
-        listOf(LogProgress(GROUP, progressLog, checkpoints)),
+        listOf(LogProgress(GROUP, progressLog, checkpoints, InMemoryFailureLedger())),
         options,
         observer = observer,
     )

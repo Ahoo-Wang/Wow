@@ -28,12 +28,16 @@ import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.kernel.memory.InMemoryCheckpointStore
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
+import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
 import me.ahoo.wow.kernel.memory.InMemoryLeaseStore
 import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.runtime.subscription.SubscribedEntry
+import me.ahoo.wow.spi.ledger.ParkedAggregate
+import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.snapshot.SnapshotFill
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import org.junit.jupiter.api.Test
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.hours
@@ -62,6 +66,7 @@ class SnapshotBackfillTest {
     private val kernel = Kernel(log, codec)
     private val leases = InMemoryLeaseStore()
     private val checkpoints = InMemoryCheckpointStore()
+    private val ledger = InMemoryFailureLedger()
     private val memory = InMemorySnapshotStore()
     private val type = AggregateType(CONTEXT, "counter")
     private val primary = SnapshotTargets.single(memory).subscriptionOf(SnapshotTargets.DEFAULT_STORE)
@@ -77,7 +82,7 @@ class SnapshotBackfillTest {
         codec,
         log,
         leases,
-        listOf(LogProgress(GROUP, log, checkpoints)),
+        listOf(LogProgress(GROUP, log, checkpoints, ledger)),
         SnapshotOptions(interval = 1.hours, leaseTtl = 2.hours, memberTtl = 2.hours),
     )
 
@@ -192,6 +197,42 @@ class SnapshotBackfillTest {
         handle(refs[1])
         loads.get().assert().isEqualTo(1)
     }
+
+    @Test
+    fun `a backfill with an aggregate parked is not marked caught up, and the retry of it writes its snapshot`(): Unit =
+        runBlocking {
+            // #6755: a parked aggregate counts as done for the checkpoint, its snapshot never written; the mark would end
+            // the backfill, and its retry would then resolve the entry and write nothing.
+            var id = 0
+            val refs = ArrayList<AggregateRef>()
+            while ((0 until PARTITIONS).any { log.head(it) == null }) {
+                refs += commit("a-${id++}")
+            }
+            checkpointed(primary) { runBlocking { head(it) } }
+            val node = maintenance("node-1")
+            val running = node.prepare().single()
+            running.name.assert().isEqualTo(backfill)
+            node.maintain()
+            // The backfill reaches every head, one aggregate parked on the way.
+            val parked = refs.first()
+            val backfillId = SubscriptionId(CONTEXT, backfill)
+            val partition = Partitioner.partitionOf(parked, PARTITIONS)
+            ledger.park(ParkedAggregate(backfillId, parked, partition, 1, "IllegalStateException", 0L))
+            checkpointed(backfill) { runBlocking { head(it) } }
+            node.maintain()
+            memory.table(type)!!.backfilled.assert().describedAs("marked with $parked parked").isFalse()
+            // Checked again, still parked: still not marked, and told once.
+            node.maintain()
+            memory.table(type)!!.backfilled.assert().isFalse()
+            // The operator's retry runs the handler again, its entry decoded as a retry reads it: the backfill writes.
+            val entry = log.readEntries(parked, 1, 1).toList().single()
+            val decoded = running.subscription.decoder.decode(entry.stream, entry.position, entry.decodedTransport)
+            running.subscription.handle(decoded)
+            memory.load(parked).assert().isNotNull()
+            ledger.resolve(backfillId, parked, partition)
+            node.maintain()
+            memory.table(type)!!.backfilled.assert().isTrue()
+        }
 
     private companion object {
         const val CONTEXT = "shop"

@@ -22,6 +22,7 @@ import me.ahoo.wow.runtime.state.ReplayGate
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.snapshot.SnapshotFill
 import me.ahoo.wow.spi.snapshot.SnapshotTable
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -47,6 +48,9 @@ internal class SnapshotBackfills(
 
     /** The tables this node read as marked backfilled: their backfill here writes no more. */
     private val caughtUp: MutableSet<Pair<String, AggregateType>> = ConcurrentHashMap.newKeySet()
+
+    /** The tables a check found caught up but for aggregates their backfill parked, told once. */
+    private val heldBack: MutableSet<Pair<String, AggregateType>> = ConcurrentHashMap.newKeySet()
 
     /**
      * Who fills [store]'s table, as its first claim records it, read before that claim: the store's subscription when
@@ -99,7 +103,10 @@ internal class SnapshotBackfills(
 
     /**
      * Marks [type]'s [table] in [store] backfilled ([mark]) once the subscription its record names reached, in every
-     * partition of every log group, the [heads] the log had at the previous run.
+     * partition of every log group, the [heads] the log had at the previous run; and, for a backfill, once it holds no
+     * aggregate parked in any group's ledger. A parked aggregate's entries count as done for the checkpoint, its
+     * snapshot never written, and the mark ends the backfill ([backfillOf]'s `active`): its retry would then resolve the
+     * entry and write nothing. So the table stays rebuilding until each is retried, and written, or skipped.
      */
     suspend fun check(
         store: String,
@@ -115,10 +122,29 @@ internal class SnapshotBackfills(
                 (group.checkpoints.load(group.group, subscription, partition) ?: 0L) >= head
             }
         }
+        if (reached && table.fill == SnapshotFill.BACKFILL && parkedBy(store, type, subscription)) {
+            return
+        }
         if (reached && mark() != null) {
             caughtUp += store to type
             logger.info { "The snapshots of $type in $store caught up with the log." }
         }
+    }
+
+    /**
+     * Whether [subscription], the backfill of [type]'s table in [store], has an aggregate parked in a log group's ledger:
+     * told once a table, as the first check that finds it caught up but for them.
+     */
+    private suspend fun parkedBy(store: String, type: AggregateType, subscription: String): Boolean {
+        val id = SubscriptionId(context, subscription)
+        val parked = progress.distinctBy { it.ledger }.sumOf { it.ledger.count(id, 1) }
+        if (parked > 0 && heldBack.add(store to type)) {
+            logger.warn {
+                "The snapshots of $type in $store caught up with the log but for the aggregates $subscription parked: " +
+                    "the table stays rebuilding until each is retried or skipped."
+            }
+        }
+        return parked > 0
     }
 
     /** [type]'s table in [store] is read marked backfilled, by this node or another: its backfill here, if any, stops. */
