@@ -44,7 +44,10 @@ class CommandIntakeRefusalsTest : CommandIntakeFixtures() {
             eventually { ledger.isParked(INTAKE, broken.ref) }
             val parked = ledger.parked(INTAKE, broken.ref)!!
             parked.fromPosition.assert().isEqualTo(0L)
-            parked.reason.assert().contains("unreachable")
+            // Its cause by its class alone: the message of a decide function's failure may carry values (#6796).
+            parked.reason.assert()
+                .contains(UnsupportedOperationException::class.java.name)
+                .doesNotContain("unreachable")
             eventually { elsewhere.id in stock.decided }
             // The parked aggregate's later command waits; the checkpoint passes both.
             val end = topics.offsets(COMMANDS, Partitioner.partitionOf(broken.ref, PARTITIONS)).end

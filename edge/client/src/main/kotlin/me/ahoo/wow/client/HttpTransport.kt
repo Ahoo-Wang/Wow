@@ -93,7 +93,7 @@ internal enum class Exchange(val retries: (PeerProblem) -> Boolean) {
     fun unanswered(request: PeerRequest, failure: IOException): PeerProblem = when {
         this != QUERY -> PeerProblem.of(
             FrameworkCodes.COMMAND_UNKNOWN,
-            "The command sent to ${request.context} was not answered ($failure): whether it committed is unknown.",
+            "The command sent to ${request.context} was not answered (${failure.javaClass.name}): whether it committed is unknown.",
             failure,
         )
         failure is HttpTimeoutException -> PeerProblem.of(
@@ -103,7 +103,7 @@ internal enum class Exchange(val retries: (PeerProblem) -> Boolean) {
         )
         else -> PeerProblem.of(
             FrameworkCodes.PEER_UNAVAILABLE,
-            "The connection to ${request.context} was lost before it answered ($failure).",
+            "The connection to ${request.context} was lost before it answered (${failure.javaClass.name}).",
             failure,
         )
     }
@@ -200,7 +200,7 @@ internal class HttpTransport(
                             PeerProblem.of(
                                 FrameworkCodes.PEER_UNAVAILABLE,
                                 (failure as? NoNodeListed)?.message
-                                    ?: "No node of ${request.context} could be reached ($failure).",
+                                    ?: "No node of ${request.context} could be reached (${failure.javaClass.name}).",
                                 failure,
                             ),
                         )

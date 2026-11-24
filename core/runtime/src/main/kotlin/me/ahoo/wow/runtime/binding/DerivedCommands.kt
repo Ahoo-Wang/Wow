@@ -209,11 +209,13 @@ internal class DerivedCommands(
         // A busy node is backpressure, which the subscription retries and throttles.
         settlement.busyOf(command)?.let { return it }
         val error = settlement.committed.error
-        // With its code, so the subscription tells backpressure (`wow.wait.timeout`) from an outage or a defect.
+        // With its code, so the subscription tells backpressure (`wow.wait.timeout`) from an outage or a defect. Its
+        // cause is named by its class alone: the message is a caller's answer, which a parked reason keeps, and the
+        // cause's own message may carry the values it failed on (#6796); the cause itself goes with it, to the log.
         return InProcessCommandClient.problemOf(
             settlement.committed,
             "The derived command ${command.id} on ${command.ref} failed: ${error?.code} ${error?.message}" +
-                settlement.cause?.let { " ($it)" }.orEmpty(),
+                settlement.cause?.let { " (${it.javaClass.name})" }.orEmpty(),
             settlement.failure,
         )
     }
