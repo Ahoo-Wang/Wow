@@ -19,6 +19,7 @@ import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.async
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
@@ -398,6 +399,23 @@ class KafkaTransportUnitTest {
         attempts.assert().isEqualTo(2)
         source.close()
     }
+
+    @Test
+    fun `a read at offsets whose polls return nothing should end when its caller is cancelled`(): Unit =
+        runBlocking {
+            // A broker that stopped answering after the offsets: every poll comes back empty.
+            val mock = consumerWith(0, 5, 0)
+            val polled = CompletableDeferred<Unit>()
+            mock.schedulePollTask { polled.complete(Unit) }
+            val source = KafkaPartitionedSource({ mock }, pollTimeout = 1.milliseconds)
+            // Not this test's child: a read that never ends fails the test instead of keeping it from ending.
+            val reading = CoroutineScope(Dispatchers.Default).async { source.readAt(topic, 0, listOf(2L, 3L)) }
+            withTimeout(10.seconds) { polled.await() }
+            withTimeout(10.seconds) { reading.cancelAndJoin() }
+            reading.isCancelled.assert().isTrue()
+            // Closed on the way out, as a read that ends does.
+            mock.closed().assert().isTrue()
+        }
 
     private fun consumerWith(start: Long, end: Long, vararg partitions: Int) =
         MockConsumer<String, ByteArray>("earliest").apply {

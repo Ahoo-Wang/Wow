@@ -58,7 +58,12 @@ import kotlin.time.toJavaDuration
  * - [readAt] runs one consumer of its own for the call, whatever the number of offsets: it seeks to each offset still
  *   wanted, in ascending order, and takes every wanted one a poll returns before it seeks again. Offsets the partition
  *   does not hold are left out before it seeks, so they are no gap. It closes the consumer without waiting for a
- *   fetch still in flight.
+ *   fetch still in flight. On a broker that stops answering after the offsets, its polls come back empty and it ends
+ *   only when its caller is cancelled, between two polls; the offsets requests themselves fail after the client's
+ *   `default.api.timeout.ms`. Its callers in the runtime have no bound of their own: a run's start
+ *   (`ParkedAtStart`) and the retry scan read in the run's scope, which the run's stop cancels, and a reconcile stuck
+ *   on the start fences the group after `wow.cluster.reconcile-timeout` and fails the node's liveness after
+ *   `wow.health.liveness.stall-timeout`.
  *
  * Either way, an offset the partition does not hold, before its earliest retained offset or past its end, is a gap:
  * the read never steps over it silently, but logs an error, counts it in [offsetGaps] and does what
@@ -205,7 +210,13 @@ class KafkaPartitionedSource(
         val target = TopicPartition(topic, partition)
         val consumer = withContext(dispatcher) { consumers(named("read.$topic-$partition")) }
         try {
-            return withContext(dispatcher) { readAt(consumer, target, offsets) }
+            val wanted = withContext(dispatcher) {
+                consumer.assign(listOf(target))
+                val start = consumer.beginningOffsets(listOf(target)).values.single()
+                val end = consumer.endOffsets(listOf(target)).values.single()
+                offsets.filterTo(TreeSet()) { it in start until end }
+            }
+            return readAt(consumer, target, wanted)
         } finally {
             // With no group to leave and nothing to commit, it does not wait for the fetch still in flight: a close
             // that waits for it takes the broker's fetch wait, half a second.
@@ -215,38 +226,39 @@ class KafkaPartitionedSource(
         }
     }
 
-    private fun readAt(
+    /**
+     * The messages at [wanted], polled by [consumer]. Each poll is a step of its own on the [dispatcher], so a cancel
+     * of the caller ends the read between two polls, at most a [pollTimeout] after it.
+     */
+    private suspend fun readAt(
         consumer: Consumer<String, ByteArray>,
         target: TopicPartition,
-        offsets: Collection<Long>,
+        wanted: TreeSet<Long>,
     ): Map<Long, SourceMessage> {
-        consumer.assign(listOf(target))
-        val start = consumer.beginningOffsets(listOf(target)).values.single()
-        val end = consumer.endOffsets(listOf(target)).values.single()
-        val wanted = offsets.filterTo(TreeSet()) { it in start until end }
         val found = HashMap<Long, SourceMessage>()
         val timeout = pollTimeout.toJavaDuration()
         while (wanted.isNotEmpty()) {
             val next = wanted.first()
-            consumer.seek(target, next)
-            var position = next
-            while (position <= next) {
-                val records = try {
-                    consumer.poll(timeout)
-                } catch (_: OffsetOutOfRangeException) {
-                    // The retention deleted what was still wanted, while it was being read: no longer held.
-                    wanted.headSet(consumer.beginningOffsets(listOf(target)).values.single()).clear()
-                    break
-                }
-                for (record in records.records(target)) {
-                    if (wanted.remove(record.offset())) {
-                        found[record.offset()] = message(record)
+            var position: Long? = next
+            withContext(dispatcher) { consumer.seek(target, next) }
+            while (position != null && position <= next) {
+                position = withContext(dispatcher) {
+                    try {
+                        for (record in consumer.poll(timeout).records(target)) {
+                            if (wanted.remove(record.offset())) {
+                                found[record.offset()] = message(record)
+                            }
+                        }
+                        consumer.position(target)
+                    } catch (_: OffsetOutOfRangeException) {
+                        // The retention deleted what was still wanted, while it was being read: no longer held.
+                        wanted.headSet(consumer.beginningOffsets(listOf(target)).values.single()).clear()
+                        null
                     }
                 }
-                position = consumer.position(target)
             }
             // Passed without a record of their own: a gap in the partition's offsets.
-            wanted.headSet(position).clear()
+            position?.let { wanted.headSet(it).clear() }
         }
         return found
     }
