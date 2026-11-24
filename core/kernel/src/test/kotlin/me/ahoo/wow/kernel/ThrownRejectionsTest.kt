@@ -177,14 +177,18 @@ class ThrownRejectionsTest {
     }
 
     @Test
-    fun `a cancellation inside a decide function should stay a cancellation`() = runTest {
+    fun `a cancellation inside a decide function should never be a refusal, and its own should be a failure`() = runTest {
         throwing["cancel"] = { throw CancellationException("cancelled") }
         val log = InMemoryEventLog()
         Kernel(log).execute(model, command(Open("me")))
-        runCatching { Kernel(log).execute(model, command(Throw("cancel"))) }.exceptionOrNull()
-            .assert().isInstanceOf(CancellationException::class.java)
-        runCatching { Kernel(log).execute(model, command(Throw("timeout"))) }.exceptionOrNull()
-            .assert().isInstanceOf(TimeoutCancellationException::class.java)
+        // Its own cancellation, its caller still waiting (#6737): a failure of the command, as a remote call's timeout
+        // is (decision D314 ②). The caller's own cancellation stays one (KernelCancellationTest).
+        val cancelled = runCatching { Kernel(log).execute(model, command(Throw("cancel"))) }.exceptionOrNull()
+        cancelled.assert().isInstanceOf(CancelledDecisionException::class.java)
+        cancelled!!.cause.assert().isInstanceOf(CancellationException::class.java)
+        val late = runCatching { Kernel(log).execute(model, command(Throw("timeout"))) }.exceptionOrNull()
+        late.assert().isInstanceOf(CancelledDecisionException::class.java)
+        late!!.cause.assert().isInstanceOf(TimeoutCancellationException::class.java)
         ThrownRejections.rejectionOf(CancellationException("x")).assert().isNull()
     }
 

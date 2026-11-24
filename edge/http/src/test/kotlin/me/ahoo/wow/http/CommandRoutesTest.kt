@@ -396,6 +396,16 @@ class CommandRoutesTest {
     }
 
     @Test
+    fun `a decide function whose own call timed out is a 500 problem with its result, as any failure (#6737)`() {
+        node.post("/shop/cart/c-1/open-cart").assertSucceeded()
+        val failed = node.post("/shop/cart/c-1/checkout", """{"note":"cancelled"}""")
+            .assertProblem(500, FrameworkCodes.COMMAND_FAILED, withResult = true).body!!
+        failed["result"]["status"].asString().assert().isEqualTo("failed")
+        failed.toString().assert().doesNotContain("secret")
+        runBlocking { node.log.read(cartType.ref(TENANT, "c-1"), 1, Int.MAX_VALUE).toList() }.size.assert().isEqualTo(1)
+    }
+
+    @Test
     fun `a body larger than the codecs take is a 413 problem`() {
         // Review A3-9: WebFlux's default in-memory limit is 256 KB.
         val large = """{"sku":"${"a".repeat(300 * 1024)}"}"""

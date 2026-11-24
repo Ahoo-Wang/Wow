@@ -14,7 +14,9 @@
 package me.ahoo.wow.kernel
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.decide.DecideScope
 import me.ahoo.wow.api.decide.Decision
@@ -27,6 +29,10 @@ import kotlin.coroutines.CoroutineContext
  * each checked against the events it declares. One marked `@Blocking` ([DecideFunction.Suspending.blocking]) runs on
  * [blocking], by default the node's virtual threads ([BlockingDispatcher]); every other one runs inline in the
  * caller's coroutine.
+ *
+ * A function that ends with a cancellation of its own while its caller still waits, a call it bounded with
+ * `withTimeout` that did not answer in time, fails the command ([CancelledDecisionException]); only the caller's own
+ * cancellation goes through as a cancellation.
  */
 internal class Decisions(private val blocking: CoroutineContext) {
     /** The decision of [decider] on [state], its events followed by those of [model]'s after hooks. */
@@ -126,7 +132,7 @@ internal class Decisions(private val blocking: CoroutineContext) {
             }
         }
     } catch (cancelled: CancellationException) {
-        throw cancelled
+        throw cancellationOf(cancelled, body, "decide function")
     } catch (@Suppress("TooGenericExceptionCaught") thrown: Exception) {
         ThrownRejections.rejectionOf(thrown)?.let { Decision.Rejected(it, (thrown as? RejectedException)?.events.orEmpty()) }
             ?: throw thrown
@@ -137,14 +143,30 @@ internal class Decisions(private val blocking: CoroutineContext) {
         scope: DecideScope,
         state: S,
         body: Any,
-    ): List<Any> = when (after) {
-        is AfterFunction.Sync -> after.after(scope, state, body)
-        is AfterFunction.Suspending -> if (after.blocking) {
-            withContext(blocking) { after.after(scope, state, body) }
-        } else {
-            after.after(scope, state, body)
+    ): List<Any> = try {
+        when (after) {
+            is AfterFunction.Sync -> after.after(scope, state, body)
+            is AfterFunction.Suspending -> if (after.blocking) {
+                withContext(blocking) { after.after(scope, state, body) }
+            } else {
+                after.after(scope, state, body)
+            }
         }
+    } catch (cancelled: CancellationException) {
+        throw cancellationOf(cancelled, body, "after hook")
     }
+
+    /**
+     * What [cancelled], ending the [function] of the command [body], is: the caller's cancellation, thrown on as it is,
+     * when this coroutine is cancelled; else one of the function's own, a call it bounded with `withTimeout`, which is a
+     * failure of the command ([CancelledDecisionException]), not the caller's cancellation.
+     */
+    private suspend fun cancellationOf(cancelled: CancellationException, body: Any, function: String): Exception =
+        if (currentCoroutineContext().isActive) {
+            CancelledDecisionException(body.javaClass, function, cancelled)
+        } else {
+            cancelled
+        }
 
     private companion object {
         val LIFECYCLE_EVENTS: Set<Class<*>> = Lifecycle.EVENTS.values.toSet()

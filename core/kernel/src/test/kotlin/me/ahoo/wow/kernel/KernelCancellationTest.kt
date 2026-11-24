@@ -15,12 +15,15 @@ package me.ahoo.wow.kernel
 
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Creation
@@ -36,6 +39,7 @@ import me.ahoo.wow.spi.observation.TraceContext
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.coroutines.CoroutineContext
+import kotlin.time.Duration.Companion.seconds
 
 /** What a cancelled caller still gets done: compensations (A1-5) and a commit's answer (A1-11). */
 class KernelCancellationTest {
@@ -139,6 +143,51 @@ class KernelCancellationTest {
         caller.isCancelled.assert().isTrue()
         outcome.assert().isNull()
         trail.assert().containsExactly("undo x")
+    }
+
+    class Quote
+    data class Quoted(val price: Int)
+
+    class Product(val id: String) {
+        var price: Int = 0
+    }
+
+    /** A decide function, or an after hook, that bounds a remote call with `withTimeout`, the call not answering in time. */
+    private fun quoting(inAfterHook: Boolean) = aggregate<Product>("test", "product") {
+        initial { Product(it.id) }
+        decideSuspending<Quote>(Creation.ALLOWED) { _, _ ->
+            onAppendFailure { trail += "undone" }
+            if (inAfterHook) Decision.events(Quoted(1)) else Decision.events(Quoted(lateCall()))
+        }
+        if (inAfterHook) {
+            afterSuspending(include = setOf(Quote::class.java)) { _, _ -> listOf(Quoted(lateCall())) }
+        }
+        evolve<Quoted> { price = it.price }
+    }
+
+    private suspend fun lateCall(): Int = withTimeout(2.seconds) { awaitCancellation() }
+
+    @Test
+    fun `a call in a decide function or an after hook that times out fails the command, not as its caller's cancellation`():
+        Unit = runTest {
+        listOf(false, true).forEach { inAfterHook ->
+            trail.clear()
+            val model = quoting(inAfterHook)
+            val log = InMemoryEventLog()
+            val ref = model.type.ref("t", "p-1")
+            val command = Command("c-1", "r-1", ref, Quote())
+
+            val failure = runCatching { Kernel(log).execute(model, command) }.exceptionOrNull()
+
+            // The caller was not cancelled: it is told that the command failed, its compensation run, nothing appended.
+            failure.assert().describedAs("in an after hook: $inAfterHook")
+                .isInstanceOf(CancelledDecisionException::class.java)
+            failure!!.cause.assert().isInstanceOf(TimeoutCancellationException::class.java)
+            val function = if (inAfterHook) "after hook" else "decide function"
+            failure.message.assert().contains(function, "Quote", "withTimeout")
+            trail.assert().containsExactly("undone")
+            log.read(ref).toList().assert().isEmpty()
+        }
     }
 
     private class Trace : TraceContext() {
