@@ -87,12 +87,31 @@ A failover loses nothing Wow acted on. The subscriptions read only what a majori
 What a failover does to the appends in flight:
 
 - An append acknowledged as committed is never lost: a majority has it, and the new primary has it too. So is any other write Wow made: a reservation, a timer, a checkpoint.
-- An append whose acknowledgement the failover interrupted is unknown: it may have landed, and it may be rolled back with the old primary. The node writes a placeholder at its sequence once it can; if the stream landed, the placeholder meets it and the stream stays. The command is answered as unknown, and a retry with the same request ID finds the stream or commits it once.
+- An append whose acknowledgement the failover interrupted is unknown: it may have landed, and it may be rolled back with the old primary. The node writes a placeholder at its sequence once it can. When the placeholder meets the stream, the node takes the sequence as written only once a majority read finds the stream there: a stream the failover rolls back leaves the sequence empty, and the tail fills it after its grace. The command is answered as unknown, and a retry with the same request ID finds the stream or commits it once.
 - An append the server refused before writing is answered as a retryable `wow.storage.unavailable`; it wrote nothing.
 - The driver retries a write once after a failover (retryable writes, on by default); most appends of the election's seconds wait for it and commit.
 - Leases and checkpoints survive: an owner renews its leases on the new primary, and no other node takes them while they are valid.
 
 The backend's integration tests run on a replica set of three every night: appends from eight writers while the primary steps down, and while it is killed and restarted, then the partition's tail read to its end (`test/mongo-cluster/cluster.sh test rs`).
+
+### A tail that waits at a sequence no block holds {#a-tail-that-waits-at-a-sequence-no-block-holds}
+
+A log written by an earlier pre-release may hold a sequence its node took as written on a duplicate key. The primary that answered had the write, and then rolled it back in a failover. Every tail of the partition stops before such a sequence. No open block holds it, so no append can land there any more, and a tail never steps over a missing sequence. The node warns after about ten seconds of waiting, and once a minute after that, naming the partition, the sequence and the placeholder that repairs it:
+
+```text
+The tail of partition 3 of shop has waited at sequence 1041, which no open block holds, for 10 graces: …
+```
+
+To repair it, first check that no log collection of the context holds a stream at that position. Then insert the placeholder the warning names into one log collection of the context, with a majority write concern:
+
+```js
+db.getCollection("wow_log__shop__order").insertOne(
+  { _id: NumberLong("6755399441056785"), partition: 3, sequence: NumberLong("1041"), gap: "recovered", gap_node: "operator" },
+  { writeConcern: { w: "majority" } }
+)
+```
+
+`_id` is the position: the partition times 2<sup>51</sup>, plus the sequence. The tails go on at their next read. Nothing repairs such a sequence on its own. A log this version writes takes a sequence as written only on what a majority holds, so it leaves none behind.
 
 ## In production
 

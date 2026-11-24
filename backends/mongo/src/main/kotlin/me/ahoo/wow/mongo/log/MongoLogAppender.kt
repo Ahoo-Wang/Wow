@@ -322,7 +322,8 @@ internal class MongoLogAppender(
         }
         if (error.category == ErrorCategory.DUPLICATE_KEY && isPositionTaken(error.message)) {
             sequencer.abandon(partition, member.sequence)
-            sequencer.settle(partition, member.sequence)
+            // Settled once a majority holds what took it, a seal's placeholder that may yet be rolled back (#6745).
+            placeholders.taken(collection, partition, member.sequence)
             return null
         }
         lastSequences.remove(stream.ref)
@@ -453,7 +454,8 @@ internal class MongoLogAppender(
         } catch (failure: MongoException) {
             if (failure.isDuplicateKey() && isPositionTaken(failure.message.orEmpty())) {
                 sequencer.abandon(partition, sequence)
-                sequencer.settle(partition, sequence)
+                // Settled once a majority holds what took it, a seal's placeholder that may yet be rolled back (#6745).
+                placeholders.taken(collection, partition, sequence)
                 return null
             }
             try {

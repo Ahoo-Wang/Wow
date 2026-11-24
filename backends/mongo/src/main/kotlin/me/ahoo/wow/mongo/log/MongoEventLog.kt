@@ -394,7 +394,15 @@ class MongoEventLog(
         var idle = pacer.interval
         var woken = false
         val missingSequences =
-            MongoMissingSequences(partition, sequencer, placeholders, collections, committedCounters, dispatcher)
+            MongoMissingSequences(
+                context,
+                partition,
+                sequencer,
+                placeholders,
+                collections,
+                committedCounters,
+                dispatcher
+            )
         while (true) {
             val mark = pacer.mark(partition)
             val batch = dispatcher.mongo { tailReads.read(partition, last) }
