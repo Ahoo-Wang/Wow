@@ -253,6 +253,11 @@ class HostHealthTest {
                 return log.head(partition)
             }
 
+            override suspend fun heads(partitions: Collection<Int>): Map<Int, Long?> {
+                checkLog()
+                return log.heads(partitions)
+            }
+
             override fun read(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<EventStreamRecord> = flow {
                 checkLog()
                 log.read(ref, fromVersion, toVersion).collect { emit(it) }
