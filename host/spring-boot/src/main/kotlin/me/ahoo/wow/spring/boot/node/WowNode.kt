@@ -48,6 +48,8 @@ data class NodeIdentity(
     val address: String?,
     val host: String,
     val bindHost: String,
+    /** The property that gave [service]: `wow.service` when it is set, else `spring.application.name`. */
+    val serviceKey: String = WOW_SERVICE,
 ) {
     /**
      * The address of the internal port bound at [port]: [address] when configured, else [host] and [port]
@@ -77,18 +79,20 @@ data class NodeIdentity(
             environment: Environment,
             local: InetAddress = InetAddress.getLocalHost(),
         ): NodeIdentity {
-            val service = properties.service?.takeIf { it.isNotBlank() }
-                ?: environment.getProperty("spring.application.name")?.takeIf { it.isNotBlank() }
+            val own = properties.service?.takeIf { it.isNotBlank() }
+            val service = own
+                ?: environment.getProperty(APPLICATION_NAME)?.takeIf { it.isNotBlank() }
                 ?: throw WowConfigurationException(
-                    "wow.service",
+                    WOW_SERVICE,
                     null,
                     "The service has no name.",
-                    "Set wow.service or spring.application.name.",
+                    "Set $WOW_SERVICE or $APPLICATION_NAME.",
                 )
+            val serviceKey = if (own != null) WOW_SERVICE else APPLICATION_NAME
             // The name it states on the internal port (`Wow-Service`), which a peer lists it by.
             configCheck(
                 DeclaredServices.isName(service),
-                "wow.service",
+                serviceKey,
                 service,
                 "Name it with letters, digits, '.', '_' and '-' alone, such as ordering-service.",
             ) { "The service's name [$service] is no name its nodes can state on the internal port." }
@@ -105,8 +109,14 @@ data class NodeIdentity(
             val port = properties.internal.port
             val address = configured ?: NodeAddress.of(host, port).takeIf { port != 0 }
             val bindHost = named ?: configured?.let(NodeAddress::hostOf) ?: host
-            return NodeIdentity(service, node, address, host, bindHost)
+            return NodeIdentity(service, node, address, host, bindHost, serviceKey)
         }
+
+        /** The property that names the service before Spring's application name. */
+        const val WOW_SERVICE: String = "wow.service"
+
+        /** Spring Boot's application name, the service's name when [WOW_SERVICE] is not set. */
+        const val APPLICATION_NAME: String = "spring.application.name"
 
         /** The address the internal port binds and advertises by default in a profile of `wow.dev-profiles`. */
         const val LOOPBACK: String = "127.0.0.1"

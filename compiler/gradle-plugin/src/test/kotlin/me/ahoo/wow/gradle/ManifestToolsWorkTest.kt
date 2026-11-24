@@ -82,10 +82,22 @@ class ManifestToolsWorkTest {
             defaultServiceName.set("shop")
             serviceVersion.set("1.0.0")
             output.set(manifest)
+            serviceBuild.set(File(directory, "service/${ServiceRole.SERVICE_RESOURCE}"))
         }
         object : ManifestToolsWork.Merge() {
             override fun getParameters() = merge
         }.execute()
         ManifestJson.read(manifest).service.assert().isEqualTo(ServiceInfo("shop", "1.0.0"))
+        // The service the Manifest names, which the service module's jar carries for the node to compare with.
+        File(directory, "service/${ServiceRole.SERVICE_RESOURCE}").readText().assert()
+            .isEqualTo("{\n  \"name\" : \"shop\",\n  \"contexts\" : [ ]\n}\n")
+        // Without a place for it, the merge writes the Manifest alone.
+        val service = File(directory, "service/${ServiceRole.SERVICE_RESOURCE}").apply { delete() }
+        merge.serviceBuild.set(null as File?)
+        object : ManifestToolsWork.Merge() {
+            override fun getParameters() = merge
+        }.execute()
+        service.exists().assert().isFalse()
+        manifest.isFile.assert().isTrue()
     }
 }

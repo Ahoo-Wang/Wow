@@ -155,6 +155,9 @@ class PluginRolesFunctionalTest {
         ZipFile(File(root, "build/libs/bank.jar")).use { jar ->
             // The root project's fragment: a name no project takes, whatever the checkout is called.
             jar.getEntry("${Manifest.FRAGMENT_DIRECTORY}/${WowPlugin.ROOT_FRAGMENT}.json").assert().isNotNull()
+            // The name the node runs under, or refuses to start: the build's, for the contexts it serves.
+            val service = jar.getInputStream(jar.getEntry(ServiceRole.SERVICE_RESOURCE)).use { it.readBytes() }
+            String(service).assert().isEqualTo("{\n  \"name\" : \"bank-service\",\n  \"contexts\" : [ \"bank\" ]\n}\n")
         }
         // No api module of its own: the contract of its context, for an api module to carry once it splits one out.
         ManifestJson.read(File(root, "build/wow/contract.json")).let { contract ->

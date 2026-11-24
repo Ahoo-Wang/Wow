@@ -67,7 +67,10 @@ import kotlin.time.toKotlinDuration
 @InternalWowApi
 @ConfigurationProperties(prefix = WowProperties.PREFIX)
 class WowProperties {
-    /** The service's name; `spring.application.name` when not set. */
+    /**
+     * The service's name; `spring.application.name` when not set. Where Wow's Gradle plugin built the service, its
+     * build's name (`wow { service }`): a node refuses to start under another.
+     */
     var service: String? = null
 
     /** This node's identity among the nodes of the service, and where they reach it. */

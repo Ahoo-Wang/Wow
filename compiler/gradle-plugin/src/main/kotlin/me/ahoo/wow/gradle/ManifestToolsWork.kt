@@ -69,6 +69,9 @@ internal object ManifestToolsWork {
             val defaultServiceName: Property<String>
             val serviceVersion: Property<String>
             val output: RegularFileProperty
+
+            /** Where the service the merged Manifest names goes (`META-INF/wow/service.json`), when set. */
+            val serviceBuild: RegularFileProperty
         }
 
         override fun execute() {
@@ -82,6 +85,9 @@ internal object ManifestToolsWork {
                 parameters.serviceVersion.orNull,
                 parameters.output.get().asFile,
             )
+            parameters.serviceBuild.orNull?.let { serviceBuild ->
+                call(javaClass.classLoader, "writeServiceBuild", parameters.output.get().asFile, serviceBuild.asFile)
+            }
         }
     }
 

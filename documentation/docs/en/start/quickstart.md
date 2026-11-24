@@ -355,7 +355,7 @@ fun main() = runWowLocal {
 }
 ```
 
-- Each service runs in the `dev` profile, so a request names its caller in the `Wow-*` headers. It is named by `spring.application.name` and serves its own contexts alone (`wow.contexts.include`); `properties` add its own settings.
+- Each service runs in the `dev` profile, so a request names its caller in the `Wow-*` headers. It is named by `spring.application.name` and serves its own contexts alone (`wow.contexts.include`); `properties` add its own settings. The name is the one its build gives it: a service built with Wow's Gradle plugin refuses to start under another, so one build's contexts run as one service, not as two of different names.
 - The services start in the order listed, and each calls the ones listed before it: its `wow.peers.<context>.url` names their internal ports. List a called service before its callers, here the ordering before the basket, whose checkout calls it.
 - The ports are each service's own; `-Dwow-local.ports=random` lets the system choose every one, and a service may then name none.
 - Once every service listens, it prints one line with their public ports, `wow-local ready {"eshop-inventory-service":8084,…}`. With `-Dwow-local.exit-on-stdin-eof=true` the JVM exits when its standard input closes, so a process that started it, a front end's end-to-end test say, never leaves it running.

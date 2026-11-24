@@ -15,6 +15,7 @@ package me.ahoo.wow.gradle
 
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.ConfigurableFileCollection
+import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
@@ -23,6 +24,7 @@ import org.gradle.api.tasks.Classpath
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.Optional
+import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.TaskAction
 import org.gradle.workers.WorkQueue
@@ -72,6 +74,15 @@ internal abstract class MergeManifest @Inject constructor(private val workers: W
     @get:OutputFile
     abstract val outputFile: RegularFileProperty
 
+    /**
+     * The resources of the service module the merge adds to: the service the merged Manifest names and the contexts it
+     * serves, at `META-INF/wow/service.json` ([ServiceRole.SERVICE_RESOURCE]), which the node compares the name it
+     * runs under with. Unset, none is written.
+     */
+    @get:OutputDirectory
+    @get:Optional
+    abstract val serviceResources: DirectoryProperty
+
     @TaskAction
     fun merge() {
         submit(workers.classLoaderIsolation { spec -> spec.classpath.from(tools) })
@@ -85,6 +96,7 @@ internal abstract class MergeManifest @Inject constructor(private val workers: W
             parameters.defaultServiceName.set(defaultServiceName)
             parameters.serviceVersion.set(serviceVersion)
             parameters.output.set(outputFile)
+            parameters.serviceBuild.set(serviceResources.file(ServiceRole.SERVICE_RESOURCE))
         }
     }
 }

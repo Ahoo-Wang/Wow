@@ -459,6 +459,7 @@ public final class me/ahoo/wow/runtime/cluster/ReplyTo$Companion {
 public final class me/ahoo/wow/runtime/contract/ContractDirectory : me/ahoo/wow/runtime/wait/SubscriptionDirectory {
 	public static final field Companion Lme/ahoo/wow/runtime/contract/ContractDirectory$Companion;
 	public static final field LOCAL_SOURCE Ljava/lang/String;
+	public static final field SERVICE_KEY Ljava/lang/String;
 	public static final field UNKNOWN_CONTEXT Ljava/lang/String;
 	public fun <init> (Lme/ahoo/wow/manifest/Manifest;Ljava/util/List;)V
 	public synthetic fun <init> (Lme/ahoo/wow/manifest/Manifest;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
@@ -488,8 +489,8 @@ public final class me/ahoo/wow/runtime/contract/ContractDirectory : me/ahoo/wow/
 }
 
 public final class me/ahoo/wow/runtime/contract/ContractDirectory$Companion {
-	public final fun load (Lme/ahoo/wow/manifest/Manifest;Ljava/lang/ClassLoader;Ltools/jackson/databind/json/JsonMapper;)Lme/ahoo/wow/runtime/contract/ContractDirectory;
-	public static synthetic fun load$default (Lme/ahoo/wow/runtime/contract/ContractDirectory$Companion;Lme/ahoo/wow/manifest/Manifest;Ljava/lang/ClassLoader;Ltools/jackson/databind/json/JsonMapper;ILjava/lang/Object;)Lme/ahoo/wow/runtime/contract/ContractDirectory;
+	public final fun load (Lme/ahoo/wow/manifest/Manifest;Ljava/lang/ClassLoader;Ltools/jackson/databind/json/JsonMapper;Ljava/lang/String;)Lme/ahoo/wow/runtime/contract/ContractDirectory;
+	public static synthetic fun load$default (Lme/ahoo/wow/runtime/contract/ContractDirectory$Companion;Lme/ahoo/wow/manifest/Manifest;Ljava/lang/ClassLoader;Ltools/jackson/databind/json/JsonMapper;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/runtime/contract/ContractDirectory;
 }
 
 public final class me/ahoo/wow/runtime/ledger/LedgerPublishing {

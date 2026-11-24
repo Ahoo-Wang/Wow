@@ -19,6 +19,7 @@ import me.ahoo.wow.manifest.ManifestAssembly
 import me.ahoo.wow.manifest.ManifestFragment
 import me.ahoo.wow.manifest.PeerContracts
 import me.ahoo.wow.manifest.PeerSources
+import me.ahoo.wow.manifest.ServiceBuild
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.openapi.ManifestOpenApi
 import me.ahoo.wow.spi.SystemCommandGroups
@@ -93,6 +94,16 @@ object ManifestTools {
         }
         ManifestJson.write(manifest, output)
         return fragments.size
+    }
+
+    /**
+     * Writes into [output] the service the merged [manifest] names and the contexts it serves ([ServiceBuild]), which
+     * the service module's jar carries at [ServiceBuild.RESOURCE] and the node compares the name it runs under with.
+     */
+    @JvmStatic
+    fun writeServiceBuild(manifest: File, output: File) {
+        output.parentFile.mkdirs()
+        output.writeText(ManifestJson.pretty(ServiceBuild.treeOf(ManifestJson.read(manifest))) + "\n")
     }
 
     /**

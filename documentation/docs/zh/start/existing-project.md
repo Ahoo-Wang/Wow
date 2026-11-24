@@ -160,6 +160,7 @@ dependencies {
 `me.ahoo.wow.service` 对服务器自己的源码（它的路由、Saga 和投影；没有则什么也不做）做 `me.ahoo.wow` 做的事，并且：
 
 - 把运行时类路径上的各部分合并成服务的 Manifest，即 `build/wow/manifest.json`（`mergeWowManifest`），并写出它的 OpenAPI 文档（`generateWowOpenApi`）；
+- 在合并的同时，把服务名和它提供的上下文写进服务器自己的资源 `META-INF/wow/service.json`：这就是它的节点必须使用的名字（见下文）；
 - 写出构建所知道的 `wow-service` Helm chart 的 values，即 `build/wow/helm/values.yaml`（`generateWowHelmValues`，属于 `assemble`）：服务名、类路径上有契约的对端，以及 Manifest 的路由（[Kubernetes](../operate/kubernetes)）；
 - 每次构建都对照提交到仓库的基线检查 Manifest（`checkWowManifest`，属于 `check`；`updateWowManifestBaseline` 记录基线）；
 - 检查运行时与测试类路径解析到的 Jackson 是 Wow 的 JSON 验证过的次版本，且其模块属于同一次版本（`checkWowJackson`，属于 `check`；`me.ahoo.wow` 也在领域模块的测试类路径上运行它），否则说明要改什么（[升级](../operate/upgrades)）；
@@ -170,6 +171,8 @@ dependencies {
 | 属性 | 默认值 | 含义 |
 | --- | --- | --- |
 | `manifestBaseline` | `manifest/baseline.json` | 兼容检查使用的、提交到仓库的基线 |
+
+服务只有一个名字，即合并后的 Manifest 的名字：对端按这个名字找到它，chart 的 values 带着它，基线记录它。服务器的配置重复这个名字，写在 `spring.application.name` 里，设置了 `wow.service` 时则写在 `wow.service` 里。类路径上有服务器的 `META-INF/wow/service.json` 的节点，对其中写明的上下文以别的名字运行时会拒绝启动。拒绝信息指明给出运行名字的那个键，以及要改的那一行：`Set spring.application.name: catalog-server`，或者在构建里改名。不用这个插件构建的服务器（例如用 Maven）没有这个文件，也就没有什么会把它的名字和构建的名字相比较。
 
 宿主会带上 Spring Boot 和 WebFlux。用 MongoDB 时，选择 `wow-mongo` 而不是 `wow-postgres`；访问其他上下文时加上 `wow-kafka`，使用数仓时加上 `wow-clickhouse`（[在 Spring Boot 上运行](../guide/spring-boot#what-the-class-path-decides)）。
 
@@ -222,4 +225,4 @@ fun main(args: Array<String>) {
 
 ## 运行 {#run-it}
 
-服务器的 `application.yaml` 写明服务名（`spring.application.name`），并如上所述给它一个数据库或开发环境的 profile 之后，`./gradlew :catalog-server:run` 在这台机器上启动一个节点。命令、状态读取和查询的提供方式与[快速开始](./quickstart#send-commands)中相同。上线生产之前，过一遍[运行 Wow](../operate/)。
+服务器的 `application.yaml` 按构建的名字写明服务名（`spring.application.name`），并如上所述给它一个数据库或开发环境的 profile 之后，`./gradlew :catalog-server:run` 在这台机器上启动一个节点。命令、状态读取和查询的提供方式与[快速开始](./quickstart#send-commands)中相同。上线生产之前，过一遍[运行 Wow](../operate/)。

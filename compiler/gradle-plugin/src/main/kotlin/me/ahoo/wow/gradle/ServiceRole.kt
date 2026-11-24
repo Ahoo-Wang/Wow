@@ -81,12 +81,16 @@ internal object ServiceRole {
             task.defaultServiceName.set(defaultServiceName(project.path, project.rootProject.name))
             task.serviceVersion.set(project.provider { project.version.toString() })
             task.outputFile.set(project.layout.buildDirectory.file("wow/manifest.json"))
+            task.serviceResources.set(project.layout.buildDirectory.dir("wow/service"))
             // The api modules of a types-only build carry no contract to find: say why, not which is missing.
             if (ContractRole.typesOnly(project)) {
                 val message = ContractRole.typesOnlyService(project.path)
                 task.doFirst { throw GradleException(message) }
             }
         }
+        // The service's jar, and every class path of its own, carries the name its build gives it, which the node
+        // runs under or refuses to start (#6662).
+        main.resources.srcDir(merge.flatMap { it.serviceResources })
         project.tasks.register(OPENAPI_TASK, GenerateOpenApi::class.java) { task ->
             task.group = GROUP_NAME
             task.description = "Writes the OpenAPI document of the service's routes from its manifest.json."
@@ -183,4 +187,7 @@ internal object ServiceRole {
     }
 
     private const val GROUP_NAME = "wow"
+
+    /** Where a service module's jar carries the service its build names, and the contexts it serves. */
+    const val SERVICE_RESOURCE = "META-INF/wow/service.json"
 }
