@@ -92,16 +92,18 @@ internal object ApiRole {
     }
 
     /**
-     * The in-build pairing of [api]: [PAIRING_ELEMENTS], a variant of [PAIRING_USAGE] holding the paths of the domain
-     * modules it declares in [CONTRACT_CONFIGURATION] (`domains`, comma-separated), which a domain module reads to know
-     * the api modules that carry its contract. It is no part of the api's component, so no publication names a
-     * project path.
+     * The in-build pairing of [api]: [PAIRING_ELEMENTS], a variant of [PAIRING_USAGE] holding the api's own path (`api`)
+     * and the paths of the domain modules it declares in [CONTRACT_CONFIGURATION] (`domains`, comma-separated), which a
+     * domain module reads to know the api modules that carry its contract. The api's path is in the file, so a pairing
+     * that moves to another api module changes what the domain module's contract task reads (#6844). It is no part of
+     * the api's component, so no publication names a project path.
      */
     private fun pairing(api: Project) {
         val declared = api.configurations.getByName(CONTRACT_CONFIGURATION)
         val write = api.tasks.register(PAIRING_TASK, WriteProperties::class.java) { task ->
             task.description = "Writes the domain modules this api module pairs with, which they read in-build."
             task.destinationFile.set(api.layout.buildDirectory.file("wow/pairing.properties"))
+            task.property(PAIRING_API, api.path)
             task.property(
                 PAIRING_DOMAINS,
                 api.provider {
@@ -137,6 +139,9 @@ internal object ApiRole {
 
     /** The usage and category of the in-build pairing variant, which only a domain module's pairing view asks for. */
     internal const val PAIRING_USAGE = "wow-pairing"
+
+    /** The property of the pairing file that names its api module's path. */
+    internal const val PAIRING_API = "api"
 
     /** The property of the pairing file that lists the domain modules' paths. */
     internal const val PAIRING_DOMAINS = "domains"

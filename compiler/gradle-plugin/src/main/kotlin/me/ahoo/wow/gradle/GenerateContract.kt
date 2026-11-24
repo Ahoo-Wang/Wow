@@ -18,7 +18,6 @@ import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
 import org.gradle.workers.WorkQueue
 import org.gradle.workers.WorkerExecutor
-import java.io.File
 import java.util.Properties
 import javax.inject.Inject
 
@@ -62,21 +61,25 @@ internal abstract class GenerateContract @Inject constructor(private val workers
     @get:Internal
     abstract val classpathProjects: MapProperty<String, String>
 
+    /**
+     * The entries of [classpathProjects] themselves: which classes each holds decides which project a context's
+     * classes are in, so a class that moves to another project reruns the task (#6844).
+     */
+    @get:Classpath
+    abstract val classpathEntries: ConfigurableFileCollection
+
     /** The projects of [classpathProjects], whose pairing changes the outcome. */
     @get:Input
     abstract val classpathProjectPaths: ListProperty<String>
 
     /**
-     * The pairing files of the api modules among those projects (`wowPairingElements`): the domain modules each
-     * declares, `domains` comma-separated.
+     * The pairing files of the api modules among those projects (`wowPairingElements`): each names its api module
+     * (`api`) and the domain modules it declares (`domains`, comma-separated). Read by content, which says which api
+     * pairs with which module (#6844).
      */
     @get:InputFiles
     @get:PathSensitive(PathSensitivity.NONE)
     abstract val pairing: ConfigurableFileCollection
-
-    /** The project each of [pairing]'s files comes from, by its path. */
-    @get:Internal
-    abstract val pairingProjects: MapProperty<String, String>
 
     /** The tools that write the contract: the `wowTools` configuration. */
     @get:Classpath
@@ -104,10 +107,11 @@ internal abstract class GenerateContract @Inject constructor(private val workers
      */
     internal fun unpaired(): Map<String, String> {
         val module = module.get()
-        val paired = pairingProjects.get().filter { (file, _) ->
-            val properties = Properties().apply { File(file).inputStream().use(::load) }
-            module in properties.getProperty(ApiRole.PAIRING_DOMAINS, "").split(',')
-        }.values.toSet()
+        val paired = pairing.files.mapNotNullTo(HashSet()) { file ->
+            val properties = Properties().apply { file.inputStream().use(::load) }
+            properties.getProperty(ApiRole.PAIRING_API)
+                ?.takeIf { module in properties.getProperty(ApiRole.PAIRING_DOMAINS, "").split(',') }
+        }
         return classpathProjects.get().filterValues { it !in paired }
     }
 

@@ -327,6 +327,8 @@ class WowApiPluginTest {
         val api = paired("shop-domain", "audit-domain")
         val write = api.tasks.getByName("writeWowPairing") as WriteProperties
         write.properties.assert().containsEntry(ApiRole.PAIRING_DOMAINS, ":audit-domain,:shop-domain")
+        // The file names its api module, so a pairing that moves to another api changes its contents (#6844).
+        write.properties.assert().containsEntry(ApiRole.PAIRING_API, api.path)
         val elements = api.configurations.getByName(ApiRole.PAIRING_ELEMENTS)
         elements.isCanBeResolved.assert().isFalse()
         elements.outgoing.artifacts.files.singleFile.name.assert().isEqualTo("pairing.properties")
