@@ -44,6 +44,7 @@ import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.runtime.admission.Authorization
 import me.ahoo.wow.runtime.admission.CommandAction
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
+import me.ahoo.wow.spring.boot.security.CoSecAuthorizersAutoConfiguration
 import me.ahoo.wow.spring.boot.security.CoSecAutoConfiguration
 import org.junit.jupiter.api.Test
 import org.springframework.context.annotation.AnnotationConfigApplicationContext
@@ -121,6 +122,7 @@ class OpsConfigurationTest {
         }
 
     /** [use] of the ops service's configuration, with CoSec deciding here as [checker] says. */
+    @OptIn(ExperimentalWowApi::class) // wow-cosec and the host's CoSec configurations are experimental in 10.0
     private fun <T> configured(
         checker: AuthorizationChecker?,
         authorizerEnabled: Boolean,
@@ -131,7 +133,11 @@ class OpsConfigurationTest {
             context.environment.propertySources.addFirst(MapPropertySource("test", properties))
             context.registerBean(Manifest::class.java, Supplier { Manifest() })
             checker?.let { context.registerBean(AuthorizationChecker::class.java, Supplier { it }) }
-            context.register(CoSecAutoConfiguration::class.java, OpsConfiguration::class.java)
+            context.register(
+                CoSecAutoConfiguration::class.java,
+                CoSecAuthorizersAutoConfiguration::class.java,
+                OpsConfiguration::class.java,
+            )
             context.refresh()
             use(context)
         }

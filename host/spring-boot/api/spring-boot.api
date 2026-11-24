@@ -94,6 +94,10 @@ public final class me/ahoo/wow/spring/boot/query/QueryAutoConfiguration$NodeQuer
 	public fun <init> ()V
 }
 
+public final class me/ahoo/wow/spring/boot/security/CoSecAuthorizersAutoConfiguration {
+	public fun <init> ()V
+}
+
 public final class me/ahoo/wow/spring/boot/security/CoSecAutoConfiguration {
 	public static final field AUTHORIZER_ENABLED Ljava/lang/String;
 	public static final field Companion Lme/ahoo/wow/spring/boot/security/CoSecAutoConfiguration$Companion;
