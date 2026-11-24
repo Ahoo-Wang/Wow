@@ -59,7 +59,9 @@ import org.springframework.context.annotation.Configuration
 @OptIn(ExperimentalCoSecApi::class)
 class CoSecAutoConfigurationTest {
     private val runner = ApplicationContextRunner()
-        .withConfiguration(AutoConfigurations.of(CoSecAutoConfiguration::class.java))
+        .withConfiguration(
+            AutoConfigurations.of(CoSecAutoConfiguration::class.java, CoSecAuthorizersAutoConfiguration::class.java),
+        )
 
     @Configuration(proxyBeanMethods = false)
     class Application {
@@ -214,12 +216,18 @@ class CoSecAutoConfigurationTest {
         candidates.assert().contains(
             CoSecAutoConfiguration::class.java.name,
             CoSecRouteMapAutoConfiguration::class.java.name,
+            CoSecAuthorizersAutoConfiguration::class.java.name,
         )
         val annotation = CoSecAutoConfiguration::class.java.getAnnotation(AutoConfiguration::class.java)
         annotation.before.toList().assert().containsExactly(WowAutoConfiguration::class)
         val routes = CoSecRouteMapAutoConfiguration::class.java.getAnnotation(AutoConfiguration::class.java)
         routes.after.toList().assert().containsExactly(WowAutoConfiguration::class)
         routes.beforeName.toList().assert().containsExactly(COSEC_PIPELINE_AUTO_CONFIGURATION)
+        // The authorizers ask the checker CoSec's pipeline defines: after it, so their condition sees it (#6849); an
+        // application's context built from the auto-configurations alone is the ops server's CoSecDecidesHereTest.
+        val authorizers = CoSecAuthorizersAutoConfiguration::class.java.getAnnotation(AutoConfiguration::class.java)
+        authorizers.after.toList().assert().containsExactly(WowAutoConfiguration::class)
+        authorizers.afterName.toList().assert().containsExactly(COSEC_PIPELINE_AUTO_CONFIGURATION)
         ApplicationContextRunner().withUserConfiguration(Imported::class.java).run { context ->
             context.getBeansOfType(CoSecCallerResolver::class.java).assert().hasSize(1)
         }

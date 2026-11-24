@@ -67,11 +67,9 @@ import org.springframework.util.ClassUtils
  * - Where CoSec decides the requests itself, the route map CoSec's pipeline reads is the Manifest's command and
  *   service routes ([CoSecRouteMapAutoConfiguration]).
  * - [CoSecCommandAuthorizer] and [CoSecServiceRouteAuthorizer], CoSec's decision on a command and on a service route
- *   call by the same actions, as the caller of its request, are among the node's authorizers when
- *   `wow.cosec.authorizer.enabled` is true and CoSec decides here (its `AuthorizationChecker`): asked with the
- *   application's own authorizers, each of which must allow a command too. On the public port CoSec's pipeline already
- *   decides the command routes. A request-less command (a saga's, a timer's, a scheduled job's) gets no objection
- *   from them.
+ *   call, are the node's authorizers when `wow.cosec.authorizer.enabled` is true and CoSec decides here: an
+ *   auto-configuration of their own after CoSec's pipeline, which defines the checker they ask
+ *   ([CoSecAuthorizersAutoConfiguration]).
  *
  * Experimental as wow-cosec is, which follows CoSec 8's pre-release: the class and its constant may change within 10.x.
  */
@@ -86,20 +84,6 @@ class CoSecAutoConfiguration {
     @InternalWowApi
     fun wowCoSecCallerResolver(properties: WowProperties): CoSecCallerResolver =
         CoSecCallerResolver(callerOptions(properties))
-
-    @Bean
-    @Conditional(CoSecAuthorizes::class)
-    @InternalWowApi
-    fun wowCoSecCommandAuthorizer(checker: AuthorizationChecker, properties: WowProperties): CoSecCommandAuthorizer =
-        CoSecCommandAuthorizer(checker, defaultTenant(properties))
-
-    @Bean
-    @Conditional(CoSecAuthorizes::class)
-    @InternalWowApi
-    fun wowCoSecServiceRouteAuthorizer(
-        checker: AuthorizationChecker,
-        properties: WowProperties,
-    ): CoSecServiceRouteAuthorizer = CoSecServiceRouteAuthorizer(checker, defaultTenant(properties))
 
     /**
      * Writes CoSec's refusals as Wow's problems when `wow.cosec.problems` is `wow` and the application declares no
@@ -134,22 +118,6 @@ class CoSecAutoConfiguration {
             context.beanFactory?.getBeanNamesForType(CallerResolver::class.java, true, false).isNullOrEmpty()
     }
 
-    /**
-     * `wow.cosec.authorizer.enabled` is true and CoSec decides here (its `AuthorizationChecker`, which a service
-     * behind a CoSec gateway has none of), so [wowCoSecCommandAuthorizer] is one of the node's authorizers. A
-     * condition runs before the properties bean is bound: it binds them itself ([WowProperties.of]). An authorizer of
-     * the application's own roles that decides in CoSec's place takes `ObjectProvider<CoSecCommandAuthorizer>` and
-     * steps aside when there is one: a condition of an application's configuration is evaluated before this
-     * auto-configuration registers it.
-     */
-    internal class CoSecAuthorizes : Condition {
-        override fun matches(context: ConditionContext, metadata: AnnotatedTypeMetadata): Boolean {
-            val beans = context.beanFactory ?: return false
-            return WowProperties.of(context.environment).cosec.authorizer.enabled &&
-                beans.getBeanNamesForType(AuthorizationChecker::class.java, true, false).isNotEmpty()
-        }
-    }
-
     companion object {
         const val AUTHORIZER_ENABLED: String = "wow.cosec.authorizer.enabled"
 
@@ -181,12 +149,62 @@ class CoSecAutoConfiguration {
             }
 
         /** `wow.tenant.default`, the default tenant when it is blank. */
-        private fun defaultTenant(properties: WowProperties): String =
+        internal fun defaultTenant(properties: WowProperties): String =
             properties.tenant.default.takeIf { it.isNotBlank() } ?: Caller.DEFAULT_TENANT
 
         /** The names of a list property, trimmed, blanks dropped (`key=a,b,` or `key[0]=a`). */
         private fun Set<String>.names(): Set<String> =
             map(String::trim).filter(String::isNotEmpty).toCollection(LinkedHashSet())
+    }
+}
+
+/**
+ * [CoSecCommandAuthorizer] and [CoSecServiceRouteAuthorizer], CoSec's decision on a command and on a service route call
+ * by the same actions, as the caller of its request, among the node's authorizers when `wow.cosec.authorizer.enabled`
+ * is true and CoSec decides here (its `AuthorizationChecker`): asked with the application's own authorizers, each of
+ * which must allow a command too. On the public port CoSec's pipeline already decides the command routes. A
+ * request-less command (a saga's, a timer's, a scheduled job's) gets no objection from them.
+ *
+ * After CoSec's pipeline, which defines the checker: their condition looks for it among the beans registered so far,
+ * and [CoSecAutoConfiguration], before the host's own configuration, comes before CoSec's (#6849). The node takes them
+ * when it is built, once every configuration has registered its beans. Experimental as wow-cosec is.
+ */
+@ExperimentalWowApi
+@AutoConfiguration(after = [WowAutoConfiguration::class], afterName = [COSEC_PIPELINE_AUTO_CONFIGURATION])
+@ConditionalOnClass(name = [COSEC_MODULE, COSEC_WEBFLUX])
+@EnableConfigurationProperties(WowProperties::class)
+class CoSecAuthorizersAutoConfiguration {
+    @Bean
+    @Conditional(CoSecAuthorizes::class)
+    @InternalWowApi
+    fun wowCoSecCommandAuthorizer(checker: AuthorizationChecker, properties: WowProperties): CoSecCommandAuthorizer =
+        CoSecCommandAuthorizer(checker, CoSecAutoConfiguration.defaultTenant(properties))
+
+    @Bean
+    @Conditional(CoSecAuthorizes::class)
+    @InternalWowApi
+    fun wowCoSecServiceRouteAuthorizer(
+        checker: AuthorizationChecker,
+        properties: WowProperties,
+    ): CoSecServiceRouteAuthorizer = CoSecServiceRouteAuthorizer(
+        checker,
+        CoSecAutoConfiguration.defaultTenant(properties)
+    )
+
+    /**
+     * `wow.cosec.authorizer.enabled` is true and CoSec decides here (its `AuthorizationChecker`, which a service
+     * behind a CoSec gateway has none of), so [wowCoSecCommandAuthorizer] is one of the node's authorizers. A
+     * condition runs before the properties bean is bound: it binds them itself ([WowProperties.of]). An authorizer of
+     * the application's own roles that decides in CoSec's place takes `ObjectProvider<CoSecCommandAuthorizer>` and
+     * steps aside when there is one: a condition of an application's configuration is evaluated before this
+     * auto-configuration registers it.
+     */
+    internal class CoSecAuthorizes : Condition {
+        override fun matches(context: ConditionContext, metadata: AnnotatedTypeMetadata): Boolean {
+            val beans = context.beanFactory ?: return false
+            return WowProperties.of(context.environment).cosec.authorizer.enabled &&
+                beans.getBeanNamesForType(AuthorizationChecker::class.java, true, false).isNotEmpty()
+        }
     }
 }
 

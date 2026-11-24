@@ -101,6 +101,7 @@ The two lists below are generated from the sources of the published modules: the
 | `me.ahoo.wow.cosec.CoSecProblemRenderer` | class | `wow-cosec` |
 | `me.ahoo.wow.cosec.CoSecServiceRouteAuthorizer` | class | `wow-cosec` |
 | `me.ahoo.wow.spring.boot.security.CoSecAutoConfiguration` | class | `wow-spring-boot` |
+| `me.ahoo.wow.spring.boot.security.CoSecAuthorizersAutoConfiguration` | class | `wow-spring-boot` |
 | `me.ahoo.wow.spring.boot.security.CoSecRouteMapAutoConfiguration` | class | `wow-spring-boot` |
 | `me.ahoo.wow.spring.cloud.LoadBalancedEndpoints` | class | `wow-spring-cloud` |
 | `me.ahoo.wow.spring.cloud.SpringCloudPeerDiscovery` | class | `wow-spring-cloud` |
