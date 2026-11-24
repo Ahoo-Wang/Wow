@@ -199,4 +199,16 @@ class DroppedHandlersTest {
             """.trimIndent(),
         ).assert().contains("two command functions handle sample.Add")
     }
+
+    @Test
+    fun `two sourcing functions of one event should be a compile error, as the host words it`() {
+        // The kernel refuses the model when the host builds it (#6836): refused at compile time instead.
+        failing(
+            "",
+            state = "fun onSourcing(event: Added) {}\n@OnSourcing fun onAdded(event: Added) {}"
+        ).assert().contains(
+            "CartState declares two evolve functions for sample.Added: the sourcing functions onSourcing, onAdded " +
+                "both take it; keep one",
+        )
+    }
 }

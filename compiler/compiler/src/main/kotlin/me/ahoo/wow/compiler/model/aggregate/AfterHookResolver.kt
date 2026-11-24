@@ -13,12 +13,14 @@
 
 package me.ahoo.wow.compiler.model.aggregate
 
+import com.google.devtools.ksp.getAllSuperTypes
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 import com.google.devtools.ksp.symbol.KSType
 import com.google.devtools.ksp.symbol.KSValueParameter
 import com.google.devtools.ksp.symbol.Modifier
 import me.ahoo.wow.api.annotation.AfterCommand
+import me.ahoo.wow.compiler.model.symbol.ModelNames
 import me.ahoo.wow.compiler.model.symbol.ModelNames.AFTER_COMMAND_ANNOTATION
 import me.ahoo.wow.compiler.model.symbol.ModelNames.ANY_TYPES
 import me.ahoo.wow.compiler.model.symbol.ModelNames.COMMAND
@@ -28,8 +30,10 @@ import me.ahoo.wow.compiler.model.symbol.ModelNames.SYSTEM_COMMANDS
 import me.ahoo.wow.compiler.model.symbol.annotatedIn
 import me.ahoo.wow.compiler.model.symbol.argumentsOf
 import me.ahoo.wow.compiler.model.symbol.blocking
+import me.ahoo.wow.compiler.model.symbol.classOf
 import me.ahoo.wow.compiler.model.symbol.reactorReturn
 import me.ahoo.wow.compiler.model.symbol.render
+import me.ahoo.wow.compiler.model.symbol.sourceName
 
 /**
  * The after hooks of an aggregate root. A hook takes its parameters as a command function does:
@@ -79,6 +83,12 @@ internal object AfterHookResolver {
         }
         val reactor = reactorReturn(function) != null
         val returnType = function.returnType?.resolve()
+        // The kernel's eventsOf fails every command a hook returning a Decision runs after (#6837): refused here.
+        if (function.returnType!!.resolve().decides()) {
+            problems += "after hook $name returns ${function.returnType!!.resolve().render()}: an after hook returns " +
+                "events, not a decision, and cannot reject; return the events (one, a List or a Flux of them), or " +
+                "nothing"
+        }
         val open = EventYield.openEvent(returnType)
         open?.let { problems += EventYield.openProblem("after hook $name", it, hook = true) }
         val rest = if (parameter != null) function.parameters.drop(1) else function.parameters
@@ -166,4 +176,20 @@ internal object AfterHookResolver {
     private fun KSType.isDependencyLike(): Boolean = render().let { rendered ->
         FRAMEWORK_PACKAGES.any { rendered.startsWith(it) } && rendered !in SYSTEM_COMMANDS
     }
+
+    /**
+     * Whether this type is a `Decision` or one of its cases, through a type alias ([classOf]) or a Reactor publisher of
+     * one; a type parameter or a star projection says nothing, as for [EventYield].
+     */
+    private fun KSType.decides(): Boolean {
+        val declaration = declaration.classOf() ?: return false
+        val name = declaration.sourceName()
+        if (name in ModelNames.REACTOR_TYPES) {
+            val element = arguments.single().type ?: return false
+            return element.resolve().decides()
+        }
+        return name == DECISION || declaration.getAllSuperTypes().any { it.declaration.sourceName() == DECISION }
+    }
+
+    private const val DECISION = "me.ahoo.wow.api.decide.Decision"
 }

@@ -29,6 +29,7 @@ import com.google.devtools.ksp.symbol.Modifier
 import com.google.devtools.ksp.symbol.Nullability
 import com.google.devtools.ksp.symbol.Variance
 import me.ahoo.wow.compiler.model.KotlinNames
+import me.ahoo.wow.compiler.model.symbol.aliased
 import me.ahoo.wow.compiler.model.symbol.isModuleInternal
 import me.ahoo.wow.compiler.model.symbol.jsonIgnored
 import me.ahoo.wow.compiler.model.symbol.jsonIgnoredProperties
@@ -247,23 +248,6 @@ internal object QueryPropertiesSource {
             return null
         }
         return nested
-    }
-
-    /**
-     * The type [alias] stands for, its type parameters replaced by this type's arguments: `LinkedHashSet<Line>` is
-     * `java.util.LinkedHashSet<Line>`, not a set of the alias's own parameter.
-     */
-    private fun KSType.aliased(alias: KSTypeAlias): KSType {
-        val target = alias.type.resolve()
-        val parameters = alias.typeParameters.map { it.name.asString() }
-        if (parameters.isEmpty()) return target
-        return target.replace(
-            target.arguments.map { argument ->
-                // A star projection has no type; a parameter of the target is one of the alias's own.
-                val parameter = argument.type?.resolve()?.declaration as? KSTypeParameter
-                if (parameter == null) argument else arguments[parameters.indexOf(parameter.name.asString())]
-            },
-        )
     }
 
     /**

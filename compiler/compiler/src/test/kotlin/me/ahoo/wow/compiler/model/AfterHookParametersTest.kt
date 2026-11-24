@@ -215,4 +215,51 @@ class AfterHookParametersTest {
                 "afterCommand takes me.ahoo.wow.api.aggregate.AggregateType, a Wow type no host binds",
             )
     }
+
+    @Test
+    fun `a hook returning a Decision should be a compile error`() {
+        // The kernel's eventsOf fails every command it runs after (#6837).
+        failing(
+            "fun afterCommand(command: Any): me.ahoo.wow.api.decide.Decision = me.ahoo.wow.api.decide.Decision.NoOp"
+        )
+            .assert().contains(
+                "after hook afterCommand returns me.ahoo.wow.api.decide.Decision: an after hook returns events, not a decision"
+            )
+        failing(
+            "fun afterCommand(command: Any): reactor.core.publisher.Mono<me.ahoo.wow.api.decide.Decision> = " +
+                "reactor.core.publisher.Mono.empty()",
+        ).assert().contains(
+            "after hook afterCommand returns reactor.core.publisher.Mono<me.ahoo.wow.api.decide.Decision>"
+        )
+        // A case of Decision, and a type alias of it, are decisions too.
+        failing(
+            "fun afterCommand(command: Any): me.ahoo.wow.api.decide.Decision.NoOp = me.ahoo.wow.api.decide.Decision.NoOp"
+        )
+            .assert().contains("after hook afterCommand returns me.ahoo.wow.api.decide.Decision.NoOp")
+        val (_, aliased) = compileModel(
+            "generate",
+            ManifestFragmentFixtures.context,
+            cart("fun afterCommand(command: Any): Verdict = me.ahoo.wow.api.decide.Decision.NoOp"),
+            SourceFile.kotlin("Verdict.kt", "package sample\n\ntypealias Verdict = me.ahoo.wow.api.decide.Decision"),
+        )
+        aliased.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        aliased.messages.assert().contains("after hook afterCommand returns sample.Verdict")
+        // A publisher of events is no decision.
+        val (_, publishing) = compileModel(
+            "generate",
+            ManifestFragmentFixtures.context,
+            cart(
+                "fun afterCommand(command: Any): reactor.core.publisher.Mono<Audited> = reactor.core.publisher.Mono.empty()"
+            ),
+        )
+        publishing.exitCode.assert().withFailMessage { publishing.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
+        // A star projection or a type parameter says nothing of a decision, as of the events.
+        listOf(
+            "fun afterCommand(command: Any): reactor.core.publisher.Mono<*> = reactor.core.publisher.Mono.empty<Any>()",
+            "fun <T : Any> afterCommand(command: Any): T? = null",
+        ).forEach { hook ->
+            compileModel("generate", ManifestFragmentFixtures.context, cart(hook)).second.messages.assert()
+                .doesNotContain("not a decision")
+        }
+    }
 }
