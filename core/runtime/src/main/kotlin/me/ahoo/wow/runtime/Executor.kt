@@ -16,6 +16,7 @@ package me.ahoo.wow.runtime
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.aggregate.AggregateRef
@@ -31,6 +32,7 @@ import me.ahoo.wow.runtime.health.NodeFatals
 import me.ahoo.wow.runtime.state.SharedStates
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.observation.ObservedEvent.Fatal.Component
+import me.ahoo.wow.spi.observation.TraceContext
 import me.ahoo.wow.spi.wait.WaitContext
 import java.time.Clock
 import java.util.concurrent.ConcurrentHashMap
@@ -111,7 +113,7 @@ class Executor(
     suspend fun execute(model: AggregateModel<*>, command: Command<*>, wait: WaitContext? = null): CommandOutcome {
         val lane = enter(command.ref)
         try {
-            val own = Queued(model, command, wait)
+            val own = Queued(model, command, wait, currentCoroutineContext()[TraceContext])
             val leading = synchronized(lane) {
                 lane.queue.addLast(own)
                 !lane.leading.also { lane.leading = true }
@@ -180,7 +182,7 @@ class Executor(
             outcomes = if (batch.size == 1) {
                 listOf(BatchOutcome.Done(kernel.execute(model, own.command, own.wait, appending)))
             } else {
-                kernel.executeBatch(model, batch.map { QueuedCommand(it.command, it.wait) }, appending)
+                kernel.executeBatch(model, batch.map { QueuedCommand(it.command, it.wait, it.trace) }, appending)
             }
             if (views != null) {
                 outcomes.forEach { outcome ->
@@ -337,9 +339,15 @@ class Executor(
 
     /**
      * A command in its lane: [turn] is its outcome, or [BatchOutcome.Again] when it is handed the lane to lead.
-     * [abandoned], under the lane's monitor: its caller was cancelled while a batch had taken it.
+     * [abandoned], under the lane's monitor: its caller was cancelled while a batch had taken it. [trace] is its
+     * caller's coroutine's, in which a batch led by another command observes its execution.
      */
-    private class Queued(val model: AggregateModel<*>, val command: Command<*>, val wait: WaitContext?) {
+    private class Queued(
+        val model: AggregateModel<*>,
+        val command: Command<*>,
+        val wait: WaitContext?,
+        val trace: TraceContext?,
+    ) {
         val turn = CompletableDeferred<BatchOutcome>()
         var abandoned = false
     }

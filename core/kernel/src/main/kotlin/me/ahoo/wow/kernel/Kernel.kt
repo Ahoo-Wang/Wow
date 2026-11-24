@@ -35,6 +35,7 @@ import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.ExecutionLease
 import me.ahoo.wow.spi.log.SnapshotTailReader
 import me.ahoo.wow.spi.log.Transport
+import me.ahoo.wow.spi.observation.Observation
 import me.ahoo.wow.spi.observation.ObservedOutcome
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.observation.observe
@@ -199,12 +200,32 @@ class Kernel(
         wait: WaitContext? = null,
         appending: ((EventStreamRecord, CachedState) -> Unit)? = null,
     ): CommandOutcome {
+        requireExecutable(model, admitted)
+        val executing = observer.executing(admitted, observedTypeOf(model, admitted))
+        return executeObserved(model, admitted, wait, appending, executing)
+    }
+
+    private fun requireExecutable(model: AggregateModel<*>, admitted: Command<*>) {
         require(admitted.ref.type == model.type) { "${admitted.ref} is not a ${model.type}." }
         require(admitted.ref.isAssigned) { "${admitted.ref} names no aggregate: admission assigns its id." }
-        val type = admitted.ref.type
-        val commandType = model.findCommandType(admitted.body.javaClass)?.name
-            ?: "${type.context}.${type.name}.${admitted.body.javaClass.simpleName}"
-        val executing = observer.executing(admitted, commandType)
+    }
+
+    /** The type [command]'s execution is observed as: its model's name of it, or one made of its class's name. */
+    private fun observedTypeOf(model: AggregateModel<*>, command: Command<*>): String =
+        model.findCommandType(command.body.javaClass)?.name
+            ?: "${model.type.context}.${model.type.name}.${command.body.javaClass.simpleName}"
+
+    /**
+     * [execute]s [admitted] in [executing], the observation of its execution, which it ends: [execute]'s own, or the
+     * one [executeBatch] started for its first command.
+     */
+    private suspend fun <S : Any> executeObserved(
+        model: AggregateModel<S>,
+        admitted: Command<*>,
+        wait: WaitContext?,
+        appending: ((EventStreamRecord, CachedState) -> Unit)?,
+        executing: Observation,
+    ): CommandOutcome {
         var committed: CommandOutcome.Committed? = null
         return try {
             executing.observe {
@@ -239,6 +260,11 @@ class Kernel(
      * A state may be evolved in place: a member's [CommandOutcome.Committed.state] is the instance the later members of
      * its batch evolved further, as the next command's [execute] evolves it. The state each stream committed is the
      * one [appending] is given for it, before the next member is decided.
+     *
+     * [observer] sees each command the batch settles as [execute] shows it a command: its execution, from the start of
+     * its decision to its outcome (the first command's from the start of the batch), its decision and its stream's
+     * append, in the trace of its caller ([QueuedCommand.trace]); what its stream carries for delivery holds its own
+     * append's trace. A command the batch hands back is observed by the run that settles it ([Batching]).
      */
     suspend fun <S : Any> executeBatch(
         model: AggregateModel<S>,
@@ -246,12 +272,25 @@ class Kernel(
         appending: ((EventStreamRecord, CachedState) -> Unit)? = null,
     ): List<BatchOutcome> {
         require(queued.isNotEmpty()) { "A batch holds at least one command." }
-        val ref = queued.first().command.ref
+        val first = queued.first()
+        val ref = first.command.ref
         require(queued.all { it.command.ref == ref }) { "A batch holds the commands of one aggregate." }
-        // Without recent requests every request id is looked up first: each command runs alone.
-        val members = if (recentRequests > 0) batching.membersOf(model, queued, appending) else BatchMembers()
+        requireExecutable(model, first.command)
+        // The first command's execution, observed from here to its outcome, whether the batch settles it or it runs
+        // alone.
+        val leading = batching.executing(first, observedTypeOf(model, first.command))
+        val members = try {
+            // Without recent requests every request id is looked up first: each command runs alone.
+            if (recentRequests > 0) batching.membersOf(model, queued, appending, leading) else BatchMembers()
+        } catch (
+            @Suppress("TooGenericExceptionCaught") // The first command fails with it, as execute fails it; rethrown.
+            failure: Throwable,
+        ) {
+            leading.ended(failure)
+            throw failure
+        }
         if (members.streams.isEmpty()) {
-            return listOf(alone(model, queued.first(), appending)) + List(queued.size - 1) { BatchOutcome.Again }
+            return listOf(alone(model, first, appending, leading)) + List(queued.size - 1) { BatchOutcome.Again }
         }
         val outcomes = batching.commitBatch(members) + List(queued.size - members.streams.size) { BatchOutcome.Again }
         // The first stream did not commit and is decided again: alone, within execute's attempts, so the lane always
@@ -259,19 +298,20 @@ class Kernel(
         // A command that failed deciding may have evolved the state part way: it is dropped, and reloaded.
         if (members.tainted) states.take(ref)
         return if (outcomes.first() is BatchOutcome.Again) {
-            listOf(alone(model, queued.first(), appending)) + outcomes.drop(1)
+            listOf(alone(model, first, appending, leading)) + outcomes.drop(1)
         } else {
             outcomes
         }
     }
 
-    /** [entry] executed alone, through [execute]: its outcome, or its failure. */
+    /** [entry] executed alone, as [execute] executes it, in [executing]: its outcome, or its failure. */
     private suspend fun <S : Any> alone(
         model: AggregateModel<S>,
         entry: QueuedCommand,
         appending: ((EventStreamRecord, CachedState) -> Unit)?,
+        executing: Observation,
     ): BatchOutcome = try {
-        BatchOutcome.Done(execute(model, entry.command, entry.wait, appending))
+        BatchOutcome.Done(executeObserved(model, entry.command, entry.wait, appending, executing))
     } catch (cancelled: CancellationException) {
         throw cancelled
     } catch (

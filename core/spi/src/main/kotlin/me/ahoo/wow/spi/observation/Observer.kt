@@ -28,7 +28,10 @@ import kotlin.coroutines.EmptyCoroutineContext
  * library; an observer only watches and never changes what the work does (06-modules §3).
  *
  * Each method but [observed] starts an [Observation] of one stage, which the core ends when the stage does; [observed]
- * tells it something without a duration ([ObservedEvent]). Every method has a default that observes nothing, so an
+ * tells it something without a duration ([ObservedEvent]). A stage the core gives up to do again under another
+ * observation, such as a command a batch hands back to its aggregate's lane to be decided again, is dropped without
+ * [Observation.end], so an observer records a stage only when it ends, and holds nothing for one meanwhile that it
+ * could not let go. Every method has a default that observes nothing, so an
  * observer overrides only what it watches; the stages' defaults, and [NONE], return [Observation.NONE], so the core
  * allocates nothing for a stage nobody observes.
  *
