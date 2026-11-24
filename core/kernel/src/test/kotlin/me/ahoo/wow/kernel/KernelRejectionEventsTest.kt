@@ -166,7 +166,7 @@ class KernelRejectionEventsTest {
     fun `a rejection's event the aggregate cannot source should fail as an unsourced event does`() = runTest {
         val (kernel, log) = opened()
         assertThrows<IllegalArgumentException> { kernel.execute(model, command(UnlockUnsourced("1"))) }
-            .message.assert().contains("cannot evolve")
+            .message.assert().contains("is not an event of vault.safe")
         log.read(ref).toList().size.assert().isEqualTo(1)
     }
 

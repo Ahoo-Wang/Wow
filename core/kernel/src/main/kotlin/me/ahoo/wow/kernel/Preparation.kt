@@ -122,6 +122,10 @@ internal class Preparation(
      * The stream [command] appends with [events] (a rejection's when [rejection] is not null) on [loaded] at
      * [commitTime], and the state after it; refused ([Prepared.Done.evolved]) when it leaves the aggregate out of its
      * caller's reach ([leaves]), checked once the events evolved the state, on the attributes the stream records.
+     *
+     * The events are encoded as the decision returned them, before they evolve the state: an evolve function may keep
+     * a mutable value of its event in the state, which the next event changes, and the log records the decision, so
+     * that a replay rebuilds the state the command left.
      */
     private fun <S : Any> appended(
         model: AggregateModel<S>,
@@ -139,8 +143,9 @@ internal class Preparation(
         @Suppress("UNCHECKED_CAST") // The ref names the aggregate type, so the loaded state is this model's.
         val state = loaded.state as S
         val metadata = metadataAfter(model, loaded, command, events)
-        // Read before the events evolve the state, which may change it in place.
+        // Read before the events evolve the state, which may change it in place, and them with it.
         val before = if (reach.governed) loaded.declared(model) else emptyMap()
+        val records = events.map { codec.encode(model, it) }
         val evolved = evolveDecided(model, state, events, command, commandType, version + 1, commitTime, metadata.scope)
         val declared = model.accessOf(evolved)
         leaves(command, reach, version, metadata.scope, before, declared)?.let {
@@ -153,7 +158,7 @@ internal class Preparation(
             requestId = command.requestId,
             commandType = commandType,
             commitTime = commitTime,
-            events = events.map { codec.encode(model, it) },
+            events = records,
             scope = metadata.scope,
             causation = command.causation,
             headers = headersOf(command, rejection, writtenAt),
