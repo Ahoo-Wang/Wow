@@ -101,7 +101,7 @@ class AcquisitionGateTest {
 
     @Test
     fun `once an acquisition was wanted, a heartbeat ends the window and only the probe closes it`(): Unit = runBlocking {
-        gate.failed("an acquisition", IllegalStateException("down"), acquisition = true)
+        gate.failed("an acquisition", IllegalStateException("down"), hold = true)
         gate.state.assert().isEqualTo(State.HOLDING)
         gate.admit().assert().isNull()
         // The store answers a heartbeat: the window ends, so the probe goes now, and the gate still holds.
@@ -134,7 +134,7 @@ class AcquisitionGateTest {
         runBlocking {
             val early = gate.admit()
             early.assert().isEqualTo(Admission.FREE)
-            gate.failed("an acquisition", IllegalStateException("down"), acquisition = true)
+            gate.failed("an acquisition", IllegalStateException("down"), hold = true)
             gate.recorded("an acquisition", early!!) { Unit }
             gate.open.assert().isTrue()
             gate.admit().assert().isEqualTo(Admission.PROBE)
@@ -142,7 +142,7 @@ class AcquisitionGateTest {
 
     @Test
     fun `leases that lapsed make it hold, so a heartbeat before the woken reconcile closes nothing`(): Unit = runBlocking {
-        gate.failed("renewing 3 leases", acquisition = true)
+        gate.failed("renewing 3 leases", hold = true)
         gate.recorded("a heartbeat") { Unit }
         gate.state.assert().isEqualTo(State.HOLDING)
     }

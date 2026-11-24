@@ -38,7 +38,10 @@ import me.ahoo.wow.spi.subscription.Member
 import org.bson.Document
 import org.bson.conversions.Bson
 import java.time.Clock
+import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
+import kotlin.time.TimeMark
+import kotlin.time.TimeSource
 
 /**
  * The [LeaseStore] on MongoDB: one document per (group, partition) in `wow_lease` and one per (group, node), with the
@@ -53,6 +56,11 @@ import kotlin.time.Duration
  *
  * Times come from [clock], so they are the calling node's: keep the TTL well above the nodes' clock skew. Calls run on
  * [dispatcher], virtual threads by default.
+ *
+ * An acquisition, a renewal and a heartbeat take at most the TTL they are given, never more than [operationTimeout]
+ * ([LeaseStore]'s time bound): each of their round trips carries what is left of it as the driver's client-side
+ * timeout, which, when it passes, closes the connection and fails the call as transient; the server may still apply
+ * the write.
  */
 @InternalWowApi
 class MongoLeaseStore(
@@ -63,7 +71,7 @@ class MongoLeaseStore(
     /** How the store's collections and indexes are managed: created when missing by default. */
     private val ddl: Ddl = Ddl.AUTO,
     /** How long each of its calls may take (`wow.mongo.operation-timeout`, [MongoTimeouts]). */
-    operationTimeout: Duration = MongoTimeouts.OPERATION,
+    private val operationTimeout: Duration = MongoTimeouts.OPERATION,
 ) : LeaseStore {
     private val database = MongoDatabases.of(client, databaseName, operationTimeout)
     private val leases: MongoCollection<Document> = database.getCollection(LEASES)
@@ -79,6 +87,7 @@ class MongoLeaseStore(
 
     override suspend fun acquire(group: String, partition: Int, owner: String, ttl: Duration): Lease? =
         dispatcher.mongo {
+            val deadline = Deadline(ttl)
             val now = clock.millis()
             val takeable = Filters.and(
                 leaseFilter(group, partition),
@@ -101,7 +110,7 @@ class MongoLeaseStore(
                 ),
             )
             conditionalUpsert { upsert ->
-                leases.findOneAndUpdate(takeable, take, returnAfter(upsert))?.let { leaseOf(it) }
+                deadline.of(leases).findOneAndUpdate(takeable, take, returnAfter(upsert))?.let { leaseOf(it) }
             }
         }
 
@@ -120,6 +129,7 @@ class MongoLeaseStore(
             return emptyList()
         }
         return dispatcher.mongo {
+            val deadline = Deadline(ttl)
             val now = clock.millis()
             val expiresAt = now + ttl.inWholeMilliseconds
             val held = Filters.and(
@@ -127,8 +137,9 @@ class MongoLeaseStore(
                 Filters.`in`(PARTITION, partitions),
                 Filters.eq(OWNER, owner)
             )
-            leases.updateMany(Filters.and(held, Filters.gt(EXPIRES_AT, now)), Updates.set(EXPIRES_AT, expiresAt))
-            leases.find(Filters.and(held, Filters.eq(EXPIRES_AT, expiresAt)))
+            deadline.of(leases)
+                .updateMany(Filters.and(held, Filters.gt(EXPIRES_AT, now)), Updates.set(EXPIRES_AT, expiresAt))
+            deadline.of(leases).find(Filters.and(held, Filters.eq(EXPIRES_AT, expiresAt)))
                 .sort(Sorts.ascending(PARTITION))
                 .map { leaseOf(it) }
                 .toList()
@@ -154,10 +165,11 @@ class MongoLeaseStore(
         ttl: Duration,
         groups: Set<String>,
     ): Member = dispatcher.mongo {
+        val deadline = Deadline(ttl)
         val expiresAt = clock.millis() + ttl.inWholeMilliseconds
         val sorted = groups.toSortedSet()
         conditionalUpsert { upsert ->
-            members.updateOne(
+            deadline.of(members).updateOne(
                 memberFilter(service, node),
                 Updates.combine(
                     Updates.set(ADDRESS, address),
@@ -188,6 +200,24 @@ class MongoLeaseStore(
 
     override suspend fun leave(service: String, node: String) {
         dispatcher.mongo { members.deleteOne(memberFilter(service, node)) }
+    }
+
+    /**
+     * The end of a lease call of [ttl]: [ttl] from now, at most the store's operation timeout. Each round trip of the
+     * call takes what is left of it ([of]), so a call of two round trips, or an upsert tried again, keeps to it too.
+     */
+    private inner class Deadline(ttl: Duration) {
+        private val bound = minOf(ttl, operationTimeout)
+        private val started: TimeMark = TimeSource.Monotonic.markNow()
+
+        /**
+         * [collection] whose next operation times out when this deadline passes; a deadline passed leaves it a
+         * millisecond, which no round trip fits in.
+         */
+        fun <T : Any> of(collection: MongoCollection<T>): MongoCollection<T> {
+            val left = (bound - started.elapsedNow()).inWholeMilliseconds
+            return collection.withTimeout(left.coerceAtLeast(1), TimeUnit.MILLISECONDS)
+        }
     }
 
     private fun leaseFilter(group: String, partition: Int): Bson =

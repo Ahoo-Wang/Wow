@@ -116,7 +116,7 @@ internal class AcquisitionGate(
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (@Suppress("TooGenericExceptionCaught") failure: Exception) {
-            failed(what, failure, acquisition = admission != null)
+            failed(what, failure, hold = admission != null)
             throw failure
         } finally {
             if (admission == Admission.PROBE) {
@@ -126,13 +126,13 @@ internal class AcquisitionGate(
     }
 
     /**
-     * Opens or widens the gate: [what] failed, by [failure] when the store threw. A renewal or a heartbeat suspects the
-     * store; an [acquisition] that failed, or leases that lapsed, make it hold.
+     * Opens or widens the gate: [what] failed, by [failure] when the store threw. It suspects the store, or makes the
+     * gate [hold]: an acquisition that failed and leases that lapsed do, a renewal or a heartbeat that failed do not.
      */
     @Synchronized
-    fun failed(what: String, failure: Throwable? = null, acquisition: Boolean = false) {
+    fun failed(what: String, failure: Throwable? = null, hold: Boolean = false) {
         val opening = state == State.CLOSED
-        if (acquisition) {
+        if (hold) {
             state = State.HOLDING
         } else if (opening) {
             state = State.SUSPECTED
