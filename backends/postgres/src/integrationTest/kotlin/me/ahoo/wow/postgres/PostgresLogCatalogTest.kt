@@ -29,8 +29,12 @@ import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.tck.containers.WowContainers
 import org.junit.jupiter.api.Test
+import org.postgresql.ds.PGSimpleDataSource
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
 /** The aggregate tables a log makes sure of: only those of its own context. */
@@ -104,6 +108,93 @@ class PostgresLogCatalogTest : PostgresLogFixtures() {
         val context = PostgresFixture.newContext()
         PostgresFixture.log(4, context)
         assertThrownBy<IllegalStateException> { PostgresFixture.log(8, context) }
+    }
+
+    /**
+     * Of two first starts with different counts, only the one whose count is stored opens the log (#6750): the
+     * counters are filled under the creation lock, so the second start's insert finds the first's counters. The
+     * interleaving is held, not timed: a `BEFORE INSERT` trigger on the counters holds the second start's insert (its
+     * session carries `wow.review.slow=on`) until the first start has tried, which on `main` let both open.
+     */
+    @Test
+    fun `two first starts with different partition counts never both open the log`() {
+        val context = PostgresFixture.newContext("count-race")
+        val tables = PostgresEventLogTables(context)
+        // The tables and their format records as a first start makes them, then emptied: what two first starts both
+        // find once one of them has created the tables under the creation lock.
+        PostgresEventLog(PostgresFixture.dataSource, context, SMALL).createSchema()
+        PostgresFixture.dataSource.connection.use { connection ->
+            connection.createStatement().use { statement ->
+                statement.execute("DELETE FROM ${tables.partitions}")
+                statement.execute(
+                    """
+                    CREATE OR REPLACE FUNCTION wow_review_hold_insert() RETURNS trigger AS ${'$'}${'$'}
+                    BEGIN
+                        IF current_setting('wow.review.slow', true) = 'on' AND NEW.partition = 0 THEN
+                            PERFORM pg_sleep($HOLD_SECONDS);
+                        END IF;
+                        RETURN NEW;
+                    END
+                    ${'$'}${'$'} LANGUAGE plpgsql
+                    """.trimIndent(),
+                )
+                statement.execute(
+                    "CREATE TRIGGER wow_review_hold BEFORE INSERT ON ${tables.partitions} " +
+                        "FOR EACH ROW EXECUTE FUNCTION wow_review_hold_insert()",
+                )
+            }
+        }
+        val container = WowContainers.postgres
+        val held = PGSimpleDataSource().apply {
+            setURL(container.jdbcUrl)
+            user = container.username
+            password = container.password
+            options = "-c wow.review.slow=on"
+        }
+
+        // The second start: its insert takes its snapshot (the table empty), then waits in the trigger.
+        val large = CompletableFuture.supplyAsync {
+            runCatching { PostgresEventLog(held, context, LARGE).createSchema() }
+        }
+        awaitHeldInsert()
+        // The first start, meanwhile: it finds the table empty too, fills 16 counters, and counts 16.
+        val small = runCatching { PostgresEventLog(PostgresFixture.dataSource, context, SMALL).createSchema() }
+        val second = large.get(HOLD_SECONDS * 4L, TimeUnit.SECONDS)
+
+        val stored = PostgresFixture.dataSource.connection.use { connection ->
+            connection.createStatement().use { statement ->
+                statement.executeQuery("SELECT count(*) FROM ${tables.partitions}").use { rows ->
+                    rows.next()
+                    rows.getInt(1)
+                }
+            }
+        }
+        // At most one of the two counts may open a log over the one counter table, and it is the count stored.
+        val opened = listOf(SMALL to small, LARGE to second)
+            .filter { (_, outcome) -> outcome.isSuccess }
+            .map { it.first }
+        opened.assert().describedAs("the partition counts whose log opened, over $stored counter rows").hasSize(1)
+        opened.single().assert().isEqualTo(stored)
+    }
+
+    /** Waits until a session of this database sleeps in the trigger: the held insert has its snapshot. */
+    private fun awaitHeldInsert() {
+        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(HOLD_SECONDS.toLong())
+        while (System.nanoTime() < deadline) {
+            val sleeping = PostgresFixture.dataSource.connection.use { connection ->
+                connection.createStatement().use { statement ->
+                    statement.executeQuery(
+                        "SELECT count(*) FROM pg_stat_activity WHERE wait_event = 'PgSleep' AND query LIKE '%generate_series%'",
+                    ).use { rows ->
+                        rows.next()
+                        rows.getInt(1)
+                    }
+                }
+            }
+            if (sleeping > 0) return
+            Thread.sleep(POLL_MILLIS)
+        }
+        error("The second start's insert never reached the trigger.")
     }
 
     @Test
@@ -206,5 +297,9 @@ class PostgresLogCatalogTest : PostgresLogFixtures() {
         const val FIRST_READS = 32
         const val WRITERS = 4
         const val STARTS = 200
+        const val SMALL = 16
+        const val LARGE = 32
+        const val HOLD_SECONDS = 3
+        const val POLL_MILLIS = 20L
     }
 }
