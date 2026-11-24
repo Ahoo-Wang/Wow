@@ -263,17 +263,29 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
 
     /**
      * The models of [models] whose state [handler] reads; never the built-in rebuild aggregate's,
-     * whose requests are the runtime's.
+     * whose requests are the runtime's. A handler of each event of a type no aggregate it reads has is refused: it is
+     * a handler of another context's events whose aggregates neither its `@OnEvent(aggregates)` nor the service's
+     * Manifest names, and it would read this context's log, never the peer's (#6840).
      */
     private fun read(handler: ProcessorBinding<*>, models: List<AggregateModel<*>>): List<AggregateModel<*>> {
         val application = models.filterNot(SnapshotRebuildModel::isRebuild)
-        val type = handler.stateType ?: return application
-        return application.filter { type.isAssignableFrom(it.stateType) }.also {
-            require(it.isNotEmpty()) {
-                "${handler.name} reads the state ${type.name}, which no aggregate of its context " +
-                    "(${models.joinToString { model -> model.type.toString() }}) has."
+        val read = handler.stateType?.let { type ->
+            application.filter { type.isAssignableFrom(it.stateType) }.also {
+                require(it.isNotEmpty()) {
+                    "${handler.name} reads the state ${type.name}, which no aggregate of its context " +
+                        "(${models.joinToString { model -> model.type.toString() }}) has."
+                }
+            }
+        } ?: application
+        handler.eventType?.let { type ->
+            require(read.any { it.eventNamesOf(type).isNotEmpty() }) {
+                "${handler.name} takes ${type.name}, which no aggregate of its context " +
+                    "(${read.joinToString { model -> model.type.toString() }}) has as an event: a handler of another " +
+                    "context's events reads the aggregates the service's Manifest resolves from the peer contracts on " +
+                    "the class path, or those its @OnEvent(aggregates) names."
             }
         }
+        return read
     }
 
     @InternalWowApi
@@ -536,7 +548,8 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
  * state read, as the handler's own check would have skipped it; its checkpoint moves and a wait on it at this hop is
  * answered as for any entry a filter leaves out. A name [models] do not know is still handed on
  * ([SubscriptionFilter.known]), as decoding alone can say whether it is one of the type's. With no [eventType], or none
- * of [models]' events of it, the filter names no event: every commit is handed on, as before.
+ * of [models]' events of it (a handler [SubscriptionBindings] refuses), the filter names no event: every commit is handed
+ * on, as before.
  */
 internal fun handlerFilter(
     context: String,
