@@ -247,6 +247,11 @@ abstract class NodeHealthFixtures {
             return log.head(partition)
         }
 
+        override suspend fun heads(partitions: Collection<Int>): Map<Int, Long?> {
+            check()
+            return log.heads(partitions)
+        }
+
         override suspend fun findByRequestId(ref: AggregateRef, requestId: String): EventStreamRecord? {
             check()
             return log.findByRequestId(ref, requestId)
