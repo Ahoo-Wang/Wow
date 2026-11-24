@@ -90,6 +90,16 @@ class KubernetesChartTest {
             .message.assert().contains("without a kind")
         assertThrows<IllegalStateException> { GenerateManifests.objectsOf("---\nkind: Service\nspec: {}\n") }
             .message.assert().contains("without a name")
+        // Two objects of one kind and name would be one file: refused, naming the file and both templates.
+        val twice = "---\n# Source: wow-service/templates/a.yaml\nkind: Service\nmetadata:\n  name: shop\n" +
+            "---\n# Source: wow-service/templates/b.yaml\nkind: Service\nmetadata:\n  name: shop\n"
+        assertThrows<GradleException> { GenerateManifests.objectsOf(twice) }.message.assert().isEqualTo(
+            "Helm rendered 2 objects that would all be service-shop.yaml, one replacing the others: " +
+                "wow-service/templates/a.yaml and wow-service/templates/b.yaml.",
+        )
+        val unsourced = "---\nkind: Service\nmetadata:\n  name: shop\n---\nkind: Service\nmetadata:\n  name: shop\n"
+        assertThrows<GradleException> { GenerateManifests.objectsOf(unsourced) }
+            .message.assert().endsWith("a document and a document.")
     }
 
     @Test

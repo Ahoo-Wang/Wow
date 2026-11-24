@@ -33,6 +33,7 @@ import org.gradle.api.tasks.TaskAction
 import org.gradle.process.ExecOperations
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.security.MessageDigest
 import java.util.zip.ZipInputStream
 import javax.inject.Inject
 
@@ -55,9 +56,13 @@ internal abstract class GenerateManifests @Inject constructor(private val exec: 
     @get:PathSensitive(PathSensitivity.NAME_ONLY)
     abstract val values: ConfigurableFileCollection
 
-    /** The order of [values], which decides which one wins: their names, as the files' contents are fingerprinted. */
+    /**
+     * The order of [values], which decides which one wins: the SHA-256 of each file's contents, in order. [values] is
+     * fingerprinted as a set, which two files of one name (`deploy/shop/values.yaml`, `deploy/shop/prod/values.yaml`)
+     * leave the same in either order; their contents tell them apart, the same on every machine.
+     */
     @get:Input
-    val valuesOrder: Provider<List<String>> get() = values.elements.map { files -> files.map { it.asFile.name } }
+    val valuesOrder: Provider<List<String>> get() = values.elements.map { files -> files.map { sha256(it.asFile) } }
 
     /** The namespace the service is deployed to ([WowKubernetesExtension.namespace]); required when the task runs. */
     @get:Input
@@ -160,15 +165,37 @@ internal abstract class GenerateManifests @Inject constructor(private val exec: 
         private val NAME = Regex("""(?m)^metadata:\s*\n(?:[ ]{2}.*\n)*?[ ]{2}name:\s*"?([^"\s]+)"?\s*$""")
         private val SERVICE = Regex("""(?m)^service:\s*\n(?:[ ]{2}.*\n)*?[ ]{2}name:\s*"([^"]+)"\s*$""")
 
-        /** The objects of Helm's [output]: its documents, each with a kind, named after their kind and name. */
-        fun objectsOf(output: String): List<Rendered> = output.split(Regex("""(?m)^---\s*$"""))
-            .map { it.trim('\n') }
-            .filter { document -> document.lines().any { it.isNotBlank() && !it.startsWith("#") } }
-            .map { document ->
-                val kind = checkNotNull(KIND.find(document)) { "Helm rendered an object without a kind:\n$document" }
-                val name = checkNotNull(NAME.find(document)) { "Helm rendered an object without a name:\n$document" }
-                Rendered("${kind.groupValues[1].lowercase()}-${name.groupValues[1]}.yaml", document + "\n")
+        /**
+         * The objects of Helm's [output]: its documents, each with a kind, named after their kind and name. Two that would
+         * be one file are refused: one would replace the other in silence, and the base would lack an object.
+         */
+        fun objectsOf(output: String): List<Rendered> {
+            val objects = output.split(Regex("""(?m)^---\s*$"""))
+                .map { it.trim('\n') }
+                .filter { document -> document.lines().any { it.isNotBlank() && !it.startsWith("#") } }
+                .map(::objectOf)
+            objects.groupBy { it.file }.values.firstOrNull { it.size > 1 }?.let { same ->
+                throw GradleException(
+                    "Helm rendered ${same.size} objects that would all be ${same.first().file}, one replacing the " +
+                        "others: ${same.joinToString(" and ") { sourceOf(it.text) }}.",
+                )
             }
+            return objects
+        }
+
+        /** The object of one rendered [document]: its file, named after its kind and name, and its text. */
+        private fun objectOf(document: String): Rendered {
+            val kind = checkNotNull(KIND.find(document)) { "Helm rendered an object without a kind:\n$document" }
+            val name = checkNotNull(NAME.find(document)) { "Helm rendered an object without a name:\n$document" }
+            return Rendered("${kind.groupValues[1].lowercase()}-${name.groupValues[1]}.yaml", document + "\n")
+        }
+
+        /** The template a rendered document came from: its `# Source:` line, as Helm writes it. */
+        private fun sourceOf(document: String): String =
+            document.lines().firstOrNull { it.startsWith("# Source:") }?.removePrefix("# Source:")?.trim() ?: "a document"
+
+        private fun sha256(file: File): String = MessageDigest.getInstance("SHA-256").digest(file.readBytes())
+            .joinToString("") { "%02x".format(it) }
 
         /** The service's name in the generated [values]: the chart's release, after which it names every object. */
         fun serviceOf(values: File): String = SERVICE.find(values.readText())?.groupValues?.get(1)

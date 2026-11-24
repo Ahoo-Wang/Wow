@@ -66,7 +66,10 @@ class GenerateManifestsTest {
     @Test
     fun `the task should write each object and the kustomization, rendered for the namespace from the values in order`() {
         val task = task(helm())
-        task.valuesOrder.get().assert().containsExactly("values.yaml")
+        // The order is the contents' digests, which tell apart two files of one name.
+        val digest = java.security.MessageDigest.getInstance("SHA-256")
+            .digest(File(directory, "values.yaml").readBytes()).joinToString("") { "%02x".format(it) }
+        task.valuesOrder.get().assert().containsExactly(digest)
         task.chartVersion.get().assert().isEqualTo(WowPlugin.version)
         task.helmVersion.get().assert().isEqualTo(HelmRelease.VERSION)
         task.render()

@@ -80,9 +80,13 @@ class KubernetesManifestsFunctionalTest {
         .forwardOutput()
 
     /** The service's build file with its `kubernetes` block: the values file and the namespace, each when asked for. */
-    private fun server(values: Boolean = true, namespace: Boolean = true) {
+    private fun server(
+        values: Boolean = true,
+        namespace: Boolean = true,
+        files: List<String> = listOf("deploy/values.yaml"),
+    ) {
         val lines = listOfNotNull(
-            "values.from(\"deploy/values.yaml\")".takeIf { values },
+            files.joinToString(", ", "values.from(", ")") { "\"$it\"" }.takeIf { values },
             "namespace = \"shop\"".takeIf { namespace },
         )
         val block = "\n\nwow {\n    kubernetes {\n" + lines.joinToString("") { "        $it\n" } + "    }\n}\n"
@@ -118,6 +122,23 @@ class KubernetesManifestsFunctionalTest {
         output.deleteRecursively()
         runner(task, "--build-cache").build().task(task)?.outcome.assert().isEqualTo(TaskOutcome.FROM_CACHE)
         File(output, "deployment-a-server.yaml").isFile.assert().isTrue()
+    }
+
+    @Test
+    fun `swapping two values files of one name should render again, and the other file win`() {
+        ContextsFixture.write(root, "a-server/deploy/shop/values.yaml", "image:\n  repository: a-server\nreplicas: 3\n")
+        ContextsFixture.write(root, "a-server/deploy/shop/prod/values.yaml", "replicas: 5\n")
+        val deployment = File(output, "deployment-a-server.yaml")
+        try {
+            server(files = listOf("deploy/shop/values.yaml", "deploy/shop/prod/values.yaml"))
+            runner(task, "--build-cache").build()
+            deployment.readText().assert().contains("replicas: 5")
+            server(files = listOf("deploy/shop/prod/values.yaml", "deploy/shop/values.yaml"))
+            runner(task, "--build-cache").build().task(task)?.outcome.assert().isEqualTo(TaskOutcome.SUCCESS)
+            deployment.readText().assert().contains("replicas: 3")
+        } finally {
+            server()
+        }
     }
 
     @Test
