@@ -426,6 +426,23 @@ class HttpCommandClientTest {
     }
 
     @Test
+    fun `a gateway's bare 504 or 502 should be no decided answer, the caller's to send again with its request id`() {
+        listOf(504, 502).forEach { status ->
+            peer.taken.clear()
+            peer.reply(Reply(status, mapOf("Content-Type" to "text/html"), "<html>Bad Gateway</html>".toByteArray()))
+            val failure = caught<WowProblemException> {
+                runBlocking { client().wait(CommandRequest.to(ref, DeliverItems(emptyList()))) }
+            }
+            // The gateway took the command and does not say whether the node committed it: not "NONE fails alike
+            // again", but the same request id, which answers a command that did commit as its duplicate (#6810).
+            failure.code.assert().isEqualTo("http.$status")
+            failure.retry.assert().describedAs("the retry of a bare $status").isEqualTo(Retry.SAME_REQUEST)
+            // Not sent again here, as `wow.wait.timeout` is not: whether to is the caller's.
+            peer.taken.assert().hasSize(1)
+        }
+    }
+
+    @Test
     fun `a peer that is down should be tried as often as the policy says, then be wow-peer-unavailable`() {
         withRefusingPort { closed ->
             val down = EndpointResolver.of(emptyMap(), mapOf("mail" to URI.create("http://127.0.0.1:$closed")))
