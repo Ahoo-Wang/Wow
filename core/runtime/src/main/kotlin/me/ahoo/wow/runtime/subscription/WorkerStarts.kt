@@ -46,13 +46,13 @@ internal class WorkerStarts(
 
     /**
      * Where each of [named] starts in [partition], read at once: its parked aggregates there, and its checkpoint,
-     * or, for one that has none yet, where its start puts it, saved at once, 0 included, so a restart before the first
-     * save does not move the start to a later end. Those first checkpoints are saved in one write. The partition's
-     * cut-over row is read alongside, for its workers.
+     * or, for one that has none yet, where its start puts it among the subscriptions [joined] had read the partition,
+     * saved at once, 0 included, so a restart before the first save does not move the start to a later end. Those
+     * first checkpoints are saved in one write. The partition's cut-over row is read alongside, for its workers.
      */
     suspend fun startsIn(
         atStart: ParkedAtStart,
-        joined: Set<String>,
+        joined: Map<Int, Set<String>>,
         named: Collection<Subscription>,
         partition: Int
     ): Map<String, WorkerStart> {
@@ -74,31 +74,32 @@ internal class WorkerStarts(
 
     /**
      * Where [subscription] starts in [partition], with its [parked] aggregates there: at its checkpoint, or, without
-     * one, where it starts ([startOf]) among the subscriptions [joined] before; [WorkerStart.first] then, for its
-     * caller to save.
+     * one, where it starts ([startOf]) among the subscriptions [joined] had read the partition before;
+     * [WorkerStart.first] then, for its caller to save.
      */
     suspend fun workerStart(
         subscription: Subscription,
         partition: Int,
-        joined: Set<String>,
+        joined: Map<Int, Set<String>>,
         parked: Map<AggregateRef, Long>,
     ): WorkerStart {
         val saved = checkpoints.load(group, subscription.name, partition)
-        val checkpoint = saved ?: source.checkpointOf(startOf(subscription, joined), partition)
+        val checkpoint = saved ?: source.checkpointOf(startOf(subscription, joined[partition].orEmpty()), partition)
         return WorkerStart(subscription, checkpoint, saved == null, parked)
     }
 
     /**
      * Where [subscription] starts without a checkpoint: as the host overrides it, else as it says, where it joins the
-     * stream ending after it when a subscription of [joined] other than it read the stream before.
+     * partition's stream, ending after it when a subscription of [joined] other than it read that partition before. A
+     * partition no other subscription read is new to the group, whatever the others read: a topic's partition added
+     * since (read from its beginning, `TopicSubscriptions`), or one no node has started yet.
      */
     private fun startOf(subscription: Subscription, joined: Set<String>): SubscriptionStart =
         options.starts[subscription.id]
             ?: SubscriptionStart.of(subscription.startFrom, joined = joined.any { it != subscription.name })
 
-    /** The subscriptions of the group with a checkpoint: those that have read its stream. */
-    suspend fun joinedSubscriptions(): Set<String> =
-        checkpoints.list(group).mapTo(HashSet()) { it.subscription }
+    /** Per partition, the subscriptions of the group with a checkpoint there: those that have read it. */
+    suspend fun joinedSubscriptions(): Map<Int, Set<String>> = joinedIn(checkpoints.list(group))
 
     /**
      * The sequence up to which [partition] holds the history migrate-data imported: its [cutover] row, read once per
@@ -121,3 +122,7 @@ internal class WorkerStart(
     val first: Boolean,
     val parked: Map<AggregateRef, Long>,
 )
+
+/** Per partition, the subscriptions of [saved] with a checkpoint there: those that have read it. */
+internal fun joinedIn(saved: List<Checkpoint>): Map<Int, Set<String>> =
+    saved.groupBy({ it.partition }, { it.subscription }).mapValues { (_, names) -> names.toSet() }

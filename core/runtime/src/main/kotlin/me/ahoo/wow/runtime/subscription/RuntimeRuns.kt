@@ -45,8 +45,8 @@ internal class Running(
      */
     val stopping = ConcurrentHashMap<Int, CompletableDeferred<Unit>>()
 
-    /** The subscriptions that had read the stream when the runtime started ([WorkerStarts.joinedSubscriptions]). */
-    var joined: Set<String> = emptySet()
+    /** Per partition, the subscriptions that had read it when the runtime started ([WorkerStarts.joinedSubscriptions]). */
+    var joined: Map<Int, Set<String>> = emptyMap()
 }
 
 /**

@@ -439,6 +439,34 @@ class SubscriptionCheckpointTest {
     }
 
     @Test
+    fun `a subscription that starts where the service joins reads a partition no other one has read from its beginning`():
+        Unit = runBlocking {
+        val log = InMemoryEventLog(partitions = 2)
+        val appender = Appender(log)
+        repeat(10) { appender.append("old-$it") }
+        // Another subscription read partition 0 alone: partition 1 was added since, or no node has started it yet.
+        checkpoints.save("group", "other", 0, checkNotNull(appender.ends[0]))
+        val joining = Handled()
+        val runtime = SubscriptionRuntime(
+            "group",
+            log,
+            checkpoints,
+            ledger,
+            listOf(Subscription("joining", SubscriptionFilter("shop"), StartFrom.JOIN) { joining.record(it) }),
+            testOptions(),
+        )
+        runtime.start(setOf(0, 1))
+        // Its first checkpoints: at the end of partition 0, which the other one read, at the beginning of partition 1.
+        checkpoints.savesOf("joining", 0).first().assert().isEqualTo(appender.ends[0])
+        checkpoints.savesOf("joining", 1).first().assert().isEqualTo(0L)
+        val end = checkNotNull(appender.ends[1])
+        eventually { joining.size.toLong() == end }
+        runtime.stop()
+        // Each entry is an aggregate of its own, handled side by side.
+        joining.sequences().sorted().assert().isEqualTo((1L..end).toList())
+    }
+
+    @Test
     fun `a subscription added to a running runtime starts where the service joined the stream`(): Unit = runBlocking {
         repeat(3) { appender.append("old") }
         val first = Handled()

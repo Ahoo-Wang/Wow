@@ -52,6 +52,7 @@ import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.observation.ObservedEvent.Fatal.Component
 import me.ahoo.wow.spi.observation.Observer
+import me.ahoo.wow.spi.subscription.Checkpoint
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.transport.PartitionedSource
@@ -83,9 +84,15 @@ import kotlin.time.Duration
  * off, saving the checkpoints, and leaves the group.
  *
  * **Partitions added** while it reads: every [partitionRefresh] it reads the topic's partitions
- * again, and when there are more, hands the held ones off, saving their checkpoints, and joins the group again over
- * all of them, so the new ones are read too, from their beginning. HRW gives each partition the same owner whatever
- * their number, so the partitions held before are held again. A topic's partitions are never fewer.
+ * again, and when there are more, hands the held ones off, saving their checkpoints, saves a first checkpoint at the
+ * beginning of each added partition for every subscription, where none is saved yet, and joins the group again over
+ * all of them, so the new ones are read too, from their beginning, whatever each subscription's start says: a start
+ * is what a subscription does with the history that existed when it first read the topic, and an added partition
+ * holds only what was written since. A checkpoint another node saved there first, or moved on since, stays as it is
+ * ([CheckpointStore.save] only moves one forward). A growth that no running node saw (every node was down while the
+ * partitions were added) leaves no such checkpoint: the added partitions then start as each subscription's start
+ * says. HRW gives each partition the same owner whatever their number, so the partitions held before are held again.
+ * A topic's partitions are never fewer.
  */
 @InternalWowApi
 class TopicSubscriptions internal constructor(
@@ -320,7 +327,8 @@ class TopicSubscriptions internal constructor(
 
     /**
      * One round of the partitions' refresh: reads the topic's partitions after [partitionRefresh], and joins again over
-     * them when there are more: the held ones are handed off, then the group joined over all of them, retrying as
+     * them when there are more: the held ones are handed off, each subscription given a first checkpoint at the
+     * beginning of each added partition ([startAddedAtBeginning]), then the group joined over all of them, retrying as
      * [start] does until it succeeds.
      */
     @Suppress("TooGenericExceptionCaught") // A refresh that fails is tried again at the next one.
@@ -344,8 +352,22 @@ class TopicSubscriptions internal constructor(
                 current.ownership.stop()
                 running = null
             }
+            startAddedAtBeginning(current.partitions until count)
             join(count)
             logger.info { "$node reads topic $topic over $count partitions, ${current.partitions} before." }
+        }
+    }
+
+    /**
+     * Saves, for every subscription, a first checkpoint at the beginning of each of the [added] partitions where it
+     * has none: whichever node then starts one reads it from its beginning, whatever the subscription's start, since it
+     * holds nothing of the history the start was about. A checkpoint saved there already, by a node that saw the growth
+     * first and read on, is not moved back ([CheckpointStore.save]). Retried until it is stored, as a join is.
+     */
+    private suspend fun startAddedAtBeginning(added: IntRange) {
+        val first = subscriptions.flatMap { subscription -> added.map { Checkpoint.of(subscription.name, it, 0L) } }
+        retryForever(options.readRetry, { "save the first checkpoints of the partitions added to $topic" }) {
+            checkpoints.saveAll(group.name, first)
         }
     }
 
