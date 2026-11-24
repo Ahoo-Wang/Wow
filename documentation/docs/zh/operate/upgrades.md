@@ -155,7 +155,7 @@ Wow 的运维命令（定时作业的命令、快照重建、对停放条目的�
 
 - **先升级服务，再升级网关。** 先把每个网关模式（`wow.cosec.mode: gateway`）的 Wow 服务升级到本版本，之后再把 CoSec 网关的镜像升级到 8.0.0-beta.8。8.0.0-beta.8 的网关总是在 `CoSec-Identity` 中写入一个新成员 `memberships`。使用 CoSec 8.0.0-beta.7 的服务严格读取这个请求头，对不认识的成员回答 400 `invalid-request`，所以在新网关之后，每个携带身份的请求都会失败，直到它的服务升级为止。本版本的服务无论有没有 `memberships` 都能读取这个请求头。控制面和其他依据转发身份做决定的宿主按 CoSec 的那一页升级。
 - **主体的标识从不为空白。** CoSec 在服务的任何路由运行之前，就拒绝指明空标识或纯空白标识的凭据：`sub` 为空白的 `CoSec-Identity` 回答 400 `invalid-request`；你自己的认证器若用这样的标识构造 `PrincipalId`，它的请求以 503 失败，应改为回答 `Rejected`。升级之前，按 CoSec 那一页所示，找出空白主体的 API key 和绑定。
-- **路由不带结尾的 `/`。** 自己做决定的服务（`cosec.pipeline.mode` 为 `enforce`）按 Manifest 的路由映射请求，这些路由没有一个以 `/` 结尾。对路径是某条路由加上一个 `/` 的请求，如 `POST /shop/cart/open-cart/`，CoSec 现在回答 400 `invalid-request`，而以前把它当作 `http` 动作来决定。每个路径都按 Manifest 写的那样发送，Wow 的客户端就是这样做的。
+- **路由不带结尾的 `/`。** 自己做决定的服务（`cosec.pipeline.mode` 为 `enforce`）按 Manifest 的路由映射请求，这些路由没有一个以 `/` 结尾。对路径是某条路由加上一个 `/` 的请求，如 `POST /shop/cart/open-cart/`，CoSec 现在回答 400 `invalid-request`，而以前把它当作 `http` 动作来决定。每个路径都按 Manifest 写的那样发送，Wow 的客户端就是这样做的。网关模式服务前面的 CoSec 网关不加载路由映射，所以这一条不适用于它；本版本对网关自己的 DENY 规则和限流规则中以 `/` 结尾的路径做了什么改变，见 [CoSec 的那一页](https://cosec.ahoo.me/operations/upgrading-previews#from-8-0-0-beta-7)。
 - **CoSec 开启时不能没有它的关卡。** 开启了 CoSec（`cosec.enabled`）的节点，若排除了 CoSec 的 `CoSecPipelineWebAutoConfiguration`，或用另一种类型的过滤器取代了它的过滤器，就不再启动。保留这个自动配置，或自己注册 CoSec 的过滤器，或以 `wow.cosec.mode: disabled` 运行节点以关闭 CoSec，Wow 的服务不带 `cosec` profile 时就是这样运行的。
 - **自己构造 CoSec `Identity` 的测试。** 它的构造器新增了 `memberships`，在最后且有默认值，所以这样的测试针对本版本重新构建后无须改动即可编译。`IdentityHeader.forSubject` 把 `memberships` 写为空；`wow-cosec` 的 `CoSecIdentity` 不写它，网关模式的服务把这读作没有其他成员资格。
 
