@@ -22,6 +22,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.postgres.PostgresFailures
 import me.ahoo.wow.postgres.PostgresFormat
 import me.ahoo.wow.postgres.PostgresSchema
+import me.ahoo.wow.postgres.PostgresTimeouts
 import me.ahoo.wow.postgres.autoCommitted
 import me.ahoo.wow.postgres.jdbc
 import me.ahoo.wow.spi.Ddl
@@ -56,6 +57,13 @@ import kotlin.time.Duration.Companion.seconds
  * Times come from [clock], so they are the calling node's: keep the TTL well above the nodes' clock skew. JDBC calls
  * run on [dispatcher], virtual threads by default.
  *
+ * An acquisition, a renewal and a heartbeat take at most the TTL they are given, never more than the connection's own
+ * network timeout (`wow.postgres.operation-timeout`) ([LeaseStore]'s time bound): the pinned connection waits for their
+ * reply that long at most, which matters twice here, since the store's operations run one at a time and a renewal
+ * would otherwise wait behind an acquisition held by a row lock or a server that stopped answering. A call that times
+ * out loses its connection (pgjdbc closes it) and fails as transient; the next operation borrows another. The server
+ * may still apply its write: an autocommitted statement carries no server bound ([PostgresTimeouts]).
+ *
  * Closing it gives the connection back to the pool, once the operation that holds it, if any, is done, waiting for it
  * at most [closeTimeout]; an operation after that fails. Its store closes it when it is closed
  * ([me.ahoo.wow.spi.store.Store.close]).
@@ -81,7 +89,7 @@ class PostgresLeaseStore(
 
     override suspend fun acquire(group: String, partition: Int, owner: String, ttl: Duration): Lease? {
         val now = clock.millis()
-        return single(ACQUIRE, ::leaseOf) {
+        return single(ACQUIRE, ::leaseOf, within = ttl) {
             setString(1, group)
             setInt(2, partition)
             setString(3, owner)
@@ -102,7 +110,7 @@ class PostgresLeaseStore(
             return emptyList()
         }
         val now = clock.millis()
-        return execute(RENEW) {
+        return execute(RENEW, within = ttl) {
             setLong(1, now + ttl.inWholeMilliseconds)
             setString(2, group)
             setString(3, owner)
@@ -135,7 +143,7 @@ class PostgresLeaseStore(
     ): Member {
         val expiresAt = clock.millis() + ttl.inWholeMilliseconds
         val sorted = groups.toSortedSet()
-        return execute(HEARTBEAT) {
+        return execute(HEARTBEAT, within = ttl) {
             setString(1, service)
             setString(2, node)
             setString(3, address)
@@ -206,18 +214,45 @@ class PostgresLeaseStore(
         }
     }
 
-    private suspend fun <T> execute(sql: String, block: PreparedStatement.() -> T): T = dispatcher.jdbc {
+    /** Runs [sql] on the pinned connection, its reply waited for at most [within] when given ([bounded]). */
+    private suspend fun <T> execute(
+        sql: String,
+        within: Duration? = null,
+        block: PreparedStatement.() -> T,
+    ): T = dispatcher.jdbc {
         pinning.withLock {
             check(!closed) { CLOSED }
             val connection = pinned ?: borrow()
             try {
-                connection.prepareStatement(sql).use { it.block() }
+                bounded(connection, within) { connection.prepareStatement(sql).use { it.block() } }
             } catch (failure: SQLException) {
                 if (PostgresFailures.isTransient(failure) || connection.isClosed) {
                     pinned = null
                     runCatching { connection.close() }
                 }
                 throw failure
+            }
+        }
+    }
+
+    /**
+     * Runs [block] with [connection] waiting at most [within] for a reply, when that is shorter than its own network
+     * timeout, and gives it its own back after; a connection the timeout closed keeps none.
+     */
+    private inline fun <T> bounded(connection: Connection, within: Duration?, block: () -> T): T {
+        val own = connection.networkTimeout
+        val millis = within?.inWholeMilliseconds?.coerceIn(1, Int.MAX_VALUE.toLong())?.toInt()
+        if (millis == null || own in 1..millis) {
+            return block()
+        }
+        connection.setNetworkTimeout(PostgresTimeouts.DIRECT, millis)
+        try {
+            return block()
+        } finally {
+            // A connection whose timeout cannot be given back is closed: the next operation fails on it and gives it up.
+            if (!connection.isClosed) {
+                runCatching { connection.setNetworkTimeout(PostgresTimeouts.DIRECT, own) }
+                    .onFailure { runCatching { connection.close() } }
             }
         }
     }
@@ -239,8 +274,13 @@ class PostgresLeaseStore(
         }
     }
 
-    private suspend fun <T> single(sql: String, row: (ResultSet) -> T, bind: PreparedStatement.() -> Unit): T? =
-        execute(sql) {
+    private suspend fun <T> single(
+        sql: String,
+        row: (ResultSet) -> T,
+        within: Duration?,
+        bind: PreparedStatement.() -> Unit,
+    ): T? =
+        execute(sql, within) {
             bind()
             executeQuery().use { rows -> if (rows.next()) row(rows) else null }
         }

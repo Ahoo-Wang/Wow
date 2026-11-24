@@ -124,20 +124,28 @@ class Member @InternalWowApi constructor(
  * The store's clock decides liveness. A backend that takes the time from each node, not from the database, relies on
  * the nodes' clock skew being small against the TTL. Since Wow does not fence, a short overlap of two owners
  * during a handover is only duplicate work, never a wrong result.
+ *
+ * **A lease call returns or fails within the TTL it is given**: [acquire] and [renew] within the lease's, [heartbeat]
+ * within the member's, and none past the store's own operation timeout. The expiry a call writes is computed at its
+ * start, so a lease that comes back after its TTL is expired on arrival: waiting longer buys nothing and holds a
+ * connection of a store that may be failing. A call given up on the client side is not undone on the server, which may
+ * still apply its write: a lease may then show in the store that no node believes it holds. It expires on its own
+ * within its TTL, as any lease left unrenewed, and another node may then acquire it.
  */
 @WowSpi
 interface LeaseStore {
     /**
      * Acquires [partition] of [group] for [owner] for [ttl]: the lease is free, expired or released, or [owner]
      * already holds it (then it is extended and keeps its epoch, so a retried acquisition is harmless). Returns the
-     * lease, or null when another node holds it.
+     * lease, or null when another node holds it, within [ttl].
      */
     suspend fun acquire(group: String, partition: Int, owner: String, ttl: Duration): Lease?
 
     /**
      * Extends to [ttl] from now each live lease [owner] holds on one of [partitions], and returns them; a partition
      * [owner] no longer holds is left out. A node renews all its leases with one call each round, so a
-     * backend renews them in one round trip where it can; a failure fails the whole call.
+     * backend renews them in one round trip where it can; a failure fails the whole call. Returns or fails within
+     * [ttl].
      */
     suspend fun renew(group: String, partitions: Collection<Int>, owner: String, ttl: Duration): List<Lease>
 
@@ -150,7 +158,7 @@ interface LeaseStore {
     /**
      * Registers [node] as a member of [service] reachable at [address], serving the lease [groups], or keeps it one,
      * for [ttl] from now. A later heartbeat replaces the address and the groups, so a node restarted on another address
-     * is found there, and one that stops taking part in a group drops it at once.
+     * is found there, and one that stops taking part in a group drops it at once. Returns or fails within [ttl].
      */
     suspend fun heartbeat(
         service: String,
