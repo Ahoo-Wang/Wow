@@ -40,23 +40,35 @@ class EventStreamTest {
             .bodyValue(body)
             .exchange()
 
-    /** The events of a stream, each one seen by [seen] as it arrives. */
+    /**
+     * The result events of a stream, each one seen by [seen] as it arrives: the stream ends with `end`
+     * `{"reason":"complete"}` after them, once whole, which this checks and leaves out.
+     */
     private fun events(
         path: String,
         body: String,
         headers: Map<String, String> = emptyMap(),
         node: HttpNode = this.node,
         seen: (ServerSentEvent<String>) -> Unit = {},
-    ) = stream(path, body, headers, node)
-        .expectStatus().isOk
-        .expectHeader().contentTypeCompatibleWith(MediaType.TEXT_EVENT_STREAM)
-        .returnResult(EVENT)
-        .responseBody
-        // A comment-only entry (`: keep-alive`, the first of which sends the head) is no event: a reader skips it.
-        .filter { it.event() != null || it.data() != null }
-        .doOnNext(seen)
-        .collectList()
-        .block(Duration.ofSeconds(10))!!
+    ): List<ServerSentEvent<String>> {
+        val events = stream(path, body, headers, node)
+            .expectStatus().isOk
+            .expectHeader().contentTypeCompatibleWith(MediaType.TEXT_EVENT_STREAM)
+            .returnResult(EVENT)
+            .responseBody
+            // A comment-only entry (`: keep-alive`, the first of which sends the head) is no event: a reader skips it.
+            .filter { it.event() != null || it.data() != null }
+            .doOnNext(seen)
+            .collectList()
+            .block(Duration.ofSeconds(10))!!
+        val end = events.last()
+        end.event().assert().describedAs("the stream's last event").isEqualTo("end")
+        json.readTree(end.data())["reason"].asString().assert().isEqualTo("complete")
+        end.id().assert().isNull()
+        // It follows the last result alone.
+        events.dropLast(1).map { it.event() }.assert().doesNotContain("end")
+        return events.dropLast(1)
+    }
 
     /**
      * The events of a command that waits for its commit, then an audit that never answers: the deadline passes once
@@ -75,7 +87,7 @@ class EventStreamTest {
     @Test
     fun `a command's event stream answers 200 once accepted, and streams each hop the plan names as it is reached`() {
         // #6817: the head waited for the first hop the plan names, and nothing was emitted before the commit.
-        mapOf("accepted > committed" to listOf("accepted", "committed"), null to listOf("committed"))
+        mapOf("accepted > committed" to listOf("accepted", "committed", "end"), null to listOf("committed", "end"))
             .entries.forEachIndexed { index, (plan, events) ->
                 val held = CompletableDeferred<Unit>()
                 node.appendGate = held
@@ -159,6 +171,25 @@ class EventStreamTest {
         stream("/shop/cart/c-1/add-item", """{"sku":"apple"}""", mapOf(WowHeaders.WAIT to "snapshot"))
             .expectStatus().isBadRequest
             .expectHeader().contentType(MediaType.APPLICATION_PROBLEM_JSON)
+    }
+
+    @Test
+    fun `a duplicate whose commit ends the wait before the plan's later hops ends with it, then end`() {
+        val request = mapOf(WowHeaders.REQUEST_ID to "req-1")
+        node.client.post().uri("/shop/cart/c-1/add-item").header("X-User", "alice")
+            .headers { http -> request.forEach { (name, value) -> http.set(name, value) } }
+            .header("Content-Type", "application/json").bodyValue("""{"sku":"apple"}""").exchange()
+            .expectStatus().isOk
+        // Its retry asks for a hop past the commit, which a duplicate does not wait for (#6775): its commit is last.
+        val events = events(
+            "/shop/cart/c-1/add-item",
+            """{"sku":"apple"}""",
+            request + mapOf(WowHeaders.WAIT to "committed > handled(audit)"),
+        )
+        // Each result is the duplicate's commit (the direct path emits it twice today, which is not this test's), and
+        // the stream ends with `end` after it, though the plan names a later hop.
+        events.map { it.event() }.distinct().assert().containsExactly("committed")
+        events.map { json.readTree(it.data())["duplicate"].asBoolean() }.assert().containsOnly(true)
     }
 
     @Test

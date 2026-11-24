@@ -17,7 +17,12 @@
  */
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { CommandClient, requestIdOf, WowHeaders } from '../src/index.js';
+import {
+  CommandClient,
+  requestIdOf,
+  WowHeaders,
+  WowProblemError,
+} from '../src/index.js';
 import { commandResultOf } from '../src/testing.js';
 import { readAll, stubFetch, testFetcher } from './fixtures/fetchStub';
 import { TEST_MANIFEST } from './fixtures/manifest';
@@ -25,6 +30,9 @@ import { TEST_MANIFEST } from './fixtures/manifest';
 const REF = { type: { context: 'c', name: 'a' }, tenantId: 't', id: '1' };
 
 const client = () => ({ fetcher: testFetcher() });
+
+/** The event a command's stream ends with once whole, after its last result. */
+const END = 'event:end\ndata:{"reason":"complete"}\n\n';
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -68,7 +76,7 @@ describe('a command stream', () => {
       stubFetch(
         () =>
           new Response(
-            `event:committed\n${field}${JSON.stringify(result)}\n\n`,
+            `event:committed\n${field}${JSON.stringify(result)}\n\n${END}`,
             {
               headers: { 'Content-Type': 'text/event-stream' },
             },
@@ -81,6 +89,46 @@ describe('a command stream', () => {
         { hop: { stage: 'committed' } },
       ]);
     }
+  });
+
+  it('ends a command stream on its end event, which is no result, and fails one that ends without it as unknown', async () => {
+    const committed = `event:committed\ndata:${JSON.stringify(commandResultOf(REF))}\n\n`;
+    // A keep-alive after `end` is not read: the stream is whole.
+    stubFetch(
+      () =>
+        new Response(`: keep-alive\n\n${committed}${END}: keep-alive\n\n`, {
+          headers: { 'Content-Type': 'text/event-stream' },
+        }),
+    );
+    const whole = await new CommandClient(client(), {
+      manifest: TEST_MANIFEST,
+    }).stream({ command: 'c.a.X', id: '1' });
+    expect(await readAll(whole)).toMatchObject([
+      { hop: { stage: 'committed' } },
+    ]);
+    // Closed cleanly after the commit, without `end`: the snapshot may still
+    // come, or the stream was cut short; the outcome is unknown either way.
+    stubFetch(
+      () =>
+        new Response(committed, {
+          headers: { 'Content-Type': 'text/event-stream' },
+        }),
+    );
+    const read: unknown[] = [];
+    const failure = await (async () => {
+      for await (const result of await new CommandClient(client(), {
+        manifest: TEST_MANIFEST,
+      }).stream({ command: 'c.a.X', id: '1', requestId: 's1' }))
+        read.push(result);
+    })().catch((error: unknown) => error);
+    expect(read).toHaveLength(1);
+    expect(failure).toBeInstanceOf(WowProblemError);
+    expect(failure).toMatchObject({
+      code: 'wow.command.unknown',
+      status: 503,
+      retry: 'same-request',
+    });
+    expect(requestIdOf(failure)).toBe('s1');
   });
 
   it('cancels the response of a command stream its reader cancels', async () => {

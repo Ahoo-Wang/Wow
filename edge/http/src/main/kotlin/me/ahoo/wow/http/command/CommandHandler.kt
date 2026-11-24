@@ -21,6 +21,7 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.withIndex
 import kotlinx.coroutines.reactor.ReactorContext
 import me.ahoo.wow.api.result.CommandResult
@@ -98,9 +99,13 @@ internal data class CommandTarget(
  *   first, then one event per result, its id the result's index, its name the hop's stage, its data the result, as
  *   each hop is reached, until the wait ends. A rejection, a timeout or a failure after the head is the stream's last
  *   event, and so is a chain that ended before its plan did, its result marked `chainEnded` with the hops not reached
- *   as `pending`, which is also the result answered without the event stream. A comment (`: keep-alive`) is written
- *   at once, which sends the head, then every [KEEP_ALIVE], so a gateway's idle timeout does not close the stream
- *   (#6817); a reader of server-sent events skips comments.
+ *   as `pending`, which is also the result answered without the event stream. After that last result, one more event,
+ *   `end` with `{"reason":"complete"}`, says the stream is whole, as a streamed list's `end` does: a reader that does
+ *   not get it before the stream ends, however cleanly, has an unknown outcome, and never infers the end from the plan
+ *   (#6808). It follows only results that ended as the wait did: a stream whose results fail or are cancelled (the
+ *   node stopping, its routes' scope cancelled) has no `end`. A comment (`: keep-alive`) is written at once, which
+ *   sends the head, then every [KEEP_ALIVE], so a gateway's idle timeout does not close the stream (#6817); a reader
+ *   of server-sent events skips comments.
  *
  * The SSE results are collected in [scope], apart from the request, and handed over as the response is written; a
  * client that goes away, or a response that is never written, cancels the collection. The collection keeps the
@@ -193,6 +198,9 @@ internal class CommandHandler(
                 .id(index.toString())
                 .event(WireNames.of(result.hop.stage))
                 .build()
+        }.onCompletion { failure ->
+            // After the last result alone: results that failed or were cancelled leave the outcome unknown.
+            if (failure == null) emit(COMPLETE)
         }.withKeepAlive(KEEP_ALIVE, KEEP_ALIVE_COMMENT)
         return results.handingOver(events) {
             ServerResponse.ok().contentType(MediaType.TEXT_EVENT_STREAM).bodyAndAwait(it)
@@ -210,6 +218,12 @@ internal class CommandHandler(
 
         /** How often a command's event stream writes a comment, events or not: below common idle timeouts. */
         val KEEP_ALIVE: Duration = 15.seconds
+
+        /** The event a command's event stream ends with, after its last result: the stream is whole. */
+        const val END_EVENT: String = "end"
+
+        private val COMPLETE: ServerSentEvent<String> =
+            ServerSentEvent.builder("{\"reason\":\"complete\"}").event(END_EVENT).build()
 
         /** The comment it writes, which a reader of server-sent events skips. */
         private val KEEP_ALIVE_COMMENT: ServerSentEvent<String> =

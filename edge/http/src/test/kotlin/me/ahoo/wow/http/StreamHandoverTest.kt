@@ -65,10 +65,13 @@ import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import org.springframework.web.reactive.function.server.bodyAndAwait
 import org.springframework.web.reactive.result.view.ViewResolver
+import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import tools.jackson.databind.node.ObjectNode
 import java.net.URI
 import java.time.Duration
+import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -206,6 +209,28 @@ class StreamHandoverTest {
         response.abandon()
         runBlocking { withTimeout(10.seconds) { producer.join() } }
         producer.isCancelled.assert().isTrue()
+    }
+
+    @Test
+    fun `a command stream whose node stops before its wait ends writes no end, its outcome left unknown`() {
+        val handler = commandHandler()
+        val response = runBlocking { handler.handle(commandRequest(), ADD_ITEM) }
+        val written = CopyOnWriteArrayList<String>()
+        val exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/"))
+        exchange.response.setWriteHandler { body ->
+            Flux.from(body).doOnNext { written += it.toString(Charsets.UTF_8) }.then()
+        }
+        val write = response.writeTo(exchange, WRITE_CONTEXT).toFuture()
+        // The commit's event is written; the wait goes on for a handler that never answers.
+        val deadline = System.nanoTime() + 5.seconds.inWholeNanoseconds
+        while (written.none { "event:committed" in it } && System.nanoTime() < deadline) Thread.sleep(10)
+        written.joinToString("").assert().contains("event:committed")
+        // The node stops: its routes' scope is cancelled, and so is the stream's producer.
+        scope.cancel("The node stopped.")
+        runCatching { write.get(10, TimeUnit.SECONDS) }
+        write.isDone.assert().isTrue()
+        // No `end`: a reader that does not get it has an unknown outcome, never a whole stream.
+        written.joinToString("").assert().doesNotContain("event:end")
     }
 
     @Test

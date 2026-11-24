@@ -443,9 +443,15 @@ internal class HttpTransport(
         /** A path segment, percent-encoded. */
         fun encode(segment: String): String = URLEncoder.encode(segment, Charsets.UTF_8).replace("+", "%20")
 
-        /** [document] as the lines of one server-sent event whose data it is. */
+        /**
+         * [document] as the lines of one server-sent event whose data it is, then an `end` event: a body read whole is
+         * a whole answer, as a stream that ends with `end` is.
+         */
         private fun asEvent(document: String): Flow<String> =
-            (document.lines().map { "data: $it" } + "").asFlow()
+            (document.lines().map { "data: $it" } + "" + WHOLE).asFlow()
+
+        /** The lines of the `end` event of a whole answer. */
+        private val WHOLE = listOf("event: end", "data: {\"reason\":\"complete\"}", "")
 
         /** The whole body this publishes. */
         private suspend fun Publisher<List<ByteBuffer>>.bytes(): ByteArray =

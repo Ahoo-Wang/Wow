@@ -74,3 +74,6 @@ id:18
 event:committed
 data:{"format":1,"commandId":"44708f3e-d6e5-3345-a49d-227736784d26","requestId":"44708f3e-d6e5-3345-a49d-227736784d26","correlationId":"01a19186-34e2-7279-a3e4-1df4b37ce4cc","ref":{"type":{"context":"eshop-ordering","name":"order"},"tenantId":"(0)","id":"SO-261031-1"},"hop":{"stage":"committed","context":"eshop-ordering","subscription":null},"function":{"kind":"command","context":"eshop-ordering","processor":"order","name":"PayOrder"},"status":"succeeded","version":5,"duplicate":false,"error":null,"results":{},"derived":[],"signalTime":1793442854304,"transformedFrom":null,"chainEnded":false,"pending":[]}
 
+event:end
+data:{"reason":"complete"}
+

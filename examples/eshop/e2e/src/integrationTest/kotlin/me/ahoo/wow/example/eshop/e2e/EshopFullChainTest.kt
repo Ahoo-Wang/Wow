@@ -129,7 +129,8 @@ class EshopFullChainTest {
         stack.eventually("$number cancelled") { stack.orderStatus(number) == "CANCELLED" }
         checkNotNull(stack.payment(number))["status"].asString().assert().isEqualTo("FAILED")
 
-        // As server-sent events: one per hop reached, the last of them the chain's end, then the stream closes.
+        // As server-sent events: one per hop reached, the last of them the chain's end, then `end`, which says the
+        // stream is whole (#6808), and the stream closes.
         val streamed = stack.basket.post(
             "/eshop-basket/basket/checkout-basket",
             "{}",
@@ -137,8 +138,12 @@ class EshopFullChainTest {
                 EshopStack.buyer("frank"),
         )
         streamed.status.assert().describedAs(streamed.body).isEqualTo(OK)
-        val events = streamed.body.lineSequence().filter { it.startsWith("data:") }
+        val data = streamed.body.lineSequence().filter { it.startsWith("data:") }
             .map { json.readTree(it.removePrefix("data:")) }.toList()
+        streamed.body.trimEnd().lineSequence().filter { it.startsWith("event:") }.last()
+            .assert().describedAs(streamed.body).isEqualTo("event:end")
+        data.last()["reason"].asString().assert().isEqualTo("complete")
+        val events = data.dropLast(1)
         events.assert().describedAs(streamed.body).hasSize(FULL_CHAIN_HOPS - 1)
         events.dropLast(1).map { it["chainEnded"].asBoolean() }.assert().doesNotContain(true)
         events.last().assertEndedAtThePaymentSaga()

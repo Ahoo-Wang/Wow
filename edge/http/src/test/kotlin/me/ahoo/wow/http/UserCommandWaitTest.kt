@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.http
 
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import me.ahoo.test.asserts.assert
@@ -22,6 +23,7 @@ import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.FrameworkCodes
+import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.client.EndpointResolver
@@ -82,6 +84,18 @@ class UserCommandWaitTest {
         result.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         result.hop.stage.assert().isEqualTo(Stage.COMMITTED)
         result.ref.id.assert().isEqualTo("c-1")
+    }
+
+    @Test
+    fun `a user's command stream should end at the node's end event, whatever its plan`(): Unit = runBlocking {
+        suspend fun stream(request: CommandRequest<*>) =
+            withContext(ForwardedHeaders(mapOf("X-User" to "alice"))) { commands.stream(request).toList() }
+        // The node writes `end` after the last result; the client reads to it, and emits the results alone (#6808).
+        stream(CommandRequest.of(addItem, id = "c-1", timeout = 5.seconds)).map { it.hop.stage }
+            .assert().containsExactly(Stage.COMMITTED)
+        val plan = WaitPlan.of(Hop.accepted(), Hop.committed()).within(5.seconds)
+        stream(CommandRequest.of(addItem, id = "c-2", wait = plan)).map { it.hop.stage }
+            .assert().containsExactly(Stage.ACCEPTED, Stage.COMMITTED)
     }
 
     @Test

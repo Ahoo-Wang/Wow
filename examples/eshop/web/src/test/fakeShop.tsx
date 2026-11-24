@@ -79,7 +79,9 @@ export function fakeServices(routes: Route[]) {
           (event, index) =>
             `id:${index}\nevent:${event.hop.stage.toLowerCase()}\ndata:${JSON.stringify(event)}\n\n`,
         )
-        .join("");
+        .join("")
+        // The node ends a whole stream with `end` after its last result.
+        .concat('event:end\ndata:{"reason":"complete"}\n\n');
       return new Response(text, {
         status: 200,
         headers: { "Content-Type": "text/event-stream" },

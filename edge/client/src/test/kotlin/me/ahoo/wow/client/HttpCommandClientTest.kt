@@ -557,7 +557,7 @@ class HttpCommandClientTest {
         newerPeer.message!!.assert().contains("the peer is newer than this client")
         newerPeer.retryable.assert().isFalse()
         // A stream emits it as read, for the caller to see.
-        peer.reply(Reply.events("id: 0\nevent: committed\ndata: $newer\n\n"))
+        peer.reply(Reply.events("id: 0\nevent: committed\ndata: $newer\n\n", END))
         client(ClientMode.User(UserCredential.NONE)).stream(CommandRequest.to(ref, DeliverItems(emptyList())))
             .toList().single().status.assert().isEqualTo(CommandResult.Status.UNKNOWN)
     }
@@ -570,7 +570,8 @@ class HttpCommandClientTest {
             Reply.events(
                 ": hello\n\nid: 0\nevent: accepted\ndata: $accepted\n",
                 "\nid: 1\nevent: committed\n",
-                "data: $done\n\n"
+                "data: $done\n\n",
+                END,
             )
         )
         val results = client(
@@ -587,7 +588,7 @@ class HttpCommandClientTest {
         val streams = mapOf(
             // The connection lost after an event, as a pod deleted mid-stream leaves it.
             "cut" to Reply.cut("id: 0\nevent: accepted\ndata: $accepted\n\n"),
-            // A clean end before the event a stream ends with: its outcome is as unknown.
+            // A clean end without the `end` event that says the stream is whole: its outcome is as unknown.
             "ended early" to Reply.events("id: 0\nevent: accepted\ndata: $accepted\n\n"),
             "ended with no event" to Reply.events(": keep-alive\n\n"),
             // An event that holds no result.
@@ -606,40 +607,61 @@ class HttpCommandClientTest {
     }
 
     @Test
-    fun `a user's command stream should end at the event a stream ends with, whatever the plan`(): Unit = runBlocking {
-        val user = client(ClientMode.User(UserCredential.NONE))
-        fun events(vararg results: CommandResult) = Reply.events(
-            *results.mapIndexed { index, result ->
-                "id: $index\nevent: x\ndata: ${WowJson.mapper.writeValueAsString(result)}\n\n"
-            }.toTypedArray(),
-        )
-        val accepted = resultOf(ref, hop = Hop.accepted("mail"))
-        // A plan's last hop, its context the command's when it names none.
-        peer.reply(events(accepted, resultOf(ref, hop = Hop.snapshot("mail"))))
-        user.stream(CommandRequest.builder(ref, DeliverItems(emptyList())).wait(WaitPlan.SNAPSHOT).build())
-            .toList().assert().hasSize(2)
-        // The default plan's ends at the commit, where the aggregate has no snapshot.
-        peer.reply(events(accepted, committed()))
-        user.stream(CommandRequest.to(ref, DeliverItems(emptyList()))).toList().assert().hasSize(2)
-        // A result that did not reach its hop ends the stream wherever it is: a rejection, a timeout.
-        val timedOut = resultOf(
-            ref,
-            CommandResult.Status.FAILED,
-            ErrorInfo(FrameworkCodes.WAIT_TIMEOUT, "The wait ran out."),
-            Hop.accepted("mail"),
-        )
-        peer.reply(events(accepted, timedOut))
-        user.stream(CommandRequest.builder(ref, DeliverItems(emptyList())).wait(WaitPlan.SNAPSHOT).build())
-            .toList().last().status.assert().isEqualTo(CommandResult.Status.FAILED)
-        // A plan's commit, when it waits for the snapshot, does not end it.
-        peer.reply(events(accepted, committed()))
-        caught<WowProblemException> {
-            runBlocking {
-                user.stream(CommandRequest.builder(ref, DeliverItems(emptyList())).wait(WaitPlan.SNAPSHOT).build())
-                    .toList()
-            }
-        }.code.assert().isEqualTo(FrameworkCodes.COMMAND_UNKNOWN)
-    }
+    fun `a user's command stream should end at its end event, the results before it whatever they are`(): Unit =
+        runBlocking {
+            val user = client(ClientMode.User(UserCredential.NONE))
+            fun events(vararg results: CommandResult, whole: Boolean = true) = Reply.events(
+                *(
+                    results.mapIndexed { index, result ->
+                        "id: $index\nevent: x\ndata: ${WowJson.mapper.writeValueAsString(result)}\n\n"
+                    } + listOfNotNull(END.takeIf { whole })
+                    ).toTypedArray(),
+            )
+            fun stream(plan: WaitPlan? = null) = user.stream(
+                CommandRequest.builder(ref, DeliverItems(emptyList())).apply { plan?.let { wait(it) } }.build(),
+            )
+            val accepted = resultOf(ref, hop = Hop.accepted("mail"))
+            val further = WaitPlan.of(Hop.committed(), Hop.handled("audit"))
+            // A chain that ended before its plan did: its result, at an earlier hop and SUCCEEDED, is the last.
+            val chainEnded = CommandResult(
+                commandId = "c-1",
+                requestId = "r-1",
+                correlationId = "c-1",
+                ref = ref,
+                hop = Hop.committed("mail"),
+                function = committed().function,
+                status = CommandResult.Status.SUCCEEDED,
+                version = 1,
+                signalTime = 1L,
+                chainEnded = true,
+                pending = listOf(Hop.handled("audit", "mail")),
+            )
+            peer.reply(events(accepted, chainEnded))
+            stream(further).toList().last().chainEnded.assert().isTrue()
+            // A duplicate whose commit ends the wait before the plan's later hops.
+            val duplicate = CommandResult(
+                commandId = "c-1",
+                requestId = "r-1",
+                correlationId = "c-1",
+                ref = ref,
+                hop = Hop.committed("mail"),
+                function = committed().function,
+                status = CommandResult.Status.SUCCEEDED,
+                version = 1,
+                duplicate = true,
+                signalTime = 1L,
+            )
+            peer.reply(events(duplicate))
+            stream(further).toList().single().duplicate.assert().isTrue()
+            // The `end` event is no result: its data is never read as one.
+            peer.reply(events(accepted, committed()))
+            stream().toList().map { it.hop.stage }.assert().containsExactly(Stage.ACCEPTED, Stage.COMMITTED)
+            // Closed cleanly after the commit, under the default plan, without `end`: the snapshot may still come, or
+            // the stream was cut short; its outcome is unknown, whatever the plan would let a reader infer.
+            peer.reply(events(accepted, committed(), whole = false))
+            caught<WowProblemException> { runBlocking { stream().toList() } }
+                .code.assert().isEqualTo(FrameworkCodes.COMMAND_UNKNOWN)
+        }
 
     @Test
     fun `a stream answered with a problem should emit its result, or throw without one`(): Unit = runBlocking {
@@ -687,5 +709,8 @@ class HttpCommandClientTest {
 
     private companion object {
         const val SERVICE = "basket-service"
+
+        /** The event a command's stream ends with once whole, after its last result. */
+        const val END = "event: end\ndata: {\"reason\":\"complete\"}\n\n"
     }
 }
