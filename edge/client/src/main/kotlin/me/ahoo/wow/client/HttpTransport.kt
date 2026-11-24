@@ -186,6 +186,12 @@ internal class HttpTransport(
      * got no answer to, a command's outcome unknown, ends as that attempt's problem when the attempts after it send
      * nothing or are answered only that they were not taken ([endOf]), so it stays unknown, retried with its request
      * id, never a new request that could commit it twice (#6806).
+     *
+     * A request a node took and did not answer within its bound (the node went silent, [SilentPeers.silenced]) is never
+     * sent to that node again. It is sent again under the same request id at most once, and only to another live node
+     * of its context, one no request found silent ([targetsOf]), which forwards a command to its partition's owner, so
+     * the command's outcome is settled as a duplicate or a commit; what that attempt meets is the request's end, as
+     * [endOf] says. With no other live node it fails once, as the problem its [kind] gives it (#6809).
      */
     private suspend fun <T> withRetries(
         request: PeerRequest,
@@ -195,21 +201,20 @@ internal class HttpTransport(
         var attempts = 1
         // The problem of the last attempt that sent the request and got no answer, kept over unsent attempts after it.
         var unanswered: Answer.Problem? = null
+        // The nodes that took the request and went silent on it: the attempt after the first is the request's last.
+        val silentOnIt = HashSet<String>()
         while (true) {
+            val last = silentOnIt.isNotEmpty()
+            val targets = targetsOf(request.context, except = silentOnIt)
+            // No other live node: the request is not sent again to the silent one.
+            if (last && targets.isEmpty()) return checkNotNull(unanswered)
             val answer = try {
-                failover(request, attempt)
+                failover(request, targets, silentOnIt, attempt)
             } catch (failure: IOException) {
                 if (failure.unsent()) {
                     // A connection that was not made sent nothing: refused, or not answered in time.
-                    val wait = retry.delayBefore(attempts, null)
-                        ?: return unanswered ?: Answer.Problem(
-                            PeerProblem.of(
-                                FrameworkCodes.PEER_UNAVAILABLE,
-                                (failure as? NoNodeListed)?.message
-                                    ?: "No node of ${request.context} could be reached (${failure.javaClass.name}).",
-                                failure,
-                            ),
-                        )
+                    val wait = waitAfter(attempts, last, null)
+                        ?: return unanswered ?: unreached(request, failure)
                     delay(wait)
                     attempts++
                     continue
@@ -218,7 +223,7 @@ internal class HttpTransport(
                 Answer.Problem(kind.unanswered(request, failure)).also { unanswered = it }
             }
             if (answer is Answer.Problem && kind.retries(answer.problem)) {
-                val wait = retry.delayBefore(attempts, answer.problem.retryAfter) ?: return endOf(answer, unanswered)
+                val wait = waitAfter(attempts, last, answer.problem.retryAfter) ?: return endOf(answer, unanswered)
                 delay(wait)
                 attempts++
                 continue
@@ -241,19 +246,40 @@ internal class HttpTransport(
     }
 
     /**
-     * One attempt at [request]'s targets, in turn, failing over as [withRetries] says. A target that took the request
-     * and did not answer it within its bound is bypassed by the requests that follow ([SilentPeers.silenced]); one that
-     * answered, whatever it answered, is not ([SilentPeers.answered]).
+     * How long to wait before the attempt after [attempts], [retryAfter] the peer asked for, as [retry] says; null when
+     * no attempt is left: the policy's spent, or the attempt was the [last] a request a node went silent on makes.
      */
-    private suspend fun <T> failover(request: PeerRequest, attempt: suspend (base: String) -> Answer<T>): Answer<T> {
-        val targets = targetsOf(request.context)
+    private fun waitAfter(attempts: Int, last: Boolean, retryAfter: Duration?): Duration? =
+        if (last) null else retry.delayBefore(attempts, retryAfter)
+
+    /** The problem of [request], which no attempt could send, the last meeting [failure]: `wow.peer.unavailable`. */
+    private fun unreached(request: PeerRequest, failure: IOException): Answer.Problem = Answer.Problem(
+        PeerProblem.of(
+            FrameworkCodes.PEER_UNAVAILABLE,
+            (failure as? NoNodeListed)?.message
+                ?: "No node of ${request.context} could be reached (${failure.javaClass.name}).",
+            failure,
+        ),
+    )
+
+    /**
+     * One attempt at [request]'s [targets], in turn, failing over as [withRetries] says. A target that took the request
+     * and did not answer it within its bound is bypassed by the requests that follow ([SilentPeers.silenced]) and joins
+     * [silentOnIt]; one that answered, whatever it answered, is not bypassed ([SilentPeers.answered]).
+     */
+    private suspend fun <T> failover(
+        request: PeerRequest,
+        targets: List<String>,
+        silentOnIt: MutableSet<String>,
+        attempt: suspend (base: String) -> Answer<T>,
+    ): Answer<T> {
         var unsent: IOException? = null
         var refused: Answer<T>? = null
         for (base in targets) {
             val answer = try {
                 attempt(base)
             } catch (failure: IOException) {
-                if (!failure.unsent()) throw unanswered(request.context, base, failure)
+                if (!failure.unsent()) throw unanswered(request.context, base, failure, silentOnIt)
                 unsent = failure
                 continue
             }
@@ -271,10 +297,19 @@ internal class HttpTransport(
 
     /**
      * [failure], of a request sent to [base] of [context] and not answered; a timeout, the request's bound passed
-     * without an answer, has the requests that follow pass [base] over ([SilentPeers.silenced]).
+     * without an answer, has the requests that follow pass [base] over ([SilentPeers.silenced]), and puts it in
+     * [silentOnIt], the request's own.
      */
-    private fun unanswered(context: String, base: String, failure: IOException): IOException {
-        if (failure is HttpTimeoutException) silent.silenced(context, mode.port, base)
+    private fun unanswered(
+        context: String,
+        base: String,
+        failure: IOException,
+        silentOnIt: MutableSet<String>,
+    ): IOException {
+        if (failure is HttpTimeoutException) {
+            silent.silenced(context, mode.port, base)
+            silentOnIt += base
+        }
         return failure
     }
 
@@ -282,17 +317,21 @@ internal class HttpTransport(
      * The targets of [context], each a base URL without its trailing slash, from the next one in turn, those
      * [silent] bypasses left out unless all are; none while the lookup lists no node of a context the resolver
      * reaches, such as a service whose instances are all down for a moment. A context it does not reach has no URL at
-     * all: the code's mistake, not an outage.
+     * all: the code's mistake, not an outage. With [except], the nodes a request found silent, it is the live nodes
+     * alone: those and every bypassed one left out, none when no other is left.
      */
-    internal suspend fun targetsOf(context: String): List<String> {
+    internal suspend fun targetsOf(context: String, except: Set<String> = emptySet()): List<String> {
         val listed = endpoints.resolveAll(context, mode.port)
-        val targets = silent.choose(
+        val chosen = silent.choose(
             context,
             mode.port,
             listed.map { it.toString().trimEnd('/') },
             (listed as? PeerList)?.generation,
+            all = except.isEmpty(),
         )
+        val targets = if (except.isEmpty()) chosen else chosen.filter { it !in except }
         if (targets.isEmpty()) {
+            if (except.isNotEmpty()) return targets
             checkUse(endpoints.reaches(context, mode.port)) {
                 "No URL calls context $context on its ${mode.port.name.lowercase()} port: set " +
                     "wow.peers.$context.${if (mode.port == Port.PUBLIC) "public-url" else "url"}, " +
