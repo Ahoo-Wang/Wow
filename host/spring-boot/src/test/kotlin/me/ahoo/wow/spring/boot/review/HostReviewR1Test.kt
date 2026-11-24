@@ -22,18 +22,28 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.cosec.CoSecCommandAuthorizer
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
+import me.ahoo.wow.spi.config.ProviderSettings
+import me.ahoo.wow.spi.config.WowConfigurationException
+import me.ahoo.wow.spi.transport.TopicTransportOptions
 import me.ahoo.wow.spring.boot.WowAutoConfiguration
 import me.ahoo.wow.spring.boot.security.CoSecAutoConfiguration
 import me.ahoo.wow.spring.boot.security.CoSecRouteMapAutoConfiguration
+import me.ahoo.wow.spring.boot.startHost
 import me.ahoo.wow.spring.boot.store.DataSourceAutoConfiguration
+import me.ahoo.wow.spring.boot.transport.PortProviders
+import me.ahoo.wow.spring.boot.transport.TransportNeeds
 import org.junit.jupiter.api.Test
 import org.slf4j.LoggerFactory
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.AutoConfigurations
 import org.springframework.boot.context.annotation.Configurations
+import org.springframework.boot.context.properties.source.ConfigurationPropertySources
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.core.env.StandardEnvironment
+import org.springframework.core.env.SystemEnvironmentPropertySource
+import tools.jackson.databind.json.JsonMapper
 import javax.sql.DataSource
 
 /**
@@ -96,6 +106,62 @@ class HostReviewR1Test {
                 context.getBeansOfType(CommandAuthorizer::class.java).values.assert()
                     .hasAtLeastOneElementOfType(CoSecCommandAuthorizer::class.java)
             }
+    }
+
+    @Test
+    fun `a provider's option set by an environment variable should be read, as the key check and the needs read it`() {
+        // As Spring Boot attaches an application's environment, the operating system's variables in it.
+        val environment = StandardEnvironment()
+        environment.propertySources.addFirst(
+            SystemEnvironmentPropertySource(
+                "systemEnvironment",
+                mapOf<String, Any>("WOW_KAFKA_COMMANDINTAKE_ENABLED" to "true", "WOW_KAFKA_TOPICPREFIX" to "shop."),
+            ),
+        )
+        ConfigurationPropertySources.attach(environment)
+        // The node's needs read the variable as wow.kafka.command-intake.enabled: the intake is on.
+        TransportNeeds.intake(environment, listOf("kafka")).assert().containsExactly("wow.kafka.command-intake.enabled")
+        // The transport's settings, as the host opens the transport with them (PortProviders.transportConfigs).
+        val settings = ProviderSettings(
+            "wow.kafka",
+            PortProviders.declared(PortProviders.optionsOf(environment, "kafka"), TopicTransportOptions.ALL),
+        )
+        settings.option(TopicTransportOptions.COMMAND_INTAKE).assert().isTrue()
+        settings.option(TopicTransportOptions.TOPIC_PREFIX).assert().isEqualTo("shop.")
+    }
+
+    @Test
+    fun `a mistyped security key should refuse the start under lazy initialization as without it`() {
+        val failure = runCatching {
+            startHost("spring.main.lazy-initialization" to true, "wow.cosec.authorizer.enable" to true).close()
+        }.exceptionOrNull()
+        generateSequence(failure) { it.cause }.filterIsInstance<WowConfigurationException>().firstOrNull()?.message
+            .assert().contains("Unknown Wow configuration keys: wow.cosec.authorizer.enable.")
+    }
+
+    @Test
+    fun `a liveness stall timeout not longer than the reconcile timeout should refuse the start, naming its key`() {
+        // A stuck reconcile must make the node leave the members (reconcile-timeout, 1 minute) before its liveness
+        // fails and the platform restarts it, as both keys' descriptions say; else it restarts holding its leases.
+        val failure = runCatching { startHost("wow.health.liveness.stall-timeout" to "30s").close() }.exceptionOrNull()
+        generateSequence(failure) { it.cause }.filterIsInstance<WowConfigurationException>().firstOrNull()?.key
+            .assert().isEqualTo("wow.health.liveness.stall-timeout")
+    }
+
+    @Test
+    fun `a negative dataset query bound should refuse the start, as a store's does, not mean no bound`() {
+        val failure = runCatching { startHost("wow.query.dataset.max-concurrent" to -1).close() }.exceptionOrNull()
+        generateSequence(failure) { it.cause }.filterIsInstance<WowConfigurationException>().firstOrNull()?.key
+            .assert().isEqualTo("wow.query.dataset.max-concurrent")
+    }
+
+    @Test
+    fun `the configuration metadata should give the shared states' size bound its default, as the reference shows`() {
+        val metadata = JsonMapper.builder().build().readTree(
+            javaClass.getResource("/META-INF/spring-configuration-metadata.json")!!.readText(),
+        )
+        val maxBytes = metadata["properties"].single { it["name"].asString() == "wow.shared-states.max-bytes" }
+        maxBytes["defaultValue"]?.asString().assert().isEqualTo("64MB")
     }
 
     private companion object {
