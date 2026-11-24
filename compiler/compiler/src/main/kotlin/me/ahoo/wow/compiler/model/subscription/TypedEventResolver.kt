@@ -19,6 +19,7 @@ import me.ahoo.wow.api.subscribe.StateTypedEvent
 import me.ahoo.wow.compiler.model.symbol.binaryName
 import me.ahoo.wow.compiler.model.symbol.concreteClasses
 import me.ahoo.wow.compiler.model.symbol.declaredName
+import me.ahoo.wow.compiler.model.symbol.renderInFull
 import me.ahoo.wow.compiler.model.symbol.sourceName
 
 /** An event class of an aggregate of the module: its [type], its [binary] name and its [state]. */
@@ -73,6 +74,12 @@ internal object TypedEventResolver {
         val eventName = event?.declaration?.sourceName()
         if (event == null || eventName == null) {
             problems += "$where takes a StateTypedEvent of no event type: name the event, StateTypedEvent<S, E>"
+            return null
+        }
+        if (declaredState != null && declaredState.arguments.isNotEmpty()) {
+            // As a handler of the whole stream's (SubscriptionResolver.streamHandler): the binding names a state class.
+            problems += "$where takes a StateTypedEvent of ${declaredState.renderInFull()}: an aggregate's state takes no " +
+                "type arguments"
             return null
         }
         val state = declaredState?.declaration?.sourceName()

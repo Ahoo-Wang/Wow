@@ -24,6 +24,7 @@ import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.compiler.model.symbol.binaryName
 import me.ahoo.wow.compiler.model.symbol.handlerName
 import me.ahoo.wow.compiler.model.symbol.isHandler
+import me.ahoo.wow.compiler.model.symbol.isKotlinProtected
 import me.ahoo.wow.compiler.model.symbol.sourceName
 
 /**
@@ -81,6 +82,10 @@ internal object ReceiptHandlerResolver {
         val name = function.handlerName(where, problems)
         if (function.isPrivate()) {
             problems += "$where is private: the generated subscription calls it"
+        }
+        if (function.isKotlinProtected()) {
+            problems += "$where is protected: the generated subscription calls it from outside the class, so it is " +
+                "public or internal"
         }
         val parameters = function.parameters.map { it.type.resolve() }
         val first = parameters.firstOrNull()

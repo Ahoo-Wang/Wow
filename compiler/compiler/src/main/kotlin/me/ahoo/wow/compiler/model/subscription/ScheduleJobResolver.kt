@@ -32,6 +32,7 @@ import me.ahoo.wow.compiler.model.symbol.argumentsOf
 import me.ahoo.wow.compiler.model.symbol.blocking
 import me.ahoo.wow.compiler.model.symbol.handlerName
 import me.ahoo.wow.compiler.model.symbol.isHandler
+import me.ahoo.wow.compiler.model.symbol.isKotlinProtected
 import me.ahoo.wow.manifest.JobManifest
 import java.time.DateTimeException
 import java.time.ZoneId
@@ -144,6 +145,12 @@ internal object ScheduleJobResolver {
             }
             if (function.isPrivate()) {
                 add("$where is private: the generated subscription calls it")
+            }
+            if (function.isKotlinProtected()) {
+                add(
+                    "$where is protected: the generated subscription calls it from outside the class, so it is " +
+                        "public or internal",
+                )
             }
             val parameters = function.parameters.map { it.type.resolve().declaration.qualifiedName?.asString() }
             val first = parameters.firstOrNull()

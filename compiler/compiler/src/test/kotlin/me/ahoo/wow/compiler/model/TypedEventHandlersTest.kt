@@ -313,6 +313,38 @@ class TypedEventHandlersTest {
             .contains("handler Broken.noType takes a StateTypedEvent of no event type")
     }
 
+    @Test
+    fun `a typed handler whose state takes type arguments should fail the compilation, naming it`() {
+        // As a handler of the whole stream is refused (#6833): the binding names its state's class.
+        val billingApi = compileLibrary(
+            SourceFile.kotlin("BillingEvents.kt", "package billing\n\ndata class Paid(val amount: Int)"),
+        )
+        val ledger = SourceFile.kotlin(
+            "Ledger.kt",
+            """
+            package sample
+
+            import billing.Paid
+            import me.ahoo.wow.api.annotation.OnEvent
+            import me.ahoo.wow.api.annotation.Projection
+            import me.ahoo.wow.api.subscribe.StateTypedEvent
+
+            @Projection
+            class Ledger {
+                @OnEvent(aggregates = ["billing.payment"])
+                fun onPaid(event: StateTypedEvent<Map<String, Any?>, Paid>) = Unit
+            }
+            """.trimIndent(),
+        )
+        val (_, result) = compileModelAgainst("generate", options, listOf(billingApi), model, ledger)
+        result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        result.messages.lines().filter { it.startsWith("e: ") && "/ksp/sources/" in it }.assert().isEmpty()
+        result.messages.assert().contains(
+            "handler Ledger.onPaid takes a StateTypedEvent of kotlin.collections.Map<kotlin.String, kotlin.Any?>: " +
+                "an aggregate's state takes no type arguments",
+        )
+    }
+
     @Suppress("LongMethod") // The peer api, the processors and the fragment, whole.
     @Test
     fun `a handler of another context's events should take them by its api's classes`() {

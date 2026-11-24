@@ -420,6 +420,33 @@ class SubscriptionBindingTest {
     }
 
     @Test
+    fun `a handler's @Name with a dollar should reach its binding as written`() {
+        // Written into the generated string literals escaped, as the processor's name is (#6833).
+        val named = SourceFile.kotlin(
+            "Dollar.kt",
+            """
+            package sample.dollar
+
+            import me.ahoo.wow.api.annotation.Name
+            import me.ahoo.wow.api.annotation.OnEvent
+            import me.ahoo.wow.api.annotation.Projection
+            import me.ahoo.wow.api.subscribe.StateEvent
+
+            @Projection
+            class Board {
+                @OnEvent
+                @Name("on\${'$'}placed")
+                fun onPlaced(event: StateEvent<*>) = Unit
+            }
+            """.trimIndent(),
+        )
+        val (compilation, result) = compile(named)
+        result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
+        provider(compilation, result).processors(Dependencies.NONE).map { it.name }.assert()
+            .containsExactly("Board.on\$placed")
+    }
+
+    @Test
     fun `a module of aggregates only should list no processors`() {
         val account = SourceFile.kotlin(
             "Account.kt",
