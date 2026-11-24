@@ -181,7 +181,10 @@ internal class HttpTransport(
      * ([EndpointResolver.unreachable]); so it does when the lookup lists no target ([NoNodeListed]). Either way the
      * request was not sent, and is retried. What the last target answered is then retried while [kind] says so, and
      * so is a request sent and not answered, as the problem its [kind] gives it (a command again with its request id;
-     * a saga's call never here). A request no attempt could send is `wow.peer.unavailable`.
+     * a saga's call never here). A request no attempt could send is `wow.peer.unavailable`; one an attempt sent and
+     * got no answer to ends as that attempt's problem when the attempts after it send nothing, so a command whose
+     * outcome is unknown stays unknown, retried with its request id, never a new request that could commit it twice
+     * (#6806).
      */
     private suspend fun <T> withRetries(
         request: PeerRequest,
@@ -189,6 +192,8 @@ internal class HttpTransport(
         attempt: suspend (base: String) -> Answer<T>,
     ): Answer<T> {
         var attempts = 1
+        // The problem of the last attempt that sent the request and got no answer, kept over unsent attempts after it.
+        var unanswered: Answer.Problem? = null
         while (true) {
             val answer = try {
                 failover(request, attempt)
@@ -196,7 +201,7 @@ internal class HttpTransport(
                 if (failure.unsent()) {
                     // A connection that was not made sent nothing: refused, or not answered in time.
                     val wait = retry.delayBefore(attempts, null)
-                        ?: return Answer.Problem(
+                        ?: return unanswered ?: Answer.Problem(
                             PeerProblem.of(
                                 FrameworkCodes.PEER_UNAVAILABLE,
                                 (failure as? NoNodeListed)?.message
@@ -209,7 +214,7 @@ internal class HttpTransport(
                     continue
                 }
                 // Sent and not answered: the problem its kind says, retried as an answered one is.
-                Answer.Problem(kind.unanswered(request, failure))
+                Answer.Problem(kind.unanswered(request, failure)).also { unanswered = it }
             }
             if (answer is Answer.Problem && kind.retries(answer.problem)) {
                 val wait = retry.delayBefore(attempts, answer.problem.retryAfter) ?: return answer
