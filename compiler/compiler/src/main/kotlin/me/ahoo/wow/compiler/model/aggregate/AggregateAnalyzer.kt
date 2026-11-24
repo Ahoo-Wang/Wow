@@ -55,8 +55,10 @@ import me.ahoo.wow.compiler.model.symbol.blocking
 import me.ahoo.wow.compiler.model.symbol.commandClassesOf
 import me.ahoo.wow.compiler.model.symbol.declaredName
 import me.ahoo.wow.compiler.model.symbol.dependencyName
+import me.ahoo.wow.compiler.model.symbol.isKotlinProtected
 import me.ahoo.wow.compiler.model.symbol.isModuleInternal
 import me.ahoo.wow.compiler.model.symbol.javaTypeOf
+import me.ahoo.wow.compiler.model.symbol.namesModuleInternal
 import me.ahoo.wow.compiler.model.symbol.reactorReturn
 import me.ahoo.wow.compiler.model.symbol.render
 import me.ahoo.wow.compiler.model.symbol.sourceName
@@ -133,8 +135,9 @@ internal class AggregateAnalyzer(
             access = AccessResolver.of(state, problems),
             accessObject = AccessSource.qualifiedName(state),
             warnings = warnings,
-            // The generated factory exposes the state in its signature: `internal` too, the module's provider calls it.
-            internal = root.isModuleInternal() || state.isModuleInternal(),
+            // The generated factory exposes the state and the domain services in its signature: `internal` too, the
+            // module's provider calls it.
+            internal = root.isModuleInternal() || state.isModuleInternal() || dependencies.values.any { it.internal },
         )
     }
 
@@ -468,9 +471,14 @@ internal class AggregateAnalyzer(
         return dependencies.getOrPut(if (dependencyName == null) rendered else "$rendered@$dependencyName") {
             val simple = type.declaration.simpleName.asString().withFirst(Char::lowercaseChar) +
                 dependencyName?.let(::identifierSuffix).orEmpty()
-            val unique = if (dependencies.values.any { it.name == simple }) simple + dependencies.size else simple
+            // Neither another parameter's name nor one the generated factory binds itself (ModelSource): the name it
+            // has always taken when that is free (its class's, else suffixed with the count), else the next free one.
+            val taken = dependencies.values.mapTo(HashSet()) { it.name } + FACTORY_NAMES
+            val counted = if (dependencies.values.any { it.name == simple }) "$simple${dependencies.size}" else null
+            val unique = (sequenceOf(simple) + listOfNotNull(counted) + generateSequence(2) { it + 1 }.map { "$simple$it" })
+                .first { it !in taken }
             val erasure = type.declaration.sourceName()!!
-            Dependency(unique, rendered, erasure, dependencyName, type.javaTypeOf())
+            Dependency(unique, rendered, erasure, dependencyName, type.javaTypeOf(), type.namesModuleInternal())
         }.parameter
     }
 
@@ -501,9 +509,7 @@ internal class AggregateAnalyzer(
                 "the generated model calls it, so it is public or internal"
         }
         // A Kotlin protected function is out of the generated model's reach; a Java one is in its package.
-        val protected = found.filter {
-            Modifier.PROTECTED in it.modifiers && it.origin != Origin.JAVA && it.origin != Origin.JAVA_LIB
-        }
+        val protected = found.filter { it.isKotlinProtected() }
         protected.forEach {
             problems += "${it.simpleName.asString()} is protected: the generated model calls it from outside the " +
                 "class, so it is public or internal"
@@ -568,5 +574,12 @@ internal class AggregateAnalyzer(
          * lists none in `@OnCommand(produces)` either: one that only rejects or does nothing.
          */
         const val UNLISTED_EVENTS = "UnlistedEvents"
+
+        /**
+         * The names the generated factory binds itself (`ModelSource`): its own parameters and the lambdas' and the
+         * builder's names its body reads. A domain service's parameter takes none of them, or it shadows one.
+         */
+        val FACTORY_NAMES: Set<String> =
+            setOf("context", "configure", "state", "command", "event", "commit", "node", "it", "type")
     }
 }

@@ -29,6 +29,7 @@ import me.ahoo.wow.compiler.model.KotlinNames
 import me.ahoo.wow.compiler.model.symbol.annotatedIn
 import me.ahoo.wow.compiler.model.symbol.argumentsOf
 import me.ahoo.wow.compiler.model.symbol.declarations
+import me.ahoo.wow.compiler.model.symbol.isKotlinProtected
 import me.ahoo.wow.compiler.model.symbol.isModuleInternal
 import me.ahoo.wow.compiler.model.symbol.isOf
 import me.ahoo.wow.compiler.model.symbol.sourceName
@@ -138,6 +139,8 @@ internal object AccessResolver {
         val found = listOfNotNull(
             "$where is an extension: it is a member of the state".takeIf { property.extensionReceiver != null },
             "$where is private: the generated model reads it".takeIf { property.isPrivate() },
+            "$where is protected: the generated model reads it from outside the state, so it is public or internal"
+                .takeIf { property.isKotlinProtected() },
         )
         problems += found
         return binding(annotated, member, true, where, property.type.resolve(), problems).takeIf { found.isEmpty() }
@@ -158,6 +161,8 @@ internal object AccessResolver {
                 function.annotatedIn(BLOCKING) != null
             },
             "$where is private: the generated model calls it".takeIf { function.isPrivate() },
+            "$where is protected: the generated model calls it from outside the state, so it is public or internal"
+                .takeIf { function.isKotlinProtected() },
         )
         problems += found
         val returned = function.returnType?.resolve()

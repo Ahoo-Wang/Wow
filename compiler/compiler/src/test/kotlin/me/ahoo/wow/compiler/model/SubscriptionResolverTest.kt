@@ -159,4 +159,45 @@ class SubscriptionResolverTest {
         result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
         result.messages.assert().contains("processor TakesDependencies takes the host's Dependencies")
     }
+
+    @Test
+    fun `a protected handler of any kind should fail the compilation, naming it`() {
+        // The generated binding calls it from outside its class (#6833), as the aggregate side refuses it.
+        val guarded = SourceFile.kotlin(
+            "Guarded.kt",
+            """
+            package sample.guarded
+
+            import me.ahoo.wow.api.annotation.OnEvent
+            import me.ahoo.wow.api.annotation.OnRejected
+            import me.ahoo.wow.api.annotation.OnSchedule
+            import me.ahoo.wow.api.annotation.Saga
+            import me.ahoo.wow.api.schedule.ScheduleTick
+            import me.ahoo.wow.api.subscribe.CommandReceipt
+            import me.ahoo.wow.api.subscribe.StateEvent
+
+            abstract class Base {
+                @OnEvent
+                protected open fun onEvent(event: StateEvent<*>) = Unit
+
+                @OnRejected
+                protected open fun onRejected(rejected: CommandReceipt.Rejected<*>) = Unit
+
+                @OnSchedule(name = "sweep", cron = "@daily")
+                protected open fun sweep(tick: ScheduleTick) = Unit
+            }
+
+            @Saga
+            class GuardedSaga : Base()
+            """.trimIndent(),
+        )
+        val (_, result) = compileModel("generate", options, guarded)
+        result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        result.messages.lines().filter { it.startsWith("e: ") && "/ksp/sources/" in it }.assert().isEmpty()
+        result.messages.assert().contains(
+            "handler GuardedSaga.onEvent is protected: the generated subscription calls it from outside the class",
+            "handler GuardedSaga.onRejected is protected",
+            "handler GuardedSaga.sweep is protected",
+        )
+    }
 }

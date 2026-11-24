@@ -148,7 +148,7 @@ internal object SubscriptionSource {
             if (commits) ", commits = commits" else ""
         val optionalArguments = optionalArguments(handler, nullable)
         appendLine(
-            "        $PROCESSOR_BINDING.$kind<$state>(\"${escape(binding.name)}\", \"${handler.function}\", " +
+            "        $PROCESSOR_BINDING.$kind<$state>(\"${escape(binding.name)}\", \"${escape(handler.function)}\", " +
                 "$stateType, ${handler.blocking}$rejectionArgument$optionalArguments) {",
         )
         appendLine("                event: $STATE_EVENT<$state>, $contextParameter ->")
@@ -237,7 +237,7 @@ internal object SubscriptionSource {
         val retry = handler.retry?.let { ", retry = ${it.source()}" }.orEmpty()
         val bounded = context?.let { ", context = \"${escape(it)}\"" }.orEmpty()
         appendLine(
-            "        $PROCESSOR_BINDING.schedule(\"${escape(binding.name)}\", \"${handler.function}\", $definition, " +
+            "        $PROCESSOR_BINDING.schedule(\"${escape(binding.name)}\", \"${escape(handler.function)}\", $definition, " +
                 "${handler.blocking}$receipts$retry$bounded${sendsArguments(handler.sends)}) {",
         )
         appendLine("                tick: $SCHEDULE.ScheduleTick, ${if (handler.context) "context" else "_"} ->")
@@ -257,7 +257,7 @@ internal object SubscriptionSource {
         val call = "processor.${KotlinNames.quoted(handler.callee)}($arguments)"
         val awaited = if (handler.reactor) "me.ahoo.wow.reactor.awaitResult($call)" else call
         appendLine(
-            "        ${handler.receipt.binding}.of<$command>(\"${escape(binding.name)}\", \"${handler.function}\", " +
+            "        ${handler.receipt.binding}.of<$command>(\"${escape(binding.name)}\", \"${escape(handler.function)}\", " +
                 "$commandType, ${handler.blocking}${sendsArguments(handler.sends)}) {",
         )
         appendLine(

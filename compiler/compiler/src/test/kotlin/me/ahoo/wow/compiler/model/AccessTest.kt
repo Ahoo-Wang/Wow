@@ -337,6 +337,9 @@ class AccessTest {
                 "@Access function blocking is annotated @Blocking: deriving an access attribute does no I/O",
             "@Access private fun hidden(): String = department" to "@Access function hidden is private",
             "@Access private val secret: String get() = department" to "@Access property secret is private",
+            // The generated model reads it from outside the state (#6833).
+            "@Access protected val guarded: String get() = department" to "@Access property guarded is protected",
+            "@Access protected fun shielded(): String = department" to "@Access function shielded is protected",
             "@Access val Int.extended: String get() = toString()" to "@Access property extended is an extension",
             "@Access fun String.extension(): String = this" to "@Access function extension is an extension",
         ).forEach { (member, problem) -> failing(member).assert().contains(problem) }
