@@ -96,7 +96,7 @@ A command and a service route have one CoSec name, whether CoSec decides the HTT
 | A service route | `<context>:<route>` | `route/<route>` |
 | A query or state route | `http:<METHOD>` | its path |
 
-A route that names no aggregate id leaves the id to the server, so its HTTP request is on the aggregate type alone while the command, in the process, is on the aggregate it addresses: a policy for such a command names the aggregate type both with and without an id. A policy on `http:` actions never covers the command and service routes: they are in their context's namespace.
+A route that names no aggregate id leaves the id to the server, so its HTTP request is on the aggregate type alone while the command, in the process, is on the aggregate it addresses, and on `<aggregate>/(none)` until the server has chosen one: a creation that names no id is authorized before it is given one, so a request the authorizer refuses reads and writes nothing in the store. A policy for such a command names the aggregate type both with and without an id. A policy on `http:` actions never covers the command and service routes: they are in their context's namespace.
 
 CoSec's documents, the platform's, each app's and each tenant's, say who may do what. Write them with CoSec's guide rather than from this page: [Policy language](https://cosec.ahoo.me/policies/language), [Role permissions](https://cosec.ahoo.me/policies/role-permissions), [Testing policies](https://cosec.ahoo.me/policies/testing).
 

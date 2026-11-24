@@ -137,6 +137,12 @@ class BodyIdAdmissionTest {
     }
 
     @Test
+    fun `a creation whose body names no aggregate is authorized before it is given one`(): Unit = runBlocking {
+        succeeded(request("Stock", """{"quantity":1}""", requestId = "stock-2")).ref.isAssigned.assert().isTrue()
+        actions.single().ref.assert().isEqualTo(product.type.ref(TENANT, CommandGateway.UNADDRESSED))
+    }
+
+    @Test
     fun `a body that names another aggregate than the request, a blank one or none is malformed`(): Unit =
         runBlocking {
             refused(

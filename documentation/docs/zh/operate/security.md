@@ -96,7 +96,7 @@ fun shipping(): CommandAuthorizer = CommandAuthorizer { caller, action ->
 | 服务路由 | `<context>:<route>` | `route/<route>` |
 | 查询或状态路由 | `http:<METHOD>` | 它的路径 |
 
-不带聚合 ID 的路由把 ID 留给服务端选择，所以它的 HTTP 请求只作用于聚合类型，而进程内的命令作用于它指向的聚合：这种命令的策略要同时写出带 ID 和不带 ID 的聚合类型。`http:` 动作上的策略从不覆盖命令路由和服务路由：它们处于各自上下文的命名空间。
+不带聚合 ID 的路由把 ID 留给服务端选择，所以它的 HTTP 请求只作用于聚合类型，而进程内的命令作用于它指向的聚合，在服务端选定 ID 之前作用于 `<aggregate>/(none)`：不带 ID 的创建命令在获得 ID 之前就被授权，所以授权器拒绝的请求不会读写存储。这种命令的策略要同时写出带 ID 和不带 ID 的聚合类型。`http:` 动作上的策略从不覆盖命令路由和服务路由：它们处于各自上下文的命名空间。
 
 谁能做什么，由 CoSec 的文档决定：平台的文档、每个应用的文档和每个租户的文档。编写它们请参考 CoSec 的指南，而不是本页：[策略语言](https://cosec.ahoo.me/policies/language)、[角色权限](https://cosec.ahoo.me/policies/role-permissions)、[测试策略](https://cosec.ahoo.me/policies/testing)。
 

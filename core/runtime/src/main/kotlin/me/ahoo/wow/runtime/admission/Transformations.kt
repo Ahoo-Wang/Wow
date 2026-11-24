@@ -41,7 +41,6 @@ internal class Transformations(
     registry: ModelRegistry,
     transformers: List<CommandTransformer>,
     private val tenants: TenantPolicy,
-    private val creations: CreationIds,
     private val authorizer: CommandAuthorizer,
 ) {
     /** The transformers, by the full type name of the command they take. */
@@ -100,10 +99,11 @@ internal class Transformations(
         }
         val ownTarget = targetModel.idSource == AggregateIdSource.OWNER
         val owner = scope.ownerId
-        val aggregateId = result.aggregateId ?: if (ownTarget && owner != null) {
+        // A creation that names no aggregate is authorized and validated as one: the gateway chooses its id last.
+        val namedId = result.aggregateId ?: if (ownTarget && owner != null) {
             owner
         } else if (!ownTarget && targetDecider.creation != Creation.NONE) {
-            creations.idOf(targetType, targetTenant, facts.requestId, scope, targetModel.ownership)
+            null
         } else {
             facts.ref = targetType.ref(targetTenant, UNADDRESSED)
             return facts.refuse(
@@ -111,8 +111,8 @@ internal class Transformations(
                 "No $targetType is found for ${commandType.name} to send ${result.type.name} to.",
             )
         }
-        val ref = targetType.ref(targetTenant, aggregateId)
-        AdmissionLimits.oversized(facts.requestId, aggregateId, targetTenant, scope, result.body)?.let {
+        val ref = targetType.ref(targetTenant, namedId ?: UNADDRESSED)
+        AdmissionLimits.oversized(facts.requestId, namedId, targetTenant, scope, result.body)?.let {
             facts.ref = ref
             return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it)
         }

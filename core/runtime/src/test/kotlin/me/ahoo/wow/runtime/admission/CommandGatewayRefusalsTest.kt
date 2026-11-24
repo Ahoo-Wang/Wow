@@ -29,19 +29,47 @@ import me.ahoo.wow.api.result.TransformedFrom
 import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.kernel.aggregate
+import me.ahoo.wow.spi.id.AggregateIdGenerator
+import me.ahoo.wow.spi.id.IdGenerators
+import me.ahoo.wow.spi.log.CreationClaim
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.json.JsonMapper
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 /**
  * What admission refuses or reshapes before a command runs: identity sources, the authorizer, bodies that do not
- * decode or carry NUL characters, ids over 256 characters, unhandled types, validators and transformers.
+ * decode or carry NUL characters, ids over 256 characters, unhandled types, validators and transformers; and that a
+ * creation it refuses was given no id, so nothing was read or claimed for it.
  */
 class CommandGatewayRefusalsTest : CommandGatewayFixtures() {
+    /** What admission asked of the log for the id of a creation that names none: its lookups and its claims. */
+    private val lookups = CopyOnWriteArrayList<String>()
+    private val claims = CopyOnWriteArrayList<String>()
+
+    private val recording = object : CommittedRequests {
+        override suspend fun find(type: AggregateType, tenantId: String, requestId: String): EventStreamRecord? =
+            null.also { lookups += requestId }
+
+        override suspend fun claim(
+            type: AggregateType,
+            tenantId: String,
+            requestId: String,
+            claim: CreationClaim,
+        ): CreationClaim = claim.also { claims += requestId }
+
+        override fun partitions(type: AggregateType): Int = log.partitions
+    }
+
+    /** A generator that cannot aim at a partition, as a domain's own or CosId's: each creation's id is claimed. */
+    private val drawing = AtomicInteger().let { drawn ->
+        IdGenerators(aggregates = AggregateIdGenerator { "${it.name}-${drawn.incrementAndGet()}" })
+    }
+
     @Test
     fun `conflicting or missing identity sources are refused as malformed`(): Unit = runBlocking {
         val gateway = gateway()
@@ -352,4 +380,97 @@ class CommandGatewayRefusalsTest : CommandGatewayFixtures() {
             // The wait is capped by the coordinator's maximum when the command is built.
             commands.single().wait.timeout.assert().isEqualTo(30.seconds)
         }
+
+    @Test
+    fun `a creation its caller may not send is neither looked up nor claimed, and is authorized without an id`(): Unit =
+        runBlocking {
+            val actions = CopyOnWriteArrayList<CommandAction>()
+            val onlyAlice = CommandAuthorizer { caller, action ->
+                actions += action
+                if (caller == alice) Authorization.Allowed else Authorization.Denied("Only Alice opens a cart.")
+            }
+            val gateway = gateway(authorizer = onlyAlice, ids = drawing, committed = recording)
+            repeat(3) { attempt ->
+                gateway.execute(request("OpenCart", "{}", caller = bob, aggregateId = null, requestId = "bob-$attempt"))
+                    .assertRefused(FrameworkCodes.AUTH_FORBIDDEN)
+            }
+            lookups.assert().isEmpty()
+            claims.assert().isEmpty()
+            actions.map { it.ref }.assert().containsOnly(model.type.ref(TENANT, CommandGateway.UNADDRESSED))
+            // One that is admitted is looked up and claimed, once.
+            val opened = gateway.execute(
+                request("OpenCart", "{}", aggregateId = null, requestId = "alice-1", wait = WaitPlan.COMMITTED),
+            )
+            opened.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+            lookups.assert().containsExactly("alice-1")
+            claims.assert().containsExactly("alice-1")
+        }
+
+    @Test
+    fun `a creation whose body is refused is neither looked up nor claimed`(): Unit = runBlocking {
+        val gateway = gateway(ids = drawing, committed = recording)
+        gateway.execute(request("OpenCart", """{"note":""", aggregateId = null, requestId = "truncated"))
+            .assertRefused(FrameworkCodes.COMMAND_MALFORMED)
+        gateway.execute(request("OpenCart", """{"note":"a\u0000b"}""", aggregateId = null, requestId = "nul"))
+            .assertRefused(FrameworkCodes.COMMAND_MALFORMED)
+        lookups.assert().isEmpty()
+        claims.assert().isEmpty()
+    }
+
+    @Test
+    fun `a creation the validators refuse is neither looked up nor claimed, and is validated without an id`(): Unit =
+        runBlocking {
+            val validated = CopyOnWriteArrayList<AggregateRef>()
+            val noted = CommandValidator { command ->
+                validated += command.ref
+                val unnoted = (command.body as OpenCart).note.isEmpty()
+                if (unnoted) listOf(Violation("note", "NotBlank", "No note.")) else emptyList()
+            }
+            val gateway = gateway(validators = listOf(noted), ids = drawing, committed = recording)
+            gateway.execute(request("OpenCart", "{}", aggregateId = null, requestId = "unnoted"))
+                .assertRefused(FrameworkCodes.COMMAND_INVALID)
+            lookups.assert().isEmpty()
+            claims.assert().isEmpty()
+            validated.single().assert().isEqualTo(model.type.ref(TENANT, CommandGateway.UNADDRESSED))
+        }
+
+    @Test
+    fun `a transformer's creation its caller may not send is neither looked up nor claimed`(): Unit = runBlocking {
+        // A checkout sent without a cart opens one.
+        val opening = object : CommandTransformer {
+            override val input = model.commandType(Checkout::class.java)
+
+            override suspend fun transform(input: CommandInput): CommandTarget =
+                CommandTarget(model.commandType(OpenCart::class.java), null, OpenCart("checkout"))
+        }
+        val actions = CopyOnWriteArrayList<CommandAction>()
+        val onlyAliceOpens = CommandAuthorizer { caller, action ->
+            actions += action
+            val bobOpens = caller == bob && action.commandIs<OpenCart>()
+            if (bobOpens) Authorization.Denied("Bob opens no cart.") else Authorization.Allowed
+        }
+        val gateway = gateway(
+            authorizer = onlyAliceOpens,
+            transformers = listOf(opening),
+            ids = drawing,
+            committed = recording,
+        )
+        gateway.execute(request("Checkout", "{}", caller = bob, aggregateId = null, requestId = "bob-checkout"))
+            .assertRefused(FrameworkCodes.AUTH_FORBIDDEN)
+        lookups.assert().isEmpty()
+        claims.assert().isEmpty()
+        // Authorized as it arrived and as the creation it became, neither with an id.
+        actions.map { it.type.name to it.ref.id }.assert().containsExactly(
+            "shop.cart.Checkout" to CommandGateway.UNADDRESSED,
+            "shop.cart.OpenCart" to CommandGateway.UNADDRESSED,
+        )
+        // One that is admitted is looked up and claimed, once, and goes to the aggregate drawn for it.
+        val opened = gateway.execute(
+            request("Checkout", "{}", aggregateId = null, requestId = "alice-checkout", wait = WaitPlan.COMMITTED),
+        )
+        opened.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+        opened.ref.assert().isEqualTo(model.type.ref(TENANT, "cart-1"))
+        lookups.assert().containsExactly("alice-checkout")
+        claims.assert().containsExactly("alice-checkout")
+    }
 }
