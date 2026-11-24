@@ -18,6 +18,7 @@
     "test:ci-scripts": "node --test .github/scripts/*.test.mjs scripts/*.test.mjs",
     "bench:abba": "node .github/scripts/bench-abba.mjs",
     "bench:compare": "node .github/scripts/bench-compare.mjs",
+    "bench:idle": "node .github/scripts/bench-idle.mjs",
     "set-version": "node .github/scripts/project-version.mjs set",
     "check:versions": "node .github/scripts/project-version.mjs check",
     "check:docs-layout": "node .github/scripts/docs-layout.mjs",
