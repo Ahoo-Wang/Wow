@@ -13,6 +13,7 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { SUITES, suitesOf } from './bench.mjs';
 import {
+  HEAD_READS_SLACK,
   IDLE,
   idleAnomalies,
   idleArgs,
@@ -22,8 +23,11 @@ import {
 } from './bench-idle-suites.mjs';
 import { measureAnomalies, renderMeasure } from './bench-measure.mjs';
 
-/** A fake bench.sh: an idle session's idle.json, its head reads by arm (the install) and the same at any node count. */
-function fakeBench({ fail = '' } = {}) {
+/**
+ * A fake bench.sh: an idle session's idle.json, its head reads by arm (the install), the same at any node count unless
+ * [threeHeads] gives the head's at three.
+ */
+function fakeBench({ fail = '', threeHeads = '' } = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'idle-bench-'));
   const path = join(dir, 'bench.sh');
   writeFileSync(
@@ -36,6 +40,7 @@ done
 case "$install:$nodes" in ${fail || 'never'}) exit 1 ;; esac
 heads=70.4; added=6.6
 if [ "$install" = /head ]; then heads=2.1; added=1.4; fi
+if [ "$install:$nodes" = /head:3 ] && [ -n "${threeHeads}" ]; then heads=${threeHeads}; fi
 mkdir -p "$out"
 cat >"$out/idle.json" <<JSON
 {"schema":"wow-idle/1","backend":"mongo","nodes":$nodes,"logHeadReadsPerSecond":$heads,
@@ -158,5 +163,46 @@ test('without a baseline the head runs alone; a failed run is an anomaly and cou
   assert.match(
     renderIdle(failed, SUITES['idle-mongo']),
     /\*\*1 run\(s\) failed\*\*/,
+  );
+});
+
+test('an arm whose three nodes read the log heads more than its one is an anomaly, within the slack it is not', () => {
+  assert.deepEqual(HEAD_READS_SLACK, { ratio: 1.1, perSecond: 0.5 });
+  const installs = { base: '/base', head: '/head' };
+  // 2.1 at one node: 2.8 at three is within a tenth and half a read a second (2.81), 6.3 past it.
+  const within = run(
+    SUITES['idle-mongo'],
+    installs,
+    fakeBench({ threeHeads: '2.8' }),
+  );
+  assert.deepEqual(idleAnomalies(within), []);
+  const grown = run(
+    SUITES['idle-mongo'],
+    installs,
+    fakeBench({ threeHeads: '6.3' }),
+  );
+  assert.deepEqual(idleAnomalies(grown), [
+    {
+      suite: 'idle-mongo@100k',
+      run: 'head-3',
+      context: 'idle',
+      kind: 'three nodes read more than one',
+      detail:
+        "6.30 log head reads a second at three nodes, 2.10 at one: the nodes' probes do not split the partitions' reads",
+    },
+  ]);
+  assert.match(
+    renderIdle(grown, SUITES['idle-mongo']),
+    /three nodes read more than one/,
+  );
+  // Without its one-node run (failed), a three-node run has nothing to be read against.
+  const alone = run(
+    SUITES['idle-mongo'],
+    installs,
+    fakeBench({ fail: '/head:1', threeHeads: '6.3' }),
+  );
+  assert.deepEqual(
+    idleAnomalies(alone).map(it => it.kind),
+    ['run failed'],
   );
 });

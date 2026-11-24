@@ -23,6 +23,12 @@ export const IDLE_PROGRAMS = ['idle'];
 /** The node counts each arm runs idle at: one, and three, whose head reads must not grow with the nodes. */
 export const IDLE = { nodes: [1, 3] };
 
+/**
+ * How far an arm's three nodes may read the log heads past its one node before it is an anomaly: a tenth, and half a
+ * read a second, for a count taken over a minute. A node probes its own partitions only, so three split one's reads.
+ */
+export const HEAD_READS_SLACK = { ratio: 1.1, perSecond: 0.5 };
+
 /** The idle suites on the head's and the baseline's PostgreSQL and MongoDB arms. */
 export function idleSuites(HEAD_PG, BASE_PG, HEAD_MONGO, BASE_MONGO) {
   const answers = backend =>
@@ -94,7 +100,16 @@ export function runIdle(
   }
 }
 
-/** The anomalies of an idle suite: a run that failed, and a store CPU without its no-node figure. */
+/** The run of [arm] at [nodes] nodes that succeeded, if any. */
+const okRun = (suite, arm, nodes) =>
+  suite.runs.find(
+    it => it.arm === arm && it.nodes === nodes && it.status === 'ok',
+  );
+
+/**
+ * The anomalies of an idle suite: a run that failed, a store CPU without its no-node figure, and an arm whose three
+ * nodes read the log heads more than its one node did (past [HEAD_READS_SLACK]).
+ */
 export function idleAnomalies(suite) {
   const rows = [];
   for (const run of suite.runs) {
@@ -110,6 +125,19 @@ export function idleAnomalies(suite) {
       row('run failed', 'bench.sh idle failed; see the job log');
     if (run.status === 'ok' && !Number.isFinite(run.idle?.storeCpu?.added))
       row('no CPU baseline', 'the store was not measured with no node');
+    const one = run.nodes === 3 && okRun(suite, run.arm, 1);
+    if (run.status === 'ok' && one) {
+      const three = run.idle.logHeadReadsPerSecond;
+      const single = one.idle.logHeadReadsPerSecond;
+      if (
+        three >
+        single * HEAD_READS_SLACK.ratio + HEAD_READS_SLACK.perSecond
+      )
+        row(
+          'three nodes read more than one',
+          `${num(three, 2)} log head reads a second at three nodes, ${num(single, 2)} at one: the nodes' probes do not split the partitions' reads`,
+        );
+    }
   }
   return rows;
 }
