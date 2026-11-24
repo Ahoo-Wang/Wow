@@ -27,6 +27,7 @@ import co.elastic.clients.elasticsearch.core.IndexRequest
 import co.elastic.clients.elasticsearch.core.MgetRequest
 import co.elastic.clients.elasticsearch.core.SearchRequest
 import co.elastic.clients.elasticsearch.core.bulk.BulkOperation
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
@@ -56,8 +57,10 @@ import java.util.concurrent.ConcurrentHashMap
  *
  * Each aggregate type has its own index, `wow_snapshot__<context>__<aggregate>` ([ElasticsearchNames]),
  * holding one document per aggregate, its id the tenant and the aggregate id ([ElasticsearchNames.documentId]), laid
- * out as [ElasticsearchSnapshotDocuments] and [ElasticsearchSnapshotIndex] say. An aggregate type's index is created
- * the first time this store touches the type, as [ddl] says.
+ * out as [ElasticsearchSnapshotDocuments] and [ElasticsearchSnapshotIndex] say. An aggregate type's index is an alias
+ * of one concrete index ([ElasticsearchIndices]), made sure of the first time this store touches the type, as [ddl]
+ * says. Every write carries `require_alias`: a write to a missing alias is refused, naming it, instead of having
+ * Elasticsearch create an index with a mapping it guesses, and under `auto` the next use creates the pair again.
  *
  * Every write is a whole document, guarded by the sequence number of the one it replaces (`if_seq_no`,
  * `if_primary_term`), or created only when there is none (`op_type=create`): the store reads the document in real
@@ -122,6 +125,23 @@ class ElasticsearchSnapshotStore internal constructor(
         }
         return index
     }
+
+    /**
+     * Forgets that [index] was made sure of: its alias is gone (deleted under a running node, or never created under
+     * `none`), and the next use makes sure of it again, which under `auto` creates the pair afresh, empty.
+     */
+    private fun forget(index: String) {
+        if (index == names.snapshotTables) tablesEnsured = false else ensured -= index
+        if (ddl.creates) {
+            logger.warn {
+                "The Elasticsearch alias [$index] is missing, its index deleted under a running node: ddl auto " +
+                    "creates it again at the next write, empty, and what it held comes back only from a rebuild."
+            }
+        }
+    }
+
+    /** The refusal of a write to [index], whose alias does not exist. */
+    private fun missingAlias(index: String) = IllegalStateException(ElasticsearchIndices.missingAlias(index))
 
     private suspend fun tablesIndex(): String {
         val index = names.snapshotTables
@@ -248,7 +268,7 @@ class ElasticsearchSnapshotStore internal constructor(
         outcomes: Array<SnapshotSaveOutcome?>
     ): List<Int> {
         val request = BulkRequest.of { bulk ->
-            bulk.index(index).refresh(refresh).operations(writes.map(::operationOf))
+            bulk.index(index).requireAlias(true).refresh(refresh).operations(writes.map(::operationOf))
         }
         val items = whenShardReady { client.bulk(request).awaitElasticsearch() }.items()
         val beaten = ArrayList<Int>()
@@ -258,6 +278,10 @@ class ElasticsearchSnapshotStore internal constructor(
             when {
                 error == null -> outcomes[write.position] = SnapshotSaveOutcome.of(write.decision.result)
                 item.status() == ElasticsearchFailures.CONFLICT -> beaten += write.position
+                ElasticsearchFailures.isMissingAlias(item.status(), error.type()) -> {
+                    forget(index)
+                    outcomes[write.position] = SnapshotSaveOutcome.Failed(missingAlias(index))
+                }
                 else -> outcomes[write.position] = SnapshotSaveOutcome.Failed(
                     ElasticsearchFailures.itemFailure(item.status(), "the document [${write.id}] of [$index]", error.reason()),
                 )
@@ -483,7 +507,7 @@ class ElasticsearchSnapshotStore internal constructor(
 
     private suspend fun writeNow(index: String, id: String, document: ObjectNode, stored: Stored?): Boolean {
         val request = IndexRequest.of<ObjectNode> { request ->
-            request.index(index).id(id).document(document).refresh(refresh)
+            request.index(index).requireAlias(true).id(id).document(document).refresh(refresh)
             if (stored == null) {
                 request.opType(OpType.Create)
             } else {
@@ -495,12 +519,18 @@ class ElasticsearchSnapshotStore internal constructor(
             client.index(request).awaitElasticsearch()
             true
         } catch (failure: ElasticsearchException) {
-            when {
-                ElasticsearchFailures.hasStatus(failure, ElasticsearchFailures.CONFLICT) -> false
+            if (ElasticsearchFailures.hasStatus(failure, ElasticsearchFailures.CONFLICT)) {
+                return false
+            }
+            throw when {
+                ElasticsearchFailures.isIndexNotFound(failure) -> {
+                    forget(index)
+                    missingAlias(index)
+                }
                 // A document Elasticsearch cannot take (a field name it refuses, say) is refused as a value.
                 ElasticsearchFailures.hasStatus(failure, ElasticsearchFailures.BAD_REQUEST) ->
-                    throw StorageRefusedException("Elasticsearch refused the document [$id] of [$index].", failure)
-                else -> throw failure
+                    StorageRefusedException("Elasticsearch refused the document [$id] of [$index].", failure)
+                else -> failure
             }
         }
     }
@@ -548,3 +578,5 @@ class ElasticsearchSnapshotStore internal constructor(
         """.trimIndent()
     }
 }
+
+private val logger = KotlinLogging.logger {}

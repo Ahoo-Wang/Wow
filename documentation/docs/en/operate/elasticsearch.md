@@ -48,6 +48,18 @@ wow:
 
 Each index records its layout in its `_meta` and refuses a store that expects another.
 
+### Indices and their aliases {#indices-and-aliases}
+
+Each index is a pair: a concrete index `<name>--1` behind the alias `<name>`, its write index. The store reads and writes by the name. Every write asks Elasticsearch to refuse it unless the name is an alias (`require_alias`), so a write never creates an index with a mapping Elasticsearch guesses, whatever made the index missing:
+- `ddl: auto` creates the pair, the index and its alias in one request.
+- `ddl: validate` refuses a store whose alias is missing, naming the pair, and checks the layout of the index behind it.
+- `ddl: none` checks nothing, and a write to a missing alias fails, naming it.
+- An alias that points at more than one index, or is not its index's write alias, is refused, naming it. Wow writes through no such alias.
+- **An index deleted under a running node** fails the next write instead of being created again with a guessed mapping. Under `ddl: auto`, the write after it creates the pair again, empty, with a warning naming the alias. What it held comes back from a [rebuild](#rebuild).
+- **An index an earlier pre-release created** is a concrete index of the alias's own name. The store refuses it, naming it: delete it and rebuild it.
+
+The `--1` leaves room for a later version to reindex behind the same alias; nothing in 10.0 moves it. For a node whose account may not create indices, create the pair once with `ddl: auto` from an account that may. Or create it by hand: `<name>--1` with the mapping `ddl: auto` gives it, and `"aliases": {"<name>": {"is_write_index": true}}`.
+
 ### A server that stops answering {#a-server-that-stops-answering}
 
 Each request of the store, a write, a load or a query, has its caller wait at most `operation-timeout` for an answer, as a MongoDB or PostgreSQL store's calls do: past it the caller fails with a transient error. A command whose load fails replays its log, and a snapshot subscription whose write fails pauses its partition and retries.
@@ -174,7 +186,7 @@ Each aggregate type picks its stores: its log on PostgreSQL or MongoDB, its snap
 
 ## Rebuild
 
-Both copies come from the log. A snapshot index is rebuilt by rebuilding the aggregates' snapshots ([Rebuild and Replay](./replay)). The events index is filled again by starting its sink subscription from the beginning of the log. Neither needs a backup of its own ([Backup and Recovery](./backup)).
+Both copies come from the log. A snapshot index is rebuilt by rebuilding the aggregates' snapshots ([Rebuild and Replay](./replay)). The events index is filled again by starting its sink subscription from the beginning of the log. To empty an index first, delete its concrete index, `<name>--1`, since Elasticsearch deletes no index through an alias; under `ddl: auto` the next write creates the pair again. Neither needs a backup of its own ([Backup and Recovery](./backup)).
 
 ## From 9.x
 

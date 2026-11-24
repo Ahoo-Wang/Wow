@@ -33,12 +33,25 @@ import kotlin.time.TimeSource
  * The indices Wow keeps on Elasticsearch, each created with its definition (settings and mappings, a JSON document)
  * and recording its layout in the mapping's `_meta` (`wow_index`, `wow_format`), so a reader of another
  * layout refuses it instead of misreading it.
+ *
+ * Each is a pair: a concrete index `<name>--1` ([concreteOf]) behind the alias `<name>`, its write index. The stores
+ * read and write by the name, and every write carries `require_alias`, so a write to a name that has no alias is
+ * refused (`404`) instead of having Elasticsearch create an index of that name with a mapping it guesses, whatever
+ * made it missing: never created under `none` or `validate`, or deleted under a running node. The `--1` is room for a
+ * later version to reindex into another index behind the same alias; nothing in 10.0 moves it.
  */
 internal class ElasticsearchIndices(private val client: ElasticsearchAsyncClient) {
     /**
-     * Makes sure of [index], of [kind] in [format], as [ddl] says: under `auto` creates it from [definition] when it is
-     * missing, then (under `auto` and `validate`) checks the layout an existing one records; under `validate` a missing
-     * index refuses the store; under `none` nothing is checked.
+     * Makes sure of the alias [index], of [kind] in [format], as [ddl] says:
+     * - under `auto`, a missing pair is created from [definition], the index and its alias in one request;
+     * - under `auto` and `validate`, the index behind an existing alias must record the layout, and the alias must
+     *   point at that one index as its write index;
+     * - under `validate`, a missing alias refuses the store, naming the pair and how to create it;
+     * - under `none`, nothing is checked, and a write to a missing alias is refused by Elasticsearch
+     *   ([missingAlias]).
+     *
+     * A concrete index of the alias's name, which an earlier pre-release created, is refused under `auto` and
+     * `validate` ([concreteIndex]).
      *
      * Either way it returns once the index's primary shard serves requests ([awaitActive]): an index just created,
      * here or by another node a moment ago, recovers its primary before it takes a read or a write, and a first write
@@ -46,15 +59,39 @@ internal class ElasticsearchIndices(private val client: ElasticsearchAsyncClient
      */
     suspend fun ensure(index: String, kind: String, format: Int, definition: String, ddl: Ddl) {
         if (!ddl.checks) return
-        val mapping = mapping(index)
-        ddl.apply(
-            "The Elasticsearch index [$index]",
-            exists = { mapping != null },
-            create = { create(index, definition) },
-        ) {
-            checkLayout(index, mapping!!, kind, format)
+        var found = resolve(index)
+        if (found == Found.Missing && ddl.creates) {
+            create(index, definition)
+            found = resolve(index)
+        }
+        when (found) {
+            Found.Missing -> error(missingAlias(index))
+            is Found.Concrete -> error(concreteIndex(index))
+            is Found.Unwritable -> error(
+                "The Elasticsearch alias [$index] ${found.reason}: Wow writes only through an alias of one index, " +
+                    "its write index.",
+            )
+            is Found.Alias -> {
+                val mapping = checkNotNull(mapping(found.index)) { missingAlias(index) }
+                checkLayout(index, mapping, kind, format)
+            }
         }
         awaitActive(index)
+    }
+
+    /** What the name [alias] is on the cluster. */
+    private suspend fun resolve(alias: String): Found {
+        if (!client.indices().existsAlias { it.name(alias) }.awaitElasticsearch().value()) {
+            val exists = client.indices().exists { it.index(alias) }.awaitElasticsearch().value()
+            return if (exists) Found.Concrete else Found.Missing
+        }
+        val indices = client.indices().getAlias { it.name(alias) }.awaitElasticsearch().aliases()
+        val (index, aliases) = indices.entries.singleOrNull()
+            ?: return Found.Unwritable("points at ${indices.size} indices, ${indices.keys.sorted()}")
+        if (aliases.aliases()[alias]?.isWriteIndex() == false) {
+            return Found.Unwritable("is not the write alias of [$index]")
+        }
+        return Found.Alias(index)
     }
 
     /**
@@ -81,7 +118,8 @@ internal class ElasticsearchIndices(private val client: ElasticsearchAsyncClient
             } else {
                 null
             }
-            val stats = health?.indices()?.get(index)
+            // Keyed by the index behind the alias.
+            val stats = health?.indices()?.values?.singleOrNull()
             if (stats != null && stats.numberOfShards() > 0 && stats.activePrimaryShards() == stats.numberOfShards()) {
                 return
             }
@@ -103,23 +141,62 @@ internal class ElasticsearchIndices(private val client: ElasticsearchAsyncClient
         if (ElasticsearchFailures.isIndexNotFound(failure)) null else throw failure
     }
 
-    private suspend fun create(index: String, definition: String) {
+    /** Creates [alias]'s index from [definition], with [alias] as its write alias, in one request. */
+    private suspend fun create(alias: String, definition: String) {
         try {
             client.indices().create(
-                CreateIndexRequest.of { it.index(index).withJson(StringReader(definition)) },
+                CreateIndexRequest.of {
+                    it.withJson(StringReader(definition)).index(concreteOf(alias))
+                        .aliases(alias) { pair -> pair.isWriteIndex(true) }
+                },
             ).awaitElasticsearch()
         } catch (failure: ElasticsearchException) {
-            // Another node, or another call of this one, created it meanwhile: [ensure] waits for its primary.
+            // Another node, or another call of this one, created it meanwhile: [ensure] resolves what is there.
             if (!failure.isAlreadyExists()) throw failure
         }
     }
 
-    private fun ElasticsearchException.isAlreadyExists(): Boolean = error().type() == RESOURCE_ALREADY_EXISTS
+    private fun ElasticsearchException.isAlreadyExists(): Boolean =
+        error().type() == RESOURCE_ALREADY_EXISTS || error().type() == INVALID_ALIAS_NAME
+
+    /** What a name is: missing, an index of its own (an earlier pre-release's), an alias Wow cannot write through, or its pair. */
+    private sealed interface Found {
+        data object Missing : Found
+
+        data object Concrete : Found
+
+        class Unwritable(val reason: String) : Found
+
+        class Alias(val index: String) : Found
+    }
 
     companion object {
         const val META_INDEX = "wow_index"
         const val META_FORMAT = "wow_format"
         private const val RESOURCE_ALREADY_EXISTS = "resource_already_exists_exception"
+
+        /** Elasticsearch's answer to an alias whose name an index already has. */
+        private const val INVALID_ALIAS_NAME = "invalid_alias_name_exception"
+
+        /** The suffix of the concrete index behind an alias: its first, which no version moves yet. */
+        const val CONCRETE_SUFFIX = "--1"
+
+        /** The concrete index behind the alias [alias]. */
+        fun concreteOf(alias: String): String = alias + CONCRETE_SUFFIX
+
+        /** Why a write to [alias] is refused when it does not exist, and how to create it. */
+        fun missingAlias(alias: String): String =
+            "The Elasticsearch alias [$alias] does not exist, and Wow writes only through it. Create it with " +
+                "ddl auto once, from an account that may create indices, or by hand: the index " +
+                "[${concreteOf(alias)}] with the definition ddl auto gives it and the alias as its write index " +
+                "(`\"aliases\": {\"$alias\": {\"is_write_index\": true}}`)."
+
+        /** Why [alias] is refused when it is a concrete index of its own, as an earlier pre-release created it. */
+        fun concreteIndex(alias: String): String =
+            "The Elasticsearch index [$alias] is an index, not the alias Wow writes through: an earlier pre-release " +
+                "created it. It holds nothing the log does not. Delete it and rebuild it from the log (an events " +
+                "index by its sink's subscription from the beginning, a snapshot index by a snapshot rebuild): ddl " +
+                "auto then creates [${concreteOf(alias)}] behind the alias [$alias]."
 
         /** How long [awaitActive] waits for the primary shards. */
         val ACTIVE_TIMEOUT: Duration = 30.seconds
