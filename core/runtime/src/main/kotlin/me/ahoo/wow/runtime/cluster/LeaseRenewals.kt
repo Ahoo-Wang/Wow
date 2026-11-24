@@ -15,7 +15,12 @@ package me.ahoo.wow.runtime.cluster
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.runtime.health.launchWorker
 import me.ahoo.wow.spi.subscription.Lease
 import me.ahoo.wow.spi.subscription.LeaseStore
 import kotlin.time.Duration
@@ -59,6 +64,37 @@ internal class LeaseRenewals(
     private val acquisitions: AcquisitionGate? = null,
     private val wake: () -> Unit,
 ) {
+    /**
+     * Launches the renewals' loop in [scope]: a round ([renew]) every [ClusterOptions.renewInterval], counted from the
+     * start of the previous one, until [steppedOut] or the scope stops.
+     *
+     * A loop that ends otherwise ended on an error no round catches (`NodeLoops.kt`): nothing restarts it, so the node
+     * can renew no lease of [group] again. [ended] is then called with why ([ENDED]), apart from the loop, for the node
+     * to step out of the group rather than acquire its partitions again, each one only to lose it once it is overdue.
+     */
+    fun launchIn(scope: CoroutineScope, steppedOut: () -> Boolean, ended: suspend (String) -> Unit): Job {
+        val loop = scope.launchWorker("lease renewals") {
+            if (steppedOut()) {
+                return@launchWorker false
+            }
+            val started = timeSource.markNow()
+            runLogged(node, group, "renew leases", NEXT_ROUND) { renew() }
+            delay(options.renewInterval - started.elapsedNow())
+            true
+        }
+        scope.launch {
+            loop.join()
+            if (!steppedOut()) {
+                logger.error {
+                    "The lease renewals of $node in $group ended, and nothing restarts them: the node steps out of " +
+                        "$group and acquires none of its partitions again, so the other nodes take them over."
+                }
+                ended(ENDED)
+            }
+        }
+        return loop
+    }
+
     /**
      * Renews every held lease once, all with one [LeaseStore.renew]. A partition the call does not
      * give back is lost, unless it was handed off meanwhile; a call that throws leaves every lease to the next round,
@@ -182,5 +218,8 @@ internal class LeaseRenewals(
     private companion object {
         // The lines moved from the ownership keep its logger's name.
         val logger = KotlinLogging.logger(PartitionOwnership::class.java.name)
+
+        /** Why a node steps out of a group whose renewals ended ([launchIn]). */
+        const val ENDED = "its lease renewals ended"
     }
 }

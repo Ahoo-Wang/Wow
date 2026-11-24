@@ -53,7 +53,9 @@ import kotlin.time.Duration.Companion.seconds
  * the partitions it owns against its share by HRW, the members, whether a hand-over is in progress,
  *   and the context's lease store. `DOWN` when the lease store is down, when the ownership does not run, or when the
  *   node has owned none of a share that is not empty for [HealthOptions.handoverGrace]; `DEGRADED` when it owns
- *   another set than its share for that long, or the lease store failed lately. On a node on standby
+ *   another set than its share for that long, the lease store failed lately, or the node stepped out of the group for
+ *   good (`steppedOut`: after its fatal error, or once its lease renewals ended), forwarding its commands to the
+ *   group's other nodes. On a node on standby
  *   ([ServiceNode.standby]), which joins no lease group until it is activated, a group that does not run
  *   is `UP`, marked `standby`: the node serves reads.
  * - `stores`: each event log (one per log group), from the node's own calls and a probe of its head
@@ -385,9 +387,12 @@ class NodeHealth(
         leaseStore?.let { details[LEASE_STORE] = mapOf("status" to it.status.name) + it.details }
         val handover = handoverStatus(name, owned, target)
         val standby = !ownership.isRunning && node.standby
+        val steppedOut = ownership.isSteppedOut
         val status = when {
             standby -> HealthStatus.UP
             !ownership.isRunning -> HealthStatus.DOWN
+            // Out of the group for good: the node forwards its commands, its share the other nodes'.
+            steppedOut -> HealthStatus.worst(listOfNotNull(leaseStore?.status, HealthStatus.DEGRADED))
             else -> HealthStatus.worst(listOfNotNull(leaseStore?.status, handover))
         }
         if (!ownership.isRunning) {
@@ -397,6 +402,9 @@ class NodeHealth(
             details[STANDBY] = true
         }
         ownership.fenced.takeIf { it }?.let { details["fenced"] = true }
+        if (steppedOut) {
+            details["steppedOut"] = true
+        }
         return ComponentHealth(name, status, details)
     }
 

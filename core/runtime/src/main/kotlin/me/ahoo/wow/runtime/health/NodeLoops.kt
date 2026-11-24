@@ -36,8 +36,10 @@ import me.ahoo.wow.spi.observation.ObservedEvent
  *   fatal error, so nothing says they are unsafe where they are: an error that follows a partition's data would fell
  *   every node that took the partition over, one after another, and an error of the build is the same on every node,
  *   where stepping out would stop every write at once. The orchestrator restarts the process, with the error in plain
- *   sight. Where the renewals' loop is the one that ended, the partitions' gates close at their unrenewed limit as for
- *   any renewal that fails, so the leases lapse and another node takes them over.
+ *   sight. Where the renewals' loop is the one that ended, the node can renew no lease of that group again: it steps
+ *   out of the group ([me.ahoo.wow.runtime.cluster.LeaseRenewals.launchIn]), handing its partitions off within the
+ *   reconcile timeout and acquiring none again, so the other nodes take them over, and a lease it could not release
+ *   lapses. Its `ownership` health shows the group `DEGRADED`, `steppedOut`.
  *
  * A loop ends quietly when its scope is cancelled (a stop), or when a worker's round says it is done ([launchWorker]).
  * A scope built without a node's [NodeFatals] (a part built on its own, in a test) logs the end at ERROR.

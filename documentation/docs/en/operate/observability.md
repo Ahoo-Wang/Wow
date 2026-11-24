@@ -25,11 +25,11 @@ The components:
 | `node` | The node is not running: starting, draining or stopped; or it met a [fatal error](#fatal-errors), from then on | |
 | `stores` | A log, or a store the writes need (one holding a log, a type's own snapshot store), has kept failing for `wow.health.stores.down-after` (15 s) with no success since | One of them failed within `wow.health.stores.window` (1 min) |
 | `secondaryStores` | Never: each store instance off the write path (an additional snapshot store, a query or search store) is `DOWN` by the same rule as `stores`, but its outage degrades the reads it serves, not the node, so readiness leaves it out | It failed within `wow.health.stores.window` (1 min) |
-| `ownership` | Its lease store is down, or the node owns none of its share of a lease group's partitions past `wow.health.ownership.handover-grace` (1 min) | It owns another set than its share for that long, or the lease store failed lately |
+| `ownership` | Its lease store is down, or the node owns none of its share of a lease group's partitions past `wow.health.ownership.handover-grace` (1 min) | It owns another set than its share for that long, the lease store failed lately, or the node stepped out of the group for good (`steppedOut`: after a fatal error, or once its lease renewals ended) and forwards the group's commands |
 | `topics` | A topic of another context it reads is still joining (unless `wow.health.topics.required: false`) | It is still joining, with `wow.health.topics.required: false` |
 | `subscriptions` | Never | A subscription is `lag-degraded-at` (10,000) entries behind, has `parked-degraded-at` (100) parked entries or more than at the last sample, or has paused a partition |
 | `executor` | | The executor runs at `saturation` (90 %) of its in-flight bound |
-| `liveness` | The node is stuck for `wow.health.liveness.stall-timeout` (3 min): its dispatcher does not tick, the threads of its backends' driver calls run nothing, a reconcile of its partitions does not end, or commands in flight do not finish while every log answers. A node that is starting fails it only when a reconcile of its partitions has finished no step for that long, a call that never returns (a store call that fails is a step, and fails the start instead), with `stalled: reconcile`, the `group` and `stalledMillis`. Or the node met a [fatal error](#fatal-errors): then until the process ends. This alone fails liveness | |
+| `liveness` | The node is stuck for `wow.health.liveness.stall-timeout` (3 min): its dispatcher does not tick, the threads of its backends' driver calls run nothing, a reconcile of its partitions does not end, or commands in flight do not finish while every log answers. A node that is starting fails it only when a reconcile of its partitions has finished no step for that long, a call that never returns (a store call that fails is a step, and fails the start instead), with `stalled: reconcile`, the `group` and `stalledMillis`. Or the node met a [fatal error](#fatal-errors), or one of its loops ended ([below](#a-loop-that-ends)): then until the process ends. This alone fails liveness | |
 
 A degraded component does not change a group's status: it is there to be seen and alerted on. Liveness never fails for a storage outage or while the node drains, so an outage does not restart every node at once. The node samples what a probe must not wait for (the logs' heads, the subscriptions' lag, the parked entries) every `wow.node.sample-interval` (10 s), so a probe answers at once. One sample serves the health and the gauges alike, each subscription by its group and name: every context's `snapshot` subscription is its own, with its own parked count, up to `wow.node.max-parked`.
 
@@ -46,6 +46,14 @@ A fatal error of the JVM (an `OutOfMemoryError`, an `InternalError`, an `Unknown
 A `StackOverflowError` is not fatal. It unwinds the one thread it happened on, leaving the JVM unharmed, and it happens again on the same input: a handler that overflows its stack fails as one that throws `NotImplementedError` does, retried and then parked. Were it fatal, one such entry would make every node that took its partition over step out in turn.
 
 Run the JVM with `-XX:+ExitOnOutOfMemoryError`, so an `OutOfMemoryError` anywhere in the process, a request's included, ends it at once and its orchestrator starts it again. The chart's default `javaOpts` and the images Wow builds set it ([Kubernetes](./kubernetes#memory)); the node's own rule is the net for a JVM run without it.
+
+### A loop that ends {#a-loop-that-ends}
+
+Any other error that escapes a round of one of the node's loops, one no round catches, ends that loop, and nothing restarts it. Examples are a `LinkageError` of a driver built against another version, or an `AssertionError`.
+
+- The liveness is `DOWN` until the process ends, and `ended` names the loop: `component`, `name`, `loop`, the error's class (`error`) and how long ago (`endedMillis`). `endedLoops` counts how many loops ended.
+- The node is not fatal and holds its partitions. The orchestrator restarts it, with the error in plain sight: an error of the build is the same on every node, and stepping out would stop every write at once.
+- A lease group's renewals (`loop: lease renewals`) are the exception: a node that can renew none of the group's leases cannot hold its partitions. It steps out of that group as after a fatal error. It hands its partitions off within `wow.cluster.reconcile-timeout`, acquires none again, and forwards their commands to the other nodes, which take them over. Its `ownership` health shows the group `DEGRADED`, with `steppedOut`.
 
 ## Metrics and traces
 

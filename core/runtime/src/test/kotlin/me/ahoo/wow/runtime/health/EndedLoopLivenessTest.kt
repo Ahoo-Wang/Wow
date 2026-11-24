@@ -22,11 +22,13 @@ import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.spi.timer.Timer
 import me.ahoo.wow.spi.timer.TimerStore
 import org.junit.jupiter.api.Test
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * A loop of a running node that ends (RT-5): the node's liveness is `DOWN` for good, naming the loop, while the node
  * holds its partitions. Before, an error that escaped the timer loop's round ended it silently, every timer of the node
- * stopping with the liveness `UP`.
+ * stopping with the liveness `UP`. A node whose lease renewals ended can hold no partition: it steps out of the group.
  */
 class EndedLoopLivenessTest : NodeHealthFixtures() {
     /** Once broken, a read of the timers due fails with an error no round catches. */
@@ -69,4 +71,35 @@ class EndedLoopLivenessTest : NodeHealthFixtures() {
         broken = false
         health.liveness().status.assert().isEqualTo(HealthStatus.DOWN)
     }
+
+    @Test
+    fun `a renewals loop that meets an error should step the node out of its group, the health saying so`(): Unit =
+        runBlocking {
+            val node = node()
+            // A short window: the lease store's one failure, the renewal's, is not "failed lately" for long.
+            val health = health(node, HealthOptions(storeDownAfter = Duration.ZERO, storeWindow = 500.milliseconds))
+            node.start()
+            start(health)
+            fun group() = health.readiness().component(NodeHealth.OWNERSHIP)!!.components.single()
+            eventually { group().details["owned"] == PARTITIONS }
+
+            leases.breaking = true
+
+            eventually { health.liveness().status == HealthStatus.DOWN }
+            (health.liveness().details[ENDED] as Map<*, *>).let {
+                it["component"].assert().isEqualTo("ownership")
+                it["loop"].assert().isEqualTo("lease renewals")
+                it["error"].assert().isEqualTo(LinkageError::class.java.name)
+            }
+            // Out of the group once its hand-off is done, holding none of its partitions. The lease store is UP again
+            // once a call after the failed renewal succeeded (a route refresh) and the window passed.
+            fun leaseStore() = (group().details[NodeHealth.LEASE_STORE] as Map<*, *>)["status"]
+            eventually {
+                group().details["steppedOut"] == true && group().details["owned"] == 0 && leaseStore() == "UP"
+            }
+            // It forwards the group's commands: degraded, not down, with the lease store up.
+            group().status.assert().isEqualTo(HealthStatus.DEGRADED)
+            node.context(BANK).ownership.owned.assert().isEmpty()
+            node.fatals.isFatal.assert().isFalse()
+        }
 }

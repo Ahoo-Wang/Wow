@@ -289,6 +289,10 @@ abstract class NodeHealthFixtures {
         @Volatile
         var asked: CompletableDeferred<Unit>? = null
 
+        /** While set, a renewal throws an error no round catches, as a driver of another build would. */
+        @Volatile
+        var breaking = false
+
         private fun check() {
             if (down) {
                 throw StorageUnavailableException("The lease store is down.")
@@ -304,6 +308,9 @@ abstract class NodeHealthFixtures {
 
         override suspend fun renew(group: String, partitions: Collection<Int>, owner: String, ttl: Duration): List<Lease> {
             check()
+            if (breaking) {
+                throw LinkageError("The lease store's driver has no such method.")
+            }
             return if (losing) emptyList() else leases.renew(group, partitions, owner, ttl)
         }
 
