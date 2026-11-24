@@ -19,6 +19,7 @@ import me.ahoo.wow.api.annotation.OnRejected
 import me.ahoo.wow.api.annotation.Saga
 import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.client.toCommandRequest
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.api.subscribe.StateTypedEvent
 import me.ahoo.wow.example.eshop.inventory.api.stock.CommitReservation
@@ -96,13 +97,13 @@ class OrderProcessSaga {
 
     // region release-rejected
     /**
-     * A release the inventory rejects needs no compensation: it rejects one only for a product it has no stock of,
-     * which reserved nothing either. Without this handler, the rejection would park the order for the saga; returning
-     * `Unit` accepts it and derives nothing.
+     * A release the inventory rejects for a product it has no stock of needs no compensation: that product reserved
+     * nothing either, so the handler accepts that code and derives nothing. Any other code is one it does not expect:
+     * the order parks at once, its reason naming the code, as without a handler.
      */
-    @Suppress("UnusedParameter")
     @OnRejected
-    fun onReleaseRejected(rejected: CommandReceipt.Rejected<ReleaseReservation>) = Unit
+    fun onReleaseRejected(rejected: CommandReceipt.Rejected<ReleaseReservation>) =
+        rejected.accept(FrameworkCodes.AGGREGATE_NOT_FOUND)
     // endregion
 
     @OnEvent

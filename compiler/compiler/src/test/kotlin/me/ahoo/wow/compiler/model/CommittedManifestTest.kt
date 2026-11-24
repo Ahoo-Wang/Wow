@@ -130,6 +130,38 @@ class CommittedManifestTest {
         """.trimIndent(),
     )
 
+    /** A handler that compensates one code and accepts another (`CommandReceipt.Rejected.accept`). */
+    private val mixedSaga = SourceFile.kotlin(
+        "MixedSaga.kt",
+        """
+        package sample
+
+        import me.ahoo.wow.api.annotation.OnEvent
+        import me.ahoo.wow.api.annotation.OnRejected
+        import me.ahoo.wow.api.annotation.Saga
+        import me.ahoo.wow.api.aggregate.AggregateType
+        import me.ahoo.wow.api.client.CommandRequest
+        import me.ahoo.wow.api.subscribe.CommandReceipt
+        import me.ahoo.wow.api.subscribe.StateEvent
+
+        @Saga
+        class MixedSaga {
+            @OnEvent
+            fun onPlaced(event: StateEvent<Order>): CommandRequest<ReserveStock> =
+                CommandRequest.to(AggregateType("inventory", "stock").ref(event.ref.tenantId, "s-1"), ReserveStock(1))
+
+            @OnRejected
+            fun onReserveRejected(rejected: CommandReceipt.Rejected<ReserveStock>): CommandRequest<ConfirmStock>? =
+                if (rejected.error.code == "inventory.stock.insufficient") {
+                    CommandRequest.to(rejected.source, ConfirmStock(rejected.ref.id))
+                } else {
+                    rejected.accept("wow.aggregate.not-found")
+                    null
+                }
+        }
+        """.trimIndent(),
+    )
+
     private fun compile(vararg sources: SourceFile): Pair<KotlinCompilation, JvmCompilationResult> {
         val (compilation, result) = compileModel("generate", options, *sources)
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
@@ -148,6 +180,15 @@ class CommittedManifestTest {
         val services = generated(compilation, ModelProviderSource.MODEL_PROVIDER)!!
         val root = services.parentFile.parentFile.parentFile
         return ModelProvider.load(URLClassLoader(arrayOf(root.toURI().toURL()), result.classLoader)).single()
+    }
+
+    @Test
+    fun `a rejection handler that compensates or accepts should derive what its nullable request names`() {
+        val (compilation, _) = compile(model, mixedSaga)
+        val subscriptions = fragment(compilation).contexts.single().subscriptions
+        val handler = subscriptions.single { it.name == "MixedSaga.onReserveRejected" }
+        handler.derives.assert().isEqualTo(listOf("shop.order.ConfirmStock"))
+        handler.rejected.assert().isEqualTo(listOf(Manifest.schemaRef("sample.ReserveStock")))
     }
 
     @Test

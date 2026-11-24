@@ -141,20 +141,22 @@ fun onReserveRejected(rejected: CommandReceipt.Rejected<ReserveStock>): CommandR
 
 `CommandReceipt.Rejected` names the command (`commandId`, `commandType`, `ref`), its `error` (code, message, violations, extensions), the saga's `executionId` and its `source`, the aggregate whose commit derived the command; it does not carry the command's body. A rejection from another context comes back as a receipt. The runtime hands each rejection over once.
 
-Each derived command is settled on its own: a rejected command stops none of the others, and each rejection goes to its handler. The commands to one aggregate run in the order the saga derived them; those to different aggregates run concurrently, so work that depends on another command's outcome is not derived beside it: derive it from the event the first command commits. The rejections of the saga's own context's commands that it has no handler for park the aggregate once for the saga's subscription, as a failure would, listing every rejected command. A command to another context asks for a receipt only when the saga has a handler of its type, so the target logs a rejection no handler takes, and it goes no further. A rejection that needs no compensation is accepted by a handler that returns `Unit`, which also keeps what a 9.x saga did after a failed derived command:
+Each derived command is settled on its own: a rejected command stops none of the others, and each rejection goes to its handler. The commands to one aggregate run in the order the saga derived them; those to different aggregates run concurrently, so work that depends on another command's outcome is not derived beside it: derive it from the event the first command commits. The rejections of the saga's own context's commands that it has no handler for park the aggregate once for the saga's subscription, as a failure would, listing every rejected command. A command to another context asks for a receipt only when the saga has a handler of its type, so the target logs a rejection no handler takes, and it goes no further. A rejection that needs no compensation is accepted by naming its code: `rejected.accept(code, …)` returns for a code it names, and the handler derives nothing. Any other code is one the handler does not expect, so it does not take it: the saga's aggregate parks at once, without a retry, as for a rejection no handler takes, its reason naming the handler, the command and the code, and a wait at the saga's hop ends rejected. That holds for a rejection from another context too, whose receipt the handler takes:
 
 <!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSaga.kt#release-rejected -->
 
 ```kotlin
 /**
- * A release the inventory rejects needs no compensation: it rejects one only for a product it has no stock of,
- * which reserved nothing either. Without this handler, the rejection would park the order for the saga; returning
- * `Unit` accepts it and derives nothing.
+ * A release the inventory rejects for a product it has no stock of needs no compensation: that product reserved
+ * nothing either, so the handler accepts that code and derives nothing. Any other code is one it does not expect:
+ * the order parks at once, its reason naming the code, as without a handler.
  */
-@Suppress("UnusedParameter")
 @OnRejected
-fun onReleaseRejected(rejected: CommandReceipt.Rejected<ReleaseReservation>) = Unit
+fun onReleaseRejected(rejected: CommandReceipt.Rejected<ReleaseReservation>) =
+    rejected.accept(FrameworkCodes.AGGREGATE_NOT_FOUND)
 ```
+
+A handler that compensates one code and accepts another returns a nullable request: `if (rejected.error.code == …) CancelOrder(…).toCommandRequest(rejected.source.id) else { rejected.accept(…); null }`, declared `CommandRequest<CancelOrder>?`. A handler that returns `Unit` without calling `accept` accepts every code, as a 9.x saga went on after any failed derived command. Each rejection a handler accepts, deriving nothing, is logged at INFO under the logger `wow.saga.rejection` in the saga's service, naming the handler, the command, its target and the code ([Observability](../operate/observability)): an accepted rejection is never dropped in silence.
 
 `CommandReceipt.Rejected<*>` and `CommandReceipt.Committed<*>` take every command the saga derives, and `Rejected<*>` the commands it calls too.
 

@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.example.eshop.ordering.domain.order
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.example.eshop.inventory.api.stock.CommitReservation
 import me.ahoo.wow.example.eshop.inventory.api.stock.EshopInventoryContract
@@ -141,6 +142,20 @@ class OrderProcessSagaTest {
             whenRejected(commands.first(), FrameworkCodes.AGGREGATE_NOT_FOUND) {
                 expectHandledBy("onReleaseRejected")
                 expectNoCommand()
+            }
+        }
+    }
+
+    @Test
+    fun `a release refused for another reason should park the order at once`() = sagaSpec(handlers) {
+        submitted()
+        whenEvent(OrderCancelled("cap cannot be reserved"), by = CancelOrder::class) {
+            whenRejected(commands.first(), FrameworkCodes.AGGREGATE_DELETED) {
+                expectParked().message.assert().contains(
+                    "OrderProcessSaga.onReleaseRejected accepts ${FrameworkCodes.AGGREGATE_NOT_FOUND}, not the " +
+                        "rejection of",
+                    FrameworkCodes.AGGREGATE_DELETED,
+                )
             }
         }
     }

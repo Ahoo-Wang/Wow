@@ -1869,6 +1869,7 @@ public final class me/ahoo/wow/api/subscribe/CommandReceipt$Committed : me/ahoo/
 }
 
 public final class me/ahoo/wow/api/subscribe/CommandReceipt$Rejected : me/ahoo/wow/api/subscribe/CommandReceipt {
+	public final fun accept (Ljava/lang/String;[Ljava/lang/String;)V
 	public fun equals (Ljava/lang/Object;)Z
 	public fun getCausation ()Lme/ahoo/wow/api/decide/Causation;
 	public fun getCommandId ()Ljava/lang/String;
@@ -1971,6 +1972,11 @@ public final class me/ahoo/wow/api/subscribe/SystemSubscriptions {
 	public static final field RESERVATION Ljava/lang/String;
 	public static final field SNAPSHOT Ljava/lang/String;
 	public static final field TIMERS Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/api/subscribe/UnacceptedRejectionException : java/lang/RuntimeException {
+	public final fun getAccepted ()Ljava/util/List;
+	public final fun getRejected ()Lme/ahoo/wow/api/subscribe/CommandReceipt$Rejected;
 }
 
 public class me/ahoo/wow/api/subscribe/UnrecoverableHandlingException : java/lang/RuntimeException {

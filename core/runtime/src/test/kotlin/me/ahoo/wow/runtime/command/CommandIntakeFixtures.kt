@@ -19,6 +19,7 @@ import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.subscribe.CommandReceipt
+import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.manifest.ManifestFragment
 import me.ahoo.wow.runtime.binding.SubscriptionBindings
@@ -82,7 +83,10 @@ abstract class CommandIntakeFixtures {
         channel.bind(it.address, it.forwardHandler)
     }
 
-    protected fun salesNode(peer: ManifestFragment = peer(stockManifest())): ServiceNode = ServiceNode(
+    protected fun salesNode(
+        peer: ManifestFragment = peer(stockManifest()),
+        saga: ProcessorBinding<*> = orderSaga(rejections),
+    ): ServiceNode = ServiceNode(
         SALES_SERVICE,
         "sales-1",
         "sales-1.internal:9090",
@@ -91,7 +95,7 @@ abstract class CommandIntakeFixtures {
         salesBackends,
         channel,
         options = fastNodeOptions(),
-        subscriptions = SubscriptionBindings(mapOf(SALES to listOf(orderSaga(rejections)))),
+        subscriptions = SubscriptionBindings(mapOf(SALES to listOf(saga))),
         contracts = ContractDirectory(salesManifest(), listOf(peer)),
         topics = SourceTopics(topics, PREFIX, topics),
     ).also {

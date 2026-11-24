@@ -27,6 +27,7 @@ import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.SagaContext
+import me.ahoo.wow.api.subscribe.UnacceptedRejectionException
 import me.ahoo.wow.spi.id.DerivedIds
 import me.ahoo.wow.spi.id.IdGenerators
 
@@ -71,11 +72,19 @@ class RejectionBinding<C : Any> private constructor(
 
     /**
      * Calls the handler with [rejected], of a command it [handles], and the [context] the rejection is handled in
-     * ([rejectionContextOf]), in the caller's coroutine: running a [blocking] one elsewhere is the runtime's.
+     * ([rejectionContextOf]), in the caller's coroutine: running a [blocking] one elsewhere is the runtime's. A code
+     * the handler does not accept ([CommandReceipt.Rejected.accept]) fails the handling as a rejection no handler takes
+     * ([UnacceptedRejectionHandlingException]).
      */
     @Suppress("UNCHECKED_CAST") // The runtime hands a handler only the rejections it handles.
-    suspend fun invoke(rejected: CommandReceipt.Rejected<*>, context: SagaContext): List<Command<*>> =
-        derivationOf(context).commandsOf(call(rejected as CommandReceipt.Rejected<C>, context))
+    suspend fun invoke(rejected: CommandReceipt.Rejected<*>, context: SagaContext): List<Command<*>> {
+        val requests = try {
+            call(rejected as CommandReceipt.Rejected<C>, context)
+        } catch (unaccepted: UnacceptedRejectionException) {
+            throw UnacceptedRejectionHandlingException(name, unaccepted)
+        }
+        return derivationOf(context).commandsOf(requests)
+    }
 
     override fun toString(): String = "RejectionBinding($name, ${commandType?.name ?: "*"})"
 
