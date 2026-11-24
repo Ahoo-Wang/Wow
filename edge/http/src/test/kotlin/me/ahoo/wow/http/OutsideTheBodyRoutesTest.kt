@@ -20,10 +20,13 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.query.QueryErrorCodes
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.wire.DevelopmentHeaders
+import me.ahoo.wow.api.wire.WaitHeader
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.kernel.EventCodec
+import org.junit.jupiter.api.Assertions.assertTimeoutPreemptively
 import org.junit.jupiter.api.Test
 import java.net.URI
+import java.time.Duration
 
 /**
  * What the public port reads of a request outside its body (#6501): every form a client sends is read as Wow reads
@@ -142,6 +145,23 @@ class OutsideTheBodyRoutesTest {
             node.client.post().uri("/shop/cart/c-1/add-item").header("X-User", "alice").header("Content-Type", type)
                 .bodyValue("""{"sku":"apple"}""").answer().status.assert().isEqualTo(200)
         }
+    }
+
+    @Test
+    fun `a wait plan is read in time linear in its length, and refused past its bounds before a hop is read`() {
+        // #6815: a hop left open, `accepted(`, white space and no `)`, backtracked about n³/6 times in the hop's pattern:
+        // minutes of a request's thread at this length, where a linear read takes well under a millisecond.
+        post("/shop/cart/c-1/add-item", WowHeaders.WAIT to listOf("soon")).refused(400, FrameworkCodes.WAIT_INVALID)
+        val open = "accepted(" + " ".repeat(WaitHeader.MAX_LENGTH - "accepted(x".length) + "x"
+        assertTimeoutPreemptively(Duration.ofSeconds(1)) {
+            post("/shop/cart/c-1/add-item", WowHeaders.WAIT to listOf(open))
+                .refused(400, FrameworkCodes.WAIT_INVALID, "Not a hop")
+        }
+        post("/shop/cart/c-1/add-item", WowHeaders.WAIT to listOf(open + "x"))
+            .refused(400, FrameworkCodes.WAIT_INVALID, "at most ${WaitHeader.MAX_LENGTH} characters")
+        val hops = List(WaitHeader.MAX_HOPS + 1) { "committed" }.joinToString(">")
+        post("/shop/cart/c-1/add-item", WowHeaders.WAIT to listOf(hops))
+            .refused(400, FrameworkCodes.WAIT_INVALID, "at most ${WaitHeader.MAX_HOPS} hops")
     }
 
     @Test
