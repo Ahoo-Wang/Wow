@@ -47,6 +47,8 @@ val TO_VALIDATION: WaitPlan = WaitPlan.of(
 )
 ```
 
+Saga 跳点之后的快照，是 Saga 的命令所去往的上下文的快照，因为其后的跳点作用于那些命令，而跳点的上下文是写明的，不是推断的：`OrderProcessSaga.onOrderSubmitted` 把 `AwaitStockValidation` 发给订单自己，所以它后面跟 `EshopOrderingContract.Wait.SNAPSHOT`；`OrderProcessSaga.onOrderAwaitingValidation` 把 `ReserveStock` 发给库存，所以它的计划是 `WaitPlan.of(EshopOrderingContract.Wait.ORDER_PROCESS_SAGA__ON_ORDER_AWAITING_VALIDATION, EshopInventoryContract.Wait.SNAPSHOT)`。上下文写错的快照跳点会在准入时被拒绝（见下）。
+
 等待链的规则：
 
 - **只有 Saga 那一跳后面才能接别的跳。** 它后面的跳适用于这个 Saga 为这次提交发出的命令。投影或反应器那一跳是链的终点。

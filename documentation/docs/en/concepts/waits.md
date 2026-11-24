@@ -47,6 +47,8 @@ val TO_VALIDATION: WaitPlan = WaitPlan.of(
 )
 ```
 
+The snapshot after a saga's hop is that of the context the saga's commands go to, since the hops after it apply to those commands, and a hop's own context is named, not inferred: `OrderProcessSaga.onOrderSubmitted` sends `AwaitStockValidation` to the order itself, so `EshopOrderingContract.Wait.SNAPSHOT` follows it, while `OrderProcessSaga.onOrderAwaitingValidation` sends `ReserveStock` to the inventory, so its plan is `WaitPlan.of(EshopOrderingContract.Wait.ORDER_PROCESS_SAGA__ON_ORDER_AWAITING_VALIDATION, EshopInventoryContract.Wait.SNAPSHOT)`. A snapshot hop of the wrong context is refused at admission (below).
+
 The rules for a chain:
 
 - **Only a saga hop can be followed by another hop.** The hops after it apply to the commands that saga sent for this commit. A projection or reactor hop ends the chain.
