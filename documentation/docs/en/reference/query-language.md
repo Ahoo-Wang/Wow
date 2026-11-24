@@ -281,6 +281,8 @@ Over HTTP, a filter holds at most `wow.query.budgets.http.max-filter-nodes` node
 
 `sort` is an array of `{"field": …, "direction": "asc" | "desc"}`, at most 32, each field once. A field sorts only where the descriptor says it does (`sort.paged`, `sort.cursor`). A missing value and `null` sort first ascending and last descending; an array sorts by its least element ascending, a `null` element being the least, and by its greatest descending. A store that cannot order an array whose elements may be `null` that way (Elasticsearch) does not offer its sort.
 
+Text sorts and compares (`gt`, `between`, …) by code point on every backend, in-memory included, as each store orders it: `Ａ` (U+FF21) before `😀` (U+1F600), which UTF-16 code units would order the other way.
+
 Records that tie on every sort field are ordered by the record's unique key (`tenantId`, `aggregateId` on the snapshot model; a dataset's identity) in the direction of the last sort field, ascending when there is no sort. So a list, a page and a cursor sorted `lastEventTime` descending give tied records in descending key order, and the order is the same from page to page.
 
 `projection` is `{"include": [paths], "exclude": [paths]}`; with neither, records come whole. An included path keeps its descendants.

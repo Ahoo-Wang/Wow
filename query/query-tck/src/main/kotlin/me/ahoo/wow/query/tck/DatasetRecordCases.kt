@@ -301,4 +301,45 @@ abstract class DatasetRecordCases internal constructor() : DatasetQueryFixtures(
         orders.count(positive(Double.MAX_VALUE)).assert().isEqualTo(0L)
         Unit
     }
+
+    /**
+     * Text where code point order and UTF-16 code unit order part (#6772): every store orders it by code point, the
+     * in-memory reference with them, in a sort and in a range.
+     */
+    @Test
+    fun `a text sorts and compares by code point`() = blocking {
+        val texts = target(TEXTS)
+        val city = QueryField(TEXT_COLUMN)
+        val ascending = TEXT_ROWS.map { it.first }
+        fun ids(filter: FilterExpression, direction: Sort.Direction = Sort.Direction.ASC) = blocking {
+            texts.list(ListQuery(filter, sort = listOf(Sort(city, direction)), limit = MAX_LIST))
+                .map { it.path(ID).stringValue() }
+        }
+        ids(MatchAllFilter).assert().isEqualTo(ascending)
+        ids(MatchAllFilter, Sort.Direction.DESC).assert().isEqualTo(ascending.reversed())
+        ids(GreaterThanFilter(city, "\uFF21")).assert().containsExactly("emoji")
+        Unit
+    }
+
+    private companion object {
+        const val TEXT_COLUMN = "city"
+
+        /** Each row's id and its text, in code point order: `Ａ` (U+FF21) before `😀` (U+1F600). */
+        val TEXT_ROWS = listOf(
+            "ascii" to "z",
+            "private" to "\uE000",
+            "fullwidth" to "\uFF21",
+            "emoji" to "\uD83D\uDE00",
+        )
+
+        val TEXTS = DatasetTable(
+            name = "texts",
+            columns = listOf(
+                DatasetColumn(ID, DatasetColumn.Type.STRING),
+                DatasetColumn(TENANT_COLUMN.path, DatasetColumn.Type.STRING),
+                DatasetColumn(TEXT_COLUMN, DatasetColumn.Type.STRING),
+            ),
+            rows = TEXT_ROWS.map { (id, text) -> mapOf(ID to id, TENANT_COLUMN.path to "t1", TEXT_COLUMN to text) },
+        )
+    }
 }
