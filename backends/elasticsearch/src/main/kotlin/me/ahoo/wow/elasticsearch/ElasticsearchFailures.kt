@@ -95,7 +95,13 @@ internal object ElasticsearchFailures {
         status: Int
     ): Boolean = failure is ElasticsearchException && failure.status() == status
 
-    /** Whether [failure] says the index does not exist. */
+    /**
+     * Whether a bulk item's [status] and error [type] say the alias it was written to does not exist: a write with
+     * `require_alias` to a name with no alias, which Elasticsearch refuses instead of creating an index of it.
+     */
+    fun isMissingAlias(status: Int, type: String?): Boolean = status == NOT_FOUND && type == INDEX_NOT_FOUND
+
+    /** Whether [failure] says the index does not exist, or, for a write with `require_alias`, its alias. */
     fun isIndexNotFound(failure: Throwable): Boolean =
         generateSequence(failure) { it.cause.takeIf { cause -> cause !== it } }.take(MAX_CAUSE_DEPTH)
             .any { it is ElasticsearchException && it.error().type() == INDEX_NOT_FOUND }

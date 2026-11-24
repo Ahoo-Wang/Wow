@@ -21,6 +21,7 @@ import co.elastic.clients.elasticsearch.core.BulkRequest
 import co.elastic.clients.elasticsearch.core.bulk.BulkOperation
 import co.elastic.clients.json.JsonData
 import co.elastic.clients.transport.rest5_client.low_level.Rest5Client
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
@@ -75,8 +76,11 @@ import java.util.concurrent.ConcurrentHashMap
  *   ([me.ahoo.wow.spi.access.AccessStamps]): a record read before a stamp of the log and one read after it differ,
  *   and the later version wins.
  *
- * The index is created before the first write as the store's DDL mode says (`auto` creates it, `validate` requires
- * it, `none` assumes it), and its primary waited for, as the snapshot indices are.
+ * The index is an alias of one concrete index ([ElasticsearchIndices]), made sure of before the first write as the
+ * store's DDL mode says (`auto` creates the pair, `validate` requires it, `none` assumes it), and its primary waited
+ * for, as the snapshot indices are. Every `_bulk` carries `require_alias`, so a write to a missing alias is refused,
+ * naming it, instead of having Elasticsearch create an index with a mapping it guesses; under `auto` the next write
+ * creates the pair again, with a warning.
  */
 @InternalWowApi
 class ElasticsearchEventSink internal constructor(
@@ -274,7 +278,7 @@ class ElasticsearchEventSink internal constructor(
         }
         prepare()
         val request = BulkRequest.of { bulk ->
-            bulk.index(index)
+            bulk.index(index).requireAlias(true)
             refresh?.let(bulk::refresh)
             bulk.operations(records.map(operation))
         }
@@ -284,15 +288,36 @@ class ElasticsearchEventSink internal constructor(
             item.error()?.takeIf { item.status() != ElasticsearchFailures.CONFLICT }?.let { item to it }
         }
         if (failed.isEmpty()) return
+        val missing = failed.any { (item, error) -> ElasticsearchFailures.isMissingAlias(item.status(), error.type()) }
         val reported = failed.take(MAX_REPORTED).joinToString("; ") { (item, error) ->
             "${item.id()}: ${item.status()} ${error.type()} ${error.reason()}"
         }
         val message = "The Elasticsearch Sink of $type did not write ${failed.size} of ${records.size} streams to " +
             "[$index]: $reported."
-        if (failed.any { (item) -> ElasticsearchFailures.isTransient(item.status()) }) {
-            throw StorageUnavailableException(message)
+        throw when {
+            missing -> {
+                forget()
+                IllegalStateException(ElasticsearchIndices.missingAlias(index))
+            }
+            failed.any { (item) -> ElasticsearchFailures.isTransient(item.status()) } ->
+                StorageUnavailableException(message)
+            else -> IllegalStateException(message)
         }
-        throw IllegalStateException(message)
+    }
+
+    /**
+     * Forgets that the events index was made sure of: its alias is gone (deleted under a running node, or never
+     * created under `none`), and the next write makes sure of it again, which under `auto` creates the pair afresh.
+     */
+    private fun forget() {
+        ensured = false
+        if (ddl.creates) {
+            logger.warn {
+                "The Elasticsearch alias [$index] is missing, its index deleted under a running node: ddl auto " +
+                    "creates it again at the next write, empty, and the streams it held come back only when its " +
+                    "sink's subscription starts again from the beginning."
+            }
+        }
     }
 
     /** Makes sure of the events index, once, as the DDL mode says. */
@@ -416,3 +441,5 @@ class ElasticsearchEventSinks internal constructor(private val store: Elasticsea
         internal fun sinkRefresh(refresh: Refresh): Refresh? = refresh.takeIf { it == Refresh.True }
     }
 }
+
+private val logger = KotlinLogging.logger {}

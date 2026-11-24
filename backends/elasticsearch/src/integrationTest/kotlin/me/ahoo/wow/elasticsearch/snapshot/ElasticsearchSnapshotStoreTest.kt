@@ -23,9 +23,11 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.elasticsearch.ElasticsearchFixture
+import me.ahoo.wow.elasticsearch.ElasticsearchIndices
 import me.ahoo.wow.elasticsearch.ElasticsearchStore
 import me.ahoo.wow.elasticsearch.ElasticsearchStoreProvider
 import me.ahoo.wow.spi.Ddl
+import me.ahoo.wow.spi.StorageRefusedException
 import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.tck.snapshot.SnapshotStoreSpec
@@ -54,14 +56,96 @@ class ElasticsearchSnapshotStoreTest : SnapshotStoreSpec() {
     }
 
     @Test
-    fun `an index of another layout is refused`(): Unit = runBlocking {
+    fun `an index of another layout behind the alias is refused`(): Unit = runBlocking {
         val context = ElasticsearchFixture.newContext()
         val index = ElasticsearchFixture.names.snapshots(context, "aggregate")
-        ElasticsearchFixture.client.indices().create { it.index(index) }.get()
+        ElasticsearchFixture.client.indices().create {
+            it.index(ElasticsearchIndices.concreteOf(index)).aliases(index) { alias -> alias.isWriteIndex(true) }
+        }.get()
         val store = ElasticsearchFixture.store().snapshots(context)
         assertThrownBy<IllegalStateException> {
             runBlocking { store.load(AggregateType(context, "aggregate").ref("tenant", "a")) }
+        }.hasMessageContaining("records the layout")
+    }
+
+    @Test
+    fun `an index of the alias's own name, as a pre-release created it, is refused, naming what to do`(): Unit =
+        runBlocking {
+            val context = ElasticsearchFixture.newContext()
+            val index = ElasticsearchFixture.names.snapshots(context, "aggregate")
+            ElasticsearchFixture.client.indices().create { it.index(index) }.get()
+            for (ddl in listOf(Ddl.AUTO, Ddl.VALIDATE)) {
+                val store = ElasticsearchFixture.store(ddl).snapshots(context)
+                assertThrownBy<IllegalStateException> {
+                    runBlocking { store.load(AggregateType(context, "aggregate").ref("tenant", "a")) }
+                }.hasMessage(ElasticsearchIndices.concreteIndex(index))
+            }
         }
+
+    @Test
+    fun `an alias of several indices, or one that is not its index's write alias, is refused`(): Unit = runBlocking {
+        val context = ElasticsearchFixture.newContext()
+        val several = ElasticsearchFixture.names.snapshots(context, "several")
+        for (suffix in listOf("--1", "--2")) {
+            ElasticsearchFixture.client.indices().create { create ->
+                create.index(several + suffix).aliases(several) { alias -> alias }
+            }.get()
+        }
+        val unwritten = ElasticsearchFixture.names.snapshots(context, "unwritten")
+        ElasticsearchFixture.client.indices().create {
+            it.index(ElasticsearchIndices.concreteOf(unwritten))
+                .aliases(unwritten) { alias -> alias.isWriteIndex(false) }
+        }.get()
+        val store = ElasticsearchFixture.store().snapshots(context)
+        assertThrownBy<IllegalStateException> {
+            runBlocking { store.load(AggregateType(context, "several").ref("tenant", "a")) }
+        }.hasMessageContaining("[$several] points at 2 indices")
+        assertThrownBy<IllegalStateException> {
+            runBlocking { store.load(AggregateType(context, "unwritten").ref("tenant", "a")) }
+        }.hasMessageContaining("[$unwritten] is not the write alias")
+    }
+
+    @Test
+    fun `an alias made by hand without is_write_index is its one index's write alias`(): Unit = runBlocking {
+        val context = ElasticsearchFixture.newContext()
+        val type = AggregateType(context, "aggregate")
+        val index = ElasticsearchFixture.names.snapshots(context, type.name)
+        // As the operate page has an operator create the pair, but with the alias's flag left out.
+        ElasticsearchFixture.client.indices().create {
+            it.withJson(java.io.StringReader(ElasticsearchSnapshotIndex.DEFINITION))
+                .index(ElasticsearchIndices.concreteOf(index)).aliases(index) { alias -> alias }
+        }.get()
+        val store = ElasticsearchFixture.store(Ddl.VALIDATE).snapshots(context)
+        store.save(snapshot("a", 1, aggregate = type)).assert().isTrue()
+        store.load(type.ref("tenant", "a"))?.version.assert().isEqualTo(1)
+    }
+
+    @Test
+    fun `a single document Elasticsearch refuses fails its save as refused`(): Unit = runBlocking {
+        val context = ElasticsearchFixture.newContext()
+        val type = AggregateType(context, "aggregate")
+        val store = createStore(context)
+        // A field name Elasticsearch cannot map, written through the index API rather than a batch.
+        assertThrownBy<StorageRefusedException> {
+            runBlocking { store.save(snapshot("a", 1, aggregate = type).copyWith(state = """{"":1}""")) }
+        }
+    }
+
+    @Test
+    fun `under none a write to a missing index is refused, naming it, and creates nothing`(): Unit = runBlocking {
+        // #6785: without the alias, Elasticsearch created the index on the first write, with a mapping it guessed.
+        val context = ElasticsearchFixture.newContext()
+        val type = AggregateType(context, "unmade")
+        val index = ElasticsearchFixture.names.snapshots(context, type.name)
+        val store = ElasticsearchFixture.store(Ddl.NONE).snapshots(context)
+        assertThrownBy<IllegalStateException> { runBlocking { store.save(snapshot("a", 1, aggregate = type)) } }
+            .hasMessage(ElasticsearchIndices.missingAlias(index))
+        val outcome = store.saveAll(listOf(snapshot("b", 1, aggregate = type))).single()
+        (outcome as SnapshotSaveOutcome.Failed).cause.message.assert()
+            .isEqualTo(ElasticsearchIndices.missingAlias(index))
+        ElasticsearchFixture.client.indices().exists { it.index(index) }.get().value().assert().isFalse()
+        ElasticsearchFixture.client.indices().exists { it.index(ElasticsearchIndices.concreteOf(index)) }.get().value()
+            .assert().isFalse()
     }
 
     @Test
@@ -75,7 +159,7 @@ class ElasticsearchSnapshotStoreTest : SnapshotStoreSpec() {
         store.save(snapshot("a", 4, aggregate = type)).assert().isFalse()
         store.rebuilds!!.pending(type, 2, limit = 10).assert().containsExactly(newer.ref)
         ElasticsearchFixture.client.indices().delete {
-            it.index(ElasticsearchFixture.names.snapshots(context, "aggregate"))
+            it.index(ElasticsearchIndices.concreteOf(ElasticsearchFixture.names.snapshots(context, "aggregate")))
         }.get()
         store.load(newer.ref).assert().isNull()
     }
@@ -96,17 +180,24 @@ class ElasticsearchSnapshotStoreTest : SnapshotStoreSpec() {
     }
 
     @Test
-    fun `a batch reads alone what its multi-get could not read`(): Unit = runBlocking {
+    fun `a batch to an index deleted under the store is refused, and under auto the next one creates the pair again`():
+        Unit = runBlocking {
         val context = ElasticsearchFixture.newContext()
         val store = createStore(context)
         val type = AggregateType(context, "aggregate")
+        val index = ElasticsearchFixture.names.snapshots(context, "aggregate")
         store.save(snapshot("a", 1, aggregate = type)).assert().isTrue()
-        // The index is gone under the store, which made sure of it: each document reads as missing.
-        ElasticsearchFixture.client.indices().delete {
-            it.index(ElasticsearchFixture.names.snapshots(context, "aggregate"))
-        }.get()
-        val outcomes = store.saveAll(listOf(snapshot("a", 2, aggregate = type), snapshot("b", 1, aggregate = type)))
-        outcomes.assert().containsExactly(SnapshotSaveOutcome.Written, SnapshotSaveOutcome.Written)
+        // The index is gone under the store, which made sure of it: each document reads as missing, alone, since the
+        // multi-get could not read them, and the write is refused rather than creating an index of a guessed mapping.
+        ElasticsearchFixture.client.indices().delete { it.index(ElasticsearchIndices.concreteOf(index)) }.get()
+        val batch = listOf(snapshot("a", 2, aggregate = type), snapshot("b", 1, aggregate = type))
+        store.saveAll(batch).forEach { outcome ->
+            (outcome as SnapshotSaveOutcome.Failed).cause.message.assert()
+                .isEqualTo(ElasticsearchIndices.missingAlias(index))
+        }
+        ElasticsearchFixture.client.indices().exists { it.index(index) }.get().value().assert().isFalse()
+        store.saveAll(batch).assert().containsExactly(SnapshotSaveOutcome.Written, SnapshotSaveOutcome.Written)
+        ElasticsearchFixture.client.indices().existsAlias { it.name(index) }.get().value().assert().isTrue()
     }
 
     @Test
@@ -139,7 +230,8 @@ class ElasticsearchSnapshotStoreTest : SnapshotStoreSpec() {
             "\"index.mapping.ignore_malformed\": true, \"index.routing.allocation.require._name\": \"nowhere\"",
         )
         ElasticsearchFixture.client.indices().create {
-            it.index(index).waitForActiveShards { active -> active.count(0) }.withJson(java.io.StringReader(unassigned))
+            it.withJson(java.io.StringReader(unassigned)).index(ElasticsearchIndices.concreteOf(index))
+                .aliases(index) { alias -> alias.isWriteIndex(true) }.waitForActiveShards { active -> active.count(0) }
         }.get()
         val type = AggregateType(context, "aggregate")
         val saving = async(Dispatchers.Default) { createStore(context).save(snapshot("a", 1, aggregate = type)) }

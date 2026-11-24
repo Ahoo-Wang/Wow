@@ -30,4 +30,12 @@ class ElasticsearchFailuresTest {
         ElasticsearchFailures.itemFailure(500, "the document [a]", null)
             .assert().isInstanceOf(IllegalStateException::class.java)
     }
+
+    @Test
+    fun `a bulk item refused for want of its alias is told by its 404 and its index_not_found`() {
+        ElasticsearchFailures.isMissingAlias(404, "index_not_found_exception").assert().isTrue()
+        ElasticsearchFailures.isMissingAlias(404, "document_missing_exception").assert().isFalse()
+        ElasticsearchFailures.isMissingAlias(400, "index_not_found_exception").assert().isFalse()
+        ElasticsearchFailures.isMissingAlias(404, null).assert().isFalse()
+    }
 }
