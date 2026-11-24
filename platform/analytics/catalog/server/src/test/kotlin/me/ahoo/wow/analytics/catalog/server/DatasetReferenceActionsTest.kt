@@ -107,6 +107,51 @@ class DatasetReferenceActionsTest {
     }
 
     @Test
+    fun `r1 an internal command of the owning service is neither offered on a row nor relayed`() {
+        // A direct call of an internal command is 404 on the owning service's public port; the relay sends as this
+        // service, to its internal port, where it is served: offering it would open what the public port keeps shut.
+        val internal = manifest(
+            contexts = listOf(
+                context(
+                    name = "crm",
+                    aggregates = listOf(
+                        aggregate(
+                            name = "member",
+                            state = "#/\$defs/crm.State",
+                            commands = listOf(
+                                command(name = "Bare", schema = "#/\$defs/crm.Bare"),
+                                command(name = "Confirm", schema = "#/\$defs/crm.Bare") + ("internal" to true),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            defs = mapOf("crm.Bare" to mapOf("type" to "object")),
+        )
+        internal.contexts.single().aggregates.single().commands.single { it.name == "Confirm" }.internal
+            .assert().isTrue()
+        DatasetReferenceActions.offered(internal, reference).map { it.first.name }.assert().containsExactly("Bare")
+        val commands = mockk<CommandClient> {
+            every { of(any()) } returns this
+            coEvery { wait(any()) } returns mockk(relaxed = true)
+        }
+        val refusal = assertThrownBy<RouteRefusal> {
+            runBlocking {
+                actions(manifest = { internal }).send(
+                    "shop.invoices",
+                    "member",
+                    "m-1",
+                    "Confirm",
+                    WowJson.mapper.createObjectNode(),
+                    caller,
+                    commands,
+                )
+            }
+        }.actual()
+        refusal.code.assert().isEqualTo(FrameworkCodes.COMMAND_UNHANDLED)
+    }
+
+    @Test
     fun `a read-only property, which the service computes, is no input, whatever its shape`() {
         DatasetReferenceActions.inputsOf(MANIFEST, "#/\$defs/crm.Searched").assert()
             .containsExactly(CommandInput("code", "string", required = true, nullable = false))
