@@ -29,8 +29,8 @@ import kotlin.time.Duration.Companion.hours
 /** The delivery job receives the suppliers' deliveries of the day before into stock, every morning at 06:00 UTC. */
 class SupplierDeliverySagaTest {
     private val feed = mapOf(
-        LocalDate.parse("2026-10-19") to listOf(Delivery("mug", 40), Delivery("cap", 12)),
-        LocalDate.parse("2026-10-21") to listOf(Delivery("mug", 8)),
+        LocalDate.parse("2026-10-19") to listOf(Delivery("dn-1", "mug", 40), Delivery("dn-2", "cap", 12)),
+        LocalDate.parse("2026-10-21") to listOf(Delivery("dn-3", "mug", 8)),
     )
     private val asked = mutableListOf<LocalDate>()
     private val handlers = supplierDeliverySagaHandlers(

@@ -24,8 +24,11 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
 
-/** A supplier's delivery to the warehouse: [quantity] units of the product [productId]. */
-data class Delivery(val productId: String, val quantity: Int)
+/**
+ * A supplier's delivery to the warehouse: [quantity] units of the product [productId], under the number [id] its
+ * delivery note carries, which no other delivery takes.
+ */
+data class Delivery(val id: String, val productId: String, val quantity: Int)
 
 /**
  * The suppliers' delivery feed: what they delivered to the warehouse, day by day. A port of the
@@ -44,8 +47,9 @@ fun interface SupplierDeliveries {
  *   host at startup, in the default tenant: the shop's one warehouse.
  * - A tick that coalesced missed slots (no node ran the job for a few days) reads each missed day too, so no delivery
  *   is left out.
- * - The commands' ids come from the tick's execution, so handling the tick again, after a failure, sends the same
- *   requests, which each stock decides once.
+ * - The commands' ids come from the tick's execution and each delivery's number, its request's key: two deliveries of
+ *   one product are two requests, and handling the tick again, after a failure, sends the same requests, whatever
+ *   order the feed gives them in this time, which each stock decides once.
  * - Reading the feed blocks, so the job runs on a virtual thread.
  */
 @Saga
@@ -57,8 +61,9 @@ class SupplierDeliverySaga(private val deliveries: SupplierDeliveries) {
         val today = Instant.ofEpochMilli(tick.due).atZone(ZoneOffset.UTC).toLocalDate()
         val days = (tick.skipped + 1 downTo 1).map { today.minusDays(it) }
         return days.flatMap { day -> deliveries.deliveredOn(tick.tenantId, day) }.map { delivery ->
-            // The stock of the product, in the job instance's tenant: ReceiveStock names its aggregate type.
-            ReceiveStock(delivery.quantity).toCommandRequest(delivery.productId)
+            // The stock of the product, in the job instance's tenant: ReceiveStock names its aggregate type. Keyed by
+            // the delivery, so two deliveries of one product stay two requests in whatever order the feed lists them.
+            ReceiveStock(delivery.quantity).toCommandRequest(delivery.productId) { requestId(delivery.id) }
         }
     }
     // endregion

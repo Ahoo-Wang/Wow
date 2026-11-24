@@ -108,7 +108,10 @@ class SagaReceiptsTest {
             }
         }
 
-    /** The saga that removes each item of an order on its own: one command per item, to the owner's cart. */
+    /**
+     * The saga that removes each item of an order on its own: one command per item, to the owner's cart, each keyed by
+     * its item, as several commands of one type to one target are (#6794).
+     */
     private fun itemSaga(vararg rejections: RejectionBinding<*>) = ProcessorBinding.saga(
         "CartSaga",
         "onOrderPlaced",
@@ -118,7 +121,12 @@ class SagaReceiptsTest {
     ) { event, context ->
         val owner = event.scope.ownerId ?: return@saga emptyList()
         event.events.filterIsInstance<Placed>().flatMap { placed ->
-            placed.items.map { CommandRequest.to(CART.ref(event.ref.tenantId, owner), RemoveItems(listOf(it))) }
+            placed.items.map {
+                CommandRequest.builder(
+                    CART.ref(event.ref.tenantId, owner),
+                    RemoveItems(listOf(it))
+                ).requestId(it).build()
+            }
         }
     }
 

@@ -145,6 +145,8 @@ Wow 的运维命令（定时作业的命令、快照重建、对停放条目的�
 
 预发布版本拒绝把 Elasticsearch 存储作为聚合类型自己的快照存储；这个版本接受它（[Elasticsearch](./elasticsearch#only-snapshot-store)）。快照留在数据库、在 Elasticsearch 上另有副本的部署无需改动。想让类型的状态只存一份的部署，在类型的 `snapshot.store` 中指定 Elasticsearch 存储。这个存储随后从日志回填，期间该类型答 `rebuilding`（[重建与重放](./replay)）。
 
+在一次处理中向同一目标发多条同类型命令的 Saga，要给每条一个 `CommandRequest.requestId`，即它所涉及的业务键，例如它预留的商品；按事件类型逐个处理的处理函数只在一次调用发多条时才需要键（[向同一目标发多条命令](../guide/sagas#several-commands-to-one-target)）。没有键时，这次处理作为 Saga 自身的错误失败，它的聚合停放，消息会指出处理函数、命令类型与目标。升级之前，先在本版本上运行领域的 `sagaSpec` 与 `scheduleSpec` 测试；但规格只有覆盖到发多条命令的那次处理时才会暴露它，而这可能取决于数据：eShop 的到货作业只有在某次触发读到同一商品的两次到货时（例如补跑错过的早晨），才会向同一库存发两条入库命令。用 `call` 发多条这类命令的处理函数，在第二条被拒绝之前已经发出了第一条，所以加上键之后，第一条会以它的键再执行一次：要在升级之前修好这样的 Saga，而不是等它停放之后。仍然沿用了存储的部署会发现，按事件类型逐个处理的处理函数派生的 ID 变了，所以升级前处理过、升级后又被重新投递的提交，会把它的命令再发送一次。
+
 本版本使用 springdoc-openapi 3.2.1，它基于 swagger-core 3.0 和 Jackson 3：
 
 - **工件改名。** 应用自己声明了 swagger 工件的，要改名：`io.swagger.core.v3:swagger-annotations-jakarta`、`swagger-models-jakarta` 和 `swagger-core-jakarta` 改为 `swagger-annotations`、`swagger-models` 和 `swagger-core`，版本 3.0.0，由 springdoc 的 BOM 管理。修改过 `Json.mapper()` 或 `Json31.mapper()` 的代码，改用 `ObjectMapperFactory.addCustomizer` 定制 swagger 的 mapper：Jackson 3 的 mapper 不可变。

@@ -230,28 +230,17 @@ class ExecutionReceiptContext(
     @InternalWowApi
     companion object {
         /**
-         * The id, and request id, of the [occurrence]-th command (from 0) to [ref] of [commandType] derived by
-         * [execution] for the receipt of [receiptCommandId]: a name-based UUID of the execution, the receipt's command,
-         * the target, the command type and the occurrence, stable for that receipt.
+         * The id, and request id, of the command to [ref] of [commandType] derived by [execution] for the receipt of
+         * [receiptCommandId] without a business key, the only one of its type to its target (#6794): a name-based UUID
+         * of the execution, the receipt's command, the target and the command type, stable for that receipt.
          */
         @JvmStatic
-        @JvmOverloads
         fun compensationId(
             execution: ExecutionId,
             receiptCommandId: String,
             ref: AggregateRef,
             commandType: Class<*>,
-            occurrence: Int = 0,
-        ): String {
-            require(occurrence >= 0) { "An occurrence is never negative." }
-            return compensationIdOf(
-                execution,
-                receiptCommandId,
-                ref,
-                commandType,
-                DerivedRequests.occurrence(occurrence)
-            )
-        }
+        ): String = compensationIdOf(execution, receiptCommandId, ref, commandType, DerivedRequests.ONLY)
 
         /**
          * The id, and request id, of the command to [ref] of [commandType] derived by [execution] for the receipt of

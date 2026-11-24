@@ -12,17 +12,23 @@
  */
 package me.ahoo.wow.kernel
 
+import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.client.CommandRequest
+import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.schedule.CancelSchedule
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.schedule.SetSchedule
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.StateEvent
+import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.spi.id.DerivedIds
+import me.ahoo.wow.spi.id.IdGenerators
+import me.ahoo.wow.test.stateEvent
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.hours
 
@@ -69,13 +75,13 @@ class DerivedIdentityTest {
         val unassigned = type.unassigned("t")
         val named = type.ref("t", "unassigned")
         named.isAssigned.assert().isTrue()
-        val first = DerivedRequests().let {
+        val first = DerivedRequests("handler").let {
             listOf(
                 it.next(unassigned, Charge::class.java),
                 it.next(named, Charge::class.java)
             )
         }
-        val again = DerivedRequests().let {
+        val again = DerivedRequests("handler").let {
             listOf(
                 it.next(named, Charge::class.java),
                 it.next(unassigned, Charge::class.java)
@@ -123,7 +129,7 @@ class DerivedIdentityTest {
         val ref = type.ref("t", "c")
         ExecutionSagaContext.derivedId(execution, ref, Charge::class.java).assert()
             .isNotEqualTo(ExecutionReceiptContext.compensationId(execution, "", ref, Charge::class.java))
-        ExecutionSagaContext.derivedId(execution, ref, Charge::class.java, 0).assert()
+        ExecutionSagaContext.derivedId(execution, ref, Charge::class.java).assert()
             .isNotEqualTo(ExecutionSagaContext.derivedId(execution, ref, Charge::class.java, "0"))
     }
 
@@ -177,5 +183,39 @@ class DerivedIdentityTest {
 
     private companion object {
         val TOKENS = listOf("a", "/", "#", ":", "0", "1", "!", "@")
+    }
+
+    data class Reserve(val sku: String)
+    data class Reserved(val sku: String)
+
+    class Stock(val id: String) {
+        val reserved = mutableListOf<String>()
+    }
+
+    @Test
+    fun `a redelivered commit whose read answers in another order reserves each keyed item once`() = runTest {
+        // #6794: the review's case, the reservations keyed by their item.
+        val stock = aggregate<Stock>("shop", "stock") {
+            initial { Stock(it.id) }
+            decide<Reserve>(Creation.ALLOWED) { _, body -> Decision.events(Reserved(body.sku)) }
+            evolve<Reserved> { reserved += it.sku }
+        }
+        val warehouse = stock.type.ref("t", "w-1")
+        val order = AggregateType("shop", "order").ref("t", "o-1")
+        val placed = stateEvent(order, Any(), Charge())
+        fun handle(skus: List<String>) = ExecutionSagaContext(
+            ExecutionId("shop", "StockSaga.onPlaced", order, 1),
+            placed,
+            IdGenerators.DEFAULT,
+            CommandTypes.SIMPLE_NAMES,
+        ).commandsOf(skus.map { CommandRequest.builder(warehouse, Reserve(it)).requestId(it).build() })
+        val log = InMemoryEventLog()
+        val kernel = Kernel(log)
+        // The first handling commits the reservation of "a", then fails before the one of "b".
+        kernel.execute(stock, handle(listOf("a", "b")).first())
+        // Handled again, its read answering in another order.
+        handle(listOf("b", "a")).forEach { kernel.execute(stock, it) }
+
+        (kernel.stateAt(stock, warehouse, 2)!!.state as Stock).reserved.assert().containsExactlyInAnyOrder("a", "b")
     }
 }

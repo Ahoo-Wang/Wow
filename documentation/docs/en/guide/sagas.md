@@ -43,10 +43,26 @@ A command whose body names its aggregate ([Name the aggregate in the body](./agg
 
 Every derived command is deterministic:
 
-- Its id and request id come from the execution (`subscription:ref@version`) and what it asks: its target, its command type, and how many commands of that type to that target the execution derived before it. Handling the commit again derives the same requests in whatever order the handler builds them, even when a read answers in another order, and each target decides each one once. A request that gives a `requestId` takes it as its business key instead of the count, so a command keeps its id whatever else the handler derives. The command's own request id is that derived id, never the `requestId` the request gives, and the derived id includes the commit being handled: a business key set there tells requests of one execution apart, and does not deduplicate the commands of two commits.
+- Its id and request id come from the execution (`subscription:ref@version`) and what it asks: its target, its command type and its business key. A handler that sends one command of a type to a target needs no key. One that sends several commands of one type to one target gives each a `requestId` of its own, a business key such as the item it is about ([below](#several-commands-to-one-target)), so that handling the commit again derives the same requests in whatever order the handler builds them, even when a read answers in another order, and each target decides each one once. Without them the handler fails unrecoverable and parks, its message naming the handler, the command type and the target. A handler of each event of a type (`@OnEvent` taking one event) tells its calls apart by their event's place in the stream, so a call that sends one command to a target needs no key, however many such events the stream holds, and a key tells apart the commands of one call: two calls that key their commands by one value send two requests (a test computes such an id with `ExecutionSagaContext.derivedId(…, eventIndex = typed.eventIndex)`). Two commands equal in type, target and body under two keys are two requests; a key handled again with another body is the same request, and its target answers it with the first one's commit, as any repeated request. The command's own request id is that derived id, never the `requestId` the request gives, and the derived id includes the commit being handled: a business key set there tells requests of one handling apart (of one call, for a handler of each event), and does not deduplicate the commands of two commits.
 - It carries the operator, the owner and the space of the commit it is derived from. An aggregate it creates belongs to the same owner: a basket's checkout creates an order that belongs to the basket's buyer. Derived commands are trusted, so the target's scope guard does not check them: a wrong target is not refused. Test the targets in `sagaSpec`.
 - The subscription sends it and waits for nothing: a request with a `wait` or a `timeout` fails the handler.
 - `context.ids` draws an id for an aggregate the command creates. Handling the commit again draws a new one, so use it only for the creating command itself, whose request id keeps the target from creating it twice. A creating request without an id leaves the id to the target and keeps the first one on every retry.
+
+### Several commands to one target {#several-commands-to-one-target}
+
+An order whose lines reserve stock in one warehouse sends one reservation per line to the same aggregate, so each is keyed by the item it reserves:
+
+<!-- sample: fragment -->
+
+```kotlin
+@OnEvent
+fun onOrderPlaced(event: StateTypedEvent<OrderState, OrderPlaced>): List<CommandRequest<Reserve>> =
+    event.event.lines.map { line ->
+        Reserve(line.sku, line.quantity).toCommandRequest("warehouse-1") { requestId(line.sku) }
+    }
+```
+
+Handling the commit again, after a reservation failed, reserves each sku once, whatever order the lines come in. The eShop's delivery job keys each stock receipt by its delivery note's number the same way ([Scheduling](./scheduling)).
 
 ## Where the commands go
 

@@ -182,7 +182,7 @@ class TypedEventHandlersTest {
         val saga = bindings.getValue("OrderSaga.onPlaced")
         saga.eventType.assert().isEqualTo(placed)
         val derived = saga.invoke(stream, contextOf(FunctionKind.SAGA, stream.ref.type.context, saga.name, stream))
-        // Two calls, one per OrderPlaced, in order; one context: the commands are the stream's 0th and 1st.
+        // Two calls, one per OrderPlaced, in order, one context: each call's command told apart by its event (#6794).
         derived.map { it.body.toString() }.assert().containsExactly(
             "CancelOrder(reason=mug)",
             "CancelOrder(reason=hat)"
@@ -210,6 +210,68 @@ class TypedEventHandlersTest {
         saga.skips(events).assert().isFalse()
         bindings.getValue("Auditor.onPlaced").eventType!!.name.assert().isEqualTo("sample.Audited")
     }
+
+    /**
+     * #6794, through the code the compiler generates: each call of a saga's handler of each event derives its commands
+     * as that call's, told apart by its event. The generated body collects a call's requests inside that call, so a
+     * `Sequence` is the call's too; two calls that each send one command to one target need no key.
+     */
+    @Test
+    fun `a generated saga's handler of each event should tell its calls' commands apart by their event`(): Unit =
+        runBlocking {
+            val sagas = SourceFile.kotlin(
+                "Cancellers.kt",
+                """
+                package sample
+
+                import me.ahoo.wow.api.annotation.OnEvent
+                import me.ahoo.wow.api.annotation.Saga
+                import me.ahoo.wow.api.client.CommandRequest
+                import me.ahoo.wow.api.subscribe.StateTypedEvent
+
+                @Saga
+                class Canceller {
+                    @OnEvent
+                    fun one(event: StateTypedEvent<Order, OrderPlaced>): CommandRequest<CancelOrder> =
+                        CommandRequest.to(event.ref, CancelOrder(event.event.item))
+
+                    @OnEvent
+                    fun sequence(event: StateTypedEvent<Order, OrderPlaced>): Sequence<CommandRequest<CancelOrder>> =
+                        sequenceOf(CommandRequest.to(event.ref, CancelOrder(event.event.item)))
+                }
+                """.trimIndent(),
+            )
+            val (compilation, result) = compileModel("generate", options, model, sagas)
+            result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
+            val services = compilation.workingDir.walkTopDown().first {
+                it.isFile && it.name == ModelProviderSource.MODEL_PROVIDER
+            }
+            val loader =
+                URLClassLoader(arrayOf(services.parentFile.parentFile.parentFile.toURI().toURL()), result.classLoader)
+            val bindings = ModelProvider.load(loader).single().processors(Dependencies.NONE).associateBy { it.name }
+            val placed = loader.loadClass("sample.OrderPlaced").getConstructor(String::class.java)
+            // One commit, two OrderPlaced: two calls, each sending one CancelOrder to the order, without a key.
+            val stream = StateEvent(
+                ref = AggregateType("shop", "order").ref("t", "o-1"),
+                version = 2,
+                commandId = "c",
+                requestId = "r",
+                commandType = "shop.order.PlaceOrder",
+                commitTime = 1,
+                events = listOf(placed.newInstance("mug"), placed.newInstance("hat")),
+                state = loader.loadClass("sample.Order").getConstructor().newInstance(),
+            )
+            listOf("Canceller.one", "Canceller.sequence").forEach { name ->
+                val saga = bindings.getValue(name)
+                suspend fun derive() =
+                    saga.invoke(stream, contextOf(FunctionKind.SAGA, stream.ref.type.context, saga.name, stream))
+                val derived = derive()
+                derived.map { it.body.toString() }.assert().describedAs(name)
+                    .containsExactly("CancelOrder(reason=mug)", "CancelOrder(reason=hat)")
+                derived.map { it.id }.distinct().assert().describedAs(name).hasSize(2)
+                derive().map { it.id }.assert().describedAs(name).isEqualTo(derived.map { it.id })
+            }
+        }
 
     @Test
     fun `an event no aggregate or several aggregates have, or with another context's source, should fail`() {

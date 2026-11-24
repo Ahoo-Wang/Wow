@@ -40,6 +40,7 @@ import me.ahoo.wow.kernel.schedule.ScheduleSlots
 import me.ahoo.wow.spi.id.DerivedIds
 import me.ahoo.wow.spi.id.IdGenerators
 import java.util.Collections
+import java.util.IdentityHashMap
 
 /**
  * The context of a projection's or a reactor's handler for one execution; its [queries] are [contextQueries]' of the
@@ -64,10 +65,10 @@ class ExecutionContext @InternalWowApi constructor(
 /**
  * The context of a saga's handler for one execution of the commit [event]. Each
  * execution, a retry included, gets a new one, and each command it derives is keyed by what it asks ([derivedId]):
- * its target, its command type and its business key or its occurrence among the commands of this execution with both.
- * Handling the commit again derives the same request for each command it derives again, in whatever order, which the
- * kernel does not decide twice (it deduplicates by request id). A domain module's tests build one to call a saga
- * directly.
+ * its target, its command type and its business key, which a handler gives each of several commands of one type to one
+ * target, and, for a handler of each event, its event ([DerivedRequests]). Handling the commit again derives the same
+ * request for each command it derives again, in whatever order, which the kernel does not decide twice (it
+ * deduplicates by request id). A domain module's tests build one to call a saga directly.
  *
  * Its schedules are commands too: [schedule] and [cancel] record the system commands
  * `wow.schedule.SetSchedule` and `wow.schedule.CancelSchedule` to their target, keyed with the other commands, the command they
@@ -133,29 +134,36 @@ class ExecutionSagaContext @InternalWowApi constructor(
 
     override suspend fun call(request: CommandRequest<*>): CommandResult = derivation.call(request)
 
+    /** [call] from the call of a handler of each event for the [event]-th event of the stream ([eachEvent]). */
+    internal suspend fun call(request: CommandRequest<*>, event: Int): CommandResult = derivation.call(request, event)
+
+    /** Records that the call of a handler of each event for the [event]-th event returned [requests] ([eachEvent]). */
+    internal fun returned(requests: Iterable<*>, event: Int) = derivation.returned(requests, event)
+
     companion object {
         /**
-         * The id, and request id, of the [occurrence]-th command (from 0) to [ref] of [commandType] derived by
-         * [execution]: a name-based UUID of the execution, the target (its id, [AggregateRef.UNASSIGNED] for a creation
-         * that leaves it to admission), the command type and the occurrence ([DerivedIds.encoded]), stable across
-         * every execution of the same commit by the same subscription, whatever order the handler derives its commands
-         * in.
+         * The id, and request id, of the command to [ref] of [commandType] derived by [execution]: a name-based UUID of
+         * the execution, the target (its id, [AggregateRef.UNASSIGNED] for a creation that leaves it to admission), the
+         * command type and what tells it from the execution's others ([DerivedRequests]), stable across every execution
+         * of the same commit by the same subscription, whatever else the handler derives:
+         * - [requestId], the business key the request gives ([CommandRequest.requestId]), or `null` for the only
+         *   command of its type to its target;
+         * - [eventIndex], for a command of a handler of each event, the index in the stream of the event its call was
+         *   for, as its [me.ahoo.wow.api.subscribe.StateTypedEvent.eventIndex] gives it; `null` for a handler of the
+         *   whole stream, a receipt's or a job's. Never negative.
          */
         @JvmStatic
         @JvmOverloads
-        fun derivedId(execution: ExecutionId, ref: AggregateRef, commandType: Class<*>, occurrence: Int = 0): String {
-            require(occurrence >= 0) { "An occurrence is never negative." }
-            return derivedIdOf(execution, ref, commandType, DerivedRequests.occurrence(occurrence))
+        fun derivedId(
+            execution: ExecutionId,
+            ref: AggregateRef,
+            commandType: Class<*>,
+            requestId: String? = null,
+            eventIndex: Int? = null,
+        ): String {
+            require(eventIndex == null || eventIndex >= 0) { "An event's index is never negative." }
+            return derivedIdOf(execution, ref, commandType, DerivedRequests.discriminatorOf(requestId, eventIndex))
         }
-
-        /**
-         * The id, and request id, of the command to [ref] of [commandType] derived by [execution] from a request whose
-         * business key is [requestId] ([CommandRequest.requestId]): a name-based UUID of the execution, the target,
-         * the command type and the key, whatever other commands the execution derives.
-         */
-        @JvmStatic
-        fun derivedId(execution: ExecutionId, ref: AggregateRef, commandType: Class<*>, requestId: String): String =
-            derivedIdOf(execution, ref, commandType, DerivedRequests.keyed(requestId))
 
         /**
          * The id, and request id, of the [occurrence]-th schedule command (from 0) of [commandType], `wow.schedule.SetSchedule`
@@ -198,10 +206,10 @@ class ExecutionSagaContext @InternalWowApi constructor(
 
 /**
  * What a saga's handler derives in one execution [executionId], whatever it handles (a commit, a receipt, a tick): each
- * command to its [derivedTarget], keyed by what it asks ([idOf] of its target, its command type and its business key or
- * its occurrence among the commands of this execution with both), with the execution's [scope] unless the request
- * names its target scope, [headers], [causation] and [operator]. Handling the same thing again derives the same
- * request for each command it derives again, in whatever order, which the kernel does not decide twice.
+ * command to its [derivedTarget], keyed by what it asks ([idOf] of its target, its command type and what
+ * [DerivedRequests] tells it apart by), with the execution's [scope] unless the request names its target scope,
+ * [headers], [causation] and [operator]. Handling the same thing again derives the same request for each command it
+ * derives again, in whatever order, which the kernel does not decide twice.
  *
  * Its schedules are commands too: [schedule] and [cancel] record the system commands `wow.schedule.SetSchedule` and
  * `wow.schedule.CancelSchedule` to their target, keyed by the schedule's key rather than their order
@@ -223,7 +231,13 @@ internal class SagaDerivation(
     private val sends: SagaSends?,
     private val idOf: (AggregateRef, Class<*>, String) -> String,
 ) {
-    private val derived = DerivedRequests()
+    private val derived = DerivedRequests(executionId.subscription)
+
+    /**
+     * The events whose calls of a handler of each event returned each request, in the order they returned it
+     * ([returned]): one request object several calls return is one request per call.
+     */
+    private val events = IdentityHashMap<CommandRequest<*>, ArrayDeque<Int>>()
 
     private val recorded: MutableList<Command<*>> = Collections.synchronizedList(ArrayList())
 
@@ -235,12 +249,25 @@ internal class SagaDerivation(
         return requests.map(::commandOf) + synchronized(recorded) { recorded.toList() }
     }
 
-    private fun commandOf(request: CommandRequest<*>): Command<*> {
+    /**
+     * Records that the call of a handler of each event for the [event]-th event of the stream returned [requests]: they
+     * are told apart from the other calls' by that event, whose order is the stream's ([DerivedRequests.inEvent]).
+     */
+    fun returned(requests: Iterable<*>, event: Int) {
+        synchronized(events) {
+            requests.forEach { if (it is CommandRequest<*>) events.getOrPut(it) { ArrayDeque() }.addLast(event) }
+        }
+    }
+
+    private fun commandOf(
+        request: CommandRequest<*>,
+        event: Int? = synchronized(events) { events[request]?.removeFirstOrNull() },
+    ): Command<*> {
         val target = request.derivedTarget(executionId.subscription, tenantId, commandTypes)
         return derive(
             target,
             request.command,
-            derived.next(target, request.command.javaClass, request.requestId),
+            derived.next(target, request.command.javaClass, request.requestId, event),
             request.expectedVersion,
             request.targetScope,
         )
@@ -302,9 +329,9 @@ internal class SagaDerivation(
      * there or answered a status this node does not know (a newer target's); [calls] throws one when it reaches no
      * result.
      */
-    suspend fun call(request: CommandRequest<*>): CommandResult {
+    suspend fun call(request: CommandRequest<*>, event: Int? = null): CommandResult {
         sends?.checkCalls(executionId.subscription, request.command.javaClass)
-        val command = commandOf(request)
+        val command = commandOf(request, event)
         val result = calls.call(command)
         throw when (result.status) {
             CommandResult.Status.SUCCEEDED -> return result

@@ -532,4 +532,34 @@ class ProcessorDslTest {
             assertThrownBy<AssertionError> { expectParked() }.hasMessage("Expected the handling to fail but it ended.")
         }
     }
+
+    @Test
+    fun `a saga that sends several commands of one type to one target without keys should park at once, as on a node`() {
+        // #6794: their ids would hang on the order the handler builds them in; the spec fails as the node does.
+        fun saga(keyed: Boolean) = ProcessorBinding.saga(
+            "OrderSaga",
+            "onPlaced",
+            Order::class.java,
+            derives = listOf(ReserveStock::class.java),
+        ) { event: StateEvent<Order>, _ ->
+            listOf("mug", "cap").map { item ->
+                CommandRequest.builder(stock.ref(event.ref.tenantId, "w-1"), ReserveStock(event.ref.id, 1))
+                    .requestId(item.takeIf { keyed })
+                    .build()
+            }
+        }
+        sagaSpec(listOf(saga(keyed = false))) {
+            givenAggregate(orderModel, "order-1", OrderPlaced(10))
+            whenEvent(OrderPlaced(10)) {
+                expectError<IllegalArgumentException> {
+                    message.assert().contains("OrderSaga.onPlaced", ReserveStock::class.java.name, "requestId")
+                }
+                expectParked()
+            }
+        }
+        sagaSpec(listOf(saga(keyed = true))) {
+            givenAggregate(orderModel, "order-1", OrderPlaced(10))
+            whenEvent(OrderPlaced(10)) { commands.map { it.requestId }.distinct().assert().hasSize(2) }
+        }
+    }
 }
