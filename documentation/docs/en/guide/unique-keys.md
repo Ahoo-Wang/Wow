@@ -23,7 +23,7 @@ private suspend fun take(name: String, scope: DecideScope) {
 }
 ```
 
-- **The namespace** names what is unique: `eshop-catalog.brand-name`.
+- **The namespace** names what is unique within the aggregate's type: `brand-name`. It needs no context or aggregate in front, since the scope below already holds them. It is a stored name, kept with every key reserved in it: a key reserved under an old name stays held under that name and is invisible to reservations under a new one, so choose it once and keep it in a constant.
 - **The key** is the value, normalized the way uniqueness is meant: the catalog trims and lowercases a name, so "Contoso" and " contoso " are one name.
 - **The scope** of uniqueness is the aggregate's type and tenant: another tenant may hold the same key, and so may an aggregate of another type, so a brand and a category may share a name. `reserve(namespace, key, ReservationTenancy.SYSTEM)` makes a key unique across the type's tenants.
 - `reserve` is a `suspend` function, so a decide function that reserves keys is written in Kotlin.

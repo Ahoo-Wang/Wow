@@ -23,7 +23,7 @@ private suspend fun take(name: String, scope: DecideScope) {
 }
 ```
 
-- **命名空间**指明什么是唯一的：`eshop-catalog.brand-name`。
+- **命名空间**指明在聚合的类型内什么是唯一的：`brand-name`。它前面不需要上下文或聚合的名字，因为下面的范围已经含有它们。它是一个存储下来的名字，与在其中预留的每个键一起保存：在旧名字下预留的键仍以旧名字持有，对新名字下的预留不可见，所以要一次选定，并保存在一个常量中。
 - **键**就是这个值，按唯一性的含义规范化：catalog 会去掉名字两端的空白并转成小写，所以 "Contoso" 和 " contoso " 是同一个名字。
 - 唯一性的**范围**是聚合的类型和租户：另一个租户可以持有同一个键，另一种类型的聚合也可以，所以品牌和分类可以同名。`reserve(namespace, key, ReservationTenancy.SYSTEM)` 让一个键在该类型的所有租户之间唯一。
 - `reserve` 是一个 `suspend` 函数，所以预留键的决定函数要用 Kotlin 写。
