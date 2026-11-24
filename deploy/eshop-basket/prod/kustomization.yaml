@@ -1,0 +1,30 @@
+# The basket in production, over the base its build renders (generateWowManifests, in assemble):
+#
+#   ./gradlew :eshop-basket-server:assemble
+#   kubectl apply -k deploy/eshop-basket/prod
+#
+# The overlay changes only what the chart does not derive: the image, the replicas, the resources. Whatever feeds a
+# derivation (the namespace, the peers' namespaces, partOf, the gateway rule, the monitors, the autoscaler, the shutdown
+# bounds) is a value of deploy/eshop-basket/values.yaml, which the chart's schema checks when the build renders; and the
+# base's namespace stays the one it was rendered for.
+# region overlay
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../../examples/eshop/basket/basket-server/build/wow/k8s
+images:
+  - name: wow-eshop-basket-server
+    newName: registry.example.com/eshop-basket
+    newTag: 1.4.2
+replicas:
+  - name: eshop-basket-service
+    count: 3
+patches:
+  - target:
+      kind: Deployment
+      name: eshop-basket-service
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: 2Gi
+# endregion

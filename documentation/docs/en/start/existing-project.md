@@ -162,6 +162,7 @@ dependencies {
 - merges every part on the runtime class path into the service's Manifest, `build/wow/manifest.json` (`mergeWowManifest`), and writes its OpenAPI document (`generateWowOpenApi`);
 - writes the service's name and the contexts it serves into the server's own resources, `META-INF/wow/service.json`, with the merge: the name its nodes must run under (below);
 - writes the values of the `wow-service` Helm chart that the build knows, `build/wow/helm/values.yaml` (`generateWowHelmValues`, part of `assemble`): the service's name, the peers whose contracts are on its class path and its Manifest's route ([Kubernetes](../operate/kubernetes));
+- renders the chart with those values and the deployment's into a Kustomize base of plain YAML, `build/wow/k8s/` (`generateWowManifests`, part of `assemble` once `kubernetes { values }` names a file), for `kubectl apply -k` ([With Kustomize](../operate/kubernetes#with-kustomize));
 - checks every build's Manifest against the committed baseline (`checkWowManifest`, part of `check`; `updateWowManifestBaseline` records it);
 - checks that its runtime and test class paths resolve Jackson at a minor Wow's JSON is verified on, its modules at one minor (`checkWowJackson`, part of `check`, which `me.ahoo.wow` runs on a domain module's test class path too), and says what to change otherwise ([Upgrading](../operate/upgrades));
 - registers the `integrationTest` test suite for the tests that run on containers, outside `check` ([Run it on real stores](../guide/testing-services#run-it-on-real-stores)).
@@ -171,6 +172,7 @@ The merged Manifest describes the service the contracts of its contexts name (`w
 | Property | Default | Means |
 | --- | --- | --- |
 | `manifestBaseline` | `manifest/baseline.json` | The committed baseline of the compatibility check |
+| `kubernetes { values; namespace }` | None | The deployment's values files and namespace that `generateWowManifests` renders the chart with ([With Kustomize](../operate/kubernetes#with-kustomize)) |
 
 The service has one name, the merged Manifest's: its peers find it by that name, its chart values carry it and its baseline records it. The server's configuration repeats it, in `spring.application.name`, or in `wow.service` when that is set. A node whose class path holds the server's `META-INF/wow/service.json` refuses to start under another name for the contexts it names. The refusal names the key that gave the running name and the line to change: `Set spring.application.name: catalog-server`, or a new name in the build. A server built without the plugin, with Maven for example, carries no such file, and nothing compares its name with its build's.
 
