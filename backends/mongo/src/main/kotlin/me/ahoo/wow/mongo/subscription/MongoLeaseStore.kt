@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.mongo.subscription
 
+import com.mongodb.MongoException
 import com.mongodb.client.MongoClient
 import com.mongodb.client.MongoCollection
 import com.mongodb.client.model.Filters
@@ -32,11 +33,13 @@ import me.ahoo.wow.mongo.conditionalUpsert
 import me.ahoo.wow.mongo.mongo
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.VirtualThreads
+import me.ahoo.wow.spi.subscription.ExpiredMembers
 import me.ahoo.wow.spi.subscription.Lease
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.subscription.Member
 import org.bson.Document
 import org.bson.conversions.Bson
+import org.slf4j.LoggerFactory
 import java.time.Clock
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
@@ -61,6 +64,9 @@ import kotlin.time.TimeSource
  * ([LeaseStore]'s time bound): each of their round trips carries what is left of it as the driver's client-side
  * timeout, which, when it passes, closes the connection and fails the call as transient; the server may still apply
  * the write.
+ *
+ * A heartbeat also deletes the member records of its key long expired ([LeaseStore.heartbeat], [ExpiredMembers]):
+ * one `deleteMany` on the member key's prefix, at most once per TTL.
  */
 @InternalWowApi
 class MongoLeaseStore(
@@ -76,6 +82,7 @@ class MongoLeaseStore(
     private val database = MongoDatabases.of(client, databaseName, operationTimeout)
     private val leases: MongoCollection<Document> = database.getCollection(LEASES)
     private val members: MongoCollection<Document> = database.getCollection(MEMBERS)
+    private val expired = ExpiredMembers(clock)
 
     /** Creates the key indexes when missing. */
     fun createSchema() {
@@ -179,7 +186,28 @@ class MongoLeaseStore(
                 UpdateOptions().upsert(upsert)
             )
         }
+        expired.due(service, ttl)?.let { before ->
+            deleteExpired(service, before, deadline.of(members, expired.deleteBound(ttl)))
+        }
         Member(service, node, address, expiresAt, sorted)
+    }
+
+    /**
+     * Deletes the member records of [service] that expired before [before] ([LeaseStore.heartbeat]), on [timed], within
+     * what is left of the heartbeat's bound and at most a quarter of its TTL. A delete that fails or times out is
+     * given up, logged at DEBUG: the heartbeat has written its record, and the next due heartbeat deletes them.
+     */
+    private fun deleteExpired(service: String, before: Long, timed: MongoCollection<Document>) {
+        try {
+            timed.deleteMany(Filters.and(Filters.eq(GROUP, service), Filters.lt(EXPIRES_AT, before)))
+        } catch (failure: MongoException) {
+            log.debug(
+                "Deleting the member records of {} expired before {} failed; a later heartbeat will.",
+                service,
+                before,
+                failure,
+            )
+        }
     }
 
     override suspend fun members(service: String): List<Member> = dispatcher.mongo {
@@ -218,6 +246,12 @@ class MongoLeaseStore(
             val left = (bound - started.elapsedNow()).inWholeMilliseconds
             return collection.withTimeout(left.coerceAtLeast(1), TimeUnit.MILLISECONDS)
         }
+
+        /** [of], its operation also bounded by [cap]: a heartbeat's delete ([ExpiredMembers.deleteBound]). */
+        fun <T : Any> of(collection: MongoCollection<T>, cap: Duration): MongoCollection<T> {
+            val left = minOf(bound - started.elapsedNow(), cap).inWholeMilliseconds
+            return collection.withTimeout(left.coerceAtLeast(1), TimeUnit.MILLISECONDS)
+        }
     }
 
     private fun leaseFilter(group: String, partition: Int): Bson =
@@ -244,6 +278,7 @@ class MongoLeaseStore(
     )
 
     private companion object {
+        val log = LoggerFactory.getLogger(MongoLeaseStore::class.java)
         const val LEASES = "wow_lease"
 
         /** The layout version of both collections. */

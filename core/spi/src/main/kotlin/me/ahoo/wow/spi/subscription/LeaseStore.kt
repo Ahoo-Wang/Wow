@@ -159,6 +159,13 @@ interface LeaseStore {
      * Registers [node] as a member of [service] reachable at [address], serving the lease [groups], or keeps it one,
      * for [ttl] from now. A later heartbeat replaces the address and the groups, so a node restarted on another address
      * is found there, and one that stops taking part in a group drops it at once. Returns or fails within [ttl].
+     *
+     * A node that crashes leaves its record behind, and a node restarted writes a new one (its id changes with each
+     * start), so a heartbeat also deletes the records of [service] expired for more than [EXPIRED_MEMBER_TTLS] times
+     * [ttl], at most once per [ttl] for each [service] the store heartbeats (#6703). It does so after it wrote the
+     * node's own record, within what is left of [ttl] and at most a quarter of it; a delete that fails or does not
+     * answer in time is given up, and the heartbeat still returns the member it wrote. A store that does not delete
+     * them is no worse than reads that pass over expired records.
      */
     suspend fun heartbeat(
         service: String,
@@ -173,4 +180,15 @@ interface LeaseStore {
 
     /** Removes [node] from [service] at once, for a graceful shutdown; it keeps the leases it has not released. */
     suspend fun leave(service: String, node: String)
+
+    companion object {
+        /**
+         * How many member TTLs a member record stays expired before a heartbeat deletes it ([heartbeat]): ten, 100
+         * seconds at the default TTL. Times are the calling nodes' clocks, so a node whose clock runs ahead sees
+         * another's record expired early; ten TTLs is far longer than any clock skew a deployment tolerates (the TTL
+         * itself must stay well above it), so a delete never removes a record its writer still keeps live. And a record
+         * it removes was already passed over by every read.
+         */
+        const val EXPIRED_MEMBER_TTLS: Int = 10
+    }
 }

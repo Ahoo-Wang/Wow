@@ -81,6 +81,32 @@ class PostgresLeaseStoreTest : LeaseStoreSpec() {
             }
         }
 
+    @Test
+    fun `a heartbeat whose delete hangs still returns its member within a quarter of its ttl`(): Unit =
+        runBlocking {
+            // A crashed node's record, written by a clock a minute behind: expired for more than ten TTLs of 4 s.
+            val group = "expired-" + UUID.randomUUID()
+            val behind = Clock.offset(Clock.systemUTC(), java.time.Duration.ofMinutes(-1))
+            PostgresLeaseStore(PostgresFixture.dataSource, behind)
+                .heartbeat(group, "node-crashed", "10.0.0.9:9090", HEARTBEAT_TTL)
+            val store = PostgresLeaseStore(PostgresTimeouts.timed(PostgresFixture.dataSource, OPERATION))
+            PostgresFixture.dataSource.connection.use { locker ->
+                locker.autoCommit = false
+                try {
+                    // The lock holds the crashed node's record, so the heartbeat's delete waits for it.
+                    locker.lock("wow_lease_member WHERE subscription_group = ? AND node = 'node-crashed'", group)
+                    val started = TimeSource.Monotonic.markNow()
+                    store.heartbeat(group, "node-a", "10.0.0.1:9090", HEARTBEAT_TTL).node.assert().isEqualTo("node-a")
+                    // A quarter of the TTL for the delete, not the rest of it: under 2.5 s where the TTL is 4 s.
+                    started.elapsedNow().assert().isLessThan(HEARTBEAT_TTL / 4 + MARGIN)
+                } finally {
+                    locker.rollback()
+                }
+            }
+            // The delete given up lost its connection; the next call borrows another and answers.
+            store.members(group).map { it.node }.assert().containsExactly("node-a")
+        }
+
     /** Takes the row lock of the rows of [rows] (a table and a condition on its group) until the transaction ends. */
     private fun Connection.lock(rows: String, group: String) {
         prepareStatement("SELECT 1 FROM $rows FOR UPDATE").use { statement ->
@@ -125,6 +151,9 @@ class PostgresLeaseStoreTest : LeaseStoreSpec() {
 
         /** The store's own operation timeout in the bounded test: what a call without the bound would wait. */
         val OPERATION = 5.seconds
+
+        /** The TTL of the heartbeat whose delete hangs: long enough that its quarter and the rest of it differ. */
+        val HEARTBEAT_TTL = 4.seconds
 
         init {
             PostgresLeaseStore(PostgresFixture.dataSource).createSchema()

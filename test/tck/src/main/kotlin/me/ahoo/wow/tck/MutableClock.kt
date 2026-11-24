@@ -28,6 +28,14 @@ class MutableClock(startMillis: Long = START) : Clock() {
         millis.addAndGet(by.inWholeMilliseconds)
     }
 
+    /**
+     * Sets the clock to [millis], an earlier time included: a test reads a store as it stood then, where a record the
+     * store deleted is missing and one it kept shows.
+     */
+    fun set(millis: Long) {
+        this.millis.set(millis)
+    }
+
     override fun millis(): Long = millis.get()
 
     override fun instant(): Instant = Instant.ofEpochMilli(millis())
