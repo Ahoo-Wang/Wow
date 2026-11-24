@@ -84,6 +84,9 @@ internal class Waiting(private val state: WaitState) {
     /** Whether the wait ended. */
     val ended: Boolean get() = synchronized(this) { state.outcome != null }
 
+    /** Whether a result reached the wait ([WaitState.heard]). */
+    val heard: Boolean get() = synchronized(this) { state.heard }
+
     fun offer(result: CommandResult): Boolean = synchronized(this) { publish(state.offer(result)) }
 
     /**

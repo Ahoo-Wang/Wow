@@ -14,10 +14,12 @@
 package me.ahoo.wow.runtime.wait
 
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
@@ -143,6 +145,133 @@ class TopicWaitProgressTest {
         }
     }
 
+    @Test
+    fun `a command the owner committed answers its commit, though the broker's acknowledgement was lost`(): Unit =
+        runBlocking {
+            // #6756: the owner's signal tells that the command was written, whatever the producer said.
+            answersCommitAfterLostAcknowledgement(WaitPlan.of(Hop.committed()))
+        }
+
+    @Test
+    fun `a commit signalled before ACCEPTED, which the plan names first, also tells the command was written`(): Unit =
+        runBlocking {
+            // The owner's commit waits in the wait's buffer until ACCEPTED applies: it is heard all the same.
+            answersCommitAfterLostAcknowledgement(WaitPlan.of(Hop.accepted(), Hop.committed()))
+        }
+
+    @Test
+    fun `a command the owner rejected answers its rejection, though the broker's acknowledgement was lost`(): Unit =
+        runBlocking {
+            // Its rejection ended the wait before any hop was reached: it is heard all the same.
+            answersCommitAfterLostAcknowledgement(WaitPlan.of(Hop.committed()), items = -1)
+        }
+
+    private suspend fun answersCommitAfterLostAcknowledgement(plan: WaitPlan, items: Int = 3) {
+        val lost = object : TopicProducer {
+            override suspend fun send(topic: String, messages: List<TopicMessage>) {
+                topics.send(topic, messages)
+                committed.await()
+                throw IllegalStateException("The broker's acknowledgement was lost.")
+            }
+        }
+        relayed(lost) { coordinator, ref ->
+            val last = withTimeout(10.seconds) {
+                coordinator.stream(order, Command("c-1", "r-1", ref, Place(items), wait = plan)).toList()
+            }.last()
+            val rejected = items < 0
+            last.status.assert()
+                .describedAs("${last.hop}: ${last.error?.code}")
+                .isEqualTo(if (rejected) CommandResult.Status.REJECTED else CommandResult.Status.SUCCEEDED)
+            last.hop.assert().isEqualTo(Hop.committed("shop"))
+            if (rejected) {
+                last.error!!.code.assert().isEqualTo("shop.order.refused")
+                log.read(ref).toList().assert().isEmpty()
+            } else {
+                log.read(ref).toList().single().version.assert().isEqualTo(1)
+            }
+        }
+    }
+
+    @Test
+    fun `an acknowledgement later than the deadline times out at the hop the owner signalled, not at ACCEPTED`(): Unit =
+        runBlocking {
+            val late = object : TopicProducer {
+                override suspend fun send(topic: String, messages: List<TopicMessage>) {
+                    topics.send(topic, messages)
+                    committed.await()
+                    delay(10.seconds)
+                }
+            }
+            relayed(late) { coordinator, ref ->
+                // The snapshot is held: the wait reaches its commit and no further, and the send outlasts its deadline.
+                val plan = WaitPlan.of(Hop.committed(), Hop.snapshot()).within(1.seconds)
+                val command = Command("c-1", "r-1", ref, Place(3), wait = plan)
+                val results = held.timedOut(coordinator.stream(order, command)) { it.hop.stage == Stage.COMMITTED }
+                results.last().timedOutAtCommitted()
+            }
+        }
+
+    @Test
+    fun `a send that fails before the owner heard of the command answers UNKNOWN at ACCEPTED`(): Unit = runBlocking {
+        val refused = object : TopicProducer {
+            override suspend fun send(topic: String, messages: List<TopicMessage>) {
+                throw IllegalStateException("The broker refused the connection.")
+            }
+        }
+        relayed(refused) { coordinator, ref ->
+            val plan = WaitPlan.of(Hop.committed())
+            val last = withTimeout(10.seconds) {
+                coordinator.stream(order, Command("c-1", "r-1", ref, Place(3), wait = plan)).toList()
+            }.single()
+            last.status.assert().isEqualTo(CommandResult.Status.FAILED)
+            last.error!!.code.assert().isEqualTo(ResultCodes.UNKNOWN)
+            last.hop.assert().isEqualTo(Hop.accepted("shop"))
+            log.read(ref).toList().assert().isEmpty()
+        }
+    }
+
+    /**
+     * Runs [block] with a coordinator that sends `shop.order` through the command topic with [producer], its intake
+     * reading the topic, the snapshot held unless the scenario opened it, and the deadlines [held].
+     */
+    private suspend fun relayed(producer: TopicProducer, block: suspend (WaitCoordinator, AggregateRef) -> Unit) {
+        val snapshots = runtime(
+            "snapshot",
+            LogSource(log),
+            Subscription("wow.snapshot", SubscriptionFilter("shop"), kind = FunctionKind.SYSTEM) {
+                snapshotGate.await()
+            },
+        )
+        val coordinator = WaitCoordinator(
+            Executor(Kernel(log)),
+            waits,
+            snapshots,
+            signals,
+            origin,
+            topicRouter = TopicRouter(setOf(order.type), TOPIC, 1, producer),
+            deadlines = held,
+        )
+        val intake = CommandIntake(
+            "shop",
+            listOf(order),
+            coordinator,
+            SourceTopics(topics, producer = topics),
+            admissionOf(),
+        )
+        val intakeRuntime = runtime("intake", MessageEntries.commands(TOPIC, topics, 1), intake.subscription)
+        try {
+            snapshots.start(setOf(0))
+            intakeRuntime.start(setOf(0))
+            block(coordinator, order.type.ref("t", "o-1"))
+        } finally {
+            snapshotGate.complete(Unit)
+            intakeRuntime.stop()
+            snapshots.stop()
+            coordinator.join()
+            coordinator.close()
+        }
+    }
+
     private fun CommandResult.timedOutAtCommitted() {
         status.assert().isEqualTo(CommandResult.Status.FAILED)
         error!!.code.assert().isEqualTo(ResultCodes.WAIT_TIMEOUT)
@@ -153,7 +282,13 @@ class TopicWaitProgressTest {
 
     private val order = aggregate<Order>("shop", "order") {
         initial { Order() }
-        decide<Place>(Creation.ALLOWED) { _, body -> Decision.events(Placed(body.items)) }
+        decide<Place>(Creation.ALLOWED) { _, body ->
+            if (body.items < 0) {
+                Decision.reject("shop.order.refused", "Refused.")
+            } else {
+                Decision.events(Placed(body.items))
+            }
+        }
         evolve<Placed> { items = it.items }
     }
     private val log = InMemoryEventLog(partitions = 1)

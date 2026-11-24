@@ -296,8 +296,16 @@ class WaitCoordinator(
                 val remaining = chain.hops.dropWhile { it.stage == Stage.ACCEPTED }
                 val wait = WaitContext(waitId, origin, remaining, deadline).takeIf { remaining.isNotEmpty() }
                 sendThrough(relay, command, function, wait, deadline)?.let { failed ->
-                    emit(failed)
-                    return
+                    // The owner ran it and told this wait so: the command was written, whatever the broker answered.
+                    // The wait goes on with what it was told, its deadline ending it at the last hop reached.
+                    if (!waiting.heard) {
+                        emit(failed)
+                        return
+                    }
+                    logger.info {
+                        "Command ${command.id} on ${command.ref} was not acknowledged on ${relay.topic}, but its " +
+                            "owner signalled its wait: it was written."
+                    }
                 }
                 waiting.offer(reachedResult(command, function, Hop.accepted(context), clock.millis()))
                 expiry = expireAt(deadline, waiting)
