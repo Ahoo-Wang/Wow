@@ -16,17 +16,18 @@ package me.ahoo.wow.kernel
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.client.CommandRequest
+import me.ahoo.wow.api.decide.Misuse
 import me.ahoo.wow.api.lifecycle.Lifecycle
 
 /**
  * The aggregate type a command of the class [command] goes to when the saga handler [handler] leaves its ref out:
- * the one type [CommandTypes.aggregatesOf] gives. Fails with an [IllegalArgumentException] that
+ * the one type [CommandTypes.aggregatesOf] gives. Fails with a [Misuse.Argument], the saga's mistake, unrecoverable, that
  * says what to write instead when there is none (a lifecycle command, which every type takes, or a class no contract
  * on the class path assigns: its context's api module is missing) or several (it names them).
  */
 internal fun CommandTypes.omittedTargetOf(command: Class<*>, handler: String): AggregateType {
     val targets = aggregatesOf(command).distinct()
-    return targets.singleOrNull() ?: throw IllegalArgumentException(
+    return targets.singleOrNull() ?: throw Misuse.Argument(
         when {
             Lifecycle.nameOf(command) != null ->
                 "$handler sends the lifecycle command ${command.name} without its target: every aggregate type " +
