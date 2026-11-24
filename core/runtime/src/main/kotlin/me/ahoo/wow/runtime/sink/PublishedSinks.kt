@@ -102,16 +102,18 @@ class PublishedSinks(
 
         /**
          * The transport sink: every stream [manifest] publishes, written to its topic
-         * ([PublishedManifest.topic], after [topicPrefix]) through [producer], masked by [masks], the node's.
+         * ([PublishedManifest.topic], after [topicPrefix]) through [producer], masked by [masks], the node's, each
+         * record to its aggregate's partition among the log's [partitions] ([TopicSink]).
          */
         fun topics(
             manifest: Manifest,
             producer: TopicProducer,
             masks: PublicationMasks,
+            partitions: Int,
             topicPrefix: String = "",
             processor: String = TRANSPORT_SINK,
         ): PublishedSinks = PublishedSinks(publishedOf(manifest), processor, masks) { _, stream ->
-            TopicSink(producer, topicPrefix + stream.topic)
+            TopicSink(producer, topicPrefix + stream.topic, partitions)
         }
     }
 }

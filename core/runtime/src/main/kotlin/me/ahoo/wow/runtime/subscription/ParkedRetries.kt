@@ -70,15 +70,17 @@ internal class ParkedRetries(
     private val running: MutableSet<Pair<SubscriptionId, AggregateRef>> = ConcurrentHashMap.newKeySet()
 
     /**
-     * Reads [subscriptions]' entries due in [partitions] and, in [scope], runs those due here: each one of a partition
-     * whose worker [workerOf] finds by the subscription's name; schedules the others. An entry's retry spec is its
-     * subscription's ([ParkedRetryOptions.specOf]), and its notices are of its subscription's context.
+     * Reads [subscriptions]' entries due in [partitions] and, in [scope], runs those due here: each one whose worker
+     * [workersOf] finds where the source's later entries of it are ([EntrySource.partitionsOf]), which a topic that
+     * gained partitions since may not move, asked once for the entries of a page that run; schedules the others. An
+     * entry's retry spec is its subscription's ([ParkedRetryOptions.specOf]), and its notices are of its
+     * subscription's context.
      */
     suspend fun scan(
         scope: CoroutineScope,
         subscriptions: Collection<SubscriptionId>,
         partitions: Set<Int>,
-        workerOf: suspend (subscription: String, ref: AggregateRef) -> SubscriptionWorker?,
+        workersOf: suspend (entries: List<ParkedAggregate>) -> List<SubscriptionWorker?>,
     ) {
         if (partitions.isEmpty()) {
             return
@@ -88,31 +90,29 @@ internal class ParkedRetries(
             var after: AggregateRef? = null
             do {
                 val page = ledger.due(subscription, partitions, now, after)
-                for (entry in page) {
-                    look(scope, entry, now, workerOf)
+                val (run, rest) = page.partition { runsNow(it, now) }
+                if (run.isNotEmpty()) {
+                    run.zip(workersOf(run)).forEach { (entry, worker) -> worker?.let { dispatch(scope, it, entry) } }
                 }
+                rest.forEach { schedule(it) }
                 after = page.lastOrNull()?.ref
             } while (page.size == FailureLedger.DEFAULT_PAGE)
         }
     }
 
-    /** Runs [entry] when an operator asked for it or its retry is due at [now]; schedules it otherwise. */
-    private suspend fun look(
-        scope: CoroutineScope,
-        entry: ParkedAggregate,
-        now: Long,
-        workerOf: suspend (subscription: String, ref: AggregateRef) -> SubscriptionWorker?,
-    ) {
+    /** Whether [entry] runs at [now]: an operator asked for it, or its retry is due. */
+    private fun runsNow(entry: ParkedAggregate, now: Long): Boolean {
         val next = entry.nextRetryAt(options.specOf(entry))
-        if (entry.request != null || next != null && now >= next) {
-            workerOf(entry.subscription.name, entry.ref)?.let { dispatch(scope, it, entry) }
-            return
-        }
+        return entry.request != null || next != null && now >= next
+    }
+
+    /** Schedules [entry], not due yet or not retried automatically, at its next retry ([ParkedAggregate.NEVER]). */
+    private suspend fun schedule(entry: ParkedAggregate) {
         if (entry.subscription to entry.ref in running) {
             // A retry of it runs: the ledger schedules it once that retry has claimed its own.
             return
         }
-        val at = next ?: ParkedAggregate.NEVER
+        val at = entry.nextRetryAt(options.specOf(entry)) ?: ParkedAggregate.NEVER
         if (entry.nextAttemptAt != at) {
             ledger.amend(
                 entry.subscription,

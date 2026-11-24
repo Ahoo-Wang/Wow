@@ -96,7 +96,7 @@ class TopicDdlTest {
             TopicRequirement(
                 COMMANDS,
                 PARTITIONS,
-                exact = true,
+                TopicRequirement.Count.EXACT,
                 "the command topic of context stock, with as many partitions as its log",
             ),
         )
@@ -140,13 +140,30 @@ class TopicDdlTest {
     @Test
     fun `none should create nothing, and a node without an intake should need no command topic`(): Unit =
         runBlocking {
-            salesNode(Ddl.NONE).start()
+            // A published stream's topic is checked whatever the DDL, as a command topic is (#6783): it is missing.
+            assertThrows<IllegalStateException> { runBlocking { salesNode(Ddl.NONE).start() } }
+                .message.assert().startsWith("The topic $ORDERS does not exist")
             topics.partitions(setOf(ORDERS)).assert().isEmpty()
             val stock = stockNode(Ddl.VALIDATE, intake = false)
             stock.topicRequirements.assert().isEmpty()
             stock.start()
             stock.isReady.assert().isTrue()
         }
+
+    @Test
+    fun `a published stream's topic with fewer partitions than the log should stop the node, whatever the DDL`():
+        Unit = runBlocking {
+        // #6783: the topic sink sends each record to its aggregate's partition in the log; with fewer there is none.
+        topics.create(ORDERS, PARTITIONS / 2)
+        topics.create(COMMANDS, PARTITIONS)
+        for (ddl in listOf(Ddl.NONE, Ddl.VALIDATE, Ddl.AUTO)) {
+            assertThrows<Exception> { runBlocking { salesNode(ddl).start() } }.message.assert()
+                .contains("$ORDERS has ${PARTITIONS / 2} partitions")
+        }
+        // More than the log's is taken: the added partitions stay empty.
+        topics.grow(ORDERS, PARTITIONS * 2)
+        salesNode(Ddl.VALIDATE).start()
+    }
 
     @Test
     fun `validate should check the command topic of each peer context, which the node never creates (M-1)`(): Unit =
@@ -158,7 +175,7 @@ class TopicDdlTest {
                 TopicRequirement(
                     COMMANDS,
                     1,
-                    exact = false,
+                    TopicRequirement.Count.ANY,
                     "the command topic of peer context stock, where this node sends its commands"
                 ),
             )
@@ -223,7 +240,7 @@ class TopicDdlTest {
     @Test
     fun `a topic DDL other than none should need an admin`() {
         assertThrows<IllegalArgumentException> { SourceTopics(topics, ddl = Ddl.VALIDATE) }
-        assertThrows<IllegalArgumentException> { TopicRequirement("t", 0, exact = false, "nothing") }
+        assertThrows<IllegalArgumentException> { TopicRequirement("t", 0, TopicRequirement.Count.ANY, "nothing") }
         SourceTopics(topics).ddl.assert().isEqualTo(Ddl.NONE)
     }
 

@@ -29,14 +29,16 @@ import java.util.concurrent.ConcurrentHashMap
  * parked from: the ledger's entries of those partitions ([FailureLedger.due] at [ParkedAggregate.NEVER]).
  *
  * Of a source whose partitions grow ([EntrySource.partitionsGrow]), also the entries parked in another partition than
- * the one their aggregate's key maps to now: the topic gained partitions while they were parked. The owner of the
- * partition the key maps to now holds back their later entries there, and re-homes the entry to it ([rehomed],
- * [FailureLedger.repark] from the partition it left), so its due scan, an operator's request and a skip reach the
- * owner that holds them; the entry cannot be retried, only skipped. Those entries are looked for once per subscription
- * in one run of the runtime, a start or a join again after the partitions grew: one paged listing of the
- * subscription's ledger, the first time a partition of it starts, and one [EntrySource.partitionOf] per entry, never
- * per entry read. A run starts and stops partitions, but the number of partitions its source maps keys to does not
- * change during it, so no entry parked during the run is in another partition than its key's.
+ * the one their aggregate's later entries are in now ([EntrySource.partitionOf] of the entry): the topic gained
+ * partitions while they were parked, and their records were placed by their key's hash. A record its publisher placed
+ * by its log's partition never moves. The owner of the partition the key maps to now holds back their later entries
+ * there, and re-homes the entry to it ([rehomed], [FailureLedger.repark] from the partition it left), so its due scan,
+ * an operator's request and a skip reach the owner that holds them; the entry cannot be retried, only skipped. Those
+ * entries are looked for once per subscription in one run of the runtime, a start or a join again after the partitions
+ * grew: one paged listing of the subscription's ledger, the first time a partition of it starts, and one
+ * [EntrySource.partitionsOf] per page, which reads the records it needs of each partition together, never one entry at
+ * a time. A run starts and stops partitions, but the number of partitions its source maps keys to does not change
+ * during it, so no entry parked during the run is in another partition than its key's.
  *
  * The run owns each listing: it runs in the run's [scope], whichever start asks first, so a start that fails for a
  * reason of its own cancels only its own wait, and the other starts get the listing or its own failure. A listing that
@@ -88,8 +90,7 @@ internal class ParkedAtStart(
         var after: AggregateRef? = null
         do {
             val page = ledger.list(subscription, after)
-            page.forEach { entry ->
-                val now = source.partitionOf(entry.ref)
+            page.zip(source.partitionsOf(page)).forEach { (entry, now) ->
                 if (now != entry.partition) {
                     add(Moved(entry, now))
                 }

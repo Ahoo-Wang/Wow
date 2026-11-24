@@ -15,6 +15,7 @@ package me.ahoo.wow.spi.transport
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.transformWhile
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.annotation.WowSpi
@@ -82,6 +83,7 @@ class PartitionOffsets @InternalWowApi constructor(val start: Long, val end: Lon
  *   no longer retained is skipped, so the first one emitted may be later than `from`; offsets may also have gaps
  *   within a partition. The flow does not complete: after the messages written so far it waits for new ones, until
  *   it is cancelled. Bounded by `until`, it emits those before `until` only and completes once it has passed them.
+ * - [readAt] reads the messages at offsets a caller already knows, such as those a ledger recorded, at once.
  */
 @WowSpi
 interface PartitionedSource {
@@ -109,4 +111,20 @@ interface PartitionedSource {
                 message.offset < until - 1
             }
         }
+
+    /**
+     * The messages of [partition] at [offsets], which may be given in any order and more than once, keyed by their
+     * offsets. An offset the partition holds no message at is absent from the map: one no longer retained, one at or
+     * past its end, or one in a gap of its offsets. By default one bounded [read] per offset, after one [offsets]: a
+     * source whose reads each cost a connection of their own (Kafka) reads them through one.
+     */
+    suspend fun readAt(topic: String, partition: Int, offsets: Collection<Long>): Map<Long, SourceMessage> {
+        if (offsets.isEmpty()) {
+            return emptyMap()
+        }
+        val held = offsets(topic, partition)
+        return offsets.filter { it >= held.start && it < held.end }.toSortedSet().mapNotNull { offset ->
+            read(topic, partition, offset, offset + 1).firstOrNull()?.takeIf { it.offset == offset }
+        }.associateBy { it.offset }
+    }
 }

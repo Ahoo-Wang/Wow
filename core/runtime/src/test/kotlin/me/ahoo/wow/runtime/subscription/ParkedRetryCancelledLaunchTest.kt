@@ -69,7 +69,7 @@ class ParkedRetryCancelledLaunchTest {
     }
 
     private suspend fun scan(scope: CoroutineScope, worker: SubscriptionWorker) {
-        retries.scan(scope, listOf(id), setOf(0)) { _, _ -> worker }
+        retries.scan(scope, listOf(id), setOf(0)) { entries -> entries.map { worker } }
     }
 
     private fun runs(scheduler: TestCoroutineScheduler) =

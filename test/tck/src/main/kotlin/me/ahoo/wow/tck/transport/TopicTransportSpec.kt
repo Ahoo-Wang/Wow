@@ -56,6 +56,12 @@ abstract class TopicTransportSpec {
      */
     protected open fun provided(): Pair<TransportProvider, TransportConfig>? = null
 
+    /**
+     * Deletes [topic]'s messages of [partition] before [offset], as retention does: false for a transport that cannot,
+     * whose test of a read at offsets no longer retained is then skipped.
+     */
+    protected open suspend fun deleteBefore(topic: String, partition: Int, offset: Long): Boolean = false
+
     @Test
     fun `the transport should read only the options it declares, each declared once`() {
         val provided = provided()
@@ -164,5 +170,26 @@ abstract class TopicTransportSpec {
         producer.send(topic, message("k", "after-1"))
         producer.send(topic, message("k", "after-2"))
         reading.await().map { it.text }.assert().containsExactly("after-1", "after-2")
+    }
+
+    @Test
+    fun `a read at offsets should give each message held, in any order, and leave out the others`(): Unit =
+        runBlocking {
+            val topic = newTopic(2)
+            producer.send(topic, (0 until 6).map { TopicMessage.of("k", "v-$it".toByteArray(), partition = 1) })
+            // Out of order, one twice, and two past the end.
+            val read = withTimeout(readTimeout) { source.readAt(topic, 1, listOf(4L, 1L, 9L, 4L, 0L, 6L)) }
+            read.mapValues { it.value.text }.assert().isEqualTo(mapOf(0L to "v-0", 1L to "v-1", 4L to "v-4"))
+            withTimeout(readTimeout) { source.readAt(topic, 0, listOf(0L, 3L)) }.assert().isEmpty()
+            source.readAt(topic, 1, emptyList()).assert().isEmpty()
+        }
+
+    @Test
+    fun `a read at offsets should leave out those no longer retained`(): Unit = runBlocking {
+        val topic = newTopic(1)
+        producer.send(topic, (0 until 6).map { message("k", "v-$it") })
+        assumeTrue(deleteBefore(topic, 0, 3), "The transport cannot delete a partition's first messages.")
+        withTimeout(readTimeout) { source.readAt(topic, 0, listOf(5L, 1L, 3L)) }
+            .mapValues { it.value.text }.assert().isEqualTo(mapOf(3L to "v-3", 5L to "v-5"))
     }
 }

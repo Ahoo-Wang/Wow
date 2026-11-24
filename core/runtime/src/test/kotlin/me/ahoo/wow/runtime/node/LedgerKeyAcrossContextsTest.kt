@@ -98,7 +98,7 @@ import me.ahoo.wow.manifest.ServiceInfo as ManifestService
  * partitions are never read as the other source's. Each test fails one subscription only.
  */
 class LedgerKeyAcrossContextsTest {
-    private val topics = InMemoryTopics(PARTITIONS).also { it.create(ORDERS, PARTITIONS) }
+    private val topics = InMemoryTopics(LOG_PARTITIONS).also { it.create(ORDERS, LOG_PARTITIONS) }
     private val channel = LoopbackClusterChannel()
 
     /** The store's ledger: what each subscription reads of its own entries in it is recorded. */
@@ -203,7 +203,7 @@ class LedgerKeyAcrossContextsTest {
         name: String,
         bindings: SubscriptionFactory = SubscriptionBindings(
             mapOf(SALES to listOf(salesBoard), STOCK to listOf(stockBoard))
-        ) + PublishedSinks.topics(this.manifest, topics, UNMASKED, PREFIX).factory,
+        ) + PublishedSinks.topics(this.manifest, topics, UNMASKED, LOG_PARTITIONS, PREFIX).factory,
         manifest: Manifest = this.manifest,
         options: ServiceNodeOptions = fastNodeOptions(),
     ): ServiceNode = ServiceNode(
@@ -241,18 +241,16 @@ class LedgerKeyAcrossContextsTest {
     }
 
     /**
-     * An order whose partition in the context's log is, or is not, its partition in the topic: with even partition
-     * counts the in-memory topic's and the log's hashes never agree, so the topic has 3.
+     * An order whose key the in-memory topic's own hash maps to another partition than its log's (with an even count
+     * the two hashes never agree): the topic sink still sends its records to its partition in the log, as it does every
+     * order's (#6783), so both contexts' subscriptions read the order in one partition, and a source that looked for
+     * its records by the key's hash would look in another.
      */
-    private suspend fun order(samePartition: Boolean): AggregateRef {
-        for (n in 0 until 1_000) {
-            val ref = ORDER.ref(TENANT, UUID.nameUUIDFromBytes("o-$n".toByteArray()).toString())
-            val same = Partitioner.partitionOf(ref, LOG_PARTITIONS) == topics.partitionOf(ORDERS, ref.toString())
-            if (same == samePartition) {
-                return ref
-            }
-        }
-        error("No order whose partitions are ${if (samePartition) "the same" else "different"}.")
+    private suspend fun order(): AggregateRef {
+        val ref = (0 until 1_000).asSequence()
+            .map { ORDER.ref(TENANT, UUID.nameUUIDFromBytes("o-$it".toByteArray()).toString()) }
+            .first { Partitioner.partitionOf(it, LOG_PARTITIONS) != topics.partitionOf(ORDERS, it.toString()) }
+        return ref
     }
 
     /** Waits until [subscription]'s parked entries are scanned [times] more times. */
@@ -265,7 +263,7 @@ class LedgerKeyAcrossContextsTest {
     fun `one context's failure holds back its own subscription only, not the other context's of one name`(): Unit =
         runBlocking {
             // Of the same partition in the log and the topic, where a shared key would hold it in both.
-            val ref = order(samePartition = true)
+            val ref = order()
             stockFails = setOf(ref.id)
             started("node-1").let { node ->
                 node.send(SALES, ref, PlaceOrder(1))
@@ -284,7 +282,7 @@ class LedgerKeyAcrossContextsTest {
     @Test
     fun `ops list an entry once under its own context, and the other's retry finds nothing parked`(): Unit =
         runBlocking {
-            val ref = order(samePartition = true)
+            val ref = order()
             stockFails = setOf(ref.id)
             val node = started("node-1")
             node.send(SALES, ref, PlaceOrder(1))
@@ -309,7 +307,7 @@ class LedgerKeyAcrossContextsTest {
     @Test
     fun `a log subscription's entry keeps its partition when a topic subscription of one name starts`(): Unit =
         runBlocking {
-            val ref = order(samePartition = false)
+            val ref = order()
             salesFails = setOf(ref.id)
             started("node-1").let { node ->
                 node.send(SALES, ref, PlaceOrder(1))
@@ -463,7 +461,6 @@ class LedgerKeyAcrossContextsTest {
     }
 
     private companion object {
-        const val PARTITIONS = 3
         const val LOG_PARTITIONS = 4
         const val BOARD = "Board.onOrder"
         const val ORDERS = PREFIX + "wow.sales.order.state"

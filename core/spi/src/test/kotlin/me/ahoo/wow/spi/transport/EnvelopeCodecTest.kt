@@ -186,6 +186,8 @@ class EnvelopeCodecTest {
         message.headers.assert().isEqualTo(
             mapOf("wow-format" to "1", "wow-kind" to "state-event", "wow-type" to "shop.order"),
         )
+        // The topic sink adds the log's partition count under this name (#6783).
+        EnvelopeHeaders.PARTITIONS.assert().isEqualTo("wow-partitions")
         EnvelopeCodec.stateEventOf(message.value).version.assert().isEqualTo(2)
     }
 

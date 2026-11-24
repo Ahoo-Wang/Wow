@@ -430,9 +430,12 @@ public abstract class me/ahoo/wow/tck/transport/TopicTransportSpec {
 	public final fun a bounded read should complete after the messages before its bound ()V
 	public final fun a key's partition should be the one its messages land in ()V
 	public final fun a message naming its partition should land in it whatever its key ()V
+	public final fun a read at offsets should give each message held, in any order, and leave out the others ()V
+	public final fun a read at offsets should leave out those no longer retained ()V
 	public final fun a read should start at the offset given ()V
 	public final fun a read should wait for the messages sent after it started ()V
 	public final fun a topic should list its partitions ()V
+	protected fun deleteBefore (Ljava/lang/String;IJLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	protected abstract fun getProducer ()Lme/ahoo/wow/spi/transport/TopicProducer;
 	protected fun getReadTimeout-UwyO8pc ()J
 	protected abstract fun getSource ()Lme/ahoo/wow/spi/transport/PartitionedSource;

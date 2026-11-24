@@ -218,7 +218,13 @@ class ImportCutoverChainTest {
             listOf(NineXExample.orderModel(payable = true), NineXExample.cartModel),
             EXAMPLE,
             BackendFactory { stores },
-            PublishedSinks.topics(EXAMPLE, topics, PublicationMasks(NO_MASKS, true), topicPrefix = PREFIX).factory,
+            PublishedSinks.topics(
+                EXAMPLE,
+                topics,
+                PublicationMasks(NO_MASKS, true),
+                PARTITIONS,
+                topicPrefix = PREFIX,
+            ).factory,
             ContractDirectory(EXAMPLE),
             topics = null,
         )

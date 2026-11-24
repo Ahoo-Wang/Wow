@@ -31,6 +31,7 @@ public final class me/ahoo/wow/kafka/KafkaPartitionedSource : java/lang/AutoClos
 	public fun partitions (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun read (Ljava/lang/String;IJ)Lkotlinx/coroutines/flow/Flow;
 	public fun read (Ljava/lang/String;IJJ)Lkotlinx/coroutines/flow/Flow;
+	public fun readAt (Ljava/lang/String;ILjava/util/Collection;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
 public final class me/ahoo/wow/kafka/KafkaPartitionedSource$Companion {

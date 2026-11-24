@@ -81,8 +81,13 @@ class InMemoryTopicsAutoConfiguration(environment: Environment) {
         topics: InMemoryTopics,
         masks: StateMasks,
         environment: Environment,
-    ): PublishedSinks =
-        PublishedSinks.topics(manifest, topics, PublicationMasks(masks, QueryProperties.displaySharedOf(environment)))
+        properties: WowProperties,
+    ): PublishedSinks = PublishedSinks.topics(
+        manifest,
+        topics,
+        PublicationMasks(masks, QueryProperties.displaySharedOf(environment)),
+        properties.log.partitions,
+    )
 
     /** Warns, once the application is ready, that the node's topics are in its JVM. */
     @Bean

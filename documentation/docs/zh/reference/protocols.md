@@ -94,8 +94,8 @@ Wow 写入 Kafka 的每条消息都是一个信封。
 
 | 部分 | 内容 |
 | --- | --- |
-| 键 | 聚合引用的文本形式，所以一个聚合的消息留在同一个 Kafka 分区里，并保持顺序；尚未选定 ID 的创建命令以 `context.aggregate/tenant/(none):<requestId>` 为键。 |
-| 头 | `wow-format`、`wow-kind` 和 `wow-type`：信封的格式、种类和类型，不解析值就能读到。 |
+| 键 | 聚合引用的文本形式；尚未选定 ID 的创建命令以 `context.aggregate/tenant/(none):<requestId>` 为键。状态事件和命令都指定自己的分区：上下文日志给该聚合的分区，所以无论主题增加多少分区，一个聚合的消息都留在同一个 Kafka 分区里，并保持顺序。回执按键的哈希放置。 |
+| 头 | `wow-format`、`wow-kind` 和 `wow-type`：信封的格式、种类和类型，不解析值就能读到。状态事件还带有 `wow-partitions`：发布它的上下文日志的分区数，十进制数字；该记录位于分区 `partitionOf(ref, count)`，即[下文](#commands-on-a-topic)所述的日志哈希。读者遇到不认识的头时忽略它。 |
 | 值 | `{format, kind, id, type, payload, transport}`。 |
 
 | `kind` | `id` | `type` | `payload` | 主题 |

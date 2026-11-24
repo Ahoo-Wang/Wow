@@ -242,8 +242,10 @@ class SubscriptionRuntime internal constructor(
             // A paused partition's entries wait: their retries would fail the same way, and the ledger may be down. A
             // partition held back reads none yet ([startPartition]).
             val reading = run.partitions.filterValues { it.reading }.keys
-            retries.scan(run.scope, directory.values.map { it.id }.sorted(), reading) { subscription, ref ->
-                run.workers[subscription to source.partitionOf(ref)]?.takeIf { it.paused == null }
+            retries.scan(run.scope, directory.values.map { it.id }.sorted(), reading) { entries ->
+                entries.zip(source.partitionsOf(entries)) { entry, partition ->
+                    run.workers[entry.subscription.name to partition]?.takeIf { it.paused == null }
+                }
             }
         } catch (cancelled: CancellationException) {
             throw cancelled
@@ -521,9 +523,11 @@ class SubscriptionRuntime internal constructor(
      */
     fun throttled(): List<ThrottledPartition> = running?.workers?.values?.mapNotNull { it.throttled }.orEmpty()
 
+    /** [subscription]'s worker where parked [ref]'s later entries are ([EntrySource.partitionOf]), else its key's. */
     private suspend fun workerOf(subscription: String, ref: AggregateRef): SubscriptionWorker? {
         val workers = running?.workers ?: return null
-        return workers[subscription to source.partitionOf(ref)]
+        val parked = directory[subscription]?.let { ledger.parked(it.id, ref) }
+        return workers[subscription to (parked?.let { source.partitionOf(it) } ?: source.partitionOf(ref))]
     }
 
     /** [start]'s subscription's worker in [part], at its checkpoint: its first one saved already. */

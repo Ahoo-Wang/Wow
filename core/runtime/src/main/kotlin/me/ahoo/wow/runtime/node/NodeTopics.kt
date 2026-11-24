@@ -20,17 +20,33 @@ import me.ahoo.wow.spi.config.configCheck
 import me.ahoo.wow.spi.log.Partitioner
 
 /**
- * A topic one of a node's contexts owns: its name, the [partitions] it is created with, whether a
- * topic of another count is refused ([exact], a command topic), and what it is for, as a failed check says. An exact
- * topic has as many partitions as a log, so its count must be a valid one ([Partitioner.requirePartitions]).
+ * A topic one of a node's contexts owns: its name, the [partitions] it is created with, which counts it is refused at
+ * ([count]), and what it is for, as a failed check says. A topic held to a log's count has as many partitions as a
+ * log, so its count must be a valid one ([Partitioner.requirePartitions]).
  */
 @InternalWowApi
-data class TopicRequirement(val topic: String, val partitions: Int, val exact: Boolean, val purpose: String) {
+data class TopicRequirement(val topic: String, val partitions: Int, val count: Count, val purpose: String) {
     init {
         require(partitions >= 1) { "A topic has at least one partition." }
-        if (exact) {
+        if (count != Count.ANY) {
             Partitioner.requirePartitions(partitions)
         }
+    }
+
+    /** The counts of partitions a topic may have. Cases may be added in a minor release. */
+    @InternalWowApi
+    enum class Count {
+        /** Any count: a receipts topic, or a peer's command topic this node only sends to. */
+        ANY,
+
+        /**
+         * At least [partitions], the log's: a published stream's topic, each aggregate's records in the partition the
+         * log gives it ([me.ahoo.wow.runtime.sink.TopicSink]), so partitions added later stay empty.
+         */
+        AT_LEAST,
+
+        /** Exactly [partitions], the log's: a command topic, whose partitions are the log's owners'. */
+        EXACT,
     }
 }
 
@@ -64,8 +80,12 @@ internal object NodeTopics {
             val count = found[requirement.topic]
             when {
                 count == null -> "${requirement.topic} does not exist (${requirement.purpose})"
-                requirement.exact && count != requirement.partitions ->
+                requirement.count == TopicRequirement.Count.EXACT && count != requirement.partitions ->
                     "${requirement.topic} has $count partitions, not ${requirement.partitions} (${requirement.purpose})"
+
+                requirement.count == TopicRequirement.Count.AT_LEAST && count < requirement.partitions ->
+                    "${requirement.topic} has $count partitions, fewer than ${requirement.partitions} " +
+                        "(${requirement.purpose})"
 
                 else -> null
             }
@@ -82,6 +102,29 @@ internal object NodeTopics {
         ) {
             "The topics of node $node are not as it needs them (topic DDL ${topics.ddl.name.lowercase()}): " +
                 "${problems.joinToString("; ")}."
+        }
+    }
+
+    /**
+     * Fails unless the topic of each published stream in [requirements] has at least its log's partitions in
+     * [topics], whatever the topic DDL says, as a command topic of another count stops the node: the topic sink sends
+     * each record to the partition the log gives its aggregate ([me.ahoo.wow.runtime.sink.TopicSink]), so a topic with
+     * fewer has no partition for some aggregates. The counts are read through the admin when there is one, which
+     * creates no topic it is asked about.
+     */
+    suspend fun checkPublished(requirements: List<TopicRequirement>, topics: SourceTopics) {
+        val published = requirements.filter { it.count == TopicRequirement.Count.AT_LEAST }
+        if (published.isEmpty()) return
+        val counts = topics.admin?.partitions(published.mapTo(LinkedHashSet()) { it.topic })
+        published.forEach { requirement ->
+            val count = counts?.get(requirement.topic) ?: counts?.let { 0 }
+                ?: topics.source.partitions(requirement.topic).size
+            check(count >= requirement.partitions) {
+                val found = if (count == 0) "does not exist" else "has $count partitions"
+                "The topic ${requirement.topic} $found (${requirement.purpose}): it must have at least " +
+                    "${requirement.partitions}, as many as the context's log, each aggregate's records going to its " +
+                    "partition there. Create it so, or add partitions, before the service starts."
+            }
         }
     }
 

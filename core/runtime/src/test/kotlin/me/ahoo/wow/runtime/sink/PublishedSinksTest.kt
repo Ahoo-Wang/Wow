@@ -14,6 +14,7 @@
 package me.ahoo.wow.runtime.sink
 
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
@@ -39,8 +40,10 @@ import me.ahoo.wow.runtime.node.InMemoryBackends
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.SubscriptionFactory
 import me.ahoo.wow.runtime.node.fastNodeOptions
+import me.ahoo.wow.runtime.source.orderRecord
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.sink.Sink
 import me.ahoo.wow.spi.state.StateEventRecord
 import me.ahoo.wow.spi.subscription.ImportCutover
@@ -60,8 +63,8 @@ import java.util.concurrent.atomic.AtomicInteger
  * acknowledged.
  */
 class PublishedSinksTest {
-    private val backends = InMemoryBackends(partitions = 2)
-    private val topics = InMemoryTopics(2)
+    private val backends = InMemoryBackends(partitions = PARTITIONS)
+    private val topics = InMemoryTopics(PARTITIONS)
     private val nodes = ArrayList<ServiceNode>()
 
     /** The shop publishing its orders with their state and its carts without, on a topic of their own. */
@@ -81,7 +84,7 @@ class PublishedSinksTest {
     private fun node(
         producer: TopicProducer = topics,
         subscriptions: SubscriptionFactory =
-            PublishedSinks.topics(manifest, producer, UNMASKED, topicPrefix = "dev.").factory,
+            PublishedSinks.topics(manifest, producer, UNMASKED, PARTITIONS, topicPrefix = "dev.").factory,
     ): ServiceNode =
         ServiceNode(
             SHOP_SERVICE,
@@ -147,7 +150,12 @@ class PublishedSinksTest {
         val message = topics.messages("dev.wow.shop.order.state").single()
         message.key.assert().isEqualTo("shop.order/t/o-1")
         message.headers.assert().isEqualTo(
-            mapOf("wow-format" to "1", "wow-kind" to "state-event", "wow-type" to "shop.order"),
+            mapOf(
+                "wow-format" to "1",
+                "wow-kind" to "state-event",
+                "wow-type" to "shop.order",
+                "wow-partitions" to "$PARTITIONS",
+            ),
         )
         val order = records("dev.wow.shop.order.state").single()
         order.events.single().name.assert().isEqualTo("shop.order.Placed")
@@ -162,7 +170,13 @@ class PublishedSinksTest {
     fun `the transport sink should publish states and event bodies masked as a read that reveals nothing`(): Unit =
         runBlocking {
             val masks = FieldMasks("items", setOf("shop.order.Placed"))
-            val sinks = PublishedSinks.topics(manifest, topics, PublicationMasks(masks, true), topicPrefix = "dev.")
+            val sinks = PublishedSinks.topics(
+                manifest,
+                topics,
+                PublicationMasks(masks, true),
+                PARTITIONS,
+                topicPrefix = "dev.",
+            )
             val node = node(subscriptions = sinks.factory)
             node.start()
             node.place("o-1")
@@ -190,7 +204,7 @@ class PublishedSinksTest {
             )
             mapOf(true to "true", false to "false").forEach { (shared, orderReveals) ->
                 val masks = FieldMasks("items", emptySet())
-                val sinks = PublishedSinks.topics(revealing, topics, PublicationMasks(masks, shared))
+                val sinks = PublishedSinks.topics(revealing, topics, PublicationMasks(masks, shared), PARTITIONS)
                 val node = node(subscriptions = sinks.factory)
                 node.start()
                 // The cart's stream is not declared revealing; the order's is, and the switch off masks it all the same.
@@ -248,7 +262,7 @@ class PublishedSinksTest {
 
     @Test
     fun `each sink should be a state reader of the type it publishes`(): Unit = runBlocking {
-        val sinks = PublishedSinks.topics(manifest, topics, UNMASKED)
+        val sinks = PublishedSinks.topics(manifest, topics, UNMASKED, PARTITIONS)
         val models = listOf(orderModel(), cartModel())
         sinks.factory.stateReaders(SHOP, models).assert()
             .isEqualTo(mapOf("wow.transport-sink.order" to setOf(ORDER), "wow.transport-sink.cart" to setOf(CART)))
@@ -356,20 +370,45 @@ class PublishedSinksTest {
                 PublishedSinks.publishedOf(wrong),
                 PublishedSinks.TRANSPORT_SINK,
                 UNMASKED,
-            ) { _, _ -> TopicSink(topics, "t") }
+            ) { _, _ -> TopicSink(topics, "t", PARTITIONS) }
         assertThrows<IllegalArgumentException> { sinks.factory.stateReaders(SHOP, listOf(orderModel())) }
         assertThrows<IllegalArgumentException> {
-            PublishedSinks(emptyMap(), " ", UNMASKED) { _, _ -> TopicSink(topics, "t") }
+            PublishedSinks(emptyMap(), " ", UNMASKED) { _, _ -> TopicSink(topics, "t", PARTITIONS) }
         }
         PublishedSinks.publishedOf(shopManifest()).assert().isEmpty()
     }
 
     @Test
     fun `a topic sink should write nothing for no records`(): Unit = runBlocking {
-        val sink = TopicSink(topics, "t")
+        val sink = TopicSink(topics, "t", PARTITIONS)
         sink.write(emptyList())
         topics.messages("t").assert().isEmpty()
         sink.toString().assert().isEqualTo("TopicSink(t)")
-        assertThrows<IllegalArgumentException> { TopicSink(topics, " ") }
+        assertThrows<IllegalArgumentException> { TopicSink(topics, " ", PARTITIONS) }
+    }
+
+    @Test
+    fun `a record goes to its aggregate's partition in the log, whatever partitions the topic has`(): Unit = runBlocking {
+        // #6783: the topic grew to eight; the key's hash would pick among eight, the log's partitioner among two.
+        val grown = InMemoryTopics(PARTITIONS).also { it.create("grown", 8) }
+        val sink = TopicSink(grown, "grown", PARTITIONS)
+        val records = (1..32).map { orderRecord("o-$it", 1) }
+        sink.write(records)
+        val placed = (0 until 8).flatMap { partition ->
+            val end = grown.offsets("grown", partition).end
+            grown.read("grown", partition, 0, end).toList().map { it.key to partition }
+        }
+        placed.toSet().assert()
+            .isEqualTo(records.map { it.ref.toString() to Partitioner.partitionOf(it.ref, PARTITIONS) }.toSet())
+        // Each says so on the wire: the log's count, in the `wow-partitions` header.
+        val partition = Partitioner.partitionOf(records.first().ref, PARTITIONS)
+        grown.read("grown", partition, 0, 1).toList().single().headers.assert()
+            .containsEntry("wow-partitions", "$PARTITIONS").containsEntry("wow-kind", "state-event")
+        assertThrows<IllegalArgumentException> { TopicSink(grown, "grown", 3) }
+    }
+
+    private companion object {
+        /** The log's partitions, which the topics here have too. */
+        const val PARTITIONS = 2
     }
 }

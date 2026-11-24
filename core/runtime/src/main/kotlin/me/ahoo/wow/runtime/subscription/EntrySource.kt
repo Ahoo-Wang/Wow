@@ -74,6 +74,18 @@ internal interface EntrySource {
     /** The partition [ref]'s entries are in. */
     suspend fun partitionOf(ref: AggregateRef): Int
 
+    /**
+     * The partition the entries of [parked]'s aggregate after it are in: its key's ([partitionOf]) unless the source
+     * knows better, as a topic does of a record that names its partition.
+     */
+    suspend fun partitionOf(parked: ParkedAggregate): Int = partitionOf(parked.ref)
+
+    /**
+     * [partitionOf] of each of [entries], in their order: what a pass over a ledger's page asks at once, so a source
+     * that reads to answer reads each partition's entries together.
+     */
+    suspend fun partitionsOf(entries: List<ParkedAggregate>): List<Int> = entries.map { partitionOf(it) }
+
     /** Where [entry] lies in the source when it cannot be read by aggregate: what a park records to retry from. */
     fun sourcePosition(entry: SourcedEntry): Long?
 

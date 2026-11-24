@@ -57,7 +57,10 @@ const val NINE_X_STATE_EVENT: String =
         """"createTime":1792004186903,"firstOperator":"user-1","firstEventTime":1792004186903,""" +
         """"state":{"id":"o-1","total":1},"deleted":false}"""
 
-/** Publishes [records] to [topic], each keyed by its aggregate, as the transport sink does. */
+/**
+ * Publishes [records] to [topic], each keyed by its aggregate and placed by the key's hash, with no `wow-partitions`
+ * header: as a publisher before #6783 or another producer did. The transport sink names its log's partition ([me.ahoo.wow.runtime.sink.TopicSink]).
+ */
 suspend fun TopicProducer.publish(vararg records: StateEventRecord, topic: String = ORDER_TOPIC) {
     send(topic, records.map(EnvelopeCodec::message))
 }

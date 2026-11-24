@@ -94,8 +94,8 @@ Every message Wow writes to Kafka is an envelope.
 
 | Part | Content |
 | --- | --- |
-| Key | The aggregate reference as text, so one aggregate's messages stay in one Kafka partition and in order; a creation whose id is not chosen yet is keyed `context.aggregate/tenant/(none):<requestId>`. |
-| Headers | `wow-format`, `wow-kind` and `wow-type`: the envelope's format, kind and type, readable without parsing the value. |
+| Key | The aggregate reference as text; a creation whose id is not chosen yet is keyed `context.aggregate/tenant/(none):<requestId>`. A state event and a command name their partition: the one the context's log gives the aggregate, so one aggregate's messages stay in one Kafka partition and in order whatever partitions the topic gains. A receipt is placed by its key's hash. |
+| Headers | `wow-format`, `wow-kind` and `wow-type`: the envelope's format, kind and type, readable without parsing the value. A state event also carries `wow-partitions`, the partition count of the publishing context's log as a decimal number: the record is in partition `partitionOf(ref, count)`, the log's hash described [below](#commands-on-a-topic). A reader that does not know a header ignores it. |
 | Value | `{format, kind, id, type, payload, transport}`. |
 
 | `kind` | `id` | `type` | `payload` | Topic |

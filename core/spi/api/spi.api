@@ -1953,6 +1953,7 @@ public final class me/ahoo/wow/spi/transport/EnvelopeHeaders {
 	public static final field FORMAT Ljava/lang/String;
 	public static final field INSTANCE Lme/ahoo/wow/spi/transport/EnvelopeHeaders;
 	public static final field KIND Ljava/lang/String;
+	public static final field PARTITIONS Ljava/lang/String;
 	public static final field TYPE Ljava/lang/String;
 }
 
@@ -1992,6 +1993,7 @@ public abstract interface class me/ahoo/wow/spi/transport/PartitionedSource {
 	public abstract fun partitions (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun read (Ljava/lang/String;IJ)Lkotlinx/coroutines/flow/Flow;
 	public fun read (Ljava/lang/String;IJJ)Lkotlinx/coroutines/flow/Flow;
+	public fun readAt (Ljava/lang/String;ILjava/util/Collection;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
 public final class me/ahoo/wow/spi/transport/SourceMessage {

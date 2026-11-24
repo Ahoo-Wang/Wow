@@ -210,7 +210,7 @@ internal class TopicAssembly(private val wiring: NodeWiring, private val manifes
                 requirements += TopicRequirement(
                     sources.commandsOf(context.context),
                     partitions,
-                    exact = takesCommands(context.context),
+                    if (takesCommands(context.context)) TopicRequirement.Count.EXACT else TopicRequirement.Count.ANY,
                     "the command topic of context ${context.context}, with as many partitions as its log",
                 )
             }
@@ -219,7 +219,7 @@ internal class TopicAssembly(private val wiring: NodeWiring, private val manifes
                 requirements += TopicRequirement(
                     receipts,
                     partitions,
-                    exact = false,
+                    TopicRequirement.Count.ANY,
                     "the receipts topic of context ${context.context}",
                 )
             }
@@ -228,8 +228,9 @@ internal class TopicAssembly(private val wiring: NodeWiring, private val manifes
                     requirements += TopicRequirement(
                         sources.topicOf(it.topic),
                         partitions,
-                        exact = false,
-                        "the published stream of ${context.context}.${it.aggregate}",
+                        TopicRequirement.Count.AT_LEAST,
+                        "the published stream of ${context.context}.${it.aggregate}, with at least as many " +
+                            "partitions as its log",
                     )
                 }
             }
@@ -241,7 +242,7 @@ internal class TopicAssembly(private val wiring: NodeWiring, private val manifes
                     requirements += TopicRequirement(
                         sources.commandsOf(peer.name),
                         1,
-                        exact = false,
+                        TopicRequirement.Count.ANY,
                         "the command topic of peer context ${peer.name}, where this node sends its commands",
                     )
                 }
