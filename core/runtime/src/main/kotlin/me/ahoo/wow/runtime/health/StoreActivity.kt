@@ -346,6 +346,9 @@ private open class TrackedEventLog(
 
     override suspend fun head(partition: Int): Long? = activity.call(::unavailable) { log.head(partition) }
 
+    override suspend fun heads(partitions: Collection<Int>): Map<Int, Long?> =
+        activity.call(::unavailable) { log.heads(partitions) }
+
     override suspend fun lineage(partition: Int): PartitionLineage =
         activity.call(::unavailable) { log.lineage(partition) }
 

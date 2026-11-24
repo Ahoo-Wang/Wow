@@ -97,15 +97,21 @@ class NodeSampler(
         return sample
     }
 
-    /** The head of each partition of each log group the node has positions in, by group and partition. */
+    /**
+     * The head of each partition of each log group the node has positions in, by group and partition: one read of the
+     * group's log for all its partitions ([me.ahoo.wow.spi.log.EventLog.heads]).
+     */
     private suspend fun heads(): Map<Pair<String, Int>, Long> {
         val heads = HashMap<Pair<String, Int>, Long>()
         node.contexts.values.flatMap { it.logGroups }.forEach { group ->
             val name = group.subscriptions.group
             quietly("read the heads of $name") {
                 withTimeoutOrNull(readTimeout) {
-                    group.subscriptions.positions().map { it.partition }.distinct().forEach { partition ->
-                        heads[name to partition] = group.log.head(partition) ?: 0L
+                    val partitions = group.subscriptions.positions().map { it.partition }.distinct()
+                    if (partitions.isNotEmpty()) {
+                        group.log.heads(partitions).forEach { (partition, head) ->
+                            heads[name to partition] = head ?: 0L
+                        }
                     }
                 }
             }

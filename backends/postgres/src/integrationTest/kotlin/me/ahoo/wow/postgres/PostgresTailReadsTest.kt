@@ -61,6 +61,8 @@ class PostgresTailReadsTest : PostgresLogFixtures() {
                 .hasMessage("No partition -1 among 2.")
             assertThrownBy<IllegalArgumentException> { runBlocking { log.head(2) } }
                 .hasMessage("No partition 2 among 2.")
+            assertThrownBy<IllegalArgumentException> { runBlocking { log.heads(listOf(0, 2)) } }
+                .hasMessage("No partition 2 among 2.")
             val counters = PostgresEventLogTables(context).partitions
             PostgresFixture.dataSource.connection.use { connection ->
                 connection.createStatement().use { it.execute("DELETE FROM $counters WHERE partition = 1") }
@@ -68,6 +70,7 @@ class PostgresTailReadsTest : PostgresLogFixtures() {
             // A damaged store: the partition is not empty, it has no counter, and both reads say so.
             val missing = "The log of $context has no counter of partition 1."
             assertThrownBy<IllegalStateException> { runBlocking { log.head(1) } }.hasMessage(missing)
+            assertThrownBy<IllegalStateException> { runBlocking { log.heads(listOf(0, 1)) } }.hasMessage(missing)
             assertThrownBy<IllegalStateException> { runBlocking { log.lineage(1) } }.hasMessage(missing)
         }
 

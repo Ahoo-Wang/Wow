@@ -198,6 +198,7 @@ class LogGroupRouterTest {
     fun `a partition is read in each group's log, not here`(): Unit = runBlocking {
         assertThrows<UnsupportedOperationException> { router.tail(0, null) }
         assertThrows<UnsupportedOperationException> { router.head(0) }
+        assertThrows<UnsupportedOperationException> { router.heads(listOf(0)) }
         assertThrows<UnsupportedOperationException> { router.lineage(0) }
     }
 

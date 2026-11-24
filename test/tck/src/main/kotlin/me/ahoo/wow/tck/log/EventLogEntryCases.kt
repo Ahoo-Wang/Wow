@@ -206,6 +206,20 @@ abstract class EventLogEntryCases internal constructor() : EventLogAccessCases()
     }
 
     @Test
+    fun `heads gives each partition's head as head does, null for an empty one, in one call`(): Unit = runBlocking {
+        val log = createLog(partitions = 4)
+        log.heads((0 until 4).toList()).assert().isEqualTo((0 until 4).associateWith { null })
+        idsInPartitionZero(3, 4).forEach { log.append(stream(it, 1)) }
+        log.append(stream("elsewhere", 1, aggregate = other))
+        val heads = log.heads(listOf(3, 0, 1, 2, 0))
+        heads.keys.assert().containsExactlyInAnyOrder(0, 1, 2, 3)
+        heads.forEach { (partition, head) -> head.assert().isEqualTo(log.head(partition)) }
+        heads[0].assert().isNotNull()
+        log.heads(emptyList()).assert().isEmpty()
+        assertThrows<IllegalArgumentException> { runBlocking { log.heads(listOf(0, 4)) } }
+    }
+
+    @Test
     fun `every partition is created with no parent at epoch 0, and keeps that lineage as entries land`(): Unit =
         runBlocking {
             val log = createLog(partitions = 4)

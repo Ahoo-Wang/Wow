@@ -208,26 +208,29 @@ class SnapshotMaintenanceTest {
 
     @Test
     fun `a run reads the partition heads only while a target has not caught up`(): Unit = runBlocking {
-        // B.D diagnostics: the heads serve the backfill check alone.
+        // B.D diagnostics: the heads serve the backfill check alone, all of a log's partitions in one read (#6702).
         val heads = AtomicInteger()
         val counting = object : EventLog by log {
-            override suspend fun head(partition: Int): Long? = log.head(partition).also { heads.incrementAndGet() }
+            override suspend fun heads(partitions: Collection<Int>): Map<Int, Long?> {
+                partitions.assert().containsExactly(0, 1)
+                return log.heads(partitions).also { heads.incrementAndGet() }
+            }
         }
         val store = InMemorySnapshotStore()
         val maintenance = maintenance(1, store, progressLog = counting)
         commit("a")
-        // The table is not known yet, then claimed and not backfilled: each run reads both partitions' heads.
+        // The table is not known yet, then claimed and not backfilled: each run reads both partitions' heads at once.
+        maintenance.maintain()
+        heads.get().assert().isEqualTo(1)
         maintenance.maintain()
         heads.get().assert().isEqualTo(2)
-        maintenance.maintain()
-        heads.get().assert().isEqualTo(4)
         store.mark(type, 1, backfilled = true)
         maintenance.maintain()
-        heads.get().assert().isEqualTo(6)
+        heads.get().assert().isEqualTo(3)
         // Every target caught up: no more reads.
         maintenance.maintain()
         maintenance.maintain()
-        heads.get().assert().isEqualTo(6)
+        heads.get().assert().isEqualTo(3)
         store.table(type)!!.backfilled.assert().isTrue()
     }
 

@@ -19,8 +19,10 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.AppendOutcome
+import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.observation.ObservedEvent
@@ -213,5 +215,16 @@ class HandoffLogTest : HandoffLogFixtures() {
         HandoffOptions().hashCode().assert().isEqualTo(HandoffOptions().hashCode())
         HandoffOptions(capacity = 1).assert().isNotEqualTo(HandoffOptions())
         HandoffOptions().toString().assert().contains("capacity=1024")
+    }
+
+    @Test
+    fun `the heads of many partitions are read by the store's own call`(): Unit = runBlocking {
+        val asked = CopyOnWriteArrayList<Collection<Int>>()
+        val store = object : EventLog by InMemoryEventLog(PARTITIONS) {
+            override suspend fun heads(partitions: Collection<Int>): Map<Int, Long?> =
+                partitions.associateWith { null }.also { asked += partitions }
+        }
+        HandoffLog(store, "bank").heads(listOf(0, 1)).assert().isEqualTo(mapOf(0 to null, 1 to null))
+        asked.assert().containsExactly(listOf(0, 1))
     }
 }

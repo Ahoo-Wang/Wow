@@ -126,6 +126,9 @@ internal class PostgresEventLogTables(val context: String) {
     /** A partition's counter is the sequence of its last committed entry: the bump commits with the insert. */
     val head = "SELECT sequence FROM $partitions WHERE partition = ?"
 
+    /** The counters of the partitions an `integer[]` names, each with its partition. */
+    val heads = "SELECT partition, sequence FROM $partitions WHERE partition = ANY(?)"
+
     /**
      * The group commit of streams of [partition] across [tables] as one autocommitted statement, the multi-row form of
      * [AggregateLogTable.append]; [branches] is the index in [tables] of each stream's table, in the group's order:

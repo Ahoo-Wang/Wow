@@ -167,24 +167,80 @@ internal class MongoTailReads(
     }
 
     /**
+     * The head of each of [partitions], as [headOf] reads one: their counters, the context's registry entries and each
+     * of the known collections' highest stream in each partition, in one aggregation per [UNIONS] of those reads. A
+     * collection another node registered since this log last read the registry makes it read the registry and look
+     * once more, and a partition without its counter is refused, as [headOf] refuses one.
+     */
+    tailrec fun headsOf(partitions: Collection<Int>): Map<Int, Long?> {
+        val known = collections.known()
+        val names = known.mapTo(HashSet()) { it.name }
+        val heads = partitions.associateWithTo(LinkedHashMap<Int, Long?>()) { null }
+        val counted = HashSet<Int>()
+        var unknown = false
+        val chunk = (UNIONS / known.size.coerceAtLeast(1)).coerceAtLeast(1)
+        for (part in partitions.distinct().chunked(chunk)) {
+            for (document in committedCounters.aggregate(headsPipeline(part, known))) {
+                val sequence = document.getLong(SEQUENCE)
+                val id = document[ID]
+                when {
+                    sequence != null -> {
+                        val partition = document.getInteger(PARTITION)
+                        heads[partition] = maxOf(heads[partition] ?: sequence, sequence)
+                    }
+                    id is Int -> counted += id
+                    id is String && id !in names -> unknown = true
+                }
+            }
+        }
+        val missing = heads.keys - counted
+        check(missing.isEmpty()) { "The log of $context has no counter of partition ${missing.min()}." }
+        if (!unknown) {
+            return heads
+        }
+        val found = collections.register().mapTo(HashSet()) { it.name } - names
+        if (found.isEmpty()) {
+            return heads
+        }
+        logger.info { "The log of $context found the collections $found, registered by another node; it reads them now." }
+        return headsOf(partitions)
+    }
+
+    /** The counters of [partitions], the context's registry, then each of [known]'s highest stream in each partition. */
+    private fun headsPipeline(partitions: List<Int>, known: List<AggregateCollection>): List<Bson> {
+        val registry =
+            listOf(Aggregates.match(Filters.eq(CONTEXT, context)), Aggregates.project(Projections.include(ID)))
+        return listOf(
+            Aggregates.match(Filters.`in`(ID, partitions)),
+            Aggregates.project(Projections.include(ID)),
+            Aggregates.unionWith(committedRegistry.namespace.collectionName, registry),
+        ) + partitions.flatMap { partition ->
+            known.map { Aggregates.unionWith(it.name, highestOf(partition, Projections.include(SEQUENCE, PARTITION))) }
+        }
+    }
+
+    /** The highest stream of [partition] in a collection, its fields as [projection] keeps them. */
+    private fun highestOf(partition: Int, projection: Bson = Projections.include(SEQUENCE)): List<Bson> = listOf(
+        Aggregates.match(
+            Filters.and(
+                Filters.eq(PARTITION, partition),
+                Filters.gte(ID, positionId(partition, 0)),
+                Filters.lt(ID, positionId(partition + 1, 0)),
+                Filters.exists(VERSION),
+            ),
+        ),
+        Aggregates.sort(Sorts.descending(ID)),
+        Aggregates.limit(1),
+        Aggregates.project(projection),
+    )
+
+    /**
      * The counter of [partition], the context's registry entries, then each of [known]'s highest stream in [partition],
      * in one aggregation over the counters: an entry this log does not know is a collection registered since it last
      * read the registry, and no counter is a damaged store.
      */
     private fun headPipeline(partition: Int, known: List<AggregateCollection>): List<Bson> {
-        val highest = listOf(
-            Aggregates.match(
-                Filters.and(
-                    Filters.eq(PARTITION, partition),
-                    Filters.gte(ID, positionId(partition, 0)),
-                    Filters.lt(ID, positionId(partition + 1, 0)),
-                    Filters.exists(VERSION),
-                ),
-            ),
-            Aggregates.sort(Sorts.descending(ID)),
-            Aggregates.limit(1),
-            Aggregates.project(Projections.include(SEQUENCE)),
-        )
+        val highest = highestOf(partition)
         val registry =
             listOf(Aggregates.match(Filters.eq(CONTEXT, context)), Aggregates.project(Projections.include(ID)))
         return listOf(
@@ -203,3 +259,10 @@ internal class TailBatch(val entries: List<LogEntry>, val through: Long, val mis
 
 // The log's category, which the head's line on a collection another node registered keeps.
 private val logger = KotlinLogging.logger(MongoEventLog::class.java.name)
+
+/**
+ * The most `$unionWith` reads of streams one aggregation of [MongoTailReads.headsOf] holds: a partition's per known
+ * collection. MongoDB refuses a pipeline of more than 1,000 stages by default (`internalPipelineLengthLimit`), so the
+ * partitions are read in chunks that keep each well below it.
+ */
+private const val UNIONS = 500

@@ -109,6 +109,31 @@ internal class PostgresTailReads(
         }
     }
 
+    /**
+     * The last sequence the counter of each of [partitions] gave, null for one with none yet, in one statement; a
+     * partition without its counter row is refused, as [head] refuses one.
+     */
+    suspend fun heads(partitions: Collection<Int>): Map<Int, Long?> {
+        partitions.forEach { require(it in 0 until this.partitions) { "No partition $it among ${this.partitions}." } }
+        if (partitions.isEmpty()) {
+            return emptyMap()
+        }
+        val wanted = partitions.distinct()
+        val heads = dispatcher.jdbc {
+            dataSource.autoCommitted { connection ->
+                connection.prepareStatement(tables.heads).use { query ->
+                    query.setArray(1, connection.createArrayOf("integer", wanted.toTypedArray()))
+                    query.executeQuery().use { rows ->
+                        buildMap { while (rows.next()) put(rows.getInt(1), rows.getLong(2).takeIf { it > 0 }) }
+                    }
+                }
+            }
+        }
+        val missing = wanted.filterNot(heads::containsKey)
+        check(missing.isEmpty()) { "The log of $context has no counter of partition ${missing.min()}." }
+        return wanted.associateWith { heads[it] }
+    }
+
     private companion object {
         /** The lineage columns of a partition's counter row. */
         const val PARENT = "parent"

@@ -206,6 +206,14 @@ interface EventLog {
     suspend fun head(partition: Int): Long?
 
     /**
+     * The head of each of [partitions], as [head] gives it, null for an empty one: every partition of [partitions] is a
+     * key of the answer. A store that can reads them all at once, so a caller that needs many partitions' heads (a
+     * node's lag sampler, a snapshot backfill, an access walk) pays one round trip rather than one a partition. By
+     * default, [head] of each.
+     */
+    suspend fun heads(partitions: Collection<Int>): Map<Int, Long?> = partitions.associateWith { head(it) }
+
+    /**
      * The lineage of [partition] as stored: [PartitionLineage.ROOT] for a partition the log was created
      * with, which today is every partition. Format 1 reserves it for the online splits of 10.x, which nothing reads
      * yet. A backend that stores no lineage answers [PartitionLineage.ROOT].

@@ -120,6 +120,9 @@ internal class LogGroupRouter(
     override suspend fun head(partition: Int): Long? =
         throw UnsupportedOperationException("Each log group has a head of its own: its sequences are its own.")
 
+    override suspend fun heads(partitions: Collection<Int>): Map<Int, Long?> =
+        throw UnsupportedOperationException("Each log group has heads of its own: its sequences are its own.")
+
     override suspend fun lineage(partition: Int): PartitionLineage =
         throw UnsupportedOperationException("Each log group has partitions of its own, and their lineage.")
 

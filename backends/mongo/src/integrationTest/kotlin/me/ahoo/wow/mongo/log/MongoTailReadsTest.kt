@@ -42,6 +42,7 @@ class MongoTailReadsTest : MongoLogFixtures() {
         // A damaged store: the partition is not empty, it has no counter, and both reads say so.
         val missing = "The log of $context has no counter of partition 1."
         assertThrownBy<IllegalStateException> { runBlocking { log.head(1) } }.hasMessage(missing)
+        assertThrownBy<IllegalStateException> { runBlocking { log.heads(listOf(0, 1)) } }.hasMessage(missing)
         assertThrownBy<IllegalStateException> { runBlocking { log.lineage(1) } }.hasMessage(missing)
     }
 
@@ -109,6 +110,26 @@ class MongoTailReadsTest : MongoLogFixtures() {
             owner.head(0).assert().isEqualTo(1L)
             val invoice = previous.append(stream("b", 1, aggregate = AggregateType(context, "invoice")))
             owner.head(0).assert().isEqualTo((invoice as AppendOutcome.Committed).position.sequence)
+            val shipment = previous.append(stream("c", 1, aggregate = AggregateType(context, "shipment")))
+            val shipped = (shipment as AppendOutcome.Committed).position.sequence
+            owner.heads(listOf(0)).assert().isEqualTo(mapOf(0 to shipped))
+        }
+
+    @Test
+    fun `heads reads many partitions of many collections in more than one aggregation, as head reads each`(): Unit =
+        runBlocking {
+            // 64 partitions of 10 aggregate types: 640 reads of a collection's highest stream, past one aggregation's.
+            val context = MongoLogFixture.newContext()
+            val log = MongoLogFixture.log(64, context)
+            for (type in 1..10) {
+                for (id in 1..8) {
+                    log.append(stream("a$type-$id", 1, aggregate = AggregateType(context, "type$type")))
+                }
+            }
+            val partitions = (0 until 64).toList()
+            val heads = log.heads(partitions)
+            heads.assert().isEqualTo(partitions.associateWith { log.head(it) })
+            heads.values.count { it != null }.assert().isGreaterThan(1)
         }
 
     @Test
