@@ -4,7 +4,14 @@
  * you may obtain a copy at http://www.apache.org/licenses/LICENSE-2.0
  */
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import {
+  chmodSync,
+  cpSync,
+  mkdirSync,
+  mkdtempSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -125,5 +132,52 @@ test('the tables give every session by arm and round, and each arm against the f
   assert.match(
     tables,
     /\| states cached \| 100 \| 100 \| 100 \| 100 \| 1\.000 \|/,
+  );
+});
+
+// bench.sh compare on a runner's checkout: the harness copied alone (test/benchmarks, no .github/scripts), a `pnpm`
+// first on the PATH that is not there (exit 127), the scripts from WOW_BENCH_SCRIPTS. Nothing else of bench.sh runs.
+test('bench.sh compare writes its tables with node and the scripts WOW_BENCH_SCRIPTS names, with no pnpm and no .github/scripts', () => {
+  const checkout = mkdtempSync(join(tmpdir(), 'compare-checkout-'));
+  cpSync(
+    join(import.meta.dirname, '../../test/benchmarks/harness'),
+    join(checkout, 'test/benchmarks/harness'),
+    { recursive: true },
+  );
+  const bin = join(checkout, 'bin');
+  mkdirSync(bin);
+  writeFileSync(
+    join(bin, 'pnpm'),
+    '#!/bin/sh\necho "pnpm: command not found" >&2\nexit 127\n',
+  );
+  chmodSync(join(bin, 'pnpm'), 0o755);
+  const root = mkdtempSync(join(tmpdir(), 'compare-root-'));
+  mkdirSync(join(root, '1-A-postgres', 'e1'), { recursive: true });
+  writeFileSync(
+    join(root, '1-A-postgres', 'e1', 'result.json'),
+    JSON.stringify(result()),
+  );
+  const compare = scripts =>
+    spawnSync(
+      'bash',
+      [join(checkout, 'test/benchmarks/harness/bench.sh'), 'compare', root],
+      {
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          JAVA_HOME: process.env.JAVA_HOME ?? '/unused',
+          PATH: `${bin}:${process.env.PATH}`,
+          WOW_BENCH_SCRIPTS: scripts,
+        },
+      },
+    );
+  const ran = compare(import.meta.dirname);
+  assert.equal(ran.status, 0, ran.stderr);
+  assert.equal(ran.stdout, `${renderTables(readSessions(root))}\n`);
+  const none = compare('');
+  assert.equal(none.status, 2);
+  assert.match(
+    none.stderr,
+    /no \/.*\/\.github\/scripts\/bench-compare\.mjs: WOW_BENCH_SCRIPTS names the directory/,
   );
 });

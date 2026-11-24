@@ -59,6 +59,8 @@ export function sessionsOf(root) {
         .filter(name => /^node-\d+\.log$/.test(name))
         .flatMap(name => pipelineLines(readIf(join(dir, name)))),
       build: installOf(readIf(join(dir, 'install.txt'))),
+      // What the sweep's own record says (bench.sh's `primed` in its meta), not what abba was asked.
+      primed: saturation.meta?.primed,
     });
   }
   return sessions;
@@ -370,6 +372,22 @@ export function rowsOf(sessions, order = [], host = []) {
 }
 
 /**
+ * Whether the sweeps were primed (--prime: an untimed pass over every account before the steps), as each sweep's
+ * record says: every sweep, none, or which were and which were not; empty when no sweep recorded it.
+ */
+export function primedText(sessions) {
+  if (!sessions.some(each => each.primed !== undefined)) return '';
+  const primed = sessions.filter(each => each.primed === 'true');
+  if (primed.length === sessions.length)
+    return 'Primed: every sweep (--prime: an untimed pass over every account before its steps).\n';
+  if (!primed.length) return 'Primed: no sweep.\n';
+  const names = list =>
+    list.map(each => `${each.sweep}-${each.arm}`).join(', ');
+  const others = sessions.filter(each => each.primed !== 'true');
+  return `Primed: ${names(primed)}; not ${names(others)}.\n`;
+}
+
+/**
  * What a run's [profile] (profile.txt) put where: under `constrained`, the store and Kafka each on one CPU of the
  * containers' VM, the node unpinned; empty without one.
  */
@@ -430,6 +448,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const sessions = sessionsOf(root);
   console.log(
     buildsText(sessions, order) +
+      primedText(sessions) +
       tableOf(rowsOf(sessions, order, host), profile),
   );
 }
