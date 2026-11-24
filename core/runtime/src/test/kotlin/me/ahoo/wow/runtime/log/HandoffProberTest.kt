@@ -33,6 +33,7 @@ import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.observation.ObservedEvent.TailRead.Reason
 import org.junit.jupiter.api.Test
 import org.slf4j.LoggerFactory
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration
@@ -52,6 +53,10 @@ class HandoffProberTest : HandoffLogFixtures() {
     ) : EventLog by delegate {
         val asked = CopyOnWriteArrayList<Map<Int, Long>>()
         val headsRead = AtomicInteger()
+        private val headReads = ConcurrentHashMap<Int, AtomicInteger>()
+
+        /** The reads of [partition]'s head so far, its tails' openings included. */
+        fun headReads(partition: Int): Int = headReads[partition]?.get() ?: 0
 
         @Volatile
         var failHeadOnce = false
@@ -69,7 +74,9 @@ class HandoffProberTest : HandoffLogFixtures() {
                 failHeadOnce = false
                 throw IllegalStateException("The store is down for this read.")
             }
-            return delegate.head(partition)
+            return delegate.head(partition).also {
+                headReads.computeIfAbsent(partition) { AtomicInteger() }.incrementAndGet()
+            }
         }
     }
 
@@ -79,9 +86,6 @@ class HandoffProberTest : HandoffLogFixtures() {
         var idle: Duration = Duration.ZERO
 
         override val idleFor: Duration get() = idle
-
-        @Volatile
-        override var owed = false
 
         val wakes = CopyOnWriteArrayList<Reason>()
 
@@ -121,7 +125,11 @@ class HandoffProberTest : HandoffLogFixtures() {
         eventually { log.asked.size >= 1 }
         store.append(next(refs[0]))
         seen.take(1).single().stream.ref.assert().isEqualTo(refs[0])
+        // Three rounds more, each a probe interval apart: a wake of the other tail would have read its head by then.
+        val asked = log.asked.size
+        eventually { log.asked.size >= asked + 3 }
         reads.reasons.assert().containsExactly(Reason.IDLE)
+        log.headReads(1).assert().describedAs("partition 1's head reads, its opening's included").isEqualTo(1)
         job.cancelAndJoin()
         other.cancelAndJoin()
     }
@@ -163,13 +171,11 @@ class HandoffProberTest : HandoffLogFixtures() {
             // Three rounds while this node's own commits keep the tail busy: the report is kept, not read yet.
             advanceTimeBy(PROBE / 2 * 3 + 1.milliseconds)
             log.asked.assert().hasSize(3).allMatch { it == mapOf(0 to 0L) }
-            tail.owed.assert().isTrue()
             tail.wakes.assert().isEmpty()
-            // Idle again: the next round wakes it, once.
+            // Idle again: the next round wakes it, once, though the log named the partition at the first round alone.
             tail.idle = PROBE / 2
             advanceTimeBy(PROBE / 2)
             tail.wakes.assert().containsExactly(Reason.IDLE)
-            tail.owed.assert().isFalse()
             advanceTimeBy(PROBE * 2)
             tail.wakes.assert().containsExactly(Reason.IDLE)
             log.asked.assert().allMatch { 0 in it }
@@ -183,8 +189,8 @@ class HandoffProberTest : HandoffLogFixtures() {
         val log = object : EventLog by store {
             override suspend fun appendedElsewhere(cursors: Map<Int, Long>): Set<Int> =
                 when (probes.incrementAndGet()) {
-                    1 -> throw IllegalStateException("The store is down for this probe.")
-                    2 -> setOf(0)
+                    2 -> throw IllegalStateException("The store is down for this probe.")
+                    3 -> setOf(0)
                     else -> emptySet()
                 }
 
@@ -195,22 +201,73 @@ class HandoffProberTest : HandoffLogFixtures() {
                     else -> mapOf(0 to 5L)
                 }
         }
-        // A round every 20 ms, the backstop with every other one.
+        // A round every 20 ms, the backstop due every 40 ms from the last one that read the heads.
         val options = HandoffOptions(probeInterval = PROBE, backstopInterval = PROBE)
         val prober = HandoffProber(log, "bank", options, backgroundScope, testTimeSource)
         val tail = FakeTail(partition = 0).apply { idle = PROBE }
         prober.register(tail)
-        // 20 ms: the probe fails, and nothing is woken. 40 ms: it names the partition; the backstop fails.
+        // 20 ms: nothing named. 40 ms: the backstop is due, and the probe fails before it: nothing is woken or read.
         advanceTimeBy(PROBE + 1.milliseconds)
+        tail.wakes.assert().isEmpty()
+        backstops.get().assert().isZero()
+        // 60 ms: the probe names the partition, and the backstop, still due, is read, and fails.
+        advanceTimeBy(PROBE / 2)
         tail.wakes.assert().containsExactly(Reason.IDLE)
-        // 80 ms: the backstop finds no head, so nothing past the cursor. 120 ms: a head past it, not named.
-        advanceTimeBy(PROBE)
+        backstops.get().assert().isEqualTo(1)
+        // 80 ms: still due, the backstop finds no head, so nothing past the cursor.
+        advanceTimeBy(PROBE / 2)
+        backstops.get().assert().isEqualTo(2)
         tail.wakes.assert().containsExactly(Reason.IDLE)
-        advanceTimeBy(PROBE)
+        // 100 ms: not due again until 120 ms, where it finds a head past the cursor that the probe did not name.
+        advanceTimeBy(PROBE / 2)
+        backstops.get().assert().isEqualTo(2)
+        advanceTimeBy(PROBE / 2)
         tail.wakes.assert().containsExactly(Reason.IDLE, Reason.BACKSTOP)
         probes.get().assert().isEqualTo(6)
         backstops.get().assert().isEqualTo(3)
         prober.unregister(tail)
+    }
+
+    @Test
+    fun `a call that starts failing warns once, and says when it answers again`(): Unit = runTest {
+        val lines = ListAppender<ILoggingEvent>().also { it.start() }
+        val logger = LoggerFactory.getLogger(HandoffProber::class.java) as Logger
+        logger.addAppender(lines)
+        try {
+            val probes = AtomicInteger()
+            val backstops = AtomicInteger()
+            val log = object : EventLog by store {
+                override suspend fun appendedElsewhere(cursors: Map<Int, Long>): Set<Int> {
+                    check(probes.incrementAndGet() > 3) { "The counters are down." }
+                    return emptySet()
+                }
+
+                override suspend fun heads(partitions: Collection<Int>): Map<Int, Long?> {
+                    check(backstops.incrementAndGet() > 2) { "The heads are down." }
+                    return emptyMap()
+                }
+            }
+            val options = HandoffOptions(probeInterval = PROBE, backstopInterval = PROBE)
+            val prober = HandoffProber(log, "ledger", options, backgroundScope, testTimeSource)
+            val tail = FakeTail(partition = 0)
+            prober.register(tail)
+            // The probe fails at 20, 40 and 60 ms and answers at 80; the backstop, due since 40, fails at 80 and 100 ms
+            // and answers at 120.
+            advanceTimeBy(PROBE * 3 + 1.milliseconds)
+            backstops.get().assert().isEqualTo(3)
+            val said = lines.list.filter { it.level.isGreaterOrEqual(Level.INFO) && "of ledger" in it.formattedMessage }
+            said.map { it.level }.assert().containsExactly(Level.WARN, Level.INFO, Level.WARN, Level.INFO)
+            said[0].formattedMessage.assert().startsWith("The probe of the tails of ledger fails")
+            said[0].throwableProxy.message.assert().isEqualTo("The counters are down.")
+            said[1].formattedMessage.assert().startsWith("The probe of the tails of ledger answers again, after 60")
+            said[2].formattedMessage.assert().startsWith("The backstop read of the heads of the tails of ledger fails")
+            said[2].throwableProxy.message.assert().isEqualTo("The heads are down.")
+            said[3].formattedMessage.assert()
+                .startsWith("The backstop read of the heads of the tails of ledger answers again, after 40")
+            prober.unregister(tail)
+        } finally {
+            logger.detachAppender(lines)
+        }
     }
 
     @Test

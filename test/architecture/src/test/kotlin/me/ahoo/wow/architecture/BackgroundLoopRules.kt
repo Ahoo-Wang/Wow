@@ -77,7 +77,7 @@ object BackgroundLoopRules {
         "wait/WaitCoordinator.kt" to "launches no loop: its detached executions are one-shots, settled by the executor",
         "health/NodeHealth.kt" to "its default context, `node.fatals.contextOf(NODE, \"health\")`",
         "node/NodeSampler.kt" to "its default context, `node.fatals.contextOf(NODE, \"sampler\")`",
-        "log/HandoffLog.kt" to "ContextAssembly's `wiring.contextOf(NODE, \"tail-probe:<context>\")`",
+        "log/HandoffLog.kt" to "ContextHandoff's `contextOf(NODE, \"tail-probe:<context>\")`",
     )
 
     private const val SOURCES = "src/main/kotlin/me/ahoo/wow/runtime"

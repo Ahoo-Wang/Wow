@@ -32,11 +32,9 @@ import me.ahoo.wow.runtime.cluster.LeaseGroup
 import me.ahoo.wow.runtime.cluster.PartitionOwnership
 import me.ahoo.wow.runtime.cluster.ServiceMembership
 import me.ahoo.wow.runtime.cluster.TopicRouter
-import me.ahoo.wow.runtime.cluster.probingAfterAcquiring
 import me.ahoo.wow.runtime.command.MessageEntries
 import me.ahoo.wow.runtime.ledger.MaintenanceSkips
 import me.ahoo.wow.runtime.ledger.SkipLedger
-import me.ahoo.wow.runtime.log.HandoffLog
 import me.ahoo.wow.runtime.log.LogGroupRouter
 import me.ahoo.wow.runtime.log.PartitionAppendQueue
 import me.ahoo.wow.runtime.reservation.ReservationRouter
@@ -168,7 +166,7 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
         val states = stateCacheOf(context, codec)
         // Each group's own commits reach its tails in memory; its sequences are its own.
         val parts = logGroupsOf(context, models, backends)
-        val groups = parts.map { it.withLog(handoffOf(context, it.log, states)) }
+        val groups = parts.map { it.withLog(wiring.handoffOf(context, it.log, states)) }
         val routed = routedLog(groups)
         val log = PartitionAppendQueue(
             routed,
@@ -456,28 +454,6 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
     ) {
         fun withLog(log: EventLog) = GroupParts(store, types, log, checkpoints, ledger, timers, reservations)
     }
-
-    /**
-     * [log] handing this node's commits to its tails in memory, as [ServiceNodeOptions.handoff] says. What its tails
-     * read from the store instead holds the commits other nodes made in this node's partitions without their
-     * leases: each drops the cached state of its aggregate when that is behind it ([StateCache.dropBefore]), so the
-     * next command decides on the log, not on a stale state that would conflict.
-     */
-    private fun handoffOf(context: String, log: EventLog, states: StateCache): EventLog =
-        HandoffLog(
-            log,
-            context,
-            options.handoff.probingAfterAcquiring(clusterOrNull()),
-            observer,
-            wiring.contextOf(Component.NODE, "tail-probe:$context"),
-        ) { entry ->
-            if (states.dropBefore(entry.stream.ref, entry.stream.version)) {
-                observer.observed(ObservedEvent.StateCache(context, ObservedEvent.StateCache.Outcome.STALE))
-            }
-        }
-
-    /** The cluster's options on a partitioned node; null when every command runs where it arrives. */
-    private fun clusterOrNull() = options.cluster.takeIf { options.routing == Routing.PARTITIONED }
 
     /**
      * The state consumers of [context]: the subscription of each snapshot target, of the types it

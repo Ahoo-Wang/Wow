@@ -178,7 +178,9 @@ A node reads its partitions even when nothing is sent to it, for the entries oth
 
 - **Every half `wow.log.max-poll-interval`** (0.5 s by default), one statement reads the counter rows of all the partitions the node owns, per log group (`WHERE partition = ANY(?)`). A partition whose counter is past its tail is read, its head and then its entries, once the tail has been idle half that interval.
 - **Every 10 s** (or `max-poll-interval` when longer), the same heads in one statement: the backstop, which on PostgreSQL finds nothing the counters did not, since a counter row moves with every append.
-- **Every `wow.node.sample-interval`** (10 s), the node's sampler reads the same heads in one statement, for the lag it reports.
+- **Every `wow.node.sample-interval`** (10 s), the node's sampler reads the same heads in one statement, for the lag it reports, and its health check reads one partition's head of each log, to see the store answer.
+
+These are one node's reads, per log group: each node reads the partitions it owns, so the service's reads grow with its nodes. With the defaults, a node makes about two statements a second over the counter rows, two more every 10 s for the batched heads, and one head lookup every 10 s; three nodes make three times that.
 
 So an entry another node appends is read within `max-poll-interval` of a pause in its tail. Leases, membership and the timer loop read on their own schedules beside these.
 

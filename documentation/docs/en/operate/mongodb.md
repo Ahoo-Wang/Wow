@@ -116,7 +116,9 @@ A node reads its partitions even when nothing is sent to it, for the entries oth
 
 - **Every half `wow.log.max-poll-interval`** (0.5 s by default), one `find` of the counters of all the partitions the node owns, per log group. A partition whose counter lists another node's block, or single-sequence reservation, that the previous `find` did not is read: its head, then its entries, once its tail has been idle half that interval. A node's first `find` after a tail opens reports each partition with another node's block past the tail once.
 - **Every 10 s** (or `max-poll-interval` when longer), the heads of those partitions in one aggregation, a `$unionWith` per aggregate collection and partition: the backstop for what the counters cannot show, an entry appended into a block already seen, by a node that went on writing after the partition moved. A tail it finds behind reads it and logs a warning.
-- **Every `wow.node.sample-interval`** (10 s), the node's sampler reads the same heads in one aggregation, for the lag it reports.
+- **Every `wow.node.sample-interval`** (10 s), the node's sampler reads the same heads in one aggregation, for the lag it reports, and its health check reads one partition's head of each log, to see the store answer.
+
+These are one node's reads, per log group: each node reads the partitions it owns, so the service's reads grow with its nodes. With the defaults, a node makes about two counter `find`s a second and three aggregations every 10 s, and three nodes make three times that.
 
 So an entry another node appends through a block or reservation the node has not seen is read within `max-poll-interval` of a pause in its tail, and one appended into a block already seen within the backstop's 10 s. Leases, membership and the timer loop read on their own schedules beside these.
 

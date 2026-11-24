@@ -11,6 +11,9 @@
 //   profiler's operations by namespace and command; PostgreSQL's statements (pg_stat_statements);
 // - the log head reads a second among them: MongoDB's aggregations on a log's partition counters
 //   (`wow_log__<context>__partition`), PostgreSQL's `SELECT sequence FROM "<...>__partition" WHERE partition = $1`;
+// - the log counter reads a second, the head reads among them: every read of a log's partition counters, the node's
+//   probe of its tails and the batched heads too (MongoDB's aggregations and finds on them, PostgreSQL's head
+//   lookups and `SELECT partition, sequence FROM "<...>__partition" WHERE partition = ANY($1)`);
 // - the store container's CPU, in percent of one core, with the nodes idle and with no node, and the difference;
 // - the machine it ran on, as the session read it (chip, cores, memory, Docker's CPUs and memory).
 //
@@ -103,6 +106,9 @@ const round = (value, places = 2) =>
 const PARTITIONS = /^wow_log__.+__partition$/;
 const HEAD_STATEMENT =
   /^SELECT sequence FROM "?(wow_log__[^"\s]+__partition)"? WHERE partition = \$1$/;
+/** The batched heads and PostgreSQL's probe of the tails: the counter rows of several partitions in one statement. */
+const HEADS_STATEMENT =
+  /^SELECT partition, sequence FROM "?(wow_log__[^"\s]+__partition)"? WHERE partition = ANY\(\$1\)$/;
 
 /** MongoDB's reads a second: the opcounters over the window, and the profiler's operations, the head reads apart. */
 export function mongoReads(opcounters, profile) {
@@ -117,23 +123,34 @@ export function mongoReads(opcounters, profile) {
     ]),
   );
   const profiled = profile.millis / 1000;
-  const operations = profile.operations.map(operation => ({
-    operation: `${operation.op} ${operation.command ?? ''} ${operation.ns}`
-      .replace(/\s+/g, ' ')
-      .trim(),
-    perSecond: profiled > 0 ? round(operation.count / profiled) : null,
-    head:
-      operation.op === 'command' &&
-      operation.command === 'aggregate' &&
-      PARTITIONS.test(operation.ns.slice(operation.ns.indexOf('.') + 1)),
-  }));
-  const heads = operations
-    .filter(o => o.head)
-    .reduce((sum, o) => sum + (o.perSecond ?? 0), 0);
+  const operations = profile.operations.map(operation => {
+    const counted = PARTITIONS.test(
+      operation.ns.slice(operation.ns.indexOf('.') + 1),
+    );
+    return {
+      operation: `${operation.op} ${operation.command ?? ''} ${operation.ns}`
+        .replace(/\s+/g, ' ')
+        .trim(),
+      perSecond: profiled > 0 ? round(operation.count / profiled) : null,
+      head:
+        counted &&
+        operation.op === 'command' &&
+        operation.command === 'aggregate',
+      counter:
+        counted &&
+        ((operation.op === 'command' && operation.command === 'aggregate') ||
+          (operation.op === 'query' && operation.command === 'find')),
+    };
+  });
+  const sum = key =>
+    operations
+      .filter(o => o[key])
+      .reduce((total, o) => total + (o.perSecond ?? 0), 0);
   return {
     opcountersPerSecond: counters,
     profiledSeconds: round(profiled),
-    logHeadReadsPerSecond: round(heads),
+    logHeadReadsPerSecond: round(sum('head')),
+    logCounterReadsPerSecond: round(sum('counter')),
     operations: operations.map(({ operation, perSecond }) => ({
       operation,
       perSecond,
@@ -155,14 +172,20 @@ export function postgresReads(statements, millis) {
       };
     })
     .filter(row => !/pg_stat_statements/.test(row.statement));
-  const heads = rows
-    .filter(row => HEAD_STATEMENT.test(row.statement))
-    .reduce((sum, row) => sum + row.calls, 0);
-  const total = rows.reduce((sum, row) => sum + row.calls, 0);
+  const calls = matches =>
+    rows
+      .filter(row => matches(row.statement))
+      .reduce((sum, row) => sum + row.calls, 0);
+  const heads = calls(it => HEAD_STATEMENT.test(it));
+  const counters = calls(
+    it => HEAD_STATEMENT.test(it) || HEADS_STATEMENT.test(it),
+  );
+  const total = calls(() => true);
   return {
     windowSeconds: round(seconds),
     statementsPerSecond: round(total / seconds),
     logHeadReadsPerSecond: round(heads / seconds),
+    logCounterReadsPerSecond: round(counters / seconds),
     operations: rows.map(row => ({
       operation: row.statement.slice(0, 160),
       perSecond: round(row.calls / seconds),
@@ -215,6 +238,7 @@ export function summarize({
       },
     },
     logHeadReadsPerSecond: reads.logHeadReadsPerSecond,
+    logCounterReadsPerSecond: reads.logCounterReadsPerSecond,
     reads,
   };
 }
@@ -225,6 +249,7 @@ export function render(idle) {
     `${idle.backend}, ${idle.nodes} node(s), ${idle.accounts} accounts, ${idle.serverArgs} (commit ${idle.commit})`,
     `machine: ${describeMachine(idle.machine)}`,
     `log head reads: ${idle.logHeadReadsPerSecond}/s`,
+    `log counter reads (the head reads, the probe and the batched heads): ${idle.logCounterReadsPerSecond}/s`,
     `store CPU (% of one core): ${idle.storeCpu.withNodes} with the nodes idle, ${idle.storeCpu.withoutNodes} with no node, ` +
       `${idle.storeCpu.added} added by the nodes (${idle.storeCpu.samples.withNodes} and ${idle.storeCpu.samples.withoutNodes} samples)`,
   ];

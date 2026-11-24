@@ -23,6 +23,7 @@ import me.ahoo.wow.spi.observation.ObservedEvent.TailRead.Reason
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.time.Duration
+import kotlin.time.TimeMark
 import kotlin.time.TimeSource
 
 /**
@@ -41,12 +42,18 @@ import kotlin.time.TimeSource
  *   a block already seen, after the partition moved and the tails' scheduled probes ended) is read within it. Its tail
  *   logs a warning when that read brings entries.
  *
+ * These are one node's calls, for its own tails: per log, two probes a second and a read of the heads every
+ * [HandoffOptions.backstopInterval] with the defaults, whatever the node count, so a service's calls grow with its
+ * nodes.
+ *
  * It is the one caller of its log's [EventLog.appendedElsewhere], and asks about every open tail's partition at each
  * round, a busy tail's too: a store that answers from what it remembers forgets a partition a call leaves out.
  *
- * A read owed is kept until the tail is woken for it, and a wake until the tail takes it, so no report is lost; a
- * tail whose read of the store fails ends, and its next one reads the store up to the head as it opens. It runs while
- * the log has tails open, on [scope], and stops with the last.
+ * A read owed is kept until the tail is woken for it, and a wake until the tail takes it, so no report is lost: the
+ * prober keeps the set of tails owed a read ([owed]), and each tail its wake. A tail whose read of the store fails
+ * ends, and its next one reads the store up to the head as it opens. A call of the log that fails is made again at the
+ * next round, the backstop's included: the prober logs a warning as the call starts failing and a line as it answers
+ * again. It runs while the log has tails open, on [scope], and stops with the last.
  */
 internal class HandoffProber(
     private val log: EventLog,
@@ -65,17 +72,25 @@ internal class HandoffProber(
         /** How long since memory or the store last brought the tail an entry. */
         val idleFor: Duration
 
-        /** Whether the probe named the tail's partition and the tail has not been woken for it yet. */
-        var owed: Boolean
-
         /** Asks the tail to read the store, for [reason]; it reads once, whatever the wakes before it does. */
         fun wake(reason: Reason)
     }
 
     private val tails = ConcurrentHashMap.newKeySet<Probed>()
+
+    /** The tails whose partition the probe named and that have not been woken for it yet. */
+    private val owed = ConcurrentHashMap.newKeySet<Probed>()
     private val running = AtomicBoolean()
 
-    /** The rounds it made, and the backstop reads among them: for the tests. */
+    // The loop's alone: one loop runs at a time, and the next starts after the last has ended.
+    private val probeOutage = Outage(
+        "probe",
+        "they read other nodes' entries only as they open or while their probes are on schedule, and the backstop " +
+            "waits for it too",
+    )
+    private val backstopOutage = Outage("backstop read of the heads", "what the probe does not name is not read")
+
+    /** The rounds it made, those that failed included: for the tests. */
     @Volatile
     var rounds: Long = 0
         private set
@@ -87,6 +102,7 @@ internal class HandoffProber(
 
     fun unregister(tail: Probed) {
         tails -= tail
+        owed -= tail
     }
 
     private fun start() {
@@ -102,9 +118,8 @@ internal class HandoffProber(
                 delay(options.probeInterval / 2)
                 val open = tails.toList()
                 if (open.isEmpty()) break
-                val due = backstop.elapsedNow() >= options.backstopInterval
-                round(open, due)
-                if (due) backstop = time.markNow()
+                // A backstop that could not run, the probe or its read failing, is due again at the next round.
+                if (round(open, backstop.elapsedNow() >= options.backstopInterval)) backstop = time.markNow()
                 rounds++
             }
         } finally {
@@ -114,35 +129,68 @@ internal class HandoffProber(
         }
     }
 
+    /** One round of [open]'s tails, with the [backstop] when it is due; whether it read the heads. */
     @Suppress("TooGenericExceptionCaught") // A failed round is the next one's to do: the store may be down a while.
-    private suspend fun round(open: List<Probed>, backstop: Boolean) {
+    private suspend fun round(open: List<Probed>, backstop: Boolean): Boolean {
         val cursors = open.groupBy { it.partition }.mapValues { (_, it) -> it.minOf { tail -> tail.cursor } }
         val named = try {
             log.appendedElsewhere(cursors)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (failure: Exception) {
-            logger.debug(failure) { "The probe of the tails of $context failed; the next round asks again." }
-            return
+            probeOutage.failed(failure)
+            return false
         }
-        open.filter { it.partition in named }.forEach { it.owed = true }
-        open.filter { it.owed && it.idleFor >= options.probeInterval / 2 }.forEach {
-            it.owed = false
+        probeOutage.answered()
+        // A tail that closed while the last round marked it is not owed any more.
+        owed.retainAll(tails)
+        open.filterTo(owed) { it.partition in named }
+        open.filter { it in owed && it.idleFor >= options.probeInterval / 2 }.forEach {
+            owed -= it
             it.wake(Reason.IDLE)
         }
-        if (!backstop) return
+        if (!backstop) return false
         val heads = try {
             log.heads(cursors.keys)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (failure: Exception) {
-            logger.debug(failure) { "The backstop read of the heads of $context failed; the next one reads again." }
-            return
+            backstopOutage.failed(failure)
+            return false
         }
+        backstopOutage.answered()
         open.filter { tail ->
             tail.partition !in named && tail.idleFor >= options.probeInterval &&
                 (heads[tail.partition] ?: 0L) > tail.cursor
         }.forEach { it.wake(Reason.BACKSTOP) }
+        return true
+    }
+
+    /**
+     * One of the prober's calls of the log, while it fails: a warning as it starts failing, naming what the tails miss
+     * meanwhile ([consequence]), a line as it answers again, and debug for the rounds in between, so a store down a
+     * while logs twice, not every round.
+     */
+    private inner class Outage(private val call: String, private val consequence: String) {
+        private var since: TimeMark? = null
+
+        fun failed(failure: Exception) {
+            if (since != null) {
+                logger.debug(failure) { "The $call of the tails of $context failed again; the next round makes it." }
+                return
+            }
+            since = time.markNow()
+            logger.warn(failure) {
+                "The $call of the tails of $context fails, and is made again every round; until it answers, " +
+                    "$consequence."
+            }
+        }
+
+        fun answered() {
+            val failing = since ?: return
+            since = null
+            logger.info { "The $call of the tails of $context answers again, after ${failing.elapsedNow()}." }
+        }
     }
 
     private companion object {

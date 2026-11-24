@@ -21,14 +21,17 @@ import {
 
 export const IDLE_PROGRAMS = ['idle'];
 
-/** The node counts each arm runs idle at: one, and three, whose head reads must not grow with the nodes. */
+/** The node counts each arm runs idle at: one, and three, at which a node must read no more than it does alone. */
 export const IDLE = { nodes: [1, 3] };
 
 /**
- * How far an arm's three nodes may read the log heads past its one node before it is an anomaly: a tenth, and half a
- * read a second, for a count taken over a minute. A node probes its own partitions only, so three split one's reads.
+ * How far a node of an arm's three may read the log's counters past its one node alone before it is an anomaly: a
+ * tenth, and a quarter of a read a second. Each node probes its own tails twice a second and reads its batched heads,
+ * so the service's reads grow with the nodes and a node's stay the same; MongoDB's profiler counts 20 s, to a
+ * twentieth of a read a second. A defect that has a node read a partition at every round (a report repeated, a tail
+ * woken for nothing) adds two reads a second to the node.
  */
-export const HEAD_READS_SLACK = { ratio: 1.1, perSecond: 0.5 };
+export const NODE_READS_SLACK = { ratio: 1.1, perSecond: 0.25 };
 
 /** The idle suites on the head's and the baseline's PostgreSQL and MongoDB arms. */
 export function idleSuites(HEAD_PG, BASE_PG, HEAD_MONGO, BASE_MONGO) {
@@ -109,9 +112,12 @@ const okRun = (suite, arm, nodes) =>
     it => it.arm === arm && it.nodes === nodes && it.status === 'ok',
   );
 
+/** A node's reads of the log's counters a second in [run]: the head reads, the probe and the batched heads. */
+const perNode = run => run.idle.logCounterReadsPerSecond / run.nodes;
+
 /**
- * The anomalies of an idle suite: a run that failed, a store CPU without its no-node figure, and an arm whose three
- * nodes read the log heads more than its one node did (past [HEAD_READS_SLACK]).
+ * The anomalies of an idle suite: a run that failed, a store CPU without its no-node figure, and an arm whose node of
+ * three reads the log's counters more than its one node did (past [NODE_READS_SLACK]).
  */
 export function idleAnomalies(suite) {
   const rows = [];
@@ -130,12 +136,12 @@ export function idleAnomalies(suite) {
       row('no CPU baseline', 'the store was not measured with no node');
     const one = run.nodes === 3 && okRun(suite, run.arm, 1);
     if (run.status === 'ok' && one) {
-      const three = run.idle.logHeadReadsPerSecond;
-      const single = one.idle.logHeadReadsPerSecond;
-      if (three > single * HEAD_READS_SLACK.ratio + HEAD_READS_SLACK.perSecond)
+      const three = perNode(run);
+      const single = perNode(one);
+      if (three > single * NODE_READS_SLACK.ratio + NODE_READS_SLACK.perSecond)
         row(
-          'three nodes read more than one',
-          `${num(three, 2)} log head reads a second at three nodes, ${num(single, 2)} at one: the nodes' probes do not split the partitions' reads`,
+          'a node of three reads more than one alone',
+          `${num(three, 2)} log counter reads a second a node at three nodes, ${num(single, 2)} at one: a node's reads grow with the nodes`,
         );
     }
   }

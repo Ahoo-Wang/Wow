@@ -71,7 +71,7 @@ import kotlin.time.TimeSource
  *   commits ([ObservedEvent.TailRead.Reason.SCHEDULED]). A tail opens as its node acquires the partition, while other
  *   nodes may still append there without the lease, their routes not naming the new owner yet; this node keeps
  *   committing, so without it the first probe could wait for a pause, or for the end of its block. Zero, the default,
- *   for none: a node without a cluster ([me.ahoo.wow.runtime.node.ContextAssembly] sets it for one).
+ *   for none: a node without a cluster ([me.ahoo.wow.runtime.node.handoffOf] sets it for one).
  *
  * Fields may be added: Wow builds it from the host's configuration, so the constructor is internal
  * to Wow.
@@ -163,7 +163,9 @@ class HandoffLog(
     private val observer: Observer = Observer.NONE,
     /**
      * Where the node's probe of its tails runs while it has tails open ([HandoffProber]): the node assembly gives it
-     * the node's handler, `wiring.contextOf(NODE, "tail-probe:<context>")`, so a probe that fails is the node's to report.
+     * the node's handler, `wiring.contextOf(NODE, "tail-probe:<context>")`, which reports a defect that ends the probe.
+     * A call of the log that fails ends nothing: the probe logs a warning as it starts failing and a line as it answers
+     * again, and makes it again at the next round.
      */
     probes: CoroutineContext = Dispatchers.Default,
     /**
@@ -327,9 +329,6 @@ class HandoffLog(
         private var active = TimeSource.Monotonic.markNow()
 
         override val idleFor: Duration get() = active.elapsedNow()
-
-        @Volatile
-        override var owed: Boolean = false
 
         /** The probe's wakes: the latest, kept until the tail can take it, so none is lost. */
         private val wakes = Channel<Reason>(Channel.CONFLATED)
