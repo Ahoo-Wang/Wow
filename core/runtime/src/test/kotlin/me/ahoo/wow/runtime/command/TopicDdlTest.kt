@@ -17,6 +17,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.client.CommandRequest
+import me.ahoo.wow.api.lifecycle.DeleteAggregate
 import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.manifest.PublishedManifest
@@ -189,6 +190,22 @@ class TopicDdlTest {
     fun `a saga that derives only its own context's commands should need no receipts topic`() {
         salesNode(Ddl.VALIDATE, sagaDeriving(CancelOrder::class.java) { it to CancelOrder() })
             .topicRequirements.map { it.topic }.assert().containsExactly(ORDERS, COMMANDS)
+    }
+
+    @Test
+    fun `a saga that derives a lifecycle command, or schedules another context's, should need its receipts topic`() {
+        // Every aggregate decides DeleteAggregate, the sales order too: it may go to any context's aggregate.
+        salesNode(Ddl.VALIDATE, sagaDeriving(DeleteAggregate::class.java) { it to DeleteAggregate() })
+            .topicRequirements.map { it.topic }.assert().containsExactly(RECEIPTS, ORDERS, COMMANDS)
+        nodes.clear()
+        val scheduling = ProcessorBinding.saga(
+            "OrderSaga",
+            "onOrderPlaced",
+            OrderState::class.java,
+            schedules = listOf(Reserve::class.java),
+        ) { _, _ -> emptyList() }
+        salesNode(Ddl.VALIDATE, scheduling).topicRequirements.map { it.topic }.assert()
+            .containsExactly(RECEIPTS, ORDERS, COMMANDS)
     }
 
     /** An order saga with no receipt handler, deriving one command of [type] for each commit, as [request] makes it. */

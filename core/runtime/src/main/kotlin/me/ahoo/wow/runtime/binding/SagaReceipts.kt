@@ -86,6 +86,11 @@ internal class SagaReceipts(
     private val served: Set<String> = setOfNotNull(context.takeIf { it.isNotEmpty() }),
     /** The node's codec, which writes the commands the handlers schedule. */
     private val codec: EventCodec = EventCodec(),
+    /**
+     * Whether the context reads the receipts of the commands its sagas send to other contexts ([ReceiptsAsked.of]):
+     * only then does it have its receipts subscription and topic.
+     */
+    val reads: Boolean = true,
 ) : ReceiptHandler {
     private val sagas: Map<String, ProcessorBinding<*>> =
         sagas.filter { it.kind == FunctionKind.SAGA }.associateBy { it.name }

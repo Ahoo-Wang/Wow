@@ -15,12 +15,12 @@ package me.ahoo.wow.runtime.command
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.kernel.HandlingRejectedException
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.subscription.Subscription
+import me.ahoo.wow.spi.SystemCommandGroups
 import me.ahoo.wow.spi.wait.WaitContext
 
 /**
@@ -140,12 +140,13 @@ internal class Receipts internal constructor(
     private fun key(commandId: String, kind: String): String = "$kind:$commandId"
 
     /**
-     * The class of the command type [commandType] (`ctx.agg.Command`), by its schema in the contracts; a ledger command
-     * (`wow.ledger.*`), which no Manifest declares, by its own name: an owning service refuses one back
-     * to the ops saga that sent it.
+     * The class of the command type [commandType] (`ctx.agg.Command`), by its schema in the contracts; a system
+     * command a saga sends to another context, which no Manifest declares, by its system name
+     * ([SystemCommandGroups.SENT_BY_A_SAGA]): an aggregate's lifecycle or schedule command, and a ledger command
+     * (`wow.ledger.*`), which an owning service refuses back to the ops saga that sent it.
      */
     internal fun commandClassOf(commandType: String): Class<*> {
-        Ledger.COMMANDS[commandType]?.let { return it }
+        SystemCommandGroups.SENT_BY_A_SAGA.classOf(commandType)?.let { return it }
         val schema = checkNotNull(contracts.schemaOf(commandType)) {
             "No Manifest of the service or its peers declares the command type $commandType."
         }
