@@ -68,6 +68,12 @@ internal class WaitState(private val hops: List<Hop>, private val rootCommandId:
     var lastReached: CommandResult? = null
         private set
 
+    /**
+     * Whether a result reached the wait: a hop reached, a result buffered until an earlier one applies, or its end. A
+     * command sent through a command topic was written once one has: only its owner signals it.
+     */
+    val heard: Boolean get() = lastReached != null || outcome != null || buffered != null
+
     /** The result the wait ended with, once it ended. */
     var outcome: CommandResult? = null
         private set
