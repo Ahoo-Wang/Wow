@@ -104,16 +104,22 @@ declare function hasRole(role: string): boolean;
 
 ```ts
 import { Fetcher } from '@ahoo-wang/fetcher';
-import { CoSecConfigurer } from '@ahoo-wang/fetcher-cosec';
+import { CoSecConfigurer, CoSecTokenRefresher } from '@ahoo-wang/cosec-fetcher';
 import {
   isSystemInstanceId,
   type ViewPermissions,
 } from '@ahoo-wang/wow-view-engine';
 import { WowViewStore } from '@ahoo-wang/wow-view-store';
 
-// The gateway in front of the view store service.
+// The gateway in front of the view store service. The token, issued for this
+// front end's app, is what puts the views in that app: no header names it.
 const fetcher = new Fetcher({ baseURL: 'https://api.example.com', timeout: 30_000 });
-new CoSecConfigurer({ appId: 'my-app' }).applyTo(fetcher);
+new CoSecConfigurer({
+  tokenRefresher: new CoSecTokenRefresher({
+    fetcher: new Fetcher({ baseURL: 'https://api.example.com' }),
+    endpoint: '/auth/refresh',
+  }),
+}).applyTo(fetcher);
 
 /** The roles the service checks: the shared views' writer, the system views' writer. */
 const SHARED_WRITER = 'view-store.shared-writer';

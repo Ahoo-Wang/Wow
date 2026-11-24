@@ -42,7 +42,7 @@ declare function hasRole(role: string): boolean;
 
 ```ts
 import { Fetcher } from '@ahoo-wang/fetcher';
-import { CoSecConfigurer } from '@ahoo-wang/fetcher-cosec';
+import { CoSecConfigurer, CoSecTokenRefresher } from '@ahoo-wang/cosec-fetcher';
 import {
   isSystemInstanceId,
   type ViewPermissions,
@@ -50,9 +50,15 @@ import {
 import { WowViewStore } from '@ahoo-wang/wow-view-store';
 
 // The view store service, or the gateway in front of it. CoSec adds the
-// token and `CoSec-App-Id`; the service reads the caller from them.
+// token, issued for this front end's app; the service reads the caller and
+// the app from it.
 const fetcher = new Fetcher({ baseURL: 'https://api.example.com', timeout: 60_000 });
-new CoSecConfigurer({ appId: 'my-app' }).applyTo(fetcher);
+new CoSecConfigurer({
+  tokenRefresher: new CoSecTokenRefresher({
+    fetcher: new Fetcher({ baseURL: 'https://api.example.com' }),
+    endpoint: '/auth/refresh',
+  }),
+}).applyTo(fetcher);
 
 /** The role the service requires to write the owner `(shared)`. */
 const SHARED_WRITER = 'view-store.shared-writer';
@@ -87,7 +93,7 @@ export const store = new WowViewStore({ fetcher, permissions });
 
 - **The service decides; `permissions` only enables buttons.** It authorizes every write by the caller's roles: the owner `(shared)`'s writes (a shared view's save, rename, delete and claim, sharing a personal view, the shared preferences) need `view-store.shared-writer`; the owner `(system)`'s need `view-store.system-writer`; a user writes only its own views and preferences; an owner never changes over HTTP except by sharing or claiming. The role names are the service's as shipped: a team's own role (an "ops lead") is granted these roles in the identity provider, not renamed in the host. Answer each `permissions` member by the same role the service checks, or a button is enabled whose write the service refuses (or the other way round).
 - **Silence:** `createPersonal`, `createShared`, `reorder`, `setDefault` and `instance(id)`'s `save`, `rename`, `delete` are required. Only `changeAudience` (absent: allowed), **`editSystem` (absent: `false`)** and `permissions` itself (absent: everything but `editSystem`) may be left out. A system view reaches every tenant and every reader, so only a host that says so lets anyone change one.
-- Every request needs an application, the app of the scope CoSec decided it in (the `CoSec-App-Id` CoSec accepted, or the gateway's own app): without one the service answers `view-store.app-required`. Views, preferences and wordings of one application are not another's.
+- Every request needs an application, the app of the scope CoSec decided it in (the one the token is issued for, its `aud`, or the one the gateway's route names; CoSec 8 reads no `CoSec-App-Id`): without one the service answers `view-store.app-required`. Views, preferences and wordings of one application are not another's.
 - The engine already handles what the store reports: `CONFLICT` (reload, overwrite or save as), `UNAVAILABLE` (retry with the same request id), a refused claim while a shared board shows the view, `FORBIDDEN` on a read-only view. Do not wrap them.
 - A page's total is the service's default `BOUNDED` count; the store lists at most the service's query budget of views per audience.
 

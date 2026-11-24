@@ -8,6 +8,6 @@ Judge only the agent's final answer. It worked in an empty, read-only directory 
 PASS only if the answer does all of these:
 
 1. Configures one Fetcher for the service, passed to every generated client, instead of per-call headers
-2. Applies @ahoo-wang/fetcher-cosec's CoSecConfigurer with the appId (CoSec-App-Id) and a token refresher on a separate Fetcher without the CoSec interceptors
+2. Applies @ahoo-wang/cosec-fetcher's CoSecConfigurer with a token refresher on a separate Fetcher without the CoSec interceptors, and sends no application id: CoSec 8 reads no CoSec-App-Id, so the application is the one the token is issued for (its aud), or the one a gateway route names
 3. Puts no tenant or owner in paths or bodies: the service reads the caller from the token, and Wow-Scope or Wow-Space only for a caller allowed to act elsewhere
 4. Names the failure codes to handle: 401 wow.auth.unauthenticated and 403 wow.auth.forbidden

@@ -21,13 +21,19 @@
  * - without a bearer token, forwards the request with no identity
  *   (anonymous: the server decides, and answers 401);
  * - with one, verifies it (HS256 with the suite's secret, `e2e/cosec.ts`)
- *   and answers 401 itself for a token that is invalid or has expired, as
- *   CoSec's gateway does (`application/problem+json`, `token-invalid`,
- *   `token-expired`);
+ *   and answers 401 itself for a token that is invalid, has expired or was
+ *   revoked (its `jti` is one the suite revoked), as CoSec's gateway does
+ *   (`application/problem+json`, `token-invalid`, `token-expired`,
+ *   `token-revoked`): the CoSec client refreshes only the second, and removes
+ *   the stored pair on the first and the third;
  * - decides the request in an app as CoSec 8 does: the token's own (its
  *   `aud`), and on a route that names one (`cosec-app-id`, here `app`) only
  *   that app, so a token for another app, or for none, is refused 403
  *   `scope-rejected`. No client chooses it: `CoSec-App-Id` is not read;
+ * - answers every request with a `CoSec-Request-Id`: the client's when it is
+ *   1 to 64 of `A-Z a-z 0-9 . _ -`, else one of its own, and a refusal's body
+ *   holds CoSec's members in CoSec's order (`type`, `title`, `status`,
+ *   `code`, `requestId`), as CoSec's Clients page describes them;
  * - otherwise forwards it with the identity CoSec's gateway forwards (format
  *   v1, as Web integration › Forwarding the identity describes it): the
  *   token's tenant, subject and roles, in that app and the default space, the
@@ -64,14 +70,22 @@ const HOP_BY_HOP = new Set([
 const PROBLEMS = {
   'token-invalid': { title: 'Token Invalid', status: 401 },
   'token-expired': { title: 'Token Expired', status: 401 },
+  'token-revoked': { title: 'Token Revoked', status: 401 },
   'scope-rejected': { title: 'Scope Rejected', status: 403 },
 };
 
+/** The header CoSec answers every request with, and reads a client's from. */
+const REQUEST_ID = 'cosec-request-id';
+
+/** A request id CoSec keeps: 1 to 64 of `A-Z a-z 0-9 . _ -`. */
+const REQUEST_ID_FORMAT = /^[A-Za-z0-9._-]{1,64}$/;
+
 /**
  * Whom `authorization` names: `{}` for no bearer token, `{ claims }` for a
- * token signed with `secret` that has not expired, else `{ problem }`.
+ * token signed with `secret` that has not expired and whose `jti` is not in
+ * `revoked`, else `{ problem }`.
  */
-function authenticate(authorization, secret, now) {
+function authenticate(authorization, secret, revoked, now) {
   const token = /^Bearer (.+)$/.exec(authorization ?? '')?.[1];
   if (!token) return {};
   const [header, payload, signature, ...rest] = token.split('.');
@@ -92,6 +106,7 @@ function authenticate(authorization, secret, now) {
     return { problem: 'token-invalid' };
   if (!Number.isInteger(claims.exp) || claims.exp <= now)
     return { problem: 'token-expired' };
+  if (revoked.has(String(claims.jti))) return { problem: 'token-revoked' };
   const audience = Array.isArray(claims.aud)
     ? claims.aud.length === 1
       ? claims.aud[0]
@@ -153,14 +168,19 @@ function forwarded(headers) {
   );
 }
 
-function refuse(response, slug) {
+function refuse(response, slug, requestId) {
   const { title, status } = PROBLEMS[slug];
-  response.writeHead(status, { 'content-type': 'application/problem+json' });
+  response.writeHead(status, {
+    'content-type': 'application/problem+json',
+    [REQUEST_ID]: requestId,
+  });
   response.end(
     JSON.stringify({
       type: `https://cosec.ahoo.me/problems/${slug}`,
       title,
       status,
+      code: slug.toUpperCase().replaceAll('-', '_'),
+      requestId,
     }),
   );
 }
@@ -168,28 +188,34 @@ function refuse(response, slug) {
 /**
  * Listens on `127.0.0.1:port` and forwards every request to the server on
  * `127.0.0.1:upstream` as the CoSec gateway would on a route whose app is
- * `app` (none when empty), verifying the suite's tokens with `secret`.
+ * `app` (none when empty), verifying the suite's tokens with `secret` and
+ * refusing those whose `jti` is in `revoked`.
  */
-export function startCoSecGateway({ port, upstream, secret, app = '' }) {
+export function startCoSecGateway({ port, upstream, secret, app = '', revoked = [] }) {
   if (!secret)
     throw new Error("The CoSec gateway stand-in needs the suite's secret.");
   if (app !== '' && !isAppId(app))
     throw new Error(`The route's app [${app}] cannot be an app id.`);
+  const revokedIds = new Set(revoked);
   const gateway = createServer((request, response) => {
     const now = Math.floor(Date.now() / 1000);
+    const sent = only(request.headers[REQUEST_ID]);
+    const requestId =
+      sent !== undefined && REQUEST_ID_FORMAT.test(sent) ? sent : randomUUID();
     const { claims, audience, problem } = authenticate(
       only(request.headers.authorization),
       secret,
+      revokedIds,
       now,
     );
-    if (problem) return refuse(response, problem);
-    const headers = forwarded(request.headers);
+    if (problem) return refuse(response, problem, requestId);
+    const headers = { ...forwarded(request.headers), [REQUEST_ID]: requestId };
     if (claims) {
       // Only a scope that resolves is decided in: the token's app, the route's if it names one, the default space.
       const scope = appOf(audience, app);
       const space = only(request.headers['cosec-space-id']);
       if (scope === null || (space !== undefined && space !== ''))
-        return refuse(response, 'scope-rejected');
+        return refuse(response, 'scope-rejected', requestId);
       headers[IDENTITY] = identity(claims, scope, now);
     }
     const proxied = forward(
@@ -201,7 +227,10 @@ export function startCoSecGateway({ port, upstream, secret, app = '' }) {
         headers,
       },
       answer => {
-        response.writeHead(answer.statusCode ?? 502, forwarded(answer.headers));
+        response.writeHead(answer.statusCode ?? 502, {
+          ...forwarded(answer.headers),
+          [REQUEST_ID]: requestId,
+        });
         answer.pipe(response);
       },
     );

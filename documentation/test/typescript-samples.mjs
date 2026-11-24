@@ -91,9 +91,8 @@ const ENTRIES = {
         '@ahoo-wang/fetcher',
         '@ahoo-wang/fetcher-decorator',
         '@ahoo-wang/fetcher-eventstream',
-        '@ahoo-wang/fetcher-react',
         '@ahoo-wang/fetcher-openapi',
-        '@ahoo-wang/fetcher-cosec',
+        '@ahoo-wang/cosec-fetcher',
     ],
 }
 

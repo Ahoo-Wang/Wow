@@ -11,10 +11,10 @@
  * limitations under the License.
  */
 
-import { TokenStorage } from "@ahoo-wang/fetcher-cosec";
+import { TokenStorage } from "@ahoo-wang/cosec-fetcher";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CallerStore, type CatalogCaller } from "./caller.ts";
-import { APP_ID, noRefresh } from "./cosec.ts";
+import { noRefresh } from "./cosec.ts";
 import { SOURCES } from "@/views/sources.ts";
 import { createCatalogServices } from "./catalog.ts";
 import { accessToken } from "./testing.ts";
@@ -36,6 +36,17 @@ function service(status: number, body = status === 200 ? "[]" : "{}") {
   return fetch;
 }
 
+/** CoSec's answer to a refused token: its problem of type `slug`. */
+function cosecProblem(slug: string): string {
+  return JSON.stringify({
+    type: `https://cosec.ahoo.me/problems/${slug}`,
+    title: slug,
+    status: 401,
+    code: slug.toUpperCase().replaceAll("-", "_"),
+    requestId: "r-1",
+  });
+}
+
 function sent(fetch: ReturnType<typeof service>): Record<string, string> {
   return (fetch.mock.calls[0][1].headers ?? {}) as Record<string, string>;
 }
@@ -45,10 +56,11 @@ const VIEWER: CatalogCaller = { user: "victor", tenant: "(0)", roles: [] };
 describe("the catalog services", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
     localStorage.clear();
   });
 
-  it("send the CoSec token signed in, with the console's application", async () => {
+  it("send the CoSec token signed in, and no CoSec-App-Id: the app is the token's", async () => {
     const fetch = service(200);
     const tokens = new TokenStorage();
     const callers = new CallerStore(null, tokens);
@@ -56,10 +68,10 @@ describe("the catalog services", () => {
     const token = accessToken({ sub: "alice" });
     callers.signIn(token);
     await services.datasets.refresh();
-    expect(sent(fetch)).toMatchObject({
-      Authorization: `Bearer ${token}`,
-      "CoSec-App-Id": APP_ID,
-    });
+    expect(sent(fetch)).toMatchObject({ Authorization: `Bearer ${token}` });
+    expect(Object.keys(sent(fetch)).map((it) => it.toLowerCase())).not.toContain(
+      "cosec-app-id",
+    );
     expect(sent(fetch)).not.toHaveProperty(DevelopmentCallerHeaders.USER);
   });
 
@@ -78,6 +90,27 @@ describe("the catalog services", () => {
     callers.set(VIEWER);
     expect(callers.signedOut()).toBeNull();
   });
+
+  it.each(["token-expired", "token-invalid", "token-revoked", "unauthorized"])(
+    "sign the console out on CoSec's 401 %s, without refreshing the token",
+    async (slug) => {
+      const fetch = service(401, cosecProblem(slug));
+      const refresh = vi.spyOn(noRefresh, "refresh");
+      const tokens = new TokenStorage();
+      const callers = new CallerStore(null, tokens);
+      const services = createCatalogServices(tokens, callers);
+      callers.signIn(accessToken({ sub: "alice" }));
+      await expect(services.datasets.refresh()).rejects.toThrow();
+      expect(callers.get()).toBeNull();
+      expect(tokens.get()).toBeNull();
+      expect(callers.signedOut()).toBe("refused");
+      // The CoSec client answers a `token-expired` on a token still valid
+      // here with a refresh, and keeps the session when it fails other than
+      // with a 401: the console signs out before it gets that far.
+      expect(refresh).not.toHaveBeenCalled();
+      expect(fetch).toHaveBeenCalledTimes(1);
+    },
+  );
 
   it("say a token that ran out was refused for that", async () => {
     service(401);

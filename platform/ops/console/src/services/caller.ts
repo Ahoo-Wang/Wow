@@ -13,7 +13,7 @@
 
 import type { RequestInterceptor } from "@ahoo-wang/fetcher";
 import { developmentCaller } from "@ahoo-wang/wow-client";
-import type { TokenStorage } from "@ahoo-wang/fetcher-cosec";
+import type { TokenStorage } from "@ahoo-wang/cosec-fetcher";
 
 /**
  * Who calls the ops service. A deployment (the server's `cosec` profile)

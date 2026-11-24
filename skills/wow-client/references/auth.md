@@ -4,19 +4,26 @@ Wow's clients send whatever their Fetcher sends: authentication is the Fetcher's
 
 ## CoSec
 
-`@ahoo-wang/fetcher-cosec` configures a Fetcher for a CoSec-protected service: the `Authorization: Bearer` token (refreshed on a separate Fetcher without the CoSec interceptors), `CoSec-App-Id` (the application every request is recorded and authorized in), `CoSec-Device-Id` and a fresh `CoSec-Request-Id`.
+`@ahoo-wang/cosec-fetcher`, CoSec 8's client, configures a Fetcher for a CoSec-protected service: the `Authorization: Bearer` token (refreshed on a separate Fetcher without the CoSec interceptors), `CoSec-Device-Id` and a fresh `CoSec-Request-Id`, sent only to the origin of an absolute `baseURL` and the page's own origin (`isTrusted`, `sameOriginTrust` by default). No header names the application: CoSec 8 reads no `CoSec-App-Id`, and the app every request is recorded and authorized in is the one the token is issued for (its `aud`), or the one a gateway's route names. Until CoSec 8.0 is released its `latest` tag is a placeholder: install `@ahoo-wang/cosec-fetcher@beta` (an 8.0.0 beta) or an exact version, with `@ahoo-wang/fetcher-eventbus` and `@ahoo-wang/fetcher-storage`.
 
 ```ts
 import { Fetcher } from '@ahoo-wang/fetcher';
-import { CoSecConfigurer } from '@ahoo-wang/fetcher-cosec';
+import { CoSecConfigurer, CoSecTokenRefresher } from '@ahoo-wang/cosec-fetcher';
 import { OrderCommandClient } from './generated/index.js';
 
 const fetcher = new Fetcher({ baseURL: 'https://api.example.com', timeout: 30_000 });
-new CoSecConfigurer({ appId: 'order-console' }).applyTo(fetcher);
+new CoSecConfigurer({
+  // The CoSec application's refresh route (`cosec.authentication.login.refresh.path`).
+  tokenRefresher: new CoSecTokenRefresher({
+    fetcher: new Fetcher({ baseURL: 'https://api.example.com' }),
+    endpoint: '/auth/refresh',
+  }),
+  onUnauthorized: () => window.location.assign('/login'),
+}).applyTo(fetcher);
 export const orders = new OrderCommandClient({ fetcher });
 ```
 
-- Confirm `CoSecConfigurer`'s options (token storage, refresher) in the installed `@ahoo-wang/fetcher-cosec`.
+- Without a `tokenRefresher` the configurer sends no token, only the device and request headers. A 401 is refreshed and retried once only for CoSec's `token-expired` (or a 401 without CoSec's problem); `token-invalid` and `token-revoked` remove the stored pair; only a 401 from the refresh route ends the session. A 403 `scope-rejected` (a token for another app, a space without a role) goes to `onScopeRejected`, else `onForbidden`. Confirm the options in the installed `@ahoo-wang/cosec-fetcher`.
 - A 401 `wow.auth.unauthenticated` is a missing or expired token; 403 `wow.auth.forbidden` the caller may not do it (a role, a tenant, a `Wow-Scope` it may not use), `wow.aggregate.forbidden` a creation of another owner's aggregate (any other command on one is 404 `wow.aggregate.not-found`, as a missing aggregate is).
 
 ## Acting elsewhere: scope and space

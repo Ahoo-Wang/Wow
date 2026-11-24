@@ -11,8 +11,8 @@
  * limitations under the License.
  */
 
-import { expect, test, type Page } from "@playwright/test";
-import { accessToken, APP } from "./cosec.ts";
+import { expect, test, type Page, type Request } from "@playwright/test";
+import { accessToken, APP, REVOKED_JTI } from "./cosec.ts";
 import { ledgerCommands, listed, publish, type Parked } from "./ledger.ts";
 import { DevelopmentCallerHeaders } from "@ahoo-wang/wow-client";
 
@@ -107,10 +107,20 @@ test("an operator signs in with a CoSec token and retries an entry in its name",
   page,
   request,
 }) => {
+  const sent: Request[] = [];
+  page.on("request", (it) => {
+    if (new URL(it.url()).pathname.startsWith("/ops/")) sent.push(it);
+  });
   await open(page);
   await signIn(page, OPERATOR);
   await expect(row(page, exhausted)).toBeVisible();
   await expect(page.getByRole("link", { name: /Caller: alice/ })).toBeVisible();
+  // Every request carries the token, and none names an app: CoSec 8 takes the token's.
+  expect(sent.length).toBeGreaterThan(0);
+  for (const headers of await Promise.all(sent.map((it) => it.allHeaders()))) {
+    expect(headers.authorization).toBe(`Bearer ${OPERATOR}`);
+    expect(headers).not.toHaveProperty("cosec-app-id");
+  }
 
   await row(page, exhausted).getByRole("button", { name: "Retry" }).click();
   const dialog = page.getByRole("dialog");
@@ -216,6 +226,59 @@ test("a token the gateway refuses later signs the console out, saying so", async
   await signIn(
     page,
     accessToken("mallory", ["ops.operator"], { secret: "a-secret-the-gateway-does-not-know" }),
+  );
+  await expect(
+    page.getByText(
+      "Your CoSec access token was refused (401): sign in with another.",
+    ),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: /Caller: No caller/ }),
+  ).toBeVisible();
+});
+
+test("a token the gateway revoked is answered 401 token-revoked, and signs the console out", async ({
+  page,
+  request,
+}) => {
+  const revoked = accessToken("mallory", ["ops.operator"], { jti: REVOKED_JTI });
+  const answer = await request.get(
+    `/ops/parked/${encodeURIComponent(exhausted.id)}/state`,
+    { headers: { Authorization: `Bearer ${revoked}`, "CoSec-Request-Id": "e2e-revoked-1" } },
+  );
+  expect(answer.status()).toBe(401);
+  expect(answer.headers()["cosec-request-id"]).toBe("e2e-revoked-1");
+  expect(await answer.json()).toMatchObject({
+    type: "https://cosec.ahoo.me/problems/token-revoked",
+    code: "TOKEN_REVOKED",
+    requestId: "e2e-revoked-1",
+  });
+  await open(page);
+  await signIn(page, revoked);
+  await expect(
+    page.getByText(
+      "Your CoSec access token was refused (401): sign in with another.",
+    ),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: /Caller: No caller/ }),
+  ).toBeVisible();
+});
+
+test("a token the gateway holds as expired signs the console out while this browser still holds it valid", async ({
+  page,
+}) => {
+  // This browser's clock is ten minutes behind the gateway's, so the console
+  // takes a token that expired a minute ago. The gateway answers 401
+  // `token-expired`, which the CoSec client answers with a refresh; the
+  // console has none, and a refresh that fails other than with a 401 keeps
+  // the session. Only the console's own sign-out, ahead of the client's
+  // interceptor, ends it.
+  await page.clock.setFixedTime(Date.now() - 10 * 60_000);
+  await open(page);
+  await signIn(
+    page,
+    accessToken("mallory", ["ops.operator"], { validFor: -60 }),
   );
   await expect(
     page.getByText(

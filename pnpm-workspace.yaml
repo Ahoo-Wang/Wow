@@ -31,12 +31,15 @@ catalogs:
 # One version per external dependency across the workspace. Packages reference
 # these with `catalog:`; internal packages use the `workspace:` protocol.
 catalog:
+  # CoSec 8's client, released with CoSec at its version. Exact until CoSec 8.0:
+  # the package's `latest` tag is a deprecated 0.0.0 placeholder until then.
+  '@ahoo-wang/cosec-fetcher': 8.0.0-beta.8
   '@ahoo-wang/fetcher': '^6.1.1'
-  '@ahoo-wang/fetcher-cosec': '^6.1.1'
   '@ahoo-wang/fetcher-decorator': '^6.1.1'
+  '@ahoo-wang/fetcher-eventbus': '^6.1.1'
   '@ahoo-wang/fetcher-eventstream': '^6.1.1'
   '@ahoo-wang/fetcher-openapi': '^6.1.1'
-  '@ahoo-wang/fetcher-react': '^6.1.1'
+  '@ahoo-wang/fetcher-storage': '^6.1.1'
   axe-core: ^4.14.1
   babel-plugin-react-compiler: 1.0.0
   '@base-ui/react': ^1.9.0
