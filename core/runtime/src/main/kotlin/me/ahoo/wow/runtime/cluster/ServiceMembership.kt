@@ -31,6 +31,7 @@ import me.ahoo.wow.spi.subscription.Member
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.coroutines.CoroutineContext
+import kotlin.time.TimeSource
 
 /**
  * One node's membership in its [service] on one lease store: a single record, heartbeated every
@@ -55,7 +56,16 @@ class ServiceMembership(
     private val leases: LeaseStore,
     private val options: ClusterOptions = ClusterOptions(),
     private val context: CoroutineContext = Dispatchers.Default,
+    /** Times the [acquisitions] gate's windows; a test passes its virtual time. */
+    timeSource: TimeSource = TimeSource.Monotonic,
 ) {
+    /**
+     * This node's acquisitions on the store, held back while it fails (#6675): every lease group of the node on the store
+     * shares it, and the heartbeats tell it when the store fails and when it answers again.
+     */
+    internal val acquisitions =
+        AcquisitionGate(node, service, options.reconcileInterval, options.leaseTtl, timeSource)
+
     private val lock = Mutex()
     private val joined = ConcurrentHashMap<String, () -> Unit>()
     private val stuckGroups = ConcurrentHashMap.newKeySet<String>()
@@ -176,7 +186,7 @@ class ServiceMembership(
             }
             return
         }
-        leases.heartbeat(service, node, addressOf(), options.memberTtl, groups)
+        acquisitions.recorded("a heartbeat") { leases.heartbeat(service, node, addressOf(), options.memberTtl, groups) }
         listed = groups
     }
 

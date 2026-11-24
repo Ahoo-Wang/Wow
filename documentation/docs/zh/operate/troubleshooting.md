@@ -70,7 +70,23 @@ outline: deep
 ownership 健康组件为 `DOWN`，或者在某个节点离开期间，某些聚合的命令变慢了。宕掉的节点的租约在 `wow.cluster.lease-ttl`（10 秒）后过期，然后分区会移动。如果没有移动：
 
 - 节点之间访问不到彼此的内部端口：检查网络策略和 `wow.node.address`，即每个节点公布的地址。开发 profile 中的节点绑定并公布 `127.0.0.1`，除非 `wow.internal.host` 指定了别的地址。
-- 租约存储不可用：ownership 健康组件的 `leaseStore` 详情会说明这一点。
+- 租约存储不可用：ownership 健康组件的 `leaseStore` 详情会说明这一点，节点在它恢复应答之前暂缓获取（[租约存储失败](#the-lease-store-fails)）。
+
+## 租约存储失败 {#the-lease-store-fails}
+
+租约存储失败期间，节点暂缓它在这个存储上的租约获取（[租约存储失败时](./topology#while-the-lease-store-fails)），并以 `WARN` 记录一次：
+
+```text
+node-1 holds back its lease acquisitions in shop-service on its lease store: renewing 21 leases of shop-service/shop for 7s failed. It asks one again within 1s, then one at a time until the store answers.
+```
+
+日志写明最先失败的是什么：一次获取、一次续约、一次心跳，或者超过余量仍未续上的租约（如上）。其间租约失效的每个分区都会记录为已停止（"has not renewed the lease of partition … it stops the partition"），节点继续一次请求一个获取。存储恢复应答后，它以 `INFO` 记录：
+
+```text
+node-1 acquires leases in shop-service again: a heartbeat succeeded, 56.6s after its lease store first failed (4 failed calls).
+```
+
+并在下一次调和中接手缺失的分区。这两行之间要查的是存储，而不是 Wow：在 MongoDB 上，带仲裁节点、又失去一个数据节点的副本集无法确认多数派写入（[生产环境中的 MongoDB](./mongodb#in-production)）；在 PostgreSQL 上，查主库或到主库的网络。
 
 ## 另一个上下文的主题 {#a-topic-of-another-context}
 

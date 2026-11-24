@@ -35,8 +35,10 @@ class LeaseRenewalsTest {
     private val rounds = CopyOnWriteArrayList<RenewalRound>()
     private var woken = 0
 
+    private val acquisitions = AcquisitionGate(NODE, GROUP.service, options.reconcileInterval, options.leaseTtl, time)
+
     private fun renewals(leases: LeaseStore, hook: (RenewalRound) -> Unit = { rounds += it }) =
-        LeaseRenewals(GROUP, NODE, leases, options, time, gates, limit, hook) { woken++ }
+        LeaseRenewals(GROUP, NODE, leases, options, time, gates, limit, hook, acquisitions) { woken++ }
 
     private fun held(partition: Int): PartitionGate =
         PartitionGate(time.markNow(), limit).also { it.started() }.also { gates[partition] = it }
@@ -57,6 +59,38 @@ class LeaseRenewalsTest {
         rounds.single().lost.assert().isEqualTo(1)
         rounds.single().failed.assert().isEqualTo(0)
         woken.assert().isEqualTo(1)
+    }
+
+    @Test
+    fun `a renewal that fails holds the node's acquisitions on the store back, and one that answers lets them go`(): Unit =
+        runBlocking {
+            held(0)
+            val failing = mockk<LeaseStore> {
+                coEvery { renew(any(), any(), any(), any()) } throws IllegalStateException("The lease store is down.")
+            }
+            renewals(failing).renew()
+            acquisitions.open.assert().isTrue()
+            val answering = mockk<LeaseStore> {
+                coEvery { renew(any(), any(), any(), any()) } answers { emptyList() }
+            }
+            renewals(answering).renew()
+            acquisitions.open.assert().isFalse()
+        }
+
+    @Test
+    fun `a lease left unrenewed past the margin holds the acquisitions back, though no call failed`() {
+        held(0).current = true
+        time += limit + 1.seconds
+        renewals(mockk()).loseOverdue().assert().isEqualTo(1)
+        acquisitions.open.assert().isTrue()
+    }
+
+    @Test
+    fun `a lease overdue from the start, a slow acquisition the store answered, holds nothing back`() {
+        held(0)
+        time += limit + 1.seconds
+        renewals(mockk()).loseOverdue().assert().isEqualTo(1)
+        acquisitions.open.assert().isFalse()
     }
 
     @Test

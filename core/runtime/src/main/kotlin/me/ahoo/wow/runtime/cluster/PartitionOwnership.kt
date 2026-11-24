@@ -187,7 +187,7 @@ class PartitionOwnership internal constructor(
     )
 
     private val membership: ServiceMembership =
-        membership ?: ServiceMembership(group.service, node, addressOf, leases, options, context)
+        membership ?: ServiceMembership(group.service, node, addressOf, leases, options, context, timeSource)
 
     init {
         require(this.membership.service == group.service && this.membership.node == node) {
@@ -222,6 +222,7 @@ class PartitionOwnership internal constructor(
             fenced = { fence.fenced },
             leaseCalls = LeaseCalls(options.leaseParallelism),
             drained = drained,
+            acquisitions = this.membership.acquisitions,
         )
     }
 
@@ -244,9 +245,17 @@ class PartitionOwnership internal constructor(
 
     /** The renewals and the fencing of the leases held: they read [gates] and flip a gate's own fields only. */
     private val renewals =
-        LeaseRenewals(group, node, leases, options, timeSource, gates, unrenewedLimit, renewalRounds) {
-            wakeReconcile.trySend(Unit)
-        }
+        LeaseRenewals(
+            group,
+            node,
+            leases,
+            options,
+            timeSource,
+            gates,
+            unrenewedLimit,
+            renewalRounds,
+            this.membership.acquisitions,
+        ) { wakeReconcile.trySend(Unit) }
 
     @Volatile
     private var running: Running? = null
