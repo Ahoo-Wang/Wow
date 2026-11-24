@@ -79,16 +79,22 @@ internal class ElasticsearchIndices(private val client: ElasticsearchAsyncClient
         awaitActive(index)
     }
 
-    /** What the name [alias] is on the cluster. */
+    /**
+     * What the name [alias] is on the cluster, read in one request (`GET <alias>`, which answers the concrete indices a
+     * name stands for, each with its aliases), so that another node creating the pair meanwhile cannot make an alias
+     * read as an index of its own name.
+     */
     private suspend fun resolve(alias: String): Found {
-        if (!client.indices().existsAlias { it.name(alias) }.awaitElasticsearch().value()) {
-            val exists = client.indices().exists { it.index(alias) }.awaitElasticsearch().value()
-            return if (exists) Found.Concrete else Found.Missing
+        val indices = try {
+            client.indices().get { it.index(alias) }.awaitElasticsearch().indices()
+        } catch (failure: ElasticsearchException) {
+            if (ElasticsearchFailures.isIndexNotFound(failure)) return Found.Missing
+            throw failure
         }
-        val indices = client.indices().getAlias { it.name(alias) }.awaitElasticsearch().aliases()
-        val (index, aliases) = indices.entries.singleOrNull()
+        if (alias in indices) return Found.Concrete
+        val (index, state) = indices.entries.singleOrNull()
             ?: return Found.Unwritable("points at ${indices.size} indices, ${indices.keys.sorted()}")
-        if (aliases.aliases()[alias]?.isWriteIndex() == false) {
+        if (state.aliases()[alias]?.isWriteIndex() == false) {
             return Found.Unwritable("is not the write alias of [$index]")
         }
         return Found.Alias(index)
