@@ -18,7 +18,7 @@ import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import java.net.InetSocketAddress
-import java.net.ServerSocket
+import java.net.Socket
 import java.net.URI
 import java.net.http.HttpClient
 import java.util.concurrent.atomic.AtomicInteger
@@ -37,12 +37,20 @@ class TargetsTest {
     }
     private val up = URI.create("http://127.0.0.1:${server.address.port}")
 
-    /** A port nothing listens on: a stopped node, which refuses connections. */
-    private val stopped = URI.create("http://127.0.0.1:${ServerSocket(0).use { it.localPort }}")
+    /**
+     * A stopped node, which refuses connections: a port the test holds with a socket bound and never listening, so the
+     * kernel refuses every connection to it while the test runs. Another process cannot bind 127.0.0.1 on that port, and
+     * a wildcard bind beside it (which macOS allows) does not receive connections to 127.0.0.1 (#6671).
+     */
+    private val held = Socket().apply { bind(InetSocketAddress("127.0.0.1", 0)) }
+    private val stopped = URI.create("http://127.0.0.1:${held.localPort}")
     private val client = Client(HttpClient.newHttpClient())
 
     @AfterEach
-    fun stop() = server.stop(0)
+    fun stop() {
+        server.stop(0)
+        held.close()
+    }
 
     @Test
     fun `operations go round robin over the nodes`() {

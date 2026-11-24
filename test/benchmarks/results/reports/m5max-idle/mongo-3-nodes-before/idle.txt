@@ -1,0 +1,16 @@
+mongo, 3 node(s), 100 accounts, --wow.transport=none  (commit 6e33125923a036266164f4df9aed6ebf8230d9d6)
+machine: Apple M5 Max, 18 cores (6 performance, 12 efficiency), 64 GB; Docker 16 CPUs, 47 GB
+log head reads: 64.81/s
+store CPU (% of one core): 15.9 with the nodes idle, 10.34 with no node, 5.56 added by the nodes (20 and 20 samples)
+opcounters a second: insert 0, query 11.49, update 3.76, delete 0.54, getmore 0, command 76.65
+operations a second:
+  64.81  command aggregate transfer.wow_log__transfer__partition
+  4.01  query find transfer.wow_lease
+  3.91  query find transfer.wow_lease_member
+  3.31  command aggregate transfer.wow_failure_ledger
+  3.01  command aggregate transfer.wow_timer_aggregate
+  2.81  update q transfer.wow_lease_member
+  2.41  query find transfer.wow_failure_ledger
+  1.2  query find transfer.wow_snapshot_table
+  1  update q transfer.wow_lease
+  0.25  remove q transfer.wow_lease_member
