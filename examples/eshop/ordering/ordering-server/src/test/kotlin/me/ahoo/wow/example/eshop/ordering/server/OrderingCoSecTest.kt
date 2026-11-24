@@ -97,6 +97,21 @@ class OrderingCoSecTest {
     }
 
     @Test
+    @OptIn(ExperimentalWowApi::class) // wow-cosec is experimental in 10.0
+    fun `an identity whose subject is blank should be refused 400 before the service, CoSec's IDN-38`() {
+        val submitted = server.http.post(
+            "/eshop-ordering/order/cosec-blank-1/submit-order",
+            """{"items":[{"productId":"mug","unitPrice":8.50,"quantity":2}]}""",
+            CoSecIdentity(" ").headers(),
+        )
+        submitted.status.assert().isEqualTo(BAD_REQUEST)
+        submitted.body!!["type"].asString().assert().endsWith("invalid-request")
+        // No command reached the service: an employee, who reads every order of the tenant, finds none.
+        read("cosec-blank-1", Caller.of(subject = "erin", attributes = mapOf(Caller.ROLES to listOf("employee"))))
+            .assert().isNull()
+    }
+
+    @Test
     fun `a node outside development without CoSec should not start`() {
         val failure = assertThrows<Exception> {
             wowServer<OrderingServer>(properties = mapOf("wow.internal.host" to "0.0.0.0")).close()
@@ -109,6 +124,7 @@ class OrderingCoSecTest {
         runBlocking { server.queries(caller, gateway).snapshots<OrderStateView>().state(id) }
 
     private companion object {
+        const val BAD_REQUEST = 400
         const val UNAUTHORIZED = 401
     }
 }

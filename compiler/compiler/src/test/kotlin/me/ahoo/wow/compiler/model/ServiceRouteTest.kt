@@ -297,6 +297,9 @@ class ServiceRouteTest {
 
                 @ServiceRoute(method = RouteMethod.GET, path = "/lead")
                 fun blocking(@RouteQuery item: Item): Item = item
+
+                @ServiceRoute(method = RouteMethod.GET, path = "trail/")
+                suspend fun trail(): Item = error("no")
             }
             """.trimIndent(),
         )
@@ -312,6 +315,8 @@ class ServiceRouteTest {
             .contains("its answer is a tools.jackson.databind.JsonNode")
             .contains("Broken.blocking is not a suspend function")
             .contains("has path '/lead'")
+            // A trailing slash is an empty last segment: a route CoSec would refuse every request of but one shape.
+            .contains("has path 'trail/'")
             .contains("query parameter item is a sample.Item")
     }
 

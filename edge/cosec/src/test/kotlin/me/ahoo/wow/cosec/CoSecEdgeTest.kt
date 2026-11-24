@@ -67,9 +67,21 @@ class CoSecEdgeTest {
     }
 
     @Test
-    fun `a principal CoSec authenticated with a blank id is answered 401`() {
-        node.post("/shop/cart/open-cart", headers = token(" ;acme"))
-            .assertProblem(401, FrameworkCodes.AUTH_UNAUTHENTICATED)
+    fun `a credential that names a blank principal never reaches the edge`() {
+        // CoSec 8.0.0-beta.8 makes no principal of a blank id (IDN-38): the authenticator that tries fails, and CoSec
+        // answers 503 before any route of Wow's runs.
+        node.post("/shop/cart/open-cart", headers = token(" ;acme")).first.assert().isEqualTo(503)
+        headers.assert().isEmpty()
+    }
+
+    @Test
+    fun `a command sent with a trailing slash is refused by CoSec, its route map being the Manifest's`() {
+        // CoSec 8.0.0-beta.8 (PIP-35): a path that maps to a route only without its trailing / is 400, never decided
+        // in the http namespace.
+        val (status, body) = node.post("/shop/cart/open-cart/", headers = token("alice;acme"))
+        status.assert().isEqualTo(400)
+        body!!["type"].asString().assert().endsWith("invalid-request")
+        headers.assert().isEmpty()
     }
 
     @Test
