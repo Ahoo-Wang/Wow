@@ -202,9 +202,10 @@ service() {
   helm upgrade --install "$name" "$root/deploy/helm/wow-service" "${values[@]}"
 }
 
-# A KUSTOMIZED service (its server project :<service>-server): its build renders the chart with the values its build names (the generated values and
-# deploy/<service>/values.yaml) and the run's after them, the same list its release would take, for this cluster's
-# namespace; then kubectl applies its overlay over that base. A field the API server does not know is refused.
+# A KUSTOMIZED service (its server project :<service>-server): its build renders the chart with the values its build
+# names (the generated values and deploy/<service>/values.yaml) and the run's after them, the same list its release
+# would take, for this cluster's namespace; then kubectl applies its overlay over that base. A field the API server does
+# not know is refused.
 kustomized() {
   local name=$1 namespace
   shift
