@@ -11,7 +11,7 @@ Wow 的 JSON（`WowJson`）写出并读取服务的状态、命令和事件：�
 - JavaScript 的 `number` 只能精确持有至多 2^53 − 1（`9007199254740991`）的整数：客户端把更大的 `long` 读作 `bigint`。
 - 枚举按名字写出，与其 schema 的 `enum` 列出的一样：`Month` 写作 `"JANUARY"`。读取时只按名字：数字，或不是其名字的数字文本，会被拒绝（`wrong-kind`、`not-in-enumeration`），而 Jackson 会把它读作该序号的常量。不指向任何常量的文本是未知值：只有在应用开启 Jackson 的 `READ_UNKNOWN_ENUM_VALUES_USING_DEFAULT_VALUE` 或 `READ_UNKNOWN_ENUM_VALUES_AS_NULL` 时，才读作默认常量或 null。`Month` 也读取从 1 开始的序号，写成数字的枚举（`@JsonFormat(shape = NUMBER)`）读取其数字，不读取数字的文本。
 - 同一输入在 Wow 支持的每个 Jackson 次版本上只有一个结果。两个次版本对同一输入读法不同时，Wow 在所有次版本上都按更严格的那个回答：只有一个子标签的 `Locale` 按 BCP 47 标签读取，与 Jackson 3.2 一样；给 `Locale` 的数字或布尔值会被拒绝。
-- 请求体（命令的或查询的）在同一对象中多次给出同一属性时会被拒绝（`duplicate-property`），而 JSON 读取方通常保留最后一个。给出其类型没有的属性时也会被拒绝（`unknown-property`）；Wow 写出的计算属性（只有 getter）是已知属性，读取时不写入任何值。事件、快照和集群消息忽略未知属性，因此较旧或较新的写入方的消息都能读取。
+- 请求体（命令的、查询的或服务路由的）在同一对象中多次给出同一属性时会被拒绝（`duplicate-property`），而 JSON 读取方通常保留最后一个。给出其类型没有的属性时也会被拒绝（`unknown-property`）；Wow 写出的计算属性（只有 getter）是已知属性，读取时不写入任何值。事件、快照和集群消息忽略未知属性，因此较旧或较新的写入方的消息都能读取。
 - 属性若持有另一个写成标量的平台类（`Charset`、`Path`、`AtomicLong`），构建会停下，除非声明了它的 schema（[Manifest](../guide/manifest#a-type-written-by-a-custom-serializer)）。
 - 有一个测试让每一行与代码一致：它的类、JSON 类型和格式与 Manifest 的描述一致，它列出的每个值与 Wow 的 JSON 写出的一致。
 
