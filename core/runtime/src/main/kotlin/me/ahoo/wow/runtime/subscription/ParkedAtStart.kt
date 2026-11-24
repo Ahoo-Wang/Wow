@@ -29,7 +29,9 @@ import java.util.concurrent.ConcurrentHashMap
  * parked from: the ledger's entries of those partitions ([FailureLedger.due] at [ParkedAggregate.NEVER]).
  *
  * Of a source whose partitions grow ([EntrySource.partitionsGrow]), also the entries parked in another partition than
- * the one their aggregate's key maps to now: the topic gained partitions while they were parked. The owner of the
+ * the one their aggregate's later entries are in now ([EntrySource.partitionOf] of the entry): the topic gained
+ * partitions while they were parked, and their records were placed by their key's hash. A record its publisher placed
+ * by its log's partition never moves. The owner of the
  * partition the key maps to now holds back their later entries there, and re-homes the entry to it ([rehomed],
  * [FailureLedger.repark] from the partition it left), so its due scan, an operator's request and a skip reach the
  * owner that holds them; the entry cannot be retried, only skipped. Those entries are looked for once per subscription
@@ -89,7 +91,7 @@ internal class ParkedAtStart(
         do {
             val page = ledger.list(subscription, after)
             page.forEach { entry ->
-                val now = source.partitionOf(entry.ref)
+                val now = source.partitionOf(entry)
                 if (now != entry.partition) {
                     add(Moved(entry, now))
                 }

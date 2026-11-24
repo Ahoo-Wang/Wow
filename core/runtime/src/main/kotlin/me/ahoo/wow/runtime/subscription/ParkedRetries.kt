@@ -70,15 +70,16 @@ internal class ParkedRetries(
     private val running: MutableSet<Pair<SubscriptionId, AggregateRef>> = ConcurrentHashMap.newKeySet()
 
     /**
-     * Reads [subscriptions]' entries due in [partitions] and, in [scope], runs those due here: each one of a partition
-     * whose worker [workerOf] finds by the subscription's name; schedules the others. An entry's retry spec is its
+     * Reads [subscriptions]' entries due in [partitions] and, in [scope], runs those due here: each one whose worker
+     * [workerOf] finds where the source's later entries of it are ([EntrySource.partitionOf]), which a topic that
+     * gained partitions since may not move; schedules the others. An entry's retry spec is its
      * subscription's ([ParkedRetryOptions.specOf]), and its notices are of its subscription's context.
      */
     suspend fun scan(
         scope: CoroutineScope,
         subscriptions: Collection<SubscriptionId>,
         partitions: Set<Int>,
-        workerOf: suspend (subscription: String, ref: AggregateRef) -> SubscriptionWorker?,
+        workerOf: suspend (entry: ParkedAggregate) -> SubscriptionWorker?,
     ) {
         if (partitions.isEmpty()) {
             return
@@ -101,11 +102,11 @@ internal class ParkedRetries(
         scope: CoroutineScope,
         entry: ParkedAggregate,
         now: Long,
-        workerOf: suspend (subscription: String, ref: AggregateRef) -> SubscriptionWorker?,
+        workerOf: suspend (entry: ParkedAggregate) -> SubscriptionWorker?,
     ) {
         val next = entry.nextRetryAt(options.specOf(entry))
         if (entry.request != null || next != null && now >= next) {
-            workerOf(entry.subscription.name, entry.ref)?.let { dispatch(scope, it, entry) }
+            workerOf(entry)?.let { dispatch(scope, it, entry) }
             return
         }
         if (entry.subscription to entry.ref in running) {

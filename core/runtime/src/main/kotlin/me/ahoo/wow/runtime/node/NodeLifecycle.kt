@@ -153,7 +153,10 @@ internal class NodeLifecycle(private val assembly: NodeAssembly, private val lis
         try {
             // The schemas of what the stores opened, before anything reads or writes them.
             withContext(Dispatchers.IO) { placedStores.forEach(Store::createSchemas) }
-            topics?.let { NodeTopics.prepare(node, it, topicRequirements) }
+            topics?.let {
+                NodeTopics.prepare(node, it, topicRequirements)
+                NodeTopics.checkPublished(topicRequirements, it)
+            }
             val running = intakes.keys.filter { context ->
                 val check = suspend {
                     CommandIntake.checkPartitions(

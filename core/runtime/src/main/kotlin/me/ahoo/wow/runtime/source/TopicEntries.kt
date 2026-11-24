@@ -16,6 +16,7 @@ package me.ahoo.wow.runtime.source
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapNotNull
 import me.ahoo.wow.api.aggregate.AggregateRef
@@ -30,12 +31,15 @@ import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogPosition
+import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.state.StateEventRecord
 import me.ahoo.wow.spi.transport.EnvelopeCodec
+import me.ahoo.wow.spi.transport.EnvelopeHeaders
 import me.ahoo.wow.spi.transport.PartitionedSource
 import me.ahoo.wow.spi.transport.SourceMessage
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * The partitions of another context's published [topic] as a subscription runtime reads them: each
@@ -54,12 +58,17 @@ import me.ahoo.wow.spi.transport.SourceMessage
  *   gives the services their own topics.
  * - A start from the end is the partition's end offset; from an instant, the offset of the first record retained, in
  *   offset order, committed at or after it, found by reading the partition forward ([SubscriptionStart.At.firstAt]).
- * - An aggregate's records are in the partition its key (the ref) maps to ([PartitionedSource.partitionOf]), which
- *   another may become when the topic gains partitions ([partitionsGrow]). A park records the partition and the
- *   offset of the record it failed at; a retry re-scans that partition from it up to the end the partition has when
- *   the retry runs, keeping the records keyed by the ref, of its version or later, and every undecodable message of
- *   the ref: its entry has no version of its own, and it is after the parked one. When the partition no longer
- *   retains that offset, or the key maps to another partition now, the retry fails with an [UnrecoverableException].
+ * - A Wow publisher puts an aggregate's records in the partition its context's log gives it, and says so on each
+ *   (`wow-partitions`, [EnvelopeHeaders.PARTITIONS], the log's count): those never move when the topic gains
+ *   partitions. A record without the header, an earlier publisher's or another producer's, is in the partition its key
+ *   (the ref) maps to ([PartitionedSource.partitionOf]), which another may become when the topic gains partitions
+ *   ([partitionsGrow]). A partition holding a record of either kind not where its rule puts it is warned of once.
+ * - A park records the partition and the offset of the record it failed at; a retry re-scans that partition from it
+ *   up to the end the partition has when the retry runs, keeping the records keyed by the ref, of its version or later,
+ *   and every undecodable message of the ref: its entry has no version of its own, and it is after the parked one. A
+ *   parked record placed by its log's partition stays where it was read ([partitionOf]); one placed by its key's hash
+ *   is looked for where its key maps to now. When the partition no longer retains that offset, or the key maps to
+ *   another partition now, the retry fails with an [UnrecoverableException].
  * - At least once: a record may be published twice, so the subscriptions drop the copies of a version
  *   they handled ([repeats]).
  */
@@ -101,10 +110,28 @@ internal class TopicEntries(
 
     override val partitionsGrow: Boolean get() = true
 
+    /**
+     * Where [parked]'s later records are: the partition it was read from when its record names its log's partition
+     * (`wow-partitions`) and is there, which no growth of the topic moves; else the one its key maps to now. The record
+     * is read again at its offset, up to the partition's end: one the partition no longer retains, or does not hold (a
+     * topic created again), counts as placed by its key.
+     */
+    override suspend fun partitionOf(parked: ParkedAggregate): Int {
+        val offset = parked.fromPosition ?: return partitionOf(parked.ref)
+        val end = source.offsets(topic, parked.partition).end
+        val record = source.read(topic, parked.partition, offset, minOf(offset + 1, end)).firstOrNull()
+        val placed = record?.let { logPartitionsOf(it) }?.let { Partitioner.partitionOf(parked.ref, it) }
+        return if (placed == parked.partition) parked.partition else partitionOf(parked.ref)
+    }
+
+    /** The log's partition count [message] names (`wow-partitions`), or null when it names none this version reads. */
+    private fun logPartitionsOf(message: SourceMessage): Int? =
+        message.headers[EnvelopeHeaders.PARTITIONS]?.toIntOrNull()?.takeIf(Partitioner::isValidPartitions)
+
     override suspend fun retryEntries(parked: ParkedAggregate): Flow<SourcedEntry> {
         val ref = parked.ref
         val fromVersion = parked.fromVersion
-        val partition = partitionOf(ref)
+        val partition = partitionOf(parked)
         requireUnmoved(topic, parked, partition)
         val fromPosition = parked.fromPosition
             ?: throw UnrecoverableException("Its ledger entry records no offset of $topic to re-scan from.")
@@ -133,7 +160,32 @@ internal class TopicEntries(
             }
             return undecodable(partition, message, failure)
         }
+        checkPlaced(partition, message, record.ref)
         return SourcedEntry(LogPosition(partition, message.offset + 1), streamOf(record), record.transport, record)
+    }
+
+    /** The partitions of [topic] warned of a record placed otherwise than by its log's partition. */
+    private val warned = ConcurrentHashMap.newKeySet<Int>()
+
+    /**
+     * Warns, once per partition, of a record of [ref] in [partition] that names no log partition count, placed by its
+     * key's hash, or that is not in the partition its count gives: its aggregate's records may move when the topic gains
+     * partitions, so its retries look for them where its key maps to now.
+     */
+    private fun checkPlaced(partition: Int, message: SourceMessage, ref: AggregateRef) {
+        val partitions = logPartitionsOf(message)
+        if (partitions != null && Partitioner.partitionOf(ref, partitions) == partition) return
+        if (!warned.add(partition)) return
+        val why = if (partitions == null) {
+            "names no log partition (${EnvelopeHeaders.PARTITIONS}): an earlier publisher or another producer placed " +
+                "it by its key's hash"
+        } else {
+            "is not in partition ${Partitioner.partitionOf(ref, partitions)} of the $partitions its header names"
+        }
+        logger.warn {
+            "Partition $partition of $topic holds a record of $ref at offset ${message.offset} that $why. Its " +
+                "aggregate's records may move when the topic gains partitions; warned once per partition."
+        }
     }
 
     /** The state event [message] holds, or null when it holds none this version reads. */

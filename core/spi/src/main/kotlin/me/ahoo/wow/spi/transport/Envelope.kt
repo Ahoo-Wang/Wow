@@ -119,4 +119,12 @@ object EnvelopeHeaders {
 
     /** [Envelope.type]. */
     const val TYPE: String = "wow-type"
+
+    /**
+     * On a state event, the partition count of the publishing context's log, as a decimal number: the record is in the
+     * partition that log gives its aggregate (`Partitioner.partitionOf(ref, count)`), whatever partitions the topic has,
+     * so a reader routes by it and none of its keys moves when the topic gains partitions. A record without it was
+     * placed by its key's hash (an earlier publisher, another producer). A reader that does not know it ignores it.
+     */
+    const val PARTITIONS: String = "wow-partitions"
 }

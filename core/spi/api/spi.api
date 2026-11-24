@@ -1953,6 +1953,7 @@ public final class me/ahoo/wow/spi/transport/EnvelopeHeaders {
 	public static final field FORMAT Ljava/lang/String;
 	public static final field INSTANCE Lme/ahoo/wow/spi/transport/EnvelopeHeaders;
 	public static final field KIND Ljava/lang/String;
+	public static final field PARTITIONS Ljava/lang/String;
 	public static final field TYPE Ljava/lang/String;
 }
 

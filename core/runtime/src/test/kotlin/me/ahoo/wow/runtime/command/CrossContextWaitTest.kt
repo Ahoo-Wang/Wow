@@ -79,7 +79,7 @@ import kotlin.time.TimeSource
 class CrossContextWaitTest {
     private val topics = InMemoryTopics(2).also {
         it.create(COMMANDS, PARTITIONS)
-        it.create(ORDERS, 2)
+        it.create(ORDERS, PARTITIONS)
     }
     private val channel = LoopbackClusterChannel()
     private val nodes = CopyOnWriteArrayList<ServiceNode>()
@@ -213,7 +213,7 @@ class CrossContextWaitTest {
         remoteSignals = signals,
         options = fastNodeOptions(),
         subscriptions = SubscriptionBindings(mapOf(SALES to listOf(orderSaga(rejections)))) +
-            PublishedSinks.topics(salesManifest, topics, UNMASKED, PREFIX).factory,
+            PublishedSinks.topics(salesManifest, topics, UNMASKED, PARTITIONS, PREFIX).factory,
         contracts = ContractDirectory(salesManifest, listOf(peer(stockContract))),
         topics = SourceTopics(topics, PREFIX, topics),
     ).also {

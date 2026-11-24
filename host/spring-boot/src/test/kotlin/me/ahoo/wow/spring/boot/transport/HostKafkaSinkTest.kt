@@ -39,6 +39,7 @@ import me.ahoo.wow.runtime.sink.PublishedSinks
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
 import me.ahoo.wow.spi.Ddl
+import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.read.StateMasks
 import me.ahoo.wow.spi.transport.EnvelopeCodec
 import me.ahoo.wow.spi.transport.TopicAdmin
@@ -213,6 +214,19 @@ class HostKafkaSinkTest {
             override suspend fun send(topic: String, messages: List<TopicMessage>) {
                 messages.forEach { sent += topic to it }
             }
+        }
+
+        /**
+         * The broker's answer to the node's start, which reads each published stream's topic count whatever
+         * `wow.kafka.ddl` says (#6783): every topic has the most partitions a log may have, so none has fewer than its
+         * log's.
+         */
+        @Bean
+        fun recordingAdmin(): TopicAdmin = object : TopicAdmin {
+            override suspend fun partitions(topics: Set<String>): Map<String, Int> =
+                topics.associateWith { Partitioner.SLOTS }
+
+            override suspend fun create(topics: Map<String, Int>) = Unit
         }
 
         @Bean

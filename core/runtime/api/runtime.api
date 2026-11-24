@@ -756,8 +756,8 @@ public final class me/ahoo/wow/runtime/sink/PublishedSinks {
 
 public final class me/ahoo/wow/runtime/sink/PublishedSinks$Companion {
 	public final fun publishedOf (Lme/ahoo/wow/manifest/Manifest;)Ljava/util/Map;
-	public final fun topics (Lme/ahoo/wow/manifest/Manifest;Lme/ahoo/wow/spi/transport/TopicProducer;Lme/ahoo/wow/runtime/sink/PublicationMasks;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/runtime/sink/PublishedSinks;
-	public static synthetic fun topics$default (Lme/ahoo/wow/runtime/sink/PublishedSinks$Companion;Lme/ahoo/wow/manifest/Manifest;Lme/ahoo/wow/spi/transport/TopicProducer;Lme/ahoo/wow/runtime/sink/PublicationMasks;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/runtime/sink/PublishedSinks;
+	public final fun topics (Lme/ahoo/wow/manifest/Manifest;Lme/ahoo/wow/spi/transport/TopicProducer;Lme/ahoo/wow/runtime/sink/PublicationMasks;ILjava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/runtime/sink/PublishedSinks;
+	public static synthetic fun topics$default (Lme/ahoo/wow/runtime/sink/PublishedSinks$Companion;Lme/ahoo/wow/manifest/Manifest;Lme/ahoo/wow/spi/transport/TopicProducer;Lme/ahoo/wow/runtime/sink/PublicationMasks;ILjava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/runtime/sink/PublishedSinks;
 }
 
 public final class me/ahoo/wow/runtime/snapshot/SnapshotOptions {
