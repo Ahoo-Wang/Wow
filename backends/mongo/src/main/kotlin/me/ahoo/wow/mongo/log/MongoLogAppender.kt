@@ -134,18 +134,21 @@ internal class MongoLogAppender(
         marks?.read()
         // A member whose position was taken (its block sealed), one after it of its aggregate, or one a too-large
         // document's insert did not reach, has no outcome yet: it is appended again, alone, in order, unless one of
-        // its aggregate's did not commit. Once a stream of the call may have committed, a failure of the store here
-        // is not thrown: that stream and those not tried after it are unknown ([EventLog.appendAll]).
+        // its aggregate's did not commit. Once a stream of the call may have committed, a failure here, whatever its
+        // class, is not thrown: that stream and those not tried after it are unknown ([EventLog.appendAll], #6747).
         val failed = HashMap<AggregateRef, AppendOutcome>()
         var written = outcomes.any { it.mayHaveCommitted() }
-        var stopped: MongoException? = null
+        var stopped: RuntimeException? = null
         return outcomes.mapIndexed { index, outcome ->
             val stream = streams[index].stream
             val transport = streams[index].transport
             failed[stream.ref]?.let { return@mapIndexed it }
             val settled = outcome ?: stopped?.let { AppendOutcome.Unknown(it) } ?: try {
                 appendNow(stream, transport, exact, deadline)
-            } catch (failure: MongoException) {
+            } catch (
+                @Suppress("TooGenericExceptionCaught") // A closed client's, or the sealed blocks' limit, as the driver's.
+                failure: RuntimeException,
+            ) {
                 if (!written) throw failure
                 stopped = failure
                 AppendOutcome.Unknown(failure)
@@ -231,8 +234,12 @@ internal class MongoLogAppender(
             members.groupBy { it.collection }.forEach { (collection, group) ->
                 insertAll(collection, group, outcomes, gaps, deadline)
             }
-        } catch (failure: MongoException) {
-            // Answered by the store, the insert wrote nothing: no member without an outcome lands now.
+        } catch (
+            // Whatever failed, once a member may have committed it is not thrown.
+            @Suppress("TooGenericExceptionCaught")
+            failure: RuntimeException,
+        ) {
+            // The insert that failed wrote nothing: no member without an outcome lands now.
             members.filter { outcomes[it.index] == null && it !in gaps }.forEach { gaps.add(it, GAP_FAILED) }
             gaps.write()
             if (outcomes.none { it.mayHaveCommitted() }) throw failure
@@ -304,7 +311,10 @@ internal class MongoLogAppender(
             return members.map { member ->
                 val landed = try {
                     landed(collection, member, deadline)
-                } catch (failure: MongoException) {
+                } catch (
+                    @Suppress("TooGenericExceptionCaught") // A member before it may have committed: never thrown.
+                    failure: RuntimeException,
+                ) {
                     return@map member to unknown(member, failure, gaps)
                 }
                 if (landed) {
@@ -355,7 +365,10 @@ internal class MongoLogAppender(
         gaps.add(member, GAP_FAILED)
         return try {
             refusedOutcome(collection, stream, error, deadline)
-        } catch (failure: MongoException) {
+        } catch (
+            @Suppress("TooGenericExceptionCaught") // A member before it may have committed: never thrown.
+            failure: RuntimeException,
+        ) {
             AppendOutcome.Unknown(failure)
         }
     }
@@ -402,7 +415,7 @@ internal class MongoLogAppender(
      * [member]'s outcome when its round's write is unknown: its sequence goes to [gaps], whose placeholder the stream
      * keeps out if it landed.
      */
-    private fun unknown(member: Member, failure: MongoException, gaps: Gaps): AppendOutcome {
+    private fun unknown(member: Member, failure: RuntimeException, gaps: Gaps): AppendOutcome {
         lastSequences.remove(member.stream.ref)
         gaps.add(member, GAP_UNKNOWN)
         return AppendOutcome.Unknown(failure)

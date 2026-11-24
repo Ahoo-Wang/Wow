@@ -113,20 +113,50 @@ internal object MongoFailures {
         throw refusalOf(document, failure) ?: failure
     }
 
-    /** [failure] as a [StorageUnavailableException] when it [isTransient], else as it is. */
-    fun translate(failure: MongoException): RuntimeException =
-        if (isTransient(failure)) {
+    /**
+     * Whether [failure] is the driver refusing a call on this node's client as it closes: this node is shutting down,
+     * as in a rolling restart, and the call sent nothing (#6747). The driver closes the client's server session pool
+     * first, ending its sessions with a round trip to the server, then its cluster, and says so with one of two
+     * [IllegalStateException]s. Each is matched by its whole message, so that any other of the driver's state checks
+     * stays a defect:
+     * - `state should be: server session pool is open`: a call in that round trip selected a server, and the session
+     *   pool refused it its implicit session.
+     * - `state should be: open`: the cluster refused a call before it selected a server, once the client was closed.
+     *   The driver says the same of its other closed resources, a client session and a pooled connection; no store of
+     *   this backend holds either, so here it is the closed client.
+     */
+    fun isClientClosed(failure: Throwable): Boolean =
+        failure is IllegalStateException && failure.message in CLIENT_CLOSED
+
+    /**
+     * [failure] as a [StorageUnavailableException] when it [isTransient], or when this node's client is closed
+     * ([isClientClosed]): either way the runtime answers a retryable error, which a caller retries, on another node
+     * once this one has stopped. Any other failure as it is.
+     */
+    fun translate(failure: RuntimeException): RuntimeException = when {
+        failure is MongoException && isTransient(failure) ->
             StorageUnavailableException("MongoDB is unavailable; retry later.", failure)
-        } else {
-            failure
-        }
+
+        isClientClosed(failure) ->
+            StorageUnavailableException("This node's MongoDB client is closed; retry later.", failure)
+
+        else -> failure
+    }
+
+    /** The messages of the driver's [IllegalStateException]s on a call to a client that is closing ([isClientClosed]). */
+    private val CLIENT_CLOSED = setOf("state should be: server session pool is open", "state should be: open")
 }
 
-/** Runs [block] on this dispatcher, a transient [MongoException] thrown as a [StorageUnavailableException]. */
+/**
+ * Runs [block] on this dispatcher, a transient [MongoException], or a call to this node's closed client, thrown as a
+ * [StorageUnavailableException] ([MongoFailures.translate]).
+ */
 internal suspend fun <T> CoroutineDispatcher.mongo(block: suspend CoroutineScope.() -> T): T = withContext(this) {
     try {
         block()
     } catch (failure: MongoException) {
+        throw MongoFailures.translate(failure)
+    } catch (failure: IllegalStateException) {
         throw MongoFailures.translate(failure)
     }
 }
@@ -144,6 +174,8 @@ internal suspend fun <T> CoroutineDispatcher.mongoRead(block: () -> T): T = runI
         if (Thread.currentThread().isInterrupted) {
             throw InterruptedException(failure.message).apply { initCause(failure) }
         }
+        throw MongoFailures.translate(failure)
+    } catch (failure: IllegalStateException) {
         throw MongoFailures.translate(failure)
     }
 }
