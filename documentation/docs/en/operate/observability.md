@@ -54,6 +54,7 @@ Any other error that escapes a round of one of the node's loops, one no round ca
 - The liveness is `DOWN` until the process ends, and `ended` names the loop: `component`, `name`, `loop`, the error's class (`error`) and how long ago (`endedMillis`). `endedLoops` counts how many loops ended.
 - The node is not fatal and holds its partitions. The orchestrator restarts it, with the error in plain sight: an error of the build is the same on every node, and stepping out would stop every write at once.
 - A lease group's renewals (`loop: lease renewals`) are the exception: a node that can renew none of the group's leases cannot hold its partitions. It steps out of that group as after a fatal error. It hands its partitions off within `wow.cluster.reconcile-timeout`, acquires none again, and forwards their commands to the other nodes, which take them over. Its `ownership` health shows the group `DEGRADED`, with `steppedOut`.
+- So are the two loops of the node's membership on a lease store, which every group on that store shares: its heartbeat (`loop: heartbeat`) and its read of the members (`loop: read the members`). Without heartbeats the other nodes no longer count the node, and without reads it no longer sees who serves a group, so the share it would go on renewing is one no other node can reach or take. The node steps out of every group it serves on that store, as above. Its record then expires on its own, and the node joins no group there again.
 
 ## Metrics and traces
 

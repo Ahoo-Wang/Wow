@@ -39,7 +39,10 @@ import me.ahoo.wow.spi.observation.ObservedEvent
  *   sight. Where the renewals' loop is the one that ended, the node can renew no lease of that group again: it steps
  *   out of the group ([me.ahoo.wow.runtime.cluster.LeaseRenewals.launchIn]), handing its partitions off within the
  *   reconcile timeout and acquiring none again, so the other nodes take them over, and a lease it could not release
- *   lapses. Its `ownership` health shows the group `DEGRADED`, `steppedOut`.
+ *   lapses. Where it is a loop of the node's membership on a lease store (its heartbeat, or its read of the members),
+ *   the others no longer count the node, or it no longer sees them: it steps out the same way of every group it serves
+ *   on that store ([me.ahoo.wow.runtime.cluster.ServiceMembership.whenEnded]). Its `ownership` health shows each group
+ *   it stepped out of `DEGRADED`, `steppedOut`.
  *
  * A loop ends quietly when its scope is cancelled (a stop), or when a worker's round says it is done ([launchWorker]).
  * A scope built without a node's [NodeFatals] (a part built on its own, in a test) logs the end at ERROR.

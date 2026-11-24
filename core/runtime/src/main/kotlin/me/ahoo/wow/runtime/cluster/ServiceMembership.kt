@@ -15,6 +15,7 @@ package me.ahoo.wow.runtime.cluster
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -46,6 +47,12 @@ import kotlin.time.TimeSource
  * reconcile) as soon as they saw it before, when each group had its own record: HRW still counts, per group, the
  * members that list it. The membership starts with its first group and leaves the service, at once,
  * with its last.
+ *
+ * A loop of the membership that ends on an error no round catches (`NodeLoops.kt`) is not restarted, and its end ends
+ * the node's part in the service on this store: without heartbeats the other nodes no longer count it, and without
+ * reads it no longer sees who serves a group. The membership then calls the store no more for what ended (the record
+ * expires on its own, the members stay as last read), joins no group, and tells each group it serves ([whenEnded]),
+ * which steps out, rather than renew a share no other node can reach or take.
  */
 @InternalWowApi
 class ServiceMembership(
@@ -78,6 +85,17 @@ class ServiceMembership(
     @Volatile
     private var listed: Set<String>? = null
 
+    /** Why the membership ended: the first of its loops that did; not completed while both run. */
+    private val ended = CompletableDeferred<String>()
+
+    /** Whether the heartbeats ended: the record is written no more, and expires on its own. */
+    @Volatile
+    private var heartbeatsEnded = false
+
+    /** Whether the reads of the members ended: [members] stays as last read. */
+    @Volatile
+    private var readsEnded = false
+
     /** The service's live members as last read, each with the groups it serves. */
     @Volatile
     var members: List<Member> = emptyList()
@@ -91,6 +109,7 @@ class ServiceMembership(
      * read of the members until [leave]. The first group starts the heartbeats and the reads.
      */
     suspend fun join(group: String, read: () -> Unit): Unit = lock.withLock {
+        check(!ended.isCompleted) { "$node takes part in $service no more: ${ended.getCompleted()}." }
         check(joined.putIfAbsent(group, read) == null) { "$node already takes part in $group." }
         reads += read
         try {
@@ -109,8 +128,9 @@ class ServiceMembership(
         }
         if (running == null) {
             running = CoroutineScope(context + SupervisorJob()).launch {
-                every(options.heartbeatInterval, "heartbeat") { lock.withLock { heartbeat() } }
-                every(minOf(options.reconcileInterval, options.routeRefreshInterval), "read the members") { refresh() }
+                watch(every(options.heartbeatInterval, "heartbeat") { lock.withLock { heartbeat() } }, HEARTBEATS_ENDED)
+                val reading = minOf(options.reconcileInterval, options.routeRefreshInterval)
+                watch(every(reading, "read the members") { refresh() }, READS_ENDED)
             }
         }
     }
@@ -164,20 +184,33 @@ class ServiceMembership(
         }
     }
 
-    /** Reads the service's members, and calls each group's [join] callback. */
+    /**
+     * Runs [action] in [scope] once the membership ended (see the class description), with why: the first of its loops
+     * that ended. Not run when [scope] stops first.
+     */
+    fun whenEnded(scope: CoroutineScope, action: suspend (String) -> Unit): Job = scope.launch { action(ended.await()) }
+
+    /** Reads the service's members, unless the reads ended, and calls each group's [join] callback. */
     suspend fun refresh() {
-        members = leases.members(service)
+        if (!readsEnded) {
+            members = leases.members(service)
+        }
         reads.forEach { it() }
     }
 
-    /** Removes the record. */
+    /** Removes the record, unless the heartbeats ended: it then expires on its own. */
     private suspend fun leaveService() {
         listed = null
-        leases.leave(service, node)
+        if (!heartbeatsEnded) {
+            leases.leave(service, node)
+        }
     }
 
     /** Heartbeats the record with the groups joined and not stuck; leaves the service while there are none. */
     private suspend fun heartbeat() {
+        if (heartbeatsEnded) {
+            return
+        }
         val groups = joined.keys - stuckGroups
         if (groups.isEmpty() && joined.isNotEmpty()) {
             if (listed != null) {
@@ -188,6 +221,23 @@ class ServiceMembership(
         }
         acquisitions.recorded("a heartbeat") { leases.heartbeat(service, node, addressOf(), options.memberTtl, groups) }
         listed = groups
+    }
+
+    /**
+     * Watches [loop]: one that ends while the membership runs ended on an error no round catches, and the membership
+     * ends with [why]. A leave that stops the loops cancels the watch with them.
+     */
+    private fun CoroutineScope.watch(loop: Job, why: String) = launch {
+        loop.join()
+        when (why) {
+            HEARTBEATS_ENDED -> heartbeatsEnded = true
+            else -> readsEnded = true
+        }
+        logger.error {
+            "$node's membership in $service ended ($why), and nothing restarts it: the node steps out of " +
+                "${joined.keys}, so the other nodes take their partitions over."
+        }
+        ended.complete(why)
     }
 
     private fun CoroutineScope.every(interval: kotlin.time.Duration, action: String, block: suspend () -> Unit) =
@@ -204,5 +254,11 @@ class ServiceMembership(
 
     private companion object {
         val logger = KotlinLogging.logger {}
+
+        /** Why the membership ends when its heartbeats did. */
+        const val HEARTBEATS_ENDED = "its membership heartbeats ended"
+
+        /** Why the membership ends when its reads of the members did. */
+        const val READS_ENDED = "its reads of the members ended"
     }
 }
