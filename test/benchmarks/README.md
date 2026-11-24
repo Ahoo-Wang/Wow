@@ -142,14 +142,14 @@ test/benchmarks/harness/lease-storm/lease-storm.sh run --label=base --install=/p
 
 `run` builds the catalog server, starts the replica set and the nodes, runs the storm, then the takeovers, and stops everything; its samples, summary and the nodes' logs go to `test/benchmarks/results/e2e/lease-storm-<label>/`, which git ignores. The steps also run one at a time (`up`, `nodes start`, `sample`, `storm`, `takeover <i>`, `nodes stop`, `down`). The heavy steps go through `quiet.sh`.
 
-What #6706's description gives, **measured on an Apple M4 Pro (14 cores, 24 GB; Docker: OrbStack 29.8.2, 14 CPUs, 12.6 GB, as `docker info` reports it) and to be repeated on the Apple M5 Max**, the reports' machine, before any of it is cited:
+Measured on the Apple M5 Max, the reports' machine (18 cores, 64 GB; Docker: OrbStack 29.8.2, 16 CPUs, 47.03 GiB, as `docker info` reports it), JDK 25, one `run` each:
 
 | | Lease writes in flight while degraded, avg (max) | Longest wait | Recovery | Takeover after a node's `SIGKILL` |
 | --- | --- | --- | --- | --- |
-| `main` before #6706 | 37.2 (48) | 29 s | 12 s | 8.7, 9.8, 9.9 s |
-| #6706 (the acquisition gate) | 2.4 (3) | 29 s | 17 s | 9.9, 9.3, 9.8 s |
+| `main` before #6706 (`3748ee1739`) | 32.5 (48) | 29 s | 11 s | 7.4, 7.4, 7.4 s |
+| `main` with #6706 and #6710 (`6e33125923`) | 1.7 (3) | 9 s | 14 s | 7.5, 7.5, 7.7 s |
 
-The 29 s wait is the store's operation timeout, which #6710 bounds by the lease's TTL; the bound's storm (the longest wait beside 29 s, and the sockets dropped) has not been measured. No report is committed from these runs.
+Before #6706 the nodes keep up to 48 lease writes in flight on a store with no majority, the longest waiting the store's operation timeout (29 s). With the acquisition gate (#6706) the three nodes keep at most three, one probe a node, and with the bound (#6710) a lease call takes at most the lease's TTL (10 s), so the longest wait is 9 s. The sockets dropped fell with them: 81 client-side timeouts in the nodes' logs and 142 node connections the primary's log ended before, 68 and 68 after. No report is committed from these runs.
 
 ## The industry comparison
 
