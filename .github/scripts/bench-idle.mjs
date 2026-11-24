@@ -24,7 +24,9 @@ import { pathToFileURL } from 'node:url';
 
 /** A MongoDB counter as mongosh's JSON.stringify writes it: a number, or a Long `{low, high}`. */
 const counter = value =>
-  typeof value === 'number' ? value : (value.high ?? 0) * 2 ** 32 + ((value.low ?? 0) >>> 0);
+  typeof value === 'number'
+    ? value
+    : (value.high ?? 0) * 2 ** 32 + ((value.low ?? 0) >>> 0);
 
 /** `key=value` lines; `meta`'s value is itself `key=value;key=value`, kept as it is. */
 export function parseSession(text) {
@@ -60,7 +62,10 @@ export function machineOf(session) {
     efficiencyCores: number('machine.efficiencyCores'),
     memoryBytes: number('machine.memoryBytes'),
     os: session['machine.os'] ?? null,
-    docker: { cpus: number('machine.dockerCpus'), memoryBytes: number('machine.dockerMemoryBytes') },
+    docker: {
+      cpus: number('machine.dockerCpus'),
+      memoryBytes: number('machine.dockerMemoryBytes'),
+    },
   };
 }
 
@@ -72,7 +77,9 @@ export function describeMachine(machine) {
       ? ` (${machine.performanceCores} performance, ${machine.efficiencyCores} efficiency)`
       : '';
   const gb = bytes => `${Math.round(bytes / 2 ** 30)} GB`;
-  const docker = machine.docker.cpus ? `; Docker ${machine.docker.cpus} CPUs, ${gb(machine.docker.memoryBytes)}` : '';
+  const docker = machine.docker.cpus
+    ? `; Docker ${machine.docker.cpus} CPUs, ${gb(machine.docker.memoryBytes)}`
+    : '';
   return `${machine.chip}, ${machine.cores} cores${split}, ${gb(machine.memoryBytes)}${docker}`;
 }
 
@@ -83,14 +90,19 @@ export function meanOf(text) {
     .map(line => Number.parseFloat(line))
     .filter(Number.isFinite);
   if (samples.length === 0) return null;
-  return { mean: samples.reduce((a, b) => a + b, 0) / samples.length, samples: samples.length };
+  return {
+    mean: samples.reduce((a, b) => a + b, 0) / samples.length,
+    samples: samples.length,
+  };
 }
 
-const round = (value, places = 2) => Math.round(value * 10 ** places) / 10 ** places;
+const round = (value, places = 2) =>
+  Math.round(value * 10 ** places) / 10 ** places;
 
 /** A log's partition counters: the collection or table every head read starts from. */
 const PARTITIONS = /^wow_log__.+__partition$/;
-const HEAD_STATEMENT = /^SELECT sequence FROM "?(wow_log__[^"\s]+__partition)"? WHERE partition = \$1$/;
+const HEAD_STATEMENT =
+  /^SELECT sequence FROM "?(wow_log__[^"\s]+__partition)"? WHERE partition = \$1$/;
 
 /** MongoDB's reads a second: the opcounters over the window, and the profiler's operations, the head reads apart. */
 export function mongoReads(opcounters, profile) {
@@ -98,24 +110,34 @@ export function mongoReads(opcounters, profile) {
   const counters = Object.fromEntries(
     Object.keys(opcounters.after).map(name => [
       name,
-      round((counter(opcounters.after[name]) - counter(opcounters.before[name])) / seconds),
+      round(
+        (counter(opcounters.after[name]) - counter(opcounters.before[name])) /
+          seconds,
+      ),
     ]),
   );
   const profiled = profile.millis / 1000;
   const operations = profile.operations.map(operation => ({
-    operation: `${operation.op} ${operation.command ?? ''} ${operation.ns}`.replace(/\s+/g, ' ').trim(),
+    operation: `${operation.op} ${operation.command ?? ''} ${operation.ns}`
+      .replace(/\s+/g, ' ')
+      .trim(),
     perSecond: profiled > 0 ? round(operation.count / profiled) : null,
     head:
       operation.op === 'command' &&
       operation.command === 'aggregate' &&
       PARTITIONS.test(operation.ns.slice(operation.ns.indexOf('.') + 1)),
   }));
-  const heads = operations.filter(o => o.head).reduce((sum, o) => sum + (o.perSecond ?? 0), 0);
+  const heads = operations
+    .filter(o => o.head)
+    .reduce((sum, o) => sum + (o.perSecond ?? 0), 0);
   return {
     opcountersPerSecond: counters,
     profiledSeconds: round(profiled),
     logHeadReadsPerSecond: round(heads),
-    operations: operations.map(({ operation, perSecond }) => ({ operation, perSecond })),
+    operations: operations.map(({ operation, perSecond }) => ({
+      operation,
+      perSecond,
+    })),
   };
 }
 
@@ -127,26 +149,44 @@ export function postgresReads(statements, millis) {
     .filter(line => line.includes('\t'))
     .map(line => {
       const at = line.indexOf('\t');
-      return { calls: Number(line.slice(0, at)), statement: line.slice(at + 1) };
+      return {
+        calls: Number(line.slice(0, at)),
+        statement: line.slice(at + 1),
+      };
     })
     .filter(row => !/pg_stat_statements/.test(row.statement));
-  const heads = rows.filter(row => HEAD_STATEMENT.test(row.statement)).reduce((sum, row) => sum + row.calls, 0);
+  const heads = rows
+    .filter(row => HEAD_STATEMENT.test(row.statement))
+    .reduce((sum, row) => sum + row.calls, 0);
   const total = rows.reduce((sum, row) => sum + row.calls, 0);
   return {
     windowSeconds: round(seconds),
     statementsPerSecond: round(total / seconds),
     logHeadReadsPerSecond: round(heads / seconds),
-    operations: rows.map(row => ({ operation: row.statement.slice(0, 160), perSecond: round(row.calls / seconds) })),
+    operations: rows.map(row => ({
+      operation: row.statement.slice(0, 160),
+      perSecond: round(row.calls / seconds),
+    })),
   };
 }
 
 /** idle.json from the raw inputs of one `bench.sh idle` session. */
-export function summarize({ session, cpuWithNodes, cpuWithoutNodes, opcounters, profile, statements, statementsMillis }) {
+export function summarize({
+  session,
+  cpuWithNodes,
+  cpuWithoutNodes,
+  opcounters,
+  profile,
+  statements,
+  statementsMillis,
+}) {
   const parsed = parseSession(session);
   const withNodes = meanOf(cpuWithNodes);
   const withoutNodes = meanOf(cpuWithoutNodes);
   const reads =
-    parsed.backend === 'mongo' ? mongoReads(opcounters, profile) : postgresReads(statements, statementsMillis);
+    parsed.backend === 'mongo'
+      ? mongoReads(opcounters, profile)
+      : postgresReads(statements, statementsMillis);
   return {
     schema: 'wow-idle/1',
     commit: parsed.commit,
@@ -157,13 +197,22 @@ export function summarize({ session, cpuWithNodes, cpuWithoutNodes, opcounters, 
     quietSeconds: Number(parsed.quietSeconds),
     windowSeconds: Number(parsed.windowSeconds),
     meta: parsed.meta,
-    environment: environmentName(parsed['machine.chip'], parsed['machine.actions'] === 'true'),
+    environment: environmentName(
+      parsed['machine.chip'],
+      parsed['machine.actions'] === 'true',
+    ),
     machine: machineOf(parsed),
     storeCpu: {
       withNodes: withNodes && round(withNodes.mean),
       withoutNodes: withoutNodes && round(withoutNodes.mean),
-      added: withNodes && withoutNodes ? round(withNodes.mean - withoutNodes.mean) : null,
-      samples: { withNodes: withNodes?.samples ?? 0, withoutNodes: withoutNodes?.samples ?? 0 },
+      added:
+        withNodes && withoutNodes
+          ? round(withNodes.mean - withoutNodes.mean)
+          : null,
+      samples: {
+        withNodes: withNodes?.samples ?? 0,
+        withoutNodes: withoutNodes?.samples ?? 0,
+      },
     },
     logHeadReadsPerSecond: reads.logHeadReadsPerSecond,
     reads,
@@ -189,7 +238,8 @@ export function render(idle) {
     lines.push(`statements a second: ${idle.reads.statementsPerSecond}`);
   }
   lines.push('operations a second:');
-  for (const { operation, perSecond } of idle.reads.operations.slice(0, 15)) lines.push(`  ${perSecond}  ${operation}`);
+  for (const { operation, perSecond } of idle.reads.operations.slice(0, 15))
+    lines.push(`  ${perSecond}  ${operation}`);
   return `${lines.join('\n')}\n`;
 }
 
@@ -214,19 +264,30 @@ export function table(sessions) {
 function main(args) {
   const [first, value] = args;
   if (first === '--environment') {
-    process.stdout.write(`${environmentName(value, process.env.GITHUB_ACTIONS === 'true')}\n`);
+    process.stdout.write(
+      `${environmentName(value, process.env.GITHUB_ACTIONS === 'true')}\n`,
+    );
     return;
   }
   if (first === '--table') {
     const sessions = readdirSync(value, { withFileTypes: true })
-      .filter(entry => entry.isDirectory() && existsSync(join(value, entry.name, 'idle.json')))
-      .map(entry => [entry.name, JSON.parse(readFileSync(join(value, entry.name, 'idle.json'), 'utf8'))]);
+      .filter(
+        entry =>
+          entry.isDirectory() &&
+          existsSync(join(value, entry.name, 'idle.json')),
+      )
+      .map(entry => [
+        entry.name,
+        JSON.parse(readFileSync(join(value, entry.name, 'idle.json'), 'utf8')),
+      ]);
     process.stdout.write(table(sessions));
     return;
   }
   const out = first;
   if (!out) {
-    console.error('usage: node .github/scripts/bench-idle.mjs <out> | --environment <chip> | --table <report>');
+    console.error(
+      'usage: node .github/scripts/bench-idle.mjs <out> | --environment <chip> | --table <report>',
+    );
     process.exit(2);
   }
   const read = name => readFileSync(join(out, name), 'utf8');
@@ -235,10 +296,12 @@ function main(args) {
     session: read('session.txt'),
     cpuWithNodes: read('cpu-with-nodes.txt'),
     cpuWithoutNodes: read('cpu-without-nodes.txt'),
-    opcounters: optional('opcounters.json') && JSON.parse(read('opcounters.json')),
+    opcounters:
+      optional('opcounters.json') && JSON.parse(read('opcounters.json')),
     profile: optional('profile.json') && JSON.parse(read('profile.json')),
     statements: optional('statements.tsv'),
-    statementsMillis: optional('statements.json') && JSON.parse(read('statements.json')).millis,
+    statementsMillis:
+      optional('statements.json') && JSON.parse(read('statements.json')).millis,
   });
   writeFileSync(join(out, 'idle.json'), `${JSON.stringify(idle, null, 2)}\n`);
   const text = render(idle);
@@ -246,4 +309,5 @@ function main(args) {
   process.stdout.write(text);
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) main(process.argv.slice(2));
+if (import.meta.url === pathToFileURL(process.argv[1]).href)
+  main(process.argv.slice(2));

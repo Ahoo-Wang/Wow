@@ -42,11 +42,17 @@ meta=backend=${backend};nodes=1;serverJvm=openjdk version "25.0.5"`;
 test('a session keeps its meta whole, with its own = and ;', () => {
   const parsed = parseSession(session('mongo'));
   assert.equal(parsed.backend, 'mongo');
-  assert.equal(parsed.meta, 'backend=mongo;nodes=1;serverJvm=openjdk version "25.0.5"');
+  assert.equal(
+    parsed.meta,
+    'backend=mongo;nodes=1;serverJvm=openjdk version "25.0.5"',
+  );
 });
 
 test('the CPU is the mean of its samples, and none gives null', () => {
-  assert.deepEqual(meanOf('10.5\n11.5\n\n12\n'), { mean: 11.333333333333334, samples: 3 });
+  assert.deepEqual(meanOf('10.5\n11.5\n\n12\n'), {
+    mean: 11.333333333333334,
+    samples: 3,
+  });
   assert.equal(meanOf(''), null);
 });
 
@@ -60,15 +66,28 @@ test("MongoDB's reads: the opcounters a second, Long or number, and the head agg
     {
       millis: 20_000,
       operations: [
-        { op: 'command', ns: 'transfer.wow_log__transfer__partition', command: 'aggregate', count: 1400 },
+        {
+          op: 'command',
+          ns: 'transfer.wow_log__transfer__partition',
+          command: 'aggregate',
+          count: 1400,
+        },
         { op: 'query', ns: 'transfer.wow_lease', command: 'find', count: 26 },
-        { op: 'command', ns: 'transfer.wow_failure_ledger', command: 'aggregate', count: 22 },
+        {
+          op: 'command',
+          ns: 'transfer.wow_failure_ledger',
+          command: 'aggregate',
+          count: 22,
+        },
       ],
     },
   );
   assert.deepEqual(reads.opcountersPerSecond, { command: 70, query: 4 });
   assert.equal(reads.logHeadReadsPerSecond, 70);
-  assert.deepEqual(reads.operations[1], { operation: 'query find transfer.wow_lease', perSecond: 1.3 });
+  assert.deepEqual(reads.operations[1], {
+    operation: 'query find transfer.wow_lease',
+    perSecond: 1.3,
+  });
 });
 
 test("PostgreSQL's statements a second, the head lookups apart, the extension's own left out", () => {
@@ -91,12 +110,18 @@ test('idle.json gives what the nodes add to the store, and idle.txt says it', ()
     session: session('postgres'),
     cpuWithNodes: '2.7\n2.7\n',
     cpuWithoutNodes: '1.5\n1.5\n',
-    statements: '600\tSELECT sequence FROM "wow_log__transfer__partition" WHERE partition = $1\n',
+    statements:
+      '600\tSELECT sequence FROM "wow_log__transfer__partition" WHERE partition = $1\n',
     statementsMillis: 60_000,
   });
   assert.equal(idle.schema, 'wow-idle/1');
   assert.equal(idle.commit, 'abc1234');
-  assert.deepEqual(idle.storeCpu, { withNodes: 2.7, withoutNodes: 1.5, added: 1.2, samples: { withNodes: 2, withoutNodes: 2 } });
+  assert.deepEqual(idle.storeCpu, {
+    withNodes: 2.7,
+    withoutNodes: 1.5,
+    added: 1.2,
+    samples: { withNodes: 2, withoutNodes: 2 },
+  });
   assert.equal(idle.logHeadReadsPerSecond, 10);
   const text = render(idle);
   assert.match(text, /log head reads: 10\/s/);
@@ -106,8 +131,14 @@ test('idle.json gives what the nodes add to the store, and idle.txt says it', ()
 test('a report is named for the machine it ran on, not for a constant', () => {
   assert.equal(environmentName('Apple M4 Pro'), 'm4pro');
   assert.equal(environmentName('Apple M5 Max'), 'm5max');
-  assert.equal(environmentName('Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz', true), 'actions');
-  assert.equal(environmentName('AMD EPYC 7763 64-Core Processor'), 'epyc776364coreprocessor');
+  assert.equal(
+    environmentName('Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz', true),
+    'actions',
+  );
+  assert.equal(
+    environmentName('AMD EPYC 7763 64-Core Processor'),
+    'epyc776364coreprocessor',
+  );
   assert.equal(environmentName(''), 'local');
 });
 
@@ -135,21 +166,34 @@ test("a report's table: one row per session, the head reads apart from the other
     session: session('postgres'),
     cpuWithNodes: '2.7\n',
     cpuWithoutNodes: '1.5\n',
-    statements: '600\tSELECT sequence FROM "wow_log__transfer__partition" WHERE partition = $1\n60\tSELECT 1 FROM wow_lease\n',
+    statements:
+      '600\tSELECT sequence FROM "wow_log__transfer__partition" WHERE partition = $1\n60\tSELECT 1 FROM wow_lease\n',
     statementsMillis: 60_000,
   });
-  const lines = table([['postgres-1-node', idle]]).trim().split('\n');
+  const lines = table([['postgres-1-node', idle]])
+    .trim()
+    .split('\n');
   assert.equal(lines.length, 3);
-  assert.equal(lines[2], '| postgres-1-node | `--wow.transport=none` | 10 | 2.7 % | 1.5 % | 1.2 | 1 |');
+  assert.equal(
+    lines[2],
+    '| postgres-1-node | `--wow.transport=none` | 10 | 2.7 % | 1.5 % | 1.2 | 1 |',
+  );
 });
 
 test("idle.sh reads the machine it runs on: its chip, cores and memory, and Docker's", () => {
-  const idle = join(import.meta.dirname, '../../test/benchmarks/harness/idle.sh');
+  const idle = join(
+    import.meta.dirname,
+    '../../test/benchmarks/harness/idle.sh',
+  );
   // Docker stubbed: the machine's own figures are read, whatever this machine is.
-  const run = spawnSync('bash', ['-c', `docker() { echo 8; }; . ${JSON.stringify(idle)}; idle_machine`], {
-    encoding: 'utf8',
-    env: { ...process.env, GITHUB_ACTIONS: 'true' },
-  });
+  const run = spawnSync(
+    'bash',
+    ['-c', `docker() { echo 8; }; . ${JSON.stringify(idle)}; idle_machine`],
+    {
+      encoding: 'utf8',
+      env: { ...process.env, GITHUB_ACTIONS: 'true' },
+    },
+  );
   assert.equal(run.status, 0, run.stderr);
   const machine = machineOf(parseSession(run.stdout));
   assert.ok(machine.chip.length > 0, run.stdout);

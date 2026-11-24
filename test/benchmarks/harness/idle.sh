@@ -22,7 +22,8 @@
 # profiler for --profile seconds; PostgreSQL's pg_stat_statements), and its container's CPU. Then the nodes are stopped
 # and the same store's CPU is measured again for --window seconds, with no node: what the nodes add is the difference.
 # The raw inputs go to --out (session.txt, the CPU samples, opcounters.json and profile.json, or statements.tsv), and
-# `pnpm bench:idle <out>` (.github/scripts/bench-idle.mjs) writes idle.json and idle.txt from them. The session stops when it ends, whatever happens.
+# `pnpm bench:idle <out>` (.github/scripts/bench-idle.mjs) writes idle.json and idle.txt from them. The session stops
+# when it ends, whatever happens.
 #
 # The machine is read, not assumed: its chip, cores and memory and Docker's CPUs and memory go into session.txt, and
 # --report writes the session into results/reports/<environment>-idle/<session>, the environment named for that
@@ -114,7 +115,8 @@ idle() {
   case " $args " in *" --wow.transport="*) ;; *) args="--wow.transport=none $args" ;; esac
   local backend; backend=$(opt backend mongo)
   local nodes; nodes=$(opt nodes 1)
-  local out; out=$(opt out "$REPO/test/benchmarks/results/e2e/$(date +%Y%m%d-%H%M%S)-idle-$backend-n$nodes")
+  local stamp; stamp=$(date +%Y%m%d-%H%M%S)
+  local out; out=$(opt out "$REPO/test/benchmarks/results/e2e/$stamp-idle-$backend-n$nodes")
   local report; report=$(opt report "")
   if [ -n "$report" ]; then
     local environment; environment=$(cd "$REPO" && pnpm --silent bench:idle --environment "$(idle_chip)")
