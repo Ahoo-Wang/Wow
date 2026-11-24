@@ -115,7 +115,8 @@ class InheritedBusyRetryTest {
         runBlocking {
             val waiting = checkNotNull(registry.register("w-1", listOf(Hop.committed("shop")), command.id))
             // As the coordinator sent it through the topic: ACCEPTED once the broker took it.
-            waiting.offer(reachedResult(command, commandFunction(model, command), Hop.accepted("shop"), clock.millis()))
+            val accepted = reachedResult(command, commandFunction(model, command), Hop.accepted("shop"), clock.millis())
+            waiting.offer(accepted)
             val wait = WaitContext("w-1", waiter, listOf(Hop.committed("shop")), Long.MAX_VALUE)
             // The owner's intake: refused as busy, then, retried as backpressure, committed.
             inherited.forward(model, command, wait).committed.error?.code.assert().isEqualTo(ResultCodes.BUSY)
@@ -123,7 +124,7 @@ class InheritedBusyRetryTest {
             val answered = generateSequence { waiting.results.tryReceive().getOrNull() }.toList()
             val last = answered.last()
             last.status.assert()
-                .describedAs("the wait's answer at ${last.hop}: ${last.error?.code}; the command committed once retried")
+                .describedAs("the wait's answer at ${last.hop}: ${last.error?.code}; it committed once retried")
                 .isEqualTo(CommandResult.Status.SUCCEEDED)
         }
 }
