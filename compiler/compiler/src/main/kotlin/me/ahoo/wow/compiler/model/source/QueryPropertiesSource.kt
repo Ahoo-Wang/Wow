@@ -29,15 +29,19 @@ import com.google.devtools.ksp.symbol.Modifier
 import com.google.devtools.ksp.symbol.Nullability
 import com.google.devtools.ksp.symbol.Variance
 import me.ahoo.wow.compiler.model.KotlinNames
+import me.ahoo.wow.compiler.model.symbol.JavaBeans
 import me.ahoo.wow.compiler.model.symbol.aliased
 import me.ahoo.wow.compiler.model.symbol.isModuleInternal
 import me.ahoo.wow.compiler.model.symbol.jsonIgnored
+import me.ahoo.wow.compiler.model.symbol.jsonIgnoredAt
 import me.ahoo.wow.compiler.model.symbol.jsonIgnoredProperties
 import me.ahoo.wow.compiler.model.symbol.jsonNaming
 import me.ahoo.wow.compiler.model.symbol.render
 import me.ahoo.wow.compiler.model.symbol.sourceName
 import me.ahoo.wow.compiler.model.symbol.wireName
+import me.ahoo.wow.compiler.model.symbol.wireNameAt
 import me.ahoo.wow.manifest.QueryFieldNames
+import tools.jackson.databind.PropertyNamingStrategies
 
 /**
  * The query fields of an aggregate's state: `<State>Properties`, an object extending
@@ -175,12 +179,11 @@ internal object QueryPropertiesSource {
             .mapNotNull { it.containingFile }.forEach(origins::add)
         val ignored = owner.jsonIgnoredProperties(problems)
         val naming = owner.jsonNaming(problems)
-        owner.getAllProperties().forEach { property ->
-            val wireName = property.wireName(problems, naming)
-            if (!property.isQueryable(wireName, ignored, problems) || !QueryFieldNames.isSegment(wireName)) return@forEach
+        val members = fieldsOf(owner, ignored, naming, problems) + gettersOf(owner, ignored, naming, problems)
+        members.forEach { (wireName, type) ->
+            if (!QueryFieldNames.isSegment(wireName)) return@forEach
             val childPath = "$path.$wireName"
             val childName = QueryFieldNames.constantOf(childPath)
-            val type = property.type.resolve()
             if (properties.putIfAbsent(childName, Property(childName, childPath, type.kotlinType())) != null) {
                 return@forEach
             }
@@ -189,6 +192,42 @@ internal object QueryPropertiesSource {
             if (qualified !in visited) {
                 collect(nested, childPath, visited + qualified, properties, problems, origins)
             }
+        }
+    }
+
+    /**
+     * The properties of [owner] Jackson writes, each under its name, with its type. A Java bean's private field is
+     * written through its public getter, whose annotations count too (#6839).
+     */
+    private fun fieldsOf(
+        owner: KSClassDeclaration,
+        ignored: Set<String>,
+        naming: PropertyNamingStrategies.NamingBase?,
+        problems: MutableList<String>,
+    ): List<Pair<String, KSType>> = owner.getAllProperties().mapNotNull { property ->
+        val getter = JavaBeans.getterOf(property, owner)
+        val wireName = if (getter == null) {
+            property.wireName(problems, naming)
+        } else {
+            wireNameAt(property.simpleName.asString(), listOf(property, getter), problems, naming)
+        }
+        val getterIgnored = getter != null && jsonIgnoredAt(listOf(getter), problems)
+        (wireName to property.type.resolve())
+            .takeIf { property.isQueryable(getter != null, wireName, ignored, problems) && !getterIgnored }
+    }.toList()
+
+    /** The getters of a Java bean [owner] that read no field of their name, which Jackson writes all the same. */
+    private fun gettersOf(
+        owner: KSClassDeclaration,
+        ignored: Set<String>,
+        naming: PropertyNamingStrategies.NamingBase?,
+        problems: MutableList<String>,
+    ): List<Pair<String, KSType>> {
+        val fields = owner.getAllProperties().mapTo(HashSet()) { it.simpleName.asString() }
+        return JavaBeans.computed(owner, fields).mapNotNull { (name, getter) ->
+            val wireName = wireNameAt(name, listOf(getter), problems, naming)
+            (wireName to getter.returnType!!.resolve())
+                .takeIf { name !in ignored && wireName !in ignored && !jsonIgnoredAt(listOf(getter), problems) }
         }
     }
 
@@ -216,11 +255,13 @@ internal object QueryPropertiesSource {
         return name + arguments + if (nullability == Nullability.NOT_NULL) "" else "?"
     }
 
+    /** Whether Jackson writes this property: public, or a Java field a public getter reads ([read]), and not ignored. */
     private fun KSPropertyDeclaration.isQueryable(
+        read: Boolean,
         wireName: String,
         ignored: Set<String>,
         problems: MutableList<String>,
-    ): Boolean = isPublic() && extensionReceiver == null &&
+    ): Boolean = (isPublic() || read) && extensionReceiver == null &&
         simpleName.asString() !in ignored && wireName !in ignored &&
         !jsonIgnored(problems)
 

@@ -16,7 +16,6 @@ package me.ahoo.wow.compiler.model.aggregate
 import com.google.devtools.ksp.getAllSuperTypes
 import com.google.devtools.ksp.isPrivate
 import com.google.devtools.ksp.isProtected
-import com.google.devtools.ksp.isPublic
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.processing.Resolver
 import com.google.devtools.ksp.symbol.ClassKind
@@ -26,13 +25,16 @@ import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 import com.google.devtools.ksp.symbol.KSPropertyDeclaration
 import com.google.devtools.ksp.symbol.Origin
 import me.ahoo.wow.compiler.model.symbol.AnnotationSet
+import me.ahoo.wow.compiler.model.symbol.JavaBeans
 import me.ahoo.wow.compiler.model.symbol.JavaRecords
 import me.ahoo.wow.compiler.model.symbol.declarations
 import me.ahoo.wow.compiler.model.symbol.jsonIgnored
+import me.ahoo.wow.compiler.model.symbol.jsonIgnoredAt
 import me.ahoo.wow.compiler.model.symbol.jsonIgnoredProperties
 import me.ahoo.wow.compiler.model.symbol.jsonNaming
 import me.ahoo.wow.compiler.model.symbol.suppresses
 import me.ahoo.wow.compiler.model.symbol.wireName
+import me.ahoo.wow.compiler.model.symbol.wireNameAt
 
 /**
  * The property of a command that holds its aggregate's id: [property], its name in Kotlin, which the generated
@@ -147,8 +149,15 @@ internal object AggregateIdResolver {
             problems += "command $name is @Unaddressed and has an @AggregateId property: a transformer finds an " +
                 "unaddressed command's aggregate, and the body names an @AggregateId command's"
         }
+        // Named as Jackson writes the component (#6839): its @JsonProperty, else the record's @JsonNaming.
+        val ignored = command.jsonIgnoredProperties(problems)
+        val wireName = wireNameAt(component.name, component.sites, problems, command.jsonNaming(problems))
+        if (jsonIgnoredAt(component.sites, problems) || component.name in ignored || wireName in ignored) {
+            problems += "$where is not written by Wow's JSON (@JsonIgnore, @JsonIgnoreProperties): it writes the " +
+                "component that holds the aggregate's id, so a sender's body holds it"
+        }
         // A Java String is a platform type: a creation may leave it out, any other command must name one.
-        return AggregateIdBinding(component.name, component.name, nullable = creation != "NONE")
+        return AggregateIdBinding(component.name, wireName, nullable = creation != "NONE")
     }
 
     /**
@@ -272,14 +281,8 @@ internal object AggregateIdResolver {
      * The public getter of [command] that reads this Java field (`getId()`), as Kotlin reads it as a property and
      * Wow's JSON writes it; null for a Kotlin property, or a field no public getter reads.
      */
-    private fun KSPropertyDeclaration.javaReader(command: KSClassDeclaration): String? {
-        if (origin !in JavaRecords.JAVA) return null
-        val name = simpleName.asString()
-        val getter = "get" + name.first().uppercaseChar() + name.substring(1)
-        return "getter $getter()".takeIf {
-            command.getAllFunctions().any { it.simpleName.asString() == getter && it.isPublic() }
-        }
-    }
+    private fun KSPropertyDeclaration.javaReader(command: KSClassDeclaration): String? =
+        JavaBeans.getterOf(this, command)?.let { "getter ${it.simpleName.asString()}()" }
 
     /** The properties of [command] and its supertypes, the class's own first. */
     internal fun propertiesOf(command: KSClassDeclaration): Sequence<KSPropertyDeclaration> =
