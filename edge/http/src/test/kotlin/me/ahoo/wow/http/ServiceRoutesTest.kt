@@ -202,6 +202,23 @@ class ServiceRoutesTest {
         odd.body!!["code"].asString().assert().isEqualTo("shop.summary.odd")
     }
 
+    /**
+     * Review r1 (the HTTP edge): every route refuses a body of another type than JSON with 415 (reference/http.md,
+     * "What the public port refuses"), and a request body that gives a property twice (reference/json-values.md).
+     * A service route reads its body without `Negotiation.checkJsonBody`, with the lenient `HttpJson.mapper`.
+     */
+    @Test
+    fun `r1 a route refuses a body that is not JSON, and one that gives a property twice`() {
+        val plain = node.client.post().uri("/$CONTEXT/notes").header("X-User", "alice")
+            .header("Content-Type", "text/plain")
+            .bodyValue("""{"text":"hello"}""")
+            .answer()
+        plain.status.assert().describedAs("the status of a text/plain body").isEqualTo(415) // fails: 204
+        val twice = node.post("/$CONTEXT/notes", """{"text":"a","text":"b"}""")
+        twice.status.assert().describedAs("the status of a property given twice").isEqualTo(400) // fails: 204
+        notes.assert().isEmpty()
+    }
+
     @Test
     fun `a route with a body takes it and answers no content for Unit`() {
         node.post("/$CONTEXT/notes", """{"text":"hello"}""").status.assert().isEqualTo(204)
