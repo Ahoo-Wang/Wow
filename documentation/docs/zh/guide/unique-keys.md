@@ -124,6 +124,7 @@ class Article(private val state: ArticleState) {
 - **恢复**再次预留 slug。slug 空闲时，它连同预留一起提交 `AggregateRestored`。如果期间别的文章拿走了 slug，`reserve` 返回 false，恢复被拒绝：那篇文章保留 slug，这一篇仍是已删除的。
 - **恢复一篇没有被删除的文章**不改变任何东西：内核会去掉没有被删除的聚合上的 `AggregateRestored`，没有留下任何事件的决策就是未改变（[聚合](./aggregates)）。
 - **不要内置的 `RestoreAggregate`。**内置的恢复不经过聚合的任何代码，它会在不预留 slug 的情况下把文章恢复回来，而 slug 此时可能被别的文章持有，于是两篇存活的文章会显示同一个 slug。`@AggregateRoot(lifecycle = [...])` 列出聚合受理的内置生命周期命令；这篇文章既不列 `RestoreAggregate` 也不列 `DeleteAggregate`，所以删除和恢复它的只有它自己的命令。
+- **内核会坚持这一点。**一个仍受理内置 `RestoreAggregate` 的聚合，若它的某个决定删除了它并释放了一个键，该决定以 `wow.command.undeclared-event` 失败，什么都不提交："docs.article handles the built-in RestoreAggregate, which restores it without running its code, so its decision of RemoveArticle may not produce AggregateDeleted while it releases article-slugs/hello-wow: restored, the aggregate would not hold them. Leave RestoreAggregate out of @AggregateRoot(lifecycle) and restore it by a command of its own, @OnCommand(onDeleted = true), that reserves them again; it committed nothing." 聚合自己对其删除命令的规格测试就会发现它。
 
 规格：slug 空闲时与 slug 被拿走时：
 

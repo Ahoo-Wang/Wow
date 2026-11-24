@@ -25,6 +25,7 @@ import me.ahoo.wow.api.lifecycle.AggregateDeleted
 import me.ahoo.wow.api.lifecycle.AggregateRestored
 import me.ahoo.wow.api.lifecycle.TransferOwner
 import me.ahoo.wow.api.lifecycle.TransferSpace
+import me.ahoo.wow.kernel.UndeclaredEventException
 import me.ahoo.wow.kernel.aggregate
 import org.junit.jupiter.api.Test
 
@@ -96,6 +97,8 @@ class ReleasedKeyRestoreSpecTest {
     // endregion
 
     private val model = aggregate<ArticleState>("docs", "article") {
+        // As @AggregateRoot(lifecycle) says above: the built-in restore is left out.
+        lifecycle(TransferOwner::class.java, TransferSpace::class.java)
         initial { ArticleState() }
         decideSuspending<PublishArticle>(Creation.REQUIRED) { state, body ->
             Decision.events(Article(state).onCommand(body, this))
@@ -129,5 +132,35 @@ class ReleasedKeyRestoreSpecTest {
             }
         }
         // endregion
+    }
+
+    /** The same article with the built-in restore still handled: its model calls no `lifecycle(...)`, so all are. */
+    private val restoredByTheKernel = aggregate<ArticleState>("docs", "article") {
+        initial { ArticleState() }
+        decideSuspending<PublishArticle>(Creation.REQUIRED) { state, body ->
+            Decision.events(Article(state).onCommand(body, this))
+        }
+        decideSuspending<RemoveArticle> { state, body -> Decision.events(Article(state).onCommand(body, this)) }
+        aggregateId<PublishArticle> { it.id }
+        aggregateId<RemoveArticle> { it.id }
+        evolve<ArticlePublished> { onSourcing(it) }
+    }
+
+    @Test
+    fun `an article that still has the built-in restore may not give its slug up as it is removed`() {
+        aggregateSpec(restoredByTheKernel, id = "article-1") {
+            givenCommands(PublishArticle("article-1", "hello-wow"))
+            whenCommand(RemoveArticle("article-1")) {
+                expectError<UndeclaredEventException> {
+                    message.assert().contains(
+                        "docs.article handles the built-in RestoreAggregate",
+                        "RemoveArticle",
+                        "article-slugs/hello-wow",
+                    )
+                }
+            }
+            // Nothing was committed: the article still holds its slug.
+            holds(Article.SLUGS, "hello-wow").assert().isTrue()
+        }
     }
 }

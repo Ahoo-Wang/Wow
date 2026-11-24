@@ -27,6 +27,7 @@ import me.ahoo.wow.api.decide.DecideScope
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.lifecycle.OwnerTransferred
+import me.ahoo.wow.api.lifecycle.RestoreAggregate
 import me.ahoo.wow.api.lifecycle.TransferOwner
 import me.ahoo.wow.api.read.CommittedEvent
 import me.ahoo.wow.api.read.EventStream
@@ -307,6 +308,10 @@ class AggregateModel<S : Any> @InternalWowApi constructor(
 
     private val lifecycle: Set<Class<*>> =
         if (fixedOwner != null) lifecycle - TransferOwner::class.java else lifecycle
+
+    /** Whether the kernel restores the aggregate by its own function, none of the model's ([KernelLifecycle.refuseKeylessRestore]). */
+    internal val restoresWithoutItsCode: Boolean =
+        RestoreAggregate::class.java in this.lifecycle && RestoreAggregate::class.java !in deciders
 
     /** The system commands the kernel decides for this model: its lifecycle ones and the schedule ones. */
     private val systemCommands: Set<Class<*>> = this.lifecycle + KernelLifecycle.SCHEDULE_COMMANDS

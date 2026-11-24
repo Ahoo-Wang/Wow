@@ -37,6 +37,7 @@ import me.ahoo.wow.api.schedule.Schedules
 import me.ahoo.wow.api.schedule.SetSchedule
 import me.ahoo.wow.kernel.schedule.ScheduleSlots
 import me.ahoo.wow.spi.SystemCommandGroups
+import me.ahoo.wow.spi.reservation.ReservationKey
 import me.ahoo.wow.spi.snapshot.SnapshotRebuilds
 
 /**
@@ -235,6 +236,32 @@ internal object KernelLifecycle {
             command,
             OwnerTransferred::class.java,
             "$fixed, so its decision of ${command.simpleName} may not produce OwnerTransferred; it committed nothing.",
+        )
+    }
+
+    /**
+     * Fails the command [body] when its decision of [decided] deletes the aggregate ([events], once [changing] folded
+     * out what changes nothing, end deleted) and releases keys ([released]), while the kernel's own function restores
+     * that aggregate ([AggregateModel.restoresWithoutItsCode]): `RestoreAggregate` runs no code of the model, so it
+     * would restore the aggregate without the keys, which another aggregate may meanwhile hold. A bug of the model
+     * ([UndeclaredEventException]), found by the first decision that makes it: the aggregate restores itself by a
+     * command of its own, `@OnCommand(onDeleted = true)`, which reserves the keys again or, by choice, none.
+     */
+    fun refuseKeylessRestore(decided: AggregateModel<*>, body: Any, events: List<Any>, released: List<ReservationKey>) {
+        if (released.isEmpty() || !decided.restoresWithoutItsCode) return
+        val deletes = events.lastOrNull { it is AggregateDeleted || it is AggregateRestored } is AggregateDeleted
+        if (!deletes) return
+        val command = body.javaClass
+        val keys = released.joinToString { "${it.namespace}/${it.key}" + if (it.system) " (across tenants)" else "" }
+        throw UndeclaredEventException(
+            decided.type,
+            command,
+            AggregateDeleted::class.java,
+            "${decided.type} handles the built-in RestoreAggregate, which restores it without running its code, so " +
+                "its decision of ${command.simpleName} may not produce AggregateDeleted while it releases $keys: " +
+                "restored, the aggregate would not hold them. Leave RestoreAggregate out of " +
+                "@AggregateRoot(lifecycle) and restore it by a command of its own, @OnCommand(onDeleted = true), " +
+                "that reserves them again; it committed nothing.",
         )
     }
 

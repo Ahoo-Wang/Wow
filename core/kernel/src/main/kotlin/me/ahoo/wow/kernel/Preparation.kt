@@ -93,6 +93,8 @@ internal class Preparation(
         val domain = KernelLifecycle.changing(decision.events, model, command.body) {
             metadataBefore(model, loaded, command)
         }
+        // A rejection releases nothing ([AttemptScope.transport]) and deletes nothing ([Decisions]).
+        if (rejection == null) KernelLifecycle.refuseKeylessRestore(model, command.body, domain, scope.releasedKeys)
         // A rejection commits its own events alone: what the refused decision scheduled is not.
         val schedules = if (rejection == null) scope.scheduleEvents() else emptyList()
         val events = domain + schedules
