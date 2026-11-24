@@ -15,6 +15,7 @@ package me.ahoo.wow.runtime.wait
 
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.result.WaitPlan
+import me.ahoo.wow.api.wire.WaitHeader
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
@@ -82,8 +83,8 @@ class WaitOptions @InternalWowApi constructor(
         val DEFAULT_MAX_TIMEOUT: Duration = 60.seconds
         const val DEFAULT_MAX_HOPS = 16
 
-        /** The most hops a node lets a wait chain have, whatever it is configured with. */
-        const val MAX_HOPS_CAP = 32
+        /** The most hops a node lets a wait chain have, whatever it is configured with: the most a plan's header reads. */
+        const val MAX_HOPS_CAP = WaitHeader.MAX_HOPS
 
         /**
          * The waits a node holds at once by default: four times the commands it has in flight by

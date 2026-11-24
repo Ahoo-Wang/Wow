@@ -20,9 +20,11 @@ import me.ahoo.wow.api.caller.TargetScope
 import me.ahoo.wow.api.query.CrossTenant
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitPlan
+import org.junit.jupiter.api.Assertions.assertTimeoutPreemptively
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
+import java.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
@@ -73,9 +75,41 @@ class HeaderGrammarTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = ["", "soon", "committed(", "handled", "handled()", "handled(a/b/c)", "committed >", "x(y)"])
+    @ValueSource(
+        strings = [
+            "", "soon", "committed(", "handled", "handled()", "handled(a/b/c)", "committed >", "x(y)",
+            // Read by hand since #6815: what lies around the parentheses, and white space that is not ASCII's.
+            "committed(x)y", "committed(x))", "committed((x)", "committed x", "commit ted", "committed(\u00A0order)",
+            // A letter beyond ASCII's, and a control character below the tab, are neither a keyword's nor white space.
+            "committé", "committed\u0001", "committed(\u0001order)",
+        ],
+    )
     fun `what is not a plan does not parse`(value: String) {
         assertThrownBy<IllegalArgumentException> { WaitHeader.parse(value) }
+    }
+
+    @Test
+    fun `a hop reads ASCII white space around its tokens, and is read in time linear in its length`() {
+        WaitHeader.parseHop("committed \t(\u000B order \r\n)").assert().isEqualTo(Hop.committed("order"))
+        WaitHeader.parseHop("committed  ").assert().isEqualTo(Hop.committed())
+        assertThrownBy<IllegalArgumentException> { WaitHeader.parseHop(" committed") }
+        // #6815: the hop's pattern backtracked about n³/6 times over the white space of a hop left open.
+        val open = "accepted(" + " ".repeat(WaitHeader.MAX_LENGTH - "accepted(x".length) + "x"
+        assertTimeoutPreemptively(Duration.ofSeconds(1)) {
+            assertThrownBy<IllegalArgumentException> { WaitHeader.parse(open) }.hasMessageContaining("Not a hop")
+        }
+    }
+
+    @Test
+    fun `a plan longer than its bound, or of more hops, is refused before a hop is read`() {
+        WaitHeader.parse(List(WaitHeader.MAX_HOPS) { "committed" }.joinToString(">")).hops.size
+            .assert().isEqualTo(WaitHeader.MAX_HOPS)
+        assertThrownBy<IllegalArgumentException> {
+            WaitHeader.parse(List(WaitHeader.MAX_HOPS + 1) { "committed" }.joinToString(">"))
+        }.hasMessage("A wait plan has at most ${WaitHeader.MAX_HOPS} hops; this one has ${WaitHeader.MAX_HOPS + 1}.")
+        val long = WaitHeader.MAX_LENGTH + 1
+        assertThrownBy<IllegalArgumentException> { WaitHeader.parse("x".repeat(long)) }
+            .hasMessage("A wait plan is at most ${WaitHeader.MAX_LENGTH} characters; this one has $long.")
     }
 
     @Test

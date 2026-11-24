@@ -46,33 +46,66 @@ import java.time.Duration as JavaDuration
 and one millisecond or more.
  *
  * [format] prints a plan as [parse] reads it, the inverse of [parse].
+ *
+ * A plan is read in time linear in its length, by hand rather than by a pattern whose quantifiers could share white
+ * space and backtrack over it (#6815), and is refused before any hop is read when it is longer than [MAX_LENGTH]
+ * characters or has more than [MAX_HOPS] hops: a request's header bounds the work admission does for it.
  */
 @InternalWowApi
 object WaitHeader {
-    private val HOP = Regex("""^([A-Za-z]+)\s*(?:\(\s*([^()]*?)\s*\))?$""")
+    /** The longest plan [parse] reads: 32 hops of 128 characters. */
+    const val MAX_LENGTH: Int = 4096
+
+    /** The most hops [parse] reads, the most any node's wait follows (its `wow.wait.max-hops` is at most this). */
+    const val MAX_HOPS: Int = 32
+
     private val NAME = Regex("""^[A-Za-z0-9_.\-]+$""")
     private val SHORT_TIMEOUT = Regex("""^(\d{1,9})(ms|s|m)$""")
 
     /** The plan [value] spells. */
     fun parse(value: String): WaitPlan {
+        require(value.length <= MAX_LENGTH) {
+            "A wait plan is at most $MAX_LENGTH characters; this one has ${value.length}."
+        }
         require(value.isNotBlank()) { "A wait plan has at least one hop." }
+        val hops = value.count { it == '>' } + 1
+        require(hops <= MAX_HOPS) { "A wait plan has at most $MAX_HOPS hops; this one has $hops." }
         return WaitPlan(value.split('>').map { parseHop(it.trim()) })
     }
 
-    /** The hop [value] spells. */
+    /**
+     * The hop [value] spells: a keyword of ASCII letters, then, after optional white space, an argument in parentheses
+     * that holds none, white space around it ignored.
+     */
     fun parseHop(value: String): Hop {
-        val match = requireNotNull(HOP.matchEntire(value)) { "Not a hop: '$value'." }
-        val keyword = match.groupValues[1].lowercase()
-        val argument = match.groups[2]?.value
-        return when (keyword) {
+        val open = value.indexOf('(')
+        val keyword = (if (open < 0) value else value.substring(0, open)).trimEnd(::isSpace)
+        require(keyword.isNotEmpty() && keyword.all(::isLetter)) { "Not a hop: '$value'." }
+        val argument = if (open < 0) null else argumentOf(value, open)
+        return when (keyword.lowercase()) {
             "accepted" -> Hop.accepted(argument?.let(::name))
             "committed" -> Hop.committed(argument?.let(::name))
             "snapshot" -> Hop.snapshot(argument?.let(::name))
             "queryable" -> Hop.queryable(argument?.let(::name))
             "handled" -> handled(requireNotNull(argument) { "A handled hop names its subscription: '$value'." })
-            else -> throw IllegalArgumentException("Not a stage: '$keyword'.")
+            else -> throw IllegalArgumentException("Not a stage: '${keyword.lowercase()}'.")
         }
     }
+
+    /** The argument of [value], whose `(` is at [open]: what lies before its last character, `)`, trimmed. */
+    private fun argumentOf(value: String, open: Int): String {
+        val close = value.length - 1
+        require(close > open && value[close] == ')' && value.indexOfAny(PARENTHESES, open + 1) == close) {
+            "Not a hop: '$value'."
+        }
+        return value.substring(open + 1, close).trim(::isSpace)
+    }
+
+    /** An ASCII letter, as a keyword holds. */
+    private fun isLetter(char: Char): Boolean = char in 'a'..'z' || char in 'A'..'Z'
+
+    /** White space as a hop ignores it: a space, a tab, a line feed, a vertical tab, a form feed or a return. */
+    private fun isSpace(char: Char): Boolean = char == ' ' || char in '\t'..'\r'
 
     private fun handled(argument: String): Hop {
         val parts = argument.split('/')
@@ -136,4 +169,6 @@ object WaitHeader {
     }
 
     private const val MILLIS_PER_SECOND = 1000L
+
+    private val PARENTHESES = charArrayOf('(', ')')
 }
