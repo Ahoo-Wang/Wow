@@ -282,10 +282,15 @@ class WaitCoordinatorTest : WaitCoordinatorFixtures() {
             }
             // The saga's commands are the shop's: a chain that expects them in the payment context is wrong.
             val unknown = Hop.committed("payment")
-            val plan = WaitPlan.of(Hop.committed(), Hop.handled("order.saga"), unknown).within(1.seconds)
-            val result = coordinator(WaitOptions(), shopOnly).execute(order, place(wait = plan, items = 1))
+            val plan = WaitPlan.of(Hop.committed(), Hop.handled("order.saga"), unknown)
+            val sagaHop = Hop.handled("order.saga", "shop")
+            // The deadline passes once the saga's hop is reached, however long it took (#6825).
+            val lenient =
+                WaitCoordinator(executor, registry, shopOnly, signals, origin, WaitOptions(), deadlines = held)
+            val results = held.timedOut(lenient.stream(order, place(wait = plan, items = 1))) { it.hop == sagaHop }
+            val result = results.last()
             result.error!!.code.assert().isEqualTo(ResultCodes.WAIT_TIMEOUT)
-            result.hop.assert().isEqualTo(Hop.handled("order.saga", "shop"))
+            result.hop.assert().isEqualTo(sagaHop)
             // With unknown contexts rejected, the plan is invalid and the command does not run.
             val strict = coordinator(WaitOptions(unknownContexts = UnknownContexts.REJECT), shopOnly)
             strict.execute(order, place(wait = plan)).error!!.code.assert().isEqualTo(ResultCodes.WAIT_INVALID)
