@@ -139,6 +139,8 @@ Wow 的运维命令（定时作业的命令、快照重建、对停放条目的�
 
 服务身份只在内部端口上被接受。应用自己的 `CallerResolver` 若为公开端口的请求返回了服务身份（`Caller.ofService` 或 `service = true`），这个请求现在在公开路由、运维路由和订阅路由上被拒绝（403 `wow.auth.forbidden`），而以前它会被当作服务信任：访问策略、运维授权器和揭示原值的读取都信任它。改为返回带角色的普通调用方（`Caller.of(subject = …, roles = listOf(…))`）；调用另一个服务的服务经它的内部端口访问，在那里声明自己（[关闭内部端口](./security#close-the-internal-port)）。
 
+服务路由的请求体是 JSON，按命令请求体的读法读取（[JSON 值](../reference/json-values)），路由在其处理函数运行之前检查请求的类型（[服务路由](../guide/service-routes#bodies)）。以 `application/json` 或 `application/<name>+json` 之外的类型发送的请求体，例如 `text/plain`，答以 `415`；不指明 `Content-Type` 的请求体照旧读取。请求体中某个属性给了两次，或给了路由请求类型没有的属性，答以 `400 wow.route.malformed`，以前保留最后一个值或忽略该属性。`Accept` 不接受 JSON 的请求，例如只有 `text/html`，答以 `406`；通配符照旧以 JSON 答复。请检查各路由的客户端：最可能受影响的是把整个表单对象连同请求类型没有的字段一起提交的前端。让它只发送请求的属性，或者给请求类型加上它发送的属性。
+
 列出了快照存储的预发布版，要在启动本版本之前修改配置。配置项 `wow.snapshot.stores`、`wow.snapshot.primary`，以及聚合的 `snapshot.stores` 和 `snapshot.primary` 已经移除，每一个都会拒绝启动，并指出它自己。用 `wow.snapshot.store` 或聚合的 `snapshot.store` 为每个类型指定它唯一的存储。保留了检索副本的部署（`snapshot.stores: [main, search]` 加 `query.snapshot.store: search`）去掉 `snapshot.stores`、保留 `query.snapshot.store`：副本的订阅名不变，仍是 `wow.snapshot:search`，所以它的索引和检查点都保留，也不会重新读取任何东西。
 
 服务的构建现在可以渲染它的 Kubernetes 清单：`wow { kubernetes { values.from(…); namespace = … } }` 让 `generateWowManifests` 进入 `assemble`，它把插件自带的 `wow-service` chart 渲染成纯 YAML 的 Kustomize base，即 `build/wow/k8s/`，供 `kubectl apply -k` 使用（[配合 Kustomize](./kubernetes#with-kustomize)）。没有任何破坏：安装 chart 的部署无需改动，没有写 values 的构建什么也不渲染。写了 values 的构建第一次渲染时把 Helm v4.3.1 获取到 Gradle 用户目录；`wow.helm.mirror` 与 `wow.helm.executable` 供无法访问 `get.helm.sh` 的构建使用。原先用 `helm template` 手工渲染 chart 的部署，可以改为在构建里写明同样的 values 文件。

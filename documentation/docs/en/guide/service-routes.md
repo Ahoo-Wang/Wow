@@ -120,6 +120,8 @@ suspend fun quote(call: RouteCall, request: QuoteRequest): Quote {
 
 A body, like an answer, is a class of its own, or a `List`, a `Set` or a `Collection` of one; a map, a scalar, a bare `JsonNode` or a stream (a `Flow`, a `Publisher`) fails the compilation. Keep the classes in the api module beside the commands (`ProductListing`, `QuoteRequest` and `Quote` are in `eshop-catalog-api`), so the Manifest carries their schemas and peers get them. A Jackson `ObjectNode`, a JSON object of any shape, is for a route that relays a body it does not own, such as another service's command; a route of your own takes a class, so its contract is typed.
 
+A body is JSON, read as a command's is ([JSON Values](../reference/json-values)), and a route answers before its handler runs when the request is not one it reads: a body sent as another type than `application/json` or `application/<name>+json` is `415`, one that gives a property twice or a property the request's class does not have is `400 wow.route.malformed`, and a request whose `Accept` takes no JSON is `406`. A route that takes no body checks its `Accept` alone.
+
 ## Answers
 
 The function's return type is the route's answer:

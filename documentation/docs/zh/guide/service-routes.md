@@ -120,6 +120,8 @@ suspend fun quote(call: RouteCall, request: QuoteRequest): Quote {
 
 请求体和应答一样，是一个自己的类，或这样一个类的 `List`、`Set` 或 `Collection`；映射、标量、裸 `JsonNode` 或流（`Flow`、`Publisher`）会让编译失败。把这些类和命令一起放在 api 模块（`ProductListing`、`QuoteRequest` 和 `Quote` 在 `eshop-catalog-api` 中），Manifest 才带上它们的 schema，同伴服务也才拿得到它们。Jackson 的 `ObjectNode`，即任意形状的 JSON 对象，用于转发一个不归自己的请求体的路由，例如另一个服务的命令；你自己的路由用类，契约才有类型。
 
+请求体是 JSON，按命令请求体的读法读取（[JSON 值](../reference/json-values)）；请求不是路由能读的请求时，路由在处理函数运行之前答复：以 `application/json` 或 `application/<name>+json` 之外的类型发送的请求体答以 `415`，某个属性给了两次或给了请求类没有的属性的请求体答以 `400 wow.route.malformed`，`Accept` 不接受 JSON 的请求答以 `406`。不接收请求体的路由只检查 `Accept`。
+
 ## 应答 {#answers}
 
 函数的返回类型就是路由的应答：
