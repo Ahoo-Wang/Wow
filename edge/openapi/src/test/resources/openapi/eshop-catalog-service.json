@@ -35,13 +35,22 @@
               }
             }
           },
+          "400" : {
+            "$ref" : "#/components/responses/wow.framework.400"
+          },
           "401" : {
             "$ref" : "#/components/responses/wow.framework.401"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.framework.403"
           },
           "406" : {
             "$ref" : "#/components/responses/wow.framework.406"
           }
-        }
+        },
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/Wow-Space"
+        } ]
       }
     },
     "/wow/openapi" : {
@@ -60,13 +69,22 @@
               }
             }
           },
+          "400" : {
+            "$ref" : "#/components/responses/wow.framework.400"
+          },
           "401" : {
             "$ref" : "#/components/responses/wow.framework.401"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.framework.403"
           },
           "406" : {
             "$ref" : "#/components/responses/wow.framework.406"
           }
-        }
+        },
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/Wow-Space"
+        } ]
       }
     },
     "/wow/dataset" : {
@@ -76,6 +94,8 @@
         "operationId" : "wow.dataset.list",
         "parameters" : [ {
           "$ref" : "#/components/parameters/Wow-Scope"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Space"
         } ],
         "responses" : {
           "200" : {
@@ -120,6 +140,8 @@
           "$ref" : "#/components/parameters/Wow-Scope"
         }, {
           "$ref" : "#/components/parameters/Last-Event-ID"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Space"
         } ],
         "requestBody" : {
           "required" : true,
@@ -220,8 +242,14 @@
           "409" : {
             "$ref" : "#/components/responses/wow.dataset-query.409"
           },
+          "413" : {
+            "$ref" : "#/components/responses/wow.dataset-query.413"
+          },
           "415" : {
             "$ref" : "#/components/responses/wow.dataset-query.415"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.dataset-query.429"
           },
           "500" : {
             "$ref" : "#/components/responses/wow.dataset-query.500"
@@ -243,7 +271,11 @@
         }, {
           "$ref" : "#/components/parameters/dataset"
         }, {
+          "$ref" : "#/components/parameters/Wow-Scope"
+        }, {
           "$ref" : "#/components/parameters/If-None-Match"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Space"
         } ],
         "responses" : {
           "200" : {
@@ -262,16 +294,30 @@
             }
           },
           "304" : {
-            "description" : "Not Modified: the descriptor is at the version If-None-Match names."
+            "description" : "Not Modified: the descriptor is at the version If-None-Match names.",
+            "headers" : {
+              "ETag" : {
+                "$ref" : "#/components/headers/ETag"
+              }
+            }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.dataset-descriptor.400"
           },
           "401" : {
             "$ref" : "#/components/responses/wow.dataset-descriptor.401"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.dataset-descriptor.403"
           },
           "404" : {
             "$ref" : "#/components/responses/wow.dataset-descriptor.404"
           },
           "406" : {
             "$ref" : "#/components/responses/wow.dataset-descriptor.406"
+          },
+          "409" : {
+            "$ref" : "#/components/responses/wow.dataset-descriptor.409"
           },
           "500" : {
             "$ref" : "#/components/responses/wow.dataset-descriptor.500"
@@ -351,6 +397,9 @@
           "412" : {
             "$ref" : "#/components/responses/eshop-catalog.command.412"
           },
+          "413" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.413"
+          },
           "415" : {
             "$ref" : "#/components/responses/eshop-catalog.command.415"
           },
@@ -399,6 +448,8 @@
           "$ref" : "#/components/parameters/tracestate"
         }, {
           "$ref" : "#/components/parameters/baggage"
+        }, {
+          "$ref" : "#/components/parameters/If-Match"
         } ],
         "requestBody" : {
           "description" : "The command's body; an empty body is `{}`.",
@@ -438,6 +489,12 @@
           },
           "410" : {
             "$ref" : "#/components/responses/eshop-catalog.command.410"
+          },
+          "412" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.412"
+          },
+          "413" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.413"
           },
           "415" : {
             "$ref" : "#/components/responses/eshop-catalog.command.415"
@@ -534,6 +591,9 @@
           "412" : {
             "$ref" : "#/components/responses/eshop-catalog.command.412"
           },
+          "413" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.413"
+          },
           "415" : {
             "$ref" : "#/components/responses/eshop-catalog.command.415"
           },
@@ -629,6 +689,9 @@
           "412" : {
             "$ref" : "#/components/responses/wow.command.412"
           },
+          "413" : {
+            "$ref" : "#/components/responses/wow.command.413"
+          },
           "415" : {
             "$ref" : "#/components/responses/wow.command.415"
           },
@@ -715,6 +778,9 @@
           },
           "412" : {
             "$ref" : "#/components/responses/wow.command.412"
+          },
+          "413" : {
+            "$ref" : "#/components/responses/wow.command.413"
           },
           "415" : {
             "$ref" : "#/components/responses/wow.command.415"
@@ -803,6 +869,9 @@
           "412" : {
             "$ref" : "#/components/responses/wow.command.412"
           },
+          "413" : {
+            "$ref" : "#/components/responses/wow.command.413"
+          },
           "415" : {
             "$ref" : "#/components/responses/wow.command.415"
           },
@@ -843,6 +912,8 @@
           "$ref" : "#/components/parameters/tracestate"
         }, {
           "$ref" : "#/components/parameters/baggage"
+        }, {
+          "$ref" : "#/components/parameters/If-Match"
         } ],
         "requestBody" : {
           "description" : "The command's body; an empty body is `{}`.",
@@ -883,6 +954,12 @@
           "410" : {
             "$ref" : "#/components/responses/wow.command.410"
           },
+          "412" : {
+            "$ref" : "#/components/responses/wow.command.412"
+          },
+          "413" : {
+            "$ref" : "#/components/responses/wow.command.413"
+          },
           "415" : {
             "$ref" : "#/components/responses/wow.command.415"
           },
@@ -919,6 +996,8 @@
           "$ref" : "#/components/parameters/Wow-Scope"
         }, {
           "$ref" : "#/components/parameters/If-None-Match"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Space"
         } ],
         "responses" : {
           "200" : {
@@ -942,7 +1021,12 @@
             }
           },
           "304" : {
-            "description" : "Not Modified: the state is still the one If-None-Match names."
+            "description" : "Not Modified: the state is still the one If-None-Match names.",
+            "headers" : {
+              "ETag" : {
+                "$ref" : "#/components/headers/ETag"
+              }
+            }
           },
           "400" : {
             "$ref" : "#/components/responses/wow.state.400"
@@ -987,6 +1071,8 @@
           "$ref" : "#/components/parameters/limit"
         }, {
           "$ref" : "#/components/parameters/Wow-Scope"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Space"
         } ],
         "responses" : {
           "200" : {
@@ -1045,6 +1131,8 @@
           "$ref" : "#/components/parameters/Wow-Scope"
         }, {
           "$ref" : "#/components/parameters/Last-Event-ID"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Space"
         } ],
         "requestBody" : {
           "required" : true,
@@ -1059,6 +1147,11 @@
         "responses" : {
           "200" : {
             "description" : "The query's answer, by its kind.",
+            "headers" : {
+              "Wow-Rebuilding" : {
+                "$ref" : "#/components/headers/Wow-Rebuilding"
+              }
+            },
             "content" : {
               "application/json" : {
                 "schema" : {
@@ -1167,6 +1260,9 @@
           "406" : {
             "$ref" : "#/components/responses/wow.query.406"
           },
+          "413" : {
+            "$ref" : "#/components/responses/wow.query.413"
+          },
           "415" : {
             "$ref" : "#/components/responses/wow.query.415"
           },
@@ -1190,6 +1286,8 @@
         "operationId" : "eshop-catalog.brand.snapshot.describe",
         "parameters" : [ {
           "$ref" : "#/components/parameters/If-None-Match"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Space"
         } ],
         "responses" : {
           "200" : {
@@ -1197,6 +1295,9 @@
             "headers" : {
               "ETag" : {
                 "$ref" : "#/components/headers/ETag"
+              },
+              "Wow-Rebuilding" : {
+                "$ref" : "#/components/headers/Wow-Rebuilding"
               }
             },
             "content" : {
@@ -1208,10 +1309,24 @@
             }
           },
           "304" : {
-            "description" : "Not Modified: the descriptor is at the version If-None-Match names."
+            "description" : "Not Modified: the descriptor is at the version If-None-Match names.",
+            "headers" : {
+              "ETag" : {
+                "$ref" : "#/components/headers/ETag"
+              },
+              "Wow-Rebuilding" : {
+                "$ref" : "#/components/headers/Wow-Rebuilding"
+              }
+            }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.descriptor.400"
           },
           "401" : {
             "$ref" : "#/components/responses/wow.descriptor.401"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.descriptor.403"
           },
           "406" : {
             "$ref" : "#/components/responses/wow.descriptor.406"
@@ -1235,6 +1350,8 @@
           "$ref" : "#/components/parameters/Wow-Scope"
         }, {
           "$ref" : "#/components/parameters/Last-Event-ID"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Space"
         } ],
         "requestBody" : {
           "required" : true,
@@ -1332,6 +1449,9 @@
           "406" : {
             "$ref" : "#/components/responses/wow.query.406"
           },
+          "413" : {
+            "$ref" : "#/components/responses/wow.query.413"
+          },
           "415" : {
             "$ref" : "#/components/responses/wow.query.415"
           },
@@ -1355,6 +1475,8 @@
         "operationId" : "eshop-catalog.brand.events.describe",
         "parameters" : [ {
           "$ref" : "#/components/parameters/If-None-Match"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Space"
         } ],
         "responses" : {
           "200" : {
@@ -1373,10 +1495,21 @@
             }
           },
           "304" : {
-            "description" : "Not Modified: the descriptor is at the version If-None-Match names."
+            "description" : "Not Modified: the descriptor is at the version If-None-Match names.",
+            "headers" : {
+              "ETag" : {
+                "$ref" : "#/components/headers/ETag"
+              }
+            }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.descriptor.400"
           },
           "401" : {
             "$ref" : "#/components/responses/wow.descriptor.401"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.descriptor.403"
           },
           "406" : {
             "$ref" : "#/components/responses/wow.descriptor.406"
@@ -1459,6 +1592,9 @@
           "412" : {
             "$ref" : "#/components/responses/eshop-catalog.command.412"
           },
+          "413" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.413"
+          },
           "415" : {
             "$ref" : "#/components/responses/eshop-catalog.command.415"
           },
@@ -1507,6 +1643,8 @@
           "$ref" : "#/components/parameters/tracestate"
         }, {
           "$ref" : "#/components/parameters/baggage"
+        }, {
+          "$ref" : "#/components/parameters/If-Match"
         } ],
         "requestBody" : {
           "description" : "The command's body; an empty body is `{}`.",
@@ -1546,6 +1684,12 @@
           },
           "410" : {
             "$ref" : "#/components/responses/eshop-catalog.command.410"
+          },
+          "412" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.412"
+          },
+          "413" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.413"
           },
           "415" : {
             "$ref" : "#/components/responses/eshop-catalog.command.415"
@@ -1642,6 +1786,9 @@
           "412" : {
             "$ref" : "#/components/responses/eshop-catalog.command.412"
           },
+          "413" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.413"
+          },
           "415" : {
             "$ref" : "#/components/responses/eshop-catalog.command.415"
           },
@@ -1737,6 +1884,9 @@
           "412" : {
             "$ref" : "#/components/responses/wow.command.412"
           },
+          "413" : {
+            "$ref" : "#/components/responses/wow.command.413"
+          },
           "415" : {
             "$ref" : "#/components/responses/wow.command.415"
           },
@@ -1823,6 +1973,9 @@
           },
           "412" : {
             "$ref" : "#/components/responses/wow.command.412"
+          },
+          "413" : {
+            "$ref" : "#/components/responses/wow.command.413"
           },
           "415" : {
             "$ref" : "#/components/responses/wow.command.415"
@@ -1911,6 +2064,9 @@
           "412" : {
             "$ref" : "#/components/responses/wow.command.412"
           },
+          "413" : {
+            "$ref" : "#/components/responses/wow.command.413"
+          },
           "415" : {
             "$ref" : "#/components/responses/wow.command.415"
           },
@@ -1951,6 +2107,8 @@
           "$ref" : "#/components/parameters/tracestate"
         }, {
           "$ref" : "#/components/parameters/baggage"
+        }, {
+          "$ref" : "#/components/parameters/If-Match"
         } ],
         "requestBody" : {
           "description" : "The command's body; an empty body is `{}`.",
@@ -1991,6 +2149,12 @@
           "410" : {
             "$ref" : "#/components/responses/wow.command.410"
           },
+          "412" : {
+            "$ref" : "#/components/responses/wow.command.412"
+          },
+          "413" : {
+            "$ref" : "#/components/responses/wow.command.413"
+          },
           "415" : {
             "$ref" : "#/components/responses/wow.command.415"
           },
@@ -2027,6 +2191,8 @@
           "$ref" : "#/components/parameters/Wow-Scope"
         }, {
           "$ref" : "#/components/parameters/If-None-Match"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Space"
         } ],
         "responses" : {
           "200" : {
@@ -2050,7 +2216,12 @@
             }
           },
           "304" : {
-            "description" : "Not Modified: the state is still the one If-None-Match names."
+            "description" : "Not Modified: the state is still the one If-None-Match names.",
+            "headers" : {
+              "ETag" : {
+                "$ref" : "#/components/headers/ETag"
+              }
+            }
           },
           "400" : {
             "$ref" : "#/components/responses/wow.state.400"
@@ -2095,6 +2266,8 @@
           "$ref" : "#/components/parameters/limit"
         }, {
           "$ref" : "#/components/parameters/Wow-Scope"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Space"
         } ],
         "responses" : {
           "200" : {
@@ -2153,6 +2326,8 @@
           "$ref" : "#/components/parameters/Wow-Scope"
         }, {
           "$ref" : "#/components/parameters/Last-Event-ID"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Space"
         } ],
         "requestBody" : {
           "required" : true,
@@ -2167,6 +2342,11 @@
         "responses" : {
           "200" : {
             "description" : "The query's answer, by its kind.",
+            "headers" : {
+              "Wow-Rebuilding" : {
+                "$ref" : "#/components/headers/Wow-Rebuilding"
+              }
+            },
             "content" : {
               "application/json" : {
                 "schema" : {
@@ -2275,6 +2455,9 @@
           "406" : {
             "$ref" : "#/components/responses/wow.query.406"
           },
+          "413" : {
+            "$ref" : "#/components/responses/wow.query.413"
+          },
           "415" : {
             "$ref" : "#/components/responses/wow.query.415"
           },
@@ -2298,6 +2481,8 @@
         "operationId" : "eshop-catalog.category.snapshot.describe",
         "parameters" : [ {
           "$ref" : "#/components/parameters/If-None-Match"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Space"
         } ],
         "responses" : {
           "200" : {
@@ -2305,6 +2490,9 @@
             "headers" : {
               "ETag" : {
                 "$ref" : "#/components/headers/ETag"
+              },
+              "Wow-Rebuilding" : {
+                "$ref" : "#/components/headers/Wow-Rebuilding"
               }
             },
             "content" : {
@@ -2316,10 +2504,24 @@
             }
           },
           "304" : {
-            "description" : "Not Modified: the descriptor is at the version If-None-Match names."
+            "description" : "Not Modified: the descriptor is at the version If-None-Match names.",
+            "headers" : {
+              "ETag" : {
+                "$ref" : "#/components/headers/ETag"
+              },
+              "Wow-Rebuilding" : {
+                "$ref" : "#/components/headers/Wow-Rebuilding"
+              }
+            }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.descriptor.400"
           },
           "401" : {
             "$ref" : "#/components/responses/wow.descriptor.401"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.descriptor.403"
           },
           "406" : {
             "$ref" : "#/components/responses/wow.descriptor.406"
@@ -2343,6 +2545,8 @@
           "$ref" : "#/components/parameters/Wow-Scope"
         }, {
           "$ref" : "#/components/parameters/Last-Event-ID"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Space"
         } ],
         "requestBody" : {
           "required" : true,
@@ -2440,6 +2644,9 @@
           "406" : {
             "$ref" : "#/components/responses/wow.query.406"
           },
+          "413" : {
+            "$ref" : "#/components/responses/wow.query.413"
+          },
           "415" : {
             "$ref" : "#/components/responses/wow.query.415"
           },
@@ -2463,6 +2670,8 @@
         "operationId" : "eshop-catalog.category.events.describe",
         "parameters" : [ {
           "$ref" : "#/components/parameters/If-None-Match"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Space"
         } ],
         "responses" : {
           "200" : {
@@ -2481,10 +2690,21 @@
             }
           },
           "304" : {
-            "description" : "Not Modified: the descriptor is at the version If-None-Match names."
+            "description" : "Not Modified: the descriptor is at the version If-None-Match names.",
+            "headers" : {
+              "ETag" : {
+                "$ref" : "#/components/headers/ETag"
+              }
+            }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.descriptor.400"
           },
           "401" : {
             "$ref" : "#/components/responses/wow.descriptor.401"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.descriptor.403"
           },
           "406" : {
             "$ref" : "#/components/responses/wow.descriptor.406"
@@ -2566,6 +2786,9 @@
           },
           "412" : {
             "$ref" : "#/components/responses/eshop-catalog.command.412"
+          },
+          "413" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.413"
           },
           "415" : {
             "$ref" : "#/components/responses/eshop-catalog.command.415"
@@ -2662,6 +2885,9 @@
           "412" : {
             "$ref" : "#/components/responses/eshop-catalog.command.412"
           },
+          "413" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.413"
+          },
           "415" : {
             "$ref" : "#/components/responses/eshop-catalog.command.415"
           },
@@ -2710,6 +2936,8 @@
           "$ref" : "#/components/parameters/tracestate"
         }, {
           "$ref" : "#/components/parameters/baggage"
+        }, {
+          "$ref" : "#/components/parameters/If-Match"
         } ],
         "requestBody" : {
           "description" : "The command's body; an empty body is `{}`.",
@@ -2749,6 +2977,12 @@
           },
           "410" : {
             "$ref" : "#/components/responses/eshop-catalog.command.410"
+          },
+          "412" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.412"
+          },
+          "413" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.413"
           },
           "415" : {
             "$ref" : "#/components/responses/eshop-catalog.command.415"
@@ -2845,6 +3079,9 @@
           "412" : {
             "$ref" : "#/components/responses/eshop-catalog.command.412"
           },
+          "413" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.413"
+          },
           "415" : {
             "$ref" : "#/components/responses/eshop-catalog.command.415"
           },
@@ -2939,6 +3176,9 @@
           },
           "412" : {
             "$ref" : "#/components/responses/eshop-catalog.command.412"
+          },
+          "413" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.413"
           },
           "415" : {
             "$ref" : "#/components/responses/eshop-catalog.command.415"
@@ -3035,6 +3275,9 @@
           "412" : {
             "$ref" : "#/components/responses/eshop-catalog.command.412"
           },
+          "413" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.413"
+          },
           "415" : {
             "$ref" : "#/components/responses/eshop-catalog.command.415"
           },
@@ -3129,6 +3372,9 @@
           },
           "412" : {
             "$ref" : "#/components/responses/eshop-catalog.command.412"
+          },
+          "413" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.413"
           },
           "415" : {
             "$ref" : "#/components/responses/eshop-catalog.command.415"
@@ -3225,6 +3471,9 @@
           "412" : {
             "$ref" : "#/components/responses/wow.command.412"
           },
+          "413" : {
+            "$ref" : "#/components/responses/wow.command.413"
+          },
           "415" : {
             "$ref" : "#/components/responses/wow.command.415"
           },
@@ -3311,6 +3560,9 @@
           },
           "412" : {
             "$ref" : "#/components/responses/wow.command.412"
+          },
+          "413" : {
+            "$ref" : "#/components/responses/wow.command.413"
           },
           "415" : {
             "$ref" : "#/components/responses/wow.command.415"
@@ -3399,6 +3651,9 @@
           "412" : {
             "$ref" : "#/components/responses/wow.command.412"
           },
+          "413" : {
+            "$ref" : "#/components/responses/wow.command.413"
+          },
           "415" : {
             "$ref" : "#/components/responses/wow.command.415"
           },
@@ -3439,6 +3694,8 @@
           "$ref" : "#/components/parameters/tracestate"
         }, {
           "$ref" : "#/components/parameters/baggage"
+        }, {
+          "$ref" : "#/components/parameters/If-Match"
         } ],
         "requestBody" : {
           "description" : "The command's body; an empty body is `{}`.",
@@ -3479,6 +3736,12 @@
           "410" : {
             "$ref" : "#/components/responses/wow.command.410"
           },
+          "412" : {
+            "$ref" : "#/components/responses/wow.command.412"
+          },
+          "413" : {
+            "$ref" : "#/components/responses/wow.command.413"
+          },
           "415" : {
             "$ref" : "#/components/responses/wow.command.415"
           },
@@ -3515,6 +3778,8 @@
           "$ref" : "#/components/parameters/Wow-Scope"
         }, {
           "$ref" : "#/components/parameters/If-None-Match"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Space"
         } ],
         "responses" : {
           "200" : {
@@ -3538,7 +3803,12 @@
             }
           },
           "304" : {
-            "description" : "Not Modified: the state is still the one If-None-Match names."
+            "description" : "Not Modified: the state is still the one If-None-Match names.",
+            "headers" : {
+              "ETag" : {
+                "$ref" : "#/components/headers/ETag"
+              }
+            }
           },
           "400" : {
             "$ref" : "#/components/responses/wow.state.400"
@@ -3583,6 +3853,8 @@
           "$ref" : "#/components/parameters/limit"
         }, {
           "$ref" : "#/components/parameters/Wow-Scope"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Space"
         } ],
         "responses" : {
           "200" : {
@@ -3641,6 +3913,8 @@
           "$ref" : "#/components/parameters/Wow-Scope"
         }, {
           "$ref" : "#/components/parameters/Last-Event-ID"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Space"
         } ],
         "requestBody" : {
           "required" : true,
@@ -3655,6 +3929,11 @@
         "responses" : {
           "200" : {
             "description" : "The query's answer, by its kind.",
+            "headers" : {
+              "Wow-Rebuilding" : {
+                "$ref" : "#/components/headers/Wow-Rebuilding"
+              }
+            },
             "content" : {
               "application/json" : {
                 "schema" : {
@@ -3763,6 +4042,9 @@
           "406" : {
             "$ref" : "#/components/responses/wow.query.406"
           },
+          "413" : {
+            "$ref" : "#/components/responses/wow.query.413"
+          },
           "415" : {
             "$ref" : "#/components/responses/wow.query.415"
           },
@@ -3786,6 +4068,8 @@
         "operationId" : "eshop-catalog.product.snapshot.describe",
         "parameters" : [ {
           "$ref" : "#/components/parameters/If-None-Match"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Space"
         } ],
         "responses" : {
           "200" : {
@@ -3793,6 +4077,9 @@
             "headers" : {
               "ETag" : {
                 "$ref" : "#/components/headers/ETag"
+              },
+              "Wow-Rebuilding" : {
+                "$ref" : "#/components/headers/Wow-Rebuilding"
               }
             },
             "content" : {
@@ -3804,10 +4091,24 @@
             }
           },
           "304" : {
-            "description" : "Not Modified: the descriptor is at the version If-None-Match names."
+            "description" : "Not Modified: the descriptor is at the version If-None-Match names.",
+            "headers" : {
+              "ETag" : {
+                "$ref" : "#/components/headers/ETag"
+              },
+              "Wow-Rebuilding" : {
+                "$ref" : "#/components/headers/Wow-Rebuilding"
+              }
+            }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.descriptor.400"
           },
           "401" : {
             "$ref" : "#/components/responses/wow.descriptor.401"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.descriptor.403"
           },
           "406" : {
             "$ref" : "#/components/responses/wow.descriptor.406"
@@ -3831,6 +4132,8 @@
           "$ref" : "#/components/parameters/Wow-Scope"
         }, {
           "$ref" : "#/components/parameters/Last-Event-ID"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Space"
         } ],
         "requestBody" : {
           "required" : true,
@@ -3928,6 +4231,9 @@
           "406" : {
             "$ref" : "#/components/responses/wow.query.406"
           },
+          "413" : {
+            "$ref" : "#/components/responses/wow.query.413"
+          },
           "415" : {
             "$ref" : "#/components/responses/wow.query.415"
           },
@@ -3951,6 +4257,8 @@
         "operationId" : "eshop-catalog.product.events.describe",
         "parameters" : [ {
           "$ref" : "#/components/parameters/If-None-Match"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Space"
         } ],
         "responses" : {
           "200" : {
@@ -3969,10 +4277,21 @@
             }
           },
           "304" : {
-            "description" : "Not Modified: the descriptor is at the version If-None-Match names."
+            "description" : "Not Modified: the descriptor is at the version If-None-Match names.",
+            "headers" : {
+              "ETag" : {
+                "$ref" : "#/components/headers/ETag"
+              }
+            }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.descriptor.400"
           },
           "401" : {
             "$ref" : "#/components/responses/wow.descriptor.401"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.descriptor.403"
           },
           "406" : {
             "$ref" : "#/components/responses/wow.descriptor.406"
@@ -4007,6 +4326,12 @@
             "type" : "integer",
             "format" : "int32"
           }
+        }, {
+          "$ref" : "#/components/parameters/Wow-Scope"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Request-Id"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Space"
         } ],
         "responses" : {
           "200" : {
@@ -4030,6 +4355,9 @@
           },
           "403" : {
             "$ref" : "#/components/responses/wow.route.403"
+          },
+          "406" : {
+            "$ref" : "#/components/responses/wow.route.406"
           }
         },
         "x-wow-route" : {
@@ -4051,6 +4379,12 @@
           "schema" : {
             "type" : "string"
           }
+        }, {
+          "$ref" : "#/components/parameters/Wow-Scope"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Request-Id"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Space"
         } ],
         "responses" : {
           "200" : {
@@ -4074,6 +4408,9 @@
           },
           "403" : {
             "$ref" : "#/components/responses/wow.route.403"
+          },
+          "406" : {
+            "$ref" : "#/components/responses/wow.route.406"
           }
         },
         "x-wow-route" : {
@@ -4087,6 +4424,13 @@
         "summary" : "quote",
         "description" : "The price of request's lines, each at its product's price; refused when one is not on the storefront.",
         "operationId" : "eshop-catalog.quote",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/Wow-Scope"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Request-Id"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Space"
+        } ],
         "requestBody" : {
           "required" : true,
           "content" : {
@@ -4117,8 +4461,17 @@
           "403" : {
             "$ref" : "#/components/responses/wow.route.403"
           },
+          "406" : {
+            "$ref" : "#/components/responses/wow.route.406"
+          },
           "409" : {
             "$ref" : "#/components/responses/eshop-catalog.route.quote.409"
+          },
+          "413" : {
+            "$ref" : "#/components/responses/wow.route.413"
+          },
+          "415" : {
+            "$ref" : "#/components/responses/wow.route.415"
           }
         },
         "x-wow-route" : {
@@ -4348,6 +4701,10 @@
           },
           "result" : {
             "$ref" : "#/components/schemas/wow.CommandResult"
+          },
+          "version" : {
+            "type" : "integer",
+            "description" : "The aggregate's version the problem answered: a rejection's, the next `If-Match` (none for a creation's), or the current version of a state read whose `minVersion` was not reached."
           }
         },
         "required" : [ "type", "title", "status", "retry" ]
@@ -5881,6 +6238,17 @@
       }
     },
     "responses" : {
+      "wow.framework.400" : {
+        "description" : "`wow.request.malformed`: A request header or parameter does not parse, or names what Wow does not take.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.request.malformed" ]
+      },
       "wow.framework.401" : {
         "description" : "`wow.auth.unauthenticated`: The request carries no valid credentials.",
         "content" : {
@@ -5891,6 +6259,17 @@
           }
         },
         "x-wow-error-codes" : [ "wow.auth.unauthenticated" ]
+      },
+      "wow.framework.403" : {
+        "description" : "`wow.auth.forbidden`: The caller may not do what the request asks: send this command, call this route, or act or read across scopes.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.auth.forbidden" ]
       },
       "wow.framework.406" : {
         "description" : "Not Acceptable: the route answers in none of the types Accept names.",
@@ -5903,7 +6282,7 @@
         }
       },
       "wow.datasets.400" : {
-        "description" : "`wow.query.malformed`: The query body cannot be read as a query.",
+        "description" : "`wow.query.malformed`: The query body cannot be read as a query.\n`wow.request.malformed`: A request header or parameter does not parse, or names what Wow does not take.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -5911,7 +6290,7 @@
             }
           }
         },
-        "x-wow-error-codes" : [ "wow.query.malformed" ]
+        "x-wow-error-codes" : [ "wow.query.malformed", "wow.request.malformed" ]
       },
       "wow.datasets.401" : {
         "description" : "`wow.auth.unauthenticated`: The request carries no valid credentials.",
@@ -5946,7 +6325,7 @@
         }
       },
       "wow.dataset-query.400" : {
-        "description" : "`wow.query.malformed`: The query body cannot be read as a query.\n`wow.query.invalid`: The query failed admission; the problem lists the violations, each with its code (unknown-field, ...).\n`wow.query.too-many-groups`: An aggregation that names no sort has more groups than its limit; add a sort for a top-N, or raise limit.",
+        "description" : "`wow.query.malformed`: The query body cannot be read as a query.\n`wow.query.invalid`: The query failed admission; the problem lists the violations, each with its code (unknown-field, ...).\n`wow.query.too-many-groups`: An aggregation that names no sort has more groups than its limit; add a sort for a top-N, or raise limit.\n`wow.request.malformed`: A request header or parameter does not parse, or names what Wow does not take.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -5954,7 +6333,7 @@
             }
           }
         },
-        "x-wow-error-codes" : [ "wow.query.malformed", "wow.query.invalid", "wow.query.too-many-groups" ]
+        "x-wow-error-codes" : [ "wow.query.malformed", "wow.query.invalid", "wow.query.too-many-groups", "wow.request.malformed" ]
       },
       "wow.dataset-query.401" : {
         "description" : "`wow.auth.unauthenticated`: The request carries no valid credentials.",
@@ -6010,6 +6389,16 @@
         },
         "x-wow-error-codes" : [ "wow.query.dataset-unavailable" ]
       },
+      "wow.dataset-query.413" : {
+        "description" : "Content Too Large: the body is larger than this server takes.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
+      },
       "wow.dataset-query.415" : {
         "description" : "Unsupported Media Type: the body is sent as application/json.",
         "content" : {
@@ -6019,6 +6408,22 @@
             }
           }
         }
+      },
+      "wow.dataset-query.429" : {
+        "description" : "`wow.query.busy`: The query was not run: its store has as many queries running as it allows; retry later.",
+        "headers" : {
+          "Retry-After" : {
+            "$ref" : "#/components/headers/Retry-After"
+          }
+        },
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.query.busy" ]
       },
       "wow.dataset-query.500" : {
         "description" : "`wow.query.failed`: The query backend failed to run the query.",
@@ -6058,6 +6463,17 @@
         },
         "x-wow-error-codes" : [ "wow.query.timeout" ]
       },
+      "wow.dataset-descriptor.400" : {
+        "description" : "`wow.query.malformed`: The query body cannot be read as a query.\n`wow.request.malformed`: A request header or parameter does not parse, or names what Wow does not take.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.query.malformed", "wow.request.malformed" ]
+      },
       "wow.dataset-descriptor.401" : {
         "description" : "`wow.auth.unauthenticated`: The request carries no valid credentials.",
         "content" : {
@@ -6068,6 +6484,17 @@
           }
         },
         "x-wow-error-codes" : [ "wow.auth.unauthenticated" ]
+      },
+      "wow.dataset-descriptor.403" : {
+        "description" : "`wow.auth.forbidden`: The caller may not do what the request asks: send this command, call this route, or act or read across scopes.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.auth.forbidden" ]
       },
       "wow.dataset-descriptor.404" : {
         "description" : "`wow.query.dataset-not-found`: No dataset of that name is served to the caller.",
@@ -6089,6 +6516,17 @@
             }
           }
         }
+      },
+      "wow.dataset-descriptor.409" : {
+        "description" : "`wow.query.dataset-unavailable`: The dataset is served but cannot be queried now, for the reason the problem names (it needs revision).",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.query.dataset-unavailable" ]
       },
       "wow.dataset-descriptor.500" : {
         "description" : "`wow.query.failed`: The query backend failed to run the query.",
@@ -6118,7 +6556,7 @@
         "x-wow-error-codes" : [ "wow.storage.unavailable" ]
       },
       "wow.command.200" : {
-        "description" : "The result the wait ended with; with `Accept: text/event-stream`, one event per result until the wait ends, its name the hop's stage and its data the result.",
+        "description" : "The result the wait ended with. With `Accept: text/event-stream`, a refusal before the command is accepted is the problem it is, with its status; once accepted, the answer is 200 and no other status: one event per result as each hop the plan names is reached, its name the hop's stage, its `id` the result's index and its data the result, until the last, which ends the stream (the plan's last hop, a rejection at its hop, or a FAILED result: `wow.wait.timeout` at the last hop reached, `wow.storage.unavailable` or `wow.command.unknown` when the execution failed). A comment, `: keep-alive`, is sent at once and every 15 seconds while the stream runs: it is no event.",
         "content" : {
           "application/json" : {
             "schema" : {
@@ -6205,6 +6643,11 @@
       },
       "eshop-catalog.command.409" : {
         "description" : "`wow.aggregate.exists`: The aggregate already exists.\n`wow.aggregate.version-mismatch`: The aggregate is not at the expected version (412 when the request carried If-Match).\n`wow.command.request-id-reused`: The request id was used by another command.\n`wow.command.contended`: Concurrent writers kept winning the version; retrying with the same request id is safe.\n`wow.command.refused`: The aggregate's current state refuses the command (a check of its decide function); the message says why.\n`eshop-catalog.brand.name-taken`: Another brand has this name.\n`eshop-catalog.category.name-taken`: Another category has this name.\n`eshop-catalog.not-on-sale`: A quote's product is not published on the storefront.\n`eshop-catalog.product.incomplete`: A published product has a brand and a category.\n`eshop-catalog.product.not-published`: Only a published product can be delisted.",
+        "headers" : {
+          "Retry-After" : {
+            "$ref" : "#/components/headers/Retry-After"
+          }
+        },
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -6236,6 +6679,16 @@
         },
         "x-wow-error-codes" : [ "wow.aggregate.version-mismatch" ]
       },
+      "eshop-catalog.command.413" : {
+        "description" : "Content Too Large: the body is larger than this server takes.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
+      },
       "eshop-catalog.command.415" : {
         "description" : "Unsupported Media Type: the body is sent as application/json.",
         "content" : {
@@ -6258,6 +6711,11 @@
       },
       "eshop-catalog.command.429" : {
         "description" : "`wow.request.rate-limited`: CoSec refused the request for a rate limit it spent; nothing was done, so it may be sent again after the Retry-After CoSec sets. Written for CoSec's refusals when wow.cosec.problems is wow.\n`wow.command.busy`: The command was not taken: its aggregate has too many commands waiting, or the node too many in flight; retry later.",
+        "headers" : {
+          "Retry-After" : {
+            "$ref" : "#/components/headers/Retry-After"
+          }
+        },
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -6296,6 +6754,11 @@
       },
       "eshop-catalog.command.504" : {
         "description" : "`wow.wait.timeout`: The wait ran out of time; the command may have committed. The problem carries the last stage reached.",
+        "headers" : {
+          "Retry-After" : {
+            "$ref" : "#/components/headers/Retry-After"
+          }
+        },
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -6361,6 +6824,11 @@
       },
       "wow.command.409" : {
         "description" : "`wow.aggregate.exists`: The aggregate already exists.\n`wow.aggregate.version-mismatch`: The aggregate is not at the expected version (412 when the request carried If-Match).\n`wow.command.request-id-reused`: The request id was used by another command.\n`wow.command.contended`: Concurrent writers kept winning the version; retrying with the same request id is safe.\n`wow.command.refused`: The aggregate's current state refuses the command (a check of its decide function); the message says why.",
+        "headers" : {
+          "Retry-After" : {
+            "$ref" : "#/components/headers/Retry-After"
+          }
+        },
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -6392,6 +6860,16 @@
         },
         "x-wow-error-codes" : [ "wow.aggregate.version-mismatch" ]
       },
+      "wow.command.413" : {
+        "description" : "Content Too Large: the body is larger than this server takes.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
+      },
       "wow.command.415" : {
         "description" : "Unsupported Media Type: the body is sent as application/json.",
         "content" : {
@@ -6404,6 +6882,11 @@
       },
       "wow.command.429" : {
         "description" : "`wow.request.rate-limited`: CoSec refused the request for a rate limit it spent; nothing was done, so it may be sent again after the Retry-After CoSec sets. Written for CoSec's refusals when wow.cosec.problems is wow.\n`wow.command.busy`: The command was not taken: its aggregate has too many commands waiting, or the node too many in flight; retry later.",
+        "headers" : {
+          "Retry-After" : {
+            "$ref" : "#/components/headers/Retry-After"
+          }
+        },
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -6442,6 +6925,11 @@
       },
       "wow.command.504" : {
         "description" : "`wow.wait.timeout`: The wait ran out of time; the command may have committed. The problem carries the last stage reached.",
+        "headers" : {
+          "Retry-After" : {
+            "$ref" : "#/components/headers/Retry-After"
+          }
+        },
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -6452,7 +6940,7 @@
         "x-wow-error-codes" : [ "wow.wait.timeout" ]
       },
       "wow.state.400" : {
-        "description" : "`wow.query.malformed`: The query body cannot be read as a query.\n`wow.query.invalid`: The query failed admission; the problem lists the violations, each with its code (unknown-field, ...).",
+        "description" : "`wow.query.malformed`: The query body cannot be read as a query.\n`wow.query.invalid`: The query failed admission; the problem lists the violations, each with its code (unknown-field, ...).\n`wow.request.malformed`: A request header or parameter does not parse, or names what Wow does not take.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -6460,7 +6948,7 @@
             }
           }
         },
-        "x-wow-error-codes" : [ "wow.query.malformed", "wow.query.invalid" ]
+        "x-wow-error-codes" : [ "wow.query.malformed", "wow.query.invalid", "wow.request.malformed" ]
       },
       "wow.state.401" : {
         "description" : "`wow.auth.unauthenticated`: The request carries no valid credentials.",
@@ -6507,6 +6995,11 @@
       },
       "wow.state.409" : {
         "description" : "`wow.query.min-version-not-reached`: The state read asked for a version the aggregate has not reached within the wait; the problem carries its current version: retry later.",
+        "headers" : {
+          "Retry-After" : {
+            "$ref" : "#/components/headers/Retry-After"
+          }
+        },
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -6518,6 +7011,11 @@
       },
       "wow.state.429" : {
         "description" : "`wow.query.busy`: The query was not run: its store has as many queries running as it allows; retry later.",
+        "headers" : {
+          "Retry-After" : {
+            "$ref" : "#/components/headers/Retry-After"
+          }
+        },
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -6544,7 +7042,7 @@
         "x-wow-error-codes" : [ "wow.storage.unavailable" ]
       },
       "wow.query.400" : {
-        "description" : "`wow.query.malformed`: The query body cannot be read as a query.\n`wow.query.invalid`: The query failed admission; the problem lists the violations, each with its code (unknown-field, ...).\n`wow.query.too-many-groups`: An aggregation that names no sort has more groups than its limit; add a sort for a top-N, or raise limit.",
+        "description" : "`wow.query.malformed`: The query body cannot be read as a query.\n`wow.query.invalid`: The query failed admission; the problem lists the violations, each with its code (unknown-field, ...).\n`wow.query.too-many-groups`: An aggregation that names no sort has more groups than its limit; add a sort for a top-N, or raise limit.\n`wow.request.malformed`: A request header or parameter does not parse, or names what Wow does not take.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -6552,7 +7050,7 @@
             }
           }
         },
-        "x-wow-error-codes" : [ "wow.query.malformed", "wow.query.invalid", "wow.query.too-many-groups" ]
+        "x-wow-error-codes" : [ "wow.query.malformed", "wow.query.invalid", "wow.query.too-many-groups", "wow.request.malformed" ]
       },
       "wow.query.401" : {
         "description" : "`wow.auth.unauthenticated`: The request carries no valid credentials.",
@@ -6597,6 +7095,16 @@
           }
         }
       },
+      "wow.query.413" : {
+        "description" : "Content Too Large: the body is larger than this server takes.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
+      },
       "wow.query.415" : {
         "description" : "Unsupported Media Type: the body is sent as application/json.",
         "content" : {
@@ -6609,6 +7117,11 @@
       },
       "wow.query.429" : {
         "description" : "`wow.query.busy`: The query was not run: its store has as many queries running as it allows; retry later.",
+        "headers" : {
+          "Retry-After" : {
+            "$ref" : "#/components/headers/Retry-After"
+          }
+        },
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -6656,6 +7169,17 @@
         },
         "x-wow-error-codes" : [ "wow.query.timeout" ]
       },
+      "wow.descriptor.400" : {
+        "description" : "`wow.request.malformed`: A request header or parameter does not parse, or names what Wow does not take.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.request.malformed" ]
+      },
       "wow.descriptor.401" : {
         "description" : "`wow.auth.unauthenticated`: The request carries no valid credentials.",
         "content" : {
@@ -6666,6 +7190,17 @@
           }
         },
         "x-wow-error-codes" : [ "wow.auth.unauthenticated" ]
+      },
+      "wow.descriptor.403" : {
+        "description" : "`wow.auth.forbidden`: The caller may not do what the request asks: send this command, call this route, or act or read across scopes.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.auth.forbidden" ]
       },
       "wow.descriptor.406" : {
         "description" : "Not Acceptable: the route answers in none of the types Accept names.",
@@ -6705,7 +7240,7 @@
         "x-wow-error-codes" : [ "wow.storage.unavailable" ]
       },
       "eshop-catalog.route.categoryListings.400" : {
-        "description" : "`wow.route.malformed`: A service route's parameter or body cannot be read as its type; the violation names the parameter.\n`eshop-catalog.limit-out-of-range`: A page of listings holds 1 to 50 products.",
+        "description" : "`wow.route.malformed`: A service route's parameter or body cannot be read as its type; the violation names the parameter.\n`wow.request.malformed`: A request header or parameter does not parse, or names what Wow does not take.\n`eshop-catalog.limit-out-of-range`: A page of listings holds 1 to 50 products.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -6713,7 +7248,7 @@
             }
           }
         },
-        "x-wow-error-codes" : [ "wow.route.malformed", "eshop-catalog.limit-out-of-range" ]
+        "x-wow-error-codes" : [ "wow.route.malformed", "wow.request.malformed", "eshop-catalog.limit-out-of-range" ]
       },
       "wow.route.401" : {
         "description" : "`wow.auth.unauthenticated`: The request carries no valid credentials.",
@@ -6737,8 +7272,18 @@
         },
         "x-wow-error-codes" : [ "wow.auth.forbidden" ]
       },
+      "wow.route.406" : {
+        "description" : "Not Acceptable: the route answers in none of the types Accept names.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
+      },
       "wow.route.400" : {
-        "description" : "`wow.route.malformed`: A service route's parameter or body cannot be read as its type; the violation names the parameter.",
+        "description" : "`wow.route.malformed`: A service route's parameter or body cannot be read as its type; the violation names the parameter.\n`wow.request.malformed`: A request header or parameter does not parse, or names what Wow does not take.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -6746,10 +7291,10 @@
             }
           }
         },
-        "x-wow-error-codes" : [ "wow.route.malformed" ]
+        "x-wow-error-codes" : [ "wow.route.malformed", "wow.request.malformed" ]
       },
       "eshop-catalog.route.quote.400" : {
-        "description" : "`wow.route.malformed`: A service route's parameter or body cannot be read as its type; the violation names the parameter.\n`eshop-catalog.quantity-not-positive`: A quote's line asks for one or more of its product.",
+        "description" : "`wow.route.malformed`: A service route's parameter or body cannot be read as its type; the violation names the parameter.\n`wow.request.malformed`: A request header or parameter does not parse, or names what Wow does not take.\n`eshop-catalog.quantity-not-positive`: A quote's line asks for one or more of its product.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -6757,7 +7302,7 @@
             }
           }
         },
-        "x-wow-error-codes" : [ "wow.route.malformed", "eshop-catalog.quantity-not-positive" ]
+        "x-wow-error-codes" : [ "wow.route.malformed", "wow.request.malformed", "eshop-catalog.quantity-not-positive" ]
       },
       "eshop-catalog.route.quote.409" : {
         "description" : "`eshop-catalog.not-on-sale`: A quote's product is not published on the storefront.",
@@ -6769,6 +7314,26 @@
           }
         },
         "x-wow-error-codes" : [ "eshop-catalog.not-on-sale" ]
+      },
+      "wow.route.413" : {
+        "description" : "Content Too Large: the body is larger than this server takes.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
+      },
+      "wow.route.415" : {
+        "description" : "Unsupported Media Type: the body is sent as application/json.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
       }
     },
     "parameters" : {
@@ -6802,7 +7367,7 @@
       "Wow-Request-Id" : {
         "name" : "Wow-Request-Id",
         "in" : "header",
-        "description" : "The caller's id of the request, kept as the command's request id: a retry with the same one is deduplicated.",
+        "description" : "The caller's id of the request: a command keeps it as its request id, so a retry with the same one is deduplicated; a service route's handler reads it as its call's.",
         "schema" : {
           "type" : "string"
         }
@@ -6810,9 +7375,10 @@
       "Wow-Wait" : {
         "name" : "Wow-Wait",
         "in" : "header",
-        "description" : "The wait plan: hops separated by `>`, each `accepted`, `committed`, `snapshot`, `queryable` (the store the aggregate's snapshot queries read holds the commit) or `handled(subscription)`, with an optional `(context)`, such as `handled(order/payment-saga) > committed(inventory)`. Without it the command waits for its snapshot.",
+        "description" : "The wait plan: hops separated by `>`, each `accepted`, `committed`, `snapshot`, `queryable` (the store the aggregate's snapshot queries read holds the commit) or `handled(subscription)`, with an optional `(context)`, such as `handled(order/payment-saga) > committed(inventory)`. Without it the command waits for its snapshot. A plan longer than 4096 characters, or of more than 32 hops, is 400 `wow.wait.invalid`.",
         "schema" : {
-          "type" : "string"
+          "type" : "string",
+          "maxLength" : 4096
         }
       },
       "Wow-Wait-Timeout" : {
@@ -6954,6 +7520,13 @@
         "description" : "The seconds after which the request may be retried.",
         "schema" : {
           "type" : "integer"
+        }
+      },
+      "Wow-Rebuilding" : {
+        "description" : "`true` while the aggregate type's snapshots are being rebuilt or backfilled: the answer reads them as they are, some not yet rewritten. Absent otherwise.",
+        "schema" : {
+          "type" : "string",
+          "enum" : [ "true" ]
         }
       }
     }

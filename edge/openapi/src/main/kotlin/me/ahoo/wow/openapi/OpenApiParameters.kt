@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.openapi
 
+import me.ahoo.wow.api.wire.WaitHeader
 import me.ahoo.wow.openapi.Json.obj
 import me.ahoo.wow.openapi.Json.type
 import me.ahoo.wow.openapi.WowHttpContract as Http
@@ -26,7 +27,7 @@ internal object OpenApiParameters {
     const val DATASET_CONTEXT: String = "context"
     const val DATASET: String = "dataset"
 
-    /** The headers a command route reads, in order; [Http.IF_MATCH_HEADER] only on a route with the aggregate id. */
+    /** The headers every command route reads, in order, whether its path names the aggregate's id or not. */
     val COMMAND_HEADERS: List<String> = listOf(
         Http.REQUEST_ID_HEADER,
         Http.WAIT_HEADER,
@@ -36,6 +37,7 @@ internal object OpenApiParameters {
         Http.TRACEPARENT_HEADER,
         Http.TRACESTATE_HEADER,
         Http.BAGGAGE_HEADER,
+        Http.IF_MATCH_HEADER,
     )
 
     fun ref(name: String): Map<String, Any?> = Json.ref(Json.PARAMETERS, name)
@@ -47,15 +49,18 @@ internal object OpenApiParameters {
         DATASET to path(DATASET, "The dataset's name in its context."),
         Http.REQUEST_ID_HEADER to header(
             Http.REQUEST_ID_HEADER,
-            "The caller's id of the request, kept as the command's request id: a retry with the same one is " +
-                "deduplicated.",
+            "The caller's id of the request: a command keeps it as its request id, so a retry with the same one " +
+                "is deduplicated; a service route's handler reads it as its call's.",
         ),
         Http.WAIT_HEADER to header(
             Http.WAIT_HEADER,
             "The wait plan: hops separated by `>`, each `accepted`, `committed`, `snapshot`, `queryable` (the " +
                 "store the aggregate's snapshot queries read holds the commit) or `handled(subscription)`, with an " +
                 "optional `(context)`, such as " +
-                "`handled(order/payment-saga) > committed(inventory)`. Without it the command waits for its snapshot.",
+                "`handled(order/payment-saga) > committed(inventory)`. Without it the command waits for its snapshot. " +
+                "A plan longer than ${WaitHeader.MAX_LENGTH} characters, or of more than ${WaitHeader.MAX_HOPS} " +
+                "hops, is 400 `wow.wait.invalid`.",
+            obj("type" to "string", "maxLength" to WaitHeader.MAX_LENGTH),
         ),
         Http.WAIT_TIMEOUT_HEADER to header(
             Http.WAIT_TIMEOUT_HEADER,
@@ -117,6 +122,11 @@ internal object OpenApiParameters {
             "description" to "The seconds after which the request may be retried.",
             "schema" to type("integer"),
         ),
+        Http.REBUILDING_HEADER to obj(
+            "description" to "`true` while the aggregate type's snapshots are being rebuilt or backfilled: the " +
+                "answer reads them as they are, some not yet rewritten. Absent otherwise.",
+            "schema" to obj("type" to "string", "enum" to listOf("true")),
+        ),
     )
 
     private fun minimum(value: Int): Map<String, Any?> = obj("type" to "integer", "minimum" to value)
@@ -129,8 +139,11 @@ internal object OpenApiParameters {
         "schema" to type("string"),
     )
 
-    private fun header(name: String, description: String): Map<String, Any?> =
-        obj("name" to name, "in" to "header", "description" to description, "schema" to type("string"))
+    private fun header(
+        name: String,
+        description: String,
+        schema: Map<String, Any?> = type("string"),
+    ): Map<String, Any?> = obj("name" to name, "in" to "header", "description" to description, "schema" to schema)
 
     private fun query(name: String, schema: Map<String, Any?>, description: String): Map<String, Any?> =
         obj("name" to name, "in" to "query", "description" to description, "schema" to schema)

@@ -54,8 +54,20 @@ internal class OpenApiPaths(
         return paths
     }
 
+    /**
+     * Adds [operation] at [path], with `Wow-Space` among its parameters: the public port reads it on every route,
+     * where a space the caller does not act in is 403 (the authenticator's), so every operation takes it.
+     */
     private fun add(method: String, path: String, operation: Map<String, Any?>) {
-        paths.getOrPut(path) { LinkedHashMap() }[method.lowercase()] = operation
+        @Suppress("UNCHECKED_CAST")
+        val parameters = operation["parameters"] as List<Map<String, Any?>>?
+        val space = OpenApiParameters.ref(Http.SPACE_HEADER)
+        val read = if (parameters.orEmpty().contains(space)) {
+            operation
+        } else {
+            operation + ("parameters" to parameters.orEmpty() + space)
+        }
+        paths.getOrPut(path) { LinkedHashMap() }[method.lowercase()] = read
     }
 
     private fun frameworkRoutes() {
@@ -74,16 +86,12 @@ internal class OpenApiPaths(
         }
     }
 
-    /** A framework endpoint answering [content], 406 for an Accept it cannot. */
+    /** A framework endpoint answering [content]: what the public port refuses of any request, and 406. */
     private fun framework(operationId: String, summary: String, content: Map<String, Any?>): Map<String, Any?> = obj(
         "tags" to listOf(ManifestOpenApi.FRAMEWORK_TAG),
         "summary" to summary,
         "operationId" to operationId,
-        "responses" to ok(content) + errors.of(
-            "framework",
-            ErrorResponses.FRAMEWORK,
-            http = mapOf(ErrorResponses.NOT_ACCEPTABLE),
-        ),
+        "responses" to ok(content) + errors.of("framework", ErrorResponses.FRAMEWORK),
     )
 
     private fun datasetRoutes() {
@@ -96,7 +104,7 @@ internal class OpenApiPaths(
                 "operationId" to "wow.dataset.list",
                 "parameters" to listOf(OpenApiParameters.ref(Http.SCOPE_HEADER)),
                 "responses" to ok(json(array(schemaRef(WowSchemas.DATASET_ENTRY)))) +
-                    errors.of("datasets", ErrorResponses.DATASET_LIST, http = mapOf(ErrorResponses.NOT_ACCEPTABLE)),
+                    errors.of("datasets", ErrorResponses.DATASET_LIST),
             ),
         )
         val path = "${Http.DATASETS_PATH}/{${OpenApiParameters.DATASET_CONTEXT}}/{${OpenApiParameters.DATASET}}/" +
@@ -209,11 +217,18 @@ internal class OpenApiPaths(
                     "description" to route.description,
                     "operationId" to "${context.name}.${route.name}",
                     "deprecated" to route.deprecated.takeIf { it },
-                    "parameters" to parameters.ifEmpty { null },
+                    // The scope it acts in and the request id of its call, which its handler reads.
+                    "parameters" to parameters + listOf(Http.SCOPE_HEADER, Http.REQUEST_ID_HEADER)
+                        .map(OpenApiParameters::ref),
                     "requestBody" to route.request?.let {
                         obj("required" to true, "content" to json(schemas.inlineInput(it)))
                     },
-                    "responses" to answer + errors.ofRoute(context.name, route.name, route.errors),
+                    "responses" to answer + errors.ofRoute(
+                        context.name,
+                        route.name,
+                        route.errors,
+                        body = route.request != null,
+                    ),
                     "x-wow-route" to obj("name" to route.name, "errors" to route.errors.ifEmpty { null }),
                 ),
             )
@@ -267,7 +282,7 @@ internal class OpenApiPaths(
                     else -> obj("type" to "object", "properties" to emptyMap<String, Any?>())
                 },
             ),
-            "responses" to commandResponses(context, byId, domain = false),
+            "responses" to commandResponses(context, domain = false),
         )
     }
 
@@ -287,7 +302,7 @@ internal class OpenApiPaths(
             "operationId" to if (byId) type else "$type.$WITHOUT_ID",
             "parameters" to commandParameters(byId),
             "requestBody" to body(schemas.input(command.schema)),
-            "responses" to commandResponses(context, byId, domain = true),
+            "responses" to commandResponses(context, domain = true),
             "x-wow-command" to obj(
                 "type" to type,
                 "aliases" to command.aliases.takeIf { it.isNotEmpty() },
@@ -332,10 +347,13 @@ internal class OpenApiPaths(
         command.produces?.takeIf { it.isNotEmpty() }?.let { add("Produces ${it.joinToString { name -> "`$name`" }}.") }
     }.joinToString(" ")
 
+    /**
+     * The id of a route [byId], and the headers every command route reads, `If-Match` among them: a command by no id
+     * reads it too, the caller's own aggregate's version or `*` on a creation.
+     */
     private fun commandParameters(byId: Boolean): List<Map<String, Any?>> = buildList {
         if (byId) add(OpenApiParameters.ref(OpenApiParameters.ID))
         OpenApiParameters.COMMAND_HEADERS.forEach { add(OpenApiParameters.ref(it)) }
-        if (byId) add(OpenApiParameters.ref(Http.IF_MATCH_HEADER))
     }
 
     private fun body(schema: Map<String, Any?>): Map<String, Any?> = obj(
@@ -344,14 +362,13 @@ internal class OpenApiPaths(
         "content" to json(schema),
     )
 
-    private fun commandResponses(context: String, byId: Boolean, domain: Boolean): Map<String, Any?> {
+    private fun commandResponses(context: String, domain: Boolean): Map<String, Any?> {
         val result = schemaRef(WowSchemas.COMMAND_RESULT)
         return obj(
             "200" to errors.register(
                 "wow.command.200",
                 obj(
-                    "description" to "The result the wait ended with; with `Accept: text/event-stream`, one event " +
-                        "per result until the wait ends, its name the hop's stage and its data the result.",
+                    "description" to COMMAND_STREAM,
                     "content" to json(result) + events(Http.STAGES, result),
                 ),
             ),
@@ -359,14 +376,7 @@ internal class OpenApiPaths(
                 "wow.command.202",
                 obj("description" to "The result of a wait that ends at `accepted`.", "content" to json(result)),
             ),
-        ) + errors.of(
-            "command",
-            ErrorResponses.COMMAND,
-            context,
-            domain = domain,
-            ifMatch = byId,
-            http = mapOf(ErrorResponses.NOT_ACCEPTABLE, ErrorResponses.UNSUPPORTED_MEDIA_TYPE),
-        )
+        ) + errors.of("command", ErrorResponses.COMMAND, context, domain = domain, ifMatch = true, body = true)
     }
 
     /**
@@ -402,8 +412,8 @@ internal class OpenApiPaths(
                         "headers" to obj(Http.ETAG_HEADER to Json.ref(Json.HEADERS, Http.ETAG_HEADER)),
                         "content" to json(view),
                     ),
-                    "304" to obj("description" to "Not Modified: the state is still the one If-None-Match names."),
-                ) + errors.of("state", ErrorResponses.STATE_READ, http = mapOf(ErrorResponses.NOT_ACCEPTABLE)),
+                    "304" to notModified("Not Modified: the state is still the one If-None-Match names."),
+                ) + errors.of("state", ErrorResponses.STATE_READ),
             ),
         )
         val traceParameters =
@@ -426,7 +436,7 @@ internal class OpenApiPaths(
                 "operationId" to "$tag.state.trace$suffix",
                 "parameters" to traceParameters.map(OpenApiParameters::ref),
                 "responses" to ok(json(trace)) +
-                    errors.of("state", ErrorResponses.STATE, http = mapOf(ErrorResponses.NOT_ACCEPTABLE)),
+                    errors.of("state", ErrorResponses.STATE),
             ),
         )
     }
@@ -440,8 +450,10 @@ internal class OpenApiPaths(
         } ?: return
         val operationId = "$tag.${query.model}"
         query.routes.forEach { route ->
+            // The snapshots' answers say whether they are being rebuilt.
+            val rebuilt = query.model == QueryRoutes.SNAPSHOT
             val operation = if (route.method == QueryRoutes.GET) {
-                describe("$operationId.describe", tag, emptyList(), dataset = false)
+                describe("$operationId.describe", tag, emptyList(), dataset = false, rebuilt = rebuilt)
             } else {
                 query(
                     "$operationId.query",
@@ -450,6 +462,7 @@ internal class OpenApiPaths(
                     record,
                     emptyList(),
                     dataset = false,
+                    rebuilt = rebuilt,
                 )
             }
             add(route.method, route.path, operation)
@@ -463,6 +476,7 @@ internal class OpenApiPaths(
         record: Map<String, Any?>,
         pathParameters: List<String>,
         dataset: Boolean,
+        rebuilt: Boolean = false,
     ): Map<String, Any?> {
         val kinds = listOf(
             array(record),
@@ -491,6 +505,7 @@ internal class OpenApiPaths(
             "responses" to obj(
                 "200" to obj(
                     "description" to "The query's answer, by its kind.",
+                    "headers" to rebuilding(rebuilt),
                     "content" to json(obj("anyOf" to kinds)) + events(
                         listOf(Http.ROW_EVENT, Http.END_EVENT, Http.ERROR_EVENT),
                         record,
@@ -503,34 +518,51 @@ internal class OpenApiPaths(
             ) + errors.of(
                 if (dataset) "dataset-query" else "query",
                 if (dataset) ErrorResponses.DATASET_QUERY else ErrorResponses.QUERY,
-                http = mapOf(ErrorResponses.NOT_ACCEPTABLE, ErrorResponses.UNSUPPORTED_MEDIA_TYPE),
+                body = true,
             ),
         )
     }
 
+    /**
+     * The descriptor of a model or a [dataset], whose caller a dataset's reads in the scope `Wow-Scope` names; with
+     * [rebuilt], its answers say whether the snapshots are being rebuilt.
+     */
     private fun describe(
         operationId: String,
         tag: String?,
         pathParameters: List<String>,
         dataset: Boolean,
+        rebuilt: Boolean = false,
     ): Map<String, Any?> = obj(
         "tags" to listOf(tag ?: ManifestOpenApi.FRAMEWORK_TAG),
         "summary" to "The model's capability descriptor",
         "operationId" to operationId,
-        "parameters" to (pathParameters + Http.IF_NONE_MATCH_HEADER).map(OpenApiParameters::ref),
+        "parameters" to (pathParameters + listOfNotNull(Http.SCOPE_HEADER.takeIf { dataset }))
+            .plus(Http.IF_NONE_MATCH_HEADER).map(OpenApiParameters::ref),
         "responses" to obj(
             "200" to obj(
                 "description" to "The descriptor, its version as the ETag.",
-                "headers" to obj(Http.ETAG_HEADER to Json.ref(Json.HEADERS, Http.ETAG_HEADER)),
+                "headers" to tagged(rebuilt),
                 "content" to json(schemaRef(WowSchemas.QUERY_DESCRIPTOR)),
             ),
-            "304" to obj("description" to "Not Modified: the descriptor is at the version If-None-Match names."),
+            "304" to notModified("Not Modified: the descriptor is at the version If-None-Match names.", rebuilt),
         ) + errors.of(
             if (dataset) "dataset-descriptor" else "descriptor",
             if (dataset) ErrorResponses.DATASET_DESCRIPTOR else ErrorResponses.DESCRIPTOR,
-            http = mapOf(ErrorResponses.NOT_ACCEPTABLE),
         ),
     )
+
+    /** A 304 of [description], with the `ETag` it was answered for (and `Wow-Rebuilding` when [rebuilt]). */
+    private fun notModified(description: String, rebuilt: Boolean = false): Map<String, Any?> =
+        obj("description" to description, "headers" to tagged(rebuilt))
+
+    /** The headers of a tagged answer: its `ETag`, and `Wow-Rebuilding` of a snapshot model's ([rebuilt]). */
+    private fun tagged(rebuilt: Boolean): Map<String, Any?> =
+        obj(Http.ETAG_HEADER to Json.ref(Json.HEADERS, Http.ETAG_HEADER)) + rebuilding(rebuilt).orEmpty()
+
+    /** The `Wow-Rebuilding` header of a snapshot model's answer ([rebuilt]), or none. */
+    private fun rebuilding(rebuilt: Boolean): Map<String, Any?>? =
+        obj(Http.REBUILDING_HEADER to Json.ref(Json.HEADERS, Http.REBUILDING_HEADER)).takeIf { rebuilt }
 
     /** The framework schema [name] with the schemas of some of its [properties] made precise. */
     private fun refined(name: String, vararg properties: Pair<String, Any?>): Map<String, Any?> =
@@ -574,6 +606,15 @@ internal class OpenApiPaths(
 
         /** The suffix of the operation id of a route that names no aggregate id, beside one that does. */
         const val WITHOUT_ID = "withoutId"
+
+        /** What a command's answer is, as JSON and as an event stream. */
+        const val COMMAND_STREAM = "The result the wait ended with. With `Accept: text/event-stream`, a refusal " +
+            "before the command is accepted is the problem it is, with its status; once accepted, the answer is " +
+            "200 and no other status: one event per result as each hop the plan names is reached, its name the " +
+            "hop's stage, its `id` the result's index and its data the result, until the last, which ends the " +
+            "stream (the plan's last hop, a rejection at its hop, or a FAILED result: `wow.wait.timeout` at the " +
+            "last hop reached, `wow.storage.unavailable` or `wow.command.unknown` when the execution failed). A " +
+            "comment, `: keep-alive`, is sent at once and every 15 seconds while the stream runs: it is no event."
 
         /** What a command route by no id of an aggregate whose id is its owner's means. */
         const val OWN = "The request names no aggregate id: it acts on the caller's own aggregate, whose id is the " +

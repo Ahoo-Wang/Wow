@@ -17,6 +17,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.manifest.AccessAttributeManifest
 import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.openapi.OpenApiFixtures.MANIFEST
+import me.ahoo.wow.openapi.OpenApiFixtures.components
 import me.ahoo.wow.openapi.OpenApiFixtures.kinds
 import me.ahoo.wow.openapi.OpenApiFixtures.ref
 import me.ahoo.wow.openapi.OpenApiFixtures.responses
@@ -36,6 +37,24 @@ class WowSchemasTest {
         OpenApiChecks.validate(document, WowSchemas.EVENT_STREAM, STREAM.replace(STREAM_ACCESS, "null")).assert()
             .isEmpty()
         OpenApiChecks.validate(document, "wow.lifecycle.TransferOwner", "{}").assert().isNotEmpty()
+    }
+
+    @Test
+    fun `the problem schema should describe every member the edge writes, a rejection's version among them`() {
+        @Suppress("UNCHECKED_CAST")
+        val problem = document.components("schemas")[WowSchemas.PROBLEM] as Map<String, Any?>
+        @Suppress("UNCHECKED_CAST")
+        (problem["properties"] as Map<String, Any?>).keys.assert().containsExactly(
+            "type",
+            "title",
+            "status",
+            "detail",
+            "code",
+            "retry",
+            "violations",
+            "result",
+            "version",
+        )
     }
 
     @Test

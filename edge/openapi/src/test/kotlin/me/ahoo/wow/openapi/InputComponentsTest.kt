@@ -267,7 +267,7 @@ class InputComponentsTest {
 
         @Suppress("UNCHECKED_CAST")
         val parameters = paths.getValue("/probe/find").getValue("get")["parameters"] as List<Map<String, Any?>>
-        parameters.single()["schema"].assert().isEqualTo(ref("$PROBE.FilterInput"))
+        parameters.first()["schema"].assert().isEqualTo(ref("$PROBE.FilterInput"))
         @Suppress("UNCHECKED_CAST")
         val archive = paths.getValue("/probe/thing/{id}/wow.lifecycle.archive").getValue("post")["requestBody"]
             as Map<String, Map<String, Map<String, Any?>>>

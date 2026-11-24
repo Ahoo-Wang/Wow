@@ -179,6 +179,7 @@ class OpenApiRouteTest {
         WowHttpContract.SPACE_HEADER.assert().isEqualTo(WowHeaders.SPACE)
         WowHttpContract.IF_MATCH_HEADER.assert().isEqualTo(WowHeaders.IF_MATCH)
         WowHttpContract.ETAG_HEADER.assert().isEqualTo(WowHeaders.ETAG)
+        WowHttpContract.REBUILDING_HEADER.assert().isEqualTo(WowHeaders.REBUILDING)
         WowHttpContract.TRACEPARENT_HEADER.assert().isEqualTo(CommandHandler.TRACEPARENT)
         WowHttpContract.MAX_TRACE_LIMIT.assert().isEqualTo(StateHandler.MAX_TRACE_LIMIT)
         WowHttpContract.DEFAULT_TRACE_LIMIT.assert().isEqualTo(StateHandler.DEFAULT_TRACE_LIMIT)
