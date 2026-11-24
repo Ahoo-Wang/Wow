@@ -4,13 +4,14 @@
  * you may obtain a copy at http://www.apache.org/licenses/LICENSE-2.0
  */
 import { armsOfRuns, walkRuns, walkShareRuns } from './bench-measure.mjs';
+import { idleSuites } from './bench-idle-suites.mjs';
 import { rawSuites } from './bench-raw.mjs';
 import { sinkSuites } from './bench-sink.mjs';
 
 /**
  * The suites of the `measure` kind, by name, on bench.mjs's arms: the access scale checks (the dataset's queries, the
- * walk's share and cost), the sink group (sinkSuites) and the raw-driver ceilings (rawSuites). bench.mjs spreads them
- * into its SUITES where they stood.
+ * walk's share and cost), the sink group (sinkSuites), the raw-driver ceilings (rawSuites) and what idle nodes cost
+ * their store (idleSuites). bench.mjs spreads them into its SUITES where they stood.
  */
 export function measureSuites({
   HEAD_PG,
@@ -77,5 +78,6 @@ export function measureSuites({
     },
     ...sinkSuites(HEAD_PG, BASE_PG),
     ...rawSuites(HEAD_PG, HEAD_MONGO),
+    ...idleSuites(HEAD_PG, BASE_PG, HEAD_MONGO, BASE_MONGO),
   };
 }

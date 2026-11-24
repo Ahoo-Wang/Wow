@@ -25,6 +25,12 @@ import {
   sinkAnomalies,
   SINK_PROGRAMS,
 } from './bench-sink.mjs';
+import {
+  IDLE_PROGRAMS,
+  idleAnomalies,
+  renderIdle,
+  runIdle,
+} from './bench-idle-suites.mjs';
 import { RAW_PROGRAMS, rawAnomalies, renderRaw, runRaw } from './bench-raw.mjs';
 
 // The `measure` kind of bench.mjs's suites, run through bench.sh's `measure` command: its programs' settings, runs,
@@ -383,6 +389,7 @@ export const programOf = definition =>
 export function measureAnomalies(suite) {
   if (SINK_PROGRAMS.includes(suite.program)) return sinkAnomalies(suite);
   if (RAW_PROGRAMS.includes(suite.program)) return rawAnomalies(suite);
+  if (IDLE_PROGRAMS.includes(suite.program)) return idleAnomalies(suite);
   const rows = [];
   if (suite.kind === 'measure' && suite.program === 'walk') {
     // A run that failed, and deposits that failed: that run's numbers do not hold.
@@ -434,6 +441,8 @@ export function renderMeasure(suite, definition) {
   if (SINK_PROGRAMS.includes(suite.program))
     return renderSink(suite, definition);
   if (RAW_PROGRAMS.includes(suite.program)) return renderRaw(suite, definition);
+  if (IDLE_PROGRAMS.includes(suite.program))
+    return renderIdle(suite, definition);
   if (suite.kind === 'measure' && suite.program === 'walk') {
     const lines = [
       `## ${labelOf(suite)}`,
@@ -483,6 +492,15 @@ export function runMeasure(
 ) {
   if (RAW_PROGRAMS.includes(definition.measure)) {
     runRaw(definition, suite, { benchPath, out, cpuset, arms, installs, save });
+  } else if (IDLE_PROGRAMS.includes(definition.measure)) {
+    runIdle(definition, suite, {
+      benchPath,
+      out,
+      cpuset,
+      arms,
+      installs,
+      save,
+    });
   } else if (SINK_PROGRAMS.includes(definition.measure)) {
     runSink(definition, suite, {
       benchPath,
