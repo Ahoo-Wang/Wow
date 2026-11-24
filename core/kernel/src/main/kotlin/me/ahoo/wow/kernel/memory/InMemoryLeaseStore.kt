@@ -16,6 +16,7 @@ package me.ahoo.wow.kernel.memory
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.spi.subscription.ExpiredMembers
 import me.ahoo.wow.spi.subscription.Lease
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.subscription.Member
@@ -24,13 +25,15 @@ import kotlin.time.Duration
 
 /**
  * A [LeaseStore] in memory, for tests and single-process samples; its time comes from [clock]. One lock serializes
- * every operation. A released lease is kept with expiry 0, so the next acquisition continues its epoch.
+ * every operation. A released lease is kept with expiry 0, so the next acquisition continues its epoch. A heartbeat
+ * deletes the member records long expired ([LeaseStore.heartbeat]).
  */
 @InternalWowApi
 class InMemoryLeaseStore(private val clock: Clock = Clock.systemUTC()) : LeaseStore {
     private val lock = Mutex()
     private val leases = HashMap<Pair<String, Int>, Lease>()
     private val members = HashMap<Pair<String, String>, Member>()
+    private val expired = ExpiredMembers(clock)
 
     override suspend fun acquire(group: String, partition: Int, owner: String, ttl: Duration): Lease? = lock.withLock {
         val now = clock.millis()
@@ -74,8 +77,12 @@ class InMemoryLeaseStore(private val clock: Clock = Clock.systemUTC()) : LeaseSt
         ttl: Duration,
         groups: Set<String>,
     ): Member = lock.withLock {
-        Member(service, node, address, clock.millis() + ttl.inWholeMilliseconds, groups.toSortedSet())
-            .also { members[service to node] = it }
+        val member = Member(service, node, address, clock.millis() + ttl.inWholeMilliseconds, groups.toSortedSet())
+        members[service to node] = member
+        expired.due(service, ttl)?.let { before ->
+            members.entries.removeIf { (key, record) -> key.first == service && record.expiresAt < before }
+        }
+        member
     }
 
     override suspend fun members(service: String): List<Member> = lock.withLock {
