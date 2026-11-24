@@ -62,7 +62,8 @@ internal abstract class GenerateManifests @Inject constructor(private val exec: 
      * leave the same in either order; their contents tell them apart, the same on every machine.
      */
     @get:Input
-    val valuesOrder: Provider<List<String>> get() = values.elements.map { files -> files.map { sha256(it.asFile) } }
+    val valuesOrder: Provider<List<String>>
+        get() = values.elements.map { files -> files.map { sha256(existing(it.asFile)) } }
 
     /** The namespace the service is deployed to ([WowKubernetesExtension.namespace]); required when the task runs. */
     @get:Input
@@ -189,6 +190,12 @@ internal abstract class GenerateManifests @Inject constructor(private val exec: 
             val name = checkNotNull(NAME.find(document)) { "Helm rendered an object without a name:\n$document" }
             return Rendered("${kind.groupValues[1].lowercase()}-${name.groupValues[1]}.yaml", document + "\n")
         }
+
+        /** [file], a values file the build names; a failure naming it and the line to correct when it does not exist. */
+        private fun existing(file: File): File = file.takeIf { it.isFile } ?: throw GradleException(
+            "wow { kubernetes { values.from(…) } } names \"${file.path}\", which does not exist: correct the path in " +
+                "values.from(…), or remove it.",
+        )
 
         /** The template a rendered document came from: its `# Source:` line, as Helm writes it. */
         private fun sourceOf(document: String): String =
