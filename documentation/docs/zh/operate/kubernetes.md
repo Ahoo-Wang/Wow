@@ -1,6 +1,6 @@
 ---
 title: Kubernetes
-description: 用 Wow 的 Helm chart 在 Kubernetes 上运行 Wow 服务，它的 values 由构建生成；chart 渲染的对象、节点的身份和地址、其他命名空间的对端、探针、优雅关闭、伸缩、监控、中断预算与升级。
+description: 用 Wow 的 Helm chart 在 Kubernetes 上运行 Wow 服务，它的 values 由构建生成，或者用构建由它渲染出的 Kustomize base；chart 渲染的对象、节点的身份和地址、其他命名空间的对端、探针、优雅关闭、伸缩、监控、中断预算与升级。
 outline: deep
 ---
 
@@ -540,7 +540,124 @@ kubectl wait --for=delete pod -l app.kubernetes.io/instance=eshop-ordering --tim
 
 ## 配合 Kustomize {#with-kustomize}
 
-渲染 chart，再把你的补丁叠加在输出上，不必另维护一套清单：
+服务有两种部署方式，都出自同一个 chart、同一份 values：
+
+- **用 Helm 安装 chart**，即上文所述：从 OCI 仓库 `helm install`、`helm upgrade`。适合运行 Helm 的平台：它的 release、release 的历史与回滚、总 chart。
+- **构建渲染的 base 加一个 overlay**：服务的构建用它生成的 values 和部署自己的 values，渲染插件自带的、与插件同版本的 chart，得到一个纯 YAML 的 Kustomize base；overlay 修改 chart 不派生的部分，用 `kubectl apply -k` 应用。适合应用纯清单的部署，无论是手工应用，还是由读取 kustomization 的 GitOps 工具应用，运维方都不需要 Helm。
+
+两种方式下对象都是 chart 的对象，所以凡是参与派生的值仍由 chart 的 schema 检查，安装 chart 的部署什么也不用改。GA 端到端测试每晚用第二种方式部署 eShop 的 basket（`.github/ga-e2e/cluster.sh`），与其他服务的 release 并列。本节以 basket 为例。
+
+在服务器的构建中写明部署的 values 文件和命名空间。basket 的：
+
+<!-- sample: examples/eshop/basket/basket-server/build.gradle.kts#kubernetes -->
+
+```kotlin
+wow {
+    kubernetes {
+        values.from(rootProject.file("deploy/eshop-basket/values.yaml"))
+        values.from(
+            providers.gradleProperty("eshop.kubernetes.values").map { paths ->
+                paths.split(',').map(String::trim).filter(String::isNotEmpty).map(rootProject::file)
+            }.orElse(emptyList()),
+        )
+        namespace = providers.gradleProperty("eshop.kubernetes.namespace").orElse("eshop")
+    }
+}
+```
+
+`generateWowManifests` 负责渲染，一旦 `values` 写了文件，它就属于 `assemble`。这些 values 文件排在构建自己生成的（`generateWowHelmValues`）之后，后一个覆盖前一个，与 `-f` 参数一样。它写出 `build/wow/k8s/`：
+
+```text
+build/wow/k8s/
+├── kustomization.yaml                        这些对象，以及渲染时所用的命名空间
+├── configmap-eshop-basket-service-config.yaml
+├── deployment-eshop-basket-service.yaml
+├── networkpolicy-eshop-basket-service-internal.yaml
+├── networkpolicy-eshop-basket-service-public.yaml
+├── poddisruptionbudget-eshop-basket-service.yaml
+├── service-eshop-basket-service-cluster.yaml
+├── service-eshop-basket-service.yaml
+└── serviceaccount-eshop-basket-service.yaml
+```
+
+这个任务可以缓存：相同的 values、命名空间和 Wow 版本，在每台机器上渲染出相同的 base。构建无法渲染时会这样说：
+
+| 错误 | 构建的输出 |
+| --- | --- |
+| 没有写 values | `generateWowManifests renders the wow-service chart with the deployment's values, which the build names: wow { kubernetes { values.from("deploy/<service>/values.yaml") } }.` |
+| 没有命名空间 | `generateWowManifests renders the service for the namespace it is deployed to, which the chart derives from (…): set wow { kubernetes { namespace = "<namespace>" } }.` |
+| values 文件不存在 | `wow { kubernetes { values.from(…) } } names "…/deploy/eshop-basket/valeus.yaml", which does not exist: correct the path in values.from(…), or remove it.` |
+| schema 拒绝的值 | `Helm refused to render the wow-service chart:`，后面是 chart 自己的消息，例如 `additional properties 'replicaz' not allowed` |
+
+生产环境的 overlay 修改镜像、副本数和一项限额：
+
+<!-- sample: deploy/eshop-basket/prod/kustomization.yaml#overlay -->
+
+```yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../../examples/eshop/basket/basket-server/build/wow/k8s
+images:
+  - name: wow-eshop-basket-server
+    newName: registry.example.com/eshop-basket
+    newTag: 1.4.2
+replicas:
+  - name: eshop-basket-service
+    count: 3
+patches:
+  - target:
+      kind: Deployment
+      name: eshop-basket-service
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: 2Gi
+```
+
+```bash
+./gradlew :eshop-basket-server:assemble
+kubectl apply -k deploy/eshop-basket/prod
+```
+
+### 写进 values 还是补丁 {#values-or-patches}
+
+参与派生的值写进 values 文件：chart 把它一次变成多个对象，并由 schema 检查。它们是：
+
+- 命名空间，`kubernetes { namespace }`；
+- 对端的命名空间，`service.peers[].namespace`（[其他命名空间的对端](#peers-in-other-namespaces)）；
+- `partOf`，它给 Pod 打标签，并让内部端口的网络策略放行平台；
+- 网关规则 `networkPolicy.public.from` 与 `onlyGateway`，CoSec 的声明随之而定；
+- 监控 `metrics` 及其策略规则；
+- 自动伸缩 `hpa` 或 `keda`；
+- 停机时限 `shutdown.*`，宽限期是它们之和（[优雅关闭](#graceful-shutdown)）；
+- 端口，Service、网络策略、探针和节点自己的设置共用它们。
+
+其余的归 overlay：镜像、副本数、资源、额外的环境变量、标签与注解。除了 API server，没有任何东西检查补丁：只在一个对象里改了端口而其他对象没改，也会照写，探针在运行时失败。
+
+**overlay 不能把 base 挪到另一个命名空间。** chart 由命名空间派生（对端是否在另一个命名空间、自动伸缩的查询），被 overlay 的 `namespace:` 挪走的 base 会出错而不报任何错误。命名空间或上面列表中其他值不同的环境，要单独渲染一次：basket 的构建从属性读取这两者，GA 端到端测试就这样为它的集群渲染：
+
+```bash
+./gradlew :eshop-basket-server:generateWowManifests -Peshop.kubernetes.namespace=default \
+  -Peshop.kubernetes.values=.github/ga-e2e/services/values.yaml
+```
+
+### 由构建获取的 Helm {#helm-fetched-by-the-build}
+
+运维方只需要 `kubectl`；构建用插件固定的 Helm v4.3.1 渲染。它在 `generateWowManifests` 运行时获取，构建配置时从不获取，来源是 `https://get.helm.sh`，存入 Gradle 用户目录（`wow/helm/v4.3.1/<os>-<arch>/`），每台机器一次。不论由谁提供，压缩包的 SHA-256 与插件持有的不符即被拒绝。插件为 Linux、macOS 和 Windows 的 amd64 与 arm64 获取它。两个 Gradle 属性（写在用户目录的 `gradle.properties` 中，或用 `-P`）改变它的来源：
+
+| 属性 | 含义 |
+| --- | --- |
+| `wow.helm.mirror` | `https://get.helm.sh` 的镜像，布局相同；压缩包仍对照插件的摘要检查 |
+| `wow.helm.executable` | 本机上的 Helm，只有恰好是 v4.3.1 才会使用；其他平台的构建设置它 |
+
+`PATH` 上的 Helm 从不使用，所以 base 不依赖于机器。离线时，构建使用之前获取的二进制，没有则失败并指出这两个属性。
+
+每次升级 Wow 都重新渲染：chart 是插件的，版本即插件的版本。
+
+### 先用 Helm 渲染，再叠加 overlay {#render-with-helm-then-overlay}
+
+保留 Helm 用于渲染、但不用它应用的部署，用构建的 values 和自己的 values 渲染 OCI 仓库中的 chart，再把 overlay 叠加在输出上：
 
 ```bash
 helm template eshop-ordering oci://ghcr.io/ahoo-wang/wow-service --version <wow-version> --namespace shop \
@@ -548,7 +665,7 @@ helm template eshop-ordering oci://ghcr.io/ahoo-wang/wow-service --version <wow-
   -f deploy/eshop-ordering/values.yaml > base/eshop-ordering.yaml
 ```
 
-把 `eshop-ordering.yaml` 列入 `base/kustomization.yaml` 的 `resources`，每次升级、每次构建出新的 values 时重新渲染。
+把 `eshop-ordering.yaml` 列入 `base/kustomization.yaml` 的 `resources`，把它的 `namespace:` 设为渲染时所用的命名空间，每次升级、每次构建出新的 values 时重新渲染。哪些写进 values、哪些写进 overlay 与上文相同，命名空间也一样：overlay 不挪动它。
 
 ## 在总 chart 中 {#in-an-umbrella-chart}
 

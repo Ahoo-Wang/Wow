@@ -21,6 +21,7 @@ application {
 //
 //   ./gradlew :eshop-basket-server:generateWowManifests -Peshop.kubernetes.namespace=default \
 //     -Peshop.kubernetes.values=.github/ga-e2e/services/values.yaml
+// region kubernetes
 wow {
     kubernetes {
         values.from(rootProject.file("deploy/eshop-basket/values.yaml"))
@@ -32,6 +33,7 @@ wow {
         namespace = providers.gradleProperty("eshop.kubernetes.namespace").orElse("eshop")
     }
 }
+// endregion
 
 tasks.test {
     val manifests = tasks.named("generateWowManifests")
