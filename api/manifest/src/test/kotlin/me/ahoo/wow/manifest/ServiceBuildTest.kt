@@ -19,7 +19,10 @@ import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir
 import tools.jackson.module.kotlin.jacksonObjectMapper
 import java.io.File
+import java.net.URL
 import java.net.URLClassLoader
+import java.util.Collections
+import java.util.Enumeration
 
 class ServiceBuildTest {
     @TempDir
@@ -82,5 +85,31 @@ class ServiceBuildTest {
         failure.problems.size.assert().isEqualTo(5)
         failure.problems.first().assert().startsWith("service build ").contains("broken/", "is not JSON")
         failure.problems.drop(1).forEach { it.assert().contains("names no service and its contexts") }
+    }
+
+    @Test
+    fun `a build whose JSON is no object, or whose name is no text, should name no service`() {
+        val loader = loader(
+            "array" to "[]",
+            "text" to "\"bank-service\"",
+            "null" to "null",
+            "number" to """{"name":1,"contexts":["bank"]}""",
+        )
+        val failure = assertThrows<ContractException> {
+            ServiceBuild.load(loader) { bytes -> mapper.readValue(bytes, Any::class.java) }
+        }
+        failure.problems.size.assert().isEqualTo(4)
+        failure.problems.forEach { it.assert().contains("names no service and its contexts") }
+    }
+
+    @Test
+    fun `a build that cannot be read should be refused, saying so`() {
+        val missing = File(directory, "gone/${ServiceBuild.RESOURCE}").toURI().toURL()
+        val loader = object : ClassLoader(null) {
+            override fun getResources(name: String): Enumeration<URL> =
+                Collections.enumeration(if (name == ServiceBuild.RESOURCE) listOf(missing) else emptyList())
+        }
+        assertThrows<ContractException> { read(loader) }.problems.single().assert()
+            .startsWith("service build $missing cannot be read: java.io.FileNotFoundException")
     }
 }

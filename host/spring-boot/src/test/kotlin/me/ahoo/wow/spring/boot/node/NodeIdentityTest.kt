@@ -69,4 +69,27 @@ class NodeIdentityTest {
         failure.key.assert().isEqualTo("wow.node.address")
         failure.fix.assert().contains("[::1]:9191")
     }
+
+    private fun named(service: String?, application: String?): NodeIdentity = NodeIdentity.of(
+        WowProperties().apply {
+            this.service = service
+            internal.host = "127.0.0.1"
+        },
+        MockEnvironment().apply { application?.let { setProperty("spring.application.name", it) } },
+    )
+
+    @Test
+    fun `the service's key should be the property that named it, a blank one naming nothing`() {
+        named(null, "shop").let { it.service to it.serviceKey }.assert()
+            .isEqualTo("shop" to "spring.application.name")
+        named(" ", "shop").serviceKey.assert().isEqualTo("spring.application.name")
+        named("ordering", "shop").let { it.service to it.serviceKey }.assert()
+            .isEqualTo("ordering" to "wow.service")
+        assertThrows<WowConfigurationException> { named(null, " ") }.reason.assert()
+            .isEqualTo("The service has no name.")
+        assertThrows<WowConfigurationException> { named(null, null) }.key.assert().isEqualTo("wow.service")
+        // A name no node can state is refused under the key that gave it.
+        assertThrows<WowConfigurationException> { named(null, "a shop") }.key.assert()
+            .isEqualTo("spring.application.name")
+    }
 }
