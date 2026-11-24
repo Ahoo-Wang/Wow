@@ -1321,7 +1321,8 @@
     "name" : "wow.shared-states.max-bytes",
     "type" : "org.springframework.util.unit.DataSize",
     "description" : "The most serialized state a context's views hold, counting two bytes a character (`64MB`).",
-    "sourceType" : "me.ahoo.wow.spring.boot.node.SharedStatesProperties"
+    "sourceType" : "me.ahoo.wow.spring.boot.node.SharedStatesProperties",
+    "defaultValue" : "64MB"
   }, {
     "name" : "wow.snapshot.load-timeout",
     "type" : "java.time.Duration",

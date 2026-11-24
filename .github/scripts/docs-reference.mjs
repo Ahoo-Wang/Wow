@@ -276,7 +276,10 @@ const page = (locale, title, description, sources, body) =>
  */
 export const javaType = (type = '') =>
   type
-    .replace(/\b(?:java\.(?:lang|time|util)|kotlin)\./g, '')
+    .replace(
+      /\b(?:java\.(?:lang|time|util)|kotlin|org\.springframework\.util\.unit)\./g,
+      '',
+    )
     .replace(/\bme\.ahoo\.wow\.[\w.]+\.(\w+(?:\$\w+)*)/g, (qualified, name) => {
       const last = name.split('$').at(-1);
       return qualified.startsWith('me.ahoo.wow.spring.boot.') && last === name
