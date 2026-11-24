@@ -59,11 +59,19 @@ class PeerProblem(
     val extensions: Map<String, Any?> = emptyMap(),
 ) {
     /**
-     * Whether the client sends a command answered so again itself, with its request id: never a
-     * 504. A wait that timed out (`wow.wait.timeout`) keeps its [retry], which tells the caller that sending the command
-     * again with the same request id is safe; whether it committed is unknown, so the caller decides, not the client.
+     * Whether the client sends a command answered so again itself, with its request id: never a 504, nor a gateway's
+     * bare 502 ([fromGateway]). A wait that timed out (`wow.wait.timeout`) keeps its [retry], which tells the caller
+     * that sending the command again with the same request id is safe; whether it committed is unknown, so the caller
+     * decides, not the client.
      */
-    val retriesCommand: Boolean get() = retry == Retry.SAME_REQUEST && status != GATEWAY_TIMEOUT
+    val retriesCommand: Boolean
+        get() = retry == Retry.SAME_REQUEST && status != GATEWAY_TIMEOUT && !fromGateway
+
+    /**
+     * Whether this is a gateway's own 502 or 504 (an ingress's, a load balancer's), a body that is no Wow problem: it
+     * does not say whether the node behind the gateway took the request, nor whether it is still running it (#6810).
+     */
+    internal val fromGateway: Boolean get() = code == null && (status == BAD_GATEWAY || status == GATEWAY_TIMEOUT)
 
     /**
      * Whether the node refused the request before handling it, so another node of the peer may take it:
@@ -83,10 +91,11 @@ class PeerProblem(
     /**
      * Whether a query answered so is run again: a retry may get past it, a query repeating nothing; but a state read
      * below its minimum version, which the peer already waited for, is the caller's to wait for again
-     * ([me.ahoo.wow.api.read.MinVersionNotReachedException]).
+     * ([me.ahoo.wow.api.read.MinVersionNotReachedException]); and so is a gateway's bare 502 or 504 ([fromGateway]):
+     * a query that outran the gateway would run as long again.
      */
     val retriesQuery: Boolean
-        get() = retry != Retry.NONE && code != FrameworkCodes.QUERY_MIN_VERSION_NOT_REACHED
+        get() = retry != Retry.NONE && code != FrameworkCodes.QUERY_MIN_VERSION_NOT_REACHED && !fromGateway
 
     /**
      * The exception of this problem for [what] was asked: a [CommandRejectedException] for a command's rejection,
@@ -113,6 +122,7 @@ class PeerProblem(
     @InternalWowApi
     companion object {
         const val TOO_MANY_REQUESTS: Int = 429
+        internal const val BAD_GATEWAY: Int = 502
         const val UNAVAILABLE: Int = 503
         const val GATEWAY_TIMEOUT: Int = 504
 
@@ -130,8 +140,11 @@ class PeerProblem(
 /**
  * Reads problems as a Wow server writes them: what a retry may do is the problem's `retry` member, which every problem
  * carries (the error catalog's for its code when it lacks one), its wait the `Retry-After` it came with, else the
- * catalog's. A body that is no Wow problem (a proxy's, a gateway's) may be retried when it is a 503 or a 429, with the
- * same request id.
+ * catalog's. A body that is no Wow problem (a proxy's, a gateway's) may be retried with the same request id when it is
+ * a 503 or a 429, which nothing behind it handled, or a 502 or a 504: the gateway does not say whether the node behind
+ * it took the request and committed it (a 502's node may have failed mid-answer, a 504's may still be running it), and
+ * the same request id is safe either way, a command that did commit answered as the duplicate it is (#6810). Any other
+ * status of such a body is [Retry.NONE].
  */
 @InternalWowApi
 object Problems {
@@ -148,7 +161,7 @@ object Problems {
         val code = node?.text("code")
         val retry = node?.text(RETRY)?.let { WireNames.entryOf<Retry>(it) }
             ?: code?.let { FrameworkErrors.BY_CODE[it]?.retry }
-            ?: Retry.SAME_REQUEST.takeIf { code == null && (status == UNAVAILABLE || status == TOO_MANY_REQUESTS) }
+            ?: Retry.SAME_REQUEST.takeIf { code == null && status in BARE_SAME_REQUEST }
             ?: Retry.NONE
         val retryAfter = headers.firstValue("Retry-After").orElse(null)?.let(::retryAfterOf)
             ?: code?.let { FrameworkErrors.BY_CODE[it]?.retryAfter?.seconds }
@@ -187,8 +200,14 @@ object Problems {
     }
 
     private const val INTERNAL_ERROR = 500
-    private const val UNAVAILABLE = PeerProblem.UNAVAILABLE
-    private const val TOO_MANY_REQUESTS = PeerProblem.TOO_MANY_REQUESTS
+
+    /** The statuses a body that is no Wow problem may be sent again for, with the same request id. */
+    private val BARE_SAME_REQUEST = setOf(
+        PeerProblem.UNAVAILABLE,
+        PeerProblem.TOO_MANY_REQUESTS,
+        PeerProblem.BAD_GATEWAY,
+        PeerProblem.GATEWAY_TIMEOUT,
+    )
     private const val RETRY = "retry"
 
     /** The members RFC 9457 and Wow name; every other one is an extension. */

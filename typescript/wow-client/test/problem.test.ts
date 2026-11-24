@@ -25,6 +25,7 @@ import {
   toWowProblemError,
   WowProblemError,
 } from '../src/index.js';
+import { fromGateway } from '../src/problem.js';
 
 describe('problems', () => {
   it('reads what a retry may do from the problem, else from the catalog', () => {
@@ -53,6 +54,16 @@ describe('problems', () => {
     expect(retryOf(problem(503, {}))).toBe('same-request');
     expect(retryOf(problem(429, {}))).toBe('same-request');
     expect(retryOf(problem(500, {}))).toBe('none');
+    // A gateway's bare 502 or 504: whether its node took the command is
+    // unknown, and the same request id is safe either way.
+    expect(retryOf(problem(502, {}))).toBe('same-request');
+    expect(retryOf(problem(504, {}))).toBe('same-request');
+    expect(fromGateway(problem(502, {}))).toBe(true);
+    expect(fromGateway(problem(504, {}))).toBe(true);
+    expect(fromGateway(problem(503, {}))).toBe(false);
+    expect(fromGateway(problem(504, { code: 'wow.query.timeout' }))).toBe(
+      false,
+    );
     const busy = new WowProblemError(
       problem(429, { code: 'wow.query.busy', retry: 'new-request' }) as never,
     );

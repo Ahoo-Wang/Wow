@@ -50,6 +50,18 @@ class ProblemsTest {
         read(503, "Unavailable").retry.assert().isEqualTo(Retry.SAME_REQUEST)
         read(429, "Slow down").retry.assert().isEqualTo(Retry.SAME_REQUEST)
         read(500, "Oops").retry.assert().isEqualTo(Retry.NONE)
+        // A gateway's bare 502 or 504 does not say whether its node took the command: the same request id is safe.
+        listOf(502, 504).forEach { status ->
+            read(status, "<html>Bad Gateway</html>").apply {
+                retry.assert().isEqualTo(Retry.SAME_REQUEST)
+                fromGateway.assert().isTrue()
+            }
+        }
+        // A 502 or 504 of Wow's own is its code's.
+        read(504, """{"code":"wow.query.timeout"}""").apply {
+            retry.assert().isEqualTo(Retry.NONE)
+            fromGateway.assert().isFalse()
+        }
     }
 
     @Test
@@ -58,6 +70,15 @@ class ProblemsTest {
         problem(503, FrameworkCodes.STORAGE_UNAVAILABLE, Retry.SAME_REQUEST).retriesCommand.assert().isTrue()
         // A wait that timed out may be sent again with the same request id, by the caller: the client does not.
         problem(504, FrameworkCodes.WAIT_TIMEOUT, Retry.SAME_REQUEST).retriesCommand.assert().isFalse()
+        // A gateway's bare 502 or 504 is the caller's to send again: neither a command nor a query is sent again here.
+        listOf(502, 504).forEach { status ->
+            PeerProblem(status, null, null, null, Retry.SAME_REQUEST, null).apply {
+                retriesCommand.assert().isFalse()
+                retriesQuery.assert().isFalse()
+            }
+        }
+        // Wow's own 502 of a command keeps its retry.
+        problem(502, FrameworkCodes.COMMAND_FAILED, Retry.SAME_REQUEST).retriesCommand.assert().isTrue()
         problem(429, FrameworkCodes.QUERY_BUSY, Retry.NEW_REQUEST).retriesCommand.assert().isFalse()
         problem(429, FrameworkCodes.QUERY_BUSY, Retry.NEW_REQUEST).retriesQuery.assert().isTrue()
         problem(503, FrameworkCodes.STORAGE_UNAVAILABLE, Retry.SAME_REQUEST).retriesQuery.assert().isTrue()

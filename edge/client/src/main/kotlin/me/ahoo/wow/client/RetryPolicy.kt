@@ -30,8 +30,9 @@ import kotlin.time.toKotlinDuration
  *   answers a command that did commit as the duplicate it is;
  * - a connection that could not be made: nothing was sent.
  *
- * Never a 504 (`wow.wait.timeout`, whose command may have committed and goes on; `wow.query.timeout`), nor any other
- * problem. At most [maxAttempts] attempts in all; 1 never retries ([NONE]).
+ * Never a 504 (`wow.wait.timeout`, whose command may have committed and goes on; `wow.query.timeout`), nor a
+ * gateway's bare 502 (whether its node took the request is unknown: the caller's to send again, with the same request
+ * id), nor any other problem. At most [maxAttempts] attempts in all; 1 never retries ([NONE]).
  */
 class RetryPolicy private constructor(
     val maxAttempts: Int,

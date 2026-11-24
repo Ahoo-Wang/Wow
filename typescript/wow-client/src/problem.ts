@@ -95,7 +95,11 @@ function withExtensions(problem: Problem): Problem {
 /**
  * What a retry of `problem` may do: its `retry` member, which every problem a
  * Wow service writes carries; else the error catalog's for its code; else, for
- * a body that is no Wow problem (a proxy's 503 or 429), `same-request`.
+ * a body that is no Wow problem, `same-request` when it is a proxy's 503 or
+ * 429, which nothing behind it handled, or a gateway's 502 or 504: the gateway
+ * does not say whether the node behind it took the command and committed it,
+ * and the same request id is safe either way, a command that did commit
+ * answered as the duplicate it is. Any other status of such a body is `none`.
  *
  * @param problem - The problem a request was answered with
  */
@@ -106,10 +110,24 @@ export function retryOf(problem: Problem): Retry {
       ? undefined
       : FRAMEWORK_RETRIES.get(problem.code);
   if (known) return known.retry;
-  return problem.code === undefined &&
-    (problem.status === 503 || problem.status === 429)
+  return problem.code === undefined && BARE_SAME_REQUEST.has(problem.status)
     ? 'same-request'
     : 'none';
+}
+
+/** The statuses a body that is no Wow problem may be sent again for (internal). */
+const BARE_SAME_REQUEST: ReadonlySet<number> = new Set([429, 502, 503, 504]);
+
+/**
+ * Whether `problem` is a gateway's own 502 or 504, a body that is no Wow
+ * problem (internal): the caller's to send again, never this package's, as a
+ * query that outran the gateway would run as long again.
+ */
+export function fromGateway(problem: Problem): boolean {
+  return (
+    problem.code === undefined &&
+    (problem.status === 502 || problem.status === 504)
+  );
 }
 
 /**
