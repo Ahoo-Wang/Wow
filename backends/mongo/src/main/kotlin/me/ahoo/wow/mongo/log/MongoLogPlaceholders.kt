@@ -19,6 +19,8 @@ import com.mongodb.MongoException
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.InsertManyOptions
 import com.mongodb.client.model.Projections
+import io.github.oshai.kotlinlogging.KotlinLogging
+import me.ahoo.wow.mongo.MongoFailures
 import me.ahoo.wow.mongo.isDuplicateKey
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.GAP
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.GAP_CLOSED
@@ -26,6 +28,7 @@ import me.ahoo.wow.mongo.log.MongoEventLog.Companion.GAP_NODE
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.GAP_SEALED
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.GAP_TO
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.ID
+import me.ahoo.wow.mongo.log.MongoEventLog.Companion.MAX_SEQUENCE
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.PARTITION
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.SEQUENCE
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.SEQUENCE_BITS
@@ -78,6 +81,10 @@ internal class MongoLogPlaceholders(
             failure: RuntimeException,
         ) {
             // Each sequence is left to the tail, which fills it again.
+            unexpected(failure) {
+                "The placeholders at ${positions(gaps.map { it.id })} in ${collection.name} failed with an error that " +
+                    "is not MongoDB's; they are left to the tail, which fills them again after its grace."
+            }
             gaps.indices.toSet()
         }
         gaps.forEachIndexed { at, gap ->
@@ -114,6 +121,11 @@ internal class MongoLogPlaceholders(
             @Suppress("TooGenericExceptionCaught") // Whatever else failed, the placeholder is left to the tail (#6747).
             failure: RuntimeException,
         ) {
+            unexpected(failure) {
+                "The placeholder at ${positions(listOf(positionId(partition, sequence)))} in ${collection.name} " +
+                    "failed with an error that is not MongoDB's; it is left to the tail, which fills it again after " +
+                    "its grace."
+            }
             sequencer.unfilled(partition, sequence, collection.name)
             return
         }
@@ -225,9 +237,31 @@ internal class MongoLogPlaceholders(
             @Suppress("TooGenericExceptionCaught") // A read that fails, whatever the failure, settles nothing.
             failure: RuntimeException,
         ) {
+            unexpected(failure) {
+                "The majority read of ${positions(ids)} in ${collection.name} failed with an error that is not " +
+                    "MongoDB's; it settles none of them, and the tail fills or seals them again."
+            }
             emptySet()
         }
     }
+
+    /**
+     * Warns of [failure], with [message], when it is neither MongoDB's nor this node's closed client
+     * ([MongoFailures.isClientClosed]), both of which leave a sequence to the tail as they should. Any other failure is
+     * a defect, which the tail's own fill may meet too; without this line, the only trace would be the tail's warning
+     * that it waits at the sequence, with no cause.
+     */
+    private fun unexpected(failure: RuntimeException, message: () -> String) {
+        if (failure is MongoException || MongoFailures.isClientClosed(failure)) return
+        logger.warn(failure) { message() }
+    }
+
+    /** [ids], positions of a log, as their partitions and sequences: `partition 3, sequences 5, 6`. */
+    private fun positions(ids: List<Long>): String =
+        ids.groupBy { (it ushr SEQUENCE_BITS).toInt() }.entries.joinToString("; ") { (partition, at) ->
+            val sequences = at.map { it and MAX_SEQUENCE }
+            "partition $partition, sequence${if (sequences.size == 1) "" else "s"} ${sequences.joinToString()}"
+        }
 
     /** [AggregateCollection.appends] for one more round trip of an append within [deadline], as it is without one. */
     private fun AggregateCollection.writes(deadline: AppendDeadline?) = deadline?.of(appends) ?: appends
@@ -246,3 +280,6 @@ internal class MongoLogPlaceholders(
         val id: Long get() = positionId(partition, sequence)
     }
 }
+
+// The log's category, which the placeholders' lines keep.
+private val logger = KotlinLogging.logger(MongoEventLog::class.java.name)

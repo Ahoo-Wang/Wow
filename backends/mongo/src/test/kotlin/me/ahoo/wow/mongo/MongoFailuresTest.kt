@@ -283,9 +283,11 @@ class MongoFailuresTest {
             failure.causes().filterIsInstance<IllegalStateException>().map { it.message }.assert()
                 .describedAs(call).contains("state should be: open")
         }
-        // Any other IllegalStateException stays as it is: a defect, not an outage.
-        val defect = IllegalStateException("a defect")
-        MongoFailures.translate(defect).assert().isSameAs(defect)
+        // Any other IllegalStateException stays as it is, the driver's other state checks too: a defect, not an outage.
+        listOf("a defect", "state should be: in transaction", "state should be: unopened").forEach { message ->
+            val defect = IllegalStateException(message)
+            MongoFailures.translate(defect).assert().describedAs(message).isSameAs(defect)
+        }
     }
 
     private fun stream(id: String = "c-1") = EventStreamRecord.of(

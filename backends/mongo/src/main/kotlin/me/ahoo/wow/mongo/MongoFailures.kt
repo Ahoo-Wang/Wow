@@ -114,11 +114,19 @@ internal object MongoFailures {
     }
 
     /**
-     * Whether [failure] is the driver refusing a call on a client that is closed (`state should be: open`): this node
-     * is shutting down, as in a rolling restart, and the call reached no server (#6747).
+     * Whether [failure] is the driver refusing a call on this node's client as it closes: this node is shutting down,
+     * as in a rolling restart, and the call sent nothing (#6747). The driver closes the client's server session pool
+     * first, ending its sessions with a round trip to the server, then its cluster, and says so with one of two
+     * [IllegalStateException]s. Each is matched by its whole message, so that any other of the driver's state checks
+     * stays a defect:
+     * - `state should be: server session pool is open`: a call in that round trip selected a server, and the session
+     *   pool refused it its implicit session.
+     * - `state should be: open`: the cluster refused a call before it selected a server, once the client was closed.
+     *   The driver says the same of its other closed resources, a client session and a pooled connection; no store of
+     *   this backend holds either, so here it is the closed client.
      */
     fun isClientClosed(failure: Throwable): Boolean =
-        failure is IllegalStateException && failure.message == CLIENT_CLOSED
+        failure is IllegalStateException && failure.message in CLIENT_CLOSED
 
     /**
      * [failure] as a [StorageUnavailableException] when it [isTransient], or when this node's client is closed
@@ -135,8 +143,8 @@ internal object MongoFailures {
         else -> failure
     }
 
-    /** The message of the driver's [IllegalStateException] on a call to a closed client. */
-    private const val CLIENT_CLOSED = "state should be: open"
+    /** The messages of the driver's [IllegalStateException]s on a call to a client that is closing ([isClientClosed]). */
+    private val CLIENT_CLOSED = setOf("state should be: server session pool is open", "state should be: open")
 }
 
 /**
