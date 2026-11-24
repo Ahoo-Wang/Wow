@@ -127,6 +127,30 @@ class WaitHopsTest {
             sent.assert().isEmpty()
         }
 
+    @Test
+    fun `a park is told to a subscription that asks, best effort, and a cancellation is not swallowed`(): Unit =
+        runBlocking {
+            // #6757: the command intake answers the wait of a command it parked; a subscription that does not ask is
+            // told nothing.
+            hops.parked(entry(Hop.committed()), IllegalStateException("The append timed out."))
+            val told = CopyOnWriteArrayList<String>()
+            var fails: Throwable? = null
+            val intake = Subscription.messages("wow.commands", "shop", parked = { entry, failure ->
+                fails?.let { throw it }
+                told += "${entry.stream.ref} ${failure.message}"
+            }) { }
+            val asking = WaitHops(intake, signals, clock)
+            asking.parked(entry(Hop.committed()), IllegalStateException("The append timed out."))
+            told.assert().containsExactly("${cart("x")} The append timed out.")
+            fails = IllegalStateException("The origin is gone.")
+            asking.parked(entry(Hop.committed()), IllegalStateException("Again."))
+            fails = CancellationException("The lane stopped.")
+            assertThrows<CancellationException> {
+                runBlocking { asking.parked(entry(Hop.committed()), IllegalStateException("Again.")) }
+            }
+            told.assert().hasSize(1)
+        }
+
     private companion object {
         const val NOW = 1_700_000_000_000L
         const val NAME = "Board.onCart"

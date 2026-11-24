@@ -59,8 +59,14 @@ internal class InheritedWaits(
     /**
      * Executes [command], derived on the way of a wait (by a saga, or later sent from another context), or sent by a
      * timer, on [model]'s aggregate with the [wait] context it inherited, and signals its results to the waiting node:
-     * ACCEPTED when the context waits for it, then COMMITTED or the failure, then the later hop it reached at once.
+     * ACCEPTED when the context waits for it, then COMMITTED, or the rejection, then the later hop it reached at once.
      * Without a context, or past its deadline, it only executes.
+     *
+     * A technical failure ([Settlement.failed]: busy, contended, an unknown outcome, a store unavailable, the node
+     * closing) is not signalled: it is not the command's outcome, since its source runs it again (a saga's handling,
+     * an intake's, a call's saga, each retried), and a signal would end the wait the retry's commit then answers. The
+     * wait learns what the retry does (its commit; a saga's failure at its own hop once the saga parks), or times out
+     * at the last hop it reached.
      *
      * It is routed as an admitted command is ([router]): to the owner of its
      * partition, degrading to this node, so the owner's state cache sees every commit of its partitions. A saga's
@@ -80,6 +86,9 @@ internal class InheritedWaits(
             signal(wait, reachedResult(command, function, accepted, clock.millis()))
         }
         val settlement = router.route(model, command, wait) { local.execute(model, command, wait) }
+        if (settlement.failed) {
+            return settlement
+        }
         val hop = leading.firstOrNull { it.stage == Stage.COMMITTED } ?: Hop.committed(context)
         val committed = settlement.committed.copyWith(hop = hop)
         // A command that changed nothing, or a duplicate whose subscription is past it: no entry signals them. A

@@ -418,6 +418,7 @@ internal class SubscriptionWorker(
         }
         // As a restart reads it back from the ledger: an undecodable message parks from the first version.
         synchronized(this) { parking.park(entry.ref, source.ordinalOf(entry)) }
+        hops.parked(sourced, failure)
     }
 
     /**

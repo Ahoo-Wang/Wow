@@ -111,6 +111,11 @@ class Subscription private constructor(
     private val answers: ((AggregateType) -> Set<String>)? = null,
     /** What the subscription does as the runtime stops some of its partitions; nothing when not given. */
     internal val stops: SubscriptionStops? = null,
+    /**
+     * What the subscription does once it parked an entry's aggregate, after its retries, the ledger holding it: the
+     * command intake answers the wait of the command it gave up on. Quick, and never throwing; nothing when not given.
+     */
+    internal val parked: (suspend (SourcedEntry, Throwable) -> Unit)? = null,
 ) {
     /**
      * With a [handler] that reports nothing of what it did: a saga, which reports what it derived, is made with [saga].
@@ -319,6 +324,7 @@ class Subscription private constructor(
             name: String,
             context: String,
             start: StartFrom = StartFrom.BEGINNING,
+            parked: (suspend (SourcedEntry, Throwable) -> Unit)? = null,
             handler: suspend (SubscribedEntry) -> Unit,
         ): Subscription = Subscription(
             name,
@@ -332,6 +338,7 @@ class Subscription private constructor(
                 HandledEntry.NOTHING
             },
             takesAll = true,
+            parked = parked,
         )
     }
 }

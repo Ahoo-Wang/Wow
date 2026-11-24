@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.runtime.wait
 
+import io.mockk.coEvery
+import io.mockk.mockk
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.toList
@@ -28,6 +30,7 @@ import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.result.WaitPlan
+import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.kernel.memory.InMemoryCheckpointStore
@@ -230,11 +233,36 @@ class TopicWaitProgressTest {
         }
     }
 
+    @Test
+    fun `a command the intake parks after its retries ends its wait failed parked, never timing out`(): Unit =
+        runBlocking {
+            // #6757: a technical failure the intake retries is not signalled; once it gives up and parks the command,
+            // the wait ends with that, at the command's COMMITTED hop, rather than at its deadline (held here).
+            val failing = mockk<Executor>(relaxed = true) {
+                coEvery { execute(any(), any(), any()) } returns
+                    CommandOutcome.Unknown(IllegalStateException("The append timed out."))
+            }
+            relayed(producer(afterCommit = false), failing) { coordinator, ref ->
+                val plan = WaitPlan.of(Hop.committed())
+                val last = withTimeout(10.seconds) {
+                    coordinator.stream(order, Command("c-1", "r-1", ref, Place(3), wait = plan)).toList()
+                }.last()
+                last.status.assert().describedAs("${last.error?.code}").isEqualTo(CommandResult.Status.FAILED)
+                last.error!!.code.assert().isEqualTo(ResultCodes.SUBSCRIPTION_PARKED)
+                last.error!!.message.assert().doesNotContain("timed out")
+                last.hop.assert().isEqualTo(Hop.committed("shop"))
+            }
+        }
+
     /**
      * Runs [block] with a coordinator that sends `shop.order` through the command topic with [producer], its intake
      * reading the topic, the snapshot held unless the scenario opened it, and the deadlines [held].
      */
-    private suspend fun relayed(producer: TopicProducer, block: suspend (WaitCoordinator, AggregateRef) -> Unit) {
+    private suspend fun relayed(
+        producer: TopicProducer,
+        executor: Executor = Executor(Kernel(log)),
+        block: suspend (WaitCoordinator, AggregateRef) -> Unit,
+    ) {
         val snapshots = runtime(
             "snapshot",
             LogSource(log),
@@ -243,7 +271,7 @@ class TopicWaitProgressTest {
             },
         )
         val coordinator = WaitCoordinator(
-            Executor(Kernel(log)),
+            executor,
             waits,
             snapshots,
             signals,

@@ -90,6 +90,23 @@ internal class WaitHops(
             logger.warn(failure) { "Failed to signal wait ${wait.waitId} from ${subscription.name}." }
         }
     }
+
+    /**
+     * Tells the subscription that [entry]'s aggregate parked after [failure] ([Subscription.parked]): the command intake
+     * answers the wait of the command it gave up on, which names no hop of the intake's own. A side path, as [signal]
+     * is: whatever it throws, the entry is parked.
+     */
+    @Suppress("TooGenericExceptionCaught") // A signal is best effort: whatever fails, the entry is parked.
+    suspend fun parked(entry: SourcedEntry, failure: Throwable) {
+        val told = subscription.parked ?: return
+        try {
+            told(entry, failure)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failed: Exception) {
+            logger.warn(failed) { "Failed to tell ${subscription.name} of the park of ${entry.stream.ref}." }
+        }
+    }
 }
 
 /** The worker's: its signals are logged as they were. */

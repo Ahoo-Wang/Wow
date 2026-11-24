@@ -43,7 +43,9 @@ import me.ahoo.wow.runtime.cluster.CommandWire
 import me.ahoo.wow.runtime.ledger.LedgerCommands
 import me.ahoo.wow.runtime.node.ParkedOps
 import me.ahoo.wow.runtime.node.SourceTopics
+import me.ahoo.wow.runtime.subscription.SourcedEntry
 import me.ahoo.wow.runtime.subscription.Subscription
+import me.ahoo.wow.runtime.wait.ResultCodes
 import me.ahoo.wow.runtime.wait.Settlement
 import me.ahoo.wow.runtime.wait.WaitCoordinator
 import me.ahoo.wow.runtime.wait.busyOf
@@ -141,7 +143,9 @@ class CommandIntake internal constructor(
             execute(entry.message as CommandWire, entry.transport?.wait)
         }
     } else {
-        Subscription.messages(NAME, context) { entry -> execute(entry.message as CommandWire, entry.transport?.wait) }
+        Subscription.messages(NAME, context, parked = ::parked) { entry ->
+            execute(entry.message as CommandWire, entry.transport?.wait)
+        }
     }
 
     /** Executes [wire] with [wait] and settles its outcome, or throws a technical failure. */
@@ -202,6 +206,23 @@ class CommandIntake internal constructor(
             )
         }?.let { coordinator.signal(it, unhandledResult(wire, it, error)) }
         reply(wire, error, null)
+    }
+
+    /**
+     * The intake parked [entry]'s command after its retries ([failure] the last one): a technical failure, which no
+     * signal told its wait of, since the intake runs the command again until then (`InheritedWaits.forward`). The wait,
+     * while it lasts, ends FAILED at the command's COMMITTED hop, [ResultCodes.SUBSCRIPTION_PARKED], as a subscription
+     * that parks the aggregate it waits for ends it: the cause stays in the ledger and the logs.
+     */
+    private suspend fun parked(entry: SourcedEntry, failure: Throwable) {
+        val wire = entry.message as? CommandWire ?: return
+        val wait = entry.transport?.wait?.takeUnless { it.expiredAt(clock.millis()) } ?: return
+        logger.debug(failure) { "Wait ${wait.waitId} fails: $NAME parked the command ${wire.id} on ${wire.ref}." }
+        val error = ErrorInfo(
+            ResultCodes.SUBSCRIPTION_PARKED,
+            "The command ${wire.id} on ${wire.ref} is parked by $NAME after its retries; the failure ledger has the cause.",
+        )
+        coordinator.signal(wait, unhandledResult(wire, wait, error).copyWith(status = CommandResult.Status.FAILED))
     }
 
     /** The REJECTED result of [wire], refused with [error] before any decide function, at [wait]'s COMMITTED hop. */
