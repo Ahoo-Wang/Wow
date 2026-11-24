@@ -119,4 +119,17 @@ class R1CompatibilityTest {
             }
             .isEmpty()
     }
+
+    /**
+     * A schema compared with itself is no change. For an input, `compareAlternatives` matches each old alternative with
+     * the first new one it is compatible with, not the identical one: of `anyOf: [number, integer]`, the old `number`
+     * finds the new `number` and the old `integer` finds the new `number` too (a number accepts an integer), so the new
+     * `integer` is left over and reported "alternative added". Fails on `ac58da98ac`.
+     */
+    @Test
+    fun `an anyOf of number and integer compared with itself should be no change`() {
+        val schema = mapOf("anyOf" to listOf(mapOf("type" to "number"), mapOf("type" to "integer")))
+        SchemaCompatibility(mapOf("t" to schema), mapOf("t" to schema))
+            .compare("s", "#/\$defs/t", "#/\$defs/t", false).map { it.toString() }.assert().isEmpty()
+    }
 }
