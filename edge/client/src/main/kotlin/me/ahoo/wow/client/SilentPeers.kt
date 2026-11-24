@@ -45,8 +45,10 @@ class PeerList(targets: List<URI>, val generation: Long) : List<URI> by targets 
  * The nodes of each peer context that took a request and did not answer it within its bound: the requests that
  * follow choose among the context's other nodes ([choose]), so a node lost without notice (a pod deleted by force,
  * whose address drops packets) costs one request its bound rather than every request that rotates onto it until the
- * list is read again. It is not a health check: it sends no probe, and the unanswered request is not sent again,
- * its outcome staying unknown.
+ * list is read again. It is not a health check: it sends no probe. A command is never sent again to a node that went
+ * silent: it is sent again under the same request id at most once, and only to another live node, which forwards it
+ * to the partition's owner, so its outcome is settled as a duplicate or a commit; with no other live node it fails
+ * once as `wow.command.unknown`.
  *
  * - **Bypassed** ([silenced]): a request sent to the node timed out without an answer. A connection that was not made
  *   is not a bypass: the request fails over to the next node, as before.
@@ -55,6 +57,7 @@ class PeerList(targets: List<URI>, val generation: Long) : List<URI> by targets 
  *   again. A connection made to it does not bring it back: a node that takes connections and never answers would pass.
  *   A list read again without it removes it.
  * - **Every node bypassed:** the requests go to them all, as if none were: a request is never left unsent for it.
+ *   The resend of a request a node went silent on is the exception: it goes to a live node or nowhere.
  *
  * One per node, shared by its clients of every kind: a saga's calls, a service-mode client's commands and queries go
  * to a peer's internal port, a user-mode client's to its public port. The bypasses are kept per list, a context's
@@ -101,10 +104,17 @@ class SilentPeers @JvmOverloads constructor(
 
     /**
      * The [targets] of [context] on [port] a request goes to, the bypassed ones left out unless all are, in their
-     * order. Before it chooses it settles that list's bypasses against it, its [generation] (null when it has none)
-     * and the time; another port's list is not touched.
+     * order; without [all], none then: the resend of a request a node went silent on goes to a live node alone. Before
+     * it chooses it settles that list's bypasses against it, its [generation] (null when it has none) and the time;
+     * another port's list is not touched.
      */
-    internal fun choose(context: String, port: Port, targets: List<String>, generation: Long?): List<String> {
+    internal fun choose(
+        context: String,
+        port: Port,
+        targets: List<String>,
+        generation: Long?,
+        all: Boolean = true,
+    ): List<String> {
         val state = listsOf(port)[context]
         if (state == null) {
             if (generation == null) return targets
@@ -125,7 +135,7 @@ class SilentPeers @JvmOverloads constructor(
         }
         if (bypassed.isEmpty()) return targets
         val open = targets.filter { it !in bypassed }
-        return open.ifEmpty { targets }
+        return if (open.isEmpty() && all) targets else open
     }
 
     /** Why the bypass of [target], [mark], ends now, against [targets] and their [generation]; null when it holds. */

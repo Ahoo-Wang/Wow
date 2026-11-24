@@ -16,6 +16,8 @@ package me.ahoo.wow.client
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.client.CommandRequest
+import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.ObservedEvent.PeerRestored.Reason
@@ -71,12 +73,12 @@ class SilentPeersTest {
             generation?.let { PeerList(listed, it) } ?: listed
     }
 
-    private fun transport() = HttpTransport(
+    private fun transport(retry: RetryPolicy = RetryPolicy.NONE) = HttpTransport(
         endpoints,
         ClientMode.Service("basket-service"),
         HttpCommandCaller.client(),
         BOUND,
-        RetryPolicy.NONE,
+        retry,
         silent = silent,
     )
 
@@ -268,8 +270,85 @@ class SilentPeersTest {
         }
     }
 
+    @Test
+    fun `a command a node takes and never answers should not be sent again to it`() {
+        val held = peer(Reply.HELD)
+        listed = listOf(held.base)
+        val client = WowClient.builder()
+            .endpoints(endpoints)
+            .service("reader-service")
+            .contracts(contractOf(BOX, HttpCommandClientTest.DeliverItems::class.java))
+            .retry(RetryPolicy.of(maxAttempts = 3, backoff = 1.milliseconds))
+            .build()
+        val deliver = CommandRequest.builder(BOX.ref("t1", "box-1"), HttpCommandClientTest.DeliverItems(emptyList()))
+            .timeout(300.milliseconds)
+            .build()
+        val started = TimeSource.Monotonic.markNow()
+        val failure = caught<WowProblemException> { runBlocking { client.commands.wait(deliver) } }
+        failure.code.assert().isEqualTo(FrameworkCodes.COMMAND_UNKNOWN)
+        // Never sent again to the node that went silent, and no other node is live: one request, ended at its wait and
+        // the grace, though the policy allows three attempts (#6809).
+        held.taken.assert().hasSize(1)
+        started.elapsedNow().assert().isLessThan(10.seconds)
+    }
+
+    @Test
+    fun `a request a node went silent on should be sent again once, to another live node, with its request id`() {
+        val held = peer(Reply.HELD)
+        val live = peer(Reply(200))
+        listed = listOf(held.base, live.base)
+        val answer = runBlocking {
+            transport(RETRIES).exchange(
+                PeerRequest("mail", "/mail/box/x", Caller.ANONYMOUS, null, mapOf("Wow-Request-Id" to "r-1")),
+                Exchange.COMMAND,
+            )
+        }
+        // The live node forwards it to the partition's owner, which settles it as a duplicate or a commit.
+        answer.assert().isInstanceOf(Answer.Ok::class.java)
+        held.taken.assert().hasSize(1)
+        live.taken.map { it.headers["Wow-Request-Id"] }.assert().containsExactly("r-1")
+    }
+
+    @Test
+    fun `a request two nodes went silent on should fail once as unknown, never sent to either again`() {
+        val first = peer(Reply.HELD)
+        val second = peer(Reply.HELD)
+        listed = listOf(first.base, second.base)
+        transport(RETRIES).send().code().assert().isEqualTo(FrameworkCodes.COMMAND_UNKNOWN)
+        // At most one resend: the second node's silence ends the request, though the policy allows a third attempt.
+        first.taken.assert().hasSize(1)
+        second.taken.assert().hasSize(1)
+    }
+
+    @Test
+    fun `the resend of a request a node went silent on should end with what it meets, its outcome still unknown`() {
+        // The other node refuses the connection: nothing more was sent, and the outcome stays the silent node's.
+        withRefusingPort { port ->
+            val held = peer(Reply.HELD)
+            listed = listOf(held.base, URI.create("http://127.0.0.1:$port"))
+            transport(RETRIES).send().code().assert().isEqualTo(FrameworkCodes.COMMAND_UNKNOWN)
+            held.taken.assert().hasSize(1)
+        }
+        // The other node answers a problem a retry may get past: not retried, the resend being the request's last.
+        val held = peer(Reply.HELD)
+        val busy = peer(Reply.problem(503, mapOf("code" to FrameworkCodes.STORAGE_UNAVAILABLE), retryAfter = "0"))
+        listed = listOf(held.base, busy.base)
+        transport(RETRIES).send().code().assert().isEqualTo(FrameworkCodes.STORAGE_UNAVAILABLE)
+        busy.taken.assert().hasSize(1)
+        // The other node refuses it before handling, stopping: that says only the resend was not taken, and nothing
+        // of what the silent node did, so the outcome stays unknown, never "not taken" (#6806).
+        val silentAgain = peer(Reply.HELD)
+        val stopping = peer(Reply.problem(503, mapOf("code" to FrameworkCodes.NODE_CLOSING), retryAfter = "0"))
+        listed = listOf(silentAgain.base, stopping.base)
+        transport(RETRIES).send().code().assert().isEqualTo(FrameworkCodes.COMMAND_UNKNOWN)
+        stopping.taken.assert().hasSize(1)
+    }
+
     private companion object {
         val BOUND = 300.milliseconds
         val LAPSE = 30.seconds
+
+        /** A policy that would send a request three times. */
+        val RETRIES = RetryPolicy.of(maxAttempts = 3, backoff = 1.milliseconds)
     }
 }
