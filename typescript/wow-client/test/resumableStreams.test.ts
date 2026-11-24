@@ -258,6 +258,32 @@ describe('resumable query streams (decision D253)', () => {
     });
   });
 
+  it("fails at once on a gateway's bare 502 or 504, which the caller resends, and resumes on a bare 503", async () => {
+    for (const status of [502, 504]) {
+      answers(
+        () => sseResponse(row('p1') + end('hold-expired')),
+        () => new Response('<html>Bad Gateway</html>', { status }),
+      );
+      const stream = await new SnapshotQueryClient(PRODUCT, client()).stream(
+        query,
+      );
+      // A query that outran the gateway would run as long again: not resumed.
+      await expect(readAll(stream)).rejects.toMatchObject({
+        status,
+        retry: 'same-request',
+      });
+    }
+    answers(
+      () => sseResponse(row('p1') + end('hold-expired')),
+      () => new Response('Unavailable', { status: 503 }),
+      () => sseResponse(row('p2') + end('complete')),
+    );
+    const stream = await new SnapshotQueryClient(PRODUCT, client()).stream(
+      query,
+    );
+    expect(ids(await readAll(stream))).toEqual(['p1', 'p2']);
+  });
+
   it('resumes an error event that is retryable, and fails on one that is not', async () => {
     const storage =
       'event:error\ndata:{"type":"about:blank","title":"t","status":503,"code":"wow.storage.unavailable"}\n\n';

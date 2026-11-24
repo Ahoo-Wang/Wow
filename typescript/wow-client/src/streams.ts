@@ -20,7 +20,12 @@ import { parseJson } from './exactJson.js';
 import type { Answer } from './http.js';
 import type { CommandResult } from './wire.js';
 import { DEFAULT_RETRY } from './frameworkErrors.js';
-import { isProblem, rememberRequestId, WowProblemError } from './problem.js';
+import {
+  fromGateway,
+  isProblem,
+  rememberRequestId,
+  WowProblemError,
+} from './problem.js';
 
 /** The event of each record of a streamed query list. */
 const ROW_EVENT = 'row';
@@ -256,7 +261,8 @@ export function resumableQueryRows<T>(
       } catch (error) {
         if (
           halted.aborted ||
-          (error instanceof WowProblemError && error.retry === 'none')
+          (error instanceof WowProblemError &&
+            (error.retry === 'none' || fromGateway(error.problem)))
         ) {
           throw error;
         }

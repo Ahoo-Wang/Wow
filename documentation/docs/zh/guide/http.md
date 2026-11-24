@@ -67,9 +67,10 @@ curl -X POST localhost:8083/eshop-ordering/order/order-1/pay-order \
 
 给每条命令一个 `Wow-Request-Id`。用同一个 ID 重试，会被当作已经完成来回答，带上 `duplicate: true` 和原来的版本，绝不会决定两次。所以：
 
-- `504 wow.wait.timeout`：命令**可能已经提交**。用同一个请求 ID 重试。Wow 的 Kotlin 客户端把这一次重试留给调用方，因为只有调用方知道是否还要再等；下面其余几种，它会自己再次发送。
+- `504 wow.wait.timeout`：命令**可能已经提交**。用同一个请求 ID 重试。Wow 的 Kotlin 客户端把这一次重试留给调用方，因为只有调用方知道是否还要再等；下面的 503 和 429，它会自己再次发送。
 - `503 wow.command.unknown`、`wow.storage.unavailable`、`wow.node.closing`：用同一个请求 ID 重试。
 - `429 wow.command.busy`：在 `Retry-After` 之后重试。
+- 网关自己的 502 或 504，其正文不是 Wow 的问题（Ingress 或负载均衡器的页面）：网关并不说明它背后的节点是否收下了命令，所以命令的结果未知。用同一个 `Wow-Request-Id` 再次发送是安全的，已经提交的命令会被当作重复请求来回答。Wow 的客户端把这一次重试留给调用方，和 `wow.wait.timeout` 一样。
 - 拒绝（带领域错误码的 `4xx`）：不要重试；同一个请求会再次被拒绝。
 
 不带 ID 发送的创建命令会得到一个 ID；用同一个请求 ID 重试，得到的是同一个 ID。
