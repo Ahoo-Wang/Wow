@@ -27,11 +27,20 @@ STAMP_FILE=wow-build-stamp
 SERVER_INSTALL="$REPO/test/benchmarks/server/build/install/benchmark-server"
 LOAD_INSTALL="$REPO/test/benchmarks/load/build/install/benchmark-load"
 
-# The tree's state as a stamp: `commit=<HEAD> dirty=yes|no` (unknown and yes when git cannot tell).
+# The paths a stamp's `dirty` looks at (the build's stamp reads the same file): the whole tree but the reports.
+STAMP_PATHSPEC="$(dirname "${BASH_SOURCE[0]}")/stamp.pathspec"
+
+# The tree's state as a stamp: `commit=<HEAD> dirty=yes|no` (unknown and yes when git cannot tell), `dirty` over
+# $STAMP_PATHSPEC's paths (the whole tree without it).
 tree_stamp() {
-  local commit status
+  local commit status line spec=()
   commit=$(git -C "$REPO" rev-parse HEAD 2>/dev/null || echo unknown)
-  status=$(git -C "$REPO" status --porcelain 2>/dev/null || echo unknown)
+  if [ -f "$STAMP_PATHSPEC" ]; then
+    while IFS= read -r line || [ -n "$line" ]; do
+      case $line in '' | '#'*) ;; *) spec+=("$line") ;; esac
+    done <"$STAMP_PATHSPEC"
+  fi
+  status=$(git -C "$REPO" status --porcelain -- ${spec[@]+"${spec[@]}"} 2>/dev/null || echo unknown)
   echo "commit=$commit dirty=$([ -z "$status" ] && echo no || echo yes)"
 }
 

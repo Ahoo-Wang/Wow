@@ -9,17 +9,20 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import {
+  appendFileSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  rmSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 
-const HARNESS = join(import.meta.dirname, '../../test/benchmarks/harness');
+const ROOT = join(import.meta.dirname, '../..');
+const HARNESS = join(ROOT, 'test/benchmarks/harness');
 const STAMP_SH = join(HARNESS, 'stamp.sh');
 const SERVER = 'test/benchmarks/server/build/install/benchmark-server';
 const LOAD = 'test/benchmarks/load/build/install/benchmark-load';
@@ -27,12 +30,15 @@ const LOAD = 'test/benchmarks/load/build/install/benchmark-load';
 const git = (repo, ...args) =>
   spawnSync('git', ['-C', repo, ...args], { encoding: 'utf8' }).stdout.trim();
 
-/** A repository with one commit and nothing else: no build, no stamp. */
-function repository() {
+const REPORT = 'test/benchmarks/results/reports/m5max-idle/before/idle.txt';
+
+/** A repository with one commit and nothing else: no build, no stamp; [files] are committed too. */
+function repository(files = {}) {
   const repo = mkdtempSync(join(tmpdir(), 'bench-stamp-'));
   git(repo, 'init', '-q');
   writeFileSync(join(repo, 'README.md'), 'tree\n');
-  writeFileSync(join(repo, '.gitignore'), 'build/\nout/\n');
+  writeFileSync(join(repo, '.gitignore'), 'build/\nout/\n.gradle/\n.kotlin/\n');
+  for (const [file, text] of Object.entries(files)) write(repo, file, text);
   git(repo, 'add', '.');
   git(
     repo,
@@ -45,6 +51,12 @@ function repository() {
     'tree',
   );
   return repo;
+}
+
+/** Writes [text] to [file] (relative to [repo]), its directories too. */
+function write(repo, file, text) {
+  mkdirSync(join(repo, file, '..'), { recursive: true });
+  writeFileSync(join(repo, file), text);
 }
 
 /** Installs [dir] (relative to [repo]) stamped [commit] and [dirty]. */
@@ -215,3 +227,81 @@ measure ${args}`;
   assert.equal(insert.status, 0, insert.stderr);
   assert.equal(insert.stdout, 'inserted\n');
 });
+
+test('a report written or edited under results/reports/ leaves the tree clean; any other change, under results/ too, does not', () => {
+  const repo = repository({ [REPORT]: 'session\n' });
+  const head = git(repo, 'rev-parse', 'HEAD');
+  stamped(repo, SERVER, head);
+  stamped(repo, LOAD, head);
+  write(
+    repo,
+    'test/benchmarks/results/reports/m5max-idle/after/idle.txt',
+    'new session\n',
+  );
+  appendFileSync(join(repo, REPORT), 'edited\n');
+  const report = run(repo, 'echo "$(tree_stamp)"; fresh_installs');
+  assert.equal(report.status, 0, report.stderr);
+  assert.equal(
+    report.stdout,
+    `commit=${head} dirty=no\n`,
+    "a --report session's output is not code: the installs are reused",
+  );
+  for (const file of [
+    'test/benchmarks/results/e2e.md',
+    'test/benchmarks/results/reports-old/idle.txt',
+    'test/benchmarks/harness/bench.sh',
+  ]) {
+    write(repo, file, 'changed\n');
+    const changed = run(repo, 'echo "$(tree_stamp)"; fresh_installs');
+    assert.equal(changed.stdout, `commit=${head} dirty=yes\nbuilt\n`, file);
+    rmSync(join(repo, file));
+  }
+  appendFileSync(join(repo, 'README.md'), 'changed\n');
+  assert.equal(
+    run(repo, 'tree_stamp').stdout,
+    `commit=${head} dirty=yes\n`,
+    'a tracked file changed outside the reports',
+  );
+});
+
+// The build's stamp (test/benchmarks/build-stamp.gradle.kts), run for real by this repository's Gradle wrapper on a
+// project of its own that only applies it, against the same repository as tree_stamp: both readers say the same.
+const java = spawnSync('java', ['-version']).status === 0;
+test(
+  "the build's stamp and tree_stamp judge the same tree the same",
+  { skip: !java && 'no java on the PATH to run Gradle with', timeout: 300_000 },
+  () => {
+    const repo = repository({
+      [REPORT]: 'session\n',
+      'settings.gradle.kts': 'rootProject.name = "stamp"\n',
+      'build.gradle.kts': `plugins { distribution }\napply(from = ${JSON.stringify(join(ROOT, 'test/benchmarks/build-stamp.gradle.kts'))})\n`,
+      // The daemon this starts leaves soon after: it is no other build's.
+      'gradle.properties': 'org.gradle.daemon.idletimeout=10000\n',
+    });
+    const buildStamp = () => {
+      const result = spawnSync(
+        join(ROOT, 'gradlew'),
+        ['-p', repo, '--quiet', '--console=plain', 'buildStamp'],
+        { encoding: 'utf8' },
+      );
+      assert.equal(result.status, 0, result.stdout + result.stderr);
+      const text = readFileSync(
+        join(repo, 'build/stamp/wow-build-stamp'),
+        'utf8',
+      );
+      return text.trim().replace('\n', ' ');
+    };
+    const head = git(repo, 'rev-parse', 'HEAD');
+    write(
+      repo,
+      'test/benchmarks/results/reports/m5max-idle/after/idle.txt',
+      'new session\n',
+    );
+    appendFileSync(join(repo, REPORT), 'edited\n');
+    assert.equal(run(repo, 'tree_stamp').stdout, `commit=${head} dirty=no\n`);
+    assert.equal(buildStamp(), `commit=${head} dirty=no`);
+    write(repo, 'test/benchmarks/results/e2e.md', 'changed\n');
+    assert.equal(run(repo, 'tree_stamp').stdout, `commit=${head} dirty=yes\n`);
+    assert.equal(buildStamp(), `commit=${head} dirty=yes`);
+  },
+);

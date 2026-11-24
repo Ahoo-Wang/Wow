@@ -1,0 +1,8 @@
+# The paths whose changes make the tree "with changes" in a build stamp: git pathspecs, one per line, read by both the
+# harness's tree_stamp (stamp.sh) and the build's stamp (test/benchmarks/build-stamp.gradle.kts), so an install the
+# build stamped is judged by the rule it was stamped under. Blank lines and lines starting with # are skipped.
+#
+# The whole tree, but the reports: a --report session writes its results under results/reports/ (tracked), and a
+# report, new or edited, is output, not code; no build or harness step reads it.
+:/
+:(top,exclude)test/benchmarks/results/reports

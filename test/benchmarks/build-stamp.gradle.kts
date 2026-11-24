@@ -14,10 +14,13 @@
 // The build's stamp, applied by the benchmark's server and load generator: `wow-build-stamp` beside the installed
 // distribution's bin and lib, the commit it was built from (`commit=<sha>`) and whether the tree had changes then
 // (`dirty=yes|no`). bench.sh's stamp.sh reads it, so a run names the build it measured and does not measure a stale
-// one. Written at every build: the tree's state is not a task input Gradle can see.
+// one. Written at every build: the tree's state is not a task input Gradle can see. `dirty` looks at the paths
+// harness/stamp.pathspec names (the whole tree but the reports), the file stamp.sh's tree_stamp reads, so both judge
+// the tree by one rule; the whole tree without it.
 val buildStamp = tasks.register("buildStamp") {
     val stamp = layout.buildDirectory.file("stamp/wow-build-stamp")
     val root = rootDir
+    val pathspec = buildscript.sourceFile!!.resolveSibling("harness/stamp.pathspec")
     outputs.file(stamp)
     outputs.upToDateWhen { false }
     doLast {
@@ -27,7 +30,9 @@ val buildStamp = tasks.register("buildStamp") {
             output.takeIf { process.waitFor() == 0 }
         }.getOrNull()
         val commit = git("rev-parse", "HEAD") ?: "unknown"
-        val dirty = git("status", "--porcelain")?.isEmpty() != true
+        val spec = pathspec.takeIf { it.isFile }?.readLines().orEmpty()
+            .filter { it.isNotEmpty() && !it.startsWith("#") }
+        val dirty = git("status", "--porcelain", "--", *spec.toTypedArray())?.isEmpty() != true
         stamp.get().asFile.apply {
             parentFile.mkdirs()
             writeText("commit=$commit\ndirty=${if (dirty) "yes" else "no"}\n")
