@@ -186,10 +186,10 @@ class EventStreamTest {
             """{"sku":"apple"}""",
             request + mapOf(WowHeaders.WAIT to "committed > handled(audit)"),
         )
-        // Each result is the duplicate's commit (the direct path emits it twice today, which is not this test's), and
-        // the stream ends with `end` after it, though the plan names a later hop.
-        events.map { it.event() }.distinct().assert().containsExactly("committed")
-        events.map { json.readTree(it.data())["duplicate"].asBoolean() }.assert().containsOnly(true)
+        // One result, the duplicate's commit, emitted once (#6882), and the stream ends with `end` after it, though
+        // the plan names a later hop.
+        events.map { it.event() }.assert().containsExactly("committed")
+        json.readTree(events.single().data())["duplicate"].asBoolean().assert().isTrue()
     }
 
     @Test
