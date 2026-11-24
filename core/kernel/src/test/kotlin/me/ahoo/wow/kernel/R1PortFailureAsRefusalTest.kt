@@ -19,6 +19,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
+import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryReservationStore
 import me.ahoo.wow.spi.reservation.Reservation
@@ -26,6 +27,7 @@ import me.ahoo.wow.spi.reservation.ReservationScope
 import me.ahoo.wow.spi.reservation.ReservationStore
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Deep review r1 (kernel): [ThrownRejections] answers a decide function's plain [IllegalStateException] as the
@@ -75,4 +77,30 @@ class R1PortFailureAsRefusalTest {
         outcome.assert().describedAs("the store's failure answered as the caller's refusal").isNull()
         failure.assert().isInstanceOf(IllegalStateException::class.java)
     }
+
+    data class Remind(val at: Long)
+    class Unknown
+
+    /** Schedules a command class this aggregate does not decide: the code's mistake, as for another aggregate type. */
+    private val scheduling = aggregate<User>("test", "user") {
+        initial { User(it.id) }
+        decide<Remind>(Creation.ALLOWED) { _, body ->
+            schedule("remind", ScheduleRule.after(body.at.milliseconds), Unknown())
+            Decision.events(Registered("x"))
+        }
+        evolve<Registered> { name = it.name }
+    }
+
+    @Test
+    fun `scheduling a command the aggregate does not decide is a failure of the command, not the caller's refusal`() =
+        runTest {
+            // The same mistake for another aggregate type is a Misuse, a failure: AttemptScopes.scheduledCommand.
+            val kernel = Kernel(InMemoryEventLog())
+            var outcome: CommandOutcome? = null
+            val failure = runCatching {
+                outcome = kernel.execute(scheduling, Command("c-1", "r-1", ref, Remind(1_000)))
+            }.exceptionOrNull()
+            outcome.assert().describedAs("the model's mistake answered as the caller's invalid command").isNull()
+            failure.assert().isNotNull()
+        }
 }
