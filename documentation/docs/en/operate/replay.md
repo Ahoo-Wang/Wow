@@ -38,7 +38,7 @@ curl -X POST "http://<service>/<context>/<aggregate>/wow.snapshot.rebuild-snapsh
   -d '{"ids": ["SO-261031-1", "SO-261031-2"]}'
 ```
 
-The route sends the system command `wow.snapshot.RebuildSnapshot` to the context's built-in rebuild aggregate, through admission like any command, so the authorizer decides who may send it; a service refuses it on the public port (403 `wow.auth.forbidden`) unless an authorizer decides Wow's operational commands, never allowing it by default ([Authorize commands](./security#authorize-commands)). A built-in subscription then rewrites each named snapshot from the log, in every target store.
+The route sends the system command `wow.snapshot.RebuildSnapshot` to the context's built-in rebuild aggregate, through admission like any command, so the authorizer decides who may send it; a service refuses it on the public port (403 `wow.auth.forbidden`) unless an authorizer decides Wow's operational commands, never allowing it by default ([Authorize commands](./security#authorize-commands)). A built-in subscription then rewrites each named snapshot from the log, in every target store. An id whose history no longer replays is parked under `wow.snapshot.rewrite`, as a snapshot the in-place rebuild cannot rewrite is ([Snapshots: raise the state revision](#snapshots-raise-the-state-revision)), and the request's other ids are rewritten.
 
 ## A new snapshot store
 
