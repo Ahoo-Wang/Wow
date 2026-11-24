@@ -38,7 +38,8 @@ import kotlin.time.Duration.Companion.seconds
 /**
  * The step-out of a node that met a fatal error (X-80, [PartitionOwnership.stepOut]): for good, bounded, and whatever
  * the hand-off comes to, renewing no lease, so the other node takes every partition, on expiry at worst. A group whose
- * lease renewals ended steps out the same way ([LeaseRenewals.launchIn]).
+ * lease renewals ended steps out the same way ([LeaseRenewals.launchIn]), and so does every group of a membership whose
+ * heartbeats or reads of the members ended ([ServiceMembership.whenEnded]).
  */
 @OptIn(ExperimentalCoroutinesApi::class) // The scheduler's time source times the leases.
 class StepOutTest {
@@ -182,15 +183,119 @@ class StepOutTest {
             }
         }
 
-    private fun TestScope.ownership(node: String, leases: LeaseStore) = PartitionOwnership(
-        GROUP,
+    @Test
+    fun `a node whose heartbeats ended lets the other node take its partitions`(): Unit = runTest(timeout = 1.minutes) {
+        val store = InMemoryLeaseStore(virtualClock())
+        val breaking = BreakingMembership(store)
+        val a = ownership("node-a", breaking)
+        val b = ownership("node-b", store)
+        try {
+            a.start()
+            b.start()
+            delay(10.seconds)
+            a.owned.assert().isNotEmpty()
+
+            // A's next heartbeat throws an error no round catches: the loop ends, and A's record expires.
+            breaking.heartbeats = true
+            delay(1.minutes)
+
+            // B no longer counts A, so its HRW gives B every partition; A holds none of their leases.
+            owners(store).assert().containsExactly("node-b")
+            b.owned.assert().isEqualTo(ALL)
+            a.owned.assert().isEmpty()
+        } finally {
+            a.abort()
+            b.abort()
+        }
+    }
+
+    @Test
+    fun `a node whose reads of the members ended lets the others take the share of a node that left`(): Unit =
+        runTest(timeout = 1.minutes) {
+            val store = InMemoryLeaseStore(virtualClock())
+            val breaking = BreakingMembership(store)
+            val a = ownership("node-a", breaking)
+            val b = ownership("node-b", store)
+            val c = ownership("node-c", store)
+            try {
+                a.start()
+                b.start()
+                c.start()
+                delay(10.seconds)
+
+                // A's next read of the members throws: the loop ends, and A's view stays {A, B, C}.
+                breaking.reads = true
+                delay(10.seconds)
+                b.stop()
+                delay(1.minutes)
+
+                // A computes its share on a view that no longer is the group's: it holds none of the leases, and C, the
+                // one member left, owns every partition, B's share included.
+                owners(store).assert().doesNotContain("node-a")
+                c.owned.assert().isEqualTo(ALL)
+                a.owned.assert().isEmpty()
+            } finally {
+                a.abort()
+                b.abort()
+                c.abort()
+            }
+        }
+
+    @Test
+    fun `every group of a membership whose heartbeats ended steps out, and the membership joins none again`(): Unit =
+        runTest(timeout = 1.minutes) {
+            val store = InMemoryLeaseStore(virtualClock())
+            val breaking = BreakingMembership(store)
+            val membership = ServiceMembership(
+                GROUP.service,
+                "node-a",
+                { "node-a.internal:7070" },
+                breaking,
+                context = StandardTestDispatcher(testScheduler),
+                timeSource = testScheduler.timeSource,
+            )
+            val orders = ownership("node-a", breaking, GROUP, membership)
+            val payments = ownership("node-a", breaking, PAYMENTS, membership)
+            try {
+                orders.start()
+                payments.start()
+                delay(10.seconds)
+                payments.owned.assert().isEqualTo(ALL)
+
+                breaking.heartbeats = true
+                delay(10.seconds)
+
+                // Both groups the membership serves stepped out, and handed their partitions off.
+                listOf(orders, payments).forEach {
+                    it.isSteppedOut.assert().isTrue()
+                    it.owned.assert().isEmpty()
+                }
+                (store.owners(GROUP.name) + store.owners(PAYMENTS.name)).assert().isEmpty()
+                runCatching { membership.join("${GROUP.service}/audit") {} }.exceptionOrNull()?.message.assert()
+                    .contains("takes part in ${GROUP.service} no more: its membership heartbeats ended")
+            } finally {
+                orders.abort()
+                payments.abort()
+            }
+        }
+
+    private fun TestScope.ownership(
+        node: String,
+        leases: LeaseStore,
+        group: LeaseGroup = GROUP,
+        membership: ServiceMembership? = null,
+    ) = PartitionOwnership(
+        group,
         node,
-        "$node.internal:7070",
+        { "$node.internal:7070" },
         PARTITIONS,
         leases,
         context = StandardTestDispatcher(testScheduler),
         timeSource = testScheduler.timeSource,
+        membership = membership,
     )
+
+    private suspend fun owners(store: LeaseStore): Set<String> = store.owners(GROUP.name).mapTo(HashSet()) { it.owner }
 
     private suspend fun members(store: LeaseStore): List<String> =
         store.members(GROUP.service).filter { GROUP.name in it.groups }.map { it.node }
@@ -234,6 +339,35 @@ class StepOutTest {
         }
     }
 
+    /** Once set, a heartbeat or a read of the members throws, as a driver built against another version would. */
+    private class BreakingMembership(private val delegate: LeaseStore) : LeaseStore by delegate {
+        @Volatile
+        var heartbeats = false
+
+        @Volatile
+        var reads = false
+
+        override suspend fun heartbeat(
+            service: String,
+            node: String,
+            address: String,
+            ttl: Duration,
+            groups: Set<String>,
+        ): Member {
+            if (heartbeats) {
+                throw LinkageError("The lease store's driver has no such method.")
+            }
+            return delegate.heartbeat(service, node, address, ttl, groups)
+        }
+
+        override suspend fun members(service: String): List<Member> {
+            if (reads) {
+                throw LinkageError("The lease store's driver has no such method.")
+            }
+            return delegate.members(service)
+        }
+    }
+
     /** The first heartbeat waits for [release]; the others answer at once. */
     private class HangingHeartbeat(private val delegate: LeaseStore) : LeaseStore by delegate {
         val release = CompletableDeferred<Unit>()
@@ -252,9 +386,11 @@ class StepOutTest {
 
     private companion object {
         val GROUP = LeaseGroup("svc", "orders")
+        val PAYMENTS = LeaseGroup("svc", "payments")
         const val PARTITIONS = 8
         const val FATAL = "fatal"
         const val OTHER = "other"
         val BOUND = 10.seconds
+        val ALL = (0 until PARTITIONS).toSet()
     }
 }

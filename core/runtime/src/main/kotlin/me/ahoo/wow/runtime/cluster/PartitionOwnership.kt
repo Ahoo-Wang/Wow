@@ -96,7 +96,7 @@ import kotlin.time.TimeSource
  * round, then hands off every partition it holds.
  *
  * [stepOut] is the leave of a node that met a fatal error ([me.ahoo.wow.runtime.health.NodeFatals]), or of a group whose
- * lease renewals ended on an error no round catches ([LeaseRenewals.launchIn]): for good, within a
+ * renewals or membership ended ([LeaseRenewals.launchIn], [ServiceMembership.whenEnded]): for good, within a
  * bound, and whatever the hand-off comes to, renewing no lease from then on, so a partition it could not hand off is
  * the others' once its lease expires. It keeps reading the routes, so a command the node is still given goes to the
  * partition's new owner.
@@ -356,6 +356,7 @@ class PartitionOwnership internal constructor(
         // Before the first acquisition: the leases acquired first must not wait for the last one to be renewed.
         run.renewals = renewals.launchIn(run.upkeep, { isSteppedOut }) { why -> stepOut(options.reconcileTimeout, why) }
         membership.join(group.name) { if (running != null) peerRoutes.membersRead() }
+        membership.whenEnded(run.upkeep) { why -> stepOut(options.reconcileTimeout, why) }
         // A step-out that ran meanwhile saw no running ownership to leave: this start leaves, and fails.
         check(!isSteppedOut) { "$node stepped out of $group after ${steppedOut.get()} while joining it." }
         refreshRoutes()
@@ -431,8 +432,8 @@ class PartitionOwnership internal constructor(
     }
 
     /**
-     * Leaves the group for good after [why]: the node's fatal error, or the end of its lease renewals
-     * ([LeaseRenewals.launchIn]). It leaves the members at once, so the others take its
+     * Leaves the group for good after [why]: the node's fatal error, or the end of its lease renewals or its membership
+     * ([LeaseRenewals.launchIn], [ServiceMembership.whenEnded]). It leaves the members at once, so the others take its
      * partitions on their next round, and hands off every partition it holds as [stop] does, within [bound]. Whatever
      * the hand-off comes to, done, past [bound], or failed (out of memory again, say), the node renews no lease from then
      * on: a partition it still holds is the others' once its lease expires, and its subscriptions, intake and timers
