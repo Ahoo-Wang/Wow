@@ -228,11 +228,16 @@ internal object SubscriptionResolver {
             }
     }
 
-    /** Two [handlers] of the processor [name] with one name, which would be one subscription. */
+    /**
+     * Two [handlers] of the processor [name] with one subscription name, their `@Name` or else their own (#6830), which
+     * would be one subscription. Overloads that `@Name` keeps apart are two.
+     */
     private fun sameNames(className: String, name: String, handlers: List<KSFunctionDeclaration>): List<String> =
-        handlers.distinct().groupBy { it.simpleName.asString() }.filterValues { it.size > 1 }.keys.map {
-            "processor $className has two handlers named $it: each is the subscription $name.$it"
-        }
+        handlers.distinct().groupBy { it.handlerName("", mutableListOf()) }.filterValues { it.size > 1 }
+            .map { (handler, functions) ->
+                "processor $className has two handlers named $handler " +
+                    "(${functions.joinToString { it.simpleName.asString() }}): each is the subscription $name.$handler"
+            }
 
     /** `@Sends` on a function of [processor] that is no handler: it declares what nothing sends. */
     private fun straySends(processor: KSClassDeclaration, className: String): List<String> =

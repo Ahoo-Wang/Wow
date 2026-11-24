@@ -230,6 +230,28 @@ class ScheduleJobBindingTest {
     }
 
     @Test
+    fun `a job in a class of no processor kind should fail the compilation, naming it`() {
+        // Found by its @OnSchedule job, as a class of @OnEvent handlers is by them (#6832): never dropped in silence.
+        val kindless = SourceFile.kotlin(
+            "Nightly.kt",
+            """
+            package sample.billing
+
+            import me.ahoo.wow.api.annotation.OnSchedule
+            import me.ahoo.wow.api.schedule.ScheduleTick
+
+            object Nightly {
+                @OnSchedule(name = "sweep", cron = "@daily")
+                fun sweep(tick: ScheduleTick) = Unit
+            }
+            """.trimIndent(),
+        )
+        val (_, result) = compileModel("generate", options, kindless)
+        result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        result.messages.assert().contains("processor Nightly is none of @Projection, @Reactor, @Saga")
+    }
+
+    @Test
     fun `a saga of jobs only needs no @OnEvent handler`() {
         val jobsOnly = SourceFile.kotlin(
             "Jobs.kt",

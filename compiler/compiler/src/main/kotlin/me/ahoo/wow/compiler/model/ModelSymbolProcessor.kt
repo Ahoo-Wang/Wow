@@ -46,6 +46,7 @@ import me.ahoo.wow.compiler.model.source.ModelSource
 import me.ahoo.wow.compiler.model.source.QueryPropertiesSource
 import me.ahoo.wow.compiler.model.source.SubscriptionSource
 import me.ahoo.wow.compiler.model.subscription.ModuleEvent
+import me.ahoo.wow.compiler.model.subscription.ScheduleJobResolver
 import me.ahoo.wow.compiler.model.subscription.SubscriptionBinding
 import me.ahoo.wow.compiler.model.subscription.SubscriptionResolver
 import me.ahoo.wow.compiler.model.symbol.AnnotationSet
@@ -370,10 +371,12 @@ internal class ModelSymbolProcessor(
     }
 
     private fun processSubscriptions(resolver: Resolver): List<KSAnnotated> {
+        // A class with an @OnSchedule job and no kind is a processor too, so its missing kind is refused (#6832).
         val handlerClasses = listOf(
             SubscriptionResolver.ON_EVENT,
             SubscriptionResolver.ON_REJECTED,
             SubscriptionResolver.ON_COMMITTED,
+            ScheduleJobResolver.ON_SCHEDULE,
         ).asSequence()
             .flatMap { resolver.getSymbolsWithAnnotation(it) }
             .filterIsInstance<KSFunctionDeclaration>()
@@ -580,6 +583,7 @@ internal class ModelSymbolProcessor(
             SubscriptionResolver.ON_EVENT,
             SubscriptionResolver.ON_REJECTED,
             SubscriptionResolver.ON_COMMITTED,
+            ScheduleJobResolver.ON_SCHEDULE,
         ) + SubscriptionResolver.KIND_ANNOTATIONS + SubscriptionResolver.REMOVED_KIND_ANNOTATIONS
 
         // A plain tree needs no Kotlin module, whose reflection KSP's class loader does not provide.
