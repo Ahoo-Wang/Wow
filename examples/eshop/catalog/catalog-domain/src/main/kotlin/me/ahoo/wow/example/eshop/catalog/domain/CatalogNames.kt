@@ -20,8 +20,8 @@ import java.util.Locale
  * reserved under, so "Contoso" and " contoso " are one name.
  */
 object CatalogNames {
-    const val BRAND_NAMES = "eshop-catalog.brand-name"
-    const val CATEGORY_NAMES = "eshop-catalog.category-name"
+    const val BRAND_NAMES = "brand-name"
+    const val CATEGORY_NAMES = "category-name"
 
     fun key(name: String): String = name.trim().lowercase(Locale.ROOT)
 }
