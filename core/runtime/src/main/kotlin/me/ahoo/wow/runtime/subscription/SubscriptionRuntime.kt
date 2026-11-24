@@ -203,10 +203,10 @@ class SubscriptionRuntime internal constructor(
         val run = Running(root, scope, ParkedAtStart(source, ledger, scope))
         var started = false
         try {
-            // Who read the stream before this start: a subscription that starts where it joins reads it from the
-            // beginning only when none did, whichever partition or subscription starts first.
+            // Who read each partition before this start: a subscription that starts where it joins reads a partition
+            // from the beginning only when none did, whichever subscription starts first.
             val saved = checkpoints.list(group)
-            run.joined = saved.mapTo(HashSet()) { it.subscription }
+            run.joined = joinedIn(saved)
             if (tellsOrphans && !orphansTold) {
                 orphansTold = true
                 orphanCheckpoints.tellOrphans(saved)

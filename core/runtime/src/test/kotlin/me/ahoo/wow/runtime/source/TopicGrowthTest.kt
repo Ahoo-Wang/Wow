@@ -18,8 +18,11 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.ledger.LedgerRequest
+import me.ahoo.wow.kernel.StartFrom
+import me.ahoo.wow.runtime.cluster.Hrw
 import me.ahoo.wow.runtime.cluster.LeaseGroup
 import me.ahoo.wow.runtime.cluster.fastOptions
+import me.ahoo.wow.runtime.subscription.Handled
 import me.ahoo.wow.runtime.subscription.ParkedRetryOptions
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
@@ -32,6 +35,7 @@ import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.ledger.ParkedAmendment
 import me.ahoo.wow.spi.subscription.SubscriptionId
 import me.ahoo.wow.spi.transport.EnvelopeCodec
+import me.ahoo.wow.spi.transport.PartitionedSource
 import me.ahoo.wow.spi.transport.TopicMessage
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -120,6 +124,96 @@ class TopicGrowthTest : TopicSubscriptionsFixtures() {
             listOf("o-1", "o-2").forEach { handled.versionsOf(it).assert().containsExactly(1) }
             handled.size.assert().isEqualTo(5)
         }
+
+    @Test
+    fun `a record written to an added partition before the node reads it reaches every subscription, whatever its start`():
+        Unit = runBlocking {
+        // #6754: an added partition holds only what was written while the subscriptions existed, none of it history
+        // a start chose to skip: read from its beginning by a JOIN and an END subscription too.
+        val filter = SubscriptionFilter(ORDER.context, setOf(ORDER.name))
+        val joined = Handled()
+        val joining = Subscription("Saga.onOrder", filter, StartFrom.JOIN) { joined.record(it) }
+        val ended = Handled()
+        val ending = Subscription("Reactor.onOrder", filter, StartFrom.END) { ended.record(it) }
+        val topic = "wow.sales.joining.state"
+        topics.create(topic, 2)
+        topics.publish(orderRecord("o-0", 1), topic = topic)
+        val growing = joining(topic, listOf(board, joining, ending))
+        // The END subscription starts at the end of the first partitions: it does not read o-0.
+        topics.publish(orderRecord("o-1", 1), orderRecord("o-2", 1), topic = topic)
+        eventually { handled.size == 3 && joined.size == 3 && ended.size == 2 }
+        // The publisher writes to an added partition before this node's refresh reads it.
+        topics.grow(topic, PARTITIONS)
+        val record = EnvelopeCodec.message(orderRecord("o-3", 1))
+        topics.send(topic, TopicMessage.of(record.key, record.value, record.headers, PARTITIONS - 1))
+        eventually { growing.ownership?.owned == (0 until PARTITIONS).toSet() }
+        eventually { listOf(handled, joined, ended).all { it.versionsOf("o-3") == listOf(1) } }
+        // What the first partitions held is not read again.
+        for (id in listOf("o-1", "o-2")) {
+            listOf(handled, joined, ended).forEach { it.versionsOf(id).assert().containsExactly(1) }
+        }
+        ended.versionsOf("o-0").assert().isEmpty()
+    }
+
+    @Test
+    fun `a node that sees the added partitions after another read them does not move their checkpoints back`(): Unit =
+        runBlocking {
+            val topic = "wow.sales.seen-twice.state"
+            topics.create(topic, 2)
+            // Two nodes, the one that sees the growth first owning the added partition 3 among both.
+            val slowNode = "node-slow"
+            val fastNode = generateSequence(1) { it + 1 }.map { "node-$it" }
+                .first { Hrw.owner(PARTITIONS - 1, listOf(it, slowNode)) == it }
+            val shown = object : PartitionedSource by topics {
+                @Volatile
+                var grown = false
+
+                override suspend fun partitions(topic: String): List<Int> =
+                    topics.partitions(topic).let { if (grown) it else it.take(2) }
+            }
+            val fast = joining(topic, listOf(board), node = fastNode)
+            val slow = joining(topic, listOf(board), node = slowNode, source = shown)
+            eventually { (fast.ownership?.owned.orEmpty() + slow.ownership?.owned.orEmpty()) == setOf(0, 1) }
+            topics.grow(topic, PARTITIONS)
+            val record = EnvelopeCodec.message(orderRecord("o-3", 1))
+            topics.send(topic, TopicMessage.of(record.key, record.value, record.headers, PARTITIONS - 1))
+            // The fast node saves the added partitions' first checkpoints, reads partition 3 and moves its checkpoint on.
+            eventually { handled.versionsOf("o-3") == listOf(1) }
+            eventually { checkpoints.load(fast.group.name, BOARD, PARTITIONS - 1) == 1L }
+            // The slow node sees the growth now, and saves its own first checkpoints of the added partitions.
+            shown.grown = true
+            eventually {
+                checkpoints.savesOf(BOARD, PARTITIONS - 1).count { it == 0L } == 2 &&
+                    slow.joinState == TopicSubscriptions.JoinState.READING
+            }
+            checkpoints.load(fast.group.name, BOARD, PARTITIONS - 1).assert().isEqualTo(1L)
+            handled.versionsOf("o-3").assert().containsExactly(1)
+        }
+
+    /** Reads [topic] on [node] with [subscriptions], looking for new partitions every 50 ms. */
+    private suspend fun joining(
+        topic: String,
+        subscriptions: List<Subscription>,
+        node: String = "node-1",
+        source: PartitionedSource = topics,
+    ): TopicSubscriptions = TopicSubscriptions(
+        service = SERVICE,
+        topic = topic,
+        node = node,
+        addressOf = { "$node.internal:9090" },
+        source = source,
+        checkpoints = checkpoints,
+        leases = leases,
+        ledger = ledger,
+        subscriptions = subscriptions,
+        options = testOptions(),
+        cluster = fastOptions(),
+        partitionRefresh = 50.milliseconds,
+    ).also {
+        started += it
+        it.start()
+        it.awaitStarted()
+    }
 
     /** Reads [topic] on [node] with [subscription], looking for new partitions every 20 ms. */
     private suspend fun growing(
