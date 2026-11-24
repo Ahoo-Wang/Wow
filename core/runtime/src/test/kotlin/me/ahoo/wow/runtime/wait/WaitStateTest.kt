@@ -61,6 +61,27 @@ class WaitStateTest {
     }
 
     @Test
+    fun `a duplicate of the root ends the wait at its commit, after a later hop it reached at once`() {
+        // #6758: nothing signals a duplicate again, whichever path brought its commit.
+        val alone = WaitState(listOf(snapshot), "root")
+        val duplicate = result("root", committed).copyWith(duplicate = true)
+        alone.offer(duplicate)!!.assert().containsExactly(duplicate)
+        alone.outcome.assert().isEqualTo(duplicate)
+        // The hop it reached at once comes first, buffered behind the commit, and ends the wait itself.
+        val reached = WaitState(listOf(committed, snapshot), "root")
+        val atSnapshot = result("root", snapshot, snapshotFunction).copyWith(duplicate = true)
+        reached.offer(atSnapshot)!!.assert().isEmpty()
+        reached.offer(duplicate)!!.assert().containsExactly(duplicate, atSnapshot)
+        reached.outcome.assert().isEqualTo(atSnapshot)
+        // A duplicate of a command the chain derived is not the root's: the chain goes on to its snapshot.
+        val chain = WaitState(listOf(committed, saga, snapshot), "root")
+        chain.offer(result("root", committed))
+        chain.offer(result("root", saga, sagaFunction, derived = listOf("d-1")))
+        chain.offer(result("d-1", committed).copyWith(duplicate = true))!!.assert().isEmpty()
+        chain.outcome.assert().isNull()
+    }
+
+    @Test
     fun `the stage a wait reached never goes back, whatever order its results arrive in`() {
         val state = WaitState(listOf(snapshot), "root")
         val atCommitted = result("root", committed).copyWith(version = 1)
