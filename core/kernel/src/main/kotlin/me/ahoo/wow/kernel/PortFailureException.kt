@@ -13,8 +13,6 @@
 
 package me.ahoo.wow.kernel
 
-import kotlinx.coroutines.CancellationException
-
 /**
  * A port of the kernel ([port]: the reservation store, the id generators) that a decide function reached through its
  * scope failed with [cause], an exception its own refusals would be taken for ([ThrownRejections.isRefusal]): a plain
@@ -33,8 +31,7 @@ internal class PortFailureException(port: String, cause: Throwable) :
 @Suppress("TooGenericExceptionCaught") // Only what the refusal mapping would take is wrapped; the rest is rethrown.
 internal inline fun <T> guarded(port: String, block: () -> T): T = try {
     block()
-} catch (cancelled: CancellationException) {
-    throw cancelled
 } catch (failure: Exception) {
+    // A cancellation is never a refusal ([ThrownRejections.isRefusal]): it is rethrown as it is.
     throw if (ThrownRejections.isRefusal(failure)) PortFailureException(port, failure) else failure
 }

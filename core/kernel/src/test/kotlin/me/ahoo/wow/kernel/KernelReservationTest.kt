@@ -17,10 +17,14 @@ import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.Logger
 import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.core.read.ListAppender
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
@@ -495,6 +499,34 @@ class KernelReservationTest {
             failure.message.assert().isEqualTo(thrown.message)
         }
         log.read(model.type.ref("t", "u-1")).toList().assert().isEmpty()
+    }
+
+    @Test
+    fun `a caller cancelled while the store reserves stays cancelled, never a failure of the store`() = runTest {
+        val reserving = CompletableDeferred<Unit>()
+        val hanging = object : ReservationStore by InMemoryReservationStore() {
+            override suspend fun reserve(
+                scope: ReservationScope,
+                key: String,
+                owner: AggregateRef,
+                hold: String,
+                ttl: Duration,
+            ): Reservation? {
+                reserving.complete(Unit)
+                awaitCancellation()
+            }
+        }
+        var failure: Throwable? = null
+        val caller = launch {
+            failure = runCatching {
+                execute("u-1", Register("ahoo"), on = Kernel(log, reservations = hanging))
+            }.exceptionOrNull()
+        }
+        reserving.await()
+        caller.cancelAndJoin()
+        failure.assert().isInstanceOf(CancellationException::class.java)
+        failure.assert().isNotInstanceOf(PortFailureException::class.java)
+        failure.assert().isNotInstanceOf(CancelledDecisionException::class.java)
     }
 
     private companion object {
