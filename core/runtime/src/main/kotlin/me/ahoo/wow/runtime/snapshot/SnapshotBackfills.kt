@@ -122,10 +122,10 @@ internal class SnapshotBackfills(
                 (group.checkpoints.load(group.group, subscription, partition) ?: 0L) >= head
             }
         }
-        if (!reached || table.fill == SnapshotFill.BACKFILL && parkedBy(store, type, subscription)) {
+        if (reached && table.fill == SnapshotFill.BACKFILL && parkedBy(store, type, subscription)) {
             return
         }
-        if (mark() != null) {
+        if (reached && mark() != null) {
             caughtUp += store to type
             logger.info { "The snapshots of $type in $store caught up with the log." }
         }

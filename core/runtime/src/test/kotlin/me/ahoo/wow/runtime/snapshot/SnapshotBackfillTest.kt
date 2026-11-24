@@ -221,6 +221,9 @@ class SnapshotBackfillTest {
             checkpointed(backfill) { runBlocking { head(it) } }
             node.maintain()
             memory.table(type)!!.backfilled.assert().describedAs("marked with $parked parked").isFalse()
+            // Checked again, still parked: still not marked, and told once.
+            node.maintain()
+            memory.table(type)!!.backfilled.assert().isFalse()
             // The operator's retry runs the handler again, its entry decoded as a retry reads it: the backfill writes.
             val entry = log.readEntries(parked, 1, 1).toList().single()
             val decoded = running.subscription.decoder.decode(entry.stream, entry.position, entry.decodedTransport)
