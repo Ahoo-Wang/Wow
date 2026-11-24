@@ -13,12 +13,15 @@
 
 package me.ahoo.wow.client
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.asFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.fold
 import kotlinx.coroutines.future.await
+import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.decide.checkUse
 import me.ahoo.wow.api.problem.Retry
@@ -42,6 +45,8 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Flow.Publisher
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration
+import kotlin.time.TimeMark
+import kotlin.time.TimeSource
 import kotlin.time.toJavaDuration
 
 /**
@@ -137,13 +142,18 @@ internal class HttpTransport(
     /** How long a request to [context] may take until its peer answers it. */
     fun timeoutOf(context: String): Duration = timeouts[context] ?: timeout
 
-    /** [request] answered as bytes, retried as its [kind] says of its problem. */
+    /** How long [request] may take until its peer answered it whole: its own timeout, else its context's. */
+    private fun boundOf(request: PeerRequest): Duration = request.timeout ?: timeoutOf(request.context)
+
+    /**
+     * [request] answered as bytes, retried as its [kind] says of its problem. Its whole answer, the body included, is
+     * bounded by the request's timeout ([boundOf]): the JDK's own ends once the response's head is in (#6807).
+     */
     suspend fun exchange(request: PeerRequest, kind: Exchange): Answer<ByteArray> =
         withRetries(request, kind) { base ->
-            val response = client.sendAsync(
-                build(request, base, JSON_ACCEPT),
-                HttpResponse.BodyHandlers.ofByteArray()
-            ).await()
+            val response = within(request, boundOf(request)) {
+                client.sendAsync(build(request, base, JSON_ACCEPT), HttpResponse.BodyHandlers.ofByteArray()).await()
+            }
             val status = response.statusCode()
             if (status in SUCCESS) {
                 Answer.Ok(response.body())
@@ -155,24 +165,63 @@ internal class HttpTransport(
     /**
      * [request] answered as a `text/event-stream`, its lines once the response's head says it is one, retried as its
      * [kind] says of its problem; a 2xx response of another type (a peer that answered with one JSON document)
-     * is its body read whole, as the data of one event.
+     * is its body read whole, as the data of one event. The head and a body read whole are bounded as [exchange]'s
+     * answer is; the lines are bounded by what is left of the request's own timeout, a command's wait and its grace,
+     * when it has one ([PeerRequest.timeout]): past it their flow fails with an [HttpTimeoutException] (#6807). A
+     * request without one, a query's streamed list, which resumes from its position when its connection is lost,
+     * streams for as long as its peer sends.
      */
     suspend fun stream(request: PeerRequest, kind: Exchange): Answer<Flow<String>> =
         withRetries(request, kind) { base ->
-            val response = client.sendAsync(
-                build(request, base, EVENT_STREAM),
-                HttpResponse.BodyHandlers.ofPublisher()
-            ).await()
-            val status = response.statusCode()
-            val body = response.body()
-            when {
-                status !in SUCCESS -> Answer.Problem(Problems.read(status, response.headers(), body.bytes()))
-                response.headers().firstValue(
-                    CONTENT_TYPE
-                ).orElse("").startsWith(EVENT_STREAM) -> Answer.Ok(body.lines())
-                else -> Answer.Ok(asEvent(body.bytes().decodeToString()))
+            val sent = TimeSource.Monotonic.markNow()
+            val bound = boundOf(request)
+            within(request, bound) {
+                val response = client.sendAsync(
+                    build(request, base, EVENT_STREAM),
+                    HttpResponse.BodyHandlers.ofPublisher()
+                ).await()
+                val status = response.statusCode()
+                val body = response.body()
+                when {
+                    status !in SUCCESS -> Answer.Problem(Problems.read(status, response.headers(), body.bytes()))
+                    response.headers().firstValue(CONTENT_TYPE).orElse("").startsWith(EVENT_STREAM) -> Answer.Ok(
+                        request.timeout?.let { body.lines().within(request, sent, it) } ?: body.lines(),
+                    )
+                    else -> Answer.Ok(asEvent(body.bytes().decodeToString()))
+                }
             }
         }
+
+    /**
+     * [answer], one attempt's exchange with a target, within [bound]: past it, an [HttpTimeoutException], the request
+     * sent and not answered within its bound, as the JDK's own timeout of the head is. Its cancellation cancels the
+     * exchange, which closes its connection.
+     */
+    private suspend fun <T : Any> within(request: PeerRequest, bound: Duration, answer: suspend () -> T): T =
+        (withTimeoutOrNull(bound) { outcomeOf { answer() } } ?: throw unansweredWithin(request, bound)).getOrThrow()
+
+    /** These lines, failing with an [HttpTimeoutException] once [bound] passed since [sent]. */
+    private fun Flow<String>.within(request: PeerRequest, sent: TimeMark, bound: Duration): Flow<String> = flow {
+        val outcome = withTimeoutOrNull(bound - sent.elapsedNow()) { outcomeOf { collect { emit(it) } } }
+        (outcome ?: throw unansweredWithin(request, bound)).getOrThrow()
+    }
+
+    /**
+     * What [block] returned or threw, its cancellation aside: a failure carried out of a timeout's scope as a value is
+     * rethrown as itself, where one thrown across it is a copy, made to recover the coroutine's stack trace, and a
+     * problem's cause is the failure itself.
+     */
+    @Suppress("TooGenericExceptionCaught") // Every failure is rethrown, as itself, once out of the scope.
+    private inline fun <T> outcomeOf(block: () -> T): Result<T> = try {
+        Result.success(block())
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (failure: Exception) {
+        Result.failure(failure)
+    }
+
+    private fun unansweredWithin(request: PeerRequest, bound: Duration) =
+        HttpTimeoutException("The answer of ${request.context} did not end within its bound of $bound.")
 
     /**
      * [attempt] at [request]'s targets, retried as [retry] says: each attempt goes through the targets of its context
@@ -349,7 +398,7 @@ internal class HttpTransport(
 
     private suspend fun build(request: PeerRequest, base: String, accept: String): HttpRequest {
         val builder = HttpRequest.newBuilder(URI.create(base + request.path))
-            .timeout((request.timeout ?: timeoutOf(request.context)).toJavaDuration())
+            .timeout(boundOf(request).toJavaDuration())
             .header(ACCEPT, accept)
         when (val mode = mode) {
             is ClientMode.Service -> {
