@@ -19,8 +19,10 @@ import me.ahoo.wow.api.aggregate.AggregateType
  * A command's handling produced an event its function does not declare: a decide function or an after hook of the
  * model of [type] produced [event] for [command], outside the events its return type yields or its `produces` lists, or
  * a lifecycle command's decide function another lifecycle event than its own, a decide function rejected it with a
- * lifecycle event, or a model whose owner is fixed (of its tenant, or its id its owner's) transferred its owner
- * ([AggregateModel.refuseOwnerTransfer]). A bug in the model, not an outcome of the command: the command fails
+ * lifecycle event, a model whose owner is fixed (of its tenant, or its id its owner's) transferred its owner
+ * ([KernelLifecycle.refuseOwnerTransfer]), or a decision deleted its aggregate ([event] `AggregateDeleted`) and released
+ * keys while the kernel's own function restores it, which would bring it back without them
+ * ([KernelLifecycle.refuseKeylessRestore]). A bug in the model, not an outcome of the command: the command fails
  * (`wow.command.undeclared-event`) and commits nothing.
  */
 class UndeclaredEventException(

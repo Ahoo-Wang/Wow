@@ -37,6 +37,7 @@ import me.ahoo.wow.api.schedule.Schedules
 import me.ahoo.wow.api.schedule.SetSchedule
 import me.ahoo.wow.kernel.schedule.ScheduleSlots
 import me.ahoo.wow.spi.SystemCommandGroups
+import me.ahoo.wow.spi.reservation.ReservationKey
 import me.ahoo.wow.spi.snapshot.SnapshotRebuilds
 
 /**
@@ -135,7 +136,7 @@ internal object KernelLifecycle {
     /**
      * [metadata] after [event]: only the lifecycle and schedule events change it. [decided] is the model whose decision
      * of the command [body] holds [event], null when the log is replayed: one whose owner is fixed fails the command on
-     * [OwnerTransferred] ([AggregateModel.refuseOwnerTransfer]). Checked in the event's own branch, so a decision
+     * [OwnerTransferred] ([refuseOwnerTransfer]). Checked in the event's own branch, so a decision
      * without the event, and a model whose owner is not fixed, pay nothing for it.
      */
     fun evolve(
@@ -150,7 +151,7 @@ internal object KernelLifecycle {
         is ScheduleCancelled -> metadata.copy(schedules = metadata.schedules - event.key)
         is AggregateRestored -> metadata.copy(deleted = false)
         is OwnerTransferred -> {
-            decided?.refuseOwnerTransfer(body)
+            decided?.let { refuseOwnerTransfer(it, body) }
             metadata.copy(scope = metadata.scope.copy(ownerId = event.ownerId))
         }
         is SpaceTransferred -> metadata.copy(scope = metadata.scope.copy(spaceId = event.spaceId))
@@ -169,7 +170,7 @@ internal object KernelLifecycle {
      * appended: no subscription, snapshot or wait ever sees it, and the model's own evolve function of it does not run.
      *
      * An `OwnerTransferred` of [decided], a model whose owner is fixed, fails the command [body] whether or not it
-     * changes anything ([AggregateModel.refuseOwnerTransfer]): the event is a bug of the model, never left out in
+     * changes anything ([refuseOwnerTransfer]): the event is a bug of the model, never left out in
      * silence.
      *
      * The same list when nothing is left out. A decision with no lifecycle or schedule event pays one type test per
@@ -191,7 +192,7 @@ internal object KernelLifecycle {
                 kept?.add(event)
                 continue
             }
-            if (event is OwnerTransferred) decided.refuseOwnerTransfer(body)
+            if (event is OwnerTransferred) refuseOwnerTransfer(decided, body)
             val metadata = current ?: before()
             if (changesNothing(metadata, event)) {
                 if (kept == null) kept = ArrayList(events.subList(0, index))
@@ -221,6 +222,48 @@ internal object KernelLifecycle {
 
     private inline fun changeOrNoOp(unchanged: Boolean, event: () -> Any): Decision =
         if (unchanged) Decision.NoOp else Decision.events(event())
+
+    /**
+     * Fails the command [body], whose decision of [decided] holds [OwnerTransferred], when that aggregate's owner is
+     * fixed: a bug of the model, whichever function produced the event ([UndeclaredEventException]). The kernel asks
+     * only for a decision that holds the event, never when it replays the log.
+     */
+    fun refuseOwnerTransfer(decided: AggregateModel<*>, body: Any) {
+        val fixed = decided.fixedOwner ?: return
+        val command = body.javaClass
+        throw UndeclaredEventException(
+            decided.type,
+            command,
+            OwnerTransferred::class.java,
+            "$fixed, so its decision of ${command.simpleName} may not produce OwnerTransferred; it committed nothing.",
+        )
+    }
+
+    /**
+     * Fails the command [body] when its decision of [decided] deletes the aggregate ([events], once [changing] folded
+     * out what changes nothing, end deleted) and releases keys ([released]), while the kernel's own function restores
+     * that aggregate ([AggregateModel.restoresWithoutItsCode]): `RestoreAggregate` runs no code of the model, so it
+     * would restore the aggregate without the keys, which another aggregate may meanwhile hold. A bug of the model
+     * ([UndeclaredEventException]), found by the first decision that makes it: the aggregate restores itself by a
+     * command of its own, `@OnCommand(onDeleted = true)`, which reserves the keys again or, by choice, none.
+     */
+    fun refuseKeylessRestore(decided: AggregateModel<*>, body: Any, events: List<Any>, released: List<ReservationKey>) {
+        if (released.isEmpty() || !decided.restoresWithoutItsCode) return
+        val deletes = events.lastOrNull { it is AggregateDeleted || it is AggregateRestored } is AggregateDeleted
+        if (!deletes) return
+        val command = body.javaClass
+        val keys = released.joinToString { "${it.namespace}/${it.key}" + if (it.system) " (across tenants)" else "" }
+        throw UndeclaredEventException(
+            decided.type,
+            command,
+            AggregateDeleted::class.java,
+            "${decided.type} handles the built-in RestoreAggregate, which restores it without running its code, so " +
+                "its decision of ${command.simpleName} may not produce AggregateDeleted while it releases $keys: " +
+                "restored, the aggregate would not hold them. Leave RestoreAggregate out of " +
+                "@AggregateRoot(lifecycle) and restore it by a command of its own, @OnCommand(onDeleted = true), " +
+                "that reserves them again; it committed nothing.",
+        )
+    }
 
     /** The kernel-maintained metadata of an aggregate besides its version. */
     data class Metadata(

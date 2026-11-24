@@ -72,6 +72,9 @@ internal class AttemptScope(
     private var results: MutableMap<String, Any>? = null
     private var reserved: MutableList<ReservationKey>? = null
     private var released: MutableList<ReservationKey>? = null
+
+    /** The keys this attempt released ([release]), in the order it released them. */
+    val releasedKeys: List<ReservationKey> get() = released.orEmpty()
     private var hold: String? = null
 
     /** The version the attempt's stream committed at, once [afterAppend] runs its actions. */
