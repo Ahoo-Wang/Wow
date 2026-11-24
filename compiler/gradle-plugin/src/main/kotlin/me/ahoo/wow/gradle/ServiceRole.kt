@@ -109,6 +109,7 @@ internal object ServiceRole {
         }
         // A build leaves the values a deployment passes to the chart first, as it leaves the jar (#6662).
         project.tasks.named(BasePlugin.ASSEMBLE_TASK_NAME) { it.dependsOn(helmValues) }
+        KubernetesRole.kubernetes(project, extension, helmValues)
         compatibility(project, extension, merge, tools)
     }
 

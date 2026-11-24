@@ -84,6 +84,9 @@ class WowPlugin : Plugin<Project> {
 
         /** The service module's task that writes the values of the `wow-service` Helm chart ([GenerateHelmValues]). */
         const val HELM_VALUES_TASK = "generateWowHelmValues"
+
+        /** The service module's task that renders its Kubernetes manifests from the chart ([GenerateManifests]). */
+        const val MANIFESTS_TASK = "generateWowManifests"
         const val TOOLS_CONFIGURATION = "wowTools"
         const val GENERATE_CONTRACT_TASK = "generateWowContract"
         const val CONTRACT_ELEMENTS = "wowContractElements"

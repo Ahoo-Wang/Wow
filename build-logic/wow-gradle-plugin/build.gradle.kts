@@ -40,6 +40,11 @@ dependencies {
     runtimeOnly("com.google.devtools.ksp:symbol-processing-gradle-plugin:${libs.versions.ksp.get()}")
 }
 
+// The wow-service chart in the plugin's resources, as compiler/gradle-plugin puts it there.
+extra["wowChartDirectory"] = rootDir.resolve("../../deploy/helm/wow-service")
+extra["wowChartVersion"] = wowVersion
+apply(from = plugin.resolve("wow-service-chart.gradle.kts"))
+
 tasks.processResources {
     val kotlinVersion = libs.versions.kotlin.asProvider().get()
     val kspVersion = libs.versions.ksp.get()
