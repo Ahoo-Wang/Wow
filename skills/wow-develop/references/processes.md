@@ -22,7 +22,7 @@ One kind per class. Each handler (`@OnEvent`) is its own subscription `<processo
 
 ## Sagas
 
-A whole saga of the eShop: typed handlers, a receipt of a committed command (`@OnCommitted`), a compensation (`@OnRejected`), and a rejection accepted with `Unit`.
+A whole saga of the eShop: typed handlers, a receipt of a committed command (`@OnCommitted`), a compensation (`@OnRejected`), and a rejection accepted by its code (`rejected.accept(...)`), any other code parking the order.
 
 <!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSaga.kt -->
 
@@ -35,6 +35,7 @@ import me.ahoo.wow.api.annotation.OnRejected
 import me.ahoo.wow.api.annotation.Saga
 import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.client.toCommandRequest
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.api.subscribe.StateTypedEvent
 import me.ahoo.wow.example.eshop.inventory.api.stock.CommitReservation
@@ -105,13 +106,13 @@ class OrderProcessSaga {
     }
 
     /**
-     * A release the inventory rejects needs no compensation: it rejects one only for a product it has no stock of,
-     * which reserved nothing either. Without this handler, the rejection would park the order for the saga; returning
-     * `Unit` accepts it and derives nothing.
+     * A release the inventory rejects for a product it has no stock of needs no compensation: that product reserved
+     * nothing either, so the handler accepts that code and derives nothing. Any other code is one it does not expect:
+     * the order parks at once, its reason naming the code, as without a handler.
      */
-    @Suppress("UnusedParameter")
     @OnRejected
-    fun onReleaseRejected(rejected: CommandReceipt.Rejected<ReleaseReservation>) = Unit
+    fun onReleaseRejected(rejected: CommandReceipt.Rejected<ReleaseReservation>) =
+        rejected.accept(FrameworkCodes.AGGREGATE_NOT_FOUND)
 
     @OnEvent
     fun onOrderShipped(
@@ -124,7 +125,7 @@ class OrderProcessSaga {
 
 - A saga returns `CommandRequest`s (one, or an `Iterable`, a `Sequence` or a `Flow` of them); the runtime gives each a deterministic id, so a handler run twice derives the same commands, which the target deduplicates. `CommandRequest.of(body, id)`, or `CommandRequest.of(body)` for a creation without an id, goes to the aggregate the local Manifest or a peer api jar's contract assigns to the body's class, in the handled commit's tenant; `CommandRequest.to(ref, body)` names the full ref (another tenant, a class several aggregates decide). A `requestId` is a business key for the id; `wait` and `timeout` are refused.
 - `@Sends(derives = [A::class, B::class], schedules = [...], calls = [...])` (command classes, or a sealed type) declares what a saga's handler of any kind sends. A handler whose return type names its commands (`CommandRequest<X>`) needs no `derives`; one that returns untyped requests (`CommandRequest<*>`, `Any`) must declare them, or the build fails. The build also fails on `@Sends` outside a saga's handler, and on a class neither the service nor a peer contract decides. At run time, a derive, a `schedule` or a `call` of a class its `@Sends` does not declare fails the handling as unrecoverable: the aggregate parks at once.
-- **Rejections:** `@OnRejected` taking `CommandReceipt.Rejected<C>` (and optionally `SagaContext`) returns compensating commands, or `Unit` to accept the rejection. It also takes the rejection of a `call` the handler lets through: that handling is aborted and derives nothing. Without one, a rejected derived or called command **parks the aggregate** for the saga. Decide for each derived or called command which rejections are expected.
+- **Rejections:** `@OnRejected` taking `CommandReceipt.Rejected<C>` (and optionally `SagaContext`) returns compensating commands, or `Unit` to accept the rejection, whatever its code; `rejected.accept(code, …)` accepts the codes it names and parks the saga's aggregate at once on any other. An accepted rejection is logged under `wow.saga.rejection`. It also takes the rejection of a `call` the handler lets through: that handling is aborted and derives nothing. Without one, a rejected derived or called command **parks the aggregate** for the saga. Decide for each derived or called command which rejections are expected.
 - **Committed receipts:** `@OnCommitted` taking `CommandReceipt.Committed<C>`: the derived command committed, possibly in another context.
 - **Both receipts:** a handler annotated `@OnRejected` and `@OnCommitted` takes a `CommandReceipt<C>` and tells the two apart with `when`; each annotation keeps its own rule (a rejection is not retried, a commit's receipt is retried by the host). One annotation with `CommandReceipt<C>`, or an annotation over the other receipt's type, fails the build.
 - **Scheduled commands:** `SagaContext.schedule(key, at|after, request)` / `cancelSchedule(key, target)` record into the context, sent after the returned commands; at least once, never early. `@OnSchedule(name, cron, timeZone, scope, misfire)` for a cron job, its `scope` `SYSTEM` (one instance), `TENANT` (one per tenant) or `SHARDED` (one per log partition); the host configures it under `wow.schedules.<name>.*` alone: `cron`, `time-zone`, `misfire`, `enabled`, and its subscription's `retry` and `parked`.

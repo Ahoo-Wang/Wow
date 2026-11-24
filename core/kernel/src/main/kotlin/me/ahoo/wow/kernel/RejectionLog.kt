@@ -27,6 +27,10 @@ import me.ahoo.wow.spi.observation.Observer
  * as SLF4J key-values named as the spans' attributes name them ([CONTEXT], [AGGREGATE], [COMMAND], [ERROR_TYPE],
  * [REQUEST_ID], and [WITH_EVENTS] for a decision's). A decision's rejection is a business outcome, at INFO
  * ([rejected]); an admission's refusal is the gateway's ordinary work, at DEBUG ([refused]).
+ *
+ * A saga's `@OnRejected` handler that accepts a rejection (derives nothing) is logged under a logger of its own,
+ * [ACCEPTED_CATEGORY], at INFO ([accepted]), in the saga's service: the target's line, in the target's service, does
+ * not say which handler took the rejection, and for a command to another context it is in another service's log.
  */
 @InternalWowApi
 object RejectionLog {
@@ -37,8 +41,12 @@ object RejectionLog {
     const val ERROR_TYPE: String = "error.type"
     const val REQUEST_ID: String = "wow.request.id"
     const val WITH_EVENTS: String = "wow.with_events"
+    const val ACCEPTED_CATEGORY: String = "wow.saga.rejection"
+    const val SUBSCRIPTION: String = "wow.subscription"
+    const val COMMAND_ID: String = "wow.command.id"
 
     private val logger = KotlinLogging.logger(CATEGORY)
+    private val accepting = KotlinLogging.logger(ACCEPTED_CATEGORY)
 
     /** [command] on [ref] rejected by its decision with [code] and [message]; [withEvents] if its events committed. */
     fun rejected(
@@ -52,6 +60,31 @@ object RejectionLog {
         logger.atInfo {
             this.message = "Rejected $command on $ref with $code (requestId=$requestId, withEvents=$withEvents): $message"
             payload = fields(ref, command, code, requestId) + (WITH_EVENTS to withEvents)
+        }
+    }
+
+    /**
+     * The saga's `@OnRejected` [handler], of the saga's [context], accepted the rejection with [code] of [command]
+     * [commandId] on [ref], deriving nothing.
+     */
+    fun accepted(
+        context: String,
+        handler: String,
+        ref: AggregateRef,
+        command: String,
+        commandId: String,
+        code: String
+    ) {
+        accepting.atInfo {
+            message = "$handler in $context accepted the rejection of $command $commandId on $ref: $code."
+            payload = mapOf(
+                SUBSCRIPTION to handler,
+                CONTEXT to ref.type.context,
+                AGGREGATE to ref.type.name,
+                COMMAND to command,
+                COMMAND_ID to commandId,
+                ERROR_TYPE to code,
+            )
         }
     }
 

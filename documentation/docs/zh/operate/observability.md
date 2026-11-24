@@ -103,6 +103,8 @@ service:
 
 **拒绝日志。** 被聚合拒绝的命令，以及被准入拒绝的命令，都以同一种形态记录在 logger `wow.command.rejection` 之下：拒绝是业务结果，记为 INFO；准入拒绝是准入的日常工作，记为 DEBUG。消息读起来是一句话，字段则是 SLF4J 的 key-value，与 Span 的属性同名：`wow.context`、`wow.aggregate.name`、`wow.command.name`、`error.type`（错误码）、`wow.request.id`，拒绝还带 `wow.with_events`。JSON 编码器（例如 Logback 的或 Elastic Common Schema 的）会把它们写成可检索的字段。调整这个 logger 的级别即可屏蔽拒绝日志，或设为 `DEBUG` 一并查看准入拒绝。
 
+Saga 的 `@OnRejected` 处理函数接受、未派生任何命令的拒绝，会在 Saga 所在服务里再记一次，记在单独的 logger `wow.saga.rejection` 之下，级别为 INFO：`OrderProcessSaga.onReleaseRejected in eshop-ordering accepted the rejection of eshop-inventory.stock.ReleaseReservation <commandId> on <ref>: wow.aggregate.not-found.` 字段为 `wow.subscription`（处理函数）、`wow.context` 与 `wow.aggregate.name`（命令的目标）、`wow.command.name`、`wow.command.id` 和 `error.type`。目标的 `wow.command.rejection` 日志既不写处理函数，对发往另一个上下文的命令，也不在 Saga 所在服务的日志里。调整这个 logger 的级别即可屏蔽被接受的拒绝（[处理拒绝](../guide/sagas#handle-a-rejection)）。
+
 ## 应当对什么报警 {#what-to-alert-on}
 
 | 信号 | 含义 | 查看 |

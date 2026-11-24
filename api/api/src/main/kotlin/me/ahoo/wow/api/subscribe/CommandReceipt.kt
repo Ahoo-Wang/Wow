@@ -91,6 +91,23 @@ sealed interface CommandReceipt<C : Any> {
             require(commandType.isNotBlank()) { "A receipt names the type of its command." }
         }
 
+        /**
+         * Accepts this rejection when its code is [code] or one of [others]: the handler returns and derives nothing,
+         * and the runtime logs that it accepted it. Any other code is a rejection the handler did not expect, which it
+         * does not take ([UnacceptedRejectionException]): the saga's aggregate parks at once, without a retry, as for a
+         * rejection no handler takes, its reason naming the code, and a wait at the saga's hop ends REJECTED.
+         *
+         * `fun onReleaseRejected(rejected: CommandReceipt.Rejected<ReleaseReservation>) =
+         * rejected.accept(FrameworkCodes.AGGREGATE_NOT_FOUND)`. A handler that compensates one code and accepts another
+         * returns a nullable request: `if (…) CancelOrder(…).toCommandRequest(…) else { rejected.accept(…); null }`.
+         * A handler that returns `Unit` without calling it accepts every code.
+         */
+        fun accept(code: String, vararg others: String) {
+            if (error.code != code && error.code !in others) {
+                throw UnacceptedRejectionException(this, listOf(code) + others)
+            }
+        }
+
         /** This Rejected with the given fields replaced: Wow's own copy, left out of the ABI. */
         @InternalWowApi
         fun copyWith(

@@ -26,6 +26,7 @@ import me.ahoo.wow.kernel.CommandTypes
 import me.ahoo.wow.kernel.ContextQueries
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.ProcessorBinding
+import me.ahoo.wow.kernel.RejectionLog
 import me.ahoo.wow.kernel.committedContextOf
 import me.ahoo.wow.kernel.rejectionContextOf
 import me.ahoo.wow.runtime.call.SagaCalls
@@ -109,7 +110,18 @@ internal class SagaReceipts(
             wait = null,
         )
         executed.rejected.parking()?.let { throw it }
-        return calls.called + executed.executed
+        val sent = calls.called + executed.executed
+        if (sent.isEmpty()) {
+            RejectionLog.accepted(
+                this.context,
+                handler.name,
+                rejected.ref,
+                rejected.commandType,
+                rejected.commandId,
+                rejected.error.code,
+            )
+        }
+        return sent
     }
 
     /**

@@ -23,6 +23,7 @@ import me.ahoo.wow.api.result.FunctionInfo
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 /** The receipts of a command a saga derived (decision D372 S16): one sealed type, rejected or committed. */
 class CommandReceiptTest {
@@ -108,5 +109,20 @@ class CommandReceiptTest {
         assertThrownBy<IllegalArgumentException> {
             committed().copyWith(result = result(CommandResult.Status.REJECTED))
         }
+    }
+
+    @Test
+    fun `accept should return for a code it names and refuse any other, naming the rejection`() {
+        rejected().accept("stock.insufficient")
+        rejected().accept("wow.aggregate.not-found", "stock.insufficient")
+        val refused = assertThrows<UnacceptedRejectionException> {
+            rejected().accept("wow.aggregate.not-found", "wow.aggregate.deleted")
+        }
+        refused.rejected.assert().isEqualTo(rejected())
+        refused.accepted.assert().containsExactly("wow.aggregate.not-found", "wow.aggregate.deleted")
+        refused.message.assert().isEqualTo(
+            "accepts wow.aggregate.not-found, wow.aggregate.deleted, not the rejection of inventory.stock.ReserveStock " +
+                "cmd-2 on $stock: stock.insufficient Not enough stock",
+        )
     }
 }

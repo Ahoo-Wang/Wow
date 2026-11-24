@@ -19,6 +19,7 @@ import me.ahoo.wow.api.decide.Misuse
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.FrameworkCodes
+import me.ahoo.wow.api.subscribe.UnacceptedRejectionException
 import me.ahoo.wow.api.subscribe.UnrecoverableHandlingException
 import me.ahoo.wow.spi.StorageBusyException
 import me.ahoo.wow.spi.StorageRefusedException
@@ -194,3 +195,12 @@ open class HandlingRejectedException(val error: ErrorInfo, message: String, caus
 @InternalWowApi
 class CallRejectedHandlingException(val rejected: CommandRejectedException) :
     HandlingRejectedException(rejected.error, rejected.message!!, rejected)
+
+/**
+ * A saga's `@OnRejected` [handler] did not accept the rejection it was handed ([UnacceptedRejectionException],
+ * `CommandReceipt.Rejected.accept`): a business outcome, answered as a rejection no handler takes, so the aggregate parks
+ * at once, without a retry, and a wait at the saga's hop ends REJECTED with the rejection's error.
+ */
+@InternalWowApi
+class UnacceptedRejectionHandlingException(val handler: String, val unaccepted: UnacceptedRejectionException) :
+    HandlingRejectedException(unaccepted.rejected.error, "$handler ${unaccepted.message}", unaccepted)

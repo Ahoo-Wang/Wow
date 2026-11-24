@@ -141,20 +141,22 @@ fun onReserveRejected(rejected: CommandReceipt.Rejected<ReserveStock>): CommandR
 
 `CommandReceipt.Rejected` 写明了命令（`commandId`、`commandType`、`ref`）、它的 `error`（错误码、消息、violations、扩展）Saga 的 `executionId`，以及 `source`，即派生出命令的提交所属的聚合；它不带命令体。来自另一个上下文的拒绝以回执的形式返回。运行时把每个拒绝只交出一次。
 
-每条派生命令各自结算：一条命令被拒绝不会阻止其他命令，每个拒绝都交给它的处理函数。发往同一个聚合的命令按 Saga 派生的顺序执行；发往不同聚合的命令并发执行，所以依赖另一条命令结果的工作不要与它一起派生：从第一条命令提交的事件中派生它。Saga 自己上下文中的命令被拒绝而 Saga 没有处理函数时，会像失败一样在 Saga 的订阅中停放这个聚合，只停放一次，并列出每条被拒绝的命令。发往另一个上下文的命令只有在 Saga 有该类型的处理函数时才要求回执，所以没有处理函数接收的拒绝由目标记日志，不再往下传。不需要补偿的拒绝，用一个返回 `Unit` 的处理函数接受，这也保留了 9.x Saga 在派生命令失败后的行为：
+每条派生命令各自结算：一条命令被拒绝不会阻止其他命令，每个拒绝都交给它的处理函数。发往同一个聚合的命令按 Saga 派生的顺序执行；发往不同聚合的命令并发执行，所以依赖另一条命令结果的工作不要与它一起派生：从第一条命令提交的事件中派生它。Saga 自己上下文中的命令被拒绝而 Saga 没有处理函数时，会像失败一样在 Saga 的订阅中停放这个聚合，只停放一次，并列出每条被拒绝的命令。发往另一个上下文的命令只有在 Saga 有该类型的处理函数时才要求回执，所以没有处理函数接收的拒绝由目标记日志，不再往下传。不需要补偿的拒绝，通过点名它的错误码来接受：`rejected.accept(code, …)` 对它点名的错误码直接返回，处理函数不派生任何命令。其他错误码是处理函数没有预料到的，所以它不接收：Saga 的聚合立即停放，不重试，与没有处理函数接收的拒绝一样，停放原因写明处理函数、命令和错误码，等待在 Saga 的跳点以拒绝结束。来自另一个上下文、由处理函数接收其回执的拒绝也是如此：
 
 <!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSaga.kt#release-rejected -->
 
 ```kotlin
 /**
- * A release the inventory rejects needs no compensation: it rejects one only for a product it has no stock of,
- * which reserved nothing either. Without this handler, the rejection would park the order for the saga; returning
- * `Unit` accepts it and derives nothing.
+ * A release the inventory rejects for a product it has no stock of needs no compensation: that product reserved
+ * nothing either, so the handler accepts that code and derives nothing. Any other code is one it does not expect:
+ * the order parks at once, its reason naming the code, as without a handler.
  */
-@Suppress("UnusedParameter")
 @OnRejected
-fun onReleaseRejected(rejected: CommandReceipt.Rejected<ReleaseReservation>) = Unit
+fun onReleaseRejected(rejected: CommandReceipt.Rejected<ReleaseReservation>) =
+    rejected.accept(FrameworkCodes.AGGREGATE_NOT_FOUND)
 ```
+
+补偿一种错误码而接受另一种的处理函数返回可空的请求：`if (rejected.error.code == …) CancelOrder(…).toCommandRequest(rejected.source.id) else { rejected.accept(…); null }`，声明为 `CommandRequest<CancelOrder>?`。返回 `Unit` 而不调用 `accept` 的处理函数接受所有错误码，就像 9.x Saga 在任何派生命令失败后照常继续。处理函数接受、未派生任何命令的每个拒绝，都会在 Saga 所在服务里以 INFO 级别记在日志器 `wow.saga.rejection` 下，写明处理函数、命令、命令的目标和错误码（[可观测性](../operate/observability)）：被接受的拒绝绝不会被悄悄丢掉。
 
 `CommandReceipt.Rejected<*>` 和 `CommandReceipt.Committed<*>` 接收 Saga 派生的每一条命令，`Rejected<*>` 还接收它调用的命令。
 
