@@ -65,6 +65,8 @@ internal class PartitionRuns(
     private val leaseCalls: LeaseCalls = LeaseCalls(options.leaseParallelism),
     /** Told each partition handed off once its commands in flight are drained, before its lease is released. */
     private val drained: suspend (Int) -> Unit = {},
+    /** PROTOTYPE (#6675): holds acquisitions back while the store fails. */
+    private val backoff: AcquireBackoff? = null,
 ) {
     /**
      * Not cancellable: a lease acquired is either tracked by a gate or released. The partition's subscriptions read once
@@ -72,7 +74,17 @@ internal class PartitionRuns(
      */
     suspend fun acquire(partition: Int, reads: Job?) = leaseCalls.bounded {
         try {
-            start(partition, reads)
+            if (backoff == null || backoff.tryEnter()) {
+                try {
+                    start(partition, reads)
+                    backoff?.succeeded()
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (@Suppress("TooGenericExceptionCaught") failure: Exception) {
+                    backoff?.failed()
+                    throw failure
+                }
+            }
         } finally {
             progressed()
         }

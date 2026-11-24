@@ -209,6 +209,13 @@ class PartitionOwnership internal constructor(
     /** Starts and stops the partitions this node holds, around their leases. */
     private val runs: PartitionRuns
 
+    /** PROTOTYPE (#6675): the group's acquisitions held back while its store fails, renewals feeding it too. */
+    private val backoff: AcquireBackoff? = if (System.getProperty("proto6675.backoff") == "false") {
+        null
+    } else {
+        AcquireBackoff(options.reconcileInterval, options.leaseTtl, timeSource)
+    }
+
     /** How long a lease may go unrenewed before this node takes it as lost: the margin before the next round. */
     private val unrenewedLimit: Duration = options.leaseTtl - options.renewInterval
     private val wakeReconcile = Channel<Unit>(Channel.CONFLATED)
@@ -222,6 +229,7 @@ class PartitionOwnership internal constructor(
             fenced = { fence.fenced },
             leaseCalls = LeaseCalls(options.leaseParallelism),
             drained = drained,
+            backoff = backoff,
         )
     }
 
@@ -244,7 +252,7 @@ class PartitionOwnership internal constructor(
 
     /** The renewals and the fencing of the leases held: they read [gates] and flip a gate's own fields only. */
     private val renewals =
-        LeaseRenewals(group, node, leases, options, timeSource, gates, unrenewedLimit, renewalRounds) {
+        LeaseRenewals(group, node, leases, options, timeSource, gates, unrenewedLimit, renewalRounds, backoff) {
             wakeReconcile.trySend(Unit)
         }
 

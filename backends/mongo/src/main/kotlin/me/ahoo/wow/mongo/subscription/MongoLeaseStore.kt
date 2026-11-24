@@ -66,6 +66,14 @@ class MongoLeaseStore(
     operationTimeout: Duration = MongoTimeouts.OPERATION,
 ) : LeaseStore {
     private val database = MongoDatabases.of(client, databaseName, operationTimeout)
+    private val operationMillis = operationTimeout.inWholeMilliseconds
+
+    /** PROTOTYPE (#6675): a lease call bounded by the lease's own TTL, never longer than the store's timeout. */
+    private fun bounded(ttl: Duration): MongoCollection<Document> = if (System.getProperty("proto6675.bound") == "false") {
+        leases
+    } else {
+        leases.withTimeout(minOf(operationMillis, ttl.inWholeMilliseconds), java.util.concurrent.TimeUnit.MILLISECONDS)
+    }
     private val leases: MongoCollection<Document> = database.getCollection(LEASES)
     private val members: MongoCollection<Document> = database.getCollection(MEMBERS)
 
@@ -101,7 +109,7 @@ class MongoLeaseStore(
                 ),
             )
             conditionalUpsert { upsert ->
-                leases.findOneAndUpdate(takeable, take, returnAfter(upsert))?.let { leaseOf(it) }
+                bounded(ttl).findOneAndUpdate(takeable, take, returnAfter(upsert))?.let { leaseOf(it) }
             }
         }
 
@@ -127,8 +135,9 @@ class MongoLeaseStore(
                 Filters.`in`(PARTITION, partitions),
                 Filters.eq(OWNER, owner)
             )
-            leases.updateMany(Filters.and(held, Filters.gt(EXPIRES_AT, now)), Updates.set(EXPIRES_AT, expiresAt))
-            leases.find(Filters.and(held, Filters.eq(EXPIRES_AT, expiresAt)))
+            val timed = bounded(ttl)
+            timed.updateMany(Filters.and(held, Filters.gt(EXPIRES_AT, now)), Updates.set(EXPIRES_AT, expiresAt))
+            timed.find(Filters.and(held, Filters.eq(EXPIRES_AT, expiresAt)))
                 .sort(Sorts.ascending(PARTITION))
                 .map { leaseOf(it) }
                 .toList()

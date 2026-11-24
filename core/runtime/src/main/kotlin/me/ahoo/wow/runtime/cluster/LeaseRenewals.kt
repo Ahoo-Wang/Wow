@@ -54,6 +54,8 @@ internal class LeaseRenewals(
     private val gates: Map<Int, PartitionGate>,
     private val unrenewedLimit: Duration,
     private val renewalRounds: (RenewalRound) -> Unit,
+    /** PROTOTYPE (#6675): a failed renewal holds the group's acquisitions back. */
+    private val backoff: AcquireBackoff? = null,
     private val wake: () -> Unit,
 ) {
     /**
@@ -81,6 +83,7 @@ internal class LeaseRenewals(
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (failure: Exception) {
+                backoff?.failed()
                 logger.warn(
                     failure
                 ) { "$node failed to renew ${held.size} leases of $group; retrying on the next round." }
