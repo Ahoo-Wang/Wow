@@ -18,6 +18,8 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.DecideScope
 import me.ahoo.wow.api.decide.Misuse
@@ -147,7 +149,8 @@ internal class AttemptScope(
         val owner = command.ref
         val scope = ReservationScope.of(owner, reservation)
         val hold = hold ?: UUID.randomUUID().toString().also { hold = it }
-        val held = store.reserve(scope, key, owner, hold, reservationTtl) ?: return false
+        // The store's failures are the command's, never the caller's refusal, whatever exception they come as.
+        val held = guarded(RESERVATIONS) { store.reserve(scope, key, owner, hold, reservationTtl) } ?: return false
         // Every fact that claims a key confirms it at its own version, one the owner already holds confirmed too: a
         // release by an older fact of the owner whose fast path failed (A→B→A), which the reservation subscription
         // replays, then never frees the key this fact holds.
@@ -267,7 +270,7 @@ private val logger = KotlinLogging.logger(Kernel::class.java.name)
  * functions schedule ([encoder]).
  */
 internal class AttemptScopes(
-    private val ids: Ids,
+    ids: Ids,
     private val clock: () -> Long,
     private val reservations: ReservationStore?,
     private val options: KernelOptions,
@@ -275,6 +278,12 @@ internal class AttemptScopes(
     private val commandTypes: CommandTypes,
     private val codec: EventCodec,
 ) {
+    /**
+     * The node's id generators as a decision takes them ([DecideScope.ids], [AttemptScope.callId]): a generator's
+     * failure is the command's, never the caller's refusal ([guarded]). One for every attempt.
+     */
+    private val guardedIds: Ids = GuardedIds(ids)
+
     /** How the attempts of a command of [model] store the commands they schedule: one for all of the command's attempts. */
     fun encoder(model: AggregateModel<*>): (AggregateRef, Any) -> Pair<String, ObjectNode> =
         { target: AggregateRef, body: Any -> scheduledCommand(model, target, body) }
@@ -292,7 +301,7 @@ internal class AttemptScopes(
         occurredAt: Long? = null,
     ): AttemptScope = AttemptScope(
         command,
-        ids,
+        guardedIds,
         occurredAt ?: now,
         loaded,
         reservations,
@@ -339,14 +348,7 @@ internal class AttemptScopes(
      */
     private fun scheduledCommand(model: AggregateModel<*>, target: AggregateRef, body: Any): Pair<String, ObjectNode> {
         val own = target.type == model.type
-        val type = if (own) {
-            model.commandType(body.javaClass).name
-        } else {
-            commandTypes.nameOf(target.type, body.javaClass) ?: throw Misuse.Argument(
-                "${model.type} schedules ${body.javaClass.name} for $target, a command no Manifest of the service or " +
-                    "its peers names.",
-            )
-        }
+        val type = typeOf(model, target, body, own)
         val inBody = if (own) model.aggregateIdOf(body) else commandTypes.aggregateIdOf(target.type, body)
         if (inBody != null && inBody != target.id) {
             throw Misuse.Argument(
@@ -355,7 +357,35 @@ internal class AttemptScopes(
         }
         return type to codec.commandBody(body)
     }
+
+    /**
+     * The type name of [body], a command [model]'s aggregate schedules for [target], of [model]'s own aggregate type
+     * when [own]: the code's mistake ([Misuse.Argument]) when no model of the service or its peers decides it.
+     */
+    private fun typeOf(model: AggregateModel<*>, target: AggregateRef, body: Any, own: Boolean): String {
+        val name = if (own) {
+            model.findCommandType(body.javaClass)?.name
+        } else {
+            commandTypes.nameOf(target.type, body.javaClass)
+        }
+        return name ?: throw Misuse.Argument(
+            "${model.type} schedules ${body.javaClass.name} for $target, " +
+                if (own) "a command it does not decide." else "a command no Manifest of the service or its peers names.",
+        )
+    }
 }
 
 /** This wait context when its caller waits beyond COMMITTED: then it goes with the append. */
 internal fun WaitContext?.beyondCommitted(): WaitContext? = this?.afterCommitted()?.takeIf { it.remaining.isNotEmpty() }
+
+/** [ids] whose failures a refusal would be taken for are a failure of the id generators ([guarded]). */
+@OptIn(InternalWowApi::class)
+private class GuardedIds(private val ids: Ids) : Ids {
+    override fun next(): String = guarded(ID_GENERATORS) { ids.next() }
+
+    override fun next(type: AggregateType): String = guarded(ID_GENERATORS) { ids.next(type) }
+}
+
+/** The ports a decide function reaches through its scope, as their failures name them. */
+private const val RESERVATIONS = "reservation store"
+private const val ID_GENERATORS = "id generator"

@@ -61,6 +61,20 @@ class DomainIdsTest {
     }
 
     @Test
+    fun `a generator that fails while deciding fails the command, never as the caller's refusal (#6736)`() {
+        val thrown = IllegalStateException("The clock moved back.")
+        val failing = IdGenerators(GlobalIdGenerator { throw thrown }, AggregateIdGenerator { throw thrown })
+        val ref = model.type.ref("tenant", "order-1")
+        val command = Command("c-1", "r-1", ref, PlaceOrder(listOf("a")))
+        val failure = runCatching {
+            runBlocking { Kernel(InMemoryEventLog(), ids = failing).execute(model, command) }
+        }.exceptionOrNull()
+        failure.assert().isInstanceOf(PortFailureException::class.java)
+        failure!!.cause.assert().isSameAs(thrown)
+        failure.message.assert().contains("id generator")
+    }
+
+    @Test
     fun `a decide function should take its ids from the kernel's generators`() {
         var global = 0
         val ids = IdGenerators(

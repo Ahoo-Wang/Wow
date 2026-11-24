@@ -17,6 +17,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Operator
+import me.ahoo.wow.api.decide.requireUse
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.spi.access.AccessValues
 import me.ahoo.wow.spi.json.StateJson
@@ -113,7 +114,8 @@ class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
      */
     fun commandBody(command: Any): ObjectNode {
         val body = mapper.readTree(mapper.writeValueAsString(command))
-        require(body is ObjectNode) {
+        // The code's mistake, never the caller's refusal: a decide function that schedules it fails its command.
+        requireUse(body is ObjectNode) {
             "A scheduled command is written as a JSON object; ${command.javaClass.name} is written as ${body.nodeType}."
         }
         return body
