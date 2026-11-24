@@ -25,6 +25,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.testTimeSource
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.spi.log.EventLog
@@ -174,6 +175,43 @@ class HandoffProberTest : HandoffLogFixtures() {
             log.asked.assert().allMatch { 0 in it }
             prober.unregister(tail)
         }
+
+    @Test
+    fun `a probe or a backstop read that fails is the next round's to do`(): Unit = runTest {
+        val probes = AtomicInteger()
+        val backstops = AtomicInteger()
+        val log = object : EventLog by store {
+            override suspend fun appendedElsewhere(cursors: Map<Int, Long>): Set<Int> =
+                when (probes.incrementAndGet()) {
+                    1 -> throw IllegalStateException("The store is down for this probe.")
+                    2 -> setOf(0)
+                    else -> emptySet()
+                }
+
+            override suspend fun heads(partitions: Collection<Int>): Map<Int, Long?> =
+                when (backstops.incrementAndGet()) {
+                    1 -> throw IllegalStateException("The store is down for this backstop.")
+                    2 -> mapOf(0 to null)
+                    else -> mapOf(0 to 5L)
+                }
+        }
+        // A round every 20 ms, the backstop with every other one.
+        val options = HandoffOptions(probeInterval = PROBE, backstopInterval = PROBE)
+        val prober = HandoffProber(log, "bank", options, backgroundScope, testTimeSource)
+        val tail = FakeTail(partition = 0).apply { idle = PROBE }
+        prober.register(tail)
+        // 20 ms: the probe fails, and nothing is woken. 40 ms: it names the partition; the backstop fails.
+        advanceTimeBy(PROBE + 1.milliseconds)
+        tail.wakes.assert().containsExactly(Reason.IDLE)
+        // 80 ms: the backstop finds no head, so nothing past the cursor. 120 ms: a head past it, not named.
+        advanceTimeBy(PROBE)
+        tail.wakes.assert().containsExactly(Reason.IDLE)
+        advanceTimeBy(PROBE)
+        tail.wakes.assert().containsExactly(Reason.IDLE, Reason.BACKSTOP)
+        probes.get().assert().isEqualTo(6)
+        backstops.get().assert().isEqualTo(3)
+        prober.unregister(tail)
+    }
 
     @Test
     fun `the backstop finds what the probe did not name, and says so once`(): Unit = runBlocking {
