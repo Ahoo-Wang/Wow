@@ -36,8 +36,9 @@
  *   `code`, `requestId`), as CoSec's Clients page describes them;
  * - otherwise forwards it with the identity CoSec's gateway forwards (format
  *   v1, as Web integration › Forwarding the identity describes it): the
- *   token's tenant, subject and roles, in that app and the default space, the
- *   token's `jti` and expiry.
+ *   token's tenant, subject and roles, in that app and the default space, no
+ *   memberships, the token's `jti`, expiry and issue time, and the request's
+ *   id, as CoSec 8.0.0-beta.8's gateway forwards it.
  *
  * It decides nothing else: the suite's tokens carry their roles, so there is
  * no policy, no document and no Redis to consult.
@@ -118,19 +119,27 @@ function authenticate(authorization, secret, revoked, now) {
 }
 
 /**
- * The `CoSec-Identity` of `claims` in `app`: base64url, without padding, of
- * compact JSON with exactly CoSec's members in CoSec's order.
+ * The `CoSec-Identity` of `claims` in `app` for the request `requestId`:
+ * base64url, without padding, of compact JSON with exactly the members CoSec
+ * 8.0.0-beta.8's gateway forwards, in its order (the token's issue time in
+ * `auth`, no memberships, the request's id as `rid`).
  */
-function identity(claims, app, now) {
+function identity(claims, app, now, requestId) {
   const value = {
     v: 1,
     tenant: claims.tenantId || DEFAULT_TENANT,
     sub: claims.sub,
     scope: { app, space: '' },
     roles: [...new Set(claims.roles ?? [])].sort(),
-    auth: { method: 'jwt', jti: String(claims.jti), exp: claims.exp },
+    memberships: { spaces: {}, attachments: [] },
+    auth: {
+      method: 'jwt',
+      jti: String(claims.jti),
+      exp: claims.exp,
+      iat: claims.iat,
+    },
     iat: now,
-    rid: randomUUID(),
+    rid: requestId,
   };
   return Buffer.from(JSON.stringify(value)).toString('base64url');
 }
@@ -216,7 +225,7 @@ export function startCoSecGateway({ port, upstream, secret, app = '', revoked = 
       const space = only(request.headers['cosec-space-id']);
       if (scope === null || (space !== undefined && space !== ''))
         return refuse(response, 'scope-rejected', requestId);
-      headers[IDENTITY] = identity(claims, scope, now);
+      headers[IDENTITY] = identity(claims, scope, now, requestId);
     }
     const proxied = forward(
       {
