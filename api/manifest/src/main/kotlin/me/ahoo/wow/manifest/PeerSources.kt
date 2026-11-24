@@ -18,8 +18,9 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 /**
  * The aggregates a subscription of another context's events reads when its handler takes them by type
  * without naming their aggregate ([SubscriptionSource.eventSchemas]): those whose events the peer contracts list under
- * the schemas the handler takes, all of one context. Each schema names an event of exactly one aggregate; an event two
- * aggregates list, one no contract lists, or events of several contexts are a problem, which names the candidates.
+ * the schemas the handler takes, all of one context, each read once: several events of one aggregate (the subtypes of a
+ * sealed event type) read that aggregate. Each schema names an event of exactly one aggregate; an event two aggregates
+ * list, one no contract lists, or events of several contexts are a problem, which names the candidates.
  */
 @InternalWowApi
 object PeerSources {
@@ -90,7 +91,8 @@ object PeerSources {
         if (peerContexts.size > 1) {
             problems += "$where takes events of the contexts ${peerContexts.joinToString()}: a handler reads one context"
         }
-        if (found.size != aggregates.size || peerContexts.size != 1) return subscription
+        // A schema without its one owner is a problem recorded above; several schemas of one owner are not (#6840).
+        if (aggregates.any { it == null } || peerContexts.size != 1) return subscription
         // The event schemas are resolved into the context and aggregates that publish them.
         return subscription.copyWith(
             source = source.copyWith(

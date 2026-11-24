@@ -14,6 +14,7 @@
 package me.ahoo.wow.runtime.manifest
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.MissingDependencyException
@@ -23,11 +24,17 @@ import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.ContractException
 import me.ahoo.wow.manifest.FrameworkErrors
+import me.ahoo.wow.manifest.FunctionManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestConflictException
 import me.ahoo.wow.manifest.ManifestTree
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.StateManifest
+import me.ahoo.wow.manifest.SubscriptionKind
+import me.ahoo.wow.manifest.SubscriptionManifest
+import me.ahoo.wow.manifest.SubscriptionSource
+import me.ahoo.wow.manifest.SubscriptionStart
+import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
 import me.ahoo.wow.runtime.cluster.accountManifest
 import me.ahoo.wow.runtime.node.InMemoryBackends
@@ -234,5 +241,31 @@ class ManifestLoaderTest {
         val classLoader = classLoader(BankModels::class.java)
 
         ManifestLoader(classLoader).load(NODE_SERVICE).contexts.map { it.name }.assert().containsExactly("bank")
+    }
+
+    @Test
+    fun `a subscription of another context's events that no peer contract lists should fail startup, naming it`() {
+        // A handler of another context's events by type never reaches a running node unresolved (#6840): the Manifest's
+        // assembly fails the start, so no node reads its own context's log for it.
+        val peerHandler = SubscriptionManifest(
+            name = "Billing.onCharged",
+            kind = SubscriptionKind.PROJECTION,
+            source = SubscriptionSource(
+                events = listOf("Charged"),
+                nullableState = true,
+                eventSchemas = listOf(Manifest.schemaRef("billing.Charged")),
+            ),
+            function = FunctionManifest(FunctionKind.PROJECT, "bank", "Billing", "onCharged"),
+            start = SubscriptionStart.BEGINNING,
+        )
+        val bank = accountManifest(null, "bank")
+        fragment(
+            "bank",
+            bank.copyWith(contexts = bank.contexts.map { it.copyWith(subscriptions = listOf(peerHandler)) })
+        )
+        val classLoader = classLoader(BankModels::class.java)
+
+        assertThrows<ContractException> { ManifestLoader(classLoader).load(NODE_SERVICE) }.problems.single().assert()
+            .contains("subscription bank/Billing.onCharged takes billing.Charged, which no peer contract")
     }
 }

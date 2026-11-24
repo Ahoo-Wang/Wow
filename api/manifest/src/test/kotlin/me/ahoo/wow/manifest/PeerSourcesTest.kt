@@ -31,7 +31,7 @@ class PeerSourcesTest {
             ContextManifest(
                 "ordering",
                 aggregates = listOf(
-                    aggregate("order", "ordering.OrderPaid", "ordering.Shared"),
+                    aggregate("order", "ordering.OrderPaid", "ordering.OrderShipped", "ordering.Shared"),
                     aggregate("invoice", "ordering.InvoiceSent", "ordering.Shared"),
                 ),
             ),
@@ -73,6 +73,23 @@ class PeerSourcesTest {
         // A Manifest that takes no peer's events by type is itself.
         val plain = Manifest(contexts = listOf(ContextManifest("payment")))
         PeerSources.resolve(plain, listOf(ordering)).assert().isSameAs(plain)
+    }
+
+    @Test
+    fun `a subscription of several events of one aggregate should read it once, and of two aggregates both`() {
+        // The subtypes of a sealed event type, both events of the order (#6840): never left unresolved, which the node
+        // would read as a subscription of its own context.
+        PeerSources.resolve(service("ordering.OrderPaid", "ordering.OrderShipped"), listOf(ordering))
+            .contexts.single().subscriptions.single().source.assert().isEqualTo(
+                SubscriptionSource(
+                    "ordering",
+                    listOf("order"),
+                    events = listOf("OrderPaid", "OrderShipped"),
+                    nullableState = true,
+                ),
+            )
+        PeerSources.resolve(service("ordering.OrderPaid", "ordering.InvoiceSent"), listOf(ordering))
+            .contexts.single().subscriptions.single().source.aggregates.assert().containsExactly("invoice", "order")
     }
 
     @Test

@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandRequest
@@ -322,6 +323,31 @@ class SubscriptionBindingsTest {
         val both = plain + SubscriptionBindings(mapOf(SHOP to listOf(projection)))
         both.viewTypes(SHOP, listOf(orderModel(), cartModel())).assert().containsExactly(ORDER)
         both.subscriptions(node.context(SHOP)).map { it.name }.assert().containsExactly("plain", "OrderView.onEvent")
+    }
+
+    /** An event of another context's aggregate, which no aggregate of the shop has. */
+    data class PeerPaid(val amount: Int)
+
+    @Test
+    fun `a handler of another context's events whose aggregates nothing names should fail the start, naming it`() {
+        // Its source left unresolved, or no Manifest at all: it would read this context's log, never the peer's (#6840).
+        val peer = ProcessorBinding.project<Any>(
+            "Billing",
+            "onPaid",
+            null,
+            eventType = PeerPaid::class.java
+        ) { _, _ -> }
+        val bindings = SubscriptionBindings(mapOf(SHOP to listOf(peer)))
+        assertThrownBy<IllegalArgumentException> { bindings.viewTypes(SHOP, listOf(orderModel(), cartModel())) }
+            .hasMessageContaining(
+                "Billing.onPaid takes ${PeerPaid::class.java.name}, which no aggregate of its context"
+            )
+            .hasMessageContaining("@OnEvent(aggregates)")
+        assertThrownBy<IllegalArgumentException> { bindings.subscriptions(node.context(SHOP)) }
+            .hasMessageContaining("Billing.onPaid takes")
+        // Its aggregates named, it reads the peer's: sourced, not one of this context's.
+        SubscriptionBindings(mapOf(SHOP to listOf(peer.reading(listOf("billing.payment")))))
+            .viewTypes(SHOP, listOf(orderModel(), cartModel())).assert().isEmpty()
     }
 
     @Test
