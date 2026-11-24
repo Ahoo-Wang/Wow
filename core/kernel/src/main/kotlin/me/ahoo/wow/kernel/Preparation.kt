@@ -205,7 +205,7 @@ internal class Preparation(
      * creates the aggregate gives it the caller's scope ([createdIn]); every other command carries the aggregate's
      * scope forward, and only the lifecycle events of transferring the owner or the space change it. Its deleted mark
      * changes only by its lifecycle events too. A model whose owner is fixed fails [command] on a transfer of it,
-     * before the events evolve the state ([AggregateModel.refuseOwnerTransfer]).
+     * before the events evolve the state ([KernelLifecycle.refuseOwnerTransfer]).
      */
     private fun metadataAfter(
         model: AggregateModel<*>,

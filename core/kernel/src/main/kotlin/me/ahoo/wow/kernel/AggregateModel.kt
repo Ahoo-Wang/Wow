@@ -300,9 +300,10 @@ class AggregateModel<S : Any> @InternalWowApi constructor(
 
     /**
      * Why the aggregate's owner is fixed, null when it is not: it has none ([Ownership.TENANT]), or its id is its
-     * owner's ([AggregateIdSource.OWNER]). Such a model never commits [OwnerTransferred] ([refuseOwnerTransfer]).
+     * owner's ([AggregateIdSource.OWNER]). Such a model never commits [OwnerTransferred]
+     * ([KernelLifecycle.refuseOwnerTransfer]).
      */
-    private val fixedOwner: String? = fixedOwnerOf(type, ownership, idSource)
+    internal val fixedOwner: String? = fixedOwnerOf(type, ownership, idSource)
 
     private val lifecycle: Set<Class<*>> =
         if (fixedOwner != null) lifecycle - TransferOwner::class.java else lifecycle
@@ -449,22 +450,6 @@ class AggregateModel<S : Any> @InternalWowApi constructor(
     private fun isSystemName(name: String): Boolean = KernelLifecycle.isSystemName(name)
 
     private fun Set<Class<*>>?.transfersOwner(): Boolean = this != null && OwnerTransferred::class.java in this
-
-    /**
-     * Fails the command [body], whose decision holds [OwnerTransferred], when this aggregate's owner is fixed: a bug of
-     * the model, whichever function produced the event ([UndeclaredEventException]). The kernel asks only for a
-     * decision that holds the event, never when it replays the log.
-     */
-    internal fun refuseOwnerTransfer(body: Any) {
-        val fixed = fixedOwner ?: return
-        val command = body.javaClass
-        throw UndeclaredEventException(
-            type,
-            command,
-            OwnerTransferred::class.java,
-            "$fixed, so its decision of ${command.simpleName} may not produce OwnerTransferred; it committed nothing.",
-        )
-    }
 
     /** The state of an aggregate that has no event yet. */
     fun initialState(ref: AggregateRef): S = initial(ref)

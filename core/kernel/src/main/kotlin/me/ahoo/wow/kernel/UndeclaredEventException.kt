@@ -20,7 +20,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
  * model of [type] produced [event] for [command], outside the events its return type yields or its `produces` lists, or
  * a lifecycle command's decide function another lifecycle event than its own, a decide function rejected it with a
  * lifecycle event, or a model whose owner is fixed (of its tenant, or its id its owner's) transferred its owner
- * ([AggregateModel.refuseOwnerTransfer]). A bug in the model, not an outcome of the command: the command fails
+ * ([KernelLifecycle.refuseOwnerTransfer]). A bug in the model, not an outcome of the command: the command fails
  * (`wow.command.undeclared-event`) and commits nothing.
  */
 class UndeclaredEventException(
