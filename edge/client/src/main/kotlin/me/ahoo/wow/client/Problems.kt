@@ -74,6 +74,13 @@ class PeerProblem(
         get() = status == UNAVAILABLE && code in REFUSED_BEFORE_HANDLING
 
     /**
+     * Whether this answer says only that its request was not taken, and nothing of what an earlier attempt of it did: a
+     * node that refused it before handling ([refusedBeforeHandling]), or a problem whose retry is a new request, which
+     * says nothing was done (`wow.auth.unavailable`, `wow.request.rate-limited`, `wow.peer.unavailable`).
+     */
+    internal val notTaken: Boolean get() = refusedBeforeHandling || retry == Retry.NEW_REQUEST
+
+    /**
      * Whether a query answered so is run again: a retry may get past it, a query repeating nothing; but a state read
      * below its minimum version, which the peer already waited for, is the caller's to wait for again
      * ([me.ahoo.wow.api.read.MinVersionNotReachedException]).

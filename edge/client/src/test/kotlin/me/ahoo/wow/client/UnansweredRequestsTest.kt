@@ -106,6 +106,40 @@ class UnansweredRequestsTest {
     }
 
     @Test
+    fun `an unknown outcome should stay unknown when the retry is answered only that it was not taken`() {
+        // Refused before handling on every target, a node stopping, with no attempt left; and a new request's problem.
+        val notTaken = listOf(
+            Reply.problem(503, mapOf("code" to FrameworkCodes.NODE_CLOSING), retryAfter = "0"),
+            Reply.problem(503, mapOf("code" to FrameworkCodes.AUTH_UNAVAILABLE), retryAfter = "0"),
+        )
+        notTaken.forEach { reply ->
+            peer.taken.clear()
+            peer.reply(cut, reply)
+            val failure = caught<WowProblemException> { runBlocking { client(attempts = 2).commands.wait(deliver()) } }
+            peer.taken.assert().hasSize(2)
+            // Not "nothing was done, send a new request": the first attempt was taken and may have committed (#6806).
+            failure.code.assert().describedAs("after a cut, %s", reply).isEqualTo(FrameworkCodes.COMMAND_UNKNOWN)
+            failure.retry.assert().isEqualTo(Retry.SAME_REQUEST)
+        }
+    }
+
+    @Test
+    fun `an unknown outcome should end as the retry's answer when that answer is about the command`() {
+        // The command's own refusal, and a problem a retry with the same request id may get past, the attempts spent.
+        val about = mapOf(
+            FrameworkCodes.COMMAND_REFUSED to Reply.problem(409, mapOf("code" to FrameworkCodes.COMMAND_REFUSED)),
+            FrameworkCodes.COMMAND_BUSY to Reply.problem(429, mapOf("code" to FrameworkCodes.COMMAND_BUSY), "0"),
+        )
+        about.forEach { (code, reply) ->
+            peer.taken.clear()
+            peer.reply(cut, reply)
+            caught<WowProblemException> { runBlocking { client(attempts = 2).commands.wait(deliver()) } }
+                .code.assert().isEqualTo(code)
+            peer.taken.assert().hasSize(2)
+        }
+    }
+
+    @Test
     fun `a query whose answer was cut should be asked again`(): Unit = runBlocking {
         val record = mapOf(
             "tenantId" to "t1",

@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.fold
 import kotlinx.coroutines.future.await
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.decide.checkUse
+import me.ahoo.wow.api.problem.Retry
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.wire.CallWire
 import me.ahoo.wow.api.wire.WowHeaders
@@ -181,10 +182,10 @@ internal class HttpTransport(
      * ([EndpointResolver.unreachable]); so it does when the lookup lists no target ([NoNodeListed]). Either way the
      * request was not sent, and is retried. What the last target answered is then retried while [kind] says so, and
      * so is a request sent and not answered, as the problem its [kind] gives it (a command again with its request id;
-     * a saga's call never here). A request no attempt could send is `wow.peer.unavailable`; one an attempt sent and
-     * got no answer to ends as that attempt's problem when the attempts after it send nothing, so a command whose
-     * outcome is unknown stays unknown, retried with its request id, never a new request that could commit it twice
-     * (#6806).
+     * a saga's call never here). A request no attempt could send is `wow.peer.unavailable`. One an attempt sent and
+     * got no answer to, a command's outcome unknown, ends as that attempt's problem when the attempts after it send
+     * nothing or are answered only that they were not taken ([endOf]), so it stays unknown, retried with its request
+     * id, never a new request that could commit it twice (#6806).
      */
     private suspend fun <T> withRetries(
         request: PeerRequest,
@@ -217,13 +218,26 @@ internal class HttpTransport(
                 Answer.Problem(kind.unanswered(request, failure)).also { unanswered = it }
             }
             if (answer is Answer.Problem && kind.retries(answer.problem)) {
-                val wait = retry.delayBefore(attempts, answer.problem.retryAfter) ?: return answer
+                val wait = retry.delayBefore(attempts, answer.problem.retryAfter) ?: return endOf(answer, unanswered)
                 delay(wait)
                 attempts++
                 continue
             }
-            return answer
+            return endOf(answer, unanswered)
         }
+    }
+
+    /**
+     * What a request whose last attempt [answer]ed ends as: that answer, unless an attempt before it was sent and not
+     * answered ([unanswered]), its outcome one a retry with the same request id settles, and [answer] says only that
+     * its attempt was not taken ([PeerProblem.notTaken]), which is no word on the earlier attempt: then that attempt's
+     * problem, the command's outcome still unknown (#6806). A result, a refusal of the command itself, or a problem a
+     * retry with the same request id may get past is an answer about the request, and ends it as it is.
+     */
+    private fun <T> endOf(answer: Answer<T>, unanswered: Answer.Problem?): Answer<T> = when {
+        unanswered == null || unanswered.problem.retry != Retry.SAME_REQUEST -> answer
+        answer is Answer.Problem && answer.problem.notTaken -> unanswered
+        else -> answer
     }
 
     /**
