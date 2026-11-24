@@ -20,6 +20,7 @@ import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.spi.call.DecidingCommand
 import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
@@ -145,7 +146,17 @@ internal class Batching(
         val wait = entry.wait.beyondCommitted()
         val attempt = scopes.open(command, current, wait, encode)
         val prepared = try {
-            preparation.prepare(model, decider, attempt, current, command, commandType.name, reach)
+            preparation.prepare(
+                model,
+                decider,
+                attempt,
+                current,
+                command,
+                commandType.name,
+                reach,
+                // A member is decided once here: decided again, it runs alone, through execute.
+                DecidingCommand(command.ref, command.requestId),
+            )
         } catch (cancelled: CancellationException) {
             attempt.compensate(cancelled)
             throw cancelled

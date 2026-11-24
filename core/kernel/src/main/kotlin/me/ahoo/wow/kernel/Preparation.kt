@@ -56,7 +56,11 @@ internal class Preparation(
         if (version == 0 && unassigned) null else throw failure
     }
 
-    /** Decides, runs the after hooks and evolves: either an outcome needing no append, or the stream to append. */
+    /**
+     * Decides, runs the after hooks and evolves: either an outcome needing no append, or the stream to append.
+     * [deciding] is the execution's, every attempt's: the commands a client sends while deciding take request ids
+     * derived from the command's, the same in every attempt, and a call decided again must be the same call.
+     */
     internal suspend fun <S : Any> prepare(
         model: AggregateModel<S>,
         decider: DecideFunction<S>,
@@ -65,6 +69,7 @@ internal class Preparation(
         command: Command<*>,
         commandType: String,
         reach: CommandReach,
+        deciding: DecidingCommand,
     ): Prepared {
         // A creation's declared time (`@OccurredAt`) is its commit's: never one the node's clock has not reached.
         unwritable(command, scope)?.let { return Prepared.Done(it) }
@@ -72,8 +77,7 @@ internal class Preparation(
         val state = loaded.state as S
         val version = loaded.version
         val before = if (options.verifyDecidePurity) purityBaseline(state, version) else null
-        // A command a client sends while deciding takes a request id derived from this one's, anew each attempt.
-        val deciding = DecidingCommand(command.ref, command.requestId)
+        deciding.nextAttempt()
         val decision = observer.deciding(command).observe {
             withContext(deciding) { decisions.decideAll(model, decider, scope, state, command.body) }
         }
