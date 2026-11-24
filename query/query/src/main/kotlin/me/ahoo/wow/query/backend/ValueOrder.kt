@@ -28,8 +28,8 @@ import java.time.format.DateTimeParseException
 /*
  * The identity and the order of JSON values wherever the core compares them itself (the in-memory reference backend,
  * the residual windows and Top-N): a number by its exact value, whatever its JSON width (an int, a long, a big
- * integer, a double or a decimal); a string by its characters, unless its field reads it as a date ([Temporal.Date]),
- * when it is its instant; a boolean false before true. Each comparison takes the field's [Temporal], or the alias's
+ * integer, a double or a decimal); a string by its code points ([compareCodePoints]), as every store orders text,
+ * unless its field reads it as a date ([Temporal.Date]), when it is its instant; a boolean false before true. Each comparison takes the field's [Temporal], or the alias's
  * that carries a field's value ([outputReadings][me.ahoo.wow.query.aggregation.outputReadings]): no string is read as
  * a date unless its field says so.
  */
@@ -40,7 +40,7 @@ internal fun JsonNode.decimal(): BigDecimal = if (isIntegralNumber) BigDecimal(b
 /** The order of two values of one kind (numbers, strings, booleans), or `null` when they do not compare. */
 internal fun compareScalars(left: JsonNode, right: JsonNode): Int? = when {
     left.isNumber && right.isNumber -> left.decimal().compareTo(right.decimal())
-    left.isString && right.isString -> left.stringValue().compareTo(right.stringValue())
+    left.isString && right.isString -> compareCodePoints(left.stringValue(), right.stringValue())
     left.isBoolean && right.isBoolean -> left.booleanValue().compareTo(right.booleanValue())
     else -> null
 }
@@ -56,8 +56,52 @@ internal fun orderOf(left: JsonNode?, right: JsonNode?, temporal: Temporal?): In
     val rightRank = right.kindRank()
     if (leftRank != rightRank) return leftRank.compareTo(rightRank)
     if (left == null || right == null) return 0
-    return compareScalars(left, right) ?: left.toString().compareTo(right.toString())
+    return compareScalars(left, right) ?: compareCodePoints(left.toString(), right.toString())
 }
+
+/**
+ * [left] against [right] by code point, the order in which every store compares text: PostgreSQL by `COLLATE "C"`,
+ * MongoDB, Elasticsearch's keywords and ClickHouse by the bytes of their UTF-8, which order as the code points do.
+ * [String.compareTo] orders by UTF-16 code unit instead, which parts from it where a character above U+FFFF (an emoji,
+ * a CJK extension ideograph), stored as two surrogates (U+D800 to U+DFFF), meets one of U+E000 to U+FFFF (the
+ * fullwidth forms, the compatibility ideographs, private use): `Ａ` (U+FF21) is before `😀` (U+1F600) here.
+ *
+ * One pass over the code units, as [String.compareTo] makes, with no allocation: at the first unit that differs, a
+ * surrogate is moved past U+E000 to U+FFFF ([codePointRank]), so the two compare as their code points would. A negative
+ * number, zero or a positive one, as a comparator answers.
+ */
+@InternalWowApi
+fun compareCodePoints(left: String, right: String): Int {
+    val shorter = minOf(left.length, right.length)
+    for (index in 0 until shorter) {
+        val leftUnit = left[index]
+        val rightUnit = right[index]
+        if (leftUnit != rightUnit) {
+            return codePointRank(leftUnit) - codePointRank(rightUnit)
+        }
+    }
+    return left.length - right.length
+}
+
+/**
+ * [unit]'s rank in code point order: a unit below U+D800 is its own code point, one of U+E000 to U+FFFF moves down below
+ * the surrogates, and a surrogate moves up above U+FFFF, as the code point it is half of is. Within each group the order
+ * is kept, so two units of one group compare as before.
+ */
+private fun codePointRank(unit: Char): Int = when {
+    unit >= BMP_UPPER_START -> unit.code - SURROGATES
+    unit >= Char.MIN_SURROGATE -> unit.code + BMP_UPPER_SIZE
+    else -> unit.code
+}
+
+/** The first code unit above the surrogates, U+E000. */
+private const val BMP_UPPER_START: Char = '\uE000'
+
+/** The number of surrogate code units, U+D800 to U+DFFF. */
+private const val SURROGATES: Int = Char.MAX_SURROGATE.code - Char.MIN_SURROGATE.code + 1
+
+/** The number of code units from U+E000 to U+FFFF. */
+private const val BMP_UPPER_SIZE: Int = Char.MAX_VALUE.code - BMP_UPPER_START.code + 1
 
 /**
  * A key equal for values equal by value, read as [temporal] says ([orderKey]), to group, partition or deduplicate

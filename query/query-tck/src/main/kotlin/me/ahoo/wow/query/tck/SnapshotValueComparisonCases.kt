@@ -181,6 +181,42 @@ abstract class SnapshotValueComparisonCases internal constructor() : SnapshotDat
         }
     }
 
+    // Text where code point order and UTF-16 code unit order part (#6772): a character above U+FFFF, stored as two
+    // surrogates, against ones of U+E000 to U+FFFF. Every store orders text by code point, so must every backend.
+
+    private suspend fun texts(): Fixture = given(
+        TEXTS.map { (id, text) -> snapshot(id, """{"status":"$text","createdAt":$T0}""") },
+    )
+
+    @Test
+    fun `a list sorted by a text orders it by code point`(): Unit = blocking {
+        val fixture = texts()
+        fixture.assumeBound(STATUS, QueryCapability.SORT, "a text sort")
+        val ascending = TEXTS.map { it.first }
+        fixture.ids(MatchAllFilter, listOf(Sort(STATUS, Sort.Direction.ASC))).assert().isEqualTo(ascending)
+        fixture.ids(MatchAllFilter, listOf(Sort(STATUS, Sort.Direction.DESC))).assert().isEqualTo(ascending.reversed())
+    }
+
+    @Test
+    fun `a range over a text compares it by code point`(): Unit = blocking {
+        val fixture = texts()
+        fixture.assumeBound(STATUS, QueryCapability.RANGE, "a text range")
+        fixture.ids(GreaterThanFilter(STATUS, FULLWIDTH_A)).assert().containsExactly("emoji")
+        fixture.ids(LessThanFilter(STATUS, FULLWIDTH_A)).assert().containsExactlyInAnyOrder("ascii", "private")
+    }
+
+    @Test
+    fun `a top-N by a FIRST or LAST text picks it by code point`(): Unit = blocking {
+        val fixture = texts()
+        fixture.assumeBound(STATUS, QueryCapability.AGGREGATE_TERMS, "a status group and a FIRST / LAST text")
+        fixture.assumeBound(CREATED_AT, QueryCapability.SORT, "a FIRST / LAST order")
+        assumeTopN(fixture)
+        listOf(false, true).forEach { last ->
+            fixture.topOneByEdge(STATUS, last, Sort.Direction.DESC).assert().isEqualTo(EMOJI)
+            fixture.topOneByEdge(STATUS, last, Sort.Direction.ASC).assert().isEqualTo("z")
+        }
+    }
+
     // A number in mixed JSON widths.
 
     private suspend fun widths(): Fixture = given(
@@ -363,5 +399,11 @@ abstract class SnapshotValueComparisonCases internal constructor() : SnapshotDat
         private val STATUS = QueryField("state.status")
         private val CREATED_AT = QueryField("state.createdAt")
         private val COUNT = AggregationMetric.Count("n")
+
+        private const val FULLWIDTH_A = "\uFF21"
+        private const val EMOJI = "\uD83D\uDE00"
+
+        /** Each record's id and its text, in code point order: `Ａ` (U+FF21) before `😀` (U+1F600). */
+        private val TEXTS = listOf("ascii" to "z", "private" to "\uE000", "fullwidth" to FULLWIDTH_A, "emoji" to EMOJI)
     }
 }

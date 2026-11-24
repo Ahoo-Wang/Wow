@@ -13,6 +13,7 @@
 package me.ahoo.wow.query
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.query.backend.compareCodePoints
 import me.ahoo.wow.query.backend.compareScalars
 import me.ahoo.wow.query.backend.orderOf
 import me.ahoo.wow.query.backend.parseInstant
@@ -24,6 +25,7 @@ import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.JsonNodeFactory
 import java.math.BigInteger
 import java.time.Instant
+import java.util.Arrays
 
 class ValueOrderTest {
     private val nodes = JsonNodeFactory.instance
@@ -80,5 +82,31 @@ class ValueOrderTest {
         orderOf(null, node("\"2026-01-01\""), Temporal.Date).assert().isNegative()
         orderOf(node("\"2026-01-01\""), null, Temporal.Date).assert().isPositive()
         (null as JsonNode?).valueKey(Temporal.Date).assert().isNull()
+    }
+
+    /**
+     * Every pair of strings made of the code units where UTF-16 and code point order part (the edges of the surrogates
+     * and of U+E000 to U+FFFF, a pair above U+FFFF, and ASCII), one to three of them, compares as their code points do
+     * (#6772): by sign against the order of their [String.codePoints], and a string equals only itself.
+     */
+    @Test
+    fun `text compares by code point, wherever a surrogate meets U+E000 to U+FFFF`() {
+        val units = listOf("a", "\uD7FF", "\uE000", "\uFF21", "\uFFFF", "\uD800\uDC00", "\uD83D\uDE00", "\uDBFF\uDFFF")
+        val texts = units + units.flatMap { first -> units.map { first + it } } +
+            units.flatMap { first -> units.flatMap { second -> units.map { first + second + it } } }
+        fun byCodePoint(left: String, right: String): Int {
+            val lefts = left.codePoints().toArray()
+            val rights = right.codePoints().toArray()
+            return Arrays.compare(lefts, rights)
+        }
+        texts.forEach { left ->
+            texts.forEach { right ->
+                Integer.signum(compareCodePoints(left, right)).assert().describedAs("[$left] against [$right]")
+                    .isEqualTo(Integer.signum(byCodePoint(left, right)))
+            }
+        }
+        compareCodePoints("\uFF21", "\uD83D\uDE00").assert().isNegative()
+        ("\uFF21" < "\uD83D\uDE00").assert().isFalse()
+        compareScalars(node("\"\\uFF21\""), node("\"\\uD83D\\uDE00\""))!!.assert().isNegative()
     }
 }
