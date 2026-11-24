@@ -15,6 +15,7 @@ package me.ahoo.wow.mongo.log
 
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.Updates
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
@@ -27,6 +28,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.mongo.MongoNames
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.PartitionLineage
+import me.ahoo.wow.spi.log.Partitioner
 import org.bson.Document
 import org.junit.jupiter.api.Test
 
@@ -147,7 +149,66 @@ class MongoTailReadsTest : MongoLogFixtures() {
         tailed(log, 1).single().stream.ref.id.assert().isEqualTo("b")
     }
 
+    @Test
+    fun `the head of the last of 4,096 partitions is the sequence of its stream`(): Unit = runBlocking {
+        // Its positions' upper bound was positionId(4096, 0), which overflows to Long.MIN_VALUE (#6746).
+        val committed = top.append(stream(idIn(LAST), 1, aggregate = topOrder))
+        val position = (committed as AppendOutcome.Committed).position
+        position.partition.assert().isEqualTo(LAST)
+
+        top.head(LAST).assert().isEqualTo(position.sequence)
+        top.heads(listOf(LAST)).assert().isEqualTo(mapOf(LAST to position.sequence))
+    }
+
+    @Test
+    fun `a tail of the last of 4,096 partitions passes a stopped node's block longer than its window`(): Unit =
+        runBlocking {
+            // A node appends one stream from its block of 256 and stops; another appends after it. The tail's window
+            // of 10 meets the 255 unused sequences, must see the stream past them, and seal the block (#6746).
+            top.partitions.assert().isEqualTo(Partitioner.SLOTS)
+            val stopped = anotherNode()
+            stopped.append(stream(idIn(LAST, 1), 1, aggregate = topOrder))
+                .assert().isInstanceOf(AppendOutcome.Committed::class.java)
+            val live = anotherNode()
+            live.append(stream(idIn(LAST, 2), 1, aggregate = topOrder))
+                .assert().isInstanceOf(AppendOutcome.Committed::class.java)
+
+            // Another test's stream may share the partition: the tail is read for this test's two.
+            val ids = setOf(idIn(LAST, 1), idIn(LAST, 2))
+            val entries =
+                withTimeout(TAIL_TIMEOUT_MS) { live.tail(LAST).filter { it.stream.ref.id in ids }.take(2).toList() }
+
+            entries.map { it.stream.ref.id }.assert().containsExactly(idIn(LAST, 1), idIn(LAST, 2))
+        }
+
+    /** A node of the 4,096-partition log, with its own blocks. */
+    private fun anotherNode() = MongoEventLog(
+        MongoLogFixture.client,
+        MongoLogFixture.DATABASE,
+        topContext,
+        Partitioner.SLOTS,
+        options = MongoEventLogOptions(tailBatch = TOP_TAIL_BATCH),
+    )
+
+    /** The id of the [nth] aggregate of the 4,096-partition log's type in [partition]. */
+    private fun idIn(partition: Int, nth: Int = 0): String = generateSequence(0) { it + 1 }
+        .map { "a-$it" }
+        .filter { Partitioner.partitionOf(topOrder.ref("tenant", it), Partitioner.SLOTS) == partition }
+        .drop(nth)
+        .first()
+
     private companion object {
         const val TAIL_STALL_MS = 500L
+
+        /** The last partition of a log of 4,096, the most a position holds. */
+        const val LAST = Partitioner.SLOTS - 1
+        const val TOP_TAIL_BATCH = 10
+
+        /** One log of 4,096 partitions for the class: its schema takes a counter per partition. */
+        val topContext = MongoLogFixture.newContext("top")
+        val topOrder = AggregateType(topContext, "order")
+        val top: MongoEventLog by lazy {
+            MongoLogFixture.log(Partitioner.SLOTS, topContext, listOf(topOrder.name), tailBatch = TOP_TAIL_BATCH)
+        }
     }
 }

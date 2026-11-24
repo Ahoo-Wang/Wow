@@ -222,11 +222,18 @@ internal class MongoSequencer(
             val blocks = Document("\$concatArrays", listOf(open, listOf(add)))
             val sequence = Document("\$add", listOf("\$${MongoEventLog.SEQUENCE}", size))
             val update = listOf(Document("\$set", Document(BLOCKS, blocks).append(MongoEventLog.SEQUENCE, sequence)))
-            val to = counters.findOneAndUpdate(
-                Filters.eq(MongoEventLog.ID, partition),
-                update,
-                FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER),
-            )!!.getLong(MongoEventLog.SEQUENCE)
+            // A position holds 51 bits of sequence: a block past them would run into the next partition's positions.
+            val room = Filters.lte(MongoEventLog.SEQUENCE, MongoEventLog.MAX_SEQUENCE - size)
+            val to = checkNotNull(
+                counters.findOneAndUpdate(
+                    Filters.and(Filters.eq(MongoEventLog.ID, partition), room),
+                    update,
+                    FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER),
+                ),
+            ) {
+                "Partition $partition has no counter, or fewer than $size sequences left below " +
+                    "${MongoEventLog.MAX_SEQUENCE}, the highest a position holds."
+            }.getLong(MongoEventLog.SEQUENCE)
             return Block(to - size + 1, to, names.toSet())
         }
 

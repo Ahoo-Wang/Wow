@@ -601,11 +601,21 @@ class MongoEventLog(
         /** The bits of a position's sequence in its `_id`, below its partition's (12 bits, at most 4,096 partitions). */
         const val SEQUENCE_BITS: Int = 51
 
+        /** The highest sequence a position holds: `2^51 - 1`. A partition gives out no sequence above it. */
+        const val MAX_SEQUENCE: Long = (1L shl SEQUENCE_BITS) - 1
+
         /**
          * An entry's `_id`: its position, `partition << 51 | sequence`, one long, so that the
          * position needs no index of its own and a partition's entries are one range of `_id`, in sequence order.
          */
         fun positionId(partition: Int, sequence: Long): Long = (partition.toLong() shl SEQUENCE_BITS) or sequence
+
+        /**
+         * The highest `_id` of [partition]'s positions, the upper bound of its range, inclusive. Not
+         * `positionId(partition + 1, 0)`, which for the last of 4,096 partitions is `1 shl 63` and overflows to
+         * `Long.MIN_VALUE` (#6746): here it is `Long.MAX_VALUE`.
+         */
+        fun lastPositionId(partition: Int): Long = positionId(partition, MAX_SEQUENCE)
 
         /** The version of this layout. */
         const val FORMAT = 1
