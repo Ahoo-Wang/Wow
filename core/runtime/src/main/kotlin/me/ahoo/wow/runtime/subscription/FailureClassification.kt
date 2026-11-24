@@ -16,6 +16,7 @@ package me.ahoo.wow.runtime.subscription
 import me.ahoo.wow.kernel.FailureClassification
 import me.ahoo.wow.kernel.FailureReasons
 import me.ahoo.wow.runtime.CommandBusyException
+import me.ahoo.wow.runtime.binding.UnreadReceiptsException
 import me.ahoo.wow.spi.subscription.FailureClass
 import me.ahoo.wow.spi.subscription.FailureClassifier
 import me.ahoo.wow.spi.subscription.FailureDescriber
@@ -48,19 +49,39 @@ internal object RuntimeFailures {
 /** The words of the runtime's descriptions. */
 internal enum class RuntimePhrase {
     NOT_DECODABLE_BY_THIS_VERSION,
+    DERIVES,
+    TO_CONTEXT,
+    BUT_ITS_CONTEXT_READS_NO_RECEIPTS,
+    DECLARE_A_REJECTION_HANDLER_OF,
 }
 
 /**
  * What only the runtime throws, described: a message of a topic this version cannot decode
- * ([UndecodableEntryException]); what it could not decode is its cause's.
+ * ([UndecodableEntryException]), what it could not decode being its cause's; and a saga's command to another context
+ * from a context that reads no receipts ([UnreadReceiptsException]), by the handler, the command's class and its
+ * target's context.
  */
 internal object RuntimeDescriptions : FailureDescriber {
-    override fun describe(failure: Throwable): FailureDescription? =
-        if (failure is UndecodableEntryException) {
+    override fun describe(failure: Throwable): FailureDescription? = when (failure) {
+        is UndecodableEntryException ->
             FailureDescription.of(FailureDescription.phrase(RuntimePhrase.NOT_DECODABLE_BY_THIS_VERSION))
-        } else {
-            null
+
+        is UnreadReceiptsException -> {
+            val command = FailureDescription.type(failure.command.body.javaClass)
+            FailureDescription.of(
+                FailureDescription.name(failure.handler),
+                FailureDescription.phrase(RuntimePhrase.DERIVES),
+                command,
+                FailureDescription.phrase(RuntimePhrase.TO_CONTEXT),
+                FailureDescription.name(failure.command.ref.type.context),
+                FailureDescription.phrase(RuntimePhrase.BUT_ITS_CONTEXT_READS_NO_RECEIPTS),
+                FailureDescription.phrase(RuntimePhrase.DECLARE_A_REJECTION_HANDLER_OF),
+                command,
+            )
         }
+
+        else -> null
+    }
 }
 
 /**

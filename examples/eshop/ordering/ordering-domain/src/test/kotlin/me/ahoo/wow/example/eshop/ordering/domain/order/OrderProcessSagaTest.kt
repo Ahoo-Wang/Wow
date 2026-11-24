@@ -103,6 +103,18 @@ class OrderProcessSagaTest {
     }
 
     @Test
+    fun `a reservation gone when its order shipped should park the order`() = sagaSpec(handlers) {
+        submitted()
+        whenEvent(OrderShipped, by = ShipOrder::class) {
+            // No handler takes CommitReservation's rejections, on purpose: the inventory's receipt parks the order.
+            whenRejected(commands.first(), EshopInventoryContract.Stock.Errors.NO_RESERVATION) {
+                expectHandledBy()
+                expectParked()
+            }
+        }
+    }
+
+    @Test
     fun `a reservation the inventory committed should confirm the order's product`() = sagaSpec(handlers) {
         val order = submitted()
         whenEvent(OrderAwaitingValidation, by = AwaitStockValidation::class) {

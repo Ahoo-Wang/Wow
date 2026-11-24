@@ -290,10 +290,13 @@ class CommandMessagesTest {
             val receipts = Receipts(
                 SALES,
                 ContractDirectory(salesManifest(), listOf(peer(stockManifest()))),
-                receiptHandler(committed = { committed, command ->
-                    handled += committed.commandId to command
-                    answer
-                }),
+                receiptHandler(
+                    rejected = { _, _ -> emptyList() },
+                    committed = { committed, command ->
+                        handled += committed.commandId to command
+                        answer
+                    },
+                ),
             )
             receipts.handle(committed())
             // A copy, or the duplicate request's receipt, is dropped by the command id.
@@ -311,7 +314,7 @@ class CommandMessagesTest {
                 )
             )
             handled.size.assert().isEqualTo(1)
-            // No handler takes it: logged and passed over, once.
+            // No handler takes a commit's receipt: logged and passed over, once.
             answer = null
             receipts.handle(committed("c-2"))
             receipts.handle(committed("c-2"))
@@ -451,11 +454,20 @@ class CommandMessagesTest {
         receipts.handle(rejected.copyWith(commandId = "c-ledger", commandType = Ledger.RETRY_PARKED))
         handled.last().assert().isEqualTo("c-ledger" to RetryParked::class.java)
         handled.removeLast()
-        // No handler takes it: logged and passed over, once.
+        // No handler takes it: the saga's aggregate parks at once, and the receipt is not remembered, so a retry of the
+        // park hands it to the handler again, which parks it again while no handler takes it.
         answer = null
-        receipts.handle(rejected.copyWith(commandId = "c-2"))
-        receipts.handle(rejected.copyWith(commandId = "c-2"))
-        handled.size.assert().isEqualTo(2)
+        repeat(2) {
+            val unhandled = assertThrows<UnhandledReceiptRejectionException> {
+                runBlocking { receipts.handle(rejected.copyWith(commandId = "c-2")) }
+            }
+            unhandled.error.code.assert().isEqualTo(INSUFFICIENT)
+            unhandled.message.assert().isEqualTo(
+                "OrderSaga.onOrderPlaced in sales takes no rejection of stock.item.Reserve: the derived command c-2 " +
+                    "on ${rejected.ref} was rejected: $INSUFFICIENT none"
+            )
+        }
+        handled.size.assert().isEqualTo(3)
         assertThrows<IllegalStateException> {
             runBlocking { receipts.handle(rejected.copyWith(commandId = "c-3", commandType = "stock.item.Gone")) }
         }

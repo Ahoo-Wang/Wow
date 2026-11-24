@@ -232,10 +232,10 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
 
     /**
      * The `@OnRejected` and `@OnCommitted` handlers of [context]'s sagas, for the receipts of the commands they sent to
-     * other contexts; null when none of its sagas has one.
+     * other contexts; null when none of its sagas may send a command to another context ([ReceiptsAsked.of]).
      */
     override fun receipts(context: ContextNode): ReceiptHandler? =
-        receiptsOf(context, processors[context.context].orEmpty()).takeUnless { it.isEmpty }
+        receiptsOf(context, processors[context.context].orEmpty()).takeIf { it.reads }
 
     /** The names of the `@OnCommitted` handlers of [context]'s sagas, each a hop of its waits. */
     override fun committedHandlers(context: String): Set<String> =
@@ -258,6 +258,7 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
         caller = context.caller,
         served = context.served,
         codec = context.codec,
+        reads = ReceiptsAsked.of(bound, context.models),
     )
 
     /**
@@ -369,6 +370,7 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
             } catch (rejected: CommandRejectedException) {
                 return callRejected(rejected, calls, execution.executionId, receipts)
             }
+            ReceiptsAsked.check(handler, context.context, context.models, commands, receipts.reads)
             val replyTo = replyTo(handler, context.context, execution.executionId)
             val executed = derived.execute(commands, acting, wait, replyTo)
             val withCalls = executed.copy(executed = calls.called + executed.executed)
@@ -426,18 +428,16 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
 
         /**
          * Where the receipts of a command the saga [handler] of [context] derived in its [execution] go, when another
-         * context rejects or commits it: back to the saga, when it has an `@OnRejected` or an
-         * `@OnCommitted` handler for the command's class, asking for the receipt of the commit only with the latter;
-         * otherwise nowhere, and the target only logs a rejection.
+         * context rejects or commits it: back to the saga, always for its rejection, which goes to the saga's
+         * `@OnRejected` handler of the command's class or parks the saga's aggregate when it has none, as a rejection
+         * within the context does; for its commit only when the saga has an `@OnCommitted` handler for that class.
          */
         internal fun replyTo(
             handler: ProcessorBinding<*>,
             context: String,
             execution: ExecutionId,
         ): (Command<*>) -> ReplyTo? = { command ->
-            val type = command.body.javaClass
-            val committed = handler.committedHandlerOf(type) != null
-            ReplyTo.of(context, execution, committed).takeIf { committed || handler.rejectionHandlerOf(type) != null }
+            ReplyTo.of(context, execution, committed = handler.committedHandlerOf(command.body.javaClass) != null)
         }
 
         /**

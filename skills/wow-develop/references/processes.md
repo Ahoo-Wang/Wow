@@ -114,6 +114,13 @@ class OrderProcessSaga {
     fun onReleaseRejected(rejected: CommandReceipt.Rejected<ReleaseReservation>) =
         rejected.accept(FrameworkCodes.AGGREGATE_NOT_FOUND)
 
+    /**
+     * A shipped order commits its reservations. The saga declares no `@OnRejected` handler of `CommitReservation`, on
+     * purpose: the inventory rejects one only when the order's reservation is gone
+     * (`EshopInventoryContract.Stock.Errors.NO_RESERVATION`), which a shipped order never meets unless something went
+     * wrong. Its receipt comes back from the inventory and, no handler taking it, parks the order at once, its reason
+     * naming the code, where an operator sees it.
+     */
     @OnEvent
     fun onOrderShipped(
         event: StateTypedEvent<OrderState, OrderShipped>

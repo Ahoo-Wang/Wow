@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.example.eshop.payment.domain.payment
 
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.example.eshop.ordering.api.order.CancelOrder
 import me.ahoo.wow.example.eshop.ordering.api.order.EshopOrderingContract
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderItem
@@ -106,13 +107,22 @@ class OrderPaymentSagaTest {
     }
 
     @Test
-    fun `an order that refused its cancellation should park the payment`() = sagaSpec(handlers) {
+    fun `an order already paid that refused its cancellation should need nothing more`() = sagaSpec(handlers) {
         requested()
         whenEvent(PaymentFailed("declined"), by = FailPayment::class) {
-            // No handler takes CancelOrder's rejections: only a paid order rejects it, and a failed payment paid
-            // nothing, so the payment parks, to be looked at.
             whenRejected(commands.single(), code = EshopOrderingContract.Order.Errors.WRONG_STATUS) {
-                expectHandledBy()
+                expectHandledBy("onCancelRejected")
+                expectNoCommand()
+            }
+        }
+    }
+
+    @Test
+    fun `an order that refused its cancellation for another reason should park the payment`() = sagaSpec(handlers) {
+        requested()
+        whenEvent(PaymentFailed("declined"), by = FailPayment::class) {
+            whenRejected(commands.single(), code = FrameworkCodes.AGGREGATE_NOT_FOUND) {
+                expectHandledBy("onCancelRejected")
                 expectParked()
             }
         }

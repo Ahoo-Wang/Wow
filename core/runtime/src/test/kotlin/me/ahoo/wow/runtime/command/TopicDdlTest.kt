@@ -15,6 +15,10 @@ package me.ahoo.wow.runtime.command
 
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.client.CommandRequest
+import me.ahoo.wow.api.lifecycle.DeleteAggregate
+import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.manifest.PublishedManifest
 import me.ahoo.wow.manifest.copyWith
@@ -36,7 +40,7 @@ import java.util.concurrent.CopyOnWriteArrayList
 /**
  * The topics a node's contexts own, validated or created at its start as the topic DDL says (decision D168): the
  * command topic of a context that takes commands, with exactly its log's partitions, the receipts topic of a context
- * that reads its rejections, and the topics of the streams it publishes.
+ * whose sagas send commands to another context, and the topics of the streams it publishes.
  */
 class TopicDdlTest {
     private val topics = InMemoryTopics(1)
@@ -60,7 +64,7 @@ class TopicDdlTest {
         topics = SourceTopics(topics, PREFIX, topics, intake = intake, admin = topics, ddl = ddl),
     ).also { nodes += it }
 
-    private fun salesNode(ddl: Ddl): ServiceNode {
+    private fun salesNode(ddl: Ddl, saga: ProcessorBinding<*> = orderSaga()): ServiceNode {
         val manifest = salesManifest().let { manifest ->
             manifest.copyWith(
                 contexts = manifest.contexts.map {
@@ -79,7 +83,7 @@ class TopicDdlTest {
             InMemoryBackends(PARTITIONS),
             channel,
             options = fastNodeOptions(),
-            subscriptions = SubscriptionBindings(mapOf(SALES to listOf(orderSaga()))),
+            subscriptions = SubscriptionBindings(mapOf(SALES to listOf(saga))),
             contracts = ContractDirectory(manifest, listOf(peer(stockManifest()))),
             topics = SourceTopics(topics, PREFIX, topics, admin = topics, ddl = ddl),
         ).also { nodes += it }
@@ -166,6 +170,54 @@ class TopicDdlTest {
             nodes.clear()
             topics.create(COMMANDS, PARTITIONS)
             salesNode(Ddl.VALIDATE).also { it.start() }.isReady.assert().isTrue()
+        }
+
+    @Test
+    fun `validate should refuse to start without the receipts topic of a saga that sends to another context`(): Unit =
+        runBlocking {
+            // No @OnRejected or @OnCommitted handler: a rejection of its reservation still comes back, and parks.
+            val reserving = sagaDeriving(Reserve::class.java) { ITEM.ref(it.tenantId, it.id) to Reserve(1) }
+            val sales = salesNode(Ddl.VALIDATE, reserving)
+            sales.topicRequirements.map { it.topic }.assert().containsExactly(RECEIPTS, ORDERS, COMMANDS)
+            val refused = assertThrows<WowConfigurationException> { runBlocking { sales.start() } }
+            refused.message.assert().contains(
+                "The topics of node sales-1 are not as it needs them (topic DDL validate): $RECEIPTS does not exist " +
+                    "(the receipts topic of context sales)",
+            )
+        }
+
+    @Test
+    fun `a saga that derives only its own context's commands should need no receipts topic`() {
+        salesNode(Ddl.VALIDATE, sagaDeriving(CancelOrder::class.java) { it to CancelOrder() })
+            .topicRequirements.map { it.topic }.assert().containsExactly(ORDERS, COMMANDS)
+    }
+
+    @Test
+    fun `a saga that derives a lifecycle command, or schedules another context's, should need its receipts topic`() {
+        // Every aggregate decides DeleteAggregate, the sales order too: it may go to any context's aggregate.
+        salesNode(Ddl.VALIDATE, sagaDeriving(DeleteAggregate::class.java) { it to DeleteAggregate() })
+            .topicRequirements.map { it.topic }.assert().containsExactly(RECEIPTS, ORDERS, COMMANDS)
+        nodes.clear()
+        val scheduling = ProcessorBinding.saga(
+            "OrderSaga",
+            "onOrderPlaced",
+            OrderState::class.java,
+            schedules = listOf(Reserve::class.java),
+        ) { _, _ -> emptyList() }
+        salesNode(Ddl.VALIDATE, scheduling).topicRequirements.map { it.topic }.assert()
+            .containsExactly(RECEIPTS, ORDERS, COMMANDS)
+    }
+
+    /** An order saga with no receipt handler, deriving one command of [type] for each commit, as [request] makes it. */
+    private fun <C : Any> sagaDeriving(type: Class<C>, request: (AggregateRef) -> Pair<AggregateRef, C>) =
+        ProcessorBinding.saga(
+            "OrderSaga",
+            "onOrderPlaced",
+            OrderState::class.java,
+            derives = listOf(type),
+        ) { event, _ ->
+            val (to, command) = request(event.ref)
+            listOf(CommandRequest.to(to, command))
         }
 
     @Test

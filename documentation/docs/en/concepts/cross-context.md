@@ -38,7 +38,7 @@ A command for another context is written to that context's command topic, `wow.<
 
 The target's intake executes the command from its topic on the owner of the aggregate's partition: deduplication by request id, decide, append. It does not admit it again. Because a saga's command has a request id derived from the commit that triggered it, a command sent twice commits once.
 
-**A rejection comes back.** A rejection is a business outcome the sender needs to know about: the stock ran out, the payment was declined. The command carries where to reply, and the target writes a rejection receipt to the sending context's receipts topic, `wow.<context>.receipts`, before it acknowledges the command. The sending saga handles it in its rejection handler and can compensate. If the target crashes in between, the command is delivered again, rejected again, and the receipt sent again; the saga ignores the duplicate by command id. A saga can ask for a receipt on success too.
+**A rejection comes back.** A rejection is a business outcome the sender needs to know about: the stock ran out, the payment was declined. The command carries where to reply, and the target writes a rejection receipt to the sending context's receipts topic, `wow.<context>.receipts`, before it acknowledges the command. The sending saga handles it in its rejection handler and can compensate; with no handler for it, the receipt parks the saga's aggregate, as a rejection within its own context does. If the target crashes in between, the command is delivered again, rejected again, and the receipt sent again; the saga ignores the duplicate by command id. A saga can ask for a receipt on success too.
 
 Only a technical failure while executing, not a rejection, goes to the target's failure ledger.
 
