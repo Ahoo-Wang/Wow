@@ -322,6 +322,9 @@ class HttpNode(
         // The events model in memory scans the log by its partitions' heads.
         override suspend fun head(partition: Int): Long? = ensureAvailable().let { log.head(partition) }
 
+        override suspend fun heads(partitions: Collection<Int>): Map<Int, Long?> =
+            ensureAvailable().let { log.heads(partitions) }
+
         override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome {
             appendGate?.await()
             return log.append(stream, transport).also { appended?.complete(Unit) }

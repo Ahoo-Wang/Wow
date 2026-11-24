@@ -132,6 +132,9 @@ class HandoffScheduledProbeTest : HandoffLogFixtures() {
             return if (partition == 0 && foreign != null) FOREIGN else own
         }
 
+        /** The heads as [head] gives each, so a read of all the heads at once sees the foreign commit too. */
+        override suspend fun heads(partitions: Collection<Int>): Map<Int, Long?> = partitions.associateWith { head(it) }
+
         override fun tail(partition: Int, after: Long?): Flow<LogEntry> = flow {
             val other = foreign.takeIf { partition == 0 }
             val own = delegate.head(partition) ?: 0L
