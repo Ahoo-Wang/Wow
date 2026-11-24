@@ -1,0 +1,83 @@
+{
+  "format" : 1,
+  "contexts" : [
+    {
+      "name" : "teller",
+      "description" : "The test server's second context: a teller's tills, beside the quickstart's bank",
+      "aggregates" : [
+        {
+          "name" : "till",
+          "state" : {
+            "schema" : "#/$defs/me.ahoo.wow.test.server.Till"
+          },
+          "snapshot" : {
+            "enabled" : true
+          },
+          "commands" : [
+            {
+              "name" : "OpenTill",
+              "aliases" : [],
+              "schema" : "#/$defs/me.ahoo.wow.test.server.OpenTill",
+              "creation" : "required",
+              "routes" : [
+                {
+                  "method" : "POST",
+                  "path" : "/teller/till/{id}/open-till"
+                }
+              ]
+            }
+          ],
+          "events" : [
+            {
+              "name" : "TillOpened",
+              "aliases" : [],
+              "revision" : 1,
+              "schema" : "#/$defs/me.ahoo.wow.test.server.TillOpened"
+            }
+          ],
+          "lifecycle" : [],
+          "queries" : [
+            {
+              "model" : "snapshot",
+              "routes" : [
+                {
+                  "method" : "POST",
+                  "path" : "/teller/till/snapshot/query"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "subscriptions" : [],
+      "errors" : []
+    }
+  ],
+  "errors" : [],
+  "$defs" : {
+    "me.ahoo.wow.test.server.Till" : {
+      "type" : "object",
+      "properties" : {
+        "teller" : {
+          "type" : "string"
+        }
+      }
+    },
+    "me.ahoo.wow.test.server.OpenTill" : {
+      "type" : "object",
+      "properties" : {
+        "teller" : {
+          "type" : "string"
+        }
+      }
+    },
+    "me.ahoo.wow.test.server.TillOpened" : {
+      "type" : "object",
+      "properties" : {
+        "teller" : {
+          "type" : "string"
+        }
+      }
+    }
+  }
+}

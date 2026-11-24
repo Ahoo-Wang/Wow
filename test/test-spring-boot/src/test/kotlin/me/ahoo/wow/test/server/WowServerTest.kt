@@ -113,7 +113,11 @@ class WowServerTest {
     }
 
     private companion object {
-        val NAMED = mapOf("spring.application.name" to "shop-service")
+        /**
+         * A name of the test's own, serving the teller alone ([TellerModels]), which no build names: the quickstart's
+         * bank, also on the class path, is left out, as its build names its service bank-service.
+         */
+        val NAMED = mapOf("spring.application.name" to "shop-service", "wow.contexts.include" to TELLER)
     }
 
     private fun accepts(port: Int): Boolean = try {

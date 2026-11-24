@@ -355,7 +355,7 @@ fun main() = runWowLocal {
 }
 ```
 
-- 每个服务在 `dev` profile 下运行，所以请求用 `Wow-*` 头指名调用者。服务以 `spring.application.name` 命名，只服务自己的上下文（`wow.contexts.include`）；`properties` 加上它自己的设置。
+- 每个服务在 `dev` profile 下运行，所以请求用 `Wow-*` 头指名调用者。服务以 `spring.application.name` 命名，只服务自己的上下文（`wow.contexts.include`）；`properties` 加上它自己的设置。这个名字就是它的构建给它的名字：用 Wow 的 Gradle 插件构建的服务以别的名字运行时拒绝启动，所以一个构建的上下文作为一个服务运行，而不是作为名字不同的两个服务。
 - 服务按列出的顺序启动，每个服务调用列在它前面的服务：它的 `wow.peers.<context>.url` 指向那些服务的内部端口。把被调用的服务列在调用方之前，这里是 ordering 在 basket 之前，basket 的结账会调用它。
 - 端口是每个服务自己的；`-Dwow-local.ports=random` 让系统选择每一个端口，这时服务可以不指定端口。
 - 所有服务都开始监听后，它打印一行公开端口清单：`wow-local ready {"eshop-inventory-service":8084,…}`。加上 `-Dwow-local.exit-on-stdin-eof=true`，JVM 会在标准输入关闭时退出，所以启动它的进程（例如前端的端到端测试）不会把它留在运行中。
