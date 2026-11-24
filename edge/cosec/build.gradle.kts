@@ -15,3 +15,15 @@ dependencies {
     testImplementation("io.projectreactor:reactor-test")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test")
 }
+
+// CoSecServiceRouteMapsTest reads the route map of every service of the repository from its Manifest baseline.
+tasks.named<Test>("test") {
+    val root = rootDir
+    inputs.files(
+        fileTree(root) {
+            include("**/manifest/baseline.json")
+            exclude("**/build/**", "**/node_modules/**", ".claude/**", ".git/**", ".gradle/**")
+        },
+    ).withPropertyName("serviceManifests").withPathSensitivity(PathSensitivity.RELATIVE)
+    systemProperty("wow-test.repository.root", root.path)
+}

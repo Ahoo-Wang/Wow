@@ -151,7 +151,15 @@ Wow 的运维命令（定时作业的命令、快照重建、对停放条目的�
 - **应用自己的 schema。** springdoc 从应用的类推导出的 schema 可能有变化：以缩写开头的 getter 保留其大小写（`getETag()` 是 `ETag`，不再是 `etag`）；Kotlin 类的非空属性列为 `required`；唯一公开构造函数的、不对应任何属性的参数，成为 `writeOnly` 属性。由 `/v3/api-docs` 生成的客户端会看到这些变化。Wow 路由的文档不变，`/v3/api-docs` 中和 `GET /wow/openapi` 中都一样。
 - **Jackson。** swagger-core 3 要求 Jackson 3.2，高于 Spring Boot 4.2.0 管理的 3.1；用 `platform(...)` 引入 Boot BOM 的 Gradle 构建，在类路径上有 springdoc 的地方会解析为 3.2。Wow 的 JSON 在两者上都能运行；[Jackson](#jackson) 说明构建和启动时检查什么，以及如何只保留一个 Jackson。
 
-本版本使用 CoSec 8.0.0-beta.7 和 CoCache 8.2.0。从 8.0.0-beta.6 升级无须做任何事；从 beta.5 升级，全部变化见 CoSec 的[升级：从 8.0.0-beta.5](https://cosec.ahoo.me/operations/upgrading-previews#from-8-0-0-beta-5)；Wow 的部署会遇到的是：
+本版本使用 CoSec 8.0.0-beta.8 和 CoCache 8.2.0。从 8.0.0-beta.7 升级，全部变化见 CoSec 的[升级：从 8.0.0-beta.7](https://cosec.ahoo.me/operations/upgrading-previews#from-8-0-0-beta-7)；Wow 的部署会遇到的是：
+
+- **先升级服务，再升级网关。** 先把每个网关模式（`wow.cosec.mode: gateway`）的 Wow 服务升级到本版本，之后再把 CoSec 网关的镜像升级到 8.0.0-beta.8。8.0.0-beta.8 的网关总是在 `CoSec-Identity` 中写入一个新成员 `memberships`。使用 CoSec 8.0.0-beta.7 的服务严格读取这个请求头，对不认识的成员回答 400 `invalid-request`，所以在新网关之后，每个携带身份的请求都会失败，直到它的服务升级为止。本版本的服务无论有没有 `memberships` 都能读取这个请求头。控制面和其他依据转发身份做决定的宿主按 CoSec 的那一页升级。
+- **主体的标识从不为空白。** CoSec 在服务的任何路由运行之前，就拒绝指明空标识或纯空白标识的凭据：`sub` 为空白的 `CoSec-Identity` 回答 400 `invalid-request`；你自己的认证器若用这样的标识构造 `PrincipalId`，它的请求以 503 失败，应改为回答 `Rejected`。升级之前，按 CoSec 那一页所示，找出空白主体的 API key 和绑定。
+- **路由不带结尾的 `/`。** 自己做决定的服务（`cosec.pipeline.mode` 为 `enforce`）按 Manifest 的路由映射请求，这些路由没有一个以 `/` 结尾。对路径是某条路由加上一个 `/` 的请求，如 `POST /shop/cart/open-cart/`，CoSec 现在回答 400 `invalid-request`，而以前把它当作 `http` 动作来决定。每个路径都按 Manifest 写的那样发送，Wow 的客户端就是这样做的。网关模式服务前面的 CoSec 网关不加载路由映射，所以这一条不适用于它；本版本对网关自己的 DENY 规则和限流规则中以 `/` 结尾的路径做了什么改变，见 [CoSec 的那一页](https://cosec.ahoo.me/operations/upgrading-previews#from-8-0-0-beta-7)。
+- **CoSec 开启时不能没有它的关卡。** 开启了 CoSec（`cosec.enabled`）的节点，若排除了 CoSec 的 `CoSecPipelineWebAutoConfiguration`，或用另一种类型的过滤器取代了它的过滤器，就不再启动。保留这个自动配置，或自己注册 CoSec 的过滤器，或以 `wow.cosec.mode: disabled` 运行节点以关闭 CoSec，Wow 的服务不带 `cosec` profile 时就是这样运行的。
+- **自己构造 CoSec `Identity` 的测试。** 它的构造器新增了 `memberships`，在最后且有默认值，所以这样的测试针对本版本重新构建后无须改动即可编译。`IdentityHeader.forSubject` 把 `memberships` 写为空；`wow-cosec` 的 `CoSecIdentity` 不写它，网关模式的服务把这读作没有其他成员资格。
+
+CoSec 本版本的其他变化涉及网关、控制面、签发 CoSec 令牌的应用，以及读取 CoSec Redis 的宿主的 `cosec.*` 设置，自己做决定的服务就是这样的宿主：这些按 CoSec 的那一页处理。Wow 不签发令牌，不调用控制面，也不设置那些键。从 8.0.0-beta.6 升级再无须做任何事；从 beta.5 升级，全部变化见 CoSec 的[升级：从 8.0.0-beta.5](https://cosec.ahoo.me/operations/upgrading-previews#from-8-0-0-beta-5)；Wow 的部署会遇到的是：
 
 - **CoCache 8.1.0 在 Redis Cluster 上的缺陷。** Wow 10.0.0-beta.13 到 beta.16 运行 Spring Boot 4.2，依赖 CoCache 8.1.0。在 Spring Boot 4.2 的 Lettuce 之下，CoCache 8.1.0 的 Redis 后端（`cocache-redis`）连接 Redis Cluster 时，拒绝发往每个主节点的第一条命令：`Currently not connected. Commands are rejected.` 通过 `wow-cocache`（[CoCache](../guide/extensions/cocache)）在 Redis Cluster 上共享状态的服务，缓存最初的几次写入和读取会失败。单机 Redis 和 Sentinel 不受影响。CoCache 8.2.0 先连接每个主节点：`wow-cocache` 现在依赖它；自己声明了 CoCache 的 starter 和 `cocache-redis` 的应用，也把它们升到 8.2.0，修复就在其中。8.2.0 之下，解码为 `null` 的条目读取失败，而不再当作不存在；Wow 不写这样的条目。
 - **十七个 `cosec.*` 键已移除**：各阶段的超时，现在是 `cosec.pipeline.timeout` 的份额；缓存、队列和快照的上限，现在是堆的份额。设了其中任何一个的服务或网关不会启动，并指出这个键和取代它的东西。Wow 一个也没设；把你的配置里设了的删掉。
