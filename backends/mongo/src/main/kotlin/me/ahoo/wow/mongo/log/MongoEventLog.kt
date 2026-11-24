@@ -280,9 +280,20 @@ class MongoEventLog(
      */
     override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome {
         val exact = withoutLease()
-        return dispatcher.mongo { appender.appendNow(stream, transport, exact) }.also { outcome ->
+        return dispatcher.mongo {
+            appender.appendNow(stream, transport, exact, deadlineAfter(listOf(stream.ref.type)))
+        }.also { outcome ->
             if (outcome is AppendOutcome.Committed) pacer.committed(outcome.position.partition)
         }
+    }
+
+    /**
+     * The bound of an append of streams of [types] (#6744), started once their collections are made sure of: the first
+     * use of a type is the schema's, under the schema's bounds, and takes nothing from the append's.
+     */
+    private fun deadlineAfter(types: Collection<AggregateType>): AppendDeadline {
+        types.forEach { if (it.context == context) collections.of(it) }
+        return AppendDeadline(appendMillis)
     }
 
     /** Whether the append's command runs without its partition's lease, as the router marked it. */
@@ -323,7 +334,8 @@ class MongoEventLog(
             marks?.acquired()
             HeldStoreCallMarks.hold(marks)
             try {
-                appender.appendGroup(streams, marks, exact).also { marks?.released() }
+                val deadline = deadlineAfter(streams.mapTo(LinkedHashSet()) { it.stream.ref.type })
+                appender.appendGroup(streams, marks, exact, deadline).also { marks?.released() }
             } finally {
                 HeldStoreCallMarks.release(marks)
             }
@@ -426,7 +438,7 @@ class MongoEventLog(
      */
     override suspend fun handedOff(partition: Int) {
         require(partition in 0 until partitions) { "No partition $partition among $partitions." }
-        dispatcher.mongo { sequencer.handOff(partition)?.let(placeholders::close) }
+        dispatcher.mongo { sequencer.handOff(partition)?.let { placeholders.close(it, deadline = null) } }
     }
 
     /**

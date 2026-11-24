@@ -43,12 +43,15 @@ class MongoSequencerTest {
             reserved += sequence.getList("\$add", Any::class.java)[1] as Long
             Document(MongoEventLog.SEQUENCE, reserved)
         }
+        // A reservation takes the counters within what is left of its append's bound: the same counters here.
+        every { counters.withTimeout(any(), any()) } returns counters
     }
     private val sequencer = MongoSequencer(counters, NODE, BLOCK, 1)
     private val registered = { listOf(ORDER) }
 
     private fun allocate(collection: String = ORDER, after: Long = 0, exact: Boolean = false) =
-        sequencer.allocate(0, collection, after, exact, registered)
+        // Each allocation an append's own, within its own bound.
+        sequencer.allocate(0, collection, after, exact, AppendDeadline(APPEND_MILLIS), registered)
 
     private fun removals() = verify(exactly = 0) { counters.updateOne(any<Bson>(), any<Bson>()) }
 
@@ -231,5 +234,6 @@ class MongoSequencerTest {
         const val ORDER = "wow_log__shop__order"
         const val CART = "wow_log__shop__cart"
         const val ITEM = "wow_log__shop__item"
+        const val APPEND_MILLIS = 5_000L
     }
 }

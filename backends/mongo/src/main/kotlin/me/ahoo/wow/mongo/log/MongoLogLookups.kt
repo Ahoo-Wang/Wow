@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.mongo.log
 
+import com.mongodb.client.MongoCollection
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.Sorts
 import me.ahoo.wow.api.aggregate.AggregateRef
@@ -24,6 +25,7 @@ import me.ahoo.wow.mongo.log.MongoEventLog.Companion.TENANT_ID
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.VERSION
 import me.ahoo.wow.mongo.mongo
 import me.ahoo.wow.spi.log.Partitioner
+import org.bson.Document
 import org.bson.conversions.Bson
 
 /**
@@ -33,20 +35,37 @@ import org.bson.conversions.Bson
 internal class MongoLogLookups(private val partitions: Int, private val documents: MongoLogDocuments) {
     fun partitionOf(ref: AggregateRef): Int = Partitioner.partitionOf(ref, partitions)
 
-    /** The stream committed for [requestId] that an append of [ref] meets: the request key in [ref]'s partition. */
-    fun requestIn(collection: AggregateCollection, ref: AggregateRef, requestId: String) =
-        findByRequestIdIn(collection, Filters.eq(PARTITION, partitionOf(ref)), ref.tenantId, requestId)
+    /**
+     * The stream committed for [requestId] that an append of [ref] meets: the request key in [ref]'s partition. An
+     * append reads it within its bound ([deadline]); a read of the log without one.
+     */
+    fun requestIn(
+        collection: AggregateCollection,
+        ref: AggregateRef,
+        requestId: String,
+        deadline: AppendDeadline? = null,
+    ) = findByRequestIdIn(
+        collection,
+        Filters.eq(PARTITION, partitionOf(ref)),
+        ref.tenantId,
+        requestId,
+        deadline?.of(collection.committed) ?: collection.committed,
+    )
 
-    fun findByRequestIdIn(collection: AggregateCollection, partitions: Bson, tenantId: String, requestId: String) =
-        collection.committed.find(
-            Filters.and(partitions, Filters.eq(TENANT_ID, tenantId), Filters.eq(REQUEST_ID, requestId))
-        )
-            .projection(FACTS)
-            .first()
-            ?.let { documents.streamOf(collection.aggregate, it) }
+    fun findByRequestIdIn(
+        collection: AggregateCollection,
+        partitions: Bson,
+        tenantId: String,
+        requestId: String,
+        reads: MongoCollection<Document> = collection.committed,
+    ) = reads.find(Filters.and(partitions, Filters.eq(TENANT_ID, tenantId), Filters.eq(REQUEST_ID, requestId)))
+        .projection(FACTS)
+        .first()
+        ?.let { documents.streamOf(collection.aggregate, it) }
 
-    fun currentVersion(collection: AggregateCollection, ref: AggregateRef): Int =
-        collection.committed.find(refFilter(ref)).sort(Sorts.descending(VERSION)).limit(1).first()
+    /** [ref]'s current version, which an append that conflicted reads within its bound ([deadline]). */
+    fun currentVersion(collection: AggregateCollection, ref: AggregateRef, deadline: AppendDeadline): Int =
+        deadline.of(collection.committed).find(refFilter(ref)).sort(Sorts.descending(VERSION)).limit(1).first()
             ?.getInteger(VERSION) ?: 0
 
     /**

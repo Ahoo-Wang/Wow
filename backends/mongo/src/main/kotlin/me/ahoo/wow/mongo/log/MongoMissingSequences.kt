@@ -87,7 +87,7 @@ internal class MongoMissingSequences(
     /** Whether [sequence] was this node's never given out: its block's remainder is then one range placeholder. */
     private suspend fun closedAtOnce(sequence: Long): Boolean {
         val closing = sequencer.unallocated(partition, sequence) ?: return false
-        dispatcher.mongo { placeholders.close(closing) }
+        dispatcher.mongo { placeholders.close(closing, deadline = null) }
         return true
     }
 
@@ -101,9 +101,15 @@ internal class MongoMissingSequences(
         unheld(sequence, blocks)
         when (val resolution = sequencer.resolve(partition, sequence, blocks)) {
             MongoSequencer.Resolution.Wait -> Unit
-            is MongoSequencer.Resolution.Close -> placeholders.close(resolution.closing)
+            is MongoSequencer.Resolution.Close -> placeholders.close(resolution.closing, deadline = null)
             is MongoSequencer.Resolution.Fill ->
-                placeholders.fill(collections.named(resolution.collection), partition, sequence, GAP_UNKNOWN)
+                placeholders.fill(
+                    collections.named(resolution.collection),
+                    partition,
+                    sequence,
+                    GAP_UNKNOWN,
+                    deadline = null
+                )
 
             is MongoSequencer.Resolution.Seal -> sealListed(sequence, resolution.block)
         }
