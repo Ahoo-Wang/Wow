@@ -256,7 +256,8 @@ class EshopSyncCallTest {
             } else {
                 EshopOrderingContract.Order.TYPE.unassigned(Caller.DEFAULT_TENANT)
             }
-            val id = ExecutionSagaContext.derivedId(execution, order, SubmitOrder::class.java)
+            // The saga handles each BasketCheckedOut, its checkout commit's one event: its call carries that index, 0.
+            val id = ExecutionSagaContext.derivedId(execution, order, SubmitOrder::class.java, eventIndex = 0)
             val call = CallContext.of(
                 commandId = id,
                 tenantId = Caller.DEFAULT_TENANT,

@@ -87,8 +87,9 @@ fun onSchedule(tick: ScheduleTick): List<CommandRequest<ReceiveStock>> {
     val today = Instant.ofEpochMilli(tick.due).atZone(ZoneOffset.UTC).toLocalDate()
     val days = (tick.skipped + 1 downTo 1).map { today.minusDays(it) }
     return days.flatMap { day -> deliveries.deliveredOn(tick.tenantId, day) }.map { delivery ->
-        // The stock of the product, in the job instance's tenant: ReceiveStock names its aggregate type.
-        ReceiveStock(delivery.quantity).toCommandRequest(delivery.productId)
+        // The stock of the product, in the job instance's tenant: ReceiveStock names its aggregate type. Keyed by
+        // the delivery, so two deliveries of one product stay two requests in whatever order the feed lists them.
+        ReceiveStock(delivery.quantity).toCommandRequest(delivery.productId) { requestId(delivery.id) }
     }
 }
 ```

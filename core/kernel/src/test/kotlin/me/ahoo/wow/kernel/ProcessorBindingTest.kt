@@ -23,6 +23,7 @@ import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.decide.Misuse
 import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.subscribe.ExecutionId
@@ -170,26 +171,34 @@ class ProcessorBindingTest {
     }
 
     @Test
-    fun `two commands of one type to one target in one execution should be two requests`() {
+    fun `several commands of one type to one target should each take a key, two keys being two requests`() {
         val execution = ExecutionId(event.ref.type.context, "CartSaga.onOrderPlaced", event.ref, event.version)
-        fun derive() = ExecutionSagaContext(execution, event).commandsOf(
-            listOf(
-                CommandRequest.to(cart.ref("t", "alice"), "add"),
-                CommandRequest.to(cart.ref("t", "alice"), "add"),
-                CommandRequest.to(cart.ref("t", "alice"), 1),
-                CommandRequest.of("new", type = cart),
-                CommandRequest.of("new", type = cart),
-            ),
-        ).map { it.requestId }
-        val ids = derive()
-        ids.distinct().assert().hasSize(5)
-        derive().assert().isEqualTo(ids)
-        ids[1].assert()
-            .isEqualTo(ExecutionSagaContext.derivedId(execution, cart.ref("t", "alice"), String::class.java, 1))
-        // Two creations without an id: two requests, each of which keeps the aggregate it created on a retry.
-        ids[4].assert().isEqualTo(
-            ExecutionSagaContext.derivedId(execution, cart.unassigned("t"), String::class.java, 1)
+        val alice = cart.ref("t", "alice")
+        fun derive(vararg requests: CommandRequest<*>) =
+            ExecutionSagaContext(execution, event).commandsOf(requests.toList()).map { it.requestId }
+        // Two equal commands under two keys stay two, the same requests every time; one of a type to a target needs none.
+        val keyed = arrayOf(
+            CommandRequest.builder(alice, "add").requestId("line-1").build(),
+            CommandRequest.builder(alice, "add").requestId("line-2").build(),
+            CommandRequest.to(alice, 1),
+            CommandRequest.builder("new").type(cart).requestId("cart-1").build(),
+            CommandRequest.builder("new").type(cart).requestId("cart-2").build(),
         )
+        val ids = derive(*keyed)
+        ids.distinct().assert().hasSize(5)
+        derive(*keyed.reversedArray()).assert().isEqualTo(ids.reversed())
+        ids[1].assert().isEqualTo(ExecutionSagaContext.derivedId(execution, alice, String::class.java, "line-2"))
+        ids[2].assert().isEqualTo(ExecutionSagaContext.derivedId(execution, alice, Int::class.javaObjectType))
+        // Without keys their ids would hang on the order the handler builds them in (#6794): the saga's mistake.
+        listOf(
+            arrayOf(CommandRequest.to(alice, "add"), CommandRequest.to(alice, "add")),
+            arrayOf(CommandRequest.to(alice, "add"), CommandRequest.builder(alice, "add").requestId("line-1").build()),
+            arrayOf(CommandRequest.of("new", type = cart), CommandRequest.of("new", type = cart)),
+        ).forEach { requests ->
+            val failure = runCatching { derive(*requests) }.exceptionOrNull()
+            failure.assert().isInstanceOf(Misuse.Argument::class.java)
+            failure!!.message.assert().contains("CartSaga.onOrderPlaced", "java.lang.String", "requestId")
+        }
     }
 
     @Test
@@ -230,7 +239,7 @@ class ProcessorBindingTest {
         ExecutionSagaContext.derivedId(execution.copyWith(subscription = "Other.saga"), alice, String::class.java)
             .assert().isNotEqualTo(commands[0].id)
         assertThrownBy<IllegalArgumentException> {
-            ExecutionSagaContext.derivedId(execution, alice, String::class.java, -1)
+            ExecutionSagaContext.derivedId(execution, alice, String::class.java, eventIndex = -1)
         }
         assertThrownBy<IllegalArgumentException> { ExecutionSagaContext(execution.copyWith(version = 2), event) }
         // A command a user sends directly is its own root: its derived commands' root is that command.

@@ -110,10 +110,12 @@ class SubscriptionBindingTest {
 
         @Saga
         class CartSaga {
+            // Two of one type to one cart: each keyed by its product (#6794).
             @OnEvent
             fun onEvent(event: StateEvent<OrderState>, context: SagaContext): List<CommandRequest<Remove>> =
-                listOf(CommandRequest.to(CART.ref(event.ref.tenantId, event.state.owner), Remove("p-1")),
-                    CommandRequest.to(CART.ref(event.ref.tenantId, event.state.owner), Remove("p-2")))
+                listOf("p-1", "p-2").map {
+                    CommandRequest.builder(CART.ref(event.ref.tenantId, event.state.owner), Remove(it)).requestId(it).build()
+                }
 
             @OnEvent
             fun single(event: StateEvent<OrderState>, context: SagaContext): CommandRequest<Remove>? =

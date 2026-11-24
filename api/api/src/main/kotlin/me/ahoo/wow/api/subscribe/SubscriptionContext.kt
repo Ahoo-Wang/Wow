@@ -133,9 +133,12 @@ interface SubscriptionContext {
  *   [CommandRequest.id], else none: a creation whose id the target's admission gives, the id of the aggregate the
  *   request already created when it is handled again, so the target keeps the first one;
  * - its id and request id are name-based on [executionId] (and, for a receipt, the receipt's command), the target, the
- *   command's class and, when the request gives a [CommandRequest.requestId], that business key, else how many such
- *   requests to the same target the execution derived before it; the order the handler builds them in does not
- *   matter;
+ *   command's class and, when the request gives a [CommandRequest.requestId], that business key: the order the handler
+ *   builds them in does not matter. A request without one is the only one of its class to its target in this
+ *   execution: a handler that sends several commands of one class to one target gives each a business key (the item
+ *   it reserves), or the handler fails unrecoverable. A key tells apart the commands of one call of a handler of each
+ *   event, of one handling otherwise: each call's commands also carry the index of its event in the stream. A business
+ *   key handled again with another body is the same request: its target answers it with the first one's commit;
  * - its scope is [CommandRequest.targetScope], else the commit's (the receipt's command's), so an aggregate it creates
  *   belongs to the owner the chain acts for; its operator is the commit's, and its causation links it to the commit
  *   (the receipt's command) and to the root of the chain; its [CommandRequest.expectedVersion] is kept;

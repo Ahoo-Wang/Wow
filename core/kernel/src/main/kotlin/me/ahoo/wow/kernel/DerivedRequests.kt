@@ -27,30 +27,64 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
- * The requests one execution of a saga's handler derives, keyed by what each asks: its target (type, tenant, and id,
- * [AggregateRef.UNASSIGNED] for a creation that leaves it to admission) and its command type, then the request's
- * business key ([CommandRequest.requestId]) when it gives one, else its occurrence among the requests of that execution
- * with the same target and type. The key does not depend on the order the handler builds its commands in: a retry
- * whose reads answer in another order derives the same id for each request it derives again, so the kernel answers
- * each as its own duplicate, never one target's request as another's. A creation without an id takes the same request
- * id again, so admission gives it the aggregate its first attempt created.
+ * The requests one execution of a saga's handler [handler] derives, keyed by what each asks: its target (type,
+ * tenant, and id, [AggregateRef.UNASSIGNED] for a creation that leaves it to admission) and its command type, then the
+ * request's business key ([CommandRequest.requestId]) when it gives one, else [ONLY]: a handler that derives more than
+ * one command of a type to a target gives each a business key, or the handling fails as the saga's mistake
+ * ([Misuse.Argument], unrecoverable).
+ * So the key does not depend on the order the handler builds its commands in: a retry whose reads answer in another
+ * order derives the same id for each request it derives again, so the kernel answers each as its own duplicate,
+ * never one request as another's (#6794). A creation without an id takes the same request id again, so admission
+ * gives it the aggregate its first attempt created.
+ *
+ * A handler of each event ([eachEvent]) is called once per event of its type, and each call is told apart from the
+ * others by the index of its event in the stream, which is fixed: every request a call derives, keyed or not, carries
+ * that index ([inEvent]). So the rule and the business keys hold within one call: a call that sends one command to a
+ * target needs no key, however many such events the stream holds, and two calls that key their commands by one value
+ * send two requests. This is the one place that says what the event adds; the other descriptions point here.
  *
  * Every derived identity is written by one encoder ([DerivedIds.encoded]): each field as its length, `:`,
  * and itself. Two different lists of fields never give one text, whatever characters the fields hold (a `/` or `#` in
  * a tenant, an id or a business key, the id `unassigned`), so two different requests never share an id. An unassigned
  * id needs no marker of its own: no assigned id is [AggregateRef.UNASSIGNED], which the gateway refuses as one.
  */
-internal class DerivedRequests {
+internal class DerivedRequests(private val handler: String) {
+    /** How many schedule requests each schedule key, target and type took without a business key. */
     private val occurrences = ConcurrentHashMap<String, AtomicInteger>()
+
+    /** The requests derived to each target and command type: how many, and whether one gave no business key. */
+    private val sent = ConcurrentHashMap<String, Sent>()
 
     /**
      * What tells the next request to [ref] of [commandType] in this execution from the others with both: its business
-     * [requestId] when it gives one ([keyed]), else its occurrence, from 0 ([occurrence]).
+     * [requestId] when it gives one ([keyed]), else [ONLY], both within its event ([inEvent]) for the call of a handler
+     * of each event for the [event]-th event of the stream. A [Misuse.Argument] when it is not the only one to [ref] of
+     * [commandType] (in that call) and it, or one before it, gives no business key: their ids would hang on the order
+     * the handler builds them in.
      */
-    fun next(ref: AggregateRef, commandType: Class<*>, requestId: String? = null): String =
-        requestId?.let(::keyed) ?: occurrence(
-            occurrences.computeIfAbsent(keyOf(ref, commandType)) { AtomicInteger() }.getAndIncrement(),
-        )
+    fun next(ref: AggregateRef, commandType: Class<*>, requestId: String? = null, event: Int? = null): String {
+        val key = keyOf(ref, commandType).let { key -> event?.let { inEvent(it, key) } ?: key }
+        val after = sent.compute(key) { _, before -> (before ?: Sent.NONE).and(keyed = requestId != null) }!!
+        if (after.count > 1 && after.unkeyed) {
+            val where = event?.let { " in its call for event $it" }.orEmpty()
+            throw Misuse.Argument(
+                "$handler derives more than one ${commandType.name} to $ref$where, not each with a request id of its own: " +
+                    "their ids would hang on the order it builds them in, and handling the commit again could answer " +
+                    "one with another's commit. Give each a CommandRequest.requestId, a business key such as the item " +
+                    "it is about.",
+            )
+        }
+        return discriminatorOf(requestId, event)
+    }
+
+    /** How many requests went to one target and command type, and whether one of them gave no business key. */
+    private class Sent(val count: Int, val unkeyed: Boolean) {
+        fun and(keyed: Boolean): Sent = Sent(count + 1, unkeyed || !keyed)
+
+        companion object {
+            val NONE = Sent(0, unkeyed = false)
+        }
+    }
 
     /**
      * What tells the next schedule request ([commandType] `wow.schedule.SetSchedule` or `wow.schedule.CancelSchedule`) to [ref] of
@@ -71,11 +105,22 @@ internal class DerivedRequests {
     companion object {
         private const val KEY = "key"
         private const val OCCURRENCE = "occurrence"
+        private const val EVENT = "event"
         private const val SCHEDULE = "schedule"
 
         /** What a request asks: its target and its command type. */
         fun keyOf(ref: AggregateRef, commandType: Class<*>): String =
             DerivedIds.encoded(ref.type.context, ref.type.name, ref.tenantId, ref.id, commandType.name)
+
+        /**
+         * What tells a request from the others of its target and type: its business key [requestId] ([keyed]), else
+         * [ONLY], within its [event] ([inEvent]) for the call of a handler of each event. The one rule [next] and
+         * [ExecutionSagaContext.derivedId] both follow.
+         */
+        fun discriminatorOf(requestId: String?, event: Int?): String {
+            val discriminator = requestId?.let(::keyed) ?: ONLY
+            return event?.let { inEvent(it, discriminator) } ?: discriminator
+        }
 
         /** The discriminator of a request with the business key [requestId], never an occurrence's. */
         fun keyed(requestId: String): String = DerivedIds.encoded(KEY, requestId)
@@ -83,8 +128,17 @@ internal class DerivedRequests {
         /** The discriminator of a schedule request of the schedule [key], told from that key's others by [within]. */
         fun scheduled(key: String, within: String): String = DerivedIds.encoded(SCHEDULE, key, within)
 
-        /** The discriminator of the [occurrence]-th request (from 0) of a target and type without a business key. */
+        /**
+         * The discriminator [within] ([keyed] or [ONLY]) of a request derived by the call of a handler of each event for
+         * the [event]-th event of its stream: the stream's order, never the handler's.
+         */
+        fun inEvent(event: Int, within: String): String = DerivedIds.encoded(EVENT, event.toString(), within)
+
+        /** The discriminator of the [occurrence]-th schedule request (from 0) of a key without a business key. */
         fun occurrence(occurrence: Int): String = DerivedIds.encoded(OCCURRENCE, occurrence.toString())
+
+        /** The discriminator of the only request to a target of a type that gives no business key: occurrence 0. */
+        val ONLY: String = occurrence(0)
 
         /** The fields of [execution]: its subscription's context and name, the commit's aggregate, and its version. */
         fun executionOf(execution: ExecutionId): String = DerivedIds.encoded(

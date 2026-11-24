@@ -119,8 +119,8 @@ class RejectionBindingTest {
                 derives = listOf(String::class.java),
             ) { rejection, context ->
                 listOf(
-                    CommandRequest.to(rejection.ref, "restore"),
-                    CommandRequest.to(rejection.ref, "notify"),
+                    CommandRequest.builder(rejection.ref, "restore").requestId("restore").build(),
+                    CommandRequest.builder(rejection.ref, "notify").requestId("notify").build(),
                 )
             }
             val context = rejectionContextOf(handler, rejected)
@@ -141,12 +141,17 @@ class RejectionBindingTest {
             val inApp = rejected.copyWith(headers = mapOf(RequestFacts.APP_ID to "console"))
             handler.invoke(inApp, rejectionContextOf(handler, inApp)).map { it.headers }.assert()
                 .containsOnly(mapOf(RequestFacts.APP_ID to "console"))
-            commands[0].id.assert().isEqualTo(
-                ExecutionReceiptContext.compensationId(context.executionId, "c-1", rejected.ref, String::class.java),
-            )
-            // Two compensations of one type to one target: two occurrences, two requests.
-            commands[1].id.assert().isEqualTo(
-                ExecutionReceiptContext.compensationId(context.executionId, "c-1", rejected.ref, String::class.java, 1),
+            // Two compensations of one type to one target: two keys, two requests.
+            commands.map { it.id }.assert().isEqualTo(
+                listOf("restore", "notify").map { key ->
+                    ExecutionReceiptContext.compensationId(
+                        context.executionId,
+                        "c-1",
+                        rejected.ref,
+                        String::class.java,
+                        key
+                    )
+                },
             )
             // Handling the same rejection again derives the same requests; another rejection, others.
             handler.invoke(rejected, rejectionContextOf(handler, rejected)).map { it.id }
@@ -160,8 +165,5 @@ class RejectionBindingTest {
             commands[0].id.assert().isNotEqualTo(
                 ExecutionSagaContext.derivedId(execution, rejected.ref, String::class.java)
             )
-            assertThrownBy<IllegalArgumentException> {
-                ExecutionReceiptContext.compensationId(context.executionId, "c-1", rejected.ref, String::class.java, -1)
-            }
         }
 }
