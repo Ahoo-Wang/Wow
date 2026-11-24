@@ -220,6 +220,24 @@ abstract class EventLogEntryCases internal constructor() : EventLogAccessCases()
     }
 
     @Test
+    fun `appendedElsewhere names a partition another node appended to past its cursor, and none at its heads`(): Unit =
+        runBlocking {
+            val log = createLog(partitions = 4)
+            log.appendedElsewhere(emptyMap()).assert().isEmpty()
+            assertThrows<IllegalArgumentException> { runBlocking { log.appendedElsewhere(mapOf(4 to 0L)) } }
+            val ids = idsInPartitionZero(2, 4)
+            log.append(stream(ids[0], 1))
+            val cursors = (0 until 4).associateWith { log.head(it) ?: 0L }
+            // At its heads, with nothing appended past them: no partition to read.
+            log.appendedElsewhere(cursors).assert().isEmpty()
+            if (opensOneStorePerContext) {
+                // Another node of the service appends to partition 0, which no hand-over brings this log.
+                createLog(context, 4).append(stream(ids[1], 1))
+                log.appendedElsewhere(cursors).assert().contains(0)
+            }
+        }
+
+    @Test
     fun `every partition is created with no parent at epoch 0, and keeps that lineage as entries land`(): Unit =
         runBlocking {
             val log = createLog(partitions = 4)

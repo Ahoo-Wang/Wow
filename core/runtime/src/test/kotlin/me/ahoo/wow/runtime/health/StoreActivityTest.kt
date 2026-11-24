@@ -113,6 +113,7 @@ class StoreActivityTest {
         )
         val activity = activityOf(backends.log)!!
         backends.log.heads(listOf(0, 1)).assert().isEqualTo(mapOf(0 to null, 1 to null))
+        backends.log.appendedElsewhere(mapOf(0 to 0L, 1 to 0L)).assert().isEmpty()
         activity.lastSuccess.assert().isNotEqualTo(StoreActivity.NONE)
         activity.failingSince.assert().isEqualTo(StoreActivity.NONE)
         val failing = trackedLog(

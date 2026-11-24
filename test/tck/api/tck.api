@@ -173,6 +173,7 @@ public abstract class me/ahoo/wow/tck/log/EventLogEntryCases : me/ahoo/wow/tck/l
 	public final fun an entry lands in its ref's partition, sequenced from 1 ()V
 	public final fun an unknown future transport field round-trips unchanged through tail and readEntries ()V
 	public final fun appendAll keeps each stream's transport ()V
+	public final fun appendedElsewhere names a partition another node appended to past its cursor, and none at its heads ()V
 	public final fun appends of two aggregate types interleaved in one partition tail back in sequence order ()V
 	public final fun every partition is created with no parent at epoch 0, and keeps that lineage as entries land ()V
 	public final fun head is the last committed sequence of a partition, null when it is empty ()V

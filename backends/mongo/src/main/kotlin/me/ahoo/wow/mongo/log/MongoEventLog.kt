@@ -194,6 +194,9 @@ class MongoEventLog(
         DoneBlocks(options.doneGrace),
     )
 
+    /** The other nodes' blocks the partitions' counters list, against those the last probe saw. */
+    private val foreignBlocks = MongoForeignBlocks(committedCounters, sequencer, context, partitions)
+
     /** Where an aggregate's streams are found. */
     private val lookups = MongoLogLookups(partitions, documents)
 
@@ -447,6 +450,10 @@ class MongoEventLog(
         require(partition in 0 until partitions) { "No partition $partition among $partitions." }
         return dispatcher.mongo { tailReads.headOf(partition) }
     }
+
+    /** One find of the counters asked about, against the other nodes' blocks the last call saw ([MongoForeignBlocks]). */
+    override suspend fun appendedElsewhere(cursors: Map<Int, Long>): Set<Int> =
+        dispatcher.mongo { foreignBlocks.appendedElsewhere(cursors) }
 
     /**
      * The heads of [partitions], as [head] gives each, in one aggregation for every few hundred partitions and
