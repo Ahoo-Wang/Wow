@@ -74,7 +74,8 @@ internal class MongoLogPlaceholders(
                 bulk.writeErrors.map { it.index }.filterTo(HashSet()) { gaps[it].id !in held }
             }
         } catch (
-            failure: MongoException,
+            @Suppress("TooGenericExceptionCaught") // Whatever failed, the placeholders are left to the tail (#6747).
+            failure: RuntimeException,
         ) {
             // Each sequence is left to the tail, which fills it again.
             gaps.indices.toSet()
@@ -108,6 +109,12 @@ internal class MongoLogPlaceholders(
             } else {
                 sequencer.unfilled(partition, sequence, collection.name)
             }
+            return
+        } catch (
+            @Suppress("TooGenericExceptionCaught") // Whatever else failed, the placeholder is left to the tail (#6747).
+            failure: RuntimeException,
+        ) {
+            sequencer.unfilled(partition, sequence, collection.name)
             return
         }
         sequencer.settle(partition, sequence)
@@ -214,7 +221,10 @@ internal class MongoLogPlaceholders(
             collection.confirms(deadline).find(Filters.and(Filters.`in`(PARTITION, partitions), Filters.`in`(ID, ids)))
                 .projection(Projections.include(ID))
                 .mapTo(HashSet()) { it.getLong(ID) }
-        } catch (failure: MongoException) {
+        } catch (
+            @Suppress("TooGenericExceptionCaught") // A read that fails, whatever the failure, settles nothing.
+            failure: RuntimeException,
+        ) {
             emptySet()
         }
     }

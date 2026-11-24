@@ -271,13 +271,19 @@ class MongoSnapshotQueryBackend internal constructor(
             return rounded.coerceAtLeast(1)
         }
 
-        /** Runs [block]: MongoDB stopping it at its `maxTimeMS` fails as a [StorageTimeoutException]. */
+        /**
+         * Runs [block]: MongoDB stopping it at its `maxTimeMS` fails as a [StorageTimeoutException], a transient failure
+         * or this node's closed client as a [me.ahoo.wow.spi.StorageUnavailableException] ([MongoFailures.translate]).
+         */
         inline fun <T> timed(timeout: Duration?, block: () -> T): T = try {
             block()
         } catch (error: MongoExecutionTimeoutException) {
             throw expired(timeout, error)
         } catch (error: MongoException) {
             throw if (error.code == MAX_TIME_MS_EXPIRED) expired(timeout, error) else MongoFailures.translate(error)
+        } catch (error: IllegalStateException) {
+            // This node's client closed, as the node shuts down: unavailable, as for every store.
+            throw MongoFailures.translate(error)
         }
 
         /** [error] as a [StorageTimeoutException] of [timeout]; as it is when the query had no timeout. */

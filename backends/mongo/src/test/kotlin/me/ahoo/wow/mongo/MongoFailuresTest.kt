@@ -28,6 +28,7 @@ import com.mongodb.client.MongoClient
 import com.mongodb.client.MongoClients
 import com.mongodb.internal.connection.MongoWriteConcernWithResponseException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
@@ -36,14 +37,17 @@ import me.ahoo.wow.mongo.ledger.MongoFailureLedger
 import me.ahoo.wow.mongo.log.MongoEventLog
 import me.ahoo.wow.mongo.log.MongoEventLogOptions
 import me.ahoo.wow.mongo.query.MongoSnapshotQueryBackend
+import me.ahoo.wow.mongo.reservation.MongoReservationStore
 import me.ahoo.wow.mongo.snapshot.MongoSnapshotStore
 import me.ahoo.wow.mongo.subscription.MongoCheckpointStore
 import me.ahoo.wow.mongo.subscription.MongoLeaseStore
 import me.ahoo.wow.mongo.timer.MongoTimerStore
 import me.ahoo.wow.spi.StorageRefusedException
 import me.ahoo.wow.spi.StorageUnavailableException
+import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.reservation.ReservationScope
 import me.ahoo.wow.spi.subscription.SubscriptionId
 import org.bson.BsonDocument
 import org.bson.BsonInt32
@@ -240,8 +244,52 @@ class MongoFailuresTest {
         assertThrows<StorageUnavailableException> { runBlocking { log.append(stream()) } }
     }
 
-    private fun stream() = EventStreamRecord.of(
-        cart.ref("t", "c-1"),
+    @Test
+    fun `every store on a closed client should throw the retryable error`() {
+        // A node shutting down closes its client while calls still reach its stores (a rolling restart). The driver
+        // refuses each before it selects a server, with an IllegalStateException, no MongoException (#6747): the call
+        // wrote nothing, and is answered as unavailable, so its caller retries, on another node once this one stopped.
+        val settings = MongoClientSettings.builder().applyToClusterSettings { it.hosts(listOf(address)) }.build()
+        val closed = MongoClients.create(settings).also { it.close() }
+        val log = MongoEventLog(closed, "wow", "shop", 1, Dispatchers.IO, MongoEventLogOptions(sharding = UNSHARDED))
+        val ref = cart.ref("t", "c-1")
+        val calls: Map<String, suspend () -> Any?> = mapOf(
+            "an append" to { log.append(stream()) },
+            "a group" to { log.appendAll(listOf(Append.of(stream()), Append.of(stream("c-2")))) },
+            "a read of the log" to { log.read(ref).toList() },
+            "a head" to { log.head(0) },
+            "a snapshot load" to {
+                MongoSnapshotStore(closed, "wow", "shop", dispatcher = Dispatchers.IO, sharding = UNSHARDED).load(ref)
+            },
+            "the leases" to { MongoLeaseStore(closed, "wow", dispatcher = Dispatchers.IO).owners("shop") },
+            "the checkpoints" to { MongoCheckpointStore(closed, "wow", Dispatchers.IO).load("shop", "projection", 0) },
+            "the ledger" to {
+                MongoFailureLedger(closed, "wow", dispatcher = Dispatchers.IO)
+                    .parked(SubscriptionId("shop", "projection"), ref)
+            },
+            "the timers" to {
+                MongoTimerStore(closed, "wow", "shop", 4, Dispatchers.IO, sharding = UNSHARDED).find(ref, "remind")
+            },
+            "the reservations" to {
+                MongoReservationStore(closed, "wow", dispatcher = Dispatchers.IO, sharding = UNSHARDED)
+                    .find(ReservationScope.of(cart, "t", "email"), "a@b")
+            },
+            "a query" to {
+                MongoSnapshotQueryBackend.timed(null) { closed.getDatabase("wow").getCollection("snapshots").find().first() }
+            },
+        )
+        calls.forEach { (call, run) ->
+            val failure = assertThrows<StorageUnavailableException>(call) { runBlocking { run() } }
+            failure.causes().filterIsInstance<IllegalStateException>().map { it.message }.assert()
+                .describedAs(call).contains("state should be: open")
+        }
+        // Any other IllegalStateException stays as it is: a defect, not an outage.
+        val defect = IllegalStateException("a defect")
+        MongoFailures.translate(defect).assert().isSameAs(defect)
+    }
+
+    private fun stream(id: String = "c-1") = EventStreamRecord.of(
+        cart.ref("t", id),
         1,
         "command-1",
         "request-1",

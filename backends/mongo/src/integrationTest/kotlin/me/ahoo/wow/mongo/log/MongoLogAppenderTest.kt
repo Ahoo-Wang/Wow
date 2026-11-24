@@ -41,6 +41,8 @@ import org.junit.jupiter.api.Assumptions.assumeFalse
 import org.junit.jupiter.api.Test
 import java.io.IOException
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * A group commit that fails once part of it may have committed: the call returns an outcome for every stream, and what
@@ -111,6 +113,170 @@ class MongoLogAppenderTest : MongoLogFixtures() {
             val big = oversized(stream(type.ref("tenant", "big")))
             val streams = listOf(Append.of(big), Append.of(stream(type.ref("tenant", "after"))))
             assertThrownBy<MongoException> { runBlocking { log.appendAll(streams) } }.isSameAs(refused)
+        }
+
+    @Test
+    fun `a group member appended again alone that meets a closed client is unknown, its committed member committed`(): Unit =
+        runBlocking {
+            // Another node seals the second member's position before the group's insert reaches it, so it is appended
+            // again alone, after the first committed; its reservation meets this node's client closed (a shutdown
+            // while the append queue still runs), which the driver throws as no MongoException (#6747).
+            val context = MongoLogFixture.newContext()
+            val order = AggregateType(context, "order")
+            val sealed = AtomicBoolean()
+            val reservations = AtomicInteger()
+            val client = faulty(
+                many = { documents, insert ->
+                    if (documents.size == 2 && documents.all { it.containsKey(MongoEventLog.VERSION) } &&
+                        sealed.compareAndSet(false, true)
+                    ) {
+                        val second = documents[1]
+                        MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE)
+                            .getCollection(collection(context, order.name))
+                            .insertOne(
+                                Document(MongoEventLog.ID, second.getLong(MongoEventLog.ID))
+                                    .append(MongoEventLog.PARTITION, second.getInteger(MongoEventLog.PARTITION))
+                                    .append(MongoEventLog.SEQUENCE, second.getLong(MongoEventLog.SEQUENCE))
+                                    .append(MongoEventLog.GAP, MongoEventLog.GAP_SEALED)
+                                    .append(MongoEventLog.GAP_NODE, "another"),
+                            )
+                    }
+                    insert(documents)
+                },
+                reserve = { if (reservations.incrementAndGet() > 1) throw IllegalStateException(CLIENT_CLOSED) },
+            )
+            val log = MongoEventLog(client, MongoLogFixture.DATABASE, context, 1).also { it.createSchema() }
+            log.createCollection(order.name)
+
+            val outcomes = log.appendAll(group(context, "a", "b"))
+
+            outcomes[0].assert().isInstanceOf(AppendOutcome.Committed::class.java)
+            (outcomes[1] as AppendOutcome.Unknown).cause.assert().isInstanceOf(IllegalStateException::class.java)
+        }
+
+    @Test
+    fun `a group whose placeholder meets a closed client after a member committed answers every member`(): Unit =
+        placeholdersMeetClosedClient("b")
+
+    @Test
+    fun `a group whose placeholders meet a closed client after a member committed answers every member`(): Unit =
+        placeholdersMeetClosedClient("b", "d")
+
+    /**
+     * [conflicting] conflict (another node appended their first streams), so their sequences take placeholders once
+     * the others committed: one placeholder is one insert, several one `insertMany`, and that write meets the client
+     * closed. The placeholders are left to the tail, which fills them.
+     */
+    private fun placeholdersMeetClosedClient(vararg conflicting: String): Unit = runBlocking {
+        val context = MongoLogFixture.newContext()
+        val order = AggregateType(context, "order")
+        conflicting.forEach {
+            MongoLogFixture.log(1, context).append(stream(it, 1, aggregate = order))
+                .assert().isInstanceOf(AppendOutcome.Committed::class.java)
+        }
+        val closed = AtomicBoolean()
+        val client = faulty(
+            many = { documents, insert ->
+                if (documents.all { it.containsKey(MongoEventLog.GAP) } && closed.compareAndSet(false, true)) {
+                    throw IllegalStateException(CLIENT_CLOSED)
+                }
+                insert(documents)
+            },
+            insert = { document, insert ->
+                if (document.containsKey(MongoEventLog.GAP) && closed.compareAndSet(false, true)) {
+                    throw IllegalStateException(CLIENT_CLOSED)
+                }
+                insert()
+            },
+        )
+        val log = MongoEventLog(client, MongoLogFixture.DATABASE, context, 1).also { it.createSchema() }
+        val ids = listOf("a", "b", "c", "d")
+
+        val outcomes = log.appendAll(group(context, *ids.toTypedArray()))
+
+        ids.forEachIndexed { at, id ->
+            if (id in conflicting) {
+                outcomes[at].assert().isEqualTo(AppendOutcome.Conflict(1))
+            } else {
+                outcomes[at].assert().isInstanceOf(AppendOutcome.Committed::class.java)
+            }
+        }
+        closed.get().assert().isTrue()
+        tailed(log, ids.size).map { it.stream.ref.id }.assert()
+            .containsExactlyInAnyOrderElementsOf(ids)
+    }
+
+    @Test
+    fun `a group whose second collection's insert meets a closed client keeps the first's commits`(): Unit =
+        runBlocking {
+            val context = MongoLogFixture.newContext()
+            var inserts = 0
+            val client = faulty(many = { documents, insert ->
+                if (documents.none { it.containsKey(MongoEventLog.GAP) } && ++inserts == 2) {
+                    throw IllegalStateException(CLIENT_CLOSED)
+                }
+                insert(documents)
+            })
+            val log = MongoEventLog(client, MongoLogFixture.DATABASE, context, 1).also { it.createSchema() }
+            val order = stream(AggregateType(context, "order").ref("tenant", "a"))
+            val item = stream(AggregateType(context, "item").ref("tenant", "b"))
+
+            val outcomes = log.appendAll(listOf(Append.of(order), Append.of(item)))
+
+            outcomes[0].assert().isInstanceOf(AppendOutcome.Committed::class.java)
+            (outcomes[1] as AppendOutcome.Unknown).cause.assert().isInstanceOf(IllegalStateException::class.java)
+        }
+
+    @Test
+    fun `a group member whose lookup after a refusal meets a closed client is unknown, and the group goes on`(): Unit =
+        runBlocking {
+            // `b` conflicts (another node appended its first stream); the lookup of its request meets the client
+            // closed. `b` alone is unknown: `c`, which the ordered insert did not reach, is inserted after it.
+            val context = MongoLogFixture.newContext()
+            val order = AggregateType(context, "order")
+            MongoLogFixture.log(1, context).append(stream("b", 1, aggregate = order))
+                .assert().isInstanceOf(AppendOutcome.Committed::class.java)
+            val client = faulty(find = { filter ->
+                val json = filter.toBsonDocument().toJson()
+                if (MongoEventLog.REQUEST_ID in json) throw IllegalStateException(CLIENT_CLOSED)
+            })
+            val log = MongoEventLog(client, MongoLogFixture.DATABASE, context, 1).also { it.createSchema() }
+
+            val outcomes = log.appendAll(group(context, "a", "b", "c"))
+
+            outcomes[0].assert().isInstanceOf(AppendOutcome.Committed::class.java)
+            (outcomes[1] as AppendOutcome.Unknown).cause.assert().isInstanceOf(IllegalStateException::class.java)
+            outcomes[2].assert().isInstanceOf(AppendOutcome.Committed::class.java)
+        }
+
+    @Test
+    fun `a group whose read of where its members landed meets a closed client is unknown for each, never thrown`(): Unit =
+        runBlocking {
+            // The driver refuses the oversized stream as it reaches it, after the batch before it went: whether each
+            // member landed is read, and that read meets the client closed. `before` may have committed.
+            val context = MongoLogFixture.newContext()
+            val type = AggregateType(context, "order")
+            val closed = AtomicBoolean()
+            val client = faulty(find = { filter ->
+                val json = filter.toBsonDocument().toJson()
+                if (closed.get() && "\"${MongoEventLog.ID}\"" in json && MongoEventLog.VERSION !in json) {
+                    throw IllegalStateException(CLIENT_CLOSED)
+                }
+            })
+            val log = MongoEventLog(client, MongoLogFixture.DATABASE, context, 1).also { it.createSchema() }
+            log.createCollection(type.name)
+            closed.set(true)
+
+            val outcomes = log.appendAll(
+                listOf(
+                    Append.of(stream("before", 1, aggregate = type)),
+                    Append.of(oversized(stream("big", 1, aggregate = type))),
+                ),
+            )
+
+            outcomes.forEach {
+                (it as AppendOutcome.Unknown).cause.assert().isInstanceOf(IllegalStateException::class.java)
+            }
         }
 
     @Test
@@ -579,5 +745,8 @@ class MongoLogAppenderTest : MongoLogFixtures() {
         const val OVERSIZED_BYTES = 17 * 1024 * 1024
         const val TOO_LARGE = 10_334
         const val WRITE_CONCERN_FAILED = 64
+
+        /** The message of the driver's `IllegalStateException` on a call to a closed client. */
+        const val CLIENT_CLOSED = "state should be: open"
     }
 }
