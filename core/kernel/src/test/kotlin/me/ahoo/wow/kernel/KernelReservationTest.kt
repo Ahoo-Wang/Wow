@@ -17,10 +17,14 @@ import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.Logger
 import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.core.read.ListAppender
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
@@ -30,6 +34,8 @@ import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.decide.ReservationTenancy
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryReservationStore
+import me.ahoo.wow.spi.StorageBusyException
+import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -44,6 +50,7 @@ import me.ahoo.wow.spi.reservation.ReservationStore
 import org.junit.jupiter.api.Test
 import org.slf4j.LoggerFactory
 import java.io.IOException
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 /** Decisions D38, D50: a decide function reserves and releases unique keys, and the kernel settles them with the append. */
@@ -454,6 +461,72 @@ class KernelReservationTest {
         find("ahoo")!!.confirmed.assert().isTrue()
         trail.assert().containsExactly("after")
         states.take(model.type.ref("t", "u-1"))!!.version.assert().isEqualTo(1)
+    }
+
+    /** A store whose [reserve] fails with [thrown], as a backend's does. */
+    private fun failingWith(thrown: Exception) = object : ReservationStore by InMemoryReservationStore() {
+        override suspend fun reserve(
+            scope: ReservationScope,
+            key: String,
+            owner: AggregateRef,
+            hold: String,
+            ttl: Duration,
+        ): Reservation? = throw thrown
+    }
+
+    @Test
+    fun `a store that fails while deciding fails the command, never as the caller's refusal (#6736)`() = runTest {
+        // As the stores fail: MongoDB's closed client (`state should be: open`), PostgreSQL's own requires and its
+        // schema step on first use, which a refusal would be taken for.
+        listOf(
+            IllegalStateException("state should be: open"),
+            IllegalArgumentException("A reservation's time to live is positive."),
+        ).forEach { thrown ->
+            val failure = runCatching {
+                execute("u-1", Register("ahoo"), on = Kernel(log, reservations = failingWith(thrown)))
+            }.exceptionOrNull()
+            failure.assert().describedAs("$thrown").isInstanceOf(PortFailureException::class.java)
+            failure!!.cause.assert().isSameAs(thrown)
+            failure.message.assert().contains("reservation store", thrown.message)
+        }
+        // A store that is down or busy keeps its own answer: retryable, and backpressure.
+        listOf(StorageUnavailableException("down"), StorageBusyException("busy")).forEach { thrown ->
+            val failure = runCatching {
+                execute("u-1", Register("ahoo"), on = Kernel(log, reservations = failingWith(thrown)))
+            }.exceptionOrNull()
+            // Of the very class, not wrapped: the coroutines' stack recovery may hand over a copy of it.
+            failure!!.javaClass.assert().isEqualTo(thrown.javaClass)
+            failure.message.assert().isEqualTo(thrown.message)
+        }
+        log.read(model.type.ref("t", "u-1")).toList().assert().isEmpty()
+    }
+
+    @Test
+    fun `a caller cancelled while the store reserves stays cancelled, never a failure of the store`() = runTest {
+        val reserving = CompletableDeferred<Unit>()
+        val hanging = object : ReservationStore by InMemoryReservationStore() {
+            override suspend fun reserve(
+                scope: ReservationScope,
+                key: String,
+                owner: AggregateRef,
+                hold: String,
+                ttl: Duration,
+            ): Reservation? {
+                reserving.complete(Unit)
+                awaitCancellation()
+            }
+        }
+        var failure: Throwable? = null
+        val caller = launch {
+            failure = runCatching {
+                execute("u-1", Register("ahoo"), on = Kernel(log, reservations = hanging))
+            }.exceptionOrNull()
+        }
+        reserving.await()
+        caller.cancelAndJoin()
+        failure.assert().isInstanceOf(CancellationException::class.java)
+        failure.assert().isNotInstanceOf(PortFailureException::class.java)
+        failure.assert().isNotInstanceOf(CancelledDecisionException::class.java)
     }
 
     private companion object {

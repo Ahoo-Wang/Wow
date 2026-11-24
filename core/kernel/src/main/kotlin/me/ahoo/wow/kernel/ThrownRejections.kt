@@ -38,7 +38,7 @@ private val logger = KotlinLogging.logger {}
 internal object ThrownRejections {
     /** The rejection [thrown] stands for, or null when it is a failure. */
     fun rejectionOf(thrown: Throwable): Rejection? {
-        if (thrown is CancellationException) return null
+        if (!isRefusal(thrown)) return null
         val rejection = when {
             thrown is RejectedException -> thrown.rejection
             thrown is CommandRejectedException -> Rejection(thrown.code, thrown.error.message, thrown.error.extensions)
@@ -53,6 +53,18 @@ internal object ThrownRejections {
         }
         return rejection
     }
+
+    /**
+     * Whether [thrown] is one [rejectionOf] answers as a rejection. A failure of the kernel's own ports and checks that
+     * a decide function runs into is never the caller's refusal: what of it this would take is a failure of the port
+     * ([PortFailureException], [guarded]).
+     */
+    fun isRefusal(thrown: Throwable): Boolean = thrown !is CancellationException && (
+        thrown is RejectedException ||
+            thrown is CommandRejectedException ||
+            thrown.javaClass == IllegalArgumentException::class.java ||
+            thrown.javaClass == IllegalStateException::class.java
+        )
 
     /** The codes a domain command's thrown `require` and `check` are answered with, which it may not reject with itself. */
     val CODES: Set<String> = setOf(FrameworkCodes.COMMAND_INVALID, FrameworkCodes.COMMAND_REFUSED)

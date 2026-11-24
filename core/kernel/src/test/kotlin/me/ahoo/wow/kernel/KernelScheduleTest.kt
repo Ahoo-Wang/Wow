@@ -194,7 +194,7 @@ class KernelScheduleTest {
             stored.assert().isEqualTo(set)
             Timers.of(stream, stored, 4).body.assert().isEqualTo(WowJson.mapper.writeValueAsString(charge))
             // A command is written as an object; one written as anything else cannot be scheduled.
-            assertThrownBy<IllegalArgumentException> { codec.commandBody("text") }
+            assertThrownBy<Misuse.Argument> { codec.commandBody("text") }
         }
 
     @Test
@@ -340,6 +340,27 @@ class KernelScheduleTest {
             Kernel(log, clock = { NOW }).execute(model, Command("c-x", "r-x", ref, Pay(alsoRemind = true)))
         }.exceptionOrNull().assert().isInstanceOf(IllegalArgumentException::class.java)
         streams().size.assert().isEqualTo(1)
+    }
+
+    class Undecided
+
+    @Test
+    fun `a schedule of a command its own aggregate does not decide fails the command, never the caller's refusal`():
+        Unit = runTest {
+        // #6736: the code's mistake, as for a command of another aggregate type no Manifest names.
+        val scheduling = aggregate<Order>("test", "order") {
+            initial { Order(it.id) }
+            decide<Place>(Creation.REQUIRED) { _, _ ->
+                schedule("remind", ScheduleRule.At(NOW + 1_000), Undecided())
+                Decision.events(Placed(now))
+            }
+            evolve<Placed> { }
+        }
+        val failure = runCatching {
+            Kernel(InMemoryEventLog(), clock = { NOW }).execute(scheduling, Command("c-1", "r-1", ref, Place()))
+        }.exceptionOrNull()
+        failure.assert().isInstanceOf(Misuse.Argument::class.java)
+        failure!!.message.assert().contains("Undecided", "a command it does not decide")
     }
 
     @Test
