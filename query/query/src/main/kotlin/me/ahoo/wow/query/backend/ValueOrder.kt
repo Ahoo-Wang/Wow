@@ -63,8 +63,8 @@ internal fun orderOf(left: JsonNode?, right: JsonNode?, temporal: Temporal?): In
  * [left] against [right] by code point, the order in which every store compares text: PostgreSQL by `COLLATE "C"`,
  * MongoDB, Elasticsearch's keywords and ClickHouse by the bytes of their UTF-8, which order as the code points do.
  * [String.compareTo] orders by UTF-16 code unit instead, which parts from it where a character above U+FFFF (an emoji,
- * a CJK extension ideograph), stored as two surrogates (U+D800 to U+DFFF), meets one of U+E000 to U+FFFF (the
- * fullwidth forms, the compatibility ideographs, private use): `Ａ` (U+FF21) is before `😀` (U+1F600) here.
+ * a CJK extension ideograph), stored as two surrogates (the code units 0xD800 to 0xDFFF), meets one of U+E000 to
+ * U+FFFF (the fullwidth forms, the compatibility ideographs, private use): `Ａ` (U+FF21) is before `😀` (U+1F600) here.
  *
  * One pass over the code units, as [String.compareTo] makes, with no allocation: at the first unit that differs, a
  * surrogate is moved past U+E000 to U+FFFF ([codePointRank]), so the two compare as their code points would. A negative
@@ -84,7 +84,7 @@ fun compareCodePoints(left: String, right: String): Int {
 }
 
 /**
- * [unit]'s rank in code point order: a unit below U+D800 is its own code point, one of U+E000 to U+FFFF moves down below
+ * [unit]'s rank in code point order: a unit below the surrogates is its own code point, one of U+E000 to U+FFFF moves down below
  * the surrogates, and a surrogate moves up above U+FFFF, as the code point it is half of is. Within each group the order
  * is kept, so two units of one group compare as before.
  */
@@ -97,7 +97,7 @@ private fun codePointRank(unit: Char): Int = when {
 /** The first code unit above the surrogates, U+E000. */
 private const val BMP_UPPER_START: Char = '\uE000'
 
-/** The number of surrogate code units, U+D800 to U+DFFF. */
+/** The number of surrogate code units, 0xD800 to 0xDFFF. */
 private const val SURROGATES: Int = Char.MAX_SURROGATE.code - Char.MIN_SURROGATE.code + 1
 
 /** The number of code units from U+E000 to U+FFFF. */
