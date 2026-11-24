@@ -38,6 +38,7 @@ import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
 import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.runtime.Executor
+import me.ahoo.wow.runtime.ExecutorBusyException
 import me.ahoo.wow.runtime.admission.admissionOf
 import me.ahoo.wow.runtime.cluster.TopicRouter
 import me.ahoo.wow.runtime.command.CommandIntake
@@ -48,11 +49,13 @@ import me.ahoo.wow.runtime.subscription.LogSource
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
 import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
+import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.runtime.subscription.testOptions
 import me.ahoo.wow.spi.transport.TopicMessage
 import me.ahoo.wow.spi.transport.TopicProducer
 import me.ahoo.wow.spi.wait.Origin
 import org.junit.jupiter.api.Test
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -253,6 +256,62 @@ class TopicWaitProgressTest {
                 last.hop.assert().isEqualTo(Hop.committed("shop"))
             }
         }
+
+    @Test
+    fun `a client told UNKNOWN retries through the topic, and one whose first attempt was busy is not told BUSY`():
+        Unit = runBlocking {
+        // #6756, #6757, #6758 together: a send not acknowledged before the owner heard of the command is UNKNOWN, and
+        // the client's retry with the same request id answers as a duplicate of the commit the first one made; a
+        // command the owner's executor refused as busy is run again by its intake, and its wait answers that commit.
+        val real = Executor(Kernel(log))
+        val busy = AtomicInteger()
+        // The owner runs r-lost only once its client was answered: nothing it signals can reach the first wait.
+        val answeredFirst = CompletableDeferred<Unit>()
+        val executor = mockk<Executor>(relaxed = true) {
+            coEvery { execute(any(), any(), any()) } coAnswers {
+                val command = secondArg<Command<*>>()
+                if (command.requestId == "r-lost") answeredFirst.await()
+                if (command.requestId == "r-busy" && busy.incrementAndGet() == 1) {
+                    throw ExecutorBusyException(command.ref, 1)
+                }
+                real.execute(firstArg(), command, thirdArg())
+            }
+        }
+        val written = AtomicInteger()
+        val unacknowledged = object : TopicProducer {
+            override suspend fun send(topic: String, messages: List<TopicMessage>) {
+                topics.send(topic, messages)
+                // The first send of r-lost is written, and its acknowledgement lost before the owner reads it.
+                check(written.incrementAndGet() != 1) { "The broker's acknowledgement was lost." }
+            }
+        }
+        relayed(unacknowledged, executor) { coordinator, _ ->
+            val lost = order.type.ref("t", "o-lost")
+            val plan = WaitPlan.of(Hop.committed())
+            val first = withTimeout(10.seconds) {
+                coordinator.stream(order, Command("c-lost", "r-lost", lost, Place(1), wait = plan)).toList()
+            }.last()
+            first.error?.code.assert().isEqualTo(ResultCodes.UNKNOWN)
+            answeredFirst.complete(Unit)
+            // The owner runs it now: the client's retry is a duplicate of that commit.
+            eventually { log.read(lost).toList().size == 1 }
+            val retry = withTimeout(10.seconds) {
+                coordinator.stream(order, Command("c-lost-2", "r-lost", lost, Place(1), wait = plan)).toList()
+            }.last()
+            retry.status.assert().describedAs("${retry.error?.code}").isEqualTo(CommandResult.Status.SUCCEEDED)
+            retry.duplicate.assert().isTrue()
+            retry.hop.assert().isEqualTo(Hop.committed("shop"))
+            // Refused as busy once by the owner's executor: the intake runs it again, and the wait answers its commit.
+            val busied = order.type.ref("t", "o-busy")
+            val answered = withTimeout(10.seconds) {
+                coordinator.stream(order, Command("c-busy", "r-busy", busied, Place(2), wait = plan)).toList()
+            }.last()
+            busy.get().assert().isGreaterThanOrEqualTo(2)
+            answered.status.assert().describedAs("${answered.error?.code}").isEqualTo(CommandResult.Status.SUCCEEDED)
+            answered.duplicate.assert().isFalse()
+            listOf(lost, busied).forEach { log.read(it).toList().single().version.assert().isEqualTo(1) }
+        }
+    }
 
     /**
      * Runs [block] with a coordinator that sends `shop.order` through the command topic with [producer], its intake
