@@ -105,7 +105,20 @@ internal class MongoMissingSequences(
             is MongoSequencer.Resolution.Fill ->
                 placeholders.fill(collections.named(resolution.collection), partition, sequence, GAP_UNKNOWN)
 
-            is MongoSequencer.Resolution.Seal -> placeholders.seal(partition, sequence, resolution.block)
+            is MongoSequencer.Resolution.Seal -> sealListed(sequence, resolution.block)
+        }
+    }
+
+    /**
+     * Seals [block] from [sequence], unless it names a collection the registry does not list (#6768). The seal places
+     * a placeholder at each of its sequences in every collection it names; a tail that does not read one of them would
+     * find the placeholder where that collection holds a stream, and step over the stream. So such a block is left: the
+     * tail waits at [sequence], and warns of the collection ([MongoTailReads]), until a node records it, as a node of
+     * this version does at its first use of the type, or an operator does.
+     */
+    private fun sealListed(sequence: Long, block: MongoSequencer.OpenBlock) {
+        if (block.collections.all(collections::lists)) {
+            placeholders.seal(partition, sequence, block)
         }
     }
 
@@ -128,7 +141,9 @@ internal class MongoMissingSequences(
         logger.warn {
             "The tail of partition $partition of $context has waited at sequence $sequence, which no open block holds, " +
                 "for $unheld graces: no append can land there any more, and a tail never steps over a missing " +
-                "sequence. Once no collection of $context holds a stream at that position, insert the placeholder " +
+                "sequence. If a log collection of $context that the registry ${MongoEventLog.REGISTRY} does not list " +
+                "holds a stream at that position, record that collection instead. Once no collection of $context " +
+                "holds one, insert the placeholder " +
                 "{_id: NumberLong(\"$id\"), partition: $partition, sequence: NumberLong(\"$sequence\"), " +
                 "gap: \"recovered\", gap_node: \"operator\"} into $where with w: majority (Operate > MongoDB)."
         }

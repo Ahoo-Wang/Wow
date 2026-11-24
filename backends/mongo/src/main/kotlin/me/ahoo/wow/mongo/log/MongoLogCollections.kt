@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.mongo.log
 
-import com.mongodb.MongoWriteException
+import com.mongodb.MongoException
 import com.mongodb.ReadConcern
 import com.mongodb.WriteConcern
 import com.mongodb.client.MongoClient
@@ -25,6 +25,7 @@ import com.mongodb.client.model.Indexes
 import com.mongodb.client.model.Projections
 import com.mongodb.client.model.Sorts
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.mongo.MongoFailures
 import me.ahoo.wow.mongo.MongoFormat
 import me.ahoo.wow.mongo.MongoNames
 import me.ahoo.wow.mongo.MongoShards
@@ -184,18 +185,40 @@ internal class MongoLogCollections(
             MongoShards.shardLog(client, database, log, partitions)
             MongoShards.shardClaims(client, database, collection.claims)
         }
-        if (!ddl.creates) {
-            // The registry is the schema's: a validated or foreign schema registered its collections already.
-            return collection
-        }
-        try {
-            val registered = Document(ID, collection.name).append(CONTEXT, context).append(AGGREGATE, aggregate)
+        record(collection, aggregate)
+        return collection
+    }
+
+    /**
+     * Records [collection], [aggregate]'s, in the registry, under every `ddl` (#6768): the record is data, not schema,
+     * and a tail, `head` and `heads` read the collections it lists, beside those this node made sure of since it
+     * started. A collection that exists without one (a database restored without the registry's documents, collections
+     * made by hand) would take appends that no other node's tail reads, nor its own after a restart.
+     *
+     * A collection that does not exist yet is recorded too, unlike a table on PostgreSQL: MongoDB reads a missing
+     * collection as empty, so its record fails no read, and under `ddl: none` the first append creates it. A record this
+     * store cannot write (an account without insert on the registry) is refused, naming the document to insert; a
+     * failure of the store's connection is thrown as it is, to be retried. Only a creation records the collection's
+     * access walk as done: a collection recorded after it existed may hold streams a walk has to stamp.
+     */
+    private fun record(collection: AggregateCollection, aggregate: String) {
+        val registered = Document(ID, collection.name).append(CONTEXT, context).append(AGGREGATE, aggregate)
+        if (ddl.creates) {
             // The walk its creation records: kept with the document, so a collection registered before keeps its own.
             served[aggregate]?.let { registered.append(ACCESS_WALK, MongoLogAccess.documentOf(AccessWalk.created(it))) }
+        }
+        try {
             registry.insertOne(registered)
-        } catch (failure: MongoWriteException) {
+        } catch (failure: MongoException) {
             if (!failure.isDuplicateKey()) {
-                throw failure
+                if (MongoFailures.isTransient(failure)) throw failure
+                throw IllegalStateException(
+                    "The registry ${MongoEventLog.REGISTRY} has no record of the log collection ${collection.name}, " +
+                        "and this store could not write it (${failure.message}): its tails would not read the " +
+                        "collection. Let the store's account insert into ${MongoEventLog.REGISTRY}, or insert " +
+                        "{_id: \"${collection.name}\", context: \"$context\", aggregate: \"$aggregate\"} into it.",
+                    failure,
+                )
             }
         }
         val holder = registry.find(Filters.eq(ID, collection.name)).first()!!
@@ -203,7 +226,6 @@ internal class MongoLogCollections(
             "The aggregate $aggregate of $context takes the log collection ${collection.name}, " +
                 "which the aggregate ${holder.getString(AGGREGATE)} of ${holder.getString(CONTEXT)} has."
         }
-        return collection
     }
 
     private fun unique(name: String): IndexOptions = IndexOptions().unique(true).name(name)
@@ -219,6 +241,12 @@ internal class MongoLogCollections(
     /** The aggregate collection named [name], reading the registry again when this log does not know it. */
     fun named(name: String): AggregateCollection =
         known().firstOrNull { it.name == name } ?: register().first { it.name == name }
+
+    /**
+     * Whether this log knows the collection named [name]: the registry lists it as last read, or this log made sure of
+     * it. A tail reads the registry again whenever an open block names a collection it does not know ([MongoTailReads]).
+     */
+    fun lists(name: String): Boolean = known().any { it.name == name }
 
     /** Reads the registry again: the aggregate collections of the context, in registry order. */
     fun register(): List<AggregateCollection> =

@@ -196,6 +196,8 @@ db.getCollection("wow_log__shop__order").insertOne(
 
 与 PostgreSQL 一样，`wow.ddl` 决定存储是创建它们的集合和索引（`auto`，默认）、只检查它们（`validate`），还是两者都不做（`none`）（[PostgreSQL](./postgresql#manage-the-schema)）。
 
+登记表 `wow_log_aggregate` 和 `wow_timer_aggregate` 是数据，不是 schema。在任何 `ddl` 下，存储第一次用到某个日志集合或定时器集合时，都把它记入登记表：尾随、`head` 和到期读取只读登记表列出的集合。所以即使在 `validate` 和 `none` 下，存储的账号也需要对这两个登记表有 `insert` 权限。写不进记录的存储会拒绝这次首次使用，并写明要插入的文档。没有记录的集合（恢复数据库时没有带上登记表的文档，或手工建的集合），由第一个用到它的聚合类型的节点补记。在此之前，尾随遇到写着它的未封口的块时，停在那里而不封存这个块，并告警，写明这份文档。
+
 失败台账按它的键索引读取到期条目，不再创建分区与下次尝试时间上的索引。由更早构建创建的 `wow_failure_ledger` 保留着它的 `ledger_due` 索引：没有读取会用到它，而每次台账写入仍要维护它；Wow 不会在已有数据库上删除任何东西，运维可以自行删除它：`db.wow_failure_ledger.dropIndex("ledger_due")`。
 
 ## 查询与读偏好 {#queries-and-read-preferences}

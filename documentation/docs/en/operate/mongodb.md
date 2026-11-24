@@ -196,6 +196,8 @@ A new aggregate type's collection is created the first time the log touches it; 
 
 `wow.ddl` decides whether the stores create their collections and indexes (`auto`, the default), only check them (`validate`), or neither (`none`), as on PostgreSQL ([PostgreSQL](./postgresql#manage-the-schema)).
 
+The registries `wow_log_aggregate` and `wow_timer_aggregate` are data, not schema. A store records each log and timer collection there under every `ddl`, the first time it uses it: a tail, `head` and the due read read the collections a registry lists. So the store's account needs `insert` on both registries even under `validate` and `none`. A store that cannot write a record refuses that first use, naming the document to insert. A collection without its record (a database restored without the registries' documents, or collections made by hand) is recorded by the first node that uses its aggregate type. Until then, a tail that meets an open block naming it waits there rather than seal the block, and warns, naming the document.
+
 The failure ledger reads what is due by its key index, and creates no index on the partition and the next attempt. A `wow_failure_ledger` created by an earlier build keeps its `ledger_due` index, which nothing reads and every ledger write still maintains; Wow drops nothing on an existing database, and an operator may drop it: `db.wow_failure_ledger.dropIndex("ledger_due")`.
 
 ## Queries and read preferences

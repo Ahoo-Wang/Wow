@@ -34,6 +34,10 @@ import me.ahoo.wow.mongo.log.MongoEventLog.Companion.positionId
 import me.ahoo.wow.spi.log.LogEntry
 import org.bson.Document
 import org.bson.conversions.Bson
+import java.util.concurrent.ConcurrentHashMap
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.TimeMark
+import kotlin.time.TimeSource
 
 /**
  * The reads of a partition's tail ([MongoEventLog.tail]), a window of [tailBatch] sequences at a time across the
@@ -51,6 +55,9 @@ internal class MongoTailReads(
     /** The done blocks this log's tails take out of the counter's list, once read through for a grace. */
     private val doneBlocks: DoneBlocks = DoneBlocks(),
 ) {
+    /** When this log last warned of each collection an open block names that the registry does not list. */
+    private val unlistedWarned = ConcurrentHashMap<String, TimeMark>()
+
     /**
      * One read of the tail after [last]: the counter of [partition], then each aggregate collection's entries and
      * placeholders of the window `last + 1 .. last + tailBatch`, in one aggregation over the counters. Each collection
@@ -100,7 +107,8 @@ internal class MongoTailReads(
         val unknown = blocks.any { block -> block.collections.any { it !in names } }
         val again = when {
             next > end -> true
-            unknown || missing != null -> collections.register().map { it.name }.toSet() != names
+            unknown || missing != null -> registryChanged(partition, blocks, names, unknown)
+
             else -> false
         }
         // A listed block wholly at or below the run this read went through (`through`: each of its sequences an entry
@@ -108,6 +116,41 @@ internal class MongoTailReads(
         // node's next reservation having not come by then (DoneBlocks). A write only then; none on a poll before.
         doneBlocks.due(partition, blocks, through = next - 1).forEach { sequencer.remove(partition, it) }
         return TailBatch(run, through = next - 1, missing, again)
+    }
+
+    /**
+     * Reads the registry again: whether it lists other collections than [names]. When an open block of [blocks] names
+     * a collection [names] lacks ([unknown]), warns of each it still does not list ([unlisted]).
+     */
+    private fun registryChanged(
+        partition: Int,
+        blocks: List<MongoSequencer.OpenBlock>,
+        names: Set<String>,
+        unknown: Boolean,
+    ): Boolean {
+        val listed = collections.register().mapTo(HashSet()) { it.name }
+        if (unknown) unlisted(partition, blocks, listed)
+        return listed != names
+    }
+
+    /**
+     * Warns of each collection an open block of [blocks] names that the registry, read as [listed], does not list, at
+     * most once a minute each (#6768): its entries are read by no tail or head but its writer's, which made sure of it
+     * since it started. A node of this version records a collection before it reserves a block for it, so such a block
+     * is an earlier version's, or the registry lost the record.
+     */
+    private fun unlisted(partition: Int, blocks: List<MongoSequencer.OpenBlock>, listed: Set<String>) {
+        blocks.flatMap { it.collections }.distinct().filter { it !in listed }.forEach { name ->
+            if (unlistedWarned[name]?.let { it.elapsedNow() < UNLISTED_REPEAT } == true) return@forEach
+            unlistedWarned[name] = TimeSource.Monotonic.markNow()
+            logger.warn {
+                "An open block of partition $partition of $context names the log collection $name, which the registry " +
+                    "${MongoEventLog.REGISTRY} does not list: no node's tail or head reads its entries but its writer's " +
+                    "until a node records it, as a node of this version does at its first use of the aggregate type. " +
+                    "To record it now, insert {_id: \"$name\", context: \"$context\", aggregate: \"<its aggregate " +
+                    "type's name>\"} into ${MongoEventLog.REGISTRY} (Operate > MongoDB)."
+            }
+        }
     }
 
     /**
@@ -267,3 +310,6 @@ private val logger = KotlinLogging.logger(MongoEventLog::class.java.name)
  * partitions are read in chunks that keep each well below it.
  */
 private const val UNIONS = 500
+
+/** How often a log warns again of one collection an open block names that the registry does not list. */
+private val UNLISTED_REPEAT = 1.minutes
