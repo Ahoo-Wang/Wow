@@ -508,7 +508,7 @@ class AccessWalking(
 
     private suspend fun headsOf(type: AggregateType): Map<Int, Long> {
         val log = checkNotNull(logOf(type))
-        return (0 until log.partitions).associateWith { log.head(it) ?: 0L }
+        return log.heads((0 until log.partitions).toList()).mapValues { (_, head) -> head ?: 0L }
     }
 
     private fun walksOf(type: AggregateType): AccessWalks? = logOf(type) as? AccessWalks

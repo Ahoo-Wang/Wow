@@ -448,6 +448,18 @@ class MongoEventLog(
         return dispatcher.mongo { tailReads.headOf(partition) }
     }
 
+    /**
+     * The heads of [partitions], as [head] gives each, in one aggregation for every few hundred partitions and
+     * collections: their counters, the registry, and each known collection's highest stream in each partition.
+     */
+    override suspend fun heads(partitions: Collection<Int>): Map<Int, Long?> {
+        partitions.forEach { require(it in 0 until this.partitions) { "No partition $it among ${this.partitions}." } }
+        if (partitions.isEmpty()) {
+            return emptyMap()
+        }
+        return dispatcher.mongo { tailReads.headsOf(partitions) }
+    }
+
     internal companion object {
         /**
          * The entries of the final run after [last], at most [limit]: each sequence from `last + 1` is an entry of

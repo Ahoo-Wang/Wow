@@ -458,11 +458,11 @@ class SnapshotMaintenance(
     private suspend fun marked(store: String, type: AggregateType, table: SnapshotTable): SnapshotTable? =
         rebuildsOf(store).mark(type, table.revision, backfilled = true)?.also { tables[store to type] = it }
 
-    /** The head of each partition of each log group, the empty ones left out. */
+    /** The head of each partition of each log group, the empty ones left out: one read of each group's log. */
     private suspend fun heads(): Map<Pair<String, Int>, Long> = buildMap {
         progress.forEach { group ->
-            for (partition in 0 until group.log.partitions) {
-                group.log.head(partition)?.let { put(group.group to partition, it) }
+            group.log.heads((0 until group.log.partitions).toList()).forEach { (partition, head) ->
+                head?.let { put(group.group to partition, it) }
             }
         }
     }

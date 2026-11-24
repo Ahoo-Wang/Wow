@@ -568,6 +568,7 @@ public abstract interface class me/ahoo/wow/spi/log/EventLog {
 	public abstract fun getPartitions ()I
 	public fun handedOff (ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun head (ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun heads (Ljava/util/Collection;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun lineage (ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun positionOf (Lme/ahoo/wow/api/aggregate/AggregateRef;ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun read (Lme/ahoo/wow/api/aggregate/AggregateRef;II)Lkotlinx/coroutines/flow/Flow;

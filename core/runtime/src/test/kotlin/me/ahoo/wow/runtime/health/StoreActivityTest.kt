@@ -105,6 +105,28 @@ class StoreActivityTest {
     }
 
     @Test
+    fun `a tracked log's heads of many partitions are a read of its store, which an outage fails`(): Unit = runBlocking {
+        val memory = InMemoryEventLog(2)
+        val backends = NodeStores.track(
+            "bank",
+            ContextBackends(memory, InMemoryCheckpointStore(), InMemoryLeaseStore(), InMemoryFailureLedger()),
+        )
+        val activity = activityOf(backends.log)!!
+        backends.log.heads(listOf(0, 1)).assert().isEqualTo(mapOf(0 to null, 1 to null))
+        activity.lastSuccess.assert().isNotEqualTo(StoreActivity.NONE)
+        activity.failingSince.assert().isEqualTo(StoreActivity.NONE)
+        val failing = trackedLog(
+            object : me.ahoo.wow.spi.log.EventLog by memory {
+                override suspend fun heads(partitions: Collection<Int>): Map<Int, Long?> =
+                    throw StorageUnavailableException("down")
+            },
+            activity,
+        )
+        assertThrows<StorageUnavailableException> { runBlocking { failing.heads(listOf(0)) } }
+        activity.failingSince.assert().isNotEqualTo(StoreActivity.NONE)
+    }
+
+    @Test
     fun `a tracked log should record its reads, appends and outages, and only the store's`(): Unit = runBlocking {
         val memory = InMemoryEventLog(2)
         val other = InMemoryEventLog(2)

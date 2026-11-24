@@ -276,4 +276,7 @@ class PostgresEventLog(
     override suspend fun lineage(partition: Int): PartitionLineage = tailReads.lineage(partition)
 
     override suspend fun head(partition: Int): Long? = tailReads.head(partition)
+
+    /** The heads of [partitions], as [head] gives each, in one statement. */
+    override suspend fun heads(partitions: Collection<Int>): Map<Int, Long?> = tailReads.heads(partitions)
 }
