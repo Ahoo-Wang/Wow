@@ -262,13 +262,23 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
     )
 
     /**
-     * The models of [models] whose state [handler] reads; never the built-in rebuild aggregate's,
-     * whose requests are the runtime's. A handler of each event of a type no aggregate it reads has is refused: it is
-     * a handler of another context's events whose aggregates neither its `@OnEvent(aggregates)` nor the service's
-     * Manifest names, and it would read this context's log, never the peer's (#6840).
+     * The models of [models] that [handler] reads: those its `@OnEvent(aggregates)` names, as the Manifest lists them
+     * (#6834), else all of them, then those whose state it reads; never the built-in rebuild aggregate's, whose
+     * requests are the runtime's. A named aggregate the context does not have is refused. A handler of each event of
+     * a type no aggregate it reads has is refused: it is a handler of another context's events whose aggregates
+     * neither its `@OnEvent(aggregates)` nor the service's Manifest names, and it would read this context's log, never
+     * the peer's (#6840).
      */
     private fun read(handler: ProcessorBinding<*>, models: List<AggregateModel<*>>): List<AggregateModel<*>> {
-        val application = models.filterNot(SnapshotRebuildModel::isRebuild)
+        val application = models.filterNot(SnapshotRebuildModel::isRebuild).let { all ->
+            if (handler.aggregates.isEmpty()) return@let all
+            val unknown = handler.aggregates - all.map { it.type.toString() }.toSet()
+            require(unknown.isEmpty()) {
+                "${handler.name} reads ${unknown.joinToString()}, which its context " +
+                    "(${all.joinToString { model -> model.type.toString() }}) does not have."
+            }
+            all.filter { it.type.toString() in handler.aggregates }
+        }
         val read = handler.stateType?.let { type ->
             application.filter { type.isAssignableFrom(it.stateType) }.also {
                 require(it.isNotEmpty()) {

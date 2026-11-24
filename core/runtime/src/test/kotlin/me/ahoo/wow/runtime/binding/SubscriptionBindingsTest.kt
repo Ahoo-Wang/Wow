@@ -18,10 +18,12 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
@@ -34,6 +36,7 @@ import me.ahoo.wow.kernel.ExecutionSagaContext
 import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.kernel.StartFrom
+import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.kernel.eachEvent
 import me.ahoo.wow.runtime.admission.CommandBody
 import me.ahoo.wow.runtime.admission.ServerCommandRequest
@@ -323,6 +326,64 @@ class SubscriptionBindingsTest {
         val both = plain + SubscriptionBindings(mapOf(SHOP to listOf(projection)))
         both.viewTypes(SHOP, listOf(orderModel(), cartModel())).assert().containsExactly(ORDER)
         both.subscriptions(node.context(SHOP)).map { it.name }.assert().containsExactly("plain", "OrderView.onEvent")
+    }
+
+    @Test
+    fun `a star handler that names an aggregate of its own context should read that aggregate alone`() {
+        // As the Manifest lists its source, and OnEvent's KDoc says (#6834): not every aggregate of the context.
+        val board = ProcessorBinding.project<Any>(
+            "Board",
+            "onEvent",
+            null,
+            aggregates = listOf("$SHOP.order")
+        ) { _, _ ->
+        }
+        val bindings = SubscriptionBindings(mapOf(SHOP to listOf(board)))
+        bindings.viewTypes(SHOP, listOf(orderModel(), cartModel())).assert().containsExactly(ORDER)
+        bindings.subscriptions(node.context(SHOP)).single().filter.aggregates.assert().containsExactly("order")
+        // An aggregate the context does not have is refused, naming it.
+        assertThrownBy<IllegalArgumentException> {
+            SubscriptionBindings(mapOf(SHOP to listOf(board.reading(listOf("$SHOP.invoice")))))
+                .viewTypes(SHOP, listOf(orderModel(), cartModel()))
+        }.hasMessageContaining(
+            "Board.onEvent reads shop.invoice, which its context (shop.order, shop.cart) does not have"
+        )
+    }
+
+    /** An event both the order and the cart below record. */
+    data class Noted(val text: String)
+
+    data class NoteOrder(val text: String)
+
+    data class NoteCart(val text: String)
+
+    @Test
+    fun `a handler of an event several aggregates share should read the aggregate it names alone`() {
+        val orders = aggregate<OrderState>(SHOP, "order") {
+            initial { OrderState() }
+            decide<NoteOrder>(Creation.REQUIRED) { _, body -> Decision.events(Noted(body.text)) }
+            evolve<Noted> { }
+        }
+        val carts = aggregate<CartState>(SHOP, "cart") {
+            initial { CartState() }
+            decide<NoteCart>(Creation.REQUIRED) { _, body -> Decision.events(Noted(body.text)) }
+            evolve<Noted> { }
+        }
+        fun notes(vararg aggregates: String) = SubscriptionBindings(
+            mapOf(
+                SHOP to listOf(
+                    ProcessorBinding.project<Any>(
+                        "Notes",
+                        "onNoted",
+                        null,
+                        aggregates = aggregates.toList(),
+                        eventType = Noted::class.java,
+                    ) { _, _ -> },
+                ),
+            ),
+        )
+        notes("$SHOP.order").viewTypes(SHOP, listOf(orders, carts)).assert().containsExactly(ORDER)
+        notes().viewTypes(SHOP, listOf(orders, carts)).assert().containsExactlyInAnyOrder(ORDER, CART)
     }
 
     /** An event of another context's aggregate, which no aggregate of the shop has. */
