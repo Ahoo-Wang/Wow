@@ -177,6 +177,23 @@ class MongoSequencerBlocksTest : MongoLogFixtures() {
             tailed(owner, 4).map { it.stream.ref.id }.assert().containsExactly("a", "b", "c", "d")
         }
 
+    @Test
+    fun `a partition gives out no sequence past the highest a position holds`(): Unit = runBlocking {
+        // A block past 2^51 - 1 would take positions of the next partition (#6746): it is refused, the counter kept.
+        val context = MongoLogFixture.newContext()
+        val log = MongoLogFixture.log(1, context, listOf("order"))
+        val near = MongoEventLog.MAX_SEQUENCE - MongoEventLog.BLOCK + 1
+        counters(context).updateOne(Filters.eq("_id", 0), Updates.set(MongoEventLog.SEQUENCE, near))
+
+        assertThrownBy<IllegalStateException> {
+            runBlocking { log.append(stream("a", 1, aggregate = AggregateType(context, "order"))) }
+        }.hasMessageContaining("fewer than ${MongoEventLog.BLOCK} sequences left")
+
+        counter(context).getLong(MongoEventLog.SEQUENCE).assert().isEqualTo(near)
+        MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE).getCollection(collection(context, "order"))
+            .countDocuments().assert().isZero()
+    }
+
     private fun counters(context: String) =
         MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE).getCollection(collection(context, "partition"))
 

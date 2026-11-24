@@ -29,6 +29,7 @@ import me.ahoo.wow.mongo.log.MongoEventLog.Companion.PARTITION
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.SEQUENCE
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.VERSION
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.finalRun
+import me.ahoo.wow.mongo.log.MongoEventLog.Companion.lastPositionId
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.positionId
 import me.ahoo.wow.spi.log.LogEntry
 import org.bson.Document
@@ -127,7 +128,7 @@ internal class MongoTailReads(
                 Filters.and(
                     Filters.eq(PARTITION, partition),
                     Filters.gt(ID, positionId(partition, end)),
-                    Filters.lt(ID, positionId(partition + 1, 0)),
+                    Filters.lte(ID, lastPositionId(partition)),
                 ),
             ),
             Aggregates.limit(1),
@@ -225,7 +226,7 @@ internal class MongoTailReads(
             Filters.and(
                 Filters.eq(PARTITION, partition),
                 Filters.gte(ID, positionId(partition, 0)),
-                Filters.lt(ID, positionId(partition + 1, 0)),
+                Filters.lte(ID, lastPositionId(partition)),
                 Filters.exists(VERSION),
             ),
         ),
