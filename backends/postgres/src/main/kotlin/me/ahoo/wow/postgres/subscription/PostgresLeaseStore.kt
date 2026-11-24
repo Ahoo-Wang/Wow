@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.postgres.subscription
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
@@ -27,6 +28,7 @@ import me.ahoo.wow.postgres.autoCommitted
 import me.ahoo.wow.postgres.jdbc
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.VirtualThreads
+import me.ahoo.wow.spi.subscription.ExpiredMembers
 import me.ahoo.wow.spi.subscription.Lease
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.subscription.Member
@@ -38,7 +40,9 @@ import java.sql.SQLException
 import java.time.Clock
 import javax.sql.DataSource
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.TimeSource
 
 /**
  * The [LeaseStore] on PostgreSQL: one row per (group, partition) in `wow_lease` and one per (service, node), with the
@@ -63,6 +67,9 @@ import kotlin.time.Duration.Companion.seconds
  * would otherwise wait behind an acquisition held by a row lock or a server that stopped answering. A call that times
  * out loses its connection (pgjdbc closes it) and fails as transient; the next operation borrows another. The server
  * may still apply its write: an autocommitted statement carries no server bound ([PostgresTimeouts]).
+ *
+ * A heartbeat also deletes the member records of its key long expired ([LeaseStore.heartbeat], [ExpiredMembers]):
+ * one statement on the member key's prefix, at most once per TTL.
  *
  * Closing it gives the connection back to the pool, once the operation that holds it, if any, is done, waiting for it
  * at most [closeTimeout]; an operation after that fails. Its store closes it when it is closed
@@ -141,9 +148,10 @@ class PostgresLeaseStore(
         ttl: Duration,
         groups: Set<String>,
     ): Member {
+        val started = TimeSource.Monotonic.markNow()
         val expiresAt = clock.millis() + ttl.inWholeMilliseconds
         val sorted = groups.toSortedSet()
-        return execute(HEARTBEAT, within = ttl) {
+        val member = execute(HEARTBEAT, within = ttl) {
             setString(1, service)
             setString(2, node)
             setString(3, address)
@@ -151,6 +159,36 @@ class PostgresLeaseStore(
             setArray(5, connection.createArrayOf("text", sorted.toTypedArray()))
             executeUpdate()
             Member(service, node, address, expiresAt, sorted)
+        }
+        expired.due(service, ttl)?.let { before ->
+            val left = minOf(ttl - started.elapsedNow(), expired.deleteBound(ttl))
+            deleteExpired(service, before, left.coerceAtLeast(1.milliseconds))
+        }
+        return member
+    }
+
+    /**
+     * Deletes the member records of [service] that expired before [before] ([LeaseStore.heartbeat]), its reply waited
+     * for at most [within]: what is left of the heartbeat's bound, at most a quarter of its TTL. A delete that fails or
+     * times out (which loses the pinned connection, as any timeout does) is given up, logged at DEBUG: the heartbeat
+     * has written its record, and the next due heartbeat deletes them.
+     */
+    private suspend fun deleteExpired(service: String, before: Long, within: Duration) {
+        try {
+            execute(DELETE_EXPIRED, within) {
+                setString(1, service)
+                setLong(2, before)
+                executeUpdate()
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (@Suppress("TooGenericExceptionCaught") failure: Exception) {
+            log.debug(
+                "Deleting the member records of {} expired before {} failed; a later heartbeat will.",
+                service,
+                before,
+                failure,
+            )
         }
     }
 
@@ -172,6 +210,8 @@ class PostgresLeaseStore(
      * The connection the operations run on, one at a time ([pinning]); null until the first and after a failure. Written
      * under [pinning], or by a [close] that stopped waiting for it, which takes it to give it back ([borrow]).
      */
+    private val expired = ExpiredMembers(clock)
+
     @Volatile
     private var pinned: Connection? = null
     private val pinning = Mutex()
@@ -249,7 +289,7 @@ class PostgresLeaseStore(
         try {
             return block()
         } finally {
-            // A connection whose timeout cannot be given back is closed: the next operation fails on it and gives it up.
+            // A connection whose timeout cannot be given back is closed: the next operation fails on it, gives it up.
             if (!connection.isClosed) {
                 runCatching { connection.setNetworkTimeout(PostgresTimeouts.DIRECT, own) }
                     .onFailure { runCatching { connection.close() } }
@@ -389,5 +429,6 @@ class PostgresLeaseStore(
             "WHERE subscription_group = ? AND expires_at > ? ORDER BY node"
 
         const val LEAVE = "DELETE FROM $MEMBERS_TABLE WHERE subscription_group = ? AND node = ?"
+        const val DELETE_EXPIRED = "DELETE FROM $MEMBERS_TABLE WHERE subscription_group = ? AND expires_at < ?"
     }
 }

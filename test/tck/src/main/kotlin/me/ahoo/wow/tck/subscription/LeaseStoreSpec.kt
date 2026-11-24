@@ -219,6 +219,47 @@ abstract class LeaseStoreSpec {
         narrowed.groups.assert().containsExactly("svc/topic:a.b")
     }
 
+    /**
+     * A crashed node's record stays behind (#6703): a heartbeat deletes the records of its key expired for more than
+     * [LeaseStore.EXPIRED_MEMBER_TTLS] TTLs, and keeps the ones expired for less, the live ones and other keys'. The
+     * store is read as it stood at the start, where a kept record shows and a deleted one does not.
+     */
+    @Test
+    fun `a heartbeat deletes the member records long expired, and keeps the others`(): Unit = runBlocking {
+        val other = group + "_other"
+        val start = clock.millis()
+        store.heartbeat(group, "node-old", address("node-old"), TTL)
+        store.heartbeat(other, "node-x", address("node-x"), TTL)
+        clock.advance(60.seconds)
+        store.heartbeat(group, "node-recent", address("node-recent"), TTL)
+        // node-old has been expired for the multiple and a second more, node-recent for less.
+        clock.set(start + (TTL * (LeaseStore.EXPIRED_MEMBER_TTLS + 1)).inWholeMilliseconds + 1_000)
+        store.heartbeat(group, "node-live", address("node-live"), TTL)
+        clock.set(start)
+        store.members(group).map { it.node }.assert().containsExactly("node-live", "node-recent")
+        store.members(other).map { it.node }.assert().containsExactly("node-x")
+    }
+
+    @Test
+    fun `a heartbeat deletes the expired member records at most once per ttl`(): Unit = runBlocking {
+        val now = clock.millis()
+        val long = (TTL * (LeaseStore.EXPIRED_MEMBER_TTLS + 1)).inWholeMilliseconds
+        // The first heartbeat of the key deletes; then a record written long ago, by a clock behind.
+        store.heartbeat(group, "node-a", address("node-a"), TTL)
+        clock.set(now - long)
+        store.heartbeat(group, "node-old", address("node-old"), TTL)
+        // Less than a TTL after the last delete, a heartbeat deletes nothing.
+        clock.set(now + (TTL - 1.seconds).inWholeMilliseconds)
+        store.heartbeat(group, "node-a", address("node-a"), TTL)
+        clock.set(now - long)
+        store.members(group).map { it.node }.assert().contains("node-old")
+        // A TTL after it, the next one does.
+        clock.set(now + TTL.inWholeMilliseconds)
+        store.heartbeat(group, "node-a", address("node-a"), TTL)
+        clock.set(now - long)
+        store.members(group).map { it.node }.assert().doesNotContain("node-old")
+    }
+
     protected companion object {
         const val GROUP_SUFFIX = 12
         const val CONTENDERS = 16

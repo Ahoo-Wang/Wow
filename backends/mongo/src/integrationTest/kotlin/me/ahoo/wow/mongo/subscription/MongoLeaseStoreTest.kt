@@ -68,6 +68,32 @@ class MongoLeaseStoreTest : LeaseStoreSpec() {
         }
     }
 
+    @Test
+    fun `a heartbeat whose delete hangs still returns its member within a quarter of its ttl`(): Unit =
+        runBlocking {
+            // A crashed node's record, written by a clock a minute behind: expired for more than ten TTLs of 4 s.
+            val group = "expired-" + UUID.randomUUID()
+            val behind = Clock.offset(Clock.systemUTC(), java.time.Duration.ofMinutes(-1))
+            MongoLeaseStore(MongoLogFixture.client, MongoLogFixture.DATABASE, behind)
+                .heartbeat(group, "node-crashed", "10.0.0.9:9090", HEARTBEAT_TTL)
+            val store = MongoLeaseStore(MongoLogFixture.client, MongoLogFixture.DATABASE, operationTimeout = OPERATION)
+            MongoLogFixture.client.startSession().use { session ->
+                session.startTransaction()
+                try {
+                    // The transaction holds the crashed node's record, so the heartbeat's delete waits for it.
+                    val crashed = Filters.and(Filters.eq(GROUP, group), Filters.eq("node", "node-crashed"))
+                    session.touch("wow_lease_member", crashed)
+                    val started = TimeSource.Monotonic.markNow()
+                    store.heartbeat(group, "node-a", "10.0.0.1:9090", HEARTBEAT_TTL).node.assert().isEqualTo("node-a")
+                    // A quarter of the TTL for the delete, not the rest of it: under 2.5 s where the TTL is 4 s.
+                    started.elapsedNow().assert().isLessThan(HEARTBEAT_TTL / 4 + MARGIN)
+                } finally {
+                    session.abortTransaction()
+                }
+            }
+            store.members(group).map { it.node }.assert().containsExactly("node-a")
+        }
+
     /** Writes the document of [collection] that [filter] finds in this session's transaction, which holds it. */
     private fun ClientSession.touch(collection: String, filter: Bson) {
         MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE).getCollection(collection)
@@ -92,6 +118,9 @@ class MongoLeaseStoreTest : LeaseStoreSpec() {
 
         /** The store's own operation timeout in the bounded test: what a call without the bound would wait. */
         val OPERATION = 5.seconds
+
+        /** The TTL of the heartbeat whose delete hangs: long enough that its quarter and the rest of it differ. */
+        val HEARTBEAT_TTL = 4.seconds
 
         init {
             MongoLeaseStore(MongoLogFixture.client, MongoLogFixture.DATABASE).createSchema()
