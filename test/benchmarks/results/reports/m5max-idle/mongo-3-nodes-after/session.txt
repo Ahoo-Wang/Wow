@@ -1,0 +1,17 @@
+backend=mongo
+nodes=3
+accounts=100
+serverArgs=--wow.transport=none 
+quietSeconds=45
+windowSeconds=60
+commit=ddb60440a845971c33a105849ed2ae36c4292c74
+machine.chip=Apple M5 Max
+machine.cores=18
+machine.performanceCores=6
+machine.efficiencyCores=12
+machine.memoryBytes=68719476736
+machine.os=macOS 27.2.1
+machine.dockerCpus=16
+machine.dockerMemoryBytes=50498138112
+machine.actions=false
+meta=backend=mongo;nodes=3;heap=1g;gc=G1;serverJvm=openjdk version "25.0.5" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-25.0.5+8 (build 25.0.5+8-LTS) OpenJDK 64-Bit Server VM Temurin-25.0.5+8 (build 25.0.5+8-LTS, mixed mode, sharing) ;loadJvm=openjdk version "25.0.5" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-25.0.5+8 (build 25.0.5+8-LTS) OpenJDK 64-Bit Server VM Temurin-25.0.5+8 (build 25.0.5+8-LTS, mixed mode, sharing) ;stores=mongo;storeWriteIops=;primed=false;primeSeconds=0;settleSeconds=0;accounts=100;tmpfs=false;mongoCacheGb=2
