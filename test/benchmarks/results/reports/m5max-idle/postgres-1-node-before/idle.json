@@ -1,0 +1,89 @@
+{
+  "schema": "wow-idle/1",
+  "commit": "6e33125923a036266164f4df9aed6ebf8230d9d6",
+  "backend": "postgres",
+  "nodes": 1,
+  "accounts": 100,
+  "serverArgs": "--wow.transport=none ",
+  "quietSeconds": 45,
+  "windowSeconds": 60,
+  "meta": "backend=postgres;nodes=1;heap=1g;gc=G1;serverJvm=openjdk version \"25.0.5\" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-25.0.5+8 (build 25.0.5+8-LTS) OpenJDK 64-Bit Server VM Temurin-25.0.5+8 (build 25.0.5+8-LTS, mixed mode, sharing) ;loadJvm=openjdk version \"25.0.5\" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-25.0.5+8 (build 25.0.5+8-LTS) OpenJDK 64-Bit Server VM Temurin-25.0.5+8 (build 25.0.5+8-LTS, mixed mode, sharing) ;stores=postgres;storeWriteIops=;primed=false;primeSeconds=0;settleSeconds=0;accounts=100;tmpfs=false;mongoCacheGb=2",
+  "environment": "m5max",
+  "machine": {
+    "chip": "Apple M5 Max",
+    "cores": 18,
+    "performanceCores": 6,
+    "efficiencyCores": 12,
+    "memoryBytes": 68719476736,
+    "os": "macOS 27.2.1",
+    "docker": {
+      "cpus": 16,
+      "memoryBytes": 50498138112
+    }
+  },
+  "storeCpu": {
+    "withNodes": 1.72,
+    "withoutNodes": 1.18,
+    "added": 0.53,
+    "samples": {
+      "withNodes": 20,
+      "withoutNodes": 20
+    }
+  },
+  "logHeadReadsPerSecond": 64.09,
+  "reads": {
+    "windowSeconds": 61.01,
+    "statementsPerSecond": 71.24,
+    "logHeadReadsPerSecond": 64.09,
+    "operations": [
+      {
+        "operation": "SELECT sequence FROM \"wow_log__transfer__partition\" WHERE partition = $1",
+        "perSecond": 64.09
+      },
+      {
+        "operation": "SELECT subscription_group, node, address, expires_at, groups FROM wow_lease_member WHERE subscription_group = $1 AND expires_at > $2 ORDER BY node",
+        "perSecond": 1.29
+      },
+      {
+        "operation": "SELECT count(*) FROM (SELECT 1 FROM \"wow_failure_ledger\" WHERE service = $1 AND subscription_context = $2 AND subscription = $3 LIMIT $4) AS parked",
+        "perSecond": 1.08
+      },
+      {
+        "operation": "SELECT subscription_group, partition, owner, epoch, expires_at FROM wow_lease WHERE subscription_group = $1 AND expires_at > $2 ORDER BY partition",
+        "perSecond": 1
+      },
+      {
+        "operation": "SELECT count(*) AS registered, $2::integer AS branch, $3::text AS timer_id FROM wow_timer_aggregate WHERE context = $1",
+        "perSecond": 1
+      },
+      {
+        "operation": "INSERT INTO wow_lease_member (subscription_group, node, address, expires_at, groups) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (subscription_group, node) DO UPDAT",
+        "perSecond": 0.92
+      },
+      {
+        "operation": "SELECT * FROM \"wow_failure_ledger\" WHERE service = $1 AND subscription_context = $2 AND subscription = $3 AND partition = ANY ($4) AND (next_attempt_at IS NULL ",
+        "perSecond": 0.79
+      },
+      {
+        "operation": "SELECT revision, rebuilding, backfilled, fill FROM wow_snapshot_table WHERE structure = $1",
+        "perSecond": 0.39
+      },
+      {
+        "operation": "UPDATE wow_lease SET expires_at = $1 WHERE subscription_group = $2 AND owner = $3 AND partition = ANY($4) AND expires_at > $5 RETURNING subscription_group, part",
+        "perSecond": 0.33
+      },
+      {
+        "operation": "DELETE FROM wow_lease_member WHERE subscription_group = $1 AND expires_at < $2",
+        "perSecond": 0.18
+      },
+      {
+        "operation": "SELECT partition, sequence FROM \"wow_log__transfer__partition\" WHERE partition = ANY($1)",
+        "perSecond": 0.1
+      },
+      {
+        "operation": "SELECT aggregate FROM wow_log_aggregate WHERE context = $1 ORDER BY aggregate",
+        "perSecond": 0.07
+      }
+    ]
+  }
+}

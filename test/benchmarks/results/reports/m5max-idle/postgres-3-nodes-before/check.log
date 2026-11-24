@@ -1,0 +1,6 @@
+[check] E1: ok (36.0 ms)
+[check] E2: ok (19.3 ms)
+[check] E3: ok (24.8 ms)
+[check] E1-large: ok (8.2 ms)
+[check] E4-state: ok (2.6 ms)
+[check] E4-list: ok (50.8 ms)

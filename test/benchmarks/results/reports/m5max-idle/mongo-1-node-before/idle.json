@@ -1,0 +1,92 @@
+{
+  "schema": "wow-idle/1",
+  "commit": "6e33125923a036266164f4df9aed6ebf8230d9d6",
+  "backend": "mongo",
+  "nodes": 1,
+  "accounts": 100,
+  "serverArgs": "--wow.transport=none ",
+  "quietSeconds": 45,
+  "windowSeconds": 60,
+  "meta": "backend=mongo;nodes=1;heap=1g;gc=G1;serverJvm=openjdk version \"25.0.5\" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-25.0.5+8 (build 25.0.5+8-LTS) OpenJDK 64-Bit Server VM Temurin-25.0.5+8 (build 25.0.5+8-LTS, mixed mode, sharing) ;loadJvm=openjdk version \"25.0.5\" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-25.0.5+8 (build 25.0.5+8-LTS) OpenJDK 64-Bit Server VM Temurin-25.0.5+8 (build 25.0.5+8-LTS, mixed mode, sharing) ;stores=mongo;storeWriteIops=;primed=false;primeSeconds=0;settleSeconds=0;accounts=100;tmpfs=false;mongoCacheGb=2",
+  "environment": "m5max",
+  "machine": {
+    "chip": "Apple M5 Max",
+    "cores": 18,
+    "performanceCores": 6,
+    "efficiencyCores": 12,
+    "memoryBytes": 68719476736,
+    "os": "macOS 27.2.1",
+    "docker": {
+      "cpus": 16,
+      "memoryBytes": 50498138112
+    }
+  },
+  "storeCpu": {
+    "withNodes": 13.82,
+    "withoutNodes": 10.74,
+    "added": 3.08,
+    "samples": {
+      "withNodes": 20,
+      "withoutNodes": 20
+    }
+  },
+  "logHeadReadsPerSecond": 65.9,
+  "reads": {
+    "opcountersPerSecond": {
+      "insert": 0,
+      "query": 4.15,
+      "update": 1.29,
+      "delete": 0.18,
+      "getmore": 0.11,
+      "command": 71.89
+    },
+    "profiledSeconds": 19.49,
+    "logHeadReadsPerSecond": 65.9,
+    "operations": [
+      {
+        "operation": "command aggregate transfer.wow_log__transfer__partition",
+        "perSecond": 65.9
+      },
+      {
+        "operation": "query find transfer.wow_lease",
+        "perSecond": 1.39
+      },
+      {
+        "operation": "query find transfer.wow_lease_member",
+        "perSecond": 1.33
+      },
+      {
+        "operation": "command aggregate transfer.wow_failure_ledger",
+        "perSecond": 1.13
+      },
+      {
+        "operation": "command aggregate transfer.wow_timer_aggregate",
+        "perSecond": 1.03
+      },
+      {
+        "operation": "update q transfer.wow_lease_member",
+        "perSecond": 0.98
+      },
+      {
+        "operation": "query find transfer.wow_failure_ledger",
+        "perSecond": 0.82
+      },
+      {
+        "operation": "query find transfer.wow_snapshot_table",
+        "perSecond": 0.41
+      },
+      {
+        "operation": "update q transfer.wow_lease",
+        "perSecond": 0.36
+      },
+      {
+        "operation": "remove q transfer.wow_lease_member",
+        "perSecond": 0.21
+      },
+      {
+        "operation": "getmore getMore transfer.wow_log__transfer__partition",
+        "perSecond": 0.1
+      }
+    ]
+  }
+}
