@@ -71,12 +71,14 @@ import kotlin.time.Duration
  * Every write is one single-document operation, but for [cancelAll] and [settle]. A put is a conditional upsert (see
  * [conditionalUpsert]) whose filter admits only another timer at the same or a later version; a cancel is a
  * conditional update; a settle is one unordered bulk write of conditional updates per collection, each on the document
- * as it was loaded. The due read is one aggregation over the registry: the count of the context's collections, then,
- * through `$unionWith`, each collection's first due timers over its partial index on `(partition, due_at, timer_id)`
- * of the PENDING and FIRING (claimed) timers, merged by due time. A count other than the collections read tells the
- * store to read the registry again, so a collection another node created is read at once. The body is kept as the
- * command's JSON text, the rule as a subdocument (`{type, ...}`, as Wow's JSON writes it). The layout is one collection
- * per aggregate type; the timers are a view rebuilt from the log.
+ * as it was loaded. The due read is an aggregation over the registry: the count of the context's collections, then,
+ * through `$unionWith`, each collection's first due timers of each partition over its partial index on
+ * `(partition, due_at, timer_id)` of the PENDING and FIRING (claimed) timers, merged by due time. Its unions, one a
+ * partition and collection, go in aggregations of at most [UNIONS] each, below MongoDB's 1,000 stages, whose timers
+ * are merged as one aggregation would have merged them ([MongoTimerMerge]). A count other than the collections read
+ * tells the store to read the registry again, so a collection another node created is read at once. The body is kept
+ * as the command's JSON text, the rule as a subdocument (`{type, ...}`, as Wow's JSON writes it). The layout is one
+ * collection per aggregate type; the timers are a view rebuilt from the log.
  *
  * Calls run on [dispatcher], virtual threads by default.
  */
@@ -260,7 +262,7 @@ class MongoTimerStore(
             return emptyList()
         }
         val branches = dueBranches(partitions, until, perPartition)
-        return dispatcher.mongo { unioned(branches, perPartition, perPartition = true) }
+        return dispatcher.mongo { unioned(branches, perPartition) }
     }
 
     /**
@@ -282,70 +284,79 @@ class MongoTimerStore(
     }
 
     /**
-     * The aggregation over [known]: the registry's count of the context's collections, then each of [branches] over
-     * each collection, each tagged with the collection's index in [known], merged by due time; the first [limit]
-     * timers, or, [perPartition], the first [limit] of each partition. A test asserts the due read's plan: each
-     * branch over the collection's partial index.
+     * The aggregations over [known] that read each of [branches] over each collection, each union tagged with the
+     * collection's index in [known]: at most [UNIONS] unions an aggregation, after the registry's count of the
+     * context's collections, merged by due time, and with [perPartition] cut to the first [perPartition] of each
+     * partition. One aggregation of every union would pass MongoDB's 1,000 stages once the partitions times the
+     * collections reach it (#6743). A test asserts the due read's plan: each branch over the collection's partial
+     * index.
      */
-    private fun pipeline(
+    private fun pipelines(
         known: List<TimerCollection>,
         branches: List<List<Bson>>,
-        limit: Int?,
-        perPartition: Boolean = false,
-    ): List<Bson> = buildList {
-        add(Aggregates.match(Filters.eq(CONTEXT, context)))
-        add(Aggregates.count(REGISTERED))
-        known.forEachIndexed { index, collection ->
-            branches.forEach { branch ->
-                add(Aggregates.unionWith(collection.name, branch + Aggregates.set(Field(BRANCH, index))))
+        perPartition: Int?,
+    ): List<List<Bson>> {
+        val unions = known.withIndex().flatMap { (index, collection) ->
+            branches.map { Aggregates.unionWith(collection.name, it + Aggregates.set(Field(BRANCH, index))) }
+        }
+        // No collection known: one aggregation all the same, for the count that tells whether there is one now.
+        return unions.chunked(UNIONS).ifEmpty { listOf(emptyList()) }.map { chunk ->
+            buildList {
+                add(Aggregates.match(Filters.eq(CONTEXT, context)))
+                add(Aggregates.count(REGISTERED))
+                addAll(chunk)
+                if (perPartition != null) {
+                    // Each partition's first [perPartition] in due order; the count has no partition, a group of its
+                    // own.
+                    add(Aggregates.sort(DUE_ORDER))
+                    val first = Document("\$firstN", Document("input", "\$\$ROOT").append("n", perPartition))
+                    add(Document("\$group", Document("_id", "\$$PARTITION").append(PARTITION_TIMERS, first)))
+                    add(Aggregates.unwind("\$$PARTITION_TIMERS"))
+                    add(Aggregates.replaceRoot("\$$PARTITION_TIMERS"))
+                }
+                // The count has no due time: it sorts first.
+                add(Aggregates.sort(DUE_ORDER))
             }
-        }
-        if (limit != null && perPartition) {
-            // Each partition's first [limit] in due order; the count has no partition, a group of its own.
-            add(Aggregates.sort(DUE_ORDER))
-            val first = Document("\$firstN", Document("input", "\$\$ROOT").append("n", limit))
-            add(Document("\$group", Document("_id", "\$$PARTITION").append(PARTITION_TIMERS, first)))
-            add(Aggregates.unwind("\$$PARTITION_TIMERS"))
-            add(Aggregates.replaceRoot("\$$PARTITION_TIMERS"))
-        }
-        // The count has no due time: it sorts first.
-        add(Aggregates.sort(DUE_ORDER))
-        if (limit != null && !perPartition) {
-            add(Aggregates.limit(limit + 1))
         }
     }
 
-    /** The due read's aggregation as this store runs it now, for [partitions] and [until]: a test explains it. */
-    internal fun duePipeline(partitions: Set<Int>, until: Long, perPartition: Int): List<Bson> =
-        pipeline(known(), dueBranches(partitions, until, perPartition), perPartition, perPartition = true)
+    /** The due read's aggregations as this store runs them now, for [partitions] and [until]: a test explains them. */
+    internal fun duePipelines(partitions: Set<Int>, until: Long, perPartition: Int): List<List<Bson>> =
+        pipelines(known(), dueBranches(partitions, until, perPartition), perPartition)
 
     /** The registry, which the due read aggregates over: a test explains it. */
     internal val registryCollection: MongoCollection<Document> get() = registry
 
     /**
-     * Runs [branches] over every timer collection of the context in one aggregation; when the registry holds other
-     * collections than those read, reads the registry and runs it once more.
+     * Runs [branches] over every timer collection of the context, in the aggregations [pipelines] gives, and merges
+     * what they read ([MongoTimerMerge]); when the registry holds other collections than those read, reads the registry
+     * and runs them once more.
      */
-    private fun unioned(branches: List<List<Bson>>, limit: Int?, perPartition: Boolean = false): List<Timer> {
+    private fun unioned(branches: List<List<Bson>>, perPartition: Int?): List<Timer> {
         var known = known()
         while (true) {
-            var count = 0
+            val counts = ArrayList<Int>()
             val timers = buildList {
-                registry.aggregate(pipeline(known, branches, limit, perPartition)).forEach { document ->
-                    val branchIndex = document.getInteger(BRANCH)
-                    if (branchIndex == null) {
-                        count = document.getInteger(REGISTERED)
-                    } else {
-                        add(timerOf(document, known[branchIndex].aggregate))
+                pipelines(known, branches, perPartition).forEach { pipeline ->
+                    // No count when the registry lists none of the context's collections.
+                    var count = 0
+                    registry.aggregate(pipeline).forEach { document ->
+                        val branchIndex = document.getInteger(BRANCH)
+                        if (branchIndex == null) {
+                            count = document.getInteger(REGISTERED)
+                        } else {
+                            add(timerOf(document, known[branchIndex].aggregate))
+                        }
                     }
+                    counts += count
                 }
             }
-            if (count == known.size) {
-                return timers
+            if (counts.all { it == known.size }) {
+                return MongoTimerMerge.merged(timers, perPartition)
             }
             val read = register()
             if (read.map { it.name }.toSet() == known.map { it.name }.toSet()) {
-                return timers
+                return MongoTimerMerge.merged(timers, perPartition)
             }
             known = read
         }
@@ -431,7 +442,7 @@ class MongoTimerStore(
             Filters.eq(TARGET_ID, target.id),
             Filters.eq(STATUS, TimerStatus.PARKED.name),
         )
-        unioned(listOf(listOf(Aggregates.match(filter))), null)
+        unioned(listOf(listOf(Aggregates.match(filter))), perPartition = null)
     }
 
     private fun partitionOf(owner: AggregateRef): Int = Partitioner.partitionOf(owner, partitions)
@@ -538,5 +549,12 @@ class MongoTimerStore(
         const val OWNER_ID = "owner_id"
         const val SPACE_ID = "space_id"
         val DUE_ORDER: Bson = Sorts.ascending(DUE_AT, TIMER_ID)
+
+        /**
+         * The most `$unionWith` reads one aggregation of the due read holds, a partition's per collection: MongoDB
+         * refuses a pipeline of more than 1,000 stages by default (`internalPipelineLengthLimit`), as the log's heads
+         * read keeps below it (`MongoTailReads`).
+         */
+        const val UNIONS = 500
     }
 }
