@@ -13,7 +13,11 @@
 
 package me.ahoo.wow.runtime.log
 
+import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
@@ -37,6 +41,7 @@ import java.util.concurrent.ConcurrentSkipListSet
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
+import kotlin.coroutines.CoroutineContext
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
@@ -55,13 +60,18 @@ import kotlin.time.TimeSource
  *   in flight when the gap appeared, and reads the store as soon as every one of them returned without it (another
  *   node's append during a hand-off; an unknown outcome). The wait only bounds an append that does not
  *   return: 1 s, the longest poll interval, which bounds how late another node's entries are read anyway;
- * - [probeInterval]: how long a tail waits without a commit of this node before it checks the partition's head for
- *   entries other nodes appended: the log's longest poll interval (`wow.log.max-poll-interval`);
+ * - [probeInterval]: how late a tail may see an entry another node appended through a block or reservation this node
+ *   has not seen: the log's longest poll interval (`wow.log.max-poll-interval`). The node probes all its tails at once
+ *   every half of it ([HandoffProber]);
+ * - [backstopInterval]: how often the node also reads the exact heads of its tails' partitions, for what the probe's
+ *   answer may leave out (an entry appended into a block already seen, by a node that went on writing after the
+ *   partition moved): 10 s, the node sampler's cadence, at which one batched read is noise, or the probe interval
+ *   when that is longer;
  * - [scheduledProbes]: how long after it opens a tail checks the head every [probeInterval] whatever this node
  *   commits ([ObservedEvent.TailRead.Reason.SCHEDULED]). A tail opens as its node acquires the partition, while other
  *   nodes may still append there without the lease, their routes not naming the new owner yet; this node keeps
  *   committing, so without it the first probe could wait for a pause, or for the end of its block. Zero, the default,
- *   for none: a node without a cluster ([me.ahoo.wow.runtime.node.ContextAssembly] sets it for one).
+ *   for none: a node without a cluster ([me.ahoo.wow.runtime.node.handoffOf] sets it for one).
  *
  * Fields may be added: Wow builds it from the host's configuration, so the constructor is internal
  * to Wow.
@@ -71,12 +81,14 @@ class HandoffOptions @InternalWowApi constructor(
     val gapWait: Duration = 1.seconds,
     val probeInterval: Duration = 1.seconds,
     val scheduledProbes: Duration = Duration.ZERO,
+    val backstopInterval: Duration = maxOf(DEFAULT_BACKSTOP, probeInterval),
 ) {
     init {
         require(capacity >= 1) { "A tail holds at least one entry handed over." }
         require(gapWait.isPositive()) { "The gap wait is positive." }
         require(probeInterval.isPositive()) { "The probe interval is positive." }
         require(!scheduledProbes.isNegative()) { "The scheduled probes last zero or more." }
+        require(backstopInterval >= probeInterval) { "The backstop reads no more often than the probe." }
     }
 
     override fun equals(other: Any?): Boolean =
@@ -86,17 +98,20 @@ class HandoffOptions @InternalWowApi constructor(
 
     override fun toString(): String =
         "HandoffOptions(capacity=$capacity, gapWait=$gapWait, probeInterval=$probeInterval, " +
-            "scheduledProbes=$scheduledProbes)"
+            "scheduledProbes=$scheduledProbes, backstopInterval=$backstopInterval)"
 
-    private fun valueFields(): List<Any?> = listOf(capacity, gapWait, probeInterval, scheduledProbes)
+    private fun valueFields(): List<Any?> = listOf(capacity, gapWait, probeInterval, scheduledProbes, backstopInterval)
 
     /** These options with [scheduledProbes] in place of their own. */
     @InternalWowApi
     fun copyWith(scheduledProbes: Duration): HandoffOptions =
-        HandoffOptions(capacity, gapWait, probeInterval, scheduledProbes)
+        HandoffOptions(capacity, gapWait, probeInterval, scheduledProbes, backstopInterval)
 
     companion object {
         private const val DEFAULT_CAPACITY = 1_024
+
+        /** The backstop's interval unless the probe's is longer: the node sampler's, at which one batched read is noise. */
+        private val DEFAULT_BACKSTOP = 10.seconds
     }
 }
 
@@ -116,17 +131,20 @@ class HandoffOptions @InternalWowApi constructor(
  *   outcome was [AppendOutcome.Unknown]), or [HandoffOptions.gapWait] passed while one of them is still in flight;
  * - on an overflow: a tail holding [HandoffOptions.capacity] entries it has not taken drops the next ones, so a slow
  *   subscription never holds up an append;
- * - after [HandoffOptions.probeInterval] without a hand-over, when the head is past its position: entries other nodes
- *   appended; and, for [HandoffOptions.scheduledProbes] after it opens, every probe interval whatever the hand-overs,
+ * - when the node's probe names its partition ([HandoffProber]: one call of the log for every tail, every half
+ *   [HandoffOptions.probeInterval], [EventLog.appendedElsewhere]), or when the probe's backstop, an exact read of the
+ *   heads every [HandoffOptions.backstopInterval], finds the head past its position while it has been idle a probe
+ *   interval: entries other nodes appended; and, for [HandoffOptions.scheduledProbes] after it opens, every probe
+ *   interval whatever the hand-overs, by a read of its own head,
  *   for the entries other nodes appended without the lease while their routes did not name this node yet. The head may also show a commit of this node whose append has not returned yet (the store's answer on its
  *   way back): while an append of this node is in flight, the probe waits for it to hand its entry over, as on a gap,
  *   delivers it, and reads the store at once for what the head shows past it (other nodes' entries), or when the
  *   append returns without the entry the tail needs.
  *
- * So another node's commit reaches a tail only at one of these reads. One that lands past this node's block of
- * sequences while this node keeps committing, its commits less than [HandoffOptions.probeInterval] apart, leaves no
- * gap in its own run until the node takes its next block, past that commit: until then it waits for the node's first
- * pause of a probe interval, or for the end of its block, whichever comes first. A command that would commit there
+ * So another node's commit reaches a tail only at one of these reads: through a block or reservation the probe has
+ * not seen, within a probe interval; appended into a block already seen (a node that went on writing after the
+ * partition moved and the scheduled probes ended), within the backstop's interval, and its tail logs it, as a node
+ * writing to a partition it no longer owned or a case the probe's answer missed. A command that would commit there
  * without the lease is sent to the partition's owner when its routes, read once more, name one
  * ([me.ahoo.wow.runtime.cluster.RouteLookup]), so such a commit takes an acquisition the read did not see; it comes
  * within a route refresh of the acquisition, while the tail's probes are still on schedule
@@ -144,11 +162,29 @@ class HandoffLog(
     private val options: HandoffOptions = HandoffOptions(),
     private val observer: Observer = Observer.NONE,
     /**
+     * Where the node's probe of its tails runs while it has tails open ([HandoffProber]): the node assembly gives it
+     * the node's handler, `wiring.contextOf(NODE, "tail-probe:<context>")`, which reports a defect that ends the probe.
+     * A call of the log that fails ends nothing: the probe logs a warning as it starts failing and a line as it answers
+     * again, and makes it again at the next round.
+     */
+    probes: CoroutineContext = Dispatchers.Default,
+    /**
      * Called, from the tail's coroutine, for each entry a tail delivers from the store rather than from memory:
      * quick, and never throwing.
      */
     private val readBack: (LogEntry) -> Unit = {},
 ) : EventLog by log {
+    /**
+     * The one caller of [log]'s [EventLog.appendedElsewhere], and it must stay so: each round asks about the partition
+     * of every open tail at once, busy or idle, since a store may answer from what it remembers of its previous answers
+     * and forget a partition a call leaves out (MongoDB's log does). A second caller, or a round that asked about the
+     * idle tails alone, would make the store forget, or report to the wrong caller, a block another node opened.
+     */
+    private val prober = HandoffProber(log, context, options, CoroutineScope(probes + SupervisorJob()))
+
+    /** The rounds of the node's probe so far: for the tests. */
+    internal val probeRounds: Long get() = prober.rounds
+
     private val listeners = List(log.partitions) { CopyOnWriteArrayList<Listener>() }
     private val inFlight = List(log.partitions) { InFlight() }
     private val reads = AtomicLong()
@@ -272,10 +308,34 @@ class HandoffLog(
         }
     }
 
-    /** One open tail: alternates reading the store up to the head and continuing its run from memory. */
-    private inner class Tail(private val partition: Int, private var cursor: Long, private val listener: Listener) {
+    /**
+     * One open tail: alternates reading the store up to the head and continuing its run from memory, and reads the
+     * store when the node's probe wakes it ([HandoffProber]).
+     */
+    private inner class Tail(
+        override val partition: Int,
+        cursor: Long,
+        private val listener: Listener,
+    ) : HandoffProber.Probed {
         /** Entries handed over past the next one the run needs, by sequence. */
         private val pending = TreeMap<Long, LogEntry>()
+
+        @Volatile
+        override var cursor: Long = cursor
+            private set
+
+        /** When memory or the store last brought it an entry. */
+        @Volatile
+        private var active = TimeSource.Monotonic.markNow()
+
+        override val idleFor: Duration get() = active.elapsedNow()
+
+        /** The probe's wakes: the latest, kept until the tail can take it, so none is lost. */
+        private val wakes = Channel<Reason>(Channel.CONFLATED)
+
+        override fun wake(reason: Reason) {
+            wakes.trySend(reason)
+        }
 
         /** When it opened, and last read the store: its probes are on schedule for a while after it opens. */
         private val opened = TimeSource.Monotonic.markNow()
@@ -293,10 +353,15 @@ class HandoffLog(
         }
 
         suspend fun run(collector: FlowCollector<LogEntry>) {
-            var reason = Reason.START
-            while (true) {
-                collector.fromStore(reason)
-                reason = collector.fromMemory()
+            prober.register(this)
+            try {
+                var reason = Reason.START
+                while (true) {
+                    collector.fromStore(reason)
+                    reason = collector.fromMemory()
+                }
+            } finally {
+                prober.unregister(this)
             }
         }
 
@@ -310,6 +375,7 @@ class HandoffLog(
             // Cleared before the head is read: an entry dropped before this was committed before it, so at or below it.
             listener.overflowed.set(false)
             lastRead = TimeSource.Monotonic.markNow()
+            var readBackCount = 0
             val head = log.head(partition) ?: 0L
             if (head > cursor) {
                 // An append of this node may have committed, handed its entry over and returned while the head was
@@ -317,7 +383,7 @@ class HandoffLog(
                 drain()
                 deliverRun()
             }
-            val probe = reason == Reason.IDLE || reason == Reason.SCHEDULED
+            val probe = reason == Reason.IDLE || reason == Reason.SCHEDULED || reason == Reason.BACKSTOP
             if (head > cursor && probe && ownCommitAhead()) {
                 // This node's own commits first, from memory; what the head shows past them is other nodes', read now
                 // rather than a probe interval later.
@@ -332,9 +398,19 @@ class HandoffLog(
                         it.position.sequence < head
                     }
                     .collect { entry ->
-                        if (entry.position.sequence > cursor) readBack(entry)
+                        if (entry.position.sequence > cursor) {
+                            readBack(entry)
+                            readBackCount++
+                        }
                         deliver(entry)
                     }
+            }
+            if (reason == Reason.BACKSTOP && readBackCount > 0) {
+                logger.warn {
+                    "The backstop read $readBackCount entries of partition $partition of $context that the probe did " +
+                        "not name: a node wrote to a partition it no longer owned, after its routes moved and the " +
+                        "scheduled probes ended, or the probe's answer missed a case of another node's appends."
+                }
             }
             pending.headMap(cursor, true).clear()
         }
@@ -369,7 +445,12 @@ class HandoffLog(
                     return Reason.SCHEDULED
                 }
                 if (pending.isEmpty()) {
-                    hold(nextOrIdle() ?: return Reason.IDLE)
+                    when (val next = nextOrWake()) {
+                        is LogEntry -> hold(next)
+                        is Reason -> return next
+                        // The scheduled probe's interval passed: the loop's next turn takes it.
+                        else -> Unit
+                    }
                 } else if (!awaitGap()) {
                     return Reason.GAP
                 }
@@ -377,14 +458,16 @@ class HandoffLog(
         }
 
         /**
-         * The next entry handed over, or null once [HandoffOptions.probeInterval] passes without one. A select clause
-         * either takes an entry or leaves it, whichever of the two completes; a `receive` cancelled by a timeout may
-         * take one and still be cancelled, losing it to a read of the store.
+         * The next entry handed over, the probe's wake ([Reason]), or, while the tail's probes are on schedule, null
+         * once [HandoffOptions.probeInterval] passes without either. A select clause either takes an entry or leaves
+         * it, whichever completes; a `receive` cancelled by a timeout may take one and still be cancelled, losing it to
+         * a read of the store.
          */
-        @OptIn(ExperimentalCoroutinesApi::class) // onTimeout: the probe interval.
-        private suspend fun nextOrIdle(): LogEntry? = select {
+        @OptIn(ExperimentalCoroutinesApi::class) // onTimeout: the scheduled probes' interval.
+        private suspend fun nextOrWake(): Any? = select {
             listener.entries.onReceive { it }
-            onTimeout(options.probeInterval) { null }
+            wakes.onReceive { it }
+            if (scheduling) onTimeout(options.probeInterval) { null }
         }
 
         /**
@@ -446,7 +529,10 @@ class HandoffLog(
             if (entry.position.sequence > cursor) {
                 emit(entry)
                 cursor = entry.position.sequence
+                active = TimeSource.Monotonic.markNow()
             }
         }
     }
 }
+
+private val logger = KotlinLogging.logger(HandoffLog::class.java.name)

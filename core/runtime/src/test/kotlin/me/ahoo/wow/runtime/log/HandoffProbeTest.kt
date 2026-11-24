@@ -33,8 +33,9 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * An idle tail's probe of the head: what other nodes appended found by it, and this node's own commit, seen in the head
- * before its append returns, waited for and taken from memory.
+ * An idle tail's read of the head once the node's probe names its partition ([HandoffProber]): what other nodes
+ * appended found by it, and this node's own commit, seen in the head before its append returns, waited for and taken
+ * from memory.
  */
 class HandoffProbeTest : HandoffLogFixtures() {
     @Test
@@ -79,14 +80,19 @@ class HandoffProbeTest : HandoffLogFixtures() {
     fun `an idle probe whose head read sees this node's commit returned meanwhile should take it from memory`(): Unit =
         runBlocking {
             // X-19: the append commits, hands its entry over and returns while the probe reads the head, so the head
-            // shows the commit and no append is in flight; only what was handed over says it is this node's.
-            val gated = GateHead(store)
+            // shows the commit and no append is in flight; only what was handed over says it is this node's. The
+            // commit, held on its way back, makes the node's probe name the partition, and the tail reads the head.
+            val committing = GateAfterCommit(store)
+            val gated = GateHead(committing)
             val log = handoff(probeInterval = 20.milliseconds, log = gated)
             val (seen, job) = collect(log)
             awaitOpen(log)
             gated.arm()
+            val held = async(Dispatchers.Default) { log.append(next(refs[0])) }
+            committing.committed.await()
             gated.entered.await()
-            log.append(next(refs[0])).assert().isInstanceOf(AppendOutcome.Committed::class.java)
+            committing.release.complete(Unit)
+            held.await().assert().isInstanceOf(AppendOutcome.Committed::class.java)
             gated.release.complete(Unit)
             seen.take(1).single().position.sequence.assert().isEqualTo(1L)
             job.cancelAndJoin()

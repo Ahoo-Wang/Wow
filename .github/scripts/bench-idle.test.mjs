@@ -56,7 +56,7 @@ test('the CPU is the mean of its samples, and none gives null', () => {
   assert.equal(meanOf(''), null);
 });
 
-test("MongoDB's reads: the opcounters a second, Long or number, and the head aggregations on a log's counters", () => {
+test("MongoDB's reads: the opcounters a second, Long or number, the head aggregations and every read of a log's counters", () => {
   const reads = mongoReads(
     {
       millis: 60_000,
@@ -72,6 +72,18 @@ test("MongoDB's reads: the opcounters a second, Long or number, and the head agg
           command: 'aggregate',
           count: 1400,
         },
+        {
+          op: 'query',
+          ns: 'transfer.wow_log__transfer__partition',
+          command: 'find',
+          count: 40,
+        },
+        {
+          op: 'command',
+          ns: 'transfer.wow_log__transfer__partition',
+          command: 'findAndModify',
+          count: 10,
+        },
         { op: 'query', ns: 'transfer.wow_lease', command: 'find', count: 26 },
         {
           op: 'command',
@@ -84,16 +96,19 @@ test("MongoDB's reads: the opcounters a second, Long or number, and the head agg
   );
   assert.deepEqual(reads.opcountersPerSecond, { command: 70, query: 4 });
   assert.equal(reads.logHeadReadsPerSecond, 70);
-  assert.deepEqual(reads.operations[1], {
+  // The probe's finds count, an append's findAndModify does not.
+  assert.equal(reads.logCounterReadsPerSecond, 72);
+  assert.deepEqual(reads.operations[3], {
     operation: 'query find transfer.wow_lease',
     perSecond: 1.3,
   });
 });
 
-test("PostgreSQL's statements a second, the head lookups apart, the extension's own left out", () => {
+test("PostgreSQL's statements a second, the head lookups and the counter reads apart, the extension's own left out", () => {
   const reads = postgresReads(
     [
       '4347\tSELECT sequence FROM "wow_log__transfer__partition" WHERE partition = $1',
+      '120\tSELECT partition, sequence FROM "wow_log__transfer__partition" WHERE partition = ANY($1)',
       '80\tSELECT subscription_group, node FROM wow_lease_member WHERE subscription_group = $1',
       '1\tselect pg_stat_statements_reset()',
       '',
@@ -101,8 +116,9 @@ test("PostgreSQL's statements a second, the head lookups apart, the extension's 
     60_000,
   );
   assert.equal(reads.logHeadReadsPerSecond, 72.45);
-  assert.equal(reads.statementsPerSecond, 73.78);
-  assert.equal(reads.operations.length, 2);
+  assert.equal(reads.logCounterReadsPerSecond, 74.45);
+  assert.equal(reads.statementsPerSecond, 75.78);
+  assert.equal(reads.operations.length, 3);
 });
 
 test('idle.json gives what the nodes add to the store, and idle.txt says it', () => {
@@ -123,8 +139,10 @@ test('idle.json gives what the nodes add to the store, and idle.txt says it', ()
     samples: { withNodes: 2, withoutNodes: 2 },
   });
   assert.equal(idle.logHeadReadsPerSecond, 10);
+  assert.equal(idle.logCounterReadsPerSecond, 10);
   const text = render(idle);
   assert.match(text, /log head reads: 10\/s/);
+  assert.match(text, /log counter reads \(.*\): 10\/s/);
   assert.match(text, /1\.2 added by the nodes/);
 });
 

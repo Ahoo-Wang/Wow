@@ -252,6 +252,11 @@ abstract class NodeHealthFixtures {
             return log.heads(partitions)
         }
 
+        override suspend fun appendedElsewhere(cursors: Map<Int, Long>): Set<Int> {
+            check()
+            return log.appendedElsewhere(cursors)
+        }
+
         override suspend fun findByRequestId(ref: AggregateRef, requestId: String): EventStreamRecord? {
             check()
             return log.findByRequestId(ref, requestId)

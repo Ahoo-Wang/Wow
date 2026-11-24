@@ -4,7 +4,8 @@
  * you may obtain a copy at http://www.apache.org/licenses/LICENSE-2.0
  */
 import { existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   anomalyTable,
   bench,
@@ -20,8 +21,17 @@ import {
 
 export const IDLE_PROGRAMS = ['idle'];
 
-/** The node counts each arm runs idle at: one, and three, whose head reads must not grow with the nodes. */
+/** The node counts each arm runs idle at: one, and three, at which a node must read no more than it does alone. */
 export const IDLE = { nodes: [1, 3] };
+
+/**
+ * How far a node of an arm's three may read the log's counters past its one node alone before it is an anomaly: a
+ * tenth, and a quarter of a read a second. Each node probes its own tails twice a second and reads its batched heads,
+ * so the service's reads grow with the nodes and a node's stay the same; MongoDB's profiler counts 20 s, to a
+ * twentieth of a read a second. A defect that has a node read a partition at every round (a report repeated, a tail
+ * woken for nothing) adds two reads a second to the node.
+ */
+export const NODE_READS_SLACK = { ratio: 1.1, perSecond: 0.25 };
 
 /** The idle suites on the head's and the baseline's PostgreSQL and MongoDB arms. */
 export function idleSuites(HEAD_PG, BASE_PG, HEAD_MONGO, BASE_MONGO) {
@@ -64,6 +74,8 @@ export function runIdle(
   { benchPath, out, cpuset, arms, installs, save },
 ) {
   suite.nodes = IDLE.nodes;
+  // idle.sh writes idle.json with these scripts' bench-idle.mjs: a runner's checkout of the measured tree has none.
+  process.env.WOW_BENCH_SCRIPTS ??= dirname(fileURLToPath(import.meta.url));
   for (const nodes of IDLE.nodes) {
     for (const arm of arms) {
       const name = `${arm.id}-${nodes}`;
@@ -94,7 +106,19 @@ export function runIdle(
   }
 }
 
-/** The anomalies of an idle suite: a run that failed, and a store CPU without its no-node figure. */
+/** The run of [arm] at [nodes] nodes that succeeded, if any. */
+const okRun = (suite, arm, nodes) =>
+  suite.runs.find(
+    it => it.arm === arm && it.nodes === nodes && it.status === 'ok',
+  );
+
+/** A node's reads of the log's counters a second in [run]: the head reads, the probe and the batched heads. */
+const perNode = run => run.idle.logCounterReadsPerSecond / run.nodes;
+
+/**
+ * The anomalies of an idle suite: a run that failed, a store CPU without its no-node figure, and an arm whose node of
+ * three reads the log's counters more than its one node did (past [NODE_READS_SLACK]).
+ */
 export function idleAnomalies(suite) {
   const rows = [];
   for (const run of suite.runs) {
@@ -110,6 +134,16 @@ export function idleAnomalies(suite) {
       row('run failed', 'bench.sh idle failed; see the job log');
     if (run.status === 'ok' && !Number.isFinite(run.idle?.storeCpu?.added))
       row('no CPU baseline', 'the store was not measured with no node');
+    const one = run.nodes === 3 && okRun(suite, run.arm, 1);
+    if (run.status === 'ok' && one) {
+      const three = perNode(run);
+      const single = perNode(one);
+      if (three > single * NODE_READS_SLACK.ratio + NODE_READS_SLACK.perSecond)
+        row(
+          'a node of three reads more than one alone',
+          `${num(three, 2)} log counter reads a second a node at three nodes, ${num(single, 2)} at one: a node's reads grow with the nodes`,
+        );
+    }
   }
   return rows;
 }

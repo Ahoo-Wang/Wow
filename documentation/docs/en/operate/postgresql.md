@@ -172,6 +172,18 @@ Count the connections per database: the pool size times the number of nodes of t
 
 Each connection a store borrows waits at most `wow.postgres.operation-timeout` for a reply (30 seconds by default, a store's `operation-timeout`, `wow.stores.<name>.operation-timeout`, overrides it), and the schema's statements at most 5 minutes: a reply lost on the way, in a failover or behind a proxy, fails the call as a transient error and its connection is replaced, instead of blocking it. A pool whose driver already has a shorter `socketTimeout` keeps it. The server bounds each of Wow's transactions from the same timeout ([Server settings](#server-settings)).
 
+## What an idle node reads {#what-an-idle-node-reads}
+
+A node reads its partitions even when nothing is sent to it, for the entries other nodes appended there, which its own commits do not bring its tails (this node's own commits reach them at once):
+
+- **Every half `wow.log.max-poll-interval`** (0.5 s by default), one statement reads the counter rows of all the partitions the node owns, per log group (`WHERE partition = ANY(?)`). A partition whose counter is past its tail is read, its head and then its entries, once the tail has been idle half that interval.
+- **Every 10 s** (or `max-poll-interval` when longer), the same heads in one statement: the backstop, which on PostgreSQL finds nothing the counters did not, since a counter row moves with every append.
+- **Every `wow.node.sample-interval`** (10 s), the node's sampler reads the same heads in one statement, for the lag it reports, and its health check reads one partition's head of each log, to see the store answer.
+
+These are one node's reads, per log group: each node reads the partitions it owns, so the service's reads grow with its nodes. With the defaults, a node makes about two statements a second over the counter rows, two more every 10 s for the batched heads, and one head lookup every 10 s; three nodes make three times that.
+
+So an entry another node appends is read within `max-poll-interval` of a pause in its tail. Leases, membership and the timer loop read on their own schedules beside these.
+
 ## Several databases
 
 A service whose aggregate types keep their data in different databases names its store instances and places each type on one:

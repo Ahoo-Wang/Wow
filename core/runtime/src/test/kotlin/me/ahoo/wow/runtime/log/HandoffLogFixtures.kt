@@ -62,7 +62,7 @@ abstract class HandoffLogFixtures {
         probeInterval: Duration = 10.seconds,
         log: EventLog = store,
         readBack: (LogEntry) -> Unit = {},
-    ) = HandoffLog(log, "bank", HandoffOptions(capacity, gapWait, probeInterval), reads, readBack)
+    ) = HandoffLog(log, "bank", HandoffOptions(capacity, gapWait, probeInterval), reads, readBack = readBack)
 
     /** Aggregate ids that all land in partition 0. */
     protected val refs: List<AggregateRef> = generateSequence(0) { it + 1 }

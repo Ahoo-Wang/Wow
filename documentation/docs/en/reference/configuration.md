@@ -323,7 +323,7 @@ The aggregates' logs: their partitions, their store, and how their appends and t
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `wow.log.max-poll-interval` | `Duration` | `PT1S` | The longest a tail waits between polls that find nothing: an idle tail backs off up to it. |
+| `wow.log.max-poll-interval` | `Duration` | `PT1S` | How late an idle tail may see an entry another node appended through a block or reservation the node has not seen: the node probes all its tails' partitions at once every half of it, one call of the log, and a tail named reads the store once idle half of it. An entry appended into a block already seen, by a node that went on writing after the partition moved, is read within the backstop's exact read of the heads, every 10 s (or this interval when longer). This node's own commits reach its tails at once, whatever it is. |
 | `wow.log.partitions` | `Integer` | `64` | The partitions of each context's log: fixed once the log holds entries, a power of two that divides 4096, refused at start otherwise. |
 | `wow.log.poll-interval` | `Duration` | `PT0.05S` | How often the tail of a PostgreSQL or MongoDB log polls while it finds entries. |
 | `wow.log.store` | `String` |  | The store of every aggregate's log that `wow.aggregates.[<context>.<aggregate>].log.store` does not name: one of `wow.stores`, the only one when not set. |

@@ -402,7 +402,7 @@ class OtelObserverTest {
         telemetry.meters.get(WowMetrics.STATE_CACHE_EVICTIONS.name).counter().count().assert().isEqualTo(1.0)
         telemetry.meters.get(WowMetrics.STATE_CACHE_INVALIDATIONS.name).counter().count().assert().isEqualTo(1.0)
         tags(WowMetrics.TAIL_READS.name, WowMetrics.REASON).assert()
-            .containsExactly("gap", "idle", "overflow", "scheduled", "start")
+            .containsExactly("backstop", "gap", "idle", "overflow", "scheduled", "start")
         tags(WowMetrics.STORE_FALLBACKS.name, WowMetrics.CAPABILITY).assert()
             .containsExactly("snapshot-load", "snapshot-rebuild", "snapshot-tail-read")
         tags(WowMetrics.STORE_FALLBACKS.name, WowMetrics.REASON).assert()

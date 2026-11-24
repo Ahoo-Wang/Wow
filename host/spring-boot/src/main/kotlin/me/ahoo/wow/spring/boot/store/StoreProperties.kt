@@ -44,7 +44,13 @@ class LogProperties {
     /** How often the tail of a PostgreSQL or MongoDB log polls while it finds entries. */
     var pollInterval: Duration = TailPolling.DEFAULT.interval.toJavaDuration()
 
-    /** The longest a tail waits between polls that find nothing: an idle tail backs off up to it. */
+    /**
+     * How late an idle tail may see an entry another node appended through a block or reservation the node has not seen:
+     * the node probes all its tails' partitions at once every half of it, one call of the log, and a tail named reads
+     * the store once idle half of it. An entry appended into a block already seen, by a node that went on writing after
+     * the partition moved, is read within the backstop's exact read of the heads, every 10 s (or this interval when
+     * longer). This node's own commits reach its tails at once, whatever it is.
+     */
     var maxPollInterval: Duration = TailPolling.DEFAULT.maxInterval.toJavaDuration()
 
     /** The tails' polling these settings give. */
@@ -52,8 +58,8 @@ class LogProperties {
         TailPolling(pollInterval.toKotlinDuration(), maxPollInterval.toKotlinDuration())
 
     /**
-     * The hand-over of the node's own commits to its tails in memory, always on: a tail waits
-     * [maxPollInterval] without a commit before it reads the store.
+     * The hand-over of the node's own commits to its tails in memory, always on: the node probes its tails every half
+     * [maxPollInterval] for other nodes' entries.
      */
     internal fun handoffOptions(): HandoffOptions =
         HandoffOptions(probeInterval = maxPollInterval.toKotlinDuration())

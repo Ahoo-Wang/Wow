@@ -480,7 +480,10 @@ sealed class ObservedEvent {
             /** A tail too slow for its hand-overs. */
             OVERFLOW("overflow"),
 
-            /** Entries other nodes appended, found by a probe of the head. */
+            /**
+             * Entries other nodes appended, in a partition the node's probe named: one call of the log for every tail of
+             * the node, every half probe interval ([me.ahoo.wow.spi.log.EventLog.appendedElsewhere]).
+             */
             IDLE("idle"),
 
             /**
@@ -488,6 +491,12 @@ sealed class ObservedEvent {
              * nodes appended without the lease while their routes did not name this node yet.
              */
             SCHEDULED("scheduled"),
+
+            /**
+             * A tail idle for a probe interval whose partition's head is past it, though the probe did not name the
+             * partition: the backstop's exact read of the heads ([me.ahoo.wow.spi.log.EventLog.heads]) every few seconds.
+             */
+            BACKSTOP("backstop"),
         }
     }
 
