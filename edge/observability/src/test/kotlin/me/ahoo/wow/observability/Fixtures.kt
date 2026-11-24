@@ -51,6 +51,7 @@ import me.ahoo.wow.manifest.PeerContracts
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.manifest.SystemCommands
+import me.ahoo.wow.runtime.access.AccessStampOptions
 import me.ahoo.wow.runtime.cluster.ClusterOptions
 import me.ahoo.wow.runtime.node.BackendFactory
 import me.ahoo.wow.runtime.node.ContextBackends
@@ -228,7 +229,11 @@ class InMemoryBackends(private val partitions: Int = 2) : BackendFactory {
     }
 }
 
-/** Node options with short cluster and subscription timings. */
+/**
+ * Node options with short cluster and subscription timings, and access walks every 100 ms: at the default 5 s, a type
+ * without a store as the node starts is skipped for a run and walked at the third, about 10 s in, which a test's wait
+ * for the walk meets at its own 10 s bound (#6828, #6829).
+ */
 fun fastNodeOptions(maxAttempts: Int = 3): ServiceNodeOptions = ServiceNodeOptions(
     cluster = ClusterOptions(
         leaseTtl = 1_500.milliseconds,
@@ -246,6 +251,7 @@ fun fastNodeOptions(maxAttempts: Int = 3): ServiceNodeOptions = ServiceNodeOptio
         stopTimeout = 2.seconds,
         readRetry = RetryPolicy(maxAttempts = 1, initialBackoff = 1.milliseconds, maxBackoff = 5.milliseconds),
     ),
+    access = AccessStampOptions(interval = 100.milliseconds),
 )
 
 /** Waits until [condition] holds, at most [timeout]. */

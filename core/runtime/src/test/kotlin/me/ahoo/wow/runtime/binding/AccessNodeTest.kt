@@ -18,6 +18,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
+import me.ahoo.wow.runtime.log.HandoffOptions
 import me.ahoo.wow.runtime.node.InMemoryBackends
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.fastNodeOptions
@@ -28,6 +29,7 @@ import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * The access stamping of a running node, its log behind the node's tracking: `wow.access` follows a change over the
@@ -45,7 +47,9 @@ class AccessNodeTest {
         shopManifest(),
         backends,
         LoopbackClusterChannel(),
-        options = fastNodeOptions(),
+        // The probe runs every 25 ms, not every 500 (#6828): the streams appended straight to the log are another
+        // node's, which the node reads when the probe names their partition.
+        options = fastNodeOptions().copyWith(handoff = HandoffOptions(probeInterval = 50.milliseconds)),
     )
 
     private val ref = CART.ref(TENANT, "c-1")
