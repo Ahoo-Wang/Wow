@@ -31,6 +31,7 @@ import java.time.ZoneId
 import java.time.ZoneOffset
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
@@ -94,6 +95,66 @@ class StoreFailureGateTest {
                 other.stop()
             }
         }
+
+    @Test
+    fun `a slow store whose heartbeats answer while its acquisitions hang sees no wave after a heartbeat`(): Unit =
+        runTest(timeout = 2.minutes) {
+            slowStore(hang = OPERATION_TIMEOUT) { leases, membership, groups ->
+                delay(2.minutes)
+                // A heartbeat or renewal the store answers ends a window and closes nothing: only the probe's answer
+                // would, so no wave of every missing partition follows a heartbeat.
+                leases.acquisitions.mostInFlight.get().assert().isEqualTo(1)
+                membership.acquisitions.open.assert().isTrue()
+                // The acquisitions held back count as steps of the reconcile: the stuck-reconcile fence never trips.
+                groups.forEach { it.fenced.assert().isFalse() }
+            }
+        }
+
+    @Test
+    fun `a slow store whose heartbeats answer while its acquisitions fail is asked one at a time`(): Unit =
+        runTest(timeout = 2.minutes) {
+            // Failing after a short wait, as a write that cannot be acknowledged within its own write timeout: long
+            // enough for every acquisition of a reconcile to be asked before the first one fails, short enough that no
+            // probe is still out when a heartbeat answers.
+            slowStore(hang = 500.milliseconds) { leases, membership, groups ->
+                delay(1.minutes)
+                leases.acquisitions.mostInFlight.get().assert().isEqualTo(1)
+                // One per reconcile at most: the probe, the window ended by every heartbeat and renewal answered.
+                leases.acquisitions.calls.get().assert()
+                    .isLessThanOrEqualTo((1.minutes / options.reconcileInterval).toInt())
+                membership.acquisitions.open.assert().isTrue()
+                groups.forEach { it.fenced.assert().isFalse() }
+            }
+        }
+
+    /**
+     * Two groups own every partition; the store stops answering long enough for their leases to lapse, then answers
+     * heartbeats and renewals again while every acquisition still hangs [hang] and fails. Runs [check] from there.
+     */
+    private suspend fun TestScope.slowStore(
+        hang: Duration,
+        check: suspend (DegradedLeases, ServiceMembership, List<PartitionOwnership>) -> Unit,
+    ) {
+        val leases = DegradedLeases(InMemoryLeaseStore(virtualClock()), hang)
+        val membership = membership(leases)
+        val groups = listOf(ownership(SHOP, leases, membership), ownership(OTHER, leases, membership))
+        try {
+            groups.forEach { it.start() }
+            leases.down = true
+            leases.acquisitionsDown = true
+            while (groups.any { it.owned.isNotEmpty() }) {
+                delay(options.reconcileInterval)
+            }
+            leases.down = false
+            leases.acquisitions.calls.set(0)
+            leases.acquisitions.mostInFlight.set(0)
+            check(leases, membership, groups)
+        } finally {
+            leases.down = false
+            leases.acquisitionsDown = false
+            groups.forEach { it.stop() }
+        }
+    }
 
     @Test
     fun `a takeover whose acquisitions find another node's leases is never held back`(): Unit = runTest {
@@ -212,10 +273,14 @@ class StoreFailureGateTest {
         @Volatile
         var down = false
 
+        /** Whether its acquisitions hang and fail even while its other writes answer: a slow store. */
+        @Volatile
+        var acquisitionsDown = false
+
         val acquisitions = Calls()
 
-        private suspend fun <T> write(call: suspend () -> T): T {
-            if (down) {
+        private suspend fun <T> write(failing: Boolean = down, call: suspend () -> T): T {
+            if (failing) {
                 delay(hang)
                 throw StorageUnavailableException("The lease store cannot acknowledge a write.")
             }
@@ -223,7 +288,7 @@ class StoreFailureGateTest {
         }
 
         override suspend fun acquire(group: String, partition: Int, owner: String, ttl: Duration): Lease? =
-            acquisitions.count { write { delegate.acquire(group, partition, owner, ttl) } }
+            acquisitions.count { write(down || acquisitionsDown) { delegate.acquire(group, partition, owner, ttl) } }
 
         override suspend fun renew(group: String, partitions: Collection<Int>, owner: String, ttl: Duration) =
             write { delegate.renew(group, partitions, owner, ttl) }

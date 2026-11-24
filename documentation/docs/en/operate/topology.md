@@ -61,9 +61,10 @@ A lease store that cannot answer, a MongoDB replica set without a majority or a 
 
 - The first sign opens the hold: an acquisition, a renewal or a heartbeat that failed, or leases left unrenewed past that margin. Every context and topic of the node on the same store shares it: the first failure any of them meets holds all of them.
 - While held, the node asks no acquisition for a window that starts at `wow.cluster.reconcile-interval` and doubles with each failure up to `wow.cluster.lease-ttl`, drawn at random below that bound so the nodes do not ask in step. Then it asks one at a time.
-- The first call the store answers, an acquisition (whether it got the lease or another node holds it), a renewal or a heartbeat, ends the hold, and the next reconcile takes every missing partition.
+- The answer to that one acquisition, the probe, ends the hold, whether it got the lease or another node holds it, and the next reconcile takes every missing partition. A heartbeat or a renewal the store answers meanwhile ends only the current window, so the probe goes at the next reconcile: a store slow enough to time out acquisitions while it still answers heartbeats is asked one acquisition at a time, never every missing partition after each heartbeat.
+- A single renewal or heartbeat that failed while the node missed no partition is ended by the next call the store answers, since no probe would come.
 
-Renewals and heartbeats are never held: one call per round each, they keep what the node still holds and tell it when the store answers. A node that takes over a dead node's partitions is never held either: its acquisitions find the leases still held until they expire, and the store answers them. Once a store recovers, the partitions come back within about one window: up to `wow.cluster.lease-ttl` more than without the hold. The node logs the hold once when it starts and once when it ends ([Troubleshooting](./troubleshooting#the-lease-store-fails)).
+Renewals and heartbeats are never held: one call per round each, they keep what the node still holds and tell it when the store answers. A node that takes over a dead node's partitions is never held either: its acquisitions find the leases still held until they expire, and the store answers them. Once a store recovers, the partitions come back within about one window and one reconcile: up to `wow.cluster.lease-ttl` more than without the hold. The node logs the hold once when it starts and once when it ends ([Troubleshooting](./troubleshooting#the-lease-store-fails)).
 
 ## Two ports
 

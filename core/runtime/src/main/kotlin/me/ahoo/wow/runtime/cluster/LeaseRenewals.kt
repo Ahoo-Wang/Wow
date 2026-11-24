@@ -157,7 +157,7 @@ internal class LeaseRenewals(
         }
         // Renewals that stopped succeeding are the store failing; a lease overdue on arrival is a slow answer.
         if (lapsed > 0) {
-            acquisitions?.failed("renewing $lapsed leases of $group for $unrenewedLimit")
+            acquisitions?.failed("renewing $lapsed leases of $group for $unrenewedLimit", acquisition = true)
         }
         return lost
     }

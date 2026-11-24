@@ -69,7 +69,7 @@ class LeaseRenewalsTest {
                 coEvery { renew(any(), any(), any(), any()) } throws IllegalStateException("The lease store is down.")
             }
             renewals(failing).renew()
-            acquisitions.open.assert().isTrue()
+            acquisitions.state.assert().isEqualTo(AcquisitionGate.State.SUSPECTED)
             val answering = mockk<LeaseStore> {
                 coEvery { renew(any(), any(), any(), any()) } answers { emptyList() }
             }
@@ -78,11 +78,14 @@ class LeaseRenewalsTest {
         }
 
     @Test
-    fun `a lease left unrenewed past the margin holds the acquisitions back, though no call failed`() {
+    fun `a lease left unrenewed past the margin holds the acquisitions back, though no call failed`(): Unit = runBlocking {
         held(0).current = true
         time += limit + 1.seconds
         renewals(mockk()).loseOverdue().assert().isEqualTo(1)
-        acquisitions.open.assert().isTrue()
+        acquisitions.state.assert().isEqualTo(AcquisitionGate.State.HOLDING)
+        // A heartbeat answered before the woken reconcile asks the partition again: the gate still holds.
+        acquisitions.recorded("a heartbeat") { Unit }
+        acquisitions.state.assert().isEqualTo(AcquisitionGate.State.HOLDING)
     }
 
     @Test

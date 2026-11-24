@@ -80,13 +80,13 @@ ownership 健康组件为 `DOWN`，或者在某个节点离开期间，某些聚
 node-1 holds back its lease acquisitions in shop-service on its lease store: renewing 21 leases of shop-service/shop for 7s failed. It asks one again within 1s, then one at a time until the store answers.
 ```
 
-日志写明最先失败的是什么：一次获取、一次续约、一次心跳，或者超过余量仍未续上的租约（如上）。其间租约失效的每个分区都会记录为已停止（"has not renewed the lease of partition … it stops the partition"），节点继续一次请求一个获取。存储恢复应答后，它以 `INFO` 记录：
+日志写明最先失败的是什么：一次获取、一次续约、一次心跳，或者超过余量仍未续上的租约（如上）。其间租约失效的每个分区都会记录为已停止（"has not renewed the lease of partition … it stops the partition"），节点继续一次请求一个获取。存储应答了这一次获取（探测）后，它以 `INFO` 记录：
 
 ```text
-node-1 acquires leases in shop-service again: a heartbeat succeeded, 56.6s after its lease store first failed (4 failed calls).
+node-1 acquires leases in shop-service again: its probe, an acquisition of partition 2 of shop-service/shop, was answered, 117.6s after its lease store first failed (8 failed calls).
 ```
 
-并在下一次调和中接手缺失的分区。这两行之间要查的是存储，而不是 Wow：在 MongoDB 上，带仲裁节点、又失去一个数据节点的副本集无法确认多数派写入（[生产环境中的 MongoDB](./mongodb#in-production)）；在 PostgreSQL 上，查主库或到主库的网络。
+并在下一次调和中接手缺失的分区。节点没有缺失分区时单次失败的续约或心跳，以同一行结束，写明那次调用（"a heartbeat succeeded"）。这两行之间要查的是存储，而不是 Wow：在 MongoDB 上，带仲裁节点、又失去一个数据节点的副本集无法确认多数派写入（[生产环境中的 MongoDB](./mongodb#in-production)）；在 PostgreSQL 上，查主库或到主库的网络。
 
 ## 另一个上下文的主题 {#a-topic-of-another-context}
 

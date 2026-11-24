@@ -80,13 +80,13 @@ While its lease store fails, a node holds back its lease acquisitions on it ([Wh
 node-1 holds back its lease acquisitions in shop-service on its lease store: renewing 21 leases of shop-service/shop for 7s failed. It asks one again within 1s, then one at a time until the store answers.
 ```
 
-What failed first is named: an acquisition, a renewal, a heartbeat, or leases left unrenewed past the margin (as here). Every partition whose lease lapsed meanwhile is logged as stopped ("has not renewed the lease of partition … it stops the partition"), and the node keeps trying one acquisition at a time. Once the store answers it logs, at `INFO`:
+What failed first is named: an acquisition, a renewal, a heartbeat, or leases left unrenewed past the margin (as here). Every partition whose lease lapsed meanwhile is logged as stopped ("has not renewed the lease of partition … it stops the partition"), and the node keeps trying one acquisition at a time. Once the store answers that one, the probe, it logs, at `INFO`:
 
 ```text
-node-1 acquires leases in shop-service again: a heartbeat succeeded, 56.6s after its lease store first failed (4 failed calls).
+node-1 acquires leases in shop-service again: its probe, an acquisition of partition 2 of shop-service/shop, was answered, 117.6s after its lease store first failed (8 failed calls).
 ```
 
-and takes its missing partitions on the next reconcile. Between the two lines, look at the store, not at Wow: on MongoDB a replica set that lost a data-bearing member and has an arbiter cannot acknowledge a majority write ([MongoDB in production](./mongodb#in-production)); on PostgreSQL, the primary or the network to it.
+and takes its missing partitions on the next reconcile. A single renewal or heartbeat that failed while the node missed no partition ends with the same line naming that call ("a heartbeat succeeded"). Between the two lines, look at the store, not at Wow: on MongoDB a replica set that lost a data-bearing member and has an arbiter cannot acknowledge a majority write ([MongoDB in production](./mongodb#in-production)); on PostgreSQL, the primary or the network to it.
 
 ## A topic of another context
 

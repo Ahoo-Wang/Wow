@@ -17,6 +17,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.runtime.cluster.AcquisitionGate.Admission
+import me.ahoo.wow.runtime.cluster.AcquisitionGate.State
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import kotlin.random.Random
@@ -37,7 +38,7 @@ class AcquisitionGateTest {
 
     private val gate = AcquisitionGate("node-1", "shop-service", 1.seconds, 10.seconds, time, top)
 
-    private fun fail() = gate.failed("an acquisition", IllegalStateException("down"))
+    private fun fail() = gate.failed("a heartbeat", IllegalStateException("down"))
 
     @Test
     fun `while the store answers every acquisition is let through`() {
@@ -89,10 +90,61 @@ class AcquisitionGateTest {
     }
 
     @Test
-    fun `a heartbeat or a renewal the store answers closes it as an acquisition does`(): Unit = runBlocking {
+    fun `a blip with nothing missing is cleared by the next heartbeat or renewal the store answers`(): Unit = runBlocking {
+        // A heartbeat threw once while nothing was missing: no probe would ever come to close it.
         fail()
+        gate.state.assert().isEqualTo(State.SUSPECTED)
         gate.recorded("a heartbeat") { Unit }
+        gate.state.assert().isEqualTo(State.CLOSED)
+        gate.admit().assert().isEqualTo(Admission.FREE)
+    }
+
+    @Test
+    fun `once an acquisition was wanted, a heartbeat ends the window and only the probe closes it`(): Unit = runBlocking {
+        gate.failed("an acquisition", IllegalStateException("down"), acquisition = true)
+        gate.state.assert().isEqualTo(State.HOLDING)
+        gate.admit().assert().isNull()
+        // The store answers a heartbeat: the window ends, so the probe goes now, and the gate still holds.
+        gate.recorded("a heartbeat") { Unit }
+        gate.state.assert().isEqualTo(State.HOLDING)
+        val probe = gate.admit()
+        probe.assert().isEqualTo(Admission.PROBE)
+        // Every other acquisition is still held back while the probe is out; an answered renewal changes nothing.
+        gate.recorded("a renewal") { Unit }
+        gate.admit().assert().isNull()
+        gate.open.assert().isTrue()
+        gate.recorded("a probe", probe!!) { Unit }
         gate.open.assert().isFalse()
+        gate.admit().assert().isEqualTo(Admission.FREE)
+    }
+
+    @Test
+    fun `a suspected gate that holds an acquisition back is no longer cleared by a heartbeat`(): Unit = runBlocking {
+        fail()
+        gate.state.assert().isEqualTo(State.SUSPECTED)
+        gate.admit().assert().isNull()
+        gate.state.assert().isEqualTo(State.HOLDING)
+        gate.recorded("a heartbeat") { Unit }
+        gate.state.assert().isEqualTo(State.HOLDING)
+        gate.admit().assert().isEqualTo(Admission.PROBE)
+    }
+
+    @Test
+    fun `an acquisition asked before the gate opened ends the window when answered, and closes nothing`(): Unit =
+        runBlocking {
+            val early = gate.admit()
+            early.assert().isEqualTo(Admission.FREE)
+            gate.failed("an acquisition", IllegalStateException("down"), acquisition = true)
+            gate.recorded("an acquisition", early!!) { Unit }
+            gate.open.assert().isTrue()
+            gate.admit().assert().isEqualTo(Admission.PROBE)
+        }
+
+    @Test
+    fun `leases that lapsed make it hold, so a heartbeat before the woken reconcile closes nothing`(): Unit = runBlocking {
+        gate.failed("renewing 3 leases", acquisition = true)
+        gate.recorded("a heartbeat") { Unit }
+        gate.state.assert().isEqualTo(State.HOLDING)
     }
 
     @Test
