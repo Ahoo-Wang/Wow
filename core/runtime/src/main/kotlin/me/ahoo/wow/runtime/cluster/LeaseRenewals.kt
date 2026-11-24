@@ -16,6 +16,7 @@ package me.ahoo.wow.runtime.cluster
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.spi.subscription.Lease
 import me.ahoo.wow.spi.subscription.LeaseStore
 import kotlin.time.Duration
 import kotlin.time.TimeMark
@@ -54,6 +55,8 @@ internal class LeaseRenewals(
     private val gates: Map<Int, PartitionGate>,
     private val unrenewedLimit: Duration,
     private val renewalRounds: (RenewalRound) -> Unit,
+    /** The node's acquisitions on [leases]: a renewal that fails, or leases left unrenewed, hold them back. */
+    private val acquisitions: AcquisitionGate? = null,
     private val wake: () -> Unit,
 ) {
     /**
@@ -72,12 +75,11 @@ internal class LeaseRenewals(
         if (held.isNotEmpty()) {
             val asked = timeSource.markNow()
             val renewed = try {
-                leases.renew(
-                    group.name,
-                    held.map { it.first },
-                    node,
-                    options.leaseTtl
-                ).mapTo(HashSet()) { it.partition }
+                val partitions = held.map { it.first }
+                val renew: suspend () -> List<Lease> =
+                    { leases.renew(group.name, partitions, node, options.leaseTtl) }
+                (acquisitions?.recorded("a renewal of ${held.size} leases of $group", call = renew) ?: renew())
+                    .mapTo(HashSet()) { it.partition }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (failure: Exception) {
@@ -108,6 +110,7 @@ internal class LeaseRenewals(
         }
         if (partition in renewed) {
             gate.renewedAt = asked
+            gate.current = true
             return Renewal.RENEWED
         }
         if (gates[partition] !== gate) {
@@ -141,12 +144,23 @@ internal class LeaseRenewals(
     }
 
     /**
-     * Takes the leases left unrenewed for `leaseTtl − renewInterval` as lost here: the
+     * Takes the leases left unrenewed for `leaseTtl − renewInterval` as lost here, and holds the node's acquisitions back
+     * ([acquisitions]) when one of them was current before ([PartitionGate.current]), renewals having stopped: the
      * store may be unreachable while the log is not, and the lease may expire before the next round renews it. The
      * partition stops as if its lease were lost, without a release the store would not take either; once renewals
      * work again, the next reconcile acquires it anew.
      */
-    fun loseOverdue(): Int = gates.count { (partition, gate) -> loseIfOverdue(partition, gate) }
+    fun loseOverdue(): Int {
+        var lapsed = 0
+        val lost = gates.count { (partition, gate) ->
+            loseIfOverdue(partition, gate).also { if (it && gate.current) lapsed++ }
+        }
+        // Renewals that stopped succeeding are the store failing; a lease overdue on arrival is a slow answer.
+        if (lapsed > 0) {
+            acquisitions?.failed("renewing $lapsed leases of $group for $unrenewedLimit", acquisition = true)
+        }
+        return lost
+    }
 
     /** Takes [gate]'s lease as lost when it is overdue (see [loseOverdue]); whether it did now. */
     private fun loseIfOverdue(partition: Int, gate: PartitionGate): Boolean {

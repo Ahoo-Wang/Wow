@@ -34,6 +34,14 @@ internal class PartitionGate(@Volatile var renewedAt: TimeMark, private val unre
 
     @Volatile
     var lost = false
+
+    /**
+     * Whether this node has held the lease current: it came back before `leaseTtl − renewInterval` passed, or a renewal
+     * has extended it since. Such a lease gone overdue means renewals stopped succeeding; one overdue from the start came
+     * from a slow acquisition that the store did answer.
+     */
+    @Volatile
+    var current = false
     val inFlight = ZeroAwaitingCounter()
 
     val overdue: Boolean get() = renewedAt.elapsedNow() >= unrenewedLimit

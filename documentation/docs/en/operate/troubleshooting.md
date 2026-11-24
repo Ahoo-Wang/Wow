@@ -70,7 +70,23 @@ A saga or a reactor skips events, or a projection rebuilds from the beginning, r
 The ownership health component is `DOWN`, or commands for some aggregates are slow while a node is gone. Leases of a node that died expire after `wow.cluster.lease-ttl` (10 s), then the partitions move. When they do not:
 
 - The nodes cannot reach each other's internal port: check the network policy and `wow.node.address`, the address each node advertises. A node in a development profile binds and advertises `127.0.0.1` unless `wow.internal.host` names another address.
-- The lease store is down: the ownership health component's `leaseStore` detail says so.
+- The lease store is down: the ownership health component's `leaseStore` detail says so, and the node holds back its acquisitions until it answers ([The lease store fails](#the-lease-store-fails)).
+
+## The lease store fails {#the-lease-store-fails}
+
+While its lease store fails, a node holds back its lease acquisitions on it ([While the lease store fails](./topology#while-the-lease-store-fails)) and logs it once at `WARN`:
+
+```text
+node-1 holds back its lease acquisitions in shop-service on its lease store: renewing 21 leases of shop-service/shop for 7s failed. It asks one again within 1s, then one at a time until the store answers.
+```
+
+What failed first is named: an acquisition, a renewal, a heartbeat, or leases left unrenewed past the margin (as here). Every partition whose lease lapsed meanwhile is logged as stopped ("has not renewed the lease of partition … it stops the partition"), and the node keeps trying one acquisition at a time. Once the store answers that one, the probe, it logs, at `INFO`:
+
+```text
+node-1 acquires leases in shop-service again: its probe, an acquisition of partition 2 of shop-service/shop, was answered, 117.6s after its lease store first failed (8 failed calls).
+```
+
+and takes its missing partitions on the next reconcile. A single renewal or heartbeat that failed while the node missed no partition ends with the same line naming that call ("a heartbeat succeeded"). Between the two lines, look at the store, not at Wow: on MongoDB a replica set that lost a data-bearing member and has an arbiter cannot acknowledge a majority write ([MongoDB in production](./mongodb#in-production)); on PostgreSQL, the primary or the network to it.
 
 ## A topic of another context
 

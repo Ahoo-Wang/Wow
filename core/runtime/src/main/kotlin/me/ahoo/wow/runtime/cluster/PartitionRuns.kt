@@ -27,6 +27,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
 import me.ahoo.wow.runtime.timer.TimerRunner
+import me.ahoo.wow.spi.subscription.Lease
 import me.ahoo.wow.spi.subscription.LeaseStore
 import kotlin.time.Duration
 import kotlin.time.TimeSource
@@ -39,6 +40,9 @@ import kotlin.time.TimeSource
  *
  * It alone puts, removes and clears the entries of [gates], which the ownership builds and passes it; the ownership and
  * its [LeaseRenewals] only read them, and flip a gate's own fields.
+ *
+ * An acquisition is asked only when the node's [acquisitions] gate admits one: while the lease store fails, none for a
+ * growing window, then one at a time; a partition not asked stays missing for a later reconcile.
  *
  * Each step it finishes for one partition, an acquisition started or given up, a hand-off or a drop, is reported to
  * [progressed]: the ownership takes a reconcile with no step for its reconcile timeout as stuck. A lease it takes while
@@ -65,6 +69,8 @@ internal class PartitionRuns(
     private val leaseCalls: LeaseCalls = LeaseCalls(options.leaseParallelism),
     /** Told each partition handed off once its commands in flight are drained, before its lease is released. */
     private val drained: suspend (Int) -> Unit = {},
+    /** The node's acquisitions on [leases], held back while the store fails ([AcquisitionGate]); none in some tests. */
+    private val acquisitions: AcquisitionGate? = null,
 ) {
     /**
      * Not cancellable: a lease acquired is either tracked by a gate or released. The partition's subscriptions read once
@@ -79,10 +85,14 @@ internal class PartitionRuns(
     }
 
     private suspend fun start(partition: Int, reads: Job?) = withContext(NonCancellable) {
+        val admission = acquisitions?.let { it.admit() ?: return@withContext } ?: AcquisitionGate.Admission.FREE
         val asked = timeSource.markNow()
-        leases.acquire(group.name, partition, node, options.leaseTtl) ?: return@withContext
+        val what = "an acquisition of partition $partition of $group"
+        val acquire: suspend () -> Lease? = { leases.acquire(group.name, partition, node, options.leaseTtl) }
+        (acquisitions?.recorded(what, admission, acquire) ?: acquire()) ?: return@withContext
         // Tracked from now on, so the renewals keep the lease while the partition starts; it takes no command yet.
         val gate = PartitionGate(asked, unrenewedLimit)
+        gate.current = !gate.overdue
         // Put before the fence is asked: a fence that falls after the put sees the gate when it walks the gates, and
         // one that fell before is seen here. Either way the gate is lost, never renewed, and expires for the others.
         gates[partition] = gate
