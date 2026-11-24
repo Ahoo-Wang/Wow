@@ -21,15 +21,18 @@ import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.subscribe.CommandReceipt
+import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.kernel.CallRejectedHandlingException
 import me.ahoo.wow.kernel.CommandTypes
 import me.ahoo.wow.kernel.ContextQueries
 import me.ahoo.wow.kernel.EventCodec
+import me.ahoo.wow.kernel.HandlingRejectedException
 import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.kernel.RejectionLog
 import me.ahoo.wow.kernel.committedContextOf
 import me.ahoo.wow.kernel.rejectionContextOf
 import me.ahoo.wow.runtime.call.SagaCalls
+import me.ahoo.wow.runtime.cluster.ReplyTo
 import me.ahoo.wow.runtime.command.ReceiptHandler
 import me.ahoo.wow.runtime.wait.subscriptionFunction
 import me.ahoo.wow.spi.call.CommandCaller
@@ -60,8 +63,11 @@ import java.time.Clock
  * its receipt, derives the same requests, which the kernel does not decide twice.
  *
  * A command a handler derives that is rejected in turn is not handed to a handler again (a compensation does not
- * compensate itself): every such command is still executed, and their rejections fail the handling together with
- * [DerivedCommandRejectedException], which parks the aggregate once. A synchronous call's rejection the handler lets
+ * compensate itself): every such command of the context is still executed, and their rejections fail the handling
+ * together with [DerivedCommandRejectedException], which parks the aggregate once, under the subscription that ran the
+ * handler. One sent to another context asks for its rejection's receipt under the handler's own execution,
+ * never for its commit's; that receipt comes back on the receipts subscription, names no saga's `@OnEvent` handler, and
+ * parks the aggregate there at once ([CompensationRejectedException]). A synchronous call's rejection the handler lets
  * through is not handed to a handler either: it parks the aggregate at once ([CallRejectedHandlingException]), as the
  * rejection of a call a saga's `@OnEvent` handler made does when no `@OnRejected` handler takes it, and an
  * `@OnCommitted` handler's hop ends REJECTED with it. A technical failure throws, for the caller to retry.
@@ -95,19 +101,60 @@ internal class SagaReceipts(
     private val sagas: Map<String, ProcessorBinding<*>> =
         sagas.filter { it.kind == FunctionKind.SAGA }.associateBy { it.name }
 
+    /** The names of the sagas' receipt handlers, whose executions the receipts of their own commands name. */
+    private val receiptHandlers: Set<String> = this.sagas.values.flatMapTo(HashSet()) { saga ->
+        saga.rejections.map { it.name } + saga.commits.map { it.name }
+    }
+
+    /**
+     * Refuses the [commands] the saga handler [handler] derived when one goes to another context while the context
+     * reads no receipts ([reads] false): its rejection's receipt would go to a topic the context does not have, and
+     * wait at the target, or be dropped ([UnreadReceiptsException]). It allocates nothing: the context's own aggregate
+     * types are [derived]'s.
+     */
+    fun checkReads(handler: String, commands: List<Command<*>>) {
+        if (reads) {
+            return
+        }
+        val elsewhere = commands.firstOrNull { !derived.decides(it.ref.type) } ?: return
+        throw UnreadReceiptsException(handler, context, elsewhere)
+    }
+
+    /**
+     * Where the receipt of the rejection of a command the receipt handler [handler] derived goes, when it goes to
+     * another context: back to this context, under the handler's own [execution], which names no saga's `@OnEvent`
+     * handler, so the receipt is handed to no handler ([rejected]). Its commit asks for no receipt: a receipt handler's
+     * command of the context hands its commit to no `@OnCommitted` handler either.
+     */
+    private fun replyTo(execution: ExecutionId): (Command<*>) -> ReplyTo? = { ReplyTo.of(execution.context, execution) }
+
+    /** The execution of the receipt handler [handler] for a receipt of [execution]'s command: as its context names it. */
+    private fun executionOf(handler: String, execution: ExecutionId): ExecutionId =
+        ExecutionId(execution.context, handler, execution.ref, execution.version)
+
     /**
      * Hands [rejected], the rejection of a command of the class [command], to the `@OnRejected` handler of the saga
      * whose handler derived it, executes what that derives and returns their ids; null when the saga has no handler
      * for it, or [rejected] names no saga handler of this context.
      */
     override suspend fun rejected(rejected: CommandReceipt.Rejected<*>, command: Class<*>): List<String>? {
-        val handler = sagas[rejected.executionId.subscription]?.rejectionHandlerOf(command) ?: return null
+        val subscription = rejected.executionId.subscription
+        val saga = sagas[subscription]
+        if (saga == null) {
+            // The rejection of a command a receipt handler derived: a compensation is not compensated.
+            if (subscription in receiptHandlers) throw CompensationRejectedException(this.context, rejected)
+            return null
+        }
+        val handler = saga.rejectionHandlerOf(command) ?: return null
         val calls = SagaCalls(caller, served, commandTypes, wait = null, rejected.executionId.ref.tenantId)
         val context = rejectionContextOf(handler, rejected, ids, commandTypes, queries, calls, codec)
+        val commands = handle(handler.blocking) { handler.invoke(rejected, context) }
+        checkReads(handler.name, commands)
         val executed = derived.execute(
-            handle(handler.blocking) { handler.invoke(rejected, context) },
+            commands,
             rejected.executionId.ref.tenantId,
             wait = null,
+            replyTo(executionOf(handler.name, rejected.executionId)),
         )
         executed.rejected.parking()?.let { throw it }
         val sent = calls.called + executed.executed
@@ -145,7 +192,13 @@ internal class SagaReceipts(
             signalHop(wait, handler.name, committed, calls.called, rejected.error)
             throw rejected
         }
-        val executed = derived.execute(commands, committed.executionId.ref.tenantId, next)
+        checkReads(handler.name, commands)
+        val executed = derived.execute(
+            commands,
+            committed.executionId.ref.tenantId,
+            next,
+            replyTo(executionOf(handler.name, committed.executionId)),
+        )
         val sent = calls.called + executed.executed
         signalHop(wait, handler.name, committed, sent, executed.rejected.firstOrNull()?.error)
         executed.rejected.parking()?.let { throw it }
@@ -195,3 +248,17 @@ internal class SagaReceipts(
             throw CallRejectedHandlingException(rejected)
         }
 }
+
+/**
+ * Another context rejected a command that the receipt handler of a saga of [context] derived, a compensation or the
+ * next step after a commit: it is handed to no handler, since a compensation is not compensated, and the receipts
+ * subscription parks the saga's aggregate at once, without a retry, its reason naming the handler, the command and
+ * the rejection, as such a rejection within the context does ([DerivedCommandRejectedException]).
+ */
+internal class CompensationRejectedException(val context: String, val rejected: CommandReceipt.Rejected<*>) :
+    HandlingRejectedException(
+        rejected.error,
+        "The command ${rejected.commandId} on ${rejected.ref} that ${rejected.executionId.subscription} in $context " +
+            "derived was rejected, and a compensation is not compensated: ${rejected.commandType} " +
+            "${rejected.error.code} ${rejected.error.message}",
+    )

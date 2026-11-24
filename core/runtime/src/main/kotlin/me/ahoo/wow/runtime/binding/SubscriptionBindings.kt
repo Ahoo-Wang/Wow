@@ -370,7 +370,7 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
             } catch (rejected: CommandRejectedException) {
                 return callRejected(rejected, calls, execution.executionId, receipts)
             }
-            ReceiptsAsked.check(handler, context.context, context.models, commands, receipts.reads)
+            receipts.checkReads(name, commands)
             val replyTo = replyTo(handler, context.context, execution.executionId)
             val executed = derived.execute(commands, acting, wait, replyTo)
             val withCalls = executed.copy(executed = calls.called + executed.executed)
