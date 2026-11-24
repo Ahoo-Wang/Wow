@@ -74,35 +74,37 @@ class DataSourceAutoConfiguration {
         private val logger = KotlinLogging.logger {}
 
         /**
-         * [url], a JDBC URL, as a log line may show it: its driver, its hosts and its database, never a credential.
-         * The hosts follow the URL's last `//` and any user info before them (MySQL's `//user:password@host`, Oracle's
-         * `thin:user/password@//host`), the user info ending at the last `@` before the first `/` or `?`, whichever
-         * is later, so a password holding either is not cut; the database is the path after the hosts; every
-         * parameter, after `?`, `;` or `#`, is dropped (PostgreSQL's `?user=…&password=…`, SQL Server's
-         * `;password=…`). A URL without `//` (H2's `jdbc:h2:mem:shop`) is shown without its parameters, or as its
-         * driver alone when it holds an `@`.
+         * [url], a JDBC URL, as a log line may show it: a part of it only where that part cannot hold a credential,
+         * else less, since no reading of every driver's syntax finds every credential (#6848).
+         *
+         * - A URL with an `@` anywhere, or not of the form `jdbc:<driver>://`, is its driver alone (`jdbc:mysql`,
+         *   `jdbc:oracle`, `jdbc:h2`): user info needs an `@`, and the other forms put properties anywhere, a `//`
+         *   among them (H2's `jdbc:h2:mem:shop?password=a//b`). The host of a MySQL URL with user info, or of one
+         *   whose parameter holds an `@`, is not shown: the price of never showing a password.
+         * - Otherwise, after that `//`, its hosts, the longest run of letters, digits and `.`, `_`, `-`, `[`,
+         *   `]`, `:` and `,`, and after one `/` its database, the longest run of letters, digits and `.`, `_`, `-`;
+         *   whatever comes next ends it. So no `=`, `?`, `;`, `#`, `&`, `%` or `@` is shown, and no parameter or
+         *   property: PostgreSQL's `?password=…`, SQL Server's `;password=…`, DB2's and Informix's `:password=…`
+         *   after the database.
          */
         internal fun withoutCredentials(url: String): String {
-            val driver = url.removePrefix("jdbc:").substringBefore(':')
-            val slashes = url.lastIndexOf("//")
-            if (slashes < 0) {
-                val address = url.substringBefore('?').substringBefore(';')
-                return if ('@' in address) "jdbc:$driver" else address
+            val driver = "jdbc:" + url.removePrefix("jdbc:").takeIf { url.startsWith("jdbc:") }.orEmpty()
+                .takeWhile { it in NAME }
+            if ('@' in url || !url.startsWith("$driver://")) {
+                return driver
             }
-            val rest = url.substring(slashes + 2)
-            val address = rest.substring(maxOf(lastAtBefore(rest, '/'), lastAtBefore(rest, '?')) + 1)
-            val hosts = address.takeWhile { it !in PARAMETERS_OR_PATH }
-            val path = address.substring(hosts.length)
-            val database = if (path.startsWith('/')) path.drop(1).takeWhile { it !in PARAMETERS_OR_PATH } else ""
-            return "jdbc:$driver://$hosts" + if (database.isEmpty()) "" else "/$database"
+            val rest = url.removePrefix("$driver://")
+            val hosts = rest.takeWhile { it in HOSTS }
+            val after = rest.substring(hosts.length)
+            val database = if (after.startsWith('/')) after.drop(1).takeWhile { it in NAME } else ""
+            return "$driver://$hosts" + if (database.isEmpty()) "" else "/$database"
         }
 
-        /** The last `@` of [text] before its first [delimiter], -1 for none. */
-        private fun lastAtBefore(text: String, delimiter: Char): Int =
-            text.substring(0, text.indexOf(delimiter).takeIf { it >= 0 } ?: text.length).lastIndexOf('@')
+        /** What a driver's or a database's name shows: letters, digits, `.`, `_` and `-`. */
+        private val NAME: Set<Char> = (('a'..'z') + ('A'..'Z') + ('0'..'9') + listOf('.', '_', '-')).toSet()
 
-        /** What ends a JDBC URL's hosts or its database: its path, or its parameters. */
-        private const val PARAMETERS_OR_PATH = "/?;#"
+        /** What hosts show: a name's characters, and the brackets, colons and commas of their addresses and ports. */
+        private val HOSTS: Set<Char> = NAME + setOf('[', ']', ':', ',')
     }
 }
 

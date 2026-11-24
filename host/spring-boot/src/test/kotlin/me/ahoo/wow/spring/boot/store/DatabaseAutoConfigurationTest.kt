@@ -122,25 +122,67 @@ class DatabaseAutoConfigurationTest {
     }
 
     @Test
-    fun `a JDBC URL should be shown without a credential, whichever form its driver takes one in`() {
+    fun `a JDBC URL without a credential should still show its hosts and database`() {
         mapOf(
-            "jdbc:postgresql://db:5432/shop?user=shop&password=$SECRET" to "jdbc:postgresql://db:5432/shop",
-            "jdbc:postgresql://db1:5432,db2:5432/shop?password=$SECRET" to "jdbc:postgresql://db1:5432,db2:5432/shop",
+            "jdbc:postgresql://db:5432/shop" to "jdbc:postgresql://db:5432/shop",
+            "jdbc:postgresql://db1:5432,db2:5432/shop?ssl=true" to "jdbc:postgresql://db1:5432,db2:5432/shop",
             "jdbc:postgresql://[::1]:5432/shop" to "jdbc:postgresql://[::1]:5432/shop",
-            "jdbc:postgresql://db?password=$SECRET" to "jdbc:postgresql://db",
-            "jdbc:mysql://shop:$SECRET@db:3306/shop?ssl=true" to "jdbc:mysql://db:3306/shop",
-            // A password that holds what delimits the URL's parts.
-            "jdbc:mysql://shop:a@b//c?d;e@db/shop" to "jdbc:mysql://db/shop",
-            "jdbc:mysql://shop:a/b@db/shop" to "jdbc:mysql://db/shop",
-            "jdbc:mysql://shop:p?ss@db/shop" to "jdbc:mysql://db/shop",
-            "jdbc:postgresql://db?password=a/b" to "jdbc:postgresql://db",
-            "jdbc:postgresql://db/shop?user=a@b.example" to "jdbc:postgresql://db/shop",
-            "jdbc:oracle:thin:shop/$SECRET@//db:1521/shop" to "jdbc:oracle://db:1521/shop",
-            "jdbc:sqlserver://db:1433;databaseName=shop;user=shop;password=$SECRET" to "jdbc:sqlserver://db:1433",
-            "jdbc:h2:mem:shop;DB_CLOSE_DELAY=-1" to "jdbc:h2:mem:shop",
-            "jdbc:oracle:thin:shop/$SECRET@db:1521:orcl" to "jdbc:oracle",
+            "jdbc:postgresql://db" to "jdbc:postgresql://db",
+            "jdbc:sqlserver://db:1433;databaseName=shop" to "jdbc:sqlserver://db:1433",
+            "jdbc:db2://db:50000/shop:currentSchema=sales;" to "jdbc:db2://db:50000/shop",
+            // The forms that may hold a credential anywhere show their driver alone (#6848).
+            "jdbc:h2:mem:shop" to "jdbc:h2",
+            "jdbc:oracle:thin:@//db:1521/shop" to "jdbc:oracle",
+            "jdbc:postgresql://db/shop?user=a@b.example" to "jdbc:postgresql",
+            // Not a JDBC URL, which no driver takes: nothing of it.
+            "postgresql://db/shop?password=$SECRET" to "jdbc:",
         ).forEach { (url, shown) ->
             DataSourceAutoConfiguration.withoutCredentials(url).assert().describedAs(url).isEqualTo(shown)
+        }
+    }
+
+    @Test
+    fun `no part of a credential should be shown, whatever its URL's form, its place and what it is made of`() {
+        val forms = listOf(
+            "jdbc:postgresql://db:5432/shop",
+            "jdbc:postgresql://db1:5432,db2:5432/shop",
+            "jdbc:postgresql://[::1]:5432/shop",
+            "jdbc:mysql://db:3306/shop",
+            "jdbc:oracle:thin:@//db:1521/shop",
+            "jdbc:oracle:thin:@db:1521:orcl",
+            "jdbc:sqlserver://db:1433;databaseName=shop",
+            "jdbc:h2:mem:shop",
+            "jdbc:db2://db:50000/shop",
+            "jdbc:informix-sqli://db:1533/shop:INFORMIXSERVER=srv",
+        )
+        // Where a driver takes a credential: user info, a `?` or `&` parameter, a `;` property, a `:` property after
+        // the database (DB2's, Informix's).
+        val places: List<(String, String) -> String?> = listOf(
+            { url, secret ->
+                when {
+                    "thin:@" in url -> url.replace("thin:@", "thin:shop/$secret@")
+                    "//" in url -> url.replaceFirst("//", "//shop:$secret@")
+                    else -> null
+                }
+            },
+            { url, secret -> "$url?password=$secret" },
+            { url, secret -> "$url?ssl=true&password=$secret" },
+            { url, secret -> "$url;password=$secret" },
+            { url, secret -> "$url:password=$secret;user=shop;" },
+        )
+        // Letters no form holds, around each of a URL's delimiters.
+        val secrets = listOf("@", "/", "//", "?", ";", ":", "#", "&", "=", "%").map { "ZQ${it}JK${it}W" }
+        forms.forEach { form ->
+            places.forEach { place ->
+                secrets.forEach { secret ->
+                    val url = place(form, secret) ?: return@forEach
+                    val shown = DataSourceAutoConfiguration.withoutCredentials(url)
+                    // Every substring of two characters or more, but the URL's own syntax ("//") alone.
+                    val parts = (2..secret.length).flatMap { length -> secret.windowed(length) }
+                        .filter { part -> part.any(Char::isLetter) }
+                    parts.filter { it in shown }.assert().describedAs("$url shown as $shown").isEmpty()
+                }
+            }
         }
     }
 
