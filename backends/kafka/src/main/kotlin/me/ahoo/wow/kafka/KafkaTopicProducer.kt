@@ -16,7 +16,9 @@ package me.ahoo.wow.kafka
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import me.ahoo.wow.spi.VirtualThreads
 import me.ahoo.wow.spi.transport.TopicMessage
@@ -33,14 +35,16 @@ import kotlin.time.toJavaDuration
  * The [TopicProducer] over a Kafka [producer]: made by [create] from [KafkaOptions], an
  * idempotent producer with `acks=all`.
  *
- * [send] goes in rounds, one message of each key a round (#6782): a key's next message goes to the broker only once its
+ * [send] hands each key's messages to the broker one at a time (#6782): a key's next message goes only once its
  * previous one was acknowledged, so a message Kafka refuses for good is never overtaken by its key's later ones,
- * which neither the idempotent producer nor `max.in.flight` keeps from being written after a refusal. A round hands
- * its messages to the producer in order, on a virtual thread since a send may block while the producer fetches
- * metadata or its buffer is full, then suspends until the broker answered each one. A failure stops its key: its
- * later messages of the call are not sent, while the other keys' go on. [send] then throws the first failure, Kafka
- * being unreachable or refusing a record for good as the SPI's typed failure ([KafkaFailures]). Messages of distinct
- * keys go in one round, as one batch did before; a key costs one more round per message it has after its first.
+ * which neither the idempotent producer nor `max.in.flight` keeps from being written after a refusal. The first
+ * message of every key is handed at once, in the call's order, on a virtual thread since a send may block while the
+ * producer fetches metadata or its buffer is full; each key then goes on as its own acknowledgements come, whatever
+ * the others wait for. A failure stops its key: its later messages of the call are not sent, while the other keys'
+ * go on. [send] returns once every key is done, and throws the failure of the earliest message of the call that
+ * failed, Kafka being unreachable or refusing a record for good as the SPI's typed failure ([KafkaFailures]).
+ * Messages of distinct keys go at once, as one batch did before; a key costs one more round trip per message it has
+ * after its first.
  * A message's partition is the one it names ([TopicMessage.partition]), else its key's (the producer's
  * default partitioner), so the messages of an aggregate keep their order in one partition; the idempotent producer
  * keeps that order through its own retries.
@@ -59,15 +63,33 @@ class KafkaTopicProducer(
         if (messages.isEmpty()) {
             return
         }
-        var keys = messages.groupBy { it.key }.values.map { it.iterator() }
-        var failure: Throwable? = null
-        while (keys.isNotEmpty()) {
-            val round = keys.map { it to it.next() }
-            val outcomes = withContext(dispatcher) { round.map { (_, message) -> write(topic, message) } }.awaitAll()
-            failure = failure ?: outcomes.firstNotNullOfOrNull { it }
-            keys = round.filterIndexed { index, (key, _) -> outcomes[index] == null && key.hasNext() }.map { it.first }
+        val keys = messages.withIndex().groupBy { it.value.key }.values
+        val firsts = withContext(dispatcher) { keys.map { write(topic, it.first().value) } }
+        val failures = coroutineScope {
+            keys.zip(firsts) { chain, first -> async { failureOf(topic, chain, first) } }.awaitAll()
         }
-        failure?.let { throw it }
+        failures.filterNotNull().minByOrNull { it.index }?.let { throw it.value }
+    }
+
+    /**
+     * The failure of [chain], one key's messages with their places in the call, whose first was handed as [first]: each
+     * next one is handed once the previous one was acknowledged, until one fails.
+     */
+    private suspend fun failureOf(
+        topic: String,
+        chain: List<IndexedValue<TopicMessage>>,
+        first: Deferred<Throwable?>,
+    ): IndexedValue<Throwable>? {
+        var outcome = first.await()
+        var index = chain.first().index
+        for (next in chain.drop(1)) {
+            if (outcome != null) {
+                break
+            }
+            outcome = withContext(dispatcher) { write(topic, next.value) }.await()
+            index = next.index
+        }
+        return outcome?.let { IndexedValue(index, it) }
     }
 
     /** Hands [message] to the producer: its outcome is null once the broker acknowledged it, else its failure. */

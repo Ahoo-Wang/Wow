@@ -29,11 +29,11 @@ import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * A send's rounds (#6782), over `kafka-clients`' mock producer, which acknowledges nothing until told: a key's next
- * message goes to the broker only once its previous one was acknowledged.
+ * A send's order per key (#6782), over `kafka-clients`' mock producer, which acknowledges nothing until told: a key's
+ * next message goes to the broker only once its previous one was acknowledged, whatever the other keys wait for.
  *
- * A round suspends until each of its messages is answered, so while none is, what the mock was handed is the whole
- * round: the counts below are exact for that reason, not by timing.
+ * A key's next message is handed only after an acknowledgement this test gives, so while it gives none, what the mock
+ * was handed is all the send can hand: the counts below are exact for that reason, not by timing.
  */
 class KafkaTopicProducerTest {
     private val topic = "wow.shop.order.state"
@@ -65,6 +65,23 @@ class KafkaTopicProducerTest {
             awaitHanded(5)
             handed().last().assert().isEqualTo("a3")
             mock.completeNext().assert().isTrue()
+            sending.await()
+        }
+
+    @Test
+    fun `a key should go on once its own message is acknowledged, whatever another key waits for`(): Unit =
+        runBlocking {
+            val messages = listOf(message("a", 1), message("b", 1), message("a", 2), message("b", 2))
+            val sending = async(Dispatchers.Default) { producer.send(topic, messages) }
+            awaitHanded(2)
+            // a1 acknowledged, b1 not: a2 goes, b2 waits for b1.
+            mock.completeNext().assert().isTrue()
+            awaitHanded(3)
+            handed().assert().containsExactly("a1", "b1", "a2")
+            mock.completeNext().assert().isTrue()
+            awaitHanded(4)
+            handed().last().assert().isEqualTo("b2")
+            repeat(2) { mock.completeNext().assert().isTrue() }
             sending.await()
         }
 
