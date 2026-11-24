@@ -96,6 +96,19 @@ usage() {
 
 log() { echo "[bench] $*" >&2; }
 
+# Runs the harness's Node script $1 (bench-abba.mjs, bench-compare.mjs, bench-idle.mjs) with node, the rest its
+# arguments. A bench.yml runner has Node, not pnpm, and checks out the measured tree's test/benchmarks alone, so a suite
+# names its own scripts in WOW_BENCH_SCRIPTS; else this tree's .github/scripts. A script not there is named.
+bench_node() {
+  local script="${WOW_BENCH_SCRIPTS:-$REPO/.github/scripts}/$1"
+  shift
+  if [ ! -f "$script" ]; then
+    log "no $script: WOW_BENCH_SCRIPTS names the directory of the harness's scripts where this checkout has none"
+    return 2
+  fi
+  node "$script" "$@"
+}
+
 compose() { docker compose -f "$HARNESS/compose.yml" "$@"; }
 
 # The major version of the JDK at $1, from its release file; empty when it has none.
@@ -598,6 +611,6 @@ case "$command" in
   compare)
     if [ -z "${1:-}" ] || [ ! -d "$1" ]; then usage; fi
     root=$(cd "$1" && pwd)
-    (cd "$REPO" && pnpm --silent bench:compare "$root") ;;
+    bench_node bench-compare.mjs "$root" ;;
   *) usage ;;
 esac

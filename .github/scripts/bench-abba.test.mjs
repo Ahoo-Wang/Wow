@@ -4,7 +4,15 @@
  * you may obtain a copy at http://www.apache.org/licenses/LICENSE-2.0
  */
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -22,6 +30,7 @@ import {
   tableOf,
   buildsText,
   installOf,
+  primedText,
 } from './bench-abba.mjs';
 
 const END = 1_800_000_000;
@@ -249,4 +258,180 @@ test("a session's install.txt gives its builds in short words, and the table nam
     'Builds: `cap512` server 53208e5e49, load 53208e5e49; `cap128` server 1009297e71, load 53208e5e49.\n',
   );
   assert.equal(buildsText([]), '');
+});
+
+test('the header says whether the sweeps were primed, as their own records say', () => {
+  const session = (sweep, arm, primed) => ({ sweep, arm, primed });
+  assert.equal(primedText([session(1, 'a'), session(1, 'b')]), '');
+  assert.equal(
+    primedText([session(1, 'a', 'true'), session(1, 'b', 'true')]),
+    'Primed: every sweep (--prime: an untimed pass over every account before its steps).\n',
+  );
+  assert.equal(
+    primedText([session(1, 'a', 'false'), session(1, 'b', 'false')]),
+    'Primed: no sweep.\n',
+  );
+  assert.equal(
+    primedText([session(1, 'a', 'true'), session(1, 'b', 'false')]),
+    'Primed: 1-a; not 1-b.\n',
+  );
+});
+
+// abba itself (test/benchmarks/harness/abba.sh), sourced with bench.sh's own parse, opt, log and bench_node (read out
+// of bench.sh, as it defines them) under its shell options, the lock and the host sampler stubbed, and a fake bench.sh
+// for the sweeps that records its arguments and writes the sweep a saturate would, `primed` as --prime says. The
+// table is bench-abba.mjs's, run as abba runs it.
+const SCRIPTS = import.meta.dirname;
+const HARNESS = join(SCRIPTS, '../../test/benchmarks/harness');
+
+/** bench.sh's definitions of [names]: a one-line function, or one from its `name() {` line to its closing `}`. */
+function benchDefinitions(names) {
+  const lines = readFileSync(join(HARNESS, 'bench.sh'), 'utf8').split('\n');
+  return names
+    .map(name => {
+      const start = lines.findIndex(line => line.startsWith(`${name}() {`));
+      assert.ok(start >= 0, `bench.sh defines ${name}`);
+      if (lines[start].trimEnd().endsWith('}')) return lines[start];
+      const end = lines.findIndex((line, at) => at > start && line === '}');
+      return lines.slice(start, end + 1).join('\n');
+    })
+    .join('\n');
+}
+
+/**
+ * A runner's checkout: test/benchmarks alone (no .github/scripts), a fake sweep bench.sh, and a `pnpm` first on the
+ * PATH that is not there (exit 127), as on a bench.yml runner.
+ */
+function runner() {
+  const checkout = mkdtempSync(join(tmpdir(), 'abba-checkout-'));
+  const harness = join(checkout, 'test/benchmarks/harness');
+  mkdirSync(harness, { recursive: true });
+  writeFileSync(
+    join(harness, 'bench.sh'),
+    `#!/usr/bin/env bash
+out=""; primed=false
+for a in "$@"; do
+  case "$a" in --out=*) out="\${a#--out=}" ;; --prime) primed=true ;; esac
+done
+printf '%s\\n' "$@" >"$out/args.txt"
+cat >"$out/saturation.json" <<JSON
+{"steps":[{"concurrency":4,"seconds":30,"throughput":100,"ok":3000,"errors":{},"p50Ms":1,"p99Ms":2}],
+ "meta":{"primed":"$primed"}}
+JSON
+echo "[saturate] E1: concurrency=4 throughput=100/s p50=1ms errors={}"
+`,
+  );
+  chmodSync(join(harness, 'bench.sh'), 0o755);
+  const bin = join(checkout, 'bin');
+  mkdirSync(bin);
+  writeFileSync(
+    join(bin, 'pnpm'),
+    '#!/bin/sh\necho "pnpm: command not found" >&2\nexit 127\n',
+  );
+  chmodSync(join(bin, 'pnpm'), 0o755);
+  return { checkout, harness, bin, root: join(checkout, 'abba') };
+}
+
+/** Runs `abba` with [args] in [checkout]; WOW_BENCH_SCRIPTS is this tree's scripts unless [scripts] says otherwise. */
+const abba = ({ checkout, harness, bin, root }, args, scripts = SCRIPTS) =>
+  spawnSync(
+    'bash',
+    [
+      '-c',
+      `set -euo pipefail
+OPTIONS=""
+PASS=()
+${benchDefinitions(['log', 'bench_node', 'parse', 'opt'])}
+usage() { exit 2; }
+lock_take() { :; }
+lock_release() { :; }
+lock_wait_option() { :; }
+docker() { :; }
+REPO=${JSON.stringify(checkout)}
+HARNESS=${JSON.stringify(harness)}
+. ${JSON.stringify(join(HARNESS, 'abba.sh'))}
+abba_host() { :; }
+abba "$@"`,
+      'abba',
+      '--arm=a||',
+      '--arm=b||',
+      '--concurrencies=4',
+      '--sweeps=1',
+      `--out=${root}`,
+      ...args,
+    ],
+    {
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        PATH: `${bin}:${process.env.PATH}`,
+        WOW_BENCH_SCRIPTS: scripts,
+      },
+    },
+  );
+
+test("abba passes each sweep the harness's options it is given, and the table, written with node, says they were primed", () => {
+  const checkout = runner();
+  const result = abba(checkout, [
+    '--prime',
+    '--seed-concurrency=64',
+    '--nodes=2',
+    '--growth=4',
+  ]);
+  assert.equal(result.status, 0, result.stderr);
+  for (const arm of ['a', 'b']) {
+    const args = readFileSync(
+      join(checkout.root, `1-${arm}-postgres/sweep/args.txt`),
+      'utf8',
+    ).split('\n');
+    assert.equal(args[0], 'saturate');
+    for (const option of [
+      '--prime',
+      '--seed-concurrency=64',
+      '--nodes=2',
+      '--growth=4',
+      '--concurrencies=4',
+    ]) {
+      assert.ok(args.includes(option), `${option} reaches ${arm}'s sweep`);
+    }
+  }
+  const table = readFileSync(join(checkout.root, 'abba.md'), 'utf8');
+  assert.match(
+    table,
+    /\.\nPrimed: every sweep \(--prime: an untimed pass over every account before its steps\)\.\n## postgres\n/,
+  );
+  assert.doesNotMatch(result.stderr, /pnpm/);
+});
+
+test('abba refuses, by name and before any sweep, an option a sweep cannot take from it', () => {
+  for (const [args, message] of [
+    [['--reuse'], /abba does not take --reuse: each sweep is a fresh saturate/],
+    [['--install=/x'], /abba does not take --install: each --arm=/],
+    [['--server-args=-Xmx1g'], /abba does not take --server-args: each --arm=/],
+    [
+      ['--profile=constrained', '--store-cpus=3'],
+      /abba does not take --store-cpus with --profile: the profile sets/,
+    ],
+  ]) {
+    const checkout = runner();
+    const result = abba(checkout, args);
+    assert.equal(result.status, 2, `${args}: ${result.stderr}`);
+    assert.match(result.stderr, message);
+    assert.equal(existsSync(checkout.root), false, `${args}: no sweep ran`);
+  }
+});
+
+test("without WOW_BENCH_SCRIPTS, a checkout with no .github/scripts names where it looked for abba's script", () => {
+  const checkout = runner();
+  const result = abba(checkout, [], '');
+  assert.equal(result.status, 2);
+  assert.match(
+    result.stderr,
+    /no \/.*\/\.github\/scripts\/bench-abba\.mjs: WOW_BENCH_SCRIPTS names the directory of the harness's scripts/,
+  );
+  assert.equal(
+    existsSync(join(checkout.root, '1-a-postgres/sweep/args.txt')),
+    true,
+    'the sweeps ran; the table could not be written',
+  );
 });

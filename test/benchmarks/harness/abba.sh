@@ -22,8 +22,11 @@
 # each sweep the arms run in turn, the order reversed every other sweep (A B, B A, ...), each a fresh `bench.sh
 # saturate` (empty stores, seeded and checked) at the given steps, its servers with the `bench-pipeline` line on, into
 # <root>/<sweep>-<arm>-<backend>/sweep with its output stamped (each line's epoch seconds), so each step's window
-# can be read from the line. Every other option goes to each sweep. Then `pnpm bench:abba` (bench-abba.mjs) writes the
-# table, <root>/abba.md: each step a sweep, the arms' ratio to the first, each arm's own spread, the refused share,
+# can be read from the line. Every other option goes to each sweep, the harness's own (--prime, --seed-concurrency,
+# --nodes, --heap, ...) and the load generator's alike; one a sweep cannot take from abba is refused, named: --install
+# and --server-args (each --arm names its own), --reuse (each sweep starts fresh), and with --profile the --store-cpus
+# and --bus-cpus it sets. Then bench-abba.mjs, run with node (bench_node), writes the table, <root>/abba.md: whether
+# each sweep was primed, each step a sweep, the arms' ratio to the first, each arm's own spread, the refused share,
 # and the line's calls, clock and windows over each step. --profile=constrained puts the store and Kafka each on one
 # CPU of the containers' VM (`--store-cpus=1 --bus-cpus=2`), as the paired suites lay them out on a runner of four, so
 # what a store with no core to spare does is measured here; the node, a host JVM, is not pinned (macOS has no CPU
@@ -41,6 +44,24 @@ abba() {
   done
   if [ ${#arms[@]} -lt 2 ]; then log "abba needs two --arm='name|install|server args' at least"; exit 2; fi
   if [ -z "$(opt concurrencies "")" ]; then log "abba needs --concurrencies"; exit 2; fi
+  # What goes to each sweep: every option given but the ones abba reads or passes itself, from the arguments, not from
+  # PASS, which holds the load generator's alone. One a sweep cannot take from abba is refused, never dropped.
+  local rest=()
+  for argument in "$@"; do
+    case "$argument" in
+      --arm=* | --sweeps=* | --scenario=* | --concurrencies=* | --step=* | --warm-up=* | --accounts=*) ;;
+      --backend=* | --out=* | --force | --force=* | --wait | --wait=* | --profile=*) ;;
+      --install=* | --server-args=*)
+        log "abba does not take ${argument%%=*}: each --arm='name|install|server args' names its own"; exit 2 ;;
+      --reuse | --reuse=*) log "abba does not take --reuse: each sweep is a fresh saturate"; exit 2 ;;
+      --store-cpus=* | --bus-cpus=*)
+        if [ -n "$(opt profile "")" ]; then
+          log "abba does not take ${argument%%=*} with --profile: the profile sets the store's and Kafka's CPUs"; exit 2
+        fi
+        rest+=("$argument") ;;
+      *) rest+=("$argument") ;;
+    esac
+  done
   # The batch lock first, held for the whole batch (lock.sh); --wait queues behind another batch.
   local owner="abba-$$"
   lock_take "$owner" "$$" "$(lock_wait_option)" || exit 2
@@ -54,14 +75,6 @@ abba() {
     log "the harness is in use ($running): another run is measuring; abba starts once it is down (--force takes it down)"
     exit 2
   fi
-  local rest=()
-  for argument in ${PASS[@]+"${PASS[@]}"}; do
-    case "$argument" in
-      --arm=* | --sweeps=* | --scenario=* | --concurrencies=* | --step=* | --warm-up=*) ;;
-      --force* | --wait* | --profile=*) ;;
-      *) rest+=("$argument") ;;
-    esac
-  done
   # The constrained profile: the store and Kafka each on one CPU of the containers' VM, as the paired suites lay them
   # out on a runner of four (the node is a host JVM, which macOS cannot pin: it stays on the host's cores).
   local pinned=()
@@ -108,7 +121,7 @@ abba() {
     done
   done
   kill "$sampler" 2>/dev/null || true
-  (cd "$REPO" && pnpm --silent bench:abba "$root" | tee "$root/abba.md")
+  bench_node bench-abba.mjs "$root" | tee "$root/abba.md"
   log "table in $root/abba.md"
 }
 
