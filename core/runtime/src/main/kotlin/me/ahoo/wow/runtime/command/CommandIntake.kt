@@ -347,14 +347,16 @@ class CommandIntake internal constructor(
 /**
  * Why [settlement] of the command [id] on [ref] fails the intake's handling: the problem of its result, with its code,
  * as a saga's derived command fails, so the subscription classifies it by the code (a store that is unavailable is
- * systemic and pauses the partition; a wait that ran out is backpressure), from the cause when it is known.
+ * systemic and pauses the partition; a wait that ran out is backpressure), from the cause when it is known. The cause
+ * is named by its class alone: the message is a caller's answer, which a parked reason keeps, and the cause's own
+ * message may carry the values it failed on (#6796).
  */
 internal fun failureOf(id: String, ref: AggregateRef, settlement: Settlement): WowProblemException {
     val error = settlement.committed.error
     return InProcessCommandClient.problemOf(
         settlement.committed,
         "The command $id on $ref failed: ${error?.code} ${error?.message}" +
-            settlement.cause?.let { " ($it)" }.orEmpty(),
+            settlement.cause?.let { " (${it.javaClass.name})" }.orEmpty(),
         settlement.failure,
     )
 }

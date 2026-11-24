@@ -29,6 +29,7 @@ import me.ahoo.wow.api.lifecycle.DeleteAggregate
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.subscribe.ExecutionId
+import me.ahoo.wow.kernel.FailureReasons
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.KernelOptions
 import me.ahoo.wow.kernel.aggregate
@@ -302,7 +303,34 @@ class DerivedCommandsTest {
 
             failure.assert().isInstanceOf(WowProblemException::class.java)
             (failure as WowProblemException).code.assert().isEqualTo(FrameworkCodes.COMMAND_FAILED)
-            failure.message.assert().contains("q-1", "CancelledDecisionException", "withTimeout")
+            failure.message.assert().contains("q-1", "CancelledDecisionException")
+        }
+
+    class Charge
+    class Charged
+
+    /** A decide function that fails, as one whose driver names its connection does. */
+    private val payment = aggregate<Any>(SHOP, "payment") {
+        initial { Any() }
+        decide<Charge>(Creation.ALLOWED) { _, _ ->
+            throw UnsupportedOperationException("secret jdbc:postgresql://db-internal:5432/pay?password=hunter2")
+        }
+        evolve<Charged> { }
+    }
+
+    @Test
+    fun `a derived command that failed should park its saga with a reason that names no value it failed on`(): Unit =
+        runBlocking {
+            // #6796: the problem's message is kept in the parked reason, so it names its cause by its class alone.
+            val paying = DerivedCommands(listOf(payment), coordinator, admission = admissionOf())
+            val command = Command("p-1", "p-1", payment.type.ref(TENANT, "p"), Charge(), causation = root)
+            val failure = checkNotNull(runCatching { paying.execute(listOf(command), TENANT, null) }.exceptionOrNull())
+
+            val reason = FailureReasons.DEFAULT.reasonOf(failure)
+
+            reason.assert().doesNotContain("secret", "hunter2", "db-internal")
+                .contains("p-1", FrameworkCodes.COMMAND_FAILED, UnsupportedOperationException::class.java.name)
+            failure.cause.assert().isInstanceOf(UnsupportedOperationException::class.java)
         }
 
     @Test

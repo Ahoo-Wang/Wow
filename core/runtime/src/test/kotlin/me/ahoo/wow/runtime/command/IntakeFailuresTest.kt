@@ -18,6 +18,7 @@ import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.FunctionInfo
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
+import me.ahoo.wow.kernel.FailureReasons
 import me.ahoo.wow.runtime.subscription.RuntimeFailures
 import me.ahoo.wow.runtime.wait.ResultCodes
 import me.ahoo.wow.runtime.wait.Settlement
@@ -47,6 +48,15 @@ class IntakeFailuresTest {
         val local = failed(ResultCodes.STORAGE_UNAVAILABLE, StorageUnavailableException("the log is down"))
         classOf(local).assert().isEqualTo(FailureClass.SYSTEMIC)
         failureOf(command.id, command.ref, local).cause.assert().isInstanceOf(StorageUnavailableException::class.java)
+    }
+
+    @Test
+    fun `a failed handling names its cause by its class, never by the values its message carries`() {
+        // #6796: the problem's message is kept in the parked reason of the intake's subscription.
+        val cause = UnsupportedOperationException("secret jdbc:postgresql://db-internal:5432/stock?password=hunter2")
+        val failure = failureOf(command.id, command.ref, failed(ResultCodes.FAILED, cause))
+        failure.message.assert().doesNotContain("secret", "hunter2").contains(cause.javaClass.name)
+        FailureReasons.DEFAULT.reasonOf(failure).assert().doesNotContain("secret", "hunter2", "db-internal")
     }
 
     @Test

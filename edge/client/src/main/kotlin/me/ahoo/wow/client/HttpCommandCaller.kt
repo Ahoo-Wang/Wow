@@ -138,7 +138,11 @@ class HttpCommandCaller internal constructor(
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (failure: Exception) {
-            throw failed("The call of ${command.id} to ${command.ref.type.context} failed: $failure", cause = failure)
+            // Named by its class: the problem's message is a caller's answer, and the failure's may carry values.
+            throw failed(
+                "The call of ${command.id} to ${command.ref.type.context} failed: ${failure.javaClass.name}",
+                cause = failure,
+            )
         }
         return when (answer) {
             is Answer.Ok -> CommandResults.readOrNull(answer.value)
