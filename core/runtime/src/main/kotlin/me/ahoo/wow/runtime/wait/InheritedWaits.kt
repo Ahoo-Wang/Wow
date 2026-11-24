@@ -81,9 +81,16 @@ internal class InheritedWaits(
         }
         val settlement = router.route(model, command, wait) { local.execute(model, command, wait) }
         val hop = leading.firstOrNull { it.stage == Stage.COMMITTED } ?: Hop.committed(context)
-        signal(wait, settlement.committed.copyWith(hop = hop))
-        // A command that changed nothing, or a duplicate whose subscription is past it: no entry signals them.
-        settlement.reached.forEach { signal(wait, it) }
+        val committed = settlement.committed.copyWith(hop = hop)
+        // A command that changed nothing, or a duplicate whose subscription is past it: no entry signals them. A
+        // duplicate's goes before its commit, which ends its wait ([WaitState]); the waiting node buffers it until then.
+        if (committed.duplicate) {
+            settlement.reached.forEach { signal(wait, it) }
+            signal(wait, committed)
+        } else {
+            signal(wait, committed)
+            settlement.reached.forEach { signal(wait, it) }
+        }
         return settlement
     }
 

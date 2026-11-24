@@ -145,6 +145,20 @@ class InheritedWaitsTest {
     }
 
     @Test
+    fun `a duplicate whose subscription is past it signals the hop it reached before its commit`(): Unit =
+        runBlocking {
+            // #6758: the commit of a duplicate ends its wait, which buffers the later hop until the commit applies.
+            outcome = { CommandOutcome.AlreadyCommitted(stream) }
+            coEvery { directory.hasHandled(any(), any()) } returns true
+            inherited.forward(model, command, waitFor(Hop.committed("shop"), Hop.handled("wow.snapshot", "shop")))
+            signalled.map { it.hop }.assert().containsExactly(
+                Hop.handled("wow.snapshot", "shop"),
+                Hop.committed("shop"),
+            )
+            signalled.all { it.duplicate }.assert().isTrue()
+        }
+
+    @Test
     fun `a signal that cannot be sent is logged, and the command's result stands`(): Unit = runBlocking {
         refusing = IllegalStateException("The waiting node is gone.")
         val settlement = inherited.forward(model, command, waitFor(Hop.committed("shop")))

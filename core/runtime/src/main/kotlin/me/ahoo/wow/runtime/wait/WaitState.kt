@@ -42,8 +42,13 @@ import me.ahoo.wow.api.result.Stage
  * cannot know them. The state keeps each command's from its result at COMMITTED, whenever that arrives, even after
  * the wait ended, and [carry] puts them on its results at the later hops: the default wait, which ends at the
  * snapshot, answers them too. A duplicate request was not decided again, so it has none to carry.
+ *
+ * A duplicate of the root command is not signalled again: once its result at COMMITTED applied, with the later hop it
+ * reached at once (handed over before it, and buffered until then), the wait ends there unless that hop ended it
+ * already: the duplicate stops at its last known hop, whichever path brought it (the node's own settlement, or a
+ * signal of the owner that ran a command sent through a command topic).
  */
-internal class WaitState(private val hops: List<Hop>, rootCommandId: String) {
+internal class WaitState(private val hops: List<Hop>, private val rootCommandId: String) {
     private var index = 0
     private var generation: Set<String> = setOf(rootCommandId)
     private val reached = LinkedHashMap<String, CommandResult>()
@@ -88,7 +93,22 @@ internal class WaitState(private val hops: List<Hop>, rootCommandId: String) {
             moved = false
             pending.forEach { moved = apply(it, completed) || moved }
         }
+        endAtDuplicate(result, completed)
         return completed
+    }
+
+    /**
+     * Ends the wait with [result], into [completed], when it is the root command's commit as a duplicate and the wait
+     * goes on: what the duplicate did not reach with its commit, it will not reach, since nothing signals it again.
+     */
+    private fun endAtDuplicate(result: CommandResult, completed: MutableList<CommandResult>) {
+        if (outcome != null || !result.duplicate || result.hop.stage != Stage.COMMITTED) {
+            return
+        }
+        if (result.commandId == rootCommandId) {
+            outcome = result
+            completed += result
+        }
     }
 
     /**

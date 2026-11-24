@@ -86,8 +86,6 @@ internal class Waiting(private val state: WaitState) {
 
     fun offer(result: CommandResult): Boolean = synchronized(this) { publish(state.offer(result)) }
 
-    fun finish(result: CommandResult): Boolean = synchronized(this) { publish(state.finish(result)) }
-
     /**
      * The deadline passed: ends the wait, unless it already ended, FAILED with [ResultCodes.WAIT_TIMEOUT]
      * at the last hop it reached, its [message] about that hop, at [now]; then completes [deadlinePassed]. Never runs

@@ -16,6 +16,7 @@ package me.ahoo.wow.runtime.wait
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.decide.Command
@@ -47,6 +48,7 @@ import me.ahoo.wow.spi.transport.TopicMessage
 import me.ahoo.wow.spi.transport.TopicProducer
 import me.ahoo.wow.spi.wait.Origin
 import org.junit.jupiter.api.Test
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * A wait through a command topic whose commit is signalled before or after the broker acknowledged the command: the
@@ -82,6 +84,63 @@ class TopicWaitProgressTest {
     @Test
     fun `a command run directly times out at committed while its snapshot is not taken`(): Unit = runBlocking {
         scenario(topicRouted = false, acknowledgedAfterCommit = false).timedOutAtCommitted()
+    }
+
+    @Test
+    fun `a request retried through the topic answers as a duplicate at COMMITTED, whatever hop it waits for next`():
+        Unit = runBlocking {
+        // #6758: the owner signals the duplicate's commit, and a snapshot that has not handled the first commit proves
+        // nothing more; nothing signals the duplicate again, so its wait ends there rather than at its deadline.
+        val snapshots = runtime(
+            "snapshot",
+            LogSource(log),
+            Subscription(
+                "wow.snapshot",
+                SubscriptionFilter("shop"),
+                kind = FunctionKind.SYSTEM
+            ) { snapshotGate.await() },
+        )
+        val coordinator = WaitCoordinator(
+            Executor(Kernel(log)),
+            waits,
+            snapshots,
+            signals,
+            origin,
+            topicRouter = TopicRouter(setOf(order.type), TOPIC, 1, producer(afterCommit = false)),
+            deadlines = held,
+        )
+        val intake = CommandIntake(
+            "shop",
+            listOf(order),
+            coordinator,
+            SourceTopics(topics, producer = topics),
+            admissionOf(),
+        )
+        val intakeRuntime = runtime("intake", MessageEntries.commands(TOPIC, topics, 1), intake.subscription)
+        try {
+            snapshots.start(setOf(0))
+            intakeRuntime.start(setOf(0))
+            val ref = order.type.ref("t", "o-1")
+            val first = Command("c-1", "r-1", ref, Place(3), wait = WaitPlan.COMMITTED)
+            withTimeout(10.seconds) { coordinator.stream(order, first).toList() }.last().status.assert()
+                .isEqualTo(CommandResult.Status.SUCCEEDED)
+            listOf(WaitPlan.of(Hop.committed(), Hop.snapshot()), WaitPlan.SNAPSHOT).forEachIndexed { at, plan ->
+                val retry = first.copyWith(id = "c-retry-$at", wait = plan)
+                // Not passed by the deadline: a duplicate that waited for it would hang until the ten seconds end.
+                val last = withTimeout(10.seconds) { coordinator.stream(order, retry).toList() }.last()
+                last.status.assert().describedAs("$plan: ${last.error?.code}").isEqualTo(CommandResult.Status.SUCCEEDED)
+                last.duplicate.assert().isTrue()
+                last.hop.assert().isEqualTo(Hop.committed("shop"))
+                last.version.assert().isEqualTo(1)
+            }
+            log.read(ref).toList().single().version.assert().isEqualTo(1)
+        } finally {
+            snapshotGate.complete(Unit)
+            intakeRuntime.stop()
+            snapshots.stop()
+            coordinator.join()
+            coordinator.close()
+        }
     }
 
     private fun CommandResult.timedOutAtCommitted() {

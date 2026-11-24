@@ -317,12 +317,9 @@ class WaitCoordinator(
                     waiting.expire(clock.millis(), ::timedOut)
                     return@let
                 }
-                waiting.offer(settlement.committed)
+                // The later hops it reached at once first: a duplicate's commit then ends the wait (WaitState).
                 settlement.reached.forEach { waiting.offer(it) }
-                if (settlement.committed.duplicate) {
-                    // A duplicate is not signalled again: what it did not reach at once, it will not reach.
-                    waiting.finish(settlement.committed)
-                }
+                waiting.offer(settlement.committed)
             }
             // Until the wait ends: with its final result, or with the timeout its deadline put there.
             for (result in waiting.results) {
