@@ -26,7 +26,7 @@ Wow 节点向监控报告的每个名字。类路径上有 `wow-observability` �
 | `wow.executor.in_flight` | Gauge | `wow.context` | 上下文执行器中在途的命令 |
 | `wow.executor.lanes` | Gauge | `wow.context` | 在执行器中有命令的聚合 |
 | `wow.log.append_queue.depth` | Gauge | `wow.context` | 在日志追加队列中等待的提交 |
-| `wow.log.tail.reads` | Counter | `wow.context`, `wow.reason` | 因为内存无法接续而读取存储的 tail：`start`、`gap`、`overflow`、`idle`，以及 `scheduled`（节点取得分区后约 2 秒内每秒探测一次，读取其他节点在路由指向它之前在该分区的提交） |
+| `wow.log.tail.reads` | Counter | `wow.context`, `wow.reason` | 因为内存无法接续而读取存储的 tail：`start`、`gap`、`overflow`、`idle`（节点的探测点名了该分区：出现了它未见过的其他节点的块或预留）、`scheduled`（节点取得分区后约 2 秒内每秒探测一次，读取其他节点在路由指向它之前在该分区的提交），以及 `backstop`（每 10 秒一次的精确头部读取发现某个 tail 落后，而探测没有点名该分区；该 tail 读到条目时记录一条警告） |
 | `wow.state_cache.lookups` | Counter | `wow.context`, `wow.outcome` | 状态缓存的查找：`hit`、`miss`（一次快照读取和一次 tail 读取） |
 | `wow.state_cache.evictions` | Counter | `wow.context` | 从状态缓存逐出的状态 |
 | `wow.state_cache.invalidations` | Counter | `wow.context` | 因落后于日志而从状态缓存丢弃的状态：分区属主读到了该聚合更新的流，是另一个节点在不持该分区租约时提交的 |

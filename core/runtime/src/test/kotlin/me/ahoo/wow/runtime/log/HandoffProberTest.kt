@@ -1,0 +1,169 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.runtime.log
+
+import ch.qos.logback.classic.Level
+import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.core.read.ListAppender
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.retry
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import me.ahoo.test.asserts.assert
+import me.ahoo.wow.runtime.subscription.eventually
+import me.ahoo.wow.spi.log.EventLog
+import me.ahoo.wow.spi.log.LogEntry
+import me.ahoo.wow.spi.observation.ObservedEvent.TailRead.Reason
+import org.junit.jupiter.api.Test
+import org.slf4j.LoggerFactory
+import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicInteger
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
+
+/**
+ * The node's probe of its tails (HandoffProber, #6702): one call of the log a round for every tail, the tails of the
+ * partitions it names reading the store, a report kept until a read of the store succeeds, and the backstop's exact
+ * heads finding, and logging, what the probe did not name.
+ */
+class HandoffProberTest : HandoffLogFixtures() {
+    /** The store as the probe sees it: every call recorded, its answers replaced by [named] when given. */
+    private class ProbedLog(
+        private val delegate: EventLog,
+        @Volatile var named: ((Map<Int, Long>) -> Set<Int>)? = null,
+    ) : EventLog by delegate {
+        val asked = CopyOnWriteArrayList<Map<Int, Long>>()
+        val headsRead = AtomicInteger()
+
+        @Volatile
+        var failHeadOnce = false
+
+        override suspend fun appendedElsewhere(cursors: Map<Int, Long>): Set<Int> {
+            asked += cursors
+            return named?.invoke(cursors) ?: delegate.appendedElsewhere(cursors)
+        }
+
+        override suspend fun heads(partitions: Collection<Int>): Map<Int, Long?> =
+            delegate.heads(partitions).also { headsRead.incrementAndGet() }
+
+        override suspend fun head(partition: Int): Long? {
+            if (failHeadOnce) {
+                failHeadOnce = false
+                throw IllegalStateException("The store is down for this read.")
+            }
+            return delegate.head(partition)
+        }
+    }
+
+    private fun probed(log: EventLog, backstop: kotlin.time.Duration = 10.seconds) = HandoffLog(
+        log,
+        "bank",
+        HandoffOptions(probeInterval = PROBE, backstopInterval = backstop),
+        reads,
+    )
+
+    @Test
+    fun `one round asks the log once for every tail, and reads no head while nothing is named`(): Unit = runBlocking {
+        val log = ProbedLog(store)
+        val handoff = probed(log)
+        val jobs = (0 until PARTITIONS).map { partition ->
+            launch(Dispatchers.Default) { handoff.tail(partition).collect { } }
+        }
+        eventually { log.asked.size >= 3 }
+        // Every partition of every round, in one call each; the tails' own head reads were their openings' alone.
+        log.asked.assert().allMatch { it.keys == (0 until PARTITIONS).toSet() }
+        store.heads.get().assert().isEqualTo(PARTITIONS)
+        reads.reasons.assert().isEmpty()
+        jobs.forEach { it.cancelAndJoin() }
+    }
+
+    @Test
+    fun `a partition the probe names has its tail read the store, and the others read nothing`(): Unit = runBlocking {
+        val log = ProbedLog(store)
+        val handoff = probed(log)
+        val (seen, job) = collect(handoff)
+        val other = launch(Dispatchers.Default) { handoff.tail(1).collect { } }
+        eventually { log.asked.size >= 1 }
+        store.append(next(refs[0]))
+        seen.take(1).single().stream.ref.assert().isEqualTo(refs[0])
+        reads.reasons.assert().containsExactly(Reason.IDLE)
+        job.cancelAndJoin()
+        other.cancelAndJoin()
+    }
+
+    @Test
+    fun `a report whose read of the store fails is read when the tail opens again, without a second report`(): Unit =
+        runBlocking {
+            val armed = java.util.concurrent.atomic.AtomicBoolean()
+            val reports = AtomicInteger()
+            val log = ProbedLog(store)
+            // The probe names partition 0 once, once armed, and never again: the store remembers what it reported.
+            log.named = { cursors ->
+                if (0 in cursors && armed.compareAndSet(true, false)) setOf(0).also { reports.incrementAndGet() } else emptySet()
+            }
+            val handoff = probed(log)
+            val seen = Channel<LogEntry>(Channel.UNLIMITED)
+            // As a partition's runner does: a tail that fails is collected again.
+            val job = launch(Dispatchers.Default) { handoff.tail(0).retry(1).collect { seen.send(it) } }
+            eventually { log.asked.size >= 2 }
+            // Another node appends; the read of the store the report calls for fails once.
+            log.failHeadOnce = true
+            store.append(next(refs[0]))
+            armed.set(true)
+            seen.take(1).single().stream.ref.assert().isEqualTo(refs[0])
+            reports.get().assert().isEqualTo(1)
+            log.failHeadOnce.assert().isFalse()
+            job.cancelAndJoin()
+        }
+
+    @Test
+    fun `the backstop finds what the probe did not name, and says so once`(): Unit = runBlocking {
+        val warnings = ListAppender<ILoggingEvent>().also { it.start() }
+        val logger = LoggerFactory.getLogger(HandoffLog::class.java) as Logger
+        logger.addAppender(warnings)
+        try {
+            val log = ProbedLog(store, named = { emptySet() })
+            val handoff = probed(log, backstop = 200.milliseconds)
+            val (seen, job) = collect(handoff)
+            eventually { log.asked.size >= 1 }
+            store.append(next(refs[0]))
+            seen.take(1).single().stream.ref.assert().isEqualTo(refs[0])
+            reads.reasons.assert().containsExactly(Reason.BACKSTOP)
+            log.headsRead.get().assert().isGreaterThanOrEqualTo(1)
+            job.cancelAndJoin()
+            warnings.list.filter { it.level == Level.WARN }.map { it.formattedMessage }.assert().singleElement()
+                .asString().contains("partition 0 of bank").contains("a node wrote to a partition it no longer owned")
+        } finally {
+            logger.detachAppender(warnings)
+        }
+    }
+
+    @Test
+    fun `the probe stops with the node's last tail`(): Unit = runBlocking {
+        val handoff = probed(ProbedLog(store))
+        val (_, job) = collect(handoff)
+        eventually { handoff.probeRounds >= 2 }
+        job.cancelAndJoin()
+        val stopped = handoff.probeRounds
+        kotlinx.coroutines.delay(PROBE * 3)
+        handoff.probeRounds.assert().isLessThanOrEqualTo(stopped + 1)
+    }
+
+    private companion object {
+        val PROBE = 40.milliseconds
+    }
+}

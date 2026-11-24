@@ -1047,6 +1047,7 @@ public final class me/ahoo/wow/spi/observation/ObservedEvent$TailRead : me/ahoo/
 }
 
 public final class me/ahoo/wow/spi/observation/ObservedEvent$TailRead$Reason : java/lang/Enum {
+	public static final field BACKSTOP Lme/ahoo/wow/spi/observation/ObservedEvent$TailRead$Reason;
 	public static final field GAP Lme/ahoo/wow/spi/observation/ObservedEvent$TailRead$Reason;
 	public static final field IDLE Lme/ahoo/wow/spi/observation/ObservedEvent$TailRead$Reason;
 	public static final field OVERFLOW Lme/ahoo/wow/spi/observation/ObservedEvent$TailRead$Reason;

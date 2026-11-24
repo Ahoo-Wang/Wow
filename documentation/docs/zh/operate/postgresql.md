@@ -172,6 +172,16 @@ synchronous_commit = on
 
 存储借出的每个连接等待回应最多 `wow.postgres.operation-timeout`（默认 30 秒，单个存储的 `operation-timeout`（`wow.stores.<name>.operation-timeout`）可覆盖），建表类语句最多 5 分钟：在故障切换中或代理之后丢失的回应会让调用以暂时性错误失败并换掉这个连接，而不是一直挂住。连接池的驱动已设了更短的 `socketTimeout` 时保留它。服务器按同一个超时为 Wow 的每个事务设上限（[服务端设置](#server-settings)）。
 
+## 空闲节点读取什么 {#what-an-idle-node-reads}
+
+即使没有命令发给节点，它也会读取自己的分区，以获取其他节点在那里追加的条目，这些条目不会经由它自己的提交到达它的 tail（本节点自己的提交会立即到达）：
+
+- **每半个 `wow.log.max-poll-interval`**（默认 0.5 秒），每个日志组用一条语句读取节点拥有的所有分区的计数器行（`WHERE partition = ANY(?)`）。计数器超过 tail 的分区会被读取：先读头部，再在 tail 空闲半个该间隔后读取条目。
+- **每 10 秒**（若 `max-poll-interval` 更长则按它），用一条语句读取同样的头部：这是兜底，在 PostgreSQL 上它找不到计数器漏掉的东西，因为计数器行随每次追加而变化。
+- **每个 `wow.node.sample-interval`**（10 秒），节点的采样器用一条语句读取同样的头部，用于它报告的延迟。
+
+所以，其他节点追加的条目会在 tail 停顿后的 `max-poll-interval` 内读到。租约、成员关系和定时器循环按各自的节奏读取，与这些并行。
+
 ## 多个数据库 {#several-databases}
 
 各聚合类型把数据放在不同数据库里的服务，命名它的存储实例，并把每个类型放到其中一个上：

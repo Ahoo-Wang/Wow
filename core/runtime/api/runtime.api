@@ -535,8 +535,9 @@ public final class me/ahoo/wow/runtime/log/AppendQueueOptions$Companion {
 
 public final class me/ahoo/wow/runtime/log/HandoffOptions {
 	public static final field Companion Lme/ahoo/wow/runtime/log/HandoffOptions$Companion;
-	public synthetic fun <init> (IJJJILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (IJJJJILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun equals (Ljava/lang/Object;)Z
+	public final fun getBackstopInterval-UwyO8pc ()J
 	public final fun getCapacity ()I
 	public final fun getGapWait-UwyO8pc ()J
 	public final fun getProbeInterval-UwyO8pc ()J
