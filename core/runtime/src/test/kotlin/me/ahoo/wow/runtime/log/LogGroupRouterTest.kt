@@ -199,6 +199,7 @@ class LogGroupRouterTest {
         assertThrows<UnsupportedOperationException> { router.tail(0, null) }
         assertThrows<UnsupportedOperationException> { router.head(0) }
         assertThrows<UnsupportedOperationException> { router.heads(listOf(0)) }
+        assertThrows<UnsupportedOperationException> { router.appendedElsewhere(mapOf(0 to 0L)) }
         assertThrows<UnsupportedOperationException> { router.lineage(0) }
     }
 

@@ -214,6 +214,23 @@ interface EventLog {
     suspend fun heads(partitions: Collection<Int>): Map<Int, Long?> = partitions.associateWith { head(it) }
 
     /**
+     * The partitions among [cursors]' keys in which another writer may have appeared since this log was last asked
+     * about them: a node's tails ask it, all their partitions at once, for the entries other nodes appended, which no
+     * hand-over brings them. A partition named calls for a read of its head (and of the store past the cursor when the
+     * head is past it); one not named means nothing new was seen, not that nothing lies past its cursor. It may name a
+     * partition that holds nothing new: the caller then finds its head at its cursor.
+     *
+     * By default the answer is exact and keeps nothing: the partitions whose [heads] are past their cursors ([cursors]
+     * gives each partition's last sequence the caller has). A store may instead answer from less than the heads and
+     * from what it remembers of its previous answers, naming a partition once for each change it sees there; it
+     * forgets a partition that a call does not ask about, so the next call that asks about it starts afresh. MongoDB's
+     * log does so: it names a partition whose counter lists another node's block it had not listed at the previous call,
+     * past the cursor ([cursors] serve it to leave out a block the caller has read through).
+     */
+    suspend fun appendedElsewhere(cursors: Map<Int, Long>): Set<Int> =
+        heads(cursors.keys).filter { (partition, head) -> head != null && head > cursors.getValue(partition) }.keys
+
+    /**
      * The lineage of [partition] as stored: [PartitionLineage.ROOT] for a partition the log was created
      * with, which today is every partition. Format 1 reserves it for the online splits of 10.x, which nothing reads
      * yet. A backend that stores no lineage answers [PartitionLineage.ROOT].
