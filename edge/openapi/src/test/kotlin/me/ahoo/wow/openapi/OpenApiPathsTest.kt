@@ -18,6 +18,7 @@ import me.ahoo.wow.api.aggregate.AggregateIdSource
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.schedule.JobScope
+import me.ahoo.wow.api.wire.WaitHeader
 import me.ahoo.wow.manifest.CommandRoutes
 import me.ahoo.wow.manifest.FunctionManifest
 import me.ahoo.wow.manifest.JobManifest
@@ -74,10 +75,14 @@ class OpenApiPathsTest {
             "traceparent",
             "tracestate",
             "baggage",
+            "If-Match",
         )
         withoutId["description"].toString().assert().contains("names no aggregate id")
-        responses(withoutId).keys.assert().doesNotContain("412")
+        // A command that names no id reads If-Match too: `*` on a creation, or a stale tag, is 412.
+        responses(withoutId)["412"].assert().isEqualTo(ref("responses", "shop.command.412"))
         responses(byId)["412"].assert().isEqualTo(ref("responses", "shop.command.412"))
+        // Its body: one over the codecs' limit is 413, one of another type 415.
+        responses(withoutId).keys.assert().contains("413", "415")
     }
 
     @Test
@@ -108,8 +113,8 @@ class OpenApiPathsTest {
     fun `a command should answer its result as JSON or as server-sent events, and every error as a problem`() {
         val responses = responses(operation("post", "/shop/cart/{id}/put-item"))
         responses.keys.assert().containsExactly(
-            "200", "202", "400", "401", "403", "404", "406", "409", "410", "412", "415", "422", "429", "500", "503",
-            "504",
+            "200", "202", "400", "401", "403", "404", "406", "409", "410", "412", "413", "415", "422", "429", "500",
+            "503", "504",
         )
         val ok = response("wow.command.200")
         content(ok).keys.assert().containsExactly("application/json", "text/event-stream")
@@ -139,10 +144,17 @@ class OpenApiPathsTest {
         val rejected = response("shop.command.422")
         rejected["x-wow-error-codes"].assert().isEqualTo(listOf("shop.cart.closed"))
         rejected["description"].toString().assert().startsWith("`shop.cart.closed`\nA rejection by the domain")
-        response("shop.command.503")["headers"].assert().isEqualTo(
-            mapOf("Retry-After" to ref("headers", "Retry-After")),
-        )
+        // Retry-After on each response with a code whose catalog retry is not none, as the edge's problem writes it.
+        listOf("409", "429", "503", "504").forEach { status ->
+            response("shop.command.$status")["headers"].assert().describedAs(status).isEqualTo(
+                mapOf("Retry-After" to ref("headers", "Retry-After")),
+            )
+        }
+        listOf("400", "403", "404", "422").forEach { status ->
+            response("shop.command.$status").containsKey("headers").assert().describedAs(status).isFalse()
+        }
         response("shop.command.406").containsKey("x-wow-error-codes").assert().isFalse()
+        response("shop.command.413").containsKey("x-wow-error-codes").assert().isFalse()
     }
 
     @Test
@@ -232,7 +244,8 @@ class OpenApiPathsTest {
     fun `state reads and traces should carry the aggregate's state schema`() {
         val state = operation("get", "/shop/cart/{id}/state")
         state["operationId"].assert().isEqualTo("shop.cart.state")
-        parameters(state).assert().containsExactly("id", "version", "at", "minVersion", "Wow-Scope", "If-None-Match")
+        parameters(state).assert()
+            .containsExactly("id", "version", "at", "minVersion", "Wow-Scope", "If-None-Match", "Wow-Space")
         @Suppress("UNCHECKED_CAST")
         val ok = responses(state)["200"] as Map<String, Any?>
         schema(ok).assert().isEqualTo(
@@ -246,7 +259,9 @@ class OpenApiPathsTest {
             state
         ).keys.assert().containsExactly("200", "304", "400", "401", "403", "404", "406", "409", "429", "503")
         val trace = operation("get", "/shop/cart/{id}/state/trace")
-        parameters(trace).assert().containsExactly("id", "from", "to", "limit", "Wow-Scope")
+        parameters(trace).assert().containsExactly("id", "from", "to", "limit", "Wow-Scope", "Wow-Space")
+        // A read takes no body: neither 413 nor 415.
+        responses(state).keys.assert().doesNotContain("413", "415")
     }
 
     @Test
@@ -257,10 +272,10 @@ class OpenApiPathsTest {
         val paths = owned["paths"] as Map<String, Map<String, Map<String, Any?>>>
         val create = paths.getValue("/shop/cart/create-cart").getValue("post")
         create["operationId"].assert().isEqualTo("shop.cart.CreateCart.withoutId")
-        parameters(create).assert().doesNotContain("id", "If-Match")
+        parameters(create).assert().doesNotContain("id").contains("If-Match")
         create["description"].toString().assert().contains("the caller's own aggregate")
             .doesNotContain("the server chooses it")
-        responses(create).keys.assert().contains("400", "401", "403").doesNotContain("412")
+        responses(create).keys.assert().contains("400", "401", "403", "412")
         val put = paths.getValue("/shop/cart/put-item").getValue("post")
         put["description"].toString().assert().contains("Acts on an aggregate that exists.")
             .contains("the caller's own aggregate")
@@ -277,12 +292,13 @@ class OpenApiPathsTest {
 
         val state = paths.getValue("/shop/cart/state").getValue("get")
         state["operationId"].assert().isEqualTo("shop.cart.state.withoutId")
-        parameters(state).assert().containsExactly("version", "at", "minVersion", "Wow-Scope", "If-None-Match")
+        parameters(state).assert()
+            .containsExactly("version", "at", "minVersion", "Wow-Scope", "If-None-Match", "Wow-Space")
         state["description"].toString().assert().contains("the caller's own aggregate").contains("wow.query.malformed")
         responses(state).assert().isEqualTo(responses(paths.getValue("/shop/cart/{id}/state").getValue("get")))
         val trace = paths.getValue("/shop/cart/state/trace").getValue("get")
         trace["operationId"].assert().isEqualTo("shop.cart.state.trace.withoutId")
-        parameters(trace).assert().containsExactly("from", "to", "limit", "Wow-Scope")
+        parameters(trace).assert().containsExactly("from", "to", "limit", "Wow-Scope", "Wow-Space")
 
         val operationIds = paths.values.flatMap { it.values }.map { it["operationId"] }
         operationIds.assert().doesNotHaveDuplicates()
@@ -305,7 +321,7 @@ class OpenApiPathsTest {
         )
         operation("get", "/shop/cart/snapshot/query")["operationId"].assert().isEqualTo("shop.cart.snapshot.describe")
         // A streamed list is resumable (decision D253): each row's id, the end event, Last-Event-ID.
-        parameters(snapshot).assert().containsExactly("Wow-Scope", "Last-Event-ID")
+        parameters(snapshot).assert().containsExactly("Wow-Scope", "Last-Event-ID", "Wow-Space")
         val ok = responses(snapshot)["200"]
 
         @Suppress("UNCHECKED_CAST")
@@ -326,7 +342,7 @@ class OpenApiPathsTest {
         paths().containsKey("/shop/cart/custom/query").assert().isFalse()
         // 429 is the store's query bulkhead (review R3.4-2), `wow.query.busy`.
         responses(events).keys.assert()
-            .containsExactly("200", "400", "401", "403", "404", "406", "415", "429", "500", "503", "504")
+            .containsExactly("200", "400", "401", "403", "404", "406", "413", "415", "429", "500", "503", "504")
     }
 
     @Test
@@ -339,8 +355,9 @@ class OpenApiPathsTest {
         )
         responses(operation("post", "/wow/dataset/{context}/{dataset}/query"))["404"]
             .assert().isEqualTo(ref("responses", "wow.dataset-query.404"))
-        // A dataset backend has no query bulkhead: its queries are never `wow.query.busy`.
-        responses(operation("post", "/wow/dataset/{context}/{dataset}/query")).containsKey("429").assert().isFalse()
+        // The host runs a dataset's queries under the datasets' bulkhead: `wow.query.busy`, as a model's.
+        responses(operation("post", "/wow/dataset/{context}/{dataset}/query"))["429"]
+            .assert().isEqualTo(ref("responses", "wow.dataset-query.429"))
         val none = ManifestOpenApi.write(
             MANIFEST,
             OpenApiOptions(
@@ -357,6 +374,80 @@ class OpenApiPathsTest {
             )
         }.assert().isEmpty()
         none["servers"].assert().isEqualTo(listOf(mapOf("url" to "https://shop.example")))
+    }
+
+    @Test
+    fun `every operation should take Wow-Space and list what the public port refuses before its route reads it`() {
+        val operations = paths().flatMap { (path, item) ->
+            @Suppress("UNCHECKED_CAST")
+            (item as Map<String, Map<String, Any?>>).map { (method, operation) -> "$method $path" to operation }
+        }
+        operations.assert().hasSizeGreaterThan(20)
+        operations.forEach { (name, operation) ->
+            parameters(operation).assert().describedAs(name).contains("Wow-Space")
+            val listed = responses(operation)
+            listed.keys.assert().describedAs(name).contains("400", "401", "403", "406")
+            codes(listed["400"]).assert().describedAs(name).contains(FrameworkCodes.REQUEST_MALFORMED)
+            codes(listed["401"]).assert().describedAs(name).contains(FrameworkCodes.AUTH_UNAUTHENTICATED)
+            codes(listed["403"]).assert().describedAs(name).contains(FrameworkCodes.AUTH_FORBIDDEN)
+            // A body over the codecs' limit is 413, one of another type than JSON 415: on a route that reads one.
+            val body = operation.containsKey("requestBody")
+            listed.keys.containsAll(listOf("413", "415")).assert().describedAs(name).isEqualTo(body)
+            listed.keys.any { it == "413" || it == "415" }.assert().describedAs(name).isEqualTo(body)
+        }
+    }
+
+    @Test
+    fun `a snapshot model's answers should declare Wow-Rebuilding, and no other model's`() {
+        val rebuilding = mapOf("Wow-Rebuilding" to ref("headers", "Wow-Rebuilding"))
+
+        @Suppress("UNCHECKED_CAST")
+        fun headers(operation: Map<String, Any?>, status: String): Map<String, Any?> =
+            (responses(operation)[status] as Map<String, Any?>)["headers"] as Map<String, Any?>? ?: emptyMap()
+        val query = operation("post", "/shop/cart/snapshot/query")
+        headers(query, "200").assert().isEqualTo(rebuilding)
+        val describe = operation("get", "/shop/cart/snapshot/query")
+        headers(describe, "200").assert().isEqualTo(mapOf("ETag" to ref("headers", "ETag")) + rebuilding)
+        headers(describe, "304").assert().isEqualTo(mapOf("ETag" to ref("headers", "ETag")) + rebuilding)
+        // A 304 carries the tag it was answered for, as the 200 does.
+        headers(operation("get", "/shop/cart/{id}/state"), "304").keys.assert().containsExactly("ETag")
+        headers(operation("post", "/shop/order/events/query"), "200").assert().isEmpty()
+        headers(operation("get", "/shop/order/events/query"), "200").keys.assert().containsExactly("ETag")
+        headers(operation("get", "/wow/dataset/{context}/{dataset}/query"), "200").keys.assert().containsExactly("ETag")
+        (document.components("headers")["Wow-Rebuilding"] as Map<*, *>)["schema"].assert()
+            .isEqualTo(mapOf("type" to "string", "enum" to listOf("true")))
+    }
+
+    @Test
+    fun `a dataset's descriptor should take the scope its caller reads in`() {
+        parameters(operation("get", "/wow/dataset/{context}/{dataset}/query")).assert()
+            .containsExactly("context", "dataset", "Wow-Scope", "If-None-Match", "Wow-Space")
+        parameters(operation("get", "/shop/cart/snapshot/query")).assert().containsExactly("If-None-Match", "Wow-Space")
+    }
+
+    @Test
+    fun `a wait plan should be bounded as the edge bounds it`() {
+        val wait = document.components("parameters")["Wow-Wait"] as Map<*, *>
+        wait["schema"].assert().isEqualTo(mapOf("type" to "string", "maxLength" to WaitHeader.MAX_LENGTH))
+        wait["description"].toString().assert().contains("4096 characters", "32 hops", "`wow.wait.invalid`")
+    }
+
+    @Test
+    fun `a command's event stream should say what it answers before and after the command is accepted`() {
+        val description = response("wow.command.200")["description"].toString()
+        description.assert().contains(
+            "a refusal before the command is accepted is the problem it is",
+            "once accepted, the answer is 200 and no other status",
+            "`: keep-alive`",
+            "`wow.wait.timeout`",
+        )
+    }
+
+    /** The codes the component response [reference] lists. */
+    @Suppress("UNCHECKED_CAST")
+    private fun codes(reference: Any?): List<String> {
+        val name = (reference as Map<String, Any?>).getValue("\$ref").toString().substringAfterLast('/')
+        return response(name)["x-wow-error-codes"] as List<String>? ?: emptyList()
     }
 
     @Suppress("UNCHECKED_CAST")

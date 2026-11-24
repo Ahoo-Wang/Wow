@@ -44,6 +44,9 @@ object WowHttpContract {
     const val ETAG_HEADER: String = "ETag"
     const val RETRY_AFTER_HEADER: String = "Retry-After"
 
+    /** On a snapshot model's answers, `true` while its snapshots are being rebuilt or backfilled. */
+    const val REBUILDING_HEADER: String = "Wow-Rebuilding"
+
     /** The position a streamed list resumes after: the `id` of the last `row` event read. */
     const val LAST_EVENT_ID_HEADER: String = "Last-Event-ID"
 

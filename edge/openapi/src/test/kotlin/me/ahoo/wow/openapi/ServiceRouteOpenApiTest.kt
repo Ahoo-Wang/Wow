@@ -104,15 +104,17 @@ class ServiceRouteOpenApiTest {
                 "400" to "#/components/responses/shop.route.find.400",
                 "401" to "$shared.401",
                 "403" to "$shared.403",
+                "406" to "$shared.406",
             ),
         )
         component(refusals("find").getValue("400"))["x-wow-error-codes"].assert()
-            .isEqualTo(listOf("wow.route.malformed", "shop.limit-out-of-range"))
+            .isEqualTo(listOf("wow.route.malformed", "wow.request.malformed", "shop.limit-out-of-range"))
         refusals("open").assert().containsExactlyEntriesOf(
             linkedMapOf(
                 "400" to "$shared.400",
                 "401" to "$shared.401",
                 "403" to "$shared.403",
+                "406" to "$shared.406",
                 "409" to "#/components/responses/shop.route.open.409",
             ),
         )
@@ -129,7 +131,7 @@ class ServiceRouteOpenApiTest {
     @Test
     fun `a framework code a route lists should be listed at its status`() {
         val lookup = refusals("lookup")
-        lookup.keys.assert().containsExactly("400", "401", "403", "404", "409")
+        lookup.keys.assert().containsExactly("400", "401", "403", "404", "406", "409")
         component(lookup.getValue("404"))["x-wow-error-codes"].assert().isEqualTo(listOf("wow.aggregate.not-found"))
         lookup.getValue("409").assert().isEqualTo("#/components/responses/shop.route.lookup.409")
     }
@@ -146,7 +148,7 @@ class ServiceRouteOpenApiTest {
             bare("wow.aggregate.not-found"),
             OpenApiOptions(errorStatuses = mapOf("wow.aggregate.not-found" to 410)),
         )
-        responses("hold", configured).keys.assert().containsExactly("204", "400", "401", "403", "410")
+        responses("hold", configured).keys.assert().containsExactly("204", "400", "401", "403", "406", "410")
     }
 
     @Test

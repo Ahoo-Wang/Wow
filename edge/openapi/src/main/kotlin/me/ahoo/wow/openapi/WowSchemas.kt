@@ -339,6 +339,12 @@ internal object WowSchemas {
             ),
             "violations" to array(schemaRef(VIOLATION)),
             "result" to schemaRef(COMMAND_RESULT),
+            "version" to obj(
+                "type" to "integer",
+                "description" to "The aggregate's version the problem answered: a rejection's, the next " +
+                    "`If-Match` (none for a creation's), or the current version of a state read whose `minVersion` " +
+                    "was not reached.",
+            ),
         ),
         listOf("type", "title", "status", "retry"),
         "An RFC 9457 problem; `result` is the command's when it has one, and the rejection's " +

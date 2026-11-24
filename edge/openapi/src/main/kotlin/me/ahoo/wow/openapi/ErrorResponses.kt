@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.openapi
 
+import me.ahoo.wow.api.problem.Retry
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.manifest.ErrorManifest
 import me.ahoo.wow.manifest.FrameworkErrors
@@ -26,6 +27,10 @@ import me.ahoo.wow.manifest.Manifest
  * lists the code: the context's for its domain rejection codes, the Manifest's framework table, or
  * [FrameworkErrors.ALL] for a Manifest that lists none. Any other domain code is 422
  * ([FrameworkErrors.DOMAIN_REJECTION_STATUS]), which every route that sends a domain command lists.
+ *
+ * Every route lists what the public port answers any request before its route reads it ([PUBLIC], and 406 for an
+ * `Accept` it cannot answer), and a route that reads a body what it answers a body it cannot take (413, 415): the
+ * route's own codes come on top, so a route of a new kind lists them too.
  */
 internal class ErrorResponses(manifest: Manifest, private val overrides: Map<String, Int>) {
     private val framework: Map<String, ErrorManifest> =
@@ -41,9 +46,10 @@ internal class ErrorResponses(manifest: Manifest, private val overrides: Map<Str
     private data class Entry(val code: String?, val description: String?)
 
     /**
-     * The responses of a route of the [kind] (`command`, `state`, `query`, ...) that answers the framework [codes];
-     * with [domain], also the domain rejections of its [context]; with [ifMatch], `wow.aggregate.version-mismatch` as
-     * 412 for a request with `If-Match`; and the [http] statuses that carry no Wow code (a missing route, 406, 415).
+     * The responses of a route of the [kind] (`command`, `state`, `query`, ...) that answers the framework [codes] and
+     * the public port's ([PUBLIC], with 406); with [domain], also the domain rejections of its [context]; with
+     * [ifMatch], `wow.aggregate.version-mismatch` as 412 for a request with `If-Match`; with [body], the statuses of a
+     * body it cannot take, which carry no Wow code (413, 415).
      *
      * Each is a reference to a component response, `<scope>.<kind>.<status>`: the scope is the [context] for a route
      * with [domain] rejections, whose table is the context's, and `wow` otherwise.
@@ -54,10 +60,11 @@ internal class ErrorResponses(manifest: Manifest, private val overrides: Map<Str
         context: String? = null,
         domain: Boolean = false,
         ifMatch: Boolean = false,
-        http: Map<Int, String> = emptyMap(),
+        body: Boolean = false,
     ): Map<String, Any?> {
         val entries = mutableListOf<Pair<Int, Entry>>()
-        codes.map(framework::getValue).forEach { entries += status(it) to Entry(it.code, it.description) }
+        (codes + PUBLIC).distinct().map(framework::getValue)
+            .forEach { entries += status(it) to Entry(it.code, it.description) }
         if (ifMatch && FrameworkCodes.AGGREGATE_VERSION_MISMATCH !in overrides) {
             entries += FrameworkErrors.PRECONDITION_FAILED_STATUS to Entry(
                 FrameworkCodes.AGGREGATE_VERSION_MISMATCH,
@@ -70,7 +77,7 @@ internal class ErrorResponses(manifest: Manifest, private val overrides: Map<Str
             }
             entries += FrameworkErrors.DOMAIN_REJECTION_STATUS to Entry(null, DOMAIN_REJECTION)
         }
-        http.forEach { (status, description) -> entries += status to Entry(null, description) }
+        http(body).forEach { (status, description) -> entries += status to Entry(null, description) }
         val scope = if (domain) checkNotNull(context) else WowSchemas.PREFIX.removeSuffix(".")
         return entries.groupBy({ it.first }, { it.second }).toSortedMap()
             .entries.associateTo(LinkedHashMap()) { (status, listed) ->
@@ -79,8 +86,9 @@ internal class ErrorResponses(manifest: Manifest, private val overrides: Map<Str
     }
 
     /**
-     * The responses of the service route [name] of [context]: the framework's answers to a route ([ROUTE]), in a
-     * route's words, and the statuses of the codes it refuses with, its [errors], each with the codes of that status
+     * The responses of the service route [name] of [context]: the framework's answers to a route ([ROUTE], the public
+     * port's among them, with 406, and 413 and 415 when it takes a [body]), in a route's words, and the statuses of the
+     * codes it refuses with, its [errors], each with the codes of that status
      * alone. A status the framework's codes alone answer is the shared `wow.route.<status>`; one that carries a code of
      * the route's is the route's own, `<context>.route.<name>.<status>`. A route refuses with its codes' statuses, so
      * it lists no `422` of a domain rejection it does not list. A code's status is the edge's: the host's override,
@@ -89,10 +97,12 @@ internal class ErrorResponses(manifest: Manifest, private val overrides: Map<Str
      * @throws IllegalStateException naming the route and the code, for a code neither the context's table nor the
      * framework's declares: the guard of a Manifest that was never merged, since the merger refuses such a route.
      */
-    fun ofRoute(context: String, name: String, errors: List<String>): Map<String, Any?> {
+    fun ofRoute(context: String, name: String, errors: List<String>, body: Boolean): Map<String, Any?> {
         // A route is one of its context's, which the Manifest lists.
         val table = byContext.getValue(context).associateBy { it.code }
-        val answers = ROUTE.map(framework::getValue).map { status(it) to Entry(it.code, routeWords(it)) }
+        val answers = (ROUTE + PUBLIC).distinct().map(framework::getValue)
+            .map { status(it) to Entry(it.code, routeWords(it)) } +
+            http(body).map { (status, description) -> status to Entry(null, description) }
         val own = errors.map { code ->
             val error = checkNotNull(table[code] ?: framework[code]) {
                 "Service route $context.$name refuses with $code, which neither its context nor the framework declares."
@@ -106,6 +116,10 @@ internal class ErrorResponses(manifest: Manifest, private val overrides: Map<Str
                 status.toString() to register("$scope.$status", response(listed))
             }
     }
+
+    /** The statuses without a Wow code a route answers: 406, and 413 and 415 when it reads a [body]. */
+    private fun http(body: Boolean): List<Pair<Int, String>> =
+        listOf(NOT_ACCEPTABLE) + if (body) listOf(CONTENT_TOO_LARGE, UNSUPPORTED_MEDIA_TYPE) else emptyList()
 
     /** What a framework code means for a service route, which sends no command. */
     private fun routeWords(error: ErrorManifest): String? = ROUTE_WORDS[error.code] ?: error.description
@@ -125,13 +139,20 @@ internal class ErrorResponses(manifest: Manifest, private val overrides: Map<Str
             },
             "headers" to Json.obj(
                 WowHttpContract.RETRY_AFTER_HEADER to Json.ref(Json.HEADERS, WowHttpContract.RETRY_AFTER_HEADER),
-            ).takeIf { FrameworkCodes.STORAGE_UNAVAILABLE in codes },
+            ).takeIf { codes.any(::retried) },
             "content" to Json.obj(PROBLEM_JSON to Json.obj("schema" to Json.schemaRef(WowSchemas.PROBLEM))),
             "x-wow-error-codes" to codes.takeIf { it.isNotEmpty() },
         )
     }
 
     private fun status(error: ErrorManifest): Int = overrides[error.code] ?: error.status
+
+    /**
+     * Whether a problem of [code] carries `Retry-After`: as the edge's problem decides it, when the error catalog's
+     * retry of the code is not none ([FrameworkErrors.BY_CODE]); a code the catalog does not list, a domain's, carries
+     * none.
+     */
+    private fun retried(code: String): Boolean = (FrameworkErrors.BY_CODE[code]?.retry ?: Retry.NONE) != Retry.NONE
 
     companion object {
         const val PROBLEM_JSON: String = "application/problem+json"
@@ -192,11 +213,11 @@ internal class ErrorResponses(manifest: Manifest, private val overrides: Map<Str
             FrameworkCodes.STORAGE_UNAVAILABLE
 
         /**
-         * The codes a dataset query answers: a query's, but `wow.query.busy`, which only the stores' query bulkheads
-         * answer, and a dataset backend has none; and `wow.query.dataset-unavailable`, a dataset served
-         * but not queryable now (-2); and `wow.query.dataset-not-found`, one not served to the caller.
+         * The codes a dataset query answers: a query's, `wow.query.busy` among them (the host runs a dataset's queries
+         * under the datasets' bulkhead, as a model's under its store's); and `wow.query.dataset-unavailable`, a dataset
+         * served but not queryable now; and `wow.query.dataset-not-found`, one not served to the caller.
          */
-        val DATASET_QUERY: List<String> = QUERY - FrameworkCodes.QUERY_BUSY + DATASET_ONLY
+        val DATASET_QUERY: List<String> = QUERY + DATASET_ONLY
 
         /** The codes a query model's capability descriptor answers. */
         val DESCRIPTOR: List<String> = listOf(
@@ -205,8 +226,12 @@ internal class ErrorResponses(manifest: Manifest, private val overrides: Map<Str
             FrameworkCodes.STORAGE_UNAVAILABLE,
         )
 
-        /** The codes a dataset's descriptor answers: a model's, and `wow.query.dataset-not-found`. */
-        val DATASET_DESCRIPTOR: List<String> = DESCRIPTOR + FrameworkCodes.QUERY_DATASET_NOT_FOUND
+        /**
+         * The codes a dataset's descriptor answers: a model's, a `Wow-Scope` that does not parse
+         * (`wow.query.malformed`: its caller reads in the scope it names), and the dataset's own: not served to the
+         * caller, or served but not queryable now.
+         */
+        val DATASET_DESCRIPTOR: List<String> = DESCRIPTOR + FrameworkCodes.QUERY_MALFORMED + DATASET_ONLY
 
         /** The codes the dataset list answers. */
         val DATASET_LIST: List<String> = listOf(
@@ -215,8 +240,20 @@ internal class ErrorResponses(manifest: Manifest, private val overrides: Map<Str
             FrameworkCodes.QUERY_MALFORMED,
         )
 
-        /** The codes of the framework's own endpoints: the caller must be authenticated. */
-        val FRAMEWORK: List<String> = listOf(FrameworkCodes.AUTH_UNAUTHENTICATED)
+        /**
+         * What the public port answers any request with before its route reads it: an unknown `Wow-` header, one given
+         * twice, or matrix parameters in the path (400 `wow.request.malformed`); `Wow-Call` or `Wow-Reveal`, a space
+         * the caller does not act in (`Wow-Space`), or a service identity (403 `wow.auth.forbidden`); and no
+         * credentials (401 `wow.auth.unauthenticated`). Every route lists them.
+         */
+        val PUBLIC: List<String> = listOf(
+            FrameworkCodes.AUTH_UNAUTHENTICATED,
+            FrameworkCodes.AUTH_FORBIDDEN,
+            FrameworkCodes.REQUEST_MALFORMED,
+        )
+
+        /** The codes of the framework's own endpoints: the public port's alone ([PUBLIC]). */
+        val FRAMEWORK: List<String> = PUBLIC
 
         /** A service route's: its caller refused, a parameter that does not read, and a failure. */
         val ROUTE: List<String> = listOf(
@@ -235,6 +272,9 @@ internal class ErrorResponses(manifest: Manifest, private val overrides: Map<Str
 
         /** A route that answers no type the request accepts. */
         val NOT_ACCEPTABLE: Pair<Int, String> = 406 to "Not Acceptable: the route answers in none of the types Accept names."
+
+        /** A body larger than the server takes in memory (`spring.http.codecs.max-in-memory-size`). */
+        val CONTENT_TOO_LARGE: Pair<Int, String> = 413 to "Content Too Large: the body is larger than this server takes."
 
         /** A body sent as another type than JSON. */
         val UNSUPPORTED_MEDIA_TYPE: Pair<Int, String> = 415 to "Unsupported Media Type: the body is sent as application/json."
