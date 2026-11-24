@@ -62,13 +62,25 @@ internal class ReplayCheck(private val codec: EventCodec, private val replay: (I
     internal companion object {
         private val MAX_WAIT = 100.milliseconds
 
-        /** Waits for the JVM's clock to move past [millis], spinning: under a millisecond, failing past [MAX_WAIT]. */
-        fun awaitTick(millis: Long) {
-            val deadline = System.nanoTime() + MAX_WAIT.inWholeNanoseconds
-            while (System.currentTimeMillis() <= millis) {
-                check(System.nanoTime() < deadline) {
-                    "The JVM's clock did not move on in $MAX_WAIT, so a state rebuilt from the log cannot be told " +
-                        "apart from one that read the clock."
+        /**
+         * Waits for the JVM's clock ([wallClock], milliseconds) to move past [millis], spinning: under a millisecond,
+         * failing once [MAX_WAIT] has passed on [monotonic] (nanoseconds) and the clock has still not moved. The clock
+         * is read again when the wait is over, so a spinning thread descheduled past the deadline, on a machine busy
+         * with other work, wakes to a clock that moved meanwhile and goes on (#6776).
+         */
+        fun awaitTick(
+            millis: Long,
+            wallClock: () -> Long = System::currentTimeMillis,
+            monotonic: () -> Long = System::nanoTime,
+        ) {
+            val deadline = monotonic() + MAX_WAIT.inWholeNanoseconds
+            while (wallClock() <= millis) {
+                if (monotonic() >= deadline) {
+                    check(wallClock() > millis) {
+                        "The JVM's clock did not move on in $MAX_WAIT, so a state rebuilt from the log cannot be " +
+                            "told apart from one that read the clock."
+                    }
+                    return
                 }
                 Thread.onSpinWait()
             }

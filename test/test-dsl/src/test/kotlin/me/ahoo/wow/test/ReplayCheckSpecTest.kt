@@ -110,6 +110,23 @@ class ReplayCheckSpecTest {
     }
 
     @Test
+    fun `a wait whose thread is descheduled past its deadline should go on when the clock moved meanwhile`() {
+        // #6776: the clock is read not yet past, then the thread sleeps past the deadline, and the clock has moved.
+        val wall = ArrayDeque(listOf(1_000L, 1_001L))
+        var nanos = 0L
+        ReplayCheck.awaitTick(1_000, wallClock = { wall.removeFirst() }, monotonic = { nanos.also { nanos += PAST } })
+        wall.assert().isEmpty()
+    }
+
+    @Test
+    fun `a clock that does not move on past the deadline should fail the wait, whatever the thread`() {
+        var nanos = 0L
+        assertThrownBy<IllegalStateException> {
+            ReplayCheck.awaitTick(1_000, wallClock = { 1_000L }, monotonic = { nanos.also { nanos += PAST } })
+        }.hasMessageStartingWith("The JVM's clock did not move on in 100ms")
+    }
+
+    @Test
     fun `a clock that does not move on should fail the wait, saying why`() {
         assertThrownBy<IllegalStateException> { ReplayCheck.awaitTick(Long.MAX_VALUE) }.hasMessage(
             "The JVM's clock did not move on in 100ms, so a state rebuilt from the log cannot be told apart from one " +
@@ -134,3 +151,6 @@ class ReplayCheckSpecTest {
         givenCommands(Touch("twice"))
     }
 }
+
+/** More than the replay check's wait on the monotonic clock: a deschedule past its deadline. */
+private const val PAST = 200_000_000L
