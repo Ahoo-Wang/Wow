@@ -62,6 +62,7 @@ import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.ledger.ParkedAggregate
+import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.subscription.SubscriptionId
 import me.ahoo.wow.spi.transport.PartitionedSource
 import org.junit.jupiter.api.AfterEach
@@ -274,6 +275,20 @@ class SourcedNodeTest {
             .contains("$NODE_SERVICE/topic:$TOPIC")
         all.component(NodeHealth.SUBSCRIPTIONS)!!.components.map { it.name }.assert()
             .contains("$NODE_SERVICE/topic:$TOPIC")
+    }
+
+    @Test
+    fun `a topic's group the node stepped out of should be degraded, marked stepped out`(): Unit = runBlocking {
+        val node = node()
+        val health = NodeHealth(node, NodeSampler(node), HealthOptions(storeDownAfter = Duration.ZERO))
+        node.start()
+        node.topicSubscriptions.getValue(TOPIC).awaitStarted()
+        // A fatal error steps the node out of every group, the topic's among them, which has no lease store of its own.
+        node.fatals.record(ObservedEvent.Fatal.Component.NODE, "test", OutOfMemoryError("The heap is gone."))
+        fun group() = health.health().component(NodeHealth.OWNERSHIP)!!.components
+            .single { it.name == "$NODE_SERVICE/topic:$TOPIC" }
+        eventually { group().details["steppedOut"] == true && group().details["owned"] == 0 }
+        group().status.assert().isEqualTo(HealthStatus.DEGRADED)
     }
 
     @Test

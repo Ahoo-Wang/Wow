@@ -25,11 +25,11 @@ outline: deep
 | `node` | 节点没有在运行：启动中、排空中或已停止；或者它遇到了[致命错误](#fatal-errors)，此后一直如此 | |
 | `stores` | 某个日志，或写入需要的某个存储（存放日志的存储、某个聚合类型自己的快照存储），持续失败了 `wow.health.stores.down-after`（15 秒），期间没有成功过 | 其中某个在 `wow.health.stores.window`（1 分钟）内失败过 |
 | `secondaryStores` | 从不：写入路径之外的每个存储实例（额外的快照存储、查询或搜索存储）按与 `stores` 相同的规则变为 `DOWN`，但它的故障只降级它所服务的读取，不影响节点，所以就绪检查不包含它 | 它在 `wow.health.stores.window`（1 分钟）内失败过 |
-| `ownership` | 它的租约存储不可用，或者在 `wow.health.ownership.handover-grace`（1 分钟）之后，节点仍没有拥有某个租约组中应得的任何分区 | 它在这么长时间内拥有的分区集合不是它应得的那份，或者租约存储最近失败过 |
+| `ownership` | 它的租约存储不可用，或者在 `wow.health.ownership.handover-grace`（1 分钟）之后，节点仍没有拥有某个租约组中应得的任何分区 | 它在这么长时间内拥有的分区集合不是它应得的那份，租约存储最近失败过，或者节点已永久退出该组（`steppedOut`：遇到致命错误之后，或者它的租约续约结束之后），转发该组的命令 |
 | `topics` | 它读取的另一个上下文的某个主题仍在加入中（除非 `wow.health.topics.required: false`） | 在 `wow.health.topics.required: false` 时仍在加入中 |
 | `subscriptions` | 从不 | 某个订阅落后了 `lag-degraded-at`（10,000）个条目，有 `parked-degraded-at`（100）个停放条目或比上一次采样时多，或暂停了某个分区 |
 | `executor` | | 执行器的在途量达到其上限的 `saturation`（90%） |
-| `liveness` | 节点卡住超过 `wow.health.liveness.stall-timeout`（3 分钟）：它的调度器没有运转，后端驱动调用的线程什么也不运行，分区的一次协调没有结束，或者在每个日志都有响应的情况下在途的命令没有完成。正在启动的节点只在它分区的一次调和这么久没有完成任何一步时失败，也就是一次永不返回的调用（失败的存储调用算一步，它让启动失败），详情为 `stalled: reconcile`、`group` 和 `stalledMillis`。或者节点遇到了[致命错误](#fatal-errors)：此后直到进程结束。只有这一项会让存活探针失败 | |
+| `liveness` | 节点卡住超过 `wow.health.liveness.stall-timeout`（3 分钟）：它的调度器没有运转，后端驱动调用的线程什么也不运行，分区的一次协调没有结束，或者在每个日志都有响应的情况下在途的命令没有完成。正在启动的节点只在它分区的一次调和这么久没有完成任何一步时失败，也就是一次永不返回的调用（失败的存储调用算一步，它让启动失败），详情为 `stalled: reconcile`、`group` 和 `stalledMillis`。或者节点遇到了[致命错误](#fatal-errors)，或者它的某个循环结束了（[见下文](#a-loop-that-ends)）：此后直到进程结束。只有这一项会让存活探针失败 | |
 
 降级的组件不会改变分组的状态：它的作用是让人看到并据此报警。存活探针从不因存储故障而失败，节点排空期间也不会失败，所以一次故障不会让所有节点同时重启。探针不能等待的东西（日志的头部、订阅的落后量、停放的条目），节点每隔 `wow.node.sample-interval`（10 秒）采样一次，所以探针能立即得到回答。同一次采样同时供健康与 gauge 使用，每个订阅按它的组和名字区分：每个上下文的 `snapshot` 订阅各自独立，有自己的停放计数，最多计到 `wow.node.max-parked`。
 
@@ -46,6 +46,14 @@ outline: deep
 `StackOverflowError` 不是致命错误。它只让出事的那一个线程展开栈，JVM 不受损，而且对同一输入一定会重现：栈溢出的处理函数与抛出 `NotImplementedError` 的一样失败，先重试，再停放。如果它是致命的，一个这样的条目会让接手其分区的每个节点依次退出。
 
 用 `-XX:+ExitOnOutOfMemoryError` 运行 JVM，让进程中任何地方（包括请求中）的 `OutOfMemoryError` 立即结束进程，由编排器重新启动它。chart 的默认 `javaOpts` 与 Wow 构建的镜像都设置了它（[Kubernetes](./kubernetes#memory)）；对没有这样运行的 JVM，节点自身的规则是兜底。
+
+### 结束的循环 {#a-loop-that-ends}
+
+从节点某个循环的一轮中逃出的其他错误，也就是没有哪一轮会捕获的错误，会结束这个循环，且没有东西会重启它。例如针对另一个版本构建的驱动抛出的 `LinkageError`，或者 `AssertionError`。
+
+- liveness 一直为 `DOWN`，直到进程结束，`ended` 指出结束的循环：`component`、`name`、`loop`、错误的类（`error`）以及距今多久（`endedMillis`）。`endedLoops` 统计结束了几个循环。
+- 节点不是致命的，仍持有它的分区。编排器会重启它，错误一目了然：构建上的错误在每个节点上都一样，退出会让所有写入同时停止。
+- 租约组的续约（`loop: lease renewals`）是例外：无法续约该组任何租约的节点持不住它的分区。它像遇到致命错误后一样退出该组：在 `wow.cluster.reconcile-timeout` 之内交出它的分区，不再获取任何分区，并把这些分区的命令转给其他节点，由它们接手。它的 `ownership` 健康把该组显示为 `DEGRADED`，并带有 `steppedOut`。
 
 ## 指标与追踪 {#metrics-and-traces}
 

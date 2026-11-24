@@ -22,6 +22,7 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.kernel.memory.InMemoryLeaseStore
+import me.ahoo.wow.spi.subscription.Lease
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.subscription.Member
 import org.junit.jupiter.api.Test
@@ -29,13 +30,15 @@ import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZoneOffset
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 /**
  * The step-out of a node that met a fatal error (X-80, [PartitionOwnership.stepOut]): for good, bounded, and whatever
- * the hand-off comes to, renewing no lease, so the other node takes every partition, on expiry at worst.
+ * the hand-off comes to, renewing no lease, so the other node takes every partition, on expiry at worst. A group whose
+ * lease renewals ended steps out the same way ([LeaseRenewals.launchIn]).
  */
 @OptIn(ExperimentalCoroutinesApi::class) // The scheduler's time source times the leases.
 class StepOutTest {
@@ -75,6 +78,20 @@ class StepOutTest {
             ownership.isRunning.assert().isFalse()
         } finally {
             // Nothing once a stop has run; ends the ownership's loops on the test's scheduler when it did not.
+            ownership.abort()
+        }
+    }
+
+    @Test
+    fun `a reconcile of an ownership that does not run acquires nothing`(): Unit = runTest(timeout = 1.minutes) {
+        val store = InMemoryLeaseStore(virtualClock())
+        val ownership = ownership(FATAL, store)
+        try {
+            // Alone in its view of the members, it would take every partition.
+            ownership.reconcile()
+            ownership.owned.assert().isEmpty()
+            store.owners(GROUP.name).assert().isEmpty()
+        } finally {
             ownership.abort()
         }
     }
@@ -132,6 +149,39 @@ class StepOutTest {
             }
         }
 
+    @Test
+    fun `a node whose renewals ended steps out, acquires none again, and the other node takes its partitions`(): Unit =
+        runTest(timeout = 1.minutes) {
+            val store = InMemoryLeaseStore(virtualClock())
+            val breaking = BreakingRenewals(store)
+            val ended = ownership(FATAL, breaking)
+            val other = ownership(OTHER, store)
+            try {
+                ended.start()
+                other.start()
+                delay(10.seconds)
+                ended.owned.assert().isNotEmpty()
+                (ended.owned + other.owned).assert().isEqualTo((0 until PARTITIONS).toSet())
+
+                // Its next round throws an error no round catches: the loop ends, and nothing restarts it.
+                breaking.broken = true
+                val acquired = breaking.acquisitions.get()
+                delay(1.minutes)
+
+                (breaking.acquisitions.get() - acquired).assert()
+                    .describedAs("acquisitions of the node whose renewals loop ended")
+                    .isZero()
+                ended.isSteppedOut.assert().isTrue()
+                ended.owned.assert().isEmpty()
+                members(store).assert().containsExactly(OTHER)
+                store.owners(GROUP.name).map { it.owner }.toSet().assert().containsExactly(OTHER)
+                other.owned.assert().isEqualTo((0 until PARTITIONS).toSet())
+            } finally {
+                other.stop()
+                ended.stop()
+            }
+        }
+
     private fun TestScope.ownership(node: String, leases: LeaseStore) = PartitionOwnership(
         GROUP,
         node,
@@ -163,6 +213,24 @@ class StepOutTest {
         override suspend fun release(group: String, partition: Int, owner: String): Boolean {
             if (hangs) release.await()
             return delegate.release(group, partition, owner)
+        }
+    }
+
+    /** A renewal throws an error once [broken], as a driver of another version than the one built against would. */
+    private class BreakingRenewals(private val delegate: LeaseStore) : LeaseStore by delegate {
+        @Volatile
+        var broken = false
+
+        val acquisitions = AtomicInteger()
+
+        override suspend fun acquire(group: String, partition: Int, owner: String, ttl: Duration): Lease? =
+            delegate.acquire(group, partition, owner, ttl).also { if (it != null) acquisitions.incrementAndGet() }
+
+        override suspend fun renew(group: String, partitions: Collection<Int>, owner: String, ttl: Duration): List<Lease> {
+            if (broken) {
+                throw LinkageError("The lease store's driver has no such method.")
+            }
+            return delegate.renew(group, partitions, owner, ttl)
         }
     }
 
