@@ -93,7 +93,7 @@ class Account(private val state: AccountState) {
 
 ## DecideScope
 
-`DecideScope` is the decide function's view of the request: `command`, `now` (epoch ms on the node's clock, the commit time of its events: compute a deadline from it, never from the system clock; the test DSL's time drives it), `ids` (deterministic ids), `reject(code, message, …)`, `putResult`, `reserve(namespace, key[, tenancy])` (`suspend`) and `release(...)` for unique keys, `onAppendFailure`, `afterAppend`, `schedule(key, rule, command, target)` and `cancelSchedule(key)`.
+`DecideScope` is the decide function's view of the request: `command`, `now` (epoch ms on the node's clock, the commit time of its events: compute a deadline from it, never from the system clock; the test DSL's time drives it), `ids` (deterministic ids), `reject(code, message, …)`, `putResult`, `reserve(namespace, key[, tenancy])` (`suspend`) and `release(...)` for unique keys, `onAppendFailure` (an act it undoes is keyed with `callId()`, an id no other attempt or retry takes, never with the command's request id, which a Wow call takes by default and repeats in every attempt), `callId()`, `afterAppend`, `schedule(key, rule, command, target)` and `cancelSchedule(key)`.
 
 - **Unique keys** (a user name, an order number): `reserve` in decide; the reservation commits with the events and is released if the append fails. `tenancy` is `TENANT` (the default: unique within the tenant) or `SYSTEM` (unique across tenants). Every unique key includes the tenant unless it is meant to be global.
 - **Scheduled commands**: `schedule` / `cancelSchedule` in decide (`@OnCommand(schedules = [Command::class])` declares them); at least once, never early; a rejection when due is the normal guard.
