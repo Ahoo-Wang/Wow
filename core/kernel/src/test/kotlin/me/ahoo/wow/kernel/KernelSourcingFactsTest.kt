@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.kernel
 
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Creation
@@ -27,7 +28,9 @@ import org.junit.jupiter.api.Test
 /**
  * D377: a sourcing function may read the commit its event belongs to (time, operator, version), and a decision reads
  * the node's clock as `now`, the time its commit records. Both are in the log, so a rebuild reads the same: from the
- * log, from a snapshot and its tail, and as the decision itself evolved.
+ * log, from a snapshot and its tail, and as the decision itself evolved. The log records each event as the decision
+ * returned it, before its evolve functions see it, so an evolve function that keeps a mutable value of its event cannot
+ * change what is recorded.
  */
 class KernelSourcingFactsTest {
     data class OpenAccount(val holder: String)
@@ -144,6 +147,35 @@ class KernelSourcingFactsTest {
         Kernel(log, codec, clock = { time }).stateAt(ledgerModel, ledgerModel.type.ref("tenant", "ledger-1"), 2)!!
             .state.assert().isEqualTo(decided)
     }
+
+    data class Restore(val items: List<String>, val extra: String)
+    data class CartRestored(val items: MutableList<String>)
+    data class ItemAdded(val name: String)
+
+    class Cart(val id: String) {
+        var items: MutableList<String> = mutableListOf()
+    }
+
+    /** A state that keeps its event's list as its own, which the next event of the same decision adds to. */
+    private val cartModel = aggregate<Cart>("shop", "cart") {
+        initial { Cart(it.id) }
+        decide<Restore>(Creation.ALLOWED) { _, command ->
+            Decision.events(CartRestored(command.items.toMutableList()), ItemAdded(command.extra))
+        }
+        evolve<CartRestored> { items = it.items }
+        evolve<ItemAdded> { items.add(it.name) }
+    }
+
+    @Test
+    fun `the log should record each event as decided, whatever the decision's evolve functions do to it`(): Unit =
+        runBlocking {
+            val cart = cartModel.type.ref("tenant", "cart-1")
+            val outcome = kernel.execute(cartModel, Command("c-1", "r-1", cart, Restore(listOf("a"), "b")))
+            ((outcome as CommandOutcome.Committed).state as Cart).items.assert().containsExactly("a", "b")
+            log.read(cart).toList().single().events.first().payload.assert().isEqualTo("""{"items":["a"]}""")
+            // A node that loads the aggregate from the log decides on the state the command left.
+            (Kernel(log, codec).stateAt(cartModel, cart, 1)!!.state as Cart).items.assert().containsExactly("a", "b")
+        }
 
     @Test
     fun `an evolve function reading its commit should be given one`() {
