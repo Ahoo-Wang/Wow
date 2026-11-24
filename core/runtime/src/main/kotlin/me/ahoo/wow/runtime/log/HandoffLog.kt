@@ -160,18 +160,19 @@ class HandoffLog(
     private val context: String,
     private val options: HandoffOptions = HandoffOptions(),
     private val observer: Observer = Observer.NONE,
+    /** Where the node's probe of its tails runs while it has tails open ([HandoffProber]). */
+    probes: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
     /**
      * Called, from the tail's coroutine, for each entry a tail delivers from the store rather than from memory:
      * quick, and never throwing.
      */
-    /** Where the node's probe of its tails runs while it has tails open ([HandoffProber]). */
-    probes: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
     private val readBack: (LogEntry) -> Unit = {},
 ) : EventLog by log {
     private val prober = HandoffProber(log, context, options, probes)
 
     /** The rounds of the node's probe so far: for the tests. */
     internal val probeRounds: Long get() = prober.rounds
+
     private val listeners = List(log.partitions) { CopyOnWriteArrayList<Listener>() }
     private val inFlight = List(log.partitions) { InFlight() }
     private val reads = AtomicLong()
