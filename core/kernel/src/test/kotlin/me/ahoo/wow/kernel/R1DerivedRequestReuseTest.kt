@@ -68,7 +68,8 @@ class R1DerivedRequestReuseTest {
 
     /** What a Wow client does from a decide function: sends with the derived request id, a duplicate is success. */
     private suspend fun send(body: Any, requestId: String?) {
-        val outcome = paymentKernel.execute(payments, Command(UUID.randomUUID().toString(), requestId!!, paymentRef, body))
+        val command = Command(UUID.randomUUID().toString(), requestId!!, paymentRef, body)
+        val outcome = paymentKernel.execute(payments, command)
         check(outcome is CommandOutcome.Committed || outcome is CommandOutcome.AlreadyCommitted) { "$outcome" }
     }
 
