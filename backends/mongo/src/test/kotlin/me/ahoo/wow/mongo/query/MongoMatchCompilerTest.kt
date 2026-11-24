@@ -146,11 +146,30 @@ class MongoMatchCompilerTest {
         json(ContainsFilter(name, ".*(a|b)[c]{2}^$\\+?")).assert().isEqualTo(
             """{"state.name": {"${'$'}regularExpression": {"pattern": "\\.\\*\\(a\\|b\\)\\[c\\]\\{2\\}\\^\\${'$'}\\\\\\+\\?", "options": ""}}}""",
         )
-        json(StartsWithFilter(name, "a", StringComparison.CASE_INSENSITIVE)).assert()
-            .isEqualTo("""{"state.name": {"${'$'}regularExpression": {"pattern": "^a", "options": "i"}}}""")
+        // Ignoring case, each letter the class of the characters it folds with, matched without the `i` option.
+        json(StartsWithFilter(name, "aſ", StringComparison.CASE_INSENSITIVE)).assert()
+            .isEqualTo("""{"state.name": {"${'$'}regularExpression": {"pattern": "^[Aa][Ssſ]", "options": ""}}}""")
         // `\z`, not `$`, which would also match before a trailing newline (finding R2.2-4).
         json(EndsWithFilter(name, "a")).assert()
             .isEqualTo("""{"state.name": {"${'$'}regularExpression": {"pattern": "a\\z", "options": ""}}}""")
+    }
+
+    @Test
+    fun `a regular expression past MongoDB's 32,764 bytes should be refused before any request`() {
+        val name = QueryField("state.name")
+        // 8,191 letters of four bytes each ([Aa]) make 32,764, the bound itself; a case-sensitive operand is its bytes.
+        compile(ContainsFilter(name, "a".repeat(8_191), StringComparison.CASE_INSENSITIVE))
+        compile(ContainsFilter(name, "é".repeat(16_382)))
+        violation { compile(ContainsFilter(name, "a".repeat(8_192), StringComparison.CASE_INSENSITIVE)) }
+            .assert().isEqualTo(
+                QueryViolation.StorageUnsupported(
+                    "a match of a 8192-character operand, whose regular expression of 32768 bytes passes the 32764 " +
+                        "MongoDB holds",
+                    name,
+                ),
+            )
+        violation { compile(EndsWithFilter(name, "é".repeat(16_382))) }
+            .assert().isInstanceOf(QueryViolation.StorageUnsupported::class.java)
     }
 
     @Test

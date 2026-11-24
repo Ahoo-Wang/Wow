@@ -14,42 +14,25 @@
 package me.ahoo.wow.elasticsearch.query
 
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.query.backend.CaseFolding
 import me.ahoo.wow.query.schema.QueryViolation
 
 /**
- * A literal match that ignores letter case as the core's reference does (#6392). The reference compares the lower case
- * of both texts (`String.lowercase()`: Unicode's lowercase mapping, in the root locale, so no language's own rules).
- * Elasticsearch's `case_insensitive` folds ASCII letters only, so `Ä` never meets `ä`; the match is a `regexp`
- * instead, each letter of the operand a class of every character whose lower case is that letter's: `äR` is
- * `[äÄ][rR]`, and `k` is `[kK]` with the Kelvin sign (U+212A), which lowers to `k`.
- *
- * The lower case of a whole text differs from its characters' lower cases in two contexts only, which a class of
- * single characters does not follow: `İ` (U+0130) lowers to `i̇`, two characters, and a capital sigma that ends a
- * word lowers to `ς`, where the character alone lowers to `σ`.
+ * A literal match that ignores letter case by the core's folding ([CaseFolding]): Unicode's simple case folding,
+ * the same table on every backend. Elasticsearch's `case_insensitive` folds ASCII letters only, so `Ä` never meets
+ * `ä`; the match is a `regexp` instead, the core's [CaseFolding.pattern] of the operand, each letter the class of
+ * every character that folds with it: `äR` is `[Ää][Rr]`, and `k` is `[Kk]` with the Kelvin sign (U+212A).
  */
 internal object ElasticsearchCaseFolding {
-    /** Each lower case that a character other than itself has, as the class of its characters, itself first. */
-    private val classes: Map<Int, String> by lazy {
-        val members = HashMap<Int, StringBuilder>()
-        for (codePoint in 0..Character.MAX_CODE_POINT) {
-            val lower = Character.toLowerCase(codePoint)
-            if (lower != codePoint) {
-                members.getOrPut(lower) { StringBuilder().appendCodePoint(lower) }.appendCodePoint(codePoint)
-            }
-        }
-        members.mapValues { (_, characters) -> "[$characters]" }
-    }
-
     /**
      * The Lucene regular expression that matches a text of [field] holding [operand] ignoring case: after anything
-     * when [leading], before anything when [trailing]. Every ASCII character but a letter or a digit is escaped, an
-     * operator or not; a letter or a digit never is, since `\d` and `\w` are classes.
+     * when [leading], before anything when [trailing].
      *
      * A pattern longer than [MAX_PATTERN_LENGTH] is refused here, before any request, as the storage's limit
      * ([QueryViolation.StorageUnsupported]), where Elasticsearch would answer with its own error.
      */
     fun pattern(field: QueryField<*>, operand: String, leading: Boolean, trailing: Boolean): String {
-        val pattern = pattern(operand, leading, trailing)
+        val pattern = (if (leading) ANY else "") + CaseFolding.pattern(operand) + (if (trailing) ANY else "")
         if (pattern.length > MAX_PATTERN_LENGTH) {
             throw QueryViolation.StorageUnsupported(
                 "an ignore-case match of a ${operand.length}-character operand, whose pattern of ${pattern.length} " +
@@ -58,20 +41,6 @@ internal object ElasticsearchCaseFolding {
             ).rejection()
         }
         return pattern
-    }
-
-    private fun pattern(operand: String, leading: Boolean, trailing: Boolean): String = buildString {
-        if (leading) append(ANY)
-        operand.codePoints().forEach { codePoint ->
-            val characters = classes[Character.toLowerCase(codePoint)]
-            when {
-                characters != null -> append(characters)
-                codePoint < ASCII_END && !Character.isLetterOrDigit(codePoint) ->
-                    append('\\').appendCodePoint(codePoint)
-                else -> appendCodePoint(codePoint)
-            }
-        }
-        if (trailing) append(ANY)
     }
 
     /** The flags of the `regexp`: no optional operator, so only the classes and [ANY] above are operators. */
@@ -85,5 +54,4 @@ internal object ElasticsearchCaseFolding {
     const val MAX_PATTERN_LENGTH = 1000
 
     private const val ANY = ".*"
-    private const val ASCII_END = 0x80
 }

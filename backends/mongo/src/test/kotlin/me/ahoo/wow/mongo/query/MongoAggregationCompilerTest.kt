@@ -255,9 +255,8 @@ class MongoAggregationCompilerTest {
             ),
         )
         compiled.assert().contains(""""${'$'}eq": [{"${'$'}type": "${'$'}state.name"}, {"${'$'}type": "m"}]""")
-        compiled.assert().contains(
-            """"${'$'}regexMatch": {"input": "${'$'}state.name", "regex": "a", "options": "i"}"""
-        )
+        // Ignoring case, the core's pattern of simple case folding, matched case-sensitively.
+        compiled.assert().contains(""""${'$'}regexMatch": {"input": "${'$'}state.name", "regex": "[Aa]"}""")
         compiled.assert().contains(""""${'$'}eq": [{"${'$'}type": "${'$'}state.name"}, "missing"]""")
         compiled.assert().contains(""""${'$'}not": [{"${'$'}in": ["${'$'}state.status", ["A"]]}]""")
         compiled.assert().contains(""""${'$'}not": [{"${'$'}or": [{"${'$'}eq": ["${'$'}state.status", "A"]}]}]""")

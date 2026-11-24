@@ -51,10 +51,6 @@ class PostgresSnapshotQueryBackendTest : QueryBackendSpec() {
     override val semanticDivergences: Set<String> = setOf(
         GAP_START,
         GAP_MID_UNIT,
-        // lower() lowers each character alone, as the database's collation does: `İ` to `i`, a final capital sigma to
-        // `σ`, where the reference lowers a text, `İ` to `i̇` and that sigma to `ς` (#6392).
-        "string.starts-with-ignore-case-dotted-i",
-        "string.ends-with-ignore-case-final-sigma",
     )
 
     override fun binding(type: AggregateType): QueryBackendBinding<QueryBackend> =

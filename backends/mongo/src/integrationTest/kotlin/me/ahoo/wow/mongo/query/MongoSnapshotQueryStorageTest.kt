@@ -30,6 +30,7 @@ import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.ContainsAllFilter
+import me.ahoo.wow.api.query.ContainsFilter
 import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.CountResult
 import me.ahoo.wow.api.query.CursorQuery
@@ -50,6 +51,7 @@ import me.ahoo.wow.api.query.SearchFilter
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.StartsWithFilter
+import me.ahoo.wow.api.query.StringComparison
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.query.TotalMode
 import me.ahoo.wow.mongo.log.MongoLogFixture
@@ -183,6 +185,21 @@ class MongoSnapshotQueryStorageTest {
             .assert().isEqualTo(MongoSnapshotStore.collectionName(type.context, type.name))
         val elsewhere = MongoQueryIndexes.plan("elsewhere", "order", QueryIndexPlan.of(schema(type), emptyList()))
         assertThrownBy<IllegalArgumentException> { storage(type).manageIndexes(elsewhere) }
+    }
+
+    @Test
+    fun `an ignore-case match at the regular expression's bound should be taken by the server`(): Unit = runBlocking {
+        val type = newType()
+        val store = store(type)
+        val name = "Ab".repeat(4_096).dropLast(1)
+        store.save(QueryFixtures.snapshot(type, "long", """{"name":"$name"}"""))
+        store.save(QueryFixtures.snapshot(type, "short", """{"name":"ab"}"""))
+        val binding = storage(type).binding(type)!!
+        val schema = QueryFixtures.schema(type, binding.storage)
+        // 8,191 letters, each the four bytes of its class, unanchored: 32,764, the most MongoDB takes.
+        val filter = ContainsFilter(QueryField("state.name"), name.uppercase(), StringComparison.CASE_INSENSITIVE)
+        binding.backend.list(QueryAdmission.Trusted.list(ListQuery(filter), schema)).toList()
+            .map { it.path("aggregateId").stringValue() }.assert().containsExactly("long")
     }
 
     @Test

@@ -115,14 +115,17 @@ class ClickHouseSqlCompilerTest {
     @Test
     fun `literal matches should fold case only when asked`() {
         where(ContainsFilter(CITY, "a")).assert().isEqualTo("position(`city`, {p0:String}) > 0")
-        where(ContainsFilter(CITY, "a", StringComparison.CASE_INSENSITIVE))
-            .assert().isEqualTo("positionCaseInsensitiveUTF8(`city`, {p0:String}) > 0")
         where(StartsWithFilter(CITY, "a")).assert().isEqualTo("startsWith(`city`, {p0:String})")
-        where(StartsWithFilter(CITY, "a", StringComparison.CASE_INSENSITIVE))
-            .assert().isEqualTo("startsWith(lowerUTF8(`city`), lowerUTF8({p0:String}))")
         where(EndsWithFilter(CITY, "a")).assert().isEqualTo("endsWith(`city`, {p0:String})")
-        where(EndsWithFilter(CITY, "a", StringComparison.CASE_INSENSITIVE))
-            .assert().isEqualTo("endsWith(lowerUTF8(`city`), lowerUTF8({p0:String}))")
+        // Ignoring case: RE2 over UTF-8 of the core's simple case folding, not ClickHouse's own lowerUTF8.
+        statement(ContainsFilter(CITY, "a", StringComparison.CASE_INSENSITIVE)).let {
+            it.sql.assert().isEqualTo("match(`city`, {p0:String})")
+            it.parameters["p0"].assert().isEqualTo("[Aa]")
+        }
+        statement(StartsWithFilter(CITY, "a", StringComparison.CASE_INSENSITIVE)).parameters["p0"].assert()
+            .isEqualTo("^[Aa]")
+        statement(EndsWithFilter(CITY, "a", StringComparison.CASE_INSENSITIVE)).parameters["p0"].assert()
+            .isEqualTo("[Aa]$")
     }
 
     @Test

@@ -55,6 +55,7 @@ import me.ahoo.wow.api.query.StartsWithFilter
 import me.ahoo.wow.api.query.StringComparison
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.query.admission.AdmittedQuery
+import me.ahoo.wow.query.backend.CaseFolding
 import me.ahoo.wow.query.error.QueryExecutionException
 import me.ahoo.wow.query.resolve.ResolvedField
 import me.ahoo.wow.query.schema.QueryCardinality
@@ -180,9 +181,10 @@ internal class PostgresFilterCompiler(
             is LessThanOrEqualFilter -> range(field, "<=", filter.value.json())
             is BetweenFilter -> "(" + range(field, ">=", filter.lowerBound.json()) + " AND " +
                 range(field, "<=", filter.upperBound.json()) + ")"
-            is ContainsFilter -> like(field, "%" + filter.value.escapeLike() + "%", filter.stringComparison)
-            is StartsWithFilter -> like(field, filter.value.escapeLike() + "%", filter.stringComparison)
-            is EndsWithFilter -> like(field, "%" + filter.value.escapeLike(), filter.stringComparison)
+            is ContainsFilter -> literal(field, filter.value, filter.stringComparison, leading = true, trailing = true)
+            is StartsWithFilter ->
+                literal(field, filter.value, filter.stringComparison, leading = false, trailing = true)
+            is EndsWithFilter -> literal(field, filter.value, filter.stringComparison, leading = true, trailing = false)
             is IsNullFilter -> isNull(field)
             is IsNotNullFilter -> "coalesce(jsonb_typeof(${node(field)}), 'null') <> 'null'"
             is ExistsFilter -> "(${node(field)} IS NOT NULL)"
@@ -233,15 +235,27 @@ internal class PostgresFilterCompiler(
     private fun range(field: ResolvedField, operator: String, operand: JsonNode): String =
         anyValue(field) { value, type -> "$value $operator ${scalar(type, operand)}" }
 
-    private fun like(field: ResolvedField, pattern: String, comparison: StringComparison): String =
-        anyValue(field) { value, _ ->
-            val bound = parameters.bind(SqlParameter.Text(pattern))
-            if (comparison == StringComparison.CASE_INSENSITIVE) {
-                "lower($value COLLATE \"default\") LIKE lower($bound) ESCAPE '\\'"
-            } else {
-                "$value LIKE $bound ESCAPE '\\'"
-            }
+    /**
+     * A literal match of [operand], after anything when [leading], before anything when [trailing]. Case-sensitive, a
+     * `LIKE`. Ignoring case, the regular expression of the texts that fold equal to it ([CaseFolding.pattern]),
+     * matched case-sensitively (`~`): no `lower()`, whose answer is the database's collation's, so a database of the
+     * `C` locale lowers ASCII only and a Turkish one lowers `I` to `ı`. Neither form uses an index.
+     */
+    private fun literal(
+        field: ResolvedField,
+        operand: String,
+        comparison: StringComparison,
+        leading: Boolean,
+        trailing: Boolean,
+    ): String = anyValue(field) { value, _ ->
+        if (comparison == StringComparison.CASE_INSENSITIVE) {
+            val pattern = (if (leading) "" else "^") + CaseFolding.pattern(operand) + (if (trailing) "" else "$")
+            "$value ~ ${parameters.bind(SqlParameter.Text(pattern))}"
+        } else {
+            val pattern = (if (leading) "%" else "") + operand.escapeLike() + (if (trailing) "%" else "")
+            "$value LIKE ${parameters.bind(SqlParameter.Text(pattern))} ESCAPE '\\'"
         }
+    }
 
     /**
      * [predicate] over the typed value of a single-valued field, or `EXISTS` of an element of a multi-valued one

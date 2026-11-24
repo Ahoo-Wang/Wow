@@ -48,6 +48,7 @@ import me.ahoo.wow.api.query.StartsWithFilter
 import me.ahoo.wow.api.query.StringComparison
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.query.admission.QueryAdmission
+import me.ahoo.wow.query.backend.CaseFolding
 import me.ahoo.wow.query.backend.CursorPosition
 import me.ahoo.wow.query.backend.GroupWindow
 import me.ahoo.wow.query.backend.PageWindow
@@ -105,7 +106,8 @@ class PostgresSnapshotSqlCompilerTest {
             statement.sql.assert().doesNotContain("DROP")
             // A `?` inside a string literal (a jsonpath filter's) is text, as the driver reads it, not a placeholder.
             statement.sql.placeholders().assert().isEqualTo(statement.parameters.size)
-            statement.parameters.toString().assert().contains("DROP")
+            // The value reaches a parameter: as it is, or, ignoring case, as the pattern of the texts that fold to it.
+            statement.parameters.toString().assert().containsAnyOf("DROP", CaseFolding.pattern("DROP"))
         }
         val aggregation = aggregations.compile(
             QueryAdmission.Trusted.aggregate(
@@ -123,11 +125,16 @@ class PostgresSnapshotSqlCompilerTest {
     }
 
     @Test
-    fun `a literal match escapes the LIKE wildcards`() {
-        val statement = list(ContainsFilter(NAME, "50%_off\\", StringComparison.CASE_INSENSITIVE))
-        statement.sql.assert().contains("lower(((jsonb_path_query_first(")
-            .contains("COLLATE \"default\") LIKE lower(?) ESCAPE '\\'")
-        statement.parameters.assert().contains(SqlParameter.Text("%50\\%\\_off\\\\%"))
+    fun `a literal match escapes the LIKE wildcards, and one ignoring case is the folded pattern`() {
+        list(ContainsFilter(NAME, "50%_off\\")).let { statement ->
+            statement.sql.assert().contains("LIKE ? ESCAPE '\\'")
+            statement.parameters.assert().contains(SqlParameter.Text("%50\\%\\_off\\\\%"))
+        }
+        // Ignoring case: `~` of the core's pattern, its operators escaped, never `lower()` and the database's collation.
+        list(StartsWithFilter(NAME, "50%_off\\", StringComparison.CASE_INSENSITIVE)).let { statement ->
+            statement.sql.assert().contains(" ~ ?").doesNotContain("lower(")
+            statement.parameters.assert().contains(SqlParameter.Text("^" + CaseFolding.pattern("50%_off\\")))
+        }
     }
 
     @Test

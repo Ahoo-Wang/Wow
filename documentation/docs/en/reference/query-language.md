@@ -117,16 +117,16 @@ A value is a JSON scalar: a string, a number, a boolean, or `null` where the ope
 }
 ```
 
-Ignoring case compares the lower case of the field's text with the lower case of `value`, by Unicode's lowercase mapping and no language's own rules: `Ärger` starts with `äR`, as `Wow` starts with `w`. Each backend follows it letter by letter.
+Ignoring case compares the field's text with `value` after Unicode's simple case folding, character by character. No language's own rules apply, and the answer is the same on every backend, whatever the database's locale, collation or version:
+- `Ärger` starts with `äR`, as `Wow` starts with `w`.
+- `ſ` meets `s`, `µ` meets `μ`, and `ǅ` meets `Ǆ` and `ǆ`.
+- `Σ`, `σ` and `ς` meet wherever they stand, so `ΟΔΟΣ` ends with `ος` and `Σίσυφος` starts with `ς`.
 
-A text's lower case differs from its letters' lower cases in two places only, and there the backends answer differently:
+One letter folds with no other: `İ` (U+0130). `İstanbul` starts with `İS`, but not with `is`, and the dotless `ı` does not meet `i` either.
 
-| Field, filter | In-memory, MongoDB, ClickHouse | PostgreSQL, Elasticsearch |
-| --- | --- | --- |
-| `İstanbul`, `starts-with` `is` | No match: `İ` (U+0130) lowers to `i̇`, two characters | A match: `İ` lowers to `i` |
-| `ΟΔΟΣ`, `ends-with` `ος` | A match: a capital sigma that ends a word lowers to `ς` | No match: it lowers to `σ` |
-
-PostgreSQL lowers by the database's collation; these are the answers of the tests' database, `postgres:17-alpine` with its default locale. On Elasticsearch an ignore-case `value` is also bounded in length ([Elasticsearch](../operate/elasticsearch#snapshot-queries)).
+A store matches a regular expression of `value` that lists each letter's case forms (`äR` is `[Ää][Rr]`), so an ignore-case `value` is bounded in length on two backends, and a longer one is answered `storage-unsupported` before any request:
+- **Elasticsearch:** about 250 letters ([Elasticsearch](../operate/elasticsearch#snapshot-queries)).
+- **MongoDB:** about 8,000 letters, its 32,764 bytes of a regular expression, which bound a case-sensitive `value` too.
 
 ### Collections
 

@@ -97,7 +97,7 @@ fun elasticsearchResponseTimeout(): Rest5ClientBuilderCustomizer = object : Rest
 
 `query.snapshot.store` 指向 Elasticsearch 存储的聚合，它的快照查询就从那里提供，使用与任何后端相同的[查询语言](../reference/query-language)和能力描述符。存储的查询在它的查询舱壁下运行：`wow.stores.<name>.query.max-concurrent`，默认为写连接池每个路由连接数的四分之一，至少为 2；有 `query-client` 时则是它的整个连接池。超出的查询会短暂等待，然后以 429 `wow.query.busy` 回答。
 
-忽略大小写的 `contains`、`starts-with` 或 `ends-with` 以 `regexp` 发送，`value` 的每个字母成为所有小写与它相同的字符组成的字符类（`äR` 即 `[äÄ][rR]`），因为 Elasticsearch 自己的 `case_insensitive` 只折叠 ASCII 字母。它与其他后端的比较方式相同，ASCII 以外也一样，只有[查询语言](../reference/query-language#strings)列出的两处例外。它的模式最多 1,000 个字符，即 Elasticsearch 默认的 `index.max_regex_length`，约合 `value` 的 250 个字母：更长的 `value` 在发出任何请求之前就被回答 `storage-unsupported`。调高索引设置不会调高这个上限。
+忽略大小写的 `contains`、`starts-with` 或 `ends-with` 以 `regexp` 发送，`value` 的每个字母成为与它折叠在一起的所有字符组成的字符类（`äR` 即 `[Ää][Rr]`），因为 Elasticsearch 自己的 `case_insensitive` 只折叠 ASCII 字母。它与每个后端的比较方式相同，都按 Unicode 的简单大小写折叠（[查询语言](../reference/query-language#strings)）。它的模式最多 1,000 个字符，即 Elasticsearch 默认的 `index.max_regex_length`，约合 `value` 的 250 个字母：更长的 `value` 在发出任何请求之前就被回答 `storage-unsupported`。调高索引设置不会调高这个上限。
 
 ### 读到自己的写入 {#reading-your-own-write}
 

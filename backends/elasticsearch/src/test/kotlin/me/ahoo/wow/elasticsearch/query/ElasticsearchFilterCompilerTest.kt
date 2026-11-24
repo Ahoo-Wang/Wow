@@ -36,6 +36,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.*
 import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.api.query.dsl.filter
+import me.ahoo.wow.query.backend.CaseFolding
 import me.ahoo.wow.query.schema.QueryCapability
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryValueSchema
@@ -343,9 +344,9 @@ class ElasticsearchFilterCompilerTest {
     }
 
     companion object {
-        /** `value` and `tail` ignoring case, as [ElasticsearchCaseFolding] classes their letters. */
-        private const val VALUE = "[vV][aA][lL][uU][eE]"
-        private const val TAIL = "[tT][aA][iI\u0130][lL]"
+        /** `value` and `tail` ignoring case, each letter the class of the characters it folds with ([CaseFolding]). */
+        private const val VALUE = "[Vv][Aa][Ll][Uu][Ee]"
+        private const val TAIL = "[Tt][Aa][Ii][Ll]"
 
         private const val INSTANT = "2026-01-01T00:00:00Z"
         private const val BEYOND_MILLIS = "+1000000000-01-01T00:00:00Z"

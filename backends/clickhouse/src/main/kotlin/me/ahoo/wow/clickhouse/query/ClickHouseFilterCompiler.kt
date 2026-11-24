@@ -49,6 +49,7 @@ import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.StartsWithFilter
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.query.admission.AdmittedQuery
+import me.ahoo.wow.query.backend.CaseFolding
 import me.ahoo.wow.query.dataset.DatasetAccess
 import me.ahoo.wow.query.error.QueryExecutionException
 import me.ahoo.wow.query.filter.predicateField
@@ -112,14 +113,20 @@ internal class ClickHouseFilterCompiler(
         is BetweenFilter -> "${compared(filter.field)} BETWEEN ${bind(filter.field, filter.lowerBound)} AND " +
             bind(filter.field, filter.upperBound)
         is ContainsFilter -> if (filter.stringComparison.ignoreCase) {
-            "positionCaseInsensitiveUTF8(${compared(filter.field)}, ${text(filter.value)}) > 0"
+            folded(filter.field, filter.value)
         } else {
             "position(${compared(filter.field)}, ${text(filter.value)}) > 0"
         }
-        is StartsWithFilter -> "startsWith(${folded(filter.field, filter.stringComparison.ignoreCase)}, " +
-            "${foldedText(filter.value, filter.stringComparison.ignoreCase)})"
-        is EndsWithFilter -> "endsWith(${folded(filter.field, filter.stringComparison.ignoreCase)}, " +
-            "${foldedText(filter.value, filter.stringComparison.ignoreCase)})"
+        is StartsWithFilter -> if (filter.stringComparison.ignoreCase) {
+            folded(filter.field, filter.value, before = "^")
+        } else {
+            "startsWith(${compared(filter.field)}, ${text(filter.value)})"
+        }
+        is EndsWithFilter -> if (filter.stringComparison.ignoreCase) {
+            folded(filter.field, filter.value, after = "$")
+        } else {
+            "endsWith(${compared(filter.field)}, ${text(filter.value)})"
+        }
         is ExpressionFilter -> expressionComparison(filter)
         // The one ELEMENT_MATCH a dataset's storage reads: an access policy's restriction (DatasetAccess).
         is ElementMatchFilter -> {
@@ -224,11 +231,14 @@ internal class ClickHouseFilterCompiler(
     private fun orNull(field: QueryField<*>, predicate: String): String =
         if (columnOf(field).nullable) "($predicate OR isNull(${column(field)}))" else predicate
 
-    private fun folded(field: QueryField<*>, ignoreCase: Boolean): String =
-        if (ignoreCase) "lowerUTF8(${compared(field)})" else compared(field)
-
-    private fun foldedText(value: String, ignoreCase: Boolean): String =
-        if (ignoreCase) "lowerUTF8(${text(value)})" else text(value)
+    /**
+     * An ignore-case literal match of [operand], between [before] and [after]: `match`, RE2 over the text's UTF-8,
+     * case-sensitive, of the core's pattern of the texts that fold equal to it ([CaseFolding.pattern]). Not
+     * `lowerUTF8` or `positionCaseInsensitiveUTF8`, whose folding is ClickHouse's own: `ς` is not `σ` to them. RE2's
+     * `$` is the end of the text, never before a trailing newline. Neither form uses an index.
+     */
+    private fun folded(field: QueryField<*>, operand: String, before: String = "", after: String = ""): String =
+        "match(${compared(field)}, ${text(before + CaseFolding.pattern(operand) + after)})"
 
     private fun text(value: String): String = parameters.bind(value, "String")
 

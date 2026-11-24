@@ -86,13 +86,38 @@ class SemanticProbe private constructor(
         /** A value whose letters are not all ASCII: letter case is compared outside ASCII too. */
         const val NON_ASCII = "nonAscii"
 
-        /** A value that opens with `İ` (U+0130), whose lower case is two characters, `i̇`. */
+        /** A value that opens with `İ` (U+0130), which folds with no other character: not `i`, not `I`. */
         const val DOTTED_CAPITAL_I = "dottedCapitalI"
 
-        /** A value that ends with a capital sigma, whose lower case there is the final `ς`, not `σ`. */
+        /** A value that ends with a capital sigma: `Σ`, `σ` and `ς` fold together. */
         const val FINAL_SIGMA = "finalSigma"
 
+        /** A value with a long s, `ſ` (U+017F), which folds with `s` and `S`. */
+        const val LONG_S = "longS"
+
+        /** A value with a sigma in each position: a capital first, `σ` within, `ς` last. */
+        const val SIGMA_POSITIONS = "sigmaPositions"
+
+        /** A value with the micro sign, `µ` (U+00B5), which folds with the Greek `μ` and `Μ`. */
+        const val MICRO_SIGN = "microSign"
+
+        /**
+         * A value that opens with `ǅ` (U+01C5), a letter of three cases: `Ǆ`, `ǅ` and `ǆ` fold together. Its `i` meets
+         * neither Turkic I.
+         */
+        const val TITLECASE = "titlecase"
+
+        /** A value of the ASCII punctuation regular expressions read as operators, each a literal here. */
+        const val METACHARACTERS = "metacharacters"
+
+        /** The text of [METACHARACTERS]. */
+        const val METACHARACTERS_TEXT = "(.*)[+?]{|}^\$\\-/#@&~<>%\""
+
         private fun missing(shape: SemanticShape) = SemanticProbe(shape, MISSING, null)
+
+        /** [text] as a JSON string: its backslashes and quotes escaped, the only characters of it JSON escapes. */
+        private fun jsonString(text: String) = "\"" + text.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
+
         private fun nullValue(shape: SemanticShape) = SemanticProbe(shape, NULL, "null")
 
         /** The probes of each shape; names are unique within a shape. */
@@ -108,6 +133,11 @@ class SemanticProbe private constructor(
                 SemanticProbe(SemanticShape.STRING, NON_ASCII, "\"Ärger\""),
                 SemanticProbe(SemanticShape.STRING, DOTTED_CAPITAL_I, "\"İstanbul\""),
                 SemanticProbe(SemanticShape.STRING, FINAL_SIGMA, "\"ΟΔΟΣ\""),
+                SemanticProbe(SemanticShape.STRING, LONG_S, "\"Maſſe\""),
+                SemanticProbe(SemanticShape.STRING, SIGMA_POSITIONS, "\"Σίσυφος\""),
+                SemanticProbe(SemanticShape.STRING, MICRO_SIGN, "\"5µm\""),
+                SemanticProbe(SemanticShape.STRING, TITLECASE, "\"ǅemil\""),
+                SemanticProbe(SemanticShape.STRING, METACHARACTERS, jsonString(METACHARACTERS_TEXT)),
             ),
             SemanticShape.NUMBER to listOf(
                 missing(SemanticShape.NUMBER),
@@ -173,9 +203,23 @@ object FilterSemantics {
     private const val NON_ASCII = SemanticProbe.NON_ASCII
     private const val DOTTED_CAPITAL_I = SemanticProbe.DOTTED_CAPITAL_I
     private const val FINAL_SIGMA = SemanticProbe.FINAL_SIGMA
+    private const val LONG_S = SemanticProbe.LONG_S
+    private const val SIGMA_POSITIONS = SemanticProbe.SIGMA_POSITIONS
+    private const val MICRO_SIGN = SemanticProbe.MICRO_SIGN
+    private const val TITLECASE = SemanticProbe.TITLECASE
+    private const val METACHARACTERS = SemanticProbe.METACHARACTERS
 
-    /** The probes outside ASCII, which every negation and presence case matches. */
-    private val UNICODE = arrayOf(NON_ASCII, DOTTED_CAPITAL_I, FINAL_SIGMA)
+    /** The probes of letter case and of regular expressions' operators, which every negation and presence case matches. */
+    private val UNICODE = arrayOf(
+        NON_ASCII,
+        DOTTED_CAPITAL_I,
+        FINAL_SIGMA,
+        LONG_S,
+        SIGMA_POSITIONS,
+        MICRO_SIGN,
+        TITLECASE,
+        METACHARACTERS,
+    )
 
     private fun string(id: String, vararg matches: String, filter: (QueryField<*>) -> FilterExpression) =
         SemanticCase("string.$id", SemanticShape.STRING, matches.toSet(), filter)
@@ -213,7 +257,7 @@ object FilterSemantics {
         string("ends-with-ignore-case", VALUE, CASE_VARIANT) {
             EndsWithFilter(it, "OW", StringComparison.CASE_INSENSITIVE)
         },
-        // Letter case outside ASCII: ignored as the reference ignores it, by each letter's lower case.
+        // Letter case outside ASCII: ignored by Unicode's simple case folding, letter by letter.
         string("starts-with-non-ascii", NON_ASCII) { StartsWithFilter(it, "Är") },
         string("starts-with-non-ascii-exact-case") { StartsWithFilter(it, "är") },
         string("contains-ignore-case-non-ascii", NON_ASCII) {
@@ -225,11 +269,49 @@ object FilterSemantics {
         string("ends-with-ignore-case-non-ascii", NON_ASCII) {
             EndsWithFilter(it, "äRGER", StringComparison.CASE_INSENSITIVE)
         },
-        // The two contexts where a text's lower case is not its letters': `İ` lowers to `i̇`, so `İstanbul` does
-        // not start with `is`; a word's last capital sigma lowers to `ς`, so `ΟΔΟΣ` ends with `ος`.
+        // `İ` folds with no other character: `İstanbul` does not start with `is`, but it does with `İS`.
         string("starts-with-ignore-case-dotted-i") { StartsWithFilter(it, "is", StringComparison.CASE_INSENSITIVE) },
-        string("ends-with-ignore-case-final-sigma", FINAL_SIGMA) {
+        string("starts-with-ignore-case-dotted-capital-i", DOTTED_CAPITAL_I) {
+            StartsWithFilter(it, "İS", StringComparison.CASE_INSENSITIVE)
+        },
+        // The dotless `ı` folds with no other letter either, and `İ` meets only itself.
+        string("contains-ignore-case-dotless-i") { ContainsFilter(it, "ı", StringComparison.CASE_INSENSITIVE) },
+        string("contains-ignore-case-dotted-capital-i", DOTTED_CAPITAL_I) {
+            ContainsFilter(it, "İ", StringComparison.CASE_INSENSITIVE)
+        },
+        // `Σ`, `σ` and `ς` fold together wherever they stand in the word.
+        string("ends-with-ignore-case-final-sigma", FINAL_SIGMA, SIGMA_POSITIONS) {
             EndsWithFilter(it, "ος", StringComparison.CASE_INSENSITIVE)
+        },
+        string("starts-with-ignore-case-final-sigma-form", SIGMA_POSITIONS) {
+            StartsWithFilter(it, "ς", StringComparison.CASE_INSENSITIVE)
+        },
+        string("contains-ignore-case-capital-sigma", FINAL_SIGMA, SIGMA_POSITIONS) {
+            ContainsFilter(it, "Σ", StringComparison.CASE_INSENSITIVE)
+        },
+        string("contains-ignore-case-medial-sigma", SIGMA_POSITIONS) {
+            ContainsFilter(it, "ΣΥ", StringComparison.CASE_INSENSITIVE)
+        },
+        // The letters a lowercase mapping leaves apart and the folding joins: `ſ` and `s`, `µ` and `μ`.
+        string("contains-ignore-case-long-s", LONG_S) { ContainsFilter(it, "SS", StringComparison.CASE_INSENSITIVE) },
+        string("contains-ignore-case-micro-sign", MICRO_SIGN) {
+            ContainsFilter(it, "μ", StringComparison.CASE_INSENSITIVE)
+        },
+        // A letter of three cases meets each of the others.
+        string("starts-with-ignore-case-titlecase-upper", TITLECASE) {
+            StartsWithFilter(it, "Ǆ", StringComparison.CASE_INSENSITIVE)
+        },
+        string("starts-with-ignore-case-titlecase-lower", TITLECASE) {
+            StartsWithFilter(it, "ǆ", StringComparison.CASE_INSENSITIVE)
+        },
+        // An operand's punctuation is literal, never an operator of the store's regular expressions.
+        string("contains-ignore-case-metacharacters", METACHARACTERS) {
+            ContainsFilter(it, SemanticProbe.METACHARACTERS_TEXT, StringComparison.CASE_INSENSITIVE)
+        },
+        string("contains-ignore-case-dot") { ContainsFilter(it, "W.W", StringComparison.CASE_INSENSITIVE) },
+        string("starts-with-ignore-case-star") { StartsWithFilter(it, "Q*", StringComparison.CASE_INSENSITIVE) },
+        string("ends-with-ignore-case-dollar", METACHARACTERS) {
+            EndsWithFilter(it, "$\\-/#@&~<>%\"", StringComparison.CASE_INSENSITIVE)
         },
         // Presence: null and missing are both "null"; only a missing field does not exist.
         string("is-null", MISSING, NULL) { IsNullFilter(it) },
