@@ -41,6 +41,7 @@ import java.util.concurrent.ConcurrentSkipListSet
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
+import kotlin.coroutines.CoroutineContext
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
@@ -160,15 +161,24 @@ class HandoffLog(
     private val context: String,
     private val options: HandoffOptions = HandoffOptions(),
     private val observer: Observer = Observer.NONE,
-    /** Where the node's probe of its tails runs while it has tails open ([HandoffProber]). */
-    probes: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
+    /**
+     * Where the node's probe of its tails runs while it has tails open ([HandoffProber]): the node assembly gives it
+     * the node's handler, `wiring.contextOf(NODE, "tail-probe:<context>")`, so a probe that fails is the node's to report.
+     */
+    probes: CoroutineContext = Dispatchers.Default,
     /**
      * Called, from the tail's coroutine, for each entry a tail delivers from the store rather than from memory:
      * quick, and never throwing.
      */
     private val readBack: (LogEntry) -> Unit = {},
 ) : EventLog by log {
-    private val prober = HandoffProber(log, context, options, probes)
+    /**
+     * The one caller of [log]'s [EventLog.appendedElsewhere], and it must stay so: each round asks about the partition
+     * of every open tail at once, busy or idle, since a store may answer from what it remembers of its previous answers
+     * and forget a partition a call leaves out (MongoDB's log does). A second caller, or a round that asked about the
+     * idle tails alone, would make the store forget, or report to the wrong caller, a block another node opened.
+     */
+    private val prober = HandoffProber(log, context, options, CoroutineScope(probes + SupervisorJob()))
 
     /** The rounds of the node's probe so far: for the tests. */
     internal val probeRounds: Long get() = prober.rounds

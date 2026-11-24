@@ -23,6 +23,8 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.retry
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.spi.log.EventLog
@@ -32,6 +34,7 @@ import org.junit.jupiter.api.Test
 import org.slf4j.LoggerFactory
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -69,7 +72,24 @@ class HandoffProberTest : HandoffLogFixtures() {
         }
     }
 
-    private fun probed(log: EventLog, backstop: kotlin.time.Duration = 10.seconds) = HandoffLog(
+    /** A tail as the prober sees it, idle for as long as the test says. */
+    private class FakeTail(override val partition: Int, override val cursor: Long = 0) : HandoffProber.Probed {
+        @Volatile
+        var idle: Duration = Duration.ZERO
+
+        override val idleFor: Duration get() = idle
+
+        @Volatile
+        override var owed = false
+
+        val wakes = CopyOnWriteArrayList<Reason>()
+
+        override fun wake(reason: Reason) {
+            wakes += reason
+        }
+    }
+
+    private fun probed(log: EventLog, backstop: Duration = 10.seconds) = HandoffLog(
         log,
         "bank",
         HandoffOptions(probeInterval = PROBE, backstopInterval = backstop),
@@ -128,6 +148,31 @@ class HandoffProberTest : HandoffLogFixtures() {
             reports.get().assert().isEqualTo(1)
             log.failHeadOnce.assert().isFalse()
             job.cancelAndJoin()
+        }
+
+    @Test
+    fun `a tail busy when its partition is named reads once idle, and every round asks about it, busy or idle`(): Unit =
+        runTest {
+            val calls = AtomicInteger()
+            // Another node's block appears in partition 0: named at the first round alone, as MongoDB's log remembers.
+            val log = ProbedLog(store, named = { if (calls.incrementAndGet() == 1) setOf(0) else emptySet() })
+            val prober = HandoffProber(log, "bank", HandoffOptions(probeInterval = PROBE), backgroundScope)
+            val tail = FakeTail(partition = 0)
+            prober.register(tail)
+            // Three rounds while this node's own commits keep the tail busy: the report is kept, not read yet.
+            advanceTimeBy(PROBE / 2 * 3 + 1.milliseconds)
+            log.asked.assert().hasSize(3).allMatch { it == mapOf(0 to 0L) }
+            tail.owed.assert().isTrue()
+            tail.wakes.assert().isEmpty()
+            // Idle again: the next round wakes it, once.
+            tail.idle = PROBE / 2
+            advanceTimeBy(PROBE / 2)
+            tail.wakes.assert().containsExactly(Reason.IDLE)
+            tail.owed.assert().isFalse()
+            advanceTimeBy(PROBE * 2)
+            tail.wakes.assert().containsExactly(Reason.IDLE)
+            log.asked.assert().allMatch { 0 in it }
+            prober.unregister(tail)
         }
 
     @Test

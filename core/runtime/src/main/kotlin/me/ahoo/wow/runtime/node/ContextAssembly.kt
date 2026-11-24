@@ -464,7 +464,13 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
      * next command decides on the log, not on a stale state that would conflict.
      */
     private fun handoffOf(context: String, log: EventLog, states: StateCache): EventLog =
-        HandoffLog(log, context, options.handoff.probingAfterAcquiring(clusterOrNull()), observer) { entry ->
+        HandoffLog(
+            log,
+            context,
+            options.handoff.probingAfterAcquiring(clusterOrNull()),
+            observer,
+            wiring.contextOf(Component.NODE, "tail-probe:$context"),
+        ) { entry ->
             if (states.dropBefore(entry.stream.ref, entry.stream.version)) {
                 observer.observed(ObservedEvent.StateCache(context, ObservedEvent.StateCache.Outcome.STALE))
             }

@@ -232,6 +232,7 @@ me.ahoo.wow.spi.observation.ObservedEvent$TailRead$Reason.GAP=gap
 me.ahoo.wow.spi.observation.ObservedEvent$TailRead$Reason.OVERFLOW=overflow
 me.ahoo.wow.spi.observation.ObservedEvent$TailRead$Reason.IDLE=idle
 me.ahoo.wow.spi.observation.ObservedEvent$TailRead$Reason.SCHEDULED=scheduled
+me.ahoo.wow.spi.observation.ObservedEvent$TailRead$Reason.BACKSTOP=backstop
 me.ahoo.wow.spi.observation.ObservedOutcome.OK=ok
 me.ahoo.wow.spi.observation.ObservedOutcome.ERROR=error
 me.ahoo.wow.spi.observation.ObservedOutcome.CANCELLED=cancelled

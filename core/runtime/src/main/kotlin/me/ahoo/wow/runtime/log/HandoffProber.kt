@@ -41,6 +41,9 @@ import kotlin.time.TimeSource
  *   a block already seen, after the partition moved and the tails' scheduled probes ended) is read within it. Its tail
  *   logs a warning when that read brings entries.
  *
+ * It is the one caller of its log's [EventLog.appendedElsewhere], and asks about every open tail's partition at each
+ * round, a busy tail's too: a store that answers from what it remembers forgets a partition a call leaves out.
+ *
  * A read owed is kept until the tail is woken for it, and a wake until the tail takes it, so no report is lost; a
  * tail whose read of the store fails ends, and its next one reads the store up to the head as it opens. It runs while
  * the log has tails open, on [scope], and stops with the last.
