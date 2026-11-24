@@ -69,7 +69,7 @@ class KafkaTopicProducerTest {
         }
 
     @Test
-    fun `a key should go on once its own message is acknowledged, whatever another key waits for`(): Unit =
+    fun `a key whose acknowledgement is held should not hold another key's next message`(): Unit =
         runBlocking {
             val messages = listOf(message("a", 1), message("b", 1), message("a", 2), message("b", 2))
             val sending = async(Dispatchers.Default) { producer.send(topic, messages) }

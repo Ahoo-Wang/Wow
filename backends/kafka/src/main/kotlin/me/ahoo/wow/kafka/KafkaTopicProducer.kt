@@ -43,8 +43,10 @@ import kotlin.time.toJavaDuration
  * the others wait for. A failure stops its key: its later messages of the call are not sent, while the other keys'
  * go on. [send] returns once every key is done, and throws the failure of the earliest message of the call that
  * failed, Kafka being unreachable or refusing a record for good as the SPI's typed failure ([KafkaFailures]).
- * Messages of distinct keys go at once, as one batch did before; a key costs one more round trip per message it has
- * after its first.
+ * Messages of distinct keys go at once, as one batch did before; a key costs one acknowledged step per message it
+ * has after its first, the producer's `linger.ms` (5 ms by default) plus the round trip. Only a saga's commands derived
+ * to one aggregate of another context (`CommandSender.sendAll`) put several messages of one key in a call: a
+ * published stream's sink sends one record a call, and a receipt, a timer's command or a routed command one message.
  * A message's partition is the one it names ([TopicMessage.partition]), else its key's (the producer's
  * default partitioner), so the messages of an aggregate keep their order in one partition; the idempotent producer
  * keeps that order through its own retries.
