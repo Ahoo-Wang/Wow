@@ -120,7 +120,7 @@ idle() {
   local out; out=$(opt out "$REPO/test/benchmarks/results/e2e/$stamp-idle-$backend-n$nodes")
   local report; report=$(opt report "")
   if [ -n "$report" ]; then
-    local environment; environment=$(cd "$REPO" && pnpm --silent bench:idle --environment "$(idle_chip)")
+    local environment; environment=$(cd "$REPO" && node .github/scripts/bench-idle.mjs --environment "$(idle_chip)")
     if [ "$report" = true ]; then
       report="$backend-$nodes-node"
       if [ "$nodes" -gt 1 ]; then report="${report}s"; fi
@@ -158,6 +158,7 @@ out=$out
     idle_machine
     echo "meta=$META"
   } >"$OUT/session.txt"
-  (cd "$REPO" && pnpm --silent bench:idle "$OUT") >&2
+  # node, not pnpm: a runner's measure job has Node alone (bench.yml).
+  (cd "$REPO" && node .github/scripts/bench-idle.mjs "$OUT") >&2
   log "idle measurement in $OUT (idle.json, idle.txt)"
 }
