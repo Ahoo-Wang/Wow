@@ -83,6 +83,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.ApplicationContext
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Import
+import org.springframework.context.annotation.Lazy
 import org.springframework.core.env.ConfigurableEnvironment
 import org.springframework.core.env.Environment
 import tools.jackson.databind.json.JsonMapper
@@ -162,8 +163,10 @@ class WowAutoConfiguration {
     /**
      * Checks the environment's `wow.*` keys against the configuration metadata and the options the node's providers
      * declare (`wow.<type>.<key>`, [ProviderOptionKeys]) at startup, refusing the unknown ones ([ConfigurationKeys]).
+     * Never lazy, so it runs whatever `spring.main.lazy-initialization` says (#6851): nothing depends on it.
      */
     @Bean
+    @Lazy(false)
     @InternalWowApi
     fun wowConfigurationKeys(
         environment: ConfigurableEnvironment,

@@ -107,7 +107,7 @@ class HostClickHouseSinkTest {
             val config = SinkConfig.of(
                 "clickhouse",
                 "clickhouse",
-                PortProviders.optionsOf(context.environment, "clickhouse")
+                PortProviders.settingsOf(context.environment, "wow.clickhouse")
             )
             val options = ClickHouseSinkProvider.options(config)
             options.database.assert().isEqualTo("analytics")

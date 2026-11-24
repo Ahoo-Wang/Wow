@@ -52,6 +52,7 @@ import me.ahoo.wow.spi.timer.TimerStore
 import me.ahoo.wow.spring.boot.WowProperties
 import me.ahoo.wow.spring.boot.query.MemoryQueries
 import me.ahoo.wow.spring.boot.transport.PortProviders
+import me.ahoo.wow.spring.boot.transport.ProviderSettingsSource
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory
 import org.springframework.beans.factory.config.NamedBeanHolder
 import java.time.Clock
@@ -155,21 +156,16 @@ internal object StoreInstances {
         service: String = "",
         memoryOptIn: String? = null,
         clock: Clock = Clock.systemUTC(),
-        settings: (prefix: String) -> Map<String, String> = { emptyMap() },
+        settings: ProviderSettingsSource = ProviderSettingsSource.NONE,
     ): Map<String, Store> {
         val polling = properties.log.tailPolling()
         fun open(name: String, type: String, store: StoreProperties?, key: String): Store {
-            val own = if (store == null) {
-                emptyMap()
-            } else {
-                settings("wow.stores.$name").filterKeys { it.substringBefore('.') !in StoreProperties.RESERVED }
-            }
             val provider = providers.of(type, key)
             val config = StoreConfig(
                 name = name,
                 type = type,
                 ddl = store?.ddl ?: properties.ddl,
-                options = optionsOf(provider, settings("wow.$type"), own, "wow.stores.$name"),
+                options = optionsOf(provider, settings, "wow.$type", name.takeIf { store != null }),
                 polling = polling,
                 service = service,
                 resources = resources,
@@ -236,28 +232,34 @@ internal object StoreInstances {
     }
 
     /**
-     * The options of a store of [provider]'s type: the settings of its type ([typeSettings], `wow.<type>.*`) its
-     * provider declares for every store of the type, under the store's [own] settings, a map option's keys one by one;
-     * a setting of the store its provider does not declare fails, naming the setting under [key] and the declared
-     * options. A setting is declared as [PortProviders.declared] says: an option's key, or a key under a map option's
-     * prefix.
+     * The options of a store of [provider]'s type: those of its type ([type], `wow.<type>.*`) its provider declares for
+     * every store of the type, under the store's own (`wow.stores.<store>.*`, a map option's keys one by one), each
+     * read in every form Spring binds ([ProviderSettingsSource]). A key of the store that names no option of its
+     * provider, in any of those forms, nor one the host reserves ([StoreProperties.RESERVED]), fails, naming it and
+     * the declared options.
      */
     private fun optionsOf(
         provider: StoreProvider,
-        typeSettings: Map<String, String>,
-        own: Map<String, String>,
-        key: String,
+        settings: ProviderSettingsSource,
+        type: String,
+        store: String?,
     ): Map<String, String> {
-        val declared = PortProviders.declared(own, provider.options, ProviderOption.Scope.entries)
-        (own.keys - declared.keys).firstOrNull()?.let { option ->
+        val typeOptions = settings.options(type, provider.options)
+        if (store == null) {
+            return typeOptions
+        }
+        val key = "wow.stores.$store"
+        settings.keys(key).firstOrNull { own ->
+            !StoreProperties.isReserved(own) && provider.options.none { PortProviders.names(own, it) }
+        }?.let { own ->
             throw WowConfigurationException(
-                "$key.$option",
-                own[option],
-                "$key.$option is not an option of the ${provider.type} stores.",
+                "$key.$own",
+                null,
+                "$key.$own is not an option of the ${provider.type} stores.",
                 "Set only the options of the ${provider.type} stores: ${provider.options.map { it.key }.sorted()}.",
             )
         }
-        return PortProviders.declared(typeSettings, provider.options) + own
+        return typeOptions + settings.options(key, provider.options, ProviderOption.Scope.entries)
     }
 }
 

@@ -388,6 +388,15 @@ class ConfigurationKeysTest {
     }
 
     @Test
+    fun `a host whose security key is mistyped does not start under lazy initialization either (#6851)`() {
+        val failure = runCatching {
+            startHost("spring.main.lazy-initialization" to true, "wow.cosec.authorizer.enable" to true).close()
+        }.exceptionOrNull()
+        generateSequence(failure) { it.cause }.filterIsInstance<WowConfigurationException>().first().message
+            .assert().contains("Unknown Wow configuration keys: wow.cosec.authorizer.enable.")
+    }
+
+    @Test
     fun `a host whose security key is mistyped does not start`() {
         val failure = runCatching { startHost("wow.cosec.authorizer.enable" to true).close() }.exceptionOrNull()
         generateSequence(failure) { it.cause }.any { it.message.orEmpty().contains("wow.cosec.authorizer.enable") }

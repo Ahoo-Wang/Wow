@@ -26,6 +26,7 @@ import me.ahoo.wow.spi.config.configCheck
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.log.TailPolling
 import me.ahoo.wow.spring.boot.WowProperties.Companion.DEFAULT_PARTITIONS
+import org.springframework.boot.context.properties.source.ConfigurationPropertyName
 import java.time.Duration
 import kotlin.time.toJavaDuration
 import kotlin.time.toKotlinDuration
@@ -93,6 +94,10 @@ class StoreProperties {
     internal companion object {
         /** The keys of a store the host reads itself: no provider declares an option of these names. */
         val RESERVED: Set<String> = setOf("type", "ddl", "query")
+
+        /** Whether [key], under a store, is one of [RESERVED] or under one, in any form Spring binds. */
+        fun isReserved(key: String): Boolean =
+            ConfigurationPropertyName.adapt(key, '.').getElement(0, ConfigurationPropertyName.Form.UNIFORM) in RESERVED
     }
 }
 

@@ -25,7 +25,7 @@ import me.ahoo.wow.query.dataset.QueryDatasetProvider
 import me.ahoo.wow.query.dataset.QueryDatasets
 import me.ahoo.wow.spi.config.configCheck
 import me.ahoo.wow.spi.store.StoreResources
-import me.ahoo.wow.spring.boot.transport.PortProviders
+import me.ahoo.wow.spring.boot.transport.ProviderSettingsSource
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver
 import java.nio.file.Path
 import java.util.ServiceLoader
@@ -69,10 +69,10 @@ internal object HostDatasets {
     fun provided(
         providers: List<QueryDatasetProvider>,
         resources: StoreResources,
-        settings: (type: String) -> Map<String, String>,
+        settings: ProviderSettingsSource,
     ): QueryBindings<QueryDataset>? {
         val available = providers
-            .map { it to QueryDatasetConfig(it.type, PortProviders.declared(settings(it.type), it.options), resources) }
+            .map { it to QueryDatasetConfig(it.type, settings.options("wow.${it.type}", it.options), resources) }
             .filter { (provider, config) -> provider.available(config) }
         configCheck(
             available.size <= 1,

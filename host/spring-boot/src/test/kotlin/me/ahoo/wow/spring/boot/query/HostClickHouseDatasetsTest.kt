@@ -22,6 +22,7 @@ import me.ahoo.wow.query.dataset.QueryDatasetConfig
 import me.ahoo.wow.query.dataset.QueryDatasetProvider
 import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.store.StoreResources
+import me.ahoo.wow.spring.boot.transport.ProviderSettingsSource
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
@@ -37,7 +38,7 @@ class HostClickHouseDatasetsTest {
     private fun provided(
         resources: StoreResources = StoreResources.of(mapOf("client" to client)),
         vararg settings: Pair<String, String>,
-    ) = HostDatasets.provided(providers, resources) { mapOf(*settings) }
+    ) = HostDatasets.provided(providers, resources, ProviderSettingsSource.of { mapOf(*settings) })
 
     @Test
     fun `without the application's client the endpoint should give the backend its own, which the node closes`() {
@@ -71,7 +72,11 @@ class HostClickHouseDatasetsTest {
             override fun open(config: QueryDatasetConfig): QueryBindings<QueryDataset> = QueryBindings { null }
         }
         val failure = assertThrows<WowConfigurationException> {
-            HostDatasets.provided(providers + other, StoreResources.of(mapOf("client" to client))) { emptyMap() }
+            HostDatasets.provided(
+                providers + other,
+                StoreResources.of(mapOf("client" to client)),
+                ProviderSettingsSource.NONE
+            )
         }
         failure.key.assert().isEqualTo("wow.query.dataset")
         failure.message.assert().contains("clickhouse", "other")

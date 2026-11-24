@@ -51,6 +51,7 @@ import me.ahoo.wow.spring.boot.BANK
 import me.ahoo.wow.spring.boot.HostTestApp
 import me.ahoo.wow.spring.boot.WowProperties
 import me.ahoo.wow.spring.boot.startHost
+import me.ahoo.wow.spring.boot.transport.ProviderSettingsSource
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.context.annotation.Bean
@@ -148,7 +149,7 @@ class ThirdPartyStoreTest {
             WowProperties().apply { stores["acme"] = StoreProperties().apply { type = "acme" } },
             providers,
             StoreResources.NONE,
-            settings = { prefix ->
+            settings = ProviderSettingsSource.of { prefix ->
                 when (prefix) {
                     "wow.acme" -> mapOf("region" to "us-1", "undeclared" to "x")
                     "wow.stores.acme" -> mapOf("type" to "acme", *options)
@@ -177,7 +178,7 @@ class ThirdPartyStoreTest {
             WowProperties().apply { stores["main"] = StoreProperties().apply { type = "mapped" } },
             providers,
             StoreResources.NONE,
-            settings = { prefix ->
+            settings = ProviderSettingsSource.of { prefix ->
                 when (prefix) {
                     "wow.mapped" -> mapOf(
                         "region" to "global-region",

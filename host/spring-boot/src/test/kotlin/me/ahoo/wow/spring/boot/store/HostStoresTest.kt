@@ -52,6 +52,7 @@ import me.ahoo.wow.spring.boot.WowProperties
 import me.ahoo.wow.spring.boot.memoryStore
 import me.ahoo.wow.spring.boot.node.AggregateProperties
 import me.ahoo.wow.spring.boot.startHost
+import me.ahoo.wow.spring.boot.transport.ProviderSettingsSource
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.beans.factory.support.DefaultListableBeanFactory
@@ -84,7 +85,7 @@ class HostStoresTest {
         BeanStoreResources(beans, NodeStores.BACKENDS),
         service,
         memoryOptIn,
-        settings = { prefix -> settings[prefix.removePrefix("wow.stores.")].orEmpty() },
+        settings = ProviderSettingsSource.of { prefix -> settings[prefix.removePrefix("wow.stores.")].orEmpty() },
     )
 
     private fun properties(block: WowProperties.() -> Unit = {}): WowProperties = WowProperties().apply(block)

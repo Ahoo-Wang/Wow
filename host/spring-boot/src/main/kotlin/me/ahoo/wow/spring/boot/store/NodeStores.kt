@@ -23,7 +23,7 @@ import me.ahoo.wow.spring.boot.node.BackendsLifecycle
 import me.ahoo.wow.spring.boot.node.NodeIdentity
 import me.ahoo.wow.spring.boot.node.WowModels
 import me.ahoo.wow.spring.boot.query.QueryProperties
-import me.ahoo.wow.spring.boot.transport.PortProviders
+import me.ahoo.wow.spring.boot.transport.ProviderSettingsSource
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
@@ -87,7 +87,8 @@ internal class NodeStores {
             node?.service.orEmpty(),
             development.reason,
             clock,
-        ) { prefix -> PortProviders.settingsOf(environment, prefix) }
+            ProviderSettingsSource.of(environment),
+        )
         // The next statement hands the stores to their owner: nothing runs between.
         return StoreInstances.backends(stores, placements, types, properties.log.partitions)
     }
