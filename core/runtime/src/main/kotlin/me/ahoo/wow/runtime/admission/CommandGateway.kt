@@ -84,9 +84,9 @@ import kotlin.time.Duration
  *      other, never ignored;
  *    - an aggregate type whose tenant [tenants] fixes is in that tenant whoever the caller is; a target
  *      that names another tenant for it is [FrameworkCodes.COMMAND_MALFORMED];
- *    - the aggregate id is the request's; a command that may create the aggregate may name none:
- *      it takes the id of the aggregate its request id already created in [committed], within the caller's scope,
- *      else a new one from [ids]' generator of the aggregate type, so a retry keeps it. A
+ *    - the aggregate id is the request's; a command that may create the aggregate may name none: it is authorized,
+ *      read, transformed and validated with the id [UNADDRESSED], and takes its id at step 7, so that a request
+ *      admission refuses reads nothing and claims nothing for it. A
  *      request of a type one of [transformers] takes, a mounted command among them, may name none: its transformer
  *      finds the aggregate. A command whose body names its aggregate
  *      ([AggregateId][me.ahoo.wow.api.annotation.AggregateId]) has its body decoded here, as step 4 says, and its
@@ -116,13 +116,17 @@ import kotlin.time.Duration
  *    command it becomes must be decided by an aggregate this node serves ([FrameworkCodes.COMMAND_UNHANDLED] otherwise); its
  *    tenant is decided again for that aggregate type, and its scope, request id, expected version and wait plan are
  *    the request's. When the type or the aggregate changed, [authorizer] authorizes the result again. A result that
- *    names no aggregate gets an id as a creation without one does when it creates its aggregate, and
+ *    names no aggregate gets an id at step 7, as a creation without one does, when it creates its aggregate, and
  *    is [FrameworkCodes.AGGREGATE_NOT_FOUND] otherwise. The command's headers then name the input
  *    ([CommandTransformer.TRANSFORMED_FROM]), and so does every result ([CommandResult.transformedFrom]). A
  *    transformer that throws a [RejectedException] refuses the command with its rejection, as the kernel answers a
  *    decide function's: its code qualified with the input's aggregate type, with its message and extensions.
  * 6. Validate the [CommandCandidate] with [validators]: their violations, together, are [FrameworkCodes.COMMAND_INVALID].
- * 7. Build the [Command], its wait plan the request's, or [WaitPlan.DEFAULT] within the coordinator's
+ * 7. Give a creation that names no aggregate its id: the id of the aggregate its request id already created in
+ *    [committed], within the caller's scope, else a new one from [ids]' generator of the aggregate type, so a retry
+ *    keeps it ([CreationIds]). That is admission's one read of a store for the request, and under a generator that
+ *    cannot aim its one write, the request's claim.
+ *    Then build the [Command], its wait plan the request's, or [WaitPlan.DEFAULT] within the coordinator's
  *    [default timeout][me.ahoo.wow.runtime.wait.WaitOptions.defaultTimeout] ([defaultWaitTimeout]) when it names none;
  *    its timeout capped by the coordinator's [maximum][me.ahoo.wow.runtime.wait.WaitOptions.maxTimeout].
  *
@@ -191,7 +195,7 @@ class CommandGateway @InternalWowApi constructor(
         PeerAdmission(peers, tenants, validators, this.authorizer, mapper, bodies, this.coordinators)
 
     /** Step 5: the transformers, and the command each makes of the one a request names. */
-    private val transformations = Transformations(registry, transformers, tenants, creations, this.authorizer)
+    private val transformations = Transformations(registry, transformers, tenants, this.authorizer)
 
     @Volatile
     private var closed = false
@@ -495,7 +499,7 @@ class CommandGateway @InternalWowApi constructor(
         } else {
             null
         }
-        val inputId = if (owned) {
+        val namedId = if (owned) {
             when (val id = ownId(request.aggregateId, scope, request.caller)) {
                 is OwnId.Refused -> {
                     facts.ref = facts.type.ref(tenantId, request.aggregateId ?: UNADDRESSED)
@@ -512,16 +516,13 @@ class CommandGateway @InternalWowApi constructor(
                     return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, named.message)
                 }
 
-                is BodyId.Of -> named.id ?: creations.idOf(facts.type, tenantId, facts.requestId, scope, model.ownership)
+                is BodyId.Of -> named.id
             }
         } else {
-            request.aggregateId ?: if (transformer == null) {
-                creations.idOf(facts.type, tenantId, facts.requestId, scope, model.ownership)
-            } else {
-                UNADDRESSED
-            }
+            request.aggregateId
         }
-        facts.ref = facts.type.ref(tenantId, inputId)
+        // A creation that names no aggregate is authorized as one: its id is chosen once it is admitted, at step 7.
+        facts.ref = facts.type.ref(tenantId, namedId ?: UNADDRESSED)
         // 3. Action-level authorization.
         authorizer.authorize(request, CommandAction(commandType, facts.ref, scope, creation))
             ?.let { return facts.refuse(it) }
@@ -560,7 +561,13 @@ class CommandGateway @InternalWowApi constructor(
             val invalid = "${command.type.name} is invalid."
             return facts.refuse(FrameworkCodes.COMMAND_INVALID, invalid, violations = violations)
         }
-        // 7. The command.
+        // 7. The command. Only now is a store read, and a claim written, for the id of a creation that names none.
+        val unaddressed = facts.ref
+        if (!unaddressed.isAssigned) {
+            val type = unaddressed.type
+            val id = creations.idOf(type, unaddressed.tenantId, facts.requestId, scope, command.model.ownership)
+            facts.ref = type.ref(unaddressed.tenantId, id)
+        }
         val coordinator = coordinators.getValue(facts.ref.type.context)
         val plan = if (call != null) {
             WaitPlan.COMMITTED.within(coordinator.options.defaultTimeout)

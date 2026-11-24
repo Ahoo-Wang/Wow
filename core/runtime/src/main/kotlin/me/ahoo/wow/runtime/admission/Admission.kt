@@ -29,6 +29,9 @@ import me.ahoo.wow.spi.SystemCommandSet
  * What a caller asks to do, as action-level authorization sees it before the body is decoded: a
  * command of [type] on [ref], in [scope], and whether the command may create the aggregate ([creation]).
  *
+ * A creation that names no aggregate is authorized before admission chooses its id: its ref names the aggregate id
+ * [CommandGateway.UNADDRESSED], as does a transformer's result that names none.
+ *
  * A request a transformer handles is authorized as it arrives, and again as the command it becomes
  * when the transformer changed its type or its aggregate. As it arrives, its ref names the aggregate id
  * [CommandGateway.UNADDRESSED] when the request names none, and a mounted command, which no aggregate decides, has
@@ -232,7 +235,9 @@ fun interface CommandValidator {
  * A command as a [CommandValidator] sees it: decoded and transformed, not yet decided. Fields may be added: construct
  * it with [of]; the constructor is internal to Wow.
  *
- * - [body], of [type], sent to [ref], the target aggregate (its tenant and its id with it), in [scope].
+ * - [body], of [type], sent to [ref], the target aggregate (its tenant and its id with it), in [scope]. A creation
+ *   that names no aggregate is validated before its id is chosen, on every path: its ref names the id
+ *   [AggregateRef.UNASSIGNED].
  * - [operator] is who the command records as acting, whatever it came through, and what its event stream records;
  *   null for an anonymous caller's command.
  * - [caller] is the request's caller, with its claims, when the command carries one: a command a request admitted,
