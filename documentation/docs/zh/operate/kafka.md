@@ -97,7 +97,7 @@ kafka-topics --bootstrap-server kafka:9092 --create --topic wow.eshop-ordering.o
 
 命令主题上接收的命令，必须挺过一个 broker 的丢失。只有当主题的副本数和 `min.insync.replicas` 都至少为 2 时才成立。启动时，节点对它的上下文中每个低于此要求的命令主题、以及会创建这种主题的配置发出警告，除非节点处于开发中：`wow.dev-profiles` 中的某个 profile 处于激活状态（默认为 `dev`、`local`、`test` 和 `demo`），或者 `wow.internal.host` 指定了回环地址。
 
-无论 `wow.kafka.properties` 怎么设，生产者都是幂等的，并等待所有同步副本确认（`acks=all`）。
+无论 `wow.kafka.properties` 怎么设，生产者都是幂等的，并等待所有同步副本确认（`acks=all`）。在一次发送中，同一聚合的下一条消息要等前一条被确认后才交给 broker。被 Kafka 永久拒绝的消息，无论是客户端还是 broker 拒绝的，都不会被该聚合之后的消息越过：同一次发送中排在它之后的消息不会写入，这次发送失败。不同聚合的消息一起发送。
 
 ## 持久的命令摄入 {#durable-command-intake}
 

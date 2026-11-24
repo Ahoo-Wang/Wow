@@ -15,6 +15,7 @@ package me.ahoo.wow.kafka
 
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.withContext
 import me.ahoo.wow.spi.VirtualThreads
@@ -32,9 +33,14 @@ import kotlin.time.toJavaDuration
  * The [TopicProducer] over a Kafka [producer]: made by [create] from [KafkaOptions], an
  * idempotent producer with `acks=all`.
  *
- * [send] hands every message to the producer in order, on a virtual thread since a send may block while the producer
- * fetches metadata or its buffer is full, then suspends until the broker acknowledged each one; it throws the first
- * failure, Kafka being unreachable or refusing a record for good as the SPI's typed failure ([KafkaFailures]).
+ * [send] goes in rounds, one message of each key a round (#6782): a key's next message goes to the broker only once its
+ * previous one was acknowledged, so a message Kafka refuses for good is never overtaken by its key's later ones,
+ * which neither the idempotent producer nor `max.in.flight` keeps from being written after a refusal. A round hands
+ * its messages to the producer in order, on a virtual thread since a send may block while the producer fetches
+ * metadata or its buffer is full, then suspends until the broker answered each one. A failure stops its key: its
+ * later messages of the call are not sent, while the other keys' go on. [send] then throws the first failure, Kafka
+ * being unreachable or refusing a record for good as the SPI's typed failure ([KafkaFailures]). Messages of distinct
+ * keys go in one round, as one batch did before; a key costs one more round per message it has after its first.
  * A message's partition is the one it names ([TopicMessage.partition]), else its key's (the producer's
  * default partitioner), so the messages of an aggregate keep their order in one partition; the idempotent producer
  * keeps that order through its own retries.
@@ -53,27 +59,29 @@ class KafkaTopicProducer(
         if (messages.isEmpty()) {
             return
         }
-        val acknowledgements = withContext(dispatcher) {
-            messages.map { message ->
-                val acknowledged = CompletableDeferred<Unit>()
-                val record = ProducerRecord(
-                    topic,
-                    message.partition,
-                    message.key,
-                    message.value,
-                    KafkaHeaders.of(message.headers)
-                )
-                producer.send(record) { _, failure ->
-                    if (failure == null) {
-                        acknowledged.complete(Unit)
-                    } else {
-                        acknowledged.completeExceptionally(KafkaFailures.translate(failure))
-                    }
-                }
-                acknowledged
-            }
+        var keys = messages.groupBy { it.key }.values.map { it.iterator() }
+        var failure: Throwable? = null
+        while (keys.isNotEmpty()) {
+            val round = keys.map { it to it.next() }
+            val outcomes = withContext(dispatcher) { round.map { (_, message) -> write(topic, message) } }.awaitAll()
+            failure = failure ?: outcomes.firstNotNullOfOrNull { it }
+            keys = round.filterIndexed { index, (key, _) -> outcomes[index] == null && key.hasNext() }.map { it.first }
         }
-        acknowledgements.awaitAll()
+        failure?.let { throw it }
+    }
+
+    /** Hands [message] to the producer: its outcome is null once the broker acknowledged it, else its failure. */
+    private fun write(topic: String, message: TopicMessage): Deferred<Throwable?> {
+        val outcome = CompletableDeferred<Throwable?>()
+        val record = ProducerRecord(
+            topic,
+            message.partition,
+            message.key,
+            message.value,
+            KafkaHeaders.of(message.headers),
+        )
+        producer.send(record) { _, failure -> outcome.complete(failure?.let(KafkaFailures::translate)) }
+        return outcome
     }
 
     override fun close() {
