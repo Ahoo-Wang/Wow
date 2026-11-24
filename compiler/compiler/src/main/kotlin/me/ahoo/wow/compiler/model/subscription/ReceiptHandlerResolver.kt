@@ -17,6 +17,7 @@ import com.google.devtools.ksp.isPrivate
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 import com.google.devtools.ksp.symbol.KSType
+import com.google.devtools.ksp.symbol.KSTypeAlias
 import com.google.devtools.ksp.symbol.Modifier
 import me.ahoo.wow.api.annotation.Blocking
 import me.ahoo.wow.api.subscribe.CommandReceipt
@@ -111,13 +112,13 @@ internal object ReceiptHandlerResolver {
         if (problems.size > count) {
             return null
         }
-        val command = commandClass(first!!)
+        val command = commandOf(first!!)
         return ReceiptBinding(
             function = name,
             subscription = "$processor.$name",
             callee = callee,
-            command = command,
-            commandSource = command?.let { first.arguments.firstOrNull()?.type?.resolve()?.declaration?.sourceName() },
+            command = command?.binaryName(),
+            commandSource = command?.sourceName(),
             context = context != null,
             suspending = Modifier.SUSPEND in function.modifiers,
             reactor = reactor,
@@ -166,13 +167,15 @@ internal object ReceiptHandlerResolver {
     }
 
     /**
-     * The binary name of the class [type], a `CommandReceipt<X>`, a `CommandReceipt.Rejected<X>` or a
-     * `CommandReceipt.Committed<X>`, takes; null for `*` or `Any`.
+     * The class [type], a `CommandReceipt<X>`, a `CommandReceipt.Rejected<X>` or a `CommandReceipt.Committed<X>`, takes,
+     * a type alias read through to its class (#6831); null for `*` or `Any`.
      */
-    private fun commandClass(type: KSType): String? {
-        val argument = type.arguments.firstOrNull()?.type?.resolve() ?: return null
-        val declaration = argument.declaration as? KSClassDeclaration ?: return null
-        return declaration.takeUnless { it.qualifiedName?.asString() == ANY }?.binaryName()
+    private fun commandOf(type: KSType): KSClassDeclaration? {
+        var declaration = type.arguments.firstOrNull()?.type?.resolve()?.declaration ?: return null
+        while (declaration is KSTypeAlias) {
+            declaration = declaration.type.resolve().declaration
+        }
+        return (declaration as? KSClassDeclaration)?.takeUnless { it.qualifiedName?.asString() == ANY }
     }
 
     private fun KSType.qualifiedName(): String? = declaration.qualifiedName?.asString()

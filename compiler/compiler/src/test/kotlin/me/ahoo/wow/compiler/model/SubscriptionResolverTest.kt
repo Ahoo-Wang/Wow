@@ -200,4 +200,59 @@ class SubscriptionResolverTest {
             "handler GuardedSaga.sweep is protected",
         )
     }
+
+    @Test
+    fun `handlers should be told apart by their subscription names, not their function names`() {
+        // A handler's subscription is its @Name, else its own name (#6830).
+        val source = { functions: String ->
+            SourceFile.kotlin(
+                "Board.kt",
+                """
+                package sample.board
+
+                import me.ahoo.wow.api.annotation.Name
+                import me.ahoo.wow.api.annotation.OnEvent
+                import me.ahoo.wow.api.annotation.OnRejected
+                import me.ahoo.wow.api.annotation.Saga
+                import me.ahoo.wow.api.subscribe.CommandReceipt
+                import me.ahoo.wow.api.subscribe.StateEvent
+
+                @Saga
+                class Board {
+                    $functions
+                }
+                """.trimIndent(),
+            )
+        }
+        // Two overloads that a @Name keeps apart are two subscriptions; the generated calls resolve by type.
+        val (compilation, apart) = compileModel(
+            "generate",
+            options,
+            source(
+                """
+                @OnEvent fun on(event: StateEvent<*>) = Unit
+                @OnRejected @Name("onRefused") fun on(rejected: CommandReceipt.Rejected<*>) = Unit
+                """.trimIndent(),
+            ),
+        )
+        apart.exitCode.assert().withFailMessage { apart.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
+        compilation.workingDir.walkTopDown().first { it.name == "BoardSubscriptions.kt" }.readText().assert()
+            .contains("\"Board\", \"on\"", "\"Board\", \"onRefused\"")
+        // Two functions that one @Name joins are one subscription name: refused, naming both.
+        val (_, joined) = compileModel(
+            "generate",
+            options,
+            source(
+                """
+                @OnEvent @Name("sync") fun placed(event: StateEvent<*>) = Unit
+                @OnRejected @Name("sync") fun refused(rejected: CommandReceipt.Rejected<*>) = Unit
+                """.trimIndent(),
+            ),
+        )
+        joined.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        joined.messages.assert()
+            .contains(
+                "processor Board has two handlers named sync (placed, refused): each is the subscription Board.sync"
+            )
+    }
 }

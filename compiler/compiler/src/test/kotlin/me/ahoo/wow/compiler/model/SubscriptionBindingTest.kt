@@ -447,6 +447,58 @@ class SubscriptionBindingTest {
     }
 
     @Test
+    fun `a receipt handler whose command is a typealias should be bound to that command`() {
+        // The alias is read through to its class (#6831), as @Sends and @Retry read it.
+        val aliased = SourceFile.kotlin(
+            "Aliased.kt",
+            """
+            package sample.aliased
+
+            import me.ahoo.wow.api.annotation.AggregateId
+            import me.ahoo.wow.api.annotation.AggregateRoot
+            import me.ahoo.wow.api.annotation.CreateAggregate
+            import me.ahoo.wow.api.annotation.OnEvent
+            import me.ahoo.wow.api.annotation.OnRejected
+            import me.ahoo.wow.api.annotation.Saga
+            import me.ahoo.wow.api.client.CommandRequest
+            import me.ahoo.wow.api.subscribe.CommandReceipt
+            import me.ahoo.wow.api.subscribe.StateEvent
+
+            @CreateAggregate
+            data class Place(@AggregateId val id: String)
+            data class Placed(val id: String)
+            data class ConfirmPayment(val amount: Int)
+            data class Paid(val amount: Int)
+
+            @AggregateRoot
+            class Order(val id: String) {
+                fun onCommand(command: Place): Placed = Placed(command.id)
+                fun onCommand(command: ConfirmPayment): Paid = Paid(command.amount)
+                fun onSourcing(event: Placed) = Unit
+                fun onSourcing(event: Paid) = Unit
+            }
+
+            typealias Pay = ConfirmPayment
+
+            @Saga
+            class PaymentSaga {
+                @OnEvent
+                fun onPlaced(event: StateEvent<*>): CommandRequest<ConfirmPayment> =
+                    CommandRequest.to(event.ref, ConfirmPayment(1))
+
+                @OnRejected
+                fun onPayRejected(rejected: CommandReceipt.Rejected<Pay>) = Unit
+            }
+            """.trimIndent(),
+        )
+        val (compilation, result) = compile(aliased)
+        result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
+        val saga = provider(compilation, result).processors(Dependencies.NONE).single()
+        saga.rejectionHandlerOf(result.classLoader.loadClass("sample.aliased.ConfirmPayment"))!!.name.assert()
+            .isEqualTo("PaymentSaga.onPayRejected")
+    }
+
+    @Test
     fun `a module of aggregates only should list no processors`() {
         val account = SourceFile.kotlin(
             "Account.kt",
