@@ -63,7 +63,7 @@ class DataSourceAutoConfiguration {
         environment.getProperty("$PREFIX.username")?.let { dataSource.username = it }
         environment.getProperty("$PREFIX.password")?.let { dataSource.password = it }
         environment.getProperty("$PREFIX.driver-class-name")?.let { dataSource.driverClassName = it }
-        logger.info { "The host's DataSource connects to ${dataSource.jdbcUrl} (spring.datasource.url)." }
+        logger.info { "The host's DataSource connects to ${withoutCredentials(dataSource.jdbcUrl)} ($PREFIX.url)." }
         return dataSource
     }
 
@@ -72,6 +72,37 @@ class DataSourceAutoConfiguration {
         const val PREFIX: String = "spring.datasource"
 
         private val logger = KotlinLogging.logger {}
+
+        /**
+         * [url], a JDBC URL, as a log line may show it: its driver, its hosts and its database, never a credential.
+         * The hosts follow the URL's last `//` and any user info before them (MySQL's `//user:password@host`, Oracle's
+         * `thin:user/password@//host`), the user info ending at the last `@` before the first `/` or `?`, whichever
+         * is later, so a password holding either is not cut; the database is the path after the hosts; every
+         * parameter, after `?`, `;` or `#`, is dropped (PostgreSQL's `?user=…&password=…`, SQL Server's
+         * `;password=…`). A URL without `//` (H2's `jdbc:h2:mem:shop`) is shown without its parameters, or as its
+         * driver alone when it holds an `@`.
+         */
+        internal fun withoutCredentials(url: String): String {
+            val driver = url.removePrefix("jdbc:").substringBefore(':')
+            val slashes = url.lastIndexOf("//")
+            if (slashes < 0) {
+                val address = url.substringBefore('?').substringBefore(';')
+                return if ('@' in address) "jdbc:$driver" else address
+            }
+            val rest = url.substring(slashes + 2)
+            val address = rest.substring(maxOf(lastAtBefore(rest, '/'), lastAtBefore(rest, '?')) + 1)
+            val hosts = address.takeWhile { it !in PARAMETERS_OR_PATH }
+            val path = address.substring(hosts.length)
+            val database = if (path.startsWith('/')) path.drop(1).takeWhile { it !in PARAMETERS_OR_PATH } else ""
+            return "jdbc:$driver://$hosts" + if (database.isEmpty()) "" else "/$database"
+        }
+
+        /** The last `@` of [text] before its first [delimiter], -1 for none. */
+        private fun lastAtBefore(text: String, delimiter: Char): Int =
+            text.substring(0, text.indexOf(delimiter).takeIf { it >= 0 } ?: text.length).lastIndexOf('@')
+
+        /** What ends a JDBC URL's hosts or its database: its path, or its parameters. */
+        private const val PARAMETERS_OR_PATH = "/?;#"
     }
 }
 

@@ -13,6 +13,9 @@
 
 package me.ahoo.wow.spring.boot.store
 
+import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.core.read.ListAppender
 import com.mongodb.client.MongoClient
 import com.mongodb.client.MongoClients
 import com.zaxxer.hikari.HikariDataSource
@@ -20,6 +23,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.mongo.MongoPoolGauge
 import me.ahoo.wow.spring.boot.startHost
 import org.junit.jupiter.api.Test
+import org.slf4j.LoggerFactory
 import org.springframework.asm.ClassWriter
 import org.springframework.asm.Opcodes
 import org.springframework.boot.autoconfigure.AutoConfigurations
@@ -91,6 +95,52 @@ class DatabaseAutoConfigurationTest {
             dataSource.poolName.assert().isEqualTo("shop-pool")
             // The pool opens at the first connection, not at startup.
             dataSource.isRunning.assert().isFalse()
+        }
+    }
+
+    @Test
+    fun `the DataSource's start-up line should name where it connects, never a password its URL carries`() {
+        // PostgreSQL's driver takes the credentials as URL parameters as well as from username and password (#6848).
+        val root = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME) as Logger
+        val lines = ListAppender<ILoggingEvent>().apply { start() }
+        root.addAppender(lines)
+        try {
+            hostAlone.withPropertyValues(
+                "spring.datasource.url=jdbc:postgresql://db:5432/shop?user=shop&password=$SECRET"
+            )
+                .run { context ->
+                    // The pool connects with the URL as it is.
+                    (context.getBean(DataSource::class.java) as HikariDataSource).jdbcUrl.assert().contains(SECRET)
+                }
+        } finally {
+            root.detachAppender(lines)
+        }
+        val logged = lines.list.map { it.formattedMessage }
+        logged.single { "spring.datasource.url" in it }.assert()
+            .isEqualTo("The host's DataSource connects to jdbc:postgresql://db:5432/shop (spring.datasource.url).")
+        logged.filter { SECRET in it }.assert().isEmpty()
+    }
+
+    @Test
+    fun `a JDBC URL should be shown without a credential, whichever form its driver takes one in`() {
+        mapOf(
+            "jdbc:postgresql://db:5432/shop?user=shop&password=$SECRET" to "jdbc:postgresql://db:5432/shop",
+            "jdbc:postgresql://db1:5432,db2:5432/shop?password=$SECRET" to "jdbc:postgresql://db1:5432,db2:5432/shop",
+            "jdbc:postgresql://[::1]:5432/shop" to "jdbc:postgresql://[::1]:5432/shop",
+            "jdbc:postgresql://db?password=$SECRET" to "jdbc:postgresql://db",
+            "jdbc:mysql://shop:$SECRET@db:3306/shop?ssl=true" to "jdbc:mysql://db:3306/shop",
+            // A password that holds what delimits the URL's parts.
+            "jdbc:mysql://shop:a@b//c?d;e@db/shop" to "jdbc:mysql://db/shop",
+            "jdbc:mysql://shop:a/b@db/shop" to "jdbc:mysql://db/shop",
+            "jdbc:mysql://shop:p?ss@db/shop" to "jdbc:mysql://db/shop",
+            "jdbc:postgresql://db?password=a/b" to "jdbc:postgresql://db",
+            "jdbc:postgresql://db/shop?user=a@b.example" to "jdbc:postgresql://db/shop",
+            "jdbc:oracle:thin:shop/$SECRET@//db:1521/shop" to "jdbc:oracle://db:1521/shop",
+            "jdbc:sqlserver://db:1433;databaseName=shop;user=shop;password=$SECRET" to "jdbc:sqlserver://db:1433",
+            "jdbc:h2:mem:shop;DB_CLOSE_DELAY=-1" to "jdbc:h2:mem:shop",
+            "jdbc:oracle:thin:shop/$SECRET@db:1521:orcl" to "jdbc:oracle",
+        ).forEach { (url, shown) ->
+            DataSourceAutoConfiguration.withoutCredentials(url).assert().describedAs(url).isEqualTo(shown)
         }
     }
 
@@ -181,5 +231,9 @@ class DatabaseAutoConfigurationTest {
             host.context.getBeansOfType(MongoClient::class.java).assert().isEmpty()
             host.context.getBean(HostBackends::class.java).type.assert().isEqualTo("memory")
         }
+    }
+
+    private companion object {
+        const val SECRET = "s3cret-pw"
     }
 }
