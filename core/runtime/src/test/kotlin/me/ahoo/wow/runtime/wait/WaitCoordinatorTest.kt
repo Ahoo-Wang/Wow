@@ -331,37 +331,68 @@ class WaitCoordinatorTest : WaitCoordinatorFixtures() {
     @Test
     fun `a streamed wait whose execution throws after acceptance ends with a failed result, not a failed flow`(): Unit =
         runBlocking {
-            // #6817: a duplicate whose plan names a handled hop of its own context reads that subscription's progress.
-            mapOf(
-                StorageUnavailableException("The checkpoint store is down.") to FrameworkCodes.STORAGE_UNAVAILABLE,
-                IllegalStateException("The checkpoint does not read.") to FrameworkCodes.COMMAND_UNKNOWN,
-            ).entries.forEachIndexed { index, (failure, code) ->
-                val failing = object : SubscriptionDirectory by runtime {
-                    override suspend fun hasHandled(subscription: String, stream: EventStreamRecord): Boolean =
-                        throw failure
-                }
-                val coordinator = coordinator(WaitOptions(), failing)
-                val (id, requestId) = "o-dup-$index" to "r-dup-$index"
-                val committed = WaitPlan.of(Hop.committed())
-                val first = coordinator.execute(order, place(id, requestId = requestId, wait = committed))
-                first.status.assert().describedAs("$first").isEqualTo(CommandResult.Status.SUCCEEDED)
-                val plan = WaitPlan.of(Hop.committed(), Hop.handled("order.saga"))
+            listOf(
+                Triple(
+                    StorageUnavailableException("The checkpoint store is down."),
+                    FrameworkCodes.STORAGE_UNAVAILABLE,
+                    "A store was unavailable after the command was accepted; retry it with its request id.",
+                ),
+                Triple(
+                    IllegalStateException("The checkpoint does not read."),
+                    FrameworkCodes.COMMAND_UNKNOWN,
+                    "The command's execution failed after it was accepted: whether it committed is unknown; retry " +
+                        "it with its request id.",
+                ),
+            ).forEachIndexed { index, (failure, code, detail) ->
+                val (coordinator, duplicate) = committedOverFailing(index, failure)
                 // Without an event stream's StreamedWait, the flow fails, as the JSON answer's mapping expects.
-                val thrown = runCatching {
-                    coordinator.stream(order, place(id, requestId = requestId, wait = plan)).toList()
-                }.exceptionOrNull()
+                val thrown = runCatching { coordinator.stream(order, duplicate()).toList() }.exceptionOrNull()
                 generateSequence(thrown) { it.cause }.any { it === failure }.assert().isTrue()
                 // With one, the stream's head is sent at acceptance, and the wait ends with a result instead.
                 val accepted = AtomicBoolean()
                 val results = withContext(StreamedWait { accepted.set(true) }) {
-                    coordinator.stream(order, place(id, requestId = requestId, wait = plan)).toList()
+                    coordinator.stream(order, duplicate()).toList()
                 }
                 accepted.get().assert().isTrue()
                 val last = results.last()
                 last.status.assert().isEqualTo(CommandResult.Status.FAILED)
                 last.hop.stage.assert().isEqualTo(Stage.COMMITTED)
                 last.error!!.code.assert().isEqualTo(code)
+                // The client's detail names neither the failure nor the store: the node's log does.
+                last.error!!.message.assert().isEqualTo(detail)
                 registry.size.assert().isZero()
             }
         }
+
+    @Test
+    fun `a fatal error after acceptance fails a streamed wait's flow, as it fails any other work`(): Unit =
+        runBlocking {
+            val fatal = OutOfMemoryError("The heap is exhausted.")
+            val (coordinator, duplicate) = committedOverFailing(0, fatal)
+            val accepted = AtomicBoolean()
+            val thrown = runCatching {
+                withContext(StreamedWait { accepted.set(true) }) { coordinator.stream(order, duplicate()).toList() }
+            }.exceptionOrNull()
+            // Not a FAILED result and a warning: the error reaches the node as NodeFatals expects it (#6817).
+            generateSequence(thrown) { it.cause }.any { it === fatal }.assert().describedAs("$thrown").isTrue()
+            accepted.get().assert().isTrue()
+            registry.size.assert().isZero()
+        }
+
+    /**
+     * A coordinator whose directory's progress reads throw [failure], once it committed `o-dup-[index]`, and the
+     * command again: a duplicate, with the same request id, whose plan names its own context's handled hop, so it
+     * reads that progress after its acceptance (#6817).
+     */
+    private suspend fun committedOverFailing(index: Int, failure: Throwable): Pair<WaitCoordinator, () -> Command<*>> {
+        val failing = object : SubscriptionDirectory by runtime {
+            override suspend fun hasHandled(subscription: String, stream: EventStreamRecord): Boolean = throw failure
+        }
+        val coordinator = coordinator(WaitOptions(), failing)
+        val (id, requestId) = "o-dup-$index" to "r-dup-$index"
+        val first = coordinator.execute(order, place(id, requestId = requestId, wait = WaitPlan.of(Hop.committed())))
+        first.status.assert().describedAs("$first").isEqualTo(CommandResult.Status.SUCCEEDED)
+        val plan = WaitPlan.of(Hop.committed(), Hop.handled("order.saga"))
+        return coordinator to { place(id, requestId = requestId, wait = plan) }
+    }
 }

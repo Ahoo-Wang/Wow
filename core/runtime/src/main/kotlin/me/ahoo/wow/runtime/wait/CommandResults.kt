@@ -237,8 +237,8 @@ internal fun failedAfterAcceptance(
     } else {
         committed.failed(
             FrameworkCodes.COMMAND_UNKNOWN,
-            "The command's execution failed after it was accepted (${failure.javaClass.simpleName}): whether it " +
-                "committed is unknown; retry it with its request id.",
+            "The command's execution failed after it was accepted: whether it committed is unknown; retry it with " +
+                "its request id.",
         )
     }
 }

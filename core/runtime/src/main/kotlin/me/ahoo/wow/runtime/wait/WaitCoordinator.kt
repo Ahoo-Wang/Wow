@@ -44,6 +44,7 @@ import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.runtime.Executor
 import me.ahoo.wow.runtime.cluster.CommandRouter
 import me.ahoo.wow.runtime.cluster.TopicRouter
+import me.ahoo.wow.runtime.health.NodeFatals
 import me.ahoo.wow.spi.id.GlobalIdGenerator
 import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
@@ -468,7 +469,7 @@ class WaitCoordinator(
         }
     }
 
-    /** Settles [command] as [settled] does, for an event stream: an execution that throws ends it ([StreamedWait]). */
+    /** As [settled], for an event stream: an execution that throws ends it ([StreamedWait]), a fatal one fails it. */
     @Suppress("TooGenericExceptionCaught") // Whatever the execution threw, a streamed wait ends with a result.
     private suspend fun settleStreamed(
         model: AggregateModel<*>,
@@ -482,6 +483,7 @@ class WaitCoordinator(
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (failure: Throwable) {
+            if (NodeFatals.isFatal(failure)) throw failure
             logger.warn(failure) { "Command ${command.id} on ${command.ref} failed after it was accepted." }
             waiting.offer(failedAfterAcceptance(command, function, failure, clock.millis()))
             return

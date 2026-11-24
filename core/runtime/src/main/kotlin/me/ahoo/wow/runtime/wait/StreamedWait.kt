@@ -26,7 +26,9 @@ import kotlin.coroutines.CoroutineContext
  * ACCEPTED result is offered, whether its plan names that hop or not; a command refused before (a full node, an invalid
  * plan, a command topic that did not take it) never calls it. With it, a wait whose execution throws after acceptance
  * ends with a FAILED result at COMMITTED instead of failing the flow, since the head is sent:
- * `wow.storage.unavailable` for a store that is unavailable, `wow.command.unknown` otherwise.
+ * `wow.storage.unavailable` for a store that is unavailable, `wow.command.unknown` otherwise. Its detail names neither
+ * the failure nor the store, which the node's log does. A fatal error ([me.ahoo.wow.runtime.health.NodeFatals.isFatal])
+ * still fails the flow.
  *
  * With it too, a command of this node is settled apart from its results, each emitted as its hop is reached, so a plan
  * that names ACCEPTED streams it at once. A wait without one, a JSON answer's, settles its command first, as before.
