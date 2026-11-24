@@ -68,7 +68,8 @@ class EshopOrderFlowTest {
             )
                 .exitCode.assert().isEqualTo(0)
         }
-        // The node does not create topics; each command topic has as many partitions as its context's log.
+        // The node does not create topics; each command topic has as many partitions as its context's log, and each
+        // published stream's at least as many (#6783).
         Admin.create(
             mapOf<String, Any>(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG to kafka.bootstrapServers)
         ).use { admin ->
@@ -78,9 +79,9 @@ class EshopOrderFlowTest {
                     NewTopic("wow.eshop-inventory.commands", PARTITIONS, 1),
                     NewTopic("wow.eshop-basket.receipts", 1, 1),
                     NewTopic("wow.eshop-ordering.receipts", 1, 1),
-                    NewTopic("wow.eshop-basket.basket.state", 2, 1),
-                    NewTopic("wow.eshop-ordering.order.state", 2, 1),
-                    NewTopic("wow.eshop-inventory.stock.state", 2, 1),
+                    NewTopic("wow.eshop-basket.basket.state", PARTITIONS, 1),
+                    NewTopic("wow.eshop-ordering.order.state", PARTITIONS, 1),
+                    NewTopic("wow.eshop-inventory.stock.state", PARTITIONS, 1),
                 ),
             ).all().get()
         }

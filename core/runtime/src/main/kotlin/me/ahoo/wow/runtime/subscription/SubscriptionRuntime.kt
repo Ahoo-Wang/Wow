@@ -242,8 +242,10 @@ class SubscriptionRuntime internal constructor(
             // A paused partition's entries wait: their retries would fail the same way, and the ledger may be down. A
             // partition held back reads none yet ([startPartition]).
             val reading = run.partitions.filterValues { it.reading }.keys
-            retries.scan(run.scope, directory.values.map { it.id }.sorted(), reading) { entry ->
-                run.workers[entry.subscription.name to source.partitionOf(entry)]?.takeIf { it.paused == null }
+            retries.scan(run.scope, directory.values.map { it.id }.sorted(), reading) { entries ->
+                entries.zip(source.partitionsOf(entries)) { entry, partition ->
+                    run.workers[entry.subscription.name to partition]?.takeIf { it.paused == null }
+                }
             }
         } catch (cancelled: CancellationException) {
             throw cancelled

@@ -36,6 +36,11 @@ class InMemoryTopicsTest : TopicTransportSpec() {
     override suspend fun newTopic(partitions: Int): String =
         "topic-${created.incrementAndGet()}".also { topics.create(it, partitions) }
 
+    override suspend fun deleteBefore(topic: String, partition: Int, offset: Long): Boolean {
+        topics.retain(topic, partition, offset)
+        return true
+    }
+
     @Test
     fun `a failing broker should acknowledge nothing`(): Unit = runBlocking {
         val topics = InMemoryTopics(1)

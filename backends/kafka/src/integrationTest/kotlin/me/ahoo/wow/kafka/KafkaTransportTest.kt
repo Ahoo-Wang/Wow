@@ -21,6 +21,8 @@ import me.ahoo.wow.spi.transport.TopicProducer
 import me.ahoo.wow.spi.transport.TransportConfig
 import me.ahoo.wow.spi.transport.TransportProvider
 import me.ahoo.wow.tck.transport.TopicTransportSpec
+import org.apache.kafka.clients.admin.RecordsToDelete
+import org.apache.kafka.common.TopicPartition
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 
@@ -30,6 +32,13 @@ class KafkaTransportTest : TopicTransportSpec() {
     override val source: PartitionedSource get() = Companion.source
 
     override suspend fun newTopic(partitions: Int): String = KafkaFixture.newTopic(partitions)
+
+    /** Deleted as retention deletes them: the partition's log start offset moves to [offset]. */
+    override suspend fun deleteBefore(topic: String, partition: Int, offset: Long): Boolean {
+        val records = mapOf(TopicPartition(topic, partition) to RecordsToDelete.beforeOffset(offset))
+        KafkaFixture.admin.deleteRecords(records).all().get()
+        return true
+    }
 
     override fun provided(): Pair<TransportProvider, TransportConfig> = KafkaTransportProvider() to TransportConfig.of(
         "kafka",

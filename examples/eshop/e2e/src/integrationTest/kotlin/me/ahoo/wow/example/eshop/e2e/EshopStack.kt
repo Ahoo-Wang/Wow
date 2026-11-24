@@ -63,7 +63,8 @@ class EshopStack(
             )
             check(created.exitCode == 0) { "CREATE DATABASE $database failed: ${created.stderr}" }
         }
-        // The nodes do not create topics; each command topic has as many partitions as its context's log (G11).
+        // The nodes do not create topics; each command topic has as many partitions as its context's log (G11), and
+        // each published stream's at least as many (#6783).
         Admin.create(
             mapOf<String, Any>(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG to kafka.bootstrapServers)
         ).use { admin ->
@@ -74,10 +75,10 @@ class EshopStack(
                     NewTopic("wow.eshop-basket.receipts", 1, 1),
                     NewTopic("wow.eshop-ordering.receipts", 1, 1),
                     NewTopic("wow.eshop-payment.receipts", 1, 1),
-                    NewTopic("wow.eshop-basket.basket.state", 2, 1),
-                    NewTopic("wow.eshop-ordering.order.state", 2, 1),
-                    NewTopic("wow.eshop-inventory.stock.state", 2, 1),
-                    NewTopic("wow.eshop-payment.payment.state", 2, 1),
+                    NewTopic("wow.eshop-basket.basket.state", partitions, 1),
+                    NewTopic("wow.eshop-ordering.order.state", partitions, 1),
+                    NewTopic("wow.eshop-inventory.stock.state", partitions, 1),
+                    NewTopic("wow.eshop-payment.payment.state", partitions, 1),
                 ),
             ).all().get()
         }

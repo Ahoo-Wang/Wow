@@ -178,3 +178,16 @@ CoSec 本版本的其他变化涉及网关、控制面、签发 CoSec 令牌的�
 - **`Ledger.parkedId` 返回哈希**，签名不变；解析过它旧形式的代码，改读条目的字段。
 
 本版本可以把 CoSec 的拒绝写成 Wow 的 problem，默认关闭：`wow.cosec.problems: wow`（[CoSec 的拒绝](./security#cosec-refusals)）。保持 `cosec` 时，每个回答与以前逐字节相同。它基于 CoSec 的 `ProblemRenderer`，那在 CoSec 8 里是试验性的，形状可能随 CoSec 的 RC 改变。新增两个码：`wow.request.rate-limited`（429）与 `wow.auth.unavailable`（503），只有这些拒绝会用到它们。
+
+### Kafka 上的发布流 {#published-streams-on-kafka}
+
+发布流的记录现在发往它的聚合在上下文日志中的分区，并在 `wow-partitions` 头中注明日志的分区数（[分区](./kafka#partitions)）。预发布版按键的哈希把它放在主题的各分区之间。发布的节点在它的某个主题的分区少于 `wow.log.partitions` 时也拒绝启动，无论 `wow.kafka.ddl` 怎么设。
+
+升级前后，一个聚合的下一条记录可能落在与它之前的记录不同的分区。订阅者于是可能先于一条它尚未读到的较早记录处理它，或越过一条它停放着的记录处理它：停放聚合的分区只拦住放在该分区的记录。Wow 无从分辨，因为版本号的空缺不是证据：一次所有事件都已退役的提交没有记录。对每个在升级中保留其主题的发布服务：
+
+1. 停止发往该服务的命令，或停止它的节点。
+2. 等到每个消费服务中读取其主题的每个订阅都已追上，且没有任何停放：对主题的每个分区，`wow.subscription.backlog` 为 0，`wow.subscription.progress` 为 1，并且 `wow.subscription.parked.aggregates` 为 0；[ops 服务与控制台](./ops-console)显示的也一样。先重试或跳过每个停放的条目（[失败处理](../guide/failures)）。
+3. 把它分区少于 `wow.log.partitions` 的主题增加到这个数：`kafka-topics.sh --alter --topic <topic> --partitions <count>`。这期间没有发布，所以没有记录移动。
+4. 升级该服务。
+
+主题与存储一样随本版本新建的部署无需做任何事。

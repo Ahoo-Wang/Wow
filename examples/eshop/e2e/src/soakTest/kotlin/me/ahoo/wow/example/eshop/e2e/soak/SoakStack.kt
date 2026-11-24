@@ -84,10 +84,10 @@ class SoakStack(private val config: SoakConfig, private val log: (String) -> Uni
                     NewTopic("wow.eshop-basket.receipts", 1, 1),
                     NewTopic("wow.eshop-ordering.receipts", 1, 1),
                     NewTopic("wow.eshop-payment.receipts", 1, 1),
-                    NewTopic("wow.eshop-basket.basket.state", 2, 1),
-                    NewTopic("wow.eshop-ordering.order.state", 2, 1),
-                    NewTopic("wow.eshop-inventory.stock.state", 2, 1),
-                    NewTopic("wow.eshop-payment.payment.state", 2, 1),
+                    NewTopic("wow.eshop-basket.basket.state", config.partitions, 1),
+                    NewTopic("wow.eshop-ordering.order.state", config.partitions, 1),
+                    NewTopic("wow.eshop-inventory.stock.state", config.partitions, 1),
+                    NewTopic("wow.eshop-payment.payment.state", config.partitions, 1),
                 ),
             ).all().get()
         }

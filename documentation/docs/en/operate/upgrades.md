@@ -178,3 +178,16 @@ The failure ledger's parked entries are named and reached in bounded form, so an
 - **`Ledger.parkedId` answers the hash**, with the same signature; code that parsed its earlier form reads the entry's fields instead.
 
 This version can write CoSec's refusals as Wow's problems, off by default: `wow.cosec.problems: wow` ([CoSec's refusals](./security#cosec-refusals)). Left at `cosec`, every response is byte for byte what it was. It is built on CoSec's `ProblemRenderer`, experimental in CoSec 8, so its shape may change with CoSec's release candidate. Two codes are new, `wow.request.rate-limited` (429) and `wow.auth.unavailable` (503), and only these refusals answer with them.
+
+### Published streams on Kafka {#published-streams-on-kafka}
+
+A published stream's record now goes to its aggregate's partition in the context's log, and names the log's count in its `wow-partitions` header ([Partitions](./kafka#partitions)). A pre-release placed it by its key's hash among the topic's partitions. A publishing node also refuses to start while one of its topics has fewer partitions than `wow.log.partitions`, whatever `wow.kafka.ddl` says.
+
+Across the upgrade, an aggregate's next record may land in another partition than its earlier ones. A subscriber may then handle it before an earlier record it has not read yet, or past one it holds parked: the partition that holds a parked aggregate holds back only the records placed there. Nothing in Wow can tell, since a gap in versions is no evidence: a commit whose events are all retired has no record. For each publishing service whose topics are kept across the upgrade:
+
+1. Stop the commands to the service, or its nodes.
+2. Wait until every subscription that reads its topics, in every consuming service, has caught up and has nothing parked. For each partition of the topic, `wow.subscription.backlog` reads 0 and `wow.subscription.progress` reads 1, and `wow.subscription.parked.aggregates` reads 0; the [Ops Console](./ops-console) shows the same. Retry or skip each parked entry first ([Failures](../guide/failures)).
+3. Give each of its topics with fewer partitions than `wow.log.partitions` that many: `kafka-topics.sh --alter --topic <topic> --partitions <count>`. Nothing is published meanwhile, so no record moves.
+4. Upgrade the service.
+
+A deployment whose topics are new with this version, as its stores are, has nothing to do.

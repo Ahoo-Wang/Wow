@@ -21,17 +21,23 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
 import me.ahoo.wow.kernel.memory.InMemoryTopics
+import me.ahoo.wow.runtime.sink.TopicSink
 import me.ahoo.wow.runtime.source.ORDER
 import me.ahoo.wow.runtime.source.TopicEntries
 import me.ahoo.wow.runtime.source.order
+import me.ahoo.wow.runtime.source.orderRecord
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.subscription.SubscriptionId
+import me.ahoo.wow.spi.transport.PartitionedSource
+import me.ahoo.wow.spi.transport.SourceMessage
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -168,6 +174,43 @@ class ParkedAtStartTest {
     }
 
     @Test
+    fun `a start should read the records its listing needs once per partition, never once per entry`(): Unit =
+        runBlocking {
+            // Placed by their log's partition among two, on a topic of eight: most keys map away from their record.
+            val topic = "wow.sales.counted.state"
+            topics.create(topic, GROWN)
+            val refs = (0 until 24).map { order("c-$it") }
+            TopicSink(topics, topic, PARTITIONS).write(refs.map { orderRecord(it.id, 1) })
+            val offsets = (0 until PARTITIONS).flatMap { partition ->
+                topics.read(topic, partition, 0, topics.offsets(topic, partition).end).toList()
+                    .map { it.key to (partition to it.offset) }
+            }.toMap()
+            refs.forEach { ref ->
+                val (partition, offset) = offsets.getValue(ref.toString())
+                val entry = ParkedAggregate(SubscriptionId(ORDER.context, NAME), ref, partition, 1, "failed", 0, offset)
+                ledger.park(entry)
+            }
+            val reread = refs.filter {
+                topics.partitionOf(topic, it.toString()) != offsets.getValue(it.toString()).first
+            }
+            val readsAt = AtomicInteger()
+            val reads = AtomicInteger()
+            val counting = object : PartitionedSource by topics {
+                override fun read(topic: String, partition: Int, from: Long, until: Long): Flow<SourceMessage> =
+                    topics.read(topic, partition, from, until).also { reads.incrementAndGet() }
+
+                override suspend fun readAt(topic: String, partition: Int, offsets: Collection<Long>) =
+                    topics.readAt(topic, partition, offsets).also { readsAt.incrementAndGet() }
+            }
+            val start = ParkedAtStart(TopicEntries(topic, counting, GROWN), ledger, run)
+            start.parkedIn(subscription, (0 until GROWN).toList()).values.sumOf { it.size }.assert().isEqualTo(24)
+            // The entries that need their record were more than one a partition: read together, two reads at most.
+            reread.size.assert().isGreaterThan(PARTITIONS)
+            readsAt.get().assert().isEqualTo(reread.map { offsets.getValue(it.toString()).first }.distinct().size)
+            reads.get().assert().isEqualTo(0)
+        }
+
+    @Test
     fun `a source whose partitions do not grow lists nothing`(): Unit = runBlocking {
         val log = me.ahoo.wow.kernel.memory.InMemoryEventLog(partitions = PARTITIONS)
         val ref = cart("x")
@@ -181,5 +224,8 @@ class ParkedAtStartTest {
         const val TOPIC = "wow.sales.order.state"
         const val NAME = "Board.onOrder"
         const val PARTITIONS = 2
+
+        /** The partitions of the topic whose records were placed by the log's partition among [PARTITIONS]. */
+        const val GROWN = 8
     }
 }

@@ -14,11 +14,15 @@
 package me.ahoo.wow.runtime.source
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapNotNull
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.runtime.subscription.EntrySource
 import me.ahoo.wow.runtime.subscription.SourcedEntry
@@ -112,16 +116,37 @@ internal class TopicEntries(
 
     /**
      * Where [parked]'s later records are: the partition it was read from when its record names its log's partition
-     * (`wow-partitions`) and is there, which no growth of the topic moves; else the one its key maps to now. The record
-     * is read again at its offset, up to the partition's end: one the partition no longer retains, or does not hold (a
-     * topic created again), counts as placed by its key.
+     * (`wow-partitions`) and is there, which no growth of the topic moves; else the one its key maps to now. Only an
+     * entry whose key maps to another partition than its own needs its record, read again at its offset
+     * ([PartitionedSource.readAt]): one the partition no longer retains, or does not hold (a topic created again),
+     * counts as placed by its key.
      */
-    override suspend fun partitionOf(parked: ParkedAggregate): Int {
-        val offset = parked.fromPosition ?: return partitionOf(parked.ref)
-        val end = source.offsets(topic, parked.partition).end
-        val record = source.read(topic, parked.partition, offset, minOf(offset + 1, end)).firstOrNull()
-        val placed = record?.let { logPartitionsOf(it) }?.let { Partitioner.partitionOf(parked.ref, it) }
-        return if (placed == parked.partition) parked.partition else partitionOf(parked.ref)
+    override suspend fun partitionOf(parked: ParkedAggregate): Int = partitionsOf(listOf(parked)).single()
+
+    /**
+     * [partitionOf] of each of [entries]: the records of those that need theirs are read with one
+     * [PartitionedSource.readAt] per partition, at most [READS_AT_ONCE] partitions at a time.
+     */
+    override suspend fun partitionsOf(entries: List<ParkedAggregate>): List<Int> {
+        val byKey = entries.map { partitionOf(it.ref) }
+        val reread = entries.indices.filter { entries[it].fromPosition != null && byKey[it] != entries[it].partition }
+        if (reread.isEmpty()) {
+            return byKey
+        }
+        val permits = Semaphore(READS_AT_ONCE)
+        val records = coroutineScope {
+            reread.groupBy { entries[it].partition }.map { (partition, indices) ->
+                async {
+                    val offsets = indices.map { checkNotNull(entries[it].fromPosition) }
+                    partition to permits.withPermit { source.readAt(topic, partition, offsets) }
+                }
+            }.awaitAll().toMap()
+        }
+        return entries.mapIndexed { index, parked ->
+            val record = parked.fromPosition?.let { records[parked.partition]?.get(it) }
+            val placed = record?.let { logPartitionsOf(it) }?.let { Partitioner.partitionOf(parked.ref, it) }
+            if (placed == parked.partition) parked.partition else byKey[index]
+        }
     }
 
     /** The log's partition count [message] names (`wow-partitions`), or null when it names none this version reads. */
@@ -211,6 +236,9 @@ internal class TopicEntries(
 
     internal companion object {
         private val logger = KotlinLogging.logger {}
+
+        /** The partitions [partitionsOf] reads at once: each read holds a consumer of its own on Kafka. */
+        const val READS_AT_ONCE: Int = 8
 
         /** The facts of [record] as a stream: each event's payload as JSON text. */
         fun streamOf(record: StateEventRecord): EventStreamRecord = EventStreamRecord(
