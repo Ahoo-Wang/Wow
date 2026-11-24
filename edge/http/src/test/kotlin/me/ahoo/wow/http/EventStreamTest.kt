@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.http
 
+import kotlinx.coroutines.CompletableDeferred
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.wire.WowHeaders
@@ -22,6 +23,9 @@ import org.springframework.core.ParameterizedTypeReference
 import org.springframework.http.MediaType
 import org.springframework.http.codec.ServerSentEvent
 import java.time.Duration
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.TimeUnit
 
 /** `Accept: text/event-stream` on a command route (decision D101, design 04 §6.1). */
 class EventStreamTest {
@@ -48,6 +52,8 @@ class EventStreamTest {
         .expectHeader().contentTypeCompatibleWith(MediaType.TEXT_EVENT_STREAM)
         .returnResult(EVENT)
         .responseBody
+        // A comment-only entry (`: keep-alive`, the first of which sends the head) is no event: a reader skips it.
+        .filter { it.event() != null || it.data() != null }
         .doOnNext(seen)
         .collectList()
         .block(Duration.ofSeconds(10))!!
@@ -64,6 +70,39 @@ class EventStreamTest {
             mapOf(WowHeaders.WAIT to "committed > handled(audit)"),
             HttpNode(deadlines = held),
         ) { if (it.event() == "committed") held.pass() }
+    }
+
+    @Test
+    fun `a command's event stream answers 200 once accepted, and streams each hop the plan names as it is reached`() {
+        // #6817: the head waited for the first hop the plan names, and nothing was emitted before the commit.
+        mapOf("accepted > committed" to listOf("accepted", "committed"), null to listOf("committed"))
+            .entries.forEachIndexed { index, (plan, events) ->
+                val held = CompletableDeferred<Unit>()
+                node.appendGate = held
+                val headers = plan?.let { mapOf(WowHeaders.WAIT to it) }.orEmpty()
+                val read = CopyOnWriteArrayList<String>()
+                val done = CompletableFuture<Unit>()
+                try {
+                    val answered = CompletableFuture.supplyAsync {
+                        stream("/shop/cart/c-$index/open-cart", "{}", headers).returnResult(EVENT)
+                    }
+                    // The append waits: the command is accepted, and nothing has committed.
+                    val result = answered.get(5, TimeUnit.SECONDS)
+                    result.status.value().assert().describedAs("the status of plan $plan").isEqualTo(200)
+                    result.responseBody.mapNotNull { it.event() }
+                        .subscribe({ read += it }, { done.completeExceptionally(it) }, { done.complete(Unit) })
+                    if (plan != null) {
+                        // A plan that names ACCEPTED streams it at once, before the commit.
+                        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
+                        while (read.isEmpty() && System.nanoTime() < deadline) Thread.sleep(10)
+                        read.toList().assert().describedAs("the events before the commit").containsExactly("accepted")
+                    }
+                } finally {
+                    held.complete(Unit)
+                }
+                done.get(10, TimeUnit.SECONDS)
+                read.toList().assert().describedAs("the events of plan $plan").isEqualTo(events)
+            }
     }
 
     @Test

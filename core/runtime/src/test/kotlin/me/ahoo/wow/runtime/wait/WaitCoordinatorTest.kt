@@ -19,20 +19,26 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.CommandResult
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
+import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.result.WaitSignal
 import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.runtime.subscription.eventually
+import me.ahoo.wow.spi.StorageUnavailableException
+import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.wait.Origin
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -321,4 +327,41 @@ class WaitCoordinatorTest : WaitCoordinatorFixtures() {
         sender.send(origin, WaitSignal(waitId = "w-8", result = result), Long.MAX_VALUE)
         sent.assert().containsExactly("node-2:w-9")
     }
+
+    @Test
+    fun `a streamed wait whose execution throws after acceptance ends with a failed result, not a failed flow`(): Unit =
+        runBlocking {
+            // #6817: a duplicate whose plan names a handled hop of its own context reads that subscription's progress.
+            mapOf(
+                StorageUnavailableException("The checkpoint store is down.") to FrameworkCodes.STORAGE_UNAVAILABLE,
+                IllegalStateException("The checkpoint does not read.") to FrameworkCodes.COMMAND_UNKNOWN,
+            ).entries.forEachIndexed { index, (failure, code) ->
+                val failing = object : SubscriptionDirectory by runtime {
+                    override suspend fun hasHandled(subscription: String, stream: EventStreamRecord): Boolean =
+                        throw failure
+                }
+                val coordinator = coordinator(WaitOptions(), failing)
+                val (id, requestId) = "o-dup-$index" to "r-dup-$index"
+                val committed = WaitPlan.of(Hop.committed())
+                val first = coordinator.execute(order, place(id, requestId = requestId, wait = committed))
+                first.status.assert().describedAs("$first").isEqualTo(CommandResult.Status.SUCCEEDED)
+                val plan = WaitPlan.of(Hop.committed(), Hop.handled("order.saga"))
+                // Without an event stream's StreamedWait, the flow fails, as the JSON answer's mapping expects.
+                val thrown = runCatching {
+                    coordinator.stream(order, place(id, requestId = requestId, wait = plan)).toList()
+                }.exceptionOrNull()
+                generateSequence(thrown) { it.cause }.any { it === failure }.assert().isTrue()
+                // With one, the stream's head is sent at acceptance, and the wait ends with a result instead.
+                val accepted = AtomicBoolean()
+                val results = withContext(StreamedWait { accepted.set(true) }) {
+                    coordinator.stream(order, place(id, requestId = requestId, wait = plan)).toList()
+                }
+                accepted.get().assert().isTrue()
+                val last = results.last()
+                last.status.assert().isEqualTo(CommandResult.Status.FAILED)
+                last.hop.stage.assert().isEqualTo(Stage.COMMITTED)
+                last.error!!.code.assert().isEqualTo(code)
+                registry.size.assert().isZero()
+            }
+        }
 }

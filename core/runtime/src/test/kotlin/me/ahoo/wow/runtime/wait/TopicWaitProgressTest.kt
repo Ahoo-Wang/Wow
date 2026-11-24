@@ -17,8 +17,10 @@ import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
@@ -55,6 +57,7 @@ import me.ahoo.wow.spi.transport.TopicMessage
 import me.ahoo.wow.spi.transport.TopicProducer
 import me.ahoo.wow.spi.wait.Origin
 import org.junit.jupiter.api.Test
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.seconds
 
@@ -235,6 +238,46 @@ class TopicWaitProgressTest {
             log.read(ref).toList().assert().isEmpty()
         }
     }
+
+    @Test
+    fun `an event stream through the topic is told its command was accepted once the broker took it`(): Unit =
+        runBlocking {
+            // #6817: the head goes out then, just before the ACCEPTED result.
+            relayed(topics) { coordinator, ref ->
+                val accepted = AtomicBoolean()
+                val plan = WaitPlan.of(Hop.accepted(), Hop.committed())
+                val seen = withContext(StreamedWait { accepted.set(true) }) {
+                    withTimeout(10.seconds) {
+                        coordinator.stream(order, Command("c-1", "r-1", ref, Place(3), wait = plan))
+                            .map { accepted.get() to it.hop }
+                            .toList()
+                    }
+                }
+                seen.assert().containsExactly(true to Hop.accepted("shop"), true to Hop.committed("shop"))
+            }
+        }
+
+    @Test
+    fun `an event stream through the topic whose send fails is never told its command was accepted`(): Unit =
+        runBlocking {
+            // #6817: a command topic that did not take it is a refusal, answered with no head.
+            val refused = object : TopicProducer {
+                override suspend fun send(topic: String, messages: List<TopicMessage>) {
+                    throw IllegalStateException("The broker refused the connection.")
+                }
+            }
+            relayed(refused) { coordinator, ref ->
+                val accepted = AtomicBoolean()
+                val last = withContext(StreamedWait { accepted.set(true) }) {
+                    withTimeout(10.seconds) {
+                        coordinator.stream(order, Command("c-1", "r-1", ref, Place(3), wait = WaitPlan.COMMITTED))
+                            .toList()
+                    }
+                }.single()
+                last.error!!.code.assert().isEqualTo(ResultCodes.UNKNOWN)
+                accepted.get().assert().isFalse()
+            }
+        }
 
     @Test
     fun `a command the intake parks after its retries ends its wait failed parked, never timing out`(): Unit =

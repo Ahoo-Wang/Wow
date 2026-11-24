@@ -345,7 +345,9 @@ class HttpNode(
     var now: () -> Long = System::currentTimeMillis
     val kernel = Kernel(store, clock = { now() })
     val snapshots = InMemorySnapshotStore()
-    private val registry = WaitRegistry()
+
+    /** The node's waits, which a test reads the count of. */
+    val registry = WaitRegistry()
     private val origin = Origin("node-1", "127.0.0.1:9090", "shop-service")
 
     /** The one thread the waits and their executions run on while the [deadlines] are held. */
