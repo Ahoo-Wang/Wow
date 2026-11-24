@@ -38,6 +38,7 @@ import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.runtime.Executor
+import me.ahoo.wow.runtime.ExecutorBusyException
 import me.ahoo.wow.runtime.cluster.CommandRouter
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -156,6 +157,28 @@ class InheritedWaitsTest {
                 Hop.committed("shop"),
             )
             signalled.all { it.duplicate }.assert().isTrue()
+        }
+
+    @Test
+    fun `a technical failure its source retries is not signalled, and the retry's commit answers the wait`(): Unit =
+        runBlocking {
+            // #6757: an intake or a saga runs a command refused as busy, or of an unknown outcome, again; the refusal
+            // ended the wait before, and the retry's commit, of the same signal key, was dropped.
+            val wait = waitFor(Hop.committed("shop"))
+            val failures = listOf<suspend () -> CommandOutcome>(
+                { throw ExecutorBusyException(command.ref, 1) },
+                { CommandOutcome.Unknown(IllegalStateException("The append timed out.")) },
+            )
+            for (failure in failures) {
+                outcome = failure
+                inherited.forward(model, command, wait).committed.status.assert().isEqualTo(CommandResult.Status.FAILED)
+            }
+            signalled.assert().describedAs("signals of the failed attempts").isEmpty()
+            outcome = { CommandOutcome.Committed(stream, LogPosition(0, 1), Any()) }
+            inherited.forward(model, command, wait)
+            val state = WaitState(listOf(Hop.committed("shop")), command.id)
+            signalled.forEach { state.offer(it) }
+            state.outcome!!.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         }
 
     @Test
