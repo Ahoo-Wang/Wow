@@ -22,7 +22,9 @@
 #                                 documents published and the flaky upstream behind it, the probe pods, and on the mongo
 #                                 arm the replica set and Elasticsearch
 #   cluster.sh services <arm>     the services in waves, each a release of the wow-service chart (deploy/helm) with the
-#                                 values its build generated and its arm's values files (services/), until ready
+#                                 values its build generated and its arm's values files (services/), until ready; those
+#                                 of KUSTOMIZED instead by kubectl apply -k of the base their build renders
+#                                 (generateWowManifests) with the same values, and an overlay (overlays/)
 #   cluster.sh dns <file>         what CoreDNS answers for the internal ports' headless Services (SRV and A), for D305
 #   cluster.sh diagnostics <dir>  every pod's description and log (the previous container's too), the events, and
 #                                 each JVM's threads
@@ -74,6 +76,11 @@ WAVES=(
   "eshop-ordering"
   "eshop-basket"
 )
+
+# The services deployed by kubectl apply -k instead of Helm (#6662): the Kustomize base their build renders from the
+# chart for this cluster, under an overlay of their own (overlays/<service>), applied with strict field validation. Their
+# server builds take the namespace and the values files after the deployment's as properties (eshop.kubernetes.*).
+KUSTOMIZED=(eshop-basket)
 
 log() { echo "[ga-e2e] $*"; }
 
@@ -170,23 +177,41 @@ documents() {
 # deploy/<service>/values.yaml (and values-postgres.yaml on the postgres arm), the run's values (services/values.yaml)
 # and the service's own for the run (services/<service>.yaml, services/<arm>/<service>.yaml), each over the one before.
 service() {
-  local name=$1 arm=$2 entry module=""
-  local values=()
+  local name=$1 arm=$2 entry module="" file
+  local after=() values=()
   for entry in "${SERVICES[@]}"; do
     [ "${entry%%|*}" = "$name" ] && module=${entry#*|}
   done
   [ -n "$module" ] || { log "::error::no server module for $name"; return 1; }
-  values+=(-f "$root/$module/build/wow/helm/values.yaml" -f "$root/deploy/$name/values.yaml")
   if [ "$arm" = postgres ]; then
     kubectl apply -f "$root/deploy/$name/postgres-secret.yaml"
-    values+=(-f "$root/deploy/$name/values-postgres.yaml")
+    after+=("deploy/$name/values-postgres.yaml")
   else
     kubectl apply -f "$root/deploy/$name/secret.yaml"
   fi
-  values+=(-f "$here/services/values.yaml")
-  [ ! -f "$here/services/$name.yaml" ] || values+=(-f "$here/services/$name.yaml")
-  [ ! -f "$here/services/$arm/$name.yaml" ] || values+=(-f "$here/services/$arm/$name.yaml")
+  # The values files after the two every service's release takes first, each over the one before, from the root.
+  after+=(".github/ga-e2e/services/values.yaml")
+  [ ! -f "$here/services/$name.yaml" ] || after+=(".github/ga-e2e/services/$name.yaml")
+  [ ! -f "$here/services/$arm/$name.yaml" ] || after+=(".github/ga-e2e/services/$arm/$name.yaml")
+  if [[ " ${KUSTOMIZED[*]} " == *" $name "* ]]; then
+    kustomized "$name" "${after[@]}"
+    return
+  fi
+  values+=(-f "$root/$module/build/wow/helm/values.yaml" -f "$root/deploy/$name/values.yaml")
+  for file in "${after[@]}"; do values+=(-f "$root/$file"); done
   helm upgrade --install "$name" "$root/deploy/helm/wow-service" "${values[@]}"
+}
+
+# A KUSTOMIZED service (its server project :<service>-server): its build renders the chart with the values its build names (the generated values and
+# deploy/<service>/values.yaml) and the run's after them, the same list its release would take, for this cluster's
+# namespace; then kubectl applies its overlay over that base. A field the API server does not know is refused.
+kustomized() {
+  local name=$1 namespace
+  shift
+  namespace=$(kubectl config view --minify -o jsonpath='{..namespace}')
+  "$root/gradlew" -p "$root" --quiet ":$name-server:generateWowManifests" \
+    -Peshop.kubernetes.namespace="${namespace:-default}" -Peshop.kubernetes.values="$(IFS=,; echo "$*")"
+  kubectl apply --validate=strict -k "$here/overlays/$name"
 }
 
 services() {
@@ -234,6 +259,9 @@ diagnostics() {
   mkdir -p "$out/logs"
   kubectl get all,networkpolicy,poddisruptionbudget,configmap,pvc -o wide >"$out/resources.txt" 2>&1 || true
   helm list -a >"$out/releases.txt" 2>&1 || true
+  for name in "${KUSTOMIZED[@]}"; do
+    kubectl kustomize "$here/overlays/$name" >"$out/kustomized-$name.yaml" 2>&1 || true
+  done
   kubectl get events --sort-by=.lastTimestamp >"$out/events.txt" 2>&1 || true
   kubectl describe pods >"$out/pods.txt" 2>&1 || true
   kubectl -n kube-system get pods -o wide >"$out/kube-system.txt" 2>&1 || true
