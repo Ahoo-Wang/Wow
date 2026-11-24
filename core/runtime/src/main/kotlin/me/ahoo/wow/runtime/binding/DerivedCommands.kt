@@ -100,6 +100,9 @@ internal class DerivedCommands(
     private val models: Map<AggregateType, AggregateModel<*>> = models.associateBy { it.type }
     private val contexts: Set<String> = models.mapTo(HashSet()) { it.type.context }
 
+    /** Whether one of the context's models decides the commands of [type]: a command to it stays in the context. */
+    fun decides(type: AggregateType): Boolean = models[type] != null
+
     /**
      * Executes every one of [commands], derived by an execution of the [acting] tenant (its commit's, its receipt's or
      * its job instance's), with [wait] when the saga's hop is waited for; returns the ids of those it executed, in the

@@ -46,28 +46,6 @@ internal object ReceiptsAsked {
                     )
         }
     }
-
-    /**
-     * Refuses the [commands] the saga [handler] of [context] derived when one goes to another context than that of
-     * [models] while the context reads no receipts ([reads] false): its rejection's receipt would go to a topic the
-     * context does not have, and wait at the target, or be dropped. That is a class one of [models] decides too, sent
-     * to another context's aggregate; the handling fails as unrecoverable, before any command is executed, naming
-     * the handler to declare.
-     */
-    fun check(
-        handler: ProcessorBinding<*>,
-        context: String,
-        models: Collection<AggregateModel<*>>,
-        commands: List<Command<*>>,
-        reads: Boolean,
-    ) {
-        if (reads) {
-            return
-        }
-        val types = models.mapTo(HashSet()) { it.type }
-        val elsewhere = commands.firstOrNull { it.ref.type !in types } ?: return
-        throw UnreadReceiptsException(handler.name, context, elsewhere)
-    }
 }
 
 /**

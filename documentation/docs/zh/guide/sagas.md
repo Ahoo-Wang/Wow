@@ -121,7 +121,7 @@ fun onReserveCommitted(
     ConfirmOrderStock(committed.ref.id).toCommandRequest(committed.source.id)
 ```
 
-`source` 是那次派生出命令的提交所属的聚合，这里是订单；`ref` 是提交了命令的聚合，这里是商品的库存。只有 `@OnCommitted` 处理函数接收的命令才会要求提交的回执，所以其他命令不需要为此付出任何代价；拒绝的回执由 `@OnRejected` 处理函数接收的命令要求。发往另一个上下文的命令随身带着这个请求，目标在命令提交后通过 `wow.<sender>.receipts` 发回回执。回执带着命令的结果，而不是目标的状态。
+`source` 是那次派生出命令的提交所属的聚合，这里是订单；`ref` 是提交了命令的聚合，这里是商品的库存。只有 `@OnCommitted` 处理函数接收的命令才会要求提交的回执，所以其他命令不需要为此付出任何代价；发往另一个上下文的每条命令都会要求拒绝的回执（[处理拒绝](#handle-a-rejection)）。`@OnRejected` 或 `@OnCommitted` 处理函数派生的命令不要求提交的回执，即使它的类由某个 `@OnCommitted` 处理函数接收：无论在 Saga 的上下文还是另一个上下文，它的提交都不交给任何处理函数。发往另一个上下文的命令随身带着这个请求，目标在命令提交后通过 `wow.<sender>.receipts` 发回回执。回执带着命令的结果，而不是目标的状态。
 
 目标未作改变就接受的命令（`Decision.NoOp`）也会收到回执，版本不变；目标先前已经提交过的命令也会收到回执，标为重复。`@OnCommitted` 处理函数与 `@OnRejected` 处理函数一样，需要时接收 `SagaContext`：它像 `@OnEvent` 处理函数一样派生、定时和调用，并在它自己的 `@Sends` 中声明它发送的命令。
 
@@ -160,7 +160,7 @@ fun onReleaseRejected(rejected: CommandReceipt.Rejected<ReleaseReservation>) =
 
 `CommandReceipt.Rejected<*>` 和 `CommandReceipt.Committed<*>` 接收 Saga 派生的每一条命令，`Rejected<*>` 还接收它调用的命令。
 
-补偿不会再被补偿。`@OnRejected` 或 `@OnCommitted` 处理函数派生的命令如果又被拒绝，不会交给 `@OnRejected` 处理函数：处理函数派生的每一条命令仍然执行，它们的拒绝一并停放聚合一次，并逐条列出，与没有处理函数接收的拒绝一样。所以由一条回执派生下一条命令、而下一条命令被拒绝时还要补偿的多步交接，要从 `@OnEvent` 处理函数派生下一条命令，即由第一条命令提交的某个事件派生，这样它的拒绝才会到达它自己的 `@OnRejected` 处理函数。
+补偿不会再被补偿。`@OnRejected` 或 `@OnCommitted` 处理函数派生的命令如果又被拒绝，不会交给 `@OnRejected` 处理函数：处理函数派生的每一条命令仍然执行，它们的拒绝一并停放聚合一次，并逐条列出，与没有处理函数接收的拒绝一样。无论命令发往哪个上下文都是如此。Saga 上下文内的拒绝，在运行处理函数的订阅下停放聚合：自身上下文命令的回执由 Saga 自己的订阅处理，另一个上下文的回执由 `wow.receipts.<context>` 处理。发往另一个上下文的命令会要求拒绝的回执，回执返回时在 `wow.receipts.<context>` 下停放聚合，停放原因说明补偿不会再被补偿。所以由一条回执派生下一条命令、而下一条命令被拒绝时还要补偿的多步交接，要从 `@OnEvent` 处理函数派生下一条命令，即由第一条命令提交的某个事件派生，这样它的拒绝才会到达它自己的 `@OnRejected` 处理函数。
 
 ## 同步调用另一个上下文 {#call-another-context-synchronously}
 
