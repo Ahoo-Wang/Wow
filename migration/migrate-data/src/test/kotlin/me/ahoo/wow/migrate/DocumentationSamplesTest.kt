@@ -52,6 +52,27 @@ class DocumentationSamplesTest {
     }
 
     @Test
+    fun `r1 the Job runs again a command the JVM ended on an OutOfMemoryError, as the recipe says`() {
+        // deploy/migrate-data/README.md: an OutOfMemoryError "ends the process, so the Job runs it again from its
+        // checkpoint". The image's -XX:+ExitOnOutOfMemoryError ends it with the JVM's own exit code, measured here.
+        val oom = Files.createTempFile("oom", ".java")
+        Files.writeString(
+            oom,
+            "public class Oom { public static void main(String[] a) { var held = new java.util.ArrayList<long[]>();" +
+                " while (true) held.add(new long[1_000_000]); } }",
+        )
+        val java = ProcessHandle.current().info().command().get()
+        val process = ProcessBuilder(java, "-Xmx16m", "-XX:+ExitOnOutOfMemoryError", oom.toString())
+            .redirectErrorStream(true).start()
+        process.inputStream.readAllBytes()
+        val oomExit = process.waitFor()
+        val job = Files.readString(Path.of("../../deploy/migrate-data/job/job.yaml"))
+        val failJob = Regex("""action: FailJob[\s\S]*?values: \[([^\]]*)]""").find(job)!!.groupValues[1]
+            .split(',').map { it.trim().toInt() }
+        failJob.assert().describedAs("the exit codes that fail the Job at once").doesNotContain(oomExit)
+    }
+
+    @Test
     fun `the map the pages show reads`() {
         val map = MigrationMap.read(Files.readString(samples.resolve("migration-map.json")))
         val order = map.aggregates.single()

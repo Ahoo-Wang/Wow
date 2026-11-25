@@ -20,6 +20,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.result.WaitPlan
+import me.ahoo.wow.kernel.StartFrom
 import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.PublishedManifest
@@ -41,6 +42,9 @@ import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.SubscriptionFactory
 import me.ahoo.wow.runtime.node.fastNodeOptions
 import me.ahoo.wow.runtime.source.orderRecord
+import me.ahoo.wow.runtime.subscription.HandledEntry
+import me.ahoo.wow.runtime.subscription.Subscription
+import me.ahoo.wow.runtime.subscription.SubscriptionFilter
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.Partitioner
@@ -235,6 +239,47 @@ class PublishedSinksTest {
             eventually { topics.messages("dev.wow.shop.order.state").size == 3 }
             records("dev.wow.shop.order.state").associate { it.ref.id to it.imported }.assert()
                 .isEqualTo(mapOf("o-1" to true, "o-2" to true, "o-3" to false))
+        }
+
+    @Test
+    fun `r1 an own saga that ran in V10's first window does not act on the history a second import appends`(): Unit =
+        runBlocking {
+            // data.md: a saga of the service's own context "does not act on the imported 9.x history"; cutover.md:
+            // cutting over again after a rollback by export imports what 9.x wrote since. 9.x's sagas acted on it.
+            val handled = CopyOnWriteArrayList<String>()
+            val saga = SubscriptionFactory { context ->
+                if (context.context != SHOP) {
+                    emptyList()
+                } else {
+                    listOf(
+                        Subscription.saga("order.saga", SubscriptionFilter(SHOP, setOf(ORDER.name)), StartFrom.END) {
+                            handled += it.ref.id
+                            HandledEntry.NOTHING
+                        },
+                    )
+                }
+            }
+            imported("o-1")
+            val first = node(subscriptions = saga)
+            first.start()
+            first.place("o-2")
+            eventually { "o-2" in handled }
+            first.stop()
+            // Rolled back by export; 9.x wrote o-3; the second import appends it and records the cut-over past it.
+            imported("o-3")
+            val second = node(subscriptions = saga)
+            second.start()
+            second.place("o-4")
+            // Until the saga's checkpoint reaches the head of every partition: it has read all there is to act on.
+            val stores = backends.opened.getValue(SHOP)
+            eventually {
+                (0 until stores.log.partitions).all { partition ->
+                    val head = stores.log.head(partition) ?: return@all true
+                    val read = stores.checkpoints.load(LeaseGroup(SHOP_SERVICE, SHOP).name, "order.saga", partition)
+                    read != null && read >= head
+                }
+            }
+            handled.assert().describedAs("what the own saga acted on").containsExactlyInAnyOrder("o-2", "o-4")
         }
 
     @Test

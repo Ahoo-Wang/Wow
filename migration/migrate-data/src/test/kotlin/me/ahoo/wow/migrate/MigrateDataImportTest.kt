@@ -236,6 +236,26 @@ internal class MigrateDataImportTest : MigrateDataFixtures() {
         }
 
     @Test
+    fun `r1 a pass that appends nothing leaves the cut-over, though V10 appended after it`(): Unit = runBlocking {
+        // CutoverRecorder: recorded "after a pass that appended"; the runtime: the cut-over does not move once V10
+        // runs. A pass that imports nothing (a tail left running, the rehearsal's "second run that writes nothing")
+        // must not take V10's own commits for imported history, which peers' sagas then pass over.
+        val config = config().toString()
+        run("import", "--config", config).assert().isEqualTo(MigrateData.OK)
+        val imported = heads()
+        cutover().assert().isEqualTo(imported)
+        val ref = NineXExample.orderModel.type.ref("(0)", "0VY3GwaK4OmV00E")
+        val last = log.read(ref).toList().last()
+        log.append(last.copyWith(version = last.version + 1, commandId = "v10-command", requestId = "v10-request"))
+        heads().assert().describedAs("V10 appended").isNotEqualTo(imported)
+
+        run("tail", "--config", config, "--once").assert().isEqualTo(MigrateData.OK)
+        run("import", "--config", config).assert().isEqualTo(MigrateData.OK)
+
+        cutover().assert().describedAs("the cut-over after passes that appended nothing").isEqualTo(imported)
+    }
+
+    @Test
     fun `a failed check stops the import`(): Unit = runBlocking {
         val map = NineXExample.MAP_TEXT.replace("\"cart_item_removed\"", "\"cart_item_gone\"")
         run("import", "--config", config(map).toString()).assert().isEqualTo(MigrateData.FAILED)
