@@ -176,30 +176,43 @@ class MongoTimerStore(
      * and the due read reads the collections it lists, dropping one this store knows that the registry's count leaves
      * out, so a collection that exists without one (a database restored without the registry's documents, collections
      * made by hand) would never come due. A collection that does not exist yet is recorded too: MongoDB reads a missing
-     * collection as empty, and under `ddl: none` the first timer creates it. A record this store cannot write is
-     * refused, naming the document to insert; a failure of the store's connection is thrown as it is.
+     * collection as empty, and under `ddl: none` the first timer creates it.
+     *
+     * The record is read first and written only when missing, as on PostgreSQL: MongoDB checks an account's privilege
+     * before the key, so an insert of a record already there by an account that may only read the registry is refused
+     * as unauthorized, not answered as a duplicate (#7069). A record this store cannot write is refused, naming the
+     * document to insert; a failure of the store's connection is thrown as it is.
      */
     private fun record(collection: TimerCollection, aggregate: String) {
+        val holder = holderOf(collection) ?: run {
+            insert(collection, aggregate)
+            holderOf(collection)!!
+        }
+        check(holder.getString(CONTEXT) == context && holder.getString(AGGREGATE) == aggregate) {
+            "The aggregate $aggregate of $context takes the timer collection ${collection.name}, " +
+                "which the aggregate ${holder.getString(AGGREGATE)} of ${holder.getString(CONTEXT)} has."
+        }
+    }
+
+    private fun holderOf(collection: TimerCollection): Document? =
+        registry.find(Filters.eq(REGISTRY_ID, collection.name)).first()
+
+    /** Inserts the record of [collection], [aggregate]'s; another node's insert of it first is no failure. */
+    private fun insert(collection: TimerCollection, aggregate: String) {
         try {
             registry.insertOne(
                 Document(REGISTRY_ID, collection.name).append(CONTEXT, context).append(AGGREGATE, aggregate),
             )
         } catch (failure: MongoException) {
-            if (!failure.isDuplicateKey()) {
-                if (MongoFailures.isTransient(failure)) throw failure
-                throw IllegalStateException(
-                    "The registry $REGISTRY has no record of the timer collection ${collection.name}, and this store " +
-                        "could not write it (${failure.message}): its timers would never be due. Let the store's " +
-                        "account insert into $REGISTRY, or insert {_id: \"${collection.name}\", context: " +
-                        "\"$context\", aggregate: \"$aggregate\"} into it.",
-                    failure,
-                )
-            }
-        }
-        val holder = registry.find(Filters.eq(REGISTRY_ID, collection.name)).first()!!
-        check(holder.getString(CONTEXT) == context && holder.getString(AGGREGATE) == aggregate) {
-            "The aggregate $aggregate of $context takes the timer collection ${collection.name}, " +
-                "which the aggregate ${holder.getString(AGGREGATE)} of ${holder.getString(CONTEXT)} has."
+            if (failure.isDuplicateKey()) return
+            if (MongoFailures.isTransient(failure)) throw failure
+            throw IllegalStateException(
+                "The registry $REGISTRY has no record of the timer collection ${collection.name}, and this store " +
+                    "could not write it (${failure.message}): its timers would never be due. Let the store's " +
+                    "account insert into $REGISTRY, or insert {_id: \"${collection.name}\", context: " +
+                    "\"$context\", aggregate: \"$aggregate\"} into it.",
+                failure,
+            )
         }
     }
 
