@@ -91,18 +91,18 @@ Generated 12 files into src/generated with wow-generator.config.json, 1 warning
 
 ## Options and exit codes
 
-| Option                             | Meaning                                                                     |
-| ---------------------------------- | --------------------------------------------------------------------------- |
-| `-i, --input <file>`               | Wow Manifest or OpenAPI 3.x document: a file path or http(s) URL (required) |
-| `-o, --output <path>`              | Output directory, `src/generated` by default                                |
-| `-c, --config <file>`              | Configuration file, `./wow-generator.config.json` by default                |
-| `-H, --header <header>`            | `Name: value` header for an http(s) input or configuration; repeatable      |
-| `--timeout <ms>`                   | Abandon an http(s) fetch after this many milliseconds, 30000 by default     |
-| `--schema-docs <mode>`             | `summary` (default) or `full`, which also embeds each model's JSON schema   |
-| `--strict`                         | Exit with code 4 when the run logged a warning                              |
-| `--check`                          | Write nothing; exit with code 6, listing the files, when the output differs |
-| `--verbose`                        | Log every step with timestamps, and the stack trace of a failure            |
-| `--quiet`                          | Log only warnings and errors                                                |
+| Option                  | Meaning                                                                     |
+| ----------------------- | --------------------------------------------------------------------------- |
+| `-i, --input <file>`    | Wow Manifest or OpenAPI 3.x document: a file path or http(s) URL (required) |
+| `-o, --output <path>`   | Output directory, `src/generated` by default                                |
+| `-c, --config <file>`   | Configuration file, `./wow-generator.config.json` by default                |
+| `-H, --header <header>` | `Name: value` header for an http(s) input or configuration; repeatable      |
+| `--timeout <ms>`        | Abandon an http(s) fetch after this many milliseconds, 30000 by default     |
+| `--schema-docs <mode>`  | `summary` (default) or `full`, which also embeds each model's JSON schema   |
+| `--strict`              | Exit with code 4 when the run logged a warning                              |
+| `--check`               | Write nothing; exit with code 6, listing the files, when the output differs |
+| `--verbose`             | Log every step with timestamps, and the stack trace of a failure            |
+| `--quiet`               | Log only warnings and errors                                                |
 
 An http(s) input fails on a response outside 2xx or when the timeout expires.
 Swagger 2.0 documents are refused; convert them to OpenAPI 3 first.
