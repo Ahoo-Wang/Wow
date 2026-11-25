@@ -39,6 +39,7 @@ import {
 } from './generated/view-store/contract.js';
 import type { ViewStateClient } from './generated/view-store/view/queryClient.js';
 import { boardTitles, Failure, guard, request } from './errors.js';
+import { Remembered } from './remembered.js';
 import { scopeAt, toInstance } from './wire.js';
 
 /**
@@ -86,6 +87,14 @@ export interface ViewWritesHost {
 }
 
 export class ViewWrites {
+  /**
+   * Where each write was last sent from, by its request id: a retry goes
+   * from there, as the kernel answers a duplicate only to a caller that
+   * reaches the view as its first attempt did, whatever the view has since
+   * become (#6917).
+   */
+  private readonly sentFrom = new Remembered<Place>();
+
   constructor(private readonly host: ViewWritesHost) {}
 
   /**
@@ -94,7 +103,11 @@ export class ViewWrites {
    * it) is looked up again and the write sent once more from where it is.
    * A move refused because the view already has the audience it asks for
    * changes nothing: the view is answered as it is, once its revision
-   * matches.
+   * matches. A retry under a request id this store sent before goes from
+   * where that attempt went, so a write that landed is answered as the
+   * duplicate it is. A stored system view's revision is a hash of its
+   * content: one refused as stale whose content is the revision held (it
+   * changed and changed back) is sent once more at its version now.
    */
   write(
     id: string,
@@ -103,10 +116,12 @@ export class ViewWrites {
     plan: (place: Place) => InstanceWrite,
   ): Promise<ViewInstance | undefined> {
     return guard(async () => {
-      const { signal } = context;
-      const remembered = this.host.places.get(id);
+      const { requestId, signal } = context;
+      const remembered =
+        this.sentFrom.get(requestId) ?? this.host.places.get(id);
       let place = remembered ?? (await this.host.read(id, signal)).place;
       let relocated = remembered === undefined;
+      let reversioned = false;
       for (;;) {
         const write = plan(place);
         const options = this.host.commandOptions(write.sentFrom, context, {
@@ -116,6 +131,7 @@ export class ViewWrites {
               : versionOf(revision),
           ...(write.moves ? { wait: AUDIENCE_WAIT } : {}),
         });
+        this.sentFrom.set(requestId, place);
         let result: CommandResult;
         try {
           result = await request(() => write.send(options));
@@ -138,8 +154,23 @@ export class ViewWrites {
               continue;
             }
           }
-          if (thrown.code === 'CONFLICT')
-            throw await this.conflict(id, thrown, signal);
+          if (thrown.code === 'CONFLICT') {
+            const { instance } = await this.host.read(id, signal);
+            // The read remembered the version this content is at now (#6916).
+            if (
+              place === 'system' &&
+              !reversioned &&
+              instance.scope === 'system' &&
+              instance.revision === revision
+            ) {
+              reversioned = true;
+              continue;
+            }
+            throw new ViewStoreError('CONFLICT', thrown.message, {
+              ...thrown.held(),
+              instance,
+            });
+          }
           throw refusal(thrown);
         }
         // Landed: what goes wrong reading it back is never a reason to send
@@ -204,19 +235,6 @@ export class ViewWrites {
         { instance },
       );
     return instance;
-  }
-
-  /** A stale write's refusal, carrying the view as it is now. */
-  private async conflict(
-    id: string,
-    failure: Failure,
-    signal: AbortSignal | undefined,
-  ): Promise<ViewStoreError> {
-    const { instance } = await this.host.read(id, signal);
-    return new ViewStoreError('CONFLICT', failure.message, {
-      ...failure.held(),
-      instance,
-    });
   }
 }
 

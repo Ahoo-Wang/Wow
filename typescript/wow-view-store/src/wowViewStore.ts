@@ -94,7 +94,9 @@ export interface WowViewStoreOptions {
   /**
    * The most views one page of `list` answers; 100, the service's default
    * cursor page limit over HTTP, when left out. A test sets it low to read
-   * a list across pages, and across audiences, with few views.
+   * a list across pages, and across audiences, with few views. A whole
+   * number of at least 1; another is refused with a `RangeError`, as a page
+   * of none would never end a list.
    */
   pageSize?: number;
 }
@@ -190,7 +192,12 @@ export class WowViewStore implements ViewStore {
   private readonly writes: ViewWrites;
 
   constructor(options: WowViewStoreOptions) {
-    this.pageSize = options.pageSize ?? LIST_PAGE;
+    const pageSize = options.pageSize ?? LIST_PAGE;
+    if (!Number.isInteger(pageSize) || pageSize < 1)
+      throw new RangeError(
+        `A view store's pageSize is a whole number of at least 1: ${pageSize}.`,
+      );
+    this.pageSize = pageSize;
     const client: WowClientOptions = { fetcher: options.fetcher };
     this.commands = new ViewCommandClient(client);
     this.snapshots = new ViewSnapshotQueryClient(client);
@@ -435,13 +442,16 @@ export class WowViewStore implements ViewStore {
   ): Promise<ViewPreferences> {
     return guard(async () => {
       const { requestId, signal } = context;
+      // A revision this store never issues is refused before anything is
+      // sent, as CONFLICT, as an instance write's is (#6918).
+      const expectedVersion = versionOf(preferences.revision);
       try {
         const result = await request(() =>
           this.preferenceCommands.setViewPreferences(
             { definitionId, ...preferencesInput(preferences) },
             {
               requestId,
-              expectedVersion: versionOf(preferences.revision),
+              expectedVersion,
               ...(signal === undefined ? {} : { signal }),
             },
           ),

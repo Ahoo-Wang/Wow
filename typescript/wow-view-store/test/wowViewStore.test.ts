@@ -567,3 +567,134 @@ describe('the V10 WowViewStore', () => {
     });
   });
 });
+
+describe('the V10 WowViewStore, a write’s revision and retry, and its list', () => {
+  it('lands a write at a stored system view’s current revision after another tab changed it and changed it back, its content hash the same at a later version (#6916)', async () => {
+    installFake();
+    const mine = storeOf();
+    const made = await mine.create(
+      { definitionId: 'orders', title: 'Everyone', scope: 'system', config },
+      write(),
+    );
+    // Another tab renames it and renames it back: its revision, a hash of
+    // its content, is the one this store read, at a later version.
+    const other = storeOf();
+    const renamed = await other.rename(
+      made.id,
+      'Renamed',
+      made.revision,
+      write(),
+    );
+    const back = await other.rename(
+      made.id,
+      'Everyone',
+      renamed.revision,
+      write(),
+    );
+    expect(back.revision).toBe(made.revision);
+
+    // The view is at the revision this store holds: nothing to conflict with.
+    const retitled = await mine.rename(
+      made.id,
+      'For all',
+      made.revision,
+      write(),
+    );
+    expect(retitled).toMatchObject({
+      id: made.id,
+      title: 'For all',
+      scope: 'system',
+    });
+  });
+
+  it('answers a retried save its first outcome after the view moved and the store learned where it went, sending the retry from where its first attempt went (#6917)', async () => {
+    const fake = installFake();
+    const served = fake.fetch;
+    // Over the fake, as the service answers a retry: the kernel answers a
+    // duplicate only to a caller that reaches the aggregate with the owner
+    // its first attempt was sent to (KernelAnswers.duplicate,
+    // CommandReach.retries under the view's access policy); from another
+    // owner it is `wow.aggregate.not-found`. The fake answers a duplicate to
+    // any owner.
+    const sentFrom = new Map<string, string | null>();
+    let loseNextSave = false;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init: RequestInit = {}) => {
+        const path = new URL(String(input), BASE_URL).pathname;
+        const headers = new Headers(init.headers);
+        const requestId = headers.get(WowHeaders.REQUEST_ID);
+        const scope = headers.get(WowHeaders.SCOPE);
+        const saving = requestId !== null && path.endsWith('/save-view');
+        if (
+          saving &&
+          sentFrom.has(requestId) &&
+          sentFrom.get(requestId) !== scope
+        )
+          return problem(
+            404,
+            'wow.aggregate.not-found',
+            `${path} does not exist.`,
+          );
+        const response = await served(input, init);
+        if (saving && response.ok && !sentFrom.has(requestId))
+          sentFrom.set(requestId, scope);
+        if (saving && loseNextSave) {
+          // Landed, but the answer never came back.
+          loseNextSave = false;
+          throw new TypeError('Failed to fetch');
+        }
+        return response;
+      }),
+    );
+    const mine = storeOf();
+    const made = await mine.create(
+      { definitionId: 'orders', title: 'Mine', scope: 'personal', config },
+      write(),
+    );
+    const saving = write();
+    const larger = { ...config, pageSize: 50 } as ViewConfig;
+    loseNextSave = true;
+    await expect(
+      mine.save(made.id, larger, made.revision, saving),
+    ).rejects.toMatchObject({ code: 'UNAVAILABLE' });
+
+    // Another tab shares it, and this one lists it where it went.
+    await storeOf().changeAudience(made.id, 'shared', '2', write());
+    await listAll(mine, 'orders');
+
+    // The retry of a save that landed is answered, not refused as missing.
+    const again = await mine.save(made.id, larger, made.revision, saving);
+    expect(again).toMatchObject({ id: made.id, config: { pageSize: 50 } });
+  });
+
+  it('refuses preferences at a revision this store never issues as CONFLICT, before sending anything (#6918)', async () => {
+    installFake();
+    const store = storeOf();
+    await store.setPreferences(
+      'orders',
+      { order: ['a'], defaultInstanceId: null, revision: '0' },
+      write(),
+    );
+    // As an instance write at such a revision is (`versionOf`): nothing was
+    // sent, so the outcome is known, and it is no unreachable service.
+    await expect(
+      store.setPreferences(
+        'orders',
+        { order: ['b'], defaultInstanceId: null, revision: 'not-a-version' },
+        write(),
+      ),
+    ).rejects.toMatchObject({ code: 'CONFLICT' });
+  });
+
+  it('refuses a page size below one where the store is made, as such a page would never end a list (#6919)', () => {
+    installFake();
+    for (const pageSize of [0, -1, 1.5, Number.NaN])
+      expect(
+        () => new WowViewStore({ fetcher: actingAs(ALICE), pageSize }),
+      ).toThrow(RangeError);
+    expect(
+      () => new WowViewStore({ fetcher: actingAs(ALICE), pageSize: 1 }),
+    ).not.toThrow();
+  });
+});
