@@ -31,6 +31,15 @@ import org.bson.Document
  * again: a node that goes on appending into a block already seen (around a change of owner, which the tails' scheduled
  * probes read with full heads, or after it lost the partition) is the caller's backstop's to find.
  *
+ * A block reported that lies past this node's current block of the partition retires the current block, as a hand-off
+ * does ([MongoSequencer.overtaken]): its remainder is closed, and this node's next append reserves past the other
+ * node's block. Otherwise this node's own commits, contiguous in its block, would leave its tail no gap to read the
+ * other node's entries at, and a tail its node keeps busy, never idle enough for the probe's wake, would read them only
+ * once the block is used up (#7085). Only the current block is retired, and the next one is reserved by an append, so a
+ * partition retires at most one block a call, however often another node appends there. A closing whose write fails, or
+ * is cut short, is left unsettled: the block is allocated from no more, and the tail writes its closing again
+ * ([MongoSequencer.resolve]).
+ *
  * What it remembers is bounded by what the counters list: each call keeps, of each partition it asks about, the other
  * nodes' blocks listed now, and forgets every partition it does not ask about. A tail that closes is asked about no
  * more; one that opens starts with nothing seen, so its first call reports each of its partitions with another node's
@@ -40,6 +49,7 @@ internal class MongoForeignBlocks(
     /** The counters as a majority has committed them. */
     private val committedCounters: MongoCollection<Document>,
     private val sequencer: MongoSequencer,
+    private val placeholders: MongoLogPlaceholders,
     private val context: String,
     private val partitions: Int,
 ) {
@@ -59,20 +69,23 @@ internal class MongoForeignBlocks(
         }
         val missing = cursors.keys - counters.keys
         check(missing.isEmpty()) { "The log of $context has no counter of partition ${missing.min()}." }
-        val reported = HashSet<Int>()
+        val reported = HashMap<Int, Long>()
         synchronized(seen) {
             // A partition not asked about is forgotten: its tail closed, or never opened.
             seen.keys.retainAll(cursors.keys)
             for ((partition, cursor) in cursors) {
                 val foreign = sequencer.openBlocks(counters[partition]).filter { it.node != sequencer.node }
                 val before = seen[partition].orEmpty()
-                if (foreign.any { it.to > cursor && Key(it.node, it.from) !in before }) {
-                    reported += partition
-                }
+                foreign.filter { it.to > cursor && Key(it.node, it.from) !in before }.maxOfOrNull { it.from }
+                    ?.let { reported[partition] = it }
                 seen[partition] = foreign.mapTo(HashSet()) { Key(it.node, it.from) }
             }
         }
-        return reported
+        // Written outside the lock: a closing is a write of the store, and settles under the sequencer's own lock.
+        reported.forEach { (partition, from) ->
+            sequencer.overtaken(partition, from)?.let { placeholders.close(it, deadline = null) }
+        }
+        return reported.keys
     }
 
     /** How many of [partition]'s other nodes' blocks it remembers: what the counters list, for the tests. */

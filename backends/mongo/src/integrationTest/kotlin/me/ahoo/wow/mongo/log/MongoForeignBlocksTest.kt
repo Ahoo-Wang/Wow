@@ -16,6 +16,7 @@ package me.ahoo.wow.mongo.log
 import com.mongodb.ReadConcern
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.Updates
+import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import me.ahoo.test.asserts.assert
@@ -103,7 +104,14 @@ class MongoForeignBlocksTest : MongoLogFixtures() {
         val counters = MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE)
             .getCollection(MongoNames.of("wow_log", context, "partition"))
         val sequencer = MongoSequencer(counters, "owner", 256, 2)
-        val blocks = MongoForeignBlocks(counters.withReadConcern(ReadConcern.MAJORITY), sequencer, context, 2)
+        // This node holds no block, so it retires none: its placeholders are never written.
+        val blocks = MongoForeignBlocks(
+            counters.withReadConcern(ReadConcern.MAJORITY),
+            sequencer,
+            mockk<MongoLogPlaceholders>(),
+            context,
+            2,
+        )
         blocks.appendedElsewhere(mapOf(0 to 0L, 1 to 0L)).assert().containsExactly(0)
         blocks.remembered(0).assert().isEqualTo(1)
         // A partition not asked about is forgotten (its tail closed): asked again, it is reported again.

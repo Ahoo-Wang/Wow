@@ -186,6 +186,9 @@ class MongoTimerStore(
     private fun record(collection: TimerCollection, aggregate: String) {
         val holder = holderOf(collection) ?: run {
             insert(collection, aggregate)
+            // Read on the primary (MongoDatabases), which holds the record the duplicate key met: another node's
+            // insert. The driver's duplicate key says no more than that the record is there now, not that a majority
+            // holds it, which a failover of the primary may still undo.
             holderOf(collection)!!
         }
         check(holder.getString(CONTEXT) == context && holder.getString(AGGREGATE) == aggregate) {
