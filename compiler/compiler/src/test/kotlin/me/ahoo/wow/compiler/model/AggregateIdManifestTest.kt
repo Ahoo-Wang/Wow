@@ -203,4 +203,57 @@ class AggregateIdManifestTest {
                 "its commands name no aggregate",
         )
     }
+
+    @Test
+    fun `a record's AggregateId should be named as Jackson writes it, and refused when it writes none`() {
+        // The component's @JsonProperty, else the record's @JsonNaming; @JsonIgnore is no id a body holds (#6839).
+        fun compile(record: String) = compileModel(
+            "generate",
+            context,
+            SourceFile.java("Rename.java", record.trimIndent()),
+            SourceFile.kotlin(
+                "Stock.kt",
+                """
+                package sample
+
+                import me.ahoo.wow.api.annotation.AggregateRoot
+
+                data class Renamed(val title: String)
+
+                @AggregateRoot
+                class Stock(val id: String) {
+                    fun onCommand(command: Rename): Renamed = Renamed(command.title())
+                    fun onSourcing(event: Renamed) = Unit
+                }
+                """.trimIndent(),
+            ),
+        )
+        fun idProperty(record: String): String? {
+            val (compilation, result) = compile(record)
+            result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
+            return read(fragments(compilation).single()).contexts.single().aggregates.single().commands
+                .single { it.name == "Rename" }.idProperty
+        }
+        val annotations = "import com.fasterxml.jackson.annotation.*;\nimport me.ahoo.wow.api.annotation.AggregateId;\n"
+        idProperty(
+            "package sample;\n$annotations" +
+                "public record Rename(@AggregateId @JsonProperty(\"stock\") String stockId, String title) {}",
+        ).assert().isEqualTo("stock")
+        idProperty(
+            "package sample;\n$annotations" +
+                "@tools.jackson.databind.annotation.JsonNaming(tools.jackson.databind.PropertyNamingStrategies.SnakeCaseStrategy.class)\n" +
+                "public record Rename(@AggregateId String stockId, String title) {}",
+        ).assert().isEqualTo("stock_id")
+        // Wow's JSON writes none of it: @JsonIgnore, or @JsonIgnoreProperties by its name or by its Jackson name.
+        listOf(
+            "public record Rename(@AggregateId @JsonIgnore String stockId, String title) {}",
+            "@JsonIgnoreProperties({\"stockId\"}) public record Rename(@AggregateId String stockId, String title) {}",
+            "@JsonIgnoreProperties({\"stock\"}) " +
+                "public record Rename(@AggregateId @JsonProperty(\"stock\") String stockId, String title) {}",
+        ).forEach { record ->
+            val (_, result) = compile("package sample;\n$annotations$record")
+            result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+            result.messages.assert().contains("record component stockId is not written by Wow's JSON")
+        }
+    }
 }

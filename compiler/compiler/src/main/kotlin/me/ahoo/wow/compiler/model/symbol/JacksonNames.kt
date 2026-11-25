@@ -35,11 +35,22 @@ import tools.jackson.databind.annotation.JsonNaming
 internal fun KSPropertyDeclaration.wireName(
     problems: MutableList<String>,
     naming: PropertyNamingStrategies.NamingBase?,
-): String = jacksonHolders()
-    .mapNotNull { it.argumentsOf(JsonProperty::class, problems)?.string(AnnotationArguments.VALUE) }
+): String = wireNameAt(simpleName.asString(), jacksonHolders(), problems, naming)
+
+/**
+ * The name Jackson writes the member [name], whose annotations stand at [sites] (nearest first), under: the first
+ * `@JsonProperty` value there, else [name] as the [naming] strategy translates it. A record component's sites are its
+ * constructor parameter and its accessor (#6839).
+ */
+internal fun wireNameAt(
+    name: String,
+    sites: List<KSAnnotated>,
+    problems: MutableList<String>,
+    naming: PropertyNamingStrategies.NamingBase?,
+): String = sites.mapNotNull { it.argumentsOf(JsonProperty::class, problems)?.string(AnnotationArguments.VALUE) }
     .firstOrNull(String::isNotEmpty)
     // A NamingBase translates every name alike, whatever the mapper and the member.
-    ?: simpleName.asString().let { naming?.nameForField(null, null, it) ?: it }
+    ?: naming?.nameForField(null, null, name) ?: name
 
 /**
  * The naming strategy Jackson writes this class's properties with: the `@JsonNaming` of the class, else of the nearest
@@ -71,8 +82,11 @@ internal fun KSClassDeclaration.jsonNaming(problems: MutableList<String>): Prope
 
 /** Whether this property is `@JsonIgnore`d, on itself, its getter or its primary-constructor parameter. */
 internal fun KSPropertyDeclaration.jsonIgnored(problems: MutableList<String>): Boolean =
-    jacksonHolders().mapNotNull { it.argumentsOf(JsonIgnore::class, problems)?.boolean(AnnotationArguments.VALUE) }
-        .any { it }
+    jsonIgnoredAt(jacksonHolders(), problems)
+
+/** Whether a `@JsonIgnore` at one of [sites], a member's, tells Jackson to write none of it. */
+internal fun jsonIgnoredAt(sites: List<KSAnnotated>, problems: MutableList<String>): Boolean =
+    sites.mapNotNull { it.argumentsOf(JsonIgnore::class, problems)?.boolean(AnnotationArguments.VALUE) }.any { it }
 
 /** The properties this class's `@JsonIgnoreProperties` names, which Jackson writes none of. */
 internal fun KSClassDeclaration.jsonIgnoredProperties(problems: MutableList<String>): Set<String> =
