@@ -105,12 +105,16 @@ class WowLocalTest {
     fun `a service that fails to start should close the ones started before it`() {
         val (public, internal) = freePorts()
         val (brokenPublic, brokenInternal) = freePorts()
-        assertThrows<RuntimeException> {
+        val failed = assertThrows<RuntimeException> {
             wowLocal(LocalPorts.FIXED) {
                 service<BankServer>(BANK, listOf("bank"), public, internal)
                 service<BankServer>("broken", listOf("nowhere"), brokenPublic, brokenInternal)
             }
         }
+        // The broken service's failure, so the bank started on its ports before it: a probe of them then reads the
+        // bank's close, not a start that never bound them.
+        generateSequence<Throwable>(failed) { it.cause }.mapNotNull { it.message }.toList().assert()
+            .anyMatch { "wow.contexts names nowhere" in it }
         accepts(public).assert().isFalse()
         accepts(internal).assert().isFalse()
     }
@@ -230,12 +234,23 @@ class WowLocalTest {
         }
     }
 
-    private fun freePorts(): Pair<Int, Int> = ServerSocket(0).use { first ->
-        ServerSocket(0).use { second -> first.localPort to second.localPort }
+    /**
+     * Two ports no server listens on at the loopback address, where the services bind theirs: each bound there with
+     * `SO_REUSEADDR` off, then released. `ServerSocket(0)` binds the wildcard address with it on, and macOS then hands
+     * out a port another server listens on at the loopback address (#6863): a service fails to bind it, and a probe of
+     * it reads that other server.
+     */
+    private fun freePorts(): Pair<Int, Int> = loopbackPort().use { first ->
+        loopbackPort().use { second -> first.localPort to second.localPort }
+    }
+
+    private fun loopbackPort(): ServerSocket = ServerSocket().apply {
+        reuseAddress = false
+        bind(InetSocketAddress(LOOPBACK, 0))
     }
 
     private fun accepts(port: Int): Boolean = try {
-        Socket().use { it.connect(InetSocketAddress("127.0.0.1", port), 500) }
+        Socket().use { it.connect(InetSocketAddress(LOOPBACK, port), 500) }
         true
     } catch (_: java.io.IOException) {
         false
@@ -247,5 +262,8 @@ class WowLocalTest {
 
         /** The teller's service, a name of the test's own: no build names it. */
         const val TELLERS = "teller-service"
+
+        /** The address the services bind their ports on ([TEST_PROPERTIES]). */
+        const val LOOPBACK = "127.0.0.1"
     }
 }
