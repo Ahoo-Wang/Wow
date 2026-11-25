@@ -24,7 +24,8 @@ import org.junit.jupiter.api.Test
 class OpsServerTest {
     @Test
     fun `the server should run one node of the ops context, and describe its routes`() {
-        startOps().use { ops ->
+        // The public port serves the Manifest only when told to; the console needs none, its client being generated.
+        startOps(MANIFEST_SERVED).use { ops ->
             val node = ops.context.getBean(ServiceNode::class.java)
             node.service.assert().isEqualTo("ops-service")
             node.isReady.assert().isTrue()
@@ -76,5 +77,7 @@ class OpsServerTest {
         const val OK = 200
         const val NOT_FOUND = 404
         const val UNAUTHORIZED = 401
+
+        val MANIFEST_SERVED: Pair<String, Any> = "wow.http.manifest.enabled" to true
     }
 }

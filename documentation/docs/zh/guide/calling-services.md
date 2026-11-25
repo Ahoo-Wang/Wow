@@ -93,7 +93,7 @@ wow:
 
 ## 按名字调用命令 {#call-a-command-by-name}
 
-控制台、网关或工具可以在没有对端 api jar 的情况下调用对端。它用 `wow.peers.<context>.contract: manifest` 列出对端，并发送一个 `NamedCommand`：命令的完整类型名 `context.aggregate.Command` 及其 JSON 命令体。客户端从 `GET /wow/manifest` 读取对端的 Manifest，在发送任何东西之前拒绝 Manifest 没有声明的命令。
+控制台、网关或工具可以在没有对端 api jar 的情况下调用对端。它用 `wow.peers.<context>.contract: manifest` 列出对端，并发送一个 `NamedCommand`：命令的完整类型名 `context.aggregate.Command` 及其 JSON 命令体。客户端从 `GET /wow/manifest` 读取对端的 Manifest，在发送任何东西之前拒绝 Manifest 没有声明的命令：`mode: service` 下从对端的内部端口读取，内部端口总是把它提供给集群中的服务；`mode: user` 下从对端的公开端口读取，只有对端设置了 `wow.http.manifest.enabled: true` 时公开端口才提供它。
 
 ## 在 Wow 宿主之外 {#outside-a-wow-host}
 

@@ -1,6 +1,6 @@
 # Generate the clients from the Manifest
 
-A Wow V10 service publishes its contract as a Manifest: its bounded context, aggregates, commands, events, state, error codes and subscriptions (`GET /wow/manifest`, or the `manifest/baseline.json` the service commits). `@ahoo-wang/wow-generator` turns it into typed clients on `@ahoo-wang/wow-client`. Generated code is the contract on the TypeScript side: a changed command shows as a type error, not as a 400 in production.
+A Wow V10 service publishes its contract as a Manifest: its bounded context, aggregates, commands, events, state, error codes and subscriptions (`GET /wow/manifest`, which the public port serves only with `wow.http.manifest.enabled: true`, or the `manifest/baseline.json` the service commits). `@ahoo-wang/wow-generator` turns it into typed clients on `@ahoo-wang/wow-client`. Generated code is the contract on the TypeScript side: a changed command shows as a type error, not as a 400 in production.
 
 ## Run it
 

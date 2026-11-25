@@ -43,7 +43,7 @@ An internal command (`@InternalCommand`, `"internal": true` in the Manifest) has
 
 | Method and path | Answers |
 | --- | --- |
-| `GET /wow/manifest` | The service's merged Manifest (`wow.http.manifest.enabled`), its internal commands among them, marked `internal` |
+| `GET /wow/manifest` | The service's merged Manifest, its internal commands among them, marked `internal`; on the public port only with `wow.http.manifest.enabled: true` (off by default), always on the internal port to the cluster's services |
 | `GET /wow/openapi` | The OpenAPI 3.1 document of these routes (`wow.http.openapi.enabled`): the internal commands are not among them, and each aggregate's records are typed by its Manifest, the `state` by its state schema and the `access` by the access attributes it declares |
 
 A context's own service routes, the handlers its code declares, are served as its Manifest lists them. `wow.http.ops.enabled: true` (off by default) also serves the operator's routes: the parked entries under `/wow/ops/parked` and the read of the node's subscriptions, `GET /wow/ops/subscriptions` ([Ops Console](../operate/ops-console)).

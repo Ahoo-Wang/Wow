@@ -13,6 +13,11 @@
 
 package me.ahoo.wow.example.eshop.e2e
 
+import kotlinx.coroutines.runBlocking
+import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.client.EndpointResolver
+import me.ahoo.wow.client.WowClient
+import me.ahoo.wow.manifest.Manifest
 import org.testcontainers.kafka.ConfluentKafkaContainer
 import org.testcontainers.postgresql.PostgreSQLContainer
 import tools.jackson.databind.json.JsonMapper
@@ -95,11 +100,25 @@ class EshopService private constructor(
     /** The service's output so far. */
     fun output(): String = log.readText()
 
+    /** Whether the service answers its health endpoint as up. */
+    fun healthy(): Boolean = runCatching { get(HEALTH).status == OK }.getOrDefault(false)
+
     /** The names of the contexts the service's Manifest lists. */
-    fun contexts(): List<String> {
-        val manifest = get("/wow/manifest")
-        check(manifest.status == OK) { "GET /wow/manifest of $name answered ${manifest.status}: ${manifest.body}" }
-        return json.readTree(manifest.body)["contexts"].values().map { it["name"].asString() }
+    fun contexts(): List<String> = manifest().contexts.map { it.name }
+
+    /**
+     * The service's Manifest, read as a service of the cluster reads it: from its internal port, in `wow-client`'s
+     * service mode. Its public port serves it only with `wow.http.manifest.enabled`, which a deployment leaves off.
+     */
+    fun manifest(): Manifest {
+        val context = if (name == OPS) OPS else "eshop-$name"
+        val internal = URI.create("http://127.0.0.1:$internalPort")
+        return WowClient.builder()
+            .endpoints(EndpointResolver.of(emptyMap(), mapOf(context to internal)))
+            .service(HARNESS)
+            .manifestPeers(setOf(context))
+            .build()
+            .use { client -> runBlocking { client.manifestOf(context, Caller.ANONYMOUS) } }
     }
 
     private fun uri(path: String): URI = URI.create("http://127.0.0.1:$publicPort$path")
@@ -114,7 +133,8 @@ class EshopService private constructor(
         while (System.nanoTime() < deadline) {
             check(process.isAlive) { "The $name service exited with ${process.exitValue()}:\n${log.readText()}" }
             val ready = try {
-                get("/wow/manifest", headers).status == OK
+                // Ready once its health is: the public port's Manifest is off, as a deployment has it.
+                get(HEALTH, headers).status == OK
             } catch (_: IOException) {
                 false
             }
@@ -140,6 +160,18 @@ class EshopService private constructor(
 
     companion object {
         private const val OK = 200
+
+        /**
+         * Spring Boot's readiness group, as a deployment's probe reads it: 200 once the service takes traffic. The
+         * whole health is down where a backend the run does not start is on the class path (Elasticsearch's).
+         */
+        private const val HEALTH = "/actuator/health/readiness"
+
+        /** The name the harness reads a service's Manifest under, as a service of the cluster. */
+        private const val HARNESS = "eshop-e2e"
+
+        /** The ops service, whose context is `ops` where the shop's are `eshop-<name>`. */
+        private const val OPS = "ops"
         private val START_TIMEOUT: Duration = Duration.ofSeconds(90)
         private val STOP_TIMEOUT: Duration = Duration.ofSeconds(20)
         private val POLL_INTERVAL: Duration = Duration.ofMillis(200)
@@ -222,6 +254,8 @@ class EshopService private constructor(
                 "--logging.level.$INTERNAL_SERVER_LOGGER=info",
                 "--wow.internal.host=127.0.0.1",
                 "--wow.internal.port=$internalPort",
+                // The probes' groups, which Spring Boot turns on in Kubernetes alone: the harness reads readiness.
+                "--management.endpoint.health.probes.enabled=true",
                 *arguments.toTypedArray(),
             ).redirectErrorStream(true).redirectOutput(log).apply {
                 // The service runs as the arguments configure it: Spring settings in the environment of the machine

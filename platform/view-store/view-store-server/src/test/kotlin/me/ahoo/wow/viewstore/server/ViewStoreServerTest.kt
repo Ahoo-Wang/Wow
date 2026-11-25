@@ -68,7 +68,8 @@ class ViewStoreServerTest {
 
     @Test
     fun `the Manifest baseline should list every command route and service route the server serves`() {
-        startViewStore().use { store ->
+        // The public port serves the Manifest only when told to.
+        startViewStore("wow.http.manifest.enabled" to true).use { store ->
             val manifest = store.get("/wow/manifest", Who.user("a")).assertOk().json
             val baseline = WowJson.mapper.readTree(File("manifest/baseline.json"))
             val served = commandRoutes(manifest)

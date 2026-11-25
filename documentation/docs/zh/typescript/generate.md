@@ -9,7 +9,7 @@ description: 用 wow-generator 从 Manifest 生成 Wow 服务的类型化客户�
 
 ## Manifest 从哪里来 {#where-the-manifest-comes-from}
 
-服务在 `GET /wow/manifest` 上提供它的 Manifest，它的构建也把同一份文档提交为 `manifest/baseline.json`，由 `check` 保证它与服务提供的一致（[Manifest 与兼容](../guide/manifest)）。从基线生成：不需要运行中的服务，它是经过评审的版本，它的改变就是客户端的改变。
+服务在 `GET /wow/manifest` 上提供它的 Manifest（在公开端口上，只有设置 `wow.http.manifest.enabled: true` 时才提供），它的构建也把同一份文档提交为 `manifest/baseline.json`，由 `check` 保证它与服务提供的一致（[Manifest 与兼容](../guide/manifest)）。从基线生成：不需要运行中的服务，它是经过评审的版本，它的改变就是客户端的改变。
 
 ```bash
 pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-eventstream @ahoo-wang/wow-client

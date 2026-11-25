@@ -274,8 +274,8 @@ class SoakStack(private val config: SoakConfig, private val log: (String) -> Uni
 
 /** A node of the eShop's [context]: its [id] (`wow.node.id`) and its JVM. */
 class SoakNode(val context: String, val id: String, val service: EshopService) {
-    /** Whether the node answers its Manifest. */
-    fun serves(): Boolean = runCatching { service.get("/wow/manifest").status == OK }.getOrDefault(false)
+    /** Whether the node answers its health endpoint as up. */
+    fun serves(): Boolean = service.healthy()
 
     override fun toString(): String = id
 

@@ -11,7 +11,7 @@ description: 'Generator CLI — @ahoo-wang/wow-generator'
 
 | Option                             | Required/default              | Meaning                                                                                                  |
 | ---------------------------------- | ----------------------------- | -------------------------------------------------------------------------------------------------------- |
-| `-i, --input <file>`               | Required                      | Local path or HTTP/HTTPS URL of a Wow Manifest (`GET /wow/manifest`) or an OpenAPI 3.x document           |
+| `-i, --input <file>`               | Required                      | Local path or HTTP/HTTPS URL of a Wow Manifest (`GET /wow/manifest`, which a service serves only with `wow.http.manifest.enabled: true`; its committed `manifest/baseline.json` needs none) or an OpenAPI 3.x document |
 | `-o, --output <path>`              | `src/generated`               | Output root, resolved relative to working directory                                                      |
 | `-c, --config <file>`              | `./wow-generator.config.json` | Generator configuration; see [configuration](./configuration). A named file has to exist                 |
 | `-H, --header <header>`            | None; repeatable              | `Name: value` request header sent when the input or the configuration is an HTTP/HTTPS URL               |

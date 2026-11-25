@@ -76,6 +76,7 @@ class HostTest {
         "wow.timers.max-early-wait" to "2s",
         "wow.http.errors.[bank.account.frozen].status" to 409,
         "wow.http.request-facts" to "X-Device",
+        "wow.http.manifest.enabled" to true,
         "spring.lifecycle.timeout-per-shutdown-phase" to "1s",
     )
 
@@ -206,7 +207,7 @@ class HostTest {
     }
 
     @Test
-    fun `the Manifest should be served at wow-manifest`() {
+    fun `the Manifest should be served at wow-manifest once wow-http-manifest-enabled turns it on`() {
         val answer = host.get("/wow/manifest")
         answer.status.assert().isEqualTo(200)
         answer.body!!["service"]["name"].asString().assert().isEqualTo("bank-service")
