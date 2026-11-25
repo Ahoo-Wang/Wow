@@ -21,6 +21,7 @@ import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.runtime.admission.commandIs
 import me.ahoo.wow.viewstore.api.ViewStoreContext
 import me.ahoo.wow.viewstore.api.ViewStoreContract
+import me.ahoo.wow.viewstore.api.view.ShareView
 
 /**
  * Who writes what in the view store, the 9.x gateway's write rules:
@@ -30,7 +31,9 @@ import me.ahoo.wow.viewstore.api.ViewStoreContract
  * - Wow's operational commands (a scheduled job's, the snapshot rebuild, an operator's action on a parked entry) need
  *   [ViewStoreRoles.SYSTEM_WRITER], the platform's administrator of the stored system views, whatever scope they name.
  * - The owner `(shared)`'s writes (a shared view's save, rename, delete and claim; shared preferences) need
- *   [ViewStoreRoles.SHARED_WRITER], as the dataset wording, the whole tenant's, does.
+ *   [ViewStoreRoles.SHARED_WRITER], as the dataset wording, the whole tenant's, does. So does sharing a personal view
+ *   ([ShareView]): sent as its user, it publishes the view to the tenant's shared list, the owner `(shared)` the
+ *   saga moves it to, which a derived command is not checked against.
  * - The owner `(system)`'s writes need [ViewStoreRoles.SYSTEM_WRITER].
  * - A user writes its own views; the kernel keeps it to them.
  * - A write in a scope without an owner is refused: the kernel checks only the parts of the scope a
@@ -53,6 +56,8 @@ class ViewStoreAuthorizer : CommandAuthorizer {
             action.ref.type.name == ViewStoreContract.DatasetWording.NAME -> ViewStoreRoles.SHARED_WRITER
             action.scope.ownerId == ViewStoreContext.SHARED_OWNER_ID -> ViewStoreRoles.SHARED_WRITER
             action.scope.ownerId == ViewStoreContext.SYSTEM_OWNER_ID -> ViewStoreRoles.SYSTEM_WRITER
+            // A user's own view shared: published to (shared) by the saga, whose move no authorizer checks (#6920).
+            action.commandIs<ShareView>() -> ViewStoreRoles.SHARED_WRITER
             else -> return Authorization.Allowed
         }
         return if (caller.hasRole(role)) {

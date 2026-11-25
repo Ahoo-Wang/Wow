@@ -266,15 +266,19 @@ describe('the view engine on the store', () => {
     ).toMatchObject({ revision: '2' });
   });
 
-  it('sets a personal view shared for a colleague, who takes it back as theirs', async () => {
-    const { engine } = tabOf('dave');
-    const view = await engine.save(
-      engine.create(VIEWS, {
+  it('sets a personal view shared for a colleague, with the role that writes (shared), and the colleague takes it back as theirs', async () => {
+    const { engine: alone } = tabOf('dave');
+    const view = await alone.save(
+      alone.create(VIEWS, {
         title: 'For the team',
         scope: 'personal',
         config,
       }),
     );
+    // Without the shared role, dave may not share it: sharing publishes it to
+    // the tenant's shared list (#6920). The service says so.
+    await expect(alone.changeAudience(view.id, 'shared')).rejects.toThrow();
+    const { engine } = tabOf('dave', [SHARED_WRITER]);
     const { engine: colleague } = tabOf('erin', [SHARED_WRITER]);
     expect(
       (await colleague.list(VIEWS)).items.map(({ id }) => id),
@@ -285,9 +289,6 @@ describe('the view engine on the store', () => {
     expect(
       (await colleague.list(VIEWS)).items.find(({ id }) => id === view.id),
     ).toMatchObject({ scope: 'shared', title: 'For the team' });
-
-    // Without the shared role, dave may not take it back: the service says so.
-    await expect(engine.changeAudience(view.id, 'personal')).rejects.toThrow();
 
     const claimed = await colleague.changeAudience(view.id, 'personal');
     expect(claimed).toMatchObject({ id: view.id, scope: 'personal' });

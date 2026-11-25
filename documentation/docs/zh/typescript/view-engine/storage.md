@@ -156,7 +156,7 @@ export const store = new WowViewStore({ fetcher, permissions });
 
 个人视图属于读者。共享视图属于保留的所有者 `(shared)`，存储的系统视图属于租户 `(platform)` 的所有者 `(system)`；存储用 `Wow-Scope` 请求头以它们的身份行事。“设为共享”和“设为个人”原地把视图移给另一个所有者，保留它的 id，所以展示它的仪表盘会继续展示它。
 
-每个读者都能读共享视图和存储的系统视图。写共享视图、共享偏好和租户的数据集措辞需要角色 `view-store.shared-writer`；写系统视图需要 `view-store.system-writer`。服务为每次写入授权；前端的 `permissions` 只决定哪些按钮可用，所以要按同样的角色回答它，否则会有按钮可用、写入却被拒绝。
+每个读者都能读共享视图和存储的系统视图。写共享视图（包括把个人视图共享出去）、共享偏好和租户的数据集措辞需要角色 `view-store.shared-writer`；写系统视图需要 `view-store.system-writer`。服务为每次写入授权；前端的 `permissions` 只决定哪些按钮可用，所以要按同样的角色回答它，否则会有按钮可用、写入却被拒绝。
 
 | 权限 | 按钮 | 不提供时 |
 | --- | --- | --- |

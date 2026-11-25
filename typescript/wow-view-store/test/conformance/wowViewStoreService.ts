@@ -362,6 +362,10 @@ export function describeWowViewStoreService(
           write(),
         );
         const reader = open({ ...ALICE, user: 'bob', roles: [] }).views;
+        const bobs = await reader.create(
+          { definitionId, title: 'Mine', scope: 'personal', config },
+          write(),
+        );
 
         expect(await reader.get(ours.id)).toEqual(ours);
         for (const refused of [
@@ -373,11 +377,19 @@ export function describeWowViewStoreService(
               { definitionId, title: 'Ours too', scope: 'shared', config },
               write(),
             ),
+          // Sharing one's own view publishes it to the shared list (#6920).
+          () =>
+            reader.changeAudience(bobs.id, 'shared', bobs.revision, write()),
         ])
           await expect(refused()).rejects.toMatchObject({
             code: 'FORBIDDEN',
             detail: { code: 'wow.auth.forbidden' },
           });
+        // So the shared list holds nothing of Bob's.
+        await expect(open(ALICE).views.get(bobs.id)).rejects.toMatchObject({
+          code: 'NOT_FOUND',
+        });
+        expect(await reader.get(bobs.id)).toEqual(bobs);
       });
     });
 
