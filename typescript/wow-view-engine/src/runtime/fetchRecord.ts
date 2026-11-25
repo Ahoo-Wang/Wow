@@ -11,10 +11,11 @@
  * limitations under the License.
  */
 
-import type { FilterCompileContext } from '../filter/index.js';
+import { isFilterGroup, type FilterCompileContext } from '../filter/index.js';
 import {
   without,
   FilterOperators,
+  type FilterLeaf,
   type FilterTree,
   type RecordData,
   type RecordKey,
@@ -33,10 +34,14 @@ import { abortWith } from './abort.js';
  * clipped, the stack trace no column holds. So it is asked for on its own,
  * the way a service answers "this one": the row key equal to `key`, within
  * the scope the host injected (a tenant's view never opens another tenant's
- * record) and **nothing else** — not the conditions the page was found by. A
- * record opened from the page may stop matching them the moment a command
- * changes it (a retried failure is no longer 「失败」), and its detail is
- * about the record, not about the list.
+ * record) and the view's deletion state (D17-2) — **nothing else**, not the
+ * conditions the page was found by. A record opened from the page may stop
+ * matching them the moment a command changes it (a retried failure is no
+ * longer 「失败」), and its detail is about the record, not about the list.
+ * The deletion state is not one of them: a Wow source answers only records
+ * not deleted unless the query says otherwise, so a recycle bin's row read
+ * without it is answered as gone (#6910). It is kept where every record of
+ * the page meets it, a condition under 「都满足」 groups only.
  *
  * Answers `null` when the record is no longer there. Runs beside the view,
  * as an export does: no scheduler slot, and the rows on screen untouched.
@@ -65,6 +70,7 @@ export async function fetchRecord(
             operator: FilterOperators.EQ,
             value: key,
           },
+          ...deletionOf(config.filter),
         ],
       },
       sort: [],
@@ -91,6 +97,23 @@ export async function fetchRecord(
     ? await source.cursor(query, { signal: controller.signal })
     : await source.paged(query, { signal: controller.signal });
   return page.list[0] ?? null;
+}
+
+/**
+ * The view's deletion conditions every record of its page meets: those
+ * under 「都满足」 groups all the way up. One under 「任一满足」 holds only
+ * for some of the rows, and is not the view's state.
+ */
+function deletionOf(tree: FilterTree | undefined): FilterLeaf[] {
+  const kept: FilterLeaf[] = [];
+  const groups = tree ? [tree] : [];
+  for (let group = groups.pop(); group; group = groups.pop()) {
+    if (group.op !== 'and') continue;
+    for (const child of group.children)
+      if (isFilterGroup(child)) groups.push(child);
+      else if (child.operator === FilterOperators.DELETION) kept.push(child);
+  }
+  return kept;
 }
 
 /**

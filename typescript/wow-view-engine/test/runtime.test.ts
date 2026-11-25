@@ -11,8 +11,12 @@
  * limitations under the License.
  */
 
-import type { PagedList } from '@ahoo-wang/wow-client/dsl';
-import { FilterOperator, AggregationFunction } from '@ahoo-wang/wow-client/dsl';
+import type { CursorQuery, PagedList } from '@ahoo-wang/wow-client/dsl';
+import {
+  DeletionState,
+  FilterOperator,
+  AggregationFunction,
+} from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it, vi } from 'vitest';
 import type { DataViewRuntime } from '../src/runtime/viewRuntime.js';
 import type { RecordDataViewRuntime } from '../src/runtime/recordRuntime.js';
@@ -24,6 +28,7 @@ import {
   type DataViewDefinition,
   type FilterTree,
   type ProjectedRecord,
+  type RecordData,
   type RuntimeLimits,
   type ViewInstance,
   type ViewSource,
@@ -32,6 +37,8 @@ import { dataViewRuntime } from '../src/runtime/recordRuntime.js';
 import { RequestRunner } from '../src/runtime/requestRunner.js';
 import { recordSource } from '../src/runtime/source.js';
 import { firstPageOf } from '../src/runtime/execute.js';
+import { memorySource } from '../src/testing/index.js';
+import { dealsDefinition } from './fixtures/kanban.js';
 import {
   analysisConfig,
   deferred,
@@ -461,6 +468,74 @@ describe('DataViewRuntime paging and selection', () => {
     const { runtime } = harness();
     runtime.select(['o-1']);
     expect(runtime.getSnapshot().selection).toEqual(['o-1']);
+  });
+
+  // #6908: the selection is bound to the result on screen, whatever run
+  // lands it: a page turn cleared it when it went out, not what was picked
+  // on the rows still drawn while it was on its way.
+  it('lets go of a row picked on the page still drawn while the next one is on its way', async () => {
+    const rows = ['o-1', 'o-2', 'o-3', 'o-4'].map(id => ({ id, amount: 1 }));
+    const second = deferred<PagedList<RecordData>>();
+    const source = testSource({
+      paged: vi.fn(query =>
+        query.pagination?.index === 2
+          ? second.promise
+          : Promise.resolve({ total: 4, exact: true, list: rows.slice(0, 2) }),
+      ),
+    });
+    const { runtime } = harness({
+      source,
+      config: recordConfig({ pageSize: 2 }),
+    });
+    runtime.apply();
+    await nextTask();
+
+    runtime.page({ index: 2 });
+    runtime.select(['o-1']);
+    expect(runtime.getSnapshot().selection).toEqual(['o-1']);
+    second.resolve({ total: 4, exact: true, list: rows.slice(2) });
+    await nextTask();
+
+    expect(recordData(runtime).view.rows.map(row => row.key)).toEqual([
+      'o-3',
+      'o-4',
+    ]);
+    expect(runtime.getSnapshot().selection).toEqual([]);
+  });
+
+  // #6908: capabilities.md (#3502): on INVALID_CURSOR the view goes back to
+  // the first page once; a row picked on the page it left is not on it.
+  it('lets go of picked rows a refresh that fell back to the first page does not hold', async () => {
+    const rows = ['d-1', 'd-2', 'd-3', 'd-4'].map(id => ({ id, amount: 1 }));
+    let expired = false;
+    const source = testSource({
+      cursor: vi.fn((query: CursorQuery) => {
+        if (query.cursor === 'c2' && expired)
+          return Promise.reject(new Error('Invalid cursor.'));
+        return Promise.resolve(
+          query.cursor === 'c2'
+            ? { list: rows.slice(2), nextCursor: null }
+            : { list: rows.slice(0, 2), nextCursor: 'c2' },
+        );
+      }),
+    });
+    const { runtime } = harness({
+      definition: dealsDefinition(),
+      config: recordConfig({ pageSize: 2 }),
+      source,
+    });
+    const keys = () => recordData(runtime).view.rows.map(row => row.key);
+    runtime.apply();
+    await vi.waitFor(() => expect(keys()).toEqual(['d-1', 'd-2']));
+    runtime.page({ cursor: 'c2' });
+    await vi.waitFor(() => expect(keys()).toEqual(['d-3', 'd-4']));
+    runtime.select(['d-3']);
+
+    expired = true;
+    runtime.refresh();
+    await vi.waitFor(() => expect(keys()).toEqual(['d-1', 'd-2']));
+    expect(runtime.getSnapshot().query.status).toBe('success');
+    expect(runtime.getSnapshot().selection).toEqual([]);
   });
 
   /**
@@ -1391,5 +1466,69 @@ describe('defaultRuntimeEnvironment', () => {
     await nextTask();
 
     expect(callback).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * runtime.md「取一条」: a record read whole by its row key, without the
+ * page's conditions, but in the view's deletion state (D17-2): a Wow source
+ * answers only records not deleted unless the query says otherwise.
+ */
+describe('a record read whole from a view of deleted records (#6910)', () => {
+  const definition = ordersDefinition({
+    fields: [
+      { name: 'id', label: 'Order', kind: 'string', sortable: true },
+      { name: '@deleted', label: 'Deleted', kind: 'deletion' },
+      { name: 'amount', label: 'Amount', kind: 'number' },
+    ],
+    analysis: undefined,
+    views: [],
+  });
+  const deleted = (filter: FilterTree) =>
+    harness({
+      definition,
+      config: recordConfig({ filter }),
+      source: memorySource([
+        { id: 'o-1', amount: 10, deleted: true },
+        { id: 'o-2', amount: 20 },
+      ]),
+    }).runtime;
+  const bin = {
+    field: '@deleted',
+    operator: FilterOperator.DELETION,
+    value: DeletionState.DELETED,
+  };
+
+  it('reads a deleted record the page shows whole, not as gone', async () => {
+    const runtime = deleted({
+      op: 'and',
+      children: [{ op: 'and', children: [bin] }],
+    });
+    runtime.apply();
+    await vi.waitFor(() =>
+      expect(recordData(runtime).view.rows.map(row => row.key)).toEqual([
+        'o-1',
+      ]),
+    );
+
+    await expect(runtime.fetchRecord('o-1')).resolves.toMatchObject({
+      id: 'o-1',
+      deleted: true,
+    });
+  });
+
+  it('keeps no deletion state only some rows of the page meet', async () => {
+    const runtime = deleted({
+      op: 'or',
+      children: [
+        bin,
+        { field: 'amount', operator: FilterOperator.GT, value: 15 },
+      ],
+    });
+
+    await expect(runtime.fetchRecord('o-1')).resolves.toBeNull();
+    await expect(runtime.fetchRecord('o-2')).resolves.toMatchObject({
+      id: 'o-2',
+    });
   });
 });

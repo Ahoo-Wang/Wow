@@ -12,8 +12,10 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
+import type { CursorPage, CursorQuery } from '@ahoo-wang/wow-client/dsl';
 import {
   MemoryViewStore,
+  type RecordData,
   ViewEngine,
   type RecordLaneView,
   type RecordViewRuntime,
@@ -27,6 +29,7 @@ import { builtinFieldKinds, DEFAULT_RUNTIME_LIMITS } from '../src/index.js';
 import { DashboardViewRuntime } from '../src/runtime/dashboardRuntime.js';
 import {
   dashboardConfig,
+  deferred,
   nextTask,
   overviewDefinition,
   resourcesOf,
@@ -109,6 +112,55 @@ describe('a kanban run', () => {
     const after = lanesOf(runtime);
     expect(after[0]).toMatchObject({ total: 3, next: null });
     expect(after[1]).toBe(before[1]);
+    runtime.dispose();
+  });
+
+  // #6909: a redraw (a column's width) while the lane is out re-projects the
+  // rows and makes `applied` the config they answer; the lane page that
+  // lands after it is put on that, not on the board from before.
+  it('puts a lane page that lands after a redraw on the redrawn board', async () => {
+    const memory = memorySource(DEALS);
+    const held = deferred<CursorPage<RecordData>>();
+    let holding = false;
+    const source: ViewSource = {
+      ...memory,
+      cursor: (query: CursorQuery, options) =>
+        holding ? held.promise : memory.cursor(query, options),
+    };
+    const runtime = await openKanban(source);
+    const lead = lanesOf(runtime)[0]!;
+
+    holding = true;
+    runtime.loadLane(lead.id);
+    runtime.edit({
+      table: { columns: [{ field: 'id', width: 240 }, { field: 'amount' }] },
+    });
+    runtime.apply();
+    const redrawn = runtime.getSnapshot();
+    expect(redrawn.result?.own).toBe(redrawn.applied);
+
+    held.resolve({
+      list: [{ id: 'd-3', stage: 'LEAD', amount: 30 }],
+      nextCursor: null,
+    });
+    await vi.waitFor(() => expect(lanesOf(runtime)[0]?.rows).toHaveLength(3));
+
+    const after = runtime.getSnapshot();
+    expect(after.result?.own).toBe(after.applied);
+    expect(after.result?.config.table?.columns?.[0]).toEqual({
+      field: 'id',
+      width: 240,
+    });
+    // Not stale, so the next redraw is no query either.
+    const asked = vi.spyOn(source, 'cursor');
+    runtime.edit({
+      table: { columns: [{ field: 'id', width: 200 }, { field: 'amount' }] },
+    });
+    runtime.apply();
+    expect(runtime.getSnapshot().result?.own).toBe(
+      runtime.getSnapshot().applied,
+    );
+    expect(asked).not.toHaveBeenCalled();
     runtime.dispose();
   });
 

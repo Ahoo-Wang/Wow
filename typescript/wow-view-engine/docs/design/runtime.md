@@ -160,10 +160,10 @@ export class ViewWriteError extends Error {
 ## 规则
 
 - `result.config` 是产生该结果的配置，不随 draft 变化；UI 用它标注"结果对应的条件"。`result.own` 是同一次执行中**合并作用域之前**的那份自有配置，随 `config` 一起记录：`mergeFilters` 把作用域作为尾随分组追加，`or`／`nor` 的 draft 还会被整棵包成第一个子节点，因此 `config.filter` 上的路径既不指向 draft，也不指向编辑器能删的东西——摘要要给出可点删除的条件，就只能读 `own.filter`，而宿主注入的那部分由 `runtime.scopeFilter` 单独交出、单独呈现且不可删除。
-- 选择绑定当前结果：`page`、`apply` 与解释环境变化清空 `selection`；`refresh` 后按新结果的行键求交集，消失的行自动移出。本轮不支持跨页选择，批量动作只作用于当前结果中仍存在的行。
+- 选择绑定当前结果：`page`、`apply` 与解释环境变化清空 `selection`；**每个落地的结果**都按它的行键求交集，消失的行自动移出——`refresh` 之后如此，翻页在途时在还画着的那页上勾的行、刷新时游标失效退回第一页而不在第一页上的行，也一样移出（#6908，test/runtime.test.ts「DataViewRuntime paging and selection」）。本轮不支持跨页选择，批量动作只作用于当前结果中仍存在的行。
 - 新的 `apply / refresh / page` 替代同一 runtime 的在途请求，旧响应到达后丢弃。这由 `RequestRunner` 用 per-runtime key 实现，全局并发上限与队列来自 `RuntimeLimits`（`maxConcurrentQueries`、`maxQueuedQueries`、`maxPageSize`、`maxPageWindow`、`maxAnalysisRows`、`minRefreshInterval`、`maxRefreshInterval`、`maxFilterDepth`、`maxFilterNodes`、`maxQueryFilterNodes`、`maxFilterValues`、`maxDashboardPanels`、`exportMax`）。**呈现口径也在 `RuntimeLimits` 里**（2026-09-21，P-17）：每页条数梯子 `pageSizes` 与卡片的 `cardPageSizes`（缺省 12／24／48／96：12 在一行 1～4 张、以及窄屏退下来的列数下都是整行——用户 2026-09-23：卡片每页条数应是一行张数的倍数）、自动刷新梯子 `refreshIntervals`、新视图的 `defaultPageSize`／`defaultColumns`／`defaultCardFields`、导出文件是否中和公式的 `exportNeutralizeFormulas`（缺省开，[D37](decisions.md#d37-导出文件缺省中和公式2026-09-24)）——它们不是预算，是产品的选项与缺省，从前是模块常量、改一档就是一次发版；放在预算旁边是因为预算会裁它们（高于 `maxPageSize` 的档不提供），也因为交给引擎的是同一个对象。控件读 `runtime.limits`，视图保存时的那一档照旧折进梯子。
 - **只改画法的 `apply` 不查询**（Record 视图，`runtime/restyle.ts` 的 `restyledOnly`）：草稿与上次跑出结果的配置比，查询的来源一样——条件、排序、页大小都没变，且草稿要从行上读的每个字段（它的投影 `recordProjection`：显示的列、卡片字段、排序与汇总读的字段）都在上次投影之内，只差列宽、列序、固定、关掉一列或 `layout`——就在当前结果上重新投影（`restyleRecord`：行与分页不动，列与卡片按新配置），`applied` 照样落成草稿，不发请求、不清勾选、不回第一页；汇总也变了时只走一次聚合（`executeSummaries`，照旧可退回本页合计）；新汇总读的字段不在上次投影里（列与卡片都不显示它）时整份照跑，否则本页合计和退回都从缺这个字段的行上加（#5566），这次请求是「安静」的（`execute` 的 `quiet`）：查询状态留在 `success`、表格不进等待态、不说「正在查询」，行一直画着直到汇总到。只在结果落定（`success`）且落在当前 `applied` 上时这样做：请求在途（安静的那种也算：此时 `result.own` 还不是 `applied`）或上次失败时整份照跑。草稿与上次跑出的完全一样时也整份照跑——无事可应用时点「应用」、搜索框里按 Enter、宿主调 `apply()`，都是「再查一次」，从第一页起、清掉勾选。（见 test/restyle.test.tsx）
-- **看板视图不在此列**（D83）：它问的是每一栏的第一页，表格、卡片与它之间切换、看板视图里换分栏字段或收起展开一栏，都是问题变了，整份照跑；看板视图里只改了汇总也整份照跑，因为汇总是逐栏的那条聚合与栏一起问。看板视图的执行与「加载更多」在 `runtime/kanban.ts`：`executeDataConfig` 见到 `layout: 'kanban'` 就交给它，各栏的第一页与条数聚合在同一个时隙里并发问；`loadLane(id)` 是一次安静的执行，只问这一栏的下一页、在当前结果上接上（`appendLane`），这一问失败时照常是查询失败，卡片留着；刷新与应用从每栏的第一页重来。（见 test/restyle.test.tsx、test/kanbanRuntime.test.ts）
+- **看板视图不在此列**（D83）：它问的是每一栏的第一页，表格、卡片与它之间切换、看板视图里换分栏字段或收起展开一栏，都是问题变了，整份照跑；看板视图里只改了汇总也整份照跑，因为汇总是逐栏的那条聚合与栏一起问。看板视图的执行与「加载更多」在 `runtime/kanban.ts`：`executeDataConfig` 见到 `layout: 'kanban'` 就交给它，各栏的第一页与条数聚合在同一个时隙里并发问；`loadLane(id)` 是一次安静的执行，只问这一栏的下一页、在当前结果上接上（`appendLane`），这一问失败时照常是查询失败，卡片留着；它在途时只改画法的 `apply`（列宽）照样重画，这一页落地时接在重画过的结果上、按新配置投影，`result.own` 仍是 `applied`，下一次重画与「加载更多」不会被当成过时而拒绝（#6909，`recordRuntime.ts` 的 `landOn`）；刷新与应用从每栏的第一页重来。（见 test/restyle.test.tsx、test/kanbanRuntime.test.ts）
 - 状态变更同步提交后再通知订阅者；相同状态返回相同对象，子对象引用稳定，以配合 `useSyncExternalStore`。`dispose` 是最后一次通知：订阅者据此读到 `disposed`，`useOpenView` 才能在实例被别处删除时自行重开，而不必等一次碰巧的渲染。
 - runtime 不做持久化。保存是 Engine 的命令，成功后 Engine 调用 `runtime.markSaved(instance)` 推进基线。
 - **`edit` 里值为 `undefined` 的成员是"删掉"，不是"置为 undefined"。** 配置是 JSON：没有这个成员与成员为 `undefined` 是同一份配置，却不是同一个对象，而 `dirty` 是与已保存配置的一次 `dequal`。把最后一条可选列表项删掉的编辑器因此会让视图就此一直"未保存"、离开守卫还会问一句用户早已撤销过的改动。`defaultRecordConfig` 同理：没有汇总时根本不写 `summaries` 这个键，而不是写一个 `undefined`。
@@ -213,7 +213,7 @@ export class ViewWriteError extends Error {
 
 ## 一条记录读全
 
-`RecordViewRuntime.fetchRecord(key, signal?)`（`runtime/fetchRecord.ts`）按行键单独取一条完整记录，供详情用：条件只有「行键等于 key」与宿主注入的作用域（一个租户的视图打不开别的租户的记录），**不带**页上的条件、排序与投影——详情是关于这条记录的，一条被命令改过的记录可能已不满足页上的条件；按定义的分页方式问第一条，没有就是 `null`。它和导出一样走在请求线之外，不占调度槽位、不动屏幕上的行。（见 test/recordDetail.test.tsx「a record read whole」）
+`RecordViewRuntime.fetchRecord(key, signal?)`（`runtime/fetchRecord.ts`）按行键单独取一条完整记录，供详情用：条件只有「行键等于 key」、宿主注入的作用域（一个租户的视图打不开别的租户的记录）与视图的删除状态（D17-2：Wow 的源不说就只答没删的记录，回收站里那一行不带它读就成了「这条记录已不在了」，#6910；只带页上每一行都满足的那些，即一路都在「都满足」组里的 `DELETION` 条件），**不带**页上的其余条件、排序与投影——详情是关于这条记录的，一条被命令改过的记录可能已不满足页上的条件；按定义的分页方式问第一条，没有就是 `null`。它和导出一样走在请求线之外，不占调度槽位、不动屏幕上的行。（见 test/recordDetail.test.tsx「a record read whole」、test/runtime.test.ts「a record read whole from a view of deleted records」）
 
 ## 条件的值取自数据
 
@@ -347,7 +347,7 @@ export interface ViewEngine {
     definitionId: string,
     instanceId: string,
     tabId: string,
-  ): Promise<void>; // 读者上次看的标签页（lastTabs）；一串切换只写最后一个，从不拒绝、失败即放手
+  ): Promise<void>; // 读者上次看的标签页（lastTabs）；一串切换只写最后一个，从不拒绝、失败即放手；排在读者自己的偏好写入之后，读者的设为默认、排序、自动运行也等它写完再读再写，两样都落地，读者的命令从不因它被拒为 view.write.in-flight（#6911，`PreferenceCommands.quietly`）
   resolveDefault(summaries, preferences, explicit?): string | null; // management.md「列表、偏好与默认视图」的解析规则
   retryWrite(target: ViewRuntime | WriteHandle): Promise<ViewInstance | void>; // 复用原 requestId 与原正文重放；创建意图返回新实例
   abandonWrite(target: ViewRuntime | WriteHandle): void; // 清除写入状态，草稿保留

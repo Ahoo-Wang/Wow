@@ -159,8 +159,8 @@ export class ViewEngine {
   /** Where each reader last read each board; see `tabMemory.ts`. */
   private readonly tabs = new TabMemory({
     current: definitionId => this.preferenceCache.current(definitionId),
-    write: (definitionId, next) =>
-      this.preferenceCommands.write(definitionId, next),
+    update: (definitionId, change) =>
+      this.preferenceCommands.quietly(definitionId, change),
     abandon: handle => this.ledger.abandonWrite(handle),
   });
 
