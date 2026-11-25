@@ -63,9 +63,9 @@ private class TestRouteCall(
 /**
  * A command client a test answers, as a specification answers a saga's calls ([ProcessorSpec.answerCalls]): every
  * request it takes ([send], [wait], [stream], as [of] a caller or not) goes to [answer], and it keeps each in [calls].
- * An answer whose result is REJECTED is thrown as a [CommandRejectedException], one that FAILED as the
- * [me.ahoo.wow.api.problem.WowProblemException] a real client throws; [answer] may also throw one, as a target that is
- * down does.
+ * As a real client does ([CommandClient]): [send] and [wait] throw an answer whose result is REJECTED as a
+ * [CommandRejectedException], and one that FAILED as a [me.ahoo.wow.api.problem.WowProblemException]; [stream] emits
+ * every answer, whatever its status. [answer] may also throw one, as a target that is down does.
  */
 fun answeringCommandClient(answer: suspend (CommandCall) -> CommandResult): AnsweringCommandClient =
     AnsweringCommandClient(answer, null, CopyOnWriteArrayList())
@@ -86,12 +86,11 @@ class AnsweringCommandClient internal constructor(
 
     override suspend fun wait(request: CommandRequest<*>): CommandResult = answered(request)
 
-    override fun stream(request: CommandRequest<*>): Flow<CommandResult> = flow { emit(answered(request)) }
+    /** Emits the answer, whatever its status, as a real client's stream emits every result. */
+    override fun stream(request: CommandRequest<*>): Flow<CommandResult> = flow { emit(take(request)) }
 
     private suspend fun answered(request: CommandRequest<*>): CommandResult {
-        val call = CommandCall(caller, request)
-        taken += call
-        val result = answer(call)
+        val result = take(request)
         return when (result.status) {
             CommandResult.Status.REJECTED -> throw CommandRejectedException(result)
             CommandResult.Status.FAILED -> throw CommandCalls.failure(
@@ -100,6 +99,13 @@ class AnsweringCommandClient internal constructor(
             )
             else -> result
         }
+    }
+
+    /** [request]'s answer, the call kept in [calls]. */
+    private suspend fun take(request: CommandRequest<*>): CommandResult {
+        val call = CommandCall(caller, request)
+        taken += call
+        return answer(call)
     }
 }
 

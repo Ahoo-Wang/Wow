@@ -89,9 +89,10 @@ class ProcessorBinding<S> private constructor(
     @property:InternalWowApi
     val sends: SagaSends = SagaSends(),
     /**
-     * The bounded context whose job aggregate an `@OnSchedule` handler's [job] runs in, as the compiler that generated
-     * the binding knew it (`wow.context`, else the module's `@BoundedContext`); null when it knew none, and for an
-     * `@OnEvent` handler, which the runtime binds in its context.
+     * The bounded context the handler is bound in, as the compiler that generated the binding knew it (`wow.context`,
+     * else the module's `@BoundedContext`): an `@OnSchedule` handler's [job] runs in that context's job aggregate, and
+     * the executions of every handler are named by it, as the runtime names them by the context it binds the handler
+     * in. Null when the compiler knew none, or a binding written by hand names none.
      */
     val context: String? = null,
     private val call: suspend (StateEvent<S>, SubscriptionContext) -> List<CommandRequest<*>>,
@@ -189,8 +190,8 @@ class ProcessorBinding<S> private constructor(
         private val AGGREGATE = Regex("[^.\\s]+\\.[^.\\s]+")
 
         /**
-         * A `@Projection`'s handler [function] of [processor]; of each event of the [eventType] when it gives one
-         * ([eachEvent] calls the function per event).
+         * A `@Projection`'s handler [function] of [processor], bound in [context] when the compiler knew it; of each
+         * event of the [eventType] when it gives one ([eachEvent] calls the function per event).
          */
         @JvmStatic
         fun <S> project(
@@ -202,6 +203,7 @@ class ProcessorBinding<S> private constructor(
             aggregates: List<String> = emptyList(),
             nullableState: Boolean = stateType == null,
             retry: HandlerRetry? = null,
+            context: String? = null,
             eventType: Class<*>? = null,
             handle: suspend (StateEvent<S>, SubscriptionContext) -> Unit,
         ): ProcessorBinding<S> =
@@ -217,13 +219,17 @@ class ProcessorBinding<S> private constructor(
                 nullableState,
                 retry,
                 emptyList(),
+                context = context,
                 eventType = eventType,
             ) { e, c ->
                 handle(e, c)
                 emptyList()
             }
 
-        /** A `@Reactor`'s handler [function] of [processor]; of each event of the [eventType] when it gives one. */
+        /**
+         * A `@Reactor`'s handler [function] of [processor], bound in [context] when the compiler knew it; of each event
+         * of the [eventType] when it gives one.
+         */
         @JvmStatic
         fun <S> react(
             processor: String,
@@ -234,6 +240,7 @@ class ProcessorBinding<S> private constructor(
             aggregates: List<String> = emptyList(),
             nullableState: Boolean = stateType == null,
             retry: HandlerRetry? = null,
+            context: String? = null,
             eventType: Class<*>? = null,
             handle: suspend (StateEvent<S>, SubscriptionContext) -> Unit,
         ): ProcessorBinding<S> =
@@ -249,6 +256,7 @@ class ProcessorBinding<S> private constructor(
                 nullableState,
                 retry,
                 emptyList(),
+                context = context,
                 eventType = eventType,
             ) { e, c ->
                 handle(e, c)
@@ -259,7 +267,8 @@ class ProcessorBinding<S> private constructor(
          * A `@Saga`'s handler [function] of [processor]: it returns the requests of the commands it derives ([requestsOf]); the saga's
          * `@OnRejected` handlers, the [rejections], take the rejections of those commands, and its `@OnCommitted`
          * handlers, the [commits], their success receipts. It derives only the commands of the classes [derives]
-         * lists, schedules only those [schedules] lists and calls only those [calls] lists (`@Sends`).
+         * lists, schedules only those [schedules] lists and calls only those [calls] lists (`@Sends`). It is bound in
+         * [context] when the compiler knew it, which names its executions and so every id it derives.
          */
         @JvmStatic
         fun <S> saga(
@@ -276,6 +285,7 @@ class ProcessorBinding<S> private constructor(
             derives: List<Class<*>> = emptyList(),
             schedules: List<Class<*>> = emptyList(),
             calls: List<Class<*>> = emptyList(),
+            context: String? = null,
             eventType: Class<*>? = null,
             handle: suspend (StateEvent<S>, SagaContext) -> List<CommandRequest<*>>,
         ): ProcessorBinding<S> =
@@ -292,6 +302,7 @@ class ProcessorBinding<S> private constructor(
                 retry,
                 commits,
                 sends = SagaSends(derives, schedules, calls),
+                context = context,
                 eventType = eventType,
             ) { e, c ->
                 handle(e, c as SagaContext)

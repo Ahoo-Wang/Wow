@@ -53,7 +53,7 @@ internal object SubscriptionSource {
 
     /**
      * The handlers of [binding], a processor without problems, of the bounded context [context] when the compiler knows
-     * it: the context an `@OnSchedule` handler's job runs in.
+     * it: the context every handler is bound in, and an `@OnSchedule` handler's job runs in.
      */
     fun render(binding: SubscriptionBinding, context: String? = null): String = buildString {
         val kind = KINDS.getValue(requireNotNull(binding.kind))
@@ -147,14 +147,21 @@ internal object SubscriptionSource {
         val rejectionArgument = (if (rejections) ", rejections = rejections" else "") +
             if (commits) ", commits = commits" else ""
         val optionalArguments = optionalArguments(handler, nullable)
+        val bounded = contextArgument(context)
         appendLine(
             "        $PROCESSOR_BINDING.$kind<$state>(\"${escape(binding.name)}\", \"${escape(handler.function)}\", " +
-                "$stateType, ${handler.blocking}$rejectionArgument$optionalArguments) {",
+                "$stateType, ${handler.blocking}$rejectionArgument$optionalArguments$bounded) {",
         )
         appendLine("                event: $STATE_EVENT<$state>, $contextParameter ->")
         appendLine("            $body")
         appendLine("        },")
     }
+
+    /**
+     * The binding's argument of the bounded [context] its handler is bound in, when the compiler knows it: it names the
+     * handler's executions as the runtime names them, and an `@OnSchedule` handler's job runs in it.
+     */
+    private fun contextArgument(context: String?): String = context?.let { ", context = \"${escape(it)}\"" }.orEmpty()
 
     /** The body of a handler of the whole stream: its call, a saga's read as the requests of the commands it derives. */
     private fun streamBody(handler: HandlerBinding, kind: String): String {
@@ -235,7 +242,7 @@ internal object SubscriptionSource {
         val receipts = (if (rejections) ", rejections = rejections" else "") +
             if (commits) ", commits = commits" else ""
         val retry = handler.retry?.let { ", retry = ${it.source()}" }.orEmpty()
-        val bounded = context?.let { ", context = \"${escape(it)}\"" }.orEmpty()
+        val bounded = contextArgument(context)
         appendLine(
             "        $PROCESSOR_BINDING.schedule(\"${escape(binding.name)}\", \"${escape(handler.function)}\", $definition, " +
                 "${handler.blocking}$receipts$retry$bounded${sendsArguments(handler.sends)}) {",

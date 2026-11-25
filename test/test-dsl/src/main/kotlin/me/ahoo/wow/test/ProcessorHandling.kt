@@ -33,6 +33,7 @@ import me.ahoo.wow.kernel.CommandCalls
 import me.ahoo.wow.kernel.CommandTypes
 import me.ahoo.wow.kernel.CommittedBinding
 import me.ahoo.wow.kernel.ContextQueries
+import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.kernel.HandlerTimeoutException
 import me.ahoo.wow.kernel.ProcessorBinding
@@ -40,6 +41,7 @@ import me.ahoo.wow.kernel.RejectionBinding
 import me.ahoo.wow.kernel.committedContextOf
 import me.ahoo.wow.kernel.contextOf
 import me.ahoo.wow.kernel.rejectionContextOf
+import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.test.ProcessorSpec.Handled
 
 /**
@@ -53,8 +55,11 @@ internal class ProcessorHandling(
     private val kind: FunctionKind,
     private val commandTypes: ClassPathCommandTypes,
     origin: ProcessorHandling?,
-    models: () -> Collection<AggregateModel<*>>,
+    private val models: () -> Collection<AggregateModel<*>>,
 ) {
+    /** The codec a handler's state is decoded with, as a node's view is. */
+    private val codec = EventCodec()
+
     /** How the handlers' commands are named: [commandTypes], those of the given models by their models first. */
     private val named: CommandTypes = commandTypes.withModels(models)
 
@@ -92,12 +97,13 @@ internal class ProcessorHandling(
     /** The handler whose handling threw last, whose retry budget [ProcessorExpectations.expectParked] reads. */
     private var failing: ProcessorBinding<*>? = null
 
-    fun handle(called: List<ProcessorBinding<*>>, event: StateEvent<*>): Result<Handled> = runCatchingAll {
+    fun handle(called: List<ProcessorBinding<*>>, commit: StateEvent<*>): Result<Handled> = runCatchingAll {
         val commands = ArrayList<Command<*>>()
         val calls = ArrayList<Command<*>>()
         failing = null
         called.forEach { handler ->
             failing = handler
+            val event = ownCopy(commit)
             val rejectedCalls = LinkedHashMap<String, Command<*>>()
             val answering = CommandCalls { command ->
                 calls += command.admitted()
@@ -108,8 +114,9 @@ internal class ProcessorHandling(
                 }
             }
             // As the runtime does: the handler sends only what it declares (@Sends).
-            // The handler's own context when its binding names one (a job's), as the runtime runs it there; else the
-            // context of the aggregate whose events the specification is given.
+            // The context the handler is bound in, as its binding names it (the compiler gives every binding it
+            // generates the module's), which names its executions as the runtime names them; else, for a binding
+            // written by hand that names none, the context of the aggregate whose commit it is.
             val context = contextOf(
                 handler.kind,
                 handler.context ?: event.ref.type.context,
@@ -123,17 +130,42 @@ internal class ProcessorHandling(
             )
             val derived = try {
                 runBlocking { attempt(handler, event, context) }
+                    .onEach { derivedBy[it.admitted().id] = context.executionId }
             } catch (rejected: CommandRejectedException) {
                 if (kind != FunctionKind.SAGA) throw rejected
+                // The compensations its @OnRejected handler derived, kept with that handler's execution (reject), as a
+                // node keeps them: their own rejection parks, a compensation not compensated.
                 callRejected(handler, rejected, rejectedCalls[rejected.result.commandId], context.executionId)
-            }
-            derived.forEach {
-                derivedBy[it.admitted().id] = context.executionId
             }
             commands += derived
         }
         failing = null
         Handled(commands, calls)
+    }
+
+    /**
+     * [commit] as a node hands it to one handler: its state decoded from its JSON on the handler's first read
+     * (`SubscriptionBindings.stateEventOf`), so each handler reads a copy of its own, without what the JSON does not
+     * keep (`@JsonIgnore`, a computed field). The model of a given aggregate decodes it, as a node's view is decoded;
+     * a state no given model is of is decoded as its class.
+     */
+    private fun ownCopy(commit: StateEvent<*>): StateEvent<*> {
+        val state = commit.state ?: return commit
+        val model = models().firstOrNull { it.type == commit.ref.type && it.stateType.isInstance(state) }
+        val text = codec.stateText(state)
+        return StateEvent.deferred(
+            commit.ref,
+            commit.version,
+            commit.commandId,
+            commit.requestId,
+            commit.commandType,
+            commit.commitTime,
+            commit.events,
+            commit.scope,
+            commit.causation,
+            commit.headers,
+            commit.operator,
+        ) { if (model != null) codec.decodeState(model, text) else WowJson.mapper.readValue(text, state.javaClass) }
     }
 
     /**
