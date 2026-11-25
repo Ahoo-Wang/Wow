@@ -315,12 +315,12 @@ const executionActions = (commands: ExecutionCommands) =>
 
 宿主里手写的每一项事实都是描述符的缺口。经交接协议交给「查询模块架构重构」会话，从领域模型（Kotlin 注解与类型）推出，TS 随后镜像：
 
-| 缺口                               | 今天宿主怎样补                       | 之后（后端已定）                                                                                                                                                                    |
-| ---------------------------------- | ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 时长与单位                         | 口径里写「最小退避（秒）」           | 语义 **DURATION**（**timeUnit**），数值字段用 **@QueryDuration(unit)** 声明，单位必填；按时长格式化                                                                                 |
-| 比率、百分比                       | —                                    | 不加。零售的 `discountShare` 是分摊到行上的优惠金额，属 MONEY；领域模型里没有存储的比率，看板上的比率是指标算出来的                                                                 |
-| 引用：字段指向哪个聚合的 id        | 引用候选（`OptionSource`）与跳转手接 | 语义 **REFERENCE**：固定的 **contextName** 与 **aggregateName**（**@QueryReference**），或逐条记录由同级字段给出（`AggregateId` 类型的属性自动推断）；只指向聚合的 id，没有 `field` |
-| 时间角色：创建、事件、首次事件时间 | `timeField` 手写                     | 角色 **EVENT_TIME**（Snapshot 的 `eventTime`、EventStream 的 `createTime`）与 **FIRST_EVENT_TIME**（Snapshot 的 `firstEventTime`）；`timeField` 没写时由 **EVENT_TIME** 给缺省      |
+| 缺口                               | 今天宿主怎样补                       | 之后（后端已定）                                                                                                                                                                                  |
+| ---------------------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 时长与单位                         | 口径里写「最小退避（秒）」           | 语义 **DURATION**（**timeUnit**），数值字段用 **@QueryDuration(unit)** 声明，单位必填；按时长格式化                                                                                               |
+| 比率、百分比                       | —                                    | 不加。零售的 `discountShare` 是分摊到行上的优惠金额，属 MONEY；领域模型里没有存储的比率，看板上的比率是指标算出来的                                                                               |
+| 引用：字段指向哪个聚合的 id        | 引用候选（`OptionSource`）与跳转手接 | 语义 **REFERENCE**：固定的 **contextName** 与 **aggregateName**（**@QueryReference**）；逐条记录由同级字段给出是 9.x 服务端的写法，Wow 10 服务端不写，也不推断引用；只指向聚合的 id，没有 `field` |
+| 时间角色：创建、事件、首次事件时间 | `timeField` 手写                     | 角色 **EVENT_TIME**（Snapshot 的 `eventTime`、EventStream 的 `createTime`）与 **FIRST_EVENT_TIME**（Snapshot 的 `firstEventTime`）；`timeField` 没写时由 **EVENT_TIME** 给缺省                    |
 
 - 领域字段不带时间角色：窗口按哪个时间取是选择（总览一块板就按三个时间绑定），`state.executeAt` 这类仍由宿主写。
 - 记录自身的 `aggregateId` 不带引用：角色 `AGGREGATE_ID` 与所在端点已说明是哪个聚合。
