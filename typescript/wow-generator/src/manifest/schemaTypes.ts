@@ -18,8 +18,12 @@ import {
 } from '../naming/naming';
 import { type JsonSchema, isObject, schemaKey, typesOf } from './document';
 import type { PropertyModel } from './model';
+import { errorConstantName } from './names';
 import { TEXT_NUMBER_FORMATS } from './textNumbers';
 import { compound, join, literal } from './typeText';
+
+/** A property name a query path takes as a segment, as Kotlin's `QueryFieldNames.isSegment`. */
+const SEGMENT = /^[A-Za-z_][A-Za-z0-9_-]*$/;
 
 /**
  * Where a type is written: `output`, what the service writes (a state, an
@@ -381,17 +385,21 @@ export class SchemaTypes {
 
   /**
    * The `state.*` paths of a state schema a query can filter and sort on, as
-   * the Kotlin contract's `StateFields.of` walks it: each property is a path,
-   * and the walk descends into an object's properties through `$ref`s, the
-   * one schema of a nullable alternative (`anyOf`/`oneOf` of it and `null`)
-   * and the items of an array, whose elements' fields are named after the
-   * array's path (`state.items.productId`), at any depth. A definition
-   * already on the path is a leaf, so the walk ends.
+   * the Kotlin contract's `StateFields.of` walks it: each property whose name
+   * a query path takes (`QueryFieldNames.isSegment`: an identifier, `-`
+   * allowed) is a path, and the walk descends into an object's properties
+   * through `$ref`s, the one schema of a nullable alternative (`anyOf`/`oneOf`
+   * of it and `null`) and the items of an array, whose elements' fields are
+   * named after the array's path (`state.items.productId`), at any depth. A
+   * definition already on the path is a leaf, so the walk ends; a path whose
+   * constant (`STATE__ITEMS__PRODUCT_ID`) an earlier one took is left out,
+   * with what is below it, as Kotlin leaves it out.
    */
   fields(
     schema: unknown,
     prefix: string,
     seen: ReadonlySet<string> = new Set(),
+    taken: Set<string> = new Set(),
   ): string[] {
     if (!isObject(schema)) return [];
     if (typeof schema.$ref === 'string') {
@@ -400,18 +408,22 @@ export class SchemaTypes {
       if (key === undefined || target === undefined || seen.has(key)) {
         return [];
       }
-      return this.fields(target, prefix, new Set([...seen, key]));
+      return this.fields(target, prefix, new Set([...seen, key]), taken);
     }
     const held = nullableAlternative(schema);
-    if (held !== undefined) return this.fields(held, prefix, seen);
+    if (held !== undefined) return this.fields(held, prefix, seen, taken);
     if (schema.items !== undefined) {
-      return this.fields(schema.items, prefix, seen);
+      return this.fields(schema.items, prefix, seen, taken);
     }
     if (!isObject(schema.properties)) return [];
     const paths: string[] = [];
     for (const [name, property] of Object.entries(schema.properties)) {
+      if (!SEGMENT.test(name)) continue;
       const path = `${prefix}.${name}`;
-      paths.push(path, ...this.fields(property, path, seen));
+      const constant = errorConstantName(path);
+      if (taken.has(constant)) continue;
+      taken.add(constant);
+      paths.push(path, ...this.fields(property, path, seen, taken));
     }
     return paths;
   }

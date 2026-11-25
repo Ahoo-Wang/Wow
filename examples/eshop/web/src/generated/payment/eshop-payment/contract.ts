@@ -4,11 +4,24 @@ import { Hop } from '@ahoo-wang/wow-client';
 import { PaymentAggregate } from './payment/aggregate.js';
 
 /**
- * The bounded context `eshop-payment`: its name, its error codes and its aggregates, as the Kotlin `EshopPaymentContract` names them. A problem's `code` is one of its `Errors`, or of an aggregate's.
+ * The bounded context `eshop-payment`: its name, its error codes, its wait hops and its aggregates, as the Kotlin `EshopPaymentContract` names them. A problem's `code` is one of its `Errors`, or of an aggregate's.
  * The eShop payment: payments of orders through a simulated gateway
  */
 export const EshopPaymentContract = {
   NAME: 'eshop-payment',
+  /** The hops of a wait chain (`Wow-Wait`) in `eshop-payment`, as the Kotlin contract's `Wait` holds them. `WaitPlan.of(...)` chains them, those of other contexts too. */
+  Wait: {
+    /** Until a command of `eshop-payment` passed admission. */
+    accepted: (): Hop => Hop.accepted(EshopPaymentContract.NAME),
+    /** Until a command's events are appended to the log of `eshop-payment`. */
+    committed: (): Hop => Hop.committed(EshopPaymentContract.NAME),
+    /** Until the snapshot of `eshop-payment` holds the commit. */
+    snapshot: (): Hop => Hop.snapshot(EshopPaymentContract.NAME),
+    /** Until the store the snapshot queries of `eshop-payment` read holds the commit. */
+    queryable: (): Hop => Hop.queryable(EshopPaymentContract.NAME),
+    /** Until a subscription of `eshop-payment` handled the commit. */
+    handled: (subscription: EshopPaymentSubscription): Hop => Hop.handled(subscription, EshopPaymentContract.NAME),
+  },
   Payment: PaymentAggregate,
 } as const;
 
@@ -17,17 +30,3 @@ export type EshopPaymentErrorCode = 'eshop-payment.payment.wrong-status';
 
 /** The subscriptions of `eshop-payment` a `handled` hop names. */
 export type EshopPaymentSubscription = 'OrderPaymentSaga.onOrderStockConfirmed' | 'OrderPaymentSaga.onPaymentFailed' | 'OrderPaymentSaga.onPaymentSucceeded' | 'PaymentGatewaySaga.onPaymentRequested';
-
-/** The hops of a wait chain (`Wow-Wait`) in `eshop-payment`. */
-export const eshopPaymentWait = {
-  /** Until a command of `eshop-payment` passed admission. */
-  accepted: (): Hop => Hop.accepted(EshopPaymentContract.NAME),
-  /** Until a command's events are appended to the log of `eshop-payment`. */
-  committed: (): Hop => Hop.committed(EshopPaymentContract.NAME),
-  /** Until the snapshot of `eshop-payment` holds the commit. */
-  snapshot: (): Hop => Hop.snapshot(EshopPaymentContract.NAME),
-  /** Until the store the snapshot queries of `eshop-payment` read holds the commit. */
-  queryable: (): Hop => Hop.queryable(EshopPaymentContract.NAME),
-  /** Until a subscription of `eshop-payment` handled the commit. */
-  handled: (subscription: EshopPaymentSubscription): Hop => Hop.handled(subscription, EshopPaymentContract.NAME),
-} as const;

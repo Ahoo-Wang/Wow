@@ -40,11 +40,14 @@ const ACCESS_TYPES: Readonly<Record<string, string>> = {
   boolean: 'boolean',
 };
 
-/** The access attributes of `aggregate`, typed. A type this generator does not know takes any scalar. */
+/**
+ * The access attributes of `aggregate`, typed. An aggregate with a type this
+ * generator does not know is left out before (`knownValues`).
+ */
 function accessOf(aggregate: ManifestAggregate): AccessModel[] {
   return (aggregate.access ?? []).map(attribute => ({
     name: attribute.name,
-    type: ACCESS_TYPES[attribute.type] ?? 'string | number | boolean',
+    type: ACCESS_TYPES[attribute.type] as string,
     multiple: attribute.multiple ?? false,
     integer: attribute.type === 'integer',
   }));
@@ -59,7 +62,7 @@ const LIFECYCLE_COMMANDS: ReadonlySet<string> = new Set([
 ]);
 
 /** The members of a generated command client its commands' methods never take. */
-const COMMAND_CLIENT_MEMBERS = ['client', 'constructor'];
+const COMMAND_CLIENT_MEMBERS = ['commands', 'constructor', 'then'];
 
 /**
  * The method of a command named `method` by its name, apart from every name
@@ -178,44 +181,25 @@ function lifecycleCommands(
   );
 }
 
-/** The keys a caller sends of `aggregate`: its domain commands' bodies and its lifecycle bodies. */
-export function aggregateInputs(
-  types: SchemaTypes,
-  aggregate: ManifestAggregate,
-): string[] {
+/**
+ * The keys a caller sends of `aggregate`: its domain commands' bodies. A
+ * lifecycle body is always `@ahoo-wang/wow-client`'s (`LIFECYCLE_BODIES`),
+ * whatever `$defs` holds.
+ */
+export function aggregateInputs(aggregate: ManifestAggregate): string[] {
   return domainCommands(aggregate)
     .map(command => schemaKey(command.schema))
-    .filter((key): key is string => key !== undefined)
-    .concat(lifecycleBodies(types, aggregate));
+    .filter((key): key is string => key !== undefined);
 }
 
-export function aggregateRoots(
-  types: SchemaTypes,
-  aggregate: ManifestAggregate,
-): string[] {
+export function aggregateRoots(aggregate: ManifestAggregate): string[] {
   return [
     aggregate.state.schema,
     ...domainCommands(aggregate).map(command => command.schema),
     ...(aggregate.events ?? []).map(event => event.schema),
   ]
     .map(schemaKey)
-    .filter((key): key is string => key !== undefined)
-    .concat(lifecycleBodies(types, aggregate));
-}
-
-/**
- * The lifecycle commands with a body that `aggregate` lists and whose body
- * the Manifest's `$defs` holds, keyed by the command's name (roadmap 5a.1c).
- */
-function lifecycleBodies(
-  types: SchemaTypes,
-  aggregate: ManifestAggregate,
-): string[] {
-  return lifecycleCommands(aggregate)
-    .map(command => command.name)
-    .filter(
-      name => LIFECYCLE_BODIES[name] !== undefined && types.schemaOf(name),
-    );
+    .filter((key): key is string => key !== undefined);
 }
 
 /**
@@ -275,7 +259,6 @@ export function aggregateModel(
   const typeName = aggregateTypeName(aggregate);
   const idSource = aggregate.idSource ?? 'assigned';
   const owned = idSource === 'owner';
-  const generated = new Set(lifecycleBodies(types, aggregate));
   const lifecycle: LifecycleModel[] = lifecycleCommands(aggregate)
     .filter(command => LIFECYCLE_COMMANDS.has(command.name))
     .map(command => {
@@ -291,14 +274,7 @@ export function aggregateModel(
         method,
         routes: routesOf(command),
         ...(own ? { ownMethod: `${method}Own` } : {}),
-        ...(generated.has(name)
-          ? {
-              bodyType: types.refType(name, where, 'input'),
-              bodyGenerated: true,
-            }
-          : LIFECYCLE_BODIES[name]
-            ? { bodyType: LIFECYCLE_BODIES[name] }
-            : {}),
+        ...(LIFECYCLE_BODIES[name] ? { bodyType: LIFECYCLE_BODIES[name] } : {}),
         ...(typeof description === 'string' ? { description } : {}),
       };
     });
@@ -368,7 +344,10 @@ export function aggregateModel(
   const commandNumbers = Object.fromEntries(
     domainCommands(aggregate).flatMap(command => {
       const mark = numbers.marks({ $ref: command.schema }, command.schema);
-      return mark === undefined ? [] : [[command.name, mark]];
+      // By the full name, as the events are and as a request names it.
+      return mark === undefined
+        ? []
+        : [[wireNameOf(context, aggregate, command.name), mark]];
     }),
   );
   const access = accessOf(aggregate);

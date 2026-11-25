@@ -10,7 +10,6 @@ import type { ActionRefused, ApplyRetrySpecRequested, MarkRecoverableRequested, 
 export const ParkedAggregate = {
   context: 'ops',
   name: 'parked',
-  path: '/ops/parked',
   ownership: 'tenant',
   idSource: 'assigned',
   snapshot: true,
@@ -25,10 +24,10 @@ export const ParkedAggregate = {
       'ops.parked.SkipRequested': { failedAt: true },
     },
     commands: {
-      ApplyRetrySpec: { failedAt: true },
-      MarkRecoverable: { failedAt: true },
-      Retry: { failedAt: true },
-      Skip: { failedAt: true },
+      'ops.parked.ApplyRetrySpec': { failedAt: true },
+      'ops.parked.MarkRecoverable': { failedAt: true },
+      'ops.parked.Retry': { failedAt: true },
+      'ops.parked.Skip': { failedAt: true },
     },
   },
   Errors: {

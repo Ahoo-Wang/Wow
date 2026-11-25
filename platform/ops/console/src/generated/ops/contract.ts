@@ -4,11 +4,24 @@ import { Hop } from '@ahoo-wang/wow-client';
 import { ParkedAggregate } from './parked/aggregate.js';
 
 /**
- * The bounded context `ops`: its name, its error codes and its aggregates, as the Kotlin `OpsContract` names them. A problem's `code` is one of its `Errors`, or of an aggregate's.
+ * The bounded context `ops`: its name, its error codes, its wait hops and its aggregates, as the Kotlin `OpsContract` names them. A problem's `code` is one of its `Errors`, or of an aggregate's.
  * Wow ops: every service's failure ledger in one view, and an operator's actions on it
  */
 export const OpsContract = {
   NAME: 'ops',
+  /** The hops of a wait chain (`Wow-Wait`) in `ops`, as the Kotlin contract's `Wait` holds them. `WaitPlan.of(...)` chains them, those of other contexts too. */
+  Wait: {
+    /** Until a command of `ops` passed admission. */
+    accepted: (): Hop => Hop.accepted(OpsContract.NAME),
+    /** Until a command's events are appended to the log of `ops`. */
+    committed: (): Hop => Hop.committed(OpsContract.NAME),
+    /** Until the snapshot of `ops` holds the commit. */
+    snapshot: (): Hop => Hop.snapshot(OpsContract.NAME),
+    /** Until the store the snapshot queries of `ops` read holds the commit. */
+    queryable: (): Hop => Hop.queryable(OpsContract.NAME),
+    /** Until a subscription of `ops` handled the commit. */
+    handled: (subscription: OpsSubscription): Hop => Hop.handled(subscription, OpsContract.NAME),
+  },
   Parked: ParkedAggregate,
 } as const;
 
@@ -17,17 +30,3 @@ export type OpsErrorCode = 'ops.parked.invalid' | 'ops.parked.mismatched' | 'ops
 
 /** The subscriptions of `ops` a `handled` hop names. */
 export type OpsSubscription = 'ParkedOperationSaga.onParkedChanged';
-
-/** The hops of a wait chain (`Wow-Wait`) in `ops`. */
-export const opsWait = {
-  /** Until a command of `ops` passed admission. */
-  accepted: (): Hop => Hop.accepted(OpsContract.NAME),
-  /** Until a command's events are appended to the log of `ops`. */
-  committed: (): Hop => Hop.committed(OpsContract.NAME),
-  /** Until the snapshot of `ops` holds the commit. */
-  snapshot: (): Hop => Hop.snapshot(OpsContract.NAME),
-  /** Until the store the snapshot queries of `ops` read holds the commit. */
-  queryable: (): Hop => Hop.queryable(OpsContract.NAME),
-  /** Until a subscription of `ops` handled the commit. */
-  handled: (subscription: OpsSubscription): Hop => Hop.handled(subscription, OpsContract.NAME),
-} as const;

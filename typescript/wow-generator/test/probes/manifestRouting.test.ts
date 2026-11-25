@@ -136,7 +136,7 @@ console.log(JSON.stringify(requests.at(-1).body));`,
       ['/probe/thing/t1/pay', `{"amount":${DECIMAL}}`],
     ]);
     expect(generation.read('probe/client.ts')).toContain(
-      "'probe.thing.Settle': ThingAggregate.textNumbers.commands.Pay,",
+      "'probe.thing.Settle': ThingAggregate.textNumbers.commands['probe.thing.Pay'],",
     );
   });
 

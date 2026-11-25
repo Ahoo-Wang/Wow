@@ -114,7 +114,7 @@ const accepted = await orders.cancelOrder(
 | `Hop.queryable()` | 聚合的快照查询所读的存储包含这次提交，所以紧接着重新加载的列表能看到它；查询读副本时比 `snapshot` 晚 |
 | `Hop.handled('Processor.function')` | 那个订阅处理了这次提交 |
 
-计划可以跟随命令走得更远：经过 Saga 的 `handled` 那一跳，到达 Saga 发出的、位于它们各自上下文中的命令。每个上下文的 `contract.ts` 包含它的各跳，以它的订阅名提供类型。为购物车结账，并一直等到它提交的订单在 ordering 上下文中提交：
+计划可以跟随命令走得更远：经过 Saga 的 `handled` 那一跳，到达 Saga 发出的、位于它们各自上下文中的命令。每个上下文的契约包含它的各跳，即 `<Context>Contract.Wait`，以它的订阅名提供类型。为购物车结账，并一直等到它提交的订单在 ordering 上下文中提交：
 
 <!-- typecheck-context
 import { BasketCommandClient } from './generated/basket/index.js';
@@ -123,16 +123,16 @@ declare const baskets: BasketCommandClient;
 
 ```ts
 import { WaitPlan } from '@ahoo-wang/wow-client';
-import { eshopBasketWait } from './generated/basket/index.js';
-import { eshopOrderingWait } from './generated/ordering/index.js';
+import { EshopBasketContract } from './generated/basket/index.js';
+import { EshopOrderingContract } from './generated/ordering/index.js';
 
 const placed = await baskets.checkoutBasketOwn(
   {},
   {
     wait: WaitPlan.of(
-      eshopBasketWait.committed(),
-      eshopBasketWait.handled('BasketCheckoutSaga.onBasketCheckedOut'),
-      eshopOrderingWait.committed(),
+      EshopBasketContract.Wait.committed(),
+      EshopBasketContract.Wait.handled('BasketCheckoutSaga.onBasketCheckedOut'),
+      EshopOrderingContract.Wait.committed(),
     ),
     timeout: 10_000,
   },
@@ -148,8 +148,8 @@ console.log(`order ${placed.ref.id} at version ${placed.version}`);
 
 <!-- typecheck-context
 import { WaitPlan } from '@ahoo-wang/wow-client';
-import { BasketCommandClient, eshopBasketWait } from './generated/basket/index.js';
-import { eshopOrderingWait } from './generated/ordering/index.js';
+import { BasketCommandClient, EshopBasketContract } from './generated/basket/index.js';
+import { EshopOrderingContract } from './generated/ordering/index.js';
 declare const baskets: BasketCommandClient;
 -->
 
@@ -158,9 +158,9 @@ const stream = await baskets.checkoutBasketOwnStream(
   {},
   {
     wait: WaitPlan.of(
-      eshopBasketWait.committed(),
-      eshopBasketWait.handled('BasketCheckoutSaga.onBasketCheckedOut'),
-      eshopOrderingWait.committed(),
+      EshopBasketContract.Wait.committed(),
+      EshopBasketContract.Wait.handled('BasketCheckoutSaga.onBasketCheckedOut'),
+      EshopOrderingContract.Wait.committed(),
     ),
   },
 );

@@ -10,7 +10,6 @@ import type { DatasetDrafted, DatasetNeedsRevision, DatasetPublicationRefused, D
 export const DatasetAggregate = {
   context: 'analytics-catalog',
   name: 'dataset',
-  path: '/analytics-catalog/dataset',
   ownership: 'tenant',
   idSource: 'assigned',
   snapshot: true,

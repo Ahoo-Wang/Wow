@@ -15,7 +15,7 @@ import { join } from 'node:path';
 import { relativeModuleSpecifier } from '../../emit/imports';
 import type { ModuleSet } from '../../emit/moduleBuilder';
 import type { AggregateModel, ContextModel } from '../../manifest/model';
-import { errorConstantName, memberName } from '../../manifest/names';
+import { errorConstantName } from '../../manifest/names';
 import { quoteStringLiteral } from '../../naming/naming';
 import { addStatement, doc, union, WOW_CLIENT } from './generatedModule';
 
@@ -93,7 +93,7 @@ export function errorsMember(
 /**
  * The members a context's contract declares besides its aggregates, as the
  * Kotlin contract's object declares them: its name, its shared codes and its
- * hops (`Wait`, a constant of its own here).
+ * hops (`Wait`).
  */
 const CONTRACT_MEMBERS: ReadonlySet<string> = new Set([
   'NAME',
@@ -134,38 +134,35 @@ export function emitContract(
     aggregate =>
       `  ${contractMember(aggregate)}: ${aggregate.typeName}Aggregate,\n`,
   );
+  const hasSubscriptions = context.subscriptions.length > 0;
+  const name = `${contract}.NAME`;
+  const hops = [
+    `${doc([`Until a command of \`${context.name}\` passed admission.`], '    ')}    accepted: (): Hop => Hop.accepted(${name}),`,
+    `${doc([`Until a command's events are appended to the log of \`${context.name}\`.`], '    ')}    committed: (): Hop => Hop.committed(${name}),`,
+    `${doc([`Until the snapshot of \`${context.name}\` holds the commit.`], '    ')}    snapshot: (): Hop => Hop.snapshot(${name}),`,
+    `${doc([`Until the store the snapshot queries of \`${context.name}\` read holds the commit.`], '    ')}    queryable: (): Hop => Hop.queryable(${name}),`,
+  ];
+  if (hasSubscriptions) {
+    hops.push(
+      `${doc([`Until a subscription of \`${context.name}\` handled the commit.`], '    ')}    handled: (subscription: ${context.typeName}Subscription): Hop => Hop.handled(subscription, ${name}),`,
+    );
+  }
+  const wait = `${doc([`The hops of a wait chain (\`Wow-Wait\`) in \`${context.name}\`, as the Kotlin contract's \`Wait\` holds them. \`WaitPlan.of(...)\` chains them, those of other contexts too.`], '  ')}  Wait: {\n${hops.join('\n')}\n  },\n`;
   addStatement(
     module,
     `${doc([
-      `The bounded context \`${context.name}\`: its name, its error codes and its aggregates, as the Kotlin \`${contract}\` names them. A problem's \`code\` is one of its \`Errors\`, or of an aggregate's.`,
+      `The bounded context \`${context.name}\`: its name, its error codes, its wait hops and its aggregates, as the Kotlin \`${contract}\` names them. A problem's \`code\` is one of its \`Errors\`, or of an aggregate's.`,
       context.description,
-    ])}export const ${contract} = {\n  NAME: ${quoteStringLiteral(context.name)},\n${errorsMember(errorsOf(context), '  ')}${aggregates.join('')}} as const;`,
+    ])}export const ${contract} = {\n  NAME: ${quoteStringLiteral(context.name)},\n${errorsMember(errorsOf(context), '  ')}${wait}${aggregates.join('')}} as const;`,
   );
   addStatement(
     module,
     `${doc([`An error code of \`${context.name}\`, of the context or of one of its aggregates.`])}export type ${context.typeName}ErrorCode = ${union(context.errors.map(error => quoteStringLiteral(error.code)))};`,
   );
-  const hasSubscriptions = context.subscriptions.length > 0;
   if (hasSubscriptions) {
     addStatement(
       module,
       `${doc([`The subscriptions of \`${context.name}\` a \`handled\` hop names.`])}export type ${context.typeName}Subscription = ${union(context.subscriptions.map(quoteStringLiteral))};`,
     );
   }
-  const name = `${contract}.NAME`;
-  const hops = [
-    `${doc([`Until a command of \`${context.name}\` passed admission.`], '  ')}  accepted: (): Hop => Hop.accepted(${name}),`,
-    `${doc([`Until a command's events are appended to the log of \`${context.name}\`.`], '  ')}  committed: (): Hop => Hop.committed(${name}),`,
-    `${doc([`Until the snapshot of \`${context.name}\` holds the commit.`], '  ')}  snapshot: (): Hop => Hop.snapshot(${name}),`,
-    `${doc([`Until the store the snapshot queries of \`${context.name}\` read holds the commit.`], '  ')}  queryable: (): Hop => Hop.queryable(${name}),`,
-  ];
-  if (hasSubscriptions) {
-    hops.push(
-      `${doc([`Until a subscription of \`${context.name}\` handled the commit.`], '  ')}  handled: (subscription: ${context.typeName}Subscription): Hop => Hop.handled(subscription, ${name}),`,
-    );
-  }
-  addStatement(
-    module,
-    `${doc([`The hops of a wait chain (\`Wow-Wait\`) in \`${context.name}\`.`])}export const ${memberName(context.name)}Wait = {\n${hops.join('\n')}\n} as const;`,
-  );
 }

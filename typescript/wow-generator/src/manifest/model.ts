@@ -119,13 +119,10 @@ export interface LifecycleModel {
    */
   readonly ownMethod?: string;
   /**
-   * The body's type, or undefined for a command without one: the type
-   * generated from the Manifest's `$defs` entry of the command's name when it
-   * holds one (`bodyGenerated`), else `@ahoo-wang/wow-client`'s.
+   * The body's type, or undefined for a command without one: always
+   * `@ahoo-wang/wow-client`'s (`TransferOwner`, `TransferSpace`).
    */
   readonly bodyType?: string;
-  /** The body's type is generated from the Manifest, not `@ahoo-wang/wow-client`'s. */
-  readonly bodyGenerated?: boolean;
   /** What the Manifest's schema of the body says the command does. */
   readonly description?: string;
 }

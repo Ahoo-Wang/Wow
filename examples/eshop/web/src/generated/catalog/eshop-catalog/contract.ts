@@ -6,7 +6,7 @@ import { CategoryAggregate } from './category/aggregate.js';
 import { ProductAggregate } from './product/aggregate.js';
 
 /**
- * The bounded context `eshop-catalog`: its name, its error codes and its aggregates, as the Kotlin `EshopCatalogContract` names them. A problem's `code` is one of its `Errors`, or of an aggregate's.
+ * The bounded context `eshop-catalog`: its name, its error codes, its wait hops and its aggregates, as the Kotlin `EshopCatalogContract` names them. A problem's `code` is one of its `Errors`, or of an aggregate's.
  * The eShop catalog: products, their brands and types
  */
 export const EshopCatalogContract = {
@@ -19,6 +19,17 @@ export const EshopCatalogContract = {
     /** 400: A quote's line asks for one or more of its product. */
     QUANTITY_NOT_POSITIVE: 'eshop-catalog.quantity-not-positive',
   },
+  /** The hops of a wait chain (`Wow-Wait`) in `eshop-catalog`, as the Kotlin contract's `Wait` holds them. `WaitPlan.of(...)` chains them, those of other contexts too. */
+  Wait: {
+    /** Until a command of `eshop-catalog` passed admission. */
+    accepted: (): Hop => Hop.accepted(EshopCatalogContract.NAME),
+    /** Until a command's events are appended to the log of `eshop-catalog`. */
+    committed: (): Hop => Hop.committed(EshopCatalogContract.NAME),
+    /** Until the snapshot of `eshop-catalog` holds the commit. */
+    snapshot: (): Hop => Hop.snapshot(EshopCatalogContract.NAME),
+    /** Until the store the snapshot queries of `eshop-catalog` read holds the commit. */
+    queryable: (): Hop => Hop.queryable(EshopCatalogContract.NAME),
+  },
   Brand: BrandAggregate,
   Category: CategoryAggregate,
   Product: ProductAggregate,
@@ -26,15 +37,3 @@ export const EshopCatalogContract = {
 
 /** An error code of `eshop-catalog`, of the context or of one of its aggregates. */
 export type EshopCatalogErrorCode = 'eshop-catalog.brand.name-taken' | 'eshop-catalog.category.name-taken' | 'eshop-catalog.limit-out-of-range' | 'eshop-catalog.not-on-sale' | 'eshop-catalog.product.incomplete' | 'eshop-catalog.product.not-published' | 'eshop-catalog.quantity-not-positive';
-
-/** The hops of a wait chain (`Wow-Wait`) in `eshop-catalog`. */
-export const eshopCatalogWait = {
-  /** Until a command of `eshop-catalog` passed admission. */
-  accepted: (): Hop => Hop.accepted(EshopCatalogContract.NAME),
-  /** Until a command's events are appended to the log of `eshop-catalog`. */
-  committed: (): Hop => Hop.committed(EshopCatalogContract.NAME),
-  /** Until the snapshot of `eshop-catalog` holds the commit. */
-  snapshot: (): Hop => Hop.snapshot(EshopCatalogContract.NAME),
-  /** Until the store the snapshot queries of `eshop-catalog` read holds the commit. */
-  queryable: (): Hop => Hop.queryable(EshopCatalogContract.NAME),
-} as const;

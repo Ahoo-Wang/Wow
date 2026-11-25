@@ -2,19 +2,10 @@
 
 
 /**
- * Gives the aggregate to the owner ownerId.
- * - key: `me.ahoo.wow.api.lifecycle.TransferOwner`
- */
-export interface ApiLifecycleTransferOwner {
-  ownerId: string;
-}
-
-
-/**
  * Make a shared view personal
  * - key: `me.ahoo.wow.viewstore.api.view.ClaimView`
  */
-export type ClaimView = Record<string, unknown>;
+export type ClaimView = Record<string, never>;
 
 /**
  * Clear the wording of a dataset
@@ -113,7 +104,7 @@ export interface SetViewPreferences {
  * Make a view shared
  * - key: `me.ahoo.wow.viewstore.api.view.ShareView`
  */
-export type ShareView = Record<string, unknown>;
+export type ShareView = Record<string, never>;
 
 /** - key: `me.ahoo.wow.viewstore.api.SystemView` */
 export interface SystemView {
@@ -244,7 +235,3 @@ export interface ViewState {
   kind: ViewKind;
   title: string;
 }
-
-
-/** - key: `wow.lifecycle.TransferOwner` */
-export type WowLifecycleTransferOwner = ApiLifecycleTransferOwner;

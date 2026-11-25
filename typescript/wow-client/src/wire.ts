@@ -41,7 +41,7 @@ export interface AggregateTextNumbers {
   readonly state?: TextNumbers;
   /** Those of each event's body, by the event's name as the server sends it. */
   readonly events?: Readonly<Record<string, TextNumbers>>;
-  /** Those of each command's body, by the command's name. */
+  /** Those of each command's body, by the command's full name, as a request names it. */
   readonly commands?: Readonly<Record<string, TextNumbers>>;
   /**
    * Those of its access attributes, by name: the integer ones, which a record

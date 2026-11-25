@@ -101,10 +101,10 @@ describe('Manifest clients', () => {
       'clearOwn(body: Clear = {}, options?: CommandOptions): Promise<CommandResult> {',
     );
     expect(client).toContain(
-      "return this.client.wait({ ...options, command: 'probe.thing.Clear', body });",
+      "return this.commands.wait({ ...options, command: 'probe.thing.Clear', body });",
     );
     expect(client).toContain(
-      "return this.client.wait({ ...options, command: 'probe.thing.Clear', body, id });",
+      "return this.commands.wait({ ...options, command: 'probe.thing.Clear', body, id });",
     );
     expect(client).toContain(
       "`Clear`, to the caller's own aggregate, whose id is the caller's owner: `POST /probe/thing/clear`.",
@@ -212,7 +212,7 @@ describe('Manifest clients', () => {
       'restock(body: Restock, options?: CommandOptions): Promise<CommandResult> {',
     );
     expect(client).toContain(
-      "return this.client.wait({ ...options, command: 'probe.thing.Restock', body });",
+      "return this.commands.wait({ ...options, command: 'probe.thing.Restock', body });",
     );
     expect(client).toContain('Its body names its aggregate: `thingId`.');
     expect(client).toContain(
@@ -292,7 +292,7 @@ describe('Manifest clients', () => {
       "export type ProbeSubscription = 'P.f' | 'P.onCommitted' | 'P.onSettled';",
     );
   });
-  it('types lifecycle bodies from $defs and documents what the Manifest describes', async () => {
+  it("types lifecycle bodies as wow-client's, whatever $defs holds, and documents what the Manifest describes", async () => {
     const { read } = await generateCompiling(
       manifest(
         {
@@ -329,20 +329,19 @@ describe('Manifest clients', () => {
           },
         },
       ),
-      `import { ThingCommandClient } from './out/index.js';
-       import type { TransferOwner } from './out/probe/types.js';
+      `import type { TransferOwner } from '@ahoo-wang/wow-client';
+       import { ThingCommandClient } from './out/index.js';
        const body: TransferOwner = { ownerId: 'o' };
        void [new ThingCommandClient().transferOwner('1', body)];`,
     );
     const client = read('probe/thing/commandClient.ts');
-    expect(client).toContain(
-      "import type { Rename, TransferOwner } from '../types.js';",
+    expect(client).toContain("import type { Rename } from '../types.js';");
+    // The same type whether `$defs` holds a definition of its own or not.
+    expect(client).toMatch(
+      /import \{[^}]*type TransferOwner[^}]*\} from '@ahoo-wang\/wow-client'/,
     );
     expect(client).toMatch(
       /import \{[^}]*type TransferSpace[^}]*\} from '@ahoo-wang\/wow-client'/,
-    );
-    expect(client).not.toMatch(
-      /type TransferOwner[^}]*\} from '@ahoo-wang\/wow-client'/,
     );
     expect(client).toContain('   * Renames the thing\n   * `Rename`:');
     expect(client).toContain(
@@ -356,7 +355,7 @@ describe('Manifest clients', () => {
       '/** The lifecycle command `wow.lifecycle.TransferSpace`. */',
     );
     const types = read('probe/types.ts');
-    expect(types).toContain('export interface TransferOwner {');
+    expect(types).not.toContain('TransferOwner');
     expect(types).not.toContain('DeleteAggregate');
   });
 });

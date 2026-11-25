@@ -23,14 +23,14 @@ description: '生成产物与重新生成 — @ahoo-wang/wow-generator'
 
 | 产物 | 包含 |
 | --- | --- |
-| `contract.ts` | `<Context>Contract`：上下文的名字、上下文级错误码和它的各个聚合（各带自己的错误码）；`<Context>ErrorCode` 联合类型、`<Context>Subscription` 和 `<context>Wait` 各跳 |
+| `contract.ts` | `<Context>Contract`：上下文的名字、上下文级错误码、等待各跳（`Wait`）和它的各个聚合（各带自己的错误码）；`<Context>ErrorCode` 联合类型和 `<Context>Subscription` |
 | `manifest.ts` | `<Context>Manifest`，一个 `RoutingManifest`：上下文列出的每条命令的路由（各聚合的领域命令与系统命令，按名字与曾用名，以及上下文自己的命令，即作业的命令；内部命令除外）、它的服务路由，以及命令体指明了聚合的命令里指明聚合的那个属性（`idProperty`），不含 schema。命令客户端按它发送，与基于完整 Manifest 的 `CommandClient` 一致 |
 | `client.ts` | `<Context>Client`：上下文的 `CommandClient`（`commands`），它像聚合的命令客户端一样把每条命令的精确数字不加引号写出，以及每个聚合的命令、快照、事件和状态客户端；有服务路由时还有它们（`routes`） |
 | `routes.ts` | `<Context>Routes`：每个服务路由一个方法，基于 `@ahoo-wang/wow-client/routes` 的 `ServiceRoutes`；只在 Manifest 列出服务路由时写出 |
 | `textNumbers.ts` | 递归类型在哪里持有精确数字，标记一次；只在有这种类型时写出 |
 | `types.ts` | Manifest 的 schema 中的命令、事件和状态，各以其类的简单名命名；两个类共用的名字，或生成模块已经绑定的名字，以类的包名限定。计算属性（schema 中的 `readOnly`）是 `readonly`。调用方发送的类型（命令或生命周期命令的命令体、服务路由的请求或参数）若在任何深度含有计算属性，会再声明为 `<Name>Input`，Manifest 已用这个名字时加上编号：它是方法接收的类型，其中该属性可选 |
 | `<aggregate>/aggregate.ts` | `<Aggregate>Aggregate`，聚合的描述符；`<Aggregate>StateField`，查询能指明的 `state.*` 字段，即 Kotlin 契约列出的那些，包括数组和可空对象之内的字段；`<Aggregate>Access`，它的访问属性；`<Aggregate>Event`，它的事件的联合类型 |
-| `<aggregate>/commandClient.ts` | `<Aggregate>CommandClient`：每条命令一个方法，每个方法有一个答出每一跳的 `…Stream` 孪生方法，以及聚合列出的生命周期命令；经由它的 `client`（基于上下文 `manifest.ts` 的 `CommandClient`）发送 |
+| `<aggregate>/commandClient.ts` | `<Aggregate>CommandClient`：每条命令一个方法，每个方法有一个答出每一跳的 `…Stream` 孪生方法，以及聚合列出的生命周期命令；经由它的 `commands`（基于上下文 `manifest.ts` 的 `CommandClient`）发送 |
 | `<aggregate>/queryClient.ts` | `<Aggregate>SnapshotQueryClient`、`<Aggregate>EventQueryClient` 和 `<Aggregate>StateClient` |
 | `index.ts` | 本次生成的 .ts 文件及非空子目录的递归导出 |
 | `.wow-generator.json` | 版本 1 所有权清单，记录生成 .ts 文件的 SHA-256 |
@@ -146,7 +146,7 @@ export class EshopBasketClient {
   constructor(options?: WowClientOptions) {
     this.commands = new CommandClient(options, {
       manifest: EshopBasketManifest, textNumbers: {
-        'eshop-basket.basket.AddBasketItem': BasketAggregate.textNumbers.commands.AddBasketItem,
+        'eshop-basket.basket.AddBasketItem': BasketAggregate.textNumbers.commands['eshop-basket.basket.AddBasketItem'],
       }
     });
     this.basket = {

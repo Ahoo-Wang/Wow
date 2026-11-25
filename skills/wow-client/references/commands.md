@@ -35,7 +35,7 @@ const result = await basket.addBasketItemOwn(
 | `Hop.snapshot()` (the default) | The snapshot holds the commit | Read your own write right after |
 | `Hop.handled('Processor.function', context?)` | That subscription handled the commit | A saga's next step, a projection the screen reads |
 
-A plan may follow a saga across contexts: `WaitPlan.of(Hop.committed(), Hop.handled('BasketCheckoutSaga.onBasketCheckedOut'), Hop.committed('eshop-ordering'))`; the generated `<context>Wait` builders name the subscriptions. `timeout` bounds it, in milliseconds (`Wow-Wait-Timeout`). The `…Stream` methods answer one `CommandResult` per hop as server-sent events; `chainEnded` with `pending` says the chain stopped early (a saga derived nothing).
+A plan may follow a saga across contexts: `WaitPlan.of(Hop.committed(), Hop.handled('BasketCheckoutSaga.onBasketCheckedOut'), Hop.committed('eshop-ordering'))`; the generated `<Context>Contract.Wait` builders name the subscriptions. `timeout` bounds it, in milliseconds (`Wow-Wait-Timeout`). The `…Stream` methods answer one `CommandResult` per hop as server-sent events; `chainEnded` with `pending` says the chain stopped early (a saga derived nothing).
 
 ## Retries
 

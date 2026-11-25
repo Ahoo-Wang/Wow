@@ -23,8 +23,8 @@ export class EshopOrderingClient {
   constructor(options?: WowClientOptions) {
     this.commands = new CommandClient(options, {
       manifest: EshopOrderingManifest, textNumbers: {
-        'eshop-ordering.order.PayOrder': OrderAggregate.textNumbers.commands.PayOrder,
-        'eshop-ordering.order.SubmitOrder': OrderAggregate.textNumbers.commands.SubmitOrder,
+        'eshop-ordering.order.PayOrder': OrderAggregate.textNumbers.commands['eshop-ordering.order.PayOrder'],
+        'eshop-ordering.order.SubmitOrder': OrderAggregate.textNumbers.commands['eshop-ordering.order.SubmitOrder'],
       }
     });
     this.order = {

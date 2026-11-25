@@ -10,7 +10,6 @@ import type { ReservationCommitted, ReservationReleased, StockReceived, StockRes
 export const StockAggregate = {
   context: 'eshop-inventory',
   name: 'stock',
-  path: '/eshop-inventory/stock',
   ownership: 'tenant',
   idSource: 'assigned',
   snapshot: true,

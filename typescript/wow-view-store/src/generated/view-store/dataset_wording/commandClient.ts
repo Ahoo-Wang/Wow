@@ -6,11 +6,12 @@ import type { ClearDatasetWording, SetDatasetWording } from '../types.js';
 
 /** Sends the commands of `view-store.dataset_wording` by its service's routes (`ViewStoreManifest`). Each method answers the result its wait plan ends with, as `CommandClient.wait` does: the server's default plan unless the options give one, `{ wait: WaitPlan.ACCEPTED }` to answer once it is accepted. A rejected command rejects with a `CommandRejectedError`; anything else that did not succeed with a `WowProblemError`. */
 export class DatasetWordingCommandClient {
-  readonly client: CommandClient;
+  /** Sends the commands, as the context client's `commands` does. */
+  readonly commands: CommandClient;
 
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {
-    this.client = new CommandClient(options, { manifest: ViewStoreManifest });
+    this.commands = new CommandClient(options, { manifest: ViewStoreManifest });
   }
 
   /**
@@ -19,12 +20,12 @@ export class DatasetWordingCommandClient {
    * Produces `DatasetWordingCleared`.
    */
   clearDatasetWording(body: ClearDatasetWording, options?: CreateCommandOptions): Promise<CommandResult> {
-    return this.client.wait({ ...options, command: 'view-store.dataset_wording.ClearDatasetWording', body });
+    return this.commands.wait({ ...options, command: 'view-store.dataset_wording.ClearDatasetWording', body });
   }
 
   /** `ClearDatasetWording`, answered as one result per hop of its wait (`text/event-stream`). */
   clearDatasetWordingStream(body: ClearDatasetWording, options?: CreateCommandOptions): Promise<CommandResultStream> {
-    return this.client.stream({ ...options, command: 'view-store.dataset_wording.ClearDatasetWording', body });
+    return this.commands.stream({ ...options, command: 'view-store.dataset_wording.ClearDatasetWording', body });
   }
 
   /**
@@ -34,11 +35,11 @@ export class DatasetWordingCommandClient {
    * Produces `DatasetWordingSet`.
    */
   setDatasetWording(body: SetDatasetWording, options?: CreateCommandOptions): Promise<CommandResult> {
-    return this.client.wait({ ...options, command: 'view-store.dataset_wording.SetDatasetWording', body });
+    return this.commands.wait({ ...options, command: 'view-store.dataset_wording.SetDatasetWording', body });
   }
 
   /** `SetDatasetWording`, answered as one result per hop of its wait (`text/event-stream`). */
   setDatasetWordingStream(body: SetDatasetWording, options?: CreateCommandOptions): Promise<CommandResultStream> {
-    return this.client.stream({ ...options, command: 'view-store.dataset_wording.SetDatasetWording', body });
+    return this.commands.stream({ ...options, command: 'view-store.dataset_wording.SetDatasetWording', body });
   }
 }

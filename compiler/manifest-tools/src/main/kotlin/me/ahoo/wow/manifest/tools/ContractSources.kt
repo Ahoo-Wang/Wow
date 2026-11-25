@@ -57,7 +57,7 @@ import me.ahoo.wow.manifest.QueryFieldNames
  *   (`SubscriptionManifest.isWaitHop`) the hop of it handling the commit, named
  *   after it ([waitName]: `OrderProcessSaga.onOrderSubmitted` is `ORDER_PROCESS_SAGA__ON_ORDER_SUBMITTED`), what a
  *   caller chains in a `WaitPlan` without writing a subscription's name. Two names of one constant fail the generation.
- *   The TypeScript generator's `<context>Wait` builds the same hops.
+ *   The TypeScript generator's `<Context>Contract.Wait` builds the same hops.
  *
  * Constants are `const val` or `@JvmField` and `ref` is `@JvmStatic`, so Java reads them as static members
  * (`EshopOrderingContract.Order.TYPE`). The views of the states are classes of their own beside it

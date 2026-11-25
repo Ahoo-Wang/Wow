@@ -6,11 +6,12 @@ import type { ApproveDatasetPublication, DraftDataset, PublishDataset, RefuseDat
 
 /** Sends the commands of `analytics-catalog.dataset` by its service's routes (`AnalyticsCatalogManifest`). Each method answers the result its wait plan ends with, as `CommandClient.wait` does: the server's default plan unless the options give one, `{ wait: WaitPlan.ACCEPTED }` to answer once it is accepted. A rejected command rejects with a `CommandRejectedError`; anything else that did not succeed with a `WowProblemError`. */
 export class DatasetCommandClient {
-  readonly client: CommandClient;
+  /** Sends the commands, as the context client's `commands` does. */
+  readonly commands: CommandClient;
 
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {
-    this.client = new CommandClient(options, { manifest: AnalyticsCatalogManifest });
+    this.commands = new CommandClient(options, { manifest: AnalyticsCatalogManifest });
   }
 
   /**
@@ -19,12 +20,12 @@ export class DatasetCommandClient {
    * Produces `DatasetPublished`.
    */
   approveDatasetPublication(id: string, body: ApproveDatasetPublication = {}, options?: CommandOptions): Promise<CommandResult> {
-    return this.client.wait({ ...options, command: 'analytics-catalog.dataset.ApproveDatasetPublication', body, id });
+    return this.commands.wait({ ...options, command: 'analytics-catalog.dataset.ApproveDatasetPublication', body, id });
   }
 
   /** `ApproveDatasetPublication`, answered as one result per hop of its wait (`text/event-stream`). */
   approveDatasetPublicationStream(id: string, body: ApproveDatasetPublication = {}, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.client.stream({ ...options, command: 'analytics-catalog.dataset.ApproveDatasetPublication', body, id });
+    return this.commands.stream({ ...options, command: 'analytics-catalog.dataset.ApproveDatasetPublication', body, id });
   }
 
   /**
@@ -34,12 +35,12 @@ export class DatasetCommandClient {
    * Produces `DatasetDrafted`.
    */
   draftDataset(body: DraftDataset, options?: CreateCommandOptions): Promise<CommandResult> {
-    return this.client.wait({ ...options, command: 'analytics-catalog.dataset.DraftDataset', body });
+    return this.commands.wait({ ...options, command: 'analytics-catalog.dataset.DraftDataset', body });
   }
 
   /** `DraftDataset`, answered as one result per hop of its wait (`text/event-stream`). */
   draftDatasetStream(body: DraftDataset, options?: CreateCommandOptions): Promise<CommandResultStream> {
-    return this.client.stream({ ...options, command: 'analytics-catalog.dataset.DraftDataset', body });
+    return this.commands.stream({ ...options, command: 'analytics-catalog.dataset.DraftDataset', body });
   }
 
   /**
@@ -48,12 +49,12 @@ export class DatasetCommandClient {
    * Produces `DatasetPublicationRequested`, `DatasetPublished`.
    */
   publishDataset(id: string, body: PublishDataset = {}, options?: CommandOptions): Promise<CommandResult> {
-    return this.client.wait({ ...options, command: 'analytics-catalog.dataset.PublishDataset', body, id });
+    return this.commands.wait({ ...options, command: 'analytics-catalog.dataset.PublishDataset', body, id });
   }
 
   /** `PublishDataset`, answered as one result per hop of its wait (`text/event-stream`). */
   publishDatasetStream(id: string, body: PublishDataset = {}, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.client.stream({ ...options, command: 'analytics-catalog.dataset.PublishDataset', body, id });
+    return this.commands.stream({ ...options, command: 'analytics-catalog.dataset.PublishDataset', body, id });
   }
 
   /**
@@ -62,12 +63,12 @@ export class DatasetCommandClient {
    * Produces `DatasetPublicationRefused`.
    */
   refuseDatasetPublication(id: string, body: RefuseDatasetPublication, options?: CommandOptions): Promise<CommandResult> {
-    return this.client.wait({ ...options, command: 'analytics-catalog.dataset.RefuseDatasetPublication', body, id });
+    return this.commands.wait({ ...options, command: 'analytics-catalog.dataset.RefuseDatasetPublication', body, id });
   }
 
   /** `RefuseDatasetPublication`, answered as one result per hop of its wait (`text/event-stream`). */
   refuseDatasetPublicationStream(id: string, body: RefuseDatasetPublication, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.client.stream({ ...options, command: 'analytics-catalog.dataset.RefuseDatasetPublication', body, id });
+    return this.commands.stream({ ...options, command: 'analytics-catalog.dataset.RefuseDatasetPublication', body, id });
   }
 
   /**
@@ -76,12 +77,12 @@ export class DatasetCommandClient {
    * Produces `DatasetRetired`.
    */
   retireDataset(id: string, body: RetireDataset = {}, options?: CommandOptions): Promise<CommandResult> {
-    return this.client.wait({ ...options, command: 'analytics-catalog.dataset.RetireDataset', body, id });
+    return this.commands.wait({ ...options, command: 'analytics-catalog.dataset.RetireDataset', body, id });
   }
 
   /** `RetireDataset`, answered as one result per hop of its wait (`text/event-stream`). */
   retireDatasetStream(id: string, body: RetireDataset = {}, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.client.stream({ ...options, command: 'analytics-catalog.dataset.RetireDataset', body, id });
+    return this.commands.stream({ ...options, command: 'analytics-catalog.dataset.RetireDataset', body, id });
   }
 
   /**
@@ -90,12 +91,12 @@ export class DatasetCommandClient {
    * Produces `DatasetNeedsRevision`, `DatasetRevised`.
    */
   reviseDataset(id: string, body: ReviseDataset, options?: CommandOptions): Promise<CommandResult> {
-    return this.client.wait({ ...options, command: 'analytics-catalog.dataset.ReviseDataset', body, id });
+    return this.commands.wait({ ...options, command: 'analytics-catalog.dataset.ReviseDataset', body, id });
   }
 
   /** `ReviseDataset`, answered as one result per hop of its wait (`text/event-stream`). */
   reviseDatasetStream(id: string, body: ReviseDataset, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.client.stream({ ...options, command: 'analytics-catalog.dataset.ReviseDataset', body, id });
+    return this.commands.stream({ ...options, command: 'analytics-catalog.dataset.ReviseDataset', body, id });
   }
 
   /**
@@ -104,11 +105,11 @@ export class DatasetCommandClient {
    * Produces `DatasetRolledBack`.
    */
   rollbackDataset(id: string, body: RollbackDataset, options?: CommandOptions): Promise<CommandResult> {
-    return this.client.wait({ ...options, command: 'analytics-catalog.dataset.RollbackDataset', body, id });
+    return this.commands.wait({ ...options, command: 'analytics-catalog.dataset.RollbackDataset', body, id });
   }
 
   /** `RollbackDataset`, answered as one result per hop of its wait (`text/event-stream`). */
   rollbackDatasetStream(id: string, body: RollbackDataset, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.client.stream({ ...options, command: 'analytics-catalog.dataset.RollbackDataset', body, id });
+    return this.commands.stream({ ...options, command: 'analytics-catalog.dataset.RollbackDataset', body, id });
   }
 }

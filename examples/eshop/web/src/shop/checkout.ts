@@ -18,10 +18,10 @@ import {
   type Hop,
   WaitPlan,
 } from "@ahoo-wang/wow-client";
-import { eshopBasketWait } from "@/generated/basket/eshop-basket";
-import { eshopInventoryWait } from "@/generated/inventory/eshop-inventory";
-import { eshopOrderingWait } from "@/generated/ordering/eshop-ordering";
-import { eshopPaymentWait } from "@/generated/payment/eshop-payment";
+import { EshopBasketContract } from "@/generated/basket/eshop-basket";
+import { EshopInventoryContract } from "@/generated/inventory/eshop-inventory";
+import { EshopOrderingContract } from "@/generated/ordering/eshop-ordering";
+import { EshopPaymentContract } from "@/generated/payment/eshop-payment";
 import type { ShopClients } from "./clients";
 
 /** One hop of the checkout's wait, with what it means to the buyer. */
@@ -44,63 +44,63 @@ export interface CheckoutStep {
  * the inventory and the payment are checked where the chain arrives (D190).
  */
 export const CHECKOUT_TO_PAID: readonly CheckoutStep[] = [
-  { hop: eshopBasketWait.committed(), label: "Basket checked out" },
+  { hop: EshopBasketContract.Wait.committed(), label: "Basket checked out" },
   {
-    hop: eshopBasketWait.handled("BasketCheckoutSaga.onBasketCheckedOut"),
+    hop: EshopBasketContract.Wait.handled("BasketCheckoutSaga.onBasketCheckedOut"),
     label: "Checkout saga submits the order",
   },
   {
-    hop: eshopOrderingWait.committed(),
+    hop: EshopOrderingContract.Wait.committed(),
     label: "Order submitted",
     functions: ["SubmitOrder"],
   },
   {
-    hop: eshopOrderingWait.handled("OrderProcessSaga.onOrderSubmitted"),
+    hop: EshopOrderingContract.Wait.handled("OrderProcessSaga.onOrderSubmitted"),
     label: "Order process starts the stock validation",
   },
   {
-    hop: eshopOrderingWait.committed(),
+    hop: EshopOrderingContract.Wait.committed(),
     label: "Order awaits its stock",
     functions: ["AwaitStockValidation"],
   },
   {
-    hop: eshopOrderingWait.handled("OrderProcessSaga.onOrderAwaitingValidation"),
+    hop: EshopOrderingContract.Wait.handled("OrderProcessSaga.onOrderAwaitingValidation"),
     label: "Order process reserves the stock",
   },
-  { hop: eshopInventoryWait.committed(), label: "Stock reserved" },
+  { hop: EshopInventoryContract.Wait.committed(), label: "Stock reserved" },
   {
-    hop: eshopOrderingWait.handled("OrderProcessSaga.onReserveCommitted"),
+    hop: EshopOrderingContract.Wait.handled("OrderProcessSaga.onReserveCommitted"),
     label: "Order process confirms the reservation",
   },
   {
-    hop: eshopOrderingWait.committed(),
+    hop: EshopOrderingContract.Wait.committed(),
     label: "Order stock confirmed",
     functions: ["ConfirmOrderStock"],
   },
   {
-    hop: eshopPaymentWait.handled("OrderPaymentSaga.onOrderStockConfirmed"),
+    hop: EshopPaymentContract.Wait.handled("OrderPaymentSaga.onOrderStockConfirmed"),
     label: "Payment saga requests the payment",
   },
   {
-    hop: eshopPaymentWait.committed(),
+    hop: EshopPaymentContract.Wait.committed(),
     label: "Payment requested",
     functions: ["RequestPayment"],
   },
   {
-    hop: eshopPaymentWait.handled("PaymentGatewaySaga.onPaymentRequested"),
+    hop: EshopPaymentContract.Wait.handled("PaymentGatewaySaga.onPaymentRequested"),
     label: "Gateway charges the payment",
   },
   {
-    hop: eshopPaymentWait.committed(),
+    hop: EshopPaymentContract.Wait.committed(),
     label: "Gateway answered",
     functions: ["ConfirmPayment", "FailPayment"],
   },
   {
-    hop: eshopPaymentWait.handled("OrderPaymentSaga.onPaymentSucceeded"),
+    hop: EshopPaymentContract.Wait.handled("OrderPaymentSaga.onPaymentSucceeded"),
     label: "Payment saga handles the gateway's answer",
   },
   {
-    hop: eshopOrderingWait.committed(),
+    hop: EshopOrderingContract.Wait.committed(),
     label: "Order paid",
     functions: ["PayOrder"],
   },

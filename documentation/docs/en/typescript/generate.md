@@ -96,7 +96,7 @@ For each bounded context, a directory named after it:
 | `index.ts` | Everything above, exported again |
 | `.wow-generator.json` | The files the run wrote, so a later run deletes the ones it no longer writes |
 
-An error code's constant is named as the Kotlin contract names it: what follows its aggregate (`context.aggregate.code`) or its context, each dotted segment in upper snake case, joined by `__`, with `_` before a leading digit. `invalid-item` is `INVALID_ITEM`, `invalidURLValue` is `INVALID_URL_VALUE`, and `analytics.catalog.incomplete` of the context `analytics-catalog` is `ANALYTICS__CATALOG__INCOMPLETE`. Of two codes whose constants coincide, the first keeps it; both stay in `<Context>ErrorCode`. A name that meets a member the generator declares beside it gets one of its own: a command whose method or `…Stream` twin is taken (`StartStream` beside `Start`, `Client`, or a lifecycle command's name) takes `Command`, then `Command2`; an aggregate `commands` or `routes` is `commandsAggregate` in `<Context>Client`, and `ErrorsAggregate` or `WaitAggregate` in the contract for an aggregate `errors` or `wait`, as the Kotlin contract names its object; a service route `routes` is `routesRoute`.
+An error code's constant is named as the Kotlin contract names it: what follows its aggregate (`context.aggregate.code`) or its context, each dotted segment in upper snake case, joined by `__`, with `_` before a leading digit. `invalid-item` is `INVALID_ITEM`, `invalidURLValue` is `INVALID_URL_VALUE`, and `analytics.catalog.incomplete` of the context `analytics-catalog` is `ANALYTICS__CATALOG__INCOMPLETE`. Of two codes whose constants coincide, the first keeps it; both stay in `<Context>ErrorCode`. A name that meets a member the generator declares beside it gets one of its own: a command whose method or `…Stream` twin is taken (`StartStream` beside `Start`, `Commands`, `Then`, or a lifecycle command's name) takes `Command`, then `Command2`; an aggregate `commands` or `routes` is `commandsAggregate` in `<Context>Client`, and `ErrorsAggregate` or `WaitAggregate` in the contract for an aggregate `errors` or `wait`, as the Kotlin contract names its object; a service route's method is named as a command's (`export-orders` is `exportOrders`), and a route `routes` is `routesRoute`. No generated class takes a member `then`, which would make it a thenable `await` reads as a promise.
 
 The eShop ordering's contract. Its error codes are the domain's rejections only: a command that breaks its constraints answers the framework's `wow.command.invalid` (`FrameworkErrorCodes.COMMAND_INVALID`) with its `violations` ([Send Commands](./commands)).
 
@@ -113,11 +113,24 @@ import { Hop } from '@ahoo-wang/wow-client';
 import { OrderAggregate } from './order/aggregate.js';
 
 /**
- * The bounded context `eshop-ordering`: its name, its error codes and its aggregates, as the Kotlin `EshopOrderingContract` names them. A problem's `code` is one of its `Errors`, or of an aggregate's.
+ * The bounded context `eshop-ordering`: its name, its error codes, its wait hops and its aggregates, as the Kotlin `EshopOrderingContract` names them. A problem's `code` is one of its `Errors`, or of an aggregate's.
  * The eShop ordering: orders from placement to shipment
  */
 export const EshopOrderingContract = {
   NAME: 'eshop-ordering',
+  /** The hops of a wait chain (`Wow-Wait`) in `eshop-ordering`, as the Kotlin contract's `Wait` holds them. `WaitPlan.of(...)` chains them, those of other contexts too. */
+  Wait: {
+    /** Until a command of `eshop-ordering` passed admission. */
+    accepted: (): Hop => Hop.accepted(EshopOrderingContract.NAME),
+    /** Until a command's events are appended to the log of `eshop-ordering`. */
+    committed: (): Hop => Hop.committed(EshopOrderingContract.NAME),
+    /** Until the snapshot of `eshop-ordering` holds the commit. */
+    snapshot: (): Hop => Hop.snapshot(EshopOrderingContract.NAME),
+    /** Until the store the snapshot queries of `eshop-ordering` read holds the commit. */
+    queryable: (): Hop => Hop.queryable(EshopOrderingContract.NAME),
+    /** Until a subscription of `eshop-ordering` handled the commit. */
+    handled: (subscription: EshopOrderingSubscription): Hop => Hop.handled(subscription, EshopOrderingContract.NAME),
+  },
   Order: OrderAggregate,
 } as const;
 
@@ -126,20 +139,6 @@ export type EshopOrderingErrorCode = 'eshop-ordering.order.wrong-amount' | 'esho
 
 /** The subscriptions of `eshop-ordering` a `handled` hop names. */
 export type EshopOrderingSubscription = 'OrderProcessSaga.onOrderAwaitingValidation' | 'OrderProcessSaga.onOrderCancelled' | 'OrderProcessSaga.onOrderShipped' | 'OrderProcessSaga.onOrderSubmitted' | 'OrderProcessSaga.onReserveCommitted' | 'OrderSummaryProjection.onEvent' | 'ShipmentNotifier.onOrderShipped';
-
-/** The hops of a wait chain (`Wow-Wait`) in `eshop-ordering`. */
-export const eshopOrderingWait = {
-  /** Until a command of `eshop-ordering` passed admission. */
-  accepted: (): Hop => Hop.accepted(EshopOrderingContract.NAME),
-  /** Until a command's events are appended to the log of `eshop-ordering`. */
-  committed: (): Hop => Hop.committed(EshopOrderingContract.NAME),
-  /** Until the snapshot of `eshop-ordering` holds the commit. */
-  snapshot: (): Hop => Hop.snapshot(EshopOrderingContract.NAME),
-  /** Until the store the snapshot queries of `eshop-ordering` read holds the commit. */
-  queryable: (): Hop => Hop.queryable(EshopOrderingContract.NAME),
-  /** Until a subscription of `eshop-ordering` handled the commit. */
-  handled: (subscription: EshopOrderingSubscription): Hop => Hop.handled(subscription, EshopOrderingContract.NAME),
-} as const;
 ```
 
 Every file starts with `// Code generated by wow-generator. DO NOT EDIT.`, and the next run overwrites it. Commit the output with `.wow-generator.json`.
@@ -188,7 +187,6 @@ import type { OrderAwaitingValidation, OrderCancelled, OrderPaid, OrderShipped, 
 export const OrderAggregate = {
   context: 'eshop-ordering',
   name: 'order',
-  path: '/eshop-ordering/order',
   ownership: 'owner',
   idSource: 'assigned',
   snapshot: true,
@@ -199,8 +197,8 @@ export const OrderAggregate = {
       'eshop-ordering.order.OrderSubmitted': { items: { '*': { unitPrice: true } } },
     },
     commands: {
-      PayOrder: { amount: true },
-      SubmitOrder: { items: { '*': { unitPrice: true } } },
+      'eshop-ordering.order.PayOrder': { amount: true },
+      'eshop-ordering.order.SubmitOrder': { items: { '*': { unitPrice: true } } },
     },
   },
   Errors: {

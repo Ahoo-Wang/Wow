@@ -1,15 +1,15 @@
 {
   "version": 1,
   "files": {
-    "eshop-ordering/client.ts": "1c4338c88e51eecc0ec71de3c2096c5cfc92b97be45b6538cf670bf972b4c840",
-    "eshop-ordering/contract.ts": "c0b48a1a3554389ad6bf990150e27cd06ff027fd0e50499241957421ecf90fce",
+    "eshop-ordering/client.ts": "ccf06272414d8d4464a26085051f092d0e7bcaaf33fac97149df6c892eeadee1",
+    "eshop-ordering/contract.ts": "ca485595665f3fe7bb131625124ac508ca4daabffdedc1b20410496e3ea4a82c",
     "eshop-ordering/index.ts": "8a14e2f01080d3f22c5d835991ceafa7169ad1b40cc6a3d72f284531d8c15b25",
     "eshop-ordering/manifest.ts": "db11082ab2796ac99009feb304f989ccf2ec711c5b216dc1ddf6487c4bcf8306",
-    "eshop-ordering/order/aggregate.ts": "47f2a10c6a35a4cad2bf58ed5e509e0789361a43db2bb2b65a68e8bee953441e",
-    "eshop-ordering/order/commandClient.ts": "e1e8d215c57049e6f4f600280bcd43f9df3a967ad56e16317d4483ab159a9935",
+    "eshop-ordering/order/aggregate.ts": "e65b52102a418e4f88c1f10e337d301fa52df1ea8a35053bc1a07aa35da585a7",
+    "eshop-ordering/order/commandClient.ts": "c8e89d7c9da1134e7d1841c307376d14ef5ac96be89d0952d43fa6f51b040487",
     "eshop-ordering/order/index.ts": "93009e30d8920000d82a5628a33424d1dd4c38c65d6a354bdad8e4e8634633b7",
     "eshop-ordering/order/queryClient.ts": "0ea5a4e8a619d12dfce0906c5f8226dcff3293122a7e09cfc513d71f22268ef8",
-    "eshop-ordering/types.ts": "ea0e52ad2b3f5b830f4a2d16defca4a1482aab33ed87c33e794d0c30f8f2ce55",
+    "eshop-ordering/types.ts": "fc88ea95455d1b6c543cdb503c857c7b6819deea276a8a817326874f29bcdffc",
     "index.ts": "502f8adf40ef0a48b03fa0dfdf1aff2e47d030196e214b0911ac087c74273a4a"
   }
 }

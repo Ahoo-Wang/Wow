@@ -114,7 +114,7 @@ The hops a plan is made of:
 | `Hop.queryable()` | The store the aggregate's snapshot queries read holds the commit, so a list reloaded next sees it; later than `snapshot` where those queries read a copy |
 | `Hop.handled('Processor.function')` | That subscription handled the commit |
 
-A plan follows the command further: through a saga's `handled` hop to the commands the saga sent, in their own contexts. Each context's `contract.ts` holds its hops, typed with the names of its subscriptions. Checking a basket out, waiting until the order it submits is committed in the ordering context:
+A plan follows the command further: through a saga's `handled` hop to the commands the saga sent, in their own contexts. Each context's contract holds its hops, `<Context>Contract.Wait`, typed with the names of its subscriptions. Checking a basket out, waiting until the order it submits is committed in the ordering context:
 
 <!-- typecheck-context
 import { BasketCommandClient } from './generated/basket/index.js';
@@ -123,16 +123,16 @@ declare const baskets: BasketCommandClient;
 
 ```ts
 import { WaitPlan } from '@ahoo-wang/wow-client';
-import { eshopBasketWait } from './generated/basket/index.js';
-import { eshopOrderingWait } from './generated/ordering/index.js';
+import { EshopBasketContract } from './generated/basket/index.js';
+import { EshopOrderingContract } from './generated/ordering/index.js';
 
 const placed = await baskets.checkoutBasketOwn(
   {},
   {
     wait: WaitPlan.of(
-      eshopBasketWait.committed(),
-      eshopBasketWait.handled('BasketCheckoutSaga.onBasketCheckedOut'),
-      eshopOrderingWait.committed(),
+      EshopBasketContract.Wait.committed(),
+      EshopBasketContract.Wait.handled('BasketCheckoutSaga.onBasketCheckedOut'),
+      EshopOrderingContract.Wait.committed(),
     ),
     timeout: 10_000,
   },
@@ -148,8 +148,8 @@ Each command method has a `…Stream` twin that answers one result per hop as th
 
 <!-- typecheck-context
 import { WaitPlan } from '@ahoo-wang/wow-client';
-import { BasketCommandClient, eshopBasketWait } from './generated/basket/index.js';
-import { eshopOrderingWait } from './generated/ordering/index.js';
+import { BasketCommandClient, EshopBasketContract } from './generated/basket/index.js';
+import { EshopOrderingContract } from './generated/ordering/index.js';
 declare const baskets: BasketCommandClient;
 -->
 
@@ -158,9 +158,9 @@ const stream = await baskets.checkoutBasketOwnStream(
   {},
   {
     wait: WaitPlan.of(
-      eshopBasketWait.committed(),
-      eshopBasketWait.handled('BasketCheckoutSaga.onBasketCheckedOut'),
-      eshopOrderingWait.committed(),
+      EshopBasketContract.Wait.committed(),
+      EshopBasketContract.Wait.handled('BasketCheckoutSaga.onBasketCheckedOut'),
+      EshopOrderingContract.Wait.committed(),
     ),
   },
 );
