@@ -143,6 +143,10 @@ class LedgerCommandsTest {
 
     private fun lastRecord(): JsonNode = sent.last().record
 
+    /** This command under another id, as the ops saga sends each request. */
+    private fun CommandWire.withId(id: String): CommandWire =
+        CommandWire(type, id, requestId, ref, body, causation = causation, operator = operator, replyTo = replyTo)
+
     /** A skip of [ref]'s entry, naming the parking the ledger holds, as the ops saga sends one. */
     private suspend fun skipOf(ref: AggregateRef): SkipParked =
         SkipParked.of(NAME, ref, ledger.parked(SubscriptionId("shop", NAME), ref)!!.failedAt)
@@ -184,6 +188,67 @@ class LedgerCommandsTest {
         }
         commands.execute(wire(RetryParked.of(NAME, X1))).assert().isNull()
         lastRecord()["outcome"].asString().assert().isEqualTo(LedgerResolution.NOT_PARKED)
+        runtime.stop()
+    }
+
+    @Test
+    fun `an action on a parking resolved already publishes not-parked of that parking, not of whatever ops holds`():
+        Unit = runBlocking {
+        // The ops saga names the parking it acts on; an undated resolution resolves the parking ops holds now,
+        // which may be a later one another node recorded meanwhile (ops-console.md: a later parking reopens it).
+        parkAll("x1")
+        val failedAt = ledger.parked(SubscriptionId("shop", NAME), X1)!!.failedAt
+        failing.set(false)
+        commands.execute(wire(RetryParked.of(NAME, X1, failedAt))).assert().isNull()
+        lastRecord()["outcome"].asString().assert().isEqualTo(LedgerResolution.RETRIED)
+        commands.execute(wire(RetryParked.of(NAME, X1, failedAt))).assert().isNull()
+        val notParked = ClusterCodec.mapper.treeToValue(lastRecord(), LedgerResolution::class.java)
+        notParked.outcome.assert().isEqualTo(LedgerResolution.NOT_PARKED)
+        notParked.failedAt.assert().describedAs("the parking the retry named").isEqualTo(failedAt)
+        // A mark and a spec of it are answered so too.
+        commands.execute(wire(MarkParkedRecoverable.of(NAME, X1, Recoverable.UNRECOVERABLE, failedAt))).assert()
+            .isNull()
+        lastRecord()["failedAt"].asLong().assert().isEqualTo(failedAt)
+        commands.execute(wire(ApplyParkedRetrySpec.of(NAME, X1, maxRetries = 0, failedAt = failedAt))).assert()
+            .isNull()
+        lastRecord()["failedAt"].asLong().assert().isEqualTo(failedAt)
+        runtime.stop()
+    }
+
+    @Test
+    fun `an unnamed action's resolution is dated with the parking it resolved, which this node never published`():
+        Unit = runBlocking {
+        // The entry was parked while another node owned the partition, so this one holds no record of it.
+        parkAll("x1")
+        val failedAt = ledger.parked(SubscriptionId("shop", NAME), X1)!!.failedAt
+        failing.set(false)
+        commands.execute(wire(RetryParked.of(NAME, X1))).assert().isNull()
+        val resolved = ClusterCodec.mapper.treeToValue(lastRecord(), LedgerResolution::class.java)
+        resolved.outcome.assert().isEqualTo(LedgerResolution.RETRIED)
+        resolved.failedAt.assert().describedAs("the parking resolved").isEqualTo(failedAt)
+        runtime.stop()
+    }
+
+    @Test
+    fun `an action that leaves the entry as it was is published under a request id of its own to that action`():
+        Unit = runBlocking {
+        parkAll("x1")
+        val failedAt = ledger.parked(SubscriptionId("shop", NAME), X1)!!.failedAt
+        val spec = ApplyParkedRetrySpec.of(NAME, X1, maxRetries = 0, failedAt = failedAt)
+        commands.execute(wire(spec)).assert().isNull()
+        val applied = sent.last()
+        // The same spec again, as the console sends a spec it shows unchanged: the entry stays as it was.
+        commands.execute(wire(spec).withId("c-2")).assert().isNull()
+        val answer = sent.last()
+        answer.type.assert().isEqualTo(applied.type)
+        (answer.record as ObjectNode).remove("recordedAt")
+        (applied.record as ObjectNode).remove("recordedAt")
+        answer.record.assert().describedAs("the entry as it was").isEqualTo(applied.record)
+        answer.requestId.assert().describedAs("ops takes it as the answer, not a duplicate")
+            .isNotEqualTo(applied.requestId)
+        // The scans publish it again under the id of its first publication, which ops passes over.
+        publisher.scan()
+        sent.last().requestId.assert().isEqualTo(applied.requestId)
         runtime.stop()
     }
 

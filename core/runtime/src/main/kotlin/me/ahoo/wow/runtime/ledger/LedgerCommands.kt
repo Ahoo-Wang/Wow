@@ -93,20 +93,30 @@ internal class LedgerCommands(
             )
         }
         // The scans leave the entry to the action, which publishes what came of it.
-        val publisher = publisher() ?: return run(command, subscription, ref)
-        return publisher.acting(subscription, ref) { run(command, subscription, ref) }
+        val action = Action(subscription, ref, wire.id)
+        val publisher = publisher() ?: return run(command, action)
+        return publisher.acting(subscription, ref) { run(command, action) }
     }
 
-    private suspend fun run(command: LedgerCommand, subscription: SubscriptionId, ref: AggregateRef): ErrorInfo? {
-        // The entry, read before an action may resolve it.
+    /**
+     * An operator's action, the command [id], on [subscription]'s entry of [ref]: what its outcome is published
+     * under ([LedgerPublisher.parked]'s `answering`).
+     */
+    private class Action(val subscription: SubscriptionId, val ref: AggregateRef, val id: String)
+
+    private suspend fun run(command: LedgerCommand, action: Action): ErrorInfo? {
+        val subscription = action.subscription
+        val ref = action.ref
+        // The entry, read before an action may resolve it, and the parking it holds: the one an unnamed action acts on.
         val current = parked.get(subscription, ref)
+        val held = current?.entry?.failedAt
         when (command) {
             is RetryParked -> {
                 val outcome = parked.retry(subscription, ref, command.failedAt)
                 if (outcome == ParkedOps.Outcome.STALE) {
                     return stale(command, command.failedAt, current)
                 }
-                settled(subscription, ref, outcome, LedgerResolution.RETRIED)
+                settled(action, outcome, LedgerResolution.RETRIED, command.failedAt ?: held)
             }
 
             is SkipParked -> {
@@ -114,16 +124,16 @@ internal class LedgerCommands(
                 if (outcome == ParkedOps.Outcome.STALE) {
                     return stale(command, command.failedAt, current)
                 }
-                settled(subscription, ref, outcome, LedgerResolution.SKIPPED)
+                settled(action, outcome, LedgerResolution.SKIPPED, command.failedAt)
             }
             is MarkParkedRecoverable -> {
                 val view = parked.markRecoverable(subscription, ref, command.recoverable, command.failedAt)
-                return changed(command, command.failedAt, subscription, ref, current, view)
+                return changed(command, command.failedAt, action, current, view)
             }
 
             is ApplyParkedRetrySpec -> {
                 if (current == null) {
-                    amended(subscription, ref, null)
+                    amended(action, null, command.failedAt)
                     return null
                 }
                 val spec = try {
@@ -132,29 +142,28 @@ internal class LedgerCommands(
                     return ErrorInfo(FrameworkCodes.COMMAND_MALFORMED, invalid.message ?: "Not a retry spec.")
                 }
                 val view = parked.applyRetrySpec(subscription, ref, spec, command.failedAt)
-                return changed(command, command.failedAt, subscription, ref, current, view)
+                return changed(command, command.failedAt, action, current, view)
             }
         }
         return null
     }
 
     /**
-     * What came of an operator's change by [command] of [subscription]'s [ref], the parking at [failedAt]:
-     * published as [view] when it applied; refused as stale when the entry is parked at another time
-     * ([ParkedOps.missed]); else published as not parked.
+     * What came of an operator's change by [command], the [action] on the parking at [failedAt]: published as [view]
+     * when it applied; refused as stale when the entry is parked at another time ([ParkedOps.missed]); else published
+     * as not parked, dated with that parking, or, unnamed, the one the entry held.
      */
     private suspend fun changed(
         command: LedgerCommand,
         failedAt: Long?,
-        subscription: SubscriptionId,
-        ref: AggregateRef,
+        action: Action,
         current: ParkedView?,
         view: ParkedView?,
     ): ErrorInfo? {
-        if (view == null && parked.missed(subscription, ref, failedAt) == ParkedOps.Outcome.STALE) {
+        if (view == null && parked.missed(action.subscription, action.ref, failedAt) == ParkedOps.Outcome.STALE) {
             return stale(command, failedAt, current)
         }
-        amended(subscription, ref, view)
+        amended(action, view, failedAt ?: current?.entry?.failedAt)
         return null
     }
 
@@ -173,28 +182,30 @@ internal class LedgerCommands(
         )
     }
 
-    private suspend fun settled(
-        subscription: SubscriptionId,
-        ref: AggregateRef,
-        outcome: ParkedOps.Outcome,
-        resolved: String,
-    ) {
-        logger.info { "Ledger command on $ref by $subscription: $outcome." }
+    /**
+     * Publishes what came of a retry or a skip, [action]: a resolution dated with the [parking] it resolved, or found
+     * resolved already, so ops resolves that one and not a later one it holds; or the entry as it now stands.
+     */
+    private suspend fun settled(action: Action, outcome: ParkedOps.Outcome, resolved: String, parking: Long?) {
+        logger.info { "Ledger command on ${action.ref} by ${action.subscription}: $outcome." }
         val publisher = publisher() ?: return
         when (outcome) {
-            ParkedOps.Outcome.RESOLVED -> publisher.resolved(subscription, ref, resolved)
-            ParkedOps.Outcome.NOT_PARKED -> publisher.resolved(subscription, ref, LedgerResolution.NOT_PARKED)
+            ParkedOps.Outcome.RESOLVED -> publisher.resolved(action.subscription, action.ref, resolved, parking)
+            ParkedOps.Outcome.NOT_PARKED ->
+                publisher.resolved(action.subscription, action.ref, LedgerResolution.NOT_PARKED, parking)
+
             ParkedOps.Outcome.PARKED, ParkedOps.Outcome.REQUESTED, ParkedOps.Outcome.STALE ->
-                parked.get(subscription, ref)?.let { publisher.parked(it) }
+                parked.get(action.subscription, action.ref)?.let { publisher.parked(it, action.id) }
         }
     }
 
-    private suspend fun amended(subscription: SubscriptionId, ref: AggregateRef, view: ParkedView?) {
+    /** Publishes what came of a change, [action]: the entry as [view] has it, or not parked, dated with [parking]. */
+    private suspend fun amended(action: Action, view: ParkedView?, parking: Long?) {
         val publisher = publisher() ?: return
         if (view == null) {
-            publisher.resolved(subscription, ref, LedgerResolution.NOT_PARKED)
+            publisher.resolved(action.subscription, action.ref, LedgerResolution.NOT_PARKED, parking)
         } else {
-            publisher.parked(view)
+            publisher.parked(view, action.id)
         }
     }
 

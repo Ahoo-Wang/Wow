@@ -173,10 +173,14 @@ class LedgerPublisher internal constructor(
         parked(ParkedView(notice.entry, notice.spec, notice.group))
     }
 
-    /** Publishes [view]'s entry as parked. */
+    /**
+     * Publishes [view]'s entry as parked; [answering], the id of the operator's action this publishes the outcome of,
+     * or null. An entry the action left as it was goes under a request id of its own to that action, so ops takes it
+     * as the answer it is, not as the entry's first publication again.
+     */
     @InternalWowApi
-    suspend fun parked(view: ParkedView) {
-        if (open) lock.withLock { publishParked(view) }
+    suspend fun parked(view: ParkedView, answering: String? = null) {
+        if (open) lock.withLock { publishParked(view, answering) }
     }
 
     /** Publishes that [subscription] no longer parks [ref], since [outcome]; [failedAt] the parking's, when known. */
@@ -314,7 +318,7 @@ class LedgerPublisher internal constructor(
         }
     }
 
-    private suspend fun publishParked(view: ParkedView) {
+    private suspend fun publishParked(view: ParkedView, answering: String? = null) {
         val entry = view.entry
         val key = ParkedKey(view.id, entry.ref)
         val now = clock.millis()
@@ -345,9 +349,12 @@ class LedgerPublisher internal constructor(
         // A parking published after a resolution not sent yet is a later one, which supersedes it.
         unsent.remove(key)
         val content = record.copyWith(recordedAt = 0)
-        val observed = published[key]?.takeIf { it.record == content } ?: Observed(content, now)
+        val unchanged = published[key]?.takeIf { it.record == content }
+        val observed = unchanged ?: Observed(content, now)
         published[key] = observed
-        val requestId = digest(key, ClusterCodec.mapper.writeValueAsString(content), observed.at)
+        // The scans publish an unchanged entry under the request id of its first publication: ops passes them over.
+        val answer = if (unchanged != null && answering != null) "\nanswering:$answering" else ""
+        val requestId = digest(key, ClusterCodec.mapper.writeValueAsString(content) + answer, observed.at)
         trySend(key, Ledger.RECORD_PARKED, mapOf(Ledger.ENTRY to record), requestId)
     }
 
