@@ -232,14 +232,20 @@ export function routingCommands(
     )
     .map(command => ({
       name: command.name,
-      ...((command.aliases ?? []).length > 0
-        ? { aliases: [...command.aliases] }
-        : {}),
+      ...(aliasesOf(command).length > 0 ? { aliases: aliasesOf(command) } : {}),
       routes: routesOf(command),
       ...(command.idProperty === undefined
         ? {}
         : { idProperty: command.idProperty }),
     }));
+}
+
+/** The former names of `command`: the names its `aliases` lists, none when it lists none. */
+function aliasesOf(command: ManifestCommand): string[] {
+  const aliases: unknown = command.aliases;
+  return Array.isArray(aliases)
+    ? aliases.filter((alias): alias is string => typeof alias === 'string')
+    : [];
 }
 
 /** The routes of `command`, as the Manifest lists them. */
@@ -323,7 +329,7 @@ export function aggregateModel(
       computedProperty(types, bodySchema, idProperty);
     return {
       name: command.name,
-      aliases: command.aliases ?? [],
+      aliases: aliasesOf(command),
       method,
       routes: routesOf(command),
       ...(byId ? { byIdPath: { path: byId.path } } : {}),

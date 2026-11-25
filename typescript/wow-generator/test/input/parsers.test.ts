@@ -193,5 +193,13 @@ describe('openAPIParser', () => {
     it('should throw when the format cannot be inferred', () => {
       expect(() => parseContent('')).toThrow('Unable to infer file format');
     });
+
+    it('skips a UTF-8 byte order mark, as Windows PowerShell 5.1 writes one', () => {
+      const document = { format: 1, contexts: [] };
+      expect(parseContent(`\uFEFF${JSON.stringify(document)}`)).toEqual(
+        document,
+      );
+      expect(parseContent('\uFEFFformat: 1\ncontexts: []\n')).toEqual(document);
+    });
   });
 });

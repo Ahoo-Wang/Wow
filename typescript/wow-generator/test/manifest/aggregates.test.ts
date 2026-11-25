@@ -92,3 +92,41 @@ describe("whether a command's body is defaulted to {}", () => {
     ).toBe(true);
   });
 });
+
+describe("a command's former names", () => {
+  /** The routing and the model of the command `Do` whose `aliases` is `aliases`. */
+  function namesOf(aliases: unknown) {
+    const manifest = {
+      format: 1,
+      contexts: [
+        {
+          name: 'probe',
+          aggregates: [
+            {
+              name: 'thing',
+              state: { schema: '#/$defs/a.State' },
+              commands: [
+                {
+                  name: 'Do',
+                  aliases,
+                  schema: '#/$defs/a.State',
+                  routes: [{ method: 'POST', path: '/probe/thing/{id}/do' }],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      $defs: { 'a.State': { type: 'object', properties: {} } },
+    } as unknown as ManifestDocument;
+    const aggregate = analyzeManifest(manifest).model.contexts[0].aggregates[0];
+    return [aggregate.routing[0].aliases, aggregate.commands[0].aliases];
+  }
+
+  it('are the names its aliases lists, and none for anything else', () => {
+    expect(namesOf(['Did', 2])).toEqual([['Did'], ['Did']]);
+    expect(namesOf('Did')).toEqual([undefined, []]);
+    expect(namesOf({ name: 'Did' })).toEqual([undefined, []]);
+    expect(namesOf(undefined)).toEqual([undefined, []]);
+  });
+});
