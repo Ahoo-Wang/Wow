@@ -93,6 +93,15 @@ internal class ElasticsearchStoreProvider : StoreProvider {
             rewriteRate,
             "Set a number of documents a second, or -1 for no limit.",
         ) { "The rate of an Elasticsearch mapping's rewrite cannot be $rewriteRate." }
+        // The client is built at the store's first request: a bound refused there would fail that request, and each after it.
+        val operationTimeout = config.settings.option(OPERATION_TIMEOUT)
+        configCheck(
+            operationTimeout.isPositive(),
+            "${config.key}.${OPERATION_TIMEOUT.key}",
+            operationTimeout,
+            "Set it (or wow.$TYPE.${OPERATION_TIMEOUT.key}) to a positive duration: a request of the store waits that " +
+                "long for an answer at most.",
+        ) { "The operation timeout of the Elasticsearch store ${config.name} cannot be $operationTimeout." }
         return ElasticsearchStore(
             config,
             restClient,
@@ -100,7 +109,7 @@ internal class ElasticsearchStoreProvider : StoreProvider {
             config.settings.option(REFRESH).refresh,
             queryRestClient = queryClient?.takeIf { it !== restClient },
             rewriteRate = rewriteRate,
-            operationTimeout = config.settings.option(OPERATION_TIMEOUT),
+            operationTimeout = operationTimeout,
         )
     }
 

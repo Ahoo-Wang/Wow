@@ -25,6 +25,7 @@ import me.ahoo.wow.postgres.subscription.PostgresLeaseStore
 import me.ahoo.wow.postgres.timer.PostgresTimerStore
 import me.ahoo.wow.query.store.StoreQueries
 import me.ahoo.wow.spi.config.ProviderOption
+import me.ahoo.wow.spi.config.configCheck
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.SnapshotTailReader
@@ -42,6 +43,7 @@ import me.ahoo.wow.spi.timer.TimerStore
 import java.util.concurrent.ConcurrentHashMap
 import javax.sql.DataSource
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * The PostgreSQL stores (`wow.stores.<name>.type: postgres`), each over the application's `DataSource`
@@ -68,6 +70,14 @@ internal class PostgresStoreProvider : StoreProvider {
             config.resources.resource(DataSource::class.java, name, "${config.key}.${QUERY_DATA_SOURCE.key}")
         }
         val timeout = config.settings.option(OPERATION_TIMEOUT)
+        // JDBC's network timeout is whole milliseconds in an Int, and 0 is none: a bound past it, or none, is refused.
+        configCheck(
+            timeout.isPositive() && timeout.inWholeMilliseconds in 1..Int.MAX_VALUE,
+            "${config.key}.${OPERATION_TIMEOUT.key}",
+            timeout,
+            "Set it (or wow.$TYPE.${OPERATION_TIMEOUT.key}) to at least a millisecond and at most " +
+                "${Int.MAX_VALUE.milliseconds}: a call of the store waits that long for a reply at most.",
+        ) { "The operation timeout of the PostgreSQL store ${config.name} cannot be $timeout." }
         return PostgresStore(config, dataSource, queries ?: dataSource, timeout)
     }
 
