@@ -327,9 +327,10 @@ internal class SubscriptionWorker(
         val entry = item.entry
         val (skipped, parked) = synchronized(this) { skippedInLane(entry) to parkedAt(entry) }
         // A run that did not finish it started its observation, which its handling goes on in; a skipped entry,
-        // not handled, drops it.
+        // not handled, ends it plainly before it completes: a skip has no outcome of its own.
         val held = item.observation?.also { item.observation = null }
         val handled = if (skipped) {
+            held?.end()
             Result.success(HandledEntry.NOTHING)
         } else {
             handling.handle(entry, held ?: handling.observation(entry))
@@ -570,12 +571,25 @@ internal class SubscriptionWorker(
         (outcome.exceptionOrNull() as? CancellationException)?.let { throw it }
     }
 
-    /** Fails the retries and skips still queued: their lanes were cancelled by a stop. */
-    fun abandon() = synchronized(this) {
-        abandoned = true
-        running.stop()
-        queued.clear().filterIsInstance<Item.Action>().forEach {
-            it.result.cancel(CancellationException("The subscription runtime stopped."))
+    /**
+     * Fails the retries and skips still queued: their lanes were cancelled by a stop. The observation a run started
+     * for an entry still queued, which it did not finish, ends with the stop's cancellation, as the run's own do.
+     */
+    fun abandon() {
+        val cleared = synchronized(this) {
+            abandoned = true
+            running.stop()
+            queued.clear()
+        }
+        cleared.forEach {
+            val stopped = CancellationException("The subscription runtime stopped.")
+            when (it) {
+                is Item.Action -> it.result.cancel(stopped)
+                is Item.Live -> it.observation?.run {
+                    failed(stopped)
+                    end()
+                }
+            }
         }
     }
 
@@ -586,7 +600,8 @@ internal class SubscriptionWorker(
     private sealed interface Item {
         /**
          * A live entry of a lane, and the [observation] of its handling a run started and did not finish: the lane's
-         * coroutine sets it before the lane takes the entry again, which its monitor orders.
+         * coroutine sets it before the lane takes the entry again, which its monitor orders. Its handling goes on in
+         * it; a skip ends it plainly, a stop with its cancellation.
          */
         class Live(val entry: SourcedEntry, val slot: Slot) : Item {
             var observation: Observation? = null

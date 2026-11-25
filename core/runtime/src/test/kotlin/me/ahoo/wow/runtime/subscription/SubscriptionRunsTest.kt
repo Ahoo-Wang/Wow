@@ -101,6 +101,9 @@ class SubscriptionRunsTest {
     @Volatile
     private var failing = true
 
+    /** The aggregates whose handling alone finds its sink unavailable, a systemic failure that pauses the partition. */
+    private val unavailable: MutableSet<String> = ConcurrentHashMap.newKeySet()
+
     /** What a run of the aggregate answers instead of every entry done, up to [failAt]. */
     private val answers = ConcurrentHashMap<String, suspend (List<RunEntry>) -> RunHandled>()
 
@@ -123,6 +126,9 @@ class SubscriptionRunsTest {
     ) { entry ->
         alone += key(entry)
         aloneHolds[entry.ref.id]?.await()
+        if (entry.ref.id in unavailable) {
+            throw StorageUnavailableException("The sink is unavailable.")
+        }
         if (key(entry) == failAt && failing) {
             error("$failAt is broken alone")
         }
@@ -136,7 +142,11 @@ class SubscriptionRunsTest {
         return RunHandled(at, IllegalStateException("$failAt is broken"))
     }
 
-    private fun runtime(subscription: Subscription = this.subscription, source: EntrySource = LogSource(watched)) =
+    private fun runtime(
+        subscription: Subscription = this.subscription,
+        source: EntrySource = LogSource(watched),
+        ledger: FailureLedger = this.ledger,
+    ) =
         SubscriptionRuntime(
             "group",
             source,
@@ -488,9 +498,9 @@ class SubscriptionRunsTest {
             // x@3 is handled alone in the observation the run started, and parks: its failure is that handling's.
             observer.failed.getValue("x@3").message.assert().isEqualTo("x@3 is broken alone")
             observer.failed.keys.assert().containsExactly("x@3")
-            // x@4, never tried, is skipped behind the park: its observation is dropped, not ended as handled.
+            // x@4, never tried, is skipped behind the park: its observation ends plainly, before x@4 completes.
             observer.opened.assert().containsExactly("x@1", "x@2", "x@3", "x@4")
-            observer.ended.assert().containsExactly("x@1", "x@2", "x@3")
+            observer.ended.assert().containsExactly("x@1", "x@2", "x@3", "x@4")
         }
 
     @Test
@@ -511,16 +521,80 @@ class SubscriptionRunsTest {
             .isEqualTo(mapOf("x@1" to 1, "x@2" to 1, "x@3" to 1, "x@4" to 1))
     }
 
-    /** The lines [LaneRuns] logs while [block] runs: a run that ended part way. */
+    @Test
+    fun `a run that stops short, whose next entries are then skipped, leaves no observation open`(): Unit =
+        runBlocking {
+            failAt = "x@3"
+            val runtime = runtime()
+            val sequences = holdX(runtime, more = 4)
+            releaseX()
+            eventually { watermark(runtime) == sequences.last() }
+
+            // x@3 fails alone and parks; x@4 and x@5, which the run did not reach, are then skipped behind it.
+            ledger.isParked(id, cart("x")).assert().isTrue()
+            alone.assert().doesNotContain("x@4", "x@5")
+            // A skipped entry ends its observation before it completes: each has ended once the checkpoint passes x@5.
+            val once = (1..5).associate { "x@$it" to 1 }
+            observer.opened.groupingBy { it }.eachCount().assert().isEqualTo(once)
+            observer.ended.groupingBy { it }.eachCount().assert().isEqualTo(once)
+            observer.failed.keys.assert().containsExactly("x@3")
+        }
+
+    @Test
+    fun `an entry a run did not finish, handed alone while the partition is paused and skipped, ends its observation`():
+        Unit = runBlocking {
+        failAt = "x@3"
+        val parks = HeldParks(ledger, "x")
+        val runtime = runtime(ledger = parks)
+        holdX(runtime, more = 3)
+        releaseX()
+        // x@3 fails alone and parks, its ledger write held, past the pause's wait, while y's sink pauses the partition.
+        eventually { parks.reached.isCompleted }
+        answers["y"] = { RunHandled(0, StorageUnavailableException("The sink is unavailable.")) }
+        unavailable += "y"
+        val y = appender.append("y")
+        eventually { runtime.paused().isNotEmpty() }
+        parks.release.complete(Unit)
+
+        // Paused, x's lane hands x@4 alone, which is skipped behind the park: it ends the observation the run started.
+        eventually { "x@4" in observer.ended }
+        unavailable -= "y"
+        eventually { watermark(runtime) == y }
+        alone.assert().doesNotContain("x@4")
+        val once = (1..4).associate { "x@$it" to 1 }
+        observer.opened.filter { it.startsWith("x@") }.groupingBy { it }.eachCount().assert().isEqualTo(once)
+        observer.ended.filter { it.startsWith("x@") }.groupingBy { it }.eachCount().assert().isEqualTo(once)
+    }
+
+    @Test
+    fun `a stop ends with its cancellation the observation a run started for an entry still queued`(): Unit =
+        runBlocking {
+            failAt = "x@3"
+            aloneHolds["x"] = CompletableDeferred()
+            val runtime = runtime()
+            holdX(runtime, more = 3)
+            releaseX()
+            // x@3 is handled alone, held there; x@4, which the run did not reach, waits in the lane behind it.
+            eventually { "x@3" in alone }
+            runtime.stop()
+            started = null
+
+            val once = (1..4).associate { "x@$it" to 1 }
+            observer.opened.groupingBy { it }.eachCount().assert().isEqualTo(once)
+            observer.ended.groupingBy { it }.eachCount().assert().isEqualTo(once)
+            observer.failed.getValue("x@4").assert().isInstanceOf(CancellationException::class.java)
+        }
+
+    /** The lines of a run that ended part way, which [LaneRuns] logs as the worker, while [block] runs. */
     private suspend fun runLines(block: suspend () -> Unit): List<String> {
-        val logger = LoggerFactory.getLogger(LaneRuns::class.java.name) as Logger
+        val logger = LoggerFactory.getLogger(SubscriptionWorker::class.java.name) as Logger
         val level = logger.level
         val appender = ListAppender<ILoggingEvent>().apply { start() }
         logger.level = Level.DEBUG
         logger.addAppender(appender)
         try {
             block()
-            return appender.list.map { it.formattedMessage }
+            return appender.list.map { it.formattedMessage }.filter { it.startsWith("The run of ") }
         } finally {
             logger.detachAppender(appender)
             logger.level = level
@@ -554,6 +628,21 @@ class SubscriptionRunsTest {
                     ended += key
                 }
             }
+        }
+    }
+
+    /** [delegate], whose park of [aggregate] is held at the ledger, once it has [reached] it, until [release]. */
+    private class HeldParks(private val delegate: FailureLedger, private val aggregate: String) :
+        FailureLedger by delegate {
+        val reached = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+
+        override suspend fun park(entry: ParkedAggregate): Boolean {
+            if (entry.ref.id == aggregate) {
+                reached.complete(Unit)
+                release.await()
+            }
+            return delegate.park(entry)
         }
     }
 

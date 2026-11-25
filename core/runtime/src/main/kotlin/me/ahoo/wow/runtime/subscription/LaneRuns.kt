@@ -120,7 +120,9 @@ internal class LaneRuns<I, L>(
      *
      * Each entry's handling is observed once ([observed]): the entry the run ended at is handled alone in the
      * observation the run started for it, as a retry of it, and each entry after it goes on in its own when its lane
-     * takes it again.
+     * takes it again. An entry the lane skips is not handled: the observation a run before started for it ends
+     * plainly, since a skip has no outcome of its own ([me.ahoo.wow.spi.observation.ObservedOutcome]), before it
+     * completes.
      */
     private suspend fun run(first: I, lane: L, runHandler: RunHandler) {
         if (handling.paused) {
@@ -135,6 +137,7 @@ internal class LaneRuns<I, L>(
         val failing = handed.getOrNull(done)
         val at = failing?.let { taken.indexOf(it) } ?: taken.size
         val settled = taken.subList(0, at)
+        settled.forEach { if (it.skipped) ops.held(it.item)?.end() }
         ops.settle(settled, true, lane, taken.subList(minOf(at + 1, taken.size), taken.size))
         settled.forEach {
             hops.signal(it.entry, Result.success(HandledEntry.NOTHING), it.skipped && it.parked)
@@ -217,4 +220,5 @@ internal class LaneRuns<I, L>(
     }
 }
 
-private val logger = KotlinLogging.logger {}
+/** The worker's: an operator filters a subscription's lines by it, as by those of an entry handled alone. */
+private val logger = KotlinLogging.logger(SubscriptionWorker::class.java.name)
