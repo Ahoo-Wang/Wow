@@ -298,7 +298,7 @@ abstract class FailureLedgerSpec {
             val claimed = ledger.amend(subscription, ref("a"), ParkedAmendment.ClaimRetry(scheduled.revision, at))!!
             claimed.nextAttemptAt.assert().isNull()
             claimed.retries.assert().isEqualTo(1)
-            claimed.retryAt.assert().isEqualTo(at)
+            claimed.lastRetryAt.assert().isEqualTo(at)
             listOf(
                 ParkedAmendment.MarkRecoverable(Recoverable.RECOVERABLE),
                 ParkedAmendment.ApplyRetrySpec(SPEC),
@@ -335,7 +335,7 @@ abstract class FailureLedgerSpec {
                     reason = "restated",
                     failedAt = FAILED_AT + 30,
                     retries = 3,
-                    retryAt = FAILED_AT + 20,
+                    lastRetryAt = FAILED_AT + 20,
                     retrySpec = SPEC,
                     recoverable = Recoverable.UNRECOVERABLE,
                     request = LedgerRequest.SKIP,
@@ -356,7 +356,7 @@ abstract class FailureLedgerSpec {
             )
             ledger.amend(subscription, ref("a"), cleared)!!.also {
                 it.retrySpec.assert().isNull()
-                it.retryAt.assert().isNull()
+                it.lastRetryAt.assert().isNull()
                 it.retries.assert().isEqualTo(0)
                 it.recoverable.assert().isEqualTo(Recoverable.UNKNOWN)
             }
@@ -380,7 +380,7 @@ abstract class FailureLedgerSpec {
     fun `a new entry's retry state reads back with it, in its page and when resolved`(): Unit = runBlocking {
         val parked = entry(ref("a"), 3, partition = 5).copyWith(
             retries = 2,
-            retryAt = FAILED_AT + 100,
+            lastRetryAt = FAILED_AT + 100,
             retrySpec = SPEC,
             recoverable = Recoverable.RECOVERABLE,
             request = LedgerRequest.RETRY,
@@ -441,7 +441,7 @@ abstract class FailureLedgerSpec {
         ledger.amend(subscription, ref("a"), ParkedAmendment.ClaimRetry(1, FAILED_AT)).assert().isNull()
         val first = ledger.amend(subscription, ref("a"), ParkedAmendment.ClaimRetry(0, FAILED_AT + 10))!!
         first.retries.assert().isEqualTo(1)
-        first.retryAt.assert().isEqualTo(FAILED_AT + 10)
+        first.lastRetryAt.assert().isEqualTo(FAILED_AT + 10)
         ledger.amend(subscription, ref("a"), ParkedAmendment.ClaimRetry(0, FAILED_AT + 20)).assert().isNull()
         ledger.parked(subscription, ref("a")).assert().isEqualTo(first)
 
@@ -551,7 +551,7 @@ abstract class FailureLedgerSpec {
         reason = "restated",
         failedAt = FAILED_AT + 30,
         retries = 3,
-        retryAt = FAILED_AT + 20,
+        lastRetryAt = FAILED_AT + 20,
         retrySpec = SPEC,
         recoverable = Recoverable.UNRECOVERABLE,
     )

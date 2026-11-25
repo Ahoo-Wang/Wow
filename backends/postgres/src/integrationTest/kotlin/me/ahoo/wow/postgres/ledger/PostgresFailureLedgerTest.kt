@@ -71,6 +71,24 @@ class PostgresFailureLedgerTest : FailureLedgerSpec() {
     }
 
     @Test
+    fun `the start of the last retry is stored as last_retry_at`(): Unit = runBlocking {
+        val ledger = PostgresFailureLedger(PostgresFixture.dataSource, "ledger_last_retry_at")
+        ledger.createSchema()
+        val ref = AggregateType("ledger", "order").ref("tenant", "last-retry-" + System.nanoTime())
+        ledger.park(ParkedAggregate(PROJECTION, ref, 0, 1, "failed", 7)).assert().isTrue()
+        ledger.amend(PROJECTION, ref, ParkedAmendment.ClaimRetry(0, 42))!!.lastRetryAt.assert().isEqualTo(42L)
+        PostgresFixture.dataSource.connection.use { connection ->
+            connection.prepareStatement("SELECT last_retry_at FROM ledger_last_retry_at WHERE aggregate_id = ?").use {
+                it.setString(1, ref.id)
+                it.executeQuery().use { row ->
+                    row.next().assert().isTrue()
+                    row.getLong("last_retry_at").assert().isEqualTo(42L)
+                }
+            }
+        }
+    }
+
+    @Test
     fun `a ledger table recorded in another format is refused`() {
         PostgresFailureLedger(PostgresFixture.dataSource, "ledger_other_format").createSchema()
         PostgresFixture.bumpFormat("ledger_other_format")

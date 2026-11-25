@@ -12,7 +12,7 @@
       "description" : "One service's parked entry, as its failure ledger publishes it, and an operator's actions on it",
       "state" : {
         "schema" : "#/$defs/me.ahoo.wow.ops.domain.parked.ParkedState",
-        "fingerprint" : "3ffcb5caaca90105"
+        "fingerprint" : "f0569e9401ed3a9e"
       },
       "snapshot" : {
         "enabled" : true
@@ -703,6 +703,10 @@
           "type" : "integer",
           "format" : "int32"
         },
+        "lastRetryAt" : {
+          "type" : [ "integer", "null" ],
+          "format" : "int64"
+        },
         "nextRetryAt" : {
           "type" : [ "integer", "null" ],
           "format" : "int64"
@@ -723,10 +727,6 @@
         "retries" : {
           "type" : "integer",
           "format" : "int32"
-        },
-        "retryAt" : {
-          "type" : [ "integer", "null" ],
-          "format" : "int64"
         },
         "retrySpec" : {
           "$ref" : "#/$defs/me.ahoo.wow.ops.api.parked.EntryRetrySpec"
@@ -926,6 +926,13 @@
           "type" : "integer",
           "format" : "int32"
         },
+        "lastRetryAt" : {
+          "type" : [ "integer", "null" ],
+          "format" : "int64",
+          "x-wow-temporal" : {
+            "unit" : "milliseconds"
+          }
+        },
         "nextRetryAt" : {
           "type" : [ "integer", "null" ],
           "format" : "int64",
@@ -978,13 +985,6 @@
         "retries" : {
           "type" : "integer",
           "format" : "int32"
-        },
-        "retryAt" : {
-          "type" : [ "integer", "null" ],
-          "format" : "int64",
-          "x-wow-temporal" : {
-            "unit" : "milliseconds"
-          }
         },
         "retrySpec" : {
           "$ref" : "#/$defs/me.ahoo.wow.ops.api.parked.EntryRetrySpec"

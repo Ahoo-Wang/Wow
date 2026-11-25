@@ -475,7 +475,7 @@ internal fun viewOf(view: ParkedView): Map<String, Any?> {
         "reason" to entry.reason,
         "failedAt" to entry.failedAt,
         "retries" to entry.retries,
-        "retryAt" to entry.retryAt,
+        "lastRetryAt" to entry.lastRetryAt,
         "retrySpec" to mapOf(
             "maxRetries" to view.spec.maxRetries,
             "initialBackoff" to view.spec.initialBackoff.toIsoString(),

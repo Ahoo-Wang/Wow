@@ -122,7 +122,7 @@ internal class CompensationPlan(
             failedAt = execution.executeAt,
             retries = execution.retries,
             // 9.x starts the retry state at the failure; V10 counts from the failure until the first retry started.
-            retryAt = execution.retryAt.takeIf { execution.retries > 0 },
+            lastRetryAt = execution.retryAt.takeIf { execution.retries > 0 },
             retrySpec = ParkedRetrySpec.of(
                 execution.maxRetries,
                 execution.minBackoff.seconds,
@@ -153,7 +153,7 @@ internal class CompensationPlan(
             reason = target.reason,
             failedAt = target.failedAt,
             retries = target.retries,
-            retryAt = target.retryAt,
+            lastRetryAt = target.lastRetryAt,
             retrySpec = target.retrySpec,
             recoverable = target.recoverable,
         )
@@ -479,7 +479,7 @@ private suspend fun CompensationPlan.importedEntries(
 
 /** Why [entry] is parked and its retry state, for a report. */
 private fun retryStateOf(entry: ParkedAggregate): String =
-    "${entry.retries} retries (the last at ${entry.retryAt}) under ${entry.retrySpec}, ${entry.recoverable}, " +
+    "${entry.retries} retries (the last at ${entry.lastRetryAt}) under ${entry.retrySpec}, ${entry.recoverable}, " +
         "failed at ${entry.failedAt}: ${entry.reason}"
 
 /** How the 9.x [execution] an imported entry was parked for no longer stands for it, for a report. */

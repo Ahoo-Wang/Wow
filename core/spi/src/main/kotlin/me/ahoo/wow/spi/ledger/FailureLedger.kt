@@ -202,9 +202,9 @@ interface FailureLedger {
  *
  * Its long-horizon retry state: the owner of the aggregate's partition retries the entry automatically
  * by a [ParkedRetrySpec] ([retrySpec] when an operator applied one, else the subscription's), [retries] times so far,
- * the last one started at [retryAt] (epoch milliseconds). [recoverable] is what an operator marked it: an entry marked
- * [Recoverable.UNRECOVERABLE] is not retried automatically, though it can still be retried by hand. [request] is an
- * operator's retry or skip that the partition's owner has not taken yet.
+ * the last one started at [lastRetryAt] (epoch milliseconds). [recoverable] is what an operator marked it: an entry
+ * marked [Recoverable.UNRECOVERABLE] is not retried automatically, though it can still be retried by hand. [request] is
+ * an operator's retry or skip that the partition's owner has not taken yet.
  *
  * [nextAttemptAt] (epoch milliseconds) is when the owner next looks at the entry: the next automatic retry it
  * computed by the spec, [NEVER] for one that is not retried automatically, null until it has looked. Only the owner
@@ -228,7 +228,7 @@ class ParkedAggregate @InternalWowApi constructor(
     val fromPosition: Long? = null,
     val skipOnly: Boolean = false,
     val retries: Int = 0,
-    val retryAt: Long? = null,
+    val lastRetryAt: Long? = null,
     val retrySpec: ParkedRetrySpec? = null,
     val recoverable: Recoverable = Recoverable.UNKNOWN,
     val request: LedgerRequest? = null,
@@ -263,8 +263,8 @@ class ParkedAggregate @InternalWowApi constructor(
         if (!retryable(spec)) {
             return null
         }
-        val next = plus(retryAt ?: failedAt, spec.backoff(retries))
-        val claimed = retryAt?.let { plus(it, spec.claimTtl) } ?: next
+        val next = plus(lastRetryAt ?: failedAt, spec.backoff(retries))
+        val claimed = lastRetryAt?.let { plus(it, spec.claimTtl) } ?: next
         return maxOf(next, claimed)
     }
 
@@ -280,7 +280,7 @@ class ParkedAggregate @InternalWowApi constructor(
         fromPosition: Long? = this.fromPosition,
         skipOnly: Boolean = this.skipOnly,
         retries: Int = this.retries,
-        retryAt: Long? = this.retryAt,
+        lastRetryAt: Long? = this.lastRetryAt,
         retrySpec: ParkedRetrySpec? = this.retrySpec,
         recoverable: Recoverable = this.recoverable,
         request: LedgerRequest? = this.request,
@@ -297,7 +297,7 @@ class ParkedAggregate @InternalWowApi constructor(
             fromPosition,
             skipOnly,
             retries,
-            retryAt,
+            lastRetryAt,
             retrySpec,
             recoverable,
             request,
@@ -313,7 +313,7 @@ class ParkedAggregate @InternalWowApi constructor(
     override fun toString(): String =
         "ParkedAggregate(subscription=$subscription, ref=$ref, partition=$partition, fromVersion=$fromVersion, " +
             "reason=$reason, failedAt=$failedAt, fromPosition=$fromPosition, skipOnly=$skipOnly, retries=$retries, " +
-            "retryAt=$retryAt, retrySpec=$retrySpec, recoverable=$recoverable, request=$request, " +
+            "lastRetryAt=$lastRetryAt, retrySpec=$retrySpec, recoverable=$recoverable, request=$request, " +
             "nextAttemptAt=$nextAttemptAt, revision=$revision)"
 
     private fun valueFields(): List<Any?> = listOf(
@@ -326,7 +326,7 @@ class ParkedAggregate @InternalWowApi constructor(
         fromPosition,
         skipOnly,
         retries,
-        retryAt,
+        lastRetryAt,
         retrySpec,
         recoverable,
         request,
@@ -357,7 +357,7 @@ class ParkedAggregate @InternalWowApi constructor(
             fromPosition: Long? = null,
             skipOnly: Boolean = false,
             retries: Int = 0,
-            retryAt: Long? = null,
+            lastRetryAt: Long? = null,
             retrySpec: ParkedRetrySpec? = null,
             recoverable: Recoverable = Recoverable.UNKNOWN,
             request: LedgerRequest? = null,
@@ -374,7 +374,7 @@ class ParkedAggregate @InternalWowApi constructor(
                 fromPosition,
                 skipOnly,
                 retries,
-                retryAt,
+                lastRetryAt,
                 retrySpec,
                 recoverable,
                 request,
@@ -470,7 +470,7 @@ fun ParkedAggregate.amended(amendment: ParkedAmendment): ParkedAggregate? {
     val next = revision + 1
     return when (amendment) {
         is ParkedAmendment.ClaimRetry ->
-            copyWith(retries = retries + 1, retryAt = amendment.at, nextAttemptAt = null, revision = next)
+            copyWith(retries = retries + 1, lastRetryAt = amendment.at, nextAttemptAt = null, revision = next)
         is ParkedAmendment.MarkRecoverable ->
             copyWith(recoverable = amendment.recoverable, nextAttemptAt = null, revision = next)
         is ParkedAmendment.ApplyRetrySpec -> copyWith(retrySpec = amendment.spec, nextAttemptAt = null, revision = next)
@@ -481,7 +481,7 @@ fun ParkedAggregate.amended(amendment: ParkedAmendment): ParkedAggregate? {
             reason = amendment.reason,
             failedAt = amendment.failedAt,
             retries = amendment.retries,
-            retryAt = amendment.retryAt,
+            lastRetryAt = amendment.lastRetryAt,
             retrySpec = amendment.retrySpec,
             recoverable = amendment.recoverable,
             nextAttemptAt = null,

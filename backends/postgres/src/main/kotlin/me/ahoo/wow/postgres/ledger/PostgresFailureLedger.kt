@@ -261,7 +261,7 @@ class PostgresFailureLedger(
             setString(1, amendment.reason)
             setLong(2, amendment.failedAt)
             setInt(3, amendment.retries)
-            setNullableLong(4, amendment.retryAt)
+            setNullableLong(4, amendment.lastRetryAt)
             setSpec(RESTATE_SPEC, amendment.retrySpec)
             setString(RESTATE_SPEC + SPEC_COLUMNS, WireNames.of(amendment.recoverable))
             setKey(subscription, ref, first = RESTATE_SPEC + SPEC_COLUMNS + 1)
@@ -296,7 +296,7 @@ class PostgresFailureLedger(
     /** Binds [entry]'s retry state to the [RETRY_STATE_COLUMNS] parameters from [first]. */
     private fun PreparedStatement.setRetryState(first: Int, entry: ParkedAggregate) {
         setInt(first, entry.retries)
-        setNullableLong(first + 1, entry.retryAt)
+        setNullableLong(first + 1, entry.lastRetryAt)
         setSpec(first + 2, entry.retrySpec)
         setString(first + 2 + SPEC_COLUMNS, WireNames.of(entry.recoverable))
         setString(first + 3 + SPEC_COLUMNS, entry.request?.let(WireNames::of))
@@ -376,7 +376,7 @@ class PostgresFailureLedger(
             fromPosition = row.nullableLong("from_position"),
             skipOnly = row.getBoolean("skip_only"),
             retries = row.getInt("retries"),
-            retryAt = row.nullableLong("last_retry_at"),
+            lastRetryAt = row.nullableLong("last_retry_at"),
             retrySpec = row.getInt("retry_max_retries").takeUnless { row.wasNull() }?.let { maxRetries ->
                 ParkedRetrySpec(
                     maxRetries = maxRetries,

@@ -202,7 +202,7 @@ export function ParkedReading({
                     max: spec?.maxRetries ?? t("none"),
                   }),
             ],
-            [label("retryAt"), time(entry.retryAt)],
+            [label("lastRetryAt"), time(entry.lastRetryAt)],
             [label("nextRetryAt"), time(entry.nextRetryAt)],
           ]}
         />
