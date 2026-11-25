@@ -60,7 +60,13 @@ class BatchTraceTest {
             gate.await()
             Decision.events(Reserved(0))
         }
-        decide<Reserve>(Creation.ALLOWED) { _, body -> Decision.events(Reserved(body.quantity)) }
+        decide<Reserve>(Creation.ALLOWED) { _, body ->
+            if (body.quantity > AVAILABLE) {
+                Decision.reject(INSUFFICIENT, "Only $AVAILABLE left.")
+            } else {
+                Decision.events(Reserved(body.quantity))
+            }
+        }
         evolve<Reserved> { reserved += it.quantity }
     }
 
@@ -129,6 +135,30 @@ class BatchTraceTest {
                 .tags(WowMetrics.CONTEXT, STOCK, WowMetrics.OUTCOME, "committed")
                 .timer()!!.count().assert().isEqualTo(3L)
         }
+
+    @Test
+    fun `a batched command rejected without events should be counted and timed once`(): Unit = runBlocking {
+        val held = async(Dispatchers.Default) { admitted("held", Hold("g")) }
+        withTimeout(TIMEOUT_MS) { holding.await() }
+        // The second is rejected: the batch hands it back, and it is decided again alone.
+        val reserves = listOf(1, AVAILABLE + 1).mapIndexed { at, quantity ->
+            async(Dispatchers.Default) { admitted("reserve-${at + 1}", Reserve(quantity)) }
+                .also { withTimeout(TIMEOUT_MS) { while (executor.commandsInFlight < at + 2) yield() } }
+        }
+        gate.complete(Unit)
+        held.await()
+        val (committed, rejected) = reserves.awaitAll()
+        committed.assert().isInstanceOf(CommandOutcome.Committed::class.java)
+        (rejected as CommandOutcome.Rejected).rejection.code.assert().isEqualTo(INSUFFICIENT)
+
+        telemetry.meters.find(WowMetrics.COMMAND_REJECTIONS.name).tags(WowMetrics.CONTEXT, STOCK).counters()
+            .sumOf { it.count() }.assert().isEqualTo(1.0)
+        telemetry.meters.find(WowMetrics.COMMAND_DURATION.name)
+            .tags(WowMetrics.CONTEXT, STOCK, WowMetrics.OUTCOME, "rejected")
+            .timer()!!.count().assert().isEqualTo(1L)
+        telemetry.named("execute $ITEM").filter { it.attr(WowAttributes.COMMAND_ID) == "reserve-2" }
+            .map { it.attr(WowAttributes.OUTCOME) }.assert().containsExactly("rejected")
+    }
 
     private fun Telemetry.childrenOf(span: SpanData): List<SpanData> =
         spans.finishedSpanItems.filter { it.parentSpanId == span.spanId }
