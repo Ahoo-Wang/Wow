@@ -22,6 +22,7 @@ import me.ahoo.wow.spi.sink.SinkProvider
 import me.ahoo.wow.spi.store.StoreProvider
 import me.ahoo.wow.spi.transport.TopicTransportOptions
 import me.ahoo.wow.spi.transport.TransportProvider
+import org.springframework.util.unit.DataSize
 import java.beans.Introspector
 import java.beans.PropertyDescriptor
 import java.nio.file.Files
@@ -284,9 +285,20 @@ class ConfigurationMetadata(
         null -> null
         is Number, is Boolean, is String -> value
         is Duration -> value.toString()
+        is DataSize -> sizeOf(value)
         is Enum<*> -> value.name.lowercase().replace('_', '-')
         is Collection<*> -> value.takeIf { it.isNotEmpty() }?.map { defaultOf(it) }
         else -> null
+    }
+
+    /** [size] as an operator writes it and Spring binds it: `64MB`, `512KB`, else its bytes (`100B`) (#6854). */
+    private fun sizeOf(size: DataSize): String {
+        val bytes = size.toBytes()
+        return when {
+            bytes != 0L && bytes % MEGABYTE == 0L -> "${bytes / MEGABYTE}MB"
+            bytes != 0L && bytes % KILOBYTE == 0L -> "${bytes / KILOBYTE}KB"
+            else -> "${bytes}B"
+        }
     }
 
     private fun kebab(name: String): String = name.replace(Regex("([a-z0-9])([A-Z])"), "$1-$2").lowercase()
@@ -374,6 +386,8 @@ class ConfigurationMetadata(
         const val UPDATE: String = "WOW_UPDATE_SNAPSHOTS"
 
         private const val ROOT = "wow."
+        private const val KILOBYTE = 1024L
+        private const val MEGABYTE = KILOBYTE * KILOBYTE
 
         /** The metadata type of each value type of a [ProviderOption]. */
         private val OPTION_TYPES: Map<Class<*>, String> = mapOf(

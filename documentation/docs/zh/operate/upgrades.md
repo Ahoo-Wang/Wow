@@ -145,11 +145,15 @@ Wow 的运维命令（定时作业的命令、快照重建、对停放条目的�
 
 命令的服务端推送事件流（`Accept: text/event-stream`）在命令被接受后即以 `200` 回答，计划中列出的每一跳一到达就是一个事件（[HTTP API](../reference/http)）。被接受之前的拒绝仍是原来的 problem。被接受之后，在计划列出的第一跳之前超时的等待不再答以 `504 wow.wait.timeout`：它是流的最后一个事件，以 `wow.wait.timeout` 在到达的最后一跳上 FAILED，命令尚未落定时是 `accepted`。被接受之后执行失败不再是 `503` 或 `500` 的 problem，也不再是已发出事件后被切断的连接：它是在 `committed` 上 FAILED 的最后一个事件，带 `wow.storage.unavailable` 或 `wow.command.unknown`，以同一个 `Wow-Request-Id` 重试是安全的。把 `200` 之外的状态码当作流的结果的客户端，改为读取最后一个事件的结果。流还会立即写出一条注释 `: keep-alive`，之后每 15 秒写一条，服务端推送事件的读取方会跳过它；最后一个结果之后，流以另一个事件 `end` `{"reason":"complete"}` 结束：把每个事件都当作结果的读取方要跳过 `end`，并把没有它就结束的流当作结果未知。服务和它命令流的读取方要一起升级：更早版本的客户端会把 `end` 读成结果（Kotlin 客户端把这个流作为 `wow.command.unknown` 失败，TypeScript 客户端把它作为最后一个结果交出），而这个版本的客户端对着更早的服务收不到 `end`，会把每个流都作为 `wow.command.unknown` 结束。
 
+wow-generator 生成的 TypeScript 客户端按 Kotlin 契约的命名给错误码常量命名（[生成客户端](../typescript/generate)）。单词切分不同、本地名以数字开头，或不以所在上下文名开头的错误码，得到另一个常量：`invalidURLValue` 原来是 `INVALID_URLVALUE`，现在是 `INVALID_URL_VALUE`；分析目录的 `ANALYTICS_CATALOG_DEFINITION_INVALID` 现在是 `ANALYTICS__CATALOG__DEFINITION_INVALID`。领域命令 `Gateway` 由 `gateway` 发送，原来是 `gatewayCommand`；按无 id 发送的方法名被另一条命令的名字占用时，改名的是命令本身（加 `Command`），而不只是那个方法。重新生成客户端，并改掉代码引用的名字；把 problem 的 `code` 与错误码文本或 `<Context>ErrorCode` 比较的代码无需改动。
+
 分析目录不再转发数据集行所引用服务的内部命令（`@InternalCommand`）：行不提供任何内部命令，发送内部命令的请求答以 `400 wow.command.unhandled`，以前目录会把它发往该服务的内部端口并被执行。直接调用内部命令在该服务的公开端口上是 `404`，转发也绕不过这一点。经由目录发送过内部命令的控制台或脚本，改为从拥有该命令的服务发送，或者把该命令改为公开命令。
 
 列出了快照存储的预发布版，要在启动本版本之前修改配置。配置项 `wow.snapshot.stores`、`wow.snapshot.primary`，以及聚合的 `snapshot.stores` 和 `snapshot.primary` 已经移除，每一个都会拒绝启动，并指出它自己。用 `wow.snapshot.store` 或聚合的 `snapshot.store` 为每个类型指定它唯一的存储。保留了检索副本的部署（`snapshot.stores: [main, search]` 加 `query.snapshot.store: search`）去掉 `snapshot.stores`、保留 `query.snapshot.store`：副本的订阅名不变，仍是 `wow.snapshot:search`，所以它的索引和检查点都保留，也不会重新读取任何东西。
 
 提供者的选项，无论在 `wow.<type>` 下（`wow.kafka.*`、`wow.mongo.*`、对等发现的、数据集后端的），还是在 `wow.stores.<name>` 下属于某个存储自己的，现在都按 Spring 绑定的每一种写法读取，与配置键检查的读法一致：环境变量（`WOW_KAFKA_COMMANDINTAKE_ENABLED`）或驼峰写法（`commandIntake.enabled`）与短横线写法的键含义相同，两者同时出现时按环境的顺序决定。预发布版本只按某个文件中的短横线键读取提供者的选项：没有文件设置其短横线写法的环境变量或驼峰键能通过启动检查，却不会被读取。这样的设置现在会生效；请检查部署以这种方式设置了什么。Wow 自带的 eShop 支付服务的 chart 设置了 `WOW_KAFKA_COMMANDINTAKE_ENABLED: "true"`，预发布版本忽略了它：它的命令接收现在会运行。
+
+预发布版启动时接受的两个设置，现在会拒绝启动，并说出其配置项和界限。`wow.health.liveness.stall-timeout` 必须长于 `wow.cluster.reconcile-timeout`（默认 `1m`），这样卡住的节点会在其存活检查失败之前离开成员：*wow.health.liveness.stall-timeout is 1m, not longer than wow.cluster.reconcile-timeout.* `wow.query.dataset.max-concurrent` 必须为 `0` 或更大，而预发布版把负值当作不设界限运行：不设界限请设为 `0`（*wow.query.dataset.max-concurrent is -1, below 0.*）。
 
 服务的构建现在可以渲染它的 Kubernetes 清单：`wow { kubernetes { values.from(…); namespace = … } }` 让 `generateWowManifests` 进入 `assemble`，它把插件自带的 `wow-service` chart 渲染成纯 YAML 的 Kustomize base，即 `build/wow/k8s/`，供 `kubectl apply -k` 使用（[配合 Kustomize](./kubernetes#with-kustomize)）。没有任何破坏：安装 chart 的部署无需改动，没有写 values 的构建什么也不渲染。写了 values 的构建第一次渲染时把 Helm v4.3.1 获取到 Gradle 用户目录；`wow.helm.mirror` 与 `wow.helm.executable` 供无法访问 `get.helm.sh` 的构建使用。原先用 `helm template` 手工渲染 chart 的部署，可以改为在构建里写明同样的 values 文件。
 
@@ -186,6 +190,8 @@ CoSec 本版本的其他变化涉及网关、控制面、签发 CoSec 令牌的�
 - **`Ledger.parkedId` 返回哈希**，签名不变；解析过它旧形式的代码，改读条目的字段。
 
 本版本可以把 CoSec 的拒绝写成 Wow 的 problem，默认关闭：`wow.cosec.problems: wow`（[CoSec 的拒绝](./security#cosec-refusals)）。保持 `cosec` 时，每个回答与以前逐字节相同。它基于 CoSec 的 `ProblemRenderer`，那在 CoSec 8 里是试验性的，形状可能随 CoSec 的 RC 改变。新增两个码：`wow.request.rate-limited`（429）与 `wow.auth.unavailable`（503），只有这些拒绝会用到它们。
+
+`wow-service` chart 拒绝更多预发布版能渲染的 value（[Kubernetes](./kubernetes)）。chart 自己设置的键，在 `settings` 和 `env` 中也会被拒绝，就像在 `config` 中一样，Spring 能绑定的任何写法都算：停止的上限（`wow.wait.max-timeout`、`wow.cluster.drain-timeout`、`wow.subscription.stop-timeout`：设置 `shutdown.*`）、端口（`server.port`、`wow.internal.port`：设置 `ports.*`）、节点的身份和地址、`POD_NAME` 和 `POD_IP`，以及 `env` 中的 `SPRING_APPLICATION_JSON`。开启 `networkPolicy.public.onlyGateway`（默认）时，`networkPolicy.public.from` 中不按标签指明 Pod 的条目（`podSelector` 为空或没有、`ipBlock`）会被拒绝：指明网关的 Pod，或设置 `onlyGateway: false`。生成的 values 把代码调用的对端写作 `service.contractPeers`，chart 按服务把你的 `service.peers` 与它们合并：重新生成 values（`generateWowHelmValues`，`assemble` 会运行它），你的文件给某个对端写了命名空间时，内部策略也会重新放行每个对端。预发布版生成的、带 `service.peers` 的 values 文件仍能渲染，按部署自己的对端来读。
 
 ### Kafka 上的发布流 {#published-streams-on-kafka}
 

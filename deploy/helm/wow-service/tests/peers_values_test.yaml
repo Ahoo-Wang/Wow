@@ -1,0 +1,59 @@
+# operate/kubernetes.md has the deployment's values file give one peer its namespace, after the values the plugin
+# generates (#6933). The generated peers are service.contractPeers and the deployment's service.peers, which the chart
+# joins by service: Helm replaces a list whole, so one list would lose the generated peers the file does not repeat, the
+# internal policy no longer admitting them and the node finding them nowhere else.
+suite: a peer's namespace in the deployment's values keeps the generated peers
+templates:
+  - templates/networkpolicy.yaml
+  - templates/configmap.yaml
+release:
+  namespace: shop
+values:
+  - values/generated-peers.yaml
+  - values/own-peers.yaml
+tests:
+  - it: admits every peer the code calls to the internal port, the one placed in payments there
+    documentSelector:
+      path: metadata.name
+      value: eshop-basket-service-internal
+    asserts:
+      - contains:
+          path: spec.ingress[0].from
+          content:
+            podSelector:
+              matchLabels:
+                app.kubernetes.io/name: eshop-ordering-service
+      - contains:
+          path: spec.ingress[0].from
+          content:
+            podSelector:
+              matchLabels:
+                app.kubernetes.io/name: eshop-payment-service
+            namespaceSelector:
+              matchLabels:
+                kubernetes.io/metadata.name: payments
+  - it: places the peer in its namespace for the node too, the generated others where they are
+    template: templates/configmap.yaml
+    asserts:
+      - equal:
+          path: data.SPRING_APPLICATION_JSON
+          value: '{"wow":{"peer":{"dns":{"namespaces":{"eshop-payment-service":"payments"}}}}}'
+  - it: admits a peer of the deployment's own that the contract does not name, after the generated ones
+    documentSelector:
+      path: metadata.name
+      value: eshop-basket-service-internal
+    set:
+      service.peers:
+        - context: eshop-audit
+          service: eshop-audit-service
+    asserts:
+      # The service's own nodes, the two generated peers, then the deployment's.
+      - lengthEqual:
+          path: spec.ingress[0].from
+          count: 4
+      - equal:
+          path: spec.ingress[0].from[3]
+          value:
+            podSelector:
+              matchLabels:
+                app.kubernetes.io/name: eshop-audit-service

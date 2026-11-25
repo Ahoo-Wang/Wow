@@ -96,6 +96,8 @@ For each bounded context, a directory named after it:
 | `index.ts` | Everything above, exported again |
 | `.wow-generator.json` | The files the run wrote, so a later run deletes the ones it no longer writes |
 
+An error code's constant is named as the Kotlin contract names it: what follows its aggregate (`context.aggregate.code`) or its context, each dotted segment in upper snake case, joined by `__`, with `_` before a leading digit. `invalid-item` is `INVALID_ITEM`, `invalidURLValue` is `INVALID_URL_VALUE`, and `analytics.catalog.incomplete` of the context `analytics-catalog` is `ANALYTICS__CATALOG__INCOMPLETE`. Of two codes whose constants coincide, the first keeps it; both stay in `<Context>ErrorCode`. A name that meets a member the generator declares beside it gets one of its own: a command whose method or `…Stream` twin is taken (`StartStream` beside `Start`, `Client`, or a lifecycle command's name) takes `Command`, then `Command2`; an aggregate `commands` or `routes` is `commandsAggregate` in `<Context>Client`, and `ErrorsAggregate` in the contract for an aggregate `errors`; a service route `routes` is `routesRoute`.
+
 The eShop ordering's contract. Its error codes are the domain's rejections only: a command that breaks its constraints answers the framework's `wow.command.invalid` (`FrameworkErrorCodes.COMMAND_INVALID`) with its `violations` ([Send Commands](./commands)).
 
 <!-- typecheck-generated: examples/eshop/web/src/generated/ordering -->

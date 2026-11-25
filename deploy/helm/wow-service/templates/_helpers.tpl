@@ -69,13 +69,39 @@ shutdown phase is set from too: max(wait.max-timeout, 2 x subscription.stop-time
 {{- end -}}
 
 {{/*
+The service's peers, as a JSON list: those the build generated (service.contractPeers, the peers its code calls), then
+the deployment's (service.peers), one entry a service, the deployment's taking the place of a generated one of the same
+service (its namespace, say), in the generated order, the deployment's own after them (#6933). Helm replaces a list
+whole, so the two lists are two keys: a values file that gives one peer its namespace keeps the generated others.
+*/}}
+{{- define "wow-service.peers" -}}
+{{- $peers := list -}}
+{{- $own := dict -}}
+{{- range .Values.service.peers -}}
+{{- $_ := set $own (.service | default .context | default "") . -}}
+{{- end -}}
+{{- $listed := dict -}}
+{{- range .Values.service.contractPeers -}}
+{{- $key := .service | default .context | default "" -}}
+{{- $peers = append $peers (get $own $key | default .) -}}
+{{- $_ := set $listed $key true -}}
+{{- end -}}
+{{- range .Values.service.peers -}}
+{{- if not (hasKey $listed (.service | default .context | default "")) -}}
+{{- $peers = append $peers . -}}
+{{- end -}}
+{{- end -}}
+{{- toJson $peers -}}
+{{- end -}}
+
+{{/*
 The Spring settings the chart gives as SPRING_APPLICATION_JSON: the values' settings, with each peer placed in another
-namespace (service.peers[].namespace) as wow.peer.dns.namespaces.<service>.
+namespace (a peer's namespace, wow-service.peers) as wow.peer.dns.namespaces.<service>.
 */}}
 {{- define "wow-service.settings" -}}
 {{- $settings := deepCopy (.Values.settings | default dict) -}}
 {{- $namespaces := dict -}}
-{{- range .Values.service.peers -}}
+{{- range include "wow-service.peers" . | fromJsonArray -}}
 {{- if and .namespace .service (ne .namespace $.Release.Namespace) -}}
 {{- $_ := set $namespaces .service .namespace -}}
 {{- end -}}
@@ -84,6 +110,34 @@ namespace (service.peers[].namespace) as wow.peer.dns.namespaces.<service>.
 {{- $settings = mergeOverwrite (dict "wow" (dict "peer" (dict "dns" (dict "namespaces" $namespaces)))) $settings -}}
 {{- end -}}
 {{- if $settings -}}{{- toJson $settings -}}{{- end -}}
+{{- end -}}
+
+{{/*
+The keys the chart sets itself, each as Spring's relaxed binding reads it (its letters and digits, upper case), with why:
+config, settings and env refuse them (#6934).
+*/}}
+{{- define "wow-service.ownedKeys" -}}
+SERVERPORT: ", from ports.http, which the probes and the Services follow: remove it"
+WOWINTERNALPORT: ", from ports.internal, which the peers' SRV records and the policy follow: remove it"
+WOWINTERNALHOST: ", the pod's address: remove it"
+WOWNODEID: ", the pod's name: remove it"
+WOWPEERDNSNAMESPACE: ", the pod's namespace: give a peer's under service.peers instead"
+WOWWAITMAXTIMEOUT: ": set shutdown.waitMaxTimeoutSeconds instead, which the grace period counts"
+WOWCLUSTERDRAINTIMEOUT: ": set shutdown.drainTimeoutSeconds instead, which the grace period counts"
+WOWSUBSCRIPTIONSTOPTIMEOUT: ": set shutdown.subscriptionStopTimeoutSeconds instead, which the grace period counts"
+{{- end -}}
+
+{{/* The paths of the leaves of a settings tree, .map under .prefix, one a line. */}}
+{{- define "wow-service.settingPaths" -}}
+{{- $prefix := .prefix -}}
+{{- range $key, $value := .map -}}
+{{- $path := ternary (toString $key) (printf "%s.%s" $prefix $key) (eq $prefix "") -}}
+{{- if kindIs "map" $value -}}
+{{- include "wow-service.settingPaths" (dict "prefix" $path "map" $value) -}}
+{{- else -}}
+{{- printf "%s\n" $path -}}
+{{- end -}}
+{{- end -}}
 {{- end -}}
 
 {{/* Refuses values that cannot work together; each template that renders them includes it, so one rendered alone (helm template -s) refuses them too. */}}
@@ -109,6 +163,24 @@ namespace (service.peers[].namespace) as wow.peer.dns.namespaces.<service>.
 {{- fail "config.SPRING_APPLICATION_JSON: put those keys under settings, which the chart renders as SPRING_APPLICATION_JSON" -}}
 {{- end -}}
 {{- /*
+The same keys through settings, which SPRING_APPLICATION_JSON makes override every variable, or through env, which
+overrides the ConfigMap (#6934): each key read as Spring's relaxed binding reads it, its letters and digits alone.
+*/ -}}
+{{- $owned := include "wow-service.ownedKeys" . | fromYaml -}}
+{{- range $path := include "wow-service.settingPaths" (dict "prefix" "" "map" (.Values.settings | default dict)) | splitList "\n" | compact -}}
+{{- with get $owned (regexReplaceAll "[^A-Za-z0-9]" $path "" | upper) -}}
+{{- fail (printf "settings.%s is set by the chart itself%s" $path .) -}}
+{{- end -}}
+{{- end -}}
+{{- $envOnly := dict "PODNAME" ", the pod's name, which WOW_NODE_ID is: remove it" "PODIP" ", the pod's address, which WOW_INTERNAL_HOST is: remove it" "SPRINGAPPLICATIONJSON" ": put those keys under settings, which the chart renders as SPRING_APPLICATION_JSON" -}}
+{{- range .Values.env -}}
+{{- $name := .name | default "" -}}
+{{- $key := regexReplaceAll "[^A-Za-z0-9]" $name "" | upper -}}
+{{- with get $owned $key | default (get $envOnly $key) -}}
+{{- fail (printf "env %s is set by the chart itself%s" $name .) -}}
+{{- end -}}
+{{- end -}}
+{{- /*
 The chart's labels are the chart's: a map of labels the values lay over them (the pods', the monitors') sets none of
 them. The pods are selected by app.kubernetes.io/name, and the platform's internal policies admit them by
 app.kubernetes.io/part-of: a pod label of the same key would leave the Deployment's selector without its pods, which
@@ -130,6 +202,19 @@ second key of the same name, which a strict YAML reader refuses.
 {{- end -}}
 {{- if and .Values.networkPolicy.enabled (not .Values.networkPolicy.public.from) -}}
 {{- fail "networkPolicy.public.from is empty, which would admit every pod to the public port: name the gateway's pods, or disable networkPolicy" -}}
+{{- end -}}
+{{- /*
+The gateway-only statement (#6935) holds only while every entry of from names pods by their labels: one with an empty
+or no podSelector admits every pod of its namespaces, a namespaceSelector alone those of every namespace it selects, and
+an ipBlock whatever has an address in it; each of them can then claim any identity.
+*/ -}}
+{{- if and .Values.networkPolicy.enabled .Values.networkPolicy.public.onlyGateway (not (hasKey .Values.config "COSEC_PIPELINE_IDENTITY_ONLYGATEWAYCANREACH")) -}}
+{{- range $index, $from := .Values.networkPolicy.public.from -}}
+{{- $pods := $from.podSelector | default dict -}}
+{{- if not (or $pods.matchLabels $pods.matchExpressions) -}}
+{{- fail (printf "networkPolicy.public.from[%d] names no pods by their labels, so it admits every pod it reaches: the statement that only the gateway reaches the public port (networkPolicy.public.onlyGateway) would not hold, and each such pod could claim any identity; name the gateway's pods with a podSelector, or set onlyGateway: false" $index) -}}
+{{- end -}}
+{{- end -}}
 {{- end -}}
 {{- if and (or .Values.metrics.serviceMonitor.enabled .Values.metrics.podMonitor.enabled) (eq (int .Values.metrics.port) (int .Values.ports.internal)) -}}
 {{- fail "metrics.port is the internal port: the metrics are scraped on the HTTP port or a port of their own, never the internal one" -}}

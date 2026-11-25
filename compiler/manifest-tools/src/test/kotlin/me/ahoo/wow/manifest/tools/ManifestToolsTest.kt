@@ -455,7 +455,7 @@ class ManifestToolsTest {
             """
             service:
               name: "shop-service"
-              peers:
+              contractPeers:
                 - context: "billing"
                   service: "billing-service"
                 - context: "mail"
@@ -465,7 +465,7 @@ class ManifestToolsTest {
             """.trimIndent(),
         )
         ManifestTools.generateHelmValues(manifest, emptyList(), output).assert().isEqualTo(0)
-        output.readText().assert().contains("  peers: []\n")
+        output.readText().assert().contains("  contractPeers: []\n")
         // A text a YAML reader would take for something else is quoted as JSON quotes it.
         HelmValues("a: \"b\"", emptyList()).yaml().assert().contains("""  name: "a: \"b\""""")
         val unnamed = File(directory, "unnamed.json")

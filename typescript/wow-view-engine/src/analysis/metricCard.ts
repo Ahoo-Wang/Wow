@@ -573,5 +573,7 @@ function deltaOf(
 ): number | null {
   if (value === null || compare === null) return null;
   if (mode === 'delta') return value - compare;
-  return compare === 0 ? null : (value - compare) / compare;
+  // By the comparison's size, as a period change is (`changeOf`): a loss of
+  // 50 against a planned loss of 100 beat the plan by half of it, +50%.
+  return compare === 0 ? null : (value - compare) / Math.abs(compare);
 }

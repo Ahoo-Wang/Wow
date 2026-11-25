@@ -435,6 +435,33 @@ describe('a part key on screen', () => {
     ).toBe('3日');
   });
 
+  // #6907: Wow cuts the day and the month on the Gregorian calendar; read
+  // on Persian's own, the 3rd of January was its 13th, and September
+  // Shahrivar.
+  it('names the day and the month on the Gregorian calendar, in any language', () => {
+    const gregorian = (date: number, options: Intl.DateTimeFormatOptions) =>
+      new Intl.DateTimeFormat('fa-IR', {
+        ...options,
+        timeZone: 'UTC',
+        calendar: 'gregory',
+      }).format(date);
+    const persian = { locale: 'fa-IR' };
+    expect(
+      displayValue(3, { datePart: AggregationDatePart.DAY_OF_MONTH }, persian),
+    ).toBe(gregorian(Date.UTC(2024, 0, 3), { day: 'numeric' }));
+    expect(
+      displayValue(9, { datePart: AggregationDatePart.MONTH_OF_YEAR }, persian),
+    ).toBe(gregorian(Date.UTC(2024, 8, 1), { month: 'short' }));
+    // A calendar the locale asks for itself gives way too.
+    expect(
+      displayValue(
+        9,
+        { datePart: AggregationDatePart.MONTH_OF_YEAR },
+        { locale: 'en-u-ca-islamic' },
+      ),
+    ).toBe('Sep');
+  });
+
   it('leaves a key outside the cycle, and a missing one, to the caller', () => {
     expect(
       displayValue(

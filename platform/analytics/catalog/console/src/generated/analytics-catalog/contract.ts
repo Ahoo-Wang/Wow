@@ -12,29 +12,29 @@ export const AnalyticsCatalogContract = {
   NAME: 'analytics-catalog',
   Errors: {
     /** 400: The dataset's definition does not hold against the catalog: its sources, joins, references or expressions. */
-    ANALYTICS_CATALOG_DEFINITION_INVALID: 'analytics.catalog.definition-invalid',
+    ANALYTICS__CATALOG__DEFINITION_INVALID: 'analytics.catalog.definition-invalid',
     /** 409: The source is not complete: its tenant column is not declared or a string column is not reviewed. */
-    ANALYTICS_CATALOG_INCOMPLETE: 'analytics.catalog.incomplete',
+    ANALYTICS__CATALOG__INCOMPLETE: 'analytics.catalog.incomplete',
     /** 400: The request is not a valid change of the source: its id, columns or values. */
-    ANALYTICS_CATALOG_INVALID: 'analytics.catalog.invalid',
+    ANALYTICS__CATALOG__INVALID: 'analytics.catalog.invalid',
     /** 409: A Wow source's value is only tightened: a lower protection takes a privileged reviewer's approval. */
-    ANALYTICS_CATALOG_LOOSENING: 'analytics.catalog.loosening',
+    ANALYTICS__CATALOG__LOOSENING: 'analytics.catalog.loosening',
     /** 409: An aggregate of the catalog's sources already takes the dataset's name. */
-    ANALYTICS_CATALOG_NAME_TAKEN: 'analytics.catalog.name-taken',
+    ANALYTICS__CATALOG__NAME_TAKEN: 'analytics.catalog.name-taken',
     /** 409: The dataset was never published. */
-    ANALYTICS_CATALOG_NOT_PUBLISHED: 'analytics.catalog.not-published',
+    ANALYTICS__CATALOG__NOT_PUBLISHED: 'analytics.catalog.not-published',
     /** 409: No publication of the dataset awaits an approver. */
-    ANALYTICS_CATALOG_NOT_REQUESTED: 'analytics.catalog.not-requested',
+    ANALYTICS__CATALOG__NOT_REQUESTED: 'analytics.catalog.not-requested',
     /** 409: The source's table is no longer in the warehouse. */
-    ANALYTICS_CATALOG_TABLE_MISSING: 'analytics.catalog.table-missing',
+    ANALYTICS__CATALOG__TABLE_MISSING: 'analytics.catalog.table-missing',
     /** 404: The warehouse has no such table in the configured databases. */
-    ANALYTICS_CATALOG_TABLE_NOT_FOUND: 'analytics.catalog.table-not-found',
+    ANALYTICS__CATALOG__TABLE_NOT_FOUND: 'analytics.catalog.table-not-found',
     /** 400: A reference names an aggregate the catalog does not know. */
-    ANALYTICS_CATALOG_UNKNOWN_AGGREGATE: 'analytics.catalog.unknown-aggregate',
+    ANALYTICS__CATALOG__UNKNOWN_AGGREGATE: 'analytics.catalog.unknown-aggregate',
     /** 503: The warehouse did not create the dataset version's view. */
-    ANALYTICS_CATALOG_VIEW_FAILED: 'analytics.catalog.view-failed',
+    ANALYTICS__CATALOG__VIEW_FAILED: 'analytics.catalog.view-failed',
     /** 409: The table is a Wow table, described by its trusted wow_catalog row: not an analyst's to draft or revise. */
-    ANALYTICS_CATALOG_WOW_SOURCE: 'analytics.catalog.wow-source',
+    ANALYTICS__CATALOG__WOW_SOURCE: 'analytics.catalog.wow-source',
   },
   Dataset: DatasetAggregate,
   Source: SourceAggregate,

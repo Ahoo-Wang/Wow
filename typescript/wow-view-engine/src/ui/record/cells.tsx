@@ -26,6 +26,7 @@ import {
 } from '../kit/display.js';
 import { tableTime } from '../kit/displayTime.js';
 import { formatNumber } from '../kit/numbers.js';
+import { isExactNumberText } from '../../model/index.js';
 import type { MessageFormatters } from '../kit/MessagesProvider.js';
 import { ToneBadge } from '../kit/variants.js';
 import { IDENTIFIER_FACE } from './columns.js';
@@ -244,7 +245,12 @@ export function cellValue(
     return formatNumber(value, field.numberFormat, display.locale);
   if (typeof value === 'boolean')
     return messages.label(value ? 'label.value.yes' : 'label.value.no');
-  if (typeof value === 'string') return value;
+  // A number's exact text reads as its text does (`valueText`): in the
+  // column's format, every digit kept (#6904, #6905).
+  if (typeof value === 'string')
+    return field.numberFormat && isExactNumberText(value)
+      ? formatNumber(value, field.numberFormat, display.locale)
+      : value;
   if (typeof value === 'bigint')
     return formatNumber(value, field.numberFormat, display.locale);
   // Structure was read above, so what is left — a function, a symbol — is

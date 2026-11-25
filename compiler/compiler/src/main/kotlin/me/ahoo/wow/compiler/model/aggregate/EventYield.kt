@@ -13,12 +13,14 @@
 
 package me.ahoo.wow.compiler.model.aggregate
 
+import com.google.devtools.ksp.getAllSuperTypes
 import com.google.devtools.ksp.symbol.ClassKind
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSType
 import com.google.devtools.ksp.symbol.KSTypeAlias
 import com.google.devtools.ksp.symbol.KSTypeParameter
 import com.google.devtools.ksp.symbol.Modifier
+import me.ahoo.wow.compiler.model.symbol.aliased
 import me.ahoo.wow.compiler.model.symbol.render
 import me.ahoo.wow.compiler.model.symbol.sourceName
 
@@ -54,7 +56,7 @@ internal object EventYield {
     fun of(type: KSType?): List<String>? {
         val declaration = (type ?: return null).declaration
         if (declaration is KSTypeAlias) {
-            return of(declaration.type.resolve())
+            return of(type.aliased(declaration))
         }
         if (declaration is KSTypeParameter) {
             return null
@@ -64,6 +66,8 @@ internal object EventYield {
             name in NOTHING -> emptyList()
             name in UNKNOWN -> null
             name in CONTAINERS -> of(type.arguments.single().type?.resolve())
+            // Any Iterable is a container, as the kernel's eventsOf takes it: an ArrayList, a Set, a class of its own.
+            declaration is KSClassDeclaration && declaration.isIterable() -> of(type.iterated(declaration))
             declaration is KSClassDeclaration && Modifier.SEALED in declaration.modifiers -> sealed(declaration)
             else -> listOf(declaration.sourceName()!!)
         }
@@ -78,9 +82,10 @@ internal object EventYield {
     fun openEvent(type: KSType?): KSClassDeclaration? {
         val declaration = (type ?: return null).declaration
         return when {
-            declaration is KSTypeAlias -> openEvent(declaration.type.resolve())
+            declaration is KSTypeAlias -> openEvent(type.aliased(declaration))
             declaration !is KSClassDeclaration -> null
             declaration.topLevelName() in CONTAINERS -> openEvent(type.arguments.single().type?.resolve())
+            declaration.isIterable() -> openEvent(type.iterated(declaration))
             Modifier.SEALED in declaration.modifiers ->
                 declaration.getSealedSubclasses().firstNotNullOfOrNull { openEvent(it.asStarProjectedType()) }
 
@@ -104,6 +109,21 @@ internal object EventYield {
 
     /** This class's name as a top-level class's, `package.Simple`: every container's is. */
     private fun KSClassDeclaration.topLevelName(): String = "${packageName.asString()}.${simpleName.asString()}"
+
+    /**
+     * Whether this class reaches Kotlin's `Iterable` among its supertypes (#6837): `Iterable` itself is one of the
+     * [CONTAINERS], and KSP shows a Java `Iterable` as Kotlin's.
+     */
+    private fun KSClassDeclaration.isIterable(): Boolean = getAllSuperTypes().any {
+        it.declaration.sourceName() == ITERABLE
+    }
+
+    /** The element type of this [Iterable][isIterable] type of [declaration]: what its `iterator()` yields. */
+    private fun KSType.iterated(declaration: KSClassDeclaration): KSType? =
+        declaration.getAllFunctions().first { it.simpleName.asString() == "iterator" && it.parameters.isEmpty() }
+            .asMemberOf(makeNotNullable()).returnType!!.arguments.single().type?.resolve()
+
+    private const val ITERABLE = "kotlin.collections.Iterable"
 
     private fun sealed(declaration: KSClassDeclaration): List<String>? {
         val yielded = declaration.getSealedSubclasses().map { of(it.asStarProjectedType()) }.toList()

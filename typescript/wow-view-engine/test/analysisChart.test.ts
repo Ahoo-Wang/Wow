@@ -749,6 +749,24 @@ describe('shapeChart', () => {
         [{ orders: 30, total: 20 }],
       ) as MetricCardData;
       expect(percent.compare?.delta).toBeCloseTo(0.5);
+
+      // #6906: by the comparison's size, as a period change is: a loss of 50
+      // against a planned loss of 100 beat the plan by half of it.
+      const loss = shapeChart(
+        config(
+          {
+            type: 'metric',
+            metric: {
+              metric: 'orders',
+              compare: { metric: 'total', mode: 'percent' },
+            },
+          },
+          [],
+          [METRICS.orders, METRICS.total],
+        ),
+        [{ orders: -50, total: -100 }],
+      ) as MetricCardData;
+      expect(loss.compare?.delta).toBeCloseTo(0.5);
     });
 
     it('reports a missing or unusable comparison as null', () => {

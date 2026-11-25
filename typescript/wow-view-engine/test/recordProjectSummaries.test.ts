@@ -139,6 +139,45 @@ describe('projectSummaries', () => {
     expect(row.cells[2].label).toBe('gone');
   });
 
+  // #6904: wow-client reads an int64 or a decimal field as its exact text,
+  // so a Kotlin `Long` or `BigDecimal` amount arrives as "10.50".
+  it('adds up the amounts the wire gave as exact text, on a page and beside a total', () => {
+    const rows = [
+      { id: 'o-1', amount: '10.50' },
+      { id: 'o-2', amount: '20.25' },
+      { id: 'o-3', amount: 'x' },
+    ];
+    const sum = config({
+      summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
+    });
+    expect(
+      projectSummaries(definition(), sum, { scope: 'page', rows }).cells[0]
+        ?.value,
+    ).toBe(30.75);
+    const total = projectSummaries(definition(), sum, {
+      scope: 'total',
+      result: [{ amount_sum: 100 }],
+    });
+    expect(
+      pageSummaries(
+        total.cells,
+        rows.map(data => ({ key: data.id, data })),
+      ).cells[0]?.value,
+    ).toBe(30.75);
+    // The least and the most are the values as they came, digits and all.
+    const ends = projectSummaries(
+      definition(),
+      config({
+        summaries: [
+          { field: 'amount', fn: AggregationFunction.MIN },
+          { field: 'amount', fn: AggregationFunction.MAX },
+        ],
+      }),
+      { scope: 'page', rows: [...rows, { amount: 15 }] },
+    );
+    expect(ends.cells.map(cell => cell.value)).toEqual(['10.50', '20.25']);
+  });
+
   it('returns an empty row when the config asks for no summary', () => {
     expect(
       projectSummaries(definition(), config(), { scope: 'page', rows: [] })

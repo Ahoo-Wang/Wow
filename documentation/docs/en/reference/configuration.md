@@ -604,7 +604,7 @@ The bounds of each context's shared states: `wow.shared-states.*`.
 | --- | --- | --- | --- |
 | `wow.shared-states.capacity` | `Integer` | `4096` | The most shared states a context keeps. |
 | `wow.shared-states.max-age` | `Duration` | `PT1M` | How long a shared state is kept at most. |
-| `wow.shared-states.max-bytes` | `org.springframework.util.unit.DataSize` |  | The most serialized state a context's views hold, counting two bytes a character (`64MB`). |
+| `wow.shared-states.max-bytes` | `DataSize` | `64MB` | The most serialized state a context's views hold, counting two bytes a character (`64MB`). |
 
 ## `wow.snapshot`
 

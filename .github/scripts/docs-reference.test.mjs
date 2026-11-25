@@ -442,6 +442,8 @@ test('a configuration type reads as the operator writes it: a host properties cl
     javaType('me.ahoo.wow.spring.boot.WowProperties$Switch'),
     'Switch',
   );
+  // Spring's data size, as an operator writes one: `64MB` (#6854).
+  assert.equal(javaType('org.springframework.util.unit.DataSize'), 'DataSize');
   assert.equal(
     javaType('me.ahoo.wow.spring.boot.http.PeerTargetProperties$Contract'),
     'Contract',

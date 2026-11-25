@@ -1,0 +1,59 @@
+# The statement that only the gateway reaches the public port (COSEC_PIPELINE_IDENTITY_ONLYGATEWAYCANREACH), which
+# networkPolicy.public.onlyGateway makes, holds only while every entry of networkPolicy.public.from names pods by their
+# labels (#6935): an entry that admits every pod of a namespace, of every namespace, or of an address range lets each of
+# those pods claim any identity. A suite of its own: the refusal is the chart's validation.
+suite: the public port's gateway-only statement holds only for the gateway's pods
+templates:
+  - templates/configmap.yaml
+set:
+  service.name: eshop-ordering-service
+  image.repository: ghcr.io/example/eshop-ordering-server
+tests:
+  - it: refuses onlyGateway for a from that admits every pod of the namespace
+    set:
+      networkPolicy.public.from:
+        - podSelector: {}
+    asserts:
+      - failedTemplate:
+          errorPattern: "networkPolicy.public.from\\[0\\] names no pods by their labels"
+  - it: refuses onlyGateway for a from that admits every namespace's pods
+    set:
+      networkPolicy.public.from:
+        - namespaceSelector: {}
+    asserts:
+      - failedTemplate:
+          errorPattern: "networkPolicy.public.from\\[0\\] names no pods by their labels"
+  - it: refuses onlyGateway for an entry of from, after one that names the gateway, that admits an address range
+    set:
+      networkPolicy.public.from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: gateway
+        - ipBlock:
+            cidr: 10.0.0.0/8
+    asserts:
+      - failedTemplate:
+          errorPattern: "networkPolicy.public.from\\[1\\] names no pods by their labels"
+  - it: makes the statement for a from that names the gateway's pods, by labels or by expressions
+    set:
+      networkPolicy.public.from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: gateway
+          podSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/component
+                operator: In
+                values: [gateway]
+    asserts:
+      - equal:
+          path: data.COSEC_PIPELINE_IDENTITY_ONLYGATEWAYCANREACH
+          value: "true"
+  - it: takes any from without the statement, onlyGateway off
+    set:
+      networkPolicy.public.onlyGateway: false
+      networkPolicy.public.from:
+        - namespaceSelector: {}
+    asserts:
+      - notExists:
+          path: data.COSEC_PIPELINE_IDENTITY_ONLYGATEWAYCANREACH

@@ -106,10 +106,10 @@ class KubernetesChartTest {
     fun `the release should be the service the generated values name`(@TempDir directory: File) {
         val values = File(directory, "values.yaml")
         values.writeText(
-            "# Generated\nservice:\n  name: \"shop-service\"\n  peers: []\n  manifest:\n    route: \"/wow/manifest\"\n"
+            "# Generated\nservice:\n  name: \"shop-service\"\n  contractPeers: []\n  manifest:\n    route: \"/wow/manifest\"\n"
         )
         GenerateManifests.serviceOf(values).assert().isEqualTo("shop-service")
-        values.writeText("service:\n  peers: []\n")
+        values.writeText("service:\n  contractPeers: []\n")
         assertThrows<GradleException> { GenerateManifests.serviceOf(values) }
             .message.assert().contains("names no service")
     }

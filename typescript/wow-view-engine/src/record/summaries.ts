@@ -25,6 +25,7 @@ import type { AggregationFunction } from '@ahoo-wang/wow-client/dsl';
 import { readPath } from './path.js';
 import {
   isDateCell,
+  isExactNumberText,
   currencyPathOf,
   numberFormatOf,
   AggregationFunctions,
@@ -159,10 +160,18 @@ function reduceRows(
     (fn === AggregationFunctions.MIN || fn === AggregationFunctions.MAX)
   )
     return reduceInstants(rows, field, fn);
-  const numbers = rows
+  // A number a source sent as its exact text (a `Long`, a `BigDecimal`) is
+  // the number it is (#6904): added as a double, so a sum past fifteen
+  // significant digits rounds as any sum of doubles does; the least and the
+  // most are the values as they came, compared as doubles.
+  const values = rows
     .map(row => recordValue(row, field))
-    .filter((value): value is number => typeof value === 'number');
-  if (numbers.length === 0) return null;
+    .filter(
+      (value): value is number | `${number}` =>
+        typeof value === 'number' || isExactNumberText(value),
+    );
+  if (values.length === 0) return null;
+  const numbers = values.map(Number);
   switch (fn) {
     case AggregationFunctions.SUM:
       return numbers.reduce((total, value) => total + value, 0);
@@ -171,9 +180,9 @@ function reduceRows(
         numbers.reduce((total, value) => total + value, 0) / numbers.length
       );
     case AggregationFunctions.MIN:
-      return Math.min(...numbers);
+      return values[numbers.indexOf(Math.min(...numbers))];
     case AggregationFunctions.MAX:
-      return Math.max(...numbers);
+      return values[numbers.indexOf(Math.max(...numbers))];
   }
 }
 
