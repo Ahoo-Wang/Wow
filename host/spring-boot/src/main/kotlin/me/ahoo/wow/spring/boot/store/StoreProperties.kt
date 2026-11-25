@@ -128,7 +128,10 @@ class StoreQueryProperties {
  */
 @InternalWowApi
 class StoreAdaptiveProperties {
-    /** The least the store's adaptive query bound goes down to, over `wow.query.adaptive.floor`. */
+    /**
+     * The least the store's adaptive query bound goes down to, over `wow.query.adaptive.floor`; above the store's
+     * ceiling it refuses the start.
+     */
     var floor: Int? = null
 
     /** The most the store's adaptive query bound goes up to, over `wow.query.adaptive.ceiling`. */

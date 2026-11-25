@@ -36,6 +36,8 @@ wow:
 
 对于与它所提供的任何东西都不匹配的名字，宿主不会忽略，而是拒绝启动：`wow.subscriptions` 下没有对应处理函数的订阅、`wow.aggregates` 下节点不提供的聚合类型、`wow.contexts` 下不在任何类路径上的上下文、没有任何东西提供的 ID 生成器。
 
+会启动却什么也不做的设置同样拒绝启动：`wow.http.errors` 中框架不会回答的 `wow.` 下的错误码，`wow.http.request-facts` 中的标准请求事实（`app_id`、`user_agent`、`remote_ip`），不是上下文名称的 `wow.ops.publish.context`，高于 `ceiling` 的自适应查询 `floor`，高于主题创建时 `replication-factor` 的 Kafka `min-insync-replicas`。`wow.http.errors` 中应用自己的错误码，若服务的 Manifest 和类路径上的对等方契约都没有声明它，则以一条警告启动：它仍可能是对的，比如没有 `@ErrorCode` 声明的领域拒绝错误码、`ProblemMapper` 的错误码，或契约不在类路径上的对等方的错误码。
+
 这类失败，以及宿主无法据以启动的其他取值，都是 `WowConfigurationException`。Spring Boot 在日志末尾把它报告为一份失败分析，而不是一堆 Bean 创建错误：哪里不对、哪个键及其取值、该怎么改。
 
 ## 键会被检查 {#keys-are-checked}

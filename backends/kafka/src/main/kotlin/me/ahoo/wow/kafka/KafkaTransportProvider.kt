@@ -226,7 +226,8 @@ class KafkaTransportProvider : TransportProvider {
         @JvmField
         val MIN_INSYNC_REPLICAS: ProviderOption<Int> = ProviderOption.int(
             "topics.min-insync-replicas",
-            "the min.insync.replicas auto creates a topic with; the broker's default when not set.",
+            "the min.insync.replicas auto creates a topic with; the broker's default when not set. Above " +
+                "topics.replication-factor it refuses the start: every write that waits for all replicas would fail.",
         )
 
         /** Other configs of the topics it creates. */
@@ -308,14 +309,31 @@ class KafkaTransportProvider : TransportProvider {
             config.settings.option(MIN_INSYNC_REPLICAS)?.let { put(MIN_INSYNC, it.toString()) }
         }
 
-        /** The durability check of [config]'s topics. */
+        /**
+         * The durability check of [config]'s topics. A `min.insync.replicas` above the replication factor the topics are
+         * created with refuses the start: a topic created so has fewer replicas than every `acks=all` write waits for,
+         * so each one would fail (`NOT_ENOUGH_REPLICAS`). Against the broker's defaults it is not checked here.
+         */
         internal fun durability(config: TransportConfig): Durability {
-            val creation = creationConfigs(config)
-            return Durability(
-                replicationFactor(config)?.toInt(),
-                creation[MIN_INSYNC]?.toIntOrNull(),
-                config.development,
-            )
+            val factor = replicationFactor(config)?.toInt()
+            val minInsync = creationConfigs(config)[MIN_INSYNC]?.toIntOrNull()
+            if (factor != null && minInsync != null) {
+                val key = if (config.settings.option(MIN_INSYNC_REPLICAS) != null) {
+                    "${config.key}.${MIN_INSYNC_REPLICAS.key}"
+                } else {
+                    "${config.key}.${TOPIC_CONFIGS.key}.$MIN_INSYNC"
+                }
+                configCheck(
+                    minInsync <= factor,
+                    key,
+                    minInsync,
+                    "Set it to $factor or less, or raise ${config.key}.${REPLICATION_FACTOR.key}.",
+                ) {
+                    "A topic created with $factor replicas cannot have $minInsync in sync: every write that waits " +
+                        "for all of them would fail."
+                }
+            }
+            return Durability(factor, minInsync, config.development)
         }
     }
 }

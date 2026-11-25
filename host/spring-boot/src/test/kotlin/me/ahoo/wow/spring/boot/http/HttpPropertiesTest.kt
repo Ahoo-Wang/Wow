@@ -18,7 +18,7 @@ import me.ahoo.wow.spi.config.WowConfigurationException
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
-/** The HTTP edge's properties: the status of each error code. */
+/** The HTTP edge's properties: the status of each error code, and the request facts. */
 class HttpPropertiesTest {
     @Test
     fun `an error code without a status should refuse the start, naming its key`() {
@@ -32,5 +32,48 @@ class HttpPropertiesTest {
         refused.value.assert().isNull()
         HttpProperties().apply { errors["shop.cart.locked"] = locked }.errorStatuses().assert()
             .isEqualTo(mapOf("shop.cart.locked" to 423))
+    }
+
+    @Test
+    fun `a code under wow that the framework does not answer should refuse the start, naming the nearest codes`() {
+        val status = HttpProperties.Error().apply { status = 503 }
+        val refused = assertThrows<WowConfigurationException> {
+            HttpProperties().apply { errors["wow.command.bussy"] = status }.errorStatuses()
+        }
+        refused.key.assert().isEqualTo("wow.http.errors.[wow.command.bussy]")
+        refused.value.assert().isEqualTo("wow.command.bussy")
+        refused.fix.assert().contains("wow.command.busy")
+        nearestFrameworkCodes("wow.command.bussy").first().assert().isEqualTo("wow.command.busy")
+        nearestFrameworkCodes("wow.query.bussy").first().assert().isEqualTo("wow.query.busy")
+        // A framework code takes another status; a code of the application's is the application's to declare.
+        HttpProperties().apply {
+            errors["wow.command.busy"] = status
+            errors["shop.cart.full"] = status
+        }.errorStatuses().keys.assert().containsExactly("wow.command.busy", "shop.cart.full")
+    }
+
+    @Test
+    fun `a code of the application's that no Manifest declares should be told apart, a framework code never`() {
+        val status = HttpProperties.Error().apply { status = 409 }
+        val http = HttpProperties().apply {
+            errors["shop.cart.full"] = status
+            errors["shop.cart.fulll"] = status
+            errors["wow.command.busy"] = status
+        }
+        http.undeclaredErrorCodes(setOf("shop.cart.full")).assert().containsExactly("shop.cart.fulll")
+    }
+
+    @Test
+    fun `a standard request fact listed should refuse the start, in any case, as no header sets it`() {
+        listOf("user_agent", "REMOTE_IP", "app_id").forEach { name ->
+            val refused = assertThrows<WowConfigurationException> {
+                HttpProperties().apply { requestFacts += setOf("X-Device", name) }.requestFactNames()
+            }
+            refused.key.assert().isEqualTo("wow.http.request-facts")
+            refused.value.assert().isEqualTo(name)
+            refused.fix.assert().contains("Remove $name", "wow.http.client-facts.enabled")
+        }
+        HttpProperties().apply { requestFacts += setOf("X-Device", "User-Agent") }.requestFactNames().assert()
+            .containsExactly("X-Device", "User-Agent")
     }
 }

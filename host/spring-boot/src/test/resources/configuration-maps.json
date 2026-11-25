@@ -100,7 +100,7 @@
   }, {
     "name" : "wow.stores.<name>.query.adaptive.floor",
     "type" : "java.lang.Integer",
-    "description" : "The least the store's adaptive query bound goes down to, over `wow.query.adaptive.floor`.",
+    "description" : "The least the store's adaptive query bound goes down to, over `wow.query.adaptive.floor`; above the store's ceiling it refuses the start.",
     "sourceType" : "me.ahoo.wow.spring.boot.store.StoreAdaptiveProperties"
   }, {
     "name" : "wow.stores.<name>.query.events.unpinned",

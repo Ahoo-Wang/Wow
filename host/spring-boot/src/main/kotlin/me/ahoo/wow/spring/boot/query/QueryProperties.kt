@@ -305,7 +305,7 @@ class QueryProperties {
      */
     @InternalWowApi
     class Adaptive {
-        /** The lowest bound the adaptation halves down to. */
+        /** The lowest bound the adaptation halves down to; above a store's ceiling it refuses the start. */
         var floor: Int = AdaptiveLimitOptions.DEFAULT_FLOOR
 
         /**

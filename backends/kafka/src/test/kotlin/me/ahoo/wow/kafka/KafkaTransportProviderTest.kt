@@ -98,6 +98,29 @@ class KafkaTransportProviderTest {
     }
 
     @Test
+    fun `more in-sync replicas than the topics are created with should refuse the start, naming the key that sets them`() {
+        assertThrows<WowConfigurationException> {
+            KafkaTransportProvider.durability(
+                config("topics.replication-factor" to "2", "topics.min-insync-replicas" to "3"),
+            )
+        }.also { refused ->
+            refused.key.assert().isEqualTo("wow.kafka.topics.min-insync-replicas")
+            refused.value.assert().isEqualTo(3)
+            refused.fix.assert().contains("2 or less", "wow.kafka.topics.replication-factor")
+        }
+        assertThrows<WowConfigurationException> {
+            KafkaTransportProvider.durability(
+                config("topics.replication-factor" to "1", "topics.configs.min.insync.replicas" to "2"),
+            )
+        }.key.assert().isEqualTo("wow.kafka.topics.configs.min.insync.replicas")
+        // As many as the replicas is a setting that holds; against the broker's defaults nothing is known here.
+        KafkaTransportProvider.durability(
+            config("topics.replication-factor" to "3", "topics.min-insync-replicas" to "3"),
+        ).configured().assert().isEmpty()
+        KafkaTransportProvider.durability(config("topics.min-insync-replicas" to "3")).configured().assert().isEmpty()
+    }
+
+    @Test
     fun `a command topic that loses commands with one broker should be warned about`() {
         val durability = mapOf(
             "wow.shop.commands" to TopicDurability(1, 1),
