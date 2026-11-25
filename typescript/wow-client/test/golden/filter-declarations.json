@@ -173,6 +173,7 @@
       "@param comparison - How it compares with `value`.",
       "@param value - A finite number.",
       "@throws TypeError If `value` is not finite, `comparison` is not a\n{@link ComparisonOperator}, `expression` reads no field, or the tree is\ntoo deep or too large.",
+      "@experimental",
       "@example ```typescript\n// Shipped more than two days after it was paid.\nfilter.expression(\n  aggregation.dateDiff('state.paidAt', 'state.shippedAt', DateDiffUnit.HOUR),\n  ComparisonOperator.GT,\n  48,\n);\n```"
     ],
     "type": "<FIELDS extends string>(expression: AggregationExpression<FIELDS>, comparison: ComparisonOperator, value: number) => ExpressionFilter<FIELDS>"

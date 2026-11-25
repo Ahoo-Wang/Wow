@@ -18,7 +18,11 @@ import { requireValidExpressionTrees } from './expressionTrees.js';
 import type { AggregationExpression } from './types.js';
 import { aggregationAlias } from './aliases.js';
 
-/** The kind of an {@link AggregationGroup}, sent as its `type`. */
+/**
+ * The kind of an {@link AggregationGroup}, sent as its `type`.
+ *
+ * @experimental
+ */
 export enum AggregationGroupType {
   /** One group per distinct value; {@link groupBuilders.terms | `aggregation.terms`}. */
   TERMS = 'terms',
@@ -36,6 +40,8 @@ export enum AggregationGroupType {
 /**
  * What an {@link AggregationGroup}'s field is relative to when the query
  * expands elements, sent as its `scope`. Wow 9.9 and later.
+ *
+ * @experimental
  */
 export enum AggregationGroupScope {
   /** The innermost expanded element; the default. */
@@ -47,6 +53,8 @@ export enum AggregationGroupScope {
 /**
  * The calendar unit of a `DATE_HISTOGRAM` bucket, cut in the group's
  * `timeZone`.
+ *
+ * @experimental
  */
 export enum AggregationDateUnit {
   YEAR = 'year',
@@ -63,6 +71,8 @@ export enum AggregationDateUnit {
  * The calendar part a `DATE_PART` group takes of each instant, read in the
  * group's `timeZone`. Its keys are integers from a fixed domain, so records
  * from different days, weeks or years fall into one bucket.
+ *
+ * @experimental
  */
 export enum AggregationDatePart {
   /** The ISO weekday: 1 is Monday, 7 is Sunday. */
@@ -98,6 +108,8 @@ interface AggregationGroupBase<FIELDS extends string = string> {
  * expression in its place (Wow 9.2 and later), never both. An expression
  * input is an expensive computation the server admits only where
  * `analysis.expressions` is `true`.
+ *
+ * @experimental
  */
 export type AggregationGroupInput<FIELDS extends string = string> =
   | {
@@ -114,6 +126,8 @@ export type AggregationGroupInput<FIELDS extends string = string> =
 /**
  * One group per distinct value of a field, or of an expression;
  * {@link groupBuilders.terms | `aggregation.terms`}. `missingKey` needs a field.
+ *
+ * @experimental
  */
 export type TermsAggregationGroup<FIELDS extends string = string> = {
   type: AggregationGroupType.TERMS;
@@ -133,6 +147,8 @@ export type TermsAggregationGroup<FIELDS extends string = string> = {
 /**
  * Buckets of equal width over a number field, or over an expression;
  * {@link groupBuilders.histogram | `aggregation.histogram`}.
+ *
+ * @experimental
  */
 export type HistogramAggregationGroup<FIELDS extends string = string> = {
   type: AggregationGroupType.HISTOGRAM;
@@ -152,6 +168,8 @@ export type HistogramAggregationGroup<FIELDS extends string = string> = {
 /**
  * Calendar buckets over a time field in epoch milliseconds;
  * {@link groupBuilders.dateHistogram | `aggregation.dateHistogram`}.
+ *
+ * @experimental
  */
 export interface DateHistogramAggregationGroup<
   FIELDS extends string = string,
@@ -173,6 +191,8 @@ export interface DateHistogramAggregationGroup<
  * weekday or the hour; {@link groupBuilders.datePart | `aggregation.datePart`}. Its keys in the result
  * rows are integers from the part's domain, such as 1 (Monday) to 7 (Sunday)
  * for `DAY_OF_WEEK`. Wow 9.2 and later.
+ *
+ * @experimental
  */
 export interface DatePartAggregationGroup<
   FIELDS extends string = string,
@@ -193,6 +213,8 @@ export interface DatePartAggregationGroup<
 /**
  * One dimension of an {@link AggregationQuery}'s `groupBy`: each result row
  * is one combination of the groups' keys.
+ *
+ * @experimental
  */
 export type AggregationGroup<FIELDS extends string = string> =
   | TermsAggregationGroup<FIELDS>
@@ -200,7 +222,11 @@ export type AggregationGroup<FIELDS extends string = string> =
   | DateHistogramAggregationGroup<FIELDS>
   | DatePartAggregationGroup<FIELDS>;
 
-/** The option every group builder takes. */
+/**
+ * The option every group builder takes.
+ *
+ * @experimental
+ */
 export interface AggregationGroupScopeOptions {
   /**
    * What the field is relative to when the query expands elements; the
@@ -210,19 +236,31 @@ export interface AggregationGroupScopeOptions {
   scope?: AggregationGroupScope;
 }
 
-/** The options of {@link groupBuilders.terms | `aggregation.terms`}. */
+/**
+ * The options of {@link groupBuilders.terms | `aggregation.terms`}.
+ *
+ * @experimental
+ */
 export interface TermsAggregationOptions extends AggregationGroupScopeOptions {
   /** The key rows without a value are grouped under; must not be blank. */
   missingKey?: string;
 }
 
-/** The options of {@link groupBuilders.histogram | `aggregation.histogram`}. */
+/**
+ * The options of {@link groupBuilders.histogram | `aggregation.histogram`}.
+ *
+ * @experimental
+ */
 export interface HistogramAggregationOptions extends AggregationGroupScopeOptions {
   /** The width of each bucket: finite and greater than 0. */
   interval: number;
 }
 
-/** The options of {@link groupBuilders.dateHistogram | `aggregation.dateHistogram`}. */
+/**
+ * The options of {@link groupBuilders.dateHistogram | `aggregation.dateHistogram`}.
+ *
+ * @experimental
+ */
 export interface DateHistogramAggregationOptions extends AggregationGroupScopeOptions {
   /** The calendar unit of each bucket. */
   unit: AggregationDateUnit;
@@ -235,7 +273,11 @@ export interface DateHistogramAggregationOptions extends AggregationGroupScopeOp
   dense?: boolean;
 }
 
-/** The options of {@link groupBuilders.datePart | `aggregation.datePart`}. */
+/**
+ * The options of {@link groupBuilders.datePart | `aggregation.datePart`}.
+ *
+ * @experimental
+ */
 export interface DatePartAggregationOptions extends AggregationGroupScopeOptions {
   /** The calendar part each row is grouped by. */
   part: AggregationDatePart;

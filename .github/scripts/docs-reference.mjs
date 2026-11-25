@@ -8,6 +8,12 @@ import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { annotationsOf, markedDeclarations } from './docs-reference-kotlin.mjs';
 import { HEADLINES, performancePages } from './docs-performance.mjs';
+import {
+  experimentalOf,
+  typescriptPackageDeclarations,
+  unmarkedCounterparts,
+  withExperimental,
+} from './docs-reference-typescript.mjs';
 
 // The reference pages generated from the sources of truth, in English and
 // Chinese (the descriptions stay in the sources' English):
@@ -19,6 +25,10 @@ import { HEADLINES, performancePages } from './docs-performance.mjs';
 //   and the codes of rejected query requests (api/query-api QueryErrorCodes).
 // - reference/annotations: the annotations of the programming model
 //   (api/api me.ahoo.wow.api.annotation), from their declarations and KDoc.
+// - reference/api-levels: the published modules' `@ExperimentalWowApi` and
+//   `@WowSpi` declarations; and the block of typescript/compatibility that
+//   lists the TypeScript packages' `@experimental` declarations, the
+//   counterparts of the Kotlin ones (docs-reference-typescript.mjs).
 //
 // `node .github/scripts/docs-reference.mjs` fails when a committed page is not
 // what the sources give; `--write` (`pnpm docs:reference`) writes them.
@@ -816,6 +826,17 @@ export function referencePages(root = ROOT) {
   const modules = publishedModules(read);
   const experimental = marked(root, read, modules, 'ExperimentalWowApi');
   const spi = marked(root, read, modules, 'WowSpi');
+  const typescript = typescriptPackageDeclarations(root, read);
+  const unmarked = unmarkedCounterparts(experimental, typescript);
+  if (unmarked.length > 0)
+    throw new Error(
+      [
+        'These TypeScript declarations mirror an @ExperimentalWowApi Kotlin declaration but are not @experimental:',
+        ...unmarked.map(({ name, entry }) => `  ${name} (${entry})`),
+        'Add `@experimental` to their TSDoc (D486 ②).',
+      ].join('\n'),
+    );
+  const typescriptExperimental = experimentalOf(typescript);
   const tree = read(MANIFEST_TREE);
   const manifest = manifestObjects(tree);
   const pages = {};
@@ -834,6 +855,13 @@ export function referencePages(root = ROOT) {
     pages[`${dir}/annotations.md`] = annotationsPage(locale, annotations);
     pages[`${dir}/modules.md`] = modulesPage(locale, modules);
     pages[`${dir}/api-levels.md`] = levelsPage(locale, experimental, spi);
+    const compatibility = `documentation/docs/${locale}/typescript/compatibility.md`;
+    pages[compatibility] = withExperimental(
+      read(compatibility),
+      locale,
+      typescriptExperimental,
+      compatibility,
+    );
     pages[`${dir}/manifest.md`] = manifestPage(
       locale,
       manifest,
@@ -861,6 +889,9 @@ export const SOURCES = {
   ],
   'api-levels.md': [
     "the @ExperimentalWowApi and @WowSpi declarations of the published modules' src/main/kotlin",
+  ],
+  'compatibility.md': [
+    "the @experimental declarations of typescript/wow-client and typescript/wow-react's src, by the entry their test/api reports export them from",
   ],
 };
 

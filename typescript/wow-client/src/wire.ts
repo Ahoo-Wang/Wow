@@ -501,7 +501,11 @@ export type EventStreamField =
 /** How an aggregate belongs to its callers. */
 export type Ownership = 'owner' | 'tenant';
 
-/** One dataset of `GET /wow/dataset`. */
+/**
+ * One dataset of `GET /wow/dataset`.
+ *
+ * @experimental
+ */
 export interface DatasetEntry {
   /** `{context}.{dataset}`. */
   readonly name: string;

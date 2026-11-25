@@ -20,6 +20,8 @@ import type { AggregationExpression } from './types.js';
  * The kind of an {@link AggregationMetric}, sent as its `type`. Wow 8.12
  * knows `COUNT` and `NUMERIC`, Wow 9.0 adds `ANY`, and the other three need
  * Wow 9.1.
+ *
+ * @experimental
  */
 export enum AggregationMetricType {
   /** The number of rows; {@link metricBuilders.count | `aggregation.count`}. */
@@ -61,6 +63,8 @@ export enum AggregationMetricType {
 /**
  * What a `NUMERIC` metric computes over its expression; each has a builder,
  * {@link metricBuilders.sum | `aggregation.sum`} through {@link metricBuilders.variance | `aggregation.variance`}.
+ *
+ * @experimental
  */
 export enum AggregationFunction {
   /** The sum */
@@ -77,7 +81,11 @@ export enum AggregationFunction {
   VARIANCE = 'variance',
 }
 
-/** The number of rows in each group; {@link metricBuilders.count | `aggregation.count`}. */
+/**
+ * The number of rows in each group; {@link metricBuilders.count | `aggregation.count`}.
+ *
+ * @experimental
+ */
 export interface CountAggregationMetric<FIELDS extends string = string> {
   /** Counts only the rows that match. Wow 9.1 and later. */
   filter?: FilterExpression<FIELDS>;
@@ -89,6 +97,8 @@ export interface CountAggregationMetric<FIELDS extends string = string> {
 /**
  * An {@link AggregationFunction} of an expression; {@link metricBuilders.sum | `aggregation.sum`},
  * `avg`, `min`, `max`, `stddev`, `variance`.
+ *
+ * @experimental
  */
 export interface NumericAggregationMetric<FIELDS extends string = string> {
   /** Aggregates only the rows that match. Wow 9.1 and later. */
@@ -106,6 +116,8 @@ export interface NumericAggregationMetric<FIELDS extends string = string> {
  * Any one value of a field within each group, of any type;
  * {@link metricBuilders.any | `aggregation.any`}. Wow 9.0 and later. Neither a derived metric nor
  * `having` may refer to it.
+ *
+ * @experimental
  */
 export interface AnyAggregationMetric<FIELDS extends string = string> {
   /** Aggregates only the rows that match. Wow 9.1 and later. */
@@ -128,6 +140,8 @@ export interface AnyAggregationMetric<FIELDS extends string = string> {
  * the field the descriptor names as `analysis.firstLastOrderBy`. Records
  * tied on `orderBy` may yield any one of their values. Like `ANY`, neither a
  * derived metric nor `having` may refer to it.
+ *
+ * @experimental
  */
 export interface EdgeAggregationMetric<FIELDS extends string = string> {
   type: AggregationMetricType.FIRST | AggregationMetricType.LAST;
@@ -147,6 +161,8 @@ export interface EdgeAggregationMetric<FIELDS extends string = string> {
 /**
  * The number of distinct values of an expression;
  * {@link metricBuilders.distinctCount | `aggregation.distinctCount`}. Wow 9.1 and later.
+ *
+ * @experimental
  */
 export interface DistinctCountAggregationMetric<
   FIELDS extends string = string,
@@ -163,6 +179,8 @@ export interface DistinctCountAggregationMetric<
 /**
  * A percentile of an expression; {@link metricBuilders.percentile | `aggregation.percentile`}. Wow 9.1 and
  * later.
+ *
+ * @experimental
  */
 export interface PercentileAggregationMetric<FIELDS extends string = string> {
   type: AggregationMetricType.PERCENTILE;
@@ -179,6 +197,8 @@ export interface PercentileAggregationMetric<FIELDS extends string = string> {
 /**
  * One column an {@link AggregationQuery} computes for each group; a query
  * takes 1 to `AGGREGATION_LIMITS.MAX_METRICS` of them.
+ *
+ * @experimental
  */
 export type AggregationMetric<FIELDS extends string = string> =
   | CountAggregationMetric<FIELDS>
@@ -191,13 +211,19 @@ export type AggregationMetric<FIELDS extends string = string> =
 
 /**
  * The options every metric builder takes after its target and alias.
+ *
+ * @experimental
  */
 export interface AggregationMetricOptions<FIELDS extends string = string> {
   /** Counts only the rows that match; sent as the metric's `filter`. */
   filter?: FilterExpression<FIELDS>;
 }
 
-/** The options of {@link metricBuilders.first | `aggregation.first`} and {@link metricBuilders.last | `aggregation.last`}. */
+/**
+ * The options of {@link metricBuilders.first | `aggregation.first`} and {@link metricBuilders.last | `aggregation.last`}.
+ *
+ * @experimental
+ */
 export interface EdgeAggregationOptions<
   FIELDS extends string = string,
 > extends AggregationMetricOptions<FIELDS> {
@@ -208,7 +234,11 @@ export interface EdgeAggregationOptions<
   orderBy?: FIELDS;
 }
 
-/** The options of {@link metricBuilders.percentile | `aggregation.percentile`}. */
+/**
+ * The options of {@link metricBuilders.percentile | `aggregation.percentile`}.
+ *
+ * @experimental
+ */
 export interface PercentileAggregationOptions<
   FIELDS extends string = string,
 > extends AggregationMetricOptions<FIELDS> {

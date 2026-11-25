@@ -24,7 +24,7 @@ Wow 10 的包与 Wow 10 的服务通信，并从 Wow 10 的 Manifest 生成。�
 
 ### 版本范围 {#version-ranges}
 
-版本号跟随 Wow，而不是语义化版本：次版本（`x.Y.0`）可能改变 TypeScript API，只有补丁版本（`x.y.Z`）才保证兼容。`pnpm add` 和 `npm install` 默认保存插入符范围（`^x.y.z`），这会让之后的安装在没有任何人决定的情况下拿到下一个次版本。改为保存波浪号范围，它只接受同一个次版本的补丁。pnpm 从 `pnpm-workspace.yaml` 读取这个设置：
+版本号跟随 Wow，而不是语义化版本：次版本（`x.Y.0`）可能改变 TypeScript API，只有补丁版本（`x.y.Z`）才保证兼容，[实验性声明](#experimental-declarations)除外。`pnpm add` 和 `npm install` 默认保存插入符范围（`^x.y.z`），这会让之后的安装在没有任何人决定的情况下拿到下一个次版本。改为保存波浪号范围，它只接受同一个次版本的补丁。pnpm 从 `pnpm-workspace.yaml` 读取这个设置：
 
 ```yaml
 savePrefix: '~'
@@ -44,6 +44,89 @@ pnpm add -D --save-exact @ahoo-wang/wow-generator
 ```
 
 有意地迁移到下一个次版本，所有 Wow 包一起，在读过它发布说明中的 “Breaking” 部分之后。Fetcher 的 peer 依赖遵循语义化版本，所以插入符范围适合它们：打开波浪号设置时，用显式的范围添加它们（`pnpm add @ahoo-wang/fetcher@^<version>`）。
+
+### 实验性声明 {#experimental-declarations}
+
+数据集查询、聚合查询及其表达式，连同只由它们引发的查询错误码，是实验性的，与它们的 Kotlin 声明一样（`@ExperimentalWowApi`，见 [API 级别](../reference/api-levels#experimental-declarations)）。它们的 TypeScript 声明带有 `@experimental`，编辑器悬停时会显示。10.0 API 的冻结与补丁版本的兼容都不包括它们：10.x 的任何版本都可能改动或移除它们，并在发布说明中写明。下面的列表由各包的源码生成，附上导入每个声明的入口：
+
+<!-- experimental:begin -->
+<!-- 由 .github/scripts/docs-reference.mjs 依据各包的源码生成；用 `pnpm docs:reference` 重新生成。请勿手改。 -->
+
+| 声明 | 种类 | 入口 |
+| --- | --- | --- |
+| `DatasetClient` | class | `@ahoo-wang/wow-client` |
+| `DatasetEntry` | interface | `@ahoo-wang/wow-client` |
+| `QueryModelClient.aggregate` | method | `@ahoo-wang/wow-client` |
+| `aggregation` | const | `@ahoo-wang/wow-client/dsl` |
+| `AGGREGATION_LIMITS` | const | `@ahoo-wang/wow-client/dsl` |
+| `AggregationDatePart` | enum | `@ahoo-wang/wow-client/dsl` |
+| `AggregationDateUnit` | enum | `@ahoo-wang/wow-client/dsl` |
+| `AggregationElement` | interface | `@ahoo-wang/wow-client/dsl` |
+| `AggregationExpression` | type | `@ahoo-wang/wow-client/dsl` |
+| `AggregationExpressionOperator` | enum | `@ahoo-wang/wow-client/dsl` |
+| `AggregationExpressionType` | enum | `@ahoo-wang/wow-client/dsl` |
+| `AggregationFunction` | enum | `@ahoo-wang/wow-client/dsl` |
+| `AggregationGroup` | type | `@ahoo-wang/wow-client/dsl` |
+| `AggregationGroupInput` | type | `@ahoo-wang/wow-client/dsl` |
+| `AggregationGroupScope` | enum | `@ahoo-wang/wow-client/dsl` |
+| `AggregationGroupScopeOptions` | interface | `@ahoo-wang/wow-client/dsl` |
+| `AggregationGroupType` | enum | `@ahoo-wang/wow-client/dsl` |
+| `AggregationMetric` | type | `@ahoo-wang/wow-client/dsl` |
+| `AggregationMetricOptions` | interface | `@ahoo-wang/wow-client/dsl` |
+| `AggregationMetricType` | enum | `@ahoo-wang/wow-client/dsl` |
+| `AggregationQuery` | interface | `@ahoo-wang/wow-client/dsl` |
+| `AnyAggregationMetric` | interface | `@ahoo-wang/wow-client/dsl` |
+| `BinaryAggregationExpression` | interface | `@ahoo-wang/wow-client/dsl` |
+| `ComparisonOperator` | enum | `@ahoo-wang/wow-client/dsl` |
+| `ConstantAggregationExpression` | interface | `@ahoo-wang/wow-client/dsl` |
+| `CountAggregationMetric` | interface | `@ahoo-wang/wow-client/dsl` |
+| `DateDiffAggregationExpression` | interface | `@ahoo-wang/wow-client/dsl` |
+| `DateDiffUnit` | enum | `@ahoo-wang/wow-client/dsl` |
+| `DateHistogramAggregationGroup` | interface | `@ahoo-wang/wow-client/dsl` |
+| `DateHistogramAggregationOptions` | interface | `@ahoo-wang/wow-client/dsl` |
+| `DatePartAggregationGroup` | interface | `@ahoo-wang/wow-client/dsl` |
+| `DatePartAggregationOptions` | interface | `@ahoo-wang/wow-client/dsl` |
+| `DerivedAggregationMetric` | interface | `@ahoo-wang/wow-client/dsl` |
+| `DerivedExpression` | type | `@ahoo-wang/wow-client/dsl` |
+| `DerivedExpressionDsl` | interface | `@ahoo-wang/wow-client/dsl` |
+| `DerivedExpressionType` | enum | `@ahoo-wang/wow-client/dsl` |
+| `DerivedWindow` | type | `@ahoo-wang/wow-client/dsl` |
+| `DistinctCountAggregationMetric` | interface | `@ahoo-wang/wow-client/dsl` |
+| `EdgeAggregationMetric` | interface | `@ahoo-wang/wow-client/dsl` |
+| `EdgeAggregationOptions` | interface | `@ahoo-wang/wow-client/dsl` |
+| `ExpressionFilter` | type | `@ahoo-wang/wow-client/dsl` |
+| `FieldAggregationExpression` | interface | `@ahoo-wang/wow-client/dsl` |
+| `filter.expression` | method | `@ahoo-wang/wow-client/dsl` |
+| `FilterOperator.EXPRESSION` | enum member | `@ahoo-wang/wow-client/dsl` |
+| `HavingDsl` | interface | `@ahoo-wang/wow-client/dsl` |
+| `HavingExpression` | type | `@ahoo-wang/wow-client/dsl` |
+| `HavingExpressionType` | enum | `@ahoo-wang/wow-client/dsl` |
+| `HistogramAggregationGroup` | type | `@ahoo-wang/wow-client/dsl` |
+| `HistogramAggregationOptions` | interface | `@ahoo-wang/wow-client/dsl` |
+| `NumericAggregationMetric` | interface | `@ahoo-wang/wow-client/dsl` |
+| `PercentileAggregationMetric` | interface | `@ahoo-wang/wow-client/dsl` |
+| `PercentileAggregationOptions` | interface | `@ahoo-wang/wow-client/dsl` |
+| `QueryErrorCodes.ANY_REQUIRES_SINGLE_VALUE` | property | `@ahoo-wang/wow-client/dsl` |
+| `QueryErrorCodes.FIRST_LAST_REQUIRES_ORDER_BY` | property | `@ahoo-wang/wow-client/dsl` |
+| `QueryErrorCodes.FIRST_LAST_REQUIRES_SINGLE_VALUE` | property | `@ahoo-wang/wow-client/dsl` |
+| `QueryErrorCodes.METRIC_FILTER_ARRAY_FIELD` | property | `@ahoo-wang/wow-client/dsl` |
+| `QueryErrorCodes.METRIC_FILTER_ELEMENT_MATCH` | property | `@ahoo-wang/wow-client/dsl` |
+| `QueryErrorCodes.METRIC_FILTER_SEARCH` | property | `@ahoo-wang/wow-client/dsl` |
+| `QueryErrorCodes.MISSING_KEY_REQUIRES_STRING` | property | `@ahoo-wang/wow-client/dsl` |
+| `QueryErrorCodes.PREVIOUS_UNSHIFTABLE` | property | `@ahoo-wang/wow-client/dsl` |
+| `QueryErrorCodes.PROTECTED_AGGREGATION` | property | `@ahoo-wang/wow-client/dsl` |
+| `QueryErrorCodes.RESIDUAL_GROUPS_EXCEEDED` | property | `@ahoo-wang/wow-client/dsl` |
+| `QueryErrorCodes.TEMPORAL_AGGREGATION_UNSUPPORTED` | property | `@ahoo-wang/wow-client/dsl` |
+| `QueryErrorCodes.TOO_MANY_GROUPS` | property | `@ahoo-wang/wow-client/dsl` |
+| `RunningFunction` | enum | `@ahoo-wang/wow-client/dsl` |
+| `TermsAggregationGroup` | type | `@ahoo-wang/wow-client/dsl` |
+| `TermsAggregationOptions` | interface | `@ahoo-wang/wow-client/dsl` |
+| `WindowFunction` | enum | `@ahoo-wang/wow-client/dsl` |
+| `useAggregateQuery` | function | `@ahoo-wang/wow-react` |
+| `UseAggregateQueryOptions` | interface | `@ahoo-wang/wow-react` |
+| `UseAggregateQueryReturn` | interface | `@ahoo-wang/wow-react` |
+
+<!-- experimental:end -->
 
 ### 支持窗口 {#support-window}
 
