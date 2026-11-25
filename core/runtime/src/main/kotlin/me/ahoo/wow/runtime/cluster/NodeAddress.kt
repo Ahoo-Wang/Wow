@@ -37,14 +37,20 @@ object NodeAddress {
         }
 
     /**
-     * Whether [address] is one a URI takes as its authority, as the internal port's clients join it: not a bare IPv6
-     * literal (`::1:9090`, whose colons cannot be told from the port's), which [of] writes as `[::1]:9090`.
+     * Whether [address] is one the internal port's clients reach as they join it, `http://<address>`: a host and a port
+     * from 1 to 65535. Not a bare IPv6 literal (`::1:9090`, whose colons cannot be told from the port's), which [of]
+     * writes as `[::1]:9090`, nor a host without its port, which a URI reads as port 80, nor port 0 or one past 65535,
+     * which nothing listens on.
      */
     fun isValid(address: String): Boolean = try {
-        URI("http://$address").host != null
+        val uri = URI("http://$address")
+        uri.host != null && uri.port in 1..MAX_PORT
     } catch (_: URISyntaxException) {
         false
     }
+
+    /** The highest TCP port. */
+    private const val MAX_PORT = 65_535
 
     /** [host] as a URI writes it: an IPv6 literal in brackets. */
     private fun literal(host: String): String = if (':' in host && !host.startsWith("[")) "[$host]" else host
