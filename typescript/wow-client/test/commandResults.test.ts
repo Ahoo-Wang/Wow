@@ -38,6 +38,9 @@ import {
 import { TEST_MANIFEST } from './fixtures/manifest';
 import { client, problemResponse, result } from './fixtures/clients';
 
+/** The event a command's stream ends with once whole, after its last result. */
+const END = 'event:end\ndata:{"reason":"complete"}\n\n';
+
 afterEach(() => {
   vi.unstubAllGlobals();
 });
@@ -189,7 +192,8 @@ describe('CommandClient', () => {
     const { requests } = stubFetch(() =>
       sseResponse(
         `id:0\nevent:accepted\ndata:${JSON.stringify(result('succeeded', 'accepted'))}\n\n` +
-          `id:1\nevent:committed\ndata:${JSON.stringify(result('rejected'))}\n\n`,
+          `id:1\nevent:committed\ndata:${JSON.stringify(result('rejected'))}\n\n` +
+          END,
       ),
     );
     const stream = await new CommandClient(client(), {
@@ -220,7 +224,8 @@ describe('CommandClient', () => {
     stubFetch(() =>
       sseResponse(
         `id:0\nevent:committed\ndata:${JSON.stringify(result())}\n\n` +
-          `id:1\nevent:handled\ndata:${JSON.stringify(ended)}\n\n`,
+          `id:1\nevent:handled\ndata:${JSON.stringify(ended)}\n\n` +
+          END,
       ),
     );
     const results = await readAll(

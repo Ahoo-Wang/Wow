@@ -613,8 +613,11 @@ internal class OpenApiPaths(
             "200 and no other status: one event per result as each hop the plan names is reached, its name the " +
             "hop's stage, its `id` the result's index and its data the result, until the last, which ends the " +
             "stream (the plan's last hop, a rejection at its hop, or a FAILED result: `wow.wait.timeout` at the " +
-            "last hop reached, `wow.storage.unavailable` or `wow.command.unknown` when the execution failed). A " +
-            "comment, `: keep-alive`, is sent at once and every 15 seconds while the stream runs: it is no event."
+            "last hop reached, `wow.storage.unavailable` or `wow.command.unknown` when the execution failed). After " +
+            "it, one more event, `end` with `{\"reason\":\"complete\"}` and no result, says the stream is whole: a " +
+            "stream that ends without it, however cleanly, leaves the command's outcome unknown (retry with the same " +
+            "request id). A comment, `: keep-alive`, is sent at once and every 15 seconds while the stream runs: it " +
+            "is no event."
 
         /** What a command route by no id of an aggregate whose id is its owner's means. */
         const val OWN = "The request names no aggregate id: it acts on the caller's own aggregate, whose id is the " +

@@ -604,13 +604,14 @@ class OpenApiAgreementTest {
             "once accepted, the answer is 200 and no other status",
             "`: keep-alive`",
             "`wow.wait.timeout` at the last hop reached",
+            "`end` with `{\"reason\":\"complete\"}`",
         )
         val open = operation("POST /$CONTEXT/cart/{id}/open-cart")
         val stream = mapOf(HttpHeaders.ACCEPT to EVENT_STREAM)
         // Before it is accepted: the problem, with its status.
         open.send("an event stream with no credentials", user = null, headers = stream).status.assert().isEqualTo(401)
         // Accepted: 200, a comment at once, then one event per hop reached, the last a FAILED result at the last hop
-        // reached when the wait times out.
+        // reached when the wait times out, then `end`, which says the stream is whole.
         val waits = mapOf(WowHeaders.WAIT to "committed > handled(audit)", WowHeaders.WAIT_TIMEOUT to "100ms")
         val result = node.client.post().uri("/$CONTEXT/cart/c-stream/open-cart").header("X-User", WRITER)
             .headers { http -> (stream + waits).forEach { (name, value) -> http.set(name, value) } }
@@ -622,8 +623,9 @@ class OpenApiAgreementTest {
         val events = entries.filterNot { it.startsWith(":") }.map { entry ->
             entry.lines().associate { it.substringBefore(':') to it.substringAfter(':').trim() }
         }
-        events.map { it["event"] }.assert().containsExactly("committed", "committed")
-        val last = json.readTree(events.last().getValue("data"))
+        events.map { it["event"] }.assert().containsExactly("committed", "committed", "end")
+        json.readTree(events.last().getValue("data"))["reason"].asString().assert().isEqualTo("complete")
+        val last = json.readTree(events[1].getValue("data"))
         last["status"].asString().assert().isEqualTo("failed")
         last["error"]["code"].asString().assert().isEqualTo(FrameworkCodes.WAIT_TIMEOUT)
     }

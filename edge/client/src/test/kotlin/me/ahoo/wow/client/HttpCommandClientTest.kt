@@ -557,7 +557,7 @@ class HttpCommandClientTest {
         newerPeer.message!!.assert().contains("the peer is newer than this client")
         newerPeer.retryable.assert().isFalse()
         // A stream emits it as read, for the caller to see.
-        peer.reply(Reply.events("id: 0\nevent: committed\ndata: $newer\n\n"))
+        peer.reply(Reply.events("id: 0\nevent: committed\ndata: $newer\n\n", END))
         client(ClientMode.User(UserCredential.NONE)).stream(CommandRequest.to(ref, DeliverItems(emptyList())))
             .toList().single().status.assert().isEqualTo(CommandResult.Status.UNKNOWN)
     }
@@ -570,7 +570,8 @@ class HttpCommandClientTest {
             Reply.events(
                 ": hello\n\nid: 0\nevent: accepted\ndata: $accepted\n",
                 "\nid: 1\nevent: committed\n",
-                "data: $done\n\n"
+                "data: $done\n\n",
+                END,
             )
         )
         val results = client(
@@ -579,6 +580,88 @@ class HttpCommandClientTest {
         results.map { it.hop.stage }.assert().containsExactly(Stage.ACCEPTED, Stage.COMMITTED)
         peer.taken.single().headers["Accept"].assert().isEqualTo("text/event-stream")
     }
+
+    @Test
+    fun `a user's command stream cut after its head should fail as an unknown outcome`() {
+        val accepted = WowJson.mapper.writeValueAsString(resultOf(ref, hop = Hop.accepted("mail")))
+        val user = client(ClientMode.User(UserCredential.NONE))
+        val streams = mapOf(
+            // The connection lost after an event, as a pod deleted mid-stream leaves it.
+            "cut" to Reply.cut("id: 0\nevent: accepted\ndata: $accepted\n\n"),
+            // A clean end without the `end` event that says the stream is whole: its outcome is as unknown.
+            "ended early" to Reply.events("id: 0\nevent: accepted\ndata: $accepted\n\n"),
+            "ended with no event" to Reply.events(": keep-alive\n\n"),
+            // An event that holds no result.
+            "unreadable" to Reply.events("id: 0\nevent: committed\ndata: {\"no\":1}\n\n"),
+        )
+        streams.forEach { (name, reply) ->
+            peer.reply(reply)
+            val failure = runCatching {
+                runBlocking { user.stream(CommandRequest.to(ref, DeliverItems(emptyList()))).toList() }
+            }.exceptionOrNull()
+            // One kind of failure, whatever met it: the command was taken and its outcome is unknown (#6808).
+            failure.assert().describedAs(name).isInstanceOf(WowProblemException::class.java)
+            (failure as WowProblemException).code.assert().describedAs(name).isEqualTo(FrameworkCodes.COMMAND_UNKNOWN)
+            failure.retry.assert().isEqualTo(Retry.SAME_REQUEST)
+        }
+    }
+
+    @Test
+    fun `a user's command stream should end at its end event, the results before it whatever they are`(): Unit =
+        runBlocking {
+            val user = client(ClientMode.User(UserCredential.NONE))
+            fun events(vararg results: CommandResult, whole: Boolean = true) = Reply.events(
+                *(
+                    results.mapIndexed { index, result ->
+                        "id: $index\nevent: x\ndata: ${WowJson.mapper.writeValueAsString(result)}\n\n"
+                    } + listOfNotNull(END.takeIf { whole })
+                    ).toTypedArray(),
+            )
+            fun stream(plan: WaitPlan? = null) = user.stream(
+                CommandRequest.builder(ref, DeliverItems(emptyList())).apply { plan?.let { wait(it) } }.build(),
+            )
+            val accepted = resultOf(ref, hop = Hop.accepted("mail"))
+            val further = WaitPlan.of(Hop.committed(), Hop.handled("audit"))
+            // A chain that ended before its plan did: its result, at an earlier hop and SUCCEEDED, is the last.
+            val chainEnded = CommandResult(
+                commandId = "c-1",
+                requestId = "r-1",
+                correlationId = "c-1",
+                ref = ref,
+                hop = Hop.committed("mail"),
+                function = committed().function,
+                status = CommandResult.Status.SUCCEEDED,
+                version = 1,
+                signalTime = 1L,
+                chainEnded = true,
+                pending = listOf(Hop.handled("audit", "mail")),
+            )
+            peer.reply(events(accepted, chainEnded))
+            stream(further).toList().last().chainEnded.assert().isTrue()
+            // A duplicate whose commit ends the wait before the plan's later hops.
+            val duplicate = CommandResult(
+                commandId = "c-1",
+                requestId = "r-1",
+                correlationId = "c-1",
+                ref = ref,
+                hop = Hop.committed("mail"),
+                function = committed().function,
+                status = CommandResult.Status.SUCCEEDED,
+                version = 1,
+                duplicate = true,
+                signalTime = 1L,
+            )
+            peer.reply(events(duplicate))
+            stream(further).toList().single().duplicate.assert().isTrue()
+            // The `end` event is no result: its data is never read as one.
+            peer.reply(events(accepted, committed()))
+            stream().toList().map { it.hop.stage }.assert().containsExactly(Stage.ACCEPTED, Stage.COMMITTED)
+            // Closed cleanly after the commit, under the default plan, without `end`: the snapshot may still come, or
+            // the stream was cut short; its outcome is unknown, whatever the plan would let a reader infer.
+            peer.reply(events(accepted, committed(), whole = false))
+            caught<WowProblemException> { runBlocking { stream().toList() } }
+                .code.assert().isEqualTo(FrameworkCodes.COMMAND_UNKNOWN)
+        }
 
     @Test
     fun `a stream answered with a problem should emit its result, or throw without one`(): Unit = runBlocking {
@@ -626,5 +709,8 @@ class HttpCommandClientTest {
 
     private companion object {
         const val SERVICE = "basket-service"
+
+        /** The event a command's stream ends with once whole, after its last result. */
+        const val END = "event: end\ndata: {\"reason\":\"complete\"}\n\n"
     }
 }

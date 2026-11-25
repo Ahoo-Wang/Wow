@@ -23,6 +23,7 @@ import { DEFAULT_RETRY } from './frameworkErrors.js';
 import {
   fromGateway,
   isProblem,
+  PROBLEM_TYPE_PREFIX,
   rememberRequestId,
   WowProblemError,
 } from './problem.js';
@@ -36,13 +37,20 @@ const ERROR_EVENT = 'error';
 /** The event that ends a resumable streamed query list (decision D253). */
 const END_EVENT = 'end';
 
+/** The code of a command whose outcome is unknown. */
+const COMMAND_UNKNOWN = 'wow.command.unknown';
+
 /** The name an event without one is read under. */
 const UNNAMED_EVENT = 'message';
 
 /**
  * The results of a command's event stream (`Accept: text/event-stream`), one
  * per hop, each event named by its stage. A rejection or a failure after
- * admission is the stream's last result, not an error.
+ * admission is the stream's last result, not an error. The server ends a
+ * whole stream with an `end` event after the last result, which is no result:
+ * the stream closes on it, and one that ends without it, however cleanly,
+ * errors with a `wow.command.unknown` {@link WowProblemError}, the command's
+ * outcome unknown and a retry with its request id safe.
  */
 export type CommandResultStream<R = Record<string, unknown>> = ReadableStream<
   CommandResult<R>
@@ -75,16 +83,18 @@ function eventsOf(
 
 /**
  * The data of each event of `answer`'s server-sent event stream, the
- * results of the command sent with `requestId`. A read that fails, such as a
- * connection lost after the response began, fails with an error that carries
- * `requestId` (`requestIdOf`): the command may have been committed, and
- * a retry with the same id is answered as its duplicate.
+ * results of the command sent with `requestId`, until its `end` event, which
+ * says the stream is whole. A read that fails, such as a connection lost
+ * after the response began, fails with an error that carries `requestId`
+ * (`requestIdOf`): the command may have been committed, and a retry with the
+ * same id is answered as its duplicate. So does a stream that ends without
+ * `end`, with a `wow.command.unknown` problem.
  */
 export function commandResults<R>(
   answer: Answer,
   requestId: string,
 ): CommandResultStream<R> {
-  const reader = eventsOf(answer, () => true);
+  const reader = eventsOf(answer, event => event !== END_EVENT);
   return new ReadableStream<CommandResult<R>>({
     async pull(controller) {
       let next: ReadableStreamReadResult<JsonServerSentEvent<unknown>>;
@@ -94,8 +104,25 @@ export function commandResults<R>(
         rememberRequestId(error, requestId);
         throw error;
       }
-      if (next.done) controller.close();
-      else controller.enqueue(next.value.data as CommandResult<R>);
+      if (next.done) {
+        const unknown = new WowProblemError({
+          type: `${PROBLEM_TYPE_PREFIX}${COMMAND_UNKNOWN}`,
+          title: 'Command outcome unknown',
+          status: 503,
+          code: COMMAND_UNKNOWN,
+          detail:
+            "The command's event stream ended without its end event: whether it committed is unknown.",
+        });
+        rememberRequestId(unknown, requestId);
+        throw unknown;
+      }
+      if (next.value.event === END_EVENT) {
+        // The stream is whole: what may follow, a keep-alive, is not read.
+        await reader.cancel().catch(() => undefined);
+        controller.close();
+        return;
+      }
+      controller.enqueue(next.value.data as CommandResult<R>);
     },
     cancel(reason) {
       return reader.cancel(reason);

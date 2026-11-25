@@ -49,6 +49,8 @@ class Reply @JvmOverloads constructor(
      * a pod deleted by force, whose address drops what reaches it.
      */
     val hold: Boolean = false,
+    /** Whether the connection is held open after the chunks, the response not ended: a node gone mid-answer. */
+    val holdAfterChunks: Boolean = false,
 ) {
     companion object {
         /** A request taken and never answered ([hold]). */
@@ -117,6 +119,10 @@ class FakePeer : AutoCloseable {
                     chunks.forEach { chunk ->
                         exchange.responseBody.write(chunk.toByteArray())
                         exchange.responseBody.flush()
+                    }
+                    if (reply.holdAfterChunks) {
+                        released.await()
+                        return@use
                     }
                 } else {
                     val body = reply.body

@@ -60,6 +60,7 @@ A command rejected by its aggregate or at admission (`wow.command.invalid` among
 | Symptom | Cause | Fix |
 | --- | --- | --- |
 | A command stream ends before the last hop of its plan | A saga on the way sent nothing further: the last result has `chainEnded`, and `pending` lists the hops that will not come | Treat it as the chain's end, as the eShop's checkout does when a payment is declined |
+| A command stream rejects with `wow.command.unknown` after its results | It ended without the service's `end` event: a node that stopped, or a connection a proxy closed | Send the command again with the same request id (`requestIdOf(error)`); a command that committed is answered as its duplicate |
 | A command stream's last result is not `SUCCEEDED` | The command, or a command the chain led to, was rejected or failed after admission | Read the result's `status` and `error` |
 | A query stream errors with a `WowProblemError` | The service failed midway with a problem the client cannot resume past | Handle it like a failed request |
 | The connection stays open after the component is gone | The stream was never read to its end or cancelled | Pass a `signal` and abort it on cleanup, or cancel the reader |

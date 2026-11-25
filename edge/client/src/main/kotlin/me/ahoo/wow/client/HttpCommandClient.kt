@@ -15,7 +15,10 @@ package me.ahoo.wow.client
 
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.takeWhile
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
@@ -48,6 +51,7 @@ import me.ahoo.wow.spi.SystemCommandGroups
 import me.ahoo.wow.spi.call.requestIdOf
 import me.ahoo.wow.spi.id.GlobalIdGenerator
 import tools.jackson.core.JacksonException
+import java.io.IOException
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -76,7 +80,10 @@ import kotlin.time.Duration.Companion.seconds
  * rejected, a [me.ahoo.wow.api.problem.WowProblemException] otherwise, with the retry of its code; one a retry with the
  * same request id may get past is retried first, as the transport's [RetryPolicy] says (never a 504). A connection that
  * cannot be made is `wow.peer.unavailable` once the retries are spent, one lost before the answer `wow.command.unknown`;
- * a context the endpoints give no URL is an [IllegalStateException].
+ * so is a user-mode [stream] whose connection is lost after its head, that passes its bound, whose event holds no
+ * result, or that ends, however cleanly, without the `end` event its peer writes after the last result once the stream
+ * is whole (#6808): the client reads results until `end` and emits results alone, never inferring the end from the
+ * plan. A context the endpoints give no URL is an [IllegalStateException].
  *
  * A peer described by its Manifest alone ([WowClient.Builder.manifestPeers]) takes [NamedCommand]s, named by their
  * type and checked against its Manifest before any request; a command object to it is a configuration error.
@@ -108,12 +115,34 @@ class HttpCommandClient internal constructor(
             return@flow
         }
         when (val answer = transport.stream(peer.http, Exchange.COMMAND)) {
-            is Answer.Ok -> answer.value.serverSentEvents().collect { event ->
-                emit(ClientJson.mapper.readValue(event.data, CommandResult::class.java))
+            is Answer.Ok -> {
+                // Whether the stream said it is whole: its `end` event, after its last result.
+                var whole = false
+                answer.value.serverSentEvents()
+                    .takeWhile { event -> (event.event != END_EVENT).also { whole = !it } }
+                    .map { event -> decode(peer.what, event.data.toByteArray()) }
+                    // Upstream of the collector: only the connection's failures, its bound's included.
+                    .catch { lost -> throw if (lost is IOException) unknown(peer, lost).exception(peer.what) else lost }
+                    .collect { emit(it) }
+                if (!whole) {
+                    throw unknown(peer, IOException("The stream ended without its end event.")).exception(peer.what)
+                }
             }
             is Answer.Problem -> emit(answer.problem.result ?: throw answer.problem.exception(peer.what))
         }
     }
+
+    /**
+     * The problem of a command whose stream of results failed after its head ([lost]), or ended without its `end`
+     * event: it was taken, and whether it committed is unknown, as a command whose answer was lost is
+     * (`wow.command.unknown`, a retry with its request id is safe). A caller sees one kind of failure, whatever met it.
+     */
+    private fun unknown(peer: Sent, lost: IOException): PeerProblem = PeerProblem.of(
+        FrameworkCodes.COMMAND_UNKNOWN,
+        "The stream of results of the command sent to ${peer.http.context} was lost (${lost.javaClass.name}): " +
+            "whether it committed is unknown.",
+        lost,
+    )
 
     /** The result [answer] holds, of whatever status, or the exception of a problem that holds none. */
     private fun resultOf(peer: Sent, answer: Answer<ByteArray>): CommandResult = when (answer) {
@@ -310,6 +339,9 @@ class HttpCommandClient internal constructor(
     }
 
     private companion object {
+        /** The event a command's stream ends with once whole, after its last result; never a result. */
+        const val END_EVENT = "end"
+
         /** How long [send] waits for the peer to accept a command whose request names no timeout. */
         val ACCEPT_TIMEOUT = 10.seconds
 

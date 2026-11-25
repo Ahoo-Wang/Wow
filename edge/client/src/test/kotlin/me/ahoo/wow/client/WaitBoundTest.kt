@@ -13,8 +13,11 @@
 
 package me.ahoo.wow.client
 
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
@@ -32,6 +35,7 @@ import me.ahoo.wow.spi.wait.Origin
 import me.ahoo.wow.spi.wait.WaitContext
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
+import java.net.http.HttpTimeoutException
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -172,10 +176,101 @@ class WaitBoundTest {
         peer.taken.single().headers[WowHeaders.WAIT_TIMEOUT].assert().isEqualTo("300ms")
     }
 
+    @Test
+    fun `a client's command whose answer stops after its head ends at its wait and the grace`() {
+        // The head and one byte of the body, then nothing: a node gone mid-answer without closing the connection. The
+        // JDK's own timeout ends at the head, so only the client's bound of the whole answer ends it (#6807).
+        peer.reply(
+            Reply(200, mapOf("Content-Type" to "application/json"), chunks = listOf("{"), holdAfterChunks = true),
+        )
+        val client = WowClient.builder()
+            .endpoints(EndpointResolver.of(mapOf("mail" to peer.base), mapOf("mail" to peer.base)))
+            .service("reader-service")
+            .contracts(contracts)
+            .retry(RetryPolicy.of(maxAttempts = 1, backoff = 1.milliseconds))
+            .build()
+        val request = CommandRequest.builder(ref, HttpCommandClientTest.DeliverItems(emptyList()))
+            .timeout(300.milliseconds)
+            .build()
+        val elapsed = timed {
+            val failure = runBlocking {
+                withTimeoutOrNull(PEER_TIMEOUT / 3) {
+                    runCatching { client.commands.wait(request) }.exceptionOrNull()
+                }
+            }
+            failure.assert().isInstanceOf(WowProblemException::class.java)
+            (failure as WowProblemException).code.assert().isEqualTo(FrameworkCodes.COMMAND_UNKNOWN)
+        }
+        elapsed.assert().isGreaterThanOrEqualTo(300.milliseconds)
+        elapsed.assert().isLessThan(PEER_TIMEOUT / 3)
+    }
+
+    /** A transport of the peer whose timeout (`wow.peer.timeout`) is [BOUND]. */
+    private fun transport() = HttpTransport(
+        EndpointResolver.of(emptyMap(), mapOf("mail" to peer.base)),
+        ClientMode.Service("basket-service"),
+        HttpCommandCaller.client(),
+        BOUND,
+        RetryPolicy.NONE,
+    )
+
+    private fun request(timeout: Duration? = null) =
+        PeerRequest("mail", "/mail/box/x", Caller.ANONYMOUS, null, body = "{}".toByteArray(), timeout = timeout)
+
+    @Test
+    fun `an answer that stops after its head ends at the request's bound, a command's and a query's`() {
+        peer.reply(
+            Reply(200, mapOf("Content-Type" to "application/json"), chunks = listOf("{"), holdAfterChunks = true),
+        )
+        val transport = transport()
+        mapOf(
+            Exchange.COMMAND to FrameworkCodes.COMMAND_UNKNOWN,
+            Exchange.QUERY to FrameworkCodes.QUERY_TIMEOUT,
+        ).forEach { (kind, code) ->
+            val elapsed = timed {
+                val answer = runBlocking { withTimeoutOrNull(PEER_TIMEOUT / 3) { transport.exchange(request(), kind) } }
+                answer.assert().describedAs("the answer of a %s", kind).isInstanceOf(Answer.Problem::class.java)
+                (answer as Answer.Problem).problem.code.assert().isEqualTo(code)
+            }
+            elapsed.assert().isGreaterThanOrEqualTo(BOUND)
+            elapsed.assert().isLessThan(PEER_TIMEOUT / 3)
+        }
+    }
+
+    @Test
+    fun `a command's event stream that stops after its head fails at what is left of its bound`() {
+        peer.reply(Reply.events("id: 0\nevent: accepted\ndata: {}\n\n").withHoldAfterChunks())
+        val elapsed = timed {
+            val failure = runBlocking {
+                val lines = (transport().stream(request(timeout = BOUND), Exchange.COMMAND) as Answer.Ok).value
+                withTimeoutOrNull(PEER_TIMEOUT / 3) { runCatching { lines.toList() }.exceptionOrNull() }
+            }
+            failure.assert().isInstanceOf(HttpTimeoutException::class.java)
+        }
+        elapsed.assert().isGreaterThanOrEqualTo(BOUND)
+        elapsed.assert().isLessThan(PEER_TIMEOUT / 3)
+    }
+
+    @Test
+    fun `a query's streamed list, which resumes from its position, is not cut at the transport's timeout`() {
+        peer.reply(Reply.events("id: 0\ndata: {}\n\n").withHoldAfterChunks())
+        val failure = runBlocking {
+            val lines = (transport().stream(request(), Exchange.QUERY) as Answer.Ok).value
+            // Read past the bound: nothing but this read's own end stops it.
+            withTimeoutOrNull(BOUND * 3) { runCatching { lines.toList() }.exceptionOrNull() }
+        }
+        failure.assert().isNull()
+    }
+
     private companion object {
         /** The transport's timeout, `wow.peer.timeout`'s default. */
         val PEER_TIMEOUT = 30.seconds
 
         const val NOW = 1_000_000L
+
+        /** A bound short enough for a test to pass it. */
+        val BOUND = 300.milliseconds
+
+        fun Reply.withHoldAfterChunks() = Reply(status, headers, body, chunks, abort, hold, holdAfterChunks = true)
     }
 }

@@ -77,7 +77,7 @@ curl -X POST localhost:8083/eshop-ordering/order/order-1/pay-order \
 
 ## 流式获取结果 {#stream-the-outcome}
 
-带 `Accept: text/event-stream` 时，命令每到达一跳就以一个服务端推送事件回答，事件以这一跳的阶段命名，数据是这一跳的结果，直到等待结束。客户端不用轮询就能显示进度：已接收、已提交，然后是链经过的每个服务，只要列出想看到的跳（`Wow-Wait: accepted > committed > …`）。命令被接受后流即以 `200` 回答，流运行期间每 15 秒写一条 `: keep-alive` 注释。`Accept` 按质量值权衡：明确写出 `text/event-stream`、质量大于零且不低于 `application/json` 时才回答事件流；只有通配符时回答 JSON；`q=0` 拒绝该类型；路由能回答的每种类型都被拒绝时回答 406。
+带 `Accept: text/event-stream` 时，命令每到达一跳就以一个服务端推送事件回答，事件以这一跳的阶段命名，数据是这一跳的结果，直到等待结束。客户端不用轮询就能显示进度：已接收、已提交，然后是链经过的每个服务，只要列出想看到的跳（`Wow-Wait: accepted > committed > …`）。命令被接受后流即以 `200` 回答，流运行期间每 15 秒写一条 `: keep-alive` 注释，最后一个结果之后以一个 `end` 事件结束，表示流是完整的。没有 `end` 就结束的流，命令的结果未知：用同一个请求 ID 重试。Wow 的客户端读取结果直到 `end`，把这样的流作为 `wow.command.unknown` 失败。`Accept` 按质量值权衡：明确写出 `text/event-stream`、质量大于零且不低于 `application/json` 时才回答事件流；只有通配符时回答 JSON；`q=0` 拒绝该类型；路由能回答的每种类型都被拒绝时回答 406。
 
 快照 `list` 以同样的方式流式返回它的行，可以用 `Last-Event-ID` 续读（[查询快照](./queries#over-http)）。
 
