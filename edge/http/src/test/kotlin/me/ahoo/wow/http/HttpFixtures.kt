@@ -85,6 +85,8 @@ import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.observation.Observation
+import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.tenant.TenantPolicy
 import me.ahoo.wow.spi.wait.Origin
 import org.springframework.http.HttpHeaders
@@ -341,9 +343,27 @@ class HttpNode(
     /** The commands the node decided, in order. */
     val commands: MutableList<Command<*>> = CopyOnWriteArrayList()
 
+    /**
+     * The kernel's executions that ended, whatever their outcome. A command answered before it runs (a wait that ends
+     * at `accepted`, or one that times out before the commit) still holds its place among the node's commands in
+     * flight ([inFlight]) after its answer: a test that needs the place waits for this count to pass the one it read
+     * before the request, then for [inFlight] to be empty.
+     */
+    val executed = AtomicInteger()
+
     /** The commit times of the kernel: the system clock unless a test sets it. */
     var now: () -> Long = System::currentTimeMillis
-    val kernel = Kernel(store, clock = { now() })
+    val kernel = Kernel(
+        store,
+        clock = { now() },
+        observer = object : Observer {
+            override fun executing(command: Command<*>, commandType: String): Observation = object : Observation {
+                override fun end() {
+                    executed.incrementAndGet()
+                }
+            }
+        },
+    )
     val snapshots = InMemorySnapshotStore()
 
     /** The node's waits, which a test reads the count of. */
