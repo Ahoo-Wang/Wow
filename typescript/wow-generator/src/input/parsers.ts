@@ -138,13 +138,16 @@ export function validateOpenAPIDocument(
  * @returns The parsed document
  */
 export function parseContent<T>(content: string): T {
+  // A UTF-8 byte order mark, which Windows PowerShell 5.1's Out-File writes,
+  // is no part of the document: JSON.parse refuses it.
+  const text = content.startsWith('\uFEFF') ? content.slice(1) : content;
   // inferFileFormat answers with a format or throws, so the switch is
   // exhaustive - a `default` here would be a branch no input can reach.
-  switch (inferFileFormat(content)) {
+  switch (inferFileFormat(text)) {
     case FileFormat.JSON:
-      return JSON.parse(content);
+      return JSON.parse(text);
     case FileFormat.YAML:
-      return parse(content);
+      return parse(text);
   }
 }
 

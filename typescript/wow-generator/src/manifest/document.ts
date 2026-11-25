@@ -105,8 +105,10 @@ export function validateManifest(
       `${source} is a Wow Manifest of format ${manifest.format}; wow-generator reads format ${MANIFEST_FORMAT}.`,
     );
   }
-  const unknown = (manifest.requires ?? []).filter(
-    marker => !MANIFEST_FEATURES.has(marker),
+  const problems: string[] = [];
+  const requires = listOf(manifest.requires, 'requires', problems);
+  const unknown = requires.filter(
+    marker => typeof marker !== 'string' || !MANIFEST_FEATURES.has(marker),
   );
   if (unknown.length > 0) {
     throw new GeneratorError(
@@ -114,44 +116,43 @@ export function validateManifest(
       `${source} requires ${unknown.join(', ')}, which this wow-generator does not understand: generate with a newer one.`,
     );
   }
-  const problems: string[] = [];
   manifest.contexts.forEach((context, index) => {
     if (!isObject(context) || typeof context.name !== 'string') {
       problems.push(`contexts[${index}] has no name`);
       return;
     }
-    (context.aggregates ?? []).forEach((aggregate, at) => {
-      const where = `${context.name}.aggregates[${at}]`;
-      if (!isObject(aggregate) || typeof aggregate.name !== 'string') {
-        problems.push(`${where} has no name`);
-      } else if (
-        !isObject(aggregate.state) ||
-        typeof aggregate.state.schema !== 'string'
-      ) {
-        problems.push(`${context.name}.${aggregate.name} has no state schema`);
-      } else {
-        (aggregate.commands ?? []).forEach(command => {
-          if (
-            typeof command?.name !== 'string' ||
-            typeof command.schema !== 'string'
-          ) {
-            problems.push(
-              `a command of ${context.name}.${aggregate.name} has no name or schema`,
-            );
-          }
-        });
-        (aggregate.events ?? []).forEach(event => {
-          if (
-            typeof event?.name !== 'string' ||
-            typeof event.schema !== 'string'
-          ) {
-            problems.push(
-              `an event of ${context.name}.${aggregate.name} has no name or schema`,
-            );
-          }
-        });
+    const name = context.name;
+    listOf(context.aggregates, `${name}.aggregates`, problems).forEach(
+      (aggregate, at) => {
+        const where = `${name}.aggregates[${at}]`;
+        if (!isObject(aggregate) || typeof aggregate.name !== 'string') {
+          problems.push(`${where} has no name`);
+        } else if (
+          !isObject(aggregate.state) ||
+          typeof aggregate.state.schema !== 'string'
+        ) {
+          problems.push(`${name}.${aggregate.name} has no state schema`);
+        } else {
+          aggregateProblems(aggregate, `${name}.${aggregate.name}`, problems);
+        }
+      },
+    );
+    commandsProblems(context.commands, `${name}.commands`, name, problems);
+    listOf(context.errors, `${name}.errors`, problems).forEach((error, at) => {
+      if (!isObject(error) || typeof error.code !== 'string') {
+        problems.push(`${name}.errors[${at}] has no code`);
       }
     });
+    listOf(context.subscriptions, `${name}.subscriptions`, problems).forEach(
+      (subscription, at) => {
+        if (!isObject(subscription) || typeof subscription.name !== 'string') {
+          problems.push(`${name}.subscriptions[${at}] has no name`);
+        }
+      },
+    );
+    listOf(context.routes, `${name}.routes`, problems).forEach((route, at) =>
+      routeProblems(route, name, at, problems),
+    );
   });
   if (manifest.$defs !== undefined && !isObject(manifest.$defs)) {
     problems.push('$defs is not an object');
@@ -163,6 +164,132 @@ export function validateManifest(
     );
   }
   return manifest;
+}
+
+/**
+ * `value` as a list: itself when it is an array, none when it is absent or
+ * `null`, as the generator has always read a list (`?? []`); a problem
+ * `where` is not a list otherwise.
+ */
+function listOf(value: unknown, where: string, problems: string[]): unknown[] {
+  if (value === undefined || value === null) return [];
+  if (Array.isArray(value)) return value;
+  problems.push(`${where} is not a list`);
+  return [];
+}
+
+/** The problems of an aggregate's commands and events, and of its lists of queries and access attributes. */
+function aggregateProblems(
+  aggregate: Record<string, unknown>,
+  owner: string,
+  problems: string[],
+): void {
+  listOf(aggregate.commands, `${owner}.commands`, problems).forEach(command => {
+    if (
+      !isObject(command) ||
+      typeof command.name !== 'string' ||
+      typeof command.schema !== 'string'
+    ) {
+      problems.push(`a command of ${owner} has no name or schema`);
+    } else {
+      commandProblems(command, `${owner}.${command.name}`, problems);
+    }
+  });
+  listOf(aggregate.events, `${owner}.events`, problems).forEach(event => {
+    if (
+      !isObject(event) ||
+      typeof event.name !== 'string' ||
+      typeof event.schema !== 'string'
+    ) {
+      problems.push(`an event of ${owner} has no name or schema`);
+    }
+  });
+  // A query's or an access attribute's members are read as far as they go, as before.
+  listOf(aggregate.queries, `${owner}.queries`, problems);
+  listOf(aggregate.access, `${owner}.access`, problems);
+}
+
+/**
+ * The problems of a context's own commands (a job's), read for their names
+ * and routes: a command with routes has a name, and each route a method and
+ * a path. One without routes is not routed, and is read as before.
+ */
+function commandsProblems(
+  commands: unknown,
+  where: string,
+  owner: string,
+  problems: string[],
+): void {
+  listOf(commands, where, problems).forEach((command, at) => {
+    if (
+      !isObject(command) ||
+      !Array.isArray(command.routes) ||
+      command.routes.length === 0
+    ) {
+      return;
+    }
+    if (typeof command.name !== 'string') {
+      problems.push(`${where}[${at}] has routes but no name`);
+    } else {
+      routesProblems(
+        command.routes,
+        `${owner}.${command.name}.routes`,
+        problems,
+      );
+    }
+  });
+}
+
+/**
+ * The problems of a command's routes and of its list of produced events. Its
+ * former names are read only as a list of names, and anything else as none.
+ */
+function commandProblems(
+  command: Record<string, unknown>,
+  where: string,
+  problems: string[],
+): void {
+  routesProblems(command.routes, `${where}.routes`, problems);
+  listOf(command.produces, `${where}.produces`, problems);
+}
+
+/** The problems of a list of routes: each a method and a path. */
+function routesProblems(
+  routes: unknown,
+  where: string,
+  problems: string[],
+): void {
+  listOf(routes, where, problems).forEach((route, at) => {
+    if (!isRoute(route)) problems.push(`${where}[${at}] has no method or path`);
+  });
+}
+
+/** Whether `route` is a method and a path. */
+function isRoute(route: unknown): boolean {
+  return (
+    isObject(route) &&
+    typeof route.method === 'string' &&
+    typeof route.path === 'string'
+  );
+}
+
+/** The problems of a service route of `context`, the `at`th: its name, its route and its list of parameters. */
+function routeProblems(
+  route: unknown,
+  context: string,
+  at: number,
+  problems: string[],
+): void {
+  if (!isObject(route) || typeof route.name !== 'string') {
+    problems.push(`${context}.routes[${at}] has no name`);
+    return;
+  }
+  const named = `the route ${route.name} of ${context}`;
+  if (!isRoute(route.route)) {
+    problems.push(`${named} has no route of a method and a path`);
+  }
+  // A parameter's members are read as far as they go, as before.
+  listOf(route.parameters, `${named}: parameters`, problems);
 }
 
 /** The JSON types a schema names: its `type`, a string or an array of them. */

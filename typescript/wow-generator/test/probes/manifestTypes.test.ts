@@ -363,3 +363,28 @@ describe('Manifest types a plain type cannot be', () => {
     );
   });
 });
+
+describe('a Manifest of a malformed shape', () => {
+  it("is refused as a specification error naming the member, not as the generator's defect", async () => {
+    const listed = manifest();
+    (listed.contexts[0] as Record<string, unknown>).aggregates = {
+      thing: listed.contexts[0].aggregates[0],
+    };
+    const routeless = manifest({}, {}, { routes: [{ name: 'ping' }] });
+    const results = [];
+    for (const document of [listed, routeless]) {
+      results.push(await generateCold(document, directories));
+    }
+    expect(results.map(result => result.exitCode)).toEqual([
+      EXIT_CODES.specification,
+      EXIT_CODES.specification,
+    ]);
+    const errors = results.map(result => result.errors.join('\n'));
+    // Not "Code generation failed: … report it": the run's defect message.
+    expect(errors.join('\n')).not.toContain('Code generation failed');
+    expect(errors[0]).toContain('probe.aggregates is not a list');
+    expect(errors[1]).toContain(
+      'the route ping of probe has no route of a method and a path',
+    );
+  });
+});
