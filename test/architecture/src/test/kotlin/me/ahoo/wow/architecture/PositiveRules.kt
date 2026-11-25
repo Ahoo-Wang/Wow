@@ -186,7 +186,15 @@ object PositiveRules {
     private val INDEX = Regex("""\[[^]]*]""")
     private const val MAIN_RESOURCES = "/src/main/resources/"
     private const val MODULE_METADATA = "src/main/resources/META-INF/spring-configuration-metadata.json"
-    private val SKIPPED = setOf("node_modules", "build", ".gradle")
+    private val SKIPPED = setOf("node_modules", "build")
+
+    /**
+     * Whether a walk from [root] enters [dir]: never a build's output or a package's dependencies, nor a hidden
+     * directory (`.git`, `.gradle`, `.kotlin`, `.idea`, and `.claude`, whose worktrees hold other checkouts' copies of
+     * these files), which the test task declares nothing of (#6984); the walk's own root always, however it is named.
+     */
+    private fun entered(root: File, dir: File): Boolean =
+        dir == root || dir.name !in SKIPPED && !dir.name.startsWith(".")
 
     /**
      * Where Wow 10's configuration files live: the modules, the examples, the platform services, the end-to-end
@@ -221,7 +229,7 @@ object PositiveRules {
      * the host refuses each at startup, so a configuration Wow ships must not carry one.
      */
     fun undeclaredConfigKeys(repositoryRoot: File, dirs: List<String>): List<String> {
-        val properties = repositoryRoot.walkTopDown().onEnter { it.name !in SKIPPED }
+        val properties = repositoryRoot.walkTopDown().onEnter { entered(repositoryRoot, it) }
             .filter { it.isFile && it.invariantSeparatorsPath.endsWith(MODULE_METADATA) }
             .flatMap { file ->
                 METADATA_PROPERTY.findAll(
@@ -232,7 +240,7 @@ object PositiveRules {
         val known = declared(properties)
         return dirs.map { File(repositoryRoot, it) }.filter { it.isDirectory }
             .flatMap { root ->
-                root.walkTopDown().onEnter { it.name !in SKIPPED }
+                root.walkTopDown().onEnter { entered(root, it) }
                     .filter { it.isFile && CONFIG_FILE.matches(it.name) && MAIN_RESOURCES in it.invariantSeparatorsPath }
             }
             .distinct()

@@ -49,4 +49,8 @@ tasks.named<Test>("test") {
             exclude("**/node_modules/**", "**/build/**")
         },
     ).withPathSensitivity(PathSensitivity.RELATIVE).withPropertyName("documentedQueries")
+    // StorybookOrdersDescriptorTest holds the Storybook stories' orders descriptor to the one the edge answers (#6984).
+    inputs.file(rootProject.file("typescript/storybook/stories/view-engine/integration/ordersDescriptor.json"))
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+        .withPropertyName("storybookOrdersDescriptor")
 }

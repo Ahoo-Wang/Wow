@@ -96,4 +96,14 @@ configurations.matching { it.name.startsWith("integrationTest") }.configureEach 
 tasks.named<Test>("test") {
     inputs.files(fileTree(rootDir) { include("deploy/**/*.yaml") })
         .withPropertyName("deployManifests").withPathSensitivity(PathSensitivity.RELATIVE)
+    // KeyNamingTest reads the configuration metadata of the modules that ship their own keys, none of which is on these
+    // tests' classpath (#6984): committed files, not a build's outputs, so declared as files.
+    inputs.files(
+        listOf(
+            "platform/analytics/catalog/server",
+            "platform/view-store/view-store-server",
+            "extensions/cosid",
+            "extensions/cocache",
+        ).map { rootProject.file("$it/src/main/resources/META-INF/spring-configuration-metadata.json") },
+    ).withPropertyName("moduleMetadata").withPathSensitivity(PathSensitivity.RELATIVE)
 }

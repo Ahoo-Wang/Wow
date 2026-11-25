@@ -15,3 +15,11 @@ dependencies {
     api("org.jetbrains.kotlinx:kotlinx-coroutines-core")
     api("tools.jackson.core:jackson-databind")
 }
+
+// TypeScriptWireNamesTest holds the TypeScript client's wire-names fixture to the Kotlin wire names (#6984): declared,
+// so a changed fixture runs it instead of reusing a cached result.
+tasks.named<Test>("test") {
+    inputs.file(rootProject.file("typescript/wow-client/test/fixtures/wire-names.json"))
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+        .withPropertyName("typeScriptWireNames")
+}

@@ -24,4 +24,10 @@ tasks.named<Test>("test") {
     inputs.dir(manifestToolsSnapshots)
         .withPathSensitivity(PathSensitivity.RELATIVE)
         .withPropertyName("manifestToolsSnapshots")
+    // BackendHelperGuardrailTest counts the shared query helpers' uses in the backends' sources (#6984).
+    inputs.files(
+        listOf("postgres", "mongo", "elasticsearch").map {
+            rootProject.fileTree("backends/$it/src/main/kotlin") { include("**/*.kt") }
+        },
+    ).withPathSensitivity(PathSensitivity.RELATIVE).withPropertyName("backendSources")
 }
