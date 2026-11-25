@@ -166,6 +166,17 @@ class WowPluginTest {
     }
 
     @Test
+    fun `the minimum Kotlin should be a real version for every Kotlin Wow can be built with`() {
+        // One minor before; at an x.0 the version itself, never "3.-1"; a pre-release read past (#6879).
+        WowPlugin.minimumKotlin("2.4.0").assert().isEqualTo("2.3")
+        WowPlugin.minimumKotlin("3.0.0").assert().isEqualTo("3.0")
+        WowPlugin.minimumKotlin("2.5.0-Beta1").assert().isEqualTo("2.4")
+        WowPlugin.minimumKotlin("3.0.0-RC2").assert().isEqualTo("3.0")
+        // The plugin's own: a real version, as requireKotlin compares and names it.
+        WowPlugin.minKotlin.assert().matches("""\d+\.\d+""")
+    }
+
+    @Test
     fun `a module without KSP on its class path should be told the line that brings it, of the plugin's KSP`() {
         WowPlugin.kspVersion.assert().matches("""\d+\.\d+\.\d+.*""")
         WowPlugin.missingKsp(":shop-domain", WowPlugin.ID).assert().contains(

@@ -234,6 +234,11 @@ tasks.test {
     // would defeat the build cache) or an output (a daemon's caches are no result to cache).
     val gradleHome = requireNotNull(gradle.gradleHomeDir).path
     val toolingHome = layout.buildDirectory.dir("tooling-api-home")
+    // The TestKit builds' Gradle user home, this module's own (named in doFirst, as above), whose daemons do not watch
+    // the file system: a test edits a build script a moment before its next build, and a watcher's event that arrives
+    // after the build starts let the daemon take the script as unchanged and reuse its configuration cache entry
+    // (#6718). Not watching, each build reads what it fingerprints from disk.
+    val testKitHome = layout.buildDirectory.dir("testkit-home")
     // The POMs of the plugin markers, which say what a plugin request resolves.
     val markers = layout.buildDirectory.dir("publications")
     dependsOn(
@@ -248,6 +253,9 @@ tasks.test {
         systemProperty("wow-test.fixture.toolsClasspath", toolsClasspath.asPath)
         systemProperty("wow-test.gradle.home", gradleHome)
         systemProperty("wow-test.tooling.home", toolingHome.get().asFile.path)
+        val testKit = testKitHome.get().asFile.apply { mkdirs() }
+        testKit.resolve("gradle.properties").writeText("org.gradle.vfs.watch=false\n")
+        systemProperty("org.gradle.testkit.dir", testKit.path)
         systemProperty("wow-test.jdk.daemon", daemonJdk.get())
         runCatching { moduleJdk.get() }.onSuccess { systemProperty("wow-test.jdk.module", it) }
         systemProperty("wow-test.jdk.module.version", toolchainTestVersion)

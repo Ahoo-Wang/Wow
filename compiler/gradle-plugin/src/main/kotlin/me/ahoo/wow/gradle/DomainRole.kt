@@ -158,10 +158,9 @@ internal object DomainRole {
             task.contractPackage.set(extension.contractPackage)
             task.module.set(project.path)
             task.classpathProjects.set(projects)
+            task.classpathEntries.from(projectEntriesOf(compileClasspath))
             task.classpathProjectPaths.set(projects.map { it.values.distinct().sorted() })
-            val pairings = pairing.artifacts.resolvedArtifacts.map(::pairings)
-            task.pairing.from(pairings.map { it.keys })
-            task.pairingProjects.set(pairings)
+            task.pairing.from(pairing.artifacts.resolvedArtifacts.map { pairings(it).keys })
             task.tools.from(toolsConfiguration(project))
             task.outputFile.set(project.layout.buildDirectory.file("wow/contract.json"))
             task.packagesFile.set(project.layout.buildDirectory.file("wow/${ApiRole.CONTRACT_PACKAGES_FILE}"))
@@ -179,6 +178,12 @@ internal object DomainRole {
     /** The project entries of [compileClasspath], each to its project's path. */
     private fun projectsOf(compileClasspath: Configuration): Provider<Map<String, String>> =
         compileClasspath.incoming.artifacts.resolvedArtifacts.map(::byProject)
+
+    /** The entries of [compileClasspath] that come from projects of the build, with the tasks that build them. */
+    private fun projectEntriesOf(compileClasspath: Configuration): FileCollection =
+        compileClasspath.incoming.artifactView { view ->
+            view.componentFilter { it is ProjectComponentIdentifier }
+        }.files
 
     /** The files of [artifacts] that come from projects of the build, each to its project's path. */
     private fun byProject(artifacts: Collection<ResolvedArtifactResult>): Map<String, String> =

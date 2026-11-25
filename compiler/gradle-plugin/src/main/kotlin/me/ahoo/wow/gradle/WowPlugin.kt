@@ -131,13 +131,18 @@ class WowPlugin : Plugin<Project> {
         /** The oldest Gradle the plugin runs on: the first whose Kotlin DSL reads the plugin's Kotlin 2 metadata. */
         internal val MIN_GRADLE: GradleVersion = GradleVersion.version("9.0")
 
+        /** The oldest Kotlin Gradle plugin the plugin works with: [minimumKotlin] of the Kotlin Wow is built with. */
+        internal val minKotlin: String by lazy { minimumKotlin(properties.getProperty("kotlinVersion")) }
+
         /**
-         * The oldest Kotlin Gradle plugin the plugin works with: one minor version before the Kotlin Wow is built with,
-         * the oldest compiler that reads the metadata of Wow's libraries.
+         * The oldest Kotlin that reads the metadata of libraries built with [kotlinVersion]: one minor version before it,
+         * whose compiler reads the next minor's metadata. At an x.0 there is no rule from the version alone (the last
+         * minor of the major before is not known here), so it is that version itself (#6879). A pre-release suffix
+         * (`2.5.0-Beta1`) is read past.
          */
-        internal val minKotlin: String by lazy {
-            val (major, minor) = properties.getProperty("kotlinVersion").split('.').map(String::toInt)
-            "$major.${minor - 1}"
+        internal fun minimumKotlin(kotlinVersion: String): String {
+            val (major, minor) = kotlinVersion.split('.').take(2).map { it.takeWhile(Char::isDigit).toInt() }
+            return if (minor == 0) "$major.0" else "$major.${minor - 1}"
         }
 
         /**
