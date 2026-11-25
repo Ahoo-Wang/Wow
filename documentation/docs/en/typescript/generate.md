@@ -9,7 +9,7 @@ description: Generate the typed clients of a Wow service from its Manifest with 
 
 ## Where the Manifest comes from
 
-The service serves its Manifest at `GET /wow/manifest`, and its build commits the same document as `manifest/baseline.json`, which `check` holds to what the service serves ([The Manifest](../guide/manifest)). Generate from the baseline: it needs no running service, it is the version that was reviewed, and a change to it is a change to the clients.
+The service serves its Manifest at `GET /wow/manifest` (on its public port only with `wow.http.manifest.enabled: true`), and its build commits the same document as `manifest/baseline.json`, which `check` holds to what the service serves ([The Manifest](../guide/manifest)). Generate from the baseline: it needs no running service, it is the version that was reviewed, and a change to it is a change to the clients.
 
 ```bash
 pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-eventstream @ahoo-wang/wow-client

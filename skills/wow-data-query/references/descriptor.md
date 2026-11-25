@@ -1,6 +1,6 @@
 # Descriptor and read-only queries
 
-`{base}` is the service root (or the gateway path to it). Confirm every route against the service: `GET {base}/wow/manifest` lists its aggregates and their query models, and the descriptor is the authority on what each admits.
+`{base}` is the service root (or the gateway path to it). Confirm every route against the service: its Manifest lists its aggregates and their query models (`GET {base}/wow/manifest` when the service sets `wow.http.manifest.enabled: true`, else the `manifest/baseline.json` it commits), and the descriptor is the authority on what each admits.
 
 | Purpose | Request |
 | --- | --- |

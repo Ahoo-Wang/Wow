@@ -13,7 +13,7 @@ A service's Manifest is its contract in one document: its contexts, aggregates, 
 1. **The compiler** writes each domain module's fragment, `META-INF/wow/manifest/<module>.json` ([What the Compiler Generates](./generated-code#the-manifest-fragment)).
 2. **The Gradle plugin** (`generateWowManifestFragment`) completes the fragment with the JSON Schemas of its types, the query keywords and the state's fingerprint. A type's Jakarta Bean Validation constraints become its schema's validation keywords, so a client sees them before it sends: `@Positive` is an `exclusiveMinimum` of 0, `@NotBlank` a `minLength` of 1, `@Size` the length or item bounds, `@Pattern` a `pattern` and `@Email` the `email` format. Whether a field is required, or may be null, still follows its Kotlin type. The completed fragment replaces the compiler's in the module's resources. The task loads the module's compiled classes, so it runs on the module's Java toolchain (`kotlin { jvmToolchain(25) }`), not on the JVM that runs Gradle: Gradle may be older than the module.
 3. **At build time**, `mergeWowManifest` merges the fragments of the service's runtime class path into `build/wow/manifest.json`.
-4. **At startup**, the host merges the same fragments, adds the framework's error codes, and serves the result at `GET /wow/manifest`, authenticated like every route of the public port: a request with no caller is answered 401.
+4. **At startup**, the host merges the same fragments, adds the framework's error codes, and serves the result at `GET /wow/manifest`: on the internal port to the cluster's services, and on the public port only with `wow.http.manifest.enabled: true` (off by default, as the Manifest lists every route, schema and error of the service), authenticated like every route there: a request with no caller is answered 401.
 
 The snapshot queries read the state schema from the completed fragment: a state field can be filtered and sorted only once the plugin has completed it.
 
@@ -80,7 +80,7 @@ The check compares the declared shape, not what the serializer writes. The two a
 
 A service that sends another context's commands, or reads its published stream, needs that context's commands, events, state and errors. The plugin selects them from the other context's fragment, as `META-INF/wow/contract.json`, which its api module publishes as its feature `contract`. A service that depends on the api module finds the contract on its class path, and uses it to name the commands it sends, check the wait plans that cross into the other context, and decode its published events. Nothing is configured: depending on the api is enough.
 
-A tool that cannot take the api jar, such as a console or a gateway, reads the peer's Manifest from its `GET /wow/manifest` instead ([Call Other Services](./calling-services#call-a-command-by-name)).
+A tool that cannot take the api jar, such as a console or a gateway, reads the peer's Manifest from its `GET /wow/manifest` instead ([Call Other Services](./calling-services#call-a-command-by-name)): from the internal port as a service, or from the public port of a peer that serves it there (`wow.http.manifest.enabled: true`).
 
 ## The compatibility check
 

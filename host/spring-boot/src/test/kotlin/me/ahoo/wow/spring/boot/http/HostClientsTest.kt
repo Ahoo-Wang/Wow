@@ -80,7 +80,8 @@ import kotlin.coroutines.CoroutineContext
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class HostClientsTest {
-    private val bank = startHost()
+    // A peer read in user mode reads the Manifest from the public port, which serves it only when told to.
+    private val bank = startHost("wow.http.manifest.enabled" to true)
 
     @AfterAll
     fun close() {

@@ -11,7 +11,7 @@ description: '生成器 CLI — @ahoo-wang/wow-generator'
 
 | 选项                               | 必填/默认值                   | 含义                                                                        |
 | ---------------------------------- | ----------------------------- | --------------------------------------------------------------------------- |
-| `-i, --input <file>`               | 必填                          | Wow Manifest（`GET /wow/manifest`）或 OpenAPI 3.x 文档的本地路径或 HTTP/HTTPS URL |
+| `-i, --input <file>`               | 必填                          | Wow Manifest（`GET /wow/manifest`，服务只有设置 `wow.http.manifest.enabled: true` 才提供；它提交的 `manifest/baseline.json` 则不需要）或 OpenAPI 3.x 文档的本地路径或 HTTP/HTTPS URL |
 | `-o, --output <path>`              | `src/generated`               | 输出根目录，相对当前工作目录解析                                            |
 | `-c, --config <file>`              | `./wow-generator.config.json` | 生成器配置，见[配置](./configuration)；显式指定的文件必须存在               |
 | `-H, --header <header>`            | 无；可重复                    | 输入或配置为 HTTP/HTTPS URL 时发送的 `Name: value` 请求头                   |

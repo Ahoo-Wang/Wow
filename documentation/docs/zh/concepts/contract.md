@@ -36,7 +36,7 @@ annotations ─▶ compiler ─▶ Manifest ─┬▶ HTTP routes (at run time)
 
 schema 来自 Jackson 本身。构建过程加载编译好的类，询问 Jackson 会怎样序列化它们，所以命名策略、`@JsonProperty` 和 Kotlin 默认值，都按它们在线上的真实样子体现出来。由类自己的序列化器写出的类不会：构建看不到序列化器的内部，所以会停下来，要求声明这个类的结构（[由自定义序列化器写出的类型](../guide/manifest#a-type-written-by-a-custom-serializer)）。这只发生在构建时；运行时不做任何内省。
 
-服务在公开端口的 `GET /wow/manifest` 上发布它的 Manifest，与所有路由一样需要认证（没有调用方时 401），任何已认证的调用方都能读取。
+服务在 `GET /wow/manifest` 上提供它的 Manifest：在内部端口上提供给集群中的服务；在公开端口上只有当它在那里公开契约时才提供（`wow.http.manifest.enabled: true`，默认关闭），与所有路由一样需要认证（没有调用方时 401），任何已认证的调用方都能读取。
 
 ## 从它推出什么 {#what-is-derived-from-it}
 

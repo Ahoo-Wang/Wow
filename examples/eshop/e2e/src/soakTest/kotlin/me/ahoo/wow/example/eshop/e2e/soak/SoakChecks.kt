@@ -536,22 +536,20 @@ class SoakChecks(
     }
 
     /**
-     * The aggregate types the Manifest of [context]'s service declares (`/wow/manifest`), as a node of it serves the
-     * Manifest; null, recorded as a violation, when none answers it.
+     * The aggregate types the Manifest of [context]'s service declares, as a node of it serves the Manifest to the
+     * cluster's services on its internal port; null, recorded as a violation, when none answers it.
      */
     private fun declaredAggregates(context: String): Set<String>? {
-        val answer = stack.nodes(context).firstOrNull()?.let { node ->
-            runCatching { node.service.get(MANIFEST) }.getOrNull()
-        }
-        if (answer == null || answer.status != OK) {
+        val read = stack.nodes(context).firstOrNull()?.let { node -> runCatching { node.service.manifest() } }
+        val manifest = read?.getOrNull()
+        if (manifest == null) {
             invariants.readModelsConverge.violate(
-                linkedMapOf("context" to context, "manifest" to "${answer?.status} ${answer?.body?.take(MAX_TEXT)}"),
+                linkedMapOf("context" to context, "manifest" to "${read?.exceptionOrNull()?.message?.take(MAX_TEXT)}"),
             )
             return null
         }
-        return json.readTree(answer.body)["contexts"].values()
-            .filter { it["name"].asString() == "eshop-$context" }
-            .flatMap { it["aggregates"].values().map { aggregate -> aggregate["name"].asString() } }
+        return manifest.contexts.filter { it.name == "eshop-$context" }
+            .flatMap { it.aggregates.map { aggregate -> aggregate.name } }
             .toSet()
     }
 
@@ -626,7 +624,6 @@ class SoakChecks(
         private const val MAX_LISTED = 50
         private const val MAX_TEXT = 2000
         private const val TRACE_PAGE = 1000
-        private const val MANIFEST = "/wow/manifest"
         private const val OK = 200
         private val SETTLE_POLL: Duration = Duration.ofSeconds(5)
         private val SNAPSHOT_DEADLINE: Duration = Duration.ofSeconds(60)

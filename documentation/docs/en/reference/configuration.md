@@ -261,7 +261,7 @@ The service's Manifest route.
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `wow.http.manifest.enabled` | `Boolean` | `true` | Serves `GET /wow/manifest`. |
+| `wow.http.manifest.enabled` | `Boolean` | `false` | Serves `GET /wow/manifest` on the public port: off by default, as the Manifest lists every route, schema, error and internal command of the service. The internal port serves it to the cluster's services whatever this says; a tool or a client that reads it from the public port (a peer of `contract: manifest` in `mode: user`, `wow-client` given no Manifest, the generator given the service's URL) needs it on. `GET /wow/openapi` stays on. |
 
 ## `wow.http.openapi`
 

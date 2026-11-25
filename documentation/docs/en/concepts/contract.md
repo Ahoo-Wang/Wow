@@ -36,7 +36,7 @@ A service's domain is often spread over several Gradle modules. The compiler see
 
 The schemas come from Jackson itself. The build loads the compiled classes and asks Jackson how it would serialize them, so naming strategies, `@JsonProperty` and Kotlin defaults all show up as they really are on the wire. A class Jackson writes with a serializer of its own does not: the build cannot see inside the serializer, so it stops and asks for the class's shape ([A type written by a custom serializer](../guide/manifest#a-type-written-by-a-custom-serializer)). This happens at build time only; at run time nothing is introspected.
 
-The service publishes its Manifest at `GET /wow/manifest` on its public port, authenticated like every route (401 without a caller); any authenticated caller may read it.
+The service serves its Manifest at `GET /wow/manifest`: on its internal port to the cluster's services, and on its public port only when it publishes its contract there (`wow.http.manifest.enabled: true`, off by default), authenticated like every route (401 without a caller), to any authenticated caller.
 
 ## What is derived from it
 

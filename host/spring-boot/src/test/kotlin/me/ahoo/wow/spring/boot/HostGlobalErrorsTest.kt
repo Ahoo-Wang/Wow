@@ -74,6 +74,7 @@ class HostGlobalErrorsTest {
     fun `turned off, the application's own routes are Spring's, and Wow's routes still answer by the mappers`() {
         startHost(
             "wow.http.global-errors.enabled" to false,
+            "wow.http.manifest.enabled" to true,
             sources = mapping,
         ).use { host ->
             host.problem("/app/catalog").assert().doesNotContain("bank.catalog.unreachable")

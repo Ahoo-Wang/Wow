@@ -93,7 +93,7 @@ Set these in a YAML file or `SPRING_APPLICATION_JSON`: an environment variable l
 
 ## Call a command by name
 
-A console, a gateway or a tool may call a peer without its api jar. It lists the peer with `wow.peers.<context>.contract: manifest` and sends a `NamedCommand`: the command's full type name, `context.aggregate.Command`, and its JSON body. The client reads the peer's Manifest from `GET /wow/manifest` and refuses a command the Manifest does not declare before sending anything.
+A console, a gateway or a tool may call a peer without its api jar. It lists the peer with `wow.peers.<context>.contract: manifest` and sends a `NamedCommand`: the command's full type name, `context.aggregate.Command`, and its JSON body. The client reads the peer's Manifest from `GET /wow/manifest` and refuses a command the Manifest does not declare before sending anything: in `mode: service` from the peer's internal port, which always serves it to the cluster's services; in `mode: user` from its public port, which serves it only once the peer sets `wow.http.manifest.enabled: true`.
 
 ## Outside a Wow host
 

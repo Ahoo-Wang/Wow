@@ -265,7 +265,8 @@ class WowPropertiesTest {
         properties.wait.maxTimeout.assert().isEqualTo(Duration.ofSeconds(60))
         properties.wait.maxHops.assert().isEqualTo(16)
         properties.wait.unknownContexts.assert().isEqualTo(UnknownContexts.ALLOW)
-        properties.http.manifest.enabled.assert().isTrue()
+        // The public port serves no Manifest unless told to; the internal port serves it to the cluster's services.
+        properties.http.manifest.enabled.assert().isFalse()
         properties.http.openapi.enabled.assert().isTrue()
     }
 
