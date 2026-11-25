@@ -35,7 +35,7 @@ import java.util.UUID
  * A command a client sends while deciding takes a request id derived from the deciding request (decision D314 ④): its
  * aggregate and its request id, which a caller's retry keeps, not its command id, which every arrival gets anew. That
  * is a call that stands, the same call in every attempt; a call the decision undoes in `onAppendFailure` takes an id of
- * its attempt's own (`callId()`), so that the next attempt, or a caller's retry, is not answered with the call it undid
+ * its attempt's own (`attemptKey()`), so that the next attempt, or a caller's retry, is not answered with the call it undid
  * (#6734).
  */
 class KernelDerivedRequestsTest {
@@ -187,8 +187,8 @@ class KernelDerivedRequestsTest {
         decide<Unblock> { _, _ -> Decision.events(Unblocked()) }
         decideSuspending<Pay> { state, _ ->
             // A call this attempt undoes, under an id of the attempt's own, as the guide's "Undo an outside act" does.
-            call(Authorize(state.total), requestId = callId())
-            onAppendFailure { call(Void(), requestId = callId()) }
+            call(Authorize(state.total), requestId = attemptKey())
+            onAppendFailure { call(Void(), requestId = attemptKey()) }
             if (state.blocked) reject("order.blocked", "The order is blocked.")
             Decision.events(Paid(state.total))
         }
@@ -269,7 +269,7 @@ class KernelDerivedRequestsTest {
             "call #1",
             "Authorize {\"amount\":15}",
             "Authorize {\"amount\":10}",
-            "callId()",
+            "attemptKey()",
         )
         payment().authorized.assert().isEqualTo(10)
     }

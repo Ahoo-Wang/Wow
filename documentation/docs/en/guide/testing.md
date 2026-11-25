@@ -311,7 +311,7 @@ fun `an order awaiting validation should reserve each product's stock in the inv
 }
 ```
 
-`expectDeterministic()` handles the commit again, with a fresh context as the runtime gives each handling, and checks that the saga sends the same commands with the same ids. That is what makes a redelivered commit safe: the target decides each request once. The fresh context draws new ids from `context.ids`, as a node's does, so a command that holds a drawn id fails the check. A command whose target is named by one is another request, which would create a second aggregate ([Build the commands](./sagas#build-the-commands)). A projection or a reactor has no such check: handling a commit again would run its side effects again.
+`expectDeterministic()` handles the commit again, with a fresh context as the runtime gives each handling, and checks that the saga sends the same commands with the same ids. That is what makes a redelivered commit safe: the target decides each request once. The fresh context draws new ids from `context.ids`, as a node's does, so a command that holds a drawn id in its body fails the check. A command whose target is named by one fails already on the first handling, as on a node ([Build the commands](./sagas#build-the-commands)). A projection or a reactor has no such check: handling a commit again would run its side effects again.
 
 ### Steps
 
