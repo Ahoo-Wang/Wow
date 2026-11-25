@@ -65,7 +65,7 @@ export function linkNodeModules(dir: string): void {
 
 /**
  * A generator that writes into the given ts-morph project, such as an
- * in-memory one, rather than one it reads from `tsConfigFilePath`.
+ * in-memory one, rather than a project of its own.
  *
  * @param options - The options, and any other seam, such as an interruption
  * signal
@@ -190,7 +190,6 @@ export async function generateProject(
       input: join(PACKAGE_ROOT, options.input),
       output,
       config: options.config && join(PACKAGE_ROOT, options.config),
-      tsConfigFilePath,
     },
     logger,
   );

@@ -14,7 +14,6 @@ description: '生成器 CLI — @ahoo-wang/wow-generator'
 | `-i, --input <file>`               | 必填                          | Wow Manifest（`GET /wow/manifest`）或 OpenAPI 3.x 文档的本地路径或 HTTP/HTTPS URL |
 | `-o, --output <path>`              | `src/generated`               | 输出根目录，相对当前工作目录解析                                            |
 | `-c, --config <file>`              | `./wow-generator.config.json` | 生成器配置，见[配置](./configuration)；显式指定的文件必须存在               |
-| `-t, --ts-config-file-path <file>` | 不指定                        | ts-morph 项目配置；应提供启用装饰器的 tsconfig                              |
 | `-H, --header <header>`            | 无；可重复                    | 输入或配置为 HTTP/HTTPS URL 时发送的 `Name: value` 请求头                   |
 | `--timeout <ms>`                   | `30000`                       | 获取 HTTP/HTTPS 输入或配置的超时毫秒数，超时即放弃                          |
 | `--schema-docs <mode>`             | `summary`                     | 模型文档注释的内容：`summary`（标题、描述、约束）或 `full`（另含 JSON schema） |
@@ -31,7 +30,7 @@ description: '生成器 CLI — @ahoo-wang/wow-generator'
 
 ```bash
 pnpm exec wow-generator generate -i https://api.example.com/v3/api-docs \
-  -H "Authorization: Bearer $API_TOKEN" --timeout 60000 -o ./src/generated -t ./tsconfig.json
+  -H "Authorization: Bearer $API_TOKEN" --timeout 60000 -o ./src/generated
 ```
 
 ## 输出
@@ -126,14 +125,14 @@ Generated 3 files into ./src/generated with wow-generator.config.json, 1 warning
 
 ```bash
 pnpm add -D @ahoo-wang/wow-generator typescript
-pnpm exec wow-generator generate -i ./openapi.json -o ./src/generated -t ./tsconfig.json
+pnpm exec wow-generator generate -i ./openapi.json -o ./src/generated
 pnpm exec tsc --noEmit -p ./tsconfig.json
 ```
 
 仓库 fixture 构建后，从 `typescript/wow-generator` 目录运行：
 
 ```bash
-node dist/cli.js generate -i "$PWD/test/manifests/eshop-ordering.json" -o /tmp/wow-demo-generated -t tsconfig.json
+node dist/cli.js generate -i "$PWD/test/manifests/eshop-ordering.json" -o /tmp/wow-demo-generated
 ```
 
 ## 失败与退出码
@@ -143,7 +142,7 @@ node dist/cli.js generate -i "$PWD/test/manifests/eshop-ordering.json" -o /tmp/w
 | 0      | 成功 | 文件已写出；或已输出 `--help`、`help <command>`、`--version`                          |
 | 1      | 内部 | 意外错误，即生成器自身的缺陷；加 `--verbose` 重跑可看到堆栈                            |
 | 2      | 输入 | 输入读不到或取不到、既不是 JSON 也不是 YAML、不是 OpenAPI 3.x 文档；或命令行不合法：选项值无效（`--timeout abc`）、缺少必填选项或选项的值、未知选项或命令、没有给出命令 |
-| 3      | 配置 | 配置或 tsconfig 读不到、解析不了或校验不通过；配置先于文档读取                         |
+| 3      | 配置 | 配置读不到、解析不了或校验不通过；配置先于文档读取                                     |
 | 4      | 规范 | 文档描述的代码无法生成：`$ref` 指向不存在的目标、循环引用或外部引用、两个 schema 生成同一个模型、两个操作生成同一个方法、Wow 元数据格式错误；或开启了 `--strict` 且本次运行有警告 |
 | 5      | 输出 | 输出目录无法按要求写入：清单 `.wow-generator.json` 解析不了、由更新版本的 wow-generator 写出或根本不是清单（见[输出所有权](./generated-output#所有权与失败)）、路径越出输出目录，或写入、删除文件失败 |
 | 6      | 检查 | 开启了 `--check` 且输出目录与本次运行要写的不同：要写的文件缺失或字节不同，上一次运行的 `.wow-generator.json` 记录、本次不再写的文件仍在，或要写的清单不同。每一项按它在输出目录中的路径列出，什么也不写。没有任何清单记录的文件从不比较 |

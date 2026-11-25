@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { isAbsolute, join, relative, resolve, sep } from 'path';
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'path';
 import type { Project, SourceFile } from 'ts-morph';
 import { ts } from 'ts-morph';
 import { errorMessage, GeneratorError } from '../api/errors';
@@ -205,6 +205,7 @@ export class OutputStore {
         this.isUnchanged(path, this.previous.get(path)!)
       ) {
         await attempt('delete', path, () => fs.delete(path));
+        await this.removeEmptied(dirname(path));
       }
     }
     const manifestPath = join(this.outputDir, GENERATION_MANIFEST);
@@ -236,7 +237,7 @@ export class OutputStore {
     const different: string[] = [];
     const files = [...this.written].sort().map(path => {
       const text = this.project.getSourceFileOrThrow(path).getFullText();
-      if (!fs.fileExistsSync(path) || fs.readFileSync(path) !== text)
+      if (!fs.fileExistsSync(path) || lf(fs.readFileSync(path)) !== text)
         different.push(path);
       return [path, text] as const;
     });
@@ -247,7 +248,7 @@ export class OutputStore {
     const manifestPath = join(this.outputDir, GENERATION_MANIFEST);
     if (
       !fs.fileExistsSync(manifestPath) ||
-      fs.readFileSync(manifestPath) !== this.manifestText(files)
+      lf(fs.readFileSync(manifestPath)) !== this.manifestText(files)
     ) {
       different.push(manifestPath);
     }
@@ -273,6 +274,26 @@ export class OutputStore {
         2,
       ) + '\n'
     );
+  }
+
+  /**
+   * Removes `directory`, a directory a removal of the last run's file left
+   * behind, when nothing is left in it, then each parent it empties in turn,
+   * up to the output directory, which stays. A directory that holds anything,
+   * a hand-written file say, is kept.
+   */
+  private async removeEmptied(directory: string): Promise<void> {
+    const fs = this.project.getFileSystem();
+    const root = resolve(this.outputDir);
+    for (
+      let current = resolve(directory);
+      current !== root && current.startsWith(root + sep);
+      current = dirname(current)
+    ) {
+      if (!fs.directoryExistsSync(current) || fs.readDirSync(current).length)
+        return;
+      await attempt('delete', current, () => fs.delete(current));
+    }
   }
 
   /**
@@ -339,11 +360,20 @@ function readManifest(
   return manifest;
 }
 
+/**
+ * The SHA-256 of `text` with its line ends written `\n`: a checkout that
+ * writes them `\r\n` (Git's `autocrlf`) holds the same file.
+ */
 function fileHash(text: string): string {
   if (!ts.sys.createSHA256Hash) {
     throw new Error('SHA-256 hashing is unavailable in this environment.');
   }
-  return ts.sys.createSHA256Hash(text);
+  return ts.sys.createSHA256Hash(lf(text));
+}
+
+/** `text` with each line end, `\r\n` or `\r`, written `\n`, as the generator writes it. */
+function lf(text: string): string {
+  return text.replace(/\r\n?/g, '\n');
 }
 
 /**

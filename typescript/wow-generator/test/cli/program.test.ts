@@ -81,9 +81,10 @@ describe('CLI setup', () => {
       '-c, --config <file>',
       'Configuration file path (default: ./wow-generator.config.json)',
     );
-    expect(result.option).toHaveBeenCalledWith(
+    // No tsconfig option: the output never depended on one (#7022, row 19).
+    expect(result.option).not.toHaveBeenCalledWith(
       '-t, --ts-config-file-path <file>',
-      'TypeScript configuration file path',
+      expect.anything(),
     );
     expect(result.option).toHaveBeenCalledWith(
       '-H, --header <header>',

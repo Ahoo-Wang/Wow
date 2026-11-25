@@ -19,7 +19,7 @@ Within 10, use the packages of the version of the services a front end calls. A 
 
 The packages share one version with the Kotlin modules and are released from the same tag. Breaking changes ship only in an `x.Y.0` release and are listed under "Breaking" in the [release notes](https://github.com/Ahoo-Wang/Wow/releases).
 
-- **Use one version for every Wow package of an application.** `wow-generator`, `wow-react` and the view engine take `@ahoo-wang/wow-client` as a peer with `~x.y.z`, so the package manager warns when they differ in minor version.
+- **Use one version for every Wow package of an application.** `wow-react` and the view engine take `@ahoo-wang/wow-client` as a peer with `~x.y.z`, and `wow-generator` as an optional one (an OpenAPI-only project need not install it), so the package manager warns when they differ in minor version.
 - **Generate with the generator of the same version** as the `wow-client` the generated code compiles against.
 
 ### Version ranges

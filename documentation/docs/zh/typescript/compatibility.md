@@ -19,7 +19,7 @@ Wow 10 的包与 Wow 10 的服务通信，并从 Wow 10 的 Manifest 生成。�
 
 这些包与 Kotlin 模块共用一个版本号，从同一个 tag 发布。破坏性改变只在 `x.Y.0` 版本中发布，并在[发布说明](https://github.com/Ahoo-Wang/Wow/releases)的 “Breaking” 下列出。
 
-- **应用中的每个 Wow 包使用同一个版本。** `wow-generator`、`wow-react` 和视图引擎以 `~x.y.z` 把 `@ahoo-wang/wow-client` 作为 peer 依赖，所以它们的次版本不同时，包管理器会发出警告。
+- **应用中的每个 Wow 包使用同一个版本。** `wow-react` 和视图引擎以 `~x.y.z` 把 `@ahoo-wang/wow-client` 作为 peer 依赖，`wow-generator` 把它作为可选的 peer 依赖（只用 OpenAPI 的项目不必安装它），所以它们的次版本不同时，包管理器会发出警告。
 - **用同一版本的生成器生成**，即与生成代码所编译依赖的 `wow-client` 相同的版本。
 
 ### 版本范围 {#version-ranges}

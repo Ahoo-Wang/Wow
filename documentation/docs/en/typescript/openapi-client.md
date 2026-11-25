@@ -100,7 +100,7 @@ Save the complete document below as `openapi.json`. The root tag, operation tag,
 ## 3. Generate and compile
 
 ```bash
-pnpm exec wow-generator generate -i ./openapi.json -o ./src/generated -t ./tsconfig.json
+pnpm exec wow-generator generate -i ./openapi.json -o ./src/generated
 pnpm exec tsc --noEmit -p ./tsconfig.json
 ```
 

@@ -5,7 +5,7 @@ description: 'Generator configuration — @ahoo-wang/wow-generator'
 
 # Generator configuration
 
-The generator has two separate inputs: constructor/CLI execution options and an optional JSON/YAML customization file. The file shapes the API clients an OpenAPI document generates; a Manifest's clients take none of it. A customization file cannot override inputPath, outputDir, logger, or tsconfig.
+The generator has two separate inputs: constructor/CLI execution options and an optional JSON/YAML customization file. The file shapes the API clients an OpenAPI document generates; a Manifest's clients take none of it, and a Manifest run with `apiClients` set warns that it reads none of them. A customization file cannot override inputPath, outputDir, logger, or tsconfig.
 
 ## Configuration contract
 
@@ -54,7 +54,7 @@ The CLI summary names the configuration it read, and `--verbose` logs the settin
 Save the JSON above as `wow-generator.config.json`, ensure the spec uses the `Items` or `Orders` operation tags, then run:
 
 ```bash
-pnpm exec wow-generator generate -i ./openapi.json -c ./wow-generator.config.json -o ./src/generated -t ./tsconfig.json
+pnpm exec wow-generator generate -i ./openapi.json -c ./wow-generator.config.json -o ./src/generated
 ```
 
 Inspect generated method signatures: Items retains tenantId/ownerId; Orders omits tenantId but keeps ownerId. The command does not run generated methods or connect to their API service.

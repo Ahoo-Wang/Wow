@@ -108,7 +108,7 @@ search(@path('item-id') itemId: string, @query('q') q: string,
 
 ```bash
 pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-eventstream @ahoo-wang/wow-client
-pnpm exec wow-generator generate -i ./manifest.json -o ./src/generated -t ./tsconfig.json
+pnpm exec wow-generator generate -i ./manifest.json -o ./src/generated
 pnpm exec tsc --noEmit -p ./tsconfig.json
 ```
 

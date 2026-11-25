@@ -7,7 +7,7 @@ A Wow V10 service publishes its contract as a Manifest: its bounded context, agg
 ```bash
 pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-eventstream @ahoo-wang/wow-client
 pnpm add -D @ahoo-wang/wow-generator typescript
-pnpm exec wow-generator generate --input ./manifest.json --output ./src/generated --ts-config-file-path ./tsconfig.json
+pnpm exec wow-generator generate --input ./manifest.json --output ./src/generated
 ```
 
 - `--input` takes a file or an http(s) URL (`-H 'Authorization: Bearer …'` for a protected one, with the token from the environment); prefer the Manifest the service commits, so a build does not depend on a running service.
