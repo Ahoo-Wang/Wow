@@ -1,0 +1,8 @@
+# Settings as a values file gives them: numbers YAML reads as floating point, a million and more among them.
+config:
+  WOW_EXECUTOR_MAXINFLIGHT: 1000000
+  WOW_STATECACHE_CAPACITY: 12345678
+  WOW_LOG_PARTITIONS: 64
+  WOW_SAMPLER_RATIO: 0.25
+  WOW_FLAG: true
+  WOW_NAME: orders

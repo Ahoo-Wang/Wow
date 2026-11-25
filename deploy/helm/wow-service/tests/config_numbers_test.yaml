@@ -1,0 +1,34 @@
+# A number of config read from a values file is a float to Helm, and toString wrote a million as 1e+06, which the node
+# cannot bind to an integer: it did not start (#6936). The chart writes a whole number as its digits, whatever its size,
+# and any other value as it is. A --set number is an int, which never met this.
+suite: a numeric setting from a values file is written as its digits
+templates:
+  - templates/configmap.yaml
+set:
+  service.name: eshop-ordering-service
+  image.repository: ghcr.io/example/eshop-ordering-server
+values:
+  - values/numbers.yaml
+tests:
+  - it: writes a million and more as the digits Spring binds to an integer
+    asserts:
+      - equal:
+          path: data.WOW_EXECUTOR_MAXINFLIGHT
+          value: "1000000"
+      - equal:
+          path: data.WOW_STATECACHE_CAPACITY
+          value: "12345678"
+      - equal:
+          path: data.WOW_LOG_PARTITIONS
+          value: "64"
+  - it: writes a fraction, a boolean and a text as they are
+    asserts:
+      - equal:
+          path: data.WOW_SAMPLER_RATIO
+          value: "0.25"
+      - equal:
+          path: data.WOW_FLAG
+          value: "true"
+      - equal:
+          path: data.WOW_NAME
+          value: "orders"

@@ -140,6 +140,19 @@ WOWSUBSCRIPTIONSTOPTIMEOUT: ": set shutdown.subscriptionStopTimeoutSeconds inste
 {{- end -}}
 {{- end -}}
 
+{{/*
+A value of config as the text of its variable. YAML reads every number of a values file as floating point, which
+toString writes in exponent form from a million (1e+06), and Spring cannot bind that to an integer (#6936): a whole
+number is written as its digits, whatever its size; a fraction, a boolean or a text as it is.
+*/}}
+{{- define "wow-service.configValue" -}}
+{{- if and (kindIs "float64" .) (eq . (floor .)) -}}
+{{- printf "%.0f" . -}}
+{{- else -}}
+{{- toString . -}}
+{{- end -}}
+{{- end -}}
+
 {{/* Refuses values that cannot work together; each template that renders them includes it, so one rendered alone (helm template -s) refuses them too. */}}
 {{- define "wow-service.validate" -}}
 {{- if and .Values.autoscaling.hpa.enabled .Values.autoscaling.keda.enabled -}}

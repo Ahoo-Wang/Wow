@@ -26,7 +26,7 @@ data:
   COSEC_PIPELINE_IDENTITY_ONLYGATEWAYCANREACH: "true"
   {{- end }}
   {{- range $key, $value := .Values.config }}
-  {{ $key }}: {{ $value | toString | quote }}
+  {{ $key }}: {{ include "wow-service.configValue" $value | quote }}
   {{- end }}
   {{- with include "wow-service.settings" . }}
   SPRING_APPLICATION_JSON: {{ . | quote }}
