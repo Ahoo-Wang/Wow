@@ -1,4 +1,4 @@
-# Issue codes — 532.
+# Issue codes — 531.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Wording and language」, docs/design/decisions.md D29).
 analysis.alias.duplicate
@@ -423,7 +423,6 @@ runtime.query.failed.element-scope-required
 runtime.query.failed.empty-body
 runtime.query.failed.event-projection-type-required
 runtime.query.failed.expensive-operator-disabled
-runtime.query.failed.explicit-entry-required
 runtime.query.failed.filter-too-large
 runtime.query.failed.first-last-requires-order-by
 runtime.query.failed.first-last-requires-single-value

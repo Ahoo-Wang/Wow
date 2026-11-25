@@ -32,8 +32,7 @@ internal enum class QueryScopeProvenance {
 }
 
 /**
- * The caller's scope, split by [provenance][QueryScopeProvenance]. Both halves restrict the query; only the
- * [authenticated] half counts as provided when a gateway requires an authenticated scope.
+ * The caller's scope, split by [provenance][QueryScopeProvenance]: both halves restrict the query alike.
  */
 @WowSpi
 class QueryScope @InternalWowApi constructor(
@@ -92,9 +91,6 @@ enum class QueryEntry {
      * in-process timeout applies.
      */
     UNBOUNDED,
-
-    /** Nobody said. Treated as [IN_PROCESS] unless explicit entries are required. */
-    UNSPECIFIED,
 }
 
 /**
@@ -131,7 +127,7 @@ enum class QueryEntry {
 @WowSpi
 class QueryCaller @InternalWowApi constructor(
     val caller: Caller? = null,
-    val entry: QueryEntry = QueryEntry.UNSPECIFIED,
+    val entry: QueryEntry = QueryEntry.IN_PROCESS,
     val selection: FilterExpression = MatchAllFilter,
     val scope: QueryScope = QueryScope.NONE,
     val crossTenant: CrossTenant? = null,
@@ -204,16 +200,12 @@ class QueryCaller @InternalWowApi constructor(
         @JvmField
         val IN_PROCESS: QueryCaller = QueryCaller(entry = QueryEntry.IN_PROCESS)
 
-        /** A query that states nothing: in-process unless the entry policy requires explicit entries. */
-        @JvmField
-        val UNSPECIFIED: QueryCaller = QueryCaller()
-
         /**
          * A plain caller: [caller]'s identity on [entry], in its own tenant and scope, naming no other scope and no
          * other tenant. An edge that lets a caller name them builds it through [QueryTargets.of] instead.
          */
         @JvmStatic
         @JvmOverloads
-        fun of(caller: Caller?, entry: QueryEntry = QueryEntry.UNSPECIFIED): QueryCaller = QueryCaller(caller, entry)
+        fun of(caller: Caller?, entry: QueryEntry = QueryEntry.IN_PROCESS): QueryCaller = QueryCaller(caller, entry)
     }
 }

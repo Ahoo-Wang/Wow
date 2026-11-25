@@ -85,7 +85,6 @@ class QueryDatasetTest {
         profile.systemField(SystemField.SPACE_ID).assert().isNull()
         profile.systemField(SystemField.AGGREGATE_ID).assert().isNull()
         profile.systemField(SystemField.DELETED).assert().isNull()
-        profile.requiredScope.assert().isEqualTo(QueryField("tenant_id"))
         profile.eventTimeField.assert().isEqualTo(QueryField("updated_at"))
         profile.cursorUniqueKey.assert().containsExactly(QueryField("order_id"))
         profile.defaultScope(MatchAllFilter).assert().isEqualTo(MatchAllFilter)
@@ -182,7 +181,6 @@ class QueryDatasetTest {
         dataset.scope.tenant.assert().isNull()
         dataset.scope.fields.assert().isEmpty()
         dataset.profile.fixedTenantId.assert().isEqualTo(QueryDatasetScope.PLATFORM_TENANT)
-        dataset.profile.requiredScope.assert().isEqualTo(QueryField("tenantId"))
         dataset.profile.systemField(SystemField.TENANT_ID).assert().isNull()
         assertThrows<IllegalArgumentException> {
             QueryDataset.of(ORDERS) { field("sku") { types(QueryValueType.STRING) } }

@@ -970,21 +970,6 @@ sealed interface QueryViolation {
         }
     }
 
-    /** The gateway requires every query to state its entry, and this one ran under `UNSPECIFIED`. */
-    data object ExplicitEntryRequired : QueryViolation {
-        override val kind: Kind
-            get() = Kind.REQUEST
-
-        override val location: String
-            get() = QueryRequestException.BODY
-
-        override val code: String
-            get() = QueryErrorCodes.EXPLICIT_ENTRY_REQUIRED
-
-        override val message: String
-            get() = "Query entry must be explicit: run the query under QueryEntry.HTTP or QueryEntry.IN_PROCESS."
-    }
-
     /** A cursor token that does not decode for this model and effective sort. */
     data object InvalidCursor : QueryViolation {
         override val kind: Kind

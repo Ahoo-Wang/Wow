@@ -28,7 +28,6 @@ import me.ahoo.wow.query.backend.QueryBindings
 import me.ahoo.wow.query.error.QueryError
 import me.ahoo.wow.query.error.QueryExecutionException
 import me.ahoo.wow.query.error.QueryRequestException
-import me.ahoo.wow.query.error.QueryScopeRequiredException
 import me.ahoo.wow.query.error.QueryTimeoutException
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryFilter
@@ -176,7 +175,6 @@ class QueryApiTiersTest {
             QueryRequestException::class.java,
             QueryExecutionException::class.java,
             QueryTimeoutException::class.java,
-            QueryScopeRequiredException::class.java,
             QueryViolation::class.java,
             QuerySchemaSource::class.java,
             QuerySchemaRegistration::class.java,

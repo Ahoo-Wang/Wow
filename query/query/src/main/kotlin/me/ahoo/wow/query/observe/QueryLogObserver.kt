@@ -86,8 +86,8 @@ private fun Throwable.isRejection(): Boolean =
         isMissingScope()
 
 /**
- * A missing caller scope, whichever component rejected it ([QueryScopeRequiredException], a policy that requires
- * a scope the caller does not have): answered 403, so it is the caller's to fix.
+ * A missing caller scope, such as a policy that requires a scope the caller does not have: answered 403, so it is
+ * the caller's to fix.
  */
 private fun Throwable.isMissingScope(): Boolean =
     this is QueryError && errorCode == QueryErrors.FORBIDDEN

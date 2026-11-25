@@ -168,8 +168,6 @@ export const viewZhCN = {
     '这份汇总的分组太多，服务端没法按指标筛选或排序；先缩小数据范围。',
   [wireKey('runtime.query.failed', QueryErrorCodes.TOO_MANY_GROUPS)]:
     '这份汇总的分组超出了能显示的数量，又没有排序来决定显示哪些；请设置排序，或调大显示数量。',
-  [wireKey('runtime.query.failed', QueryErrorCodes.EXPLICIT_ENTRY_REQUIRED)]:
-    '查询没有指明要在哪个入口上运行：{reason}',
   [wireKey('runtime.query.failed', QueryErrorCodes.REPLAY_TOO_LONG)]:
     '要看的状态离现在的变更太多，无法重建：{reason}',
   [wireKey(

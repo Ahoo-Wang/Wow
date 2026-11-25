@@ -51,8 +51,6 @@ object QueryErrorCodes {
     @ExperimentalWowApi
     const val TOO_MANY_GROUPS = "too-many-groups"
 
-    const val EXPLICIT_ENTRY_REQUIRED = "explicit-entry-required"
-
     // A state point read; Violation.path is the query parameter.
     // The state asked for is more commits away from the snapshot, or from version 1, than a state read replays.
     const val REPLAY_TOO_LONG = "replay-too-long"

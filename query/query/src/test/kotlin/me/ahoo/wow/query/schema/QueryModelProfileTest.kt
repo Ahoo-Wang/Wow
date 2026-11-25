@@ -46,7 +46,6 @@ class QueryModelProfileTest {
         SnapshotQueryModelProfile.payloadField.assert().isEqualTo(QueryField("state"))
         SnapshotQueryModelProfile.eventTimeField.assert().isEqualTo(QueryField("lastEventTime"))
         SnapshotQueryModelProfile.firstEventTimeField.assert().isEqualTo(QueryField("firstEventTime"))
-        SnapshotQueryModelProfile.requiredScope.assert().isEqualTo(QueryField("tenantId"))
         SnapshotQueryModelProfile.fixedTenantId.assert().isNull()
     }
 

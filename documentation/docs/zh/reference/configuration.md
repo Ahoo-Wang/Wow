@@ -7,7 +7,7 @@ description: "宿主 wow.* 配置的每个键：类型、默认值与含义。"
 
 # 配置项
 
-Spring Boot 宿主读取的 `wow.*` 配置的全部键，共 285 个，由宿主的配置元数据（[`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)）生成；说明取自源码，为英文。Spring Boot 按宽松规则绑定：`max-concurrent`、`maxConcurrent` 与 `MAX_CONCURRENT` 是同一个键。没有任何属性（宿主的或类路径上某个模块的）对应的 `wow.*` 键会使节点拒绝启动，并指向迁移指南中旧版本键的页面。Wow 分组下的环境变量（`WOW_KAFKA_…`：键的第一个词）按 Spring 的映射读取，同样如此；你自己的变量请起在这些分组之外的名字。映射之下的键，若映射的键含点，要放进方括号：`wow.aggregates.[shop.cart].tenant`；每个映射自己的键列在它下面，条目写作 `<name>` 或 `[<context>.<aggregate>]`。[模块配置项](./module-configuration)列出平台服务、wow-cosid 与 wow-cocache 的键。契约是这些键，而不是宿主的属性类，后者属于 Wow 内部：应用通过 Spring 的 `Environment`、`@Value` 或 `Binder` 读取键。
+Spring Boot 宿主读取的 `wow.*` 配置的全部键，共 283 个，由宿主的配置元数据（[`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)）生成；说明取自源码，为英文。Spring Boot 按宽松规则绑定：`max-concurrent`、`maxConcurrent` 与 `MAX_CONCURRENT` 是同一个键。没有任何属性（宿主的或类路径上某个模块的）对应的 `wow.*` 键会使节点拒绝启动，并指向迁移指南中旧版本键的页面。Wow 分组下的环境变量（`WOW_KAFKA_…`：键的第一个词）按 Spring 的映射读取，同样如此；你自己的变量请起在这些分组之外的名字。映射之下的键，若映射的键含点，要放进方括号：`wow.aggregates.[shop.cart].tenant`；每个映射自己的键列在它下面，条目写作 `<name>` 或 `[<context>.<aggregate>]`。[模块配置项](./module-configuration)列出平台服务、wow-cosid 与 wow-cocache 的键。契约是这些键，而不是宿主的属性类，后者属于 Wow 内部：应用通过 Spring 的 `Environment`、`@Value` 或 `Binder` 读取键。
 
 ## `wow`
 
@@ -453,8 +453,6 @@ The query plane's configuration, `wow.query.*`, read by QueryAutoConfiguration: 
 | `wow.query.max-concurrent` | `Integer` |  | How many snapshot and `events` queries each store runs at once, whichever entry asks; beyond it a query waits, then is `wow.query.busy` (429, with `Retry-After`). Not set, each store derives one from the pool it reports: a quarter of a pool its queries share with the appends, at least 2 (MongoDB's, and PostgreSQL's or Elasticsearch's own pool), or the whole of a pool of their own (PostgreSQL's `query-data-source`, Elasticsearch's `query-client`); 16 for a store that reports none. That bound then adapts to the store's write pressure (`adaptive`). `0` for no bound; `wow.stores.<name>.query.max-concurrent` overrides it for one store. |
 | `wow.query.max-queued` | `Integer` |  | How many queries may wait for a permit before the next one is refused at once; 4 per permit when not set. `wow.stores.<name>.query.max-queued` overrides it for one store. |
 | `wow.query.max-wait` | `Duration` | `PT0.2S` | How long a query beyond `max-concurrent` waits in a FIFO queue for a permit before it is refused; `wow.stores.<name>.query.max-wait` overrides it for one store. |
-| `wow.query.require-authenticated-scope` | `Boolean` | `false` | Whether an HTTP query of a built-in model is refused unless the caller's authenticated scope pins its tenant; off, a declared scope, such as a tenant header, is trusted. |
-| `wow.query.require-explicit-entry` | `Boolean` | `false` | Whether a query must say whether it comes over HTTP or in process; off, a query that does not say is taken as in-process. |
 | `wow.query.unbounded-timeout` | `Duration` | `PT30S` | The timeout of a trusted in-process query that dropped its budget (`NodeQueryApi.trusted().unbounded()`); `0` for none. |
 
 ## `wow.query.adaptive`

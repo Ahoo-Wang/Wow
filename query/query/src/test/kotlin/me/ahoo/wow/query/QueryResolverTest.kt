@@ -196,9 +196,6 @@ class QueryResolverTest {
         SnapshotQueryModelProfile.systemField(SystemField.TENANT_ID).path.assert().isEqualTo(SnapshotFields.TENANT_ID)
         SnapshotQueryModelProfile.systemField(SystemField.SPACE_ID).path.assert().isEqualTo(SnapshotFields.SPACE_ID)
         SnapshotQueryModelProfile.systemField(SystemField.DELETED).path.assert().isEqualTo(SnapshotFields.DELETED)
-        SnapshotQueryModelProfile.requiredScope.assert().isEqualTo(
-            QueryModelProfile.metadataField(SystemField.TENANT_ID)
-        )
         SnapshotQueryModelProfile.eventTimeField.path.assert().isEqualTo(SnapshotFields.LAST_EVENT_TIME)
         SnapshotQueryModelProfile.firstEventTimeField.path.assert().isEqualTo(SnapshotFields.FIRST_EVENT_TIME)
         QueryModelProfile.of(QueryModel("custom")).assert().isNull()

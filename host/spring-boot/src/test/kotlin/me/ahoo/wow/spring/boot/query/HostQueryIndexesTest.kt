@@ -50,7 +50,6 @@ class HostQueryIndexesTest {
         policy.http.countLimit.assert().isEqualTo(QueryBudget.DEFAULT_COUNT_LIMIT)
         policy.http.allowExactCount.assert().isFalse()
         policy.inProcessTimeout.assert().isEqualTo(QueryBudget.DEFAULT_TIMEOUT)
-        policy.requireExplicitEntry.assert().isFalse()
         properties.sensitivity.policy().displayComparable.assert().isTrue()
         // Unset: on wherever the store is in memory.
         properties.memory.enabled.assert().isTrue()

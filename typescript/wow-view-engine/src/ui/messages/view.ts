@@ -219,8 +219,6 @@ export const viewMessages = {
     'This summary has too many groups for the service to filter or sort by a metric; narrow the data first.',
   [wireKey('runtime.query.failed', QueryErrorCodes.TOO_MANY_GROUPS)]:
     'This summary has more groups than it may show and no order to choose them by; sort it, or raise its limit.',
-  [wireKey('runtime.query.failed', QueryErrorCodes.EXPLICIT_ENTRY_REQUIRED)]:
-    'The query named no entry to run against: {reason}',
   [wireKey('runtime.query.failed', QueryErrorCodes.REPLAY_TOO_LONG)]:
     'That state is too many changes away to rebuild: {reason}',
   [wireKey(

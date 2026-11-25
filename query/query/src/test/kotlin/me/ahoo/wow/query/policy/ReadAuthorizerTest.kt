@@ -175,12 +175,6 @@ class ReadAuthorizerTest {
     }
 
     @Test
-    fun `an entry nobody stated is read as in process`() {
-        QueryEntry.UNSPECIFIED.admitted().assert().isEqualTo(QueryEntry.IN_PROCESS)
-        QueryEntry.HTTP.admitted().assert().isEqualTo(QueryEntry.HTTP)
-    }
-
-    @Test
     fun `a refusal names a code of the framework's error table`() {
         assertThrows<IllegalArgumentException> { ReadAuthorization.Denied.of("no", "app.not-mine") }
         ReadAuthorization.Denied.of("no").code.assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)

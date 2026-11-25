@@ -83,7 +83,6 @@ description: "框架的错误码与 HTTP 状态，以及查询请求被拒时的
 | `count-requires-filter` | The entry budget and gates. |
 | `residual-groups-exceeded` | The entry budget and gates. 实验性：只有聚合查询会给出。 |
 | `too-many-groups` | The entry budget and gates. 实验性：只有聚合查询会给出。 |
-| `explicit-entry-required` | The entry budget and gates. |
 | `replay-too-long` | A state point read. |
 | `unknown-field` | Admission against the query model. |
 | `unsupported-capability` | Admission against the query model. |

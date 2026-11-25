@@ -179,11 +179,6 @@ class QueryViolationTest {
             "Aggregation has more than [100] groups and names no sort: add a sort for a top-N, or raise limit.",
             "limit",
         ),
-        QueryViolation.ExplicitEntryRequired to Row(
-            QueryErrorCodes.EXPLICIT_ENTRY_REQUIRED,
-            "Query entry must be explicit: run the query under QueryEntry.HTTP or QueryEntry.IN_PROCESS.",
-            QueryRequestException.BODY,
-        ),
         QueryViolation.InvalidCursor to Row(QueryErrorCodes.INVALID_CURSOR, "Invalid cursor.", "cursor"),
         QueryViolation.StreamNotResumable to Row(
             QueryErrorCodes.STREAM_NOT_RESUMABLE,
