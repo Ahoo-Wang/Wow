@@ -63,7 +63,8 @@ internal class Preparation(
      *
      * The decision is observed ([Observer.deciding]) and its observation ended once it returns or fails. A batch's
      * decision of a command ([trial], [Batching]) is kept only when it appends a stream: its observation is ended once
-     * the stream is prepared, and dropped otherwise, as the command is decided again and observed there.
+     * the stream is prepared, and dropped otherwise, its rejection not observed, as the command is decided again and
+     * observed there.
      */
     internal suspend fun <S : Any> prepare(
         model: AggregateModel<S>,
@@ -99,7 +100,7 @@ internal class Preparation(
                 "Deciding ${command.body.javaClass.name} changed the state of ${command.ref}: only events may change it."
             }
         }
-        rejectedUnwritten(decision, model, commandType, version, command)?.let { return it }
+        rejectedUnwritten(decision, model, commandType, version, command, trial)?.let { return it }
         // A rejection's events are committed as any are, the rejection recorded on their stream.
         val rejection = (decision as? Decision.Rejected)?.let {
             RejectionCodes.qualified(it.rejection, model.type, commandType)
@@ -256,6 +257,9 @@ internal class Preparation(
      * The answer to [decision] when it is a rejection that writes nothing: one without events, at the [version] the
      * decision saw, or one of a creation, whose aggregate does not exist ([creationRejectedWithEvents]); null
      * otherwise. A local code is named by the deciding command's aggregate type from here on.
+     *
+     * The rejection is observed and logged ([Observer.rejected]), unless it is a batch's decision ([trial]): the batch
+     * hands the command back, to be decided again, and the decision that answers it observes it, once.
      */
     private fun rejectedUnwritten(
         decision: Decision,
@@ -263,10 +267,11 @@ internal class Preparation(
         commandType: String,
         version: Int,
         command: Command<*>,
+        trial: Boolean,
     ): Prepared.Done? {
         if (decision !is Decision.Rejected || decision.events.isNotEmpty() && version > 0) return null
         val rejection = RejectionCodes.qualified(decision.rejection, model.type, commandType)
-        observer.rejected(model.type, commandType, rejection, command, withEvents = false)
+        if (!trial) observer.rejected(model.type, commandType, rejection, command, withEvents = false)
         val outcome = CommandOutcome.Rejected(
             rejection,
             version.takeIf { it > 0 },

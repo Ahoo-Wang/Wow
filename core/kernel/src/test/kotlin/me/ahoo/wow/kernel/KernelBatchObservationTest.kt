@@ -13,6 +13,10 @@
 
 package me.ahoo.wow.kernel
 
+import ch.qos.logback.classic.Level
+import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.core.read.ListAppender
 import kotlinx.coroutines.ThreadContextElement
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.toList
@@ -29,11 +33,13 @@ import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.observation.Observation
+import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.ObservedOutcome
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.observation.TraceContext
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.slf4j.LoggerFactory
 import java.io.IOException
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.coroutines.CoroutineContext
@@ -64,6 +70,7 @@ class KernelBatchObservationTest {
     private class Recording : Observer {
         val started = CopyOnWriteArrayList<String>()
         val ended = CopyOnWriteArrayList<String>()
+        val rejections = CopyOnWriteArrayList<ObservedEvent.Rejected>()
 
         private fun stage(name: String): Observation {
             started += "$name in ${Trace.current.get()}"
@@ -90,6 +97,10 @@ class KernelBatchObservationTest {
         override fun deciding(command: Command<*>): Observation = stage("decide ${command.id}")
 
         override fun appending(stream: EventStreamRecord): Observation = stage("append ${stream.version}")
+
+        override fun observed(event: ObservedEvent) {
+            if (event is ObservedEvent.Rejected) rejections += event
+        }
     }
 
     /**
@@ -223,6 +234,56 @@ class KernelBatchObservationTest {
         kernel.executeBatch(cartModel, listOf(full, queued(AddItem("a", 1))))
         endedOf(id).assert().containsExactly("decide $id ok", "execute $id rejected")
         observer.started.filter { it.startsWith("execute $id ") }.assert().hasSize(2)
+    }
+
+    @Test
+    fun `a batch member rejected without events should be observed rejected once, however often it is decided`():
+        Unit = runBlocking {
+        create()
+        val full = queued(AddItem("c", 1))
+        val logged = rejectionLines {
+            // The cart is full at the third product: the batch hands that command back, to be decided alone.
+            val outcomes = kernel.executeBatch(
+                cartModel,
+                listOf(queued(AddItem("a", 1)), queued(AddItem("b", 1)), full)
+            )
+            outcomes[2].assert().isEqualTo(BatchOutcome.Again)
+            // As the executor runs a command handed back at the head of an otherwise empty lane: alone.
+            val alone = kernel.execute(cartModel, full.command)
+            (alone as CommandOutcome.Rejected).rejection.code.assert().isEqualTo("cart.full")
+        }
+        observer.rejections.map { it.code }.assert().containsExactly("cart.full")
+        logged.assert().hasSize(1)
+    }
+
+    @Test
+    fun `a rejected command handed back should be observed rejected once when the next batch decides it again`():
+        Unit = runBlocking {
+        create()
+        val full = queued(AddItem("c", 1))
+        val logged = rejectionLines {
+            kernel.executeBatch(cartModel, listOf(queued(AddItem("a", 1)), queued(AddItem("b", 1)), full))
+            // First in its lane, it leads the next batch, which decides it, hands it back and runs it alone.
+            val again = kernel.executeBatch(cartModel, listOf(full, queued(AddItem("d", 1))))
+            ((again[0] as BatchOutcome.Done).outcome as CommandOutcome.Rejected).rejection.code
+                .assert().isEqualTo("cart.full")
+            again[1].assert().isEqualTo(BatchOutcome.Again)
+        }
+        observer.rejections.map { it.code }.assert().containsExactly("cart.full")
+        logged.map { it.level }.assert().containsExactly(Level.INFO)
+    }
+
+    /** The rejection lines [block] logs ([RejectionLog]). */
+    private suspend fun rejectionLines(block: suspend () -> Unit): List<ILoggingEvent> {
+        val logger = LoggerFactory.getLogger(RejectionLog.CATEGORY) as Logger
+        val appender = ListAppender<ILoggingEvent>().apply { start() }
+        logger.addAppender(appender)
+        try {
+            block()
+            return appender.list.filter { it.formattedMessage.startsWith("Rejected ") }
+        } finally {
+            logger.detachAppender(appender)
+        }
     }
 
     @Test
