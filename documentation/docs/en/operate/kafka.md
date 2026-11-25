@@ -127,7 +127,7 @@ To recover a subscription stopped by a gap, set `wow.kafka.offset-gap: earliest`
 A topic may also hold a record Wow cannot read:
 
 - **An envelope this version cannot read**, of a later format say. It parks its aggregate for an operator, or is passed over when its key names no aggregate, and is counted in `wow.subscription.undecodable.messages`.
-- **A record that is no envelope at all.** Another producer writes the topic, most likely a 9.x service on the same broker, whose state topics are named `wow.<context>.<aggregate>.state` as published streams are by default. The topic is the wrong one, so nothing parks: the read of its partition fails, its subscriptions stay before the record and retry with a backoff, and each failure is logged with the topic, partition and offset. Give the Wow services topics of their own with `wow.kafka.topics.prefix`, the same on the services that publish and those that read, or a broker of their own, and restart them.
+- **A record that is no envelope at all**, a record of no value (a tombstone) included. Another producer writes the topic, most likely a 9.x service on the same broker, whose state topics are named `wow.<context>.<aggregate>.state` as published streams are by default. The topic is the wrong one, so nothing parks: the read of its partition fails, its subscriptions stay before the record and retry with a backoff, and each failure is logged with the topic, partition and offset. The topic's other partitions read on. Give the Wow services topics of their own with `wow.kafka.topics.prefix`, the same on the services that publish and those that read, or a broker of their own, and restart them.
 
 ## Client settings
 

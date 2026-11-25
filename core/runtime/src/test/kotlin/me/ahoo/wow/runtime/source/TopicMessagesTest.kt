@@ -63,6 +63,18 @@ class TopicMessagesTest : TopicSubscriptionsFixtures() {
     }
 
     @Test
+    fun `a record of no value, as the Kafka source reads a tombstone, should stop its partition's read as foreign`(): Unit =
+        runBlocking {
+            val partition = partitionOf("o-1")
+            topics.send(ORDER_TOPIC, TopicMessage.of("o-1", ByteArray(0), partition = partition))
+            val foreign = assertThrows<ForeignTopicRecordException> {
+                TopicEntries(ORDER_TOPIC, topics, PARTITIONS).tail(partition, null).toList()
+            }
+            foreign.offset.assert().isEqualTo(0L)
+            foreign.partition.assert().isEqualTo(partition)
+        }
+
+    @Test
     fun `a record of another producer, such as 9x on a topic of the same name, should stop the read before it`(): Unit =
         runBlocking {
             val partition = partitionOf("o-1")

@@ -30,7 +30,6 @@ import me.ahoo.wow.spi.transport.PartitionedSource
 import me.ahoo.wow.spi.transport.SourceMessage
 import org.apache.kafka.clients.consumer.CloseOptions
 import org.apache.kafka.clients.consumer.Consumer
-import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.consumer.ConsumerRecords
 import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.clients.consumer.OffsetOutOfRangeException
@@ -186,14 +185,7 @@ class KafkaPartitionedSource(
                     }
                     if (record.offset() >= next) {
                         next = record.offset() + 1
-                        emit(
-                            SourceMessage.of(
-                                record.offset(),
-                                record.key(),
-                                KafkaHeaders.of(record.headers()),
-                                record.value()
-                            )
-                        )
+                        emit(sourceMessageOf(record))
                     }
                 }
             }
@@ -250,7 +242,7 @@ class KafkaPartitionedSource(
                     try {
                         for (record in consumer.poll(timeout).records(target)) {
                             if (wanted.remove(record.offset())) {
-                                found[record.offset()] = message(record)
+                                found[record.offset()] = sourceMessageOf(record)
                             }
                         }
                         consumer.position(target)
@@ -266,9 +258,6 @@ class KafkaPartitionedSource(
         }
         return found
     }
-
-    private fun message(record: ConsumerRecord<String, ByteArray>): SourceMessage =
-        SourceMessage.of(record.offset(), record.key(), KafkaHeaders.of(record.headers()), record.value())
 
     /** Seeks [consumer] to [from] in [target], or where [offsetGap] says when the partition does not hold it. */
     private fun place(consumer: Consumer<String, ByteArray>, target: TopicPartition, from: Long): Long {
