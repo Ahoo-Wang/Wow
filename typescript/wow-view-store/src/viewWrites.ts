@@ -33,10 +33,7 @@ import {
   type WriteOptions,
 } from '@ahoo-wang/wow-view-engine';
 import { SHARED_OWNER_ID, SYSTEM_OWNER_ID, type Place } from './paths.js';
-import {
-  ViewStoreContract,
-  viewStoreWait,
-} from './generated/view-store/contract.js';
+import { ViewStoreContract } from './generated/view-store/contract.js';
 import type { ViewStateClient } from './generated/view-store/view/queryClient.js';
 import { boardTitles, Failure, guard, request } from './errors.js';
 import { Remembered } from './remembered.js';
@@ -49,8 +46,8 @@ import { scopeAt, toInstance } from './wire.js';
  * later (`ViewAudienceSaga`).
  */
 const AUDIENCE_WAIT = WaitPlan.of(
-  viewStoreWait.handled('ViewAudienceSaga.onAudienceChanged'),
-  viewStoreWait.snapshot(),
+  ViewStoreContract.Wait.handled('ViewAudienceSaga.onAudienceChanged'),
+  ViewStoreContract.Wait.snapshot(),
 );
 
 /** One instance write, as sent from the place the view is at. */

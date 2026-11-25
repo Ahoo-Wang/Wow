@@ -4,11 +4,24 @@ import { Hop } from '@ahoo-wang/wow-client';
 import { OrderAggregate } from './order/aggregate.js';
 
 /**
- * The bounded context `eshop-ordering`: its name, its error codes and its aggregates, as the Kotlin `EshopOrderingContract` names them. A problem's `code` is one of its `Errors`, or of an aggregate's.
+ * The bounded context `eshop-ordering`: its name, its error codes, its wait hops and its aggregates, as the Kotlin `EshopOrderingContract` names them. A problem's `code` is one of its `Errors`, or of an aggregate's.
  * The eShop ordering: orders from placement to shipment
  */
 export const EshopOrderingContract = {
   NAME: 'eshop-ordering',
+  /** The hops of a wait chain (`Wow-Wait`) in `eshop-ordering`, as the Kotlin contract's `Wait` holds them. `WaitPlan.of(...)` chains them, those of other contexts too. */
+  Wait: {
+    /** Until a command of `eshop-ordering` passed admission. */
+    accepted: (): Hop => Hop.accepted(EshopOrderingContract.NAME),
+    /** Until a command's events are appended to the log of `eshop-ordering`. */
+    committed: (): Hop => Hop.committed(EshopOrderingContract.NAME),
+    /** Until the snapshot of `eshop-ordering` holds the commit. */
+    snapshot: (): Hop => Hop.snapshot(EshopOrderingContract.NAME),
+    /** Until the store the snapshot queries of `eshop-ordering` read holds the commit. */
+    queryable: (): Hop => Hop.queryable(EshopOrderingContract.NAME),
+    /** Until a subscription of `eshop-ordering` handled the commit. */
+    handled: (subscription: EshopOrderingSubscription): Hop => Hop.handled(subscription, EshopOrderingContract.NAME),
+  },
   Order: OrderAggregate,
 } as const;
 
@@ -17,17 +30,3 @@ export type EshopOrderingErrorCode = 'eshop-ordering.order.wrong-amount' | 'esho
 
 /** The subscriptions of `eshop-ordering` a `handled` hop names. */
 export type EshopOrderingSubscription = 'OrderProcessSaga.onOrderAwaitingValidation' | 'OrderProcessSaga.onOrderCancelled' | 'OrderProcessSaga.onOrderShipped' | 'OrderProcessSaga.onOrderSubmitted' | 'OrderProcessSaga.onReserveCommitted' | 'OrderSummaryProjection.onEvent' | 'ShipmentNotifier.onOrderShipped';
-
-/** The hops of a wait chain (`Wow-Wait`) in `eshop-ordering`. */
-export const eshopOrderingWait = {
-  /** Until a command of `eshop-ordering` passed admission. */
-  accepted: (): Hop => Hop.accepted(EshopOrderingContract.NAME),
-  /** Until a command's events are appended to the log of `eshop-ordering`. */
-  committed: (): Hop => Hop.committed(EshopOrderingContract.NAME),
-  /** Until the snapshot of `eshop-ordering` holds the commit. */
-  snapshot: (): Hop => Hop.snapshot(EshopOrderingContract.NAME),
-  /** Until the store the snapshot queries of `eshop-ordering` read holds the commit. */
-  queryable: (): Hop => Hop.queryable(EshopOrderingContract.NAME),
-  /** Until a subscription of `eshop-ordering` handled the commit. */
-  handled: (subscription: EshopOrderingSubscription): Hop => Hop.handled(subscription, EshopOrderingContract.NAME),
-} as const;

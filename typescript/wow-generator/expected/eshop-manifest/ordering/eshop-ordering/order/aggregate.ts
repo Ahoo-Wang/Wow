@@ -10,7 +10,6 @@ import type { OrderAwaitingValidation, OrderCancelled, OrderPaid, OrderShipped, 
 export const OrderAggregate = {
   context: 'eshop-ordering',
   name: 'order',
-  path: '/eshop-ordering/order',
   ownership: 'owner',
   idSource: 'assigned',
   snapshot: true,
@@ -21,8 +20,8 @@ export const OrderAggregate = {
       'eshop-ordering.order.OrderSubmitted': { items: { '*': { unitPrice: true } } },
     },
     commands: {
-      PayOrder: { amount: true },
-      SubmitOrder: { items: { '*': { unitPrice: true } } },
+      'eshop-ordering.order.PayOrder': { amount: true },
+      'eshop-ordering.order.SubmitOrder': { items: { '*': { unitPrice: true } } },
     },
   },
   Errors: {

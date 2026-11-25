@@ -14,7 +14,6 @@
 import { GeneratorError } from '../api/errors';
 import { toTypeIdentifier, uniqueParameterName } from '../naming/naming';
 import {
-  isObject,
   type ManifestAggregate,
   type ManifestContext,
   type ManifestDocument,
@@ -50,9 +49,9 @@ const CLIENT_NAMES = [
 ];
 
 /**
- * The lifecycle bodies a command client imports from `@ahoo-wang/wow-client`
- * when `$defs` holds no definition of its own for them, by the definition's
- * key.
+ * The lifecycle bodies a command client imports from `@ahoo-wang/wow-client`,
+ * by the command's name: always these, the same shape whatever `$defs` holds,
+ * so the type's name never depends on an unrelated key (#7022, row 21).
  */
 export const LIFECYCLE_BODIES: Readonly<Record<string, string>> = {
   'wow.lifecycle.TransferOwner': 'TransferOwner',
@@ -124,8 +123,8 @@ export function aggregateTypeName(
 /**
  * The names the modules generated from `manifest` bind besides its types:
  * the TypeScript globals they use, what they import from
- * `@ahoo-wang/wow-client` (a lifecycle body among them when `$defs` holds
- * none of its own), and what the generator declares for each context
+ * `@ahoo-wang/wow-client` (the lifecycle bodies among them), and what the
+ * generator declares for each context
  * and aggregate. A type of `$defs` takes none of them, as it takes no name of
  * another type: it is qualified by its package instead (`shop.Record` is
  * `ShopRecord`), so every generated module can import it beside them.
@@ -134,9 +133,7 @@ export function aggregateTypeName(
  */
 export function generatedNames(manifest: ManifestDocument): Set<string> {
   const names = new Set([...GLOBALS, ...CLIENT_NAMES]);
-  for (const [key, name] of Object.entries(LIFECYCLE_BODIES)) {
-    if (!isObject(manifest.$defs?.[key])) names.add(name);
-  }
+  for (const name of Object.values(LIFECYCLE_BODIES)) names.add(name);
   for (const context of manifest.contexts) {
     const name = contextTypeName(context);
     for (const suffix of CONTEXT_DECLARATIONS) names.add(`${name}${suffix}`);
@@ -263,8 +260,17 @@ export function classMembers(
   });
 }
 
-/** The members of a generated `<Context>Client` besides its aggregates'. */
-export const CONTEXT_CLIENT_MEMBERS = ['commands', 'routes', 'constructor'];
+/**
+ * The members of a generated `<Context>Client` besides its aggregates'. A
+ * member `then` would make the client a thenable, which `await` would read
+ * as a promise: every generated class reserves it.
+ */
+export const CONTEXT_CLIENT_MEMBERS = [
+  'commands',
+  'routes',
+  'constructor',
+  'then',
+];
 
 /** The members of a generated `<Context>Routes` besides its routes' methods. */
-export const ROUTES_CLIENT_MEMBERS = ['routes', 'constructor'];
+export const ROUTES_CLIENT_MEMBERS = ['routes', 'constructor', 'then'];

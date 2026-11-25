@@ -10,7 +10,6 @@ import type { PaymentFailed, PaymentRefunded, PaymentRequested, PaymentSucceeded
 export const PaymentAggregate = {
   context: 'eshop-payment',
   name: 'payment',
-  path: '/eshop-payment/payment',
   ownership: 'owner',
   idSource: 'assigned',
   snapshot: true,
@@ -20,7 +19,7 @@ export const PaymentAggregate = {
       'eshop-payment.payment.PaymentRequested': { amount: true },
     },
     commands: {
-      RequestPayment: { amount: true },
+      'eshop-payment.payment.RequestPayment': { amount: true },
     },
   },
   Errors: {

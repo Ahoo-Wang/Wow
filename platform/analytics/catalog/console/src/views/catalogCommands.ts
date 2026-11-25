@@ -20,7 +20,7 @@ import {
 } from "@ahoo-wang/wow-client";
 import {
   AnalyticsCatalogClient,
-  analyticsCatalogWait,
+  AnalyticsCatalogContract,
   type DatasetDefinition,
   type FieldSensitivity,
   type ReviseSource,
@@ -58,7 +58,7 @@ export interface CatalogCommands {
 
 /** Each command waits for the snapshot of its record (`Wow-Wait`). */
 const OPTIONS: CommandOptions = {
-  wait: WaitPlan.of(analyticsCatalogWait.snapshot()),
+  wait: WaitPlan.of(AnalyticsCatalogContract.Wait.snapshot()),
 };
 
 /** A blank title is no title. */

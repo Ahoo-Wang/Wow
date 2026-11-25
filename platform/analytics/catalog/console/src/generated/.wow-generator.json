@@ -2,19 +2,19 @@
   "version": 1,
   "files": {
     "analytics-catalog/client.ts": "15939c3e58596ddd988cba6304648603b7830ef6e0e758e415dad0a2b66ae084",
-    "analytics-catalog/contract.ts": "766dce2b6735700d1ad5d3bc498d880fa34cfc532ebcba9e91cb349186a28cbc",
-    "analytics-catalog/dataset/aggregate.ts": "2c5bd2a0e3f2f5ae0bbfbdc0f1489a31042e3beece8490fd84c1e53121ddeee0",
-    "analytics-catalog/dataset/commandClient.ts": "57a84be4e9d66599a3cad621b1563ffde29049c09ff16837a4d4bee519653704",
+    "analytics-catalog/contract.ts": "7ec110ff31fbec5fb8f8c7a01c1bb0076b57ad77ee22bd2eb1ce165679455c61",
+    "analytics-catalog/dataset/aggregate.ts": "016ea29de71dbfe0639f5f22218583eac1902c8c663c37e98b7ef65edb88bc59",
+    "analytics-catalog/dataset/commandClient.ts": "01a225f41982b9dc1ea909eaf3c58ddf13f03e1e14d1f5f571604a2475cf44e5",
     "analytics-catalog/dataset/index.ts": "93009e30d8920000d82a5628a33424d1dd4c38c65d6a354bdad8e4e8634633b7",
     "analytics-catalog/dataset/queryClient.ts": "67c0cd91be5c0c5417e7f86e2de3f8c66d041cf5f7aa55e2d6b4df9c6069a2f9",
     "analytics-catalog/index.ts": "e315fabae9a569ae104f492a911ef02b48dbd643841343ae37063061723145ad",
     "analytics-catalog/manifest.ts": "e03f66e6f35dc657b7380ea93897d745efe13f28a4a3f41271e9cccefcc3a238",
     "analytics-catalog/routes.ts": "69726658037359d079f8ae9ec8a96b981e7c930c1f0224fa83b2e92df48cb7c9",
-    "analytics-catalog/source/aggregate.ts": "ecf70aa44b10180341bb20277b8759ef8745afaef2f3268f3e582fd3de4440fa",
-    "analytics-catalog/source/commandClient.ts": "c1c07e47d6b1ebd52f4cbf0de04a93a606dd44bcbb8f8eb942d32e793ad7c0e1",
+    "analytics-catalog/source/aggregate.ts": "7711901d6c13a1d7f3ad889c1b67cd94eeca2a2638bdc6225aaaf6345bebe7b2",
+    "analytics-catalog/source/commandClient.ts": "c1048f090702718dcef4554fd0ea0a0ba79534421b883183a47c5e8c566ae782",
     "analytics-catalog/source/index.ts": "93009e30d8920000d82a5628a33424d1dd4c38c65d6a354bdad8e4e8634633b7",
     "analytics-catalog/source/queryClient.ts": "572c9ef845f40a5bc7ebaa5b0aea7dbb52557d614829efeac935cccc0192dfd7",
-    "analytics-catalog/types.ts": "31d9a5f0a96ff8febe0826157eddf4ba32c2575f2765edb707129801b78b43a8",
+    "analytics-catalog/types.ts": "2ae06d1c63eeb67ed16703aa4a0c50e906aac59b5b6734f6d99dbfe9b71545e9",
     "index.ts": "8967377c1d9185ff9a38139bfec65c29425ee5689daeeb06d46ab12bfbbce0f0"
   }
 }

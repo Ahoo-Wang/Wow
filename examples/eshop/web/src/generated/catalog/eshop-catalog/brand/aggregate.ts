@@ -10,7 +10,6 @@ import type { BrandCreated, BrandRenamed } from '../types.js';
 export const BrandAggregate = {
   context: 'eshop-catalog',
   name: 'brand',
-  path: '/eshop-catalog/brand',
   ownership: 'tenant',
   idSource: 'assigned',
   snapshot: true,

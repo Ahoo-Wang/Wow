@@ -4,11 +4,24 @@ import { Hop } from '@ahoo-wang/wow-client';
 import { StockAggregate } from './stock/aggregate.js';
 
 /**
- * The bounded context `eshop-inventory`: its name, its error codes and its aggregates, as the Kotlin `EshopInventoryContract` names them. A problem's `code` is one of its `Errors`, or of an aggregate's.
+ * The bounded context `eshop-inventory`: its name, its error codes, its wait hops and its aggregates, as the Kotlin `EshopInventoryContract` names them. A problem's `code` is one of its `Errors`, or of an aggregate's.
  * The eShop inventory: the stock of each product
  */
 export const EshopInventoryContract = {
   NAME: 'eshop-inventory',
+  /** The hops of a wait chain (`Wow-Wait`) in `eshop-inventory`, as the Kotlin contract's `Wait` holds them. `WaitPlan.of(...)` chains them, those of other contexts too. */
+  Wait: {
+    /** Until a command of `eshop-inventory` passed admission. */
+    accepted: (): Hop => Hop.accepted(EshopInventoryContract.NAME),
+    /** Until a command's events are appended to the log of `eshop-inventory`. */
+    committed: (): Hop => Hop.committed(EshopInventoryContract.NAME),
+    /** Until the snapshot of `eshop-inventory` holds the commit. */
+    snapshot: (): Hop => Hop.snapshot(EshopInventoryContract.NAME),
+    /** Until the store the snapshot queries of `eshop-inventory` read holds the commit. */
+    queryable: (): Hop => Hop.queryable(EshopInventoryContract.NAME),
+    /** Until a subscription of `eshop-inventory` handled the commit. */
+    handled: (subscription: EshopInventorySubscription): Hop => Hop.handled(subscription, EshopInventoryContract.NAME),
+  },
   Stock: StockAggregate,
 } as const;
 
@@ -17,17 +30,3 @@ export type EshopInventoryErrorCode = 'eshop-inventory.stock.insufficient' | 'es
 
 /** The subscriptions of `eshop-inventory` a `handled` hop names. */
 export type EshopInventorySubscription = 'SupplierDeliverySaga.onSchedule';
-
-/** The hops of a wait chain (`Wow-Wait`) in `eshop-inventory`. */
-export const eshopInventoryWait = {
-  /** Until a command of `eshop-inventory` passed admission. */
-  accepted: (): Hop => Hop.accepted(EshopInventoryContract.NAME),
-  /** Until a command's events are appended to the log of `eshop-inventory`. */
-  committed: (): Hop => Hop.committed(EshopInventoryContract.NAME),
-  /** Until the snapshot of `eshop-inventory` holds the commit. */
-  snapshot: (): Hop => Hop.snapshot(EshopInventoryContract.NAME),
-  /** Until the store the snapshot queries of `eshop-inventory` read holds the commit. */
-  queryable: (): Hop => Hop.queryable(EshopInventoryContract.NAME),
-  /** Until a subscription of `eshop-inventory` handled the commit. */
-  handled: (subscription: EshopInventorySubscription): Hop => Hop.handled(subscription, EshopInventoryContract.NAME),
-} as const;

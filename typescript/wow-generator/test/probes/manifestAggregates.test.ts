@@ -26,10 +26,10 @@ describe('Manifest clients', () => {
   it('generates an aggregate with nothing but its state', async () => {
     const { read } = await generateCompiling(
       manifest({}, {}, { description: 'Probes' }),
-      `import { ThingCommandClient, ThingStateClient, probeWait, ProbeContract, ProbeClient, type ThingEvent } from './out/index.js';
+      `import { ThingCommandClient, ThingStateClient, ProbeContract, ProbeClient, type ThingEvent } from './out/index.js';
        const events: ThingEvent[] = [];
        const name: 'probe' = ProbeContract.NAME;
-       void [new ThingCommandClient(), new ThingStateClient(), probeWait.committed(), ProbeContract.Thing.path, new ProbeClient().thing.state, name, events];`,
+       void [new ThingCommandClient(), new ThingStateClient(), ProbeContract.Wait.committed(), ProbeContract.Thing.idSource, new ProbeClient().thing.state, name, events];`,
     );
     expect(read('probe/thing/aggregate.ts')).toContain(
       'export type ThingEvent = SystemEvent;',
@@ -59,8 +59,6 @@ describe('Manifest clients', () => {
           { name: 'level', type: 'integer' },
           { name: 'grades', type: 'integer', multiple: true },
           { name: 'open', type: 'boolean' },
-          // A type this generator does not know yet takes any scalar.
-          { name: 'scores', type: 'decimal', multiple: true },
         ],
       }),
       `import { ThingSnapshotQueryClient, ThingEventQueryClient, ThingStateClient, type ThingAccess } from './out/index.js';
@@ -89,7 +87,6 @@ describe('Manifest clients', () => {
         '  readonly level?: string | null;',
         '  readonly grades?: readonly string[];',
         '  readonly open?: boolean | null;',
-        '  readonly scores?: readonly (string | number | boolean)[];',
         '};',
       ].join('\n'),
     );

@@ -5,7 +5,7 @@
  * Await the stock validation
  * - key: `me.ahoo.wow.example.eshop.ordering.api.order.AwaitStockValidation`
  */
-export type AwaitStockValidation = Record<string, unknown>;
+export type AwaitStockValidation = Record<string, never>;
 
 /**
  * Cancel the order
@@ -113,7 +113,7 @@ export interface PayOrder {
  * Ship the order
  * - key: `me.ahoo.wow.example.eshop.ordering.api.order.ShipOrder`
  */
-export type ShipOrder = Record<string, unknown>;
+export type ShipOrder = Record<string, never>;
 
 /**
  * Submit an order
@@ -121,22 +121,4 @@ export type ShipOrder = Record<string, unknown>;
  */
 export interface SubmitOrder {
   items: OrderItem[];
-}
-
-
-/**
- * Gives the aggregate to the owner ownerId.
- * - key: `wow.lifecycle.TransferOwner`
- */
-export interface TransferOwner {
-  ownerId: string;
-}
-
-
-/**
- * Moves the aggregate to the space spaceId.
- * - key: `wow.lifecycle.TransferSpace`
- */
-export interface TransferSpace {
-  spaceId: string;
 }

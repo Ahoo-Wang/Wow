@@ -86,13 +86,13 @@ export interface ChangeBasketItemQuantity {
  * Check the basket out
  * - key: `me.ahoo.wow.example.eshop.basket.api.basket.CheckoutBasket`
  */
-export type CheckoutBasket = Record<string, unknown>;
+export type CheckoutBasket = Record<string, never>;
 
 /**
  * Clear the basket
  * - key: `me.ahoo.wow.example.eshop.basket.api.basket.ClearBasket`
  */
-export type ClearBasket = Record<string, unknown>;
+export type ClearBasket = Record<string, never>;
 
 /**
  * Remove an item from the basket
@@ -100,13 +100,4 @@ export type ClearBasket = Record<string, unknown>;
  */
 export interface RemoveBasketItem {
   productId: string;
-}
-
-
-/**
- * Moves the aggregate to the space spaceId.
- * - key: `wow.lifecycle.TransferSpace`
- */
-export interface TransferSpace {
-  spaceId: string;
 }

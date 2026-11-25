@@ -51,7 +51,7 @@ describe('the command client of an aggregate', () => {
       },
     });
     expect(read('probe/thing/commandClient.ts')).toContain(
-      "'probe.thing.set-price': ThingAggregate.textNumbers.commands['set-price'],",
+      "'probe.thing.set-price': ThingAggregate.textNumbers.commands['probe.thing.set-price'],",
     );
   });
 });

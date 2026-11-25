@@ -10,7 +10,6 @@ import type { ViewAudienceChanged, ViewClaimed, ViewCreated, ViewRenamed, ViewSa
 export const ViewAggregate = {
   context: 'view-store',
   name: 'view',
-  path: '/view-store/view',
   ownership: 'owner',
   idSource: 'assigned',
   snapshot: true,

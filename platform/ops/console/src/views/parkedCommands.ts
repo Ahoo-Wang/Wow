@@ -19,7 +19,7 @@ import {
   WaitPlan,
   WowProblemError,
 } from "@ahoo-wang/wow-client";
-import { OpsClient, opsWait, type ApplyRetrySpec } from "@/generated/index.ts";
+import { OpsClient, OpsContract, type ApplyRetrySpec } from "@/generated/index.ts";
 
 /**
  * An operator's actions on a parked entry (D141): each is recorded on the
@@ -44,7 +44,7 @@ export interface ParkedCommands {
 }
 
 /** Each command waits for the snapshot of the entry (`Wow-Wait`). */
-const OPTIONS: CommandOptions = { wait: WaitPlan.of(opsWait.snapshot()) };
+const OPTIONS: CommandOptions = { wait: WaitPlan.of(OpsContract.Wait.snapshot()) };
 
 /** A blank reason is no reason. */
 function reasonOf(reason: string | undefined): { reason?: string } {

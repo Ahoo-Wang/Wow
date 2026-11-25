@@ -13,7 +13,14 @@
 
 import { upperSnakeCase } from '../naming/naming';
 import { compareNames } from '../naming/order';
-import { type ManifestContext, type ManifestDocument } from './document';
+import {
+  isObject,
+  type JsonSchema,
+  type ManifestContext,
+  type ManifestDocument,
+  schemaKey,
+  typesOf,
+} from './document';
 import {
   aggregateInputs,
   aggregateModel,
@@ -28,6 +35,7 @@ import {
   memberName,
 } from './names';
 import { type Position, SchemaTypes } from './schemaTypes';
+import { knownValues } from './knownValues';
 import { serviceRouteModel } from './serviceRoutes';
 import { TextNumbers } from './textNumbers';
 
@@ -41,10 +49,11 @@ import { TextNumbers } from './textNumbers';
  * @param manifest - The Manifest
  * @returns The model and the warnings it raised
  */
-export function analyzeManifest(manifest: ManifestDocument): {
+export function analyzeManifest(document: ManifestDocument): {
   model: ManifestModel;
   warnings: string[];
 } {
+  const { manifest, warnings: unknown } = knownValues(document);
   checkGeneratedNames(manifest);
   const types = new SchemaTypes(manifest.$defs ?? {});
   const contexts = manifest.contexts;
@@ -52,7 +61,7 @@ export function analyzeManifest(manifest: ManifestDocument): {
   for (const context of contexts) {
     const roots = [
       ...(context.aggregates ?? []).flatMap(aggregate =>
-        aggregateRoots(types, aggregate),
+        aggregateRoots(aggregate),
       ),
       ...(context.routes ?? []).flatMap(route => [
         ...types.references(route.request),
@@ -80,8 +89,11 @@ export function analyzeManifest(manifest: ManifestDocument): {
     .sort(compareNames);
   types.nameInputs(inputs, reserved);
 
+  const bodies = closedBodies(contexts);
   const typeModels: TypeModel[] = [
-    ...keys.map(key => typeModel(types, key, `${reach.get(key)}/types.ts`)),
+    ...keys.map(key =>
+      typeModel(types, key, `${reach.get(key)}/types.ts`, 'output', bodies),
+    ),
     ...inputs.map(key =>
       typeModel(types, key, `${reach.get(key)}/types.ts`, 'input'),
     ),
@@ -129,7 +141,7 @@ export function analyzeManifest(manifest: ManifestDocument): {
       types: typeModels,
       contexts: contextModels,
     },
-    warnings: [...new Set(types.warnings)],
+    warnings: [...new Set([...unknown, ...types.warnings])],
   };
 }
 
@@ -137,7 +149,7 @@ export function analyzeManifest(manifest: ManifestDocument): {
 function inputRoots(types: SchemaTypes, context: ManifestContext): string[] {
   return [
     ...(context.aggregates ?? []).flatMap(aggregate =>
-      aggregateInputs(types, aggregate),
+      aggregateInputs(aggregate),
     ),
     ...(context.routes ?? []).flatMap(route => [
       ...types.references(route.request),
@@ -151,6 +163,7 @@ function typeModel(
   key: string,
   file: string,
   position: Position = 'output',
+  bodies: ReadonlySet<string> = new Set(),
 ): TypeModel {
   const schema = types.schemaOf(key)!;
   const output = types.names.get(key)!;
@@ -172,6 +185,14 @@ function typeModel(
     ...(position === 'input' ? { inputOf: output } : {}),
     references: [...new Set(references)].sort(compareNames),
   };
+  // A command's body of no properties, and none besides them, takes no
+  // member: the server refuses one it does not declare (`unknown-property`).
+  const closed =
+    bodies.has(key) &&
+    plainObject(schema) &&
+    types.properties(schema, key, position).length === 0 &&
+    types.additional(schema, key, position) === undefined;
+  if (closed) return { ...base, type: 'Record<string, never>' };
   if (types.isInterface(schema)) {
     // A typed index signature would have to admit every property's type.
     const extra = types.additional(schema, key, position);
@@ -182,6 +203,47 @@ function typeModel(
     };
   }
   return { ...base, type: types.type(schema, key, position) };
+}
+
+/**
+ * The keys of the commands' bodies the server holds to their properties: a
+ * body of no properties takes no member, as the server refuses one it does
+ * not declare (`unknown-property`). A body that names its aggregate
+ * (`idProperty`) carries that property whatever its schema lists, so it is
+ * not one of them.
+ */
+function closedBodies(contexts: readonly ManifestContext[]): Set<string> {
+  const commands = contexts.flatMap(context =>
+    (context.aggregates ?? []).flatMap(aggregate => aggregate.commands ?? []),
+  );
+  const named = new Set(
+    commands
+      .filter(command => command.idProperty !== undefined)
+      .map(command => schemaKey(command.schema)),
+  );
+  return new Set(
+    commands
+      .map(command => schemaKey(command.schema))
+      .filter((key): key is string => key !== undefined && !named.has(key)),
+  );
+}
+
+/**
+ * Whether `schema` is an object of its own members: typed `object`, or
+ * untyped with `properties`; not a reference, a composition or a union.
+ */
+function plainObject(schema: JsonSchema): boolean {
+  if (
+    schema.$ref !== undefined ||
+    schema.allOf !== undefined ||
+    schema.oneOf !== undefined ||
+    schema.anyOf !== undefined
+  )
+    return false;
+  const declared = typesOf(schema);
+  return declared.length === 0
+    ? isObject(schema.properties)
+    : declared.length === 1 && declared[0] === 'object';
 }
 
 function contextModel(

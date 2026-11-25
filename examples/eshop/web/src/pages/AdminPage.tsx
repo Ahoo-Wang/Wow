@@ -17,7 +17,7 @@ import { type Snapshot, WaitPlan } from "@ahoo-wang/wow-client";
 import {
   type BrandState,
   type CategoryState,
-  eshopCatalogWait,
+  EshopCatalogContract,
   type ProductState,
 } from "@/generated/catalog/eshop-catalog";
 import { Badge } from "@/components/ui/badge";
@@ -73,7 +73,7 @@ const SELECT =
  * Elasticsearch copy, which `snapshot` does not reach, and the page reloads
  * its product list right after; without it, the same as `snapshot`.
  */
-const LISTED = { wait: WaitPlan.of(eshopCatalogWait.queryable()) };
+const LISTED = { wait: WaitPlan.of(EshopCatalogContract.Wait.queryable()) };
 
 /** What an action came to, shown where it was taken: a form or a product's row. */
 interface Feedback {

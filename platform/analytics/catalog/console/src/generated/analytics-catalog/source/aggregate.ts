@@ -10,7 +10,6 @@ import type { SensitivityChangeApproved, SourceApproved, SourceDrafted, SourceRe
 export const SourceAggregate = {
   context: 'analytics-catalog',
   name: 'source',
-  path: '/analytics-catalog/source',
   ownership: 'tenant',
   idSource: 'assigned',
   snapshot: true,

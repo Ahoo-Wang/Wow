@@ -6,11 +6,12 @@ import type { SetViewPreferences } from '../types.js';
 
 /** Sends the commands of `view-store.view_preferences` by its service's routes (`ViewStoreManifest`). Each method answers the result its wait plan ends with, as `CommandClient.wait` does: the server's default plan unless the options give one, `{ wait: WaitPlan.ACCEPTED }` to answer once it is accepted. A rejected command rejects with a `CommandRejectedError`; anything else that did not succeed with a `WowProblemError`. */
 export class ViewPreferencesCommandClient {
-  readonly client: CommandClient;
+  /** Sends the commands, as the context client's `commands` does. */
+  readonly commands: CommandClient;
 
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {
-    this.client = new CommandClient(options, { manifest: ViewStoreManifest });
+    this.commands = new CommandClient(options, { manifest: ViewStoreManifest });
   }
 
   /**
@@ -20,11 +21,11 @@ export class ViewPreferencesCommandClient {
    * Produces `ViewPreferencesSet`.
    */
   setViewPreferences(body: SetViewPreferences, options?: CreateCommandOptions): Promise<CommandResult> {
-    return this.client.wait({ ...options, command: 'view-store.view_preferences.SetViewPreferences', body });
+    return this.commands.wait({ ...options, command: 'view-store.view_preferences.SetViewPreferences', body });
   }
 
   /** `SetViewPreferences`, answered as one result per hop of its wait (`text/event-stream`). */
   setViewPreferencesStream(body: SetViewPreferences, options?: CreateCommandOptions): Promise<CommandResultStream> {
-    return this.client.stream({ ...options, command: 'view-store.view_preferences.SetViewPreferences', body });
+    return this.commands.stream({ ...options, command: 'view-store.view_preferences.SetViewPreferences', body });
   }
 }
