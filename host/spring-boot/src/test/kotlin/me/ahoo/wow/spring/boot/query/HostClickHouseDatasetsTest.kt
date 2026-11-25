@@ -22,7 +22,7 @@ import me.ahoo.wow.query.dataset.QueryDatasetConfig
 import me.ahoo.wow.query.dataset.QueryDatasetProvider
 import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.store.StoreResources
-import me.ahoo.wow.spring.boot.transport.ProviderSettingsSource
+import me.ahoo.wow.spring.boot.transport.providerSettings
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
@@ -38,7 +38,11 @@ class HostClickHouseDatasetsTest {
     private fun provided(
         resources: StoreResources = StoreResources.of(mapOf("client" to client)),
         vararg settings: Pair<String, String>,
-    ) = HostDatasets.provided(providers, resources, ProviderSettingsSource.of { mapOf(*settings) })
+    ) = HostDatasets.provided(
+        providers,
+        resources,
+        providerSettings(*settings.map { (key, value) -> "wow.clickhouse.$key" to value }.toTypedArray()),
+    )
 
     @Test
     fun `without the application's client the endpoint should give the backend its own, which the node closes`() {
@@ -75,7 +79,7 @@ class HostClickHouseDatasetsTest {
             HostDatasets.provided(
                 providers + other,
                 StoreResources.of(mapOf("client" to client)),
-                ProviderSettingsSource.NONE
+                providerSettings()
             )
         }
         failure.key.assert().isEqualTo("wow.query.dataset")

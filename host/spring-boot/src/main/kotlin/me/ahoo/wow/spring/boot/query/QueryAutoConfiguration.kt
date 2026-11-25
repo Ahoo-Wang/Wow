@@ -392,7 +392,7 @@ class QueryAutoConfiguration {
             HostDatasets.provided(
                 HostDatasets.providers(beanFactory.beanClassLoader),
                 BeanStoreResources(beanFactory, DATASET_BINDINGS),
-                ProviderSettingsSource.of(environment),
+                ProviderSettingsSource(environment),
             ),
             provided = true,
         )

@@ -112,7 +112,7 @@ class ProviderSettingsTest {
             WowProperties().apply { stores["acme"] = StoreProperties().apply { type = "acme" } },
             providers,
             StoreResources.NONE,
-            settings = ProviderSettingsSource.of(
+            settings = ProviderSettingsSource(
                 environment(variables, file + mapOf("wow.stores.acme.type" to "acme"))
             ),
         ).getValue("acme")

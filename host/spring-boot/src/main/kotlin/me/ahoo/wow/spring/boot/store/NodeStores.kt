@@ -87,7 +87,7 @@ internal class NodeStores {
             node?.service.orEmpty(),
             development.reason,
             clock,
-            ProviderSettingsSource.of(environment),
+            ProviderSettingsSource(environment),
         )
         // The next statement hands the stores to their owner: nothing runs between.
         return StoreInstances.backends(stores, placements, types, properties.log.partitions)

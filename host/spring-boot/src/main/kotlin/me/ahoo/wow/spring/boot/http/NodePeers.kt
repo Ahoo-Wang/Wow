@@ -72,7 +72,7 @@ internal class NodePeers {
     ): EndpointResolver = PeerEndpoints.of(
         properties,
         PeerDiscoveries.load(context.classLoader, discoveries.orderedStream().toList()),
-        ProviderSettingsSource.of(environment),
+        ProviderSettingsSource(environment),
         { peer -> serviceOf(contracts, peer) },
     )
 

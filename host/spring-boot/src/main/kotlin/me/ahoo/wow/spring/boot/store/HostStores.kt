@@ -156,7 +156,7 @@ internal object StoreInstances {
         service: String = "",
         memoryOptIn: String? = null,
         clock: Clock = Clock.systemUTC(),
-        settings: ProviderSettingsSource = ProviderSettingsSource.NONE,
+        settings: ProviderSettingsSource,
     ): Map<String, Store> {
         val polling = properties.log.tailPolling()
         fun open(name: String, type: String, store: StoreProperties?, key: String): Store {

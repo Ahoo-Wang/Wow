@@ -41,7 +41,7 @@ import me.ahoo.wow.spi.subscription.FailureClass
 import me.ahoo.wow.spring.boot.http.PeerDiscoveries
 import me.ahoo.wow.spring.boot.http.PeerEndpoints
 import me.ahoo.wow.spring.boot.http.PeerTargetProperties
-import me.ahoo.wow.spring.boot.transport.ProviderSettingsSource
+import me.ahoo.wow.spring.boot.transport.providerSettings
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -273,7 +273,7 @@ class HostCallsTest {
             PeerEndpoints.of(
                 properties,
                 PeerDiscoveries.load(javaClass.classLoader),
-                ProviderSettingsSource.NONE
+                providerSettings()
             ) { null }
         }.message.assert().contains("Peer mail has no url")
     }

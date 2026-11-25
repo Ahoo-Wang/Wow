@@ -92,7 +92,7 @@ internal class PortProviders(
         resources: StoreResources,
         extra: (type: String) -> Map<String, String> = { emptyMap() },
     ): List<Pair<SinkProvider, SinkConfig>> = sinks.values.map { provider ->
-        val own = declared(extra(provider.type), provider.options, ProviderOption.Scope.entries)
+        val own = declared(extra(provider.type), provider.options)
         provider to SinkConfig.of(
             provider.type,
             provider.type,
@@ -135,19 +135,13 @@ internal class PortProviders(
         }
 
         /**
-         * The [settings] that [options] of the [scopes] declare: each an option's key, or under a map option's prefix
-         * ([ProviderOption.map]).
+         * The [settings] that [options] declare, of every scope: each an option's key, or under a map option's prefix
+         * ([ProviderOption.map]). Only the host's own settings of a Sink are read so; the environment's are [bound].
          */
-        fun declared(
-            settings: Map<String, String>,
-            options: List<ProviderOption<*>>,
-            scopes: Collection<ProviderOption.Scope> = listOf(ProviderOption.Scope.TYPE),
-        ): Map<String, String> {
-            val ofScopes = options.filter { it.scope in scopes }
-            return settings.filterKeys { key ->
-                ofScopes.any { option -> key == option.key || option.isMap && key.startsWith("${option.key}.") }
+        private fun declared(settings: Map<String, String>, options: List<ProviderOption<*>>): Map<String, String> =
+            settings.filterKeys { key ->
+                options.any { option -> key == option.key || option.isMap && key.startsWith("${option.key}.") }
             }
-        }
 
         /**
          * The settings of [environment] under [prefix] that [options] of the [scopes] declare, each read by its full

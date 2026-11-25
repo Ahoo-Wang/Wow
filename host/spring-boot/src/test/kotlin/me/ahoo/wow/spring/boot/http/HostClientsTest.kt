@@ -61,7 +61,7 @@ import me.ahoo.wow.spring.boot.OpenAccount
 import me.ahoo.wow.spring.boot.WowProperties
 import me.ahoo.wow.spring.boot.node.NodeIdentity
 import me.ahoo.wow.spring.boot.startHost
-import me.ahoo.wow.spring.boot.transport.ProviderSettingsSource
+import me.ahoo.wow.spring.boot.transport.providerSettings
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -413,7 +413,7 @@ class HostClientsTest {
         val resolver = PeerEndpoints.of(
             properties,
             PeerDiscoveries.load(javaClass.classLoader),
-            ProviderSettingsSource.NONE,
+            providerSettings(),
         ) { null }
         resolver.resolve("mail", Port.PUBLIC).assert().isEqualTo(URI.create("http://mail:8080"))
         resolver.resolve("mail", Port.INTERNAL).assert().isEqualTo(URI.create("http://mail:9090"))
