@@ -89,7 +89,8 @@ internal class MemoryStore(
 
     override fun openReservations(): Opened<ReservationStore> = Opened.of(InMemoryReservationStore(config.clock))
 
-    override fun openLog(context: String, partitions: Int): Opened<EventLog> = Opened.of(InMemoryEventLog(partitions))
+    override fun openLog(context: String, partitions: Int): Opened<EventLog> =
+        Opened.of(InMemoryEventLog(partitions, context))
 
     override fun openSnapshots(context: String): Opened<SnapshotStore> =
         Opened.of(snapshotsOf(context).let { store -> queries?.let { QueriedSnapshotStore(store, it) } ?: store })

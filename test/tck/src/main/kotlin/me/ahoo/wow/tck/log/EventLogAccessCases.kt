@@ -154,6 +154,17 @@ abstract class EventLogAccessCases internal constructor() : EventLogRecordCases(
         }
 
     @Test
+    fun `an aggregate whose first append conflicted is none of its type's aggregates`(): Unit = runBlocking {
+        val log = createLog()
+        Assumptions.assumeTrue(log is AccessWalks, "This log keeps no walks.")
+        val walks = log as AccessWalks
+        log.append(stream("ghost", 2)).assert().isEqualTo(AppendOutcome.Conflict(0))
+        walks.aggregates(type, null, limit = 3).assert().isEqualTo(AggregatePage(emptyList(), null))
+        log.append(stream("a-1", 1)).assert().isInstanceOf(AppendOutcome.Committed::class.java)
+        walks.aggregates(type, null, limit = 3).refs.assert().containsExactly(type.ref("tenant", "a-1"))
+    }
+
+    @Test
     fun `a type the log holds no history of has no walk and claims none, and its first append creates its store`(): Unit =
         runBlocking {
             val log = createLog()

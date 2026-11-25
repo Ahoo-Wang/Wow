@@ -27,6 +27,7 @@ import me.ahoo.wow.spi.access.AccessWalk
 import me.ahoo.wow.spi.access.AccessWalks
 import me.ahoo.wow.spi.access.AggregatePage
 import me.ahoo.wow.spi.log.AggregateTail
+import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.CommittedRequest
 import me.ahoo.wow.spi.log.CreationClaim
@@ -36,17 +37,26 @@ import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.log.LogPosition
 import me.ahoo.wow.spi.log.PartitionLineage
 import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.spi.log.requireChains
 
 /**
  * An [EventLog] in memory, for tests and samples. Appends are serialized by one lock, so the sequence within a
  * partition is trivially the order commits became visible. As the durable backends, it keeps the request key per
  * aggregate type. Each partition keeps its [PartitionLineage], [PartitionLineage.ROOT] as created. It keeps each
  * stream's stamp, stamps the access attributes over a history and records each type's walk ([AccessWalks]) as the
- * durable logs do; its aggregates are ordered by id, then tenant.
+ * durable logs do; its aggregates are ordered by id, then tenant: an aggregate is one once its first stream committed.
+ *
+ * It refuses what the durable logs refuse, before it writes anything, with an [IllegalArgumentException]: given its
+ * [context], a stream of another bounded context; and in [appendAll], a group of more than one context, or whose
+ * streams of one aggregate skip a version ([requireChains]). Without a context it takes streams of any context, one
+ * append at a time, as a test that keeps several contexts in one log does.
  */
 @InternalWowApi
-class InMemoryEventLog(override val partitions: Int = DEFAULT_PARTITIONS) :
-    EventLog,
+class InMemoryEventLog(
+    override val partitions: Int = DEFAULT_PARTITIONS,
+    /** The bounded context whose streams it holds alone, as a node's log; null for streams of any context. */
+    val context: String? = null,
+) : EventLog,
     AccessWalks {
     init {
         Partitioner.requirePartitions(partitions)
@@ -75,16 +85,34 @@ class InMemoryEventLog(override val partitions: Int = DEFAULT_PARTITIONS) :
     private val appended = List(partitions) { MutableStateFlow(0L) }
     private val lineages = List(partitions) { PartitionLineage.ROOT }
 
-    override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome = lock.withLock {
+    override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome {
+        context?.let { require(stream.ref.type.context == it) { "${stream.ref} is not in context $it." } }
+        return lock.withLock { appendLocked(stream, transport) }
+    }
+
+    /**
+     * The streams appended one at a time, as [EventLog.appendAll] does, once the group is one context's (the log's,
+     * when it has one) and each aggregate's streams in it come in consecutive versions.
+     */
+    override suspend fun appendAll(streams: List<Append>): List<AppendOutcome> {
+        if (streams.size > 1) {
+            val of = context ?: streams.first().stream.ref.type.context
+            require(streams.all { it.stream.ref.type.context == of }) { "A group commit appends streams of $of." }
+            requireChains(streams)
+        }
+        return super.appendAll(streams)
+    }
+
+    private fun appendLocked(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome {
         val request = stream.ref.tenantId to stream.requestId
         requests[request]?.firstOrNull { it.ref.type == stream.ref.type }
             ?.let { return AppendOutcome.AlreadyCommitted(it) }
-        val aggregate = streams.getOrPut(stream.ref) { ArrayList() }
-        val current = aggregate.size
+        // Its entry is made by its first commit alone: an aggregate whose first append conflicted is none.
+        val current = streams[stream.ref]?.size ?: 0
         if (stream.version != current + 1) {
             return AppendOutcome.Conflict(current)
         }
-        aggregate += stream
+        streams.getOrPut(stream.ref) { ArrayList() } += stream
         if (held.add(stream.ref.type)) {
             served[stream.ref.type]?.let { walks.putIfAbsent(stream.ref.type, AccessWalk.created(it)) }
         }
@@ -95,7 +123,7 @@ class InMemoryEventLog(override val partitions: Int = DEFAULT_PARTITIONS) :
         log += LogEntry(position, stream, transport)
         aggregateEntries.getOrPut(stream.ref) { ArrayList() } += log.last()
         appended[partition].value = position.sequence
-        AppendOutcome.Committed(position)
+        return AppendOutcome.Committed(position)
     }
 
     /** Replaces each stream it stamps wherever the log keeps it: by aggregate, by request and in its partition. */

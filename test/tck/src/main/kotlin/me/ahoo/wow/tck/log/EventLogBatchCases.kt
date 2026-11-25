@@ -24,6 +24,7 @@ import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.Partitioner
 import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 /**
  * The batch cases of the [EventLog] contract: what `appendAll` commits, sequences and refuses, stream by stream and
@@ -227,6 +228,33 @@ abstract class EventLogBatchCases internal constructor() : EventLogReadCases() {
         log.read(type.ref("tenant", zero)).toList().map { it.version }.assert().containsExactly(1, 2)
         log.read(type.ref("tenant", two)).toList().map { it.version }.assert().containsExactly(1, 2)
     }
+
+    @Test
+    fun `appendAll refuses a group whose streams of one aggregate skip a version, before it writes any`(): Unit =
+        runBlocking {
+            val log = createLog(partitions = 4)
+            val (gapped, beside) = idsInPartitionZero(2, 4)
+            assertThrows<IllegalArgumentException> {
+                log.appendAll(
+                    listOf(Append.of(stream(gapped, 1)), Append.of(stream(beside, 1)), Append.of(stream(gapped, 3))),
+                )
+            }
+            log.head(0).assert().isNull()
+            log.read(type.ref("tenant", gapped)).toList().assert().isEmpty()
+            log.read(type.ref("tenant", beside)).toList().assert().isEmpty()
+        }
+
+    @Test
+    fun `appendAll refuses a group that holds a stream of another bounded context, before it writes any`(): Unit =
+        runBlocking {
+            val log = createLog(partitions = 4)
+            val (first, second) = idsInPartitionZero(2, 4)
+            assertThrows<IllegalArgumentException> {
+                log.appendAll(listOf(Append.of(stream(first, 1)), Append.of(stream(second, 1, aggregate = elsewhere))))
+            }
+            log.heads((0 until 4).toList()).values.assert().containsOnlyNulls()
+            log.read(type.ref("tenant", first)).toList().assert().isEmpty()
+        }
 
     @Test
     fun `appendAll appends none of an aggregate's streams after its first conflicts`(): Unit = runBlocking {

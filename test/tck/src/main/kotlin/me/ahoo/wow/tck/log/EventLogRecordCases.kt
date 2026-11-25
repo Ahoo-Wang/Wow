@@ -30,6 +30,7 @@ import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.log.TransportCodec
 import me.ahoo.wow.tck.ExactJson
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 /**
  * The record cases of the [EventLog] contract: a stream reads back exactly as appended, its versions, payload, scope,
@@ -46,6 +47,14 @@ abstract class EventLogRecordCases internal constructor() : EventLogFixtures() {
         log.append(stream("a", 3)).assert().isEqualTo(AppendOutcome.Conflict(1))
         log.append(stream("a", 1)).assert().isEqualTo(AppendOutcome.Conflict(1))
         log.append(stream("a", 2)).assert().isInstanceOf(AppendOutcome.Committed::class.java)
+    }
+
+    @Test
+    fun `a stream of another bounded context is refused before anything of it is written`(): Unit = runBlocking {
+        val log = createLog()
+        assertThrows<IllegalArgumentException> { log.append(stream("a", 1, aggregate = elsewhere)) }
+        log.heads((0 until DEFAULT_PARTITIONS).toList()).values.assert().containsOnlyNulls()
+        log.append(stream("a", 1)).assert().isInstanceOf(AppendOutcome.Committed::class.java)
     }
 
     @Test
