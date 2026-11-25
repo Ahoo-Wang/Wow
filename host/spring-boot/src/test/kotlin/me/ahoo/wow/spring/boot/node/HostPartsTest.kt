@@ -427,14 +427,14 @@ class WowPropertiesTest {
 
     @Test
     fun `the in-memory topics should keep at least one message, refusing a retention below that with its key`() {
-        bind("wow.memory.topic-retention" to "1").memory.checkedTopicRetention().assert().isEqualTo(1)
+        bind("wow.memory.topic-retention" to "1").memory.topicRetention.assert().isEqualTo(1)
         // Refused where it is read, naming its key, rather than as a failure of binding.
         val refused = assertThrows<WowConfigurationException> {
-            bind("wow.memory.topic-retention" to "0").memory.checkedTopicRetention()
+            bind("wow.memory.topic-retention" to "0").memory.topicRetention
         }
         refused.key.assert().isEqualTo("wow.memory.topic-retention")
         refused.value.assert().isEqualTo(0)
-        assertThrows<WowConfigurationException> { bind("wow.log.partitions" to "3").log.checkedPartitions() }
+        assertThrows<WowConfigurationException> { bind("wow.log.partitions" to "3").log.partitions }
             .key.assert().isEqualTo("wow.log.partitions")
     }
 

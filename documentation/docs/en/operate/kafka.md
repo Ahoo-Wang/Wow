@@ -95,7 +95,7 @@ No node ever creates a topic as a side effect of reading it, so a stream that do
 
 ## Durability
 
-A command accepted on a command topic must survive the loss of a broker. That holds only when the topic's replication factor and `min.insync.replicas` are both at least 2. At startup, a node warns about each command topic of its contexts that is below that, and about a configuration that would create one, unless the node is in development: a profile of `wow.dev-profiles` is active (`dev`, `local`, `test` and `demo` by default).
+A command accepted on a command topic must survive the loss of a broker. That holds only when the topic's replication factor and `min.insync.replicas` are both at least 2. At startup, a node warns about each command topic of its contexts that is below that, and about a configuration that would create one, unless the node is in development: a profile of `wow.dev-profiles` is active (`dev` and `local` by default).
 
 The producer is idempotent and waits for every in-sync replica (`acks=all`), whatever `wow.kafka.properties` says. Within one send, an aggregate's next message goes to the broker only once its previous one is acknowledged. A message Kafka refuses for good, whether the client or the broker refuses it, is never overtaken by that aggregate's later ones: those of the same send are not written, and the send fails. Messages of different aggregates go together.
 

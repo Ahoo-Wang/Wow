@@ -158,7 +158,7 @@ class TransportAutoConfiguration {
             manifest,
             producer,
             PublicationMasks(masks, QueryProperties.displaySharedOf(environment)),
-            WowProperties.of(environment).log.checkedPartitions(),
+            WowProperties.of(environment).log.partitions,
             selected.topicPrefix,
         )
 
