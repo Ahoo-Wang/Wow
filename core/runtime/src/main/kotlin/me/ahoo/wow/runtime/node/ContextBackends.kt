@@ -15,6 +15,7 @@ package me.ahoo.wow.runtime.node
 
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.runtime.snapshot.SnapshotTargets
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
@@ -42,6 +43,7 @@ import me.ahoo.wow.spi.timer.TimerStore
  * Fields may be added: construct it with [of]; the constructor, which also takes the log groups and
  * snapshot targets the host configures, is internal to Wow.
  */
+@WowSpi
 class ContextBackends @InternalWowApi constructor(
     val log: EventLog,
     val checkpoints: CheckpointStore,
@@ -177,6 +179,7 @@ class ContextBackends @InternalWowApi constructor(
  * types' snapshot copies, which their queries read), whose outage the node's health shows without taking it out of
  * service.
  */
+@WowSpi
 class PlacedStores @InternalWowApi constructor(
     val writePath: Set<Store>,
     internal val others: Set<Store> = emptySet()
@@ -204,6 +207,7 @@ class PlacedStores @InternalWowApi constructor(
  * aggregate types the layout places nowhere in particular, when their log store holds their primary snapshots, and
  * the one of each type [placed] elsewhere, null when its log and primary snapshots are on different stores.
  */
+@WowSpi
 class SnapshotTailReaders @InternalWowApi constructor(
     private val default: SnapshotTailReader?,
     private val placed: Map<AggregateType, SnapshotTailReader?> = emptyMap(),
@@ -238,6 +242,7 @@ class SnapshotTailReaders @InternalWowApi constructor(
  * Fields may be added: Wow builds the groups from the host's configuration, so the constructor is
  * internal to Wow.
  */
+@WowSpi
 class LogGroupBackends @InternalWowApi constructor(
     val store: String,
     val types: Set<AggregateType>,
@@ -277,6 +282,7 @@ class LogGroupBackends @InternalWowApi constructor(
 }
 
 /** Opens the [ContextBackends] of each bounded context the node hosts; the host closes what it opened. */
+@WowSpi
 fun interface BackendFactory {
     fun backends(context: String): ContextBackends
 }

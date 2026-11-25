@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.query.schema
 
+import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.api.query.RelativeTimeFilter
@@ -24,6 +26,7 @@ import tools.jackson.databind.JsonNode
  * flattening the definition) and a union's alternatives, each a non-union value. A storage adapter asks each one which
  * storage families a capability needs ([storageFamilies]).
  */
+@WowSpi
 fun QueryValueSchema.operationValues(): List<QueryValueSchema> = when (kind) {
     QueryValueKind.ARRAY -> checkNotNull(items).alternativesOrSelf()
     QueryValueKind.UNION -> alternatives.flatMap { it.operationValues() }
@@ -31,11 +34,13 @@ fun QueryValueSchema.operationValues(): List<QueryValueSchema> = when (kind) {
 }
 
 /** Whether this value may be an array holding a `null` element: an array whose items the schema lets be `null`. */
+@InternalWowApi
 fun QueryValueSchema.mayHoldNullElement(): Boolean = alternativesOrSelf().any { value ->
     value.kind == QueryValueKind.ARRAY && checkNotNull(value.items).alternativesOrSelf().any { it.nullable }
 }
 
 /** Flattens nested unions into their non-union alternatives; any other value is its own single alternative. */
+@WowSpi
 fun QueryValueSchema.alternativesOrSelf(): List<QueryValueSchema> =
     if (kind == QueryValueKind.UNION) alternatives.flatMap { it.alternativesOrSelf() } else listOf(this)
 

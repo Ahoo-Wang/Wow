@@ -14,14 +14,10 @@
 package me.ahoo.wow.example.eshop.ordering.server
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.aggregate.AggregateType
-import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.wire.DevelopmentHeaders.OWNER
 import me.ahoo.wow.api.wire.DevelopmentHeaders.ROLES
 import me.ahoo.wow.api.wire.DevelopmentHeaders.USER
-import me.ahoo.wow.example.eshop.ordering.api.order.EshopOrderingContract
-import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.spring.boot.store.HostBackends
 import me.ahoo.wow.test.server.Answer
 import me.ahoo.wow.test.server.wowServer
@@ -74,12 +70,11 @@ class OrderingAnalyticsTest {
     }
 
     @Test
-    @OptIn(ExperimentalWowApi::class) // the dataset queries are experimental (D216)
     fun `the orders should be served from PostgreSQL, and the sales dataset from ClickHouse`() {
         server.bean<HostBackends>().type.assert().isEqualTo("postgres")
-        val queries = server.bean<HttpQueries>()
-        queries.snapshots(EshopOrderingContract.Order.TYPE).assert().isNotNull()
-        queries.datasets[AggregateType(EshopOrderingContract.NAME, "sales")].assert().isNotNull()
+        // Each model the node serves answers its descriptor: the orders' snapshots, and the sales dataset it lists.
+        get(ORDERS, EMPLOYEE).status.assert().isEqualTo(OK)
+        get("/wow/dataset", EMPLOYEE).body!!.values().map { it["path"].asString() }.assert().contains(SALES)
     }
 
     @Test

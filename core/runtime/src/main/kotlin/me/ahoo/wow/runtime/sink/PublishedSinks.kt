@@ -42,7 +42,7 @@ import me.ahoo.wow.spi.transport.TopicProducer
  * name, of its aggregate type, so the context's executor keeps the views it reads. A context that
  * publishes an aggregate it has no model of fails the node's assembly.
  */
-class PublishedSinks(
+class PublishedSinks @InternalWowApi constructor(
     private val published: Map<String, List<PublishedManifest>>,
     private val processor: String,
     private val masks: PublicationMasks?,
@@ -105,6 +105,7 @@ class PublishedSinks(
          * ([PublishedManifest.topic], after [topicPrefix]) through [producer], masked by [masks], the node's, each
          * record to its aggregate's partition among the log's [partitions] ([TopicSink]).
          */
+        @InternalWowApi
         fun topics(
             manifest: Manifest,
             producer: TopicProducer,

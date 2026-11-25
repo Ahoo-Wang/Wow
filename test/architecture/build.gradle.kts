@@ -74,4 +74,17 @@ tasks.named<Test>("test") {
     inputs.files(rootProject.file("settings.gradle.kts"), rootProject.subprojects.map { it.buildFile })
         .withPathSensitivity(PathSensitivity.RELATIVE)
         .withPropertyName("buildScripts")
+    // The Kotlin-signature closure rule reads the compiled classes of every project with an ABI dump: the Kotlin types
+    // of its public members, a suspend function's return type and generic arguments included, which the dump erases.
+    val dumped = rootProject.subprojects.filter { File(it.projectDir, "api/${it.name}.api").isFile }
+    dependsOn(dumped.map { "${it.path}:classes" })
+    inputs.files(dumped.map { it.layout.buildDirectory.dir("classes/kotlin/main") })
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+        .withPropertyName("dumpedClasses")
+}
+
+dependencies {
+    // Reads a class file's Kotlin metadata without loading the class (the Kotlin-signature closure rule).
+    testImplementation(libs.asm)
+    testImplementation(libs.kotlin.metadata.jvm)
 }

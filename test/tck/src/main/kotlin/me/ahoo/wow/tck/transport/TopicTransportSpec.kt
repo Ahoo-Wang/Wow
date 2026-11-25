@@ -22,6 +22,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.spi.transport.PartitionOffsets
 import me.ahoo.wow.spi.transport.PartitionedSource
 import me.ahoo.wow.spi.transport.SourceMessage
@@ -40,6 +41,7 @@ import kotlin.time.Duration.Companion.seconds
  * broker, that every transport passes. A transport's test extends it, supplies both and creates the topics; each
  * test writes to a topic of its own.
  */
+@WowSpi
 abstract class TopicTransportSpec {
     protected abstract val producer: TopicProducer
     protected abstract val source: PartitionedSource

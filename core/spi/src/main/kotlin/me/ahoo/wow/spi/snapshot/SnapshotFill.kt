@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.spi.snapshot
 
+import me.ahoo.wow.api.annotation.WowSpi
+
 /**
  * Who fills a snapshot table from the log's beginning ([SnapshotTable.fill]): decided once, by the claim that first
  * records the table ([SnapshotRebuildStore.claim]), from whether the store's snapshot subscription had a checkpoint
@@ -20,6 +22,7 @@ package me.ahoo.wow.spi.snapshot
  *
  * No case is added within 10.x, so a `when` over it may name every case.
  */
+@WowSpi
 enum class SnapshotFill {
     /** The store's own snapshot subscription, with no checkpoint at the first claim: it starts at the beginning. */
     SUBSCRIPTION,

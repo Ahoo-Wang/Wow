@@ -15,6 +15,7 @@ package me.ahoo.wow.spi.json
 
 import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Ownership
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.ledger.LedgerRequest
 import me.ahoo.wow.api.ledger.Recoverable
 import me.ahoo.wow.api.query.AggregationDatePart
@@ -60,6 +61,7 @@ import tools.jackson.databind.module.SimpleModule
  * Values and map keys alike are spelled so. Only the enumerations of this list are respelled: a domain's enumerations
  * in its commands, events and states are written as its Jackson writes them, so no global naming strategy is set.
  */
+@InternalWowApi
 object WowEnums {
     /** The enumerations written by their wire names. */
     val TYPES: List<Class<out Enum<*>>> = listOf(

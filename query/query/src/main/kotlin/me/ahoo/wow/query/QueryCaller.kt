@@ -15,6 +15,7 @@ package me.ahoo.wow.query
 
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.TargetScope
 import me.ahoo.wow.api.query.CrossTenant
@@ -34,6 +35,7 @@ internal enum class QueryScopeProvenance {
  * The caller's scope, split by [provenance][QueryScopeProvenance]. Both halves restrict the query; only the
  * [authenticated] half counts as provided when a gateway requires an authenticated scope.
  */
+@WowSpi
 class QueryScope @InternalWowApi constructor(
     val authenticated: FilterExpression = MatchAllFilter,
     val declared: FilterExpression = MatchAllFilter,
@@ -77,6 +79,7 @@ private fun FilterExpression.and(other: FilterExpression): FilterExpression =
  *
  * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
+@WowSpi
 enum class QueryEntry {
     /** Stated by the HTTP edge for every query route; HTTP budgets and gates apply. */
     HTTP,
@@ -125,6 +128,7 @@ enum class QueryEntry {
  * ([QueryTargets.recheck]), so a caller built otherwise cannot reach further than [QueryTargets] lets it. Other code
  * builds a plain caller with [of], or uses [IN_PROCESS].
  */
+@WowSpi
 class QueryCaller @InternalWowApi constructor(
     val caller: Caller? = null,
     val entry: QueryEntry = QueryEntry.UNSPECIFIED,

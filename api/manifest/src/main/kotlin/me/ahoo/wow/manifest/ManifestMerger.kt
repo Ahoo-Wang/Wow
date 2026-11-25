@@ -50,6 +50,7 @@ import me.ahoo.wow.api.result.FrameworkCodes
  * Every problem is reported, not just the first. The result lists contexts by name and `$defs` by key, so the same
  * fragments always give the same Manifest, and carries the framework's error table ([FrameworkErrors.ALL]).
  */
+@InternalWowApi
 object ManifestMerger {
     /** A path segment that is a template variable alone: `{id}`. */
     private val VARIABLE = Regex("\\{[A-Za-z_][A-Za-z0-9_]*}")

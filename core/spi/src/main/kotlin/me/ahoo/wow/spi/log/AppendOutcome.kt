@@ -145,6 +145,7 @@ sealed interface AppendOutcome {
  * did not commit ([outcome]): not appended, a conflict at the version [outcome] leaves the aggregate at, the
  * conflict's own when [outcome] is one, else the version before [failed]'s.
  */
+@WowSpi
 fun notAppendedAfter(failed: EventStreamRecord, outcome: AppendOutcome): AppendOutcome.Conflict =
     outcome as? AppendOutcome.Conflict ?: AppendOutcome.Conflict.of(failed.version - 1)
 
@@ -152,6 +153,7 @@ fun notAppendedAfter(failed: EventStreamRecord, outcome: AppendOutcome): AppendO
  * Checks what [EventLog.appendAll] takes of one aggregate: its streams in consecutive versions, in order. A backend
  * that commits a group in one write relies on it to commit them as a prefix.
  */
+@WowSpi
 fun requireChains(streams: List<Append>) {
     val last = HashMap<AggregateRef, Int>()
     streams.forEach { append ->

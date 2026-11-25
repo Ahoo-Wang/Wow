@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.ListQuery
@@ -69,6 +70,7 @@ import java.util.concurrent.CopyOnWriteArrayList
  *
  * [delay] holds every primitive back that long before it answers, so tests can let a query outlive its timeout.
  */
+@WowSpi
 class InMemoryQueryStorage(
     private val delay: Duration = Duration.ZERO,
 ) : QueryBindings<AggregateType> {
@@ -121,6 +123,7 @@ class InMemoryQueryStorage(
  * metric, dense fill and windows are left to the core ([InMemoryQueryStorageAdapter]). [timeouts] records the timeout
  * of every query it received, so a test can see that the timeout reached the backend.
  */
+@WowSpi
 class InMemoryQueryBackend internal constructor(
     override val aggregateType: AggregateType,
     private val records: suspend () -> List<ObjectNode>,

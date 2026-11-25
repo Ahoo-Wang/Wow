@@ -15,6 +15,7 @@ package me.ahoo.wow.query.tck
 
 import kotlinx.coroutines.flow.map
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
@@ -33,6 +34,7 @@ import java.time.Instant
  * unit's local start (Africa/Monrovia's 1972 change). They read through [createdAtBuckets], over
  * [SnapshotQueryFixtures]' fixtures and hooks; see there for the chain of families this class is part of.
  */
+@WowSpi
 abstract class SnapshotDateBucketCases internal constructor() : SnapshotAggregationCases() {
     /**
      * The buckets of [unit] in [zone], filled when [dense], of snapshots whose `state.createdAt` is each instant of

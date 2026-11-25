@@ -14,6 +14,7 @@
 package me.ahoo.wow.spi.wait
 
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.wire.WaitWire
@@ -24,6 +25,7 @@ import me.ahoo.wow.api.wire.WaitWire
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
+@WowSpi
 class Origin @InternalWowApi constructor(val service: String, val node: String, val address: String) {
     init {
         require(node.isNotBlank()) { "An origin names its node." }
@@ -57,6 +59,7 @@ class Origin @InternalWowApi constructor(val service: String, val node: String, 
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
+@WowSpi
 class WaitContext @InternalWowApi constructor(
     val waitId: String,
     val origin: Origin,

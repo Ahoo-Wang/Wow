@@ -19,6 +19,7 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.spi.subscription.Lease
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.subscription.Member
@@ -33,6 +34,7 @@ import kotlin.time.Duration.Companion.seconds
  * passes. A backend's test extends it and supplies a store whose time comes from [clock]; each test uses its own
  * group, so the tests may share one table.
  */
+@WowSpi
 abstract class LeaseStoreSpec {
     protected abstract fun createStore(clock: Clock): LeaseStore
 

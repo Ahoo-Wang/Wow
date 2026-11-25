@@ -22,6 +22,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.schedule.Misfire
@@ -42,6 +43,7 @@ import java.util.UUID
  * every aggregate type of the context. Each call gives a store over the same storage, as another node's. Each timer is
  * in its owner's partition.
  */
+@WowSpi
 abstract class TimerStoreSpec {
     protected abstract fun createStore(): TimerStore
 

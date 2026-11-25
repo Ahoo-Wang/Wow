@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.tck
 
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.spi.json.WowJson
 import tools.jackson.databind.JsonNode
 import java.math.BigDecimal
@@ -21,6 +22,7 @@ import java.math.BigDecimal
  * JSON compared as a backend may give it back: objects by field whatever their key order (PostgreSQL JSONB reorders
  * keys), numbers by exact value and scale, so `2.50` is not `2.5` and an integer is not a decimal.
  */
+@WowSpi
 object ExactJson {
     /**
      * A JSON object whose numbers a backend must keep exactly: a decimal's trailing zeros, a 30-digit

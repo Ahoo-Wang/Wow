@@ -15,6 +15,7 @@ package me.ahoo.wow.query.admission
 
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.CursorQuery
@@ -86,7 +87,8 @@ import kotlin.time.toJavaDuration
  * Code that drives a backend directly and owns governance itself (backend conformance tests, tools, benchmarks)
  * admits through [Trusted] instead, whose name says it skips steps 0 to 3.
  */
-class QueryAdmission(
+@WowSpi
+class QueryAdmission @InternalWowApi constructor(
     private val aggregateType: AggregateType,
     filters: List<QueryFilter> = emptyList(),
     policies: List<QueryPolicy> = emptyList(),

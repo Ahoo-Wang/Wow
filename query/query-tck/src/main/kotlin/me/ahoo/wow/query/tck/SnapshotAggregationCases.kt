@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.tck
 import kotlinx.coroutines.flow.map
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.query.AggregateIdFilter
 import me.ahoo.wow.api.query.AggregateIdsFilter
 import me.ahoo.wow.api.query.AggregationDateUnit
@@ -55,6 +56,7 @@ import java.math.BigDecimal
  * The aggregation cases of the snapshot contract. They read only [SnapshotQueryFixtures]'s fixtures and hooks; see
  * [SnapshotQueryFixtures] for the chain of families it is part of.
  */
+@WowSpi
 abstract class SnapshotAggregationCases internal constructor() : SnapshotKeysetCases() {
     // Aggregation
 

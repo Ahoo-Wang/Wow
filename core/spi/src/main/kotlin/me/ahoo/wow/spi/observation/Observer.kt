@@ -140,6 +140,7 @@ interface Observation {
  * it once [block] returns or fails. For [Observation.NONE] it only runs [block].
  */
 @Suppress("TooGenericExceptionCaught") // The failure is the block's: told to the observation, then rethrown unchanged.
+@WowSpi
 suspend inline fun <T> Observation.observe(crossinline block: suspend () -> T): T {
     if (this === Observation.NONE) {
         return block()
@@ -169,9 +170,11 @@ abstract class TraceContext : AbstractCoroutineContextElement(TraceContext) {
 }
 
 /** The propagation fields of the trace this context's work belongs to; empty when it belongs to none. */
+@WowSpi
 val CoroutineContext.trace: Map<String, String>
     get() = this[TraceContext]?.fields ?: emptyMap()
 
 /** The [TraceContext] of this context alone, to start another coroutine of the same work in; empty when none. */
+@WowSpi
 val CoroutineContext.traceContext: CoroutineContext
     get() = this[TraceContext] ?: EmptyCoroutineContext

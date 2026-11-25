@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.schema
 
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.QueryValueKind
 import tools.jackson.databind.JsonNode
@@ -25,6 +26,7 @@ import tools.jackson.databind.JsonNode
  * sources; a storage adapter reads it, through [LogicalQuerySchema], to report what its storage serves.
  * Collection inputs are snapshotted; mutable enum JSON is detached on read.
  */
+@WowSpi
 class QueryValueSchema @InternalWowApi constructor(
     val kind: QueryValueKind,
     val title: String? = null,
@@ -137,6 +139,7 @@ class QueryValueSchema @InternalWowApi constructor(
  * as separate documents (an Elasticsearch `nested` mapping), when there is one; and whether an index backs it
  * ([indexed]), `null` when the storage does not say. [indexed] never gates a capability: the descriptor publishes it.
  */
+@WowSpi
 class QueryFieldBindingTemplate @InternalWowApi constructor(
     val physicalPath: QueryPathTemplate,
     storageTypes: Set<QueryStorageType>?,
@@ -177,6 +180,7 @@ class QueryFieldBindingTemplate @InternalWowApi constructor(
  * capability it can execute reads, and where a projection takes the value from ([projectionPath]) and a response
  * returns it ([responsePath]), `null` where the storage cannot project or return it.
  */
+@WowSpi
 class QueryValueBindings @InternalWowApi constructor(
     bindings: Map<QueryCapability, QueryFieldBindingTemplate> = emptyMap(),
     val projectionPath: QueryPathTemplate? = null,

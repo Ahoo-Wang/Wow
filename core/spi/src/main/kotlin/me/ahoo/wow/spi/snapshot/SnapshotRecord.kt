@@ -16,6 +16,7 @@ package me.ahoo.wow.spi.snapshot
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.schedule.ScheduleRule
 
@@ -41,6 +42,7 @@ import me.ahoo.wow.api.schedule.ScheduleRule
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
+@WowSpi
 class SnapshotRecord @InternalWowApi constructor(
     val ref: AggregateRef,
     val version: Int,

@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.schema
 
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.query.QueryErrorCodes
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.query.error.QueryErrors
@@ -30,6 +31,7 @@ import me.ahoo.wow.query.error.QueryRequestException
  *
  * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
+@WowSpi
 sealed interface QueryViolation {
     val message: String
 

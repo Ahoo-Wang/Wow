@@ -20,6 +20,7 @@ import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.spi.access.AccessValues
@@ -38,6 +39,7 @@ import org.junit.jupiter.api.assertThrows
  * read only [EventLogFixtures]' fixtures, hooks and constants; see [EventLogFixtures] for the chain of families this
  * class is part of.
  */
+@WowSpi
 abstract class EventLogRecordCases internal constructor() : EventLogFixtures() {
     @Test
     fun `an aggregate's first stream is version 1 and each next one exactly one more`(): Unit = runBlocking {

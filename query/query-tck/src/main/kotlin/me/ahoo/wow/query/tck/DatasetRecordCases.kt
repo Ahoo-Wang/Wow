@@ -15,6 +15,7 @@ package me.ahoo.wow.query.tck
 import kotlinx.coroutines.flow.single
 import kotlinx.coroutines.flow.toList
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationExpressionOperator
 import me.ahoo.wow.api.query.AndFilter
@@ -65,6 +66,7 @@ import java.math.BigDecimal
  * keyset pages, counts, streams, NOR and expressions. They read only [DatasetQueryFixtures]'s fixtures and hooks;
  * see [DatasetQueryFixtures] for the chain of families it is part of.
  */
+@WowSpi
 abstract class DatasetRecordCases internal constructor() : DatasetQueryFixtures() {
     @TestFactory
     fun `filter semantics matrix`(): List<DynamicTest> {

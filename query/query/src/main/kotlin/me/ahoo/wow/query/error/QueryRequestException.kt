@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.error
 
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.query.schema.QueryViolation
 
@@ -23,6 +24,7 @@ import me.ahoo.wow.query.schema.QueryViolation
  * [invalid][QueryErrors.INVALID]. Decoding errors state only a code: the request is
  * [malformed][QueryErrors.MALFORMED].
  */
+@WowSpi
 class QueryRequestException(
     override val message: String,
     val code: String,

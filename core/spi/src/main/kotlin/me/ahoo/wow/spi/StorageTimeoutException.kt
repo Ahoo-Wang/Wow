@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.spi
 
+import me.ahoo.wow.api.annotation.WowSpi
 import java.time.Duration
 
 /**
@@ -23,5 +24,6 @@ import java.time.Duration
  * A backend throws it, with the driver's exception as [cause], from a call that bounds its statement. The query core
  * answers it as `wow.query.timeout`; a subscription handler retries it within its budget.
  */
+@WowSpi
 class StorageTimeoutException(val timeout: Duration, cause: Throwable? = null) :
     RuntimeException("The store stopped the statement at its timeout of ${timeout.toMillis()} ms.", cause)

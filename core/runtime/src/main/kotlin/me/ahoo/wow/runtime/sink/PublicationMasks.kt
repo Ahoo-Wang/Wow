@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.runtime.sink
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.manifest.PublishedManifest
 import me.ahoo.wow.spi.read.StateMasks
 
@@ -24,6 +25,7 @@ import me.ahoo.wow.spi.read.StateMasks
  * ([revealsDisplay]): the owner declares it (`@AggregateRoot(revealsDisplay = true)`, [PublishedManifest.revealsDisplay])
  * and the service shares them. The switch only tightens: off, a stream declared to reveal them is masked all the same.
  */
+@InternalWowApi
 class PublicationMasks(val masks: StateMasks, val displayShared: Boolean) {
     /** Whether [stream] is published with its `DISPLAY` values raw: declared so, and shared. */
     fun revealsDisplay(stream: PublishedManifest): Boolean = stream.revealsDisplay && displayShared

@@ -15,6 +15,7 @@ package me.ahoo.wow.query.tck
 
 import kotlinx.coroutines.flow.toList
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
@@ -36,6 +37,7 @@ import java.time.Instant
  * their table, [ZONED], through [aggregateZoned], over [DatasetQueryFixtures]' fixtures and hooks; see there for the
  * chain of families this class is part of.
  */
+@WowSpi
 abstract class DatasetDateBucketCases internal constructor() : DatasetAggregationCases() {
     /** [query] over the dataset of [ZONED], as the spec's backend answers it. */
     private suspend fun aggregateZoned(query: AggregationQuery): List<ObjectNode> =

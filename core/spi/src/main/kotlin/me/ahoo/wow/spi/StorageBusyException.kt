@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.spi
 
+import me.ahoo.wow.api.annotation.WowSpi
+
 /**
  * A store is up but already runs as much as it takes, and did not admit this call: a query store's bulkhead, a
  * server out of connections or rejecting work (PostgreSQL's `53300`, Elasticsearch's `429`, ClickHouse's
@@ -24,4 +26,5 @@ package me.ahoo.wow.spi
  * route answers `wow.storage.unavailable` with `Retry-After`. A backend throws it with the driver's exception as
  * [cause]; a bound on the store's load throws it as the cause of the error it answers with (`wow.query.busy`, say).
  */
+@WowSpi
 class StorageBusyException(message: String, cause: Throwable? = null) : StorageUnavailableException(message, cause)

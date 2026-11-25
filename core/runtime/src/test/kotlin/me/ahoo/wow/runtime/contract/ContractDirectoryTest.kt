@@ -48,6 +48,16 @@ import org.junit.jupiter.api.assertThrows
 class ContractDirectoryTest {
     private val directory = ContractDirectory(shop(), ContractFixtures.peers)
 
+    @Test
+    fun `of should be the directory of the service's own Manifest alone`() {
+        val local = Manifest(service = ServiceInfo("shop-service"), contexts = listOf(ContextManifest("shop")))
+        val alone = ContractDirectory.of(local)
+        alone.local.assert().isSameAs(local)
+        alone.peers.assert().isEmpty()
+        alone.contextOf("shop").assert().isNotNull()
+        alone.contextOf("payment").assert().isNull()
+    }
+
     private fun problems(manifest: Manifest): List<String> =
         assertThrows<ContractException> { ContractDirectory(manifest, ContractFixtures.peers) }.problems
 

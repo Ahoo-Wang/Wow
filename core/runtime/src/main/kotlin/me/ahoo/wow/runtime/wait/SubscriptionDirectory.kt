@@ -14,6 +14,7 @@
 package me.ahoo.wow.runtime.wait
 
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.spi.log.EventStreamRecord
 
@@ -24,6 +25,7 @@ import me.ahoo.wow.spi.log.EventStreamRecord
  * The subscription runtime is one implementation, for the subscriptions of its own service; a Manifest-backed one
  * will answer for other contexts too.
  */
+@WowSpi
 interface SubscriptionDirectory {
     /** The kind of [subscription] in [context], or null when it is not known. */
     fun kindOf(context: String, subscription: String): FunctionKind?

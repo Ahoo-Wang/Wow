@@ -222,4 +222,5 @@ class Opened<out P : Any> @InternalWowApi constructor(val port: P, val schema: (
 }
 
 /** The facet of type [F] this store has ([Store.facet]), null when it has none. */
+@WowSpi
 inline fun <reified F : Any> Store.facet(): F? = facet(F::class.java)

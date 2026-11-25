@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.spi.log.AggregateTail
 import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.AppendOutcome
@@ -32,6 +33,7 @@ import org.junit.jupiter.api.Test
  * tail, its earlier request keys and its snapshot. They read only [EventLogFixtures]' fixtures, hooks and constants;
  * see [EventLogFixtures] for the chain of families this class is part of.
  */
+@WowSpi
 abstract class EventLogReadCases internal constructor() : EventLogEntryCases() {
     @Test
     fun `read returns a version range in version order`(): Unit = runBlocking {

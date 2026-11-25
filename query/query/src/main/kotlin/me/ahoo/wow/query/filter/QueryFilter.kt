@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.filter
 
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.query.RewritableFilter
 
 /**
@@ -24,6 +25,7 @@ import me.ahoo.wow.api.query.RewritableFilter
  * Filters run one after another by [order], lowest first (9.x `@Order`); filters of one order keep their
  * registration order.
  */
+@WowSpi
 interface QueryFilter {
     /** Where this filter runs among the others, lowest first. */
     val order: Int

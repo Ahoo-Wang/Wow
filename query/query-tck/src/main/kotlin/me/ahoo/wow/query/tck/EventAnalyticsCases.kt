@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.tck
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.query.AggregationElement
 import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationFunction
@@ -31,6 +32,7 @@ import org.junit.jupiter.api.Test
  * The per-event analytics cases of the `events` contract: aggregations that expand the events. They read only
  * [EventQueryFixtures]'s fixtures and hooks; see [EventQueryFixtures] for the chain of families it is part of.
  */
+@WowSpi
 abstract class EventAnalyticsCases internal constructor() : EventQueryFixtures() {
     // Per-event analytics expand the events
 

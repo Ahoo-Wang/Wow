@@ -14,6 +14,7 @@
 package me.ahoo.wow.spi.subscription
 
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 
 /**
  * A subscription by the bounded [context] it belongs to and its [name] (`processor.function`, or a built-in's
@@ -26,6 +27,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  *
  * Construct one with [of]; the constructor is internal to Wow.
  */
+@WowSpi
 class SubscriptionId @InternalWowApi constructor(val context: String, val name: String) : Comparable<SubscriptionId> {
     init {
         require(context.isNotBlank() && '.' !in context) { "A subscription's context is a context's name: '$context'." }

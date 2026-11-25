@@ -87,7 +87,7 @@ class SurfaceRulesTest {
     @Test
     fun `an SPI value should be built with of, and every SPI type should say what it is`() {
         SurfaceRules.spiPublicConstructors(repositoryRoot).assert().isEmpty()
-        SurfaceRules.spiUnmarkedTypes(repositoryRoot).assert().isEmpty()
+        SurfaceRules.unmarkedDeclarations(repositoryRoot).assert().isEmpty()
     }
 
     @Test
@@ -118,10 +118,29 @@ class SurfaceRulesTest {
             .containsExactly("me/ahoo/wow/spi/Value", "stale entry: me/ahoo/wow/spi/schema/EnsuredOnce")
         File(root, "${spi.dir}/src/main/kotlin/me/ahoo/wow/spi").mkdirs()
         File(root, "${spi.dir}/src/main/kotlin/me/ahoo/wow/spi/Ports.kt").writeText(
-            "@WowSpi\ninterface Marked\n\nsealed interface Outcome\n\n@InternalWowApi\nabstract class Inner\n",
+            listOf(
+                "package me.ahoo.wow.spi",
+                "@WowSpi\ninterface Marked",
+                "sealed interface Outcome",
+                "/** A record. */\n@InternalWowApi\nabstract class Inner",
+                "class Built @InternalWowApi constructor(val size: Int)",
+                "fun Marked.helper(): Int = 1",
+                "internal fun hidden() = Unit",
+                "private val secret = 1",
+            ).joinToString("\n\n"),
         )
-        SurfaceRules.spiUnmarkedTypes(root).assert()
-            .containsExactly("${spi.dir}/src/main/kotlin/me/ahoo/wow/spi/Ports.kt:4: sealed interface Outcome")
+        val query = ArchitectureRules.QUERY
+        File(root, "${query.dir}/src/main/kotlin/me/ahoo/wow/query").mkdirs()
+        File(root, "${query.dir}/src/main/kotlin/me/ahoo/wow/query/Reads.kt").writeText(
+            "package me.ahoo.wow.query\n\ninterface ReadHook\n\n@ExperimentalWowApi\nclass Trial\n",
+        )
+        val allowed = mapOf("me.ahoo.wow.query.ReadHook" to "an application bean", "me.ahoo.wow.query.Gone" to "gone")
+        SurfaceRules.unmarkedDeclarations(root, allowed).assert().containsExactly(
+            "${spi.dir}/src/main/kotlin/me/ahoo/wow/spi/Ports.kt:6: sealed interface Outcome",
+            "${spi.dir}/src/main/kotlin/me/ahoo/wow/spi/Ports.kt:12: class Built @InternalWowApi constructor(val size: Int)",
+            "${spi.dir}/src/main/kotlin/me/ahoo/wow/spi/Ports.kt:14: fun Marked.helper(): Int = 1",
+            "stale entry: me.ahoo.wow.query.Gone",
+        )
     }
 
     @Test

@@ -49,6 +49,7 @@ import me.ahoo.wow.spi.call.requestIdOf
  * A failure is the problem the edge would answer it with: its status, retry and `Retry-After` as the error catalog
  * declares them for its code ([FrameworkErrors.problemOf]).
  */
+@InternalWowApi
 class InProcessCommandClient @InternalWowApi constructor(
     private val gateway: CommandGateway,
     private val caller: Caller = Caller.ANONYMOUS,

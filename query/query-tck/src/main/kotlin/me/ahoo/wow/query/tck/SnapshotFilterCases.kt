@@ -15,6 +15,7 @@ package me.ahoo.wow.query.tck
 import kotlinx.coroutines.flow.map
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.query.AfterNowFilter
 import me.ahoo.wow.api.query.AggregateIdFilter
@@ -70,6 +71,7 @@ import java.util.SortedSet
  * relative time and expressions. They read only [SnapshotQueryFixtures]'s fixtures and hooks; see
  * [SnapshotQueryFixtures] for the chain of families it is part of.
  */
+@WowSpi
 abstract class SnapshotFilterCases internal constructor() : SnapshotQueryFixtures() {
     // Filters
 

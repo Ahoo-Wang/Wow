@@ -19,6 +19,7 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.spi.subscription.Checkpoint
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import org.junit.jupiter.api.Test
@@ -29,6 +30,7 @@ import java.util.UUID
  * passes. A backend's test extends it and supplies the store from [createStore]; each test uses its own group, so
  * the tests may share one store.
  */
+@WowSpi
 abstract class CheckpointStoreSpec {
     protected abstract fun createStore(): CheckpointStore
 

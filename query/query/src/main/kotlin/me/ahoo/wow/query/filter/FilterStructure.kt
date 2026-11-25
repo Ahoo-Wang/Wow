@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.filter
 
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.query.FieldPredicate
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.QueryField
@@ -24,6 +25,7 @@ import me.ahoo.wow.query.spec.spec
  * search filters, whose fields are a set). Pairs with [me.ahoo.wow.query.spec.FilterOperatorSpec]: the spec
  * says what the operator needs, [FieldPredicate] says where the node keeps its field.
  */
+@WowSpi
 fun FilterExpression.predicateField(): QueryField<*>? = (this as? FieldPredicate)?.field
 
 /** The field capability this node's operator requires, per its [me.ahoo.wow.query.spec.FilterOperatorSpec]. */

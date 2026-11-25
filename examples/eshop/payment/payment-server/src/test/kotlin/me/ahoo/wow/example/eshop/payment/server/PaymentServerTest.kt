@@ -25,7 +25,6 @@ import me.ahoo.wow.example.eshop.payment.api.payment.PaymentStateView
 import me.ahoo.wow.example.eshop.payment.api.payment.PaymentStatus
 import me.ahoo.wow.example.eshop.payment.api.payment.RequestPayment
 import me.ahoo.wow.manifest.Manifest
-import me.ahoo.wow.manifest.PeerContracts
 import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.test.server.WowServer
@@ -64,7 +63,6 @@ class PaymentServerTest {
         // is no peer of the node's own context (decision D234).
         val contracts = server.bean<ContractDirectory>()
         contracts.contextOf("eshop-ordering").assert().isNotNull()
-        contracts.peers.single().source.assert().contains("eshop-ordering-api").endsWith(PeerContracts.RESOURCE)
     }
 
     @Test

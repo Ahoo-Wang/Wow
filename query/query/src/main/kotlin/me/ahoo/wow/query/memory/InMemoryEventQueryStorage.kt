@@ -16,6 +16,7 @@ package me.ahoo.wow.query.memory
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.flow.transformWhile
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.query.backend.QueryBackendBinding
 import me.ahoo.wow.query.backend.QueryBindings
 import me.ahoo.wow.query.events.EventStreamRecords
@@ -34,6 +35,7 @@ import java.util.concurrent.ConcurrentHashMap
  * A host serves the events of a log in memory from it, over the streams the log holds; it reads them all on every
  * query, so it is for local runs, demos and tests.
  */
+@InternalWowApi
 class InMemoryEventQueryStorage(
     private val streams: suspend (AggregateType) -> List<EventStreamRecord>,
     private val delay: Duration = Duration.ZERO,
@@ -48,6 +50,7 @@ class InMemoryEventQueryStorage(
             )
         }
 
+    @InternalWowApi
     companion object {
         /**
          * The events of [log], every aggregate type's: each query reads every partition up to its head and keeps the

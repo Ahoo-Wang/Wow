@@ -15,6 +15,7 @@ package me.ahoo.wow.query.filter
 
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.query.RewritableFilter
 import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.schema.QueryModel
@@ -30,6 +31,7 @@ import me.ahoo.wow.query.schema.QueryModelSchema
  * @property queryType the gateway operation (single, list, paged, cursor, count or aggregation).
  * @property entry where the query came from, as its [caller][me.ahoo.wow.query.QueryCaller] states.
  */
+@WowSpi
 class QueryContext<Q : RewritableFilter<Q>> @InternalWowApi constructor(
     val query: Q,
     val aggregateType: AggregateType,

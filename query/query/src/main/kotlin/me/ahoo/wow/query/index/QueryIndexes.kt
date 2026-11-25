@@ -15,6 +15,7 @@ package me.ahoo.wow.query.index
 
 import me.ahoo.wow.api.access.AccessAttribute
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.query.backend.aggregate
 import me.ahoo.wow.spi.json.query.SnapshotFields
@@ -24,6 +25,7 @@ import me.ahoo.wow.spi.json.query.SnapshotFields
  * [BUILT_IN_ACCESS]): its name and its keys, logical paths. Each query backend plans its own index from it, on its
  * snapshots or, for the access attributes, its log.
  */
+@WowSpi
 class QueryIndexDeclaration @InternalWowApi constructor(val name: String, val keys: List<String>) {
     init {
         require(name.isNotEmpty()) { "An index needs a name." }

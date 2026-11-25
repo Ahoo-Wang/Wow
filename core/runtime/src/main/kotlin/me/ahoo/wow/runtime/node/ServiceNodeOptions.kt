@@ -15,6 +15,7 @@ package me.ahoo.wow.runtime.node
 
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.kernel.WritePolicies
 import me.ahoo.wow.runtime.ExecutorOptions
 import me.ahoo.wow.runtime.StateCacheOptions
@@ -218,6 +219,7 @@ data class AdmissionPlugins(
  * - **Topic management**: at its start, the node validates or creates the topics its contexts own as
  *   [ddl] says, through [admin], which any [ddl] but [Ddl.NONE] needs.
  */
+@WowSpi
 class SourceTopics @InternalWowApi constructor(
     val source: PartitionedSource,
     val prefix: String = "",

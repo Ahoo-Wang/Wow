@@ -21,6 +21,7 @@ import me.ahoo.wow.api.access.AccessOperator
 import me.ahoo.wow.api.access.AccessPredicate
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
@@ -72,6 +73,7 @@ import java.util.UUID
  * supplies its bindings ([createDatasetBindings]), loads the table ([createTable]) and the access records
  * ([storeAccess]) where those bindings read them.
  */
+@WowSpi
 abstract class DatasetAccessSpec {
     private lateinit var bindings: QueryBindings<QueryDataset>
 

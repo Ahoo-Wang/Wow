@@ -31,6 +31,7 @@ import tools.jackson.databind.node.ObjectNode
  * [storage] adapter that reports its native facts. The [QuerySchemaCatalog][me.ahoo.wow.query.schema.QuerySchemaCatalog]
  * compiles those facts with the model's sources; the storage never builds the schema itself.
  */
+@WowSpi
 class QueryBackendBinding<out B : QueryBackend> @InternalWowApi constructor(
     val backend: B,
     val storage: QueryStorageAdapter,
@@ -118,6 +119,7 @@ interface QueryBackend {
  *
  * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
+@WowSpi
 sealed interface PageWindow {
     /**
      * Records `offset until offset + limit` in sort order; [withTotal] also asks for the number of matches. A
@@ -189,6 +191,7 @@ sealed interface PageWindow {
  *
  * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
+@WowSpi
 sealed interface GroupWindow {
     /** The first [limit] groups in the query's effective sort order. */
     class First @InternalWowApi constructor(val limit: Int) : GroupWindow {
@@ -220,6 +223,7 @@ sealed interface GroupWindow {
  * One window of records. [total] is present when the window asked for it; [positions] holds each row's native
  * cursor position, in row order, for a [PageWindow.Keyset].
  */
+@WowSpi
 class BackendPage(
     val rows: List<ObjectNode>,
     val total: Long? = null,

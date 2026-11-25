@@ -21,6 +21,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.result.Hop
@@ -44,6 +45,7 @@ import org.junit.jupiter.api.assertThrows
  * transport, and how a tail reads the entries back in sequence. They read only [EventLogFixtures]' fixtures, hooks and
  * constants; see [EventLogFixtures] for the chain of families this class is part of.
  */
+@WowSpi
 abstract class EventLogEntryCases internal constructor() : EventLogAccessCases() {
     @Test
     fun `transport is given back by tail and readEntries only`(): Unit = runBlocking {

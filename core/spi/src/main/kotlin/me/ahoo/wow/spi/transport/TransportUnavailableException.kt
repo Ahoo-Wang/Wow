@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.spi.transport
 
+import me.ahoo.wow.api.annotation.WowSpi
+
 /**
  * A transport a port called could not be reached, or did not answer in time: a broker, leader or coordinator not
  * available, a network failure, too few replicas in sync, a request that timed out. The same call may succeed once the
@@ -22,4 +24,5 @@ package me.ahoo.wow.spi.transport
  * subscription pauses its partition on it, as on a store that is unavailable. Any other failure stays the client's own
  * exception.
  */
+@WowSpi
 class TransportUnavailableException(message: String, cause: Throwable? = null) : RuntimeException(message, cause)

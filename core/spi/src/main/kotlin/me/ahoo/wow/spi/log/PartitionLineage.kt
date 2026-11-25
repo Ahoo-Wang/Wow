@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.spi.log
 
+import me.ahoo.wow.api.annotation.WowSpi
+
 /**
  * Where a log partition comes from: the metadata format 1 reserves for the online splits of 10.x, so
  * that they are an additive change. Each backend stores it with the partition's counter, writes
@@ -25,6 +27,7 @@ package me.ahoo.wow.spi.log
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
+@WowSpi
 class PartitionLineage private constructor(val parent: Int?, val epoch: Int) {
     init {
         require(parent == null || parent >= 0) { "A parent partition is never negative." }

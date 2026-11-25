@@ -15,6 +15,7 @@ package me.ahoo.wow.query.observe
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.backend.single
 import me.ahoo.wow.query.filter.QueryType
@@ -34,6 +35,7 @@ import kotlin.coroutines.cancellation.CancellationException
  * [start] observes the query of a [QueryModel] as a stage of work: its span and its time, from its admission to its
  * end; the gateway ends the [Observation] it returns once the query ends, telling it the failure it ended with.
  */
+@WowSpi
 interface QueryObserver {
     fun start(aggregateType: AggregateType, queryType: QueryType, model: QueryModel): Observation = Observation.NONE
 

@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.index
 
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.QueryCapability
@@ -29,6 +30,7 @@ import me.ahoo.wow.query.schema.QueryStorageType
  * ([Key.cardinality]), and creates or checks the indexes as its `ddl` says. [logical] is the model's logical
  * definition, for a storage that maps the model's values rather than indexing keys.
  */
+@WowSpi
 class QueryIndexPlan @InternalWowApi constructor(
     val logical: LogicalQuerySchema,
     val indexes: List<Index>,

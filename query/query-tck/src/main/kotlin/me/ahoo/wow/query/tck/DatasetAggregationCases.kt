@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.tck
 import kotlinx.coroutines.flow.single
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationExpressionOperator
@@ -59,6 +60,7 @@ import java.time.ZoneId
  * value metrics. They read only [DatasetQueryFixtures]'s fixtures and hooks; see [DatasetQueryFixtures] for the chain
  * of families it is part of.
  */
+@WowSpi
 abstract class DatasetAggregationCases internal constructor() : DatasetRecordCases() {
     @Test
     fun `groups count, sum, average, bound, distinct-count and pick the first and last records`() = blocking {

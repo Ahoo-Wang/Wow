@@ -70,6 +70,7 @@ class Manifest @InternalWowApi constructor(
         }
 
     /** The schema references whose key is not in [defs]: a fragment before its schemas are generated has them all. */
+    @InternalWowApi
     val unresolvedSchemaRefs: List<String>
         get() = schemaRefs.distinct().filter { schemaKey(it) !in defs }
 

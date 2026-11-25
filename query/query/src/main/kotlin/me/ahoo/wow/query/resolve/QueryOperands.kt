@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.query.resolve
 
+import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.StringComparison
 import me.ahoo.wow.query.schema.QueryViolation
@@ -33,6 +35,7 @@ import java.math.BigDecimal
  *
  * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
+@InternalWowApi
 enum class RuntimeOperands {
     /** As the JSON it writes as, the form a record stores it in. */
     NORMALIZE,
@@ -42,6 +45,7 @@ enum class RuntimeOperands {
 }
 
 /** Whether this comparison ignores case. */
+@WowSpi
 val StringComparison.ignoreCase: Boolean
     get() = this == StringComparison.CASE_INSENSITIVE
 
@@ -49,6 +53,7 @@ val StringComparison.ignoreCase: Boolean
  * This operand as a driver value: `null`, a [String], a [Number], a [Boolean], or a [List] of those for an array
  * operand (exact array equality, `IN` values). A runtime value is handled as [runtime] says.
  */
+@InternalWowApi
 fun Any?.operandValue(runtime: RuntimeOperands = RuntimeOperands.NORMALIZE): Any? = when (this) {
     null -> null
     is String, is Boolean -> this
@@ -63,6 +68,7 @@ fun Any?.operandValue(runtime: RuntimeOperands = RuntimeOperands.NORMALIZE): Any
  * This operand as a non-null scalar driver value, as a range bound or a term needs: a [String], [Number] or [Boolean],
  * or a native runtime value under [RuntimeOperands.NATIVE].
  */
+@InternalWowApi
 fun Any?.requiredOperandValue(runtime: RuntimeOperands = RuntimeOperands.NORMALIZE): Any {
     val value = operandValue(runtime)
     return when {

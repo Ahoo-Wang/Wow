@@ -20,6 +20,7 @@ import me.ahoo.wow.spi.Ddl
  * Fields may be added: Wow builds it from the host's configuration, so the constructor is internal
  * to Wow.
  */
+@InternalWowApi
 class MongoQueryOptions @InternalWowApi constructor(
     /** How the query indexes are managed: [Ddl.AUTO] by default. */
     val indexDdl: Ddl = Ddl.AUTO,
@@ -39,6 +40,7 @@ class MongoQueryOptions @InternalWowApi constructor(
 
     private fun valueFields(): List<Any?> = listOf(indexDdl, fetchSize)
 
+    @InternalWowApi
     companion object {
         const val DEFAULT_FETCH_SIZE: Int = 256
     }

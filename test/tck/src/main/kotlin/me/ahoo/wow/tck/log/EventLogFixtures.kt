@@ -19,6 +19,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.schedule.ScheduleRule
@@ -51,6 +52,7 @@ import java.util.UUID
  * [TAIL_TIMEOUT_MS] unqualified, so its companion is protected, and a parent class cannot read a protected member of
  * its subclass's companion. What only the families read in it is internal.
  */
+@WowSpi
 abstract class EventLogFixtures internal constructor() {
     /** A new, empty log of bounded context [context] with [partitions] partitions. */
     protected abstract fun createLog(context: String, partitions: Int): EventLog

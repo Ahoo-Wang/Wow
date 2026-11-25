@@ -22,6 +22,7 @@ import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.spi.access.AccessStamp
 import me.ahoo.wow.spi.access.AccessStamps
 import me.ahoo.wow.spi.access.AccessWalk
@@ -38,6 +39,7 @@ import org.junit.jupiter.api.Test
  * type's aggregates, and claiming and advancing the walk that stamps them. They read only [EventLogFixtures]' fixtures,
  * hooks and constants; see [EventLogFixtures] for the chain of families this class is part of.
  */
+@WowSpi
 abstract class EventLogAccessCases internal constructor() : EventLogRecordCases() {
     @Test
     fun `a stamp writes the attributes over its range but the streams stamped later, however often it runs`(): Unit =

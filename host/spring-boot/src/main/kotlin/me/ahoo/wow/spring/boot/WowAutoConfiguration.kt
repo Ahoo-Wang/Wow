@@ -233,11 +233,13 @@ class WowAutoConfiguration {
         /** Refuses several beans of one single seam before any bean is built ([SingleSeams]). */
         @Bean
         @JvmStatic
+        @InternalWowApi
         internal fun wowSingleSeams(): BeanFactoryPostProcessor = SingleSeams()
 
         /** Refuses an application's QueryPolicy bean, which the node no longer applies ([RetiredQueryPolicies]). */
         @Bean
         @JvmStatic
+        @InternalWowApi
         internal fun wowRetiredQueryPolicies(): BeanFactoryPostProcessor = RetiredQueryPolicies()
 
         const val WOW_JSON_MAPPER: String = "wowJsonMapper"

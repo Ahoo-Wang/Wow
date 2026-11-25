@@ -18,6 +18,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationFunction
@@ -62,6 +63,7 @@ import java.util.UUID
  * every family reads only this class's fixtures, hooks and constants, and the suite's public constants on
  * [QueryBackendSpec], never a member of the family it extends, so any order would run the same cases.
  */
+@WowSpi
 abstract class SnapshotQueryFixtures internal constructor() {
     /** Stores [snapshots], all of [type], where the backend under test reads them. */
     protected abstract suspend fun store(snapshots: List<SnapshotRecord>)

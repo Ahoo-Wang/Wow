@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.schema
 
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.query.QueryField
 
 /**
@@ -22,6 +23,7 @@ import me.ahoo.wow.api.query.QueryField
  *
  * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
+@WowSpi
 sealed interface QueryPathSegment {
     /** The property [name]. */
     class Property @InternalWowApi constructor(val name: String) : QueryPathSegment {
@@ -60,6 +62,7 @@ sealed interface QueryPathSegment {
  * `Property(state), Property(lines), Item, Property(sku)`. A storage adapter reports its bindings by the logical
  * template ([LogicalQuerySchema.values]) and gives each binding's physical template ([of]).
  */
+@WowSpi
 class QueryPathTemplate @InternalWowApi constructor(segments: List<QueryPathSegment>) {
     val segments: List<QueryPathSegment> = java.util.List.copyOf(segments)
     internal val keyCount: Int = this.segments.count { it is QueryPathSegment.Key }

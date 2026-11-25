@@ -13,8 +13,10 @@
 
 package me.ahoo.wow.query.tck
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 
 /** A column of a TCK dataset table, in storage-neutral terms; each backend maps it to a native type. */
+@WowSpi
 class DatasetColumn @InternalWowApi constructor(val name: String, val type: Type, val nullable: Boolean = false) {
     /**
      * A date column stores instants and is declared with the `TEMPORAL_DATE` semantic (a string at the query
@@ -46,6 +48,7 @@ class DatasetColumn @InternalWowApi constructor(val name: String, val type: Type
  * strings or `null` as its column's type says. A row without a column's key leaves the value missing; a table stores
  * it as its storage stores a missing value (NULL, or an empty array).
  */
+@WowSpi
 class DatasetTable @InternalWowApi constructor(
     val name: String,
     val columns: List<DatasetColumn>,
