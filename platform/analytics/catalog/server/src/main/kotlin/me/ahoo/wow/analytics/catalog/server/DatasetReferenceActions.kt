@@ -84,14 +84,16 @@ object ReferenceActionErrors {
  *
  * - [actionsOf]: per REFERENCE field of the version a dataset serves, the commands the owning context's Manifest
  *   declares on the aggregate (read through the [manifests] of the peers [described] by their Manifest,
- *   `wow.peers.<context>.contract: manifest`) that create nothing and take a flat body, whose properties
- *   are strings, numbers, booleans or enumerations: what a row's form can ask for. A context without such a client
- *   offers nothing, nor does one whose Manifest cannot be read now.
+ *   `wow.peers.<context>.contract: manifest`) that create nothing, are not internal and take a flat body, whose
+ *   properties are strings, numbers, booleans or enumerations: what a row's form can ask for. A context without such
+ *   a client offers nothing, nor does one whose Manifest cannot be read now.
  * - [send]: a command [actionsOf] offers, sent through the caller's commands as a [NamedCommand] to the aggregate
  *   of the row's id, in the caller's tenant, waiting with the owning service's default plan (until its snapshot holds
  *   the commit, or it is committed). An unknown dataset or field is 404 ([ReferenceActionErrors]), a command not
- *   offered 400 `wow.command.unhandled`: the relay is no open door. The owning service's refusal passes through, in
- *   its code, status and words.
+ *   offered 400 `wow.command.unhandled`: the relay is no open door. An internal command of the owning service
+ *   (`@InternalCommand`) is refused so whatever the rows offer: the relay reaches the owning service's internal port,
+ *   where it is served, while a direct call of it is 404 on the public port. The owning service's refusal passes
+ *   through, in its code, status and words.
  *
  * Both are service routes of the context: [referenceActions] and [sendReferenceAction].
  */
@@ -200,17 +202,20 @@ class DatasetReferenceActions(
         command: String,
         caller: Caller,
     ): Pair<DatasetReference, Manifest> {
-        val fields = referencesOf(dataset)
-        val reference = fields?.get(field)
-            ?: throw if (fields == null) {
-                RouteRefusal(ReferenceActionErrors.DATASET_NOT_SERVED, "No dataset $dataset is served.")
-            } else {
-                RouteRefusal(ReferenceActionErrors.NOT_A_REFERENCE, "$field is no reference field of $dataset.")
-            }
-        val manifest = manifestOf(reference.context, caller)
-            ?.takeIf { manifest -> offered(manifest, reference).any { it.first.name == command } }
-            ?: throw unhandled(reference, command)
+        val reference = referenceOf(dataset, field)
+        val manifest = manifestOf(reference.context, caller) ?: throw unhandled(reference, command)
+        refusalOf(manifest, reference, command)?.let { throw it }
         return reference to manifest
+    }
+
+    /** The aggregate [field] of [dataset] refers to; else 404, for an unknown dataset or field. */
+    private suspend fun referenceOf(dataset: String, field: String): DatasetReference {
+        val fields = referencesOf(dataset)
+        return fields?.get(field) ?: throw if (fields == null) {
+            RouteRefusal(ReferenceActionErrors.DATASET_NOT_SERVED, "No dataset $dataset is served.")
+        } else {
+            RouteRefusal(ReferenceActionErrors.NOT_A_REFERENCE, "$field is no reference field of $dataset.")
+        }
     }
 
     /** The REFERENCE fields of the version [dataset] serves, by name; null when it serves none. */
@@ -233,6 +238,19 @@ class DatasetReferenceActions(
         }
     }
 
+    /**
+     * Why the relay sends [command] to no aggregate of [reference] in [manifest], or null when a row offers it. An
+     * internal command is refused at the relay itself, not only left out of what the rows offer (#6925).
+     */
+    private fun refusalOf(manifest: Manifest, reference: DatasetReference, command: String): RouteRefusal? = when {
+        aggregateOf(manifest, reference)?.commands?.any { it.name == command && it.internal } == true -> RouteRefusal(
+            FrameworkCodes.COMMAND_UNHANDLED,
+            "$command is an internal command of ${reference.context}.${reference.aggregate}: no row relays it.",
+        )
+        offered(manifest, reference).none { it.first.name == command } -> unhandled(reference, command)
+        else -> null
+    }
+
     private fun unhandled(reference: DatasetReference, command: String) = RouteRefusal(
         FrameworkCodes.COMMAND_UNHANDLED,
         "$command is no action the rows offer on ${reference.context}.${reference.aggregate}.",
@@ -244,15 +262,20 @@ class DatasetReferenceActions(
 
         /**
          * The commands of [reference]'s aggregate in [manifest] a row offers, with their inputs: those that create
-         * nothing, are no mounted or system command and take a flat body.
+         * nothing, are no mounted, system or internal command and take a flat body. An internal command
+         * (`@InternalCommand`) is the owning service's own, which its public port answers 404.
          */
         fun offered(manifest: Manifest, reference: DatasetReference): List<Pair<CommandManifest, List<CommandInput>>> {
-            val aggregate = manifest.contexts.firstOrNull { it.name == reference.context }
-                ?.aggregates?.firstOrNull { it.name == reference.aggregate } ?: return emptyList()
+            val aggregate = aggregateOf(manifest, reference) ?: return emptyList()
             return aggregate.domainCommands
-                .filter { it.creation == Creation.NONE && !it.mounted }
+                .filter { it.creation == Creation.NONE && !it.mounted && !it.internal }
                 .mapNotNull { command -> inputsOf(manifest, command.schema)?.let { command to it } }
         }
+
+        /** The aggregate [reference] names in [manifest], or null when its context does not declare it. */
+        private fun aggregateOf(manifest: Manifest, reference: DatasetReference) =
+            manifest.contexts.firstOrNull { it.name == reference.context }
+                ?.aggregates?.firstOrNull { it.name == reference.aggregate }
 
         /**
          * The inputs of the body [schema] names, or null when it is not flat. A read-only property, a computed one the

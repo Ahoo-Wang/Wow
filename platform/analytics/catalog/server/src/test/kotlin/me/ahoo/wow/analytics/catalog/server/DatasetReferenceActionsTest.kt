@@ -14,6 +14,7 @@
 package me.ahoo.wow.analytics.catalog.server
 
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
@@ -104,6 +105,67 @@ class DatasetReferenceActionsTest {
         DatasetReferenceActions.inputsOf(MANIFEST, "#/\$defs/crm.Two").assert().isNull()
         DatasetReferenceActions.offered(MANIFEST, reference).map { it.first.name }
             .assert().containsExactly("Bare", "Searched")
+    }
+
+    /** The member of crm with a command a row offers and an internal one (`@InternalCommand`) of the same shape. */
+    private val internalManifest = manifest(
+        contexts = listOf(
+            context(
+                name = "crm",
+                aggregates = listOf(
+                    aggregate(
+                        name = "member",
+                        state = "#/\$defs/crm.State",
+                        commands = listOf(
+                            command(name = "Bare", schema = "#/\$defs/crm.Bare"),
+                            command(name = "Confirm", schema = "#/\$defs/crm.Bare") + ("internal" to true),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+        defs = mapOf("crm.Bare" to mapOf("type" to "object")),
+    )
+
+    @Test
+    fun `an internal command of the owning service is offered on no row`() {
+        // Its public port answers it 404; the relay reaches its internal port, which serves it (#6925).
+        internalManifest.contexts.single().aggregates.single().commands.single { it.name == "Confirm" }.internal
+            .assert().isTrue()
+        DatasetReferenceActions.offered(internalManifest, reference).map { it.first.name }
+            .assert().containsExactly("Bare")
+    }
+
+    @Test
+    fun `an internal command of the owning service is refused at the relay, which sends it nowhere`() {
+        val commands = mockk<CommandClient> {
+            every { of(any()) } returns this
+            coEvery { wait(any()) } returns mockk(relaxed = true)
+        }
+        val refusal = assertThrownBy<RouteRefusal> {
+            runBlocking {
+                actions(manifest = { internalManifest }).send(
+                    "shop.invoices",
+                    "member",
+                    "m-1",
+                    "Confirm",
+                    WowJson.mapper.createObjectNode(),
+                    caller,
+                    commands,
+                )
+            }
+        }.actual()
+        refusal.code.assert().isEqualTo(FrameworkCodes.COMMAND_UNHANDLED)
+        refusal.message.assert().isEqualTo("Confirm is an internal command of crm.member: no row relays it.")
+        // A Manifest that declares no such aggregate relays nothing either, internal or not.
+        val undeclared = assertThrownBy<RouteRefusal> {
+            runBlocking {
+                actions(manifest = { manifest() })
+                    .send("shop.invoices", "member", "m-1", "Bare", WowJson.mapper.createObjectNode(), caller, commands)
+            }
+        }.actual()
+        undeclared.message.assert().isEqualTo("Bare is no action the rows offer on crm.member.")
+        coVerify(exactly = 0) { commands.wait(any()) }
     }
 
     @Test

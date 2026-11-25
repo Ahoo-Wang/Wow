@@ -147,6 +147,8 @@ Wow 的运维命令（定时作业的命令、快照重建、对停放条目的�
 
 wow-generator 生成的 TypeScript 客户端按 Kotlin 契约的命名给错误码常量命名（[生成客户端](../typescript/generate)）。单词切分不同、本地名以数字开头，或不以所在上下文名开头的错误码，得到另一个常量：`invalidURLValue` 原来是 `INVALID_URLVALUE`，现在是 `INVALID_URL_VALUE`；分析目录的 `ANALYTICS_CATALOG_DEFINITION_INVALID` 现在是 `ANALYTICS__CATALOG__DEFINITION_INVALID`。领域命令 `Gateway` 由 `gateway` 发送，原来是 `gatewayCommand`；按无 id 发送的方法名被另一条命令的名字占用时，改名的是命令本身（加 `Command`），而不只是那个方法。重新生成客户端，并改掉代码引用的名字；把 problem 的 `code` 与错误码文本或 `<Context>ErrorCode` 比较的代码无需改动。
 
+分析目录不再转发数据集行所引用服务的内部命令（`@InternalCommand`）：行不提供任何内部命令，发送内部命令的请求答以 `400 wow.command.unhandled`，以前目录会把它发往该服务的内部端口并被执行。直接调用内部命令在该服务的公开端口上是 `404`，转发也绕不过这一点。经由目录发送过内部命令的控制台或脚本，改为从拥有该命令的服务发送，或者把该命令改为公开命令。
+
 列出了快照存储的预发布版，要在启动本版本之前修改配置。配置项 `wow.snapshot.stores`、`wow.snapshot.primary`，以及聚合的 `snapshot.stores` 和 `snapshot.primary` 已经移除，每一个都会拒绝启动，并指出它自己。用 `wow.snapshot.store` 或聚合的 `snapshot.store` 为每个类型指定它唯一的存储。保留了检索副本的部署（`snapshot.stores: [main, search]` 加 `query.snapshot.store: search`）去掉 `snapshot.stores`、保留 `query.snapshot.store`：副本的订阅名不变，仍是 `wow.snapshot:search`，所以它的索引和检查点都保留，也不会重新读取任何东西。
 
 提供者的选项，无论在 `wow.<type>` 下（`wow.kafka.*`、`wow.mongo.*`、对等发现的、数据集后端的），还是在 `wow.stores.<name>` 下属于某个存储自己的，现在都按 Spring 绑定的每一种写法读取，与配置键检查的读法一致：环境变量（`WOW_KAFKA_COMMANDINTAKE_ENABLED`）或驼峰写法（`commandIntake.enabled`）与短横线写法的键含义相同，两者同时出现时按环境的顺序决定。预发布版本只按某个文件中的短横线键读取提供者的选项：没有文件设置其短横线写法的环境变量或驼峰键能通过启动检查，却不会被读取。这样的设置现在会生效；请检查部署以这种方式设置了什么。Wow 自带的 eShop 支付服务的 chart 设置了 `WOW_KAFKA_COMMANDINTAKE_ENABLED: "true"`，预发布版本忽略了它：它的命令接收现在会运行。
