@@ -284,7 +284,6 @@ API 只是升级要保持兼容的三样东西之一。在同一个主版本内�
 | `me.ahoo.wow.query.memory.InMemoryQueryBackend` | class | `wow-query` |
 | `me.ahoo.wow.query.observe.QueryAudit` | class | `wow-query` |
 | `me.ahoo.wow.query.observe.QueryObserver` | interface | `wow-query` |
-| `me.ahoo.wow.query.policy.QueryEntryPolicy` | class | `wow-query` |
 | `me.ahoo.wow.query.resolve.ignoreCase` | val | `wow-query` |
 | `me.ahoo.wow.query.resolve.ResolvedField` | class | `wow-query` |
 | `me.ahoo.wow.query.schema.MaskRule` | class | `wow-query` |

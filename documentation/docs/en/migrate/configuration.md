@@ -5,7 +5,7 @@ description: Where each group of 9.x `wow.*` configuration keys went in V10, whi
 
 # Configuration Keys
 
-V10's keys live under `wow.*` too, but most 9.x keys do not carry over: a 9.x key V10 does not name binds to nothing, and the service refuses to start, naming it and pointing to this page. A few keep their name and meaning: `wow.kafka.bootstrap-servers`, `wow.kafka.properties`, `wow.query.require-explicit-entry`, `wow.query.require-authenticated-scope`, `wow.query.sensitivity.display-comparable`. Map every key the 9.x service sets to its V10 counterpart, or record it as removed with what it configured. The `wow-migrate` Skill does this with the source. [Configuration Keys](../reference/configuration) is the complete list of V10 keys, generated from the code; [Configure a Service](../operate/configuration) explains them by task.
+V10's keys live under `wow.*` too, but most 9.x keys do not carry over: a 9.x key V10 does not name binds to nothing, and the service refuses to start, naming it and pointing to this page. A few keep their name and meaning: `wow.kafka.bootstrap-servers`, `wow.kafka.properties`, `wow.query.sensitivity.display-comparable`. Map every key the 9.x service sets to its V10 counterpart, or record it as removed with what it configured. The `wow-migrate` Skill does this with the source. [Configuration Keys](../reference/configuration) is the complete list of V10 keys, generated from the code; [Configure a Service](../operate/configuration) explains them by task.
 
 ## The service and its node
 
@@ -49,7 +49,8 @@ V10's keys live under `wow.*` too, but most 9.x keys do not carry over: a 9.x ke
 | `wow.webflux.command.request.appender.*` | `wow.http.request-facts`: the request headers a command keeps |
 | `wow.query.http.*` (`max-list-size`, `max-page-size`, `max-filter-nodes`, `allow-expensive-operators`, …) | `wow.query.budgets.http.*`, the same names |
 | `wow.query.abac.*`, `wow.query.sensitivity.*` | `wow.query.sensitivity.*`; `wow.query.abac.*` is removed and refused at startup (access attributes and access policies replace it: [Ownership and Access](../guide/ownership#write-an-access-policy)) |
-| `wow.query.require-explicit-entry`, `require-authenticated-scope` | The same keys |
+| `wow.query.require-authenticated-scope` | Removed: every query is restricted to the tenant of the authenticated caller the service resolves from the request, so there is nothing left to require. The key's check read a scope the query routes never set, and when on it refused every HTTP query of a built-in model. Remove the key, which is refused at startup |
+| `wow.query.require-explicit-entry` | Removed: every query states where it comes from (the HTTP routes state HTTP, in-process code runs in process), so there is nothing left to require; remove the key, which is refused at startup |
 | `wow.query.schema.*` (`revalidate-interval`, `legacy-declarations`) | Removed: the query model comes from the Manifest |
 | `wow.query.datasets`, `wow.query.clickhouse.*` | `wow.query.dataset.*` and `wow.clickhouse.*` ([Publish Datasets](../guide/datasets)) |
 | `wow.openapi.enabled` | `wow.http.openapi.enabled`, and `wow.http.openapi.springdoc.*` for springdoc |

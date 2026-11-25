@@ -164,6 +164,3 @@ internal suspend fun ReadAuthorizer.authorizeOrThrow(caller: QueryCaller, read: 
         throw ReadDeniedException(decision.code, decision.message)
     }
 }
-
-/** This entry as a read names it: an entry nobody stated is in process. */
-internal fun QueryEntry.admitted(): QueryEntry = if (this == QueryEntry.UNSPECIFIED) QueryEntry.IN_PROCESS else this

@@ -1193,7 +1193,6 @@ export const QueryErrorCodes: Readonly<{
     readonly COUNT_REQUIRES_FILTER: "count-requires-filter";
     readonly RESIDUAL_GROUPS_EXCEEDED: "residual-groups-exceeded";
     readonly TOO_MANY_GROUPS: "too-many-groups";
-    readonly EXPLICIT_ENTRY_REQUIRED: "explicit-entry-required";
     readonly REPLAY_TOO_LONG: "replay-too-long";
     readonly UNKNOWN_FIELD: "unknown-field";
     readonly UNSUPPORTED_CAPABILITY: "unsupported-capability";

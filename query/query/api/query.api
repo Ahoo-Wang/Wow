@@ -1,7 +1,6 @@
 public final class me/ahoo/wow/query/QueryCaller {
 	public static final field Companion Lme/ahoo/wow/query/QueryCaller$Companion;
 	public static final field IN_PROCESS Lme/ahoo/wow/query/QueryCaller;
-	public static final field UNSPECIFIED Lme/ahoo/wow/query/QueryCaller;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getAttributes ()Ljava/util/Map;
 	public final fun getCaller ()Lme/ahoo/wow/api/caller/Caller;
@@ -33,7 +32,6 @@ public final class me/ahoo/wow/query/QueryEntry : java/lang/Enum {
 	public static final field HTTP Lme/ahoo/wow/query/QueryEntry;
 	public static final field IN_PROCESS Lme/ahoo/wow/query/QueryEntry;
 	public static final field UNBOUNDED Lme/ahoo/wow/query/QueryEntry;
-	public static final field UNSPECIFIED Lme/ahoo/wow/query/QueryEntry;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/query/QueryEntry;
 	public static fun values ()[Lme/ahoo/wow/query/QueryEntry;
@@ -776,39 +774,6 @@ public abstract interface class me/ahoo/wow/query/observe/QueryObserver {
 
 public final class me/ahoo/wow/query/observe/QueryObserver$Companion {
 	public final fun of (Ljava/util/List;)Lme/ahoo/wow/query/observe/QueryObserver;
-}
-
-public final class me/ahoo/wow/query/policy/QueryEntryPolicy {
-	public static final field Companion Lme/ahoo/wow/query/policy/QueryEntryPolicy$Companion;
-	public synthetic fun <init> (ZZLme/ahoo/wow/query/admission/QueryBudget;Lme/ahoo/wow/query/admission/QueryBudget;Lkotlin/time/Duration;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public final fun admit (Lme/ahoo/wow/query/QueryEntry;)Lme/ahoo/wow/query/QueryEntry;
-	public final fun budget (Lme/ahoo/wow/query/QueryEntry;)Lme/ahoo/wow/query/admission/QueryBudget;
-	public fun equals (Ljava/lang/Object;)Z
-	public final fun getHttp ()Lme/ahoo/wow/query/admission/QueryBudget;
-	public final fun getInProcess ()Lme/ahoo/wow/query/admission/QueryBudget;
-	public final fun getInProcessTimeout-FghU774 ()Lkotlin/time/Duration;
-	public final fun getRequireAuthenticatedScope ()Z
-	public final fun getRequireExplicitEntry ()Z
-	public fun hashCode ()I
-	public static final fun of ()Lme/ahoo/wow/query/policy/QueryEntryPolicy;
-	public static final fun of (Z)Lme/ahoo/wow/query/policy/QueryEntryPolicy;
-	public static final fun of (ZZ)Lme/ahoo/wow/query/policy/QueryEntryPolicy;
-	public static final fun of (ZZLme/ahoo/wow/query/admission/QueryBudget;)Lme/ahoo/wow/query/policy/QueryEntryPolicy;
-	public static final fun of (ZZLme/ahoo/wow/query/admission/QueryBudget;Lme/ahoo/wow/query/admission/QueryBudget;)Lme/ahoo/wow/query/policy/QueryEntryPolicy;
-	public static final fun of-jSaE0eg (ZZLme/ahoo/wow/query/admission/QueryBudget;Lme/ahoo/wow/query/admission/QueryBudget;Lkotlin/time/Duration;)Lme/ahoo/wow/query/policy/QueryEntryPolicy;
-	public final fun timeout-LV8wdWc (Lme/ahoo/wow/query/QueryEntry;)Lkotlin/time/Duration;
-	public fun toString ()Ljava/lang/String;
-}
-
-public final class me/ahoo/wow/query/policy/QueryEntryPolicy$Companion {
-	public final fun getDEFAULT ()Lme/ahoo/wow/query/policy/QueryEntryPolicy;
-	public final fun of ()Lme/ahoo/wow/query/policy/QueryEntryPolicy;
-	public final fun of (Z)Lme/ahoo/wow/query/policy/QueryEntryPolicy;
-	public final fun of (ZZ)Lme/ahoo/wow/query/policy/QueryEntryPolicy;
-	public final fun of (ZZLme/ahoo/wow/query/admission/QueryBudget;)Lme/ahoo/wow/query/policy/QueryEntryPolicy;
-	public final fun of (ZZLme/ahoo/wow/query/admission/QueryBudget;Lme/ahoo/wow/query/admission/QueryBudget;)Lme/ahoo/wow/query/policy/QueryEntryPolicy;
-	public final fun of-jSaE0eg (ZZLme/ahoo/wow/query/admission/QueryBudget;Lme/ahoo/wow/query/admission/QueryBudget;Lkotlin/time/Duration;)Lme/ahoo/wow/query/policy/QueryEntryPolicy;
-	public static synthetic fun of-jSaE0eg$default (Lme/ahoo/wow/query/policy/QueryEntryPolicy$Companion;ZZLme/ahoo/wow/query/admission/QueryBudget;Lme/ahoo/wow/query/admission/QueryBudget;Lkotlin/time/Duration;ILjava/lang/Object;)Lme/ahoo/wow/query/policy/QueryEntryPolicy;
 }
 
 public final class me/ahoo/wow/query/policy/ReadAction {
@@ -1638,17 +1603,6 @@ public final class me/ahoo/wow/query/schema/QueryViolation$ExpensiveOperatorDisa
 	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/query/schema/QueryViolation$ExpensiveOperatorDisabled;
 	public final fun of (Ljava/lang/String;Ljava/lang/String;ZLjava/lang/String;)Lme/ahoo/wow/query/schema/QueryViolation$ExpensiveOperatorDisabled;
 	public static synthetic fun of$default (Lme/ahoo/wow/query/schema/QueryViolation$ExpensiveOperatorDisabled$Companion;Ljava/lang/String;Ljava/lang/String;ZLjava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/query/schema/QueryViolation$ExpensiveOperatorDisabled;
-}
-
-public final class me/ahoo/wow/query/schema/QueryViolation$ExplicitEntryRequired : me/ahoo/wow/query/schema/QueryViolation {
-	public static final field INSTANCE Lme/ahoo/wow/query/schema/QueryViolation$ExplicitEntryRequired;
-	public fun equals (Ljava/lang/Object;)Z
-	public fun getCode ()Ljava/lang/String;
-	public fun getKind ()Lme/ahoo/wow/query/schema/QueryViolation$Kind;
-	public fun getLocation ()Ljava/lang/String;
-	public fun getMessage ()Ljava/lang/String;
-	public fun hashCode ()I
-	public fun toString ()Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/query/schema/QueryViolation$FilterTooLarge : me/ahoo/wow/query/schema/QueryViolation {

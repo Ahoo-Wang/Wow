@@ -38,10 +38,6 @@ class DatasetQueryModelProfile internal constructor(val dataset: QueryDataset) :
     override val eventTimeField: QueryField<*>?
         get() = dataset.eventTime
 
-    /** The tenant column, or, for a platform-level dataset, the tenant it pins through [fixedTenantId]. */
-    override val requiredScope: QueryField<*>
-        get() = dataset.scope.tenant ?: PLATFORM_SCOPE
-
     override val fixedTenantId: String?
         get() = dataset.scope.fixedTenantId
 
@@ -66,8 +62,5 @@ class DatasetQueryModelProfile internal constructor(val dataset: QueryDataset) :
 
     private companion object {
         val EMPTY_DECLARATION = QuerySchemaDeclaration(emptyMap())
-
-        /** What a platform-level dataset's caller scope must pin: the tenant, which no column holds. */
-        val PLATFORM_SCOPE = QueryField("tenantId")
     }
 }

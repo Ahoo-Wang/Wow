@@ -3532,7 +3532,6 @@ export const en: {
     readonly "runtime.query.failed.count-requires-filter": "Add a condition first: the service will not count every record.";
     readonly "runtime.query.failed.residual-groups-exceeded": "This summary has too many groups for the service to filter or sort by a metric; narrow the data first.";
     readonly "runtime.query.failed.too-many-groups": "This summary has more groups than it may show and no order to choose them by; sort it, or raise its limit.";
-    readonly "runtime.query.failed.explicit-entry-required": "The query named no entry to run against: {reason}";
     readonly "runtime.query.failed.replay-too-long": "That state is too many changes away to rebuild: {reason}";
     readonly "runtime.query.failed.temporal-aggregation-unsupported": "{field} does not store its time as a date or a timestamp, so it cannot be grouped or measured by time.";
     readonly "runtime.query.failed.sort-too-many": "The sort has too many fields; remove some.";

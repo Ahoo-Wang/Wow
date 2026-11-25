@@ -19,6 +19,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.query.admission.QueryBudget
 import me.ahoo.wow.query.backend.CursorPosition
 import me.ahoo.wow.query.backend.GroupWindow
 import me.ahoo.wow.query.backend.PageWindow
@@ -120,7 +121,7 @@ class QueryPlainValuesTest {
             PageWindow.Keyset.of(after = CursorPosition(listOf("a")), limit = 2),
             GroupWindow.First.of(limit = 2),
             QueryBackendBinding.of(mockk<QueryBackend>(), mockk<QueryStorageAdapter>()),
-            QueryEntryPolicy.of(requireExplicitEntry = true),
+            QueryEntryPolicy.of(inProcess = QueryBudget.IN_PROCESS_DEFAULT),
             QueryScope.of(authenticated = MatchAllFilter),
             ORDERS,
             QueryDatasetScope.of(tenant = FIELD),
@@ -132,7 +133,7 @@ class QueryPlainValuesTest {
                 AggregateType("a", "b"),
                 mockk<QueryModelSchema>(),
                 QueryType.entries.first(),
-                QueryEntry.UNSPECIFIED,
+                QueryEntry.IN_PROCESS,
             ),
             QueryIndexDeclaration("a", listOf("b")),
             DeclarationValue.Set.of("a"),

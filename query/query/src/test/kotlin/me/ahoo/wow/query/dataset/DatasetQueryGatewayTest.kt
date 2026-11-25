@@ -52,12 +52,10 @@ import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.QueryScope
 import me.ahoo.wow.query.admission.QueryTargetException
 import me.ahoo.wow.query.error.QueryErrors
-import me.ahoo.wow.query.error.QueryScopeRequiredException
 import me.ahoo.wow.query.memory.InMemoryDatasetStorageAdapter
 import me.ahoo.wow.query.policy.AccessFixtures
 import me.ahoo.wow.query.policy.AccessPolicies
 import me.ahoo.wow.query.policy.AccessQueryPolicy
-import me.ahoo.wow.query.policy.QueryEntryPolicy
 import me.ahoo.wow.query.policy.QueryPolicy
 import me.ahoo.wow.query.policy.ScopeQueryPolicy
 import me.ahoo.wow.query.schema.QueryModel
@@ -366,18 +364,11 @@ internal class DatasetQueryGatewayTest : DatasetQueryGatewayFixtures() {
         count("t1")
         ((backend.admitted.last().query as CountQuery).filter).assert().isSameAs(MatchNoneFilter)
 
-        val authenticated = QueryEntryPolicy(requireAuthenticatedScope = true)
-        assertThrows<QueryScopeRequiredException> {
-            gateway(
-                backend,
-                platform,
-                entryPolicy = authenticated
-            ).count(CountQuery(MatchAllFilter), QueryCaller(entry = QueryEntry.HTTP))
-        }
+        // A tenant filter naming the platform tenant matches every record of a platform-level dataset.
         val pinned = QueryCaller(entry = QueryEntry.HTTP).withScope(
             QueryScope(authenticated = TenantIdFilter(QueryDatasetScope.PLATFORM_TENANT)),
         )
-        gateway(backend, platform, entryPolicy = authenticated).count(CountQuery(MatchAllFilter), pinned)
+        gateway(backend, platform).count(CountQuery(MatchAllFilter), pinned)
             .assert().isEqualTo(CountResult(1, exact = true))
         platform.profile.systemField(SystemField.TENANT_ID).assert().isNull()
     }

@@ -107,11 +107,6 @@ export const QueryErrorCodes = Object.freeze({
    */
   TOO_MANY_GROUPS: 'too-many-groups',
   /**
-   * An in-process query named no entry where one is required. Never
-   * answered over HTTP; listed so the mirror stays complete.
-   */
-  EXPLICIT_ENTRY_REQUIRED: 'explicit-entry-required',
-  /**
    * A state point read (`GET …/{id}/state?version=|at=`, `…/state/trace`): the
    * state asked for is more commits away from the snapshot, or from version 1,
    * than a state read replays. The path is the query parameter.

@@ -284,7 +284,6 @@ The two lists below are generated from the sources of the published modules: the
 | `me.ahoo.wow.query.memory.InMemoryQueryBackend` | class | `wow-query` |
 | `me.ahoo.wow.query.observe.QueryAudit` | class | `wow-query` |
 | `me.ahoo.wow.query.observe.QueryObserver` | interface | `wow-query` |
-| `me.ahoo.wow.query.policy.QueryEntryPolicy` | class | `wow-query` |
 | `me.ahoo.wow.query.resolve.ignoreCase` | val | `wow-query` |
 | `me.ahoo.wow.query.resolve.ResolvedField` | class | `wow-query` |
 | `me.ahoo.wow.query.schema.MaskRule` | class | `wow-query` |

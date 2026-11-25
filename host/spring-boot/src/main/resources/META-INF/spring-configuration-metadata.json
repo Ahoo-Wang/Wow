@@ -1236,18 +1236,6 @@
     "sourceType" : "me.ahoo.wow.spring.boot.query.QueryProperties$Memory",
     "defaultValue" : true
   }, {
-    "name" : "wow.query.require-authenticated-scope",
-    "type" : "java.lang.Boolean",
-    "description" : "Whether an HTTP query of a built-in model is refused unless the caller's authenticated scope pins its tenant; off, a declared scope, such as a tenant header, is trusted.",
-    "sourceType" : "me.ahoo.wow.spring.boot.query.QueryProperties",
-    "defaultValue" : false
-  }, {
-    "name" : "wow.query.require-explicit-entry",
-    "type" : "java.lang.Boolean",
-    "description" : "Whether a query must say whether it comes over HTTP or in process; off, a query that does not say is taken as in-process.",
-    "sourceType" : "me.ahoo.wow.spring.boot.query.QueryProperties",
-    "defaultValue" : false
-  }, {
     "name" : "wow.query.sensitivity.display-comparable",
     "type" : "java.lang.Boolean",
     "description" : "Whether filters and sorts may compare a field whose sensitivity is `DISPLAY`.",

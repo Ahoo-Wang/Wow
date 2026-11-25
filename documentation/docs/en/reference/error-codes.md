@@ -83,7 +83,6 @@ A rejected query request (`wow.query.malformed` or `wow.query.invalid`) lists wh
 | `count-requires-filter` | The entry budget and gates. |
 | `residual-groups-exceeded` | The entry budget and gates. Experimental: only an aggregation query gives it. |
 | `too-many-groups` | The entry budget and gates. Experimental: only an aggregation query gives it. |
-| `explicit-entry-required` | The entry budget and gates. |
 | `replay-too-long` | A state point read. |
 | `unknown-field` | Admission against the query model. |
 | `unsupported-capability` | Admission against the query model. |

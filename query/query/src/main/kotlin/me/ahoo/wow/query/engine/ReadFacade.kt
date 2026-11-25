@@ -30,7 +30,6 @@ import me.ahoo.wow.query.observe.finished
 import me.ahoo.wow.query.observe.started
 import me.ahoo.wow.query.policy.ReadAction
 import me.ahoo.wow.query.policy.ReadAuthorizer
-import me.ahoo.wow.query.policy.admitted
 import me.ahoo.wow.query.policy.authorizeOrThrow
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.state.StateRead
@@ -168,7 +167,7 @@ class ReadFacade(
                 val trail = if (observer.audits) QueryAuditTrail(type, queryType, what, caller) else null
                 try {
                     authorizer.authorizeOrThrow(caller) {
-                        ReadAction(type, QueryModel.SNAPSHOT, queryType, caller.entry.admitted())
+                        ReadAction(type, QueryModel.SNAPSHOT, queryType, caller.entry)
                     }
                     if (trail != null && queryType == QueryType.STATE) {
                         val schema = visibility(type)?.recordSchema()

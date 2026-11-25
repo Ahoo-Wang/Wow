@@ -67,16 +67,8 @@ abstract class QueryModelProfile internal constructor(val model: QueryModel) {
     open val firstEventTimeField: QueryField<*>? = null
 
     /**
-     * The field an authenticated caller scope must pin when
-     * [requireAuthenticatedScope][me.ahoo.wow.query.policy.QueryEntryPolicy.requireAuthenticatedScope] is on: the tenant,
-     * the isolation boundary of every built-in model.
-     */
-    abstract val requiredScope: QueryField<*>
-
-    /**
      * The one tenant every record belongs to, for a model with no tenant field (a platform-level dataset); `null`
-     * otherwise. A tenant filter then matches every record when it names this tenant and none when it names another,
-     * and it pins [requiredScope].
+     * otherwise. A tenant filter then matches every record when it names this tenant and none when it names another.
      */
     open val fixedTenantId: String? = null
 
@@ -143,9 +135,6 @@ sealed class BuiltInQueryModelProfile(model: QueryModel) : QueryModelProfile(mod
     abstract override val identityField: QueryField<*>
     abstract override val payloadField: QueryField<*>
     abstract override val eventTimeField: QueryField<*>
-
-    final override val requiredScope: QueryField<*>
-        get() = metadataField(SystemField.TENANT_ID)
 
     @InternalWowApi
     final override fun systemField(field: SystemField): QueryField<*> = when (field) {

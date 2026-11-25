@@ -253,7 +253,7 @@ class DefaultQueryGateway(
     override suspend fun recordSchema(): QueryModelSchema = schemaProvider.schema()
 
     override suspend fun describe(entry: QueryEntry, defaultListSize: Int?): QueryModelDescriptor =
-        schemaProvider.schema().describe(entryPolicy.budget(entryPolicy.admit(entry)), defaultListSize)
+        schemaProvider.schema().describe(entryPolicy.budget(entry), defaultListSize)
             .withConstraints(constraints)
 
     /**

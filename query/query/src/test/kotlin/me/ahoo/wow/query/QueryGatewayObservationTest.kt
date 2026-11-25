@@ -51,6 +51,7 @@ import me.ahoo.wow.query.QueryGatewayFixtures.SCHEMA
 import me.ahoo.wow.query.QueryGatewayFixtures.errorObserver
 import me.ahoo.wow.query.QueryGatewayFixtures.gateway
 import me.ahoo.wow.query.QueryGatewayFixtures.snapshotNode
+import me.ahoo.wow.query.admission.QueryBudget
 import me.ahoo.wow.query.backend.aggregate
 import me.ahoo.wow.query.backend.list
 import me.ahoo.wow.query.backend.single
@@ -66,7 +67,6 @@ import me.ahoo.wow.query.observe.QueryObserver
 import me.ahoo.wow.query.observe.audits
 import me.ahoo.wow.query.observe.fingerprintOf
 import me.ahoo.wow.query.observe.started
-import me.ahoo.wow.query.policy.QueryEntryPolicy
 import me.ahoo.wow.query.policy.QueryPolicy
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelSchema
@@ -104,7 +104,7 @@ class QueryGatewayObservationTest {
                 scope = QueryScope(authenticated = TenantIdFilter("tenant"))
             )
             gateway.list(query, caller).toList().assert().hasSize(2)
-            gateway.count(CountQuery(MatchAllFilter), QueryCaller.UNSPECIFIED).assert()
+            gateway.count(CountQuery(MatchAllFilter), QueryCaller.IN_PROCESS).assert()
                 .isEqualTo(CountResult(0, exact = true))
 
             val (list, count) = audits
@@ -123,7 +123,7 @@ class QueryGatewayObservationTest {
             (list.elapsed >= Duration.ZERO).assert().isTrue()
             list.toString().assert().doesNotContain("secret-value", "tenant\"")
             count.rows.assert().isEqualTo(1)
-            count.entry.assert().isEqualTo(QueryEntry.UNSPECIFIED)
+            count.entry.assert().isEqualTo(QueryEntry.IN_PROCESS)
 
             // Scope fields come from each system filter's spec and each field predicate, not from its element predicate.
             val ids = OrFilter(listOf(IdsFilter(listOf("a")), EqualFilter(QueryField("state.region"), null)))
@@ -159,17 +159,17 @@ class QueryGatewayObservationTest {
                 .isEqualTo(fingerprintOf(QueryType.LIST, list("state.name", "b")))
                 .isNotEqualTo(fingerprintOf(QueryType.LIST, list("state.other", "a")))
             val audits = mutableListOf<QueryAudit>()
-            val gateway = gateway(
-                GatewayBackend(),
-                observer = auditObserver { audits += it },
-                entryPolicy = QueryEntryPolicy(requireExplicitEntry = true),
-            )
-            assertThrows<QueryRequestException> { gateway.single(SingleQuery(MatchAllFilter), QueryCaller.UNSPECIFIED) }
+            val gateway = gateway(GatewayBackend(), observer = auditObserver { audits += it })
+            // The HTTP budget refuses the size before the model is read.
+            val tooMany = ListQuery(MatchAllFilter, limit = QueryBudget.HTTP_DEFAULT.maxListSize + 1)
+            assertThrows<QueryRequestException> {
+                gateway.list(tooMany, QueryCaller(entry = QueryEntry.HTTP)).toList()
+            }
             audits.single().outcome.assert().isEqualTo(QueryAudit.Outcome.ERROR)
             audits.single().model.assert().isNull()
             audits.single().modelVersion.assert().isNull()
             audits.single().errorCode.assert()
-                .isEqualTo("${QueryErrors.INVALID}:${QueryErrorCodes.EXPLICIT_ENTRY_REQUIRED}")
+                .isEqualTo("${QueryErrors.INVALID}:${QueryErrorCodes.SIZE_OUT_OF_RANGE}")
         }
     }
 
@@ -185,7 +185,7 @@ class QueryGatewayObservationTest {
             assertThrows<QueryExecutionException> {
                 gateway.single(
                     SingleQuery(MatchAllFilter),
-                    QueryCaller.UNSPECIFIED
+                    QueryCaller.IN_PROCESS
                 )
             }
                 .apply {
@@ -206,7 +206,7 @@ class QueryGatewayObservationTest {
                 }
             }
             gateway(GatewayBackend(row = ::snapshotNode), observer = observer)
-                .single(SingleQuery(MatchAllFilter), QueryCaller.UNSPECIFIED).assert().isNotNull()
+                .single(SingleQuery(MatchAllFilter), QueryCaller.IN_PROCESS).assert().isNotNull()
         }
     }
 
@@ -220,8 +220,8 @@ class QueryGatewayObservationTest {
                 }
             }
             val gateway = gateway(GatewayBackend(), observer = observer)
-            gateway.single(SingleQuery(MatchAllFilter), QueryCaller.UNSPECIFIED).assert().isNull()
-            gateway.list(ListQuery(MatchAllFilter), QueryCaller.UNSPECIFIED).toList().assert().isEmpty()
+            gateway.single(SingleQuery(MatchAllFilter), QueryCaller.IN_PROCESS).assert().isNull()
+            gateway.list(ListQuery(MatchAllFilter), QueryCaller.IN_PROCESS).toList().assert().isEmpty()
             completed.assert().isEqualTo(listOf(QueryType.SINGLE, QueryType.LIST))
         }
     }
@@ -237,7 +237,7 @@ class QueryGatewayObservationTest {
             val backend = GatewayBackend()
             assertThrows<IllegalStateException> {
                 gateway(backend, filters = listOf(filter), observer = errorObserver { errors += it })
-                    .single(SingleQuery(MatchAllFilter), QueryCaller.UNSPECIFIED)
+                    .single(SingleQuery(MatchAllFilter), QueryCaller.IN_PROCESS)
             }.assert().isSameAs(original)
             backend.admitted.assert().isEmpty()
             errors.single().assert().isSameAs(original)
@@ -251,7 +251,7 @@ class QueryGatewayObservationTest {
             val audits = mutableListOf<QueryAudit>()
             val observer = terminalObserver(terminals) { audits += it }
             val gateway = gateway(GatewayBackend(row = { awaitCancellation() }), observer = observer)
-            val call = launch { gateway.single(SingleQuery(MatchAllFilter), QueryCaller.UNSPECIFIED) }
+            val call = launch { gateway.single(SingleQuery(MatchAllFilter), QueryCaller.IN_PROCESS) }
             runCurrent()
             call.cancel()
             call.join()
@@ -269,7 +269,7 @@ class QueryGatewayObservationTest {
             val original = IllegalStateException("late-error")
             fun rows(source: Flow<ObjectNode>) =
                 gateway(GatewayBackend(rows = { source }), observer = observer)
-                    .list(ListQuery(MatchAllFilter), QueryCaller.UNSPECIFIED)
+                    .list(ListQuery(MatchAllFilter), QueryCaller.IN_PROCESS)
 
             rows(flowOf(snapshotNode())).collect { terminals.size.assert().isEqualTo(0) }
             assertThrows<QueryExecutionException> {
@@ -309,7 +309,7 @@ class QueryGatewayObservationTest {
             val query = AggregationQuery(metrics = listOf(AggregationMetric.Count("count")))
             gateway.aggregate(
                 query,
-                QueryCaller.UNSPECIFIED
+                QueryCaller.IN_PROCESS
             ).toList().single()["count"].intValue().assert().isEqualTo(3)
             terminals.assert().containsExactly("complete")
             audits.single().queryType.assert().isEqualTo(QueryType.AGGREGATION)
@@ -332,7 +332,7 @@ class QueryGatewayObservationTest {
             }
             val call = launch {
                 gateway(GatewayBackend(), provider, observer = observer)
-                    .single(SingleQuery(MatchAllFilter), QueryCaller.UNSPECIFIED)
+                    .single(SingleQuery(MatchAllFilter), QueryCaller.IN_PROCESS)
             }
             runCurrent()
             call.cancel()
@@ -401,12 +401,12 @@ class QueryGatewayObservationTest {
                 null
             })
             val observer = startingObserver("q", told)
-            gateway(backend, observer = observer).single(SingleQuery(MatchAllFilter), QueryCaller.UNSPECIFIED)
+            gateway(backend, observer = observer).single(SingleQuery(MatchAllFilter), QueryCaller.IN_PROCESS)
             traces.single().assert().isEqualTo(mapOf("traceparent" to "q SINGLE"))
-            gateway(backend, observer = observer).list(ListQuery(MatchAllFilter), QueryCaller.UNSPECIFIED).toList()
+            gateway(backend, observer = observer).list(ListQuery(MatchAllFilter), QueryCaller.IN_PROCESS).toList()
             val failing = GatewayBackend(rows = { flow { error("The store is down.") } })
             assertThrows<QueryExecutionException> {
-                gateway(failing, observer = observer).list(ListQuery(MatchAllFilter), QueryCaller.UNSPECIFIED).toList()
+                gateway(failing, observer = observer).list(ListQuery(MatchAllFilter), QueryCaller.IN_PROCESS).toList()
             }
             told.assert().containsExactly("q SINGLE end", "q LIST end", "q LIST failed", "q LIST end")
         }
@@ -434,12 +434,12 @@ class QueryGatewayObservationTest {
             val rows = GatewayBackend(rows = { flowOf(snapshotNode()) }, row = { snapshotNode() })
             val failing = GatewayBackend(rows = { flow { error("The store is down.") } })
             for (observer in listOf(alone, beside)) {
-                gateway(rows, observer = observer).single(SingleQuery(MatchAllFilter), QueryCaller.UNSPECIFIED)
+                gateway(rows, observer = observer).single(SingleQuery(MatchAllFilter), QueryCaller.IN_PROCESS)
                     .assert().isNotNull()
-                gateway(rows, observer = observer).list(ListQuery(MatchAllFilter), QueryCaller.UNSPECIFIED).toList()
+                gateway(rows, observer = observer).list(ListQuery(MatchAllFilter), QueryCaller.IN_PROCESS).toList()
                     .assert().hasSize(1)
                 assertThrows<QueryExecutionException> {
-                    gateway(failing, observer = observer).list(ListQuery(MatchAllFilter), QueryCaller.UNSPECIFIED)
+                    gateway(failing, observer = observer).list(ListQuery(MatchAllFilter), QueryCaller.IN_PROCESS)
                         .toList()
                 }
             }
