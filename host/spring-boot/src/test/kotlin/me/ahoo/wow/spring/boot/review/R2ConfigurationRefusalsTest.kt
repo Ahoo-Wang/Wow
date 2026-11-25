@@ -27,7 +27,9 @@ import org.junit.jupiter.params.provider.MethodSource
  * `WowConfigurationException`, which Spring Boot reports at the end of the log as a failure analysis instead of a stack
  * of bean creation errors: what is wrong, the key and its value, and the action to take". Each setting below refuses
  * the start, as it should, but with the runtime's bare `IllegalArgumentException` from a bean's factory method, which
- * names no key (`The sample interval is positive.`, `Invalid duration: PT0S`, `inProcessTimeout must be positive.`).
+ * names no key (`The sample interval is positive.`, `Invalid duration: PT0S`, `inProcessTimeout must be positive.`);
+ * `wow.wait.default-timeout=0s` is refused naming `wow.cluster` and its forward timeout, which follows the default
+ * wait unless set, so the key named is not the one the operator set.
  *
  * A refusal passes when a [WowConfigurationException] in its causes names the setting or a group of keys above it, as
  * `wow.cluster`'s and `wow.executor`'s refusals already do (`PortProviders.configured`).
@@ -94,6 +96,8 @@ class R2ConfigurationRefusalsTest {
             "wow.log.max-poll-interval" to "10ms",
             // The callers' tenant.
             "wow.tenant.default" to " ",
+            // The default wait: refused today as wow.cluster's forward timeout, which the operator did not set.
+            "wow.wait.default-timeout" to "0s",
             // The HTTP edge.
             "wow.http.errors.[wow.command.busy].status" to "200",
             // The query plane.
