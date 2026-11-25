@@ -37,7 +37,12 @@ outline: deep
 ## 你的代码：契约 {#your-code-the-contract}
 
 服务暴露的命令、事件、状态和错误，是它与客户端和对端之间的契约。Gradle 插件把每次构建的 Manifest 与提交的基线比较，会让破坏客户端的改变失败：删除命令或事件、新增必填字段、删除字段或改变字段类型。用 `updateWowManifestBaseline` 记录有意的改变，并与代码一起评审（[测试服务](../guide/testing-services#check-the-contract)）。在基线的兼容线（服务的主版本号）之内，更新会拒绝破坏性改变：它需要服务的下一个主版本（同时记录这次破坏和新的兼容线），或者在旧命令旁边新增一条命令。
-或者在旧命令旁边新增一条命令。
+
+**Java record 命令的聚合 ID。** 当 `@JsonProperty` 或 `@JsonNaming` 为记录的 `@AggregateId` 组件改名时，Manifest 的 `idProperty` 现在是这个名称，即 Jackson 读取的字段；此前它是组件的名称。由 Manifest 生成的客户端按 `idProperty` 指明聚合 ID：请重新生成。此前记录的基线写的是组件的名称，因此比较 `idProperty` 的检查会把聚合 ID 读作改由另一个字段给出，这是破坏性的改变。
+
+**从这个版本起检查读法不同的改变。** 命令的聚合 ID 改由命令体的另一个字段给出，或不再由命令体给出（`idProperty`），会像删除字段一样让检查失败：客户端用这个字段指明聚合。与其他破坏性改变一样，它需要服务的下一个主版本，或者在旧命令旁边新增一条命令。检查不再把以下改变报告为破坏性的：重命名命令或事件并把旧名称（简单名或全名）保留为别名（新增性的）；把别名在简单名和全名之间改写（没有改变）；把多态字段改为可选（新增性的）。备选项有重叠且保持原样的 `anyOf` 或 `oneOf` 没有改变，而此前会把其中一个备选项报告为新增或破坏性的。Wow 预发布版记录的基线若以组件名称写着 Java record 命令的聚合 ID（见上一段：这个版本改为按 Jackson 写出的名称），会读作聚合 ID 改由另一个字段给出：运行一次 `./gradlew updateWowManifestBaseline -Pwow.manifest.allowBreaking`，它在兼容线内记录新的 `idProperty`，并记在 `build/wow/manifest-baseline.txt` 中，然后评审并提交基线（服务处于其主版本首个版本的预发布版，例如 `1.0.0-beta.1` 时，无需该标志即可记录）。
+
+**与契约成员同名的聚合。** 名称的帕斯卡命名形式为 `NAME`、`Errors` 或 `Wait` 的聚合，在其上下文生成的契约中是 `<Name>Aggregate`，Kotlin 与 TypeScript 一致：名为 `errors` 的聚合是 `ErrorsAggregate`，名为 `wait` 的聚合是 `WaitAggregate`。聚合 `wait` 的 TypeScript 客户端读取 `<Context>Contract.WaitAggregate`，此前读取 `<Context>Contract.Wait`；在没有共享错误码的上下文中，聚合 `errors` 的 Kotlin 对端读取 `<Context>Contract.ErrorsAggregate`，此前读取 `<Context>Contract.Errors`：重新生成客户端，或重新构建 api 模块，并按编译器报告的位置改名。
 
 **为命令新增属性时的发布顺序。** 服务会拒绝给出其命令没有的属性的请求体（`unknown-property`），因此服务的节点要先于发送新属性的客户端升级；调用另一个服务的服务，要在被调用的服务之后升级。同一服务的节点之间会忽略该属性：旧版本的节点读取新节点转发的或日志中的命令（包括其 saga 派生的命令）时不带它。
 
@@ -129,11 +134,15 @@ configurations.matching { it.isCanBeResolved && !it.isCanBeConsumed && it.name !
 
 10.0.0 的预发布版（`alpha`、`beta`、`rc`）对它存储的数据与它的 API 都不做兼容承诺。它的存储不会带过来：请在空的存储上启动本版本。预发布版写入的 MongoDB 日志没有按租户限定的访问键，所以在一次盖章重写这些流的属性之前，对 owner 或 space 的相等查不到它们。从 9.x 迁移的服务请按 [从 9.x 迁移](../migrate/) 进行。
 
+`ddl: validate` 或 `ddl: none` 下的存储（`wow.ddl`，或某个存储的 `wow.stores.<name>.ddl`）会把每个日志或定时器的表或集合记录在登记表 `wow_log_aggregate` 或 `wow_timer_aggregate` 中，缺少这条记录就不再继续。在 PostgreSQL 上，`validate` 下账户无权插入缺失记录的节点在启动时被拒绝，并指明表、登记表和那一行；`none` 下，这张表第一次追加、读取或定时时同样被拒绝。在 MongoDB 上，这样的集合第一次追加或第一次定时会失败，并指明要插入的文档。预发布版则照常启动并丢失投递：别的节点的尾部读不到这张表，它的定时器也永远不会到期。为存储的账户授予两个登记表的 `INSERT`（MongoDB 上是 `insert` 和 `find`），或者插入拒绝信息指明的每条记录；由 `ddl: auto` 创建的 schema 已经有这些记录（[PostgreSQL](./postgresql#manage-the-schema)、[MongoDB](./mongodb#the-collections)）。MongoDB 存储还会在 `ddl: validate` 和 `ddl: auto` 下，把每个与 Wow 的索引同名的索引（`version_key`、`request_key`、`timer_due` 等）与本版本创建的定义比较：手工或由工具建立、键或键的顺序不同、缺少 `unique`、稀疏、部分过滤条件不同或带排序规则的索引会让启动失败，并指明每处差异。删掉它并以 `ddl: auto` 启动一次，或者按消息给出的定义创建它；删掉一个并不唯一的唯一键之前，先检查集合中被它放进来的重复项。
+
 节点的端口监听在哪里、何时运行于开发模式，取决于你写下的配置，而不是机器（[配置服务](./configuration#development-and-production)）：
 
 - **在开发 profile 中**（`wow.dev-profiles`），内部端口绑定 `127.0.0.1`，除非 `wow.internal.host` 或 `wow.node.address` 指定了地址。公开端口不变：它监听在 `server.address` 指定的地址上；从请求头读取调用方的节点，在这个地址不是回环网卡时会在启动时说明。在 Spring Boot 没有检测到云平台时把内部端口绑定到回环网卡的 profile（`spring.config.activate.on-cloud-platform: none` 加 `wow.internal.host: 127.0.0.1`）可以删去。需要从别的机器访问的开发节点要指定它的地址。
 - **在开发 profile 之外**，内部端口和以前一样绑定本机名字解析到的地址，但这个地址是公网地址时节点拒绝启动：这个端口不要求任何凭据。用 `wow.internal.host` 指定内网地址；你指定的地址按原样使用。
 - **本机名字解析到回环地址**（Debian 的 `/etc/hosts` 给出 `127.0.1.1`）不再使节点处于开发模式。这样的节点不在开发 profile 中就是部署：没有持久后端或没有 `CallerResolver` 时，它拒绝启动，而以前它会在内存中运行并以匿名调用方提供服务。指定 `wow.internal.host`，并给它后端和解析器，或者有意激活一个开发 profile。
+
+节点只在 `wow.dev-profiles` 中的某个 profile（`dev`、`local`、`test`、`demo`）中才运行于开发模式。回环的 `wow.internal.host` 或 `wow.node.address` 不再让节点成为开发节点：这样的节点在没有 `CallerResolver` 时把公开端口上的每个请求都当作匿名调用方处理，没有数据库时退回内存，绑定在回环上、位于 sidecar 之后的部署也是如此。没有开发 profile 时，它现在拒绝任何部署都会拒绝的东西：没有持久后端、没有 `CallerResolver`、主题在内存中。依赖回环内部端口的本地运行改为激活 `dev`；部署要给节点提供数据库和 `CallerResolver`（或 CoSec）。没有开发 profile 的 `wowServer` 测试同样会被拒绝：给它 `"dev"`（`wowServer<App>("dev")`），或者部署需要的东西（显式指定 `wow.backend=memory`、一个 `CallerResolver`）。`wowServer(…, topics = …)` 需要开发 profile。
 
 Wow 的运维命令（定时作业的命令、快照重建、对停放条目的操作及其读取）只有在某个授权器决定它们时，才在公开端口和运维路由上被允许（[授权命令](./security#authorize-commands)）。应用自己的 `CommandAuthorizer` 若是因为不反对而放行了它们，或在 `action.isOperational` 的 `when` 分支里裁决它们，现在会被拒绝（403 `wow.auth.forbidden`），宿主在启动时会说明。把这条规则移到它自己的 Bean：`CommandAuthorizer.operational { caller, action -> … }`，它只被问到这些命令；裁决它们的授权器类把 `decidesOperational` 覆写为 `true`。由 CoSec 决定运维人员的服务（`wow.cosec.authorizer.enabled`）无需改动。调用方的角色是 `caller.roles` 和 `caller.hasRole(…)`：`DevelopmentHeaders.ROLES_ATTRIBUTE` 和 `CoSecCallerResolver.ROLES` 已移除，由 `Caller.ROLES` 代替，测试中的调用方用 `Caller.of(…, roles = listOf(…))` 给出角色。`CommandGateway.authorizes` 改为 `decidesOperational`。
 
@@ -153,6 +162,8 @@ wow-generator 生成的 TypeScript 客户端按 Kotlin 契约的命名给错误�
 
 提供者的选项，无论在 `wow.<type>` 下（`wow.kafka.*`、`wow.mongo.*`、对等发现的、数据集后端的），还是在 `wow.stores.<name>` 下属于某个存储自己的，现在都按 Spring 绑定的每一种写法读取，与配置键检查的读法一致：环境变量（`WOW_KAFKA_COMMANDINTAKE_ENABLED`）或驼峰写法（`commandIntake.enabled`）与短横线写法的键含义相同，两者同时出现时按环境的顺序决定。预发布版本只按某个文件中的短横线键读取提供者的选项：没有文件设置其短横线写法的环境变量或驼峰键能通过启动检查，却不会被读取。这样的设置现在会生效；请检查部署以这种方式设置了什么。Wow 自带的 eShop 支付服务的 chart 设置了 `WOW_KAFKA_COMMANDINTAKE_ENABLED: "true"`，预发布版本忽略了它：它的命令接收现在会运行。
 
+`spring.codec.max-in-memory-size` 不再设置内部端口的消息上限：Spring Boot 4 只绑定 `spring.http.codecs.max-in-memory-size`，两个端口都遵循它。
+
 预发布版启动时接受的两个设置，现在会拒绝启动，并说出其配置项和界限。`wow.health.liveness.stall-timeout` 必须长于 `wow.cluster.reconcile-timeout`（默认 `1m`），这样卡住的节点会在其存活检查失败之前离开成员：*wow.health.liveness.stall-timeout is 1m, not longer than wow.cluster.reconcile-timeout.* `wow.query.dataset.max-concurrent` 必须为 `0` 或更大，而预发布版把负值当作不设界限运行：不设界限请设为 `0`（*wow.query.dataset.max-concurrent is -1, below 0.*）。
 
 服务的构建现在可以渲染它的 Kubernetes 清单：`wow { kubernetes { values.from(…); namespace = … } }` 让 `generateWowManifests` 进入 `assemble`，它把插件自带的 `wow-service` chart 渲染成纯 YAML 的 Kustomize base，即 `build/wow/k8s/`，供 `kubectl apply -k` 使用（[配合 Kustomize](./kubernetes#with-kustomize)）。没有任何破坏：安装 chart 的部署无需改动，没有写 values 的构建什么也不渲染。写了 values 的构建第一次渲染时把 Helm v4.3.1 获取到 Gradle 用户目录；`wow.helm.mirror` 与 `wow.helm.executable` 供无法访问 `get.helm.sh` 的构建使用。原先用 `helm template` 手工渲染 chart 的部署，可以改为在构建里写明同样的 values 文件。
@@ -160,6 +171,8 @@ wow-generator 生成的 TypeScript 客户端按 Kotlin 契约的命名给错误�
 预发布版本拒绝把 Elasticsearch 存储作为聚合类型自己的快照存储；这个版本接受它（[Elasticsearch](./elasticsearch#only-snapshot-store)）。快照留在数据库、在 Elasticsearch 上另有副本的部署无需改动。想让类型的状态只存一份的部署，在类型的 `snapshot.store` 中指定 Elasticsearch 存储。这个存储随后从日志回填，期间该类型答 `rebuilding`（[重建与重放](./replay)）。
 
 在一次处理中向同一目标发多条同类型命令的 Saga，要给每条一个 `CommandRequest.requestId`，即它所涉及的业务键，例如它预留的商品；按事件类型逐个处理的处理函数只在一次调用发多条时才需要键（[向同一目标发多条命令](../guide/sagas#several-commands-to-one-target)）。没有键时，这次处理作为 Saga 自身的错误失败，它的聚合停放，消息会指出处理函数、命令类型与目标。升级之前，先在本版本上运行领域的 `sagaSpec` 与 `scheduleSpec` 测试；但规格只有覆盖到发多条命令的那次处理时才会暴露它，而这可能取决于数据：eShop 的到货作业只有在某次触发读到同一商品的两次到货时（例如补跑错过的早晨），才会向同一库存发两条入库命令。用 `call` 发多条这类命令的处理函数，在第二条被拒绝之前已经发出了第一条，所以加上键之后，第一条会以它的键再执行一次：要在升级之前修好这样的 Saga，而不是等它停放之后。仍然沿用了存储的部署会发现，按事件类型逐个处理的处理函数派生的 ID 变了，所以升级前处理过、升级后又被重新投递的提交，会把它的命令再发送一次。
+
+决策函数中保留下来的调用，若在命令按更新的状态再次决策时请求了别的东西（同一位置换了目标、命令类型或命令体），现在会让命令以 `wow.command.failed` 失败，过去它被答以第一次调用的提交：撤销这样的调用并改用 `scope.callId()`，或者给它一个业务请求 ID。在 `onAppendFailure` 中撤销 Wow 调用，或作废以 `scope.command.requestId` 为键的第三方动作的决策函数，要用 `scope.callId()` 作为这个动作的键：`CommandRequest.requestId = scope.callId()`，或第三方的幂等键。否则下一次尝试或调用方的重试会被答以已被撤销的动作（[撤销外部动作](../guide/aggregates#undo-an-outside-act)）。
 
 本版本使用 springdoc-openapi 3.2.1，它基于 swagger-core 3.0 和 Jackson 3：
 
@@ -189,11 +202,21 @@ CoSec 本版本的其他变化涉及网关、控制面、签发 CoSec 令牌的�
 - **服务的运维路由在请求体里指明条目。** 每条都是 `/wow/ops/parked` 之下、路径不含数据的 `POST`：`list`（请求体里是 `subscription`、`after`、`limit`）、`entry`、`retry`、`skip`、`mark-recoverable` 与 `apply-retry-spec`，条目由 `subscription`、`context`、`aggregate`、`tenantId` 与 `id` 指明。拼过 `GET /wow/ops/parked?…`、`GET /wow/ops/parked/{subscription}/{context}/{aggregate}/{tenant}/{id}` 或其 `POST …/retry` 路径的脚本、Webhook 接收方或网关策略，都改用这些路由。
 - **`Ledger.parkedId` 返回哈希**，签名不变；解析过它旧形式的代码，改读条目的字段。
 
+所属服务按操作所指的那一次停放答复运维人员的操作：对它已不再持有的停放所做的重试、跳过、标记或重试规格，只对那一次停放发布为已解决，所以 ops 服务让更晚的停放保持未解决。让条目保持原样的答复（例如再次应用未变的重试规格）现在会结束 ops 控制台显示为待处理的请求。修复在两端：仍在旧运行时上的服务会发布不带日期的解决结果，并复用条目的请求 ID，所以除了 ops 服务，也要升级发布台账的各个服务（[ops 服务与控制台](./ops-console)）。
+
 本版本可以把 CoSec 的拒绝写成 Wow 的 problem，默认关闭：`wow.cosec.problems: wow`（[CoSec 的拒绝](./security#cosec-refusals)）。保持 `cosec` 时，每个回答与以前逐字节相同。它基于 CoSec 的 `ProblemRenderer`，那在 CoSec 8 里是试验性的，形状可能随 CoSec 的 RC 改变。新增两个码：`wow.request.rate-limited`（429）与 `wow.auth.unavailable`（503），只有这些拒绝会用到它们。
 
 `wow-service` chart 拒绝更多预发布版能渲染的 value（[Kubernetes](./kubernetes)）。chart 自己设置的键，在 `settings` 和 `env` 中也会被拒绝，就像在 `config` 中一样，Spring 能绑定的任何写法都算：停止的上限（`wow.wait.max-timeout`、`wow.cluster.drain-timeout`、`wow.subscription.stop-timeout`：设置 `shutdown.*`）、端口（`server.port`、`wow.internal.port`：设置 `ports.*`）、节点的身份和地址、`POD_NAME` 和 `POD_IP`，以及 `env` 中的 `SPRING_APPLICATION_JSON`。开启 `networkPolicy.public.onlyGateway`（默认）时，`networkPolicy.public.from` 中不按标签指明 Pod 的条目（`podSelector` 为空或没有、`ipBlock`）会被拒绝：指明网关的 Pod，或设置 `onlyGateway: false`。生成的 values 把代码调用的对端写作 `service.contractPeers`，chart 按服务把你的 `service.peers` 与它们合并：重新生成 values（`generateWowHelmValues`，`assemble` 会运行它），你的文件给某个对端写了命名空间时，内部策略也会重新放行每个对端。预发布版生成的、带 `service.peers` 的 values 文件仍能渲染，按部署自己的对端来读。
 
+`wow-service` chart 的 `autoscaling.keda.minReplicas` 至少是 1，和 HPA 的一样：设为 0 的 values 文件会被 schema 拒绝。ScaledObject 唯一的触发器是服务自己的 Pod 上报的积压，所以被 KEDA 缩到零的服务再也回不来（[Kubernetes](./kubernetes)）。
+
 `@ahoo-wang/wow-client` 以命令声明的等待再加 5 秒为界约束它的整个应答，与 Kotlin 客户端一样；没有声明的命令以客户端选项的 `defaultWaitMs` 再加 5 秒为界，没有给出时是一分钟再加 5 秒（[命令](../typescript/commands#when-a-command-fails)）：服务默认等待超过一分钟的部署，设置 `defaultWaitMs`，或者让每条命令声明它的等待。超过这个界限，请求被中止，调用以 `wow.command.unknown` reject，过去一个沉默的节点会让调用一直挂着。应答或事件流在开始之后丢失或无法读取的命令也以同样的方式 reject，过去它以网络自己的错误 reject：只对 `retry` 允许重试的 `WowProblemError` 重试的调用方，现在也会以请求 ID 重试这些情况，这是安全的。对聚合 `.` 或 `..` 的命令或状态读取（以及空 id 的状态读取）在发送之前就以 `TypeError` 拒绝，过去 URL 会把它送到另一个路由；续读查询流时得到的 `Retry-After` 超过 `resume.maxDelayMs`（默认 5 秒）时，流立即以那个 problem 失败，而不是等它过去。
+
+`@ahoo-wang/wow-react` 的 `useCursorQuery` 只把某一页的游标交给答出那一页的查询与请求选项（[React](../typescript/react)）：`autoExecute: false` 时，查询或请求选项变了之后的 `fetchNext()` 读取当前查询的第一页；过去它从旧查询的游标继续读，并把那一页追加到旧的行后面。`useStreamQuery` 的 `abort()` 保留中止前读到的每一行和最后一行的位置；过去它只保留已经显示出来的行。
+
+`@ahoo-wang/wow-view-store` 的 `WowViewStore` 对小于 1 或不是整数的 `pageSize` 抛出 `RangeError`，过去这样的存储会无止境地列出视图。它还从一次写入第一次尝试发出的地方发出它的重试，所以视图移走之后，已经落地的保存会被当作重复请求来回答。改过又改回的存储系统视图，按它现在的版本写入，过去答以 `CONFLICT`。对它从未发出过的修订写入偏好，答以 `CONFLICT`，过去答以 `UNAVAILABLE`。
+
+视图存储服务拒绝没有 `view-store.shared-writer` 的用户共享个人视图（`ShareView`），答以 `403 wow.auth.forbidden`；过去它接受任何用户的共享，并把视图发布到租户的共享列表（[存储](../typescript/view-engine/storage)）。创建共享视图和认领共享视图原本就需要这个角色。把它授予要共享视图的人，并按它回答前端的 `permissions.changeAudience`，如 `@ahoo-wang/wow-view-store` 的 README 所说。
 
 ### Kafka 上的发布流 {#published-streams-on-kafka}
 
@@ -207,3 +230,53 @@ CoSec 本版本的其他变化涉及网关、控制面、签发 CoSec 令牌的�
 4. 升级该服务。
 
 主题与存储一样随本版本新建的部署无需做任何事。
+
+### 从 9.x 迁移 {#a-migration-from-9-x}
+
+migrate-data 的 `compare` 和 `export` 发现差异时以 `4` 退出（以前是 `3`），`3` 现在是 JVM 因 `OutOfMemoryError` 退出时的退出码。把 `3` 读作差异的脚本必须改读 `4`；从之前的 `deploy/migrate-data/job/job.yaml` 复制的 Job 清单必须在 `1`、`2`、`4` 时立即失败，而不是 `1`、`2`、`3`：这个列表随镜像而定。migrate-data 在某个存储或网络不可用或超时时还会以 `5` 退出（以前是 `1`）。配方中的 Job 对每个退出码的处理如下（[migrate-data CLI](../reference/migrate-data#exit-codes)）：
+
+| 退出码 | 含义 | Job |
+| --- | --- | --- |
+| `0` | 完成。 | 完成。 |
+| `1` | 失败：工具的拒绝、读不了的配置，或缺陷。 | 立即失败。 |
+| `2` | 用法错误。 | 立即失败。 |
+| `3` | JVM 因 `OutOfMemoryError` 退出（镜像设置的 `-XX:+ExitOnOutOfMemoryError`）。 | 从检查点重新运行。 |
+| `4` | `compare` 或 `export` 发现了差异。 | 立即失败。 |
+| `5` | 某个存储或网络不可用或超时。 | 从检查点重新运行。 |
+
+`CUTOVER` 行给出导入在哪里结束：什么也没导入的一轮让切换点保持原处，而不是把它移到日志的头部。
+
+已迁移服务自身上下文的 Saga 或 Reactor 无论怎样启动，都会略过其日志中切换点之前导入的历史，而不只是在首次从日志末尾启动时如此，正如它略过对端发布为已导入的记录；投影仍从中构建，补偿对已导入条目的停放重试仍会处理。首次切换看不到任何差别。在通过导出回退之后再次切换时，第二次导入追加的历史只由 9.x 的 Saga 处理：为回退而停止 V10 之前，让每个订阅的积压（`wow.subscription.backlog`）降到零，包括服务自身的 Saga（[切换](../migrate/cutover)）。
+
+### 查询 {#queries}
+
+内存查询参考实现和测试 DSL 的 `memoryQueries` 按码点给文本排序，与 PostgreSQL 和 MongoDB 一致。文本中混有 U+E000..U+FFFF 的字符和 U+FFFF 以上的字符时，按它排序的列表或分页、对它的范围（`gt`、`gte`、`lt`、`lte`、`between`）以及按文本指标排序的聚合，会以另一种顺序回答：升序时 `Ａ` 现在排在 `😀` 前面。断言旧顺序的规格要改为期望新的顺序。在 Elasticsearch 上，按文本指标取前 N（对文本的 FIRST、LAST 或 ANY 排序并带 `limit`）保留的分组与 PostgreSQL 和 MongoDB 相同。
+
+忽略大小写的过滤条件在每个后端都按 Unicode 简单大小写折叠比较两边的文本（[查询语言](../reference/query-language)）：`ſ` 包含 `s`，`λόγος` 包含 `σ`，`5µm` 包含 `μ`，而在 PostgreSQL 和 Elasticsearch 上 `İstanbul` 不再以 `is` 开头。原来只折叠 ASCII 的 `C` locale PostgreSQL 数据库会折叠所有字母，土耳其语 locale 的数据库不再把 `I` 与 `ı` 折叠。在 MongoDB 上，模式超过 32,764 字节的 `value` 答以 `storage-unsupported`，过去是服务器报错。测试 DSL 的 `memoryQueries` 与参考实现一致。
+
+内存查询参考实现（`memoryQueries` 规格和使用内存存储的节点读取的就是它）现在拒绝两种原来会回答的查询，与 PostgreSQL 和 MongoDB 的拒绝一致（[查询语言](../reference/query-language#the-capability-descriptor)）。按日期字符串比较、排序或分组，例如 `state.placedAt > "2026-01-01T00:00:00Z"`、按 `Instant` 排序，或基于它的日期直方图，得到 `unsupported-capability`：改为按纪元时间字段（支持所有能力的数字）或按系统时间字段比较、排序或分组。按两个相互独立的数组字段排序，得到 `parallel-array-sort`：只按其中一个排序。依赖其中任何一种的规格，以前在它的节点失败的地方通过；现在它像节点一样失败。普通字段的 `sum`、`avg`、`min` 和 `max` 在这里按存储的十进制数计算：0.1 与 0.2 之和是 `0.3`，而不是 `0.30000000000000004`；把存储的 `30` 之和与双精度的文本 `30.0` 比较的规格，现在看到的是 `30`。
+
+**PostgreSQL 上的计算值也是双精度。** `expression` 过滤、基于表达式的指标或分组以及派生指标都按 `float8` 计算，与 MongoDB、Elasticsearch、ClickHouse 和内存后端一致。处在十进制数边缘的比较可能与以前的答案不同：`amount * 3 > 0.3` 会匹配 `amount` 为 0.1 的记录。需要精确的地方（如金额），比较或聚合存储的字段。超出双精度范围的计算值以 `400 wow.query.out-of-range` 拒绝。
+
+### 测试工具 {#the-test-kit}
+
+用测试 DSL 编写的规格会按节点的处理方式检查命令。请针对这个版本重新构建测试：`aggregateSpec` 和 `aggregateSpecTests` 新增了 `policy` 参数。
+- **为规格给出聚合的访问策略**，只要服务为该聚合注册了策略：`aggregateSpec(model, caller = …, policy = …)`。这时命令按其调用方的声明来决定。
+- **指定了 `scope` 的命令要由该作用域中的调用方发出**：`caller = Caller.owner("alice")`，或 `Caller.of(scope = …, subject = …)`。没有调用方的命令属于匿名调用方，网关不允许它指定作用域。
+- **超过长度限制的 ID 按格式错误失败**，即长度超过 256 个字符的请求 ID、租户、所有者或空间的 ID。
+- **Saga 规格像节点那样为定时的命令命名**：按目标的模型（用 `givenAggregate` 给出），或测试类路径上目标的契约。若规格向两者都没有描述的目标定时发送命令，就给出其中之一。
+
+测试用的假对端（`fakePeer`，`wow-test-spring-boot`）像真实对端一样回答调用：被调用方的 `wow.callers.<service>.commands` 不允许的命令回答 403 `wow.call.command-forbidden`，不给时所有系统命令（`wow.*`）都被拒绝；不是 JSON 或读不成命令的命令体回答 400 `wow.command.malformed`。Saga 调用对端系统命令的测试要写明对端的许可：`fakePeer(context, callers = mapOf("<调用方服务>" to listOf("wow.lifecycle.DeleteAggregate")))`，与对端的配置必须写明一样。`fakePeer` 以带默认值的第二个参数接收这个映射，Kotlin 源码无需改动即可编译；按旧签名编译的代码需要重新编译。
+
+用测试 DSL 编写的规格现在像节点那样发送并结算定时器。定时的命令在为它定时的那次提交的操作人和作用域中执行，且只带派生命令会继承的请求事实。决策抛出异常的定时命令会让定时器保持待处理，十次尝试后停放，而不再是已触发。若一个聚合的规格中的决策为同一上下文中另一个聚合定时命令，规格会在 `advanceTime` 时失败：请在那个聚合自己的规格中测试这条命令。下游一直施加背压的处理会在第二十次尝试时停放。无论服务如何配置，规格都使用节点的默认重试。
+
+用 `context.ids` 中的 ID 为要创建的聚合命名的 Saga，在提交每次被再处理时（重试或重新投递之后）都会再创建一个聚合，因为派生请求的 ID 取自目标的 ID。改为发出不带 ID 的创建请求：目标的准入会把第一次尝试创建的聚合交给它。在 `sagaSpec` 中，`expectDeterministic()` 和 `whenRedelivered()` 现在像节点一样生成新的 ID，因此这样的 Saga 无法通过它们。原本期望第一次之后的处理再次得到 `id-1` 或 `<aggregate>-1` 的规格，现在会得到下一个 ID。
+
+针对这个版本重新构建服务的代码：编译器生成的绑定现在会传入每个处理函数所绑定的上下文（`ProcessorBinding.saga`、`.project` 和 `.react` 接受 `context`）。手写的绑定只要使用具名参数，不改也能编译，也可以给出它的 `context`。用测试 DSL 编写的规格随节点一起改变：
+- 处理函数读到的状态从 JSON 解码而来，各自一份，并处于它所绑定的上下文中；
+- 被拒绝的回执带着命令的作用域；
+- 同步调用的补偿被拒绝时会停放；
+- 另一个上下文的命令的回执不再按 Saga 的 `@Retry` 重试；
+- 应答客户端的 `stream` 会发出被拒绝和失败的结果。
+
+领域、处理器和服务测试所用的内存日志，以及宿主的内存存储，现在拒绝 PostgreSQL 和 MongoDB 拒绝的内容。版本有间隔或跨两个上下文的组（`appendAll`）在写入任何内容之前抛出持久日志抛出的 `IllegalArgumentException`，过去它的前几个流已提交、之后才是冲突；宿主的内存存储拒绝在 `openLog(context)` 给出的日志上追加别的上下文的流，过去会提交它。这样的测试在生产中本来就会遇到这个异常：每个日志只追加一个上下文，组中同一聚合的版本要连续。
