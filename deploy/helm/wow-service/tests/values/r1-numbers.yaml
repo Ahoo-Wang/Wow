@@ -1,0 +1,4 @@
+# Settings of a million and more, as a values file gives them: numbers YAML reads as floating point.
+config:
+  WOW_EXECUTOR_MAXINFLIGHT: 1000000
+  WOW_STATECACHE_CAPACITY: 12345678

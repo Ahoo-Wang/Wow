@@ -1,0 +1,19 @@
+# Review r1-platform: a number of config read from a values file is a float to Helm, and toString writes a million as
+# 1e+06, which the node cannot bind to an integer: it does not start. The chart's own test sets 64 with --set, an int.
+suite: r1 a numeric setting from a values file is written as its digits
+templates:
+  - templates/configmap.yaml
+set:
+  service.name: eshop-ordering-service
+  image.repository: ghcr.io/example/eshop-ordering-server
+values:
+  - values/r1-numbers.yaml
+tests:
+  - it: writes a million and more as the digits Spring binds to an integer
+    asserts:
+      - equal:
+          path: data.WOW_EXECUTOR_MAXINFLIGHT
+          value: "1000000"
+      - equal:
+          path: data.WOW_STATECACHE_CAPACITY
+          value: "12345678"

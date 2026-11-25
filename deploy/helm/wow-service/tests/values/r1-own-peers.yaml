@@ -1,0 +1,9 @@
+# The deployment's values file, after the generated one, as operate/kubernetes.md shows it: the payment service
+# runs in the namespace payments.
+image:
+  repository: ghcr.io/example/eshop-basket-server
+service:
+  peers:
+    - context: eshop-payment
+      service: eshop-payment-service
+      namespace: payments

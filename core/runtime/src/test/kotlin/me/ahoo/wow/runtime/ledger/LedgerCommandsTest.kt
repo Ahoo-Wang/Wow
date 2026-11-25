@@ -190,19 +190,19 @@ class LedgerCommandsTest {
     @Test
     fun `r1 an action on a parking resolved already publishes not-parked of that parking, not of whatever ops holds`():
         Unit = runBlocking {
-            // The ops saga names the parking it acts on; an undated resolution resolves the parking ops holds now,
-            // which may be a later one another node recorded meanwhile (ops-console.md: a later parking reopens it).
-            parkAll("x1")
-            val failedAt = ledger.parked(SubscriptionId("shop", NAME), X1)!!.failedAt
-            failing.set(false)
-            commands.execute(wire(RetryParked.of(NAME, X1, failedAt))).assert().isNull()
-            lastRecord()["outcome"].asString().assert().isEqualTo(LedgerResolution.RETRIED)
-            commands.execute(wire(RetryParked.of(NAME, X1, failedAt))).assert().isNull()
-            val notParked = ClusterCodec.mapper.treeToValue(lastRecord(), LedgerResolution::class.java)
-            notParked.outcome.assert().isEqualTo(LedgerResolution.NOT_PARKED)
-            notParked.failedAt.assert().describedAs("the parking the retry named").isEqualTo(failedAt)
-            runtime.stop()
-        }
+        // The ops saga names the parking it acts on; an undated resolution resolves the parking ops holds now,
+        // which may be a later one another node recorded meanwhile (ops-console.md: a later parking reopens it).
+        parkAll("x1")
+        val failedAt = ledger.parked(SubscriptionId("shop", NAME), X1)!!.failedAt
+        failing.set(false)
+        commands.execute(wire(RetryParked.of(NAME, X1, failedAt))).assert().isNull()
+        lastRecord()["outcome"].asString().assert().isEqualTo(LedgerResolution.RETRIED)
+        commands.execute(wire(RetryParked.of(NAME, X1, failedAt))).assert().isNull()
+        val notParked = ClusterCodec.mapper.treeToValue(lastRecord(), LedgerResolution::class.java)
+        notParked.outcome.assert().isEqualTo(LedgerResolution.NOT_PARKED)
+        notParked.failedAt.assert().describedAs("the parking the retry named").isEqualTo(failedAt)
+        runtime.stop()
+    }
 
     @Test
     fun `a retry or a skip of another parking than the entry's is refused as stale`(): Unit = runBlocking {

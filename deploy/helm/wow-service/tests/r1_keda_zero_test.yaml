@@ -1,0 +1,17 @@
+# Review r1-platform: KEDA's ScaledObject scales on wow.subscription.backlog, which only the service's own pods report.
+# At zero pods there is no series, KEDA reads no backlog, and nothing ever scales the service up again: the HPA's
+# minimum is 1, KEDA's must be too. A suite of its own: the refusal is the chart's validation, which every template runs.
+suite: r1 KEDA never scales the service to zero
+templates:
+  - templates/scaledobject.yaml
+set:
+  service.name: eshop-ordering-service
+  image.repository: ghcr.io/example/eshop-ordering-server
+  autoscaling.keda.enabled: true
+  autoscaling.keda.prometheus.serverAddress: http://prometheus.monitoring:9090
+tests:
+  - it: refuses a minimum of zero replicas, from which the backlog it scales on cannot bring the service back
+    set:
+      autoscaling.keda.minReplicas: 0
+    asserts:
+      - failedTemplate: {}

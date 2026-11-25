@@ -1,0 +1,32 @@
+# Review r1-platform: operate/kubernetes.md has the deployment's values file give one peer its namespace, after the
+# values the plugin generates; Helm replaces a list, so the generated peers it does not repeat are lost: the internal
+# policy no longer admits them, and the node finds them nowhere else.
+suite: r1 a peer's namespace in the deployment's values keeps the generated peers
+templates:
+  - templates/networkpolicy.yaml
+release:
+  namespace: shop
+values:
+  - values/r1-generated-peers.yaml
+  - values/r1-own-peers.yaml
+tests:
+  - it: admits every peer the code calls to the internal port, the one placed in payments there
+    documentSelector:
+      path: metadata.name
+      value: eshop-basket-service-internal
+    asserts:
+      - contains:
+          path: spec.ingress[0].from
+          content:
+            podSelector:
+              matchLabels:
+                app.kubernetes.io/name: eshop-ordering-service
+      - contains:
+          path: spec.ingress[0].from
+          content:
+            podSelector:
+              matchLabels:
+                app.kubernetes.io/name: eshop-payment-service
+            namespaceSelector:
+              matchLabels:
+                kubernetes.io/metadata.name: payments

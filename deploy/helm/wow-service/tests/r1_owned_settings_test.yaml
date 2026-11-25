@@ -1,0 +1,35 @@
+# Review r1-platform: the chart refuses config.SERVER_PORT, config.WOW_WAIT_MAXTIMEOUT and config.WOW_CLUSTER_DRAINTIMEOUT,
+# which it sets itself from ports and shutdown (the grace period counts them), but takes the same keys through settings,
+# which SPRING_APPLICATION_JSON makes override every variable, and through env, which overrides envFrom. A suite of its
+# own: the refusal is the chart's validation.
+suite: r1 the keys the chart owns are refused however they are given
+templates:
+  - templates/configmap.yaml
+set:
+  service.name: eshop-ordering-service
+  image.repository: ghcr.io/example/eshop-ordering-server
+tests:
+  - it: refuses a wait's bound in settings, which the grace period would not count
+    set:
+      settings.wow.wait.max-timeout: 300s
+    asserts:
+      - failedTemplate: {}
+  - it: refuses the HTTP port in settings, which the probes would not follow
+    set:
+      settings.server.port: 9000
+    asserts:
+      - failedTemplate: {}
+  - it: refuses the HTTP port in env
+    set:
+      env:
+        - name: SERVER_PORT
+          value: "9001"
+    asserts:
+      - failedTemplate: {}
+  - it: refuses the drain timeout in env, which the grace period would not count
+    set:
+      env:
+        - name: WOW_CLUSTER_DRAINTIMEOUT
+          value: 120s
+    asserts:
+      - failedTemplate: {}

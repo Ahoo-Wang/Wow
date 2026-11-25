@@ -1,0 +1,22 @@
+# Review r1-platform: the chart refuses an empty networkPolicy.public.from, which "would admit every pod", but states
+# to CoSec that only the gateway can reach the public port (COSEC_PIPELINE_IDENTITY_ONLYGATEWAYCANREACH) for a from
+# that admits every pod as well: each such pod can then claim any identity. A suite of its own: the chart's validation.
+suite: r1 the public port's gateway-only statement holds only for the gateway's pods
+templates:
+  - templates/configmap.yaml
+set:
+  service.name: eshop-ordering-service
+  image.repository: ghcr.io/example/eshop-ordering-server
+tests:
+  - it: refuses onlyGateway for a from that admits every pod of the namespace
+    set:
+      networkPolicy.public.from:
+        - podSelector: {}
+    asserts:
+      - failedTemplate: {}
+  - it: refuses onlyGateway for a from that admits every namespace's pods
+    set:
+      networkPolicy.public.from:
+        - namespaceSelector: {}
+    asserts:
+      - failedTemplate: {}
