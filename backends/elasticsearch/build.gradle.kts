@@ -22,3 +22,13 @@ tasks.named<Test>("integrationTest") {
     inputs.file(gaE2e).withPathSensitivity(PathSensitivity.RELATIVE).withPropertyName("gaE2eYaml")
     systemProperty("wow-test.elasticsearch.ga-e2e-yaml", gaE2e.absolutePath)
 }
+
+// SkillEvalDescriptorsTest holds the descriptors in the view and query Skills' evaluation prompts to the query routes'
+// (#6984): declared, so a changed prompt runs it instead of reusing a cached result.
+tasks.named<Test>("test") {
+    inputs.files(
+        rootProject.fileTree("skills") {
+            include("wow-view-definition/evals/**/prompt.md", "wow-data-query/evals/**/prompt.md")
+        },
+    ).withPathSensitivity(PathSensitivity.RELATIVE).withPropertyName("skillEvalPrompts")
+}

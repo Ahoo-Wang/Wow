@@ -6,7 +6,7 @@ val moduleDirs = listOf(
     "api/annotations", "api/api", "api/manifest", "api/query-api", "core/spi", "core/kernel", "core/runtime",
     "core/reactor", "query/query", "backends/postgres", "backends/mongo", "backends/kafka", "backends/clickhouse",
     "backends/elasticsearch",
-    "edge/openapi", "edge/http", "edge/client", "edge/cosec", "edge/observability", "host/spring-boot", "extensions/cosid", "extensions/cocache-api", "extensions/cocache", "extensions/models", "migration/migrate-data", "compiler/compiler",
+    "edge/openapi", "edge/http", "edge/client", "edge/cosec", "edge/observability", "host/spring-boot", "extensions/spring-cloud", "extensions/cosid", "extensions/cocache-api", "extensions/cocache", "extensions/models", "migration/migrate-data", "compiler/compiler",
     "compiler/gradle-plugin", "compiler/manifest-tools", "test/test-dsl", "test/test-query", "test/test-spring-boot", "test/tck", "query/query-tck", "test/tck-containers",
 ) + listOf("catalog", "basket", "ordering", "inventory", "payment").flatMap { context ->
     listOf("api", "domain", "server").map { "examples/eshop/$context/$context-$it" }
@@ -58,6 +58,19 @@ tasks.named<Test>("test") {
     inputs.files(
         rootProject.fileTree("build-logic/wow-gradle-plugin") { exclude("build/**", ".gradle/**", ".kotlin/**") },
     ).withPathSensitivity(PathSensitivity.RELATIVE).withPropertyName("includedPlugin")
+    // The configuration-key rule reads every module's configuration metadata, wherever its project lives, and the
+    // application files of the modules, the examples and the platform services; hidden directories it does not enter.
+    inputs.files(
+        rootProject.fileTree(rootDir) {
+            include(
+                "**/src/main/resources/META-INF/spring-configuration-metadata.json",
+                "**/src/main/resources/application*.yml",
+                "**/src/main/resources/application*.yaml",
+                "**/src/main/resources/application*.properties",
+            )
+            exclude("**/build/**", "**/node_modules/**", "**/.*/**")
+        },
+    ).withPathSensitivity(PathSensitivity.RELATIVE).withPropertyName("configurationFiles")
     inputs.files(rootProject.file("settings.gradle.kts"), rootProject.subprojects.map { it.buildFile })
         .withPathSensitivity(PathSensitivity.RELATIVE)
         .withPropertyName("buildScripts")

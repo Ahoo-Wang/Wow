@@ -146,6 +146,37 @@ class PositiveRulesTest {
         )
     }
 
+    @Test
+    fun `the declared-key rule should read no hidden directory, a worktree's copies among them, but always its root`(
+        @TempDir root: File,
+    ) {
+        // Another checkout's metadata, under .claude/worktrees as in the main checkout, declares the key; the
+        // repository's own does not. The rule reads the repository's alone, which its test task declares (#6984).
+        val metadata = "src/main/resources/META-INF/spring-configuration-metadata.json"
+        File(root, "host/spring-boot/$metadata").apply {
+            parentFile.mkdirs()
+            writeText("""{"properties": [{"name" : "wow.query.max-wait", "type" : "java.time.Duration"}]}""")
+        }
+        File(root, ".claude/worktrees/other/host/spring-boot/$metadata").apply {
+            parentFile.mkdirs()
+            writeText("""{"properties": [{"name" : "wow.command.bus.type", "type" : "java.lang.String"}]}""")
+        }
+        File(root, "examples/shop/src/main/resources/application.properties").apply {
+            parentFile.mkdirs()
+            writeText("wow.command.bus.type=kafka\nwow.query.max-wait=1s\n")
+        }
+        // An application file of a hidden directory under the examples is no configuration Wow ships.
+        File(root, "examples/.cache/src/main/resources/application.properties").apply {
+            parentFile.mkdirs()
+            writeText("wow.unknown.key=1\n")
+        }
+        // The root as the test task passes it, a relative path such as ../.., whose own name starts with a dot.
+        val relative = File(root, "examples/..")
+        PositiveRules.undeclaredConfigKeys(relative, listOf("examples")).assert().containsExactly(
+            "examples/shop/src/main/resources/application.properties: wow.command.bus.type",
+        )
+    }
+
     private companion object {
         const val REPOSITORY_ROOT = "wow-test.repository.root"
     }

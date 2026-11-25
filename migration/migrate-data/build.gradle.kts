@@ -47,3 +47,11 @@ kotlin {
 tasks.named<Test>("integrationTest") {
     providers.systemProperty("wow-test.mongo.url").orNull?.let { systemProperty("wow-test.mongo.url", it) }
 }
+
+// DocumentationSamplesTest reads the Kubernetes recipe's configuration and migration map in deploy/migrate-data
+// (#6984): declared, so a changed recipe runs it instead of reusing a cached result.
+tasks.named<Test>("test") {
+    inputs.files(rootProject.fileTree("deploy/migrate-data") { include("migrate-data.json", "migration-map.json") })
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+        .withPropertyName("deployRecipe")
+}
