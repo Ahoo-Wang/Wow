@@ -42,14 +42,32 @@ export class SchemaTypes {
 
   constructor(readonly defs: Readonly<Record<string, JsonSchema>>) {}
 
+  /** Whether each key reaches itself through its references, as `recursive` answered it. */
+  private readonly recursion = new Map<string, boolean>();
+
   /**
    * Whether `key` is a parameterized type's, such as
-   * `java.util.Map(java.lang.String,java.lang.Object)`: its schema is written
-   * in place (`Record<string, unknown>`), never declared, since a name taken
-   * from its last type argument would shadow a global such as `Object`.
+   * `java.util.Map(java.lang.String,java.lang.Object)`, written in place
+   * (`Record<string, unknown>`) and never declared. A parameterized type
+   * that refers to itself (`a.Node(java.lang.String)` whose children are
+   * `a.Node(java.lang.String)`) is declared instead, as a recursive plain
+   * type is: written in place, it would never end.
    */
   inlined(key: string): boolean {
-    return key.includes('(');
+    return key.includes('(') && !this.recursive(key);
+  }
+
+  /** Whether the schema of `key` reaches `key` again through its references. */
+  private recursive(key: string): boolean {
+    let answer = this.recursion.get(key);
+    if (answer === undefined) {
+      const schema = this.schemaOf(key);
+      answer =
+        schema !== undefined &&
+        this.closure(this.references(schema)).includes(key);
+      this.recursion.set(key, answer);
+    }
+    return answer;
   }
 
   /** Names each key after its simple class name, qualified as far as needed to be unique and not `reserved`. */
@@ -58,14 +76,16 @@ export class SchemaTypes {
     for (let depth = 0; pending.size > 0; depth++) {
       const byName = new Map<string, string[]>();
       for (const key of pending.keys()) {
-        const segments = key.split('.');
+        // A parameterized key is named by its class, then `Of` and its arguments' names.
+        const open = key.indexOf('(');
+        const segments = (open < 0 ? key : key.slice(0, open)).split('.');
         const simple = segments[segments.length - 1].split('$');
         const qualifier = segments.slice(
           Math.max(0, segments.length - 1 - depth),
           segments.length - 1,
         );
         const name = toTypeIdentifier(
-          [...qualifier, ...simple].map(part =>
+          [...qualifier, ...simple, ...argumentParts(key)].map(part =>
             /^[a-z]/.test(part) ? pascalCase(part) : part,
           ),
         );
@@ -75,9 +95,7 @@ export class SchemaTypes {
       for (const [name, owners] of byName) {
         // A key whose packages are used up takes the name, numbered when it
         // is taken; the others take it alone, or qualify one package more.
-        const exhausted = owners.filter(
-          key => key.split('.').length - 1 <= depth,
-        );
+        const exhausted = owners.filter(key => packagesOf(key) <= depth);
         const assigned =
           owners.length === 1 && !taken.has(name) ? owners : exhausted;
         for (const key of assigned) {
@@ -397,6 +415,52 @@ export class SchemaTypes {
     }
     return paths;
   }
+}
+
+/** How many packages qualify `key`'s class: those of a parameterized key's class, not of its arguments. */
+function packagesOf(key: string): number {
+  const open = key.indexOf('(');
+  return (open < 0 ? key : key.slice(0, open)).split('.').length - 1;
+}
+
+/**
+ * The parts of a parameterized key's name that follow its class's: `Of`, then
+ * each argument's simple name, nested arguments in their place, several
+ * joined by `And`, nullability (`?`) left out. `a.Node(java.lang.String)`
+ * gives `Of String` (`NodeOfString`), `a.b.Page(a.b.Item)` `Of Item`, and
+ * `java.util.Map(java.lang.String,java.util.List(a.Item?))`
+ * `Of String And List Of Item` (`MapOfStringAndListOfItem`), so two
+ * arguments never read as one nested name; a plain key gives none.
+ */
+function argumentParts(key: string): string[] {
+  const parts: string[] = [];
+  let at = key.indexOf('(');
+  if (at < 0) return parts;
+  /** The arguments in parentheses at `at`, `at` left after the closing one. */
+  const typeArguments = (): void => {
+    at += 1;
+    parts.push('Of');
+    for (let first = true; at < key.length && key[at] !== ')';) {
+      if (key[at] === ',') {
+        at += 1;
+        continue;
+      }
+      if (!first) parts.push('And');
+      first = false;
+      typeArgument();
+    }
+    at += 1;
+  };
+  /** One argument at `at`: its simple name, then its own arguments. */
+  const typeArgument = (): void => {
+    const start = at;
+    while (at < key.length && !'(),?'.includes(key[at])) at += 1;
+    parts.push(...key.slice(start, at).trim().split('.').pop()!.split('$'));
+    if (key[at] === '(') typeArguments();
+    if (key[at] === '?') at += 1;
+  };
+  typeArguments();
+  return parts;
 }
 
 /**

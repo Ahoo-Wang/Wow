@@ -130,3 +130,59 @@ describe("an aggregate's state fields, as the Kotlin StateFields.of walks them",
     ).toEqual(['state.any', 'state.remote', 'state.gone']);
   });
 });
+
+describe('a parameterized type', () => {
+  const tree = 'a.Node(java.lang.String?)';
+  const defs: Record<string, JsonSchema> = {
+    [tree]: {
+      type: 'object',
+      properties: { children: { type: 'array', items: ref(tree) } },
+    },
+    'a.Page(a.b.Item,java.util.List(a.Outer$Inner))': {
+      type: 'object',
+      properties: {},
+    },
+  };
+
+  it('is written in place unless it refers to itself', () => {
+    const types = new SchemaTypes(defs);
+    expect(types.inlined(tree)).toBe(false);
+    expect(
+      types.inlined('a.Page(a.b.Item,java.util.List(a.Outer$Inner))'),
+    ).toBe(true);
+    expect(types.inlined('a.Node')).toBe(false);
+  });
+
+  it('is named by its class, Of and its arguments, several joined by And and nested ones in their place', () => {
+    const map = 'java.util.Map(java.lang.String,java.util.List(a.Item?))';
+    const types = new SchemaTypes(defs);
+    types.name([...Object.keys(defs), map], new Set());
+    expect(types.names.get(tree)).toBe('NodeOfString');
+    expect(
+      types.names.get('a.Page(a.b.Item,java.util.List(a.Outer$Inner))'),
+    ).toBe('PageOfItemAndListOfOuterInner');
+    expect(types.names.get(map)).toBe('MapOfStringAndListOfItem');
+  });
+
+  it("qualifies a clash by its class's package, as other names are, and numbers it once that is used up", () => {
+    const types = new SchemaTypes({});
+    types.name(
+      [
+        'a.Node(java.lang.String)',
+        'b.Node(java.lang.String)',
+        'c.NodeOfString',
+        'Node(x.String)',
+        'Node(y.String)',
+      ],
+      new Set(),
+    );
+    expect(Object.fromEntries(types.names)).toEqual({
+      // Its arguments' packages qualify nothing.
+      'Node(x.String)': 'NodeOfString',
+      'Node(y.String)': 'NodeOfString2',
+      'a.Node(java.lang.String)': 'ANodeOfString',
+      'b.Node(java.lang.String)': 'BNodeOfString',
+      'c.NodeOfString': 'CNodeOfString',
+    });
+  });
+});

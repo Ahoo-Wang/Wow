@@ -292,6 +292,39 @@ describe('Manifest clients', () => {
 });
 
 describe('Manifest types a plain type cannot be', () => {
+  it('declares a recursive parameterized type once, named by its class and its argument, and refers to it by name', async () => {
+    const tree = 'a.Node(java.lang.String)';
+    const { read } = await generateCompiling(
+      manifest(
+        {},
+        {
+          'a.ThingState': {
+            type: 'object',
+            required: ['tree'],
+            properties: { tree: { $ref: schema(tree) } },
+          },
+          // Node<String>, referred to by the state and by its children.
+          [tree]: {
+            type: 'object',
+            required: ['value', 'children'],
+            properties: {
+              value: { type: 'string' },
+              children: { type: 'array', items: { $ref: schema(tree) } },
+            },
+          },
+        },
+      ),
+      `import type { NodeOfString, ThingState } from './out/index.js';
+       const tree: NodeOfString = { value: 'root', children: [{ value: 'leaf', children: [] }] };
+       const state: ThingState = { tree };
+       void state;`,
+    );
+    const types = read('probe/types.ts');
+    expect(types).toContain('export interface NodeOfString {');
+    expect(types).toContain('children: NodeOfString[];');
+    expect(types).toContain('tree: NodeOfString;');
+  });
+
   it("declares a service route parameter's $defs type and types the parameter by it", async () => {
     const { read, logger } = await generateCompiling(
       manifest(
