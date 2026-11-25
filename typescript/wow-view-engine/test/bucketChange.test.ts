@@ -142,6 +142,19 @@ describe('consecutive', () => {
     expect(consecutive([day(1), day(3)], at, daily, 'UTC')).toBe(false);
     expect(consecutive([], at, daily, 'UTC')).toBe(true);
   });
+
+  it('runs across a day whose midnight was skipped (#6903)', () => {
+    // Santiago, 6 to 8 September 2025: the 7th starts at 01:00 -03:00.
+    const at = (key: unknown) => key;
+    const days = [
+      Date.parse('2025-09-06T04:00:00.000Z'),
+      Date.parse('2025-09-07T04:00:00.000Z'),
+      Date.parse('2025-09-08T03:00:00.000Z'),
+    ];
+    expect(
+      consecutive(days, at, { ...daily, timeZone: 'America/Santiago' }, 'UTC'),
+    ).toBe(true);
+  });
 });
 
 describe('bucketChange', () => {

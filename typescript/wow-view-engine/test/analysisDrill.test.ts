@@ -46,6 +46,17 @@ import {
 
 const SHANGHAI = 'Asia/Shanghai';
 const NEW_YORK = 'America/New_York';
+/**
+ * Santiago's clocks go from 00:00 straight to 01:00 on 7 September 2025, so
+ * that day has no midnight: Wow's day bucket of it starts at the first
+ * instant it has, 01:00 -03:00 (`DateBuckets`: "a midnight a transition
+ * skips begins at the transition").
+ */
+const SANTIAGO = 'America/Santiago';
+/** 6 September 2025, 00:00 -04:00. */
+const SANTIAGO_SEP_6 = Date.parse('2025-09-06T04:00:00.000Z');
+/** 7 September 2025, 01:00 -03:00: the first instant of the day. */
+const SANTIAGO_SEP_7 = Date.parse('2025-09-07T04:00:00.000Z');
 
 /** Midnight of a wall-clock day in a zone, as an epoch instant. */
 function midnight(day: string, timeZone: string): number {
@@ -121,6 +132,26 @@ describe('bucketRange', () => {
       bucketRange(AggregationDateUnit.DAY, spring, NEW_YORK).to - spring,
     ).toBe(DAY - 3_600_000);
   });
+
+  // #6903: the next day's midnight is skipped, so the day lasts until the
+  // transition, the first instant of the next.
+  it.each([
+    [SANTIAGO, SANTIAGO_SEP_6, SANTIAGO_SEP_7],
+    // Havana springs from 00:00 to 01:00 on 9 March 2025.
+    [
+      'America/Havana',
+      Date.parse('2025-03-08T05:00:00.000Z'),
+      Date.parse('2025-03-09T05:00:00.000Z'),
+    ],
+  ])(
+    'ends a day before a skipped midnight at the transition (%s)',
+    (zone, from, to) => {
+      expect(bucketRange(AggregationDateUnit.DAY, from, zone)).toEqual({
+        from,
+        to,
+      });
+    },
+  );
 });
 
 describe('bucketStart', () => {
@@ -198,6 +229,20 @@ describe('bucketStart', () => {
         bucketStart(AggregationDateUnit.HOUR, ms, 'Asia/Kolkata'),
       ).toISOString(),
     ).toBe('2026-09-22T04:30:00.000Z');
+  });
+
+  it('starts a day whose midnight is skipped at the transition (#6903)', () => {
+    const noon = Date.parse('2025-09-07T15:00:00.000Z');
+    expect(bucketStart(AggregationDateUnit.DAY, noon, SANTIAGO)).toBe(
+      SANTIAGO_SEP_7,
+    );
+    expect(
+      bucketStart(AggregationDateUnit.DAY, SANTIAGO_SEP_7 - 1, SANTIAGO),
+    ).toBe(SANTIAGO_SEP_6);
+    // The month that holds it still starts on the 1st.
+    expect(bucketStart(AggregationDateUnit.MONTH, noon, SANTIAGO)).toBe(
+      Date.parse('2025-09-01T04:00:00.000Z'),
+    );
   });
 
   it('is where bucketRange starts from', () => {
@@ -350,6 +395,41 @@ describe('drillConditions', () => {
           from: new Date(start).toISOString(),
           to: new Date(midnight('2026-10-01', SHANGHAI) - 1).toISOString(),
           timeZone: SHANGHAI,
+        },
+      },
+    ]);
+  });
+
+  it('drills a day to the whole of it, up to the first instant of the next, past a skipped midnight (#6903)', () => {
+    const config = analysisConfig({
+      groups: [
+        {
+          alias: 'day',
+          field: 'createdAt',
+          type: AggregationGroupType.DATE_HISTOGRAM,
+          unit: AggregationDateUnit.DAY,
+          timeZone: SANTIAGO,
+        },
+      ],
+    });
+    expect(
+      drillConditions(
+        config,
+        FIELDS,
+        builtinFieldKinds,
+        { day: SANTIAGO_SEP_6 },
+        { timeZone: 'UTC' },
+      ),
+    ).toEqual([
+      {
+        field: 'createdAt',
+        operator: FilterOperator.BETWEEN,
+        value: {
+          type: 'absolute',
+          from: new Date(SANTIAGO_SEP_6).toISOString(),
+          // 23:59:59.999 -04:00, the last moment of the 6th.
+          to: new Date(SANTIAGO_SEP_7 - 1).toISOString(),
+          timeZone: SANTIAGO,
         },
       },
     ]);
