@@ -35,25 +35,40 @@ import me.ahoo.wow.test.server.wowServer
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import org.junit.jupiter.api.assertThrows
+import org.testcontainers.kafka.ConfluentKafkaContainer
 import java.math.BigDecimal
 
 /**
- * The ordering service as it is deployed, behind the CoSec gateway (the `cosec` profile): CoSec's gateway mode reads
- * the principal the gateway verified from its `CoSec-Identity` header, and wow-cosec's resolver makes it the caller. A
- * buyer owns the orders it submits and reads only its own; an employee, a tenant-level caller, reads every order; a
- * request without the header is anonymous and answered 401, whatever else it carries, a token included, since the
- * service verifies none. Outside development, a node without CoSec does not start: it would take its callers from
- * headers any client sets. The typed clients send as the gateway forwards a caller: its `CoSec-Identity`
- * ([GATEWAY]); a request without it goes over HTTP, its headers the point.
+ * The ordering service as it is deployed, behind the CoSec gateway (the `cosec` profile), its commands across contexts
+ * on Kafka (the `kafka` profile, a broker in a container): a node outside development needs a command transport for
+ * the sagas that send the inventory's commands, and in-JVM topics are development's alone (#6972). Its log is in
+ * memory, named on purpose, which a deployment of one node may. CoSec's gateway mode reads the principal the gateway
+ * verified from its `CoSec-Identity` header, and wow-cosec's resolver makes it the caller. A buyer owns the orders it
+ * submits and reads only its own; an employee, a tenant-level caller, reads every order; a request without the header
+ * is anonymous and answered 401, whatever else it carries, a token included, since the service verifies none. The
+ * typed clients send as the gateway forwards a caller: its `CoSec-Identity` ([GATEWAY]); a request without it goes
+ * over HTTP, its headers the point. That a node without CoSec does not start outside development is
+ * [OrderingWithoutCoSecTest]'s.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class OrderingCoSecTest {
-    private val server = wowServer<OrderingServer>("cosec", properties = ONLY_GATEWAY_CAN_REACH + DEPLOYED_IN_MEMORY)
+    // region containers
+    private val kafka = ConfluentKafkaContainer(KAFKA_IMAGE).also { it.start() }
+    private val server = wowServer<OrderingServer>(
+        "cosec",
+        "kafka",
+        properties = ONLY_GATEWAY_CAN_REACH + DEPLOYED_IN_MEMORY +
+            mapOf("wow.kafka.bootstrap-servers" to kafka.bootstrapServers, "wow.log.partitions" to 4),
+    )
+    // endregion
 
     @AfterAll
     fun close() {
-        server.close()
+        try {
+            server.close()
+        } finally {
+            kafka.stop()
+        }
     }
 
     /** The header the gateway forwards for [id] of the default tenant, with [roles], after verifying its token. */
@@ -111,19 +126,12 @@ class OrderingCoSecTest {
             .assert().isNull()
     }
 
-    @Test
-    fun `a node outside development without CoSec should not start`() {
-        val failure = assertThrows<Exception> {
-            wowServer<OrderingServer>(properties = mapOf("wow.internal.host" to "0.0.0.0")).close()
-        }
-        generateSequence<Throwable>(failure) { it.cause }.mapNotNull { it.message }.joinToString("\n")
-            .assert().contains("No durable backend", "wow.dev-profiles")
-    }
-
     private fun read(id: String, caller: Caller): Snapshot<OrderStateView>? =
         runBlocking { server.queries(caller, gateway).snapshots<OrderStateView>().state(id) }
 
     private companion object {
+        /** The broker the eShop's end-to-end suites run. */
+        const val KAFKA_IMAGE = "confluentinc/cp-kafka:7.4.0"
         const val BAD_REQUEST = 400
         const val UNAUTHORIZED = 401
     }
@@ -137,8 +145,5 @@ class OrderingCoSecTest {
 @OptIn(ExperimentalCoSecApi::class) // CoSec's test kit is experimental in 8.0.
 private val ONLY_GATEWAY_CAN_REACH: Map<String, Any> = mapOf(IdentityHeader.ONLY_GATEWAY_CAN_REACH_KEY to "true")
 
-/**
- * A node behind the gateway is a deployment, development being a profile of `wow.dev-profiles` alone (#6972): its
- * backend in memory, named on purpose, as a deployment of one node may.
- */
+/** A deployment of one node, its log in memory on purpose (#6972: no profile of `wow.dev-profiles`). */
 private val DEPLOYED_IN_MEMORY: Map<String, Any> = mapOf("wow.backend" to "memory")
