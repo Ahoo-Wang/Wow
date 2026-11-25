@@ -63,9 +63,11 @@ internal class EntryHandling(
      * Runs the handler with its subscription's retries ([retry]); returns what it did, or the last failure once the
      * retries are spent. An attempt that outlasts the budget's timeout is cancelled and fails with a
      * [HandlerTimeoutException]. A [HandlingRejectedException] is not retried: a business outcome does not change.
+     *
+     * It is observed in [observed], which it ends: one a run of the entry's lane started and did not finish
+     * ([LaneRuns]), or its own.
      */
-    suspend fun handle(sourced: SourcedEntry): Result<HandledEntry> {
-        val observed = observation(sourced)
+    suspend fun handle(sourced: SourcedEntry, observed: Observation = observation(sourced)): Result<HandledEntry> {
         return observed.observe {
             retried(sourced).also { handled -> handled.exceptionOrNull()?.let { observed.failed(it) } }
         }

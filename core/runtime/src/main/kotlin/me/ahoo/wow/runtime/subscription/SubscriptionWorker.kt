@@ -32,6 +32,7 @@ import me.ahoo.wow.runtime.subscription.AggregateLanes.Lane
 import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
+import me.ahoo.wow.spi.observation.Observation
 import me.ahoo.wow.spi.observation.ObservedEvent.Fatal.Component
 import me.ahoo.wow.spi.observation.Observer
 import java.time.Clock
@@ -325,10 +326,13 @@ internal class SubscriptionWorker(
     private suspend fun runLive(item: Item.Live) {
         val entry = item.entry
         val (skipped, parked) = synchronized(this) { skippedInLane(entry) to parkedAt(entry) }
+        // A run that did not finish it started its observation, which its handling goes on in; a skipped entry,
+        // not handled, drops it.
+        val held = item.observation?.also { item.observation = null }
         val handled = if (skipped) {
             Result.success(HandledEntry.NOTHING)
         } else {
-            handling.handle(entry)
+            handling.handle(entry, held ?: handling.observation(entry))
         }
         handled.exceptionOrNull()?.let { park(entry, it) }
         synchronized(this) {
@@ -374,6 +378,12 @@ internal class SubscriptionWorker(
 
         override suspend fun park(entry: SourcedEntry, failure: Throwable) {
             this@SubscriptionWorker.park(entry, failure)
+        }
+
+        override fun held(item: Item.Live): Observation? = item.observation?.also { item.observation = null }
+
+        override fun hold(item: Item.Live, observation: Observation) {
+            item.observation = observation
         }
     }
 
@@ -574,7 +584,13 @@ internal class SubscriptionWorker(
     }
 
     private sealed interface Item {
-        class Live(val entry: SourcedEntry, val slot: Slot) : Item
+        /**
+         * A live entry of a lane, and the [observation] of its handling a run started and did not finish: the lane's
+         * coroutine sets it before the lane takes the entry again, which its monitor orders.
+         */
+        class Live(val entry: SourcedEntry, val slot: Slot) : Item {
+            var observation: Observation? = null
+        }
 
         /** An operator's action on the aggregate, answered with [result]. */
         sealed interface Action : Item {

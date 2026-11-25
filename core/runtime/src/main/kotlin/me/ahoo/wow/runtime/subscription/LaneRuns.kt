@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.runtime.subscription
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import me.ahoo.wow.runtime.health.NodeFatals
@@ -58,6 +59,15 @@ internal interface LaneOps<I, L> {
 
     /** Parks [entry]'s aggregate from it, as a failure of its handling does. */
     suspend fun park(entry: SourcedEntry, failure: Throwable)
+
+    /**
+     * Takes from [item] the observation of its handling that a run started and did not finish ([hold]): its next
+     * handling goes on in it. Null when it holds none.
+     */
+    fun held(item: I): Observation?
+
+    /** Keeps [observation], of [item]'s handling, with [item], for the handling that goes on in it ([held]). */
+    fun hold(item: I, observation: Observation)
 }
 
 /** An entry a lane took: its worker's [item], whether the lane [skipped] it, and whether it was [parked] there. */
@@ -107,6 +117,10 @@ internal class LaneRuns<I, L>(
      * [runHandler]. The entries it answers done complete, each on its own, and are signalled; the rest go back in the
      * lane, behind any action an operator queued meanwhile, before the entry the run ended at is handled alone, retried
      * and parked as any entry is. While the partition is paused, [first] is handled alone: that is the pause's probe.
+     *
+     * Each entry's handling is observed once ([observed]): the entry the run ended at is handled alone in the
+     * observation the run started for it, as a retry of it, and each entry after it goes on in its own when its lane
+     * takes it again.
      */
     private suspend fun run(first: I, lane: L, runHandler: RunHandler) {
         if (handling.paused) {
@@ -166,29 +180,41 @@ internal class LaneRuns<I, L>(
     /**
      * Runs [entries], the first of [handed], as one attempt of [runHandler], each entry observed in its own trace;
      * returns how many are done. An answer outside the contract is taken as what it can mean: at most every entry
-     * done, and an entry not done without a failure as failed with one that says so.
+     * done, and an entry not done as the one the run ended at, whatever its failure.
+     *
+     * The observation of each entry done ends with the run. That of each entry not done is kept with it ([LaneOps.hold])
+     * and goes on with its next handling: the run's failure is an attempt of the entry it ended at, which is handled
+     * alone next, and the entries after it were not tried. An entry a run before did not finish goes on in the
+     * observation that run started ([LaneOps.held]). When the run throws (a fatal error, the lane's cancellation),
+     * every observation ends with it, as an entry's handled alone does.
      */
+    @Suppress("TooGenericExceptionCaught") // Told to every observation of the run, then rethrown unchanged.
     private suspend fun observed(handed: List<Taken<I>>, entries: List<SubscribedEntry>, runHandler: RunHandler): Int {
-        val observations = entries.indices.map { handling.observation(handed[it].entry) }
-        var done = 0
-        var failure: Throwable? = null
-        try {
-            val answer = handling.attemptRun(handed.first().entry) {
+        val observations = entries.indices.map { ops.held(handed[it].item) ?: handling.observation(handed[it].entry) }
+        val answer = try {
+            handling.attemptRun(handed.first().entry) {
                 runHandler(entries.mapIndexed { index, entry -> RunEntry(entry, observations[index].context) })
             }
-            done = answer.done.coerceIn(0, entries.size)
-            failure = answer.failure ?: IllegalStateException(
-                "The run handler of ${subscription.name} answered ${answer.done} of ${entries.size} entries " +
-                    "without a failure."
-            ).takeIf { done < entries.size }
-            return done
-        } finally {
-            observations.forEachIndexed { index, observation -> ended(observation, failure.takeIf { index == done }) }
+        } catch (failure: Throwable) {
+            observations.forEach {
+                it.failed(failure)
+                it.end()
+            }
+            throw failure
         }
-    }
-
-    private fun ended(observation: Observation, failure: Throwable?) {
-        failure?.let { observation.failed(it) }
-        observation.end()
+        val done = answer.done.coerceIn(0, entries.size)
+        observations.forEachIndexed { index, observation ->
+            if (index < done) observation.end() else ops.hold(handed[index].item, observation)
+        }
+        if (done < entries.size) {
+            logger.debug {
+                "The run of ${subscription.name} ended at ${entries[done].ref}@${entries[done].version}, " +
+                    "$done of ${entries.size} done (${answer.failure ?: "answered without a failure"}): it is " +
+                    "handled alone next."
+            }
+        }
+        return done
     }
 }
+
+private val logger = KotlinLogging.logger {}

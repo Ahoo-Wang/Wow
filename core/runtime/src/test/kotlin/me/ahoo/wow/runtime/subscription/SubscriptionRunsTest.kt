@@ -13,6 +13,10 @@
 
 package me.ahoo.wow.runtime.subscription
 
+import ch.qos.logback.classic.Level
+import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.core.read.ListAppender
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineName
@@ -42,6 +46,7 @@ import me.ahoo.wow.spi.subscription.SubscriptionId
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.slf4j.LoggerFactory
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
@@ -361,11 +366,17 @@ class SubscriptionRunsTest {
                 clock,
                 observer = observer,
             )
-            started = runtime.also { it.start(setOf(0)) }
-            val sequence = appender.append("x")
-            eventually { watermark(runtime) == sequence }
+            val lines = runLines {
+                started = runtime.also { it.start(setOf(0)) }
+                val sequence = appender.append("x")
+                eventually { watermark(runtime) == sequence }
+            }
             alone.assert().containsExactly("x@1")
-            observer.failed.getValue("x@1").assert().isInstanceOf(HandlerTimeoutException::class.java)
+            // The run's timeout is an attempt of x@1's handling, which went on alone and succeeded: one observation.
+            observer.opened.assert().containsExactly("x@1")
+            observer.ended.assert().containsExactly("x@1")
+            observer.failed.assert().isEmpty()
+            lines.single().assert().contains("x@1", HandlerTimeoutException::class.java.name)
         }
 
     @Test
@@ -430,17 +441,20 @@ class SubscriptionRunsTest {
     }
 
     @Test
-    fun `a run handler's answer that stops short without a failure fails its next entry with a reason that says so`(): Unit =
+    fun `a run handler's answer that stops short without a failure ends the run at its next entry, saying so`(): Unit =
         runBlocking {
             answers["x"] = { entries -> RunHandled(if (entries.size > 1) 1 else entries.size, null) }
             val runtime = runtime()
-            val sequences = holdX(runtime, more = 3)
-            releaseX()
-            eventually { watermark(runtime) == sequences.last() }
+            val lines = runLines {
+                val sequences = holdX(runtime, more = 3)
+                releaseX()
+                eventually { watermark(runtime) == sequences.last() }
+            }
             alone.assert().containsExactly("x@3")
-            observer.failed.getValue("x@3").message.assert()
-                .isEqualTo("The run handler of $NAME answered 1 of 3 entries without a failure.")
             runs.assert().containsExactly(listOf("x@1"), listOf("x@2", "x@3", "x@4"), listOf("x@4"))
+            lines.single().assert().contains("x@3", "1 of 3 done", "answered without a failure")
+            observer.opened.assert().containsExactly("x@1", "x@2", "x@3", "x@4")
+            observer.failed.assert().isEmpty()
         }
 
     @Test
@@ -458,22 +472,59 @@ class SubscriptionRunsTest {
     }
 
     @Test
-    fun `each entry of a run is observed in its own trace, the failing one failed`(): Unit = runBlocking {
-        val traces = CopyOnWriteArrayList<String>()
+    fun `each entry of a run is observed in its own trace, the failing one failed as its handling alone fails`(): Unit =
+        runBlocking {
+            val traces = CopyOnWriteArrayList<String>()
+            failAt = "x@3"
+            answers["x"] = { entries ->
+                entries.forEach { traces += "${key(it.entry)} in ${it.context[CoroutineName]?.name}" }
+                answered(entries)
+            }
+            val runtime = runtime()
+            val sequences = holdX(runtime, more = 3)
+            releaseX()
+            eventually { watermark(runtime) == sequences.last() }
+            traces.assert().contains("x@2 in x@2", "x@3 in x@3", "x@4 in x@4")
+            // x@3 is handled alone in the observation the run started, and parks: its failure is that handling's.
+            observer.failed.getValue("x@3").message.assert().isEqualTo("x@3 is broken alone")
+            observer.failed.keys.assert().containsExactly("x@3")
+            // x@4, never tried, is skipped behind the park: its observation is dropped, not ended as handled.
+            observer.opened.assert().containsExactly("x@1", "x@2", "x@3", "x@4")
+            observer.ended.assert().containsExactly("x@1", "x@2", "x@3")
+        }
+
+    @Test
+    fun `each entry of a run that fails part way should be observed once, the entries after it not ended as handled`():
+        Unit = runBlocking {
         failAt = "x@3"
         failing = false
-        answers["x"] = { entries ->
-            entries.forEach { traces += "${key(it.entry)} in ${it.context[CoroutineName]?.name}" }
-            answered(entries)
-        }
         val runtime = runtime()
         val sequences = holdX(runtime, more = 3)
         releaseX()
         eventually { watermark(runtime) == sequences.last() }
-        traces.assert().contains("x@2 in x@2", "x@3 in x@3", "x@4 in x@4")
-        observer.failed.getValue("x@3").message.assert().isEqualTo("x@3 is broken")
-        observer.failed.keys.assert().containsExactly("x@3")
-        observer.ended.size.assert().isEqualTo(observer.opened.size)
+
+        runs.assert().contains(listOf("x@2", "x@3", "x@4"))
+        alone.assert().containsExactly("x@3")
+        observer.opened.groupingBy { it }.eachCount().assert()
+            .isEqualTo(mapOf("x@1" to 1, "x@2" to 1, "x@3" to 1, "x@4" to 1))
+        observer.ended.groupingBy { it }.eachCount().assert()
+            .isEqualTo(mapOf("x@1" to 1, "x@2" to 1, "x@3" to 1, "x@4" to 1))
+    }
+
+    /** The lines [LaneRuns] logs while [block] runs: a run that ended part way. */
+    private suspend fun runLines(block: suspend () -> Unit): List<String> {
+        val logger = LoggerFactory.getLogger(LaneRuns::class.java.name) as Logger
+        val level = logger.level
+        val appender = ListAppender<ILoggingEvent>().apply { start() }
+        logger.level = Level.DEBUG
+        logger.addAppender(appender)
+        try {
+            block()
+            return appender.list.map { it.formattedMessage }
+        } finally {
+            logger.detachAppender(appender)
+            logger.level = level
+        }
     }
 
     /** Observes each handling in a trace named after its entry, recording which ended and which failed. */
