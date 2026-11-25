@@ -145,7 +145,7 @@ With a previous version, the run installs that version first, then upgrades to t
 3. Every state topic with fewer partitions than the log's 64 is given 64 (`kafka-topics.sh --alter`).
 4. CoSec's stored patterns are checked with the new version's `cosec-migrate check-patterns`, while the old gateway still runs. A pattern it names stops the upgrade.
 5. The catalog's nodes are stopped, and its Elasticsearch indices that are no alias's are deleted: Operate › Elasticsearch says a store refuses an index an earlier pre-release created, to be deleted and rebuilt. The indices and aliases are logged before and after.
-6. The services are upgraded in their waves, each until its rollout is done. Then the gateway, on the new version's image. Then every subscription catches up again.
+6. The services are upgraded in their waves, each until its rollout is done. Then the gateway, on the new version's image. Then every subscription catches up again, and the catalog's snapshot copy is rebuilt by the snapshot rebuild of every product, sent as an employee through the gateway (the cluster test's `search-rebuild`). The events index has no rebuild a deployment can ask for by a command: the functional suite that follows (`4-functional`) lists every product and its events from Elasticsearch.
 
 **Evidence.** Each step is timed in the evidence folder (`steps.tsv`, `steps/<step>.log`), and every pod's logs of the step, its current and previous containers', are kept in `logs/<step>/` before the next step starts, so a later reinstall or drain cannot take them.
 
@@ -177,6 +177,7 @@ The folder stays on the machine. `drill.sh teardown` deletes the cluster.
     - `owner-deletion`: step 5's first half;
     - `ops`: step 9;
     - `verdict`: the invariants alone;
+    - `search-rebuild`: the products' snapshot copy on Elasticsearch rebuilt after the quiesce upgrade deleted it;
     - `load`: full-chain checkouts by `ga.load.clients` buyers at once (4), a probe measuring every failure, until a stop file. With `ga.load.stop-file`, `ga.load.bound` (the bound of the failures' window) and `load.started` in its report folder once its first checkout is answered, so `drill.sh` starts an operation only under load.
 
     Every run then checks that no Wow container restarted and every Wow pod is ready, and judges the invariants over the whole drill.

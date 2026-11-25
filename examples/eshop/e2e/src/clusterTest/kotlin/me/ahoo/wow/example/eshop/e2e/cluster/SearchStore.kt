@@ -58,6 +58,30 @@ class SearchStore(
         return "${listed.size} products found by their search, their events too, from Elasticsearch: $counts"
     }
 
+    /**
+     * The products' snapshot copy rebuilt from the log once its index was deleted, as Operate › Elasticsearch's
+     * "Rebuild" says: the snapshot rebuild of every product the drill filed, sent as an employee (the catalog's
+     * operational authorizer), then their documents counted. The events index has no rebuild a deployment can ask for
+     * by a command, so its count is reported, not required.
+     */
+    fun rebuild(): String {
+        val ids = Deployment.PRODUCTS.keys.joinToString(",") { "\"$it\"" }
+        val rebuild = shop.post(
+            "/eshop-catalog/product/wow.snapshot.rebuild-snapshot",
+            """{"ids":[$ids]}""",
+            Who.EMPLOYEE,
+        )
+        check(rebuild.status == ShopFlows.OK) {
+            "the products' snapshot rebuild answered ${rebuild.status}: ${rebuild.body.take(BODY)}"
+        }
+        var counts = emptyMap<String, Int?>()
+        flows.eventually("the products' snapshots counted on Elasticsearch again", CATCH_UP, { "it counts $counts" }) {
+            counts = INDICES.associateWith(::count)
+            (counts[SNAPSHOT_INDEX] ?: 0) >= Deployment.PRODUCTS.size
+        }
+        return "${Deployment.PRODUCTS.size} products' snapshots rebuilt on Elasticsearch: $counts"
+    }
+
     fun outage(): String {
         flows.product(PROBE, "Search probe", "3.00")
         var downSnapshots = 0

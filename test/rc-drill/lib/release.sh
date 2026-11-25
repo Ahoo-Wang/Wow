@@ -336,7 +336,8 @@ upgrade() {
 #   5. the catalog's Elasticsearch indices that the old version created deleted, as Operate › Elasticsearch says of an
 #      index an earlier pre-release created, with the catalog's nodes stopped by its release (search_indices);
 #   6. the services upgraded, wave by wave, each until its rollout is done; then the gateway, on the new version's
-#      image, and every subscription caught up again.
+#      image, every subscription caught up again, and the catalog's snapshot copy rebuilt (the cluster test's
+#      search-rebuild).
 quiesce() {
   local from=$1 to=$2 wave name
   log "quiesce $from -> $to: 1. the commands stopped, the gateway scaled to none"
@@ -364,8 +365,10 @@ quiesce() {
   done
   gateway "$to"
   caught_up 900
-  # What the catalog's search holds now: Operate › Elasticsearch has each copy rebuilt from the log after the delete,
-  # which the functional suite that follows checks (it lists every product and its events from Elasticsearch).
+  # Operate › Elasticsearch has each copy rebuilt from the log after the delete: the snapshot copy by the snapshot
+  # rebuild, sent through the gateway (the cluster test's search-rebuild). The events index has no rebuild a deployment
+  # can ask for; the functional suite that follows lists every product and its events from Elasticsearch.
+  e2e search-rebuild search-rebuild
   search_layout
   log "quiesce done: $from -> $to; the commands may come again"
 }
