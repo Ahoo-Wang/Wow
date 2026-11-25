@@ -24,6 +24,7 @@ import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaRegistration
 import me.ahoo.wow.query.tck.QueryBackendSpec
+import me.ahoo.wow.query.tck.SnapshotAggregationCases.Companion.EXACT_PLAIN_AGGREGATE
 import me.ahoo.wow.query.tck.SnapshotDateBucketCases.Companion.GAP_MID_UNIT
 import me.ahoo.wow.query.tck.SnapshotDateBucketCases.Companion.GAP_START
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
@@ -65,6 +66,9 @@ class ElasticsearchSnapshotQueryBackendTest : QueryBackendSpec() {
         // Elasticsearch rounds the unit after a local start Africa/Monrovia's 1972 change skipped into the one before it.
         GAP_START,
         GAP_MID_UNIT,
+        // A state number is mapped as a double: a plain field's aggregation and a computed value are in doubles.
+        EXACT_PLAIN_AGGREGATE,
+        "decimal.computed-value",
     )
 
     override fun binding(type: AggregateType): QueryBackendBinding<QueryBackend> = queries.binding(type)

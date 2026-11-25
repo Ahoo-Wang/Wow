@@ -41,6 +41,9 @@ class AcmeQueryBackendTck : QueryBackendSpec() {
 
     override fun binding(type: AggregateType): QueryBackendBinding<QueryBackend> = checkNotNull(queries.binding(type))
 
+    // The in-memory reference computes a computed value in doubles, a plain field's aggregation in its decimals.
+    override val semanticDivergences: Set<String> = setOf("decimal.computed-value")
+
     @Test
     fun `a declared index should be created once and kept`(): Unit = runBlocking {
         val status = indexPlan("ix_status" to listOf("state.status"))
