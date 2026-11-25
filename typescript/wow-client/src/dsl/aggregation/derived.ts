@@ -17,7 +17,11 @@ import type { AggregationDateUnit } from './groups.js';
 import { AggregationExpressionOperator } from './types.js';
 import { aggregationAlias } from './aliases.js';
 
-/** The kind of a {@link DerivedExpression} node, sent as its `type`. */
+/**
+ * The kind of a {@link DerivedExpression} node, sent as its `type`.
+ *
+ * @experimental
+ */
 export enum DerivedExpressionType {
   /** The value of another metric of the row, by its alias. */
   METRIC_REF = 'metric-ref',
@@ -38,6 +42,8 @@ export enum DerivedExpressionType {
 /**
  * The window functions of derived expressions, as a storage declares them in
  * `analysis.windows` of its descriptor.
+ *
+ * @experimental
  */
 export enum WindowFunction {
   TOTAL = 'total',
@@ -46,7 +52,11 @@ export enum WindowFunction {
   RANK = 'rank',
 }
 
-/** What a `RUNNING` window computes over its frame. */
+/**
+ * What a `RUNNING` window computes over its frame.
+ *
+ * @experimental
+ */
 export enum RunningFunction {
   SUM = 'sum',
   AVG = 'avg',
@@ -58,6 +68,8 @@ export enum RunningFunction {
  * names a non-derived numeric metric declared before the derived one, and
  * `within`, `order` and `along` name groups of the query. Wow 9.9 and later,
  * where `analysis.windows` lists the function.
+ *
+ * @experimental
  */
 export type DerivedWindow =
   | {
@@ -100,6 +112,8 @@ export type DerivedWindow =
 /**
  * Post-aggregation arithmetic; references must name earlier metrics that are
  * not `ANY`, `FIRST` or `LAST`.
+ *
+ * @experimental
  */
 export type DerivedExpression =
   | { type: DerivedExpressionType.METRIC_REF; metric: string }
@@ -115,6 +129,8 @@ export type DerivedExpression =
 /**
  * A metric computed from metrics declared before it in the same query, after
  * aggregation; {@link derivedBuilders.derived | `aggregation.derived`}. Wow 9.1 and later.
+ *
+ * @experimental
  */
 export interface DerivedAggregationMetric {
   type: AggregationMetricType.DERIVED;
@@ -136,6 +152,8 @@ export interface DerivedAggregationMetric {
  *
  * These are not `aggregation.add` and friends: those build the expressions a
  * metric aggregates over, which name fields, not metrics.
+ *
+ * @experimental
  */
 export interface DerivedExpressionDsl {
   /** The value of another metric of the row. `{ type: 'metric-ref', metric }`. */

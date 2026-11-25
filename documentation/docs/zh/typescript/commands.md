@@ -173,7 +173,7 @@ for (;;) {
 }
 ```
 
-在准入时被拒绝的命令，会在任何结果流出之前 reject 这次调用，抛出的是 `result.status` 为 `rejected` 的 `WowProblemError`：流式调用不会像 `wait` 那样把它转成 `CommandRejectedError`，所以要检查 `error.result?.status`。准入之后的拒绝是流的最后一个结果，带着它的 `status` 和 `error`。当某个 Saga 不再发出任何东西时，链会在计划结束之前结束：那个结果带有 `chainEnded`，`pending` 指明不会到来的那些跳。eShop 的结账页面就是这样把它十五跳的链一直跟随到支付的（`examples/eshop/web/src/shop/checkout.ts`）。流在服务最后一个结果之后的 `end` 事件上关闭，`end` 不是结果。没有它就结束的流（无论结束得多干净）、开始之后连接断开的流、发来的不是结果的流，读取都以 `wow.command.unknown` 的 `WowProblemError`（`retry` 为 `same-request`）reject，网络的错误是它的 `cause`：命令可能已经提交，所以用它发送时的请求 ID 再发一次，`requestIdOf(error)` 交回这个 ID。
+在准入时被拒绝的命令，会在任何结果流出之前 reject 这次调用，抛出的是 `result.status` 为 `rejected` 的 `WowProblemError`：流式调用不会像 `wait` 那样把它转成 `CommandRejectedError`，所以要检查 `error.result?.status`。准入之后的拒绝是流的最后一个结果，带着它的 `status` 和 `error`。当某个 Saga 不再发出任何东西时，链会在计划结束之前结束：那个结果带有 `chainEnded`，`pending` 指明不会到来的那些跳。eShop 的结账页面就是这样把它十五跳的链一直跟随到支付的（`examples/eshop/web/src/shop/checkout.ts`）。流在服务最后一个结果之后、原因为 `complete` 的 `end` 事件上关闭，`end` 不是结果。客户端不认识的事件（较新的服务可能发送）被跳过；客户端不认识的阶段的结果仍是结果，它的 `hop.stage` 照服务所写。没有 `end` 就结束的流（无论结束得多干净）、`end` 给出别的原因的流、开始之后连接断开的流、结果不是 JSON 的流，读取都以 `wow.command.unknown` 的 `WowProblemError`（`retry` 为 `same-request`）reject，网络的错误是它的 `cause`：命令可能已经提交，所以用它发送时的请求 ID 再发一次，`requestIdOf(error)` 交回这个 ID。
 
 ## 命令失败时 {#when-a-command-fails}
 

@@ -81,6 +81,8 @@ export enum FilterOperator {
    * compared with a number. Evaluated per record, so expensive; a record
    * whose expression has no value never matches. Needs a Wow server of
    * 9.2.0 or later.
+   *
+   * @experimental
    */
   EXPRESSION = 'expression',
 }

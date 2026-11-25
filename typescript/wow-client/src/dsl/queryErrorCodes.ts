@@ -95,11 +95,15 @@ export const QueryErrorCodes = Object.freeze({
    * A `having` or metric sort the storage evaluates after grouping read more
    * groups than the server allows; `path` is `body`. It may end a stream
    * partway through.
+   *
+   * @experimental
    */
   RESIDUAL_GROUPS_EXCEEDED: 'residual-groups-exceeded',
   /**
    * An aggregation that names no sort found more groups than its `limit`;
    * `path` is `limit`. Add a sort for a top-N, or raise the limit.
+   *
+   * @experimental
    */
   TOO_MANY_GROUPS: 'too-many-groups',
   /**
@@ -129,7 +133,11 @@ export const QueryErrorCodes = Object.freeze({
   MODEL_SEARCH_UNSUPPORTED: 'model-search-unsupported',
   /** The field cannot be used for a cursor. */
   CURSOR_NOT_ALLOWED: 'cursor-not-allowed',
-  /** The field is protected and cannot be aggregated. */
+  /**
+   * The field is protected and cannot be aggregated.
+   *
+   * @experimental
+   */
   PROTECTED_AGGREGATION: 'protected-aggregation',
   /**
    * The field is protected and cannot be filtered or sorted: its descriptor
@@ -137,17 +145,37 @@ export const QueryErrorCodes = Object.freeze({
    * the same way.
    */
   PROTECTED_COMPARISON: 'protected-comparison',
-  /** A terms group's `missingKey` needs a single-valued string field. */
+  /**
+   * A terms group's `missingKey` needs a single-valued string field.
+   *
+   * @experimental
+   */
   MISSING_KEY_REQUIRES_STRING: 'missing-key-requires-string',
-  /** `ANY` needs a single value. */
+  /**
+   * `ANY` needs a single value.
+   *
+   * @experimental
+   */
   ANY_REQUIRES_SINGLE_VALUE: 'any-requires-single-value',
   /** The storage cannot deliver a complete projection; select fields explicitly. */
   INCOMPLETE_PROJECTION: 'incomplete-projection',
-  /** A metric filter uses a search filter. */
+  /**
+   * A metric filter uses a search filter.
+   *
+   * @experimental
+   */
   METRIC_FILTER_SEARCH: 'metric-filter-search',
-  /** A metric filter uses `ELEMENT_MATCH`. */
+  /**
+   * A metric filter uses `ELEMENT_MATCH`.
+   *
+   * @experimental
+   */
   METRIC_FILTER_ELEMENT_MATCH: 'metric-filter-element-match',
-  /** A metric filter names an array field; it must be scalar. */
+  /**
+   * A metric filter names an array field; it must be scalar.
+   *
+   * @experimental
+   */
   METRIC_FILTER_ARRAY_FIELD: 'metric-filter-array-field',
   /** The field cannot be projected. */
   NOT_PROJECTABLE: 'not-projectable',
@@ -170,18 +198,24 @@ export const QueryErrorCodes = Object.freeze({
   /**
    * A `FIRST` or `LAST` metric names a field that may hold several values;
    * it needs a single-valued one (`aggregate.firstLast` in the descriptor).
+   *
+   * @experimental
    */
   FIRST_LAST_REQUIRES_SINGLE_VALUE: 'first-last-requires-single-value',
   /**
    * A `FIRST` or `LAST` metric names no `orderBy` where there is no event
    * time to order by, such as inside an element or on a model whose
    * descriptor has no `analysis.firstLastOrderBy`; `path` is its field.
+   *
+   * @experimental
    */
   FIRST_LAST_REQUIRES_ORDER_BY: 'first-last-requires-order-by',
   /**
    * A date group or date difference names a field that stores neither a
    * date nor an epoch (a formatted string, say), so it cannot be aggregated
    * by time.
+   *
+   * @experimental
    */
   TEMPORAL_AGGREGATION_UNSUPPORTED: 'temporal-aggregation-unsupported',
   /** The sort has more fields than the protocol allows; `path` is `''`. */
@@ -204,6 +238,8 @@ export const QueryErrorCodes = Object.freeze({
    * conditions where its range cannot be shifted to the earlier period:
    * outside the top-level `AND`, or with a value that is not an instant;
    * `path` is the field.
+   *
+   * @experimental
    */
   PREVIOUS_UNSHIFTABLE: 'previous-unshiftable',
 } as const);

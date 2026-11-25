@@ -271,6 +271,8 @@ export class QueryModelClient<R, FIELDS extends string = string> {
    * `int64`, `bigint` or `decimal` field the generated types say `string`
    * of) is read so too, so two groups never read as one key; a metric's
    * value is a computed number, read as a `number`.
+   *
+   * @experimental
    */
   async aggregate<ROW = Record<string, unknown>>(
     query: AggregationQuery<FIELDS, string>,
@@ -460,6 +462,8 @@ export class EventQueryClient<
  * The datasets of a Wow service: registered at run
  * time, so not in the Manifest. Lists those the caller sees and queries
  * each as a snapshot model is queried.
+ *
+ * @experimental
  */
 export class DatasetClient {
   /** @param options - How the service is reached */

@@ -184,6 +184,8 @@ export const queryBuilders = {
  *
  * Every group and metric takes its target first, its alias second, and any
  * further options as a trailing object.
+ *
+ * @experimental
  */
 export const aggregation: typeof queryBuilders &
   typeof groupBuilders &

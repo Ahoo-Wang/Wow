@@ -43,6 +43,7 @@ export const expressionFilters = {
    * @throws TypeError If `value` is not finite, `comparison` is not a
    *   {@link ComparisonOperator}, `expression` reads no field, or the tree is
    *   too deep or too large.
+   * @experimental
    * @example
    * ```typescript
    * // Shipped more than two days after it was paid.

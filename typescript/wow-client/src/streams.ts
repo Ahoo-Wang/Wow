@@ -19,7 +19,7 @@ import {
 import { parseJson } from './exactJson.js';
 import { type AnswerBound, unknownOutcome } from './answerBound.js';
 import type { Answer } from './http.js';
-import type { CommandResult } from './wire.js';
+import { type CommandResult, Stage } from './wire.js';
 import {
   DEFAULT_RETRY,
   FrameworkErrorCodes,
@@ -50,35 +50,66 @@ const UNNAMED_EVENT = 'message';
  * per hop, each event named by its stage. A rejection or a failure after
  * admission is the stream's last result, not an error. The server ends a
  * whole stream with an `end` event after the last result, which is no result:
- * the stream closes on it. One that ends without it, however cleanly, one
- * whose connection is lost, one that sends what is no result, and one that
- * outlasts its wait and a grace (`CommandClient.stream`) error with a
- * `wow.command.unknown` {@link WowProblemError}, the command's outcome
- * unknown and a retry with its request id safe.
+ * the stream closes on it. An event this client does not know, which a newer
+ * server may send, is skipped; a result of a stage it does not know is still
+ * a result (decision D484). One that ends without `end`, however cleanly, one
+ * whose `end` gives a reason other than `complete`, one whose connection is
+ * lost, one that sends data that is no JSON, and one that outlasts its wait and
+ * a grace (`CommandClient.stream`) error with a `wow.command.unknown`
+ * {@link WowProblemError}, the command's outcome unknown and a retry with its
+ * request id safe.
  */
 export type CommandResultStream<R = Record<string, unknown>> = ReadableStream<
   CommandResult<R>
 >;
 
+/** The stages this client knows, whose events are a command's results. */
+const RESULT_EVENTS: ReadonlySet<string> = new Set(Object.values(Stage));
+
+/**
+ * Whether `event` of a command's stream is a result: named by a stage this
+ * client knows, or by the stage of the result it carries, one a newer server
+ * added (a hop's stage is open, decision D484). Any other event is one a
+ * newer server added, which this client skips.
+ */
+function isResult({ event, data }: JsonServerSentEvent<unknown>): boolean {
+  return (
+    isStage(event) ||
+    (event !== undefined &&
+      (data as { hop?: { stage?: unknown } } | null)?.hop?.stage === event)
+  );
+}
+
+/** Whether `event` is named by a stage this client knows. */
+const isStage = (event: string | undefined) => RESULT_EVENTS.has(event!);
+
 /**
  * The events of `answer`'s server-sent event stream, each event's data read
- * as JSON: with the answer's exact numbers for an event `marked` names.
+ * as JSON: with the answer's exact numbers for an event `marked` names. An
+ * event whose data is no JSON fails the read when its reader `knows` it, and
+ * is left out otherwise: a newer server's event, which its reader skips
+ * whatever it holds.
  */
 function eventsOf(
   answer: Answer,
   marked: (event: string | undefined) => boolean,
+  knows: (event: string | undefined) => boolean,
 ): ReadableStreamDefaultReader<JsonServerSentEvent<unknown>> {
   return toServerSentEventStream(answer.response)
     .pipeThrough(
       new TransformStream<ServerSentEvent, JsonServerSentEvent<unknown>>({
         transform(event, controller) {
-          controller.enqueue({
-            ...event,
-            data: parseJson(
+          let data: unknown;
+          try {
+            data = parseJson(
               event.data,
               marked(event.event) ? answer.numbers : undefined,
-            ),
-          });
+            );
+          } catch (error) {
+            if (knows(event.event)) throw error;
+            return;
+          }
+          controller.enqueue({ ...event, data });
         },
       }),
     )
@@ -90,9 +121,10 @@ function eventsOf(
  * results of the command sent with `requestId`, until its `end` event, which
  * says the stream is whole, all within `bound`. Past the head, whatever keeps
  * the stream from its `end` leaves the command's outcome unknown: a stream
- * that ends without it, a connection lost, an event that is no result, the
- * bound passing. Each fails the read with a `wow.command.unknown` problem
- * that carries `requestId` (`requestIdOf`), so a retry with the same id is
+ * that ends without it, an `end` of a reason other than `complete` (a newer
+ * server's), a connection lost, an event whose data is no JSON, the bound
+ * passing. Each fails the read with a `wow.command.unknown` problem that
+ * carries `requestId` (`requestIdOf`), so a retry with the same id is
  * answered as the duplicate of a commit that did happen. An abort of the
  * caller's own signal fails it with the abort's reason, which carries
  * `requestId` too.
@@ -102,9 +134,16 @@ export function commandResults<R>(
   requestId: string,
   bound: AnswerBound,
 ): CommandResultStream<R> {
-  const reader = eventsOf(answer, event => event !== END_EVENT);
-  return new ReadableStream<CommandResult<R>>({
-    async pull(controller) {
+  const reader = eventsOf(
+    answer,
+    event => event !== END_EVENT,
+    event => event === END_EVENT || isStage(event),
+  );
+  /** The next result or `end`, past the events a newer server added. */
+  async function read(): Promise<
+    ReadableStreamReadResult<JsonServerSentEvent<unknown>>
+  > {
+    for (;;) {
       let next: ReadableStreamReadResult<JsonServerSentEvent<unknown>>;
       try {
         next = await reader.read();
@@ -122,6 +161,13 @@ export function commandResults<R>(
           error,
         );
       }
+      if (next.done || next.value.event === END_EVENT || isResult(next.value))
+        return next;
+    }
+  }
+  return new ReadableStream<CommandResult<R>>({
+    async pull(controller) {
+      const next = await read();
       if (next.done) {
         bound.clear();
         throw unknownOutcome(
@@ -129,14 +175,22 @@ export function commandResults<R>(
           requestId,
         );
       }
-      if (next.value.event === END_EVENT) {
+      const { event, data } = next.value;
+      if (event === END_EVENT) {
         bound.clear();
-        // The stream is whole: what may follow, a keep-alive, is not read.
+        // What may follow, a keep-alive, is not read.
         await reader.cancel().catch(() => undefined);
+        const reason = (data as { reason?: unknown } | null)?.reason;
+        // A reason a newer server added: this client cannot tell the stream whole.
+        if (reason !== COMPLETE)
+          throw unknownOutcome(
+            `The command's event stream ended for an unknown reason (${JSON.stringify(reason)}): whether it committed is unknown.`,
+            requestId,
+          );
         controller.close();
         return;
       }
-      controller.enqueue(next.value.data as CommandResult<R>);
+      controller.enqueue(data as CommandResult<R>);
     },
     cancel(reason) {
       bound.clear();
@@ -284,8 +338,14 @@ export function resumableQueryRows<T>(
     signal,
   } = options;
   // A record's exact numbers are its answer's (review R4-Q, Q-9).
+  const isRow = (event: string | undefined) =>
+    event === ROW_EVENT || event === UNNAMED_EVENT;
   const events = (from: Answer) =>
-    eventsOf(from, event => event === ROW_EVENT || event === UNNAMED_EVENT);
+    eventsOf(
+      from,
+      isRow,
+      event => isRow(event) || event === END_EVENT || event === ERROR_EVENT,
+    );
   let reader = events(answer);
   /**
    * Releases a response the stream reads no more of: past the event that

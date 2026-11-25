@@ -137,6 +137,14 @@ fails when a top-level declaration of an entry has no doc comment.
 the wire with `pnpm exec vitest run test/dslWire.test.ts -u`. Prettier leaves
 `test/api/` and `test/golden/` alone.
 
+The dataset queries, the aggregation queries and their expressions, with
+the query error codes only they raise, are experimental, as Kotlin's
+`@ExperimentalWowApi` declarations of them are (D486 ②): each such
+declaration carries `@experimental` in its TSDoc, a member's on the member. `.github/scripts/docs-reference.mjs` lists them on
+the compatibility page (`typescript/compatibility.md`, `pnpm docs:reference`)
+and fails when a declaration named as an experimental Kotlin one of the query
+API (`AggregationQuery`, `FilterOperator.EXPRESSION`) is not marked.
+
 ## Dependencies
 
 - `@ahoo-wang/fetcher` — the HTTP client every request goes through
