@@ -37,8 +37,9 @@
  * - otherwise forwards it with the identity CoSec's gateway forwards (format
  *   v1, as Web integration › Forwarding the identity describes it): the
  *   token's tenant, subject and roles, in that app and the default space, no
- *   memberships, the token's `jti`, expiry and issue time, and the request's
- *   id, as CoSec 8.0.0-beta.8's gateway forwards it.
+ *   memberships, whose credential it is (the token's `cosec.kind`), its
+ *   `jti`, expiry and issue time, and the request's id, as CoSec
+ *   8.0.0-beta.9's gateway forwards it.
  *
  * It decides nothing else: the suite's tokens carry their roles, so there is
  * no policy, no document and no Redis to consult.
@@ -121,8 +122,9 @@ function authenticate(authorization, secret, revoked, now) {
 /**
  * The `CoSec-Identity` of `claims` in `app` for the request `requestId`:
  * base64url, without padding, of compact JSON with exactly the members CoSec
- * 8.0.0-beta.8's gateway forwards, in its order (the token's issue time in
- * `auth`, no memberships, the request's id as `rid`).
+ * 8.0.0-beta.9's gateway forwards, in its order (whose credential it is and
+ * the token's issue time in `auth`, no memberships, the request's id as
+ * `rid`).
  */
 function identity(claims, app, now, requestId) {
   const value = {
@@ -134,6 +136,7 @@ function identity(claims, app, now, requestId) {
     memberships: { spaces: {}, attachments: [] },
     auth: {
       method: 'jwt',
+      kind: kindOf(claims),
       jti: String(claims.jti),
       exp: claims.exp,
       iat: claims.iat,
@@ -142,6 +145,14 @@ function identity(claims, app, now, requestId) {
     rid: requestId,
   };
   return Buffer.from(JSON.stringify(value)).toString('base64url');
+}
+
+/**
+ * Whose the token is, as CoSec's verifier reads its `cosec.kind` claim: a
+ * person's only when it says exactly `person`, else a workload's.
+ */
+function kindOf(claims) {
+  return claims['cosec.kind'] === 'person' ? 'person' : 'workload';
 }
 
 /** Whether `app` can be an app id: not blank or `*`, one path segment, no `:`. */

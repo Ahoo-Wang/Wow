@@ -41,7 +41,7 @@ export const cosec = new CoSecConfigurer({
 cosec.applyTo(service);
 ```
 
-这两个端点属于 CoSec 应用：它的刷新路由（`cosec.authentication.login.refresh.path`）与登出路由（`cosec.authentication.login.logout.path`）。`cosec.tokenManager?.logout()` 在服务端结束会话，并在本地忘掉令牌对。
+这两个端点属于 CoSec 应用：它的刷新路由（`cosec.authentication.login.refresh.path`）与登出路由（`cosec.authentication.login.logout.path`）。`cosec.tokenManager?.logout()` 在服务端结束会话，并在本地忘掉令牌对。刷新或登出只把令牌对发往客户端信任的端点，且从不经过重定向：位于其 Fetcher 的 `baseURL` 上的相对端点（如此处）总是可信的；另一个源上的端点，需要把那个源加入 `isTrusted`。
 
 登录之后保存令牌对；从此这个 Fetcher 的每个请求都会携带它：
 

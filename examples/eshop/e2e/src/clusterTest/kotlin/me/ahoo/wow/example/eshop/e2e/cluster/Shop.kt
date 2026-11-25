@@ -45,8 +45,9 @@ data class Who(val id: String, val roles: List<String> = emptyList()) {
 }
 
 /**
- * The CoSec access tokens of the run's principals: HMAC256 with the gateway's secret, with the claims CoSec's JWT
- * verifier reads (`jti`, `sub`, `tenantId`, `roles`, an `exp` it requires).
+ * The CoSec access tokens of the run's principals, people all: HMAC256 with the gateway's secret, with the claims
+ * CoSec's JWT verifier reads (`jti`, `sub`, `tenantId`, `roles`, an `exp` it requires, and `cosec.kind`, without which
+ * it reads a workload's token).
  */
 class Tokens(private val secret: String) {
     fun of(who: Who, ttl: Duration = Duration.ofHours(2)): String {
@@ -56,6 +57,7 @@ class Tokens(private val secret: String) {
             "jti" to UUID.randomUUID().toString(),
             "sub" to who.id,
             "tenantId" to TENANT,
+            "cosec.kind" to "person",
             // Issued a little in the past: the gateway refuses an iat in its future, with no leeway, and its clock may
             // be a few milliseconds behind this one, which refused about one probe in fifty.
             "iat" to now - ISSUED_BEFORE.seconds,
