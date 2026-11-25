@@ -58,8 +58,7 @@ internal class PostgresLogCatalog(
         dataSource.autoCommitted { connection ->
             val structures = listOf(tables.partitionsBase, PostgresEventLogTables.REGISTRY)
                 .map { it to PostgresEventLogTables.FORMAT }
-            PostgresFormat.schema(connection, ddl, structures) {
-                PostgresSchema.execute(connection, tables.ddl())
+            PostgresFormat.schema(connection, ddl, structures, tables.ddl()) {
                 connection.createStatement().use { it.execute(tables.initializePartitions(partitions)) }
             }
             if (ddl.creates) {
@@ -122,8 +121,12 @@ internal class PostgresLogCatalog(
      * A [ddl] that creates nothing still records an existing table ([ensureRecord]): the tails find a table only there.
      */
     private fun ensure(connection: Connection, table: AggregateLogTable): AggregateLogTable = table.also {
-        PostgresFormat.schema(connection, ddl, listOf(table.base to PostgresEventLogTables.FORMAT)) {
-            PostgresSchema.execute(connection, listOf(table.ddl()))
+        PostgresFormat.schema(
+            connection,
+            ddl,
+            listOf(table.base to PostgresEventLogTables.FORMAT),
+            listOf(table.ddl())
+        ) {
             record(connection, table)
         }
         if (!ddl.creates) {

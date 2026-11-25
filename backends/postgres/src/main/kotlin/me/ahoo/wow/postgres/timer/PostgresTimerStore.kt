@@ -79,9 +79,12 @@ class PostgresTimerStore(
      */
     fun createSchema() {
         dataSource.autoCommitted { connection ->
-            PostgresFormat.schema(connection, ddl, listOf(PostgresTimerTables.REGISTRY to PostgresTimerTables.FORMAT)) {
-                PostgresSchema.execute(connection, tables.ddl())
-            }
+            PostgresFormat.schema(
+                connection,
+                ddl,
+                listOf(PostgresTimerTables.REGISTRY to PostgresTimerTables.FORMAT),
+                tables.ddl(),
+            )
         }
         registered = null
     }
@@ -99,8 +102,7 @@ class PostgresTimerStore(
      * there.
      */
     private fun ensure(connection: Connection, table: AggregateTimerTable): AggregateTimerTable = table.also {
-        PostgresFormat.schema(connection, ddl, listOf(table.base to PostgresTimerTables.FORMAT)) {
-            PostgresSchema.execute(connection, table.ddl())
+        PostgresFormat.schema(connection, ddl, listOf(table.base to PostgresTimerTables.FORMAT), table.ddl()) {
             record(connection, table)
         }
         if (!ddl.creates) {
