@@ -20,7 +20,10 @@ import {
   CommandClient,
   fetchManifest,
   MANIFEST_FEATURES,
+  WowProblemError,
 } from '../src/index.js';
+import { ServiceRoutes } from '../src/routes.js';
+import { problemOf, problemResponse } from '../src/testing.js';
 import { checkManifest } from '../src/manifest.js';
 import { BASE_URL, jsonResponse, stubFetch } from './fixtures/fetchStub';
 import { TEST_MANIFEST } from './fixtures/manifest';
@@ -52,5 +55,51 @@ describe('fetchManifest', () => {
       'does not understand',
     );
     expect(MANIFEST_FEATURES.size).toBe(0);
+  });
+
+  // D485 ③: a service's public port serves no Manifest by default
+  // (`wow.http.manifest.enabled`), so a client given none hears what to do.
+  it.each([
+    ['without a code', problemOf(404)],
+    ['with a code', problemOf(404, 'wow.http.not-found')],
+  ])(
+    'says how to route without it when the service answers 404, %s',
+    async (_, problem) => {
+      stubFetch(() => problemResponse(problem));
+      const failure = (await fetchManifest(client()).catch(
+        (error: unknown) => error,
+      )) as WowProblemError;
+      expect(failure).toBeInstanceOf(WowProblemError);
+      expect(failure.status).toBe(404);
+      expect(failure.code).toBe(problem.code);
+      expect(failure.message).toContain(
+        'give the client the routing Manifest a generated client carries (its `manifest` option), or have the service serve its own (`wow.http.manifest.enabled: true`)',
+      );
+      expect(failure.cause).toBeInstanceOf(WowProblemError);
+      expect((failure.cause as WowProblemError).problem).toMatchObject(problem);
+
+      // A client given no Manifest rejects with the same words.
+      for (const send of [
+        () =>
+          new CommandClient(client()).wait({
+            command: 'c.a.X',
+            aggregateId: '1',
+          }),
+        () => new ServiceRoutes(client()).call('c', 'route', {}),
+      ])
+        await expect(send()).rejects.toThrow(failure.message);
+    },
+  );
+
+  it('rejects with any other failed read as it came', async () => {
+    stubFetch(() => problemResponse(problemOf(503, 'wow.storage.unavailable')));
+    const failure = (await fetchManifest(client()).catch(
+      (error: unknown) => error,
+    )) as WowProblemError;
+    expect(failure).toMatchObject({
+      status: 503,
+      code: 'wow.storage.unavailable',
+    });
+    expect(failure.message).not.toContain('wow.http.manifest.enabled');
   });
 });
