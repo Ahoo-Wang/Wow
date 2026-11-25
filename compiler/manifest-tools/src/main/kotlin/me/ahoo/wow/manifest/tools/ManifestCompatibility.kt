@@ -157,7 +157,8 @@ internal class Changes(val schemas: SchemaCompatibility) {
         baseline.forEach { old ->
             val oldName = name(old)
             val byName = current.firstOrNull { name(it) == oldName }
-            val renamed = byName ?: current.firstOrNull { oldName in aliases(it) }
+            // An alias by the full name (`shop.cart.AddItem`) keeps the simple one, as AliasCheck and the kernel take it.
+            val renamed = byName ?: current.firstOrNull { entry -> aliases(entry).any { sameName(oldName, it) } }
             val entryPath = "$path[$oldName]"
             when {
                 byName != null -> compare(entryPath, old, byName)
@@ -171,6 +172,15 @@ internal class Changes(val schemas: SchemaCompatibility) {
             matched += name(renamed ?: return@forEach)
         }
         current.filter { name(it) !in matched }.forEach { additive("$path[${name(it)}]", "$noun added") }
+    }
+
+    /**
+     * A command's or an event's former names: one removed breaks and one added is additive, while one rewritten between
+     * its simple and its full name ([sameName]) is the same name, and no change (#6843).
+     */
+    fun compareAliases(path: String, baseline: List<String>, current: List<String>) {
+        baseline.filter { old -> current.none { sameName(old, it) } }.forEach { breaking(path, "alias $it removed") }
+        current.filter { new -> baseline.none { sameName(new, it) } }.forEach { additive(path, "alias $it added") }
     }
 
     /** Values of a set-like list: a removed one breaks, an added one is additive. */
@@ -227,3 +237,10 @@ internal class Changes(val schemas: SchemaCompatibility) {
         )
     }
 }
+
+/**
+ * Whether two names of a type within an aggregate, its name or an alias, are the same: equal, or one the full name the
+ * other is the simple name of (`shop.cart.AddItem`, `AddItem`), as AliasCheck and the kernel take an alias.
+ */
+internal fun sameName(left: String, right: String): Boolean =
+    left == right || left.endsWith(".$right") || right.endsWith(".$left")

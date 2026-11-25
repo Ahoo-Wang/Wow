@@ -19,6 +19,7 @@ import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.manifest.AggregateManifest
+import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.QueryManifest
@@ -143,5 +144,49 @@ class PolymorphicSchemaCompatibilityTest {
             ManifestTools.recordBaseline(currentFile, baselineFile, false, reportFile, "poly")
         }.message.assert().contains("refuses to record", "state.choice.anyOf[0]")
         Baseline.read(baselineFile).manifest.defs.assert().isEqualTo(manifest.defs)
+    }
+
+    data class Required(val choice: Choice)
+
+    data class Optional(val choice: Choice? = null)
+
+    @Test
+    fun `a polymorphic command field made optional should not be a breaking change`() {
+        // victools writes it anyOf [null, the polymorphic definition], an anyOf of its subtypes: read as those and null,
+        // it accepts every body the field did (#6843).
+        val introspected = SchemaIntrospector(javaClass.classLoader).complete(
+            Manifest(
+                service = ServiceInfo("poly-service", "10.0.1"),
+                contexts = listOf(
+                    ContextManifest(
+                        "poly",
+                        aggregates = listOf(
+                            AggregateManifest(
+                                "choice",
+                                state = StateManifest(Manifest.schemaRef(State::class.java.name)),
+                                commands = listOf(
+                                    CommandManifest("Required", schema = Manifest.schemaRef(Required::class.java.name)),
+                                    CommandManifest("Optional", schema = Manifest.schemaRef(Optional::class.java.name)),
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        )
+        fun commandOf(schema: Class<*>) = introspected.copyWith(
+            defs = introspected.defs + ("poly.Command" to introspected.defs.getValue(schema.name)),
+            contexts = introspected.contexts.map { context ->
+                context.copyWith(
+                    aggregates = context.aggregates.map { aggregate ->
+                        aggregate.copyWith(
+                            commands = listOf(CommandManifest("Command", schema = Manifest.schemaRef("poly.Command")))
+                        )
+                    },
+                )
+            },
+        )
+        ManifestCompatibility.compare(commandOf(Required::class.java), commandOf(Optional::class.java)).changes
+            .filter { it.kind == ChangeKind.BREAKING }.assert().isEmpty()
     }
 }

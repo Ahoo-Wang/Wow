@@ -139,8 +139,18 @@ internal object SchemaShapes {
     private fun nullable(schema: Map<String, Any?>, defs: Map<String, Any?>): Map<String, Any?> {
         val value = nullableValue(schema) ?: return schema
         val resolved = resolve(value, defs)
-        val types = types(resolved) ?: return schema
+        val types = types(resolved) ?: return nullableAlternatives(schema, resolved)
         return resolved + (schema - ANY_OF) + (TYPE to (types + NULL).sorted())
+    }
+
+    /**
+     * A nullable value [resolved] that has no type but alternatives, a polymorphic definition (`anyOf` or `oneOf` of its
+     * subtypes): its alternatives and `null`, which accept the same values as `anyOf: [{"type": "null"}, S]` and compare
+     * with S's alternatives one by one (#6843). Any other is left as written.
+     */
+    private fun nullableAlternatives(schema: Map<String, Any?>, resolved: Map<String, Any?>): Map<String, Any?> {
+        val keyword = listOf(ANY_OF, ONE_OF).firstOrNull { resolved[it] is List<*> } ?: return schema
+        return resolved + (schema - ANY_OF) + (keyword to listOf(NULL_SCHEMA) + resolved[keyword] as List<*>)
     }
 
     fun types(schema: Map<String, Any?>): Set<String>? = when (val type = schema[TYPE]) {
