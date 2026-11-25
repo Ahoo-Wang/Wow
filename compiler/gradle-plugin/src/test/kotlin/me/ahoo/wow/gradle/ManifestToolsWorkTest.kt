@@ -23,6 +23,7 @@ import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
 import java.io.FileNotFoundException
+import java.util.function.Consumer
 
 /** The work that reaches the Manifest tools ([ManifestToolsWork]): by name, rethrowing what they throw, in work actions. */
 class ManifestToolsWorkTest {
@@ -44,7 +45,8 @@ class ManifestToolsWorkTest {
             "shop",
             "default",
             null,
-            output
+            output,
+            Consumer<String> { error("No peer contract to warn of: $it") },
         )
             .assert().isEqualTo(0)
         ManifestJson.read(output).service?.name.assert().isEqualTo("shop")
