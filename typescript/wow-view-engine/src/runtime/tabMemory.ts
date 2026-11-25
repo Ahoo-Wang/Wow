@@ -22,10 +22,16 @@ import { isViewWriteError, type WriteHandle } from './write.js';
 
 /** What the memory borrows of the engine: the preferences and their writes. */
 interface TabMemoryHost {
-  /** The preferences a write starts from (`PreferenceCache.current`). */
+  /** The preferences a board opens on (`PreferenceCache.current`). */
   current(definitionId: string): Promise<ViewPreferences>;
-  /** One preference write through the ledger. */
-  write(definitionId: string, next: ViewPreferences): Promise<ViewPreferences>;
+  /**
+   * One preference change, written behind the reader's own writes and never
+   * refusing one (`PreferenceCommands.quietly`).
+   */
+  update(
+    definitionId: string,
+    change: (current: ViewPreferences) => ViewPreferences | null,
+  ): Promise<void>;
   /** Lets an unsettled write go, so it holds nothing else back. */
   abandon(handle: WriteHandle): void;
 }
@@ -38,9 +44,10 @@ interface TabMemoryHost {
  * It is a convenience and nothing more, so it never rejects and never leaves
  * an outcome behind. A burst of tab switches writes the last one, once the
  * write in flight settles — the ledger lets one preference write out at a
- * time. A write that fails is let go: an unsettled preference write would
- * hold back the list's own reorder and default, which matter more than
- * which tab a board opens on.
+ * time, and the reader's own reorder, default or auto-run waits for it
+ * rather than being refused, then keeps the tab (#6911). A write that fails
+ * is let go: an unsettled preference write would hold back the list's own
+ * reorder and default, which matter more than which tab a board opens on.
  */
 export class TabMemory {
   /** Which switch of each board is the last one made (`Generations.latest`). */
@@ -82,16 +89,15 @@ export class TabMemory {
   ): Promise<void> {
     try {
       if (!this.switches.latest(ticket)) return;
-      const current = await this.host.current(definitionId);
-      if (
+      await this.host.update(definitionId, current =>
         !this.switches.latest(ticket) ||
         current.lastTabs?.[instanceId] === tabId
-      )
-        return;
-      await this.host.write(definitionId, {
-        ...current,
-        lastTabs: { ...current.lastTabs, [instanceId]: tabId },
-      });
+          ? null
+          : {
+              ...current,
+              lastTabs: { ...current.lastTabs, [instanceId]: tabId },
+            },
+      );
     } catch (error) {
       if (isViewWriteError(error)) this.host.abandon(error.handle);
     }

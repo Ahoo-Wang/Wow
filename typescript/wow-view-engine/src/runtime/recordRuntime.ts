@@ -101,7 +101,7 @@ export class RecordDataViewRuntime
     this.target = target;
     this.turning = true;
     this.store.setState({ selection: [] });
-    this.execute({ keepSelection: false });
+    this.execute();
   }
 
   /**
@@ -120,7 +120,6 @@ export class RecordDataViewRuntime
     const lane = data.view.lanes?.find(found => found.id === laneId);
     if (!lane?.next) return;
     this.execute({
-      keepSelection: true,
       quiet: true,
       fetch: (config, controller) =>
         executeLanePage(
@@ -241,7 +240,6 @@ export class RecordDataViewRuntime
     if (change === 'summaries')
       return () =>
         this.execute({
-          keepSelection: true,
           quiet: true,
           fetch: (config, controller) =>
             executeSummaries(this.context, config, view, controller),
@@ -251,6 +249,32 @@ export class RecordDataViewRuntime
       this.store.setState({
         result: { ...result, config, own: draft, data: { ...data, view } },
       });
+  }
+
+  /**
+   * A lane page asked before a redraw (`restyle`: a column's width, say)
+   * lands on the redrawn result: its rows are projected the way the board
+   * now draws them, and the result answers what is applied, so the next
+   * redraw and the next lane are not refused as stale (#6909). A real change
+   * of the question asks again, which supersedes the lane page.
+   */
+  protected override landOn(landed: {
+    config: RecordViewConfig;
+    own: RecordViewConfig;
+    data: ProjectedView;
+  }): { config: RecordViewConfig; own: RecordViewConfig; data: ProjectedView } {
+    const result = this.state.result;
+    const { applied } = this.state;
+    const { own, data } = landed;
+    if (own === applied || !result || result.own !== applied) return landed;
+    if (data.kind !== 'record') return landed;
+    const { definition } = this.context;
+    if (restyledOnly(definition, own, applied) !== 'drawn') return landed;
+    return {
+      config: result.config,
+      own: applied,
+      data: { ...data, view: restyleRecord(definition, applied, data.view) },
+    };
   }
 
   /** A new question starts on the first page, with nothing picked. */
@@ -281,12 +305,14 @@ export class RecordDataViewRuntime
 
   /**
    * A page the result shrank out from under asks for the last page there is
-   * rather than landing empty with rows before it; a refresh keeps whatever
-   * picked rows survive it.
+   * rather than landing empty with rows before it. Whatever the run, the
+   * selection keeps only the rows the result holds: a page turn or a new
+   * question cleared it when it went out, but a row picked on the rows still
+   * drawn while it was on its way, or before a refresh fell back to the
+   * first page, is not on the page that lands (#6908).
    */
   protected override settle(
     data: ProjectedView,
-    keepSelection: boolean,
   ): Partial<ViewRuntimeState<RecordViewConfig>> | null {
     this.restarted = false;
     const back = this.shrunkTo(data);
@@ -296,7 +322,6 @@ export class RecordDataViewRuntime
       this.target = { index: back };
       return null;
     }
-    if (!keepSelection) return {};
     const selection = this.retainSelection(data);
     return selection === this.state.selection ? {} : { selection };
   }

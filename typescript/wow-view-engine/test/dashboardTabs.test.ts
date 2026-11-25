@@ -379,6 +379,76 @@ describe('where a board opens', () => {
     ).resolves.toMatchObject({ autoRun: false });
   });
 
+  // #6911: the ledger lets one preferences write of a definition out at a
+  // time, and a reader's own command is never the one refused for a tab
+  // they never saw remembered: it waits for it, then keeps it.
+  it("lands a reader's default set while a remembered tab is out, and keeps both", async () => {
+    const store = new MemoryViewStore();
+    const keep = store.setPreferences.bind(store);
+    const gate = deferred<void>();
+    let held = false;
+    store.setPreferences = async (definitionId, preferences, context) => {
+      if (!held) {
+        held = true;
+        await gate.promise;
+      }
+      return keep(definitionId, preferences, context);
+    };
+    const engine = new ViewEngine({
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
+      store,
+    });
+
+    const remembered = engine.rememberTab('orders', 'board-1', 'tab-2');
+    await vi.waitFor(() => expect(held).toBe(true));
+    const defaulted = engine.setDefault('orders', 'all');
+    // Settled either way before the gate opens, so a refusal is not hidden
+    // behind the write it collided with.
+    const outcome = defaulted.then(
+      preferences => ({ landed: preferences.defaultInstanceId }),
+      (error: unknown) => ({ refused: String(error) }),
+    );
+    gate.resolve();
+    await remembered;
+
+    expect(await outcome).toEqual({ landed: 'all' });
+    expect(await store.getPreferences('orders')).toMatchObject({
+      defaultInstanceId: 'all',
+      lastTabs: { 'board-1': 'tab-2' },
+    });
+  });
+
+  it("remembers a tab switched while the reader's own write is out, after it", async () => {
+    const store = new MemoryViewStore();
+    const keep = store.setPreferences.bind(store);
+    const gate = deferred<void>();
+    let held = false;
+    store.setPreferences = async (definitionId, preferences, context) => {
+      if (!held) {
+        held = true;
+        await gate.promise;
+      }
+      return keep(definitionId, preferences, context);
+    };
+    const engine = new ViewEngine({
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
+      store,
+    });
+
+    const defaulted = engine.setDefault('orders', 'all');
+    await vi.waitFor(() => expect(held).toBe(true));
+    const remembered = engine.rememberTab('orders', 'board-1', 'tab-2');
+    gate.resolve();
+    await defaulted;
+    await remembered;
+
+    expect(await store.getPreferences('orders')).toMatchObject({
+      defaultInstanceId: 'all',
+      lastTabs: { 'board-1': 'tab-2' },
+    });
+    expect(engine.pendingWrites().size).toBe(0);
+  });
+
   it('opens on the first tab when the preferences cannot be read', async () => {
     const store = new MemoryViewStore({ instances: [byWarehouse] });
     const board = harness(store);

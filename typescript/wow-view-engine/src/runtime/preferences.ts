@@ -126,8 +126,19 @@ export interface PreferenceCommandsParts {
  * Each writes the whole state over the last one read or confirmed
  * (`PreferenceCache.current`), through the ledger. `ViewEngine.reorder`,
  * `setDefault` and `setAutoRun` hand on to them.
+ *
+ * The ledger lets one preferences write of a definition out at a time, and
+ * refuses another as `view.write.in-flight`. A change no reader made (a
+ * remembered tab, `quietly`) never takes that from a reader: it waits behind
+ * the reader's write, and the reader's command waits behind it, so both land
+ * (#6911).
  */
 export class PreferenceCommands {
+  /** Each definition's reader write while it is out. */
+  private readonly own = new Map<string, Promise<unknown>>();
+  /** Each definition's quiet changes, the last one queued. */
+  private readonly quiet = new Map<string, Promise<unknown>>();
+
   constructor(private readonly parts: PreferenceCommandsParts) {}
 
   /** See `ViewEngine.reorder`. */
@@ -139,7 +150,7 @@ export class PreferenceCommands {
       this.parts.permissions(definitionId).reorder,
       'view.preferences.reorder-forbidden',
     );
-    const current = await this.parts.cache.current(definitionId);
+    const current = await this.current(definitionId);
     return this.write(definitionId, { ...current, order });
   }
 
@@ -152,7 +163,7 @@ export class PreferenceCommands {
       this.parts.permissions(definitionId).setDefault,
       'view.preferences.default-forbidden',
     );
-    const current = await this.parts.cache.current(definitionId);
+    const current = await this.current(definitionId);
     return this.write(definitionId, {
       ...current,
       defaultInstanceId: instanceId,
@@ -164,16 +175,73 @@ export class PreferenceCommands {
     definitionId: string,
     autoRun: boolean,
   ): Promise<ViewPreferences> {
-    const current = await this.parts.cache.current(definitionId);
+    const current = await this.current(definitionId);
     return this.write(definitionId, { ...current, autoRun });
   }
 
-  /** One preferences write, dispatched through the ledger. */
-  async write(
+  /**
+   * A change no reader made, written once whatever is out for the
+   * definition has settled, over the preferences as they are then. `change`
+   * answers `null` when there is nothing to write by then. Its outcome is the
+   * caller's to let go of (`TabMemory`).
+   */
+  quietly(
+    definitionId: string,
+    change: (current: ViewPreferences) => ViewPreferences | null,
+  ): Promise<void> {
+    const before = [this.own.get(definitionId), this.quiet.get(definitionId)];
+    const run = (async () => {
+      await Promise.all(before.map(settled));
+      const next = change(await this.parts.cache.current(definitionId));
+      if (next) await this.dispatch(definitionId, next);
+    })();
+    hold(this.quiet, definitionId, run);
+    return run;
+  }
+
+  /** The preferences a reader's command starts from, once no quiet change is out. */
+  private async current(definitionId: string): Promise<ViewPreferences> {
+    await settled(this.quiet.get(definitionId));
+    return this.parts.cache.current(definitionId);
+  }
+
+  /** A reader's preferences write, dispatched through the ledger. */
+  private write(
+    definitionId: string,
+    next: ViewPreferences,
+  ): Promise<ViewPreferences> {
+    const written = this.dispatch(definitionId, next);
+    hold(this.own, definitionId, written);
+    return written;
+  }
+
+  private async dispatch(
     definitionId: string,
     next: ViewPreferences,
   ): Promise<ViewPreferences> {
     const payload: WritePayload = { action: 'preferences', definitionId, next };
     return (await this.parts.dispatch(payload)) as ViewPreferences;
+  }
+}
+
+/** Keeps `promise` under `key` while it is the last one put there. */
+function hold(
+  map: Map<string, Promise<unknown>>,
+  key: string,
+  promise: Promise<unknown>,
+): void {
+  map.set(key, promise);
+  const release = () => {
+    if (map.get(key) === promise) map.delete(key);
+  };
+  promise.then(release, release);
+}
+
+/** Waits for a promise to settle, whichever way. */
+async function settled(promise: Promise<unknown> | undefined): Promise<void> {
+  try {
+    await promise;
+  } catch {
+    // Its outcome is its own command's to report.
   }
 }

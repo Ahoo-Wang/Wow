@@ -319,7 +319,7 @@ export class DataViewRuntime<
     const over = restyle ? {} : this.startOver();
     this.store.setState({ applied: next, ...over });
     if (restyle) restyle();
-    else this.execute({ keepSelection: false });
+    else this.execute();
     if (only) this.syncAutoApply();
   }
 
@@ -382,7 +382,7 @@ export class DataViewRuntime<
     // button's and the one a command asks for after writing alike: sending
     // them to the first page lost their place in a list they were working
     // through. The selection keeps whatever rows survive.
-    this.execute({ keepSelection: true });
+    this.execute();
   }
 
   setEditing(active: boolean): void {
@@ -419,7 +419,7 @@ export class DataViewRuntime<
       issues: this.admit(this.state.draft),
       ...this.startOver(),
     });
-    if (this.appliedAdmitted) this.execute({ keepSelection: false });
+    if (this.appliedAdmitted) this.execute();
     return this.refusedScope;
   }
 
@@ -553,15 +553,25 @@ export class DataViewRuntime<
   /**
    * What else a landed answer changes, or `null` to ask again instead — a
    * Record view whose page the result shrank out from under asks for the
-   * last page there is. `keepSelection` is whether the query was a refresh.
+   * last page there is.
    */
-  protected settle(
-    data: ProjectedView,
-    keepSelection: boolean,
-  ): Partial<ViewRuntimeState<C>> | null {
+  protected settle(data: ProjectedView): Partial<ViewRuntimeState<C>> | null {
     void data;
-    void keepSelection;
     return {};
+  }
+
+  /**
+   * What a landed answer answers: by default the config it was asked on. A
+   * kind whose rows can be redrawn while a quiet request is out puts the
+   * answer on what is drawn now instead (a Record view's lane page that
+   * lands after a redraw, #6909).
+   */
+  protected landOn(landed: { config: C; own: C; data: ProjectedView }): {
+    config: C;
+    own: C;
+    data: ProjectedView;
+  } {
+    return landed;
   }
 
   /** A reason of the kind's own to hold the refresh timer. */
@@ -586,23 +596,27 @@ export class DataViewRuntime<
     return this.refusal ? [this.refusal, ...found] : found;
   }
 
-  protected execute(options: {
-    keepSelection: boolean;
-    /** When the question was first asked, for a page asked again. */
-    askedAt?: number;
-    /**
-     * What is fetched, when it is less than the whole config: the summary
-     * row alone over the rows on screen (`restyle`). The whole query when
-     * left out.
-     */
-    fetch?: (config: C, controller: AbortController) => Promise<ProjectedView>;
-    /**
-     * Asked without the query turning `loading`: the rows on screen stay the
-     * answer while the rest arrives, so nothing says 「正在查询」 over them
-     * or draws the table as waiting (the summary row alone, `restyle`).
-     */
-    quiet?: boolean;
-  }): void {
+  protected execute(
+    options: {
+      /** When the question was first asked, for a page asked again. */
+      askedAt?: number;
+      /**
+       * What is fetched, when it is less than the whole config: the summary
+       * row alone over the rows on screen (`restyle`). The whole query when
+       * left out.
+       */
+      fetch?: (
+        config: C,
+        controller: AbortController,
+      ) => Promise<ProjectedView>;
+      /**
+       * Asked without the query turning `loading`: the rows on screen stay the
+       * answer while the rest arrives, so nothing says 「正在查询」 over them
+       * or draws the table as waiting (the summary row alone, `restyle`).
+       */
+      quiet?: boolean;
+    } = {},
+  ): void {
     const askedAt = options.askedAt ?? this.environment.now().getTime();
     // Both halves travel with the request: what ran, and the view's own
     // config it was merged from. `applied` may move on before the answer
@@ -620,15 +634,7 @@ export class DataViewRuntime<
           : executeDataConfig(this.context, config, this.pageNow(), controller),
       )
       .then(
-        data =>
-          this.onSuccess(
-            requestId,
-            config,
-            own,
-            data,
-            options.keepSelection,
-            askedAt,
-          ),
+        data => this.onSuccess(requestId, config, own, data, askedAt),
         error => this.onFailure(requestId, own, config, error),
       );
   }
@@ -638,18 +644,18 @@ export class DataViewRuntime<
     config: C,
     own: C,
     data: ProjectedView,
-    keepSelection: boolean,
     askedAt: number,
   ): void {
     if (!this.isCurrent(requestId)) return;
-    const settled = this.settle(data, keepSelection);
+    const landed = this.landOn({ config, own, data });
+    const settled = this.settle(landed.data);
     if (settled === null) {
-      this.execute({ keepSelection, askedAt });
+      this.execute({ askedAt });
       return;
     }
     const receivedAt = this.environment.now().getTime();
     const elapsedMs = Math.max(0, receivedAt - askedAt);
-    const result = { config, own, data, receivedAt, elapsedMs };
+    const result = { ...landed, receivedAt, elapsedMs };
     this.store.setState({
       query: { status: 'success', requestId },
       result,
@@ -690,7 +696,7 @@ export class DataViewRuntime<
         void this.capabilities.recheck(failure.violation?.code);
       if (!this.isCurrent(requestId)) return;
       if (this.recovers(failure)) {
-        this.execute({ keepSelection: false });
+        this.execute();
         return;
       }
       this.failed(requestId, own, config, error);
