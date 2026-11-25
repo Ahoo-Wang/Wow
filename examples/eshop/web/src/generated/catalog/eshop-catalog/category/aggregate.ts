@@ -12,6 +12,7 @@ export const CategoryAggregate = {
   name: 'category',
   path: '/eshop-catalog/category',
   ownership: 'tenant',
+  idSource: 'assigned',
   snapshot: true,
   Errors: {
     /** 409: Another category has this name. */

@@ -37,7 +37,9 @@ import me.ahoo.wow.manifest.QueryFieldNames
  *   command sent without an id goes to the caller's own), `SNAPSHOT` (whether it keeps snapshots), `QUERY_MODELS` (the
  *   models a peer queries), `ref(tenantId, id)`, `unassigned(tenantId)` and a `Commands` object holding each command's full type
  *   name ([commandName]: `SubmitOrder` is `SUBMIT_ORDER`), the names a yaml file or a test refers to. The TypeScript
- *   generator's `<Aggregate>Aggregate` constant carries the same facts under the same names, in camel case.
+ *   generator's `<Aggregate>Aggregate` constant carries `CONTEXT`, `NAME`, `OWNERSHIP`, `ID_SOURCE` and `SNAPSHOT`
+ *   under the same names in camel case (`context`, `name`, `ownership`, `idSource`, `snapshot`), with the aggregate's
+ *   exact numbers and its error codes beside them (#7060).
  * - With [queryFields] (`wow-query-api` on the api module's class path, as the compiler requires for its own), each
  *   aggregate object extends `SnapshotProperties`, the system fields of a snapshot, and holds a `QueryField` per path
  *   of its state schema ([StateFields]), named by [QueryFieldNames] exactly as the compiler names the domain module's

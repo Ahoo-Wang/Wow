@@ -22,6 +22,7 @@ import type { ModuleBuilder, ModuleSet } from '../../emit/moduleBuilder';
 import type { AggregateModel, ContextModel } from '../../manifest/model';
 import type { TextNumbersModel } from '../../manifest/textNumbers';
 import { quoteStringLiteral, resolvePropertyName } from '../../naming/naming';
+import { doc } from './generatedModule';
 
 /** Where the marks of a module go: the module, the output directory, and the client's entry. */
 interface Target {
@@ -142,7 +143,7 @@ export function emitTextNumbers(
   const target = { module, outputDir, client };
   for (const declared of context.textNumbers) {
     module.add(
-      `\n/** The exact numbers of \`${declared.key}\`${declared.beside ? ' with what an `allOf` says beside it' : ''}, a recursive type: its own marks, and others', read them lazily. */\nexport const ${declared.name}: TextNumbers = ${literal(declared.marks, target)};`,
+      `\n${doc([`The exact numbers of \`${declared.key}\`${declared.beside ? ' with what an `allOf` says beside it' : ''}, a recursive type: its own marks, and others', read them lazily.`])}export const ${declared.name}: TextNumbers = ${literal(declared.marks, target)};`,
     );
   }
 }

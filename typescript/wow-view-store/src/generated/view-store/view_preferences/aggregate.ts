@@ -12,6 +12,7 @@ export const ViewPreferencesAggregate = {
   name: 'view_preferences',
   path: '/view-store/view_preferences',
   ownership: 'owner',
+  idSource: 'assigned',
   snapshot: true,
 } as const;
 

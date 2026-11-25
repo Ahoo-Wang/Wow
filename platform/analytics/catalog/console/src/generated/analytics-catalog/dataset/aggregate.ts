@@ -12,6 +12,7 @@ export const DatasetAggregate = {
   name: 'dataset',
   path: '/analytics-catalog/dataset',
   ownership: 'tenant',
+  idSource: 'assigned',
   snapshot: true,
   Errors: {
     /** 404: The field is no REFERENCE field of the dataset. */

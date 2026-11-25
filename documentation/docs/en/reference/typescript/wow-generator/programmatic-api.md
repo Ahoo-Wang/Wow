@@ -50,7 +50,7 @@ A `Logger` implements four methods, each `(message: string, ...params: unknown[]
 
 <span id="generatorerror"></span>
 
-`GeneratorError` carries `kind`, a `GeneratorErrorKind` (`input`, `configuration`, `specification` or `output`), and `exitCode`, the CLI exit code for that kind. `EXIT_CODES` maps `success` 0, `internal` 1, `input` 2, `configuration` 3, `specification` 4, `output` 5 and `interrupted` 130; see [CLI exit codes](./cli#failures-and-exit-codes).
+`GeneratorError` carries `kind`, a `GeneratorErrorKind` (`input`, `configuration`, `specification` or `output`), and `exitCode`, the CLI exit code for that kind. `EXIT_CODES` maps `success` 0, `internal` 1, `input` 2, `configuration` 3, `specification` 4, `output` 5, `check` 6 and `interrupted` 130; see [CLI exit codes](./cli#failures-and-exit-codes).
 
 ## Complete script
 

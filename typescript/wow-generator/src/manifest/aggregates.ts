@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { camelCase, toIdentifier, upperSnakeCase } from '../naming/naming';
+import { toIdentifier, upperSnakeCase } from '../naming/naming';
 import {
   type JsonSchema,
   type ManifestAggregate,
@@ -29,7 +29,7 @@ import type {
   Route,
   RoutingCommandModel,
 } from './model';
-import { aggregateTypeName, LIFECYCLE_BODIES } from './names';
+import { aggregateTypeName, LIFECYCLE_BODIES, memberName } from './names';
 import type { Position, SchemaTypes } from './schemaTypes';
 import type { TextNumbers, TextNumbersModel } from './textNumbers';
 
@@ -282,7 +282,7 @@ export function aggregateModel(
       const name = command.name;
       const simple = name.split('.').pop()!;
       const description = types.schemaOf(name)?.description;
-      const method = toIdentifier(camelCase(simple));
+      const method = toIdentifier(memberName(simple));
       const own =
         owned && (command.routes ?? []).some(r => !r.path.includes('{id}'));
       return {
@@ -316,7 +316,7 @@ export function aggregateModel(
     // whose aggregate a transformer finds.
     const own = owned && byId && unaddressed && !(command.mounted ?? false);
     const method = commandMethod(
-      toIdentifier(camelCase(command.name)),
+      toIdentifier(memberName(command.name)),
       own === true,
       taken,
     );

@@ -50,7 +50,7 @@ description: '程序化 API — @ahoo-wang/wow-generator'
 
 <span id="generatorerror"></span>
 
-`GeneratorError` 带有 `kind`（`GeneratorErrorKind`：`input`、`configuration`、`specification` 或 `output`）和 `exitCode`（该类别对应的 CLI 退出码）。`EXIT_CODES` 为 `success` 0、`internal` 1、`input` 2、`configuration` 3、`specification` 4、`output` 5、`interrupted` 130，见 [CLI 退出码](./cli#失败与退出码)。
+`GeneratorError` 带有 `kind`（`GeneratorErrorKind`：`input`、`configuration`、`specification` 或 `output`）和 `exitCode`（该类别对应的 CLI 退出码）。`EXIT_CODES` 为 `success` 0、`internal` 1、`input` 2、`configuration` 3、`specification` 4、`output` 5、`check` 6、`interrupted` 130，见 [CLI 退出码](./cli#失败与退出码)。
 
 ## 完整脚本
 
