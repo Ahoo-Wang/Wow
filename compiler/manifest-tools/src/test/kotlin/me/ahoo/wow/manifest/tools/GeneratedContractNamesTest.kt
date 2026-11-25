@@ -19,6 +19,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.ContextManifest
+import me.ahoo.wow.manifest.ErrorManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.manifest.copyWith
@@ -127,5 +128,36 @@ class GeneratedContractNamesTest {
                     "public data class StateView(",
             )
         compile(sources)
+    }
+
+    @Test
+    fun `an aggregate named errors should keep its object apart from the context's shared codes`() {
+        // An aggregate's object is named after the aggregate (`Errors`), and the codes the context shares are an
+        // `object Errors` of the context's contract too: both are members of `AuditContract`.
+        val fragment = Manifest(
+            contexts = listOf(
+                ContextManifest(
+                    "audit",
+                    aggregates = listOf(
+                        AggregateManifest(
+                            "errors",
+                            state = StateManifest(Manifest.schemaRef(CatalogState::class.java.name)),
+                            commands = listOf(
+                                CommandManifest("Create", schema = Manifest.schemaRef("audit.api.Create"))
+                            ),
+                        ),
+                    ),
+                    errors = listOf(ErrorManifest("audit.closed", 409)),
+                ),
+            ),
+        ).copyWith(defs = mapOf("audit.api.Create" to mapOf("type" to "object")))
+        val contract = SchemaIntrospector(javaClass.classLoader).complete(fragment)
+        compile(ContractSources.of(contract, mapOf("audit" to "audit.api"), queryFields = true) { false })
+    }
+
+    @Test
+    fun `an aggregate named wait should keep its object apart from the context's wait hops`() {
+        // The context's contract always declares `object Wait`, its hops; an aggregate `wait` is `object Wait` too.
+        compile(sources("wait" to CatalogState::class.java))
     }
 }
