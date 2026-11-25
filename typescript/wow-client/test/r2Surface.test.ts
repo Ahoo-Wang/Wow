@@ -21,12 +21,13 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { filter } from '../src/dsl.js';
+import { aggregation, filter } from '../src/dsl.js';
 import {
   CommandClient,
   FrameworkErrorCodes,
   FRAMEWORK_RETRIES,
   parseJson,
+  parseRetryAfter,
   requestIdOf,
   SnapshotQueryClient,
   WaitPlan,
@@ -237,5 +238,46 @@ describe("r2: a command's headers and the request id it is sent with", () => {
     expect(requestIdOf(failure)).toBe(
       requests[0].headers.get('Wow-Request-Id'),
     );
+  });
+});
+
+describe('r2: a Retry-After that is neither delay seconds nor an HTTP date', () => {
+  // parseRetryAfter: "delay seconds or an HTTP date" (RFC 9110: 1*DIGIT or
+  // an IMF-fixdate). It falls through to Date.parse, which reads `1.5` as
+  // a date in 2001 and `-1` as one in 2001 too, so both read as 0 ms: a
+  // retry at once, where an absent header waits the catalog's 1 s. Kotlin's
+  // `Problems.retryAfterOf` reads both as absent (edge/client Problems.kt).
+  it('is read as absent, as the Kotlin client reads it', () => {
+    expect(parseRetryAfter('1.5')).toBeUndefined();
+    expect(parseRetryAfter('-1')).toBeUndefined();
+  });
+});
+
+describe("r2: an aggregation's group key over an exact field", () => {
+  // generate.md names two kinds of value read without marks, a command's
+  // `results` and an aggregation's metric values. A `terms` key over an
+  // int64 field (a snowflake id past 2^53) is a third: `aggregate` reads its
+  // rows with no marks (queries.ts, `aggregate`), so two groups read one key,
+  // though the client holds the field's mark (`type.textNumbers.state`).
+  it('keeps two groups apart', async () => {
+    // The service writes each key as the JSON number it is.
+    stubFetch(
+      () =>
+        new Response(
+          '[{"owner":9007199254740993,"n":1},{"owner":9007199254740992,"n":2}]',
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        ),
+    );
+    const snapshots = new SnapshotQueryClient(
+      { ...PRODUCT, textNumbers: { state: { ownerKey: true } } },
+      client(),
+    );
+    const rows = await snapshots.aggregate<{ owner: unknown; n: number }>(
+      aggregation.query({
+        groupBy: [aggregation.terms('state.ownerKey', 'owner')],
+        metrics: [aggregation.count('n')],
+      }),
+    );
+    expect(rows[0].owner).not.toEqual(rows[1].owner);
   });
 });
