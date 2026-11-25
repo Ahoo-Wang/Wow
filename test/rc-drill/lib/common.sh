@@ -59,6 +59,31 @@ fail() {
   return 1
 }
 
+# A version is a release (10.0.0-beta.21), whose artifacts are published and whose source is its tag v<version>, or a
+# commit that nothing published, named by its full SHA: its source is that commit, and the drill builds every image
+# and the chart from it (README.md, "A version nothing published").
+is_local() { [[ $1 =~ ^[0-9a-f]{40}$ ]]; }
+
+# The git ref of a version's source.
+ref() { if is_local "$1"; then echo "$1"; else echo "v$1"; fi; }
+
+# The name a version's images, chart and folders take: a release's own version; for a commit, the major, minor and
+# patch its source builds, then main and the commit's first twelve digits (10.0.0-main.649086cf9eb9), a SemVer the
+# chart takes as its version and a Docker tag. The source's own version (gradle.properties) still names its jars.
+label() {
+  local version=$1 built
+  if is_local "$version"; then
+    git -C "$root" cat-file -e "$version^{commit}" 2>/dev/null || git -C "$root" fetch -q origin "$version"
+    built=$(git -C "$root" show "$version:gradle.properties" | sed -n 's/^version=//p')
+    [ -n "$built" ] || fail "no version in gradle.properties at $version"
+    # SemVer refuses a numeric identifier with a leading zero, which twelve digits and no letter would be.
+    [[ ! ${version:0:12} =~ ^0[0-9]*$ ]] || fail "$version: its first twelve digits are no SemVer identifier"
+    echo "${built%%-*}-main.${version:0:12}"
+  else
+    echo "$version"
+  fi
+}
+
 # The kubectl the drill runs, resolved once: DRILL_KUBECTL, else the first on the path. A shell started before the path
 # changed may find another first (OrbStack's own, older), so a run can name it (README.md, "Tools").
 kubectl=${DRILL_KUBECTL:-$(command -v kubectl || true)}
@@ -124,6 +149,21 @@ keep_logs() {
       k logs "$pod" -c "$container" --previous --since-time="$since" >"$out/$pod.$container.previous.log" 2>/dev/null ||
         rm -f "$out/$pod.$container.previous.log"
     done
+    case "$pod" in otel-collector-*) collector_files "$pod" "$out" "$since" ;; esac
+  done
+}
+
+# The collector's own output holds every service's log lines, a deleted pod's too, and kubectl logs reads only its
+# current file: the kubelet rotates it at 10Mi, so a long step's earlier lines are in the rotated files on the node. Each
+# of the collector's log files on its node written since [since] goes to <out>/<pod>.node-logs/, as the kubelet wrote it.
+collector_files() {
+  local pod=$1 out=$2 since=$3 node uid dir file
+  node=$(k get pod "$pod" -o jsonpath='{.spec.nodeName}' 2>/dev/null) || return 0
+  uid=$(k get pod "$pod" -o jsonpath='{.metadata.uid}' 2>/dev/null) || return 0
+  dir="/var/log/pods/${namespace}_${pod}_${uid}"
+  mkdir -p "$out/$pod.node-logs"
+  for file in $(docker exec "$node" find "$dir" -type f -newermt "$since" 2>/dev/null); do
+    docker cp "$node:$file" "$out/$pod.node-logs/$(basename "$(dirname "$file")").$(basename "$file")" >/dev/null 2>&1 || true
   done
 }
 
