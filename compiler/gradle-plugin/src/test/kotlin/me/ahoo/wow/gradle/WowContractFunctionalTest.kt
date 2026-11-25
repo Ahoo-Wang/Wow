@@ -326,7 +326,7 @@ class WowContractFunctionalTest {
             """
             service:
               name: "orders"
-              peers:
+              contractPeers:
                 - context: "audit"
                   service: "shop-service"
                 - context: "shop"
@@ -336,7 +336,7 @@ class WowContractFunctionalTest {
             """.trimIndent(),
         )
         // The shop's server hosts the contexts of its api: they are no peers.
-        helmValuesOf("shop-server").assert().contains("  name: \"shop-service\"", "  peers: []")
+        helmValuesOf("shop-server").assert().contains("  name: \"shop-service\"", "  contractPeers: []")
     }
 
     @Test

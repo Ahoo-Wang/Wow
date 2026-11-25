@@ -15,6 +15,35 @@
           "maxLength": 55,
           "description": "The service's spring.application.name; every object is named after it (<name>-cluster at most 63 characters). The chart refuses an empty one, naming the values that give it."
         },
+        "contractPeers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "context": {
+                "type": "string",
+                "description": "The peer context."
+              },
+              "service": {
+                "type": "string",
+                "pattern": "^[a-z]([-a-z0-9]*[a-z0-9])?$",
+                "maxLength": 63,
+                "description": "The service that hosts it, as its contract names it; absent when the contract names none."
+              },
+              "namespace": {
+                "type": "string",
+                "pattern": "^[a-z]([-a-z0-9]*[a-z0-9])?$",
+                "maxLength": 63,
+                "description": "The peer's namespace, when it is not the release's."
+              }
+            },
+            "required": [
+              "context"
+            ]
+          },
+          "description": "The peers whose contracts are on the service's class path, which its code calls: the Gradle plugin writes them (generateWowHelmValues). A deployment does not set them; it gives a peer its namespace, or adds one, under peers, which the chart joins with these by service."
+        },
         "peers": {
           "type": "array",
           "items": {
@@ -41,7 +70,8 @@
             "required": [
               "context"
             ]
-          }
+          },
+          "description": "The deployment's peers: a peer of contractPeers with its namespace, the entry taking the generated one's place, or a peer the contract does not name. Joined with contractPeers by service, so a values file that lists one keeps the others."
         },
         "manifest": {
           "type": "object",
