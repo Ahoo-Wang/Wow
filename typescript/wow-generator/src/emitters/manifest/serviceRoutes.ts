@@ -13,6 +13,7 @@
 
 import type { ModuleSet } from '../../emit/moduleBuilder';
 import type { ContextModel } from '../../manifest/model';
+import { classMembers, ROUTES_CLIENT_MEMBERS } from '../../manifest/names';
 import type { ServiceRouteModel } from '../../manifest/serviceRoutes';
 import { quoteStringLiteral, resolvePropertyName } from '../../naming/naming';
 import {
@@ -58,7 +59,15 @@ export function emitServiceRoutes(
         .flatMap(type => type.match(/[A-Za-z_$][A-Za-z0-9_$]*/g) ?? []),
     ),
   );
-  const methods = context.routes.map(route => routeMethod(context, route));
+  // A route `routes` takes `routesRoute`, apart from the class's own members.
+  const names = classMembers(
+    context.routes.map(route => route.name),
+    ROUTES_CLIENT_MEMBERS,
+    'Route',
+  );
+  const methods = context.routes.map((route, index) =>
+    routeMethod(context, route, names[index]),
+  );
   addStatement(
     module,
     `${doc([
@@ -68,7 +77,11 @@ export function emitServiceRoutes(
 }
 
 /** The method of one service route. */
-function routeMethod(context: ContextModel, route: ServiceRouteModel): string {
+function routeMethod(
+  context: ContextModel,
+  route: ServiceRouteModel,
+  method: string,
+): string {
   const variables = route.parameters.filter(p => p.location === 'path');
   const queries = route.parameters.filter(p => p.location === 'query');
   const parameters = variables.map(p => `${p.identifier}: ${p.type}`);
@@ -105,5 +118,5 @@ function routeMethod(context: ContextModel, route: ServiceRouteModel): string {
     ],
     '  ',
   );
-  return `${comment}  ${resolvePropertyName(route.name)}(${parameters.join(', ')}): Promise<${answer}> {\n    return this.routes.call(${quoteStringLiteral(context.name)}, ${quoteStringLiteral(route.name)}, { ${call.join(', ')} }, options) as Promise<${answer}>;\n  }`;
+  return `${comment}  ${resolvePropertyName(method)}(${parameters.join(', ')}): Promise<${answer}> {\n    return this.routes.call(${quoteStringLiteral(context.name)}, ${quoteStringLiteral(route.name)}, { ${call.join(', ')} }, options) as Promise<${answer}>;\n  }`;
 }

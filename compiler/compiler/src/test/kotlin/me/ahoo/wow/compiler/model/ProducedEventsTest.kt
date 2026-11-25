@@ -311,4 +311,90 @@ class ProducedEventsTest {
             "sourcing function onSourcing suspends: evolving does no I/O",
         )
     }
+
+    @Test
+    fun `a command function returning a collection class or an Iterable of events should produce them`() {
+        // Any Iterable is a container, as the kernel's eventsOf takes it (#6837).
+        val (_, result) = compileModel(
+            "generate",
+            ManifestFragmentFixtures.context,
+            cart(
+                """
+                fun onCommand(command: Create): Created = Created(command.id)
+                fun onCommand(command: Bump): ArrayList<Bumped> = arrayListOf(Bumped(command.by))
+                fun onCommand(command: Remove): Bumps = Bumps(listOf(Bumped(1)))
+                class Bumps(items: List<Bumped>) : Iterable<Bumped> by items
+                """.trimIndent(),
+                "fun onSourcing(event: Created) {}\nfun onSourcing(event: Bumped) {}",
+            ),
+        )
+        result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
+    }
+
+    /** A cart whose state sources the sealed [types] by one function of their root, `CartEvent`. */
+    private fun sealedCart(types: String): SourceFile = SourceFile.kotlin(
+        "SealedCart.kt",
+        """
+        package sample
+
+        import me.ahoo.wow.api.annotation.AggregateRoot
+        import me.ahoo.wow.api.annotation.CreateAggregate
+        import me.ahoo.wow.api.annotation.Revision
+
+        @CreateAggregate
+        data class Open(@me.ahoo.wow.api.annotation.AggregateId val id: String)
+        sealed interface CartEvent
+        data class Opened(val id: String) : CartEvent
+        $types
+
+        @AggregateRoot
+        class Cart(private val state: CartState) {
+            fun onCommand(command: Open): Opened = Opened(command.id)
+        }
+
+        class CartState {
+            fun onSourcing(event: CartEvent) = Unit
+        }
+        """.trimIndent(),
+    )
+
+    @Test
+    fun `a sealed sourcing type should take each concrete event once and refuse an abstract subclass`() {
+        // An event under two sealed parents is one event (#6835).
+        val (compilation, diamond) = compileModel(
+            "generate",
+            ManifestFragmentFixtures.context,
+            sealedCart(
+                """
+                sealed interface ItemEvent : CartEvent
+                sealed interface PriceEvent : CartEvent
+                data class Repriced(val price: Int) : ItemEvent, PriceEvent
+                """.trimIndent(),
+            ),
+        )
+        diamond.exitCode.assert().withFailMessage { diamond.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
+        compilation.workingDir.walkTopDown().single { it.name == "CartModel.kt" }.readText().assert()
+            .contains("evolve<sample.Repriced>")
+        // An abstract class or an interface that is not sealed is no event, and its subclasses are not listed: refused,
+        // naming it.
+        listOf(
+            "abstract class ItemEvent : CartEvent\ndata class ItemAdded(val sku: String) : ItemEvent()",
+            "interface ItemEvent : CartEvent\ndata class ItemAdded(val sku: String) : ItemEvent",
+        ).forEach { events ->
+            val (_, open) = compileModel("generate", ManifestFragmentFixtures.context, sealedCart(events))
+            open.exitCode.assert().withFailMessage { events }.isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+            open.messages.assert().contains(
+                "sourcing function onSourcing takes sample.CartEvent, whose subclass sample.ItemEvent is not a " +
+                    "concrete class",
+            )
+        }
+        // An expanded event's revision is checked as a direct one's.
+        val (_, revised) = compileModel(
+            "generate",
+            ManifestFragmentFixtures.context,
+            sealedCart("@Revision(0) data class Repriced(val price: Int) : CartEvent"),
+        )
+        revised.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        revised.messages.assert().contains("event Repriced has @Revision(0): a revision starts at 1")
+    }
 }

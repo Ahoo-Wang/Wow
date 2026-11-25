@@ -21,6 +21,7 @@ import { ts } from 'ts-morph';
  * - 2304, 2552, 2503: a name, possibly misspelled, or a namespace that is
  *   neither declared nor imported;
  * - 2300, 2451, 2393: a name declared twice in one scope;
+ * - 1117: an object literal with a key given twice;
  * - 2308: an index re-exporting the same name from two modules;
  * - 2456: a type alias that references itself;
  * - 2315, 2395, 2440, 2749: a declared name that shadows one the module
@@ -31,7 +32,7 @@ import { ts } from 'ts-morph';
  * report, and are left out.
  */
 const INTEGRITY_DIAGNOSTICS = new Set([
-  2300, 2304, 2308, 2315, 2393, 2395, 2440, 2451, 2456, 2503, 2552, 2749,
+  1117, 2300, 2304, 2308, 2315, 2393, 2395, 2440, 2451, 2456, 2503, 2552, 2749,
 ]);
 
 /**

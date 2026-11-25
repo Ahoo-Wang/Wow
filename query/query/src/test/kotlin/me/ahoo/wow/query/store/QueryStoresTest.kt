@@ -86,6 +86,14 @@ class QueryStoresTest {
         }.exceptionOrNull() as WowConfigurationException
         negative.key.assert().isEqualTo("wow.stores.main.query.max-concurrent")
         negative.value.assert().isEqualTo(-1)
+        // The datasets' bound as the stores' (#6853): 0 sets none, below it is refused, not no bound.
+        val dataset = runCatching { of(QueryStoreSettings(datasets = DatasetQueryLimits(-1))) }.exceptionOrNull()
+            as WowConfigurationException
+        dataset.key.assert().isEqualTo("wow.query.dataset.max-concurrent")
+        dataset.value.assert().isEqualTo(-1)
+        // The message Operate › Upgrades quotes.
+        dataset.message.assert()
+            .isEqualTo("wow.query.dataset.max-concurrent is -1, below 0. Set 0 for no bound, or more.")
         val ceiling = runCatching { of(QueryStoreSettings(adaptiveCeiling = 0)) }.exceptionOrNull()
             as WowConfigurationException
         ceiling.key.assert().isEqualTo("wow.stores.main.query.adaptive.ceiling")

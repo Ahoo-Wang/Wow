@@ -248,4 +248,68 @@ class StateConstructorTest {
         result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
         result.messages.assert().contains("the state CounterState needs a constructor ()")
     }
+
+    @Test
+    fun `a state with a secondary no-argument constructor should be built with it`() {
+        // Every constructor the generated model can call is read, the primary one or not (#6838).
+        val (result, source) = generate(
+            """
+            class CounterState(var count: Int) {
+                constructor() : this(0)
+                fun onSourcing(event: Started) { count += event.by }
+                fun describe() = "count=" + count
+            }
+            """,
+        )
+        source.assert().contains("initial { _ -> sample.CounterState() }")
+        result.run().assert().isEqualTo("count=3")
+    }
+
+    @Test
+    fun `a state whose primary constructor takes the id should keep it beside a secondary one`() {
+        // The primary constructor, when it is one of the forms, is still the one called.
+        val (result, source) = generate(
+            """
+            class CounterState(val id: String) {
+                constructor() : this("none")
+                var count = 0
+                fun onSourcing(event: Started) { count += event.by }
+                fun describe() = id + "=" + count
+            }
+            """,
+        )
+        source.assert().contains("initial { ref -> sample.CounterState(ref.id) }")
+        result.run().assert().isEqualTo("c-1=3")
+    }
+
+    @Test
+    fun `a state whose constructors the generated model cannot call should be a compile error`() {
+        val (_, result) = compileModel(
+            "generate",
+            ManifestFragmentFixtures.context,
+            counter(
+                """
+                class CounterState private constructor() {
+                    fun onSourcing(event: Started) = Unit
+                }
+                """,
+            ),
+        )
+        result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        result.messages.assert().contains("the state CounterState needs a constructor ()")
+        // A Kotlin protected constructor is out of the generated model's reach too.
+        val (_, guarded) = compileModel(
+            "generate",
+            ManifestFragmentFixtures.context,
+            counter(
+                """
+                open class CounterState protected constructor() {
+                    fun onSourcing(event: Started) = Unit
+                }
+                """,
+            ),
+        )
+        guarded.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        guarded.messages.assert().contains("the state CounterState needs a constructor ()")
+    }
 }
