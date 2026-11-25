@@ -52,7 +52,10 @@ import java.util.concurrent.atomic.AtomicReference
  *   same.
  *
  * A gauge a sample no longer takes (a partition handed off to another node, the parked count of a node that no
- * longer reports it) is removed from [meters], so it does not report its last value forever.
+ * longer reports it) is removed from [meters], so it does not report its last value forever. One whose subject is
+ * still there but that the sample could not read (a ledger's count or a log's heads failing or slower than the read
+ * timeout, [NodeSample.unreadParked], [NodeSample.unreadHeads]) keeps its last value until a sample reads it again, so
+ * an alert on it neither clears nor fires by itself; the sampler logs the read's failure as it starts and as it ends.
  *
  * The sampler's owner starts and closes it; these gauges follow each of its samples.
  */
@@ -78,13 +81,7 @@ class NodeMetrics(
     private fun sampled(sample: NodeSample) {
         val taken = HashSet<Pair<String, Tags>>()
         if (reportsParked()) {
-            sample.parked.forEach { (subscription, count) ->
-                taken += gauge(
-                    WowMetrics.PARKED_AGGREGATES,
-                    WowMetrics.PARKED_AGGREGATES.tagsOf(subscription.group, subscription.name),
-                    count.toDouble(),
-                )
-            }
+            parked(sample, taken)
         }
         node.contexts.forEach { (name, context) ->
             val tags = WowMetrics.EXECUTOR_IN_FLIGHT.tagsOf(name)
@@ -110,10 +107,14 @@ class NodeMetrics(
                     position.partition.toString()
                 )
                 taken += gauge(WowMetrics.POSITION, tags, position.watermark.toDouble())
-                // A head the sample could not read leaves the backlog and progress out, not wrong.
-                sample.heads[runtime.group to position.partition]?.let { head ->
+                val head = sample.heads[runtime.group to position.partition]
+                if (head != null) {
                     taken += gauge(WowMetrics.BACKLOG, tags, (head - position.watermark).coerceAtLeast(0).toDouble())
                     taken += gauge(WowMetrics.PROGRESS, tags, progress(position.watermark, head))
+                } else if (runtime.group in sample.unreadHeads) {
+                    // A head the sample could not read keeps the backlog and progress at their last values, not wrong.
+                    taken += WowMetrics.BACKLOG.name to tags
+                    taken += WowMetrics.PROGRESS.name to tags
                 }
                 subscriptions += subscriptionTags(runtime.group, position.subscription)
             }
@@ -124,6 +125,22 @@ class NodeMetrics(
             taken += gauge(WowMetrics.THROTTLED_PARTITIONS, tags, (throttled[tags] ?: 0).toDouble())
         }
         (gauges.keys - taken).forEach { key -> gauges.remove(key)?.let { (_, gauge) -> meters.remove(gauge) } }
+    }
+
+    /** Sets the parked gauges from [sample] into [taken]; a count it could not take keeps its gauge's last value. */
+    private fun parked(sample: NodeSample, taken: MutableSet<Pair<String, Tags>>) {
+        sample.parked.forEach { (subscription, count) ->
+            taken += gauge(
+                WowMetrics.PARKED_AGGREGATES,
+                WowMetrics.PARKED_AGGREGATES.tagsOf(subscription.group, subscription.name),
+                count.toDouble(),
+            )
+        }
+        // The entries are still parked: the sample could not count them.
+        sample.unreadParked.forEach { subscription ->
+            taken += WowMetrics.PARKED_AGGREGATES.name to
+                WowMetrics.PARKED_AGGREGATES.tagsOf(subscription.group, subscription.name)
+        }
     }
 
     /**

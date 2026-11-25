@@ -78,7 +78,7 @@ Tags are written as `name=value`; a tag without a value takes the value its name
 | `wow.query.pressure` | Gauge | `wow.store` | 1 while an adaptive bound is under pressure |
 | `wow.query.limit.decreases` | Counter | `wow.store` | The times an adaptive bound went down |
 
-The node's gauges, the executor's, the append queue's and the subscriptions', are sampled every `wow.node.sample-interval` (10 s), and one whose subject is gone, a subscription that moved to another node say, is removed; the query bounds' gauges, `wow.query.limit.current` and `wow.query.pressure`, are read live.
+The node's gauges, the executor's, the append queue's and the subscriptions', are sampled every `wow.node.sample-interval` (10 s), and one whose subject is gone, a subscription that moved to another node say, is removed. One that a sample cannot read, a ledger's count or a log's heads failing or slower than the read timeout, keeps its last value until a sample reads it again, and the node logs a warning as the read starts failing and a line as it reads again. The query bounds' gauges, `wow.query.limit.current` and `wow.query.pressure`, are read live.
 
 ### Analytics catalog server
 

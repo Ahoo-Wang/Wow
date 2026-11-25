@@ -31,8 +31,10 @@ import me.ahoo.wow.runtime.node.throttled
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
 import me.ahoo.wow.spi.StorageUnavailableException
+import me.ahoo.wow.spi.access.AccessWalks
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
+import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.subscription.SubscriptionId
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
@@ -49,10 +51,23 @@ class NodeMetricsTest {
     @Volatile
     private var broken = false
 
+    /** While set, the sales context's log fails to read its heads, as one that is unreachable. */
+    @Volatile
+    private var headsDown = false
+
     private val backends = BackendFactory { context ->
         val opened = memory.backends(context)
         val ledger = opened.ledger
+        val log = opened.log
+        // Still the log whose aggregates the node walks: a log that is not leaves the access walk undone.
+        val walks = log as AccessWalks
         opened.copyWith(
+            log = object : EventLog by log, AccessWalks by walks {
+                override suspend fun heads(partitions: Collection<Int>): Map<Int, Long?> {
+                    check(!headsDown) { "The log is unreachable." }
+                    return log.heads(partitions)
+                }
+            },
             ledger = object : FailureLedger by ledger {
                 override suspend fun list(
                     subscription: SubscriptionId,
@@ -226,6 +241,43 @@ class NodeMetricsTest {
             telemetry.meters.find(WowMetrics.POSITION.name).gauges().assert().isEmpty()
             telemetry.meters.find(WowMetrics.BACKLOG.name).gauges().assert().isEmpty()
             telemetry.meters.find(WowMetrics.PROGRESS.name).gauges().assert().isEmpty()
+        }
+
+    @Test
+    fun `a gauge should keep its last value while a sample cannot read its subject, then follow it (#6858)`(): Unit =
+        runBlocking {
+            node.start()
+            listOf("good-1", "bad-1", "bad-2").forEach { place(it) }
+            eventually { node.parked.list(SubscriptionId(SALES, BOARD)).entries.size == 2 }
+            val runtime = node.context(SALES).logGroups.single().subscriptions
+            val heads = (0 until 2).associateWith { node.context(SALES).backends.log.head(it) ?: 0L }
+            eventually {
+                runtime.positions().filter { it.subscription == BOARD }.all { it.watermark == heads[it.partition] }
+            }
+            val metrics = NodeMetrics(node, telemetry.meters, NodeSampler(node))
+            metrics.sample()
+            val board = arrayOf(WowMetrics.GROUP, runtime.group, WowMetrics.SUBSCRIPTION, BOARD)
+            gauge(WowMetrics.PARKED_AGGREGATES.name, WowMetrics.SUBSCRIPTION, BOARD).assert().containsExactly(2.0)
+            val backlog = gauge(WowMetrics.BACKLOG.name, *board)
+            val progress = gauge(WowMetrics.PROGRESS.name, *board)
+            backlog.assert().isNotEmpty()
+
+            // The ledger and the log cannot be read for a sample: the two entries are still parked, and an alert on
+            // the gauges holds, neither cleared nor fired.
+            broken = true
+            headsDown = true
+            metrics.sample()
+            gauge(WowMetrics.PARKED_AGGREGATES.name, WowMetrics.SUBSCRIPTION, BOARD).assert().containsExactly(2.0)
+            gauge(WowMetrics.BACKLOG.name, *board).assert().isEqualTo(backlog)
+            gauge(WowMetrics.PROGRESS.name, *board).assert().isEqualTo(progress)
+
+            broken = false
+            headsDown = false
+            place("bad-3")
+            eventually { node.parked.list(SubscriptionId(SALES, BOARD)).entries.size == 3 }
+            metrics.sample()
+            gauge(WowMetrics.PARKED_AGGREGATES.name, WowMetrics.SUBSCRIPTION, BOARD).assert().containsExactly(3.0)
+            gauge(WowMetrics.BACKLOG.name, *board).assert().hasSameSizeAs(backlog)
         }
 
     @Test

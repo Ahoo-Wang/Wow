@@ -78,7 +78,7 @@ Wow 节点向监控报告的每个名字。类路径上有 `wow-observability` �
 | `wow.query.pressure` | Gauge | `wow.store` | 自适应上限处于压力之下期间为 1 |
 | `wow.query.limit.decreases` | Counter | `wow.store` | 自适应上限下调的次数 |
 
-节点的 Gauge，即执行器、追加队列和订阅的 Gauge，每隔 `wow.node.sample-interval`（10 s）采样一次；对象已不存在的 Gauge，例如已经移到另一个节点的订阅，会被移除。查询上限的 Gauge，`wow.query.limit.current` 和 `wow.query.pressure`，是实时读取的。
+节点的 Gauge，即执行器、追加队列和订阅的 Gauge，每隔 `wow.node.sample-interval`（10 s）采样一次；对象已不存在的 Gauge，例如已经移到另一个节点的订阅，会被移除。某次采样读不到的 Gauge，即账本的计数或日志的头部读取失败或超过读取超时，会保持上一次的值，直到之后的采样重新读到；读取开始失败时节点记录一条警告，恢复读取时再记录一行。查询上限的 Gauge，`wow.query.limit.current` 和 `wow.query.pressure`，是实时读取的。
 
 ### 分析目录服务器 {#analytics-catalog-server}
 
