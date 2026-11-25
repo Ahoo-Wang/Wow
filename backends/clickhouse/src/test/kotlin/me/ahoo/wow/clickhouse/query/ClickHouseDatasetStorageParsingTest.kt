@@ -18,6 +18,7 @@ import com.clickhouse.client.api.ServerException
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.query.QueryErrorCodes
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.clickhouse.query.ClickHouseQueryFixtures.DATASET
@@ -29,6 +30,7 @@ import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryValueType
+import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.spi.StorageTimeoutException
 import me.ahoo.wow.spi.json.WowJson
 import org.junit.jupiter.api.Test
@@ -154,6 +156,15 @@ class ClickHouseDatasetStorageParsingTest {
     fun `sql constants and time zones should be rendered from validated values`() {
         1.5.sqlLiteral().assert().isEqualTo("toFloat64(1.5)")
         assertThrows<IllegalStateException> { Double.NaN.sqlLiteral() }
+        // A subnormal double is refused, the least normal one and 0 written (#7009).
+        listOf(Double.MIN_VALUE, -Double.MIN_VALUE, java.lang.Double.MIN_NORMAL / 2).forEach { subnormal ->
+            val refused = assertThrows<QuerySchemaValidationException> { subnormal.sqlLiteral() }
+            refused.violation.assert().isInstanceOf(QueryViolation.StorageUnsupported::class.java)
+            refused.violation!!.code.assert().isEqualTo(QueryErrorCodes.STORAGE_UNSUPPORTED)
+            refused.violation!!.message.assert().contains("subnormal double constant $subnormal")
+        }
+        java.lang.Double.MIN_NORMAL.sqlLiteral().assert().startsWith("toFloat64(0.0000")
+        0.0.sqlLiteral().assert().isEqualTo("toFloat64(0.0)")
         "Asia/Shanghai".sqlTimeZone().assert().isEqualTo("'Asia/Shanghai'")
         "Z".sqlTimeZone().assert().isEqualTo("'UTC'")
         "UTC".sqlTimeZone().assert().isEqualTo("'UTC'")
