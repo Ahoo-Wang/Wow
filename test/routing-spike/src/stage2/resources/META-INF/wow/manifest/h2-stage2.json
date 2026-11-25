@@ -38,6 +38,46 @@
           "method" : "POST",
           "path" : "/h2/account/{id}/withdraw"
         } ]
+      }, {
+        "name" : "wow.lifecycle.DeleteAggregate",
+        "aliases" : [ ],
+        "schema" : "#/$defs/wow.lifecycle.DeleteAggregate",
+        "creation" : "none",
+        "routes" : [ {
+          "method" : "DELETE",
+          "path" : "/h2/account/{id}"
+        } ],
+        "system" : true
+      }, {
+        "name" : "wow.lifecycle.RestoreAggregate",
+        "aliases" : [ ],
+        "schema" : "#/$defs/wow.lifecycle.RestoreAggregate",
+        "creation" : "none",
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/h2/account/{id}/wow.lifecycle.restore-aggregate"
+        } ],
+        "system" : true
+      }, {
+        "name" : "wow.lifecycle.TransferOwner",
+        "aliases" : [ ],
+        "schema" : "#/$defs/wow.lifecycle.TransferOwner",
+        "creation" : "none",
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/h2/account/{id}/wow.lifecycle.transfer-owner"
+        } ],
+        "system" : true
+      }, {
+        "name" : "wow.lifecycle.TransferSpace",
+        "aliases" : [ ],
+        "schema" : "#/$defs/wow.lifecycle.TransferSpace",
+        "creation" : "none",
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/h2/account/{id}/wow.lifecycle.transfer-space"
+        } ],
+        "system" : true
       } ],
       "events" : [ {
         "name" : "AccountOpened",
@@ -55,7 +95,7 @@
         "revision" : 1,
         "schema" : "#/$defs/Withdrawn"
       } ],
-      "lifecycle" : [ "wow.lifecycle.DeleteAggregate", "wow.lifecycle.RestoreAggregate", "wow.lifecycle.TransferOwner", "wow.lifecycle.TransferSpace", "wow.lifecycle.ApplyTags" ],
+      "lifecycle" : [ "wow.lifecycle.DeleteAggregate", "wow.lifecycle.RestoreAggregate", "wow.lifecycle.TransferOwner", "wow.lifecycle.TransferSpace" ],
       "queries" : [ ]
     } ],
     "subscriptions" : [ ],
