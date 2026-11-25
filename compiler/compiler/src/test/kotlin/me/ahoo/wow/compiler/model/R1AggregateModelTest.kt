@@ -21,6 +21,7 @@ import me.ahoo.wow.compiler.model.source.ModelProviderSource
 import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.spi.json.WowJson
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import org.junit.jupiter.api.Test
 import java.net.URLClassLoader
@@ -421,5 +422,73 @@ class R1AggregateModelTest {
             .single { it.isFile && it.parentFile.invariantSeparatorsPath.endsWith(Manifest.FRAGMENT_DIRECTORY) }
         ManifestFragmentFixtures.read(fragment).contexts.single().aggregates.single().commands
             .single { it.name == "RenameCart" }.idProperty.assert().isEqualTo("cart")
+    }
+
+    /**
+     * A state's base class's private field is not read (#6845, a limit found reviewing #6952): KSP gives a class no
+     * private field of its supertypes, so `QueryPropertiesSource` sees the base's getter alone and names the query
+     * field after it. A `@JsonProperty` (or `@JsonIgnore`) on the base's field is lost, whether the state is Java or
+     * Kotlin: the generated field is `state.owner`, while Jackson writes `who`. Fails on `fix/java-sources` at
+     * `4ac1831436` as well as on `ac58da98ac`.
+     */
+    @Test
+    fun `a Jackson annotation on a state's base class's private field should name its query field`() {
+        val root = SourceFile.kotlin(
+            "Cart.kt",
+            """
+            package sample
+
+            import me.ahoo.wow.api.annotation.AggregateRoot
+            import me.ahoo.wow.api.annotation.CreateAggregate
+
+            @CreateAggregate
+            data class Create(val owner: String)
+            data class Created(val owner: String)
+
+            @AggregateRoot
+            class Cart(private val state: CartState) {
+                fun onCommand(command: Create): Created = Created(command.owner)
+            }
+            """.trimIndent(),
+        )
+        val base = SourceFile.java(
+            "CartBase.java",
+            """
+            package sample;
+
+            public class CartBase {
+                @com.fasterxml.jackson.annotation.JsonProperty("who") private String owner = "alice";
+                public String getOwner() { return owner; }
+            }
+            """.trimIndent(),
+        )
+        val java = SourceFile.java(
+            "CartState.java",
+            """
+            package sample;
+
+            public class CartState extends CartBase {
+                public void onSourcing(Created event) { }
+            }
+            """.trimIndent(),
+        )
+        val kotlin = SourceFile.kotlin(
+            "CartState.kt",
+            """
+            package sample
+
+            class CartState : CartBase() {
+                fun onSourcing(event: Created) = Unit
+            }
+            """.trimIndent(),
+        )
+        listOf(java, kotlin).forEach { state ->
+            val (compilation, result) = compile(root, base, state)
+            ok(result)
+            val instance = result.classLoader.loadClass("sample.CartState").getDeclaredConstructor().newInstance()
+            WowJson.mapper.writeValueAsString(instance).assert().isEqualTo("""{"who":"alice"}""")
+            generated(compilation, "CartStateProperties.kt").assert()
+                .contains("\"state.who\"").doesNotContain("\"state.owner\"")
+        }
     }
 }
