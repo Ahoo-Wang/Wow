@@ -254,6 +254,8 @@ The in-memory query reference and the test DSL's `memoryQueries` order text by c
 
 A filter that ignores case compares both texts after Unicode simple case folding, on every backend ([Query Language](../reference/query-language)): `ſ` contains `s`, `λόγος` contains `σ`, `5µm` contains `μ`, and `İstanbul` no longer starts with `is` on PostgreSQL and Elasticsearch. A PostgreSQL database of the `C` locale, which folded ASCII alone, folds every letter, and one of a Turkish locale no longer folds `I` with `ı`. On MongoDB, a `value` past 32,764 bytes of pattern is answered `storage-unsupported`, where the server failed. The test DSL's `memoryQueries` follows the reference.
 
+On the in-memory query reference, which a `memoryQueries` spec and a node on the memory store read, two queries that were answered are now refused, as PostgreSQL and MongoDB refuse them ([Query Language](../reference/query-language#the-capability-descriptor)). A comparison, sort or grouping by a date string, such as `state.placedAt > "2026-01-01T00:00:00Z"`, a sort by an `Instant`, or a date histogram over one, gets `unsupported-capability`: compare, sort or group by an epoch field instead, a number that supports every capability, or by the system time fields. A sort by two independent array fields gets `parallel-array-sort`: sort by one of them. A spec that relied on either passed where its node failed; it now fails as the node does.
+
 ### The test kit {#the-test-kit}
 
 Specs written with the test DSL hold commands to what a node does with them. Rebuild the tests against this version: `aggregateSpec` and `aggregateSpecTests` take a `policy`.

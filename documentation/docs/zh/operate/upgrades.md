@@ -254,6 +254,8 @@ migrate-data 的 `compare` 和 `export` 发现差异时以 `4` 退出（以前�
 
 忽略大小写的过滤条件在每个后端都按 Unicode 简单大小写折叠比较两边的文本（[查询语言](../reference/query-language)）：`ſ` 包含 `s`，`λόγος` 包含 `σ`，`5µm` 包含 `μ`，而在 PostgreSQL 和 Elasticsearch 上 `İstanbul` 不再以 `is` 开头。原来只折叠 ASCII 的 `C` locale PostgreSQL 数据库会折叠所有字母，土耳其语 locale 的数据库不再把 `I` 与 `ı` 折叠。在 MongoDB 上，模式超过 32,764 字节的 `value` 答以 `storage-unsupported`，过去是服务器报错。测试 DSL 的 `memoryQueries` 与参考实现一致。
 
+内存查询参考实现（`memoryQueries` 规格和使用内存存储的节点读取的就是它）现在拒绝两种原来会回答的查询，与 PostgreSQL 和 MongoDB 的拒绝一致（[查询语言](../reference/query-language#the-capability-descriptor)）。按日期字符串比较、排序或分组，例如 `state.placedAt > "2026-01-01T00:00:00Z"`、按 `Instant` 排序，或基于它的日期直方图，得到 `unsupported-capability`：改为按纪元时间字段（支持所有能力的数字）或按系统时间字段比较、排序或分组。按两个相互独立的数组字段排序，得到 `parallel-array-sort`：只按其中一个排序。依赖其中任何一种的规格，以前在它的节点失败的地方通过；现在它像节点一样失败。
+
 ### 测试工具 {#the-test-kit}
 
 用测试 DSL 编写的规格会按节点的处理方式检查命令。请针对这个版本重新构建测试：`aggregateSpec` 和 `aggregateSpecTests` 新增了 `policy` 参数。
