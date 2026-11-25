@@ -449,14 +449,15 @@ class PostgresSnapshotSqlCompilerTest {
         val statement = aggregations.compile(QueryAdmission.Trusted.aggregate(query, schema), GroupWindow.First(7))
         val created = PostgresSnapshotQueryExpressions.value(CREATED, PostgresQueryType.NUMERIC)
         statement.sql.assert().isEqualTo(
-            "SELECT * FROM (SELECT a.*, (a.m0 * ?::numeric) AS m1 FROM (SELECT " +
+            // A derived metric is a computed value: its metrics and constants are doubles (#6997).
+            "SELECT * FROM (SELECT a.*, ((a.m0)::float8 * ?::float8) AS m1 FROM (SELECT " +
                 "(extract(epoch from (date_trunc('day', to_timestamp($created / 1000.0) AT TIME ZONE ?::interval) " +
                 "AT TIME ZONE ?::interval)) * 1000)::bigint AS g0, count(*) AS m0 FROM \"wow_snapshot__shop__order\" AS t " +
                 "WHERE TRUE AND $created IS NOT NULL GROUP BY 1) AS a) AS h " +
                 "WHERE h.m1 > ? ORDER BY h.g0 ASC NULLS FIRST LIMIT ?",
         )
         statement.parameters.assert().containsExactly(
-            SqlParameter.Numeric(BigDecimal.valueOf(2.0)),
+            SqlParameter.Float8(2.0),
             SqlParameter.Text("28800 seconds"),
             SqlParameter.Text("28800 seconds"),
             SqlParameter.Numeric(BigDecimal.valueOf(1.0)),

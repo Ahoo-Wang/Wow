@@ -254,14 +254,13 @@ An `expression` is one of `{"type":"field","field":…}`, `{"type":"constant","v
 }
 ```
 
-How each backend computes a number:
+A computed value is a double on every backend, as `AggregationExpression` declares it: an `expression` filter, a metric or a group over an expression, and a derived metric. So `amount * 3 > 0.3` matches an `amount` of 0.1, as 0.1 × 3 is 0.30000000000000004, and `amount / 0.1 < 3` matches one of 0.3. Where exactness matters, as for money, compare a stored field, not a computed value: a comparison of a field with a value is exact on every backend that stores decimals. A computed value beyond a double's range is no value, and one that underflows is 0, but on PostgreSQL, where it refuses the query (`wow.query.out-of-range`), an underflow included.
+
+A plain field's aggregation is computed in the stored decimals, but on one backend:
 
 | Computed | In the stored decimals | In doubles |
 | --- | --- | --- |
 | A plain field's `sum`, `avg`, `min` and `max` | memory, PostgreSQL, MongoDB, ClickHouse (a `Decimal` column) | Elasticsearch |
-| A computed value: an `expression` filter, a metric, a group or a derived metric over an expression | PostgreSQL | memory, MongoDB, Elasticsearch, ClickHouse |
-
-So `amount * 3 > 0.3` matches an `amount` of 0.1 on every backend but PostgreSQL: in doubles, 0.1 × 3 is 0.30000000000000004. Where exactness matters, as for money, compare a stored field, not a computed value.
 
 ### Combinators
 

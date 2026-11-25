@@ -33,6 +33,7 @@ import me.ahoo.wow.query.backend.QueryBackend
 import me.ahoo.wow.query.backend.QueryBackendBinding
 import me.ahoo.wow.query.backend.countBounded
 import me.ahoo.wow.query.tck.QueryBackendSpec
+import me.ahoo.wow.query.tck.SnapshotAggregationCases.Companion.OUT_OF_RANGE_REFUSED
 import me.ahoo.wow.query.tck.SnapshotDateBucketCases.Companion.GAP_MID_UNIT
 import me.ahoo.wow.query.tck.SnapshotDateBucketCases.Companion.GAP_START
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
@@ -51,6 +52,8 @@ class PostgresSnapshotQueryBackendTest : QueryBackendSpec() {
     override val semanticDivergences: Set<String> = setOf(
         GAP_START,
         GAP_MID_UNIT,
+        // float8 fails the statement on an overflow or an underflow: the query is refused (wow.query.out-of-range).
+        OUT_OF_RANGE_REFUSED,
     )
 
     override fun binding(type: AggregateType): QueryBackendBinding<QueryBackend> =

@@ -93,6 +93,20 @@ class QueryBusyException(
 }
 
 /**
+ * A query whose computed value went beyond a double's range on its backend, an underflow to zero included:
+ * [QueryErrors.OUT_OF_RANGE] (HTTP 400). PostgreSQL fails the statement for it, where the other backends answer the
+ * value as none (an underflow as 0), as `AggregationExpression`'s finite doubles say; running it again fails the same
+ * way. [cause] is the store's own error, kept server-side.
+ */
+class QueryOutOfRangeException(cause: Throwable? = null) : QueryExecutionException(
+    "A computed value went beyond a double's range on this backend; narrow the operands, or compute from stored fields.",
+    cause,
+) {
+    override val errorCode: String
+        get() = QueryErrors.OUT_OF_RANGE
+}
+
+/**
  * A query of a dataset that is served but cannot be queried now ([me.ahoo.wow.query.dataset.QueryDataset.unavailable],
  * 7.2b-2): [QueryErrors.DATASET_UNAVAILABLE] (HTTP 409). The message names the dataset and the
  * [reason], fixed words such as `needs revision`; what made it so stays with whoever marked it.

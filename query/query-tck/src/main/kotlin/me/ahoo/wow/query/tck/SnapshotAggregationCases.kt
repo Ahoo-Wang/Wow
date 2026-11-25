@@ -38,6 +38,8 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.query.backend.aggregate
 import me.ahoo.wow.query.backend.single
+import me.ahoo.wow.query.error.QueryError
+import me.ahoo.wow.query.error.QueryErrors
 import me.ahoo.wow.query.error.QueryRequestException
 import me.ahoo.wow.query.schema.QueryCapability
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
@@ -474,17 +476,84 @@ abstract class SnapshotAggregationCases internal constructor() : SnapshotKeysetC
 
     @Test
     fun `a computed comparison over a decimal field`() = blocking {
-        // Which of the two a computed value is in, on every backend, is #6997's: until then, each states its own.
-        val fixture = given(tenthAndFifth())
-        val tripled = AggregationExpression.Binary(
-            AggregationExpressionOperator.MULTIPLY,
-            AggregationExpression.Field(AMOUNT),
-            AggregationExpression.Constant(3.0),
-        )
+        // A computed value is a double (AggregationExpression's KDoc): 0.1 × 3.0 is 0.30000000000000004, over 0.3, and
+        // 0.3 ÷ 0.1 is 2.9999999999999996, under 3; in decimals the 0.1 order and the 0.3 order would not match.
+        val fixture = given(tenthAndFifth() + snapshot("threeTenths", """{"amount":0.3}"""))
+        val tripled = computed(AggregationExpressionOperator.MULTIPLY, 3.0)
         fixture.ids(ExpressionFilter(tripled, ComparisonOperator.GT, 0.3)).assert()
-            .containsExactlyInAnyOrderElementsOf(computedMatches())
+            .containsExactlyInAnyOrder("tenth", "fifth", "threeTenths")
+        val tenths = computed(AggregationExpressionOperator.DIVIDE, 0.1)
+        fixture.ids(ExpressionFilter(tenths, ComparisonOperator.LT, 3.0)).assert()
+            .containsExactlyInAnyOrder("tenth", "fifth", "threeTenths")
         Unit
     }
+
+    @Test
+    fun `a sum and an average over an expression are doubles on every backend`() = blocking {
+        // 0.1 × 3.0 + 0.2 × 3.0 in doubles, either order: 0.9000000000000001; its half 0.45000000000000007.
+        val fixture = given(tenthAndFifth())
+        val tripled = computed(AggregationExpressionOperator.MULTIPLY, 3.0)
+        val row = fixture.aggregate(
+            AggregationQuery(
+                MatchAllFilter,
+                metrics = listOf(
+                    AggregationMetric.Numeric(AggregationFunction.SUM, tripled, "sum"),
+                    AggregationMetric.Numeric(AggregationFunction.AVG, tripled, "avg"),
+                ),
+            ),
+        ).single()
+        row.path("sum").decimalValue().assert().describedAs("$row")
+            .isEqualByComparingTo(BigDecimal("0.9000000000000001"))
+        row.path("avg").decimalValue().assert().describedAs("$row")
+            .isEqualByComparingTo(BigDecimal("0.45000000000000007"))
+        Unit
+    }
+
+    @Test
+    fun `a computed value beyond a double is no value and an underflow 0, or the query is refused where listed`() =
+        blocking {
+            // 2 × 1e308 is beyond a double's range: no value, so the 2 order neither matches nor adds; either amount
+            // times 1e-200 twice underflows to 0, through normal doubles only (ClickHouse reads no subnormal constant).
+            // A backend that fails its statement for either refuses the query instead (PostgreSQL's float8), with the
+            // code that says so.
+            val fixture = given(
+                listOf(snapshot("tenth", """{"amount":0.1}"""), snapshot("two", """{"amount":2}""")),
+            )
+            val beyond = computed(AggregationExpressionOperator.MULTIPLY, OVER)
+            val under = AggregationExpression.Binary(
+                AggregationExpressionOperator.MULTIPLY,
+                computed(AggregationExpressionOperator.MULTIPLY, TINY),
+                AggregationExpression.Constant(TINY),
+            )
+            val sum = AggregationQuery(
+                MatchAllFilter,
+                metrics = listOf(AggregationMetric.Numeric(AggregationFunction.SUM, beyond, "sum")),
+            )
+            val outcomes: List<suspend () -> Any> = listOf(
+                { fixture.ids(ExpressionFilter(beyond, ComparisonOperator.GT, 0.0)) },
+                { fixture.ids(ExpressionFilter(under, ComparisonOperator.EQ, 0.0)) },
+                { fixture.aggregate(sum).single().path("sum").decimalValue() },
+            )
+            if (OUT_OF_RANGE_REFUSED in semanticDivergences) {
+                outcomes.forEach { outcome ->
+                    val refused = runCatching { outcome() }.exceptionOrNull()
+                    (refused as? QueryError)?.errorCode.assert().describedAs("$refused")
+                        .isEqualTo(QueryErrors.OUT_OF_RANGE)
+                }
+                return@blocking
+            }
+            outcomes[0]().assert().isEqualTo(listOf("tenth"))
+            (outcomes[1]() as List<*>).assert().containsExactlyInAnyOrder("tenth", "two")
+            (outcomes[2]() as BigDecimal).assert().isEqualByComparingTo(BigDecimal("1.0000000000000001E307"))
+        }
+
+    /** `amount` [operator] [operand], a computed value. */
+    private fun computed(operator: AggregationExpressionOperator, operand: Double): AggregationExpression =
+        AggregationExpression.Binary(
+            operator,
+            AggregationExpression.Field(AMOUNT),
+            AggregationExpression.Constant(operand),
+        )
 
     /** Two orders, their amounts 0.1 and 0.2. */
     private fun tenthAndFifth(): List<SnapshotRecord> =
@@ -501,13 +570,6 @@ abstract class SnapshotAggregationCases internal constructor() : SnapshotKeysetC
             listOf("0.3", "0.15", "0.1", "0.2").map(::BigDecimal)
         }
 
-    /**
-     * The records of 0.1 and 0.2 whose `amount * 3.0 > 0.3`: in decimals the 0.2 one alone; where the backend lists
-     * [EXACT_COMPUTED_VALUE], in doubles, both, as 0.1 × 3.0 is 0.30000000000000004.
-     */
-    private fun computedMatches(): List<String> =
-        if (EXACT_COMPUTED_VALUE in semanticDivergences) listOf("fifth", "tenth") else listOf("fifth")
-
     companion object {
         /**
          * The case of a plain decimal field's SUM, AVG, MIN and MAX, in the stored decimals: a backend that computes
@@ -516,10 +578,16 @@ abstract class SnapshotAggregationCases internal constructor() : SnapshotKeysetC
         const val EXACT_PLAIN_AGGREGATE: String = "decimal.plain-aggregate"
 
         /**
-         * The case of a computed value (an `expression`) compared in decimals: a backend that computes it in doubles
-         * lists it, by this id, and is held to the doubles' answer. Internal: a computed value is to be a double on
-         * every backend (#6997), and the id goes with it.
+         * The case of a computed value beyond a double's range: a backend that fails its statement for it, and so
+         * refuses the query (`wow.query.out-of-range`) where the others answer no value, lists it, and is held to the
+         * refusal.
          */
-        internal const val EXACT_COMPUTED_VALUE: String = "decimal.computed-value"
+        const val OUT_OF_RANGE_REFUSED: String = "computed.out-of-range-refused"
+
+        /** A factor that takes an amount of 2 beyond a double's range, and one of 0.1 to 1e307. */
+        private const val OVER = 1.0E308
+
+        /** A normal double whose square underflows: an amount times it twice is 0. */
+        internal const val TINY = 1.0E-200
     }
 }

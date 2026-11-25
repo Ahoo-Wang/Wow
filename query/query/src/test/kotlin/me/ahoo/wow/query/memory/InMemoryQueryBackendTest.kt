@@ -50,9 +50,6 @@ class InMemoryQueryBackendTest : QueryBackendSpec() {
 
     override fun binding(type: AggregateType): QueryBackendBinding<QueryBackend> = storage.binding(type)
 
-    // A computed value is a double here (AggregationExpression's KDoc), a plain field's aggregation the decimals.
-    override val semanticDivergences: Set<String> = setOf("decimal.computed-value")
-
     @Test
     fun `a snapshot replaces the stored one only with a higher version`() {
         val first = snapshot("o1", """{"name":"first"}""", version = 2)

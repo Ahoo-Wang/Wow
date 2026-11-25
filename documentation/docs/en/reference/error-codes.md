@@ -50,6 +50,7 @@ Every code the framework answers a request with, as `code` of the `application/p
 | `wow.query.not-found` | 404 | `none` | No matching record | A single query matched no record: a query result, not a statement that an aggregate does not exist. |
 | `wow.query.dataset-not-found` | 404 | `none` | Dataset not found | No dataset of that name is served to the caller. |
 | `wow.query.too-many-groups` | 400 | `none` | Too many groups | An aggregation that names no sort has more groups than its limit; add a sort for a top-N, or raise limit. |
+| `wow.query.out-of-range` | 400 | `none` | Value out of range | A computed value went beyond a double's range on this backend; narrow the operands, or compute from stored fields. |
 | `wow.query.timeout` | 504 | `none` | Query timed out | The query ran longer than its budget allows; narrow it rather than run it again. |
 | `wow.query.min-version-not-reached` | 409 | `new-request` | Version not reached | The state read asked for a version the aggregate has not reached within the wait; the problem carries its current version: retry later. |
 | `wow.query.busy` | 429 | `new-request` | Query busy | The query was not run: its store has as many queries running as it allows; retry later. |

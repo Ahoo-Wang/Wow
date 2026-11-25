@@ -697,6 +697,13 @@ public class me/ahoo/wow/query/error/QueryExecutionException : java/lang/Runtime
 	public fun getErrorMsg ()Ljava/lang/String;
 }
 
+public final class me/ahoo/wow/query/error/QueryOutOfRangeException : me/ahoo/wow/query/error/QueryExecutionException {
+	public fun <init> ()V
+	public fun <init> (Ljava/lang/Throwable;)V
+	public synthetic fun <init> (Ljava/lang/Throwable;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun getErrorCode ()Ljava/lang/String;
+}
+
 public final class me/ahoo/wow/query/error/QueryRequestException : java/lang/IllegalArgumentException, me/ahoo/wow/query/error/QueryError {
 	public static final field BODY Ljava/lang/String;
 	public static final field Companion Lme/ahoo/wow/query/error/QueryRequestException$Companion;

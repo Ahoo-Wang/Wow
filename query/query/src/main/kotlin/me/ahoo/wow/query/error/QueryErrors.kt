@@ -33,6 +33,8 @@ import me.ahoo.wow.manifest.FrameworkErrors
  *   ([QueryBulkhead]); the query was not run, and the same query may pass later.
  * - [DATASET_UNAVAILABLE] (409): the dataset is served but cannot be queried now, such as one whose definition needs
  *   revision (7.2b-2); the problem names the reason, in fixed words.
+ * - [OUT_OF_RANGE] (400): a computed value went beyond a double's range, an underflow to zero included, on a backend
+ *   that refuses the query for it (PostgreSQL); the other backends answer it as no value, an underflow as 0.
  *
  * They are the codes of [FrameworkErrors], whose table gives each its HTTP status; a caller the query scope does not
  * admit is answered with [FORBIDDEN].
@@ -54,6 +56,9 @@ object QueryErrors {
 
     /** An aggregation that names no sort found more groups than its limit. */
     const val TOO_MANY_GROUPS: String = FrameworkCodes.QUERY_TOO_MANY_GROUPS
+
+    /** A computed value went beyond a double's range on a backend that refuses the query for it. */
+    const val OUT_OF_RANGE: String = FrameworkCodes.QUERY_OUT_OF_RANGE
 
     /** A state read of a minimum version the aggregate has not reached. */
     const val MIN_VERSION_NOT_REACHED: String = FrameworkCodes.QUERY_MIN_VERSION_NOT_REACHED

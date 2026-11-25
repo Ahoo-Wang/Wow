@@ -248,6 +248,12 @@ object FrameworkErrors {
                 "limit.",
         ),
         ErrorManifest(
+            FrameworkCodes.QUERY_OUT_OF_RANGE,
+            400,
+            "A computed value went beyond a double's range on this backend; narrow the operands, or compute from " +
+                "stored fields.",
+        ),
+        ErrorManifest(
             FrameworkCodes.QUERY_TIMEOUT,
             504,
             "The query ran longer than its budget allows; narrow it rather than run it again.",
@@ -329,6 +335,7 @@ object FrameworkErrors {
         FrameworkCodes.QUERY_NOT_FOUND to "No matching record",
         FrameworkCodes.QUERY_DATASET_NOT_FOUND to "Dataset not found",
         FrameworkCodes.QUERY_TOO_MANY_GROUPS to "Too many groups",
+        FrameworkCodes.QUERY_OUT_OF_RANGE to "Value out of range",
         FrameworkCodes.QUERY_TIMEOUT to "Query timed out",
         FrameworkCodes.QUERY_MIN_VERSION_NOT_REACHED to "Version not reached",
         FrameworkCodes.QUERY_BUSY to "Query busy",

@@ -254,14 +254,13 @@ outline: deep
 }
 ```
 
-各后端如何计算数字：
+计算值在每个后端上都是双精度，正如 `AggregationExpression` 所声明的：`expression` 过滤、基于表达式的指标或分组，以及派生指标。所以 `amount * 3 > 0.3` 会匹配 `amount` 为 0.1 的记录，因为 0.1 × 3 是 0.30000000000000004；`amount / 0.1 < 3` 会匹配 0.3。需要精确的地方（如金额），比较存储的字段，而不是计算值：在每个存储十进制数的后端上，字段与值的比较都是精确的。超出双精度范围的计算值是无值，下溢的计算值是 0；只有 PostgreSQL 例外，它会拒绝该查询（`wow.query.out-of-range`），下溢也是如此。
+
+普通字段的聚合按存储的十进制数计算，只有一个后端例外：
 
 | 计算 | 按存储的十进制数 | 按双精度 |
 | --- | --- | --- |
 | 普通字段的 `sum`、`avg`、`min` 和 `max` | 内存、PostgreSQL、MongoDB、ClickHouse（`Decimal` 列） | Elasticsearch |
-| 计算值：`expression` 过滤，以及基于表达式的指标、分组或派生指标 | PostgreSQL | 内存、MongoDB、Elasticsearch、ClickHouse |
-
-所以 `amount * 3 > 0.3` 在除 PostgreSQL 外的每个后端上都会匹配 `amount` 为 0.1 的记录：按双精度，0.1 × 3 是 0.30000000000000004。需要精确的地方（如金额），比较存储的字段，而不是计算值。
 
 ### 组合 {#combinators}
 

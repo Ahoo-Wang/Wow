@@ -121,7 +121,7 @@ internal class PostgresAggregationCompiler(
         is AggregationGroup.Terms -> {
             val expression = group.expression
             if (expression != null) {
-                compiler.numeric(expression)
+                compiler.computed(expression)
             } else {
                 val value = compiler.typed(groupField(compiler, group)).first
                 // Admission allows a missing key only on a single-valued string field.
@@ -129,10 +129,20 @@ internal class PostgresAggregationCompiler(
             }
         }
         is AggregationGroup.Histogram -> {
-            val value = group.expression?.let(compiler::numeric) ?: compiler.typed(groupField(compiler, group)).first
-            val interval = BigDecimal.valueOf(group.interval)
-            "(floor($value / ${parameters.bind(SqlParameter.Numeric(interval))}) * " +
-                "${parameters.bind(SqlParameter.Numeric(interval))})"
+            // A group over an expression is a computed value, in doubles; over a field, the stored decimals'.
+            val expression = group.expression
+            if (expression != null) {
+                val value = compiler.computed(expression)
+
+                // Each `?` binds its own value: the interval is bound twice.
+                fun interval() = "${parameters.bind(SqlParameter.Float8(group.interval))}::float8"
+                "(floor($value / ${interval()}) * ${interval()})"
+            } else {
+                val value = compiler.typed(groupField(compiler, group)).first
+                val interval = BigDecimal.valueOf(group.interval)
+                "(floor($value / ${parameters.bind(SqlParameter.Numeric(interval))}) * " +
+                    "${parameters.bind(SqlParameter.Numeric(interval))})"
+            }
         }
         is AggregationGroup.DateHistogram -> {
             val millis = compiler.epochMillis(group.field).also(present::add)
@@ -172,7 +182,7 @@ internal class PostgresAggregationCompiler(
             val value = if (expression is me.ahoo.wow.api.query.AggregationExpression.Field) {
                 compiler.typed(admitted.field(expression.field)).first
             } else {
-                compiler.numeric(expression)
+                compiler.computed(expression)
             }
             "count(DISTINCT $value)" + filter(compiler, metric.filter)
         }
@@ -225,10 +235,11 @@ internal class PostgresAggregationCompiler(
                 requireExecution(visiting.add(named.alias)) { "Derived metric [${named.alias}] names itself." }
                 derived(parameters, query, columns, named.expression, visiting).also { visiting.remove(named.alias) }
             } else {
-                "a." + columns.getValue(expression.metric)
+                // A derived metric is a computed value: its metrics enter as doubles.
+                "(a." + columns.getValue(expression.metric) + ")::float8"
             }
         }
-        is DerivedExpression.Constant -> parameters.bind(SqlParameter.Numeric(BigDecimal.valueOf(expression.value))) + "::numeric"
+        is DerivedExpression.Constant -> parameters.bind(SqlParameter.Float8(expression.value)) + "::float8"
         is DerivedExpression.Binary -> {
             val left = derived(parameters, query, columns, expression.left, visiting)
             val right = derived(parameters, query, columns, expression.right, visiting)

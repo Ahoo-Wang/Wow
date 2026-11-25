@@ -131,8 +131,8 @@ internal class PostgresFilterCompiler(
         is SpaceIdFilter -> system(filter, filter.value)
         is DeletionFilter -> deletion(filter)
         is ElementMatchFilter -> elementMatch(filter)
-        is ExpressionFilter -> "(${numeric(filter.expression)} ${comparison(filter.comparison)} " +
-            parameters.bind(SqlParameter.Numeric(BigDecimal.valueOf(filter.value))) + ")"
+        is ExpressionFilter -> "(${computed(filter.expression)} ${comparison(filter.comparison)} " +
+            parameters.bind(SqlParameter.Float8(filter.value)) + "::float8)"
         is FieldPredicate -> predicate(filter)
         else -> throw QueryExecutionException("Filter [${filter.operator}] does not reach a PostgreSQL backend.")
     }
@@ -303,9 +303,9 @@ internal class PostgresFilterCompiler(
     )
 
     /**
-     * The numeric SQL value of an aggregation [expression], computed in `numeric`; `NULL` where a field holds no
-     * number or a divisor is 0. An `integer` or `bigint` column enters as `numeric`, so a division keeps its fraction
-     * (PostgreSQL divides two integers as integers) and a product cannot overflow its type.
+     * The numeric SQL value an aggregation metric reads: a plain field's own value, in `numeric` (an `integer` or
+     * `bigint` column enters as `numeric`), so its SUM, AVG, MIN and MAX are exact as the stored decimals; any other
+     * expression is a computed value ([computed]).
      */
     fun numeric(expression: AggregationExpression): String = when (expression) {
         is AggregationExpression.Field -> {
@@ -314,12 +314,20 @@ internal class PostgresFilterCompiler(
             requireExecution(type.numeric) { "Field [${field.logicalField}] is not numeric." }
             if (type == PostgresQueryType.NUMERIC) value else "($value)::numeric"
         }
-        is AggregationExpression.Constant -> "${parameters.bind(
-            SqlParameter.Numeric(BigDecimal.valueOf(expression.value))
-        )}::numeric"
+        else -> computed(expression)
+    }
+
+    /**
+     * The SQL value of a computed [expression] (an `expression` filter, a group, a metric over an expression): a
+     * double (`float8`), as `AggregationExpression` computes on every backend, a field read as one and a constant bound
+     * as one; `NULL` where a field holds no number or a divisor is 0.
+     */
+    fun computed(expression: AggregationExpression): String = when (expression) {
+        is AggregationExpression.Field -> "(${numeric(expression)})::float8"
+        is AggregationExpression.Constant -> "${parameters.bind(SqlParameter.Float8(expression.value))}::float8"
         is AggregationExpression.Binary -> {
-            val left = numeric(expression.left)
-            val right = numeric(expression.right)
+            val left = computed(expression.left)
+            val right = computed(expression.right)
             when (expression.operator) {
                 AggregationExpressionOperator.ADD -> "($left + $right)"
                 AggregationExpressionOperator.SUBTRACT -> "($left - $right)"
@@ -330,7 +338,7 @@ internal class PostgresFilterCompiler(
         is AggregationExpression.DateDiff -> {
             val from = epochMillis(expression.from)
             val to = epochMillis(expression.to)
-            "(($to - $from) / ${expression.unit.millis}.0)"
+            "((($to - $from))::float8 / ${expression.unit.millis})"
         }
     }
 
