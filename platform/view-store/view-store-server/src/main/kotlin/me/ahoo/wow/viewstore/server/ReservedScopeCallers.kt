@@ -34,7 +34,7 @@ class ReservedScopeCallers(override val decorated: CallerResolver) : DecoratingC
         val reserved = ViewStoreRoles.reservedTarget(scope) ?: return caller
         return Caller.of(
             tenantId = caller.tenantId,
-            scope = reserved.scope,
+            scope = reserved.scopeFor(caller.scope),
             subject = caller.subject,
             crossScope = true,
             attributes = caller.attributes,

@@ -83,7 +83,7 @@ class CommandValueAdmissionTest {
     }
 
     private val registry = WaitRegistry()
-    private val origin = Origin("node-1", "127.0.0.1:9090", "shop")
+    private val origin = Origin("shop", "node-1", "127.0.0.1:9090")
     private val coordinator = WaitCoordinator(
         Executor(Kernel(InMemoryEventLog(partitions = 2))),
         registry,
@@ -212,7 +212,7 @@ class CommandValueAdmissionTest {
             override val input = model.commandType(AddItem::class.java)
 
             override suspend fun transform(input: CommandInput): CommandTarget =
-                CommandTarget(input.type, input.aggregateId, (input.body as AddItem).copy(quantity = 4), input.headers)
+                CommandTarget(input.type, (input.body as AddItem).copy(quantity = 4), input.aggregateId, input.headers)
         }
         gateway(transformers = listOf(doubled)).execute(request(AddItem("apple")))
             .status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)

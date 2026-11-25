@@ -443,7 +443,7 @@ class TopicWaitProgressTest {
     }
     private val log = InMemoryEventLog(partitions = 1)
     private val waits = WaitRegistry()
-    private val origin = Origin("node-1", "127.0.0.1:9090", "shop-service")
+    private val origin = Origin("shop-service", "node-1", "127.0.0.1:9090")
     private val topics = InMemoryTopics(1).also { it.create(TOPIC, 1) }
 
     /** The commit's signal, once the intake sent it. */

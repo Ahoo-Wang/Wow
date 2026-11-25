@@ -44,9 +44,9 @@ class JavaCommandClient private constructor(private val delegate: CommandClient)
     /** Sends [request] and answers once it is accepted ([CommandClient.send]). */
     fun <C : Any> send(request: CommandRequest<C>): CommandResult = JavaFlows.blocking { delegate.send(request) }
 
-    /** Sends [command] to the aggregate [id] names and answers once it is accepted. */
+    /** Sends [command] to the aggregate [aggregateId] names and answers once it is accepted. */
     @JvmOverloads
-    fun send(command: Any, id: String? = null): CommandResult = send(CommandRequest.of(command, id))
+    fun send(command: Any, aggregateId: String? = null): CommandResult = send(CommandRequest.of(command, aggregateId))
 
     /** [send], asynchronously. */
     fun <C : Any> sendAsync(request: CommandRequest<C>): CompletableFuture<CommandResult> =
@@ -54,15 +54,18 @@ class JavaCommandClient private constructor(private val delegate: CommandClient)
 
     /** [send], asynchronously. */
     @JvmOverloads
-    fun sendAsync(command: Any, id: String? = null): CompletableFuture<CommandResult> =
-        sendAsync(CommandRequest.of(command, id))
+    fun sendAsync(command: Any, aggregateId: String? = null): CompletableFuture<CommandResult> =
+        sendAsync(CommandRequest.of(command, aggregateId))
 
     /** Sends [request] and answers with the result its wait plan ends with ([CommandClient.wait]). */
     fun <C : Any> sendAndWait(request: CommandRequest<C>): CommandResult = JavaFlows.blocking { delegate.wait(request) }
 
-    /** Sends [command] to the aggregate [id] names and answers with the result the default wait plan ends with. */
+    /**
+     * Sends [command] to the aggregate [aggregateId] names and answers with the result the default wait plan ends with.
+     */
     @JvmOverloads
-    fun sendAndWait(command: Any, id: String? = null): CommandResult = sendAndWait(CommandRequest.of(command, id))
+    fun sendAndWait(command: Any, aggregateId: String? = null): CommandResult =
+        sendAndWait(CommandRequest.of(command, aggregateId))
 
     /** [sendAndWait], asynchronously. */
     fun <C : Any> sendAndWaitAsync(request: CommandRequest<C>): CompletableFuture<CommandResult> =
@@ -70,8 +73,8 @@ class JavaCommandClient private constructor(private val delegate: CommandClient)
 
     /** [sendAndWait], asynchronously. */
     @JvmOverloads
-    fun sendAndWaitAsync(command: Any, id: String? = null): CompletableFuture<CommandResult> =
-        sendAndWaitAsync(CommandRequest.of(command, id))
+    fun sendAndWaitAsync(command: Any, aggregateId: String? = null): CompletableFuture<CommandResult> =
+        sendAndWaitAsync(CommandRequest.of(command, aggregateId))
 
     /**
      * The results of [request]'s wait, one per hop ([CommandClient.stream]), sent as the stream is made; close

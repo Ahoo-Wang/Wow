@@ -38,7 +38,7 @@ class CatalogWatcherTest {
     /** Succeeds for table `ok`, rejects `bad`, fails `down` while [down]; every request is kept in [sent]. */
     private fun commands() = answeringCommandClient { call ->
         sent += call.caller to call.request
-        val ref = AnalyticsCatalogContract.Source.ref(call.caller!!.tenantId, call.request.id!!)
+        val ref = AnalyticsCatalogContract.Source.ref(call.caller!!.tenantId, call.request.aggregateId!!)
         when ((call.request.command as SyncSource).table) {
             "bad" -> call.rejected("analytics.source.bad", ref = ref)
             "down" -> if (down) call.failed("wow.storage.unavailable", ref = ref) else call.committed(ref = ref)

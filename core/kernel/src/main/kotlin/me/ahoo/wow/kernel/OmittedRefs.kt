@@ -62,7 +62,7 @@ internal fun CommandRequest<*>.derivedTarget(
     if (wait != null) throw InvalidDerivedRequestException(refusal(handler, "a wait (CommandRequest.wait)"))
     if (timeout != null) throw InvalidDerivedRequestException(refusal(handler, "a timeout (CommandRequest.timeout)"))
     val type = type ?: commandTypes.omittedTargetOf(command.javaClass, handler)
-    val tenant = targetTenant ?: tenantId
+    val tenant = targetScope?.tenantId ?: tenantId
     return idOf(handler, commandTypes.aggregateIdOf(type, command))?.let { type.ref(tenant, it) }
         ?: type.unassigned(tenant)
 }
@@ -73,17 +73,17 @@ internal fun CommandRequest<*>.derivedTarget(
  */
 private fun CommandRequest<*>.idOf(handler: String, inBody: String?): String? {
     if (inBody == null) {
-        return id
+        return aggregateId
     }
     if (inBody.isBlank()) {
         throw InvalidDerivedRequestException(
             "$handler derives ${command.javaClass.name}, whose body names a blank aggregate id.",
         )
     }
-    if (id != null && inBody != id) {
+    if (aggregateId != null && inBody != aggregateId) {
         throw InvalidDerivedRequestException(
-            "$handler derives ${command.javaClass.name} to the aggregate $id, but its body names $inBody: leave the " +
-                "id out, body.toCommandRequest(), and the body names its aggregate.",
+            "$handler derives ${command.javaClass.name} to the aggregate $aggregateId, but its body names $inBody: " +
+                "leave the id out, body.toCommandRequest(), and the body names its aggregate.",
         )
     }
     return inBody

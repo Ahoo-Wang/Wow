@@ -14,7 +14,7 @@
 package me.ahoo.wow.manifest
 
 import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.RetryAdvice
 
 /**
  * The contract of a service: its bounded contexts, their aggregates with the
@@ -217,11 +217,11 @@ class ErrorManifest @InternalWowApi constructor(
     val code: String,
     val status: Int,
     val description: String? = null,
-    val retry: Retry = Retry.NONE,
+    val retry: RetryAdvice = RetryAdvice.NONE,
     val retryAfter: Int? = null,
 ) {
     init {
-        require((retry == Retry.NONE) == (retryAfter == null)) {
+        require((retry == RetryAdvice.NONE) == (retryAfter == null)) {
             "$code: a Retry-After is given exactly when a retry may get past the error ($retry, $retryAfter)."
         }
         require(retryAfter == null || retryAfter > 0) { "$code: a Retry-After is at least a second." }

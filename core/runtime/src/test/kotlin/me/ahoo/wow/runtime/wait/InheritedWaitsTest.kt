@@ -76,7 +76,7 @@ class InheritedWaitsTest {
         listOf(EventRecord("shop.order.Placed", 1, "{}")),
         Scope.NONE,
     )
-    private val origin = Origin("node-0", "127.0.0.1:9090", "shop")
+    private val origin = Origin("shop", "node-0", "127.0.0.1:9090")
     private val signalled = CopyOnWriteArrayList<CommandResult>()
 
     @Volatile
@@ -115,7 +115,7 @@ class InheritedWaitsTest {
     }
 
     private fun waitFor(vararg hops: Hop, deadline: Long = Long.MAX_VALUE) =
-        WaitContext("w-1", Origin("node-1", "node-1:9090", "shop"), hops.toList(), deadline)
+        WaitContext("w-1", Origin("shop", "node-1", "node-1:9090"), hops.toList(), deadline)
 
     @Test
     fun `a command without a wait, past its deadline, or expected in another context only executes`(): Unit =

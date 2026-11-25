@@ -119,8 +119,8 @@ class CommandCall internal constructor(val caller: Caller?, val request: Command
     val ref: AggregateRef?
         get() {
             val type = request.type ?: return null
-            val id = request.id ?: return null
-            return type.ref(request.targetTenant ?: caller?.tenantId ?: Caller.DEFAULT_TENANT, id)
+            val id = request.aggregateId ?: return null
+            return type.ref(request.targetScope?.tenantId ?: caller?.tenantId ?: Caller.DEFAULT_TENANT, id)
         }
 
     /**

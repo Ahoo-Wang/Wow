@@ -17,7 +17,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.problem.ProblemMapper
-import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.RetryAdvice
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
@@ -59,19 +59,19 @@ class GlobalErrorsTest {
     private val routes = coRouter {
         GET("/app/rejected") { throw CommandRejectedException(result(CART_EMPTY, CommandResult.Status.REJECTED)) }
         GET("/app/busy") {
-            throw WowProblemException("wow.command.busy", 429, Retry.SAME_REQUEST, 1500.milliseconds, "Busy.")
+            throw WowProblemException("wow.command.busy", 429, RetryAdvice.SAME_REQUEST, 1500.milliseconds, "Busy.")
         }
         GET("/app/failed") {
             throw WowProblemException(
                 "wow.command.failed",
                 500,
-                Retry.NONE,
+                RetryAdvice.NONE,
                 null,
                 "Failed.",
                 result("wow.command.failed", CommandResult.Status.FAILED),
             )
         }
-        GET("/app/plain") { throw WowProblemException("wow.node.closing", 503, Retry.NONE, null, "Closing.") }
+        GET("/app/plain") { throw WowProblemException("wow.node.closing", 503, RetryAdvice.NONE, null, "Closing.") }
         GET("/app/unavailable") { throw ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "secret upstream") }
         GET("/app/unknown") { throw ResponseStatusException(HttpStatusCode.valueOf(599), "odd") }
         GET("/app/large") { throw DataBufferLimitException("Exceeded limit on max bytes to buffer") }
@@ -150,7 +150,7 @@ class GlobalErrorsTest {
     fun `an application route's own failure should be answered as the application's mapper maps it`() {
         val upstream = ProblemMapper { failure ->
             (failure as? UnsupportedOperationException)?.let {
-                WowProblemException("$CONTEXT.catalog.unreachable", 502, Retry.SAME_REQUEST, null, "No catalog.")
+                WowProblemException("$CONTEXT.catalog.unreachable", 502, RetryAdvice.SAME_REQUEST, null, "No catalog.")
             }
         }
         val mapped = WebTestClient.bindToServer(

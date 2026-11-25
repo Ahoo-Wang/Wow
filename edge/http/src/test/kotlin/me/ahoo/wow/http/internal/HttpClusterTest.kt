@@ -198,7 +198,7 @@ class HttpClusterTest {
     /** A wait of this node's on COMMITTED that ends [within] from now. */
     private fun HttpNode.waitOf(within: Duration): WaitContext = WaitContext(
         "w-$name-${System.nanoTime()}",
-        Origin(name, server.address, SERVICE),
+        Origin(SERVICE, name, server.address),
         listOf(Hop.committed(CONTEXT)),
         System.currentTimeMillis() + within.inWholeMilliseconds,
     )
@@ -321,7 +321,7 @@ class HttpNode(val name: String, private val cluster: HttpCluster) {
         registry,
         subscriptions,
         signals,
-        Origin(name, server.address, SERVICE),
+        Origin(SERVICE, name, server.address),
         WaitOptions(),
         router = PartitionedRouter(listOf(ownership), HttpClusterChannel(client), cluster.options),
     )

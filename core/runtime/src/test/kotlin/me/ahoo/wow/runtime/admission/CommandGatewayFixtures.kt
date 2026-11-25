@@ -103,7 +103,7 @@ abstract class CommandGatewayFixtures {
     }
 
     protected val registry = WaitRegistry()
-    protected val origin = Origin("node-1", "127.0.0.1:9090", "shop")
+    protected val origin = Origin("shop", "node-1", "127.0.0.1:9090")
     protected val log = InMemoryEventLog(partitions = 2)
     protected val executor = Executor(Kernel(log), laneCapacity = 1)
     protected val coordinator = coordinator()
@@ -156,7 +156,7 @@ abstract class CommandGatewayFixtures {
         body = CommandBody.of(body),
         caller = caller,
         aggregateId = aggregateId,
-        target = target,
+        targetScope = target,
         requestId = requestId,
         headers = headers,
         wait = wait,

@@ -21,10 +21,11 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.caller.TargetScope
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Misuse
 import me.ahoo.wow.api.lifecycle.DeleteAggregate
-import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.RetryAdvice
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
@@ -64,17 +65,25 @@ class CommandClientTypesTest {
     fun `a command request is a value that checks its facts`() {
         val request = CommandRequest.of(
             AddItem("apple"),
-            id = "c-1",
+            aggregateId = "c-1",
             type = cart,
-            targetTenant = "t",
-            targetScope = Scope("o"),
+            targetScope = TargetScope.of("t", Scope("o")),
             wait = WaitPlan.COMMITTED,
             timeout = 2.seconds,
             requestId = "r-1",
             expectedVersion = 3,
         )
         request.assert().isEqualTo(
-            CommandRequest.of(AddItem("apple"), "c-1", cart, "t", Scope("o"), WaitPlan.COMMITTED, 2.seconds, "r-1", 3),
+            CommandRequest.of(
+                AddItem("apple"),
+                "c-1",
+                cart,
+                TargetScope.of("t", Scope("o")),
+                WaitPlan.COMMITTED,
+                2.seconds,
+                "r-1",
+                3
+            ),
         )
         request.hashCode().assert().isEqualTo(request.toBuilder().build().hashCode())
         request.assert().isEqualTo(request)
@@ -90,8 +99,8 @@ class CommandClientTypesTest {
         assertThrows<IllegalArgumentException> { CommandRequest.of(AddItem("a"), timeout = 0.seconds) }
         assertThrows<IllegalArgumentException> { CommandRequest.of(AddItem("a"), requestId = " ") }
         assertThrows<IllegalArgumentException> { CommandRequest.of(AddItem("a"), expectedVersion = -1) }
-        assertThrows<IllegalArgumentException> { CommandRequest.of(AddItem("a"), targetTenant = "") }
-        assertThrows<IllegalArgumentException> { CommandRequest.of(AddItem("a"), id = " ") }
+        assertThrows<IllegalArgumentException> { CommandRequest.of(AddItem("a"), targetScope = TargetScope.of("")) }
+        assertThrows<IllegalArgumentException> { CommandRequest.of(AddItem("a"), aggregateId = " ") }
         assertThrows<IllegalArgumentException> {
             CommandRequest.of(
                 Command("c", "r", cart.ref("t", "c-1"), AddItem("a"))
@@ -104,11 +113,22 @@ class CommandClientTypesTest {
 
     @Test
     fun `a builder sets each field, checks them as the constructor does, and a request keeps its own when rebuilt`() {
-        val built = CommandRequest.builder(AddItem("apple")).id("c-1").type(cart).targetTenant("t")
-            .targetScope(Scope("o")).wait(WaitPlan.ACCEPTED).timeout(1.seconds).requestId("r-1").expectedVersion(0)
+        val built = CommandRequest.builder(AddItem("apple")).aggregateId("c-1").type(cart)
+            .targetScope(
+                TargetScope.of("t", Scope("o"))
+            ).wait(WaitPlan.ACCEPTED).timeout(1.seconds).requestId("r-1").expectedVersion(0)
             .build()
         built.assert().isEqualTo(
-            CommandRequest.of(AddItem("apple"), "c-1", cart, "t", Scope("o"), WaitPlan.ACCEPTED, 1.seconds, "r-1", 0),
+            CommandRequest.of(
+                AddItem("apple"),
+                "c-1",
+                cart,
+                TargetScope.of("t", Scope("o")),
+                WaitPlan.ACCEPTED,
+                1.seconds,
+                "r-1",
+                0
+            ),
         )
         assertThrows<IllegalArgumentException> { CommandRequest.builder(AddItem("a")).requestId("").build() }
         // A request changed through its builder keeps its request id, so a retry stays the same request.
@@ -118,8 +138,10 @@ class CommandClientTypesTest {
     @Test
     fun `a request to a ref takes its type, its id when assigned, and its tenant as the target`() {
         CommandRequest.to(cart.ref("t", "c-1"), AddItem("apple")).assert()
-            .isEqualTo(CommandRequest.of(AddItem("apple"), id = "c-1", type = cart, targetTenant = "t"))
-        CommandRequest.to(cart.unassigned("t"), AddItem("apple")).id.assert().isNull()
+            .isEqualTo(
+                CommandRequest.of(AddItem("apple"), aggregateId = "c-1", type = cart, targetScope = TargetScope.of("t"))
+            )
+        CommandRequest.to(cart.unassigned("t"), AddItem("apple")).aggregateId.assert().isNull()
         CommandRequest.builder(cart.ref("t", "c-1"), AddItem("apple")).requestId("r-1").build().requestId
             .assert().isEqualTo("r-1")
     }
@@ -207,7 +229,7 @@ class CommandClientTypesTest {
         rejected.code.assert().isEqualTo("shop.cart.full")
         rejected.message.assert().contains("shop.cart/t/c-1").contains("Full.")
         assertThrows<IllegalArgumentException> { CommandRejectedException(result(CommandResult.Status.FAILED)) }
-        val problem = WowProblemException("wow.command.busy", 429, Retry.SAME_REQUEST, 1.seconds, "Busy.")
+        val problem = WowProblemException("wow.command.busy", 429, RetryAdvice.SAME_REQUEST, 1.seconds, "Busy.")
         problem.result.assert().isNull()
         problem.cause.assert().isNull()
         problem.message.assert().isEqualTo("Busy.")
@@ -216,9 +238,21 @@ class CommandClientTypesTest {
 
     @Test
     fun `a problem says what a retry may do`() {
-        WowProblemException("wow.command.busy", 429, Retry.SAME_REQUEST, 1.seconds, "Busy.").retryable.assert().isTrue()
-        WowProblemException("wow.query.busy", 429, Retry.NEW_REQUEST, 1.seconds, "Busy.").retryable.assert().isTrue()
-        WowProblemException("wow.command.failed", 500, Retry.NONE, null, "Failed.").retryable.assert().isFalse()
-        WireNames.namesOf<Retry>().assert().containsExactly("none", "same-request", "new-request")
+        WowProblemException(
+            "wow.command.busy",
+            429,
+            RetryAdvice.SAME_REQUEST,
+            1.seconds,
+            "Busy."
+        ).retryable.assert().isTrue()
+        WowProblemException(
+            "wow.query.busy",
+            429,
+            RetryAdvice.NEW_REQUEST,
+            1.seconds,
+            "Busy."
+        ).retryable.assert().isTrue()
+        WowProblemException("wow.command.failed", 500, RetryAdvice.NONE, null, "Failed.").retryable.assert().isFalse()
+        WireNames.namesOf<RetryAdvice>().assert().containsExactly("none", "same-request", "new-request")
     }
 }

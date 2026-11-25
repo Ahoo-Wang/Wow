@@ -336,7 +336,7 @@ In 9.x, sibling `whenCommand` calls inside one `on { … }` or `givenEvent(…) 
 | `expectEventCount(n)` | `expectEventCount(n)` |
 | `expectEvent<E> { … }`, `expectEventBody<E> { … }`: the first event of that type | `expectEvent<E> { … }`: exactly one event, an `E`; `expectEvents(…)` for several, by value |
 | `expectEventStream { … }`, `expectEventIterator { … }` | `expectEvents(…)` or `expectEventTypes(…)` for the whole stream; `expectEventEnvelope<E> { … }` for one event with its envelope |
-| An event's `aggregateId`, `version`, `commandId`, `requestId`, `header` | `expectEventEnvelope<E> { aggregateId; version; commandId; requestId; headers }` |
+| An event's `aggregateId`, `version`, `commandId`, `requestId`, `header` | `expectEventEnvelope<E> { ref.id; version; commandId; requestId; headers }` |
 | An event's operator and create time | `expectEventEnvelope<E> { operator; commitTime }`, for a command that committed one event |
 | `expectState { … }`, `expectState(Consumer)` | `expectState { … }` or `expectState(expected)` |
 | Every `Consumer` and `Class` overload | Removed: the test DSL is Kotlin only, and a Java domain is tested with it ([Write the Domain in Java](../guide/java#test-it)). A `Consumer` overload beside each lambda would make Kotlin's calls ambiguous |

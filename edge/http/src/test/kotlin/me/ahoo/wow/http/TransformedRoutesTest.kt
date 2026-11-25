@@ -32,7 +32,7 @@ class TransformedRoutesTest {
 
     /** Imports a cart: a mounted command that becomes [OpenCart], to the aggregate the request names, if any. */
     private val importer = transformer(CommandType("$CONTEXT.cart.ImportCart", ImportCart::class.java)) { input ->
-        CommandTarget(openCart, input.aggregateId, OpenCart((input.body as ImportCart).legacyNote), input.headers)
+        CommandTarget(openCart, OpenCart((input.body as ImportCart).legacyNote), input.aggregateId, input.headers)
     }
 
     /**
@@ -45,8 +45,8 @@ class TransformedRoutesTest {
             "unknown" -> reject("unknown-note", "No cart is noted so.")
             else -> CommandTarget(
                 input.type,
-                input.aggregateId ?: note.takeIf { it != "missing" },
                 input.body,
+                input.aggregateId ?: note.takeIf { it != "missing" },
                 input.headers,
             )
         }

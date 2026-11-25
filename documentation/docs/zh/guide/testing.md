@@ -91,7 +91,7 @@ class AccountSpec {
 | `expectEvents(vararg events)` | 命令恰好按顺序提交了这些事件。 |
 | `expectEventTypes(vararg types)` | 恰好按顺序提交了这些类的事件。 |
 | `expectEvent<E> { … }` | 恰好提交了一个事件，它是 `E`，且块中的检查在它上面成立。 |
-| `expectEventEnvelope<E> { … }` | 同上，并在事件（`body`）旁给出事件流的信封：`aggregateId`、`tenantId`、`version`、`commandId`、`requestId`、`headers`。 |
+| `expectEventEnvelope<E> { … }` | 同上，并在事件（`body`）旁给出事件流的信封：`ref`（聚合的类型、租户与 ID）、`version`、`commandId`、`requestId`、`headers`。 |
 | `expectEventCount(n)` | 恰好提交了 `n` 个事件。 |
 | `expectUnchanged()` | 被接受，且没有改变任何东西。 |
 | `expectVersion(n)` | 命令之后聚合处于版本 `n`：已提交事件流的版本，或命令什么都没追加时聚合停留的版本。 |

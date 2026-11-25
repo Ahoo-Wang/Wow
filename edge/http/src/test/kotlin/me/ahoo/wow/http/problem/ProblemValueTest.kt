@@ -15,6 +15,7 @@ package me.ahoo.wow.http.problem
 
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
+import kotlin.time.Duration.Companion.seconds
 
 class ProblemValueTest {
     @Test
@@ -24,8 +25,8 @@ class ProblemValueTest {
         problem.hashCode().assert().isEqualTo(
             Problem.of(503, "Unavailable", "down", "wow.storage.unavailable").hashCode()
         )
-        problem.copyWith(retryAfter = 5).assert().isNotEqualTo(problem)
-        problem.copyWith(retryAfter = 5).retryAfter.assert().isEqualTo(5)
+        problem.copyWith(retryAfter = 5.seconds).assert().isNotEqualTo(problem)
+        problem.copyWith(retryAfter = 5.seconds).retryAfter.assert().isEqualTo(5.seconds)
         problem.copyWith(version = 2).assert().isNotEqualTo(problem)
         problem.copyWith(version = 2).toString().assert().endsWith("version=2, retry=SAME_REQUEST)")
         problem.toString().assert().startsWith("Problem(")

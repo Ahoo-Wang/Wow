@@ -282,7 +282,7 @@ class PeerCommandsTest {
             ServerCommandRequest.builder(
                 Reserve(1),
                 ITEM.ref(TENANT, "i")
-            ).caller(clerk).target(TargetScope(TENANT, Scope("x")))
+            ).caller(clerk).targetScope(TargetScope(TENANT, Scope("x")))
                 .build(),
         ).error!!.code.assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
         sales.gateway.execute(ServerCommandRequest.builder(Reserve(1), ITEM.ref("other", "i")).caller(clerk).build())
@@ -486,7 +486,7 @@ class PeerCommandsTest {
         val crossScope = clerk.copyWith(crossScope = true)
         val accepted = sales.gateway.execute(
             ServerCommandRequest.builder(Reserve(1), ITEM.ref(TENANT, "i-5")).caller(crossScope)
-                .target(TargetScope(TENANT, Scope("x"))).wait(WaitPlan.ACCEPTED).build(),
+                .targetScope(TargetScope(TENANT, Scope("x"))).wait(WaitPlan.ACCEPTED).build(),
         )
         accepted.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         val wire = CommandMessages.commandOf(EnvelopeCodec.decode(topics.messages(COMMANDS).single().value))
@@ -520,7 +520,7 @@ class PeerCommandsTest {
                     Reserve(1),
                     ITEM.ref(TENANT, "i")
                 ).caller(clerk.copyWith(crossScope = true))
-                    .target(TargetScope("other", Scope.NONE)).build(),
+                    .targetScope(TargetScope("other", Scope.NONE)).build(),
             )
             refused.error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
             refused.error!!.message.assert().isEqualTo(

@@ -212,7 +212,7 @@ class ClusterForwardOutcomesTest : ClusterTestCase() {
             val command = one.command(id)
             val wait = WaitContext(
                 "w-1",
-                Origin("node-1", one.address, "bank"),
+                Origin("bank", "node-1", one.address),
                 listOf(Hop.committed(CONTEXT)),
                 now.get() + 500
             )
@@ -450,7 +450,7 @@ class ClusterForwardOutcomesTest : ClusterTestCase() {
     private fun TestNode.waitOf(within: Duration, now: Long = System.currentTimeMillis()): WaitContext =
         WaitContext(
             "w-${cluster.nextId()}",
-            Origin(name, address, "bank"),
+            Origin("bank", name, address),
             listOf(Hop.committed(CONTEXT)),
             now + within.inWholeMilliseconds
         )

@@ -16,7 +16,7 @@ package me.ahoo.wow.manifest
 import me.ahoo.wow.api.aggregate.AggregateIdSource
 import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Ownership
-import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.RetryAdvice
 import me.ahoo.wow.api.schedule.JobScope
 import me.ahoo.wow.api.schedule.Misfire
 import me.ahoo.wow.api.wire.WireNames
@@ -177,7 +177,7 @@ object ManifestSchema {
                 "status" to integer(),
                 "description" to string(),
                 "retry" to enumOf(
-                    Retry.entries,
+                    RetryAdvice.entries,
                     "What a retry may do, as a problem of the code says: none when left out.",
                 ),
                 "retryAfter" to obj(

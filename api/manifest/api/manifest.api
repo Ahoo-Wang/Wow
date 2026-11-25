@@ -105,7 +105,7 @@ public final class me/ahoo/wow/manifest/ErrorManifest {
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getCode ()Ljava/lang/String;
 	public final fun getDescription ()Ljava/lang/String;
-	public final fun getRetry ()Lme/ahoo/wow/api/problem/Retry;
+	public final fun getRetry ()Lme/ahoo/wow/api/problem/RetryAdvice;
 	public final fun getRetryAfter ()Ljava/lang/Integer;
 	public final fun getStatus ()I
 	public fun hashCode ()I

@@ -57,7 +57,7 @@ class LocalExecutionTest {
         listOf(EventRecord("shop.order.Placed", 1, "{}")),
         Scope.NONE,
     )
-    private val origin = Origin("node-1", "127.0.0.1:9090", "shop")
+    private val origin = Origin("shop", "node-1", "127.0.0.1:9090")
     private val executor = mockk<Executor> {
         coEvery { execute(any(), any(), any()) } returns CommandOutcome.AlreadyCommitted(stream)
     }

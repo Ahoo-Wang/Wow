@@ -87,15 +87,14 @@ public final class me/ahoo/wow/test/server/PeerAnswer$Companion {
 }
 
 public final class me/ahoo/wow/test/server/PeerCall {
-	public final fun getAggregateId ()Ljava/lang/String;
 	public final fun getCall ()Lme/ahoo/wow/runtime/admission/CallContext;
 	public final fun getCommand ()Ljava/lang/Object;
 	public final fun getCommandType ()Ljava/lang/String;
 	public final fun getOperator ()Lme/ahoo/wow/api/caller/Operator;
+	public final fun getRef ()Lme/ahoo/wow/api/aggregate/AggregateRef;
 	public final fun getRequestId ()Ljava/lang/String;
 	public final fun getScope ()Lme/ahoo/wow/api/aggregate/Scope;
 	public final fun getService ()Ljava/lang/String;
-	public final fun getTenantId ()Ljava/lang/String;
 	public fun toString ()Ljava/lang/String;
 }
 

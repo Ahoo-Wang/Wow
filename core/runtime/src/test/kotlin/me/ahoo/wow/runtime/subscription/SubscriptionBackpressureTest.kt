@@ -20,7 +20,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.ledger.Recoverable
-import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.RetryAdvice
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
@@ -141,7 +141,7 @@ class SubscriptionBackpressureTest {
                 throw WowProblemException(
                     FrameworkCodes.COMMAND_BUSY,
                     TOO_MANY_REQUESTS,
-                    Retry.SAME_REQUEST,
+                    RetryAdvice.SAME_REQUEST,
                     null,
                     "The node already has its commands in flight.",
                 )
@@ -172,7 +172,7 @@ class SubscriptionBackpressureTest {
                 throw WowProblemException(
                     "shop.quota.exceeded",
                     TOO_MANY_REQUESTS,
-                    Retry.SAME_REQUEST,
+                    RetryAdvice.SAME_REQUEST,
                     RETRY_AFTER,
                     "Too many requests.",
                 )
@@ -245,7 +245,7 @@ class SubscriptionBackpressureTest {
         WowProblemException(
             FrameworkCodes.WAIT_TIMEOUT,
             GATEWAY_TIMEOUT,
-            Retry.SAME_REQUEST,
+            RetryAdvice.SAME_REQUEST,
             null,
             "The derived command on $id failed: ${FrameworkCodes.WAIT_TIMEOUT} The wait timed out.",
         ),

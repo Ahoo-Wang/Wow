@@ -27,37 +27,55 @@ import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.wire.WaitHeader
 
 /**
- * Sends [command] to the aggregate [id] names, with the fields [block] sets, its type derived from its class unless the
- * block sets it: [CommandClient.send] of [command]'s [toCommandRequest].
+ * Sends [command] to the aggregate [aggregateId] names (none for a creation), with the fields [block] sets, its type
+ * derived from its class unless the block sets it: [CommandClient.send] of [command]'s [toCommandRequest].
  */
 suspend fun <C : Any> CommandClient.send(
     command: C,
-    id: String? = null,
-    to: AggregateRef? = null,
+    aggregateId: String? = null,
     block: CommandRequest.Builder<C>.() -> Unit = {},
-): CommandResult = send(command.toCommandRequest(id, to, block))
+): CommandResult = send(command.toCommandRequest(aggregateId, block))
+
+/** Sends [command] to the aggregate the ref [to] names, with the fields [block] sets; see [send] of an id. */
+suspend fun <C : Any> CommandClient.send(
+    command: C,
+    to: AggregateRef,
+    block: CommandRequest.Builder<C>.() -> Unit = {},
+): CommandResult = send(command.toCommandRequest(to, block))
 
 /**
- * Sends [command] to the aggregate [id] names, with the fields [block] sets (`wait(plan)` among them), and waits for
- * its result: [CommandClient.wait] of [command]'s [toCommandRequest].
+ * Sends [command] to the aggregate [aggregateId] names, with the fields [block] sets (`wait(plan)` among them), and
+ * waits for its result: [CommandClient.wait] of [command]'s [toCommandRequest].
  */
 suspend fun <C : Any> CommandClient.wait(
     command: C,
-    id: String? = null,
-    to: AggregateRef? = null,
+    aggregateId: String? = null,
     block: CommandRequest.Builder<C>.() -> Unit = {},
-): CommandResult = wait(command.toCommandRequest(id, to, block))
+): CommandResult = wait(command.toCommandRequest(aggregateId, block))
+
+/** Sends [command] to the aggregate the ref [to] names and waits for its result; see [wait] of an id. */
+suspend fun <C : Any> CommandClient.wait(
+    command: C,
+    to: AggregateRef,
+    block: CommandRequest.Builder<C>.() -> Unit = {},
+): CommandResult = wait(command.toCommandRequest(to, block))
 
 /**
- * The results of [command] sent to the aggregate [id] names, with the fields [block] sets: [CommandClient.stream] of
- * [command]'s [toCommandRequest].
+ * The results of [command] sent to the aggregate [aggregateId] names, with the fields [block] sets:
+ * [CommandClient.stream] of [command]'s [toCommandRequest].
  */
 fun <C : Any> CommandClient.stream(
     command: C,
-    id: String? = null,
-    to: AggregateRef? = null,
+    aggregateId: String? = null,
     block: CommandRequest.Builder<C>.() -> Unit = {},
-): Flow<CommandResult> = stream(command.toCommandRequest(id, to, block))
+): Flow<CommandResult> = stream(command.toCommandRequest(aggregateId, block))
+
+/** The results of [command] sent to the aggregate the ref [to] names; see [stream] of an id. */
+fun <C : Any> CommandClient.stream(
+    command: C,
+    to: AggregateRef,
+    block: CommandRequest.Builder<C>.() -> Unit = {},
+): Flow<CommandResult> = stream(command.toCommandRequest(to, block))
 
 /**
  * The aggregate type of [request]: its own, else the one [candidates] (the types that decide its command's class, as
@@ -100,4 +118,4 @@ fun sendable(request: CommandRequest<*>): CommandRequest<*> = request.also {
  */
 @InternalWowApi
 fun targetTenantOf(request: CommandRequest<*>, callerTenant: String): String? =
-    request.targetTenant?.takeUnless { it == callerTenant }
+    request.targetScope?.tenantId?.takeUnless { it == callerTenant }

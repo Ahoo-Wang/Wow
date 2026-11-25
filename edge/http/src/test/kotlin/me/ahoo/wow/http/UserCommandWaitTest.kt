@@ -80,7 +80,7 @@ class UserCommandWaitTest {
 
     @Test
     fun `a command with only a timeout should wait for the commit where there is no snapshot`(): Unit = runBlocking {
-        val result = wait(CommandRequest.of(addItem, id = "c-1", timeout = 5.seconds))
+        val result = wait(CommandRequest.of(addItem, aggregateId = "c-1", timeout = 5.seconds))
         result.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         result.hop.stage.assert().isEqualTo(Stage.COMMITTED)
         result.ref.id.assert().isEqualTo("c-1")
@@ -91,10 +91,10 @@ class UserCommandWaitTest {
         suspend fun stream(request: CommandRequest<*>) =
             withContext(ForwardedHeaders(mapOf("X-User" to "alice"))) { commands.stream(request).toList() }
         // The node writes `end` after the last result; the client reads to it, and emits the results alone (#6808).
-        stream(CommandRequest.of(addItem, id = "c-1", timeout = 5.seconds)).map { it.hop.stage }
+        stream(CommandRequest.of(addItem, aggregateId = "c-1", timeout = 5.seconds)).map { it.hop.stage }
             .assert().containsExactly(Stage.COMMITTED)
         val plan = WaitPlan.of(Hop.accepted(), Hop.committed()).within(5.seconds)
-        stream(CommandRequest.of(addItem, id = "c-2", wait = plan)).map { it.hop.stage }
+        stream(CommandRequest.of(addItem, aggregateId = "c-2", wait = plan)).map { it.hop.stage }
             .assert().containsExactly(Stage.ACCEPTED, Stage.COMMITTED)
     }
 
@@ -102,7 +102,7 @@ class UserCommandWaitTest {
     fun `a plan that asks for the snapshot explicitly should still be refused at admission`() {
         val refused = runCatching {
             runBlocking {
-                wait(CommandRequest.of(addItem, id = "c-1", wait = WaitPlan.SNAPSHOT))
+                wait(CommandRequest.of(addItem, aggregateId = "c-1", wait = WaitPlan.SNAPSHOT))
             }
         }.exceptionOrNull()
         (refused as CommandRejectedException).code.assert().isEqualTo(FrameworkCodes.WAIT_INVALID)

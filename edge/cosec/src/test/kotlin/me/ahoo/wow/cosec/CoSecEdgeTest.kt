@@ -42,7 +42,7 @@ class CoSecEdgeTest {
 
                 override suspend fun transform(input: CommandInput): CommandTarget {
                     headers += input.headers
-                    return CommandTarget(input.type, input.aggregateId, input.body, input.headers)
+                    return CommandTarget(input.type, input.body, input.aggregateId, input.headers)
                 }
             },
         ),

@@ -46,7 +46,7 @@ class DerivedAcrossContextsTest {
         registry,
         SubscriptionDirectory.NONE,
         LocalSignalSender("node-1", registry),
-        Origin("node-1", "node-1:9090", SALES_SERVICE),
+        Origin(SALES_SERVICE, "node-1", "node-1:9090"),
         WaitOptions(),
     )
     private val topics = InMemoryTopics(2).also { it.create(COMMANDS, PARTITIONS) }

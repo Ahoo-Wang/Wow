@@ -72,7 +72,7 @@ class RecordValuesTest {
     private val operator = Operator.of("alice", "tenant")
     private val causation = Causation("c-0", "c-0")
     private val json = JsonNodeFactory.instance
-    private val origin = Origin.of("node-1", "10.0.0.1:8081", "sales-service")
+    private val origin = Origin.of("sales-service", "node-1", "10.0.0.1:8081")
     private val wait = WaitContext.of("w-1", origin, listOf(Hop.handled("OrderSaga.onPlaced")), 9L)
     private val key = ReservationKey.of("email", "a@b.c")
 
@@ -200,8 +200,8 @@ class RecordValuesTest {
             StateEventPayload.of("a.b.C", 2, json.objectNode()),
         )
         valueSemantics(
-            { Origin.of("node-1", "10.0.0.1:8081", "sales-service") },
-            Origin.of("node-2", "", "sales-service")
+            { Origin.of("sales-service", "node-1", "10.0.0.1:8081") },
+            Origin.of("sales-service", "node-2", "")
         )
         valueSemantics(
             { WaitContext.of("w-1", origin, emptyList(), 9L) },

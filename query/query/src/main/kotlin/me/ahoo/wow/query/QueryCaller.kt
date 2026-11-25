@@ -111,7 +111,7 @@ enum class QueryEntry {
  *   appends to the query with what the policies add.
  * - [crossTenant]: the tenants a cross-tenant query reads in place of the caller's own; see
  *   [CrossTenant].
- * - [target]: the scope the request named (`Wow-Scope`), which [QueryTargets] admitted: the [caller]
+ * - [targetScope]: the scope the request named (`Wow-Scope`), which [QueryTargets] admitted: the [caller]
  *   then already acts in it.
  * - [revealsDisplay]: whether the query returns the raw value of a `@Sensitive(DISPLAY)` field, which every other
  *   query masks. Only code that asks in so many words sets it (`TrustedQueries.revealed()`, a subscription handler's
@@ -131,7 +131,7 @@ class QueryCaller @InternalWowApi constructor(
     val selection: FilterExpression = MatchAllFilter,
     val scope: QueryScope = QueryScope.NONE,
     val crossTenant: CrossTenant? = null,
-    val target: TargetScope? = null,
+    val targetScope: TargetScope? = null,
     val revealsDisplay: Boolean = false,
 ) {
     init {
@@ -179,21 +179,21 @@ class QueryCaller @InternalWowApi constructor(
         selection: FilterExpression = this.selection,
         scope: QueryScope = this.scope,
         crossTenant: CrossTenant? = this.crossTenant,
-        target: TargetScope? = this.target,
+        targetScope: TargetScope? = this.targetScope,
         revealsDisplay: Boolean = this.revealsDisplay,
-    ): QueryCaller = QueryCaller(caller, entry, selection, scope, crossTenant, target, revealsDisplay)
+    ): QueryCaller = QueryCaller(caller, entry, selection, scope, crossTenant, targetScope, revealsDisplay)
 
     override fun equals(other: Any?): Boolean = this === other ||
         other is QueryCaller && caller == other.caller && entry == other.entry && selection == other.selection &&
-        scope == other.scope && crossTenant == other.crossTenant && target == other.target &&
+        scope == other.scope && crossTenant == other.crossTenant && targetScope == other.targetScope &&
         revealsDisplay == other.revealsDisplay
 
     override fun hashCode(): Int =
-        listOf(caller, entry, selection, scope, crossTenant, target, revealsDisplay).hashCode()
+        listOf(caller, entry, selection, scope, crossTenant, targetScope, revealsDisplay).hashCode()
 
     override fun toString(): String =
         "QueryCaller(caller=$caller, entry=$entry, selection=$selection, scope=$scope, crossTenant=$crossTenant, " +
-            "target=$target, revealsDisplay=$revealsDisplay)"
+            "targetScope=$targetScope, revealsDisplay=$revealsDisplay)"
 
     companion object {
         /** Trusted in-process code with no caller and no scope. */

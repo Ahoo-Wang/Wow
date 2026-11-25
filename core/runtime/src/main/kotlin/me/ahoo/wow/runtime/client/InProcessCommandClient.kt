@@ -17,7 +17,6 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
-import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.TargetScope
@@ -74,14 +73,16 @@ class InProcessCommandClient @InternalWowApi constructor(
         val type = typeOf(request, gateway::aggregatesOf)
         val command = request.command
         val targetTenant = targetTenantOf(request, caller.tenantId)
+        val targetScope = request.targetScope?.scope
         return ServerCommandRequest.builder(type.context, type.name, command.javaClass.name, CommandBody.Value(command))
-            .aggregateId(request.id)
+            .aggregateId(request.aggregateId)
             .caller(caller)
             .requestId(currentCoroutineContext().requestIdOf(request))
             .expectedVersion(request.expectedVersion)
-            .target(
-                if (targetTenant != null || request.targetScope != null) {
-                    TargetScope(targetTenant, request.targetScope ?: Scope.NONE)
+            .targetScope(
+                // A tenant alone keeps the caller's own scope, as an HTTP client and a saga do.
+                if (targetTenant != null || targetScope != null) {
+                    TargetScope(targetTenant, targetScope)
                 } else {
                     null
                 },

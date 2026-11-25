@@ -81,11 +81,11 @@ class OwnerIdAdmissionTest {
         override val input = note
 
         override suspend fun transform(input: CommandInput): CommandTarget =
-            CommandTarget(putItem, null, PutItem((input.body as Note).sku))
+            CommandTarget(putItem, PutItem((input.body as Note).sku), null)
     }
 
     private val waits = WaitRegistry()
-    private val origin = Origin("node-1", "127.0.0.1:9090", "shop")
+    private val origin = Origin("shop", "node-1", "127.0.0.1:9090")
     private val coordinator = WaitCoordinator(
         Executor(Kernel(InMemoryEventLog(partitions = 2))),
         waits,
@@ -115,7 +115,7 @@ class OwnerIdAdmissionTest {
         body = CommandBody.of(body),
         caller = caller,
         aggregateId = aggregateId,
-        target = target,
+        targetScope = target,
         wait = WaitPlan.COMMITTED,
     )
 

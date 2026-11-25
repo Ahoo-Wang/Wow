@@ -64,14 +64,14 @@ class QueryTargets(
             }
             // A fixed tenant narrows the read to itself, whatever else the caller names.
             val narrowed = fixed?.let { CrossTenant(setOf(it)) } ?: reads
-            return QueryCaller(caller.copyWith(scope = scope), entry, target = target, crossTenant = narrowed)
+            return QueryCaller(caller.copyWith(scope = scope), entry, targetScope = target, crossTenant = narrowed)
         }
         val tenant = try {
             tenants.tenantOf(type, caller, target)
         } catch (conflict: TenantConflictException) {
             throw QueryTargetException(QueryErrors.MALFORMED, conflict.message!!)
         }
-        return QueryCaller(caller.copyWith(tenantId = tenant, scope = scope), entry, target = target)
+        return QueryCaller(caller.copyWith(tenantId = tenant, scope = scope), entry, targetScope = target)
     }
 
     /**
@@ -112,7 +112,7 @@ class QueryTargets(
         if (caller.entry != QueryEntry.HTTP) {
             return
         }
-        val target = caller.target
+        val target = caller.targetScope
         val reads = caller.crossTenant
         val identity = caller.caller
         if (identity == null) {

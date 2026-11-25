@@ -72,7 +72,7 @@ class HttpSignalSenderTest {
         server.close()
     }
 
-    private fun origin(address: String) = Origin("node-1", address, "bank-service")
+    private fun origin(address: String) = Origin("bank-service", "node-1", address)
 
     private fun signal(n: Int) = WaitSignal(waitId = "w-$n", result = committed("c-$n"))
 

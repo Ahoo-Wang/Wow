@@ -23,13 +23,14 @@ import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.Operator
+import me.ahoo.wow.api.caller.TargetScope
 import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.client.wait
 import me.ahoo.wow.api.decide.Misuse
 import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.lifecycle.DeleteAggregate
-import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.RetryAdvice
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
@@ -235,8 +236,7 @@ class HttpCommandClientTest {
     fun `a service-mode command to another scope should assert that scope, acting elsewhere`(): Unit = runBlocking {
         peer.reply(Reply.json(committed()))
         val sent = CommandRequest.builder(ref, DeliverItems(listOf("mug")))
-            .targetTenant("t2")
-            .targetScope(Scope("bob"))
+            .targetScope(TargetScope.of("t2", Scope("bob")))
             .requestId("r-9")
             .expectedVersion(4)
             .build()
@@ -401,7 +401,7 @@ class HttpCommandClientTest {
                     )
                 }
             }
-        problem.retry.assert().isEqualTo(Retry.SAME_REQUEST)
+        problem.retry.assert().isEqualTo(RetryAdvice.SAME_REQUEST)
         peer.taken.assert().hasSize(RetryPolicy.DEFAULT.maxAttempts)
         peer.taken.map { it.headers[WowHeaders.REQUEST_ID] }.distinct().assert().hasSize(1)
     }
@@ -421,7 +421,7 @@ class HttpCommandClientTest {
                     )
                 }
             }
-        problem.retry.assert().isEqualTo(Retry.SAME_REQUEST)
+        problem.retry.assert().isEqualTo(RetryAdvice.SAME_REQUEST)
         peer.taken.assert().hasSize(1)
     }
 
@@ -436,7 +436,7 @@ class HttpCommandClientTest {
             // The gateway took the command and does not say whether the node committed it: not "NONE fails alike
             // again", but the same request id, which answers a command that did commit as its duplicate (#6810).
             failure.code.assert().isEqualTo("http.$status")
-            failure.retry.assert().describedAs("the retry of a bare $status").isEqualTo(Retry.SAME_REQUEST)
+            failure.retry.assert().describedAs("the retry of a bare $status").isEqualTo(RetryAdvice.SAME_REQUEST)
             // Not sent again here, as `wow.wait.timeout` is not: whether to is the caller's.
             peer.taken.assert().hasSize(1)
         }
@@ -454,7 +454,7 @@ class HttpCommandClientTest {
                 runBlocking { client.wait(CommandRequest.to(ref, DeliverItems(emptyList()))) }
             }
             unreachable.code.assert().isEqualTo(FrameworkCodes.PEER_UNAVAILABLE)
-            unreachable.retry.assert().isEqualTo(Retry.NEW_REQUEST)
+            unreachable.retry.assert().isEqualTo(RetryAdvice.NEW_REQUEST)
             unreachable.cause.assert().isInstanceOf(IOException::class.java)
         }
     }
@@ -537,7 +537,7 @@ class HttpCommandClientTest {
             runBlocking { client().wait(CommandRequest.to(ref, DeliverItems(emptyList()))) }
         }
         unknown.code.assert().isEqualTo(FrameworkCodes.COMMAND_UNKNOWN)
-        unknown.retry.assert().isEqualTo(Retry.SAME_REQUEST)
+        unknown.retry.assert().isEqualTo(RetryAdvice.SAME_REQUEST)
         unknown.message.assert().contains("whether the command committed is unknown")
         // In a subscription handler it is retried, with the same request id, as an unanswered command is.
         FailureClassification.DEFAULT.classify(unknown, null).assert().isEqualTo(FailureClass.RECOVERABLE)
@@ -602,7 +602,7 @@ class HttpCommandClientTest {
             // One kind of failure, whatever met it: the command was taken and its outcome is unknown (#6808).
             failure.assert().describedAs(name).isInstanceOf(WowProblemException::class.java)
             (failure as WowProblemException).code.assert().describedAs(name).isEqualTo(FrameworkCodes.COMMAND_UNKNOWN)
-            failure.retry.assert().isEqualTo(Retry.SAME_REQUEST)
+            failure.retry.assert().isEqualTo(RetryAdvice.SAME_REQUEST)
         }
     }
 

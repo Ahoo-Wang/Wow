@@ -74,7 +74,7 @@ class DerivedCommandsTest {
         registry,
         SubscriptionDirectory.NONE,
         LocalSignalSender("node-1", registry),
-        Origin("node-1", "node-1:9090", SHOP_SERVICE),
+        Origin(SHOP_SERVICE, "node-1", "node-1:9090"),
         WaitOptions(),
     )
     private val derived = DerivedCommands(listOf(cart), coordinator, admission = admissionOf())

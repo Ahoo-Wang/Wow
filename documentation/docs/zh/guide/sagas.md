@@ -39,7 +39,7 @@ fun onOrderSubmitted(
 
 `toCommandRequest` 是每个命令都有的函数，从客户端的包导入：`import me.ahoo.wow.api.client.toCommandRequest`。它的块按 Java 调用方在 `CommandRequest.builder(body)` 上链式调用的名字设置请求的其他字段：`to(ref)`、`type`、`targetTenant`、`targetScope`、`requestId`、`expectedVersion`。`CommandRequest.of`、`CommandRequest.to` 与 builder 造出的是同一个请求。
 
-命令体指明了聚合的命令（[在命令体中指明聚合](./aggregates#name-the-aggregate-in-the-body)）不需要 ID，无论发往本上下文还是另一个上下文：在命令体之外又给出 ID 的请求必须指明同一个聚合，指明另一个聚合，或命令体里的 ID 为空白时，处理函数失败。没有类型的请求从各上下文声明的命令中找出目标的类型：本服务自己的 Manifest，以及每个对端 api jar 携带的契约。类路径上没有任何上下文决定这个类，或者有多个聚合决定它时，处理函数失败；这时给请求指定类型。`targetTenant` 和 `targetScope` 把命令发往另一个租户或作用域，`expectedVersion` 要求目标处于那个版本。
+命令体指明了聚合的命令（[在命令体中指明聚合](./aggregates#name-the-aggregate-in-the-body)）不需要 ID，无论发往本上下文还是另一个上下文：在命令体之外又给出 ID 的请求必须指明同一个聚合，指明另一个聚合，或命令体里的 ID 为空白时，处理函数失败。没有类型的请求从各上下文声明的命令中找出目标的类型：本服务自己的 Manifest，以及每个对端 api jar 携带的契约。类路径上没有任何上下文决定这个类，或者有多个聚合决定它时，处理函数失败；这时给请求指定类型。`targetScope`（`TargetScope.of(tenant, scope)`）或只写 `targetTenant`，把命令发往另一个租户或作用域：不写作用域则保留提交的作用域，ref 的租户（`to(ref)`）也是如此。`expectedVersion` 要求目标处于那个版本。
 
 每条派生命令都是确定的：
 

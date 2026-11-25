@@ -85,7 +85,7 @@ class CallerAdmission private constructor(
         ): CallerAdmission = CallerAdmission(
             tenantId = tenantId,
             scope = target?.scope ?: caller.scope,
-            operator = caller.toOperator(actingElsewhere = target != null),
+            operator = caller.toOperator(actedElsewhere = target != null),
             facts = factsOf(caller),
         )
 

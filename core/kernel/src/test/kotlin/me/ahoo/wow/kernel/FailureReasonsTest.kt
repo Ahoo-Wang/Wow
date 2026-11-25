@@ -18,7 +18,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.decide.RejectedException
 import me.ahoo.wow.api.decide.Rejection
-import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.RetryAdvice
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.spi.json.WowJson
@@ -59,7 +59,7 @@ class FailureReasonsTest {
 
     @Test
     fun `a message written for a caller should be kept as it is`() {
-        reasons.reasonOf(WowProblemException("wow.command.busy", 429, Retry.SAME_REQUEST, 1.seconds, "Busy."))
+        reasons.reasonOf(WowProblemException("wow.command.busy", 429, RetryAdvice.SAME_REQUEST, 1.seconds, "Busy."))
             .assert().isEqualTo("me.ahoo.wow.api.problem.WowProblemException: Busy.")
         reasons.reasonOf(RejectedException(Rejection.of("out-of-stock", "Only 2 left."))).assert()
             .isEqualTo("me.ahoo.wow.api.decide.RejectedException: Only 2 left.")
@@ -157,7 +157,7 @@ class FailureReasonsTest {
 
     @Test
     fun `a reason should be at most a thousand characters`() {
-        val long = WowProblemException("wow.command.failed", 500, Retry.NONE, null, "x".repeat(2_000))
+        val long = WowProblemException("wow.command.failed", 500, RetryAdvice.NONE, null, "x".repeat(2_000))
         reasons.reasonOf(long).length.assert().isEqualTo(FailureReasons.MAX_LENGTH)
     }
 }

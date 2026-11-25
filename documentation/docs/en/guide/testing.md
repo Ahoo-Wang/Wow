@@ -91,7 +91,7 @@ A spec needs the aggregate's access policy whenever the service registers one fo
 | `expectEvents(vararg events)` | The command committed exactly these events, in order. |
 | `expectEventTypes(vararg types)` | It committed events of exactly these classes, in order. |
 | `expectEvent<E> { … }` | It committed exactly one event, an `E`, and the block's checks hold on it. |
-| `expectEventEnvelope<E> { … }` | The same, with the stream's envelope beside the event (`body`): `aggregateId`, `tenantId`, `version`, `commandId`, `requestId`, `headers`. |
+| `expectEventEnvelope<E> { … }` | The same, with the stream's envelope beside the event (`body`): `ref` (the aggregate's type, tenant and id), `version`, `commandId`, `requestId`, `headers`. |
 | `expectEventCount(n)` | It committed exactly `n` events. |
 | `expectUnchanged()` | It was accepted and changed nothing. |
 | `expectVersion(n)` | The aggregate is at version `n` after the command: the committed stream's, or the one it stayed at when the command appended nothing. |

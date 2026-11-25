@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.openapi
 
-import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.RetryAdvice
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.manifest.ErrorManifest
 import me.ahoo.wow.manifest.FrameworkErrors
@@ -152,7 +152,9 @@ internal class ErrorResponses(manifest: Manifest, private val overrides: Map<Str
      * retry of the code is not none ([FrameworkErrors.BY_CODE]); a code the catalog does not list, a domain's, carries
      * none.
      */
-    private fun retried(code: String): Boolean = (FrameworkErrors.BY_CODE[code]?.retry ?: Retry.NONE) != Retry.NONE
+    private fun retried(
+        code: String
+    ): Boolean = (FrameworkErrors.BY_CODE[code]?.retry ?: RetryAdvice.NONE) != RetryAdvice.NONE
 
     companion object {
         const val PROBLEM_JSON: String = "application/problem+json"

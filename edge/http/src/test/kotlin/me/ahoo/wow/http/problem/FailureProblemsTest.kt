@@ -20,7 +20,7 @@ import ch.qos.logback.core.read.ListAppender
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.problem.ProblemMapper
-import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.RetryAdvice
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
@@ -72,7 +72,14 @@ class FailureProblemsTest {
         result: CommandResult? = null,
     ) = mapper(code) { failure ->
         (failure as? UpstreamException)?.let {
-            WowProblemException(code, status, Retry.SAME_REQUEST, 3.seconds, "The catalog did not answer.", result)
+            WowProblemException(
+                code,
+                status,
+                RetryAdvice.SAME_REQUEST,
+                3.seconds,
+                "The catalog did not answer.",
+                result
+            )
         }
     }
 
@@ -102,7 +109,7 @@ class FailureProblemsTest {
         problem.status.assert().isEqualTo(502)
         problem.code.assert().isEqualTo(UPSTREAM)
         problem.detail.assert().isEqualTo("The catalog did not answer.")
-        problem.retry.assert().isEqualTo(Retry.SAME_REQUEST)
+        problem.retry.assert().isEqualTo(RetryAdvice.SAME_REQUEST)
         problem.retryAfterHeader.assert().isEqualTo(3L)
         asked.assert().containsExactly(
             "broken:UpstreamException",
@@ -120,7 +127,7 @@ class FailureProblemsTest {
 
     @Test
     fun `a cancellation or an error among the causes is never a mapper's`() {
-        val everything = mapper("everything") { WowProblemException(CLAIMED, 418, Retry.NONE, null, "Claimed.") }
+        val everything = mapper("everything") { WowProblemException(CLAIMED, 418, RetryAdvice.NONE, null, "Claimed.") }
         problems(everything).problemOf(AssertionError("A JVM error.")).status.assert().isEqualTo(500)
         problems(everything).problemOf(CancellationException("Cancelled.")).status.assert().isEqualTo(500)
         asked.assert().isEmpty()
@@ -161,11 +168,11 @@ class FailureProblemsTest {
 
     @Test
     fun `what the framework knows comes before the mappers`() {
-        val everything = mapper("everything") { WowProblemException(CLAIMED, 418, Retry.NONE, null, "Claimed.") }
+        val everything = mapper("everything") { WowProblemException(CLAIMED, 418, RetryAdvice.NONE, null, "Claimed.") }
         val problems = problems(everything)
         problems.problemOf(ProblemException(Problem.ofStatus(HttpStatus.NOT_FOUND))).status.assert().isEqualTo(404)
         problems.problemOf(CommandRejectedException(rejection)).code.assert().isEqualTo(CART_EMPTY)
-        problems.problemOf(WowProblemException(IDP_DOWN, 503, Retry.NONE, null, "Down.")).code.assert()
+        problems.problemOf(WowProblemException(IDP_DOWN, 503, RetryAdvice.NONE, null, "Down.")).code.assert()
             .isEqualTo(IDP_DOWN)
         val forbidden = problems.problemOf(ResponseStatusException(HttpStatus.FORBIDDEN, "Not yours."))
         forbidden.status.assert().isEqualTo(403)
@@ -184,7 +191,7 @@ class FailureProblemsTest {
     fun `a failure of the framework's own is never offered to a mapper, even as the cause of another`() {
         // Claims whatever it is asked about but the wrapper an async boundary puts around a failure.
         val claiming = mapper("claiming") { failure ->
-            val claimed = WowProblemException(CLAIMED, 418, Retry.NONE, null, "Claimed.")
+            val claimed = WowProblemException(CLAIMED, 418, RetryAdvice.NONE, null, "Claimed.")
             claimed.takeUnless { failure is CompletionException }
         }
         val problems = problems(claiming)
@@ -193,7 +200,7 @@ class FailureProblemsTest {
         )
         val wrapped = listOf(
             unauthenticated,
-            WowProblemException(IDP_DOWN, 503, Retry.NONE, null, "Down."),
+            WowProblemException(IDP_DOWN, 503, RetryAdvice.NONE, null, "Down."),
             CommandRejectedException(rejection),
         ).map { CompletionException(it) }
         wrapped.forEach { failure ->
@@ -209,7 +216,7 @@ class FailureProblemsTest {
     @Test
     fun `the application's own exception that wraps a Wow problem is mapped by the outer one`() {
         val problem = problems(upstream()).problemOf(
-            UpstreamException(WowProblemException(IDP_DOWN, 503, Retry.NONE, null, "Down.")),
+            UpstreamException(WowProblemException(IDP_DOWN, 503, RetryAdvice.NONE, null, "Down.")),
         )
         problem.code.assert().isEqualTo(UPSTREAM)
         problem.status.assert().isEqualTo(502)
@@ -221,7 +228,7 @@ class FailureProblemsTest {
         val events = logged {
             // A mapper that builds its codes from a downstream system's.
             val downstream = mapper("downstream") { failure ->
-                WowProblemException("pay.${failure.message}", 502, Retry.NONE, null, "The payment failed.")
+                WowProblemException("pay.${failure.message}", 502, RetryAdvice.NONE, null, "The payment failed.")
             }
             val problems = problems(downstream)
             repeat(FailureProblems.MAX_LOGGED + 10) { problems.problemOf(IllegalStateException("code-$it")) }
@@ -229,7 +236,7 @@ class FailureProblemsTest {
             problems.problemOf(IllegalStateException("code-0"))
             // And one whose codes the framework reserves, each refused.
             val reserving = mapper("reserved") { failure ->
-                WowProblemException("wow.${failure.message}", 502, Retry.NONE, null, "No.")
+                WowProblemException("wow.${failure.message}", 502, RetryAdvice.NONE, null, "No.")
             }
             val reserved = problems(reserving)
             repeat(FailureProblems.MAX_LOGGED + 10) { reserved.problemOf(IllegalStateException("code-$it")) }
@@ -271,7 +278,7 @@ class FailureProblemsTest {
 
     @Test
     fun `a request that cannot be read is wow-request-malformed naming the parameter or the body (#6591)`() {
-        val everything = mapper("everything") { WowProblemException(CLAIMED, 418, Retry.NONE, null, "Claimed.") }
+        val everything = mapper("everything") { WowProblemException(CLAIMED, 418, RetryAdvice.NONE, null, "Claimed.") }
         val problems = problems(everything)
         // A header is named as the request names it, not as the parameter that reads it.
         val missing = MissingRequestValueException("X-Tenant", String::class.java, "header", parameter(1))
@@ -336,11 +343,25 @@ class FailureProblemsTest {
     fun `a Wow problem's violations are its problem's, a relayed answer's and a mapped one's alike`() {
         val refused = listOf(Violation.of("name", "not-blank", "must not be blank"))
         val relayed =
-            WowProblemException(FrameworkCodes.REQUEST_INVALID, 400, Retry.NONE, null, "Invalid.", violations = refused)
+            WowProblemException(
+                FrameworkCodes.REQUEST_INVALID,
+                400,
+                RetryAdvice.NONE,
+                null,
+                "Invalid.",
+                violations = refused
+            )
         problems().problemOf(relayed).violations.assert().isEqualTo(refused)
         val mapping = mapper("mapping") { failure ->
             (failure as? UpstreamException)?.let {
-                WowProblemException(UPSTREAM, 422, Retry.NONE, null, "The catalog refused it.", violations = refused)
+                WowProblemException(
+                    UPSTREAM,
+                    422,
+                    RetryAdvice.NONE,
+                    null,
+                    "The catalog refused it.",
+                    violations = refused
+                )
             }
         }
         problems(mapping).problemOf(UpstreamException()).violations.assert().isEqualTo(refused)
@@ -357,7 +378,7 @@ class FailureProblemsTest {
             signalTime = 1,
         )
         val withResult =
-            WowProblemException(FrameworkCodes.COMMAND_INVALID, 400, Retry.NONE, null, "Invalid.", rejected)
+            WowProblemException(FrameworkCodes.COMMAND_INVALID, 400, RetryAdvice.NONE, null, "Invalid.", rejected)
         problems().problemOf(withResult).violations.assert().isEqualTo(refused)
     }
 

@@ -19,7 +19,7 @@ import me.ahoo.wow.api.aggregate.AggregateIdSource
 import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.RetryAdvice
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.schedule.JobScope
 import me.ahoo.wow.api.schedule.Misfire
@@ -169,7 +169,7 @@ fun ErrorManifest.copyWith(
     code: String = this.code,
     status: Int = this.status,
     description: String? = this.description,
-    retry: Retry = this.retry,
+    retry: RetryAdvice = this.retry,
     retryAfter: Int? = this.retryAfter,
 ): ErrorManifest = ErrorManifest(code, status, description, retry, retryAfter)
 

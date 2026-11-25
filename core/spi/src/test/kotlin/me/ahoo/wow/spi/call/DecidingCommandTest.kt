@@ -19,6 +19,7 @@ import kotlinx.coroutines.withContext
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.TargetScope
 import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.decide.Misuse
 import org.junit.jupiter.api.Test
@@ -95,8 +96,8 @@ class DecidingCommandTest {
             reserve() to CommandRequest.of(Note("1"), "i-1", stock),
             reserve() to CommandRequest.of(Reserve("sku-1", 1), "i-2", stock),
             reserve() to CommandRequest.of(Reserve("sku-1", 1), "i-1", AggregateType("stock", "lot")),
-            reserve() to CommandRequest.of(Reserve("sku-1", 1), "i-1", stock, targetTenant = "other"),
-            reserve() to CommandRequest.of(Reserve("sku-1", 1), "i-1", stock, targetScope = Scope("bob", null)),
+            reserve() to CommandRequest.of(Reserve("sku-1", 1), "i-1", stock, targetScope = TargetScope.of("other")),
+            reserve() to CommandRequest.of(Reserve("sku-1", 1), "i-1", stock, targetScope = TargetScope.of(scope = Scope("bob", null))),
             note to CommandRequest.of(Note("2"), "i-1", stock),
             // A target named by its type alone (a creation), by its id alone, or by neither (both from the class).
             reserve() to CommandRequest.of(Reserve("sku-1", 1), type = stock),

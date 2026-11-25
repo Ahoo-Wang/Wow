@@ -304,4 +304,4 @@ One rule decides the tenant on every path a command takes to the type: a caller'
 
 ## Act in another scope
 
-A caller allowed to act in another tenant or scope, such as a support tool, names it in the `Wow-Scope` header, or in the command client's `CommandRequest` (`targetTenant`, `targetScope`). The commit records that the operator acted in another scope. An access policy still decides what it reads and changes there ([What is trusted](#what-is-trusted)).
+A caller allowed to act in another tenant or scope, such as a support tool, names it in the `Wow-Scope` header, or in the command client's `CommandRequest` (`targetScope`, a `TargetScope`: a target that names only a tenant keeps the caller's own scope there). The commit records that the operator acted in another scope. An access policy still decides what it reads and changes there ([What is trusted](#what-is-trusted)).

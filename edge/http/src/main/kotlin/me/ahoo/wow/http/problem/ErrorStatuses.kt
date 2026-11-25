@@ -21,7 +21,6 @@ import me.ahoo.wow.manifest.ErrorManifest
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import org.springframework.http.HttpStatus
-import kotlin.math.ceil
 
 /**
  * The HTTP status of each error code, from the Manifest's tables:
@@ -100,7 +99,7 @@ class ErrorStatuses(manifest: Manifest, private val overrides: Map<String, Int> 
         return answered.copyWith(
             status = failure.status,
             retry = failure.retry,
-            retryAfter = failure.retryAfter?.let { ceil(it.inWholeMilliseconds / MILLIS_PER_SECOND).toLong() },
+            retryAfter = failure.retryAfter,
             violations = failure.violations.ifEmpty { answered.violations },
         )
     }
@@ -113,8 +112,4 @@ class ErrorStatuses(manifest: Manifest, private val overrides: Map<String, Int> 
 
     private fun find(code: String, context: String?): ErrorManifest? =
         context?.let { byContext[it]?.get(code) } ?: framework[code]
-
-    private companion object {
-        const val MILLIS_PER_SECOND = 1000.0
-    }
 }

@@ -17,7 +17,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.problem.ProblemMapper
-import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.RetryAdvice
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedList
@@ -51,18 +51,18 @@ class ProblemMapperRoutesTest {
 
     private val upstream = ProblemMapper { failure ->
         (failure as? UpstreamException)?.let {
-            WowProblemException(UPSTREAM, 502, Retry.SAME_REQUEST, 3.seconds, "The catalog did not answer.")
+            WowProblemException(UPSTREAM, 502, RetryAdvice.SAME_REQUEST, 3.seconds, "The catalog did not answer.")
         }
     }
 
     /** A mapper that claims every failure it is asked about. */
-    private val everything = ProblemMapper { WowProblemException(CLAIMED, 418, Retry.NONE, null, "Claimed.") }
+    private val everything = ProblemMapper { WowProblemException(CLAIMED, 418, RetryAdvice.NONE, null, "Claimed.") }
 
     /** The application's resolver: down, wrapped, when the request says so. */
     private val callers = CallerResolver { request ->
         when (request.headers().firstHeader(IDP)) {
             "upstream" -> throw IllegalStateException("Resolving failed.", UpstreamException("The IdP did not answer."))
-            "problem" -> throw WowProblemException(IDP_DOWN, 503, Retry.NEW_REQUEST, null, "The IdP is down.")
+            "problem" -> throw WowProblemException(IDP_DOWN, 503, RetryAdvice.NEW_REQUEST, null, "The IdP is down.")
             else -> headerCallers.resolve(request)
         }
     }

@@ -12,7 +12,7 @@ public final class me/ahoo/wow/query/QueryCaller {
 	public final fun getScope ()Lme/ahoo/wow/query/QueryScope;
 	public final fun getSelection ()Lme/ahoo/wow/api/query/FilterExpression;
 	public final fun getSubject ()Ljava/lang/String;
-	public final fun getTarget ()Lme/ahoo/wow/api/caller/TargetScope;
+	public final fun getTargetScope ()Lme/ahoo/wow/api/caller/TargetScope;
 	public final fun getTenantId ()Ljava/lang/String;
 	public fun hashCode ()I
 	public final fun inProcess ()Lme/ahoo/wow/query/QueryCaller;

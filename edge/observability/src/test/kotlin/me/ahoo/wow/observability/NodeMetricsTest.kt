@@ -16,7 +16,7 @@ package me.ahoo.wow.observability
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
-import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.RetryAdvice
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.runtime.admission.CommandBody
@@ -106,7 +106,7 @@ class NodeMetricsTest {
                     throw WowProblemException(
                         "wow.wait.timeout",
                         504,
-                        Retry.SAME_REQUEST,
+                        RetryAdvice.SAME_REQUEST,
                         null,
                         "The board's downstream timed out.",
                     )

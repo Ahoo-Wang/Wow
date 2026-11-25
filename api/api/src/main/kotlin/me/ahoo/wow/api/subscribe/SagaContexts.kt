@@ -22,18 +22,27 @@ import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.schedule.ScheduleRule
 
 /**
- * Calls [command] on the aggregate [id] names, with the fields [block] sets: [SagaContext.call] of [command]'s
- * [toCommandRequest], `context.call(SubmitOrder(items))`.
+ * Calls [command] on the aggregate [aggregateId] names (none for a creation), with the fields [block] sets:
+ * [SagaContext.call] of [command]'s [toCommandRequest], `context.call(SubmitOrder(items))`.
  */
 suspend fun <C : Any> SagaContext.call(
     command: C,
-    id: String? = null,
-    to: AggregateRef? = null,
+    aggregateId: String? = null,
     block: CommandRequest.Builder<C>.() -> Unit = {},
-): CommandResult = call(command.toCommandRequest(id, to, block))
+): CommandResult = call(command.toCommandRequest(aggregateId, block))
 
 /**
- * Schedules [command] on the aggregate [id] names under [key] as [rule] says, with the fields [block] sets:
+ * Calls [command] on the aggregate the ref [to] names, with the fields [block] sets: [SagaContext.call] of [command]'s
+ * [toCommandRequest] of a ref, `context.call(Restock(sku), to = rejected.source)`.
+ */
+suspend fun <C : Any> SagaContext.call(
+    command: C,
+    to: AggregateRef,
+    block: CommandRequest.Builder<C>.() -> Unit = {},
+): CommandResult = call(command.toCommandRequest(to, block))
+
+/**
+ * Schedules [command] on the aggregate [aggregateId] names under [key] as [rule] says, with the fields [block] sets:
  * [SagaContext.schedule] of [command]'s [toCommandRequest],
  * `context.schedule(DEADLINE, ScheduleRule.after(10.minutes), CancelOrder("No stock in time."), event.ref.id)`.
  */
@@ -41,9 +50,22 @@ fun <C : Any> SagaContext.schedule(
     key: String,
     rule: ScheduleRule,
     command: C,
-    id: String? = null,
-    to: AggregateRef? = null,
+    aggregateId: String? = null,
     block: CommandRequest.Builder<C>.() -> Unit = {},
 ) {
-    schedule(key, rule, command.toCommandRequest(id, to, block))
+    schedule(key, rule, command.toCommandRequest(aggregateId, block))
+}
+
+/**
+ * Schedules [command] on the aggregate the ref [to] names under [key] as [rule] says, with the fields [block] sets:
+ * [SagaContext.schedule] of [command]'s [toCommandRequest] of a ref.
+ */
+fun <C : Any> SagaContext.schedule(
+    key: String,
+    rule: ScheduleRule,
+    command: C,
+    to: AggregateRef,
+    block: CommandRequest.Builder<C>.() -> Unit = {},
+) {
+    schedule(key, rule, command.toCommandRequest(to, block))
 }

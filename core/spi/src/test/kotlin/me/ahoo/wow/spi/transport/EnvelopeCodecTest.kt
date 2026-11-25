@@ -40,7 +40,7 @@ class EnvelopeCodecTest {
     private val ref = AggregateType("shop", "order").ref("t1", "o-1")
     private val wait = WaitContext(
         "w-1",
-        Origin("node-1", "10.0.0.1:9090", "shop-service"),
+        Origin("shop-service", "node-1", "10.0.0.1:9090"),
         listOf(Hop.handled("OrderView.onEvent", "shop")),
         1_000L,
     )

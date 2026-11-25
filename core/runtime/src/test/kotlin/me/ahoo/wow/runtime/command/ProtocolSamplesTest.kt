@@ -57,7 +57,7 @@ class ProtocolSamplesTest {
     private val operator = Operator("u-42", "t1")
     private val wait = WaitContext(
         "w-7",
-        Origin("bank-1", "10.0.0.5:9090", "bank-service"),
+        Origin("bank-service", "bank-1", "10.0.0.5:9090"),
         listOf(Hop.snapshot("bank")),
         1760950810000,
     )

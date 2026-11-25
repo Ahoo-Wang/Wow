@@ -304,4 +304,4 @@ fun `a caller reads and changes what the policy grants on the aggregate its even
 
 ## 在另一个作用域中行事 {#act-in-another-scope}
 
-被允许在另一个租户或作用域中行事的调用方，例如客服工具，在 `Wow-Scope` 请求头中指明它，或者在命令客户端的 `CommandRequest`（`targetTenant`、`targetScope`）中指明。提交会记录操作人是在另一个作用域中行事的。它在那里读取和修改什么，仍由访问策略决定（[哪些是受信的](#what-is-trusted)）。
+被允许在另一个租户或作用域中行事的调用方，例如客服工具，在 `Wow-Scope` 请求头中指明它，或者在命令客户端的 `CommandRequest`（`targetScope`，一个 `TargetScope`：只写租户的目标在那里保留调用方自己的作用域）中指明。提交会记录操作人是在另一个作用域中行事的。它在那里读取和修改什么，仍由访问策略决定（[哪些是受信的](#what-is-trusted)）。

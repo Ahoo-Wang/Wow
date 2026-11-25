@@ -16,7 +16,7 @@ package me.ahoo.wow.runtime.timer
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.decide.RequestFacts
-import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.RetryAdvice
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.kernel.AggregateModel
@@ -158,7 +158,7 @@ internal class ContextTimerFirer(
             throw WowProblemException(
                 error?.code ?: FrameworkCodes.COMMAND_FAILED,
                 FAILED_STATUS,
-                Retry.SAME_REQUEST,
+                RetryAdvice.SAME_REQUEST,
                 null,
                 "The command of the timer ${timer.id} on ${timer.target} failed: ${error?.code} ${error?.message}",
             )

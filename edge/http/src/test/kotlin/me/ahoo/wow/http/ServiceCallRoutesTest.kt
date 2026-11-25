@@ -366,7 +366,7 @@ class ServiceCallRoutesTest {
 
     @Test
     fun `a call header should carry the root command and the wait`() {
-        val wait = WaitContext("w-1", Origin("n-1", "127.0.0.1:9191", "basket"), listOf(Hop.committed(CONTEXT)), 9L)
+        val wait = WaitContext("w-1", Origin("basket", "n-1", "127.0.0.1:9191"), listOf(Hop.committed(CONTEXT)), 9L)
         val call = CallContext("c-1", TENANT, Scope("alice", "s-1"), root, Operator("alice", TENANT, true), wait)
         CallHeaders.parse(CallHeaders.format(call)).assert().isEqualTo(call)
         val bare = CallContext("c-2", Caller.DEFAULT_TENANT, Scope.NONE, root)

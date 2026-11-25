@@ -23,7 +23,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
-import me.ahoo.wow.api.decide.Misuse
+import me.ahoo.wow.api.caller.TargetScope
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.WaitPlan
 import org.junit.jupiter.api.Test
@@ -42,21 +42,29 @@ class CommandRequestsTest {
         AddItem("a").toCommandRequest("c-1").assert().isEqualTo(CommandRequest.of(AddItem("a"), "c-1"))
         AddItem("a").toCommandRequest("c-1") {
             type(cart)
-            targetTenant("t")
-            targetScope(Scope("o"))
+            targetScope(TargetScope.of("t", Scope("o")))
             wait(WaitPlan.COMMITTED)
             timeout(2.seconds)
             requestId("r-1")
             expectedVersion(3)
         }.assert().isEqualTo(
-            CommandRequest.of(AddItem("a"), "c-1", cart, "t", Scope("o"), WaitPlan.COMMITTED, 2.seconds, "r-1", 3),
+            CommandRequest.of(
+                AddItem("a"),
+                "c-1",
+                cart,
+                TargetScope.of("t", Scope("o")),
+                WaitPlan.COMMITTED,
+                2.seconds,
+                "r-1",
+                3
+            ),
         )
     }
 
     @Test
     fun `an id the block sets should replace the one given before it`() {
-        AddItem("a").toCommandRequest("c-1") { id("c-2") }.id.assert().isEqualTo("c-2")
-        AddItem("a").toCommandRequest("c-1") { id(null) }.id.assert().isNull()
+        AddItem("a").toCommandRequest("c-1") { aggregateId("c-2") }.aggregateId.assert().isEqualTo("c-2")
+        AddItem("a").toCommandRequest("c-1") { aggregateId(null) }.aggregateId.assert().isNull()
     }
 
     @Test
@@ -64,13 +72,18 @@ class CommandRequestsTest {
         AddItem("a").toCommandRequest(to = cart.ref("t", "c-1")).assert()
             .isEqualTo(CommandRequest.to(cart.ref("t", "c-1"), AddItem("a")))
         AddItem("a").toCommandRequest(to = cart.unassigned("t")) { requestId("r-1") }.assert()
-            .isEqualTo(CommandRequest.of(AddItem("a"), type = cart, targetTenant = "t", requestId = "r-1"))
+            .isEqualTo(
+                CommandRequest.of(AddItem("a"), type = cart, targetScope = TargetScope.of("t"), requestId = "r-1")
+            )
     }
 
     @Test
-    fun `a request should be refused an id and a ref together, which name its aggregate twice`() {
-        assertThrows<Misuse.Argument> { AddItem("a").toCommandRequest("c-1", to = cart.ref("t", "c-1")) }
-            .message.assert().isEqualTo("A request names its aggregate by an id or by a ref, not both.")
+    fun `a target tenant set in one call should keep the scope named before it, and none should clear it`() {
+        CommandRequest.builder(AddItem("a")).targetScope(TargetScope.of(scope = Scope("o"))).targetTenant("t").build()
+            .targetScope.assert().isEqualTo(TargetScope.of("t", Scope("o")))
+        CommandRequest.builder(AddItem("a")).targetTenant("t").targetTenant(null).build().targetScope.assert().isNull()
+        CommandRequest.builder(AddItem("a")).targetScope(TargetScope.of("t", Scope("o"))).targetTenant(null).build()
+            .targetScope.assert().isEqualTo(TargetScope.of(scope = Scope("o")))
     }
 
     @Test
@@ -78,9 +91,9 @@ class CommandRequestsTest {
         AddItem("a").toCommandRequest { to(cart.ref("t", "c-1")) }.assert()
             .isEqualTo(CommandRequest.to(cart.ref("t", "c-1"), AddItem("a")))
         AddItem("a").toCommandRequest { to(cart.unassigned("t")) }.assert()
-            .isEqualTo(CommandRequest.of(AddItem("a"), type = cart, targetTenant = "t"))
+            .isEqualTo(CommandRequest.of(AddItem("a"), type = cart, targetScope = TargetScope.of("t")))
         CommandRequest.builder(AddItem("a")).to(cart.ref("t", "c-1")).requestId("r-1").build().assert()
-            .isEqualTo(CommandRequest.of(AddItem("a"), "c-1", cart, "t", requestId = "r-1"))
+            .isEqualTo(CommandRequest.of(AddItem("a"), "c-1", cart, TargetScope.of("t"), requestId = "r-1"))
     }
 
     @Test

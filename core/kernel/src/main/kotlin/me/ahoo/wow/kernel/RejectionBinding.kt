@@ -199,15 +199,15 @@ class ExecutionReceiptContext(
     /** What the handler declares it sends; null for a context built outside its binding. */
     sends: SagaSends? = null,
 ) : SagaContext, Derivation {
+    /** The ids this handling draws, which no command it sends may name its target by ([SagaDerivation]). */
+    private val drawn = DrawnIds(ids)
+
+    override val ids: Ids get() = drawn
+
     /**
      * The commands go to the tenant of the commit whose saga execution derived the receipt's command unless they name
      * another; their scope is that command's unless they name their target scope.
      */
-    private val drawn = DrawnIds(ids)
-
-    /** The ids this handling draws, which no command it sends may name its target by ([SagaDerivation]). */
-    override val ids: Ids get() = drawn
-
     private val derivation = SagaDerivation(
         executionId,
         commandTypes,

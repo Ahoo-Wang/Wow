@@ -54,7 +54,7 @@ class ParkedSignalTest {
     private val log = InMemoryEventLog(partitions = 2)
     private val ledger = InMemoryFailureLedger()
     private val registry = WaitRegistry()
-    private val origin = Origin("node-1", "127.0.0.1:9090", "shop")
+    private val origin = Origin("shop", "node-1", "127.0.0.1:9090")
     private val signals = LocalSignalSender(origin.node, registry)
     private val failing = Subscription("order.failing", SubscriptionFilter("shop", setOf("order"))) {
         error("jdbc:postgresql://10.0.3.5:5432 refused ${it.ref}")

@@ -53,7 +53,7 @@ class WaitHopsTest {
     }
     private val subscription = Subscription(NAME, SubscriptionFilter("shop")) { }
     private val hops = WaitHops(subscription, signals, clock)
-    private val origin = Origin("node-1", "127.0.0.1:9090", "shop")
+    private val origin = Origin("shop", "node-1", "127.0.0.1:9090")
 
     private fun entry(vararg remaining: Hop, deadline: Long = NOW + 1_000, waits: Boolean = true) = SourcedEntry(
         LogPosition(0, 1),
