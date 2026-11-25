@@ -18,6 +18,7 @@ import me.ahoo.wow.api.query.AggregateIdFilter
 import me.ahoo.wow.api.query.AggregateIdsFilter
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.BetweenFilter
+import me.ahoo.wow.api.query.CaseFolding
 import me.ahoo.wow.api.query.ComparisonOperator
 import me.ahoo.wow.api.query.ContainsAllFilter
 import me.ahoo.wow.api.query.ContainsFilter
@@ -60,7 +61,6 @@ import me.ahoo.wow.mongo.MongoAccess
 import me.ahoo.wow.mongo.log.MongoEventLog
 import me.ahoo.wow.mongo.query.pipeline.toMongoExpression
 import me.ahoo.wow.query.admission.AdmittedQuery
-import me.ahoo.wow.query.backend.CaseFolding
 import me.ahoo.wow.query.error.QueryExecutionException
 import me.ahoo.wow.query.resolve.ignoreCase
 import me.ahoo.wow.query.resolve.operandValue

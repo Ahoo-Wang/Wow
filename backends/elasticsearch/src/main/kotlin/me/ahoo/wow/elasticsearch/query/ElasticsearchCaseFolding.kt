@@ -13,8 +13,8 @@
 
 package me.ahoo.wow.elasticsearch.query
 
+import me.ahoo.wow.api.query.CaseFolding
 import me.ahoo.wow.api.query.QueryField
-import me.ahoo.wow.query.backend.CaseFolding
 import me.ahoo.wow.query.schema.QueryViolation
 
 /**

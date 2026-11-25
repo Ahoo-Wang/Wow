@@ -20,6 +20,8 @@ import me.ahoo.wow.analytics.catalog.api.dataset.DatasetField
 import me.ahoo.wow.analytics.catalog.api.dataset.DatasetJoinKind
 import me.ahoo.wow.analytics.catalog.api.dataset.DatasetScope
 import me.ahoo.wow.analytics.catalog.domain.source.SourceState
+import me.ahoo.wow.api.annotation.ExperimentalWowApi
+import me.ahoo.wow.api.query.CaseFolding
 import java.security.MessageDigest
 import java.util.HexFormat
 
@@ -295,25 +297,31 @@ object DatasetCompiler {
         return if (nullable) "($predicate OR isNull(${expression(ref, dataset)}))" else predicate
     }
 
-    /** A call; the query protocol's text tests as its ClickHouse compiler writes them. */
+    /**
+     * A call; the query protocol's text tests as its ClickHouse compiler writes them. An `…IgnoreCase` test, whose second
+     * operand is a literal text (the parser holds it), matches the core's pattern of the texts that fold equal to it
+     * ([CaseFolding.pattern]), case-sensitively, anchored as the test says: no store's own case functions decide it, as
+     * none decides the query protocol's (#7071).
+     */
+    @OptIn(ExperimentalWowApi::class)
     private fun call(call: DatasetExpression.Call, dataset: BoundDataset): String {
         val arguments = call.arguments.map { expression(it, dataset) }
-        val ignoreCase = call.function.endsWith(IGNORE_CASE)
-        val folded = if (ignoreCase) arguments.map { "lowerUTF8($it)" } else arguments
-        return when (call.function.removeSuffix(IGNORE_CASE)) {
-            "contains" -> if (ignoreCase) {
-                "(positionCaseInsensitiveUTF8(${arguments.joinToString(", ")}) > 0)"
-            } else {
-                "(position(${arguments.joinToString(", ")}) > 0)"
+        if (call.function.endsWith(DatasetExpression.IGNORE_CASE)) {
+            val pattern = CaseFolding.pattern((call.arguments[1] as DatasetExpression.Literal).text)
+            val anchored = when (call.function.removeSuffix(DatasetExpression.IGNORE_CASE)) {
+                "startsWith" -> "^$pattern"
+                "endsWith" -> "$pattern$"
+                else -> pattern
             }
-
-            "startsWith" -> "startsWith(${folded.joinToString(", ")})"
-            "endsWith" -> "endsWith(${folded.joinToString(", ")})"
+            return "match(${arguments[0]}, ${literal(anchored)})"
+        }
+        return when (call.function) {
+            "contains" -> "(position(${arguments.joinToString(", ")}) > 0)"
+            "startsWith" -> "startsWith(${arguments.joinToString(", ")})"
+            "endsWith" -> "endsWith(${arguments.joinToString(", ")})"
             else -> "${call.function}(${arguments.joinToString(", ")})"
         }
     }
-
-    private const val IGNORE_CASE = "IgnoreCase"
 
     /** [name] as a ClickHouse identifier, in backquotes. */
     internal fun quote(name: String): String = "`${name.replace("\\", "\\\\").replace("`", "\\`")}`"
