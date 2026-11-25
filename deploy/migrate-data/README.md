@@ -58,9 +58,16 @@ kubectl logs -f job/migrate-data-check
 
 `kubectl logs -f` follows the Job until the command ends. Its exit code is the Job's outcome:
 
-- 0: the Job completes.
-- 1 (failed), 2 (usage error) or 3 (differences): the Job fails at once, and running it again changes nothing.
-- A Pod lost to its node or to its memory limit: the Job runs a new one, which resumes from the checkpoint.
+| Exit code | Meaning | The Job |
+| --- | --- | --- |
+| `0` | Done. | Completes. |
+| `1` | Failed: a refusal of the tool's (a check, a step that stopped, `import --final` refused), a configuration it cannot read, or a defect. | Fails at once: running it again changes nothing, or imports a batch again before anyone looks. |
+| `2` | Usage error. | Fails at once. |
+| `3` | The JVM's, on an `OutOfMemoryError` (the image's `-XX:+ExitOnOutOfMemoryError`). | Runs a new Pod, which resumes from the checkpoint. |
+| `4` | `compare` or `export` found differences. | Fails at once. |
+| `5` | A store or the network was unavailable or timed out: a dropped or refused connection, a timeout, a store the driver could not reach. | Runs a new Pod, which resumes from the checkpoint. |
+
+A Pod lost to its node or killed for its memory limit is run again too, and a drained node or a preempted Pod is not counted against the retries (`backoffLimit: 3`). A store named wrongly reads as one that is down, since a driver reports both as unreachable: it is tried three more times before the Job fails.
 
 To run a command again, delete its Job first:
 
@@ -87,6 +94,6 @@ Deleting the tail stops it after its current pass: the Pod receives `SIGTERM` an
 
 ## Choices
 
-- **Memory.** The image sets `JAVA_OPTS=-XX:MaxRAMPercentage=75.0 -XX:+ExitOnOutOfMemoryError`: the heap is three quarters of the container's limit, 2 GiB here, and an `OutOfMemoryError` ends the process, so the Job runs it again from its checkpoint instead of leaving it hung. An import holds a page of instances with their streams, at most ten streams per instance (`pageSize`), so give a larger page more. A `JAVA_OPTS` of your own replaces the image's.
+- **Memory.** The image sets `JAVA_OPTS=-XX:MaxRAMPercentage=75.0 -XX:+ExitOnOutOfMemoryError`: the heap is three quarters of the container's limit, 2 GiB here, and an `OutOfMemoryError` ends the process with exit code 3, so the Job runs it again from its checkpoint instead of leaving it hung. An import holds a page of instances with their streams, at most ten streams per instance (`pageSize`), so give a larger page more. A `JAVA_OPTS` of your own replaces the image's.
 - **Time zone.** `compare` rebuilds states in the time zone 9.x ran in when domain code turns dates into instants with the system's zone: set `TZ`.
 - **Retries.** A Job retries only what a new Pod can fix. The tool's own verdicts fail it at once (`podFailurePolicy`), and an evicted Pod is not counted against its retries.

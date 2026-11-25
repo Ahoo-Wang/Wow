@@ -103,7 +103,8 @@ internal class MigrateData(
 ) {
     /**
      * Runs [args]; returns the process exit code: 0 done, 1 the check, the import or another step failed, 2 a usage
-     * error, 3 the comparison found differences.
+     * error, 4 the comparison found differences, 5 a step stopped as a store or the network was unavailable
+     * ([retryable]). An exception it throws `main` ends the process with as [exitCodeOf] says.
      */
     fun run(args: List<String>): Int {
         if (args.firstOrNull() in HELP) {
@@ -219,12 +220,15 @@ internal class MigrateData(
         }
     }
 
-    /** Runs [step]; a [MigrationException] it throws is printed as `FAILED`, and fails the run. */
+    /**
+     * Runs [step]; a [MigrationException] it throws is printed as `FAILED`, and fails the run: with [UNAVAILABLE] when
+     * a store or the network caused it ([retryable]), such as an append whose outcome stayed unknown, else [FAILED].
+     */
     private inline fun reported(step: () -> Int): Int = try {
         step()
     } catch (failure: MigrationException) {
         out.println("FAILED ${failure.message}")
-        FAILED
+        if (retryable(failure)) UNAVAILABLE else FAILED
     }
 
     /**
@@ -456,7 +460,20 @@ internal class MigrateData(
         const val OK = 0
         const val FAILED = 1
         const val USAGE_ERROR = 2
-        const val DIFFERS = 3
+
+        /**
+         * Not 3: HotSpot ends a run with 3 on an `OutOfMemoryError` under `-XX:+ExitOnOutOfMemoryError`, which the
+         * image sets, and a Job runs that again from the checkpoint, where it fails at once on the tool's verdicts.
+         */
+        const val DIFFERS = 4
+
+        /**
+         * A store or the network was unavailable or timed out ([retryable]), such as a connection that dropped
+         * mid-pass. Running the command again may end it, and resumes from the checkpoint, so a Job does. Any other
+         * failure, the tool's verdict, a configuration it cannot read or a defect, is [FAILED], which a Job does not
+         * retry.
+         */
+        const val UNAVAILABLE = 5
         private const val DRAFT_MAP = "draft-map"
         private const val CHECK = "check"
         private const val IMPORT = "import"
@@ -502,13 +519,14 @@ internal class MigrateData(
               tail      [--once]  follows what 9.x commits after the import, until stopped
               compare   [--sample <percent>] [--restart]  compares each 9.x snapshot with the V10 state rebuilt
                         from the log at its version, once done those changed since, and checks the log holds every
-                        stream 9.x committed since the import; exits with 3 when one differs or is missing
+                        stream 9.x committed since the import; exits with 4 when one differs or is missing
               snapshot  [--restart]  writes the V10 snapshot of every imported instance; once done, of those the
                         V10 log changed since
               export    [--dry-run] [--restart]  writes back to the 9.x store what V10 wrote after the cut-over,
-                        for a rollback; refuses V10-only types; exits with 3 when the stream counts differ
+                        for a rollback; refuses V10-only types; exits with 4 when the stream counts differ
               --help    prints this
-            Exit codes: 0 done, 1 failed, 2 usage error, 3 the comparison or the export's count found differences.
+            Exit codes: 0 done, 1 failed, 2 usage error, 4 the comparison or the export's count found differences,
+              5 a store or the network unavailable, which running it again may end; 3 is the JVM's, out of memory.
         """.trimIndent()
     }
 }
@@ -524,9 +542,25 @@ fun main(args: Array<String>) {
         },
     )
     val code = try {
-        MigrateData(running = { !stopping.get() }).run(args.toList())
+        exitCodeOf(System.err) { MigrateData(running = { !stopping.get() }).run(args.toList()) }
     } finally {
         finished.countDown()
     }
     exitProcess(code)
+}
+
+/**
+ * The exit code of [run], a command line: what it answers, or, for an exception it throws, [MigrateData.UNAVAILABLE]
+ * when a store or the network caused it ([retryable]), which a Job runs again, and [MigrateData.FAILED] for any other,
+ * which fails a Job at once: a [MigrationException] it did not answer itself, printed as `FAILED`, or another, with
+ * its stack trace, as the JVM printed an uncaught one. Both go to [err].
+ */
+internal fun exitCodeOf(err: PrintStream, run: () -> Int): Int = try {
+    run()
+} catch (failure: MigrationException) {
+    err.println("FAILED ${failure.message}")
+    if (retryable(failure)) MigrateData.UNAVAILABLE else MigrateData.FAILED
+} catch (@Suppress("TooGenericExceptionCaught") failure: Exception) {
+    err.print(failure.stackTraceToString())
+    if (retryable(failure)) MigrateData.UNAVAILABLE else MigrateData.FAILED
 }

@@ -40,6 +40,9 @@ internal abstract class MigrateDataFixtures {
     protected val output = ByteArrayOutputStream()
     protected val source = InMemoryNineXEventSource(NineXExample.streams())
     protected val log = InMemoryEventLog(4)
+
+    /** The log a run writes to, when not [log]: one that fails as a test needs. */
+    protected var target: EventLog? = null
     protected var closed = false
     protected var passes = 0
 
@@ -61,7 +64,7 @@ internal abstract class MigrateDataFixtures {
 
         override val snapshots: NineXSnapshotSource get() = nineXSnapshots
 
-        override fun logOf(context: String): EventLog = log
+        override fun logOf(context: String): EventLog = target ?: log
 
         override fun snapshotStoreOf(context: String): SnapshotStore = store
 

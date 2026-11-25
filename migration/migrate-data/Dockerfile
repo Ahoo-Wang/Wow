@@ -31,7 +31,8 @@ COPY --from=build --chown=10001:10001 ${WORK_HOME} ${WORK_HOME}
 
 WORKDIR ${WORK_HOME}
 # The heap follows the container's memory limit, as the platform deployments set it, and an OutOfMemoryError ends the
-# process, so a Job retries it from its checkpoint instead of hanging; JAVA_OPTS replaces both.
+# process with exit code 3, which no verdict of the tool's takes, so a Job retries it from its checkpoint instead of
+# hanging; JAVA_OPTS replaces both.
 ENV JAVA_OPTS="-XX:MaxRAMPercentage=75.0 -XX:+ExitOnOutOfMemoryError"
 
 USER 10001

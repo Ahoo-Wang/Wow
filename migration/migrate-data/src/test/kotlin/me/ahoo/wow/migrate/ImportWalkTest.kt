@@ -154,6 +154,27 @@ class ImportWalkTest {
         }
 
     @Test
+    fun `streams the tail alone imports claim the type's walk, as the full import's do`(): Unit = runBlocking {
+        // A type 9.x had no streams of at the full import, written during the dual run, reaches V10 through the tail
+        // alone: the walk its store's creation recorded stamped nothing, and the nodes must walk what the tail appends.
+        val service = Service()
+        val walking = service.node()
+        walking.maintain()
+        val written = InMemoryNineXEventSource()
+        val importer = EventStreamImporter(written, NineXExample.plan, { service.log }, service.checkpoints)
+        importer.importAll(order)
+        val now = System.currentTimeMillis()
+        NineXExample.streams().filter { it.aggregate == order }.forEach { written.add(it.copy(createTime = now)) }
+
+        importer.tailOnce(order)
+        service.stamped().assert().describedAs("the tail imported the order").isNotEmpty()
+
+        // As the full import's streams are: the node's runs, the first past the type's absence due, walk them.
+        repeat(3) { walking.maintain() }
+        service.stamped().assert().describedAs("the order's streams after the node's walks").containsOnly(true)
+    }
+
+    @Test
     fun `an import into a log that holds no store of the type claims no walk`(): Unit = runBlocking {
         val service = Service()
         // A log that says it holds none: a type it holds no store of has no walk, and claims none.

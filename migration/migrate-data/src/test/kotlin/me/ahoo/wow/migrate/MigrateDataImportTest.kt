@@ -18,7 +18,12 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.migrate.example.NineXCompensationExample
 import me.ahoo.wow.migrate.example.NineXExample
+import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spi.log.Append
+import me.ahoo.wow.spi.log.AppendOutcome
+import me.ahoo.wow.spi.log.EventLog
+import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.subscription.ImportCutover
 import org.junit.jupiter.api.Test
 import java.nio.file.Files
@@ -210,14 +215,14 @@ internal class MigrateDataImportTest : MigrateDataFixtures() {
         (0 until log.partitions).mapNotNull { partition -> log.head(partition)?.let { partition to it } }.toMap()
 
     @Test
-    fun `each pass that appends records where the imported history ends, moving it with the log's heads`(): Unit =
+    fun `each pass that appends records where the imported history ends, moving it with what it imports`(): Unit =
         runBlocking {
             val config = config().toString()
             run("import", "--config", config).assert().isEqualTo(MigrateData.OK)
             val imported = heads()
             imported.assert().isNotEmpty()
             cutover().assert().isEqualTo(imported)
-            printed.assert().contains("CUTOVER example: the imported history ends at the log's head in")
+            printed.assert().contains("CUTOVER example: the imported history ends at the import's last stream in")
             run("tail", "--config", config, "--once").assert().isEqualTo(MigrateData.OK)
             // 9.x commits once more before it stops: the final pass appends it, and the cut-over follows.
             val last = NineXExample.stream("order-stream-v4.json")
@@ -234,6 +239,40 @@ internal class MigrateDataImportTest : MigrateDataFixtures() {
             heads().assert().isNotEqualTo(imported)
             cutover().assert().isEqualTo(heads())
         }
+
+    @Test
+    fun `a pass that appends nothing leaves the cut-over, though V10 appended after it`(): Unit = runBlocking {
+        // A pass that imports nothing (a tail left running, a rehearsal's second run that writes nothing) must not
+        // take V10's own commits for imported history, which sagas and reactors then pass over.
+        val config = config().toString()
+        run("import", "--config", config).assert().isEqualTo(MigrateData.OK)
+        val imported = heads()
+        cutover().assert().isEqualTo(imported)
+        val ref = NineXExample.orderModel.type.ref("(0)", "0VY3GwaK4OmV00E")
+        val last = log.read(ref).toList().last()
+        log.append(last.copyWith(version = last.version + 1, commandId = "v10-command", requestId = "v10-request"))
+        heads().assert().describedAs("V10 appended").isNotEqualTo(imported)
+
+        run("tail", "--config", config, "--once").assert().isEqualTo(MigrateData.OK)
+        run("import", "--config", config).assert().isEqualTo(MigrateData.OK)
+
+        cutover().assert().describedAs("the cut-over after passes that appended nothing").isEqualTo(imported)
+        printed.assert().contains("CUTOVER example: this run imported nothing into the log, so the cut-over stays")
+    }
+
+    @Test
+    fun `an import the log stopped answering ends with the code a Job retries`(): Unit = runBlocking {
+        val down = StorageUnavailableException("the log is down")
+        target = object : EventLog by log {
+            override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome =
+                AppendOutcome.Unknown(down)
+
+            override suspend fun appendAll(streams: List<Append>): List<AppendOutcome> =
+                streams.map { AppendOutcome.Unknown(down) }
+        }
+        run("import", "--config", config().toString()).assert().isEqualTo(MigrateData.UNAVAILABLE)
+        printed.assert().contains("FAILED 9.x stream").contains("the append's outcome stayed unknown")
+    }
 
     @Test
     fun `a failed check stops the import`(): Unit = runBlocking {

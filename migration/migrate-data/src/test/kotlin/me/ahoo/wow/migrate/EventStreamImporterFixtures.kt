@@ -30,7 +30,8 @@ internal abstract class EventStreamImporterFixtures {
         options: ImportOptions = ImportOptions(),
         target: EventLog = log,
         plan: MigrationPlan = NineXExample.plan,
-    ) = EventStreamImporter(source, plan, { target }, checkpoints, options, { now }, { reports += it })
+        cutover: CutoverRecorder? = null,
+    ) = EventStreamImporter(source, plan, { target }, checkpoints, options, { now }, { reports += it }, cutover)
 
     protected fun copyOf(stream: NineXStream, id: String, version: Int = stream.version, createTime: Long = stream.createTime) =
         stream.copy(
