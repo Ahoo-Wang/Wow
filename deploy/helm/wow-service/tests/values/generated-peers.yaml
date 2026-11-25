@@ -1,0 +1,8 @@
+# The values the Gradle plugin generates for the basket (GenerateHelmValues): its service and the peers its code calls.
+service:
+  name: eshop-basket-service
+  contractPeers:
+    - context: eshop-ordering
+      service: eshop-ordering-service
+    - context: eshop-payment
+      service: eshop-payment-service

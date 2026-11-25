@@ -12,12 +12,12 @@ A Wow service runs on Kubernetes as a Deployment: its pods are the service's nod
 
 A release takes two values files, the second over the first:
 
-1. **The values the build knows.** `./gradlew :<server>:generateWowHelmValues`, which `assemble` runs, writes them from the service's contract into `build/wow/helm/values.yaml`: the service's name, after which the chart names every object; the peers whose contracts are on its class path, each with the service that hosts it; and the route its nodes serve the Manifest at. They follow the code, so never copy them by hand. The basket's:
+1. **The values the build knows.** `./gradlew :<server>:generateWowHelmValues`, which `assemble` runs, writes them from the service's contract into `build/wow/helm/values.yaml`: the service's name, after which the chart names every object; the peers whose contracts are on its class path, each with the service that hosts it (`service.contractPeers`); and the route its nodes serve the Manifest at. They follow the code, so never copy them by hand. The basket's:
 
    ```yaml
    service:
      name: "eshop-basket-service"
-     peers:
+     contractPeers:
        - context: "eshop-ordering"
          service: "eshop-ordering-service"
      manifest:
@@ -250,8 +250,9 @@ networkPolicy:
     # Whether the chart tells CoSec that only the gateway can reach the public port
     # (COSEC_PIPELINE_IDENTITY_ONLYGATEWAYCANREACH=true), the statement a service in wow.cosec.mode: gateway needs to
     # start. It holds only while `from` names the gateway's pods alone: each pod `from` admits can claim any identity to
-    # such a service. Set it false when `from` admits anything else; a service in gateway mode then does not start until
-    # you state it yourself (where it is true) or change its mode.
+    # such a service. The chart refuses it for an entry of `from` that names no pods by their labels (an empty or no
+    # podSelector, an ipBlock), which admits every pod it reaches. Set it false when `from` admits anything else; a
+    # service in gateway mode then does not start until you state it yourself (where it is true) or change its mode.
     onlyGateway: true
     # Who reaches the public port: the gateway's pods by default, in any namespace.
     from:
@@ -288,7 +289,7 @@ service:
       namespace: payments
 ```
 
-The chart then gives the node `wow.peer.dns.namespaces.eshop-payment-service: payments`, so it looks the peer up at `_internal._tcp.eshop-payment-service-cluster.payments.svc`, and the internal policy admits the peer's pods from that namespace. The peer's own internal policy must admit this service's pods in turn: its `networkPolicy.internal.from`, with a `namespaceSelector`.
+The chart joins your `service.peers` with the generated `service.contractPeers` by service: your entry takes the generated one's place, and the generated peers your file does not name stay, since Helm would replace one list whole. A peer your file names that the contract does not is added. The chart then gives the node `wow.peer.dns.namespaces.eshop-payment-service: payments`, so it looks the peer up at `_internal._tcp.eshop-payment-service-cluster.payments.svc`, and the internal policy admits the peer's pods from that namespace. The peer's own internal policy must admit this service's pods in turn: its `networkPolicy.internal.from`, with a `namespaceSelector`.
 
 ### A peer node that stops answering {#a-peer-node-that-stops-answering}
 
@@ -381,7 +382,7 @@ shutdown:
   marginSeconds: 15
 ```
 
-The grace period counts the shutdown's steps one after the other: the `preStop` pause; the public server's graceful shutdown, which lasts as long as its longest request, a wait (`waitMaxTimeout`); the node's stop, up to its stop bound; and the margin. That is 5 + 60 + 90 + 15 = 170 seconds by default. The stop bound is `max(waitMaxTimeout, 2 × subscriptionStopTimeout + drainTimeout) + 3 × drainTimeout`, 90 seconds by default, the formula of `ServiceNodeOptions.stopBound` and of the host's shutdown phase ([Starting and stopping](./topology#starting-and-stopping)). Its waits are measured from the node's own stop, so they come after the public server's. The chart sets `wow.wait.max-timeout`, `wow.cluster.drain-timeout` and `wow.subscription.stop-timeout` from these values; setting any of them in `config` is refused. A short `preStop` pause gives the endpoints time to drop the pod before Spring Boot stops taking requests.
+The grace period counts the shutdown's steps one after the other: the `preStop` pause; the public server's graceful shutdown, which lasts as long as its longest request, a wait (`waitMaxTimeout`); the node's stop, up to its stop bound; and the margin. That is 5 + 60 + 90 + 15 = 170 seconds by default. The stop bound is `max(waitMaxTimeout, 2 × subscriptionStopTimeout + drainTimeout) + 3 × drainTimeout`, 90 seconds by default, the formula of `ServiceNodeOptions.stopBound` and of the host's shutdown phase ([Starting and stopping](./topology#starting-and-stopping)). Its waits are measured from the node's own stop, so they come after the public server's. The chart sets `wow.wait.max-timeout`, `wow.cluster.drain-timeout` and `wow.subscription.stop-timeout` from these values; setting any of them in `config`, in `settings` or in `env` is refused, each key read as Spring's relaxed binding reads it, and so are the ports and the node's identity the chart sets itself (`server.port`, `wow.internal.port`, `wow.internal.host`, `wow.node.id`, `wow.peer.dns.namespace`, and the pod's `POD_NAME` and `POD_IP` in `env`). A key in a Secret or ConfigMap of your `envFrom` is not seen by the chart: keep these keys out of them. A short `preStop` pause gives the endpoints time to drop the pod before Spring Boot stops taking requests.
 
 ## Scale
 

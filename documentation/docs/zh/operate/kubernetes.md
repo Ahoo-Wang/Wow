@@ -12,12 +12,12 @@ Wow 服务在 Kubernetes 上以一个 Deployment 运行：它的 Pod 就是服�
 
 一个 release 取两个 values 文件，后一个覆盖前一个：
 
-1. **构建知道的 values。** `./gradlew :<server>:generateWowHelmValues`（`assemble` 会运行它）按服务的契约把它们写进 `build/wow/helm/values.yaml`：服务名，chart 以它命名每个对象；类路径上有契约的对端，各带托管它的服务；以及节点提供 Manifest 的路由。它们随代码变化，不要手抄。basket 的：
+1. **构建知道的 values。** `./gradlew :<server>:generateWowHelmValues`（`assemble` 会运行它）按服务的契约把它们写进 `build/wow/helm/values.yaml`：服务名，chart 以它命名每个对象；类路径上有契约的对端，各带托管它的服务（`service.contractPeers`）；以及节点提供 Manifest 的路由。它们随代码变化，不要手抄。basket 的：
 
    ```yaml
    service:
      name: "eshop-basket-service"
-     peers:
+     contractPeers:
        - context: "eshop-ordering"
          service: "eshop-ordering-service"
      manifest:
@@ -250,8 +250,9 @@ networkPolicy:
     # Whether the chart tells CoSec that only the gateway can reach the public port
     # (COSEC_PIPELINE_IDENTITY_ONLYGATEWAYCANREACH=true), the statement a service in wow.cosec.mode: gateway needs to
     # start. It holds only while `from` names the gateway's pods alone: each pod `from` admits can claim any identity to
-    # such a service. Set it false when `from` admits anything else; a service in gateway mode then does not start until
-    # you state it yourself (where it is true) or change its mode.
+    # such a service. The chart refuses it for an entry of `from` that names no pods by their labels (an empty or no
+    # podSelector, an ipBlock), which admits every pod it reaches. Set it false when `from` admits anything else; a
+    # service in gateway mode then does not start until you state it yourself (where it is true) or change its mode.
     onlyGateway: true
     # Who reaches the public port: the gateway's pods by default, in any namespace.
     from:
@@ -288,7 +289,7 @@ service:
       namespace: payments
 ```
 
-chart 随后给节点设置 `wow.peer.dns.namespaces.eshop-payment-service: payments`，节点便到 `_internal._tcp.eshop-payment-service-cluster.payments.svc` 查找对端，内部策略也放行来自那个命名空间的对端 Pod。对端自己的内部策略也须放行本服务的 Pod：在它的 `networkPolicy.internal.from` 中加一个带 `namespaceSelector` 的条目。
+chart 按服务把你的 `service.peers` 与生成的 `service.contractPeers` 合并：你的条目取代生成的同一服务的条目，你的文件没有列出的生成的对端保留下来，因为 Helm 会整个替换一个列表。你的文件列出、契约没有列出的对端会被加上。chart 随后给节点设置 `wow.peer.dns.namespaces.eshop-payment-service: payments`，节点便到 `_internal._tcp.eshop-payment-service-cluster.payments.svc` 查找对端，内部策略也放行来自那个命名空间的对端 Pod。对端自己的内部策略也须放行本服务的 Pod：在它的 `networkPolicy.internal.from` 中加一个带 `namespaceSelector` 的条目。
 
 ### 不再答复的对端节点 {#a-peer-node-that-stops-answering}
 
@@ -381,7 +382,7 @@ shutdown:
   marginSeconds: 15
 ```
 
-宽限期按关闭的各个步骤依次相加：`preStop` 停顿；公开服务器的优雅关闭，持续到它最长的请求（一次等待，`waitMaxTimeout`）结束；节点的停止，最长为它的停止上限；以及余量。默认是 5 + 60 + 90 + 15 = 170 秒。停止上限是 `max(waitMaxTimeout, 2 × subscriptionStopTimeout + drainTimeout) + 3 × drainTimeout`，默认 90 秒，与 `ServiceNodeOptions.stopBound` 及宿主关闭阶段的公式相同（[启动与停止](./topology#starting-and-stopping)）。它的等待从节点自己的停止开始计算，因此排在公开服务器的等待之后。chart 用这些 value 设置 `wow.wait.max-timeout`、`wow.cluster.drain-timeout` 和 `wow.subscription.stop-timeout`；在 `config` 中设置其中任何一个都会被拒绝。`preStop` 的短暂停顿让 endpoints 有时间摘掉 Pod，然后 Spring Boot 才停止接收请求。
+宽限期按关闭的各个步骤依次相加：`preStop` 停顿；公开服务器的优雅关闭，持续到它最长的请求（一次等待，`waitMaxTimeout`）结束；节点的停止，最长为它的停止上限；以及余量。默认是 5 + 60 + 90 + 15 = 170 秒。停止上限是 `max(waitMaxTimeout, 2 × subscriptionStopTimeout + drainTimeout) + 3 × drainTimeout`，默认 90 秒，与 `ServiceNodeOptions.stopBound` 及宿主关闭阶段的公式相同（[启动与停止](./topology#starting-and-stopping)）。它的等待从节点自己的停止开始计算，因此排在公开服务器的等待之后。chart 用这些 value 设置 `wow.wait.max-timeout`、`wow.cluster.drain-timeout` 和 `wow.subscription.stop-timeout`；在 `config`、`settings` 或 `env` 中设置其中任何一个都会被拒绝，每个键都按 Spring 的宽松绑定来读；chart 自己设置的端口和节点身份也一样（`server.port`、`wow.internal.port`、`wow.internal.host`、`wow.node.id`、`wow.peer.dns.namespace`，以及 `env` 中 Pod 的 `POD_NAME` 和 `POD_IP`）。你的 `envFrom` 中的 Secret 或 ConfigMap 里的键 chart 看不到：不要把这些键放进去。`preStop` 的短暂停顿让 endpoints 有时间摘掉 Pod，然后 Spring Boot 才停止接收请求。
 
 ## 伸缩 {#scale}
 

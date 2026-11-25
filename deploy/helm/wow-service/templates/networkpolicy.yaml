@@ -60,7 +60,7 @@ spec:
             matchLabels:
               app.kubernetes.io/part-of: {{ . }}
         {{- end }}
-        {{- range .Values.service.peers }}
+        {{- range include "wow-service.peers" . | fromJsonArray }}
         {{- if .service }}
         - podSelector:
             matchLabels:

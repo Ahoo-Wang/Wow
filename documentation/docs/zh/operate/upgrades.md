@@ -189,6 +189,8 @@ CoSec 本版本的其他变化涉及网关、控制面、签发 CoSec 令牌的�
 
 本版本可以把 CoSec 的拒绝写成 Wow 的 problem，默认关闭：`wow.cosec.problems: wow`（[CoSec 的拒绝](./security#cosec-refusals)）。保持 `cosec` 时，每个回答与以前逐字节相同。它基于 CoSec 的 `ProblemRenderer`，那在 CoSec 8 里是试验性的，形状可能随 CoSec 的 RC 改变。新增两个码：`wow.request.rate-limited`（429）与 `wow.auth.unavailable`（503），只有这些拒绝会用到它们。
 
+`wow-service` chart 拒绝更多预发布版能渲染的 value（[Kubernetes](./kubernetes)）。chart 自己设置的键，在 `settings` 和 `env` 中也会被拒绝，就像在 `config` 中一样，Spring 能绑定的任何写法都算：停止的上限（`wow.wait.max-timeout`、`wow.cluster.drain-timeout`、`wow.subscription.stop-timeout`：设置 `shutdown.*`）、端口（`server.port`、`wow.internal.port`：设置 `ports.*`）、节点的身份和地址、`POD_NAME` 和 `POD_IP`，以及 `env` 中的 `SPRING_APPLICATION_JSON`。开启 `networkPolicy.public.onlyGateway`（默认）时，`networkPolicy.public.from` 中不按标签指明 Pod 的条目（`podSelector` 为空或没有、`ipBlock`）会被拒绝：指明网关的 Pod，或设置 `onlyGateway: false`。生成的 values 把代码调用的对端写作 `service.contractPeers`，chart 按服务把你的 `service.peers` 与它们合并：重新生成 values（`generateWowHelmValues`，`assemble` 会运行它），你的文件给某个对端写了命名空间时，内部策略也会重新放行每个对端。预发布版生成的、带 `service.peers` 的 values 文件仍能渲染，按部署自己的对端来读。
+
 ### Kafka 上的发布流 {#published-streams-on-kafka}
 
 发布流的记录现在发往它的聚合在上下文日志中的分区，并在 `wow-partitions` 头中注明日志的分区数（[分区](./kafka#partitions)）。预发布版按键的哈希把它放在主题的各分区之间。发布的节点在它的某个主题的分区少于 `wow.log.partitions` 时也拒绝启动，无论 `wow.kafka.ddl` 怎么设。
