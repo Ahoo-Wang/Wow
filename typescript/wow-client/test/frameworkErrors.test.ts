@@ -4,7 +4,9 @@ import {
   CATALOG,
   type FrameworkErrorsCatalog,
   frameworkErrors,
+  frameworkTitles,
   OUTPUT,
+  TITLES_OUTPUT,
 } from '../scripts/framework-errors.mjs';
 import {
   DEFAULT_RETRY,
@@ -26,6 +28,9 @@ describe('the framework errors', () => {
 
   it('should be what the error catalog generates', async () => {
     expect(readFileSync(OUTPUT, 'utf8')).toBe(await frameworkErrors(catalog));
+    expect(readFileSync(TITLES_OUTPUT, 'utf8')).toBe(
+      await frameworkTitles(catalog),
+    );
   });
 
   it('should name every code of the catalog, with its status and retry', () => {

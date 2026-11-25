@@ -20,10 +20,11 @@ import { parseJson } from './exactJson.js';
 import { type AnswerBound, unknownOutcome } from './answerBound.js';
 import type { Answer } from './http.js';
 import type { CommandResult } from './wire.js';
-import { DEFAULT_RETRY } from './frameworkErrors.js';
+import { DEFAULT_RETRY, FrameworkErrorCodes } from './frameworkErrors.js';
 import {
   fromGateway,
   isProblem,
+  PROBLEM_TYPE_PREFIX,
   rememberRequestId,
   WowProblemError,
 } from './problem.js';
@@ -217,6 +218,29 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   });
 }
 
+/**
+ * The error of a query stream that lost its connection, or was cut off
+ * before its `end` event, past its resumes (internal): a
+ * `wow.peer.unavailable` problem, `retry` `new-request`, as the Kotlin
+ * client's `HttpQueryApi` answers one, the network's error its `cause`.
+ *
+ * @param detail - What happened to the stream
+ * @param cause - What the read or the request to resume failed with
+ */
+function streamLost(detail: string, cause?: unknown): WowProblemError {
+  const code = FrameworkErrorCodes.PEER_UNAVAILABLE;
+  return new WowProblemError(
+    {
+      type: `${PROBLEM_TYPE_PREFIX}${code}`,
+      title: 'Peer unavailable',
+      status: 503,
+      code,
+      detail,
+    },
+    cause === undefined ? {} : { cause },
+  );
+}
+
 function problemOf(data: unknown): WowProblemError {
   return new WowProblemError(
     isProblem(data)
@@ -311,8 +335,18 @@ export function resumableQueryRows<T>(
         ) {
           throw error;
         }
-        delayMs = (error as WowProblemError).retryAfterMs;
-        cause = error;
+        if (error instanceof WowProblemError) {
+          delayMs = error.retryAfterMs;
+          cause = error;
+        } else {
+          // No answer at all: the stream could not be asked for again. Its
+          // wait is the backoff's, not the catalog's for the problem it reads as.
+          delayMs = undefined;
+          cause = streamLost(
+            'The query stream could not be asked for again.',
+            error,
+          );
+        }
       }
     }
   }
@@ -343,7 +377,7 @@ export function resumableQueryRows<T>(
         const next = await reader.read();
         if (next.done) {
           // Every stream ends with `end`: one without was cut off.
-          stop = new TypeError('The query stream was cut off.');
+          stop = streamLost('The query stream was cut off before its end.');
         } else {
           const { event, id, data } = next.value;
           if (event === ROW_EVENT || event === UNNAMED_EVENT) {
@@ -376,7 +410,11 @@ export function resumableQueryRows<T>(
         }
       } catch (error) {
         if (error === stop || error instanceof WowProblemError) throw error;
-        stop = error;
+        // The connection was lost, unless the reader cancelled it (below).
+        stop = streamLost(
+          'The connection of the query stream was lost.',
+          error,
+        );
       }
       if (cancelling.signal.aborted) return;
       // Only a stream read from the start, or whose records have positions, can be asked for again.

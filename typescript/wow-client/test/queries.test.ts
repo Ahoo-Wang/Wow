@@ -23,6 +23,8 @@ import {
   EventQueryClient,
   FrameworkErrorCodes,
   SnapshotQueryClient,
+  textNumberOr,
+  textNumbersBy,
   WowProblemError,
 } from '../src/index.js';
 import {
@@ -39,6 +41,65 @@ afterEach(() => {
 });
 
 describe('query clients', () => {
+  it("reads an aggregation's terms key over an exact field as its exact text, so two groups never read as one key", async () => {
+    // A snowflake id past 2^53: as numbers, 9007199254740993 reads as ...992.
+    const keys = ['9007199254740993', '9007199254740992'];
+    stubFetch(
+      () =>
+        new Response(
+          `[${keys.map((key, n) => `{"owner":${key},"sku":${key},"plain":${key},"bucket":${key},"amount":${key},"node":${key},"variant":${key},"tag":${key},"n":${n}}`).join(',')}]`,
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        ),
+    );
+    const products = new SnapshotQueryClient(
+      {
+        ...PRODUCT,
+        textNumbers: {
+          state: {
+            ownerKey: true,
+            // Through an array's items, and the object side of an either-or.
+            lines: { '*': { sku: true } },
+            price: textNumberOr({ amount: true }),
+            // A field of numbers, an array: marked by its items.
+            tags: { '*': true },
+            // A recursive type's lazy marks are followed.
+            tree: () => ({ id: true }),
+            // A case only a value names: not known to be marked.
+            kind: textNumbersBy('type', { a: { v: true } }),
+          },
+        },
+      },
+      client(),
+    );
+    const rows = await products.aggregate<Record<string, unknown>>(
+      aggregation.query({
+        groupBy: [
+          aggregation.terms('state.ownerKey', 'owner'),
+          aggregation.terms('state.lines.sku', 'sku'),
+          aggregation.terms('state.price.amount', 'amount'),
+          aggregation.terms('state.tree.id', 'node'),
+          aggregation.terms('state.tags', 'tag'),
+          aggregation.terms('state.kind.v', 'variant'),
+          // Not marked: read as a number, as before.
+          aggregation.terms('state.plain', 'plain'),
+          // A histogram's key is a computed bucket, a number.
+          aggregation.histogram('state.ownerKey', 'bucket', { interval: 10 }),
+        ],
+        metrics: [aggregation.count('n')],
+      }),
+    );
+    expect(rows.map(row => [row.owner, row.sku, row.amount, row.node])).toEqual(
+      [
+        [keys[0], keys[0], keys[0], keys[0]],
+        [keys[1], keys[1], keys[1], keys[1]],
+      ],
+    );
+    expect(typeof rows[0].plain).toBe('number');
+    expect(typeof rows[0].variant).toBe('number');
+    expect(typeof rows[0].bucket).toBe('number');
+    expect(rows[0].n).toBe(0);
+  });
+
   it('answers a single query that matches nothing with undefined, and any other 404 with its problem', async () => {
     const products = new SnapshotQueryClient<{ name: string }, 'state.name'>(
       PRODUCT,

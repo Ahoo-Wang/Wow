@@ -472,6 +472,52 @@ function replace(
 }
 
 /**
+ * Whether `marks` mark the value at the dotted `path` as an exact number
+ * (internal): the path's members in turn, through an array's items (`*`),
+ * a lazy mark followed, the object side of a {@link textNumberOr}. A path
+ * through a {@link textNumbersBy}, whose case only a value names, is not
+ * known to be marked.
+ *
+ * @param marks - The marks of the value the path starts at
+ * @param path - The path, `state.ownerKey`
+ */
+export function marksNumberAt(
+  marks: TextNumbers | undefined,
+  path: string,
+): boolean {
+  let at: TextNumbers | undefined = marks;
+  for (const name of path.split('.')) {
+    at = memberOf(at, name);
+    if (at === undefined) return false;
+  }
+  for (;;) {
+    // A field of numbers, an array of them, is marked by its items.
+    const items = memberOf(at, '*');
+    if (items === undefined) return kind(at, false) === true;
+    at = items;
+  }
+}
+
+/** The marks of the member `name` of a value marked `marks`, through array items. */
+function memberOf(
+  marks: TextNumbers | undefined,
+  name: string,
+): TextNumbers | undefined {
+  let at = kind(marks, true);
+  for (;;) {
+    if (at === undefined || at === true || BY in at) return undefined;
+    const members = at as Readonly<Record<string, TextNumbers>>;
+    if (Object.prototype.hasOwnProperty.call(members, name)) {
+      return members[name];
+    }
+    if (name === '*' || !Object.prototype.hasOwnProperty.call(members, '*')) {
+      return undefined;
+    }
+    at = kind(members['*'], true);
+  }
+}
+
+/**
  * The marks of a record's `members` that mark something, by member, or
  * `undefined` when none does.
  */
