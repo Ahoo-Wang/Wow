@@ -190,7 +190,7 @@ internal class AttemptScope(
     }
 
     /** A new id of the node's generators: UUIDv7 on a node, a new sequential id in the test DSL. */
-    override fun callId(): String = ids.next()
+    override fun attemptKey(): String = ids.next()
 
     override fun afterAppend(action: suspend () -> Unit) {
         readsAfterAppend = true
@@ -279,7 +279,7 @@ internal class AttemptScopes(
     private val codec: EventCodec,
 ) {
     /**
-     * The node's id generators as a decision takes them ([DecideScope.ids], [AttemptScope.callId]): a generator's
+     * The node's id generators as a decision takes them ([DecideScope.ids], [AttemptScope.attemptKey]): a generator's
      * failure is the command's, never the caller's refusal ([guarded]). One for every attempt.
      */
     private val guardedIds: Ids = GuardedIds(ids)

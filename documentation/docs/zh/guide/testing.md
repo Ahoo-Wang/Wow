@@ -311,7 +311,7 @@ fun `an order awaiting validation should reserve each product's stock in the inv
 }
 ```
 
-`expectDeterministic()` 再处理一次这次提交，像运行时那样给每次处理一个新的上下文，并检查 Saga 发出相同的命令、带相同的 ID。正是这一点让重新投递的提交是安全的：目标对每个请求只决定一次。新的上下文像节点那样从 `context.ids` 生成新的 ID，所以带有生成 ID 的命令无法通过这项检查。用生成的 ID 指定目标的命令是另一个请求，会创建第二个聚合（[构建命令](./sagas#build-the-commands)）。投影和反应器没有这项检查：再处理一次提交会让它们的副作用再执行一次。
+`expectDeterministic()` 再处理一次这次提交，像运行时那样给每次处理一个新的上下文，并检查 Saga 发出相同的命令、带相同的 ID。正是这一点让重新投递的提交是安全的：目标对每个请求只决定一次。新的上下文像节点那样从 `context.ids` 生成新的 ID，所以命令体里带有生成 ID 的命令无法通过这项检查。用生成的 ID 指定目标的命令在第一次处理时就失败，与节点上一样（[构建命令](./sagas#build-the-commands)）。投影和反应器没有这项检查：再处理一次提交会让它们的副作用再执行一次。
 
 ### 步骤 {#steps}
 

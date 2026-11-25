@@ -43,7 +43,7 @@ import kotlin.coroutines.CoroutineContext
  * A repeat is answered with the first call's commit, so a call decided again must be that same call. Within an
  * execution, a call whose target, command type or body differs from the call that first took its index fails the
  * command ([Misuse.State]): it would be answered with another call's commit. A call the decision undoes in
- * `onAppendFailure` takes an id of its attempt's own instead (`DecideScope.callId()`), and a call that may change
+ * `onAppendFailure` takes an id of its attempt's own instead (`DecideScope.attemptKey()`), and a call that may change
  * takes a business request id.
  */
 @InternalWowApi
@@ -84,7 +84,7 @@ class DecidingCommand(val ref: AggregateRef, val requestId: String) : AbstractCo
         "$ref, decided again for request $requestId, sent ${describe(call)} as its call #${index + 1}, where an " +
             "earlier attempt sent ${describe(first)}: a call decided again takes the same request id, and its target " +
             "answers it with the first call's commit. Undo a call that may change in onAppendFailure and send it " +
-            "with requestId = callId(), or give it a business request id.",
+            "with requestId = attemptKey(), or give it a business request id.",
     )
 
     override fun toString(): String = "DecidingCommand($ref, $requestId)"

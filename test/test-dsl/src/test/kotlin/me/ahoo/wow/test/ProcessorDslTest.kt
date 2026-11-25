@@ -92,6 +92,17 @@ class ProcessorDslTest {
         listOf(CommandRequest.to(target, CreateShipment(event.ref.id)))
     }
 
+    /** Creates the shipment of each order commit, a global id its context draws in the command's body. */
+    private val drawnBody = ProcessorBinding.saga(
+        "ShippingSaga",
+        "onOrder",
+        Order::class.java,
+        derives = listOf(CreateShipment::class.java),
+    ) { event: StateEvent<Order>, context ->
+        val target = shipment.ref(event.ref.tenantId, "shipment-1")
+        listOf(CommandRequest.to(target, CreateShipment(context.ids.next())))
+    }
+
     /** Reserves the unpaid part of an order's total, and cancels the order when the inventory refuses. */
     private fun sagaHandlers(retry: HandlerRetry? = null, fail: (Order) -> Unit = {}): List<ProcessorBinding<*>> {
         val rejections = listOf<RejectionBinding<*>>(
@@ -544,29 +555,13 @@ class ProcessorDslTest {
     }
 
     @Test
-    fun `a saga that names its target by an id its context draws should fail expectDeterministic`() =
+    fun `a saga that names its target by an id its context draws should park on the first handling, as on a node`() =
         sagaSpec(listOf(drawnShipping)) {
-            // As on a node: its generators draw new ids for each handling, and a derived request id comes from its
-            // target, so handling the commit again sends another request, which creates a second shipment.
+            // Its generators draw new ids for each handling, and a derived request id comes from its target, so
+            // handling the commit again would send another request, to another shipment: the context refuses it.
             givenAggregate(orderModel, "order-1", OrderPlaced(10))
             whenEvent(OrderPaid(1)) {
-                assertThrownBy<AssertionError> { expectDeterministic() }
-                    .hasMessageContaining("Handling it again derived")
-                    .hasMessageContaining("shipment-2")
-            }
-        }
-
-    @Test
-    fun `a commit redelivered to a saga that names its target by a drawn id should derive another request`() =
-        sagaSpec(listOf(drawnShipping)) {
-            givenAggregate(orderModel, "order-1", OrderPlaced(10))
-            lateinit var first: Command<*>
-            whenEvent(OrderPaid(1)) { first = commands.single() }
-            whenRedelivered {
-                val again = commands.single()
-                first.ref.id.assert().isEqualTo("shipment-1")
-                again.ref.id.assert().isEqualTo("shipment-2")
-                again.requestId.assert().isNotEqualTo(first.requestId)
+                expectParked().message.assert().contains("SagaContext.ids", "@OnCommitted")
             }
         }
 
@@ -574,16 +569,7 @@ class ProcessorDslTest {
     fun `a saga whose command's body holds a drawn id should fail expectDeterministic, its whole commands compared`() {
         // Its request id is the same on every handling, so a node's target would answer the repeat with its first
         // commit; the check compares whole commands, as its name promises.
-        val drawnNote = ProcessorBinding.saga(
-            "ShippingSaga",
-            "onOrder",
-            Order::class.java,
-            derives = listOf(CreateShipment::class.java),
-        ) { event: StateEvent<Order>, context ->
-            val target = shipment.ref(event.ref.tenantId, "shipment-1")
-            listOf(CommandRequest.to(target, CreateShipment(context.ids.next())))
-        }
-        sagaSpec(listOf(drawnNote)) {
+        sagaSpec(listOf(drawnBody)) {
             givenAggregate(orderModel, "order-1", OrderPlaced(10))
             lateinit var first: Command<*>
             whenEvent(OrderPaid(1)) {
@@ -596,13 +582,13 @@ class ProcessorDslTest {
 
     @Test
     fun `a fork should draw its ids on from the specification's count, apart from it`() =
-        sagaSpec(listOf(drawnShipping)) {
+        sagaSpec(listOf(drawnBody)) {
             givenAggregate(orderModel, "order-1", OrderPlaced(10))
-            whenEvent(OrderPaid(1)) { commands.single().ref.id.assert().isEqualTo("shipment-1") }
+            whenEvent(OrderPaid(1)) { expectCommand(CreateShipment("id-1")) }
             fork("again") {
-                whenEvent(OrderPaid(1)) { commands.single().ref.id.assert().isEqualTo("shipment-2") }
+                whenEvent(OrderPaid(1)) { expectCommand(CreateShipment("id-2")) }
             }
-            whenEvent(OrderPaid(1)) { commands.single().ref.id.assert().isEqualTo("shipment-2") }
+            whenEvent(OrderPaid(1)) { expectCommand(CreateShipment("id-2")) }
         }
 
     @Test

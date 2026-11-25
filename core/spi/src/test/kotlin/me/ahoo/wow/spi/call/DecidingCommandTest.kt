@@ -108,7 +108,7 @@ class DecidingCommandTest {
             deciding.nextAttempt()
             val failure = runCatching { deciding.nextRequestId(changed) }.exceptionOrNull()
             failure.assert().describedAs("$changed").isInstanceOf(Misuse.State::class.java)
-            failure!!.message.assert().contains("shop.order", "r-1", "call #1", "callId()")
+            failure!!.message.assert().contains("shop.order", "r-1", "call #1", "attemptKey()")
         }
     }
 

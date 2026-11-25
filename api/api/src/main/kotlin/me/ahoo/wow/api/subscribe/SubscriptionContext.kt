@@ -163,10 +163,15 @@ interface SagaContext : SubscriptionContext {
      * the test DSL.
      *
      * Handling the commit again (a retry, a replay) takes new ones. A derived command's request id comes from its
-     * target, the target's id included, so a command whose target is named by an id drawn here is another request
-     * each time: handling the commit again creates a second aggregate. To create an aggregate once, derive the creation
-     * without an id: its request id is the same every time, and the target's admission gives it the aggregate its
-     * first attempt created.
+     * target, the target's id included, so a command whose target is named by an id drawn here would be another
+     * request each time, to another aggregate. The handling refuses it: a command it returns, schedules, cancels or
+     * calls whose target's id was drawn here in the same handling fails the handler unrecoverable, as a
+     * [me.ahoo.wow.api.decide.Misuse.Argument] that says what to do instead. Name the target by an id computed from
+     * what is handled (the source aggregate's id, a business key of the event), or derive the creation without an id
+     * (its request id is the same every time, and the target's admission gives it the aggregate its first attempt
+     * created) and send the commands that follow it from the `@OnCommitted` handler of its receipt, which names the
+     * aggregate it created. An id drawn here into a command's body is not refused: the command is the same request,
+     * and its target answers it with the first commit.
      */
     val ids: Ids
 
