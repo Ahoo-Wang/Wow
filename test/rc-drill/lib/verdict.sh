@@ -52,7 +52,7 @@ under_load() {
 # the steps' windows (steps.tsv).
 alerts() {
   local forward start
-  k port-forward service/prometheus 19090:9090 >/dev/null 2>&1 &
+  "$kubectl" --context "kind-$cluster" -n "$namespace" port-forward service/prometheus 19090:9090 >/dev/null 2>&1 &
   forward=$!
   sleep 3
   start=$(head -1 "$evidence/steps.tsv" | cut -f2)

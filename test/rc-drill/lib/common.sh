@@ -89,6 +89,11 @@ label() {
 kubectl=${DRILL_KUBECTL:-$(command -v kubectl || true)}
 k() { "$kubectl" --context "kind-$cluster" -n "$namespace" "$@"; }
 
+# A port-forward is started as kubectl itself, never through k: a function run in the background is a subshell, whose
+# pid ($!) a kill ends while its kubectl lives on and holds the step's output open. On any exit, every background job
+# this process started still running is ended too (a port-forward a failed command left behind).
+trap 'jobs -p | xargs kill 2>/dev/null || true' EXIT
+
 # The JDK everything the drill launches runs on, 25 (DRILL_JAVA_HOME, else macOS's java_home for it): every Gradle it
 # runs runs on it, and the cluster test's JVM is started on it (-Pwow.test.java). The build still compiles with its 21.
 run_jdk=${DRILL_JAVA_HOME:-$(/usr/libexec/java_home -v "$RUN_JDK" 2>/dev/null || true)}

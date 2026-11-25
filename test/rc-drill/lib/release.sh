@@ -380,7 +380,7 @@ quiesce() {
 # minute, from Prometheus. Waits at most [bound] seconds; each read is logged.
 caught_up() {
   local bound=$1 forward deadline backlog progress parked series status=1
-  k port-forward service/prometheus 19090:9090 >/dev/null 2>&1 &
+  "$kubectl" --context "kind-$cluster" -n "$namespace" port-forward service/prometheus 19090:9090 >/dev/null 2>&1 &
   forward=$!
   sleep 3
   deadline=$(($(date +%s) + bound))
@@ -431,7 +431,7 @@ topics() {
 patterns() {
   local version=$1 src forward status=0
   src=$(checkout "$version")
-  k port-forward service/redis 16379:6379 >/dev/null 2>&1 &
+  "$kubectl" --context "kind-$cluster" -n "$namespace" port-forward service/redis 16379:6379 >/dev/null 2>&1 &
   forward=$!
   for _ in $(seq 1 30); do
     if (exec 3<>/dev/tcp/127.0.0.1/16379) 2>/dev/null; then break; fi

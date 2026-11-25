@@ -182,7 +182,7 @@ documents() {
     sums=$(jq --arg file "$file" --arg sha "$(shasum -a 256 "$dir/$file" | cut -d' ' -f1)" '. + {($file): $sha}' <<<"$sums")
   done < <(cd "$dir" && find . -type f -name '*.json' | sed 's|^\./||' | sort)
   jq -n --argjson sums "$sums" '{accepted: true, outputSha256: $sums}' >"$dir/report.json"
-  k port-forward service/redis 16379:6379 >/dev/null 2>&1 &
+  "$kubectl" --context "kind-$cluster" -n "$namespace" port-forward service/redis 16379:6379 >/dev/null 2>&1 &
   forward=$!
   for _ in $(seq 1 30); do
     if (exec 3<>/dev/tcp/127.0.0.1/16379) 2>/dev/null; then break; fi
