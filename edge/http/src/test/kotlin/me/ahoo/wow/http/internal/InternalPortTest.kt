@@ -19,8 +19,13 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.springframework.web.reactive.function.server.ServerResponse
+import org.springframework.web.reactive.function.server.awaitBody
+import org.springframework.web.reactive.function.server.bodyValueAndAwait
 import org.springframework.web.reactive.function.server.buildAndAwait
 import org.springframework.web.reactive.function.server.coRouter
+import java.net.InetSocketAddress
+import java.net.Socket
+import java.net.SocketException
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.util.concurrent.CompletionException
@@ -44,6 +49,33 @@ class InternalPortTest {
             port.stop()
         }
         port.isRunning.assert().isFalse()
+    }
+
+    @Test
+    fun `a request whose body stalls should not hold the port's stop, which closes it (#6958)`() {
+        val port = InternalPort.of(
+            InternalPortSettings(port = 0, bindHost = "127.0.0.1"),
+            coRouter { POST("/echo") { ServerResponse.ok().bodyValueAndAwait(it.awaitBody<String>()) } },
+        )
+        port.start()
+        Socket().use { stalled ->
+            stalled.connect(InetSocketAddress("127.0.0.1", port.boundPort), 1_000)
+            stalled.getOutputStream().apply {
+                write("POST /echo HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Length: 100\r\n\r\n0123456789".toByteArray())
+                flush()
+            }
+            Thread.sleep(300)
+            val stopping = System.nanoTime()
+            val stopped = runCatching { port.stop() }
+            val took = (System.nanoTime() - stopping) / 1_000_000
+            stopped.isSuccess.assert().isTrue()
+            took.assert().isLessThan(2_000)
+            // Closed with the port, not left open until the process ends.
+            stalled.soTimeout = 1_000
+            val end = runCatching { stalled.getInputStream().read() }
+            (end.getOrNull() == -1 || end.exceptionOrNull() is SocketException).assert()
+                .describedAs("the stalled connection after the stop: $end").isTrue()
+        }
     }
 
     @Test

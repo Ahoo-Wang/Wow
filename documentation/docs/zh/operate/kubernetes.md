@@ -382,7 +382,7 @@ shutdown:
   marginSeconds: 15
 ```
 
-宽限期按关闭的各个步骤依次相加：`preStop` 停顿；公开服务器的优雅关闭，持续到它最长的请求（一次等待，`waitMaxTimeout`）结束；节点的停止，最长为它的停止上限；以及余量。默认是 5 + 60 + 90 + 15 = 170 秒。停止上限是 `max(waitMaxTimeout, 2 × subscriptionStopTimeout + drainTimeout) + 3 × drainTimeout`，默认 90 秒，与 `ServiceNodeOptions.stopBound` 及宿主关闭阶段的公式相同（[启动与停止](./topology#starting-and-stopping)）。它的等待从节点自己的停止开始计算，因此排在公开服务器的等待之后。chart 用这些 value 设置 `wow.wait.max-timeout`、`wow.cluster.drain-timeout` 和 `wow.subscription.stop-timeout`；在 `config`、`settings` 或 `env` 中设置其中任何一个都会被拒绝，每个键都按 Spring 的宽松绑定来读；chart 自己设置的端口和节点身份也一样（`server.port`、`wow.internal.port`、`wow.internal.host`、`wow.node.id`、`wow.peer.dns.namespace`，以及 `env` 中 Pod 的 `POD_NAME` 和 `POD_IP`）。你的 `envFrom` 中的 Secret 或 ConfigMap 里的键 chart 看不到：不要把这些键放进去。`preStop` 的短暂停顿让 endpoints 有时间摘掉 Pod，然后 Spring Boot 才停止接收请求。
+宽限期按关闭的各个步骤依次相加：`preStop` 停顿；公开服务器的优雅关闭，持续到它最长的请求（一次等待，`waitMaxTimeout`）结束，再多 2 秒后服务器会切断仍未结束的请求；节点的停止，最长为它的停止上限；以及余量，它也覆盖这 2 秒和服务器的关闭（最多 3 秒）。默认是 5 + 60 + 90 + 15 = 170 秒。停止上限是 `max(waitMaxTimeout, 2 × subscriptionStopTimeout + drainTimeout) + 3 × drainTimeout`，默认 90 秒，与 `ServiceNodeOptions.stopBound` 及宿主关闭阶段的公式相同（[启动与停止](./topology#starting-and-stopping)）。它的等待从节点自己的停止开始计算，因此排在公开服务器的等待之后。chart 用这些 value 设置 `wow.wait.max-timeout`、`wow.cluster.drain-timeout` 和 `wow.subscription.stop-timeout`；在 `config`、`settings` 或 `env` 中设置其中任何一个都会被拒绝，每个键都按 Spring 的宽松绑定来读；chart 自己设置的端口和节点身份也一样（`server.port`、`wow.internal.port`、`wow.internal.host`、`wow.node.id`、`wow.peer.dns.namespace`，以及 `env` 中 Pod 的 `POD_NAME` 和 `POD_IP`）。你的 `envFrom` 中的 Secret 或 ConfigMap 里的键 chart 看不到：不要把这些键放进去。`preStop` 的短暂停顿让 endpoints 有时间摘掉 Pod，然后 Spring Boot 才停止接收请求。
 
 ## 伸缩 {#scale}
 

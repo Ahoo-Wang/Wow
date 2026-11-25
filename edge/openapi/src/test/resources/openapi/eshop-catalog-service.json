@@ -6325,7 +6325,7 @@
         }
       },
       "wow.dataset-query.400" : {
-        "description" : "`wow.query.malformed`: The query body cannot be read as a query.\n`wow.query.invalid`: The query failed admission; the problem lists the violations, each with its code (unknown-field, ...).\n`wow.query.too-many-groups`: An aggregation that names no sort has more groups than its limit; add a sort for a top-N, or raise limit.\n`wow.request.malformed`: A request header or parameter does not parse, or names what Wow does not take.",
+        "description" : "`wow.query.malformed`: The query body cannot be read as a query.\n`wow.query.invalid`: The query failed admission; the problem lists the violations, each with its code (unknown-field, ...).\n`wow.query.too-many-groups`: An aggregation that names no sort has more groups than its limit; add a sort for a top-N, or raise limit.\n`wow.query.out-of-range`: A computed value went beyond a double's range on this backend; narrow the operands, or compute from stored fields.\n`wow.request.malformed`: A request header or parameter does not parse, or names what Wow does not take.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -6333,7 +6333,7 @@
             }
           }
         },
-        "x-wow-error-codes" : [ "wow.query.malformed", "wow.query.invalid", "wow.query.too-many-groups", "wow.request.malformed" ]
+        "x-wow-error-codes" : [ "wow.query.malformed", "wow.query.invalid", "wow.query.too-many-groups", "wow.query.out-of-range", "wow.request.malformed" ]
       },
       "wow.dataset-query.401" : {
         "description" : "`wow.auth.unauthenticated`: The request carries no valid credentials.",
@@ -7042,7 +7042,7 @@
         "x-wow-error-codes" : [ "wow.storage.unavailable" ]
       },
       "wow.query.400" : {
-        "description" : "`wow.query.malformed`: The query body cannot be read as a query.\n`wow.query.invalid`: The query failed admission; the problem lists the violations, each with its code (unknown-field, ...).\n`wow.query.too-many-groups`: An aggregation that names no sort has more groups than its limit; add a sort for a top-N, or raise limit.\n`wow.request.malformed`: A request header or parameter does not parse, or names what Wow does not take.",
+        "description" : "`wow.query.malformed`: The query body cannot be read as a query.\n`wow.query.invalid`: The query failed admission; the problem lists the violations, each with its code (unknown-field, ...).\n`wow.query.too-many-groups`: An aggregation that names no sort has more groups than its limit; add a sort for a top-N, or raise limit.\n`wow.query.out-of-range`: A computed value went beyond a double's range on this backend; narrow the operands, or compute from stored fields.\n`wow.request.malformed`: A request header or parameter does not parse, or names what Wow does not take.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -7050,7 +7050,7 @@
             }
           }
         },
-        "x-wow-error-codes" : [ "wow.query.malformed", "wow.query.invalid", "wow.query.too-many-groups", "wow.request.malformed" ]
+        "x-wow-error-codes" : [ "wow.query.malformed", "wow.query.invalid", "wow.query.too-many-groups", "wow.query.out-of-range", "wow.request.malformed" ]
       },
       "wow.query.401" : {
         "description" : "`wow.auth.unauthenticated`: The request carries no valid credentials.",

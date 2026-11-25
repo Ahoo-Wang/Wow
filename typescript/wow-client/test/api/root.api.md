@@ -1141,6 +1141,7 @@ export const FrameworkErrorCodes: {
     readonly QUERY_NOT_FOUND: "wow.query.not-found";
     readonly QUERY_DATASET_NOT_FOUND: "wow.query.dataset-not-found";
     readonly QUERY_TOO_MANY_GROUPS: "wow.query.too-many-groups";
+    readonly QUERY_OUT_OF_RANGE: "wow.query.out-of-range";
     readonly QUERY_TIMEOUT: "wow.query.timeout";
     readonly QUERY_MIN_VERSION_NOT_REACHED: "wow.query.min-version-not-reached";
     readonly QUERY_BUSY: "wow.query.busy";

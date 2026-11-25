@@ -87,6 +87,7 @@ A refusal is `application/problem+json` with `code`, `status`, `detail` and `vio
 | `wow.query.busy` | 429 | The store's query bulkhead is full | Wait `Retry-After`, then retry once |
 | `wow.query.timeout` | 504 | Too heavy for the budget | Narrow the filter or the period |
 | `wow.query.too-many-groups` | 400 | An aggregation without a sort has more groups than its `limit` | Add a sort for a top-N, or raise `limit` |
+| `wow.query.out-of-range` | 400 | A computed value went beyond a double's range on this backend (PostgreSQL); the others answer it as no value | Narrow the operands, or compute from stored fields |
 | `wow.storage.unavailable` | 503 | The store could not be reached | Wait `Retry-After`, then retry |
 | `wow.auth.unauthenticated` / `wow.auth.forbidden` | 401 / 403 | Credentials missing, or the caller may not read this (another tenant, a `Wow-Scope` it may not use) | Stop and tell the user |
 | `wow.query.failed` | 500 | The backend failed | A diagnosis for `wow-develop`; do not change the query |

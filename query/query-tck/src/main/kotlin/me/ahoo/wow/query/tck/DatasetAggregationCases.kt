@@ -36,12 +36,15 @@ import me.ahoo.wow.api.query.RunningFunction
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.query.backend.aggregate
 import me.ahoo.wow.query.backend.single
+import me.ahoo.wow.query.error.QueryError
+import me.ahoo.wow.query.error.QueryErrors
 import me.ahoo.wow.query.error.QueryRequestException
 import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.query.tck.DatasetQueryBackendSpec.Companion.HISTORY
 import me.ahoo.wow.query.tck.DatasetQueryBackendSpec.Companion.ID
-import me.ahoo.wow.query.tck.SnapshotAggregationCases.Companion.EXACT_COMPUTED_VALUE
 import me.ahoo.wow.query.tck.SnapshotAggregationCases.Companion.EXACT_PLAIN_AGGREGATE
+import me.ahoo.wow.query.tck.SnapshotAggregationCases.Companion.OUT_OF_RANGE_REFUSED
+import me.ahoo.wow.query.tck.SnapshotAggregationCases.Companion.TINY
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
 import java.time.Instant
@@ -330,35 +333,100 @@ abstract class DatasetAggregationCases internal constructor() : DatasetRecordCas
 
     @Test
     fun `a computed comparison over a decimal column`() = blocking {
-        // Which of the two a computed value is in, on every backend, is #6997's: until then, each states its own.
-        val decimals = target(TENTH_AND_FIFTH)
-        val tripled = AggregationExpression.Binary(
-            AggregationExpressionOperator.MULTIPLY,
-            AggregationExpression.Field(AMOUNT),
-            AggregationExpression.Constant(3.0),
-        )
-        val matched = decimals.list(ListQuery(ExpressionFilter(tripled, ComparisonOperator.GT, 0.3)))
-            .map { it.path(ID).stringValue() }
-        // In doubles 0.1 × 3.0 is 0.30000000000000004, over 0.3: both rows match.
-        val wanted = if (EXACT_COMPUTED_VALUE in semanticDivergences) listOf("fifth", "tenth") else listOf("fifth")
-        matched.assert().containsExactlyInAnyOrderElementsOf(wanted)
+        // As on the snapshot model: 0.1 × 3.0 is over 0.3 and 0.3 ÷ 0.1 under 3 in doubles, neither in decimals.
+        val decimals = target(TENTHS)
+        suspend fun ids(expression: AggregationExpression, comparison: ComparisonOperator, value: Double) =
+            decimals.list(ListQuery(ExpressionFilter(expression, comparison, value))).map { it.path(ID).stringValue() }
+        ids(computed(AggregationExpressionOperator.MULTIPLY, 3.0), ComparisonOperator.GT, 0.3).assert()
+            .containsExactlyInAnyOrder("tenth", "fifth", "threeTenths")
+        ids(computed(AggregationExpressionOperator.DIVIDE, 0.1), ComparisonOperator.LT, 3.0).assert()
+            .containsExactlyInAnyOrder("tenth", "fifth", "threeTenths")
         Unit
     }
+
+    @Test
+    fun `a sum and an average over an expression of a decimal column are doubles on every backend`() = blocking {
+        val tripled = computed(AggregationExpressionOperator.MULTIPLY, 3.0)
+        val row = target(TENTH_AND_FIFTH).aggregate(
+            AggregationQuery(
+                MatchAllFilter,
+                metrics = listOf(
+                    AggregationMetric.Numeric(AggregationFunction.SUM, tripled, "sum"),
+                    AggregationMetric.Numeric(AggregationFunction.AVG, tripled, "avg"),
+                ),
+            ),
+        ).single()
+        row.path("sum").decimalValue().assert().describedAs("$row")
+            .isEqualByComparingTo(BigDecimal("0.9000000000000001"))
+        row.path("avg").decimalValue().assert().describedAs("$row")
+            .isEqualByComparingTo(BigDecimal("0.45000000000000007"))
+        Unit
+    }
+
+    @Test
+    fun `a computed value over a decimal column beyond a double is no value and an underflow 0, or refused`() =
+        blocking {
+            // As on the snapshot model: 2 × 1e308 is no value, either amount times 1e-200 twice underflows to 0.
+            val decimals = target(TENTH_AND_TWO)
+            val beyond = computed(AggregationExpressionOperator.MULTIPLY, 1.0E308)
+            val under = AggregationExpression.Binary(
+                AggregationExpressionOperator.MULTIPLY,
+                computed(AggregationExpressionOperator.MULTIPLY, TINY),
+                AggregationExpression.Constant(TINY),
+            )
+            suspend fun ids(expression: AggregationExpression, comparison: ComparisonOperator, value: Double) =
+                decimals.list(ListQuery(ExpressionFilter(expression, comparison, value)))
+                    .map { it.path(ID).stringValue() }
+            val sum = AggregationQuery(
+                MatchAllFilter,
+                metrics = listOf(AggregationMetric.Numeric(AggregationFunction.SUM, beyond, "sum")),
+            )
+            val outcomes: List<suspend () -> Any> = listOf(
+                { ids(beyond, ComparisonOperator.GT, 0.0) },
+                { ids(under, ComparisonOperator.EQ, 0.0) },
+                { decimals.aggregate(sum).single().path("sum").decimalValue() },
+            )
+            if (OUT_OF_RANGE_REFUSED in semanticDivergences) {
+                outcomes.forEach { outcome ->
+                    val refused = runCatching { outcome() }.exceptionOrNull()
+                    (refused as? QueryError)?.errorCode.assert().describedAs("$refused")
+                        .isEqualTo(QueryErrors.OUT_OF_RANGE)
+                }
+                return@blocking
+            }
+            outcomes[0]().assert().isEqualTo(listOf("tenth"))
+            (outcomes[1]() as List<*>).assert().containsExactlyInAnyOrder("tenth", "two")
+            (outcomes[2]() as BigDecimal).assert().isEqualByComparingTo(BigDecimal("1.0000000000000001E307"))
+        }
+
+    /** `amount` [operator] [operand], a computed value. */
+    private fun computed(operator: AggregationExpressionOperator, operand: Double): AggregationExpression =
+        AggregationExpression.Binary(
+            operator,
+            AggregationExpression.Field(AMOUNT),
+            AggregationExpression.Constant(operand),
+        )
 
     private companion object {
         /**
          * Two orders of [DatasetQueryBackendSpec.ORDERS], their amounts 0.1 and 0.2; made on first use, as
          * [DatasetQueryBackendSpec] is initialized after this class it extends.
          */
-        val TENTH_AND_FIFTH by lazy {
-            DatasetTable(
-                name = "tenth_and_fifth",
-                columns = DatasetQueryBackendSpec.ORDERS.columns,
-                rows = listOf("tenth" to "0.1", "fifth" to "0.2").mapIndexed { index, (id, amount) ->
-                    DatasetQueryBackendSpec.ORDERS.rows[index] +
-                        mapOf(ID to id, AMOUNT.path to BigDecimal(amount))
-                },
-            )
-        }
+        val TENTH_AND_FIFTH by lazy { amounts("tenth_and_fifth", "tenth" to "0.1", "fifth" to "0.2") }
+
+        /** Two orders of [DatasetQueryBackendSpec.ORDERS], their amounts 0.1 and 2. */
+        val TENTH_AND_TWO by lazy { amounts("tenth_and_two", "tenth" to "0.1", "two" to "2") }
+
+        /** Three orders of [DatasetQueryBackendSpec.ORDERS], their amounts 0.1, 0.2 and 0.3. */
+        val TENTHS by lazy { amounts("tenths", "tenth" to "0.1", "fifth" to "0.2", "threeTenths" to "0.3") }
+
+        /** A table named [name] of orders of [DatasetQueryBackendSpec.ORDERS], each its id and amount from [orders]. */
+        fun amounts(name: String, vararg orders: Pair<String, String>) = DatasetTable(
+            name = name,
+            columns = DatasetQueryBackendSpec.ORDERS.columns,
+            rows = orders.mapIndexed { index, (id, amount) ->
+                DatasetQueryBackendSpec.ORDERS.rows[index] + mapOf(ID to id, AMOUNT.path to BigDecimal(amount))
+            },
+        )
     }
 }
