@@ -22,6 +22,7 @@ import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.log.LogPosition
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -39,12 +40,18 @@ import java.util.concurrent.ConcurrentHashMap
  *   instance resumes after it; a different stream means V10 has been written beyond 9.x, and the import stops;
  * - the log is behind (the tail met a stream whose predecessors it has not read yet): the missing streams are read
  *   from 9.x first.
+ *
+ * **The cut-over.** Each stream the log then holds of the import's, appended or found, is told to [cutover] by its
+ * position ([CutoverRecorder.imported]): an append's outcome gives it; for the streams an earlier run appended, one
+ * read of the log gives the last one's of each batch of an instance, whose position in its partition is past the
+ * others'.
  */
 internal class InstanceAppends(
     private val source: NineXEventSource,
     private val logOf: (String) -> EventLog,
     private val converter: StreamConverter,
     private val options: ImportOptions,
+    private val cutover: CutoverRecorder? = null,
 ) {
     /** The types whose walk this import claimed, or found claimed, once their first streams were in. */
     private val importing = ConcurrentHashMap.newKeySet<AggregateType>()
@@ -100,9 +107,11 @@ internal class InstanceAppends(
         var at = 0
         instances.forEachIndexed { index, instance ->
             val converted = records[index]
-            val committed = outcomes.subList(at, at + converted.size).takeWhile { it is AppendOutcome.Committed }.size
+            val appended = outcomes.subList(at, at + converted.size).takeWhile { it is AppendOutcome.Committed }
+            val committed = appended.size
             at += converted.size
             converted.take(committed).forEach(stats::imported)
+            (appended.lastOrNull() as AppendOutcome.Committed?)?.let { imported(plan, it.position) }
             val next = if (committed == converted.size) {
                 committed + 1
             } else {
@@ -157,6 +166,8 @@ internal class InstanceAppends(
         stats: ImportStats,
     ): Int {
         var next = fromVersion
+        // The batch's last stream an earlier run appended, when none this run appended comes after it.
+        var held: EventStreamRecord? = null
         for (stream in batch) {
             if (stream.version != next) {
                 throw MigrationException(
@@ -170,15 +181,33 @@ internal class InstanceAppends(
                 next++
                 continue
             }
-            stats.timed(stats.append) { append(plan, record, stream, stats) }?.let { return it }
+            when (val appended = stats.timed(stats.append) { append(plan, record, stream, stats) }) {
+                Appended.Committed -> held = null
+                Appended.Held -> held = record
+                // verified() noted the stream the instance resumes after, past any held one; a log behind holds none.
+                is Appended.ResumeAt -> return appended.version
+            }
             next++
         }
+        held?.let { heldRecord(plan, it) }
         return next
     }
 
+    /** How [append] settled one stream. */
+    private sealed interface Appended {
+        /** This run appended it. */
+        data object Committed : Appended
+
+        /** An earlier run had: the log holds it, by the same command at the same version. */
+        data object Held : Appended
+
+        /** The log holds the instance otherwise, and its import goes on from [version]. */
+        class ResumeAt(val version: Int) : Appended
+    }
+
     /**
-     * Appends [record], converted from [stream]; returns null when the log now holds it (appended or already there),
-     * or the version the instance's import resumes from.
+     * Appends [record], converted from [stream]: whether the log now holds it (appended, or already there), or the
+     * version the instance's import resumes from.
      */
     @Suppress("CyclomaticComplexMethod") // One branch per append outcome, each settled where it is read.
     private suspend fun append(
@@ -186,7 +215,7 @@ internal class InstanceAppends(
         record: EventStreamRecord,
         stream: NineXStream,
         stats: ImportStats,
-    ): Int? {
+    ): Appended {
         val log = logOf(record.ref.type.context)
         var attempt = record
         var unknowns = 0
@@ -197,20 +226,25 @@ internal class InstanceAppends(
                     if (attempt !== record) {
                         stats.rewritten.incrementAndGet()
                     }
-                    return null
+                    imported(plan, outcome.position)
+                    // The tail may bring a type's first streams in: a type 9.x had none of at the full import.
+                    claimImport(plan.target)
+                    return Appended.Committed
                 }
 
                 is AppendOutcome.AlreadyCommitted ->
                     attempt = rewritten(record, attempt, outcome.existing, stream) ?: run {
                         stats.skipped.incrementAndGet()
-                        return null
+                        return Appended.Held
                     }
 
                 is AppendOutcome.Conflict -> {
                     val current = outcome.currentVersion
                     when {
-                        current >= attempt.version -> return verified(plan, stream, log, attempt, current, stats)
-                        current < attempt.version - 1 -> return current + 1
+                        current >= attempt.version ->
+                            return Appended.ResumeAt(verified(plan, stream, log, attempt, current, stats))
+
+                        current < attempt.version - 1 -> return Appended.ResumeAt(current + 1)
                         else -> unknowns = retry(unknowns, stream, IllegalStateException("conflict at $current"))
                     }
                 }
@@ -267,32 +301,48 @@ internal class InstanceAppends(
         current: Int,
         stats: ImportStats,
     ): Int {
-        val inLog = log.read(record.ref, current, current).first()
+        val inLog = log.readEntries(record.ref, current, current).first()
         val inNineX = blocking { source.streams(plan.source, stream.aggregateId, current, 1) }
             .firstOrNull { it.version == current }
-        if (inNineX == null || inLog.commandId != inNineX.commandId) {
+        if (inNineX == null || inLog.stream.commandId != inNineX.commandId) {
             throw MigrationException(
                 "${record.ref} v$current in the V10 log is not the 9.x stream there (${inNineX?.id ?: "none"}): V10 " +
                     "has been written to since the import began, so the import stops.",
             )
         }
+        imported(plan, inLog.position)
         stats.skipped.addAndGet((current - record.version + 1).toLong())
         return current + 1
     }
 
+    /** Tells [cutover] that [plan]'s log holds an imported stream at [position]. */
+    private fun imported(plan: AggregatePlan, position: LogPosition) {
+        cutover?.imported(plan.target.context, position)
+    }
+
+    /** Tells [cutover] where the log holds [record], which an earlier run appended: one read of the log. */
+    private suspend fun heldRecord(plan: AggregatePlan, record: EventStreamRecord) {
+        if (cutover != null) {
+            logOf(record.ref.type.context).positionOf(record.ref, record.version)?.let { imported(plan, it) }
+        }
+    }
+
     private fun retry(unknowns: Int, stream: NineXStream, cause: Throwable): Int {
         if (unknowns >= options.maxUnknownRetries) {
+            // The store's failure as its cause: an outcome unknown since the store did not answer is retried by a Job.
             throw MigrationException("9.x stream ${stream.id}: the append's outcome stayed unknown: $cause")
+                .apply { initCause(cause) }
         }
         return unknowns + 1
     }
 
     /**
      * Claims [type]'s access walk as this import's ([IMPORTING]) once its first streams are in, which carry no
-     * attributes: when none is recorded, or in place of one that stamped nothing, such as the walk a node's creation of
-     * the type's store records (a node on standby creates them as it starts). The nodes take the import's walk over as
-     * any unfinished one, unless the snapshot step stamps the history and completes it. A walk that stamped aggregates
-     * is left as it is.
+     * attributes, by the full import's group commit or by any append of one stream, as the tail's are: a type 9.x had
+     * no streams of at the full import reaches the log through the tail alone. It claims when none is recorded, or in
+     * place of one that stamped nothing, such as the walk a node's creation of the type's store records (a node on
+     * standby creates them as it starts). The nodes take the import's walk over as any unfinished one, unless the
+     * snapshot step stamps the history and completes it. A walk that stamped aggregates is left as it is.
      */
     private suspend fun claimImport(type: AggregateType) {
         if (!importing.add(type)) {

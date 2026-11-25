@@ -38,7 +38,9 @@ import me.ahoo.wow.spi.log.EventLog
  * date from that version on.
  *
  * Both pass over the instances the map excludes ([MigrationPlan.excludes]), and append each instance's streams
- * through [InstanceAppends], which writes nothing twice.
+ * through [InstanceAppends], which writes nothing twice and tells [cutover] where each imported stream is. Before
+ * either moves its checkpoint past what it imported, [cutover] records it ([CutoverRecorder.record]): a run stopped
+ * after that reads none of it again.
  */
 internal class EventStreamImporter(
     private val source: NineXEventSource,
@@ -48,8 +50,9 @@ internal class EventStreamImporter(
     private val options: ImportOptions = ImportOptions(),
     private val clock: () -> Long = System::currentTimeMillis,
     private val progress: (ImportProgress) -> Unit = {},
+    private val cutover: CutoverRecorder? = null,
 ) {
-    private val appends = InstanceAppends(source, logOf, StreamConverter(plan, clock), options)
+    private val appends = InstanceAppends(source, logOf, StreamConverter(plan, clock), options, cutover)
 
     /** Imports every instance of [aggregate] not yet imported, and marks its full import complete. */
     suspend fun importAll(aggregate: NineXAggregate): ImportProgress {
@@ -199,7 +202,10 @@ internal class EventStreamImporter(
         stats.instances.addAndGet(import.imported.toLong())
         stats.excluded.addAndGet((import.page.size - import.imported).toLong())
         val moved = range.copy(after = import.page.last().id)
-        stats.timed(stats.checkpoint) { update(aggregate) { it.withRange(index, moved) } }
+        stats.timed(stats.checkpoint) {
+            cutover?.record()
+            update(aggregate) { it.withRange(index, moved) }
+        }
         progress(stats.report(done = false))
         return moved
     }
@@ -241,7 +247,10 @@ internal class EventStreamImporter(
             latest = maxOf(latest, last.createTime)
             after = NineXPosition(last.createTime, last.id)
         }
-        stats.timed(stats.checkpoint) { save(aggregate, checkpoint.copy(tailedTo = latest, tailedAt = clock())) }
+        stats.timed(stats.checkpoint) {
+            cutover?.record()
+            save(aggregate, checkpoint.copy(tailedTo = latest, tailedAt = clock()))
+        }
         return stats.report(done = true).also(progress)
     }
 
@@ -281,10 +290,12 @@ internal class EventStreamImporter(
         stats: ImportStats
     ): Int {
         val last = streams.maxBy { it.version }
-        val held = logOf(plan.target.context).read(plan.target.ref(id.tenantId, id.id), last.version, last.version)
+        val held = logOf(plan.target.context)
+            .readEntries(plan.target.ref(id.tenantId, id.id), last.version, last.version)
             .firstOrNull()
-        if (held?.commandId == last.commandId) {
+        if (held?.stream?.commandId == last.commandId) {
             stats.skipped.addAndGet(streams.size.toLong())
+            cutover?.imported(plan.target.context, held.position)
             return last.version
         }
         return appends.importInstance(plan, id, streams.minOf { it.version }, stats)

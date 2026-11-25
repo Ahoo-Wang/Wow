@@ -22,8 +22,9 @@ import java.io.PrintStream
 
 /**
  * The passes that write the 9.x history into V10 ([MigrateData]'s `import` and `tail`), each in its order: the
- * streams of every aggregate, then where the imported history ends in each log ([recordCutover]), then the
- * reservations and the compensation. They write to [out]; the tail goes on while [running].
+ * streams of every aggregate, then where the imported history ends in each log ([recordCutover]: where the pass's
+ * import ended, which the importer also records as it goes), then the reservations and the compensation. They write
+ * to [out]; the tail goes on while [running].
  */
 internal class ImportPasses(
     private val out: PrintStream,
@@ -38,10 +39,11 @@ internal class ImportPasses(
         keys: ImportedKeys,
     ): Int {
         val dryRun = DRY_RUN in options
-        val importer = importer(plan, config.options(dryRun, RESTART in options), connections, checkpoints)
+        val cutover = CutoverRecorder.of(plan, connections)
+        val importer = importer(plan, config.options(dryRun, RESTART in options), connections, checkpoints, cutover)
         passedOver(plan.aggregates.keys.map { importer.importAll(it) })?.let(out::println)
         if (!dryRun) {
-            recordCutover(plan, connections)
+            recordCutover(cutover)
         }
         val reservations = ReservationImporter(
             source = connections.source,
@@ -84,11 +86,13 @@ internal class ImportPasses(
         checkpoints: CheckpointRepository,
         keys: ImportedKeys,
     ): Int {
+        val cutover = CutoverRecorder.of(plan, connections)
         val importer = importer(
             plan,
             config.options().copy(lookbackMillis = config.final.lookbackMillis),
             connections,
             checkpoints,
+            cutover,
         )
         val problems = plan.aggregates.keys.mapNotNull { importer.finalProblem(it, config.final.maxTailAgeMillis) }
         if (problems.isNotEmpty()) {
@@ -97,7 +101,7 @@ internal class ImportPasses(
             return FAILED
         }
         plan.aggregates.keys.forEach { importer.tailOnce(it) }
-        recordCutover(plan, connections)
+        recordCutover(cutover)
         ReservationImporter(
             source = connections.source,
             reservations = connections.reservations,
@@ -145,10 +149,11 @@ internal class ImportPasses(
                 return FAILED
             }
         }
-        val importer = importer(plan, config.options(), connections, checkpoints)
+        val cutover = CutoverRecorder.of(plan, connections)
+        val importer = importer(plan, config.options(), connections, checkpoints, cutover)
         do {
             plan.aggregates.keys.forEach { importer.tailOnce(it) }
-            recordCutover(plan, connections)
+            recordCutover(cutover)
             if (!once) {
                 delay(config.pollIntervalMillis)
             }
@@ -177,10 +182,9 @@ internal class ImportPasses(
             "fresh target."
     }
 
-    /** Records where the imported history ends in each context's log, after a pass that appended to it. */
-    private suspend fun recordCutover(plan: MigrationPlan, connections: MigrationConnections) {
-        val recorder = CutoverRecorder.of(plan, connections)
-        out.println(recorder.render(recorder.record()))
+    /** Records where the imported history ends in each context's log, after a pass: where its import ended. */
+    private suspend fun recordCutover(cutover: CutoverRecorder) {
+        out.println(cutover.render(cutover.record()))
     }
 
     private fun importer(
@@ -188,6 +192,7 @@ internal class ImportPasses(
         options: ImportOptions,
         connections: MigrationConnections,
         checkpoints: CheckpointRepository,
+        cutover: CutoverRecorder,
     ): EventStreamImporter = EventStreamImporter(
         source = connections.source,
         plan = plan,
@@ -195,5 +200,6 @@ internal class ImportPasses(
         checkpoints = checkpoints,
         options = options,
         progress = { out.println(it.render()) },
+        cutover = cutover,
     )
 }

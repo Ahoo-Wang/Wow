@@ -95,7 +95,7 @@ A long import waits on its stores, stream by stream. When they are in a Kubernet
 - **The checkpoints.** They are kept in the target (`"checkpoint": "target:<name>"`), so a Pod that restarts on another node resumes where the last one stopped. One run of each kind writes them at a time; a second one waits for the first's lease, or fails, naming it ([Checkpoints](../reference/migrate-data#checkpoints)).
 - **The network.** A NetworkPolicy admits nothing, and lets the pods reach DNS and their stores alone: the 9.x MongoDB and the V10 target.
 
-A Job ends with the tool's exit code. A failed check, a usage error and differences fail it at once, since running it again changes nothing. A Pod lost to its node or its memory limit is run again, and resumes from the checkpoints.
+A Job ends with the tool's exit code. A failed check, a usage error and differences fail it at once, since running it again changes nothing. A Pod lost to its node or its memory limit, a run the JVM ended on an `OutOfMemoryError` (exit code `3`), and one that ended as a store or the network was unavailable or timed out (`5`), are run again, and resume from the checkpoints.
 
 In the rehearsal's kind cluster, the full import of 50,000 orders took 99 seconds inside the cluster, 114 seconds from the cluster's host through the stores' NodePorts, and 227 seconds through `kubectl port-forward`. Across a real network the gap grows with the round trip, which bounds the import stream by stream ([Limits](#limits)).
 
@@ -176,11 +176,11 @@ It also checks the reservations and the parked entries both ways. Each differenc
 DIFFERS example-service.order (0)/0VY3GwaK4OmV00E v4: paidAmount: 9.x 25.00, V10 20.00
 ```
 
-The summary of each aggregate gives the share of instances that have a 9.x snapshot, how many were compared, and the differing fields by kind. The command exits with `3` when anything differs.
+The summary of each aggregate gives the share of instances that have a 9.x snapshot, how many were compared, and the differing fields by kind. The command exits with `4` when anything differs.
 
 The values are printed as both stores hold them, a [`@Sensitive`](../guide/queries#where-masking-stops) value unmasked, so the report is as sensitive as the stores it reads: keep it where only those who may read the stores read it.
 
-**The imported streams themselves.** A state is compared at its 9.x snapshot's version, so a stream after an instance's latest snapshot is not seen: with 9.x's `version_offset` snapshot strategy, before 9.x writes the snapshot, or for an instance without one. So `compare` also reads the streams 9.x committed since each full import started (less the tail's `lookbackMillis`), on the tail's commit-time index, and checks that the log holds the latest of each instance, by version and command, one log read per instance. It reads up to `final.lookbackMillis` before the tail's checkpoint: during the dual run the tail may still be reading what came after, and after `import --final` that last window is what the final pass read once 9.x had stopped. Each stream missing is printed, and the command exits with `3`:
+**The imported streams themselves.** A state is compared at its 9.x snapshot's version, so a stream after an instance's latest snapshot is not seen: with 9.x's `version_offset` snapshot strategy, before 9.x writes the snapshot, or for an instance without one. So `compare` also reads the streams 9.x committed since each full import started (less the tail's `lookbackMillis`), on the tail's commit-time index, and checks that the log holds the latest of each instance, by version and command, one log read per instance. It reads up to `final.lookbackMillis` before the tail's checkpoint: during the dual run the tail may still be reading what came after, and after `import --final` that last window is what the final pass read once 9.x had stopped. Each stream missing is printed, and the command exits with `4`:
 
 ```text
 MISSING view-store.view t0/0VZwlu3X00016xF v4: 9.x stream 0VZwlu3X00016xG (command 0VZwlu3X00016xH), committed at 2026-11-03T22:33:01.200Z, is not in the log, which holds v3
@@ -277,7 +277,7 @@ The tail reads each event stream collection by a `(createTime, _id)` index, whic
 
 Through this dual run, start the V10 service's nodes on standby, with [`wow.node.standby`](../reference/configuration) set to `true`. A node on standby serves state reads and queries of what the tail imports, and refuses every command with [`wow.node.standby`](../reference/error-codes) (503), so nothing writes to V10 before the cut-over. It joins no lease group: no subscription handles anything, no parked entry is retried, and no job or schedule runs. A saga or a reactor that starts at the end of its stream starts where the stream ends when the node is activated, so it never acts on the imported 9.x history.
 
-Import only while the V10 nodes are on standby or stopped, so that nothing writes to V10 before the cut-over. A node can create its types' tables or collections as it starts, on standby too (its query indexes need them), and so record their access walks as completed for its schema. The import claims each type's walk in that one's place once its first streams of that type are in, so the nodes walk them when they are activated. On a node that is already running, the built-in subscription `wow.access` stamps each imported stream when it reads it, within its lag; until then an events query under an access policy leaves the stream out ([The access attributes](#_7-the-access-attributes)).
+Import only while the V10 nodes are on standby or stopped, so that nothing writes to V10 before the cut-over. A node can create its types' tables or collections as it starts, on standby too (its query indexes need them), and so record their access walks as completed for its schema. The import claims each type's walk in that one's place once its first streams of that type are in, by the full import or by the tail for a type 9.x had no streams of before, so the nodes walk them when they are activated. On a node that is already running, the built-in subscription `wow.access` stamps each imported stream when it reads it, within its lag; until then an events query under an access policy leaves the stream out ([The access attributes](#_7-the-access-attributes)).
 
 ### Compare and snapshot during the dual run
 
@@ -300,7 +300,7 @@ Until V10 writes anything, rolling back is switching traffic back to 9.x. Once V
 
 1. Stop V10's writes, and keep 9.x stopped. What V10 commits after `export` starts is not exported.
 2. Run `export --dry-run`. It scans each V10 context's log and prints, per aggregate type, how many streams 9.x lacks. A stream with a V10-only type is printed as `REFUSED`, and a stream 9.x holds at the same version with other content as `CONFLICT`; either one stops the export before anything is written. Each context ends with a `VERDICT` line: roll back by switching back, roll back by export (and how many streams go back), or no rollback by export, with the time the window closed.
-3. Run `export`. It scans again, writes the streams 9.x lacks, resuming from its checkpoint, and skips any stream 9.x already holds. It then compares, per aggregate, how many streams 9.x and V10 hold, and exits with `3` when they differ.
+3. Run `export`. It scans again, writes the streams 9.x lacks, resuming from its checkpoint, and skips any stream 9.x already holds. It then compares, per aggregate, how many streams 9.x and V10 hold, and exits with `4` when they differ.
 4. Start 9.x. Its snapshots still show the state before the exported streams until 9.x writes those aggregates again or regenerates its snapshots.
 
 Only event streams go back. Reserved keys V10 made, aggregates it parked and its projections' views do not, and 9.x does not publish the exported streams on its event bus.

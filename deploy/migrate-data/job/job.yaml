@@ -14,12 +14,14 @@ spec:
   backoffLimit: 3
   podFailurePolicy:
     rules:
-      # The tool's own verdicts (1 failed, 2 a usage error, 3 differences found): running it again changes none.
+      # The tool's own verdicts (1 failed, 2 a usage error, 4 differences found): running it again changes none. Not 3,
+      # the JVM's exit on an OutOfMemoryError (the image's -XX:+ExitOnOutOfMemoryError), nor 5, a store or the network
+      # unavailable or timed out: both are retried.
       - action: FailJob
         onExitCodes:
           containerName: migrate-data
           operator: In
-          values: [1, 2, 3]
+          values: [1, 2, 4]
       # A drained node or a preempted pod is not counted against the retries.
       - action: Ignore
         onPodConditions:

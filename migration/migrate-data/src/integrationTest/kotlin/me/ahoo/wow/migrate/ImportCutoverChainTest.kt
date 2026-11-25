@@ -172,7 +172,7 @@ class ImportCutoverChainTest {
     private fun chain(target: String, log: EventLog, checkpoints: CheckpointStore) = runBlocking {
         run("import", "--config", config(target).toString()).assert().describedAs(output.toString())
             .isEqualTo(MigrateData.OK)
-        output.toString().assert().contains("CUTOVER example: the imported history ends at the log's head in")
+        output.toString().assert().contains("CUTOVER example: the imported history ends at the import's last stream in")
         val order = NineXExample.stream("order-stream-v1.json").aggregateId
         val ref = NineXExample.orderModel.type.ref(order.tenantId, order.id)
         val history = log.read(ref).toList()

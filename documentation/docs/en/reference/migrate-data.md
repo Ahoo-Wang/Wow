@@ -67,9 +67,11 @@ An option a command does not take is a usage error.
 | Code | Meaning |
 | --- | --- |
 | `0` | Done. |
-| `1` | Failed: the check, a step that stopped, or `import --final` refused. |
+| `1` | Failed: the check, a step that stopped, or `import --final` refused; also a configuration the tool cannot read, and any failure of the tool itself. |
 | `2` | Usage error. |
-| `3` | `compare` found differences, in this run or in earlier runs it resumed, or a stream 9.x committed that the log does not hold; or, after `export`, 9.x and V10 hold different numbers of streams of an aggregate. |
+| `3` | Not the tool's: the JVM ended it on an `OutOfMemoryError`, under `-XX:+ExitOnOutOfMemoryError`, which the image sets. Run it again: it resumes from its checkpoint. |
+| `4` | `compare` found differences, in this run or in earlier runs it resumed, or a stream 9.x committed that the log does not hold; or, after `export`, 9.x and V10 hold different numbers of streams of an aggregate. |
+| `5` | A store or the network was unavailable or timed out: a dropped or refused connection, a timeout, a store the driver could not reach, or an append whose outcome stayed unknown for that reason. Run it again: it resumes from its checkpoint. |
 
 ### Output
 
@@ -90,7 +92,7 @@ Lines that need attention start with a marker:
 | `VERDICT` | `export`'s conclusion for a context, printed by every run, `--dry-run` included: switch back, export N streams, no rollback by export since a given time, or none because 9.x was written after the cut-over. |
 | `EQUAL`, `DIFFERS` | After `export`, whether 9.x holds as many streams of an aggregate as V10, the instances the map excludes left out. |
 | `UNMATCHED`, `AMBIGUOUS`, `UNSOURCED`, `RENAMED`, `REVIEW` | `draft-map`'s exceptions, also written into the draft: see [Draft the map](#draft-the-map). |
-| `CUTOVER` | After a pass that appended to a context's log (`import`, `import --restart`, `import --final`, each round of `tail`), where the imported history now ends: the cut-over, recorded at the log's head in each partition. |
+| `CUTOVER` | After each pass (`import`, `import --restart`, `import --final`, each round of `tail`), where the imported history ends in each partition of a context's log: the cut-over, at the last stream the import appended or found an earlier run had appended, never at a commit V10 made after it. A run that imported nothing leaves it where it was. |
 
 ## Configuration file
 

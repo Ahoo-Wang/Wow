@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.migrate.example.NineXExample
+import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
@@ -173,6 +174,20 @@ internal class InstanceAppendsTest : EventStreamImporterFixtures() {
             ).importAll(order)
         }
         failure.message!!.assert().contains("unknown")
+        // The store's failure is among its causes (a coroutine's recovered copy may come first): a run it stops is the
+        // store's to retry, not the tool's verdict.
+        generateSequence<Throwable>(failure) { it.cause }.map { it.message }.toList().assert().contains("timeout")
+        val unavailable = mockk<EventLog>()
+        coEvery { unavailable.append(any(), any()) } returns
+            AppendOutcome.Unknown(StorageUnavailableException("the log is down"))
+        appendsOneByOne(unavailable)
+        checkpoints.save(ImportCheckpoints())
+        val stopped = assertThrows<MigrationException> {
+            importer(InMemoryNineXEventSource(listOf(first)), ImportOptions(maxUnknownRetries = 1), unavailable)
+                .importAll(order)
+        }
+        retryable(stopped).assert().isTrue()
+        retryable(failure).assert().describedAs("an outcome unknown for a reason no store gave").isFalse()
     }
 
     @Test

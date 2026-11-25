@@ -165,7 +165,7 @@ compared() {
   local code
   code="$(tail -1 "$STEPS" | python3 -c 'import json, sys; print(json.load(sys.stdin)["exit"])')"
   [ "$code" = 0 ] && return 0
-  if [ "$code" != 3 ]; then
+  if [ "$code" != 4 ]; then
     log "$name exited with $code"
     exit 1
   fi

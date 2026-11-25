@@ -67,9 +67,11 @@ docker run --rm -v /path/to/migration:/config:ro -e WOW_PG_PASSWORD \
 | 代码 | 含义 |
 | --- | --- |
 | `0` | 完成。 |
-| `1` | 失败：检查未通过、某一步停下了，或者 `import --final` 拒绝执行。 |
+| `1` | 失败：检查未通过、某一步停下了，或者 `import --final` 拒绝执行；工具读不了的配置，以及工具自身的任何故障，也是这个退出码。 |
 | `2` | 用法错误。 |
-| `3` | `compare` 发现了差异，在这次运行中，或在它续做的之前的运行中，或者发现了日志没有持有的一条 9.x 提交的流；或者在 `export` 之后，9.x 和 V10 持有的某个聚合的流数量不同。 |
+| `3` | 不是工具给出的：JVM 因 `OutOfMemoryError` 结束了它，用的是镜像设置的 `-XX:+ExitOnOutOfMemoryError`。再运行一次即可，它会从检查点续做。 |
+| `4` | `compare` 发现了差异，在这次运行中，或在它续做的之前的运行中，或者发现了日志没有持有的一条 9.x 提交的流；或者在 `export` 之后，9.x 和 V10 持有的某个聚合的流数量不同。 |
+| `5` | 某个存储或网络不可用或超时：连接断开或被拒绝、超时、驱动无法连上存储，或因此结果未知的追加。再运行一次即可，它会从检查点续做。 |
 
 ### 输出 {#output}
 
@@ -90,7 +92,7 @@ docker run --rm -v /path/to/migration:/config:ro -e WOW_PG_PASSWORD \
 | `VERDICT` | `export` 对一个上下文的结论，每次运行都会打印（包括 `--dry-run`）：切回、导出 N 条流、自某个时间起无法通过导出回滚，或者因为 9.x 在切换之后被写入而无法通过导出回滚。 |
 | `EQUAL`、`DIFFERS` | 在 `export` 之后，9.x 持有的某个聚合的流是否与 V10 一样多，映射排除的实例不计在内。 |
 | `UNMATCHED`、`AMBIGUOUS`、`UNSOURCED`、`RENAMED`、`REVIEW` | `draft-map` 的例外，也写进草稿：见[起草映射文件](#draft-the-map)。 |
-| `CUTOVER` | 在向某个上下文的日志追加过的一轮之后（`import`、`import --restart`、`import --final`、`tail` 的每一轮），导入的历史现在在哪里结束：切换点，记在每个分区日志的头部。 |
+| `CUTOVER` | 每一轮之后（`import`、`import --restart`、`import --final`、`tail` 的每一轮），导入的历史在某个上下文日志的每个分区里在哪里结束：切换点，记在导入追加的、或发现之前某次运行已追加的最后一条流上，绝不记在 V10 在它之后的提交上。什么也没导入的运行让它保持原处。 |
 
 ## 配置文件 {#configuration-file}
 
