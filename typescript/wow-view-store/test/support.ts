@@ -55,3 +55,29 @@ export function installFake(options?: FakeViewStoreOptions): FakeViewStore {
   vi.stubGlobal('fetch', vi.fn(fake.fetch));
   return fake;
 }
+
+/**
+ * Installs the fake service behind a gateway that serves it under `prefix`
+ * only, for this test: a request under the prefix reaches the fake without
+ * it, any other is a route the gateway does not serve (404, no code).
+ * `paths` holds every path the gateway was asked for, in order.
+ */
+export function installGateway(
+  prefix: string,
+  options?: FakeViewStoreOptions,
+): FakeViewStore & { paths: string[] } {
+  const fake = fakeViewStore(options);
+  const paths: string[] = [];
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(input instanceof Request ? input.url : String(input));
+      paths.push(url.pathname);
+      if (!url.pathname.startsWith(`${prefix}/`))
+        return new Response(null, { status: 404 });
+      url.pathname = url.pathname.slice(prefix.length);
+      return fake.fetch(url, init);
+    }),
+  );
+  return { ...fake, paths };
+}

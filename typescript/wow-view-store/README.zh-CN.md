@@ -17,7 +17,8 @@ peer 依赖：`@ahoo-wang/fetcher`、`@ahoo-wang/wow-client` 与 `@ahoo-wang/wow
 peer，由宿主一并安装：`@ahoo-wang/fetcher-eventstream`（wow-client 的），以及视图引擎自己的入口需要时的可选
 `react`、`react-dom`、`react-router` 与 `mingo`。Node `>=22.12.0` 或当前的浏览器；TypeScript 6 或更高。
 
-`WowViewStore` 接收一个 fetcher，以及可选的、决定按钮的权限。它不接收租户、用户或应用：服务从主体
+`WowViewStore` 与每个 Wow 客户端一样接收 wow-client 的选项（一个 fetcher，以及可选的网关 `basePath` 与服务的
+`defaultWaitMs`），以及可选的、决定按钮的权限。它不接收租户、用户或应用：服务从主体
 （principal）取得它们，fetcher 的拦截器像宿主的其他 Wow 请求一样带上它们。定义的数据源就是查询路由的
 客户端本身，`datasetCatalogOf` 列出服务的数据集，`WowDatasetWordings` 保存租户对它们的措辞。
 

@@ -13,7 +13,13 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import { WowDatasetWordings } from '../src/index.js';
-import { actingAs, installFake, WRITER_ROLES, type Caller } from './support.js';
+import {
+  actingAs,
+  installFake,
+  installGateway,
+  WRITER_ROLES,
+  type Caller,
+} from './support.js';
 
 const WRITER: Caller = {
   user: 'admin',
@@ -171,5 +177,42 @@ describe('the V10 WowDatasetWordings', () => {
         write(),
       ),
     ).toBe('1');
+  });
+
+  // #7022: a revision this store never issues is malformed, not stale, as
+  // a WowViewStore write's is: `Number('abc')` was sent as If-Match "NaN".
+  it.each(['abc', '', '1.5', '-1', ' 2', '9007199254740993'])(
+    'refuses a revision it never issued, %j, as INVALID before anything is sent',
+    async revision => {
+      const fake = installFake();
+      const writer = new WowDatasetWordings({ fetcher: actingAs(WRITER) });
+      await expect(
+        writer.set('sales.orders', { title: 'Orders' }, revision, write()),
+      ).rejects.toMatchObject({ name: 'ViewStoreError', code: 'INVALID' });
+      await expect(
+        writer.clear('sales.orders', revision, write()),
+      ).rejects.toMatchObject({ name: 'ViewStoreError', code: 'INVALID' });
+      expect(fake.requests).toEqual([]);
+    },
+  );
+
+  // #7022 row 14: its options are wow-client's, as a WowViewStore's are.
+  it('sends every request under the base path its options give', async () => {
+    const gateway = installGateway('/views-api');
+    const writer = new WowDatasetWordings({
+      fetcher: actingAs(WRITER),
+      basePath: '/views-api',
+    });
+    const set = await writer.set(
+      'sales.orders',
+      { title: 'Orders' },
+      '0',
+      write(),
+    );
+    expect(await writer.clear('sales.orders', set, write())).toBe('2');
+    expect((await writer.list()).get('sales.orders')?.revision).toBe('2');
+    expect(gateway.paths).toHaveLength(3);
+    for (const path of gateway.paths)
+      expect(path).toMatch(/^\/views-api\/view-store\/dataset_wording\//);
   });
 });
