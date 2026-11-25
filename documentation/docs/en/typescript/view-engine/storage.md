@@ -33,7 +33,7 @@ Whichever you choose, two rules hold, and the engine's conflict handling rests o
 
 ## In memory, or in one browser
 
-`MemoryViewStore` keeps the rules honest, not convenient: a stale revision conflicts, a replayed request id answers the first outcome, and the order of the list and the limits on titles and configs are the server's. Code that is right against it behaves the same against a real backend. Seeded with a stored system view, and with only administrators allowed to edit system views:
+`MemoryViewStore` keeps the rules honest, not convenient: a stale revision conflicts, a replayed request id answers the first outcome, the order of the list and the checks of a definition id, a title, a config and preferences are the server's, a list cursor it did not issue is refused as `INVALID`, and a write that changes nothing (a rename to the title the view has, preferences as they are stored) answers as it is, its revision unmoved, as the server records nothing for it. Code that is right against it behaves the same against a real backend. Seeded with a stored system view, and with only administrators allowed to edit system views:
 
 <!-- typecheck: file=memoryStore.ts -->
 <!-- typecheck-context
@@ -214,6 +214,7 @@ Not for a Wow backend: `WowViewStore` already handles replays, audience moves, s
 - Keep the two rules: a stale revision throws `CONFLICT` with the current instance; a repeated request id answers the first outcome.
 - Answer `list` a page at a time: `{ items, nextCursor }`, the first page without a `cursor` and each next one with the `nextCursor` before it, `null` after the last. Keep the order across pages (system, shared, personal, each oldest first). Every read takes `{ signal }` and every write `{ requestId, signal }`; hand the signal on to the request.
 - Never issue an id starting with `system:`.
+- Refuse a list cursor or a revision you did not issue as `INVALID`: it is malformed, not stale.
 - Map the backend's failures onto the codes the engine knows:
 
 <!-- typecheck: file=storeErrors.ts -->

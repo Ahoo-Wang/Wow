@@ -33,7 +33,7 @@ flowchart LR
 
 ## 内存，或一个浏览器 {#in-memory-or-in-one-browser}
 
-`MemoryViewStore` 严守规则，而不是图方便：过期的 revision 会冲突，重放的请求 ID 返回第一次的结果，列表的顺序以及对标题和配置的限制都与服务端相同。对它正确的代码，对真实的后端也表现一致。下面的例子预置了一个存储的系统视图，并且只允许管理员编辑系统视图：
+`MemoryViewStore` 严守规则，而不是图方便：过期的 revision 会冲突，重放的请求 ID 返回第一次的结果，列表的顺序以及对定义 ID、标题、配置和偏好的检查都与服务端相同，不是它签发的列表游标以 `INVALID` 拒绝，什么也不改变的写入（改成视图已有的标题、与已存储相同的偏好）按原样回答、不耗费 revision，因为服务端对它不记录任何东西。对它正确的代码，对真实的后端也表现一致。下面的例子预置了一个存储的系统视图，并且只允许管理员编辑系统视图：
 
 <!-- typecheck: file=memoryStore.ts -->
 <!-- typecheck-context
@@ -214,6 +214,7 @@ export const store = new WowViewStore({ fetcher, permissions });
 - 守住两条规则：过期的 revision 抛出带当前实例的 `CONFLICT`；重复的请求 ID 返回第一次的结果。
 - `list` 一页一页地答：`{ items, nextCursor }`，第一页不带 `cursor`，之后每页带上一页的 `nextCursor`，最后一页之后为 `null`。顺序跨页不变（系统、共享、个人，各按最早创建的在前）。每个读都收 `{ signal }`，每个写都收 `{ requestId, signal }`；把 signal 交给请求。
 - 绝不签发以 `system:` 开头的 id。
+- 不是你签发的列表游标或 revision 以 `INVALID` 拒绝：它是格式错误，而不是过期。
 - 把后端的失败映射到引擎认识的错误码：
 
 <!-- typecheck: file=storeErrors.ts -->

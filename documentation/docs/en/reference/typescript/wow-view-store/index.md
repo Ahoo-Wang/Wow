@@ -36,7 +36,7 @@ The view engine's [`ViewStore`](../wow-view-engine/store#api-ViewStore) over the
 
 - `fetcher` goes to a base URL that serves `/view-store/…`: the gateway in front of the view store service. Its interceptors carry who is asking, the authorization; the service takes the tenant and the owner from the principal, and the application every view is kept in from the token (its `aud`) or the gateway's route (`cosec-app-id`): CoSec 8 reads no `CoSec-App-Id`, so a front end needs a token issued for its app, or a route that sets it; and the store adds `Wow-Scope` itself where a view belongs to a reserved owner. No path names a tenant or an owner.
 - `permissions` decides which buttons are enabled for one definition's views, never what a write may do: the service authorizes each write. A host answers it by the roles the caller holds: `createShared` and `changeAudience` by the role that writes the owner `(shared)` (`view-store.shared-writer` as shipped), since creating a shared view, sharing a personal one and claiming a shared one all need it; `editSystem` by the role that writes `(system)` of `(platform)` (`view-store.system-writer`). Left out, everything is allowed but `editSystem`, which stays off unless the answer says `true`.
-- `pageSize` is the most views one `list` page returns, 100 by default, the service's default cursor page. The system views come whole on the first page, so that page may hold more.
+- `pageSize` is the most views one `list` page returns, 100 by default, the service's default cursor page. The service answers the system views whole; the store pages them like the others, so no page holds more.
 
 ```ts
 export declare class WowViewStore implements ViewStore {
