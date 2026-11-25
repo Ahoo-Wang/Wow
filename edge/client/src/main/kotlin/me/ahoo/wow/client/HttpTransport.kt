@@ -41,10 +41,12 @@ import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.net.http.HttpTimeoutException
 import java.nio.ByteBuffer
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Flow.Publisher
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeMark
 import kotlin.time.TimeSource
 import kotlin.time.toJavaDuration
@@ -151,9 +153,9 @@ internal class HttpTransport(
      */
     suspend fun exchange(request: PeerRequest, kind: Exchange): Answer<ByteArray> =
         withRetries(request, kind) { base ->
-            val response = within(request, boundOf(request)) {
-                client.sendAsync(build(request, base, JSON_ACCEPT), HttpResponse.BodyHandlers.ofByteArray()).await()
-            }
+            val http = build(request, base, JSON_ACCEPT)
+            val head = HeadMark(HttpResponse.BodyHandlers.ofByteArray())
+            val response = within(request, boundOf(request), head, { client.sendAsync(http, head) }) { it }
             val status = response.statusCode()
             if (status in SUCCESS) {
                 Answer.Ok(response.body())
@@ -175,11 +177,9 @@ internal class HttpTransport(
         withRetries(request, kind) { base ->
             val sent = TimeSource.Monotonic.markNow()
             val bound = boundOf(request)
-            within(request, bound) {
-                val response = client.sendAsync(
-                    build(request, base, EVENT_STREAM),
-                    HttpResponse.BodyHandlers.ofPublisher()
-                ).await()
+            val http = build(request, base, EVENT_STREAM)
+            val head = HeadMark(HttpResponse.BodyHandlers.ofPublisher())
+            within(request, bound, head, { client.sendAsync(http, head) }) { response ->
                 val status = response.statusCode()
                 val body = response.body()
                 when {
@@ -193,12 +193,53 @@ internal class HttpTransport(
         }
 
     /**
-     * [answer], one attempt's exchange with a target, within [bound]: past it, an [HttpTimeoutException], the request
-     * sent and not answered within its bound, as the JDK's own timeout of the head is. Its cancellation cancels the
-     * exchange, which closes its connection.
+     * [answer] of one attempt's exchange with a target, which [send] starts, within [bound]: past it, an
+     * [HttpTimeoutException], the request sent and not answered within its bound. Its end, or its cancellation,
+     * cancels the exchange if it is still open, which closes its connection.
+     *
+     * **Until the response's head, the JDK's verdict decides** (#6993). The JDK's own request timeout, which [build]
+     * sets to the same bound, says whether the connection was made: an [HttpConnectTimeoutException] when it was not.
+     * Both timers are due at once, and either may fire first, as on a loaded machine. So when the bound passes before
+     * the head ([HeadMark]), the attempt waits for the JDK's verdict at most [VERDICT_GRACE]: a connection not made is
+     * thrown as that, unsent, and the request fails over as a refused one does; any other verdict, or none within
+     * the grace, is the request sent and not answered. Once the head is in, the JDK's timer no longer runs, and the
+     * bound alone ends a slow body.
      */
-    private suspend fun <T : Any> within(request: PeerRequest, bound: Duration, answer: suspend () -> T): T =
-        (withTimeoutOrNull(bound) { outcomeOf { answer() } } ?: throw unansweredWithin(request, bound)).getOrThrow()
+    private suspend fun <B, T : Any> within(
+        request: PeerRequest,
+        bound: Duration,
+        head: HeadMark<B>,
+        send: () -> CompletableFuture<HttpResponse<B>>,
+        answer: suspend (HttpResponse<B>) -> T,
+    ): T {
+        val exchange = send()
+        try {
+            // A copy is awaited, so the bound's cancellation leaves the exchange to give its own verdict.
+            withTimeoutOrNull(bound) { outcomeOf { answer(exchange.copy().await()) } }?.let { return it.getOrThrow() }
+            if (!head.arrived) {
+                val verdict = withTimeoutOrNull(VERDICT_GRACE) { outcomeOf { exchange.copy().await() } }
+                (verdict?.exceptionOrNull() as? HttpConnectTimeoutException)?.let { throw it }
+            }
+            throw unansweredWithin(request, bound)
+        } finally {
+            exchange.cancel(true)
+        }
+    }
+
+    /**
+     * The handler of one attempt's response, [handler]'s, marking when its head arrived ([arrived]): the JDK's own
+     * request timeout no longer runs after it. One per attempt, the only object [within] adds to an attempt.
+     */
+    private class HeadMark<T>(private val handler: HttpResponse.BodyHandler<T>) : HttpResponse.BodyHandler<T> {
+        @Volatile
+        var arrived = false
+            private set
+
+        override fun apply(info: HttpResponse.ResponseInfo): HttpResponse.BodySubscriber<T> {
+            arrived = true
+            return handler.apply(info)
+        }
+    }
 
     /** These lines, failing with an [HttpTimeoutException] once [bound] passed since [sent]. */
     private fun Flow<String>.within(request: PeerRequest, sent: TimeMark, bound: Duration): Flow<String> = flow {
@@ -427,6 +468,12 @@ internal class HttpTransport(
         const val PROBLEM_JSON: String = "application/problem+json"
         const val EVENT_STREAM: String = "text/event-stream"
         const val JSON_ACCEPT: String = "$JSON, $PROBLEM_JSON"
+
+        /**
+         * How long an attempt whose bound passed before its response's head waits for the JDK's own verdict, due at
+         * the same instant: whether its connection was made ([within]). Only a timer late by load spends it.
+         */
+        internal val VERDICT_GRACE: Duration = 1.seconds
         const val CONTENT_TYPE: String = "Content-Type"
         const val ACCEPT: String = "Accept"
         private val SUCCESS = 200..299

@@ -89,7 +89,7 @@ wow:
 
 这些键写在 YAML 文件或 `SPRING_APPLICATION_JSON` 中：环境变量会丢掉服务名里的短横线。需要命名空间而无从得知时（例如不在 Kubernetes 上且未设置），调用失败，错误里写明这些键与对端的 `url`。请求依次发往它的各个节点；不接受连接的节点，或回答自己正在关闭、处于待命的节点，会在同一次尝试中跳到下一个。记录每 30 秒重新查询一次，所有节点都不接受连接时立即重查。收下请求却没在时限内答复的节点，会被之后的请求绕开，直到它答复或记录重新读取（[不再答复的对端节点](../operate/kubernetes#a-peer-node-that-stops-answering)）。`wow.peer.discovery: static` 只用 `url`；不在 Kubernetes 上时，`wow.peer.discovery: spring-cloud` 从 Spring Cloud 的注册中心找到节点（[Spring Cloud 服务发现](../operate/spring-cloud)），社区提供的 `PeerDiscovery` 也可以用别的方式找到节点。Saga 的调用同样不必列出：契约在类路径上的上下文都按同样的方式找到。
 
-`wow.peer.timeout` 限制没有等待的请求（查询、读取）的时间，默认 30 秒。命令或 saga 的调用把自己的等待写进 `Wow-Wait-Timeout`，并等待应答这么久再加一段宽限：等待用完时对端回答 504，所以一个没有关闭连接就消失的节点，让一个请求付出的不会更多。`wow.peer.retry.*` 重试那些重试能够越过的故障。对端从声明了自己的服务那里接受什么，见[保护部署](../operate/security#close-the-internal-port)。
+`wow.peer.timeout` 限制没有等待的请求（查询、读取）的时间，默认 30 秒。命令或 saga 的调用把自己的等待写进 `Wow-Wait-Timeout`，并等待应答这么久再加一段宽限：等待用完时对端回答 504，所以一个没有关闭连接就消失的节点，让一个请求付出的不会更多。到某个节点的连接在这个时限之内没能建立时，请求最多再多花一秒，才转到下一个节点（[不再答复的对端节点](../operate/kubernetes#a-peer-node-that-stops-answering)）。`wow.peer.retry.*` 重试那些重试能够越过的故障。对端从声明了自己的服务那里接受什么，见[保护部署](../operate/security#close-the-internal-port)。
 
 ## 按名字调用命令 {#call-a-command-by-name}
 

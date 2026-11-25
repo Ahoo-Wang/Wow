@@ -88,6 +88,13 @@ class SilentPeersTest {
 
     private fun Answer<*>.code(): String? = (this as? Answer.Problem)?.problem?.code
 
+    /** [answer] as a failure says it: a problem's code, detail and cause, and the nodes bypassed since. */
+    private fun described(answer: Answer<*>): String {
+        val problem = (answer as? Answer.Problem)?.problem ?: return "$answer"
+        return "${problem.code} (${problem.status}): ${problem.detail}; cause ${problem.cause}; " +
+            "bypassed ${silent.bypassed("mail", Port.INTERNAL)}"
+    }
+
     private fun keyOf(peer: FakePeer) = peer.base.toString().trimEnd('/')
 
     @Test
@@ -258,13 +265,25 @@ class SilentPeersTest {
         events.filterIsInstance<ObservedEvent.PeerRestored>().single().reason.assert().isEqualTo(Reason.RELISTED)
     }
 
+    /**
+     * The node is [withRefusingPort]'s port, bound without listening, which names both paths of a connection not made:
+     * on Linux it is refused at once; on macOS it is never answered, a connect still pending when the bound passes,
+     * which the JDK's own request timeout says was not made, whichever timer fires first (#6993, `ConnectNotMadeTest`).
+     * Either way the request was not sent: it fails over, and the node is not passed over as silent.
+     */
     @Test
     fun `a node that refuses the connection should be failed over as before, not bypassed`() {
         withRefusingPort { port ->
             val live = peer(Reply(200))
-            listed = listOf(URI.create("http://127.0.0.1:$port"), live.base)
+            val refusing = URI.create("http://127.0.0.1:$port")
+            listed = listOf(refusing, live.base)
             val transport = transport()
-            repeat(2) { transport.send().assert().isInstanceOf(Answer.Ok::class.java) }
+            repeat(2) { round ->
+                val answer = transport.send()
+                val nodes = "refusing $refusing, live ${live.base}"
+                answer.assert().describedAs { "send $round, $nodes: ${described(answer)}" }
+                    .isInstanceOf(Answer.Ok::class.java)
+            }
             silent.bypassed("mail", Port.INTERNAL).assert().isEmpty()
             events.assert().isEmpty()
         }

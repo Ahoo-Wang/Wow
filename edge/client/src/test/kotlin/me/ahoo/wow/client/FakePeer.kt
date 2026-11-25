@@ -147,8 +147,9 @@ class FakePeer : AutoCloseable {
 }
 
 /**
- * Runs [block] with a loopback port no server listens on: a socket is bound to it without listening, so a connection
- * to it is refused, and no other process can take the port while [block] runs.
+ * Runs [block] with a loopback port no server listens on: a socket is bound to it without listening, so no other
+ * process can take the port while [block] runs. A connection to it is not made: Linux refuses it at once, macOS never
+ * answers it, so it stays pending until a timeout (#6993).
  */
 inline fun <T> withRefusingPort(block: (port: Int) -> T): T = Socket().use { socket ->
     socket.bind(InetSocketAddress("127.0.0.1", 0))
