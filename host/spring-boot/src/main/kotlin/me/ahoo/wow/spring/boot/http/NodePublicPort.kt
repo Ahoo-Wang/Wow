@@ -23,6 +23,7 @@ import me.ahoo.wow.http.WowHttpOptions
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.http.ops.parkedRoutes
 import me.ahoo.wow.http.problem.GlobalErrors
+import me.ahoo.wow.http.problem.LingeringClose
 import me.ahoo.wow.http.problem.ServerRefusals
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.http.route.ServiceRoutes
@@ -70,7 +71,8 @@ internal class NodePublicPort {
     /**
      * The public server's own refusals as problems ([ServerRefusals], #6956): a request line past
      * `server.netty.max-initial-line-length`, a header block past `server.max-http-request-header-size`, or malformed
-     * HTTP, each a problem of Reactor Netty's status naming the limit and its key.
+     * HTTP, each a problem of Reactor Netty's status naming the limit and its key; and a connection that closes after
+     * an answer written before its request's body was read lingers, so the answer is not reset away ([LingeringClose]).
      */
     @Bean
     @InternalWowApi
@@ -82,7 +84,7 @@ internal class NodePublicPort {
             requestLine = limit(MAX_INITIAL_LINE_LENGTH, DEFAULT_MAX_INITIAL_LINE_LENGTH),
             headers = limit(MAX_HEADER_SIZE, DEFAULT_MAX_HEADER_SIZE),
         )
-        return NettyServerCustomizer { server -> ServerRefusals.of(server, limits) }
+        return NettyServerCustomizer { server -> LingeringClose.of(ServerRefusals.of(server, limits)) }
     }
 
     /**

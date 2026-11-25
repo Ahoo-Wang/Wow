@@ -28,6 +28,7 @@ import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.wire.WireNames
 import me.ahoo.wow.http.HttpJson
 import me.ahoo.wow.http.WowHttpOptions
+import me.ahoo.wow.http.awaitBytesOrNull
 import me.ahoo.wow.http.caller.Authenticator
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.http.command.Negotiation
@@ -53,7 +54,6 @@ import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.server.RouterFunction
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
-import org.springframework.web.reactive.function.server.awaitBodyOrNull
 import org.springframework.web.reactive.function.server.bodyValueAndAwait
 import org.springframework.web.reactive.function.server.coRouter
 import tools.jackson.core.JacksonException
@@ -392,7 +392,7 @@ private class ParkedHandler(
 
     private suspend fun body(request: ServerRequest): JsonNode {
         Negotiation.checkJsonBody(request, "The body")
-        val bytes = request.awaitBodyOrNull<ByteArray>()?.takeIf { it.isNotEmpty() } ?: return EMPTY
+        val bytes = request.awaitBytesOrNull()?.takeIf { it.isNotEmpty() } ?: return EMPTY
         val node = try {
             HttpJson.mapper.readTree(bytes)
         } catch (malformed: JacksonException) {

@@ -14,14 +14,25 @@
 package me.ahoo.wow.spring.boot.http
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.http.problem.LingeringClose
+import me.ahoo.wow.spring.boot.HostTestApp
 import me.ahoo.wow.spring.boot.startHost
 import org.junit.jupiter.api.Test
+import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Configuration
+import org.springframework.core.io.buffer.DataBuffer
+import org.springframework.core.io.buffer.DataBufferUtils
+import org.springframework.web.reactive.function.server.RouterFunction
+import org.springframework.web.reactive.function.server.ServerResponse
+import org.springframework.web.reactive.function.server.bodyToFlux
+import org.springframework.web.reactive.function.server.router
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
 import java.io.ByteArrayOutputStream
 import java.net.InetSocketAddress
 import java.net.Socket
 import java.net.SocketTimeoutException
+import java.util.concurrent.CompletableFuture
 
 /**
  * The public server's own refusals (#6956), on its real port with raw requests: what Reactor Netty refuses before any
@@ -126,6 +137,130 @@ class ServerRefusalsTest {
     }
 
     @Test
+    fun `a body past the codecs' limit sent with Connection close should be answered 413, not reset (#7001)`() {
+        startHost().use { host ->
+            // The client writes its whole request at once, then reads: the 413 must reach it however early it was
+            // written. On Linux, over epoll, the connection closed with the body unread was reset before it was read.
+            val body = """{"owner":"${"a".repeat(300_000)}"}"""
+            val answer = raw(host.publicPort, post("/bank/account/open-account", body))
+            answer.status.assert().describedAs("$answer").isEqualTo(413)
+            answer.headers["content-type"].assert().isEqualTo("application/problem+json")
+        }
+    }
+
+    @Test
+    fun `a body past the codecs' limit announced with Expect 100-continue should be answered 413 before it is sent`() {
+        startHost().use { host ->
+            // #7001: answered from its headers, in place of 100 Continue, so the client sends no body.
+            val head = listOf(
+                "POST /bank/account/open-account HTTP/1.1",
+                "Host: 127.0.0.1",
+                "Content-Type: application/json",
+                "Content-Length: 300000",
+                "Expect: 100-continue",
+            ).joinToString("\r\n") + "\r\n\r\n"
+            Socket().use { socket ->
+                socket.connect(InetSocketAddress("127.0.0.1", host.publicPort), 1_000)
+                socket.soTimeout = 5_000
+                socket.getOutputStream().apply {
+                    write(head.toByteArray())
+                    flush()
+                }
+                val first = socket.getInputStream().bufferedReader(Charsets.ISO_8859_1).readLine()
+                first.assert().startsWith("HTTP/1.1 413")
+            }
+        }
+    }
+
+    /** An application's own route that reads its body as it arrives, past the codecs' limit: an upload. */
+    @Configuration(proxyBeanMethods = false)
+    class Uploads {
+        @Bean
+        fun uploadRoutes(): RouterFunction<ServerResponse> = router {
+            POST("/uploads") { request ->
+                request.bodyToFlux<DataBuffer>()
+                    .map { buffer -> buffer.readableByteCount().also { DataBufferUtils.release(buffer) } }
+                    .reduce(0L) { sum, bytes -> sum + bytes }
+                    .flatMap { size -> ServerResponse.ok().bodyValue(size.toString()) }
+            }
+        }
+    }
+
+    @Test
+    fun `an application's own route should take a body past the codecs' limit that it reads its own way (#7001)`() {
+        startHost(sources = listOf(HostTestApp::class.java, Uploads::class.java)).use { host ->
+            // Wow's routes refuse a body past the codecs' limit from its Content-Length; an application's route reads
+            // its body under its own limits, so the server refuses none of it.
+            val body = "x".repeat(1_024 * 1_024)
+            val uploaded = keptAlive(host.publicPort, post("/uploads", body, close = false))
+            uploaded.status.assert().describedAs("$uploaded").isEqualTo(200)
+            uploaded.body.assert().isEqualTo(body.length.toString())
+        }
+    }
+
+    @Test
+    fun `a connection answered before its body was read should linger no longer than its bound (#7001)`() {
+        startHost().use { host ->
+            Socket().use { client ->
+                client.connect(InetSocketAddress("127.0.0.1", host.publicPort), 1_000)
+                client.soTimeout = 10_000
+                // A body announced past the limit with Connection: close, a few bytes of it sent, and the client then
+                // neither sending nor closing: the server answers 413 at once, and closes once its linger is over.
+                client.getOutputStream().apply {
+                    write(
+                        (
+                            "POST /bank/account/open-account HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n" +
+                                "Content-Type: application/json\r\nContent-Length: 300000\r\n\r\n{\"owner\":\""
+                            ).toByteArray(),
+                    )
+                    flush()
+                }
+                val started = System.nanoTime()
+                // The answer, then the end of what the server sends: it shut its output down to linger.
+                client.getInputStream().readAllBytes().toString(Charsets.UTF_8).assert().startsWith("HTTP/1.1 413")
+                val lingered = writableFor(client, started)
+                lingered.assert().isBetween(
+                    LingeringClose.LINGER.inWholeMilliseconds - 1_000,
+                    LingeringClose.LINGER.inWholeMilliseconds + 2_000,
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `a lingering connection should end with the node's shutdown, not its linger (#7001)`() {
+        val host = startHost()
+        Socket().use { client ->
+            client.connect(InetSocketAddress("127.0.0.1", host.publicPort), 1_000)
+            client.soTimeout = 10_000
+            client.getOutputStream().apply {
+                write(
+                    (
+                        "POST /bank/account/open-account HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n" +
+                            "Content-Type: application/json\r\nContent-Length: 300000\r\n\r\n{\"owner\":\""
+                        ).toByteArray(),
+                )
+                flush()
+            }
+            client.getInputStream().readAllBytes().toString(Charsets.UTF_8).assert().startsWith("HTTP/1.1 413")
+            // The connection lingers: what the client still sends is read, a second on.
+            repeat(10) {
+                client.getOutputStream().apply {
+                    write('x'.code)
+                    flush()
+                }
+                Thread.sleep(100)
+            }
+            // The server's dispose closes it with the server, the close asked again.
+            val closing = System.nanoTime()
+            CompletableFuture.runAsync { host.close() }
+            val closed = writableFor(client, closing)
+            closed.assert().describedAs("closed ${closed}ms after the shutdown began")
+                .isLessThan(LingeringClose.LINGER.inWholeMilliseconds)
+        }
+    }
+
+    @Test
     fun `a response a route writes should never be rewritten, however it looks`() {
         startHost().use { host ->
             // A refusal of Wow's own, on a connection the client closes: its code stays.
@@ -181,6 +316,24 @@ class ServerRefusalsTest {
                 // The server keeps the connection: what came is the answer.
             }
             parse(read.toString(Charsets.UTF_8))
+        }
+
+        /**
+         * How long, in milliseconds since [since], the server still reads what [client] sends: a lingering server reads
+         * and discards it, and once it closes, a write is reset.
+         */
+        fun writableFor(client: Socket, since: Long): Long {
+            val output = client.getOutputStream()
+            val deadline = since + 20_000_000_000L
+            while (System.nanoTime() < deadline) {
+                val written = runCatching {
+                    output.write('x'.code)
+                    output.flush()
+                }
+                if (written.isFailure) break
+                Thread.sleep(50)
+            }
+            return (System.nanoTime() - since) / 1_000_000
         }
 
         /** Writes [request] to [port] and reads one response on the kept-alive connection: its head, then its body. */

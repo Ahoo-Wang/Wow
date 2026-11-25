@@ -98,6 +98,8 @@ Four of the server's limits are met before a route reads the request. Each answe
 
 The internal port answers the first three alike, at Reactor Netty's own limits, 4,096 and 8,192 bytes, which no key sets.
 
+A body past the codecs' limit is refused from its `Content-Length`, before any of it is read: a client that sent `Expect: 100-continue` gets the `413` in place of `100 Continue`, and sends no body. A body sent without a length is refused once its reading passes the limit. When the connection closes after an answer given before the request's body was read to its end (`Connection: close`, HTTP/1.0, or a refusal above), the server shuts its side down and reads what the client still sends, for at most 5 seconds, before closing: the answer reaches the client rather than a reset.
+
 ### Aggregate ids {#aggregate-ids}
 
 One rule decides which aggregate ids exist, on every path a command takes: the public and internal ports, the in-process `CommandClient`, a peer's call, a context's command topic, a saga's and a timer's commands, an id a generator gives, and the test DSL. It refuses an id:
