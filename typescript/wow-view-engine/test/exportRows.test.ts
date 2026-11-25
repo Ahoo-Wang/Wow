@@ -163,6 +163,35 @@ describe('exporting every row the applied config matches', () => {
     expect(source.paged).toHaveBeenCalledTimes(2);
   });
 
+  // #6912: `capped` is "the ceiling stopped it while the source still had
+  // rows"; an exact count says it had none.
+  it('is not capped when an exact count says every row is in, even at the ceiling', async () => {
+    const source = pagedSource(orders(6));
+    const runtime = openRecord({ source });
+
+    const exported = await runtime.exportRows({ max: 6 });
+
+    expect(exported.rows).toHaveLength(6);
+    expect(exported.total).toBe(6);
+    expect(exported.capped).toBe(false);
+  });
+
+  it('is capped at the ceiling when the count is only a lower bound', async () => {
+    const source = testSource({
+      paged: vi.fn((query: FilterPagedQuery) => {
+        const { index, size } = query.pagination ?? { index: 1, size: 20 };
+        return Promise.resolve({
+          total: 6,
+          exact: false,
+          list: orders(6).slice((index - 1) * size, index * size),
+        });
+      }),
+    });
+    const runtime = openRecord({ source });
+
+    expect((await runtime.exportRows({ max: 6 })).capped).toBe(true);
+  });
+
   it('takes the ceiling from the limits when the caller names none', async () => {
     const source = pagedSource(orders(6));
     const runtime = openRecord({

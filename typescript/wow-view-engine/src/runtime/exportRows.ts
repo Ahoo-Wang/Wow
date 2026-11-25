@@ -50,7 +50,15 @@ export interface ExportedRows {
   rows: RecordData[];
   /** What the source said there are in all, when it says at all. */
   total?: number;
-  /** True when the ceiling stopped it while the source still had rows. */
+  /**
+   * True when the ceiling stopped it while the source still had rows. A
+   * source that counts its rows exactly says whether it had: an export that
+   * read every one of them is not capped, even when their count is the
+   * ceiling. One that does not (a cursor source whose last page is full, a
+   * total that is a lower bound) cannot rule out a row past the ceiling
+   * without asking for it, and an export it stopped at the ceiling is
+   * reported capped.
+   */
   capped: boolean;
 }
 
@@ -147,12 +155,16 @@ export async function fetchExportRows(
 
   const rows: RecordData[] = [];
   let total: number | undefined;
+  /** The total, when the source counted it exactly. */
+  let counted: number | undefined;
   let target: RecordPageTarget = cursored
     ? FIRST_PAGE.cursor
     : FIRST_PAGE.paged;
 
   for (;;) {
-    if (rows.length >= max) return done(rows, max, total, true);
+    // At the ceiling: capped, unless an exact count says every row is in.
+    if (rows.length >= max)
+      return done(rows, max, total, counted === undefined || counted > max);
     stopIfCancelled(options.signal);
     const query = compileRecord(
       definition,
@@ -166,6 +178,7 @@ export async function fetchExportRows(
 
     rows.push(...page.list);
     if (page.total !== undefined) total = page.total;
+    counted = page.exact === true ? page.total : undefined;
     options.onProgress?.(Math.min(rows.length, max), total);
     // A page with nothing in it is the end of the result whatever the source
     // said about a next one — and it is what keeps a source that answers
@@ -219,6 +232,8 @@ async function fetchPage(
 ): Promise<{
   list: readonly RecordData[];
   total?: number;
+  /** Whether `total` is the count itself, not a lower bound. */
+  exact?: boolean;
   next: RecordPageTarget | null;
 }> {
   // Each read is called off by its own controller, so one export's reads all
@@ -243,7 +258,9 @@ async function fetchPage(
     // row a wrong guess would drop.
     return {
       list: page.list,
-      ...(typeof page.total === 'number' ? { total: page.total } : {}),
+      ...(typeof page.total === 'number'
+        ? { total: page.total, exact: page.exact === true }
+        : {}),
       next: page.list.length < size ? null : { index: target.index + 1 },
     };
   } catch (error) {

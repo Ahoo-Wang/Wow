@@ -247,7 +247,7 @@ export class ViewWriteError extends Error {
 - **它走在运行时自己的请求线之外**：不占 `RequestRunner` 的槽位、不写 `state.result`、不发通知，既不会被 `apply` 顶掉，也顶不掉屏幕上的查询。导出是"在看这个视图的同时再要一份"，一个因为导出而清空自己的视图是更坏的答案；
 - **每页按 `limits.maxPageSize` 要，而不是按视图的 `pageSize`**：屏幕上一页几行与文件无关，来回次数越少越好，而那个上限正是这个源被准入时的那一个。所以缺省的 `maxPageSize` 是 100：Wow 服务端的 HTTP 查询守卫拒绝超过 100 行的一页（`HttpQueryGuard.maxPageSize`），缺省 200 时对一台保持缺省配置的服务端每次导出都失败（连真服务端的端到端守着它：Wow 仓 `typescript/integration-test` 的 `view-engine/recordView.test.ts`，用例「exports under the engine’s default limits, which a Wow server admits」）。`maxPageSize`、`maxPageWindow`、`maxAnalysisRows` 三个源预算的缺省都是缺省守卫收的（[D42](decisions.md#d42-引擎的缺省预算不超过缺省配置的-wow-服务端2026-09-25)，[model.md](model.md#runtimelimits-的源预算)）；
 - **`ctx.now` 只读一次**：二十页之间"今天"不能翻篇，否则同一个文件的首尾答的是两个问题；
-- **停在 `options.max ?? limits.exportMax`，分页源再停在窗口里的最后一整页**（`pageWindow`：运行时的 `maxPageWindow`，定义声明了更小的 `RecordCapability.maxWindow` 时取它；游标源没有窗口。`exportPlan`：每页条数不超过窗口，上限取 ⌊窗口 / 每页⌋ × 每页），并在结果里以 `capped` 说明文件是截断的——越过窗口的那一页源直接拒绝，接着要下去就是拉完前面所有行之后整次失败；导出窗口事先说的上限也是这个数；空页当作结果的结束，哪怕源还报着下一页——这也是"源一直回空页"时唯一的出口；
+- **停在 `options.max ?? limits.exportMax`，分页源再停在窗口里的最后一整页**（`pageWindow`：运行时的 `maxPageWindow`，定义声明了更小的 `RecordCapability.maxWindow` 时取它；游标源没有窗口。`exportPlan`：每页条数不超过窗口，上限取 ⌊窗口 / 每页⌋ × 每页），并在结果里以 `capped` 说明文件是截断的（源精确计数、且总数不过上限时不算截断：恰好读完全部匹配的行、条数正好等于上限的导出不说「只含前 N 条」；不计数或只给下界的源停在上限时照旧算截断，因为不再问一次就排除不了上限之外还有行，#6912，test/exportRows.test.ts）——越过窗口的那一页源直接拒绝，接着要下去就是拉完前面所有行之后整次失败；导出窗口事先说的上限也是这个数；空页当作结果的结束，哪怕源还报着下一页——这也是"源一直回空页"时唯一的出口；
 - **取消用 `AbortSignal`**，每一页各自建一个 `AbortController` 跟着它，把它的 signal 交给那一页的读法（`{ signal }`），取消时 Promise 以 `ExportCancelledError` 拒绝，由 `isExportCancelledError` 认出来——它是用户的答复，不是要报出来的失败；
 - **进度是 `(fetched, total?)`**：分页源有总数就报，游标源没有总数，那就不报一个没人算得出的数。（见 test/exportRows.test.ts）
 
