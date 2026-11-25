@@ -274,7 +274,7 @@ class HostRefusalTest {
         refusal("wow.aggregates.[bank.account].id-generator" to "missing").assert()
             .contains("wow.aggregates.[bank.account].id-generator names missing")
         refusal("wow.aggregates.[bank.ledger].id-generator" to "missing").assert()
-            .contains("wow.aggregates.[bank.ledger].id-generator names no aggregate type")
+            .contains("wow.aggregates.[bank.ledger] names no aggregate type")
     }
 
     @Test
