@@ -52,8 +52,8 @@ class JavaBeanGettersTest {
      * The query fields of the Java state whose class body is [members], and the properties [WowJson] writes of an
      * instance of it, which the rule's test expects to be one set.
      */
-    private fun fieldsOf(members: String): Pair<Set<String>, Set<String>> {
-        val state = SourceFile.java(
+    private fun fieldsOf(members: String): Pair<Set<String>, Set<String>> = stateFieldsOf(
+        SourceFile.java(
             "CartState.java",
             """
             package sample;
@@ -68,8 +68,12 @@ class JavaBeanGettersTest {
                 public void onSourcing(Created event) { }
             }
             """.trimIndent(),
-        )
-        val (compilation, result) = compileModel("generate", ManifestFragmentFixtures.context, root, state)
+        ),
+    )
+
+    /** The query fields of the state `sample.CartState` of [sources], and the properties [WowJson] writes of one. */
+    private fun stateFieldsOf(vararg sources: SourceFile): Pair<Set<String>, Set<String>> {
+        val (compilation, result) = compileModel("generate", ManifestFragmentFixtures.context, root, *sources)
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
         val properties = compilation.workingDir.walkTopDown().single { it.name == "CartStateProperties.kt" }.readText()
         val fields = QUERY_FIELD.findAll(properties).map { it.groupValues[1] }.toSet()
@@ -180,6 +184,39 @@ class JavaBeanGettersTest {
             "who",
             "sum",
         )
+    }
+
+    @Test
+    fun `a Kotlin state's Java bean base should give its getters as query fields`() {
+        // The state is Kotlin, its base a Java bean: the base's private field read by its getter, and a computed getter.
+        // KSP gives the state no private field of its base, so both are the base's Java getters.
+        val base = SourceFile.java(
+            "CartBase.java",
+            """
+            package sample;
+
+            public class CartBase {
+                private String owner = "alice";
+                public String getOwner() { return owner; }
+                public String getLabel() { return owner + "'s cart"; }
+            }
+            """.trimIndent(),
+        )
+        val state = SourceFile.kotlin(
+            "CartState.kt",
+            """
+            package sample
+
+            class CartState : CartBase() {
+                val note: String = "n"
+
+                fun onSourcing(event: Created) = Unit
+            }
+            """.trimIndent(),
+        )
+        val (fields, written) = stateFieldsOf(base, state)
+        fields.assert().containsExactlyInAnyOrder("note", "owner", "label")
+        written.assert().containsExactlyInAnyOrder("note", "owner", "label")
     }
 
     private companion object {

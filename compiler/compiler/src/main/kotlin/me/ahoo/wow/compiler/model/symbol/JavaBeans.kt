@@ -34,15 +34,13 @@ internal object JavaBeans {
     }
 
     /**
-     * The public getters of the Java class [owner] that read no field of their property's name, each with that name,
-     * as Jackson takes a bean property: `getFullName()` is `fullName`, `isOpen()` of a boolean is `open`.
+     * The public Java getters of [owner], its own or a Java base's, that read no field of their property's name, each
+     * with that name, as Jackson takes a bean property: `getFullName()` is `fullName`, `isOpen()` of a boolean is `open`.
      */
-    fun computed(owner: KSClassDeclaration, fields: Set<String>): List<Pair<String, KSFunctionDeclaration>> {
-        if (owner.origin !in JavaRecords.JAVA) return emptyList()
-        return owner.getAllFunctions().mapNotNull { getter ->
+    fun computed(owner: KSClassDeclaration, fields: Set<String>): List<Pair<String, KSFunctionDeclaration>> =
+        owner.getAllFunctions().filter { it.origin in JavaRecords.JAVA }.mapNotNull { getter ->
             getter.beanProperty()?.takeUnless { it in fields }?.let { it to getter }
         }.toList()
-    }
 
     /**
      * The bean property this method reads, named as Jackson 3 names it, or null when Jackson takes it for no getter.
