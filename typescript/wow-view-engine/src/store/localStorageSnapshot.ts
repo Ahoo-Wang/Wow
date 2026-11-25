@@ -141,7 +141,8 @@ function readable(storage: () => KeptStorage): KeptStorage | undefined {
 /**
  * The stored document, or `undefined` when it is not one. Only its outline
  * is checked here — an instance needs an id to be held by it; each config is
- * checked, and migrated, where every view out of a store is read.
+ * checked where every view out of a store is read, and read as it is: nothing
+ * migrates a stored config (D306).
  */
 function parseState(saved: string | null): MemoryState | undefined {
   if (!saved) return undefined;

@@ -11,7 +11,12 @@
  * limitations under the License.
  */
 
-import { text, type FieldOption, type RecordKey } from '../model/index.js';
+import {
+  isNamedError,
+  text,
+  type FieldOption,
+  type RecordKey,
+} from '../model/index.js';
 import type { RecordRow } from '../record/index.js';
 
 /**
@@ -543,6 +548,23 @@ export class ActionInputError extends Error {
     this.reason = reason;
     this.fields = { ...fields };
   }
+}
+
+/**
+ * By name and shape, as every guard of the engine's errors
+ * (`isViewStoreError`): an `ActionInputError` a host's action throws from
+ * another copy of this package, or one it builds itself, is the same
+ * refusal of the form.
+ */
+export function isActionInputError(error: unknown): error is ActionInputError {
+  if (!isNamedError(error, 'ActionInputError')) return false;
+  const { reason, fields } = error as { reason?: unknown; fields?: unknown };
+  return (
+    typeof reason === 'string' &&
+    typeof fields === 'object' &&
+    fields !== null &&
+    Object.values(fields).every(value => typeof value === 'string')
+  );
 }
 
 /**

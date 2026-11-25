@@ -9,7 +9,7 @@ description: 'Every name @ahoo-wang/wow-view-engine exports, generated from its 
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-view-engine test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-view-engine` exports — 455 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 45 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/root.api.md). This index is English only.
+Every name `@ahoo-wang/wow-view-engine` exports — 456 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 45 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/root.api.md). This index is English only.
 
 ::: v-pre
 
@@ -446,6 +446,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 455 — with its kind and th
 | `hasAsked` | function | Whether this view has put a question to its source: a result came back, one is on its way, or the last one failed. | — |
 | `hasResult` | function | Whether this view ever got a result, even one that is now out of date. | — |
 | `inRows` | function | Panels laid out row by row, so a board written in code says only how big each panel is: each row starts under the tallest panel of the row above, and its panels go left to right from the first column, each `w` wide. | — |
+| `isActionInputError` | function | By name and shape, as every guard of the engine's errors (`isViewStoreError`): an `ActionInputError` a host's action throws from another copy of this package, or one it builds itself, is the same refusal of the form. | — |
 | `isAnalysisRuntime` | function | Whether `runtime` is an analysis view, read off its `kind`: what narrows a runtime held as any data view (a board panel's, say) to one, where `isRecordRuntime` narrows it to a record view. | — |
 | `isDateTimeFilterValue` | function | — | — |
 | `isExportCancelledError` | function | By name, as every guard of the engine's errors (`isViewStoreError`). | — |

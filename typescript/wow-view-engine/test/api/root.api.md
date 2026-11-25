@@ -2100,6 +2100,9 @@ export interface InstantRange {
 }
 
 // @public
+export function isActionInputError(error: unknown): error is ActionInputError;
+
+// @public
 export function isAnalysisRuntime(runtime: ViewRuntime | null | undefined): runtime is AnalysisViewRuntime;
 
 // @public (undocumented)
