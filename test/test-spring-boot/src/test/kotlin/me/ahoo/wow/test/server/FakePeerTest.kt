@@ -30,14 +30,22 @@ import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.client.EndpointResolver
 import me.ahoo.wow.client.WowClient
 import me.ahoo.wow.example.quickstart.BankServer
+import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.manifest.ManifestTree
+import me.ahoo.wow.manifest.PeerContracts
 import me.ahoo.wow.runtime.admission.CallContext
 import me.ahoo.wow.runtime.admission.CallHeaders
+import me.ahoo.wow.spi.json.WowJson
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.api.io.TempDir
 import org.springframework.core.env.Environment
 import tools.jackson.databind.JsonNode
+import java.net.URLClassLoader
+import java.nio.file.Files
+import java.nio.file.Path
 import kotlin.time.Duration.Companion.milliseconds
 
 data class ParcelState(val address: String = "")
@@ -247,6 +255,45 @@ class FakePeerTest {
     }
 
     @Test
+    fun `a request whose service is no service name should be refused as one that names none`() {
+        val answer = WowHttp(shipping.url).use { http ->
+            http.post(
+                "/shipping/parcel/parcel-5/ship-parcel",
+                """{"address":"x"}""",
+                mapOf(WowHeaders.SERVICE to "shop service", WowHeaders.CALL to callOf("acme")),
+            )
+        }
+        answer.status.assert().describedAs(answer.text).isEqualTo(403)
+        answer.problem!!.code.assert().isEqualTo("wow.auth.forbidden")
+    }
+
+    @Test
+    fun `a system command the callee's permits do not list should be refused as the real peer refuses it`(
+        @TempDir contracts: Path,
+    ) {
+        // A real peer's call route checks the caller's permits (CommandHandler, CallPermits): with no
+        // wow.callers.<service>.commands, a system command (wow.*) is 403 wow.call.command-forbidden.
+        val path = "/bank/account/acc-1/wow.lifecycle.restore-aggregate"
+        val headers = mapOf(WowHeaders.SERVICE to "shop-service", WowHeaders.CALL to callOf("acme"))
+        val (real, manifest) = wowServer<BankServer>("dev").use { bank ->
+            bank.internal.post(path, "{}", headers) to bank.bean<Manifest>()
+        }
+        // The fake serves the real bank's own Manifest as its contract, as the bank's api jar would carry it.
+        val resource = contracts.resolve(PeerContracts.RESOURCE)
+        Files.createDirectories(resource.parent)
+        Files.write(resource, WowJson.mapper.writeValueAsBytes(ManifestTree.write(manifest)))
+        withContracts(contracts) { fakePeer("bank") }.use { bank ->
+            val fake = WowHttp(bank.url).use { it.post(path, "{}", headers) }
+            for ((peer, answer) in listOf("the real bank-service" to real, "the fake bank-service" to fake)) {
+                answer.status.assert().describedAs("$peer answered ${answer.text}").isEqualTo(403)
+                answer.problem!!.code.assert().isEqualTo("wow.call.command-forbidden")
+            }
+            fake.problem!!.detail.assert().isEqualTo(real.problem!!.detail)
+            bank.calls.assert().isEmpty()
+        }
+    }
+
+    @Test
     fun `no call within the timeout should fail saying what was not called`() {
         val failure = assertThrows<AssertionError> { shipping.called<ScheduleParcel>(timeout = 50.milliseconds) }
         failure.message.assert().contains("ScheduleParcel", "shipping")
@@ -264,6 +311,20 @@ class FakePeerTest {
                 .isEqualTo(shipping.url.toString())
         }
         shipping.toString().assert().contains("shipping", shipping.url.toString())
+    }
+
+    /** What [block] makes with the contracts under [directory] on the thread's class path, as a test's are. */
+    private fun <T> withContracts(directory: Path, block: () -> T): T {
+        val thread = Thread.currentThread()
+        val previous = thread.contextClassLoader
+        return URLClassLoader(arrayOf(directory.toUri().toURL()), previous).use { loader ->
+            thread.contextClassLoader = loader
+            try {
+                block()
+            } finally {
+                thread.contextClassLoader = previous
+            }
+        }
     }
 
     /** The `Wow-Call` of a root command in [tenantId], as a calling service writes it. */

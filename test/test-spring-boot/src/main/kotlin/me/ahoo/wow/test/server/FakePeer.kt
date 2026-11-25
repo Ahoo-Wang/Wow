@@ -24,9 +24,12 @@ import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.api.wire.WowHeaders
+import me.ahoo.wow.http.caller.CallPermits
+import me.ahoo.wow.http.caller.DeclaredServices
 import me.ahoo.wow.http.internal.InternalPort
 import me.ahoo.wow.http.internal.InternalPortSettings
 import me.ahoo.wow.http.problem.ErrorStatuses
+import me.ahoo.wow.http.problem.Problem
 import me.ahoo.wow.manifest.ClassPathContracts
 import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.FrameworkErrors
@@ -36,6 +39,7 @@ import me.ahoo.wow.runtime.admission.CallHeaders
 import me.ahoo.wow.spi.id.GlobalIdGenerator
 import me.ahoo.wow.spi.json.WowJson
 import org.slf4j.LoggerFactory
+import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
@@ -70,8 +74,10 @@ fun fakePeer(context: String): FakePeer = FakePeer(context, Thread.currentThread
 /**
  * A fake of the peer service of [context] ([fakePeer]): it records each call it takes ([calls]), decoded as the peer's
  * node would decode it, and answers it as [answer] says, a success by default. It refuses a request that names no
- * service (`Wow-Service`) or no root command (`Wow-Call`) with 403 `wow.auth.forbidden`, as a peer's internal port
- * does, and records none. Closing it stops its port.
+ * service (`Wow-Service`) or no root command (`Wow-Call`) with 403 `wow.auth.forbidden`, and a command the calling
+ * service may not call with 403 `wow.call.command-forbidden` ([CallPermits]): as a peer whose configuration lists no
+ * `wow.callers`, every system command (`wow.*`, the lifecycle's restore among them). It records neither, as a peer's
+ * internal port does. Closing it stops its port.
  */
 class FakePeer internal constructor(val context: String, classLoader: ClassLoader) : AutoCloseable {
     private val contract: Manifest = contractOf(context, classLoader)
@@ -79,6 +85,12 @@ class FakePeer internal constructor(val context: String, classLoader: ClassLoade
 
     /** The statuses of the peer's errors, from its contract's tables, as its own routes answer them. */
     private val statuses = ErrorStatuses(contract)
+
+    /**
+     * What each service may call, as the peer's internal port checks it ([CallPermits]): the permits of a peer whose
+     * configuration lists no `wow.callers`, which allows every domain command and refuses every system command.
+     */
+    private val permits = CallPermits(emptyMap())
     private val lock = ReentrantLock()
     private val received = lock.newCondition()
     private val recorded = mutableListOf<PeerCall>()
@@ -147,12 +159,24 @@ class FakePeer internal constructor(val context: String, classLoader: ClassLoade
 
     private suspend fun handle(request: ServerRequest, command: PeerCommand): ServerResponse {
         val headers = request.headers()
-        val service = headers.firstHeader(WowHeaders.SERVICE)?.takeIf { it.isNotBlank() }
+        // The service a request names, read as the peer's internal port reads it.
+        val service = DeclaredServices.nameOf(request)
         val callHeader = headers.firstHeader(WowHeaders.CALL)?.takeIf { it.isNotBlank() }
         if (service == null || callHeader == null) {
             val detail = "A call names its service (${WowHeaders.SERVICE}) and its root command (${WowHeaders.CALL})."
             return statuses.problemOf(FrameworkCodes.AUTH_FORBIDDEN, detail).respond()
         }
+        val aggregate = command.aggregate
+        permits.refusal(DeclaredServices.callerOf(service), aggregate.context, aggregate.name, command.manifest.name)
+            ?.let { refusal ->
+                // As the peer's CommandHandler refuses it, before the body is read; the call is not recorded.
+                return Problem(
+                    HttpStatus.FORBIDDEN.value(),
+                    "The service may not call this command.",
+                    refusal,
+                    CallPermits.COMMAND_FORBIDDEN,
+                ).respond()
+            }
         val body = request.awaitBodyOrNull<ByteArray>()?.takeIf { it.isNotEmpty() }
         val tree: JsonNode = body?.let { WowJson.mapper.readTree(it) } ?: WowJson.mapper.createObjectNode()
         val aggregateId = request.pathVariables()[ID] ?: command.manifest.idProperty?.let { property ->
