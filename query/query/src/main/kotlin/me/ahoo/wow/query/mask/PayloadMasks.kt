@@ -16,6 +16,7 @@ package me.ahoo.wow.query.mask
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.schedule.Schedules
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.query.backend.aggregate
@@ -29,6 +30,7 @@ import me.ahoo.wow.spi.json.query.SnapshotFields
 import me.ahoo.wow.spi.read.StateMasks
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.JsonNodeFactory
+import tools.jackson.databind.node.ObjectNode
 import java.util.Optional
 import java.util.concurrent.ConcurrentHashMap
 
@@ -47,13 +49,25 @@ import java.util.concurrent.ConcurrentHashMap
  * They are the node's [StateMasks] too ([stateMaskOf], [eventMaskOf]): a writer that stores or publishes a state or an
  * event's body where a reader takes it as a read, the state view cache's sink or the transport sink, masks it by the
  * very function a read applies. An event is found by its name once, then by the name it was asked by.
+ *
+ * A schedule's event, `wow.schedule.ScheduleSet`, holds the body of the command it will send: that `command` is masked
+ * as a body of its command type (`commandType`, `context.aggregate.Command`) is, by its schema in [manifest] or, for a
+ * command of another context, in one of [peers], the contracts of the contexts the node sends commands to. A command
+ * type none of them names is left as it is, as an event whose schema the Manifest does not carry is.
  */
 @InternalWowApi
 class PayloadMasks(
     private val manifest: Manifest,
     private val strategies: MaskStrategyResolver = MaskStrategyResolver.NONE,
+    peers: List<Manifest> = emptyList(),
 ) : StateMasks {
+    /** The node's Manifest, then its peers': where a scheduled command's schema is found, by [MaskKey.source]. */
+    private val manifests: List<Manifest> = listOf(manifest) + peers
+
     private val maskers = ConcurrentHashMap<MaskKey, Optional<SchemaMasker>>()
+
+    /** The schema of each scheduled command type, by its name; empty when no Manifest names it. */
+    private val commandSchemas = ConcurrentHashMap<String, Optional<CommandSchema>>()
 
     /** The schema of each event by the type and the name it was asked by; empty when the Manifest has none. */
     private val eventSchemas = ConcurrentHashMap<EventKey, Optional<String>>()
@@ -80,14 +94,50 @@ class PayloadMasks(
      */
     @JvmOverloads
     fun event(type: AggregateType, name: String, body: JsonNode, revealsDisplay: Boolean = false): JsonNode {
+        if (name == Schedules.SCHEDULE_SET) {
+            return scheduled(body, revealsDisplay)
+        }
         val schema = eventSchema(type, name) ?: return body
         return mask(MaskKey(type.context, schema, revealsDisplay), body)
     }
 
     override fun eventMaskOf(type: AggregateType, event: String, revealsDisplay: Boolean): ((JsonNode) -> JsonNode)? {
+        if (event == Schedules.SCHEDULE_SET) {
+            return { body -> scheduled(body, revealsDisplay) }
+        }
         val schema = eventSchema(type, event) ?: return null
         return maskOf(MaskKey(type.context, schema, revealsDisplay))
     }
+
+    /** [body], a schedule's event, with the command it holds masked as a body of its command type; masked in place. */
+    private fun scheduled(body: JsonNode, revealsDisplay: Boolean): JsonNode {
+        val event = body as? ObjectNode ?: return body
+        val command = event.get(COMMAND)?.takeIf { it.isObject } ?: return event
+        val type = event.get(COMMAND_TYPE)?.takeIf { it.isString }?.stringValue() ?: return event
+        val schema = commandSchema(type) ?: return event
+        event.set(COMMAND, mask(MaskKey(schema.context, schema.ref, revealsDisplay, schema.source), command))
+        return event
+    }
+
+    /**
+     * The schema of the command type named [name] (`context.aggregate.Command`, or a former name), in the first
+     * Manifest that has its aggregate and names the command; null when none does.
+     */
+    private fun commandSchema(name: String): CommandSchema? = commandSchemas.computeIfAbsent(name) {
+        Optional.ofNullable(
+            manifests.withIndex().firstNotNullOfOrNull { (source, candidate) ->
+                candidate.contexts.firstNotNullOfOrNull { context ->
+                    context.aggregates.firstNotNullOfOrNull { aggregate ->
+                        val local = name.removePrefix("${context.name}.${aggregate.name}.")
+                        aggregate.commands.firstOrNull { command ->
+                            local != name && (command.name == local || local in command.aliases) ||
+                                name in command.aliases
+                        }?.let { CommandSchema(context.name, it.schema, source) }
+                    }
+                }
+            },
+        )
+    }.orElse(null)
 
     /** The mask of [key]'s schema, its masker compiled now: null when it masks nothing. */
     private fun maskOf(key: MaskKey): ((JsonNode) -> JsonNode)? {
@@ -125,8 +175,9 @@ class PayloadMasks(
      * whatever the payload: the snapshot model is the one whose payload masks are compiled; null when it masks nothing.
      */
     private fun compile(key: MaskKey): SchemaMasker? {
-        if (!Manifest.isSchemaRef(key.schema) || Manifest.schemaKey(key.schema) !in manifest.defs) return null
-        val declaration = ManifestSchemaReader(manifest.defs, key.context, strategies)
+        val defs = manifests[key.source].defs
+        if (!Manifest.isSchemaRef(key.schema) || Manifest.schemaKey(key.schema) !in defs) return null
+        val declaration = ManifestSchemaReader(defs, key.context, strategies)
             .declaration(mapOf(REF to key.schema), PAYLOAD)
         val logical = QuerySchemaMerger().merge(
             QuerySchemaDeclaration(mapOf(PAYLOAD to declaration)),
@@ -137,7 +188,16 @@ class PayloadMasks(
         return SchemaMasker.create(schema, key.revealsDisplay)
     }
 
-    private data class MaskKey(val context: String, val schema: String, val revealsDisplay: Boolean = false)
+    /** A schema to mask by: [schema] of [context], in the Manifest [source] of [manifests] (the node's own: 0). */
+    private data class MaskKey(
+        val context: String,
+        val schema: String,
+        val revealsDisplay: Boolean = false,
+        val source: Int = 0,
+    )
+
+    /** A command type's schema [ref] in [context], declared by the Manifest [source] of [manifests]. */
+    private data class CommandSchema(val context: String, val ref: String, val source: Int)
 
     private data class EventKey(val type: AggregateType, val name: String)
 
@@ -148,6 +208,8 @@ class PayloadMasks(
         val NONE: PayloadMasks = PayloadMasks(Manifest())
 
         private const val REF = "\$ref"
+        private const val COMMAND = "command"
+        private const val COMMAND_TYPE = "commandType"
         private val PAYLOAD = QueryField(SnapshotFields.STATE)
     }
 }
