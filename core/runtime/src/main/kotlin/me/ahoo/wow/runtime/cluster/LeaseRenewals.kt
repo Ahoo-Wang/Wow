@@ -18,6 +18,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.runtime.health.launchWorker
@@ -71,8 +72,14 @@ internal class LeaseRenewals(
      * A loop that ends otherwise ended on an error no round catches (`NodeLoops.kt`): nothing restarts it, so the node
      * can renew no lease of [group] again. [ended] is then called with why ([ENDED]), apart from the loop, for the node
      * to step out of the group rather than acquire its partitions again, each one only to lose it once it is overdue.
+     *
+     * A loop the scope's stop ended (the ownership's stop, abandon or abort cancel its root) ended nothing. That cancel
+     * reaches the loop and its watch one after the other, so the loop may complete, and resume the watch, before the
+     * watch is cancelled (#7078). The scope's job is no longer active from the start of that cancel, before it reaches
+     * either, so the watch reads the stop from it, not from the loop, which reads as cancelled after its own failure too.
      */
     fun launchIn(scope: CoroutineScope, steppedOut: () -> Boolean, ended: suspend (String) -> Unit): Job {
+        val owner = scope.coroutineContext.job
         val loop = scope.launchWorker("lease renewals") {
             if (steppedOut()) {
                 return@launchWorker false
@@ -84,7 +91,7 @@ internal class LeaseRenewals(
         }
         scope.launch {
             loop.join()
-            if (!steppedOut()) {
+            if (owner.isActive && !steppedOut()) {
                 logger.error {
                     "The lease renewals of $node in $group ended, and nothing restarts them: the node steps out of " +
                         "$group and acquires none of its partitions again, so the other nodes take them over."
