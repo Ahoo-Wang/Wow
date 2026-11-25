@@ -454,6 +454,7 @@ The structures with a format version are: the log entry's facts and transport da
 
 - Logs and snapshot stores record their format version per table. Every message on the wire carries its own: `format`, or `v` on the cluster channel.
 - **Adding is not a format change.** A new optional field with a default keeps the format version. Readers ignore fields they do not know, and fill in the default for a field that is missing.
+- **A value a newer writer added** to a result's status, a hop's stage or a function's kind is read as `UNKNOWN`, wherever a node reads it: a log entry's transport, a topic's envelope, the cluster channel, a peer's `Wow-Call`. A server still refuses an unknown value in a client's request.
 - **Within a major version**, a new field is first read by one minor version and written only by the next, so two adjacent minor versions can run side by side during a rolling upgrade.
 - **A change old readers cannot read** waits for the next major version, whose migration tool converts the data.
 
