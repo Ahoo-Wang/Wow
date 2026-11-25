@@ -287,7 +287,7 @@ class SubscriptionBindingTest {
                 "sample.shop.Remove::class.java, false, derives = kotlin.collections.listOf(sample.shop.Restore::class.java))",
             "me.ahoo.wow.kernel.RejectionBinding.of<kotlin.Any>(\"CartSaga\", \"onAnyRejected\", null, true, " +
                 "derives = kotlin.collections.listOf(sample.shop.Restore::class.java))",
-            "rejections = rejections, derives = kotlin.collections.listOf(sample.shop.Remove::class.java)) {",
+            "rejections = rejections, derives = kotlin.collections.listOf(sample.shop.Remove::class.java), context = \"shop\") {",
         )
         val handlers = provider(compilation, result)
             .processors(Dependencies.of(mapOf("audit" to rows(result, Rows())), rows(result, Rows())))
@@ -556,7 +556,7 @@ class SubscriptionBindingTest {
         result.messages.assert().doesNotContain("not bound")
         generated(compilation, "ViewSubscriptions.kt")!!.readText()
             .assert().contains(
-                "me.ahoo.wow.kernel.ProcessorBinding.project<kotlin.Any>(\"View\", \"onEvent\", null, false)"
+                "me.ahoo.wow.kernel.ProcessorBinding.project<kotlin.Any>(\"View\", \"onEvent\", null, false, context = \"shop\")"
             )
         val processors = provider(compilation, result).processors(Dependencies.NONE)
         processors.map { it.name }.assert().containsExactly("View.onEvent")

@@ -35,6 +35,7 @@ import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.ContextQueries
+import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.kernel.HandlingRejectedException
 import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.kernel.RejectionCodes
@@ -53,7 +54,9 @@ fun commandTypeOf(command: Command<*>): String {
 
 /**
  * The rejection of [command] with [code] and [message], as the runtime hands it to the `@OnRejected` handler of the
- * saga whose execution [executionId] derived the command: for [ProcessorSpec.whenRejected].
+ * saga whose execution [executionId] derived the command: for [ProcessorSpec.whenRejected]. It carries the command's
+ * scope, and no version, as a node's receipt does when it knows none; a test that hands one with the version its target
+ * rejected at builds it with `CommandReceipt.Rejected(…, version = …)`.
  */
 fun rejectedReceipt(
     command: Command<*>,
@@ -69,6 +72,8 @@ fun rejectedReceipt(
     causation = command.causation ?: Causation(command.id, command.id),
     executionId = executionId,
     operator = command.operator,
+    // As a node's receipt (DerivedCommands.Rejected.toReceipt): the scope its compensations are derived in.
+    scope = command.scope,
     headers = RequestFacts.propagatedOf(command.headers),
 )
 
@@ -412,7 +417,7 @@ class ProcessorSpec internal constructor(
         // As the runtime does: a rejection no @OnRejected handler takes parks the aggregate at once.
         val onRejected = saga.rejectionHandlerOf(command.java) ?: return parked(rejected, saga, expect)
         val call = { handling.reject(onRejected, rejected) }
-        verify(ProcessorExpectations(listOf(onRejected.name), call(), call, this, saga.retry), expect)
+        verify(ProcessorExpectations(listOf(onRejected.name), call(), call, this, retryOf(saga, rejected)), expect)
     }
 
     /** The handling [rejected] parks: no handler takes it, so the aggregate parks at once, as [saga]'s. */
@@ -478,8 +483,16 @@ class ProcessorSpec internal constructor(
             "$processor has no @OnCommitted handler of the receipts of ${command.qualifiedName}.",
         )
         val call = { handling.commit(onCommitted, committed) }
-        verify(ProcessorExpectations(listOf(onCommitted.name), call(), call, this, saga.retry), expect)
+        verify(ProcessorExpectations(listOf(onCommitted.name), call(), call, this, retryOf(saga, committed)), expect)
     }
+
+    /**
+     * The retry budget of the handling of [receipt] by [saga]'s receipt handler, as the runtime gives it: the saga's
+     * `@Retry` for a receipt of its own context's command, which its own subscription handles; none for one of another
+     * context's, which that context's receipts subscription (`wow.receipts.<context>`) handles with no handler retry.
+     */
+    private fun retryOf(saga: ProcessorBinding<*>, receipt: CommandReceipt<*>): HandlerRetry? =
+        saga.retry.takeIf { receipt.ref.type.context == receipt.executionId.context }
 
     /**
      * Hands each of [events] to the handlers that read it, in order, as [whenEvent] does, and checks what they did

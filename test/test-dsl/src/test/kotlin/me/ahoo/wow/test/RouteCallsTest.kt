@@ -61,7 +61,7 @@ class RouteCallsTest {
             runBlocking { asMary.send(CommandRequest.to(stock.ref("t1", "gone"), Reserve("gone"))) }
         }.result.error?.code.assert().isEqualTo("inventory.stock.gone")
         assertThrows<WowProblemException> {
-            runBlocking { client.stream(CommandRequest.to(stock.ref("t1", "down"), Reserve("down"))).toList() }
+            runBlocking { client.send(CommandRequest.to(stock.ref("t1", "down"), Reserve("down"))) }
         }.code.assert().isEqualTo("wow.storage.unavailable")
         // What it took, through every client of it, in order and as whom.
         client.calls.map { it.caller to (it.request.command as Reserve).sku }.assert()
@@ -72,6 +72,26 @@ class RouteCallsTest {
         val unnamed = answeringCommandClient { it.committed(ref = stock.ref("t1", "new")) }
         unnamed.wait(CommandRequest.of(Reserve("new"), "new")).status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
     }
+
+    @Test
+    fun `an answering client's stream should emit a rejected result, as a client's stream emits every status`(): Unit =
+        runBlocking {
+            // As the CommandClient contract says: stream emits every result, whatever its status, where send and wait
+            // throw a rejected or failed one. Moved from review/r1-testkit (DslReviewR1Test).
+            val client = answeringCommandClient { call ->
+                if ((call.request.command as Reserve).sku == "gone") {
+                    call.rejected("inventory.stock.gone")
+                } else {
+                    call.failed("wow.storage.unavailable")
+                }
+            }
+            val gone = client.stream(CommandRequest.to(stock.ref("t1", "gone"), Reserve("gone"))).toList().single()
+            gone.status.assert().isEqualTo(CommandResult.Status.REJECTED)
+            gone.error?.code.assert().isEqualTo("inventory.stock.gone")
+            val down = client.stream(CommandRequest.to(stock.ref("t1", "down"), Reserve("down"))).toList().single()
+            down.status.assert().isEqualTo(CommandResult.Status.FAILED)
+            client.calls.assert().hasSize(2)
+        }
 
     @Test
     fun `a route call hands over the queries and commands it was given`() {

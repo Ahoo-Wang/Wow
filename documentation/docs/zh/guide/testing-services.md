@@ -192,8 +192,9 @@ runBlocking { reserve(inventory, "cup") }.assert().isEqualTo("try again later")
 ```
 
 - `call.committed(version, ref, results)` 是成功，带着它的值。
-- `call.rejected(code, message, ref, violations, extensions)` 会作为真实客户端抛出的 `CommandRejectedException` 抛出。
-- `call.failed(code, message)` 会作为一次失败调用的 `WowProblemException` 抛出，用同一个请求 ID 重试可能越过它。要给出别的状态或重试方式，lambda 自己抛出一个 `WowProblemException`。
+- `call.rejected(code, message, ref, violations, extensions)` 会从 `send` 和 `wait` 作为真实客户端抛出的 `CommandRejectedException` 抛出。
+- `call.failed(code, message)` 会从 `send` 和 `wait` 作为一次失败调用的 `WowProblemException` 抛出，用同一个请求 ID 重试可能越过它。要给出别的状态或重试方式，lambda 自己抛出一个 `WowProblemException`。
+- `stream` 把每个答复作为结果发出，无论其状态如何，拒绝和失败的也一样，就像真实客户端的流发出每一种状态。
 
 对着服务器测试时，`fakePeer` 经 HTTP 给出同样三种答复，与对端的路由一样，服务器的客户端再把它们读回来：
 
