@@ -98,7 +98,8 @@ val signatureTestTask = tasks.register<Test>("signatureTest") {
     classpath = signatureTest.runtimeClasspath
     systemProperty("wow-test.repository.root", projectDir.toPath().relativize(rootDir.toPath()).toString())
     val dumped = rootProject.subprojects.filter { File(it.projectDir, "api/${it.name}.api").isFile }
-    dependsOn(dumped.map { "${it.path}:classes" })
+    // The compiled Kotlin classes alone, not `classes`: a project's resources (a generated chart, say) are no input.
+    dependsOn(dumped.map { "${it.path}:compileKotlin" })
     inputs.files(dumped.map { it.layout.buildDirectory.dir("classes/kotlin/main") })
         .withPathSensitivity(PathSensitivity.RELATIVE)
         .withPropertyName("dumpedClasses")
