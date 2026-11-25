@@ -34,6 +34,7 @@ import me.ahoo.wow.spi.observation.TraceContext
 import me.ahoo.wow.spi.observation.observe
 import me.ahoo.wow.spi.observation.trace
 import me.ahoo.wow.spi.timer.Timer
+import me.ahoo.wow.spi.timer.TimerStatus
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.util.concurrent.TimeUnit
@@ -558,6 +559,31 @@ class OtelObserverTest {
     }
 
     @Test
+    fun `a claimed timer's delay should be from its slot's due time, as the firing loop sends it (#6857)`(): Unit =
+        runBlocking {
+            val due = 1_000L
+            // The firing loop claims a timer before it sends it (TimerRunner.attempt): FIRING, looked at again after
+            // the claim timeout (30 s), its slot still due when it was; the firer is given that claimed row.
+            val claimed = Timer(
+                id = "$ref#expire@2",
+                owner = ref,
+                key = "expire",
+                version = 2,
+                partition = 0,
+                rule = ScheduleRule.At(due),
+                dueAt = telemetry.now + CLAIM_TIMEOUT_MILLIS,
+                target = ref,
+                commandType = "$ORDER.CancelOrder",
+                body = "{}",
+                status = TimerStatus.FIRING,
+                slotDueAt = due,
+            )
+            observer.firing(claimed).observe { }
+            val delay = telemetry.meters.find(WowMetrics.TIMER_DELAY.name).tags(WowMetrics.CONTEXT, SALES).timer()!!
+            delay.totalTime(TimeUnit.MILLISECONDS).assert().isEqualTo((telemetry.now - due).toDouble())
+        }
+
+    @Test
     fun `a trace resumed from its fields should make its span current, and nothing should be resumed without`(): Unit =
         runBlocking {
             observer.resuming(emptyMap()).assert().isSameAs(EmptyCoroutineContext)
@@ -575,5 +601,8 @@ class OtelObserverTest {
     private companion object {
         /** The kernel's resolved type name of [PlaceOrder]. */
         val PLACE_ORDER = "$ORDER.PlaceOrder"
+
+        /** The firing loop's claim timeout by default: a claimed timer is looked at again this much later. */
+        const val CLAIM_TIMEOUT_MILLIS = 30_000L
     }
 }

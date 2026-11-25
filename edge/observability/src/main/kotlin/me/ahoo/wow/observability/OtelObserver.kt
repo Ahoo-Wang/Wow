@@ -309,7 +309,8 @@ class OtelObserver(
 
     override fun firing(timer: Timer): Observation {
         val context = timer.target.type.context
-        val delay = (clock() - timer.dueAt).coerceAtLeast(0)
+        // Late after the slot's due time: the firing loop sends a claimed row, its dueAt when it looks again (#6857).
+        val delay = (clock() - timer.slotDueAt).coerceAtLeast(0)
         cached.timer(WowMetrics.TIMER_DELAY, context).record(delay, TimeUnit.MILLISECONDS)
         val span = tracer.spanBuilder("fire ${timer.commandType}")
             .setAttribute(CONTEXT, context)
