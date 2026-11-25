@@ -99,7 +99,10 @@ class Resources(
             }
         }
         mongoContainer?.let { container ->
-            stream(listOf("docker", "exec", container, "mongosh", "--quiet", "--eval", MONGO_LOOP)) { line ->
+            // The harness's MongoDB port inside the container as outside (compose.yml), 27017 unless set.
+            val port = System.getenv("WOW_BENCH_MONGO_PORT") ?: "27017"
+            val sampler = listOf("docker", "exec", container, "mongosh", "--quiet", "--port", port)
+            stream(sampler + listOf("--eval", MONGO_LOOP)) { line ->
                 Samples.columns(
                     line,
                     MONGO_COLUMNS,

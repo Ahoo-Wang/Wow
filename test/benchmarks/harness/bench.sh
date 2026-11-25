@@ -75,6 +75,10 @@ export JAVA_HOME
 SERVER_JAVA=$JAVA_HOME
 LOAD="$REPO/test/benchmarks/load/build/install/benchmark-load/bin/benchmark-load"
 PUBLIC_PORT=18080
+# MongoDB's port on the host and in its container: WOW_BENCH_MONGO_PORT, 27017 unless set. compose.yml publishes it,
+# the nodes get it in their connection string, and the load generator and idle.sh reach mongod on it in the container.
+MONGO_PORT="${WOW_BENCH_MONGO_PORT:-27017}"
+export WOW_BENCH_MONGO_PORT="$MONGO_PORT"
 INTERNAL_PORT=19090
 SERVER_PIDS=()
 TARGETS=()
@@ -147,6 +151,35 @@ stores_up() {
   local services=("$1")
   if uses_bus; then services=(kafka "$1"); fi
   WOW_BENCH_MONGO_CACHE_GB=$(opt mongo-cache-gb 2) docker compose "${files[@]}" up -d --wait "${services[@]}" >/dev/null
+  store_preflight "$1"
+}
+
+# Before any node starts: each address the nodes are given answers as this session's container, as a node resolves
+# it (StorePreflight.java, on the server install's own drivers). Docker reports a container healthy while another
+# tool holds its port on the host (kubefwd forwarding a cluster's MongoDB on 127.0.0.1:27017), and a node would meet
+# that other server and fail only at its 30 s selection timeout. MongoDB: the replica set the healthcheck created
+# (rs0) on the container's host name; PostgreSQL: the container's system identifier; Kafka: the cluster id its broker
+# stored (meta.properties: compose.yml's CLUSTER_ID as Kafka normalises it, wow-e2e-bench-kafka-0w).
+# Refuses (exit 2) naming what answered; an install without the store's client is named and not checked.
+store_preflight() {
+  local lib; lib="$(opt install "$REPO/test/benchmarks/server/build/install/benchmark-server")/lib"
+  local checks=() line rc
+  case "$1" in
+    mongo) checks+=("mongo mongodb://localhost:$MONGO_PORT/?replicaSet=rs0 rs0 $(docker inspect -f '{{.Config.Hostname}}' wow-e2e-bench-mongo)") ;;
+    postgres) checks+=("postgres jdbc:postgresql://localhost:5432/transfer $(docker exec wow-e2e-bench-postgres psql -U postgres -d transfer -At -c 'select system_identifier from pg_control_system()')") ;;
+  esac
+  if uses_bus; then
+    checks+=("kafka localhost:9092 $(docker exec wow-e2e-bench-kafka sed -n 's/^cluster.id=//p' /var/lib/kafka/data/meta.properties)")
+  fi
+  for line in "${checks[@]}"; do
+    # shellcheck disable=SC2086 # each check's words are its arguments
+    rc=0; line=$("$JAVA_HOME/bin/java" -cp "$lib/*" "$HARNESS/StorePreflight.java" $line 2>&1) || rc=$?
+    case $rc in
+      0) ;;
+      5) log "store preflight: $line" ;;
+      *) log "store preflight refused: $line"; exit 2 ;;
+    esac
+  done
 }
 
 # The whole disk under Docker's volumes, as /dev/<disk>: cgroup v2 caps a disk, not a partition (--store-write-iops).
@@ -275,6 +308,9 @@ start_node() {
   local n=$1
   local port=$((PUBLIC_PORT + n - 1)) internal=$((INTERNAL_PORT + n - 1))
   local args=("--server.port=$port" "--spring.profiles.active=$BACKEND" "--wow.internal.port=$internal" "--wow.node.id=node-$n")
+  # The connection string on the command line, so a build whose configuration predates WOW_BENCH_MONGO_PORT (a
+  # baseline's) reaches the session's MongoDB too.
+  if [ "$BACKEND" = mongo ]; then args+=("--spring.mongodb.uri=mongodb://localhost:$MONGO_PORT/?replicaSet=rs0"); fi
   local jvm="-Xms$HEAP -Xmx$HEAP -XX:+UseG1GC"
   if [ "$(opt jfr false)" = true ]; then
     jvm="$jvm -XX:StartFlightRecording=filename=$OUT/node-$n.jfr,settings=$(opt jfr-settings profile)"

@@ -9,15 +9,17 @@ services:
     container_name: wow-e2e-bench-mongo
     # WiredTiger's cache: 2 GB unless bench.sh --mongo-cache-gb says. At 1 GB it ran 88-94% full with heavy eviction
     # under 100,000 accounts' traffic; a deployment sizes it to hold its indexes and hot documents.
-    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--wiredTigerCacheSizeGB", "${WOW_BENCH_MONGO_CACHE_GB:-2}"]
+    # Its port: WOW_BENCH_MONGO_PORT (27017 unless set), the same inside the container as on the host, since the
+    # replica set's member name, localhost:<port>, must resolve on both sides.
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--port", "${WOW_BENCH_MONGO_PORT:-27017}", "--wiredTigerCacheSizeGB", "${WOW_BENCH_MONGO_CACHE_GB:-2}"]
     ports:
-      - "127.0.0.1:27017:27017"
+      - "127.0.0.1:${WOW_BENCH_MONGO_PORT:-27017}:${WOW_BENCH_MONGO_PORT:-27017}"
     healthcheck:
       # Initiates the replica set on its first run, with the member address the host's clients use.
       test:
         - CMD-SHELL
         - >
-          mongosh --quiet --eval 'try { rs.status().ok } catch (e) { rs.initiate({_id: "rs0", members: [{_id: 0, host: "localhost:27017"}]}).ok }' | grep -q 1
+          mongosh --quiet --port ${WOW_BENCH_MONGO_PORT:-27017} --eval 'try { rs.status().ok } catch (e) { rs.initiate({_id: "rs0", members: [{_id: 0, host: "localhost:${WOW_BENCH_MONGO_PORT:-27017}"}]}).ok }' | grep -q 1
       interval: 2s
       timeout: 10s
       retries: 30
