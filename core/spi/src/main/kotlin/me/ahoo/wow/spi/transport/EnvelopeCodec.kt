@@ -17,7 +17,6 @@ import com.fasterxml.jackson.annotation.JsonInclude
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.spi.access.AccessValues
@@ -48,7 +47,7 @@ import tools.jackson.databind.JsonNode
  *   [AccessValues], or null when not stamped; `accessVersion` the version it is of, null with it) with each event
  *   `{name, revision, payload}` and the state `{version, schemaFingerprint, state}` or null.
  */
-@WowSpi
+@InternalWowApi
 object EnvelopeCodec {
     private val mapper = WowJson.mapper
 

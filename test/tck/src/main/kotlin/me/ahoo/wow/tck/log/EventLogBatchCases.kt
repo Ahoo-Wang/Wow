@@ -75,7 +75,7 @@ abstract class EventLogBatchCases internal constructor() : EventLogReadCases() {
         outcomes[1].assert().isInstanceOf(AppendOutcome.Rejected::class.java)
         outcomes[2].assert().isInstanceOf(AppendOutcome.Committed::class.java)
         log.read(refused.ref).toList().assert().isEmpty()
-        withTimeout(TAIL_TIMEOUT_MS) { log.tail(0).take(2).toList() }.map { it.stream.ref.id }
+        withTimeout(tailTimeout) { log.tail(0).take(2).toList() }.map { it.stream.ref.id }
             .assert().containsExactlyInAnyOrder(before, after)
     }
 
@@ -112,7 +112,7 @@ abstract class EventLogBatchCases internal constructor() : EventLogReadCases() {
         outcomes.map { (it as AppendOutcome.Committed).position.sequence }.assert().isEqualTo((1L..10L).toList())
         val more = log.appendAll(ids.take(3).map { Append.of(stream(it, 2)) })
         more.map { (it as AppendOutcome.Committed).position.sequence }.assert().isEqualTo((11L..13L).toList())
-        withTimeout(TAIL_TIMEOUT_MS) { log.tail(0).take(13).toList() }.map { it.position.sequence }
+        withTimeout(tailTimeout) { log.tail(0).take(13).toList() }.map { it.position.sequence }
             .assert().isEqualTo((1L..13L).toList())
     }
 
@@ -136,7 +136,7 @@ abstract class EventLogBatchCases internal constructor() : EventLogReadCases() {
         val committed = listOf(outcomes[0], outcomes[3]).map { (it as AppendOutcome.Committed).position.sequence }
         committed.assertIncreasingAfter(1L)
         log.head(0).assert().isEqualTo(committed.last())
-        withTimeout(TAIL_TIMEOUT_MS) { log.tail(0).take(3).toList() }.map { it.stream.ref.id }
+        withTimeout(tailTimeout) { log.tail(0).take(3).toList() }.map { it.stream.ref.id }
             .assert().isEqualTo(listOf(taken, first, last))
     }
 
@@ -159,7 +159,7 @@ abstract class EventLogBatchCases internal constructor() : EventLogReadCases() {
         log.read(type.ref("tenant", ids[1])).toList().map { it.requestId }.assert()
             .containsExactly(firsts[1].requestId, "elsewhere")
         // Where the other writer's stream lies among them is the backend's sequencing.
-        withTimeout(TAIL_TIMEOUT_MS) { log.tail(0).take(8).toList() }.map { it.stream.ref.id to it.stream.version }
+        withTimeout(tailTimeout) { log.tail(0).take(8).toList() }.map { it.stream.ref.id to it.stream.version }
             .assert().containsExactlyInAnyOrderElementsOf(ids.map { it to 1 } + ids.map { it to 2 })
     }
 
@@ -316,7 +316,7 @@ abstract class EventLogBatchCases internal constructor() : EventLogReadCases() {
         (outcomes[1] as AppendOutcome.AlreadyCommitted).existing.ref.id.assert().isEqualTo(first)
         outcomes[2].assert().isInstanceOf(AppendOutcome.Committed::class.java)
         log.read(type.ref("tenant", repeat)).toList().assert().isEmpty()
-        val tailed = withTimeout(TAIL_TIMEOUT_MS) { log.tail(0).take(2).toList() }
+        val tailed = withTimeout(tailTimeout) { log.tail(0).take(2).toList() }
         tailed.map { it.stream.ref.id }.assert().isEqualTo(listOf(first, other))
         tailed.map { it.position.sequence }.assertIncreasingAfter(0L)
     }
@@ -329,7 +329,7 @@ abstract class EventLogBatchCases internal constructor() : EventLogReadCases() {
             listOf(Append.of(stream(first, 1)), Append.of(stream(second, 1, aggregate = other)))
         }
         log.appendAll(group).map { (it as AppendOutcome.Committed).position.sequence }.assertIncreasingAfter(0L)
-        val entries = withTimeout(TAIL_TIMEOUT_MS) { log.tail(0).take(6).toList() }
+        val entries = withTimeout(tailTimeout) { log.tail(0).take(6).toList() }
         entries.map { it.stream.ref }.assert().isEqualTo(group.map { it.stream.ref })
     }
 }

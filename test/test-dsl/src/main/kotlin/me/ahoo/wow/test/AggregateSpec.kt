@@ -58,10 +58,10 @@ class AggregateSpec<S : Any> private constructor(
     private val tree: TestTree?,
 ) {
     /**
-     * A specification of [model]'s aggregate [ref], its clock at [start]. It differs from the primary constructor in
-     * taking no fork origin, a private type, and no test tree, an internal one: a public constructor can take neither.
+     * A specification of [model]'s aggregate [ref], its clock at [start], without a fork origin or a test tree; a
+     * test builds one with `aggregateSpec`.
      */
-    constructor(model: AggregateModel<S>, ref: AggregateRef, start: Instant = DEFAULT_START) :
+    internal constructor(model: AggregateModel<S>, ref: AggregateRef, start: Instant) :
         this(model, ref, start, null, null)
 
     /**

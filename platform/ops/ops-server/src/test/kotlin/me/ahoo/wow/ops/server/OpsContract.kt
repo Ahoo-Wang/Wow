@@ -15,6 +15,7 @@ package me.ahoo.wow.ops.server
 
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.client.wait
@@ -48,6 +49,7 @@ import java.util.UUID
  * own, so the tests share the server without seeing each other's entries. It runs on the memory backend
  * ([OpsMemoryTest]) and on PostgreSQL (`OpsPostgresTest`).
  */
+@OptIn(InternalWowApi::class) // reads the ledger's commands on their topic (CommandWire)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 abstract class OpsContract {
     /** The ops server the requests go to. */

@@ -263,8 +263,8 @@ abstract class LeaseStoreSpec {
     }
 
     protected companion object {
-        const val GROUP_SUFFIX = 12
-        const val CONTENDERS = 16
+        internal const val GROUP_SUFFIX = 12
+        private const val CONTENDERS = 16
         val TTL = 10.seconds
 
         /** The internal address the tests give [node]. */

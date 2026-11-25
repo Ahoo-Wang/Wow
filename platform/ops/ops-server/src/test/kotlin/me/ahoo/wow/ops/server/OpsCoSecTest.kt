@@ -17,6 +17,7 @@ import me.ahoo.cosec.annotations.ExperimentalCoSecApi
 import me.ahoo.cosec.testkit.IdentityHeader
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.cosec.CoSecCallerResolver
@@ -38,6 +39,7 @@ import org.springframework.boot.autoconfigure.AutoConfiguration
  * gateway mode reads it and the operator is its principal. A request without an identity is answered 401; a viewer
  * reads the entries and may not act on them; an operator's retry goes to the owning context under the operator's name.
  */
+@OptIn(InternalWowApi::class) // reads the ledger's commands on their topic (CommandWire)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class OpsCoSecTest {
     private val ops: OpsNode = startOps(

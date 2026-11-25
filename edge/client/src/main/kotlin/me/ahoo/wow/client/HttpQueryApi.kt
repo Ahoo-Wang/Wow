@@ -103,7 +103,7 @@ import kotlin.time.Duration
  * its reads, in service mode alone: the peer answers them raw when the read's root is the service's own and the peer
  * shares them, and refuses it (403) otherwise.
  */
-class HttpQueryApi internal constructor(
+internal class HttpQueryApi(
     private val transport: HttpTransport,
     private val models: PeerModels,
     private val ids: GlobalIdGenerator,

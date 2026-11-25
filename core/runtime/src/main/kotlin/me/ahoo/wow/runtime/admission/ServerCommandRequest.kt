@@ -48,7 +48,7 @@ import tools.jackson.databind.JsonNode
  * [call] is the root command a service identity's synchronous call acts for (the `Wow-Call` header):
  * admission takes it only from a caller that is a [service][Caller.service] identity.
  *
- * Fields may be added: construct a request with [of] or [builder]; the constructor is internal to Wow.
+ * Fields may be added: construct a request with [of], naming the facts it has; the constructor is internal to Wow.
  */
 class ServerCommandRequest @InternalWowApi constructor(
     val context: String,
@@ -122,88 +122,63 @@ class ServerCommandRequest @InternalWowApi constructor(
         trace, call, tenantId
     )
 
-    /**
-     * Builds a [ServerCommandRequest] from what [of] takes and any of the request's facts, each setter replacing the fact it
-     * names; [build] checks the request. A fact added to the request later comes with a setter of its own.
-     */
-    class Builder internal constructor(
-        private val context: String,
-        private val aggregate: String,
-        private val command: String,
-        private val body: CommandBody,
-    ) {
-        private var caller: Caller = Caller.ANONYMOUS
-        private var aggregateId: String? = null
-        private var targetScope: TargetScope? = null
-        private var requestId: String? = null
-        private var expectedVersion: Int? = null
-        private var headers: Map<String, String> = emptyMap()
-        private var wait: WaitPlan? = null
-        private var trace: Map<String, String> = emptyMap()
-        private var tenantId: String? = null
-
-        /** Who sends the command; anonymous by default. */
-        fun caller(caller: Caller): Builder = apply { this.caller = caller }
-
-        /** The aggregate the command targets; none for a command that creates one with an id it is given. */
-        fun aggregateId(aggregateId: String?): Builder = apply { this.aggregateId = aggregateId }
-
-        /** The tenant the request's ref names, which must be the one admission decides; none to take that one. */
-        fun tenantId(tenantId: String?): Builder = apply { this.tenantId = tenantId }
-
-        /** The scope a cross-scope caller acts in (`Wow-Scope`). */
-        fun targetScope(targetScope: TargetScope?): Builder = apply { this.targetScope = targetScope }
-
-        /** The request id that makes the command idempotent (`Wow-Request-Id`); a new one by default. */
-        fun requestId(requestId: String?): Builder = apply { this.requestId = requestId }
-
-        /** The version the caller believes the aggregate is at (`If-Match`). */
-        fun expectedVersion(expectedVersion: Int?): Builder = apply { this.expectedVersion = expectedVersion }
-
-        /** The request facts admission may keep on the command. */
-        fun headers(headers: Map<String, String>): Builder = apply { this.headers = headers }
-
-        /** What the caller waits for (`Wow-Wait`); the default plan when none is given. */
-        fun wait(wait: WaitPlan?): Builder = apply { this.wait = wait }
-
-        /** The trace context the request arrived with. */
-        fun trace(trace: Map<String, String>): Builder = apply { this.trace = trace }
-
-        /** The request. */
-        fun build(): ServerCommandRequest = ServerCommandRequest(
+    companion object {
+        /**
+         * A request for [command] of [aggregate] in [context] with [body], and any of the request's other facts, each
+         * named: who sends it ([caller], anonymous by default), the aggregate it targets ([aggregateId]; none for a
+         * command that creates one with an id it is given), the tenant its ref names ([tenantId], which must be the one
+         * admission decides; none to take that one), the scope a cross-scope caller acts in ([targetScope],
+         * `Wow-Scope`), the request id that makes it idempotent ([requestId], `Wow-Request-Id`; a new one by default),
+         * the version the caller believes the aggregate is at ([expectedVersion], `If-Match`), the request facts
+         * admission may keep on the command ([headers]), what the caller waits for ([wait], `Wow-Wait`; the default
+         * plan when none) and the trace context it arrived with ([trace]).
+         */
+        @JvmStatic
+        @JvmOverloads
+        fun of(
+            context: String,
+            aggregate: String,
+            command: String,
+            body: CommandBody,
+            caller: Caller = Caller.ANONYMOUS,
+            aggregateId: String? = null,
+            tenantId: String? = null,
+            targetScope: TargetScope? = null,
+            requestId: String? = null,
+            expectedVersion: Int? = null,
+            headers: Map<String, String> = emptyMap(),
+            wait: WaitPlan? = null,
+            trace: Map<String, String> = emptyMap(),
+        ): ServerCommandRequest = ServerCommandRequest(
             context, aggregate, command, body, caller, aggregateId, targetScope, requestId, expectedVersion, headers, wait,
             trace, tenantId = tenantId,
         )
-    }
-
-    companion object {
-        /** A request for [command] of [aggregate] in [context] with [body], from an anonymous caller, with no other fact. */
-        @JvmStatic
-        fun of(context: String, aggregate: String, command: String, body: CommandBody): ServerCommandRequest =
-            ServerCommandRequest(context, aggregate, command, body)
-
-        /** A [Builder] of a request for [command] of [aggregate] in [context] with [body]. */
-        @JvmStatic
-        fun builder(context: String, aggregate: String, command: String, body: CommandBody): Builder =
-            Builder(context, aggregate, command, body)
 
         /**
-         * A request for the command object [command] to the aggregate [ref] names, from an anonymous
-         * caller, with no other fact: its context and aggregate are [ref]'s type, its command type the one admission
-         * derives from [command]'s class, its tenant [ref]'s and its aggregate id [ref]'s, none for an
-         * [unassigned][AggregateRef.isAssigned] ref (a creation that leaves its id to admission).
-         * The object is not encoded: admission checks it as it is, and the command carries it, so it is not changed
-         * once sent.
+         * A request for the command object [command] to the aggregate [ref] names, with the other facts [of] names:
+         * its context and aggregate are [ref]'s type, its command type the one admission derives from [command]'s
+         * class, its tenant [ref]'s and its aggregate id [ref]'s, none for an [unassigned][AggregateRef.isAssigned]
+         * ref (a creation that leaves its id to admission). The object is not encoded: admission checks it as it is,
+         * and the command carries it, so it is not changed once sent.
          */
         @JvmStatic
-        fun of(command: Any, ref: AggregateRef): ServerCommandRequest = builder(command, ref).build()
-
-        /** A [Builder] of a request for the command object [command] to the aggregate [ref] names, as [of] builds. */
-        @JvmStatic
-        fun builder(command: Any, ref: AggregateRef): Builder =
-            Builder(ref.type.context, ref.type.name, command.javaClass.name, CommandBody.Value(command))
-                .aggregateId(ref.id.takeIf { ref.isAssigned })
-                .tenantId(ref.tenantId)
+        @JvmOverloads
+        fun of(
+            command: Any,
+            ref: AggregateRef,
+            caller: Caller = Caller.ANONYMOUS,
+            aggregateId: String? = ref.id.takeIf { ref.isAssigned },
+            tenantId: String? = ref.tenantId,
+            targetScope: TargetScope? = null,
+            requestId: String? = null,
+            expectedVersion: Int? = null,
+            headers: Map<String, String> = emptyMap(),
+            wait: WaitPlan? = null,
+            trace: Map<String, String> = emptyMap(),
+        ): ServerCommandRequest = of(
+            ref.type.context, ref.type.name, command.javaClass.name, CommandBody.Value(command), caller, aggregateId,
+            tenantId, targetScope, requestId, expectedVersion, headers, wait, trace,
+        )
     }
 }
 

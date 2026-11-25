@@ -1,21 +1,3 @@
-public abstract interface class me/ahoo/wow/client/ClientMode {
-	public abstract fun getPort ()Lme/ahoo/wow/client/Port;
-}
-
-public final class me/ahoo/wow/client/ClientMode$Service : me/ahoo/wow/client/ClientMode {
-	public fun <init> (Ljava/lang/String;)V
-	public fun getPort ()Lme/ahoo/wow/client/Port;
-	public final fun getService ()Ljava/lang/String;
-	public fun toString ()Ljava/lang/String;
-}
-
-public final class me/ahoo/wow/client/ClientMode$User : me/ahoo/wow/client/ClientMode {
-	public fun <init> (Lme/ahoo/wow/client/UserCredential;)V
-	public final fun getCredential ()Lme/ahoo/wow/client/UserCredential;
-	public fun getPort ()Lme/ahoo/wow/client/Port;
-	public fun toString ()Ljava/lang/String;
-}
-
 public abstract interface class me/ahoo/wow/client/EndpointResolver {
 	public static final field Companion Lme/ahoo/wow/client/EndpointResolver$Companion;
 	public static final field NONE Lme/ahoo/wow/client/EndpointResolver;
@@ -41,21 +23,6 @@ public final class me/ahoo/wow/client/ForwardedHeaders : kotlin/coroutines/Abstr
 }
 
 public final class me/ahoo/wow/client/ForwardedHeaders$Key : kotlin/coroutines/CoroutineContext$Key {
-}
-
-public final class me/ahoo/wow/client/HttpCommandClient : me/ahoo/wow/api/client/CommandClient {
-	public fun of (Lme/ahoo/wow/api/caller/Caller;)Lme/ahoo/wow/api/client/CommandClient;
-	public fun send (Lme/ahoo/wow/api/client/CommandRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public fun stream (Lme/ahoo/wow/api/client/CommandRequest;)Lkotlinx/coroutines/flow/Flow;
-	public fun wait (Lme/ahoo/wow/api/client/CommandRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-}
-
-public final class me/ahoo/wow/client/HttpQueryApi : me/ahoo/wow/api/read/QueryApi {
-	public static final field Companion Lme/ahoo/wow/client/HttpQueryApi$Companion;
-	public fun of (Lme/ahoo/wow/api/caller/Caller;)Lme/ahoo/wow/api/read/Queries;
-}
-
-public final class me/ahoo/wow/client/HttpQueryApi$Companion {
 }
 
 public final class me/ahoo/wow/client/NamedCommand {

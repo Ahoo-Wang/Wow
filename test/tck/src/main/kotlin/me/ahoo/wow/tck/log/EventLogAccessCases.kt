@@ -86,7 +86,7 @@ abstract class EventLogAccessCases internal constructor() : EventLogRecordCases(
             }
             checkNotNull(log.findByRequestId(type, "tenant", history[0].requestId)).access.assert().isEqualTo(north)
             // A tail read, the subscriptions', reads the stamp too.
-            withTimeout(TAIL_TIMEOUT_MS) {
+            withTimeout(tailTimeout) {
                 log.tail(Partitioner.partitionOf(ref, log.partitions)).take(history.size).toList()
             }.map { it.stream.accessVersion }.assert().containsExactly(4, 4, 4, 4)
         }

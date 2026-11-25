@@ -28,7 +28,7 @@ package me.ahoo.wow.client
  *
  * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
-sealed interface ClientMode {
+internal sealed interface ClientMode {
     /** The port of the peer this mode calls. */
     val port: Port
 

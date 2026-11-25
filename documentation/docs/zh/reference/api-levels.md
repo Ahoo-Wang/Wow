@@ -221,7 +221,6 @@ API 只是升级要保持兼容的三样东西之一。在同一个主版本内�
 | `me.ahoo.wow.spi.transport.EnvelopeKind` | class | `wow-spi` |
 | `me.ahoo.wow.spi.transport.Envelope` | class | `wow-spi` |
 | `me.ahoo.wow.spi.transport.EnvelopeHeaders` | object | `wow-spi` |
-| `me.ahoo.wow.spi.transport.EnvelopeCodec` | object | `wow-spi` |
 | `me.ahoo.wow.spi.transport.SourceMessage` | class | `wow-spi` |
 | `me.ahoo.wow.spi.transport.PartitionOffsets` | class | `wow-spi` |
 | `me.ahoo.wow.spi.transport.PartitionedSource` | interface | `wow-spi` |

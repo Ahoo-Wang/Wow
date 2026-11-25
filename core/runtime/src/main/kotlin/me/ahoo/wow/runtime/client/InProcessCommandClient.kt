@@ -75,21 +75,20 @@ class InProcessCommandClient @InternalWowApi constructor(
         val command = request.command
         val targetTenant = targetTenantOf(request, caller.tenantId)
         val targetScope = request.targetScope?.scope
-        return ServerCommandRequest.builder(type.context, type.name, command.javaClass.name, CommandBody.Value(command))
-            .aggregateId(request.aggregateId)
-            .caller(caller)
-            .requestId(currentCoroutineContext().requestIdOf(request))
-            .expectedVersion(request.expectedVersion)
-            .targetScope(
-                // A tenant alone keeps the caller's own scope, as an HTTP client and a saga do.
-                if (targetTenant != null || targetScope != null) {
-                    TargetScope(targetTenant, targetScope)
-                } else {
-                    null
-                },
-            )
-            .wait(plan)
-            .build()
+        return ServerCommandRequest.of(
+            type.context, type.name, command.javaClass.name, CommandBody.Value(command),
+            aggregateId = request.aggregateId,
+            caller = caller,
+            requestId = currentCoroutineContext().requestIdOf(request),
+            expectedVersion = request.expectedVersion,
+            // A tenant alone keeps the caller's own scope, as an HTTP client and a saga do.
+            targetScope = if (targetTenant != null || targetScope != null) {
+                TargetScope(targetTenant, targetScope)
+            } else {
+                null
+            },
+            wait = plan,
+        )
     }
 
     /** How long [send] waits for the broker to acknowledge a peer's command: the request's timeout, else the default. */
