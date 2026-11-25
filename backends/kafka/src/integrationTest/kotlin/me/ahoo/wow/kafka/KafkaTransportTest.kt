@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.kafka
 
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.spi.transport.PartitionedSource
@@ -25,6 +26,8 @@ import org.apache.kafka.clients.admin.RecordsToDelete
 import org.apache.kafka.common.TopicPartition
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.measureTime
 
 /** The transport contract on a real broker. */
 class KafkaTransportTest : TopicTransportSpec() {
@@ -66,6 +69,22 @@ class KafkaTransportTest : TopicTransportSpec() {
                 .isFailure.assert().isTrue()
         }
     }
+
+    @Test
+    fun `a bounded read should close its consumer without waiting for the fetch still in flight`(): Unit =
+        runBlocking {
+            val topic = KafkaFixture.newTopic(1)
+            producer.send(topic, TopicMessage.of("k", byteArrayOf(1)))
+            // The broker holds a fetch that finds nothing for 2 s: after the record, a read's consumer has sent its
+            // next fetch, so a read whose close waited for it would take 2 s at least, and ten of them 20 s.
+            val waiting = KafkaOptions(KafkaFixture.options.bootstrapServers, mapOf("fetch.max.wait.ms" to "2000"))
+            KafkaPartitionedSource.create(waiting).use { reads ->
+                val took = measureTime {
+                    repeat(10) { reads.read(topic, 0, 0, 1).toList().map { it.offset }.assert().containsExactly(0L) }
+                }
+                took.assert().isLessThan(10.seconds)
+            }
+        }
 
     companion object {
         private val producer by lazy { KafkaTopicProducer.create(KafkaFixture.options) }
