@@ -176,7 +176,7 @@ hop  := "accepted" ["(" context ")"]
 | `version` | problem 所回答的聚合版本：拒绝的版本，或低于 `minVersion` 的状态读取时的当前版本 |
 | 其他任何成员 | 拒绝的结构化扩展，按名字；与上面某个成员或 `instance` 同名的扩展会被略去 |
 
-领域错误码的状态是它的 `@ErrorCode(status)`，默认 422，可以用 `wow.http.errors.[<code>].status` 按错误码覆盖。框架的错误码见[错误码](./error-codes)。应用自己的路由也以 problem 回答它们的失败（`wow.http.global-errors.enabled`，默认打开）。
+领域错误码的状态是它的 `@ErrorCode(status)`，默认 422，可以用 `wow.http.errors.[<code>].status` 按错误码覆盖。框架的错误码见[错误码](./error-codes)。其中框架不会回答的 `wow.` 下的错误码会拒绝启动，并列出最接近的框架错误码；服务的 Manifest 和类路径上的对等方契约都没有声明的应用错误码以一条警告启动，因为它仍可能是对的（没有 `@ErrorCode` 声明的拒绝错误码、`ProblemMapper` 的错误码、对等方的错误码）。应用自己的路由也以 problem 回答它们的失败（`wow.http.global-errors.enabled`，默认打开）。
 
 CoSec 拒绝的请求在任何路由之前回答，用 CoSec 的状态、响应头和 problem（`https://cosec.ahoo.me/problems/<type>`，CoSec 的 `code`）。设为 `wow.cosec.problems: wow` 时，回答体是 Wow 的 problem：`wow.request.malformed`、`wow.auth.unauthenticated`、`wow.auth.forbidden`、`wow.request.rate-limited` 或 `wow.auth.unavailable`，CoSec 的内部错误是 `about:blank`，CoSec 的 `type` 与 `code` 在成员 `cosec` 里（[CoSec 的拒绝](../operate/security#cosec-refusals)）。响应头仍是 CoSec 的，所以 `wow.auth.unavailable`（503）的 `retry` 是 `new-request` 而没有 `Retry-After`：CoSec 对它不设这个头。目录给这个码的等待（一秒）是 Wow 的客户端在没有这个头时等待的默认值（[错误码](./error-codes)），不是响应里会出现的值。只有这些拒绝会带出 `wow.request.rate-limited` 与 `wow.auth.unavailable`。
 

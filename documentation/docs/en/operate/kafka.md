@@ -77,7 +77,7 @@ At startup, a node checks the topics its contexts own, as `wow.kafka.ddl` says; 
 
 | `ddl` | At startup |
 | --- | --- |
-| `auto` (default) | The node first creates the missing topics, with the log's partition count, `wow.kafka.topics.replication-factor`, `wow.kafka.topics.min-insync-replicas` and `wow.kafka.topics.configs.*`, then validates. It never alters an existing topic. |
+| `auto` (default) | The node first creates the missing topics, with the log's partition count, `wow.kafka.topics.replication-factor`, `wow.kafka.topics.min-insync-replicas` and `wow.kafka.topics.configs.*`, then validates. It never alters an existing topic. A `min-insync-replicas` above `replication-factor` refuses the start: every write that waits for all replicas would fail. |
 | `validate` | The node does not start while one of its topics is missing, or its command topic does not have exactly the log's partitions. The message names each such topic. A service that publishes its failure ledger needs its command topic even when no other context calls it, for ops' `wow.ledger.*` actions. It also needs the command topic of each peer context it sends commands to, which it never creates, and its own receipts topic when a saga of its may send commands to another context (as the topic table says), whether or not the saga handles their rejections: a rejection no handler takes parks the saga's aggregate ([Sagas](../guide/sagas#handle-a-rejection)). |
 | `none` | The node creates nothing and validates none of its topics: they are someone else's. A node that takes a context's commands still refuses to start while that command topic is missing or its partitions are not the log's. |
 

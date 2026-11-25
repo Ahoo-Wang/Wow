@@ -152,8 +152,27 @@ class QueryStores(
             val wait = own?.maxWait ?: global.maxWait
             val queued = own?.maxQueued ?: global.maxQueued ?: (max * QueryBulkhead.DEFAULT_QUEUE_FACTOR)
             val bulkhead = QueryBulkhead(name, max, wait, queued, maxOf(max, ceiling))
-            val options = if (adaptive) global.adaptive.withFloor(own?.floor ?: global.adaptive.floor) else null
+            val options = if (adaptive) global.adaptive.withFloor(floorOf(name, global, own, ceiling)) else null
             return bulkhead to options
+        }
+
+        /**
+         * The floor of the store [name]'s adaptive bound: its own, else the global one. Above [ceiling] it refuses the
+         * start: the bound would never go below the ceiling, so it would not adapt.
+         */
+        private fun floorOf(name: String, global: QueryStoreSettings, own: QueryStoreLimits?, ceiling: Int): Int {
+            val floor = own?.floor ?: global.adaptive.floor
+            val key = if (own?.floor != null) "wow.stores.$name.query.adaptive.floor" else "wow.query.adaptive.floor"
+            configCheck(
+                floor <= ceiling,
+                key,
+                floor,
+                "Set a floor of $ceiling or less, or raise wow.stores.$name.query.adaptive.ceiling.",
+            ) {
+                "The adaptive query bound of the store $name goes up to $ceiling, below its floor $floor: it would " +
+                    "never be lowered under write pressure."
+            }
+            return floor
         }
 
         /** The ceiling of the store [name]'s adaptive bound: its own, else the global one, else its pool's. */

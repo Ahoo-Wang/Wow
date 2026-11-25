@@ -77,7 +77,7 @@ wow:
 
 | `ddl` | 启动时 |
 | --- | --- |
-| `auto`（默认） | 节点先用日志的分区数、`wow.kafka.topics.replication-factor`、`wow.kafka.topics.min-insync-replicas` 和 `wow.kafka.topics.configs.*` 创建缺失的主题，然后校验。它从不修改已存在的主题。 |
+| `auto`（默认） | 节点先用日志的分区数、`wow.kafka.topics.replication-factor`、`wow.kafka.topics.min-insync-replicas` 和 `wow.kafka.topics.configs.*` 创建缺失的主题，然后校验。它从不修改已存在的主题。`min-insync-replicas` 高于 `replication-factor` 会拒绝启动：每一次等待全部副本的写入都会失败。 |
 | `validate` | 只要它的某个主题缺失，或者命令主题的分区数与日志不完全相同，节点就不启动。消息会列出每个这样的主题。发布失败台账的服务即使没有其他上下文调用它，也需要自己的命令主题，用于 ops 的 `wow.ledger.*` 操作。它还需要它发送命令的每个对端上下文的命令主题，它从不创建这些主题；当它的某个 Saga 可能向另一个上下文发送命令时（见上面的主题表），无论 Saga 是否处理这些命令的拒绝，它还需要自己的回执主题：没有处理函数接收的拒绝会停放 Saga 的聚合（[编写 Saga](../guide/sagas#handle-a-rejection)）。 |
 | `none` | 节点不创建也不校验它的主题：主题由别人管理。但接收某个上下文命令的节点，在该命令主题缺失或分区数与日志不同时仍拒绝启动。 |
 

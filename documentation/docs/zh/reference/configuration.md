@@ -228,8 +228,8 @@ The HTTP edge: its routes and its error answers.
 
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `wow.http.errors` | `Map<String,Error>` |  | The HTTP status of an error code, by code (bracketed in a property name: `wow.http.errors.[a.b].status`). |
-| `wow.http.request-facts` | `Set<String>` |  | The request headers copied into a command's headers, beside the standard request facts: `app_id`, the application the caller resolver authenticated, which admission records for every command of a caller, and on the public port `user_agent` and `remote_ip`; none of the three can be listed, and each fact is cut to 512 characters. `remote_ip` is the server's remote address, which the host takes from the gateway's `X-Forwarded-For` (`server.request.header.forwarded.strategy` is `web-server` unless the application sets it, `none` included). |
+| `wow.http.errors` | `Map<String,Error>` |  | The HTTP status of an error code, by code (bracketed in a property name: `wow.http.errors.[a.b].status`). A code under `wow.` that is not one of the framework's refuses the start, naming the nearest framework codes. A code of the application's that neither the service's Manifest nor a peer contract on the class path declares starts with a warning: it may still be right, a domain rejection's code that no `@ErrorCode` declares, a `ProblemMapper`'s or a peer's whose contract is not on the class path. |
+| `wow.http.request-facts` | `Set<String>` |  | The request headers copied into a command's headers, beside the standard request facts: `app_id`, the application the caller resolver authenticated, which admission records for every command of a caller, and on the public port `user_agent` and `remote_ip`; none of the three can be listed (one listed, in any case, refuses the start: no request header sets it), and each fact is cut to 512 characters. `remote_ip` is the server's remote address, which the host takes from the gateway's `X-Forwarded-For` (`server.request.header.forwarded.strategy` is `web-server` unless the application sets it, `none` included). |
 
 ## `wow.http.client-facts`
 
@@ -241,7 +241,7 @@ The client address and `User-Agent` of each command, recorded as request facts.
 
 ## `wow.http.errors.[<code>]`
 
-The HTTP status of an error code, by code (bracketed in a property name: `wow.http.errors.[a.b].status`).
+The HTTP status of an error code, by code (bracketed in a property name: `wow.http.errors.[a.b].status`). A code under `wow.` that is not one of the framework's refuses the start, naming the nearest framework codes. A code of the application's that neither the service's Manifest nor a peer contract on the class path declares starts with a warning: it may still be right, a domain rejection's code that no `@ErrorCode` declares, a `ProblemMapper`'s or a peer's whose contract is not on the class path.
 
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
@@ -312,7 +312,7 @@ The settings of the kafka topic transport.
 | `wow.kafka.poll-timeout` | `Duration` | `PT0.200S` | The longest a consumer's poll waits; a read that is cancelled, and a partition that joins or leaves a topic's shared consumer, take effect within it. |
 | `wow.kafka.properties` | `Map<String,String>` |  | Passed to every producer and consumer as they are (security.protocol, client.id, linger.ms,...), except the settings the transport's guarantees rest on. |
 | `wow.kafka.topics.configs` | `Map<String,String>` |  | Other topic configs auto creates a topic with, such as retention.ms. |
-| `wow.kafka.topics.min-insync-replicas` | `Integer` |  | The min.insync.replicas auto creates a topic with; the broker's default when not set. |
+| `wow.kafka.topics.min-insync-replicas` | `Integer` |  | The min.insync.replicas auto creates a topic with; the broker's default when not set. Above topics.replication-factor it refuses the start: every write that waits for all replicas would fail. |
 | `wow.kafka.topics.partition-refresh-interval` | `Duration` | `PT30S` | How often the node looks for partitions added to the topics it reads; new partitions are read within about twice this. |
 | `wow.kafka.topics.prefix` | `String` | `""` | Put before every topic name, such as staging. for staging.wow.shop.order.state; none by default, so the topics are the Manifest's. The sinks write and the subscriptions read under it. |
 | `wow.kafka.topics.replication-factor` | `Integer` |  | The replication factor auto creates a topic with; the broker's default when not set. A command accepted on a command topic is durable only when it and the minimum in-sync replicas are both at least 2. |
@@ -374,7 +374,7 @@ Publishing the failure ledger to the ops context.
 
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `wow.ops.publish.context` | `String` | `ops` | The ops context the ledger is published to. |
+| `wow.ops.publish.context` | `String` | `ops` | The ops context the ledger is published to, a context name (lower-case letters, digits and hyphens, starting with a letter): its command topic is named after it, so another name would never be found, and `auto` would never publish. Another name refuses the start. |
 | `wow.ops.publish.enabled` | `Switch` | `auto` | Whether the node publishes its failure ledger to the ops context: `auto` (the default) while the ops context's command topic exists on the node's transport, which the ops service creates once it is deployed, checked at start and every `wow.kafka.topics.partition-refresh-interval`, and not at all without a transport; `true` always, which needs a transport; `false` never. |
 | `wow.ops.publish.interval` | `Duration` | `PT30S` | How often the node scans its ledger and publishes it; an entry is also published at once when it parks. |
 
@@ -464,7 +464,7 @@ How the bound of a store adapts to its write pressure, when neither `wow.query.m
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `wow.query.adaptive.ceiling` | `Integer` |  | The highest bound the adaptation raises up to; not set, the provider's: PostgreSQL half a pool the appends share, or all of a `query-data-source`'s. |
-| `wow.query.adaptive.floor` | `Integer` | `1` | The lowest bound the adaptation halves down to. |
+| `wow.query.adaptive.floor` | `Integer` | `1` | The lowest bound the adaptation halves down to; above a store's ceiling it refuses the start. |
 
 ## `wow.query.budgets.http`
 
@@ -653,7 +653,7 @@ The named store instances, by name: `wow.stores.<name>.type` and its settings. T
 | `wow.stores.<name>.query-data-source` | `String` |  | On postgres: the name of the DataSource bean the store's snapshot and events queries read through, so they do not take the appends' connections; the store's data-source when not set. |
 | `wow.stores.<name>.query-read-preference` | `String` |  | On mongo: the read preference of the snapshot and events queries of a MongoDB store (secondaryPreferred, say), so a free filter scans a secondary rather than the primary the log appends to; the primary when not set. A snapshot read from a secondary may be behind the one a command's wait waited for. |
 | `wow.stores.<name>.query.adaptive.ceiling` | `Integer` |  | The most the store's adaptive query bound goes up to, over `wow.query.adaptive.ceiling`. |
-| `wow.stores.<name>.query.adaptive.floor` | `Integer` |  | The least the store's adaptive query bound goes down to, over `wow.query.adaptive.floor`. |
+| `wow.stores.<name>.query.adaptive.floor` | `Integer` |  | The least the store's adaptive query bound goes down to, over `wow.query.adaptive.floor`; above the store's ceiling it refuses the start. |
 | `wow.stores.<name>.query.events.unpinned` | `UnpinnedEvents` |  | Whether an `events` query that names no aggregate runs, over `wow.query.events.unpinned`. |
 | `wow.stores.<name>.query.max-concurrent` | `Integer` |  | How many of the store's queries run at once, over `wow.query.max-concurrent`; `0` for no bound. |
 | `wow.stores.<name>.query.max-queued` | `Integer` |  | How many queries beyond the bound wait for a permit, over `wow.query.max-queued`. |

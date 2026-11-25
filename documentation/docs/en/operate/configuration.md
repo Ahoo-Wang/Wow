@@ -36,6 +36,8 @@ wow:
 
 The host refuses to start on a name that matches nothing it serves, rather than ignoring it: a subscription under `wow.subscriptions` that no handler is, an aggregate type under `wow.aggregates` the node does not serve, a context under `wow.contexts` that is on no class path, an id generator nothing provides.
 
+So does a setting that would start and do nothing: a code under `wow.` in `wow.http.errors` that the framework does not answer, a standard request fact (`app_id`, `user_agent`, `remote_ip`) in `wow.http.request-facts`, a `wow.ops.publish.context` that is no context name, an adaptive query `floor` above its `ceiling`, a Kafka `min-insync-replicas` above the `replication-factor` the topics are created with. A code of the application's in `wow.http.errors` that neither the service's Manifest nor a peer contract on the class path declares starts with a warning instead: it may still be right, a domain rejection's code no `@ErrorCode` declares, a `ProblemMapper`'s, or a peer's whose contract is not on the class path.
+
 Such a failure, and any other value the host cannot start with, is a `WowConfigurationException`, which Spring Boot reports at the end of the log as a failure analysis instead of a stack of bean creation errors: what is wrong, the key and its value, and the action to take.
 
 ## Keys are checked

@@ -14,10 +14,14 @@
 package me.ahoo.wow.spring.boot.http
 
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.decide.RequestFacts
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.client.HttpCommandCaller
 import me.ahoo.wow.client.PeerMode
 import me.ahoo.wow.client.WowClient
+import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.runtime.subscription.RetryPolicy
+import me.ahoo.wow.spi.config.configCheck
 import me.ahoo.wow.spi.config.configNotNull
 import me.ahoo.wow.spring.boot.openapi.SpringdocAutoConfiguration
 import java.net.URI
@@ -31,8 +35,8 @@ class HttpProperties {
     /**
      * The request headers copied into a command's headers, beside the standard request facts:
      * `app_id`, the application the caller resolver authenticated, which admission records for every command of a
-     * caller, and on the public port `user_agent` and `remote_ip`; none of the three can be listed, and each fact is
-     * cut to 512 characters.
+     * caller, and on the public port `user_agent` and `remote_ip`; none of the three can be listed (one listed, in any
+     * case, refuses the start: no request header sets it), and each fact is cut to 512 characters.
      * `remote_ip` is the server's remote address, which the host takes from the gateway's `X-Forwarded-For`
      * (`server.request.header.forwarded.strategy` is `web-server` unless the application sets it, `none` included).
      */
@@ -41,16 +45,55 @@ class HttpProperties {
     /** The client address and `User-Agent` of each command, recorded as request facts. */
     var clientFacts: ClientFacts = ClientFacts()
 
-    /** The HTTP status of an error code, by code (bracketed in a property name: `wow.http.errors.[a.b].status`). */
+    /**
+     * The names of [requestFacts]. One of the standard request facts ([RequestFacts.STANDARD]), in any case, refuses the
+     * start: the edge records those itself, and copies no request header of their name.
+     */
+    fun requestFactNames(): Set<String> {
+        val standard = requestFacts.filter { it.lowercase() in RequestFacts.STANDARD }
+        configCheck(
+            standard.isEmpty(),
+            "wow.http.request-facts",
+            standard.joinToString(),
+            "Remove ${standard.joinToString()} from wow.http.request-facts: the edge records " +
+                "${RequestFacts.STANDARD.joinToString()} itself (wow.http.client-facts.enabled switches the client's " +
+                "address and user agent).",
+        ) { "No request header is copied as a standard request fact, so ${standard.joinToString()} would do nothing." }
+        return requestFacts.toSet()
+    }
+
+    /**
+     * The HTTP status of an error code, by code (bracketed in a property name: `wow.http.errors.[a.b].status`). A code
+     * under `wow.` that is not one of the framework's refuses the start, naming the nearest framework codes. A code of
+     * the application's that neither the service's Manifest nor a peer contract on the class path declares starts with
+     * a warning: it may still be right, a domain rejection's code that no `@ErrorCode` declares, a `ProblemMapper`'s or
+     * a peer's whose contract is not on the class path.
+     */
     var errors: MutableMap<String, Error> = LinkedHashMap()
 
-    /** The status of each code of [errors]; an entry without one refuses the start, naming its key. */
+    /**
+     * The status of each code of [errors]; an entry without one, or of a code under `wow.` the framework does not
+     * answer, refuses the start, naming its key.
+     */
     fun errorStatuses(): Map<String, Int> = errors.mapValues { (code, error) ->
+        if (code.startsWith(FrameworkCodes.PREFIX)) {
+            configCheck(
+                code in FrameworkErrors.BY_CODE,
+                "wow.http.errors.[$code]",
+                code,
+                "Name a code of the framework's, such as ${nearestFrameworkCodes(code).joinToString()}, or a code " +
+                    "of the application's, outside ${FrameworkCodes.PREFIX}",
+            ) { "The framework answers no error code $code, so its status would never be used." }
+        }
         val key = "wow.http.errors.[$code].status"
         configNotNull(error.status, key, "Set $key, 400 to 599, or remove the entry.") {
             "The error code $code has no status: an entry of wow.http.errors is the status its code is answered with."
         }
     }
+
+    /** The codes of [errors] outside `wow.` that are not among [declared], the codes the Manifests declare. */
+    fun undeclaredErrorCodes(declared: Set<String>): List<String> =
+        errors.keys.filter { !it.startsWith(FrameworkCodes.PREFIX) && it !in declared }
 
     /** The problem+json answers of what fails on the application's own routes. */
     var globalErrors: GlobalErrors = GlobalErrors()
@@ -129,6 +172,27 @@ class HttpProperties {
         /** The springdoc group of the Wow routes alone: `/v3/api-docs/<group>`. */
         var group: String = SpringdocAutoConfiguration.DEFAULT_GROUP
     }
+}
+
+private const val NEAREST_CODES = 3
+
+/** The framework's codes nearest to [code] by edit distance, the nearest first: what a mistyped code meant. */
+internal fun nearestFrameworkCodes(code: String): List<String> =
+    FrameworkErrors.BY_CODE.keys.sortedBy { editDistance(code, it) }.take(NEAREST_CODES)
+
+/** The Levenshtein distance of [a] and [b]: the fewest insertions, deletions and substitutions from one to the other. */
+private fun editDistance(a: String, b: String): Int {
+    var previous = IntArray(b.length + 1) { it }
+    a.forEachIndexed { i, left ->
+        val current = IntArray(b.length + 1)
+        current[0] = i + 1
+        b.forEachIndexed { j, right ->
+            val substitution = previous[j] + if (left == right) 0 else 1
+            current[j + 1] = minOf(previous[j + 1] + 1, current[j] + 1, substitution)
+        }
+        previous = current
+    }
+    return previous[b.length]
 }
 
 /**

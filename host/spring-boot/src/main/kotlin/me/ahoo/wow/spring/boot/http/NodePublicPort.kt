@@ -134,15 +134,20 @@ internal class NodePublicPort {
     @Bean
     @ConditionalOnMissingBean
     @InternalWowApi
-    fun wowHttpOptions(properties: WowProperties, environment: Environment): WowHttpOptions {
+    fun wowHttpOptions(
+        properties: WowProperties,
+        environment: Environment,
+        contracts: ObjectProvider<ContractDirectory>,
+    ): WowHttpOptions {
         val strategy = ForwardHeadersEnvironmentPostProcessor.inEffect(environment)
         logger.info {
             "The public port reads the client's address with $strategy: " +
                 "the gateway in front of it must overwrite X-Forwarded-For."
         }
+        contracts.ifAvailable?.let { directory -> warnUndeclared(properties.http, directory) }
         return configured("wow.http") {
             WowHttpOptions(
-                requestFacts = properties.http.requestFacts.toSet(),
+                requestFacts = properties.http.requestFactNames(),
                 errorStatuses = properties.http.errorStatuses(),
                 manifestEndpoint = properties.http.manifest.enabled,
                 openApiEndpoint = properties.http.openapi.enabled,
@@ -286,6 +291,28 @@ internal class NodePublicPort {
                 "$operational with 403 until the application gives one (CommandAuthorizer.operational, or CoSec's " +
                 "with wow.cosec.authorizer.enabled); the jobs, the sagas and the internal port's calls send them as " +
                 "before."
+        }
+
+        /** The error codes [contracts] declare: each Manifest's framework table and its contexts' tables. */
+        internal fun declaredErrorCodes(contracts: ContractDirectory): Set<String> =
+            contracts.fragments.flatMapTo(HashSet()) { fragment ->
+                fragment.manifest.errors.map { it.code } +
+                    fragment.manifest.contexts.flatMap { context -> context.errors.map { it.code } }
+            }
+
+        /**
+         * One warning for each code of `wow.http.errors` outside `wow.` that [contracts] do not declare: a mistyped
+         * code's status is never used, but a code may be right that no Manifest declares.
+         */
+        internal fun warnUndeclared(http: HttpProperties, contracts: ContractDirectory) {
+            http.undeclaredErrorCodes(declaredErrorCodes(contracts)).forEach { code ->
+                logger.warn {
+                    "wow.http.errors.[$code] names a code that neither this service's Manifest nor a peer contract on " +
+                        "the class path declares: if it is mistyped, its status is never used. It may still be " +
+                        "right: a domain rejection's code that no @ErrorCode declares, a ProblemMapper's, or a peer's " +
+                        "whose contract is not on the class path."
+                }
+            }
         }
 
         /** Spring Boot's key of the address the public server binds. */

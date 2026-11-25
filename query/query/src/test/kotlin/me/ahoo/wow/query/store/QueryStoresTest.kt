@@ -100,6 +100,26 @@ class QueryStoresTest {
     }
 
     @Test
+    fun `a floor above the ceiling should be refused with the key that sets it, as the bound would never adapt`() {
+        val own = runCatching {
+            of(QueryStoreSettings(stores = mapOf("reports" to QueryStoreLimits(floor = 5, ceiling = 4))))
+        }.exceptionOrNull() as WowConfigurationException
+        own.key.assert().isEqualTo("wow.stores.reports.query.adaptive.floor")
+        own.value.assert().isEqualTo(5)
+        own.fix.assert().contains("4 or less", "wow.stores.reports.query.adaptive.ceiling")
+        // The global floor, above a ceiling the store's pool derives (12 for main).
+        val global = runCatching { of(QueryStoreSettings(adaptive = AdaptiveLimitOptions(floor = 13))) }
+            .exceptionOrNull() as WowConfigurationException
+        global.key.assert().isEqualTo("wow.query.adaptive.floor")
+        global.reason.assert().contains("store main", "12")
+        // A floor at the ceiling holds; a fixed bound has neither, whatever the floor.
+        of(QueryStoreSettings(stores = mapOf("reports" to QueryStoreLimits(floor = 4, ceiling = 4)))).limits
+            .first { it.bulkhead.store == "reports" }.floor.assert().isEqualTo(4)
+        of(QueryStoreSettings(maxConcurrent = 2, adaptive = AdaptiveLimitOptions(floor = 13))).limits.assert()
+            .isEmpty()
+    }
+
+    @Test
     fun `the dataset queries should run under their own bound`() {
         with(of().datasets!!) {
             store.assert().isEqualTo(QueryStores.DATASETS)
