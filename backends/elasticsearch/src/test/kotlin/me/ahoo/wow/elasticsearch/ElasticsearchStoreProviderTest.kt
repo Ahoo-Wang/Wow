@@ -109,6 +109,19 @@ class ElasticsearchStoreProviderTest {
     }
 
     @Test
+    fun `an operation timeout that is not positive should refuse the store when it opens, naming the key`() {
+        val timeout = ElasticsearchStoreProvider.OPERATION_TIMEOUT
+        listOf("0s", "-5s").forEach { refused ->
+            val failure = assertThrows<WowConfigurationException> {
+                ElasticsearchStoreProvider().open(config(mapOf(timeout.key to refused)))
+            }
+            failure.key.assert().isEqualTo("wow.stores.search.operation-timeout")
+            failure.fix.assert().contains("wow.elasticsearch.operation-timeout")
+        }
+        ElasticsearchStoreProvider().open(config(mapOf(timeout.key to "1ms"))).close()
+    }
+
+    @Test
     fun `the refresh option names a policy`() {
         val refresh = ElasticsearchStoreProvider.REFRESH
         refresh.values.assert().containsExactly("wait-for", "immediate", "none")
