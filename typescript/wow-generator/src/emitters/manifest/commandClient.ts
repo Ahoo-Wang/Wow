@@ -108,7 +108,8 @@ function commandMethods(
   const options =
     byId && unaddressed ? 'CreateCommandOptions' : 'CommandOptions';
   const idParam = byId && !unaddressed ? 'id: string, ' : '';
-  const sent = request(byId && !unaddressed ? ', id' : '');
+  // The positional id is the request's `aggregateId`.
+  const sent = request(byId && !unaddressed ? ', aggregateId: id' : '');
   if (stream) {
     return `${comment}  ${name}(${idParam}${bodyParam}, options?: ${options}): ${returns} {\n    return this.commands.${call}(${sent});\n  }`;
   }
@@ -214,7 +215,7 @@ export function emitCommandClient(
     if (lifecycle.bodyType) client.push(lifecycle.bodyType);
     const body = lifecycle.bodyType ? `body: ${lifecycle.bodyType}` : '';
     const request = (id: boolean) =>
-      `{ ...options, command: LifecycleCommands.${lifecycle.member}, type: { context: ${quoteStringLiteral(aggregate.context)}, name: ${quoteStringLiteral(aggregate.name)} }${id ? ', id' : ''}${lifecycle.bodyType ? ', body' : ''} }`;
+      `{ ...options, command: LifecycleCommands.${lifecycle.member}, type: { context: ${quoteStringLiteral(aggregate.context)}, name: ${quoteStringLiteral(aggregate.name)} }${id ? ', aggregateId: id' : ''}${lifecycle.bodyType ? ', body' : ''} }`;
     methods.push(
       answeringMethod(
         doc(

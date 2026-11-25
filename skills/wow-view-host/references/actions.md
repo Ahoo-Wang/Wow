@@ -50,7 +50,7 @@ export function orderCommands(fetcher: Fetcher): OrderCommands {
     // The route, `/sales/order/{id}/ship-order`, is derived from the full type name and the
     // service's Manifest, which the client fetches once; it encodes the id. A refused command rejects; the engine reports the service's
     // reason and leaves the order selected.
-    await commands.wait({ command: `sales.order.${name}`, body, id, wait: plan });
+    await commands.wait({ command: `sales.order.${name}`, body, aggregateId: id, wait: plan });
   };
   return {
     ship: id => send('ShipOrder', id),

@@ -26,12 +26,12 @@ export class OrderCommandClient {
    * Produces `OrderAwaitingValidation`.
    */
   awaitStockValidation(id: string, body: AwaitStockValidation = {}, options?: CommandOptions): Promise<CommandResult> {
-    return this.commands.wait({ ...options, command: 'eshop-ordering.order.AwaitStockValidation', body, id });
+    return this.commands.wait({ ...options, command: 'eshop-ordering.order.AwaitStockValidation', body, aggregateId: id });
   }
 
   /** `AwaitStockValidation`, answered as one result per hop of its wait (`text/event-stream`). */
   awaitStockValidationStream(id: string, body: AwaitStockValidation = {}, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.commands.stream({ ...options, command: 'eshop-ordering.order.AwaitStockValidation', body, id });
+    return this.commands.stream({ ...options, command: 'eshop-ordering.order.AwaitStockValidation', body, aggregateId: id });
   }
 
   /**
@@ -40,12 +40,12 @@ export class OrderCommandClient {
    * Produces `OrderCancelled`.
    */
   cancelOrder(id: string, body: CancelOrder, options?: CommandOptions): Promise<CommandResult> {
-    return this.commands.wait({ ...options, command: 'eshop-ordering.order.CancelOrder', body, id });
+    return this.commands.wait({ ...options, command: 'eshop-ordering.order.CancelOrder', body, aggregateId: id });
   }
 
   /** `CancelOrder`, answered as one result per hop of its wait (`text/event-stream`). */
   cancelOrderStream(id: string, body: CancelOrder, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.commands.stream({ ...options, command: 'eshop-ordering.order.CancelOrder', body, id });
+    return this.commands.stream({ ...options, command: 'eshop-ordering.order.CancelOrder', body, aggregateId: id });
   }
 
   /**
@@ -54,12 +54,12 @@ export class OrderCommandClient {
    * Produces `OrderStockConfirmed`, `OrderStockItemConfirmed`.
    */
   confirmOrderStock(id: string, body: ConfirmOrderStock, options?: CommandOptions): Promise<CommandResult> {
-    return this.commands.wait({ ...options, command: 'eshop-ordering.order.ConfirmOrderStock', body, id });
+    return this.commands.wait({ ...options, command: 'eshop-ordering.order.ConfirmOrderStock', body, aggregateId: id });
   }
 
   /** `ConfirmOrderStock`, answered as one result per hop of its wait (`text/event-stream`). */
   confirmOrderStockStream(id: string, body: ConfirmOrderStock, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.commands.stream({ ...options, command: 'eshop-ordering.order.ConfirmOrderStock', body, id });
+    return this.commands.stream({ ...options, command: 'eshop-ordering.order.ConfirmOrderStock', body, aggregateId: id });
   }
 
   /**
@@ -68,12 +68,12 @@ export class OrderCommandClient {
    * Produces `OrderPaid`.
    */
   payOrder(id: string, body: PayOrder, options?: CommandOptions): Promise<CommandResult> {
-    return this.commands.wait({ ...options, command: 'eshop-ordering.order.PayOrder', body, id });
+    return this.commands.wait({ ...options, command: 'eshop-ordering.order.PayOrder', body, aggregateId: id });
   }
 
   /** `PayOrder`, answered as one result per hop of its wait (`text/event-stream`). */
   payOrderStream(id: string, body: PayOrder, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.commands.stream({ ...options, command: 'eshop-ordering.order.PayOrder', body, id });
+    return this.commands.stream({ ...options, command: 'eshop-ordering.order.PayOrder', body, aggregateId: id });
   }
 
   /**
@@ -82,12 +82,12 @@ export class OrderCommandClient {
    * Produces `OrderShipped`.
    */
   shipOrder(id: string, body: ShipOrder = {}, options?: CommandOptions): Promise<CommandResult> {
-    return this.commands.wait({ ...options, command: 'eshop-ordering.order.ShipOrder', body, id });
+    return this.commands.wait({ ...options, command: 'eshop-ordering.order.ShipOrder', body, aggregateId: id });
   }
 
   /** `ShipOrder`, answered as one result per hop of its wait (`text/event-stream`). */
   shipOrderStream(id: string, body: ShipOrder = {}, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.commands.stream({ ...options, command: 'eshop-ordering.order.ShipOrder', body, id });
+    return this.commands.stream({ ...options, command: 'eshop-ordering.order.ShipOrder', body, aggregateId: id });
   }
 
   /**
@@ -110,7 +110,7 @@ export class OrderCommandClient {
    * The lifecycle command `wow.lifecycle.DeleteAggregate`.
    */
   deleteAggregate(id: string, options?: CommandOptions): Promise<CommandResult> {
-    return this.commands.wait({ ...options, command: LifecycleCommands.DELETE_AGGREGATE, type: { context: 'eshop-ordering', name: 'order' }, id });
+    return this.commands.wait({ ...options, command: LifecycleCommands.DELETE_AGGREGATE, type: { context: 'eshop-ordering', name: 'order' }, aggregateId: id });
   }
 
   /**
@@ -118,7 +118,7 @@ export class OrderCommandClient {
    * The lifecycle command `wow.lifecycle.RestoreAggregate`.
    */
   restoreAggregate(id: string, options?: CommandOptions): Promise<CommandResult> {
-    return this.commands.wait({ ...options, command: LifecycleCommands.RESTORE_AGGREGATE, type: { context: 'eshop-ordering', name: 'order' }, id });
+    return this.commands.wait({ ...options, command: LifecycleCommands.RESTORE_AGGREGATE, type: { context: 'eshop-ordering', name: 'order' }, aggregateId: id });
   }
 
   /**
@@ -126,7 +126,7 @@ export class OrderCommandClient {
    * The lifecycle command `wow.lifecycle.TransferOwner`.
    */
   transferOwner(id: string, body: TransferOwner, options?: CommandOptions): Promise<CommandResult> {
-    return this.commands.wait({ ...options, command: LifecycleCommands.TRANSFER_OWNER, type: { context: 'eshop-ordering', name: 'order' }, id, body });
+    return this.commands.wait({ ...options, command: LifecycleCommands.TRANSFER_OWNER, type: { context: 'eshop-ordering', name: 'order' }, aggregateId: id, body });
   }
 
   /**
@@ -134,6 +134,6 @@ export class OrderCommandClient {
    * The lifecycle command `wow.lifecycle.TransferSpace`.
    */
   transferSpace(id: string, body: TransferSpace, options?: CommandOptions): Promise<CommandResult> {
-    return this.commands.wait({ ...options, command: LifecycleCommands.TRANSFER_SPACE, type: { context: 'eshop-ordering', name: 'order' }, id, body });
+    return this.commands.wait({ ...options, command: LifecycleCommands.TRANSFER_SPACE, type: { context: 'eshop-ordering', name: 'order' }, aggregateId: id, body });
   }
 }

@@ -52,7 +52,7 @@ describe('CommandClient', () => {
     const answered = await commands.wait({
       command: 'eshop-catalog.product.CreateProduct',
       body: { name: 'n', price: 1 },
-      id: 'p/1',
+      aggregateId: 'p/1',
       requestId: 'r1',
       wait: WaitPlan.COMMITTED,
       timeout: 2000,
@@ -115,12 +115,12 @@ describe('CommandClient', () => {
     const commands = new CommandClient(client(), { manifest: owned });
     const type = { context: 'shop', name: 'basket' };
     await commands.wait({ command: 'shop.basket.Clear' });
-    await commands.wait({ command: 'shop.basket.Clear', id: 'u1' });
+    await commands.wait({ command: 'shop.basket.Clear', aggregateId: 'u1' });
     await commands.wait({ command: LifecycleCommands.DELETE_AGGREGATE, type });
     await commands.wait({
       command: LifecycleCommands.DELETE_AGGREGATE,
       type,
-      id: 'u1',
+      aggregateId: 'u1',
     });
     expect(requests.map(r => [r.method, r.url])).toEqual([
       ['POST', `${BASE_URL}/shop/basket/clear`],
@@ -153,14 +153,14 @@ describe('CommandClient', () => {
     await commands.wait({
       command,
       body: { productId: 'mug', quantity: 2 },
-      id: 'mug',
+      aggregateId: 'mug',
     });
     // A body that names none is given the request's id, which the route has no place for.
-    await commands.wait({ command, body: { quantity: 3 }, id: 'cup' });
+    await commands.wait({ command, body: { quantity: 3 }, aggregateId: 'cup' });
     await commands.wait({
       command,
       body: { productId: null, quantity: 4 },
-      id: 'cup',
+      aggregateId: 'cup',
     });
     expect(requests.map(r => [r.method, r.url])).toEqual(
       Array(4).fill(['POST', `${BASE_URL}/shop/stock/restock`]),
@@ -173,14 +173,18 @@ describe('CommandClient', () => {
     ]);
     // A body that names another aggregate, or holds no string id, is the code's mistake: nothing is sent.
     await expect(
-      commands.wait({ command, body: { productId: 'mug' }, id: 'cup' }),
+      commands.wait({
+        command,
+        body: { productId: 'mug' },
+        aggregateId: 'cup',
+      }),
     ).rejects.toThrow(
-      'The request names the aggregate cup, but the body of shop.stock.Restock names mug: send it without an id.',
+      'The request names the aggregate cup, but the body of shop.stock.Restock names mug: send it without an aggregateId.',
     );
     await expect(
-      commands.wait({ command, body: { productId: 7 }, id: 'cup' }),
+      commands.wait({ command, body: { productId: 7 }, aggregateId: 'cup' }),
     ).rejects.toThrow(
-      'The request names the aggregate cup, but the body of shop.stock.Restock names 7: send it without an id.',
+      'The request names the aggregate cup, but the body of shop.stock.Restock names 7: send it without an aggregateId.',
     );
     expect(requests).toHaveLength(4);
   });
@@ -193,7 +197,7 @@ describe('CommandClient', () => {
       commands.wait({
         command: 'eshop-catalog.product.CreateProduct',
         body: { name: 'n', price: 1 },
-        id: '',
+        aggregateId: '',
       }),
     ).rejects.toThrow(
       new TypeError(
@@ -223,26 +227,32 @@ describe('CommandClient', () => {
     await commands.wait({
       command: 'Rename',
       type: { context: 'eshop-catalog', name: 'product' },
-      id: 'p1',
+      aggregateId: 'p1',
     });
     expect(requests[0].url).toBe(`${BASE_URL}/eshop-catalog/product/p1/rename`);
     await expect(
-      commands.wait({ command: 'Rename', id: 'p1' }),
+      commands.wait({ command: 'Rename', aggregateId: 'p1' }),
     ).rejects.toThrow('not a full type name');
     await expect(
-      commands.wait({ command: LifecycleCommands.DELETE_AGGREGATE, id: 'p1' }),
+      commands.wait({
+        command: LifecycleCommands.DELETE_AGGREGATE,
+        aggregateId: 'p1',
+      }),
     ).rejects.toThrow("set the request's type");
     await expect(
       commands.wait({
         command: LifecycleCommands.TRANSFER_SPACE,
         type: PRODUCT,
       }),
-    ).rejects.toThrow("set the request's id");
+    ).rejects.toThrow("set the request's aggregateId");
     await expect(
       commands.wait({ command: 'eshop-catalog.product.Rename' }),
-    ).rejects.toThrow("set the request's id");
+    ).rejects.toThrow("set the request's aggregateId");
     await expect(
-      commands.wait({ command: 'eshop-catalog.product.Unknown', id: 'p1' }),
+      commands.wait({
+        command: 'eshop-catalog.product.Unknown',
+        aggregateId: 'p1',
+      }),
     ).rejects.toThrow('The Manifest lists no command Unknown');
     await commands.wait({
       command: 'wow.snapshot.RebuildSnapshot',
@@ -252,7 +262,7 @@ describe('CommandClient', () => {
     await commands.wait({
       command: 'wow.schedule.EnableJob',
       type: { context: 'eshop-catalog', name: 'schedule' },
-      id: 'report',
+      aggregateId: 'report',
     });
     expect(requests.slice(1).map(r => `${r.method} ${r.url}`)).toEqual([
       `POST ${BASE_URL}/eshop-catalog/product/wow.snapshot.rebuild-snapshot`,
@@ -270,17 +280,17 @@ describe('CommandClient', () => {
         : jsonResponse(TEST_MANIFEST);
     });
     const commands = new CommandClient(client());
-    await expect(commands.wait({ command: 'c.a.X', id: '1' })).rejects.toThrow(
-      WowProblemError,
-    );
+    await expect(
+      commands.wait({ command: 'c.a.X', aggregateId: '1' }),
+    ).rejects.toThrow(WowProblemError);
     // The Manifest is fetched again after the failure.
-    await commands.wait({ command: 'c.a.X', id: '1' });
+    await commands.wait({ command: 'c.a.X', aggregateId: '1' });
     // A system command of a context without commands of its own is none.
     await expect(
       commands.wait({
         command: 'wow.schedule.EnableJob',
         type: { context: 'c', name: 'schedule' },
-        id: 'j',
+        aggregateId: 'j',
       }),
     ).rejects.toThrow('The Manifest lists no command wow.schedule.EnableJob');
     expect(requests.filter(r => r.url.endsWith('/wow/manifest'))).toHaveLength(
@@ -305,11 +315,11 @@ describe('CommandClient', () => {
     await expect(
       routed([{ method: 'GET', path: '/c/a/{id}/x' }]).wait({
         command: 'c.a.X',
-        id: '1',
+        aggregateId: '1',
       }),
     ).rejects.toThrow('a command is sent by POST or DELETE');
     await expect(
-      routed([]).wait({ command: 'c.a.X', id: '1' }),
+      routed([]).wait({ command: 'c.a.X', aggregateId: '1' }),
     ).rejects.toThrow('no route to an aggregate by its id');
   });
 
@@ -330,7 +340,7 @@ describe('CommandClient', () => {
     ]);
     await new CommandClient(client(), { manifest: manifest }).wait({
       command: 'c.a.X',
-      id: '1',
+      aggregateId: '1',
     });
     expect(requests[0].url).toBe(`${BASE_URL}/c/a/1/x2`);
   });
@@ -348,16 +358,16 @@ describe('CommandClient', () => {
     });
     const commands = new CommandClient(client());
     const failed = await Promise.allSettled([
-      commands.wait({ command: 'c.a.X', id: '1' }),
-      commands.wait({ command: 'c.a.X', id: '2' }),
+      commands.wait({ command: 'c.a.X', aggregateId: '1' }),
+      commands.wait({ command: 'c.a.X', aggregateId: '2' }),
     ]);
     expect(failed.map(settled => settled.status)).toEqual([
       'rejected',
       'rejected',
     ]);
     await Promise.all([
-      commands.wait({ command: 'c.a.X', id: '3' }),
-      commands.wait({ command: 'c.a.X', id: '4' }),
+      commands.wait({ command: 'c.a.X', aggregateId: '3' }),
+      commands.wait({ command: 'c.a.X', aggregateId: '4' }),
     ]);
     expect(requests.filter(r => r.url.endsWith('/wow/manifest'))).toHaveLength(
       2,
@@ -374,8 +384,8 @@ describe('CommandClient', () => {
       ),
     );
     const commands = new CommandClient(client());
-    await commands.wait({ command: 'c.a.X', id: '1' });
-    await commands.wait({ command: 'c.a.X', id: '2' });
+    await commands.wait({ command: 'c.a.X', aggregateId: '1' });
+    await commands.wait({ command: 'c.a.X', aggregateId: '2' });
     expect(requests.map(r => `${r.method} ${r.url}`)).toEqual([
       `GET ${BASE_URL}/wow/manifest`,
       `POST ${BASE_URL}/c/a/1/x`,
@@ -386,26 +396,34 @@ describe('CommandClient', () => {
   it('sends answering at accepted within its own timeout, and waits for the plan as Kotlin sends it', async () => {
     const { requests } = stubFetch(() => jsonResponse(result()));
     const commands = new CommandClient(client(), { manifest: TEST_MANIFEST });
-    await commands.send({ command: 'c.a.X', id: '1', wait: WaitPlan.ACCEPTED });
-    await commands.send({ command: 'c.a.X', id: '1', timeout: 3000 });
+    await commands.send({
+      command: 'c.a.X',
+      aggregateId: '1',
+      wait: WaitPlan.ACCEPTED,
+    });
+    await commands.send({ command: 'c.a.X', aggregateId: '1', timeout: 3000 });
     // A request that waits for more is sent with wait, not send.
     await expect(
-      commands.send({ command: 'c.a.X', id: '1', wait: WaitPlan.SNAPSHOT }),
+      commands.send({
+        command: 'c.a.X',
+        aggregateId: '1',
+        wait: WaitPlan.SNAPSHOT,
+      }),
     ).rejects.toThrow(
       'send answers on acceptance: use wait() for the plan snapshot.',
     );
-    await commands.wait({ command: 'c.a.X', id: '1' });
+    await commands.wait({ command: 'c.a.X', aggregateId: '1' });
     // Only a timeout: the service's default plan within it, sent without a plan.
-    await commands.wait({ command: 'c.a.X', id: '1', timeout: 2000 });
+    await commands.wait({ command: 'c.a.X', aggregateId: '1', timeout: 2000 });
     // A plan's own timeout is sent; the request's overrides it.
     await commands.wait({
       command: 'c.a.X',
-      id: '1',
+      aggregateId: '1',
       wait: WaitPlan.COMMITTED.within(5000),
     });
     await commands.wait({
       command: 'c.a.X',
-      id: '1',
+      aggregateId: '1',
       wait: WaitPlan.COMMITTED.within(5000),
       timeout: 1500,
     });
@@ -432,18 +450,22 @@ describe('CommandClient', () => {
     // A timeout given as 10 s is stated, as one of any other length is.
     await commands.wait({
       command: 'c.a.X',
-      id: '1',
+      aggregateId: '1',
       wait: WaitPlan.COMMITTED.within(10_000),
     });
     // A plan's own timeout, 10 seconds, is stated with it.
     await commands.wait({
       command: 'c.a.X',
-      id: '1',
+      aggregateId: '1',
       wait: WaitPlan.COMMITTED,
     });
     // The default plan sends no Wow-Wait, the service picks it, but its
     // timeout is stated as Kotlin states it.
-    await commands.wait({ command: 'c.a.X', id: '1', wait: WaitPlan.DEFAULT });
+    await commands.wait({
+      command: 'c.a.X',
+      aggregateId: '1',
+      wait: WaitPlan.DEFAULT,
+    });
     expect(
       requests.map(r => [
         r.headers.get('Wow-Wait'),
@@ -470,7 +492,7 @@ describe('CommandClient', () => {
       const failure = await commands
         .wait({
           command: 'c.a.X',
-          id: '1',
+          aggregateId: '1',
           requestId: 'request-1',
           headers: { [name]: 'x' },
         })
@@ -484,7 +506,7 @@ describe('CommandClient', () => {
     // Other headers go as they are.
     await commands.wait({
       command: 'c.a.X',
-      id: '1',
+      aggregateId: '1',
       headers: { 'X-Fact': 'f' },
     });
     expect(requests[0].headers.get('X-Fact')).toBe('f');
@@ -506,8 +528,8 @@ describe('CommandClient', () => {
       ]),
     ]);
     const commands = new CommandClient(client(), { manifest: renamed });
-    await commands.wait({ command: 'probe.thing.Settle', id: 't1' });
-    await commands.wait({ command: 'probe.thing.Square', id: 't1' });
+    await commands.wait({ command: 'probe.thing.Settle', aggregateId: 't1' });
+    await commands.wait({ command: 'probe.thing.Square', aggregateId: 't1' });
     expect(requests.map(r => new URL(r.url).pathname)).toEqual([
       '/probe/thing/t1/pay',
       '/probe/thing/t1/pay',
@@ -519,10 +541,10 @@ describe('CommandClient', () => {
     const commands = new CommandClient(client(), { manifest: TEST_MANIFEST });
     await commands.wait({
       command: 'c.a.X',
-      id: '1',
+      aggregateId: '1',
       targetScope: { ownerId: 'bob' },
     });
-    await commands.wait({ command: 'c.a.X', id: '1' });
+    await commands.wait({ command: 'c.a.X', aggregateId: '1' });
     expect(requests.map(r => r.headers.get('Wow-Scope'))).toEqual([
       'owner="bob"',
       null,
@@ -538,7 +560,10 @@ describe('CommandClient', () => {
     const { requests } = stubFetch(() => answer());
     const commands = new CommandClient(client(), { manifest: TEST_MANIFEST });
 
-    const rename = { command: 'eshop-catalog.product.Rename', id: 'p1' };
+    const rename = {
+      command: 'eshop-catalog.product.Rename',
+      aggregateId: 'p1',
+    };
     await commands.wait({ ...rename, body: { name: 'n' } });
     await commands.wait({ ...rename, requestId: 'mine' });
     const generated = requests[0].headers.get('Wow-Request-Id');
@@ -560,7 +585,7 @@ describe('CommandClient', () => {
       .wait({
         command: LifecycleCommands.DELETE_AGGREGATE,
         type: PRODUCT,
-        id: 'p1',
+        aggregateId: 'p1',
       })
       .catch((error: unknown) => error);
     expect(requestIdOf(deleteLost)).toBe(
@@ -602,7 +627,7 @@ describe('CommandClient', () => {
   it('sends lifecycle commands to their routes', async () => {
     const { requests } = stubFetch(() => jsonResponse(result()));
     const commands = new CommandClient(client(), { manifest: TEST_MANIFEST });
-    const product = { type: PRODUCT, id: 'p1' };
+    const product = { type: PRODUCT, aggregateId: 'p1' };
     await commands.wait({
       ...product,
       command: LifecycleCommands.DELETE_AGGREGATE,

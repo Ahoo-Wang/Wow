@@ -52,7 +52,7 @@ async function streamed(text: string, requestId = 'r-1') {
   stubFetch(() => sseResponse(text));
   const stream = await new CommandClient(client(), {
     manifest: TEST_MANIFEST,
-  }).stream({ command: 'c.a.X', id: '1', requestId });
+  }).stream({ command: 'c.a.X', aggregateId: '1', requestId });
   const read: unknown[] = [];
   try {
     for await (const result of stream) read.push(result);

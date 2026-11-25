@@ -47,7 +47,7 @@ const result = await orders.submitOrder({
 console.log(result.ref.id, result.version, result.status);
 ```
 
-`SubmitOrder` 会创建它的聚合，所以它的方法不接收 ID：服务生成一个，`result.ref.id` 给出它。在选项中传入 `{ id }` 可以自己选定。作用于已有聚合的命令先接收它的 ID：`orders.payOrder(id, body)`。ID 取其所有者的聚合，例如购物者的购物车，还有一个不带 ID 的 `…Own` 方法，`baskets.checkoutBasketOwn(body)`，作用于调用方自己的聚合；按 ID 的方法给没有所有者的调用方用，例如代购物者操作的后台。`unitPrice` 在服务端是 `BigDecimal`，所以它的类型是 `string`，以精确数字写入命令体。
+`SubmitOrder` 会创建它的聚合，所以它的方法不接收 ID：服务生成一个，`result.ref.id` 给出它。在选项中传入 `{ aggregateId }` 可以自己选定。作用于已有聚合的命令先接收它的 ID：`orders.payOrder(id, body)`。ID 取其所有者的聚合，例如购物者的购物车，还有一个不带 ID 的 `…Own` 方法，`baskets.checkoutBasketOwn(body)`，作用于调用方自己的聚合；按 ID 的方法给没有所有者的调用方用，例如代购物者操作的后台。`unitPrice` 在服务端是 `BigDecimal`，所以它的类型是 `string`，以精确数字写入命令体。
 
 结果说明命令到达了哪里：
 
@@ -63,7 +63,7 @@ console.log(result.ref.id, result.version, result.status);
 
 ### 命令体指明了聚合 {#a-body-that-names-its-aggregate}
 
-命令体指明了聚合的命令（命令类上的 `@AggregateId`，Manifest 中的 `idProperty`）没有 ID 参数，也没有 `id` 选项。它的方法把命令体发往不带 `{id}` 的路由，服务作用于命令体指明的聚合。这个属性由其他字段算出时，命令体可以省略它，由服务算出 ID，与任何[计算属性](#a-computed-property)一样。
+命令体指明了聚合的命令（命令类上的 `@AggregateId`，Manifest 中的 `idProperty`）没有 ID 参数，也没有 `aggregateId` 选项。它的方法把命令体发往不带 `{id}` 的路由，服务作用于命令体指明的聚合。这个属性由其他字段算出时，命令体可以省略它，由服务算出 ID，与任何[计算属性](#a-computed-property)一样。
 
 手写的 `CommandClient` 请求同样按这条路由发送这类命令。eShop 没有这类命令，所以这里发送的是[在命令体中指明聚合](../guide/aggregates#name-the-aggregate-in-the-body)里的 `RestockProduct`：
 
@@ -79,7 +79,7 @@ await commands.wait({
 });
 ```
 
-这类请求给出的 `id` 必须就是命令体指明的那个：命令体没有指明时，客户端把它写入命令体；命令体指明了另一个 ID 时，在发出任何请求之前抛出 `TypeError`。计算出的 ID 属于服务：为它给出的 `id` 会被忽略，因为服务从字段算出 ID，所以不要传 `id`。
+这类请求给出的 `aggregateId` 必须就是命令体指明的那个：命令体没有指明时，客户端把它写入命令体；命令体指明了另一个 ID 时，在发出任何请求之前抛出 `TypeError`。计算出的 ID 属于服务：为它给出的 `aggregateId` 会被忽略，因为服务从字段算出 ID，所以不要传 `aggregateId`。
 
 ### 计算属性 {#a-computed-property}
 

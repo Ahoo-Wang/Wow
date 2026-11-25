@@ -170,7 +170,7 @@ export function AdminPage() {
           title="Brands"
           records={lists.status === "loaded" ? lists.value.brands : undefined}
           create={(name, id) =>
-            clients.catalog.brand.commands.createBrand({ name }, { id: id || undefined })
+            clients.catalog.brand.commands.createBrand({ name }, { aggregateId: id || undefined })
           }
           rename={(id, name) => clients.catalog.brand.commands.renameBrand(id, { name })}
           act={act}
@@ -181,7 +181,7 @@ export function AdminPage() {
           title="Categories"
           records={lists.status === "loaded" ? lists.value.categories : undefined}
           create={(name, id) =>
-            clients.catalog.category.commands.createCategory({ name }, { id: id || undefined })
+            clients.catalog.category.commands.createCategory({ name }, { aggregateId: id || undefined })
           }
           rename={(id, name) =>
             clients.catalog.category.commands.renameCategory(id, { name })
@@ -214,7 +214,7 @@ export function AdminPage() {
                         brandId: brandId || null,
                         categoryId: categoryId || null,
                       },
-                      { id: id || undefined, ...LISTED },
+                      { aggregateId: id || undefined, ...LISTED },
                     ),
                   `Created the draft ${name}.`,
                   form,
@@ -552,7 +552,7 @@ function ProductRow({
                 () =>
                   clients.inventory.stock.commands.receiveStock(
                     { quantity: Number(quantity) },
-                    { id },
+                    { aggregateId: id },
                   ),
                 `Received ${quantity} of ${state.name}.`,
                 form,

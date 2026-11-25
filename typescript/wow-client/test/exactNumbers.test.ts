@@ -197,7 +197,7 @@ describe('exact numbers through the clients (review R4-Q, Q-9)', () => {
     }).wait({
       command: 'eshop-catalog.product.ChangeProductPrice',
       body: { price: '9007199254740993.10', note: '1.5' },
-      id: 'p1',
+      aggregateId: 'p1',
     });
     expect(requests[0]!.text).toBe(
       '{"price":9007199254740993.10,"note":"1.5"}',

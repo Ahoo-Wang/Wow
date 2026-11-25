@@ -20,12 +20,12 @@ export class ViewCommandClient {
    * Produces `ViewClaimed`.
    */
   claimView(id: string, body: ClaimView = {}, options?: CommandOptions): Promise<CommandResult> {
-    return this.commands.wait({ ...options, command: 'view-store.view.ClaimView', body, id });
+    return this.commands.wait({ ...options, command: 'view-store.view.ClaimView', body, aggregateId: id });
   }
 
   /** `ClaimView`, answered as one result per hop of its wait (`text/event-stream`). */
   claimViewStream(id: string, body: ClaimView = {}, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.commands.stream({ ...options, command: 'view-store.view.ClaimView', body, id });
+    return this.commands.stream({ ...options, command: 'view-store.view.ClaimView', body, aggregateId: id });
   }
 
   /**
@@ -49,12 +49,12 @@ export class ViewCommandClient {
    * Produces `ViewRenamed`.
    */
   renameView(id: string, body: RenameView, options?: CommandOptions): Promise<CommandResult> {
-    return this.commands.wait({ ...options, command: 'view-store.view.RenameView', body, id });
+    return this.commands.wait({ ...options, command: 'view-store.view.RenameView', body, aggregateId: id });
   }
 
   /** `RenameView`, answered as one result per hop of its wait (`text/event-stream`). */
   renameViewStream(id: string, body: RenameView, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.commands.stream({ ...options, command: 'view-store.view.RenameView', body, id });
+    return this.commands.stream({ ...options, command: 'view-store.view.RenameView', body, aggregateId: id });
   }
 
   /**
@@ -63,12 +63,12 @@ export class ViewCommandClient {
    * Produces `ViewSaved`.
    */
   saveView(id: string, body: SaveView, options?: CommandOptions): Promise<CommandResult> {
-    return this.commands.wait({ ...options, command: 'view-store.view.SaveView', body, id });
+    return this.commands.wait({ ...options, command: 'view-store.view.SaveView', body, aggregateId: id });
   }
 
   /** `SaveView`, answered as one result per hop of its wait (`text/event-stream`). */
   saveViewStream(id: string, body: SaveView, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.commands.stream({ ...options, command: 'view-store.view.SaveView', body, id });
+    return this.commands.stream({ ...options, command: 'view-store.view.SaveView', body, aggregateId: id });
   }
 
   /**
@@ -77,12 +77,12 @@ export class ViewCommandClient {
    * Produces `ViewShared`.
    */
   shareView(id: string, body: ShareView = {}, options?: CommandOptions): Promise<CommandResult> {
-    return this.commands.wait({ ...options, command: 'view-store.view.ShareView', body, id });
+    return this.commands.wait({ ...options, command: 'view-store.view.ShareView', body, aggregateId: id });
   }
 
   /** `ShareView`, answered as one result per hop of its wait (`text/event-stream`). */
   shareViewStream(id: string, body: ShareView = {}, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.commands.stream({ ...options, command: 'view-store.view.ShareView', body, id });
+    return this.commands.stream({ ...options, command: 'view-store.view.ShareView', body, aggregateId: id });
   }
 
   /**
@@ -90,11 +90,11 @@ export class ViewCommandClient {
    * The lifecycle command `wow.lifecycle.DeleteAggregate`.
    */
   deleteAggregate(id: string, options?: CommandOptions): Promise<CommandResult> {
-    return this.commands.wait({ ...options, command: LifecycleCommands.DELETE_AGGREGATE, type: { context: 'view-store', name: 'view' }, id });
+    return this.commands.wait({ ...options, command: LifecycleCommands.DELETE_AGGREGATE, type: { context: 'view-store', name: 'view' }, aggregateId: id });
   }
 
   /** The lifecycle command `wow.lifecycle.TransferOwner`. */
   transferOwner(id: string, body: TransferOwner, options?: CommandOptions): Promise<CommandResult> {
-    return this.commands.wait({ ...options, command: LifecycleCommands.TRANSFER_OWNER, type: { context: 'view-store', name: 'view' }, id, body });
+    return this.commands.wait({ ...options, command: LifecycleCommands.TRANSFER_OWNER, type: { context: 'view-store', name: 'view' }, aggregateId: id, body });
   }
 }

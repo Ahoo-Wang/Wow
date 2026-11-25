@@ -20,12 +20,12 @@ export class StockCommandClient {
    * Produces `ReservationCommitted`.
    */
   commitReservation(id: string, body: CommitReservation, options?: CommandOptions): Promise<CommandResult> {
-    return this.commands.wait({ ...options, command: 'eshop-inventory.stock.CommitReservation', body, id });
+    return this.commands.wait({ ...options, command: 'eshop-inventory.stock.CommitReservation', body, aggregateId: id });
   }
 
   /** `CommitReservation`, answered as one result per hop of its wait (`text/event-stream`). */
   commitReservationStream(id: string, body: CommitReservation, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.commands.stream({ ...options, command: 'eshop-inventory.stock.CommitReservation', body, id });
+    return this.commands.stream({ ...options, command: 'eshop-inventory.stock.CommitReservation', body, aggregateId: id });
   }
 
   /**
@@ -49,12 +49,12 @@ export class StockCommandClient {
    * Produces `ReservationReleased`.
    */
   releaseReservation(id: string, body: ReleaseReservation, options?: CommandOptions): Promise<CommandResult> {
-    return this.commands.wait({ ...options, command: 'eshop-inventory.stock.ReleaseReservation', body, id });
+    return this.commands.wait({ ...options, command: 'eshop-inventory.stock.ReleaseReservation', body, aggregateId: id });
   }
 
   /** `ReleaseReservation`, answered as one result per hop of its wait (`text/event-stream`). */
   releaseReservationStream(id: string, body: ReleaseReservation, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.commands.stream({ ...options, command: 'eshop-inventory.stock.ReleaseReservation', body, id });
+    return this.commands.stream({ ...options, command: 'eshop-inventory.stock.ReleaseReservation', body, aggregateId: id });
   }
 
   /**
@@ -63,12 +63,12 @@ export class StockCommandClient {
    * Produces `StockReserved`.
    */
   reserveStock(id: string, body: ReserveStock, options?: CommandOptions): Promise<CommandResult> {
-    return this.commands.wait({ ...options, command: 'eshop-inventory.stock.ReserveStock', body, id });
+    return this.commands.wait({ ...options, command: 'eshop-inventory.stock.ReserveStock', body, aggregateId: id });
   }
 
   /** `ReserveStock`, answered as one result per hop of its wait (`text/event-stream`). */
   reserveStockStream(id: string, body: ReserveStock, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.commands.stream({ ...options, command: 'eshop-inventory.stock.ReserveStock', body, id });
+    return this.commands.stream({ ...options, command: 'eshop-inventory.stock.ReserveStock', body, aggregateId: id });
   }
 
   /**
@@ -76,7 +76,7 @@ export class StockCommandClient {
    * The lifecycle command `wow.lifecycle.DeleteAggregate`.
    */
   deleteAggregate(id: string, options?: CommandOptions): Promise<CommandResult> {
-    return this.commands.wait({ ...options, command: LifecycleCommands.DELETE_AGGREGATE, type: { context: 'eshop-inventory', name: 'stock' }, id });
+    return this.commands.wait({ ...options, command: LifecycleCommands.DELETE_AGGREGATE, type: { context: 'eshop-inventory', name: 'stock' }, aggregateId: id });
   }
 
   /**
@@ -84,7 +84,7 @@ export class StockCommandClient {
    * The lifecycle command `wow.lifecycle.RestoreAggregate`.
    */
   restoreAggregate(id: string, options?: CommandOptions): Promise<CommandResult> {
-    return this.commands.wait({ ...options, command: LifecycleCommands.RESTORE_AGGREGATE, type: { context: 'eshop-inventory', name: 'stock' }, id });
+    return this.commands.wait({ ...options, command: LifecycleCommands.RESTORE_AGGREGATE, type: { context: 'eshop-inventory', name: 'stock' }, aggregateId: id });
   }
 
   /**
@@ -92,6 +92,6 @@ export class StockCommandClient {
    * The lifecycle command `wow.lifecycle.TransferSpace`.
    */
   transferSpace(id: string, body: TransferSpace, options?: CommandOptions): Promise<CommandResult> {
-    return this.commands.wait({ ...options, command: LifecycleCommands.TRANSFER_SPACE, type: { context: 'eshop-inventory', name: 'stock' }, id, body });
+    return this.commands.wait({ ...options, command: LifecycleCommands.TRANSFER_SPACE, type: { context: 'eshop-inventory', name: 'stock' }, aggregateId: id, body });
   }
 }

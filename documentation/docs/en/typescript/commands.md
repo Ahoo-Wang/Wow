@@ -47,7 +47,7 @@ const result = await orders.submitOrder({
 console.log(result.ref.id, result.version, result.status);
 ```
 
-`SubmitOrder` creates its aggregate, so its method takes no id: the service generates one, and `result.ref.id` names it. Pass `{ id }` in the options to choose it. A command on an existing aggregate takes its id first, `orders.payOrder(id, body)`. An aggregate whose id is its owner's, such as a shopper's basket, also has an `…Own` method without the id, `baskets.checkoutBasketOwn(body)`, which acts on the caller's own aggregate; its method by id is for a caller with no owner, such as a back office acting for a shopper. `unitPrice` is a `BigDecimal` on the server, so its type is `string`, written into the body as an exact number.
+`SubmitOrder` creates its aggregate, so its method takes no id: the service generates one, and `result.ref.id` names it. Pass `{ aggregateId }` in the options to choose it. A command on an existing aggregate takes its id first, `orders.payOrder(id, body)`. An aggregate whose id is its owner's, such as a shopper's basket, also has an `…Own` method without the id, `baskets.checkoutBasketOwn(body)`, which acts on the caller's own aggregate; its method by id is for a caller with no owner, such as a back office acting for a shopper. `unitPrice` is a `BigDecimal` on the server, so its type is `string`, written into the body as an exact number.
 
 The result says where the command got to:
 
@@ -63,7 +63,7 @@ The result says where the command got to:
 
 ### A body that names its aggregate
 
-A command whose body names its aggregate (its class's `@AggregateId`, the Manifest's `idProperty`) has no id parameter and no `id` option. Its method sends the body to the route without `{id}`, and the service acts on the aggregate the body names. When that property is computed from the other fields, the body may leave it out and the service computes the id, as for any [computed property](#a-computed-property).
+A command whose body names its aggregate (its class's `@AggregateId`, the Manifest's `idProperty`) has no id parameter and no `aggregateId` option. Its method sends the body to the route without `{id}`, and the service acts on the aggregate the body names. When that property is computed from the other fields, the body may leave it out and the service computes the id, as for any [computed property](#a-computed-property).
 
 A `CommandClient` request written by hand sends such a command by the same route. The eShop has none, so this one sends the `RestockProduct` of [Name the aggregate in the body](../guide/aggregates#name-the-aggregate-in-the-body):
 
@@ -79,7 +79,7 @@ await commands.wait({
 });
 ```
 
-An `id` given with such a request must be the one its body names: the client writes it into a body that names none, and a body that names another id throws a `TypeError` before anything is sent. A computed id is the service's: an `id` given for it is ignored, because the service computes the id from the fields, so leave `id` out.
+An `aggregateId` given with such a request must be the one its body names: the client writes it into a body that names none, and a body that names another id throws a `TypeError` before anything is sent. A computed id is the service's: an `aggregateId` given for it is ignored, because the service computes the id from the fields, so leave `aggregateId` out.
 
 ### A computed property
 

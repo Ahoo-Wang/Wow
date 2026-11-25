@@ -501,7 +501,7 @@ export function compensationCommands(fetcher: Fetcher) {
     await commands.wait({
       command: `${CONTEXT}.${AGGREGATE}.${command}`,
       body,
-      id,
+      aggregateId: id,
       wait: WaitPlan.of(Hop.snapshot(CONTEXT)),
     });
   };

@@ -28,12 +28,12 @@ export class ParkedCommandClient {
    * Produces `ApplyRetrySpecRequested`.
    */
   applyRetrySpec(id: string, body: ApplyRetrySpec = {}, options?: CommandOptions): Promise<CommandResult> {
-    return this.commands.wait({ ...options, command: 'ops.parked.ApplyRetrySpec', body, id });
+    return this.commands.wait({ ...options, command: 'ops.parked.ApplyRetrySpec', body, aggregateId: id });
   }
 
   /** `ApplyRetrySpec`, answered as one result per hop of its wait (`text/event-stream`). */
   applyRetrySpecStream(id: string, body: ApplyRetrySpec = {}, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.commands.stream({ ...options, command: 'ops.parked.ApplyRetrySpec', body, id });
+    return this.commands.stream({ ...options, command: 'ops.parked.ApplyRetrySpec', body, aggregateId: id });
   }
 
   /**
@@ -42,12 +42,12 @@ export class ParkedCommandClient {
    * Produces `MarkRecoverableRequested`.
    */
   markRecoverable(id: string, body: MarkRecoverable, options?: CommandOptions): Promise<CommandResult> {
-    return this.commands.wait({ ...options, command: 'ops.parked.MarkRecoverable', body, id });
+    return this.commands.wait({ ...options, command: 'ops.parked.MarkRecoverable', body, aggregateId: id });
   }
 
   /** `MarkRecoverable`, answered as one result per hop of its wait (`text/event-stream`). */
   markRecoverableStream(id: string, body: MarkRecoverable, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.commands.stream({ ...options, command: 'ops.parked.MarkRecoverable', body, id });
+    return this.commands.stream({ ...options, command: 'ops.parked.MarkRecoverable', body, aggregateId: id });
   }
 
   /**
@@ -56,12 +56,12 @@ export class ParkedCommandClient {
    * Produces `RetryRequested`.
    */
   retry(id: string, body: Retry = {}, options?: CommandOptions): Promise<CommandResult> {
-    return this.commands.wait({ ...options, command: 'ops.parked.Retry', body, id });
+    return this.commands.wait({ ...options, command: 'ops.parked.Retry', body, aggregateId: id });
   }
 
   /** `Retry`, answered as one result per hop of its wait (`text/event-stream`). */
   retryStream(id: string, body: Retry = {}, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.commands.stream({ ...options, command: 'ops.parked.Retry', body, id });
+    return this.commands.stream({ ...options, command: 'ops.parked.Retry', body, aggregateId: id });
   }
 
   /**
@@ -70,11 +70,11 @@ export class ParkedCommandClient {
    * Produces `SkipRequested`.
    */
   skip(id: string, body: Skip = {}, options?: CommandOptions): Promise<CommandResult> {
-    return this.commands.wait({ ...options, command: 'ops.parked.Skip', body, id });
+    return this.commands.wait({ ...options, command: 'ops.parked.Skip', body, aggregateId: id });
   }
 
   /** `Skip`, answered as one result per hop of its wait (`text/event-stream`). */
   skipStream(id: string, body: Skip = {}, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.commands.stream({ ...options, command: 'ops.parked.Skip', body, id });
+    return this.commands.stream({ ...options, command: 'ops.parked.Skip', body, aggregateId: id });
   }
 }

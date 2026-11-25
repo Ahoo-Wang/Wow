@@ -319,7 +319,7 @@ export interface CommandManifest {
 }
 
 // @public
-export type CommandOptions = Omit<CommandRequest, 'command' | 'body' | 'type' | 'id'>;
+export type CommandOptions = Omit<CommandRequest, 'command' | 'body' | 'type' | 'aggregateId'>;
 
 // @public
 export interface CommandRef {
@@ -348,10 +348,10 @@ export class CommandRejectedError extends Error {
 
 // @public
 export interface CommandRequest extends Omit<RequestOptions, 'scope'> {
+    readonly aggregateId?: string;
     readonly body?: object;
     readonly command: string;
     readonly expectedVersion?: number;
-    readonly id?: string;
     readonly requestId?: string;
     readonly scope?: never;
     readonly targetScope?: Omit<TargetScope, 'tenantId'>;
@@ -510,7 +510,7 @@ interface CountResult {
 
 // @public
 export interface CreateCommandOptions extends CommandOptions {
-    readonly id?: string;
+    readonly aggregateId?: string;
 }
 
 // @public

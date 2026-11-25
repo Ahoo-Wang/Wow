@@ -50,8 +50,8 @@ export function orderCommands(fetcher: Fetcher): OrderCommands {
       // The full type name: the client derives the route from the service's Manifest, fetched once, `/example/order/{id}/ship-order`.
       command: `example.order.${name}`,
       body,
-      // The id fills `{id}`, encoded by the client, never pasted into the path.
-      id,
+      // The aggregate's id fills `{id}`, encoded by the client, never pasted into the path.
+      aggregateId: id,
       // The version the row showed: a command that already took, sent again, is refused as a conflict rather than applied twice.
       expectedVersion: version,
       wait: plan,
