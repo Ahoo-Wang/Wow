@@ -24,6 +24,7 @@ import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.openapi.ManifestOpenApi
 import me.ahoo.wow.spi.SystemCommandGroups
 import java.io.File
+import java.util.function.Consumer
 
 /**
  * What the plugin's workers run: the plugin resolves these tools (victools, Jackson, the kernel) into
@@ -51,7 +52,9 @@ object ManifestTools {
      * contracts on the [classpath] do not say ([PeerSources], naming the entry its class is in), on a contract whose
      * classes its types lack ([ContractClasses]), on a command a saga derives by its class that neither a context of
      * the service nor a peer contract on the [classpath] decides ([undecidedCommands]), or on two fragments of one
-     * name ([fragmentsOf]). Returns the number of fragments merged.
+     * name ([fragmentsOf]). A peer contract holding a value this version does not know, from a peer on the next minor
+     * version, is read as a node reads it, and what it leaves out is told to [warn] ([ManifestJson.contract]). Returns the
+     * number of fragments merged.
      */
     @JvmStatic
     fun merge(
@@ -61,11 +64,14 @@ object ManifestTools {
         defaultServiceName: String,
         serviceVersion: String?,
         output: File,
+        warn: Consumer<String> = Consumer {},
     ): Int {
         val fragments = fragmentsOf(classpath, owners)
         checkModelProviders(classpath, owners)
         val contracts = classpath.mapNotNull { entry ->
-            ManifestJson.contract(entry)?.let { ManifestFragment(owners[entry.path] ?: entry.name, it.manifest) }
+            ManifestJson.contract(entry, warn::accept)?.let {
+                ManifestFragment(owners[entry.path] ?: entry.name, it.manifest)
+            }
         }
         val service = serviceOf(fragments, contracts, serviceName, defaultServiceName)
         // Where a class is on the class path, named by its entry's owner: a contract's classes must all be there.
@@ -380,11 +386,17 @@ object ManifestTools {
      * Writes the values of the `wow-service` Helm chart that the build knows ([HelmValues]) into [output]: the name of
      * the service of its merged [manifest], the peers whose contracts are on its [classpath] (the contexts it does not
      * host, each with the service its contract names) and the route of its Manifest. What the Gradle plugin's
-     * `generateWowHelmValues` does. Returns the number of peers.
+     * `generateWowHelmValues` does; a peer contract is read as [merge] reads it, told to [warn]. Returns the number of
+     * peers.
      */
     @JvmStatic
-    fun generateHelmValues(manifest: File, classpath: List<File>, output: File): Int {
-        val contracts = classpath.mapNotNull { ManifestJson.contract(it)?.manifest }
+    fun generateHelmValues(
+        manifest: File,
+        classpath: List<File>,
+        output: File,
+        warn: Consumer<String> = Consumer {},
+    ): Int {
+        val contracts = classpath.mapNotNull { ManifestJson.contract(it, warn::accept)?.manifest }
         val values = HelmValues.of(ManifestJson.read(manifest), contracts)
         output.parentFile.mkdirs()
         output.writeText(values.yaml())

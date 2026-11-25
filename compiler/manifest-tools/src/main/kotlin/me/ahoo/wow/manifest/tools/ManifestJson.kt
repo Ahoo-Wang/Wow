@@ -26,8 +26,12 @@ import java.util.zip.ZipFile
 object ManifestJson {
     private val mapper = jacksonObjectMapper()
 
-    fun read(input: InputStream): Manifest =
-        ManifestTree.read(mapper.readValue(input, Map::class.java), ManifestTree.REFUSE)
+    /** The Manifest [input] holds, one this build or an earlier one wrote: never newer than its reader ([ManifestTree.REFUSE]). */
+    fun read(input: InputStream): Manifest = read(input, ManifestTree.REFUSE)
+
+    /** The Manifest [input] holds, what it holds that this reader does not know left out and told to [warn]. */
+    private fun read(input: InputStream, warn: (String) -> Unit): Manifest =
+        ManifestTree.read(mapper.readValue(input, Map::class.java), warn)
 
     fun read(file: File): Manifest = file.inputStream().use(::read)
 
@@ -62,14 +66,24 @@ object ManifestJson {
         else -> emptyList()
     }
 
-    /** The peer contract (`META-INF/wow/contract.json`) of [entry], a directory or a jar; null if none. */
-    fun contract(entry: File): ManifestFragment? = when {
-        entry.isDirectory -> File(entry, PeerContracts.RESOURCE).takeIf { it.isFile }
-            ?.let { ManifestFragment(it.path, read(it)) }
+    /**
+     * The peer contract (`META-INF/wow/contract.json`) of [entry], a directory or a jar; null if none. A peer's api jar
+     * may come from the next minor version of Wow, as services on adjacent minors use each other's contract jars, so
+     * the contract is read as a node reads it ([me.ahoo.wow.manifest.ClassPathContracts]): a value of an enumeration
+     * this reader does not know leaves out what it belongs to, and is told to [warn], naming the contract.
+     */
+    fun contract(entry: File, warn: (String) -> Unit): ManifestFragment? = when {
+        entry.isDirectory -> File(entry, PeerContracts.RESOURCE).takeIf { it.isFile }?.let { file ->
+            ManifestFragment(file.path, file.inputStream().use { read(it) { warn("contract ${file.path}: $it") } })
+        }
 
         entry.isFile && entry.name.endsWith(".jar") -> ZipFile(entry).use { jar ->
-            jar.getEntry(PeerContracts.RESOURCE)?.let {
-                ManifestFragment("${entry.path}!/${it.name}", jar.getInputStream(it).use(::read))
+            jar.getEntry(PeerContracts.RESOURCE)?.let { resource ->
+                val source = "${entry.path}!/${resource.name}"
+                ManifestFragment(
+                    source,
+                    jar.getInputStream(resource).use { read(it) { warn("contract $source: $it") } }
+                )
             }
         }
 
