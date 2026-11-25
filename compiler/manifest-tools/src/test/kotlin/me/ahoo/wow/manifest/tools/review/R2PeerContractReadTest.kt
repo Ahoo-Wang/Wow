@@ -51,8 +51,14 @@ class R2PeerContractReadTest {
                         ContextManifest(
                             name = "billing",
                             aggregates = listOf(
-                                AggregateManifest(name = "invoice", state = StateManifest(schemaRef(CartState::class.java.name))),
-                                AggregateManifest(name = "payment", state = StateManifest(schemaRef(CartState::class.java.name))),
+                                AggregateManifest(
+                                    name = "invoice",
+                                    state = StateManifest(schemaRef(CartState::class.java.name))
+                                ),
+                                AggregateManifest(
+                                    name = "payment",
+                                    state = StateManifest(schemaRef(CartState::class.java.name))
+                                ),
                             ),
                         ),
                     ),
@@ -61,10 +67,12 @@ class R2PeerContractReadTest {
             "billing-service",
         )
         val mapper = jacksonObjectMapper()
+
         // A 10.1 writer's contract: the aggregate `invoice` of an ownership this reader does not know.
         @Suppress("UNCHECKED_CAST")
         val tree = mapper.readValue(mapper.writeValueAsString(ManifestTree.write(contract)), Map::class.java)
             as Map<String, Any?>
+
         @Suppress("UNCHECKED_CAST")
         val aggregates = ((tree["contexts"] as List<Map<String, Any?>>).single()["aggregates"])
             as List<MutableMap<String, Any?>>

@@ -49,6 +49,7 @@ class R2OpenApiAgreementTest {
         @Suppress("UNCHECKED_CAST")
         val stream = content(document.components("responses")["wow.command.200"] as Map<String, Any?>)
             .getValue("text/event-stream") as Map<String, Any?>
+
         @Suppress("UNCHECKED_CAST")
         val events = stream["x-wow-events"] as Map<String, Any?>
         (events["event"] as List<*>).assert().contains("end")
