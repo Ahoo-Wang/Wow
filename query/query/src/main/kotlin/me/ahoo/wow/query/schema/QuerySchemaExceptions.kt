@@ -14,7 +14,7 @@
 package me.ahoo.wow.query.schema
 
 import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.query.error.QueryBindingError
+import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.query.error.QueryError
 import me.ahoo.wow.query.error.QueryErrors
 
@@ -24,8 +24,8 @@ sealed class QuerySchemaException(
     message: String,
     cause: Throwable? = null,
 ) : RuntimeException(message, cause), QueryError {
-    override val errorMsg: String
-        get() = checkNotNull(message)
+    override val message: String
+        get() = checkNotNull(super.message)
 }
 
 /**
@@ -45,9 +45,9 @@ class QuerySchemaValidationException(
     override val errorCode: String
         get() = if (violation == null) QueryErrors.FAILED else QueryErrors.INVALID
 
-    /** One binding error per violation: its field (or `""` for the model), its text and its stable code. */
-    override val bindingErrors: List<QueryBindingError> =
-        if (violation == null) emptyList() else listOf(QueryBindingError(violation.location, message, violation.code))
+    /** One violation per violation broken: its field (or `""` for the model), its stable code and its text. */
+    override val violations: List<Violation> =
+        if (violation == null) emptyList() else listOf(Violation.of(violation.location, violation.code, message))
 }
 
 /** Declarations or storage facts that contradict each other: a server fault ([QueryErrors.FAILED]). */

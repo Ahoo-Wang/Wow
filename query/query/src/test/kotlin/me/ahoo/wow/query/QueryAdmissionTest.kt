@@ -46,6 +46,7 @@ import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.query.TotalMode
+import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.query.admission.AdmittedQuery
 import me.ahoo.wow.query.admission.QueryAdmission
 import me.ahoo.wow.query.admission.QueryBudget
@@ -55,7 +56,6 @@ import me.ahoo.wow.query.backend.cursor
 import me.ahoo.wow.query.backend.list
 import me.ahoo.wow.query.backend.paged
 import me.ahoo.wow.query.backend.single
-import me.ahoo.wow.query.error.QueryBindingError
 import me.ahoo.wow.query.error.QueryErrors
 import me.ahoo.wow.query.error.QueryExecutionException
 import me.ahoo.wow.query.error.QueryRequestException
@@ -266,7 +266,7 @@ class QueryAdmissionTest {
             }
         }.exceptionOrNull() as QueryRequestException
         rejected.code.assert().isEqualTo(QueryErrorCodes.EXPLICIT_ENTRY_REQUIRED)
-        rejected.bindingErrors.single().name.assert().isEqualTo(QueryRequestException.BODY)
+        rejected.violations.single().path.assert().isEqualTo(QueryRequestException.BODY)
         loaded.assert().isFalse()
 
         val budgeted = runCatching {
@@ -291,14 +291,14 @@ class QueryAdmissionTest {
         QueryRequestException("Body is not JSON.", QueryErrorCodes.INVALID_JSON).run {
             errorCode.assert().isEqualTo(QueryErrors.MALFORMED)
             violation.assert().isNull()
-            bindingErrors.assert().containsExactly(
-                QueryBindingError(QueryRequestException.BODY, "Body is not JSON.", QueryErrorCodes.INVALID_JSON),
+            violations.assert().containsExactly(
+                Violation.of(QueryRequestException.BODY, QueryErrorCodes.INVALID_JSON, "Body is not JSON."),
             )
         }
         QueryExecutionException("Storage failed.").run {
             errorCode.assert().isEqualTo(QueryErrors.FAILED)
-            errorMsg.assert().isEqualTo("Storage failed.")
-            bindingErrors.assert().isEmpty()
+            message.assert().isEqualTo("Storage failed.")
+            violations.assert().isEmpty()
         }
         assertThrows<QueryExecutionException> { checkExecution(false) { "Broken row." } }
             .message.assert().isEqualTo("Broken row.")
@@ -306,7 +306,7 @@ class QueryAdmissionTest {
         QueryTimeoutException(Duration.ofMillis(1500)).run {
             errorCode.assert().isEqualTo(QueryErrors.TIMEOUT)
             timeout.assert().isEqualTo(Duration.ofMillis(1500))
-            errorMsg.assert().isEqualTo("Query exceeded its execution timeout of 1500 ms.")
+            message.assert().isEqualTo("Query exceeded its execution timeout of 1500 ms.")
         }
         QueryPolicy { _, _ -> MatchAllFilter }.order.assert().isEqualTo(0)
     }
@@ -499,7 +499,7 @@ class QueryAdmissionTest {
         ).admitBlocking(QueryOperation.COUNT, count, http).query.limit.assert().isNull()
         assertThrows<QueryRequestException> {
             admission.admitBlocking(QueryOperation.COUNT, CountQuery(count.filter, limit = 10_001) as CountQuery, http)
-        }.bindingErrors.single().name.assert().isEqualTo("limit")
+        }.violations.single().path.assert().isEqualTo("limit")
     }
 
     @Test
@@ -575,7 +575,7 @@ class QueryAdmissionTest {
                 errorCode.assert().isEqualTo(QueryErrors.FORBIDDEN)
                 model.assert().isEqualTo(QueryModel.SNAPSHOT)
                 field.assert().isEqualTo(QueryField("tenantId"))
-                errorMsg.assert().isEqualTo("Query on [$model] requires an authenticated [tenantId] scope.")
+                message.assert().isEqualTo("Query on [$model] requires an authenticated [tenantId] scope.")
             }
         }
         // A declared tenant restricts the query but does not satisfy the requirement.

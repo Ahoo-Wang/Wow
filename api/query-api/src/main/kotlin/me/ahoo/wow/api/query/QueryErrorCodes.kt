@@ -13,12 +13,18 @@
 
 package me.ahoo.wow.api.query
 
+import me.ahoo.wow.api.annotation.ExperimentalWowApi
+
 /**
- * Stable, machine-readable codes of rejected query requests, carried as `BindingError.code`. A contract: codes are
- * added, never renamed or reused. Clients switch on them instead of on the human text.
+ * Stable, machine-readable codes of rejected query requests, carried as the `code` of each of the rejection's
+ * violations (`Violation.code`). A contract: codes are added, never renamed or reused. Clients switch on them instead
+ * of on the human text.
+ *
+ * The codes marked [ExperimentalWowApi] are given only by the experimental aggregation queries and the aggregation
+ * expressions they compute (an `ExpressionFilter` included), and are experimental with them.
  */
 object QueryErrorCodes {
-    // Reading and decoding the request body; BindingError.name is the JSON path, or "body".
+    // Reading and decoding the request body; Violation.path is the JSON path, or "body".
     const val INVALID_JSON = "invalid-json"
     const val BODY_NOT_OBJECT = "body-not-object"
     const val EMPTY_BODY = "empty-body"
@@ -33,20 +39,25 @@ object QueryErrorCodes {
     const val INVALID_CURSOR = "invalid-cursor"
     const val STREAM_NOT_RESUMABLE = "stream-not-resumable"
 
-    // The entry budget and gates; BindingError.name is the request part the rule bounds.
+    // The entry budget and gates; Violation.path is the request part the rule bounds.
     const val SIZE_OUT_OF_RANGE = "size-out-of-range"
     const val FILTER_TOO_LARGE = "filter-too-large"
     const val EXPENSIVE_OPERATOR_DISABLED = "expensive-operator-disabled"
     const val COUNT_REQUIRES_FILTER = "count-requires-filter"
+
+    @ExperimentalWowApi
     const val RESIDUAL_GROUPS_EXCEEDED = "residual-groups-exceeded"
+
+    @ExperimentalWowApi
     const val TOO_MANY_GROUPS = "too-many-groups"
+
     const val EXPLICIT_ENTRY_REQUIRED = "explicit-entry-required"
 
-    // A state point read; BindingError.name is the query parameter.
+    // A state point read; Violation.path is the query parameter.
     // The state asked for is more commits away from the snapshot, or from version 1, than a state read replays.
     const val REPLAY_TOO_LONG = "replay-too-long"
 
-    // Admission against the query model; BindingError.name is the absolute logical field path (for an element-scoped
+    // Admission against the query model; Violation.path is the absolute logical field path (for an element-scoped
     // field, the full path such as items.price), or "" for model-level violations.
     const val UNKNOWN_FIELD = "unknown-field"
     const val UNSUPPORTED_CAPABILITY = "unsupported-capability"
@@ -56,25 +67,49 @@ object QueryErrorCodes {
     const val NOT_SINGLE_STRING = "not-single-string"
     const val MODEL_SEARCH_UNSUPPORTED = "model-search-unsupported"
     const val CURSOR_NOT_ALLOWED = "cursor-not-allowed"
+
+    @ExperimentalWowApi
     const val PROTECTED_AGGREGATION = "protected-aggregation"
+
     const val PROTECTED_COMPARISON = "protected-comparison"
+
+    @ExperimentalWowApi
     const val MISSING_KEY_REQUIRES_STRING = "missing-key-requires-string"
+
+    @ExperimentalWowApi
     const val ANY_REQUIRES_SINGLE_VALUE = "any-requires-single-value"
+
     const val INCOMPLETE_PROJECTION = "incomplete-projection"
+
+    @ExperimentalWowApi
     const val METRIC_FILTER_SEARCH = "metric-filter-search"
+
+    @ExperimentalWowApi
     const val METRIC_FILTER_ELEMENT_MATCH = "metric-filter-element-match"
+
+    @ExperimentalWowApi
     const val METRIC_FILTER_ARRAY_FIELD = "metric-filter-array-field"
+
     const val NOT_PROJECTABLE = "not-projectable"
     const val EVENT_PROJECTION_TYPE_REQUIRED = "event-projection-type-required"
     const val TEMPORAL_REPRESENTATION_REQUIRED = "temporal-representation-required"
     const val PARALLEL_ARRAY_SORT = "parallel-array-sort"
     const val ARRAY_EQUALITY = "array-equality"
+
+    @ExperimentalWowApi
     const val FIRST_LAST_REQUIRES_SINGLE_VALUE = "first-last-requires-single-value"
+
+    @ExperimentalWowApi
     const val FIRST_LAST_REQUIRES_ORDER_BY = "first-last-requires-order-by"
+
+    @ExperimentalWowApi
     const val TEMPORAL_AGGREGATION_UNSUPPORTED = "temporal-aggregation-unsupported"
+
     const val SORT_TOO_MANY = "sort-too-many"
     const val SORT_FIELD_DUPLICATE = "sort-field-duplicate"
     const val IDENTITY_UNDEFINED = "identity-undefined"
     const val STORAGE_UNSUPPORTED = "storage-unsupported"
+
+    @ExperimentalWowApi
     const val PREVIOUS_UNSHIFTABLE = "previous-unshiftable"
 }

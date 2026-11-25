@@ -20,9 +20,9 @@ import me.ahoo.wow.postgres.snapshot.PostgresSnapshotStore
 import me.ahoo.wow.query.backend.QueryBackend
 import me.ahoo.wow.query.backend.QueryBackendBinding
 import me.ahoo.wow.query.index.QueryIndexPlan
-import me.ahoo.wow.query.store.EventQueries
+import me.ahoo.wow.query.store.EventStoreQueries
 import me.ahoo.wow.query.store.QueryIndexReport
-import me.ahoo.wow.query.store.SnapshotQueries
+import me.ahoo.wow.query.store.SnapshotStoreQueries
 import me.ahoo.wow.query.store.StoreQueries
 import me.ahoo.wow.query.store.StoreQueryOptions
 import me.ahoo.wow.spi.store.StorePool
@@ -37,16 +37,16 @@ import javax.sql.DataSource
  * store's [query DataSource][PostgresStore.queryDataSource]; the indexes are created through the store's own.
  */
 internal class PostgresQueries(private val store: PostgresStore) : StoreQueries {
-    override fun snapshots(options: StoreQueryOptions): SnapshotQueries = PostgresSnapshotQueries(store, options)
+    override fun snapshots(options: StoreQueryOptions): SnapshotStoreQueries = PostgresSnapshotQueries(store, options)
 
-    override fun events(options: StoreQueryOptions): EventQueries = PostgresEventQueries(store, options)
+    override fun events(options: StoreQueryOptions): EventStoreQueries = PostgresEventQueries(store, options)
 }
 
 /**
  * The `events` queries of a PostgreSQL store: each context's log tables in place, read through the query DataSource,
  * and the indexes of their access attributes ([PostgresQueryIndexes.planLog]), created through the store's own.
  */
-private class PostgresEventQueries(private val store: PostgresStore, options: StoreQueryOptions) : EventQueries {
+private class PostgresEventQueries(private val store: PostgresStore, options: StoreQueryOptions) : EventStoreQueries {
     private val indexDdl = options.indexDdl
     private val storages = ConcurrentHashMap<String, PostgresEventQueryStorage>()
 
@@ -108,7 +108,7 @@ private fun publicMethod(target: Any, name: String): Method =
         type.methods.firstOrNull { it.name == name && it.parameterCount == 0 }?.takeIf { Modifier.isPublic(type.modifiers) }
     } ?: throw NoSuchMethodException(name)
 
-private class PostgresSnapshotQueries(private val store: PostgresStore, options: StoreQueryOptions) : SnapshotQueries {
+private class PostgresSnapshotQueries(private val store: PostgresStore, options: StoreQueryOptions) : SnapshotStoreQueries {
     private val queryOptions = PostgresQueryOptions(indexDdl = options.indexDdl)
     private val storages = ConcurrentHashMap<String, PostgresSnapshotQueryStorage>()
 

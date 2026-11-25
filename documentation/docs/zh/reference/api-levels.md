@@ -52,6 +52,18 @@ API 只是升级要保持兼容的三样东西之一。在同一个主版本内�
 | `me.ahoo.wow.api.query.ExpressionFilter` | class | `wow-query-api` |
 | `me.ahoo.wow.api.query.FilterOperator.EXPRESSION` | enum entry | `wow-query-api` |
 | `me.ahoo.wow.api.query.HavingExpression` | interface | `wow-query-api` |
+| `me.ahoo.wow.api.query.QueryErrorCodes.RESIDUAL_GROUPS_EXCEEDED` | val | `wow-query-api` |
+| `me.ahoo.wow.api.query.QueryErrorCodes.TOO_MANY_GROUPS` | val | `wow-query-api` |
+| `me.ahoo.wow.api.query.QueryErrorCodes.PROTECTED_AGGREGATION` | val | `wow-query-api` |
+| `me.ahoo.wow.api.query.QueryErrorCodes.MISSING_KEY_REQUIRES_STRING` | val | `wow-query-api` |
+| `me.ahoo.wow.api.query.QueryErrorCodes.ANY_REQUIRES_SINGLE_VALUE` | val | `wow-query-api` |
+| `me.ahoo.wow.api.query.QueryErrorCodes.METRIC_FILTER_SEARCH` | val | `wow-query-api` |
+| `me.ahoo.wow.api.query.QueryErrorCodes.METRIC_FILTER_ELEMENT_MATCH` | val | `wow-query-api` |
+| `me.ahoo.wow.api.query.QueryErrorCodes.METRIC_FILTER_ARRAY_FIELD` | val | `wow-query-api` |
+| `me.ahoo.wow.api.query.QueryErrorCodes.FIRST_LAST_REQUIRES_SINGLE_VALUE` | val | `wow-query-api` |
+| `me.ahoo.wow.api.query.QueryErrorCodes.FIRST_LAST_REQUIRES_ORDER_BY` | val | `wow-query-api` |
+| `me.ahoo.wow.api.query.QueryErrorCodes.TEMPORAL_AGGREGATION_UNSUPPORTED` | val | `wow-query-api` |
+| `me.ahoo.wow.api.query.QueryErrorCodes.PREVIOUS_UNSHIFTABLE` | val | `wow-query-api` |
 | `me.ahoo.wow.api.query.dsl.AggregationQueryDsl` | class | `wow-query-api` |
 | `me.ahoo.wow.api.query.dsl.DerivedExpressionDsl` | class | `wow-query-api` |
 | `me.ahoo.wow.api.query.dsl.HavingDsl` | class | `wow-query-api` |
@@ -183,8 +195,8 @@ API 只是升级要保持兼容的三样东西之一。在同一个主版本内�
 | `me.ahoo.wow.query.dataset.QueryDatasetConfig` | class | `wow-query` |
 | `me.ahoo.wow.query.schema.QueryStorageAdapter` | interface | `wow-query` |
 | `me.ahoo.wow.query.store.StoreQueries` | interface | `wow-query` |
-| `me.ahoo.wow.query.store.SnapshotQueries` | interface | `wow-query` |
-| `me.ahoo.wow.query.store.EventQueries` | interface | `wow-query` |
+| `me.ahoo.wow.query.store.SnapshotStoreQueries` | interface | `wow-query` |
+| `me.ahoo.wow.query.store.EventStoreQueries` | interface | `wow-query` |
 | `me.ahoo.wow.query.store.QueryIndexReport` | class | `wow-query` |
 | `me.ahoo.wow.query.store.StoreQueryOptions` | class | `wow-query` |
 

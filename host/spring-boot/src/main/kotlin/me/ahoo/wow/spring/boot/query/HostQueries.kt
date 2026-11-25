@@ -28,9 +28,10 @@ import me.ahoo.wow.query.memory.InMemoryEventQueryStorage
 import me.ahoo.wow.query.memory.InMemoryQueryStorage
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
+import me.ahoo.wow.query.store.EventStoreQueries
 import me.ahoo.wow.query.store.QueryIndexReport
 import me.ahoo.wow.query.store.QueryStores
-import me.ahoo.wow.query.store.SnapshotQueries
+import me.ahoo.wow.query.store.SnapshotStoreQueries
 import me.ahoo.wow.query.store.StoreQueries
 import me.ahoo.wow.query.store.StoreQueryOptions
 import me.ahoo.wow.runtime.node.ServiceNode
@@ -89,7 +90,7 @@ class SnapshotQueryBackend(
         val NONE: SnapshotQueryBackend = SnapshotQueryBackend(null)
 
         /** The snapshot queries of one store ([StoreQueries.snapshots]) as a backend. */
-        fun of(queries: SnapshotQueries): SnapshotQueryBackend = SnapshotQueryBackend(
+        fun of(queries: SnapshotStoreQueries): SnapshotQueryBackend = SnapshotQueryBackend(
             bindings = queries,
             prepare = queries::prepare,
             indexes = queries::manageIndexes.takeIf { queries.managesIndexes },
@@ -130,19 +131,20 @@ internal class MemoryQueries(
     private val queries: InMemoryQueryStorage?,
     private val scansEvents: Boolean,
 ) : StoreQueries {
-    override fun snapshots(options: StoreQueryOptions): SnapshotQueries? = queries?.let { storage ->
-        object : SnapshotQueries {
+    override fun snapshots(options: StoreQueryOptions): SnapshotStoreQueries? = queries?.let { storage ->
+        object : SnapshotStoreQueries {
             override fun binding(key: AggregateType): QueryBackendBinding<QueryBackend> = storage.binding(key)
         }
     }
 
-    override fun events(options: StoreQueryOptions): QueryBindings<AggregateType>? {
+    override fun events(options: StoreQueryOptions): EventStoreQueries? {
         if (!scansEvents) return null
         val scanned = ConcurrentHashMap<String, InMemoryEventQueryStorage>()
-        return QueryBindings { type ->
-            store.openedLog(type.context)?.let { log ->
-                scanned.computeIfAbsent(type.context) { InMemoryEventQueryStorage.of(log) }.binding(type)
-            }
+        return object : EventStoreQueries {
+            override fun binding(key: AggregateType): QueryBackendBinding<QueryBackend>? =
+                store.openedLog(key.context)?.let { log ->
+                    scanned.computeIfAbsent(key.context) { InMemoryEventQueryStorage.of(log) }.binding(key)
+                }
         }
     }
 }
@@ -151,7 +153,7 @@ internal class MemoryQueries(
  * The `events` query backend of the node: the [bindings] of each aggregate type's events backend and
  * storage facts, none for a type no backend serves (its events are then not queried), and the [store] its queries run
  * on, null for the application's own backend. For a store whose events queries manage indexes
- * ([me.ahoo.wow.query.store.EventQueries]), how it [prepare]s a type's log and [manages][manageIndexes] the indexes of
+ * ([me.ahoo.wow.query.store.EventStoreQueries]), how it [prepare]s a type's log and [manages][manageIndexes] the indexes of
  * its access attributes at startup. It is not itself [QueryBindings], so that it is never taken for the application's
  * snapshot bindings bean.
  */

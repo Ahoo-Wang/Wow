@@ -114,7 +114,7 @@ class SnapshotPolicyGatewayTest {
         unqueried.forEach { query ->
             val refused = assertThrows<QueryExecutionException> { runBlocking { query() } }
             refused.errorCode.assert().isEqualTo(QueryErrors.FAILED)
-            refused.errorMsg.assert().isEqualTo("The snapshots of $type are not queried.")
+            refused.message.assert().isEqualTo("The snapshots of $type are not queried.")
         }
     }
 

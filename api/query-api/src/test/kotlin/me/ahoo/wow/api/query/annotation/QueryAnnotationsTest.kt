@@ -30,8 +30,8 @@ class QueryAnnotationsTest {
         }
         field("timeout").getAnnotation(QueryDuration::class.java).unit.assert().isEqualTo(TimeUnit.SECONDS)
         field("memberId").getAnnotation(QueryReference::class.java).let {
-            it.aggregateName.assert().isEqualTo("member")
-            it.contextName.assert().isEmpty()
+            it.aggregate.assert().isEqualTo("member")
+            it.context.assert().isEmpty()
         }
     }
 

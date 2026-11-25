@@ -155,7 +155,7 @@ internal class ServiceRouteHandling(
         val acting = try {
             targets.acting(caller, headers.target(request, FrameworkCodes.ROUTE_MALFORMED))
         } catch (refused: QueryTargetException) {
-            throw problem(FrameworkCodes.AUTH_FORBIDDEN, refused.errorMsg)
+            throw problem(FrameworkCodes.AUTH_FORBIDDEN, refused.message)
         }
         val action = RouteAction(
             context.name,

@@ -102,7 +102,7 @@ abstract class SnapshotQueryFixtures internal constructor() {
     /**
      * The plan the host makes of [indexes], each a name and its keys (logical paths of the spec's order state, such as
      * `state.status`), on the schema this backend's facts compile to: what the backend's
-     * [SnapshotQueries.manageIndexes][me.ahoo.wow.query.store.SnapshotQueries.manageIndexes] receives. Fails, as the
+     * [SnapshotStoreQueries.manageIndexes][me.ahoo.wow.query.store.SnapshotStoreQueries.manageIndexes] receives. Fails, as the
      * host's planning does, on a key the model does not know or the storage cannot index.
      */
     protected suspend fun indexPlan(vararg indexes: Pair<String, List<String>>): QueryIndexPlan =

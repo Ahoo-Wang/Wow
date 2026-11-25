@@ -2226,8 +2226,8 @@ public abstract interface annotation class me/ahoo/wow/api/query/annotation/Quer
 }
 
 public abstract interface annotation class me/ahoo/wow/api/query/annotation/QueryReference : java/lang/annotation/Annotation {
-	public abstract fun aggregateName ()Ljava/lang/String;
-	public abstract fun contextName ()Ljava/lang/String;
+	public abstract fun aggregate ()Ljava/lang/String;
+	public abstract fun context ()Ljava/lang/String;
 }
 
 public abstract interface annotation class me/ahoo/wow/api/query/annotation/QueryTemporal : java/lang/annotation/Annotation {
@@ -2396,18 +2396,18 @@ public final class me/ahoo/wow/api/query/dsl/DerivedExpressionDsl {
 }
 
 public final class me/ahoo/wow/api/query/dsl/FilterDsl {
-	public final fun afterNow (Ljava/lang/String;Ljava/time/Duration;Ljava/time/ZoneId;)V
-	public final fun afterNow (Lme/ahoo/wow/api/query/QueryField;Ljava/time/Duration;Ljava/time/ZoneId;)V
-	public static synthetic fun afterNow$default (Lme/ahoo/wow/api/query/dsl/FilterDsl;Ljava/lang/String;Ljava/time/Duration;Ljava/time/ZoneId;ILjava/lang/Object;)V
-	public static synthetic fun afterNow$default (Lme/ahoo/wow/api/query/dsl/FilterDsl;Lme/ahoo/wow/api/query/QueryField;Ljava/time/Duration;Ljava/time/ZoneId;ILjava/lang/Object;)V
+	public final fun afterNow-8Mi8wO0 (Ljava/lang/String;JLjava/time/ZoneId;)V
+	public final fun afterNow-8Mi8wO0 (Lme/ahoo/wow/api/query/QueryField;JLjava/time/ZoneId;)V
+	public static synthetic fun afterNow-8Mi8wO0$default (Lme/ahoo/wow/api/query/dsl/FilterDsl;Ljava/lang/String;JLjava/time/ZoneId;ILjava/lang/Object;)V
+	public static synthetic fun afterNow-8Mi8wO0$default (Lme/ahoo/wow/api/query/dsl/FilterDsl;Lme/ahoo/wow/api/query/QueryField;JLjava/time/ZoneId;ILjava/lang/Object;)V
 	public final fun aggregateId (Ljava/lang/String;)V
 	public final fun aggregateIds (Ljava/util/List;)V
 	public final fun aggregateIds ([Ljava/lang/String;)V
 	public final fun and (Lkotlin/jvm/functions/Function1;)V
-	public final fun beforeNow (Ljava/lang/String;Ljava/time/Duration;Ljava/time/ZoneId;)V
-	public final fun beforeNow (Lme/ahoo/wow/api/query/QueryField;Ljava/time/Duration;Ljava/time/ZoneId;)V
-	public static synthetic fun beforeNow$default (Lme/ahoo/wow/api/query/dsl/FilterDsl;Ljava/lang/String;Ljava/time/Duration;Ljava/time/ZoneId;ILjava/lang/Object;)V
-	public static synthetic fun beforeNow$default (Lme/ahoo/wow/api/query/dsl/FilterDsl;Lme/ahoo/wow/api/query/QueryField;Ljava/time/Duration;Ljava/time/ZoneId;ILjava/lang/Object;)V
+	public final fun beforeNow-8Mi8wO0 (Ljava/lang/String;JLjava/time/ZoneId;)V
+	public final fun beforeNow-8Mi8wO0 (Lme/ahoo/wow/api/query/QueryField;JLjava/time/ZoneId;)V
+	public static synthetic fun beforeNow-8Mi8wO0$default (Lme/ahoo/wow/api/query/dsl/FilterDsl;Ljava/lang/String;JLjava/time/ZoneId;ILjava/lang/Object;)V
+	public static synthetic fun beforeNow-8Mi8wO0$default (Lme/ahoo/wow/api/query/dsl/FilterDsl;Lme/ahoo/wow/api/query/QueryField;JLjava/time/ZoneId;ILjava/lang/Object;)V
 	public final fun beforeToday (Ljava/lang/String;Ljava/time/LocalTime;Ljava/time/ZoneId;)V
 	public final fun beforeToday (Lme/ahoo/wow/api/query/QueryField;Ljava/time/LocalTime;Ljava/time/ZoneId;)V
 	public static synthetic fun beforeToday$default (Lme/ahoo/wow/api/query/dsl/FilterDsl;Ljava/lang/String;Ljava/time/LocalTime;Ljava/time/ZoneId;ILjava/lang/Object;)V
@@ -2566,8 +2566,6 @@ public final class me/ahoo/wow/api/query/dsl/ListQueryDsl : me/ahoo/wow/api/quer
 }
 
 public abstract class me/ahoo/wow/api/query/dsl/NestedFieldDsl {
-	public final fun nested (Ljava/lang/String;)V
-	public final fun nested (Lme/ahoo/wow/api/query/QueryField;)V
 }
 
 public final class me/ahoo/wow/api/query/dsl/PagedQueryDsl : me/ahoo/wow/api/query/dsl/QueryableDsl {
@@ -2587,6 +2585,8 @@ public final class me/ahoo/wow/api/query/dsl/ProjectionDsl : me/ahoo/wow/api/que
 	public final fun exclude ([Lme/ahoo/wow/api/query/QueryField;)V
 	public final fun include ([Ljava/lang/String;)V
 	public final fun include ([Lme/ahoo/wow/api/query/QueryField;)V
+	public final fun path (Ljava/lang/String;Lkotlin/jvm/functions/Function1;)V
+	public final fun path (Lme/ahoo/wow/api/query/QueryField;Lkotlin/jvm/functions/Function1;)V
 }
 
 public final class me/ahoo/wow/api/query/dsl/QueryDsl {
@@ -2622,6 +2622,8 @@ public final class me/ahoo/wow/api/query/dsl/SortDsl : me/ahoo/wow/api/query/dsl
 	public final fun asc (Lme/ahoo/wow/api/query/QueryField;)V
 	public final fun desc (Ljava/lang/String;)V
 	public final fun desc (Lme/ahoo/wow/api/query/QueryField;)V
+	public final fun path (Ljava/lang/String;Lkotlin/jvm/functions/Function1;)V
+	public final fun path (Lme/ahoo/wow/api/query/QueryField;Lkotlin/jvm/functions/Function1;)V
 	public final fun sort (Lme/ahoo/wow/api/query/Sort;)V
 }
 

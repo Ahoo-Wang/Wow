@@ -42,7 +42,7 @@
       "buyerId" : {
         "type" : "string",
         "x-wow-reference" : {
-          "aggregateName" : "member"
+          "aggregate" : "member"
         }
       },
       "createdAt" : {
@@ -122,8 +122,8 @@
       },
       "productIds" : {
         "x-wow-reference" : {
-          "aggregateName" : "product",
-          "contextName" : "catalog"
+          "aggregate" : "product",
+          "context" : "catalog"
         },
         "type" : "array",
         "items" : {

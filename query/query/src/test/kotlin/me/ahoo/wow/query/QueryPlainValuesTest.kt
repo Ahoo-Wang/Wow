@@ -28,7 +28,6 @@ import me.ahoo.wow.query.dataset.QueryDataset
 import me.ahoo.wow.query.dataset.QueryDatasetChange
 import me.ahoo.wow.query.dataset.QueryDatasetScope
 import me.ahoo.wow.query.dataset.QueryDatasetTest
-import me.ahoo.wow.query.error.QueryBindingError
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.index.QueryIndexDeclaration
@@ -121,7 +120,6 @@ class QueryPlainValuesTest {
             PageWindow.Keyset.of(after = CursorPosition(listOf("a")), limit = 2),
             GroupWindow.First.of(limit = 2),
             QueryBackendBinding.of(mockk<QueryBackend>(), mockk<QueryStorageAdapter>()),
-            QueryBindingError.of(name = "a", msg = "b", code = "c"),
             QueryEntryPolicy.of(requireExplicitEntry = true),
             QueryScope.of(authenticated = MatchAllFilter),
             ORDERS,

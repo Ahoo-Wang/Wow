@@ -33,8 +33,8 @@ open class QueryExecutionException(
     override val errorCode: String
         get() = QueryErrors.FAILED
 
-    override val errorMsg: String
-        get() = checkNotNull(message)
+    override val message: String
+        get() = checkNotNull(super.message)
 }
 
 /** Throws a [QueryExecutionException] with [message] unless [value] holds. */

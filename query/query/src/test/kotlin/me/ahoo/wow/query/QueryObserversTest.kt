@@ -140,7 +140,7 @@ class QueryObserversTest {
     fun `a missing scope rejection is logged below ERROR whatever rejects it`() {
         val forbidden = object : RuntimeException("principal tags required"), QueryError {
             override val errorCode: String = QueryErrors.FORBIDDEN
-            override val errorMsg: String = "principal tags required"
+            override val message: String = "principal tags required"
         }
         val errors = captureErrors {
             QueryLogObserver().onError(aggregate, QueryType.LIST, forbidden)

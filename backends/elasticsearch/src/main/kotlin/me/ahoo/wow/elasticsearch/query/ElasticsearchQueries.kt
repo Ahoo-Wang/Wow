@@ -25,11 +25,11 @@ import me.ahoo.wow.elasticsearch.snapshot.ElasticsearchSnapshotDocuments
 import me.ahoo.wow.elasticsearch.snapshot.ElasticsearchSnapshotIndex
 import me.ahoo.wow.query.backend.QueryBackend
 import me.ahoo.wow.query.backend.QueryBackendBinding
-import me.ahoo.wow.query.backend.QueryBindings
 import me.ahoo.wow.query.index.QueryIndexPlan
 import me.ahoo.wow.query.schema.QueryModel
+import me.ahoo.wow.query.store.EventStoreQueries
 import me.ahoo.wow.query.store.QueryIndexReport
-import me.ahoo.wow.query.store.SnapshotQueries
+import me.ahoo.wow.query.store.SnapshotStoreQueries
 import me.ahoo.wow.query.store.StoreQueries
 import me.ahoo.wow.query.store.StoreQueryOptions
 import me.ahoo.wow.spi.Ddl
@@ -44,7 +44,7 @@ import java.util.concurrent.ConcurrentHashMap
  * ([ElasticsearchEventQueries]).
  */
 internal class ElasticsearchQueries(private val store: ElasticsearchStore) : StoreQueries {
-    override fun snapshots(options: StoreQueryOptions): SnapshotQueries =
+    override fun snapshots(options: StoreQueryOptions): SnapshotStoreQueries =
         ElasticsearchSnapshotQueries(store.queryClient, store.names, options.indexDdl, store.rewriteRate)
 
     /**
@@ -52,7 +52,7 @@ internal class ElasticsearchQueries(private val store: ElasticsearchStore) : Sto
      * whose `events` queries the host routes to it (`wow.aggregates.[<context>.<aggregate>].query.events.store`); its
      * logs are elsewhere.
      */
-    override fun events(options: StoreQueryOptions): QueryBindings<AggregateType> =
+    override fun events(options: StoreQueryOptions): EventStoreQueries =
         ElasticsearchEventQueries(store.queryClient, store.names, options.indexDdl, store.rewriteRate)
 }
 
@@ -83,7 +83,7 @@ internal class ElasticsearchSnapshotQueries(
     private val indexDdl: Ddl = Ddl.AUTO,
     /** How many documents a second a mapping's rewrite indexes again ([ElasticsearchStateMappings.rewrite]). */
     rewriteRate: Int = ElasticsearchStateMappings.DEFAULT_REWRITE_RATE,
-) : SnapshotQueries {
+) : SnapshotStoreQueries {
     private val mappingResolver = ElasticsearchIndexMappingResolver(client) { ElasticsearchSnapshotIndex.typeMapping() }
     private val stateMappings =
         ElasticsearchStateMappings(

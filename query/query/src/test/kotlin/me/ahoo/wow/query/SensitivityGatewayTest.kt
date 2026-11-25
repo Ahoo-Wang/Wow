@@ -313,7 +313,7 @@ class SensitivityGatewayTest {
 
     private suspend fun rejected(code: String, block: suspend () -> Unit) {
         val error = runCatching { block() }.exceptionOrNull()
-        (error as QueryError).bindingErrors.first().code.assert().isEqualTo(code)
+        (error as QueryError).violations.first().code.assert().isEqualTo(code)
     }
 
     private companion object {

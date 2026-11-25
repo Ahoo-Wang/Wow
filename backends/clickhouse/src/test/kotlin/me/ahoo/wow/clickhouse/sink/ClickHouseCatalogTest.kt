@@ -271,10 +271,10 @@ object CatalogFixtures {
                         "x-wow-sensitive" to SENSITIVE_DISPLAY,
                         "x-wow-mask" to linkedMapOf("keepPrefix" to 3, "keepSuffix" to 4),
                     ),
-                    "referrerId" to mapOf("type" to "string", "x-wow-reference" to mapOf("aggregateName" to "member")),
+                    "referrerId" to mapOf("type" to "string", "x-wow-reference" to mapOf("aggregate" to "member")),
                     "storeId" to mapOf(
                         "type" to "string",
-                        "x-wow-reference" to mapOf("aggregateName" to "store", "contextName" to "shop"),
+                        "x-wow-reference" to mapOf("aggregate" to "store", "context" to "shop"),
                     ),
                     "address" to mapOf("\$ref" to "#/\$defs/Address"),
                     "cards" to mapOf(

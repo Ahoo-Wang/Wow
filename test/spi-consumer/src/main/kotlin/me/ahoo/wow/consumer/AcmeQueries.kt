@@ -34,7 +34,7 @@ import me.ahoo.wow.query.schema.alternativesOrSelf
 import me.ahoo.wow.query.schema.operationValues
 import me.ahoo.wow.query.schema.storageFamilies
 import me.ahoo.wow.query.store.QueryIndexReport
-import me.ahoo.wow.query.store.SnapshotQueries
+import me.ahoo.wow.query.store.SnapshotStoreQueries
 import me.ahoo.wow.query.store.StoreQueries
 import me.ahoo.wow.query.store.StoreQueryOptions
 import java.util.concurrent.ConcurrentHashMap
@@ -46,7 +46,7 @@ import java.util.concurrent.ConcurrentHashMap
 class AcmeQueries(private val storage: InMemoryQueryStorage) : StoreQueries {
     private val indexes = ConcurrentHashMap<AggregateType, Set<String>>()
 
-    override fun snapshots(options: StoreQueryOptions): SnapshotQueries = object : SnapshotQueries {
+    override fun snapshots(options: StoreQueryOptions): SnapshotStoreQueries = object : SnapshotStoreQueries {
         override fun binding(key: AggregateType): QueryBackendBinding<QueryBackend> =
             QueryBackendBinding.of(storage.binding(key).backend, AcmeStorageAdapter)
 

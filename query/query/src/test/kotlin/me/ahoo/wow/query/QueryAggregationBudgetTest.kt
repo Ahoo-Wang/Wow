@@ -74,7 +74,7 @@ class QueryAggregationBudgetTest {
         listOf(metricSort, computed, element).forEach {
             expectRejected(QueryType.AGGREGATION, it)
         }
-        assertThrows<QueryRequestException> { budget().check(metricSort) }.bindingErrors.single().name
+        assertThrows<QueryRequestException> { budget().check(metricSort) }.violations.single().path
             .assert().isEqualTo("sort")
         assertThrows<QueryRequestException> { budget().check(element) }.message.assert()
             .isEqualTo("HTTP aggregation elements are disabled because expensive operators are not allowed.")
@@ -152,7 +152,7 @@ class QueryAggregationBudgetTest {
             budget(maxFilterValues = 2).check(havingQuery("c", HavingExpression.In("c", listOf(1.0, 2.0, 3.0))))
         }.run {
             code.assert().isEqualTo(QueryErrorCodes.FILTER_TOO_LARGE)
-            bindingErrors.single().name.assert().isEqualTo("having")
+            violations.single().path.assert().isEqualTo("having")
             message.assert().isEqualTo("HTTP having values[3] must not exceed 2.")
         }
     }

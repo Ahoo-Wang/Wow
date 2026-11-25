@@ -18,7 +18,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.query.QueryErrorCodes
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.QueryValueKind
-import me.ahoo.wow.query.error.QueryBindingError
+import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.query.error.QueryErrors
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -401,9 +401,9 @@ class QueryModelSchemaTest {
             QuerySchemaUnavailableException("unavailable", cause) to QueryErrors.FAILED,
         ).forEach { (exception, errorCode) ->
             exception.errorCode.assert().isEqualTo(errorCode)
-            exception.errorMsg.assert().isEqualTo(exception.message)
+            exception.message.assert().isEqualTo(exception.message)
             exception.cause.assert().isSameAs(cause)
-            exception.bindingErrors.assert().isEmpty()
+            exception.violations.assert().isEmpty()
         }
     }
 
@@ -414,8 +414,8 @@ class QueryModelSchemaTest {
         exception.errorCode.assert().isEqualTo(QueryErrors.INVALID)
         exception.violation.assert().isSameAs(violation)
         exception.message.assert().isEqualTo(violation.message)
-        exception.bindingErrors.assert().containsExactly(
-            QueryBindingError("state.missing", violation.message, QueryErrorCodes.UNKNOWN_FIELD),
+        exception.violations.assert().containsExactly(
+            Violation.of("state.missing", QueryErrorCodes.UNKNOWN_FIELD, violation.message),
         )
     }
 }

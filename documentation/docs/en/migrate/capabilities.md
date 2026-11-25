@@ -117,11 +117,11 @@ Use this page to find out, before you migrate, what happens to each 9.x capabili
 | Single, list, paged, cursor, count and aggregation queries | Kept | — |
 | Filter expressions, relative time, metadata filters, aggregation windows | Kept | — |
 | The `Condition` protocol | Dropped | Use filter expressions; the Skill rewrites conditions. |
-| Kotlin query DSL and generated `<State>Properties` | Kept | — |
+| Kotlin query DSL and generated `<State>Properties` | Kept | A `sort` or a `projection` names fields under a path with `"state".path { }`, as a `filter` does, in place of `nested(...)`; `beforeNow` and `afterNow` take a `kotlin.time.Duration`. |
 | Wow query types stored in events or state (`Condition`, `Sort`, `Projection`) | Dropped | The kernel's JSON has no codec for the query protocol, and the build refuses an event or a state that holds one: store a type of your own and upgrade the 9.x JSON into it. |
 | Query schema overrides on the classpath (`META-INF/wow/query-schema`) | Dropped | The schema comes from the state classes; move each override onto the state as a field annotation. A type a custom serializer writes declares its shape in `wow { schemaOverrides }` instead ([A type written by a custom serializer](../guide/manifest#a-type-written-by-a-custom-serializer)). |
 | Implementing or subclassing the query types (`IPagedList`) | Dropped | The V10 query types are final classes built with their factories or the DSL. |
-| Query field annotations (`@Sensitive`, `@QueryAlias`, `@QueryReference`, …) | Kept | — |
+| Query field annotations (`@Sensitive`, `@QueryAlias`, `@QueryReference`, …) | Kept | `@QueryReference`'s members are `aggregate` and `context`, no longer `aggregateName` and `contextName`; `@QueryReference("member")` is unchanged. |
 | Masking sensitive fields, in queries and state reads | Kept | — |
 | ABAC query policies, CoSec `abac.` attributes | Replaced | By access attributes and access policies ([Write an access policy](../guide/ownership#write-an-access-policy)); `wow.query.abac.*` is refused at startup. |
 | Query policy SPI and scopes | Replaced | The scopes are kept. A rule that refuses a caller is a `ReadAuthorizer` bean, one that narrows the rows an access policy; `QueryPolicy` is Wow's own. |

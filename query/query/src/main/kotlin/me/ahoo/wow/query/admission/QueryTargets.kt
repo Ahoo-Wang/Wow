@@ -139,5 +139,5 @@ class QueryTargets(
 
 /** A read [QueryTargets] refuses: the scope or the tenants it names. */
 @InternalWowApi
-class QueryTargetException(override val errorCode: String, override val errorMsg: String) :
-    RuntimeException(errorMsg), QueryError
+class QueryTargetException(override val errorCode: String, override val message: String) :
+    RuntimeException(message), QueryError

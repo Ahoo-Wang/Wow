@@ -16,7 +16,7 @@ package me.ahoo.wow.query.state
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.result.FrameworkCodes
-import me.ahoo.wow.query.error.QueryBindingError
+import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.query.error.QueryError
 import me.ahoo.wow.query.error.QueryErrors
 import me.ahoo.wow.query.filter.QueryType
@@ -73,11 +73,11 @@ class StateNotFoundException(val ref: AggregateRef, val reason: Reason, detail: 
  * violation naming the parameter ([name]) and the rule ([code], one of `me.ahoo.wow.api.query.QueryErrorCodes`).
  */
 @InternalWowApi
-class InvalidStateReadException(override val errorMsg: String, val code: String, val name: String) :
-    IllegalArgumentException(errorMsg), QueryError {
+class InvalidStateReadException(override val message: String, val code: String, val name: String) :
+    IllegalArgumentException(message), QueryError {
     override val errorCode: String
         get() = QueryErrors.INVALID
 
-    override val bindingErrors: List<QueryBindingError>
-        get() = listOf(QueryBindingError(name, errorMsg, code))
+    override val violations: List<Violation>
+        get() = listOf(Violation.of(name, code, message))
 }

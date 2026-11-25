@@ -22,7 +22,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  *
  * @property filter The filter expression to apply to the query; [MatchAllFilter], every record, by default.
  * @property projection The field projection to control which fields are included in the results.
- * @property sort The sorting criteria to order the results.
+ * @param sort The order of the results; the query keeps a copy.
  * @property pagination The pagination settings to control which page and how many items to return.
  * @property total How the total is counted; [TotalMode.BOUNDED], the default, stops at the budget's count limit.
  *
@@ -38,10 +38,16 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 class PagedQuery @InternalWowApi constructor(
     override val filter: FilterExpression = MatchAllFilter,
     override val projection: Projection = Projection.ALL,
-    override val sort: List<Sort> = emptyList(),
+    sort: List<Sort> = emptyList(),
     val pagination: Pagination = Pagination.DEFAULT,
     val total: TotalMode = TotalMode.BOUNDED,
 ) : Queryable<PagedQuery> {
+    /**
+     * The sorting criteria to order the results; a copy, so a list its caller changes later changes neither this query
+     * nor its hash.
+     */
+    override val sort: List<Sort> = sort.copied()
+
     init {
         require(sort.size <= Sort.MAX_FIELDS) {
             "sort must contain at most ${Sort.MAX_FIELDS} fields."

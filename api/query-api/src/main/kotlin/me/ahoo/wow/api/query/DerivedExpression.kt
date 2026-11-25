@@ -111,8 +111,11 @@ sealed interface DerivedExpression {
      */
     class Total @InternalWowApi constructor(
         override val metric: String,
-        val within: List<String> = emptyList(),
+        within: List<String> = emptyList(),
     ) : Window {
+        /** Its [within] keys, copied: a list its caller changes later changes neither this window nor its hash. */
+        val within: List<String> = within.copied()
+
         override fun equals(other: kotlin.Any?): Boolean =
             this === other || other is Total && valueFields() == other.valueFields()
 
@@ -140,10 +143,13 @@ sealed interface DerivedExpression {
         override val metric: String,
         /** A group alias or a non-derived numeric metric alias, with its direction. */
         val order: Sort,
-        val within: List<String> = emptyList(),
+        within: List<String> = emptyList(),
         val frame: Int? = null,
         val function: RunningFunction = RunningFunction.SUM,
     ) : Window {
+        /** Its [within] keys, copied: a list its caller changes later changes neither this window nor its hash. */
+        val within: List<String> = within.copied()
+
         init {
             require(frame == null || frame in 1..MAX_FRAME) { "running frame must be between 1 and $MAX_FRAME." }
         }
@@ -216,9 +222,12 @@ sealed interface DerivedExpression {
      */
     class Rank @InternalWowApi constructor(
         override val metric: String,
-        val within: List<String> = emptyList(),
+        within: List<String> = emptyList(),
         val direction: Sort.Direction = Sort.Direction.DESC,
     ) : Window {
+        /** Its [within] keys, copied: a list its caller changes later changes neither this window nor its hash. */
+        val within: List<String> = within.copied()
+
         override fun equals(other: kotlin.Any?): Boolean =
             this === other || other is Rank && valueFields() == other.valueFields()
 

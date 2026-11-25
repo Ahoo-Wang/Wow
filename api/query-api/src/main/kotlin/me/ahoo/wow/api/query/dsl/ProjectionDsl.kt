@@ -47,5 +47,11 @@ class ProjectionDsl internal constructor() : NestedFieldDsl() {
         fields.mapTo(exclude) { QueryField(it.path.withNestedField()) }
     }
 
+    /** The fields [block] includes and excludes, under this path: `"state".path { include("name") }`. */
+    fun String.path(block: ProjectionDsl.() -> Unit) = under(QueryField(this), block)
+
+    /** The fields [block] includes and excludes, under this field's path. */
+    fun QueryField<*>.path(block: ProjectionDsl.() -> Unit) = under(this, block)
+
     internal fun build(): Projection = Projection(include.toList(), exclude.toList())
 }

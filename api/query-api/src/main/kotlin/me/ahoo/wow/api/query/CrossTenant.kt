@@ -22,7 +22,10 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  * tenant uses `NodeQueryApi.trusted()`. A type whose tenant is fixed is still read in that tenant alone, and every
  * cross-tenant query is audited, whether or not a `QueryObserver` audits.
  */
-class CrossTenant @InternalWowApi constructor(val tenantIds: Set<String>? = null) {
+class CrossTenant @InternalWowApi constructor(tenantIds: Set<String>? = null) {
+    /** Its tenants, copied: a set its caller changes later changes neither this scope nor its hash. */
+    val tenantIds: Set<String>? = tenantIds?.copied()
+
     init {
         require(tenantIds == null || tenantIds.isNotEmpty()) { "A cross-tenant query names its tenants, or every one." }
         require(tenantIds.orEmpty().none { it.isBlank() }) { "A cross-tenant query names no blank tenant." }

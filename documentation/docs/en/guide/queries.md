@@ -31,6 +31,8 @@ rows.map { it.state.price }.assert().containsExactly(BigDecimal("5.00"), BigDeci
 ```
 
 - A `filter { }` block's conditions combine with `and`; `and { }`, `or { }`, `nor { }` and `not { }` nest. A value is compared as the JSON it writes as, so an enum matches its name.
+- `"state".path { }` names its block's fields under `state`, the same way in a `filter`, a `sort` and a `projection`: `sort { "state".path { "price".asc() } }`. A field already under the path, such as `ProductStateProperties.STATE__PRICE`, stays as it is.
+- `beforeNow` and `afterNow` compare a field with the server's clock plus a `kotlin.time.Duration`: `"state.createdAt".afterNow((-30).minutes)` is within the last half hour.
 - `ProductStateProperties.STATE__PRICE` is `state.price`; the system fields (`AGGREGATE_ID`, `OWNER_ID`, `VERSION`, `LAST_EVENT_TIME`, `ACCESS`, …) come from `SnapshotProperties`, and `SnapshotProperties.access(name)` is the access attribute `access.<name>`.
 - `snapshots<ProductState>()` decodes each row as a `Snapshot<ProductState>`: its `ref`, `version`, `scope`, `access` and typed `state`. A query that projects fields cannot fill a typed row: run it through `dynamic<Map<String, Any?>>()` instead.
 - `of(caller)` runs the query as that caller sees the model; `trusted()` as trusted code ([Read State](./reading-state#in-kotlin)).

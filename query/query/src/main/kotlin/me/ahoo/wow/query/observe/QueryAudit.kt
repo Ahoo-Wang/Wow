@@ -266,6 +266,6 @@ private fun errorCodeOf(error: Throwable): String {
     // A state read answered as not found records why: the reason reaches the audit only.
     if (error is StateNotFoundException) return "${error.errorCode}:${error.reason}"
     val info = error as? QueryError ?: return error.javaClass.simpleName
-    val rule = info.bindingErrors.firstOrNull()?.code
+    val rule = info.violations.firstOrNull()?.code
     return if (rule == null) info.errorCode else "${info.errorCode}:$rule"
 }

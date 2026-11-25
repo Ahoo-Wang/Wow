@@ -655,21 +655,6 @@ public final class me/ahoo/wow/query/dataset/QueryDatasets {
 public final class me/ahoo/wow/query/dataset/QueryDatasets$Companion {
 }
 
-public final class me/ahoo/wow/query/error/QueryBindingError {
-	public static final field Companion Lme/ahoo/wow/query/error/QueryBindingError$Companion;
-	public fun equals (Ljava/lang/Object;)Z
-	public final fun getCode ()Ljava/lang/String;
-	public final fun getMsg ()Ljava/lang/String;
-	public final fun getName ()Ljava/lang/String;
-	public fun hashCode ()I
-	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/query/error/QueryBindingError;
-	public fun toString ()Ljava/lang/String;
-}
-
-public final class me/ahoo/wow/query/error/QueryBindingError$Companion {
-	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/query/error/QueryBindingError;
-}
-
 public final class me/ahoo/wow/query/error/QueryBusyException : me/ahoo/wow/query/error/QueryExecutionException {
 	public fun <init> (Ljava/lang/String;I)V
 	public fun getErrorCode ()Ljava/lang/String;
@@ -685,16 +670,16 @@ public final class me/ahoo/wow/query/error/QueryDatasetUnavailableException : me
 }
 
 public abstract interface class me/ahoo/wow/query/error/QueryError {
-	public fun getBindingErrors ()Ljava/util/List;
 	public abstract fun getErrorCode ()Ljava/lang/String;
-	public abstract fun getErrorMsg ()Ljava/lang/String;
+	public abstract fun getMessage ()Ljava/lang/String;
+	public fun getViolations ()Ljava/util/List;
 }
 
 public class me/ahoo/wow/query/error/QueryExecutionException : java/lang/RuntimeException, me/ahoo/wow/query/error/QueryError {
 	public fun <init> (Ljava/lang/String;Ljava/lang/Throwable;)V
 	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/Throwable;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun getErrorCode ()Ljava/lang/String;
-	public fun getErrorMsg ()Ljava/lang/String;
+	public fun getMessage ()Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/query/error/QueryOutOfRangeException : me/ahoo/wow/query/error/QueryExecutionException {
@@ -711,11 +696,11 @@ public final class me/ahoo/wow/query/error/QueryRequestException : java/lang/Ill
 	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;Lme/ahoo/wow/query/schema/QueryViolation;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun <init> (Lme/ahoo/wow/query/schema/QueryViolation;Ljava/lang/String;)V
 	public synthetic fun <init> (Lme/ahoo/wow/query/schema/QueryViolation;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public fun getBindingErrors ()Ljava/util/List;
 	public final fun getCode ()Ljava/lang/String;
 	public fun getErrorCode ()Ljava/lang/String;
-	public fun getErrorMsg ()Ljava/lang/String;
+	public fun getMessage ()Ljava/lang/String;
 	public final fun getViolation ()Lme/ahoo/wow/query/schema/QueryViolation;
+	public fun getViolations ()Ljava/util/List;
 }
 
 public final class me/ahoo/wow/query/error/QueryRequestException$Companion {
@@ -2318,7 +2303,7 @@ public final class me/ahoo/wow/query/spec/MetricSpec : java/lang/Enum {
 	public static fun values ()[Lme/ahoo/wow/query/spec/MetricSpec;
 }
 
-public abstract interface class me/ahoo/wow/query/store/EventQueries : me/ahoo/wow/query/backend/QueryBindings {
+public abstract interface class me/ahoo/wow/query/store/EventStoreQueries : me/ahoo/wow/query/backend/QueryBindings {
 	public fun getManagesIndexes ()Z
 	public fun manageIndexes (Lme/ahoo/wow/api/aggregate/AggregateType;Lme/ahoo/wow/query/index/QueryIndexPlan;)Lme/ahoo/wow/query/store/QueryIndexReport;
 	public fun prepare (Lme/ahoo/wow/api/aggregate/AggregateType;)V
@@ -2341,15 +2326,15 @@ public final class me/ahoo/wow/query/store/QueryIndexReport {
 public final class me/ahoo/wow/query/store/QueryIndexReport$Companion {
 }
 
-public abstract interface class me/ahoo/wow/query/store/SnapshotQueries : me/ahoo/wow/query/backend/QueryBindings {
+public abstract interface class me/ahoo/wow/query/store/SnapshotStoreQueries : me/ahoo/wow/query/backend/QueryBindings {
 	public fun getManagesIndexes ()Z
 	public fun manageIndexes (Lme/ahoo/wow/api/aggregate/AggregateType;Lme/ahoo/wow/query/index/QueryIndexPlan;)Lme/ahoo/wow/query/store/QueryIndexReport;
 	public fun prepare (Lme/ahoo/wow/api/aggregate/AggregateType;)V
 }
 
 public abstract interface class me/ahoo/wow/query/store/StoreQueries {
-	public fun events (Lme/ahoo/wow/query/store/StoreQueryOptions;)Lme/ahoo/wow/query/backend/QueryBindings;
-	public fun snapshots (Lme/ahoo/wow/query/store/StoreQueryOptions;)Lme/ahoo/wow/query/store/SnapshotQueries;
+	public fun events (Lme/ahoo/wow/query/store/StoreQueryOptions;)Lme/ahoo/wow/query/store/EventStoreQueries;
+	public fun snapshots (Lme/ahoo/wow/query/store/StoreQueryOptions;)Lme/ahoo/wow/query/store/SnapshotStoreQueries;
 }
 
 public final class me/ahoo/wow/query/store/StoreQueryOptions {

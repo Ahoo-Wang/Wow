@@ -34,7 +34,6 @@ import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.result.FrameworkCodes
-import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.api.wire.ScopeHeader
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.http.HttpJson
@@ -444,10 +443,10 @@ internal class QueryHandler(
             }
         }
         if (failure.errorCode == FrameworkCodes.QUERY_FAILED) {
-            logger.error(failure) { "A query failed: ${failure.errorMsg}" }
+            logger.error(failure) { "A query failed: ${failure.message}" }
         }
-        return statuses.problemOf(failure.errorCode, failure.errorMsg, context).copyWith(
-            violations = failure.bindingErrors.map { Violation(path = it.name, code = it.code, message = it.msg) },
+        return statuses.problemOf(failure.errorCode, failure.message, context).copyWith(
+            violations = failure.violations,
         )
     }
 

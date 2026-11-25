@@ -129,7 +129,7 @@ class QueryBulkheadTest {
             refused.errorCode.assert().isEqualTo(FrameworkCodes.QUERY_BUSY)
             refused.store.assert().isEqualTo("main")
             refused.maxConcurrent.assert().isEqualTo(1)
-            refused.errorMsg.assert().doesNotContain("main")
+            refused.message.assert().doesNotContain("main")
             // A subscription handler that ran the query retries it as backpressure, through the SPI's busy store.
             refused.cause.assert().isInstanceOf(StorageBusyException::class.java)
                 .hasMessage("The query store [main] runs as many queries as it allows at once (1).")

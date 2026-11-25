@@ -20,9 +20,9 @@ import me.ahoo.wow.mongo.log.MongoEventLog
 import me.ahoo.wow.query.backend.QueryBackend
 import me.ahoo.wow.query.backend.QueryBackendBinding
 import me.ahoo.wow.query.index.QueryIndexPlan
-import me.ahoo.wow.query.store.EventQueries
+import me.ahoo.wow.query.store.EventStoreQueries
 import me.ahoo.wow.query.store.QueryIndexReport
-import me.ahoo.wow.query.store.SnapshotQueries
+import me.ahoo.wow.query.store.SnapshotStoreQueries
 import me.ahoo.wow.query.store.StoreQueries
 import me.ahoo.wow.query.store.StoreQueryOptions
 import java.util.concurrent.ConcurrentHashMap
@@ -34,16 +34,16 @@ import java.util.concurrent.ConcurrentHashMap
  * context, opened once.
  */
 internal class MongoQueries(private val store: MongoStore) : StoreQueries {
-    override fun snapshots(options: StoreQueryOptions): SnapshotQueries = MongoSnapshotQueries(store, options)
+    override fun snapshots(options: StoreQueryOptions): SnapshotStoreQueries = MongoSnapshotQueries(store, options)
 
-    override fun events(options: StoreQueryOptions): EventQueries = MongoEventQueries(store, options)
+    override fun events(options: StoreQueryOptions): EventStoreQueries = MongoEventQueries(store, options)
 }
 
 /**
  * The `events` queries of a MongoDB store: each context's log collections in place, read from the store's query
  * replica, and the indexes of their access attributes ([MongoQueryIndexes.planLog]).
  */
-private class MongoEventQueries(private val store: MongoStore, options: StoreQueryOptions) : EventQueries {
+private class MongoEventQueries(private val store: MongoStore, options: StoreQueryOptions) : EventStoreQueries {
     private val indexDdl = options.indexDdl
     private val preference = store.queryReadPreference?.let(ReadPreference::valueOf)
     private val storages = ConcurrentHashMap<String, MongoEventQueryStorage>()
@@ -76,7 +76,7 @@ private class MongoEventQueries(private val store: MongoStore, options: StoreQue
     private fun logOf(type: AggregateType): MongoEventLog? = store.openedLog(type.context) as? MongoEventLog
 }
 
-private class MongoSnapshotQueries(private val store: MongoStore, options: StoreQueryOptions) : SnapshotQueries {
+private class MongoSnapshotQueries(private val store: MongoStore, options: StoreQueryOptions) : SnapshotStoreQueries {
     private val queryOptions = MongoQueryOptions(indexDdl = options.indexDdl)
     private val readPreference = store.queryReadPreference?.let(ReadPreference::valueOf)
     private val storages = ConcurrentHashMap<String, MongoSnapshotQueryStorage>()
