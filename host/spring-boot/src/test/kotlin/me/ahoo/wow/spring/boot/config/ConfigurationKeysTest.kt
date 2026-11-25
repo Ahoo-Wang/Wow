@@ -246,11 +246,18 @@ class ConfigurationKeysTest {
             .containsExactlyInAnyOrderElementsOf(misspelt)
     }
 
+    /**
+     * Every variable a manifest of deploy/ sets, in a ConfigMap or a container's env, as the host reads it (finding
+     * F12). A chart's helm-unittest suites and their values, the `tests/` beside its `Chart.yaml`, are not shipped: the
+     * scan leaves them out (#6983).
+     */
     @Test
     fun `the WOW_ variables of the shipped Kubernetes manifests should be known`() {
-        // Finding F12: every variable a manifest of deploy/ sets, in a ConfigMap or a container's env, as the host reads it.
         val deploy = File("../../deploy").canonicalFile
-        val variables = deploy.walkTopDown().filter { it.isFile && it.extension == "yaml" }.flatMap { manifest ->
+        val shipped = deploy.walkTopDown().onEnter { dir ->
+            !(dir.name == "tests" && File(dir.parentFile, "Chart.yaml").isFile)
+        }
+        val variables = shipped.filter { it.isFile && it.extension == "yaml" }.flatMap { manifest ->
             manifest.readLines().mapNotNull { manifestVariable.find(it)?.groupValues?.get(1) }
         }.toSet()
         variables.assert().contains(
