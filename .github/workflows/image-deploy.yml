@@ -254,6 +254,10 @@ jobs:
           context: ${{ matrix.context }}
           push: true
           # AliyunCR refuses OCI 1.1 artifact manifests (provenance attestations).
+          # The copies below keep GHCR's digest only while the index has no
+          # attestation manifests (provenance and SBOM off): turning either on
+          # changes what `imagetools create` pushes, and image-check then
+          # reports digests that differ between the registries.
           provenance: false
           tags: ${{ steps.tags.outputs.ghcr }}
           labels: ${{ steps.meta.outputs.labels }}
