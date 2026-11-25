@@ -31,6 +31,7 @@ import com.google.devtools.ksp.symbol.Variance
 import me.ahoo.wow.compiler.model.KotlinNames
 import me.ahoo.wow.compiler.model.symbol.JavaBeans
 import me.ahoo.wow.compiler.model.symbol.aliased
+import me.ahoo.wow.compiler.model.symbol.hierarchyProperties
 import me.ahoo.wow.compiler.model.symbol.isModuleInternal
 import me.ahoo.wow.compiler.model.symbol.jsonIgnored
 import me.ahoo.wow.compiler.model.symbol.jsonIgnoredAt
@@ -197,24 +198,27 @@ internal object QueryPropertiesSource {
 
     /**
      * The properties of [owner] Jackson writes, each under its name, with its type. A Java bean's private field is
-     * written through its public getter, whose annotations count too (#6839).
+     * written through its public getter, whose annotations count too (#6839), a base class's as the class's own
+     * (#6974).
      */
     private fun fieldsOf(
         owner: KSClassDeclaration,
         ignored: Set<String>,
         naming: PropertyNamingStrategies.NamingBase?,
         problems: MutableList<String>,
-    ): List<Pair<String, KSType>> = owner.getAllProperties().mapNotNull { property ->
-        val getter = JavaBeans.getterOf(property, owner)
-        val wireName = if (getter == null) {
-            property.wireName(problems, naming)
-        } else {
-            wireNameAt(property.simpleName.asString(), listOf(property, getter), problems, naming)
-        }
-        val getterIgnored = getter != null && jsonIgnoredAt(listOf(getter), problems)
-        (wireName to property.type.resolve())
-            .takeIf { property.isQueryable(getter != null, wireName, ignored, problems) && !getterIgnored }
-    }.toList()
+    ): List<Pair<String, KSType>> = owner.hierarchyProperties()
+        .distinctBy { it.simpleName.asString() }
+        .mapNotNull { property ->
+            val getter = JavaBeans.getterOf(property, owner)
+            val wireName = if (getter == null) {
+                property.wireName(problems, naming)
+            } else {
+                wireNameAt(property.simpleName.asString(), listOf(property, getter), problems, naming)
+            }
+            val getterIgnored = getter != null && jsonIgnoredAt(listOf(getter), problems)
+            (wireName to property.type.resolve())
+                .takeIf { property.isQueryable(getter != null, wireName, ignored, problems) && !getterIgnored }
+        }.toList()
 
     /** The getters of a Java bean [owner] that read no field of their name, which Jackson writes all the same. */
     private fun gettersOf(
@@ -223,7 +227,7 @@ internal object QueryPropertiesSource {
         naming: PropertyNamingStrategies.NamingBase?,
         problems: MutableList<String>,
     ): List<Pair<String, KSType>> {
-        val fields = owner.getAllProperties().mapTo(HashSet()) { it.simpleName.asString() }
+        val fields = owner.hierarchyProperties().mapTo(HashSet()) { it.simpleName.asString() }
         return JavaBeans.computed(owner, fields).mapNotNull { (name, getter) ->
             val wireName = wireNameAt(name, listOf(getter), problems, naming)
             (wireName to getter.returnType!!.resolve())

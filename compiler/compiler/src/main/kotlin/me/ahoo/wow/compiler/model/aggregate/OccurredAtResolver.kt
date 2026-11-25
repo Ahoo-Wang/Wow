@@ -18,10 +18,10 @@ import com.google.devtools.ksp.isProtected
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSPropertyDeclaration
 import me.ahoo.wow.compiler.model.aggregate.AggregateIdResolver.hasAnnotation
-import me.ahoo.wow.compiler.model.aggregate.AggregateIdResolver.propertiesOf
 import me.ahoo.wow.compiler.model.symbol.JavaBeans
 import me.ahoo.wow.compiler.model.symbol.JavaRecords
 import me.ahoo.wow.compiler.model.symbol.declarations
+import me.ahoo.wow.compiler.model.symbol.hierarchyProperties
 import me.ahoo.wow.compiler.model.symbol.jsonIgnored
 import me.ahoo.wow.compiler.model.symbol.jsonIgnoredAt
 import me.ahoo.wow.compiler.model.symbol.jsonIgnoredProperties
@@ -53,7 +53,7 @@ internal object OccurredAtResolver {
 
     fun of(command: KSClassDeclaration, creation: String, problems: MutableList<String>): OccurredAtBinding? {
         val name = command.simpleName.asString()
-        val annotated = propertiesOf(command).filter { it.annotated() }.distinctBy { it.simpleName.asString() }.toList()
+        val annotated = command.hierarchyProperties().filter { it.annotated() }.distinctBy { it.simpleName.asString() }.toList()
         // A Java record's component, which KSP shows as no property: read where its annotation stands (#6839).
         val components = JavaRecords.components(command).filter { component ->
             component.sites.any { it.hasAnnotation(OCCURRED_AT) }

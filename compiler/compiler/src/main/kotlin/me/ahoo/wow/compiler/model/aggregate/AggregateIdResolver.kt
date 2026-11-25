@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.compiler.model.aggregate
 
-import com.google.devtools.ksp.getAllSuperTypes
 import com.google.devtools.ksp.isPrivate
 import com.google.devtools.ksp.isProtected
 import com.google.devtools.ksp.processing.KSPLogger
@@ -28,6 +27,7 @@ import me.ahoo.wow.compiler.model.symbol.AnnotationSet
 import me.ahoo.wow.compiler.model.symbol.JavaBeans
 import me.ahoo.wow.compiler.model.symbol.JavaRecords
 import me.ahoo.wow.compiler.model.symbol.declarations
+import me.ahoo.wow.compiler.model.symbol.hierarchyProperties
 import me.ahoo.wow.compiler.model.symbol.jsonIgnored
 import me.ahoo.wow.compiler.model.symbol.jsonIgnoredAt
 import me.ahoo.wow.compiler.model.symbol.jsonIgnoredProperties
@@ -68,7 +68,7 @@ internal object AggregateIdResolver {
         problems: MutableList<String>,
     ): AggregateIdBinding? {
         val name = command.simpleName.asString()
-        val annotated = propertiesOf(command).filter { it.annotated() }.distinctBy { it.simpleName.asString() }.toList()
+        val annotated = command.hierarchyProperties().filter { it.annotated() }.distinctBy { it.simpleName.asString() }.toList()
         val components = markedComponents(command)
         if (annotated.size + components.size > 1) {
             val names = annotated.map { it.simpleName.asString() } + components.map { it.name }
@@ -187,7 +187,7 @@ internal object AggregateIdResolver {
     ): String? {
         val suppressed = command.suppresses(UNMARKED_AGGREGATE_ID, problems) ||
             handlers.any { it.suppresses(UNMARKED_AGGREGATE_ID, problems) }
-        val properties = propertiesOf(command)
+        val properties = command.hierarchyProperties()
         if (suppressed || properties.any { it.annotated() } || markedComponents(command).isNotEmpty()) {
             return null
         }
@@ -283,12 +283,6 @@ internal object AggregateIdResolver {
      */
     private fun KSPropertyDeclaration.javaReader(command: KSClassDeclaration): String? =
         JavaBeans.getterOf(this, command)?.let { "getter ${it.simpleName.asString()}()" }
-
-    /** The properties of [command] and its supertypes, the class's own first. */
-    internal fun propertiesOf(command: KSClassDeclaration): Sequence<KSPropertyDeclaration> =
-        command.getAllProperties() + command.getAllSuperTypes()
-            .mapNotNull { it.declaration as? KSClassDeclaration }
-            .flatMap { it.getAllProperties() }
 
     /** Whether this property or a declaration it overrides ([declarations]), or its getter, is `@AggregateId`. */
     private fun KSPropertyDeclaration.annotated(): Boolean =

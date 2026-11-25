@@ -231,6 +231,48 @@ class OccurredAtManifestTest {
     }
 
     @Test
+    fun `a Java base class's private AggregateId and OccurredAt fields should be read as Jackson writes them`() {
+        // Each supertype's own fields, its private ones among them, are read with the class's (#6974).
+        val base = SourceFile.java(
+            "RestoreBase.java",
+            """
+            package sample;
+
+            import com.fasterxml.jackson.annotation.JsonProperty;
+            import me.ahoo.wow.api.annotation.AggregateId;
+            import me.ahoo.wow.api.annotation.OccurredAt;
+
+            public class RestoreBase {
+                @AggregateId @JsonProperty("cart") private String id;
+                @OccurredAt @JsonProperty("at") private Long restoredAt;
+                public String getId() { return id; }
+                public Long getRestoredAt() { return restoredAt; }
+            }
+            """.trimIndent(),
+        )
+        val bean = SourceFile.java(
+            "RestoreCart.java",
+            """
+            package sample;
+
+            @me.ahoo.wow.api.annotation.CreateAggregate
+            public class RestoreCart extends RestoreBase {
+            }
+            """.trimIndent(),
+        )
+        val (compilation, result) =
+            javaCart(base, bean, functions = "fun onCommand(command: RestoreCart): Imported = Imported(command.id)")
+        result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
+        generated(compilation, "CartModel.kt").assert()
+            .contains("aggregateId<sample.RestoreCart> { it.`id` }")
+            .contains("occurredAt<sample.RestoreCart> { it.`restoredAt` }")
+        val command = ManifestFragmentFixtures.read(fragments(compilation).single()).contexts.single()
+            .aggregates.single().commands.single { it.name == "RestoreCart" }
+        command.idProperty.assert().isEqualTo("cart")
+        command.occurredAtProperty.assert().isEqualTo("at")
+    }
+
+    @Test
     fun `a Java record's or bean's OccurredAt that the model cannot take should be a compile error, naming it`() {
         fun record(name: String, source: String) = SourceFile.java("$name.java", source.trimIndent())
         val imports = "import com.fasterxml.jackson.annotation.*;\nimport me.ahoo.wow.api.annotation.*;\n"
