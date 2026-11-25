@@ -30,7 +30,9 @@ import me.ahoo.wow.manifest.QueryFieldNames
  *   `Contract`: `eshop-ordering` is `EshopOrderingContract`. A segment of a package or of a qualified name that is a
  *   Kotlin keyword is quoted ([KotlinNames]).
  * - The object holds the context's `NAME` and, per aggregate, a nested object named after the aggregate in Pascal case
- *   with its `CONTEXT`, `NAME`, `QUALIFIED_NAME` (`context.aggregate`, for `@OnEvent(aggregates)`), `TYPE`
+ *   ([aggregateObject]: `Aggregate` follows a name the context's object declares itself, so an aggregate `wait` is
+ *   `WaitAggregate`, as the TypeScript contract names it) with its `CONTEXT`, `NAME`, `QUALIFIED_NAME`
+ *   (`context.aggregate`, for `@OnEvent(aggregates)`), `TYPE`
  *   (`AggregateType`), `OWNERSHIP`, `ID_SOURCE` (where its id comes from: an `OWNER` aggregate's is its owner's, so a
  *   command sent without an id goes to the caller's own), `SNAPSHOT` (whether it keeps snapshots), `QUERY_MODELS` (the
  *   models a peer queries), `ref(tenantId, id)`, `unassigned(tenantId)` and a `Commands` object holding each command's full type
@@ -159,7 +161,7 @@ internal object ContractSources {
         appendLine("     */")
         val supertype = if (queryFields) " : $SNAPSHOT_PROPERTIES()" else ""
         appendLine("    $GENERATED")
-        appendLine("    public object ${pascal(aggregate.name)}$supertype {")
+        appendLine("    public object ${aggregateObject(aggregate.name)}$supertype {")
         appendLine("        /** The name of the aggregate's context. */")
         appendLine("        public const val CONTEXT: kotlin.String = $owner.NAME")
         appendLine()
@@ -397,6 +399,17 @@ internal object ContractSources {
     /** `eshop-inventory` → `EshopInventory`: the name's words, capitalised, without separators. */
     fun pascal(name: String): String = name.split('-', '_', '.', ' ').filter(String::isNotEmpty)
         .joinToString("") { word -> word.replaceFirstChar(Char::uppercaseChar) }
+
+    /**
+     * The object of the aggregate [name] in its context's object: [name] in Pascal case, followed by `Aggregate` when
+     * the context's object declares that name itself ([CONTRACT_MEMBERS]), whether or not it does in this context, as
+     * the TypeScript contract names its member: `errors` is `ErrorsAggregate`, `wait` is `WaitAggregate` (#6945).
+     */
+    private fun aggregateObject(name: String): String =
+        pascal(name).let { if (it in CONTRACT_MEMBERS) "${it}Aggregate" else it }
+
+    /** The members of a context's object besides its aggregates: its name, its shared codes and its hops. */
+    private val CONTRACT_MEMBERS = setOf("NAME", "Errors", "Wait")
 
     /** [value] as a Kotlin string literal. */
     private fun literal(value: String): String =

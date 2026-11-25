@@ -19,6 +19,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.ContextManifest
+import me.ahoo.wow.manifest.ErrorManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.manifest.copyWith
@@ -126,6 +127,47 @@ class GeneratedContractNamesTest {
                 "@me.ahoo.wow.api.read.StateView(\"audit.state\")\n@me.ahoo.wow.api.annotation.WowGenerated\n" +
                     "public data class StateView(",
             )
+        compile(sources)
+    }
+
+    @Test
+    fun `an aggregate named errors should keep its object apart from the context's shared codes`() {
+        // The codes the context shares are an `object Errors` of `AuditContract`, so the aggregate `errors` is
+        // `ErrorsAggregate`, with or without them, as the TypeScript contract names its member (#6945).
+        listOf(listOf(ErrorManifest("audit.closed", 409)), emptyList()).forEach { shared ->
+            val fragment = Manifest(
+                contexts = listOf(
+                    ContextManifest(
+                        "audit",
+                        aggregates = listOf(
+                            AggregateManifest(
+                                "errors",
+                                state = StateManifest(Manifest.schemaRef(CatalogState::class.java.name)),
+                                commands = listOf(
+                                    CommandManifest("Create", schema = Manifest.schemaRef("audit.api.Create"))
+                                ),
+                            ),
+                        ),
+                        errors = shared,
+                    ),
+                ),
+            ).copyWith(defs = mapOf("audit.api.Create" to mapOf("type" to "object")))
+            val contract = SchemaIntrospector(javaClass.classLoader).complete(fragment)
+            val sources = ContractSources.of(contract, mapOf("audit" to "audit.api"), queryFields = true) { false }
+            val text = sources.single { it.path.endsWith("AuditContract.kt") }.text
+            text.assert().contains("public object ErrorsAggregate : me.ahoo.wow.api.query.SnapshotProperties()")
+            text.contains("\n    public object Errors {").assert().isEqualTo(shared.isNotEmpty())
+            compile(sources)
+        }
+    }
+
+    @Test
+    fun `an aggregate named wait should keep its object apart from the context's wait hops`() {
+        // The context's contract always declares `object Wait`, its hops: the aggregate `wait` is `WaitAggregate`.
+        val sources = sources("wait" to CatalogState::class.java)
+        sources.single { it.path.endsWith("AuditContract.kt") }.text.assert()
+            .contains("public object WaitAggregate : me.ahoo.wow.api.query.SnapshotProperties()")
+            .contains("\n    public object Wait {")
         compile(sources)
     }
 }

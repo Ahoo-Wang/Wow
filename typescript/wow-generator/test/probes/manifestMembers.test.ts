@@ -255,4 +255,18 @@ describe("the constants of a Manifest's error codes, as the Kotlin contract name
        void [closed, name, ProbeContract.Thing.name];`,
     );
   });
+
+  it('names an aggregate wait WaitAggregate, as the Kotlin contract names its object beside its Wait hops', async () => {
+    const document = manifest();
+    document.contexts[0].aggregates.push({
+      name: 'wait',
+      state: { schema: schema('a.ThingState') },
+    });
+    await generateCompiling(
+      document,
+      `import { ProbeContract, probeWait } from './out/index.js';
+       const name: 'wait' = ProbeContract.WaitAggregate.name;
+       void [name, probeWait.committed(), ProbeContract.Thing.name];`,
+    );
+  });
 });

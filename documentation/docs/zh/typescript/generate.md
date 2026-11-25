@@ -96,7 +96,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
 | `index.ts` | 以上全部，再导出一次 |
 | `.wow-generator.json` | 这次运行写出的文件，以便之后的运行删除它不再写出的文件 |
 
-错误码的常量按 Kotlin 契约的命名：取聚合（`context.aggregate.code`）或上下文之后的部分，以点分隔的每一段写成大写蛇形，用 `__` 连接，以数字开头时前加 `_`。`invalid-item` 是 `INVALID_ITEM`，`invalidURLValue` 是 `INVALID_URL_VALUE`，上下文 `analytics-catalog` 的 `analytics.catalog.incomplete` 是 `ANALYTICS__CATALOG__INCOMPLETE`。两个错误码的常量相同时，第一个保留它；两个错误码都留在 `<Context>ErrorCode` 里。名字与生成器在旁边声明的成员相同时，它得到自己的名字：方法或 `…Stream` 孪生方法已被占用的命令（`Start` 旁的 `StartStream`、`Client`，或生命周期命令的名字）加 `Command`，再占用就加 `Command2`；名为 `commands` 或 `routes` 的聚合在 `<Context>Client` 中是 `commandsAggregate`，名为 `errors` 的聚合在契约中是 `ErrorsAggregate`；名为 `routes` 的服务路由是 `routesRoute`。
+错误码的常量按 Kotlin 契约的命名：取聚合（`context.aggregate.code`）或上下文之后的部分，以点分隔的每一段写成大写蛇形，用 `__` 连接，以数字开头时前加 `_`。`invalid-item` 是 `INVALID_ITEM`，`invalidURLValue` 是 `INVALID_URL_VALUE`，上下文 `analytics-catalog` 的 `analytics.catalog.incomplete` 是 `ANALYTICS__CATALOG__INCOMPLETE`。两个错误码的常量相同时，第一个保留它；两个错误码都留在 `<Context>ErrorCode` 里。名字与生成器在旁边声明的成员相同时，它得到自己的名字：方法或 `…Stream` 孪生方法已被占用的命令（`Start` 旁的 `StartStream`、`Client`，或生命周期命令的名字）加 `Command`，再占用就加 `Command2`；名为 `commands` 或 `routes` 的聚合在 `<Context>Client` 中是 `commandsAggregate`，名为 `errors` 或 `wait` 的聚合在契约中是 `ErrorsAggregate` 或 `WaitAggregate`，与 Kotlin 契约的对象同名；名为 `routes` 的服务路由是 `routesRoute`。
 
 eShop ordering 的契约。它的错误码只是领域的拒绝：违反约束的命令回答框架的 `wow.command.invalid`（`FrameworkErrorCodes.COMMAND_INVALID`）及其 `violations`（[发送命令](./commands)）。
 
