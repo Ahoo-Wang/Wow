@@ -35,8 +35,9 @@ import tools.jackson.databind.module.SimpleModule
  * `{"wait":{"waitId","origin":{"node","address","service"},"remaining":[{"stage","context","subscription"}],
  * "deadline"},"reservations":[{"namespace","key","system"}],"trace":{…},"releases":[…]}`: an absent wait, empty lists
  * and an empty trace are left out, and so is a key's `system` when false. The bytes are UTF-8 JSON. A reader ignores the fields it does not know,
- * so the next minor version may add one within format 1; a backend never reads the bytes, so a field
- * it does not know reaches the runtime that reads the entry unchanged.
+ * so the next minor version may add one within format 1, and reads a hop's stage it does not know as
+ * [me.ahoo.wow.api.result.Stage.UNKNOWN] ([WowJson.readerBuilder]), so it may add a stage too; a backend never reads
+ * the bytes, so a field it does not know reaches the runtime that reads the entry unchanged.
  *
  * The wait context is the wire record every Wow wire carries it as ([WaitWire]), so its form is defined once.
  *
@@ -47,8 +48,8 @@ object TransportCodec {
     /** [transport] as the bytes a log stores. */
     fun encode(transport: Transport): ByteArray = WowJson.mapper.writeValueAsBytes(TransportWire.of(transport))
 
-    /** The transport [bytes] hold. */
-    fun decode(bytes: ByteArray): Transport = WowJson.mapper.readValue(bytes, TransportWire::class.java).toTransport()
+    /** The transport [bytes] hold, as a node of the minor version before reads a newer one's: a stage it does not know is `UNKNOWN`. */
+    fun decode(bytes: ByteArray): Transport = WowJson.reader.readValue(bytes, TransportWire::class.java).toTransport()
 
     /** Writes and reads a [Transport] as [TransportWire]: part of every mapper [WowJson] builds. */
     internal val module: SimpleModule = SimpleModule("wow-transport")

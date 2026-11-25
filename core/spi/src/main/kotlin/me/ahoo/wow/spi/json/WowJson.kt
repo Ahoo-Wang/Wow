@@ -108,6 +108,12 @@ object WowJson {
     fun readerBuilder(): JsonMapper.Builder = base().addModule(WowEnums.module(tolerant = true))
 
     /**
+     * The mapper of [readerBuilder], for what a node of the minor version before reads from a newer one: a log entry's
+     * transport, a topic's envelope, a peer's `Wow-Call`.
+     */
+    internal val reader: JsonMapper = readerBuilder().build()
+
+    /**
      * How a [ScheduleRule] is written: its kind in `type` (`at`, `after`, `cron`) beside its fields, as
      * the schedule events, the snapshots and the timers store it. The API has no JSON dependency, so the mapping lives
      * here.
