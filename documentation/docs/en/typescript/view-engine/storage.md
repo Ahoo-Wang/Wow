@@ -156,7 +156,7 @@ Hand `store` to `new ViewEngine({ store, resources })`.
 
 A personal view belongs to the reader. A shared view belongs to the reserved owner `(shared)`, and a stored system view to the owner `(system)` of the tenant `(platform)`; the store acts as them with the `Wow-Scope` header. "Make shared" and "Make personal" move a view to the other owner in place, keeping its id, so a board that shows it keeps showing it.
 
-Every reader reads shared and stored system views. Writing shared views, the shared preferences and the tenant's dataset wording takes the role `view-store.shared-writer`; writing system views takes `view-store.system-writer`. The service authorizes every write; `permissions` in the front end only decides which buttons are enabled, so answer it by the same roles, or a button is enabled whose write is then refused.
+Every reader reads shared and stored system views. Writing shared views (sharing a personal one among them), the shared preferences and the tenant's dataset wording takes the role `view-store.shared-writer`; writing system views takes `view-store.system-writer`. The service authorizes every write; `permissions` in the front end only decides which buttons are enabled, so answer it by the same roles, or a button is enabled whose write is then refused.
 
 | Permission | Buttons | When left out |
 | --- | --- | --- |

@@ -335,12 +335,17 @@ export function fakeViewStore(
   }
 
   function authorize(caller: Caller, name: AggregateName, command: string) {
+    // As ViewStoreAuthorizer: a reserved owner's write takes its role; a
+    // user's own view shared is published to (shared), so it takes the role
+    // that writes (shared), sent as its user.
     const role =
       name === 'dataset_wording' || caller.ownerId === SHARED
         ? SHARED_WRITER
         : caller.ownerId === SYSTEM
           ? SYSTEM_WRITER
-          : undefined;
+          : name === 'view' && command === 'ShareView'
+            ? SHARED_WRITER
+            : undefined;
     if (role !== undefined && !caller.roles.includes(role))
       fail(
         403,

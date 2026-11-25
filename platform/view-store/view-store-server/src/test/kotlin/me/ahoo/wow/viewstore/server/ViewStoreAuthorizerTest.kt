@@ -25,6 +25,7 @@ import me.ahoo.wow.viewstore.api.ViewStoreContext
 import me.ahoo.wow.viewstore.api.ViewStoreContract
 import me.ahoo.wow.viewstore.api.preferences.SetViewPreferences
 import me.ahoo.wow.viewstore.api.view.RenameView
+import me.ahoo.wow.viewstore.api.view.ShareView
 import org.junit.jupiter.api.Test
 
 /** The view store's write rules (decision D92), with those of reviews R2.3-2 and R2.3-3. */
@@ -33,6 +34,13 @@ class ViewStoreAuthorizerTest {
 
     private fun rename(scope: Scope) = CommandAction.of(
         CommandType.of(ViewStoreContract.View.Commands.RENAME_VIEW, RenameView::class.java),
+        ViewStoreContract.View.TYPE.ref("t1", "v-1"),
+        scope,
+        Creation.NONE,
+    )
+
+    private fun share(scope: Scope) = CommandAction.of(
+        CommandType.of(ViewStoreContract.View.Commands.SHARE_VIEW, ShareView::class.java),
         ViewStoreContract.View.TYPE.ref("t1", "v-1"),
         scope,
         Creation.NONE,
@@ -104,5 +112,21 @@ class ViewStoreAuthorizerTest {
         refusal(tenantLevel, rename(Scope.NONE)).assert().contains("and this one names none")
         refusal(caller("alice"), rename(Scope(ownerId = ViewStoreContext.SHARED_OWNER_ID))).assert()
             .contains("it needs ${ViewStoreRoles.SHARED_WRITER}")
+    }
+
+    @Test
+    fun `sharing a personal view should need the role that writes the shared owner, though it is sent as its user`() {
+        // The saga moves the view to (shared) with a derived command, which no authorizer checks: the share is where
+        // publishing to the tenant's shared list is decided (#6920).
+        val mine = Scope(ownerId = "alice")
+        allowed(caller("alice"), share(mine)).assert().isFalse()
+        refusal(caller("alice"), share(mine)).assert().contains("it needs ${ViewStoreRoles.SHARED_WRITER}")
+        allowed(caller("alice", ViewStoreRoles.SHARED_WRITER), share(mine)).assert().isTrue()
+        // A user's other writes of its own views need no role.
+        allowed(caller("alice"), rename(mine)).assert().isTrue()
+        // A reserved owner's share takes that owner's role, as its other writes: a stored system view's share reaches
+        // the view, which refuses it as read-only.
+        val system = Scope(ownerId = ViewStoreContext.SYSTEM_OWNER_ID)
+        allowed(caller("admin", ViewStoreRoles.SYSTEM_WRITER), share(system)).assert().isTrue()
     }
 }

@@ -95,7 +95,10 @@ abstract class ViewStoreContract {
     fun `sharing should move a view to (shared), and claiming it to the user who claims it`() {
         val definition = definition()
         val id = create(ALICE, definition)
-        store.post("/view-store/view/$id/share-view", "{}", ALICE, MOVED).assertOk()
+        // Sharing publishes the view to the tenant's shared list: it takes the shared role, sent as its user (#6920).
+        store.post("/view-store/view/$id/share-view", "{}", ALICE).assertProblem(FORBIDDEN, "wow.auth.forbidden")
+        list(BOB.shared, definition).assert().isEmpty()
+        store.post("/view-store/view/$id/share-view", "{}", ALICE_SHARING, MOVED).assertOk()
         list(ALICE, definition).assert().isEmpty()
         list(BOB.shared, definition).assert().containsExactly(id)
         // Shared again: nothing changes. Version 2 shared it, version 3 is the saga's move to (shared).
@@ -386,6 +389,9 @@ abstract class ViewStoreContract {
         )
 
         val ALICE = Who.user("alice")
+
+        /** Alice with the role that writes (shared), which sharing her views takes. */
+        val ALICE_SHARING = Who.user("alice", null, ViewStoreRoles.SHARED_WRITER)
         val BOB = Who.user("bob")
         val CAROL = Who.user("carol", null, ViewStoreRoles.SHARED_WRITER)
         val ADMIN = Who.user("admin", null, ViewStoreRoles.SYSTEM_WRITER)
