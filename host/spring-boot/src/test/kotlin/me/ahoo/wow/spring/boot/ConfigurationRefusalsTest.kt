@@ -40,7 +40,10 @@ class ConfigurationRefusalsTest {
             .filterIsInstance<WowConfigurationException>()
             .firstOrNull()
         named.assert().describedAs("$key=$value was refused with no key: ${rootOf(failure)}").isNotNull()
-        key.startsWith(named!!.key).assert().describedAs("$key refused naming ${named.key}").isTrue()
+        // The key, or a group above it by whole elements: wow.subscription does not hold wow.subscriptions.[…].
+        val group = named!!.key
+        (key == group || key.startsWith("$group.") || key.startsWith("$group[")).assert()
+            .describedAs("$key refused naming $group").isTrue()
     }
 
     /** A control: a setting of a group the host already names, refused naming that group. */
@@ -57,9 +60,15 @@ class ConfigurationRefusalsTest {
         }
 
     companion object {
-        /** Settings a case needs beside its own: the webhook's timeout is read only with its URL. */
+        /** A second store, the one the `wow.stores.main` cases name. */
+        private val MAIN_STORE: Pair<String, Any> = "wow.stores.main.type" to "memory"
+
+        /** Settings a case needs beside its own: the webhook's timeout is read only with its URL, a store's with it. */
         private val EXTRA: Map<String, List<Pair<String, Any>>> = mapOf(
             "wow.ops.webhook.timeout" to listOf("wow.ops.webhook.url" to "http://127.0.0.1:1/hook"),
+            "wow.stores.main.query.max-wait" to listOf(MAIN_STORE),
+            "wow.stores.main.query.max-queued" to listOf(MAIN_STORE),
+            "wow.stores.main.query.adaptive.floor" to listOf(MAIN_STORE),
         )
 
         @JvmStatic
@@ -110,6 +119,18 @@ class ConfigurationRefusalsTest {
             "wow.query.stream.chunk-size" to "0",
             "wow.query.stream.max-hold" to "-1s",
             "wow.query.dataset.max-wait" to "-1s",
+            // Found by DocumentedKeysGuardTest: refused while binding, by another key, or by a wider group.
+            "wow.log.partitions" to "3",
+            "wow.memory.topic-retention" to "0",
+            "wow.query.max-concurrent" to "-1",
+            "wow.query.adaptive.ceiling" to "0",
+            "wow.query.budgets.in-process.default-list-size" to "-1",
+            "wow.stores.main.query.max-wait" to "-1s",
+            "wow.stores.main.query.max-queued" to "-1",
+            "wow.stores.main.query.adaptive.floor" to "0",
+            "wow.subscriptions.[bank.wow.snapshot].retry.max-attempts" to "0",
+            "wow.subscriptions.[bank.wow.snapshot].retry.max-backoff" to "0s",
+            "wow.subscriptions.[bank.wow.snapshot].parked.claim-ttl" to "-1s",
         ).map { (key, value) -> Arguments.of(key, value) }
     }
 }

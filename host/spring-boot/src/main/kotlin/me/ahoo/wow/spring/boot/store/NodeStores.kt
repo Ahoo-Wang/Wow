@@ -90,7 +90,7 @@ internal class NodeStores {
             ProviderSettingsSource(environment),
         )
         // The next statement hands the stores to their owner: nothing runs between.
-        return StoreInstances.backends(stores, placements, types, properties.log.partitions)
+        return StoreInstances.backends(stores, placements, types, properties.log.checkedPartitions())
     }
 
     @Bean

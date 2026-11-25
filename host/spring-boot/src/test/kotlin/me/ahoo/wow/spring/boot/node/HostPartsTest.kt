@@ -52,7 +52,6 @@ import org.junit.jupiter.api.assertThrows
 import org.springframework.beans.factory.support.DefaultListableBeanFactory
 import org.springframework.beans.factory.support.RootBeanDefinition
 import org.springframework.boot.SpringApplication
-import org.springframework.boot.context.properties.bind.BindException
 import org.springframework.boot.context.properties.bind.Binder
 import org.springframework.boot.context.properties.source.MapConfigurationPropertySource
 import org.springframework.core.env.MapPropertySource
@@ -428,10 +427,15 @@ class WowPropertiesTest {
 
     @Test
     fun `the in-memory topics should keep at least one message, refusing a retention below that with its key`() {
-        bind("wow.memory.topic-retention" to "1").memory.topicRetention.assert().isEqualTo(1)
-        val refused = assertThrows<BindException> { bind("wow.memory.topic-retention" to "0") }
-        generateSequence<Throwable>(refused) { it.cause }.mapNotNull { it.message }.toList().assert()
-            .anySatisfy { it.assert().contains("wow.memory.topic-retention keeps at least one message: 0.") }
+        bind("wow.memory.topic-retention" to "1").memory.checkedTopicRetention().assert().isEqualTo(1)
+        // Refused where it is read, naming its key, rather than as a failure of binding.
+        val refused = assertThrows<WowConfigurationException> {
+            bind("wow.memory.topic-retention" to "0").memory.checkedTopicRetention()
+        }
+        refused.key.assert().isEqualTo("wow.memory.topic-retention")
+        refused.value.assert().isEqualTo(0)
+        assertThrows<WowConfigurationException> { bind("wow.log.partitions" to "3").log.checkedPartitions() }
+            .key.assert().isEqualTo("wow.log.partitions")
     }
 
     @Test
