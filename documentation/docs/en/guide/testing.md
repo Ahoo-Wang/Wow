@@ -335,6 +335,8 @@ A saga spec shows the commands as the kernel derives them, each in the tenant it
 
 A commit reaches each handler that reads it, as its subscription would: one that names the commit's aggregate type in `aggregates`, or names none and takes its state type. A handler of one event type, such as `StateTypedEvent<S, E>`, skips a commit without an event of that type, as the runtime does, so a commit every handler skips is handled by none, which `expectHandledBy()` with no names checks. A commit that no handler reads at all fails the spec: it is a mistake of the test, not a skip.
 
+Each handler reads the commit's state decoded from its JSON, a copy of its own, as a node's view hands it: a field the JSON does not keep (`@JsonIgnore`, a computed field) is not set, and what one handler changes on it no other reads. It runs in the context it is bound in, which names its execution and so every id it derives: the compiler gives every binding it generates the module's context, and a binding written by hand that names none runs in the commit's.
+
 ### Rejections and receipts
 
 A command the saga sent can be rejected by its target, or committed with a receipt. `whenRejected` and `whenCommitted` hand that outcome back to the saga's `@OnRejected` or `@OnCommitted` handler, as the runtime does. The rejection's code is one the target may answer: its contract's generated constant, or a `FrameworkCodes` one; another code fails:
@@ -359,6 +361,12 @@ fun `a reservation the inventory refused should cancel the order`() = sagaSpec(h
     }
 }
 ```
+
+As the runtime does:
+
+- **A receipt carries the scope** of the command it is of, so a compensation is derived in that scope.
+- **A compensation's own rejection parks.** A command an `@OnRejected` handler derived, the compensation of a call's rejection included, goes to no handler when it is rejected: a compensation is not compensated.
+- **A receipt of another context's command has no handler retry.** That context's receipts subscription handles it, so the saga's `@Retry` classifies only the receipts of its own context's commands.
 
 ### Synchronous calls
 

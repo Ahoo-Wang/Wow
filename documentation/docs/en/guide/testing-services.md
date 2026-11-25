@@ -192,8 +192,9 @@ runBlocking { reserve(inventory, "cup") }.assert().isEqualTo("try again later")
 ```
 
 - `call.committed(version, ref, results)` is the success, with its values.
-- `call.rejected(code, message, ref, violations, extensions)` is thrown as the `CommandRejectedException` a real client throws.
-- `call.failed(code, message)` is thrown as the `WowProblemException` of a call that failed, which a retry with the same request id may get past. To give another status or retry, the lambda throws a `WowProblemException` of its own.
+- `call.rejected(code, message, ref, violations, extensions)` is thrown from `send` and `wait` as the `CommandRejectedException` a real client throws.
+- `call.failed(code, message)` is thrown from `send` and `wait` as the `WowProblemException` of a call that failed, which a retry with the same request id may get past. To give another status or retry, the lambda throws a `WowProblemException` of its own.
+- `stream` emits each answer as a result, whatever its status, rejected and failed ones included, as a real client's stream emits every status.
 
 Against the server, `fakePeer` answers the same three over HTTP, as the peer's routes would, and the server's client reads them back:
 

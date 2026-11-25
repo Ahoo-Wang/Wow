@@ -238,7 +238,8 @@ class CommittedManifestTest {
                     "sample.ReserveStock::class.java, false, derives = kotlin.collections.listOf(sample.ConfirmStock::class.java))",
                 "me.ahoo.wow.kernel.CommittedBinding.of<kotlin.Any>(\"OrderSaga\", \"onAnyCommitted\", null, true, " +
                     "derives = kotlin.collections.listOf(sample.ConfirmStock::class.java))",
-                "rejections = rejections, commits = commits, derives = kotlin.collections.listOf(sample.ReserveStock::class.java)) {",
+                "rejections = rejections, commits = commits, derives = kotlin.collections.listOf(sample.ReserveStock::class.java), " +
+                    "context = \"shop\") {",
             )
             val saga = provider(compilation, result).processors(Dependencies.NONE).single()
             val reserve = result.classLoader.loadClass("sample.ReserveStock")
