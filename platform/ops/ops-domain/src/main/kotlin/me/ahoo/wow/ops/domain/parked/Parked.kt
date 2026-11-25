@@ -90,7 +90,10 @@ class Parked(private val state: ParkedState) {
     }
 
     private fun recorded(entry: ParkedEntry): ParkedRecorded? = when {
-        state.holds(entry) -> null
+        // The service published the entry again, as it was, in answer to the request pending: the request is done.
+        state.holds(entry) ->
+            ParkedRecorded(entry).takeIf { state.requested != null && entry.recordedAt > state.recordedAt }
+
         // A parking at or before the one resolved: a record sent before the resolution, delivered after it.
         state.resolved && entry.failedAt <= state.failedAt -> null
         !state.resolved && entry.recordedAt < state.recordedAt -> null

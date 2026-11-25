@@ -281,6 +281,28 @@ class ParkedSpec {
     }
 
     @Test
+    fun `a request ends once the service publishes the entry again, though the entry says nothing new`() {
+        // ParkedState: requested lasts "until the service publishes the entry again". A spec that changes nothing,
+        // the one the console sends unchanged, comes back as the same entry, later: the request is done.
+        parkedSpec {
+            given(ParkedRecorded(ENTRY), ApplyRetrySpecRequested(failedAt = 100))
+            whenCommand(RecordParked(entry("recordedAt" to 300))) {
+                expectState { requested.assert().describedAs("the request answered").isNull() }
+            }
+        }
+    }
+
+    @Test
+    fun `the same entry, published no later than the one held, leaves the request pending`() {
+        // A scan's record sent before the service answered: the same entry, published at or before the one held.
+        parkedSpec {
+            given(ParkedRecorded(entry("recordedAt" to 300)), ApplyRetrySpecRequested(failedAt = 100))
+            whenCommand(RecordParked(entry("recordedAt" to 300))) { expectUnchanged() }
+            whenCommand(RecordParked(entry("recordedAt" to 200))) { expectUnchanged() }
+        }
+    }
+
+    @Test
     fun `an operator's actions are recorded for the owning service`() {
         parkedSpec {
             given(ParkedRecorded(ENTRY))
