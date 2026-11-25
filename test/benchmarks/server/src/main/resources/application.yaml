@@ -35,7 +35,8 @@ spring:
     activate:
       on-profile: mongo
   mongodb:
-    uri: mongodb://localhost:27017/?replicaSet=rs0
+    # WOW_BENCH_MONGO_PORT: the harness's MongoDB port (test/benchmarks/harness/compose.yml), 27017 unless set.
+    uri: mongodb://localhost:${WOW_BENCH_MONGO_PORT:27017}/?replicaSet=rs0
 wow:
   backend: mongo
   mongo:

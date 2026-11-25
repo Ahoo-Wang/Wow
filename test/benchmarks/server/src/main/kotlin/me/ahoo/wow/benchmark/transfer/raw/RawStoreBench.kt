@@ -380,9 +380,13 @@ private fun postgresStep(
     }.also(::print)
 }
 
+/** The harness's MongoDB (test/benchmarks/harness/compose.yml), on WOW_BENCH_MONGO_PORT, 27017 unless set. */
+private fun harnessMongoUri(): String =
+    "mongodb://localhost:${System.getenv("WOW_BENCH_MONGO_PORT") ?: "27017"}/?replicaSet=rs0"
+
 private fun mongo(settings: RawSettings, options: Map<String, String>): RawResult =
     RawMongo(
-        uri = options["spring.mongodb.uri"] ?: "mongodb://localhost:27017/?replicaSet=rs0",
+        uri = options["spring.mongodb.uri"] ?: harnessMongoUri(),
         databaseName = options["wow.mongo.database"] ?: "transfer",
     ).use { raw ->
         val cpu = ContainerCpu(settings.container)
