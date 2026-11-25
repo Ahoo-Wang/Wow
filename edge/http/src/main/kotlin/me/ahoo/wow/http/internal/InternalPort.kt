@@ -15,6 +15,7 @@ package me.ahoo.wow.http.internal
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.http.problem.ServerRefusals
 import org.springframework.http.server.reactive.ReactorHttpHandlerAdapter
 import org.springframework.web.reactive.function.server.HandlerStrategies
 import org.springframework.web.reactive.function.server.RouterFunction
@@ -66,7 +67,7 @@ class InternalPort private constructor(
         if (server != null) {
             return
         }
-        var configured = HttpServer.create()
+        var configured = ServerRefusals.of(HttpServer.create(), ServerRefusals.Limits.NETTY)
             .port(port)
             .protocol(HttpProtocol.HTTP11, HttpProtocol.H2C)
             .http2Settings { it.maxConcurrentStreams(InternalHttp.MAX_CONCURRENT_STREAMS.toLong()) }

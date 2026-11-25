@@ -23,6 +23,7 @@ import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.cluster.ForwardReply
 import me.ahoo.wow.runtime.cluster.Refusal
 import me.ahoo.wow.spring.boot.http.NodeInternalPort
+import me.ahoo.wow.spring.boot.http.ServerRefusalsTest
 import org.junit.jupiter.api.Test
 import org.springframework.mock.env.MockEnvironment
 import java.net.URI
@@ -96,6 +97,21 @@ class InternalMessageLimitTest {
             answer.statusCode().assert().isEqualTo(200)
             ClusterCodec.decodeReply(answer.body()).refused.assert().isEqualTo(Refusal.TOO_LARGE)
             post(it, InternalHttp.SIGNALS_PATH, body(300 * 1024)).statusCode().assert().isEqualTo(413)
+        }
+    }
+
+    @Test
+    fun `the internal port's own refusals should be problems naming Reactor Netty's limits (#6956)`() {
+        val server = InternalPort.of(InternalPortSettings(0, "127.0.0.1"), internalRoutes(handler, {}))
+        serving(server) {
+            val answer = ServerRefusalsTest.raw(
+                it.boundPort,
+                ServerRefusalsTest.get(InternalHttp.FORWARD_PATH, "X-Pad: ${"a".repeat(9_000)}"),
+            )
+            answer.status.assert().isEqualTo(431)
+            answer.headers["content-type"].assert().isEqualTo("application/problem+json")
+            answer.problem!!["detail"].asString().assert()
+                .isEqualTo("The request's headers are larger than this server takes: 8192 bytes.")
         }
     }
 

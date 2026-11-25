@@ -79,11 +79,24 @@ Nothing a client sends outside the body is read as something else, or dropped:
 | `Wow-Call`, the header of a service's synchronous call, on any route: a command, a query, a state read, a service route | `403 wow.auth.forbidden`, whatever the credential: calls are taken on the internal port alone |
 | Matrix parameters in the path (`/shop/cart/c-1;x=1/add-item`), a `;` that names none included (`c-1;`, `c-1;=v`) | `400 wow.request.malformed`: no route takes them |
 | A body of another type than `application/json` or `application/<name>+json`, any parameters aside (`*/*`, `application/*`, `image/x+json`) | `415` |
-| An aggregate id the [id rule](#aggregate-ids) refuses: a control character (`a%00b`), white space at either end (`%20c-1`), `.` or `..`, a `/`, `;` or `\` (`a%2Fb`), longer than 256 characters, or longer than 512 bytes in UTF-8 | `400 wow.command.malformed`. A unicode id (`%E8%B4%AD`) is taken as it is: a client encodes the ids it sends |
+| An aggregate id the [id rule](#aggregate-ids) refuses: a control character (`a%00b`), white space at either end (`%20c-1`), `.` or `..`, a `/`, `;` or `\` (`a%2Fb`), longer than 256 characters, or longer than 512 bytes in UTF-8 | `400 wow.command.malformed`. A unicode id (`%E8%B4%AD`) is taken as it is: a client encodes the ids it sends. An id long enough that the request line passes its limit is refused first, `414` ([before any route](#server-refusals)) |
 | A blank id on a state read (`/shop/cart/%20/state`) | `400 wow.query.malformed` |
 | A parameter of a state read or a trace it does not take (`?verison=1`), or one given twice (`?version=1&version=9`) | `400 wow.query.invalid`, the violation naming it |
 | `version`, `minVersion`, `from`, `to` or `limit` that is not ASCII digits without a sign or a leading zero (`%2B1`, `001`, `١`) | `400 wow.query.invalid`, the violation naming it |
 | A number parameter of a service route that is not a number as JSON writes one (`NaN`, `Infinity`, a space, `+1`, `01`; for a whole number, a fraction or an exponent) | `400 wow.route.malformed`, the violation naming it |
+
+### What the server refuses before any route {#server-refusals}
+
+Four of the server's limits are met before a route reads the request. Each answer is a problem of its status alone, with no `code` ([Problems](#problems)); its `detail` names the limit and the key that sets it.
+
+| Request | Answer | Limit: key, default |
+| --- | --- | --- |
+| A request line (the method, the path with its query, the version) longer than the limit | `414`, and the connection closes | `server.netty.max-initial-line-length`, 4 KB |
+| A header block larger than the limit | `431`, and the connection closes | `server.max-http-request-header-size`, 8 KB |
+| A request the server cannot read as HTTP, such as two `Content-Length` headers that disagree | `400`, and the connection closes | |
+| A body larger than the codecs take in memory | `413` | `spring.http.codecs.max-in-memory-size`, 256 KB |
+
+The internal port answers the first three alike, at Reactor Netty's own limits, 4,096 and 8,192 bytes, which no key sets.
 
 ### Aggregate ids {#aggregate-ids}
 
