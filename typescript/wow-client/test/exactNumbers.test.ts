@@ -11,11 +11,14 @@
  * limitations under the License.
  */
 
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   type AggregateType,
   CommandClient,
   EventQueryClient,
+  parseJson,
   SnapshotQueryClient,
   StateClient,
 } from '../src/index.js';
@@ -43,6 +46,30 @@ afterEach(() => {
 });
 
 describe('exact numbers through the clients (review R4-Q, Q-9)', () => {
+  it('reads a long larger than a number holds as json-values.md says the client reads it', () => {
+    // #7038: the page said "a bigint"; the client reads its exact text.
+    const page = (language: string) =>
+      readFileSync(
+        fileURLToPath(
+          new URL(
+            `../../../documentation/docs/${language}/reference/json-values.md`,
+            import.meta.url,
+          ),
+        ),
+        'utf8',
+      );
+    const read = parseJson('{"id":9007199254740993}', { id: true }) as {
+      id: unknown;
+    };
+    expect(read.id).toBe('9007199254740993');
+    expect(page('en')).toContain(
+      'the TypeScript client reads a `long`, a `BigInteger` and a `BigDecimal` as its exact text, a `string`',
+    );
+    expect(page('zh')).toContain('读作它的精确文本，在生成的类型中是 `string`');
+    for (const language of ['en', 'zh'])
+      expect(page(language), language).not.toMatch(/`bigint`。|as a `bigint`/);
+  });
+
   it('reads a state view and a snapshot page with their marked numbers as text', async () => {
     stubFetch(request =>
       request.url.endsWith('/state')

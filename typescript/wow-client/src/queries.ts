@@ -14,7 +14,12 @@
 import type { AggregationQuery } from './dsl/aggregation/index.js';
 import type { CursorPage, CursorQuery } from './dsl/cursorQuery.js';
 import type { Projected } from './dsl/projection.js';
-import { eventNumbers, recordNumbers, type TextNumbers } from './exactJson.js';
+import {
+  eventNumbers,
+  marksNumberAt,
+  recordNumbers,
+  type TextNumbers,
+} from './exactJson.js';
 import type {
   DescriptorResult,
   QueryModelDescriptor,
@@ -126,8 +131,11 @@ export class QueryModelClient<R, FIELDS extends string = string> {
    * failure after the first record errors the stream with its problem. The
    * stream resumes where it stopped (decision D253) when the server ends it
    * to be resumed, when it is cut off and when it fails with a retryable
-   * problem: see {@link StreamResumeOptions}. A `limit` counts every record
-   * read, resumed or not.
+   * problem: see {@link StreamResumeOptions}. Past its resumes, a stream cut
+   * off or whose connection is lost errors with a `wow.peer.unavailable`
+   * {@link WowProblemError}, as the Kotlin client's; one the server ends
+   * without letting it resume with a `TypeError`. A `limit` counts every
+   * record read, resumed or not.
    */
   stream<const INCLUDE extends FIELDS>(
     query: Including<FilterListQuery<FIELDS>, INCLUDE>,
@@ -266,13 +274,41 @@ export class QueryModelClient<R, FIELDS extends string = string> {
     return (await this.post('count', query, undefined, options)).json();
   }
 
-  /** The groups and metrics of an aggregation, one row per group. */
+  /**
+   * The groups and metrics of an aggregation, one row per group. A `terms`
+   * group's key over a field this client reads as its exact text (an
+   * `int64`, `bigint` or `decimal` field the generated types say `string`
+   * of) is read so too, so two groups never read as one key; a metric's
+   * value is a computed number, read as a `number`.
+   */
   async aggregate<ROW = Record<string, unknown>>(
     query: AggregationQuery<FIELDS, string>,
     options?: RequestOptions,
   ): Promise<ROW[]> {
-    // Its rows are the query's own shape, which no schema declares.
-    return (await this.post('aggregate', query, undefined, options)).json();
+    return (
+      await this.post('aggregate', query, this.rowNumbers(query), options)
+    ).json();
+  }
+
+  /**
+   * The marks of an aggregation's rows: the alias of each `terms` group over
+   * a field the records' marks name, as its exact text. Its rows are the
+   * query's own shape, which no schema declares: only a key keeps its field's.
+   */
+  private rowNumbers(
+    query: AggregationQuery<FIELDS, string>,
+  ): TextNumbers | undefined {
+    const aliases = (query.groupBy ?? []).flatMap(group =>
+      (group.type as string) === 'terms' &&
+      'field' in group &&
+      group.field !== undefined &&
+      marksNumberAt(this.numbers, group.field)
+        ? [group.alias]
+        : [],
+    );
+    return aliases.length === 0
+      ? undefined
+      : { '*': Object.fromEntries(aliases.map(alias => [alias, true])) };
   }
 
   /**

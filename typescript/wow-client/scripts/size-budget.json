@@ -14,8 +14,8 @@
       "reason": "Raised 2026-11-25 to 8,400 B, about 17% over the 7,181 B measured then, as typescript/AGENTS.md sets a ceiling: the HTTP sender now refuses a request's headers that name a header the client writes from the request's own fields (#7040), and the problem reader reads Retry-After as RFC 9110 spells it and a retry value it does not know as absent (#7044, #7039), both shared with the root entry. Set 2026-10-28, about 16% over the 6,030 B measured then: the service routes client with the HTTP sender, the problem reader and the Manifest check it shares with the root entry, kept apart from it so the root stays within its ceiling."
     },
     "./testing": {
-      "gzip": 3500,
-      "reason": "Set 2026-10-27, about 17% over the 2,995 B measured then: the development caller and the wire builders, which load the problem module for its framework codes."
+      "gzip": 5000,
+      "reason": "Raised 2026-11-25 to 5,000 B, about 16% over the 4,314 B measured then, as typescript/AGENTS.md sets a ceiling: problemOf and problemResponse build a problem as a service writes it (#7036), its retry and Retry-After from the catalog and its title from the catalog's titles, generated into src/testing/frameworkTitles.ts, a module only this entry imports, so the root entry and ./routes carry none of it. The entry serves tests and development runs. Set 2026-10-27, about 17% over the 2,995 B measured then: the development caller and the wire builders, which load the problem module for its framework codes."
     }
   }
 }

@@ -11,7 +11,13 @@
  * limitations under the License.
  */
 
-import { FrameworkErrorCodes, type Problem } from '../problem.js';
+import { FRAMEWORK_TITLES } from './frameworkTitles.js';
+import {
+  FRAMEWORK_RETRIES,
+  FrameworkErrorCodes,
+  type Problem,
+  retryOf,
+} from '../problem.js';
 import {
   type AggregateRef,
   type CommandResult,
@@ -83,10 +89,19 @@ const TITLES: Readonly<Record<number, string>> = {
 };
 
 /**
+ * The `Retry-After` seconds of a problem a retry may get past whose code the
+ * catalog gives none, as the service's `FrameworkErrors.RETRY_AFTER_SECONDS`.
+ */
+const RETRY_AFTER_SECONDS = 1;
+
+/**
  * An RFC 9457 problem as a service answers it, of `status` and the Wow `code`
  * (`urn:wow:error:<code>`; `about:blank` without one), for a test's fake or
- * an expected error. Its title is the status's reason phrase unless
- * `overrides` says otherwise.
+ * an expected error. As the service writes it, its `retry` is the error
+ * catalog's for the code (`none` for any other code and for none), and its
+ * title the catalog's for a framework code, else the status's reason phrase
+ * (a service titles a domain code by its description in the Manifest, which
+ * `overrides` gives). `overrides` win.
  */
 export function problemOf(
   status: number,
@@ -95,9 +110,15 @@ export function problemOf(
 ): Problem {
   return {
     type: code === undefined ? 'about:blank' : `urn:wow:error:${code}`,
-    title: TITLES[status] ?? `HTTP ${status}`,
+    title:
+      (code === undefined ? undefined : FRAMEWORK_TITLES.get(code)) ??
+      TITLES[status] ??
+      `HTTP ${status}`,
     status,
     ...(code === undefined ? {} : { code }),
+    retry:
+      (code === undefined ? undefined : FRAMEWORK_RETRIES.get(code)?.retry) ??
+      'none',
     ...overrides,
   };
 }
@@ -105,7 +126,9 @@ export function problemOf(
 /**
  * The response a service answers `problem` with: `application/problem+json`,
  * its extension members written as members of their own, as the wire carries
- * them.
+ * them, and `Retry-After` when a retry may get past it (`retry` other than
+ * `none`): the catalog's seconds for its code, else 1, as the service writes
+ * it. A `Retry-After` in `init.headers` wins.
  */
 export function problemResponse(
   problem: Problem,
@@ -114,6 +137,21 @@ export function problemResponse(
   const { extensions, ...members } = problem;
   const headers = new Headers(init.headers);
   headers.set('Content-Type', 'application/problem+json');
+  if (
+    (problem.retry ?? retryOf(problem)) !== 'none' &&
+    !headers.has('Retry-After')
+  ) {
+    const known =
+      problem.code === undefined
+        ? undefined
+        : FRAMEWORK_RETRIES.get(problem.code);
+    headers.set(
+      'Retry-After',
+      String(
+        known === undefined ? RETRY_AFTER_SECONDS : known.retryAfterMs / 1000,
+      ),
+    );
+  }
   return new Response(JSON.stringify({ ...extensions, ...members }), {
     ...init,
     status: problem.status,

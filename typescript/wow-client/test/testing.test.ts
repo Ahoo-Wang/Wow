@@ -127,6 +127,7 @@ describe('the wire builders', () => {
       type: 'about:blank',
       title: 'Not Found',
       status: 404,
+      retry: 'none',
     });
     const refused = problemOf(409, FrameworkErrorCodes.COMMAND_REFUSED, {
       detail: 'out of stock',
@@ -135,8 +136,9 @@ describe('the wire builders', () => {
     });
     expect(refused).toMatchObject({
       type: 'urn:wow:error:wow.command.refused',
-      title: 'Conflict',
+      title: 'Command refused',
       code: 'wow.command.refused',
+      retry: 'none',
     });
     // On the wire, the extension members are members of their own.
     const response = problemResponse(refused);
@@ -145,6 +147,50 @@ describe('the wire builders', () => {
     );
     expect(await response.clone().json()).toMatchObject({ available: 0 });
     expect(await readProblem(response)).toMatchObject(refused);
+  });
+
+  it("write a problem's retry, its catalog title and its Retry-After, as every problem a service answers carries them", () => {
+    // edge/http's Problem writes `retry` always, a framework code's title
+    // from the catalog (ErrorStatuses.title), and Retry-After when a retry
+    // may get past the problem.
+    const unavailable = problemOf(503, FrameworkErrorCodes.STORAGE_UNAVAILABLE);
+    expect(unavailable).toEqual({
+      type: 'urn:wow:error:wow.storage.unavailable',
+      title: 'Storage unavailable',
+      status: 503,
+      code: 'wow.storage.unavailable',
+      retry: 'same-request',
+    });
+    expect(
+      problemOf(404, FrameworkErrorCodes.AGGREGATE_NOT_FOUND),
+    ).toMatchObject({ title: 'Aggregate not found', retry: 'none' });
+    // A domain code: the reason phrase, which a service replaces with the
+    // code's description in its Manifest (`overrides`), and no retry.
+    expect(problemOf(422, 'shop.cart.empty')).toMatchObject({
+      title: 'HTTP 422',
+      retry: 'none',
+    });
+    expect(
+      problemOf(422, 'shop.cart.empty', { title: 'The cart is empty' }).title,
+    ).toBe('The cart is empty');
+    expect(problemResponse(unavailable).headers.get('Retry-After')).toBe('1');
+    expect(
+      problemResponse(
+        problemOf(409, FrameworkErrorCodes.COMMAND_REFUSED),
+      ).headers.has('Retry-After'),
+    ).toBe(false);
+    // A retry given for a code the catalog has none of waits the default 1 s;
+    // a Retry-After the fake sets wins.
+    expect(
+      problemResponse(
+        problemOf(503, 'shop.later', { retry: 'new-request' }),
+      ).headers.get('Retry-After'),
+    ).toBe('1');
+    expect(
+      problemResponse(unavailable, {
+        headers: { 'Retry-After': '7' },
+      }).headers.get('Retry-After'),
+    ).toBe('7');
   });
 
   it('serve a fake whose command answers reject as the service would', async () => {

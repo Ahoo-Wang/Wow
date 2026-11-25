@@ -21,7 +21,7 @@ Every name `@ahoo-wang/wow-client/testing` exports — 8 — with its kind and t
 | `developmentCaller` | function | A request interceptor that sends every request as `caller`, by the headers a development run reads (`developmentCallerHeaders`): a fetcher that uses it asks as that caller, as a host's CoSec interceptors send its token. | — |
 | `developmentCallerHeaders` | function | The headers that name `caller` to a development run: only those it sets. | — |
 | `problemOf` | function | An RFC 9457 problem as a service answers it, of `status` and the Wow `code` (`urn:wow:error:<code>`; `about:blank` without one), for a test's fake or an expected error. | — |
-| `problemResponse` | function | The response a service answers `problem` with: `application/problem+json`, its extension members written as members of their own, as the wire carries them. | — |
+| `problemResponse` | function | The response a service answers `problem` with: `application/problem+json`, its extension members written as members of their own, as the wire carries them, and `Retry-After` when a retry may get past it (`retry` other than `none`): the catalog's seconds for its code, else 1, as the service writes it. | — |
 | `snapshotOf` | function | An aggregate's snapshot as a state read and a snapshot query answer it, for a test's fake: `ref`'s `state` at version 1, committed at 0 by an anonymous caller, of no owner or space, not deleted, untagged and keeping no schedules unless `overrides` says otherwise. | — |
 
 :::
