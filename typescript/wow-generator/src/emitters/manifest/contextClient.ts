@@ -15,6 +15,7 @@ import { join } from 'node:path';
 import { relativeModuleSpecifier } from '../../emit/imports';
 import type { ModuleSet } from '../../emit/moduleBuilder';
 import type { ContextModel } from '../../manifest/model';
+import { CONTEXT_CLIENT_MEMBERS, classMembers } from '../../manifest/names';
 import { camelCase, resolvePropertyName } from '../../naming/naming';
 import { addStatement, doc, WOW_CLIENT } from './generatedModule';
 
@@ -34,7 +35,13 @@ export function emitContextClient(
   module.imports.add('./manifest.js', [`${context.typeName}Manifest`]);
   const fields: string[] = [];
   const assignments: string[] = [];
-  for (const aggregate of context.aggregates) {
+  // An aggregate `commands` or `routes` takes `commandsAggregate`, apart from the context's own members.
+  const properties = classMembers(
+    context.aggregates.map(aggregate => camelCase(aggregate.name)),
+    CONTEXT_CLIENT_MEMBERS,
+    'Aggregate',
+  );
+  for (const [index, aggregate] of context.aggregates.entries()) {
     const type = aggregate.typeName;
     const at = (file: string) =>
       relativeModuleSpecifier(
@@ -54,7 +61,7 @@ export function emitContextClient(
       at('queryClient.ts'),
       members.slice(1).map(([, client]) => client),
     );
-    const property = resolvePropertyName(camelCase(aggregate.name));
+    const property = resolvePropertyName(properties[index]);
     fields.push(
       `${doc([`The clients of \`${aggregate.context}.${aggregate.name}\`.`], '  ')}  readonly ${property}: {\n${members.map(([member, client]) => `    readonly ${member}: ${client};`).join('\n')}\n  };`,
     );

@@ -27,7 +27,7 @@ import type {
   LifecycleModel,
   Route,
 } from './model';
-import { aggregateTypeName } from './names';
+import { aggregateTypeName, LIFECYCLE_BODIES } from './names';
 import type { Position, SchemaTypes } from './schemaTypes';
 import type { TextNumbers, TextNumbersModel } from './textNumbers';
 
@@ -48,11 +48,6 @@ function accessOf(aggregate: ManifestAggregate): AccessModel[] {
   }));
 }
 
-const LIFECYCLE_BODIES: Readonly<Record<string, string>> = {
-  'wow.lifecycle.TransferOwner': 'TransferOwner',
-  'wow.lifecycle.TransferSpace': 'TransferSpace',
-};
-
 /** The lifecycle commands `@ahoo-wang/wow-client` sends (decision D113). */
 const LIFECYCLE_COMMANDS: ReadonlySet<string> = new Set([
   'wow.lifecycle.DeleteAggregate',
@@ -60,6 +55,38 @@ const LIFECYCLE_COMMANDS: ReadonlySet<string> = new Set([
   'wow.lifecycle.TransferOwner',
   'wow.lifecycle.TransferSpace',
 ]);
+
+/** The members of a generated command client its commands' methods never take. */
+const COMMAND_CLIENT_MEMBERS = ['client', 'constructor'];
+
+/**
+ * The method of a command named `method` by its name, apart from every name
+ * in `taken`: the method, its stream twin (`…Stream`) and, with `own`, the
+ * method to the caller's own and its twin (`…Own`, `…OwnStream`). A name any
+ * of them meets takes `Command`, then `Command2` and so on, so a command
+ * `StartStream` beside `Start`, or one named `Client`, gets a method of its
+ * own. Every name it takes is added to `taken`.
+ */
+function commandMethod(
+  method: string,
+  own: boolean,
+  taken: Set<string>,
+): string {
+  const namesOf = (name: string) =>
+    own
+      ? [name, `${name}Stream`, `${name}Own`, `${name}OwnStream`]
+      : [name, `${name}Stream`];
+  let chosen = method;
+  for (
+    let suffix = 1;
+    namesOf(chosen).some(name => taken.has(name));
+    suffix += 1
+  ) {
+    chosen = `${method}Command${suffix === 1 ? '' : suffix}`;
+  }
+  for (const name of namesOf(chosen)) taken.add(name);
+  return chosen;
+}
 
 /** Whether a command's body `schema` requires nothing a caller sends. */
 function emptyBody(
@@ -201,13 +228,11 @@ export function aggregateModel(
         ...(typeof description === 'string' ? { description } : {}),
       };
     });
-  const taken = new Set(
-    lifecycle.flatMap(item => [item.method, item.ownMethod ?? item.method]),
-  );
+  const taken = new Set([
+    ...COMMAND_CLIENT_MEMBERS,
+    ...lifecycle.flatMap(item => [item.method, item.ownMethod ?? item.method]),
+  ]);
   const commands: CommandModel[] = domainCommands(aggregate).map(command => {
-    let method = toIdentifier(camelCase(command.name));
-    if (taken.has(method) || method === 'gateway') method = `${method}Command`;
-    taken.add(method);
     const routes = (command.routes ?? []).filter(
       route => route.method === 'POST',
     );
@@ -215,12 +240,13 @@ export function aggregateModel(
     const unaddressed = routes.find(route => !route.path.includes('{id}'));
     // Of an aggregate whose id is its owner's, the route by no id is the caller's own, but a mounted command's,
     // whose aggregate a transformer finds.
-    let ownMethod: string | undefined;
-    if (owned && byId && unaddressed && !(command.mounted ?? false)) {
-      ownMethod = `${method}Own`;
-      if (taken.has(ownMethod)) ownMethod = `${ownMethod}Command`;
-      taken.add(ownMethod);
-    }
+    const own = owned && byId && unaddressed && !(command.mounted ?? false);
+    const method = commandMethod(
+      toIdentifier(camelCase(command.name)),
+      own === true,
+      taken,
+    );
+    const ownMethod = own ? `${method}Own` : undefined;
     const key = schemaKey(command.schema);
     const bodySchema = key === undefined ? undefined : types.schemaOf(key);
     const idProperty = command.idProperty;
