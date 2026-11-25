@@ -113,7 +113,8 @@ class View(private val state: ViewState) {
     /**
      * Makes a shared view personal to the operator who sends the claim, as the owner `(shared)`: the kernel admits
      * the command only for a view that owner holds. A personal view claimed by its own owner changes nothing; one of
-     * anyone else is not claimed. A view some shared dashboard shows stays shared.
+     * anyone else is not claimed. A view some shared dashboard shows stays shared, as does one a stored system
+     * dashboard shows, which every reader sees too ([SharedBoardReferences]).
      */
     @OnCommand
     suspend fun onClaim(command: Command<ClaimView>, references: SharedBoardReferences): ViewClaimed? {

@@ -80,7 +80,7 @@ export type WowViewStoreErrorCode = (typeof WowViewStoreErrorCodes)[keyof typeof
 | `view-store.invalid` | 400 | The write is not valid: its config, title, preferences or wording |
 | `view-store.owner-required` | 400 | The write has no owner: a view is saved by a user, by `(shared)`, or by `(system)` under `(platform)` |
 | `view-store.not-found` | 404 | The aggregate belongs to another application, which reads as none |
-| `view-store.referenced-by-shared-dashboard` | 409 | A claim of a view a shared dashboard shows, which stays shared; the problem names the boards in `boards` |
+| `view-store.referenced-by-shared-dashboard` | 409 | A claim of a view a shared dashboard or a stored system dashboard shows, which stays shared; the problem names the boards in `boards` |
 | `view-store.system-view-read-only` | 403 | A share or a claim of a system view, which never moves audience |
 
 ## Contract
@@ -94,7 +94,7 @@ export type WowViewStoreErrorCode = (typeof WowViewStoreErrorCodes)[keyof typeof
 | Errors | By the problem's `code` onto `CONFLICT`, `NOT_FOUND`, `FORBIDDEN`, `INVALID` and `UNAVAILABLE`; by the HTTP status only when no known code came back; `UNSUPPORTED` when the service does not serve the route. The error keeps the code as `detail.code` |
 | List order | System views, then shared, then personal, each audience oldest first; a page at a time, `pageSize` views a page, with one cursor across the audiences |
 | System views | Configured ones are read-only; stored ones carry `stored: true` and are created (published as a copy), saved, renamed and deleted as `(system)` of `(platform)`, never shared or claimed. Their `revision` is a content hash; the store sends the version it read beside it. The engine's `editSystem` is the host's to give, off when unsaid |
-| Shared boards | A view a shared dashboard shows stays shared: the claim is `INVALID`, its `boards` the boards' titles as stored, which the view engine says in its own words |
+| Shared boards | A view a shared dashboard shows stays shared, and so does one a stored system dashboard shows, which every reader sees too: the claim is `INVALID`, its `boards` the boards' titles as stored, which the view engine says in its own words |
 
 ## Requests {#requests}
 
@@ -135,7 +135,7 @@ Every rejection is the engine's `ViewStoreError`, read by the problem's code, an
 
 Every `ViewStoreError` keeps what it was read from: the request's failure as `cause` and the problem's code as `detail.code`, so a host tells `view-store.app-required` from `view-store.invalid`, both `INVALID`.
 
-A claim the service refuses because shared dashboards show the view carries those boards' **titles** in the error's `boards`, as stored, and the view engine says the refusal in its own words around them: a title written as a key stays a key, said where the refusal is shown. The `message` keeps the service's words, for logs.
+A claim the service refuses because shared dashboards (or stored system dashboards) show the view carries those boards' **titles** in the error's `boards`, as stored, and the view engine says the refusal in its own words around them: a title written as a key stays a key, said where the refusal is shown. The `message` keeps the service's words, for logs.
 
 ## Hosts and the gateway
 

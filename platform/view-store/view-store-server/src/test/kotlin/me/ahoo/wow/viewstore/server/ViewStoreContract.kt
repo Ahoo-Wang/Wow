@@ -130,6 +130,22 @@ abstract class ViewStoreContract {
     }
 
     @Test
+    fun `a shared view a stored system dashboard shows should stay shared, as for a shared dashboard`() {
+        // A stored system dashboard is every reader's, as a shared one is: the view made personal would be blank on
+        // it for all but its new owner (D486 ④).
+        val definition = definition()
+        val view = create(CAROL.shared, definition)
+        val board = create(ADMIN.system, definition, title = "Platform board", config = dashboardOf(view))
+        val problem = store.post("/view-store/view/$view/claim-view", "{}", CAROL.shared)
+            .assertProblem(CONFLICT, ViewStoreRejections.REFERENCED_BY_SHARED_DASHBOARD).json
+        problem[ViewStoreRejections.BOARDS].values().map { it["id"].asString() to it["title"].asString() }.assert()
+            .containsExactly(board to "Platform board")
+        // Once it is unpublished, nothing holds the view shared.
+        store.delete("/view-store/view/$board", ADMIN.system).assertOk()
+        store.post("/view-store/view/$view/claim-view", "{}", CAROL.shared, MOVED).assertOk()
+    }
+
+    @Test
     fun `a stored system view should be written by a system writer and read by everyone`() {
         val definition = definition()
         val id = create(ADMIN.system, definition)

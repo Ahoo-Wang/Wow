@@ -16,8 +16,10 @@
  * `WowDatasetWordings` to beyond the port's conformance
  * (`describeViewStoreConformance`, the engine's, which every `ViewStore`
  * passes): tenants and applications kept apart, the stored and configured
- * system views, who writes what (the service's roles) and the service's
- * error codes. These are the service's rules, not the port's, so they live
+ * system views (at most 1,000 stored ones listed), who writes what (the
+ * service's roles, and no write without an owner), the service's error
+ * codes, and what the kernel answers a retry from another owner and the HTTP
+ * layer an `If-Match` that names no version. These are the service's rules, not the port's, so they live
  * in the package of the store that speaks to it.
  *
  * It runs against two subjects, which must answer alike:
@@ -41,6 +43,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { WowHeaders } from '@ahoo-wang/wow-client';
 import type {
   ViewConfig,
   ViewInstanceSummary,
@@ -56,6 +59,21 @@ export interface ServiceCaller {
   /** The application; blank for a request that names none. */
   app: string;
   roles?: readonly string[];
+  /**
+   * Signed in as `user`, with a scope that names no owner: a tenant-level
+   * caller, which writes no view or preferences.
+   */
+  ownerless?: boolean;
+}
+
+/** One request a store never sends, as `ServiceStores.send` takes it. */
+export interface ServiceRequest {
+  method: 'GET' | 'POST' | 'DELETE';
+  /** From `/view-store/` on, the service's own path. */
+  path: string;
+  headers?: Record<string, string>;
+  /** Sent as JSON. */
+  body?: unknown;
 }
 
 /**
@@ -76,6 +94,12 @@ export interface ServiceStores {
     | 'setPreferences'
   >;
   wordings: Pick<WowDatasetWordings, 'list' | 'set' | 'clear'>;
+  /**
+   * Sends one request as the caller, outside any store, and answers the
+   * response as it came: for what a store never sends (a header it never
+   * writes, a retry from another owner).
+   */
+  send(request: ServiceRequest): Promise<Response>;
 }
 
 export interface WowViewStoreService {
@@ -437,6 +461,143 @@ export function describeWowViewStoreService(
           open(ALICE).views.list(fresh(), { cursor: 'not a cursor' }),
         ).rejects.toMatchObject({ code: 'INVALID' });
       });
+    });
+
+    describe('the stored system views of a definition', () => {
+      // StoredSystemViews.MAX_STORED: the most one application lists of a
+      // definition, the client's list budget; the oldest are served.
+      it('are listed 1,000 at most, the oldest', async () => {
+        const open = await storesOf();
+        const admin = open({
+          tenant: `system-c-${run}`,
+          user: 'admin',
+          app: 'system-views',
+          roles: [subject.systemWriter],
+        }).views;
+        const definitionId = fresh();
+        const created: string[] = [];
+        for (let batch = 0; batch < 40; batch++)
+          created.push(
+            ...(
+              await Promise.all(
+                Array.from({ length: 25 }, (_, index) =>
+                  admin.create(
+                    {
+                      definitionId,
+                      title: `System ${batch * 25 + index}`,
+                      scope: 'system',
+                      config,
+                    },
+                    write(),
+                  ),
+                ),
+              )
+            ).map(view => view.id),
+          );
+        // Written after every other: the newest, the one left out.
+        const newest = await admin.create(
+          { definitionId, title: 'Newest', scope: 'system', config },
+          write(),
+        );
+
+        const listed = (await listAll(admin, definitionId)).map(({ id }) => id);
+        expect(listed).toHaveLength(1000);
+        expect(new Set(listed)).toEqual(new Set(created));
+        // Still read by its id.
+        expect((await admin.get(newest.id)).title).toBe('Newest');
+      }, 120_000);
+    });
+
+    describe('what the kernel and the authorizer answer', () => {
+      it('answers a retried write as its duplicate only to a caller who reaches the view as its first attempt did', async () => {
+        // KernelAnswers.duplicate, CommandReach.retries under the view's
+        // access policy: from another owner the view does not exist (#6917).
+        const open = await storesOf();
+        const alice = open(ALICE);
+        const bob = open({ ...ALICE, user: 'bob', roles: [] });
+        const made = await alice.views.create(
+          { definitionId: fresh(), title: 'Mine', scope: 'personal', config },
+          write(),
+        );
+        const requestId = `service-${crypto.randomUUID()}`;
+        const body = { config: { ...config, pageSize: 50 } };
+        await alice.views.save(made.id, body.config, made.revision, {
+          requestId,
+        });
+        const retry = (from: ServiceStores) =>
+          from.send({
+            method: 'POST',
+            path: `/view-store/view/${made.id}/save-view`,
+            headers: {
+              [WowHeaders.REQUEST_ID]: requestId,
+              'If-Match': `"${made.revision}"`,
+            },
+            body,
+          });
+
+        const again = await retry(alice);
+        expect(again.status).toBe(200);
+        expect(await again.json()).toMatchObject({ duplicate: true });
+        const stranger = await retry(bob);
+        expect(stranger.status).toBe(404);
+        expect(await stranger.json()).toMatchObject({
+          code: 'wow.aggregate.not-found',
+        });
+      });
+
+      it('refuses a view or preferences write that acts as no owner, FORBIDDEN', async () => {
+        // ViewStoreAuthorizer: a write in a scope without an owner would
+        // reach every owner's views, so it is refused whatever its roles.
+        const open = await storesOf();
+        const definitionId = fresh();
+        const nobody = open({ ...ALICE, ownerless: true }).views;
+        for (const refused of [
+          () =>
+            nobody.create(
+              { definitionId, title: 'Nobody’s', scope: 'personal', config },
+              write(),
+            ),
+          () =>
+            nobody.setPreferences(
+              definitionId,
+              { order: [], defaultInstanceId: null, revision: '0' },
+              write(),
+            ),
+        ])
+          await expect(refused()).rejects.toMatchObject({
+            code: 'FORBIDDEN',
+            detail: { code: 'wow.auth.forbidden' },
+          });
+        expect(await listAll(open(ALICE).views, definitionId)).toEqual([]);
+      });
+
+      it.each(['"NaN"', 'W/"1"', '"01"', '1'])(
+        'refuses If-Match %s, which names no version, as malformed before the write is decided',
+        async ifMatch => {
+          // EntityTags.ifMatch: a header whose tags name no version gave
+          // none, so it is malformed, not a mismatch.
+          const open = await storesOf();
+          const alice = open(ALICE);
+          const made = await alice.views.create(
+            { definitionId: fresh(), title: 'Mine', scope: 'personal', config },
+            write(),
+          );
+          const answer = await alice.send({
+            method: 'POST',
+            path: `/view-store/view/${made.id}/rename-view`,
+            headers: {
+              [WowHeaders.REQUEST_ID]: `service-${crypto.randomUUID()}`,
+              'If-Match': ifMatch,
+            },
+            body: { title: 'Renamed' },
+          });
+          expect(answer.status).toBe(400);
+          expect(await answer.json()).toMatchObject({
+            code: 'wow.request.malformed',
+          });
+          expect(await alice.views.get(made.id)).toEqual(made);
+        },
+      );
     });
 
     describe('the dataset wording', () => {

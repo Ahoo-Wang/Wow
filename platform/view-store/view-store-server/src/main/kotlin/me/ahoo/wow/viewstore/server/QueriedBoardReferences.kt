@@ -29,28 +29,42 @@ import me.ahoo.wow.viewstore.domain.view.ViewConfigs
 import tools.jackson.databind.node.ObjectNode
 
 /**
- * The shared dashboards that reference a view, from the view snapshots: every shared dashboard of the tenant and the
- * application, a keyset page of [PAGE] at a time, each read only for its id, its title and its config (the schema
+ * The dashboards every reader sees that reference a view, from the view snapshots: every shared dashboard of the
+ * tenant and the application, then every stored system dashboard of the application (the tenant
+ * [ViewStoreContext.SYSTEM_TENANT_ID] under the owner [ViewStoreContext.SYSTEM_OWNER_ID], which every tenant reads), a
+ * keyset page of [PAGE] at a time, each read only for its id, its title and its config (the schema
  * projects nothing deeper in it), whose panels' references are then matched here (no dashboard past a
  * bound is missed, and a claim holds one page of configs in memory, never every dashboard's). 9.x matched the panels
  * in the query; the query protocol has no element match into a free-form config, so the panels are read instead.
  *
- * The dashboards are read as trusted code, the view store's own: a claim checks every shared dashboard of the tenant,
- * whoever claims. A node whose backend serves no snapshot query ([QueryNotServedException]: the memory backend with
+ * The dashboards are read as trusted code, the view store's own: a claim checks every shared dashboard of the tenant
+ * and every stored system dashboard of the application, whoever claims. A configured system view is the deployment's,
+ * not a snapshot, so it is not checked. A node whose backend serves no snapshot query ([QueryNotServedException]: the memory backend with
  * `wow.query.memory.enabled` false, say) knows of no reference, and says so in its log.
  */
 class QueriedBoardReferences(private val queries: () -> NodeQueryApi) : SharedBoardReferences {
     override suspend fun referencingBoards(tenantId: String, appId: String, viewId: String): List<BoardReference> {
         val views = views() ?: return none()
+        return views.boards(tenantId, ViewStoreContext.SHARED_OWNER_ID, appId, viewId) +
+            views.boards(ViewStoreContext.SYSTEM_TENANT_ID, ViewStoreContext.SYSTEM_OWNER_ID, appId, viewId)
+    }
+
+    /** The dashboards of [ownerId] in [tenantId] and [appId] that reference [viewId], read a page at a time. */
+    private suspend fun RowQueries<ObjectNode>.boards(
+        tenantId: String,
+        ownerId: String,
+        appId: String,
+        viewId: String,
+    ): List<BoardReference> {
         val references = mutableListOf<BoardReference>()
         var cursor: String? = null
         do {
             val after = cursor
-            val page = views.cursor(
+            val page = this.cursor(
                 cursorQuery {
                     filter {
                         tenantId(tenantId)
-                        ownerId(ViewStoreContext.SHARED_OWNER_ID)
+                        ownerId(ownerId)
                         "state.appId" eq appId
                         "state.kind" eq ViewKind.DASHBOARD.value
                     }
@@ -74,7 +88,7 @@ class QueriedBoardReferences(private val queries: () -> NodeQueryApi) : SharedBo
     }
 
     private fun none(): List<BoardReference> {
-        logger.warn { "No snapshot query serves $VIEW: a claim checks no shared dashboard." }
+        logger.warn { "No snapshot query serves $VIEW: a claim checks no shared or system dashboard." }
         return emptyList()
     }
 

@@ -1094,6 +1094,33 @@ export function describeViewStoreConformance(
         },
       );
 
+      // D486 ④: a stored system board is every reader's, as a shared one is,
+      // so the view it shows made personal would be blank on it for all but
+      // one reader. A configured one is the deployment's, not checked.
+      it.skipIf(!personal || !capabilities.storedSystemViews)(
+        'keeps shared a view a stored system board shows, as a shared board does, and names the board',
+        async () => {
+          const { alice, definitionId, create } = await setup();
+          const shown = await create('Shown', 'shared');
+          const board = await alice.create(
+            {
+              definitionId: `${definitionId}-boards`,
+              title: 'Platform board',
+              scope: 'system',
+              config: boardShowing(shown.id),
+            },
+            write(),
+          );
+
+          const failure = await refusal(
+            change(alice, shown.id, 'personal', shown.revision),
+            'INVALID',
+          );
+          expect(failure.boards).toEqual([board.title]);
+          expect(await alice.get(shown.id)).toEqual(shown);
+        },
+      );
+
       it.skipIf(!personal)(
         'lets a view go personal when only a personal board shows it',
         async () => {

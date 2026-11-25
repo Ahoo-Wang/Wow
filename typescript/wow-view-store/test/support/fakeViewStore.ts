@@ -26,12 +26,17 @@
  * It answers as the service does, as far as the store can tell: the callers
  * the host gives a development run ({@link DevelopmentCallerHeaders}, and
  * `Wow-Scope` naming `(shared)` or `(system)` of `(platform)`), the write
- * rules of `ViewStoreAuthorizer`, request ids deduplicated before the
- * expected version is checked, `If-Match`, the share and claim moved by the
- * saga one version later, the shared-dashboard refusal said in the
- * problem's detail, problem+json with the service's codes, and a 404
- * without a code for a route it does not serve. The real service is held to
- * the same behaviour by `typescript/integration-test/test/view-store/`.
+ * rules of `ViewStoreAuthorizer` (no write without an owner among them),
+ * request ids deduplicated before the expected version is checked and
+ * answered only to a caller who reaches the aggregate as the first attempt
+ * did, `If-Match` read as `EntityTags` reads it, the share and claim moved by
+ * the saga one version later, the shared-dashboard refusal (a stored system
+ * board counting as a shared one) said in the problem's detail, at most
+ * 1,000 stored system views listed of a definition, problem+json with the
+ * service's codes, and a 404 without a code for a route it does not serve.
+ * The service's rules suite (`test/conformance/wowViewStoreService.ts`) holds
+ * it and the real service (`typescript/integration-test/test/view-store/`) to
+ * the same answers.
  */
 
 import {
@@ -161,6 +166,12 @@ const KINDS = ['record', 'analysis', 'dashboard'];
 /** `ViewConfigs.MAX_TITLE_LENGTH` and `MAX_CONFIG_BYTES` of the service. */
 const MAX_TITLE = 120;
 const MAX_CONFIG_BYTES = 240 * 1024;
+/**
+ * `StoredSystemViews.MAX_STORED`: the most stored system views one
+ * application lists of a definition, the oldest; one read by id is not
+ * bound by it.
+ */
+const MAX_STORED_SYSTEM_VIEWS = 1000;
 
 class Answer {
   constructor(readonly response: Response) {}
@@ -221,6 +232,95 @@ function setAt(target: Record<string, unknown>, path: string, value: unknown) {
   for (const key of keys.slice(0, -1))
     node = (node[key] ??= {}) as Record<string, unknown>;
   node[keys[keys.length - 1]] = value;
+}
+
+/** `etagc` (RFC 9110): `!`, `#` to `~`, and obs-text; no space, no `"`. */
+function isTagChar(char: string): boolean {
+  const code = char.charCodeAt(0);
+  return (
+    char === '!' ||
+    (code >= 0x23 && code <= 0x7e) ||
+    (code >= 0x80 && code <= 0xff)
+  );
+}
+
+/** The entity tags of a conditional header, or null when it does not parse. */
+function entityTags(value: string): { opaque: string; weak: boolean }[] | null {
+  const tags: { opaque: string; weak: boolean }[] = [];
+  const skip = (from: number) => {
+    let at = from;
+    while (at < value.length && (value[at] === ' ' || value[at] === '\t')) at++;
+    return at;
+  };
+  let i = 0;
+  while (i < value.length) {
+    i = skip(i);
+    if (value[i] === ',') {
+      i++;
+      continue;
+    }
+    if (i >= value.length) break;
+    const weak = value.startsWith('W/', i);
+    if (weak) i += 2;
+    if (value[i] !== '"') return null;
+    const end = value.indexOf('"', i + 1);
+    if (end < 0) return null;
+    const opaque = value.slice(i + 1, end);
+    if (![...opaque].every(isTagChar)) return null;
+    tags.push({ opaque, weak });
+    i = skip(end + 1);
+    if (i < value.length && value[i] !== ',') return null;
+  }
+  return tags.length === 0 ? null : tags;
+}
+
+/**
+ * The version a command's `If-Match` expects, as the service's
+ * `EntityTags.ifMatch` reads it: the one version its strong tags name
+ * (`"3"`, or a state read's `"3-<digest>"`, in decimal with no leading zero
+ * and within an `Int`); none for `*`, unless the command creates its
+ * aggregate (412). A header that does not parse, or whose tags name no
+ * version (`W/"3"`, `"03"`, `"NaN"`) or two, is malformed (400): it gave no
+ * version, so it is no mismatch.
+ */
+function expectedVersionOf(
+  value: string | null,
+  creates: boolean,
+): number | undefined {
+  if (value === null) return undefined;
+  const trimmed = value.trim();
+  if (trimmed === '*') {
+    if (creates)
+      fail(
+        412,
+        'wow.aggregate.version-mismatch',
+        'If-Match: * names an aggregate that exists; this command creates one.',
+      );
+    return undefined;
+  }
+  const tags = entityTags(trimmed);
+  if (tags === null)
+    fail(
+      400,
+      'wow.request.malformed',
+      `If-Match is * or a list of entity tags, such as "3": '${value}'.`,
+    );
+  const versions = new Set(
+    tags
+      .filter(tag => !tag.weak)
+      .map(tag => /^(0|[1-9][0-9]{0,9})(-[0-9a-f]{16})?$/.exec(tag.opaque))
+      .map(match => (match ? Number(match[1]) : Number.NaN))
+      .filter(version => version <= 2_147_483_647),
+  );
+  if (versions.size !== 1)
+    fail(
+      400,
+      'wow.request.malformed',
+      versions.size === 0
+        ? `If-Match names no version of the aggregate, as a strong tag such as "3" does: '${value}'.`
+        : `A command takes one expected version; If-Match names ${[...versions].sort((a, b) => a - b).join(', ')}.`,
+    );
+  return [...versions][0];
 }
 
 interface Filter {
@@ -335,6 +435,14 @@ export function fakeViewStore(
   }
 
   function authorize(caller: Caller, name: AggregateName, command: string) {
+    // As ViewStoreAuthorizer, whatever the roles: a write in a scope without
+    // an owner would reach every owner's views and preferences.
+    if (name !== 'dataset_wording' && caller.ownerId === null)
+      fail(
+        403,
+        'wow.auth.forbidden',
+        `${caller.user ?? 'An anonymous caller'} may not view-store.${name}.${command}: a write to the view store acts as an owner, a user or ${SHARED} or ${SYSTEM}, and this one names none.`,
+      );
     // As ViewStoreAuthorizer: a reserved owner's write takes its role; a
     // user's own view shared is published to (shared), so it takes the role
     // that writes (shared), sent as its user.
@@ -475,6 +583,11 @@ export function fakeViewStore(
     aggregate?: Aggregate;
     expected?: number;
   } {
+    // Read with the request, before anything is decided.
+    const expected = expectedVersionOf(
+      headers.get('If-Match'),
+      command === 'CreateView',
+    );
     if (command === 'wow.lifecycle.TransferOwner')
       fail(
         403,
@@ -486,6 +599,21 @@ export function fakeViewStore(
       headers.get(WowHeaders.REQUEST_ID) ?? `request-${++sequence}`;
     const first = answered.get(`${caller.tenantId}\u0000${requestId}`);
     if (first) {
+      // KernelAnswers.duplicate: answered only to a caller who reaches the
+      // aggregate as its first attempt did (CommandReach.retries under the
+      // access policies: the owner it was sent to, and the aggregate's
+      // application), whatever it has since become; to any other as an
+      // aggregate that does not exist, before the command types are
+      // compared, so it learns nothing of another caller's request.
+      if (
+        first.app !== caller.app ||
+        (name !== 'dataset_wording' && first.ownerId !== caller.ownerId)
+      )
+        fail(
+          404,
+          'wow.aggregate.not-found',
+          `view-store.${name}/${caller.tenantId}/${id || String(first.id)} does not exist.`,
+        );
       if (
         first.command !== command ||
         (first.id !== undefined && first.id !== id && id !== '')
@@ -497,9 +625,6 @@ export function fakeViewStore(
         );
       return { requestId, duplicate: first };
     }
-    const match = headers.get('If-Match');
-    const expected =
-      match === null ? undefined : Number(match.replace(/"/g, ''));
     return {
       requestId,
       aggregate: aggregates.get(keyOf(name, caller.tenantId, id)),
@@ -517,13 +642,24 @@ export function fakeViewStore(
       ...answer,
       command,
       id: (answer.ref as { id: string }).id,
+      ownerId: caller.ownerId,
+      app: caller.app,
     });
   }
 
   function duplicateOf(first: Record<string, unknown>): Response {
-    const { command: _command, id: _id, firstVersion, ...rest } = first;
+    const {
+      command: _command,
+      id: _id,
+      ownerId: _ownerId,
+      app: _app,
+      firstVersion,
+      ...rest
+    } = first;
     void _command;
     void _id;
+    void _ownerId;
+    void _app;
     return json({
       ...rest,
       commandId: `command-${++sequence}`,
@@ -746,8 +882,11 @@ export function fakeViewStore(
             board.name === 'view' &&
             !board.deleted &&
             board.id !== id &&
-            board.tenantId === aggregate.tenantId &&
-            board.ownerId === SHARED &&
+            // The shared boards of the view's tenant, and the stored system
+            // ones every tenant reads (QueriedBoardReferences, D486 ④).
+            ((board.tenantId === aggregate.tenantId &&
+              board.ownerId === SHARED) ||
+              (board.tenantId === PLATFORM && board.ownerId === SYSTEM)) &&
             board.state.appId === app &&
             board.state.kind === 'dashboard' &&
             (
@@ -1080,7 +1219,15 @@ export function fakeViewStore(
     );
   }
 
-  function systemViews(caller: Caller): Record<string, unknown>[] {
+  /**
+   * The caller's system views, as `StoredSystemViews` answers them: of
+   * `definitionId` when it is given, at most the oldest
+   * `MAX_STORED_SYSTEM_VIEWS` stored ones; of `id` alone when it is given.
+   */
+  function systemViews(
+    caller: Caller,
+    of: { definitionId?: string | null; id?: string },
+  ): Record<string, unknown>[] {
     if (!caller.app)
       fail(
         400,
@@ -1091,7 +1238,9 @@ export function fakeViewStore(
       .filter(
         view =>
           (!view.tenantId || view.tenantId === caller.tenantId) &&
-          (!view.appId || view.appId === caller.app),
+          (!view.appId || view.appId === caller.app) &&
+          (!of.definitionId || view.definitionId === of.definitionId) &&
+          (of.id === undefined || view.id === of.id),
       )
       .map(view => ({
         id: view.id,
@@ -1113,11 +1262,14 @@ export function fakeViewStore(
           !view.deleted &&
           view.tenantId === PLATFORM &&
           view.ownerId === SYSTEM &&
-          view.state.appId === caller.app,
+          view.state.appId === caller.app &&
+          (!of.definitionId || view.state.definitionId === of.definitionId) &&
+          (of.id === undefined || view.id === of.id),
       )
       .sort(
         (a, b) => a.firstEventTime - b.firstEventTime || (a.id < b.id ? -1 : 1),
       )
+      .slice(0, MAX_STORED_SYSTEM_VIEWS)
       .map(view => ({
         id: view.id,
         definitionId: view.state.definitionId,
@@ -1173,7 +1325,7 @@ export function fakeViewStore(
         version: saved.version,
         source: null,
       };
-    const system = systemViews(caller).find(view => view.id === id);
+    const [system] = systemViews(caller, { id });
     if (system) return system;
     fail(404, 'view-store.not-found', `View [${id}] is not found.`);
   }
@@ -1242,11 +1394,8 @@ export function fakeViewStore(
     if (datasetAnswer) return datasetAnswer;
     const caller = callerOf(headers);
     if (method === 'GET' && path === '/view-store/system-views') {
-      const definitionId = query.get('definitionId');
       return json(
-        systemViews(caller).filter(
-          view => !definitionId || view.definitionId === definitionId,
-        ),
+        systemViews(caller, { definitionId: query.get('definitionId') }),
       );
     }
     const one = /^\/view-store\/views\/([^/]+)$/.exec(path);

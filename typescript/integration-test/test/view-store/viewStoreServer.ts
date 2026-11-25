@@ -22,6 +22,7 @@
  */
 
 import { Fetcher } from '@ahoo-wang/fetcher';
+import { developmentCallerHeaders } from '@ahoo-wang/wow-client';
 import { developmentCaller } from '@ahoo-wang/wow-client/testing';
 import { inject } from 'vitest';
 
@@ -40,6 +41,8 @@ export interface Caller {
   user: string;
   appId: string;
   roles?: readonly string[];
+  /** Signed in as `user` with a scope that names no owner: a tenant-level caller. */
+  ownerless?: boolean;
 }
 
 /** The service's base URL, as the global setup provides it. */
@@ -47,17 +50,45 @@ export function serviceURL(): string {
   return inject('viewStoreURL');
 }
 
+/** The development caller of `caller`: its user, the owner unless it has none. */
+function developmentOf(caller: Caller) {
+  return {
+    user: caller.user,
+    ...(caller.ownerless ? {} : { owner: caller.user }),
+    tenant: caller.tenantId,
+    app: caller.appId,
+    ...(caller.roles === undefined ? {} : { roles: caller.roles }),
+  };
+}
+
 /** A fetcher on the service that asks as `caller`. */
 export function actingAs(caller: Caller): Fetcher {
   const fetcher = new Fetcher({ baseURL: serviceURL() });
-  fetcher.interceptors.request.use(
-    developmentCaller({
-      user: caller.user,
-      owner: caller.user,
-      tenant: caller.tenantId,
-      app: caller.appId,
-      roles: caller.roles,
-    }),
-  );
+  fetcher.interceptors.request.use(developmentCaller(developmentOf(caller)));
   return fetcher;
+}
+
+/**
+ * Sends one request to the service as `caller`, outside any store, and
+ * answers the response as it came; `body` is sent as JSON.
+ */
+export function sendAs(
+  caller: Caller,
+  request: {
+    method: string;
+    path: string;
+    headers?: Record<string, string>;
+    body?: unknown;
+  },
+): Promise<Response> {
+  const { method, path, headers = {}, body } = request;
+  return fetch(new URL(path.replace(/^\//, ''), serviceURL()), {
+    method,
+    headers: {
+      ...developmentCallerHeaders(developmentOf(caller)),
+      ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+      ...headers,
+    },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+  });
 }

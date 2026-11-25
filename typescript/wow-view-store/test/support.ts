@@ -25,6 +25,8 @@ export const BASE_URL = 'http://view-store.test/';
 /** Who asks: the headers the service's caller resolver reads. */
 export interface Caller {
   user?: string;
+  /** The owner of its scope: the user when left out; none when null. */
+  owner?: string | null;
   tenant?: string;
   roles?: readonly string[];
   app?: string;
@@ -37,14 +39,18 @@ export const WRITER_ROLES = [
 ] as const;
 
 /**
- * A Fetcher on {@link BASE_URL} that asks as `caller`, the owner of its
- * personal views; the anonymous caller without a user.
+ * A Fetcher on {@link BASE_URL} that asks as `caller`, by default the owner
+ * of its personal views; the anonymous caller without a user.
  */
-export function actingAs({ user, ...caller }: Caller): Fetcher {
+export function actingAs({ user, owner = user, ...caller }: Caller): Fetcher {
   const fetcher = new Fetcher({ baseURL: BASE_URL });
   if (user !== undefined)
     fetcher.interceptors.request.use(
-      developmentCaller({ user, owner: user, ...caller }),
+      developmentCaller({
+        user,
+        ...(owner === null || owner === undefined ? {} : { owner }),
+        ...caller,
+      }),
     );
   return fetcher;
 }
