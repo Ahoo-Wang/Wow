@@ -55,28 +55,32 @@ internal object PostgresFormat {
     }
 
     /**
-     * Makes sure of [structures] (each a table and its format version) as [ddl] says ([Ddl.ensure]): creating them
-     * claims them and runs [create] in one transaction ([creating]), whose statements go through
-     * [PostgresSchema.execute] so that a current schema takes no table lock; validating checks that each is recorded
-     * at its version and exists ([validate]).
+     * Makes sure of [structures] (each a table and its format version), made by [statements], as [ddl] says
+     * ([Ddl.ensure]): creating them claims them, runs [statements] through [PostgresSchema.execute] (so that a current
+     * schema takes no table lock), then [create], in one transaction ([creating]); validating checks that each is
+     * recorded at its version and exists ([validate]), and that the tables have the keys and indexes [statements]
+     * declare ([PostgresKeys.check]): `auto` validates what it created or found too.
      */
     fun schema(
         connection: Connection,
         ddl: Ddl,
         structures: List<Pair<String, Int>>,
+        statements: List<String>,
         wait: PostgresSchema.LockWait = PostgresSchema.LockWait.DEFAULT,
-        create: () -> Unit,
+        create: () -> Unit = {},
     ) {
         ddl.ensure(
             structures.joinToString { it.first },
             create = {
                 creating(connection, structures.first().first, wait) {
                     structures.forEach { (structure, version) -> claim(connection, structure, version) }
+                    PostgresSchema.execute(connection, statements)
                     create()
                 }
             },
         ) {
             structures.map { (structure, version) -> validate(connection, structure, version) }.all { it }
+                .also { exists -> if (exists) PostgresKeys.check(connection, statements) }
         }
     }
 

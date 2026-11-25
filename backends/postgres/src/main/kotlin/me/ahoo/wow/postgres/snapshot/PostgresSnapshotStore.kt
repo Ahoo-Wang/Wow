@@ -24,7 +24,6 @@ import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.postgres.PostgresBatches
 import me.ahoo.wow.postgres.PostgresFailures
 import me.ahoo.wow.postgres.PostgresFormat
-import me.ahoo.wow.postgres.PostgresSchema
 import me.ahoo.wow.postgres.autoCommitted
 import me.ahoo.wow.postgres.inTransaction
 import me.ahoo.wow.postgres.jdbc
@@ -117,9 +116,12 @@ class PostgresSnapshotStore(
     private fun tables(aggregateName: String): PostgresSnapshotTables = created.get(aggregateName) {
         PostgresSnapshotTables(context, aggregateName).also { tables ->
             dataSource.autoCommitted { connection ->
-                PostgresFormat.schema(connection, ddl, listOf(tables.base to PostgresSnapshotTables.FORMAT)) {
-                    PostgresSchema.execute(connection, tables.ddl())
-                }
+                PostgresFormat.schema(
+                    connection,
+                    ddl,
+                    listOf(tables.base to PostgresSnapshotTables.FORMAT),
+                    tables.ddl()
+                )
             }
         }
     }

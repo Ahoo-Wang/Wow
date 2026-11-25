@@ -22,7 +22,6 @@ import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.postgres.PostgresFailures
 import me.ahoo.wow.postgres.PostgresFormat
-import me.ahoo.wow.postgres.PostgresSchema
 import me.ahoo.wow.postgres.PostgresTimeouts
 import me.ahoo.wow.postgres.autoCommitted
 import me.ahoo.wow.postgres.jdbc
@@ -88,9 +87,7 @@ class PostgresLeaseStore(
     /** Claims the tables' format ([PostgresFormat]) and creates them when missing. */
     fun createSchema() {
         dataSource.autoCommitted { connection ->
-            PostgresFormat.schema(connection, ddl, listOf(LEASES to FORMAT, MEMBERS_TABLE to FORMAT)) {
-                PostgresSchema.execute(connection, DDL)
-            }
+            PostgresFormat.schema(connection, ddl, listOf(LEASES to FORMAT, MEMBERS_TABLE to FORMAT), DDL)
         }
     }
 

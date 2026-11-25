@@ -20,7 +20,6 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.ledger.LedgerRequest
 import me.ahoo.wow.api.ledger.Recoverable
 import me.ahoo.wow.postgres.PostgresFormat
-import me.ahoo.wow.postgres.PostgresSchema
 import me.ahoo.wow.postgres.autoCommitted
 import me.ahoo.wow.postgres.jdbc
 import me.ahoo.wow.spi.Ddl
@@ -74,9 +73,12 @@ class PostgresFailureLedger(
     /** Claims the table's format ([PostgresFormat]) and creates it when missing. */
     fun createSchema() {
         dataSource.autoCommitted { connection ->
-            PostgresFormat.schema(connection, ddl, listOf(tables.name to PostgresFailureLedgerTables.FORMAT)) {
-                PostgresSchema.execute(connection, tables.ddls)
-            }
+            PostgresFormat.schema(
+                connection,
+                ddl,
+                listOf(tables.name to PostgresFailureLedgerTables.FORMAT),
+                tables.ddls
+            )
         }
     }
 
