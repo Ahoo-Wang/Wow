@@ -133,6 +133,16 @@ describe('bucketRange', () => {
     ).toBe(DAY - 3_600_000);
   });
 
+  // Santiago falls back from 00:00 to 23:00 on 5 April 2026: the 4th has 25
+  // hours, its last one read twice, and the 5th starts at 00:00 -04:00.
+  it('ends a day whose last hour repeats at the midnight after it', () => {
+    const from = Date.parse('2026-04-04T03:00:00.000Z');
+    expect(bucketRange(AggregationDateUnit.DAY, from, SANTIAGO)).toEqual({
+      from,
+      to: Date.parse('2026-04-05T04:00:00.000Z'),
+    });
+  });
+
   // #6903: the next day's midnight is skipped, so the day lasts until the
   // transition, the first instant of the next.
   it.each([
