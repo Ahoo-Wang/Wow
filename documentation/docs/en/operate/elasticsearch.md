@@ -62,7 +62,7 @@ The `--1` leaves room for a later version to reindex behind the same alias; noth
 
 ### A server that stops answering {#a-server-that-stops-answering}
 
-Each request of the store, a write, a load or a query, has its caller wait at most `operation-timeout` for an answer, as a MongoDB or PostgreSQL store's calls do: past it the caller fails with a transient error. A command whose load fails replays its log, and a snapshot subscription whose write fails pauses its partition and retries.
+Each request of the store, a write, a load or a query, has its caller wait at most `operation-timeout` for an answer, as a MongoDB or PostgreSQL store's calls do: past it the caller fails with a transient error. A timeout of zero or below refuses the start, naming the key. A command whose load fails replays its log, and a snapshot subscription whose write fails pauses its partition and retries.
 
 The bound is the caller's, not the connection's. The store cancels no request: HttpClient 5 keeps a reused connection whose exchange is cancelled, and it re-runs a request cancelled before its bytes are written on a new connection that nothing then releases. The request runs on in the application's `Rest5Client`, and its connection is freed when the server answers or resets it, or at the client's own response timeout. While a server is paused, the client's pool can fill: later requests wait for a connection while their callers still fail at the bound, and the connections come back once the server answers again.
 

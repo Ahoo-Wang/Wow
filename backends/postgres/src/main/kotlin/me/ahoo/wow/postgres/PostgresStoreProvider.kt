@@ -72,7 +72,7 @@ internal class PostgresStoreProvider : StoreProvider {
         val timeout = config.settings.option(OPERATION_TIMEOUT)
         // JDBC's network timeout is whole milliseconds in an Int, and 0 is none: a bound past it, or none, is refused.
         configCheck(
-            timeout.isPositive() && timeout.inWholeMilliseconds in 1..Int.MAX_VALUE,
+            timeout.inWholeMilliseconds in 1..Int.MAX_VALUE,
             "${config.key}.${OPERATION_TIMEOUT.key}",
             timeout,
             "Set it (or wow.$TYPE.${OPERATION_TIMEOUT.key}) to at least a millisecond and at most " +
