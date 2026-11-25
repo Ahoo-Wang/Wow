@@ -272,14 +272,23 @@ internal class AggregateAnalyzer(
      * `ref.id, ref.tenantId`, each with a parameter that has no default.
      */
     private fun stateArguments(state: KSClassDeclaration, problems: MutableList<String>): List<String> {
-        val parameters = (state.primaryConstructor ?: state.getConstructors().firstOrNull())?.parameters
-        val strings = parameters.orEmpty().all { it.type.resolve().declaration.qualifiedName?.asString() == STRING }
+        // The primary constructor when it is one of these forms, as before; else any other the generated model can call
+        // (#6838), by the forms' order: a secondary `()` beside a primary that takes the state's fields.
+        val reachable = state.getConstructors().filterNot { it.isPrivate() || it.isKotlinProtected() }.toList()
+        val primary = state.primaryConstructor?.takeIf { it in reachable }
+        return primary?.let { argumentsOf(it.parameters) }
+            ?: reachable.mapNotNull { argumentsOf(it.parameters) }.minByOrNull { it.size }
+            ?: stateConstructorProblem(state, problems)
+    }
+
+    /** The arguments a state constructor of [parameters] is called with, or null when it is none of the forms. */
+    private fun argumentsOf(parameters: List<KSValueParameter>): List<String>? {
+        val strings = parameters.all { it.type.resolve().declaration.qualifiedName?.asString() == STRING }
         return when {
-            parameters == null -> stateConstructorProblem(state, problems)
             parameters.all { it.hasDefault } -> emptyList()
             parameters.size == 1 && strings -> listOf("ref.id")
             parameters.size == 2 && strings -> listOf("ref.id", "ref.tenantId")
-            else -> stateConstructorProblem(state, problems)
+            else -> null
         }
     }
 

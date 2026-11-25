@@ -83,22 +83,52 @@ internal object SourcingResolver {
     ): List<SourcingBinding> {
         val bound = functions.map { function -> function to sourcingBinding(function, state, problems) }
         val direct = bound.filter { (_, binding) -> binding != null && !binding.sealed }.map { it.second!! }
+        // Two of one event would be two evolve functions of it, which the kernel refuses when the host builds the
+        // model (#6836): refused here instead, as the host words it.
+        direct.groupBy { it.event }.filterValues { it.size > 1 }.forEach { (event, twice) ->
+            problems += "${state.simpleName.asString()} declares two evolve functions for $event: the sourcing " +
+                "functions ${twice.joinToString { it.function }} both take it; keep one"
+        }
         val expanded = bound.mapNotNull { it.second }.filter { it.sealed }.flatMap { sealed ->
-            sealedEvents(sealed.declaration!!).filterNot { event -> direct.any { it.event == event.render() } }
-                .map { event -> eventBinding(event, sealed.function, sealed.returnsState, sealed.commit, problems) }
+            sealedEvents(sealed.declaration!!, sealed.function, problems)
+                .filterNot { event -> direct.any { it.event == event.render() } }
+                .map { event ->
+                    eventBinding(event, sealed.function, sealed.returnsState, sealed.commit, problems).also {
+                        revisionProblem(event, it)?.let(problems::add)
+                    }
+                }
         }
         expanded.groupBy { it.event }.filterValues { it.size > 1 }.forEach { (event, twice) ->
             problems += "the sourcing functions ${twice.joinToString { it.function }} both take $event, through " +
                 "sealed types: give $event a sourcing function of its own"
         }
-        return direct + expanded.distinctBy { it.event }
+        return direct.distinctBy { it.event } + expanded.distinctBy { it.event }
     }
 
-    /** The concrete classes of the sealed [type], its sealed subclasses' included. */
-    fun sealedEvents(type: KSClassDeclaration): List<KSClassDeclaration> =
+    /**
+     * The concrete classes of the sealed [type], its sealed subclasses' included, each once, though two sealed parents
+     * share it (#6835). A subclass that is neither sealed nor a concrete class (an interface, an abstract class) is one
+     * of [problems], as when [function] takes it directly: the kernel finds a sourcing function by its event's class,
+     * and that subclass's own subclasses are not listed.
+     */
+    fun sealedEvents(
+        type: KSClassDeclaration,
+        function: String,
+        problems: MutableList<String>
+    ): List<KSClassDeclaration> =
         type.getSealedSubclasses().flatMap { sub ->
-            if (Modifier.SEALED in sub.modifiers) sealedEvents(sub).asSequence() else sequenceOf(sub)
-        }.toList()
+            when {
+                Modifier.SEALED in sub.modifiers -> sealedEvents(sub, function, problems).asSequence()
+                sub.classKind == ClassKind.INTERFACE || Modifier.ABSTRACT in sub.modifiers -> {
+                    problems += "sourcing function $function takes ${type.render()}, whose subclass " +
+                        "${sub.render()} is not a concrete class: the kernel finds a sourcing function by its " +
+                        "event's class, so make ${sub.render()} sealed too, or take its events by their own classes"
+                    emptySequence()
+                }
+
+                else -> sequenceOf(sub)
+            }
+        }.distinct().toList()
 
     fun KSClassDeclaration.render(): String = asStarProjectedType().render()
 
@@ -147,11 +177,14 @@ internal object SourcingResolver {
             return null
         }
         return eventBinding(event, name, returnsState, commit, problems).also {
-            if (it.revision < 1) {
-                problems += "event ${event.simpleName.asString()} has @Revision(${it.revision}): a revision starts at 1"
-            }
+            revisionProblem(event, it)?.let(problems::add)
         }
     }
+
+    /** That [event], bound as [binding], has a revision below 1, which `EventType` refuses when the model is built. */
+    private fun revisionProblem(event: KSClassDeclaration, binding: SourcingBinding): String? =
+        "event ${event.simpleName.asString()} has @Revision(${binding.revision}): a revision starts at 1"
+            .takeIf { binding.revision < 1 }
 
     /**
      * What is wrong with the parameters of the sourcing [function] named [name]: null when it takes its event, and its
