@@ -172,7 +172,7 @@ Wow 信任网关转发的身份，所以网关本身就是一条边界。每个�
 
 宿主看不到网络，所以启动时不检查这两条。
 
-再次发送的命令，只有带着同一个请求 ID 才是同一条命令。客户端在丢失应答后重发命令时，要带上同一个 `Wow-Request-Id`，服务会把它当作重复请求应答，而不会执行两次。使用 CoSec 时，没有 `Wow-Request-Id` 的命令取请求的 `CoSec-Request-Id` 作为请求 ID。CoSec 网关为它转发的每个请求设置一次这个头，请求的重试（例如 Spring Cloud Gateway 在连接重置后的重试）会再次发送同一个值，所以服务把重试当作重复请求应答。请求同时带有两者时，以 `Wow-Request-Id` 为准。
+再次发送的命令，只有带着同一个请求 ID 才是同一条命令。客户端在丢失应答后重发命令时，要带上同一个 `Wow-Request-Id`，服务会把它当作重复请求应答，而不会执行两次。CoSec 开启时，没有 `Wow-Request-Id` 的命令取请求的 `CoSec-Request-Id` 作为请求 ID；CoSec 关闭时（`wow.cosec.mode: disabled`），不读 CoSec 的任何头。CoSec 网关为它转发的每个请求设置一次这个头，请求的重试（例如 Spring Cloud Gateway 在连接重置后的重试）会再次发送同一个值，所以服务把重试当作重复请求应答。请求同时带有两者时，以 `Wow-Request-Id` 为准。
 
 ### 以网关模式运行服务 {#run-services-in-gateway-mode}
 
@@ -429,7 +429,7 @@ kafka-acls.sh --bootstrap-server kafka:9092 --add --allow-principal User:ops --o
 
 - 尽可能不让个人数据进入事件，例如姓名、地址、电话号码和关于某个人的自由文本。把它们保存在可以删除的读模型里，例如投影的表或另一个服务，并在事件里放一个不透明的 ID。
 - 决定函数需要个人数据时，让它通过领域服务读取，而不是把数据带在事件里。
-- 提交的操作人记录为不透明的 ID。每次提交都会记录请求事实：已认证的应用，以及对公开端口上的请求，客户端的远程地址和 User-Agent，即 `remote_ip` 和 `user_agent`。IP 地址和 User-Agent 属于个人数据，一旦写入就无法删除。把事件日志以及显示这些事实的服务日志都当作含有个人数据的数据来对待，并据此设置日志的保留期。`wow.http.client-facts.enabled`（默认 `true`）可以关闭地址和 User-Agent 的记录：设为 `false` 时，公开端口两者都不记录。不要再往 `wow.http.request-facts` 里加其他个人数据。
+- 提交的操作人记录为不透明的 ID。每次提交都会记录请求事实：已认证的应用，以及对公开端口上的请求，客户端的远程地址和 User-Agent，即 `remote_ip` 和 `user_agent`。IP 地址和 User-Agent 属于个人数据，一旦写入就无法删除。把事件日志以及显示这些事实的服务日志都当作含有个人数据的数据来对待，并据此设置日志的保留期。`wow.http.client-facts.enabled`（默认 `true`）可以关闭地址和 User-Agent 的记录：设为 `false` 时，公开端口两者都不记录。不要再往 `wow.http.request-facts` 里加其他个人数据。CoSec 的设备 ID `CoSec-Device-Id`（CoSec 的 TypeScript 客户端从每个浏览器发送）就是这样的数据：只有应用把它列在那里时 Wow 才记录它。
 - 快照、数仓和检索索引都从日志派生：在那里删除一行，并不会删除事实。
 
 ## 租户 {#tenants}

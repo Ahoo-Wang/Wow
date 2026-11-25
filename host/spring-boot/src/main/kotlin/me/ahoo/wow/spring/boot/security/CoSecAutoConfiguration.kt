@@ -24,7 +24,6 @@ import me.ahoo.wow.cosec.CoSecCallerOptions
 import me.ahoo.wow.cosec.CoSecCallerResolver
 import me.ahoo.wow.cosec.CoSecCommandAuthorizer
 import me.ahoo.wow.cosec.CoSecProblemRenderer
-import me.ahoo.wow.cosec.CoSecRequestFacts
 import me.ahoo.wow.cosec.CoSecRequestIds
 import me.ahoo.wow.cosec.CoSecServiceRouteAuthorizer
 import me.ahoo.wow.http.WowHttpOptions
@@ -60,10 +59,12 @@ import org.springframework.util.ClassUtils
  *   callers), comma-separated or indexed lists. The caller's app and space are those of the scope CoSec resolved, behind a CoSec gateway
  *   (`wow.cosec.mode=gateway`) the ones the gateway forwarded. No CoSec principal is a service identity: a service
  *   names itself on the internal port.
- * - The CoSec request fact `CoSec-Device-Id` ([CoSecRequestFacts]) joins the edge's request-fact list
- *   (`wow.http.request-facts`); the app of the request's scope is the standard fact `app_id`.
- * - `CoSec-Request-Id` is the request id of a command without `Wow-Request-Id` ([CoSecRequestIds]), so
- *   a command a CoSec gateway sends again under the same header is answered as a duplicate.
+ * - The app of the request's scope is the standard fact `app_id`. CoSec's device id, `CoSec-Device-Id`, a
+ *   client's persistent identifier, is recorded only when the application lists it in `wow.http.request-facts`, as
+ *   any header: Wow adds no personal data of its own to a command.
+ * - With CoSec on, `CoSec-Request-Id` is the request id of a command without `Wow-Request-Id` ([CoSecRequestIds]),
+ *   so a command a CoSec gateway sends again under the same header is answered as a duplicate. With it off, Wow
+ *   reads no header of CoSec's.
  * - Where CoSec decides the requests itself, the route map CoSec's pipeline reads is the Manifest's command and
  *   service routes ([CoSecRouteMapAutoConfiguration]).
  * - [CoSecCommandAuthorizer] and [CoSecServiceRouteAuthorizer], CoSec's decision on a command and on a service route
@@ -128,14 +129,16 @@ class CoSecAutoConfiguration {
         private const val PROBLEM_RENDERER: String = "me.ahoo.cosec.runtime.http.ProblemRenderer"
 
         /**
-         * Adds the CoSec request facts and `CoSec-Request-Id`, the request id of a command without `Wow-Request-Id`
-         * ([CoSecRequestIds]), to the edge's options, whoever defines them.
+         * Adds `CoSec-Request-Id`, the request id of a command without `Wow-Request-Id` ([CoSecRequestIds]), to the
+         * edge's options, whoever defines them, while CoSec is on (`cosec.enabled`, true unless set).
          */
         @Bean
         @JvmStatic
-        fun wowCoSecRequestFacts(): BeanPostProcessor = object : BeanPostProcessor {
+        @ConditionalOnProperty(COSEC_ENABLED, havingValue = "true", matchIfMissing = true)
+        @InternalWowApi
+        fun wowCoSecRequestIds(): BeanPostProcessor = object : BeanPostProcessor {
             override fun postProcessAfterInitialization(bean: Any, beanName: String): Any =
-                if (bean is WowHttpOptions) CoSecRequestIds.addTo(CoSecRequestFacts.addTo(bean)) else bean
+                if (bean is WowHttpOptions) CoSecRequestIds.addTo(bean) else bean
         }
 
         /** The caller options of [properties] (`wow.cosec.*`, `wow.tenant.default`). */
