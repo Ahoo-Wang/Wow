@@ -2266,6 +2266,7 @@ enum WindowFunction {
 // @public
 export interface WowClientOptions {
     readonly basePath?: string;
+    readonly defaultWaitMs?: number;
     readonly fetcher?: Fetcher;
 }
 
