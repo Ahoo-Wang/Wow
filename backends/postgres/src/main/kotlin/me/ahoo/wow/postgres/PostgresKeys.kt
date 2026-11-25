@@ -24,19 +24,19 @@ import java.sql.Connection
  * one version, its request key a second commit of one request. `CREATE TABLE IF NOT EXISTS` leaves a table that exists
  * as it is, so a key dropped since, or never made by a schema written by hand, would pass unseen; [check] refuses it.
  * A key holds when a valid unique index of the table, without a predicate or an expression, covers exactly its columns,
- * in any order (PostgreSQL makes one for each such constraint). An index a `CREATE [UNIQUE] INDEX` statement makes must
- * exist by its name, unique when the statement says so: `auto` makes a missing one, and `validate` refuses it.
+ * in any order (PostgreSQL makes one for each such constraint). An index a `CREATE INDEX` statement makes must exist by
+ * its name: `auto` makes a missing one, and `validate` refuses it. A unique key is declared in its table's
+ * `CREATE TABLE`, where it is checked, never as a `CREATE UNIQUE INDEX` of its own.
  */
 internal object PostgresKeys {
     /** A unique key of [table] over [columns], as its statement wrote it ([declared]). */
     data class Key(val table: String, val columns: Set<String>, val declared: String)
 
-    /** An index [name] of [table], [unique] or not, as its [statement] makes it. */
-    data class Index(val name: String, val table: String, val unique: Boolean, val statement: String)
+    /** An index [name] of [table], as its [statement] makes it. */
+    data class Index(val name: String, val table: String, val statement: String)
 
     private val CREATE_TABLE =
         Regex("""^\s*CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS\s+("[^"]+"|[\w.]+)\s*\(""", RegexOption.IGNORE_CASE)
-    private val UNIQUE_INDEX = Regex("""^\s*CREATE\s+UNIQUE\s+INDEX\b""", RegexOption.IGNORE_CASE)
     private val TABLE_KEY = Regex(
         """^(?:CONSTRAINT\s+(?:"[^"]+"|\w+)\s+)?(?:PRIMARY\s+KEY|UNIQUE)\s*\(([^)]*)\)""",
         RegexOption.IGNORE_CASE,
@@ -51,45 +51,35 @@ internal object PostgresKeys {
         elements(body).mapNotNull { element -> keyOf(table, element) }
     }
 
-    /** The indexes the `CREATE [UNIQUE] INDEX` statements of [statements] make. */
+    /** The indexes the `CREATE INDEX` statements of [statements] make. */
     fun indexes(statements: List<String>): List<Index> = statements.mapNotNull { statement ->
         if (CREATE_TABLE.containsMatchIn(statement)) {
             return@mapNotNull null
         }
         val target = PostgresSchema.target(statement)
-        Index(target.name, target.table, UNIQUE_INDEX.containsMatchIn(statement), statement.trim())
+        Index(target.name, target.table, statement.trim())
     }
 
     /**
-     * Refuses, naming the table and the fix, a table of [statements] that exists without one of the unique keys they
-     * declare, and an index they make that does not exist or is not unique as declared. A table that does not exist is
-     * its format check's to refuse.
+     * Refuses, naming the table and the fix, a table of [statements] without one of the unique keys they declare (or
+     * that does not exist: a table without its format record, which its format check does not cover), and an index they
+     * make that does not exist.
      */
     fun check(connection: Connection, statements: List<String>) {
         keys(statements).groupBy { it.table }.forEach { (table, keys) ->
-            if (!PostgresSchema.exists(connection, table)) {
-                return@forEach
-            }
             val unique = uniqueIndexes(connection, table)
-            keys.filterNot { it.columns in unique }.firstOrNull()?.let { key ->
+            keys.firstOrNull { it.columns !in unique }?.let { key ->
                 error(
-                    "${unquoted(table)} has no unique key on (${key.columns.joinToString()}), which this version of " +
-                        "Wow declares (${key.declared}) and relies on to refuse a duplicate write. Restore it as " +
-                        "Wow's schema creates it, or start from an empty store.",
+                    "${unquoted(table)} has no unique key on (${key.columns.joinToString()}), or does not exist; this " +
+                        "version of Wow declares it (${key.declared}) and relies on it to refuse a duplicate write. " +
+                        "Restore it as Wow's schema creates it, or start from an empty store.",
                 )
             }
         }
         indexes(statements).forEach { index ->
-            if (!PostgresSchema.exists(connection, index.table)) {
-                return@forEach
-            }
             check(PostgresSchema.exists(connection, index.name)) {
                 "${unquoted(index.name)} of ${unquoted(index.table)} does not exist: create it as Wow's schema does " +
                     "(${index.statement}), or let ddl auto create it."
-            }
-            check(!index.unique || isUnique(connection, index.name)) {
-                "${unquoted(index.name)} of ${unquoted(index.table)} is not unique, as Wow's schema creates it " +
-                    "(${index.statement}): drop it and let ddl auto create it, or create it so."
             }
         }
     }
@@ -113,12 +103,6 @@ internal object PostgresKeys {
                     }
                 }
             }
-        }
-
-    private fun isUnique(connection: Connection, index: String): Boolean =
-        connection.prepareStatement("SELECT indisunique FROM pg_index WHERE indexrelid = to_regclass(?)").use { query ->
-            query.setString(1, index)
-            query.executeQuery().use { rows -> rows.next() && rows.getBoolean(1) }
         }
 
     /** The unique key [element] of a `CREATE TABLE`'s body declares, a table constraint or a column's; null for none. */
@@ -150,7 +134,7 @@ internal object PostgresKeys {
             }
         }
         add(element.toString().trim())
-    }.filter { it.isNotEmpty() }
+    }
 
     /** A column as the catalog names it: unquoted, a name written without quotes in lower case. */
     private fun column(text: String): String {

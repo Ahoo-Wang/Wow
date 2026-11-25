@@ -59,7 +59,6 @@ class PostgresKeysTest {
         columnsOf(snapshots.ddl()).assert().contains(setOf("tenant_id", "aggregate_id"), setOf("structure"))
         PostgresKeys.indexes(snapshots.ddl()).map { it.name }.assert()
             .containsExactly("\"${snapshots.ownerIndex}\"", "\"${snapshots.spaceIndex}\"")
-        PostgresKeys.indexes(snapshots.ddl()).none { it.unique }.assert().isTrue()
         columnsOf(PostgresTimerTables("shop").aggregate("order").ddl()).assert()
             .containsExactly(setOf("owner_tenant_id", "owner_id", "key"))
         columnsOf(PostgresReservationTables("shop", "order").ddl).assert()
@@ -72,10 +71,9 @@ class PostgresKeysTest {
     }
 
     @Test
-    fun `a quoted column should keep its case, an unquoted one be folded`() {
-        val statement = """CREATE TABLE IF NOT EXISTS t (Id text, "Key" text, CONSTRAINT "k" UNIQUE (Id, "Key"))"""
+    fun `a quoted column should keep its case, an unquoted one be folded, and a check be no key`() {
+        val statement = """CREATE TABLE IF NOT EXISTS t (Id text, "Key" text, n integer, """ +
+            """CONSTRAINT "k" UNIQUE (Id, "Key"), CONSTRAINT "positive" CHECK (n > 0))"""
         columnsOf(listOf(statement)).assert().containsExactly(setOf("id", "Key"))
-        PostgresKeys.indexes(listOf("""CREATE UNIQUE INDEX IF NOT EXISTS "t_u" ON t (a)""")).single().unique.assert()
-            .isTrue()
     }
 }

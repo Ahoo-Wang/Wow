@@ -79,8 +79,11 @@ internal object PostgresFormat {
                 }
             },
         ) {
-            structures.map { (structure, version) -> validate(connection, structure, version) }.all { it }
-                .also { exists -> if (exists) PostgresKeys.check(connection, statements) }
+            val exists = structures.map { (structure, version) -> validate(connection, structure, version) }.all { it }
+            if (exists) {
+                PostgresKeys.check(connection, statements)
+            }
+            exists
         }
     }
 
