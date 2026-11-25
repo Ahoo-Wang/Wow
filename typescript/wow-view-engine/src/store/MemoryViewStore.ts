@@ -130,6 +130,12 @@ export class MemoryViewStore implements ViewStore {
   /** See `MemoryViewStoreOptions.pageSize`. */
   private readonly pageSize: number;
   private sequence = 0;
+  /**
+   * Each view's place in the order views were created or seeded in, given
+   * the first time it is seen and kept: a delete, a write undone or a
+   * reload from the snapshot moves no view, so a cursor can name one.
+   */
+  private readonly places = new Map<string, number>();
 
   constructor(options: MemoryViewStoreOptions = {}) {
     // Left undefined when the caller declared none, which the port reads as
@@ -148,25 +154,49 @@ export class MemoryViewStore implements ViewStore {
   }
 
   /**
-   * In the port's order: system, shared, personal, each oldest first. The
-   * map keeps insertion order — the order views were created or seeded in,
-   * which a change of audience does not move — and the sort is stable. A
-   * page is `pageSize` of them; the cursor is where the next page starts.
+   * In the port's order: system, shared, personal, each oldest first — the
+   * order views were created or seeded in (`places`), which a change of
+   * audience does not move. A page is `pageSize` of them. The cursor names
+   * the last view listed by its place in that order, not by an index, so a
+   * view deleted between two pages (here, or in another tab sharing the
+   * snapshot) hides none that is still there (#6913).
    */
   list(
     definitionId: string,
     options: ViewListOptions = {},
   ): Promise<ViewListPage> {
-    const summaries = [...this.instances.values()]
+    const ordered = [...this.instances.values()]
       .filter(instance => instance.definitionId === definitionId)
-      .map(toSummary)
-      .sort((a, b) => AUDIENCE_RANK[a.scope] - AUDIENCE_RANK[b.scope]);
-    const start = options.cursor ? Number(options.cursor) : 0;
-    const end = start + this.pageSize;
+      .map(instance => ({
+        summary: toSummary(instance),
+        rank: AUDIENCE_RANK[instance.scope],
+        place: this.placeOf(instance.id),
+      }))
+      .sort((a, b) => a.rank - b.rank || a.place - b.place);
+    const after = readCursor(options.cursor);
+    const rest = after
+      ? ordered.filter(
+          entry =>
+            entry.rank > after.rank ||
+            (entry.rank === after.rank && entry.place > after.place),
+        )
+      : ordered;
+    const page = rest.slice(0, this.pageSize);
+    const last = page[page.length - 1];
     return Promise.resolve({
-      items: summaries.slice(start, end),
-      nextCursor: end < summaries.length ? String(end) : null,
+      items: page.map(entry => entry.summary),
+      nextCursor:
+        rest.length > page.length && last ? `${last.rank}:${last.place}` : null,
     });
+  }
+
+  /** A view's place in the order (`places`), given it the first time it is seen. */
+  private placeOf(id: string): number {
+    const known = this.places.get(id);
+    if (known !== undefined) return known;
+    const place = this.places.size + 1;
+    this.places.set(id, place);
+    return place;
   }
 
   get(id: string): Promise<ViewInstance> {
@@ -514,6 +544,16 @@ function readOnlySystem(instance: ViewInstance): boolean {
 }
 
 /** System views first, then shared, then personal: the port's list order. */
+/** Where a list cursor says the last page ended; none for the first page. */
+function readCursor(
+  cursor: string | null | undefined,
+): { rank: number; place: number } | undefined {
+  const match = cursor ? /^(\d+):(\d+)$/.exec(cursor) : null;
+  return match
+    ? { rank: Number(match[1]), place: Number(match[2]) }
+    : undefined;
+}
+
 const AUDIENCE_RANK: Readonly<Record<ViewInstance['scope'], number>> = {
   system: 0,
   shared: 1,

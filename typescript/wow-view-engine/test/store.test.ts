@@ -80,6 +80,55 @@ describe('MemoryViewStore', () => {
     ).toBeNull();
   });
 
+  // #6913: the cursor names the last view listed by its place in the
+  // order, not an index a delete would shift.
+  it('hides no view that is still there when one is deleted between two pages', async () => {
+    const store = new MemoryViewStore({
+      pageSize: 2,
+      instances: ['v-1', 'v-2', 'v-3', 'v-4'].map(id =>
+        instance({ id, title: id }),
+      ),
+    });
+    const ids = (page: { items: { id: string }[] }) =>
+      page.items.map(item => item.id);
+
+    const first = await store.list('orders');
+    expect(ids(first)).toEqual(['v-1', 'v-2']);
+    await store.delete('v-1', '1', { requestId: 'delete-v-1' });
+    const second = await store.list('orders', { cursor: first.nextCursor });
+    expect(ids(second)).toEqual(['v-3', 'v-4']);
+    expect(second.nextCursor).toBeNull();
+
+    // The last view listed may go too: the next page starts after its place.
+    await store.delete('v-2', '1', { requestId: 'delete-v-2' });
+    expect(
+      ids(await store.list('orders', { cursor: first.nextCursor })),
+    ).toEqual(['v-3', 'v-4']);
+  });
+
+  it('keeps a view in its place when a delete of it is undone', async () => {
+    const saved: MemoryState[] = [];
+    const store = new MemoryViewStore({
+      instances: ['v-1', 'v-2', 'v-3'].map(id => instance({ id, title: id })),
+      snapshot: {
+        load: () => saved[saved.length - 1],
+        save: () => {
+          throw new Error('quota');
+        },
+      },
+    });
+    await store.list('orders');
+    await expect(
+      store.delete('v-1', '1', { requestId: 'delete-v-1' }),
+    ).rejects.toThrow();
+
+    expect((await store.list('orders')).items.map(item => item.id)).toEqual([
+      'v-1',
+      'v-2',
+      'v-3',
+    ]);
+  });
+
   it('reports a missing instance as NOT_FOUND', async () => {
     const store = new MemoryViewStore();
     await expect(store.get('nope')).rejects.toMatchObject({
