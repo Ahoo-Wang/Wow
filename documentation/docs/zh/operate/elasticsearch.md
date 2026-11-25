@@ -40,7 +40,7 @@ wow:
 | `wow.stores.<name>.index-prefix` | 每个索引名的前缀：`shop_wow_snapshot__…`、`shop_wow_events__…` | 无 |
 | `wow.stores.<name>.refresh` | 快照写入何时变得可检索：`none`（在索引的刷新间隔内）、`wait-for`（写入返回时）或 `immediate` | `none` |
 | `wow.stores.<name>.ddl` | 是否创建索引，并为状态和事件的 body 字段建立映射 | `wow.ddl` |
-| `wow.stores.<name>.reindex-requests-per-second` | 为后来映射的字段重新索引已有文档的速度（[见下文](#field-mapped-later)）；`-1` 表示不限 | `1000` |
+| `wow.stores.<name>.reindex-requests-per-second` | 为后来映射的字段重新索引已有文档的速度（[见下文](#field-mapped-later)）；`0` 表示不限 | `1000` |
 | `wow.stores.<name>.operation-timeout` | 它的每个请求的调用方最多等待应答多久（[见下文](#a-server-that-stops-answering)） | `wow.elasticsearch.operation-timeout`，`30s` |
 | `wow.aggregates.[<context>.<aggregate>].snapshot.store` | 聚合快照所在的存储，命令从它加载状态，状态读取也读它；也可以是 Elasticsearch（[下文](#only-snapshot-store)） | `wow.snapshot.store`，否则为日志的存储 |
 | `wow.aggregates.[<context>.<aggregate>].query.snapshot.store` | 它的快照查询所读取的存储；不是它自己的存储时，这个存储就为这些查询保存一份它的快照副本 | 它自己的快照存储 |
@@ -127,7 +127,7 @@ fun elasticsearchResponseTimeout(): Rest5ClientBuilderCustomizer = object : Rest
 
 状态和事件 body 的字段在查询第一次加载聚合的 schema 时建立映射（`ddl: auto` 下），所以 schema 后来新增的字段，是在已经有文档的索引上建立映射的。这些文档会在后台由一个 `_update_by_query` 任务重新索引，任务保持每个文档原样，好让新字段也能找到它们。任务结束之前，按新字段过滤、排序或分组的查询会漏掉映射之前写入的文档：结果是不完整的。
 
-任务以每秒 `reindex-requests-per-second` 个文档的速度运行，默认 1,000，切片数与索引的分片数相同。按默认值，一百万个文档约需 17 分钟，一千万个约需 3 小时。集群负载高时调低它；需要尽快用上新字段时调高，或设为 `-1` 不限速。
+任务以每秒 `reindex-requests-per-second` 个文档的速度运行，默认 1,000，切片数与索引的分片数相同。按默认值，一百万个文档约需 17 分钟，一千万个约需 3 小时。集群负载高时调低它；需要尽快用上新字段时调高，或设为 `0` 不限速。
 
 存储在任务开始时记录它的 id：`Elasticsearch index [<index>] mapped [<fields>]: … task [<node>:<id>]`。它不记录任务何时结束，那只能轮询任务才知道。用 Elasticsearch 自己的接口跟踪任务，并在运行中调整速度：
 

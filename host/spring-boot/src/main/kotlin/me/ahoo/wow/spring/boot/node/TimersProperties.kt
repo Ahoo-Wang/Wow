@@ -48,7 +48,7 @@ class TimersProperties {
 
     /**
      * How late a timer may be sent, after an outage, before it is cancelled with the outcome `EXPIRED` instead;
-     * not set, every timer is sent however late.
+     * `0` or not set, every timer is sent however late.
      */
     var expiresAfter: Duration? = null
 
@@ -57,7 +57,7 @@ class TimersProperties {
 
     /**
      * The most commands of timers a partition sends a second, so a backlog of overdue timers drains at that rate;
-     * not set, as fast as `parallelism` allows.
+     * `0` or not set, as fast as `parallelism` allows.
      */
     var maxFireRate: Double? = null
 
@@ -65,7 +65,7 @@ class TimersProperties {
      * How long the claim on a timer being sent holds: when its node dies, the next owner of the partition sends
      * the timer again after it. Longer than a send takes.
      */
-    var claimTimeout: Duration = DEFAULT_TIMERS.claimTimeout.toJavaDuration()
+    var claimTtl: Duration = DEFAULT_TIMERS.claimTimeout.toJavaDuration()
 
     /**
      * How long a scheduled command waits in its target for its due time on the target node's clock; one that
@@ -77,10 +77,10 @@ class TimersProperties {
         pollInterval = pollInterval.toKotlinDuration(),
         lookahead = lookahead.toKotlinDuration(),
         retry = DEFAULT_TIMERS.retry.copyWith(maxAttempts = maxAttempts),
-        expiresAfter = expiresAfter?.toKotlinDuration(),
+        expiresAfter = expiresAfter?.takeUnless { it.isZero }?.toKotlinDuration(),
         parallelism = parallelism,
-        maxFireRate = maxFireRate,
-        claimTimeout = claimTimeout.toKotlinDuration(),
+        maxFireRate = maxFireRate?.takeUnless { it == 0.0 },
+        claimTimeout = claimTtl.toKotlinDuration(),
         maxEarlyWait = maxEarlyWait.toKotlinDuration(),
     )
 }
@@ -135,8 +135,8 @@ class RetryProperties {
     var multiplier: Double = 1.0
 
     /**
-     * How long one attempt of a handler may run before it is cancelled and counts as failed; not set, an attempt
-     * runs as long as it takes.
+     * How long one attempt of a handler may run before it is cancelled and counts as failed; `0` or not set, an
+     * attempt runs as long as it takes.
      */
     var timeout: Duration? = null
 
@@ -145,7 +145,7 @@ class RetryProperties {
         initialBackoff = initialBackoff.toKotlinDuration(),
         maxBackoff = maxBackoff.toKotlinDuration(),
         multiplier = multiplier,
-        timeout = timeout?.toKotlinDuration() ?: kotlin.time.Duration.INFINITE,
+        timeout = timeout?.takeUnless { it.isZero }?.toKotlinDuration() ?: kotlin.time.Duration.INFINITE,
     )
 
     @InternalWowApi
@@ -162,7 +162,7 @@ class RetryProperties {
 
 /**
  * How a failing read is retried, never giving up: the wait grows from `initial-backoff` by `multiplier` at each
- * failure, up to `max-backoff`; past `error-after` attempts each failure is logged as an error.
+ * failure, up to `max-backoff`; past `error-after-attempts` attempts each failure is logged as an error.
  */
 @InternalWowApi
 class ReadRetryProperties {
@@ -176,10 +176,10 @@ class ReadRetryProperties {
     var multiplier: Double = 1.0
 
     /** The attempts after which each failure is logged as an error, and retried at `max-backoff`. */
-    var errorAfter: Int = 1
+    var errorAfterAttempts: Int = 1
 
     fun policy(): RetryPolicy = RetryPolicy(
-        maxAttempts = errorAfter,
+        maxAttempts = errorAfterAttempts,
         initialBackoff = initialBackoff.toKotlinDuration(),
         maxBackoff = maxBackoff.toKotlinDuration(),
         multiplier = multiplier,
@@ -188,7 +188,7 @@ class ReadRetryProperties {
     @InternalWowApi
     companion object {
         fun of(policy: RetryPolicy): ReadRetryProperties = ReadRetryProperties().apply {
-            errorAfter = policy.maxAttempts
+            errorAfterAttempts = policy.maxAttempts
             initialBackoff = policy.initialBackoff.toJavaDuration()
             maxBackoff = policy.maxBackoff.toJavaDuration()
             multiplier = policy.multiplier

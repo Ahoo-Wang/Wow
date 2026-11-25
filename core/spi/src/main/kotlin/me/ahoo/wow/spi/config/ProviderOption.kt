@@ -15,8 +15,16 @@ package me.ahoo.wow.spi.config
 
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.annotation.WowSpi
+import java.time.format.DateTimeParseException
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.microseconds
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.nanoseconds
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.toKotlinDuration
 
 /**
  * One setting a provider (a store's, a dataset backend's) reads from its configuration, as it declares it: its [key],
@@ -115,8 +123,10 @@ open class ProviderOption<T : Any> @InternalWowApi constructor(
             Defaulted(key, description, String::class.java, default, Scope.TYPE) { it }
 
         /**
-         * A duration, written as Kotlin writes one (`500ms`, `5s`, `1m 30s`), in ISO-8601 (`PT5S`), or as a bare number
-         * of milliseconds (`500`), as a Spring `Duration` property reads it; missing when it is not set.
+         * A duration, read as a Spring `Duration` property reads one, so a store's or a transport's key reads as the
+         * host's do: ISO-8601 (`PT5S`, any case), or a whole number with an optional unit, `ns`, `us`, `ms`,
+         * `s`, `m`, `h` or `d`, any case (`500ms`, `5s`, `5S`), a bare number being milliseconds (`500`); missing when it
+         * is not set.
          */
         @JvmStatic
         fun duration(key: String, description: String): ProviderOption<Duration> =
@@ -190,7 +200,30 @@ open class ProviderOption<T : Any> @InternalWowApi constructor(
         private fun parseBoolean(text: String): Boolean =
             requireNotNull(text.lowercase().toBooleanStrictOrNull()) { "neither true nor false" }
 
-        private fun parseDuration(text: String): Duration =
-            text.toLongOrNull()?.milliseconds ?: Duration.parse(text)
+        /** `<number><unit>`, Spring's simple form: a whole number, signed or not, and a unit of up to two letters. */
+        private val SIMPLE_DURATION = Regex("([+-]?\\d+)([a-zA-Z]{0,2})")
+
+        private fun parseDuration(text: String): Duration {
+            SIMPLE_DURATION.matchEntire(text)?.let { simple ->
+                val amount = simple.groupValues[1].toLong()
+                return when (simple.groupValues[2].lowercase()) {
+                    "", "ms" -> amount.milliseconds
+                    "ns" -> amount.nanoseconds
+                    "us" -> amount.microseconds
+                    "s" -> amount.seconds
+                    "m" -> amount.minutes
+                    "h" -> amount.hours
+                    "d" -> amount.days
+                    else -> throw IllegalArgumentException(
+                        "${simple.groupValues[2]} is no unit: ns, us, ms, s, m, h or d"
+                    )
+                }
+            }
+            return try {
+                java.time.Duration.parse(text).toKotlinDuration()
+            } catch (malformed: DateTimeParseException) {
+                throw IllegalArgumentException("neither ISO-8601 nor a number and a unit", malformed)
+            }
+        }
     }
 }

@@ -40,7 +40,7 @@ wow:
 | `wow.stores.<name>.index-prefix` | A prefix for every index name: `shop_wow_snapshot__…`, `shop_wow_events__…` | None |
 | `wow.stores.<name>.refresh` | When a snapshot write becomes searchable: `none` (within the index's refresh interval), `wait-for` (when its write returns) or `immediate` | `none` |
 | `wow.stores.<name>.ddl` | Whether it creates its indices and maps the state's and the events' body fields | `wow.ddl` |
-| `wow.stores.<name>.reindex-requests-per-second` | How fast an index's earlier documents are indexed again for a field mapped later ([below](#field-mapped-later)); `-1` for no limit | `1000` |
+| `wow.stores.<name>.reindex-requests-per-second` | How fast an index's earlier documents are indexed again for a field mapped later ([below](#field-mapped-later)); `0` for no limit | `1000` |
 | `wow.stores.<name>.operation-timeout` | How long the caller of each of its requests waits for an answer ([below](#a-server-that-stops-answering)) | `wow.elasticsearch.operation-timeout`, `30s` |
 | `wow.aggregates.[<context>.<aggregate>].snapshot.store` | The store of an aggregate's snapshots, which its commands load from and its state reads read; Elasticsearch too ([below](#only-snapshot-store)) | `wow.snapshot.store`, else the log's store |
 | `wow.aggregates.[<context>.<aggregate>].query.snapshot.store` | The store its snapshot queries read; another store than its own then keeps a copy of its snapshots for them | Its own snapshot store |
@@ -127,7 +127,7 @@ Marking a field later adds the `text` sub-field to the index and indexes the doc
 
 The state's and the events' body fields are mapped when a query first loads the aggregate's schema (under `ddl: auto`), so a field added to a schema later is mapped on an index that already holds documents. Those documents are indexed again in the background, by an `_update_by_query` task that keeps each document as it is, so that they are found by the new field too. Until the task ends, a query that filters, sorts or groups on the new field misses the documents written before the field was mapped: its results are incomplete.
 
-The task runs at `reindex-requests-per-second` documents a second, 1,000 by default, in as many slices as the index has shards. At the default a million documents take about 17 minutes, and ten million about 3 hours. Lower it for a cluster under load; raise it, or set `-1` for no limit, when the field is needed sooner.
+The task runs at `reindex-requests-per-second` documents a second, 1,000 by default, in as many slices as the index has shards. At the default a million documents take about 17 minutes, and ten million about 3 hours. Lower it for a cluster under load; raise it, or set `0` for no limit, when the field is needed sooner.
 
 The store logs the task's id as it starts, `Elasticsearch index [<index>] mapped [<fields>]: … task [<node>:<id>]`. It does not log the task's end, which only polling the task would tell. Follow the task, and change its rate while it runs, with Elasticsearch's own APIs:
 

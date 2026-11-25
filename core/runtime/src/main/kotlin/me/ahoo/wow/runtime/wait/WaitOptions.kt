@@ -109,5 +109,5 @@ enum class UnknownContexts {
     ALLOW,
 
     /** A hop of a context the node does not know makes the plan invalid ([ResultCodes.WAIT_INVALID]). */
-    REJECT,
+    REFUSE,
 }

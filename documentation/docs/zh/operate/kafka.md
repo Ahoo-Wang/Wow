@@ -69,7 +69,7 @@ wow:
   - **按键的哈希放置的记录：** 没有该头的记录（来自更早版本的发布者，或其他生产者）位于它的键所映射的分区。读取的节点遇到这样的记录时，每个分区警告一次。增加分区会移动这类键，而生产者最晚要到它的 `metadata.max.age.ms`（Kafka 默认五分钟）之后才看到扩容。升级预发布版的发布者之前，请按[Kafka 上的发布流](./upgrades#published-streams-on-kafka)操作。
 - **回执主题**可以有任意数量的分区，按键的哈希放置，服务运行时也可以增加分区。
 
-对这两类主题，读取的节点每隔 `wow.kafka.topics.partition-refresh`（30 秒）查找新分区，并从开头读取它们，不需要重启。对按键的哈希放置的记录，扩容时已被订阅停放的聚合之后无法再重试：它较早的记录在原来的分区，后续记录在新分区。新分区的属主会扣住这些后续记录，并把该条目标为只能跳过（`skipOnly`）：它不再被重试，运维人员也不能重试，原因中写明两个分区。请在增加分区之前处理完这些停放的条目，或者预期在处理完它们较早的记录之后跳过它们（[失败处理](../guide/failures)）。停放在按日志分区放置的记录上的聚合，无论主题增加了多少分区，都在读到它的分区重试。
+对这两类主题，读取的节点每隔 `wow.kafka.topics.partition-refresh-interval`（30 秒）查找新分区，并从开头读取它们，不需要重启。对按键的哈希放置的记录，扩容时已被订阅停放的聚合之后无法再重试：它较早的记录在原来的分区，后续记录在新分区。新分区的属主会扣住这些后续记录，并把该条目标为只能跳过（`skipOnly`）：它不再被重试，运维人员也不能重试，原因中写明两个分区。请在增加分区之前处理完这些停放的条目，或者预期在处理完它们较早的记录之后跳过它们（[失败处理](../guide/failures)）。停放在按日志分区放置的记录上的聚合，无论主题增加了多少分区，都在读到它的分区重试。
 
 ### 创建主题 {#creating-topics}
 
@@ -133,4 +133,4 @@ kafka-topics --bootstrap-server kafka:9092 --create --topic wow.eshop-ordering.o
 
 `wow.kafka.properties.*` 把设置原样传给每个生产者和消费者，例如 `security.protocol` 和 SASL 设置、`client.id` 或 `linger.ms`。少数设置归 Wow 所有、不能覆盖，因为传输的保证建立在它们之上：`acks=all` 的幂等生产者、不使用消费组、不提交任何东西也不自行重置偏移量的消费者，以及读取时不创建主题。
 
-`wow.kafka.*` 只接受 Kafka 传输声明的设置（[配置项](../reference/configuration)列出了它们），以及 `properties` 和 `topics.configs` 下的任意键；其他键会使启动失败，并指出该键。`topics.prefix`、`command-intake.enabled`、`ddl` 和 `topics.partition-refresh` 是每个主题传输都有的设置，因此社区传输在它自己的类型下同样接受它们。
+`wow.kafka.*` 只接受 Kafka 传输声明的设置（[配置项](../reference/configuration)列出了它们），以及 `properties` 和 `topics.configs` 下的任意键；其他键会使启动失败，并指出该键。`topics.prefix`、`command-intake.enabled`、`ddl` 和 `topics.partition-refresh-interval` 是每个主题传输都有的设置，因此社区传输在它自己的类型下同样接受它们。

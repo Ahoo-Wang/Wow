@@ -58,7 +58,7 @@ internal class WaitChain private constructor(val hops: List<Hop>) : CheckedPlan 
             type: AggregateType,
             directory: SubscriptionDirectory,
             maxHops: Int,
-            unknownContexts: UnknownContexts = UnknownContexts.REJECT,
+            unknownContexts: UnknownContexts = UnknownContexts.REFUSE,
         ): CheckedPlan {
             val context = type.context
             val snapshots = directory.covers(SystemSubscriptions.SNAPSHOT, type)
@@ -122,7 +122,7 @@ internal class WaitChain private constructor(val hops: List<Hop>) : CheckedPlan 
          */
         private fun unknownContextProblem(hop: Hop, unknownContexts: UnknownContexts): String? {
             val of = hop.context!!
-            if (unknownContexts == UnknownContexts.REJECT) {
+            if (unknownContexts == UnknownContexts.REFUSE) {
                 return "Hop $hop names an unknown context."
             }
             return ContextName.problem(of)?.let { "Hop $hop names no context: $it." }

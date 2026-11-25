@@ -97,9 +97,10 @@ class ElasticsearchStoreProviderTest {
         (ElasticsearchStoreProvider().open(config()) as ElasticsearchStore).rewriteRate.assert().isEqualTo(1000)
         (ElasticsearchStoreProvider().open(config(mapOf(rate.key to "50"))) as ElasticsearchStore)
             .rewriteRate.assert().isEqualTo(50)
-        (ElasticsearchStoreProvider().open(config(mapOf(rate.key to "-1"))) as ElasticsearchStore)
+        // 0 is no limit, Elasticsearch's -1 (D484 ①).
+        (ElasticsearchStoreProvider().open(config(mapOf(rate.key to "0"))) as ElasticsearchStore)
             .rewriteRate.assert().isEqualTo(-1)
-        listOf("0", "-2").forEach { refused ->
+        listOf("-1", "-2").forEach { refused ->
             val failure = assertThrows<WowConfigurationException> {
                 ElasticsearchStoreProvider().open(config(mapOf(rate.key to refused)))
             }

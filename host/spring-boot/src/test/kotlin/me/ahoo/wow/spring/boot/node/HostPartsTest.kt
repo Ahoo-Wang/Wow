@@ -282,7 +282,7 @@ class WowPropertiesTest {
             "wow.routing" to "local",
             "wow.cluster.lease-ttl" to "20s",
             "wow.cluster.drain-timeout" to "500ms",
-            "wow.subscription.read-retry.error-after" to "3",
+            "wow.subscription.read-retry.error-after-attempts" to "3",
             "wow.subscription.read-retry.max-backoff" to "1s",
             "wow.subscription.systemic.failing-aggregates" to "0",
             "wow.subscription.systemic.window" to "30s",

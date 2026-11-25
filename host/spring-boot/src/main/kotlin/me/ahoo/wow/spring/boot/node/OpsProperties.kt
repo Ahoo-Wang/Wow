@@ -46,7 +46,7 @@ class PublishProperties {
     /**
      * Whether the node publishes its failure ledger to the ops context: `auto` (the default) while the ops context's
      * command topic exists on the node's transport, which the ops service creates once it is deployed, checked at
-     * start and every `wow.kafka.topics.partition-refresh`, and not at all without a transport; `true` always, which
+     * start and every `wow.kafka.topics.partition-refresh-interval`, and not at all without a transport; `true` always, which
      * needs a transport; `false` never.
      */
     var enabled: Switch = Switch.AUTO

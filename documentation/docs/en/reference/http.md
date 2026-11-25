@@ -146,7 +146,7 @@ hop  := "accepted" ["(" context ")"]
 | `queryable` | The store the aggregate's snapshot queries read holds the commit: its copy where its queries read another store (`query.snapshot.store`), else the same as `snapshot` |
 | `handled(sub)` | The subscription `sub`, `processor.function`, handled the commit |
 
-A hop without a context is in the command's context. After a saga's `handled` hop, the following hops apply to the commands the saga derived, in their contexts. A plan has at most `wow.wait.max-hops` (16) hops. A `Wow-Wait` longer than 4,096 characters, or of more than 32 hops, is `wow.wait.invalid` before any hop is read. A hop of a context the node has no Manifest of is checked where the chain arrives, unless `wow.wait.unknown-contexts: reject` refuses it with `wow.wait.invalid`.
+A hop without a context is in the command's context. After a saga's `handled` hop, the following hops apply to the commands the saga derived, in their contexts. A plan has at most `wow.wait.max-hops` (16) hops. A `Wow-Wait` longer than 4,096 characters, or of more than 32 hops, is `wow.wait.invalid` before any hop is read. A hop of a context the node has no Manifest of is checked where the chain arrives, unless `wow.wait.unknown-contexts: refuse` refuses it with `wow.wait.invalid`.
 
 ## Responses
 

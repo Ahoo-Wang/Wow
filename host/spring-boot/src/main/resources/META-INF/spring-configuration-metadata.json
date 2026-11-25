@@ -288,7 +288,7 @@
   }, {
     "name" : "wow.subscription.read-retry",
     "type" : "me.ahoo.wow.spring.boot.node.ReadRetryProperties",
-    "description" : "How a failing read of the log, or write of a store, is retried: until the node stops, the backoff growing for `error-after` (5) attempts, after which each failure is logged as an error and retried at `max-backoff`, so a long outage does not stop the subscription.",
+    "description" : "How a failing read of the log, or write of a store, is retried: until the node stops, the backoff growing for `error-after-attempts` (5) attempts, after which each failure is logged as an error and retried at `max-backoff`, so a long outage does not stop the subscription.",
     "sourceType" : "me.ahoo.wow.spring.boot.node.SubscriptionProperties"
   }, {
     "name" : "wow.subscription.retry",
@@ -565,7 +565,7 @@
   }, {
     "name" : "wow.elasticsearch.reindex-requests-per-second",
     "type" : "java.lang.Integer",
-    "description" : "How many documents a second the store indexes again when its queries map a field an index lacks, so that the documents written before it are found by it too; a search of the field misses them until the rewrite ends. 1000 by default (a million documents in about 17 minutes); -1 for no limit.",
+    "description" : "How many documents a second the store indexes again when its queries map a field an index lacks, so that the documents written before it are found by it too; a search of the field misses them until the rewrite ends. 1000 by default (a million documents in about 17 minutes); 0 for no limit.",
     "sourceType" : "me.ahoo.wow.elasticsearch.ElasticsearchStoreProvider",
     "defaultValue" : 1000
   }, {
@@ -759,7 +759,7 @@
     "description" : "The min.insync.replicas auto creates a topic with; the broker's default when not set.",
     "sourceType" : "me.ahoo.wow.kafka.KafkaTransportProvider"
   }, {
-    "name" : "wow.kafka.topics.partition-refresh",
+    "name" : "wow.kafka.topics.partition-refresh-interval",
     "type" : "java.time.Duration",
     "description" : "How often the node looks for partitions added to the topics it reads; new partitions are read within about twice this.",
     "sourceType" : "me.ahoo.wow.kafka.KafkaTransportProvider",
@@ -876,7 +876,7 @@
   }, {
     "name" : "wow.ops.publish.enabled",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Switch",
-    "description" : "Whether the node publishes its failure ledger to the ops context: `auto` (the default) while the ops context's command topic exists on the node's transport, which the ops service creates once it is deployed, checked at start and every `wow.kafka.topics.partition-refresh`, and not at all without a transport; `true` always, which needs a transport; `false` never.",
+    "description" : "Whether the node publishes its failure ledger to the ops context: `auto` (the default) while the ops context's command topic exists on the node's transport, which the ops service creates once it is deployed, checked at start and every `wow.kafka.topics.partition-refresh-interval`, and not at all without a transport; `true` always, which needs a transport; `false` never.",
     "sourceType" : "me.ahoo.wow.spring.boot.node.PublishProperties",
     "defaultValue" : "auto"
   }, {
@@ -1447,7 +1447,7 @@
     "sourceType" : "me.ahoo.wow.spring.boot.node.ParkedProperties",
     "defaultValue" : "PT10S"
   }, {
-    "name" : "wow.subscription.read-retry.error-after",
+    "name" : "wow.subscription.read-retry.error-after-attempts",
     "type" : "java.lang.Integer",
     "description" : "The attempts after which each failure is logged as an error, and retried at `max-backoff`.",
     "sourceType" : "me.ahoo.wow.spring.boot.node.ReadRetryProperties",
@@ -1497,7 +1497,7 @@
   }, {
     "name" : "wow.subscription.retry.timeout",
     "type" : "java.time.Duration",
-    "description" : "How long one attempt of a handler may run before it is cancelled and counts as failed; not set, an attempt runs as long as it takes.",
+    "description" : "How long one attempt of a handler may run before it is cancelled and counts as failed; `0` or not set, an attempt runs as long as it takes.",
     "sourceType" : "me.ahoo.wow.spring.boot.node.RetryProperties"
   }, {
     "name" : "wow.subscription.stop-timeout",
@@ -1541,7 +1541,7 @@
     "sourceType" : "me.ahoo.wow.spring.boot.node.TenantProperties",
     "defaultValue" : "(0)"
   }, {
-    "name" : "wow.timers.claim-timeout",
+    "name" : "wow.timers.claim-ttl",
     "type" : "java.time.Duration",
     "description" : "How long the claim on a timer being sent holds: when its node dies, the next owner of the partition sends the timer again after it. Longer than a send takes.",
     "sourceType" : "me.ahoo.wow.spring.boot.node.TimersProperties",
@@ -1549,7 +1549,7 @@
   }, {
     "name" : "wow.timers.expires-after",
     "type" : "java.time.Duration",
-    "description" : "How late a timer may be sent, after an outage, before it is cancelled with the outcome `EXPIRED` instead; not set, every timer is sent however late.",
+    "description" : "How late a timer may be sent, after an outage, before it is cancelled with the outcome `EXPIRED` instead; `0` or not set, every timer is sent however late.",
     "sourceType" : "me.ahoo.wow.spring.boot.node.TimersProperties"
   }, {
     "name" : "wow.timers.lookahead",
@@ -1572,7 +1572,7 @@
   }, {
     "name" : "wow.timers.max-fire-rate",
     "type" : "java.lang.Double",
-    "description" : "The most commands of timers a partition sends a second, so a backlog of overdue timers drains at that rate; not set, as fast as `parallelism` allows.",
+    "description" : "The most commands of timers a partition sends a second, so a backlog of overdue timers drains at that rate; `0` or not set, as fast as `parallelism` allows.",
     "sourceType" : "me.ahoo.wow.spring.boot.node.TimersProperties"
   }, {
     "name" : "wow.timers.parallelism",
@@ -1619,7 +1619,7 @@
   }, {
     "name" : "wow.wait.unknown-contexts",
     "type" : "me.ahoo.wow.runtime.wait.UnknownContexts",
-    "description" : "Whether a wait plan may name a context the node knows no Manifest of: `allow`, checked where the chain arrives, or `reject`.",
+    "description" : "Whether a wait plan may name a context the node knows no Manifest of: `allow`, checked where the chain arrives, or `refuse`.",
     "sourceType" : "me.ahoo.wow.spring.boot.node.WaitProperties",
     "defaultValue" : "allow"
   } ],

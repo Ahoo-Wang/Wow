@@ -81,7 +81,7 @@ class NodeWaitChainTest {
         alone.stop()
         // Unless it rejects the contexts it does not know.
         val strict =
-            node("node-3", fastNodeOptions().copyWith(wait = WaitOptions(unknownContexts = UnknownContexts.REJECT)))
+            node("node-3", fastNodeOptions().copyWith(wait = WaitOptions(unknownContexts = UnknownContexts.REFUSE)))
         strict.start()
         val refused = strict.gateway.execute(deposit("a-1"))
         refused.error!!.code.assert().isEqualTo(ResultCodes.WAIT_INVALID)

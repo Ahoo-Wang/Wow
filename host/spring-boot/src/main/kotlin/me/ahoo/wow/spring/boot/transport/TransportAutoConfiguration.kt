@@ -64,7 +64,7 @@ import kotlin.time.Duration
  *   [StateMasks] (the query side's, which the host declares): its `DISPLAY` values too, unless the stream is declared
  *   revealing and `wow.query.sensitivity.display-shared` is on ([PublicationMasks]).
  * - **Source**: the [SourceTopics] over the source, the producer and the admin, after the same prefix, with the
- *   transport's `command-intake.enabled`, `ddl` and `topics.partition-refresh` ([TopicTransportOptions], which every
+ *   transport's `command-intake.enabled`, `ddl` and `topics.partition-refresh-interval` ([TopicTransportOptions], which every
  *   topic transport has): the subscriptions of other contexts' streams read through it, and a saga's commands to
  *   other contexts go through it.
  * - **Warnings**: once the application is ready, what the transport warns about the node's command topics
