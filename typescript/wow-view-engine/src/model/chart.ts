@@ -471,7 +471,8 @@ export interface MetricCardSpec {
   /**
    * Another metric the headline is compared with, read over the same span
    * as the headline: the same period's value in the `last` mode of a trend,
-   * the whole's otherwise.
+   * the whole's otherwise. `percent` measures the difference by the
+   * comparison's size, as a period change does: -50 against -100 is +50%.
    */
   compare?: { metric: string; mode: 'delta' | 'percent' };
   /**
