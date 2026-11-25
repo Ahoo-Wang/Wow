@@ -15,6 +15,7 @@ package me.ahoo.wow.kernel
 
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.client.CommandRequest
@@ -164,15 +165,15 @@ class DomainIdsTest {
     }
 
     @Test
-    fun `a saga specification should give fixed ids, the same on every handling`() =
+    fun `a saga specification should give fixed ids, counted on across its handlings as a node draws new ones`() =
         sagaSpec(shipmentSagaHandlers()) {
             val order = model.type.ref("tenant", "order-1")
             whenEvent(stateEvent(order, Order("order-1"), OrderPlaced(emptyMap(), "invoice-1"))) {
                 expectCommand(CreateShipment("order-1"), to = ShipmentSaga.SHIPMENT.ref("tenant", "shipment-1"))
-                expectDeterministic()
+                // Handling it again draws shipment-2: a target named by a drawn id is another request each time.
+                assertThrownBy<AssertionError> { expectDeterministic() }.hasMessageContaining("shipment-2")
                 whenRejected(commands.single(), code = "shop.shipment.exists") {
-                    expectCommand(CreateShipment("id-1"), to = ShipmentSaga.SHIPMENT.ref("tenant", "shipment-1"))
-                    expectDeterministic()
+                    expectCommand(CreateShipment("id-1"), to = ShipmentSaga.SHIPMENT.ref("tenant", "shipment-3"))
                 }
             }
         }

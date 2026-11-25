@@ -79,6 +79,16 @@ class UnaddressedSendSpecTest {
     }
 
     @Test
+    fun `a saga that creates its target without an id should derive the same request when it is handled again`() =
+        withContract {
+            // As on a node: an id-less creation's request id is the same on every handling, so the target's admission
+            // gives it the aggregate its first attempt created.
+            sagaSpec(listOf(saga(CommandRequest.of(Open("dhl"))))) {
+                whenEvent(placed) { expectDeterministic() }
+            }
+        }
+
+    @Test
     fun `a command routed by its id alone, sent naming none, should fail the specification as the service refuses it`() =
         withContract {
             sagaSpec(listOf(saga(CommandRequest.of(Dispatch("dhl"))))) {
