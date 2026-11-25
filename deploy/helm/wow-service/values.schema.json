@@ -436,7 +436,8 @@
             },
             "minReplicas": {
               "type": "integer",
-              "minimum": 0
+              "minimum": 1,
+              "description": "At least 1, as the HPA's: the ScaledObject's only trigger is the subscriptions' backlog, which the service's own pods report, so a service at zero nodes has no series and nothing scales it back up (#6932)."
             },
             "maxReplicas": {
               "type": "integer",
