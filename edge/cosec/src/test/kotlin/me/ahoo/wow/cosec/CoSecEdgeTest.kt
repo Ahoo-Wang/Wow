@@ -35,7 +35,7 @@ class CoSecEdgeTest {
     private val node = CoSecNode(
         callers = CoSecCallerResolver(CoSecCallerOptions(crossScopeRoles = setOf("admin"))),
         cosec = cosec,
-        options = CoSecRequestIds.addTo(CoSecRequestFacts.addTo(WowHttpOptions(requestFacts = setOf("X-Trace")))),
+        options = CoSecRequestIds.addTo(WowHttpOptions(requestFacts = setOf("X-Trace"))),
         transformers = listOf(
             object : CommandTransformer {
                 override val input = CommandType("$CONTEXT.cart.OpenCart", OpenCart::class.java)
@@ -156,34 +156,22 @@ class CoSecEdgeTest {
     }
 
     @Test
-    fun `the CoSec request facts and the app of CoSec's scope reach the command beside the host's own`() {
+    fun `the app of CoSec's scope reaches the command beside the facts the host lists, and the device id unlisted does not`() {
         node.post(
             "/shop/cart/open-cart",
             headers = token("alice;acme;;shop-app") + mapOf(
-                CoSecRequestFacts.DEVICE_ID to "device-1",
+                CoSecParameters.DEVICE_ID to "device-1",
                 "X-Trace" to "t-1",
                 "X-Other" to "ignored",
                 "app_id" to "forged",
             ),
         ).assertSucceeded()
-        headers.single().assert().isEqualTo(
-            mapOf(
-                RequestFacts.APP_ID to "shop-app",
-                CoSecRequestFacts.DEVICE_ID to "device-1",
-                "X-Trace" to "t-1",
-            ),
-        )
+        headers.single().assert().isEqualTo(mapOf(RequestFacts.APP_ID to "shop-app", "X-Trace" to "t-1"))
     }
 
     @Test
     fun `a request in no app records none`() {
         node.post("/shop/cart/open-cart", headers = token("alice;acme") + ("app_id" to "forged")).assertSucceeded()
         headers.single().assert().isEmpty()
-    }
-
-    @Test
-    fun `request facts already listed are kept as they are`() {
-        val options = WowHttpOptions(requestFacts = CoSecRequestFacts.NAMES)
-        CoSecRequestFacts.addTo(options).assert().isSameAs(options)
     }
 }

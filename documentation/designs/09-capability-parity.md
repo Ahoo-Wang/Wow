@@ -40,7 +40,7 @@
 | `Command-*` 请求头 | `CommandHeaders` | B | `Wow-Wait`、`Wow-Request-Id`、`If-Match`、`Wow-Scope`、`Wow-Space`（D95、D96、D98）；Skill 覆盖 |
 | 请求事实白名单 | `CommandRequestHeaderPropagator` | A | `wow.http.request-facts`（`edge/http/.../WowHttp.kt`） |
 | 默认的 `remote_ip`、`user_agent` | appender | A | `wow.http.client-facts`（默认 true，`edge/http/.../WowHttp.kt`；D267 ⑯，G-10） |
-| CoSec 的 app/device ID | `CoSecCommandRequestHeaderAppender` | A | `edge/cosec/.../CoSecRequestFacts.kt` |
+| CoSec 的 app/device ID | `CoSecCommandRequestHeaderAppender` | A | app：`edge/cosec/.../CoSecCallerResolver.kt`；device：列入 `wow.http.request-facts` 时记录（`edge/http/.../RequestHeaders.kt`，#7076） |
 | 请求头别名 | `IdentityHeaderAliases` | E | G-13 |
 | 操作人 | `CommandOperator` | A | `api/.../caller/Operator.kt`（D163） |
 | 全局/按聚合 ID 生成、CosId、领域内取 ID | `id/*` | A | `core/spi/.../id/IdGenerators.kt`、`extensions/cosid`、`DecideScope.ids`（D171、D191） |
