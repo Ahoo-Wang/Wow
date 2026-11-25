@@ -1,7 +1,7 @@
 [versions]
 # libraries
 spring-boot = "4.2.0"
-cosid = "5.0.1"
+cosid = "5.1.0"
 cocache = "8.2.0"
 # The train of Spring Boot 4.2.x (spring-cloud-commons 5.1.x; 2025.1 is the 4.0.x and 4.1.x train), for wow-spring-cloud (D396)
 spring-cloud = "2026.0.0"
