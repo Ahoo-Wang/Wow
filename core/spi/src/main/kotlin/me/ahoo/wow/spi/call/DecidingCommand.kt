@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.spi.call
 
+import kotlinx.coroutines.asContextElement
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
@@ -21,6 +22,7 @@ import me.ahoo.wow.api.decide.Misuse
 import me.ahoo.wow.spi.id.DerivedIds
 import me.ahoo.wow.spi.json.WowJson
 import tools.jackson.databind.JsonNode
+import java.util.ServiceLoader
 import kotlin.coroutines.AbstractCoroutineContextElement
 import kotlin.coroutines.CoroutineContext
 
@@ -87,11 +89,35 @@ class DecidingCommand(val ref: AggregateRef, val requestId: String) : AbstractCo
             "with requestId = attemptKey(), or give it a business request id.",
     )
 
+    /**
+     * This command, kept on whichever thread runs the coroutine it is added to, for a decide function that blocks its
+     * thread (`@Blocking`): its body calls a suspending client inside `runBlocking { }`, a coroutine whose context does
+     * not carry this element, on that same thread ([requestIdOf], #7083). Restored as it was when the coroutine leaves
+     * the thread, so nothing else the thread runs finds it.
+     */
+    fun onThread(): CoroutineContext.Element = ON_THREAD.asContextElement(this)
+
     override fun toString(): String = "DecidingCommand($ref, $requestId)"
 
     @InternalWowApi
     companion object Key : CoroutineContext.Key<DecidingCommand> {
         private const val CALL = "call"
+
+        private val ON_THREAD = ThreadLocal<DecidingCommand?>()
+
+        /** The carriers of the modules on the classpath (`ServiceLoader`), once. */
+        private val carriers: List<DecidingCarrier> by lazy {
+            ServiceLoader.load(DecidingCarrier::class.java, DecidingCarrier::class.java.classLoader)
+                .sortedBy { it.javaClass.name }
+        }
+
+        /**
+         * The command being decided where [context] runs: its element, else the one a `@Blocking` decide function
+         * keeps on this thread ([onThread]), else the one a carrier finds in another part of [context]
+         * ([DecidingCarrier]), else null.
+         */
+        fun decidingIn(context: CoroutineContext): DecidingCommand? =
+            context[Key] ?: ON_THREAD.get() ?: carriers.firstNotNullOfOrNull { it.decidingIn(context) }
 
         /**
          * The request id of the [index]-th command (from 0) sent while deciding the request [requestId] of [type] in
@@ -124,9 +150,23 @@ class DecidingCommand(val ref: AggregateRef, val requestId: String) : AbstractCo
 }
 
 /**
+ * Finds the command being decided in a coroutine whose context does not hold it as an element: one a decide function
+ * started on its own, whose context carries the command another way. `wow-reactor` carries it in the Reactor context of
+ * the publisher a decide function returns, which the coroutine of a `mono { }` it built reads (#7046). Found with
+ * `ServiceLoader`, from a module's `META-INF/services/me.ahoo.wow.spi.call.DecidingCarrier`; asked only for a command
+ * sent with no request id of its own where no element is found, quickly and without blocking.
+ */
+@InternalWowApi
+fun interface DecidingCarrier {
+    /** The command being decided that [context] carries, or null. */
+    fun decidingIn(context: CoroutineContext): DecidingCommand?
+}
+
+/**
  * The request id of [request], a command a client sends in this context: its own ([CommandRequest.requestId]), else
- * the next of the command being decided ([DecidingCommand.nextRequestId]), else null, for the client to choose.
+ * the next of the command being decided ([DecidingCommand.nextRequestId], found by [DecidingCommand.decidingIn]), else
+ * null, for the client to choose.
  */
 @InternalWowApi
 fun CoroutineContext.requestIdOf(request: CommandRequest<*>): String? =
-    request.requestId ?: this[DecidingCommand]?.nextRequestId(request)
+    request.requestId ?: DecidingCommand.decidingIn(this)?.nextRequestId(request)
