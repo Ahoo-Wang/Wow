@@ -60,6 +60,10 @@ internal class Preparation(
      * Decides, runs the after hooks and evolves: either an outcome needing no append, or the stream to append.
      * [deciding] is the execution's, every attempt's: the commands a client sends while deciding take request ids
      * derived from the command's, the same in every attempt, and a call decided again must be the same call.
+     *
+     * The decision is observed ([Observer.deciding]) and its observation ended once it returns or fails. A batch's
+     * decision of a command ([trial], [Batching]) is kept only when it appends a stream: its observation is ended once
+     * the stream is prepared, and dropped otherwise, as the command is decided again and observed there.
      */
     internal suspend fun <S : Any> prepare(
         model: AggregateModel<S>,
@@ -70,6 +74,7 @@ internal class Preparation(
         commandType: String,
         reach: CommandReach,
         deciding: DecidingCommand,
+        trial: Boolean = false,
     ): Prepared {
         // A creation's declared time (`@OccurredAt`) is its commit's: never one the node's clock has not reached.
         unwritable(command, scope)?.let { return Prepared.Done(it) }
@@ -78,8 +83,15 @@ internal class Preparation(
         val version = loaded.version
         val before = if (options.verifyDecidePurity) purityBaseline(state, version) else null
         deciding.nextAttempt()
-        val decision = observer.deciding(command).observe {
-            withContext(deciding) { decisions.decideAll(model, decider, scope, state, command.body) }
+        val observation = observer.deciding(command)
+        val decision = if (trial) {
+            observation.within {
+                withContext(deciding) { decisions.decideAll(model, decider, scope, state, command.body) }
+            }
+        } else {
+            observation.observe {
+                withContext(deciding) { decisions.decideAll(model, decider, scope, state, command.body) }
+            }
         }
         // Checked for every decision, a rejection that writes nothing included: its state is cached again as it is.
         if (before != null) {
@@ -110,7 +122,9 @@ internal class Preparation(
         }
         // The decision's own time: what it read as `now` is the time its events are committed at.
         val writtenAt = scope.writtenAt.takeIf { scope.declaresTime }
-        return appended(model, loaded, command, commandType, events, rejection, scope.now, reach, writtenAt)
+        return appended(model, loaded, command, commandType, events, rejection, scope.now, reach, writtenAt).also {
+            if (trial && it is Prepared.Append) observation.end()
+        }
     }
 
     /**

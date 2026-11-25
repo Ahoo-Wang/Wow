@@ -16,6 +16,7 @@ package me.ahoo.wow.runtime
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ThreadContextElement
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.cancelAndJoin
@@ -36,7 +37,10 @@ import me.ahoo.wow.runtime.health.NodeFatals
 import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
+import me.ahoo.wow.spi.observation.Observation
 import me.ahoo.wow.spi.observation.ObservedEvent.Fatal.Component
+import me.ahoo.wow.spi.observation.Observer
+import me.ahoo.wow.spi.observation.TraceContext
 import me.ahoo.wow.spi.wait.Origin
 import me.ahoo.wow.spi.wait.WaitContext
 import org.junit.jupiter.api.Test
@@ -45,6 +49,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
+import kotlin.coroutines.CoroutineContext
 import kotlin.random.Random
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -330,6 +335,50 @@ class ExecutorTest {
     fun `a batch takes at least one command`() {
         runCatching { Executor(Kernel(InMemoryEventLog()), maxBatch = 0) }.exceptionOrNull()
             .assert().isInstanceOf(IllegalArgumentException::class.java)
+    }
+
+    /** A trace named [name], current on the thread while a coroutine that carries it runs, as a tracer's is. */
+    private class Trace(val name: String) : TraceContext(), ThreadContextElement<String?> {
+        override val fields: Map<String, String> = mapOf("traceparent" to name)
+
+        override fun updateThreadContext(context: CoroutineContext): String? = current.get().also { current.set(name) }
+
+        override fun restoreThreadContext(context: CoroutineContext, oldState: String?) = current.set(oldState)
+
+        companion object {
+            val current = ThreadLocal<String?>()
+        }
+    }
+
+    @Test
+    fun `a batch observes each queued command's execution in its own caller's trace`(): Unit = runBlocking {
+        val id = "traced"
+        val started = CopyOnWriteArrayList<String>()
+        val observer = object : Observer {
+            override fun executing(command: Command<*>, commandType: String): Observation {
+                started += "${command.body} in ${Trace.current.get()}"
+                return Observation.NONE
+            }
+        }
+        val log = BatchLog()
+        val batching = Executor(Kernel(log, states = LruStateCache(capacity = 16), observer = observer), maxBatch = 4)
+        val gate = CompletableDeferred<Unit>().also { gates[id] = it }
+        val held = async(Dispatchers.Default + Trace("holder")) { batching.execute(model, command(id, Hold(id))) }
+        withTimeout(TIMEOUT_MS) { holding.computeIfAbsent(id) { CompletableDeferred() }.await() }
+        val pushes = (1..2).map { amount ->
+            async(Dispatchers.Default + Trace("caller-$amount")) { batching.execute(model, command(id, Push(amount))) }
+                .also { withTimeout(TIMEOUT_MS) { while (batching.commandsInFlight < amount + 1) yield() } }
+        }
+        gate.complete(Unit)
+        held.await()
+        pushes.awaitAll()
+        // The second Push is decided in the first's coroutine, the batch's: its execution is still its caller's.
+        log.batches.assert().containsExactly(2)
+        started.assert().containsExactly(
+            "Hold(gate=traced) in holder",
+            "Push(amount=1) in caller-1",
+            "Push(amount=2) in caller-2",
+        )
     }
 
     @Test
