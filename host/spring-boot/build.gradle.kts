@@ -90,3 +90,10 @@ dependencies {
 configurations.matching { it.name.startsWith("integrationTest") }.configureEach {
     exclude(group = "org.springframework.boot", module = "spring-boot-mongodb")
 }
+
+// ConfigurationKeysTest reads the manifests of deploy/ (#6983): a change of them alone runs the tests again, rather than
+// leaving the cached result of the manifests before it.
+tasks.named<Test>("test") {
+    inputs.files(fileTree(rootDir) { include("deploy/**/*.yaml") })
+        .withPropertyName("deployManifests").withPathSensitivity(PathSensitivity.RELATIVE)
+}
