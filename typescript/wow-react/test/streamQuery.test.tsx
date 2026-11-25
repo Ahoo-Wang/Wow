@@ -21,7 +21,11 @@
 import { StrictMode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { QueryModelClient, WowProblemError } from '@ahoo-wang/wow-client';
+import {
+  type Positioned,
+  QueryModelClient,
+  WowProblemError,
+} from '@ahoo-wang/wow-client';
 import { filter, listQuery } from '@ahoo-wang/wow-client/dsl';
 import { useStreamQuery } from '../src';
 import { PUBLISH_INTERVAL_MS } from '../src/internal/readStreamRows';
@@ -364,6 +368,52 @@ describe('the stream lifecycle', () => {
     expect(result.current.loading).toBe(false);
     expect(result.current.done).toBe(false);
     expect(result.current.items).toEqual([o1]);
+  });
+
+  it('keeps every row it read on abort(), also the ones it had not published yet, and the position of the last (#6915)', async () => {
+    // A stream that hands out a row only when the test enqueues it, and
+    // says when the reader asks for the next one: once it asks for a third,
+    // it has read the second.
+    let controller!: ReadableStreamDefaultController<Positioned<OrderState>>;
+    let pulls = 0;
+    const thirdRead = deferred<void>();
+    const stream = new ReadableStream<Positioned<OrderState>>(
+      {
+        start(c) {
+          controller = c;
+        },
+        pull() {
+          pulls += 1;
+          if (pulls === 3) thirdRead.resolve();
+        },
+      },
+      { highWaterMark: 0 },
+    );
+    const { result } = renderHook(() =>
+      useStreamQuery<OrderState>({
+        initialQuery: paidQuery,
+        execute: async () => stream,
+      }),
+    );
+    await waitFor(() => expect(pulls).toBe(1));
+    controller.enqueue({ row: o1, position: '1' });
+    await waitFor(() => expect(result.current.items).toEqual([o1]));
+
+    // The second row is read; within the same turn, before the next
+    // publish is due, the reader stops the stream.
+    await act(async () => {
+      controller.enqueue({ row: o2, position: '2' });
+      await thirdRead.promise;
+      result.current.abort();
+    });
+    // Past the publish interval: nothing is published after the abort.
+    await act(
+      () =>
+        new Promise(resolve => setTimeout(resolve, PUBLISH_INTERVAL_MS * 2)),
+    );
+    expect(result.current.status).toBe('idle');
+    expect(result.current.items).toEqual([o1, o2]);
+    expect(result.current.position).toBe('2');
   });
 
   it('stops and empties the rows on reset()', async () => {

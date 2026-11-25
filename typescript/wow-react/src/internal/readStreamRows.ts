@@ -37,12 +37,18 @@ export const PUBLISH_INTERVAL_MS = 16;
  * query or an unmount has taken over, and its rows must not be overwritten.
  * The reader is always released, so the stream never stays locked.
  *
+ * `reading` receives, as the read starts, the publish of the rows received
+ * and not yet published: a reader that stops the stream on purpose, an
+ * `abort()`, calls it before it aborts `signal`, so no row it had read is
+ * lost.
+ *
  * Internal: not exported from the package.
  */
 export async function readStreamRows<R>(
   stream: ReadableStream<Positioned<R>>,
   signal: AbortSignal,
   publish: (rows: R[], position: string | undefined) => void,
+  reading: (flush: () => void) => void,
 ): Promise<R[]> {
   const reader = stream.getReader();
   const rows: R[] = [];
@@ -70,6 +76,7 @@ export async function readStreamRows<R>(
   };
   if (signal.aborted) cancel();
   else signal.addEventListener('abort', cancel, { once: true });
+  reading(flush);
   try {
     for (;;) {
       const { done, value } = await reader.read();

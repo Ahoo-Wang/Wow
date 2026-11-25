@@ -81,7 +81,7 @@ export function PaidOrders({
 
 ## 逐页读取 {#read-page-by-page}
 
-`useCursorQuery` 读取只进的游标查询，保存已读各页的行；`fetchNext()` 读取下一页并追加到后面。游标归 hook 所有：它的查询里没有游标，每次运行都从第一页开始；`fetchNext()` 从被调用那一刻分页所处的位置继续读（一个处理函数可以连续两次 `await fetchNext()` 读两页）；`fetchNext()` 失败时保留已有的行，再调用一次就重试那一页：
+`useCursorQuery` 读取只进的游标查询，保存已读各页的行；`fetchNext()` 读取下一页并追加到后面。游标归 hook 所有：它的查询里没有游标，每次运行都从第一页开始；`fetchNext()` 从被调用那一刻分页所处的位置继续读（一个处理函数可以连续两次 `await fetchNext()` 读两页）；`fetchNext()` 失败时保留已有的行，再调用一次就重试那一页。游标只属于答出它那一页的查询：`autoExecute: false` 时，查询或请求选项变了而还没有运行，`fetchNext()` 读取当前查询的第一页：
 
 ```tsx
 import type { Snapshot } from '@ahoo-wang/wow-client';
@@ -156,7 +156,7 @@ export function ShippedOrders({ orders }: { orders: OrderSnapshotQueryClient }) 
 }
 ```
 
-`abort()` 停止流，保留已读到的行；`reset()` 停止流并清空它们。
+`abort()` 停止流，保留已读到的每一行（包括还没显示出来的）和最后一行的 `position`；`reset()` 停止流并清空它们。
 
 组件重新挂载后要从流停下的地方接着读，就把 `position` 存在比组件活得久的地方，再以 `requestOptions: { resume: { lastEventId: saved } }` 传回：第一个请求就会请求它之后的记录。
 

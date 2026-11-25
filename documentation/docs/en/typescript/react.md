@@ -81,7 +81,7 @@ export function PaidOrders({
 
 ## Read page by page
 
-`useCursorQuery` reads a forward-only cursor query and keeps the rows of every page read; `fetchNext()` reads the next page and appends it. The hook owns the cursor: its query has none, every run starts at the first page, `fetchNext()` reads on from wherever the pages stand when it is called (a handler may `await fetchNext()` twice to read two pages), and a failed `fetchNext()` keeps the rows, so calling it again retries that page:
+`useCursorQuery` reads a forward-only cursor query and keeps the rows of every page read; `fetchNext()` reads the next page and appends it. The hook owns the cursor: its query has none, every run starts at the first page, `fetchNext()` reads on from wherever the pages stand when it is called (a handler may `await fetchNext()` twice to read two pages), and a failed `fetchNext()` keeps the rows, so calling it again retries that page. A cursor goes with the query whose page answered it: with `autoExecute: false`, once the query or the request options change and have not run yet, `fetchNext()` reads the first page of the query as it now is:
 
 ```tsx
 import type { Snapshot } from '@ahoo-wang/wow-client';
@@ -155,7 +155,7 @@ export function ShippedOrders({ orders }: { orders: OrderSnapshotQueryClient }) 
 }
 ```
 
-`abort()` stops the stream and keeps the rows it read; `reset()` stops it and empties them.
+`abort()` stops the stream and keeps every row it read, the ones it had not shown yet included, and the `position` of the last; `reset()` stops it and empties them.
 
 To go on where a stream stopped after the component remounts, keep `position` somewhere that outlives it and hand it back as `requestOptions: { resume: { lastEventId: saved } }`: the first request then asks for the records after it.
 
