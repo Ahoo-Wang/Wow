@@ -23,6 +23,7 @@ import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.WaitSignal
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.http.HttpJson
+import me.ahoo.wow.http.awaitBytesOrNull
 import me.ahoo.wow.http.caller.DeclaredServices
 import me.ahoo.wow.http.problem.Problem
 import me.ahoo.wow.runtime.cluster.ClusterChannelHandler
@@ -37,7 +38,6 @@ import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.server.RouterFunction
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
-import org.springframework.web.reactive.function.server.awaitBodyOrNull
 import org.springframework.web.reactive.function.server.bodyValueAndAwait
 import org.springframework.web.reactive.function.server.buildAndAwait
 import org.springframework.web.reactive.function.server.coRouter
@@ -189,7 +189,7 @@ private fun forbidden(request: ServerRequest, detail: String): Problem {
 /** The body read by [decode], or null when it is missing or not that message. */
 @Suppress("TooGenericExceptionCaught") // A JSON `null` fails the codec's non-null result check.
 private suspend fun <T : Any> ServerRequest.decode(decode: (ByteArray) -> T): T? {
-    val bytes = awaitBodyOrNull<ByteArray>() ?: return null
+    val bytes = awaitBytesOrNull() ?: return null
     return try {
         decode(bytes)
     } catch (malformed: JacksonException) {

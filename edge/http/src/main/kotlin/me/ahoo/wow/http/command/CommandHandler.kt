@@ -31,6 +31,7 @@ import me.ahoo.wow.api.wire.WireNames
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.http.HttpJson
 import me.ahoo.wow.http.WowHttpOptions
+import me.ahoo.wow.http.awaitBytesOrNull
 import me.ahoo.wow.http.caller.Authenticator
 import me.ahoo.wow.http.caller.CallPermits
 import me.ahoo.wow.http.handingOver
@@ -49,7 +50,6 @@ import org.springframework.http.MediaType
 import org.springframework.http.codec.ServerSentEvent
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
-import org.springframework.web.reactive.function.server.awaitBodyOrNull
 import org.springframework.web.reactive.function.server.bodyAndAwait
 import org.springframework.web.reactive.function.server.bodyValueAndAwait
 import kotlin.coroutines.EmptyCoroutineContext
@@ -150,7 +150,7 @@ internal class CommandHandler(
             context = target.context,
             aggregate = target.aggregate,
             command = target.command,
-            body = CommandBody.Bytes(request.awaitBodyOrNull<ByteArray>()?.takeIf { it.isNotEmpty() } ?: EMPTY_BODY),
+            body = CommandBody.Bytes(request.awaitBytesOrNull()?.takeIf { it.isNotEmpty() } ?: EMPTY_BODY),
             caller = caller,
             aggregateId = target.id ?: if (target.byId) request.pathVariable(ID) else null,
             target = headers.target(request),

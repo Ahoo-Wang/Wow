@@ -27,10 +27,13 @@ import me.ahoo.wow.api.ledger.Recoverable
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.http.Answer
+import me.ahoo.wow.http.HttpJson
 import me.ahoo.wow.http.TENANT
+import me.ahoo.wow.http.announce
 import me.ahoo.wow.http.answer
 import me.ahoo.wow.http.cartManifest
 import me.ahoo.wow.http.headerCallers
+import me.ahoo.wow.http.servingOnNetty
 import me.ahoo.wow.kernel.memory.InMemoryCheckpointStore
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
@@ -210,6 +213,17 @@ class ParkedRoutesTest {
         val refused = client.read("a", user = "mallory")
         refused.status.assert().isEqualTo(403)
         refused.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
+    }
+
+    @Test
+    fun `a body announced past the codecs' limit is refused from its Content-Length, the same 413 problem (#7001)`() {
+        val path = "${OpsPaths.PARKED}/${OpsPaths.LIST}"
+        val read = client(other).post(path, """{"subscription":"${"a".repeat(300 * 1024)}"}""")
+        read.status.assert().isEqualTo(413)
+        val routes = parkedRoutes(ParkedOps.of(listOf(other)), cartManifest(), authorizer, headerCallers)
+        val announced = servingOnNetty(routes) { announce(it, path) }
+        announced.statusLine.assert().startsWith("HTTP/1.1 413")
+        HttpJson.mapper.readTree(announced.body).assert().isEqualTo(read.body)
     }
 
     @Test

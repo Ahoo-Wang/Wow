@@ -169,6 +169,16 @@ class ServiceRoutesTest {
     )
 
     @Test
+    fun `a route's body announced past the codecs' limit is refused from its Content-Length, the same 413 problem`() {
+        // #7001: announced with Expect: 100-continue and not sent, answered 413 in place of 100 Continue.
+        val read = node.post("/$CONTEXT/notes", """{"text":"${"a".repeat(300 * 1024)}"}""")
+        read.status.assert().isEqualTo(413)
+        val announced = servingOnNetty(node.routes) { announce(it, "/$CONTEXT/notes") }
+        announced.statusLine.assert().startsWith("HTTP/1.1 413")
+        HttpJson.mapper.readTree(announced.body).assert().isEqualTo(read.body)
+    }
+
+    @Test
     fun `a route answers its handler's JSON, as the caller in its tenant and scope`() {
         val answer = node.get("/$CONTEXT/summaries/mon?limit=3")
         answer.status.assert().isEqualTo(200)

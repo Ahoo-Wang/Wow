@@ -17,6 +17,11 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.http.announce
+import me.ahoo.wow.runtime.cluster.ClusterChannelHandler
+import me.ahoo.wow.runtime.cluster.ClusterCodec
+import me.ahoo.wow.runtime.cluster.ForwardReply
+import me.ahoo.wow.runtime.cluster.Refusal
 import org.junit.jupiter.api.Test
 import org.springframework.web.reactive.function.server.ServerResponse
 import org.springframework.web.reactive.function.server.awaitBody
@@ -26,6 +31,8 @@ import org.springframework.web.reactive.function.server.coRouter
 import java.net.InetSocketAddress
 import java.net.Socket
 import java.net.SocketException
+import java.net.URI
+import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.util.concurrent.CompletionException
@@ -75,6 +82,51 @@ class InternalPortTest {
             val end = runCatching { stalled.getInputStream().read() }
             (end.getOrNull() == -1 || end.exceptionOrNull() is SocketException).assert()
                 .describedAs("the stalled connection after the stop: $end").isTrue()
+        }
+    }
+
+    @Test
+    fun `a forward or a signal announced past the limit is refused from its Content-Length, as when read (#7001)`() {
+        val handler = ClusterChannelHandler { ForwardReply.refused(Refusal.NOT_OWNER) }
+        val port = InternalPort.of(InternalPortSettings(port = 0, bindHost = "127.0.0.1"), internalRoutes(handler, {}))
+        port.start()
+        try {
+            // Announced with Expect: 100-continue and not sent: the forward's TOO_LARGE reply, so its sender runs it,
+            // and the signal's 413, each in place of 100 Continue.
+            val forward = announce(port.boundPort, InternalHttp.FORWARD_PATH, headers = emptyList())
+            forward.statusLine.assert().startsWith("HTTP/1.1 200")
+            ClusterCodec.decodeReply(forward.bytes).refused.assert().isEqualTo(Refusal.TOO_LARGE)
+            announce(port.boundPort, InternalHttp.SIGNALS_PATH, headers = emptyList()).statusLine.assert()
+                .startsWith("HTTP/1.1 413")
+        } finally {
+            port.stop()
+        }
+    }
+
+    @Test
+    fun `over HTTP 2 a forward past the limit is its TOO_LARGE reply, a reset after it the protocol's way`() {
+        // #7001 is HTTP/1.1's: an HTTP/2 stream answered before its body ends is reset after the complete response,
+        // which the cluster channel's client reads; the lingering close does not apply to its streams.
+        val handler = ClusterChannelHandler { ForwardReply.refused(Refusal.NOT_OWNER) }
+        val port = InternalPort.of(InternalPortSettings(port = 0, bindHost = "127.0.0.1"), internalRoutes(handler, {}))
+        port.start()
+        try {
+            val client = InternalHttp.client()
+            val uri = URI.create("http://127.0.0.1:${port.boundPort}${InternalHttp.FORWARD_PATH}")
+            val opened = client.send(
+                HttpRequest.newBuilder(uri).method("HEAD", HttpRequest.BodyPublishers.noBody()).build(),
+                HttpResponse.BodyHandlers.discarding(),
+            )
+            opened.version().assert().isEqualTo(HttpClient.Version.HTTP_2)
+            val body = ("{\"x\":\"" + "a".repeat(300 * 1_024) + "\"}").toByteArray()
+            val answer = client.send(
+                HttpRequest.newBuilder(uri).header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofByteArray(body)).build(),
+                HttpResponse.BodyHandlers.ofByteArray(),
+            )
+            ClusterCodec.decodeReply(answer.body()).refused.assert().isEqualTo(Refusal.TOO_LARGE)
+        } finally {
+            port.stop()
         }
     }
 
