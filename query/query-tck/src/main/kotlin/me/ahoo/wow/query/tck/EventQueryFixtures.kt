@@ -303,7 +303,7 @@ abstract class EventQueryFixtures internal constructor() {
             Transport.of(
                 wait = WaitContext.of(
                     "w-1",
-                    Origin.of("node-1", "10.0.0.7:8081", "order-service"),
+                    Origin.of("order-service", "node-1", "10.0.0.7:8081"),
                     listOf(Hop.handled("projector", "tck"), Hop.snapshot()),
                     1_767_571_210_000L,
                 ),

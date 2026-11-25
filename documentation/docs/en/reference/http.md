@@ -61,7 +61,7 @@ Any other request under a context's path is a `404` problem.
 | `If-None-Match` | State reads, descriptors | The last `ETag`; `304` when it still holds. One that does not parse is ignored: a cache condition fails open ([Entity tags](./protocols#entity-tags)) |
 | `Accept: text/event-stream` | Commands, `list` queries | Server-sent events (below) |
 | `Last-Event-ID` | Streamed `list` queries | The position to resume after |
-| `Wow-Scope` | Every route | For a caller allowed to act across scopes: the tenant, owner and space to act in, an RFC 8941 dictionary, `tenant="t1", owner="u1", space="s1"`. On a query route, `tenant=*` or `tenant=("t1" "t2")` reads across tenants when `wow.query.allow-cross-tenant` is on. Its lines are one dictionary, joined by commas; a member given twice is malformed (`wow.command.malformed`, `wow.query.malformed` on a read) |
+| `Wow-Scope` | Every route | For a caller allowed to act across scopes: the tenant, owner and space to act in, an RFC 8941 dictionary, `tenant="t1", owner="u1", space="s1"`. It always names a scope: an owner or a space it leaves out is none, so `tenant="t1"` alone acts in `t1` with no owner or space checked; Wow's clients write the caller's own scope for a request that names only a tenant, which keeps it. On a query route, `tenant=*` or `tenant=("t1" "t2")` reads across tenants when `wow.query.allow-cross-tenant` is on. Its lines are one dictionary, joined by commas; a member given twice is malformed (`wow.command.malformed`, `wow.query.malformed` on a read) |
 | `Wow-Space` | Every route | The space, among the caller's own, to act in |
 
 The headers `wow.http.request-facts` lists are copied into the command and written into its event stream.
@@ -206,7 +206,7 @@ A failure the framework does not know, such as a failed call to another system, 
 @Order(0)
 fun catalogProblems(): ProblemMapper = ProblemMapper { failure ->
     (failure as? WebClientResponseException)?.let {
-        WowProblemException("shop.catalog.unreachable", 502, Retry.SAME_REQUEST, null, "The catalog did not answer.")
+        WowProblemException("shop.catalog.unreachable", 502, RetryAdvice.SAME_REQUEST, null, "The catalog did not answer.")
     }
 }
 ```

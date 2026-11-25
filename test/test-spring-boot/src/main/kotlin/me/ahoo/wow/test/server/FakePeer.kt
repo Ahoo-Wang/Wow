@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.test.server
 
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
@@ -206,13 +207,15 @@ class FakePeer internal constructor(
         val aggregateId = request.pathVariables()[ID] ?: command.manifest.idProperty?.let { property ->
             (tree as? ObjectNode)?.get(property)?.takeIf { it.isString }?.asString()
         }
+        val root = CallHeaders.parse(callHeader)
         val call = PeerCall(
             command = decoded ?: tree,
             commandType = command.typeName,
-            aggregateId = aggregateId,
+            ref = aggregateId?.let { command.aggregate.ref(root.tenantId, it) }
+                ?: command.aggregate.unassigned(root.tenantId),
             service = service,
             requestId = headers.firstHeader(WowHeaders.REQUEST_ID),
-            call = CallHeaders.parse(callHeader),
+            call = root,
         )
         lock.withLock {
             recorded += call
@@ -263,28 +266,26 @@ class FakePeer internal constructor(
 
 /**
  * A call a [FakePeer] took: the [command] it sends, decoded to its class when the class path has it (else its JSON),
- * by its [commandType] (`context.aggregate.Command`), the [aggregateId] it names (its route's, or its body's id
- * property; null for a creation that names none), the [service] that sent it (`Wow-Service`), its [requestId], and the
- * root command it acts for ([call], `Wow-Call`): its tenant, scope and operator.
+ * by its [commandType] (`context.aggregate.Command`), the aggregate it goes to ([ref]: its type, the tenant the call
+ * acts in and the id it names, its route's or its body's id property; unassigned, [AggregateRef.isAssigned] false, for
+ * a creation that names none), the [service] that sent it (`Wow-Service`), its [requestId], and the root command it
+ * acts for ([call], `Wow-Call`): its tenant, scope and operator.
  */
 class PeerCall internal constructor(
     val command: Any,
     val commandType: String,
-    val aggregateId: String?,
+    val ref: AggregateRef,
     val service: String,
     val requestId: String?,
     val call: CallContext,
 ) {
-    /** The tenant the call acts in. */
-    val tenantId: String get() = call.tenantId
-
     /** The scope the call acts in: the root command's owner and space. */
     val scope: Scope get() = call.scope
 
     /** Who the root command acts for; null for an anonymous one. */
     val operator: Operator? get() = call.operator
 
-    override fun toString(): String = "PeerCall($commandType, $aggregateId, $service, $call)"
+    override fun toString(): String = "PeerCall($commandType, $ref, $service, $call)"
 }
 
 /**
@@ -314,7 +315,8 @@ class PeerAnswer private constructor(
         if (failure) {
             return statuses.problemOf(checkNotNull(code), message.orEmpty(), type.context).respond()
         }
-        val ref = type.ref(call.tenantId, id ?: call.aggregateId ?: GlobalIdGenerator.UUID_V7.next())
+        val named = call.ref.id.takeIf { call.ref.isAssigned }
+        val ref = type.ref(call.ref.tenantId, id ?: named ?: GlobalIdGenerator.UUID_V7.next())
         val function = FunctionInfo.of(FunctionKind.COMMAND, type.context, type.name, command.manifest.name)
         val requestId = call.requestId ?: call.call.commandId
         val correlationId = call.call.causation.correlationId

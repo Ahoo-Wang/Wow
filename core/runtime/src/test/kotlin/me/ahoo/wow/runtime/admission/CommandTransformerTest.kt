@@ -101,7 +101,7 @@ class CommandTransformerTest {
 
     private val reservations = InMemoryReservationStore()
     private val waits = WaitRegistry()
-    private val origin = Origin("node-1", "127.0.0.1:9090", "shop")
+    private val origin = Origin("shop", "node-1", "127.0.0.1:9090")
     private val coordinator = WaitCoordinator(
         Executor(Kernel(InMemoryEventLog(partitions = 2), reservations = reservations)),
         waits,
@@ -124,17 +124,17 @@ class CommandTransformerTest {
 
     /** Imports an account: a mounted command that becomes the creation command, the id generated. */
     private val importer = transformer(import) { input ->
-        CommandTarget(register, null, Register((input.body as Import).username), input.headers + ("Source" to "v9"))
+        CommandTarget(register, Register((input.body as Import).username), null, input.headers + ("Source" to "v9"))
     }
 
     /** Adapts a provider's callback: a mounted command that becomes a command of the account its body names. */
     private val callbacks = transformer(callback) { input ->
         val body = input.body as Callback
-        CommandTarget(changePassword, body.user, ChangePassword(body.user, body.event), input.headers)
+        CommandTarget(changePassword, ChangePassword(body.user, body.event), body.user, input.headers)
     }
 
     /** Mounted, and becomes another mounted command, which no aggregate decides. */
-    private val notes = transformer(note) { CommandTarget(import, "x", Import("u", "1")) }
+    private val notes = transformer(note) { CommandTarget(import, Import("u", "1"), "x") }
 
     private val actions = CopyOnWriteArrayList<CommandAction>()
 
@@ -313,8 +313,8 @@ class CommandTransformerTest {
             val toLedger = transformer(register) { input ->
                 CommandTarget(
                     ledger.commandType(OpenLedger::class.java),
-                    "l-1",
-                    OpenLedger((input.body as Register).username)
+                    OpenLedger((input.body as Register).username),
+                    "l-1"
                 )
             }
             val gateway = gateway(
@@ -323,7 +323,10 @@ class CommandTransformerTest {
                 tenants = TenantPolicy { if (it == ledger.type) "ledgers" else null },
             )
             val elsewhere = request("Register", """{"username":"gina"}""")
-                .copyWith(caller = alice.copyWith(crossScope = true), target = TargetScope("other", Scope("alice")))
+                .copyWith(
+                    caller = alice.copyWith(crossScope = true),
+                    targetScope = TargetScope("other", Scope("alice"))
+                )
             val result = gateway.execute(elsewhere)
             result.status.assert().isEqualTo(CommandResult.Status.REJECTED)
             result.error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
@@ -429,10 +432,10 @@ class CommandTransformerTest {
     @Test
     fun `a target checks its body, its id and its headers`() {
         listOf(
-            { CommandTarget(register, null, Note()) },
-            { CommandTarget(register, " ", Register("x")) },
-            { CommandTarget(register, null, Register("x"), mapOf("Wow-Scope" to "owner=\"bob\"")) },
-            { CommandTarget(register, null, Register("x"), mapOf("wow.transformed-from" to "forged")) },
+            { CommandTarget(register, Note(), null) },
+            { CommandTarget(register, Register("x"), " ") },
+            { CommandTarget(register, Register("x"), null, mapOf("Wow-Scope" to "owner=\"bob\"")) },
+            { CommandTarget(register, Register("x"), null, mapOf("wow.transformed-from" to "forged")) },
             { ReservationTargetResolver(register, TYPE, " ", reservations) { null } },
             { TransformedFrom(" ") },
             { TransformedFrom("a.b.C", " ") },

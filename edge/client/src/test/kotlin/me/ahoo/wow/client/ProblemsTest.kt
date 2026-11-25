@@ -14,7 +14,7 @@
 package me.ahoo.wow.client
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.RetryAdvice
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.Violation
@@ -35,56 +35,60 @@ class ProblemsTest {
     @Test
     fun `what a retry may do should be the problem's retry member, else the catalog's of its code`() {
         read(503, """{"code":"wow.command.unknown","retry":"same-request"}""", "2").apply {
-            retry.assert().isEqualTo(Retry.SAME_REQUEST)
+            retry.assert().isEqualTo(RetryAdvice.SAME_REQUEST)
             retryAfter.assert().isEqualTo(2.seconds)
         }
         // The member wins over the catalog; its wait is the catalog's without a Retry-After.
-        read(503, """{"code":"wow.command.unknown","retry":"none"}""").retry.assert().isEqualTo(Retry.NONE)
+        read(503, """{"code":"wow.command.unknown","retry":"none"}""").retry.assert().isEqualTo(RetryAdvice.NONE)
         read(429, """{"code":"wow.query.busy","retry":"new-request"}""").retryAfter.assert().isEqualTo(1.seconds)
-        read(429, """{"code":"wow.query.busy"}""").retry.assert().isEqualTo(Retry.NEW_REQUEST)
+        read(429, """{"code":"wow.query.busy"}""").retry.assert().isEqualTo(RetryAdvice.NEW_REQUEST)
         read(403, """{"code":"wow.auth.forbidden"}""").apply {
-            retry.assert().isEqualTo(Retry.NONE)
+            retry.assert().isEqualTo(RetryAdvice.NONE)
             retryAfter.assert().isNull()
         }
         // A body that is no Wow problem: a proxy's 503 or 429 may be retried with the same request id.
-        read(503, "Unavailable").retry.assert().isEqualTo(Retry.SAME_REQUEST)
-        read(429, "Slow down").retry.assert().isEqualTo(Retry.SAME_REQUEST)
-        read(500, "Oops").retry.assert().isEqualTo(Retry.NONE)
+        read(503, "Unavailable").retry.assert().isEqualTo(RetryAdvice.SAME_REQUEST)
+        read(429, "Slow down").retry.assert().isEqualTo(RetryAdvice.SAME_REQUEST)
+        read(500, "Oops").retry.assert().isEqualTo(RetryAdvice.NONE)
         // A gateway's bare 502 or 504 does not say whether its node took the command: the same request id is safe.
         listOf(502, 504).forEach { status ->
             read(status, "<html>Bad Gateway</html>").apply {
-                retry.assert().isEqualTo(Retry.SAME_REQUEST)
+                retry.assert().isEqualTo(RetryAdvice.SAME_REQUEST)
                 fromGateway.assert().isTrue()
             }
         }
         // A 502 or 504 of Wow's own is its code's.
         read(504, """{"code":"wow.query.timeout"}""").apply {
-            retry.assert().isEqualTo(Retry.NONE)
+            retry.assert().isEqualTo(RetryAdvice.NONE)
             fromGateway.assert().isFalse()
         }
     }
 
     @Test
     fun `a command is retried with its request id and never at 504, a query whenever a retry may get past it`() {
-        fun problem(status: Int, code: String, retry: Retry) = PeerProblem(status, code, null, null, retry, null)
-        problem(503, FrameworkCodes.STORAGE_UNAVAILABLE, Retry.SAME_REQUEST).retriesCommand.assert().isTrue()
+        fun problem(status: Int, code: String, retry: RetryAdvice) = PeerProblem(status, code, null, null, retry, null)
+        problem(503, FrameworkCodes.STORAGE_UNAVAILABLE, RetryAdvice.SAME_REQUEST).retriesCommand.assert().isTrue()
         // A wait that timed out may be sent again with the same request id, by the caller: the client does not.
-        problem(504, FrameworkCodes.WAIT_TIMEOUT, Retry.SAME_REQUEST).retriesCommand.assert().isFalse()
+        problem(504, FrameworkCodes.WAIT_TIMEOUT, RetryAdvice.SAME_REQUEST).retriesCommand.assert().isFalse()
         // A gateway's bare 502 or 504 is the caller's to send again: neither a command nor a query is sent again here.
         listOf(502, 504).forEach { status ->
-            PeerProblem(status, null, null, null, Retry.SAME_REQUEST, null).apply {
+            PeerProblem(status, null, null, null, RetryAdvice.SAME_REQUEST, null).apply {
                 retriesCommand.assert().isFalse()
                 retriesQuery.assert().isFalse()
             }
         }
         // Wow's own 502 of a command keeps its retry.
-        problem(502, FrameworkCodes.COMMAND_FAILED, Retry.SAME_REQUEST).retriesCommand.assert().isTrue()
-        problem(429, FrameworkCodes.QUERY_BUSY, Retry.NEW_REQUEST).retriesCommand.assert().isFalse()
-        problem(429, FrameworkCodes.QUERY_BUSY, Retry.NEW_REQUEST).retriesQuery.assert().isTrue()
-        problem(503, FrameworkCodes.STORAGE_UNAVAILABLE, Retry.SAME_REQUEST).retriesQuery.assert().isTrue()
-        problem(400, FrameworkCodes.QUERY_INVALID, Retry.NONE).retriesQuery.assert().isFalse()
+        problem(502, FrameworkCodes.COMMAND_FAILED, RetryAdvice.SAME_REQUEST).retriesCommand.assert().isTrue()
+        problem(429, FrameworkCodes.QUERY_BUSY, RetryAdvice.NEW_REQUEST).retriesCommand.assert().isFalse()
+        problem(429, FrameworkCodes.QUERY_BUSY, RetryAdvice.NEW_REQUEST).retriesQuery.assert().isTrue()
+        problem(503, FrameworkCodes.STORAGE_UNAVAILABLE, RetryAdvice.SAME_REQUEST).retriesQuery.assert().isTrue()
+        problem(400, FrameworkCodes.QUERY_INVALID, RetryAdvice.NONE).retriesQuery.assert().isFalse()
         // A state read below its minimum version is the caller's to wait for.
-        problem(409, FrameworkCodes.QUERY_MIN_VERSION_NOT_REACHED, Retry.NEW_REQUEST).retriesQuery.assert().isFalse()
+        problem(
+            409,
+            FrameworkCodes.QUERY_MIN_VERSION_NOT_REACHED,
+            RetryAdvice.NEW_REQUEST
+        ).retriesQuery.assert().isFalse()
     }
 
     @Test
@@ -92,7 +96,7 @@ class ProblemsTest {
         val failure = java.io.IOException("refused")
         PeerProblem.of(FrameworkCodes.PEER_UNAVAILABLE, "No node.", failure).apply {
             status.assert().isEqualTo(503)
-            retry.assert().isEqualTo(Retry.NEW_REQUEST)
+            retry.assert().isEqualTo(RetryAdvice.NEW_REQUEST)
             retryAfter.assert().isEqualTo(1.seconds)
             (exception("The query") as me.ahoo.wow.api.problem.WowProblemException).cause.assert().isSameAs(failure)
         }

@@ -14,7 +14,7 @@
 package me.ahoo.wow.manifest
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.RetryAdvice
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.wire.WireNames
 import org.junit.jupiter.api.Test
@@ -103,7 +103,7 @@ class FrameworkErrorsTest {
 
     @Test
     fun `a code a retry may get past should say with which request, and wait a second`() {
-        FrameworkErrors.ALL.filter { it.retry != Retry.NONE }.map { it.code }.assert().containsExactlyInAnyOrder(
+        FrameworkErrors.ALL.filter { it.retry != RetryAdvice.NONE }.map { it.code }.assert().containsExactlyInAnyOrder(
             "wow.auth.unavailable",
             "wow.request.rate-limited",
             "wow.command.contended",
@@ -118,7 +118,7 @@ class FrameworkErrorsTest {
             "wow.query.busy",
             "wow.peer.unavailable",
         )
-        FrameworkErrors.ALL.filter { it.retry == Retry.NEW_REQUEST }.map { it.code }.assert()
+        FrameworkErrors.ALL.filter { it.retry == RetryAdvice.NEW_REQUEST }.map { it.code }.assert()
             .containsExactlyInAnyOrder(
                 "wow.auth.unavailable",
                 "wow.request.rate-limited",
@@ -128,32 +128,34 @@ class FrameworkErrorsTest {
             )
         FrameworkErrors.ALL.forEach { error ->
             error.retryAfter.assert().describedAs(error.code)
-                .isEqualTo(FrameworkErrors.RETRY_AFTER_SECONDS.takeIf { error.retry != Retry.NONE })
+                .isEqualTo(FrameworkErrors.RETRY_AFTER_SECONDS.takeIf { error.retry != RetryAdvice.NONE })
         }
         // A query that ran out of time would run as long again (D254 ③).
-        FrameworkErrors.BY_CODE.getValue("wow.query.timeout").retry.assert().isEqualTo(Retry.NONE)
+        FrameworkErrors.BY_CODE.getValue("wow.query.timeout").retry.assert().isEqualTo(RetryAdvice.NONE)
     }
 
     @Test
     fun `a boundary's problem should be the catalog's of its code`() {
         FrameworkErrors.problemOf("wow.command.busy", "Busy.").apply {
             status.assert().isEqualTo(429)
-            retry.assert().isEqualTo(Retry.SAME_REQUEST)
+            retry.assert().isEqualTo(RetryAdvice.SAME_REQUEST)
             retryAfter.assert().isEqualTo(1.seconds)
             message.assert().isEqualTo("Busy.")
         }
         FrameworkErrors.problemOf("wow.made.up", "Unknown.").apply {
             status.assert().isEqualTo(FrameworkErrors.INTERNAL_ERROR_STATUS)
-            retry.assert().isEqualTo(Retry.NONE)
+            retry.assert().isEqualTo(RetryAdvice.NONE)
             retryAfter.assert().isNull()
         }
     }
 
     @Test
     fun `an error's retry and Retry-After should be given together`() {
-        assertThrows<IllegalArgumentException> { ErrorManifest("x.y", 503, retry = Retry.SAME_REQUEST) }
+        assertThrows<IllegalArgumentException> { ErrorManifest("x.y", 503, retry = RetryAdvice.SAME_REQUEST) }
         assertThrows<IllegalArgumentException> { ErrorManifest("x.y", 400, retryAfter = 1) }
-        assertThrows<IllegalArgumentException> { ErrorManifest("x.y", 503, retry = Retry.NEW_REQUEST, retryAfter = 0) }
+        assertThrows<IllegalArgumentException> {
+            ErrorManifest("x.y", 503, retry = RetryAdvice.NEW_REQUEST, retryAfter = 0)
+        }
     }
 
     @Test

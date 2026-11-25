@@ -19,7 +19,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.decide.RequestFacts
-import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.RetryAdvice
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.FrameworkCodes
@@ -195,7 +195,7 @@ class HttpCommandCaller internal constructor(
         WowProblemException(
             FrameworkCodes.COMMAND_FAILED,
             BAD_GATEWAY,
-            Retry.SAME_REQUEST,
+            RetryAdvice.SAME_REQUEST,
             null,
             message,
             cause = cause

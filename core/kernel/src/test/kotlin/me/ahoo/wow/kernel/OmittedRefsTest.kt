@@ -19,6 +19,7 @@ import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
+import me.ahoo.wow.api.caller.TargetScope
 import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.lifecycle.DeleteAggregate
@@ -240,29 +241,33 @@ class OmittedRefsTest {
     fun `a derived request's fields should shape its command, and a wait or a timeout should be refused`() {
         val context = saga()
         val other = context.derive(
-            CommandRequest.builder(Reserve("o-1")).id("product-1").targetTenant("other")
-                .targetScope(Scope("bob")).expectedVersion(4).build(),
+            CommandRequest.builder(Reserve("o-1")).aggregateId("product-1")
+                .targetScope(TargetScope.of("other", Scope("bob"))).expectedVersion(4).build(),
         )
         other.ref.assert().isEqualTo(stock.ref("other", "product-1"))
         other.scope.assert().isEqualTo(Scope("bob"))
         other.expectedVersion.assert().isEqualTo(4)
         // A business key names the request, whatever else the execution derives.
-        val keyed = context.derive(CommandRequest.builder(Reserve("o-1")).id("product-1").requestId("k-1").build())
+        val keyed = context.derive(
+            CommandRequest.builder(Reserve("o-1")).aggregateId("product-1").requestId("k-1").build()
+        )
         keyed.id.assert().isEqualTo(
             ExecutionSagaContext.derivedId(execution, stock.ref("acme", "product-1"), Reserve::class.java, "k-1"),
         )
-        saga().derive(CommandRequest.builder(Reserve("o-9")).id("product-1").requestId("k-1").build()).id.assert()
+        saga().derive(
+            CommandRequest.builder(Reserve("o-9")).aggregateId("product-1").requestId("k-1").build()
+        ).id.assert()
             .isEqualTo(keyed.id)
         // A defect in the saga, which no retry changes: the aggregate parks at once.
         val waiting = assertThrownBy<InvalidDerivedRequestException> {
-            context.derive(CommandRequest.builder(Reserve("o-1")).id("p").wait(WaitPlan.COMMITTED).build())
+            context.derive(CommandRequest.builder(Reserve("o-1")).aggregateId("p").wait(WaitPlan.COMMITTED).build())
         }.hasMessageContaining(
             "OrderSaga.onOrderPlaced derives ${Reserve::class.java.name} with a wait (CommandRequest.wait)"
         ).actual()
         FailureClassification.DEFAULT.classify(waiting, HandlerRetry(maxAttempts = 5))
             .assert().isEqualTo(FailureClass.UNRECOVERABLE)
         assertThrownBy<InvalidDerivedRequestException> {
-            context.derive(CommandRequest.builder(Reserve("o-1")).id("p").timeout(1.seconds).build())
+            context.derive(CommandRequest.builder(Reserve("o-1")).aggregateId("p").timeout(1.seconds).build())
         }.hasMessageContaining("with a timeout (CommandRequest.timeout)")
     }
 }

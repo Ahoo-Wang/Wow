@@ -54,14 +54,14 @@ import java.util.concurrent.CopyOnWriteArrayList
  */
 class UnhandledCommandsTest {
     private val cart = cartModel()
-    private val origin = Origin("node-0", "node-0:9090", SHOP_SERVICE)
+    private val origin = Origin(SHOP_SERVICE, "node-0", "node-0:9090")
     private val signalled = CopyOnWriteArrayList<WaitSignal>()
     private val coordinator = WaitCoordinator(
         Executor(Kernel(InMemoryEventLog())),
         WaitRegistry(),
         SubscriptionDirectory.NONE,
         SignalSender { _, signal, _ -> signalled += signal },
-        Origin("node-1", "node-1:9090", SHOP_SERVICE),
+        Origin(SHOP_SERVICE, "node-1", "node-1:9090"),
         WaitOptions(),
     )
     private val topics = InMemoryTopics(1)

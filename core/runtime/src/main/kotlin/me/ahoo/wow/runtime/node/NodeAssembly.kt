@@ -246,7 +246,7 @@ internal class NodeAssembly(
     /** Delivers signals: to [waits] when they are this node's, through the remote sender otherwise. */
     val signals: SignalSender = LocalSignalSender(node, waits, service, remoteSignals)
 
-    private val origin = Origin(node, address.orEmpty(), service)
+    private val origin = Origin(service, node, address.orEmpty())
 
     /** Sends the commands of every context's sagas to the command topics of other contexts; null without a producer. */
     private val sender: CommandSender? = topics?.takeIf { it.producer != null }?.let { CommandSender(contracts, it) }
@@ -488,7 +488,7 @@ internal class NodeAssembly(
     fun bind(address: String) {
         check(bound == null) { "Node $node already has the address $bound." }
         bound = address
-        val origin = Origin(node, address, service)
+        val origin = Origin(service, node, address)
         contexts.values.forEach { it.coordinator.origin = origin }
     }
 }

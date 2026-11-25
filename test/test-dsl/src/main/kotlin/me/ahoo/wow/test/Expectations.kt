@@ -191,8 +191,7 @@ class Expectations<S : Any> @InternalWowApi constructor(
         val stream = committed().stream
         return EventEnvelope(
             body,
-            stream.ref.id,
-            stream.ref.tenantId,
+            stream.ref,
             stream.version,
             stream.commandId,
             stream.requestId,

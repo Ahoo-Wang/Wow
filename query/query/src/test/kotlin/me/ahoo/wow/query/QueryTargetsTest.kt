@@ -46,7 +46,7 @@ class QueryTargetsTest {
         mapped.principal.assert().isEqualTo(user.scope)
         mapped.subject.assert().isEqualTo("alice")
         mapped.attributes.assert().isEqualTo(user.attributes)
-        mapped.target.assert().isNull()
+        mapped.targetScope.assert().isNull()
         QueryTargets().of(cart, user, entry = QueryEntry.IN_PROCESS).entry.assert().isEqualTo(QueryEntry.IN_PROCESS)
     }
 
@@ -56,7 +56,7 @@ class QueryTargetsTest {
         val across = QueryTargets().of(cart, operator, target)
         across.tenantId.assert().isEqualTo("other")
         across.principal.assert().isEqualTo(Scope("bob"))
-        across.target.assert().isEqualTo(target)
+        across.targetScope.assert().isEqualTo(target)
         across.caller!!.crossScope.assert().isTrue()
     }
 
@@ -80,7 +80,9 @@ class QueryTargetsTest {
 
     @Test
     fun `a cross-tenant read reads its tenants, in the scope it names`() {
-        val all = QueryTargets(crossTenant = true).of(cart, operator, TargetScope.of(), CrossTenant.ALL)
+        // As `Wow-Scope: tenant=*` reads: a header always names a scope, none here.
+        val header = TargetScope.of(scope = Scope.NONE)
+        val all = QueryTargets(crossTenant = true).of(cart, operator, header, CrossTenant.ALL)
         all.crossTenant.assert().isEqualTo(CrossTenant.ALL)
         all.tenantId.assert().isNull()
         all.principal.assert().isEqualTo(Scope.NONE)

@@ -313,7 +313,7 @@ class SinkSubscriptionTest {
     @Test
     fun `the wait context and the trace should go with the record, the reservations stay`(): Unit = runBlocking {
         val sink = sink()
-        val wait = WaitContext("w", Origin("n-1", "n-1:9090", "shop"), listOf(Hop.handled("OrderView.onEvent")), 9L)
+        val wait = WaitContext("w", Origin("shop", "n-1", "n-1:9090"), listOf(Hop.handled("OrderView.onEvent")), 9L)
         val reservations = listOf(ReservationKey("email", "a@b"))
         handle(sink, commit(SetPrice(BigDecimal.ONE)), Transport(wait, reservations, mapOf("traceparent" to "t")))
         handle(sink, commit(SetPrice(BigDecimal.TEN)), Transport(reservations = reservations))
@@ -324,7 +324,7 @@ class SinkSubscriptionTest {
     @Test
     fun `an observed sink should write the trace of its own handling instead of the entry's`(): Unit = runBlocking {
         val sink = sink()
-        val wait = WaitContext("w", Origin("n-1", "n-1:9090", "shop"), listOf(Hop.handled("OrderView.onEvent")), 9L)
+        val wait = WaitContext("w", Origin("shop", "n-1", "n-1:9090"), listOf(Hop.handled("OrderView.onEvent")), 9L)
         withContext(TestTrace("sink")) {
             handle(sink, commit(SetPrice(BigDecimal.ONE)), Transport(wait, trace = mapOf("traceparent" to "t")))
             handle(sink, commit(SetPrice(BigDecimal.TEN)))

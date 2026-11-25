@@ -27,7 +27,7 @@ import tools.jackson.databind.node.ObjectNode
 class TransportCodecTest {
     private val wait = WaitContext(
         "w-1",
-        Origin("node-1", "10.0.0.1:9090", "bank-service"),
+        Origin("bank-service", "node-1", "10.0.0.1:9090"),
         listOf(Hop.handled("bank.projector", "bank"), Hop.snapshot()),
         1_000L,
     )

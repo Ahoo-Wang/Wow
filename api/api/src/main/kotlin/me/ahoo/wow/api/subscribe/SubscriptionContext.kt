@@ -129,8 +129,9 @@ interface SubscriptionContext {
  *
  * - its target is the request's: [CommandRequest.type], else the aggregate type the local Manifest and the peer
  *   contracts on the class path (each api jar's `META-INF/wow/contract.json`) assign the command's class; its tenant
- *   [CommandRequest.targetTenant], else this execution's (the commit's, the receipt's or the job instance's); its id
- *   [CommandRequest.id], else none: a creation whose id the target's admission gives, the id of the aggregate the
+ *   the tenant of [CommandRequest.targetScope], else this execution's (the commit's, the receipt's or the job
+ *   instance's); its id
+ *   [CommandRequest.aggregateId], else none: a creation whose id the target's admission gives, the id of the aggregate the
  *   request already created when it is handled again, so the target keeps the first one;
  * - its id and request id are name-based on [executionId] (and, for a receipt, the receipt's command), the target, the
  *   command's class and, when the request gives a [CommandRequest.requestId], that business key: the order the handler
@@ -139,7 +140,8 @@ interface SubscriptionContext {
  *   it reserves), or the handler fails unrecoverable. A key tells apart the commands of one call of a handler of each
  *   event, of one handling otherwise: each call's commands also carry the index of its event in the stream. A business
  *   key handled again with another body is the same request: its target answers it with the first one's commit;
- * - its scope is [CommandRequest.targetScope], else the commit's (the receipt's command's), so an aggregate it creates
+ * - its scope is the scope of [CommandRequest.targetScope], else the commit's (the receipt's command's): a target that
+ *   names only a tenant, as `to(ref)` does, keeps the commit's, so an aggregate it creates
  *   belongs to the owner the chain acts for; its operator is the commit's, and its causation links it to the commit
  *   (the receipt's command) and to the root of the chain; its [CommandRequest.expectedVersion] is kept;
  * - a request with a [CommandRequest.wait] or a [CommandRequest.timeout] fails the handler unrecoverable, so the

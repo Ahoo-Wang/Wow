@@ -27,7 +27,7 @@ import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.client.wait
-import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.RetryAdvice
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.FrameworkCodes
@@ -183,7 +183,7 @@ class DatasetReferenceActions(
         is CommandRejectedException -> WowProblemException(
             failure.code,
             statusOf(manifest, failure.code),
-            Retry.NONE,
+            RetryAdvice.NONE,
             null,
             failure.error.message,
             failure.result,

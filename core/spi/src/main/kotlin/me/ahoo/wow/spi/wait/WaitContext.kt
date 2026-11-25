@@ -19,12 +19,12 @@ import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.wire.WaitWire
 
 /**
- * The node a wait started on: its [node] id, its internal [address] (`host:port` of the internal
- * signal entry, never the public one) and its [service]. A signal goes straight to it, not through a load balancer.
+ * The node a wait started on: its [service], its [node] id and its internal [address] (`host:port` of the internal
+ * signal entry, never the public one), in the order a membership record names them. A signal goes straight to it, not through a load balancer.
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
-class Origin @InternalWowApi constructor(val node: String, val address: String, val service: String) {
+class Origin @InternalWowApi constructor(val service: String, val node: String, val address: String) {
     init {
         require(node.isNotBlank()) { "An origin names its node." }
         require(service.isNotBlank()) { "An origin names its service." }
@@ -35,14 +35,14 @@ class Origin @InternalWowApi constructor(val node: String, val address: String, 
 
     override fun hashCode(): Int = valueFields().hashCode()
 
-    override fun toString(): String = "Origin(node=$node, address=$address, service=$service)"
+    override fun toString(): String = "Origin(service=$service, node=$node, address=$address)"
 
-    private fun valueFields(): List<Any?> = listOf(node, address, service)
+    private fun valueFields(): List<Any?> = listOf(service, node, address)
 
     companion object {
         /** An Origin of the given fields; parameters added later come last, with a default. */
         @JvmStatic
-        fun of(node: String, address: String, service: String): Origin = Origin(node, address, service)
+        fun of(service: String, node: String, address: String): Origin = Origin(service, node, address)
     }
 }
 
@@ -117,4 +117,4 @@ fun WaitContext.toWire(): WaitWire =
 /** The context this wire form carries. */
 @InternalWowApi
 fun WaitWire.toContext(): WaitContext =
-    WaitContext(waitId, Origin(origin.node, origin.address, origin.service), remaining, deadline)
+    WaitContext(waitId, Origin(origin.service, origin.node, origin.address), remaining, deadline)

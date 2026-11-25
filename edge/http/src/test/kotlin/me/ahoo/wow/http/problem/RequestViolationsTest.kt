@@ -15,7 +15,7 @@ package me.ahoo.wow.http.problem
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.problem.ProblemMapper
-import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.RetryAdvice
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.Violation
@@ -75,7 +75,7 @@ class RequestViolationsTest {
         problem.code.assert().isEqualTo(FrameworkCodes.REQUEST_INVALID)
         problem.title.assert().isEqualTo("Invalid request")
         problem.detail.assert().isEqualTo("The request failed validation; the violations list what it broke.")
-        problem.retry.assert().isEqualTo(Retry.NONE)
+        problem.retry.assert().isEqualTo(RetryAdvice.NONE)
         problem.violations.assert().containsExactly(
             Violation.of("", RequestViolations.INVALID, ""),
             Violation.of("", "item-consistent", "is not consistent"),
@@ -172,7 +172,7 @@ class RequestViolationsTest {
 
     @Test
     fun `no mapper is offered a validation failure, even wrapped`() {
-        val everything = ProblemMapper { WowProblemException("shop.claimed", 418, Retry.NONE, null, "Claimed.") }
+        val everything = ProblemMapper { WowProblemException("shop.claimed", 418, RetryAdvice.NONE, null, "Claimed.") }
         val mapped = FailureProblems(ErrorStatuses(cartManifest()), listOf(everything))
         val failure = WebExchangeBindException(parameter(0), bodyErrors())
         mapped.problemOf(failure).code.assert().isEqualTo(FrameworkCodes.REQUEST_INVALID)

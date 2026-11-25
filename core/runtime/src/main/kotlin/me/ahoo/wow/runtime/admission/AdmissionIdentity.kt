@@ -53,7 +53,7 @@ internal object AdmissionIdentity {
             FrameworkCodes.AUTH_FORBIDDEN to
                 "Only a service identity calls on behalf of a root command."
 
-        request.target != null -> FrameworkCodes.COMMAND_MALFORMED to "A call names its scope in the call, not in Wow-Scope."
+        request.targetScope != null -> FrameworkCodes.COMMAND_MALFORMED to "A call names its scope in the call, not in Wow-Scope."
         else -> null
     }
 

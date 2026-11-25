@@ -123,7 +123,7 @@ fun `a problem the server answered should be typed`() {
     rejected.code.assert().isEqualTo("bank.account.insufficient-balance")
     rejected.result!!.status.assert().isEqualTo(CommandResult.Status.REJECTED)
     rejected.version.assert().isEqualTo(1)
-    rejected.retry.assert().isEqualTo(Retry.NONE)
+    rejected.retry.assert().isEqualTo(RetryAdvice.NONE)
 }
 ```
 

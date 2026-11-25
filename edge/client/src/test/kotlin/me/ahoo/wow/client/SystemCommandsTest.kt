@@ -83,11 +83,11 @@ class SystemCommandsTest {
 
     @Test
     fun `a lifecycle command should go to its route on the aggregate the request names`() {
-        sent(CommandRequest.of(DeleteAggregate(), id = "b-1", type = BOX)).let {
+        sent(CommandRequest.of(DeleteAggregate(), aggregateId = "b-1", type = BOX)).let {
             it.method.assert().isEqualTo("DELETE")
             it.path.assert().isEqualTo("/mail/box/b-1")
         }
-        sent(CommandRequest.of(TransferOwner.of("bob"), id = "b-1", type = BOX)).let {
+        sent(CommandRequest.of(TransferOwner.of("bob"), aggregateId = "b-1", type = BOX)).let {
             it.method.assert().isEqualTo("POST")
             it.path.assert().isEqualTo("/mail/box/b-1/wow.lifecycle.transfer-owner")
             WowJson.mapper.readTree(it.body)["ownerId"].asString().assert().isEqualTo("bob")
@@ -106,9 +106,9 @@ class SystemCommandsTest {
     @Test
     fun `a job's command should go to the job its id names, on the context's job aggregate`() {
         val jobs = AggregateType("mail", ScheduleJobs.AGGREGATE)
-        sent(CommandRequest.of(DisableJob(), id = "sweep", type = jobs)).path
+        sent(CommandRequest.of(DisableJob(), aggregateId = "sweep", type = jobs)).path
             .assert().isEqualTo("/mail/wow.schedule/sweep/disable-job")
-        sent(CommandRequest.of(EnableJob.of("sweep"), id = "sweep", type = jobs)).let {
+        sent(CommandRequest.of(EnableJob.of("sweep"), aggregateId = "sweep", type = jobs)).let {
             it.path.assert().isEqualTo("/mail/wow.schedule/sweep/enable-job")
             WowJson.mapper.readTree(it.body)["job"].asString().assert().isEqualTo("sweep")
         }
@@ -117,7 +117,7 @@ class SystemCommandsTest {
     @Test
     fun `a system command the contract does not list on its target should be refused before it is sent`() {
         assertThrownBy<Misuse.Argument> {
-            runBlocking { client().send(CommandRequest.of(DisableJob(), id = "sweep", type = BOX)) }
+            runBlocking { client().send(CommandRequest.of(DisableJob(), aggregateId = "sweep", type = BOX)) }
         }
         peer.taken.assert().isEmpty()
     }

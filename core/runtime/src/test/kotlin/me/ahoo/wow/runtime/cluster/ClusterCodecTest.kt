@@ -81,7 +81,7 @@ class ClusterCodecTest {
     )
     private val wait = WaitContext(
         "w-1",
-        Origin("node-1", "10.0.0.1:7070", "bank-service"),
+        Origin("bank-service", "node-1", "10.0.0.1:7070"),
         listOf(Hop.handled("bank.projector", "bank")),
         1_000L,
     )

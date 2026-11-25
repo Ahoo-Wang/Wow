@@ -153,7 +153,7 @@ internal class CommandHandler(
             body = CommandBody.Bytes(request.awaitBytesOrNull()?.takeIf { it.isNotEmpty() } ?: EMPTY_BODY),
             caller = caller,
             aggregateId = target.id ?: if (target.byId) request.pathVariable(ID) else null,
-            target = headers.target(request),
+            targetScope = headers.target(request),
             requestId = headers.requestId(request, options.requestIdHeaders),
             expectedVersion = expectedVersion,
             headers = headers.facts(request, options.requestFacts),

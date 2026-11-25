@@ -102,7 +102,7 @@ class QueryCallerTest {
         plain.caller.assert().isSameAs(alice)
         plain.entry.assert().isEqualTo(QueryEntry.HTTP)
         plain.crossTenant.assert().isNull()
-        plain.target.assert().isNull()
+        plain.targetScope.assert().isNull()
         QueryCaller.of(alice).entry.assert().isEqualTo(QueryEntry.UNSPECIFIED)
         plain.assert().isEqualTo(QueryCaller.of(alice, QueryEntry.HTTP))
         plain.hashCode().assert().isEqualTo(QueryCaller.of(alice, QueryEntry.HTTP).hashCode())

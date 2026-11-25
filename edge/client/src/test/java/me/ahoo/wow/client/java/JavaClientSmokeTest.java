@@ -105,7 +105,7 @@ class JavaClientSmokeTest {
             new Reply(200, Map.of("Content-Type", "application/json"), view.getBytes(), null, false));
         // Send, then read what it changed, then map it: one chain, no blocking until join().
         CompletableFuture<String> recipient = commands.sendAndWaitAsync(
-                CommandRequest.builder(new SendParcel("bob")).id("p-1").timeout(Duration.ofMillis(1500)).build())
+                CommandRequest.builder(new SendParcel("bob")).aggregateId("p-1").timeout(Duration.ofMillis(1500)).build())
             .thenCompose(sent -> parcels.stateAsync(sent.getRef()))
             .thenApply(state -> state.getState().getTo());
         assertEquals("bob", recipient.join());

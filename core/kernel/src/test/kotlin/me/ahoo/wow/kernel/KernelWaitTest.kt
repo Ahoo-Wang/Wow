@@ -46,7 +46,7 @@ class KernelWaitTest {
     }
     private val log = InMemoryEventLog(partitions = 1)
     private val kernel = Kernel(log, reservations = InMemoryReservationStore())
-    private val origin = Origin("node-1", "10.0.0.1:9090", "users")
+    private val origin = Origin("users", "node-1", "10.0.0.1:9090")
     private var sequence = 0
 
     private fun wait(vararg hops: Hop) = WaitContext("w-$sequence", origin, hops.toList(), 1_700_000_000_000L)

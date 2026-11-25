@@ -260,7 +260,7 @@ internal class DatasetQueryGatewayTest : DatasetQueryGatewayFixtures() {
         val across = QueryCaller(operator, QueryEntry.HTTP, crossTenant = CrossTenant.ALL)
         assertThrows<QueryTargetException> { gateway.count(CountQuery(MatchAllFilter), across) }
             .errorCode.assert().isEqualTo(QueryErrors.FORBIDDEN)
-        val named = QueryCaller(Caller(tenantId = "t1"), QueryEntry.HTTP, target = TargetScope.of("t2"))
+        val named = QueryCaller(Caller(tenantId = "t1"), QueryEntry.HTTP, targetScope = TargetScope.of("t2"))
         assertThrows<QueryTargetException> { gateway.count(CountQuery(MatchAllFilter), named) }
             .errorCode.assert().isEqualTo(QueryErrors.FORBIDDEN)
     }

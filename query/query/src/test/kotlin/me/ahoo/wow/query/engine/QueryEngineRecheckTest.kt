@@ -114,11 +114,11 @@ class QueryEngineRecheckTest {
     @ParameterizedTest
     @EnumSource(Model::class)
     fun `a target named by a caller that may not act across scopes is refused`(model: Model) {
-        val named = QueryCaller(alice, QueryEntry.HTTP, target = TargetScope.of("other"))
+        val named = QueryCaller(alice, QueryEntry.HTTP, targetScope = TargetScope.of("other"))
         refused(QueryErrors.FORBIDDEN) { engine(crossTenant = true).read(model, order, named) }
         val across = QueryCaller(alice, QueryEntry.HTTP, crossTenant = CrossTenant.ALL)
         refused(QueryErrors.FORBIDDEN) { engine(crossTenant = true).read(model, order, across) }
-        val nobody = QueryCaller(null, QueryEntry.HTTP, target = TargetScope.of("other"))
+        val nobody = QueryCaller(null, QueryEntry.HTTP, targetScope = TargetScope.of("other"))
         refused(QueryErrors.FORBIDDEN) { engine(crossTenant = true).read(model, order, nobody) }
     }
 
@@ -127,7 +127,7 @@ class QueryEngineRecheckTest {
     fun `a type whose tenant is fixed is read in it alone`(model: Model) {
         val elsewhere = QueryCaller(operator, QueryEntry.HTTP, crossTenant = CrossTenant(setOf("acme")))
         refused(QueryErrors.MALFORMED) { engine(crossTenant = true).read(model, ledger, elsewhere) }
-        val named = QueryCaller(operator, QueryEntry.HTTP, target = TargetScope.of("acme"))
+        val named = QueryCaller(operator, QueryEntry.HTTP, targetScope = TargetScope.of("acme"))
         refused(QueryErrors.MALFORMED) { engine(crossTenant = true).read(model, ledger, named) }
     }
 
@@ -137,7 +137,7 @@ class QueryEngineRecheckTest {
         val engine = engine(crossTenant = true)
         engine.read(model, order, engine.targets.of(order, operator, reads = CrossTenant.ALL))
         engine.read(model, ledger, QueryCaller(operator, QueryEntry.HTTP, crossTenant = CrossTenant(setOf("platform"))))
-        engine.read(model, order, QueryCaller(operator, QueryEntry.HTTP, target = TargetScope.of("other")))
+        engine.read(model, order, QueryCaller(operator, QueryEntry.HTTP, targetScope = TargetScope.of("other")))
         engine.read(model, order, QueryCaller.of(alice, QueryEntry.HTTP))
         // In-process code is trusted by its entry.
         engine().read(model, order, QueryCaller(null, QueryEntry.IN_PROCESS, crossTenant = CrossTenant.ALL))

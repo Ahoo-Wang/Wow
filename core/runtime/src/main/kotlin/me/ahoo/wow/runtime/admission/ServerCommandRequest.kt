@@ -29,7 +29,7 @@ import tools.jackson.databind.JsonNode
  * The server side of a `CommandRequest`: what the gateway receives from any client, the HTTP edge, the Kafka intake or
  * the in-process client, before admission. What the route fixed ([context], [aggregate],
  * [command] and, on an instance route, [aggregateId]), the undecoded [body], who sent it ([caller]), and the facts the
- * request's headers gave: a cross-scope [target] (`Wow-Scope`), a [requestId] (`Wow-Request-Id`), an
+ * request's headers gave: a cross-scope [targetScope] (`Wow-Scope`), a [requestId] (`Wow-Request-Id`), an
  * [expectedVersion] (`If-Match`), the request facts in [headers], and the [wait] plan (`Wow-Wait`; the default plan
  * when absent).
  *
@@ -57,7 +57,7 @@ class ServerCommandRequest @InternalWowApi constructor(
     val body: CommandBody,
     val caller: Caller = Caller.ANONYMOUS,
     val aggregateId: String? = null,
-    val target: TargetScope? = null,
+    val targetScope: TargetScope? = null,
     val requestId: String? = null,
     val expectedVersion: Int? = null,
     val headers: Map<String, String> = emptyMap(),
@@ -81,7 +81,7 @@ class ServerCommandRequest @InternalWowApi constructor(
         body: CommandBody = this.body,
         caller: Caller = this.caller,
         aggregateId: String? = this.aggregateId,
-        target: TargetScope? = this.target,
+        targetScope: TargetScope? = this.targetScope,
         requestId: String? = this.requestId,
         expectedVersion: Int? = this.expectedVersion,
         headers: Map<String, String> = this.headers,
@@ -96,7 +96,7 @@ class ServerCommandRequest @InternalWowApi constructor(
         body,
         caller,
         aggregateId,
-        target,
+        targetScope,
         requestId,
         expectedVersion,
         headers,
@@ -113,12 +113,12 @@ class ServerCommandRequest @InternalWowApi constructor(
 
     override fun toString(): String =
         "ServerCommandRequest(context=$context, aggregate=$aggregate, command=$command, body=$body, " +
-            "caller=$caller, aggregateId=$aggregateId, target=$target, requestId=$requestId, " +
+            "caller=$caller, aggregateId=$aggregateId, targetScope=$targetScope, requestId=$requestId, " +
             "expectedVersion=$expectedVersion, headers=$headers, wait=$wait, trace=$trace, call=$call, " +
             "tenantId=$tenantId)"
 
     private fun valueFields(): List<Any?> = listOf(
-        context, aggregate, command, body, caller, aggregateId, target, requestId, expectedVersion, headers, wait,
+        context, aggregate, command, body, caller, aggregateId, targetScope, requestId, expectedVersion, headers, wait,
         trace, call, tenantId
     )
 
@@ -134,7 +134,7 @@ class ServerCommandRequest @InternalWowApi constructor(
     ) {
         private var caller: Caller = Caller.ANONYMOUS
         private var aggregateId: String? = null
-        private var target: TargetScope? = null
+        private var targetScope: TargetScope? = null
         private var requestId: String? = null
         private var expectedVersion: Int? = null
         private var headers: Map<String, String> = emptyMap()
@@ -152,7 +152,7 @@ class ServerCommandRequest @InternalWowApi constructor(
         fun tenantId(tenantId: String?): Builder = apply { this.tenantId = tenantId }
 
         /** The scope a cross-scope caller acts in (`Wow-Scope`). */
-        fun target(target: TargetScope?): Builder = apply { this.target = target }
+        fun targetScope(targetScope: TargetScope?): Builder = apply { this.targetScope = targetScope }
 
         /** The request id that makes the command idempotent (`Wow-Request-Id`); a new one by default. */
         fun requestId(requestId: String?): Builder = apply { this.requestId = requestId }
@@ -171,7 +171,7 @@ class ServerCommandRequest @InternalWowApi constructor(
 
         /** The request. */
         fun build(): ServerCommandRequest = ServerCommandRequest(
-            context, aggregate, command, body, caller, aggregateId, target, requestId, expectedVersion, headers, wait,
+            context, aggregate, command, body, caller, aggregateId, targetScope, requestId, expectedVersion, headers, wait,
             trace, tenantId = tenantId,
         )
     }

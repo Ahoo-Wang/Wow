@@ -17,7 +17,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.client.CommandRejectedException
-import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.RetryAdvice
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedList
@@ -56,7 +56,13 @@ class ApplicationProblemsTest {
     }
 
     private fun idpDown() =
-        WowProblemException("shop.idp.unavailable", 503, Retry.NEW_REQUEST, 2.seconds, "The identity provider is down.")
+        WowProblemException(
+            "shop.idp.unavailable",
+            503,
+            RetryAdvice.NEW_REQUEST,
+            2.seconds,
+            "The identity provider is down."
+        )
 
     private fun rejected() = CommandRejectedException(
         CommandResult(
@@ -147,7 +153,7 @@ class ApplicationProblemsTest {
         private fun unreachable() = WowProblemException(
             "shop.catalog.unreachable",
             502,
-            Retry.SAME_REQUEST,
+            RetryAdvice.SAME_REQUEST,
             null,
             "The catalog is unreachable.",
         )

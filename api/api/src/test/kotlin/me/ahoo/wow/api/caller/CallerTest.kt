@@ -25,7 +25,7 @@ class CallerTest {
         Caller.ANONYMOUS.scope.assert().isEqualTo(Scope.NONE)
         Caller.ANONYMOUS.subject.assert().isNull()
         Caller.ANONYMOUS.toOperator().assert().isNull()
-        Caller.ANONYMOUS.toOperator(actingElsewhere = true).assert().isNull()
+        Caller.ANONYMOUS.toOperator(actedElsewhere = true).assert().isNull()
     }
 
     @Test
@@ -39,7 +39,7 @@ class CallerTest {
         )
         caller.toOperator().assert().isEqualTo(Operator("alice", "t1"))
         // Allowed to act elsewhere is not acting elsewhere: only a named target marks the operator.
-        caller.toOperator(actingElsewhere = true).assert().isEqualTo(Operator("alice", "t1", actedElsewhere = true))
+        caller.toOperator(actedElsewhere = true).assert().isEqualTo(Operator("alice", "t1", actedElsewhere = true))
     }
 
     @Test

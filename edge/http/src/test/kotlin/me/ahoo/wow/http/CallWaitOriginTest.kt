@@ -56,7 +56,7 @@ class CallWaitOriginTest {
     private val commands = CopyOnWriteArrayList<Command<*>>()
     private val gateway: CommandGateway = run {
         val registry = WaitRegistry()
-        val origin = Origin("shop-node-1", "127.0.0.1:9090", TARGET_SERVICE)
+        val origin = Origin(TARGET_SERVICE, "shop-node-1", "127.0.0.1:9090")
         val coordinator = WaitCoordinator(
             Executor(Kernel(InMemoryEventLog(partitions = 2))),
             registry,
@@ -90,7 +90,7 @@ class CallWaitOriginTest {
 
     @Test
     fun `a wait the calling service started should be signalled at its origin`() {
-        val origin = Origin("basket-node-1", "10.0.0.7:9191", CALLER_SERVICE)
+        val origin = Origin(CALLER_SERVICE, "basket-node-1", "10.0.0.7:9191")
         callWith(origin).status.assert().isEqualTo(200)
         sent.map { it.first }.assert().contains(origin)
         sent.map { it.second.waitId }.assert().contains("w-1")
@@ -99,7 +99,7 @@ class CallWaitOriginTest {
     @Test
     fun `a wait naming the target's own service should be dropped, not signalled to the caller's address`() {
         // The exfiltration of R2.3-1: the target would signal its own service at an address the caller chose.
-        callWith(Origin("n", "attacker.example:80", TARGET_SERVICE)).status.assert().isEqualTo(200)
+        callWith(Origin(TARGET_SERVICE, "n", "attacker.example:80")).status.assert().isEqualTo(200)
         commands.assert().hasSize(1)
         sent.assert().isEmpty()
         // The call goes on without its wait, still with the root request's facts (decision D236).
@@ -109,7 +109,7 @@ class CallWaitOriginTest {
     @Test
     fun `a wait naming a third service should be dropped too`() {
         // The target would send this signal naming its own service.
-        callWith(Origin("n", "attacker.example:80", "payment-service")).status.assert().isEqualTo(200)
+        callWith(Origin("payment-service", "n", "attacker.example:80")).status.assert().isEqualTo(200)
         commands.assert().hasSize(1)
         sent.assert().isEmpty()
     }

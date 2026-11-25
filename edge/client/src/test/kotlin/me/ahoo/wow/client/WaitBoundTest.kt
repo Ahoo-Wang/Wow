@@ -91,7 +91,7 @@ class WaitBoundTest {
             HttpCommandClientTest.DeliverItems(emptyList()),
             causation = Causation("root", "root"),
         )
-        val origin = Origin("node-1", "127.0.0.1:1", "basket-service")
+        val origin = Origin("basket-service", "node-1", "127.0.0.1:1")
         val wait = left?.let { WaitContext("w-1", origin, emptyList(), NOW + it.inWholeMilliseconds) }
         return OutgoingCall("mail.box.DeliverItems", command, wait)
     }

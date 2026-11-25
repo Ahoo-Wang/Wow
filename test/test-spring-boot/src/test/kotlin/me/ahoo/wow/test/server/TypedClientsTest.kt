@@ -17,7 +17,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.wait
-import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.RetryAdvice
 import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.Violation
@@ -37,6 +37,8 @@ import java.net.http.HttpHeaders
 import java.time.ZoneOffset
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 /** The typed clients of a test server, and the problems its answers carry, on the quickstart's bank service. */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -102,7 +104,7 @@ class TypedClientsTest {
         rejected.code.assert().isEqualTo("bank.account.insufficient-balance")
         rejected.result!!.status.assert().isEqualTo(CommandResult.Status.REJECTED)
         rejected.version.assert().isEqualTo(1)
-        rejected.retry.assert().isEqualTo(Retry.NONE)
+        rejected.retry.assert().isEqualTo(RetryAdvice.NONE)
     }
     // endregion problem
 
@@ -127,8 +129,8 @@ class TypedClientsTest {
         problem.status.assert().isEqualTo(503)
         problem.title.assert().isEqualTo("Service Unavailable")
         problem.detail.assert().isNull()
-        problem.retry.assert().isEqualTo(Retry.SAME_REQUEST)
-        problem.retryAfter.assert().isEqualTo(3L)
+        problem.retry.assert().isEqualTo(RetryAdvice.SAME_REQUEST)
+        problem.retryAfter.assert().isEqualTo(3.seconds)
         problem.extensions.assert().isEqualTo(mapOf("balance" to 100, "limits" to mapOf("daily" to 5)))
         problem.violations.single().assert().isEqualTo(Violation.of("amount", "", ""))
         problem.result.assert().isNull()
@@ -180,11 +182,11 @@ class TypedClientsTest {
             problem.retry.assert().isEqualTo(client.retry)
             problem.version.assert().isEqualTo(client.version)
             problem.result.assert().isEqualTo(client.result)
-            problem.retryAfter.assert().isEqualTo(client.retryAfter!!.inWholeSeconds)
+            problem.retryAfter.assert().isEqualTo(client.retryAfter)
             problem.retryAfter!!
         }
-        read[0].assert().isEqualTo(7L)
-        read[1].assert().isEqualTo(0L)
+        read[0].assert().isEqualTo(7.seconds)
+        read[1].assert().isEqualTo(Duration.ZERO)
     }
 
     @Test

@@ -41,7 +41,7 @@ class PreferencesTarget : CommandTransformer {
         val id = appOf(
             input
         )?.let { ScopedIds.preferences(input.tenantId, input.caller.scope.ownerId, it, body.definitionId) }
-        return CommandTarget.of(input.type, id, body, input.headers)
+        return CommandTarget.of(input.type, body, id, input.headers)
     }
 }
 
@@ -56,8 +56,8 @@ class WordingTarget : CommandTransformer {
         val body = input.body as SetDatasetWording
         return CommandTarget.of(
             input.type,
-            appOf(input)?.let { ScopedIds.wording(input.tenantId, it, body.dataset) },
             body,
+            appOf(input)?.let { ScopedIds.wording(input.tenantId, it, body.dataset) },
             input.headers
         )
     }
@@ -74,8 +74,8 @@ class WordingClearTarget : CommandTransformer {
         val body = input.body as ClearDatasetWording
         return CommandTarget.of(
             input.type,
-            appOf(input)?.let { ScopedIds.wording(input.tenantId, it, body.dataset) },
             body,
+            appOf(input)?.let { ScopedIds.wording(input.tenantId, it, body.dataset) },
             input.headers
         )
     }

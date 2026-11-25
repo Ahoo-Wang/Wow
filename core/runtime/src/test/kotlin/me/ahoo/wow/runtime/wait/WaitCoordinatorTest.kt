@@ -320,7 +320,7 @@ class WaitCoordinatorTest : WaitCoordinatorFixtures() {
             signalTime = 1L,
         )
         sender.send(
-            Origin("node-2", "10.0.0.2:9090", "shop"),
+            Origin("shop", "node-2", "10.0.0.2:9090"),
             WaitSignal(waitId = "w-9", result = result),
             Long.MAX_VALUE
         )

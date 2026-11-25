@@ -148,8 +148,8 @@ class ExecutionSagaContext @InternalWowApi constructor(
 
     companion object {
         /**
-         * The id, and request id, of the command to [ref] of [commandType] derived by [execution]: a name-based UUID of
-         * the execution, the target (its id, [AggregateRef.UNASSIGNED] for a creation that leaves it to admission), the
+         * The id, and request id, of the command to [target] of [commandType] derived by [execution]: a name-based UUID
+         * of the execution, the target (its id, [AggregateRef.UNASSIGNED] for a creation that leaves it to admission), the
          * command type and what tells it from the execution's others ([DerivedRequests]), stable across every execution
          * of the same commit by the same subscription, whatever else the handler derives:
          * - [requestId], the business key the request gives ([CommandRequest.requestId]), or `null` for the only
@@ -162,13 +162,13 @@ class ExecutionSagaContext @InternalWowApi constructor(
         @JvmOverloads
         fun derivedId(
             execution: ExecutionId,
-            ref: AggregateRef,
+            target: AggregateRef,
             commandType: Class<*>,
             requestId: String? = null,
             eventIndex: Int? = null,
         ): String {
             require(eventIndex == null || eventIndex >= 0) { "An event's index is never negative." }
-            return derivedIdOf(execution, ref, commandType, DerivedRequests.discriminatorOf(requestId, eventIndex))
+            return derivedIdOf(execution, target, commandType, DerivedRequests.discriminatorOf(requestId, eventIndex))
         }
 
         /**
@@ -282,7 +282,7 @@ internal class SagaDerivation(
             request.command,
             derived.next(target, request.command.javaClass, request.requestId, event),
             request.expectedVersion,
-            request.targetScope,
+            request.targetScope?.scope,
         )
     }
 
@@ -328,7 +328,7 @@ internal class SagaDerivation(
             target,
             body,
             derived.nextScheduled(target, body.javaClass, key, request.requestId),
-            targetScope = request.targetScope,
+            targetScope = request.targetScope?.scope,
         )
     }
 

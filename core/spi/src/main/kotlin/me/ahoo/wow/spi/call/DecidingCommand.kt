@@ -109,15 +109,16 @@ class DecidingCommand(val ref: AggregateRef, val requestId: String) : AbstractCo
         internal fun sameCall(first: CommandRequest<*>, call: CommandRequest<*>): Boolean =
             first.command.javaClass == call.command.javaClass &&
                 first.type == call.type &&
-                first.id == call.id &&
-                first.targetTenant == call.targetTenant &&
+                first.aggregateId == call.aggregateId &&
                 first.targetScope == call.targetScope &&
                 (first.command == call.command || treeOf(first.command) == treeOf(call.command))
 
         private fun treeOf(body: Any): JsonNode = WowJson.mapper.valueToTree(body)
 
         private fun describe(call: CommandRequest<*>): String {
-            val target = call.type?.let { type -> call.id?.let { "$type/$it" } ?: "$type" } ?: call.id ?: "its aggregate"
+            val target = call.type?.let { type -> call.aggregateId?.let { "$type/$it" } ?: "$type" }
+                ?: call.aggregateId
+                ?: "its aggregate"
             return "${call.command.javaClass.simpleName} ${treeOf(call.command)} to $target"
         }
     }

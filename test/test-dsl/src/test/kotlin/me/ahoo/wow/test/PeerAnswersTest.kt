@@ -19,7 +19,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.client.toCommandRequest
-import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.RetryAdvice
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.Violation
@@ -84,7 +84,7 @@ class PeerAnswersTest {
             runBlocking { inventory.wait(Reserve("y").toCommandRequest(to = STOCK.ref("acme", "y"))) }
         }
         failed.code.assert().isEqualTo(FrameworkCodes.STORAGE_UNAVAILABLE)
-        failed.retry.assert().isEqualTo(Retry.SAME_REQUEST)
+        failed.retry.assert().isEqualTo(RetryAdvice.SAME_REQUEST)
         failed.result!!.error!!.message.assert().isEqualTo("down")
     }
 

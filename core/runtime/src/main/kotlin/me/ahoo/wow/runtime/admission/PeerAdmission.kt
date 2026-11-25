@@ -83,7 +83,7 @@ internal class PeerAdmission(
         )
         // The peer decides the tenant of its type, which this node cannot know: it is told the tenant the caller acts
         // for when the request names none, its own target's or its ref's, so a type it fixes lands in its fixed tenant.
-        val acting = request.caller.tenantId.takeIf { request.target?.tenantId == null && request.tenantId == null }
+        val acting = request.caller.tenantId.takeIf { request.targetScope?.tenantId == null && request.tenantId == null }
         val relay = peers.relayOf(type.context, peer.name, acting) ?: return facts.refuse(
             FrameworkCodes.COMMAND_UNHANDLED,
             "$type is of context ${type.context}, which another service serves: its commands go through its command " +
@@ -101,7 +101,7 @@ internal class PeerAdmission(
                 "A synchronous call goes to the service of ${type.context}, which serves $type.",
             )
         }
-        val target = request.target
+        val target = request.targetScope
         val answer = CallerAdmission.admit(type, request.caller, target, request.tenantId, tenants)
         val origin = when (answer) {
             is CallerAdmission.Refused -> return facts.refuse(answer.code, answer.message)

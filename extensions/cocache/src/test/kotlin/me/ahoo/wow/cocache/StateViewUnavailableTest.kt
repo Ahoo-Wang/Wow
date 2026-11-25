@@ -43,7 +43,7 @@ import me.ahoo.cocache.core.policy.LoadPolicy
 import me.ahoo.cocache.core.policy.ReadFailureMode
 import me.ahoo.cocache.test.HookedBackend
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.RetryAdvice
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.read.StateView
 import me.ahoo.wow.api.read.SubscriptionQueries
@@ -126,7 +126,7 @@ class StateViewUnavailableTest {
     @Test
     fun `a batch of misses whose owner answers a problem a retry may get past should be unavailable`() {
         every { snapshots.list(any()) } throws
-            WowProblemException("wow.unavailable", SERVICE_UNAVAILABLE, Retry.SAME_REQUEST, null, "Down for a moment.")
+            WowProblemException("wow.unavailable", SERVICE_UNAVAILABLE, RetryAdvice.SAME_REQUEST, null, "Down for a moment.")
         val keys = listOf(key, StateKey("t", "o-2"))
         val failure = readFailure { caches.of<OrderView>().getAll(keys) } as StateViewUnavailableException
         failure.keys.assert().containsExactlyInAnyOrderElementsOf(keys)
@@ -153,7 +153,7 @@ class StateViewUnavailableTest {
     @Test
     fun `an owner's refusal or an error of the reading code should be thrown as it is`() {
         coEvery { snapshots.state("o-1") } throws
-            WowProblemException("wow.forbidden", FORBIDDEN, Retry.NONE, null, "Not yours.")
+            WowProblemException("wow.forbidden", FORBIDDEN, RetryAdvice.NONE, null, "Not yours.")
         (readFailure { caches.of<OrderView>().get(key) } is StateViewUnavailableException).assert().isFalse()
         coEvery { snapshots.state("o-2") } throws IllegalStateException("A defect.")
         val defect = readFailure { caches.of<OrderView>().get(StateKey("t", "o-2")) }

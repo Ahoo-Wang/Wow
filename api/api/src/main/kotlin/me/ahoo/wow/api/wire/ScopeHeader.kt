@@ -20,7 +20,10 @@ import me.ahoo.wow.api.query.CrossTenant
 
 /**
  * The `Wow-Scope` header: an RFC 8941 dictionary whose members, all optional, are `tenant`, `owner` and
- * `space`, each a string or a token: `Wow-Scope: tenant="t1", owner="u1", space="s1"`.
+ * `space`, each a string or a token: `Wow-Scope: tenant="t1", owner="u1", space="s1"`. It always names a scope: an
+ * `owner` or a `space` it leaves out is none, not the sender's own, so the [TargetScope] it reads has a non-null
+ * [TargetScope.scope] (`tenant="t1"` alone acts in `t1` with no owner or space checked), and [format] writes the
+ * sender's own scope for a target that keeps it (`scope` null), given as [format]'s `own`.
  *
  * On a query route alone ([parseQuery]), `tenant` may name several tenants instead: `tenant=*` for
  * every tenant, or an inner list of strings or tokens, `tenant=("t1" "t2")`.
@@ -93,12 +96,18 @@ object ScopeHeader {
     /** A member's value: a string or a token, or the strings and tokens of an [inner] list. */
     private class Member(val values: List<String>, val inner: Boolean)
 
-    /** [target] as [parse] reads it. */
-    fun format(target: TargetScope): String = listOfNotNull(
-        target.tenantId?.let { "$TENANT=${quote(it)}" },
-        target.scope.ownerId?.let { "$OWNER=${quote(it)}" },
-        target.scope.spaceId?.let { "$SPACE=${quote(it)}" },
-    ).joinToString(", ")
+    /**
+     * [target] as [parse] reads it, a target that keeps its sender's scope ([TargetScope.scope] null) written with
+     * [own], the sender's, since the header always names a scope.
+     */
+    fun format(target: TargetScope, own: Scope): String {
+        val scope = target.scopeFor(own)
+        return listOfNotNull(
+            target.tenantId?.let { "$TENANT=${quote(it)}" },
+            scope.ownerId?.let { "$OWNER=${quote(it)}" },
+            scope.spaceId?.let { "$SPACE=${quote(it)}" },
+        ).joinToString(", ")
+    }
 
     private fun quote(value: String): String = "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 

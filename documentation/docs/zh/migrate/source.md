@@ -336,7 +336,7 @@ fun orderAccess(): AccessPolicy<OrderState> = accessPolicy {
 | `expectEventCount(n)` | `expectEventCount(n)` |
 | `expectEvent<E> { … }`、`expectEventBody<E> { … }`：该类型的第一个事件 | `expectEvent<E> { … }`：恰好一个事件，且是 `E`；多个事件按值用 `expectEvents(…)` |
 | `expectEventStream { … }`、`expectEventIterator { … }` | 整个流用 `expectEvents(…)` 或 `expectEventTypes(…)`；单个事件连同信封用 `expectEventEnvelope<E> { … }` |
-| 事件的 `aggregateId`、`version`、`commandId`、`requestId`、`header` | `expectEventEnvelope<E> { aggregateId; version; commandId; requestId; headers }` |
+| 事件的 `aggregateId`、`version`、`commandId`、`requestId`、`header` | `expectEventEnvelope<E> { ref.id; version; commandId; requestId; headers }` |
 | 事件的操作者和创建时间 | `expectEventEnvelope<E> { operator; commitTime }`，用于提交了一个事件的命令 |
 | `expectState { … }`、`expectState(Consumer)` | `expectState { … }` 或 `expectState(expected)` |
 | 所有 `Consumer` 与 `Class` 重载 | 已去掉：测试 DSL 只支持 Kotlin，Java 领域代码也用它测试（[用 Java 编写领域](../guide/java#test-it)）。在每个 lambda 旁加一个 `Consumer` 重载，会让 Kotlin 的调用产生歧义 |

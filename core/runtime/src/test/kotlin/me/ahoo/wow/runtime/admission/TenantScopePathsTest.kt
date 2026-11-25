@@ -35,7 +35,7 @@ class TenantScopePathsTest : CommandGatewayFixtures() {
     /** The gateway's answer to [caller]'s AddItem to the cart, acting in [target] when given. */
     private fun gateway(caller: Caller, target: TargetScope? = null): CommandResult = runBlocking {
         val request = ServerCommandRequest.builder(AddItem("apple"), ref).caller(caller)
-        target?.let { request.target(it) }
+        target?.let { request.targetScope(it) }
         gateway().execute(request.build())
     }
 

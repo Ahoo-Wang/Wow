@@ -115,7 +115,7 @@ override suspend fun transform(input: CommandInput): CommandTarget {
     if (chargeback.merchantReference.isBlank()) {
         reject(Payment.Rejections.UNKNOWN_PAYMENT, "Chargeback ${chargeback.disputeId} names no payment.")
     }
-    return CommandTarget.of(refundPayment, chargeback.merchantReference, RefundPayment(chargeback.reason))
+    return CommandTarget.of(refundPayment, RefundPayment(chargeback.reason), chargeback.merchantReference)
 }
 ```
 

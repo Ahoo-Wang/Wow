@@ -18,6 +18,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Creation
+import me.ahoo.wow.api.caller.TargetScope
 import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
@@ -134,7 +135,7 @@ class DomainIdsTest {
             CommandRequest.of(
                 CreateShipment(context.ids.next(), context.ids.next(SHIPMENT)),
                 type = SHIPMENT,
-                targetTenant = rejected.ref.tenantId,
+                targetScope = TargetScope.of(rejected.ref.tenantId),
             )
 
         /** Names the shipment by a drawn id, which a redelivered commit would draw anew: refused. */

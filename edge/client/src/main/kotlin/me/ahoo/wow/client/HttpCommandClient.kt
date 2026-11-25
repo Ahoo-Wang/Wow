@@ -34,7 +34,7 @@ import me.ahoo.wow.api.decide.Misuse
 import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.decide.checkUse
 import me.ahoo.wow.api.decide.requireUse
-import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.RetryAdvice
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.FrameworkCodes
@@ -63,8 +63,8 @@ import kotlin.time.Duration.Companion.seconds
  * one whose contract lists the class when the request leaves it out), on the port [transport]'s mode calls, as
  * [caller]:
  *
- * - in service mode, on the internal port with `Wow-Call`: the caller's tenant (or the target's of
- *   [CommandRequest.targetTenant]), scope (or [CommandRequest.targetScope]), operator and application as the root
+ * - in service mode, on the internal port with `Wow-Call`: the caller's tenant (or the tenant of
+ *   [CommandRequest.targetScope]), scope (or its scope, when it names one), operator and application as the root
  *   context, a new command id its own root; the peer answers once the command is committed, so [send], [wait] and
  *   [stream] answer that one result, whatever the request's wait plan;
  * - in user mode, on the public routes with the forwarded credential: the wait plan as `Wow-Wait` ([send] waits for
@@ -162,7 +162,7 @@ class HttpCommandClient internal constructor(
                 CommandResult.Status.UNKNOWN -> throw WowProblemException(
                     FrameworkCodes.COMMAND_FAILED,
                     NEWER_PEER_STATUS,
-                    Retry.NONE,
+                    RetryAdvice.NONE,
                     null,
                     "${peer.what} was answered with a status this client does not know: the peer is newer than " +
                         "this client, so upgrade it.",
@@ -181,13 +181,17 @@ class HttpCommandClient internal constructor(
         val command = request.command
         val type = aggregateTypeOf(request)
         val targetTenant = targetTenantOf(request, caller.tenantId)
-        val targeted = targetTenant != null || request.targetScope != null
+        val targeted = targetTenant != null || request.targetScope?.scope != null
         val root = if (transport.mode is ClientMode.Service) {
-            rootOf(targetTenant ?: caller.tenantId, request.targetScope ?: caller.scope, targeted)
+            rootOf(
+                targetTenant ?: caller.tenantId,
+                request.targetScope?.scopeFor(caller.scope) ?: caller.scope,
+                targeted
+            )
         } else {
             null
         }
-        val id = request.id
+        val id = request.aggregateId
         val declared = declaredOf(command, type, root)
         // A command whose body names its aggregate goes to its route without an id, the body naming the request's.
         val byId = id != null && declared.idProperty == null
@@ -230,7 +234,7 @@ class HttpCommandClient internal constructor(
             if (targeted) {
                 put(
                     WowHeaders.SCOPE,
-                    ScopeHeader.format(TargetScope(targetTenant, request.targetScope ?: caller.scope))
+                    ScopeHeader.format(TargetScope(targetTenant, request.targetScope?.scope), caller.scope)
                 )
             }
         }
@@ -325,7 +329,7 @@ class HttpCommandClient internal constructor(
      * The root context a service-mode command asserts: a command of its own, in [tenantId] (the caller's, or the
      * target's) and [scope] (the caller's, or the target's), sent by the caller's operator from its application.
      */
-    private fun rootOf(tenantId: String, scope: Scope, actingElsewhere: Boolean): CallWire {
+    private fun rootOf(tenantId: String, scope: Scope, actedElsewhere: Boolean): CallWire {
         val commandId = ids.next()
         return CallWire(
             commandId = commandId,
@@ -333,7 +337,7 @@ class HttpCommandClient internal constructor(
             ownerId = scope.ownerId,
             spaceId = scope.spaceId,
             causation = Causation(commandId, commandId),
-            operator = caller.toOperator(actingElsewhere = actingElsewhere),
+            operator = caller.toOperator(actedElsewhere = actedElsewhere),
             facts = caller.app?.let { mapOf(RequestFacts.APP_ID to it) }.orEmpty(),
         )
     }

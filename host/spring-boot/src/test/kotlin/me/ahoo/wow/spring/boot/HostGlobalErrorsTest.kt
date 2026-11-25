@@ -16,7 +16,7 @@ package me.ahoo.wow.spring.boot
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.problem.ProblemMapper
-import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.RetryAdvice
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.http.caller.CallerResolver
@@ -125,13 +125,13 @@ class AppMappers {
     @Bean
     @Order(1)
     fun claimingMapper(): ProblemMapper =
-        ProblemMapper { WowProblemException("bank.claimed", 418, Retry.NONE, null, "Claimed.") }
+        ProblemMapper { WowProblemException("bank.claimed", 418, RetryAdvice.NONE, null, "Claimed.") }
 
     @Bean
     @Order(0)
     fun catalogMapper(): ProblemMapper = ProblemMapper { failure ->
         (failure as? UnsupportedOperationException)?.let {
-            WowProblemException("bank.catalog.unreachable", 502, Retry.SAME_REQUEST, null, "No catalog.")
+            WowProblemException("bank.catalog.unreachable", 502, RetryAdvice.SAME_REQUEST, null, "No catalog.")
         }
     }
 

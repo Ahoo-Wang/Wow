@@ -121,7 +121,7 @@ class RuntimeValuesTest {
         val request = ServerCommandRequest.builder("sales", "order", "Place", body)
             .caller(caller)
             .aggregateId("o-1")
-            .target(target)
+            .targetScope(target)
             .requestId("r-1")
             .expectedVersion(3)
             .headers(mapOf("app" to "web"))
@@ -136,7 +136,7 @@ class RuntimeValuesTest {
                 body = body,
                 caller = caller,
                 aggregateId = "o-1",
-                target = target,
+                targetScope = target,
                 requestId = "r-1",
                 expectedVersion = 3,
                 headers = mapOf("app" to "web"),

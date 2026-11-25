@@ -16,7 +16,7 @@ package me.ahoo.wow.http.problem
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
-import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.RetryAdvice
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.FrameworkCodes
@@ -31,6 +31,7 @@ import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
+import kotlin.time.Duration.Companion.seconds
 
 /** [Problem], [ProblemException] and the fallbacks of [ErrorStatuses]. */
 class ProblemTest {
@@ -146,7 +147,9 @@ class ProblemTest {
         statuses.status(FrameworkCodes.COMMAND_BUSY).assert().isEqualTo(503)
         statuses.title(FrameworkCodes.COMMAND_BUSY, null, 503).assert().isEqualTo("Command busy")
         val problem = statuses.problemOf(FrameworkCodes.COMMAND_BUSY, "Later.")
-        problem.assert().isEqualTo(Problem(503, "Command busy", "Later.", FrameworkCodes.COMMAND_BUSY, retryAfter = 1))
+        problem.assert().isEqualTo(
+            Problem(503, "Command busy", "Later.", FrameworkCodes.COMMAND_BUSY, retryAfter = 1.seconds)
+        )
     }
 
     @Test
@@ -154,19 +157,19 @@ class ProblemTest {
         val statuses = ErrorStatuses(Manifest())
         val unavailable = statuses.problemOf(FrameworkCodes.STORAGE_UNAVAILABLE, "Down.")
         unavailable.status.assert().isEqualTo(503)
-        unavailable.retry.assert().isEqualTo(Retry.SAME_REQUEST)
-        unavailable.retryAfter.assert().isEqualTo(FrameworkErrors.RETRY_AFTER_SECONDS.toLong())
+        unavailable.retry.assert().isEqualTo(RetryAdvice.SAME_REQUEST)
+        unavailable.retryAfter.assert().isEqualTo(FrameworkErrors.RETRY_AFTER_SECONDS.seconds)
         unavailable.members().keys.assert().containsExactly("type", "title", "status", "detail", "code", "retry")
         unavailable.members()["retry"].assert().isEqualTo("same-request")
         statuses.problemOf(FrameworkCodes.COMMAND_FAILED, "Failed.").apply {
-            retry.assert().isEqualTo(Retry.NONE)
+            retry.assert().isEqualTo(RetryAdvice.NONE)
             retryAfter.assert().isNull()
             members()["retry"].assert().isEqualTo("none")
         }
         // A domain's code is none: no Retry-After is written, whatever is given; an explicit retry wins over the catalog's.
-        Problem(422, "Full", null, "shop.cart.full", retryAfter = 5).retryAfterHeader.assert().isNull()
-        Problem(503, "Down", null, FrameworkCodes.COMMAND_FAILED, retry = Retry.SAME_REQUEST).retryAfter.assert()
-            .isEqualTo(FrameworkErrors.RETRY_AFTER_SECONDS.toLong())
+        Problem(422, "Full", null, "shop.cart.full", retryAfter = 5.seconds).retryAfterHeader.assert().isNull()
+        Problem(503, "Down", null, FrameworkCodes.COMMAND_FAILED, retry = RetryAdvice.SAME_REQUEST).retryAfter.assert()
+            .isEqualTo(FrameworkErrors.RETRY_AFTER_SECONDS.seconds)
     }
 
     @Test
@@ -175,7 +178,7 @@ class ProblemTest {
         FrameworkErrors.ALL.forEach { error ->
             val problem = statuses.problemOf(error.code, "Later.")
             problem.retry.assert().describedAs(error.code).isEqualTo(error.retry)
-            problem.retryAfter.assert().describedAs(error.code).isEqualTo(error.retryAfter?.toLong())
+            problem.retryAfter.assert().describedAs(error.code).isEqualTo(error.retryAfter?.seconds)
         }
         // A query that ran out of time is 504 without Retry-After: the same query would run as long (D254 ③).
         statuses.problemOf(FrameworkCodes.QUERY_TIMEOUT, "Too long.").retryAfter.assert().isNull()

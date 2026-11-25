@@ -132,9 +132,13 @@ class HeaderGrammarTest {
         ScopeHeader.parse("""tenant="t1", owner="u1", space="s1"""")
             .assert().isEqualTo(TargetScope("t1", Scope("u1", "s1")))
         ScopeHeader.parse("owner=u1").assert().isEqualTo(TargetScope(null, Scope("u1")))
-        ScopeHeader.parse("""space="a \"b\" \\ c"""").scope.spaceId.assert().isEqualTo("""a "b" \ c""")
+        // The header always names a scope: a tenant alone acts there with no owner or space, never the sender's own.
+        ScopeHeader.parse("""tenant="t1"""").assert().isEqualTo(TargetScope("t1", Scope.NONE))
+        ScopeHeader.format(TargetScope("t1"), Scope("u1", "s1")).assert()
+            .isEqualTo("""tenant="t1", owner="u1", space="s1"""")
+        ScopeHeader.parse("""space="a \"b\" \\ c"""").scope?.spaceId.assert().isEqualTo("""a "b" \ c""")
         val target = TargetScope("t1", Scope("u\"1", "s1"))
-        ScopeHeader.parse(ScopeHeader.format(target)).assert().isEqualTo(target)
+        ScopeHeader.parse(ScopeHeader.format(target, Scope.NONE)).assert().isEqualTo(target)
     }
 
     @ParameterizedTest
@@ -157,7 +161,8 @@ class HeaderGrammarTest {
         )
         ScopeHeader.parseQuery("""tenant=( "t1"  t2 "t1" )""").crossTenant
             .assert().isEqualTo(CrossTenant(setOf("t1", "t2")))
-        ScopeHeader.parseQuery("""tenant="t1"""").assert().isEqualTo(ScopeHeader.QueryTarget(TargetScope("t1"), null))
+        ScopeHeader.parseQuery("""tenant="t1"""").assert()
+            .isEqualTo(ScopeHeader.QueryTarget(TargetScope("t1", Scope.NONE), null))
         ScopeHeader.parseQuery("tenant=*t1").target.tenantId.assert().isEqualTo("*t1")
         CrossTenant(setOf("t1")).covers("t2").assert().isFalse()
         CrossTenant.ALL.covers("t2").assert().isTrue()
@@ -193,9 +198,12 @@ class HeaderGrammarTest {
         ScopeHeader.parse("owner=u1 ,space=s1").scope.assert().isEqualTo(Scope("u1", "s1"))
         // A key RFC 8941 allows but Wow-Scope does not take.
         assertThrownBy<IllegalArgumentException> { ScopeHeader.parse("*x.y-z_1=a") }
-        ScopeHeader.format(TargetScope("t1")).assert().isEqualTo("tenant=\"t1\"")
-        ScopeHeader.format(TargetScope(scope = Scope(spaceId = "s1"))).assert().isEqualTo("space=\"s1\"")
-        ScopeHeader.format(TargetScope(scope = Scope(ownerId = "a\\b"))).assert().isEqualTo("owner=\"a\\\\b\"")
+        ScopeHeader.format(TargetScope("t1"), Scope.NONE).assert().isEqualTo("tenant=\"t1\"")
+        ScopeHeader.format(TargetScope(scope = Scope(spaceId = "s1")), Scope("own")).assert().isEqualTo("space=\"s1\"")
+        ScopeHeader.format(
+            TargetScope(scope = Scope(ownerId = "a\\b")),
+            Scope.NONE
+        ).assert().isEqualTo("owner=\"a\\\\b\"")
     }
 
     @ParameterizedTest

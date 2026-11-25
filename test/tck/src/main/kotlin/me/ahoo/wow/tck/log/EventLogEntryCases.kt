@@ -51,7 +51,7 @@ abstract class EventLogEntryCases internal constructor() : EventLogAccessCases()
         val transport = Transport(
             wait = WaitContext(
                 waitId = "w-1",
-                origin = Origin("node-1", "10.0.0.7:8081", "order-service"),
+                origin = Origin("order-service", "node-1", "10.0.0.7:8081"),
                 remaining = listOf(
                     Hop.handled("payment-saga", "payment"),
                     Hop.committed("inventory"),
@@ -163,7 +163,7 @@ abstract class EventLogEntryCases internal constructor() : EventLogAccessCases()
         val transport = Transport(
             wait = WaitContext(
                 waitId = "w-1",
-                origin = Origin("node-1", "10.0.0.7:8081", "order-service"),
+                origin = Origin("order-service", "node-1", "10.0.0.7:8081"),
                 remaining = listOf(Hop.snapshot()),
                 deadline = 1_700_000_010_000L,
             ),

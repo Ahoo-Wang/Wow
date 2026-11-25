@@ -82,7 +82,7 @@ class CallAdmissionTest {
         }
         evolve<ItemAdded> { }
     }
-    private val origin = Origin("node-1", "127.0.0.1:9090", "shop")
+    private val origin = Origin("shop", "node-1", "127.0.0.1:9090")
     private val registry = WaitRegistry()
     private val log = InMemoryEventLog(partitions = 2)
 
@@ -162,7 +162,7 @@ class CallAdmissionTest {
         body = CommandBody.of("""{"sku":"mug"}"""),
         caller = caller,
         aggregateId = aggregateId,
-        target = target,
+        targetScope = target,
         requestId = requestId,
         headers = headers,
         call = call,
@@ -236,7 +236,7 @@ class CallAdmissionTest {
     fun `a call should signal the hops of the wait it carries to the wait's origin`(): Unit = runBlocking {
         val wait = WaitContext(
             "wait-1",
-            Origin("basket-1", "127.0.0.1:9191", "basket"),
+            Origin("basket", "basket-1", "127.0.0.1:9191"),
             listOf(Hop.committed(CONTEXT)),
             System.currentTimeMillis() + 60_000,
         )
