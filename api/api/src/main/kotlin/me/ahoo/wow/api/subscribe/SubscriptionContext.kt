@@ -159,12 +159,14 @@ interface SubscriptionContext {
 interface SagaContext : SubscriptionContext {
     /**
      * The ids this execution takes: the node's generators, each aggregate type's the one the host
-     * configures for it (`wow.aggregates.<ctx.agg>.id-generator`), fixed ids in the test DSL.
+     * configures for it (`wow.aggregates.<ctx.agg>.id-generator`), sequential ids counted across a specification in
+     * the test DSL.
      *
-     * Handling the commit again (a retry, a replay) takes new ones: an id drawn here for an aggregate a derived
-     * command creates may be used only for that same creation command, whose request id is the same every time, so
-     * the target creates it once and keeps the first id; any other use would see the id change. To
-     * leave the id to the target, derive the creation without an id instead.
+     * Handling the commit again (a retry, a replay) takes new ones. A derived command's request id comes from its
+     * target, the target's id included, so a command whose target is named by an id drawn here is another request
+     * each time: handling the commit again creates a second aggregate. To create an aggregate once, derive the creation
+     * without an id: its request id is the same every time, and the target's admission gives it the aggregate its
+     * first attempt created.
      */
     val ids: Ids
 

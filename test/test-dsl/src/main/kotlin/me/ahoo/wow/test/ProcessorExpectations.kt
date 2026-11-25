@@ -324,8 +324,11 @@ class ProcessorExpectations internal constructor(
     /**
      * A saga's handling of the same commit, or rejection, again, with a fresh context as the runtime gives a retry,
      * derives the same commands (ids and request ids included), the schedules among them, and calls the same ones: the
-     * targets decide them once. A projection's or a reactor's handling would run its side effects again, so it has no
-     * such check.
+     * targets decide them once. The context draws new ids, as a node's does, so a command that holds a drawn id fails
+     * it. One whose target it names is another request, which would create a second aggregate. One whose body holds
+     * it, under an unchanged request id, fails it too, since whole commands are compared, though a node's target would
+     * answer that repeat with its first commit. A projection's or a reactor's handling would run its side effects
+     * again, so it has no such check.
      */
     @Suppress("ThrowsCount")
     fun expectDeterministic() {

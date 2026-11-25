@@ -44,7 +44,10 @@ import java.util.stream.Stream
  *
  * Each call of a handler gets a fresh [ExecutionSagaContext], as the runtime gives each handling of a commit, so the
  * ids the saga derives are the same on every call for the same commit. Its [ids][me.ahoo.wow.api.subscribe.SagaContext.ids]
- * are [SequentialIds], counted anew for each call: `id-1`… and `<aggregate>-1`….
+ * are [SequentialIds] counted across the specification, `id-1`… and `<aggregate>-1`…: each call draws on from the
+ * last, as a node's generators draw new ids for each handling. So a saga that names a command's target by a drawn id
+ * derives another request when the commit is handled again, which [ProcessorExpectations.expectDeterministic] and
+ * [ProcessorSpec.whenRedelivered] show.
  *
  * The synchronous calls a saga makes ([me.ahoo.wow.api.subscribe.SagaContext.call]) are answered by
  * [answerCalls], committed at version 1 by default ([committedResult]); [ProcessorExpectations.calls] lists them.

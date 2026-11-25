@@ -54,6 +54,12 @@ internal class ProcessorHandling(
     /** The executions that derived each command, by command id: a rejection of one goes back to its saga. */
     private val derivedBy: MutableMap<String, ExecutionId> = HashMap(origin?.derivedBy.orEmpty())
 
+    /**
+     * The ids every handling's context draws from, counted on across the specification: a node's generators draw new
+     * ids for each handling, so handling a commit again draws others. A fork goes on from its origin's count.
+     */
+    private val ids: SequentialIds = origin?.ids?.copy() ?: SequentialIds()
+
     /** How the targets answer the saga's synchronous calls. */
     private var answer: (Command<*>) -> CommandResult = origin?.answer ?: { committedResult(it) }
 
@@ -102,7 +108,7 @@ internal class ProcessorHandling(
                 handler.context ?: event.ref.type.context,
                 handler.name,
                 event,
-                SequentialIds(),
+                ids,
                 commandTypes,
                 answering,
                 queries,
@@ -176,7 +182,7 @@ internal class ProcessorHandling(
         runCatchingAll {
             val calls = ArrayList<Command<*>>()
             val context =
-                rejectionContextOf(handler, rejected, SequentialIds(), commandTypes, queries, answering(calls))
+                rejectionContextOf(handler, rejected, ids, commandTypes, queries, answering(calls))
             val derived = receiptHandling { handler.invoke(rejected, context) }
             derived.forEach {
                 derivedBy[it.admitted().id] = context.executionId
@@ -188,7 +194,7 @@ internal class ProcessorHandling(
         runCatchingAll {
             val calls = ArrayList<Command<*>>()
             val context =
-                committedContextOf(handler, committed, SequentialIds(), commandTypes, queries, answering(calls))
+                committedContextOf(handler, committed, ids, commandTypes, queries, answering(calls))
             val derived = receiptHandling { handler.invoke(committed, context) }
             derived.forEach {
                 derivedBy[it.admitted().id] = context.executionId
