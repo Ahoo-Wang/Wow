@@ -34,6 +34,7 @@ import me.ahoo.wow.api.query.GreaterThanOrEqualFilter
 import me.ahoo.wow.api.query.HavingExpression
 import me.ahoo.wow.api.query.InFilter
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.QueryErrorCodes
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.query.backend.aggregate
@@ -547,6 +548,24 @@ abstract class SnapshotAggregationCases internal constructor() : SnapshotKeysetC
             (outcomes[2]() as BigDecimal).assert().isEqualByComparingTo(BigDecimal("1.0000000000000001E307"))
         }
 
+    @Test
+    fun `a subnormal constant is computed, or the query refused where listed`() = blocking {
+        // The least double, 4.9E-324, a subnormal one, compared with each amount: both are over it. A backend that
+        // reads no subnormal double refuses the query (`storage-unsupported`; ClickHouse, #7009).
+        val fixture = given(
+            listOf(snapshot("tenth", """{"amount":0.1}"""), snapshot("two", """{"amount":2}""")),
+        )
+        val compared = ExpressionFilter(AggregationExpression.Field(AMOUNT), ComparisonOperator.GT, Double.MIN_VALUE)
+        if (SUBNORMAL_REFUSED in semanticDivergences) {
+            val refused = runCatching { fixture.ids(compared) }.exceptionOrNull()
+            (refused as? QuerySchemaValidationException)?.violation?.code.assert().describedAs("$refused")
+                .isEqualTo(QueryErrorCodes.STORAGE_UNSUPPORTED)
+            return@blocking
+        }
+        fixture.ids(compared).assert().containsExactlyInAnyOrder("tenth", "two")
+        Unit
+    }
+
     /** `amount` [operator] [operand], a computed value. */
     private fun computed(operator: AggregationExpressionOperator, operand: Double): AggregationExpression =
         AggregationExpression.Binary(
@@ -583,6 +602,12 @@ abstract class SnapshotAggregationCases internal constructor() : SnapshotKeysetC
          * refusal.
          */
         const val OUT_OF_RANGE_REFUSED: String = "computed.out-of-range-refused"
+
+        /**
+         * The case of a subnormal double constant: a backend that reads none refuses the query
+         * (`storage-unsupported`) where the others compute it, lists it, and is held to the refusal.
+         */
+        const val SUBNORMAL_REFUSED: String = "computed.subnormal-refused"
 
         /** A factor that takes an amount of 2 beyond a double's range, and one of 0.1 to 1e307. */
         private const val OVER = 1.0E308

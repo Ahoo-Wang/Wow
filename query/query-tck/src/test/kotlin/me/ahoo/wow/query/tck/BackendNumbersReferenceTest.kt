@@ -16,6 +16,7 @@ package me.ahoo.wow.query.tck
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.query.tck.SnapshotAggregationCases.Companion.EXACT_PLAIN_AGGREGATE
 import me.ahoo.wow.query.tck.SnapshotAggregationCases.Companion.OUT_OF_RANGE_REFUSED
+import me.ahoo.wow.query.tck.SnapshotAggregationCases.Companion.SUBNORMAL_REFUSED
 import org.junit.jupiter.api.Test
 import java.io.File
 
@@ -70,6 +71,18 @@ class BackendNumbersReferenceTest {
         PAGES.keys.forEach { page ->
             File(root, page).readLines().filter { "`wow.query.out-of-range`" in it }.assert().describedAs(page)
                 .hasSize(1).allMatch { line -> refusing.all { it in line } }
+        }
+    }
+
+    @Test
+    fun `the backend that refuses a subnormal constant should be the one each page names with its code`() {
+        val refusing = BACKENDS.filterValues { files ->
+            files.any { SUBNORMAL_REFUSED in divergencesOf(File(root, it).readText()) }
+        }.keys
+        refusing.assert().containsExactly("ClickHouse")
+        PAGES.keys.forEach { page ->
+            File(root, page).readLines().filter { "`storage-unsupported`" in it && "2.2250738585072014E-308" in it }
+                .assert().describedAs(page).hasSize(1).allMatch { line -> refusing.all { it in line } }
         }
     }
 
@@ -130,6 +143,7 @@ class BackendNumbersReferenceTest {
         val CASES = mapOf(
             "EXACT_PLAIN_AGGREGATE" to EXACT_PLAIN_AGGREGATE,
             "OUT_OF_RANGE_REFUSED" to OUT_OF_RANGE_REFUSED,
+            "SUBNORMAL_REFUSED" to SUBNORMAL_REFUSED,
         )
 
         /** Which of the table's cases [source]'s `semanticDivergences` lists, by its constant or its id: its `setOf(…)`. */

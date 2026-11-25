@@ -68,6 +68,7 @@ public abstract class me/ahoo/wow/query/tck/DatasetAggregationCases : me/ahoo/wo
 	public final fun a computed value over a decimal column beyond a double is no value and an underflow 0, or refused ()V
 	public final fun a date histogram buckets instants before 1970 at their own start ()V
 	public final fun a plain decimal column's sum, average, least and greatest are in its decimals, or doubles where listed ()V
+	public final fun a subnormal constant over a decimal column is computed, or the query refused where listed ()V
 	public final fun a sum and an average over an expression of a decimal column are doubles on every backend ()V
 	public final fun date histograms key buckets by the local start of the unit ()V
 	public final fun first and last pick among the records that hold a value ()V
@@ -347,11 +348,13 @@ public abstract class me/ahoo/wow/query/tck/SnapshotAggregationCases : me/ahoo/w
 	public static final field Companion Lme/ahoo/wow/query/tck/SnapshotAggregationCases$Companion;
 	public static final field EXACT_PLAIN_AGGREGATE Ljava/lang/String;
 	public static final field OUT_OF_RANGE_REFUSED Ljava/lang/String;
+	public static final field SUBNORMAL_REFUSED Ljava/lang/String;
 	public final fun a computed comparison over a decimal field ()V
 	public final fun a computed value beyond a double is no value and an underflow 0, or the query is refused where listed ()V
 	public final fun a histogram and an expression group put the records without a value in the null group ()V
 	public final fun a plain decimal field's sum, average, least and greatest are in its decimals, or doubles where listed ()V
 	public final fun a string array sorts by its least value ascending, or refuses the sort where storage cannot ()V
+	public final fun a subnormal constant is computed, or the query refused where listed ()V
 	public final fun a sum and an average over an expression are doubles on every backend ()V
 	public final fun aggregation FIRST and LAST pick among the records that hold a value ()V
 	public final fun aggregation HAVING keeps the matching groups ()V

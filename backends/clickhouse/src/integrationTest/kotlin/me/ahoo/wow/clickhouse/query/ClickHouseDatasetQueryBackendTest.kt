@@ -15,8 +15,14 @@ package me.ahoo.wow.clickhouse.query
 
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.AggregationExpression
+import me.ahoo.wow.api.query.AggregationExpressionOperator
+import me.ahoo.wow.api.query.ComparisonOperator
 import me.ahoo.wow.api.query.CursorQuery
+import me.ahoo.wow.api.query.ExpressionFilter
+import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.QueryErrorCodes
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.query.admission.QueryAdmission
@@ -25,12 +31,14 @@ import me.ahoo.wow.query.backend.PageWindow
 import me.ahoo.wow.query.backend.QueryBindings
 import me.ahoo.wow.query.dataset.QueryDataset
 import me.ahoo.wow.query.error.QueryRequestException
+import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.query.tck.DatasetDateBucketCases.Companion.BEFORE_1970_PARTIAL_CHANGE
 import me.ahoo.wow.query.tck.DatasetDateBucketCases.Companion.MONROVIA_CHANGE_DAY
 import me.ahoo.wow.query.tck.DatasetQueryBackendSpec
 import me.ahoo.wow.query.tck.DatasetQueryBackendSpec.Companion.MICROS
 import me.ahoo.wow.query.tck.DatasetTable
+import me.ahoo.wow.query.tck.SnapshotAggregationCases.Companion.SUBNORMAL_REFUSED
 import me.ahoo.wow.spi.json.WowJson
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.node.ObjectNode
@@ -78,5 +86,26 @@ class ClickHouseDatasetQueryBackendTest : DatasetQueryBackendSpec() {
         // ClickHouse's own zone data (24.8 and 25.3 alike) does not read Monrovia's offset as UTC for the rest of
         // 1972-01-07: the minute after that change starts at 00:44:30 UTC, where its local minute starts at 00:45:00.
         MONROVIA_CHANGE_DAY,
+        // ClickHouse reads no subnormal double: a query that names one is refused (storage-unsupported, #7009).
+        SUBNORMAL_REFUSED,
     )
+
+    @Test
+    fun `a subnormal constant should be refused as storage-unsupported, and a small normal one computed`(): Unit =
+        runBlocking {
+            val amount = AggregationExpression.Field(QueryField("amount"))
+            val refused = runCatching {
+                orders.list(ListQuery(ExpressionFilter(amount, ComparisonOperator.GT, Double.MIN_VALUE)))
+            }.exceptionOrNull()
+            (refused as QuerySchemaValidationException).violation!!.code.assert()
+                .isEqualTo(QueryErrorCodes.STORAGE_UNSUPPORTED)
+            refused.message.assert().contains("subnormal double constant 4.9E-324")
+            // 1e-200 is a normal double, however small: each order's amount times it is over 0.
+            val scaled = AggregationExpression.Binary(
+                AggregationExpressionOperator.MULTIPLY,
+                amount,
+                AggregationExpression.Constant(1.0E-200),
+            )
+            orders.list(ListQuery(ExpressionFilter(scaled, ComparisonOperator.GT, 0.0))).assert().hasSize(6)
+        }
 }

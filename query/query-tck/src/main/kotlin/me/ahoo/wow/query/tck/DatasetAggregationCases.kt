@@ -31,6 +31,7 @@ import me.ahoo.wow.api.query.HavingExpression
 import me.ahoo.wow.api.query.IsNotNullFilter
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.QueryErrorCodes
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.RunningFunction
 import me.ahoo.wow.api.query.Sort
@@ -39,11 +40,13 @@ import me.ahoo.wow.query.backend.single
 import me.ahoo.wow.query.error.QueryError
 import me.ahoo.wow.query.error.QueryErrors
 import me.ahoo.wow.query.error.QueryRequestException
+import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.query.tck.DatasetQueryBackendSpec.Companion.HISTORY
 import me.ahoo.wow.query.tck.DatasetQueryBackendSpec.Companion.ID
 import me.ahoo.wow.query.tck.SnapshotAggregationCases.Companion.EXACT_PLAIN_AGGREGATE
 import me.ahoo.wow.query.tck.SnapshotAggregationCases.Companion.OUT_OF_RANGE_REFUSED
+import me.ahoo.wow.query.tck.SnapshotAggregationCases.Companion.SUBNORMAL_REFUSED
 import me.ahoo.wow.query.tck.SnapshotAggregationCases.Companion.TINY
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
@@ -398,6 +401,22 @@ abstract class DatasetAggregationCases internal constructor() : DatasetRecordCas
             (outcomes[1]() as List<*>).assert().containsExactlyInAnyOrder("tenth", "two")
             (outcomes[2]() as BigDecimal).assert().isEqualByComparingTo(BigDecimal("1.0000000000000001E307"))
         }
+
+    @Test
+    fun `a subnormal constant over a decimal column is computed, or the query refused where listed`() = blocking {
+        // As on the snapshot model: both amounts are over 4.9E-324, or the backend refuses the subnormal constant.
+        val decimals = target(TENTH_AND_TWO)
+        val compared = ExpressionFilter(AggregationExpression.Field(AMOUNT), ComparisonOperator.GT, Double.MIN_VALUE)
+        if (SUBNORMAL_REFUSED in semanticDivergences) {
+            val refused = runCatching { decimals.list(ListQuery(compared)) }.exceptionOrNull()
+            (refused as? QuerySchemaValidationException)?.violation?.code.assert().describedAs("$refused")
+                .isEqualTo(QueryErrorCodes.STORAGE_UNSUPPORTED)
+            return@blocking
+        }
+        decimals.list(ListQuery(compared)).map { it.path(ID).stringValue() }.assert()
+            .containsExactlyInAnyOrder("tenth", "two")
+        Unit
+    }
 
     /** `amount` [operator] [operand], a computed value. */
     private fun computed(operator: AggregationExpressionOperator, operand: Double): AggregationExpression =

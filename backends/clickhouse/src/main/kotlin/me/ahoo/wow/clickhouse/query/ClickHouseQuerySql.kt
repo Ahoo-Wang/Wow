@@ -43,9 +43,18 @@ internal class SqlParameters {
     fun statement(sql: String): ClickHouseStatement = ClickHouseStatement(sql, values.toMap())
 }
 
-/** A finite double as SQL text; the query protocol already rejects NaN and the infinities. */
+/**
+ * A finite double as SQL text; the query protocol already rejects NaN and the infinities. A subnormal double, a non-zero
+ * one below [java.lang.Double.MIN_NORMAL], is refused (`storage-unsupported`): ClickHouse reads it in no form, a plain
+ * or an exponent literal being a syntax error and a string `0` (#7009).
+ */
 internal fun Double.sqlLiteral(): String {
     check(isFinite()) { "SQL constant must be finite." }
+    if (this != 0.0 && abs(this) < java.lang.Double.MIN_NORMAL) {
+        throw QueryViolation.StorageUnsupported(
+            "the subnormal double constant $this: ClickHouse reads no double below ${java.lang.Double.MIN_NORMAL}",
+        ).rejection()
+    }
     return "toFloat64(${toBigDecimal().toPlainString()})"
 }
 
