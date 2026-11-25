@@ -33,7 +33,8 @@ public final class me/ahoo/wow/test/server/FakePeer : java/lang/AutoCloseable {
 }
 
 public final class me/ahoo/wow/test/server/FakePeerKt {
-	public static final fun fakePeer (Ljava/lang/String;)Lme/ahoo/wow/test/server/FakePeer;
+	public static final fun fakePeer (Ljava/lang/String;Ljava/util/Map;)Lme/ahoo/wow/test/server/FakePeer;
+	public static synthetic fun fakePeer$default (Ljava/lang/String;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/test/server/FakePeer;
 }
 
 public final class me/ahoo/wow/test/server/LocalPorts : java/lang/Enum {

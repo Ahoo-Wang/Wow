@@ -273,24 +273,103 @@ class FakePeerTest {
     ) {
         // A real peer's call route checks the caller's permits (CommandHandler, CallPermits): with no
         // wow.callers.<service>.commands, a system command (wow.*) is 403 wow.call.command-forbidden.
-        val path = "/bank/account/acc-1/wow.lifecycle.restore-aggregate"
-        val headers = mapOf(WowHeaders.SERVICE to "shop-service", WowHeaders.CALL to callOf("acme"))
-        val (real, manifest) = wowServer<BankServer>("dev").use { bank ->
-            bank.internal.post(path, "{}", headers) to bank.bean<Manifest>()
+        val (real, fake) = bankAnswers(contracts, RESTORE, "{}")
+        for ((peer, answer) in listOf("the real bank-service" to real, "the fake bank-service" to fake)) {
+            answer.status.assert().describedAs("$peer answered ${answer.text}").isEqualTo(403)
+            answer.problem!!.code.assert().isEqualTo("wow.call.command-forbidden")
         }
-        // The fake serves the real bank's own Manifest as its contract, as the bank's api jar would carry it.
-        val resource = contracts.resolve(PeerContracts.RESOURCE)
-        Files.createDirectories(resource.parent)
-        Files.write(resource, WowJson.mapper.writeValueAsBytes(ManifestTree.write(manifest)))
-        withContracts(contracts) { fakePeer("bank") }.use { bank ->
-            val fake = WowHttp(bank.url).use { it.post(path, "{}", headers) }
-            for ((peer, answer) in listOf("the real bank-service" to real, "the fake bank-service" to fake)) {
-                answer.status.assert().describedAs("$peer answered ${answer.text}").isEqualTo(403)
-                answer.problem!!.code.assert().isEqualTo("wow.call.command-forbidden")
+        fake.problem!!.detail.assert().isEqualTo(real.problem!!.detail)
+    }
+
+    @Test
+    fun `a system command the callee's callers list should be taken, by the real peer and the fake alike`(
+        @TempDir contracts: Path,
+    ) {
+        val permit = mapOf("shop-service" to listOf("wow.lifecycle.RestoreAggregate"))
+        val (real, fake) = bankAnswers(contracts, RESTORE, "{}", permit)
+        // The real bank has no account acc-1 to restore: what it answers is no refusal of the call.
+        real.problem?.code.assert().describedAs(real.text).isNotEqualTo("wow.call.command-forbidden")
+        fake.status.assert().describedAs(fake.text).isEqualTo(200)
+    }
+
+    @Test
+    fun `a domain command the callee's callers do not list should be refused, and one they list taken`() {
+        fakePeer("shipping", callers = mapOf("shop-service" to listOf("ScheduleParcel"))).use { narrowed ->
+            WowHttp(narrowed.url).use { http ->
+                val headers = mapOf(WowHeaders.SERVICE to "shop-service", WowHeaders.CALL to callOf("acme"))
+                val ship = http.post("/shipping/parcel/parcel-6/ship-parcel", """{"address":"x"}""", headers)
+                ship.status.assert().describedAs(ship.text).isEqualTo(403)
+                ship.problem!!.detail.assert().contains("shipping.parcel.ShipParcel")
+                val schedule = http.post(
+                    "/shipping/parcel/schedule-parcel",
+                    """{"parcelId":"parcel-6","day":"monday"}""",
+                    headers,
+                )
+                schedule.status.assert().describedAs(schedule.text).isEqualTo(200)
             }
-            fake.problem!!.detail.assert().isEqualTo(real.problem!!.detail)
-            bank.calls.assert().isEmpty()
+            narrowed.calls.map { it.commandType }.assert().containsExactly("shipping.parcel.ScheduleParcel")
         }
+    }
+
+    @Test
+    fun `a body that does not read as its command should be refused as the real peer refuses it`(
+        @TempDir contracts: Path,
+    ) {
+        for (body in listOf("not json", """{"amount":1,"note":"x"}""", """{"amount":1,"amount":2}""")) {
+            val (real, fake) = bankAnswers(contracts, DEPOSIT, body)
+            for ((peer, answer) in listOf("the real bank-service" to real, "the fake bank-service" to fake)) {
+                answer.status.assert().describedAs("$peer answered ${answer.text} to $body").isEqualTo(400)
+                answer.problem!!.code.assert().isEqualTo("wow.command.malformed")
+            }
+            fake.problem!!.detail.assert().isEqualTo("The body is not a bank.account.Deposit.")
+        }
+    }
+
+    @Test
+    fun `a body its command's constraints refuse should be taken by the fake, which checks none`(
+        @TempDir contracts: Path,
+    ) {
+        // The one difference the fake's KDoc states: Deposit's amount is @Positive, which only the real peer checks.
+        val (real, fake) = bankAnswers(contracts, DEPOSIT, """{"amount":0}""")
+        real.problem!!.code.assert().describedAs(real.text).isEqualTo("wow.command.invalid")
+        fake.status.assert().describedAs(fake.text).isEqualTo(200)
+    }
+
+    @Test
+    fun `an empty body should read as an empty object, as the peer reads it`() {
+        WowHttp(shipping.url).use { http ->
+            val headers = mapOf(WowHeaders.SERVICE to "shop-service", WowHeaders.CALL to callOf("acme"))
+            // ShipParcel needs its address: {} does not read as one.
+            // No body at all: WowHttp sends `{}` unless told none.
+            val ship = http.post("/shipping/parcel/parcel-8/ship-parcel", json = null, headers = headers)
+            ship.status.assert().describedAs(ship.text).isEqualTo(400)
+            ship.problem!!.detail.assert().isEqualTo("The body is not a shipping.parcel.ShipParcel.")
+        }
+        // A fake of its own: the returns fixture's calls are another case's.
+        fakePeer("returns").use { returns ->
+            val answer = WowHttp(returns.url).use { http ->
+                http.post(
+                    "/returns/parcel/parcel-8/return-parcel",
+                    json = null,
+                    headers = mapOf(WowHeaders.SERVICE to "shop-service", WowHeaders.CALL to callOf("acme")),
+                )
+            }
+            answer.status.assert().describedAs(answer.text).isEqualTo(200)
+            (returns.calls.single().command as JsonNode).isEmpty.assert().isTrue()
+        }
+    }
+
+    @Test
+    fun `a body that is not JSON should be refused for a command whose class the class path lacks`() {
+        val answer = WowHttp(returns.url).use { http ->
+            http.post(
+                "/returns/parcel/parcel-7/return-parcel",
+                "not json",
+                mapOf(WowHeaders.SERVICE to "shop-service", WowHeaders.CALL to callOf("acme")),
+            )
+        }
+        answer.status.assert().describedAs(answer.text).isEqualTo(400)
+        answer.problem!!.detail.assert().isEqualTo("The body is not a returns.parcel.ReturnParcel.")
     }
 
     @Test
@@ -313,6 +392,33 @@ class FakePeerTest {
         shipping.toString().assert().contains("shipping", shipping.url.toString())
     }
 
+    /**
+     * What the real bank-service and a fake of it answer [body] posted to [path] by shop-service: the real one with
+     * [callers] as its `wow.callers.<service>.commands`, the fake given the same, built from the real bank's own
+     * Manifest, as the bank's api jar would carry it, under [contracts].
+     */
+    private fun bankAnswers(
+        contracts: Path,
+        path: String,
+        body: String,
+        callers: Map<String, List<String>> = emptyMap(),
+    ): Pair<Answer, Answer> {
+        val headers = mapOf(WowHeaders.SERVICE to "shop-service", WowHeaders.CALL to callOf("acme"))
+        val permits = callers.flatMap { (service, commands) ->
+            commands.mapIndexed { index, command -> "wow.callers.$service.commands[$index]" to command }
+        }.toMap()
+        val (real, manifest) = wowServer<BankServer>("dev", properties = permits).use { bank ->
+            bank.internal.post(path, body, headers) to bank.bean<Manifest>()
+        }
+        val resource = contracts.resolve(PeerContracts.RESOURCE)
+        Files.createDirectories(resource.parent)
+        Files.write(resource, WowJson.mapper.writeValueAsBytes(ManifestTree.write(manifest)))
+        val fake = withContracts(contracts) { fakePeer("bank", callers) }.use { bank ->
+            WowHttp(bank.url).use { it.post(path, body, headers) }
+        }
+        return real to fake
+    }
+
     /** What [block] makes with the contracts under [directory] on the thread's class path, as a test's are. */
     private fun <T> withContracts(directory: Path, block: () -> T): T {
         val thread = Thread.currentThread()
@@ -331,4 +437,9 @@ class FakePeerTest {
     private fun callOf(tenantId: String): String = CallHeaders.format(
         CallContext("command-1", tenantId, Scope.NONE, Causation("command-1", "command-1")),
     )
+
+    private companion object {
+        const val RESTORE = "/bank/account/acc-1/wow.lifecycle.restore-aggregate"
+        const val DEPOSIT = "/bank/account/acc-1/deposit"
+    }
 }

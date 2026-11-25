@@ -150,6 +150,8 @@ fakePeer("eshop-ordering").use { ordering ->
 - `called<C>()` 取命令类 `C` 中尚未交出的第一个调用，最多等 20 秒；`calls` 列出全部调用。
 - 假对端按 `answer { call -> … }` 答复每次调用。默认的 `PeerAnswer.succeeded(id, version, results)` 把命令提交到调用的聚合，版本 1，没有指名聚合的创建则提交到一个新聚合，并带上它的决策答复的值。`PeerAnswer.rejected(code, message, status, violations, extensions)` 用对端契约给这个错误码的状态答复：取它的错误表，领域拒绝没有声明时是 422。`PeerAnswer.failed(code, message)` 答复对端节点的一次失败，错误码取自错误目录，带上它的状态和重试能做什么。`PeerAnswer.timedOut()` 答 504 `wow.wait.timeout`，调用方可以用同一个请求 ID 再发一次。
 - 没有指名服务（`Wow-Service`）或根命令（`Wow-Call`）的请求，它以 403 `wow.auth.forbidden` 拒绝，与对端的内部端口一样。
+- 调用方服务不得发送的命令，它像对端的内部端口一样拒绝：403 `wow.call.command-forbidden`，不记录这次调用。每个服务可发送的命令是对端的 `wow.callers.<service>.commands`，以 `fakePeer(context, callers = mapOf("eshop-basket-service" to listOf("wow.lifecycle.DeleteAggregate")))` 给出。默认不给时，领域命令都接受，系统命令（`wow.*`，生命周期命令也在其中）都拒绝：调用对端系统命令的 Saga 要写明对端的许可，与对端的配置必须写明一样。
+- 不是 JSON、同一属性给了两次，或读不成命令类的命令体，它与对端一样以 400 `wow.command.malformed` 拒绝。它不检查命令的约束：对端以 `wow.command.invalid` 拒绝的命令体，它照样接受。
 
 ## 按对端的方式答复 {#answer-as-the-peer-would}
 

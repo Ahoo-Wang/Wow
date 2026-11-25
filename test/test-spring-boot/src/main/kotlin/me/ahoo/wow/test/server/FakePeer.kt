@@ -46,7 +46,11 @@ import org.springframework.web.reactive.function.server.ServerResponse
 import org.springframework.web.reactive.function.server.awaitBodyOrNull
 import org.springframework.web.reactive.function.server.bodyValueAndAwait
 import org.springframework.web.reactive.function.server.coRouter
+import tools.jackson.core.JacksonException
+import tools.jackson.core.StreamReadFeature
+import tools.jackson.databind.DeserializationFeature
 import tools.jackson.databind.JsonNode
+import tools.jackson.databind.ObjectReader
 import tools.jackson.databind.node.ObjectNode
 import java.net.URI
 import java.util.concurrent.locks.ReentrantLock
@@ -60,6 +64,12 @@ import kotlin.time.TimeSource
  * to. Its commands and their routes are the ones its api module's contract on the class path declares, as the caller
  * finds them. Give it to the server under test ([wowServer]'s `peers`), which then calls it at its [FakePeer.url].
  *
+ * [callers] are the commands each calling service may send it, by service name, as the peer's own
+ * `wow.callers.<service>.commands` gives them ([CallPermits]): none by default, a peer whose configuration lists no
+ * callers, which allows every domain command and refuses every system command (`wow.*`). A saga that calls a peer's
+ * system command states the peer's permit, as the peer's configuration must:
+ * `fakePeer("eshop-ordering", callers = mapOf("eshop-basket" to listOf("wow.lifecycle.DeleteAggregate")))`.
+ *
  * ```kotlin
  * fakePeer("eshop-ordering").use { ordering ->
  *     wowServer<BasketServer>("dev", peers = listOf(ordering)).use { basket ->
@@ -69,7 +79,8 @@ import kotlin.time.TimeSource
  * }
  * ```
  */
-fun fakePeer(context: String): FakePeer = FakePeer(context, Thread.currentThread().contextClassLoader)
+fun fakePeer(context: String, callers: Map<String, List<String>> = emptyMap()): FakePeer =
+    FakePeer(context, Thread.currentThread().contextClassLoader, callers)
 
 /**
  * A fake of the peer service of [context] ([fakePeer]): it records each call it takes ([calls]), decoded as the peer's
@@ -77,20 +88,23 @@ fun fakePeer(context: String): FakePeer = FakePeer(context, Thread.currentThread
  * service (`Wow-Service`) or no root command (`Wow-Call`) with 403 `wow.auth.forbidden`, and a command the calling
  * service may not call with 403 `wow.call.command-forbidden` ([CallPermits]): as a peer whose configuration lists no
  * `wow.callers`, every system command (`wow.*`, the lifecycle's restore among them). It records neither, as a peer's
- * internal port does. Closing it stops its port.
+ * internal port does. A body that is not JSON, or does not read as its command's class, is 400
+ * `wow.command.malformed`, as the peer answers it; a body its command's constraints refuse is accepted by the fake and
+ * refused by the real peer (`wow.command.invalid`). Closing it stops its port.
  */
-class FakePeer internal constructor(val context: String, classLoader: ClassLoader) : AutoCloseable {
+class FakePeer internal constructor(
+    val context: String,
+    classLoader: ClassLoader,
+    callers: Map<String, List<String>>,
+) : AutoCloseable {
     private val contract: Manifest = contractOf(context, classLoader)
     private val commands: List<PeerCommand> = commandsOf(contract, context, classLoader)
 
     /** The statuses of the peer's errors, from its contract's tables, as its own routes answer them. */
     private val statuses = ErrorStatuses(contract)
 
-    /**
-     * What each service may call, as the peer's internal port checks it ([CallPermits]): the permits of a peer whose
-     * configuration lists no `wow.callers`, which allows every domain command and refuses every system command.
-     */
-    private val permits = CallPermits(emptyMap())
+    /** What each service may call, as the peer's internal port checks it: its `wow.callers.<service>.commands`. */
+    private val permits = CallPermits(callers)
     private val lock = ReentrantLock()
     private val received = lock.newCondition()
     private val recorded = mutableListOf<PeerCall>()
@@ -178,12 +192,22 @@ class FakePeer internal constructor(val context: String, classLoader: ClassLoade
                 ).respond()
             }
         val body = request.awaitBodyOrNull<ByteArray>()?.takeIf { it.isNotEmpty() }
-        val tree: JsonNode = body?.let { WowJson.mapper.readTree(it) } ?: WowJson.mapper.createObjectNode()
+        // Read as the peer reads a body: refused when it is not JSON, gives a property twice, or does not read as its
+        // command's class (a property the class lacks among the reasons). The command's constraints are not checked.
+        val read = try {
+            val tree: JsonNode = if (body == null) WowJson.mapper.createObjectNode() else STRICT.readTree(body)
+            tree to command.type?.let { STRICT.forType(it).with(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES) }
+                ?.readValue<Any>(tree)
+        } catch (_: JacksonException) {
+            return statuses.problemOf(FrameworkCodes.COMMAND_MALFORMED, "The body is not a ${command.typeName}.")
+                .respond()
+        }
+        val (tree, decoded) = read
         val aggregateId = request.pathVariables()[ID] ?: command.manifest.idProperty?.let { property ->
             (tree as? ObjectNode)?.get(property)?.takeIf { it.isString }?.asString()
         }
         val call = PeerCall(
-            command = command.type?.let { WowJson.mapper.treeToValue(tree, it) } ?: tree,
+            command = decoded ?: tree,
             commandType = command.typeName,
             aggregateId = aggregateId,
             service = service,
@@ -206,6 +230,9 @@ class FakePeer internal constructor(val context: String, classLoader: ClassLoade
         const val LOOPBACK = "127.0.0.1"
         const val ID = "id"
         const val DEFS_PREFIX = "#/\$defs/"
+
+        /** Wow's JSON, refusing a property given twice in one object, as the peer's reader of a request does. */
+        val STRICT: ObjectReader = WowJson.mapper.reader().with(StreamReadFeature.STRICT_DUPLICATE_DETECTION)
 
         /** The contract on [classLoader] that declares [context]; refused when none does. */
         fun contractOf(context: String, classLoader: ClassLoader): Manifest {
