@@ -717,10 +717,17 @@ public final class me/ahoo/wow/runtime/subscription/ParkedNotice {
 	public final fun getAt ()J
 	public final fun getContext ()Ljava/lang/String;
 	public final fun getEntry ()Lme/ahoo/wow/spi/ledger/ParkedAggregate;
+	public final fun getFailedAt ()J
+	public final fun getFromVersion ()I
 	public final fun getGroup ()Ljava/lang/String;
 	public final fun getKind ()Lme/ahoo/wow/runtime/subscription/ParkedNotice$Kind;
+	public final fun getMaxRetries ()I
 	public final fun getNextRetryAt ()Ljava/lang/Long;
+	public final fun getReason ()Ljava/lang/String;
+	public final fun getRef ()Lme/ahoo/wow/api/aggregate/AggregateRef;
+	public final fun getRetries ()I
 	public final fun getSpec ()Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;
+	public final fun getSubscription ()Ljava/lang/String;
 	public fun hashCode ()I
 	public static final fun of (Lme/ahoo/wow/runtime/subscription/ParkedNotice$Kind;Ljava/lang/String;Lme/ahoo/wow/spi/ledger/ParkedAggregate;Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;J)Lme/ahoo/wow/runtime/subscription/ParkedNotice;
 	public fun toString ()Ljava/lang/String;

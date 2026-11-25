@@ -52,6 +52,26 @@ class ParkedNotifierTest {
     }
 
     @Test
+    fun `a notice should show what a notification says, from the ledger's entry and its retry spec`() {
+        val entry = ParkedAggregate(
+            SubscriptionId("shop", "CartSaga.onOrderCreated"),
+            cart("x"),
+            partition = 0,
+            fromVersion = 3,
+            reason = "boom",
+            failedAt = 1_000,
+            retries = 2,
+        )
+        val spec = ParkedRetrySpec(maxRetries = 5)
+        val notice = ParkedNotice(ParkedNotice.Kind.EXHAUSTED, "group", entry, spec, 2_000)
+        listOf(notice.context, notice.subscription, notice.ref, notice.fromVersion, notice.reason, notice.failedAt)
+            .assert().containsExactly("shop", "CartSaga.onOrderCreated", cart("x"), 3, "boom", 1_000L)
+        listOf(notice.retries, notice.maxRetries, notice.at).assert().containsExactly(2, 5, 2_000L)
+        notice.nextRetryAt.assert().isEqualTo(entry.nextRetryAt(spec)).isNotNull()
+        notice.copyWith(spec = ParkedRetrySpec(maxRetries = 2)).nextRetryAt.assert().isNull()
+    }
+
+    @Test
     fun `a cancellation is not swallowed`() {
         val cancelled = ParkedNotifier { throw CancellationException("stopped") }
         assertThrownBy<CancellationException> { runBlocking { cancelled.notifyQuietly(notice) } }
