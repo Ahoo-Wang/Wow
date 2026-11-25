@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.cosec
 
+import me.ahoo.cosec.document.route.Route
+import me.ahoo.cosec.document.route.RouteMap
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.manifest.ManifestTree
 import org.junit.jupiter.api.DynamicTest
@@ -22,13 +24,25 @@ import java.io.File
 
 /**
  * The route map [CoSecActions.routes] makes of each service of the repository, from its Manifest as the build merges it
- * (`manifest/baseline.json`, which the service's `check` holds to that Manifest): no route path ends with `/`. CoSec
+ * (`manifest/baseline.json`, which the service's `check` holds to that Manifest). No route path ends with `/`: CoSec
  * 8.0.0-beta.8 refuses with 400 a request whose path maps to a route only with, or only without, a trailing `/`
- * (`PIP-35`), so such a route would refuse the path a client builds from the Manifest's.
+ * (`PIP-35`), so such a route would refuse the path a client builds from the Manifest's. And CoSec loads it, as a host
+ * that decides for itself does: from 8.0.0-beta.9 `[ ] ( ) | ! ^ $ \` are reserved in a route's path (`DOC-15`), and a
+ * route map that holds one unescaped does not load.
  */
 class CoSecServiceRouteMapsTest {
     @TestFactory
-    fun `no route of a service's route map should end with a slash`(): List<DynamicTest> {
+    fun `no route of a service's route map should end with a slash`(): List<DynamicTest> = routeMaps { _, routes ->
+        routes.filter { it.path.endsWith('/') }.map { "${it.method} ${it.path}" }.assert().isEmpty()
+    }
+
+    @TestFactory
+    fun `CoSec should load every service's route map`(): List<DynamicTest> = routeMaps { path, routes ->
+        RouteMap.of(routes.map { RouteMap.Located(it, path) })
+    }
+
+    /** One test per service's Manifest baseline, of the route map [CoSecActions.routes] makes of it. */
+    private fun routeMaps(check: (String, List<Route>) -> Unit): List<DynamicTest> {
         val root = File(requireNotNull(System.getProperty(ROOT)) { "System property $ROOT is not set." })
         val baselines = root.walkTopDown()
             .onEnter { it.name !in SKIPPED }
@@ -44,7 +58,7 @@ class CoSecServiceRouteMapsTest {
                 val manifest = ManifestTree.read(json.readValue(file, Map::class.java), ManifestTree.REFUSE)
                 val routes = CoSecActions.routes(manifest).routes
                 routes.assert().isNotEmpty()
-                routes.filter { it.path.endsWith('/') }.map { "${it.method} ${it.path}" }.assert().isEmpty()
+                check(path, routes)
             }
         }
     }

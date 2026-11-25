@@ -54,6 +54,7 @@ class CoSecIdentityTest {
         val roles = identity.path("roles")
         List(roles.size()) { roles[it].stringValue() }.assert().containsExactly("buyer", "auditor")
         identity.path("auth").path("method").stringValue().assert().isEqualTo("jwt")
+        identity.path("auth").path("kind").stringValue().assert().isEqualTo("person")
         identity.path("auth").path("jti").stringValue().assert().isNotBlank()
         identity.path("rid").stringValue().assert().isNotBlank()
         val issued = identity.path("iat").longValue()
@@ -88,6 +89,8 @@ class CoSecIdentityTest {
         identity.space.assert().isEqualTo("east")
         identity.roles.assert().containsExactly("buyer", "auditor")
         identity.credential.method.assert().isEqualTo(Identity.Method.JWT)
+        // IDN-44: a person's, which CoSec reads only from auth.kind; without it the credential is a workload's.
+        identity.credential.kind.assert().isEqualTo(Identity.Credential.Kind.PERSON)
         identity.credential.expiresAt.assert().isEqualTo(identity.issuedAt.plus(Duration.ofMinutes(5)))
         identity.requestId.assert().isNotBlank()
         // No memberships (IDN-39): a service in gateway mode reads none as no other memberships; only a host that

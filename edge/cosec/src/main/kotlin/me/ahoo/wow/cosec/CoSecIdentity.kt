@@ -21,10 +21,12 @@ import java.util.Base64
 import java.util.UUID
 
 /**
- * The identity a CoSec gateway forwards in `CoSec-Identity` once it has verified a principal's token and permitted
- * the request: what a local client or an end-to-end test sends a service behind one (`wow.cosec.mode: gateway`),
- * which believes the header as it comes. [subject] of [tenant] with [roles] in the scope [app] and [space] (empty for
- * none and the default space), its token valid for [ttl] from the moment the header is written.
+ * The identity a CoSec gateway forwards in `CoSec-Identity` once it has verified a person's token and permitted the
+ * request: what a local client or an end-to-end test sends a service behind one (`wow.cosec.mode: gateway`), which
+ * believes the header as it comes. [subject] of [tenant] with [roles] in the scope [app] and [space] (empty for none
+ * and the default space), its token valid for [ttl] from the moment the header is written. The credential is a
+ * person's (`auth.kind` `person`, CoSec 8.0.0-beta.9's `IDN-44`), as a user's sign-in is: a header without the member
+ * is read as a workload's.
  *
  * ```kotlin
  * val headers = CoSecIdentity("alice", listOf("buyer")).headers() // {"CoSec-Identity": "eyJ2Ijox…"}
@@ -56,6 +58,7 @@ class CoSecIdentity(
             "roles" to roles.distinct(),
             "auth" to linkedMapOf(
                 "method" to "jwt",
+                "kind" to "person",
                 "jti" to UUID.randomUUID().toString(),
                 "exp" to now.plus(ttl).epochSecond,
             ),
