@@ -149,7 +149,7 @@ data class OrderState(
 | `@QueryText` | 供人按词检索的文字，例如名称或描述：`search` 可以指定它，不指定字段的 `search` 也会读它（[Elasticsearch 上](../operate/elasticsearch#full-text-search)） |
 | `@Sensitive` | 在每个结果中脱敏的字符串：`DISPLAY` 仍可以过滤和排序，`CONFIDENTIAL` 永远不可以 |
 
-脱敏的字段对每个调用方都脱敏：在查询、状态读取、事件查询和轨迹中都一样，在数仓的目录中、在[状态视图缓存](./extensions/cocache)中也一样。它在 Wow 作为读取返回它的地方和 Wow 把它发布给别的上下文的地方脱敏，而在 Wow 存储它的地方不脱敏：见[脱敏止步之处](#where-masking-stops)。`DISPLAY` 值有两个例外，都要明确说出来：服务自己明确要求读取的（[见下文](#read-a-display-value-raw)），以及属主声明为揭示它的发布事件流（[脱敏止步之处](#where-masking-stops)）。
+脱敏的字段对每个调用方都脱敏：在查询、状态读取、事件查询和轨迹中都一样，在数仓的目录中、在[状态视图缓存](./extensions/cocache)中也一样。它在 Wow 作为读取返回它的地方和 Wow 把它发布给别的上下文的地方脱敏，而在 Wow 存储它的地方不脱敏：见[脱敏止步之处](#where-masking-stops)。`DISPLAY` 值有两个例外，都要明确说出来：服务自己明确要求读取的（[见下文](#read-a-display-value-raw)），以及属主声明为揭示它的发布事件流（[脱敏止步之处](#where-masking-stops)）。定时的命令在发出之前保存在它的事件 `wow.schedule.ScheduleSet` 里，按它的命令类型的请求体脱敏，用那条命令的 schema，发往别的上下文的命令用对端契约里的 schema（[定时](./scheduling)）。
 
 ### 读取 `DISPLAY` 值的原值 {#read-a-display-value-raw}
 

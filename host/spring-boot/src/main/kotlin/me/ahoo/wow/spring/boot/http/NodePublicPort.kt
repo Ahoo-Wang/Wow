@@ -34,6 +34,7 @@ import me.ahoo.wow.query.mask.PayloadMasks
 import me.ahoo.wow.query.schema.MaskStrategyResolver
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.runtime.admission.ServiceRouteAuthorizer
+import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.state.StateReads
 import me.ahoo.wow.spi.SystemCommandGroups
@@ -168,13 +169,21 @@ internal class NodePublicPort {
 
     /**
      * The response masks of the state reads and the `events` model: the Manifest's sensitive fields, with
-     * the application's [MaskStrategyResolver] for its custom strategies, as the snapshot queries mask them.
+     * the application's [MaskStrategyResolver] for its custom strategies, as the snapshot queries mask them; a
+     * schedule's command by its command type's schema, the peer contracts' for a command of another context.
      */
     @Bean
     @ConditionalOnMissingBean
     @InternalWowApi
-    fun wowPayloadMasks(manifest: Manifest, strategies: ObjectProvider<MaskStrategyResolver>): PayloadMasks =
-        PayloadMasks(manifest, strategies.getIfAvailable { MaskStrategyResolver.NONE })
+    fun wowPayloadMasks(
+        manifest: Manifest,
+        contracts: ContractDirectory,
+        strategies: ObjectProvider<MaskStrategyResolver>,
+    ): PayloadMasks = PayloadMasks(
+        manifest,
+        strategies.getIfAvailable { MaskStrategyResolver.NONE },
+        contracts.peers.map { it.manifest },
+    )
 
     /**
      * The public routes, served by the application's WebFlux server; the query routes when [QueryAutoConfiguration]
