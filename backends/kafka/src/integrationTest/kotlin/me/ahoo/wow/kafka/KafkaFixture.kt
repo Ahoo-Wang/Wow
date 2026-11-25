@@ -42,11 +42,11 @@ object KafkaFixture {
     /**
      * A new topic with [partitions] partitions, created and served by the broker before it returns: `createTopics`
      * completes once the controller has created the topic, a moment before the broker serves it in its metadata, and
-     * until then a consumer's `partitionsFor` lists no partition.
+     * until then a consumer's `partitionsFor` lists no partition. [configs] are the topic's own settings.
      */
-    fun newTopic(partitions: Int, prefix: String = "wow.it"): String {
+    fun newTopic(partitions: Int, prefix: String = "wow.it", configs: Map<String, String> = emptyMap()): String {
         val topic = "$prefix.${topics.incrementAndGet()}.state"
-        admin.createTopics(listOf(NewTopic(topic, partitions, 1.toShort()))).all().get()
+        admin.createTopics(listOf(NewTopic(topic, partitions, 1.toShort()).configs(configs))).all().get()
         awaitServed(topic, partitions)
         return topic
     }

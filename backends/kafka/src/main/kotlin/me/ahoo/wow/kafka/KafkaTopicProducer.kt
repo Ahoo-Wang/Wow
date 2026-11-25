@@ -15,7 +15,10 @@ package me.ahoo.wow.kafka
 
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import me.ahoo.wow.spi.VirtualThreads
 import me.ahoo.wow.spi.transport.TopicMessage
@@ -32,9 +35,18 @@ import kotlin.time.toJavaDuration
  * The [TopicProducer] over a Kafka [producer]: made by [create] from [KafkaOptions], an
  * idempotent producer with `acks=all`.
  *
- * [send] hands every message to the producer in order, on a virtual thread since a send may block while the producer
- * fetches metadata or its buffer is full, then suspends until the broker acknowledged each one; it throws the first
- * failure, Kafka being unreachable or refusing a record for good as the SPI's typed failure ([KafkaFailures]).
+ * [send] hands each key's messages to the broker one at a time (#6782): a key's next message goes only once its
+ * previous one was acknowledged, so a message Kafka refuses for good is never overtaken by its key's later ones,
+ * which neither the idempotent producer nor `max.in.flight` keeps from being written after a refusal. The first
+ * message of every key is handed at once, in the call's order, on a virtual thread since a send may block while the
+ * producer fetches metadata or its buffer is full; each key then goes on as its own acknowledgements come, whatever
+ * the others wait for. A failure stops its key: its later messages of the call are not sent, while the other keys'
+ * go on. [send] returns once every key is done, and throws the failure of the earliest message of the call that
+ * failed, Kafka being unreachable or refusing a record for good as the SPI's typed failure ([KafkaFailures]).
+ * Messages of distinct keys go at once, as one batch did before; a key costs one acknowledged step per message it
+ * has after its first, the producer's `linger.ms` (5 ms by default) plus the round trip. Only a saga's commands derived
+ * to one aggregate of another context (`CommandSender.sendAll`) put several messages of one key in a call: a
+ * published stream's sink sends one record a call, and a receipt, a timer's command or a routed command one message.
  * A message's partition is the one it names ([TopicMessage.partition]), else its key's (the producer's
  * default partitioner), so the messages of an aggregate keep their order in one partition; the idempotent producer
  * keeps that order through its own retries.
@@ -53,27 +65,47 @@ class KafkaTopicProducer(
         if (messages.isEmpty()) {
             return
         }
-        val acknowledgements = withContext(dispatcher) {
-            messages.map { message ->
-                val acknowledged = CompletableDeferred<Unit>()
-                val record = ProducerRecord(
-                    topic,
-                    message.partition,
-                    message.key,
-                    message.value,
-                    KafkaHeaders.of(message.headers)
-                )
-                producer.send(record) { _, failure ->
-                    if (failure == null) {
-                        acknowledged.complete(Unit)
-                    } else {
-                        acknowledged.completeExceptionally(KafkaFailures.translate(failure))
-                    }
-                }
-                acknowledged
-            }
+        val keys = messages.withIndex().groupBy { it.value.key }.values
+        val firsts = withContext(dispatcher) { keys.map { write(topic, it.first().value) } }
+        val failures = coroutineScope {
+            keys.zip(firsts) { chain, first -> async { failureOf(topic, chain, first) } }.awaitAll()
         }
-        acknowledgements.awaitAll()
+        failures.filterNotNull().minByOrNull { it.index }?.let { throw it.value }
+    }
+
+    /**
+     * The failure of [chain], one key's messages with their places in the call, whose first was handed as [first]: each
+     * next one is handed once the previous one was acknowledged, until one fails.
+     */
+    private suspend fun failureOf(
+        topic: String,
+        chain: List<IndexedValue<TopicMessage>>,
+        first: Deferred<Throwable?>,
+    ): IndexedValue<Throwable>? {
+        var outcome = first.await()
+        var index = chain.first().index
+        for (next in chain.drop(1)) {
+            if (outcome != null) {
+                break
+            }
+            outcome = withContext(dispatcher) { write(topic, next.value) }.await()
+            index = next.index
+        }
+        return outcome?.let { IndexedValue(index, it) }
+    }
+
+    /** Hands [message] to the producer: its outcome is null once the broker acknowledged it, else its failure. */
+    private fun write(topic: String, message: TopicMessage): Deferred<Throwable?> {
+        val outcome = CompletableDeferred<Throwable?>()
+        val record = ProducerRecord(
+            topic,
+            message.partition,
+            message.key,
+            message.value,
+            KafkaHeaders.of(message.headers),
+        )
+        producer.send(record) { _, failure -> outcome.complete(failure?.let(KafkaFailures::translate)) }
+        return outcome
     }
 
     override fun close() {

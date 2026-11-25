@@ -64,7 +64,11 @@ class TopicMessage @InternalWowApi constructor(
  *   broker is configured to make it (Kafka: `acks=all`); it throws when one is not. A caller moves its checkpoint only
  *   after [send] returns.
  * - **Order**: the messages of one key in one call reach their partition in the order given, and a later call's
- *   after an earlier call's. A retried call may write some messages again: delivery is at least once.
+ *   after an earlier call's. A message that fails (refused for good, or not acknowledged) stops its key's later
+ *   messages of the call: none of them is written, and [send] throws. So a message waits until its key's previous
+ *   one of the call was acknowledged: a call with several messages of one key, which only a saga's commands derived
+ *   to one aggregate of another context make, takes one acknowledged step for each of them after the first; messages
+ *   of distinct keys go at once. A retried call may write some messages again: delivery is at least once.
  * - **Partitions**: the producer chooses the partition of a message by its key, unless the message names its own
  *   ([TopicMessage.partition]); the topic must exist (or the broker creates it).
  */
