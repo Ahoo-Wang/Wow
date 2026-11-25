@@ -156,17 +156,17 @@ internal class NodeInternalPort {
     internal companion object {
         /**
          * The in-memory limit of the public port's codecs, in bytes (negative: none): Spring Boot's
-         * `spring.http.codecs.max-in-memory-size`, or the older `spring.codec.max-in-memory-size`, else WebFlux's
-         * default. The internal port takes a forward of a body that large.
+         * `spring.http.codecs.max-in-memory-size`, the one key it binds, else WebFlux's default. The internal port
+         * takes a forward of a body that large. Spring Boot 4 no longer reads the older `spring.codec` key, so
+         * neither does the internal port (#6957).
          */
         internal fun publicCodecLimit(environment: Environment): Int {
-            val binder = Binder.get(environment)
-            val size = CODEC_LIMITS.firstNotNullOfOrNull { binder.bind(it, DataSize::class.java).orElse(null) }
+            val size = Binder.get(environment).bind(CODEC_LIMIT, DataSize::class.java).orElse(null)
                 ?: return InternalHttp.MAX_UPGRADE_BODY
             return size.toBytes().coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
         }
 
-        private val CODEC_LIMITS = listOf("spring.http.codecs.max-in-memory-size", "spring.codec.max-in-memory-size")
+        private const val CODEC_LIMIT = "spring.http.codecs.max-in-memory-size"
 
         /** The commands each service may call on the internal port (`wow.callers.*.commands`). */
         internal fun callPermits(properties: WowProperties): CallPermits =
