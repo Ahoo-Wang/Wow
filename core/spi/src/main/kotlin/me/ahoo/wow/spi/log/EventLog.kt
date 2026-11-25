@@ -225,7 +225,9 @@ interface EventLog {
      * from what it remembers of its previous answers, naming a partition once for each change it sees there; it
      * forgets a partition that a call does not ask about, so the next call that asks about it starts afresh. MongoDB's
      * log does so: it names a partition whose counter lists another node's block it had not listed at the previous call,
-     * past the cursor ([cursors] serve it to leave out a block the caller has read through).
+     * past the cursor ([cursors] serve it to leave out a block the caller has read through), and retires its own block
+     * that the other node's lies past, so that its next append lands past it and the caller's tail, busy with this
+     * node's commits or not, reads the other node's entry in sequence order.
      */
     suspend fun appendedElsewhere(cursors: Map<Int, Long>): Set<Int> =
         heads(cursors.keys).filter { (partition, head) -> head != null && head > cursors.getValue(partition) }.keys
