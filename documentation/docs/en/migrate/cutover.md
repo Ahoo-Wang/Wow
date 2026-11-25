@@ -248,7 +248,7 @@ Two paths, never confused:
 
 Only event streams go back: reservations V10 made, entries it parked and its projections' views have no 9.x form, and are reconciled by hand. The external command producers go back with the traffic, to the 9.x topics and the 9.x record: keep each one's 9.x build or configuration until the cut-over is final. 9.x's snapshots show the state before the exported streams until 9.x writes the instance again or regenerates them. Redeploying 9.x is not a rollback once V10 has written.
 
-Cutting over again after a rollback by export imports what 9.x wrote since and records the cut-over again, past the streams V10 wrote in its first window. A stream of that window the transport sink had not published before V10 stopped then goes out marked imported, and peers' sagas pass over it. Before stopping V10 for the rollback, let every subscription's backlog reach zero (`wow.subscription.backlog`).
+Cutting over again after a rollback by export imports what 9.x wrote since and records the cut-over again, past the streams V10 wrote in its first window. The service's own sagas and reactors resume from their checkpoints of that window and pass over what the second import appended, which 9.x's sagas acted on; its projections build from it. A stream of that window the transport sink had not published before V10 stopped then goes out marked imported, and peers' sagas pass over it, as the service's own sagas pass over a stream of that window they had not handled. Before stopping V10 for the rollback, let every subscription's backlog reach zero (`wow.subscription.backlog`).
 
 ### Roll back the estate
 
