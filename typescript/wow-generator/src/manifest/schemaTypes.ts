@@ -21,9 +21,6 @@ import type { PropertyModel } from './model';
 import { TEXT_NUMBER_FORMATS } from './textNumbers';
 import { compound, join, literal } from './typeText';
 
-/** The deepest `state.*` path listed as a query field. */
-const MAX_FIELD_DEPTH = 4;
-
 /**
  * Where a type is written: `output`, what the service writes (a state, an
  * event, an answer), or `input`, what a caller sends (a command's body, a
@@ -364,32 +361,56 @@ export class SchemaTypes {
     );
   }
 
-  /** The `state.*` paths of a state schema a query can filter and sort on. */
+  /**
+   * The `state.*` paths of a state schema a query can filter and sort on, as
+   * the Kotlin contract's `StateFields.of` walks it: each property is a path,
+   * and the walk descends into an object's properties through `$ref`s, the
+   * one schema of a nullable alternative (`anyOf`/`oneOf` of it and `null`)
+   * and the items of an array, whose elements' fields are named after the
+   * array's path (`state.items.productId`), at any depth. A definition
+   * already on the path is a leaf, so the walk ends.
+   */
   fields(
-    schema: JsonSchema,
+    schema: unknown,
     prefix: string,
-    depth = 1,
-    seen = new Set<string>(),
+    seen: ReadonlySet<string> = new Set(),
   ): string[] {
-    const resolved = this.resolve(schema);
-    const ref =
-      typeof schema.$ref === 'string' ? schemaKey(schema.$ref) : undefined;
-    if (ref !== undefined && seen.has(ref)) return [];
-    const nextSeen = ref === undefined ? seen : new Set([...seen, ref]);
-    if (!isObject(resolved.properties)) return [];
-    const paths: string[] = [];
-    for (const [name, property] of Object.entries(resolved.properties)) {
-      const path = `${prefix}.${name}`;
-      paths.push(path);
-      if (depth < MAX_FIELD_DEPTH && isObject(property)) {
-        const target = this.resolve(property);
-        if (!typesOf(target).includes('array')) {
-          paths.push(...this.fields(property, path, depth + 1, nextSeen));
-        }
+    if (!isObject(schema)) return [];
+    if (typeof schema.$ref === 'string') {
+      const key = schemaKey(schema.$ref);
+      const target = key === undefined ? undefined : this.schemaOf(key);
+      if (key === undefined || target === undefined || seen.has(key)) {
+        return [];
       }
+      return this.fields(target, prefix, new Set([...seen, key]));
+    }
+    const held = nullableAlternative(schema);
+    if (held !== undefined) return this.fields(held, prefix, seen);
+    if (schema.items !== undefined) {
+      return this.fields(schema.items, prefix, seen);
+    }
+    if (!isObject(schema.properties)) return [];
+    const paths: string[] = [];
+    for (const [name, property] of Object.entries(schema.properties)) {
+      const path = `${prefix}.${name}`;
+      paths.push(path, ...this.fields(property, path, seen));
     }
     return paths;
   }
+}
+
+/**
+ * The one schema of a nullable alternative, `anyOf` (or `oneOf`) of it and
+ * `{ type: 'null' }`, as the Kotlin `StateFields` reads it; `undefined` for
+ * any other schema.
+ */
+function nullableAlternative(schema: JsonSchema): unknown {
+  const alternatives = schema.anyOf ?? schema.oneOf;
+  if (!Array.isArray(alternatives)) return undefined;
+  const held = alternatives.filter(
+    alternative => !(isObject(alternative) && alternative.type === 'null'),
+  );
+  return held.length === 1 ? held[0] : undefined;
 }
 
 /** Whether a property's schema is read-only: computed, written by the service and never read back. */

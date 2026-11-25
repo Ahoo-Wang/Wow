@@ -360,3 +360,95 @@ describe('Manifest clients', () => {
     expect(types).not.toContain('DeleteAggregate');
   });
 });
+
+describe("a command's body", () => {
+  /** A subtype of a sealed body, as SchemaIntrospector writes one with @JsonTypeInfo. */
+  const subtype = (
+    kind: string,
+    properties: Record<string, unknown>,
+    required: string[],
+  ) => ({
+    allOf: [
+      { type: 'object', properties, required },
+      {
+        type: 'object',
+        properties: { kind: { const: kind } },
+        required: ['kind'],
+      },
+    ],
+  });
+  const pay = (body: unknown) =>
+    manifest(
+      {
+        commands: [
+          {
+            name: 'Pay',
+            schema: schema('a.Pay'),
+            routes: [{ method: 'POST', path: '/probe/thing/{id}/pay' }],
+          },
+        ],
+      },
+      { 'a.Pay': body },
+    );
+
+  it('is never defaulted to an empty object when it is sealed, so a body of neither kind is refused', async () => {
+    const { read } = await generateCompiling(
+      pay({
+        anyOf: [
+          subtype(
+            'card',
+            {
+              amount: { type: 'number', format: 'decimal' },
+              card: { type: 'string' },
+            },
+            ['amount', 'card'],
+          ),
+          subtype('cash', { amount: { type: 'number', format: 'decimal' } }, [
+            'amount',
+          ]),
+        ],
+      }),
+      `import { ThingCommandClient } from './out/index.js';
+       const commands = new ThingCommandClient();
+       void commands.pay('t1', { kind: 'cash', amount: '1.50' });
+       // @ts-expect-error A payment of neither kind.
+       void commands.pay('t1', {});`,
+    );
+    expect(read('probe/thing/commandClient.ts')).toContain(
+      'pay(id: string, body: Pay, options?: CommandOptions)',
+    );
+  });
+
+  it('is defaulted when an alternative admits an empty object, and not when every part of an allOf does not', async () => {
+    const optional = await generateCompiling(
+      pay({
+        oneOf: [
+          {
+            type: 'object',
+            properties: { amount: { type: 'string' } },
+            required: ['amount'],
+          },
+          { type: 'object', properties: { note: { type: 'string' } } },
+        ],
+      }),
+    );
+    expect(optional.read('probe/thing/commandClient.ts')).toContain(
+      'pay(id: string, body: Pay = {}, options?: CommandOptions)',
+    );
+    const required = await generateCompiling(
+      pay({
+        allOf: [
+          { type: 'object', properties: { note: { type: 'string' } } },
+          {
+            type: 'object',
+            properties: { amount: { type: 'string' } },
+            required: ['amount'],
+          },
+        ],
+      }),
+    );
+    expect(required.read('probe/thing/commandClient.ts')).toContain(
+      'pay(id: string, body: Pay, options?: CommandOptions)',
+    );
+  });
+});

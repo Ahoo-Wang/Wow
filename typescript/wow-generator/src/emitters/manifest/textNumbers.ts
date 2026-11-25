@@ -56,16 +56,21 @@ function literal(marks: TextNumbersModel, target: Target): string {
   return `textNumbersBy(${quoteStringLiteral(marks.by)}, ${entries(marks.cases, target)})`;
 }
 
+/**
+ * The key of `name` in an object literal: `['__proto__']` for `__proto__`,
+ * which a plain key would make the literal's prototype, not a member.
+ */
+function literalKey(name: string): string {
+  return name === '__proto__' ? "['__proto__']" : resolvePropertyName(name);
+}
+
 /** An object literal of marks by name. */
 function entries(
   marks: Readonly<Record<string, TextNumbersModel>>,
   target: Target,
 ): string {
   return `{ ${Object.entries(marks)
-    .map(
-      ([name, mark]) =>
-        `${resolvePropertyName(name)}: ${literal(mark, target)}`,
-    )
+    .map(([name, mark]) => `${literalKey(name)}: ${literal(mark, target)}`)
     .join(', ')} }`;
 }
 
@@ -90,7 +95,7 @@ export function textNumbersMember(
         value as Readonly<Record<string, TextNumbersModel>>,
       ).map(
         ([name, mark]) =>
-          `      ${resolvePropertyName(name)}: ${literal(mark, target)},`,
+          `      ${literalKey(name)}: ${literal(mark, target)},`,
       );
       return [`    ${group}: {\n${marks.join('\n')}\n    },`];
     },

@@ -228,3 +228,47 @@ console.log(JSON.stringify({ tree, first, second, money, sent: requests.filter(r
     );
   });
 });
+
+describe('an exact number whose property is named __proto__', () => {
+  it('keeps its mark as a member of its own, on the aggregate and in the literal written', async () => {
+    const generation = await generateCompiling({
+      format: 1,
+      contexts: [
+        {
+          name: 'probe',
+          aggregates: [{ name: 'thing', state: { schema: '#/$defs/a.State' } }],
+        },
+      ],
+      $defs: {
+        'a.State': {
+          type: 'object',
+          required: ['__proto__'],
+          // A computed key: a plain `__proto__:` would set the prototype.
+          properties: {
+            ['__proto__']: decimal,
+            lines: {
+              type: 'array',
+              items: { type: 'object', properties: { ['__proto__']: long } },
+            },
+          },
+        },
+      },
+    });
+    directories.push(generation.dir);
+    // The generated type says string: the client reads it as its text.
+    expect(generation.read('probe/types.ts')).toContain('__proto__: string;');
+    expect(generation.read('probe/thing/aggregate.ts')).toContain(
+      "['__proto__']: true",
+    );
+    const printed = runGenerated(
+      generation.output,
+      `const { ThingAggregate } = await import('./probe/thing/aggregate.js');
+const state = ThingAggregate.textNumbers.state;
+console.log(JSON.stringify([Object.getOwnPropertyNames(state), Object.getOwnPropertyNames(state.lines['*'])]));`,
+    );
+    expect(JSON.parse(printed)).toEqual([
+      ['__proto__', 'lines'],
+      ['__proto__'],
+    ]);
+  });
+});

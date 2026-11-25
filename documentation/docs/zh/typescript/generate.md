@@ -211,7 +211,7 @@ export const OrderAggregate = {
 } as const;
 
 /** The `state.*` paths of `order`'s snapshots a query filters, sorts and projects on. */
-export type OrderStateField = 'state.cancelReason' | 'state.confirmedProducts' | 'state.items' | 'state.paymentId' | 'state.status' | 'state.totalAmount';
+export type OrderStateField = 'state.cancelReason' | 'state.confirmedProducts' | 'state.items' | 'state.items.productId' | 'state.items.quantity' | 'state.items.unitPrice' | 'state.paymentId' | 'state.status' | 'state.totalAmount';
 
 /** The access attributes of `eshop-ordering.order`: it declares none. */
 export type OrderAccess = NoAccess;

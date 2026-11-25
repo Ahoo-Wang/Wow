@@ -165,7 +165,7 @@ describe('Manifest clients', () => {
     expect(types).toContain('export type YOneItem = number;');
     expect(types).toContain('export type OuterInner = boolean;');
     expect(read('probe/thing/aggregate.ts')).toContain(
-      "export type ThingStateField = 'state.self' | 'state.nested' | 'state.nested.deep' | 'state.nested.deep.d' | 'state.tags';",
+      "export type ThingStateField = 'state.self' | 'state.nested' | 'state.nested.deep' | 'state.nested.deep.d' | 'state.tags' | 'state.tags.b';",
     );
   });
   it('writes a parameterized type in place, never as a type that shadows a global', async () => {
@@ -288,5 +288,45 @@ describe('Manifest clients', () => {
         'contexts[0] has no name; c.aggregates[0] has no name; c.x has no state schema; a command of c.y has no name or schema; an event of c.y has no name or schema; $defs is not an object.',
       ),
     ]);
+  });
+});
+
+describe('Manifest types a plain type cannot be', () => {
+  it("declares a service route parameter's $defs type and types the parameter by it", async () => {
+    const { read, logger } = await generateCompiling(
+      manifest(
+        {},
+        { 'a.Status': { type: 'string', enum: ['OPEN', 'CLOSED'] } },
+        {
+          routes: [
+            {
+              name: 'search',
+              route: { method: 'GET', path: '/probe/search' },
+              parameters: [
+                {
+                  name: 'status',
+                  in: 'query',
+                  schema: { $ref: schema('a.Status') },
+                  required: false,
+                },
+              ],
+              response: { type: 'string' },
+            },
+          ],
+        },
+      ),
+      `import { ProbeRoutes } from './out/index.js';
+       const routes = new ProbeRoutes();
+       void routes.search({ status: 'OPEN' });
+       // @ts-expect-error No such status.
+       void routes.search({ status: 'LOST' });`,
+    );
+    expect(logger.warnings).toEqual([]);
+    expect(read('probe/types.ts')).toContain(
+      "export type Status = 'OPEN' | 'CLOSED';",
+    );
+    expect(read('probe/routes.ts')).toContain(
+      'query?: { readonly status?: Status; }',
+    );
   });
 });
