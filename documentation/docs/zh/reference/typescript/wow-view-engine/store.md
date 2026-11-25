@@ -24,7 +24,7 @@ description: 'ViewStore 端口、ViewStoreError 的六个代码、ViewPermission
 |---|---|
 | `create` | 为 `input` 指定的范围创建。`scope: 'system'` 创建**存储型系统视图**（「发布为系统视图」与授了 `editSystem` 时的另存为）并以 `stored: true` 回答；不保存系统视图的存储拒绝它（`FORBIDDEN` 或 `INVALID`）。发布是复制，原视图不动。引擎自己从不发 `stored`，由存储设置 |
 | `rename` | 存修剪后的标题。修剪后为空、或长于 `MAX_VIEW_TITLE_LENGTH` 的标题以 `INVALID` 拒绝——`create` 也一样；`create` 或 `save` 的配置超过 `MAX_VIEW_CONFIG_BYTES` 也是。引擎发送前就拒绝两者，存储为其他调用方保留这些检查 |
-| `changeAudience` | 可选。把视图就地移到另一个受众，id 不变，所以显示它的仪表盘继续显示它。没有它的存储在管理器里就没有这一项，引擎在发送前拒绝该命令（`view.changeAudience.unsupported`）。它守其他实例写入的全部规则，外加两条：**不变就不写**——请求它已有的受众，原样回答，修订号不动（在修订号检查之后，所以过期的仍然冲突）；**共享仪表盘显示的视图保持共享**——设为个人会让其他读者看到空面板，存储以 `INVALID` 拒绝，并在 **`boards` 里给出那些仪表盘的标题**。删除这样的视图仍然允许 |
+| `changeAudience` | 可选。把视图就地移到另一个受众，id 不变，所以显示它的仪表盘继续显示它。没有它的存储在管理器里就没有这一项，引擎在发送前拒绝该命令（`view.changeAudience.unsupported`）。它守其他实例写入的全部规则，外加两条：**不变就不写**——请求它已有的受众，原样回答，修订号不动（在修订号检查之后，所以过期的仍然冲突）；**共享仪表盘显示的视图保持共享**，存储的系统仪表盘显示的视图也一样——设为个人会让其他读者看到空面板，存储以 `INVALID` 拒绝，并在 **`boards` 里给出那些仪表盘的标题**。删除这样的视图仍然允许 |
 
 ```ts
 export interface ViewStore {

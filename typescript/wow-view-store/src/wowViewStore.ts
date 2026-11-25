@@ -390,9 +390,9 @@ export class WowViewStore implements ViewStore {
    * then answers the view as it is, revision unmoved, once the revision
    * matches.
    *
-   * A shared view a shared dashboard shows stays shared: the service
-   * refuses the claim and names the boards, and the refusal carries them by
-   * **title** in `boards`, as they are stored.
+   * A shared view a shared dashboard or a stored system dashboard shows
+   * stays shared: the service refuses the claim and names the boards, and
+   * the refusal carries them by **title** in `boards`, as they are stored.
    */
   changeAudience(
     id: string,

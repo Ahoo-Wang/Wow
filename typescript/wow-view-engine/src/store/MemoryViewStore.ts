@@ -297,9 +297,10 @@ export class MemoryViewStore implements ViewStore {
    * and everything else stay. Asked for the audience the view already has,
    * it answers the view unchanged — no revision spent, nothing written — and
    * remembers that answer under the `requestId` like any other outcome.
-   * A view a shared (or system) board shows is refused as `INVALID` when it
-   * would become personal, `boards` naming those boards by title. A system
-   * view, stored or not, never moves (`FORBIDDEN`).
+   * A view a shared board or a stored system board shows is refused as
+   * `INVALID` when it would become personal, `boards` naming those boards by
+   * title, as the service refuses the claim (`QueriedBoardReferences`). A
+   * system view, stored or not, never moves (`FORBIDDEN`).
    */
   changeAudience(
     id: string,
@@ -452,19 +453,23 @@ export class MemoryViewStore implements ViewStore {
   }
 
   /**
-   * The titles of the boards everyone sees that show `id` in a panel — the
-   * reference the dashboard kernel's `coversScope` guards from the board's
-   * side. Read off the stored configs as the untrusted JSON they are: the
-   * store may import nothing but the model.
+   * The titles of the boards everyone sees that show `id` in a panel, other
+   * than the view itself: the shared ones and the stored system ones, as the
+   * service reads them (D486 ④); a configured system board is the
+   * deployment's, never checked. The reference the dashboard kernel's
+   * `coversScope` guards from the board's side. Read off the stored configs
+   * as the untrusted JSON they are: the store may import nothing but the
+   * model.
    */
   private sharedBoardsShowing(id: string): string[] {
     const boards: string[] = [];
     for (const instance of this.instances.values()) {
       const { config } = instance;
-      if (
-        config.kind !== 'dashboard' ||
-        audienceOf(instance.scope) !== 'shared'
-      )
+      // By the scope itself: `audienceOf` reads every system view as shared.
+      const everyones =
+        instance.scope === 'shared' ||
+        (isSystemScope(instance.scope) && instance.stored === true);
+      if (config.kind !== 'dashboard' || !everyones || instance.id === id)
         continue;
       const panels: unknown = config.panels;
       if (Array.isArray(panels) && panels.some(panel => shows(panel, id)))

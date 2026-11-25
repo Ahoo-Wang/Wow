@@ -22,6 +22,7 @@ import { describe, expect, it } from 'vitest';
 import {
   MemoryViewStore,
   type ViewConfig,
+  type ViewInstance,
   type ViewPreferences,
 } from '../src/index.js';
 import { dashboardConfig, recordConfig } from './fixtures.js';
@@ -209,5 +210,68 @@ describe("MemoryViewStore answers the view store service's checks", () => {
       items: [],
       nextCursor: null,
     });
+  });
+
+  // QueriedBoardReferences (D486 ④): a claim is checked against the shared
+  // boards and the stored system ones, which every reader sees. A configured
+  // system board is the deployment's, which the service never reads, and no
+  // board holds itself.
+  it('keeps a view shared for a stored system board that shows it, not for a configured one or for itself', async () => {
+    const showing = (instanceId: string): ViewConfig =>
+      dashboardConfig({
+        panels: [
+          {
+            id: 'p1',
+            kind: 'view',
+            title: 'Shown',
+            instanceId,
+            layout: { x: 0, y: 0, w: 12, h: 6 },
+            bindings: [],
+          },
+        ],
+      });
+    const shown: ViewInstance = {
+      id: 'shown',
+      definitionId: 'orders',
+      title: 'Shown',
+      scope: 'shared',
+      revision: '1',
+      config: recordConfig(),
+    };
+    const configured: ViewInstance = {
+      id: 'configured-board',
+      definitionId: 'overview',
+      title: 'Configured board',
+      scope: 'system',
+      revision: '1',
+      config: showing('shown'),
+    };
+    const itself: ViewInstance = {
+      ...configured,
+      id: 'itself',
+      title: 'Itself',
+      scope: 'shared',
+      config: showing('itself'),
+    };
+
+    const store = new MemoryViewStore({
+      instances: [shown, configured, itself],
+    });
+    expect(
+      (await store.changeAudience('shown', 'personal', '1', write())).scope,
+    ).toBe('personal');
+    expect(
+      (await store.changeAudience('itself', 'personal', '1', write())).scope,
+    ).toBe('personal');
+
+    const stored = new MemoryViewStore({
+      instances: [
+        shown,
+        { ...configured, title: 'Stored board', stored: true },
+      ],
+    });
+    await expect(
+      stored.changeAudience('shown', 'personal', '1', write()),
+    ).rejects.toMatchObject({ code: 'INVALID', boards: ['Stored board'] });
   });
 });

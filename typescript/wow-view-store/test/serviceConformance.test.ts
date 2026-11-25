@@ -18,9 +18,10 @@
  * without a JVM, so the fake answers as the service does.
  */
 
+import { developmentCallerHeaders } from '@ahoo-wang/wow-client';
 import { WowDatasetWordings, WowViewStore } from '../src/index.js';
 import { describeWowViewStoreService } from './conformance/wowViewStoreService.js';
-import { actingAs, installFake } from './support.js';
+import { actingAs, BASE_URL, installFake } from './support.js';
 
 const CONFIGURED = {
   definitionId: 'service-configured',
@@ -46,11 +47,30 @@ describeWowViewStoreService({
         },
       ],
     });
-    return ({ tenant, user, app, roles }) => {
-      const fetcher = actingAs({ user, tenant, app, roles });
+    return ({ tenant, user, app, roles, ownerless }) => {
+      const owner = ownerless ? null : user;
+      const fetcher = actingAs({ user, owner, tenant, app, roles });
       return {
         views: new WowViewStore({ fetcher }),
         wordings: new WowDatasetWordings({ fetcher }),
+        send: ({ method, path, headers = {}, body }) =>
+          fetch(new URL(path.slice(1), BASE_URL), {
+            method,
+            headers: {
+              ...developmentCallerHeaders({
+                user,
+                ...(owner === null ? {} : { owner }),
+                tenant,
+                app,
+                ...(roles === undefined ? {} : { roles }),
+              }),
+              ...(body === undefined
+                ? {}
+                : { 'Content-Type': 'application/json' }),
+              ...headers,
+            },
+            ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+          }),
       };
     };
   },

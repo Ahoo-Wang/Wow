@@ -39,6 +39,7 @@ import { describeWowViewStoreService } from '../../../wow-view-store/test/confor
 import {
   actingAs,
   type Caller,
+  sendAs,
   serviceURL,
   SHARED_WRITER,
   SYSTEM_VIEW_DEFINITION,
@@ -56,15 +57,18 @@ describeWowViewStoreService({
     title: 'Conformance',
   },
   connect: () => caller => {
-    const fetcher = actingAs({
+    const as: Caller = {
       tenantId: caller.tenant,
       user: caller.user,
       appId: caller.app,
-      roles: caller.roles,
-    });
+      ...(caller.roles === undefined ? {} : { roles: caller.roles }),
+      ...(caller.ownerless ? { ownerless: true } : {}),
+    };
+    const fetcher = actingAs(as);
     return {
       views: new WowViewStore({ fetcher }),
       wordings: new WowDatasetWordings({ fetcher }),
+      send: request => sendAs(as, request),
     };
   },
 });
