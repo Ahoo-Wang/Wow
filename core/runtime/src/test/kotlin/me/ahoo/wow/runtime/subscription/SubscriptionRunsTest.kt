@@ -13,6 +13,10 @@
 
 package me.ahoo.wow.runtime.subscription
 
+import ch.qos.logback.classic.Level
+import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.core.read.ListAppender
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineName
@@ -42,6 +46,7 @@ import me.ahoo.wow.spi.subscription.SubscriptionId
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.slf4j.LoggerFactory
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
@@ -96,6 +101,9 @@ class SubscriptionRunsTest {
     @Volatile
     private var failing = true
 
+    /** The aggregates whose handling alone finds its sink unavailable, a systemic failure that pauses the partition. */
+    private val unavailable: MutableSet<String> = ConcurrentHashMap.newKeySet()
+
     /** What a run of the aggregate answers instead of every entry done, up to [failAt]. */
     private val answers = ConcurrentHashMap<String, suspend (List<RunEntry>) -> RunHandled>()
 
@@ -118,6 +126,9 @@ class SubscriptionRunsTest {
     ) { entry ->
         alone += key(entry)
         aloneHolds[entry.ref.id]?.await()
+        if (entry.ref.id in unavailable) {
+            throw StorageUnavailableException("The sink is unavailable.")
+        }
         if (key(entry) == failAt && failing) {
             error("$failAt is broken alone")
         }
@@ -131,7 +142,11 @@ class SubscriptionRunsTest {
         return RunHandled(at, IllegalStateException("$failAt is broken"))
     }
 
-    private fun runtime(subscription: Subscription = this.subscription, source: EntrySource = LogSource(watched)) =
+    private fun runtime(
+        subscription: Subscription = this.subscription,
+        source: EntrySource = LogSource(watched),
+        ledger: FailureLedger = this.ledger,
+    ) =
         SubscriptionRuntime(
             "group",
             source,
@@ -361,11 +376,17 @@ class SubscriptionRunsTest {
                 clock,
                 observer = observer,
             )
-            started = runtime.also { it.start(setOf(0)) }
-            val sequence = appender.append("x")
-            eventually { watermark(runtime) == sequence }
+            val lines = runLines {
+                started = runtime.also { it.start(setOf(0)) }
+                val sequence = appender.append("x")
+                eventually { watermark(runtime) == sequence }
+            }
             alone.assert().containsExactly("x@1")
-            observer.failed.getValue("x@1").assert().isInstanceOf(HandlerTimeoutException::class.java)
+            // The run's timeout is an attempt of x@1's handling, which went on alone and succeeded: one observation.
+            observer.opened.assert().containsExactly("x@1")
+            observer.ended.assert().containsExactly("x@1")
+            observer.failed.assert().isEmpty()
+            lines.single().assert().contains("x@1", HandlerTimeoutException::class.java.name)
         }
 
     @Test
@@ -430,17 +451,20 @@ class SubscriptionRunsTest {
     }
 
     @Test
-    fun `a run handler's answer that stops short without a failure fails its next entry with a reason that says so`(): Unit =
+    fun `a run handler's answer that stops short without a failure ends the run at its next entry, saying so`(): Unit =
         runBlocking {
             answers["x"] = { entries -> RunHandled(if (entries.size > 1) 1 else entries.size, null) }
             val runtime = runtime()
-            val sequences = holdX(runtime, more = 3)
-            releaseX()
-            eventually { watermark(runtime) == sequences.last() }
+            val lines = runLines {
+                val sequences = holdX(runtime, more = 3)
+                releaseX()
+                eventually { watermark(runtime) == sequences.last() }
+            }
             alone.assert().containsExactly("x@3")
-            observer.failed.getValue("x@3").message.assert()
-                .isEqualTo("The run handler of $NAME answered 1 of 3 entries without a failure.")
             runs.assert().containsExactly(listOf("x@1"), listOf("x@2", "x@3", "x@4"), listOf("x@4"))
+            lines.single().assert().contains("x@3", "1 of 3 done", "answered without a failure")
+            observer.opened.assert().containsExactly("x@1", "x@2", "x@3", "x@4")
+            observer.failed.assert().isEmpty()
         }
 
     @Test
@@ -458,22 +482,123 @@ class SubscriptionRunsTest {
     }
 
     @Test
-    fun `each entry of a run is observed in its own trace, the failing one failed`(): Unit = runBlocking {
-        val traces = CopyOnWriteArrayList<String>()
+    fun `each entry of a run is observed in its own trace, the failing one failed as its handling alone fails`(): Unit =
+        runBlocking {
+            val traces = CopyOnWriteArrayList<String>()
+            failAt = "x@3"
+            answers["x"] = { entries ->
+                entries.forEach { traces += "${key(it.entry)} in ${it.context[CoroutineName]?.name}" }
+                answered(entries)
+            }
+            val runtime = runtime()
+            val sequences = holdX(runtime, more = 3)
+            releaseX()
+            eventually { watermark(runtime) == sequences.last() }
+            traces.assert().contains("x@2 in x@2", "x@3 in x@3", "x@4 in x@4")
+            // x@3 is handled alone in the observation the run started, and parks: its failure is that handling's.
+            observer.failed.getValue("x@3").message.assert().isEqualTo("x@3 is broken alone")
+            observer.failed.keys.assert().containsExactly("x@3")
+            // x@4, never tried, is skipped behind the park: its observation ends plainly, before x@4 completes.
+            observer.opened.assert().containsExactly("x@1", "x@2", "x@3", "x@4")
+            observer.ended.assert().containsExactly("x@1", "x@2", "x@3", "x@4")
+        }
+
+    @Test
+    fun `each entry of a run that fails part way should be observed once, the entries after it not ended as handled`():
+        Unit = runBlocking {
         failAt = "x@3"
         failing = false
-        answers["x"] = { entries ->
-            entries.forEach { traces += "${key(it.entry)} in ${it.context[CoroutineName]?.name}" }
-            answered(entries)
-        }
         val runtime = runtime()
         val sequences = holdX(runtime, more = 3)
         releaseX()
         eventually { watermark(runtime) == sequences.last() }
-        traces.assert().contains("x@2 in x@2", "x@3 in x@3", "x@4 in x@4")
-        observer.failed.getValue("x@3").message.assert().isEqualTo("x@3 is broken")
-        observer.failed.keys.assert().containsExactly("x@3")
-        observer.ended.size.assert().isEqualTo(observer.opened.size)
+
+        runs.assert().contains(listOf("x@2", "x@3", "x@4"))
+        alone.assert().containsExactly("x@3")
+        observer.opened.groupingBy { it }.eachCount().assert()
+            .isEqualTo(mapOf("x@1" to 1, "x@2" to 1, "x@3" to 1, "x@4" to 1))
+        observer.ended.groupingBy { it }.eachCount().assert()
+            .isEqualTo(mapOf("x@1" to 1, "x@2" to 1, "x@3" to 1, "x@4" to 1))
+    }
+
+    @Test
+    fun `a run that stops short, whose next entries are then skipped, leaves no observation open`(): Unit =
+        runBlocking {
+            failAt = "x@3"
+            val runtime = runtime()
+            val sequences = holdX(runtime, more = 4)
+            releaseX()
+            eventually { watermark(runtime) == sequences.last() }
+
+            // x@3 fails alone and parks; x@4 and x@5, which the run did not reach, are then skipped behind it.
+            ledger.isParked(id, cart("x")).assert().isTrue()
+            alone.assert().doesNotContain("x@4", "x@5")
+            // A skipped entry ends its observation before it completes: each has ended once the checkpoint passes x@5.
+            val once = (1..5).associate { "x@$it" to 1 }
+            observer.opened.groupingBy { it }.eachCount().assert().isEqualTo(once)
+            observer.ended.groupingBy { it }.eachCount().assert().isEqualTo(once)
+            observer.failed.keys.assert().containsExactly("x@3")
+        }
+
+    @Test
+    fun `an entry a run did not finish, handed alone while the partition is paused and skipped, ends its observation`():
+        Unit = runBlocking {
+        failAt = "x@3"
+        val parks = HeldParks(ledger, "x")
+        val runtime = runtime(ledger = parks)
+        holdX(runtime, more = 3)
+        releaseX()
+        // x@3 fails alone and parks, its ledger write held, past the pause's wait, while y's sink pauses the partition.
+        eventually { parks.reached.isCompleted }
+        answers["y"] = { RunHandled(0, StorageUnavailableException("The sink is unavailable.")) }
+        unavailable += "y"
+        val y = appender.append("y")
+        eventually { runtime.paused().isNotEmpty() }
+        parks.release.complete(Unit)
+
+        // Paused, x's lane hands x@4 alone, which is skipped behind the park: it ends the observation the run started.
+        eventually { "x@4" in observer.ended }
+        unavailable -= "y"
+        eventually { watermark(runtime) == y }
+        alone.assert().doesNotContain("x@4")
+        val once = (1..4).associate { "x@$it" to 1 }
+        observer.opened.filter { it.startsWith("x@") }.groupingBy { it }.eachCount().assert().isEqualTo(once)
+        observer.ended.filter { it.startsWith("x@") }.groupingBy { it }.eachCount().assert().isEqualTo(once)
+    }
+
+    @Test
+    fun `a stop ends with its cancellation the observation a run started for an entry still queued`(): Unit =
+        runBlocking {
+            failAt = "x@3"
+            aloneHolds["x"] = CompletableDeferred()
+            val runtime = runtime()
+            holdX(runtime, more = 3)
+            releaseX()
+            // x@3 is handled alone, held there; x@4, which the run did not reach, waits in the lane behind it.
+            eventually { "x@3" in alone }
+            runtime.stop()
+            started = null
+
+            val once = (1..4).associate { "x@$it" to 1 }
+            observer.opened.groupingBy { it }.eachCount().assert().isEqualTo(once)
+            observer.ended.groupingBy { it }.eachCount().assert().isEqualTo(once)
+            observer.failed.getValue("x@4").assert().isInstanceOf(CancellationException::class.java)
+        }
+
+    /** The lines of a run that ended part way, which [LaneRuns] logs as the worker, while [block] runs. */
+    private suspend fun runLines(block: suspend () -> Unit): List<String> {
+        val logger = LoggerFactory.getLogger(SubscriptionWorker::class.java.name) as Logger
+        val level = logger.level
+        val appender = ListAppender<ILoggingEvent>().apply { start() }
+        logger.level = Level.DEBUG
+        logger.addAppender(appender)
+        try {
+            block()
+            return appender.list.map { it.formattedMessage }.filter { it.startsWith("The run of ") }
+        } finally {
+            logger.detachAppender(appender)
+            logger.level = level
+        }
     }
 
     /** Observes each handling in a trace named after its entry, recording which ended and which failed. */
@@ -503,6 +628,21 @@ class SubscriptionRunsTest {
                     ended += key
                 }
             }
+        }
+    }
+
+    /** [delegate], whose park of [aggregate] is held at the ledger, once it has [reached] it, until [release]. */
+    private class HeldParks(private val delegate: FailureLedger, private val aggregate: String) :
+        FailureLedger by delegate {
+        val reached = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+
+        override suspend fun park(entry: ParkedAggregate): Boolean {
+            if (entry.ref.id == aggregate) {
+                reached.complete(Unit)
+                release.await()
+            }
+            return delegate.park(entry)
         }
     }
 
