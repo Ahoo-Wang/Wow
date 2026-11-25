@@ -68,7 +68,9 @@ class InMemoryTopicsAutoConfiguration(environment: Environment) {
     @Bean
     @ConditionalOnMissingBean
     fun wowInMemoryTopics(properties: WowProperties): InMemoryTopics =
-        InMemoryTopics(properties.log.partitions).apply { retention = properties.memory.topicRetention }
+        InMemoryTopics(properties.log.checkedPartitions()).apply {
+            retention = properties.memory.checkedTopicRetention()
+        }
 
     @Bean
     @ConditionalOnMissingBean
@@ -86,7 +88,7 @@ class InMemoryTopicsAutoConfiguration(environment: Environment) {
         manifest,
         topics,
         PublicationMasks(masks, QueryProperties.displaySharedOf(environment)),
-        properties.log.partitions,
+        properties.log.checkedPartitions(),
     )
 
     /** Warns, once the application is ready, that the node's topics are in its JVM. */

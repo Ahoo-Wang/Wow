@@ -96,7 +96,28 @@ class QueryStoresTest {
             .isEqualTo("wow.query.dataset.max-concurrent is -1, below 0. Set 0 for no bound, or more.")
         val ceiling = runCatching { of(QueryStoreSettings(adaptiveCeiling = 0)) }.exceptionOrNull()
             as WowConfigurationException
-        ceiling.key.assert().isEqualTo("wow.stores.main.query.adaptive.ceiling")
+        // The global setting is named when the store takes it, the store's own when it sets one.
+        ceiling.key.assert().isEqualTo("wow.query.adaptive.ceiling")
+        val own = runCatching { of(QueryStoreSettings(stores = mapOf("main" to QueryStoreLimits(ceiling = 0)))) }
+            .exceptionOrNull() as WowConfigurationException
+        own.key.assert().isEqualTo("wow.stores.main.query.adaptive.ceiling")
+        val global = runCatching { of(QueryStoreSettings(maxConcurrent = -1)) }.exceptionOrNull()
+            as WowConfigurationException
+        global.key.assert().isEqualTo("wow.query.max-concurrent")
+    }
+
+    @Test
+    fun `a negative wait, queue or floor should be refused with the key that sets it`() {
+        fun refused(settings: QueryStoreSettings): String =
+            (runCatching { of(settings) }.exceptionOrNull() as WowConfigurationException).key
+        refused(QueryStoreSettings(maxWait = (-1).milliseconds)).assert().isEqualTo("wow.query.max-wait")
+        refused(QueryStoreSettings(stores = mapOf("main" to QueryStoreLimits(maxWait = (-1).milliseconds))))
+            .assert().isEqualTo("wow.stores.main.query.max-wait")
+        refused(QueryStoreSettings(maxQueued = -1)).assert().isEqualTo("wow.query.max-queued")
+        refused(QueryStoreSettings(stores = mapOf("main" to QueryStoreLimits(maxQueued = -1))))
+            .assert().isEqualTo("wow.stores.main.query.max-queued")
+        refused(QueryStoreSettings(stores = mapOf("main" to QueryStoreLimits(floor = 0))))
+            .assert().isEqualTo("wow.stores.main.query.adaptive.floor")
     }
 
     @Test

@@ -23,6 +23,7 @@ import me.ahoo.wow.api.read.Snapshot
 import me.ahoo.wow.client.PeerClients
 import me.ahoo.wow.client.RoutedQueryApi
 import me.ahoo.wow.http.query.HttpQueries
+import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.ContextQueries
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.query.admission.AdaptiveLimitOptions
@@ -494,23 +495,7 @@ class QueryAutoConfiguration {
             peers: PeerClients,
         ): NodeQueryApi {
             val models = node.contexts.values.flatMap { it.models }
-            val local = InProcessQueryApi(
-                engine,
-                ReadModels(
-                    models.map { model ->
-                        ReadModels.Model(model.type, model.stateType) { name -> model.findEventType(name)?.type }
-                    },
-                ),
-                latest = object : CommittedStates {
-                    override suspend fun committed(ref: AggregateRef): Snapshot<JsonNode>? =
-                        reads.ifAvailable?.latest(ref)
-
-                    override suspend fun committed(ref: AggregateRef, minVersion: Int): Snapshot<JsonNode>? =
-                        (reads.ifAvailable ?: StateReads.NONE).latest(ref, minVersion)
-                },
-                defaultListSize = properties.budgets.inProcess.defaultListSize,
-                chunkSize = properties.stream.chunkSize,
-            )
+            val local = configured(QueryProperties.PREFIX) { inProcessQueryApi(engine, models, reads, properties) }
             // The peer contexts of wow.peers are read over HTTP.
             return if (peers.contexts.isEmpty()) {
                 local
@@ -518,6 +503,30 @@ class QueryAutoConfiguration {
                 RoutedQueryApi(local, peers, models.mapTo(HashSet()) { it.stateType })
             }
         }
+
+        /** The node's own queries, bounded by [properties]' in-process list size and stream chunks. */
+        private fun inProcessQueryApi(
+            engine: QueryEngine,
+            models: List<AggregateModel<*>>,
+            reads: ObjectProvider<StateReads>,
+            properties: QueryProperties,
+        ): InProcessQueryApi = InProcessQueryApi(
+            engine,
+            ReadModels(
+                models.map { model ->
+                    ReadModels.Model(model.type, model.stateType) { name -> model.findEventType(name)?.type }
+                },
+            ),
+            latest = object : CommittedStates {
+                override suspend fun committed(ref: AggregateRef): Snapshot<JsonNode>? =
+                    reads.ifAvailable?.latest(ref)
+
+                override suspend fun committed(ref: AggregateRef, minVersion: Int): Snapshot<JsonNode>? =
+                    (reads.ifAvailable ?: StateReads.NONE).latest(ref, minVersion)
+            },
+            defaultListSize = properties.budgets.inProcess.defaultListSize,
+            chunkSize = properties.stream.chunkSize,
+        )
 
         /**
          * The queries of the subscription handlers ([ContextQueries.of]): the node's [NodeQueryApi] pinned to the tenant

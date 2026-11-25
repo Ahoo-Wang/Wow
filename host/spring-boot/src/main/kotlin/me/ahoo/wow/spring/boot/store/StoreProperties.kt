@@ -38,9 +38,20 @@ class LogProperties {
      * refused at start otherwise.
      */
     var partitions: Int = DEFAULT_PARTITIONS
-        set(value) {
-            field = Partitioner.requirePartitions(value)
-        }
+
+    /**
+     * [partitions], refused unless a power of two that divides 4096: a `WowConfigurationException` of
+     * `wow.log.partitions` where it is read, rather than a failure of binding.
+     */
+    fun checkedPartitions(): Int {
+        configCheck(
+            Partitioner.isValidPartitions(partitions),
+            "wow.log.partitions",
+            partitions,
+            "Set a power of two that divides ${Partitioner.SLOTS}, such as $DEFAULT_PARTITIONS.",
+        ) { "Partitions are the hash slots modulo their count, so that they split online by doubling." }
+        return partitions
+    }
 
     /** How often the tail of a PostgreSQL or MongoDB log polls while it finds entries. */
     var pollInterval: Duration = TailPolling.DEFAULT.interval.toJavaDuration()
@@ -230,10 +241,14 @@ class MemoryProperties {
      * bounded however long the node runs.
      */
     var topicRetention: Int = InMemoryTopics.DEFAULT_RETENTION
-        set(value) {
-            require(value >= 1) { "wow.memory.topic-retention keeps at least one message: $value." }
-            field = value
+
+    /** [topicRetention], refused below one where it is read, rather than as a failure of binding. */
+    fun checkedTopicRetention(): Int {
+        configCheck(topicRetention >= 1, "wow.memory.topic-retention", topicRetention, "Set 1 or more.") {
+            "A partition of the topics in the JVM keeps at least one message."
         }
+        return topicRetention
+    }
 }
 
 /**
