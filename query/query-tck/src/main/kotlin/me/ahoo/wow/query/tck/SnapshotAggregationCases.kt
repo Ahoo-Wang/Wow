@@ -19,6 +19,7 @@ import me.ahoo.wow.api.query.AggregateIdsFilter
 import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AggregationElement
 import me.ahoo.wow.api.query.AggregationExpression
+import me.ahoo.wow.api.query.AggregationExpressionOperator
 import me.ahoo.wow.api.query.AggregationFunction
 import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationGroupScope
@@ -28,6 +29,7 @@ import me.ahoo.wow.api.query.ComparisonOperator
 import me.ahoo.wow.api.query.DeletionFilter
 import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.EqualFilter
+import me.ahoo.wow.api.query.ExpressionFilter
 import me.ahoo.wow.api.query.GreaterThanOrEqualFilter
 import me.ahoo.wow.api.query.HavingExpression
 import me.ahoo.wow.api.query.InFilter
@@ -44,6 +46,7 @@ import me.ahoo.wow.query.tck.QueryBackendSpec.Companion.DAY
 import me.ahoo.wow.query.tck.QueryBackendSpec.Companion.T0
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import org.junit.jupiter.api.Test
+import java.math.BigDecimal
 
 /**
  * The aggregation cases of the snapshot contract. They read only [SnapshotQueryFixtures]'s fixtures and hooks; see
@@ -447,5 +450,76 @@ abstract class SnapshotAggregationCases internal constructor() : SnapshotKeysetC
             ).longValue()
         }.assert().containsExactly(T0 + DAY, T0 + 2 * DAY, T0 + 3 * DAY, T0 + 4 * DAY)
         Unit
+    }
+
+    @Test
+    fun `a plain decimal field's sum, average, least and greatest are in its decimals, or doubles where listed`() =
+        blocking {
+            val fixture = given(tenthAndFifth())
+            val functions = listOf(
+                AggregationFunction.SUM,
+                AggregationFunction.AVG,
+                AggregationFunction.MIN,
+                AggregationFunction.MAX,
+            )
+            val row = fixture.aggregate(
+                AggregationQuery(MatchAllFilter, metrics = functions.map { numeric(it, it.name.lowercase()) }),
+            ).single()
+            val answered = functions.map { row.path(it.name.lowercase()).decimalValue() }
+            answered.zip(plainAggregates()).forEach { (value, wanted) ->
+                value.assert().describedAs("$row").isEqualByComparingTo(wanted)
+            }
+            Unit
+        }
+
+    @Test
+    fun `a computed comparison over a decimal field`() = blocking {
+        // Which of the two a computed value is in, on every backend, is #6997's: until then, each states its own.
+        val fixture = given(tenthAndFifth())
+        val tripled = AggregationExpression.Binary(
+            AggregationExpressionOperator.MULTIPLY,
+            AggregationExpression.Field(AMOUNT),
+            AggregationExpression.Constant(3.0),
+        )
+        fixture.ids(ExpressionFilter(tripled, ComparisonOperator.GT, 0.3)).assert()
+            .containsExactlyInAnyOrderElementsOf(computedMatches())
+        Unit
+    }
+
+    /** Two orders, their amounts 0.1 and 0.2. */
+    private fun tenthAndFifth(): List<SnapshotRecord> =
+        listOf(snapshot("tenth", """{"amount":0.1}"""), snapshot("fifth", """{"amount":0.2}"""))
+
+    /**
+     * The sum, average, least and greatest of 0.1 and 0.2: in the stored decimals, or, where the backend lists
+     * [EXACT_PLAIN_AGGREGATE], in doubles.
+     */
+    private fun plainAggregates(): List<BigDecimal> =
+        if (EXACT_PLAIN_AGGREGATE in semanticDivergences) {
+            listOf("0.30000000000000004", "0.15000000000000002", "0.1", "0.2").map(::BigDecimal)
+        } else {
+            listOf("0.3", "0.15", "0.1", "0.2").map(::BigDecimal)
+        }
+
+    /**
+     * The records of 0.1 and 0.2 whose `amount * 3.0 > 0.3`: in decimals the 0.2 one alone; where the backend lists
+     * [EXACT_COMPUTED_VALUE], in doubles, both, as 0.1 × 3.0 is 0.30000000000000004.
+     */
+    private fun computedMatches(): List<String> =
+        if (EXACT_COMPUTED_VALUE in semanticDivergences) listOf("fifth", "tenth") else listOf("fifth")
+
+    companion object {
+        /**
+         * The case of a plain decimal field's SUM, AVG, MIN and MAX, in the stored decimals: a backend that computes
+         * them in doubles lists it in its `semanticDivergences`, and is held to the doubles' answer.
+         */
+        const val EXACT_PLAIN_AGGREGATE: String = "decimal.plain-aggregate"
+
+        /**
+         * The case of a computed value (an `expression`) compared in decimals: a backend that computes it in doubles
+         * lists it, by this id, and is held to the doubles' answer. Internal: a computed value is to be a double on
+         * every backend (#6997), and the id goes with it.
+         */
+        internal const val EXACT_COMPUTED_VALUE: String = "decimal.computed-value"
     }
 }

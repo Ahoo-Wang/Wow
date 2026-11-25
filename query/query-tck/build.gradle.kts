@@ -10,3 +10,17 @@ dependencies {
     api("org.jetbrains.kotlinx:kotlinx-coroutines-test")
     implementation("me.ahoo.test:fluent-assert-core")
 }
+
+// BackendNumbersReferenceTest reads the query language reference and each query backend's contract subclass: declare
+// them as inputs, so a changed page or list runs it again instead of reusing a cached result.
+tasks.named<Test>("test") {
+    val root = rootDir
+    inputs.files(
+        fileTree(root) {
+            include("documentation/docs/*/reference/query-language.md")
+            include("query/query/src/test/kotlin/**/*QueryBackendTest.kt")
+            include("backends/*/src/integrationTest/kotlin/**/*QueryBackendTest.kt")
+        },
+    ).withPropertyName("backendNumbers").withPathSensitivity(PathSensitivity.RELATIVE)
+    systemProperty("wow-test.repository.root", root.path)
+}

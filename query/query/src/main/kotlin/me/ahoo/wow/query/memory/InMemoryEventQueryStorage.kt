@@ -44,7 +44,7 @@ class InMemoryEventQueryStorage(
         backends.computeIfAbsent(key) { type ->
             QueryBackendBinding(
                 InMemoryQueryBackend(type, { streams(type).map(EventStreamRecords::stored) }, delay),
-                InMemoryQueryStorageAdapter,
+                InMemoryReferenceStorageAdapter,
             )
         }
 

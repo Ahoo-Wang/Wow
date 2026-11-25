@@ -48,6 +48,7 @@ import me.ahoo.wow.query.schema.QueryValueBindings
 import me.ahoo.wow.query.schema.QueryValueSchema
 import me.ahoo.wow.query.schema.StorageSupport
 import me.ahoo.wow.query.schema.SupportMode
+import me.ahoo.wow.query.schema.Temporal
 import me.ahoo.wow.query.schema.alternativesOrSelf
 import me.ahoo.wow.query.schema.operationValues
 import me.ahoo.wow.query.schema.storageFamilies
@@ -92,7 +93,7 @@ class InMemoryQueryStorage(
 
     override fun binding(key: AggregateType): QueryBackendBinding<InMemoryQueryBackend> =
         backends.computeIfAbsent(key) {
-            QueryBackendBinding(InMemoryQueryBackend(it, { records(it) }, delay), InMemoryQueryStorageAdapter)
+            QueryBackendBinding(InMemoryQueryBackend(it, { records(it) }, delay), InMemoryReferenceStorageAdapter)
         }
 
     private fun put(snapshot: SnapshotRecord, replaces: (current: SnapshotRecord) -> Boolean): Boolean {
@@ -257,12 +258,29 @@ class InMemoryQueryBackend internal constructor(
 }
 
 /**
- * The facts of the in-memory storage: every logical path is stored under its own name, and granted each capability
- * the strict storage-family table ([storageFamilies]) allows for its values, full-text search excepted; HAVING, top-N
- * by a metric, dense fill and the windows are RESIDUAL, so the core computes them.
+ * The facts the in-memory evaluator compiles a schema with: every logical path is stored under its own name, and
+ * granted each capability the strict storage-family table ([storageFamilies]) allows for its values, full-text search
+ * excepted; HAVING, top-N by a metric, dense fill and the windows are RESIDUAL, so the core computes them. A query
+ * policy is evaluated over a record with them ([me.ahoo.wow.query.admission.QueryAdmission], a model no backend
+ * serves), where nothing stands in for a store; the in-memory stores' models take [InMemoryReferenceStorageAdapter].
  */
 internal object InMemoryQueryStorageAdapter :
     QueryStorageAdapter by InMemoryStorageAdapter(InMemoryStorageAdapter.SUPPORT)
+
+/**
+ * The facts of the in-memory reference's snapshot and event models ([InMemoryQueryStorage], [InMemoryEventQueryStorage]),
+ * which a `memoryQueries` spec and a node on the memory store read in place of PostgreSQL or MongoDB. It grants a
+ * capability when at least one of those stores grants it, and answers it as that store does; where the two differ, the
+ * query contract (the query TCK) takes either answer. So it refuses what both refuse:
+ * - a date string, such as an `Instant` of a state, only exists: no equality, range, sort or grouping by it, as both
+ *   store it as text;
+ * - a sort by two independent arrays ([StorageSupport.parallelArraySort] NONE).
+ *
+ * A sort and a grouping by an array are granted, as MongoDB grants them and PostgreSQL does not: an array sorts by its
+ * least element ascending, its greatest descending, and groups once per element.
+ */
+internal object InMemoryReferenceStorageAdapter :
+    QueryStorageAdapter by InMemoryStorageAdapter(InMemoryStorageAdapter.REFERENCE_SUPPORT, dateStrings = false)
 
 /**
  * The facts of [InMemoryQueryStorageAdapter] with a dataset's access restriction ([InMemoryDatasetStorage], which
@@ -271,8 +289,14 @@ internal object InMemoryQueryStorageAdapter :
 internal object InMemoryDatasetStorageAdapter :
     QueryStorageAdapter by InMemoryStorageAdapter(InMemoryStorageAdapter.DATASET_SUPPORT)
 
-/** The in-memory storage's facts, under [support]. */
-internal class InMemoryStorageAdapter(private val support: StorageSupport) : QueryStorageAdapter {
+/**
+ * The in-memory storage's facts, under [support]; a date string ([Temporal.Date]) compares, sorts and groups as its
+ * instant when [dateStrings], and only exists otherwise.
+ */
+internal class InMemoryStorageAdapter(
+    private val support: StorageSupport,
+    private val dateStrings: Boolean = true,
+) : QueryStorageAdapter {
     override suspend fun facts(logicalSchema: LogicalQuerySchema): QueryStorageFacts = QueryStorageFacts(
         bindings = logicalSchema.values.filterKeys { it.segments.isNotEmpty() }.mapValues { (path, value) ->
             val capabilities = capabilitiesOf(value)
@@ -288,6 +312,7 @@ internal class InMemoryStorageAdapter(private val support: StorageSupport) : Que
         }
         val scalars = value.operationValues().filter { it.kind != QueryValueKind.NULL }
         if (scalars.isEmpty() || scalars.any { it.kind != QueryValueKind.SCALAR }) return capabilities
+        if (!dateStrings && scalars.any { it.semanticType == Temporal.Date }) return capabilities
         VALUE_CAPABILITIES.forEach { capability ->
             val families = scalars.map { it.storageFamilies(capability) }
             if (families.all { sets -> sets.isNotEmpty() && sets.all(Set<*>::isNotEmpty) }) capabilities += capability
@@ -314,6 +339,12 @@ internal class InMemoryStorageAdapter(private val support: StorageSupport) : Que
                 topN = SupportMode.RESIDUAL,
                 denseFill = SupportMode.RESIDUAL,
             ),
+        )
+
+        /** [SUPPORT], with no sort by two independent arrays, which PostgreSQL and MongoDB both refuse. */
+        val REFERENCE_SUPPORT: StorageSupport = StorageSupport(
+            aggregation = SUPPORT.aggregation,
+            parallelArraySort = SupportMode.NONE,
         )
 
         /** [SUPPORT], and the access restriction of a dataset bound to an aggregate. */
