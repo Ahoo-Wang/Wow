@@ -304,12 +304,18 @@ public final class me/ahoo/wow/query/tck/SemanticProbe {
 	public static final field DOTTED_CAPITAL_I Ljava/lang/String;
 	public static final field EMPTY Ljava/lang/String;
 	public static final field FINAL_SIGMA Ljava/lang/String;
+	public static final field LONG_S Ljava/lang/String;
+	public static final field METACHARACTERS Ljava/lang/String;
+	public static final field METACHARACTERS_TEXT Ljava/lang/String;
+	public static final field MICRO_SIGN Ljava/lang/String;
 	public static final field MISSING Ljava/lang/String;
 	public static final field NON_ASCII Ljava/lang/String;
 	public static final field NULL Ljava/lang/String;
 	public static final field ONE Ljava/lang/String;
 	public static final field OTHER Ljava/lang/String;
+	public static final field SIGMA_POSITIONS Ljava/lang/String;
 	public static final field THREE Ljava/lang/String;
+	public static final field TITLECASE Ljava/lang/String;
 	public static final field TRAILING_NEWLINE Ljava/lang/String;
 	public static final field TWO Ljava/lang/String;
 	public static final field VALUE Ljava/lang/String;

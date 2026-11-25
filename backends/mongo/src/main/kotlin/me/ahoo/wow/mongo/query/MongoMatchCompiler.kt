@@ -53,12 +53,14 @@ import me.ahoo.wow.api.query.SearchFilter
 import me.ahoo.wow.api.query.SearchMode
 import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.StartsWithFilter
+import me.ahoo.wow.api.query.StringComparison
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.mongo.ExactBson
 import me.ahoo.wow.mongo.MongoAccess
 import me.ahoo.wow.mongo.log.MongoEventLog
 import me.ahoo.wow.mongo.query.pipeline.toMongoExpression
 import me.ahoo.wow.query.admission.AdmittedQuery
+import me.ahoo.wow.query.backend.CaseFolding
 import me.ahoo.wow.query.error.QueryExecutionException
 import me.ahoo.wow.query.resolve.ignoreCase
 import me.ahoo.wow.query.resolve.operandValue
@@ -165,20 +167,25 @@ internal object MongoMatchCompiler {
             Filters.lte(filter.field.resolve(admitted, scope), filter.value.requiredOperand())
         is ContainsFilter -> regex(
             filter.field.resolve(admitted, scope),
-            filter.value.escapeRegex(),
-            filter.stringComparison.ignoreCase,
+            filter.field,
+            filter.value,
+            filter.stringComparison,
         )
         is StartsWithFilter -> regex(
             filter.field.resolve(admitted, scope),
-            "^${filter.value.escapeRegex()}",
-            filter.stringComparison.ignoreCase,
+            filter.field,
+            filter.value,
+            filter.stringComparison,
+            before = "^",
         )
         // `\z`, not `$`: PCRE's `$` also matches before a trailing newline, so `abc\n` would end with `abc` here and
         // nowhere else.
         is EndsWithFilter -> regex(
             filter.field.resolve(admitted, scope),
-            "${filter.value.escapeRegex()}\\z",
-            filter.stringComparison.ignoreCase,
+            filter.field,
+            filter.value,
+            filter.stringComparison,
+            after = "\\z",
         )
         is InFilter -> tenantKeyed(filter.field, filter.values, admitted, scope, keyed)
             ?: Filters.`in`(filter.field.resolve(admitted, scope), filter.values.map { it.operand() })
@@ -346,6 +353,36 @@ internal object MongoMatchCompiler {
 
     private const val ESCAPE_SLACK = 16
 
-    private fun regex(field: String, value: String, ignoreCase: Boolean): Bson =
-        if (ignoreCase) Filters.regex(field, value, "i") else Filters.regex(field, value)
+    /**
+     * The `$regex` on [path] of a literal match of [operand], between [before] and [after]: the operand escaped, or,
+     * ignoring case, the pattern of the texts that fold equal to it ([CaseFolding.pattern]), matched without the `i`
+     * option. PCRE2's caseless matching follows the Unicode of the server's PCRE2, which leaves apart letters the
+     * core's table joins (`ﬅ` and `ﬆ`, U+FB05 and U+FB06, since Unicode 15.1).
+     *
+     * A pattern of more than [MAX_PATTERN_BYTES] bytes is refused here, before any request, as the storage's limit
+     * ([QueryViolation.StorageUnsupported]), where the server would answer with its own error.
+     */
+    private fun regex(
+        path: String,
+        field: QueryField<*>,
+        operand: String,
+        comparison: StringComparison,
+        before: String = "",
+        after: String = "",
+    ): Bson {
+        val literal = if (comparison.ignoreCase) CaseFolding.pattern(operand) else operand.escapeRegex()
+        val pattern = before + literal + after
+        val bytes = pattern.toByteArray(Charsets.UTF_8).size
+        if (bytes > MAX_PATTERN_BYTES) {
+            throw QueryViolation.StorageUnsupported(
+                "a match of a ${operand.length}-character operand, whose regular expression of $bytes bytes " +
+                    "passes the $MAX_PATTERN_BYTES MongoDB holds",
+                field,
+            ).rejection()
+        }
+        return Filters.regex(path, pattern)
+    }
+
+    /** The longest `$regex` pattern MongoDB takes, in UTF-8 bytes. */
+    const val MAX_PATTERN_BYTES = 32_764
 }

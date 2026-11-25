@@ -117,16 +117,16 @@ outline: deep
 }
 ```
 
-忽略大小写比较的是字段文本的小写与 `value` 的小写，按 Unicode 的小写映射，不用任何语言自己的规则：`Ärger` 以 `äR` 开头，就像 `Wow` 以 `w` 开头。每个后端都逐个字母地遵循它。
+忽略大小写时，字段文本与 `value` 都先按 Unicode 的简单大小写折叠（simple case folding）逐个字符折叠，再作比较。不用任何语言自己的规则；无论数据库的 locale、排序规则或版本如何，每个后端的回答都相同：
+- `Ärger` 以 `äR` 开头，就像 `Wow` 以 `w` 开头。
+- `ſ` 与 `s` 相同，`µ` 与 `μ` 相同，`ǅ` 与 `Ǆ`、`ǆ` 相同。
+- `Σ`、`σ` 与 `ς` 无论在词中什么位置都相同，所以 `ΟΔΟΣ` 以 `ος` 结尾，`Σίσυφος` 以 `ς` 开头。
 
-一段文本的小写与它各个字母的小写只在两处不同，在那里各后端的回答也不同：
+只有一个字母不与任何其他字母折叠：`İ`（U+0130）。`İstanbul` 以 `İS` 开头，但不以 `is` 开头；无点的 `ı` 也不与 `i` 相同。
 
-| 字段，过滤 | 内存、MongoDB、ClickHouse | PostgreSQL、Elasticsearch |
-| --- | --- | --- |
-| `İstanbul`，`starts-with` `is` | 不匹配：`İ`（U+0130）的小写是 `i̇`，两个字符 | 匹配：`İ` 的小写是 `i` |
-| `ΟΔΟΣ`，`ends-with` `ος` | 匹配：结束一个词的大写 sigma 的小写是 `ς` | 不匹配：它的小写是 `σ` |
-
-PostgreSQL 按数据库的排序规则取小写；这里是测试数据库的回答，即 `postgres:17-alpine` 及其默认 locale。在 Elasticsearch 上，忽略大小写的 `value` 还有长度上限（[Elasticsearch](../operate/elasticsearch#snapshot-queries)）。
+存储匹配的是由 `value` 生成的正则表达式，它为每个字母列出其所有大小写形式（`äR` 即 `[Ää][Rr]`），所以在两个后端上，忽略大小写的 `value` 有长度上限，更长的 `value` 在发出任何请求之前就被回答 `storage-unsupported`：
+- **Elasticsearch：** 约 250 个字母（[Elasticsearch](../operate/elasticsearch#snapshot-queries)）。
+- **MongoDB：** 约 8,000 个字母，即它的正则表达式上限 32,764 字节；区分大小写的 `value` 也受这个上限约束。
 
 ### 集合 {#collections}
 

@@ -59,6 +59,7 @@ import me.ahoo.wow.api.query.StartsWithFilter
 import me.ahoo.wow.api.query.StringComparison
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.query.admission.AdmittedQuery
+import me.ahoo.wow.query.backend.CaseFolding
 import me.ahoo.wow.query.backend.compareScalars
 import me.ahoo.wow.query.dataset.DatasetAccess
 import me.ahoo.wow.query.error.QueryExecutionException
@@ -229,7 +230,7 @@ internal class InMemoryFilters(private val query: AdmittedQuery<*>, private val 
         val ignoreCase = comparison == StringComparison.CASE_INSENSITIVE
         values.flattened().filter { it.isString }.any { node ->
             val value = node.stringValue()
-            if (ignoreCase) test(value.lowercase(), operand.lowercase()) else test(value, operand)
+            if (ignoreCase) test(CaseFolding.fold(value), CaseFolding.fold(operand)) else test(value, operand)
         }
     }
 

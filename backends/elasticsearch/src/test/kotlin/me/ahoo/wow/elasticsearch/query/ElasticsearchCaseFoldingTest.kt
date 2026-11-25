@@ -20,28 +20,27 @@ import me.ahoo.wow.query.schema.QueryViolation
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
-/** Each letter of an operand matched ignoring case is the class of every character with its lower case (#6392). */
+/** An operand matched ignoring case is the core's pattern of it ([me.ahoo.wow.query.backend.CaseFolding]), anchored. */
 class ElasticsearchCaseFoldingTest {
     private fun pattern(operand: String, leading: Boolean = false, trailing: Boolean = false) =
         ElasticsearchCaseFolding.pattern(FIELD, operand, leading, trailing)
 
     @Test
-    fun `a letter should be the class of every character whose lower case it has, outside ASCII too`() {
-        pattern("äR").assert().isEqualTo("[äÄ][rR]")
-        // The Kelvin sign lowers to k, the Angstrom sign to å, the capital sharp s to ß.
-        pattern("k").assert().isEqualTo("[kKK]")
-        pattern("Å").assert().isEqualTo("[åÅÅ]")
-        pattern("ß").assert().isEqualTo("[ßẞ]")
+    fun `each letter should be the class of the characters it folds with, outside ASCII too`() {
+        pattern("äR").assert().isEqualTo("[Ää][Rr]")
+        // The Kelvin sign folds with k, and a sigma with its two other forms wherever it stands.
+        pattern("k").assert().isEqualTo("[Kk\u212A]")
+        pattern("Σς").assert().isEqualTo("[Σςσ][Σςσ]")
         // A character outside the Basic Multilingual Plane: Deseret.
-        pattern("𐐀").assert().isEqualTo("[𐐨𐐀]")
-        // A final sigma is its own lower case, which no other character has.
-        pattern("Σς").assert().isEqualTo("[σΣ]ς")
+        pattern("\uD801\uDC00").assert().isEqualTo("[\uD801\uDC00\uD801\uDC28]")
+        // `İ` folds with no other character.
+        pattern("İ").assert().isEqualTo("İ")
     }
 
     @Test
-    fun `ASCII but a letter or a digit should be escaped, and anything else kept, around the anchors asked`() {
-        pattern("中1 .*\\").assert().isEqualTo("中1\\ \\.\\*\\\\")
-        pattern("a", leading = true, trailing = true).assert().isEqualTo(".*[aA].*")
+    fun `ASCII punctuation should be escaped, and anything else kept, around the anchors asked`() {
+        pattern("中1 .*\\").assert().isEqualTo("中1 \\.\\*\\\\")
+        pattern("a", leading = true, trailing = true).assert().isEqualTo(".*[Aa].*")
         pattern("", leading = true).assert().isEqualTo(".*")
     }
 
