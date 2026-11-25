@@ -16,10 +16,11 @@ import {
   toTypeIdentifier,
   uniqueParameterName,
 } from '../naming/naming';
-import type {
-  ManifestAggregate,
-  ManifestContext,
-  ManifestDocument,
+import {
+  isObject,
+  type ManifestAggregate,
+  type ManifestContext,
+  type ManifestDocument,
 } from './document';
 
 /**
@@ -50,6 +51,16 @@ const CLIENT_NAMES = [
   'SystemEvent',
   'WowClientOptions',
 ];
+
+/**
+ * The lifecycle bodies a command client imports from `@ahoo-wang/wow-client`
+ * when `$defs` holds no definition of its own for them, by the definition's
+ * key.
+ */
+export const LIFECYCLE_BODIES: Readonly<Record<string, string>> = {
+  'wow.lifecycle.TransferOwner': 'TransferOwner',
+  'wow.lifecycle.TransferSpace': 'TransferSpace',
+};
 
 /** What the generator declares for each context, after its type name. */
 const CONTEXT_DECLARATIONS = [
@@ -90,7 +101,8 @@ export function aggregateTypeName(
 /**
  * The names the modules generated from `manifest` bind besides its types:
  * the TypeScript globals they use, what they import from
- * `@ahoo-wang/wow-client`, and what the generator declares for each context
+ * `@ahoo-wang/wow-client` (a lifecycle body among them when `$defs` holds
+ * none of its own), and what the generator declares for each context
  * and aggregate. A type of `$defs` takes none of them, as it takes no name of
  * another type: it is qualified by its package instead (`shop.Record` is
  * `ShopRecord`), so every generated module can import it beside them.
@@ -99,6 +111,9 @@ export function aggregateTypeName(
  */
 export function generatedNames(manifest: ManifestDocument): Set<string> {
   const names = new Set([...GLOBALS, ...CLIENT_NAMES]);
+  for (const [key, name] of Object.entries(LIFECYCLE_BODIES)) {
+    if (!isObject(manifest.$defs?.[key])) names.add(name);
+  }
   for (const context of manifest.contexts) {
     const name = contextTypeName(context);
     for (const suffix of CONTEXT_DECLARATIONS) names.add(`${name}${suffix}`);
@@ -133,3 +148,63 @@ export function routeParameterIdentifier(
     ? uniqueParameterName(parameter.name, used)
     : parameter.name;
 }
+
+/**
+ * The constant of an error code's `name` (what follows its aggregate, or its
+ * context), as the Kotlin contract's `ContractSources.errorName` names it: its
+ * dotted segments each in upper snake case (`QueryFieldNames.upperSnake`),
+ * joined by `__`, and `_` before a leading digit. `invalid-item` is
+ * `INVALID_ITEM`, `invalidURLValue` is `INVALID_URL_VALUE`, `item2Count` is
+ * `ITEM2_COUNT` and `404-not-found` is `_404_NOT_FOUND`.
+ */
+export function errorConstantName(name: string): string {
+  const constant = name
+    .split('.')
+    .map(segment =>
+      segment
+        .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+        .replace(/([A-Z]+)([A-Z][a-z])/g, '$1_$2')
+        .replace(/[^A-Za-z0-9_]/g, '_')
+        .toUpperCase(),
+    )
+    .join('__');
+  return /^[0-9]/.test(constant) ? `_${constant}` : constant;
+}
+
+/**
+ * The member of each of `names` in a generated class whose own members are
+ * `reserved`: the name itself, or, for one a reserved member takes, the name
+ * and `suffix` (then `suffix2` and so on), apart from every other name. In the
+ * order given.
+ *
+ * @param names - The names, in the Manifest's order
+ * @param reserved - The class's own members
+ * @param suffix - What a name a member takes is given
+ */
+export function classMembers(
+  names: readonly string[],
+  reserved: readonly string[],
+  suffix: string,
+): string[] {
+  const used = new Set([...reserved, ...names]);
+  const taken = new Set(reserved);
+  return names.map(name => {
+    if (!taken.has(name)) {
+      taken.add(name);
+      return name;
+    }
+    let member = `${name}${suffix}`;
+    for (let index = 2; used.has(member); index += 1) {
+      member = `${name}${suffix}${index}`;
+    }
+    used.add(member);
+    taken.add(member);
+    return member;
+  });
+}
+
+/** The members of a generated `<Context>Client` besides its aggregates'. */
+export const CONTEXT_CLIENT_MEMBERS = ['commands', 'routes', 'constructor'];
+
+/** The members of a generated `<Context>Routes` besides its routes' methods. */
+export const ROUTES_CLIENT_MEMBERS = ['routes', 'constructor'];
