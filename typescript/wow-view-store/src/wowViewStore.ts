@@ -62,8 +62,13 @@ import { Failure, guard, request } from './errors.js';
 import { versionOf, ViewWrites, type InstanceWrite } from './viewWrites.js';
 import { scopeAt, SUMMARY_FIELDS, toSummary, type ViewRecord } from './wire.js';
 
-/** How a V10 {@link WowViewStore} reaches the view store service. */
-export interface WowViewStoreOptions {
+/**
+ * How a V10 {@link WowViewStore} reaches the view store service: wow-client's
+ * options, as every Wow client takes them (`basePath`, a gateway's prefix
+ * before every route; `defaultWaitMs`, the service's default wait, which
+ * bounds a write that states none), the fetcher required.
+ */
+export interface WowViewStoreOptions extends WowClientOptions {
   /**
    * The fetcher every request goes through, on the base URL that serves
    * `/view-store/…` (the V10 view store service, or a gateway in front of
@@ -81,7 +86,7 @@ export interface WowViewStoreOptions {
    * shared views' `(shared)`, and `(system)` of `(platform)` for stored
    * system views.
    */
-  fetcher: Fetcher;
+  readonly fetcher: Fetcher;
   /**
    * Which buttons are enabled for one definition's views. The service
    * authorizes each write; a host answers this by the roles it holds there —
@@ -90,15 +95,22 @@ export interface WowViewStoreOptions {
    * shipped), `editSystem` by the one that writes `(system)`. Left out,
    * everything is allowed, as the port reads a store without `permissions`.
    */
-  permissions?: (definitionId: string) => ViewPermissions;
+  readonly permissions?: (definitionId: string) => ViewPermissions;
   /**
    * The most views one page of `list` answers; 100, the service's default
    * cursor page limit over HTTP, when left out. A test sets it low to read
    * a list across pages, and across audiences, with few views. A whole
    * number of at least 1; another is refused with a `RangeError`, as a page
    * of none would never end a list.
+   *
+   * The shared and the personal views are read by cursor queries of up to
+   * `pageSize` views each, so a `pageSize` above the service's cursor page
+   * limit (`wow.query.budgets.http.max-page-size`, 100 as shipped) has the
+   * service refuse every list that reaches them (`INVALID`). The limit is
+   * the service's configuration, which the store cannot read: raise both
+   * together.
    */
-  pageSize?: number;
+  readonly pageSize?: number;
 }
 
 /** The views one page of `list` answers when the options say none. */
@@ -207,7 +219,7 @@ export class WowViewStore implements ViewStore {
         `A view store's pageSize is a whole number of at least 1: ${pageSize}.`,
       );
     this.pageSize = pageSize;
-    const client: WowClientOptions = { fetcher: options.fetcher };
+    const client = clientOptions(options);
     this.commands = new ViewCommandClient(client);
     this.snapshots = new ViewSnapshotQueryClient(client);
     this.states = new ViewStateClient(client);
@@ -220,8 +232,8 @@ export class WowViewStore implements ViewStore {
       read: (id, signal) => this.read(id, signal),
       systemVersion: (id, revision, signal) =>
         this.systemVersion(id, revision, signal),
-      commandOptions: (place, context, more) =>
-        this.commandOptions(place, context, more),
+      commandOptions: (place, options, more) =>
+        this.commandOptions(place, options, more),
     });
     // Left undefined when the host declared none, which the port reads as
     // "everything is allowed".
@@ -315,24 +327,24 @@ export class WowViewStore implements ViewStore {
    */
   create(
     input: Omit<ViewInstance, 'id' | 'revision'>,
-    context: WriteOptions,
+    options: WriteOptions,
   ): Promise<ViewInstance> {
     return guard(async () => {
       const place: Place = input.scope;
       const { definitionId, title, config } = input;
       const write: InstanceWrite = {
-        send: options =>
+        send: sent =>
           this.commands.createView(
             { definitionId, title, config: bodyOf(config) },
-            options,
+            sent,
           ),
         sentFrom: place,
         landsAt: place,
       };
       const result = await request(() =>
-        write.send(this.commandOptions(place, context)),
+        write.send(this.commandOptions(place, options)),
       );
-      return (await this.writes.landed(result.ref.id, write, result, context))!;
+      return (await this.writes.landed(result.ref.id, write, result, options))!;
     });
   }
 
@@ -341,11 +353,11 @@ export class WowViewStore implements ViewStore {
     id: string,
     config: ViewConfig,
     revision: string,
-    context: WriteOptions,
+    options: WriteOptions,
   ): Promise<ViewInstance> {
-    return this.writes.write(id, revision, context, place => ({
-      send: options =>
-        this.commands.saveView(id, { config: bodyOf(config) }, options),
+    return this.writes.write(id, revision, options, place => ({
+      send: sent =>
+        this.commands.saveView(id, { config: bodyOf(config) }, sent),
       sentFrom: place,
       landsAt: place,
     })) as Promise<ViewInstance>;
@@ -356,10 +368,10 @@ export class WowViewStore implements ViewStore {
     id: string,
     title: string,
     revision: string,
-    context: WriteOptions,
+    options: WriteOptions,
   ): Promise<ViewInstance> {
-    return this.writes.write(id, revision, context, place => ({
-      send: options => this.commands.renameView(id, { title }, options),
+    return this.writes.write(id, revision, options, place => ({
+      send: sent => this.commands.renameView(id, { title }, sent),
       sentFrom: place,
       landsAt: place,
     })) as Promise<ViewInstance>;
@@ -386,19 +398,19 @@ export class WowViewStore implements ViewStore {
     id: string,
     audience: ViewAudience,
     revision: string,
-    context: WriteOptions,
+    options: WriteOptions,
   ): Promise<ViewInstance> {
-    return this.writes.write(id, revision, context, place => {
+    return this.writes.write(id, revision, options, place => {
       if (place === 'system') readOnly('A system view never moves audience');
       return audience === 'shared'
         ? {
-            send: options => this.commands.shareView(id, {}, options),
+            send: sent => this.commands.shareView(id, {}, sent),
             sentFrom: 'personal',
             landsAt: 'shared',
             moves: true,
           }
         : {
-            send: options => this.commands.claimView(id, {}, options),
+            send: sent => this.commands.claimView(id, {}, sent),
             sentFrom: 'shared',
             landsAt: 'personal',
             moves: true,
@@ -410,10 +422,10 @@ export class WowViewStore implements ViewStore {
   async delete(
     id: string,
     revision: string,
-    context: WriteOptions,
+    options: WriteOptions,
   ): Promise<void> {
-    await this.writes.write(id, revision, context, place => ({
-      send: options => this.commands.deleteAggregate(id, options),
+    await this.writes.write(id, revision, options, place => ({
+      send: sent => this.commands.deleteAggregate(id, sent),
       sentFrom: place,
       landsAt: null,
     }));
@@ -453,10 +465,10 @@ export class WowViewStore implements ViewStore {
   setPreferences(
     definitionId: string,
     preferences: ViewPreferences,
-    context: WriteOptions,
+    options: WriteOptions,
   ): Promise<ViewPreferences> {
     return guard(async () => {
-      const { requestId, signal } = context;
+      const { requestId, signal } = options;
       // A revision this store never issues is refused before anything is
       // sent, as INVALID, as an instance write's is (#6918, #7022).
       const expectedVersion = versionOf(preferences.revision);
@@ -567,6 +579,19 @@ export class WowViewStore implements ViewStore {
       ...more,
     };
   }
+}
+
+/**
+ * The options of the generated clients a store builds: the host's fetcher,
+ * base path and default wait, and none of the store's own options.
+ */
+export function clientOptions(options: WowClientOptions): WowClientOptions {
+  const { fetcher, basePath, defaultWaitMs } = options;
+  return {
+    ...(fetcher === undefined ? {} : { fetcher }),
+    ...(basePath === undefined ? {} : { basePath }),
+    ...(defaultWaitMs === undefined ? {} : { defaultWaitMs }),
+  };
 }
 
 /** A snapshot record as the store reads it. */

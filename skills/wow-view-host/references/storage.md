@@ -25,13 +25,13 @@ export const devStore = new MemoryViewStore({
 
 ## WowViewStore on the V10 view store service
 
-The service keeps views and preferences as two Wow aggregates; `WowViewStore` reaches them through the clients generated from the service's Manifest. It takes a fetcher and, optionally, the permissions that enable buttons. It takes **no tenant, owner, user or application**, and no path names them: the service reads who is asking from the caller's principal, which the fetcher's interceptors carry as they do for every other Wow request of the host (a CoSec token, and `CoSec-App-Id`, the application CoSec decides the request in, which every view, preference and wording is kept in). **The owner is the audience:**
+The service keeps views and preferences as two Wow aggregates; `WowViewStore` reaches them through the clients generated from the service's Manifest. It takes wow-client's options, as every Wow client does (a fetcher, and optionally a gateway's `basePath` and the service's `defaultWaitMs`), and, optionally, the permissions that enable buttons. It takes **no tenant, owner, user or application**, and no path names them: the service reads who is asking from the caller's principal, which the fetcher's interceptors carry as they do for every other Wow request of the host (a CoSec token, and `CoSec-App-Id`, the application CoSec decides the request in, which every view, preference and wording is kept in). **The owner is the audience:**
 
 | View | Owner | How the store reaches it |
 | --- | --- | --- |
 | Personal | The caller's own | As the caller |
-| Shared | The reserved owner `(shared)` | The store sends `Wow-Scope` naming `(shared)` (`SHARED_SCOPE`) |
-| Stored system view | `(system)` of the tenant `(platform)`, whatever the caller's tenant: system views are global | The store sends `Wow-Scope` naming both (`SYSTEM_SCOPE`) |
+| Shared | The reserved owner `(shared)` | The store sends `Wow-Scope: owner="(shared)"` |
+| Stored system view | `(system)` of the tenant `(platform)`, whatever the caller's tenant: system views are global | The store sends `Wow-Scope: tenant="(platform)", owner="(system)"` |
 
 The host never sets `Wow-Scope` for the store; it says it itself, and the service refuses any other reserved scope (`wow.auth.forbidden`), so nobody acts as another user.
 

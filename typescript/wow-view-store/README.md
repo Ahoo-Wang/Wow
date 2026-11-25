@@ -26,8 +26,10 @@ engine's optional `react`, `react-dom`, `react-router` and `mingo` where its
 own entries need them. Node `>=22.12.0` or a current browser; TypeScript 6 or
 later.
 
-`WowViewStore` takes a fetcher and, optionally, the permissions that drive the
-buttons. It takes no tenant, user or application: the service takes them from
+`WowViewStore` takes wow-client's options, as every Wow client does (a fetcher,
+and optionally a gateway's `basePath` and the service's `defaultWaitMs`), and,
+optionally, the permissions that drive the buttons. It takes no tenant, user or
+application: the service takes them from
 the principal, which the fetcher's interceptors carry as they do for every
 other Wow request of the host. A definition's source is the query route's
 client itself, `datasetCatalogOf` lists the service's datasets, and

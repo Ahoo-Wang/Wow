@@ -95,7 +95,7 @@ Wow 的视图存储服务 `platform/view-store` 把保存的视图、偏好和�
 
 ### 接上它 {#wire-it}
 
-`WowViewStore` 接收一个 fetcher，以及可选的 `permissions`。**它不接收租户、所有者、用户或应用**：fetcher 的拦截器携带是谁在请求，就像应用的其他每个请求一样。服务从调用方获取租户和所有者，并把每个视图放在请求获得授权的那个应用里。
+`WowViewStore` 与每个 Wow 客户端一样接收 wow-client 的选项（一个 fetcher，以及可选的网关 `basePath` 与服务的 `defaultWaitMs`），以及可选的 `permissions`。**它不接收租户、所有者、用户或应用**：fetcher 的拦截器携带是谁在请求，就像应用的其他每个请求一样。服务从调用方获取租户和所有者，并把每个视图放在请求获得授权的那个应用里。
 
 <!-- typecheck: file=viewStore.ts -->
 <!-- typecheck-context

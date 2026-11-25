@@ -95,7 +95,7 @@ Wow's view store service, `platform/view-store`, keeps saved views, preferences 
 
 ### Wire it
 
-`WowViewStore` takes a fetcher and, optionally, `permissions`. **It takes no tenant, owner, user or application**: the fetcher's interceptors carry who is asking, as they do for every other request of the application. The service takes the tenant and the owner from the caller, and keeps every view in the application the request was authorized in.
+`WowViewStore` takes wow-client's options, as every Wow client does (a fetcher, and optionally a gateway's `basePath` and the service's `defaultWaitMs`), and, optionally, `permissions`. **It takes no tenant, owner, user or application**: the fetcher's interceptors carry who is asking, as they do for every other request of the application. The service takes the tenant and the owner from the caller, and keeps every view in the application the request was authorized in.
 
 <!-- typecheck: file=viewStore.ts -->
 <!-- typecheck-context

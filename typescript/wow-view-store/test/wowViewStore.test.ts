@@ -28,17 +28,19 @@ import type {
   WriteOptions,
 } from '@ahoo-wang/wow-view-engine';
 import {
-  SHARED_SCOPE,
-  SYSTEM_SCOPE,
   WowViewStore,
   WowViewStoreErrorCodes,
+  type WowViewStoreOptions,
 } from '../src/index.js';
+import { SHARED_SCOPE, SYSTEM_SCOPE } from '../src/wire.js';
+import { clientOptions } from '../src/wowViewStore.js';
 import { listAll } from './conformance/wowViewStoreService.js';
 import { problem } from './support/fakeViewStore.js';
 import {
   actingAs,
   BASE_URL,
   installFake,
+  installGateway,
   WRITER_ROLES,
   type Caller,
 } from './support.js';
@@ -117,13 +119,69 @@ describe('the V10 WowViewStore', () => {
     expect(share.headers.has(WowHeaders.SCOPE)).toBe(false);
   });
 
-  it('exports the scopes of the reserved owners', () => {
+  // The entry exports neither scope (#7022 row 15): they are the store's
+  // own, as the owner ids are.
+  it('acts as the reserved owners by their scopes', () => {
     expect(SHARED_SCOPE).toEqual({ ownerId: '(shared)' });
     expect(SYSTEM_SCOPE).toEqual({
       tenantId: '(platform)',
       ownerId: '(system)',
     });
     expect(WowViewStoreErrorCodes.INVALID).toBe('view-store.invalid');
+  });
+
+  // #7022 row 14: the options are wow-client's, as every Wow client's are,
+  // so a gateway's prefix goes into basePath rather than into the fetcher.
+  it('sends every request under the base path its options give', async () => {
+    const gateway = installGateway('/views-api');
+    const behind = (): WowViewStore =>
+      new WowViewStore({ fetcher: actingAs(ALICE), basePath: '/views-api' });
+    const store = behind();
+    const made = await personal(store);
+    const renamed = await store.rename(
+      made.id,
+      'Renamed',
+      made.revision,
+      write(),
+    );
+    expect(renamed.title).toBe('Renamed');
+    expect((await store.list('orders')).items.map(item => item.id)).toEqual([
+      made.id,
+    ]);
+    // A store that has not seen the view finds it by the read by id.
+    expect((await behind().get(made.id)).title).toBe('Renamed');
+    const preferences = await store.getPreferences('orders');
+    await store.setPreferences(
+      'orders',
+      { ...preferences, defaultInstanceId: made.id },
+      write(),
+    );
+    expect(gateway.paths.length).toBeGreaterThan(5);
+    for (const path of gateway.paths)
+      expect(path).toMatch(/^\/views-api\/view-store\//);
+  });
+
+  it('hands the generated clients the fetcher, base path and default wait, and none of its own options', () => {
+    const fetcher = actingAs(ALICE);
+    const options: WowViewStoreOptions = {
+      fetcher,
+      basePath: '/views-api',
+      defaultWaitMs: 90_000,
+      pageSize: 10,
+      permissions: (): ViewPermissions => ({
+        createPersonal: true,
+        createShared: true,
+        reorder: true,
+        setDefault: true,
+        instance: () => ({ save: true, rename: true, delete: true }),
+      }),
+    };
+    expect(clientOptions(options)).toEqual({
+      fetcher,
+      basePath: '/views-api',
+      defaultWaitMs: 90_000,
+    });
+    expect(clientOptions({ fetcher })).toEqual({ fetcher });
   });
 
   it('keeps the permissions a host gives, and none it does not', () => {
