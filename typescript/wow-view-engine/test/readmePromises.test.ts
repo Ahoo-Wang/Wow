@@ -75,45 +75,25 @@ describe('README', () => {
 });
 
 describe('README entries of the packages it sends a host to', () => {
-  it('names no entry of @ahoo-wang/wow-view-store that the package does not export', () => {
-    const exported = Object.keys(
-      (
-        JSON.parse(
-          readFileSync(
-            join(import.meta.dirname, '../../wow-view-store/package.json'),
-            'utf8',
-          ),
-        ) as { exports: Record<string, unknown> }
-      ).exports,
-    );
+  // The package has one code entry, its root: D265 promoted `/v10` to it.
+  // Its exports are not read here: a change to wow-view-store does not run
+  // this package's job (.github/scripts/ci-scope.test.mjs).
+  it('names @ahoo-wang/wow-view-store by its root, and no entry of it', () => {
     for (const name of ['README.md', 'README.zh-CN.md']) {
       const text = readFileSync(join(import.meta.dirname, '..', name), 'utf8');
       expect(text, name).toContain('`@ahoo-wang/wow-view-store`');
       // "add `@ahoo-wang/wow-view-store` (its `/v10` entry on a Wow V10
-      // service …)": D265 promoted `/v10` to the package root.
+      // service …)", as the READMEs said.
       const named = [
         ...text.matchAll(
           /wow-view-store[^)]*?\)[^`]*`(\/[a-z0-9-]+)` (?:entry|入口)/g,
         ),
-      ]
-        .map(match => `.${match[1]}`)
-        .concat(
-          [
-            ...text.matchAll(
-              /用它的 `(\/[a-z0-9-]+)` 入口|its `(\/[a-z0-9-]+)` entry/g,
-            ),
-          ].map(match => `.${match[1] ?? match[2]}`),
-        );
-      for (const entry of named)
-        expect({
-          readme: name,
-          entry,
-          exported: exported.includes(entry),
-        }).toEqual({
-          readme: name,
-          entry,
-          exported: true,
-        });
+        ...text.matchAll(
+          /用它的 `(\/[a-z0-9-]+)` 入口|its `(\/[a-z0-9-]+)` entry/g,
+        ),
+        ...text.matchAll(/@ahoo-wang\/wow-view-store\/([a-z0-9-]+)/g),
+      ].map(match => match.slice(1).find(Boolean));
+      expect({ readme: name, named }).toEqual({ readme: name, named: [] });
     }
   });
 });
