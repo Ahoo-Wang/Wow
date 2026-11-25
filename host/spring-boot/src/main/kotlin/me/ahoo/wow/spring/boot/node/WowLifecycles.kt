@@ -23,16 +23,23 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.http.internal.InternalPort
 import me.ahoo.wow.http.query.QueryStreams
 import me.ahoo.wow.runtime.node.ServiceNode
+import me.ahoo.wow.runtime.wait.WaitOptions
+import me.ahoo.wow.spring.boot.WowProperties
 import me.ahoo.wow.spring.boot.query.QueryIndexesLifecycle
 import me.ahoo.wow.spring.boot.store.HostBackends
+import org.springframework.beans.factory.config.BeanPostProcessor
 import org.springframework.boot.availability.ApplicationAvailability
 import org.springframework.boot.availability.AvailabilityChangeEvent
 import org.springframework.boot.availability.ReadinessState
+import org.springframework.boot.web.server.context.WebServerApplicationContext
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.context.SmartLifecycle
+import org.springframework.context.support.DefaultLifecycleProcessor
+import org.springframework.core.env.Environment
 import kotlin.concurrent.thread
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.toKotlinDuration
 
 /**
  * The phases of the host's lifecycles (plan P17). Spring starts the phases in ascending order
@@ -48,7 +55,8 @@ import kotlin.time.Duration.Companion.seconds
  *   still stream → the backends, closed with their beans.
  *
  * Spring Boot bounds each phase's stop by `spring.lifecycle.timeout-per-shutdown-phase`, which the host raises to the
- * node's stop bound ([me.ahoo.wow.runtime.node.ServiceNodeOptions.stopBound], [ShutdownTimeoutEnvironmentPostProcessor]).
+ * node's stop bound ([me.ahoo.wow.runtime.node.ServiceNodeOptions.stopBound], [ShutdownTimeoutEnvironmentPostProcessor]);
+ * the public server's graceful shutdown, by the longest wait a request holds ([GracefulShutdownBound]).
  */
 internal object WowLifecycles {
     /** The phase of Spring Boot's web server start and stop (`WebServerStartStopLifecycle`). */
@@ -76,72 +84,45 @@ internal object WowLifecycles {
     const val QUERY_STREAMS_PHASE: Int = SmartLifecycle.DEFAULT_PHASE - 512
 
     /**
-     * [GracefulShutdownSettled]: stops after the public server's graceful shutdown (`DEFAULT_PHASE - 1024`) and before
-     * its stop ([PUBLIC_SERVER_PHASE]).
+     * The phase of Spring Boot's graceful shutdown of the web server (`WebServerGracefulShutdownLifecycle`), which
+     * [GracefulShutdownBound] bounds: after the query streams end, before the public server stops.
      */
-    const val GRACEFUL_SHUTDOWN_SETTLED_PHASE: Int = SmartLifecycle.DEFAULT_PHASE - 1536
+    const val GRACEFUL_SHUTDOWN_PHASE: Int = WebServerApplicationContext.GRACEFUL_SHUTDOWN_PHASE
 }
 
 /**
- * Waits, between the public server's graceful shutdown and its stop, for the thread of that shutdown to end, at most
- * [timeout]: a workaround of a race in Spring Boot 4.1.1 (`spring-boot-reactor-netty`, and 3.5.x before
- * it), to remove once the host builds on a Spring Boot that fixes it (below).
- *
- * The race, in `org.springframework.boot.reactor.netty.GracefulShutdown`
- * (https://github.com/spring-projects/spring-boot/blob/v4.1.1/module/spring-boot-reactor-netty/src/main/java/org/springframework/boot/reactor/netty/GracefulShutdown.java):
- * `doShutdown`, on the `netty-shutdown` thread, calls `callback.shutdownComplete(...)` and only then, in `finally`,
- * sets `shutdownThread = null` and `shuttingDown = false`. The callback lets the lifecycle go on to the server's stop
- * (`WebServerStartStopLifecycle`, the next phase), which calls `abort()`: it reads `shutdownThread`, then polls
- * `while (!shuttingDown) sleep(50)`. When the `finally` runs between the two, `abort()` polls forever, and the
- * context's close hangs there with no Wow frame on its stack (seen as `PaymentServerTest.close` stuck in
- * `GracefulShutdown.abort`). Fixed upstream in Spring Boot 4.1.2
- * (https://github.com/spring-projects/spring-boot/issues/52196; 4.0.9 for the 4.0 line,
- * https://github.com/spring-projects/spring-boot/issues/52119): remove this lifecycle and its bean once the host
- * builds on 4.1.2 or later.
- *
- * Once that thread has ended, `abort()` finds none and returns at once. When the graceful shutdown outlasted its
- * phase, the thread is still shutting down after [timeout], which is logged as a warning, and `abort()` interrupts it.
+ * Bounds the public server's graceful shutdown ([WowLifecycles.GRACEFUL_SHUTDOWN_PHASE]) at [bound] (#6958). Spring
+ * Boot's graceful shutdown waits for every request still open, one whose body stalls or whose reader stops reading
+ * included, until its phase's timeout, which the host raises to the node's stop bound for the node's own phase. This
+ * phase gets its own: the longest wait a request holds, `wow.wait.max-timeout`, and [MARGIN] for its answer to be
+ * written, or the phase's timeout when that is shorter ([of]). Past it, the server's stop cuts what is still open:
+ * Spring Boot's `NettyWebServer.stop` aborts the graceful shutdown and disposes the server, within Reactor Netty's 3
+ * seconds.
  */
 @InternalWowApi
-class GracefulShutdownSettled @JvmOverloads constructor(
-    private val timeout: Duration = DEFAULT_TIMEOUT,
-    private val threads: () -> Collection<Thread> = { Thread.getAllStackTraces().keys },
-) : SmartLifecycle {
-    @Volatile
-    private var running = false
-
-    override fun start() {
-        running = true
-    }
-
-    override fun stop() {
-        running = false
-        val deadline = System.nanoTime() + timeout.inWholeNanoseconds
-        threads().filter { it.name == SHUTDOWN_THREAD && it.isAlive }.forEach { shutdown ->
-            val left = (deadline - System.nanoTime()) / NANOS_PER_MILLI
-            if (left > 0) shutdown.join(left)
-            if (shutdown.isAlive) {
-                logger.warn {
-                    "The public server's graceful shutdown is still running after $timeout: the server stops it now."
-                }
-            }
+class GracefulShutdownBound(val bound: Duration) : BeanPostProcessor {
+    override fun postProcessBeforeInitialization(bean: Any, beanName: String): Any {
+        if (bean is DefaultLifecycleProcessor) {
+            bean.setTimeoutForShutdownPhase(WowLifecycles.GRACEFUL_SHUTDOWN_PHASE, bound.inWholeMilliseconds)
         }
+        return bean
     }
-
-    override fun isRunning(): Boolean = running
-
-    override fun getPhase(): Int = WowLifecycles.GRACEFUL_SHUTDOWN_SETTLED_PHASE
 
     @InternalWowApi
     companion object {
-        /** The name of the thread Spring Boot's Reactor Netty graceful shutdown runs on. */
-        const val SHUTDOWN_THREAD: String = "netty-shutdown"
+        /** The time past the longest wait given to its answer, before the server cuts what is still open. */
+        val MARGIN: Duration = 2.seconds
 
-        /** How long the server's stop waits for that thread at most. */
-        val DEFAULT_TIMEOUT: Duration = 5.seconds
-
-        private const val NANOS_PER_MILLI = 1_000_000L
-        private val logger = KotlinLogging.logger {}
+        /**
+         * The bound of [environment]'s node: its `wow.wait.max-timeout` and [MARGIN], or the timeout per shutdown phase
+         * the application sets when that is shorter.
+         */
+        fun of(environment: Environment): GracefulShutdownBound {
+            val wait = WowProperties.ofOrNull(environment)?.wait?.maxTimeout?.toKotlinDuration()
+                ?: WaitOptions.DEFAULT_MAX_TIMEOUT
+            val phase = ShutdownTimeoutEnvironmentPostProcessor.configured(environment)?.toKotlinDuration()
+            return GracefulShutdownBound(minOf(wait + MARGIN, phase ?: Duration.INFINITE))
+        }
     }
 }
 

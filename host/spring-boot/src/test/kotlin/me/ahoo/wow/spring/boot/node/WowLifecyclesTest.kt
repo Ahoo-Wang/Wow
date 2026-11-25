@@ -37,10 +37,14 @@ import org.springframework.boot.availability.AvailabilityChangeEvent
 import org.springframework.boot.availability.AvailabilityState
 import org.springframework.boot.availability.LivenessState
 import org.springframework.boot.availability.ReadinessState
+import org.springframework.boot.web.server.context.WebServerApplicationContext
 import org.springframework.context.ApplicationEventPublisher
+import org.springframework.context.support.DefaultLifecycleProcessor
+import org.springframework.mock.env.MockEnvironment
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import kotlin.time.Duration.Companion.seconds
 
 /** The host's lifecycles outside a Spring context: what each start and stop does. */
 class WowLifecyclesTest {
@@ -167,5 +171,35 @@ class WowLifecyclesTest {
         lifecycle.isRunning.assert().isTrue()
         lifecycle.stop()
         lifecycle.isRunning.assert().isFalse()
+    }
+
+    @Test
+    fun `the public server's graceful shutdown should be bounded by the longest wait and a margin (#6958)`() {
+        GracefulShutdownBound.of(MockEnvironment()).bound.assert().isEqualTo(60.seconds + GracefulShutdownBound.MARGIN)
+        GracefulShutdownBound.of(MockEnvironment().withProperty("wow.wait.max-timeout", "3s")).bound.assert()
+            .isEqualTo(5.seconds)
+        // A shorter phase the application sets is kept, for this phase as for the others.
+        GracefulShutdownBound.of(
+            MockEnvironment().withProperty("spring.lifecycle.timeout-per-shutdown-phase", "4s"),
+        ).bound.assert().isEqualTo(4.seconds)
+        // A wait setting that does not bind is the properties' bean's to refuse: the bound takes the default.
+        GracefulShutdownBound.of(MockEnvironment().withProperty("wow.wait.max-timeout", "soon")).bound.assert()
+            .isEqualTo(60.seconds + GracefulShutdownBound.MARGIN)
+    }
+
+    @Test
+    fun `the bound should be the graceful shutdown's phase timeout, and leave other beans alone`() {
+        val timeouts = HashMap<Int, Long>()
+        val processor = object : DefaultLifecycleProcessor() {
+            override fun setTimeoutForShutdownPhase(phase: Int, timeout: Long) {
+                timeouts[phase] = timeout
+                super.setTimeoutForShutdownPhase(phase, timeout)
+            }
+        }
+        val bound = GracefulShutdownBound(5.seconds)
+        bound.postProcessBeforeInitialization(processor, "lifecycleProcessor").assert().isSameAs(processor)
+        timeouts.assert().isEqualTo(mapOf(WebServerApplicationContext.GRACEFUL_SHUTDOWN_PHASE to 5_000L))
+        val other = Any()
+        bound.postProcessBeforeInitialization(other, "other").assert().isSameAs(other)
     }
 }
