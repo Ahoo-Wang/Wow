@@ -13,9 +13,11 @@
 
 package me.ahoo.wow.query.resolve
 
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.StringComparison
 import me.ahoo.wow.query.schema.QueryViolation
 import tools.jackson.databind.JsonNode
+import java.math.BigDecimal
 
 /*
  * The one rule every backend applies to a filter operand before handing it to its driver. An operand a backend
@@ -92,3 +94,37 @@ private fun Number.requireFinite() {
 }
 
 private val NON_SCALAR = QueryViolation.StorageUnsupported("non-scalar filter operands")
+
+/**
+ * The most fractional digits of a numeric operand: those of PostgreSQL's `numeric`, the widest exact decimal of the
+ * stores ([requireStoredDigits]).
+ */
+internal const val MAX_OPERAND_SCALE: Int = 16_383
+
+/** The most integer digits of a numeric operand: those of PostgreSQL's `numeric` ([requireStoredDigits]). */
+internal const val MAX_OPERAND_INTEGER_DIGITS: Int = 131_072
+
+/**
+ * Refuses this operand of [field], a number whose digits pass what any store's exact decimal holds: more than
+ * [MAX_OPERAND_SCALE] digits after the point or [MAX_OPERAND_INTEGER_DIGITS] before it. A query body's number is a
+ * `BigDecimal` of whatever exponent its text writes, `1e-500000000` in 12 characters, and a driver pays for its digits
+ * when it binds it (pgjdbc computes `10^scale`; a float column's text would write each digit out, #7070); so it is
+ * refused before any store is asked, as a number no storage orders is (`NaN`, the infinities). Any other value passes.
+ */
+internal fun Any?.requireStoredDigits(field: QueryField<*>) {
+    // As the JSON it writes as, which admission has already found it to have.
+    val value = jsonValue()
+    val digits = when {
+        value.isBigDecimal -> value.decimalValue()
+        value.isBigInteger -> BigDecimal(value.bigIntegerValue())
+        else -> return
+    }
+    val scale = digits.scale()
+    if (scale > MAX_OPERAND_SCALE || digits.precision() - scale > MAX_OPERAND_INTEGER_DIGITS) {
+        throw QueryViolation.StorageUnsupported(
+            "a numeric operand of more than $MAX_OPERAND_SCALE digits after the point or " +
+                "$MAX_OPERAND_INTEGER_DIGITS before it",
+            field,
+        ).rejection()
+    }
+}
