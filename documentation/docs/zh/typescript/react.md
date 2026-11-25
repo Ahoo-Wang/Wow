@@ -164,10 +164,10 @@ export function ShippedOrders({ orders }: { orders: OrderSnapshotQueryClient }) 
 
 每个 hook 都返回 `status`（`'idle' | 'loading' | 'success' | 'error'`）、`loading`、`result`（或 `items`）、`error`、`problem`，以及 `execute`、`abort`、`reset`、`getQuery` 和 `setQuery`。
 
-- hook 在挂载时以及查询或 `requestOptions`（scope、space、更多请求头）改变时（按内容比较）运行；`autoExecute: false` 让它只在 `execute()` 时运行。设为 `undefined` 的查询会中止在途的请求，让 hook 处于空闲状态。每次渲染都变的请求头值会让查询每次渲染都重新运行，所以要让这样的值保持稳定。
+- hook 在挂载时以及查询或 `requestOptions`（scope、space、更多请求头）改变时（按内容比较）运行；`autoExecute: false` 让它只在 `execute()` 时运行。查询或请求选项一变，就中止在途的请求，不论 `autoExecute`。设为 `undefined` 的查询会中止在途的请求，让 hook 处于空闲状态，游标 hook 的 `hasMore` 为假。每次渲染都变的请求头值会让查询每次渲染都重新运行，所以要让这样的值保持稳定。
 - 失败的请求或 `abort()` 会保留上一次的 `result`，所以失败的刷新不会让屏幕变空。
 - 在服务端渲染中，hook 渲染为 `loading` 且不发送任何请求；页面水合之后才运行查询。
-- `error` 是一个 `Error`。服务以 problem 应答时，`problem` 就是这个错误，一个带着 `code`、`status`、`violations` 和重试提示的 `WowProblemError`；没有服务应答的失败（例如网络错误）时它是 `undefined`。
+- `error` 是一个 `Error`；不是由本次运行自己的信号引起的 `AbortError` 也是失败。服务以 problem 应答时，`error` 是带着重试提示的 `WowProblemError`，`problem` 是它的 RFC 9457 体，与 wow-client 一致：它的 `code`、`status`、`detail` 和 `violations`；没有服务应答的失败（例如网络错误）时它是 `undefined`。
 
 ## 数据集 {#datasets}
 

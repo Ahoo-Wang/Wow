@@ -15,9 +15,9 @@
 
 import { expectTypeOf, it } from 'vitest';
 import type {
+  Problem,
   QueryModelClient,
   StreamResumeOptions,
-  WowProblemError,
 } from '@ahoo-wang/wow-client';
 import { useStreamQuery } from '../src';
 import type { UseStreamQueryOptions, UseStreamQueryReturn } from '../src';
@@ -32,11 +32,10 @@ it('returns the records of a stream as items, never the stream itself', () => {
   expectTypeOf<StreamReturn['position']>().toEqualTypeOf<string | undefined>();
   expectTypeOf<StreamReturn['done']>().toEqualTypeOf<boolean>();
   expectTypeOf<StreamReturn>().not.toHaveProperty('result');
-  // A failed request and an error event are both a WowProblemError.
+  // A failed request and an error event are both a WowProblemError, whose
+  // problem, the RFC 9457 body, is `problem`.
   expectTypeOf<StreamReturn['error']>().toEqualTypeOf<Error | undefined>();
-  expectTypeOf<StreamReturn['problem']>().toEqualTypeOf<
-    WowProblemError | undefined
-  >();
+  expectTypeOf<StreamReturn['problem']>().toEqualTypeOf<Problem | undefined>();
   expectTypeOf<NonNullable<UseStreamQueryOptions<Item, Fields>['onSuccess']>>()
     .parameter(0)
     .toEqualTypeOf<Item[]>();

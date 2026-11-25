@@ -42,7 +42,7 @@ export interface UseStreamQueryOptions<
    * Opens the stream for a query: a query client's `streamRows`, which
    * answers each record with its position.
    */
-  execute: StreamExecutor<R, Q>;
+  execute: StreamExecutor<Q, R>;
 }
 
 /**

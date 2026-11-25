@@ -253,7 +253,7 @@ describe('query state', () => {
     expect(server.requests).toHaveLength(2);
   });
 
-  it('sets the problem of a failed request as the error', async () => {
+  it('sets the error of a failed request, and its problem as the service wrote it', async () => {
     const server = fakeServer(() =>
       problem('wow.query.invalid', 'Invalid filter request body.'),
     );
@@ -270,10 +270,14 @@ describe('query state', () => {
     expect(result.current.loading).toBe(false);
     expect(result.current.result).toBeUndefined();
     expect(result.current.error).toBeInstanceOf(WowProblemError);
-    expect(result.current.problem).toBe(result.current.error);
+    // The problem is the RFC 9457 body, as in wow-client; the error carries it.
+    expect(result.current.problem).toBe(
+      (result.current.error as WowProblemError).problem,
+    );
     expect(onError).toHaveBeenCalledWith(result.current.error);
     expect(result.current.problem?.code).toBe('wow.query.invalid');
     expect(result.current.problem?.status).toBe(400);
+    expect(result.current.problem?.detail).toBe('Invalid filter request body.');
   });
 
   it('reads the problem of a fetcher error an execute rejects with', async () => {
@@ -293,9 +297,11 @@ describe('query state', () => {
       }),
     );
     await waitFor(() => expect(result.current.status).toBe('error'));
-    expect(result.current.problem).toBeInstanceOf(WowProblemError);
+    expect(result.current.error).toBeInstanceOf(WowProblemError);
     expect(result.current.problem?.code).toBe('wow.query.invalid');
-    expect(result.current.error).toBe(result.current.problem);
+    expect(result.current.problem).toBe(
+      (result.current.error as WowProblemError).problem,
+    );
   });
 
   it('reports a failure no service answered as the error, with no problem', async () => {

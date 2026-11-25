@@ -163,10 +163,10 @@ To go on where a stream stopped after the component remounts, keep `position` so
 
 Every hook returns `status` (`'idle' | 'loading' | 'success' | 'error'`), `loading`, `result` (or `items`), `error`, `problem`, and `execute`, `abort`, `reset`, `getQuery` and `setQuery`.
 
-- A hook runs on mount and whenever its query or its `requestOptions` (the scope, the space, more headers) changes, compared by content; `autoExecute: false` runs it only on `execute()`. A query set to `undefined` aborts the request in flight and leaves the hook idle. A header whose value changes on every render runs the query again on every render, so keep such values stable.
+- A hook runs on mount and whenever its query or its `requestOptions` (the scope, the space, more headers) changes, compared by content; `autoExecute: false` runs it only on `execute()`. A change of the query or the request options aborts the request in flight, `autoExecute` or not. A query set to `undefined` aborts the request in flight and leaves the hook idle, and a cursor hook's `hasMore` false. A header whose value changes on every render runs the query again on every render, so keep such values stable.
 - A failed request or `abort()` keeps the last `result`, so a failed refresh does not blank the screen.
 - In server rendering a hook renders as `loading` and sends nothing; the query runs once the page hydrates.
-- `error` is an `Error`. `problem` is the same error when the service answered with a problem, a `WowProblemError` with its `code`, `status`, `violations` and retry hint, and `undefined` for a failure no service answered, such as a network error.
+- `error` is an `Error`; an `AbortError` the run's own signal did not cause is a failure too. When the service answered with a problem, `error` is a `WowProblemError`, with the retry hint, and `problem` its RFC 9457 body, as in wow-client: its `code`, `status`, `detail` and `violations`; `undefined` for a failure no service answered, such as a network error.
 
 ## Datasets
 
