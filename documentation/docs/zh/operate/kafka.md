@@ -127,7 +127,7 @@ kafka-topics --bootstrap-server kafka:9092 --create --topic wow.eshop-ordering.o
 主题里也可能有 Wow 读不了的记录：
 
 - **这个版本读不了的信封**，例如更新的格式。它让自己的聚合停放，等运维处理；如果它的键没有指明聚合，就被跳过；两种情况都计入 `wow.subscription.undecodable.messages`。
-- **根本不是信封的记录。** 说明有别的生产者在写这个主题，最可能是同一个 broker 上的 9.x 服务：它的状态主题名为 `wow.<context>.<aggregate>.state`，与发布的事件流默认的名字相同。这是主题用错了，所以不停放任何东西：读取这个分区会失败，分区上的订阅停在这条记录之前，按退避重试，每次失败都记录主题、分区和偏移量。用 `wow.kafka.topics.prefix` 给 Wow 服务各自的主题（发布方和读取方的服务用同一个前缀），或者给它们单独的 broker，然后重启。
+- **根本不是信封的记录**，没有值的记录（tombstone）也在其内。说明有别的生产者在写这个主题，最可能是同一个 broker 上的 9.x 服务：它的状态主题名为 `wow.<context>.<aggregate>.state`，与发布的事件流默认的名字相同。这是主题用错了，所以不停放任何东西：读取这个分区会失败，分区上的订阅停在这条记录之前，按退避重试，每次失败都记录主题、分区和偏移量。主题的其他分区照常读取。用 `wow.kafka.topics.prefix` 给 Wow 服务各自的主题（发布方和读取方的服务用同一个前缀），或者给它们单独的 broker，然后重启。
 
 ## 客户端设置 {#client-settings}
 
