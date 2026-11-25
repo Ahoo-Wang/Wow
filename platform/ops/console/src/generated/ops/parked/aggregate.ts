@@ -12,6 +12,7 @@ export const ParkedAggregate = {
   name: 'parked',
   path: '/ops/parked',
   ownership: 'tenant',
+  idSource: 'assigned',
   snapshot: true,
   textNumbers: {
     state: { failedAt: true, fromPosition: true, nextRetryAt: true, recordedAt: true, resolvedAt: true, retryAt: true },

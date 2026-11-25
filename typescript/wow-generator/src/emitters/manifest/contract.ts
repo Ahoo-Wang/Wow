@@ -15,8 +15,8 @@ import { join } from 'node:path';
 import { relativeModuleSpecifier } from '../../emit/imports';
 import type { ModuleSet } from '../../emit/moduleBuilder';
 import type { AggregateModel, ContextModel } from '../../manifest/model';
-import { errorConstantName } from '../../manifest/names';
-import { camelCase, quoteStringLiteral } from '../../naming/naming';
+import { errorConstantName, memberName } from '../../manifest/names';
+import { quoteStringLiteral } from '../../naming/naming';
 import { addStatement, doc, union, WOW_CLIENT } from './generatedModule';
 
 /** An error of a context's Manifest, by the constant it is named by. */
@@ -154,18 +154,18 @@ export function emitContract(
   }
   const name = `${contract}.NAME`;
   const hops = [
-    `  /** Until a command of \`${context.name}\` passed admission. */\n  accepted: (): Hop => wait.accepted(${name}),`,
-    `  /** Until a command's events are appended to the log of \`${context.name}\`. */\n  committed: (): Hop => wait.committed(${name}),`,
-    `  /** Until the snapshot of \`${context.name}\` holds the commit. */\n  snapshot: (): Hop => wait.snapshot(${name}),`,
-    `  /** Until the store the snapshot queries of \`${context.name}\` read holds the commit. */\n  queryable: (): Hop => wait.queryable(${name}),`,
+    `${doc([`Until a command of \`${context.name}\` passed admission.`], '  ')}  accepted: (): Hop => wait.accepted(${name}),`,
+    `${doc([`Until a command's events are appended to the log of \`${context.name}\`.`], '  ')}  committed: (): Hop => wait.committed(${name}),`,
+    `${doc([`Until the snapshot of \`${context.name}\` holds the commit.`], '  ')}  snapshot: (): Hop => wait.snapshot(${name}),`,
+    `${doc([`Until the store the snapshot queries of \`${context.name}\` read holds the commit.`], '  ')}  queryable: (): Hop => wait.queryable(${name}),`,
   ];
   if (hasSubscriptions) {
     hops.push(
-      `  /** Until a subscription of \`${context.name}\` handled the commit. */\n  handled: (subscription: ${context.typeName}Subscription): Hop => wait.handled(subscription, ${name}),`,
+      `${doc([`Until a subscription of \`${context.name}\` handled the commit.`], '  ')}  handled: (subscription: ${context.typeName}Subscription): Hop => wait.handled(subscription, ${name}),`,
     );
   }
   addStatement(
     module,
-    `${doc([`The hops of a wait chain (\`Wow-Wait\`) in \`${context.name}\`.`])}export const ${camelCase(context.name)}Wait = {\n${hops.join('\n')}\n} as const;`,
+    `${doc([`The hops of a wait chain (\`Wow-Wait\`) in \`${context.name}\`.`])}export const ${memberName(context.name)}Wait = {\n${hops.join('\n')}\n} as const;`,
   );
 }

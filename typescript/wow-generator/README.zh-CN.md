@@ -76,7 +76,7 @@ pnpm exec wow-generator generate \
 生成成功时先输出警告（如有），最后输出一行摘要：
 
 ```text
-Generated 12 files into src/generated with /work/app/wow-generator.config.json, 1 warning
+Generated 12 files into src/generated with wow-generator.config.json, 1 warning
 ```
 
 ## 选项与退出码
@@ -130,7 +130,7 @@ http(s) 输入的响应不是 2xx 或超时都会失败。Swagger 2.0 文档会�
 存在；配置读不到、解析不了，或某个选项的形态不对，都会让本次生成失败，而不是退回默认值。
 生成器不认识的选项——例如拼错的 `apiClient`——会被逐个点名警告并忽略。
 
-摘要行会写出实际读取的配置的绝对路径，一次运行就能回答"我的配置生效了吗"；`--verbose` 还会
+摘要行会写出实际读取的配置相对于运行目录的路径，一次运行就能回答"我的配置生效了吗"；`--verbose` 还会
 写出解析出的设置：
 
 ```text

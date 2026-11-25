@@ -29,15 +29,16 @@ import { ts } from 'ts-morph';
  *
  * Diagnostics that depend on the modules the output directory resolves -
  * a missing package (2307), a missing export (2305) - are the project's to
- * report, and are left out.
+ * report, and are left out. Every syntax error is the generated code's own,
+ * whatever the project: a file that does not parse.
  */
 const INTEGRITY_DIAGNOSTICS = new Set([
   1117, 2300, 2304, 2308, 2315, 2393, 2395, 2440, 2451, 2456, 2503, 2552, 2749,
 ]);
 
 /**
- * Fails when generated code references a name it does not declare or import,
- * or declares one twice.
+ * Fails when generated code does not parse, references a name it does not
+ * declare or import, or declares one twice.
  *
  * This is a safety net under the emitters, which write every import
  * explicitly: the output must be the same whether or not its directory
@@ -50,8 +51,14 @@ const INTEGRITY_DIAGNOSTICS = new Set([
 export function verifyGeneratedCode(sourceFiles: readonly SourceFile[]): void {
   const problems: string[] = [];
   for (const sourceFile of sourceFiles) {
-    for (const diagnostic of sourceFile.getPreEmitDiagnostics()) {
-      if (!INTEGRITY_DIAGNOSTICS.has(diagnostic.getCode())) continue;
+    const syntax = sourceFile
+      .getProject()
+      .getProgram()
+      .getSyntacticDiagnostics(sourceFile);
+    const semantic = sourceFile
+      .getPreEmitDiagnostics()
+      .filter(diagnostic => INTEGRITY_DIAGNOSTICS.has(diagnostic.getCode()));
+    for (const diagnostic of [...syntax, ...semantic]) {
       if (diagnostic.getSourceFile() !== sourceFile) continue;
       const message = ts.flattenDiagnosticMessageText(
         diagnostic.compilerObject.messageText,

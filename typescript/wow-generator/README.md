@@ -88,7 +88,7 @@ The version follows Wow, so a minor release may contain breaking changes: keep t
 A successful run prints its warnings, if any, and one summary line:
 
 ```text
-Generated 12 files into src/generated with /work/app/wow-generator.config.json, 1 warning
+Generated 12 files into src/generated with wow-generator.config.json, 1 warning
 ```
 
 ## Options and exit codes
@@ -146,8 +146,8 @@ parsed, or declares an option with the wrong shape fails the run rather than
 degrading to defaults. Options the generator does not read - a misspelled
 `apiClient`, say - are warned about by name and ignored.
 
-The summary line names the absolute path of the configuration it read, so a
-run answers "did my configuration take effect?" on its own. `--verbose` also
+The summary line names the configuration it read, by its path relative to the
+working directory, so a run answers "did my configuration take effect?" on its own. `--verbose` also
 prints the settings it resolved to:
 
 ```text

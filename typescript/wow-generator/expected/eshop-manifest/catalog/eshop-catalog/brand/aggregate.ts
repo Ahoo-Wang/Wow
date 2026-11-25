@@ -12,6 +12,7 @@ export const BrandAggregate = {
   name: 'brand',
   path: '/eshop-catalog/brand',
   ownership: 'tenant',
+  idSource: 'assigned',
   snapshot: true,
   Errors: {
     /** 409: Another brand has this name. */

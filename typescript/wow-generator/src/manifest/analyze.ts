@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { camelCase, upperSnakeCase } from '../naming/naming';
+import { upperSnakeCase } from '../naming/naming';
 import { compareNames } from '../naming/order';
 import { type ManifestContext, type ManifestDocument } from './document';
 import {
@@ -21,7 +21,12 @@ import {
   routingCommands,
 } from './aggregates';
 import type { ContextModel, ManifestModel, TypeModel } from './model';
-import { contextTypeName, generatedNames } from './names';
+import {
+  checkGeneratedNames,
+  contextTypeName,
+  generatedNames,
+  memberName,
+} from './names';
 import { type Position, SchemaTypes } from './schemaTypes';
 import { serviceRouteModel } from './serviceRoutes';
 import { TextNumbers } from './textNumbers';
@@ -40,6 +45,7 @@ export function analyzeManifest(manifest: ManifestDocument): {
   model: ManifestModel;
   warnings: string[];
 } {
+  checkGeneratedNames(manifest);
   const types = new SchemaTypes(manifest.$defs ?? {});
   const contexts = manifest.contexts;
   const reach = new Map<string, string>();
@@ -85,8 +91,25 @@ export function analyzeManifest(manifest: ManifestDocument): {
       compareNames(left.name, right.name),
   );
 
+  // Each recursive type's marks under a name of its own: two types whose
+  // names differ only in case (`ABTree`, `Abtree`) take `aBTreeNumbers` and
+  // `abtreeNumbers`, and a name taken still is numbered.
+  const markNames = new Map<string, string>();
+  const takenMarks = new Set<string>();
+  const markName = (key: string): string => {
+    const known = markNames.get(key);
+    if (known !== undefined) return known;
+    const base = `${memberName(types.names.get(key) ?? key)}Numbers`;
+    let name = base;
+    for (let index = 2; takenMarks.has(name); index += 1) {
+      name = `${base}${index}`;
+    }
+    markNames.set(key, name);
+    takenMarks.add(name);
+    return name;
+  };
   const numbers = new TextNumbers(manifest.$defs ?? {}, key => ({
-    name: `${camelCase(types.names.get(key) ?? key)}Numbers`,
+    name: markName(key),
     file: `${reach.get(key)}/textNumbers.ts`,
   }));
   const contextModels = contexts

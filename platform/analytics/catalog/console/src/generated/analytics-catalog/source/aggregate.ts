@@ -12,6 +12,7 @@ export const SourceAggregate = {
   name: 'source',
   path: '/analytics-catalog/source',
   ownership: 'tenant',
+  idSource: 'assigned',
   snapshot: true,
 } as const;
 

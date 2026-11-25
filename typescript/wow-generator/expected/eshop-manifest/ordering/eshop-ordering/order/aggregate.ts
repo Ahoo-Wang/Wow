@@ -12,6 +12,7 @@ export const OrderAggregate = {
   name: 'order',
   path: '/eshop-ordering/order',
   ownership: 'owner',
+  idSource: 'assigned',
   snapshot: true,
   textNumbers: {
     state: { items: { '*': { unitPrice: true } }, totalAmount: true },

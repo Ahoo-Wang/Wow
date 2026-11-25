@@ -12,6 +12,7 @@ export const PaymentAggregate = {
   name: 'payment',
   path: '/eshop-payment/payment',
   ownership: 'owner',
+  idSource: 'assigned',
   snapshot: true,
   textNumbers: {
     state: { amount: true },

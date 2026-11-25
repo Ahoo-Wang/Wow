@@ -12,6 +12,7 @@ export const ProductAggregate = {
   name: 'product',
   path: '/eshop-catalog/product',
   ownership: 'tenant',
+  idSource: 'assigned',
   snapshot: true,
   textNumbers: {
     state: { price: true },
