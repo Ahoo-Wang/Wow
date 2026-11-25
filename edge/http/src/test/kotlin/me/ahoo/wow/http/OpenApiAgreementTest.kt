@@ -452,11 +452,14 @@ class OpenApiAgreementTest {
         }
         if (operation.command) {
             operation.send("If-Match of another version", headers = mapOf(WowHeaders.IF_MATCH to "\"99\""))
-            operation.send("a wait that ends at accepted", headers = mapOf(WowHeaders.WAIT to "accepted"))
-            operation.send(
-                "a wait that times out",
-                headers = mapOf(WowHeaders.WAIT to "handled(audit)", WowHeaders.WAIT_TIMEOUT to "50ms"),
-            )
+            ran { operation.send("a wait that ends at accepted", headers = mapOf(WowHeaders.WAIT to "accepted")) }
+            // No subscription `audit` runs: the wait cannot end before its timeout, whenever its command commits.
+            ran {
+                operation.send(
+                    "a wait that times out",
+                    headers = mapOf(WowHeaders.WAIT to "handled(audit)", WowHeaders.WAIT_TIMEOUT to "50ms"),
+                )
+            }
             operation.send("an event stream", headers = mapOf(HttpHeaders.ACCEPT to EVENT_STREAM))
             operation.send("a body that does not read", body = "[")
             node.appendGate = CompletableDeferred<Unit>().apply {
@@ -499,6 +502,26 @@ class OpenApiAgreementTest {
                 failure = null
             }
         }
+    }
+
+    /**
+     * [sent], a probe answered before its command may have run: at `accepted` (202), the command then runs detached,
+     * or when its wait timed out before the commit (504), the command then goes on. Waits until that command has run
+     * and the node holds none in flight. The node takes one command at a time, and refuses another meanwhile as busy
+     * (429): a probe sent next would otherwise get that 429 whenever the command is still running, as on a loaded
+     * machine, instead of the answer the probe is for (#6975).
+     */
+    private fun ran(sent: () -> Answer): Answer {
+        val before = node.executed.get()
+        val answer = sent()
+        if (answer.status == ACCEPTED || answer.status == GATEWAY_TIMEOUT) {
+            runBlocking {
+                withTimeout(10.seconds) {
+                    while (node.executed.get() == before || node.inFlight.inFlight > 0) delay(5)
+                }
+            }
+        }
+        return answer
     }
 
     /**
@@ -744,6 +767,7 @@ class OpenApiAgreementTest {
         const val COUNT = """{"kind":"count","filter":{"op":"match-all"}}"""
         const val LIST = """{"kind":"list","filter":{"op":"match-all"},"limit":10}"""
         const val OK = 200
+        const val ACCEPTED = 202
         const val NOT_MODIFIED = 304
         const val BAD_REQUEST = 400
         const val NOT_ACCEPTABLE = 406
@@ -751,6 +775,7 @@ class OpenApiAgreementTest {
         const val CONTENT_TOO_LARGE = 413
         const val UNSUPPORTED_MEDIA_TYPE = 415
         const val SERVICE_UNAVAILABLE = 503
+        const val GATEWAY_TIMEOUT = 504
 
         /** Over WebFlux's default in-memory limit, 256 KB. */
         const val LARGE = 300 * 1024
