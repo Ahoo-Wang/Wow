@@ -24,6 +24,7 @@ import me.ahoo.wow.spring.boot.http.DnsPeerDiscovery
 import me.ahoo.wow.spring.boot.observability.ObservabilityProperties
 import me.ahoo.wow.spring.boot.query.QueryProperties
 import org.junit.jupiter.api.Test
+import tools.jackson.databind.json.JsonMapper
 import java.nio.file.Path
 import java.util.ServiceLoader
 
@@ -84,6 +85,16 @@ class ConfigurationMetadataTest {
         committed.assert()
             .describedAs("Run with ${ConfigurationMetadata.UPDATE}=1 to rewrite ${ConfigurationMetadata.FILE}.")
             .isEqualTo(expected)
+    }
+
+    @Test
+    fun `a size's default should be in the metadata as an operator writes it, as the reference shows it (#6854)`() {
+        val metadata = JsonMapper.builder().build().readTree(
+            javaClass.getResource("/META-INF/spring-configuration-metadata.json")!!.readText(),
+        )
+        val maxBytes = metadata["properties"].single { it["name"].asString() == "wow.shared-states.max-bytes" }
+        maxBytes["defaultValue"]?.asString().assert().isEqualTo("64MB")
+        maxBytes["type"].asString().assert().isEqualTo("org.springframework.util.unit.DataSize")
     }
 
     @Test

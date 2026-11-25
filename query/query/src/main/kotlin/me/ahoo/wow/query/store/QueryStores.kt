@@ -106,6 +106,15 @@ class QueryStores(
             if (limits.isNotEmpty()) {
                 logger.info { "The query bounds of ${limits.map { it.bulkhead.store }} adapt to their writes." }
             }
+            val datasetBound = settings.datasets.maxConcurrent
+            configCheck(
+                datasetBound >= 0,
+                "wow.query.dataset.max-concurrent",
+                datasetBound,
+                "Set 0 for no bound, or more."
+            ) {
+                "wow.query.dataset.max-concurrent is $datasetBound, below 0."
+            }
             val datasets = settings.datasets.takeIf { it.maxConcurrent > 0 }?.let { dataset ->
                 QueryBulkhead(
                     store = DATASETS,

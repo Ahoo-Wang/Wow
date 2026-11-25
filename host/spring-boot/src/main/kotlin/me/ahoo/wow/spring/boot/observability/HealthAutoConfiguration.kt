@@ -41,6 +41,7 @@ import org.springframework.context.annotation.Bean
 import org.springframework.core.env.ConfigurableEnvironment
 import org.springframework.core.env.MapPropertySource
 import org.springframework.util.ClassUtils
+import kotlin.time.toKotlinDuration
 
 /**
  * The node's health in Spring Boot Actuator, when the application has Actuator's health support
@@ -76,6 +77,16 @@ class HealthAutoConfiguration {
             parkedDegradedAt,
             "Set it to at most wow.node.max-parked (${sampler.maxParked}), which the node counts parked entries up to.",
         ) { "wow.health.subscriptions.parked-degraded-at is $parkedDegradedAt, past wow.node.max-parked." }
+        // A stuck reconcile makes the node leave the members first, so it never restarts holding its leases (#6852).
+        val stallTimeout = properties.health.liveness.stallTimeout.toKotlinDuration()
+        val reconcileTimeout = node.options.cluster.reconcileTimeout
+        configCheck(
+            stallTimeout > reconcileTimeout,
+            "wow.health.liveness.stall-timeout",
+            stallTimeout,
+            "Set it longer than wow.cluster.reconcile-timeout ($reconcileTimeout), so a stuck node leaves the members " +
+                "before its liveness fails.",
+        ) { "wow.health.liveness.stall-timeout is $stallTimeout, not longer than wow.cluster.reconcile-timeout." }
         return NodeHealth(node, sampler, properties.health.options(properties.node.sampleInterval))
     }
 

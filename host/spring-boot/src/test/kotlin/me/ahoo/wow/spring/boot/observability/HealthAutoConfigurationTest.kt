@@ -21,6 +21,7 @@ import me.ahoo.wow.runtime.cluster.Refusal
 import me.ahoo.wow.runtime.health.NodeHealth
 import me.ahoo.wow.runtime.node.NodeSampler
 import me.ahoo.wow.runtime.node.ServiceNode
+import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spring.boot.WowProperties
 import org.junit.jupiter.api.Test
 import org.springframework.boot.SpringApplication
@@ -74,6 +75,25 @@ class HealthAutoConfigurationTest {
             readiness.health()!!.status.assert().isEqualTo(Status.DOWN)
             val liveness = context.getBean(HealthAutoConfiguration.LIVENESS_INDICATOR, HealthIndicator::class.java)
             liveness.health()!!.status.assert().isEqualTo(Status.UP)
+        }
+    }
+
+    @Test
+    fun `a liveness stall timeout not longer than the node's reconcile timeout should refuse the start (#6852)`() {
+        // The node's reconcile timeout is the default, one minute.
+        runner.withPropertyValues("wow.health.liveness.stall-timeout=60s").run { context ->
+            val failure = generateSequence(context.startupFailure) { it.cause }
+                .filterIsInstance<WowConfigurationException>().first()
+            failure.key.assert().isEqualTo("wow.health.liveness.stall-timeout")
+            // The message Operate › Upgrades quotes.
+            failure.message.assert().isEqualTo(
+                "wow.health.liveness.stall-timeout is 1m, not longer than wow.cluster.reconcile-timeout. Set it " +
+                    "longer than wow.cluster.reconcile-timeout (1m), so a stuck node leaves the members before its " +
+                    "liveness fails.",
+            )
+        }
+        runner.withPropertyValues("wow.health.liveness.stall-timeout=61s").run { context ->
+            context.startupFailure.assert().isNull()
         }
     }
 
