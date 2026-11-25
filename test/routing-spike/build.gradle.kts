@@ -6,6 +6,8 @@ dependencies {
     integrationTestImplementation("tools.jackson.module:jackson-module-kotlin")
     integrationTestImplementation(project(":tck-containers"))
     integrationTestImplementation("com.zaxxer:HikariCP")
+    // Stage2FragmentTest gives a node's assembly an in-process cluster channel.
+    integrationTestImplementation(testFixtures(project(":runtime")))
 }
 
 // Spike H2 runs only on demand: ./gradlew :routing-spike:integrationTest -Dwow-test.spike.h2=true
@@ -14,6 +16,11 @@ tasks.named<Test>("integrationTest") {
     listOf("wow-test.spike.h2", "wow-test.spike.h2.quick").forEach {
         systemProperty(it, providers.systemProperty(it).orElse("false").get())
     }
+    // Stage 2's fragment, which Stage2FragmentTest holds to its model on every run (#7006): an input of the task, so
+    // a change to it runs the test again rather than taking an earlier result from the cache.
+    val stage2Resources = file("src/stage2/resources")
+    inputs.dir(stage2Resources).withPropertyName("stage2Resources").withPathSensitivity(PathSensitivity.RELATIVE)
+    systemProperty("wow-test.h2.stage2.resources", stage2Resources.path)
     maxHeapSize = "4g"
 }
 
