@@ -17,6 +17,7 @@ import type { ModuleSet } from '../../emit/moduleBuilder';
 import type { ContextModel } from '../../manifest/model';
 import { CONTEXT_CLIENT_MEMBERS, classMembers } from '../../manifest/names';
 import { camelCase, resolvePropertyName } from '../../naming/naming';
+import { bodyNumbersOption } from './commandClient';
 import { addStatement, doc, WOW_CLIENT } from './generatedModule';
 
 /**
@@ -78,12 +79,19 @@ export function emitContextClient(
       `    this.routes = new ${context.typeName}Routes(options);`,
     );
   }
+  // The context's command client writes the exact numbers of every command's body unquoted, as each aggregate's does.
+  const bodyNumbers = bodyNumbersOption(context.aggregates, module, aggregate =>
+    relativeModuleSpecifier(
+      module.directoryPath,
+      join(outputDir, aggregate.directory, 'aggregate.ts'),
+    ),
+  );
   addStatement(
     module,
     `${doc([
       context.routes.length === 0
         ? `The clients of \`${context.name}\`: its command client, and per aggregate its command, query and state clients.`
         : `The clients of \`${context.name}\`: its command client, per aggregate its command, query and state clients, and its service routes.`,
-    ])}export class ${name} {\n  /** Sends any command of the service, by its Manifest's routes: \`send\`, \`wait\` and \`stream\`. */\n  readonly commands: CommandClient;\n\n${fields.join('\n\n')}\n\n  /** @param options - How the service is reached */\n  constructor(options?: WowClientOptions) {\n    this.commands = new CommandClient(options, { manifest: ${context.typeName}Manifest });\n${assignments.join('\n')}\n  }\n}`,
+    ])}export class ${name} {\n  /** Sends any command of the service, by its Manifest's routes: \`send\`, \`wait\` and \`stream\`. */\n  readonly commands: CommandClient;\n\n${fields.join('\n\n')}\n\n  /** @param options - How the service is reached */\n  constructor(options?: WowClientOptions) {\n    this.commands = new CommandClient(options, { manifest: ${context.typeName}Manifest${bodyNumbers} });\n${assignments.join('\n')}\n  }\n}`,
   );
 }

@@ -17,6 +17,7 @@ export const EshopCatalogManifest: RoutingManifest = {
             { name: 'wow.lifecycle.DeleteAggregate', routes: [{ method: 'DELETE', path: '/eshop-catalog/brand/{id}' }] },
             { name: 'wow.lifecycle.RestoreAggregate', routes: [{ method: 'POST', path: '/eshop-catalog/brand/{id}/wow.lifecycle.restore-aggregate' }] },
             { name: 'wow.lifecycle.TransferSpace', routes: [{ method: 'POST', path: '/eshop-catalog/brand/{id}/wow.lifecycle.transfer-space' }] },
+            { name: 'wow.snapshot.RebuildSnapshot', routes: [{ method: 'POST', path: '/eshop-catalog/brand/wow.snapshot.rebuild-snapshot' }] },
           ],
         },
         {
@@ -27,6 +28,7 @@ export const EshopCatalogManifest: RoutingManifest = {
             { name: 'wow.lifecycle.DeleteAggregate', routes: [{ method: 'DELETE', path: '/eshop-catalog/category/{id}' }] },
             { name: 'wow.lifecycle.RestoreAggregate', routes: [{ method: 'POST', path: '/eshop-catalog/category/{id}/wow.lifecycle.restore-aggregate' }] },
             { name: 'wow.lifecycle.TransferSpace', routes: [{ method: 'POST', path: '/eshop-catalog/category/{id}/wow.lifecycle.transfer-space' }] },
+            { name: 'wow.snapshot.RebuildSnapshot', routes: [{ method: 'POST', path: '/eshop-catalog/category/wow.snapshot.rebuild-snapshot' }] },
           ],
         },
         {
@@ -41,6 +43,7 @@ export const EshopCatalogManifest: RoutingManifest = {
             { name: 'wow.lifecycle.DeleteAggregate', routes: [{ method: 'DELETE', path: '/eshop-catalog/product/{id}' }] },
             { name: 'wow.lifecycle.RestoreAggregate', routes: [{ method: 'POST', path: '/eshop-catalog/product/{id}/wow.lifecycle.restore-aggregate' }] },
             { name: 'wow.lifecycle.TransferSpace', routes: [{ method: 'POST', path: '/eshop-catalog/product/{id}/wow.lifecycle.transfer-space' }] },
+            { name: 'wow.snapshot.RebuildSnapshot', routes: [{ method: 'POST', path: '/eshop-catalog/product/wow.snapshot.rebuild-snapshot' }] },
           ],
         },
       ],

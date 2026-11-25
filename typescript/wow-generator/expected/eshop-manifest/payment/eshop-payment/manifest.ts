@@ -19,6 +19,7 @@ export const EshopPaymentManifest: RoutingManifest = {
             { name: 'wow.lifecycle.RestoreAggregate', routes: [{ method: 'POST', path: '/eshop-payment/payment/{id}/wow.lifecycle.restore-aggregate' }] },
             { name: 'wow.lifecycle.TransferOwner', routes: [{ method: 'POST', path: '/eshop-payment/payment/{id}/wow.lifecycle.transfer-owner' }] },
             { name: 'wow.lifecycle.TransferSpace', routes: [{ method: 'POST', path: '/eshop-payment/payment/{id}/wow.lifecycle.transfer-space' }] },
+            { name: 'wow.snapshot.RebuildSnapshot', routes: [{ method: 'POST', path: '/eshop-payment/payment/wow.snapshot.rebuild-snapshot' }] },
           ],
         },
       ],

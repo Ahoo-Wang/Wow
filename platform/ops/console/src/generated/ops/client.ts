@@ -2,6 +2,7 @@
 
 import { CommandClient, type WowClientOptions } from '@ahoo-wang/wow-client';
 import { OpsManifest } from './manifest.js';
+import { ParkedAggregate } from './parked/aggregate.js';
 import { ParkedCommandClient } from './parked/commandClient.js';
 import { ParkedEventQueryClient, ParkedSnapshotQueryClient, ParkedStateClient } from './parked/queryClient.js';
 
@@ -20,7 +21,14 @@ export class OpsClient {
 
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {
-    this.commands = new CommandClient(options, { manifest: OpsManifest });
+    this.commands = new CommandClient(options, {
+      manifest: OpsManifest, bodyNumbers: {
+        'ops.parked.ApplyRetrySpec': ParkedAggregate.textNumbers.commands.ApplyRetrySpec,
+        'ops.parked.MarkRecoverable': ParkedAggregate.textNumbers.commands.MarkRecoverable,
+        'ops.parked.Retry': ParkedAggregate.textNumbers.commands.Retry,
+        'ops.parked.Skip': ParkedAggregate.textNumbers.commands.Skip,
+      }
+    });
     this.parked = {
       commands: new ParkedCommandClient(options),
       snapshots: new ParkedSnapshotQueryClient(options),

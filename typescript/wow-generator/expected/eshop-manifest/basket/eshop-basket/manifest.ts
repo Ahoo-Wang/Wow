@@ -20,6 +20,7 @@ export const EshopBasketManifest: RoutingManifest = {
             { name: 'wow.lifecycle.DeleteAggregate', routes: [{ method: 'DELETE', path: '/eshop-basket/basket/{id}' }, { method: 'DELETE', path: '/eshop-basket/basket' }] },
             { name: 'wow.lifecycle.RestoreAggregate', routes: [{ method: 'POST', path: '/eshop-basket/basket/{id}/wow.lifecycle.restore-aggregate' }, { method: 'POST', path: '/eshop-basket/basket/wow.lifecycle.restore-aggregate' }] },
             { name: 'wow.lifecycle.TransferSpace', routes: [{ method: 'POST', path: '/eshop-basket/basket/{id}/wow.lifecycle.transfer-space' }, { method: 'POST', path: '/eshop-basket/basket/wow.lifecycle.transfer-space' }] },
+            { name: 'wow.snapshot.RebuildSnapshot', routes: [{ method: 'POST', path: '/eshop-basket/basket/wow.snapshot.rebuild-snapshot' }] },
           ],
         },
       ],

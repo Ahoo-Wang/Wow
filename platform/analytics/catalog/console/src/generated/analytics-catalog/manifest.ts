@@ -19,6 +19,7 @@ export const AnalyticsCatalogManifest: RoutingManifest = {
             { name: 'RetireDataset', routes: [{ method: 'POST', path: '/analytics-catalog/dataset/{id}/retire-dataset' }] },
             { name: 'ReviseDataset', routes: [{ method: 'POST', path: '/analytics-catalog/dataset/{id}/revise-dataset' }] },
             { name: 'RollbackDataset', routes: [{ method: 'POST', path: '/analytics-catalog/dataset/{id}/rollback-dataset' }] },
+            { name: 'wow.snapshot.RebuildSnapshot', routes: [{ method: 'POST', path: '/analytics-catalog/dataset/wow.snapshot.rebuild-snapshot' }] },
           ],
         },
         {
@@ -30,6 +31,7 @@ export const AnalyticsCatalogManifest: RoutingManifest = {
             { name: 'MarkSourceReviewed', routes: [{ method: 'POST', path: '/analytics-catalog/source/{id}/mark-source-reviewed' }] },
             { name: 'ReviewSourceSensitivity', routes: [{ method: 'POST', path: '/analytics-catalog/source/{id}/review-source-sensitivity' }] },
             { name: 'ReviseSource', routes: [{ method: 'POST', path: '/analytics-catalog/source/{id}/revise-source' }] },
+            { name: 'wow.snapshot.RebuildSnapshot', routes: [{ method: 'POST', path: '/analytics-catalog/source/wow.snapshot.rebuild-snapshot' }] },
           ],
         },
       ],

@@ -2,6 +2,7 @@
 
 import { CommandClient, type WowClientOptions } from '@ahoo-wang/wow-client';
 import { EshopOrderingManifest } from './manifest.js';
+import { OrderAggregate } from './order/aggregate.js';
 import { OrderCommandClient } from './order/commandClient.js';
 import { OrderEventQueryClient, OrderSnapshotQueryClient, OrderStateClient } from './order/queryClient.js';
 
@@ -20,7 +21,12 @@ export class EshopOrderingClient {
 
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {
-    this.commands = new CommandClient(options, { manifest: EshopOrderingManifest });
+    this.commands = new CommandClient(options, {
+      manifest: EshopOrderingManifest, bodyNumbers: {
+        'eshop-ordering.order.PayOrder': OrderAggregate.textNumbers.commands.PayOrder,
+        'eshop-ordering.order.SubmitOrder': OrderAggregate.textNumbers.commands.SubmitOrder,
+      }
+    });
     this.order = {
       commands: new OrderCommandClient(options),
       snapshots: new OrderSnapshotQueryClient(options),
