@@ -144,7 +144,7 @@ A node keeps its log, snapshots, checkpoints, leases, failure ledger, reserved k
 | `mongo` | `wow-mongo` | a `com.mongodb.client.MongoClient` on a replica set: the host's of `spring.mongodb.uri`, or the application's bean; the database is `wow.mongo.database` |
 | `memory` | none | nothing: one node, whose data does not outlive it |
 
-`auto`, the default, takes PostgreSQL or MongoDB by the bean the application has. Without either, a node refuses to start, unless a development profile is active or `wow.internal.host` names a loopback address; then it runs in memory and says so. The eShop's ordering service moves to PostgreSQL with its `postgres` profile:
+`auto`, the default, takes PostgreSQL or MongoDB by the bean the application has. Without either, a node refuses to start, unless a development profile is active; then it runs in memory and says so. The eShop's ordering service moves to PostgreSQL with its `postgres` profile:
 
 <!-- sample: examples/eshop/ordering/ordering-server/src/main/resources/application.yaml#postgres -->
 

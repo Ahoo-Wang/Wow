@@ -111,7 +111,7 @@ Spring Boot Actuator on the class path gives the node's health to the readiness 
 | `postgres`, `mongo`, or a community store provider's type | Takes that backend, and refuses to start when the application lacks what it needs |
 | `memory` | Keeps everything in memory, on purpose: one node, whose data does not outlive it |
 
-With `auto` and neither bean, the node refuses to start, unless a development profile is active (`wow.dev-profiles`) or `wow.internal.host` names a loopback address; it then runs in memory and warns. A production node never falls back to memory by accident.
+With `auto` and neither bean, the node refuses to start, unless a development profile is active (`wow.dev-profiles`); it then runs in memory and warns. An address states no development: a loopback `wow.internal.host` does not make a node one. A production node never falls back to memory by accident.
 
 A service whose aggregates keep their data in different stores names store instances under `wow.stores.<name>` (each with its `type`, such as `postgres`, `mongo`, `elasticsearch` or `memory`, and the bean it runs on) and places each aggregate type's log and snapshots on them: `wow.log.store`, `wow.snapshot.store`, and per type `wow.aggregates.[<context>.<aggregate>].log.store` and `.snapshot.store`. A type whose `query.snapshot.store` names another store keeps a copy of its snapshots there for its queries. [PostgreSQL](../operate/postgresql) shows a layout. A type whose `query.events.store` names an Elasticsearch store has its events indexed there by a sink the host starts by itself ([Elasticsearch](../operate/elasticsearch#store-combinations)). [Choose the Stores](../operate/choosing-storage) says which store to use for what: MongoDB by default, and a search copy on Elasticsearch beside it.
 
@@ -124,7 +124,7 @@ The host takes these from the application when it defines them, and falls back t
 | Bean | Does |
 | --- | --- |
 | Domain services | The parameters of command functions and processors, by type, or by name with `@Name` |
-| `CallerResolver` | Turns the authenticated principal into the caller. Without one, the host reads the development headers in a development profile, serves the anonymous caller when `wow.internal.host` names a loopback address, and does not start anywhere else |
+| `CallerResolver` | Turns the authenticated principal into the caller. Without one, the host reads the development headers in a development profile, and does not start anywhere else, whatever address it binds |
 | `CommandAuthorizer` | Says whether it objects to the caller sending a command to an aggregate |
 | `ReadAuthorizer` | Says whether it objects to the caller reading a model at all: a query, a state read or a trace, before anything is read ([Authorize reads](../operate/security#authorize-reads)) |
 | `CommandTransformer`, `CommandValidator` | Change or check a command before it is decided |
@@ -152,6 +152,6 @@ An environment variable under a Wow group, such as `WOW_KAFKA_…`, is checked t
 
 ## Run it
 
-`./gradlew bootRun`, or the application's main function, starts a node. Without a `DataSource` or `MongoClient`, it keeps the data in memory, which only a development profile or a loopback `wow.internal.host` allows. Without Kafka, it starts anywhere as long as nothing it does needs topics, and says at startup that it publishes no stream; in development it keeps its topics in its JVM instead ([When a service needs Kafka](../operate/kafka#when-a-service-needs-kafka)). [Deployment Model](../operate/topology) describes what a production service needs.
+`./gradlew bootRun`, or the application's main function, starts a node. Without a `DataSource` or `MongoClient`, it keeps the data in memory, which only a development profile allows. Without Kafka, it starts anywhere as long as nothing it does needs topics, and says at startup that it publishes no stream; in development it keeps its topics in its JVM instead ([When a service needs Kafka](../operate/kafka#when-a-service-needs-kafka)). [Deployment Model](../operate/topology) describes what a production service needs.
 
 Every route of the public port is authenticated, `GET /wow/manifest` and `GET /wow/openapi` included: a request with no caller is answered 401 (`wow.auth.unauthenticated`). In development, a request names its caller with the development identity headers ([Who the caller is](./http#who-the-caller-is)). A node in the `cosec` profile, behind the CoSec gateway, believes the `CoSec-Identity` header the gateway forwards: a local client or a test that calls it directly sends the identity a gateway would, `CoSecIdentity("alice", listOf("buyer")).headers()` of `wow-cosec`, written as CoSec documents the header ([Put the gateway in front](../operate/security#put-the-gateway-in-front)).

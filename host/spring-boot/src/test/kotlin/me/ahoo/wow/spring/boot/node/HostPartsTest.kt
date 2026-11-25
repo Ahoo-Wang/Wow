@@ -101,16 +101,12 @@ class BackendSelectionTest {
     }
 
     @Test
-    fun `a development profile or a loopback internal port should opt in to memory`() {
+    fun `a development profile, and nothing else, should opt in to memory`() {
         val dev = setOf("dev", "test")
-        BackendSelection.memoryOptIn(listOf("prod", "test"), dev, "10.0.0.1").assert().isEqualTo("profile test")
-        BackendSelection.memoryOptIn(listOf("prod"), dev, "127.0.0.1").assert()
-            .isEqualTo("internal port on loopback 127.0.0.1")
-        BackendSelection.memoryOptIn(emptyList(), dev, "::1").assert().isNotNull()
-        BackendSelection.memoryOptIn(listOf("prod"), dev, "10.0.0.1").assert().isNull()
-        BackendSelection.memoryOptIn(listOf("prod"), dev, "0.0.0.0").assert().isNull()
-        BackendSelection.memoryOptIn(emptyList(), dev, null).assert().isNull()
-        BackendSelection.memoryOptIn(emptyList(), dev, "no-such-host.invalid").assert().isNull()
+        BackendSelection.memoryOptIn(listOf("prod", "test"), dev).assert().isEqualTo("profile test")
+        BackendSelection.memoryOptIn(listOf("dev", "test"), dev).assert().isEqualTo("profile dev, test")
+        BackendSelection.memoryOptIn(listOf("prod"), dev).assert().isNull()
+        BackendSelection.memoryOptIn(emptyList(), dev).assert().isNull()
     }
 
     @Test

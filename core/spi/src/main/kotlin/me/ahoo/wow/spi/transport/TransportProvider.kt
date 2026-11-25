@@ -78,8 +78,7 @@ interface TopicTransport : AutoCloseable {
 /**
  * What a [TransportProvider] opens a transport from: its [name] and [type], its own settings ([settings], each key
  * relative to the transport's configuration, `bootstrap-servers` say), the application's [resources], and whether the
- * node runs for [development] (a profile of `wow.dev-profiles` is active, or the operator named a loopback address alone
- * for its internal port): a provider may say less then.
+ * node runs for [development] (a profile of `wow.dev-profiles` is in effect): a provider may say less then.
  *
  * Fields may be added: the host builds it, so the constructor is internal to Wow; a provider's test
  * builds one with [of].

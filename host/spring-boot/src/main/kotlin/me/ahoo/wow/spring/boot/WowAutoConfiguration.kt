@@ -100,7 +100,7 @@ import tools.jackson.databind.json.JsonMapper
  * - **Backend** ([NodeStores]; `wow.backend`, [BackendSelection]; each store opened by the [StoreProvider] of its type,
  *   [StoreProviders]): PostgreSQL over the application's `DataSource`, MongoDB over its
  *   `MongoClient`, in memory (one node, with a warning) when `wow.backend=memory`, or when it has neither and runs in
- *   a development profile or on a loopback internal port the operator named (it refuses to start otherwise), or the
+ *   a profile of `wow.dev-profiles` (it refuses to start otherwise), or the
  *   application's own [BackendFactory] bean. With `wow.stores`, the named store instances instead ([StoreInstances]), each aggregate's
  *   log and snapshots on the store `wow.log.store`, `wow.snapshot.store` and its `wow.aggregates.*` name
  *   ([StoreLayout]).
@@ -116,8 +116,8 @@ import tools.jackson.databind.json.JsonMapper
  *   `wowAggregateIdGenerator` bean (the global generator's ids unless replaced); the fixed tenants of
  *   `wow.aggregates.*.tenant`, and `wow.wait.default-timeout`, the node's default wait timeout for every entry.
  * - **Ports** ([NodePublicPort], [NodeInternalPort]): the public routes ([wowRoutes]) on the application's WebFlux server, authenticated by its
- *   [CallerResolver] (without one, the development callers in a development profile, the anonymous caller on a
- *   loopback internal port the operator named, and no start elsewhere); the cluster channel and the wait signals
+ *   [CallerResolver] (without one, the development callers in a profile of `wow.dev-profiles`, and no start
+ *   elsewhere, whatever address the ports bind); the cluster channel and the wait signals
  *   ([internalRoutes]) on an [InternalPort] of their own at `wow.internal.port`, never on the public server, the
  *   node's address learned once it is bound when the port is 0; [HttpClusterChannel] and [HttpSignalSender] share
  *   one JDK client. Each request
@@ -214,8 +214,8 @@ class WowAutoConfiguration {
     fun wowRoutesScope(): RoutesScope = RoutesScope()
 
     /**
-     * Whether the node runs for development (a profile of `wow.dev-profiles`, or a loopback internal port the operator
-     * named): the one exemption of the host's safeguards ([DevelopmentMode]).
+     * Whether the node runs for development (a profile of `wow.dev-profiles`, and nothing else): the one exemption of
+     * the host's safeguards ([DevelopmentMode]).
      */
     @Bean
     @InternalWowApi

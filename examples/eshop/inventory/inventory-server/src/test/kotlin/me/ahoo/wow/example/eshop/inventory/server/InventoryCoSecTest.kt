@@ -33,7 +33,7 @@ class InventoryCoSecTest {
     @Test
     @OptIn(ExperimentalWowApi::class) // wow-cosec is experimental in 10.0
     fun `behind the gateway the caller should be CoSec's`() {
-        wowServer<InventoryServer>("cosec", properties = ONLY_GATEWAY_CAN_REACH).use { server ->
+        wowServer<InventoryServer>("cosec", properties = ONLY_GATEWAY_CAN_REACH + DEPLOYED_IN_MEMORY).use { server ->
             server.bean<CallerResolver>().assert().isInstanceOf(CoSecCallerResolver::class.java)
         }
     }
@@ -51,7 +51,7 @@ class InventoryCoSecTest {
             wowServer<InventoryServer>(properties = mapOf("wow.internal.host" to "0.0.0.0")).close()
         }
         generateSequence<Throwable>(failure) { it.cause }.mapNotNull { it.message }.joinToString("\n")
-            .assert().contains("No durable backend", "A development profile")
+            .assert().contains("No durable backend", "wow.dev-profiles")
     }
 }
 
@@ -62,3 +62,9 @@ class InventoryCoSecTest {
  */
 @OptIn(ExperimentalCoSecApi::class) // CoSec's test kit is experimental in 8.0.
 private val ONLY_GATEWAY_CAN_REACH: Map<String, Any> = mapOf(IdentityHeader.ONLY_GATEWAY_CAN_REACH_KEY to "true")
+
+/**
+ * A node behind the gateway is a deployment, development being a profile of `wow.dev-profiles` alone (#6972): its
+ * backend in memory, named on purpose, as a deployment of one node may.
+ */
+private val DEPLOYED_IN_MEMORY: Map<String, Any> = mapOf("wow.backend" to "memory")

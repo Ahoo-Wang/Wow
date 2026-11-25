@@ -30,11 +30,11 @@ private val server = wowServer<OrderingServer>(
 )
 ```
 
-- The fixture binds both ports on the loopback interface at free ports. On a loopback-only internal port and without a store bean, the node runs on the memory backend, which serves the snapshot and events queries from memory unless `wow.query.memory.enabled` is `false`.
+- The fixture binds both ports on the loopback interface at free ports. That states nothing of development: a test server runs as its profiles say, as a deployment does. In a development profile (`dev`, as above) and without a store bean, the node runs on the memory backend, which serves the snapshot and events queries from memory unless `wow.query.memory.enabled` is `false`. Without one, it refuses what a deployment refuses: no durable backend, no `CallerResolver`, topics in memory.
 - It shortens the timeouts a node waits on at its close (`wow.cluster.drain-timeout`, `wow.subscription.stop-timeout`), so the shutdown between test classes is quick; `properties` add the test's own, here `wow.timers.poll-interval=200ms`, which fires scheduled commands promptly.
 - The application's own settings shorten what the test waits for: here the payment grace period, two seconds instead of thirty minutes.
 
-The ordering's sagas send the inventory's commands, so the node needs a command transport. A test server needs nothing for it: its internal port is on the loopback interface, so the node runs for development, and `wow.transport=auto` keeps its command topics and published streams in its JVM unless the application configures a transport. A test that writes to the topics before the node starts, such as another context's published stream a saga reads from its beginning, or servers that share topics, gives them with `topics`:
+The ordering's sagas send the inventory's commands, so the node needs a command transport. A test server in a development profile needs nothing for it: `wow.transport=auto` keeps its command topics and published streams in its JVM unless the application configures a transport. The kit adds no profile of its own: a server started without one has no topics in memory. A test that writes to the topics before the node starts, such as another context's published stream a saga reads from its beginning, or servers that share topics, gives them with `topics`:
 
 <!-- sample: test/test-spring-boot/src/test/kotlin/me/ahoo/wow/test/server/TestTopicsTest.kt#topics -->
 
@@ -53,7 +53,7 @@ fun `servers given the same topics should share them, which outlive each`() {
 }
 ```
 
-- The node takes the topics it is given in place of its own, with `wow.transport=memory`, and leaves them open when it closes, so they outlive each server that shares them.
+- The node takes the topics it is given in place of its own, with `wow.transport=memory`, and leaves them open when it closes, so they outlive each server that shares them. Topics in memory are a development node's alone: a server given `topics` without a development profile refuses to start, naming `wow.dev-profiles`; the kit adds no profile by itself.
 - `server.bean<InMemoryTopics>()` is a node's topics, given or its own, to read what its sagas sent and its streams published.
 
 A test then drives the service with its typed clients ([Send and read as a caller](#send-and-read-as-a-caller)): it waits to the end of a saga's chain where a wait plan reaches it, and polls for what none does. An order whose stock is confirmed and that is not paid cancels itself when its scheduled command is due:

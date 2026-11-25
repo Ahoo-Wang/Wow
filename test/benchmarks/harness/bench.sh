@@ -45,7 +45,7 @@
 #          --heap=1g --jfr (a flight recording per server) --settle=<s> (after the nodes are up), --install=<dir> (the
 #          server's installed distribution, by default this tree's server/build/install/benchmark-server: another
 #          build, such as a baseline's, or test/benchmarks/axon-server/build/install/axon-server for the Axon
-#          comparison), --server-args="<args>" (more arguments for every server, such as --wow.transport=memory),
+#          comparison), --server-args="<args>" (more arguments for every server, such as --wow.transport=none),
 #          --server-java=<JDK home> (the servers' JDK, 21 at least, for a runtime calibration; by default JAVA_HOME's),
 #          --no-bus (no Kafka: for servers that use none, such as a Wow node with --wow.transport=none, and Axon's),
 #          --seed-concurrency=32 (accounts opened at once), --seed-unnamed (up only: the accounts are opened without
@@ -284,7 +284,8 @@ start_node() {
   install=$(opt install "$REPO/test/benchmarks/server/build/install/benchmark-server")
   local launcher
   launcher=$(server_launcher "$install")
-  # --server-args: more arguments for every server, separated by spaces (--wow.transport=memory).
+  # --server-args: more arguments for every server, separated by spaces (--wow.transport=none: the servers run in
+  # production profiles, which refuse topics in memory).
   local extra
   read -r -a extra <<<"$(opt server-args "")"
   pin server-cpus

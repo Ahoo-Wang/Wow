@@ -62,9 +62,11 @@ dependencies {
     // CoSec's statement, for a test of the `cosec` profile, that only the gateway reaches it (IdentityHeader).
     testImplementation(libs.cosec.testkit)
     // The integration tests run the service in their JVM on PostgreSQL and ClickHouse in containers, its command
-    // topics in its JVM: the snapshot queries and the sales dataset (decision D204).
+    // topics in its JVM: the snapshot queries and the sales dataset (decision D204); and behind the CoSec gateway as
+    // deployed, its commands across contexts on Kafka in a container (#6972).
     integrationTestImplementation("org.testcontainers:testcontainers-postgresql")
     integrationTestImplementation("org.testcontainers:testcontainers-clickhouse")
+    integrationTestImplementation("org.testcontainers:testcontainers-kafka")
 }
 
 // `./gradlew :eshop-ordering-server:run` is a local run: the `dev` profile joins whatever profiles `--args` activates,

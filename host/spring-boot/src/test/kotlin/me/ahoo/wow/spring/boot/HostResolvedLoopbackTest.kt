@@ -42,7 +42,9 @@ class HostResolvedLoopbackTest {
     private val resolved = "wow.internal.host" to ""
 
     private fun refusal(vararg properties: Pair<String, Any>, sources: List<Class<*>>): WowConfigurationException {
-        val failure = assertThrows<Exception> { startHost(resolved, *properties, sources = sources).close() }
+        val failure = assertThrows<Exception> {
+            startHost(resolved, NO_DEVELOPMENT, *properties, sources = sources).close()
+        }
         return generateSequence<Throwable>(failure) { it.cause }.filterIsInstance<WowConfigurationException>().first()
     }
 

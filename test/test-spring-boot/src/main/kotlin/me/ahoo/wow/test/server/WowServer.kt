@@ -71,11 +71,14 @@ inline fun <reified App : Any> wowServer(
  * a null value leaves a key out. A [clock] is the node's: every wall time it and its stores read, so a test fixes or
  * moves time in one place.
  *
- * Its topics are in its JVM with no configuration: its internal port on the loopback interface makes it a node in
- * development, so `wow.transport=auto` keeps its command topics and published streams in memory unless the
- * application configures a transport. [topics] are those topics, given, when a test writes to them before the node
- * starts (another context's published stream, say) or servers share them: the node takes them in place of its own,
- * with `wow.transport=memory`, and leaves them open when it closes.
+ * It runs as its profiles say, as a deployment does: a node in development only in a profile of `wow.dev-profiles`
+ * (`dev`) its test states, never by its loopback ports. In development it keeps its data in memory without a durable
+ * backend, takes its callers from the development headers without a `CallerResolver`, and keeps its topics in its JVM
+ * (`wow.transport=auto` with no transport configured). Without such a profile it refuses what a deployment refuses: no
+ * durable backend, no `CallerResolver`, topics in memory. The kit adds no profile of its own. [topics] are those
+ * topics, given, when a test writes to them before the node starts (another context's published stream, say) or
+ * servers share them: the node takes them in place of its own, with `wow.transport=memory`, which only a development
+ * node may, and leaves them open when it closes.
  *
  * ```kotlin
  * val topics = InMemoryTopics().apply { runBlocking { send("wow.eshop-ordering.order.state", listOf(message)) } }

@@ -33,18 +33,20 @@ import org.springframework.core.env.StandardEnvironment
 
 /**
  * DX gap G27: `wow.transport` gives a node in development its topics in its JVM, for trying a service out without
- * Kafka; the runner's node is in development (a loopback internal port) unless a test binds it elsewhere.
+ * Kafka; the runner's node is in development (the `dev` profile), the deployment's is not, whatever it binds.
  */
 class HostInMemoryTopicsTest {
-    private val runner = ApplicationContextRunner()
+    private val deployment = ApplicationContextRunner()
         .withConfiguration(AutoConfigurations.of(InMemoryTopicsAutoConfiguration::class.java))
         .withBean(Manifest::class.java, { Manifest(service = ServiceInfo("bank-service")) })
         .withBean(StateMasks::class.java, { PayloadMasks.NONE })
-        .withPropertyValues("wow.internal.host=127.0.0.1")
+
+    private val runner = deployment.withPropertyValues("spring.profiles.active=dev")
 
     @Test
-    fun `outside development nothing should be wired`() {
-        runner.withPropertyValues("wow.internal.host=0.0.0.0").run { context ->
+    fun `outside development nothing should be wired, a loopback internal port included`() {
+        // A loopback port states no development (#6972).
+        deployment.withPropertyValues("wow.internal.host=127.0.0.1").run { context ->
             context.getBeansOfType(InMemoryTopics::class.java).assert().isEmpty()
             context.getBeansOfType(SourceTopics::class.java).assert().isEmpty()
         }
@@ -72,7 +74,7 @@ class HostInMemoryTopicsTest {
         ApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(InMemoryTopicsAutoConfiguration::class.java))
             .withBean(Manifest::class.java, { Manifest(service = ServiceInfo("bank-service")) })
-            .withPropertyValues("wow.internal.host=127.0.0.1")
+            .withPropertyValues("spring.profiles.active=dev")
             .run { context ->
                 generateSequence(context.startupFailure) { it.cause }.joinToString { it.message.orEmpty() }.assert()
                     .contains(StateMasks::class.java.name)

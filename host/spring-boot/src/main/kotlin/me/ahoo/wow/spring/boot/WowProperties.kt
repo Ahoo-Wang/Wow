@@ -83,20 +83,20 @@ class WowProperties {
     var contexts: ContextsProperties = ContextsProperties()
 
     /**
-     * The profiles in which the node runs for development, as it does when the operator names a loopback address alone
-     * for its internal port (`wow.internal.host`): `wow.backend=auto` falls back to memory when no durable backend is
-     * available, the public port serves without a `CallerResolver` bean, a single Kafka broker gives no durability
-     * warning, and a platform service may take its callers from request headers. None of them is allowed in a
-     * deployment. In one of these profiles the internal port binds `127.0.0.1` unless `wow.internal.host` or
-     * `wow.node.address` names another address.
+     * The profiles in which the node runs for development, its one statement: an address states nothing, so a node
+     * whose `wow.internal.host` is a loopback address, without such a profile, is a deployment. In development
+     * `wow.backend=auto` falls back to memory when no durable backend is available, the public port serves without a
+     * `CallerResolver` bean, a single Kafka broker gives no durability warning, and a platform service may take its
+     * callers from request headers. None of them is allowed in a deployment. In one of these profiles the internal
+     * port binds `127.0.0.1` unless `wow.internal.host` or `wow.node.address` names another address.
      */
     var devProfiles: MutableSet<String> = linkedSetOf("dev", "local", "test", "demo")
 
     /**
      * The backend of a node that names no `wow.stores`: `auto` (the default) takes PostgreSQL or MongoDB by the
      * application's `DataSource` or `MongoClient`, and refuses to start without either, so that data is not lost by
-     * mistake, unless a profile of `wow.dev-profiles` is active or `wow.internal.host` names a loopback
-     * address; `memory` keeps the data in memory on purpose, for one node whose data does not outlive it.
+     * mistake, unless a profile of `wow.dev-profiles` is active; `memory` keeps the data in memory on purpose, for
+     * one node whose data does not outlive it.
      * `postgres`, `mongo` or the type of a community backend's store provider (`me.ahoo.wow.spi.store.StoreProvider`)
      * name one.
      */
@@ -206,7 +206,7 @@ class WowProperties {
     /**
      * The node's topic transport: `auto` (the default) takes the transport a provider finds configured (Kafka with
      * `wow.kafka.bootstrap-servers`); without one, the topics are in the node's JVM when it runs for development (a
-     * profile of `wow.dev-profiles`, or a loopback `wow.internal.host`), and otherwise it has none: the node then publishes no
+     * profile of `wow.dev-profiles`), and otherwise it has none: the node then publishes no
      * stream, and refuses to start when it needs topics (topic routing, command intake, ledger publishing set to true).
      * `memory` keeps the topics in the JVM on purpose, for development alone; `none` gives the node no topics in any
      * profile, whatever is configured, with the same refusal; `kafka`, or a community provider's type, names the

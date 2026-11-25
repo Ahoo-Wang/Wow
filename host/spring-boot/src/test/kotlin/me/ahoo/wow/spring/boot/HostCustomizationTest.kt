@@ -225,11 +225,15 @@ class HostRefusalTest {
     @Test
     fun `auto without a durable backend should be refused outside a development node`() {
         // Review R3.5-1: the node started in memory with a warning, and lost its commands on a restart.
-        refusal("wow.internal.host" to "0.0.0.0").assert()
+        refusal("wow.internal.host" to "0.0.0.0", NO_DEVELOPMENT).assert()
             .contains("No durable backend").contains("name the memory backend")
+        // A loopback internal port states no development (#6972): it is refused as well.
+        refusal("wow.internal.host" to "127.0.0.1", NO_DEVELOPMENT).assert()
+            .contains("No durable backend").contains("wow.dev-profiles")
         startHost(
             "wow.internal.host" to "0.0.0.0",
             "wow.backend" to "memory",
+            NO_DEVELOPMENT,
             // A node outside development needs a caller resolver (decision D301).
             sources = listOf(HostTestApp::class.java, AnonymousCallers::class.java),
         ).use { it.context.getBean(HostBackends::class.java).type.assert().isEqualTo("memory") }

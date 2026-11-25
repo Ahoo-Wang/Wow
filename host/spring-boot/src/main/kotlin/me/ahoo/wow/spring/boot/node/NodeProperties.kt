@@ -69,7 +69,7 @@ class InternalProperties {
      * The address the internal server binds, `0.0.0.0` for every interface; when not set, the host of
      * `wow.node.address`, else `127.0.0.1` in a profile of `wow.dev-profiles`, else the address this host's name
      * resolves to, which refuses the start when it is a public address: the port takes no credential. A loopback address
-     * named here makes the node a development one.
+     * named here binds the loopback interface and states nothing more: development is a profile of `wow.dev-profiles`.
      */
     var host: String? = null
 
