@@ -18,6 +18,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.kernel.HandlerRetry
+import me.ahoo.wow.kernel.RetryDefaults
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 import me.ahoo.wow.spi.subscription.SubscriptionId
@@ -65,13 +66,7 @@ class RetryPolicy @InternalWowApi constructor(
     }
 
     /** The wait after [failures] failed calls (1 for the first). */
-    fun backoff(failures: Int): Duration {
-        var backoff = initialBackoff
-        repeat(failures - 1) {
-            backoff = (backoff * multiplier).coerceAtMost(maxBackoff)
-        }
-        return backoff
-    }
+    fun backoff(failures: Int): Duration = RetryDefaults.backoff(initialBackoff, maxBackoff, multiplier, failures)
 
     override fun equals(other: Any?): Boolean =
         this === other || other is RetryPolicy && valueFields() == other.valueFields()
@@ -255,7 +250,7 @@ private const val DEFAULT_MAX_CATCH_UPS = 2
  * to Wow.
  */
 class BackpressureOptions @InternalWowApi constructor(
-    val maxAttempts: Int = 20,
+    val maxAttempts: Int = RetryDefaults.BACKPRESSURE_MAX_ATTEMPTS,
     val initialBackoff: Duration = 100.milliseconds,
     val maxBackoff: Duration = 10.seconds,
     val jitter: Double = 0.5,

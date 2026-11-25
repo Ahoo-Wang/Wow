@@ -171,10 +171,13 @@ class AggregateSpec<S : Any> private constructor(
     }
 
     /**
-     * Moves the time on by [duration], then sends the aggregate each command it scheduled for itself that is due by
-     * then, earliest first, as the runtime would. Without [expect] it never fails, whether or not a
-     * command was due. [expect] checks the outcome of the last one sent, and fails when none was due: use
-     * [expectNothingDue] to show that none is, after a schedule was cancelled, say.
+     * Moves the time on by [duration], then sends each command the aggregate scheduled that is due by then, earliest
+     * first, and settles its timer, as a node does with its default retry: a send whose decision throws leaves the
+     * timer PENDING, due again after the backoff, and PARKED at its last attempt. A command for another context's
+     * aggregate is sent there, deciding nothing here; one for another aggregate of the context fails the specification,
+     * which cannot decide it. Without [expect] it fails on none of the sends, whether or not a command was due. [expect]
+     * checks the outcome of the last one the aggregate decided, and fails when none was due: use [expectNothingDue] to
+     * show that none is, after a schedule was cancelled, say.
      */
     fun advanceTime(duration: Duration, expect: (Expectations<S>.() -> Unit)? = null) = step("advanceTime($duration)") {
         val fired = tick(duration)
@@ -289,6 +292,8 @@ class AggregateSpec<S : Any> private constructor(
                 operator = operator,
             )
             check(log.append(stream) is AppendOutcome.Committed) { "Could not commit the given events." }
+            // As a node's timers subscription keeps the schedules of every stream, a given one included.
+            timers.record(stream)
         }
     }
 
