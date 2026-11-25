@@ -14,7 +14,12 @@
 import { camelCase, upperSnakeCase } from '../naming/naming';
 import { compareNames } from '../naming/order';
 import { type ManifestContext, type ManifestDocument } from './document';
-import { aggregateInputs, aggregateModel, aggregateRoots } from './aggregates';
+import {
+  aggregateInputs,
+  aggregateModel,
+  aggregateRoots,
+  routingCommands,
+} from './aggregates';
 import type { ContextModel, ManifestModel, TypeModel } from './model';
 import { contextTypeName, generatedNames } from './names';
 import { type Position, SchemaTypes } from './schemaTypes';
@@ -180,6 +185,7 @@ function contextModel(
     aggregates: (context.aggregates ?? []).map(aggregate =>
       aggregateModel(types, numbers, context, aggregate),
     ),
+    commands: routingCommands(context.commands),
     routes: (context.routes ?? []).map(route =>
       serviceRouteModel(types, numbers, context, route),
     ),

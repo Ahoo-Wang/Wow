@@ -6,6 +6,7 @@ import { BrandEventQueryClient, BrandSnapshotQueryClient, BrandStateClient } fro
 import { CategoryCommandClient } from './category/commandClient.js';
 import { CategoryEventQueryClient, CategorySnapshotQueryClient, CategoryStateClient } from './category/queryClient.js';
 import { EshopCatalogManifest } from './manifest.js';
+import { ProductAggregate } from './product/aggregate.js';
 import { ProductCommandClient } from './product/commandClient.js';
 import { ProductEventQueryClient, ProductSnapshotQueryClient, ProductStateClient } from './product/queryClient.js';
 
@@ -40,7 +41,12 @@ export class EshopCatalogClient {
 
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {
-    this.commands = new CommandClient(options, { manifest: EshopCatalogManifest });
+    this.commands = new CommandClient(options, {
+      manifest: EshopCatalogManifest, bodyNumbers: {
+        'eshop-catalog.product.ChangeProductPrice': ProductAggregate.textNumbers.commands.ChangeProductPrice,
+        'eshop-catalog.product.CreateProduct': ProductAggregate.textNumbers.commands.CreateProduct,
+      }
+    });
     this.brand = {
       commands: new BrandCommandClient(options),
       snapshots: new BrandSnapshotQueryClient(options),

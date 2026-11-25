@@ -27,6 +27,7 @@ import type {
   CommandModel,
   LifecycleModel,
   Route,
+  RoutingCommandModel,
 } from './model';
 import { aggregateTypeName, LIFECYCLE_BODIES } from './names';
 import type { Position, SchemaTypes } from './schemaTypes';
@@ -217,6 +218,30 @@ function lifecycleBodies(
     );
 }
 
+/**
+ * The commands of `commands` with routes, as the routing part of a generated
+ * client lists them: an internal one, which the public port does not serve,
+ * left out.
+ */
+export function routingCommands(
+  commands: readonly ManifestCommand[] | undefined,
+): RoutingCommandModel[] {
+  return (commands ?? [])
+    .filter(
+      command => command.internal !== true && (command.routes ?? []).length > 0,
+    )
+    .map(command => ({
+      name: command.name,
+      ...((command.aliases ?? []).length > 0
+        ? { aliases: [...command.aliases] }
+        : {}),
+      routes: routesOf(command),
+      ...(command.idProperty === undefined
+        ? {}
+        : { idProperty: command.idProperty }),
+    }));
+}
+
 /** The routes of `command`, as the Manifest lists them. */
 function routesOf(command: ManifestCommand): readonly Route[] {
   return (command.routes ?? []).map(route => ({
@@ -298,6 +323,7 @@ export function aggregateModel(
       computedProperty(types, bodySchema, idProperty);
     return {
       name: command.name,
+      aliases: command.aliases ?? [],
       method,
       routes: routesOf(command),
       ...(byId ? { byIdPath: { path: byId.path } } : {}),
@@ -383,6 +409,13 @@ export function aggregateModel(
       type: typeOfRef(types, event.schema, `${where}.${event.name}`),
     })),
     lifecycle,
+    // Domain commands first, then system ones, as the routing part has always listed them.
+    routing: [
+      ...routingCommands(domainCommands(aggregate)),
+      ...routingCommands(
+        (aggregate.commands ?? []).filter(command => command.system === true),
+      ),
+    ],
     queryModels: (aggregate.queries ?? []).map(query => query.model),
     access,
     ...(Object.keys(textNumbers).length === 0 ? {} : { textNumbers }),

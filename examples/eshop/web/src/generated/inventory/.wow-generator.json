@@ -4,7 +4,7 @@
     "eshop-inventory/client.ts": "ee3eeb2b72e8d7ea761def8d45400f9a9a5afab4a3a659337ab18d6847f171ec",
     "eshop-inventory/contract.ts": "1b8146a2ad07be7d333d972349a27e5ece4ca5e1332760356d1462f68c803d40",
     "eshop-inventory/index.ts": "b86d41b4803f9e3ff69948756965cab666c3c2c55b039b3787f3ac807a7055ca",
-    "eshop-inventory/manifest.ts": "24044acd36814de9e9ac15bba4ca019ef3e1ecf8976ea2f1c621db7322872a34",
+    "eshop-inventory/manifest.ts": "abc4617a705e9157aafab882105f2afd18fd3dbdae0ed774aba258853e2c90ac",
     "eshop-inventory/stock/aggregate.ts": "238d69f96c33d008a83a8549876c48ecf81ed802e5c5d6a8e493266487b79680",
     "eshop-inventory/stock/commandClient.ts": "dc4c80078f4c15e42e370c73792ac5de8c2b4c83f5a769467b1a0c7a9137ad20",
     "eshop-inventory/stock/index.ts": "93009e30d8920000d82a5628a33424d1dd4c38c65d6a354bdad8e4e8634633b7",

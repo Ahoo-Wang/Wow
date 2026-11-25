@@ -2,6 +2,7 @@
 
 import { CommandClient, type WowClientOptions } from '@ahoo-wang/wow-client';
 import { EshopPaymentManifest } from './manifest.js';
+import { PaymentAggregate } from './payment/aggregate.js';
 import { PaymentCommandClient } from './payment/commandClient.js';
 import { PaymentEventQueryClient, PaymentSnapshotQueryClient, PaymentStateClient } from './payment/queryClient.js';
 
@@ -20,7 +21,11 @@ export class EshopPaymentClient {
 
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {
-    this.commands = new CommandClient(options, { manifest: EshopPaymentManifest });
+    this.commands = new CommandClient(options, {
+      manifest: EshopPaymentManifest, bodyNumbers: {
+        'eshop-payment.payment.RequestPayment': PaymentAggregate.textNumbers.commands.RequestPayment,
+      }
+    });
     this.payment = {
       commands: new PaymentCommandClient(options),
       snapshots: new PaymentSnapshotQueryClient(options),

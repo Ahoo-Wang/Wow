@@ -46,6 +46,8 @@ export interface TypeModel {
 /** A command of an aggregate client. */
 export interface CommandModel {
   readonly name: string;
+  /** Its former names, which a request may name it by. */
+  readonly aliases: readonly string[];
   readonly method: string;
   /** Its routes, as the Manifest lists them: the client sends it by them. */
   readonly routes: readonly Route[];
@@ -87,6 +89,19 @@ export interface CommandModel {
 export interface Route {
   readonly method: string;
   readonly path: string;
+}
+
+/**
+ * A command as the routing part of a generated client lists it
+ * (`manifest.ts`): its name, its former names, its routes and the property of
+ * its body that names its aggregate.
+ */
+export interface RoutingCommandModel {
+  readonly name: string;
+  /** Its former names, which a `CommandClient` routes by too; absent when it has none. */
+  readonly aliases?: readonly string[];
+  readonly routes: readonly Route[];
+  readonly idProperty?: string;
 }
 
 /** A lifecycle command an aggregate lists. */
@@ -147,6 +162,13 @@ export interface AggregateModel {
     readonly type: string;
   }[];
   readonly lifecycle: readonly LifecycleModel[];
+  /**
+   * Every command the aggregate lists with routes, as a `CommandClient` over
+   * the whole Manifest routes them: its domain commands, then its system
+   * commands (the lifecycle ones, a snapshot rebuild); an internal command,
+   * which the public port does not serve, left out.
+   */
+  readonly routing: readonly RoutingCommandModel[];
   readonly queryModels: readonly string[];
   /** Its access attributes (decision D390), in the Manifest's order. */
   readonly access: readonly AccessModel[];
@@ -191,6 +213,8 @@ export interface ContextModel {
   }[];
   readonly subscriptions: readonly string[];
   readonly aggregates: readonly AggregateModel[];
+  /** The context's own commands with routes (a job's), as the routing part lists them. */
+  readonly commands: readonly RoutingCommandModel[];
   /** Its service routes, in the Manifest's order. */
   readonly routes: readonly ServiceRouteModel[];
   /** The marks of the recursive types declared in it, its `textNumbers.ts`. */

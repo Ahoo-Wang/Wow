@@ -14,6 +14,7 @@ export const ViewStoreManifest: RoutingManifest = {
           commands: [
             { name: 'ClearDatasetWording', routes: [{ method: 'POST', path: '/view-store/dataset_wording/{id}/clear-dataset-wording' }, { method: 'POST', path: '/view-store/dataset_wording/clear-dataset-wording' }] },
             { name: 'SetDatasetWording', routes: [{ method: 'POST', path: '/view-store/dataset_wording/{id}/set-dataset-wording' }, { method: 'POST', path: '/view-store/dataset_wording/set-dataset-wording' }] },
+            { name: 'wow.snapshot.RebuildSnapshot', routes: [{ method: 'POST', path: '/view-store/dataset_wording/wow.snapshot.rebuild-snapshot' }] },
           ],
         },
         {
@@ -26,12 +27,14 @@ export const ViewStoreManifest: RoutingManifest = {
             { name: 'ShareView', routes: [{ method: 'POST', path: '/view-store/view/{id}/share-view' }] },
             { name: 'wow.lifecycle.DeleteAggregate', routes: [{ method: 'DELETE', path: '/view-store/view/{id}' }] },
             { name: 'wow.lifecycle.TransferOwner', routes: [{ method: 'POST', path: '/view-store/view/{id}/wow.lifecycle.transfer-owner' }] },
+            { name: 'wow.snapshot.RebuildSnapshot', routes: [{ method: 'POST', path: '/view-store/view/wow.snapshot.rebuild-snapshot' }] },
           ],
         },
         {
           name: 'view_preferences',
           commands: [
             { name: 'SetViewPreferences', routes: [{ method: 'POST', path: '/view-store/view_preferences/{id}/set-view-preferences' }, { method: 'POST', path: '/view-store/view_preferences/set-view-preferences' }] },
+            { name: 'wow.snapshot.RebuildSnapshot', routes: [{ method: 'POST', path: '/view-store/view_preferences/wow.snapshot.rebuild-snapshot' }] },
           ],
         },
       ],

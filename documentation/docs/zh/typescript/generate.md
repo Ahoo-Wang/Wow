@@ -86,8 +86,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
 | 文件 | 包含 |
 | --- | --- |
 | `contract.ts` | `<Context>Contract`：上下文的名字、上下文级的错误码和它的各个聚合（各带自己的错误码）；`<Context>ErrorCode` 联合类型，以及在其中等待的各跳 |
-| `manifest.ts` | `<Context>Manifest`：上下文各命令的路由与它的服务路由，以及命令体指明了聚合的命令里承载 ID 的属性（`idProperty`），与 Manifest 列出的一致，不含 schema。命令客户端按它发送，因此不必获取 Manifest |
-| `client.ts` | `<Context>Client`：上下文的 `CommandClient`（`commands`），以及每个聚合的命令、快照、事件和状态客户端；有服务路由时还有它们（`routes`） |
+| `manifest.ts` | `<Context>Manifest`：上下文列出的每条命令的路由（按名字与曾用名，包括系统命令与作业的命令，内部命令除外）与它的服务路由，以及命令体指明了聚合的命令里承载 ID 的属性（`idProperty`），与 Manifest 列出的一致，不含 schema。命令客户端按它发送，因此不必获取 Manifest |
+| `client.ts` | `<Context>Client`：上下文的 `CommandClient`（`commands`），它像聚合的命令客户端一样把每条命令的精确数字不加引号写出，以及每个聚合的命令、快照、事件和状态客户端；有服务路由时还有它们（`routes`） |
 | `routes.ts` | `<Context>Routes`：上下文每个服务路由一个方法，基于 `@ahoo-wang/wow-client/routes` 的 `ServiceRoutes`，返回路由的应答类型；Manifest 标为 `responseOptional` 的路由（`null` 以 `204 No Content` 应答）再加上 `undefined`，没有应答的路由返回 `void`；只在 Manifest 列出服务路由时写出 |
 | `types.ts` | Manifest 的 schema 中的命令、事件和状态，各以其类的简单名命名。两个类共用的名字，或生成的模块已经占用的名字（它们用到的 TypeScript 全局类型，如 `Promise`、`Record`；它们从 `@ahoo-wang/wow-client` 导入的名字，如 `CommandClient`；生成器自己声明的名字，如 `<Aggregate>Event`），会以类的包名限定：`shop.Record` 生成为 `ShopRecord`。参数化类型在使用处原地写出，但引用自身的参数化类型（子节点也是 `Node<String>` 的 `Node<String>`）只声明一次，名字是类名、`Of` 与各类型参数的简单名，多个参数以 `And` 连接，嵌套的参数在其位置展开：`a.Node(java.lang.String)` 是 `NodeOfString`，`java.util.Map(java.lang.String,java.util.List(a.Item))` 是 `MapOfStringAndListOfItem`；重名时以类的包名限定 |
 | `<aggregate>/aggregate.ts` | 聚合的描述符、查询能指明的 `state.*` 字段，以及它的事件的联合类型 |

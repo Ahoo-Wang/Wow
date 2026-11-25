@@ -13,7 +13,7 @@
 
 import { join } from 'node:path';
 import { relativeModuleSpecifier } from '../../emit/imports';
-import type { ModuleSet } from '../../emit/moduleBuilder';
+import type { ModuleBuilder, ModuleSet } from '../../emit/moduleBuilder';
 import type {
   AggregateModel,
   CommandModel,
@@ -132,6 +132,40 @@ function answeringMethod(
   const leading = params ? `${params}, ` : '';
   return `${comment}  ${name}(${leading}options?: ${options}): Promise<CommandResult> {\n    return this.client.wait(${request});\n  }`;
 }
+/**
+ * The `bodyNumbers` option of a `CommandClient` that sends the commands of
+ * `aggregates`, or nothing when no body has exact numbers: the marks of each
+ * body that has them, by the command's full name and by each of its former
+ * names, which a request may name it by, so the client writes them unquoted.
+ * Each marked aggregate's constant is imported from `specifier(aggregate)`.
+ */
+export function bodyNumbersOption(
+  aggregates: readonly AggregateModel[],
+  module: ModuleBuilder,
+  specifier: (aggregate: AggregateModel) => string,
+): string {
+  const entries = aggregates.flatMap(aggregate => {
+    // A body is sent by POST alone: a command routed by DELETE alone sends none.
+    const marked = aggregate.commands.filter(
+      command =>
+        command.bodyNumbers && (command.byIdPath || command.unaddressedPath),
+    );
+    if (marked.length === 0) return [];
+    const constant = `${aggregate.typeName}Aggregate`;
+    module.imports.add(specifier(aggregate), [constant]);
+    return marked.flatMap(command => {
+      const marks = `${constant}.textNumbers.commands${resolvePropertyName(command.name) === command.name ? `.${command.name}` : `[${quoteStringLiteral(command.name)}]`}`;
+      return [command.name, ...command.aliases].map(
+        name =>
+          `      ${quoteStringLiteral(`${aggregate.context}.${aggregate.name}.${name}`)}: ${marks},`,
+      );
+    });
+  });
+  return entries.length === 0
+    ? ''
+    : `, bodyNumbers: {\n${entries.join('\n')}\n    }`;
+}
+
 export function emitCommandClient(
   aggregate: AggregateModel,
   context: ContextModel,
@@ -217,14 +251,11 @@ export function emitCommandClient(
       );
     }
   }
-  // A body with exact numbers sends them unquoted: its marks go with the client, by the command's full name.
-  const marked = commands.filter(command => command.bodyNumbers);
-  if (marked.length > 0) {
-    module.imports.add('./aggregate.js', [`${name}Aggregate`]);
-  }
-  const bodyNumbers = marked.length
-    ? `, bodyNumbers: {\n${marked.map(command => `      ${quoteStringLiteral(`${aggregate.context}.${aggregate.name}.${command.name}`)}: ${name}Aggregate.textNumbers.commands${resolvePropertyName(command.name) === command.name ? `.${command.name}` : `[${quoteStringLiteral(command.name)}]`},`).join('\n')}\n    }`
-    : '';
+  const bodyNumbers = bodyNumbersOption(
+    [aggregate],
+    module,
+    () => './aggregate.js',
+  );
   const manifest = `${context.typeName}Manifest`;
   module.imports.add(
     relativeModuleSpecifier(

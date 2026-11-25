@@ -16,6 +16,7 @@ export const OpsManifest: RoutingManifest = {
             { name: 'MarkRecoverable', routes: [{ method: 'POST', path: '/ops/parked/{id}/mark-recoverable' }] },
             { name: 'Retry', routes: [{ method: 'POST', path: '/ops/parked/{id}/retry' }] },
             { name: 'Skip', routes: [{ method: 'POST', path: '/ops/parked/{id}/skip' }] },
+            { name: 'wow.snapshot.RebuildSnapshot', routes: [{ method: 'POST', path: '/ops/parked/wow.snapshot.rebuild-snapshot' }] },
           ],
         },
       ],

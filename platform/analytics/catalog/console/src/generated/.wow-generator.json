@@ -8,7 +8,7 @@
     "analytics-catalog/dataset/index.ts": "93009e30d8920000d82a5628a33424d1dd4c38c65d6a354bdad8e4e8634633b7",
     "analytics-catalog/dataset/queryClient.ts": "67c0cd91be5c0c5417e7f86e2de3f8c66d041cf5f7aa55e2d6b4df9c6069a2f9",
     "analytics-catalog/index.ts": "e315fabae9a569ae104f492a911ef02b48dbd643841343ae37063061723145ad",
-    "analytics-catalog/manifest.ts": "a5a4b4fbf43c23b597089c4256c4c52720f479667d3c1e2e3f1c1b7d0e4b09d0",
+    "analytics-catalog/manifest.ts": "e03f66e6f35dc657b7380ea93897d745efe13f28a4a3f41271e9cccefcc3a238",
     "analytics-catalog/routes.ts": "69726658037359d079f8ae9ec8a96b981e7c930c1f0224fa83b2e92df48cb7c9",
     "analytics-catalog/source/aggregate.ts": "f332e52e9cdb99157fb0acd8b55ea80c8ce77b23447993135049e4a8042f961e",
     "analytics-catalog/source/commandClient.ts": "c1c07e47d6b1ebd52f4cbf0de04a93a606dd44bcbb8f8eb942d32e793ad7c0e1",
