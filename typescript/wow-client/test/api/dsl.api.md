@@ -286,6 +286,19 @@ export interface CountAggregationMetric<FIELDS extends string = string> {
 }
 
 // @public
+export interface CountQuery<FIELDS extends string = string> extends FilterCapable<FIELDS> {
+    limit?: number;
+}
+
+// @public
+export interface CountResult {
+    // (undocumented)
+    readonly count: number;
+    // (undocumented)
+    readonly exact: boolean;
+}
+
+// @public
 export interface CursorPage<T> {
     list: T[];
     nextCursor: string | null;
@@ -1296,10 +1309,10 @@ export const QueryValueTypes: Readonly<{
 }>;
 
 // @public
-export interface QueryViolation {
-    code: QueryErrorCode;
-    message: string;
-    path: string;
+export interface QueryViolation extends Violation {
+    readonly code: QueryErrorCode;
+    readonly message: string;
+    readonly path: string;
 }
 
 // @public
@@ -1510,6 +1523,13 @@ export interface VariantsDescriptor {
     discriminator: string;
     element: string;
     values: VariantDescriptor[];
+}
+
+// @public
+interface Violation {
+    readonly code: string;
+    readonly message: string;
+    readonly path: string;
 }
 
 // @public

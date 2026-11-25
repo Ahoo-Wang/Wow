@@ -21,7 +21,7 @@ const result = await basket.addBasketItemOwn(
 ```
 
 - Methods take the body, then options: `id` (the aggregate; for a command with an id route it is the first parameter), `wait` (a `WaitPlan`), `timeout` (milliseconds, over the plan's own), `requestId`, `expectedVersion` (`If-Match`), `targetTenant` and `targetScope` (`{ ownerId?, spaceId? }`, `Wow-Scope`), `space`, `headers`, `signal`. A method answers as `CommandClient.wait` does: the server's default plan unless `wait` is given; `wait: WaitPlan.ACCEPTED` answers once accepted.
-- `CommandClient` (`@ahoo-wang/wow-client`) is what the generated clients build on, Kotlin's `CommandClient`: each method takes one `CommandRequest` `{ command, body?, id?, type?, wait?, timeout?, … }`, `command` the full type name `context.aggregate.Command` the route is found by, in the Manifest the client was given (`new CommandClient(options, { manifest })`; a generated client passes its context's `manifest.ts`), else in the service's, fetched once. `send(request)` answers once accepted, `wait(request)` with the result its plan ends with, `stream(request)` one result per hop. A lifecycle command (`LifecycleCommands.DELETE_AGGREGATE`, …) also needs `type: { context, name }` and `id`. For a command whose body names its aggregate, an `id` must be the body's: the client writes it into a body that names none, and throws a `TypeError` for a body that names another, sending nothing; a computed id is the service's, so an `id` given for it is ignored: leave it out. A hand-written client passes `bodyNumbers` in its options, by full command name (the aggregate's `textNumbers.commands[<Command>]`), for exact numbers.
+- `CommandClient` (`@ahoo-wang/wow-client`) is what the generated clients build on, Kotlin's `CommandClient`: each method takes one `CommandRequest` `{ command, body?, id?, type?, wait?, timeout?, … }`, `command` the full type name `context.aggregate.Command` the route is found by, in the Manifest the client was given (`new CommandClient(options, { manifest })`; a generated client passes its context's `manifest.ts`), else in the service's, fetched once. `send(request)` answers once accepted, `wait(request)` with the result its plan ends with, `stream(request)` one result per hop. A lifecycle command (`LifecycleCommands.DELETE_AGGREGATE`, …) also needs `type: { context, name }` and `id`. For a command whose body names its aggregate, an `id` must be the body's: the client writes it into a body that names none, and throws a `TypeError` for a body that names another, sending nothing; a computed id is the service's, so an `id` given for it is ignored: leave it out. A hand-written client passes `textNumbers` in its options, by full command name (the aggregate's `textNumbers.commands[<Command>]`), for exact numbers.
 - `<Context>Client` (generated `client.ts`) holds a `CommandClient` (`.commands`) and every aggregate's clients (`.basket.commands`, `.basket.snapshots`, …) over one set of options.
 
 ## How far to wait
@@ -30,12 +30,12 @@ const result = await basket.addBasketItemOwn(
 
 | Hop | Answers when | Use for |
 | --- | --- | --- |
-| `wait.accepted()` | The command passed admission (202) | Fire and forget, with a later read |
-| `wait.committed()` | Its events are in the log | The write is durable; reads may lag |
-| `wait.snapshot()` (the default) | The snapshot holds the commit | Read your own write right after |
-| `wait.handled('Processor.function', context?)` | That subscription handled the commit | A saga's next step, a projection the screen reads |
+| `Hop.accepted()` | The command passed admission (202) | Fire and forget, with a later read |
+| `Hop.committed()` | Its events are in the log | The write is durable; reads may lag |
+| `Hop.snapshot()` (the default) | The snapshot holds the commit | Read your own write right after |
+| `Hop.handled('Processor.function', context?)` | That subscription handled the commit | A saga's next step, a projection the screen reads |
 
-A plan may follow a saga across contexts: `WaitPlan.of(wait.committed(), wait.handled('BasketCheckoutSaga.onBasketCheckedOut'), wait.committed('eshop-ordering'))`; the generated `<context>Wait` builders name the subscriptions. `timeout` bounds it, in milliseconds (`Wow-Wait-Timeout`). The `…Stream` methods answer one `CommandResult` per hop as server-sent events; `chainEnded` with `pending` says the chain stopped early (a saga derived nothing).
+A plan may follow a saga across contexts: `WaitPlan.of(Hop.committed(), Hop.handled('BasketCheckoutSaga.onBasketCheckedOut'), Hop.committed('eshop-ordering'))`; the generated `<context>Wait` builders name the subscriptions. `timeout` bounds it, in milliseconds (`Wow-Wait-Timeout`). The `…Stream` methods answer one `CommandResult` per hop as server-sent events; `chainEnded` with `pending` says the chain stopped early (a saga derived nothing).
 
 ## Retries
 

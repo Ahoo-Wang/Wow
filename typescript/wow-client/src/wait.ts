@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { type Hop, Stage } from './wire.js';
+import { Stage } from './wire.js';
 
 /** The name of the built-in subscription that writes snapshots. */
 export const SNAPSHOT_SUBSCRIPTION = 'wow.snapshot';
@@ -45,20 +45,38 @@ function hop(stage: Stage, context?: string, subscription?: string): Hop {
 }
 
 /**
- * Builds the hops of a wait chain. A context left out is
- * the command's own. A saga's `handled` hop may be followed by hops of the
- * commands it derived, in their contexts:
+ * One hop of a wait chain: a stage, in a context (the
+ * command's own when absent), of a subscription when the stage is
+ * `handled`. The snapshot is the subscription named `wow.snapshot`
+ * (`SNAPSHOT_SUBSCRIPTION`), which a `Wow-Wait` header writes `snapshot`;
+ * the store the snapshot queries read is `wow.queryable`
+ * (`QUERYABLE_SUBSCRIPTION`), written `queryable`.
+ */
+export interface Hop {
+  /**
+   * The stage; a server newer than this client may answer one it does not
+   * list.
+   */
+  readonly stage: Stage | (string & {});
+  readonly context?: string | null;
+  readonly subscription?: string | null;
+}
+
+/**
+ * Builds the hops of a wait chain, as Kotlin's `Hop.committed()` does. A
+ * context left out is the command's own. A saga's `handled` hop may be
+ * followed by hops of the commands it derived, in their contexts:
  *
  * @example
  * ```typescript
  * const plan = [
- *   wait.committed(),
- *   wait.handled('BasketCheckoutSaga.onBasketCheckedOut', 'eshop-basket'),
- *   wait.committed('eshop-ordering'),
+ *   Hop.committed(),
+ *   Hop.handled('BasketCheckoutSaga.onBasketCheckedOut', 'eshop-basket'),
+ *   Hop.committed('eshop-ordering'),
  * ];
  * ```
  */
-export const wait = {
+export const Hop = {
   /** Until the command passed admission; the route answers 202. */
   accepted: (context?: string): Hop => hop(Stage.ACCEPTED, context),
   /** Until the command's events are appended to the log. */
@@ -114,13 +132,13 @@ export function formatHop(value: Hop): string {
  * How far a command is waited for, and for how long: the hops, in order, and
  * a timeout in milliseconds. Kotlin's `me.ahoo.wow.api.result.WaitPlan`,
  * with its constants and constructors: {@link WaitPlan.of} the hops a
- * {@link wait} builder makes, {@link WaitPlan.within} another timeout.
+ * {@link Hop} builders make, {@link WaitPlan.within} another timeout.
  *
  * @example
  * ```typescript
  * const plan = WaitPlan.of(
- *   wait.committed(),
- *   wait.handled('BasketCheckoutSaga.onBasketCheckedOut', 'eshop-basket'),
+ *   Hop.committed(),
+ *   Hop.handled('BasketCheckoutSaga.onBasketCheckedOut', 'eshop-basket'),
  * ).within(30_000);
  * ```
  */
@@ -134,19 +152,19 @@ export class WaitPlan {
    * aggregate without a snapshot subscription. A request with it sends no
    * `Wow-Wait`, so the service picks.
    */
-  static readonly DEFAULT = new WaitPlan([wait.snapshot()], undefined, true);
+  static readonly DEFAULT = new WaitPlan([Hop.snapshot()], undefined, true);
 
   /**
    * Until the snapshot holds the commit, asked for explicitly: rejected at
    * admission for an aggregate without a snapshot subscription.
    */
-  static readonly SNAPSHOT = new WaitPlan([wait.snapshot()]);
+  static readonly SNAPSHOT = new WaitPlan([Hop.snapshot()]);
 
   /** Until the events are appended. */
-  static readonly COMMITTED = new WaitPlan([wait.committed()]);
+  static readonly COMMITTED = new WaitPlan([Hop.committed()]);
 
   /** Until the command passed admission. */
-  static readonly ACCEPTED = new WaitPlan([wait.accepted()]);
+  static readonly ACCEPTED = new WaitPlan([Hop.accepted()]);
 
   /** Until `hops` are reached, in order. */
   static of(...hops: Hop[]): WaitPlan {
@@ -263,13 +281,13 @@ export function parseHop(value: string): Hop {
   const argument = open < 0 ? undefined : argumentOf(value, open);
   switch (keyword.toLowerCase()) {
     case 'accepted':
-      return wait.accepted(argument);
+      return Hop.accepted(argument);
     case 'committed':
-      return wait.committed(argument);
+      return Hop.committed(argument);
     case 'snapshot':
-      return wait.snapshot(argument);
+      return Hop.snapshot(argument);
     case 'queryable':
-      return wait.queryable(argument);
+      return Hop.queryable(argument);
     case 'handled': {
       if (argument === undefined) {
         throw new TypeError(
@@ -283,8 +301,8 @@ export function parseHop(value: string): Hop {
         );
       }
       return parts.length === 1
-        ? wait.handled(parts[0])
-        : wait.handled(parts[1].trim(), parts[0].trim());
+        ? Hop.handled(parts[0])
+        : Hop.handled(parts[1].trim(), parts[0].trim());
     }
     default:
       throw new TypeError(`Not a stage: '${keyword.toLowerCase()}'.`);

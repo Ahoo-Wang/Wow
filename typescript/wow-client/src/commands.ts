@@ -132,7 +132,7 @@ export interface CommandClientOptions {
    * client sets them for commands with `int64`, `bigint` or `decimal` fields,
    * which it types as `string`.
    */
-  readonly bodyNumbers?: Readonly<Record<string, TextNumbers>>;
+  readonly textNumbers?: Readonly<Record<string, TextNumbers>>;
 }
 
 /**
@@ -412,18 +412,18 @@ function targetOf(request: CommandRequest): TargetScope | undefined {
  */
 export class CommandClient {
   private readonly manifest: ManifestSource;
-  private readonly bodyNumbers: Readonly<Record<string, TextNumbers>>;
+  private readonly textNumbers: Readonly<Record<string, TextNumbers>>;
 
   /**
-   * @param client - How the service is reached
-   * @param options - The service's Manifest, and the commands' exact numbers
+   * @param options - How the service is reached
+   * @param contract - The service's Manifest, and the commands' exact numbers
    */
   constructor(
-    readonly client: WowClientOptions = {},
-    options: CommandClientOptions = {},
+    private readonly options: WowClientOptions = {},
+    contract: CommandClientOptions = {},
   ) {
-    this.manifest = new ManifestSource(client, options.manifest);
-    this.bodyNumbers = options.bodyNumbers ?? {};
+    this.manifest = new ManifestSource(options, contract.manifest);
+    this.textNumbers = contract.textNumbers ?? {};
   }
 
   /**
@@ -547,12 +547,12 @@ export class CommandClient {
       idProperty === undefined ? request.id : undefined,
     );
     const scope = targetOf(request);
-    const bodyNumbers = this.bodyNumbers[request.command];
+    const bodyNumbers = this.textNumbers[request.command];
     const body =
       route.method === 'DELETE' ? {} : { body: bodyOf(request, idProperty) };
-    const bound = new AnswerBound(boundOf(plan, this.client), request.signal);
+    const bound = new AnswerBound(boundOf(plan, this.options), request.signal);
     try {
-      const answer = await send(this.client, {
+      const answer = await send(this.options, {
         method: route.method,
         path: route.path,
         headers: commandHeaders(request, plan, requestId, accept),

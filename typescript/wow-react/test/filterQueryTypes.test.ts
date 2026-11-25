@@ -12,9 +12,10 @@
  */
 
 import { expectTypeOf, it } from 'vitest';
-import type { CountQuery, QueryModelClient } from '@ahoo-wang/wow-client';
+import type { QueryModelClient } from '@ahoo-wang/wow-client';
 import type {
   AggregationQuery,
+  CountQuery,
   CursorQuery,
   FilterListQuery,
   FilterSingleQuery,

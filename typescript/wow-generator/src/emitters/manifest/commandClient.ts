@@ -133,13 +133,13 @@ function answeringMethod(
   return `${comment}  ${name}(${leading}options?: ${options}): Promise<CommandResult> {\n    return this.client.wait(${request});\n  }`;
 }
 /**
- * The `bodyNumbers` option of a `CommandClient` that sends the commands of
+ * The `textNumbers` option of a `CommandClient` that sends the commands of
  * `aggregates`, or nothing when no body has exact numbers: the marks of each
  * body that has them, by the command's full name and by each of its former
  * names, which a request may name it by, so the client writes them unquoted.
  * Each marked aggregate's constant is imported from `specifier(aggregate)`.
  */
-export function bodyNumbersOption(
+export function textNumbersOption(
   aggregates: readonly AggregateModel[],
   module: ModuleBuilder,
   specifier: (aggregate: AggregateModel) => string,
@@ -165,7 +165,7 @@ export function bodyNumbersOption(
   });
   return entries.length === 0
     ? ''
-    : `, bodyNumbers: {\n${entries.join('\n')}\n    }`;
+    : `, textNumbers: {\n${entries.join('\n')}\n    }`;
 }
 
 export function emitCommandClient(
@@ -253,7 +253,7 @@ export function emitCommandClient(
       );
     }
   }
-  const bodyNumbers = bodyNumbersOption(
+  const bodyNumbers = textNumbersOption(
     [aggregate],
     module,
     () => './aggregate.js',

@@ -17,11 +17,11 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  checkManifest,
   CommandClient,
   fetchManifest,
   MANIFEST_FEATURES,
 } from '../src/index.js';
+import { checkManifest } from '../src/manifest.js';
 import { BASE_URL, jsonResponse, stubFetch } from './fixtures/fetchStub';
 import { TEST_MANIFEST } from './fixtures/manifest';
 import { client } from './fixtures/clients';

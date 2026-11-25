@@ -2,7 +2,7 @@
   "version": 1,
   "files": {
     "analytics-catalog/client.ts": "15939c3e58596ddd988cba6304648603b7830ef6e0e758e415dad0a2b66ae084",
-    "analytics-catalog/contract.ts": "31014d7c5eb0ee2147a2d58596963c20b1542b19c9f62ab318a9bf230dcdc00f",
+    "analytics-catalog/contract.ts": "766dce2b6735700d1ad5d3bc498d880fa34cfc532ebcba9e91cb349186a28cbc",
     "analytics-catalog/dataset/aggregate.ts": "2c5bd2a0e3f2f5ae0bbfbdc0f1489a31042e3beece8490fd84c1e53121ddeee0",
     "analytics-catalog/dataset/commandClient.ts": "57a84be4e9d66599a3cad621b1563ffde29049c09ff16837a4d4bee519653704",
     "analytics-catalog/dataset/index.ts": "93009e30d8920000d82a5628a33424d1dd4c38c65d6a354bdad8e4e8634633b7",

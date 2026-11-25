@@ -24,13 +24,14 @@ import type {
   DescriptorResult,
   QueryModelDescriptor,
 } from './dsl/descriptor.js';
-import type { FilterCapable } from './dsl/filter/index.js';
 import { FrameworkErrorCodes, WowProblemError } from './problem.js';
 import type {
+  CountQuery,
+  CountResult,
   FilterListQuery,
   FilterSingleQuery,
-  PagedQuery,
   PagedList,
+  PagedQuery,
 } from './dsl/queryable.js';
 import {
   type Answer,
@@ -64,20 +65,6 @@ export interface StreamOptions extends RequestOptions {
   readonly resume?: StreamResumeOptions | false;
 }
 
-/** A count of a query route. */
-export interface CountQuery<
-  FIELDS extends string = string,
-> extends FilterCapable<FIELDS> {
-  /** The most matches to count; the budget's default when absent. */
-  limit?: number;
-}
-
-/** What a count answers: exact below its limit, else the limit itself. */
-export interface CountResult {
-  readonly count: number;
-  readonly exact: boolean;
-}
-
 /**
  * Queries one query model of a Wow service: `POST {path}` with a body
  * whose `kind` names the operation, `GET {path}` for the capability
@@ -91,26 +78,28 @@ export interface CountResult {
 export class QueryModelClient<R, FIELDS extends string = string> {
   /**
    * @param path - The query route, `/{context}/{aggregate}/{model}/query`
-   * @param client - How the service is reached
-   * @param numbers - The numbers of each record read as their exact text
-   *   (review R4-Q, Q-9)
+   * @param options - How the service is reached
+   * @param textNumbers - The numbers of each record read as their exact
+   *   text (review R4-Q, Q-9)
    */
   constructor(
     readonly path: string,
-    readonly client: WowClientOptions = {},
-    readonly numbers?: TextNumbers,
+    private readonly options: WowClientOptions = {},
+    readonly textNumbers?: TextNumbers,
   ) {}
 
   /** The marks of a list of records. */
   private get listNumbers(): TextNumbers | undefined {
-    return this.numbers === undefined ? undefined : { '*': this.numbers };
+    return this.textNumbers === undefined
+      ? undefined
+      : { '*': this.textNumbers };
   }
 
   /** The marks of a page of records. */
   private get pageNumbers(): TextNumbers | undefined {
-    return this.numbers === undefined
+    return this.textNumbers === undefined
       ? undefined
-      : { list: { '*': this.numbers } };
+      : { list: { '*': this.textNumbers } };
   }
 
   /** The records that match, at most `limit` (the server's default when absent). */
@@ -177,7 +166,7 @@ export class QueryModelClient<R, FIELDS extends string = string> {
     options: StreamOptions = {},
   ): Promise<ReadableStream<Positioned<R>>> {
     const resume =
-      options.resume === false ? { maxRetries: 0 } : options.resume;
+      options.resume === false ? { maxAttempts: 1 } : options.resume;
     const limit = query.limit;
     const open = (
       lastEventId: string | undefined,
@@ -187,7 +176,7 @@ export class QueryModelClient<R, FIELDS extends string = string> {
       return this.post(
         'list',
         limit === undefined ? query : { ...query, limit: limit - received },
-        this.numbers,
+        this.textNumbers,
         signal === undefined ? options : { ...options, signal },
         'text/event-stream',
         lastEventId,
@@ -258,7 +247,9 @@ export class QueryModelClient<R, FIELDS extends string = string> {
     options?: RequestOptions,
   ): Promise<unknown> {
     try {
-      return (await this.post('single', query, this.numbers, options)).json();
+      return (
+        await this.post('single', query, this.textNumbers, options)
+      ).json();
     } catch (error) {
       if (isNoMatch(error)) return undefined;
       throw error;
@@ -302,7 +293,7 @@ export class QueryModelClient<R, FIELDS extends string = string> {
       (group.type as string) === 'terms' &&
       'field' in group &&
       group.field !== undefined &&
-      marksNumberAt(this.numbers, group.field)
+      marksNumberAt(this.textNumbers, group.field)
         ? [group.alias]
         : [],
     );
@@ -319,7 +310,7 @@ export class QueryModelClient<R, FIELDS extends string = string> {
     version?: string,
     options?: RequestOptions,
   ): Promise<DescriptorResult> {
-    const answer = await send(this.client, {
+    const answer = await send(this.options, {
       method: 'GET',
       path: this.path,
       headers: {
@@ -350,7 +341,7 @@ export class QueryModelClient<R, FIELDS extends string = string> {
     accept?: string,
     lastEventId?: string,
   ): Promise<Answer> {
-    return send(this.client, {
+    return send(this.options, {
       method: 'POST',
       path: this.path,
       headers: { Accept: accept, [WowHeaders.LAST_EVENT_ID]: lastEventId },
@@ -384,7 +375,7 @@ export type Including<Q, INCLUDE extends string> = Q & {
 };
 
 /** The query route of a model of an aggregate type. */
-export function queryPath(type: AggregateType, model: string): string {
+function queryPath(type: AggregateType, model: string): string {
   return `/${type.context}/${type.name}/${model}/query`;
 }
 
@@ -408,15 +399,15 @@ export class SnapshotQueryClient<
 > {
   /**
    * @param type - The aggregate type
-   * @param client - How the service is reached
+   * @param options - How the service is reached
    */
   constructor(
     readonly type: AggregateType,
-    client?: WowClientOptions,
+    options?: WowClientOptions,
   ) {
     super(
       queryPath(type, 'snapshot'),
-      client,
+      options,
       recordNumbers({
         state: type.textNumbers?.state,
         access: type.textNumbers?.access,
@@ -447,16 +438,16 @@ export class EventQueryClient<
 > {
   /**
    * @param type - The aggregate type
-   * @param client - How the service is reached
+   * @param options - How the service is reached
    */
   constructor(
     readonly type: AggregateType,
-    client?: WowClientOptions,
+    options?: WowClientOptions,
   ) {
     const events = eventNumbers(type);
     super(
       queryPath(type, 'events'),
-      client,
+      options,
       recordNumbers({
         events: events === undefined ? undefined : { '*': events },
         access: type.textNumbers?.access,
@@ -471,12 +462,12 @@ export class EventQueryClient<
  * each as a snapshot model is queried.
  */
 export class DatasetClient {
-  /** @param client - How the service is reached */
-  constructor(readonly client: WowClientOptions = {}) {}
+  /** @param options - How the service is reached */
+  constructor(private readonly options: WowClientOptions = {}) {}
 
   /** The datasets the caller sees, by name. */
   async list(options?: RequestOptions): Promise<DatasetEntry[]> {
-    const answer = await send(this.client, {
+    const answer = await send(this.options, {
       method: 'GET',
       path: '/wow/dataset',
       numbers: {},
@@ -492,17 +483,17 @@ export class DatasetClient {
    *
    * @typeParam R - The row's type.
    * @typeParam FIELDS - The dataset's field paths.
-   * @param numbers - The exact numbers of each row ({@link TextNumbers})
+   * @param textNumbers - The exact numbers of each row ({@link TextNumbers})
    */
   dataset<R = Record<string, unknown>, FIELDS extends string = string>(
     context: string,
     dataset: string,
-    numbers?: TextNumbers,
+    textNumbers?: TextNumbers,
   ): QueryModelClient<R, FIELDS> {
     return new QueryModelClient<R, FIELDS>(
       `/wow/dataset/${pathSegment(context, 'The context')}/${pathSegment(dataset, 'The dataset')}/query`,
-      this.client,
-      numbers,
+      this.options,
+      textNumbers,
     );
   }
 }

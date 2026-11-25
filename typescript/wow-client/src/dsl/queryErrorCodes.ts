@@ -11,6 +11,8 @@
  * limitations under the License.
  */
 
+import type { Violation } from './violation.js';
+
 /**
  * The codes the violations of a rejected query carry: which rule the request
  * broke, stable where the human text is not. A query route answers a query it
@@ -218,18 +220,19 @@ export type QueryErrorCode = KnownQueryErrorCode | (string & {});
 
 /**
  * Why the server rejected a query: one violation of its `wow.query.invalid`
- * problem, which rule failed, where, and the server's words.
+ * problem, which rule failed, where, and the server's words: a
+ * {@link Violation} whose `code` is a query's.
  */
-export interface QueryViolation {
+export interface QueryViolation extends Violation {
   /** Which rule failed; switch on it against {@link QueryErrorCodes}. */
-  code: QueryErrorCode;
+  readonly code: QueryErrorCode;
   /**
    * Where: the JSON path of the offending value for a decoding error
    * (`filter.state`, `metrics[0]`, `body`), the absolute logical field path
    * for an admission error (`state.items.sku`), or `''` when the rule is about
    * the model rather than a field.
    */
-  path: string;
+  readonly path: string;
   /** The server's words. */
-  message: string;
+  readonly message: string;
 }

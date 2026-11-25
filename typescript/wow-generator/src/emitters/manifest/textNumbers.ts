@@ -34,7 +34,7 @@ interface Target {
 /**
  * A TypeScript literal of `marks`, importing what it uses into the module:
  * `{ price: true, lines: { '*': { amount: true } } }`, `() => treeNumbers`,
- * `textNumberOr(…)`, `textNumbersBy('kind', { … })`.
+ * `textNumbersOr(…)`, `textNumbersBy('kind', { … })`.
  */
 function literal(marks: TextNumbersModel, target: Target): string {
   if (marks === true) return 'true';
@@ -50,8 +50,8 @@ function literal(marks: TextNumbersModel, target: Target): string {
     return `() => ${marks.lazy.name}`;
   }
   if ('or' in marks) {
-    target.module.imports.add(target.client, ['textNumberOr']);
-    return `textNumberOr(${literal(marks.or, target)})`;
+    target.module.imports.add(target.client, ['textNumbersOr']);
+    return `textNumbersOr(${literal(marks.or, target)})`;
   }
   target.module.imports.add(target.client, ['textNumbersBy']);
   return `textNumbersBy(${quoteStringLiteral(marks.by)}, ${entries(marks.cases, target)})`;

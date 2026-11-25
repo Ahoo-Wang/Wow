@@ -186,13 +186,13 @@ assert.deepEqual(declarationMaps, [], 'dist holds declaration maps');
 //    module the import does not reach. Vite's own bundler bundles each probe
 //    for real, the way an application's build would; the fetcher packages
 //    stay external, so a module that survived would show as an import of one.
-const shaken = await shake(['readProblem', 'wait']);
+const shaken = await shake(['readProblem', 'Hop']);
 assert.deepEqual(
   shaken.packages,
   [],
-  `importing readProblem and wait still loads ${shaken.packages.join(', ')}`,
+  `importing readProblem and Hop still loads ${shaken.packages.join(', ')}`,
 );
-for (const kept of ['readProblem', 'wait'])
+for (const kept of ['readProblem', 'Hop'])
   assert.match(shaken.code, new RegExp(kept), `the probe lost ${kept}`);
 // The control: a probe that does use a client must keep the fetcher, or the
 // assertion above would pass whatever the build did.
@@ -224,7 +224,7 @@ const sizes = checkSizes({
 });
 
 console.log(
-  `${entries.length} entries resolve under import and require, and export at run time exactly the ${checked} values their surface lists name, the DSL entry loads no HTTP code, the testing entry no test runner, importing only readProblem and wait loads no fetcher package, no declaration map ships, and the ES entries weigh, gzipped against their ceilings, ${sizes}.`,
+  `${entries.length} entries resolve under import and require, and export at run time exactly the ${checked} values their surface lists name, the DSL entry loads no HTTP code, the testing entry no test runner, importing only readProblem and Hop loads no fetcher package, no declaration map ships, and the ES entries weigh, gzipped against their ceilings, ${sizes}.`,
 );
 
 /**

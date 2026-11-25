@@ -8,6 +8,6 @@ Judge only the agent's final answer. It worked in an empty, read-only directory 
 PASS only if the answer does all of these:
 
 1. Explains that a Long, BigInteger or BigDecimal field (Manifest format int64, bigint, decimal) is typed string in the regenerated clients and read and written exactly through the aggregate's textNumbers, so regenerating from the current Manifest is the fix, not parsing with Number
-2. Sends amount as a string ('19.90') through the generated InvoiceCommandClient, which writes it as an unquoted JSON number (bodyNumbers), and never converts it with Number or parseFloat
+2. Sends amount as a string ('19.90') through the generated InvoiceCommandClient, which writes it as an unquoted JSON number (textNumbers), and never converts it with Number or parseFloat
 3. Displays and computes with a decimal library or string formatting, and keeps comparisons and sorts on the server
-4. Notes that hand-written clients must pass bodyNumbers themselves
+4. Notes that hand-written clients must pass textNumbers themselves

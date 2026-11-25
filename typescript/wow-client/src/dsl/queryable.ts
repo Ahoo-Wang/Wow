@@ -72,6 +72,20 @@ export interface PagedList<T> {
   readonly list: readonly T[];
 }
 
+/** A count of a query route. */
+export interface CountQuery<
+  FIELDS extends string = string,
+> extends FilterCapable<FIELDS> {
+  /** The most matches to count; the budget's default when absent. */
+  limit?: number;
+}
+
+/** What a count answers: exact below its limit, else the limit itself. */
+export interface CountResult {
+  readonly count: number;
+  readonly exact: boolean;
+}
+
 /** What `singleQuery`, `listQuery` and `pagedQuery` take in common. */
 type QueryOptions<FIELDS extends string = string> = Partial<
   FilterQueryable<FIELDS>

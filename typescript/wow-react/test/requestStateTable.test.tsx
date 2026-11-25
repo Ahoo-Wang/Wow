@@ -25,11 +25,8 @@
 
 import { describe, expect, it } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
-import {
-  type CountResult,
-  QueryModelClient,
-  WowProblemError,
-} from '@ahoo-wang/wow-client';
+import { QueryModelClient, WowProblemError } from '@ahoo-wang/wow-client';
+import type { CountResult } from '@ahoo-wang/wow-client/dsl';
 import { filter } from '@ahoo-wang/wow-client/dsl';
 import { useCountQuery } from '../src';
 import {

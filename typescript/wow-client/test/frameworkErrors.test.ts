@@ -8,11 +8,8 @@ import {
   OUTPUT,
   TITLES_OUTPUT,
 } from '../scripts/framework-errors.mjs';
-import {
-  DEFAULT_RETRY,
-  FRAMEWORK_RETRIES,
-  FrameworkErrorCodes,
-} from '../src/index.js';
+import { DEFAULT_RETRY } from '../src/frameworkErrors.js';
+import { FRAMEWORK_RETRIES, FrameworkErrorCodes } from '../src/index.js';
 
 /**
  * The client's codes, what a retry of each may do and its default retry
@@ -43,6 +40,6 @@ describe('the framework errors', () => {
     });
     // A query that ran out of time would run as long again: no retry.
     expect(FRAMEWORK_RETRIES.has('wow.query.timeout')).toBe(false);
-    expect(DEFAULT_RETRY.attempts).toBe(catalog.retry.attempts);
+    expect(DEFAULT_RETRY.maxAttempts).toBe(catalog.retry.attempts);
   });
 });

@@ -268,10 +268,8 @@ export interface ServiceRouteNumbers {
 
 // @public
 export class ServiceRoutes {
-    constructor(client?: WowClientOptions, options?: ServiceRoutesOptions);
+    constructor(options?: WowClientOptions, contract?: ServiceRoutesOptions);
     call<T = unknown>(context: string, name: string, call?: ServiceRouteCall, options?: RequestOptions): Promise<T | undefined>;
-    // (undocumented)
-    readonly client: WowClientOptions;
 }
 
 // @public
