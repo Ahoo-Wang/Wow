@@ -25,13 +25,27 @@ import { waitForFiles } from './registry-wait.mjs';
 // - chart: CHART on each of CHART_REGISTRIES at the version, its Chart.yaml
 //   (the chart's config, as `helm show chart` prints it) naming that version
 //   as `version` and `appVersion`.
-// - maven: the POM of the BOM and of every me.ahoo.wow module it lists, on
-//   Maven Central at the version. Central serves a release some minutes after
-//   it accepts it, so this waits, up to MAVEN_TIMEOUT_MS, reading every
-//   MAVEN_INTERVAL_MS.
+// - maven: the POM of the BOM, of every me.ahoo.wow module it lists, of
+//   DEPENDENCIES and of each plugin marker (PLUGIN_IDS), on Maven Central at
+//   the version. Central serves a release some minutes after it accepts it,
+//   so this waits, up to MAVEN_TIMEOUT_MS, reading every MAVEN_INTERVAL_MS.
 //
 // A failure names the registry, the artifact and what is missing. Every check
 // is a read: re-running it publishes nothing.
+
+/**
+ * What Maven Central gets beside the modules the BOM lists: the platform every
+ * module's POM imports (`:wow-dependencies`, root build.gradle.kts
+ * `publicationProjects`), and the marker of each Gradle plugin id
+ * (compiler/gradle-plugin's `gradlePlugin`), which `plugins { id(...) }`
+ * resolves: group the id, artifact `<id>.gradle.plugin`.
+ */
+export const DEPENDENCIES = 'wow-dependencies';
+export const PLUGIN_IDS = [
+  'me.ahoo.wow',
+  'me.ahoo.wow.api',
+  'me.ahoo.wow.service',
+];
 
 /** The server images image-deploy.yml pushes. */
 export const IMAGES = [
@@ -121,6 +135,61 @@ export function parseChallenge(header) {
 }
 
 /**
+ * How long a 429's Retry-After is waited for, at most: an anonymous pull limit
+ * that a minute does not lift is reported, not waited out.
+ */
+const RATE_LIMIT_WAIT_MS = 60_000;
+
+/** The wait a 429's `Retry-After` (seconds or an HTTP date) asks for, bounded. */
+export function retryAfterMs(header, now = Date.now()) {
+  if (!header) return READ_DELAY_MS;
+  const seconds = Number(header);
+  const ms = Number.isFinite(seconds)
+    ? seconds * 1000
+    : Date.parse(header) - now;
+  if (!Number.isFinite(ms)) return READ_DELAY_MS;
+  return Math.min(Math.max(ms, 0), RATE_LIMIT_WAIT_MS);
+}
+
+/**
+ * A read, made again (READ_ATTEMPTS in all) when it gets no answer, a 5xx, or
+ * a 429: a rate limit is "not yet", waited for as its Retry-After says, up to
+ * RATE_LIMIT_WAIT_MS. Any other answer is returned.
+ */
+export async function retryingRead(
+  url,
+  init,
+  {
+    fetch = globalThis.fetch,
+    sleep = ms => new Promise(done => setTimeout(done, ms)),
+  } = {},
+) {
+  for (let attempt = 1; ; attempt++) {
+    let failure;
+    let wait = READ_DELAY_MS;
+    try {
+      const response = await fetch(url, {
+        ...init,
+        cache: 'no-store',
+        signal: AbortSignal.timeout(READ_TIMEOUT_MS),
+      });
+      if (response.status === 429) {
+        const header = response.headers.get('retry-after');
+        wait = retryAfterMs(header);
+        failure = `answered 429: the registry's rate limit${header ? ` (Retry-After ${header})` : ''}`;
+      } else if (response.status < 500) return response;
+      else failure = `answered ${response.status}`;
+      await response.body?.cancel();
+    } catch (error) {
+      failure = `could not be read: ${error.cause?.message ?? error.message}`;
+    }
+    if (attempt >= READ_ATTEMPTS)
+      throw new Error(`${url} ${failure} (${attempt} attempts)`);
+    await sleep(wait);
+  }
+}
+
+/**
  * An anonymous reader of OCI registries: each repository's pull token comes
  * from the realm the registry's own 401 names, as `docker pull` gets one.
  */
@@ -130,27 +199,7 @@ export function registryReader({
 } = {}) {
   const tokens = new Map();
 
-  /** A read, made again when it gets no answer or a 5xx. */
-  async function read(url, init) {
-    for (let attempt = 1; ; attempt++) {
-      let failure;
-      try {
-        const response = await fetch(url, {
-          ...init,
-          cache: 'no-store',
-          signal: AbortSignal.timeout(READ_TIMEOUT_MS),
-        });
-        if (response.status < 500) return response;
-        failure = `answered ${response.status}`;
-        await response.body?.cancel();
-      } catch (error) {
-        failure = `could not be read: ${error.cause?.message ?? error.message}`;
-      }
-      if (attempt >= READ_ATTEMPTS)
-        throw new Error(`${url} ${failure} (${attempt} attempts)`);
-      await sleep(READ_DELAY_MS);
-    }
-  }
+  const read = (url, init) => retryingRead(url, init, { fetch, sleep });
 
   async function token(challenge) {
     const { realm, service, scope } = challenge;
@@ -421,10 +470,13 @@ export async function checkMaven(
     problems.push(error.message);
     return { lines, problems };
   }
-  const response = await fetch(bom, {
-    cache: 'no-store',
-    signal: AbortSignal.timeout(READ_TIMEOUT_MS),
-  });
+  let response;
+  try {
+    response = await retryingRead(bom, {}, { fetch, sleep });
+  } catch (error) {
+    problems.push(`Maven Central: ${error.message}`);
+    return { lines, problems };
+  }
   if (response.status !== 200) {
     problems.push(
       `Maven Central: ${bom} answered ${response.status} once served`,
@@ -445,15 +497,22 @@ export async function checkMaven(
       problems.push(
         `Maven Central: wow-bom ${version} lists ${GROUP}:${entry.artifactId} at ${entry.version}, not ${version}`,
       );
+  const markers = PLUGIN_IDS.map(id => [id, `${id}.gradle.plugin`]);
   try {
-    await wait(
-      modules.map(artifact => [
+    await wait([
+      ...[...modules, DEPENDENCIES].map(artifact => [
         `${GROUP}:${artifact}:${version}`,
         pomUrl(artifact, version),
       ]),
-    );
+      ...markers.map(([group, artifact]) => [
+        `${group}:${artifact}:${version}`,
+        pomUrl(artifact, version, group),
+      ]),
+    ]);
     lines.push(
       `Maven Central: wow-bom ${version} and the ${modules.length} modules it lists: ${modules.join(', ')}`,
+      `Maven Central: ${GROUP}:${DEPENDENCIES} ${version}`,
+      `Maven Central: the plugin markers ${markers.map(([group, artifact]) => `${group}:${artifact}`).join(', ')} ${version}`,
     );
   } catch (error) {
     problems.push(error.message);

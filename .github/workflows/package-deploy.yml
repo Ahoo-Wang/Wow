@@ -301,12 +301,12 @@ jobs:
           SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
 
   # Reads back what central-deploy released, anonymously, as a build resolves
-  # it (release-published.mjs --only maven): the POM of wow-bom and of every
-  # module it lists, on Maven Central at the version. Central serves a release
-  # some minutes after it accepts it, so this waits for it, up to an hour,
-  # reading every 30 seconds. It holds no credentials and changes nothing
-  # published: a failure here is re-run alone, and re-running it publishes
-  # nothing.
+  # it (release-published.mjs --only maven): the POM of wow-bom, of every
+  # module it lists, of wow-dependencies and of each Gradle plugin marker, on
+  # Maven Central at the version. Central serves a release some minutes after
+  # it accepts it, so this waits for it, up to an hour, reading every 30
+  # seconds. It holds no credentials and changes nothing published: a failure
+  # here is re-run alone, and re-running it publishes nothing.
   maven-check:
     needs: central-deploy
     runs-on: ubuntu-latest

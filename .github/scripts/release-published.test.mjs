@@ -5,11 +5,16 @@
  */
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { test } from 'node:test';
+import { ROOT } from './project-version.mjs';
 import { releasePlan } from './release-plan.mjs';
 import {
+  DEPENDENCIES,
   IMAGES,
   IMAGE_REGISTRIES,
+  PLUGIN_IDS,
   bomEntries,
   checkChart,
   checkImages,
@@ -18,6 +23,8 @@ import {
   parseChallenge,
   pomUrl,
   registryReader,
+  retryAfterMs,
+  retryingRead,
   run,
 } from './release-published.mjs';
 
@@ -81,7 +88,13 @@ function registries(content) {
 function response(status, text, headers = {}) {
   return {
     status,
-    statusText: { 200: 'OK', 401: 'Unauthorized', 404: 'Not Found' }[status] ?? '',
+    statusText:
+      {
+        200: 'OK',
+        401: 'Unauthorized',
+        404: 'Not Found',
+        429: 'Too Many Requests',
+      }[status] ?? '',
     headers: { get: name => headers[name.toLowerCase()] ?? null },
     body: { cancel: async () => {} },
     text: async () => text,
@@ -374,6 +387,47 @@ test('a read with no answer or a 5xx is made again, up to three times', async ()
   );
 });
 
+test('a 429 is a rate limit, waited for as its Retry-After says, at most a minute', async () => {
+  const slept = [];
+  const answers = [
+    response(429, '', { 'retry-after': '30' }),
+    response(429, '', { 'retry-after': '3600' }),
+    response(200, 'ok'),
+  ];
+  const read = await retryingRead(
+    'https://registry-1.docker.io/v2/',
+    {},
+    { fetch: async () => answers.shift(), sleep: async ms => slept.push(ms) },
+  );
+  assert.equal(read.status, 200);
+  assert.deepEqual(slept, [30_000, 60_000]);
+});
+
+test('a 429 that persists names the rate limit', async () => {
+  const slept = [];
+  const reader = registryReader({
+    fetch: async () => response(429, '', { 'retry-after': '20' }),
+    sleep: async ms => slept.push(ms),
+  });
+  await assert.rejects(
+    reader.manifest('registry-1.docker.io', 'ahoowang/wow-ops-server', BETA),
+    {
+      message: `https://registry-1.docker.io/v2/ahoowang/wow-ops-server/manifests/${BETA} answered 429: the registry's rate limit (Retry-After 20) (3 attempts)`,
+    },
+  );
+  assert.deepEqual(slept, [20_000, 20_000]);
+});
+
+test('retryAfterMs reads seconds or an HTTP date, bounded at a minute', () => {
+  const now = Date.parse('2026-11-25T00:00:00Z');
+  assert.equal(retryAfterMs('12', now), 12_000);
+  assert.equal(retryAfterMs('Wed, 25 Nov 2026 00:00:40 GMT', now), 40_000);
+  assert.equal(retryAfterMs('Wed, 25 Nov 2026 01:00:00 GMT', now), 60_000);
+  assert.equal(retryAfterMs('Tue, 24 Nov 2026 23:00:00 GMT', now), 0);
+  assert.equal(retryAfterMs(null, now), 5_000);
+  assert.equal(retryAfterMs('soon', now), 5_000);
+});
+
 const BOM = `<project>
   <groupId>me.ahoo.wow</groupId>
   <artifactId>wow-bom</artifactId>
@@ -401,18 +455,35 @@ test('bomEntries reads the dependencies a BOM manages', () => {
   assert.deepEqual(bomEntries('<project/>'), []);
 });
 
+/** The POMs Central gets beside the BOM's modules, each due at `at`. */
+function extras(at) {
+  return {
+    [pomUrl(DEPENDENCIES, BETA)]: at,
+    ...Object.fromEntries(
+      PLUGIN_IDS.map(id => [pomUrl(`${id}.gradle.plugin`, BETA, id), at]),
+    ),
+  };
+}
+
 /**
  * Maven Central on a fake clock: each URL answers 404 until its time (ms
  * after the start) has come, then 200; the BOM's body is BOM. `sleep` moves
  * the clock.
  */
-function central(times) {
+function central(times, { resets = {} } = {}) {
   let clock = 0;
   const reads = {};
+  const served = {};
   const fetch = async url => {
     reads[url] = (reads[url] ?? 0) + 1;
     const due = times[url];
     if (due === undefined || clock < due) return response(404, '');
+    // A URL in `resets` is served once, then its next reads are reset that many times.
+    if (served[url] && resets[url] > 0) {
+      resets[url]--;
+      throw new Error('fetch failed', { cause: { message: 'ECONNRESET' } });
+    }
+    served[url] = true;
     return response(200, url.endsWith('wow-bom-10.0.0-beta.21.pom') ? BOM : '');
   };
   return {
@@ -434,11 +505,14 @@ test("Maven Central's POMs appearing within the bound pass", async () => {
     [pomUrl('wow-bom', BETA)]: 600_000,
     [pomUrl('wow-api', BETA)]: 600_000,
     [pomUrl('wow-kernel', BETA)]: 900_000,
+    ...extras(600_000),
   });
   const { lines, problems } = await checkMaven(BETA, options);
   assert.deepEqual(problems, []);
   assert.deepEqual(lines, [
     `Maven Central: wow-bom ${BETA} and the 2 modules it lists: wow-api, wow-kernel`,
+    `Maven Central: me.ahoo.wow:wow-dependencies ${BETA}`,
+    `Maven Central: the plugin markers me.ahoo.wow:me.ahoo.wow.gradle.plugin, me.ahoo.wow.api:me.ahoo.wow.api.gradle.plugin, me.ahoo.wow.service:me.ahoo.wow.service.gradle.plugin ${BETA}`,
   ]);
   assert.equal(clock(), 900_000);
 });
@@ -447,6 +521,7 @@ test('a POM that never appears fails at the hour, read every 30 seconds', async 
   const { options, reads, clock } = central({
     [pomUrl('wow-bom', BETA)]: 1_200_000,
     [pomUrl('wow-api', BETA)]: 1_200_000,
+    ...extras(1_200_000),
   });
   const { problems } = await checkMaven(BETA, options);
   // The BOM took 20 minutes, which the modules' wait does not get again.
@@ -457,6 +532,47 @@ test('a POM that never appears fails at the hour, read every 30 seconds', async 
   ]);
   assert.equal(reads[pomUrl('wow-kernel', BETA)], 81);
   assert.equal(reads[pomUrl('wow-api', BETA)], 1);
+});
+
+test("a plugin marker that never appears is named under its id's group", async () => {
+  const marker = pomUrl(
+    'me.ahoo.wow.api.gradle.plugin',
+    BETA,
+    'me.ahoo.wow.api',
+  );
+  assert.equal(
+    marker,
+    `https://repo1.maven.org/maven2/me/ahoo/wow/api/me.ahoo.wow.api.gradle.plugin/${BETA}/me.ahoo.wow.api.gradle.plugin-${BETA}.pom`,
+  );
+  const times = {
+    [pomUrl('wow-bom', BETA)]: 0,
+    [pomUrl('wow-api', BETA)]: 0,
+    [pomUrl('wow-kernel', BETA)]: 0,
+    ...extras(0),
+  };
+  delete times[marker];
+  const { options } = central(times);
+  const { problems } = await checkMaven(BETA, options);
+  assert.deepEqual(problems, [
+    `Maven Central does not serve the POMs of me.ahoo.wow.api:me.ahoo.wow.api.gradle.plugin:${BETA} after 3600s (121 reads 30s apart)` +
+      `\n  me.ahoo.wow.api:me.ahoo.wow.api.gradle.plugin:${BETA}: ${marker} answered 404 Not Found`,
+  ]);
+});
+
+test("the BOM's body is read again after a reset, and a reset that persists is named", async () => {
+  const served = {
+    [pomUrl('wow-bom', BETA)]: 0,
+    [pomUrl('wow-api', BETA)]: 0,
+    [pomUrl('wow-kernel', BETA)]: 0,
+    ...extras(0),
+  };
+  const once = central(served, { resets: { [pomUrl('wow-bom', BETA)]: 1 } });
+  assert.deepEqual((await checkMaven(BETA, once.options)).problems, []);
+
+  const always = central(served, { resets: { [pomUrl('wow-bom', BETA)]: 3 } });
+  assert.deepEqual((await checkMaven(BETA, always.options)).problems, [
+    `Maven Central: ${pomUrl('wow-bom', BETA)} could not be read: ECONNRESET (3 attempts)`,
+  ]);
 });
 
 test('a BOM that never appears fails at the hour and reads no module', async () => {
@@ -480,4 +596,35 @@ test('run checks only what --only names and returns every problem', async () => 
   assert.equal(problems.length, 2);
   assert.equal(logs[0], `== chart ${BETA}`);
   assert.ok(logs.some(line => line.startsWith('FAIL GHCR')));
+});
+
+test('the Maven extras are what the build publishes beside the BOM', () => {
+  const read = path => readFileSync(join(ROOT, path), 'utf8');
+  // compiler/gradle-plugin declares each plugin id, and the root build's publication check lists the same ids.
+  const plugin = read('compiler/gradle-plugin/build.gradle.kts');
+  const declared = [
+    ...plugin
+      .slice(plugin.indexOf('gradlePlugin {'))
+      .matchAll(/^\s*id = "([^"]+)"/gm),
+  ].map(([, id]) => id);
+  assert.deepEqual(declared, PLUGIN_IDS);
+  const root = read('build.gradle.kts');
+  const listed = /val pluginIds = listOf\(([^)]*)\)/.exec(root)?.[1];
+  assert.deepEqual(
+    [...listed.matchAll(/"([^"]+)"/g)].map(([, id]) => id),
+    PLUGIN_IDS,
+  );
+  // :wow-dependencies is published beside the release projects, under its project name.
+  assert.match(
+    root,
+    /^val dependenciesProject = project\(":wow-dependencies"\)$/m,
+  );
+  assert.match(
+    root,
+    /^val publicationProjects = releaseProjects \+ dependenciesProject$/m,
+  );
+  assert.match(
+    read('settings.gradle.kts'),
+    new RegExp(`^include\\(":${DEPENDENCIES}"\\)$`, 'm'),
+  );
 });
