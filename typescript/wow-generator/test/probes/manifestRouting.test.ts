@@ -92,15 +92,15 @@ describe("the context client's command client", () => {
       `import { ProbeClient, type Pay } from './out/index.js';
        declare const probe: ProbeClient;
        const body: Pay = { amount: '1.50' };
-       void probe.commands.wait({ command: 'probe.thing.Pay', id: 't1', body });`,
+       void probe.commands.wait({ command: 'probe.thing.Pay', aggregateId: 't1', body });`,
     );
     directories.push(generation.dir);
     const printed = runGenerated(
       generation.output,
       `${sending(`[
-  { command: 'probe.thing.Pay', id: 't1', body: { amount: '${DECIMAL}' } },
-  { command: 'probe.thing.Settle', id: 't1', body: { amount: '${DECIMAL}' } },
-  { command: 'probe.thing.Adjust', id: 't1', body: { amount: '${DECIMAL}' } },
+  { command: 'probe.thing.Pay', aggregateId: 't1', body: { amount: '${DECIMAL}' } },
+  { command: 'probe.thing.Settle', aggregateId: 't1', body: { amount: '${DECIMAL}' } },
+  { command: 'probe.thing.Adjust', aggregateId: 't1', body: { amount: '${DECIMAL}' } },
 ]`)}
 await probe.thing.commands.pay('t1', { amount: '${DECIMAL}' });
 console.log(JSON.stringify(requests.at(-1).body));`,
@@ -129,7 +129,7 @@ console.log(JSON.stringify(requests.at(-1).body));`,
     const printed = runGenerated(
       generation.output,
       sending(
-        `[{ command: 'probe.thing.Settle', id: 't1', body: { amount: '${DECIMAL}' } }]`,
+        `[{ command: 'probe.thing.Settle', aggregateId: 't1', body: { amount: '${DECIMAL}' } }]`,
       ),
     );
     expect(JSON.parse(printed)).toEqual([
@@ -173,10 +173,10 @@ console.log(JSON.stringify(requests.at(-1).body));`,
     const printed = runGenerated(
       generation.output,
       sending(`[
-  { command: 'probe.thing.Settle', id: 't1', body: { amount: '1' } },
+  { command: 'probe.thing.Settle', aggregateId: 't1', body: { amount: '1' } },
   { command: 'wow.lifecycle.DeleteAggregate', ${type} },
   { command: 'wow.snapshot.RebuildSnapshot', ${type} },
-  { command: 'wow.schedule.EnableJob', id: 'nightly', type: { context: 'probe', name: 'wow.schedule' } },
+  { command: 'wow.schedule.EnableJob', aggregateId: 'nightly', type: { context: 'probe', name: 'wow.schedule' } },
   { command: 'wow.probe.Sweep', ${type} },
 ]`),
     );

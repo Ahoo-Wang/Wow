@@ -208,7 +208,7 @@ describe('the wire builders', () => {
     await expect(
       commands.send({
         command: 'eshop-catalog.product.ChangePrice',
-        id: 'mug',
+        aggregateId: 'mug',
         body: { price: 1 },
       }),
     ).rejects.toMatchObject({

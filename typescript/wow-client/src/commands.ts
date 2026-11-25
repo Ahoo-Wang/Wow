@@ -59,14 +59,16 @@ import { formatWaitPlan, formatWaitTimeout, WaitPlan } from './wait.js';
  * - `command`: the full type name, `context.aggregate.Command`, which names
  *   the aggregate type too; or a system command (`wow.*`, a lifecycle command
  *   of {@link LifecycleCommands} among them), which needs `type`.
- * - `id`: the aggregate's id. Absent when the command names no aggregate id:
- *   a creation, whose id the server assigns, an `@Unaddressed` command, or
- *   any command of an aggregate whose id is its owner's (the Manifest's
+ * - `aggregateId`: the aggregate's id, as Kotlin's
+ *   `CommandRequest.aggregateId` names it beside the command's and the
+ *   request's ids. Absent when the command names no aggregate id: a creation,
+ *   whose id the server assigns, an `@Unaddressed` command, or any command of
+ *   an aggregate whose id is its owner's (the Manifest's
  *   `idSource: "owner"`), which goes to the caller's own; the route without
  *   `{id}` then sends it. A command whose body names its aggregate (the
- *   Manifest's `idProperty`) goes by that route too, whether `id` is given or
- *   not: a given one is the one its body names, or is written into a body
- *   that names none.
+ *   Manifest's `idProperty`) goes by that route too, whether `aggregateId` is
+ *   given or not: a given one is the one its body names, or is written into a
+ *   body that names none.
  * - `targetTenant`, `targetScope`: the tenant and scope a caller allowed to
  *   act across scopes acts in (`Wow-Scope`); the caller's own when absent.
  * - `wait` (`Wow-Wait`), a {@link WaitPlan}, and `timeout` in milliseconds
@@ -84,7 +86,7 @@ export interface CommandRequest extends Omit<RequestOptions, 'scope'> {
    * The aggregate's id; absent for a creation, an unaddressed command or the
    * caller's own aggregate of one whose id is its owner's.
    */
-  readonly id?: string;
+  readonly aggregateId?: string;
   /**
    * The aggregate type, which `command` names unless it is a system command:
    * then it is required.
@@ -141,7 +143,7 @@ export interface CommandClientOptions {
  */
 export type CommandOptions = Omit<
   CommandRequest,
-  'command' | 'body' | 'type' | 'id'
+  'command' | 'body' | 'type' | 'aggregateId'
 >;
 
 /** The options of a command that may create its aggregate, with its id or not. */
@@ -150,7 +152,7 @@ export interface CreateCommandOptions extends CommandOptions {
    * The id of the aggregate to create (decision D176); the service generates
    * one when absent.
    */
-  readonly id?: string;
+  readonly aggregateId?: string;
 }
 
 /** The lifecycle commands an aggregate may list. */
@@ -256,8 +258,9 @@ function planOf(request: CommandRequest): WaitPlan | undefined {
 }
 
 /**
- * The route of `request` among `routes`, by `id` (the request's, none for a
- * command whose body names its aggregate): its method and path, the id in it.
+ * The route of `request` among `routes`, by `id` (the request's
+ * `aggregateId`, none for a command whose body names its aggregate): its
+ * method and path, the id in it.
  * An empty id is refused before anything is sent: it would leave the path's
  * segment empty (`/<context>/<aggregate>//…`), a route no service has.
  */
@@ -272,8 +275,8 @@ function routeOf(
   if (route === undefined) {
     throw new TypeError(
       id === undefined
-        ? `${request.command} has no route without an aggregate id: set the request's id.`
-        : `${request.command} has no route to an aggregate by its id: send it without an id.`,
+        ? `${request.command} has no route without an aggregate id: set the request's aggregateId.`
+        : `${request.command} has no route to an aggregate by its id: send it without an aggregateId.`,
     );
   }
   if (id === '') {
@@ -298,8 +301,9 @@ function routeOf(
 
 /**
  * The body `request` sends, `{}` when it has none. Of a command whose body
- * names its aggregate in `idProperty`, the route has no id: the request's id,
- * when it names one, is the body's too, written into a body that names none.
+ * names its aggregate in `idProperty`, the route has no id: the request's
+ * `aggregateId`, when it names one, is the body's too, written into a body
+ * that names none.
  *
  * @throws TypeError when the body names another aggregate than the request
  */
@@ -308,7 +312,7 @@ function bodyOf(
   idProperty: string | undefined,
 ): object {
   const body = request.body ?? {};
-  const id = request.id;
+  const id = request.aggregateId;
   if (idProperty === undefined || id === undefined) return body;
   const named: unknown = (body as Record<string, unknown>)[idProperty];
   if (named === undefined || named === null) {
@@ -316,7 +320,7 @@ function bodyOf(
   }
   if (named !== id) {
     throw new TypeError(
-      `The request names the aggregate ${id}, but the body of ${request.command} names ${String(named)}: send it without an id.`,
+      `The request names the aggregate ${id}, but the body of ${request.command} names ${String(named)}: send it without an aggregateId.`,
     );
   }
   return body;
@@ -544,7 +548,7 @@ export class CommandClient {
     const route = routeOf(
       request,
       declared.routes,
-      idProperty === undefined ? request.id : undefined,
+      idProperty === undefined ? request.aggregateId : undefined,
     );
     const scope = targetOf(request);
     const bodyNumbers = this.textNumbers[request.command];

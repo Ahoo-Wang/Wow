@@ -87,7 +87,7 @@ const commands = new CommandClient({ fetcher });
 const result = await commands.wait({
   command: 'shop.cart.AddCartItem',
   body: { productId: 'p-1', quantity: 1 },
-  id: 'cart-42',
+  aggregateId: 'cart-42',
   wait: WaitPlan.SNAPSHOT,
   timeout: 10_000,
 });
@@ -100,7 +100,7 @@ generated client's `manifest.ts`, its routes alone), else the service's,
 fetched once (`GET /wow/manifest`) for every command waiting on it; a
 command's `signal` ends its own wait, and a failed fetch rejects each command
 with an error of its own, carrying its request id. A command that
-may create its aggregate leaves `id` out and goes by the route without one. As with Kotlin's `CommandClient`,
+may create its aggregate leaves `aggregateId` out and goes by the route without one. As with Kotlin's `CommandClient`,
 `send` answers once the command is accepted, `wait` with the result its plan
 ends with (the server's default plan when there is none), and `stream` one
 `CommandResult` per hop. `wait` is a `WaitPlan`, as Kotlin's:
@@ -117,7 +117,7 @@ as the first commit's duplicate, and `requestIdOf(error)` hands back the one
 a failure was sent with. A system command, such as a lifecycle
 command an aggregate lists (`LifecycleCommands.DELETE_AGGREGATE`, …), also
 names the aggregate's `type: { context, name }`, and a lifecycle command its
-`id`.
+`aggregateId`.
 
 `StateClient` reads an aggregate's state, at a version or a time, and its
 trace; `find(id, options?)` answers `undefined` for an aggregate that does

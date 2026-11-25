@@ -95,13 +95,13 @@ describe('CommandClient', () => {
     // A waited result the aggregate rejected, answered 200, and with send.
     stubFetch(() => jsonResponse(result('rejected')));
     const answered = await commands
-      .wait({ command: 'c.a.X', id: '1' })
+      .wait({ command: 'c.a.X', aggregateId: '1' })
       .catch((e: unknown) => e);
     expect(answered).toBeInstanceOf(CommandRejectedError);
     expect((answered as CommandRejectedError).problem).toBeUndefined();
-    await expect(commands.send({ command: 'c.a.X', id: '1' })).rejects.toThrow(
-      CommandRejectedError,
-    );
+    await expect(
+      commands.send({ command: 'c.a.X', aggregateId: '1' }),
+    ).rejects.toThrow(CommandRejectedError);
   });
 
   it('rejects an admission refusal that decided no aggregate id as a rejection, with no id', async () => {
@@ -200,7 +200,7 @@ describe('CommandClient', () => {
       manifest: TEST_MANIFEST,
     }).stream({
       command: 'c.a.X',
-      id: '1',
+      aggregateId: '1',
     });
     const results = await readAll(stream);
     expect(results.map(r => [r.hop.stage, r.status])).toEqual([
@@ -231,7 +231,7 @@ describe('CommandClient', () => {
     const results = await readAll(
       await new CommandClient(client(), { manifest: TEST_MANIFEST }).stream({
         command: 'c.a.X',
-        id: '1',
+        aggregateId: '1',
       }),
     );
     expect(results.map(r => r.chainEnded ?? false)).toEqual([false, true]);
@@ -248,7 +248,7 @@ describe('CommandClient', () => {
       manifest: TEST_MANIFEST,
     }).wait({
       command: 'c.a.X',
-      id: '1',
+      aggregateId: '1',
     });
     expect(answered.chainEnded).toBe(true);
     expect(answered.pending).toHaveLength(1);

@@ -13,7 +13,7 @@
     "view-store/routes.ts": "c229b64246953a5e83d7aa3b987b89ed9e3b3fb4af289f36df7bb7ff785107ae",
     "view-store/types.ts": "a621c424fd502fa3163d6a6cd73aef27009d7c53064672651668086778d121b3",
     "view-store/view/aggregate.ts": "ad1b270e607a0e5f1b24b4cd44ac9a1bca20434faf1ae7d251b3eab08850550c",
-    "view-store/view/commandClient.ts": "68ec5d1b43f3ce73d2eca5dbd00eb84a82bf78613058acb4c9c386c1bd45d0e9",
+    "view-store/view/commandClient.ts": "606bc63c9d5523491aac66892bd245a3879cb2ceb1084f0b77a88f24e4b52f27",
     "view-store/view/index.ts": "93009e30d8920000d82a5628a33424d1dd4c38c65d6a354bdad8e4e8634633b7",
     "view-store/view/queryClient.ts": "4ac16fa7ef98ab906489d598a69b5bc935f4a90b4b0172bc0fa09a2a71cccb62",
     "view-store/view_preferences/aggregate.ts": "551e6c2e50df1ec278862c31722c4a4abe7a406baa24291adc998bd906dd15e3",

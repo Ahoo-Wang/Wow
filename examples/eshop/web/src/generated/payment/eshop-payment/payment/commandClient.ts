@@ -38,12 +38,12 @@ export class PaymentCommandClient {
    * Produces `PaymentRefunded`.
    */
   refundPayment(id: string, body: RefundPayment, options?: CommandOptions): Promise<CommandResult> {
-    return this.commands.wait({ ...options, command: 'eshop-payment.payment.RefundPayment', body, id });
+    return this.commands.wait({ ...options, command: 'eshop-payment.payment.RefundPayment', body, aggregateId: id });
   }
 
   /** `RefundPayment`, answered as one result per hop of its wait (`text/event-stream`). */
   refundPaymentStream(id: string, body: RefundPayment, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.commands.stream({ ...options, command: 'eshop-payment.payment.RefundPayment', body, id });
+    return this.commands.stream({ ...options, command: 'eshop-payment.payment.RefundPayment', body, aggregateId: id });
   }
 
   /**
@@ -66,7 +66,7 @@ export class PaymentCommandClient {
    * The lifecycle command `wow.lifecycle.DeleteAggregate`.
    */
   deleteAggregate(id: string, options?: CommandOptions): Promise<CommandResult> {
-    return this.commands.wait({ ...options, command: LifecycleCommands.DELETE_AGGREGATE, type: { context: 'eshop-payment', name: 'payment' }, id });
+    return this.commands.wait({ ...options, command: LifecycleCommands.DELETE_AGGREGATE, type: { context: 'eshop-payment', name: 'payment' }, aggregateId: id });
   }
 
   /**
@@ -74,7 +74,7 @@ export class PaymentCommandClient {
    * The lifecycle command `wow.lifecycle.RestoreAggregate`.
    */
   restoreAggregate(id: string, options?: CommandOptions): Promise<CommandResult> {
-    return this.commands.wait({ ...options, command: LifecycleCommands.RESTORE_AGGREGATE, type: { context: 'eshop-payment', name: 'payment' }, id });
+    return this.commands.wait({ ...options, command: LifecycleCommands.RESTORE_AGGREGATE, type: { context: 'eshop-payment', name: 'payment' }, aggregateId: id });
   }
 
   /**
@@ -82,7 +82,7 @@ export class PaymentCommandClient {
    * The lifecycle command `wow.lifecycle.TransferOwner`.
    */
   transferOwner(id: string, body: TransferOwner, options?: CommandOptions): Promise<CommandResult> {
-    return this.commands.wait({ ...options, command: LifecycleCommands.TRANSFER_OWNER, type: { context: 'eshop-payment', name: 'payment' }, id, body });
+    return this.commands.wait({ ...options, command: LifecycleCommands.TRANSFER_OWNER, type: { context: 'eshop-payment', name: 'payment' }, aggregateId: id, body });
   }
 
   /**
@@ -90,6 +90,6 @@ export class PaymentCommandClient {
    * The lifecycle command `wow.lifecycle.TransferSpace`.
    */
   transferSpace(id: string, body: TransferSpace, options?: CommandOptions): Promise<CommandResult> {
-    return this.commands.wait({ ...options, command: LifecycleCommands.TRANSFER_SPACE, type: { context: 'eshop-payment', name: 'payment' }, id, body });
+    return this.commands.wait({ ...options, command: LifecycleCommands.TRANSFER_SPACE, type: { context: 'eshop-payment', name: 'payment' }, aggregateId: id, body });
   }
 }

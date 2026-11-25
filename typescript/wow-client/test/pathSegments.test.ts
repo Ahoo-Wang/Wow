@@ -50,9 +50,9 @@ describe('an id a path cannot carry', () => {
       { manifest: TEST_MANIFEST },
     );
     for (const id of ['.', '..']) {
-      await expect(commands.wait({ command: 'c.a.X', id })).rejects.toThrow(
-        TypeError,
-      );
+      await expect(
+        commands.wait({ command: 'c.a.X', aggregateId: id }),
+      ).rejects.toThrow(TypeError);
     }
     // Without the refusal, `POST /c/a/x` (the route without an id) and `POST /c/x`.
     expect(sent(received)).toEqual([]);

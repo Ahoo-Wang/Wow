@@ -56,7 +56,7 @@ export function wowOrderCommands(fetcher: Fetcher): OrderCommands {
     // reports it on that order, and the order stays selected.
     await commands.wait({
       command: `example.order.${command}`,
-      id: orderId,
+      aggregateId: orderId,
       wait: WaitPlan.of(Hop.snapshot('example')),
     });
   };

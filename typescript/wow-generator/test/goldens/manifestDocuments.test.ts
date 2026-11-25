@@ -111,7 +111,7 @@ const ordering = await import('./ordering/index.js');
 const payment = await import('./payment/index.js');
 const products = new catalog.ProductCommandClient({ fetcher });
 await products.createProduct({ name: 'n', price: 1 });
-await products.createProduct({ name: 'n', price: 1 }, { id: 'p-1', wait: WaitPlan.of(catalog.EshopCatalogContract.Wait.committed()) });
+await products.createProduct({ name: 'n', price: 1 }, { aggregateId: 'p-1', wait: WaitPlan.of(catalog.EshopCatalogContract.Wait.committed()) });
 await products.changeProductPrice('p-1', { price: 2 }, { requestId: 'r-1', expectedVersion: 1 });
 await products.publishProduct('p-1');
 await products.deleteAggregate('p-1');

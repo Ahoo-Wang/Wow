@@ -27,12 +27,12 @@ export class BasketCommandClient {
    * Produces `BasketItemAdded`.
    */
   addBasketItem(id: string, body: AddBasketItem, options?: CommandOptions): Promise<CommandResult> {
-    return this.commands.wait({ ...options, command: 'eshop-basket.basket.AddBasketItem', body, id });
+    return this.commands.wait({ ...options, command: 'eshop-basket.basket.AddBasketItem', body, aggregateId: id });
   }
 
   /** `AddBasketItem`, answered as one result per hop of its wait (`text/event-stream`). */
   addBasketItemStream(id: string, body: AddBasketItem, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.commands.stream({ ...options, command: 'eshop-basket.basket.AddBasketItem', body, id });
+    return this.commands.stream({ ...options, command: 'eshop-basket.basket.AddBasketItem', body, aggregateId: id });
   }
 
   /**
@@ -57,12 +57,12 @@ export class BasketCommandClient {
    * Produces `BasketItemQuantityChanged`.
    */
   changeBasketItemQuantity(id: string, body: ChangeBasketItemQuantity, options?: CommandOptions): Promise<CommandResult> {
-    return this.commands.wait({ ...options, command: 'eshop-basket.basket.ChangeBasketItemQuantity', body, id });
+    return this.commands.wait({ ...options, command: 'eshop-basket.basket.ChangeBasketItemQuantity', body, aggregateId: id });
   }
 
   /** `ChangeBasketItemQuantity`, answered as one result per hop of its wait (`text/event-stream`). */
   changeBasketItemQuantityStream(id: string, body: ChangeBasketItemQuantity, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.commands.stream({ ...options, command: 'eshop-basket.basket.ChangeBasketItemQuantity', body, id });
+    return this.commands.stream({ ...options, command: 'eshop-basket.basket.ChangeBasketItemQuantity', body, aggregateId: id });
   }
 
   /**
@@ -86,12 +86,12 @@ export class BasketCommandClient {
    * Produces `BasketCheckedOut`.
    */
   checkoutBasket(id: string, body: CheckoutBasket = {}, options?: CommandOptions): Promise<CommandResult> {
-    return this.commands.wait({ ...options, command: 'eshop-basket.basket.CheckoutBasket', body, id });
+    return this.commands.wait({ ...options, command: 'eshop-basket.basket.CheckoutBasket', body, aggregateId: id });
   }
 
   /** `CheckoutBasket`, answered as one result per hop of its wait (`text/event-stream`). */
   checkoutBasketStream(id: string, body: CheckoutBasket = {}, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.commands.stream({ ...options, command: 'eshop-basket.basket.CheckoutBasket', body, id });
+    return this.commands.stream({ ...options, command: 'eshop-basket.basket.CheckoutBasket', body, aggregateId: id });
   }
 
   /**
@@ -115,12 +115,12 @@ export class BasketCommandClient {
    * Produces `BasketCleared`.
    */
   clearBasket(id: string, body: ClearBasket = {}, options?: CommandOptions): Promise<CommandResult> {
-    return this.commands.wait({ ...options, command: 'eshop-basket.basket.ClearBasket', body, id });
+    return this.commands.wait({ ...options, command: 'eshop-basket.basket.ClearBasket', body, aggregateId: id });
   }
 
   /** `ClearBasket`, answered as one result per hop of its wait (`text/event-stream`). */
   clearBasketStream(id: string, body: ClearBasket = {}, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.commands.stream({ ...options, command: 'eshop-basket.basket.ClearBasket', body, id });
+    return this.commands.stream({ ...options, command: 'eshop-basket.basket.ClearBasket', body, aggregateId: id });
   }
 
   /**
@@ -144,12 +144,12 @@ export class BasketCommandClient {
    * Produces `BasketItemRemoved`.
    */
   removeBasketItem(id: string, body: RemoveBasketItem, options?: CommandOptions): Promise<CommandResult> {
-    return this.commands.wait({ ...options, command: 'eshop-basket.basket.RemoveBasketItem', body, id });
+    return this.commands.wait({ ...options, command: 'eshop-basket.basket.RemoveBasketItem', body, aggregateId: id });
   }
 
   /** `RemoveBasketItem`, answered as one result per hop of its wait (`text/event-stream`). */
   removeBasketItemStream(id: string, body: RemoveBasketItem, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.commands.stream({ ...options, command: 'eshop-basket.basket.RemoveBasketItem', body, id });
+    return this.commands.stream({ ...options, command: 'eshop-basket.basket.RemoveBasketItem', body, aggregateId: id });
   }
 
   /**
@@ -172,7 +172,7 @@ export class BasketCommandClient {
    * By id, for a caller with no owner; `deleteAggregateOwn` sends it to the caller's own.
    */
   deleteAggregate(id: string, options?: CommandOptions): Promise<CommandResult> {
-    return this.commands.wait({ ...options, command: LifecycleCommands.DELETE_AGGREGATE, type: { context: 'eshop-basket', name: 'basket' }, id });
+    return this.commands.wait({ ...options, command: LifecycleCommands.DELETE_AGGREGATE, type: { context: 'eshop-basket', name: 'basket' }, aggregateId: id });
   }
 
   /**
@@ -189,7 +189,7 @@ export class BasketCommandClient {
    * By id, for a caller with no owner; `restoreAggregateOwn` sends it to the caller's own.
    */
   restoreAggregate(id: string, options?: CommandOptions): Promise<CommandResult> {
-    return this.commands.wait({ ...options, command: LifecycleCommands.RESTORE_AGGREGATE, type: { context: 'eshop-basket', name: 'basket' }, id });
+    return this.commands.wait({ ...options, command: LifecycleCommands.RESTORE_AGGREGATE, type: { context: 'eshop-basket', name: 'basket' }, aggregateId: id });
   }
 
   /**
@@ -206,7 +206,7 @@ export class BasketCommandClient {
    * By id, for a caller with no owner; `transferSpaceOwn` sends it to the caller's own.
    */
   transferSpace(id: string, body: TransferSpace, options?: CommandOptions): Promise<CommandResult> {
-    return this.commands.wait({ ...options, command: LifecycleCommands.TRANSFER_SPACE, type: { context: 'eshop-basket', name: 'basket' }, id, body });
+    return this.commands.wait({ ...options, command: LifecycleCommands.TRANSFER_SPACE, type: { context: 'eshop-basket', name: 'basket' }, aggregateId: id, body });
   }
 
   /**

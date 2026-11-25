@@ -35,12 +35,12 @@ export class BrandCommandClient {
    * Produces `BrandRenamed`.
    */
   renameBrand(id: string, body: RenameBrand, options?: CommandOptions): Promise<CommandResult> {
-    return this.commands.wait({ ...options, command: 'eshop-catalog.brand.RenameBrand', body, id });
+    return this.commands.wait({ ...options, command: 'eshop-catalog.brand.RenameBrand', body, aggregateId: id });
   }
 
   /** `RenameBrand`, answered as one result per hop of its wait (`text/event-stream`). */
   renameBrandStream(id: string, body: RenameBrand, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.commands.stream({ ...options, command: 'eshop-catalog.brand.RenameBrand', body, id });
+    return this.commands.stream({ ...options, command: 'eshop-catalog.brand.RenameBrand', body, aggregateId: id });
   }
 
   /**
@@ -48,7 +48,7 @@ export class BrandCommandClient {
    * The lifecycle command `wow.lifecycle.DeleteAggregate`.
    */
   deleteAggregate(id: string, options?: CommandOptions): Promise<CommandResult> {
-    return this.commands.wait({ ...options, command: LifecycleCommands.DELETE_AGGREGATE, type: { context: 'eshop-catalog', name: 'brand' }, id });
+    return this.commands.wait({ ...options, command: LifecycleCommands.DELETE_AGGREGATE, type: { context: 'eshop-catalog', name: 'brand' }, aggregateId: id });
   }
 
   /**
@@ -56,7 +56,7 @@ export class BrandCommandClient {
    * The lifecycle command `wow.lifecycle.RestoreAggregate`.
    */
   restoreAggregate(id: string, options?: CommandOptions): Promise<CommandResult> {
-    return this.commands.wait({ ...options, command: LifecycleCommands.RESTORE_AGGREGATE, type: { context: 'eshop-catalog', name: 'brand' }, id });
+    return this.commands.wait({ ...options, command: LifecycleCommands.RESTORE_AGGREGATE, type: { context: 'eshop-catalog', name: 'brand' }, aggregateId: id });
   }
 
   /**
@@ -64,6 +64,6 @@ export class BrandCommandClient {
    * The lifecycle command `wow.lifecycle.TransferSpace`.
    */
   transferSpace(id: string, body: TransferSpace, options?: CommandOptions): Promise<CommandResult> {
-    return this.commands.wait({ ...options, command: LifecycleCommands.TRANSFER_SPACE, type: { context: 'eshop-catalog', name: 'brand' }, id, body });
+    return this.commands.wait({ ...options, command: LifecycleCommands.TRANSFER_SPACE, type: { context: 'eshop-catalog', name: 'brand' }, aggregateId: id, body });
   }
 }

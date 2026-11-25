@@ -91,7 +91,7 @@ describe('Manifest clients', () => {
        void [
          commands.putOwn({ n: 1 }), commands.put('u1', { n: 1 }), commands.putOwnStream({ n: 1 }),
          commands.clearOwn(), commands.clear('u1'), commands.clearStream('u1'), commands.clearOwnStream(),
-         commands.fetch(), commands.fetch({}, { id: 'u1' }),
+         commands.fetch(), commands.fetch({}, { aggregateId: 'u1' }),
          commands.deleteAggregateOwn(), commands.deleteAggregate('u1'), commands.restoreAggregate('u1'),
          states.getOwn(), states.findOwn(), states.readOwn(), states.traceOwn(), states.get('u1'), source,
        ];`,
@@ -104,7 +104,7 @@ describe('Manifest clients', () => {
       "return this.commands.wait({ ...options, command: 'probe.thing.Clear', body });",
     );
     expect(client).toContain(
-      "return this.commands.wait({ ...options, command: 'probe.thing.Clear', body, id });",
+      "return this.commands.wait({ ...options, command: 'probe.thing.Clear', body, aggregateId: id });",
     );
     expect(client).toContain(
       "`Clear`, to the caller's own aggregate, whose id is the caller's owner: `POST /probe/thing/clear`.",
@@ -205,7 +205,7 @@ describe('Manifest clients', () => {
        // @ts-expect-error the body names the aggregate, and the method takes no id
        void commands.restock('t1', { thingId: 't1', n: 1 });
        // @ts-expect-error nor in its options
-       void commands.restock({ thingId: 't1', n: 1 }, { id: 't1' });`,
+       void commands.restock({ thingId: 't1', n: 1 }, { aggregateId: 't1' });`,
     );
     const client = read('probe/thing/commandClient.ts');
     expect(client).toContain(

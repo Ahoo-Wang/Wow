@@ -55,7 +55,7 @@ describe('a command stream', () => {
     const reader = (
       await new CommandClient(client(), { manifest: TEST_MANIFEST }).stream({
         command: 'c.a.X',
-        id: '1',
+        aggregateId: '1',
       })
     ).getReader();
     body.enqueue(
@@ -96,7 +96,7 @@ describe('a command stream', () => {
       );
       const stream = await new CommandClient(client(), {
         manifest: TEST_MANIFEST,
-      }).stream({ command: 'c.a.X', id: '1' });
+      }).stream({ command: 'c.a.X', aggregateId: '1' });
       expect(await readAll(stream)).toMatchObject([
         { hop: { stage: 'committed' } },
       ]);
@@ -114,7 +114,7 @@ describe('a command stream', () => {
     );
     const whole = await new CommandClient(client(), {
       manifest: TEST_MANIFEST,
-    }).stream({ command: 'c.a.X', id: '1' });
+    }).stream({ command: 'c.a.X', aggregateId: '1' });
     expect(await readAll(whole)).toMatchObject([
       { hop: { stage: 'committed' } },
     ]);
@@ -130,7 +130,7 @@ describe('a command stream', () => {
     const failure = await (async () => {
       for await (const result of await new CommandClient(client(), {
         manifest: TEST_MANIFEST,
-      }).stream({ command: 'c.a.X', id: '1', requestId: 's1' }))
+      }).stream({ command: 'c.a.X', aggregateId: '1', requestId: 's1' }))
         read.push(result);
     })().catch((error: unknown) => error);
     expect(read).toHaveLength(1);
@@ -156,7 +156,7 @@ describe('a command stream', () => {
     );
     const stream = await new CommandClient(client(), {
       manifest: TEST_MANIFEST,
-    }).stream({ command: 'c.a.X', id: '1', requestId: 's1' });
+    }).stream({ command: 'c.a.X', aggregateId: '1', requestId: 's1' });
     await stream.cancel('left the page');
     // The cancel reaches the body through the event stream's pipes.
     await vi.waitFor(() => expect(cancelled).toBe('left the page'));
@@ -171,7 +171,7 @@ describe('a command stream', () => {
     );
     const stream = await new CommandClient(client(), {
       manifest: TEST_MANIFEST,
-    }).stream({ command: 'c.a.X', id: '1', wait: WaitPlan.SNAPSHOT });
+    }).stream({ command: 'c.a.X', aggregateId: '1', wait: WaitPlan.SNAPSHOT });
     const read: unknown[] = [];
     const failure = await (async () => {
       for await (const result of stream) read.push(result);
@@ -198,7 +198,7 @@ describe('a command stream', () => {
     const failure = await new CommandClient(client(), {
       manifest: TEST_MANIFEST,
     })
-      .stream({ command: 'c.a.X', id: '1', wait: WaitPlan.COMMITTED })
+      .stream({ command: 'c.a.X', aggregateId: '1', wait: WaitPlan.COMMITTED })
       .then(readAll)
       .catch((error: unknown) => error);
     expect(failure).toBeInstanceOf(WowProblemError);

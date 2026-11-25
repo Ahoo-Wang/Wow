@@ -6,7 +6,7 @@
     "eshop-ordering/index.ts": "8a14e2f01080d3f22c5d835991ceafa7169ad1b40cc6a3d72f284531d8c15b25",
     "eshop-ordering/manifest.ts": "db11082ab2796ac99009feb304f989ccf2ec711c5b216dc1ddf6487c4bcf8306",
     "eshop-ordering/order/aggregate.ts": "e65b52102a418e4f88c1f10e337d301fa52df1ea8a35053bc1a07aa35da585a7",
-    "eshop-ordering/order/commandClient.ts": "c8e89d7c9da1134e7d1841c307376d14ef5ac96be89d0952d43fa6f51b040487",
+    "eshop-ordering/order/commandClient.ts": "4b4d20f61de6b96804041a9e4611b8b6144ca84c18b1526e77160f56bb8db49b",
     "eshop-ordering/order/index.ts": "93009e30d8920000d82a5628a33424d1dd4c38c65d6a354bdad8e4e8634633b7",
     "eshop-ordering/order/queryClient.ts": "0ea5a4e8a619d12dfce0906c5f8226dcff3293122a7e09cfc513d71f22268ef8",
     "eshop-ordering/types.ts": "fc88ea95455d1b6c543cdb503c857c7b6819deea276a8a817326874f29bcdffc",
