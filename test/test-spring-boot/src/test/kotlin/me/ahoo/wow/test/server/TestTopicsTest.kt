@@ -19,9 +19,9 @@ import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.wait
 import me.ahoo.wow.example.quickstart.BankServer
 import me.ahoo.wow.example.quickstart.OpenAccount
-import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.runtime.node.SourceTopics
+import me.ahoo.wow.spi.config.WowConfigurationException
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.core.env.Environment
