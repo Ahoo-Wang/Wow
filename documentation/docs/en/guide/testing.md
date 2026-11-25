@@ -252,6 +252,16 @@ fun `an unpaid order should cancel itself once its grace period has passed`() = 
 
 A cron rule steps through its slots as the runtime does: moving past several slots sends only the latest, unless the rule catches up.
 
+The spec sends and settles a timer as a node does:
+
+- **The fired command** carries the operator and scope of the commit that scheduled it, and only the request facts a derived command inherits (`app_id`).
+- **A send whose decision throws** leaves the timer `PENDING`, one attempt more and due after the backoff, and `advanceTime` sends it again once due. The tenth failed attempt leaves it `PARKED`.
+- **A command for another context's aggregate** is sent there, as a node sends it to that context's command topic. Its timer is `FIRED` with the outcome `sent`, and nothing here decides it.
+- **A command for another aggregate of the same context** fails the spec by name: a node decides it on that aggregate, which a spec of one aggregate cannot. Check the schedule with `expectScheduled(…, target = …)`, and the command in a spec of its own aggregate.
+- **A stream given with `given(…)`** that sets a schedule keeps its timer, as the node's `timers` subscription does, and a given deletion cancels the aggregate's timers.
+
+The retries follow the node's defaults, whatever a service sets for `wow.timers.max-attempts`. A spec also skips the admission a node gives a fired command: its validators, the tenant refusal, and the id a creation is assigned.
+
 ### Command constraints
 
 A spec runs a command's decision and checks none of the command's Bean Validation constraints (`@NotBlank`, `@Positive`, …): on a node, admission checks them and answers `wow.command.invalid` with their violations, which a server test reads ([Test a Service](./testing-services)). A spec skips these other checks of admission too, which a server test reads alike:
@@ -387,7 +397,7 @@ An aggregate whose state declares access attributes is read under its access pol
 A handler that throws fails the spec unless the step's checks expect it: `expectError<T>`, `expectRetried` or `expectParked`. The spec decides what the runtime would do with the failure as the runtime's subscriptions do:
 
 - A rejection the handling met parks the aggregate at once, without a retry: the rejection of a call the handler let through, or of a derived command that no `@OnRejected` handler takes ([Rejections and receipts](#rejections-and-receipts)). A rejection is a business outcome, which no retry changes.
-- Any other failure is classified: Wow's own failures first, then the handler's `@Retry(recoverable, unrecoverable)`, then the failure classifiers of the modules on the class path, then the built-in rules ([How a failure is classified](./failures#how-a-failure-is-classified)). An unrecoverable failure parks at once; a downstream that is down or pushes back is retried without spending the budget; any other is retried until the handling has spent `@Retry(maxAttempts)`, 5 by default.
+- Any other failure is classified: Wow's own failures first, then the handler's `@Retry(recoverable, unrecoverable)`, then the failure classifiers of the modules on the class path, then the built-in rules ([How a failure is classified](./failures#how-a-failure-is-classified)). An unrecoverable failure parks at once; a downstream that is down is retried without spending the budget, and one that pushes back too, until its twentieth pushed-back attempt parks the aggregate, as a node's default `wow.subscription.backpressure.max-attempts` does; any other is retried until the handling has spent `@Retry(maxAttempts)`, 5 by default.
 - A handling that runs longer than its `@Retry(timeout)` is cancelled and counts as a failed attempt. That time is real, not the spec's clock.
 
 `expectRetried(attempt)` passes when the runtime retries the handling after that attempt, the first by default; `expectParked(attempt)` when it parks it then. Both return what was thrown. The spec does not wait out the backoff between attempts, and it uses neither the parked retries nor the application's own `FailureClassifier` beans: test those beside the classifier. [Test a failure](./failures#test-it) shows a reactor retried, then handed the same commit again.

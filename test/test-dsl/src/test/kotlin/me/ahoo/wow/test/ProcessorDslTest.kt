@@ -35,7 +35,9 @@ import me.ahoo.wow.kernel.HandlerTimeoutException
 import me.ahoo.wow.kernel.HandlingRejectedException
 import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.kernel.RejectionBinding
+import me.ahoo.wow.kernel.RetryDefaults
 import me.ahoo.wow.kernel.aggregate
+import me.ahoo.wow.spi.StorageBusyException
 import me.ahoo.wow.spi.StorageRefusedException
 import me.ahoo.wow.spi.StorageUnavailableException
 import org.junit.jupiter.api.Test
@@ -465,6 +467,30 @@ class ProcessorDslTest {
                 assertThrownBy<AssertionError> { expectRetried() }.hasMessageContaining("is unrecoverable")
                 expectParked()
             }
+        }
+    }
+
+    @Test
+    fun `a handling that meets backpressure should park after the runtime's 20 pushed-back attempts`() {
+        // As a node's subscription (EntryHandling): a pushed-back attempt spends none of the handler's budget, and the
+        // aggregate parks once the node's pushed-back attempts are spent (RetryDefaults); a downstream that is down
+        // pauses the partition and is retried for as long. Moved from review/r1-testkit (DslReviewR1Test).
+        val busy = ProcessorBinding.saga("OrderSaga", "onOrder", Order::class.java) { _: StateEvent<Order>, _ ->
+            throw StorageBusyException("The store is busy.")
+        }
+        sagaSpec(listOf(busy)) {
+            givenAggregate(orderModel, "order-1", OrderPlaced(10))
+            whenEvent(OrderPaid(1)) {
+                expectRetried(attempt = RetryDefaults.BACKPRESSURE_MAX_ATTEMPTS - 1)
+                expectParked(attempt = RetryDefaults.BACKPRESSURE_MAX_ATTEMPTS)
+            }
+        }
+        val down = ProcessorBinding.saga("OrderSaga", "onOrder", Order::class.java) { _: StateEvent<Order>, _ ->
+            throw StorageUnavailableException("The store is down.")
+        }
+        sagaSpec(listOf(down)) {
+            givenAggregate(orderModel, "order-1", OrderPlaced(10))
+            whenEvent(OrderPaid(1)) { expectRetried(attempt = RetryDefaults.BACKPRESSURE_MAX_ATTEMPTS * 10) }
         }
     }
 

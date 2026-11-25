@@ -23,6 +23,7 @@ import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.FailureClassification
 import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.kernel.HandlingRejectedException
+import me.ahoo.wow.kernel.RetryDefaults
 import me.ahoo.wow.spi.subscription.FailureClass
 import kotlin.reflect.KClass
 
@@ -289,9 +290,10 @@ class ProcessorExpectations internal constructor(
      * a rejection of a derived command no `@OnRejected` handler takes) parks at once; else [FailureClassification]
      * classifies it, the handler's `@Retry` first, then the classifiers of the modules on the classpath, then the
      * built-in rules. A failure it takes for unrecoverable parks
-     * at once; a downstream that is down or pushes back is retried without spending the budget; any other failure is
-     * retried until the attempt spends the budget ([HandlerRetry.maxAttempts], [HandlerRetry.DEFAULT_MAX_ATTEMPTS]
-     * when it gives none). An application's own classifiers are the runtime's, which its own tests check.
+     * at once; a downstream that is down is retried without spending the budget, and one that pushes back too, until
+     * the node's pushed-back attempts are spent ([RetryDefaults.BACKPRESSURE_MAX_ATTEMPTS]) and it parks; any other
+     * failure is retried until the attempt spends the budget ([HandlerRetry.maxAttempts],
+     * [HandlerRetry.DEFAULT_MAX_ATTEMPTS] when it gives none). An application's own classifiers are the runtime's, which its own tests check.
      */
     private fun parking(attempt: Int): Pair<Throwable, Verdict> {
         require(attempt >= 1) { "Attempts are counted from 1." }
@@ -305,8 +307,21 @@ class ProcessorExpectations internal constructor(
             } else {
                 Verdict(true, "$name is unrecoverable")
             }
-            FailureClass.SYSTEMIC, FailureClass.BACKPRESSURE ->
+            FailureClass.SYSTEMIC ->
                 Verdict(false, "$name is its downstream's, retried without spending the handler's budget")
+            FailureClass.BACKPRESSURE -> if (attempt >= RetryDefaults.BACKPRESSURE_MAX_ATTEMPTS) {
+                Verdict(
+                    true,
+                    "attempt $attempt spends the ${RetryDefaults.BACKPRESSURE_MAX_ATTEMPTS} attempts its downstream " +
+                        "may push back",
+                )
+            } else {
+                Verdict(
+                    false,
+                    "$name is its downstream's, retried without spending the handler's budget until attempt " +
+                        "${RetryDefaults.BACKPRESSURE_MAX_ATTEMPTS}",
+                )
+            }
             FailureClass.RECOVERABLE -> if (attempt >= budget()) {
                 Verdict(true, "attempt $attempt spends its ${budget()} attempts")
             } else {

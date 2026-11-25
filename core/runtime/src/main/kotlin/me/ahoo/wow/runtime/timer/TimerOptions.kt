@@ -14,9 +14,9 @@
 package me.ahoo.wow.runtime.timer
 
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.kernel.RetryDefaults
 import me.ahoo.wow.runtime.subscription.RetryPolicy
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -53,14 +53,19 @@ import kotlin.time.Duration.Companion.seconds
 class TimerOptions @InternalWowApi constructor(
     val pollInterval: Duration = 1.seconds,
     val lookahead: Duration = 30.seconds,
-    val retry: RetryPolicy = RetryPolicy(maxAttempts = 10, initialBackoff = 1.seconds, maxBackoff = 5.minutes),
+    val retry: RetryPolicy = RetryPolicy(
+        maxAttempts = RetryDefaults.TIMER_MAX_ATTEMPTS,
+        initialBackoff = RetryDefaults.TIMER_INITIAL_BACKOFF,
+        maxBackoff = RetryDefaults.TIMER_MAX_BACKOFF,
+        multiplier = RetryDefaults.TIMER_MULTIPLIER,
+    ),
     val expiresAfter: Duration? = null,
     val batch: Int = 1_000,
     val parallelism: Int = 64,
     val maxFireRate: Double? = null,
     val claimTimeout: Duration = 30.seconds,
     val maxEarlyWait: Duration = 5.seconds,
-    val maxBusyRetries: Int = 20,
+    val maxBusyRetries: Int = RetryDefaults.TIMER_MAX_BUSY_RETRIES,
 ) {
     init {
         require(pollInterval.isPositive()) { "The poll interval is positive." }

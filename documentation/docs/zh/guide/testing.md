@@ -252,6 +252,16 @@ fun `an unpaid order should cancel itself once its grace period has passed`() = 
 
 cron 规则像运行时那样逐个时间槽推进：一次越过多个时间槽时只发送最近的那一个，除非规则要求补发。
 
+规格像节点那样发送并结算定时器：
+
+- **触发的命令**带着为它定时的那次提交的操作人和作用域，且只带派生命令会继承的请求事实（`app_id`）。
+- **决策抛出异常的发送**让定时器保持 `PENDING`，尝试次数加一，在退避之后到期，`advanceTime` 会在到期后再次发送。第十次失败的尝试让它变为 `PARKED`。
+- **发给另一个上下文的聚合的命令**会送到那里，就像节点把它送到那个上下文的命令主题一样。它的定时器为 `FIRED`，结果为 `sent`，这里不会决策它。
+- **发给同一上下文中另一个聚合的命令**会让规格按名称失败：节点在那个聚合上决策它，而一个聚合的规格做不到。用 `expectScheduled(…, target = …)` 检查这个定时，并在那个聚合自己的规格中检查这条命令。
+- **用 `given(…)` 给定的流**若设置了定时，会像节点的 `timers` 订阅那样保留它的定时器，给定的删除会取消该聚合的定时器。
+
+重试遵循节点的默认值，无论服务对 `wow.timers.max-attempts` 设置了什么。规格也跳过节点对触发的命令所做的准入：它的校验器、租户拒绝，以及为创建分配的 ID。
+
 ### 命令的约束 {#command-constraints}
 
 规格运行命令的决策，不检查命令上的任何 Bean Validation 约束（`@NotBlank`、`@Positive` 等）：在节点上由准入层检查它们，并以 `wow.command.invalid` 回答其中的违规，服务器测试可以读到（[测试服务](./testing-services)）。规格也跳过准入层的下列检查，同样由服务器测试读到：
@@ -387,7 +397,7 @@ fun `an order the ordering context refuses should park the checkout`() = sagaSpe
 抛出异常的处理函数会让规格失败，除非这一步的检查预期了它：`expectError<T>`、`expectRetried` 或 `expectParked`。规格像运行时的订阅那样，判断运行时会如何处理这次失败：
 
 - 处理中遇到的拒绝会立即停放聚合，不重试：处理函数放行的同步调用拒绝，或者没有 `@OnRejected` 处理函数接收的派生命令的拒绝（[拒绝与回执](#rejections-and-receipts)）。拒绝是业务结果，重试改变不了它。
-- 其他失败要先分类：先看 Wow 自己的失败，再看处理函数的 `@Retry(recoverable, unrecoverable)`，然后看类路径上各模块的失败分类器，最后是内置规则（[失败如何分类](./failures#how-a-failure-is-classified)）。不可恢复的失败立即停放；宕机或施加背压的下游会重试，且不消耗预算；其余失败会一直重试，直到这次处理用完 `@Retry(maxAttempts)`，默认是 5 次。
+- 其他失败要先分类：先看 Wow 自己的失败，再看处理函数的 `@Retry(recoverable, unrecoverable)`，然后看类路径上各模块的失败分类器，最后是内置规则（[失败如何分类](./failures#how-a-failure-is-classified)）。不可恢复的失败立即停放；宕机的下游会重试，且不消耗预算；施加背压的下游也一样，直到第二十次被推回的尝试停放该聚合，和节点默认的 `wow.subscription.backpressure.max-attempts` 一样；其余失败会一直重试，直到这次处理用完 `@Retry(maxAttempts)`，默认是 5 次。
 - 运行时间超过 `@Retry(timeout)` 的处理会被取消，算作一次失败的尝试。这个时间是真实时间，不是规格的时钟。
 
 `expectRetried(attempt)` 在运行时会于这次尝试之后重试处理时通过，默认是第一次尝试；`expectParked(attempt)` 在运行时会于那时停放它时通过。两者都返回抛出的异常。规格不等待尝试之间的退避，也不使用停放后的重试和应用自己的 `FailureClassifier` Bean：在分类器旁边测试它们。[测试失败](./failures#test-it)给出了一个先被重试、再收到同一次提交的反应器。

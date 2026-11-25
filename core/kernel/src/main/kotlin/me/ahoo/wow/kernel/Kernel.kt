@@ -612,8 +612,9 @@ class Kernel(
     }
 }
 
-/** How an execution ended, as its observation names it. */
-internal val CommandOutcome.observedName: ObservedOutcome
+/** How an execution ended, as its observation names it, and a timer whose command it was records it. */
+@InternalWowApi
+val CommandOutcome.observedName: ObservedOutcome
     get() = when (this) {
         is CommandOutcome.Committed -> if (rejection == null) ObservedOutcome.COMMITTED else ObservedOutcome.REJECTED
         is CommandOutcome.AlreadyCommitted -> ObservedOutcome.DUPLICATE
