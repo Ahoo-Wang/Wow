@@ -692,6 +692,32 @@ describe('a time axis over its own window', () => {
     ]);
   });
 
+  // #6903: Santiago's 7 September 2025 has no midnight; Wow keys it at the
+  // transition, 01:00 -03:00, and the axis steps onto that key.
+  it('fills the day whose midnight was skipped at the key Wow gives it', () => {
+    const zone = 'America/Santiago';
+    const sep5 = Date.parse('2025-09-05T04:00:00.000Z');
+    const sep6 = Date.parse('2025-09-06T04:00:00.000Z');
+    const sep7 = Date.parse('2025-09-07T04:00:00.000Z');
+    // 8 September, 00:00 -03:00.
+    const sep8 = Date.parse('2025-09-08T03:00:00.000Z');
+    const daily = bars([METRICS.orders], {
+      groups: [{ ...DAY, timeZone: zone }],
+      filter: undefined,
+    });
+    const data = shapeChart(
+      daily,
+      [
+        { day: sep5, orders: 5 },
+        { day: sep8, orders: 8 },
+      ],
+      undefined,
+      { timeZone: 'UTC' },
+    ) as CartesianData;
+    expect(data.points.map(point => point.x)).toEqual([sep5, sep6, sep7, sep8]);
+    expect(data.points.map(point => point.values.orders)).toEqual([5, 0, 0, 8]);
+  });
+
   it('fills a split one combination at a time', () => {
     const split: AnalysisViewConfig = {
       ...config(
