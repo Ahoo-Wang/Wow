@@ -102,6 +102,34 @@ class TopicWaitProgressTest {
         Unit = runBlocking {
         // #6758: the owner signals the duplicate's commit, and a snapshot that has not handled the first commit proves
         // nothing more; nothing signals the duplicate again, so its wait ends there rather than at its deadline.
+        retriedThroughTopic { coordinator, first ->
+            listOf(WaitPlan.of(Hop.committed(), Hop.snapshot()), WaitPlan.SNAPSHOT).forEachIndexed { at, plan ->
+                val retry = first.copyWith(id = "c-retry-$at", wait = plan)
+                // Not passed by the deadline: a duplicate that waited for it would hang until the ten seconds end.
+                val last = withTimeout(10.seconds) { coordinator.stream(order, retry).toList() }.last()
+                last.status.assert().describedAs("$plan: ${last.error?.code}").isEqualTo(CommandResult.Status.SUCCEEDED)
+                last.duplicate.assert().isTrue()
+                last.hop.assert().isEqualTo(Hop.committed("shop"))
+                last.version.assert().isEqualTo(1)
+            }
+        }
+    }
+
+    @Test
+    fun `a retry through the topic under a plan past its commit streams its commit once`(): Unit = runBlocking {
+        // #6882: the duplicate's commit is the plan's committed hop and the wait's end at once: one result, not two.
+        retriedThroughTopic { coordinator, first ->
+            val retry = first.copyWith(id = "c-retry", wait = WaitPlan.of(Hop.committed(), Hop.snapshot()))
+            val results = withTimeout(10.seconds) { coordinator.stream(order, retry).toList() }
+            results.map { it.hop to it.duplicate }.assert().containsExactly(Hop.committed("shop") to true)
+        }
+    }
+
+    /**
+     * A command of [order] committed through the topic, its intake running and its snapshot held, then [retries] of it
+     * with the coordinator and the first command: a duplicate's commit is the last thing signalled for them.
+     */
+    private suspend fun retriedThroughTopic(retries: suspend (WaitCoordinator, Command<Place>) -> Unit) {
         val snapshots = runtime(
             "snapshot",
             LogSource(log),
@@ -135,15 +163,7 @@ class TopicWaitProgressTest {
             val first = Command("c-1", "r-1", ref, Place(3), wait = WaitPlan.COMMITTED)
             withTimeout(10.seconds) { coordinator.stream(order, first).toList() }.last().status.assert()
                 .isEqualTo(CommandResult.Status.SUCCEEDED)
-            listOf(WaitPlan.of(Hop.committed(), Hop.snapshot()), WaitPlan.SNAPSHOT).forEachIndexed { at, plan ->
-                val retry = first.copyWith(id = "c-retry-$at", wait = plan)
-                // Not passed by the deadline: a duplicate that waited for it would hang until the ten seconds end.
-                val last = withTimeout(10.seconds) { coordinator.stream(order, retry).toList() }.last()
-                last.status.assert().describedAs("$plan: ${last.error?.code}").isEqualTo(CommandResult.Status.SUCCEEDED)
-                last.duplicate.assert().isTrue()
-                last.hop.assert().isEqualTo(Hop.committed("shop"))
-                last.version.assert().isEqualTo(1)
-            }
+            retries(coordinator, first)
             log.read(ref).toList().single().version.assert().isEqualTo(1)
         } finally {
             snapshotGate.complete(Unit)

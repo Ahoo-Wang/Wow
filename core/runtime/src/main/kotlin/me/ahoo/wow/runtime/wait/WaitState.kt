@@ -106,6 +106,8 @@ internal class WaitState(private val hops: List<Hop>, private val rootCommandId:
     /**
      * Ends the wait with [result], into [completed], when it is the root command's commit as a duplicate and the wait
      * goes on: what the duplicate did not reach with its commit, it will not reach, since nothing signals it again.
+     * A commit the plan names was just emitted as that hop, last: it is the wait's end too, one result emitted once
+     * (#6882).
      */
     private fun endAtDuplicate(result: CommandResult, completed: MutableList<CommandResult>) {
         if (outcome != null || !result.duplicate || result.hop.stage != Stage.COMMITTED) {
@@ -113,7 +115,7 @@ internal class WaitState(private val hops: List<Hop>, private val rootCommandId:
         }
         if (result.commandId == rootCommandId) {
             outcome = result
-            completed += result
+            if (completed.lastOrNull() !== result) completed += result
         }
     }
 

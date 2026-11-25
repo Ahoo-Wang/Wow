@@ -82,6 +82,16 @@ class WaitStateTest {
     }
 
     @Test
+    fun `a duplicate's commit, a hop of its plan and its end, should be emitted once`() {
+        // #6882: the plan's committed hop reached and the wait's end are one result, which the state emits once.
+        val state = WaitState(listOf(committed, saga), "root")
+        val duplicate = result("root", committed).copyWith(duplicate = true)
+        state.offer(duplicate)!!.assert().containsExactly(duplicate)
+        state.outcome.assert().isSameAs(duplicate)
+        state.offer(duplicate).assert().isNull()
+    }
+
+    @Test
     fun `the stage a wait reached never goes back, whatever order its results arrive in`() {
         val state = WaitState(listOf(snapshot), "root")
         val atCommitted = result("root", committed).copyWith(version = 1)
