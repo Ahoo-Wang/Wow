@@ -12,7 +12,8 @@
  */
 
 import type { CursorPage, CursorQuery } from '@ahoo-wang/wow-client/dsl';
-import { useCallback, useRef, useState } from 'react';
+import { dequal } from 'dequal';
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { useQueryRunner } from '../internal/useQueryRunner.js';
 import type {
   QueryExecutor,
@@ -57,7 +58,10 @@ export interface UseCursorQueryOptions<
  * - `fetchNext()` — reads the next page and appends its rows, from where the
  *   pages stand when it is called, whichever render it came from; it does
  *   nothing while a page is loading or when no page follows. A failed
- *   `fetchNext()` keeps the rows, so calling it again retries that page.
+ *   `fetchNext()` keeps the rows, so calling it again retries that page. A
+ *   cursor belongs to the query whose page answered it: once the query or
+ *   the request options have changed and not run yet (`autoExecute: false`),
+ *   `fetchNext()` reads the first page of the query as it now is.
  */
 export interface UseCursorQueryReturn<
   R,
@@ -164,10 +168,17 @@ export function useCursorQuery<
   // until it ends or the runner aborts it: a run a newer query, abort() or an
   // unmount replaced no longer holds fetchNext() back, however long its
   // execute goes on, and its end does not free the hook for a newer run.
+  // `readWith` is the query and request options the pages were read with:
+  // their cursor goes with them alone.
   const progress = useRef<{
     nextCursor: string | null | undefined;
     running: AbortSignal | undefined;
-  }>({ nextCursor: undefined, running: undefined });
+    readWith: { query: Q; requestOptions: object } | undefined;
+  }>({ nextCursor: undefined, running: undefined, readWith: undefined });
+  const latest = useRef(options);
+  useLayoutEffect(() => {
+    latest.current = options;
+  });
   const readPage = options.execute;
   const {
     status,
@@ -187,6 +198,7 @@ export function useCursorQuery<
         next.current = null;
         if (cursor === null) {
           progress.current.nextCursor = undefined;
+          progress.current.readWith = undefined;
           setPages(noPages());
         }
         progress.current.running = options.signal;
@@ -195,7 +207,11 @@ export function useCursorQuery<
           // A run that no longer counts was aborted by the runner: its page
           // belongs to a query the rows have moved on from.
           if (!options.signal.aborted) {
+            // The request options the page was read with, but the run's own signal.
+            const requestOptions: Record<string, unknown> = { ...options };
+            delete requestOptions.signal;
             progress.current.nextCursor = page.nextCursor;
+            progress.current.readWith = { query, requestOptions };
             setPages(pages => ({
               items:
                 cursor === null
@@ -216,18 +232,26 @@ export function useCursorQuery<
   );
   const hasMore = typeof pages.nextCursor === 'string';
   const fetchNext = useCallback(async () => {
-    const { nextCursor, running } = progress.current;
+    const { nextCursor, running, readWith } = progress.current;
     if (running?.aborted === false || typeof nextCursor !== 'string') return;
-    next.current = nextCursor;
+    // A query or request options changed since the pages were read, and not
+    // run yet: the cursor is no position in that query's order, so its first
+    // page is read instead.
+    const same =
+      readWith !== undefined &&
+      dequal(readWith.query, getQuery()) &&
+      dequal(readWith.requestOptions, { ...latest.current.requestOptions });
+    next.current = same ? nextCursor : null;
     // The runner hands the cursor to the executor before it first awaits;
     // clear it in case the run did not start (no query, unmounted).
     const run = execute();
     next.current = null;
     await run;
-  }, [execute]);
+  }, [execute, getQuery]);
   const resetPages = useCallback(() => {
     reset();
     progress.current.nextCursor = undefined;
+    progress.current.readWith = undefined;
     setPages(noPages());
   }, [reset]);
   return {

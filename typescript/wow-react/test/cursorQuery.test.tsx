@@ -320,4 +320,75 @@ describe('useCursorQuery', () => {
     expect(result.current.hasMore).toBe(false);
     expect(result.current.status).toBe('idle');
   });
+
+  describe('with autoExecute off, a cursor goes with the query whose page answered it (#6914)', () => {
+    const s1: Row = { id: 's1' };
+    /** PAID has two pages, the second after `c1`; SHIPPED has one. */
+    const byStatus: Handler = request => {
+      const { filter: asked, cursor } = request.body as {
+        filter: { value: string };
+        cursor: string | null;
+      };
+      if (asked.value === 'SHIPPED')
+        return json({ list: [s1], nextCursor: null });
+      return cursor === 'c1'
+        ? json({ list: [o3], nextCursor: null })
+        : json({ list: [o1, o2], nextCursor: 'c1' });
+    };
+
+    function manual(server: FakeServer) {
+      const client = new QueryModelClient<Row>('/shop/order/snapshot/query', {
+        fetcher: server.fetcher,
+      });
+      return renderHook(
+        ({ query, tenant }: { query: typeof paid; tenant: string }) =>
+          useCursorQuery<Row>({
+            query,
+            autoExecute: false,
+            requestOptions: { headers: { 'Wow-Tenant': tenant } },
+            execute: (q, options) => client.cursor(q, options),
+          }),
+        { initialProps: { query: paid, tenant: 't1' } },
+      );
+    }
+
+    it('reads the first page of a query changed since, never the old cursor with it', async () => {
+      const server = fakeServer(byStatus);
+      const { result, rerender } = manual(server);
+      await act(() => result.current.execute());
+      expect(result.current.items).toEqual([o1, o2]);
+      expect(result.current.hasMore).toBe(true);
+
+      rerender({ query: shipped, tenant: 't1' });
+      await act(() => result.current.fetchNext());
+      expect(cursors(server)).toEqual([null, null]);
+      expect(result.current.items).toEqual([s1]);
+      expect(result.current.hasMore).toBe(false);
+    });
+
+    it('reads the first page of a query setQuery() changed', async () => {
+      const server = fakeServer(byStatus);
+      const { result } = manual(server);
+      await act(() => result.current.execute());
+      act(() => result.current.setQuery(shipped));
+      await act(() => result.current.fetchNext());
+      expect(cursors(server)).toEqual([null, null]);
+      expect(result.current.items).toEqual([s1]);
+    });
+
+    it('reads the first page again when the request options changed, and on from the cursor when nothing did', async () => {
+      const server = fakeServer(byStatus);
+      const { result, rerender } = manual(server);
+      await act(() => result.current.execute());
+      rerender({ query: paid, tenant: 't2' });
+      await act(() => result.current.fetchNext());
+      expect(cursors(server)).toEqual([null, null]);
+      expect(result.current.items).toEqual([o1, o2]);
+      // The same query and options again, by content: the cursor goes on.
+      rerender({ query: { ...paid }, tenant: 't2' });
+      await act(() => result.current.fetchNext());
+      expect(cursors(server)).toEqual([null, null, 'c1']);
+      expect(result.current.items).toEqual([o1, o2, o3]);
+    });
+  });
 });

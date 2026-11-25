@@ -64,8 +64,8 @@ graph TD
 - **StrictMode**：第二次挂载中止第一次执行、再发一次，只落定一个结果。
 - **回调**：`onSuccess`、`onError` 在状态更新之后调用；回调抛错时以 `console.warn` 报告，状态照常。
 - **中止类错误**：`execute` 自己抛出 `AbortError` 时按 `abort` 处理。
-- **流**：`readStreamRows` 第一批行在下一个宏任务发布，之后最多每 16 ms 发布一次，结束或出错前总会发布最后的行；流型 hook 不把 `ReadableStream` 交给组件，自己读、自己取消。执行器是客户端的 `streamRows`，每行带位置；`position` 是最后一条带位置的行的位置，与 `items` 一起清空、一起保留。组件重新挂载后续读：把保存的位置以 `requestOptions.resume.lastEventId` 传回。
-- **游标**：游标归 hook，查询类型是去掉 `cursor` 的 `CursorQuery`。每次由状态机发起的执行（挂载、查询变化、`execute()`、`setQuery()`）都从第一页开始并清空 `items`；只有 `fetchNext()` 把上一页的 `nextCursor` 交给下一次执行并追加。`fetchNext()` 在加载中或没有下一页时什么也不做；失败或 `abort()` 保留已读的行和游标，再调用一次就重试同一页。
+- **流**：`readStreamRows` 第一批行在下一个宏任务发布，之后最多每 16 ms 发布一次，结束或出错前总会发布最后的行，`abort()` 在中止前也先发布已读未发布的行（#6915；新查询、`execute()`、`reset()`、卸载取代它时不发布）；流型 hook 不把 `ReadableStream` 交给组件，自己读、自己取消。执行器是客户端的 `streamRows`，每行带位置；`position` 是最后一条带位置的行的位置，与 `items` 一起清空、一起保留。组件重新挂载后续读：把保存的位置以 `requestOptions.resume.lastEventId` 传回。
+- **游标**：游标归 hook，查询类型是去掉 `cursor` 的 `CursorQuery`。每次由状态机发起的执行（挂载、查询变化、`execute()`、`setQuery()`）都从第一页开始并清空 `items`；只有 `fetchNext()` 把上一页的 `nextCursor` 交给下一次执行并追加。`fetchNext()` 在加载中或没有下一页时什么也不做；失败或 `abort()` 保留已读的行和游标，再调用一次就重试同一页。游标只属于答出它那一页的查询与请求选项（按内容比较）：`autoExecute: false` 时它们变了而还没有运行，`fetchNext()` 不交出旧游标，而是读当前查询的第一页（#6914）。
 - **失败**：`error` 是 `Error`。执行器抛出的东西先经 wow-client 的 `toWowProblemError`（fetcher 的 `ExchangeError` 读成 problem），否则原样；不是 `Error` 的值包成 `new Error(String(x), { cause: x })`。`problem` 是 `error` 为 `WowProblemError` 时的同一个对象，否则 `undefined`，hook 从不编造服务端应答。
 
 ## 4. 请求身份

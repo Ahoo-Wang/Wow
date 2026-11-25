@@ -13,7 +13,7 @@
 
 import type { StreamOptions } from '@ahoo-wang/wow-client';
 import type { FilterListQuery } from '@ahoo-wang/wow-client/dsl';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { readStreamRows } from '../internal/readStreamRows.js';
 import { useQueryRunner } from '../internal/useQueryRunner.js';
 import type {
@@ -162,8 +162,12 @@ export function useStreamQuery<
   // Each run starts from no records; `abort()` and an error keep the records
   // received; `reset()` empties them. The runner aborts the run's signal
   // whenever the run stops counting, and readStreamRows stops publishing
-  // then, so records of a stale stream never reach `items`.
+  // then, so records of a stale stream never reach `items`. `abort()` first
+  // publishes what the run read and had not published yet (at most one
+  // interval of rows), so the records it keeps are every record received; a
+  // newer query or execute(), reset() and an unmount drop them.
   const [rows, setRows] = useState<Rows<R>>(noRows);
+  const unpublished = useRef<(() => void) | undefined>(undefined);
   const openStream = options.execute;
   const {
     status,
@@ -181,13 +185,24 @@ export function useStreamQuery<
       execute: async (query, options) => {
         setRows(noRows());
         const stream = await openStream(query, options);
-        return readStreamRows(stream, options.signal, (items, position) =>
-          setRows({ items, position }),
+        // The flush of a run that ended, or whose signal aborted, publishes
+        // nothing, so the newest run's replaces it and none is cleared.
+        return readStreamRows(
+          stream,
+          options.signal,
+          (items, position) => setRows({ items, position }),
+          flush => {
+            unpublished.current = flush;
+          },
         );
       },
     },
     false,
   );
+  const abortRows = useCallback(() => {
+    unpublished.current?.();
+    abort();
+  }, [abort]);
   const resetRows = useCallback(() => {
     reset();
     setRows(noRows());
@@ -201,7 +216,7 @@ export function useStreamQuery<
     problem,
     status,
     execute,
-    abort,
+    abort: abortRows,
     reset: resetRows,
     getQuery,
     setQuery,
