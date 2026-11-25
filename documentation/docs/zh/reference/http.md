@@ -79,11 +79,24 @@ outline: deep
 | 任何路由上的 `Wow-Call`（服务同步调用的请求头）：命令、查询、状态读取、服务路由 | `403 wow.auth.forbidden`，无论凭据如何：调用只在内部端口上接收 |
 | 路径中的矩阵参数（`/shop/cart/c-1;x=1/add-item`），包括不带参数名的 `;`（`c-1;`、`c-1;=v`） | `400 wow.request.malformed`：没有路由接收它们 |
 | 类型不是 `application/json` 或 `application/<name>+json` 的请求体，参数不计（`*/*`、`application/*`、`image/x+json`） | `415` |
-| [ID 规则](#aggregate-ids)拒绝的聚合 ID：含控制字符（`a%00b`）、两端有空白（`%20c-1`）、`.` 或 `..`、含 `/`、`;` 或 `\`（`a%2Fb`）、长于 256 个字符，或者 UTF-8 编码后长于 512 字节 | `400 wow.command.malformed`。Unicode ID（`%E8%B4%AD`）按原样接收：客户端会编码它发送的 ID |
+| [ID 规则](#aggregate-ids)拒绝的聚合 ID：含控制字符（`a%00b`）、两端有空白（`%20c-1`）、`.` 或 `..`、含 `/`、`;` 或 `\`（`a%2Fb`）、长于 256 个字符，或者 UTF-8 编码后长于 512 字节 | `400 wow.command.malformed`。Unicode ID（`%E8%B4%AD`）按原样接收：客户端会编码它发送的 ID。长到使请求行超过其上限的 ID 会先被拒绝：`414`（[路由之前](#server-refusals)） |
 | 状态读取上的空白 ID（`/shop/cart/%20/state`） | `400 wow.query.malformed` |
 | 状态读取或 trace 不接收的参数（`?verison=1`），或给出两次的参数（`?version=1&version=9`） | `400 wow.query.invalid`，违规项指出它 |
 | 不是不带符号、不带前导零的 ASCII 数字的 `version`、`minVersion`、`from`、`to` 或 `limit`（`%2B1`、`001`、`١`） | `400 wow.query.invalid`，违规项指出它 |
 | 服务路由的数字参数不是 JSON 写法的数字（`NaN`、`Infinity`、空格、`+1`、`01`；整数带小数或指数） | `400 wow.route.malformed`，违规项指出它 |
+
+### 服务器在路由之前拒绝什么 {#server-refusals}
+
+服务器有四个上限，在路由读取请求之前就会遇到。每个回答都是只有状态的 Problem，没有 `code`（[Problem](#problems)）；它的 `detail` 指出上限和设置它的配置项。
+
+| 请求 | 回答 | 上限：配置项，默认值 |
+| --- | --- | --- |
+| 请求行（方法、带查询的路径、版本）长于上限 | `414`，连接随之关闭 | `server.netty.max-initial-line-length`，4 KB |
+| 请求头块大于上限 | `431`，连接随之关闭 | `server.max-http-request-header-size`，8 KB |
+| 服务器无法作为 HTTP 读取的请求，例如两个不一致的 `Content-Length` 头 | `400`，连接随之关闭 | |
+| 请求体大于编解码器在内存中接收的大小 | `413` | `spring.http.codecs.max-in-memory-size`，256 KB |
+
+内部端口对前三种同样回答，按 Reactor Netty 自己的上限：4,096 和 8,192 字节，没有配置项设置它们。
 
 ### 聚合 ID {#aggregate-ids}
 

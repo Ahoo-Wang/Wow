@@ -24,6 +24,7 @@ import me.ahoo.wow.http.WowHttpOptions
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.http.ops.parkedRoutes
 import me.ahoo.wow.http.problem.GlobalErrors
+import me.ahoo.wow.http.problem.ServerRefusals
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.http.route.ServiceRoutes
 import me.ahoo.wow.http.wowRoutes
@@ -47,11 +48,15 @@ import me.ahoo.wow.spring.boot.security.DevelopmentCallerResolver
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
+import org.springframework.boot.context.properties.bind.Binder
+import org.springframework.boot.reactor.netty.NettyServerCustomizer
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.core.env.Environment
+import org.springframework.util.unit.DataSize
 import org.springframework.web.reactive.function.server.RouterFunction
 import org.springframework.web.reactive.function.server.ServerResponse
+import reactor.netty.http.HttpDecoderSpec
 import java.net.InetAddress
 import java.net.UnknownHostException
 
@@ -63,6 +68,24 @@ import java.net.UnknownHostException
  */
 @Configuration(proxyBeanMethods = false)
 internal class NodePublicPort {
+    /**
+     * The public server's own refusals as problems ([ServerRefusals], #6956): a request line past
+     * `server.netty.max-initial-line-length`, a header block past `server.max-http-request-header-size`, or malformed
+     * HTTP, each a problem of Reactor Netty's status naming the limit and its key.
+     */
+    @Bean
+    @InternalWowApi
+    fun wowServerRefusals(environment: Environment): NettyServerCustomizer {
+        val binder = Binder.get(environment)
+        fun limit(key: String, default: DataSize): String =
+            "${(binder.bind(key, DataSize::class.java).orElse(null) ?: default).toBytes()} bytes ($key)"
+        val limits = ServerRefusals.Limits(
+            requestLine = limit(MAX_INITIAL_LINE_LENGTH, DEFAULT_MAX_INITIAL_LINE_LENGTH),
+            headers = limit(MAX_HEADER_SIZE, DEFAULT_MAX_HEADER_SIZE),
+        )
+        return NettyServerCustomizer { server -> ServerRefusals.of(server, limits) }
+    }
+
     /**
      * The callers of a node without a `CallerResolver` bean, for development alone: a deployment maps the identity its
      * gateway asserts through one (CoSec's, with wow-cosec and `cosec.enabled`, or the application's), and an
@@ -236,6 +259,15 @@ internal class NodePublicPort {
     }
 
     internal companion object {
+        /** Spring Boot's key of the public server's request line limit, and its default: Reactor Netty's. */
+        const val MAX_INITIAL_LINE_LENGTH: String = "server.netty.max-initial-line-length"
+        private val DEFAULT_MAX_INITIAL_LINE_LENGTH: DataSize =
+            DataSize.ofBytes(HttpDecoderSpec.DEFAULT_MAX_INITIAL_LINE_LENGTH.toLong())
+
+        /** Spring Boot's key of the public server's header block limit, and its default. */
+        const val MAX_HEADER_SIZE: String = "server.max-http-request-header-size"
+        private val DEFAULT_MAX_HEADER_SIZE: DataSize = DataSize.ofKilobytes(8)
+
         /**
          * The operational commands ([SystemCommandGroups.OPERATIONAL]) the Manifest routes, by their names: a context's
          * jobs and an aggregate type's snapshot rebuild, which the public port refuses unless an authorizer decides them.
