@@ -219,6 +219,57 @@ class JavaBeanGettersTest {
         written.assert().containsExactlyInAnyOrder("note", "owner", "label")
     }
 
+    @Test
+    fun `a base class's private field should be named and left out by its Jackson annotations, under any state`() {
+        // A Java state and a Kotlin one: KSP gives neither the base's private fields, read from the base (#6974).
+        val base = SourceFile.java(
+            "CartBase.java",
+            """
+            package sample;
+
+            import com.fasterxml.jackson.annotation.*;
+
+            public class CartBase {
+                @JsonProperty("who") private String owner = "alice";
+                @JsonIgnore private String hidden = "h";
+                private long total;
+                public String getOwner() { return owner; }
+                public String getHidden() { return hidden; }
+                public long getTotal() { return total; }
+            }
+            """.trimIndent(),
+        )
+        val java = SourceFile.java(
+            "CartState.java",
+            """
+            package sample;
+
+            public class CartState extends CartBase {
+                private String note = "n";
+                public String getNote() { return note; }
+                public void onSourcing(Created event) { }
+            }
+            """.trimIndent(),
+        )
+        val kotlin = SourceFile.kotlin(
+            "CartState.kt",
+            """
+            package sample
+
+            class CartState : CartBase() {
+                val note: String = "n"
+
+                fun onSourcing(event: Created) = Unit
+            }
+            """.trimIndent(),
+        )
+        listOf(java, kotlin).forEach { state ->
+            val (fields, written) = stateFieldsOf(base, state)
+            fields.assert().containsExactlyInAnyOrder("note", "who", "total")
+            written.assert().containsExactlyInAnyOrder("note", "who", "total")
+        }
+    }
+
     private companion object {
         val QUERY_FIELD = Regex("QueryField\\.of\\(\"state\\.([^\"]+)\"\\)")
     }
