@@ -64,12 +64,28 @@ class InternalMessageLimitTest {
         NodeInternalPort.publicCodecLimit(
             MockEnvironment().withProperty("spring.http.codecs.max-in-memory-size", "1MB"),
         ).assert().isEqualTo(1024 * 1024)
+        // Spring Boot 4 binds no spring.codec key, and the public port keeps WebFlux's default under it (#6957).
         NodeInternalPort.publicCodecLimit(
             MockEnvironment().withProperty("spring.codec.max-in-memory-size", "512KB"),
-        ).assert().isEqualTo(512 * 1024)
+        ).assert().isEqualTo(InternalHttp.MAX_UPGRADE_BODY)
         InternalHttp.messageLimit(1024 * 1024).assert().isEqualTo(1024 * 1024 + InternalHttp.MESSAGE_OVERHEAD)
         InternalHttp.messageLimit(1).assert().isEqualTo(InternalHttp.MAX_UPGRADE_BODY)
         InternalHttp.messageLimit(-1).assert().isEqualTo(Int.MAX_VALUE)
+    }
+
+    @Test
+    fun `the internal port's limit should follow the codec limit the public port applies (#6957)`() {
+        // The older key, which Spring Boot 4 no longer binds: the public port keeps 256 KiB, and so does the internal.
+        startHost("spring.codec.max-in-memory-size" to "1MB").use { host ->
+            val body = """{"owner":"${"a".repeat(300 * 1024)}"}"""
+            host.post("/bank/account/open-account", body).status.assert().isEqualTo(413)
+            NodeInternalPort.publicCodecLimit(host.context.environment).assert().isEqualTo(256 * 1024)
+        }
+        startHost("spring.http.codecs.max-in-memory-size" to "1MB").use { host ->
+            val body = """{"owner":"${"a".repeat(300 * 1024)}"}"""
+            host.post("/bank/account/open-account", body).status.assert().isEqualTo(200)
+            NodeInternalPort.publicCodecLimit(host.context.environment).assert().isEqualTo(1024 * 1024)
+        }
     }
 
     @Test
