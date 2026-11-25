@@ -72,7 +72,7 @@ class AccountSpec {
 | `givenRecords(vararg records, scope, operator, commitTime)` | Commits stored records as one stream, as the log holds them: a history the model's classes can no longer write, such as an event the aggregate retired, whose record the kernel skips, or a record of an older revision, read through its upgrades. |
 | `givenReservation(namespace, key, owner)` | Gives a reserved key to another aggregate of the same type, so a command that reserves it is refused. |
 | `givenCommands(vararg commands)` | Sends the commands as the scenario's setup; one that is rejected or throws fails the spec, naming it. |
-| `whenCommand(command, requestId, expectedVersion, caller, scope, …) { … }` | Sends the command through the kernel and checks its outcome in the block. The `caller` (the spec's `aggregateSpec(model, caller = …)` by default) gives its scope, operator and application, as the command gateway derives them; `scope` names a scope the caller acts in, as `Wow-Scope` does. A caller the gateway refuses fails the spec with the gateway's answer: one of another tenant than the spec's (`400 wow.command.malformed`), or one that names a `scope` without `crossScope` (`403 wow.auth.forbidden`). A cross-scope caller acts in the spec's tenant and the `scope` it names. `aggregateSpec(model, fixedTenant = …)` gives the type's fixed tenant ([A fixed tenant](./ownership#a-fixed-tenant)): the aggregate is in it, and a caller of any tenant sends its commands there. `headers` adds request facts, but never `app_id`, which only the caller gives: a spec whose `headers` name it fails, with or without a caller, as the gateway never records one a request names. |
+| `whenCommand(command, requestId, expectedVersion, caller, scope, …) { … }` | Sends the command through the kernel and checks its outcome in the block. The `caller` (the spec's `aggregateSpec(model, caller = …)` by default) gives its scope, operator and application, as the command gateway derives them; `scope` names a scope the caller acts in, as `Wow-Scope` does. A caller the gateway refuses fails the spec with the gateway's answer: one of another tenant than the spec's (`400 wow.command.malformed`), or one that names a `scope` without `crossScope` (`403 wow.auth.forbidden`). A command without a caller is the anonymous caller's, as a request without one is, so one that names a `scope` fails the spec the same way. A request id, the aggregate's id, or a tenant, owner or space id longer than the gateway takes fails the spec as `400 wow.command.malformed`, by the gateway's own check. A cross-scope caller acts in the spec's tenant and the `scope` it names. `aggregateSpec(model, fixedTenant = …)` gives the type's fixed tenant ([A fixed tenant](./ownership#a-fixed-tenant)): the aggregate is in it, and a caller of any tenant sends its commands there. `headers` adds request facts, but never `app_id`, which only the caller gives: a spec whose `headers` name it fails, with or without a caller, as the gateway never records one a request names. |
 | `asCaller(caller) { … }` | Sends the block's commands as another caller, admitted as `whenCommand`'s: one of another tenant fails the spec. |
 | `advanceTime(duration) { … }` | Moves the clock on and sends the aggregate each command it scheduled for itself that is due by then; the block checks the last one. |
 | `expectNothingDue(within)` | Moves the clock on and fails if a command the aggregate scheduled for itself is due by then. |
@@ -81,6 +81,8 @@ class AccountSpec {
 | `now`, `timer(key)` | The time the spec is at; the timer the aggregate keeps under a schedule's key, in whatever status, or null. |
 
 Time stands still at `start`, 2026-01-01T00:00:00Z by default, until `advanceTime` moves it: a decision reads it as `scope.now`, and its commit is recorded at it. Ids a decide function takes are sequential: `id-1`, `id-2`, and so on.
+
+A spec needs the aggregate's access policy whenever the service registers one for it: `aggregateSpec(model, caller = …, policy = documentAccess)`. The kernel then decides each command under the policy, on the claims of the command's caller, as a node's does: a command without a caller is the anonymous caller's, which holds no claim, and a service caller (`Caller.ofService(…)`) is trusted. A model that declares access attributes always has a policy, since a node does not start without one ([Ownership](./ownership#test-a-policy)). Without `policy`, the default scope rule decides, as on a node of a service that registers none.
 
 ### Expect
 
@@ -252,7 +254,14 @@ A cron rule steps through its slots as the runtime does: moving past several slo
 
 ### Command constraints
 
-A spec runs a command's decision and checks none of the command's Bean Validation constraints (`@NotBlank`, `@Positive`, …): on a node, admission checks them and answers `wow.command.invalid` with their violations, which a server test reads ([Test a Service](./testing-services)). The test module brings no Bean Validation provider, where 9.x's brought one and its `TestValidator`. To check a command's constraints in a domain module's tests, add the provider the server runs, Hibernate Validator, at the version the server's Spring Boot manages, and build a validator as 9.x's `TestValidator` did:
+A spec runs a command's decision and checks none of the command's Bean Validation constraints (`@NotBlank`, `@Positive`, …): on a node, admission checks them and answers `wow.command.invalid` with their violations, which a server test reads ([Test a Service](./testing-services)). A spec skips these other checks of admission too, which a server test reads alike:
+
+- a body that writes `\u0000` in a string or a key;
+- a request header named `Wow-…` or `wow.…`, which is reserved;
+- the body's JSON round trip, which a node decodes the command from;
+- the tenant of a command without a caller, which a spec sends in its own tenant, where a node's anonymous caller acts in the default one.
+
+The test module brings no Bean Validation provider, where 9.x's brought one and its `TestValidator`. To check a command's constraints in a domain module's tests, add the provider the server runs, Hibernate Validator, at the version the server's Spring Boot manages, and build a validator as 9.x's `TestValidator` did:
 
 <!-- sample: fragment -->
 

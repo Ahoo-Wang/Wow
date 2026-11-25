@@ -26,9 +26,11 @@ import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.api.subscribe.SubscriptionContext
 import me.ahoo.wow.kernel.AggregateIds
+import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.BlockingDispatcher
 import me.ahoo.wow.kernel.CallRejectedHandlingException
 import me.ahoo.wow.kernel.CommandCalls
+import me.ahoo.wow.kernel.CommandTypes
 import me.ahoo.wow.kernel.CommittedBinding
 import me.ahoo.wow.kernel.ContextQueries
 import me.ahoo.wow.kernel.HandlerRetry
@@ -44,13 +46,18 @@ import me.ahoo.wow.test.ProcessorSpec.Handled
  * Calls the handlers of one processor of [kind] for a [ProcessorSpec] as the runtime would, one commit or receipt
  * at a time: each with a fresh context, its calls answered and its reads served as the specification says, and
  * each command it derives kept with the execution that derived it, so that a rejection or receipt of one goes back
- * to it. A fork's handling starts on a copy of [origin]'s.
+ * to it. A fork's handling starts on a copy of [origin]'s. Its commands are named as a node's context names them, by
+ * the [models] the specification is given first, then by the contracts on the class path ([commandTypes]).
  */
 internal class ProcessorHandling(
     private val kind: FunctionKind,
     private val commandTypes: ClassPathCommandTypes,
     origin: ProcessorHandling?,
+    models: () -> Collection<AggregateModel<*>>,
 ) {
+    /** How the handlers' commands are named: [commandTypes], those of the given models by their models first. */
+    private val named: CommandTypes = commandTypes.withModels(models)
+
     /** The executions that derived each command, by command id: a rejection of one goes back to its saga. */
     private val derivedBy: MutableMap<String, ExecutionId> = HashMap(origin?.derivedBy.orEmpty())
 
@@ -109,7 +116,7 @@ internal class ProcessorHandling(
                 handler.name,
                 event,
                 ids,
-                commandTypes,
+                named,
                 answering,
                 queries,
                 handler.sends,
@@ -165,7 +172,7 @@ internal class ProcessorHandling(
         val onRejected = handler.rejectionHandlerOf(type) ?: throw CallRejectedHandlingException(rejected)
         val receipt = CommandReceipt.Rejected<Any>(
             commandId = command.id,
-            commandType = commandTypes.nameOf(command.ref.type, type) ?: type.name,
+            commandType = named.nameOf(command.ref.type, type) ?: type.name,
             ref = command.ref,
             error = rejected.error,
             causation = checkNotNull(command.causation) { "A called command carries its causation." },
@@ -182,7 +189,7 @@ internal class ProcessorHandling(
         runCatchingAll {
             val calls = ArrayList<Command<*>>()
             val context =
-                rejectionContextOf(handler, rejected, ids, commandTypes, queries, answering(calls))
+                rejectionContextOf(handler, rejected, ids, named, queries, answering(calls))
             val derived = receiptHandling { handler.invoke(rejected, context) }
             derived.forEach {
                 derivedBy[it.admitted().id] = context.executionId
@@ -194,7 +201,7 @@ internal class ProcessorHandling(
         runCatchingAll {
             val calls = ArrayList<Command<*>>()
             val context =
-                committedContextOf(handler, committed, ids, commandTypes, queries, answering(calls))
+                committedContextOf(handler, committed, ids, named, queries, answering(calls))
             val derived = receiptHandling { handler.invoke(committed, context) }
             derived.forEach {
                 derivedBy[it.admitted().id] = context.executionId

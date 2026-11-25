@@ -1,0 +1,15 @@
+{
+  "contexts": [
+    {
+      "name": "shop",
+      "aggregates": [
+        {
+          "name": "order",
+          "commands": [
+            { "name": "Remind", "schema": "#/$defs/me.ahoo.wow.kernel.ProcessorSpecTest$Remind" }
+          ]
+        }
+      ]
+    }
+  ]
+}

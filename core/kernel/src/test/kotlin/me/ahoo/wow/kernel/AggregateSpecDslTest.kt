@@ -18,6 +18,7 @@ import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.decide.Rejection
@@ -119,8 +120,8 @@ class AggregateSpecDslTest {
     @Test
     fun `a given state built from the initial one keeps its scope`() = aggregateSpec(model) {
         givenState(version = 3, scope = Scope("ahoo", null)) { limit = 10 }
-        whenCommand(Close("done"), scope = Scope("bob", null)) { expectRejected(FrameworkCodes.AGGREGATE_NOT_FOUND) }
-        whenCommand(Close("done"), scope = Scope("ahoo", null)) {
+        whenCommand(Close("done"), caller = Caller.owner("bob")) { expectRejected(FrameworkCodes.AGGREGATE_NOT_FOUND) }
+        whenCommand(Close("done"), caller = Caller.owner("ahoo")) {
             expectEvent<Closed> { reason.assert().isEqualTo("done") }
             expectScope(Scope("ahoo", null))
         }

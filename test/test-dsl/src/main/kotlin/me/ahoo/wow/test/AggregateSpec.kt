@@ -15,6 +15,7 @@ package me.ahoo.wow.test
 
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
+import me.ahoo.wow.api.access.AccessPolicy
 import me.ahoo.wow.api.aggregate.AggregateIdSource
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
@@ -23,6 +24,8 @@ import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.caller.TargetScope
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.ReservationTenancy
+import me.ahoo.wow.api.result.FrameworkCodes
+import me.ahoo.wow.kernel.AggregateIds
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CachedState
 import me.ahoo.wow.kernel.CallerAdmission
@@ -31,6 +34,7 @@ import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.KernelOptions
 import me.ahoo.wow.kernel.StateCache
+import me.ahoo.wow.kernel.WritePolicies
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventRecord
@@ -73,14 +77,20 @@ class AggregateSpec<S : Any> private constructor(
     private var given: GivenState? = origin?.given
     private val reservations = ForkableReservationStore(origin?.reservations.orEmpty())
     private val ids = origin?.ids?.copy() ?: SequentialIds()
+
+    /** The kernel's view of [policy]: none until one is given, the default scope rule deciding. */
+    private var writePolicies: WritePolicies = WritePolicies.NONE
     private val kernel = Kernel(
         log,
         codec,
         clock = { millis },
         reservations = reservations,
         states = GivenStates(),
+        // As a node's context names a schedule's command: its own model's by the model, a peer's by its contract.
+        commandTypes = ClassPathCommandTypes.of().withModels { listOf(model) },
         ids = ids,
         options = KernelOptions(verifyDecidePurity = true),
+        policies = WritePolicies { writePolicies.of(it) },
     )
     private val timers = AggregateTimers(model, ref, codec, origin?.timers.orEmpty())
     private val replays = ReplayCheck(codec, ::currentState)
@@ -98,6 +108,19 @@ class AggregateSpec<S : Any> private constructor(
      * callers' tenants by default.
      */
     internal var tenants: TenantPolicy = TenantPolicy.CALLERS
+
+    /**
+     * The access policy the service registers for the aggregate ([aggregateSpec]'s `policy`), which the kernel decides
+     * the commands under, on their callers' claims, as a node's does: none by default, the default scope rule deciding.
+     * A fork keeps it.
+     */
+    private var policy: AccessPolicy<S>? = null
+
+    /** Decides the commands under [policy] from now on, resolved as a node resolves it, with its refusals. */
+    internal fun governedBy(policy: AccessPolicy<S>?) {
+        writePolicies = policy?.let { WritePolicies.of(listOf(it), listOf(model)) } ?: WritePolicies.NONE
+        this.policy = policy
+    }
 
     /** The points marked with [ref]: a fork from one starts on a copy of it. */
     private val marks = LinkedHashMap<String, Snapshot>(origin?.marks.orEmpty())
@@ -345,18 +368,30 @@ class AggregateSpec<S : Any> private constructor(
             )
         }
         val sender = caller ?: this.caller
-        // The scope a sender names is a target in the specification's tenant, as `Wow-Scope` names one.
-        val target = scope?.takeIf { sender != null }?.let { TargetScope.of(ref.tenantId, it) }
-        val origin = sender?.let { admitted(body, it, target) }
+        // The scope a sender names is a target in the specification's tenant, as `Wow-Scope` names one. A request
+        // without a caller is the anonymous caller's (Caller.ANONYMOUS), which the gateway refuses a scope it names.
+        val target = scope?.let { TargetScope.of(ref.tenantId, it) }
+        val origin = (sender ?: Caller.ANONYMOUS.takeIf { target != null })?.let { admitted(body, it, target) }
+        val commandScope = origin?.scope ?: Scope.NONE
+        // As the gateway refuses them before any store is read, the creation lookup by the request id included; the
+        // aggregate's id was checked when the specification started.
+        AggregateIds.oversized(requestId, null, ref.tenantId, commandScope, body)?.let { problem ->
+            throw IllegalArgumentException(
+                "The gateway refuses ${body.javaClass.simpleName} as ${FrameworkCodes.COMMAND_MALFORMED}: $problem " +
+                    "A specification sends only what admission takes."
+            )
+        }
         return Command(
             commandId,
             requestId,
             ref,
             body,
             expectedVersion,
-            origin?.scope ?: scope ?: Scope.NONE,
+            commandScope,
             headers = origin?.headersOf(headers) ?: headers,
             operator = operator ?: origin?.operator,
+            // As the gateway's: the caller, the anonymous one for none, which a policy decides the command on.
+            caller = sender ?: Caller.ANONYMOUS,
         )
     }
 
@@ -369,11 +404,15 @@ class AggregateSpec<S : Any> private constructor(
         when (val admitted = CallerAdmission.admit(ref.type, sender, target, ref.tenantId, tenants)) {
             is CallerAdmission -> admitted
             is CallerAdmission.Refused -> throw IllegalArgumentException(
-                "The gateway refuses ${body.javaClass.simpleName} from this caller, ${admitted.code}: " +
+                "The gateway refuses ${body.javaClass.simpleName} from ${describe(sender)}, ${admitted.code}: " +
                     "${admitted.message} A specification sends only what admission takes: give a caller of the " +
                     "specification's tenant, or one that acts across scopes (crossScope) for another tenant or scope."
             )
         }
+
+    /** The caller [sender] as a refusal names it: no caller given is the anonymous caller. */
+    private fun describe(sender: Caller): String =
+        if (sender === Caller.ANONYMOUS) "an anonymous caller, as a request without one is" else "this caller"
 
     /** The name in [headers] of a fact admission takes from the caller ([CallerAdmission.FACTS]); null when none. */
     private fun callerFactIn(headers: Map<String, String>): String? =
@@ -508,6 +547,7 @@ class AggregateSpec<S : Any> private constructor(
                 it.forkName = path
                 it.caller = caller
                 it.tenants = tenants
+                it.governedBy(policy)
             }
         }
         runFork(tree, label, path, fork, block)

@@ -16,6 +16,7 @@ package me.ahoo.wow.test
 import me.ahoo.wow.api.aggregate.AggregateIdSource
 import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.kernel.aggregate
@@ -41,16 +42,16 @@ class OwnerIdSpecTest {
     fun `a history given without a scope is its owner's, so the owner's command goes on`() =
         aggregateSpec(model, id = "alice") {
             given(Filled(1))
-            whenCommand(Fill(2), scope = Scope(ownerId = "alice")) {
+            whenCommand(Fill(2), caller = Caller.owner("alice")) {
                 expectEvents(Filled(2))
                 expectScope(Scope(ownerId = "alice"))
             }
-            whenCommand(Fill(3), scope = Scope(ownerId = "bob")) { expectRejected(FrameworkCodes.AGGREGATE_FORBIDDEN) }
+            whenCommand(Fill(3), caller = Caller.owner("bob")) { expectRejected(FrameworkCodes.AGGREGATE_FORBIDDEN) }
         }
 
     @Test
     fun `a state given without a scope is its owner's`() = aggregateSpec(model, id = "alice") {
         givenState { total = 5 }
-        whenCommand(Fill(1), scope = Scope(ownerId = "alice")) { expectEvents(Filled(1)) }
+        whenCommand(Fill(1), caller = Caller.owner("alice")) { expectEvents(Filled(1)) }
     }
 }

@@ -13,13 +13,23 @@
 
 package me.ahoo.wow.test
 
+import kotlinx.coroutines.runBlocking
+import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.access.AccessAttribute
 import me.ahoo.wow.api.access.AccessAttributes
 import me.ahoo.wow.api.access.accessPolicy
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.decide.Decision
+import me.ahoo.wow.api.result.FrameworkCodes
+import me.ahoo.wow.kernel.CommandOutcome
+import me.ahoo.wow.kernel.Kernel
+import me.ahoo.wow.kernel.WritePolicies
 import me.ahoo.wow.kernel.aggregate
+import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import org.junit.jupiter.api.Test
 
 /** `accessPolicySpec`: a policy checked on an aggregate for a caller, as the kernel and the queries decide. */
@@ -130,6 +140,88 @@ class AccessPolicySpecTest {
             )
         }
     }
+
+    data class Draft(val department: String)
+    data class Edit(val text: String)
+    data class Edited(val text: String)
+
+    /** The document with its commands decided: drafted in a department, then edited. */
+    private val decided = aggregate<Document>("office", "document") {
+        initial { Document(it.id) }
+        decide<Draft>(Creation.REQUIRED) { _, body -> Decision.events(Created(body.department)) }
+        decide<Edit> { _, body -> Decision.events(Edited(body.text)) }
+        evolve<Created> { department = it.department }
+        evolve<Shared> { sharedWith += it.with }
+        evolve<Edited> { }
+        access(DocumentAccess.DEPARTMENT) { it.department }
+        access(DocumentAccess.SHARED_WITH) { it.sharedWith }
+    }
+
+    private fun member(department: String) = Caller.of(
+        scope = Scope("alice"),
+        subject = "alice",
+        attributes = mapOf("departments" to listOf(department)),
+    )
+
+    /** What a node's kernel, given the service's [documentAccess], answers alice's Edit once she is of hr. */
+    private fun onNode(): CommandOutcome = runBlocking {
+        val kernel = Kernel(
+            InMemoryEventLog(partitions = 1),
+            policies = WritePolicies.of(listOf(documentAccess), listOf(decided)),
+        )
+        val ref = decided.type.ref(DEFAULT_TENANT, "aggregate-1")
+        val sales = member("sales")
+        kernel.execute(decided, Command("c-1", "r-1", ref, Draft("sales"), scope = sales.scope, caller = sales))
+        val hr = member("hr")
+        kernel.execute(decided, Command("c-2", "r-2", ref, Edit("moved"), scope = hr.scope, caller = hr))
+    }
+
+    @Test
+    fun `a command the aggregate's access policy denies should be refused by aggregateSpec, as by a node's kernel`() {
+        // As on a node: the kernel decides under the service's policy on the claims of the caller the gateway sets on
+        // the command (CommandReach). Alice, now of hr, may read her sales document as its owner, but not change it.
+        // Moved from review/r1-testkit (DslReviewR1Test), where the spec's kernel had no policy and committed it.
+        (onNode() as CommandOutcome.Rejected).rejection.code.assert().isEqualTo(FrameworkCodes.AGGREGATE_FORBIDDEN)
+        aggregateSpec(decided, caller = member("sales"), policy = documentAccess) {
+            givenCommands(Draft("sales"))
+            whenCommand(Edit("typo")) { expectEventTypes(Edited::class) }
+            asCaller(member("hr")) {
+                whenCommand(Edit("moved")) { expectRejected(FrameworkCodes.AGGREGATE_FORBIDDEN) }
+            }
+            // A fork keeps the policy; a service is trusted under it.
+            fork("by hr") {
+                asCaller(member("hr")) {
+                    whenCommand(Edit("moved")) { expectRejected(FrameworkCodes.AGGREGATE_FORBIDDEN) }
+                }
+            }
+            whenCommand(Edit("billed"), caller = Caller.ofService("billing")) { expectEventTypes(Edited::class) }
+        }
+        // Without the policy the default scope rule decides: alice's owner scope changes it, whatever her department.
+        aggregateSpec(decided, caller = member("sales")) {
+            givenCommands(Draft("sales"))
+            asCaller(member("hr")) { whenCommand(Edit("moved")) { expectEventTypes(Edited::class) } }
+        }
+        // A command without a caller is the anonymous caller's, which holds no claim: nothing is granted by omission.
+        aggregateSpec(decided, policy = documentAccess) {
+            given(Created("sales"))
+            whenCommand(Edit("anyone")) { expectRejected(FrameworkCodes.AGGREGATE_NOT_FOUND) }
+        }
+    }
+
+    @Test
+    fun `a service caller should change an aggregate its policy governs, as the kernel trusts a service`() =
+        accessPolicySpec(model, documentAccess) {
+            // As the kernel (CommandReach) and the queries decide: under a policy, a service acting as itself is
+            // trusted, whatever the policy's predicates say of its claims.
+            given(Created("sales"))
+            whenCaller(Caller.ofService("billing")) {
+                expectWrite()
+                expectRead()
+                assertThrownBy<AssertionError> { expectNoWrite() }
+                    .hasMessageContaining("Expected the caller not to change the aggregate, but it may")
+                    .hasMessageContaining("is a service")
+            }
+        }
 
     @Test
     fun `a policy comparing an attribute the model does not declare fails, and one of another state is refused`() {

@@ -16,6 +16,7 @@ package me.ahoo.wow.kernel
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.test.aggregateSpec
 import org.junit.jupiter.api.Test
@@ -61,17 +62,17 @@ class CartSpec {
 
     @Test
     fun `the cart keeps the scope it was created in`() = aggregateSpec(cartModel) {
-        whenCommand(CreateCart("ahoo"), scope = Scope("ahoo", "home")) { expectScope(Scope("ahoo", "home")) }
-        whenCommand(AddItem("apple", 1), scope = Scope("ahoo", null)) { expectScope(Scope("ahoo", "home")) }
+        // Sent by its owner, in the scope the owner's caller holds, as the gateway admits them.
+        val atHome = Caller.of(scope = Scope("ahoo", "home"), subject = "ahoo")
+        whenCommand(CreateCart("ahoo"), caller = atHome) { expectScope(Scope("ahoo", "home")) }
+        whenCommand(AddItem("apple", 1), caller = Caller.owner("ahoo")) { expectScope(Scope("ahoo", "home")) }
     }
 
     @Test
     fun `the cart refuses a command from another owner`() = aggregateSpec(cartModel) {
         given(CartCreated("ahoo"), scope = Scope("ahoo", "home"))
-        whenCommand(
-            AddItem("apple", 1),
-            scope = Scope("bob", "home")
-        ) { expectRejected(FrameworkCodes.AGGREGATE_NOT_FOUND) }
+        val bob = Caller.of(scope = Scope("bob", "home"), subject = "bob")
+        whenCommand(AddItem("apple", 1), caller = bob) { expectRejected(FrameworkCodes.AGGREGATE_NOT_FOUND) }
     }
 
     @Test

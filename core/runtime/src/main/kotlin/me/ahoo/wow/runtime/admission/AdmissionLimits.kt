@@ -13,9 +13,6 @@
 
 package me.ahoo.wow.runtime.admission
 
-import me.ahoo.wow.api.aggregate.Scope
-import me.ahoo.wow.api.lifecycle.TransferOwner
-import me.ahoo.wow.api.lifecycle.TransferSpace
 import me.ahoo.wow.kernel.AggregateIds
 import tools.jackson.databind.JsonNode
 
@@ -24,7 +21,8 @@ import tools.jackson.databind.JsonNode
  * backend answers alike:
  *
  * - an id longer than [MAX_ID_LENGTH] characters: a request id, an aggregate id, a tenant id, an owner id or a space
- *   id, and the owner or space a lifecycle command transfers to ([oversizedBody]). PostgreSQL's indexes do not take a
+ *   id, and the owner or space a lifecycle command transfers to ([AggregateIds.oversized], the one check of the gateway,
+ *   a peer's admission and the test DSL). PostgreSQL's indexes do not take a
  *   key of more than about 2.7 KB, and a refused append must not look like one whose outcome is unknown, which the
  *   caller retries for ever. The ids a request names are checked before any store is read for it, the creation lookup
  *   by its request id included;
@@ -39,27 +37,6 @@ import tools.jackson.databind.JsonNode
 internal object AdmissionLimits {
     /** The longest id admission takes, in characters. */
     const val MAX_ID_LENGTH: Int = AggregateIds.MAX_LENGTH
-
-    /**
-     * Why an id of a request is too long, or its [aggregateId] unaddressable ([AggregateIds]), or null when none is;
-     * [aggregateId] is null before one is known, and the owner or space [body] transfers to, when given, is checked as
-     * [oversizedBody] does.
-     */
-    fun oversized(requestId: String, aggregateId: String?, tenantId: String, scope: Scope, body: Any? = null): String? =
-        oversized("request id", requestId) ?: AggregateIds.refused(aggregateId)
-            ?: oversized("tenant id", tenantId) ?: oversized("owner id", scope.ownerId)
-            ?: oversized("space id", scope.spaceId) ?: body?.let(::oversizedBody)
-
-    /** Why the owner or space [body] transfers the aggregate to is too long, or null when it transfers none or fits. */
-    fun oversizedBody(body: Any): String? = when (body) {
-        is TransferOwner -> oversized("owner id", body.ownerId)
-        is TransferSpace -> oversized("space id", body.spaceId)
-        else -> null
-    }
-
-    /** Why [id], the [name] of a request, is too long; checked one by one, without a list of pairs per command. */
-    fun oversized(name: String, id: String?): String? = id?.takeIf { it.length > MAX_ID_LENGTH }
-        ?.let { "The $name is at most $MAX_ID_LENGTH characters; this one has ${it.length}." }
 
     /**
      * Whether the JSON text [json] writes `\u0000` in a string or a key. It reads the escapes alone: in JSON a

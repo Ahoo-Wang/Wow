@@ -15,6 +15,7 @@ package me.ahoo.wow.example.eshop.ordering.domain.order
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.example.eshop.ordering.api.order.AwaitStockValidation
 import me.ahoo.wow.example.eshop.ordering.api.order.CancelOrder
@@ -56,8 +57,8 @@ class OrderSpec {
 
     @Test
     fun `submitting should create the order`() = orderSpec {
-        // The basket's saga sends it in its buyer's scope (decision D189): the order belongs to the buyer.
-        whenCommand(SubmitOrder(items), scope = Scope(ownerId = BUYER)) {
+        // In its buyer's scope, which the basket's saga sends it in (decision D189): the order belongs to the buyer.
+        whenCommand(SubmitOrder(items), caller = Caller.owner(BUYER)) {
             expectEvents(submitted)
             expectScope(Scope(ownerId = BUYER))
             expectState {

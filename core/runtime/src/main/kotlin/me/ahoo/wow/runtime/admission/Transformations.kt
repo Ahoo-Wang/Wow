@@ -21,6 +21,7 @@ import me.ahoo.wow.api.caller.TargetScope
 import me.ahoo.wow.api.decide.RejectedException
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.TransformedFrom
+import me.ahoo.wow.kernel.AggregateIds
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CommandType
 import me.ahoo.wow.kernel.DecideFunction
@@ -112,7 +113,7 @@ internal class Transformations(
             )
         }
         val ref = targetType.ref(targetTenant, namedId ?: UNADDRESSED)
-        AdmissionLimits.oversized(facts.requestId, namedId, targetTenant, scope, result.body)?.let {
+        AggregateIds.oversized(facts.requestId, namedId, targetTenant, scope, result.body)?.let {
             facts.ref = ref
             return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it)
         }

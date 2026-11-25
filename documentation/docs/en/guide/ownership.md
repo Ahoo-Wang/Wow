@@ -264,7 +264,7 @@ A command that carries neither a causation nor a caller, such as one a producer 
 
 ## Test a policy
 
-`accessPolicySpec(model, policy)` of the test DSL checks a policy as the kernel and the queries evaluate it: given the aggregate after its events, `given(…)`, or in a state, `givenState(state, scope)`, it checks what each caller may do. `whenCaller(subject, claims, roles)` names a caller, and `expectRead()`, `expectNoRead()`, `expectWrite()` and `expectNoWrite()` check it; the built-in owner and space are the scope the aggregate is given in:
+`accessPolicySpec(model, policy)` of the test DSL checks a policy as the kernel and the queries evaluate it: given the aggregate after its events, `given(…)`, or in a state, `givenState(state, scope)`, it checks what each caller may do. `whenCaller(subject, claims, roles)` names a caller, and `expectRead()`, `expectNoRead()`, `expectWrite()` and `expectNoWrite()` check it. A service acting as itself (`whenCaller(Caller.ofService(…))`) may do both, as [above](#what-is-trusted). The built-in owner and space are the scope the aggregate is given in:
 
 <!-- sample: test/test-dsl/src/test/kotlin/me/ahoo/wow/test/AccessPolicySpecTest.kt#spec -->
 

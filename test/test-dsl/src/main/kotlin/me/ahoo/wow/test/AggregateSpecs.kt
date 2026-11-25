@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.test
 
+import me.ahoo.wow.api.access.AccessPolicy
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.kernel.AggregateIds
 import me.ahoo.wow.kernel.AggregateModel
@@ -72,6 +73,11 @@ import java.util.stream.Stream
  * caller of any tenant sends its commands there, as the gateway admits them; a cross-scope caller naming another
  * tenant fails the specification with the gateway's answer.
  *
+ * [policy] is the aggregate's access policy, which a specification needs whenever the service registers one for the
+ * aggregate: the kernel decides each command under it, on the claims of the command's caller (the anonymous caller for
+ * a command without one), as a node's does, and a service caller is trusted. Without one, the default scope rule
+ * decides.
+ *
  * The whole specification is one test; [aggregateSpecTests] makes the same specification a tree of tests instead.
  */
 fun <S : Any> aggregateSpec(
@@ -81,9 +87,10 @@ fun <S : Any> aggregateSpec(
     fixedTenant: String? = null,
     tenantId: String = fixedTenant ?: caller?.tenantId ?: DEFAULT_TENANT,
     start: Instant = DEFAULT_START,
+    policy: AccessPolicy<S>? = null,
     block: AggregateSpec<S>.() -> Unit,
 ) {
-    AggregateSpec(model, model.type.ref(tenantId, id), start).also { it.admits(caller, fixedTenant) }.block()
+    AggregateSpec(model, model.type.ref(tenantId, id), start).also { it.admits(caller, fixedTenant, policy) }.block()
 }
 
 /**
@@ -114,10 +121,12 @@ fun <S : Any> aggregateSpecTests(
     fixedTenant: String? = null,
     tenantId: String = fixedTenant ?: caller?.tenantId ?: DEFAULT_TENANT,
     start: Instant = DEFAULT_START,
+    policy: AccessPolicy<S>? = null,
     block: AggregateSpec<S>.() -> Unit,
 ): Stream<DynamicNode> {
     val tree = TestTree()
-    val spec = AggregateSpec(model, model.type.ref(tenantId, id), start, tree).also { it.admits(caller, fixedTenant) }
+    val spec = AggregateSpec(model, model.type.ref(tenantId, id), start, tree)
+        .also { it.admits(caller, fixedTenant, policy) }
     tree.run { spec.block() }
     return tree.nodes.stream()
 }
@@ -127,7 +136,7 @@ fun <S : Any> aggregateSpecTests(
  * in that tenant, and its id one admission takes ([AggregateIds.refused]), as no command of the service reaches an
  * aggregate of another.
  */
-private fun AggregateSpec<*>.admits(caller: Caller?, fixedTenant: String?) {
+private fun <S : Any> AggregateSpec<S>.admits(caller: Caller?, fixedTenant: String?, policy: AccessPolicy<S>?) {
     AggregateIds.refused(ref.id)?.let { refused ->
         throw IllegalArgumentException("Admission refuses the specification's aggregate id as malformed: $refused")
     }
@@ -136,6 +145,7 @@ private fun AggregateSpec<*>.admits(caller: Caller?, fixedTenant: String?) {
     }
     this.caller = caller
     tenants = fixedTenant?.let { TenantPolicy.fixed(mapOf(ref.type to it)) } ?: TenantPolicy.CALLERS
+    governedBy(policy)
 }
 
 /**
