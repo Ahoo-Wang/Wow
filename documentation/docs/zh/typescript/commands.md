@@ -218,7 +218,7 @@ try {
 }
 ```
 
-命令的整个应答都有界：以它声明的 `timeout`（或其计划的超时）再加 5 秒为界，与 Kotlin 客户端一样；没有声明时以一分钟再加同样的 5 秒为界，一分钟是服务默认等待的最大值（`wow.wait.max-timeout`）。服务在等待结束时应答 `wow.wait.timeout`，所以到那时仍未应答的节点不会再应答：请求被中止、连接关闭，调用以 `wow.command.unknown` reject。`wait` 或 `send` 的应答在开始之后丢失或无法读取时也是如此。中止请求自己的 `signal` 时，以中止的原因 reject，`requestIdOf` 同样能读出请求 ID。
+命令的整个应答都有界：以它声明的 `timeout`（或其计划的超时）再加 5 秒为界，与 Kotlin 客户端一样。没有声明的命令等待服务的默认时长（`wow.wait.default-timeout`），客户端并不知道这个时长，所以以客户端选项的 `defaultWaitMs` 再加同样的 5 秒为界：没有给出时是一分钟，即服务默认等待的最大值，除非服务调大了 `wow.wait.max-timeout`。服务默认等待更久的部署，在构建客户端的选项里设置 `defaultWaitMs`（`new OrderCommandClient({ fetcher, defaultWaitMs: 120_000 })`），或者让每条命令声明它的等待。服务在等待结束时应答 `wow.wait.timeout`，所以到那时仍未应答的节点不会再应答：请求被中止、连接关闭，调用以 `wow.command.unknown` reject。`wait` 或 `send` 的应答在开始之后丢失或无法读取时也是如此。中止请求自己的 `signal` 时，以中止的原因 reject，`requestIdOf` 同样能读出请求 ID。
 
 `WowProblemError` 的 `retry` 说明重试能做什么，由错误目录按它的代码声明：`none`，重试同样失败；`same-request`，以同一个请求 ID 再发；`new-request`，原样再发。`retryAfterMs` 说明要先等多久（`Retry-After`）。每条命令都带着一个请求 ID（`Wow-Request-Id`）：选项中给出的，或者客户端生成的 UUIDv7（`newRequestId`，按生成时的毫秒排序，与 Kotlin 客户端一致），两种错误的 `requestId` 都会把它交回来。用同一个 ID 重试，会被当作第一次提交的重复请求来回答，绝不会执行两次，所以用它重试 `wow.command.unknown` 和 `wow.wait.timeout`。重试可能来自别处时（例如页面重新加载），从一开始就传入 `requestId`：
 

@@ -34,9 +34,9 @@ import {
 export const ANSWER_GRACE_MS = 5_000;
 
 /**
- * The longest a service waits by default (`wow.wait.max-timeout`): the wait
- * that bounds a command stating none, whose wait is the service's default,
- * which is at most that.
+ * The longest a service waits by default, the default `wow.wait.max-timeout`:
+ * the wait that bounds a command stating none, whose wait is the service's
+ * default, unless the client's `defaultWaitMs` says otherwise.
  */
 export const LONGEST_WAIT_MS = 60_000;
 

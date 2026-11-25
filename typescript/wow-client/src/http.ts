@@ -55,6 +55,17 @@ export interface WowClientOptions {
   readonly fetcher?: Fetcher;
   /** A path put before every route, such as a gateway's prefix. */
   readonly basePath?: string;
+  /**
+   * How long, in milliseconds, the service waits for a command that states
+   * no wait: its `wow.wait.default-timeout`, at most its
+   * `wow.wait.max-timeout`. A command client bounds such a command's whole
+   * answer by it and 5 seconds more, and rejects past it with
+   * `wow.command.unknown`; a command that states its wait (`timeout`, or its
+   * plan's) is bounded by that instead. A minute when absent, the default
+   * `wow.wait.max-timeout`: a deployment whose services wait longer by
+   * default sets it, or has each command state its wait.
+   */
+  readonly defaultWaitMs?: number;
 }
 
 /**

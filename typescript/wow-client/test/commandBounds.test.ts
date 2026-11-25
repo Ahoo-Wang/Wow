@@ -26,7 +26,13 @@ import {
   WowProblemError,
 } from '../src/index.js';
 import { commandResultOf } from '../src/testing.js';
-import { hangUntilAborted, stubFetch, testFetcher } from './fixtures/fetchStub';
+import {
+  hangUntilAborted,
+  jsonResponse,
+  type SentRequest,
+  stubFetch,
+  testFetcher,
+} from './fixtures/fetchStub';
 import { serve, within } from './fixtures/httpServer';
 import { TEST_MANIFEST } from './fixtures/manifest';
 
@@ -159,13 +165,21 @@ describe('a command bounded by its wait and a grace', () => {
     );
     // Only a bound is that long: the waits of `vi.waitFor` are shorter.
     const bounds = () => delays.filter(ms => ms >= GRACE_MS);
+    const patient = new CommandClient(
+      { fetcher: testFetcher(), defaultWaitMs: 120_000 },
+      { manifest: TEST_MANIFEST },
+    );
     const requests = [
-      { timeout: 2_000 },
-      { wait: WaitPlan.COMMITTED.within(3_000) },
-      {},
-      { wait: WaitPlan.COMMITTED },
+      { commands, request: { timeout: 2_000 } },
+      { commands, request: { wait: WaitPlan.COMMITTED.within(3_000) } },
+      { commands, request: {} },
+      { commands, request: { wait: WaitPlan.COMMITTED } },
+      // A client told its service waits longer by default: what states no
+      // wait is bounded by that; a stated wait still by itself.
+      { commands: patient, request: {} },
+      { commands: patient, request: { timeout: 2_000 } },
     ];
-    for (const [index, request] of requests.entries()) {
+    for (const [index, { commands, request }] of requests.entries()) {
       const abort = new AbortController();
       const sent = commands.wait({
         command: 'c.a.X',
@@ -177,7 +191,46 @@ describe('a command bounded by its wait and a grace', () => {
       abort.abort(new Error('done'));
       await sent.catch(() => undefined);
     }
-    expect(bounds()).toEqual([7_000, 8_000, 65_000, 65_000]);
+    expect(bounds()).toEqual([7_000, 8_000, 65_000, 65_000, 125_000, 7_000]);
+  });
+
+  /** Answers the command `ms` after it is sent, unless it is aborted first. */
+  const answersAfter = (ms: number) => (request: SentRequest) =>
+    new Promise<Response>((resolve, reject) => {
+      const timer = setTimeout(() => resolve(jsonResponse(resultOf())), ms);
+      request.signal?.addEventListener('abort', () => {
+        clearTimeout(timer);
+        reject(request.signal?.reason);
+      });
+    });
+  const resultOf = () => commandResultOf(REF);
+
+  it('answers a command that states no wait after a minute and more when the client says its service waits that long by default, and cuts it at a minute and 5 s otherwise', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      stubFetch(answersAfter(70_000));
+      const patient = new CommandClient(
+        { fetcher: testFetcher(), defaultWaitMs: 120_000 },
+        { manifest: TEST_MANIFEST },
+      );
+      const answered = settle(patient.wait({ command: 'c.a.X', id: '1' }));
+      await vi.advanceTimersByTimeAsync(70_000);
+      expect(await answered).toBe('resolved');
+
+      const { requests } = stubFetch(answersAfter(70_000));
+      const hasty = new CommandClient(
+        { fetcher: testFetcher() },
+        { manifest: TEST_MANIFEST },
+      );
+      const cut = settle(hasty.wait({ command: 'c.a.X', id: '1' }));
+      await vi.advanceTimersByTimeAsync(65_000);
+      expectUnknownOutcome(
+        await cut,
+        requests[0]?.headers.get('Wow-Request-Id') ?? undefined,
+      );
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

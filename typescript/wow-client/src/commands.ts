@@ -349,10 +349,18 @@ function statedTimeout(
 
 /**
  * How long `request`'s whole answer may take: the wait it states, else the
- * longest the service waits by default, and a grace after it.
+ * service's default wait (`defaultWaitMs`, a minute when absent), and a grace
+ * after it.
  */
-function boundOf(request: CommandRequest, plan: WaitPlan | undefined): number {
-  return (statedTimeout(request, plan) ?? LONGEST_WAIT_MS) + ANSWER_GRACE_MS;
+function boundOf(
+  request: CommandRequest,
+  plan: WaitPlan | undefined,
+  client: WowClientOptions,
+): number {
+  return (
+    (statedTimeout(request, plan) ?? client.defaultWaitMs ?? LONGEST_WAIT_MS) +
+    ANSWER_GRACE_MS
+  );
 }
 
 function commandHeaders(
@@ -407,7 +415,9 @@ function targetOf(request: CommandRequest): TargetScope | undefined {
  * A command's whole answer, its head, its body and a stream's every event,
  * is bounded by the wait it states (`timeout`, or its plan's) and 5 seconds
  * more, as the Kotlin client's is; one that states none, whose wait is the
- * service's default, by the longest default a service takes, a minute, and
+ * service's default, by the client's
+ * {@link WowClientOptions.defaultWaitMs} (a minute when absent, the longest
+ * default a service takes unless its `wow.wait.max-timeout` is raised) and
  * the same grace. The service answers `wow.wait.timeout` at the wait's end,
  * so a node that has not answered by then never will: past the bound the
  * request is aborted, its connection closed, and the call rejects with
@@ -556,7 +566,10 @@ export class CommandClient {
     const bodyNumbers = this.bodyNumbers[request.command];
     const body =
       route.method === 'DELETE' ? {} : { body: bodyOf(request, idProperty) };
-    const bound = new AnswerBound(boundOf(request, plan), request.signal);
+    const bound = new AnswerBound(
+      boundOf(request, plan, this.client),
+      request.signal,
+    );
     try {
       const answer = await send(this.client, {
         method: route.method,
