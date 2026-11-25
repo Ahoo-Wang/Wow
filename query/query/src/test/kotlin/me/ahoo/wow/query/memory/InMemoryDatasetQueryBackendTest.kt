@@ -39,6 +39,9 @@ class InMemoryDatasetQueryBackendTest : DatasetQueryBackendSpec() {
 
     override suspend fun createTable(table: DatasetTable): ObjectNode = storage.put(table.name, table.rows.map(::row))
 
+    // A computed value is a double here (AggregationExpression's KDoc), a plain column's aggregation the decimals.
+    override val semanticDivergences: Set<String> = setOf("decimal.computed-value")
+
     @Test
     fun `rows are copies, so a projection never changes the table`() {
         val binding = storage.put("copies", listOf(WowJson.mapper.createObjectNode().put("id", "r1")))

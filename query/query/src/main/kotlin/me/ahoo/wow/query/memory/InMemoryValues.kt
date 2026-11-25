@@ -24,6 +24,7 @@ import me.ahoo.wow.query.schema.instantOf
 import me.ahoo.wow.spi.json.WowJson
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.JsonNodeFactory
+import java.math.BigDecimal
 import java.time.Instant
 
 /*
@@ -102,6 +103,13 @@ internal fun JsonNode?.positionValue(): Any? = when {
 
 /** A cursor position value back as a sort key. */
 internal fun Any?.positionNode(): JsonNode? = this?.operandNode()
+
+/** This value as its decimal, when it is a number or a singleton array of one; `null` otherwise. */
+internal fun JsonNode.decimalOrNull(): BigDecimal? = when {
+    isNumber -> decimalValue()
+    isArray && size() == 1 && get(0).isNumber -> get(0).decimalValue()
+    else -> null
+}
 
 /** This value as a number, when it is one or a singleton array of one; `null` otherwise. */
 internal fun JsonNode.numberOrNull(): Double? = when {

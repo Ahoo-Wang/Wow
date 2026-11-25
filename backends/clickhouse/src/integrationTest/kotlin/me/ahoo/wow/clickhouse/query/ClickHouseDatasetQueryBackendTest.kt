@@ -78,5 +78,7 @@ class ClickHouseDatasetQueryBackendTest : DatasetQueryBackendSpec() {
         // ClickHouse's own zone data (24.8 and 25.3 alike) does not read Monrovia's offset as UTC for the rest of
         // 1972-01-07: the minute after that change starts at 00:44:30 UTC, where its local minute starts at 00:45:00.
         MONROVIA_CHANGE_DAY,
+        // An expression is computed in Float64; a plain Decimal column's aggregation keeps its decimals.
+        "decimal.computed-value",
     )
 }

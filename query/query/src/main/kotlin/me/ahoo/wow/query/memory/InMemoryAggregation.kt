@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.memory
 
 import me.ahoo.wow.api.query.AggregationDatePart
+import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationExpressionOperator
 import me.ahoo.wow.api.query.AggregationFunction
 import me.ahoo.wow.api.query.AggregationGroup
@@ -32,6 +33,8 @@ import me.ahoo.wow.query.backend.valueKey
 import me.ahoo.wow.query.error.QueryExecutionException
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
+import java.math.BigDecimal
+import java.math.MathContext.DECIMAL128
 import java.time.Instant
 import java.time.ZoneId
 import kotlin.math.ceil
@@ -166,7 +169,7 @@ internal class InMemoryAggregation(
     private fun metric(metric: AggregationMetric, members: List<RecordScope>, values: Map<String, Double?>): JsonNode =
         when (metric) {
             is AggregationMetric.Count -> nodes.numberNode(members.size.toLong())
-            is AggregationMetric.Numeric -> numeric(
+            is AggregationMetric.Numeric -> exact(metric, members) ?: numeric(
                 metric.function,
                 members.mapNotNull { filters.expression(metric.expression, it) }
             )
@@ -196,6 +199,26 @@ internal class InMemoryAggregation(
         val field = admitted.field(expression.field)
         return members.flatMap { it.values(field).flattened() }
             .filterNot { it.isNull }.distinctBy { it.valueKey(field.temporal) }.size
+    }
+
+    /**
+     * The SUM, AVG, MIN or MAX of a plain field, in its stored decimals, as PostgreSQL's `numeric`, MongoDB's
+     * `Decimal128` and a ClickHouse `Decimal` column compute it: 0.1 + 0.2 is 0.3. An average divides to 34 significant
+     * digits (`Decimal128`'s). Null for any other metric, which [numeric] computes in doubles, as a computed value is.
+     */
+    private fun exact(metric: AggregationMetric.Numeric, members: List<RecordScope>): JsonNode? {
+        val expression = metric.expression
+        if (expression !is AggregationExpression.Field || metric.function !in EXACT) return null
+        val field = admitted.field(expression.field)
+        val values = members.mapNotNull { it.values(field).singleOrNull()?.decimalOrNull() }
+        if (values.isEmpty()) return nodes.nullNode()
+        val result = when (metric.function) {
+            AggregationFunction.SUM -> values.reduce(BigDecimal::add)
+            AggregationFunction.AVG -> values.reduce(BigDecimal::add).divide(BigDecimal(values.size), DECIMAL128)
+            AggregationFunction.MIN -> values.minWith(Comparator.naturalOrder())
+            else -> values.maxWith(Comparator.naturalOrder())
+        }
+        return nodes.numberNode(result)
     }
 
     private fun numeric(function: AggregationFunction, values: List<Double>): JsonNode {
@@ -265,6 +288,14 @@ internal class InMemoryAggregation(
 
     private companion object {
         const val PERCENT = 100.0
+
+        /** The metrics of a plain field computed in its stored decimals ([exact]). */
+        val EXACT = setOf(
+            AggregationFunction.SUM,
+            AggregationFunction.AVG,
+            AggregationFunction.MIN,
+            AggregationFunction.MAX,
+        )
 
         /** The key of a scope that joins no group: a date group of a record without the instant. */
         val UNGROUPED: JsonNode = nodes.missingNode()

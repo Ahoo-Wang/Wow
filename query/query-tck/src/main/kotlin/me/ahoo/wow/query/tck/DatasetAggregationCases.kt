@@ -25,9 +25,12 @@ import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.ComparisonOperator
 import me.ahoo.wow.api.query.DerivedExpression
 import me.ahoo.wow.api.query.EqualFilter
+import me.ahoo.wow.api.query.ExpressionFilter
 import me.ahoo.wow.api.query.GreaterThanOrEqualFilter
 import me.ahoo.wow.api.query.HavingExpression
 import me.ahoo.wow.api.query.IsNotNullFilter
+import me.ahoo.wow.api.query.ListQuery
+import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.RunningFunction
 import me.ahoo.wow.api.query.Sort
@@ -37,6 +40,8 @@ import me.ahoo.wow.query.error.QueryRequestException
 import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.query.tck.DatasetQueryBackendSpec.Companion.HISTORY
 import me.ahoo.wow.query.tck.DatasetQueryBackendSpec.Companion.ID
+import me.ahoo.wow.query.tck.SnapshotAggregationCases.Companion.EXACT_COMPUTED_VALUE
+import me.ahoo.wow.query.tck.SnapshotAggregationCases.Companion.EXACT_PLAIN_AGGREGATE
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
 import java.time.Instant
@@ -296,5 +301,64 @@ abstract class DatasetAggregationCases internal constructor() : DatasetRecordCas
         empty.get("gmv").isNull.assert().isTrue()
         empty.get("ids").asLong().assert().isEqualTo(0)
         Unit
+    }
+
+    @Test
+    fun `a plain decimal column's sum, average, least and greatest are in its decimals, or doubles where listed`() =
+        blocking {
+            val decimals = target(TENTH_AND_FIFTH)
+            val functions = listOf(
+                AggregationFunction.SUM,
+                AggregationFunction.AVG,
+                AggregationFunction.MIN,
+                AggregationFunction.MAX,
+            )
+            val row = decimals.aggregate(
+                AggregationQuery(MatchAllFilter, metrics = functions.map { numeric(it, AMOUNT, it.name.lowercase()) }),
+            ).single()
+            val exact = EXACT_PLAIN_AGGREGATE !in semanticDivergences
+            val wanted = if (exact) {
+                listOf("0.3", "0.15", "0.1", "0.2")
+            } else {
+                listOf("0.30000000000000004", "0.15000000000000002", "0.1", "0.2")
+            }
+            functions.map { row.path(it.name.lowercase()).decimalValue() }.zip(wanted).forEach { (value, expected) ->
+                value.assert().describedAs("$row").isEqualByComparingTo(BigDecimal(expected))
+            }
+            Unit
+        }
+
+    @Test
+    fun `a computed comparison over a decimal column`() = blocking {
+        // Which of the two a computed value is in, on every backend, is #6997's: until then, each states its own.
+        val decimals = target(TENTH_AND_FIFTH)
+        val tripled = AggregationExpression.Binary(
+            AggregationExpressionOperator.MULTIPLY,
+            AggregationExpression.Field(AMOUNT),
+            AggregationExpression.Constant(3.0),
+        )
+        val matched = decimals.list(ListQuery(ExpressionFilter(tripled, ComparisonOperator.GT, 0.3)))
+            .map { it.path(ID).stringValue() }
+        // In doubles 0.1 × 3.0 is 0.30000000000000004, over 0.3: both rows match.
+        val wanted = if (EXACT_COMPUTED_VALUE in semanticDivergences) listOf("fifth", "tenth") else listOf("fifth")
+        matched.assert().containsExactlyInAnyOrderElementsOf(wanted)
+        Unit
+    }
+
+    private companion object {
+        /**
+         * Two orders of [DatasetQueryBackendSpec.ORDERS], their amounts 0.1 and 0.2; made on first use, as
+         * [DatasetQueryBackendSpec] is initialized after this class it extends.
+         */
+        val TENTH_AND_FIFTH by lazy {
+            DatasetTable(
+                name = "tenth_and_fifth",
+                columns = DatasetQueryBackendSpec.ORDERS.columns,
+                rows = listOf("tenth" to "0.1", "fifth" to "0.2").mapIndexed { index, (id, amount) ->
+                    DatasetQueryBackendSpec.ORDERS.rows[index] +
+                        mapOf(ID to id, AMOUNT.path to BigDecimal(amount))
+                },
+            )
+        }
     }
 }

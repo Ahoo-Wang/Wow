@@ -32,7 +32,8 @@ class MongoSnapshotQueryBackendTest : QueryBackendSpec() {
 
     // MongoDB's time zone offsets are whole minutes: Africa/Monrovia's -00:44:30 reads as -00:44, so its buckets on the
     // day of its 1972 change start 30 seconds off, and those of the gap at the minute the change skipped to.
-    override val semanticDivergences: Set<String> = setOf(GAP_START, GAP_MID_UNIT)
+    // An expression's fields are converted to doubles (MongoAggregationExpressions), a plain field's sum is Decimal128's.
+    override val semanticDivergences: Set<String> = setOf(GAP_START, GAP_MID_UNIT, "decimal.computed-value")
 
     override fun binding(type: AggregateType): QueryBackendBinding<QueryBackend> =
         MongoSnapshotQueryStorage(MongoLogFixture.client, MongoLogFixture.DATABASE, type.context).binding(type)!!

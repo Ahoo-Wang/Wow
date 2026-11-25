@@ -254,6 +254,15 @@ outline: deep
 }
 ```
 
+各后端如何计算数字：
+
+| 计算 | 按存储的十进制数 | 按双精度 |
+| --- | --- | --- |
+| 普通字段的 `sum`、`avg`、`min` 和 `max` | 内存、PostgreSQL、MongoDB、ClickHouse（`Decimal` 列） | Elasticsearch |
+| 计算值：`expression` 过滤，以及基于表达式的指标、分组或派生指标 | PostgreSQL | 内存、MongoDB、Elasticsearch、ClickHouse |
+
+所以 `amount * 3 > 0.3` 在除 PostgreSQL 外的每个后端上都会匹配 `amount` 为 0.1 的记录：按双精度，0.1 × 3 是 0.30000000000000004。需要精确的地方（如金额），比较存储的字段，而不是计算值。
+
 ### 组合 {#combinators}
 
 | `op` | 属性 | 匹配 |

@@ -209,9 +209,11 @@ class QueryDslJsonTest {
         runBlocking {
             val rows = gateway.aggregate(dsl, CALLER).toList()
             rows.assert().isEqualTo(gateway.aggregate(decoded, CALLER).toList())
+            // A plain field's sum is the stored decimals' (#6969): the one NEW order's 30, as PostgreSQL and MongoDB
+            // answer it.
             rows.map { it.toString() }.assert().containsExactly(
                 """{"status":"PAID","count":2,"amount":30.5}""",
-                """{"status":"NEW","count":1,"amount":30.0}""",
+                """{"status":"NEW","count":1,"amount":30}""",
             )
         }
     }

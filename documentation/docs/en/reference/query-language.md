@@ -254,6 +254,15 @@ An `expression` is one of `{"type":"field","field":…}`, `{"type":"constant","v
 }
 ```
 
+How each backend computes a number:
+
+| Computed | In the stored decimals | In doubles |
+| --- | --- | --- |
+| A plain field's `sum`, `avg`, `min` and `max` | memory, PostgreSQL, MongoDB, ClickHouse (a `Decimal` column) | Elasticsearch |
+| A computed value: an `expression` filter, a metric, a group or a derived metric over an expression | PostgreSQL | memory, MongoDB, Elasticsearch, ClickHouse |
+
+So `amount * 3 > 0.3` matches an `amount` of 0.1 on every backend but PostgreSQL: in doubles, 0.1 × 3 is 0.30000000000000004. Where exactness matters, as for money, compare a stored field, not a computed value.
+
 ### Combinators
 
 | `op` | Properties | Matches |
