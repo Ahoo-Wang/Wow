@@ -66,4 +66,6 @@ jobs:
         with:
           # The Gradle cache is written by ci.yml's pushes to main alone.
           cache-read-only: true
-          dependency-graph-include-configurations: '.*[rR]untimeClasspath'
+          # The main runtime class path alone. `.*[rR]untimeClasspath` also matched `testRuntimeClasspath` and
+          # `integrationTestRuntimeClasspath`, so the first run on main reported what only tests use.
+          dependency-graph-include-configurations: 'runtimeClasspath'
