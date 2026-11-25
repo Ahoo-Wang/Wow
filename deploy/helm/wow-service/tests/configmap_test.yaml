@@ -97,3 +97,14 @@ tests:
     asserts:
       - failedTemplate:
           errorPattern: "put those keys under settings"
+  - it: takes settings and env that are not the chart's own, a peer's namespace among them
+    set:
+      settings.wow.peer.dns.namespaces.eshop-payment-service: payments
+      settings.wow.log.partitions: 16
+      env:
+        - name: WOW_LOG_MAXPOLLINTERVAL
+          value: 2s
+    asserts:
+      - matchRegex:
+          path: data.SPRING_APPLICATION_JSON
+          pattern: '"partitions":16'

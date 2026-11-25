@@ -14,6 +14,7 @@
 import {
   DEFAULT_APPROXIMATE_METRICS,
   isDateCell,
+  isExactNumberText,
   AggregationFunctions,
   AggregationMetricTypes,
   type AggregationDatePartName,
@@ -393,8 +394,6 @@ export function missingText(
     : undefined;
 }
 
-const WHOLE_DIGITS = /^-?(?:0|[1-9]\d{0,299})$/;
-
 /**
  * A value an analysis shows when its field's kind has nothing to add: a number
  * as `formatNumber` prints it; a boolean in the catalogue's words; anything
@@ -412,12 +411,12 @@ export function valueText(
     return formatNumber(value, format, locale);
   if (typeof value === 'boolean')
     return messages.label(value ? 'label.value.yes' : 'label.value.no');
-  // A whole number past 2^53 a source sent as digits, to keep them exact, in
-  // a column that declared a number format: grouped as that format says,
-  // every digit kept (Intl reads a string of digits exactly).
+  // A number a source sent as its exact text (a whole number past 2^53, a
+  // decimal amount), in a column that declared a number format: written as
+  // that format says, its currency and its scale, every digit kept (#6904).
   if (typeof value === 'string')
-    return format && WHOLE_DIGITS.test(value)
-      ? formatNumber(BigInt(value), format, locale)
+    return format && isExactNumberText(value)
+      ? formatNumber(value, format, locale)
       : value;
   return JSON.stringify(value) ?? '';
 }
@@ -560,7 +559,8 @@ function isStructured(value: unknown): value is object {
 
 /**
  * One cell as a CSV file holds it: the screen's reading (`cellText`), except
- * a number no format was declared for, which is written as the number it is.
+ * a number no format was declared for, which is written as the number it is:
+ * a `number`, a `bigint` and a number's exact text alike (`isExactNumberText`).
  *
  * On screen such a number is grouped for the reader — 534,897 — but a CSV is
  * read by a spreadsheet, and `534,897` in a CSV is a string no column sums.
@@ -581,7 +581,11 @@ export function csvCellText(
   const named = referenceText(value, field, context);
   if (named !== undefined) return named;
   // Written raw unless the author's own format decides how it reads.
-  if (typeof value === 'number' && !(field.numberFormat && !field.numeric))
-    return Number.isFinite(value) ? String(value) : '';
+  if (!(field.numberFormat && !field.numeric)) {
+    if (typeof value === 'number')
+      return Number.isFinite(value) ? String(value) : '';
+    if (typeof value === 'bigint') return String(value);
+    if (isExactNumberText(value)) return value;
+  }
   return cellText(value, field, messages, context);
 }

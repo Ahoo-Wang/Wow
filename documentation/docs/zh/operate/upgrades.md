@@ -189,6 +189,8 @@ CoSec 本版本的其他变化涉及网关、控制面、签发 CoSec 令牌的�
 
 本版本可以把 CoSec 的拒绝写成 Wow 的 problem，默认关闭：`wow.cosec.problems: wow`（[CoSec 的拒绝](./security#cosec-refusals)）。保持 `cosec` 时，每个回答与以前逐字节相同。它基于 CoSec 的 `ProblemRenderer`，那在 CoSec 8 里是试验性的，形状可能随 CoSec 的 RC 改变。新增两个码：`wow.request.rate-limited`（429）与 `wow.auth.unavailable`（503），只有这些拒绝会用到它们。
 
+`wow-service` chart 拒绝更多预发布版能渲染的 value（[Kubernetes](./kubernetes)）。chart 自己设置的键，在 `settings` 和 `env` 中也会被拒绝，就像在 `config` 中一样，Spring 能绑定的任何写法都算：停止的上限（`wow.wait.max-timeout`、`wow.cluster.drain-timeout`、`wow.subscription.stop-timeout`：设置 `shutdown.*`）、端口（`server.port`、`wow.internal.port`：设置 `ports.*`）、节点的身份和地址、`POD_NAME` 和 `POD_IP`，以及 `env` 中的 `SPRING_APPLICATION_JSON`。开启 `networkPolicy.public.onlyGateway`（默认）时，`networkPolicy.public.from` 中不按标签指明 Pod 的条目（`podSelector` 为空或没有、`ipBlock`）会被拒绝：指明网关的 Pod，或设置 `onlyGateway: false`。生成的 values 把代码调用的对端写作 `service.contractPeers`，chart 按服务把你的 `service.peers` 与它们合并：重新生成 values（`generateWowHelmValues`，`assemble` 会运行它），你的文件给某个对端写了命名空间时，内部策略也会重新放行每个对端。预发布版生成的、带 `service.peers` 的 values 文件仍能渲染，按部署自己的对端来读。
+
 `@ahoo-wang/wow-client` 以命令声明的等待再加 5 秒为界约束它的整个应答，与 Kotlin 客户端一样；没有声明的命令以客户端选项的 `defaultWaitMs` 再加 5 秒为界，没有给出时是一分钟再加 5 秒（[命令](../typescript/commands#when-a-command-fails)）：服务默认等待超过一分钟的部署，设置 `defaultWaitMs`，或者让每条命令声明它的等待。超过这个界限，请求被中止，调用以 `wow.command.unknown` reject，过去一个沉默的节点会让调用一直挂着。应答或事件流在开始之后丢失或无法读取的命令也以同样的方式 reject，过去它以网络自己的错误 reject：只对 `retry` 允许重试的 `WowProblemError` 重试的调用方，现在也会以请求 ID 重试这些情况，这是安全的。对聚合 `.` 或 `..` 的命令或状态读取（以及空 id 的状态读取）在发送之前就以 `TypeError` 拒绝，过去 URL 会把它送到另一个路由；续读查询流时得到的 `Retry-After` 超过 `resume.maxDelayMs`（默认 5 秒）时，流立即以那个 problem 失败，而不是等它过去。
 
 ### Kafka 上的发布流 {#published-streams-on-kafka}

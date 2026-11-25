@@ -99,7 +99,11 @@ class WowPluginTest {
 
         values.submit(inProcessQueue(project))
 
-        output.readText().assert().contains("  name: \"shop-service\"", "  peers: []", "    route: \"/wow/manifest\"")
+        output.readText().assert().contains(
+            "  name: \"shop-service\"",
+            "  contractPeers: []",
+            "    route: \"/wow/manifest\"",
+        )
     }
 
     @Test

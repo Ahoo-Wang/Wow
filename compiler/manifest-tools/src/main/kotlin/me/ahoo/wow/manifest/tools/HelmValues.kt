@@ -18,7 +18,8 @@ import tools.jackson.module.kotlin.jacksonObjectMapper
 
 /**
  * The values of the `wow-service` Helm chart that a service's build knows, its `service` block: the service's name, the
- * peers whose contracts are on its class path and the route its nodes serve the Manifest at. Everything else (the
+ * peers whose contracts are on its class path (`contractPeers`, which a deployment's own `peers` joins by service) and
+ * the route its nodes serve the Manifest at. Everything else (the
  * image, the replicas, the resources, the stores and their credentials) is the deployment's own, in a values file
  * passed after this one.
  */
@@ -33,10 +34,12 @@ internal class HelmValues(val service: String, val peers: List<Peer>) {
         appendLine("# the deployment's own values after it.")
         appendLine("service:")
         appendLine("  name: ${quoted(service)}")
+        // The peers the code calls: contractPeers, which a deployment's values file does not replace, its own peers being
+        // another list the chart joins with these by service (#6933).
         if (peers.isEmpty()) {
-            appendLine("  peers: []")
+            appendLine("  contractPeers: []")
         } else {
-            appendLine("  peers:")
+            appendLine("  contractPeers:")
             peers.forEach { peer ->
                 appendLine("    - context: ${quoted(peer.context)}")
                 peer.service?.let { appendLine("      service: ${quoted(it)}") }

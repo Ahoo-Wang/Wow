@@ -142,7 +142,7 @@ export interface FunnelSpec {
 
 export interface MetricCardSpec {
   metric: string; // 指标别名
-  compare?: { metric: string; mode: 'delta' | 'percent' }; // 与另一指标比较，跨度与主数相同：最后一期读法下是同一期的值，全部读法下是全部的值
+  compare?: { metric: string; mode: 'delta' | 'percent' }; // 与另一指标比较，跨度与主数相同：最后一期读法下是同一期的值，全部读法下是全部的值；percent 按比较值的大小除（差 ÷ |比较值|，与环比同一条），亏 50 对计划亏 100 是 +50%
   target?: number; // 渲染为进度；跨度与主数相同：最后一期读法下是一期的目标（日趋势即日目标）
   trend?: MetricTrend; // 迷你趋势线，需恰有一个 DATE_HISTOGRAM 分组；metric 与 compare.metric 都须是可加指标（COUNT／SUM）
   format?: 'auto' | 'percent' | 'compact';

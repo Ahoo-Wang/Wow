@@ -23,3 +23,18 @@ export function includesValue<T>(
 ): value is T {
   return (list as readonly unknown[]).includes(value);
 }
+
+const EXACT_NUMBER = /^-?(?:0|[1-9]\d{0,299})(?:\.\d{1,300})?$/;
+
+/**
+ * Whether a value is a number a source sent as its exact text, to keep its
+ * digits: `@ahoo-wang/wow-client` reads an `int64`, a `bigint` or a
+ * `decimal` field so, a Kotlin `Long` or `BigDecimal` arriving as
+ * `'9007199254740993'` or `'1234567.50'`. It is written as JSON writes a
+ * number, digits with an optional fraction, no exponent and no grouping.
+ * Every reader that prints or adds numbers takes it for the number it is:
+ * a cell, its text and its file, a page's summary.
+ */
+export function isExactNumberText(value: unknown): value is `${number}` {
+  return typeof value === 'string' && EXACT_NUMBER.test(value);
+}

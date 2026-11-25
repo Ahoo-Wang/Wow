@@ -1,0 +1,55 @@
+# The chart refuses the keys it sets itself, from ports, the pod and shutdown (the grace period counts the shutdown's
+# bounds), however they are given (#6934): in config, in settings, which SPRING_APPLICATION_JSON makes override every
+# variable, and in env, which overrides the ConfigMap; each key read as Spring's relaxed binding reads it. A suite of its
+# own: the refusal is the chart's validation.
+suite: the keys the chart owns are refused however they are given
+templates:
+  - templates/configmap.yaml
+set:
+  service.name: eshop-ordering-service
+  image.repository: ghcr.io/example/eshop-ordering-server
+tests:
+  - it: refuses a wait's bound in settings, which the grace period would not count
+    set:
+      settings.wow.wait.max-timeout: 300s
+    asserts:
+      - failedTemplate:
+          errorPattern: "settings.wow.wait.max-timeout is set by the chart itself: set shutdown.waitMaxTimeoutSeconds instead"
+  - it: refuses it in any spelling Spring binds, nested, flat or camel case
+    set:
+      settings:
+        wow:
+          cluster.drainTimeout: 120s
+    asserts:
+      - failedTemplate:
+          errorPattern: "settings.wow.cluster.drainTimeout is set by the chart itself: set shutdown.drainTimeoutSeconds instead"
+  - it: refuses the HTTP port in settings, which the probes would not follow
+    set:
+      settings.server.port: 9000
+    asserts:
+      - failedTemplate:
+          errorPattern: "settings.server.port is set by the chart itself, from ports.http"
+  - it: refuses the HTTP port in env
+    set:
+      env:
+        - name: SERVER_PORT
+          value: "9001"
+    asserts:
+      - failedTemplate:
+          errorPattern: "env SERVER_PORT is set by the chart itself, from ports.http"
+  - it: refuses the drain timeout in env, which the grace period would not count
+    set:
+      env:
+        - name: WOW_CLUSTER_DRAINTIMEOUT
+          value: 120s
+    asserts:
+      - failedTemplate:
+          errorPattern: "env WOW_CLUSTER_DRAINTIMEOUT is set by the chart itself: set shutdown.drainTimeoutSeconds instead"
+  - it: refuses the variables the chart's env sets from the pod, and SPRING_APPLICATION_JSON, in env
+    set:
+      env:
+        - name: POD_IP
+          value: 10.0.0.1
+    asserts:
+      - failedTemplate:
+          errorPattern: "env POD_IP is set by the chart itself, the pod's address"

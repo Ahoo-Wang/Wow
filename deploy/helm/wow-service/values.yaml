@@ -8,13 +8,17 @@ service:
   # PodDisruptionBudget <name>, the headless Service <name>-cluster that the peers' SRV lookups find, the ConfigMap
   # <name>-config and the NetworkPolicies <name>-public and <name>-internal.
   name: ""
-  # The peer contexts the service calls, each with the service that hosts it. A peer in another namespace takes a
+  # The peer contexts the service's code calls, each with the service that hosts it: the generated values write them.
+  # Do not set them in your own values file, whose list would replace them whole; use peers.
+  contractPeers: []
+  # The deployment's peers, joined with contractPeers by service: a peer of contractPeers with its namespace, which
+  # takes the generated entry's place, or a peer the contract does not name. A peer in another namespace takes a
   # namespace: the node looks it up there (wow.peer.dns.namespaces) and the internal NetworkPolicy admits its pods
-  # from there, for the wait signals it sends back.
+  # from there, for the wait signals it sends back. A values file that lists one peer keeps the generated others.
   peers: []
-  #  - context: eshop-ordering
-  #    service: eshop-ordering-service
-  #    namespace: shop
+  #  - context: eshop-payment
+  #    service: eshop-payment-service
+  #    namespace: payments
   # Where every node serves the service's Manifest, on either port; given to the pods as the wow.ahoo.me/manifest
   # annotation.
   manifest:
@@ -127,8 +131,9 @@ networkPolicy:
     # Whether the chart tells CoSec that only the gateway can reach the public port
     # (COSEC_PIPELINE_IDENTITY_ONLYGATEWAYCANREACH=true), the statement a service in wow.cosec.mode: gateway needs to
     # start. It holds only while `from` names the gateway's pods alone: each pod `from` admits can claim any identity to
-    # such a service. Set it false when `from` admits anything else; a service in gateway mode then does not start until
-    # you state it yourself (where it is true) or change its mode.
+    # such a service. The chart refuses it for an entry of `from` that names no pods by their labels (an empty or no
+    # podSelector, an ipBlock), which admits every pod it reaches. Set it false when `from` admits anything else; a
+    # service in gateway mode then does not start until you state it yourself (where it is true) or change its mode.
     onlyGateway: true
     # Who reaches the public port: the gateway's pods by default, in any namespace.
     from:
