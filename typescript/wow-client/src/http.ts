@@ -138,6 +138,12 @@ export interface Call {
   readonly options?: RequestOptions;
   /** Answers a 304 rather than rejecting with it. */
   readonly notModified?: boolean;
+  /**
+   * The controller the request is sent with, in place of a signal: the
+   * fetcher aborts it at its own timeout as well (internal; a command's
+   * bound).
+   */
+  readonly abortController?: AbortController;
 }
 
 function queryString(
@@ -217,6 +223,9 @@ export async function send(
               : (call.body as object),
           }),
       ...(options.signal === undefined ? {} : { signal: options.signal }),
+      ...(call.abortController === undefined
+        ? {}
+        : { abortController: call.abortController }),
     });
     return new Answer(response, call.numbers.answer);
   } catch (error) {

@@ -49,8 +49,16 @@ export const LONGEST_WAIT_MS = 60_000;
 export class AnswerBound {
   private readonly passing = new AbortController();
   private readonly timer: ReturnType<typeof setTimeout>;
-  /** What the request is sent with: the caller's signal and the bound. */
-  readonly signal: AbortSignal;
+  private expired = false;
+  /**
+   * What the request is sent with. Without a signal of the caller's, the
+   * bound's own `abortController`, which a fetcher aborts at its own timeout
+   * too: fetcher 5 applies its `timeout` only to a request that carries no
+   * `signal`. With one, a signal that aborts with the caller's or the bound.
+   */
+  readonly sending:
+    | { readonly abortController: AbortController }
+    | { readonly signal: AbortSignal };
 
   /**
    * @param ms - How long the whole answer may take
@@ -60,24 +68,26 @@ export class AnswerBound {
     readonly ms: number,
     private readonly caller?: AbortSignal,
   ) {
-    this.signal =
+    this.sending =
       caller === undefined
-        ? this.passing.signal
-        : AbortSignal.any([caller, this.passing.signal]);
-    this.timer = setTimeout(
-      () =>
-        this.passing.abort(
-          new Error(`The command was not answered within ${ms} ms.`),
-        ),
-      ms,
-    );
+        ? { abortController: this.passing }
+        : { signal: AbortSignal.any([caller, this.passing.signal]) };
+    this.timer = setTimeout(() => {
+      this.expired = true;
+      this.passing.abort(
+        new Error(`The command was not answered within ${ms} ms.`),
+      );
+    }, ms);
     // A process that only waits for this bound need not stay up for it.
     (this.timer as { unref?: () => void }).unref?.();
   }
 
-  /** Whether the bound passed before the caller gave up. */
+  /**
+   * Whether the bound passed before the caller gave up: its own time, not a
+   * fetcher's timeout, which aborts the same controller.
+   */
   get passed(): boolean {
-    return this.passing.signal.aborted && !this.abandoned;
+    return this.expired && !this.abandoned;
   }
 
   /** Whether the caller aborted its request itself. */

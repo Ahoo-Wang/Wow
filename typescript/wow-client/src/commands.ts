@@ -585,8 +585,9 @@ export class CommandClient {
           ...(request.headers === undefined
             ? {}
             : { headers: request.headers }),
-          signal: bound.signal,
+          ...('signal' in bound.sending ? bound.sending : {}),
         },
+        ...('abortController' in bound.sending ? bound.sending : {}),
       });
       return { answer, bound };
     } catch (error) {
