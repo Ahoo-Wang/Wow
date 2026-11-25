@@ -60,6 +60,9 @@ abstract class EventLogFixtures internal constructor() {
     internal val type = AggregateType(context, "aggregate")
     internal val other = AggregateType(context, "other")
 
+    /** A type of another bounded context than the log's: no stream of it is the log's to append. */
+    internal val elsewhere = AggregateType("${context}_elsewhere", "aggregate")
+
     internal fun createLog(partitions: Int = DEFAULT_PARTITIONS): EventLog = createLog(context, partitions)
 
     /**

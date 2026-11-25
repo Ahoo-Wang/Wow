@@ -18,7 +18,7 @@ import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.tck.log.EventLogSpec
 
 class InMemoryEventLogTest : EventLogSpec() {
-    override fun createLog(context: String, partitions: Int): EventLog = InMemoryEventLog(partitions)
+    override fun createLog(context: String, partitions: Int): EventLog = InMemoryEventLog(partitions, context)
 
     override fun createSnapshots(context: String): SnapshotStore = InMemorySnapshotStore()
 }

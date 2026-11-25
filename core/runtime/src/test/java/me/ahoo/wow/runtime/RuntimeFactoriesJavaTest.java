@@ -40,7 +40,7 @@ class RuntimeFactoriesJavaTest {
     @Test
     void buildsTheBackendsOfAContext() {
         ContextBackends backends = ContextBackends.of(
-            new InMemoryEventLog(2),
+            new InMemoryEventLog(2, null),
             new InMemoryCheckpointStore(),
             new InMemoryLeaseStore(),
             new InMemoryFailureLedger()
