@@ -244,4 +244,28 @@ describe('an answer lost or unreadable after its head', () => {
     expect(failure).toBe(left);
     expect(requestIdOf(failure)).toBe(received[0]?.requestId);
   });
+
+  it("fails a command stream with the caller's own abort mid-read, not as an unknown outcome, and closes its connection", async () => {
+    const { fetcher, received } = await serve((_, response) => {
+      response.writeHead(200, { 'Content-Type': 'text/event-stream' });
+      response.write(`id:0\nevent:accepted\ndata:${accepted}\n\n`);
+    });
+    const abort = new AbortController();
+    const left = new Error('The caller left.');
+    const reader = (
+      await new CommandClient({ fetcher }, { manifest: TEST_MANIFEST }).stream({
+        command: 'c.a.X',
+        id: '1',
+        wait: WaitPlan.COMMITTED,
+        signal: abort.signal,
+      })
+    ).getReader();
+    await reader.read();
+    const pending = settle(reader.read());
+    abort.abort(left);
+    const failure = await pending;
+    expect(failure).toBe(left);
+    expect(requestIdOf(failure)).toBe(received[0]?.requestId);
+    await vi.waitFor(() => expect(received[0]?.closed).toBe(true));
+  });
 });
