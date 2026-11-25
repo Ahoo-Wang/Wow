@@ -112,11 +112,14 @@ open class SnapshotProperties protected constructor() {
     @JvmField
     val STATE: QueryField<Any?> = QueryField.of("state")
 
-    /** The access attribute [name] of [ACCESS]: `access.<name>`. */
-    fun access(name: String): QueryField<*> = ACCESS.append(QueryField(name))
+    /**
+     * The access attribute [name] of [ACCESS]: `access.<name>`, a field the filter DSL compares as any other
+     * (`access("region") eq "EU"`, `access("region") isIn listOf("EU", "US")`).
+     */
+    fun access(name: String): QueryField<Any?> = ACCESS.append(QueryField(name))
 
-    /** The schedule [key] of [SCHEDULES]: `schedules.<key>`, its rule. */
-    fun schedule(key: String): QueryField<*> = SCHEDULES.append(QueryField(key))
+    /** The schedule [key] of [SCHEDULES]: `schedules.<key>`, its rule, compared as any other field. */
+    fun schedule(key: String): QueryField<Any?> = SCHEDULES.append(QueryField(key))
 
     /** The system fields alone. */
     companion object : SnapshotProperties()

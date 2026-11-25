@@ -156,9 +156,6 @@ class Pagination @InternalWowApi constructor(
  * field to suppress it; MongoDB permits this ID exclusion alongside include. Elasticsearch does not add
  * an unrequested ID. Cursor queries remove fields fetched only for sorting, including an unrequested ID.
  *
- * @property include Nodes to return, subject to the MongoDB ID exception above.
- * @property exclude Nodes to omit, including the logical ID when it should not be returned.
- *
  * ```
  * val includeOnly = Projection(include = listOf(QueryField("name"), QueryField("email")))  // MongoDB also retains ID
  * val excludeSome = Projection(exclude = listOf(QueryField("password"), QueryField("secret")))  // Return all except password and secret
@@ -166,9 +163,18 @@ class Pagination @InternalWowApi constructor(
  * ```
  */
 class Projection @InternalWowApi constructor(
-    val include: List<QueryField<*>> = emptyList(),
-    val exclude: List<QueryField<*>> = emptyList()
+    include: List<QueryField<*>> = emptyList(),
+    exclude: List<QueryField<*>> = emptyList()
 ) {
+    /**
+     * Nodes to return, subject to the MongoDB ID exception above; a copy, like [exclude], so a list its caller changes
+     * later changes neither this projection nor its hash.
+     */
+    val include: List<QueryField<*>> = include.copied()
+
+    /** Nodes to omit, including the logical ID when it should not be returned. */
+    val exclude: List<QueryField<*>> = exclude.copied()
+
     companion object {
         /**
          * Projection that includes all fields (no filtering).

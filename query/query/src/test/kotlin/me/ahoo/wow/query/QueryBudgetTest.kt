@@ -113,7 +113,7 @@ class QueryBudgetTest {
                 Triple(tooLarge, "filter", "HTTP query filter nodes[129] must not exceed 128."),
         ).forEach { (check, expected) ->
             assertThrows<QueryRequestException> { budget().check() }
-                .let { Triple(it.code, it.bindingErrors.single().name, it.message) }
+                .let { Triple(it.code, it.violations.single().path, it.message) }
                 .assert().isEqualTo(expected)
         }
         // Rejections are request violations: invalid, with the violation they render.
@@ -278,13 +278,13 @@ class QueryBudgetTest {
         budget.check(CountQuery(IdFilter("id"), limit = 10_000))
         assertThrows<QueryRequestException> { budget.check(CountQuery(IdFilter("id"), limit = 10_001)) }.run {
             code.assert().isEqualTo(QueryErrorCodes.SIZE_OUT_OF_RANGE)
-            bindingErrors.single().name.assert().isEqualTo("limit")
+            violations.single().path.assert().isEqualTo("limit")
             message.assert().isEqualTo("HTTP count limit[10001] must be between 1 and 10000.")
         }
         val small = QueryBudget(QueryBudget.HTTP_LABEL, countLimit = 3)
         small.check(CountQuery(IdFilter("id"), limit = 3))
         assertThrows<QueryRequestException> { small.check(CountQuery(IdFilter("id"), limit = 4)) }
-            .bindingErrors.single().name.assert().isEqualTo("limit")
+            .violations.single().path.assert().isEqualTo("limit")
     }
 
     @Test
@@ -303,7 +303,7 @@ class QueryBudgetTest {
         val exact = PagedQuery(IdFilter("id"), total = TotalMode.EXACT)
         assertThrows<QueryRequestException> { QueryBudget(QueryBudget.HTTP_LABEL).check(exact) }.run {
             code.assert().isEqualTo(QueryErrorCodes.EXPENSIVE_OPERATOR_DISABLED)
-            bindingErrors.single().name.assert().isEqualTo("total")
+            violations.single().path.assert().isEqualTo("total")
             message.assert().isEqualTo("HTTP exact total is disabled: ask for a BOUNDED total, or count with a limit.")
             violation.assert().isEqualTo(QueryViolation.ExactCountDisabled(QueryBudget.HTTP_LABEL))
         }

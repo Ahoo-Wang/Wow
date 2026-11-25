@@ -22,7 +22,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  *
  * @property filter The filter expression to apply to the query; [MatchAllFilter], every record, by default.
  * @property projection The field projection to control which fields are included in the result.
- * @property sort The sorting criteria to order results (useful when multiple matches exist).
+ * @param sort The order of the results; the query keeps a copy.
  *
  * ```
  * val query = SingleQuery(
@@ -35,8 +35,14 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 class SingleQuery @InternalWowApi constructor(
     override val filter: FilterExpression = MatchAllFilter,
     override val projection: Projection = Projection.ALL,
-    override val sort: List<Sort> = emptyList()
+    sort: List<Sort> = emptyList()
 ) : Queryable<SingleQuery> {
+    /**
+     * The sorting criteria to order results (useful when multiple matches exist); a copy, so a list its caller changes
+     * later changes neither this query nor its hash.
+     */
+    override val sort: List<Sort> = sort.copied()
+
     init {
         require(sort.size <= Sort.MAX_FIELDS) {
             "sort must contain at most ${Sort.MAX_FIELDS} fields."

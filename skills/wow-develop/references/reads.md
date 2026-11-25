@@ -31,7 +31,7 @@ Annotations of `wow-query-api` (`me.ahoo.wow.api.query.annotation`) on state fie
 
 - `@QueryIndex`: an index for filters and sorts that must stay index scans; the `ddl` of their store (`wow.ddl` by default) manages them at startup.
 - `@Sensitive`: masked in every result; its level decides whether a query may still compare the raw value.
-- `@QueryDecimal(scale)`, `@QueryDuration(unit)`, `@QueryTemporal`, `@QueryReference(aggregateName, contextName)`, `@QueryMoney(currency | currencyField, scale)`: how consumers format, total and link a field; never inferred.
+- `@QueryDecimal(scale)`, `@QueryDuration(unit)`, `@QueryTemporal`, `@QueryReference(aggregate, context)`, `@QueryMoney(currency | currencyField, scale)`: how consumers format, total and link a field; never inferred.
 - `@QueryAlias`: the field's earlier paths, so saved queries keep working after a rename.
 - `@Access` on the state (`model.md`): an access attribute, which the aggregate's access policy compares with the caller's claims (below); every record carries it as `access.<name>` (`SnapshotProperties.access(name)`).
 

@@ -21,8 +21,8 @@ import me.ahoo.wow.elasticsearch.events.ElasticsearchEventIndex
 import me.ahoo.wow.elasticsearch.query.schema.ElasticsearchQuerySchemaAdapter
 import me.ahoo.wow.query.backend.QueryBackend
 import me.ahoo.wow.query.backend.QueryBackendBinding
-import me.ahoo.wow.query.backend.QueryBindings
 import me.ahoo.wow.query.schema.QueryModel
+import me.ahoo.wow.query.store.EventStoreQueries
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.json.query.EventStreamFields
 import tools.jackson.databind.node.ObjectNode
@@ -45,7 +45,7 @@ internal class ElasticsearchEventQueries(
     private val indexDdl: Ddl = Ddl.AUTO,
     /** How many documents a second a mapping's rewrite indexes again ([ElasticsearchStateMappings.rewrite]). */
     rewriteRate: Int = ElasticsearchStateMappings.DEFAULT_REWRITE_RATE,
-) : QueryBindings<AggregateType> {
+) : EventStoreQueries {
     private val mappingResolver = ElasticsearchIndexMappingResolver(client) { ElasticsearchEventIndex.typeMapping() }
     private val bodyMappings =
         ElasticsearchStateMappings(client, mappingResolver, ElasticsearchPayload.EventBodies, rewriteRate)

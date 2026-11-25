@@ -19,13 +19,20 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 @ExperimentalWowApi
 class AggregationQuery @InternalWowApi constructor(
     override val filter: FilterExpression = MatchAllFilter,
-    val elements: List<AggregationElement> = emptyList(),
-    val groupBy: List<AggregationGroup> = emptyList(),
-    val metrics: List<AggregationMetric>,
-    override val sort: List<Sort> = emptyList(),
+    elements: List<AggregationElement> = emptyList(),
+    groupBy: List<AggregationGroup> = emptyList(),
+    metrics: List<AggregationMetric>,
+    sort: List<Sort> = emptyList(),
     val limit: Int = DEFAULT_LIMIT,
     val having: HavingExpression? = null,
 ) : FilterCapable<AggregationQuery>, SortCapable {
+    // Each list is copied: one its caller changes later changes neither this query, which init has checked, nor its
+    // hash.
+    val elements: List<AggregationElement> = elements.copied()
+    val groupBy: List<AggregationGroup> = groupBy.copied()
+    val metrics: List<AggregationMetric> = metrics.copied()
+    override val sort: List<Sort> = sort.copied()
+
     init {
         require(elements.size <= MAX_ELEMENTS) { "elements must contain at most $MAX_ELEMENTS paths." }
         require(groupBy.size <= MAX_GROUPS) { "groupBy must contain at most $MAX_GROUPS dimensions." }

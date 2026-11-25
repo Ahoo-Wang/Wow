@@ -48,7 +48,6 @@ import me.ahoo.wow.query.schema.MaskStrategyResolver
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
 import me.ahoo.wow.query.schema.QuerySchemaSource
-import me.ahoo.wow.query.store.EventQueries
 import me.ahoo.wow.query.store.QueryIndexReport
 import me.ahoo.wow.query.store.QueryStores
 import me.ahoo.wow.query.store.StoreQueries
@@ -191,7 +190,7 @@ class QueryAutoConfiguration {
             }
             val storeOf = { type: AggregateType -> configured[type] ?: layout?.logStoreOf(type) }
             val indexed = { type: AggregateType ->
-                (storeOf(type)?.let(byStore::get) as? EventQueries)?.takeIf { it.managesIndexes }
+                storeOf(type)?.let(byStore::get)?.takeIf { it.managesIndexes }
             }
             val backend = EventQueryBackend(
                 store = { type -> storeOf(type)?.takeIf { byStore[it] != null } },

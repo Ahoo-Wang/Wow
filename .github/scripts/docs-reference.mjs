@@ -86,6 +86,7 @@ const WORDS = {
       query: 'Query request codes',
       queryIntro: `A rejected query request (\`wow.query.malformed\` or \`wow.query.invalid\`) lists what it rejects, each with one of these codes and the part of the request it names, generated from [\`QueryErrorCodes\`](${SOURCE}${QUERY_ERROR_CODES}). Codes are added, never renamed or reused.`,
       queryHead: '| Code | Group |',
+      experimentalCode: 'Experimental: only an aggregation query gives it.',
     },
     annotations: {
       title: 'Annotations',
@@ -167,6 +168,7 @@ const WORDS = {
       query: '查询请求的代码',
       queryIntro: `被拒绝的查询请求（\`wow.query.malformed\` 或 \`wow.query.invalid\`）会列出它拒绝的每一处，各带下列一个代码与它所指的请求部分，由 [\`QueryErrorCodes\`](${SOURCE}${QUERY_ERROR_CODES}) 生成。代码只增不改，也不复用。`,
       queryHead: '| 代码 | 分组 |',
+      experimentalCode: '实验性：只有聚合查询会给出。',
     },
     annotations: {
       title: '注解',
@@ -413,11 +415,15 @@ export function frameworkErrors(snapshot) {
   }));
 }
 
-/** The query request codes from QueryErrorCodes.kt, each with the comment of its group: `[{ code, group }]`. */
+/**
+ * The query request codes from QueryErrorCodes.kt, each with the comment of its group and whether it is marked
+ * `@ExperimentalWowApi`: `[{ code, group, experimental }]`.
+ */
 export function queryErrorCodes(source) {
   const codes = [];
   let group = '';
   let comment = [];
+  let experimental = false;
   for (const line of source
     .slice(source.indexOf('object QueryErrorCodes'))
     .split('\n')) {
@@ -430,8 +436,15 @@ export function queryErrorCodes(source) {
       group = plain(firstSentence(comment.join(' ')).replace(/;.*$/, '.'));
       comment = [];
     }
+    if (text === '@ExperimentalWowApi') {
+      experimental = true;
+      continue;
+    }
     const constant = /^const val \w+ = "([\w-]+)"/.exec(text);
-    if (constant) codes.push({ code: constant[1], group });
+    if (constant) {
+      codes.push({ code: constant[1], group, experimental });
+      experimental = false;
+    }
   }
   return codes;
 }
@@ -456,7 +469,10 @@ export function errorCodesPage(locale, framework, query) {
     '',
     words.queryHead,
     '| --- | --- |',
-    ...query.map(({ code, group }) => `| \`${code}\` | ${cell(group)} |`),
+    ...query.map(
+      ({ code, group, experimental }) =>
+        `| \`${code}\` | ${cell(experimental ? `${group} ${words.experimentalCode}` : group)} |`,
+    ),
     '',
   ];
   return page(

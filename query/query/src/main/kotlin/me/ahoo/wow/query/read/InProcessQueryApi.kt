@@ -356,7 +356,7 @@ class InProcessQueryApi @InternalWowApi constructor(
      * ([FrameworkErrors.problemOf]), so a caller handles one exception in process and over HTTP; any other is itself.
      */
     private fun problemOf(failure: Throwable): Throwable =
-        (failure as? QueryError)?.let { FrameworkErrors.problemOf(it.errorCode, it.errorMsg, cause = failure) } ?: failure
+        (failure as? QueryError)?.let { FrameworkErrors.problemOf(it.errorCode, it.message, cause = failure) } ?: failure
 
     /** [read], its failures as [problemOf] maps them. */
     @Suppress("TooGenericExceptionCaught") // Each failure is mapped once here, a QueryError to its problem.

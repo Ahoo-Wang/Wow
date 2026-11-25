@@ -82,7 +82,7 @@ class InheritedAnnotationsGatewayTest {
                     QueryCaller.IN_PROCESS,
                 )
             }.exceptionOrNull()
-            (error as QueryError).bindingErrors.first().code.assert().isEqualTo(QueryErrorCodes.PROTECTED_COMPARISON)
+            (error as QueryError).violations.first().code.assert().isEqualTo(QueryErrorCodes.PROTECTED_COMPARISON)
         }
     }
 

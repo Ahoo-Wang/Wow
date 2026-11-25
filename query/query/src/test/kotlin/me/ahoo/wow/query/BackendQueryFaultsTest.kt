@@ -137,7 +137,7 @@ internal class BackendQueryFaultsTest : BackendQueriesFixtures() {
                     .countBounded(QueryAdmission.Trusted.count(CountQuery(MatchAllFilter), schema))
             }.apply {
                 errorCode.assert().isEqualTo(QueryErrors.STORAGE_UNAVAILABLE)
-                errorMsg.assert().isEqualTo("Query storage is unavailable; retry later.")
+                message.assert().isEqualTo("Query storage is unavailable; retry later.")
                 generateSequence(cause) { it.cause }.last().assert().isSameAs(unavailable)
             }
             assertThrows<QueryStorageUnavailableException> {
@@ -224,7 +224,7 @@ internal class BackendQueryFaultsTest : BackendQueriesFixtures() {
                 assertThrows<QueryTimeoutException> { shape() }.apply {
                     this.timeout.assert().isEqualTo(timeout)
                     errorCode.assert().isEqualTo(QueryErrors.TIMEOUT)
-                    errorMsg.assert().isEqualTo("Query exceeded its execution timeout of 100 ms.")
+                    message.assert().isEqualTo("Query exceeded its execution timeout of 100 ms.")
                 }
             }
         }

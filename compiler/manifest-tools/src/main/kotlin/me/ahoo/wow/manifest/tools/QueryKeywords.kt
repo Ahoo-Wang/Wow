@@ -61,13 +61,13 @@ import kotlin.reflect.KType
  * | `x-wow-decimal` | `{"scale": n}` | `@QueryDecimal` |
  * | `x-wow-money` | `{"currency": "CNY", "scale"?: n}` or `{"currencyField": "currency", "scale"?: n}` | `@QueryMoney` |
  * | `x-wow-duration` | `{"unit": "seconds"}` (a `TimeUnit` in lower case) | `@QueryDuration` |
- * | `x-wow-reference` | `{"aggregateName": "member", "contextName"?: "shop"}` | `@QueryReference` |
+ * | `x-wow-reference` | `{"aggregate": "member", "context"?: "shop"}` | `@QueryReference` |
  * | `x-wow-text` | `{}` | `@QueryText`: prose searched by words; not a semantic type |
  *
  * They map 1:1 onto 9.x `wow-query`'s query schema: the sensitivity and mask onto its `MaskRule`, the alias paths
  * onto the field's aliases, and the semantic types onto `Temporal.Epoch(timeUnit)`, `Temporal.Formatted(pattern)`,
  * `NumericFormat.Decimal(scale)`, `NumericFormat.Money.of(currency, currencyField, scale)`, `TimeSpan(timeUnit)` and
- * `Reference(contextName, aggregateName)`, an omitted `contextName` being the declaring model's own context. Those
+ * `Reference(contextName, aggregateName)`, an omitted `context` being the declaring model's own context. Those
  * constructors keep validating the values (an ISO 4217 code, a scale range, a pattern); this build checks what only
  * the classes tell and what a keyword cannot express:
  *
@@ -207,8 +207,8 @@ internal class QueryFieldKeywords(private val states: Set<Class<*>>) : TypeAttri
                 attributes.putObject(QueryKeywords.DURATION_KEYWORD).put("unit", unit)
             }
             is QueryReference -> attributes.putObject(QueryKeywords.REFERENCE_KEYWORD).apply {
-                put("aggregateName", annotation.aggregateName)
-                annotation.contextName.takeIf { it.isNotEmpty() }?.let { put("contextName", it) }
+                put("aggregate", annotation.aggregate)
+                annotation.context.takeIf { it.isNotEmpty() }?.let { put("context", it) }
             }
         }
     }

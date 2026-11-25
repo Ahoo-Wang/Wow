@@ -222,7 +222,7 @@ internal class BackendQueriesTest : BackendQueriesFixtures() {
                         message.assert().isEqualTo("Invalid cursor.")
                         code.assert().isEqualTo(QueryErrorCodes.INVALID_CURSOR)
                         errorCode.assert().isEqualTo(QueryErrors.INVALID)
-                        bindingErrors.single().name.assert().isEqualTo("cursor")
+                        violations.single().path.assert().isEqualTo("cursor")
                     }
                 target.windows.size.assert().isEqualTo(calls)
             }

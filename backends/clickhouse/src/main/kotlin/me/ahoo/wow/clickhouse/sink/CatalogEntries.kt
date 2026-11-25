@@ -150,7 +150,7 @@ internal class SchemaMarks(private val defs: Map<String, Any?>, private val cont
         val level = ((node[SENSITIVE] as? Map<*, *>)?.get("level") as? String)
             ?.let { WireNames.entryOf<SensitivityLevel>(it)?.name }
         val reference = node[REFERENCE] as? Map<*, *>
-        val aggregate = reference?.get("aggregateName") as? String
+        val aggregate = reference?.get("aggregate") as? String
         if (level == null && aggregate == null) {
             return null
         }
@@ -160,7 +160,7 @@ internal class SchemaMarks(private val defs: Map<String, Any?>, private val cont
             mask = (node[MASK] as? Map<*, *>)?.let { WowJson.mapper.writeValueAsString(it) }.orEmpty(),
             event = event,
             revision = revision,
-            referenceContext = aggregate?.let { reference["contextName"] as? String ?: context },
+            referenceContext = aggregate?.let { reference["context"] as? String ?: context },
             referenceAggregate = aggregate,
         )
     }

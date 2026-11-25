@@ -28,6 +28,6 @@ internal class QueryScopeRequiredException(
     override val errorCode: String
         get() = QueryErrors.FORBIDDEN
 
-    override val errorMsg: String
-        get() = checkNotNull(message)
+    override val message: String
+        get() = checkNotNull(super.message)
 }

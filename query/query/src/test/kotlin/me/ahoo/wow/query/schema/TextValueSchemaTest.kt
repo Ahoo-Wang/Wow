@@ -92,7 +92,7 @@ class TextValueSchemaTest {
             string + ("enum" to listOf("A", "B")) + text to "Text of [state.value] marks an enumeration, which is matched exactly.",
             string + (ManifestQueryKeywords.TEMPORAL to mapOf("pattern" to "yyyy")) + text to
                 "Text of [state.value] marks a field of a semantic type, which is matched exactly.",
-            string + (ManifestQueryKeywords.REFERENCE to mapOf("aggregateName" to "member")) + text to
+            string + (ManifestQueryKeywords.REFERENCE to mapOf("aggregate" to "member")) + text to
                 "Text of [state.value] marks a field of a semantic type, which is matched exactly.",
             string + (ManifestQueryKeywords.SENSITIVE to mapOf("level" to "display")) + text to
                 "Text of [state.value] marks a sensitive field, which a search would reveal.",

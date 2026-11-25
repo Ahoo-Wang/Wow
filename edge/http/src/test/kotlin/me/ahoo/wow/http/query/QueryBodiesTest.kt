@@ -29,9 +29,9 @@ class QueryBodiesTest {
     private fun assertRefused(body: String?, code: String, name: String = QueryRequestException.BODY) {
         val error = refused(body)
         error.errorCode.assert().isEqualTo(QueryErrors.MALFORMED)
-        error.bindingErrors.single().let {
+        error.violations.single().let {
             it.code.assert().isEqualTo(code)
-            it.name.assert().isEqualTo(name)
+            it.path.assert().isEqualTo(name)
         }
     }
 

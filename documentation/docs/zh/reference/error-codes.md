@@ -81,8 +81,8 @@ description: "框架的错误码与 HTTP 状态，以及查询请求被拒时的
 | `filter-too-large` | The entry budget and gates. |
 | `expensive-operator-disabled` | The entry budget and gates. |
 | `count-requires-filter` | The entry budget and gates. |
-| `residual-groups-exceeded` | The entry budget and gates. |
-| `too-many-groups` | The entry budget and gates. |
+| `residual-groups-exceeded` | The entry budget and gates. 实验性：只有聚合查询会给出。 |
+| `too-many-groups` | The entry budget and gates. 实验性：只有聚合查询会给出。 |
 | `explicit-entry-required` | The entry budget and gates. |
 | `replay-too-long` | A state point read. |
 | `unknown-field` | Admission against the query model. |
@@ -93,25 +93,25 @@ description: "框架的错误码与 HTTP 状态，以及查询请求被拒时的
 | `not-single-string` | Admission against the query model. |
 | `model-search-unsupported` | Admission against the query model. |
 | `cursor-not-allowed` | Admission against the query model. |
-| `protected-aggregation` | Admission against the query model. |
+| `protected-aggregation` | Admission against the query model. 实验性：只有聚合查询会给出。 |
 | `protected-comparison` | Admission against the query model. |
-| `missing-key-requires-string` | Admission against the query model. |
-| `any-requires-single-value` | Admission against the query model. |
+| `missing-key-requires-string` | Admission against the query model. 实验性：只有聚合查询会给出。 |
+| `any-requires-single-value` | Admission against the query model. 实验性：只有聚合查询会给出。 |
 | `incomplete-projection` | Admission against the query model. |
-| `metric-filter-search` | Admission against the query model. |
-| `metric-filter-element-match` | Admission against the query model. |
-| `metric-filter-array-field` | Admission against the query model. |
+| `metric-filter-search` | Admission against the query model. 实验性：只有聚合查询会给出。 |
+| `metric-filter-element-match` | Admission against the query model. 实验性：只有聚合查询会给出。 |
+| `metric-filter-array-field` | Admission against the query model. 实验性：只有聚合查询会给出。 |
 | `not-projectable` | Admission against the query model. |
 | `event-projection-type-required` | Admission against the query model. |
 | `temporal-representation-required` | Admission against the query model. |
 | `parallel-array-sort` | Admission against the query model. |
 | `array-equality` | Admission against the query model. |
-| `first-last-requires-single-value` | Admission against the query model. |
-| `first-last-requires-order-by` | Admission against the query model. |
-| `temporal-aggregation-unsupported` | Admission against the query model. |
+| `first-last-requires-single-value` | Admission against the query model. 实验性：只有聚合查询会给出。 |
+| `first-last-requires-order-by` | Admission against the query model. 实验性：只有聚合查询会给出。 |
+| `temporal-aggregation-unsupported` | Admission against the query model. 实验性：只有聚合查询会给出。 |
 | `sort-too-many` | Admission against the query model. |
 | `sort-field-duplicate` | Admission against the query model. |
 | `identity-undefined` | Admission against the query model. |
 | `storage-unsupported` | Admission against the query model. |
-| `previous-unshiftable` | Admission against the query model. |
+| `previous-unshiftable` | Admission against the query model. 实验性：只有聚合查询会给出。 |
 

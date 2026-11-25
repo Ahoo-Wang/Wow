@@ -192,8 +192,8 @@ class QueryEngineTest {
         val refused = runCatching { carts.list(ListQuery(MatchAllFilter, limit = 10), caller).toList() }
             .exceptionOrNull() as QueryError
         refused.errorCode.assert().isEqualTo(FrameworkCodes.QUERY_INVALID)
-        refused.bindingErrors.single().code.assert().isEqualTo(QueryErrorCodes.STORAGE_UNSUPPORTED)
-        refused.bindingErrors.single().name.assert().isEqualTo("aggregateId")
+        refused.violations.single().code.assert().isEqualTo(QueryErrorCodes.STORAGE_UNSUPPORTED)
+        refused.violations.single().path.assert().isEqualTo("aggregateId")
         carts.list(ListQuery(AggregateIdFilter("c-1"), limit = 10), caller).toList().assert().isEmpty()
         orders.list(ListQuery(MatchAllFilter, limit = 10), caller).toList().assert().isEmpty()
         val described = carts.describe(QueryEntry.HTTP)

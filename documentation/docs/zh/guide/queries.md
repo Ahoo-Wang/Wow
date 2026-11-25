@@ -31,6 +31,8 @@ rows.map { it.state.price }.assert().containsExactly(BigDecimal("5.00"), BigDeci
 ```
 
 - `filter { }` 块中的条件以 `and` 组合；`and { }`、`or { }`、`nor { }` 和 `not { }` 可以嵌套。值按它写成的 JSON 比较，所以枚举按它的名字匹配。
+- `"state".path { }` 把块中的字段放在 `state` 之下，`filter`、`sort` 与 `projection` 里写法相同：`sort { "state".path { "price".asc() } }`。已在该路径之下的字段（如 `ProductStateProperties.STATE__PRICE`）保持不变。
+- `beforeNow` 与 `afterNow` 把字段与服务器的时钟加上一个 `kotlin.time.Duration` 比较：`"state.createdAt".afterNow((-30).minutes)` 就是最近半小时之内。
 - `ProductStateProperties.STATE__PRICE` 就是 `state.price`；系统字段（`AGGREGATE_ID`、`OWNER_ID`、`VERSION`、`LAST_EVENT_TIME`、`ACCESS` 等）来自 `SnapshotProperties`，`SnapshotProperties.access(name)` 就是访问属性 `access.<name>`。
 - `snapshots<ProductState>()` 把每一行解码为 `Snapshot<ProductState>`：它的 `ref`、`version`、`scope`、`access` 和类型化的 `state`。投影了部分字段的查询无法填充类型化的行：改用 `dynamic<Map<String, Any?>>()` 执行它。
 - `of(caller)` 按调用方所看到的模型执行查询；`trusted()` 以受信任的代码执行（[读取状态](./reading-state#in-kotlin)）。

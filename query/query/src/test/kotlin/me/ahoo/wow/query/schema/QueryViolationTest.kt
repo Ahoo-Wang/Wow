@@ -16,7 +16,7 @@ package me.ahoo.wow.query.schema
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.QueryErrorCodes
 import me.ahoo.wow.api.query.QueryField
-import me.ahoo.wow.query.error.QueryBindingError
+import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.query.error.QueryErrors
 import me.ahoo.wow.query.error.QueryRequestException
 import org.junit.jupiter.api.Test
@@ -209,7 +209,7 @@ class QueryViolationTest {
             val rejection = violation.rejection() as QuerySchemaValidationException
             rejection.violation.assert().isSameAs(violation)
             rejection.errorCode.assert().isEqualTo(QueryErrors.INVALID)
-            rejection.bindingErrors.assert().containsExactly(QueryBindingError(row.location, row.message, row.code))
+            rejection.violations.assert().containsExactly(Violation.of(row.location, row.code, row.message))
         }
     }
 
@@ -223,7 +223,7 @@ class QueryViolationTest {
             rejection.violation.assert().isSameAs(violation)
             val problem = if (violation is QueryViolation.TooManyGroups) QueryErrors.TOO_MANY_GROUPS else QueryErrors.INVALID
             rejection.errorCode.assert().isEqualTo(problem)
-            rejection.bindingErrors.assert().containsExactly(QueryBindingError(row.location, row.message, row.code))
+            rejection.violations.assert().containsExactly(Violation.of(row.location, row.code, row.message))
         }
     }
 

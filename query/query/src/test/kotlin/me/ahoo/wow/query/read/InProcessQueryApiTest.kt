@@ -357,7 +357,7 @@ class InProcessQueryApiTest {
             val refused = runCatching { carts.stream(ListQuery(MatchAllFilter)).toList() }
                 .exceptionOrNull() as WowProblemException
             refused.code.assert().isEqualTo(FrameworkCodes.QUERY_INVALID)
-            (refused.cause as QueryError).bindingErrors.single().code
+            (refused.cause as QueryError).violations.single().code
                 .assert().isEqualTo(QueryErrorCodes.STREAM_NOT_RESUMABLE)
         }
 

@@ -479,8 +479,10 @@ class ManifestQuerySchemaSourceTest {
                 // A unit is its lower-case word; the JDK's name is not one.
                 mapOf("type" to "integer", ManifestQueryKeywords.DURATION to mapOf("unit" to "SECONDS")),
                 mapOf("type" to "integer", ManifestQueryKeywords.TEMPORAL to mapOf("unit" to "MILLISECONDS")),
-                mapOf("type" to "object", ManifestQueryKeywords.REFERENCE to mapOf("aggregateName" to "member")),
+                mapOf("type" to "object", ManifestQueryKeywords.REFERENCE to mapOf("aggregate" to "member")),
                 mapOf("type" to "string", ManifestQueryKeywords.REFERENCE to emptyMap<String, Any?>()),
+                // The member names of 10.0's release candidates are not read as the aggregate.
+                mapOf("type" to "string", ManifestQueryKeywords.REFERENCE to mapOf("aggregateName" to "member")),
                 mapOf("type" to "string", ManifestQueryKeywords.ALIAS to listOf("not a path")),
                 mapOf(
                     "type" to "number",

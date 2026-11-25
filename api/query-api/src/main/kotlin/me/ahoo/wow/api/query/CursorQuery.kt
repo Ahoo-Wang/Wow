@@ -21,17 +21,23 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  *
  * @property filter The filter expression the results match; [MatchAllFilter], every record, by default.
  * @property projection The fields the results include or exclude.
- * @property sort The order of the results, which the cursor follows.
+ * @param sort The order of the results; the query keeps a copy.
  * @property size The most items on the page, at least 1; `null`, the default, takes the server's cursor page size.
  * @property cursor Where the page starts: the previous page's next cursor, or `null` for the first page.
  */
 class CursorQuery @InternalWowApi constructor(
     override val filter: FilterExpression = MatchAllFilter,
     override val projection: Projection = Projection.ALL,
-    override val sort: List<Sort> = emptyList(),
+    sort: List<Sort> = emptyList(),
     val size: Int? = null,
     val cursor: String? = null,
 ) : Queryable<CursorQuery> {
+    /**
+     * The order of the results, which the cursor follows; a copy, so a list its caller changes later changes neither
+     * this query nor its hash.
+     */
+    override val sort: List<Sort> = sort.copied()
+
     init {
         require(size == null || size in 1 until Int.MAX_VALUE) {
             "size must be between 1 and ${Int.MAX_VALUE - 1}."

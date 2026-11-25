@@ -74,9 +74,9 @@ import me.ahoo.wow.api.query.ThisYearFilter
 import me.ahoo.wow.api.query.TodayFilter
 import me.ahoo.wow.api.query.TomorrowFilter
 import me.ahoo.wow.api.query.YesterdayFilter
-import java.time.Duration
 import java.time.LocalTime
 import java.time.ZoneId
+import kotlin.time.Duration
 
 /**
  * Builds a [FilterExpression]: each call adds one node, and the block's nodes are combined with `AND` (one node alone
@@ -351,27 +351,30 @@ class FilterDsl internal constructor(
     fun QueryField<*>.earlierDays(days: Int, timeZone: ZoneId? = null) =
         add(EarlierDaysFilter(at(), days, timeZone?.id))
 
-    /** The field is before the server's `now + offset`; `offset` defaults to zero, i.e. before now. */
+    /**
+     * The field is before the server's `now + offset`; `offset` defaults to zero, i.e. before now. It goes on the wire
+     * as its ISO-8601 text ([Duration.toIsoString]), `(-30).minutes` as `-PT30M`.
+     */
     fun String.beforeNow(
         offset: Duration = Duration.ZERO,
         timeZone: ZoneId? = null,
-    ) = add(BeforeNowFilter(at(), offset.toString(), timeZone?.id))
+    ) = add(BeforeNowFilter(at(), offset.toIsoString(), timeZone?.id))
 
     fun QueryField<*>.beforeNow(
         offset: Duration = Duration.ZERO,
         timeZone: ZoneId? = null,
-    ) = add(BeforeNowFilter(at(), offset.toString(), timeZone?.id))
+    ) = add(BeforeNowFilter(at(), offset.toIsoString(), timeZone?.id))
 
-    /** The field is after the server's `now + offset`; a negative offset looks back, e.g. `Duration.ofMinutes(-30)`. */
+    /** The field is after the server's `now + offset`; a negative offset looks back, e.g. `(-30).minutes`. */
     fun String.afterNow(
         offset: Duration = Duration.ZERO,
         timeZone: ZoneId? = null,
-    ) = add(AfterNowFilter(at(), offset.toString(), timeZone?.id))
+    ) = add(AfterNowFilter(at(), offset.toIsoString(), timeZone?.id))
 
     fun QueryField<*>.afterNow(
         offset: Duration = Duration.ZERO,
         timeZone: ZoneId? = null,
-    ) = add(AfterNowFilter(at(), offset.toString(), timeZone?.id))
+    ) = add(AfterNowFilter(at(), offset.toIsoString(), timeZone?.id))
 
     internal fun build(): FilterExpression {
         require(expressions.isNotEmpty()) { "filter block cannot be empty." }

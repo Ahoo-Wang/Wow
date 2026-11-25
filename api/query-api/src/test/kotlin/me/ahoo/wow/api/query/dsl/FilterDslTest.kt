@@ -19,9 +19,10 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.*
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import java.time.Duration
 import java.time.LocalTime
 import java.time.ZoneOffset
+import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.minutes
 
 class FilterDslTest {
     private val status = QueryField("state.status")
@@ -239,8 +240,9 @@ class FilterDslTest {
         filter { "state.createdAt".beforeToday(LocalTime.NOON) }.assert()
             .isEqualTo(BeforeTodayFilter(created, "12:00"))
         filter { created.recentDays(7, ZoneOffset.UTC) }.assert().isEqualTo(RecentDaysFilter(created, 7, utc))
-        filter { created.beforeNow(Duration.ofMinutes(-30)) }.assert()
-            .isEqualTo(BeforeNowFilter(created, "PT-30M"))
+        filter { created.beforeNow((-30).minutes) }.assert()
+            .isEqualTo(BeforeNowFilter(created, "-PT30M"))
+        filter { created.afterNow(2.hours) }.assert().isEqualTo(AfterNowFilter(created, "PT2H"))
         filter { "state.createdAt".afterNow() }.assert().isEqualTo(AfterNowFilter(created))
     }
 
@@ -249,7 +251,7 @@ class FilterDslTest {
     fun `each optional argument may be given alone or with the others`() {
         val at = QueryField("state.at")
         val zone = ZoneOffset.UTC
-        val offset = Duration.ofHours(1)
+        val offset = 1.hours
         val expression = filter {
             "state.at".today(timeZone = zone)
             "state.at".yesterday(timeZone = zone)

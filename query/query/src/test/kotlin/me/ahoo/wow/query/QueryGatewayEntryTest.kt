@@ -114,7 +114,7 @@ class QueryGatewayEntryTest {
                 }.apply {
                     message.assert().isEqualTo("Query on [snapshot] requires an authenticated [tenantId] scope.")
                     errorCode.assert().isEqualTo(QueryErrors.FORBIDDEN)
-                    errorMsg.assert().isEqualTo(message)
+                    message.assert().isEqualTo(message)
                     model.assert().isEqualTo(QueryModel.SNAPSHOT)
                     field.assert().isEqualTo(QueryField("tenantId"))
                 }

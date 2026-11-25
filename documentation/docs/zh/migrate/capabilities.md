@@ -117,11 +117,11 @@ outline: deep
 | 单条、列表、分页、游标、计数和聚合查询 | 保留 | — |
 | 过滤表达式、相对时间、元数据过滤、聚合窗口 | 保留 | — |
 | `Condition` 协议 | 放弃 | 使用过滤表达式；Skill 会改写条件。 |
-| Kotlin 查询 DSL 与生成的 `<State>Properties` | 保留 | — |
+| Kotlin 查询 DSL 与生成的 `<State>Properties` | 保留 | `sort` 与 `projection` 像 `filter` 一样用 `"state".path { }` 指明路径之下的字段，取代 `nested(...)`；`beforeNow` 与 `afterNow` 接收 `kotlin.time.Duration`。 |
 | 存储在事件或状态中的 Wow 查询类型（`Condition`、`Sort`、`Projection`） | 放弃 | 内核的 JSON 没有查询协议的编解码，构建也会拒绝持有它的事件或状态：改存应用自己的类型，并把 9.x 的 JSON 升级过去。 |
 | 类路径上的查询 schema 覆盖（`META-INF/wow/query-schema`） | 放弃 | schema 来自状态类；把每个覆盖改为状态上的字段注解。由自定义序列化器写出的类型改为在 `wow { schemaOverrides }` 中声明它的结构（[由自定义序列化器写出的类型](../guide/manifest#a-type-written-by-a-custom-serializer)）。 |
 | 实现或继承查询类型（`IPagedList`） | 放弃 | V10 的查询类型是 final 类，用它们的工厂或 DSL 构建。 |
-| 查询字段注解（`@Sensitive`、`@QueryAlias`、`@QueryReference` 等） | 保留 | — |
+| 查询字段注解（`@Sensitive`、`@QueryAlias`、`@QueryReference` 等） | 保留 | `@QueryReference` 的成员改为 `aggregate` 与 `context`，不再是 `aggregateName` 与 `contextName`；`@QueryReference("member")` 的写法不变。 |
 | 在查询和状态读取中脱敏敏感字段 | 保留 | — |
 | ABAC 查询策略、CoSec 的 `abac.` 属性 | 替代 | 由访问属性与访问策略取代（[编写访问策略](../guide/ownership#write-an-access-policy)）；`wow.query.abac.*` 启动时拒绝。 |
 | 查询策略 SPI 与作用域 | 替代 | 作用域保留。拒绝调用方的规则是 `ReadAuthorizer` Bean，收窄行的规则是访问策略；`QueryPolicy` 是 Wow 自己的。 |

@@ -253,6 +253,8 @@ class HostQueryAccessTest {
             ).forEach { answer ->
                 answer.status.assert().isEqualTo(403)
                 answer.body!!["code"].asString().assert().isEqualTo("wow.auth.forbidden")
+                // A refusal of the caller names no rule of the request: no violations, no binding-error code (#7029).
+                answer.body!!.has("violations").assert().isFalse()
             }
             val api = host.context.getBean(NodeQueryApi::class.java)
             runBlocking {

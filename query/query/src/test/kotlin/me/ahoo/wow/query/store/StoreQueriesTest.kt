@@ -86,7 +86,7 @@ class StoreQueriesTest {
     @Test
     fun `snapshot queries manage no index unless they say so`() {
         val storage = InMemoryQueryStorage()
-        val queries = object : SnapshotQueries {
+        val queries = object : SnapshotStoreQueries {
             override fun binding(key: AggregateType): QueryBackendBinding<QueryBackend> = storage.binding(key)
         }
         queries.managesIndexes.assert().isFalse()
@@ -100,7 +100,7 @@ class StoreQueriesTest {
 
     @Test
     fun `events queries manage no index unless they say so`() {
-        val queries = object : EventQueries {
+        val queries = object : EventStoreQueries {
             override fun binding(key: AggregateType): QueryBackendBinding<QueryBackend>? = null
         }
         queries.managesIndexes.assert().isFalse()

@@ -22,7 +22,6 @@ import me.ahoo.wow.api.query.QueryErrorCodes
 import me.ahoo.wow.api.read.MinVersionNotReachedException
 import me.ahoo.wow.api.read.Snapshot
 import me.ahoo.wow.api.result.FrameworkCodes
-import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.http.EntityTags
 import me.ahoo.wow.http.HttpJson
 import me.ahoo.wow.http.WowPaths
@@ -339,8 +338,8 @@ internal class StateHandler(
         throw problem(notFound.errorCode, notFound.message!!, type)
     } catch (refused: Exception) {
         if (refused !is QueryError) throw refused
-        val problem = statuses.problemOf(refused.errorCode, refused.errorMsg, type.context).copyWith(
-            violations = refused.bindingErrors.map { Violation(path = it.name, code = it.code, message = it.msg) },
+        val problem = statuses.problemOf(refused.errorCode, refused.message, type.context).copyWith(
+            violations = refused.violations,
         )
         throw ProblemException(problem)
     }
