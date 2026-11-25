@@ -406,6 +406,22 @@ class CommandRoutesTest {
     }
 
     @Test
+    fun `a body announced past the codecs' limit is refused from its Content-Length, the same 413 problem (#7001)`() {
+        // Announced with Expect: 100-continue and not sent: answered 413 in place of 100 Continue, the problem a body
+        // read past the limit gets.
+        val read = node.post("/shop/cart/c-1/add-item", """{"sku":"${"a".repeat(300 * 1024)}"}""")
+        val command = servingOnNetty(node.routes) { announce(it, "/shop/cart/c-1/add-item") }
+        command.statusLine.assert().startsWith("HTTP/1.1 413")
+        HttpJson.mapper.readTree(command.body).assert().isEqualTo(read.body)
+        val queries = QueryNode()
+        val large = """{"kind":"list","filter":{"op":"eq","field":"state.note","value":"${"a".repeat(300 * 1024)}"}}"""
+        val queryRead = queries.query(large)
+        val query = servingOnNetty(queries.http.routes) { announce(it, "/shop/cart/snapshot/query") }
+        query.statusLine.assert().startsWith("HTTP/1.1 413")
+        HttpJson.mapper.readTree(query.body).assert().isEqualTo(queryRead.body)
+    }
+
+    @Test
     fun `a body larger than the codecs take is a 413 problem`() {
         // Review A3-9: WebFlux's default in-memory limit is 256 KB.
         val large = """{"sku":"${"a".repeat(300 * 1024)}"}"""

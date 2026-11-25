@@ -27,6 +27,7 @@ import me.ahoo.wow.api.route.RouteCall
 import me.ahoo.wow.api.route.RouteRefusal
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.http.HttpJson
+import me.ahoo.wow.http.awaitBytesOrNull
 import me.ahoo.wow.http.caller.Authenticator
 import me.ahoo.wow.http.command.Negotiation
 import me.ahoo.wow.http.command.RequestHeaders
@@ -47,7 +48,6 @@ import me.ahoo.wow.spi.json.JsonReadFailures
 import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
-import org.springframework.web.reactive.function.server.awaitBodyOrNull
 import org.springframework.web.reactive.function.server.bodyValueAndAwait
 import org.springframework.web.reactive.function.server.buildAndAwait
 import tools.jackson.databind.DeserializationFeature
@@ -131,7 +131,7 @@ internal class ServiceRouteHandling(
         if (route.request != null) {
             Negotiation.checkJsonBody(request, "A route's body")
         }
-        val body = if (route.request != null) request.awaitBodyOrNull<ByteArray>() else null
+        val body = if (route.request != null) request.awaitBytesOrNull() else null
         val call = Call(
             caller = acting,
             tenantId = acting.tenantId,

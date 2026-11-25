@@ -39,6 +39,7 @@ import me.ahoo.wow.api.wire.ScopeHeader
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.http.HttpJson
 import me.ahoo.wow.http.WowPaths
+import me.ahoo.wow.http.awaitBytesOrNull
 import me.ahoo.wow.http.caller.Authenticator
 import me.ahoo.wow.http.command.Negotiation
 import me.ahoo.wow.http.command.RequestHeaders
@@ -71,7 +72,6 @@ import org.springframework.http.MediaType
 import org.springframework.http.codec.ServerSentEvent
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
-import org.springframework.web.reactive.function.server.awaitBodyOrNull
 import org.springframework.web.reactive.function.server.bodyAndAwait
 import org.springframework.web.reactive.function.server.bodyValueAndAwait
 import org.springframework.web.reactive.function.server.buildAndAwait
@@ -210,7 +210,7 @@ internal class QueryHandler(
     /** The query of [request]'s body, once the body and the response it asks for can be served. */
     private suspend fun body(request: ServerRequest): QueryBody {
         Negotiation.checkJsonBody(request, "A query")
-        val body = QueryBodies.read(request.awaitBodyOrNull<ByteArray>())
+        val body = QueryBodies.read(request.awaitBytesOrNull())
         Negotiation.checkAcceptable(request, alsoEventStream = body.kind == QueryKind.LIST)
         return body
     }
