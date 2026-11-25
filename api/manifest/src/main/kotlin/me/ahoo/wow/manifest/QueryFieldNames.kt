@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.manifest
 
+import me.ahoo.wow.api.annotation.InternalWowApi
+
 /**
  * The names of the query field constants of an aggregate's state: the compiler's
  * `<State>Properties` in the domain module and the `<Context>Contract` generated into its api module from the state
@@ -22,6 +24,7 @@ package me.ahoo.wow.manifest
  * each segment a JSON property name ([isSegment]); its constant is the path's segments in upper snake case, joined by
  * `__`: `state.items.productId` is `STATE__ITEMS__PRODUCT_ID`.
  */
+@InternalWowApi
 object QueryFieldNames {
     /** The first segment of every state path: a snapshot holds the state under `state`. */
     const val STATE: String = "state"

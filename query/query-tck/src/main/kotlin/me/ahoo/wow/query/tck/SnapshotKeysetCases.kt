@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.toList
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.query.AggregateIdFilter
 import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.ListQuery
@@ -43,6 +44,7 @@ import tools.jackson.databind.node.ObjectNode
  * The keyset cases of the snapshot contract: cursors and streams. They read only [SnapshotQueryFixtures]'s fixtures and
  * hooks; see [SnapshotQueryFixtures] for the chain of families it is part of.
  */
+@WowSpi
 abstract class SnapshotKeysetCases internal constructor() : SnapshotRecordCases() {
     // Cursors
 

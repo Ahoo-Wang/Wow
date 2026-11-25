@@ -17,6 +17,7 @@ package me.ahoo.wow.query.backend
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.query.admission.AdmittedQuery
@@ -33,6 +34,7 @@ import tools.jackson.databind.node.ObjectNode
  * value of the record, with the model and sort's fingerprint). A stream resumed after [position] continues strictly
  * after this record.
  */
+@WowSpi
 class PositionedRecord(val record: ObjectNode, val position: String) {
     override fun toString(): String = "PositionedRecord(position=$position)"
 }
@@ -49,6 +51,7 @@ class PositionedRecord(val record: ObjectNode, val position: String) {
  * last position read, and a record that moves across that position may be seen twice or not at all, as with `cursor`
  * queries.
  */
+@WowSpi
 fun QueryBackend.chunks(query: AdmittedQuery<CursorQuery>, limit: Int? = null): Flow<PositionedRecord> {
     require(limit == null || limit >= 1) { "limit must be at least 1." }
     return flow {

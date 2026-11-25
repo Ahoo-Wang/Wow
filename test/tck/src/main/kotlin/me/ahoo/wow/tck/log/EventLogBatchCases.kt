@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
@@ -31,6 +32,7 @@ import org.junit.jupiter.api.assertThrows
  * partition by partition, against what `append` would. They read only [EventLogFixtures]' fixtures, hooks and
  * constants; see [EventLogFixtures] for the chain of families this class is part of.
  */
+@WowSpi
 abstract class EventLogBatchCases internal constructor() : EventLogReadCases() {
     @Suppress("DestructuringDeclarationWithTooManyEntries")
     @Test

@@ -10,16 +10,3 @@ public final class me/ahoo/wow/mongo/MongoPoolGauge : com/mongodb/event/Connecti
 	public final fun waiting ()Ljava/lang/Integer;
 }
 
-public final class me/ahoo/wow/mongo/query/MongoQueryOptions {
-	public static final field Companion Lme/ahoo/wow/mongo/query/MongoQueryOptions$Companion;
-	public static final field DEFAULT_FETCH_SIZE I
-	public fun equals (Ljava/lang/Object;)Z
-	public final fun getFetchSize ()I
-	public final fun getIndexDdl ()Lme/ahoo/wow/spi/Ddl;
-	public fun hashCode ()I
-	public fun toString ()Ljava/lang/String;
-}
-
-public final class me/ahoo/wow/mongo/query/MongoQueryOptions$Companion {
-}
-

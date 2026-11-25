@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.resolve
 
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.query.schema.QueryCapability
 import me.ahoo.wow.query.schema.QueryCardinality
@@ -28,6 +29,7 @@ import me.ahoo.wow.query.schema.Temporal
  * for the capability the reference was admitted with (every map key of the path already substituted), the field's
  * response location, how many values a record holds and how it stores time. It does not rewrite the reference's name.
  */
+@WowSpi
 class ResolvedField internal constructor(
     /** The absolute logical path: the reference appended to its enclosing element scopes. */
     val logicalField: QueryField<*>,

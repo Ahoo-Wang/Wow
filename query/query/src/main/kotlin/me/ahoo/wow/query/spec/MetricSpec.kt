@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.spec
 
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.query.schema.QueryCapability
@@ -59,6 +60,7 @@ enum class MetricResult {
  *
  * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
+@WowSpi
 enum class MetricSpec(
     @property:InternalWowApi
     val input: MetricInput,

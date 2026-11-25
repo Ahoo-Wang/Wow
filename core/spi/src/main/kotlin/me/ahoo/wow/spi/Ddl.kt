@@ -23,6 +23,7 @@ import me.ahoo.wow.api.annotation.WowSpi
  *
  * No case is added within 10.x, so a `when` over it may name every case.
  */
+@WowSpi
 enum class Ddl {
     /** Creates what is missing, then checks the format of what exists: the default. */
     AUTO,

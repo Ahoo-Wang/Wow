@@ -75,7 +75,10 @@ import tools.jackson.databind.node.ObjectNode
  * ([QueryAdmission]), executed on the backend's four primitives (`BackendQueries.kt`) within the timeout the caller's
  * budget gives, and observed. Records are JSON trees as the model stores them; a caller that wants a type reads them
  * with `WowJson`.
+ *
+ * Internal to Wow: its descriptor and record schema are Wow's own types (#7030).
  */
+@InternalWowApi
 interface QueryGateway {
     val aggregateType: AggregateType
 
@@ -155,6 +158,7 @@ interface QueryGateway {
      */
     suspend fun recordSchema(): QueryModelSchema? = null
 
+    @InternalWowApi
     companion object {
         /** The records a [stream] reads per chunk by default. */
         const val DEFAULT_STREAM_CHUNK_SIZE: Int = 500

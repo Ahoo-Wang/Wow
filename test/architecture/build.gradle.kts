@@ -75,3 +75,40 @@ tasks.named<Test>("test") {
         .withPathSensitivity(PathSensitivity.RELATIVE)
         .withPropertyName("buildScripts")
 }
+
+// The Kotlin-signature closure rule (#7030) reads the compiled classes of every project with an ABI dump: the Kotlin
+// types of its public members, a suspend function's return type and generic arguments included, which the dump erases.
+// It runs in a test task of its own, which `check` depends on, so that `:architecture:test`, which the documentation-only
+// CI job runs, keeps its inputs and its cost: it builds no other project.
+val signatureTest: SourceSet by sourceSets.creating {
+    compileClasspath += sourceSets.test.get().output + sourceSets.test.get().compileClasspath
+    runtimeClasspath += output + compileClasspath + sourceSets.test.get().runtimeClasspath
+}
+
+dependencies {
+    // Reads a class file's Kotlin metadata without loading the class.
+    "signatureTestImplementation"(libs.asm)
+    "signatureTestImplementation"(libs.kotlin.metadata.jvm)
+}
+
+val signatureTestTask = tasks.register<Test>("signatureTest") {
+    description = "Checks the closure of the public API in Kotlin's signatures, over every project with an ABI dump."
+    group = LifecycleBasePlugin.VERIFICATION_GROUP
+    testClassesDirs = signatureTest.output.classesDirs
+    classpath = signatureTest.runtimeClasspath
+    systemProperty("wow-test.repository.root", projectDir.toPath().relativize(rootDir.toPath()).toString())
+    val dumped = rootProject.subprojects.filter { File(it.projectDir, "api/${it.name}.api").isFile }
+    // The compiled Kotlin classes alone, not `classes`: a project's resources (a generated chart, say) are no input.
+    dependsOn(dumped.map { "${it.path}:compileKotlin" })
+    inputs.files(dumped.map { it.layout.buildDirectory.dir("classes/kotlin/main") })
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+        .withPropertyName("dumpedClasses")
+    inputs.files(dumped.map { File(it.projectDir, "api") })
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+        .withPropertyName("abiDumps")
+}
+
+tasks.named("check") { dependsOn(signatureTestTask) }
+
+// detekt, which `check` runs, reads the signature rule's sources beside the unit tests'.
+configure<io.gitlab.arturbosch.detekt.extensions.DetektExtension> { source.from("src/signatureTest/kotlin") }

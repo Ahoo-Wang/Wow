@@ -14,6 +14,7 @@
 package me.ahoo.wow.spi.log
 
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 
 /**
  * One stream [EventLog.appendAll] appends, with the [transport] section stored beside it, if any: the bytes
@@ -21,6 +22,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
+@WowSpi
 class Append @InternalWowApi constructor(val stream: EventStreamRecord, val transport: ByteArray? = null) {
     override fun equals(other: Any?): Boolean =
         this === other || other is Append && stream == other.stream && transport.contentEquals(other.transport)

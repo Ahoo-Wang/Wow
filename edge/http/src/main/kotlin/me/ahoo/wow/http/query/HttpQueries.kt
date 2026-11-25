@@ -56,7 +56,8 @@ import me.ahoo.wow.runtime.snapshot.SnapshotStatus
  * (`wow.query.allow-cross-tenant`, off by default): `Wow-Scope: tenant=*` or `tenant=("t1" "t2")` on a query route,
  * answered 403 `wow.auth.forbidden` while it is off.
  */
-class HttpQueries @InternalWowApi constructor(
+@InternalWowApi
+class HttpQueries(
     snapshots: Collection<QueryGateway> = emptyList(),
     events: Collection<QueryGateway> = emptyList(),
     val defaultListSize: Int = DEFAULT_LIST_SIZE,
@@ -115,6 +116,7 @@ class HttpQueries @InternalWowApi constructor(
         else -> null
     }
 
+    @InternalWowApi
     companion object {
         /** The default of [defaultListSize], as in 9.x. */
         const val DEFAULT_LIST_SIZE: Int = 100

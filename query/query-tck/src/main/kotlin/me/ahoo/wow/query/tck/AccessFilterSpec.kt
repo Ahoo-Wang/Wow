@@ -30,6 +30,7 @@ import me.ahoo.wow.api.access.ScopeAccess
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.IsNotNullFilter
 import me.ahoo.wow.api.query.ListQuery
@@ -80,6 +81,7 @@ import java.util.UUID
  * lacks and on a record not stamped, with claims the caller holds and those it does not: a negation over a missing
  * value never grants (a document store's `$nor` matches a missing field, which the guard of each negation excludes).
  */
+@WowSpi
 abstract class AccessFilterSpec {
     /** Stores [records], all of [type], where the backend under test reads them. */
     protected abstract suspend fun store(type: AggregateType, records: List<AccessRecord>)

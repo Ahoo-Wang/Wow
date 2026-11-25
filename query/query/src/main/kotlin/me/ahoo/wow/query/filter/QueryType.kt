@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.query.filter
 
+import me.ahoo.wow.api.annotation.WowSpi
+
 /**
  * What a query or a read asks: the gateway operations, and the state point reads an entry runs through
  * `me.ahoo.wow.query.engine.ReadFacade`, observed and audited as queries are: [STATE], an
@@ -20,6 +22,7 @@ package me.ahoo.wow.query.filter
  *
  * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
+@WowSpi
 enum class QueryType {
     SINGLE,
     LIST,

@@ -15,6 +15,7 @@ package me.ahoo.wow.spi.log
 
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 
 /**
  * The aggregate a creation command's request claims ([EventLog.claimCreation]): its [aggregateId], the id every
@@ -23,6 +24,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
+@WowSpi
 class CreationClaim @InternalWowApi constructor(
     val aggregateId: String,
     val scope: Scope,

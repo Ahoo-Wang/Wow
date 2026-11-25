@@ -27,6 +27,7 @@ import kotlin.time.Duration.Companion.seconds
  * The partitions of another context's published topic that the service's subscriptions read are leased the same way,
  * in the group [topic] names, `(service, "topic:<name>")`.
  */
+@InternalWowApi
 class LeaseGroup @InternalWowApi constructor(val service: String, val context: String) {
     init {
         require(service.isNotBlank()) { "A lease group names its service." }
@@ -45,6 +46,7 @@ class LeaseGroup @InternalWowApi constructor(val service: String, val context: S
 
     private fun valueFields(): List<Any?> = listOf(service, context)
 
+    @InternalWowApi
     companion object {
         /** A LeaseGroup of the given fields; parameters added later come last, with a default. */
         @JvmStatic

@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.policy
 
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.FilterExpression
@@ -49,6 +50,7 @@ import kotlin.time.Duration
  * every in-process query when [inProcess] is `null`: every query has one); `null` runs such a query
  * without one.
  */
+@WowSpi
 class QueryEntryPolicy @InternalWowApi constructor(
     val requireExplicitEntry: Boolean = false,
     val requireAuthenticatedScope: Boolean = false,

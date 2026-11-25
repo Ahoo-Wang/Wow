@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.spi.transport
 
+import me.ahoo.wow.api.annotation.WowSpi
+
 /**
  * A transport refused a message as it is, for good: a record beyond the broker's size limit, a topic name it does not
  * take, a record it calls invalid. Sending it again fails the same way, so it is never retried: a subscription parks
@@ -21,4 +23,5 @@ package me.ahoo.wow.spi.transport
  * A transport throws it, with the client's exception as [cause], from [TopicProducer.send]. It is an
  * [IllegalArgumentException], the failure of a value an argument carries.
  */
+@WowSpi
 class TransportRefusedException(message: String, cause: Throwable? = null) : IllegalArgumentException(message, cause)

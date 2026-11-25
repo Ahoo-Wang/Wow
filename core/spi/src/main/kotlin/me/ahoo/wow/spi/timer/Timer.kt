@@ -58,6 +58,7 @@ import me.ahoo.wow.spi.log.Partitioner
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
+@WowSpi
 class Timer @InternalWowApi constructor(
     val id: String,
     val owner: AggregateRef,
@@ -264,6 +265,7 @@ enum class TimerStatus {
  * The [Timer.outcome]s the runtime records. A firing's is the value of its observed outcome
  * ([me.ahoo.wow.spi.observation.ObservedOutcome]), so a timer, its span and its metrics name one outcome alike.
  */
+@WowSpi
 object TimerOutcomes {
     const val COMMITTED = "committed"
 
@@ -281,6 +283,7 @@ object TimerOutcomes {
 }
 
 /** How timers are named and derived from the log. */
+@InternalWowApi
 object Timers {
     /**
      * The id of the schedule [ref] set under [key] in its stream at [version]: `context.aggregate/tenant/id#key@version`,

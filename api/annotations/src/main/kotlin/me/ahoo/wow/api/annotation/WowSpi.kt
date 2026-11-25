@@ -20,7 +20,7 @@ package me.ahoo.wow.api.annotation
     message = "Wow SPI for backend and transport implementations: a minor release may change it.",
     level = RequiresOptIn.Level.WARNING,
 )
-@Retention(AnnotationRetention.RUNTIME)
+@Retention(AnnotationRetention.BINARY)
 @Target(
     AnnotationTarget.CLASS,
     AnnotationTarget.FUNCTION,

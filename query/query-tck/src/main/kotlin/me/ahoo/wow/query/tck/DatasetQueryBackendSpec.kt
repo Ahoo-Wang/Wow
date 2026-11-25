@@ -16,6 +16,7 @@ package me.ahoo.wow.query.tck
 import kotlinx.coroutines.flow.single
 import kotlinx.coroutines.flow.toList
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.CountResult
@@ -46,6 +47,7 @@ import java.time.Instant
  * The cases come in families, each a parent class of this one ([DatasetQueryFixtures] lists them); this class
  * holds the gateway case and the tables.
  */
+@WowSpi
 abstract class DatasetQueryBackendSpec : DatasetDateBucketCases() {
     @Test
     fun `the gateway restricts every query to the caller's tenant column`() = blocking {

@@ -31,6 +31,7 @@ package me.ahoo.wow.api.annotation
     AnnotationTarget.CONSTRUCTOR,
     AnnotationTarget.FUNCTION,
     AnnotationTarget.PROPERTY,
+    AnnotationTarget.FIELD,
     AnnotationTarget.TYPEALIAS,
 )
 @MustBeDocumented

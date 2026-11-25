@@ -22,6 +22,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.spi.reservation.ConfirmOutcome
 import me.ahoo.wow.spi.reservation.Reservation
 import me.ahoo.wow.spi.reservation.ReservationScope
@@ -39,6 +40,7 @@ import kotlin.time.Duration.Companion.seconds
  * every backend passes. A backend's test extends it and supplies a store whose expiry follows [clock] from
  * [createStore].
  */
+@WowSpi
 abstract class ReservationStoreSpec {
     /** A store judging expiry by [clock]. Stores may share storage: each test uses namespaces of its own. */
     protected abstract fun createStore(clock: Clock): ReservationStore

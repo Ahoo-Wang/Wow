@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.spi
 
+import me.ahoo.wow.api.annotation.WowSpi
+
 /**
  * A store a port called could not be reached, or did not answer in time: a transient technical failure, such as a
  * connection refused, reset or closed by a restarting server, or a connection pool or socket that timed out. The same
@@ -26,4 +28,5 @@ package me.ahoo.wow.spi
  * request id, which the kernel deduplicates, a query as it is. A store that is up but at its capacity is the subtype
  * [StorageBusyException].
  */
+@WowSpi
 open class StorageUnavailableException(message: String, cause: Throwable? = null) : RuntimeException(message, cause)

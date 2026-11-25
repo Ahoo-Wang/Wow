@@ -151,7 +151,7 @@ A backend's correctness is the contract, not its own tests. The TCK holds one ab
    }
    ```
 
-3. **Extend one spec per port.** Each spec is an abstract JUnit 5 class: implement its abstract members, which hand the spec a fresh store, and nothing else. Its tests are final, so a backend cannot change or switch off one of them. The ports are `@WowSpi`, an opt-in the compiler warns about, so the test class opts in with `@OptIn(WowSpi::class)` (or the test source set does) to keep the build free of warnings. The PostgreSQL log's test is the whole of what a log needs, with the four optional hooks: whether a second `createLog` of one context opens the same store (left `false`, the cases of two writers are skipped), the snapshot store its tails are read with, its one-round-trip read of them, and a stream it refuses:
+3. **Extend one spec per port.** Each spec is an abstract JUnit 5 class: implement its abstract members, which hand the spec a fresh store, and nothing else. Its tests are final, so a backend cannot change or switch off one of them. The specs are `@WowSpi` like the ports: a minor release may add a hook to one. The ports are `@WowSpi`, an opt-in the compiler warns about, so the test class opts in with `@OptIn(WowSpi::class)` (or the test source set does) to keep the build free of warnings. The PostgreSQL log's test is the whole of what a log needs, with the four optional hooks: whether a second `createLog` of one context opens the same store (left `false`, the cases of two writers are skipped), the snapshot store its tails are read with, its one-round-trip read of them, and a stream it refuses:
 
    <!-- sample: fragment -->
 

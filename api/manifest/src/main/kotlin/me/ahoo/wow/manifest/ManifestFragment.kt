@@ -20,6 +20,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  *
  * Fields may be added: pass the constructor's arguments by name.
  */
+@InternalWowApi
 class ManifestFragment @InternalWowApi constructor(val source: String, val manifest: Manifest) {
     override fun equals(other: Any?): Boolean =
         this === other || other is ManifestFragment && valueFields() == other.valueFields()

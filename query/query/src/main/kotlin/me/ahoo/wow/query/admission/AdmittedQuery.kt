@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.admission
 
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.FilterCapable
 import me.ahoo.wow.api.query.FilterExpression
@@ -38,6 +39,7 @@ import java.util.IdentityHashMap
  * instead of looking fields up. A count ([me.ahoo.wow.api.query.CountQuery]) carries its effective limit, the
  * caller's or its budget's.
  */
+@WowSpi
 class AdmittedQuery<out Q : Any> internal constructor(
     val query: Q,
     /** The schema admission checked [query] against; the core reads its records, backends never do. */

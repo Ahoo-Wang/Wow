@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.error
 
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.manifest.FrameworkErrors
@@ -74,6 +75,7 @@ object QueryErrors {
  * authorizer refused with), its [message] and the [violations] of the request, each the rule a rejected request broke
  * and where, as a problem's `violations` carry them.
  */
+@WowSpi
 interface QueryError {
     /** The framework code the edge answers with. */
     val errorCode: String

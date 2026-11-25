@@ -26,6 +26,7 @@ import kotlin.time.Duration
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
+@WowSpi
 class Lease @InternalWowApi constructor(
     val group: String,
     val partition: Int,
@@ -73,6 +74,7 @@ class Lease @InternalWowApi constructor(
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
+@WowSpi
 class Member @InternalWowApi constructor(
     val service: String,
     val node: String,

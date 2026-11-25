@@ -148,6 +148,7 @@ class SubscriptionOptions @InternalWowApi constructor(
         initialBackoff = 100.milliseconds,
         maxBackoff = 5.seconds
     ),
+    @property:InternalWowApi
     val starts: Map<SubscriptionId, SubscriptionStart> = emptyMap(),
     val parked: ParkedRetryOptions = ParkedRetryOptions(),
     val retries: Map<SubscriptionId, HandlerRetry> = emptyMap(),

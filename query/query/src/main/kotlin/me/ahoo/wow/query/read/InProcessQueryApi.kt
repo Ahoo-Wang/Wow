@@ -100,6 +100,7 @@ import tools.jackson.databind.node.ObjectNode
  *   checked against the state's (its owner only for an aggregate [QueryEngine.ownerships] says belongs to its owner), then the
  *   snapshot policies of its type, and it is masked and observed as the public port's state read is.
  */
+@InternalWowApi
 class InProcessQueryApi @InternalWowApi constructor(
     private val engine: QueryEngine,
     private val models: ReadModels,
@@ -375,6 +376,7 @@ class InProcessQueryApi @InternalWowApi constructor(
     private fun eventGateway(type: AggregateType): QueryGateway =
         engine.events(type) ?: throw QueryNotServedException(type, QueryModel.EVENTS)
 
+    @InternalWowApi
     companion object {
         /** The list size a `list` that names none runs with by default, the public port's. */
         const val DEFAULT_LIST_SIZE: Int = 100

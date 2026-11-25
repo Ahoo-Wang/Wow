@@ -23,6 +23,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.spi.VirtualThreads
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.transport.PartitionOffsets
@@ -303,12 +304,14 @@ class KafkaPartitionedSource(
         private fun named(role: String) = "$role-${made.incrementAndGet()}"
 
         /** A source whose consumers have [options]' configuration ([KafkaOptions.consumerConfig]). */
+        @InternalWowApi
         fun create(options: KafkaOptions): KafkaPartitionedSource = create(options, OffsetGapPolicy.FAIL)
 
         /**
          * A source whose consumers have [options]' configuration, its reads meeting an offset gap as [offsetGap] says
          * and telling [observer] of it.
          */
+        @InternalWowApi
         fun create(
             options: KafkaOptions,
             offsetGap: OffsetGapPolicy,

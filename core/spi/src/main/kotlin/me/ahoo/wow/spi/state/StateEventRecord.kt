@@ -16,6 +16,7 @@ package me.ahoo.wow.spi.state
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.spi.json.WowJson
@@ -33,6 +34,7 @@ import tools.jackson.databind.JsonNode
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
+@WowSpi
 class StateEventPayload private constructor(
     val name: String,
     val revision: Int,
@@ -101,6 +103,7 @@ class StateEventPayload private constructor(
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
+@WowSpi
 class StateEventRecord @InternalWowApi constructor(
     val ref: AggregateRef,
     val version: Int,

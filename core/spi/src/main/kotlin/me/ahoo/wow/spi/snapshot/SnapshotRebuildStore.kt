@@ -85,6 +85,7 @@ interface SnapshotRebuildStore {
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
+@WowSpi
 class SnapshotTable @InternalWowApi constructor(
     val revision: Int,
     val rebuilding: Boolean = false,

@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.tck
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationGroup
@@ -54,6 +55,7 @@ import java.math.BigDecimal
  * declines skips its case. They read [SnapshotQueryFixtures]' fixtures and hooks; see there for the chain of families
  * this class is part of.
  */
+@WowSpi
 abstract class SnapshotValueComparisonCases internal constructor() : SnapshotDateBucketCases() {
     // A date string: one instant in three texts, and one a millisecond later whose text orders before them.
 

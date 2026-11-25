@@ -16,6 +16,7 @@ package me.ahoo.wow.spi.log
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Rejection
@@ -30,6 +31,7 @@ import me.ahoo.wow.spi.wait.WaitContext
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
+@WowSpi
 class EventRecord @InternalWowApi constructor(val name: String, val revision: Int, val payload: String) {
     init {
         require(name.isNotBlank()) { "An event record needs a name." }
@@ -82,6 +84,7 @@ class EventRecord @InternalWowApi constructor(val name: String, val revision: In
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
+@WowSpi
 class EventStreamRecord @InternalWowApi constructor(
     val ref: AggregateRef,
     val version: Int,
@@ -257,6 +260,7 @@ class EventStreamRecord @InternalWowApi constructor(
 }
 
 /** A position in the log: a partition and a sequence within it, in the order commits became visible. */
+@WowSpi
 data class LogPosition(val partition: Int, val sequence: Long) {
     init {
         require(partition >= 0) { "A partition is never negative." }
@@ -275,6 +279,7 @@ data class LogPosition(val partition: Int, val sequence: Long) {
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
+@WowSpi
 class LogEntry @InternalWowApi constructor(
     val position: LogPosition,
     val stream: EventStreamRecord,
@@ -331,6 +336,7 @@ class LogEntry @InternalWowApi constructor(
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
+@WowSpi
 class Transport @InternalWowApi constructor(
     val wait: WaitContext? = null,
     val reservations: List<ReservationKey> = emptyList(),

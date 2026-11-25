@@ -16,6 +16,7 @@ package me.ahoo.wow.query.tck
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.toList
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.query.AggregateIdFilter
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
@@ -70,6 +71,7 @@ import kotlin.time.toKotlinDuration
  * The cases come in families, each a parent class of this one ([SnapshotQueryFixtures] lists them); this class holds
  * the timeouts and the gateway cases.
  */
+@WowSpi
 abstract class QueryBackendSpec : SnapshotValueComparisonCases() {
     // Timeouts
 

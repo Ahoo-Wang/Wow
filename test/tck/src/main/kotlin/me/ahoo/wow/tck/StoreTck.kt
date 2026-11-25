@@ -15,6 +15,7 @@ package me.ahoo.wow.tck
 
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.spi.Closing
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
@@ -72,6 +73,7 @@ import java.util.concurrent.CopyOnWriteArrayList
  * own). The report names the backend's class and the port: `PostgresStoreTck > EventLog > ...` ([PortNames]).
  */
 @DisplayNameGeneration(StoreTck.PortNames::class)
+@WowSpi
 abstract class StoreTck {
     /**
      * The configuration of the store under test: its type names the provider ([provider]), and its options and

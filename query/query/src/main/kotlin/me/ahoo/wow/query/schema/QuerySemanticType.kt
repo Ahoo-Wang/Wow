@@ -15,6 +15,7 @@ package me.ahoo.wow.query.schema
 
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 import java.time.format.DateTimeFormatter
 import java.time.temporal.TemporalAccessor
 import java.util.concurrent.TimeUnit
@@ -221,6 +222,7 @@ internal data class Reference(
  * A field kept only for existing callers: it can still be queried, but new queries and view definitions should avoid
  * it. [message] says why, or what to use instead; omitted when the declaration gave none.
  */
+@WowSpi
 class QueryDeprecation @InternalWowApi constructor(val message: String? = null) {
     override fun equals(other: Any?): Boolean = this === other || other is QueryDeprecation && message == other.message
 

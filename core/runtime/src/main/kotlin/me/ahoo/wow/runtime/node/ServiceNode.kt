@@ -338,6 +338,7 @@ class ServiceNode @InternalWowApi constructor(
      * Gives the node built without an internal address the [address] its host's internal port was bound at, such as
      * one whose port the system chose: before [start], once.
      */
+    @InternalWowApi
     fun bind(address: String) {
         require(address.isNotBlank()) { "A node has an internal address." }
         check(state == State.NEW) { "Node $node is $state; its address is bound before it starts." }

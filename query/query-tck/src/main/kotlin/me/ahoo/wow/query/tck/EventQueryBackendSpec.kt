@@ -15,6 +15,7 @@ package me.ahoo.wow.query.tck
 
 import kotlinx.coroutines.flow.toList
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.query.AggregateIdFilter
 import me.ahoo.wow.api.query.AggregationElement
 import me.ahoo.wow.api.query.AggregationExpression
@@ -78,6 +79,7 @@ import java.time.Duration
  * The cases come in families, each a parent class of this one ([EventQueryFixtures] lists them); this class
  * holds every family but the per-event analytics ([EventAnalyticsCases]).
  */
+@WowSpi
 abstract class EventQueryBackendSpec : EventAnalyticsCases() {
     // Records and system fields
 

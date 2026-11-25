@@ -53,6 +53,7 @@ internal class UnavailableQueryStorageAdapter(val message: String) : QueryStorag
  * mapping options prove a capability is the storage's knowledge; what a logical value must be for a capability to
  * apply at all is the Catalog's. An adapter builds them with [build] (or [builder] from Java).
  */
+@WowSpi
 class QueryStorageFacts @InternalWowApi constructor(
     val bindings: Map<QueryPathTemplate, QueryValueBindings>,
     /** The model-wide capabilities the storage proves, such as a full-text search over the whole record. */

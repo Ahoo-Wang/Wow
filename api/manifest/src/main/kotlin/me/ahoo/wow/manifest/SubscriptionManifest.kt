@@ -191,6 +191,7 @@ enum class SubscriptionStart {
          * saga from the [END] of its own context's log, and where its service [JOIN]s another context's stream when it
          * reads one ([peer]).
          */
+        @InternalWowApi
         fun defaultFor(kind: SubscriptionKind, peer: Boolean = false): SubscriptionStart = when {
             kind == SubscriptionKind.PROJECTION -> BEGINNING
             peer -> JOIN
@@ -297,6 +298,7 @@ class FunctionManifest @InternalWowApi constructor(
 
     companion object {
         /** The kinds of the functions a context declares, which a Manifest names; a reader leaves out any other. */
+        @InternalWowApi
         val KINDS: List<FunctionKind> =
             listOf(FunctionKind.COMMAND, FunctionKind.PROJECT, FunctionKind.REACT, FunctionKind.SAGA)
     }

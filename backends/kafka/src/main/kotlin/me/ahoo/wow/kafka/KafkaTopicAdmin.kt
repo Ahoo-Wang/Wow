@@ -161,6 +161,7 @@ class KafkaTopicAdmin(
          * An admin of [options]' bootstrap servers and properties, creating topics with [replicationFactor] and
          * [configs].
          */
+        @InternalWowApi
         fun create(
             options: KafkaOptions,
             replicationFactor: Short? = null,

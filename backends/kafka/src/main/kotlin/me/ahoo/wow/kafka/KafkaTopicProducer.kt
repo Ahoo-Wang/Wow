@@ -20,6 +20,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.spi.VirtualThreads
 import me.ahoo.wow.spi.transport.TopicMessage
 import me.ahoo.wow.spi.transport.TopicProducer
@@ -124,6 +125,7 @@ class KafkaTopicProducer(
         private val log = LoggerFactory.getLogger(KafkaTopicProducer::class.java)
 
         /** A producer of [options]' configuration ([KafkaOptions.producerConfig]). */
+        @InternalWowApi
         fun create(options: KafkaOptions): KafkaTopicProducer =
             KafkaTopicProducer(KafkaProducer<String, ByteArray>(options.producerConfig()))
     }

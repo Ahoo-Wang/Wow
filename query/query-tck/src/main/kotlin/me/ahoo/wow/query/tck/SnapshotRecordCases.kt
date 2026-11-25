@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.tck
 import kotlinx.coroutines.flow.map
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.query.AggregateIdFilter
 import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.CountResult
@@ -43,6 +44,7 @@ import tools.jackson.databind.node.ObjectNode
  * The record cases of the snapshot contract: sort, list, single and projection, offset pages and counts. They read only
  * [SnapshotQueryFixtures]'s fixtures and hooks; see [SnapshotQueryFixtures] for the chain of families it is part of.
  */
+@WowSpi
 abstract class SnapshotRecordCases internal constructor() : SnapshotFilterCases() {
     // Sort, list, single and projection
 

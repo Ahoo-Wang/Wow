@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.withTimeoutOrNull
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.CountQuery
@@ -125,6 +126,7 @@ internal fun <T> Flow<T>.executing(timeout: Duration?): Flow<T> {
  * failure reported as [storageFault], a negative answer as a server fault. A count above the limit is the limit,
  * not exact: "at least `limit`".
  */
+@WowSpi
 suspend fun QueryBackend.countBounded(query: AdmittedQuery<CountQuery>): CountResult {
     val count = executing(query.timeout) { count(query) }
     checkExecution(count >= 0) { "Backend count must be greater than or equal to 0." }
@@ -135,12 +137,14 @@ private fun bounded(count: Long, limit: Int?): CountResult =
     if (limit != null && count > limit) CountResult(limit.toLong(), exact = false) else CountResult(count, exact = true)
 
 /** The first record of [query]: `page(Offset(0, 1, withTotal = false))`. */
+@WowSpi
 suspend fun QueryBackend.single(query: AdmittedQuery<SingleQuery>): ObjectNode? {
     val page = executing(query.timeout) { page(query, PageWindow.Offset(0, 1, withTotal = false)) }
     return page.rows.firstOrNull()?.requireStandardRecord()
 }
 
 /** The records of [query], streamed: at most its limit, or all of them when the limit is `0`. */
+@WowSpi
 fun QueryBackend.list(query: AdmittedQuery<ListQuery>): Flow<ObjectNode> =
     flow { emitAll(stream(query)) }.executing(query.timeout).map(ObjectNode::requireStandardRecord)
 
@@ -149,6 +153,7 @@ fun QueryBackend.list(query: AdmittedQuery<ListQuery>): Flow<ObjectNode> =
  * exact total for [TotalMode.EXACT], the total bounded by [totalLimit] for [TotalMode.BOUNDED] (exact when
  * [totalLimit] is `null`), and none for [TotalMode.NONE].
  */
+@WowSpi
 suspend fun QueryBackend.paged(query: AdmittedQuery<PagedQuery>, totalLimit: Int? = null): PagedList<ObjectNode> =
     paged(query, totalLimit, known = null)
 
@@ -185,6 +190,7 @@ internal suspend fun QueryBackend.paged(
  * rows, so no value of a row can leak into it. A token that does not decode for this model and effective sort is
  * rejected as `Invalid cursor.` before any I/O.
  */
+@WowSpi
 suspend fun QueryBackend.cursor(query: AdmittedQuery<CursorQuery>): CursorPage<ObjectNode> {
     val cursor = query.query
     val sort = cursor.sort.map { Sort(query.field(it.field).logicalField, it.direction) }
@@ -215,6 +221,7 @@ suspend fun QueryBackend.cursor(query: AdmittedQuery<CursorQuery>): CursorPage<O
  * rows included: HAVING can discard every fill row, so without counting them a sparse fine-grained dense histogram
  * would generate rows until the timeout.
  */
+@WowSpi
 fun QueryBackend.aggregate(
     query: AdmittedQuery<AggregationQuery>,
     budget: QueryBudget? = null,

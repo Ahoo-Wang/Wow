@@ -217,6 +217,7 @@ interface FailureLedger {
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
+@WowSpi
 class ParkedAggregate @InternalWowApi constructor(
     val subscription: SubscriptionId,
     val ref: AggregateRef,
@@ -391,6 +392,7 @@ class ParkedAggregate @InternalWowApi constructor(
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
+@WowSpi
 class ParkedRetrySpec @InternalWowApi constructor(
     val maxRetries: Int = DEFAULT_MAX_RETRIES,
     val initialBackoff: Duration = DEFAULT_INITIAL_BACKOFF,
@@ -457,6 +459,7 @@ class ParkedRetrySpec @InternalWowApi constructor(
  * this entry's: the reference semantics of [FailureLedger.amend], for a backend that changes the entry in memory. Every amendment but a [ParkedAmendment.Schedule] and a [ParkedAmendment.TakeRequest] clears
  * [ParkedAggregate.nextAttemptAt], so the owner looks at the entry again on its next scan.
  */
+@WowSpi
 fun ParkedAggregate.amended(amendment: ParkedAmendment): ParkedAggregate? {
     if (!isParking(amendment)) {
         return null
@@ -519,6 +522,7 @@ private fun ParkedAggregate.isParking(amendment: ParkedAmendment): Boolean {
  * @return the amended entry; null when the aggregate is not parked, or the amendment names a revision read that the
  * entry is no longer at.
  */
+@WowSpi
 suspend fun amendByRevision(
     amendment: ParkedAmendment,
     read: suspend () -> ParkedAggregate?,
@@ -539,6 +543,7 @@ suspend fun amendByRevision(
  * scheduled; an operator's request is kept only while the failure time is: one left for another parking is cleared.
  * The reference semantics of a [FailureLedger.repark], and of a [FailureLedger.park] that replaces an entry.
  */
+@InternalWowApi
 fun ParkedAggregate.placedAs(entry: ParkedAggregate): ParkedAggregate = copyWith(
     request = request.takeIf { entry.failedAt == failedAt },
     partition = entry.partition,
@@ -555,5 +560,6 @@ fun ParkedAggregate.placedAs(entry: ParkedAggregate): ParkedAggregate = copyWith
  * Whether this entry is due at [now] in one of [partitions] ([FailureLedger.due]): the reference semantics, for a
  * backend that filters in memory.
  */
+@InternalWowApi
 fun ParkedAggregate.dueIn(partitions: Collection<Int>, now: Long): Boolean =
     partition in partitions && (nextAttemptAt == null || nextAttemptAt <= now)

@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.query.admission
 
+import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.query.AggregationElement
 import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
@@ -66,6 +68,7 @@ import kotlin.time.Duration.Companion.seconds
  * query is resolved; the tie-breakers a cursor appends never count. Off by default: a storage grants a sort it can run
  * correctly, indexed or not.
  */
+@WowSpi
 class QueryBudget(
     val label: String,
     val maxListSize: Int = 1000,
@@ -328,6 +331,7 @@ class QueryBudget(
  * size or [default] is `null`. Every entry fills a cursor's size through this one copy, so a field [CursorQuery] gains
  * is kept.
  */
+@InternalWowApi
 fun CursorQuery.withDefaultSize(default: Int?): CursorQuery =
     if (size != null || default == null) this else CursorQuery(filter, projection, sort, default, cursor)
 
@@ -336,5 +340,6 @@ fun CursorQuery.withDefaultSize(default: Int?): CursorQuery =
  * ([QueryBudget.listDefault]). Itself when it names a limit or [default] is `null`, so it reads every match. Every entry
  * fills a list's limit through this one copy, so a field [ListQuery] gains is kept.
  */
+@InternalWowApi
 fun ListQuery.withDefaultLimit(default: Int?): ListQuery =
     if (limit != null || default == null) this else ListQuery(filter, projection, sort, default)

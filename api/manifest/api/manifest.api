@@ -45,10 +45,6 @@ public final class me/ahoo/wow/manifest/AggregateManifest {
 	public fun toString ()Ljava/lang/String;
 }
 
-public final class me/ahoo/wow/manifest/ClassNames {
-	public static final field CLASS_KEYWORD Ljava/lang/String;
-}
-
 public final class me/ahoo/wow/manifest/CommandManifest {
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getAliases ()Ljava/util/List;
@@ -153,7 +149,6 @@ public final class me/ahoo/wow/manifest/FunctionManifest {
 }
 
 public final class me/ahoo/wow/manifest/FunctionManifest$Companion {
-	public final fun getKINDS ()Ljava/util/List;
 }
 
 public final class me/ahoo/wow/manifest/JobManifest {
@@ -179,7 +174,6 @@ public final class me/ahoo/wow/manifest/Manifest {
 	public final fun getRequires ()Ljava/util/List;
 	public final fun getSchemaRefs ()Ljava/util/List;
 	public final fun getService ()Lme/ahoo/wow/manifest/ServiceInfo;
-	public final fun getUnresolvedSchemaRefs ()Ljava/util/List;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }
@@ -196,20 +190,6 @@ public final class me/ahoo/wow/manifest/ManifestConflictException : java/lang/Il
 public final class me/ahoo/wow/manifest/ManifestFeatures {
 	public static final field INSTANCE Lme/ahoo/wow/manifest/ManifestFeatures;
 	public final fun getKNOWN ()Ljava/util/Set;
-}
-
-public final class me/ahoo/wow/manifest/ManifestFragment {
-	public fun equals (Ljava/lang/Object;)Z
-	public final fun getManifest ()Lme/ahoo/wow/manifest/Manifest;
-	public final fun getSource ()Ljava/lang/String;
-	public fun hashCode ()I
-	public fun toString ()Ljava/lang/String;
-}
-
-public final class me/ahoo/wow/manifest/ManifestMerger {
-	public static final field INSTANCE Lme/ahoo/wow/manifest/ManifestMerger;
-	public final fun merge (Ljava/util/List;Lme/ahoo/wow/manifest/ServiceInfo;)Lme/ahoo/wow/manifest/Manifest;
-	public static synthetic fun merge$default (Lme/ahoo/wow/manifest/ManifestMerger;Ljava/util/List;Lme/ahoo/wow/manifest/ServiceInfo;ILjava/lang/Object;)Lme/ahoo/wow/manifest/Manifest;
 }
 
 public final class me/ahoo/wow/manifest/ManifestSchema {
@@ -244,14 +224,6 @@ public final class me/ahoo/wow/manifest/PublishedManifest {
 
 public final class me/ahoo/wow/manifest/PublishedManifest$Companion {
 	public final fun defaultTopic (Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
-}
-
-public final class me/ahoo/wow/manifest/QueryFieldNames {
-	public static final field INSTANCE Lme/ahoo/wow/manifest/QueryFieldNames;
-	public static final field STATE Ljava/lang/String;
-	public final fun constantOf (Ljava/lang/String;)Ljava/lang/String;
-	public final fun isSegment (Ljava/lang/String;)Z
-	public final fun upperSnake (Ljava/lang/String;)Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/manifest/QueryManifest {
@@ -401,8 +373,6 @@ public final class me/ahoo/wow/manifest/SubscriptionStart : java/lang/Enum {
 }
 
 public final class me/ahoo/wow/manifest/SubscriptionStart$Companion {
-	public final fun defaultFor (Lme/ahoo/wow/manifest/SubscriptionKind;Z)Lme/ahoo/wow/manifest/SubscriptionStart;
-	public static synthetic fun defaultFor$default (Lme/ahoo/wow/manifest/SubscriptionStart$Companion;Lme/ahoo/wow/manifest/SubscriptionKind;ZILjava/lang/Object;)Lme/ahoo/wow/manifest/SubscriptionStart;
 }
 
 public final class me/ahoo/wow/manifest/SystemCommands {

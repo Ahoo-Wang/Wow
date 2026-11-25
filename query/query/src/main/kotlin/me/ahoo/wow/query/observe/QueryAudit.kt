@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.observe
 
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.query.CrossTenant
 import me.ahoo.wow.api.query.FieldPredicate
 import me.ahoo.wow.api.query.FilterExpression
@@ -63,6 +64,7 @@ import java.time.Duration
  * @property caller who ran the query, for the principal and its attributes.
  * @property elapsed the time from the start of the query to its end.
  */
+@WowSpi
 class QueryAudit internal constructor(
     val aggregateType: AggregateType,
     val queryType: QueryType,

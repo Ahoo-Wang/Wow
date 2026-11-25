@@ -256,30 +256,65 @@ object SurfaceRules {
             (SPI_PUBLIC_CONSTRUCTORS.keys - constructed).map { "stale entry: $it" }
     }
 
-    private val SPI_DECLARATION =
-        Regex("""^(?:public )?(?:(?:fun|sealed|abstract) )*(interface|abstract class|sealed class) (\w+)""")
+    /**
+     * The application API `:spi` and `:query` keep public without a level, each with why an application uses it:
+     * every other public declaration of the two modules carries one (D483 ⑫).
+     */
+    val APPLICATION_API: Map<String, String> = mapOf(
+        "me.ahoo.wow.spi.json.WowJson" to "the JSON an application reads records with (guide/queries.md)",
+        "me.ahoo.wow.query.policy.ReadAuthorizer" to "a bean the application gives (guide/spring-boot.md)",
+        "me.ahoo.wow.query.policy.ReadAction" to "what a ReadAuthorizer is asked",
+        "me.ahoo.wow.query.policy.ReadAuthorization" to "what a ReadAuthorizer answers",
+        "me.ahoo.wow.query.schema.QueryModel" to "the model a ReadAction names",
+        "me.ahoo.wow.query.schema.MaskStrategyResolver" to "a bean the application gives (guide/spring-boot.md)",
+        "me.ahoo.wow.query.schema.QueryMask" to "what a MaskStrategyResolver resolves",
+        "me.ahoo.wow.query.cache.QueryCountCache" to "a bean the application gives (guide/spring-boot.md)",
+        "me.ahoo.wow.query.cache.QueryCountCacheOptions" to "the bounds a QueryCountCache is built with",
+        "me.ahoo.wow.query.cache.SnapshotWriteCheckpoint" to "the checkpoint a QueryCountCache is built with",
+        "me.ahoo.wow.query.read.QueryNotServedException" to "what an in-process read of a model not served throws",
+    )
+
+    private val LEVELED = listOf(SPI, ArchitectureRules.QUERY)
+
+    private val TOP_LEVEL = Regex(
+        """^(?:public )?(?:(?:data|sealed|abstract|open|enum|value|inline|fun|annotation|const|suspend|operator|""" +
+            """infix) )*(class|interface|object|fun|val|var|typealias)\b\s*(?:<[^>]*>\s*)?(?:[\w.<>, ?*]+\.)?(`?\w+`?)""",
+    )
+
+    private val LEVELS = listOf("@WowSpi", "@InternalWowApi", "@ExperimentalWowApi")
 
     /**
-     * The public interfaces and abstract classes of `:spi`'s sources that carry neither `@WowSpi` (a port or a value
-     * of a port, which a backend opts in to) nor `@InternalWowApi`, as `file:line: declaration`: every extension point
-     * of the SPI says what it is.
+     * The public top-level declarations of `:spi`'s and `:query`'s sources that carry no level, outside
+     * [APPLICATION_API], as `file:line: declaration`, and each allowed declaration no source still declares unmarked
+     * (a stale entry). A declaration a backend uses is `@WowSpi`, one only Wow's own modules use `@InternalWowApi`
+     * (D483 ⑫): without one it would freeze for 10.x while the ports it serves may change in a minor.
      */
-    fun spiUnmarkedTypes(repositoryRoot: File): List<String> {
-        val root = File(repositoryRoot, "${SPI.dir}/src/main/kotlin")
-        return root.walkTopDown().filter { it.isFile && it.extension == "kt" }.sortedBy { it.path }.flatMap { file ->
-            val lines = file.readLines()
-            lines.mapIndexedNotNull { index, line ->
-                if (!SPI_DECLARATION.containsMatchIn(line)) return@mapIndexedNotNull null
-                val annotations = lines.subList(0, index).asReversed().takeWhile { it.startsWith("@") }
-                val marked = annotations.any { it.startsWith("@WowSpi") || it.startsWith("@InternalWowApi") }
-                if (marked) {
-                    null
-                } else {
-                    "${file.relativeTo(
-                        repositoryRoot
-                    ).invariantSeparatorsPath}:${index + 1}: ${line.trim()}"
+    fun unmarkedDeclarations(
+        repositoryRoot: File,
+        allowed: Map<String, String> = APPLICATION_API,
+    ): List<String> {
+        val unmarked = mutableListOf<Pair<String, String>>()
+        LEVELED.forEach { module ->
+            val root = File(repositoryRoot, "${module.dir}/src/main/kotlin")
+            root.walkTopDown().filter { it.isFile && it.extension == "kt" }.sortedBy { it.path }.forEach { file ->
+                val lines = file.readLines()
+                val pkg = lines.firstOrNull { it.startsWith("package ") }?.removePrefix("package ")?.trim().orEmpty()
+                val fileLevel = lines.any { line -> line.startsWith("@file:") && LEVELS.any { it.drop(1) in line } }
+                lines.forEachIndexed { index, line ->
+                    val match = TOP_LEVEL.find(line) ?: return@forEachIndexed
+                    val inline = LEVELS.any { it in line.substring(0, match.groups[1]!!.range.first) }
+                    val annotations = lines.subList(0, index).asReversed()
+                        .takeWhile { it.startsWith("@") || it.startsWith(" *") || it.startsWith("/**") }
+                        .filter { it.startsWith("@") }
+                    if (fileLevel || inline || annotations.any { annotation -> LEVELS.any(annotation::startsWith) }) {
+                        return@forEachIndexed
+                    }
+                    val path = file.relativeTo(repositoryRoot).invariantSeparatorsPath
+                    unmarked += "$pkg.${match.groupValues[2].trim('`')}" to "$path:${index + 1}: ${line.trim()}"
                 }
             }
-        }.toList()
+        }
+        return unmarked.filter { (name, _) -> name !in allowed }.map { it.second } +
+            (allowed.keys - unmarked.map { it.first }.toSet()).map { "stale entry: $it" }
     }
 }

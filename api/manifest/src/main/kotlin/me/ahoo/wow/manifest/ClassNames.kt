@@ -22,6 +22,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  * it from the contract to reference the class or copy its structure into a state view. It is the service's internals,
  * so the public port's documents leave it out ([withoutClassNames]); the contract and the internal port keep it.
  */
+@InternalWowApi
 const val CLASS_KEYWORD: String = "x-wow-class"
 
 /** This Manifest without [CLASS_KEYWORD] in any schema of its `$defs`: what the public port serves. */

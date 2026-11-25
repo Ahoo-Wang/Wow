@@ -15,6 +15,7 @@ package me.ahoo.wow.query.schema
 
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.wire.WireNames
 
 /** A model or a value type is spelled as Wow spells its wire values: lower-kebab, a custom one alike. */
@@ -72,6 +73,7 @@ class QueryModel @InternalWowApi constructor(
  *
  * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
+@WowSpi
 enum class QueryCapability {
     PRESENCE,
     EXACT_MATCH,
@@ -122,6 +124,7 @@ class QueryValueType @InternalWowApi constructor(
  * A record holds one value or many, and there is no third count. No case is added within 10.x, so a `when` over it may
  * name every case.
  */
+@WowSpi
 enum class QueryCardinality {
     SINGLE,
     MANY,

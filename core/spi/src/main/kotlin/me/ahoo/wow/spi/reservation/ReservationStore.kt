@@ -114,6 +114,7 @@ interface ReservationStore {
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
+@WowSpi
 class ReservationScope @InternalWowApi constructor(
     val type: AggregateType,
     val tenantId: String,
@@ -174,6 +175,7 @@ class ReservationScope @InternalWowApi constructor(
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
+@WowSpi
 class Reservation @InternalWowApi constructor(
     val scope: ReservationScope,
     val key: String,
@@ -276,6 +278,7 @@ sealed interface ConfirmOutcome {
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
+@WowSpi
 class ReservationKey @InternalWowApi constructor(val namespace: String, val key: String, val system: Boolean = false) {
     init {
         require(namespace.isNotBlank()) { "A reservation needs a namespace." }

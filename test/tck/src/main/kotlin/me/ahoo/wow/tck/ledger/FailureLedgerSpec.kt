@@ -21,6 +21,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.ledger.LedgerRequest
 import me.ahoo.wow.api.ledger.Recoverable
 import me.ahoo.wow.spi.ledger.FailureLedger
@@ -39,6 +40,7 @@ import kotlin.time.Duration.Companion.minutes
  * The [FailureLedger] contract (documentation/designs/04-subscriptions.md §2) every backend passes. A backend's
  * test extends it and supplies a ledger from [createLedger].
  */
+@WowSpi
 abstract class FailureLedgerSpec {
     /** A ledger. Ledgers may share storage: each test uses subscriptions of its own. */
     protected abstract fun createLedger(): FailureLedger

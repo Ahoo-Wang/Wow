@@ -19,6 +19,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.sink.Sink
 import me.ahoo.wow.spi.sink.SinkConfig
@@ -38,6 +39,7 @@ import kotlin.time.Duration.Companion.seconds
  * their version order. A sink's test extends it, supplies a sink of [aggregateType] from [createSink], and reads back
  * what its destination holds with [written].
  */
+@WowSpi
 abstract class SinkSpec {
     /** The aggregate type of the records the spec writes. */
     protected open val aggregateType: AggregateType = AggregateType("tck", "sinked")

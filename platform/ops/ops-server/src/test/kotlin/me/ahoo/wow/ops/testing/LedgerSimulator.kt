@@ -49,7 +49,7 @@ import java.util.UUID
  */
 @OptIn(InternalWowApi::class) // A service's command sender, ledger operator and receipts, as its node wires them.
 class LedgerSimulator(manifest: Manifest, private val topics: InMemoryTopics) {
-    private val sender = CommandSender(ContractDirectory(manifest), SourceTopics.of(topics, producer = topics))
+    private val sender = CommandSender(ContractDirectory.of(manifest), SourceTopics.of(topics, producer = topics))
 
     /** Publishes [entry] to `wow.ops.commands` as an owning service's ledger does; the id of its ops aggregate. */
     suspend fun publish(entry: ParkedEntry): String {
