@@ -25,8 +25,6 @@
 
 import { expectTypeOf, it } from 'vitest';
 import type {
-  CountQuery,
-  CountResult,
   RequestOptions,
   Positioned,
   Problem,
@@ -34,6 +32,8 @@ import type {
 } from '@ahoo-wang/wow-client';
 import type {
   AggregationQuery,
+  CountQuery,
+  CountResult,
   CursorPage,
   CursorQuery,
   FilterListQuery,

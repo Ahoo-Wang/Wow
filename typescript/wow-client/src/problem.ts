@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { FRAMEWORK_RETRIES, type Retry } from './frameworkErrors.js';
+import { FRAMEWORK_RETRIES, type RetryAdvice } from './frameworkErrors.js';
 import {
   CommandResultStatus,
   type RefusedResult,
@@ -19,12 +19,11 @@ import {
 } from './wire.js';
 
 export {
-  DEFAULT_RETRY,
   FRAMEWORK_RETRIES,
   type FrameworkRetry,
   type FrameworkErrorCode,
   FrameworkErrorCodes,
-  type Retry,
+  type RetryAdvice,
 } from './frameworkErrors.js';
 
 /** The prefix of every framework code, and of no domain code. */
@@ -49,7 +48,7 @@ export interface Problem {
    * What a retry may do, as the error catalog declares it for the code: every
    * problem a Wow service writes carries it.
    */
-  readonly retry?: Retry;
+  readonly retry?: RetryAdvice;
   readonly violations?: readonly Violation[];
   /**
    * The whole result of a command that has a ref; its id is null when
@@ -93,7 +92,7 @@ function withExtensions(problem: Problem): Problem {
 }
 
 /** The `retry` values this client knows; a newer service may write another. */
-const KNOWN_RETRIES: ReadonlySet<string> = new Set<Retry>([
+const KNOWN_RETRIES: ReadonlySet<string> = new Set<RetryAdvice>([
   'none',
   'same-request',
   'new-request',
@@ -112,7 +111,7 @@ const KNOWN_RETRIES: ReadonlySet<string> = new Set<Retry>([
  *
  * @param problem - The problem a request was answered with
  */
-export function retryOf(problem: Problem): Retry {
+export function retryOf(problem: Problem): RetryAdvice {
   if (problem.retry !== undefined && KNOWN_RETRIES.has(problem.retry)) {
     return problem.retry;
   }
@@ -158,7 +157,7 @@ export class WowProblemError extends Error {
   /** The command's result, when the command had a ref ({@link RefusedResult}). */
   readonly result?: RefusedResult;
   /** What a retry may do ({@link retryOf}). */
-  readonly retry: Retry;
+  readonly retry: RetryAdvice;
   /**
    * How long to wait before a retry, in milliseconds: the response's
    * `Retry-After`, else the error catalog's for its code; none when no retry

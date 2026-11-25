@@ -23,7 +23,7 @@ import {
   EventQueryClient,
   FrameworkErrorCodes,
   SnapshotQueryClient,
-  textNumberOr,
+  textNumbersOr,
   textNumbersBy,
   WowProblemError,
 } from '../src/index.js';
@@ -59,7 +59,7 @@ describe('query clients', () => {
             ownerKey: true,
             // Through an array's items, and the object side of an either-or.
             lines: { '*': { sku: true } },
-            price: textNumberOr({ amount: true }),
+            price: textNumbersOr({ amount: true }),
             // A field of numbers, an array: marked by its items.
             tags: { '*': true },
             // A recursive type's lazy marks are followed.

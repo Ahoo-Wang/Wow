@@ -81,15 +81,15 @@ export class ServiceRoutes {
   private readonly numbers: Readonly<Record<string, ServiceRouteNumbers>>;
 
   /**
-   * @param client - How the service is reached
-   * @param options - The service's Manifest
+   * @param options - How the service is reached
+   * @param contract - The service's Manifest, and its routes' exact numbers
    */
   constructor(
-    readonly client: WowClientOptions = {},
-    options: ServiceRoutesOptions = {},
+    private readonly options: WowClientOptions = {},
+    contract: ServiceRoutesOptions = {},
   ) {
-    this.manifest = new ManifestSource(client, options.manifest);
-    this.numbers = options.textNumbers ?? {};
+    this.manifest = new ManifestSource(options, contract.manifest);
+    this.numbers = contract.textNumbers ?? {};
   }
 
   /**
@@ -137,7 +137,7 @@ export class ServiceRoutes {
         )
       : undefined;
     const numbers = this.numbers[`${context}.${name}`];
-    const answer = await send(this.client, {
+    const answer = await send(this.options, {
       method: route.method as Call['method'],
       path,
       ...(query === undefined ? {} : { query }),

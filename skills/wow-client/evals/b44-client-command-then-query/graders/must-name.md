@@ -5,4 +5,4 @@ match: contains
 target: last_message
 ---
 
-The answer names `wait.snapshot()`.
+The answer names `Hop.snapshot()`.

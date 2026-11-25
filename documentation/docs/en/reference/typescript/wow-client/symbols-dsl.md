@@ -9,7 +9,7 @@ description: 'Every name @ahoo-wang/wow-client/dsl exports, generated from its T
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-client test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-client/dsl` exports — 164 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 0 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/test/api/dsl.api.md). This index is English only.
+Every name `@ahoo-wang/wow-client/dsl` exports — 166 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 0 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/test/api/dsl.api.md). This index is English only.
 
 ::: v-pre
 
@@ -47,6 +47,8 @@ Every name `@ahoo-wang/wow-client/dsl` exports — 164 — with its kind and the
 | `ConstantAggregationExpression` | interface | A number, as an operand; `aggregation.constant`. | — |
 | `ConstraintDescriptor` | interface | A rule about combinations that no single capability shows. | — |
 | `CountAggregationMetric` | interface | The number of rows in each group; `aggregation.count`. | — |
+| `CountQuery` | interface | A count of a query route. | — |
+| `CountResult` | interface | What a count answers: exact below its limit, else the limit itself. | — |
 | `CursorPage` | interface | One page of a cursor query. | — |
 | `CursorQuery` | interface | The body of a forward-only cursor query, which `QueryModelClient.cursor` sends; build it with `cursorQuery`. | — |
 | `CursorQueryOptions` | type | What `cursorQuery` takes: a cursor query whose `filter` may be absent. | — |
@@ -142,9 +144,9 @@ Every name `@ahoo-wang/wow-client/dsl` exports — 164 — with its kind and the
 | `QueryValueKind` | enum | The structural shape of a field's value, sent as its `kind`. | — |
 | `QueryValueType` | type | A field's value type: one of `QueryValueTypes`, or one a server added. | — |
 | `QueryValueTypes` | const | The value types Wow names in a field's `types`. | — |
-| `QueryViolation` | interface | Why the server rejected a query: one violation of its `wow.query.invalid` problem, which rule failed, where, and the server's words. | — |
+| `QueryViolation` | interface | Why the server rejected a query: one violation of its `wow.query.invalid` problem, which rule failed, where, and the server's words: a `Violation` whose `code` is a query's. | — |
 | `RecordDescriptor` | interface | What holds for the model's records as a whole. | — |
-| `ReferenceSemantic` | type | A field whose value is the id of an aggregate, to look it up and link to it: either a fixed aggregate, `contextName` and `aggregateName`, or per record the aggregate the sibling string fields `contextNameField` and `aggregateNameField` name (as in an `AggregateId`). | — |
+| `ReferenceSemantic` | type | A field whose value is the id of an aggregate, to look it up and link to it, as the model declares it (`@QueryReference`): the aggregate, `contextName` and `aggregateName`. | — |
 | `RelativeTimeFilterOptions` | interface | Options shared by relative time filters. | — |
 | `RunningFunction` | enum | What a `RUNNING` window computes over its frame. | — |
 | `SearchBuilder` | interface | The overloads of `filter.search`: naming at least one field, as an array literal, types the result as an `ElementSearchFilter`, which `ELEMENT_MATCH` takes; otherwise it is a `SearchFilter`, root-only when its `fields` are empty. | — |

@@ -21,7 +21,7 @@ import {
   memberName,
 } from '../../manifest/names';
 import { resolvePropertyName } from '../../naming/naming';
-import { bodyNumbersOption } from './commandClient';
+import { textNumbersOption } from './commandClient';
 import { addStatement, doc, WOW_CLIENT } from './generatedModule';
 
 /**
@@ -88,7 +88,7 @@ export function emitContextClient(
     );
   }
   // The context's command client writes the exact numbers of every command's body unquoted, as each aggregate's does.
-  const bodyNumbers = bodyNumbersOption(context.aggregates, module, aggregate =>
+  const bodyNumbers = textNumbersOption(context.aggregates, module, aggregate =>
     relativeModuleSpecifier(
       module.directoryPath,
       join(outputDir, aggregate.directory, 'aggregate.ts'),

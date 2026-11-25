@@ -20,7 +20,11 @@ import { parseJson } from './exactJson.js';
 import { type AnswerBound, unknownOutcome } from './answerBound.js';
 import type { Answer } from './http.js';
 import type { CommandResult } from './wire.js';
-import { DEFAULT_RETRY, FrameworkErrorCodes } from './frameworkErrors.js';
+import {
+  DEFAULT_RETRY,
+  FrameworkErrorCodes,
+  RAISED_PROBLEMS,
+} from './frameworkErrors.js';
 import {
   fromGateway,
   isProblem,
@@ -181,23 +185,23 @@ export interface StreamResumeOptions {
   /** Starts after this position: a {@link Positioned.position} read before. */
   readonly lastEventId?: string;
   /**
-   * How many times in a row the stream may be resumed without a record in
-   * between before it fails with what stopped it; by default one fewer than
-   * the catalog's attempts ({@link DEFAULT_RETRY}, as the Kotlin client), 0
-   * never resumes.
+   * How many times in a row the stream is asked for without a record in
+   * between, the first request included, before it fails with what stopped
+   * it, as the Kotlin client's `RetryPolicy.maxAttempts`: the catalog's
+   * attempts by default; 1 never resumes.
    */
-  readonly maxRetries?: number;
+  readonly maxAttempts?: number;
   /**
-   * The wait before the first such retry, doubled for each next; the
-   * catalog's backoff by default ({@link DEFAULT_RETRY}).
+   * The wait before the first resume without a `Retry-After`, doubled for
+   * each next, as `RetryPolicy.backoff`: the catalog's by default.
    */
-  readonly initialDelayMs?: number;
+  readonly backoffMs?: number;
   /**
-   * The longest wait between retries; the catalog's by default
-   * ({@link DEFAULT_RETRY}). A `Retry-After` beyond it is not waited out: the
+   * The longest wait between attempts, as `RetryPolicy.maxRetryAfter`: the
+   * catalog's by default. A `Retry-After` beyond it is not waited out: the
    * stream fails at once with the problem that asked for it.
    */
-  readonly maxDelayMs?: number;
+  readonly maxRetryAfterMs?: number;
 }
 
 const HOLD_EXPIRED: StreamEndReason = 'hold-expired';
@@ -232,8 +236,7 @@ function streamLost(detail: string, cause?: unknown): WowProblemError {
   return new WowProblemError(
     {
       type: `${PROBLEM_TYPE_PREFIX}${code}`,
-      title: 'Peer unavailable',
-      status: 503,
+      ...RAISED_PROBLEMS[code],
       code,
       detail,
     },
@@ -275,9 +278,9 @@ export function resumableQueryRows<T>(
   options: StreamResumeOptions & { readonly signal?: AbortSignal } = {},
 ): ReadableStream<Positioned<T>> {
   const {
-    maxRetries = DEFAULT_RETRY.attempts - 1,
-    initialDelayMs = DEFAULT_RETRY.backoffMs,
-    maxDelayMs = DEFAULT_RETRY.maxWaitMs,
+    maxAttempts = DEFAULT_RETRY.maxAttempts,
+    backoffMs = DEFAULT_RETRY.backoffMs,
+    maxRetryAfterMs = DEFAULT_RETRY.maxRetryAfterMs,
     signal,
   } = options;
   // A record's exact numbers are its answer's (review R4-Q, Q-9).
@@ -310,13 +313,13 @@ export function resumableQueryRows<T>(
   async function resume(cause: unknown, delayMs?: number): Promise<boolean> {
     for (;;) {
       if (halted.aborted) throw halted.reason;
-      if (failures++ >= maxRetries) throw cause;
+      if (++failures >= maxAttempts) throw cause;
       // A Retry-After past the longest wait between retries is not waited
       // out: the stream fails with what said it, as the Kotlin client's
       // resume does (`RetryPolicy.delayBefore`).
-      if (delayMs !== undefined && delayMs > maxDelayMs) throw cause;
+      if (delayMs !== undefined && delayMs > maxRetryAfterMs) throw cause;
       const wait =
-        delayMs ?? Math.min(maxDelayMs, initialDelayMs * 2 ** (failures - 1));
+        delayMs ?? Math.min(maxRetryAfterMs, backoffMs * 2 ** (failures - 1));
       if (wait > 0) await sleep(wait, halted);
       try {
         const next = await reopen(lastEventId, received, halted);

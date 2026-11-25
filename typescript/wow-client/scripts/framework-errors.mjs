@@ -39,6 +39,9 @@ export const TITLES_OUTPUT = join(PACKAGE, 'src/testing/frameworkTitles.ts');
 
 const doc = text => `/** ${text.replaceAll('*/', '*\\/')} */`;
 
+/** The codes of the problems the client raises itself, whose titles the root carries. */
+const RAISED = ['wow.command.unknown', 'wow.peer.unavailable'];
+
 /** The source of src/frameworkErrors.ts for `catalog`, formatted. */
 export async function frameworkErrors(catalog) {
   const { retry, errors } = catalog;
@@ -53,7 +56,7 @@ export async function frameworkErrors(catalog) {
  * with the same request id (\`Wow-Request-Id\`), so a command that did commit
  * is answered as its duplicate; \`new-request\`, send it again as it is.
  */
-export type Retry = 'none' | 'same-request' | 'new-request';
+export type RetryAdvice = 'none' | 'same-request' | 'new-request';
 
 /**
  * The framework's error codes, each answered with the status of the error
@@ -76,7 +79,7 @@ export type FrameworkErrorCode =
 /** What a retry of a framework code may do, as the error catalog declares it. */
 export interface FrameworkRetry {
   /** What a retry may do: never \`none\` here. */
-  readonly retry: Retry;
+  readonly retry: RetryAdvice;
   /** Its \`Retry-After\`, in milliseconds. */
   readonly retryAfterMs: number;
 }
@@ -100,15 +103,29 @@ ${errors
 
 /**
  * How often, and after how long, a client sends a request again by default
- * when a retry may get past its error, as the Kotlin client does
- * (\`RetryPolicy.DEFAULT\`): at most \`attempts\` attempts, the first included,
- * \`backoffMs\` before the first retry without a \`Retry-After\`, doubled at each
- * attempt up to \`maxWaitMs\`.
+ * when a retry may get past its error, as the Kotlin client's
+ * \`RetryPolicy.DEFAULT\`: at most \`maxAttempts\` attempts, the first
+ * included, \`backoffMs\` before the first retry without a \`Retry-After\`,
+ * doubled at each attempt up to \`maxRetryAfterMs\`, the longest
+ * \`Retry-After\` waited out too.
  */
 export const DEFAULT_RETRY = {
-  attempts: ${retry.attempts},
+  maxAttempts: ${retry.attempts},
   backoffMs: ${retry.backoffMillis},
-  maxWaitMs: ${retry.maxWaitSeconds * 1000},
+  maxRetryAfterMs: ${retry.maxWaitSeconds * 1000},
+} as const;
+
+/**
+ * The title and status of each problem the client raises itself, as the
+ * catalog declares them: a command's answer, or a query stream, lost. Only
+ * these: the whole table is the /testing entry's (frameworkTitles.ts).
+ */
+export const RAISED_PROBLEMS = {
+${RAISED.map(code => {
+  const error = errors.find(each => each.code === code);
+  if (!error) throw new Error(`The catalog has no ${code}.`);
+  return `  '${code}': { title: ${JSON.stringify(error.title)}, status: ${error.status} },`;
+}).join('\n')}
 } as const;
 `;
   const options = (await prettier.resolveConfig(OUTPUT)) ?? {};

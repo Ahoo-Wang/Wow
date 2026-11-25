@@ -5,8 +5,8 @@
 ```ts
 
 import { AggregationQuery } from '@ahoo-wang/wow-client/dsl';
-import { CountQuery } from '@ahoo-wang/wow-client';
-import { CountResult } from '@ahoo-wang/wow-client';
+import { CountQuery } from '@ahoo-wang/wow-client/dsl';
+import { CountResult } from '@ahoo-wang/wow-client/dsl';
 import { CursorPage } from '@ahoo-wang/wow-client/dsl';
 import { CursorQuery } from '@ahoo-wang/wow-client/dsl';
 import { FilterListQuery } from '@ahoo-wang/wow-client/dsl';

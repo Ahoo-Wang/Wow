@@ -9,7 +9,7 @@
  * with the same request id (`Wow-Request-Id`), so a command that did commit
  * is answered as its duplicate; `new-request`, send it again as it is.
  */
-export type Retry = 'none' | 'same-request' | 'new-request';
+export type RetryAdvice = 'none' | 'same-request' | 'new-request';
 
 /**
  * The framework's error codes, each answered with the status of the error
@@ -114,7 +114,7 @@ export type FrameworkErrorCode =
 /** What a retry of a framework code may do, as the error catalog declares it. */
 export interface FrameworkRetry {
   /** What a retry may do: never `none` here. */
-  readonly retry: Retry;
+  readonly retry: RetryAdvice;
   /** Its `Retry-After`, in milliseconds. */
   readonly retryAfterMs: number;
 }
@@ -147,13 +147,24 @@ export const FRAMEWORK_RETRIES: ReadonlyMap<string, FrameworkRetry> = new Map<
 
 /**
  * How often, and after how long, a client sends a request again by default
- * when a retry may get past its error, as the Kotlin client does
- * (`RetryPolicy.DEFAULT`): at most `attempts` attempts, the first included,
- * `backoffMs` before the first retry without a `Retry-After`, doubled at each
- * attempt up to `maxWaitMs`.
+ * when a retry may get past its error, as the Kotlin client's
+ * `RetryPolicy.DEFAULT`: at most `maxAttempts` attempts, the first
+ * included, `backoffMs` before the first retry without a `Retry-After`,
+ * doubled at each attempt up to `maxRetryAfterMs`, the longest
+ * `Retry-After` waited out too.
  */
 export const DEFAULT_RETRY = {
-  attempts: 5,
+  maxAttempts: 5,
   backoffMs: 200,
-  maxWaitMs: 5000,
+  maxRetryAfterMs: 5000,
+} as const;
+
+/**
+ * The title and status of each problem the client raises itself, as the
+ * catalog declares them: a command's answer, or a query stream, lost. Only
+ * these: the whole table is the /testing entry's (frameworkTitles.ts).
+ */
+export const RAISED_PROBLEMS = {
+  'wow.command.unknown': { title: 'Command outcome unknown', status: 503 },
+  'wow.peer.unavailable': { title: 'Peer unavailable', status: 503 },
 } as const;

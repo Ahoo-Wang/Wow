@@ -29,20 +29,13 @@ import type {
   Snapshot,
 } from './wire.js';
 
-/** Which state a read asks for: the latest, at a version or as of a time. */
-export interface StateReadOptions extends RequestOptions {
-  /** The committed state at this version. */
-  readonly version?: number;
-  /** The committed state as of this instant (ISO-8601, or a `Date`). */
-  readonly at?: string | Date;
-  /**
-   * The latest state at this version or later (review R4-Q, Q-13: read your
-   * writes), such as the `version` of a command's result: a lagging snapshot is
-   * caught up with the log. Not with `version` or `at`. One not reached within
-   * the server's wait rejects with 409 `wow.query.min-version-not-reached`,
-   * whose `version` is the current one.
-   */
-  readonly minVersion?: number;
+/**
+ * Which state a read asks for, one way at most: the latest; the committed
+ * state at a `version`; the committed state as of a time, `at`; or the
+ * latest at `minVersion` or later. With the entity tag of the state held,
+ * `ifNoneMatch`, and the request's options.
+ */
+export type StateReadOptions = RequestOptions & {
   /**
    * The entity tag of the state already held, as a read answered it
    * (`etag`): a 304 then answers `notModified`. The tag is the version and a
@@ -50,7 +43,38 @@ export interface StateReadOptions extends RequestOptions {
    * does, not only with the version.
    */
   readonly ifNoneMatch?: string;
-}
+} & (
+    | {
+        readonly version?: undefined;
+        readonly at?: undefined;
+        readonly minVersion?: undefined;
+      }
+    | {
+        /** The committed state at this version. */
+        readonly version: number;
+        readonly at?: undefined;
+        readonly minVersion?: undefined;
+      }
+    | {
+        readonly version?: undefined;
+        /** The committed state as of this instant (ISO-8601, or a `Date`). */
+        readonly at: string | Date;
+        readonly minVersion?: undefined;
+      }
+    | {
+        readonly version?: undefined;
+        readonly at?: undefined;
+        /**
+         * The latest state at this version or later (review R4-Q, Q-13: read
+         * your writes), such as the `version` of a command's result: a
+         * lagging snapshot is caught up with the log. One not reached within
+         * the server's wait rejects with 409
+         * `wow.query.min-version-not-reached`, whose `version` is the
+         * current one.
+         */
+        readonly minVersion: number;
+      }
+  );
 
 /**
  * A state read: the snapshot and its entity tag, or `notModified` when the
@@ -78,6 +102,12 @@ export interface StateTraceOptions extends RequestOptions {
   readonly limit?: number;
 }
 
+/** Where the states of an aggregate type are read: the type, and how its service is reached. */
+interface StateRoute {
+  readonly type: AggregateType;
+  readonly options: WowClientOptions;
+}
+
 /**
  * Reads an aggregate type's states:
  * `GET /{context}/{aggregate}/{id}/state` with `?version=`, `?at=` or `?minVersion=`, and
@@ -95,29 +125,33 @@ export class StateClient<
   E extends CommittedEvent = CommittedEvent,
   A = AccessValues,
 > {
+  private readonly route: StateRoute;
+
   /**
    * @param type - The aggregate type
-   * @param client - How the service is reached
+   * @param options - How the service is reached
    */
   constructor(
     readonly type: AggregateType,
-    readonly client: WowClientOptions = {},
-  ) {}
+    options: WowClientOptions = {},
+  ) {
+    this.route = { type, options };
+  }
 
   /** The state the options ask for. */
   read(
     id: string,
     options: StateReadOptions = {},
   ): Promise<StateReadResult<S, A>> {
-    return this.readAt(id, options);
+    return readState(this.route, id, options);
   }
 
   /** The latest state, or the one the options ask for, without a cache. */
   get(
     id: string,
-    options: Omit<StateReadOptions, 'ifNoneMatch'> = {},
+    options: StateReadOptions & { readonly ifNoneMatch?: undefined } = {},
   ): Promise<Snapshot<S, A>> {
-    return this.getAt(id, options);
+    return getState(this.route, id, options);
   }
 
   /**
@@ -128,9 +162,9 @@ export class StateClient<
    */
   find(
     id: string,
-    options: Omit<StateReadOptions, 'ifNoneMatch'> = {},
+    options: StateReadOptions & { readonly ifNoneMatch?: undefined } = {},
   ): Promise<Snapshot<S, A> | undefined> {
-    return this.findAt(id, options);
+    return findState(this.route, id, options);
   }
 
   /** The commits from `from` to `to`, each with its events and the state after it. */
@@ -138,119 +172,7 @@ export class StateClient<
     id: string,
     options: StateTraceOptions = {},
   ): Promise<StateTrace<S, E, A>> {
-    return this.traceAt(id, options);
-  }
-
-  /**
-   * {@link StateClient.read} of the aggregate `id`, or by no id of the
-   * caller's own ({@link OwnStateClient}).
-   */
-  protected async readAt(
-    id: string | undefined,
-    options: StateReadOptions,
-  ): Promise<StateReadResult<S, A>> {
-    const at =
-      options.at instanceof Date ? options.at.toISOString() : options.at;
-    const answer = await send(this.client, {
-      method: 'GET',
-      path: this.statePath(id),
-      query: { version: options.version, at, minVersion: options.minVersion },
-      headers: {
-        [WowHeaders.IF_NONE_MATCH]:
-          options.ifNoneMatch === undefined
-            ? undefined
-            : `"${options.ifNoneMatch}"`,
-      },
-      numbers: { answer: this.stateNumbers },
-      options,
-      notModified: true,
-    });
-    const response = answer.response;
-    if (response.status === 304) {
-      const etag = entityTag(response) ?? options.ifNoneMatch ?? '';
-      return {
-        notModified: true,
-        version: Number.parseInt(etag, 10),
-        etag,
-      };
-    }
-    return {
-      notModified: false,
-      snapshot: await answer.json<Snapshot<S, A>>(),
-      etag: entityTag(response),
-    };
-  }
-
-  /** {@link StateClient.get} of the aggregate `id`, or of the caller's own. */
-  protected async getAt(
-    id: string | undefined,
-    options: Omit<StateReadOptions, 'ifNoneMatch'>,
-  ): Promise<Snapshot<S, A>> {
-    const result = await this.readAt(id, options);
-    if (result.notModified) {
-      throw new Error('A read without If-None-Match was answered 304.');
-    }
-    return result.snapshot;
-  }
-
-  /** {@link StateClient.find} of the aggregate `id`, or of the caller's own. */
-  protected async findAt(
-    id: string | undefined,
-    options: Omit<StateReadOptions, 'ifNoneMatch'>,
-  ): Promise<Snapshot<S, A> | undefined> {
-    try {
-      return await this.getAt(id, options);
-    } catch (error) {
-      if (
-        error instanceof WowProblemError &&
-        error.status === 404 &&
-        error.code === FrameworkErrorCodes.AGGREGATE_NOT_FOUND
-      ) {
-        return undefined;
-      }
-      throw error;
-    }
-  }
-
-  /** {@link StateClient.trace} of the aggregate `id`, or of the caller's own. */
-  protected async traceAt(
-    id: string | undefined,
-    options: StateTraceOptions,
-  ): Promise<StateTrace<S, E, A>> {
-    const answer = await send(this.client, {
-      method: 'GET',
-      path: `${this.statePath(id)}/trace`,
-      query: { from: options.from, to: options.to, limit: options.limit },
-      numbers: { answer: this.traceNumbers },
-      options,
-    });
-    return answer.json<StateTrace<S, E, A>>();
-  }
-
-  /** The exact numbers of a state read: its state's and its access attributes'. */
-  private get stateNumbers(): TextNumbers | undefined {
-    return recordNumbers({
-      state: this.type.textNumbers?.state,
-      access: this.type.textNumbers?.access,
-    });
-  }
-
-  /** The exact numbers of a trace: each commit's state, events and access attributes. */
-  private get traceNumbers(): TextNumbers | undefined {
-    const events = eventNumbers(this.type);
-    const commit = recordNumbers({
-      state: this.type.textNumbers?.state,
-      events: events === undefined ? undefined : { '*': events },
-      access: this.type.textNumbers?.access,
-    });
-    return commit === undefined ? undefined : { commits: { '*': commit } };
-  }
-
-  private statePath(id: string | undefined): string {
-    const base = `/${this.type.context}/${this.type.name}`;
-    return id === undefined
-      ? `${base}/state`
-      : `${base}/${pathSegment(id, 'The aggregate id')}/state`;
+    return traceState(this.route, id, options);
   }
 }
 
@@ -272,16 +194,27 @@ export class OwnStateClient<
   E extends CommittedEvent = CommittedEvent,
   A = AccessValues,
 > extends StateClient<S, E, A> {
+  private readonly own: StateRoute;
+
+  /**
+   * @param type - The aggregate type
+   * @param options - How the service is reached
+   */
+  constructor(type: AggregateType, options: WowClientOptions = {}) {
+    super(type, options);
+    this.own = { type, options };
+  }
+
   /** {@link StateClient.read} of the caller's own aggregate. */
   readOwn(options: StateReadOptions = {}): Promise<StateReadResult<S, A>> {
-    return this.readAt(undefined, options);
+    return readState(this.own, undefined, options);
   }
 
   /** {@link StateClient.get} of the caller's own aggregate. */
   getOwn(
-    options: Omit<StateReadOptions, 'ifNoneMatch'> = {},
+    options: StateReadOptions & { readonly ifNoneMatch?: undefined } = {},
   ): Promise<Snapshot<S, A>> {
-    return this.getAt(undefined, options);
+    return getState(this.own, undefined, options);
   }
 
   /**
@@ -289,13 +222,129 @@ export class OwnStateClient<
    * the caller's first command creates it.
    */
   findOwn(
-    options: Omit<StateReadOptions, 'ifNoneMatch'> = {},
+    options: StateReadOptions & { readonly ifNoneMatch?: undefined } = {},
   ): Promise<Snapshot<S, A> | undefined> {
-    return this.findAt(undefined, options);
+    return findState(this.own, undefined, options);
   }
 
   /** {@link StateClient.trace} of the caller's own aggregate. */
   traceOwn(options: StateTraceOptions = {}): Promise<StateTrace<S, E, A>> {
-    return this.traceAt(undefined, options);
+    return traceState(this.own, undefined, options);
   }
+}
+
+/**
+ * {@link StateClient.read} of the aggregate `id` of `route`, or by no id of
+ * the caller's own ({@link OwnStateClient}).
+ */
+async function readState<S, A>(
+  route: StateRoute,
+  id: string | undefined,
+  options: StateReadOptions,
+): Promise<StateReadResult<S, A>> {
+  const at = options.at instanceof Date ? options.at.toISOString() : options.at;
+  const answer = await send(route.options, {
+    method: 'GET',
+    path: statePath(route.type, id),
+    query: { version: options.version, at, minVersion: options.minVersion },
+    headers: {
+      [WowHeaders.IF_NONE_MATCH]:
+        options.ifNoneMatch === undefined
+          ? undefined
+          : `"${options.ifNoneMatch}"`,
+    },
+    numbers: { answer: stateNumbers(route.type) },
+    options,
+    notModified: true,
+  });
+  const response = answer.response;
+  if (response.status === 304) {
+    const etag = entityTag(response) ?? options.ifNoneMatch ?? '';
+    return {
+      notModified: true,
+      version: Number.parseInt(etag, 10),
+      etag,
+    };
+  }
+  return {
+    notModified: false,
+    snapshot: await answer.json<Snapshot<S, A>>(),
+    etag: entityTag(response),
+  };
+}
+
+/** {@link StateClient.get} of the aggregate `id`, or of the caller's own. */
+async function getState<S, A>(
+  route: StateRoute,
+  id: string | undefined,
+  options: StateReadOptions & { readonly ifNoneMatch?: undefined },
+): Promise<Snapshot<S, A>> {
+  const result = await readState<S, A>(route, id, options);
+  if (result.notModified) {
+    throw new Error('A read without If-None-Match was answered 304.');
+  }
+  return result.snapshot;
+}
+
+/** {@link StateClient.find} of the aggregate `id`, or of the caller's own. */
+async function findState<S, A>(
+  route: StateRoute,
+  id: string | undefined,
+  options: StateReadOptions & { readonly ifNoneMatch?: undefined },
+): Promise<Snapshot<S, A> | undefined> {
+  try {
+    return await getState<S, A>(route, id, options);
+  } catch (error) {
+    if (
+      error instanceof WowProblemError &&
+      error.status === 404 &&
+      error.code === FrameworkErrorCodes.AGGREGATE_NOT_FOUND
+    ) {
+      return undefined;
+    }
+    throw error;
+  }
+}
+
+/** {@link StateClient.trace} of the aggregate `id`, or of the caller's own. */
+async function traceState<S, E extends CommittedEvent, A>(
+  route: StateRoute,
+  id: string | undefined,
+  options: StateTraceOptions,
+): Promise<StateTrace<S, E, A>> {
+  const answer = await send(route.options, {
+    method: 'GET',
+    path: `${statePath(route.type, id)}/trace`,
+    query: { from: options.from, to: options.to, limit: options.limit },
+    numbers: { answer: traceNumbers(route.type) },
+    options,
+  });
+  return answer.json<StateTrace<S, E, A>>();
+}
+
+/** The exact numbers of a state read: its state's and its access attributes'. */
+function stateNumbers(type: AggregateType): TextNumbers | undefined {
+  return recordNumbers({
+    state: type.textNumbers?.state,
+    access: type.textNumbers?.access,
+  });
+}
+
+/** The exact numbers of a trace: each commit's state, events and access attributes. */
+function traceNumbers(type: AggregateType): TextNumbers | undefined {
+  const events = eventNumbers(type);
+  const commit = recordNumbers({
+    state: type.textNumbers?.state,
+    events: events === undefined ? undefined : { '*': events },
+    access: type.textNumbers?.access,
+  });
+  return commit === undefined ? undefined : { commits: { '*': commit } };
+}
+
+/** The state route of `type`: of the aggregate `id`, or of the caller's own. */
+function statePath(type: AggregateType, id: string | undefined): string {
+  const base = `/${type.context}/${type.name}`;
+  return id === undefined
+    ? `${base}/state`
+    : `${base}/${pathSegment(id, 'The aggregate id')}/state`;
 }

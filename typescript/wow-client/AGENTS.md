@@ -53,9 +53,9 @@ src/
   testing.ts      — `/testing` entry: the development caller and the wire builders for a test's fake; loads no test runner
   developmentCaller.ts — DevelopmentCallerHeaders, developmentCaller(Headers): the caller a development run reads (root and /testing)
   testing/wire.ts — commandResultOf, problemOf, problemResponse, snapshotOf
-  wire.ts         — The wire model: CommandResult, Hop, Snapshot, EventStream, …
+  wire.ts         — The wire model: CommandResult, Snapshot, EventStream, …
   problem.ts      — Problem, FrameworkErrorCodes, WowProblemError and its retry hint, toWowProblemError, requestIdOf
-  wait.ts         — wait.* hops, formatWaitPlan, formatWaitTimeout (the Wow-Wait grammar)
+  wait.ts         — Hop (the type and its builders), WaitPlan, formatWaitPlan, formatWaitTimeout (the Wow-Wait grammar)
   http.ts         — WowHeaders, WowClientOptions, RequestOptions, formatScope; (internal) send, path expansion
   answerBound.ts  — (internal) the bound over a command's whole answer, and the `wow.command.unknown` error of an answer lost; the command client's alone
   streams.ts      — CommandResultStream; (internal) the SSE readers of command results and query rows, and their resumption
@@ -65,7 +65,7 @@ src/
   manifest.ts     — The Manifest's types and fetchManifest (GET /wow/manifest)
   dsl/            — The query DSL; imports no client module and no fetcher package
     field.ts, deletionState.ts, sort.ts, projection.ts, pagination.ts, cursorQuery.ts,
-    queryable.ts, documents.ts, queryErrorCodes.ts
+    queryable.ts, documents.ts, queryErrorCodes.ts, violation.ts (Violation, which QueryViolation extends; the root entry exports it)
     descriptor.ts, fieldDescriptor.ts, semanticTypes.ts — The query capability descriptor: the model's, a field's, a field's semantics
     filter/       — `filter.*` (builders.ts, composed of its groups: metadataFilters.ts, logicalFilters.ts, fieldFilters.ts, searchFilter.ts, timeFilters.ts, expressionFilter.ts), FilterExpression and its operators; (internal) validate.ts, scope.ts
     aggregation/  — `aggregation.*` (builders.ts, composed of the builders of each part), `aggregation.having.*`, `aggregation.derived(…)`; by part of the query, each with its types, options, input checks and builders: groups.ts, metrics.ts, derived.ts, having.ts; types.ts: elements, expressions, the query and its limits, whose builders are in builders.ts; (internal) admit.ts, aliases.ts, sort.ts
@@ -122,7 +122,7 @@ export, or a removed one, changes a list, and the change is made on purpose
 with `pnpm exec vitest run test/publicSurface.test.ts -u`. The build runs
 `scripts/verify-package.mjs`, which holds the built entries to the same
 lists, checks that `/dsl` loads no fetcher package, and bundles a probe that
-imports only `readProblem` and `wait` from the root entry and fails if it
+imports only `readProblem` and `Hop` from the root entry and fails if it
 still loads `@ahoo-wang/fetcher` (a control probe importing `CommandClient`
 must load it, so the check cannot pass vacuously), and that `/testing` loads no
 test runner. The build keeps one output

@@ -161,6 +161,15 @@ interface Hop {
 }
 
 // @public
+const Hop: {
+    readonly accepted: (context?: string) => Hop;
+    readonly committed: (context?: string) => Hop;
+    readonly snapshot: (context?: string) => Hop;
+    readonly queryable: (context?: string) => Hop;
+    readonly handled: (subscription: string, context?: string) => Hop;
+};
+
+// @public
 interface Operator {
     // (undocumented)
     readonly actedElsewhere: boolean;
@@ -180,7 +189,7 @@ interface Problem {
     readonly detail?: string;
     readonly extensions?: Readonly<Record<string, unknown>>;
     readonly result?: RefusedResult;
-    readonly retry?: Retry;
+    readonly retry?: RetryAdvice;
     // (undocumented)
     readonly status: number;
     // (undocumented)
@@ -204,7 +213,7 @@ interface RefusedResult<R = Record<string, unknown>> extends Omit<CommandResult<
 }
 
 // @public
-type Retry = 'none' | 'same-request' | 'new-request';
+type RetryAdvice = 'none' | 'same-request' | 'new-request';
 
 // @public
 interface ScheduleRule {

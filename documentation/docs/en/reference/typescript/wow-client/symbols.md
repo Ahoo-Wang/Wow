@@ -9,7 +9,7 @@ description: 'Every name @ahoo-wang/wow-client exports, generated from its TSDoc
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-client test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-client` exports — 135 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 0 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/test/api/root.api.md). This index is English only.
+Every name `@ahoo-wang/wow-client` exports — 129 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 0 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/test/api/root.api.md). This index is English only.
 
 ::: v-pre
 
@@ -36,11 +36,8 @@ Every name `@ahoo-wang/wow-client` exports — 135 — with its kind and the fir
 | `CommitView` | interface | One commit of a state trace: the events of a version and the aggregate after it. | — |
 | `CommittedEvent` | interface | An event as Wow reads it now: under its current name, upgraded to its latest revision. | — |
 | `ContextManifest` | interface | A bounded context: its aggregates, subscriptions, published streams, error codes and job commands. | — |
-| `CountQuery` | interface | A count of a query route. | — |
-| `CountResult` | interface | What a count answers: exact below its limit, else the limit itself. | — |
 | `CreateCommandOptions` | interface | The options of a command that may create its aggregate, with its id or not. | — |
 | `Creation` | type | Whether a command creates its aggregate. | — |
-| `DEFAULT_RETRY` | const | How often, and after how long, a client sends a request again by default when a retry may get past its error, as the Kotlin client does (`RetryPolicy.DEFAULT`): at most `attempts` attempts, the first included, `backoffMs` before the first retry without a `Retry-After`, doubled at each attempt up to `maxWaitMs`. | — |
 | `DatasetClient` | class | The datasets of a Wow service: registered at run time, so not in the Manifest. | — |
 | `DatasetEntry` | interface | One dataset of `GET /wow/dataset`. | — |
 | `DevelopmentCaller` | interface | Who a request comes from, as a development run of a Wow service reads it (`DevelopmentCallerHeaders`). | — |
@@ -59,7 +56,7 @@ Every name `@ahoo-wang/wow-client` exports — 135 — with its kind and the fir
 | `FunctionInfo` | interface | Who produced a result: a function of `kind` in `context`. | — |
 | `FunctionKind` | type, const | A `FunctionKind` value. | — |
 | `FunctionManifest` | interface | The handler function of a subscription. | — |
-| `Hop` | interface | One hop of a wait chain: a stage, in a context (the command's own when absent), of a subscription when the stage is `handled`. | — |
+| `Hop` | interface, const | One hop of a wait chain: a stage, in a context (the command's own when absent), of a subscription when the stage is `handled`. | — |
 | `Including` | type | A query whose projection includes the literal paths `INCLUDE`: a query client narrows its records to them (`Projected`). | — |
 | `JobManifest` | interface | The scheduled job a subscription runs. | — |
 | `LifecycleCommand` | type | A `LifecycleCommands` value. | — |
@@ -81,7 +78,7 @@ Every name `@ahoo-wang/wow-client` exports — 135 — with its kind and the fir
 | `QueryModelClient` | class | Queries one query model of a Wow service: `POST {path}` with a body whose `kind` names the operation, `GET {path}` for the capability descriptor. | — |
 | `RefusedResult` | interface | A result that may not have succeeded, as a rejection or a problem carries it (`CommandRejectedError.result`, `WowProblemError.result`): a command refused before an aggregate id was decided names none (`CommandRef`). | — |
 | `RequestOptions` | interface | What every request may carry beside its own parameters. | — |
-| `Retry` | type | What a retry of a request answered with an error may do, as the error catalog declares it for the error's code and every problem carries it (`retry`): `none`, a retry fails alike; `same-request`, send it again with the same request id (`Wow-Request-Id`), so a command that did commit is answered as its duplicate; `new-request`, send it again as it is. | — |
+| `RetryAdvice` | type | What a retry of a request answered with an error may do, as the error catalog declares it for the error's code and every problem carries it (`retry`): `none`, a retry fails alike; `same-request`, send it again with the same request id (`Wow-Request-Id`), so a command that did commit is answered as its duplicate; `new-request`, send it again as it is. | — |
 | `RetryManifest` | interface | A subscription's retry budget. | — |
 | `RouteManifest` | interface | A route of the edge: a method and a path, {id} the aggregate id. | — |
 | `RouteParameterManifest` | interface | A path variable or query parameter of a service route, and its scalar schema. | — |
@@ -104,7 +101,7 @@ Every name `@ahoo-wang/wow-client` exports — 135 — with its kind and the fir
 | `Stage` | type, const | A `Stage` value. | — |
 | `StateClient` | class | Reads an aggregate type's states: `GET /{context}/{aggregate}/{id}/state` with `?version=`, `?at=` or `?minVersion=`, and its trace, `…/state/trace`; `OwnStateClient` reads the caller's own of a type whose id is its owner's. | — |
 | `StateManifest` | interface | An aggregate's state: its schema, the fingerprint of its shape and, in a contract, its view. | — |
-| `StateReadOptions` | interface | Which state a read asks for: the latest, at a version or as of a time. | — |
+| `StateReadOptions` | type | Which state a read asks for, one way at most: the latest; the committed state at a `version`; the committed state as of a time, `at`; or the latest at `minVersion` or later. | — |
 | `StateReadResult` | type | A state read: the snapshot and its entity tag, or `notModified` when the state held is current, with its tag and the version the tag names. | — |
 | `StateTrace` | interface | What `GET /{context}/{aggregate}/{id}/state/trace` answers: the aggregate and its commits in version order. | — |
 | `StateTraceOptions` | interface | Which commits a trace reads. | — |
@@ -118,16 +115,15 @@ Every name `@ahoo-wang/wow-client` exports — 135 — with its kind and the fir
 | `TargetScope` | interface | The scope a caller allowed to act across scopes acts in: the `Wow-Scope` header. | — |
 | `TextNumbers` | type | Which numbers of a JSON value a client reads and writes as their exact text: an `int64`, `bigint` or `decimal` field of a Manifest, which JavaScript's `number` would round. | — |
 | `TextNumbersByName` | interface | The marks of an object chosen by the value of one of its members: `textNumbersBy`. | — |
-| `TextNumbersOr` | interface | A number read exactly, or an object or array marked as given: `textNumberOr`. | — |
+| `TextNumbersOr` | interface | A number read exactly, or an object or array marked as given: `textNumbersOr`. | — |
 | `TransferOwner` | interface | The body of `wow.lifecycle.TransferOwner`. | — |
 | `TransferSpace` | interface | The body of `wow.lifecycle.TransferSpace`. | — |
 | `TransformedFrom` | interface | The command a request named before a transformer turned it into the one that ran. | — |
-| `Violation` | interface | A field-level validation error. | — |
+| `Violation` | interface | Why a request broke a rule, one field or part at a time: a command's body that failed its validation, or a query the server refused (`QueryViolation` narrows its `code`). | — |
 | `WaitPlan` | class | How far a command is waited for, and for how long: the hops, in order, and a timeout in milliseconds. | — |
 | `WowClientOptions` | interface | How a client reaches its service. | — |
 | `WowHeaders` | const | The request headers of a Wow service's public port. | — |
 | `WowProblemError` | class | A request a Wow service answered with a problem: a non-2xx response, a command result that did not succeed, or the `error` event that ends a streamed query. | — |
-| `checkManifest` | function | Checks that this client can read `manifest`: its format, and every marker it requires. | — |
 | `developmentCaller` | function | A request interceptor that sends every request as `caller`, by the headers a development run reads (`developmentCallerHeaders`): a fetcher that uses it asks as that caller, as a host's CoSec interceptors send its token. | — |
 | `developmentCallerHeaders` | function | The headers that name `caller` to a development run: only those it sets. | — |
 | `fetchManifest` | function | The service's Manifest, `GET /wow/manifest`, authorized as any API. | — |
@@ -141,14 +137,12 @@ Every name `@ahoo-wang/wow-client` exports — 135 — with its kind and the fir
 | `parseJson` | function | `text` read as `JSON.parse` reads it, but each number `marks` marks comes back as its exact text, a string. | — |
 | `parseRetryAfter` | function | The milliseconds of a `Retry-After` header: delay seconds (`1*DIGIT`) or an HTTP date (RFC 9110 §10.2.3); undefined for anything else, a fraction or a negative number among them, as the Kotlin client reads it, so the error catalog's wait applies rather than none. | — |
 | `parseWaitPlan` | function | The plan a `Wow-Wait` value spells, as the service reads it: hops separated by `>`, each `accepted`, `committed`, `snapshot`, `queryable` or `handled(subscription)`, with its context in parentheses (`committed(ctx)`, `handled(ctx/subscription)`); the inverse of `formatWaitPlan`. | — |
-| `queryPath` | function | The query route of a model of an aggregate type. | — |
 | `readProblem` | function | The problem a response that did not succeed carries: its body when it is a problem (or a code the `type` names), else one made of its status. | — |
 | `requestIdOf` | function | The request id (`Wow-Request-Id`) a command that failed with `error` was sent with: also after a failure no server answered (the network, a proxy, an abort), so the command can be retried with the same id and the service answers a commit that did happen as a duplicate. | — |
 | `retryOf` | function | What a retry of `problem` may do: its `retry` member, which every problem a Wow service writes carries, when it is one this client knows (a value a newer service added is read as absent, as the Kotlin client reads it); else the error catalog's for its code; else, for a body that is no Wow problem, `same-request` when it is a proxy's 503 or 429, which nothing behind it handled, or a gateway's 502 or 504: the gateway does not say whether the node behind it took the command and committed it, and the same request id is safe either way, a command that did commit answered as the duplicate it is. | — |
 | `stringifyJson` | function | `value` written as `JSON.stringify` writes it, but each string `marks` marks goes on the wire as the JSON number it spells, unquoted: `{"price": "19.99"}` marked `{price: true}` is `{"price":19.99}`. | — |
-| `textNumberOr` | function | The marks of a value that is either an exact number or an object or array marked `marks`: `textNumberOr({ amount: true })` reads `12.50` and `{ "amount": 12.50 }` both as their text. | — |
 | `textNumbersBy` | function | The marks of an object chosen by the string value of its member `discriminant`: `textNumbersBy('name', { 'shop.cart.ItemAdded': { body: { price: true } } })` reads an event by its name. | — |
+| `textNumbersOr` | function | The marks of a value that is either an exact number or an object or array marked `marks`: `textNumbersOr({ amount: true })` reads `12.50` and `{ "amount": 12.50 }` both as their text. | — |
 | `toWowProblemError` | function | The `WowProblemError` of an error a request rejected with: the fetcher's `ExchangeError` of a response that is not 2xx, read as a problem. | — |
-| `wait` | const | Builds the hops of a wait chain. | — |
 
 :::

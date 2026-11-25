@@ -14,9 +14,9 @@
 import { Fetcher } from '@ahoo-wang/fetcher';
 import {
   CommandClient,
+  Hop,
   MANIFEST_FORMAT,
   type RoutingManifest,
-  wait,
   WaitPlan,
 } from '@ahoo-wang/wow-client';
 import { queryRoute, routeSource } from './recordedWowService.js';
@@ -502,7 +502,7 @@ export function compensationCommands(fetcher: Fetcher) {
       command: `${CONTEXT}.${AGGREGATE}.${command}`,
       body,
       id,
-      wait: WaitPlan.of(wait.snapshot(CONTEXT)),
+      wait: WaitPlan.of(Hop.snapshot(CONTEXT)),
     });
   };
   return {

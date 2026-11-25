@@ -22,7 +22,7 @@ export class OpsClient {
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {
     this.commands = new CommandClient(options, {
-      manifest: OpsManifest, bodyNumbers: {
+      manifest: OpsManifest, textNumbers: {
         'ops.parked.ApplyRetrySpec': ParkedAggregate.textNumbers.commands.ApplyRetrySpec,
         'ops.parked.MarkRecoverable': ParkedAggregate.textNumbers.commands.MarkRecoverable,
         'ops.parked.Retry': ParkedAggregate.textNumbers.commands.Retry,

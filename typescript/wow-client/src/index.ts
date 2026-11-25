@@ -35,7 +35,7 @@ export {
 export {
   parseJson,
   stringifyJson,
-  textNumberOr,
+  textNumbersOr,
   type TextNumbers,
   textNumbersBy,
   type TextNumbersByName,
@@ -55,7 +55,6 @@ export {
   WowHeaders,
 } from './http.js';
 export {
-  checkManifest,
   type Creation,
   fetchManifest,
   MANIFEST_FEATURES,
@@ -68,7 +67,6 @@ export type * from './manifestTypes.js';
 export * from './wire.js';
 export {
   CommandRejectedError,
-  DEFAULT_RETRY,
   FRAMEWORK_ERROR_PREFIX,
   FRAMEWORK_RETRIES,
   type FrameworkRetry,
@@ -80,20 +78,17 @@ export {
   PROBLEM_TYPE_PREFIX,
   readProblem,
   requestIdOf,
-  type Retry,
+  type RetryAdvice,
   retryOf,
   toWowProblemError,
   WowProblemError,
 } from './problem.js';
 export {
-  type CountQuery,
-  type CountResult,
   DatasetClient,
   EventQueryClient,
   type StreamOptions,
   type Including,
   QueryModelClient,
-  queryPath,
   SnapshotQueryClient,
 } from './queries.js';
 export {
@@ -114,10 +109,10 @@ export {
   formatHop,
   formatWaitPlan,
   formatWaitTimeout,
+  Hop,
   parseHop,
   parseWaitPlan,
   QUERYABLE_SUBSCRIPTION,
   SNAPSHOT_SUBSCRIPTION,
-  wait,
   WaitPlan,
 } from './wait.js';

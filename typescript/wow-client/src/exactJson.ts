@@ -27,8 +27,8 @@ import type { AggregateType } from './wire.js';
  * - Lazy, `() => marks`: marks read only when a value reaches them, for a
  *   recursive type — `const tree: TextNumbers = { amount: true, children:
  *   { '*': () => tree } }`.
- * - {@link textNumberOr}: a number read exactly, or an object or array
- *   marked as given — `textNumberOr({ amount: true })` for a `decimal |
+ * - {@link textNumbersOr}: a number read exactly, or an object or array
+ *   marked as given — `textNumbersOr({ amount: true })` for a `decimal |
  *   { amount: decimal }`.
  * - {@link textNumbersBy}: the marks of an object chosen by the string value
  *   of one of its members — `textNumbersBy('kind', { decimal: { amount: true
@@ -42,12 +42,12 @@ export type TextNumbers =
   | { readonly [member: string]: TextNumbers };
 
 /** The key of a {@link TextNumbersOr}: a symbol, so no member name is mistaken for it. */
-const OR: unique symbol = Symbol('wow.textNumberOr');
+const OR: unique symbol = Symbol('wow.textNumbersOr');
 
 /** The key of a {@link TextNumbersByName}: a symbol, so no member name is mistaken for it. */
 const BY: unique symbol = Symbol('wow.textNumbersBy');
 
-/** A number read exactly, or an object or array marked as given: {@link textNumberOr}. */
+/** A number read exactly, or an object or array marked as given: {@link textNumbersOr}. */
 export interface TextNumbersOr {
   readonly [OR]: TextNumbers;
 }
@@ -62,10 +62,10 @@ export interface TextNumbersByName {
 
 /**
  * The marks of a value that is either an exact number or an object or array
- * marked `marks`: `textNumberOr({ amount: true })` reads `12.50` and
+ * marked `marks`: `textNumbersOr({ amount: true })` reads `12.50` and
  * `{ "amount": 12.50 }` both as their text.
  */
-export function textNumberOr(marks: TextNumbers): TextNumbersOr {
+export function textNumbersOr(marks: TextNumbers): TextNumbersOr {
   return { [OR]: marks };
 }
 
@@ -102,7 +102,7 @@ class Captured {
 
 /**
  * The marks of a value of one kind, a number or else an object or array:
- * lazy marks read, and the side of a {@link textNumberOr} that kind takes.
+ * lazy marks read, and the side of a {@link textNumbersOr} that kind takes.
  */
 function kind(
   marks: TextNumbers | undefined,
@@ -474,7 +474,7 @@ function replace(
 /**
  * Whether `marks` mark the value at the dotted `path` as an exact number
  * (internal): the path's members in turn, through an array's items (`*`),
- * a lazy mark followed, the object side of a {@link textNumberOr}. A path
+ * a lazy mark followed, the object side of a {@link textNumbersOr}. A path
  * through a {@link textNumbersBy}, whose case only a value names, is not
  * known to be marked.
  *

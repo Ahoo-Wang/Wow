@@ -24,7 +24,7 @@ import {
   parseJson,
   StateClient,
   stringifyJson,
-  textNumberOr,
+  textNumbersOr,
   type TextNumbers,
   textNumbersBy,
 } from '../src/index.js';
@@ -103,7 +103,7 @@ describe('exact numbers', () => {
   });
 
   it('keep a number or an object of numbers, whichever a value is', () => {
-    const marks: TextNumbers = { price: textNumberOr({ amount: true }) };
+    const marks: TextNumbers = { price: textNumbersOr({ amount: true }) };
     expect(roundTrip(`{"price":${DECIMAL}}`, marks)).toStrictEqual({
       price: DECIMAL,
     });
@@ -111,7 +111,7 @@ describe('exact numbers', () => {
       price: { amount: DECIMAL },
     });
     expect(
-      roundTrip(`{"price":[${LONG}]}`, { price: textNumberOr({ '*': true }) }),
+      roundTrip(`{"price":[${LONG}]}`, { price: textNumbersOr({ '*': true }) }),
     ).toStrictEqual({ price: [LONG] });
   });
 

@@ -120,7 +120,7 @@ export function emitContract(
 ): void {
   const module = modules.module(`${context.directory}/contract.ts`);
   const contract = `${context.typeName}Contract`;
-  module.imports.add(WOW_CLIENT, ['Hop', 'wait']);
+  module.imports.add(WOW_CLIENT, ['Hop']);
   for (const aggregate of context.aggregates) {
     module.imports.add(
       relativeModuleSpecifier(
@@ -154,14 +154,14 @@ export function emitContract(
   }
   const name = `${contract}.NAME`;
   const hops = [
-    `${doc([`Until a command of \`${context.name}\` passed admission.`], '  ')}  accepted: (): Hop => wait.accepted(${name}),`,
-    `${doc([`Until a command's events are appended to the log of \`${context.name}\`.`], '  ')}  committed: (): Hop => wait.committed(${name}),`,
-    `${doc([`Until the snapshot of \`${context.name}\` holds the commit.`], '  ')}  snapshot: (): Hop => wait.snapshot(${name}),`,
-    `${doc([`Until the store the snapshot queries of \`${context.name}\` read holds the commit.`], '  ')}  queryable: (): Hop => wait.queryable(${name}),`,
+    `${doc([`Until a command of \`${context.name}\` passed admission.`], '  ')}  accepted: (): Hop => Hop.accepted(${name}),`,
+    `${doc([`Until a command's events are appended to the log of \`${context.name}\`.`], '  ')}  committed: (): Hop => Hop.committed(${name}),`,
+    `${doc([`Until the snapshot of \`${context.name}\` holds the commit.`], '  ')}  snapshot: (): Hop => Hop.snapshot(${name}),`,
+    `${doc([`Until the store the snapshot queries of \`${context.name}\` read holds the commit.`], '  ')}  queryable: (): Hop => Hop.queryable(${name}),`,
   ];
   if (hasSubscriptions) {
     hops.push(
-      `${doc([`Until a subscription of \`${context.name}\` handled the commit.`], '  ')}  handled: (subscription: ${context.typeName}Subscription): Hop => wait.handled(subscription, ${name}),`,
+      `${doc([`Until a subscription of \`${context.name}\` handled the commit.`], '  ')}  handled: (subscription: ${context.typeName}Subscription): Hop => Hop.handled(subscription, ${name}),`,
     );
   }
   addStatement(

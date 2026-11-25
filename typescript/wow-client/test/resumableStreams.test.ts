@@ -186,7 +186,7 @@ describe('resumable query streams (decision D253)', () => {
         ),
     );
     const stream = await new EventQueryClient(PRODUCT, client()).stream(query, {
-      resume: { initialDelayMs: 100, maxDelayMs: 150 },
+      resume: { backoffMs: 100, maxRetryAfterMs: 150 },
     });
     expect(ids(await readAll(stream))).toEqual(['p1', 'p2', 'p3', 'p4']);
     expect(lastEventIds(requests).slice(0, 4)).toEqual([
@@ -210,7 +210,7 @@ describe('resumable query streams (decision D253)', () => {
     );
     const stream = await new SnapshotQueryClient(PRODUCT, client()).stream(
       query,
-      { resume: { initialDelayMs: 10 } },
+      { resume: { backoffMs: 10 } },
     );
     expect(ids(await readAll(stream))).toEqual(['p1', 'p2']);
     expect(lastEventIds(requests)).toEqual([null, 'p1', 'p1']);
@@ -243,7 +243,7 @@ describe('resumable query streams (decision D253)', () => {
     );
     const patient = await new SnapshotQueryClient(PRODUCT, client()).stream(
       query,
-      { resume: { maxDelayMs: 60_000 } },
+      { resume: { maxRetryAfterMs: 60_000 } },
     );
     expect(ids(await readAll(patient))).toEqual(['p1', 'p2']);
     expect(delays).toContain(30_000);
@@ -257,7 +257,7 @@ describe('resumable query streams (decision D253)', () => {
     );
     const stream = await new SnapshotQueryClient(PRODUCT, client()).stream(
       query,
-      { resume: { maxRetries: 2 } },
+      { resume: { maxAttempts: 3 } },
     );
     const read: unknown[] = [];
     const failure = await (async () => {
@@ -419,7 +419,7 @@ describe('resumable query streams (decision D253)', () => {
     answers(() => sseResponse(row('p1')));
     const cut = await failureOf(
       await new SnapshotQueryClient(PRODUCT, client()).stream(query, {
-        resume: { maxRetries: 0 },
+        resume: { maxAttempts: 1 },
       }),
     );
     expect(cut).toBeInstanceOf(WowProblemError);
@@ -431,7 +431,7 @@ describe('resumable query streams (decision D253)', () => {
     answers(() => dropped(row('p1')));
     const lost = await failureOf(
       await new SnapshotQueryClient(PRODUCT, client()).stream(query, {
-        resume: { maxRetries: 0 },
+        resume: { maxAttempts: 1 },
       }),
     );
     expect(lost).toBeInstanceOf(WowProblemError);
@@ -450,7 +450,7 @@ describe('resumable query streams (decision D253)', () => {
     });
     const refused = await failureOf(
       await new SnapshotQueryClient(PRODUCT, client()).stream(query, {
-        resume: { maxRetries: 1, initialDelayMs: 0 },
+        resume: { maxAttempts: 2, backoffMs: 0 },
       }),
     );
     expect(refused).toMatchObject({ code: 'wow.peer.unavailable' });
@@ -621,7 +621,7 @@ describe('resumable query streams (decision D253)', () => {
     );
     const reader = (
       await new SnapshotQueryClient(PRODUCT, client()).stream(query, {
-        resume: { initialDelayMs: 750 },
+        resume: { backoffMs: 750 },
       })
     ).getReader();
     await reader.read();

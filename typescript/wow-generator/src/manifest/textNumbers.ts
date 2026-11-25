@@ -268,7 +268,7 @@ export class TextNumbers {
           if (shape !== undefined) cases[value] = shape;
           return;
         }
-        // Only its own number can go beside the cases (textNumberOr); what
+        // Only its own number can go beside the cases (textNumbersOr); what
         // else it holds may reach a type still being read: asked later.
         if (shape !== undefined) {
           this.setAside.push({
