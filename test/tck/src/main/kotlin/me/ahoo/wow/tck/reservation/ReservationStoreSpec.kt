@@ -405,14 +405,14 @@ abstract class ReservationStoreSpec {
     protected companion object {
         val TTL = 30.seconds
         val LONG_AFTER = 3650.days
-        const val CONTENDERS = 16
-        const val CONTEXT = "tck"
+        private const val CONTENDERS = 16
+        private const val CONTEXT = "tck"
 
         /** The aggregate type whose keys most cases reserve. */
         val USER = AggregateType(CONTEXT, "user")
-        const val TENANT = "tenant-a"
-        const val H1 = "hold-1"
-        const val H2 = "hold-2"
-        const val H3 = "hold-3"
+        private const val TENANT = "tenant-a"
+        private const val H1 = "hold-1"
+        private const val H2 = "hold-2"
+        private const val H3 = "hold-3"
     }
 }

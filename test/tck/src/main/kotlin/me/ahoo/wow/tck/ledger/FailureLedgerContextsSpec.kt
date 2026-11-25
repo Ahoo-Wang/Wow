@@ -157,9 +157,9 @@ abstract class FailureLedgerContextsSpec {
     }
 
     protected companion object {
-        const val NAME = "Board.onOrder"
-        const val PARTITION = 1
-        const val FAILED_AT = 1_700_000_000_000L
+        private const val NAME = "Board.onOrder"
+        private const val PARTITION = 1
+        internal const val FAILED_AT = 1_700_000_000_000L
         val SPEC = ParkedRetrySpec(maxRetries = 4, initialBackoff = 2.minutes, claimTtl = 2.minutes)
     }
 }

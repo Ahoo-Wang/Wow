@@ -526,8 +526,8 @@ abstract class SnapshotStoreSpec {
     }
 
     protected companion object {
-        const val CONTEXT_SUFFIX = 12
-        const val CONCURRENT_VERSIONS = 32
-        const val FIRST_EVENT_TIME = 1_700_000_000_000L
+        private const val CONTEXT_SUFFIX = 12
+        private const val CONCURRENT_VERSIONS = 32
+        private const val FIRST_EVENT_TIME = 1_700_000_000_000L
     }
 }

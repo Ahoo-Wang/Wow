@@ -119,6 +119,7 @@ class LedgerSimulator(manifest: Manifest, private val topics: InMemoryTopics) {
  *
  * It lives in the server's test classes only: nothing of it ships.
  */
+@OptIn(InternalWowApi::class) // refuses the ledger's commands as their service does (CommandWire)
 @Configuration(proxyBeanMethods = false)
 class LedgerSimulatorRoutes {
     @Bean

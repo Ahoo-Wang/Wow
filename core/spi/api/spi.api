@@ -1921,18 +1921,6 @@ public final class me/ahoo/wow/spi/transport/Envelope$Companion {
 	public static synthetic fun of$default (Lme/ahoo/wow/spi/transport/Envelope$Companion;Lme/ahoo/wow/spi/transport/EnvelopeKind;Ljava/lang/String;Ljava/lang/String;Ltools/jackson/databind/JsonNode;Lme/ahoo/wow/spi/log/Transport;IILjava/lang/Object;)Lme/ahoo/wow/spi/transport/Envelope;
 }
 
-public final class me/ahoo/wow/spi/transport/EnvelopeCodec {
-	public static final field INSTANCE Lme/ahoo/wow/spi/transport/EnvelopeCodec;
-	public final fun decode ([B)Lme/ahoo/wow/spi/transport/Envelope;
-	public final fun encode (Lme/ahoo/wow/spi/transport/Envelope;)[B
-	public final fun headers (Lme/ahoo/wow/spi/transport/Envelope;)Ljava/util/Map;
-	public final fun message (Ljava/lang/String;Lme/ahoo/wow/spi/transport/Envelope;)Lme/ahoo/wow/spi/transport/TopicMessage;
-	public final fun message (Lme/ahoo/wow/spi/state/StateEventRecord;)Lme/ahoo/wow/spi/transport/TopicMessage;
-	public final fun stateEvent (Lme/ahoo/wow/spi/state/StateEventRecord;)Lme/ahoo/wow/spi/transport/Envelope;
-	public final fun stateEventOf (Lme/ahoo/wow/spi/transport/Envelope;)Lme/ahoo/wow/spi/state/StateEventRecord;
-	public final fun stateEventOf ([B)Lme/ahoo/wow/spi/state/StateEventRecord;
-}
-
 public final class me/ahoo/wow/spi/transport/EnvelopeHeaders {
 	public static final field FORMAT Ljava/lang/String;
 	public static final field INSTANCE Lme/ahoo/wow/spi/transport/EnvelopeHeaders;

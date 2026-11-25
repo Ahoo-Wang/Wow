@@ -70,8 +70,12 @@ class CallerFactsPathsTest {
         val facts = mapOf(RequestFacts.APP_ID to "app-a")
         runBlocking {
             node.gateway.execute(
-                ServerCommandRequest.builder(AddItem("apple"), cartModel.type.ref(TENANT, "c-4")).caller(caller)
-                    .headers(forged).build(),
+                ServerCommandRequest.of(
+                    AddItem("apple"),
+                    cartModel.type.ref(TENANT, "c-4"),
+                    caller = caller,
+                    headers = forged,
+                ),
             )
         }.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         node.commands.last().headers.assert().isEqualTo(facts)

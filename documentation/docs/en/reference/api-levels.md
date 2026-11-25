@@ -221,7 +221,6 @@ The two lists below are generated from the sources of the published modules: the
 | `me.ahoo.wow.spi.transport.EnvelopeKind` | class | `wow-spi` |
 | `me.ahoo.wow.spi.transport.Envelope` | class | `wow-spi` |
 | `me.ahoo.wow.spi.transport.EnvelopeHeaders` | object | `wow-spi` |
-| `me.ahoo.wow.spi.transport.EnvelopeCodec` | object | `wow-spi` |
 | `me.ahoo.wow.spi.transport.SourceMessage` | class | `wow-spi` |
 | `me.ahoo.wow.spi.transport.PartitionOffsets` | class | `wow-spi` |
 | `me.ahoo.wow.spi.transport.PartitionedSource` | interface | `wow-spi` |

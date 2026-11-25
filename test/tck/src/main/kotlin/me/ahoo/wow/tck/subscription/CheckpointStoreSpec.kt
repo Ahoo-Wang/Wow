@@ -172,8 +172,8 @@ abstract class CheckpointStoreSpec {
     }
 
     protected companion object {
-        const val BATCH_PARTITIONS = 4
-        const val GROUP_SUFFIX = 12
-        const val CONCURRENT_SAVES = 64L
+        private const val BATCH_PARTITIONS = 4
+        internal const val GROUP_SUFFIX = 12
+        private const val CONCURRENT_SAVES = 64L
     }
 }

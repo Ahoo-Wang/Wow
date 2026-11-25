@@ -32,6 +32,7 @@ import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.kernel.contextOf
 import me.ahoo.wow.kernel.schedule.JobState
 import me.ahoo.wow.kernel.schedule.ScheduleJob
+import me.ahoo.wow.kernel.schedule.jobStateOf
 import me.ahoo.wow.manifest.JobManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestTree
@@ -103,7 +104,7 @@ class ScheduleJobBindingTest {
         commandType = ScheduleJobs.TICK_JOB,
         commitTime = 0,
         events = listOf(JobTicked("$ref#tick@1", slot, 0, 0)),
-        state = JobState().apply { this.job = job },
+        state = jobStateOf(job),
     )
 
     @Test

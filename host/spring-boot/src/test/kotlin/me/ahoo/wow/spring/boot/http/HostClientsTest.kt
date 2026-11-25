@@ -31,7 +31,6 @@ import me.ahoo.wow.api.read.NodeQueryApi
 import me.ahoo.wow.api.read.SubscriptionQueries
 import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.api.result.CommandResult
-import me.ahoo.wow.client.ClientMode
 import me.ahoo.wow.client.EndpointResolver
 import me.ahoo.wow.client.ForwardedHeaders
 import me.ahoo.wow.client.HttpCommandCaller
@@ -104,21 +103,16 @@ class HostClientsTest {
         mapOf(BANK to URI.create("http://127.0.0.1:${bank.internalPort}")),
     )
 
-    private fun client(mode: ClientMode) = lazy {
-        WowClient.builder().endpoints(endpoints).contracts(contracts.fragments).apply {
-            when (mode) {
-                is ClientMode.Service -> service(checkNotNull(mode.service))
-                is ClientMode.User -> user(mode.credential)
-            }
-        }.build()
+    private fun client(mode: WowClient.Builder.() -> Unit) = lazy {
+        WowClient.builder().endpoints(endpoints).contracts(contracts.fragments).apply(mode).build()
     }
 
     private fun peers(mode: PeerMode = PeerMode.SERVICE) = PeerClients(
         mapOf(BANK to mode),
         contracts.localContexts,
         contracts.peerContexts,
-        client(ClientMode.Service(SERVICE)),
-        client(ClientMode.User(UserCredential.FORWARDED)),
+        client { service(SERVICE) },
+        client { user(UserCredential.FORWARDED) },
         mode,
         SERVICE,
     )
@@ -289,21 +283,17 @@ class HostClientsTest {
     fun `a peer described by its Manifest alone should take named commands, in either mode`(): Unit = runBlocking {
         // No contract of the bank on the class path: its Manifest, read from the bank, is all the client knows.
         val none = ContractDirectory(Manifest(), emptyList())
-        fun client(mode: ClientMode) = lazy {
-            WowClient.builder().endpoints(endpoints).contracts(none.fragments).manifestPeers(setOf(BANK)).apply {
-                when (mode) {
-                    is ClientMode.Service -> service(checkNotNull(mode.service))
-                    is ClientMode.User -> user(mode.credential)
-                }
-            }.build()
+        fun client(mode: WowClient.Builder.() -> Unit) = lazy {
+            WowClient.builder().endpoints(endpoints).contracts(none.fragments).manifestPeers(setOf(BANK)).apply(mode)
+                .build()
         }
         listOf(PeerMode.SERVICE, PeerMode.USER).forEach { mode ->
             val peers = PeerClients(
                 mapOf(BANK to mode),
                 none.localContexts,
                 none.peerContexts,
-                client(ClientMode.Service(SERVICE)),
-                client(ClientMode.User(UserCredential.FORWARDED)),
+                client { service(SERVICE) },
+                client { user(UserCredential.FORWARDED) },
                 mode,
                 SERVICE,
                 described = setOf(BANK),

@@ -139,10 +139,10 @@ class ProcessorSpec internal constructor(
     private val tree: TestTree? = null,
 ) {
     /**
-     * A specification of [handlers], of the [kind] given. It differs from the primary constructor in taking no fork
-     * origin and no test tree, which is an internal type a public constructor cannot take.
+     * A specification of [handlers], of the [kind] given, without a fork origin or a test tree; a test builds one
+     * with `sagaSpec` or the other processor DSLs.
      */
-    constructor(handlers: List<ProcessorBinding<*>>, kind: FunctionKind) : this(handlers, kind, null, null)
+    internal constructor(handlers: List<ProcessorBinding<*>>, kind: FunctionKind) : this(handlers, kind, null, null)
 
     /**
      * Assigns a command whose ref a handler leaves out its aggregate type, as the service would:

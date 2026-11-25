@@ -154,13 +154,12 @@ class PeerCommandsTest {
         item: String? = "i-1",
         wait: WaitPlan? = WaitPlan.COMMITTED.within(10.seconds),
         caller: Caller = clerk,
-    ) = ServerCommandRequest.builder(
+    ) = ServerCommandRequest.of(
         Reserve(quantity),
-        if (item == null) ITEM.unassigned(TENANT) else ITEM.ref(TENANT, item)
+        if (item == null) ITEM.unassigned(TENANT) else ITEM.ref(TENANT, item),
+        caller = caller,
+        wait = wait,
     )
-        .caller(caller)
-        .wait(wait)
-        .build()
 
     @Test
     fun `a peer's command should go through its command topic and answer at ACCEPTED once durable`(): Unit =
@@ -203,11 +202,15 @@ class PeerCommandsTest {
         defaulted.hop.assert().isEqualTo(Hop.committed(STOCK))
         defaulted.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         // A JSON body names the command, as an edge's request does: the same path.
-        val json = ServerCommandRequest.builder(STOCK, "item", "Reserve", CommandBody.of("""{"quantity":1}"""))
-            .caller(clerk)
-            .aggregateId("i-4")
-            .wait(WaitPlan.COMMITTED)
-            .build()
+        val json = ServerCommandRequest.of(
+            STOCK,
+            "item",
+            "Reserve",
+            CommandBody.of("""{"quantity":1}"""),
+            caller = clerk,
+            aggregateId = "i-4",
+            wait = WaitPlan.COMMITTED,
+        )
         sales.gateway.execute(json).status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
     }
 
@@ -226,11 +229,15 @@ class PeerCommandsTest {
         runBlocking {
             val sales = started()
             fun restock(body: String, item: String? = null) =
-                ServerCommandRequest.builder(STOCK, "item", "Restock", CommandBody.of(body))
-                    .caller(clerk)
-                    .aggregateId(item)
-                    .wait(WaitPlan.ACCEPTED)
-                    .build()
+                ServerCommandRequest.of(
+                    STOCK,
+                    "item",
+                    "Restock",
+                    CommandBody.of(body),
+                    caller = clerk,
+                    aggregateId = item,
+                    wait = WaitPlan.ACCEPTED,
+                )
             val accepted = sales.gateway.execute(restock("""{"item":"i-7","quantity":2}"""))
             accepted.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
             accepted.ref.assert().isEqualTo(ITEM.ref(TENANT, "i-7"))
@@ -279,17 +286,24 @@ class PeerCommandsTest {
         sales.gateway.execute(reserve(1, caller = Caller(TENANT, Scope("m"), subject = "mallory")))
             .error!!.code.assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
         sales.gateway.execute(
-            ServerCommandRequest.builder(
+            ServerCommandRequest.of(
                 Reserve(1),
-                ITEM.ref(TENANT, "i")
-            ).caller(clerk).targetScope(TargetScope(TENANT, Scope("x")))
-                .build(),
+                ITEM.ref(TENANT, "i"),
+                caller = clerk,
+                targetScope = TargetScope(TENANT, Scope("x")),
+            ),
         ).error!!.code.assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
-        sales.gateway.execute(ServerCommandRequest.builder(Reserve(1), ITEM.ref("other", "i")).caller(clerk).build())
+        sales.gateway.execute(ServerCommandRequest.of(Reserve(1), ITEM.ref("other", "i"), caller = clerk))
             .error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
         sales.gateway.execute(
-            ServerCommandRequest.builder(STOCK, "item", "Reserve", CommandBody.of("""{"quantity":"many"}"""))
-                .caller(clerk).aggregateId("i").build(),
+            ServerCommandRequest.of(
+                STOCK,
+                "item",
+                "Reserve",
+                CommandBody.of("""{"quantity":"many"}"""),
+                caller = clerk,
+                aggregateId = "i",
+            ),
         ).error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
         val call = CallContext.of("c-1", TENANT, Scope.NONE, me.ahoo.wow.api.decide.Causation("r", "r"))
         sales.gateway.execute(
@@ -319,14 +333,21 @@ class PeerCommandsTest {
         runBlocking {
             val sales = started()
             // By its system name, as a route names it, and as a command object, as a client builds it.
-            val byName = ServerCommandRequest.builder(
+            val byName = ServerCommandRequest.of(
                 STOCK,
                 "item",
                 Lifecycle.TRANSFER_OWNER,
                 CommandBody.Value(TransferOwner("bob")),
-            ).caller(clerk).aggregateId("i-1").wait(WaitPlan.ACCEPTED).build()
-            val byObject = ServerCommandRequest.builder(TransferOwner("carol"), ITEM.ref(TENANT, "i-2"))
-                .caller(clerk).wait(WaitPlan.ACCEPTED).build()
+                caller = clerk,
+                aggregateId = "i-1",
+                wait = WaitPlan.ACCEPTED,
+            )
+            val byObject = ServerCommandRequest.of(
+                TransferOwner("carol"),
+                ITEM.ref(TENANT, "i-2"),
+                caller = clerk,
+                wait = WaitPlan.ACCEPTED,
+            )
             listOf(byName, byObject).forEach { request ->
                 sales.gateway.execute(request).status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
             }
@@ -348,26 +369,29 @@ class PeerCommandsTest {
     fun `an unknown command or context stays unhandled`(): Unit = runBlocking {
         val sales = started()
         val unknownCommand = sales.gateway.execute(
-            ServerCommandRequest.builder(
+            ServerCommandRequest.of(
                 STOCK,
                 "item",
                 "Release",
-                CommandBody.of("{}")
-            ).caller(clerk).aggregateId("i").build(),
+                CommandBody.of("{}"),
+                caller = clerk,
+                aggregateId = "i",
+            ),
         )
         unknownCommand.error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_UNHANDLED)
         unknownCommand.error!!.message.assert().contains("has no command Release")
         val unknownContext = sales.gateway.execute(
-            ServerCommandRequest.builder(
+            ServerCommandRequest.of(
                 Reserve(1),
-                AggregateType("billing", "invoice").ref(TENANT, "x")
-            ).caller(clerk).build(),
+                AggregateType("billing", "invoice").ref(TENANT, "x"),
+                caller = clerk,
+            ),
         )
         unknownContext.error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_UNHANDLED)
         unknownContext.error!!.message.assert().contains("No aggregate billing.invoice is served here")
         // A command class of another aggregate is not this one's.
         val misdirected = sales.gateway.execute(
-            ServerCommandRequest.builder(PlaceOrder(1), ITEM.ref(TENANT, "x")).caller(clerk).build(),
+            ServerCommandRequest.of(PlaceOrder(1), ITEM.ref(TENANT, "x"), caller = clerk),
         )
         misdirected.error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_UNHANDLED)
     }
@@ -401,8 +425,14 @@ class PeerCommandsTest {
             val sales = salesNode(stockContract = withItemCommand(stockManifest(), "Recount", Creation.NONE))
                 .also { it.start() }
             val result = sales.gateway.execute(
-                ServerCommandRequest.builder(STOCK, "item", "Recount", CommandBody.of("{}"))
-                    .caller(clerk).aggregateId("i").build(),
+                ServerCommandRequest.of(
+                    STOCK,
+                    "item",
+                    "Recount",
+                    CommandBody.of("{}"),
+                    caller = clerk,
+                    aggregateId = "i",
+                ),
             )
             result.status.assert().isEqualTo(CommandResult.Status.REJECTED)
             result.error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_UNHANDLED)
@@ -430,8 +460,14 @@ class PeerCommandsTest {
             val body = CommandBody.Value(RebuildSnapshot(listOf("i-1")))
             // Under the aggregate whose contract lists it: recognised as the contract's, and not relayed.
             val listed = sales.gateway.execute(
-                ServerCommandRequest.builder(STOCK, "item", SnapshotRebuilds.REBUILD_SNAPSHOT, body)
-                    .caller(clerk).wait(WaitPlan.ACCEPTED).build(),
+                ServerCommandRequest.of(
+                    STOCK,
+                    "item",
+                    SnapshotRebuilds.REBUILD_SNAPSHOT,
+                    body,
+                    caller = clerk,
+                    wait = WaitPlan.ACCEPTED,
+                ),
             )
             listed.status.assert().isEqualTo(CommandResult.Status.REJECTED)
             listed.error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_UNHANDLED)
@@ -441,8 +477,15 @@ class PeerCommandsTest {
             )
             // Under the built-in aggregate the routes address: no contract aggregate, so none is served here.
             val builtIn = sales.gateway.execute(
-                ServerCommandRequest.builder(STOCK, SnapshotRebuilds.AGGREGATE, SnapshotRebuilds.REBUILD_SNAPSHOT, body)
-                    .caller(clerk).aggregateId("item").wait(WaitPlan.ACCEPTED).build(),
+                ServerCommandRequest.of(
+                    STOCK,
+                    SnapshotRebuilds.AGGREGATE,
+                    SnapshotRebuilds.REBUILD_SNAPSHOT,
+                    body,
+                    caller = clerk,
+                    aggregateId = "item",
+                    wait = WaitPlan.ACCEPTED,
+                ),
             )
             builtIn.error!!.message.assert().isEqualTo("No aggregate stock.snapshot is served here.")
             topics.messages(COMMANDS).assert().isEmpty()
@@ -452,10 +495,13 @@ class PeerCommandsTest {
     fun `a peer's command whose identity facts conflict should be refused as malformed`(): Unit = runBlocking {
         val sales = started()
         mapOf(
-            ServerCommandRequest.builder(Reserve(1), ITEM.ref(TENANT, "i")).caller(clerk).expectedVersion(-1).build() to
+            ServerCommandRequest.of(Reserve(1), ITEM.ref(TENANT, "i"), caller = clerk, expectedVersion = -1) to
                 "An expected version is never negative.",
-            ServerCommandRequest.builder(Reserve(1), ITEM.ref(TENANT, "i")).caller(clerk)
-                .headers(mapOf("Wow-Tenant" to "other")).build() to
+            ServerCommandRequest.of(
+                Reserve(1), ITEM.ref(TENANT, "i"),
+                caller = clerk,
+                headers = mapOf("Wow-Tenant" to "other"),
+            ) to
                 "Header Wow-Tenant is reserved: identity, ids and the wait have fields of their own.",
         ).forEach { (request, message) ->
             val refused = sales.gateway.execute(request)
@@ -470,8 +516,13 @@ class PeerCommandsTest {
         runBlocking {
             val sales = started()
             // A request that names no tenant: the peer decides its type's tenant from the caller's.
-            val unnamed = ServerCommandRequest.builder(Reserve(1), ITEM.ref(TENANT, "i-7")).tenantId(null)
-                .caller(clerk).wait(WaitPlan.ACCEPTED).build()
+            val unnamed = ServerCommandRequest.of(
+                Reserve(1),
+                ITEM.ref(TENANT, "i-7"),
+                tenantId = null,
+                caller = clerk,
+                wait = WaitPlan.ACCEPTED,
+            )
             sales.gateway.execute(unnamed).status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
             // One whose ref names its tenant names it: the peer holds it to that tenant.
             sales.gateway.execute(reserve(1, item = "i-8", wait = WaitPlan.ACCEPTED))
@@ -485,8 +536,13 @@ class PeerCommandsTest {
         val sales = started()
         val crossScope = clerk.copyWith(crossScope = true)
         val accepted = sales.gateway.execute(
-            ServerCommandRequest.builder(Reserve(1), ITEM.ref(TENANT, "i-5")).caller(crossScope)
-                .targetScope(TargetScope(TENANT, Scope("x"))).wait(WaitPlan.ACCEPTED).build(),
+            ServerCommandRequest.of(
+                Reserve(1),
+                ITEM.ref(TENANT, "i-5"),
+                caller = crossScope,
+                targetScope = TargetScope(TENANT, Scope("x")),
+                wait = WaitPlan.ACCEPTED,
+            ),
         )
         accepted.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         val wire = CommandMessages.commandOf(EnvelopeCodec.decode(topics.messages(COMMANDS).single().value))
@@ -503,8 +559,13 @@ class PeerCommandsTest {
             val inApp = clerk.copyWith(attributes = mapOf(Caller.APP to listOf("app-a")))
             val forged = mapOf(RequestFacts.APP_ID to "forged", "X-Trace" to "t-1")
             sales.gateway.execute(
-                ServerCommandRequest.builder(Reserve(1), ITEM.ref(TENANT, "i-6")).caller(inApp).headers(forged)
-                    .wait(WaitPlan.ACCEPTED).build(),
+                ServerCommandRequest.of(
+                    Reserve(1),
+                    ITEM.ref(TENANT, "i-6"),
+                    caller = inApp,
+                    headers = forged,
+                    wait = WaitPlan.ACCEPTED,
+                ),
             ).status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
             val wire = CommandMessages.commandOf(EnvelopeCodec.decode(topics.messages(COMMANDS).single().value))
             wire.headers.assert().isEqualTo(mapOf("X-Trace" to "t-1", RequestFacts.APP_ID to "app-a"))
@@ -516,11 +577,12 @@ class PeerCommandsTest {
             stockNode().start()
             val sales = salesNode(tenants = TenantPolicy { if (it == ITEM) TENANT else null }).also { it.start() }
             val refused = sales.gateway.execute(
-                ServerCommandRequest.builder(
+                ServerCommandRequest.of(
                     Reserve(1),
-                    ITEM.ref(TENANT, "i")
-                ).caller(clerk.copyWith(crossScope = true))
-                    .targetScope(TargetScope("other", Scope.NONE)).build(),
+                    ITEM.ref(TENANT, "i"),
+                    caller = clerk.copyWith(crossScope = true),
+                    targetScope = TargetScope("other", Scope.NONE),
+                ),
             )
             refused.error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
             refused.error!!.message.assert().isEqualTo(
@@ -540,8 +602,14 @@ class PeerCommandsTest {
             )
             val sales = salesNode(stockContract = contract).also { it.start() }
             val accepted = sales.gateway.execute(
-                ServerCommandRequest.builder(STOCK, "item", "Reserve", CommandBody.of("""{"quantity":1}"""))
-                    .caller(clerk).wait(WaitPlan.ACCEPTED).build(),
+                ServerCommandRequest.of(
+                    STOCK,
+                    "item",
+                    "Reserve",
+                    CommandBody.of("""{"quantity":1}"""),
+                    caller = clerk,
+                    wait = WaitPlan.ACCEPTED,
+                ),
             )
             accepted.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
             accepted.ref.isAssigned.assert().isFalse()
@@ -554,10 +622,13 @@ class PeerCommandsTest {
         val sales = started()
         val long = "i".repeat(AdmissionLimits.MAX_ID_LENGTH + 1)
         mapOf(
-            ServerCommandRequest.builder(Reserve(1), ITEM.ref(TENANT, "i")).caller(clerk).requestId(long).build() to
+            ServerCommandRequest.of(Reserve(1), ITEM.ref(TENANT, "i"), caller = clerk, requestId = long) to
                 "The request id is at most ${AdmissionLimits.MAX_ID_LENGTH} characters; this one has ${long.length}.",
-            ServerCommandRequest.builder(STOCK, "item", "Reserve", CommandBody.of("""{"quantity":1,"note":"\u0000"}"""))
-                .caller(clerk).aggregateId("i").build() to
+            ServerCommandRequest.of(
+                STOCK, "item", "Reserve", CommandBody.of("""{"quantity":1,"note":"\u0000"}"""),
+                caller = clerk,
+                aggregateId = "i",
+            ) to
                 "The body writes \\u0000 in a string, which no store keeps.",
         ).forEach { (request, message) ->
             val refused = sales.gateway.execute(request)

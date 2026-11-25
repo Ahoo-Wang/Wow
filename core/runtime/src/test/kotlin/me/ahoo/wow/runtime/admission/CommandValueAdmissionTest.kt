@@ -110,10 +110,12 @@ class CommandValueAdmissionTest {
     private val cart = AggregateType(CONTEXT, "cart")
 
     private fun request(command: Any, ref: String? = "cart-1", tenant: String = TENANT, caller: Caller = alice) =
-        ServerCommandRequest.builder(command, if (ref == null) cart.unassigned(tenant) else cart.ref(tenant, ref))
-            .caller(caller)
-            .wait(WaitPlan.COMMITTED)
-            .build()
+        ServerCommandRequest.of(
+            command,
+            if (ref == null) cart.unassigned(tenant) else cart.ref(tenant, ref),
+            caller = caller,
+            wait = WaitPlan.COMMITTED,
+        )
 
     @Test
     fun `a command object is taken as it is, its type derived from its class`(): Unit = runBlocking {
@@ -140,22 +142,30 @@ class CommandValueAdmissionTest {
         result.ref.isAssigned.assert().isTrue()
         // A command that does not create its aggregate needs an id.
         val refused = gateway().execute(
-            ServerCommandRequest.builder(Unwritable(), cart.unassigned(TENANT)).caller(alice).build()
+            ServerCommandRequest.of(Unwritable(), cart.unassigned(TENANT), caller = alice)
         )
         refused.error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
     }
 
     @Test
     fun `a request naming the command type by name takes an object of that type only`(): Unit = runBlocking {
-        val named = ServerCommandRequest.builder(CONTEXT, "cart", "AddItem", CommandBody.Value(AddItem("pear")))
-            .caller(alice)
-            .aggregateId("cart-1")
-            .build()
+        val named = ServerCommandRequest.of(
+            CONTEXT,
+            "cart",
+            "AddItem",
+            CommandBody.Value(AddItem("pear")),
+            caller = alice,
+            aggregateId = "cart-1",
+        )
         gateway().execute(named).status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
-        val mismatched = ServerCommandRequest.builder(CONTEXT, "cart", "AddItem", CommandBody.Value(OpenCart()))
-            .caller(alice)
-            .aggregateId("cart-1")
-            .build()
+        val mismatched = ServerCommandRequest.of(
+            CONTEXT,
+            "cart",
+            "AddItem",
+            CommandBody.Value(OpenCart()),
+            caller = alice,
+            aggregateId = "cart-1",
+        )
         val result = gateway().execute(mismatched)
         result.error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
         result.error!!.message.assert().contains("shop.cart.AddItem")
@@ -167,10 +177,11 @@ class CommandValueAdmissionTest {
         unknown.error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_UNHANDLED)
         unknown.error!!.message.assert().contains(Unknown::class.java.name)
         val elsewhere = gateway().execute(
-            ServerCommandRequest.builder(
+            ServerCommandRequest.of(
                 AddItem("x"),
-                AggregateType("elsewhere", "cart").ref(TENANT, "c")
-            ).caller(alice).build()
+                AggregateType("elsewhere", "cart").ref(TENANT, "c"),
+                caller = alice,
+            )
         )
         elsewhere.error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_UNHANDLED)
     }
@@ -238,8 +249,13 @@ class CommandValueAdmissionTest {
                 committed = CommittedRequests.NONE,
             )
             fun retried(body: Any, requestId: String) =
-                ServerCommandRequest.builder(body, cart.ref(TENANT, "cart-9")).caller(alice).requestId(requestId)
-                    .wait(WaitPlan.COMMITTED).build()
+                ServerCommandRequest.of(
+                    body,
+                    cart.ref(TENANT, "cart-9"),
+                    caller = alice,
+                    requestId = requestId,
+                    wait = WaitPlan.COMMITTED,
+                )
             gateway.execute(retried(OpenCart("hi"), "open")).status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
             val added = gateway.execute(retried(AddItem("apple"), "add"))
             added.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)

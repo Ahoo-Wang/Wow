@@ -53,7 +53,8 @@ import tools.jackson.databind.json.JsonMapper
  * target fixes to a tenant is in it. A command without one (an older writer's, a producer's, a caller's that named its
  * target) names the tenant of its ref.
  */
-class CommandWire @InternalWowApi constructor(
+@InternalWowApi
+class CommandWire(
     val type: String,
     val id: String,
     val requestId: String,
@@ -111,6 +112,7 @@ class CommandWire @InternalWowApi constructor(
         actingTenant,
     )
 
+    @InternalWowApi
     companion object {
         /** A CommandWire of the given fields; parameters added later come last, with a default. */
         @JvmStatic
@@ -152,7 +154,8 @@ class CommandWire @InternalWowApi constructor(
  * crossScope, attributes, service}`, and nothing else: no credential, token or request header. Its [toString] leaves
  * the [attributes] out, the caller's claims.
  */
-class CallerWire @InternalWowApi constructor(
+@InternalWowApi
+class CallerWire(
     val tenantId: String = Caller.DEFAULT_TENANT,
     val scope: Scope = Scope.NONE,
     val subject: String? = null,
@@ -173,6 +176,7 @@ class CallerWire @InternalWowApi constructor(
 
     private fun valueFields(): List<Any?> = listOf(tenantId, scope, subject, crossScope, attributes, service)
 
+    @InternalWowApi
     companion object {
         /** [caller] in its wire form. */
         @JvmStatic
@@ -197,7 +201,8 @@ class CallerWire @InternalWowApi constructor(
  * `@OnCommitted` handler of the command, so the target sends the receipt of its commit there as well. A reader of an
  * older version ignores it and sends none; one reading an older writer's reply has it false.
  */
-class ReplyTo @InternalWowApi constructor(
+@InternalWowApi
+class ReplyTo(
     val context: String,
     val subscription: String,
     val ref: AggregateRef,
@@ -232,6 +237,7 @@ class ReplyTo @InternalWowApi constructor(
         committed: Boolean = this.committed,
     ): ReplyTo = ReplyTo(context, subscription, ref, version, committed)
 
+    @InternalWowApi
     companion object {
         /** A ReplyTo of the given fields; parameters added later come last, with a default. */
         @JvmStatic

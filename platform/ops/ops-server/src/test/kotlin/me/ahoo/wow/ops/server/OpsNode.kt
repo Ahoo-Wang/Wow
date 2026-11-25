@@ -17,6 +17,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.cosec.annotations.ExperimentalCoSecApi
 import me.ahoo.cosec.testkit.IdentityHeader
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.wire.DevelopmentHeaders.ROLES
@@ -93,6 +94,7 @@ data class Who(val headers: Map<String, String>) {
  * [publish] and [resolve] stand in for an owning service's ledger, and [ledgerCommands] read what the ops saga sends
  * to an owning context ([LedgerSimulator]). [peerCommands] call its internal port as another service does.
  */
+@OptIn(InternalWowApi::class) // reads and refuses the ledger's commands on their topic (CommandWire)
 class OpsNode(val server: WowServer) : AutoCloseable {
     val context: ConfigurableApplicationContext get() = server.context
     val topics: InMemoryTopics = server.bean<InMemoryTopics>()

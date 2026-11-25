@@ -289,12 +289,15 @@ class InProcessCommandClientTest {
             }
             val gateway = gateway(listOf(invoices, payments), log = log)
             calls = InProcessCommandClient(gateway).of(alice)
-            val open = ServerCommandRequest.builder(
+            val open = ServerCommandRequest.of(
                 CONTEXT,
                 "invoice",
                 OpenInvoice::class.java.name,
                 CommandBody.Value(OpenInvoice(10)),
-            ).caller(alice).requestId("open-1").wait(WaitPlan.COMMITTED).build()
+                caller = alice,
+                requestId = "open-1",
+                wait = WaitPlan.COMMITTED,
+            )
 
             val first = gateway.execute(open)
             first.status.assert().isEqualTo(CommandResult.Status.FAILED)

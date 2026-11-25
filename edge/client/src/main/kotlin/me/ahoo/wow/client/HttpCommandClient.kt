@@ -88,7 +88,7 @@ import kotlin.time.Duration.Companion.seconds
  * A peer described by its Manifest alone ([WowClient.Builder.manifestPeers]) takes [NamedCommand]s, named by their
  * type and checked against its Manifest before any request; a command object to it is a configuration error.
  */
-class HttpCommandClient internal constructor(
+internal class HttpCommandClient(
     private val transport: HttpTransport,
     private val names: CommandIndex,
     private val ids: GlobalIdGenerator,

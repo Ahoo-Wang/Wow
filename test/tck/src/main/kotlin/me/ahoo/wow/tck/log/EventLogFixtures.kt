@@ -35,6 +35,8 @@ import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.tck.ExactJson
 import java.util.UUID
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * The fixtures and hooks of the [EventLog] contract ([EventLogSpec], the class a backend's test extends): the backend's
@@ -48,14 +50,16 @@ import java.util.UUID
  * class's fixtures, hooks and constants, never a member of the family it extends, so any order would run the same
  * cases.
  *
- * The suite's constants sit here, not on [EventLogSpec] as in the query contracts: the stores' own tests read
- * [TAIL_TIMEOUT_MS] unqualified, so its companion is protected, and a parent class cannot read a protected member of
- * its subclass's companion. What only the families read in it is internal.
+ * The suite's constants sit here, not on [EventLogSpec] as in the query contracts, and only the families read them
+ * (internal); a store's own tests read the time a tail is waited for as [tailTimeout], which a slow store may raise.
  */
 @WowSpi
 abstract class EventLogFixtures internal constructor() {
     /** A new, empty log of bounded context [context] with [partitions] partitions. */
     protected abstract fun createLog(context: String, partitions: Int): EventLog
+
+    /** How long a case waits for a tail to give what was appended before it fails. */
+    protected open val tailTimeout: Duration = 30.seconds
 
     /** Each test gets its own context, so a backend that keeps a log per context isolates the tests. */
     internal val context = "tck_" + UUID.randomUUID().toString().replace("-", "").take(CONTEXT_SUFFIX)
@@ -180,6 +184,5 @@ abstract class EventLogFixtures internal constructor() {
         /** The streams of one aggregate a long read's appends commit at a time. */
         internal const val APPEND_GROUP = 64
         internal const val CONTEXT_SUFFIX = 12
-        const val TAIL_TIMEOUT_MS = 30_000L
     }
 }

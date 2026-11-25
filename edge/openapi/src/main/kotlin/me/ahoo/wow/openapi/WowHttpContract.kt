@@ -13,11 +13,14 @@
 
 package me.ahoo.wow.openapi
 
+import me.ahoo.wow.api.annotation.InternalWowApi
+
 /**
  * The names of the public port's routes and headers that the Manifest does not carry and the document describes: the
  * framework's endpoints under `/wow`, the state reads beside the command routes, and the Wow request headers. They are
  * the edge's (`wow-http`'s `WowPaths` and `WowHeaders`), which `wow-http`'s tests hold to these.
  */
+@InternalWowApi
 object WowHttpContract {
     /** Serves the Manifest the routes were built from. */
     const val MANIFEST_PATH: String = "/wow/manifest"

@@ -276,7 +276,7 @@ class KafkaCommandIntakeTest {
             stockNode(topics(prefix, intake = true)).also { it.start() }
             val sales = salesNode(topics(prefix)).also { it.start() }
             fun reserve(item: String, quantity: Int, wait: WaitPlan) =
-                ServerCommandRequest.builder(Reserve(quantity), ITEM.ref(TENANT, item)).caller(CLERK).wait(wait).build()
+                ServerCommandRequest.of(Reserve(quantity), ITEM.ref(TENANT, item), caller = CLERK, wait = wait)
             val accepted = sales.gateway.execute(reserve("m-1", 1, WaitPlan.ACCEPTED))
             accepted.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
             accepted.hop.assert().isEqualTo(Hop.accepted(STOCK))

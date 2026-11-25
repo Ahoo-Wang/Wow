@@ -116,9 +116,9 @@ class PostgresEventLogTest : EventLogSpec() {
         val received = Channel<LogEntry>(Channel.UNLIMITED)
         val tail = launch(Dispatchers.Default) { log.tail(0).collect { received.send(it) } }
         try {
-            withTimeout(TAIL_TIMEOUT_MS) { received.receive() }
+            withTimeout(tailTimeout) { received.receive() }
             // Twelve empty polls back the tail off to seconds between polls.
-            withTimeout(TAIL_TIMEOUT_MS) {
+            withTimeout(tailTimeout) {
                 while (reads(start) < IDLE_POLLS) {
                     delay(10)
                 }
@@ -126,7 +126,7 @@ class PostgresEventLogTest : EventLogSpec() {
             val mark = counted.begin()
             for (version in 2..COMMITS + 1) {
                 log.append(stream("a", version, aggregate = type))
-                withTimeout(TAIL_TIMEOUT_MS) { received.receive() }.stream.version.assert().isEqualTo(version)
+                withTimeout(tailTimeout) { received.receive() }.stream.version.assert().isEqualTo(version)
             }
             delay(SETTLE_MS)
             reads(mark).assert().isEqualTo(COMMITS)
