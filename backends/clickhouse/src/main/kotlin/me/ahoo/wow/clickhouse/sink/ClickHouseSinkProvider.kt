@@ -59,6 +59,7 @@ class ClickHouseSinkProvider : SinkProvider {
         BATCH_SIZE,
         INSERT_INTERVAL,
         DEDUPLICATION_WINDOW,
+        SINK_GENERATION,
         AGGREGATES,
     )
 
@@ -71,9 +72,10 @@ class ClickHouseSinkProvider : SinkProvider {
         // Which aggregates an access policy governs, as the host's query engine says: recorded in wow_catalog.
         val governed = GovernedAggregates::class.java.takeIf(config.resources::has)
             ?.let { config.resources.resource(it, null, config.key) }
+        val processor = processorOf(config)
         val sinks = ClickHouseSinks(ClientStatements(client.client), manifest, options(config), governed)
         return object : StreamSinks {
-            override val processor: String = ClickHouseSinks.PROCESSOR
+            override val processor: String = processor
 
             override fun sinkOf(context: String, aggregate: String): Sink = sinks.sinkOf(context, aggregate)
 
@@ -136,6 +138,21 @@ class ClickHouseSinkProvider : SinkProvider {
             ClickHouseSinkOptions.DEFAULT_DEDUPLICATION_WINDOW,
         )
 
+        /**
+         * The generation of the Sink's subscriptions ([ClickHouseSinks.processorOf]): raising it starts them as new
+         * subscriptions, which write the warehouse again from the beginning of the log, after its tables were dropped
+         * (#7097).
+         */
+        @JvmField
+        val SINK_GENERATION: ProviderOption.Defaulted<Int> = ProviderOption.int(
+            "sink.generation",
+            "the generation of the Sink's subscriptions, 1 by default: raised, they start again as " +
+                "wow.clickhouse-sink-g<generation>.<aggregate>, new subscriptions, and write every published stream " +
+                "again from the beginning of the log, once the Sink's tables were dropped. Only raise it: a lower one " +
+                "resumes that generation's checkpoints.",
+            1,
+        )
+
         /** Each aggregate type's history, which the host gives the Sink; not set under `wow.clickhouse`. */
         @JvmField
         val AGGREGATES: ProviderOption<Map<String, String>> = ProviderOption.map(
@@ -168,6 +185,12 @@ class ClickHouseSinkProvider : SinkProvider {
                 aggregates = aggregates(config),
             )
         }
+
+        /**
+         * The processor name of the subscriptions [config] gives its Sink ([ClickHouseSinks.processorOf]), in its
+         * `sink.generation`, refused naming the key when it is below 1.
+         */
+        fun processorOf(config: SinkConfig): String = ClickHouseSinks.processorOf(atLeast(config, SINK_GENERATION, 1))
 
         /** [option] of [config], refused naming its key when it is below [least]. */
         private fun atLeast(config: SinkConfig, option: ProviderOption.Defaulted<Int>, least: Int): Int =

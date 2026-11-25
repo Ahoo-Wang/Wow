@@ -33,4 +33,16 @@ class ClickHouseSinkOptionRefusalTest {
         val failure = assertThrows<WowConfigurationException> { ClickHouseSinkProvider.options(config) }
         failure.key.assert().endsWith(option)
     }
+
+    @ParameterizedTest
+    @CsvSource("0", "-1")
+    fun `a sink generation below 1 should be refused naming its key`(value: String) {
+        val config = SinkConfig.of(
+            "clickhouse",
+            "clickhouse",
+            mapOf("endpoint" to "http://127.0.0.1:1", "sink.generation" to value),
+        )
+        val failure = assertThrows<WowConfigurationException> { ClickHouseSinkProvider.processorOf(config) }
+        failure.key.assert().endsWith("sink.generation")
+    }
 }

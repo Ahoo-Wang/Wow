@@ -40,7 +40,7 @@ A projection's view, a snapshot table or a search index that is lost or wrong is
 
 - a projection: deploy it under a new subscription name, which starts from the beginning of the log, and switch readers to its new view once it has caught up;
 - snapshots: rebuild them from the log, for chosen aggregates or for a new store;
-- the warehouse and the search index: start their sink subscription from the beginning.
+- the warehouse and the search index: empty them and raise their sink's generation, which fills them again from the beginning of the log ([ClickHouse](./clickhouse#rebuild-the-warehouse), [Elasticsearch](./elasticsearch#rebuild)).
 
 The service keeps serving commands meanwhile.
 

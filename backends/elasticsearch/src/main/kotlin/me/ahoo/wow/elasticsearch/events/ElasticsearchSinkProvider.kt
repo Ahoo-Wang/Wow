@@ -14,6 +14,7 @@
 package me.ahoo.wow.elasticsearch.events
 
 import me.ahoo.wow.elasticsearch.ElasticsearchStore
+import me.ahoo.wow.elasticsearch.ElasticsearchStoreProvider
 import me.ahoo.wow.elasticsearch.ElasticsearchStoreProvider.Companion.TYPE
 import me.ahoo.wow.spi.sink.Sink
 import me.ahoo.wow.spi.sink.SinkConfig
@@ -34,9 +35,12 @@ internal class ElasticsearchSinkProvider : SinkProvider {
     override fun available(config: SinkConfig): Boolean = config.store is ElasticsearchStore
 
     override fun open(config: SinkConfig): StreamSinks {
-        val sinks = ElasticsearchEventSinks.of(requireNotNull(config.store) { "${config.key} writes into no store." })
+        val store = requireNotNull(config.store) { "${config.key} writes into no store." }
+        val sinks = ElasticsearchEventSinks.of(store)
         return object : StreamSinks {
-            override val processor: String = ElasticsearchEventSinks.PROCESSOR
+            override val processor: String = ElasticsearchEventSinks.processorOf(
+                store.config.settings.option(ElasticsearchStoreProvider.SINK_GENERATION),
+            )
 
             override fun sinkOf(context: String, aggregate: String): Sink = sinks.sinkOf(context, aggregate)
 

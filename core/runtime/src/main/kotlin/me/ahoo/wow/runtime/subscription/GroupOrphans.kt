@@ -31,13 +31,18 @@ internal class GroupOrphans(
     private val directory: Map<String, Subscription>,
 ) {
     /**
-     * The checkpoints in [saved] of a subscription the group no longer has (not Wow's own, `wow.…`, which it ends),
-     * with the entries parked under the name in the group's contexts, up to [maxParked]: what one renamed or removed
-     * left behind, by name. A start warns of them; operators read them ([me.ahoo.wow.runtime.node.subscriptionsView]).
+     * The checkpoints in [saved] of a subscription the group no longer has, with the entries parked under the name in
+     * the group's contexts, up to [maxParked]: what one renamed or removed left behind, by name. Not Wow's own
+     * (`wow.…`, which it ends), but for a sink's other generation ([anotherGeneration]). A start warns of them;
+     * operators read them ([me.ahoo.wow.runtime.node.subscriptionsView]).
      */
     internal suspend fun orphans(saved: List<Checkpoint>, maxParked: Int): List<OrphanCheckpoints> {
         require(maxParked >= 1) { "At least one parked entry is counted." }
-        return saved.filter { !directory.containsKey(it.subscription) && !it.subscription.startsWith(RESERVED) }
+        val generations = directory.keys.filter { it.startsWith(RESERVED) }.mapTo(HashSet(), ::familyOf)
+        return saved.filter {
+            !directory.containsKey(it.subscription) &&
+                (!it.subscription.startsWith(RESERVED) || anotherGeneration(it.subscription, generations))
+        }
             .groupBy { it.subscription }
             .toSortedMap()
             .map { (name, positions) ->
@@ -48,8 +53,17 @@ internal class GroupOrphans(
     }
 
     /**
+     * Whether [name], one of Wow's, is another generation of a sink the group runs: a sink's subscriptions are named
+     * `<processor>.<aggregate>`, and a raised `sink.generation` names them `<processor>-g<n>.<aggregate>` (#7097), so
+     * a name of the same family ([familyOf]) the group does not run is the generation it left behind, or the higher
+     * one a lowered generation left, with what it parked under it.
+     */
+    private fun anotherGeneration(name: String, generations: Set<String>): Boolean = familyOf(name) in generations
+
+    /**
      * Warns of what [GroupOrphans.orphans] finds in [saved]: a subscription's name is its identity, so a renamed one
-     * starts again as its start says; pinning its `@Name` to the old name keeps its position.
+     * starts again as its start says; pinning its `@Name` to the old name keeps its position. A sink's other
+     * generation wrote into a destination that was emptied: its parked entries are to be skipped.
      */
     suspend fun tellOrphans(saved: List<Checkpoint>) {
         val orphans = orphans(saved, ORPHAN_COUNT)
@@ -65,7 +79,12 @@ internal class GroupOrphans(
             "Subscription group $group has checkpoints of subscriptions it no longer has: " +
                 "${described.joinToString("; ")}. A renamed subscription starts again under its new name, as its " +
                 "start says; to keep its position, pin its @Name to the old one. What is left under an old name " +
-                "is not read again."
+                "is not read again." + if (orphans.any { it.name.startsWith(RESERVED) }) {
+                    " A sink's other generation (<processor>-g<n>) wrote into a destination that was emptied when its " +
+                        "sink.generation was raised: skip its parked entries; only raise a sink's generation."
+                } else {
+                    ""
+                }
         }
     }
 }
@@ -88,6 +107,13 @@ private val logger = KotlinLogging.logger(SubscriptionRuntime::class.java.name)
 
 /** The prefix of Wow's own subscriptions' names, which the compiler reserves. */
 private const val RESERVED = "wow."
+
+/** A sink's generation from the second on, at the end of its processor's name (`-g2`). */
+private val GENERATION = Regex("-g[0-9]+$")
+
+/** [name]'s family: its processor without a sink's generation, then its aggregate (`wow.clickhouse-sink.order`). */
+private fun familyOf(name: String): String =
+    GENERATION.replace(name.substringBeforeLast('.'), "") + "." + name.substringAfterLast('.')
 
 /** How many entries parked under an old name a start counts at most. */
 private const val ORPHAN_COUNT = 1_000

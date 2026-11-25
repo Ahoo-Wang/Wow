@@ -123,6 +123,18 @@ class ElasticsearchStoreProviderTest {
     }
 
     @Test
+    fun `a sink generation below 1 should refuse the store when it opens, naming the key`() {
+        listOf("0", "-1").forEach { refused ->
+            val failure = assertThrows<WowConfigurationException> {
+                ElasticsearchStoreProvider().open(
+                    config(mapOf(ElasticsearchStoreProvider.SINK_GENERATION.key to refused)),
+                )
+            }
+            failure.key.assert().isEqualTo("wow.stores.search.sink.generation")
+        }
+    }
+
+    @Test
     fun `the refresh option names a policy`() {
         val refresh = ElasticsearchStoreProvider.REFRESH
         refresh.values.assert().containsExactly("wait-for", "immediate", "none")

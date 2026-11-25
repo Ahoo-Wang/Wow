@@ -161,6 +161,12 @@
     "sourceType" : "me.ahoo.wow.elasticsearch.ElasticsearchStoreProvider",
     "defaultValue" : "PT30S"
   }, {
+    "name" : "wow.stores.<name>.sink.generation",
+    "type" : "java.lang.Integer",
+    "description" : "On elasticsearch: the generation of the event search sink that writes into the store, 1 by default: raised, the sink starts again as wow.elasticsearch-sink-g<generation>.<aggregate>, a new subscription, and writes every aggregate it writes into the store again from the beginning of the log, once its events indices (<name>--1) were deleted. Only raise it: a lower one resumes that generation's checkpoints.",
+    "sourceType" : "me.ahoo.wow.elasticsearch.ElasticsearchStoreProvider",
+    "defaultValue" : 1
+  }, {
     "name" : "wow.stores.<name>.database",
     "type" : "java.lang.String",
     "description" : "On mongo: the database of the log and the stores on MongoDB: unset, the one spring.mongodb.uri names, else wow.",
