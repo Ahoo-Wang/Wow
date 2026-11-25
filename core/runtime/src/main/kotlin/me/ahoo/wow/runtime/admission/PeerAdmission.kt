@@ -21,6 +21,7 @@ import me.ahoo.wow.api.result.FunctionInfo
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.result.WaitPlan
+import me.ahoo.wow.kernel.AggregateIds
 import me.ahoo.wow.kernel.CallerAdmission
 import me.ahoo.wow.runtime.admission.AdmissionIdentity.BodyId
 import me.ahoo.wow.runtime.admission.AdmissionIdentity.OwnId
@@ -133,7 +134,7 @@ internal class PeerAdmission(
         } else {
             null
         }
-        AdmissionLimits.oversized(facts.requestId, facts.ref.id, tenantId, scope)
+        AggregateIds.oversized(facts.requestId, facts.ref.id, tenantId, scope)
             ?.let { return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it) }
         // 3. Action-level authorization.
         authorizer.authorize(request, CommandAction(commandType, facts.ref, scope, peer.creation))
@@ -143,7 +144,7 @@ internal class PeerAdmission(
             bodies.bodyProblem(request.body)?.let { return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it) }
             bodies.decode(request.body, commandType.type).orElse { return facts.undecodable(it, peer.name) }
         }
-        AdmissionLimits.oversizedBody(decoded.value)?.let { return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it) }
+        AggregateIds.oversizedBody(decoded.value)?.let { return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it) }
         // 6. Validation.
         val caller = actingCaller(request.caller, facts.ref, scope)
         val violations = validators.violationsOf {

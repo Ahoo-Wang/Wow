@@ -14,7 +14,10 @@
 package me.ahoo.wow.kernel
 
 import me.ahoo.wow.api.aggregate.AggregateIdLimits
+import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.lifecycle.TransferOwner
+import me.ahoo.wow.api.lifecycle.TransferSpace
 
 /**
  * The one rule of which aggregate ids no route or store keeps as they were given, so that every path an id enters by
@@ -79,9 +82,29 @@ object AggregateIds {
      * Why admission refuses [id] as an aggregate id, as text, or null when it takes it: longer than [MAX_LENGTH]
      * UTF-16 units, or [unaddressable]. A blank id is refused where it is read.
      */
-    fun refused(id: String?): String? = id?.takeIf { it.length > MAX_LENGTH }
-        ?.let { "The aggregate id is at most $MAX_LENGTH characters; this one has ${it.length}." }
-        ?: unaddressable(id)
+    fun refused(id: String?): String? = oversized("aggregate id", id) ?: unaddressable(id)
+
+    /**
+     * Why admission refuses a request's ids as malformed (`wow.command.malformed`) before any store sees them, or null
+     * when it takes them: its [requestId], [tenantId], and the owner and space of [scope], longer than [MAX_LENGTH]
+     * characters, its [aggregateId] [refused] (null before one is known), and the owner or space [body] transfers the
+     * aggregate to ([oversizedBody]) when given. The one check of the gateway, of a peer's admission and of the test DSL.
+     */
+    fun oversized(requestId: String, aggregateId: String?, tenantId: String, scope: Scope, body: Any? = null): String? =
+        oversized("request id", requestId) ?: refused(aggregateId)
+            ?: oversized("tenant id", tenantId) ?: oversized("owner id", scope.ownerId)
+            ?: oversized("space id", scope.spaceId) ?: body?.let(::oversizedBody)
+
+    /** Why the owner or space [body] transfers the aggregate to is too long, or null when it transfers none or fits. */
+    fun oversizedBody(body: Any): String? = when (body) {
+        is TransferOwner -> oversized("owner id", body.ownerId)
+        is TransferSpace -> oversized("space id", body.spaceId)
+        else -> null
+    }
+
+    /** Why [id], the [name] of a request, is too long; checked one by one, without a list of pairs per command. */
+    fun oversized(name: String, id: String?): String? = id?.takeIf { it.length > MAX_LENGTH }
+        ?.let { "The $name is at most $MAX_LENGTH characters; this one has ${it.length}." }
 
     /** The bytes in UTF-8 of a character of Chinese, Japanese or Korean, as of most of the Basic Multilingual Plane. */
     private const val THREE_BYTE = 3

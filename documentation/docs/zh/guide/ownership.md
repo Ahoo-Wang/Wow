@@ -264,7 +264,7 @@ private val documentAccess = accessPolicy<Document> {
 
 ## 测试策略 {#test-a-policy}
 
-测试 DSL 的 `accessPolicySpec(model, policy)` 像内核和查询那样对策略求值来检查它：给定事件之后的聚合（`given(…)`）或某个状态下的聚合（`givenState(state, scope)`），检查每个调用方能做什么。`whenCaller(subject, claims, roles)` 指明一个调用方，`expectRead()`、`expectNoRead()`、`expectWrite()` 和 `expectNoWrite()` 检查它；内置的所有者和空间就是给定聚合时的作用域：
+测试 DSL 的 `accessPolicySpec(model, policy)` 像内核和查询那样对策略求值来检查它：给定事件之后的聚合（`given(…)`）或某个状态下的聚合（`givenState(state, scope)`），检查每个调用方能做什么。`whenCaller(subject, claims, roles)` 指明一个调用方，`expectRead()`、`expectNoRead()`、`expectWrite()` 和 `expectNoWrite()` 检查它。以自身身份行事的服务（`whenCaller(Caller.ofService(…))`）两者都能做，如[上文](#what-is-trusted)所述。内置的所有者和空间就是给定聚合时的作用域：
 
 <!-- sample: test/test-dsl/src/test/kotlin/me/ahoo/wow/test/AccessPolicySpecTest.kt#spec -->
 

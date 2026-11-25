@@ -15,6 +15,7 @@ package me.ahoo.wow.example.eshop.basket.domain.basket
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.example.eshop.basket.api.basket.AddBasketItem
 import me.ahoo.wow.example.eshop.basket.api.basket.BasketCheckedOut
@@ -44,7 +45,7 @@ class BasketSpec {
 
     @Test
     fun `adding the first item should create the basket`() = basketSpec {
-        whenCommand(AddBasketItem(MUG, MUG_PRICE, 2), scope = Scope(ownerId = BUYER)) {
+        whenCommand(AddBasketItem(MUG, MUG_PRICE, 2), caller = Caller.owner(BUYER)) {
             expectEvents(BasketItemAdded(MUG, MUG_PRICE, 2))
             expectScope(Scope(ownerId = BUYER))
             expectState { items.assert().containsExactly(BasketItem(MUG, MUG_PRICE, 2)) }
@@ -61,11 +62,11 @@ class BasketSpec {
 
     @Test
     fun `another buyer should be forbidden the basket`() = basketSpec {
-        whenCommand(AddBasketItem(MUG, MUG_PRICE, 2), scope = Scope(ownerId = "bob")) {
+        whenCommand(AddBasketItem(MUG, MUG_PRICE, 2), caller = Caller.owner("bob")) {
             expectRejected(FrameworkCodes.AGGREGATE_FORBIDDEN)
         }
         givenCommands(AddBasketItem(MUG, MUG_PRICE, 2))
-        whenCommand(ClearBasket, scope = Scope(ownerId = "bob")) { expectRejected(FrameworkCodes.AGGREGATE_NOT_FOUND) }
+        whenCommand(ClearBasket, caller = Caller.owner("bob")) { expectRejected(FrameworkCodes.AGGREGATE_NOT_FOUND) }
     }
 
     @Test

@@ -22,6 +22,7 @@ import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.result.FrameworkCodes
+import me.ahoo.wow.kernel.AggregateIds
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.aggregate
 import org.junit.jupiter.api.Test
@@ -302,6 +303,49 @@ class ScenarioDslTest {
                 expectEventEnvelope<Reserved> { operator.assert().isEqualTo(Operator("admin", "ops", true)) }
             }
         }
+    }
+
+    @Test
+    fun `a command without a caller should be refused the scope it names, as the gateway refuses the anonymous`() {
+        // As on a node: a request without a caller is Caller.ANONYMOUS (ServerCommandRequest), and admission refuses a
+        // scope it names, as it refuses any caller that does not act across scopes. Moved from review/r1-testkit
+        // (DslReviewR1Test).
+        assertThrownBy<IllegalArgumentException> {
+            aggregateSpec(plenty) { whenCommand(Reserve("cap", 1), scope = Scope("bob")) { } }
+        }.hasMessage(
+            "The gateway refuses Reserve from an anonymous caller, as a request without one is, " +
+                "${FrameworkCodes.AUTH_FORBIDDEN}: The caller may not act in another scope. A specification sends only " +
+                "what admission takes: give a caller of the specification's tenant, or one that acts across scopes " +
+                "(crossScope) for another tenant or scope.",
+        )
+        assertThrownBy<IllegalArgumentException> {
+            aggregateSpec(plenty) { givenCommands(Open("bob"), scope = Scope("bob")) }
+        }.hasMessageContaining(FrameworkCodes.AUTH_FORBIDDEN)
+    }
+
+    @Test
+    fun `a request id past the admission limit should be refused as malformed, as the gateway refuses it`() {
+        // As on a node: admission refuses an id longer than AggregateIds.MAX_LENGTH before any store is read, the same
+        // check (AggregateIds.oversized). Moved from review/r1-testkit (DslReviewR1Test).
+        val tooLong = "r".repeat(AggregateIds.MAX_LENGTH + 1)
+        assertThrownBy<IllegalArgumentException> {
+            aggregateSpec(plenty) { whenCommand(Reserve("cap", 1), requestId = tooLong) { } }
+        }.hasMessage(
+            "The gateway refuses Reserve as ${FrameworkCodes.COMMAND_MALFORMED}: The request id is at most " +
+                "${AggregateIds.MAX_LENGTH} characters; this one has ${tooLong.length}. A specification sends only " +
+                "what admission takes.",
+        )
+        // The longest takes, and an owner id past the limit is refused as the request id is.
+        aggregateSpec(plenty, caller = Caller.owner("alice")) {
+            givenCommands(Open("alice"))
+            whenCommand(Reserve("cap", 1), requestId = "r".repeat(AggregateIds.MAX_LENGTH)) {
+                expectEventTypes(Reserved::class)
+            }
+        }
+        val longOwner = Caller.owner("o".repeat(AggregateIds.MAX_LENGTH + 1))
+        assertThrownBy<IllegalArgumentException> {
+            aggregateSpec(plenty, caller = longOwner) { whenCommand(Open("o"), requestId = "r-1") { } }
+        }.hasMessageContaining("The owner id is at most ${AggregateIds.MAX_LENGTH} characters")
     }
 
     private val inConsole = Caller.of(subject = "alice", attributes = mapOf(Caller.APP to listOf("console")))

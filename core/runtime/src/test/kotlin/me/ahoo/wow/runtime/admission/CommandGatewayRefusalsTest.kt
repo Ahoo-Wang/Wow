@@ -28,6 +28,7 @@ import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.TransformedFrom
 import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.api.result.WaitPlan
+import me.ahoo.wow.kernel.AggregateIds
 import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.spi.id.AggregateIdGenerator
 import me.ahoo.wow.spi.id.IdGenerators
@@ -296,12 +297,12 @@ class CommandGatewayRefusalsTest : CommandGatewayFixtures() {
         val transfer = gateway().execute(request(command = Lifecycle.TRANSFER_OWNER, body = """{"ownerId":"$long"}"""))
         transfer.assertRefused(FrameworkCodes.COMMAND_MALFORMED)
         transfer.error!!.message.assert().isEqualTo("The owner id is at most 256 characters; this one has 257.")
-        AdmissionLimits.oversizedBody(TransferOwner(long)).assert()
+        AggregateIds.oversizedBody(TransferOwner(long)).assert()
             .isEqualTo("The owner id is at most 256 characters; this one has 257.")
-        AdmissionLimits.oversizedBody(TransferSpace(long)).assert()
+        AggregateIds.oversizedBody(TransferSpace(long)).assert()
             .isEqualTo("The space id is at most 256 characters; this one has 257.")
-        AdmissionLimits.oversizedBody(TransferOwner("o".repeat(AdmissionLimits.MAX_ID_LENGTH))).assert().isNull()
-        AdmissionLimits.oversizedBody(AddItem("apple")).assert().isNull()
+        AggregateIds.oversizedBody(TransferOwner("o".repeat(AdmissionLimits.MAX_ID_LENGTH))).assert().isNull()
+        AggregateIds.oversizedBody(AddItem("apple")).assert().isNull()
     }
 
     @Test

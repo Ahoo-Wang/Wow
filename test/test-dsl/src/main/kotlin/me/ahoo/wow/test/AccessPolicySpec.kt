@@ -35,6 +35,9 @@ import me.ahoo.wow.kernel.AggregateModel
  * }
  * ```
  *
+ * A service acting as itself ([Caller.service], [Caller.ofService]) may read and change every aggregate, as the kernel
+ * and the queries trust a service under a policy: the policy's predicates are not evaluated for it.
+ *
  * A check fails, too, when the policy compares an attribute [model] does not declare, which a node does not refuse at
  * its start. A policy's references are typed by its state (`AccessAttribute<in S, V>`, generated in `<State>Access`),
  * so such a comparison hardly compiles; one that does, as in a policy built against another version of the state,
@@ -101,7 +104,8 @@ class AccessPolicySpec<S : Any> internal constructor(
                 "The access policy compares ${undeclared.map { it.name }}, which ${model.type} does not declare.",
             )
         }
-        val allows = predicate.allows { attribute ->
+        // As the kernel (CommandReach) and the queries decide: under a policy, a service is trusted.
+        val allows = caller.service || predicate.allows { attribute ->
             when (attribute) {
                 AccessAttribute.OWNER -> scope.ownerId
                 AccessAttribute.SPACE -> scope.spaceId
@@ -109,9 +113,14 @@ class AccessPolicySpec<S : Any> internal constructor(
             }
         }
         if (allows != granted) {
+            val why = if (caller.service) {
+                "${caller.subject} is a service, which the kernel and the queries trust under a policy."
+            } else {
+                "$predicate on $values in $scope."
+            }
             throw AssertionError(
                 "Expected the caller ${if (granted) "to" else "not to"} $action the aggregate, but it " +
-                    "${if (allows) "may" else "may not"}: $predicate on $values in $scope.",
+                    "${if (allows) "may" else "may not"}: $why",
             )
         }
     }

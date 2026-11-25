@@ -72,7 +72,7 @@ class AccountSpec {
 | `givenRecords(vararg records, scope, operator, commitTime)` | 把存储的记录按日志中的样子作为一条流提交：模型的类已经写不出的历史，例如聚合已退役的事件（内核会跳过它的记录），或者旧修订版的记录（经它的升级读取）。 |
 | `givenReservation(namespace, key, owner)` | 把一个预留键交给同一类型的另一个聚合，于是预留它的命令会被拒绝。 |
 | `givenCommands(vararg commands)` | 把这些命令作为场景的准备发出；被拒绝或抛出异常的命令会让规格失败，并指出是哪一条。 |
-| `whenCommand(command, requestId, expectedVersion, caller, scope, …) { … }` | 把命令送进内核，并在块中检查它的结果。`caller`（默认为 `aggregateSpec(model, caller = …)` 给出的调用方）像命令网关那样，给出命令的作用域、操作人和应用；`scope` 像 `Wow-Scope` 那样指定调用方去往的作用域。网关会拒绝的调用方让规格直接失败，并给出网关的答复：租户不是规格的租户的调用方（`400 wow.command.malformed`），或没有 `crossScope` 却指定了 `scope` 的调用方（`403 wow.auth.forbidden`）。可以跨作用域的调用方在规格的租户和它指定的 `scope` 中行事。`aggregateSpec(model, fixedTenant = …)` 给出类型的固定租户（[固定的租户](./ownership#a-fixed-tenant)）：聚合在这个租户里，任何租户的调用方的命令都送到那里。`headers` 可以添加请求事实，但不能写 `app_id`，它只由调用方给出：`headers` 里写了它的规格直接失败，有没有调用方都一样，因为网关从不记录请求自己写的 `app_id`。 |
+| `whenCommand(command, requestId, expectedVersion, caller, scope, …) { … }` | 把命令送进内核，并在块中检查它的结果。`caller`（默认为 `aggregateSpec(model, caller = …)` 给出的调用方）像命令网关那样，给出命令的作用域、操作人和应用；`scope` 像 `Wow-Scope` 那样指定调用方去往的作用域。网关会拒绝的调用方让规格直接失败，并给出网关的答复：租户不是规格的租户的调用方（`400 wow.command.malformed`），或没有 `crossScope` 却指定了 `scope` 的调用方（`403 wow.auth.forbidden`）。没有调用方的命令属于匿名调用方，和没有调用方的请求一样，所以指定了 `scope` 的这种命令也同样让规格失败。请求 ID、聚合的 ID，或租户、所有者、空间的 ID 超过网关所接受的长度时，规格按网关自己的检查以 `400 wow.command.malformed` 失败。可以跨作用域的调用方在规格的租户和它指定的 `scope` 中行事。`aggregateSpec(model, fixedTenant = …)` 给出类型的固定租户（[固定的租户](./ownership#a-fixed-tenant)）：聚合在这个租户里，任何租户的调用方的命令都送到那里。`headers` 可以添加请求事实，但不能写 `app_id`，它只由调用方给出：`headers` 里写了它的规格直接失败，有没有调用方都一样，因为网关从不记录请求自己写的 `app_id`。 |
 | `asCaller(caller) { … }` | 以另一个调用方发出块中的命令，与 `whenCommand` 的调用方一样经过准入：另一个租户的调用方让规格失败。 |
 | `advanceTime(duration) { … }` | 拨动时钟，并把聚合给自己定时、到那时已到期的每条命令发给它；块检查最后一条。 |
 | `expectNothingDue(within)` | 拨动时钟；到那时若有聚合给自己定时的命令到期，就失败。 |
@@ -81,6 +81,8 @@ class AccountSpec {
 | `now`、`timer(key)` | 规格当前所处的时间；聚合在某个定时键下保存的定时器，无论处于什么状态，没有时为 null。 |
 
 时间停在 `start`（默认 2026-01-01T00:00:00Z），直到 `advanceTime` 推进它：决定把它读作 `scope.now`，它的提交也记录在这个时间。决定函数拿到的 ID 是顺序的：`id-1`、`id-2`，依此类推。
+
+只要服务为聚合注册了访问策略，规格就需要它：`aggregateSpec(model, caller = …, policy = documentAccess)`。这时内核像节点那样，按命令调用方的声明在策略下决定每条命令：没有调用方的命令属于匿名调用方，它不持有任何声明；服务调用方（`Caller.ofService(…)`）是受信的。声明了访问属性的模型总有策略，因为没有策略的节点不会启动（[所有权](./ownership#test-a-policy)）。没有 `policy` 时，由默认的作用域规则决定，和未注册策略的服务的节点一样。
 
 ### 断言 {#expect}
 
@@ -252,7 +254,14 @@ cron 规则像运行时那样逐个时间槽推进：一次越过多个时间槽
 
 ### 命令的约束 {#command-constraints}
 
-规格运行命令的决策，不检查命令上的任何 Bean Validation 约束（`@NotBlank`、`@Positive` 等）：在节点上由准入层检查它们，并以 `wow.command.invalid` 回答其中的违规，服务器测试可以读到（[测试服务](./testing-services)）。测试模块不带 Bean Validation 实现，而 9.x 的测试模块带有一个实现和它的 `TestValidator`。要在领域模块的测试中检查命令的约束，加入服务器运行的实现 Hibernate Validator，版本取服务器的 Spring Boot 所管理的版本，并像 9.x 的 `TestValidator` 那样构建校验器：
+规格运行命令的决策，不检查命令上的任何 Bean Validation 约束（`@NotBlank`、`@Positive` 等）：在节点上由准入层检查它们，并以 `wow.command.invalid` 回答其中的违规，服务器测试可以读到（[测试服务](./testing-services)）。规格也跳过准入层的下列检查，同样由服务器测试读到：
+
+- 在字符串或键中写有 `\u0000` 的请求体；
+- 名为 `Wow-…` 或 `wow.…` 的请求头，它们是保留的；
+- 请求体的 JSON 往返，节点从 JSON 解码出命令；
+- 没有调用方的命令所在的租户：规格把它送到规格自己的租户，而节点上的匿名调用方在默认租户中行事。
+
+测试模块不带 Bean Validation 实现，而 9.x 的测试模块带有一个实现和它的 `TestValidator`。要在领域模块的测试中检查命令的约束，加入服务器运行的实现 Hibernate Validator，版本取服务器的 Spring Boot 所管理的版本，并像 9.x 的 `TestValidator` 那样构建校验器：
 
 <!-- sample: fragment -->
 

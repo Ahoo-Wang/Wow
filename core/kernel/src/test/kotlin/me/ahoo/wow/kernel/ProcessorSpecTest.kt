@@ -45,7 +45,10 @@ import me.ahoo.wow.test.reactorSpec
 import me.ahoo.wow.test.rejectedReceipt
 import me.ahoo.wow.test.sagaSpec
 import me.ahoo.wow.test.stateEvent
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import java.net.URLClassLoader
 import kotlin.time.Duration.Companion.minutes
 
 /** The processor test DSL (P.5, decision D184): sagaSpec, projectionSpec and reactorSpec. */
@@ -69,6 +72,23 @@ class ProcessorSpecTest {
     private val order = AggregateType("shop", "order").ref("tenant", "order-1")
     private val stock = AggregateType("inventory", "stock").ref("tenant", "apple")
     private val payment = AggregateType("pay", "payment").ref("tenant", "order-1")
+
+    private val loader = Thread.currentThread().contextClassLoader
+
+    /**
+     * The order's contract on the class path, as its api jar puts it: a spec names the Remind its sagas schedule for
+     * the order by it, as a node does, and a target no contract describes takes none.
+     */
+    @BeforeEach
+    fun orderContract() {
+        Thread.currentThread().contextClassLoader =
+            URLClassLoader(arrayOf(requireNotNull(javaClass.getResource("/contracts/shop-order/"))), loader)
+    }
+
+    @AfterEach
+    fun restoreLoader() {
+        Thread.currentThread().contextClassLoader = loader
+    }
 
     /** A saga, as a user writes it. */
     class OrderSaga {

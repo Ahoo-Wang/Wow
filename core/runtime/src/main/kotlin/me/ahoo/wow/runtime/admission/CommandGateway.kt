@@ -37,6 +37,7 @@ import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.WaitPlan
+import me.ahoo.wow.kernel.AggregateIds
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CallerAdmission
 import me.ahoo.wow.kernel.CommandType
@@ -490,7 +491,7 @@ class CommandGateway @InternalWowApi constructor(
         val tenantId = origin.tenantId
         val scope = origin.scope
         // Before any store is read for the request, the creation lookup by its request id included.
-        AdmissionLimits.oversized(facts.requestId, request.aggregateId, tenantId, scope)
+        AggregateIds.oversized(facts.requestId, request.aggregateId, tenantId, scope)
             ?.let { return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it) }
         // A command whose body names its aggregate is read now, so that its authorization names that aggregate.
         val early = if (fromBody) {
@@ -531,7 +532,7 @@ class CommandGateway @InternalWowApi constructor(
             bodies.bodyProblem(request.body)?.let { return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it) }
             bodies.decode(request.body, commandType.type).orElse { return facts.undecodable(it, commandType.name) }
         }
-        AdmissionLimits.oversizedBody(decoded.value)?.let { return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it) }
+        AggregateIds.oversizedBody(decoded.value)?.let { return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it) }
         // 5. The transformation.
         val headers = headersOf(request, origin)
         var command = Resolved(model, commandType, decoded.value, headers)

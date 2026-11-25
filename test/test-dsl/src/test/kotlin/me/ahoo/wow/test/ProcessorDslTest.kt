@@ -22,6 +22,7 @@ import me.ahoo.wow.api.annotation.Name
 import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.subscribe.StateEvent
@@ -61,10 +62,15 @@ class ProcessorDslTest {
         var paid = 0
     }
 
+    data class Cancelled(val reason: String)
+
     private val orderModel: AggregateModel<Order> = aggregate("shop", "order") {
         initial { Order(it.id) }
+        // The order decides the Cancel its saga schedules for it: a node names a schedule's command by its target.
+        decide<Cancel> { _, body -> Decision.events(Cancelled(body.reason)) }
         evolve<OrderPlaced> { total = it.total }
         evolve<OrderPaid> { paid += it.amount }
+        evolve<Cancelled> { }
     }
 
     private val stock = AggregateType("inventory", "stock")
