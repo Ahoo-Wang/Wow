@@ -148,7 +148,7 @@ describe('a command bounded by its wait and a grace', () => {
     BOUND_MS + 3_000,
   );
 
-  it('bounds a command by the wait it states and 5 s more, and one that states none by the longest default wait, a minute, and 5 s more', async () => {
+  it('bounds a command by the wait its plan states and 5 s more, and one with no plan by the longest default wait, a minute, and 5 s more', async () => {
     const delays: number[] = [];
     const real = globalThis.setTimeout;
     vi.spyOn(globalThis, 'setTimeout').mockImplementation(((
@@ -173,6 +173,7 @@ describe('a command bounded by its wait and a grace', () => {
       { commands, request: { timeout: 2_000 } },
       { commands, request: { wait: WaitPlan.COMMITTED.within(3_000) } },
       { commands, request: {} },
+      // A plan states its own timeout, 10 seconds, as Kotlin's client does.
       { commands, request: { wait: WaitPlan.COMMITTED } },
       // A client told its service waits longer by default: what states no
       // wait is bounded by that; a stated wait still by itself.
@@ -191,7 +192,7 @@ describe('a command bounded by its wait and a grace', () => {
       abort.abort(new Error('done'));
       await sent.catch(() => undefined);
     }
-    expect(bounds()).toEqual([7_000, 8_000, 65_000, 65_000, 125_000, 7_000]);
+    expect(bounds()).toEqual([7_000, 8_000, 65_000, 15_000, 125_000, 7_000]);
   });
 
   /** Answers the command `ms` after it is sent, unless it is aborted first. */

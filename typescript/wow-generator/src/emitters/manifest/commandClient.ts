@@ -155,9 +155,11 @@ export function bodyNumbersOption(
     module.imports.add(specifier(aggregate), [constant]);
     return marked.flatMap(command => {
       const marks = `${constant}.textNumbers.commands${resolvePropertyName(command.name) === command.name ? `.${command.name}` : `[${quoteStringLiteral(command.name)}]`}`;
+      // A former name the Manifest lists as a full type name is what a
+      // caller sends as it is; one listed alone takes the aggregate's prefix.
       return [command.name, ...command.aliases].map(
         name =>
-          `      ${quoteStringLiteral(`${aggregate.context}.${aggregate.name}.${name}`)}: ${marks},`,
+          `      ${quoteStringLiteral(name.includes('.') ? name : `${aggregate.context}.${aggregate.name}.${name}`)}: ${marks},`,
       );
     });
   });

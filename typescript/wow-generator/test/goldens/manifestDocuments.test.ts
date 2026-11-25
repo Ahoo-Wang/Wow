@@ -148,6 +148,8 @@ console.log(JSON.stringify(requests.map(({ url, method, headers, body }) => ({
         headers: {
           'wow-request-id': GENERATED,
           'wow-wait': 'committed(eshop-catalog)',
+          // Every plan states its timeout, 10 seconds without within().
+          'wow-wait-timeout': '10s',
         },
       },
       {

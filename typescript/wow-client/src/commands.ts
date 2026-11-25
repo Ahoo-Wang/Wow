@@ -334,32 +334,13 @@ function typeNamed(command: string): AggregateType {
 }
 
 /**
- * The wait `request` states (`Wow-Wait-Timeout`), in milliseconds: its own
- * timeout or its plan's, none when it leaves the service its default.
+ * How long the whole answer of a request waiting with `plan` may take: the
+ * wait it states, its plan's timeout, else the service's default wait
+ * (`defaultWaitMs`, a minute when absent), and a grace after it.
  */
-function statedTimeout(
-  request: CommandRequest,
-  plan: WaitPlan | undefined,
-): number | undefined {
-  return plan !== undefined &&
-    (request.timeout !== undefined || plan.timeout !== WaitPlan.DEFAULT_TIMEOUT)
-    ? plan.timeout
-    : undefined;
-}
-
-/**
- * How long `request`'s whole answer may take: the wait it states, else the
- * service's default wait (`defaultWaitMs`, a minute when absent), and a grace
- * after it.
- */
-function boundOf(
-  request: CommandRequest,
-  plan: WaitPlan | undefined,
-  client: WowClientOptions,
-): number {
+function boundOf(plan: WaitPlan | undefined, client: WowClientOptions): number {
   return (
-    (statedTimeout(request, plan) ?? client.defaultWaitMs ?? LONGEST_WAIT_MS) +
-    ANSWER_GRACE_MS
+    (plan?.timeout ?? client.defaultWaitMs ?? LONGEST_WAIT_MS) + ANSWER_GRACE_MS
   );
 }
 
@@ -369,15 +350,16 @@ function commandHeaders(
   requestId: string,
   accept?: string,
 ): Record<string, string | undefined> {
-  const timeout = statedTimeout(request, plan);
   return {
     [WowHeaders.REQUEST_ID]: requestId,
     // The default plan is the service's to pick: it sends no plan.
     [WowHeaders.WAIT]:
       plan === undefined || plan.isDefault ? undefined : formatWaitPlan(plan),
-    // A plan's own timeout, or the request's; the service's default otherwise.
+    // Every plan states its timeout, as Kotlin's client does (10 seconds
+    // unless `within` or the request's `timeout` says otherwise); a request
+    // with no plan leaves the service its default.
     [WowHeaders.WAIT_TIMEOUT]:
-      timeout === undefined ? undefined : formatWaitTimeout(timeout),
+      plan === undefined ? undefined : formatWaitTimeout(plan.timeout),
     [WowHeaders.IF_MATCH]:
       request.expectedVersion === undefined
         ? undefined
@@ -413,9 +395,11 @@ function targetOf(request: CommandRequest): TargetScope | undefined {
  * one, and whatever it rejects with carries that id ({@link requestIdOf}).
  *
  * A command's whole answer, its head, its body and a stream's every event,
- * is bounded by the wait it states (`timeout`, or its plan's) and 5 seconds
- * more, as the Kotlin client's is; one that states none, whose wait is the
- * service's default, by the client's
+ * is bounded by the wait it states and 5 seconds more, as the Kotlin
+ * client's is. Every plan states its timeout (`Wow-Wait-Timeout`): the
+ * plan's own, 10 seconds unless `within` says otherwise, or the request's
+ * `timeout` over it. A request with neither `wait` nor `timeout` states
+ * none, so its wait is the service's default, bounded by the client's
  * {@link WowClientOptions.defaultWaitMs} (a minute when absent, the longest
  * default a service takes unless its `wow.wait.max-timeout` is raised) and
  * the same grace. The service answers `wow.wait.timeout` at the wait's end,
@@ -444,8 +428,8 @@ export class CommandClient {
 
   /**
    * Sends a command and answers once it is accepted (202), within the
-   * request's timeout (the service's default without one) and the grace
-   * after it, as Kotlin's `CommandClient.send`. A request whose `wait` waits
+   * request's timeout (10 seconds without one), stated as its wait, and the
+   * grace after it, as Kotlin's `CommandClient.send`. A request whose `wait` waits
    * for more rejects with a `TypeError` before it is sent: {@link wait}
    * answers with that plan's result.
    *
@@ -566,10 +550,7 @@ export class CommandClient {
     const bodyNumbers = this.bodyNumbers[request.command];
     const body =
       route.method === 'DELETE' ? {} : { body: bodyOf(request, idProperty) };
-    const bound = new AnswerBound(
-      boundOf(request, plan, this.client),
-      request.signal,
-    );
+    const bound = new AnswerBound(boundOf(plan, this.client), request.signal);
     try {
       const answer = await send(this.client, {
         method: route.method,
@@ -607,7 +588,8 @@ export class CommandClient {
 
   /**
    * `request`'s command as the Manifest lists it, with its routes: a domain
-   * command among its aggregate's commands, by name or former name; a system
+   * command among its aggregate's commands, by name or former name, a former
+   * name listed alone or as a full type name; a system
    * command among its type's, else among its context's (a job's).
    */
   private async commandOf(request: CommandRequest): Promise<RoutingCommand> {
@@ -630,7 +612,12 @@ export class CommandClient {
       context?.aggregates
         ?.find(aggregate => aggregate.name === type.name)
         ?.commands?.find(
-          item => item.name === name || item.aliases?.includes(name) === true,
+          item =>
+            item.name === name ||
+            item.aliases?.includes(name) === true ||
+            // A former name the Manifest lists as a full type name, as the
+            // Kotlin client matches it (`ManifestPeers.declared`).
+            item.aliases?.includes(command) === true,
         ) ??
       (system
         ? context?.commands?.find(item => item.name === name)

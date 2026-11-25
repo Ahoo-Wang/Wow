@@ -54,7 +54,8 @@ const active = await carts.list(
 `DatasetClient` 列出服务的数据集（`GET /wow/dataset`）。
 
 每个方法最后一个参数是 `RequestOptions`：要在其中操作的 `scope` 和 `space`、附加的
-`headers`，以及取消请求的 `signal`。
+`headers`（不能是客户端由请求自身字段写出的请求头，例如 `Wow-Request-Id`：请设置对应字段），
+以及取消请求的 `signal`。
 
 相对时间由服务端解析，从不用浏览器的时钟：
 
@@ -93,7 +94,7 @@ const result = await commands.wait({
 `CommandResult`。`wait` 是与 Kotlin 一致的 `WaitPlan`：`WaitPlan.ACCEPTED`、`COMMITTED`、
 `SNAPSHOT`，或由 `wait` 各跳（`accepted`、`committed`、`snapshot`、`queryable`，或某个订阅的 `handled`，
 也可以跨过 Saga 派生的命令）组成的 `WaitPlan.of(...hops)`，`.within(ms)` 给它超时；
-`timeout` 以毫秒计并覆盖计划的超时。`parseWaitPlan` 和 `formatWaitPlan` 读写 `Wow-Wait` 头。`targetTenant` 和
+`timeout` 以毫秒计并覆盖计划的超时；每个计划都声明它的超时（`Wow-Wait-Timeout`），与 Kotlin 客户端一样。`parseWaitPlan` 和 `formatWaitPlan` 读写 `Wow-Wait` 头。`targetTenant` 和
 `targetScope`（`{ ownerId?, spaceId? }`）在另一个租户、所有者或空间中操作。
 每条命令都带请求 id（`Wow-Request-Id`），传入的或生成的：用同一个 id 重试，应答的是
 第一次提交的重复结果；`requestIdOf(error)` 取回失败请求所用的 id。系统命令（例如聚合列出的生命周期命令
