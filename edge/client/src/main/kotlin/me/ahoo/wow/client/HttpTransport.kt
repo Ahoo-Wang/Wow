@@ -228,7 +228,9 @@ internal class HttpTransport(
 
     /**
      * The handler of one attempt's response, [handler]'s, marking when its head arrived ([arrived]): the JDK's own
-     * request timeout no longer runs after it. One per attempt, the only object [within] adds to an attempt.
+     * request timeout no longer runs after it. One per attempt: with the copy of the JDK's future the attempt awaits
+     * within its bound, one of the two small objects [within] adds to every attempt, and one more copy for the verdict
+     * when the bound passes before the head.
      */
     private class HeadMark<T>(private val handler: HttpResponse.BodyHandler<T>) : HttpResponse.BodyHandler<T> {
         @Volatile
