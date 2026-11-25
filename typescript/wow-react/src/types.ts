@@ -12,10 +12,10 @@
  */
 
 import type {
-  RequestOptions,
   Positioned,
+  Problem,
+  RequestOptions,
   StreamOptions,
-  WowProblemError,
 } from '@ahoo-wang/wow-client';
 
 /**
@@ -60,10 +60,10 @@ export type QueryExecutor<Q, R, O extends RequestOptions = RequestOptions> = (
  * stream stopped. It receives the query and the stream options of this run,
  * `resume` included, with the run's `signal`.
  *
- * @template R - One record of the stream
  * @template Q - The query
+ * @template R - One record of the stream
  */
-export type StreamExecutor<R, Q> = QueryExecutor<
+export type StreamExecutor<Q, R> = QueryExecutor<
   Q,
   ReadableStream<Positioned<R>>,
   StreamOptions
@@ -84,10 +84,12 @@ export interface QueryHookOptions<
 > {
   /**
    * The query, controlled: the hook runs it again whenever it changes by
-   * content, so a new object with the same content does not. Set to
-   * `undefined` after a query (`id ? singleQuery(…) : undefined`), it aborts
-   * the request in flight and goes `idle`, keeping the last result, as
-   * `abort()` does; nothing runs until a query is given again.
+   * content, so a new object with the same content does not. A change aborts
+   * the request in flight, `autoExecute` or not: its answer is no longer the
+   * query's. Set to `undefined` after a query (`id ? singleQuery(…) :
+   * undefined`), it aborts the request in flight and goes `idle`, keeping
+   * the last result, as `abort()` does; nothing runs until a query is given
+   * again.
    */
   query?: Q;
   /** The first query, uncontrolled: change it later with `setQuery()`. */
@@ -136,14 +138,18 @@ export interface QueryHookReturn<Q, R> {
   /**
    * Why the latest run failed, or `undefined`. A value thrown that is not an
    * `Error` arrives wrapped, as `new Error(String(thrown), { cause: thrown })`.
+   * An `AbortError` is a failure too unless the run's own `signal` aborted it
+   * (a newer query, `abort()`, `reset()`, an unmount), which leaves the hook
+   * `idle`.
    */
   error: Error | undefined;
   /**
-   * The problem a Wow service answered the latest run with: `error` when it
-   * is a `WowProblemError`, with its `code`, `status` and retry hint;
+   * The RFC 9457 problem a Wow service answered the latest run with, as the
+   * service wrote it (its `code`, `status`, `detail`, `violations`), when
+   * `error` is a `WowProblemError`, which also says what a retry may do;
    * `undefined` for a failure no service answered, such as a network error.
    */
-  problem: WowProblemError | undefined;
+  problem: Problem | undefined;
   /** Runs the current query again, aborting the request in flight. */
   execute: () => Promise<void>;
   /**

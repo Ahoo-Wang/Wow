@@ -59,10 +59,6 @@ async function notify<T>(
   }
 }
 
-function isAbortError(error: unknown): boolean {
-  return error instanceof Error && error.name === 'AbortError';
-}
-
 /**
  * What a run failed with, as the hook reports it: the problem a Wow service
  * answered with when the failure carries one (a fetcher's `ExchangeError` of
@@ -86,7 +82,10 @@ async function failureOf(thrown: unknown): Promise<Error> {
  * - A run starts on mount, whenever the query or `requestOptions` changes
  *   by content, through `setQuery()`, and when `autoExecute` turns on;
  *   `execute()` starts one by hand.
- * - `abort()`, `reset()` and unmount abort the request in flight.
+ * - `abort()`, `reset()` and unmount abort the request in flight, and so
+ *   does a change of the query or `requestOptions`, `autoExecute` or not.
+ * - A run is aborted only by its own signal: an `AbortError` from elsewhere
+ *   is its failure.
  * - StrictMode's second mount aborts the first run and starts one more, so
  *   exactly one answer lands.
  * - A failure is reported as an `Error`, and as `problem` too when a Wow
@@ -159,7 +158,9 @@ export function useQueryRunner<Q, R, O extends RequestOptions = RequestOptions>(
         await notify('onSuccess', latest.current.onSuccess, result);
       }
     } catch (thrown) {
-      if (controller.signal.aborted || isAbortError(thrown)) {
+      // Only the run's own signal stops it; an `AbortError` from elsewhere
+      // (an executor's own controller) is this run's failure.
+      if (controller.signal.aborted) {
         settle(id, { type: 'abort' });
         return;
       }
@@ -202,9 +203,14 @@ export function useQueryRunner<Q, R, O extends RequestOptions = RequestOptions>(
   }, [cancel]);
 
   const previousQuery = useRef(query);
+  const previousOptions = useRef(requestOptions);
   useEffect(() => {
     const cleared = query === undefined && previousQuery.current !== undefined;
+    const changed =
+      query !== previousQuery.current ||
+      requestOptions !== previousOptions.current;
     previousQuery.current = query;
+    previousOptions.current = requestOptions;
     if (cleared) {
       // A controlled query set to `undefined` (`id ? singleQuery(…) :
       // undefined`) means nothing to run: stop, keep what was shown.
@@ -214,6 +220,8 @@ export function useQueryRunner<Q, R, O extends RequestOptions = RequestOptions>(
     }
     if (query !== undefined) current.current = query;
     if (autoExecute) void execute();
+    // A run by hand of what the query was answers it no more.
+    else if (changed && request.current.controller) abort();
   }, [query, requestOptions, autoExecute, execute, abort]);
 
   return {
@@ -221,7 +229,8 @@ export function useQueryRunner<Q, R, O extends RequestOptions = RequestOptions>(
     loading: state.status === 'loading',
     result: state.result,
     error: state.error,
-    problem: state.error instanceof WowProblemError ? state.error : undefined,
+    problem:
+      state.error instanceof WowProblemError ? state.error.problem : undefined,
     execute,
     abort,
     reset,
