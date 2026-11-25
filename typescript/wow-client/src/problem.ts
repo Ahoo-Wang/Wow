@@ -11,11 +11,7 @@
  * limitations under the License.
  */
 
-import {
-  FRAMEWORK_RETRIES,
-  FrameworkErrorCodes,
-  type Retry,
-} from './frameworkErrors.js';
+import { FRAMEWORK_RETRIES, type Retry } from './frameworkErrors.js';
 import {
   CommandResultStatus,
   type RefusedResult,
@@ -310,36 +306,6 @@ export function requestIdOf(error: unknown): string | undefined {
     typeof error === 'function'
     ? SENT_REQUEST_IDS.get(error)
     : undefined;
-}
-
-/**
- * The error of a command whose outcome is unknown (internal): a
- * `wow.command.unknown` problem, `retry` `same-request`, carrying the request
- * id the command was sent with, so a retry with it is answered as the
- * duplicate of a commit that did happen.
- *
- * @param detail - Why the outcome is unknown
- * @param requestId - The `Wow-Request-Id` the command was sent with
- * @param cause - What the answer failed with, when it failed
- */
-export function unknownOutcome(
-  detail: string,
-  requestId: string,
-  cause?: unknown,
-): WowProblemError {
-  const code = FrameworkErrorCodes.COMMAND_UNKNOWN;
-  const error = new WowProblemError(
-    {
-      type: `${PROBLEM_TYPE_PREFIX}${code}`,
-      title: 'Command outcome unknown',
-      status: 503,
-      code,
-      detail,
-    },
-    cause === undefined ? {} : { cause },
-  );
-  rememberRequestId(error, requestId);
-  return error;
 }
 
 /** Whether `value` reads as a problem: an object with a numeric `status`. */

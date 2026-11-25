@@ -14,9 +14,12 @@
 import type { TextNumbers } from './exactJson.js';
 import {
   ANSWER_GRACE_MS,
-  type Answer,
   AnswerBound,
   LONGEST_WAIT_MS,
+  unknownOutcome,
+} from './answerBound.js';
+import {
+  type Answer,
   pathSegment,
   type RequestOptions,
   send,
@@ -41,7 +44,6 @@ import {
   CommandRejectedError,
   FrameworkErrorCodes,
   rememberRequestId,
-  unknownOutcome,
   WowProblemError,
 } from './problem.js';
 import { commandResults, type CommandResultStream } from './streams.js';

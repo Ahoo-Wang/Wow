@@ -17,14 +17,14 @@ import {
   toServerSentEventStream,
 } from '@ahoo-wang/fetcher-eventstream';
 import { parseJson } from './exactJson.js';
-import type { Answer, AnswerBound } from './http.js';
+import { type AnswerBound, unknownOutcome } from './answerBound.js';
+import type { Answer } from './http.js';
 import type { CommandResult } from './wire.js';
 import { DEFAULT_RETRY } from './frameworkErrors.js';
 import {
   fromGateway,
   isProblem,
   rememberRequestId,
-  unknownOutcome,
   WowProblemError,
 } from './problem.js';
 

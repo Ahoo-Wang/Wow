@@ -57,6 +57,7 @@ src/
   problem.ts      — Problem, FrameworkErrorCodes, WowProblemError and its retry hint, toWowProblemError, requestIdOf
   wait.ts         — wait.* hops, formatWaitPlan, formatWaitTimeout (the Wow-Wait grammar)
   http.ts         — WowHeaders, WowClientOptions, RequestOptions, formatScope; (internal) send, path expansion
+  answerBound.ts  — (internal) the bound over a command's whole answer, and the `wow.command.unknown` error of an answer lost; the command client's alone
   streams.ts      — CommandResultStream; (internal) the SSE readers of command results and query rows, and their resumption
   commands.ts     — CommandClient (send, wait and stream of a CommandRequest, Kotlin's), CommandRequest, CommandOptions, CommandClientOptions, LifecycleCommands
   queries.ts      — QueryModelClient, SnapshotQueryClient, EventQueryClient, DatasetClient
