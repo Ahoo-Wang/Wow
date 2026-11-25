@@ -147,8 +147,6 @@ Wow 的运维命令（定时作业的命令、快照重建、对停放条目的�
 
 wow-generator 生成的 TypeScript 客户端按 Kotlin 契约的命名给错误码常量命名（[生成客户端](../typescript/generate)）。单词切分不同、本地名以数字开头，或不以所在上下文名开头的错误码，得到另一个常量：`invalidURLValue` 原来是 `INVALID_URLVALUE`，现在是 `INVALID_URL_VALUE`；分析目录的 `ANALYTICS_CATALOG_DEFINITION_INVALID` 现在是 `ANALYTICS__CATALOG__DEFINITION_INVALID`。领域命令 `Gateway` 由 `gateway` 发送，原来是 `gatewayCommand`；按无 id 发送的方法名被另一条命令的名字占用时，改名的是命令本身（加 `Command`），而不只是那个方法。重新生成客户端，并改掉代码引用的名字；把 problem 的 `code` 与错误码文本或 `<Context>ErrorCode` 比较的代码无需改动。
 
-`@ahoo-wang/wow-client` 以命令声明的等待再加 5 秒为界约束它的整个应答，没有声明时以一分钟再加 5 秒为界，与 Kotlin 客户端一样（[命令](../typescript/commands#when-a-command-fails)）。超过这个界限，请求被中止，调用以 `wow.command.unknown` reject，过去一个沉默的节点会让调用一直挂着。应答或事件流在开始之后丢失或无法读取的命令也以同样的方式 reject，过去它以网络自己的错误 reject：只对 `retry` 允许重试的 `WowProblemError` 重试的调用方，现在也会以请求 ID 重试这些情况，这是安全的。对聚合 `.` 或 `..` 的命令或状态读取（以及空 id 的状态读取）在发送之前就以 `TypeError` 拒绝，过去 URL 会把它送到另一个路由；续读查询流时得到的 `Retry-After` 超过 `resume.maxDelayMs`（默认 5 秒）时，流立即以那个 problem 失败，而不是等它过去。
-
 列出了快照存储的预发布版，要在启动本版本之前修改配置。配置项 `wow.snapshot.stores`、`wow.snapshot.primary`，以及聚合的 `snapshot.stores` 和 `snapshot.primary` 已经移除，每一个都会拒绝启动，并指出它自己。用 `wow.snapshot.store` 或聚合的 `snapshot.store` 为每个类型指定它唯一的存储。保留了检索副本的部署（`snapshot.stores: [main, search]` 加 `query.snapshot.store: search`）去掉 `snapshot.stores`、保留 `query.snapshot.store`：副本的订阅名不变，仍是 `wow.snapshot:search`，所以它的索引和检查点都保留，也不会重新读取任何东西。
 
 提供者的选项，无论在 `wow.<type>` 下（`wow.kafka.*`、`wow.mongo.*`、对等发现的、数据集后端的），还是在 `wow.stores.<name>` 下属于某个存储自己的，现在都按 Spring 绑定的每一种写法读取，与配置键检查的读法一致：环境变量（`WOW_KAFKA_COMMANDINTAKE_ENABLED`）或驼峰写法（`commandIntake.enabled`）与短横线写法的键含义相同，两者同时出现时按环境的顺序决定。预发布版本只按某个文件中的短横线键读取提供者的选项：没有文件设置其短横线写法的环境变量或驼峰键能通过启动检查，却不会被读取。这样的设置现在会生效；请检查部署以这种方式设置了什么。Wow 自带的 eShop 支付服务的 chart 设置了 `WOW_KAFKA_COMMANDINTAKE_ENABLED: "true"`，预发布版本忽略了它：它的命令接收现在会运行。
@@ -190,6 +188,8 @@ CoSec 本版本的其他变化涉及网关、控制面、签发 CoSec 令牌的�
 - **`Ledger.parkedId` 返回哈希**，签名不变；解析过它旧形式的代码，改读条目的字段。
 
 本版本可以把 CoSec 的拒绝写成 Wow 的 problem，默认关闭：`wow.cosec.problems: wow`（[CoSec 的拒绝](./security#cosec-refusals)）。保持 `cosec` 时，每个回答与以前逐字节相同。它基于 CoSec 的 `ProblemRenderer`，那在 CoSec 8 里是试验性的，形状可能随 CoSec 的 RC 改变。新增两个码：`wow.request.rate-limited`（429）与 `wow.auth.unavailable`（503），只有这些拒绝会用到它们。
+
+`@ahoo-wang/wow-client` 以命令声明的等待再加 5 秒为界约束它的整个应答，与 Kotlin 客户端一样；没有声明的命令以客户端选项的 `defaultWaitMs` 再加 5 秒为界，没有给出时是一分钟再加 5 秒（[命令](../typescript/commands#when-a-command-fails)）：服务默认等待超过一分钟的部署，设置 `defaultWaitMs`，或者让每条命令声明它的等待。超过这个界限，请求被中止，调用以 `wow.command.unknown` reject，过去一个沉默的节点会让调用一直挂着。应答或事件流在开始之后丢失或无法读取的命令也以同样的方式 reject，过去它以网络自己的错误 reject：只对 `retry` 允许重试的 `WowProblemError` 重试的调用方，现在也会以请求 ID 重试这些情况，这是安全的。对聚合 `.` 或 `..` 的命令或状态读取（以及空 id 的状态读取）在发送之前就以 `TypeError` 拒绝，过去 URL 会把它送到另一个路由；续读查询流时得到的 `Retry-After` 超过 `resume.maxDelayMs`（默认 5 秒）时，流立即以那个 problem 失败，而不是等它过去。
 
 ### Kafka 上的发布流 {#published-streams-on-kafka}
 
