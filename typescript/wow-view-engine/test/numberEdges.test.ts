@@ -16,7 +16,8 @@
  * share that is not zero never reads 「0.0%」 and one that is not the whole
  * never 「100.0%」, a change too small for its decimals never 「+0%」 under
  * an arrow, nothing reads 「-0」, a tick is written to the digits it takes,
- * and a whole number past 2^53 keeps every digit.
+ * and a whole number past 2^53 keeps every digit, a decimal sent as its
+ * exact text reads as the amount it is.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -27,7 +28,9 @@ import {
   formatTick,
   specTick,
 } from '../src/ui/charts/axis.js';
-import { valueText } from '../src/ui/kit/display.js';
+import { cellText, csvCellText, valueText } from '../src/ui/kit/display.js';
+import { cellValue } from '../src/ui/record/cells.js';
+import { numberFormatOf } from '../src/model/index.js';
 import {
   compactFormat,
   formatNumber,
@@ -185,5 +188,81 @@ describe('a whole number past 2^53', () => {
       '9007199254740993',
     );
     expect(valueText('007', words, {}, 'en')).toBe('007');
+  });
+});
+
+/**
+ * wow-client reads an int64, a bigint or a decimal field as its exact text
+ * (`TextNumbers`): a cell, its text and its file read that text as the
+ * number it is (#6904, #6905).
+ */
+describe('a number a source sent as its exact text', () => {
+  const words = {} as MessageFormatters;
+  const display = { locale: 'en' };
+
+  it('writes a whole number past 2^53 in its column format, in a cell as in its text', () => {
+    const field = { kind: 'number', numberFormat: {} };
+    const value = '9007199254740993';
+    expect(cellText(value, field, words, display)).toBe(
+      '9,007,199,254,740,993',
+    );
+    expect(cellValue(value, field, words, display, 'table')).toBe(
+      '9,007,199,254,740,993',
+    );
+  });
+
+  it('writes a decimal amount in its currency and scale, as the same amount as a number', () => {
+    const numeric = { type: 'money', scale: 2, currency: 'CNY' } as const;
+    const field = {
+      kind: 'number',
+      numeric,
+      numberFormat: numberFormatOf({ numeric }),
+    };
+    const written = cellText(1234567.5, field, words, display);
+    expect(written).toBe('CN¥1,234,567.50');
+    expect(cellText('1234567.50', field, words, display)).toBe(written);
+    expect(cellValue('1234567.50', field, words, display, 'table')).toBe(
+      written,
+    );
+    // Every digit kept, where a double would have rounded.
+    expect(cellText('12345678901234567.25', field, words, display)).toBe(
+      'CN¥12,345,678,901,234,567.25',
+    );
+    // A percentage near its ends says it is not zero, as a number does.
+    expect(
+      cellText(
+        '0.0004',
+        { kind: 'number', numberFormat: ONE_DECIMAL },
+        words,
+        display,
+      ),
+    ).toBe('<0.1%');
+  });
+
+  it('leaves text that is no plain number as it came', () => {
+    const field = { kind: 'number', numberFormat: {} };
+    for (const text of ['007', '1e3', '1,000', '12.', '.5', ' 12'])
+      expect(cellText(text, field, words, display)).toBe(text);
+  });
+
+  it('writes a number with no declared format to a file as the number it is', () => {
+    // `534,897` in a CSV is a string no column sums.
+    expect(
+      csvCellText(9_007_199_254_740_993n, { kind: 'number' }, words, display),
+    ).toBe('9007199254740993');
+    // The source's semantics (`numeric`) leave the digits raw, as a number.
+    const numeric = { type: 'money', scale: 2, currency: 'CNY' } as const;
+    const money = {
+      kind: 'number',
+      numeric,
+      numberFormat: numberFormatOf({ numeric }),
+    };
+    expect(csvCellText('1234567.50', money, words, display)).toBe('1234567.50');
+    expect(csvCellText(1234567.5, money, words, display)).toBe('1234567.5');
+    // The author's own format is what the file says.
+    const grouped = { kind: 'number', numberFormat: {} };
+    expect(csvCellText('9007199254740993', grouped, words, display)).toBe(
+      '9,007,199,254,740,993',
+    );
   });
 });
