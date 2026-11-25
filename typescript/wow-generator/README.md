@@ -16,8 +16,7 @@ pnpm add -D @ahoo-wang/wow-generator typescript
 curl -s http://localhost:8080/wow/manifest > manifest.json
 pnpm exec wow-generator generate \
   --input ./manifest.json \
-  --output ./src/generated \
-  --ts-config-file-path ./tsconfig.json
+  --output ./src/generated
 ```
 
 For each bounded context it writes `types.ts` (the command, event and state
@@ -72,8 +71,7 @@ pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator \
 pnpm add -D @ahoo-wang/wow-generator typescript
 pnpm exec wow-generator generate \
   --input ./openapi.yaml \
-  --output ./src/generated \
-  --ts-config-file-path ./tsconfig.json
+  --output ./src/generated
 ```
 
 Generated API clients are decorator classes, so the project that compiles them
@@ -98,7 +96,6 @@ Generated 12 files into src/generated with wow-generator.config.json, 1 warning
 | `-i, --input <file>`               | Wow Manifest or OpenAPI 3.x document: a file path or http(s) URL (required) |
 | `-o, --output <path>`              | Output directory, `src/generated` by default                                |
 | `-c, --config <file>`              | Configuration file, `./wow-generator.config.json` by default                |
-| `-t, --ts-config-file-path <file>` | The project's `tsconfig.json`                                               |
 | `-H, --header <header>`            | `Name: value` header for an http(s) input or configuration; repeatable      |
 | `--timeout <ms>`                   | Abandon an http(s) fetch after this many milliseconds, 30000 by default     |
 | `--schema-docs <mode>`             | `summary` (default) or `full`, which also embeds each model's JSON schema   |

@@ -20,7 +20,7 @@ The package version follows Wow, and `@ahoo-wang/wow-client` must be on the same
 ## Minimal example
 
 ```bash
-pnpm exec wow-generator generate -i ./openapi.json -o ./src/generated -t ./tsconfig.json
+pnpm exec wow-generator generate -i ./openapi.json -o ./src/generated
 ```
 
 ## Choose an entry point

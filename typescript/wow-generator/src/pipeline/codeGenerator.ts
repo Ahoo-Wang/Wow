@@ -13,7 +13,7 @@
 
 import { IndentationText, Project, QuoteKind } from 'ts-morph';
 import { analyze } from '../analysis/analyze';
-import { errorMessage, GeneratorError } from '../api/errors';
+import { GeneratorError } from '../api/errors';
 import type { Logger } from '../api/logger';
 import { ConsoleLogger } from '../api/logger';
 import type { GenerationResult, GeneratorOptions } from '../api/options';
@@ -48,7 +48,6 @@ import { CHECK_SEAM, PROJECT_SEAM, SIGNAL_SEAM } from './seams';
  * const generator = new CodeGenerator({
  *   inputPath: './openapi.yaml',
  *   outputDir: './generated',
- *   tsConfigFilePath: './tsconfig.json',
  *   logger: new ConsoleLogger({ level: 'verbose' }),
  * });
  * const { files } = await generator.generate();
@@ -67,8 +66,6 @@ export class CodeGenerator {
    * Creates a new CodeGenerator instance with the specified options.
    *
    * @param options - Input, output, configuration and logging of the run.
-   * @throws GeneratorError of kind `configuration` if the TypeScript
-   * configuration cannot be read.
    */
   constructor(private readonly options: GeneratorOptions) {
     this.logger = options.logger ?? new ConsoleLogger();
@@ -76,15 +73,12 @@ export class CodeGenerator {
     this.check = (options as SeamOptions)[CHECK_SEAM];
     this.project =
       (options as SeamOptions)[PROJECT_SEAM] ??
-      createProject(options.tsConfigFilePath);
+      new Project({ skipAddingFilesFromTsConfig: true });
     this.project.manipulationSettings.set({
       indentationText: IndentationText.TwoSpaces,
       quoteKind: QuoteKind.Single,
       useTrailingCommas: true,
     });
-    this.logger.debug(
-      `Project instance created with tsConfigFilePath: ${this.options.tsConfigFilePath}`,
-    );
   }
 
   /**
@@ -147,6 +141,13 @@ export class CodeGenerator {
     const input = await loadDocument(options.inputPath, loadOptions);
     signal?.throwIfAborted();
     if (isManifestDocument(input)) {
+      // A Manifest takes none of the configuration: say so rather than let
+      // the summary name it as if it applied.
+      if (configuration.config.apiClients !== undefined) {
+        warn([
+          `The configuration ${configuration.origin} sets apiClients, which a Manifest run does not read: they configure the clients of an OpenAPI document.`,
+        ]);
+      }
       return this.generateFromManifest(
         validateManifest(input, options.inputPath),
         configuration.origin,
@@ -278,26 +279,5 @@ export class CodeGenerator {
       return;
     }
     await output.commit(this.signal);
-  }
-}
-
-/**
- * The project a run writes into. Only the compiler options of the tsconfig
- * matter: the files it includes would be read, parsed and type-checked on
- * every run for nothing, and their global declarations could sway the
- * output.
- *
- * @throws GeneratorError of kind `configuration` when the tsconfig cannot be
- * read
- */
-function createProject(tsConfigFilePath: string | undefined): Project {
-  try {
-    return new Project({ tsConfigFilePath, skipAddingFilesFromTsConfig: true });
-  } catch (error) {
-    throw new GeneratorError(
-      'configuration',
-      `Cannot read the TypeScript configuration ${tsConfigFilePath}: ${errorMessage(error)}`,
-      { cause: error },
-    );
   }
 }

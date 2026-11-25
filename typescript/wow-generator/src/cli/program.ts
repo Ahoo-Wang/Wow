@@ -77,10 +77,6 @@ export function setupCLI(target: Command = program): Command {
       `Configuration file path (default: ${DEFAULT_CONFIG_PATH})`,
     )
     .option(
-      '-t, --ts-config-file-path <file>',
-      'TypeScript configuration file path',
-    )
-    .option(
       '-H, --header <header>',
       'Request header for an http(s) input or configuration, as "Name: value"; repeatable',
       collect,

@@ -28,7 +28,6 @@ export interface GenerateCommandOptions {
   input: string;
   output: string;
   config?: string;
-  tsConfigFilePath?: string;
   /** `Name: value` request headers for an http(s) input or configuration. */
   header?: string[];
   /** Milliseconds, as typed on the command line. */
@@ -180,7 +179,6 @@ export async function runGenerate(
       inputPath: options.input,
       outputDir: options.output,
       configPath: options.config,
-      tsConfigFilePath: options.tsConfigFilePath,
       headers: parseHeaders(options.header),
       timeoutMs: parseTimeout(options.timeout),
       schemaDocs: parseSchemaDocs(options.schemaDocs),

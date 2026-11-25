@@ -27,7 +27,7 @@ pnpm --filter @ahoo-wang/wow-generator lint
 pnpm --filter @ahoo-wang/wow-generator clean
 
 # Run CLI (after build)
-node dist/cli.js generate -i <manifest-or-openapi> -o <output-dir> -t tsconfig.json
+node dist/cli.js generate -i <manifest-or-openapi> -o <output-dir>
 ```
 
 ## Testing

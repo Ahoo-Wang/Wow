@@ -14,8 +14,7 @@ pnpm add -D @ahoo-wang/wow-generator typescript
 curl -s http://localhost:8080/wow/manifest > manifest.json
 pnpm exec wow-generator generate \
   --input ./manifest.json \
-  --output ./src/generated \
-  --ts-config-file-path ./tsconfig.json
+  --output ./src/generated
 ```
 
 每个限界上下文写出 `types.ts`（Manifest 中 schema 对应的命令、事件与状态类型）、
@@ -61,8 +60,7 @@ pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator \
 pnpm add -D @ahoo-wang/wow-generator typescript
 pnpm exec wow-generator generate \
   --input ./openapi.yaml \
-  --output ./src/generated \
-  --ts-config-file-path ./tsconfig.json
+  --output ./src/generated
 ```
 
 生成的 API 客户端是装饰器类，编译它们的项目需要在 `tsconfig.json` 中设置
@@ -86,7 +84,6 @@ Generated 12 files into src/generated with wow-generator.config.json, 1 warning
 | `-i, --input <file>`               | Wow Manifest 或 OpenAPI 3.x 文档：文件路径或 http(s) URL（必填） |
 | `-o, --output <path>`              | 输出目录，默认 `src/generated`                                   |
 | `-c, --config <file>`              | 配置文件，默认 `./wow-generator.config.json`                     |
-| `-t, --ts-config-file-path <file>` | 项目的 `tsconfig.json`                                           |
 | `-H, --header <header>`            | 读取 http(s) 输入或配置时发送的 `Name: value` 请求头，可重复     |
 | `--timeout <ms>`                   | http(s) 请求超过这个毫秒数即放弃，默认 30000                     |
 | `--schema-docs <mode>`             | `summary`（默认）或 `full`，后者还嵌入每个模型的 JSON schema     |

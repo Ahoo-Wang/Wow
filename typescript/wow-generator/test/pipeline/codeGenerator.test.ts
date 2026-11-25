@@ -167,30 +167,6 @@ describe('CodeGenerator', () => {
     );
   });
 
-  it('fails with a configuration error when the tsconfig cannot be read', () => {
-    const tsConfigFilePath = join(
-      tmpdir(),
-      'wow-generator-missing',
-      'tsconfig.json',
-    );
-    let error: unknown;
-    try {
-      new CodeGenerator({
-        inputPath: 'spec.json',
-        outputDir: '/out',
-        tsConfigFilePath,
-        logger: new SilentLogger(),
-      });
-    } catch (thrown) {
-      error = thrown;
-    }
-    expect(error).toBeInstanceOf(GeneratorError);
-    expect((error as GeneratorError).kind).toBe('configuration');
-    expect((error as GeneratorError).message).toContain(
-      `Cannot read the TypeScript configuration ${tsConfigFilePath}:`,
-    );
-  });
-
   it('writes nothing when it is interrupted before it writes', async () => {
     const project = new Project({ useInMemoryFileSystem: true });
     const interruption = new AbortController();

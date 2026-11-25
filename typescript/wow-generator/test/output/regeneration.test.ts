@@ -47,15 +47,7 @@ describe('regenerating into an existing output directory', () => {
     const dir = mkdtempSync(join(tmpdir(), 'fetcher-regeneration-'));
     directories.push(dir);
     const inputPath = join(dir, 'openapi.json');
-    const tsConfigFilePath = join(dir, 'tsconfig.json');
     const outputDir = join(dir, 'out');
-    writeFileSync(
-      tsConfigFilePath,
-      JSON.stringify({
-        compilerOptions: { experimentalDecorators: true },
-        include: ['out/**/*.ts'],
-      }),
-    );
     writeFileSync(
       inputPath,
       JSON.stringify({
@@ -78,7 +70,7 @@ describe('regenerating into an existing output directory', () => {
         },
       }),
     );
-    const options = { inputPath, outputDir, tsConfigFilePath, logger };
+    const options = { inputPath, outputDir, logger };
     await new CodeGenerator(options).generate();
     const first = readFileSync(join(outputDir, 'messagesApiClient.ts'), 'utf8');
     writeFileSync(join(outputDir, 'custom.ts'), 'export const custom = 1;');

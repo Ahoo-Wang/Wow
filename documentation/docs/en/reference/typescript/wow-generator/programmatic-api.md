@@ -11,7 +11,7 @@ The package root exports `CodeGenerator`, `DEFAULT_CONFIG_PATH`, the loggers `Co
 
 | Member                 | Parameters/defaults           | Return and effects                                                                                                                 |
 | ---------------------- | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `constructor(options)` | `GeneratorOptions`, see below | Reads the tsconfig synchronously; an unreadable tsconfig throws a `GeneratorError` of kind `configuration`. Its only parameter is the options |
+| `constructor(options)` | `GeneratorOptions`, see below | Reads nothing; its only parameter is the options |
 | `generate()`           | No arguments                  | `Promise<GenerationResult>`; reads the configuration, then the document, resolves aggregates, writes models/clients/indexes, formats and saves owned output |
 | `DEFAULT_CONFIG_PATH`  | Constant                      | `./wow-generator.config.json`                                                                                                      |
 
@@ -22,13 +22,12 @@ The package root exports `CodeGenerator`, `DEFAULT_CONFIG_PATH`, the loggers `Co
 | `inputPath`              | Required                         | Path or HTTP/HTTPS URL of the Wow Manifest or OpenAPI 3.x document             |
 | `outputDir`              | Required                         | Directory the generated files are written to                                   |
 | `configPath`             | `DEFAULT_CONFIG_PATH` if present | Path or URL of the [configuration](./configuration); a named one has to exist  |
-| `tsConfigFilePath`       | None                             | The project's tsconfig, used to resolve the modules the output imports         |
 | `logger`                 | `new ConsoleLogger()`            | Receives progress, warnings and errors                                         |
 | `headers`                | None                             | Request headers used when `inputPath` or `configPath` is an HTTP/HTTPS URL     |
 | `timeoutMs`              | `30000`                          | Milliseconds before fetching an HTTP/HTTPS document is abandoned               |
 | `schemaDocs`             | `'summary'`                      | `'full'` also embeds each model's JSON schema in its doc comment               |
 
-`GeneratorOptions` no longer extends ts-morph's `ProjectOptions`; only `tsConfigFilePath` is passed to the project.
+`GeneratorOptions` names no ts-morph type, and no tsconfig: the output never depends on one.
 
 <span id="generationresult"></span>
 
@@ -64,7 +63,6 @@ import {
 const generator = new CodeGenerator({
   inputPath: './openapi.json',
   outputDir: './src/generated',
-  tsConfigFilePath: './tsconfig.json',
   logger: new ConsoleLogger({ level: 'quiet' }),
 });
 try {
