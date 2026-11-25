@@ -59,7 +59,7 @@ class SubscriptionProperties {
 
     /**
      * How a failing read of the log, or write of a store, is retried: until the node stops, the backoff growing
-     * for `error-after` (5) attempts, after which each failure is logged as an error and retried at
+     * for `error-after-attempts` (5) attempts, after which each failure is logged as an error and retried at
      * `max-backoff`, so a long outage does not stop the subscription.
      */
     var readRetry: ReadRetryProperties = ReadRetryProperties.of(DEFAULT_SUBSCRIPTION.readRetry)
@@ -280,7 +280,7 @@ class RetrySpecProperties {
     /** How many times longer each wait is than the one before; at least 1. */
     var multiplier: Double? = null
 
-    /** How long one attempt may run before it is cancelled and counts as failed. */
+    /** How long one attempt may run before it is cancelled and counts as failed; `0`, as long as it takes. */
     var timeout: Duration? = null
 
     /** The budget these settings give, null when none is given. */
@@ -289,6 +289,6 @@ class RetrySpecProperties {
         initialBackoff = initialBackoff?.toKotlinDuration(),
         maxBackoff = maxBackoff?.toKotlinDuration(),
         multiplier = multiplier,
-        timeout = timeout?.toKotlinDuration(),
+        timeout = timeout?.let { if (it.isZero) kotlin.time.Duration.INFINITE else it.toKotlinDuration() },
     ).takeUnless { it.isEmpty }
 }

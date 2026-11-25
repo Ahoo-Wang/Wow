@@ -58,7 +58,7 @@ class ProviderSettingsTest {
                     "WOW_KAFKA_COMMANDINTAKE_ENABLED" to "true",
                     "WOW_KAFKA_TOPICS_PREFIX" to "shop.",
                     // Spring's legacy form: the key's dash written as an underscore.
-                    "WOW_KAFKA_TOPICS_PARTITION_REFRESH" to "5s",
+                    "WOW_KAFKA_TOPICS_PARTITION_REFRESH_INTERVAL" to "5s",
                 ),
             ),
         )

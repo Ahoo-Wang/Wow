@@ -27,7 +27,7 @@ sequenceDiagram
 ```
 
 - **台账及其重试都留在它的服务里。** 停放必须和它旁边的检查点一样可靠，所以每个服务把失败台账保存在自己的存储里，并自己重试停放的聚合，不论是否部署了 ops 服务。拥有条目所在分区的节点每 10 秒查找到期的重试（`wow.subscription.parked.scan-interval`）。一个条目默认重试 10 次（`max-retries`），第一次在失败 3 分钟后（`initial-backoff`），之后每次间隔是前一次的两倍。一次重试认领它的条目 2 分钟（`claim-ttl`），使别的节点（例如分区的下一个所有者）在此期间不会再次开始它；认领并不取消任何东西。某个订阅自己的取值写在 `wow.subscriptions.[<context>.<processor.function>].parked.*` 下（[停放的聚合](../guide/failures#parked-aggregates)）。ops 服务什么也不重试：它汇总每个服务的停放条目，是运维人员对它们执行操作的地方，不是失败存放的地方。
-- **服务发布它们的台账。** 服务在停放时、重试用尽时、运维人员对条目执行操作之后，以及每 30 秒一次的扫描中（`wow.ops.publish.interval`），把每个条目作为命令发给 ops 上下文，所以 ops 服务在故障之后能追上来。ops 服务部署后，服务会自行开始发布：`wow.ops.publish.enabled` 取默认的 `auto` 时，只要它的主题传输（Kafka，或开发中的内存主题）上存在 ops 命令主题（由 ops 服务创建）就发布，并在启动时和每个 `wow.kafka.topics.partition-refresh`（30 秒）检查一次。开始时它记录 `ops takes the failure ledger now: <service> publishes it (the ops publication).`，主题消失时记录 `ops does not take the failure ledger: <service> stops publishing it.`。没有传输时，`auto` 什么也不发布；`true` 不论检查结果都发布，没有传输时拒绝启动；`false` 从不发布。
+- **服务发布它们的台账。** 服务在停放时、重试用尽时、运维人员对条目执行操作之后，以及每 30 秒一次的扫描中（`wow.ops.publish.interval`），把每个条目作为命令发给 ops 上下文，所以 ops 服务在故障之后能追上来。ops 服务部署后，服务会自行开始发布：`wow.ops.publish.enabled` 取默认的 `auto` 时，只要它的主题传输（Kafka，或开发中的内存主题）上存在 ops 命令主题（由 ops 服务创建）就发布，并在启动时和每个 `wow.kafka.topics.partition-refresh-interval`（30 秒）检查一次。开始时它记录 `ops takes the failure ledger now: <service> publishes it (the ops publication).`，主题消失时记录 `ops does not take the failure ledger: <service> stops publishing it.`。没有传输时，`auto` 什么也不发布；`true` 不论检查结果都发布，没有传输时拒绝启动；`false` 从不发布。
 - **ops 从不自己动手。** 运维人员的操作记录在条目上，由 ops 的 Saga 以台账的系统命令 `wow.ledger.*` 之一，发到所属服务的命令主题上。所属服务在自己的台账上执行它，并记录结果。在此之前条目显示这个操作已提出：直到服务再次发布这个条目（即操作之后的样子，无论有没有变化），或拒绝这个操作。对服务已不再持有的停放所做的操作，只对那一次停放答复为已解决，所以 ops 服务持有的更晚的停放保持未解决。发布台账的服务会自行从命令主题接收这些命令，即使它在那里不接收任何其他命令（`wow.kafka.command-intake.enabled` 关闭）：它的订阅 `wow.ledger.commands` 只执行台账的命令，从主题末尾开始读取。它只接受来自 `wow.ops.publish.context` 所指上下文（默认为 `ops`）的 Saga 的这些命令，对其他来源会发出警告。
 
 ops 服务里的每个条目，是一个订阅里的一个停放的聚合，带有它的状态：
@@ -48,7 +48,7 @@ ops 服务是一个运行在 MongoDB 和 Kafka（或 PostgreSQL）上、位于 C
 3. 创建 ops 上下文拥有的主题：`wow.ops.commands`、`wow.ops.receipts` 和 `wow.ops.parked.state`。命令主题的分区数与 ops 上下文的日志完全相同。
 4. 把 CoSec 网关放在前面，让控制台和 ops 路由都经过它：网关校验每个运维人员的访问令牌，服务读取网关转发的身份（`CoSec-Identity`），自己不持有密钥（[保护部署](./security#put-the-gateway-in-front)）。
 
-然后，同一 Kafka 上的每个服务会在 ops 命令主题出现后的 `wow.kafka.topics.partition-refresh` 之内自行开始发布台账，并补发期间停放的条目；不应出现在控制台里的服务设置 `wow.ops.publish.enabled: false`。运维人员的操作从每个所属服务自己的命令主题到达，发布台账的服务会自行为它们读取这个主题。
+然后，同一 Kafka 上的每个服务会在 ops 命令主题出现后的 `wow.kafka.topics.partition-refresh-interval` 之内自行开始发布台账，并补发期间停放的条目；不应出现在控制台里的服务设置 `wow.ops.publish.enabled: false`。运维人员的操作从每个所属服务自己的命令主题到达，发布台账的服务会自行为它们读取这个主题。
 
 ## 谁能做什么 {#who-may-do-what}
 

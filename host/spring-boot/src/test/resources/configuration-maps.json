@@ -151,7 +151,7 @@
   }, {
     "name" : "wow.stores.<name>.reindex-requests-per-second",
     "type" : "java.lang.Integer",
-    "description" : "On elasticsearch: how many documents a second the store indexes again when its queries map a field an index lacks, so that the documents written before it are found by it too; a search of the field misses them until the rewrite ends. 1000 by default (a million documents in about 17 minutes); -1 for no limit.",
+    "description" : "On elasticsearch: how many documents a second the store indexes again when its queries map a field an index lacks, so that the documents written before it are found by it too; a search of the field misses them until the rewrite ends. 1000 by default (a million documents in about 17 minutes); 0 for no limit.",
     "sourceType" : "me.ahoo.wow.elasticsearch.ElasticsearchStoreProvider",
     "defaultValue" : 1000
   }, {
@@ -236,7 +236,7 @@
   }, {
     "name" : "wow.subscriptions.[<context>.<name>].retry.timeout",
     "type" : "java.time.Duration",
-    "description" : "How long one attempt may run before it is cancelled and counts as failed.",
+    "description" : "How long one attempt may run before it is cancelled and counts as failed; `0`, as long as it takes.",
     "sourceType" : "me.ahoo.wow.spring.boot.node.RetrySpecProperties"
   }, {
     "name" : "wow.subscriptions.[<context>.<name>].start",
@@ -297,7 +297,7 @@
   }, {
     "name" : "wow.schedules.<name>.retry.timeout",
     "type" : "java.time.Duration",
-    "description" : "How long one attempt may run before it is cancelled and counts as failed.",
+    "description" : "How long one attempt may run before it is cancelled and counts as failed; `0`, as long as it takes.",
     "sourceType" : "me.ahoo.wow.spring.boot.node.RetrySpecProperties"
   }, {
     "name" : "wow.schedules.<name>.time-zone",

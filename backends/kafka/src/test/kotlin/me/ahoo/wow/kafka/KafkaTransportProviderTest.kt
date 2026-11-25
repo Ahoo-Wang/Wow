@@ -41,7 +41,7 @@ class KafkaTransportProviderTest {
             "bootstrap-servers" to "b:9092",
             "properties.client.id" to "bank",
             "poll-timeout" to "50ms",
-            "topics.partition-refresh" to "5000",
+            "topics.partition-refresh-interval" to "5000",
         )
         provider.available(config).assert().isTrue()
         val options = KafkaTransportProvider.options(config)

@@ -152,7 +152,7 @@ The settings of every elasticsearch store; a store's own options override them.
 | `wow.elasticsearch.index-prefix` | `String` |  | A prefix of every index name of the store (&lt;prefix&gt;_wow_snapshot__&lt;context&gt;__&lt;aggregate&gt;), for a cluster several services or environments share; none when not set. |
 | `wow.elasticsearch.operation-timeout` | `Duration` | `PT30S` | How long the caller of each request of an Elasticsearch store, its writes, loads and queries alike, waits for an answer: a server that stops answering fails the caller instead of holding it. The request and its connection are the client's, freed when the server answers or at the client's own response timeout. |
 | `wow.elasticsearch.refresh` | `ElasticsearchRefresh` | `none` | When a write becomes visible to searches: none (the default: within the index's refresh interval, while a load by id reads it once it returns), wait-for (a snapshot is in a list or a count once its write returns, so a command that waits queryable sees its commit there; each write takes up to a refresh interval longer) or immediate (an immediate refresh, for tests). |
-| `wow.elasticsearch.reindex-requests-per-second` | `Integer` | `1000` | How many documents a second the store indexes again when its queries map a field an index lacks, so that the documents written before it are found by it too; a search of the field misses them until the rewrite ends. 1000 by default (a million documents in about 17 minutes); -1 for no limit. |
+| `wow.elasticsearch.reindex-requests-per-second` | `Integer` | `1000` | How many documents a second the store indexes again when its queries map a field an index lacks, so that the documents written before it are found by it too; a search of the field misses them until the rewrite ends. 1000 by default (a million documents in about 17 minutes); 0 for no limit. |
 
 ## `wow.executor`
 
@@ -313,7 +313,7 @@ The settings of the kafka topic transport.
 | `wow.kafka.properties` | `Map<String,String>` |  | Passed to every producer and consumer as they are (security.protocol, client.id, linger.ms,...), except the settings the transport's guarantees rest on. |
 | `wow.kafka.topics.configs` | `Map<String,String>` |  | Other topic configs auto creates a topic with, such as retention.ms. |
 | `wow.kafka.topics.min-insync-replicas` | `Integer` |  | The min.insync.replicas auto creates a topic with; the broker's default when not set. |
-| `wow.kafka.topics.partition-refresh` | `Duration` | `PT30S` | How often the node looks for partitions added to the topics it reads; new partitions are read within about twice this. |
+| `wow.kafka.topics.partition-refresh-interval` | `Duration` | `PT30S` | How often the node looks for partitions added to the topics it reads; new partitions are read within about twice this. |
 | `wow.kafka.topics.prefix` | `String` | `""` | Put before every topic name, such as staging. for staging.wow.shop.order.state; none by default, so the topics are the Manifest's. The sinks write and the subscriptions read under it. |
 | `wow.kafka.topics.replication-factor` | `Integer` |  | The replication factor auto creates a topic with; the broker's default when not set. A command accepted on a command topic is durable only when it and the minimum in-sync replicas are both at least 2. |
 
@@ -375,7 +375,7 @@ Publishing the failure ledger to the ops context.
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `wow.ops.publish.context` | `String` | `ops` | The ops context the ledger is published to. |
-| `wow.ops.publish.enabled` | `Switch` | `auto` | Whether the node publishes its failure ledger to the ops context: `auto` (the default) while the ops context's command topic exists on the node's transport, which the ops service creates once it is deployed, checked at start and every `wow.kafka.topics.partition-refresh`, and not at all without a transport; `true` always, which needs a transport; `false` never. |
+| `wow.ops.publish.enabled` | `Switch` | `auto` | Whether the node publishes its failure ledger to the ops context: `auto` (the default) while the ops context's command topic exists on the node's transport, which the ops service creates once it is deployed, checked at start and every `wow.kafka.topics.partition-refresh-interval`, and not at all without a transport; `true` always, which needs a transport; `false` never. |
 | `wow.ops.publish.interval` | `Duration` | `PT30S` | How often the node scans its ledger and publishes it; an entry is also published at once when it parks. |
 
 ## `wow.ops.webhook`
@@ -593,7 +593,7 @@ Per `@OnSchedule` job, by its name: `wow.schedules.<job>.*` holds all of the job
 | `wow.schedules.<name>.retry.max-attempts` | `Integer` |  | The most attempts of the handler in all, before its aggregate parks. |
 | `wow.schedules.<name>.retry.max-backoff` | `Duration` |  | The longest wait between two attempts. |
 | `wow.schedules.<name>.retry.multiplier` | `Double` |  | How many times longer each wait is than the one before; at least 1. |
-| `wow.schedules.<name>.retry.timeout` | `Duration` |  | How long one attempt may run before it is cancelled and counts as failed. |
+| `wow.schedules.<name>.retry.timeout` | `Duration` |  | How long one attempt may run before it is cancelled and counts as failed; `0`, as long as it takes. |
 | `wow.schedules.<name>.time-zone` | `String` |  | The time zone its cron is read in, over its annotation's. |
 
 ## `wow.shared-states`
@@ -659,7 +659,7 @@ The named store instances, by name: `wow.stores.<name>.type` and its settings. T
 | `wow.stores.<name>.query.max-queued` | `Integer` |  | How many queries beyond the bound wait for a permit, over `wow.query.max-queued`. |
 | `wow.stores.<name>.query.max-wait` | `Duration` |  | How long a query beyond the bound waits for a permit, over `wow.query.max-wait`. |
 | `wow.stores.<name>.refresh` | `ElasticsearchRefresh` | `none` | On elasticsearch: when a write becomes visible to searches: none (the default: within the index's refresh interval, while a load by id reads it once it returns), wait-for (a snapshot is in a list or a count once its write returns, so a command that waits queryable sees its commit there; each write takes up to a refresh interval longer) or immediate (an immediate refresh, for tests). |
-| `wow.stores.<name>.reindex-requests-per-second` | `Integer` | `1000` | On elasticsearch: how many documents a second the store indexes again when its queries map a field an index lacks, so that the documents written before it are found by it too; a search of the field misses them until the rewrite ends. 1000 by default (a million documents in about 17 minutes); -1 for no limit. |
+| `wow.stores.<name>.reindex-requests-per-second` | `Integer` | `1000` | On elasticsearch: how many documents a second the store indexes again when its queries map a field an index lacks, so that the documents written before it are found by it too; a search of the field misses them until the rewrite ends. 1000 by default (a million documents in about 17 minutes); 0 for no limit. |
 | `wow.stores.<name>.sharding` | `MongoSharding` | `auto` | On mongo: whether a store on a sharded cluster shards its log, snapshot, timer and reservation collections when it creates them: auto when connected to a mongos with ddl auto, none for a cluster its operators shard. |
 | `wow.stores.<name>.type` | `String` |  | The store's type: `memory`, `postgres`, `mongo`, `elasticsearch` or a community backend's. |
 
@@ -699,11 +699,11 @@ How the parked entries are retried automatically, over minutes and hours.
 
 ## `wow.subscription.read-retry`
 
-How a failing read of the log, or write of a store, is retried: until the node stops, the backoff growing for `error-after` (5) attempts, after which each failure is logged as an error and retried at `max-backoff`, so a long outage does not stop the subscription.
+How a failing read of the log, or write of a store, is retried: until the node stops, the backoff growing for `error-after-attempts` (5) attempts, after which each failure is logged as an error and retried at `max-backoff`, so a long outage does not stop the subscription.
 
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `wow.subscription.read-retry.error-after` | `Integer` | `5` | The attempts after which each failure is logged as an error, and retried at `max-backoff`. |
+| `wow.subscription.read-retry.error-after-attempts` | `Integer` | `5` | The attempts after which each failure is logged as an error, and retried at `max-backoff`. |
 | `wow.subscription.read-retry.initial-backoff` | `Duration` | `PT0.1S` | The wait after the first failure. |
 | `wow.subscription.read-retry.max-backoff` | `Duration` | `PT5S` | The longest wait between two attempts. |
 | `wow.subscription.read-retry.multiplier` | `Double` | `2` | How many times longer each wait is than the one before; at least 1. |
@@ -718,7 +718,7 @@ How a failing handler is retried in process before its aggregate is parked; a su
 | `wow.subscription.retry.max-attempts` | `Integer` | `5` | The most attempts of a call in all, the first included. |
 | `wow.subscription.retry.max-backoff` | `Duration` | `PT5S` | The longest wait between two attempts. |
 | `wow.subscription.retry.multiplier` | `Double` | `2` | How many times longer each wait is than the one before; at least 1. |
-| `wow.subscription.retry.timeout` | `Duration` |  | How long one attempt of a handler may run before it is cancelled and counts as failed; not set, an attempt runs as long as it takes. |
+| `wow.subscription.retry.timeout` | `Duration` |  | How long one attempt of a handler may run before it is cancelled and counts as failed; `0` or not set, an attempt runs as long as it takes. |
 
 ## `wow.subscription.systemic`
 
@@ -744,7 +744,7 @@ Per subscription, by its context and name, `<context>.<name>`, bracketed in a pr
 | `wow.subscriptions.[<context>.<name>].retry.max-attempts` | `Integer` |  | The most attempts of the handler in all, before its aggregate parks. |
 | `wow.subscriptions.[<context>.<name>].retry.max-backoff` | `Duration` |  | The longest wait between two attempts. |
 | `wow.subscriptions.[<context>.<name>].retry.multiplier` | `Double` |  | How many times longer each wait is than the one before; at least 1. |
-| `wow.subscriptions.[<context>.<name>].retry.timeout` | `Duration` |  | How long one attempt may run before it is cancelled and counts as failed. |
+| `wow.subscriptions.[<context>.<name>].retry.timeout` | `Duration` |  | How long one attempt may run before it is cancelled and counts as failed; `0`, as long as it takes. |
 | `wow.subscriptions.[<context>.<name>].start` | `String` |  | Where the subscription starts in a partition it has no checkpoint in: `beginning`, `end` or an instant. |
 
 ## `wow.tenant`
@@ -761,12 +761,12 @@ The node's firing loop of the timers, which sends the scheduled commands when th
 
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `wow.timers.claim-timeout` | `Duration` | `PT30S` | How long the claim on a timer being sent holds: when its node dies, the next owner of the partition sends the timer again after it. Longer than a send takes. |
-| `wow.timers.expires-after` | `Duration` |  | How late a timer may be sent, after an outage, before it is cancelled with the outcome `EXPIRED` instead; not set, every timer is sent however late. |
+| `wow.timers.claim-ttl` | `Duration` | `PT30S` | How long the claim on a timer being sent holds: when its node dies, the next owner of the partition sends the timer again after it. Longer than a send takes. |
+| `wow.timers.expires-after` | `Duration` |  | How late a timer may be sent, after an outage, before it is cancelled with the outcome `EXPIRED` instead; `0` or not set, every timer is sent however late. |
 | `wow.timers.lookahead` | `Duration` | `PT30S` | How far ahead each read loads the timers that fall due; a longer lookahead reads more timers at once. |
 | `wow.timers.max-attempts` | `Integer` | `10` | The attempts a technical failure to send a timer gets before the timer is parked, under the subscription `wow.timers.sends`. |
 | `wow.timers.max-early-wait` | `Duration` | `PT5S` | How long a scheduled command waits in its target for its due time on the target node's clock; one that arrives earlier than that fails and is sent again later. |
-| `wow.timers.max-fire-rate` | `Double` |  | The most commands of timers a partition sends a second, so a backlog of overdue timers drains at that rate; not set, as fast as `parallelism` allows. |
+| `wow.timers.max-fire-rate` | `Double` |  | The most commands of timers a partition sends a second, so a backlog of overdue timers drains at that rate; `0` or not set, as fast as `parallelism` allows. |
 | `wow.timers.parallelism` | `Integer` | `64` | The most commands of timers a partition sends at once. |
 | `wow.timers.poll-interval` | `Duration` | `PT1S` | How often the loop reads the timers due within `lookahead`, with one query per timer store over every partition the node owns; a timer is sent up to this late. |
 
@@ -780,5 +780,5 @@ How long and how far the commands' waits go.
 | `wow.wait.max-hops` | `Integer` | `16` | The most hops of a wait plan, at most WaitOptions.MAX_HOPS_CAP; each saga a chain follows adds two. |
 | `wow.wait.max-registered` | `Integer` | `16384` | The most waits the node holds at once, which bounds their memory: beyond it a command whose plan waits past ACCEPTED is not run and is answered `wow.command.busy` (429, with `Retry-After`), FAILED at ACCEPTED. |
 | `wow.wait.max-timeout` | `Duration` | `PT1M` | The longest wait; a longer timeout a caller asks for is capped to it, and a node stops within it. |
-| `wow.wait.unknown-contexts` | `UnknownContexts` | `allow` | Whether a wait plan may name a context the node knows no Manifest of: `allow`, checked where the chain arrives, or `reject`. |
+| `wow.wait.unknown-contexts` | `UnknownContexts` | `allow` | Whether a wait plan may name a context the node knows no Manifest of: `allow`, checked where the chain arrives, or `refuse`. |
 

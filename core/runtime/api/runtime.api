@@ -958,7 +958,7 @@ public final class me/ahoo/wow/runtime/wait/SubscriptionDirectory$Companion {
 
 public final class me/ahoo/wow/runtime/wait/UnknownContexts : java/lang/Enum {
 	public static final field ALLOW Lme/ahoo/wow/runtime/wait/UnknownContexts;
-	public static final field REJECT Lme/ahoo/wow/runtime/wait/UnknownContexts;
+	public static final field REFUSE Lme/ahoo/wow/runtime/wait/UnknownContexts;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/runtime/wait/UnknownContexts;
 	public static fun values ()[Lme/ahoo/wow/runtime/wait/UnknownContexts;

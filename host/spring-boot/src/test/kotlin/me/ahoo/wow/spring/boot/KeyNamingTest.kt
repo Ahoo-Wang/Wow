@@ -144,6 +144,9 @@ class KeyNamingTest {
         val RETRIES: Map<String, String> = mapOf(
             "wow.subscription.parked.max-retries" to
                 "counts the retries after an entry parked, which max-attempts would not say",
+            "wow.subscription.read-retry.error-after-attempts" to
+                "the attempts after which a failed read is logged as an error: a read is retried until the node stops, " +
+                "so max-attempts would say it gives up",
         )
     }
 }

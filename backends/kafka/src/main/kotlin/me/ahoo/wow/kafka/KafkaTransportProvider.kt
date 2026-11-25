@@ -34,7 +34,7 @@ import kotlin.time.Duration.Companion.seconds
  * Its settings, relative to its configuration (`wow.kafka.*`), are its [options]:
  *
  * - `bootstrap-servers`, `properties.*` (passed to every client as they are) and `poll-timeout`, with the topic
- *   transports' `topics.partition-refresh` as the clients' metadata age: [KafkaOptions];
+ *   transports' `topics.partition-refresh-interval` as the clients' metadata age: [KafkaOptions];
  * - `offset-gap`: what a read does with an offset its partition no longer holds ([OffsetGapPolicy], `fail` by default);
  * - `topics.replication-factor`, `topics.min-insync-replicas` and `topics.configs.*`: what the topics it creates get.
  *

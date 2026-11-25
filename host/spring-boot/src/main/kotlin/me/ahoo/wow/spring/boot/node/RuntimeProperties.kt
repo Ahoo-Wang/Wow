@@ -124,7 +124,7 @@ class WaitProperties {
 
     /**
      * Whether a wait plan may name a context the node knows no Manifest of: `allow`, checked where
-     * the chain arrives, or `reject`.
+     * the chain arrives, or `refuse`.
      */
     var unknownContexts: UnknownContexts = UnknownContexts.ALLOW
 

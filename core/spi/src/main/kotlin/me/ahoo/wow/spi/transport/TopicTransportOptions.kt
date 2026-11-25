@@ -58,7 +58,7 @@ object TopicTransportOptions {
     /** How often the node reads the partitions of its topics again. */
     @JvmField
     val PARTITION_REFRESH: ProviderOption.Defaulted<kotlin.time.Duration> = ProviderOption.duration(
-        "topics.partition-refresh",
+        "topics.partition-refresh-interval",
         "how often the node looks for partitions added to the topics it reads; new partitions are read within about " +
             "twice this.",
         30.seconds,

@@ -128,7 +128,7 @@ class HostKafkaSinkTest {
                 "wow.kafka.ddl=auto",
                 "wow.kafka.topics.replication-factor=3",
                 "wow.kafka.topics.configs.retention.ms=600000",
-                "wow.kafka.topics.partition-refresh=5s",
+                "wow.kafka.topics.partition-refresh-interval=5s",
                 "wow.kafka.offset-gap=earliest",
             )
             .withBean(Manifest::class.java, { Manifest(service = ServiceInfo("bank-service")) })

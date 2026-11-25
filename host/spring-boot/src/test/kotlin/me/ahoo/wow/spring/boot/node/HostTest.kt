@@ -66,7 +66,7 @@ class HostTest {
         "wow.executor.max-in-flight" to 512,
         "wow.state-cache.capacity" to 0,
         "wow.wait.max-hops" to 3,
-        "wow.wait.unknown-contexts" to "reject",
+        "wow.wait.unknown-contexts" to "refuse",
         "wow.subscription.max-in-flight" to 64,
         "wow.subscription.retry.max-attempts" to 2,
         "wow.timers.poll-interval" to "250ms",
@@ -116,7 +116,7 @@ class HostTest {
         options.cluster.reconcileInterval.assert().isEqualTo(200.milliseconds)
         options.wait.maxTimeout.assert().isEqualTo(15.seconds)
         options.wait.maxHops.assert().isEqualTo(3)
-        options.wait.unknownContexts.assert().isEqualTo(UnknownContexts.REJECT)
+        options.wait.unknownContexts.assert().isEqualTo(UnknownContexts.REFUSE)
         options.executor.laneCapacity.assert().isEqualTo(32)
         options.executor.maxInFlight.assert().isEqualTo(512)
         options.stateCache.capacity.assert().isEqualTo(0)
