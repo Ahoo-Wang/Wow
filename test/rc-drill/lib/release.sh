@@ -467,10 +467,19 @@ es() {
   k exec elasticsearch-0 -c elasticsearch -- sh -c 'curl -fsS -u "elastic:$ELASTIC_PASSWORD" "$@"' _ "$@"
 }
 
-# The catalog's indices, their documents and their aliases, for the evidence.
+# The catalog's indices, their documents and their aliases, for the evidence; each index's documents as a search counts
+# them (_count, not _cat's last refresh); and the checkpoints of the catalog's Elasticsearch sinks, where the events
+# index would be filled from (#7097: an events index cannot be filled again from the log).
 search_layout() {
+  local index
   es 'http://localhost:9200/_cat/indices/eshop*?v&s=index&h=index,docs.count,store.size' >&2
   es 'http://localhost:9200/_cat/aliases/eshop*?v&s=alias&h=alias,index,is_write_index' >&2
+  for index in eshop_wow_snapshot__eshop_catalog__product eshop_wow_events__eshop_catalog__product; do
+    log "$index: $(es "http://localhost:9200/$index/_count" 2>&1)"
+  done
+  mongo 'db.getSiblingDB("eshop_catalog").wow_checkpoint.find().toArray()
+    .filter(c => JSON.stringify(c).includes("elasticsearch-sink") || JSON.stringify(c).includes("wow.snapshot:search"))
+    .forEach(c => print(EJSON.stringify(c)))' >&2 || log "the catalog's sink checkpoints could not be read"
 }
 
 # The rolling upgrade itself: each wave's services upgraded to the release's chart and images, one service at a time,
