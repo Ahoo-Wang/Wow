@@ -60,6 +60,8 @@ Code that uses another context's generated code, such as its `<State>View`, asks
 
 A consumer may hold a context's contract with none of its classes and address it by JSON; it may not hold it with only some of them. Some of a context's classes present and others missing is a contract and types of different versions, and the build and the node's startup refuse it, naming both.
 
+A peer's contract may come from the next minor version of Wow, since services on adjacent minor versions use each other's api jars. It may then hold a value this version does not know, such as a new kind of command creation. The build and the node read it alike: what such a value belongs to is left out, with a warning that names the contract, and the rest is read.
+
 ## Compatibility
 
 The Manifest is the contract clients and other services rely on, so its changes are checked. A service keeps its Manifest as a baseline in its repository, with its compatibility line, the major of its version, instead of the version. The build compares the current Manifest with it and sorts each difference:
