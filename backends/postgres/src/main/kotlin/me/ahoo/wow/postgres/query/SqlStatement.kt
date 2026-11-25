@@ -36,6 +36,11 @@ internal sealed interface SqlParameter {
             if (value == null) statement.setNull(index, Types.NUMERIC) else statement.setBigDecimal(index, value)
     }
 
+    /** A double, the operand of a computed value: the statement casts it (`?::float8`). */
+    data class Float8(val value: Double) : SqlParameter {
+        override fun bind(statement: PreparedStatement, index: Int) = statement.setDouble(index, value)
+    }
+
     data class Int8(val value: Long?) : SqlParameter {
         override fun bind(statement: PreparedStatement, index: Int) =
             if (value == null) statement.setNull(index, Types.BIGINT) else statement.setLong(index, value)

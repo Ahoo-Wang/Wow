@@ -37,6 +37,7 @@ import me.ahoo.wow.query.backend.PageWindow
 import me.ahoo.wow.query.backend.QueryBackend
 import me.ahoo.wow.query.backend.RecordProjection
 import me.ahoo.wow.query.error.QueryExecutionException
+import me.ahoo.wow.query.error.QueryOutOfRangeException
 import me.ahoo.wow.spi.StorageTimeoutException
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.json.query.SnapshotFields
@@ -186,9 +187,8 @@ class PostgresQueryBackend internal constructor(
 
     /**
      * Runs [block] in a read-only transaction of its own under [timeout], set with the transaction's other bounds in
-     * one round trip ([inTransaction]): a statement PostgreSQL cancels for it fails as the core's
-     * [StorageTimeoutException]. It commits when [block] returns and rolls back when it throws. A table that does not
-     * exist yet is empty: the answer is [missing]'s.
+     * one round trip ([inTransaction]): a failure is the query's ([queryFailure]). It commits when [block] returns and
+     * rolls back when it throws. A table that does not exist yet is empty: the answer is [missing]'s.
      */
     private inline fun <T> transaction(timeout: Duration?, missing: () -> T, block: (Connection) -> T): T = try {
         dataSource.autoCommitted { connection ->
@@ -197,11 +197,7 @@ class PostgresQueryBackend internal constructor(
             }
         }
     } catch (error: SQLException) {
-        when {
-            error.sqlState == UNDEFINED_TABLE -> missing()
-            timeout != null && error.sqlState == QUERY_CANCELED -> throw StorageTimeoutException(timeout, error)
-            else -> throw PostgresFailures.translate(error)
-        }
+        if (error.sqlState == UNDEFINED_TABLE) missing() else throw queryFailure(error, timeout)
     }
 
     private fun <T> read(connection: Connection, statement: SqlStatement, map: (ResultSet) -> T): List<T> =
@@ -227,6 +223,21 @@ class PostgresQueryBackend internal constructor(
 
         /** PostgreSQL's SQLSTATE of a table that does not exist. */
         const val UNDEFINED_TABLE = "42P01"
+
+        /** PostgreSQL's SQLSTATE of a value out of its type's range: a `float8` that overflows or underflows. */
+        const val NUMERIC_VALUE_OUT_OF_RANGE = "22003"
+
+        /**
+         * [error] of a query's statement as the query fails: cancelled at its [timeout], the core's
+         * [StorageTimeoutException]; a computed value out of a double's range (a `float8` overflow or underflow, which
+         * PostgreSQL raises where the other backends answer no value, or 0), a [QueryOutOfRangeException]; anything else
+         * as every statement's ([PostgresFailures.translate]). A write's out-of-range value stays the store's refusal.
+         */
+        fun queryFailure(error: SQLException, timeout: Duration?): Exception = when {
+            timeout != null && error.sqlState == QUERY_CANCELED -> StorageTimeoutException(timeout, error)
+            error.sqlState == NUMERIC_VALUE_OUT_OF_RANGE -> QueryOutOfRangeException(error)
+            else -> PostgresFailures.translate(error)
+        }
         private val nodes: JsonNodeFactory = JsonNodeFactory.instance
 
         /** [timeout] in whole milliseconds, rounded up and at least 1, since `0` would disable the limit. */

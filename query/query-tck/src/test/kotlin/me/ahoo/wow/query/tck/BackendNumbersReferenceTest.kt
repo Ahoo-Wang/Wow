@@ -14,16 +14,17 @@
 package me.ahoo.wow.query.tck
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.query.tck.SnapshotAggregationCases.Companion.EXACT_COMPUTED_VALUE
 import me.ahoo.wow.query.tck.SnapshotAggregationCases.Companion.EXACT_PLAIN_AGGREGATE
+import me.ahoo.wow.query.tck.SnapshotAggregationCases.Companion.OUT_OF_RANGE_REFUSED
 import org.junit.jupiter.api.Test
 import java.io.File
 
 /**
- * The query language reference's table of how each backend computes a number (`reference/query-language.md`, Search
- * and expressions, English and Chinese), against what each backend's contract subclass lists in its
- * `semanticDivergences`: a backend in a row's "in doubles" cell lists the row's case, one in its "in the stored
- * decimals" cell does not, and the contract holds each to that answer (#6969). A backend is every subclass of
+ * The query language reference's table of how each backend computes a plain field's aggregation
+ * (`reference/query-language.md`, Search and expressions, English and Chinese), against what each backend's contract
+ * subclass lists in its `semanticDivergences`: a backend in the row's "in doubles" cell lists its case, one in its "in
+ * the stored decimals" cell does not, and the contract holds each to that answer (#6969). A computed value is a double
+ * on every backend (#6997), so it has no row. A backend is every subclass of
  * [QueryBackendSpec] and [DatasetQueryBackendSpec] in the repository but the third-party store's.
  */
 class BackendNumbersReferenceTest {
@@ -40,7 +41,7 @@ class BackendNumbersReferenceTest {
     }
 
     @Test
-    fun `each row's backends in doubles should be the ones that list its case, in English and in Chinese`() {
+    fun `the row's backends in doubles should be the ones that list its case, in English and in Chinese`() {
         val listed = BACKENDS.mapValues { (backend, files) ->
             val lists = files.map { divergencesOf(File(root, it).readText()) }
             lists.distinct().assert().describedAs("the cases $backend's subclasses list").hasSize(1)
@@ -60,7 +61,19 @@ class BackendNumbersReferenceTest {
         }
     }
 
-    /** The two rows, by the start of their first cell on each page. */
+    @Test
+    fun `the backend that refuses a computed value beyond a double should be the one each page names with its code`() {
+        val refusing = BACKENDS.filterValues { files ->
+            files.any { OUT_OF_RANGE_REFUSED in divergencesOf(File(root, it).readText()) }
+        }.keys
+        refusing.assert().containsExactly("PostgreSQL")
+        PAGES.keys.forEach { page ->
+            File(root, page).readLines().filter { "`wow.query.out-of-range`" in it }.assert().describedAs(page)
+                .hasSize(1).allMatch { line -> refusing.all { it in line } }
+        }
+    }
+
+    /** A row, by the start of its first cell on each page. */
     private class Marker(val en: String, val zh: String) {
         fun of(page: String): String = if ("/zh/" in page) zh else en
     }
@@ -111,16 +124,15 @@ class BackendNumbersReferenceTest {
 
         val ROWS: Map<Marker, String> = mapOf(
             Marker("A plain field's", "普通字段的") to EXACT_PLAIN_AGGREGATE,
-            Marker("A computed value", "计算值") to EXACT_COMPUTED_VALUE,
         )
 
-        /** The two cases, by the constant a subclass names each with. */
+        /** The cases of the table, by the constant a subclass names each with. */
         val CASES = mapOf(
             "EXACT_PLAIN_AGGREGATE" to EXACT_PLAIN_AGGREGATE,
-            "EXACT_COMPUTED_VALUE" to EXACT_COMPUTED_VALUE,
+            "OUT_OF_RANGE_REFUSED" to OUT_OF_RANGE_REFUSED,
         )
 
-        /** Which of the two cases [source]'s `semanticDivergences` lists, by its constant or its id: its `setOf(…)`. */
+        /** Which of the table's cases [source]'s `semanticDivergences` lists, by its constant or its id: its `setOf(…)`. */
         fun divergencesOf(source: String): Set<String> {
             val declared = source.indexOf("override val semanticDivergences")
             if (declared < 0) return emptySet()

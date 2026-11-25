@@ -74,6 +74,9 @@ object FrameworkCodes {
     const val QUERY_NOT_FOUND: String = "wow.query.not-found"
     const val QUERY_DATASET_NOT_FOUND: String = "wow.query.dataset-not-found"
     const val QUERY_TOO_MANY_GROUPS: String = "wow.query.too-many-groups"
+
+    /** A computed value of the query went beyond a double's range on its backend, which refused the query. */
+    const val QUERY_OUT_OF_RANGE: String = "wow.query.out-of-range"
     const val CALL_COMMAND_FORBIDDEN: String = "wow.call.command-forbidden"
 
     /** A client reached no node of the peer, or lost a query's connection before its answer; it may be sent again. */
@@ -126,6 +129,7 @@ object FrameworkCodes {
         QUERY_NOT_FOUND,
         QUERY_DATASET_NOT_FOUND,
         QUERY_TOO_MANY_GROUPS,
+        QUERY_OUT_OF_RANGE,
         CALL_COMMAND_FORBIDDEN,
         PEER_UNAVAILABLE,
     )

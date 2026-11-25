@@ -91,6 +91,8 @@ export const FrameworkErrorCodes = {
   QUERY_DATASET_NOT_FOUND: 'wow.query.dataset-not-found',
   /** 400 Too many groups: An aggregation that names no sort has more groups than its limit; add a sort for a top-N, or raise limit. */
   QUERY_TOO_MANY_GROUPS: 'wow.query.too-many-groups',
+  /** 400 Value out of range: A computed value went beyond a double's range on this backend; narrow the operands, or compute from stored fields. */
+  QUERY_OUT_OF_RANGE: 'wow.query.out-of-range',
   /** 504 Query timed out: The query ran longer than its budget allows; narrow it rather than run it again. */
   QUERY_TIMEOUT: 'wow.query.timeout',
   /** 409 Version not reached: The state read asked for a version the aggregate has not reached within the wait; the problem carries its current version: retry later. */
