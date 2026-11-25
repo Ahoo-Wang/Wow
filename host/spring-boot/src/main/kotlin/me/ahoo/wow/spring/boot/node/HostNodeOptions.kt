@@ -16,6 +16,7 @@ package me.ahoo.wow.spring.boot.node
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.runtime.node.Routing
 import me.ahoo.wow.runtime.node.ServiceNodeOptions
+import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.spring.boot.WowProperties
 import me.ahoo.wow.spring.boot.transport.PortProviders.Companion.configured
 
@@ -28,10 +29,23 @@ internal fun WowProperties.serviceNodeOptions(
     routing: Routing,
     topicRouted: Set<AggregateType>,
     transport: Boolean,
+): ServiceNodeOptions = configured("wow.wait") { wait.options() }.let { waits ->
+    serviceNodeOptions(waits, routing, topicRouted, transport)
+}
+
+/**
+ * [serviceNodeOptions] once the waits are read: `wow.wait` first, since a forward waits the default wait unless
+ * `wow.cluster.forward-timeout` says otherwise, so a wait refused is named as the wait's, not as the forward's.
+ */
+private fun WowProperties.serviceNodeOptions(
+    waits: WaitOptions,
+    routing: Routing,
+    topicRouted: Set<AggregateType>,
+    transport: Boolean,
 ): ServiceNodeOptions = ServiceNodeOptions(
     cluster = configured("wow.cluster") { cluster.options(wait.defaultTimeout) },
     routing = routing,
-    wait = configured("wow.wait") { wait.options() },
+    wait = waits,
     subscription = configured("wow.subscription") { subscription.options(subscriptions) },
     handoff = configured("wow.log") { log.handoffOptions() },
     executor = configured("wow.executor") { executor.options() },
@@ -42,7 +56,7 @@ internal fun WowProperties.serviceNodeOptions(
         configured("wow.schedules.$name") { schedule.options(subscription.parked.spec()) }
     },
     topicRouted = topicRouted,
-    ledger = ops.publish.options(transport = transport),
+    ledger = configured("wow.ops.publish") { ops.publish.options(transport = transport) },
     snapshots = configured("wow.snapshot") { snapshot.options(wait.defaultTimeout) },
     access = configured("wow.access") { access.options() },
 )

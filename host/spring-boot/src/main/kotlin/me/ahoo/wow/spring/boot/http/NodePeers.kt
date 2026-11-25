@@ -35,6 +35,7 @@ import me.ahoo.wow.spring.boot.WowAutoConfiguration.Companion.PEER_HTTP_CLIENT
 import me.ahoo.wow.spring.boot.WowProperties
 import me.ahoo.wow.spring.boot.node.NodeIdentity
 import me.ahoo.wow.spring.boot.node.NodeModels.Companion.serviceOf
+import me.ahoo.wow.spring.boot.transport.PortProviders.Companion.configured
 import me.ahoo.wow.spring.boot.transport.ProviderSettingsSource
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.annotation.Qualifier
@@ -81,7 +82,7 @@ internal class NodePeers {
     @ConditionalOnMissingBean(name = [PEER_HTTP_CLIENT])
     @InternalWowApi
     fun wowPeerHttpClient(properties: WowProperties): HttpClient =
-        HttpCommandCaller.client(properties.peer.connectTimeout.toKotlinDuration())
+        configured("wow.peer") { HttpCommandCaller.client(properties.peer.connectTimeout.toKotlinDuration()) }
 
     /**
      * The client of the other contexts' command gateways the sagas call: the service mode of
@@ -99,17 +100,19 @@ internal class NodePeers {
         @Qualifier(PEER_HTTP_CLIENT) client: HttpClient,
         contracts: ContractDirectory,
         silent: SilentPeers,
-    ): CommandCaller = HttpCommandCaller(
-        endpoints,
-        identity.service,
-        client,
-        properties.peer.timeout.toKotlinDuration(),
-        properties.peerTimeouts(),
-        contracts.fragments.map { it.manifest },
-        // A call that goes on with no wait states this node's own: the side that pays for the wait sets it.
-        properties.wait.defaultTimeout.toKotlinDuration(),
-        silent,
-    )
+    ): CommandCaller = configured("wow.peer") {
+        HttpCommandCaller(
+            endpoints,
+            identity.service,
+            client,
+            properties.peer.timeout.toKotlinDuration(),
+            properties.peerTimeouts(),
+            contracts.fragments.map { it.manifest },
+            // A call that goes on with no wait states this node's own: the side that pays for the wait sets it.
+            properties.wait.defaultTimeout.toKotlinDuration(),
+            silent,
+        )
+    }
 
     /**
      * The peers' nodes that took a request and did not answer it, which the node's clients, its sagas' calls, its
@@ -138,6 +141,14 @@ internal class NodePeers {
         silent: SilentPeers,
     ): PeerClients {
         val peer = properties.peer
+        // Read when the start reads the settings, not when a client is first used.
+        val retry = configured("wow.peer.retry") {
+            RetryPolicy.of(
+                peer.retry.maxAttempts,
+                peer.retry.maxRetryAfter.toKotlinDuration(),
+                peer.retry.initialBackoff.toKotlinDuration(),
+            )
+        }
         val described = properties.peers
             .filterValues { it.contract == PeerTargetProperties.Contract.MANIFEST }.keys
 
@@ -147,13 +158,7 @@ internal class NodePeers {
                 .endpoints(endpoints)
                 .httpClient(httpClient)
                 .timeout(peer.timeout.toKotlinDuration())
-                .retry(
-                    RetryPolicy.of(
-                        peer.retry.maxAttempts,
-                        peer.retry.maxRetryAfter.toKotlinDuration(),
-                        peer.retry.initialBackoff.toKotlinDuration(),
-                    ),
-                )
+                .retry(retry)
                 .contracts(contracts.fragments)
                 .ids(globalIds)
                 .manifestPeers(described)

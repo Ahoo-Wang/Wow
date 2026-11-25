@@ -21,6 +21,7 @@ import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.query.policy.GovernedAggregates
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.config.ProviderOption
+import me.ahoo.wow.spi.config.configCheck
 import me.ahoo.wow.spi.sink.Sink
 import me.ahoo.wow.spi.sink.SinkConfig
 import me.ahoo.wow.spi.sink.SinkProvider
@@ -154,12 +155,27 @@ class ClickHouseSinkProvider : SinkProvider {
             return ClickHouseSinkOptions(
                 database = config.settings.option(ClickHouseClients.DATABASE),
                 ddl = ddl,
-                batchSize = config.settings.option(BATCH_SIZE),
-                insertInterval = config.settings.option(INSERT_INTERVAL),
-                deduplicationWindow = config.settings.option(DEDUPLICATION_WINDOW),
+                batchSize = atLeast(config, BATCH_SIZE, 1),
+                insertInterval = config.settings.option(INSERT_INTERVAL).also { interval ->
+                    configCheck(
+                        !interval.isNegative(),
+                        "${config.key}.${INSERT_INTERVAL.key}",
+                        interval,
+                        "Set it to 0 or more: 0 inserts as often as one returns.",
+                    ) { "The insert interval of the ClickHouse Sink cannot be $interval." }
+                },
+                deduplicationWindow = atLeast(config, DEDUPLICATION_WINDOW, 1),
                 aggregates = aggregates(config),
             )
         }
+
+        /** [option] of [config], refused naming its key when it is below [least]. */
+        private fun atLeast(config: SinkConfig, option: ProviderOption.Defaulted<Int>, least: Int): Int =
+            config.settings.option(option).also { value ->
+                configCheck(value >= least, "${config.key}.${option.key}", value, "Set it to $least or more.") {
+                    "The ${option.key} of the ClickHouse Sink cannot be $value."
+                }
+            }
 
         /** Each aggregate type's history settings, `aggregates.<context>.<aggregate>.history.*`. */
         private fun aggregates(config: SinkConfig): Map<AggregateType, AggregateSinkOptions> =

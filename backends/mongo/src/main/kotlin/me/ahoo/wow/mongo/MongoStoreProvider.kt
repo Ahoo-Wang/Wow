@@ -27,6 +27,7 @@ import me.ahoo.wow.mongo.subscription.MongoLeaseStore
 import me.ahoo.wow.mongo.timer.MongoTimerStore
 import me.ahoo.wow.query.store.StoreQueries
 import me.ahoo.wow.spi.config.ProviderOption
+import me.ahoo.wow.spi.config.configCheck
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.reservation.ReservationStore
@@ -78,12 +79,26 @@ internal class MongoStoreProvider : StoreProvider {
             "${config.key}.${CLIENT.key}",
         ),
         config.settings.option(DATABASE),
-        config.settings.option(APPEND_TIMEOUT),
+        positive(config, APPEND_TIMEOUT),
         config.settings.option(SHARDING),
-        config.settings.option(OPERATION_TIMEOUT),
+        positive(config, OPERATION_TIMEOUT),
         gaugeOf(config),
         config.settings.option(QUERY_READ_PREFERENCE),
     )
+
+    /**
+     * [option] of [config], refused naming its key when it is not positive: a bound of zero or below bounds nothing.
+     * Checked here, where the option is read, so the refusal names the key, not the log's options class.
+     */
+    private fun positive(config: StoreConfig, option: ProviderOption.Defaulted<Duration>): Duration =
+        config.settings.option(option).also { timeout ->
+            configCheck(
+                timeout.isPositive(),
+                "${config.key}.${option.key}",
+                timeout,
+                "Set it (or wow.$TYPE.${option.key}) to a positive duration.",
+            ) { "The ${option.key} of the MongoDB store ${config.name} cannot be $timeout." }
+        }
 
     /**
      * The store's [MongoPoolGauge], when the application has one its client was built with; said once, when the store

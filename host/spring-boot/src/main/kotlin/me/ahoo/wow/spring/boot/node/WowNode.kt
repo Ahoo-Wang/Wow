@@ -107,6 +107,9 @@ data class NodeIdentity(
                     local.hostAddress
                 }
             val port = properties.internal.port
+            configCheck(port in 0..MAX_PORT, "wow.internal.port", port, "Set a port from 1 to $MAX_PORT, or 0.") {
+                "wow.internal.port is $port, no port the internal server can bind."
+            }
             val address = configured ?: NodeAddress.of(host, port).takeIf { port != 0 }
             val bindHost = named ?: configured?.let(NodeAddress::hostOf) ?: host
             return NodeIdentity(service, node, address, host, bindHost, serviceKey)
@@ -183,6 +186,9 @@ data class NodeIdentity(
                     "such as [::1]:9191, as RFC 3986 does.",
             ) { "wow.node.address [$address] is no host and port the other nodes can reach." }
         }
+
+        /** The highest TCP port. */
+        private const val MAX_PORT = 65_535
 
         private const val BYTE = 0xFF
         private const val SHARED_FIRST = 100

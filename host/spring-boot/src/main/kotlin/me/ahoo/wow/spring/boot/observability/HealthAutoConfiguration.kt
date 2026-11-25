@@ -23,6 +23,7 @@ import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.spi.config.configCheck
 import me.ahoo.wow.spring.boot.WowAutoConfiguration
 import me.ahoo.wow.spring.boot.WowProperties
+import me.ahoo.wow.spring.boot.transport.PortProviders.Companion.configured
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.EnvironmentPostProcessor
 import org.springframework.boot.SpringApplication
@@ -87,7 +88,8 @@ class HealthAutoConfiguration {
             "Set it longer than wow.cluster.reconcile-timeout ($reconcileTimeout), so a stuck node leaves the members " +
                 "before its liveness fails.",
         ) { "wow.health.liveness.stall-timeout is $stallTimeout, not longer than wow.cluster.reconcile-timeout." }
-        return NodeHealth(node, sampler, properties.health.options(properties.node.sampleInterval))
+        val options = configured("wow.health") { properties.health.options(properties.node.sampleInterval) }
+        return NodeHealth(node, sampler, options)
     }
 
     /**
