@@ -87,11 +87,11 @@ internal class Preparation(
         val observation = observer.deciding(command)
         val decision = if (trial) {
             observation.within {
-                withContext(deciding) { decisions.decideAll(model, decider, scope, state, command.body) }
+                withContext(deciding) { decisions.decideAll(model, decider, scope, state, command.body, deciding) }
             }
         } else {
             observation.observe {
-                withContext(deciding) { decisions.decideAll(model, decider, scope, state, command.body) }
+                withContext(deciding) { decisions.decideAll(model, decider, scope, state, command.body, deciding) }
             }
         }
         // Checked for every decision, a rejection that writes nothing included: its state is cached again as it is.

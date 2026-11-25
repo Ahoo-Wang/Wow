@@ -13,10 +13,13 @@
 
 package me.ahoo.wow.reactor
 
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.reactive.asFlow
 import kotlinx.coroutines.reactor.awaitSingleOrNull
+import me.ahoo.wow.spi.call.DecidingCommand
 import org.reactivestreams.Publisher
+import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 /**
@@ -24,8 +27,18 @@ import reactor.core.publisher.Mono
  * this adapter knows it). A [Mono] yields its value or nothing; any other [Publisher] (a `Flux`) yields everything
  * it emits, as a list of events. The code `wow-compiler` generates passes the result on to `decisionOf` or
  * `eventsOf`.
+ *
+ * Awaited while deciding, the publisher is subscribed with the command being decided in its Reactor context
+ * ([ReactorDecidingCarrier]): a decide function calls a suspending Wow client inside `mono { }`, whose coroutine reads
+ * that context, so a call that stands takes its derived request id there too (#7046).
  */
-suspend fun awaitResult(result: Publisher<*>): Any? = when (result) {
-    is Mono<*> -> result.awaitSingleOrNull()
-    else -> result.asFlow().toList()
+suspend fun awaitResult(result: Publisher<*>): Any? {
+    val deciding = currentCoroutineContext()[DecidingCommand]
+    return when (result) {
+        is Mono<*> -> (if (deciding == null) result else result.contextWrite(ReactorDecidingCarrier.of(deciding)))
+            .awaitSingleOrNull()
+
+        else -> (if (deciding == null) result else Flux.from(result).contextWrite(ReactorDecidingCarrier.of(deciding)))
+            .asFlow().toList()
+    }
 }
