@@ -329,6 +329,27 @@ describe('displayValue', () => {
     ).not.toBe(formatted(day, 'fa-IR', month));
   });
 
+  // Thai counts years by the Buddhist era: 2026 is its 2569. A year or a
+  // quarter Wow cut is the Gregorian one, so it is named so.
+  it('names a year and a quarter by the Gregorian year in a language that counts years otherwise', () => {
+    const day = Date.UTC(2026, 8, 18);
+    const thai = { locale: 'th-TH', timeZone: 'UTC' };
+    const year = (calendar?: string) =>
+      formatted(day, 'th-TH', {
+        year: 'numeric',
+        timeZone: 'UTC',
+        ...(calendar ? { calendar } : {}),
+      });
+
+    expect(year()).not.toBe(year('gregory'));
+    expect(
+      displayValue(day, { dateUnit: AggregationDateUnit.YEAR }, thai),
+    ).toBe(year('gregory'));
+    expect(
+      displayValue(day, { dateUnit: AggregationDateUnit.QUARTER }, thai),
+    ).toBe(`${year('gregory')} Q3`);
+  });
+
   // Buckets cut at UTC midnight and read in Los Angeles would each carry the
   // date before; the group's own zone is the one its keys are in.
   it('reads bucket keys in the zone the group cut them in', () => {

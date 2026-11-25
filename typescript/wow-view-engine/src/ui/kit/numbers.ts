@@ -31,7 +31,7 @@ import type { NumberFormat } from '../../model/index.js';
  * in the signature because a format may pin its own.
  */
 export function formatNumber(
-  value: number | bigint,
+  value: number | bigint | `${number}`,
   format?: NumberFormat,
   locale?: string,
 ): string {
@@ -40,6 +40,15 @@ export function formatNumber(
   const formatter =
     (format && numberFormatter(format, locale)) ?? numberFormatter({}, locale);
   if (!formatter) return String(value);
+  // A number's exact text is formatted as it is, every digit kept: Intl
+  // reads a decimal string exactly (ES2023; the ES2020 lib this package
+  // compiles against types `number` only, and an older engine reads the
+  // string as a number). Only a percentage or a unit near its ends is read
+  // as a number, to say it is not zero or the whole.
+  if (typeof value === 'string')
+    return FLOORED.has(format?.style ?? '')
+      ? floored(Number(value), formatter, format?.style === 'percent' ? 100 : 1)
+      : formatter.format(value as unknown as number);
   return typeof value === 'number' && FLOORED.has(format?.style ?? '')
     ? floored(value, formatter, format?.style === 'percent' ? 100 : 1)
     : formatter.format(value);
