@@ -90,13 +90,22 @@ export function errorsMember(
   return `${indent}Errors: {\n${members.join('\n')}\n${indent}},\n`;
 }
 
-/** The members a context's contract declares besides its aggregates. */
-const CONTRACT_MEMBERS: ReadonlySet<string> = new Set(['NAME', 'Errors']);
+/**
+ * The members a context's contract declares besides its aggregates, as the
+ * Kotlin contract's object declares them: its name, its shared codes and its
+ * hops (`Wait`, a constant of its own here).
+ */
+const CONTRACT_MEMBERS: ReadonlySet<string> = new Set([
+  'NAME',
+  'Errors',
+  'Wait',
+]);
 
 /**
  * The member of `aggregate` in its context's contract: its type name, as the
  * Kotlin contract's object is named, or, for a name the contract's own
- * members take (an aggregate `errors`), its constant's, `ErrorsAggregate`.
+ * members take (an aggregate `errors` or `wait`), its constant's,
+ * `ErrorsAggregate` or `WaitAggregate`, as the Kotlin contract names it (#6945).
  */
 function contractMember(aggregate: AggregateModel): string {
   return CONTRACT_MEMBERS.has(aggregate.typeName)

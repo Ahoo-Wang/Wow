@@ -70,7 +70,7 @@ api 模块还从中编译出 `<Context>Contract`，例如 `EshopOrderingContract
 | `<Aggregate>.STATE__*` | 它的状态的查询字段，需要 `wow-query-api` |
 | `Wait.*` | 上下文里等待链的跳点：`ACCEPTED`、`COMMITTED`、`SNAPSHOT`、`QUERYABLE`，以及契约列出的每个处理提交的订阅一个（Saga 只处理拒绝的 `@OnRejected` 处理器没有：它处理的拒绝已结束了等待），`<PROCESSOR>__<FUNCTION>`（`ORDER_PROCESS_SAGA__ON_ORDER_SUBMITTED`）；TypeScript 生成的 `<context>Wait` 给出同样的跳点 |
 
-对端不用手写任何路径、名字或错误码：`EshopOrderingContract.Order.ref(tenant, id)` 寻址一个订单，`EshopOrderingContract.Order.Errors.WRONG_STATUS` 用于比较拒绝（[调用其他服务](./calling-services)、[拒绝与错误码](./rejections#what-the-caller-receives)）。
+对端不用手写任何路径、名字或错误码：`EshopOrderingContract.Order.ref(tenant, id)` 寻址一个订单，`EshopOrderingContract.Order.Errors.WRONG_STATUS` 用于比较拒绝（[调用其他服务](./calling-services)、[拒绝与错误码](./rejections#what-the-caller-receives)）。聚合的对象以其名称的帕斯卡命名形式命名；上下文对象自身声明的名称 `NAME`、`Errors`（上下文共享的错误码）或 `Wait`（它的等待环节）则加上 `Aggregate`：名为 `errors` 的聚合是 `ErrorsAggregate`，名为 `wait` 的聚合是 `WaitAggregate`，与 TypeScript 契约一致。
 
 契约和这些代码是 api 模块的特性 `contract`，在同一模块内以分类器为 `contract` 的 jar 发布；模块自己的 jar 只装类型，所以每个模块都针对类型编译，不必等任何领域模块，包括 api 自己的领域模块。这个特性的能力（capability）是 `<group>:<项目名>-contract`，同一构建中的模块按它请求；模块以另一个名字发布时，还有 `<group>:<artifactId>-contract`，按坐标请求的构建按它请求。谁能看到契约：
 
