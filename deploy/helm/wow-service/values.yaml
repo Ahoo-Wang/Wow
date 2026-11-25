@@ -185,6 +185,8 @@ autoscaling:
   # A KEDA ScaledObject on the subscriptions' backlog, through Prometheus; needs KEDA installed. Exclusive with hpa.
   keda:
     enabled: false
+    # At least 1, as the HPA's: the only trigger is the backlog the service's own pods report, so nothing would scale
+    # the service up from zero.
     minReplicas: 2
     maxReplicas: 8
     pollingInterval: 30

@@ -427,7 +427,7 @@ hpa:
           periodSeconds: 300
 ```
 
-它的行为是每分钟至多增加一个节点，安静十分钟后每五分钟至多减少一个，免得一阵突发让分区来回迁移。装了 [KEDA](https://keda.sh) 时，`autoscaling.keda` 改为经 Prometheus 按积压伸缩；两者互斥：
+它的行为是每分钟至多增加一个节点，安静十分钟后每五分钟至多减少一个，免得一阵突发让分区来回迁移。装了 [KEDA](https://keda.sh) 时，`autoscaling.keda` 改为经 Prometheus 按积压伸缩；两者互斥。它的 `minReplicas` 至少是 1，和 HPA 的一样：积压是服务自己的 Pod 上报的序列，服务缩到零个节点时就没有积压可以据此扩容，schema 拒绝 0：
 
 <!-- sample: deploy/helm/wow-service/values.yaml#keda -->
 
@@ -435,6 +435,8 @@ hpa:
 # A KEDA ScaledObject on the subscriptions' backlog, through Prometheus; needs KEDA installed. Exclusive with hpa.
 keda:
   enabled: false
+  # At least 1, as the HPA's: the only trigger is the backlog the service's own pods report, so nothing would scale
+  # the service up from zero.
   minReplicas: 2
   maxReplicas: 8
   pollingInterval: 30

@@ -1,0 +1,25 @@
+# KEDA's ScaledObject scales on wow.subscription.backlog, which only the service's own pods report: at zero pods there
+# is no series, KEDA reads no backlog, and nothing ever scales the service up again (#6932). The schema holds
+# autoscaling.keda.minReplicas to 1, as the HPA's minimum. A suite of its own: the refusal is the values' validation.
+suite: KEDA never scales the service to zero
+templates:
+  - templates/scaledobject.yaml
+set:
+  service.name: eshop-ordering-service
+  image.repository: ghcr.io/example/eshop-ordering-server
+  autoscaling.keda.enabled: true
+  autoscaling.keda.prometheus.serverAddress: http://prometheus.monitoring:9090
+tests:
+  - it: refuses a minimum of zero replicas, from which the backlog it scales on cannot bring the service back
+    set:
+      autoscaling.keda.minReplicas: 0
+    asserts:
+      - failedTemplate:
+          errorPattern: "minReplicas.*minimum"
+  - it: takes a minimum of one
+    set:
+      autoscaling.keda.minReplicas: 1
+    asserts:
+      - equal:
+          path: spec.minReplicaCount
+          value: 1

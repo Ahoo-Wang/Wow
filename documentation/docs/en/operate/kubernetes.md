@@ -427,7 +427,7 @@ hpa:
           periodSeconds: 300
 ```
 
-Its behavior adds a node a minute at most, and removes one every five minutes after ten quiet ones, so a burst does not move the partitions back and forth. With [KEDA](https://keda.sh) installed, `autoscaling.keda` scales on the backlog through Prometheus instead; the two are exclusive:
+Its behavior adds a node a minute at most, and removes one every five minutes after ten quiet ones, so a burst does not move the partitions back and forth. With [KEDA](https://keda.sh) installed, `autoscaling.keda` scales on the backlog through Prometheus instead; the two are exclusive. Its `minReplicas` is at least 1, as the HPA's: the backlog is a series the service's own pods report, so a service at zero nodes would have no backlog to scale up on, and the schema refuses 0:
 
 <!-- sample: deploy/helm/wow-service/values.yaml#keda -->
 
@@ -435,6 +435,8 @@ Its behavior adds a node a minute at most, and removes one every five minutes af
 # A KEDA ScaledObject on the subscriptions' backlog, through Prometheus; needs KEDA installed. Exclusive with hpa.
 keda:
   enabled: false
+  # At least 1, as the HPA's: the only trigger is the backlog the service's own pods report, so nothing would scale
+  # the service up from zero.
   minReplicas: 2
   maxReplicas: 8
   pollingInterval: 30
