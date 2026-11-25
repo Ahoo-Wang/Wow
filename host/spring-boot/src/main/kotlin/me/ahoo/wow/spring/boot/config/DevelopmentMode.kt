@@ -14,33 +14,30 @@
 package me.ahoo.wow.spring.boot.config
 
 import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.runtime.cluster.NodeAddress
 import me.ahoo.wow.runtime.store.BackendSelection
 import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spring.boot.WowProperties
 import org.springframework.core.env.Environment
 
 /**
- * Whether the node runs for development: a profile of `wow.dev-profiles` (`dev`, `local`, `test`, `demo`)
- * is active, or the operator named a loopback address alone for its internal port (`wow.internal.host`, else the host
- * of `wow.node.address`). It is the one exemption the host's safeguards share, so a laptop starts as it is and a
- * deployment cannot: `wow.backend=auto` falls back to memory, the public port serves without a `CallerResolver` bean,
- * and, in a development profile alone ([profiles]), takes its callers from request headers. [reason] says why, null
- * outside development.
+ * Whether the node runs for development: a profile of `wow.dev-profiles` (`dev`, `local`, `test`, `demo`) is in
+ * effect, and for no other reason. It is the one exemption the host's safeguards share, so a laptop starts as it is
+ * and a deployment cannot: `wow.backend=auto` falls back to memory, `wow.transport=auto` keeps the topics in the JVM,
+ * and the public port serves without a `CallerResolver` bean, taking its callers from request headers. [reason] says
+ * why, null outside development.
  *
- * It is read from what the operator wrote, never from a resolved default: a node whose internal port binds the
- * address this host's name resolves to is a deployment, even where that is a loopback address (`127.0.1.1` in Debian's
- * `/etc/hosts`).
+ * An address states nothing: a node whose `wow.internal.host` or `wow.node.address` is a loopback address, without
+ * such a profile, is a deployment and refuses what a deployment refuses. A loopback port is reachable from its
+ * machine alone, but the public port of such a node would serve every request as the anonymous caller.
  *
  * The profiles in effect are the active ones, or Spring's default profiles (`spring.profiles.default`) when none is
- * active, as Spring itself takes them: [profiles] are those of `wow.dev-profiles` among them, empty when the node runs
- * for development by a loopback internal port its operator named alone.
+ * active, as Spring itself takes them: [profiles] are those of `wow.dev-profiles` among them.
  */
 class DevelopmentMode(val reason: String?, val profiles: List<String> = emptyList()) {
     /** Whether the node runs for development. */
     val active: Boolean get() = reason != null
 
-    /** Whether a profile of `wow.dev-profiles` is in effect: an explicit choice to run for development. */
+    /** Whether a profile of `wow.dev-profiles` is in effect: the same as [active], development's one statement. */
     val byProfile: Boolean get() = profiles.isNotEmpty()
 
     /**
@@ -54,9 +51,8 @@ class DevelopmentMode(val reason: String?, val profiles: List<String> = emptyLis
         throw WowConfigurationException(
             key,
             value,
-            "$key=$value $does: only a node in development may (a profile of wow.dev-profiles, or a " +
-                "loopback wow.internal.host).",
-            "Unset $key outside development.",
+            "$key=$value $does: only a node in development, a profile of wow.dev-profiles, may.",
+            "Unset $key outside development, or activate a profile of wow.dev-profiles (dev) for a local run.",
         )
     }
 
@@ -67,22 +63,14 @@ class DevelopmentMode(val reason: String?, val profiles: List<String> = emptyLis
         @JvmField
         val OFF: DevelopmentMode = DevelopmentMode(null)
 
-        /** Whether a node of [properties] in [environment] runs for development. */
+        /** Whether a node of [properties] in [environment] runs for development: by its profiles alone. */
         @InternalWowApi
         fun of(properties: WowProperties, environment: Environment): DevelopmentMode {
             val effective = environment.activeProfiles.ifEmpty { environment.defaultProfiles }.toList()
             return DevelopmentMode(
-                BackendSelection.memoryOptIn(effective, properties.devProfiles, namedHostOf(properties)),
+                BackendSelection.memoryOptIn(effective, properties.devProfiles),
                 effective.filter { it in properties.devProfiles },
             )
         }
-
-        /**
-         * The interface the operator named for the internal port of a node of [properties]: `wow.internal.host`, else
-         * the host of `wow.node.address`; null when they named neither and the node binds a default.
-         */
-        @InternalWowApi
-        fun namedHostOf(properties: WowProperties): String? = properties.internal.host?.takeIf { it.isNotBlank() }
-            ?: properties.node.address?.takeIf { it.isNotBlank() }?.let(NodeAddress::hostOf)
     }
 }

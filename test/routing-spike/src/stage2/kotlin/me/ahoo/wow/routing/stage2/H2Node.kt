@@ -15,6 +15,7 @@ package me.ahoo.wow.routing.stage2
 
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
+import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.ModelProvider
@@ -56,6 +57,13 @@ class H2Node {
             minimumIdle = maximumPoolSize
         },
     )
+
+    /**
+     * Its callers: anonymous on purpose, as the driver's load names none. A node is a deployment here, development
+     * being a profile of `wow.dev-profiles` alone, and a deployment declares its callers (decision D301).
+     */
+    @Bean
+    fun callerResolver(): CallerResolver = CallerResolver.ANONYMOUS
 
     private companion object {
         /** Stage 1's pool per node. */

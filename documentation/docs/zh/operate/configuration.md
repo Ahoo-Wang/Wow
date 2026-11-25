@@ -75,7 +75,7 @@ Spring 会忽略没有属性绑定的键，所以拼错的键会一声不响地�
 
 ## 开发与生产 {#development-and-production}
 
-在开发 profile（`dev`、`local`、`test` 或 `demo`，即 `wow.dev-profiles`）中，或者 `wow.internal.host` 指定了回环地址时，有几个默认值会放宽。只有你写下的才算：本机名字恰好解析到回环地址的节点（Debian 的 `/etc/hosts` 给出 `127.0.1.1`）是生产节点。
+在开发 profile（`dev`、`local`、`test` 或 `demo`，即 `wow.dev-profiles`）中，而且只在其中，有几个默认值会放宽。地址不表示开发模式：`wow.internal.host` 或 `wow.node.address` 是回环地址的节点，或者本机名字解析到回环地址的节点（Debian 的 `/etc/hosts` 给出 `127.0.1.1`），没有这种 profile 时都是生产节点。
 
 | 没有 | 开发环境中 | 生产环境中 |
 | --- | --- | --- |

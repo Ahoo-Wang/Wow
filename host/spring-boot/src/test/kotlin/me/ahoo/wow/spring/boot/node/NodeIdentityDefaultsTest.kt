@@ -100,15 +100,19 @@ class NodeIdentityDefaultsTest {
     }
 
     @Test
-    fun `a loopback address this host's name resolves to is bound but makes no development node`() {
+    fun `a loopback address is bound but makes no development node, resolved or named`() {
         // Debian's /etc/hosts gives the host name 127.0.1.1 (#6667).
         val properties = properties()
         val identity = NodeIdentity.of(properties, environment(), debian)
         identity.bindHost.assert().isEqualTo("127.0.1.1")
         DevelopmentMode.of(properties, environment()).active.assert().isFalse()
-        // The operator naming it makes one, as before.
+        // Named by the operator, it states nothing either (#6972): development is a profile of wow.dev-profiles alone.
         properties.internal.host = "127.0.1.1"
-        DevelopmentMode.of(properties, environment()).reason.assert().isEqualTo("internal port on loopback 127.0.1.1")
+        NodeIdentity.of(properties, environment(), debian).bindHost.assert().isEqualTo("127.0.1.1")
+        DevelopmentMode.of(properties, environment()).active.assert().isFalse()
+        properties.node.address = "127.0.0.1:9300"
+        DevelopmentMode.of(properties, environment()).active.assert().isFalse()
+        DevelopmentMode.of(properties, environment("dev")).reason.assert().isEqualTo("profile dev")
     }
 
     @Test

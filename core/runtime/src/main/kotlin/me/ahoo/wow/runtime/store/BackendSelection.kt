@@ -21,8 +21,6 @@ import me.ahoo.wow.spi.config.configNotNull
 import me.ahoo.wow.spi.store.StoreConfig
 import me.ahoo.wow.spi.store.StoreProvider
 import me.ahoo.wow.spi.store.StoreResources
-import java.net.InetAddress
-import java.net.UnknownHostException
 import java.util.Locale
 
 /**
@@ -105,24 +103,11 @@ object BackendSelection {
 
     /**
      * Why a node may fall back to memory when `wow.backend` is auto and no durable backend is available, or null when
-     * it may not: an active profile of [devProfiles] (`wow.dev-profiles`), or an internal port bound to
-     * [bindHost], a loopback address the operator named, alone (never one the host resolved by default), the
-     * development exemption the host's safeguards share.
+     * it may not: an active profile of [devProfiles] (`wow.dev-profiles`), the one statement that a node runs for
+     * development, which the host's safeguards share. Nothing else states it, an internal port's address included.
      */
-    fun memoryOptIn(activeProfiles: Collection<String>, devProfiles: Set<String>, bindHost: String?): String? {
-        val dev = activeProfiles.filter { it in devProfiles }
-        return when {
-            dev.isNotEmpty() -> "profile ${dev.joinToString()}"
-            bindHost != null && isLoopback(bindHost) -> "internal port on loopback $bindHost"
-            else -> null
-        }
-    }
-
-    private fun isLoopback(host: String): Boolean = try {
-        InetAddress.getByName(host).isLoopbackAddress
-    } catch (_: UnknownHostException) {
-        false
-    }
+    fun memoryOptIn(activeProfiles: Collection<String>, devProfiles: Set<String>): String? =
+        activeProfiles.filter { it in devProfiles }.takeIf { it.isNotEmpty() }?.let { "profile ${it.joinToString()}" }
 
     /** The key of the node's backend. */
     const val BACKEND: String = "wow.backend"
@@ -133,7 +118,7 @@ object BackendSelection {
             "every command it committed when it stops."
 
     const val NO_DURABLE_BACKEND_FIX: String =
-        "Add the backend's module and its DataSource or MongoClient, or name the memory backend to keep the data in " +
-            "memory on purpose. A development profile, or a loopback address named in wow.internal.host, " +
-            "also runs in memory."
+        "Add the backend's module and its DataSource or MongoClient, or name the memory backend " +
+            "(wow.backend=memory) to keep the data in memory on purpose. A local run activates a profile of " +
+            "wow.dev-profiles (dev), which also runs in memory."
 }

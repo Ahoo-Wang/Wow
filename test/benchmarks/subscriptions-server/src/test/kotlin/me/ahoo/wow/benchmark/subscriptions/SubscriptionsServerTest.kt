@@ -24,14 +24,15 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Primary
 
 /**
- * The server as bench.sh starts it, in memory: the projections the property names are the node's subscriptions, as an
+ * The server as bench.sh starts it, a production node (no development profile), in memory and with no topics, as CI's
+ * runs give it (`--wow.transport=none`): the projections the property names are the node's subscriptions, as an
  * operator reads them (`/wow/ops/subscriptions`, for a caller that reaches every tenant).
  */
 class SubscriptionsServerTest {
     private fun subscriptionsOf(projections: Int?): Set<String> = wowServer<TransferServer>(
         properties = mapOf(
             "wow.backend" to "memory",
-            "wow.transport" to "memory",
+            "wow.transport" to "none",
             "wow.http.ops.enabled" to true,
             BenchProjections.PROPERTY to projections,
         ),

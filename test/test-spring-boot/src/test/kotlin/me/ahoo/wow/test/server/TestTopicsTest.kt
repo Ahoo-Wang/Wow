@@ -19,16 +19,18 @@ import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.wait
 import me.ahoo.wow.example.quickstart.BankServer
 import me.ahoo.wow.example.quickstart.OpenAccount
+import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.runtime.node.SourceTopics
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.springframework.core.env.Environment
 
 /** A test server's topics: in its JVM with no configuration, or the ones a test gives it, shared or written first. */
 class TestTopicsTest {
     @Test
-    fun `a test server should keep its topics in its JVM with no configuration`() {
-        wowServer<BankServer>().use { server ->
+    fun `a test server in a development profile should keep its topics in its JVM with no configuration`() {
+        wowServer<BankServer>("dev").use { server ->
             server.bean<Environment>().getProperty("wow.transport").assert().isNull()
             val topics = server.bean<InMemoryTopics>()
             server.bean<SourceTopics>().source.assert().isSameAs(topics)
@@ -55,10 +57,29 @@ class TestTopicsTest {
     @Test
     fun `a server given topics should run its transport in memory`() {
         val topics = InMemoryTopics(1)
-        wowServer(BankServer::class.java, topics = topics).use { server ->
+        wowServer(BankServer::class.java, listOf("dev"), topics = topics).use { server ->
             server.bean<Environment>().getProperty("wow.transport").assert().isEqualTo("memory")
             server.bean<SourceTopics>().source.assert().isSameAs(topics)
         }
+    }
+
+    @Test
+    fun `a server given topics with no development profile should be refused, naming the profile`() {
+        // Topics in the JVM are development's alone (#6972): the kit adds no profile, so the test states one.
+        // A deployment's backend and caller resolver, so that the topics are what it refuses.
+        val failure = assertThrows<Exception> {
+            wowServer(
+                BankServer::class.java,
+                properties = mapOf("wow.backend" to "memory"),
+                sources = listOf(AnonymousCallers::class.java),
+                topics = InMemoryTopics(1),
+            ).close()
+        }
+        val refusal = generateSequence<Throwable>(failure) { it.cause }.filterIsInstance<WowConfigurationException>()
+            .first()
+        refusal.key.assert().isEqualTo("wow.transport")
+        refusal.message.assert().contains("wow.dev-profiles")
+        refusal.fix.assert().contains("wow.dev-profiles (dev)")
     }
 
     private companion object {

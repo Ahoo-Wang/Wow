@@ -140,7 +140,8 @@ fun startCatalog(
  */
 @OptIn(ExperimentalCoSecApi::class) // CoSec's test kit is experimental in 8.0.
 private fun gatewayBoundary(profiles: List<String>): Map<String, Any> = if ("cosec" in profiles) {
-    mapOf(IdentityHeader.ONLY_GATEWAY_CAN_REACH_KEY to "true")
+    // A node behind the gateway is a deployment, development being a profile alone (#6972): memory, named on purpose.
+    mapOf(IdentityHeader.ONLY_GATEWAY_CAN_REACH_KEY to "true", "wow.backend" to "memory")
 } else {
     emptyMap()
 }

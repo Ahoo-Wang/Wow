@@ -136,7 +136,8 @@ fun WebTestClient.RequestHeadersSpec<*>.answer(): Answer {
 
 /**
  * The properties every test host starts with: short cluster timings, the ports on the loopback interface, both bound
- * at a port the system chooses, so no other process can take a port picked before the host binds it.
+ * at a port the system chooses, so no other process can take a port picked before the host binds it, and the `dev`
+ * profile as Spring's default, so a host runs for development unless its test activates a profile of its own.
  */
 val hostProperties: Map<String, Any> = mapOf(
     "spring.application.name" to "bank-service",
@@ -148,6 +149,9 @@ val hostProperties: Map<String, Any> = mapOf(
     "server.address" to "127.0.0.1",
     "wow.internal.port" to 0,
     "wow.internal.host" to "127.0.0.1",
+    // A test host runs for development unless its test activates a profile of its own: development is a profile of
+    // wow.dev-profiles alone, never the loopback port above (#6972).
+    "spring.profiles.default" to "dev",
     "wow.cluster.drain-timeout" to "1s",
     "wow.cluster.lease-ttl" to "3s",
     "wow.cluster.renew-interval" to "1s",
@@ -161,6 +165,12 @@ val hostProperties: Map<String, Any> = mapOf(
     // springdoc is on the tests' classpath for the bridge's tests (HostSpringdocTest), which turn it on.
     "wow.http.openapi.springdoc.enabled" to false,
 )
+
+/**
+ * What a test host that stands for a deployment adds: Spring's default profile back to `default`, so the fixture's
+ * `dev` does not make it a development node.
+ */
+val NO_DEVELOPMENT: Pair<String, Any> = "spring.profiles.default" to "default"
 
 /** Starts a host of [sources] with [hostProperties] and [properties] over them. */
 fun startHost(

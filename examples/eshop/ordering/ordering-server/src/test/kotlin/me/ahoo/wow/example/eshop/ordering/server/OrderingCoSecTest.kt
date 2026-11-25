@@ -49,7 +49,7 @@ import java.math.BigDecimal
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class OrderingCoSecTest {
-    private val server = wowServer<OrderingServer>("cosec", properties = ONLY_GATEWAY_CAN_REACH)
+    private val server = wowServer<OrderingServer>("cosec", properties = ONLY_GATEWAY_CAN_REACH + DEPLOYED_IN_MEMORY)
 
     @AfterAll
     fun close() {
@@ -117,7 +117,7 @@ class OrderingCoSecTest {
             wowServer<OrderingServer>(properties = mapOf("wow.internal.host" to "0.0.0.0")).close()
         }
         generateSequence<Throwable>(failure) { it.cause }.mapNotNull { it.message }.joinToString("\n")
-            .assert().contains("No durable backend", "A development profile")
+            .assert().contains("No durable backend", "wow.dev-profiles")
     }
 
     private fun read(id: String, caller: Caller): Snapshot<OrderStateView>? =
@@ -136,3 +136,9 @@ class OrderingCoSecTest {
  */
 @OptIn(ExperimentalCoSecApi::class) // CoSec's test kit is experimental in 8.0.
 private val ONLY_GATEWAY_CAN_REACH: Map<String, Any> = mapOf(IdentityHeader.ONLY_GATEWAY_CAN_REACH_KEY to "true")
+
+/**
+ * A node behind the gateway is a deployment, development being a profile of `wow.dev-profiles` alone (#6972): its
+ * backend in memory, named on purpose, as a deployment of one node may.
+ */
+private val DEPLOYED_IN_MEMORY: Map<String, Any> = mapOf("wow.backend" to "memory")

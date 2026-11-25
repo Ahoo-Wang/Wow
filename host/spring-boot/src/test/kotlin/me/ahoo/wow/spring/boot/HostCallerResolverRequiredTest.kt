@@ -28,10 +28,9 @@ import org.springframework.mock.web.reactive.function.server.MockServerRequest
 
 /**
  * The public port without a `CallerResolver` bean (decision D301): a node outside development refuses to start, one in
- * a profile of `wow.dev-profiles` takes its callers from the identity headers ([DevelopmentCallerResolver]), one in
- * development by a loopback internal port alone serves the anonymous caller whatever headers a request sends (the
- * internal port says nothing of who reaches the public one), and an intentionally anonymous service says so with a bean
- * returning
+ * a profile of `wow.dev-profiles` takes its callers from the identity headers ([DevelopmentCallerResolver]), one with a
+ * loopback internal port and no such profile refuses as any deployment does (the internal port says nothing of who
+ * reaches the public one: #6972), and an intentionally anonymous service says so with a bean returning
  * [CallerResolver.ANONYMOUS] ([AnonymousCallers]). CoSec's resolver takes the place of the headers only while CoSec
  * is on (`cosec.enabled`).
  */
@@ -43,6 +42,7 @@ class HostCallerResolverRequiredTest {
     private val deployed = arrayOf(
         "wow.internal.host" to "0.0.0.0",
         "wow.backend" to "memory",
+        NO_DEVELOPMENT,
     )
 
     @Test
@@ -65,19 +65,16 @@ class HostCallerResolverRequiredTest {
     }
 
     @Test
-    fun `a node on a loopback internal port alone serves the anonymous caller, whatever headers it sends`() {
-        startHost().use { host ->
-            host.context.getBean(DevelopmentMode::class.java).active.assert().isTrue()
-            val resolver = host.context.getBean(CallerResolver::class.java)
-            resolver.assert().isSameAs(CallerResolver.ANONYMOUS)
-            val named = MockServerRequest.builder()
-                .header(DevelopmentHeaders.USER, "mallory")
-                .header(DevelopmentHeaders.ROLES, "admin")
-                .header(DevelopmentHeaders.TENANT, "other")
-                .build()
-            runBlocking { resolver.resolve(named) }.assert().isSameAs(Caller.ANONYMOUS)
-            host.post("/bank/account/open-account", """{"owner":"gina"}""").status.assert().isEqualTo(200)
+    fun `a node on a loopback internal port with no development profile refuses to start without one`() {
+        // The security point of #6972: a loopback port once made a node development, whose public port then served
+        // every request as the anonymous caller. NO_DEVELOPMENT clears the fixture's default dev profile.
+        val failure = assertThrows<Exception> {
+            startHost("wow.internal.host" to "127.0.0.1", "wow.backend" to "memory", NO_DEVELOPMENT).close()
         }
+        val cause = generateSequence<Throwable>(failure) { it.cause }.filterIsInstance<WowConfigurationException>()
+            .first()
+        cause.key.assert().isEqualTo("wow.dev-profiles")
+        cause.message.assert().contains("no profile of wow.dev-profiles")
     }
 
     @Test

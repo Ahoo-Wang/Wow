@@ -39,6 +39,7 @@ import me.ahoo.wow.spring.boot.BankModels
 import me.ahoo.wow.spring.boot.FROZEN
 import me.ahoo.wow.spring.boot.FROZEN_AMOUNT
 import me.ahoo.wow.spring.boot.WowAutoConfiguration
+import me.ahoo.wow.spring.boot.security.DevelopmentCallerResolver
 import me.ahoo.wow.spring.boot.startHost
 import me.ahoo.wow.spring.boot.store.HostBackends
 import org.junit.jupiter.api.AfterAll
@@ -97,7 +98,8 @@ class HostTest {
         host.context.getBean(Dependencies::class.java).assert().isInstanceOf(BeanFactoryDependencies::class.java)
         host.context.getBean(ClusterChannel::class.java).assert().isInstanceOf(HttpClusterChannel::class.java)
         host.context.getBean(SignalSender::class.java).assert().isNotNull()
-        host.context.getBean(CallerResolver::class.java).assert().isSameAs(CallerResolver.ANONYMOUS)
+        // The test host runs in the fixture's dev profile, whose callers the development headers name.
+        host.context.getBean(CallerResolver::class.java).assert().isInstanceOf(DevelopmentCallerResolver::class.java)
         host.context.getBean(KernelStateReads::class.java).assert().isNotNull()
         host.context.getBean(GlobalIdGenerator::class.java).assert().isSameAs(GlobalIdGenerator.UUID_V7)
         host.context.getBean(WowAutoConfiguration.WOW_AGGREGATE_ID_GENERATOR, AggregateIdGenerator::class.java)

@@ -14,10 +14,17 @@
 package me.ahoo.wow.test.server
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.example.quickstart.BankServer
+import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.runtime.node.ServiceNode
+import me.ahoo.wow.spi.config.WowConfigurationException
+import me.ahoo.wow.spring.boot.config.DevelopmentMode
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.springframework.boot.SpringBootConfiguration
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration
+import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Configuration
 import org.springframework.core.env.Environment
 import org.springframework.http.client.ReactorResourceFactory
 import java.net.InetSocketAddress
@@ -30,6 +37,13 @@ import java.time.ZoneOffset
 @SpringBootConfiguration(proxyBeanMethods = false)
 @EnableAutoConfiguration
 class EmptyApp
+
+/** An application anonymous on purpose: the resolver a test server outside development needs (decision D301). */
+@Configuration(proxyBeanMethods = false)
+class AnonymousCallers {
+    @Bean
+    fun anonymousCallerResolver(): CallerResolver = CallerResolver.ANONYMOUS
+}
 
 class WowServerTest {
     @Test
@@ -96,11 +110,28 @@ class WowServerTest {
     }
 
     @Test
-    fun `a test server should start by its application's class, with no profile`() {
-        wowServer(EmptyApp::class.java, properties = NAMED).use { server ->
-            server.bean<Environment>().activeProfiles.assert().isEmpty()
+    fun `a test server should start by its application's class, in the profiles it is given`() {
+        wowServer(EmptyApp::class.java, listOf("dev"), NAMED).use { server ->
+            server.bean<Environment>().activeProfiles.assert().containsExactly("dev")
             server.http.get("/shop/order/1/state").status.assert().isEqualTo(404)
         }
+    }
+
+    @Test
+    fun `a test server started with no development profile should not be a development node`() {
+        // A deployment of the bank's own configuration is no development node (#6972): its loopback ports state
+        // nothing, so it refuses what a deployment refuses, here the public port without a CallerResolver.
+        val failure = assertThrows<Exception> { wowServer<BankServer>().close() }
+        generateSequence<Throwable>(failure) { it.cause }.filterIsInstance<WowConfigurationException>().firstOrNull()
+            .assert().describedAs("a deployment's refusal: $failure").isNotNull()
+    }
+
+    @Test
+    fun `a test server given what a deployment needs should start as one`() {
+        wowServer<BankServer>(
+            properties = mapOf("wow.backend" to "memory"),
+            sources = listOf(AnonymousCallers::class.java),
+        ).use { server -> server.bean<DevelopmentMode>().active.assert().isFalse() }
     }
 
     @Test

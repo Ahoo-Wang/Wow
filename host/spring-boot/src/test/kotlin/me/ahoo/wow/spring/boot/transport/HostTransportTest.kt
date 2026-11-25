@@ -27,6 +27,7 @@ import me.ahoo.wow.spi.read.StateMasks
 import me.ahoo.wow.spring.boot.AnonymousCallers
 import me.ahoo.wow.spring.boot.BANK
 import me.ahoo.wow.spring.boot.HostTestApp
+import me.ahoo.wow.spring.boot.NO_DEVELOPMENT
 import me.ahoo.wow.spring.boot.WowProperties
 import me.ahoo.wow.spring.boot.config.DevelopmentMode
 import me.ahoo.wow.spring.boot.startHost
@@ -61,8 +62,9 @@ class HostTransportTest {
         TransportSelection.of(environment(), providers, beans = true).assert().isEqualTo(TransportSelection.PROVIDER)
         TransportSelection.of(environment(profiles = arrayOf("dev")), providers, beans = false)
             .assert().isEqualTo(TransportSelection.MEMORY)
+        // A loopback internal port is no development statement (#6972): a node there without a profile has no topics.
         TransportSelection.of(environment("wow.internal.host" to "127.0.0.1"), providers, beans = false)
-            .assert().isEqualTo(TransportSelection.MEMORY)
+            .assert().isEqualTo(TransportSelection.NONE)
         TransportSelection.of(environment(), providers, beans = false).assert().isEqualTo(TransportSelection.NONE)
     }
 
@@ -200,24 +202,24 @@ class HostTransportTest {
     }
 
     @Test
-    fun `development should be derived from the profiles or a loopback internal port the operator named`() {
-        val loopback = WowProperties().apply { internal.host = "127.0.0.1" }
-        DevelopmentMode.of(loopback, environment()).reason.assert().contains("127.0.0.1")
+    fun `development should be derived from the profiles alone, an address stating nothing`() {
         val everywhere = WowProperties().apply { internal.host = "0.0.0.0" }
         DevelopmentMode.of(everywhere, environment()).active.assert().isFalse()
         DevelopmentMode.of(everywhere, environment(profiles = arrayOf("local"))).reason
             .assert().isEqualTo("profile local")
-        // Spring's default profiles count when none is active, as Spring takes them; a loopback port is no profile.
+        // Spring's default profiles count when none is active, as Spring takes them.
         val defaulted = MockEnvironment().apply { setDefaultProfiles("dev") }
         DevelopmentMode.of(everywhere, defaulted).profiles.assert().containsExactly("dev")
         DevelopmentMode.of(everywhere, environment(profiles = arrayOf("prod"))).byProfile.assert().isFalse()
-        DevelopmentMode.of(loopback, environment()).byProfile.assert().isFalse()
-        DevelopmentMode.of(WowProperties().apply { node.address = "[::1]:9090" }, environment()).reason
-            .assert().isEqualTo("internal port on loopback ::1")
-        DevelopmentMode.namedHostOf(WowProperties().apply { node.address = "10.0.0.1:9090" })
-            .assert().isEqualTo("10.0.0.1")
-        // A host the operator names nothing for binds a resolved default, which never makes a development node.
-        DevelopmentMode.namedHostOf(WowProperties()).assert().isNull()
+        // A loopback address the operator names, for the internal port or the node, is no development statement.
+        for (named in listOf(
+            WowProperties().apply { internal.host = "127.0.0.1" },
+            WowProperties().apply { internal.host = "::1" },
+            WowProperties().apply { node.address = "[::1]:9090" },
+        )) {
+            DevelopmentMode.of(named, environment()).active.assert().isFalse()
+            DevelopmentMode.of(named, environment(profiles = arrayOf("dev"))).reason.assert().isEqualTo("profile dev")
+        }
     }
 
     @Test
@@ -236,6 +238,6 @@ class HostTransportTest {
 
     private companion object {
         /** A node bound to every interface, in memory on purpose, so that the backend is not what it refuses. */
-        val DEPLOYED = arrayOf<Pair<String, Any>>("wow.internal.host" to "0.0.0.0", "wow.backend" to "memory")
+        val DEPLOYED = arrayOf("wow.internal.host" to "0.0.0.0", "wow.backend" to "memory", NO_DEVELOPMENT)
     }
 }

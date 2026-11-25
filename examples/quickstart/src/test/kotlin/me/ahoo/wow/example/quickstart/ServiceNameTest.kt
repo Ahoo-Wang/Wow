@@ -27,7 +27,7 @@ class ServiceNameTest {
     @Test
     fun `the bank run under another name than its build's should not start, naming the key to set`() {
         val failure = assertThrows<Exception> {
-            wowServer<BankServer>(properties = mapOf("spring.application.name" to "bank")).close()
+            wowServer<BankServer>("dev", properties = mapOf("spring.application.name" to "bank")).close()
         }
         val refused = generateSequence<Throwable>(failure) { it.cause }
             .filterIsInstance<WowConfigurationException>().first()

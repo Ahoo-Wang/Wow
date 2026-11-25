@@ -18,15 +18,16 @@ import org.junit.jupiter.api.Test
 
 /**
  * The skeleton of the eShop's end-to-end suite (work package E.0): the catalog and inventory services, each in a JVM
- * of its own on the memory backend, serve their own context only and accept a command each. The basket is not one of
- * them: its checkout saga sends the ordering context's commands, so it starts only with a command transport
+ * of its own on the memory backend, serve their own context only and accept a command each, as their local runs do
+ * (the `dev` profile: development is a profile of `wow.dev-profiles` alone). The basket is not one of them: its
+ * checkout saga sends the ordering context's commands, so it starts only with a command transport
  * ([EshopOrderFlowTest] gives it Kafka).
  */
 class EshopE2eTest {
     @Test
     fun `two services should each serve their own context and accept its command`() {
-        EshopService.start("catalog", CATALOG_MAIN).use { catalog ->
-            EshopService.start("inventory", INVENTORY_MAIN).use { inventory ->
+        EshopService.start("catalog", CATALOG_MAIN, LOCAL_RUN).use { catalog ->
+            EshopService.start("inventory", INVENTORY_MAIN, LOCAL_RUN).use { inventory ->
                 catalog.contexts().assert().containsExactly("eshop-catalog")
                 inventory.contexts().assert().containsExactly("eshop-inventory")
 
@@ -46,6 +47,8 @@ class EshopE2eTest {
     }
 
     private companion object {
+        /** A local run's profile, as each service's `run` task activates it. */
+        val LOCAL_RUN = listOf("--spring.profiles.active=dev")
         const val CATALOG_MAIN = "me.ahoo.wow.example.eshop.catalog.server.CatalogServerKt"
         const val INVENTORY_MAIN = "me.ahoo.wow.example.eshop.inventory.server.InventoryServerKt"
     }

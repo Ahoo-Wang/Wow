@@ -15,7 +15,6 @@ package me.ahoo.wow.spring.boot.http
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.problem.ProblemMapper
 import me.ahoo.wow.api.read.NodeQueryApi
@@ -70,9 +69,8 @@ internal class NodePublicPort {
      *
      * - In a profile of `wow.dev-profiles`, the callers the request's identity headers name
      *   ([DevelopmentCallerResolver]): an explicit choice to run for development, so a client may name any caller.
-     * - In development by a loopback internal port the operator named alone, the anonymous caller of
-     *   `wow.tenant.default`: the internal port says nothing of who reaches the public one, so no header names a caller.
-     * - Otherwise the node refuses to start.
+     * - Otherwise the node refuses to start, whatever address its ports bind: a loopback internal port says nothing of
+     *   who reaches the public one.
      */
     @Bean
     @ConditionalOnMissingBean
@@ -91,31 +89,19 @@ internal class NodePublicPort {
                 "wow.dev-profiles (dev). An intentionally anonymous service declares one returning " +
                 "CallerResolver.ANONYMOUS.",
         ) {
-            "No CallerResolver bean, and the node is not in development (neither a profile of wow.dev-profiles nor " +
-                "a loopback wow.internal.host): the public port would have no caller to serve."
+            "No CallerResolver bean, and the node is not in development (no profile of wow.dev-profiles): the " +
+                "public port would have no caller to serve."
         }
         val tenant = properties.tenant.default
-        if (development.byProfile) {
-            logger.warn {
-                "No CallerResolver bean, in the development profile ${development.profiles.joinToString()}: the public port takes " +
-                    "its callers from the ${DevelopmentHeaders.USER}, ${DevelopmentHeaders.OWNER}, " +
-                    "${DevelopmentHeaders.ROLES}, ${DevelopmentHeaders.TENANT} and " +
-                    "${DevelopmentHeaders.APP} headers any client sets, and serves a request without " +
-                    "${DevelopmentHeaders.USER} as the anonymous caller of tenant $tenant." +
-                    exposure(environment.getProperty(SERVER_ADDRESS))
-            }
-            return DevelopmentCallerResolver(tenant)
-        }
         logger.warn {
-            "No CallerResolver bean, in development by its ${development.reason} alone: every request to the public " +
-                "port is served as the anonymous caller (tenant $tenant, no scope). A profile of wow.dev-profiles " +
-                "takes the callers from the ${DevelopmentHeaders.USER} headers instead."
+            "No CallerResolver bean, in the development profile ${development.profiles.joinToString()}: the public port " +
+                "takes its callers from the ${DevelopmentHeaders.USER}, ${DevelopmentHeaders.OWNER}, " +
+                "${DevelopmentHeaders.ROLES}, ${DevelopmentHeaders.TENANT} and " +
+                "${DevelopmentHeaders.APP} headers any client sets, and serves a request without " +
+                "${DevelopmentHeaders.USER} as the anonymous caller of tenant $tenant." +
+                exposure(environment.getProperty(SERVER_ADDRESS))
         }
-        if (tenant == Caller.DEFAULT_TENANT) {
-            return CallerResolver.ANONYMOUS
-        }
-        val anonymous = Caller(tenantId = tenant)
-        return CallerResolver { anonymous }
+        return DevelopmentCallerResolver(tenant)
     }
 
     @Bean

@@ -20,6 +20,7 @@ import io.swagger.v3.oas.models.media.StringSchema
 import io.swagger.v3.oas.models.parameters.Parameter
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.openapi.OpenApiSecurityScheme
+import me.ahoo.wow.spring.boot.AnonymousCallers
 import me.ahoo.wow.spring.boot.Host
 import me.ahoo.wow.spring.boot.HostTestApp
 import me.ahoo.wow.spring.boot.startHost
@@ -44,7 +45,8 @@ import tools.jackson.databind.JsonNode
 class HostSpringdocTest {
     @Test
     fun `the default document should list the application's controllers and the Wow routes`() {
-        springdocHost().use { host ->
+        // An application anonymous on purpose, whose document has no security scheme.
+        springdocHost(sources = listOf(AnonymousCallers::class.java)).use { host ->
             val document = host.get(API_DOCS).body!!
             document["openapi"].asString().assert().isEqualTo("3.1.0")
             val paths = document["paths"].propertyNames().toList()

@@ -107,9 +107,11 @@ const server = spawn(
     ...(cosec
       ? // A deployment's callers: the identity the CoSec gateway forwards. The server listens on 127.0.0.1 behind
         // the stand-in alone, which states CoSec's boundary (a deployment's chart writes it with its NetworkPolicy).
+        // A deployment, development being a profile of wow.dev-profiles alone: its memory backend is named.
         [
           "--spring.profiles.active=cosec",
           "--cosec.pipeline.identity.only-gateway-can-reach=true",
+          "--wow.backend=memory",
         ]
       : // The console names its caller in headers, which the server reads in development alone (a local run).
         ["--spring.profiles.active=dev"]),

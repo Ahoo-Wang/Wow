@@ -30,11 +30,11 @@ private val server = wowServer<OrderingServer>(
 )
 ```
 
-- 这个 fixture 把两个端口都绑定在回环网卡上的空闲端口。内部端口只绑定在回环网卡上、又没有存储 Bean 时，节点使用内存后端，它从内存提供快照查询和事件查询，除非 `wow.query.memory.enabled` 为 `false`。
+- 这个 fixture 把两个端口都绑定在回环网卡上的空闲端口。这并不表示开发模式：测试服务器像部署一样按它的 profile 运行。在开发 profile（如上面的 `dev`）中、又没有存储 Bean 时，节点使用内存后端，它从内存提供快照查询和事件查询，除非 `wow.query.memory.enabled` 为 `false`。没有开发 profile 时，它拒绝部署会拒绝的东西：没有持久后端、没有 `CallerResolver`、主题在内存中。
 - 它缩短节点关闭时等待的超时（`wow.cluster.drain-timeout`、`wow.subscription.stop-timeout`），让测试类之间的关闭很快；`properties` 加上测试自己的属性，这里是 `wow.timers.poll-interval=200ms`，让定时命令及时触发。
 - 应用自己的设置缩短测试要等待的东西：这里的支付宽限期是两秒，而不是三十分钟。
 
-ordering 的 Saga 会发送 inventory 的命令，所以节点需要命令传输。测试服务器为此什么都不用写：它的内部端口在回环网卡上，所以节点运行于开发模式，`wow.transport=auto` 就把命令主题和发布流留在它的 JVM 里，除非应用配置了传输。测试要在节点启动前往主题里写入（例如 Saga 要从头读的别的上下文的发布流），或者几个服务器共用主题，就用 `topics` 给出：
+ordering 的 Saga 会发送 inventory 的命令，所以节点需要命令传输。开发 profile 中的测试服务器为此什么都不用写：`wow.transport=auto` 就把命令主题和发布流留在它的 JVM 里，除非应用配置了传输。测试工具不会自己加 profile：没有开发 profile 启动的服务器没有内存中的主题。测试要在节点启动前往主题里写入（例如 Saga 要从头读的别的上下文的发布流），或者几个服务器共用主题，就用 `topics` 给出：
 
 <!-- sample: test/test-spring-boot/src/test/kotlin/me/ahoo/wow/test/server/TestTopicsTest.kt#topics -->
 
@@ -53,7 +53,7 @@ fun `servers given the same topics should share them, which outlive each`() {
 }
 ```
 
-- 节点用给它的主题代替自己的，并设 `wow.transport=memory`；关闭时不关闭这些主题，所以它们比共用它们的每个服务器都活得久。
+- 节点用给它的主题代替自己的，并设 `wow.transport=memory`；关闭时不关闭这些主题，所以它们比共用它们的每个服务器都活得久。内存中的主题只属于开发节点：没有开发 profile 却给了 `topics` 的服务器拒绝启动，并指出 `wow.dev-profiles`；测试工具不会自己加 profile。
 - `server.bean<InMemoryTopics>()` 是节点的主题，无论是给的还是它自己的，用来读它的 Saga 发出的命令、它的流发布的记录。
 
 然后测试用服务器的类型化客户端驱动服务（[以调用者身份发送与读取](#send-and-read-as-a-caller)）：等待计划能到的，等到 Saga 链尾；等待计划到不了的，才轮询。库存已确认却没有支付的订单，在它的定时命令到期时会取消自己：

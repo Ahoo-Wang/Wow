@@ -75,7 +75,7 @@ A node derives these values from its environment, so most services set none of t
 
 ## Development and production
 
-A few defaults relax in a development profile, `dev`, `local`, `test` or `demo` (`wow.dev-profiles`), or when `wow.internal.host` names a loopback address. Only what you write counts: a node whose host name happens to resolve to a loopback address (`127.0.1.1` in Debian's `/etc/hosts`) is a production node.
+A few defaults relax in a development profile, `dev`, `local`, `test` or `demo` (`wow.dev-profiles`), and nowhere else. An address states nothing: a node whose `wow.internal.host` or `wow.node.address` is a loopback address, or whose host name resolves to one (`127.0.1.1` in Debian's `/etc/hosts`), is a production node without such a profile.
 
 | Without | In development | In production |
 | --- | --- | --- |

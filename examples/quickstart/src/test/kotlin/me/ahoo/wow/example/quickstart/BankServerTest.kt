@@ -24,12 +24,12 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 
 /**
- * What the quickstart page does with the running service: its `application.yaml`, on random ports. Each request is the
- * one a `curl` of the page sends.
+ * What the quickstart page does with the running service: its `application.yaml` in the `dev` profile its `run` task
+ * activates, on random ports. Each request is the one a `curl` of the page sends.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class BankServerTest {
-    private val server: WowServer = wowServer<BankServer>()
+    private val server: WowServer = wowServer<BankServer>("dev")
 
     @AfterAll
     fun close() {
