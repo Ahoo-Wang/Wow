@@ -41,6 +41,7 @@ import me.ahoo.wow.spi.subscription.FailureClass
 import me.ahoo.wow.spring.boot.http.PeerDiscoveries
 import me.ahoo.wow.spring.boot.http.PeerEndpoints
 import me.ahoo.wow.spring.boot.http.PeerTargetProperties
+import me.ahoo.wow.spring.boot.transport.providerSettings
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -269,7 +270,11 @@ class HostCallsTest {
     fun `a listed peer without a URL or a service to look up should refuse the start`() {
         val properties = WowProperties().apply { peers["mail"] = PeerTargetProperties() }
         assertThrows<IllegalStateException> {
-            PeerEndpoints.of(properties, PeerDiscoveries.load(javaClass.classLoader), { emptyMap() }) { null }
+            PeerEndpoints.of(
+                properties,
+                PeerDiscoveries.load(javaClass.classLoader),
+                providerSettings()
+            ) { null }
         }.message.assert().contains("Peer mail has no url")
     }
 

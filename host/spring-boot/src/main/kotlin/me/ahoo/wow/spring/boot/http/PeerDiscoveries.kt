@@ -31,6 +31,7 @@ import me.ahoo.wow.spi.peer.PeerDiscoveryConfig
 import me.ahoo.wow.spi.peer.PeerTargets
 import me.ahoo.wow.spring.boot.WowProperties
 import me.ahoo.wow.spring.boot.transport.PortProviders
+import me.ahoo.wow.spring.boot.transport.ProviderSettingsSource
 import java.io.IOException
 import java.net.URI
 import java.nio.file.Files
@@ -423,7 +424,7 @@ internal class PeerEndpoints(
         fun of(
             properties: WowProperties,
             discoveries: PeerDiscoveries,
-            options: (type: String) -> Map<String, String>,
+            settings: ProviderSettingsSource,
             serviceOf: (context: String) -> String?,
         ): PeerEndpoints {
             val type = properties.peer.discovery.trim().lowercase()
@@ -447,7 +448,10 @@ internal class PeerEndpoints(
                     }
                 }
             }
-            val config = PeerDiscoveryConfig.of(type, PortProviders.declared(options(type), discovery.options))
+            val config = PeerDiscoveryConfig.of(
+                type,
+                settings.options("wow.${PeerDiscoveries.PREFIX}.$type", discovery.options)
+            )
             return PeerEndpoints(
                 properties.peers.mapNotNull { (context, target) -> target.publicUrl?.let { context to it } }.toMap(),
                 properties.peers.mapNotNull { (context, target) -> target.url?.let { context to it } }.toMap(),

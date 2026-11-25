@@ -52,6 +52,7 @@ import me.ahoo.wow.spring.boot.WowProperties
 import me.ahoo.wow.spring.boot.memoryStore
 import me.ahoo.wow.spring.boot.node.AggregateProperties
 import me.ahoo.wow.spring.boot.startHost
+import me.ahoo.wow.spring.boot.transport.providerSettings
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.beans.factory.support.DefaultListableBeanFactory
@@ -84,7 +85,10 @@ class HostStoresTest {
         BeanStoreResources(beans, NodeStores.BACKENDS),
         service,
         memoryOptIn,
-        settings = { prefix -> settings[prefix.removePrefix("wow.stores.")].orEmpty() },
+        settings = providerSettings(
+            *settings.flatMap { (name, own) -> own.map { (key, value) -> "wow.stores.$name.$key" to value } }
+                .toTypedArray(),
+        ),
     )
 
     private fun properties(block: WowProperties.() -> Unit = {}): WowProperties = WowProperties().apply(block)
@@ -458,6 +462,7 @@ class HostStoresTest {
             providers,
             BeanStoreResources(DefaultListableBeanFactory(), NodeStores.BACKENDS),
             clock = clock,
+            settings = providerSettings(),
         )
         stores.getValue("a").config.clock.assert().isSameAs(clock)
     }

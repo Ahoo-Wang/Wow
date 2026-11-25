@@ -51,6 +51,7 @@ import me.ahoo.wow.spring.boot.BANK
 import me.ahoo.wow.spring.boot.HostTestApp
 import me.ahoo.wow.spring.boot.WowProperties
 import me.ahoo.wow.spring.boot.startHost
+import me.ahoo.wow.spring.boot.transport.providerSettings
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.context.annotation.Bean
@@ -148,13 +149,12 @@ class ThirdPartyStoreTest {
             WowProperties().apply { stores["acme"] = StoreProperties().apply { type = "acme" } },
             providers,
             StoreResources.NONE,
-            settings = { prefix ->
-                when (prefix) {
-                    "wow.acme" -> mapOf("region" to "us-1", "undeclared" to "x")
-                    "wow.stores.acme" -> mapOf("type" to "acme", *options)
-                    else -> emptyMap()
-                }
-            },
+            settings = providerSettings(
+                "wow.acme.region" to "us-1",
+                "wow.acme.undeclared" to "x",
+                "wow.stores.acme.type" to "acme",
+                *options.map { (key, value) -> "wow.stores.acme.$key" to value }.toTypedArray(),
+            ),
         ).getValue("acme")
         open().config.settings.values.assert().isEqualTo(mapOf("region" to "us-1"))
         open("region" to "eu-1").config.settings.option(AcmeStoreProvider.REGION).assert().isEqualTo("eu-1")
@@ -177,19 +177,15 @@ class ThirdPartyStoreTest {
             WowProperties().apply { stores["main"] = StoreProperties().apply { type = "mapped" } },
             providers,
             StoreResources.NONE,
-            settings = { prefix ->
-                when (prefix) {
-                    "wow.mapped" -> mapOf(
-                        "region" to "global-region",
-                        "properties.shared" to "global-shared",
-                        "properties.overridden" to "global-value",
-                        "secret" to "everyone's",
-                        "labels.team" to "everyone's",
-                    )
-                    "wow.stores.main" -> mapOf("type" to "mapped", "properties.overridden" to "own-value")
-                    else -> emptyMap()
-                }
-            },
+            settings = providerSettings(
+                "wow.mapped.region" to "global-region",
+                "wow.mapped.properties.shared" to "global-shared",
+                "wow.mapped.properties.overridden" to "global-value",
+                "wow.mapped.secret" to "everyone's",
+                "wow.mapped.labels.team" to "everyone's",
+                "wow.stores.main.type" to "mapped",
+                "wow.stores.main.properties.overridden" to "own-value",
+            ),
         ).getValue("main")
         store.config.settings.values.assert().isEqualTo(
             mapOf(

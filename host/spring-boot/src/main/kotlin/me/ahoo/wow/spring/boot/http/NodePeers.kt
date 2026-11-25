@@ -35,7 +35,7 @@ import me.ahoo.wow.spring.boot.WowAutoConfiguration.Companion.PEER_HTTP_CLIENT
 import me.ahoo.wow.spring.boot.WowProperties
 import me.ahoo.wow.spring.boot.node.NodeIdentity
 import me.ahoo.wow.spring.boot.node.NodeModels.Companion.serviceOf
-import me.ahoo.wow.spring.boot.transport.PortProviders
+import me.ahoo.wow.spring.boot.transport.ProviderSettingsSource
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
@@ -72,7 +72,7 @@ internal class NodePeers {
     ): EndpointResolver = PeerEndpoints.of(
         properties,
         PeerDiscoveries.load(context.classLoader, discoveries.orderedStream().toList()),
-        { type -> PortProviders.optionsOf(environment, "${PeerDiscoveries.PREFIX}.$type") },
+        ProviderSettingsSource(environment),
         { peer -> serviceOf(contracts, peer) },
     )
 

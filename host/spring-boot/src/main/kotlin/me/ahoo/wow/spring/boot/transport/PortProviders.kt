@@ -26,6 +26,7 @@ import me.ahoo.wow.spring.boot.config.ConfigurationKeys
 import me.ahoo.wow.spring.boot.store.StoreProviders
 import org.springframework.boot.context.properties.bind.Bindable
 import org.springframework.boot.context.properties.bind.Binder
+import org.springframework.boot.context.properties.source.ConfigurationPropertyName
 import org.springframework.core.env.Environment
 import java.util.ServiceLoader
 
@@ -58,7 +59,7 @@ internal class PortProviders(
             provider to TransportConfig.of(
                 provider.type,
                 provider.type,
-                declared(optionsOf(environment, provider.type), TopicTransportOptions.of(provider)),
+                bound(environment, "wow.${provider.type}", TopicTransportOptions.of(provider)),
                 resources,
                 development,
             )
@@ -91,11 +92,11 @@ internal class PortProviders(
         resources: StoreResources,
         extra: (type: String) -> Map<String, String> = { emptyMap() },
     ): List<Pair<SinkProvider, SinkConfig>> = sinks.values.map { provider ->
-        val own = declared(extra(provider.type), provider.options, ProviderOption.Scope.entries)
+        val own = declared(extra(provider.type), provider.options)
         provider to SinkConfig.of(
             provider.type,
             provider.type,
-            own + declared(optionsOf(environment, provider.type), provider.options),
+            own + bound(environment, "wow.${provider.type}", provider.options),
             resources,
         )
     }.filter { (provider, config) -> configured(config.key) { provider.available(config) } }
@@ -134,27 +135,74 @@ internal class PortProviders(
         }
 
         /**
-         * The [settings] that [options] of the [scopes] declare: each an option's key, or under a map option's prefix
-         * ([ProviderOption.map]).
+         * The [settings] that [options] declare, of every scope: each an option's key, or under a map option's prefix
+         * ([ProviderOption.map]). Only the host's own settings of a Sink are read so; the environment's are [bound].
          */
-        fun declared(
-            settings: Map<String, String>,
+        private fun declared(settings: Map<String, String>, options: List<ProviderOption<*>>): Map<String, String> =
+            settings.filterKeys { key ->
+                options.any { option -> key == option.key || option.isMap && key.startsWith("${option.key}.") }
+            }
+
+        /**
+         * The settings of [environment] under [prefix] that [options] of the [scopes] declare, each read by its full
+         * key through Spring's binding (#6850): an option is read in every form Spring binds and the configuration
+         * keys' check accepts ([ConfigurationKeys]), `command-intake.enabled`, `commandIntake.enabled` or the
+         * variable `WOW_KAFKA_COMMANDINTAKE_ENABLED`, the environment's order deciding between two of them, and keyed
+         * by the option's key relative to [prefix]; a map option's entries under its prefix, each as its source
+         * writes it (`properties.linger.ms`).
+         */
+        fun bound(
+            environment: Environment,
+            prefix: String,
             options: List<ProviderOption<*>>,
             scopes: Collection<ProviderOption.Scope> = listOf(ProviderOption.Scope.TYPE),
         ): Map<String, String> {
-            val ofScopes = options.filter { it.scope in scopes }
-            return settings.filterKeys { key ->
-                ofScopes.any { option -> key == option.key || option.isMap && key.startsWith("${option.key}.") }
+            val binder = Binder.get(environment)
+            return buildMap {
+                options.filter { it.scope in scopes }.forEach { option ->
+                    val key = "$prefix.${option.key}"
+                    if (option.isMap) {
+                        binder.bind(key, Bindable.mapOf(String::class.java, String::class.java)).ifBound { entries ->
+                            entries.forEach { (entry, value) -> put("${option.key}.$entry", value) }
+                        }
+                    } else {
+                        binder.bind(key, String::class.java).orElse(null)?.let { put(option.key, it) }
+                    }
+                }
             }
         }
 
-        /** The settings under `wow.<type>`, flattened to keys relative to it (`topics.ddl`, `properties.linger.ms`). */
-        fun optionsOf(
-            environment: Environment,
-            type: String
-        ): Map<String, String> = settingsOf(environment, "wow.$type")
+        /**
+         * Whether [key], a setting relative to a provider's prefix as its source writes it, names [option] in a form
+         * Spring binds: the same elements but for case and dashes (`commandIntake.enabled`, `commandintake.enabled`),
+         * or, as an environment variable may write it, the option's dashes as dots (`command.intake.enabled`); for a
+         * map option, a key under its prefix so written.
+         */
+        fun names(key: String, option: ProviderOption<*>): Boolean {
+            val name = ConfigurationPropertyName.adapt(key, '.')
+            val elements = (0 until name.numberOfElements).map {
+                name.getElement(
+                    it,
+                    ConfigurationPropertyName.Form.UNIFORM
+                )
+            }
+            val target = ConfigurationPropertyName.adapt(option.key, '.').let { own ->
+                (0 until own.numberOfElements).joinToString(
+                    ""
+                ) { own.getElement(it, ConfigurationPropertyName.Form.UNIFORM) }
+            }
+            return if (option.isMap) {
+                (1 until elements.size).any { elements.take(it).joinToString("") == target }
+            } else {
+                elements.joinToString("") == target
+            }
+        }
 
-        /** The settings of [environment] under [prefix], each key relative to it, nested ones dot-separated. */
+        /**
+         * The settings of [environment] under [prefix], each key relative to it as its source writes it, nested ones
+         * dot-separated: what is set there, for a refusal of a key no option names to quote; never what an option reads
+         * ([bound]).
+         */
         fun settingsOf(environment: Environment, prefix: String): Map<String, String> =
             Binder.get(environment).bind(prefix, Bindable.mapOf(String::class.java, String::class.java))
                 .orElse(emptyMap())

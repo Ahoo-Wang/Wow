@@ -84,7 +84,7 @@ enum class TransportSelection {
                     TransportConfig.of(
                         provider.type,
                         provider.type,
-                        PortProviders.optionsOf(environment, provider.type)
+                        PortProviders.bound(environment, "wow.${provider.type}", TopicTransportOptions.of(provider)),
                     )
                 )
             }.map { it.type }

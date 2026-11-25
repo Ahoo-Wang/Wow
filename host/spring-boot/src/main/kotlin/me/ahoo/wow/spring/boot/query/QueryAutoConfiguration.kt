@@ -63,7 +63,7 @@ import me.ahoo.wow.spring.boot.node.QueryStreamsLifecycle
 import me.ahoo.wow.spring.boot.node.WowModels
 import me.ahoo.wow.spring.boot.store.BeanStoreResources
 import me.ahoo.wow.spring.boot.store.HostBackends
-import me.ahoo.wow.spring.boot.transport.PortProviders
+import me.ahoo.wow.spring.boot.transport.ProviderSettingsSource
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory
 import org.springframework.boot.autoconfigure.AutoConfiguration
@@ -392,7 +392,8 @@ class QueryAutoConfiguration {
             HostDatasets.provided(
                 HostDatasets.providers(beanFactory.beanClassLoader),
                 BeanStoreResources(beanFactory, DATASET_BINDINGS),
-            ) { type -> PortProviders.optionsOf(environment, type) },
+                ProviderSettingsSource(environment),
+            ),
             provided = true,
         )
 
