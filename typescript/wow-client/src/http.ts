@@ -55,6 +55,17 @@ export interface WowClientOptions {
   readonly fetcher?: Fetcher;
   /** A path put before every route, such as a gateway's prefix. */
   readonly basePath?: string;
+  /**
+   * How long, in milliseconds, the service waits for a command that states
+   * no wait: its `wow.wait.default-timeout`, at most its
+   * `wow.wait.max-timeout`. A command client bounds such a command's whole
+   * answer by it and 5 seconds more, and rejects past it with
+   * `wow.command.unknown`; a command that states its wait (`timeout`, or its
+   * plan's) is bounded by that instead. A minute when absent, the default
+   * `wow.wait.max-timeout`: a deployment whose services wait longer by
+   * default sets it, or has each command state its wait.
+   */
+  readonly defaultWaitMs?: number;
 }
 
 /**
@@ -127,6 +138,12 @@ export interface Call {
   readonly options?: RequestOptions;
   /** Answers a 304 rather than rejecting with it. */
   readonly notModified?: boolean;
+  /**
+   * The controller the request is sent with, in place of a signal: the
+   * fetcher aborts it at its own timeout as well (internal; a command's
+   * bound).
+   */
+  readonly abortController?: AbortController;
 }
 
 function queryString(
@@ -206,6 +223,9 @@ export async function send(
               : (call.body as object),
           }),
       ...(options.signal === undefined ? {} : { signal: options.signal }),
+      ...(call.abortController === undefined
+        ? {}
+        : { abortController: call.abortController }),
     });
     return new Answer(response, call.numbers.answer);
   } catch (error) {
@@ -216,6 +236,26 @@ export async function send(
     }
     throw (await toWowProblemError(error)) ?? error;
   }
+}
+
+/**
+ * `value` as one segment of a path, percent-encoded (internal). An empty
+ * value, `.` and `..` are refused before anything is sent: the URL a request
+ * goes to resolves a dot segment away (`%2e` too), so the request would reach
+ * another route than the one it names, and an empty one leaves its segment
+ * empty, a route no service has.
+ *
+ * @param value - The path variable's value
+ * @param what - What names it in the error, such as `The aggregate id`
+ * @throws TypeError for an empty value, `.` or `..`
+ */
+export function pathSegment(value: string, what: string): string {
+  if (value === '' || value === '.' || value === '..') {
+    throw new TypeError(
+      `${what} [${value}] cannot be sent in a path: it is empty or a relative segment, which the URL resolves away.`,
+    );
+  }
+  return encodeURIComponent(value);
 }
 
 /** The entity tag of a response without its quotes or weak marker. */

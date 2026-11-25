@@ -17,13 +17,13 @@ import {
   toServerSentEventStream,
 } from '@ahoo-wang/fetcher-eventstream';
 import { parseJson } from './exactJson.js';
+import { type AnswerBound, unknownOutcome } from './answerBound.js';
 import type { Answer } from './http.js';
 import type { CommandResult } from './wire.js';
 import { DEFAULT_RETRY } from './frameworkErrors.js';
 import {
   fromGateway,
   isProblem,
-  PROBLEM_TYPE_PREFIX,
   rememberRequestId,
   WowProblemError,
 } from './problem.js';
@@ -37,9 +37,6 @@ const ERROR_EVENT = 'error';
 /** The event that ends a resumable streamed query list (decision D253). */
 const END_EVENT = 'end';
 
-/** The code of a command whose outcome is unknown. */
-const COMMAND_UNKNOWN = 'wow.command.unknown';
-
 /** The name an event without one is read under. */
 const UNNAMED_EVENT = 'message';
 
@@ -48,9 +45,11 @@ const UNNAMED_EVENT = 'message';
  * per hop, each event named by its stage. A rejection or a failure after
  * admission is the stream's last result, not an error. The server ends a
  * whole stream with an `end` event after the last result, which is no result:
- * the stream closes on it, and one that ends without it, however cleanly,
- * errors with a `wow.command.unknown` {@link WowProblemError}, the command's
- * outcome unknown and a retry with its request id safe.
+ * the stream closes on it. One that ends without it, however cleanly, one
+ * whose connection is lost, one that sends what is no result, and one that
+ * outlasts its wait and a grace (`CommandClient.stream`) error with a
+ * `wow.command.unknown` {@link WowProblemError}, the command's outcome
+ * unknown and a retry with its request id safe.
  */
 export type CommandResultStream<R = Record<string, unknown>> = ReadableStream<
   CommandResult<R>
@@ -84,15 +83,19 @@ function eventsOf(
 /**
  * The data of each event of `answer`'s server-sent event stream, the
  * results of the command sent with `requestId`, until its `end` event, which
- * says the stream is whole. A read that fails, such as a connection lost
- * after the response began, fails with an error that carries `requestId`
- * (`requestIdOf`): the command may have been committed, and a retry with the
- * same id is answered as its duplicate. So does a stream that ends without
- * `end`, with a `wow.command.unknown` problem.
+ * says the stream is whole, all within `bound`. Past the head, whatever keeps
+ * the stream from its `end` leaves the command's outcome unknown: a stream
+ * that ends without it, a connection lost, an event that is no result, the
+ * bound passing. Each fails the read with a `wow.command.unknown` problem
+ * that carries `requestId` (`requestIdOf`), so a retry with the same id is
+ * answered as the duplicate of a commit that did happen. An abort of the
+ * caller's own signal fails it with the abort's reason, which carries
+ * `requestId` too.
  */
 export function commandResults<R>(
   answer: Answer,
   requestId: string,
+  bound: AnswerBound,
 ): CommandResultStream<R> {
   const reader = eventsOf(answer, event => event !== END_EVENT);
   return new ReadableStream<CommandResult<R>>({
@@ -101,22 +104,28 @@ export function commandResults<R>(
       try {
         next = await reader.read();
       } catch (error) {
-        rememberRequestId(error, requestId);
-        throw error;
+        bound.clear();
+        if (bound.abandoned) {
+          rememberRequestId(error, requestId);
+          throw error;
+        }
+        throw unknownOutcome(
+          bound.passed
+            ? `The command's event stream did not end within ${bound.ms} ms, its wait and a grace: whether it committed is unknown.`
+            : "The command's event stream was lost, or sent what is no result, before its end event: whether it committed is unknown.",
+          requestId,
+          error,
+        );
       }
       if (next.done) {
-        const unknown = new WowProblemError({
-          type: `${PROBLEM_TYPE_PREFIX}${COMMAND_UNKNOWN}`,
-          title: 'Command outcome unknown',
-          status: 503,
-          code: COMMAND_UNKNOWN,
-          detail:
-            "The command's event stream ended without its end event: whether it committed is unknown.",
-        });
-        rememberRequestId(unknown, requestId);
-        throw unknown;
+        bound.clear();
+        throw unknownOutcome(
+          "The command's event stream ended without its end event: whether it committed is unknown.",
+          requestId,
+        );
       }
       if (next.value.event === END_EVENT) {
+        bound.clear();
         // The stream is whole: what may follow, a keep-alive, is not read.
         await reader.cancel().catch(() => undefined);
         controller.close();
@@ -125,6 +134,7 @@ export function commandResults<R>(
       controller.enqueue(next.value.data as CommandResult<R>);
     },
     cancel(reason) {
+      bound.clear();
       return reader.cancel(reason);
     },
   });
@@ -181,7 +191,11 @@ export interface StreamResumeOptions {
    * catalog's backoff by default ({@link DEFAULT_RETRY}).
    */
   readonly initialDelayMs?: number;
-  /** The longest wait between retries; the catalog's by default ({@link DEFAULT_RETRY}). */
+  /**
+   * The longest wait between retries; the catalog's by default
+   * ({@link DEFAULT_RETRY}). A `Retry-After` beyond it is not waited out: the
+   * stream fails at once with the problem that asked for it.
+   */
   readonly maxDelayMs?: number;
 }
 
@@ -273,6 +287,10 @@ export function resumableQueryRows<T>(
     for (;;) {
       if (halted.aborted) throw halted.reason;
       if (failures++ >= maxRetries) throw cause;
+      // A Retry-After past the longest wait between retries is not waited
+      // out: the stream fails with what said it, as the Kotlin client's
+      // resume does (`RetryPolicy.delayBefore`).
+      if (delayMs !== undefined && delayMs > maxDelayMs) throw cause;
       const wait =
         delayMs ?? Math.min(maxDelayMs, initialDelayMs * 2 ** (failures - 1));
       if (wait > 0) await sleep(wait, halted);

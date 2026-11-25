@@ -13,7 +13,14 @@
 
 import type { TextNumbers } from './exactJson.js';
 import {
+  ANSWER_GRACE_MS,
+  AnswerBound,
+  LONGEST_WAIT_MS,
+  unknownOutcome,
+} from './answerBound.js';
+import {
   type Answer,
+  pathSegment,
   type RequestOptions,
   send,
   type TargetScope,
@@ -285,7 +292,7 @@ function routeOf(
     path:
       id === undefined
         ? route.path
-        : route.path.replace(ID, encodeURIComponent(id)),
+        : route.path.replace(ID, pathSegment(id, 'The aggregate id')),
   };
 }
 
@@ -326,12 +333,43 @@ function typeNamed(command: string): AggregateType {
   return { context: parts[0], name: parts[1] };
 }
 
+/**
+ * The wait `request` states (`Wow-Wait-Timeout`), in milliseconds: its own
+ * timeout or its plan's, none when it leaves the service its default.
+ */
+function statedTimeout(
+  request: CommandRequest,
+  plan: WaitPlan | undefined,
+): number | undefined {
+  return plan !== undefined &&
+    (request.timeout !== undefined || plan.timeout !== WaitPlan.DEFAULT_TIMEOUT)
+    ? plan.timeout
+    : undefined;
+}
+
+/**
+ * How long `request`'s whole answer may take: the wait it states, else the
+ * service's default wait (`defaultWaitMs`, a minute when absent), and a grace
+ * after it.
+ */
+function boundOf(
+  request: CommandRequest,
+  plan: WaitPlan | undefined,
+  client: WowClientOptions,
+): number {
+  return (
+    (statedTimeout(request, plan) ?? client.defaultWaitMs ?? LONGEST_WAIT_MS) +
+    ANSWER_GRACE_MS
+  );
+}
+
 function commandHeaders(
   request: CommandRequest,
   plan: WaitPlan | undefined,
   requestId: string,
   accept?: string,
 ): Record<string, string | undefined> {
+  const timeout = statedTimeout(request, plan);
   return {
     [WowHeaders.REQUEST_ID]: requestId,
     // The default plan is the service's to pick: it sends no plan.
@@ -339,11 +377,7 @@ function commandHeaders(
       plan === undefined || plan.isDefault ? undefined : formatWaitPlan(plan),
     // A plan's own timeout, or the request's; the service's default otherwise.
     [WowHeaders.WAIT_TIMEOUT]:
-      plan !== undefined &&
-      (request.timeout !== undefined ||
-        plan.timeout !== WaitPlan.DEFAULT_TIMEOUT)
-        ? formatWaitTimeout(plan.timeout)
-        : undefined,
+      timeout === undefined ? undefined : formatWaitTimeout(timeout),
     [WowHeaders.IF_MATCH]:
       request.expectedVersion === undefined
         ? undefined
@@ -377,6 +411,20 @@ function targetOf(request: CommandRequest): TargetScope | undefined {
  * {@link WowProblemError} (the table on {@link CommandRejectedError} says
  * which). Every command carries a request id, the request's or a generated
  * one, and whatever it rejects with carries that id ({@link requestIdOf}).
+ *
+ * A command's whole answer, its head, its body and a stream's every event,
+ * is bounded by the wait it states (`timeout`, or its plan's) and 5 seconds
+ * more, as the Kotlin client's is; one that states none, whose wait is the
+ * service's default, by the client's
+ * {@link WowClientOptions.defaultWaitMs} (a minute when absent, the longest
+ * default a service takes unless its `wow.wait.max-timeout` is raised) and
+ * the same grace. The service answers `wow.wait.timeout` at the wait's end,
+ * so a node that has not answered by then never will: past the bound the
+ * request is aborted, its connection closed, and the call rejects with
+ * `wow.command.unknown`. So does an answer lost or unreadable after its head:
+ * the command may have committed, and a retry with its request id is
+ * answered as the duplicate it is. An abort of the request's own `signal`
+ * rejects with the abort's reason.
  */
 export class CommandClient {
   private readonly manifest: ManifestSource;
@@ -396,9 +444,10 @@ export class CommandClient {
 
   /**
    * Sends a command and answers once it is accepted (202), within the
-   * request's timeout (10 seconds without one), as Kotlin's
-   * `CommandClient.send`. A request whose `wait` waits for more rejects with a
-   * `TypeError` before it is sent: {@link wait} answers with that plan's result.
+   * request's timeout (the service's default without one) and the grace
+   * after it, as Kotlin's `CommandClient.send`. A request whose `wait` waits
+   * for more rejects with a `TypeError` before it is sent: {@link wait}
+   * answers with that plan's result.
    *
    * @param request - The command and how to send it
    */
@@ -443,17 +492,15 @@ export class CommandClient {
     request: CommandRequest,
   ): Promise<CommandResultStream<R>> {
     const requestId = request.requestId ?? newRequestId();
-    return withRequestId(requestId, async () =>
-      commandResults<R>(
-        await this.post(
-          request,
-          planOf(request),
-          requestId,
-          'text/event-stream',
-        ),
+    return withRequestId(requestId, async () => {
+      const { answer, bound } = await this.post(
+        request,
+        planOf(request),
         requestId,
-      ),
-    );
+        'text/event-stream',
+      );
+      return commandResults<R>(answer, requestId, bound);
+    });
   }
 
   private async exchange<R>(
@@ -462,11 +509,9 @@ export class CommandClient {
   ): Promise<CommandResult<R>> {
     const requestId = request.requestId ?? newRequestId();
     return withRequestId(requestId, async () => {
-      let result: CommandResult<R>;
+      let sent: { answer: Answer; bound: AnswerBound };
       try {
-        result = await (
-          await this.post(request, plan, requestId)
-        ).json<CommandResult<R>>();
+        sent = await this.post(request, plan, requestId);
       } catch (error) {
         if (
           error instanceof WowProblemError &&
@@ -479,16 +524,37 @@ export class CommandClient {
         }
         throw error;
       }
+      const { answer, bound } = sent;
+      let result: CommandResult<R>;
+      try {
+        result = await answer.json<CommandResult<R>>();
+      } catch (error) {
+        // Past the head: the command was taken, and its answer is lost.
+        if (bound.abandoned) throw error;
+        throw unknownOutcome(
+          bound.passed
+            ? `The command's answer did not come within ${bound.ms} ms, its wait and a grace: whether it committed is unknown.`
+            : "The command's answer was lost, or could not be read, after it began: whether it committed is unknown.",
+          requestId,
+          error,
+        );
+      } finally {
+        bound.clear();
+      }
       return settled(result);
     });
   }
 
+  /**
+   * Sends `request` and answers its head, with the bound its whole answer
+   * is held to, which the reader of its body clears.
+   */
   private async post(
     request: CommandRequest,
     plan: WaitPlan | undefined,
     requestId: string,
     accept?: string,
-  ): Promise<Answer> {
+  ): Promise<{ answer: Answer; bound: AnswerBound }> {
     const declared = await this.commandOf(request);
     const idProperty = declared.idProperty;
     const route = routeOf(
@@ -498,23 +564,45 @@ export class CommandClient {
     );
     const scope = targetOf(request);
     const bodyNumbers = this.bodyNumbers[request.command];
-    return send(this.client, {
-      method: route.method,
-      path: route.path,
-      headers: commandHeaders(request, plan, requestId, accept),
-      ...(route.method === 'DELETE'
-        ? {}
-        : { body: bodyOf(request, idProperty) }),
-      // A result's numbers are the framework's; its `results` are the
-      // service's own, which the Manifest gives no schema.
-      numbers: { body: bodyNumbers },
-      options: {
-        ...(scope === undefined ? {} : { scope }),
-        ...(request.space === undefined ? {} : { space: request.space }),
-        ...(request.headers === undefined ? {} : { headers: request.headers }),
-        ...(request.signal === undefined ? {} : { signal: request.signal }),
-      },
-    });
+    const body =
+      route.method === 'DELETE' ? {} : { body: bodyOf(request, idProperty) };
+    const bound = new AnswerBound(
+      boundOf(request, plan, this.client),
+      request.signal,
+    );
+    try {
+      const answer = await send(this.client, {
+        method: route.method,
+        path: route.path,
+        headers: commandHeaders(request, plan, requestId, accept),
+        ...body,
+        // A result's numbers are the framework's; its `results` are the
+        // service's own, which the Manifest gives no schema.
+        numbers: { body: bodyNumbers },
+        options: {
+          ...(scope === undefined ? {} : { scope }),
+          ...(request.space === undefined ? {} : { space: request.space }),
+          ...(request.headers === undefined
+            ? {}
+            : { headers: request.headers }),
+          ...('signal' in bound.sending ? bound.sending : {}),
+        },
+        ...('abortController' in bound.sending ? bound.sending : {}),
+      });
+      return { answer, bound };
+    } catch (error) {
+      bound.clear();
+      // No head within the bound: a node that took the request and went
+      // silent. A problem the service did answer is its own.
+      if (bound.passed && !(error instanceof WowProblemError)) {
+        throw unknownOutcome(
+          `The command was not answered within ${bound.ms} ms, its wait and a grace: whether it committed is unknown.`,
+          requestId,
+          error,
+        );
+      }
+      throw error;
+    }
   }
 
   /**

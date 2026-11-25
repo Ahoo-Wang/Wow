@@ -173,7 +173,7 @@ for (;;) {
 }
 ```
 
-在准入时被拒绝的命令，会在任何结果流出之前 reject 这次调用，抛出的是 `result.status` 为 `rejected` 的 `WowProblemError`：流式调用不会像 `wait` 那样把它转成 `CommandRejectedError`，所以要检查 `error.result?.status`。准入之后的拒绝是流的最后一个结果，带着它的 `status` 和 `error`。当某个 Saga 不再发出任何东西时，链会在计划结束之前结束：那个结果带有 `chainEnded`，`pending` 指明不会到来的那些跳。eShop 的结账页面就是这样把它十五跳的链一直跟随到支付的（`examples/eshop/web/src/shop/checkout.ts`）。流开始之后连接断开时，读取以网络的错误失败，`requestIdOf(error)` 交回它发送时的请求 ID：命令可能已经提交，所以用这个 ID 再发一次。流在服务最后一个结果之后的 `end` 事件上关闭，`end` 不是结果；没有它就结束的流，无论结束得多干净，读取都以 `wow.command.unknown` 的 `WowProblemError`（`retry` 为 `same-request`）reject，`requestIdOf` 同样能读出它的请求 ID。
+在准入时被拒绝的命令，会在任何结果流出之前 reject 这次调用，抛出的是 `result.status` 为 `rejected` 的 `WowProblemError`：流式调用不会像 `wait` 那样把它转成 `CommandRejectedError`，所以要检查 `error.result?.status`。准入之后的拒绝是流的最后一个结果，带着它的 `status` 和 `error`。当某个 Saga 不再发出任何东西时，链会在计划结束之前结束：那个结果带有 `chainEnded`，`pending` 指明不会到来的那些跳。eShop 的结账页面就是这样把它十五跳的链一直跟随到支付的（`examples/eshop/web/src/shop/checkout.ts`）。流在服务最后一个结果之后的 `end` 事件上关闭，`end` 不是结果。没有它就结束的流（无论结束得多干净）、开始之后连接断开的流、发来的不是结果的流，读取都以 `wow.command.unknown` 的 `WowProblemError`（`retry` 为 `same-request`）reject，网络的错误是它的 `cause`：命令可能已经提交，所以用它发送时的请求 ID 再发一次，`requestIdOf(error)` 交回这个 ID。
 
 ## 命令失败时 {#when-a-command-fails}
 
@@ -217,6 +217,8 @@ try {
   }
 }
 ```
+
+命令的整个应答都有界：以它声明的 `timeout`（或其计划的超时）再加 5 秒为界，与 Kotlin 客户端一样。没有声明的命令等待服务的默认时长（`wow.wait.default-timeout`），客户端并不知道这个时长，所以以客户端选项的 `defaultWaitMs` 再加同样的 5 秒为界：没有给出时是一分钟，即服务默认等待的最大值，除非服务调大了 `wow.wait.max-timeout`。服务默认等待更久的部署，在构建客户端的选项里设置 `defaultWaitMs`（`new OrderCommandClient({ fetcher, defaultWaitMs: 120_000 })`），或者让每条命令声明它的等待。服务在等待结束时应答 `wow.wait.timeout`，所以到那时仍未应答的节点不会再应答：请求被中止、连接关闭，调用以 `wow.command.unknown` reject。`wait` 或 `send` 的应答在开始之后丢失或无法读取时也是如此。中止请求自己的 `signal` 时，以中止的原因 reject，`requestIdOf` 同样能读出请求 ID。
 
 `WowProblemError` 的 `retry` 说明重试能做什么，由错误目录按它的代码声明：`none`，重试同样失败；`same-request`，以同一个请求 ID 再发；`new-request`，原样再发。`retryAfterMs` 说明要先等多久（`Retry-After`）。每条命令都带着一个请求 ID（`Wow-Request-Id`）：选项中给出的，或者客户端生成的 UUIDv7（`newRequestId`，按生成时的毫秒排序，与 Kotlin 客户端一致），两种错误的 `requestId` 都会把它交回来。用同一个 ID 重试，会被当作第一次提交的重复请求来回答，绝不会执行两次，所以用它重试 `wow.command.unknown` 和 `wow.wait.timeout`。重试可能来自别处时（例如页面重新加载），从一开始就传入 `requestId`：
 

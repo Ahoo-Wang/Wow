@@ -57,6 +57,7 @@ src/
   problem.ts      — Problem, FrameworkErrorCodes, WowProblemError and its retry hint, toWowProblemError, requestIdOf
   wait.ts         — wait.* hops, formatWaitPlan, formatWaitTimeout (the Wow-Wait grammar)
   http.ts         — WowHeaders, WowClientOptions, RequestOptions, formatScope; (internal) send, path expansion
+  answerBound.ts  — (internal) the bound over a command's whole answer, and the `wow.command.unknown` error of an answer lost; the command client's alone
   streams.ts      — CommandResultStream; (internal) the SSE readers of command results and query rows, and their resumption
   commands.ts     — CommandClient (send, wait and stream of a CommandRequest, Kotlin's), CommandRequest, CommandOptions, CommandClientOptions, LifecycleCommands
   queries.ts      — QueryModelClient, SnapshotQueryClient, EventQueryClient, DatasetClient
@@ -80,6 +81,7 @@ test/
   golden/dsl-wire.json, dslWire.test.ts — Every DSL builder's JSON
   commandClient.test.ts, commandResults.test.ts, commandStream.test.ts, queries.test.ts, state.test.ts, manifest.test.ts,
   edges.test.ts, resumableStreams.test.ts — The clients against a stubbed fetch (fixtures/fetchStub.ts, fixtures/clients.ts)
+  commandBounds.test.ts, pathSegments.test.ts — The clients against a real HTTP server on 127.0.0.1 (fixtures/httpServer.ts): a command's bound and its lost answers, ids a path cannot carry
   wait.test.ts, problem.test.ts — Wow-Wait and Wow-Scope as the headers spell them; problems as a client reads them
   dsl/                — The DSL, its conformance register and its codes
 ```
@@ -105,7 +107,12 @@ carrying the problem, its status, its Wow code, its violations and, for a
 command, its `CommandResult`. A stream that fails after its first event
 errors with the same error at the error event, so a `for await` throws
 instead of reading the problem as a row. Every command carries a request id,
-and whatever it rejects with carries that id (`requestIdOf`).
+and whatever it rejects with carries that id (`requestIdOf`). A command's whole
+answer is bounded by the wait it states and 5 seconds more (a minute and 5
+seconds when it states none), as the Kotlin client's is; past the bound, and
+when its answer or stream is lost or unreadable after the head, it rejects
+with `wow.command.unknown`, its outcome unknown. An id a path cannot carry
+(empty, `.` or `..`) is refused before anything is sent.
 
 ## Public surface
 

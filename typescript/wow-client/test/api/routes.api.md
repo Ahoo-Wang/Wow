@@ -371,6 +371,7 @@ interface TextNumbersOr {
 // @public
 interface WowClientOptions {
     readonly basePath?: string;
+    readonly defaultWaitMs?: number;
     readonly fetcher?: Fetcher;
 }
 

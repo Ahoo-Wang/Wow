@@ -30,6 +30,7 @@ import type {
 import {
   type Answer,
   entityTag,
+  pathSegment,
   type RequestOptions,
   send,
   type WowClientOptions,
@@ -463,7 +464,7 @@ export class DatasetClient {
     numbers?: TextNumbers,
   ): QueryModelClient<R, FIELDS> {
     return new QueryModelClient<R, FIELDS>(
-      `/wow/dataset/${encodeURIComponent(context)}/${encodeURIComponent(dataset)}/query`,
+      `/wow/dataset/${pathSegment(context, 'The context')}/${pathSegment(dataset, 'The dataset')}/query`,
       this.client,
       numbers,
     );

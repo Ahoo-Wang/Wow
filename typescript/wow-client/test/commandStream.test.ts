@@ -20,11 +20,17 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   CommandClient,
   requestIdOf,
+  WaitPlan,
   WowHeaders,
   WowProblemError,
 } from '../src/index.js';
 import { commandResultOf } from '../src/testing.js';
-import { readAll, stubFetch, testFetcher } from './fixtures/fetchStub';
+import {
+  readAll,
+  sseResponse,
+  stubFetch,
+  testFetcher,
+} from './fixtures/fetchStub';
 import { TEST_MANIFEST } from './fixtures/manifest';
 
 const REF = { type: { context: 'c', name: 'a' }, tenantId: 't', id: '1' };
@@ -37,7 +43,7 @@ const END = 'event:end\ndata:{"reason":"complete"}\n\n';
 afterEach(() => vi.unstubAllGlobals());
 
 describe('a command stream', () => {
-  it('fails a command stream whose body breaks with an error that carries the request id it was sent with', async () => {
+  it('fails a command stream whose body breaks as an unknown outcome that carries the request id it was sent with', async () => {
     let body!: ReadableStreamDefaultController<Uint8Array>;
     const { requests } = stubFetch(
       () =>
@@ -64,7 +70,13 @@ describe('a command stream', () => {
     const lost = new TypeError('Connection lost after the response began');
     body.error(lost);
     const failure = await reader.read().catch((error: unknown) => error);
-    expect(failure).toBe(lost);
+    // Past the head the command was taken: whether it committed is unknown.
+    expect(failure).toBeInstanceOf(WowProblemError);
+    expect(failure).toMatchObject({
+      code: 'wow.command.unknown',
+      retry: 'same-request',
+      cause: lost,
+    });
     const sent = requests[0].headers.get(WowHeaders.REQUEST_ID);
     expect(sent).toBeTypeOf('string');
     expect(requestIdOf(failure)).toBe(sent);
@@ -148,5 +160,51 @@ describe('a command stream', () => {
     await stream.cancel('left the page');
     // The cancel reaches the body through the event stream's pipes.
     await vi.waitFor(() => expect(cancelled).toBe('left the page'));
+  });
+
+  it('fails a command stream that ends cleanly before its plan reaches its last hop as an unknown outcome', async () => {
+    const accepted = commandResultOf(REF, {
+      hop: { stage: 'accepted', context: 'c' } as never,
+    });
+    const { requests } = stubFetch(() =>
+      sseResponse(`id:0\nevent:accepted\ndata:${JSON.stringify(accepted)}\n\n`),
+    );
+    const stream = await new CommandClient(client(), {
+      manifest: TEST_MANIFEST,
+    }).stream({ command: 'c.a.X', id: '1', wait: WaitPlan.SNAPSHOT });
+    const read: unknown[] = [];
+    const failure = await (async () => {
+      for await (const result of stream) read.push(result);
+    })().catch((error: unknown) => error);
+    expect(read).toHaveLength(1);
+    expect(failure).toBeInstanceOf(WowProblemError);
+    expect(failure).toMatchObject({
+      code: 'wow.command.unknown',
+      retry: 'same-request',
+    });
+    expect(requestIdOf(failure)).toBe(
+      requests[0].headers.get(WowHeaders.REQUEST_ID),
+    );
+  });
+
+  it('fails a command stream answered 200 with no event stream, a gateway sign-in page say, as an unknown outcome', async () => {
+    const { requests } = stubFetch(
+      () =>
+        new Response('<html><body>Sign in</body></html>', {
+          status: 200,
+          headers: { 'Content-Type': 'text/html' },
+        }),
+    );
+    const failure = await new CommandClient(client(), {
+      manifest: TEST_MANIFEST,
+    })
+      .stream({ command: 'c.a.X', id: '1', wait: WaitPlan.COMMITTED })
+      .then(readAll)
+      .catch((error: unknown) => error);
+    expect(failure).toBeInstanceOf(WowProblemError);
+    expect(failure).toMatchObject({ code: 'wow.command.unknown' });
+    expect(requestIdOf(failure)).toBe(
+      requests[0].headers.get(WowHeaders.REQUEST_ID),
+    );
   });
 });

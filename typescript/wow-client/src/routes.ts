@@ -23,6 +23,7 @@
 import type { TextNumbers } from './exactJson.js';
 import {
   type Call,
+  pathSegment,
   type RequestOptions,
   send,
   WowHeaders,
@@ -122,7 +123,10 @@ export class ServiceRoutes {
           `The service route ${context}.${name} needs its path variable ${variable}.`,
         );
       }
-      return encodeURIComponent(String(value));
+      return pathSegment(
+        String(value),
+        `The path variable ${variable} of ${context}.${name}`,
+      );
     });
     const query = call.query
       ? Object.fromEntries(
