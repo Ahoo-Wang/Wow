@@ -268,8 +268,8 @@ describe('the condition one panel runs under', () => {
         board,
         filters,
         [
-          { globalField: 'region', panelField: 'warehouse' },
-          { globalField: 'created', panelField: 'createdAt', auto: true },
+          { dashboardField: 'region', panelField: 'warehouse' },
+          { dashboardField: 'created', panelField: 'createdAt', auto: true },
         ],
         kinds,
       ),
@@ -292,11 +292,11 @@ describe('the condition one panel runs under', () => {
         board,
         { values: { region: ['CN'] } },
         [
-          { globalField: 'created', panelField: 'createdAt' },
-          { globalField: 'gone', panelField: 'x' },
-          { globalField: 'region', panelField: 'warehouse' },
+          { dashboardField: 'created', panelField: 'createdAt' },
+          { dashboardField: 'gone', panelField: 'x' },
+          { dashboardField: 'region', panelField: 'warehouse' },
           // One filter becomes one condition; a second wire is not a second.
-          { globalField: 'region', panelField: 'status' },
+          { dashboardField: 'region', panelField: 'status' },
         ],
         kinds,
       ),
@@ -526,7 +526,7 @@ describe('admission of the filters', () => {
         fields: [{ ...REGION, kind: 'number', default: [7] }],
         panels: [
           viewPanel({
-            bindings: [{ globalField: 'region', panelField: 'amount' }],
+            bindings: [{ dashboardField: 'region', panelField: 'amount' }],
           }),
         ],
       }),
@@ -551,7 +551,7 @@ describe('admission of the filters', () => {
         fields: [{ ...REGION, default: ['EU'] }],
         panels: [
           viewPanel({
-            bindings: [{ globalField: 'region', panelField: 'warehouse' }],
+            bindings: [{ dashboardField: 'region', panelField: 'warehouse' }],
           }),
         ],
       }),
@@ -581,8 +581,12 @@ describe('admission of the wiring', () => {
         panels: [
           viewPanel({
             bindings: [
-              { globalField: 'region', panelField: 'warehouse' },
-              { globalField: 'created', panelField: 'createdAt', auto: true },
+              { dashboardField: 'region', panelField: 'warehouse' },
+              {
+                dashboardField: 'created',
+                panelField: 'createdAt',
+                auto: true,
+              },
             ],
           }),
         ],
@@ -600,7 +604,7 @@ describe('admission of the wiring', () => {
           viewPanel({
             bindings: [
               {
-                globalField: 'region',
+                dashboardField: 'region',
                 panelField: 'amount',
                 auto: 'yes',
               } as never,

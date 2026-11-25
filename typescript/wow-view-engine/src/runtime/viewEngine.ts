@@ -715,7 +715,7 @@ export class ViewEngine {
   private ledgerHost(): WriteLedgerHost {
     return {
       store: this.store,
-      newId: this.options.newId,
+      newRequestId: this.options.newRequestId,
       noteInstance: instance => this.summaries.note(instance),
       dropInstance: (id, owner) => {
         this.summaries.drop(id);

@@ -228,7 +228,7 @@ export interface RecordViewConfig extends DataViewConfigBase {
   kind: 'record';
   sort: { field: string; direction: 'asc' | 'desc' }[];
   pageSize: number;
-  summaries?: { field: string; fn: SummaryFunction }[];
+  summaries?: { field: string; function: SummaryFunction }[];
   layout: 'table' | 'card' | 'kanban'; // 当前布局；表格与卡片之间切换只改此字段，切进切出看板视图要跑查询（D83）
   table: {
     // hidden 为 true 时表格不画这一列，但它仍**留在列表里**，也就保住了自己的位
@@ -498,7 +498,7 @@ interface DashboardPanelBase {
 /** 数据面板：显示一个 Record 或 Analysis 视图——已保存的，或只属于这块板的——参与全局筛选与 apply。 */
 export type DashboardViewPanel = DashboardPanelBase & {
   kind: 'view';
-  bindings: { globalField: string; panelField: string; auto?: true }[]; // 哪个筛选经哪个字段筛这个面板；auto 是自动连接接上的
+  bindings: { dashboardField: string; panelField: string; auto?: true }[]; // 哪个筛选经哪个字段筛这个面板；auto 是自动连接接上的
   presentation?: PanelPresentation; // 只改怎么看（D22 D）
   click?: PanelClick; // 点一组时做什么（D22 I）；不写就是追问菜单（D22 H）
 } & (

@@ -580,7 +580,7 @@ describe('the two findings the leaf closes (review of #3761)', () => {
     const { engine } = keyedEngine();
     const made = engine.create('orders', {
       title: engine.definitions.get('orders')!.views![1].title,
-      scope: 'personal',
+      audience: 'personal',
       config: engine.definitions.get('orders')!.views![1].config,
     });
     await engine.save(made);

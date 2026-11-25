@@ -50,4 +50,4 @@ export const workbenchMessages = {
   // the filter puts its two modes in there, another editor may put something
   // else, and the name has to fit whatever the editor offers.
   'label.workbench.editor-modes': 'Editor options',
-} as const satisfies Record<string, string>;
+} satisfies Record<string, string>;

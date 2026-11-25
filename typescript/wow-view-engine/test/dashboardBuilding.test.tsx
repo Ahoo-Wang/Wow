@@ -722,7 +722,7 @@ describe("a panel's menu (D22 D)", () => {
       panels: [
         panel({
           title: 'Pending',
-          bindings: [{ globalField: 'region', panelField: 'warehouse' }],
+          bindings: [{ dashboardField: 'region', panelField: 'warehouse' }],
         }),
       ],
     });

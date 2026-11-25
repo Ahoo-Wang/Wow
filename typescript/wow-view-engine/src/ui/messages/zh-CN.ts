@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import type { en } from './en.js';
+import type { MessageKey } from './en.js';
 import { saveZhCN } from './zh-CN/save.js';
 import { headerZhCN } from './zh-CN/header.js';
 import { recordZhCN } from './zh-CN/record.js';
@@ -44,7 +44,7 @@ import { reorderZhCN } from './zh-CN/reorder.js';
 /**
  * 简体中文文案，与 `en` 逐键对应。
  *
- * `satisfies Record<keyof typeof en, string>`（即 `MessageKey`）让少一个键或多一个键都成为编译错误，
+ * `satisfies Record<MessageKey, string>` 让少一个键或多一个键都成为编译错误，
  * 类型取自 `en` 本身，因为文案目录在 `kit` 之下、不向上引用。
  * `test/messages.test.tsx` 另外核对每句里的 `{param}` 占位符。
  *
@@ -55,7 +55,7 @@ import { reorderZhCN } from './zh-CN/reorder.js';
  * 宿主要改其中几句，把它铺开再覆盖即可：
  * `messages={{ ...zhCN, 'label.filter.apply': '确定' }}`。
  */
-export const zhCN: Readonly<Record<string, string>> = {
+export const zhCN: Readonly<Record<MessageKey, string>> = {
   ...saveZhCN,
   ...headerZhCN,
   ...recordZhCN,
@@ -84,4 +84,4 @@ export const zhCN: Readonly<Record<string, string>> = {
   ...bulkZhCN,
   ...actionsZhCN,
   ...reorderZhCN,
-} satisfies Record<keyof typeof en, string>;
+} satisfies Record<MessageKey, string>;

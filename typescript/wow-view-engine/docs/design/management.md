@@ -203,7 +203,7 @@ export class ViewStoreError extends Error {
   boards?: readonly string[];
   /** `UNAVAILABLE` 时服务端答了话（5xx、它报的超时），不是网络不通。 */
   reachable?: true;
-  /** 后端自己的错误码（Wow 的 `errorCode`），只供诊断。 */
+  /** 后端自己的错误码（Wow 问题的 `code`），只供诊断。 */
   detail?: { code: string };
   // cause：适配器捕获的原始失败，即标准的 Error.cause
 }

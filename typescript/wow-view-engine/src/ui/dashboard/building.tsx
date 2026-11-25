@@ -27,8 +27,8 @@ import { PresentationDialog } from './PresentationDialog.js';
 
 export interface DashboardExtensionsOptions {
   engine: ViewEngine;
-  /** The board, while one is open. */
-  board: DashboardRuntime | null;
+  /** The board's runtime, while one is open. */
+  runtime: DashboardRuntime | null;
   dashboard: DashboardController;
   /**
    * The wording in force where the board is drawn — the workbench's own,
@@ -82,7 +82,7 @@ function opener(): HTMLElement | null {
  */
 export function useDashboardExtensions({
   engine,
-  board,
+  runtime: board,
   dashboard,
   messages,
   tabBar,

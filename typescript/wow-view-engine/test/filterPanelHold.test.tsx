@@ -43,7 +43,7 @@ describe('FilterPanel and auto refresh', () => {
     });
     const runtime = engine.create('orders', {
       title: 'Scratch',
-      scope: 'personal',
+      audience: 'personal',
       config: recordConfig({
         filter: {
           op: 'and',

@@ -230,7 +230,7 @@ describe('the words, in both catalogues', () => {
       'group',
     ]) {
       const key = `label.chart.filled.${unit}` as const;
-      expect(zhCN[key]).toContain('{value}');
+      expect(zhCN[key as keyof typeof zhCN]).toContain('{value}');
       expect(defaultMessages[key]).toContain('{value}');
     }
     expect(

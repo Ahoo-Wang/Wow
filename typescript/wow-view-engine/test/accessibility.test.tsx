@@ -93,7 +93,7 @@ const sortedOrders: ViewInstance = {
       { field: 'amount', direction: SortDirection.DESC },
       { field: 'id', direction: SortDirection.ASC },
     ],
-    summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
+    summaries: [{ field: 'amount', function: AggregationFunction.SUM }],
   }),
 };
 
@@ -185,7 +185,7 @@ const overview: ViewInstance = {
         kind: 'view',
         title: 'Rows',
         instanceId: 'pending',
-        bindings: [{ globalField: 'region', panelField: 'warehouse' }],
+        bindings: [{ dashboardField: 'region', panelField: 'warehouse' }],
         layout: { x: 0, y: 0, w: 6, h: 4 },
       },
       {

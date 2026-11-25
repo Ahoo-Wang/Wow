@@ -46,4 +46,4 @@ export const bulkMessages = {
   // Nothing here expires on its own, so every outcome carries its own way
   // out — the same one a refused write offers, in the same words.
   'label.bulk.dismiss': 'Dismiss',
-} as const;
+} satisfies Record<string, string>;

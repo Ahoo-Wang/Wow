@@ -88,7 +88,9 @@ function recordView(
     sort: [{ field: 'firstEventTime', direction: SortDirection.DESC }],
     pageSize: 20,
     layout: 'table',
-    summaries: [{ field: 'state.payableAmount', fn: AggregationFunction.SUM }],
+    summaries: [
+      { field: 'state.payableAmount', function: AggregationFunction.SUM },
+    ],
     table: { columns: COLUMNS.map(field => ({ field })) },
     // A card is scanned for which order it is and where it stands: the
     // order number titles it — a queue is often one customer's orders, so

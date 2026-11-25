@@ -345,7 +345,7 @@ function unknownEditorView(): {
   });
   const runtime = engine.create(definition.id, {
     title: '色板没有编辑器',
-    scope: 'personal',
+    audience: 'personal',
     config: recordConfig({
       filter: {
         op: 'and',

@@ -227,7 +227,9 @@ describe('summariesOf', () => {
   });
 
   it('answers with the list itself when there is one', () => {
-    const next = [{ field: 'total', fn: AggregationFunction.SUM as const }];
+    const next = [
+      { field: 'total', function: AggregationFunction.SUM as const },
+    ];
     expect(summariesOf(next, null)).toBe(next);
   });
 });
@@ -265,13 +267,13 @@ describe('repairing', () => {
   it('repairs the table and the summaries by the same rule', () => {
     const unreadable = state({
       summaries: [
-        { fn: AggregationFunction.SUM },
-        { field: 'total', fn: AggregationFunction.SUM },
+        { function: AggregationFunction.SUM },
+        { field: 'total', function: AggregationFunction.SUM },
       ],
       table: { columns: [{ width: 1 }, { field: 'total' }] },
     } as Partial<RecordViewConfig>);
     expect(repairing({}, unreadable)).toEqual({
-      summaries: [{ field: 'total', fn: AggregationFunction.SUM }],
+      summaries: [{ field: 'total', function: AggregationFunction.SUM }],
       table: { columns: [{ field: 'total' }] },
     });
   });

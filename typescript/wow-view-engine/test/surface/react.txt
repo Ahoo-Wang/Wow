@@ -82,9 +82,9 @@ type  SplitOption
 type  ToggleSelectionOptions
 type  ToggleSortOptions
 type  UnavailableController
+type  UseViewListOptions
 type  ValueCandidatesController
 type  ValueCandidatesOptions
-type  ViewListOptions
 type  ViewListPreferences
 type  ViewListReloadOptions
 type  ViewListState

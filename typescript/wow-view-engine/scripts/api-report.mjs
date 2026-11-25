@@ -86,6 +86,10 @@ const FORGOTTEN = {
     'ChartPictureLibrary',
     'ChartTheme',
     'LegendEntry',
+    // The English catalogue `MessageKey` is read off: its keys are in the
+    // report, each wording a `string`, so a rewording changes no line of it
+    // (#7022 row 29).
+    'enCatalogue',
   ],
 };
 

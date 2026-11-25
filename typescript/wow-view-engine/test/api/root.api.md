@@ -800,9 +800,9 @@ export function createFieldKindRegistry(kinds: readonly FieldKind[]): FieldKindR
 
 // @public
 export interface CreateInput<C extends ViewConfig> {
+    audience: ViewAudience;
     // (undocumented)
     config: C;
-    scope: ViewAudience;
     scopeFilter?: FilterTree | null;
     // (undocumented)
     title: string;
@@ -2481,9 +2481,9 @@ export interface PagedPaging {
 // @public
 export interface PanelBinding {
     auto?: true;
-    derived?: true;
     // (undocumented)
-    globalField: string;
+    dashboardField: string;
+    derived?: true;
     // (undocumented)
     panelField: string;
 }
@@ -2897,8 +2897,7 @@ export interface RecordSort {
 export interface RecordSummary {
     // (undocumented)
     field: string;
-    // (undocumented)
-    fn: SummaryFunction;
+    function: SummaryFunction;
 }
 
 // @public (undocumented)
@@ -3537,7 +3536,7 @@ export interface ViewEngineOptions {
     // (undocumented)
     kinds?: FieldKindRegistry;
     limits?: Partial<RuntimeLimits>;
-    newId?(): string;
+    newRequestId?(): string;
     onIssue?(issue: Issue): void;
     resolveOptions?(key: string): OptionSource;
     resources: readonly ViewResource[];
@@ -3567,7 +3566,7 @@ export interface ViewErrorContexts {
     query: (ViewErrorPlace & {
         operation: Exclude<QueryOperation, 'labels'>;
         violation?: QueryViolation;
-        errorCode?: string;
+        code?: string;
     }) | (ViewErrorPlace & {
         operation: 'labels';
         remote: string;

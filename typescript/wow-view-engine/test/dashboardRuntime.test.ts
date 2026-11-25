@@ -104,7 +104,9 @@ function boundConfig(
     fields: [REGION_FIELD],
     fixed: REGION_FILTER,
     panels: [
-      panel({ bindings: [{ globalField: 'region', panelField: 'warehouse' }] }),
+      panel({
+        bindings: [{ dashboardField: 'region', panelField: 'warehouse' }],
+      }),
     ],
     ...overrides,
   });
@@ -423,7 +425,7 @@ describe('DashboardViewRuntime unavailable references', () => {
         },
         panels: [
           panel({
-            bindings: [{ globalField: 'weight', panelField: 'weight' }],
+            bindings: [{ dashboardField: 'weight', panelField: 'weight' }],
           }),
         ],
       }),
@@ -548,7 +550,9 @@ describe('DashboardViewRuntime unavailable references', () => {
     const runtime = await board.open(
       dashboardConfig({
         panels: [
-          panel({ bindings: [{ globalField: 'ghost', panelField: 'status' }] }),
+          panel({
+            bindings: [{ dashboardField: 'ghost', panelField: 'status' }],
+          }),
         ],
       }),
     );
@@ -598,7 +602,7 @@ describe('DashboardViewRuntime child results', () => {
       instances: [
         pending({
           config: recordConfig({
-            summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
+            summaries: [{ field: 'amount', function: AggregationFunction.SUM }],
           }),
         }),
       ],
@@ -1010,7 +1014,7 @@ describe('DashboardViewRuntime saving', () => {
     const board = harness();
     const runtime = board.engine.create('overview', {
       title: 'Scratch',
-      scope: 'personal',
+      audience: 'personal',
       config: boundConfig(),
     });
 
@@ -1077,10 +1081,12 @@ function withMisbound(
 ): DashboardViewConfig {
   return boundConfig({
     panels: [
-      panel({ bindings: [{ globalField: 'region', panelField: 'warehouse' }] }),
+      panel({
+        bindings: [{ dashboardField: 'region', panelField: 'warehouse' }],
+      }),
       panel({
         id: 'misbound',
-        bindings: [{ globalField: 'region', panelField: 'nope' }],
+        bindings: [{ dashboardField: 'region', panelField: 'nope' }],
         layout: { x: 6, y: 0, w: 6, h: 4 },
       }),
     ],

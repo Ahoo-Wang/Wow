@@ -183,7 +183,7 @@ export class PanelPresses {
       filtersOf(this.host.applied()).map(field => [field.name, field]),
     );
     return bindingsOf(found.panel).some(binding => {
-      const filter = byName.get(binding.globalField);
+      const filter = byName.get(binding.dashboardField);
       if (!filter || current.from?.[filter.name] !== panelId) return false;
       const value = this.valueOf(panelId, filter, binding.panelField, row);
       const held = current.values[filter.name];
@@ -236,7 +236,7 @@ export class PanelPresses {
     if (!filter || !found || !child || ran?.kind !== 'analysis')
       return { kind: 'none' };
     const field = bindingsOf(found.panel).find(
-      binding => binding.globalField === name,
+      binding => binding.dashboardField === name,
     )?.panelField;
     const spanned = drillSpan(
       ran,
@@ -415,7 +415,7 @@ export class PanelPresses {
     );
     const binding =
       filter &&
-      bindingsOf(panel).find(entry => entry.globalField === filter.name);
+      bindingsOf(panel).find(entry => entry.dashboardField === filter.name);
     return filter && binding ? { filter, field: binding.panelField } : null;
   }
 

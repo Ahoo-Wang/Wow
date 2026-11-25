@@ -476,30 +476,30 @@ function validateBindings(
     const at: IssuePath = [...path, 'bindings', index];
     if (
       !isPlainObject(binding) ||
-      typeof binding.globalField !== 'string' ||
+      typeof binding.dashboardField !== 'string' ||
       typeof binding.panelField !== 'string'
     ) {
       issues.push(shape(at, 'object'));
       return;
     }
-    const global = globals.get(binding.globalField);
+    const global = globals.get(binding.dashboardField);
     const target = targets.get(binding.panelField);
 
     if (!global)
       issues.push(
-        issue('dashboard.binding.global-unknown', [...at, 'globalField'], {
-          field: binding.globalField,
+        issue('dashboard.binding.global-unknown', [...at, 'dashboardField'], {
+          field: binding.dashboardField,
         }),
       );
     // One leaf can only become one condition: a global field mapped twice has
     // no defined boolean meaning.
-    else if (bound.has(binding.globalField))
+    else if (bound.has(binding.dashboardField))
       issues.push(
-        issue('dashboard.binding.global-duplicate', [...at, 'globalField'], {
-          field: binding.globalField,
+        issue('dashboard.binding.global-duplicate', [...at, 'dashboardField'], {
+          field: binding.dashboardField,
         }),
       );
-    if (global) bound.add(binding.globalField);
+    if (global) bound.add(binding.dashboardField);
 
     // Said by the filter the reader sees on the board: the field it is wired
     // to is not one they could find anywhere (todo C).
@@ -507,7 +507,7 @@ function validateBindings(
       issues.push(
         issue('dashboard.binding.panel-unknown', [...at, 'panelField'], {
           field: binding.panelField,
-          filter: global?.label ?? binding.globalField,
+          filter: global?.label ?? binding.dashboardField,
         }),
       );
 

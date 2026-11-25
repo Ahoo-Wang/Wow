@@ -384,4 +384,4 @@ export const filterMessages = {
   'filter.value.unknown-time-zone':
     '{timeZone} is not a time zone this browser knows.',
   'filter.value.unparsable-date': 'That date cannot be read.',
-} as const satisfies Record<string, string>;
+} satisfies Record<string, string>;

@@ -271,7 +271,7 @@ describe('configs stay plain JSON', () => {
           id: 'pending',
           layout: { x: 0, y: 0, w: 6, h: 4 },
           instanceId: 'orders-pending',
-          bindings: [{ globalField: 'warehouse', panelField: 'warehouse' }],
+          bindings: [{ dashboardField: 'warehouse', panelField: 'warehouse' }],
         },
         {
           kind: 'markdown',

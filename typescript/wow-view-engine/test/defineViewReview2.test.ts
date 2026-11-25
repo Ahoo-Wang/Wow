@@ -155,7 +155,7 @@ describe('the second review', () => {
     ]);
     const after = read(removeFilter(read(storedTimeWires(config)), 'window'));
     expect(wires(after)[1]).toEqual([
-      { globalField: 'shipped', panelField: 'shippedAt', auto: true },
+      { dashboardField: 'shipped', panelField: 'shippedAt', auto: true },
     ]);
   });
 

@@ -116,7 +116,7 @@ function engineOf(
 async function savedBoard(engine: ViewEngine): Promise<DashboardViewRuntime> {
   const board = engine.create('overview', {
     title: 'Mine',
-    scope: 'personal',
+    audience: 'personal',
     config: keyedBoard(),
   });
   if (!(board instanceof DashboardViewRuntime)) throw new Error('board');
@@ -335,7 +335,7 @@ describe('a baseline is what the store keeps (second review of #3761, 2)', () =>
   function unsaved(engine: ViewEngine): DashboardViewRuntime {
     const board = engine.create('overview', {
       title: 'Mine',
-      scope: 'personal',
+      audience: 'personal',
       config: keyedBoard(),
     });
     if (!(board instanceof DashboardViewRuntime)) throw new Error('board');
@@ -445,7 +445,7 @@ describe('a title nobody stored yet (second review of #3761, 5)', () => {
     engine.setText(say('en'));
     const view = engine.create('orders', {
       title: text('orders.all'),
-      scope: 'personal',
+      audience: 'personal',
       config: recordConfig(),
     });
     expect(view.getSnapshot().title).toBe(text('orders.all'));

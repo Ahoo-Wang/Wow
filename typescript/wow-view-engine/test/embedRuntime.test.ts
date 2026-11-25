@@ -72,8 +72,8 @@ function view(
     kind: 'view',
     instanceId,
     bindings: [
-      { globalField: 'region', panelField: 'warehouse' },
-      { globalField: 'status', panelField: 'status' },
+      { dashboardField: 'region', panelField: 'warehouse' },
+      { dashboardField: 'status', panelField: 'status' },
     ],
     layout: { x, y: 0, w: 8, h: 4 },
     ...extra,

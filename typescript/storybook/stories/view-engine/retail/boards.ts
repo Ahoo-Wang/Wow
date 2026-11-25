@@ -215,8 +215,8 @@ function analysis(
   };
 }
 
-const bind = (globalField: string, panelField: string): PanelBinding => ({
-  globalField,
+const bind = (dashboardField: string, panelField: string): PanelBinding => ({
+  dashboardField,
   panelField,
 });
 

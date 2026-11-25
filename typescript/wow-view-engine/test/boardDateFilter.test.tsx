@@ -134,7 +134,7 @@ function board(field: DashboardField = DAY_FILTER): DashboardViewConfig {
         id: 'a',
         kind: 'view',
         instanceId: 'trend',
-        bindings: [{ globalField: field.name, panelField: 'createdAt' }],
+        bindings: [{ dashboardField: field.name, panelField: 'createdAt' }],
         layout: { x: 0, y: 0, w: 12, h: 4 },
         title: 'Trend',
       },

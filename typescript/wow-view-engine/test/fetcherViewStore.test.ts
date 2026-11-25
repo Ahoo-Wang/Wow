@@ -478,7 +478,7 @@ describe('FetcherViewStore as the engine sees it', () => {
       resources: resourcesOf([ordersDefinition()], () => testSource()),
       store: store(),
       environment: testEnvironment().environment,
-      newId: () => 'req-open',
+      newRequestId: () => 'req-open',
     });
 
     const runtime = await engine.open('orders-1');

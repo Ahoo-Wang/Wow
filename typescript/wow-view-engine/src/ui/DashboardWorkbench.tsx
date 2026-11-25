@@ -262,7 +262,7 @@ function DashboardWorkbenchBody({
     };
   }, []);
   const workbench = useWorkbench(engine, definitionId, {
-    kinds: DASHBOARD,
+    viewKinds: DASHBOARD,
     instanceId,
     onInstanceChange,
     opening,
@@ -320,7 +320,7 @@ function DashboardWorkbenchBody({
   const voice = useAnnouncer('dashboard-announcement');
   const { extensions: own, dialogs } = useDashboardExtensions({
     engine,
-    board,
+    runtime: board,
     dashboard,
     messages,
     optionsFor,

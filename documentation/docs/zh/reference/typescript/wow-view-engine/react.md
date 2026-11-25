@@ -71,14 +71,14 @@ export interface OpenViewState {
 
 ## 视图列表与管理 {#api-useViewList}
 
-`useViewList` 给出一份定义的列表、偏好与权限。它们各自加载、互不阻塞：列表失败不影响已打开的视图，偏好失败只是退回服务端顺序。列表的[异步状态](#async-state)是 `status` 与 `error`，偏好的是它自己的 `preferences.status` 与 `preferences.error`，读到的在 `preferences.value`；重新加载时偏好原地刷新，所以它只在第一次回答之前是 `'loading'`。`options.kinds` 在排序与解析缺省之前把列表收窄到这些种类——工作台只画它有部件的种类，否则侧栏会提供画不出来的视图。
+`useViewList` 给出一份定义的列表、偏好与权限。它们各自加载、互不阻塞：列表失败不影响已打开的视图，偏好失败只是退回服务端顺序。列表的[异步状态](#async-state)是 `status` 与 `error`，偏好的是它自己的 `preferences.status` 与 `preferences.error`，读到的在 `preferences.value`；重新加载时偏好原地刷新，所以它只在第一次回答之前是 `'loading'`。`options.viewKinds` 在排序与解析缺省之前把列表收窄到这些种类——工作台只画它有部件的种类，否则侧栏会提供画不出来的视图。
 
 `all` 是收窄前的同一批摘要：调整顺序存的是整份定义的一个顺序，收窄的工作台只提交它看得见的会把其他 id 从 `preferences.order` 里丢掉，所以写顺序的调用方从 `all` 读，只在其中移动它看得见的两个 id。
 
 `useViewManager` 管列表上的视图而不是打开着的那个：改名、换受众、删除、调整顺序、选缺省，以及没有运行时拥有的写入的恢复动作。落地的写入会重新加载列表，因为变的就是列表。
 
 ```ts
-export declare function useViewList(engine: ViewEngine, definitionId: string, options?: ViewListOptions): ViewListState;
+export declare function useViewList(engine: ViewEngine, definitionId: string, options?: UseViewListOptions): ViewListState;
 export declare function useViewManager(engine: ViewEngine, definitionId: string, input: ViewManagerOptions): ViewManagerController;
 
 export interface ViewListState {
@@ -118,12 +118,12 @@ export interface WorkbenchOptions {
   guardUnload?: boolean;
   handOver?: ViewHandOver | null;
   instanceId?: string | null;
-  kinds: readonly ViewKind[];
   newView?: NewViewOptions;
   onDrilldown?(target: DrillTarget): void;
   onInstanceChange?(id: string | null): void;
   onNavigate?(to: ViewNavigation): void;
   opening?(instanceId: string): DashboardOpening | undefined;
+  viewKinds: readonly ViewKind[];
 }
 ```
 

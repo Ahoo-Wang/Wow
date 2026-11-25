@@ -96,9 +96,9 @@ Every name `@ahoo-wang/wow-view-engine/react` exports — 127 — with its kind 
 | `ToggleSelectionOptions` | interface | How `RecordTableController.toggle` treats the rows around one. | — |
 | `ToggleSortOptions` | interface | How `RecordTableController.toggleSort` treats the other columns. | — |
 | `UnavailableController` | interface | What an open view uses that its source no longer admits, and the one press that takes it out (capabilities.md Q2, `ViewRuntime.unavailable`). | — |
+| `UseViewListOptions` | interface | What `useViewList` reads of the list beside the definition. | — |
 | `ValueCandidatesController` | interface | — | — |
 | `ValueCandidatesOptions` | interface | When `useValueCandidates` asks, and for which text. | — |
-| `ViewListOptions` | interface | — | — |
 | `ViewListPreferences` | interface | The reader's preferences for the definition, read beside the list. | [React Hooks](./react#api-useViewList) |
 | `ViewListReloadOptions` | interface | What a caller already knows about the list it is asking to be read again. | — |
 | `ViewListState` | interface | — | [React Hooks](./react#api-useViewList) |

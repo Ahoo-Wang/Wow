@@ -94,7 +94,7 @@ export function filterReach(
   if (!isViewPanel(panel)) return reach;
   const bindings = bindingsOf(panel);
   for (const field of filtersOf(config)) {
-    const binding = bindings.find(entry => entry.globalField === field.name);
+    const binding = bindings.find(entry => entry.dashboardField === field.name);
     if (binding)
       reach[field.name] = {
         wired: true,
@@ -225,7 +225,9 @@ export function unbindPanels(
       : panel;
     return {
       ...rest,
-      bindings: bindingsOf(panel).filter(entry => entry.globalField !== name),
+      bindings: bindingsOf(panel).filter(
+        entry => entry.dashboardField !== name,
+      ),
       ...(time ? { ignoresTime: true as const } : {}),
     };
   });
@@ -253,7 +255,9 @@ export function wiredOptions(
   const merged = new Map<string, FieldOption>();
   for (const panel of config.panels) {
     if (!isViewPanel(panel)) continue;
-    const binding = bindingsOf(panel).find(entry => entry.globalField === name);
+    const binding = bindingsOf(panel).find(
+      entry => entry.dashboardField === name,
+    );
     if (!binding) continue;
     const field = fieldsOf(panel)?.find(
       entry => entry.name === binding.panelField,
@@ -281,11 +285,11 @@ export function autoBindings(
 ): PanelBinding[] {
   const bindings: PanelBinding[] = [];
   for (const filter of filtersOf(config)) {
-    if (given.some(entry => entry.globalField === filter.name)) continue;
+    if (given.some(entry => entry.dashboardField === filter.name)) continue;
     const match = autoField(filter, fields, wiredNames(config, filter.name));
     if (match)
       bindings.push({
-        globalField: filter.name,
+        dashboardField: filter.name,
         panelField: match.name,
         auto: true,
       });
@@ -324,7 +328,7 @@ function wiredNames(config: DashboardViewConfig, name: string): string[] {
   for (const panel of config.panels)
     if (isViewPanel(panel))
       for (const binding of bindingsOf(panel))
-        if (binding.globalField === name)
+        if (binding.dashboardField === name)
           counts.set(
             binding.panelField,
             (counts.get(binding.panelField) ?? 0) + 1,
@@ -343,19 +347,19 @@ function wire(
   auto: boolean,
 ): DashboardViewPanel {
   const binding: PanelBinding = auto
-    ? { globalField: name, panelField, auto: true }
-    : { globalField: name, panelField };
+    ? { dashboardField: name, panelField, auto: true }
+    : { dashboardField: name, panelField };
   return {
     ...panel,
     bindings: [
-      ...bindingsOf(panel).filter(entry => entry.globalField !== name),
+      ...bindingsOf(panel).filter(entry => entry.dashboardField !== name),
       binding,
     ],
   };
 }
 
 function wiredTo(panel: DashboardViewPanel, name: string): boolean {
-  return bindingsOf(panel).some(entry => entry.globalField === name);
+  return bindingsOf(panel).some(entry => entry.dashboardField === name);
 }
 
 function viewPanel(

@@ -345,7 +345,7 @@ describe('a board over datasets of several services (D93)', () => {
       engine.save(
         engine.create(id, {
           title,
-          scope: 'shared',
+          audience: 'shared',
           config: defaultRecordConfig(
             engine.definitions.get(id) as DataViewDefinition,
           ),
@@ -364,7 +364,7 @@ describe('a board over datasets of several services (D93)', () => {
     const board = await engine.save(
       engine.create('boards', {
         title: 'Across services',
-        scope: 'shared',
+        audience: 'shared',
         config: dashboardConfig({
           panels: [
             panel('orders', orders.id, 0),
@@ -396,14 +396,14 @@ describe('a board over datasets of several services (D93)', () => {
     const view = await before.save(
       before.create(ORDERS.id, {
         title: 'Shop orders',
-        scope: 'shared',
+        audience: 'shared',
         config: defaultRecordConfig(orders),
       }),
     );
     const board = await before.save(
       before.create('boards', {
         title: 'Across services',
-        scope: 'shared',
+        audience: 'shared',
         config: dashboardConfig({
           panels: [
             {

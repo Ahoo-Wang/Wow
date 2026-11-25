@@ -64,8 +64,8 @@ export const customerViews: ViewInstance[] = [
   },
 ];
 
-const byCustomer = { globalField: 'customer', panelField: 'customer' };
-const byPlaced = { globalField: 'placed', panelField: 'createdAt' };
+const byCustomer = { dashboardField: 'customer', panelField: 'customer' };
+const byPlaced = { dashboardField: 'placed', panelField: 'createdAt' };
 
 /**
  * One customer's orders, on any customer's page: a 客户 filter the page

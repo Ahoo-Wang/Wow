@@ -165,7 +165,7 @@ function engineWith(
 function recordView(engine: ViewEngine): RecordViewRuntime {
   return engine.create('orders', {
     title: 'Scratch',
-    scope: 'personal',
+    audience: 'personal',
     config: config(),
   }) as RecordViewRuntime;
 }
@@ -249,7 +249,7 @@ describe('an analysis reads its group keys as names', () => {
     const { engine } = engineWith({ customers: customers.source });
     const runtime = engine.create('orders', {
       title: 'By customer',
-      scope: 'personal',
+      audience: 'personal',
       config: analysisConfig({
         groups: [
           {
@@ -339,7 +339,7 @@ describe('rows read beside a page ask their ids too', () => {
     });
     const runtime = engine.create('deals', {
       title: 'Pipeline',
-      scope: 'personal',
+      audience: 'personal',
       config: kanbanConfig({
         pageSize: 2,
         table: { columns: [{ field: 'id' }, { field: 'owner' }] },
@@ -368,7 +368,7 @@ describe('rows read beside a page ask their ids too', () => {
     });
     const runtime = engine.create('orders', {
       title: 'Scratch',
-      scope: 'personal',
+      audience: 'personal',
       config: config(),
     }) as RecordViewRuntime;
     await nextTask();
@@ -398,7 +398,7 @@ describe('a view reads its conditions’ bare ids with its page’s', () => {
     const { engine } = engineWith({ customers: customers.source });
     engine.create('orders', {
       title: 'Scratch',
-      scope: 'personal',
+      audience: 'personal',
       config: { ...config(), filter },
       ...(scopeFilter ? { scopeFilter } : {}),
     });
@@ -491,7 +491,7 @@ describe('an export reads its file’s ids as names first', () => {
     });
     const runtime = engine.create('orders', {
       title: 'Scratch',
-      scope: 'personal',
+      audience: 'personal',
       config: config(),
     }) as RecordViewRuntime;
 
@@ -526,7 +526,7 @@ describe('an export reads its file’s ids as names first', () => {
     });
     const runtime = engine.create('orders', {
       title: 'Scratch',
-      scope: 'personal',
+      audience: 'personal',
       config: config(),
     }) as RecordViewRuntime;
 
@@ -557,7 +557,7 @@ describe('an export reads its file’s ids as names first', () => {
     });
     const runtime = engine.create('orders', {
       title: 'Scratch',
-      scope: 'personal',
+      audience: 'personal',
       config: config(),
     }) as RecordViewRuntime;
     const controller = new AbortController();
@@ -641,7 +641,7 @@ describe('a press writes the name beside the id', () => {
               id: 'chart',
               kind: 'view',
               instanceId: 'by-customer',
-              bindings: [{ globalField: 'buyer', panelField: 'customer' }],
+              bindings: [{ dashboardField: 'buyer', panelField: 'customer' }],
               click: { kind: 'filter', filter: 'buyer' },
               layout: { x: 0, y: 0, w: 12, h: 4 },
             } as DashboardPanel,

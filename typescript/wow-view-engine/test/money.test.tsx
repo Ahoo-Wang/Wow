@@ -391,7 +391,7 @@ describe('record views of row-currency money', () => {
   it('total a page in its one currency, and refuse a total across several', () => {
     const definition = moneyDefinition();
     const config = recordConfig({
-      summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
+      summaries: [{ field: 'amount', function: AggregationFunction.SUM }],
     });
     const one = projectSummaries(definition, config, {
       scope: 'page',
@@ -417,7 +417,7 @@ describe('record views of row-currency money', () => {
   it('ask the whole range which currencies it holds', () => {
     const definition = moneyDefinition();
     const config = recordConfig({
-      summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
+      summaries: [{ field: 'amount', function: AggregationFunction.SUM }],
     });
     const query = compileSummaries(
       definition,

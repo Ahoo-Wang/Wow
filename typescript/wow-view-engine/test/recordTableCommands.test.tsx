@@ -427,8 +427,8 @@ describe('setColumns', () => {
   it('takes a hidden column\u2019s summary with it', async () => {
     const result = await openTable({
       summaries: [
-        { field: 'amount', fn: AggregationFunction.SUM },
-        { field: 'warehouse', fn: AggregationMetricType.COUNT },
+        { field: 'amount', function: AggregationFunction.SUM },
+        { field: 'warehouse', function: AggregationMetricType.COUNT },
       ],
       table: {
         columns: [{ field: 'id' }, { field: 'amount' }, { field: 'warehouse' }],
@@ -439,7 +439,7 @@ describe('setColumns', () => {
 
     await waitFor(() =>
       expect(draft(result).summaries).toEqual([
-        { field: 'warehouse', fn: AggregationMetricType.COUNT },
+        { field: 'warehouse', function: AggregationMetricType.COUNT },
       ]),
     );
     expect(result.current.table.summaryOf('amount')).toBeNull();
@@ -447,7 +447,7 @@ describe('setColumns', () => {
 
   it('leaves the summaries of the columns that stay', async () => {
     const result = await openTable({
-      summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
+      summaries: [{ field: 'amount', function: AggregationFunction.SUM }],
     });
 
     act(() => result.current.table.setColumns(['id', 'amount', 'warehouse']));
@@ -460,7 +460,7 @@ describe('setColumns', () => {
       ]),
     );
     expect(draft(result).summaries).toEqual([
-      { field: 'amount', fn: AggregationFunction.SUM },
+      { field: 'amount', function: AggregationFunction.SUM },
     ]);
   });
 });
@@ -646,7 +646,7 @@ describe('setSummary', () => {
       ),
     );
     expect(draft(result).summaries).toEqual([
-      { field: 'amount', fn: AggregationFunction.SUM },
+      { field: 'amount', function: AggregationFunction.SUM },
     ]);
 
     act(() => result.current.table.setSummary('amount', null));
@@ -708,8 +708,8 @@ describe('setSummary', () => {
   it('replaces a column’s own summary and no other', async () => {
     const result = await openTable({
       summaries: [
-        { field: 'amount', fn: AggregationFunction.SUM },
-        { field: 'warehouse', fn: AggregationMetricType.COUNT },
+        { field: 'amount', function: AggregationFunction.SUM },
+        { field: 'warehouse', function: AggregationMetricType.COUNT },
       ],
     });
 
@@ -719,8 +719,8 @@ describe('setSummary', () => {
 
     await waitFor(() =>
       expect(draft(result).summaries).toEqual([
-        { field: 'warehouse', fn: AggregationMetricType.COUNT },
-        { field: 'amount', fn: AggregationFunction.MAX },
+        { field: 'warehouse', function: AggregationMetricType.COUNT },
+        { field: 'amount', function: AggregationFunction.MAX },
       ]),
     );
   });
@@ -773,7 +773,7 @@ describe('toggleSort, exclusive', () => {
 describe('the shapes a store can hold', () => {
   const broken = {
     sort: 'amount',
-    summaries: { field: 'amount', fn: AggregationFunction.SUM },
+    summaries: { field: 'amount', function: AggregationFunction.SUM },
     table: { columns: [null, { field: 'amount' }, 'id'] },
   } as unknown as Partial<RecordViewConfig>;
 
@@ -855,7 +855,7 @@ describe('the shapes a store can hold', () => {
           { field: 'amount', direction: 'up' },
           { direction: SortDirection.ASC },
         ],
-        summaries: [null, { field: 'amount', fn: 'NOPE' }],
+        summaries: [null, { field: 'amount', function: 'NOPE' }],
       } as unknown as Partial<RecordViewConfig>,
       {},
       false,

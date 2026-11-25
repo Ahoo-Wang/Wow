@@ -37,4 +37,4 @@ export const refreshMessages = {
   // earliest answer on screen, as a time of day — with the date when that
   // was another day.
   'label.refresh.read-at': 'Updated {time}',
-} as const satisfies Record<string, string>;
+} satisfies Record<string, string>;

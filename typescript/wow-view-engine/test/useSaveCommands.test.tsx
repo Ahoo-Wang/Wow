@@ -136,7 +136,7 @@ describe('useSaveCommands', () => {
     const a = await engine.open('orders-1');
     const b = engine.create('orders', {
       title: 'Draft',
-      scope: 'personal',
+      audience: 'personal',
       config: recordConfig(),
     });
 
@@ -187,7 +187,7 @@ describe('useSaveCommands', () => {
     const a = await engine.open('orders-1');
     const b = engine.create('orders', {
       title: 'Draft',
-      scope: 'personal',
+      audience: 'personal',
       config: recordConfig(),
     });
 
@@ -276,7 +276,7 @@ describe('useSaveCommands', () => {
     const a = await engine.open('orders-1');
     const b = engine.create('orders', {
       title: 'Draft',
-      scope: 'personal',
+      audience: 'personal',
       config: recordConfig(),
     });
 
@@ -431,7 +431,7 @@ describe('useSaveCommands', () => {
     // go back to, so reverting is never offered and does nothing.
     const fresh = engine.create('orders', {
       title: 'Draft',
-      scope: 'personal',
+      audience: 'personal',
       config: recordConfig(),
     });
     const { result: unsaved } = renderHook(() =>

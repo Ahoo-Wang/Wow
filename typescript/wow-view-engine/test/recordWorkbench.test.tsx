@@ -390,7 +390,9 @@ describe('DataWorkbench', () => {
           {
             ...mine,
             config: recordConfig({
-              summaries: [{ field: 'createdAt', fn: AggregationFunction.MIN }],
+              summaries: [
+                { field: 'createdAt', function: AggregationFunction.MIN },
+              ],
               table: { columns: [{ field: 'id' }, { field: 'createdAt' }] },
             }),
           },

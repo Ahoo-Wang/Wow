@@ -23,4 +23,4 @@ export const renderMessages = {
   'label.render.failed-hint':
     'The rest of the view still works. Try again to draw this part.',
   'label.render.retry': 'Try again',
-} as const satisfies Record<string, string>;
+} satisfies Record<string, string>;

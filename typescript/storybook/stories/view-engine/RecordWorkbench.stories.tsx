@@ -187,7 +187,7 @@ const summaryOffTableView = {
   title: '不带金额列',
   config: recordConfig({
     summaries: [
-      { field: 'amount' as const, fn: AggregationFunction.SUM as const },
+      { field: 'amount' as const, function: AggregationFunction.SUM as const },
     ],
     table: {
       columns: [
@@ -204,9 +204,15 @@ const datedView = {
   title: '最早与最晚下单',
   config: recordConfig({
     summaries: [
-      { field: 'amount' as const, fn: AggregationFunction.SUM as const },
-      { field: 'createdAt' as const, fn: AggregationFunction.MIN as const },
-      { field: 'createdAt' as const, fn: AggregationFunction.MAX as const },
+      { field: 'amount' as const, function: AggregationFunction.SUM as const },
+      {
+        field: 'createdAt' as const,
+        function: AggregationFunction.MIN as const,
+      },
+      {
+        field: 'createdAt' as const,
+        function: AggregationFunction.MAX as const,
+      },
     ],
     table: {
       columns: [

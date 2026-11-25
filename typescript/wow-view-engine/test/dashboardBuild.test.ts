@@ -367,7 +367,7 @@ describe('panels the board owns', () => {
       panels: [
         {
           ...owned('own'),
-          bindings: [{ globalField: 'region', panelField: 'nowhere' }],
+          bindings: [{ dashboardField: 'region', panelField: 'nowhere' }],
         } as DashboardPanel,
       ],
     });

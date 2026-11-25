@@ -84,7 +84,7 @@ describe('restyledOnly', () => {
     expect(
       restyledOnly(ordersDefinition(), ran, {
         ...ran,
-        summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
+        summaries: [{ field: 'amount', function: AggregationFunction.SUM }],
       }),
     ).toBe('summaries');
   });
@@ -323,7 +323,7 @@ describe('a summary over a field the page did not ask for', () => {
       card: { title: 'id', fields: [] },
     });
   const summaries: RecordSummary[] = [
-    { field: 'amount', fn: AggregationFunction.SUM },
+    { field: 'amount', function: AggregationFunction.SUM },
   ];
 
   function open(failTotals: boolean, config = amountHidden()) {
@@ -343,7 +343,7 @@ describe('a summary over a field the page did not ask for', () => {
     });
     const runtime = engine.create('orders', {
       title: 'Orders',
-      scope: 'personal',
+      audience: 'personal',
       config,
     });
     return { engine, runtime, paged };

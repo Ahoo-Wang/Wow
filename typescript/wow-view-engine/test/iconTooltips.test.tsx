@@ -175,7 +175,7 @@ const overview: ViewInstance = {
         kind: 'view',
         title: 'Rows',
         instanceId: 'orders-1',
-        bindings: [{ globalField: 'region', panelField: 'warehouse' }],
+        bindings: [{ dashboardField: 'region', panelField: 'warehouse' }],
         layout: { x: 0, y: 0, w: 6, h: 4 },
       },
     ],

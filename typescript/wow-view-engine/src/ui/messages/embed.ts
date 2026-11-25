@@ -23,4 +23,4 @@ export const embedMessages = {
   'label.embed.locked-name': '{filter} (set by this page)',
   // A locked filter that holds nothing narrows nothing.
   'label.embed.any': 'Any',
-} as const satisfies Record<string, string>;
+} satisfies Record<string, string>;

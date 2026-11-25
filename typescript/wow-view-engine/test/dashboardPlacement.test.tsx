@@ -53,7 +53,7 @@ afterEach(() => {
 });
 
 const REGION = { name: 'region', label: 'Region', kind: 'string' };
-const BOUND = [{ globalField: 'region', panelField: 'warehouse' }];
+const BOUND = [{ dashboardField: 'region', panelField: 'warehouse' }];
 const EU: FilterTree = {
   op: 'and',
   children: [{ field: 'region', operator: FilterOperator.EQ, value: 'EU' }],
@@ -368,7 +368,7 @@ describe('placing a panel', () => {
           panel({ id: 'fine', title: 'Fine', bindings: BOUND }),
           panel({
             id: 'misbound',
-            bindings: [{ globalField: 'region', panelField: 'nope' }],
+            bindings: [{ dashboardField: 'region', panelField: 'nope' }],
             layout: { x: 6, y: 0, w: 6, h: 4 },
           }),
         ],

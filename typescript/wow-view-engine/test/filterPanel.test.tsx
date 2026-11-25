@@ -95,7 +95,7 @@ describe('FilterPanel tree editing', () => {
     });
     const runtime = engine.create('orders', {
       title: 'Scratch',
-      scope: 'personal',
+      audience: 'personal',
       config: recordConfig(),
     });
     // The panel must re-render with the controller on every runtime commit,
@@ -389,7 +389,7 @@ describe('FilterPanel tree editing', () => {
     });
     const runtime = engine.create('orders', {
       title: 'Scratch',
-      scope: 'personal',
+      audience: 'personal',
       config: recordConfig(),
     });
     function Probe() {
@@ -1156,7 +1156,7 @@ describe('FilterPanel tree editing', () => {
     const { engine } = setup();
     const runtime = engine.create('orders', {
       title: 'Deep',
-      scope: 'personal',
+      audience: 'personal',
       config: recordConfig({ filter: deep as never }),
     });
     let latest: ReturnType<typeof useFilterEditor> | null = null;
@@ -1191,7 +1191,7 @@ describe('FilterPanel tree editing', () => {
     const { engine } = setup();
     const runtime = engine.create('orders', {
       title: 'Wide',
-      scope: 'personal',
+      audience: 'personal',
       config: recordConfig({ filter: wide as never }),
     });
     let latest: ReturnType<typeof useFilterEditor> | null = null;
@@ -1230,7 +1230,7 @@ describe('FilterPanel tree editing', () => {
     const { engine } = setup();
     const runtime = engine.create('orders', {
       title: 'Deep',
-      scope: 'personal',
+      audience: 'personal',
       config: recordConfig({ filter: deep as never }),
     });
     function Probe() {
@@ -1292,7 +1292,7 @@ describe('FilterPanel tree editing', () => {
     });
     const runtime = engine.create('orders', {
       title: 'Scratch',
-      scope: 'personal',
+      audience: 'personal',
       config: recordConfig(),
     });
     let latest: ReturnType<typeof useFilterEditor> | null = null;

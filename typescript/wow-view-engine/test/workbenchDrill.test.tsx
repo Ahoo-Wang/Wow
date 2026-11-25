@@ -84,7 +84,7 @@ function setup(
   });
   const rendered = renderHook(() =>
     useWorkbench(engine, 'orders', {
-      kinds: ['record', 'analysis'],
+      viewKinds: ['record', 'analysis'],
       instanceId: 'orders-chart',
       newView: { title: 'Untitled view' },
       ...options,
@@ -222,7 +222,7 @@ describe('drilling from an analysis view', () => {
     );
     expect(fromRecord.result.current.canDrill).toBe(false);
 
-    const analysisOnly = setup({ kinds: ['analysis'] });
+    const analysisOnly = setup({ viewKinds: ['analysis'] });
     await waitFor(() =>
       expect(analysisOnly.result.current.runtime?.kind).toBe('analysis'),
     );

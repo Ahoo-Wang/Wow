@@ -100,7 +100,7 @@ function overRuntime(definition = ordersDefinition()) {
   });
   const runtime = engine.create('orders', {
     title: 'Scratch',
-    scope: 'personal',
+    audience: 'personal',
     config: recordConfig(),
   });
   let latest: FilterEditorController | null = null;

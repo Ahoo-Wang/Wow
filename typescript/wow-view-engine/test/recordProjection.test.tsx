@@ -148,7 +148,9 @@ describe('recordProjection', () => {
       table: { columns: [] },
       card: { title: 'state.id', fields: [] },
       sort: [{ field: 'eventTime', direction: SortDirection.DESC }],
-      summaries: [{ field: 'state.retries', fn: AggregationFunction.SUM }],
+      summaries: [
+        { field: 'state.retries', function: AggregationFunction.SUM },
+      ],
     });
     expect(include(definition(), cfg)).toEqual([
       'state.id',
@@ -161,7 +163,7 @@ describe('recordProjection', () => {
         ...cfg,
         sort: [],
         summaries: [
-          { field: 'state.retries', fn: AggregationMetricType.COUNT },
+          { field: 'state.retries', function: AggregationMetricType.COUNT },
         ],
       }),
     ).toEqual(['state.id']);

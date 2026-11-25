@@ -80,7 +80,7 @@ export const orders: ViewDefinition = {
         refresh: { interval: null },
         sort: [{ field: 'createdAt', direction: SortDirection.DESC }],
         pageSize: 20,
-        summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
+        summaries: [{ field: 'amount', function: AggregationFunction.SUM }],
         layout: 'table',
         table: {
           columns: [

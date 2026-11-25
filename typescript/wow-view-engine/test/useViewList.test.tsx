@@ -202,7 +202,7 @@ describe('useViewList', () => {
         { requestId: 'seed' },
       );
       const rendered = renderHook(() =>
-        useViewList(engine, 'orders', kind ? { kinds: [kind] } : undefined),
+        useViewList(engine, 'orders', kind ? { viewKinds: [kind] } : undefined),
       );
       await waitFor(() =>
         expect(rendered.result.current.status).not.toBe('loading'),

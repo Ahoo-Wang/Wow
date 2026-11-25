@@ -1409,7 +1409,7 @@ function Shell({
   engine: ViewEngine;
 } & Partial<Parameters<typeof WorkbenchShell>[0]>) {
   const workbench = useWorkbench(engine, 'orders', {
-    kinds: ['record'],
+    viewKinds: ['record'],
     instanceId: 'mine',
   });
   return (

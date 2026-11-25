@@ -62,7 +62,9 @@ function boundConfig(
   return dashboardConfig({
     fields: [REGION_FIELD],
     panels: [
-      panel({ bindings: [{ globalField: 'region', panelField: 'warehouse' }] }),
+      panel({
+        bindings: [{ dashboardField: 'region', panelField: 'warehouse' }],
+      }),
     ],
     ...overrides,
   });
@@ -172,8 +174,8 @@ describe('DashboardViewRuntime hands a panel’s view over (D26 Q30, Q33)', () =
       panels: [
         panel({
           bindings: [
-            { globalField: 'region', panelField: 'warehouse' },
-            { globalField: 'phase', panelField: 'status' },
+            { dashboardField: 'region', panelField: 'warehouse' },
+            { dashboardField: 'phase', panelField: 'status' },
           ],
         }),
         {
@@ -262,7 +264,7 @@ describe('DashboardViewRuntime hands a panel’s view over (D26 Q30, Q33)', () =
     const board = harness();
     const runtime = board.engine.create('overview', {
       title: 'New',
-      scope: 'personal',
+      audience: 'personal',
       config: handing(),
     }) as unknown as DashboardViewRuntime;
     expect(runtime.handOver('orders')?.from).toBeUndefined();

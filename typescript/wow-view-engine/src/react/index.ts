@@ -156,7 +156,7 @@ export {
   useViewRuntime,
 } from './useViewRuntime.js';
 export {
-  type ViewListOptions,
+  type UseViewListOptions,
   type ViewListPreferences,
   type ViewListReloadOptions,
   type ViewListState,

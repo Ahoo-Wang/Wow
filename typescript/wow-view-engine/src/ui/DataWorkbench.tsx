@@ -263,7 +263,7 @@ function DataWorkbenchSurface({
   // page.
   const messages = useViewMessages(wording, locale);
   const workbench = useWorkbench(engine, definitionId, {
-    kinds,
+    viewKinds: kinds,
     instanceId: addressed.instanceId,
     onInstanceChange: addressed.onInstanceChange,
     handOver: handed,

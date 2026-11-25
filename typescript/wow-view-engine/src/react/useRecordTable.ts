@@ -664,7 +664,7 @@ export function useRecordTable(
     ),
     summaryOf: useCallback(
       (field: string) =>
-        summaries.find(entry => entry.field === field)?.fn ?? null,
+        summaries.find(entry => entry.field === field)?.function ?? null,
       [summaries],
     ),
     summaryFields: useMemo(
@@ -680,7 +680,7 @@ export function useRecordTable(
         );
         editAndApply({
           summaries: summariesOf(
-            fn === null ? rest : [...rest, { field, fn }],
+            fn === null ? rest : [...rest, { field, function: fn }],
             state.saved,
           ),
         });

@@ -106,4 +106,4 @@ export const buildingMessages = {
   'label.panel.presentation.changed': 'Shown differently here',
   'label.panel.presentation.note':
     'This panel looks different from the view it shows, on purpose: it was changed for this dashboard only.',
-} as const satisfies Record<string, string>;
+} satisfies Record<string, string>;

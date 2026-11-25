@@ -83,7 +83,9 @@ const CASES: {
   },
   {
     code: 'record.summary.unsupported',
-    config: { summaries: [{ field: 'amount', fn: AggregationFunction.AVG }] },
+    config: {
+      summaries: [{ field: 'amount', function: AggregationFunction.AVG }],
+    },
     en: 'Amount',
     zh: '「Amount」不提供平均汇总。',
     keys: ['amount', AggregationFunction.AVG],

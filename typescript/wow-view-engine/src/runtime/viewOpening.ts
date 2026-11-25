@@ -130,7 +130,7 @@ export class ViewOpening {
       input.config,
       {
         title: input.title,
-        scope: input.scope,
+        scope: input.audience,
         saved: null,
       },
       input.scopeFilter ?? null,

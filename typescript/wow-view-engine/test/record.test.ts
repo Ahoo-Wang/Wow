@@ -303,8 +303,8 @@ describe('validateRecord', () => {
         ],
         table: { columns: [{ field: 'id' }, { field: 'id' }] },
         summaries: [
-          { field: 'amount', fn: AggregationFunction.SUM },
-          { field: 'amount', fn: AggregationFunction.SUM },
+          { field: 'amount', function: AggregationFunction.SUM },
+          { field: 'amount', function: AggregationFunction.SUM },
         ],
       }),
       builtinFieldKinds,
@@ -346,7 +346,7 @@ describe('validateRecord', () => {
         validateRecord(
           definition(),
           config({
-            summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
+            summaries: [{ field: 'amount', function: AggregationFunction.SUM }],
           }),
           builtinFieldKinds,
         ),
@@ -357,7 +357,7 @@ describe('validateRecord', () => {
         validateRecord(
           definition(),
           config({
-            summaries: [{ field: 'amount', fn: AggregationFunction.MAX }],
+            summaries: [{ field: 'amount', function: AggregationFunction.MAX }],
           }),
           builtinFieldKinds,
         ),
@@ -368,7 +368,7 @@ describe('validateRecord', () => {
         validateRecord(
           definition(),
           config({
-            summaries: [{ field: 'gone', fn: AggregationFunction.SUM }],
+            summaries: [{ field: 'gone', function: AggregationFunction.SUM }],
           }),
           builtinFieldKinds,
         ),
@@ -668,9 +668,9 @@ describe('compileSummaries', () => {
       definition(),
       config({
         summaries: [
-          { field: 'amount', fn: AggregationFunction.SUM },
-          { field: 'amount', fn: AggregationFunction.AVG },
-          { field: 'id', fn: AggregationMetricType.COUNT },
+          { field: 'amount', function: AggregationFunction.SUM },
+          { field: 'amount', function: AggregationFunction.AVG },
+          { field: 'id', function: AggregationMetricType.COUNT },
         ],
       }),
       builtinFieldKinds,

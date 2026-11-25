@@ -66,8 +66,9 @@ function open() {
     resources: resourcesOf([searchable()], () => testSource()),
     store: new MemoryViewStore({ instances: [mine] }),
   });
-  return renderHook(() => useWorkbench(engine, 'orders', { kinds: ['record'] }))
-    .result;
+  return renderHook(() =>
+    useWorkbench(engine, 'orders', { viewKinds: ['record'] }),
+  ).result;
 }
 
 const all = systemInstanceId('orders', 'all');

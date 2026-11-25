@@ -203,7 +203,7 @@ describe('the filter editor offers value candidates', () => {
   it('nowhere on a dashboard, which has no data of its own', () => {
     const board = engine().create('overview', {
       title: 'Board',
-      scope: 'personal',
+      audience: 'personal',
       config: dashboardConfig(),
     });
     expect(board.valueCandidates('warehouse')).toBeNull();
@@ -215,7 +215,7 @@ describe('the filter editor offers value candidates', () => {
   it('on a record view opened fresh', () => {
     const runtime = engine().create('orders', {
       title: 'Scratch',
-      scope: 'personal',
+      audience: 'personal',
       config: recordConfig({
         filter: {
           op: 'and',

@@ -305,7 +305,7 @@ describe('restyledOnly under a kanban', () => {
     expect(
       restyledOnly(dealsDefinition(), kanban, {
         ...kanban,
-        summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
+        summaries: [{ field: 'amount', function: AggregationFunction.SUM }],
       }),
     ).toBeNull();
   });

@@ -100,8 +100,8 @@ export interface HeldView {
    * opened with, so the shell opens it with its editor folded.
    */
   handed?: true;
-  /** The board it was handed from, for the way back (`WorkbenchController.board`). */
-  board?: BoardOrigin;
+  /** The board it was handed from, for the way back (`WorkbenchController.boardOrigin`). */
+  boardOrigin?: BoardOrigin;
 }
 
 /** The view held, and the one call that replaces it. */
@@ -155,7 +155,7 @@ export interface HeldCommandsInput extends Pick<
 > {
   engine: ViewEngine;
   definitionId: string;
-  kinds: readonly ViewKind[];
+  viewKinds: readonly ViewKind[];
   definition: ReturnType<ViewEngine['definitions']['get']>;
   runtime: AnyViewRuntime | null;
   state: ViewRuntimeState<ViewConfig> | null;
@@ -175,7 +175,7 @@ export interface HeldCommandsInput extends Pick<
 export function useHeldCommands({
   engine,
   definitionId,
-  kinds,
+  viewKinds: kinds,
   definition,
   newView,
   onDrilldown,
@@ -209,7 +209,7 @@ export function useHeldCommands({
       request(() => {
         const made = engine.create(definitionId, {
           title,
-          scope: blank.scope,
+          audience: blank.scope,
           config: blank.config,
         });
         hold({
@@ -243,7 +243,7 @@ export function useHeldCommands({
       if (!runtime || !state) return;
       const made = engine.create(definitionId, {
         title: viewTitle,
-        scope: 'personal',
+        audience: 'personal',
         config,
         scopeFilter: runtime.scopeFilter,
       });
@@ -325,7 +325,7 @@ export function useHeldCommands({
     : held
       ? held.origin
         ? null
-        : (held.board ?? null)
+        : (held.boardOrigin ?? null)
       : (handedHere?.from ?? null);
   const toBoard = useCallback(() => {
     if (board) request(() => onNavigate?.(board.back));
@@ -338,7 +338,7 @@ export function useHeldCommands({
     drill,
     follow: holdFrom,
     back,
-    board,
+    boardOrigin: board,
     toBoard,
   };
 }

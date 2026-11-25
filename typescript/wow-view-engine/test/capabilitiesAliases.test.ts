@@ -138,7 +138,7 @@ describe('a field the definition names by an alias', () => {
           ],
         },
         sort: [{ field: 'amount', direction: SortDirection.DESC }],
-        summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
+        summaries: [{ field: 'amount', function: AggregationFunction.SUM }],
         card: { title: 'id', fields: ['amount'], image: 'amount' },
       }),
       renamed,
@@ -154,7 +154,7 @@ describe('a field the definition names by an alias', () => {
         ],
       },
       sort: [{ field: 'total', direction: SortDirection.DESC }],
-      summaries: [{ field: 'total', fn: AggregationFunction.SUM }],
+      summaries: [{ field: 'total', function: AggregationFunction.SUM }],
       table: { columns: [{ field: 'id' }, { field: 'total' }] },
       card: { title: 'id', fields: ['total'], image: 'total' },
     });
@@ -385,7 +385,7 @@ describe('a definition whose record defaults name a field by an alias', () => {
             ],
           },
           sort: [{ field: 'amount', direction: SortDirection.DESC }],
-          summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
+          summaries: [{ field: 'amount', function: AggregationFunction.SUM }],
           table: { columns: [{ field: 'id' }, { field: 'amount' }] },
           card: { title: 'id', fields: ['amount'] },
         },
@@ -403,7 +403,7 @@ describe('a definition whose record defaults name a field by an alias', () => {
         children: [{ field: 'total', operator: FilterOperator.GT, value: 0 }],
       },
       sort: [{ field: 'total', direction: SortDirection.DESC }],
-      summaries: [{ field: 'total', fn: AggregationFunction.SUM }],
+      summaries: [{ field: 'total', function: AggregationFunction.SUM }],
       table: { columns: [{ field: 'id' }, { field: 'total' }] },
       card: { title: 'id', fields: ['total'] },
     });
@@ -481,9 +481,9 @@ describe('a board that names a panel field by an alias', () => {
       instanceId: 'orders-list',
       layout: { x: 0, y: 0, w: 8, h: 4 },
       bindings: [
-        { globalField: 'min', panelField: 'amount' },
-        { globalField: 'region', panelField: 'warehouse', auto: true },
-        { globalField: 'broken' },
+        { dashboardField: 'min', panelField: 'amount' },
+        { dashboardField: 'region', panelField: 'warehouse', auto: true },
+        { dashboardField: 'broken' },
         'not a binding',
       ],
       click: {
@@ -530,9 +530,9 @@ describe('a board that names a panel field by an alias', () => {
     expect(next.panels[0]).toBe(heading);
     expect(next.panels[1]).toMatchObject({
       bindings: [
-        { globalField: 'min', panelField: 'total' },
-        { globalField: 'region', panelField: 'warehouse', auto: true },
-        { globalField: 'broken' },
+        { dashboardField: 'min', panelField: 'total' },
+        { dashboardField: 'region', panelField: 'warehouse', auto: true },
+        { dashboardField: 'broken' },
         'not a binding',
       ],
       click: { url: '/orders?amount={{ total }}&w={{warehouse}}' },
@@ -573,7 +573,7 @@ describe('a board that names a panel field by an alias', () => {
           id: 'list',
           kind: 'view',
           instanceId: 'orders-list',
-          bindings: [{ globalField: 'min', panelField: 'amount' }],
+          bindings: [{ dashboardField: 'min', panelField: 'amount' }],
           layout: { x: 0, y: 0, w: 12, h: 4 },
         },
         {
@@ -595,7 +595,7 @@ describe('a board that names a panel field by an alias', () => {
               ],
             }),
           },
-          bindings: [{ globalField: 'min', panelField: 'amount' }],
+          bindings: [{ dashboardField: 'min', panelField: 'amount' }],
           layout: { x: 12, y: 0, w: 12, h: 4 },
         },
       ],
@@ -608,9 +608,9 @@ describe('a board that names a panel field by an alias', () => {
     for (const config of [state.draft, state.applied, state.saved?.config])
       expect(config).toMatchObject({
         panels: [
-          { bindings: [{ globalField: 'min', panelField: 'total' }] },
+          { bindings: [{ dashboardField: 'min', panelField: 'total' }] },
           {
-            bindings: [{ globalField: 'min', panelField: 'total' }],
+            bindings: [{ dashboardField: 'min', panelField: 'total' }],
             owned: {
               config: {
                 metrics: [
@@ -647,7 +647,7 @@ describe('a board that names a panel field by an alias', () => {
           id: 'owned',
           kind: 'view',
           owned: { definitionId: 'orders', config: broken },
-          bindings: [{ globalField: 'min', panelField: 'amount' }],
+          bindings: [{ dashboardField: 'min', panelField: 'amount' }],
           layout: { x: 0, y: 0, w: 12, h: 4 },
         },
       ],

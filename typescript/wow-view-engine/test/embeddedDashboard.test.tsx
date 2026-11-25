@@ -96,8 +96,8 @@ function panel(
     title,
     instanceId,
     bindings: [
-      { globalField: 'region', panelField: 'warehouse' },
-      { globalField: 'status', panelField: 'status' },
+      { dashboardField: 'region', panelField: 'warehouse' },
+      { dashboardField: 'status', panelField: 'status' },
     ],
     layout: { x, y: 0, w: 12, h: 4 },
     ...extra,
@@ -222,7 +222,7 @@ describe('EmbeddedDashboard', () => {
               kind: 'view',
               title: 'Mine only',
               instanceId: 'orders-1',
-              bindings: [{ globalField: 'ghost', panelField: 'status' }],
+              bindings: [{ dashboardField: 'ghost', panelField: 'status' }],
               layout: { x: 0, y: 0, w: 6, h: 4 },
             },
             { ...note('# Weekly review'), layout: { x: 6, y: 0, w: 6, h: 2 } },
@@ -1000,7 +1000,7 @@ describe('EmbeddedDashboard', () => {
               fields: [{ name: 'q', label: 'Find', kind: 'search' }],
               panels: [
                 panel('list', 'list', 'Order list', {
-                  bindings: [{ globalField: 'q', panelField: 'q' }],
+                  bindings: [{ dashboardField: 'q', panelField: 'q' }],
                 }),
               ],
             }),

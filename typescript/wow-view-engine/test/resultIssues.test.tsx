@@ -52,7 +52,7 @@ import { AggregationFunction, SortDirection } from '@ahoo-wang/wow-client/dsl';
 afterEach(cleanup);
 
 const SUMMED = recordConfig({
-  summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
+  summaries: [{ field: 'amount', function: AggregationFunction.SUM }],
 });
 
 /** The sentence a catalogue gives a finding, with its values filled in. */

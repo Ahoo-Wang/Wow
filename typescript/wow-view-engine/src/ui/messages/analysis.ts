@@ -524,4 +524,4 @@ export const analysisMessages = {
     'A result sorts by at most {max} dimensions and metrics.',
   'analysis.sort.unknown-alias':
     'The sort orders by {alias}, which this result does not have.',
-} as const satisfies Record<string, string>;
+} satisfies Record<string, string>;

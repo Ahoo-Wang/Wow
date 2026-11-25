@@ -38,4 +38,4 @@ export const headerMessages = {
   'label.board-pick.cancel': 'Cancel',
   'label.board-pick.added': 'Added to “{board}”',
   'label.editor.pending': '{count} not applied',
-} as const satisfies Record<string, string>;
+} satisfies Record<string, string>;

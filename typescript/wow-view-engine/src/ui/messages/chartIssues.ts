@@ -159,4 +159,4 @@ export const chartIssueMessages = {
   'chart.splitBy.needs-one-series': 'A split chart shows exactly one metric.',
   'chart.splitBy.same-as-x': 'The split cannot repeat the horizontal axis.',
   'chart.type.unknown': 'This chart type is not available.',
-} as const satisfies Record<string, string>;
+} satisfies Record<string, string>;
