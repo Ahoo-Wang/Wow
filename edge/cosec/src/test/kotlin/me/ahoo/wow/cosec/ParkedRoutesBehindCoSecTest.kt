@@ -14,7 +14,6 @@
 package me.ahoo.wow.cosec
 
 import kotlinx.coroutines.runBlocking
-import me.ahoo.cosec.annotations.ExperimentalCoSecApi
 import me.ahoo.cosec.testkit.webflux.CoSecTestBindings
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateIdLimits
@@ -47,7 +46,7 @@ import java.net.URLEncoder
  * its routes hold no data in their paths. The path that held them, through 10.0.0-beta.16, is one the pipeline refuses
  * before anything is decided.
  */
-@OptIn(ExperimentalWowApi::class, ExperimentalCoSecApi::class, InternalWowApi::class)
+@OptIn(ExperimentalWowApi::class, InternalWowApi::class)
 class ParkedRoutesBehindCoSecTest {
     private val ledger = InMemoryFailureLedger()
     private val failing = Subscription(NAME, SubscriptionFilter(CONTEXT)) { error("${it.ref.id} is broken") }

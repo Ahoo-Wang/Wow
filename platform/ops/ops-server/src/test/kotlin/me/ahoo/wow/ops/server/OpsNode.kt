@@ -14,7 +14,6 @@
 package me.ahoo.wow.ops.server
 
 import kotlinx.coroutines.runBlocking
-import me.ahoo.cosec.annotations.ExperimentalCoSecApi
 import me.ahoo.cosec.testkit.IdentityHeader
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.annotation.InternalWowApi
@@ -166,7 +165,6 @@ fun startOps(
  * gateway mode of the `cosec` profile asks of every host: a test is reached by its own client alone. A deployment
  * states it with the wow-service chart's NetworkPolicy.
  */
-@OptIn(ExperimentalCoSecApi::class) // CoSec's test kit is experimental in 8.0.
 private fun gatewayBoundary(profiles: List<String>): Map<String, Any> = if ("cosec" in profiles) {
     // A node behind the gateway is a deployment, development being a profile alone (#6972): memory, named on purpose.
     mapOf(IdentityHeader.ONLY_GATEWAY_CAN_REACH_KEY to "true", "wow.backend" to "memory")

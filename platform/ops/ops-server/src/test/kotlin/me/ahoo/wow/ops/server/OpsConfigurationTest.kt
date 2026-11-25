@@ -17,7 +17,6 @@ import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.reactor.mono
 import kotlinx.coroutines.runBlocking
-import me.ahoo.cosec.annotations.ExperimentalCoSecApi
 import me.ahoo.cosec.api.context.SecurityContext
 import me.ahoo.cosec.runtime.AuthorizationChecker
 import me.ahoo.cosec.testkit.PermittedRequest
@@ -53,7 +52,6 @@ import java.util.function.Supplier
 
 @OptIn(
     InternalWowApi::class, // The host's settings, as the configuration reads them.
-    ExperimentalCoSecApi::class, // CoSec's test kit and its test bindings, which are experimental in 8.0.
 )
 class OpsConfigurationTest {
     private val retry = CommandAction(

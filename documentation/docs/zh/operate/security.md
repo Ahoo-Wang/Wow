@@ -122,7 +122,7 @@ CoSec 拒绝的请求在任何路由之前由 CoSec 回答：它的状态、它�
 | `unavailable`（503） | `wow.auth.unavailable`，不带 `Retry-After`：CoSec 对它不设这个头 |
 | `internal-error`（500） | 没有码，`about:blank`，与 Wow 自己的意外错误一样 |
 
-CoSec 的 `type` 与 `code` 放在成员 `cosec` 里，`requestId` 和 `traceId` 保留 CoSec 的名字。CoSec 以后新增的拒绝类型保持 CoSec 的回答体。应用自己声明了 `ProblemRenderer`（CoSec 的试验性 API）时，无论开关怎样，都由它写回答体；启动日志会说明由哪个渲染器写。
+CoSec 的 `type` 与 `code` 放在成员 `cosec` 里，`requestId` 和 `traceId` 保留 CoSec 的名字。CoSec 以后新增的拒绝类型保持 CoSec 的回答体。应用自己声明了 CoSec 的 `ProblemRenderer` 时，无论开关怎样，都由它写回答体；启动日志会说明由哪个渲染器写。
 
 是否打开，取决于两件事：
 
@@ -176,7 +176,7 @@ Wow 信任网关转发的身份，所以网关本身就是一条边界。每个�
 
 ### 以网关模式运行服务 {#run-services-in-gateway-mode}
 
-在 CoSec 网关之后，服务不必再校验一遍令牌，也不必持有 CoSec 的文档。`wow.cosec.mode: gateway` 为此设置 CoSec 的默认值：`cosec.enabled=true`、`cosec.pipeline.mode=gateway` 和 `cosec.jwt.enabled=false`。应用自己设置的 `cosec.*` 键仍然优先。
+在 CoSec 网关之后，服务不必再校验一遍令牌，也不必持有 CoSec 的文档。`wow.cosec.mode: gateway` 为此设置 CoSec 的默认值：`cosec.enabled=true`、`cosec.pipeline.mode=gateway` 和 `cosec.jwt.enabled=false`。应用自己设置的 `cosec.*` 键仍然优先。在这个模式下，除非应用自己设置了 `server.max-http-request-header-size`，CoSec 会把服务器的请求头上限从 8 KB 提高到 16 KB：在请求的其他请求头之外，给网关转发的身份（`cosec.pipeline.identity.max-size`，8 KB）留出空间。它的启动日志说明生效的上限，超过上限的请求以 431 回答并指明这个上限（[服务器在路由之前拒绝的请求](../reference/http#server-refusals)）。
 
 ```yaml
 wow:

@@ -18,10 +18,15 @@ import me.ahoo.wow.http.problem.LingeringClose
 import me.ahoo.wow.spring.boot.HostTestApp
 import me.ahoo.wow.spring.boot.startHost
 import org.junit.jupiter.api.Test
+import org.springframework.beans.factory.config.BeanPostProcessor
+import org.springframework.boot.web.server.autoconfigure.ServerProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.core.env.MapPropertySource
+import org.springframework.core.env.StandardEnvironment
 import org.springframework.core.io.buffer.DataBuffer
 import org.springframework.core.io.buffer.DataBufferUtils
+import org.springframework.util.unit.DataSize
 import org.springframework.web.reactive.function.server.RouterFunction
 import org.springframework.web.reactive.function.server.ServerResponse
 import org.springframework.web.reactive.function.server.bodyToFlux
@@ -99,6 +104,51 @@ class ServerRefusalsTest {
             line.status.assert().isEqualTo(414)
             line.problem!!["detail"].asString().assert().contains("2048 bytes (server.netty.max-initial-line-length)")
         }
+    }
+
+    /**
+     * Sets the header limit on the bound `ServerProperties` after binding, as CoSec's gateway mode derives it there (16
+     * KB, `IDN-43`): the environment does not have it.
+     */
+    class HeaderLimitAfterBinding : BeanPostProcessor {
+        override fun postProcessAfterInitialization(bean: Any, beanName: String): Any = bean.also {
+            if (it is ServerProperties) it.maxHttpRequestHeaderSize = DataSize.ofKilobytes(16)
+        }
+    }
+
+    @Test
+    fun `a header limit set on the server's properties after binding should be the one its detail names`() {
+        startHost(sources = listOf(HostTestApp::class.java, HeaderLimitAfterBinding::class.java)).use { host ->
+            raw(host.publicPort, get("/bank/account/a-1/state", "X-Pad: ${"a".repeat(9_000)}")).status.assert()
+                .isNotEqualTo(431)
+            val answer = raw(host.publicPort, get("/bank/account/a-1/state", "X-Pad: ${"a".repeat(17_000)}"))
+            answer.status.assert().isEqualTo(431)
+            answer.problem!!["detail"].asString().assert().isEqualTo(
+                "The request's headers are larger than this server takes: 16384 bytes " +
+                    "(server.max-http-request-header-size).",
+            )
+        }
+    }
+
+    @Test
+    fun `a header limit should read from the server's properties, else from the environment's key, else as 8 KB`() {
+        val environment = StandardEnvironment().apply {
+            propertySources.addFirst(
+                MapPropertySource(
+                    "app",
+                    mapOf(NodePublicPort.MAX_HEADER_SIZE to "12KB", NodePublicPort.MAX_INITIAL_LINE_LENGTH to "2KB"),
+                ),
+            )
+        }
+        val derived = ServerProperties().apply { maxHttpRequestHeaderSize = DataSize.ofKilobytes(16) }
+        NodePublicPort.limitsOf(environment, derived).headers.assert()
+            .isEqualTo("16384 bytes (server.max-http-request-header-size)")
+        val bound = NodePublicPort.limitsOf(environment, null)
+        bound.headers.assert().isEqualTo("12288 bytes (server.max-http-request-header-size)")
+        bound.requestLine.assert().isEqualTo("2048 bytes (server.netty.max-initial-line-length)")
+        val defaults = NodePublicPort.limitsOf(StandardEnvironment(), null)
+        defaults.headers.assert().isEqualTo("8192 bytes (server.max-http-request-header-size)")
+        defaults.requestLine.assert().isEqualTo("4096 bytes (server.netty.max-initial-line-length)")
     }
 
     @Test

@@ -92,7 +92,7 @@ Four of the server's limits are met before a route reads the request. Each answe
 | Request | Answer | Limit: key, default |
 | --- | --- | --- |
 | A request line (the method, the path with its query, the version) longer than the limit | `414`, and the connection closes | `server.netty.max-initial-line-length`, 4 KB |
-| A header block larger than the limit | `431`, and the connection closes | `server.max-http-request-header-size`, 8 KB |
+| A header block larger than the limit | `431`, and the connection closes | `server.max-http-request-header-size`, 8 KB; 16 KB in CoSec's [gateway mode](../operate/security#run-services-in-gateway-mode) |
 | A request the server cannot read as HTTP, such as two `Content-Length` headers that disagree | `400`, and the connection closes | |
 | A body larger than the codecs take in memory | `413` | `spring.http.codecs.max-in-memory-size`, 256 KB |
 

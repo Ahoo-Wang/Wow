@@ -122,7 +122,7 @@ A request CoSec refuses is answered before any route, by CoSec: its status, its 
 | `unavailable` (503) | `wow.auth.unavailable`, with no `Retry-After`: CoSec sets none on it |
 | `internal-error` (500) | none, `about:blank`, as Wow's own unexpected failures |
 
-CoSec's `type` and `code` stay in the member `cosec`, and its `requestId` and `traceId` under their names. A refusal of a type CoSec adds later keeps CoSec's body. An application that declares its own `ProblemRenderer` (CoSec's, experimental) writes the bodies itself, whatever the switch; the startup log says which renderer writes them.
+CoSec's `type` and `code` stay in the member `cosec`, and its `requestId` and `traceId` under their names. A refusal of a type CoSec adds later keeps CoSec's body. An application that declares its own `ProblemRenderer` (CoSec's) writes the bodies itself, whatever the switch; the startup log says which renderer writes them.
 
 Two things decide whether to turn it on:
 
@@ -176,7 +176,7 @@ A command sent again is the same command only under the same request id. A clien
 
 ### Run services in gateway mode {#run-services-in-gateway-mode}
 
-Behind a CoSec gateway, a service need not verify a token again, nor hold CoSec's documents. `wow.cosec.mode: gateway` sets CoSec's defaults for it: `cosec.enabled=true`, `cosec.pipeline.mode=gateway` and `cosec.jwt.enabled=false`. A `cosec.*` key the application sets still wins.
+Behind a CoSec gateway, a service need not verify a token again, nor hold CoSec's documents. `wow.cosec.mode: gateway` sets CoSec's defaults for it: `cosec.enabled=true`, `cosec.pipeline.mode=gateway` and `cosec.jwt.enabled=false`. A `cosec.*` key the application sets still wins. In this mode CoSec raises the server's request-header limit, `server.max-http-request-header-size`, from 8 KB to 16 KB unless the application sets it: room for the identity the gateway forwards (`cosec.pipeline.identity.max-size`, 8 KB) beside the request's other headers. Its startup log states the limit in effect, and a request past it is answered 431 naming it ([What the server refuses](../reference/http#server-refusals)).
 
 ```yaml
 wow:

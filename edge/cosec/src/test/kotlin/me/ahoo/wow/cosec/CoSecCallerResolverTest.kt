@@ -15,7 +15,6 @@ package me.ahoo.wow.cosec
 
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
-import me.ahoo.cosec.annotations.ExperimentalCoSecApi
 import me.ahoo.cosec.runtime.http.CoSecParameters
 import me.ahoo.cosec.testkit.webflux.CoSecTestBindings
 import me.ahoo.test.asserts.assert
@@ -30,7 +29,6 @@ import org.springframework.mock.web.server.MockServerWebExchange
 import org.springframework.web.reactive.function.server.ServerRequest
 
 /** [CoSecCallerResolver] over the security contexts CoSec's pipeline permits requests in (decision D367). */
-@OptIn(ExperimentalCoSecApi::class) // CoSec's test bindings are experimental in 8.0.
 class CoSecCallerResolverTest {
     private val cosec = CoSecPipeline()
     private val resolver = CoSecCallerResolver(

@@ -92,7 +92,7 @@ outline: deep
 | 请求 | 回答 | 上限：配置项，默认值 |
 | --- | --- | --- |
 | 请求行（方法、带查询的路径、版本）长于上限 | `414`，连接随之关闭 | `server.netty.max-initial-line-length`，4 KB |
-| 请求头块大于上限 | `431`，连接随之关闭 | `server.max-http-request-header-size`，8 KB |
+| 请求头块大于上限 | `431`，连接随之关闭 | `server.max-http-request-header-size`，8 KB；CoSec 的[网关模式](../operate/security#run-services-in-gateway-mode)下为 16 KB |
 | 服务器无法作为 HTTP 读取的请求，例如两个不一致的 `Content-Length` 头 | `400`，连接随之关闭 | |
 | 请求体大于编解码器在内存中接收的大小 | `413` | `spring.http.codecs.max-in-memory-size`，256 KB |
 

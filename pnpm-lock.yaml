@@ -7,8 +7,8 @@ settings:
 catalogs:
   default:
     '@ahoo-wang/cosec-fetcher':
-      specifier: 8.0.0-beta.9
-      version: 8.0.0-beta.9
+      specifier: 8.0.0-rc.1
+      version: 8.0.0-rc.1
     '@ahoo-wang/fetcher':
       specifier: ^6.1.1
       version: 6.1.1
@@ -338,7 +338,7 @@ importers:
     devDependencies:
       '@ahoo-wang/cosec-fetcher':
         specifier: 'catalog:'
-        version: 8.0.0-beta.9(@ahoo-wang/fetcher-eventbus@6.1.1)(@ahoo-wang/fetcher-storage@6.1.1(@ahoo-wang/fetcher-eventbus@6.1.1))(@ahoo-wang/fetcher@6.1.1)
+        version: 8.0.0-rc.1(@ahoo-wang/fetcher-eventbus@6.1.1)(@ahoo-wang/fetcher-storage@6.1.1(@ahoo-wang/fetcher-eventbus@6.1.1))(@ahoo-wang/fetcher@6.1.1)
       '@ahoo-wang/fetcher':
         specifier: 'catalog:'
         version: 6.1.1
@@ -522,7 +522,7 @@ importers:
     dependencies:
       '@ahoo-wang/cosec-fetcher':
         specifier: 'catalog:'
-        version: 8.0.0-beta.9(@ahoo-wang/fetcher-eventbus@6.1.1)(@ahoo-wang/fetcher-storage@6.1.1(@ahoo-wang/fetcher-eventbus@6.1.1))(@ahoo-wang/fetcher@6.1.1)
+        version: 8.0.0-rc.1(@ahoo-wang/fetcher-eventbus@6.1.1)(@ahoo-wang/fetcher-storage@6.1.1(@ahoo-wang/fetcher-eventbus@6.1.1))(@ahoo-wang/fetcher@6.1.1)
       '@ahoo-wang/fetcher':
         specifier: 'catalog:'
         version: 6.1.1
@@ -649,7 +649,7 @@ importers:
     dependencies:
       '@ahoo-wang/cosec-fetcher':
         specifier: 'catalog:'
-        version: 8.0.0-beta.9(@ahoo-wang/fetcher-eventbus@6.1.1)(@ahoo-wang/fetcher-storage@6.1.1(@ahoo-wang/fetcher-eventbus@6.1.1))(@ahoo-wang/fetcher@6.1.1)
+        version: 8.0.0-rc.1(@ahoo-wang/fetcher-eventbus@6.1.1)(@ahoo-wang/fetcher-storage@6.1.1(@ahoo-wang/fetcher-eventbus@6.1.1))(@ahoo-wang/fetcher@6.1.1)
       '@ahoo-wang/fetcher':
         specifier: 'catalog:'
         version: 6.1.1
@@ -1346,8 +1346,8 @@ packages:
   '@adobe/css-tools@4.5.0':
     resolution: {integrity: sha512-6OzddxPio9UiWTCemp4N8cYLV2ZN1ncRnV1cVGtve7dhPOtRkleRyx32GQCYSwDYgaHU3USMm84tNsvKzRCa1Q==}
 
-  '@ahoo-wang/cosec-fetcher@8.0.0-beta.9':
-    resolution: {integrity: sha512-JpZcgBYIoGscOawHevgt7L+oKJTVuhksHQpe6/UXJA4Niu4M5mbJlLUAKGnKTa4Se+/PCCmEFqlZ8TVUOVcuzQ==}
+  '@ahoo-wang/cosec-fetcher@8.0.0-rc.1':
+    resolution: {integrity: sha512-4ctpwY+xMFGRWd7qbMiFRbphLnoCiJL46fQQ4giqBcfYGybSLNF7j9Qb4tNNAFBdRRAQbLYfK1DwX38otV0qaw==}
     engines: {node: ^22.12.0 || ^24.0.0 || >=26.0.0}
     peerDependencies:
       '@ahoo-wang/fetcher': ^6.1.1
@@ -6513,7 +6513,7 @@ snapshots:
 
   '@adobe/css-tools@4.5.0': {}
 
-  '@ahoo-wang/cosec-fetcher@8.0.0-beta.9(@ahoo-wang/fetcher-eventbus@6.1.1)(@ahoo-wang/fetcher-storage@6.1.1(@ahoo-wang/fetcher-eventbus@6.1.1))(@ahoo-wang/fetcher@6.1.1)':
+  '@ahoo-wang/cosec-fetcher@8.0.0-rc.1(@ahoo-wang/fetcher-eventbus@6.1.1)(@ahoo-wang/fetcher-storage@6.1.1(@ahoo-wang/fetcher-eventbus@6.1.1))(@ahoo-wang/fetcher@6.1.1)':
     dependencies:
       '@ahoo-wang/fetcher': 6.1.1
       '@ahoo-wang/fetcher-eventbus': 6.1.1
