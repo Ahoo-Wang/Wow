@@ -46,6 +46,7 @@ export function analyzeManifest(manifest: ManifestDocument): {
       ...(context.routes ?? []).flatMap(route => [
         ...types.references(route.request),
         ...types.references(route.response),
+        ...types.references(route.parameters),
       ]),
     ];
     for (const key of types.closure(roots).sort(compareNames)) {

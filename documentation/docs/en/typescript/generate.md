@@ -89,7 +89,7 @@ For each bounded context, a directory named after it:
 | `manifest.ts` | `<Context>Manifest`: the routes of the context's commands and of its service routes, and the property of the body that names the aggregate of a command whose body does (`idProperty`), as its Manifest lists them, with no schema. The command clients send by it, so they fetch no Manifest |
 | `client.ts` | `<Context>Client`: the context's `CommandClient` (`commands`) and, per aggregate, its command, snapshot, event and state clients; its service routes (`routes`) when it has any |
 | `routes.ts` | `<Context>Routes`: a method per service route of the context, on `ServiceRoutes` of `@ahoo-wang/wow-client/routes`, answering the route's answer, `undefined` beside it for a route the Manifest marks `responseOptional` (a `null` answered as `204 No Content`), and `void` for a route of no answer; written only when the Manifest lists service routes |
-| `types.ts` | The commands, events and states of the Manifest's schemas, each named after its class's simple name. A name two classes share, or one the generated modules already bind (a TypeScript global they use such as `Promise` or `Record`, a name they import from `@ahoo-wang/wow-client` such as `CommandClient`, or one the generator declares such as `<Aggregate>Event`), is qualified by the class's package: `shop.Record` is `ShopRecord` |
+| `types.ts` | The commands, events and states of the Manifest's schemas, each named after its class's simple name. A name two classes share, or one the generated modules already bind (a TypeScript global they use such as `Promise` or `Record`, a name they import from `@ahoo-wang/wow-client` such as `CommandClient`, or one the generator declares such as `<Aggregate>Event`), is qualified by the class's package: `shop.Record` is `ShopRecord`. A parameterized type is written in place where it is used, but one that refers to itself (a `Node<String>` whose children are `Node<String>`) is declared once, named by its class, `Of` and its arguments' simple names, several joined by `And` and nested ones in their place: `a.Node(java.lang.String)` is `NodeOfString`, `java.util.Map(java.lang.String,java.util.List(a.Item))` is `MapOfStringAndListOfItem`; a clash is qualified by the class's package |
 | `<aggregate>/aggregate.ts` | The aggregate's descriptor, the `state.*` fields a query names, and the union of its events |
 | `<aggregate>/commandClient.ts` | `<Aggregate>CommandClient`: a method per command, a `…Stream` twin of each, and the lifecycle commands the aggregate lists. An internal command (`"internal": true`, [Keep a command internal](../guide/aggregates#keep-a-command-internal)) has none, nor an entry in `manifest.ts`, nor a type only it uses: the public port does not serve it |
 | `<aggregate>/queryClient.ts` | `<Aggregate>SnapshotQueryClient`, `<Aggregate>EventQueryClient` and `<Aggregate>StateClient` |
@@ -211,7 +211,7 @@ export const OrderAggregate = {
 } as const;
 
 /** The `state.*` paths of `order`'s snapshots a query filters, sorts and projects on. */
-export type OrderStateField = 'state.cancelReason' | 'state.confirmedProducts' | 'state.items' | 'state.paymentId' | 'state.status' | 'state.totalAmount';
+export type OrderStateField = 'state.cancelReason' | 'state.confirmedProducts' | 'state.items' | 'state.items.productId' | 'state.items.quantity' | 'state.items.unitPrice' | 'state.paymentId' | 'state.status' | 'state.totalAmount';
 
 /** The access attributes of `eshop-ordering.order`: it declares none. */
 export type OrderAccess = NoAccess;

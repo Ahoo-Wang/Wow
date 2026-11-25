@@ -21,9 +21,6 @@ import type { PropertyModel } from './model';
 import { TEXT_NUMBER_FORMATS } from './textNumbers';
 import { compound, join, literal } from './typeText';
 
-/** The deepest `state.*` path listed as a query field. */
-const MAX_FIELD_DEPTH = 4;
-
 /**
  * Where a type is written: `output`, what the service writes (a state, an
  * event, an answer), or `input`, what a caller sends (a command's body, a
@@ -45,14 +42,32 @@ export class SchemaTypes {
 
   constructor(readonly defs: Readonly<Record<string, JsonSchema>>) {}
 
+  /** Whether each key reaches itself through its references, as `recursive` answered it. */
+  private readonly recursion = new Map<string, boolean>();
+
   /**
    * Whether `key` is a parameterized type's, such as
-   * `java.util.Map(java.lang.String,java.lang.Object)`: its schema is written
-   * in place (`Record<string, unknown>`), never declared, since a name taken
-   * from its last type argument would shadow a global such as `Object`.
+   * `java.util.Map(java.lang.String,java.lang.Object)`, written in place
+   * (`Record<string, unknown>`) and never declared. A parameterized type
+   * that refers to itself (`a.Node(java.lang.String)` whose children are
+   * `a.Node(java.lang.String)`) is declared instead, as a recursive plain
+   * type is: written in place, it would never end.
    */
   inlined(key: string): boolean {
-    return key.includes('(');
+    return key.includes('(') && !this.recursive(key);
+  }
+
+  /** Whether the schema of `key` reaches `key` again through its references. */
+  private recursive(key: string): boolean {
+    let answer = this.recursion.get(key);
+    if (answer === undefined) {
+      const schema = this.schemaOf(key);
+      answer =
+        schema !== undefined &&
+        this.closure(this.references(schema)).includes(key);
+      this.recursion.set(key, answer);
+    }
+    return answer;
   }
 
   /** Names each key after its simple class name, qualified as far as needed to be unique and not `reserved`. */
@@ -61,14 +76,16 @@ export class SchemaTypes {
     for (let depth = 0; pending.size > 0; depth++) {
       const byName = new Map<string, string[]>();
       for (const key of pending.keys()) {
-        const segments = key.split('.');
+        // A parameterized key is named by its class, then `Of` and its arguments' names.
+        const open = key.indexOf('(');
+        const segments = (open < 0 ? key : key.slice(0, open)).split('.');
         const simple = segments[segments.length - 1].split('$');
         const qualifier = segments.slice(
           Math.max(0, segments.length - 1 - depth),
           segments.length - 1,
         );
         const name = toTypeIdentifier(
-          [...qualifier, ...simple].map(part =>
+          [...qualifier, ...simple, ...argumentParts(key)].map(part =>
             /^[a-z]/.test(part) ? pascalCase(part) : part,
           ),
         );
@@ -78,9 +95,7 @@ export class SchemaTypes {
       for (const [name, owners] of byName) {
         // A key whose packages are used up takes the name, numbered when it
         // is taken; the others take it alone, or qualify one package more.
-        const exhausted = owners.filter(
-          key => key.split('.').length - 1 <= depth,
-        );
+        const exhausted = owners.filter(key => packagesOf(key) <= depth);
         const assigned =
           owners.length === 1 && !taken.has(name) ? owners : exhausted;
         for (const key of assigned) {
@@ -364,32 +379,102 @@ export class SchemaTypes {
     );
   }
 
-  /** The `state.*` paths of a state schema a query can filter and sort on. */
+  /**
+   * The `state.*` paths of a state schema a query can filter and sort on, as
+   * the Kotlin contract's `StateFields.of` walks it: each property is a path,
+   * and the walk descends into an object's properties through `$ref`s, the
+   * one schema of a nullable alternative (`anyOf`/`oneOf` of it and `null`)
+   * and the items of an array, whose elements' fields are named after the
+   * array's path (`state.items.productId`), at any depth. A definition
+   * already on the path is a leaf, so the walk ends.
+   */
   fields(
-    schema: JsonSchema,
+    schema: unknown,
     prefix: string,
-    depth = 1,
-    seen = new Set<string>(),
+    seen: ReadonlySet<string> = new Set(),
   ): string[] {
-    const resolved = this.resolve(schema);
-    const ref =
-      typeof schema.$ref === 'string' ? schemaKey(schema.$ref) : undefined;
-    if (ref !== undefined && seen.has(ref)) return [];
-    const nextSeen = ref === undefined ? seen : new Set([...seen, ref]);
-    if (!isObject(resolved.properties)) return [];
-    const paths: string[] = [];
-    for (const [name, property] of Object.entries(resolved.properties)) {
-      const path = `${prefix}.${name}`;
-      paths.push(path);
-      if (depth < MAX_FIELD_DEPTH && isObject(property)) {
-        const target = this.resolve(property);
-        if (!typesOf(target).includes('array')) {
-          paths.push(...this.fields(property, path, depth + 1, nextSeen));
-        }
+    if (!isObject(schema)) return [];
+    if (typeof schema.$ref === 'string') {
+      const key = schemaKey(schema.$ref);
+      const target = key === undefined ? undefined : this.schemaOf(key);
+      if (key === undefined || target === undefined || seen.has(key)) {
+        return [];
       }
+      return this.fields(target, prefix, new Set([...seen, key]));
+    }
+    const held = nullableAlternative(schema);
+    if (held !== undefined) return this.fields(held, prefix, seen);
+    if (schema.items !== undefined) {
+      return this.fields(schema.items, prefix, seen);
+    }
+    if (!isObject(schema.properties)) return [];
+    const paths: string[] = [];
+    for (const [name, property] of Object.entries(schema.properties)) {
+      const path = `${prefix}.${name}`;
+      paths.push(path, ...this.fields(property, path, seen));
     }
     return paths;
   }
+}
+
+/** How many packages qualify `key`'s class: those of a parameterized key's class, not of its arguments. */
+function packagesOf(key: string): number {
+  const open = key.indexOf('(');
+  return (open < 0 ? key : key.slice(0, open)).split('.').length - 1;
+}
+
+/**
+ * The parts of a parameterized key's name that follow its class's: `Of`, then
+ * each argument's simple name, nested arguments in their place, several
+ * joined by `And`, nullability (`?`) left out. `a.Node(java.lang.String)`
+ * gives `Of String` (`NodeOfString`), `a.b.Page(a.b.Item)` `Of Item`, and
+ * `java.util.Map(java.lang.String,java.util.List(a.Item?))`
+ * `Of String And List Of Item` (`MapOfStringAndListOfItem`), so two
+ * arguments never read as one nested name; a plain key gives none.
+ */
+function argumentParts(key: string): string[] {
+  const parts: string[] = [];
+  let at = key.indexOf('(');
+  if (at < 0) return parts;
+  /** The arguments in parentheses at `at`, `at` left after the closing one. */
+  const typeArguments = (): void => {
+    at += 1;
+    parts.push('Of');
+    for (let first = true; at < key.length && key[at] !== ')';) {
+      if (key[at] === ',') {
+        at += 1;
+        continue;
+      }
+      if (!first) parts.push('And');
+      first = false;
+      typeArgument();
+    }
+    at += 1;
+  };
+  /** One argument at `at`: its simple name, then its own arguments. */
+  const typeArgument = (): void => {
+    const start = at;
+    while (at < key.length && !'(),?'.includes(key[at])) at += 1;
+    parts.push(...key.slice(start, at).trim().split('.').pop()!.split('$'));
+    if (key[at] === '(') typeArguments();
+    if (key[at] === '?') at += 1;
+  };
+  typeArguments();
+  return parts;
+}
+
+/**
+ * The one schema of a nullable alternative, `anyOf` (or `oneOf`) of it and
+ * `{ type: 'null' }`, as the Kotlin `StateFields` reads it; `undefined` for
+ * any other schema.
+ */
+function nullableAlternative(schema: JsonSchema): unknown {
+  const alternatives = schema.anyOf ?? schema.oneOf;
+  if (!Array.isArray(alternatives)) return undefined;
+  const held = alternatives.filter(
+    alternative => !(isObject(alternative) && alternative.type === 'null'),
+  );
+  return held.length === 1 ? held[0] : undefined;
 }
 
 /** Whether a property's schema is read-only: computed, written by the service and never read back. */

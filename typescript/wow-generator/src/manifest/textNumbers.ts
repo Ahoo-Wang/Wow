@@ -201,7 +201,7 @@ export class TextNumbers {
         },
       });
     }
-    const members: Record<string, Shape> = {};
+    const members = ownRecord<Shape>();
     if (isObject(schema.properties)) {
       for (const [name, property] of Object.entries(schema.properties)) {
         const shape = this.shape(property, `${where}.${name}`);
@@ -259,7 +259,7 @@ export class TextNumbers {
         );
       }
       // The alternatives that are objects go by their case; the others by their kind.
-      const cases: Record<string, Shape> = {};
+      const cases = ownRecord<Shape>();
       let rest: Shape | undefined;
       alternatives.forEach((alternative, index) => {
         const value = this.constant(alternative, name);
@@ -372,7 +372,7 @@ export class TextNumbers {
       );
     }
     if (left.number?.exact) number = left.number;
-    const members: Record<string, Shape> = { ...left.members };
+    const members = ownRecord<Shape>(left.members);
     for (const [name, shape] of Object.entries(right.members ?? {})) {
       members[name] = this.merge(
         members[name],
@@ -472,7 +472,7 @@ function all(parts: readonly (Shape | undefined)[]): Shape | undefined {
       left.number?.exact || right.number === undefined
         ? (left.number ?? right.number)
         : right.number;
-    const members: Record<string, Shape> = { ...left.members };
+    const members = ownRecord<Shape>(left.members);
     for (const [name, shape] of Object.entries(right.members ?? {})) {
       members[name] = all([members[name], shape])!;
     }
@@ -520,4 +520,15 @@ function constantOf(schema: unknown): string | undefined {
     typeof schema.enum[0] === 'string'
     ? schema.enum[0]
     : undefined;
+}
+
+/**
+ * A record with no prototype, holding `from`'s members: a member named
+ * `__proto__`, which a plain object's assignment would take as its
+ * prototype, is one of its own.
+ */
+function ownRecord<T>(
+  from: Readonly<Record<string, T>> = {},
+): Record<string, T> {
+  return Object.assign(Object.create(null) as Record<string, T>, from);
 }

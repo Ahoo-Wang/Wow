@@ -19,6 +19,7 @@ import {
   type ManifestContext,
   isObject,
   schemaKey,
+  typesOf,
 } from './document';
 import type {
   AccessModel,
@@ -88,15 +89,57 @@ function commandMethod(
   return chosen;
 }
 
-/** Whether a command's body `schema` requires nothing a caller sends. */
+/**
+ * Whether a command's body `schema` requires nothing a caller sends, so its
+ * method can default it to `{}`: `{}` is a value of its type.
+ */
 function emptyBody(
   types: SchemaTypes,
   schema: JsonSchema | undefined,
 ): boolean {
-  return (
-    schema === undefined ||
-    types.required(types.resolve(schema), 'input').size === 0
-  );
+  return schema === undefined || admitsEmpty(types, schema, new Set());
+}
+
+/**
+ * Whether `{}` is a value of `schema` as a caller sends it: it requires no
+ * property and is an object, through its `$ref`s, every part of an `allOf` admits it, and so
+ * does some alternative of an `anyOf` or a `oneOf`. A sealed body, `anyOf`
+ * of subtypes that each require their discriminant, admits none. A
+ * definition already on the path admits it, as far as it is concerned.
+ */
+function admitsEmpty(
+  types: SchemaTypes,
+  schema: JsonSchema,
+  seen: ReadonlySet<string>,
+): boolean {
+  const key =
+    typeof schema.$ref === 'string' ? schemaKey(schema.$ref) : undefined;
+  if (key !== undefined) {
+    const target = types.schemaOf(key);
+    if (target === undefined || seen.has(key)) return true;
+    return admitsEmpty(types, target, new Set([...seen, key]));
+  }
+  const kinds = typesOf(schema);
+  if (kinds.length > 0 && !kinds.includes('object')) return false;
+  if ('const' in schema || Array.isArray(schema.enum)) return false;
+  if (types.required(schema, 'input').size > 0) return false;
+  const parts = (member: string): JsonSchema[] =>
+    Array.isArray(schema[member])
+      ? (schema[member] as unknown[]).filter(isObject)
+      : [];
+  if (!parts('allOf').every(part => admitsEmpty(types, part, seen))) {
+    return false;
+  }
+  for (const member of ['anyOf', 'oneOf']) {
+    const alternatives = parts(member);
+    if (
+      alternatives.length > 0 &&
+      !alternatives.some(part => admitsEmpty(types, part, seen))
+    ) {
+      return false;
+    }
+  }
+  return true;
 }
 
 /** Whether the property `name` of `schema` is computed: `readOnly`, written by the service and never read back. */

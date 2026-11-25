@@ -33,7 +33,7 @@ export const BasketAggregate = {
 } as const;
 
 /** The `state.*` paths of `basket`'s snapshots a query filters, sorts and projects on. */
-export type BasketStateField = 'state.checkouts' | 'state.items';
+export type BasketStateField = 'state.checkouts' | 'state.items' | 'state.items.productId' | 'state.items.quantity' | 'state.items.unitPrice';
 
 /** The access attributes of `eshop-basket.basket`: it declares none. */
 export type BasketAccess = NoAccess;
