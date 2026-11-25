@@ -46,6 +46,7 @@ import me.ahoo.wow.spring.boot.node.RoutesScope
 import me.ahoo.wow.spring.boot.node.WowModels
 import me.ahoo.wow.spring.boot.query.QueryAutoConfiguration
 import me.ahoo.wow.spring.boot.security.DevelopmentCallerResolver
+import me.ahoo.wow.spring.boot.transport.PortProviders.Companion.configured
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
@@ -118,7 +119,7 @@ internal class NodePublicPort {
             "No CallerResolver bean, and the node is not in development (no profile of wow.dev-profiles): the " +
                 "public port would have no caller to serve."
         }
-        val tenant = properties.tenant.default
+        val tenant = properties.tenant.checkedDefault()
         logger.warn {
             "No CallerResolver bean, in the development profile ${development.profiles.joinToString()}: the public port " +
                 "takes its callers from the ${DevelopmentHeaders.USER}, ${DevelopmentHeaders.OWNER}, " +
@@ -139,13 +140,15 @@ internal class NodePublicPort {
             "The public port reads the client's address with $strategy: " +
                 "the gateway in front of it must overwrite X-Forwarded-For."
         }
-        return WowHttpOptions(
-            requestFacts = properties.http.requestFacts.toSet(),
-            errorStatuses = properties.http.errorStatuses(),
-            manifestEndpoint = properties.http.manifest.enabled,
-            openApiEndpoint = properties.http.openapi.enabled,
-            clientFacts = properties.http.clientFacts.enabled,
-        )
+        return configured("wow.http") {
+            WowHttpOptions(
+                requestFacts = properties.http.requestFacts.toSet(),
+                errorStatuses = properties.http.errorStatuses(),
+                manifestEndpoint = properties.http.manifest.enabled,
+                openApiEndpoint = properties.http.openapi.enabled,
+                clientFacts = properties.http.clientFacts.enabled,
+            )
+        }
     }
 
     /**

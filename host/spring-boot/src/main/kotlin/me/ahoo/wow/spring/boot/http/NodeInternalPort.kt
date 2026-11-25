@@ -41,6 +41,7 @@ import me.ahoo.wow.spring.boot.node.InternalServerLifecycle
 import me.ahoo.wow.spring.boot.node.NodeIdentity
 import me.ahoo.wow.spring.boot.node.NodeStandby
 import me.ahoo.wow.spring.boot.node.RoutesScope
+import me.ahoo.wow.spring.boot.transport.PortProviders.Companion.configured
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
@@ -64,7 +65,7 @@ internal class NodeInternalPort {
     @ConditionalOnMissingBean(name = [INTERNAL_HTTP_CLIENT])
     @InternalWowApi
     fun wowInternalHttpClient(properties: WowProperties): HttpClient =
-        InternalHttp.client(properties.internal.connectTimeout.toKotlinDuration())
+        configured("wow.internal") { InternalHttp.client(properties.internal.connectTimeout.toKotlinDuration()) }
 
     @Bean
     @ConditionalOnMissingBean
@@ -86,7 +87,9 @@ internal class NodeInternalPort {
         client,
         service = identity.service,
         observer = Observer.of(observers.orderedStream().toList()),
-        options = HttpSignalSenderOptions(queueCapacity = properties.internal.signalQueueCapacity),
+        options = configured("wow.internal") {
+            HttpSignalSenderOptions(queueCapacity = properties.internal.signalQueueCapacity)
+        },
     )
 
     @Bean
@@ -105,7 +108,7 @@ internal class NodeInternalPort {
         routes: RoutesScope,
     ): InternalPort {
         // The service each request names, its identity in the default tenant.
-        val services = DeclaredServices.resolver(properties.tenant.default)
+        val services = DeclaredServices.resolver(properties.tenant.checkedDefault())
         val permits = callPermits(properties)
         val settings = InternalPortSettings(
             port = properties.internal.port,

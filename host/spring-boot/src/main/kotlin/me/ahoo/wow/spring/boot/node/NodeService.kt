@@ -58,6 +58,7 @@ import me.ahoo.wow.spring.boot.node.NodeAdmission.Companion.writePolicies
 import me.ahoo.wow.spring.boot.query.QueryProperties
 import me.ahoo.wow.spring.boot.store.HostBackends
 import me.ahoo.wow.spring.boot.transport.PortProviders
+import me.ahoo.wow.spring.boot.transport.PortProviders.Companion.configured
 import me.ahoo.wow.spring.boot.transport.ProvidedSinks
 import me.ahoo.wow.spring.boot.transport.TransportNeeds
 import org.springframework.beans.factory.ObjectProvider
@@ -236,13 +237,15 @@ internal class NodeService {
         // How long a read of a minimum version waits for it: `wow.query.state.min-version-wait`.
         val minVersionWait = queries.ifAvailable?.state?.minVersionWait?.toKotlinDuration()
             ?: KernelStateReads.DEFAULT_MIN_VERSION_WAIT
-        return KernelStateReads(
-            node.registry,
-            contexts,
-            gate.getIfAvailable { ReplayGate.OPEN },
-            maxReplay,
-            minVersionWait,
-        )
+        return configured("wow.query.state") {
+            KernelStateReads(
+                node.registry,
+                contexts,
+                gate.getIfAvailable { ReplayGate.OPEN },
+                maxReplay,
+                minVersionWait
+            )
+        }
     }
 
     /** Tells `wow.ops.webhook.url` when an entry parks or spends its retries. */
@@ -251,7 +254,13 @@ internal class NodeService {
     @InternalWowApi
     fun wowWebhookNotifier(properties: WowProperties, identity: NodeIdentity): WebhookNotifier {
         val webhook = properties.ops.webhook
-        return WebhookNotifier(
+        return configured("wow.ops.webhook") {
+            webhookNotifier(webhook, identity)
+        }
+    }
+
+    private fun webhookNotifier(webhook: WebhookProperties, identity: NodeIdentity): WebhookNotifier =
+        WebhookNotifier(
             uri = configNotNull(webhook.url, "wow.ops.webhook.url", "Set it to the URL the webhook posts to.") {
                 "wow.ops.webhook.url is not set."
             },
@@ -261,7 +270,6 @@ internal class NodeService {
             headers = webhook.headers.toMap(),
             timeout = webhook.timeout.toKotlinDuration(),
         )
-    }
 
     internal companion object {
         /** The host's log category: the lines that moved here from [WowAutoConfiguration] keep it. */

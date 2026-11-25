@@ -23,6 +23,7 @@ import me.ahoo.wow.runtime.node.NodeSampler
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.spring.boot.WowAutoConfiguration
 import me.ahoo.wow.spring.boot.WowProperties
+import me.ahoo.wow.spring.boot.transport.PortProviders.Companion.configured
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
@@ -48,7 +49,9 @@ class NodeSamplerAutoConfiguration {
     @ConditionalOnMissingBean
     @InternalWowApi
     fun wowNodeSampler(node: ServiceNode, properties: WowProperties): NodeSampler =
-        NodeSampler(node, properties.node.sampleInterval.toKotlinDuration(), properties.node.maxParked)
+        configured("wow.node") {
+            NodeSampler(node, properties.node.sampleInterval.toKotlinDuration(), properties.node.maxParked)
+        }
 
     /**
      * The operator's read of the node's subscriptions, when `wow.http.ops.enabled`, beside the parked routes:

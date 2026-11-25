@@ -16,6 +16,7 @@ package me.ahoo.wow.kafka
 import kotlinx.coroutines.withTimeout
 import me.ahoo.wow.spi.config.ProviderOption
 import me.ahoo.wow.spi.config.WowConfigurationException
+import me.ahoo.wow.spi.config.configCheck
 import me.ahoo.wow.spi.transport.TopicTransport
 import me.ahoo.wow.spi.transport.TopicTransportOptions
 import me.ahoo.wow.spi.transport.TransportConfig
@@ -281,7 +282,14 @@ class KafkaTransportProvider : TransportProvider {
                     "separated by commas."
             },
             properties = config.settings.options(PROPERTIES),
-            pollTimeout = config.settings.option(POLL_TIMEOUT),
+            pollTimeout = config.settings.option(POLL_TIMEOUT).also { timeout ->
+                configCheck(
+                    timeout.isPositive(),
+                    "${config.key}.${POLL_TIMEOUT.key}",
+                    timeout,
+                    "Set it to a positive duration: the longest a consumer's poll waits.",
+                ) { "The poll timeout of the Kafka transport cannot be $timeout." }
+            },
             metadataMaxAge = config.settings.option(TopicTransportOptions.PARTITION_REFRESH),
         )
 

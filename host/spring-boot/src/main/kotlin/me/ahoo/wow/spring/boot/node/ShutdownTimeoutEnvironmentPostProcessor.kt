@@ -61,11 +61,15 @@ internal class ShutdownTimeoutEnvironmentPostProcessor : EnvironmentPostProcesso
         /** The node's [ServiceNodeOptions.stopBound], from the options [environment] sets or by default. */
         fun required(environment: Environment): Duration = stopBound(WowProperties.of(environment))
 
-        private fun stopBound(properties: WowProperties): Duration = ServiceNodeOptions(
-            cluster = configured("wow.cluster") { properties.cluster.options(properties.wait.defaultTimeout) },
-            wait = configured("wow.wait") { properties.wait.options() },
-            subscription = configured("wow.subscription") { properties.subscription.options() },
-        ).stopBound.toJavaDuration()
+        private fun stopBound(properties: WowProperties): Duration {
+            // The waits first: a forward waits the default wait unless set, so a refused wait is named as the wait's.
+            val wait = configured("wow.wait") { properties.wait.options() }
+            return ServiceNodeOptions(
+                cluster = configured("wow.cluster") { properties.cluster.options(properties.wait.defaultTimeout) },
+                wait = wait,
+                subscription = configured("wow.subscription") { properties.subscription.options() },
+            ).stopBound.toJavaDuration()
+        }
 
         /** The timeout per shutdown phase [environment] sets; null when it sets none. */
         fun configured(environment: Environment): Duration? =

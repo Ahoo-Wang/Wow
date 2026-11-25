@@ -62,6 +62,7 @@ import me.ahoo.wow.spring.boot.node.QueryStreamsLifecycle
 import me.ahoo.wow.spring.boot.node.WowModels
 import me.ahoo.wow.spring.boot.store.BeanStoreResources
 import me.ahoo.wow.spring.boot.store.HostBackends
+import me.ahoo.wow.spring.boot.transport.PortProviders.Companion.configured
 import me.ahoo.wow.spring.boot.transport.ProviderSettingsSource
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory
@@ -113,7 +114,8 @@ class QueryAutoConfiguration {
         @Bean
         @ConditionalOnMissingBean
         @InternalWowApi
-        fun wowQueryEntryPolicy(properties: QueryProperties): QueryEntryPolicy = properties.entryPolicy()
+        fun wowQueryEntryPolicy(properties: QueryProperties): QueryEntryPolicy =
+            configured(QueryProperties.PREFIX) { properties.entryPolicy() }
 
         @Bean
         @ConditionalOnMissingBean
@@ -332,11 +334,20 @@ class QueryAutoConfiguration {
             val settings = wow.ifAvailable
             val backend by lazy { events.getObject() }
             // The bounds are wow-query's: the host maps its properties onto their settings.
-            return QueryStores.of(
-                properties.storeSettings(settings?.stores.orEmpty()),
-                backends.stores,
-                { name -> HostQueryBulkheads.pressureOf(node::started, name, backends.stores[name]) },
-            ) { type -> HostQueryBulkheads.unpinned(type, backend.storeOf(type), properties.events.unpinned, settings) }
+            return configured(QueryProperties.PREFIX) {
+                QueryStores.of(
+                    properties.storeSettings(settings?.stores.orEmpty()),
+                    backends.stores,
+                    { name -> HostQueryBulkheads.pressureOf(node::started, name, backends.stores[name]) },
+                ) { type ->
+                    HostQueryBulkheads.unpinned(
+                        type,
+                        backend.storeOf(type),
+                        properties.events.unpinned,
+                        settings
+                    )
+                }
+            }
         }
 
         /**
@@ -448,7 +459,7 @@ class QueryAutoConfiguration {
         @InternalWowApi
         fun wowQueryCountCache(node: ServiceNode, properties: QueryProperties): QueryCountCache = QueryCountCache(
             { type -> node.contexts[type.context]?.snapshotCheckpoint(type) },
-            properties.countCache.options(),
+            configured("${QueryProperties.PREFIX}.count-cache") { properties.countCache.options() },
         )
 
         /** The query models the public routes serve: the engine's, `wow.query.budgets.http.default-list-size`. */
@@ -456,13 +467,15 @@ class QueryAutoConfiguration {
         @ConditionalOnMissingBean
         @InternalWowApi
         fun wowHttpQueries(engine: QueryEngine, node: ServiceNode, properties: QueryProperties): HttpQueries =
-            HttpQueries.of(
-                engine,
-                properties.budgets.http.defaultListSize,
-                node.snapshotStatus,
-                properties.stream.streams(),
-                properties.sensitivity.displayShared,
-            )
+            configured(QueryProperties.PREFIX) {
+                HttpQueries.of(
+                    engine,
+                    properties.budgets.http.defaultListSize,
+                    node.snapshotStatus,
+                    properties.stream.streams(),
+                    properties.sensitivity.displayShared,
+                )
+            }
 
         /**
          * The node's typed [NodeQueryApi]: the [engine]'s gateways and read facade, each aggregate
