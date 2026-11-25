@@ -67,6 +67,8 @@ artifacts() {
     [ -n "$charts" ] || continue
     # A folder per version too: the run checks the previous release's chart into the same evidence after the new one's.
     chart="$evidence/artifacts/charts/${charts//[^a-z0-9]/_}/$version"
+    # Pulled again into an empty folder: helm refuses to untar over a chart a run before pulled there.
+    rm -rf "$chart"
     mkdir -p "$chart"
     if helm pull "$charts/wow-service" --version "$version" --untar --untardir "$chart" >/dev/null; then
       log "chart $charts/wow-service $version: $(grep -E '^(version|appVersion):' "$chart/wow-service/Chart.yaml" | tr '\n' ' ')"
