@@ -55,8 +55,13 @@ export function bucketRange(
       return { from: start, to: start + MS[unit] };
     default: {
       const wall = zonedParts(start, timeZone);
-      const next = advance(wall, unit);
-      return { from: start, to: zonedToUtc(next, timeZone) };
+      // A day whose midnight was skipped starts at the transition, 01:00
+      // say; the next starts at its own date's midnight, not at 01:00 too.
+      const top =
+        bucketStart(unit, start, timeZone) === start
+          ? { ...wall, hour: 0, minute: 0, second: 0 }
+          : wall;
+      return { from: start, to: zonedToUtc(advance(top, unit), timeZone) };
     }
   }
 }
@@ -226,9 +231,12 @@ function pad2(part: number): string {
 /**
  * The instant a wall-clock time in `timeZone` names. `Date.UTC` carries an
  * overflowing day or month into the next, which is what `advance` relies on.
- * The zone's offset is read at a first guess and once more at the answer,
- * which settles every transition but the repeated hour, where the earlier
- * reading is kept.
+ * The zone's offset is read at a first guess and once more at the answer.
+ * A repeated hour keeps the earlier reading. A time a transition skips
+ * settles at the transition, as Wow's `DateBuckets` cuts it: neither offset
+ * reads the wall clock back, so it is taken in the offset before the change,
+ * which moves it forward by the gap (00:00 in America/Santiago on
+ * 7 September 2025 is 01:00 -03:00).
  */
 function zonedToUtc(wall: WallClock, timeZone: string): number {
   const asUtc = Date.UTC(
@@ -252,6 +260,11 @@ function zonedToUtc(wall: WallClock, timeZone: string): number {
       ) - ms
     );
   };
-  const guess = asUtc - offsetAt(asUtc);
-  return asUtc - offsetAt(guess);
+  const first = offsetAt(asUtc);
+  const second = offsetAt(asUtc - first);
+  if (second === first) return asUtc - first;
+  const settled = asUtc - second;
+  if (offsetAt(settled) === second) return settled;
+  // A skipped time: the offset rose across it, so the earlier is the lower.
+  return asUtc - Math.min(first, second);
 }

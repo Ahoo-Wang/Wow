@@ -22,7 +22,10 @@ import {
  * the ISO weekday 1 as 「周一」 / "Mon", the hour 20 as 「20时」 / "20:00", the
  * month 9 as 「9月」 / "Sep", the day 3 as 「3日」 / "3". Each is formatted
  * off a fixed day of a known weekday in UTC, so no zone moves it: the key
- * was read in its zone by the source already. A key outside the part's
+ * was read in its zone by the source already. The day and the month are
+ * Gregorian, as Wow cuts them, so they are named on that calendar whatever
+ * calendar the language would pick (`bucket` does the same): Persian's own
+ * calendar would name the 3rd of January its 13th. A key outside the part's
  * domain is not one of its values and is shown as it came.
  */
 export function datePartValue(
@@ -35,6 +38,7 @@ export function datePartValue(
   const [first, last] = DATE_PART_DOMAINS[part];
   if (key < first || key > last) return undefined;
   const utc = { timeZone: 'UTC' } as const;
+  const gregorian = { ...utc, calendar: 'gregory' } as const;
   switch (part) {
     case AggregationDateParts.DAY_OF_WEEK:
       // 2024-01-01 was a Monday, ISO weekday 1.
@@ -54,12 +58,12 @@ export function datePartValue(
     }
     case AggregationDateParts.DAY_OF_MONTH:
       return format(new Date(Date.UTC(2024, 0, key)), locale, {
-        ...utc,
+        ...gregorian,
         day: 'numeric',
       });
     case AggregationDateParts.MONTH_OF_YEAR:
       return format(new Date(Date.UTC(2024, key - 1, 1)), locale, {
-        ...utc,
+        ...gregorian,
         month: 'short',
       });
   }
