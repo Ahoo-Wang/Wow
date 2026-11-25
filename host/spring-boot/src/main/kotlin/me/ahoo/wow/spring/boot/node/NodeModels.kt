@@ -21,6 +21,7 @@ import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.manifest.ManifestLoader
 import me.ahoo.wow.runtime.node.ServiceNode
+import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spring.boot.WowAutoConfiguration
 import me.ahoo.wow.spring.boot.WowProperties
@@ -43,6 +44,11 @@ internal class NodeModels {
     fun wowDependencies(beanFactory: ConfigurableListableBeanFactory): Dependencies =
         BeanFactoryDependencies(beanFactory)
 
+    /**
+     * The models of the contexts the node serves; an entry of `wow.aggregates` that names no aggregate type of them is
+     * refused here, whichever of its settings it holds ([checkServed]), so that no setting of an aggregate type is
+     * ignored for a mistyped type.
+     */
     @Bean
     @ConditionalOnMissingBean
     @InternalWowApi
@@ -52,7 +58,7 @@ internal class NodeModels {
         dependencies: Dependencies,
     ): WowModels {
         val providers = properties.contexts.selection().select(ModelProvider.load(beanFactory.beanClassLoader))
-        return WowModels(providers, ServiceNode.models(dependencies, providers))
+        return WowModels(providers, ServiceNode.models(dependencies, providers)).also { checkServed(properties, it) }
     }
 
     @Bean
@@ -86,6 +92,23 @@ internal class NodeModels {
     )
 
     internal companion object {
+        /**
+         * Refuses an entry of `wow.aggregates` that names no aggregate type of [models]: its settings would never be
+         * read (`operate/configuration.md`, "Names are checked"). The settings that look a type up check it again where
+         * they are read, with their own key.
+         */
+        internal fun checkServed(properties: WowProperties, models: WowModels) {
+            val served = models.models.mapTo(LinkedHashSet()) { "${it.type.context}.${it.type.name}" }
+            properties.aggregates.keys.firstOrNull { it !in served }?.let { key ->
+                throw WowConfigurationException(
+                    "wow.aggregates.[$key]",
+                    key,
+                    "wow.aggregates.[$key] names no aggregate type this node serves, so none of its settings is read.",
+                    "Name one of the aggregate types this node serves, as <context>.<aggregate>: $served.",
+                )
+            }
+        }
+
         /** The service of the peer [context], as its contract on the class path names it. */
         internal fun serviceOf(contracts: ContractDirectory, context: String): String? = contracts.peers
             .firstOrNull { fragment -> fragment.manifest.contexts.any { it.name == context } }
