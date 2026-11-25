@@ -92,9 +92,18 @@ function withExtensions(problem: Problem): Problem {
     : { ...problem, extensions };
 }
 
+/** The `retry` values this client knows; a newer service may write another. */
+const KNOWN_RETRIES: ReadonlySet<string> = new Set<Retry>([
+  'none',
+  'same-request',
+  'new-request',
+]);
+
 /**
  * What a retry of `problem` may do: its `retry` member, which every problem a
- * Wow service writes carries; else the error catalog's for its code; else, for
+ * Wow service writes carries, when it is one this client knows (a value a
+ * newer service added is read as absent, as the Kotlin client reads it);
+ * else the error catalog's for its code; else, for
  * a body that is no Wow problem, `same-request` when it is a proxy's 503 or
  * 429, which nothing behind it handled, or a gateway's 502 or 504: the gateway
  * does not say whether the node behind it took the command and committed it,
@@ -104,7 +113,9 @@ function withExtensions(problem: Problem): Problem {
  * @param problem - The problem a request was answered with
  */
 export function retryOf(problem: Problem): Retry {
-  if (problem.retry !== undefined) return problem.retry;
+  if (problem.retry !== undefined && KNOWN_RETRIES.has(problem.retry)) {
+    return problem.retry;
+  }
   const known =
     problem.code === undefined
       ? undefined
@@ -318,7 +329,19 @@ export function isProblem(value: unknown): value is Problem {
 }
 
 /**
- * The milliseconds of a `Retry-After` header: delay seconds or an HTTP date.
+ * An HTTP date as `Retry-After` carries it (RFC 9110 §5.6.7, RFC 1123): an
+ * optional day name, the day, the month's name, the year, the time with or
+ * without seconds, and `GMT` or an offset, as the Kotlin client reads it
+ * (`DateTimeFormatter.RFC_1123_DATE_TIME`).
+ */
+const HTTP_DATE =
+  /^(?:(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun), )?\d{1,2} (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{4} \d{2}:\d{2}(?::\d{2})? (?:GMT|[+-]\d{4})$/;
+
+/**
+ * The milliseconds of a `Retry-After` header: delay seconds (`1*DIGIT`) or
+ * an HTTP date (RFC 9110 §10.2.3); undefined for anything else, a fraction
+ * or a negative number among them, as the Kotlin client reads it, so the
+ * error catalog's wait applies rather than none.
  *
  * @param value - The header's value
  * @param now - The current time, in epoch milliseconds
@@ -330,6 +353,7 @@ export function parseRetryAfter(
   if (!value) return undefined;
   const trimmed = value.trim();
   if (/^\d+$/.test(trimmed)) return Number(trimmed) * 1000;
+  if (!HTTP_DATE.test(trimmed)) return undefined;
   const date = Date.parse(trimmed);
   return Number.isNaN(date) ? undefined : Math.max(0, date - now);
 }

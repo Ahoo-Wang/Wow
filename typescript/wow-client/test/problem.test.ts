@@ -87,6 +87,45 @@ describe('problems', () => {
     expect(parseRetryAfter(null)).toBeUndefined();
   });
 
+  it('reads a Retry-After that is neither delay seconds nor an HTTP date as absent, as the Kotlin client does', () => {
+    const now = Date.UTC(2015, 9, 21, 7, 28, 0);
+    // `Date.parse` reads each of these as some date; RFC 9110 reads none.
+    for (const value of ['1.5', '-1', '+2', 'March 7', '1e3'])
+      expect(parseRetryAfter(value, now), value).toBeUndefined();
+    // RFC 1123's forms, as `DateTimeFormatter.RFC_1123_DATE_TIME` reads them.
+    expect(parseRetryAfter('21 Oct 2015 07:28:05 GMT', now)).toBe(5000);
+    expect(parseRetryAfter('Wed, 21 Oct 2015 08:28:05 +0100', now)).toBe(5000);
+    // So the catalog's wait applies to a problem whose header says nothing.
+    const busy = new WowProblemError(
+      {
+        type: 'urn:wow:error:wow.query.busy',
+        title: 'Query busy',
+        status: 429,
+        code: 'wow.query.busy',
+      },
+      { retryAfterMs: parseRetryAfter('1.5') },
+    );
+    expect(busy.retryAfterMs).toBe(1000);
+  });
+
+  it('reads a retry value this client does not know as absent, as the Kotlin client does', () => {
+    // Kotlin's Retry may gain a case in a minor release; its client reads one
+    // it does not know as absent: the catalog's, else the bare-status rule.
+    const newer = (status: number, code?: string) => ({
+      type: code === undefined ? 'about:blank' : `urn:wow:error:${code}`,
+      title: 'T',
+      status,
+      ...(code === undefined ? {} : { code }),
+      retry: 'after-restart' as never,
+    });
+    expect(retryOf(newer(503, 'wow.storage.unavailable'))).toBe('same-request');
+    expect(retryOf(newer(409, 'wow.aggregate.exists'))).toBe('none');
+    expect(retryOf(newer(502))).toBe('same-request');
+    expect(
+      new WowProblemError(newer(503, 'wow.storage.unavailable')).retry,
+    ).toBe('same-request');
+  });
+
   it('reads the code from the type when the body names none', async () => {
     const problem = await readProblem(
       new Response(

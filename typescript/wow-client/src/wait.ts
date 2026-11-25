@@ -191,35 +191,77 @@ export function formatWaitPlan(plan: WaitPlan): string {
   return plan.hops.map(formatHop).join(' > ');
 }
 
-const HOP = /^([A-Za-z]+)\s*(?:\(\s*([^()]*?)\s*\))?$/;
+/** The longest plan {@link parseWaitPlan} reads, as the service: 32 hops of 128 characters. */
+const MAX_PLAN_LENGTH = 4096;
+
+/** The most hops {@link parseWaitPlan} reads, as the service reads. */
+const MAX_PLAN_HOPS = 32;
 
 /**
  * The plan a `Wow-Wait` value spells, as the service reads it: hops
  * separated by `>`, each `accepted`, `committed`, `snapshot`, `queryable` or
  * `handled(subscription)`, with its context in parentheses
  * (`committed(ctx)`, `handled(ctx/subscription)`); the inverse of
- * {@link formatWaitPlan}. Throws a `TypeError` for anything else.
+ * {@link formatWaitPlan}. Throws a `TypeError` for anything else, and, as the
+ * service refuses them before reading any hop, for a value longer than 4,096
+ * characters or of more than 32 hops. A hop is read in one pass, in time
+ * linear in its length.
  *
  * @param value - The header's value
  */
 export function parseWaitPlan(value: string): WaitPlan {
+  if (value.length > MAX_PLAN_LENGTH) {
+    throw new TypeError(
+      `A wait plan is at most ${MAX_PLAN_LENGTH} characters; this one has ${value.length}.`,
+    );
+  }
   if (value.trim() === '') {
     throw new TypeError('A wait plan has at least one hop.');
   }
-  return WaitPlan.of(...value.split('>').map(part => parseHop(part.trim())));
+  const parts = value.split('>');
+  if (parts.length > MAX_PLAN_HOPS) {
+    throw new TypeError(
+      `A wait plan has at most ${MAX_PLAN_HOPS} hops; this one has ${parts.length}.`,
+    );
+  }
+  return WaitPlan.of(...parts.map(part => parseHop(part.trim())));
+}
+
+/** Whether `char` is white space as a hop ignores it, as the service does: a space, a tab, LF, VT, FF or CR. */
+function isSpace(char: string): boolean {
+  return char === ' ' || (char >= '\t' && char <= '\r');
+}
+
+/** `value` without the white space after it ({@link isSpace}), in one pass. */
+function trimSpaceEnd(value: string): string {
+  let end = value.length;
+  while (end > 0 && isSpace(value[end - 1])) end--;
+  return value.slice(0, end);
+}
+
+/** `value` without the white space around it ({@link isSpace}), in one pass. */
+function trimSpace(value: string): string {
+  const kept = trimSpaceEnd(value);
+  let start = 0;
+  while (start < kept.length && isSpace(kept[start])) start++;
+  return kept.slice(start);
 }
 
 /**
- * The hop one part of a `Wow-Wait` value spells; see {@link parseWaitPlan}.
+ * The hop one part of a `Wow-Wait` value spells; see {@link parseWaitPlan}:
+ * a keyword of ASCII letters, then, after optional white space, an argument
+ * in parentheses that holds none, white space around it ignored.
  *
  * @param value - The part, such as `committed(ctx)`
  */
 export function parseHop(value: string): Hop {
-  const match = HOP.exec(value);
-  if (match === null) throw new TypeError(`Not a hop: '${value}'.`);
-  const keyword = match[1].toLowerCase();
-  const argument = match[2];
-  switch (keyword) {
+  const open = value.indexOf('(');
+  const keyword = trimSpaceEnd(open < 0 ? value : value.slice(0, open));
+  if (keyword === '' || !/^[A-Za-z]+$/.test(keyword)) {
+    throw new TypeError(`Not a hop: '${value}'.`);
+  }
+  const argument = open < 0 ? undefined : argumentOf(value, open);
+  switch (keyword.toLowerCase()) {
     case 'accepted':
       return wait.accepted(argument);
     case 'committed':
@@ -245,8 +287,24 @@ export function parseHop(value: string): Hop {
         : wait.handled(parts[1].trim(), parts[0].trim());
     }
     default:
-      throw new TypeError(`Not a stage: '${keyword}'.`);
+      throw new TypeError(`Not a stage: '${keyword.toLowerCase()}'.`);
   }
+}
+
+/**
+ * The argument of the hop `value`, whose `(` is at `open`: what lies before
+ * its last character, `)`, trimmed; no other parenthesis between them.
+ */
+function argumentOf(value: string, open: number): string {
+  const close = value.length - 1;
+  if (
+    close <= open ||
+    value[close] !== ')' ||
+    value.slice(open + 1, close).search(/[()]/) >= 0
+  ) {
+    throw new TypeError(`Not a hop: '${value}'.`);
+  }
+  return trimSpace(value.slice(open + 1, close));
 }
 
 /**

@@ -415,12 +415,102 @@ describe('CommandClient', () => {
         r.headers.get('Wow-Wait-Timeout'),
       ]),
     ).toEqual([
-      ['accepted', null],
+      // send states its acceptance's timeout, 10 seconds without one, as
+      // Kotlin's send states ACCEPT_TIMEOUT.
+      ['accepted', '10s'],
       ['accepted', '3s'],
       [null, null],
       [null, '2s'],
       ['committed', '5s'],
       ['committed', '1500ms'],
+    ]);
+  });
+
+  it("states every plan's timeout, 10 seconds unless within says otherwise, as Kotlin's client does", async () => {
+    const { requests } = stubFetch(() => jsonResponse(result()));
+    const commands = new CommandClient(client(), { manifest: TEST_MANIFEST });
+    // A timeout given as 10 s is stated, as one of any other length is.
+    await commands.wait({
+      command: 'c.a.X',
+      id: '1',
+      wait: WaitPlan.COMMITTED.within(10_000),
+    });
+    // A plan's own timeout, 10 seconds, is stated with it.
+    await commands.wait({
+      command: 'c.a.X',
+      id: '1',
+      wait: WaitPlan.COMMITTED,
+    });
+    // The default plan sends no Wow-Wait, the service picks it, but its
+    // timeout is stated as Kotlin states it.
+    await commands.wait({ command: 'c.a.X', id: '1', wait: WaitPlan.DEFAULT });
+    expect(
+      requests.map(r => [
+        r.headers.get('Wow-Wait'),
+        r.headers.get('Wow-Wait-Timeout'),
+      ]),
+    ).toEqual([
+      ['committed', '10s'],
+      ['committed', '10s'],
+      [null, '10s'],
+    ]);
+  });
+
+  it("refuses headers that name one the client writes from the request's own fields", async () => {
+    const { requests } = stubFetch(() => jsonResponse(result()));
+    const commands = new CommandClient(client(), { manifest: TEST_MANIFEST });
+    for (const [name, field] of [
+      ['wow-request-id', 'requestId'],
+      ['Wow-Wait', 'wait'],
+      ['WOW-WAIT-TIMEOUT', 'timeout'],
+      ['wow-scope', 'scope'],
+      ['Wow-Space', 'space'],
+      ['if-match', 'expectedVersion'],
+    ]) {
+      const failure = await commands
+        .wait({
+          command: 'c.a.X',
+          id: '1',
+          requestId: 'request-1',
+          headers: { [name]: 'x' },
+        })
+        .catch((error: unknown) => error);
+      expect(failure, name).toBeInstanceOf(TypeError);
+      expect(String(failure), name).toContain(field);
+      // A failure before anything is sent still carries its request id.
+      expect(requestIdOf(failure), name).toBe('request-1');
+    }
+    expect(requests).toHaveLength(0);
+    // Other headers go as they are.
+    await commands.wait({
+      command: 'c.a.X',
+      id: '1',
+      headers: { 'X-Fact': 'f' },
+    });
+    expect(requests[0].headers.get('X-Fact')).toBe('f');
+  });
+
+  it('sends a command by a former name the Manifest lists as a full type name, as the Kotlin client does', async () => {
+    const { requests } = stubFetch(() => jsonResponse(result()));
+    const renamed = manifestOf([
+      context('probe', [
+        aggregate('thing', [
+          {
+            name: 'Pay',
+            aliases: ['probe.thing.Settle', 'Square'],
+            schema: '#/$defs/Pay',
+            creation: 'none',
+            routes: [{ method: 'POST', path: '/probe/thing/{id}/pay' }],
+          },
+        ]),
+      ]),
+    ]);
+    const commands = new CommandClient(client(), { manifest: renamed });
+    await commands.wait({ command: 'probe.thing.Settle', id: 't1' });
+    await commands.wait({ command: 'probe.thing.Square', id: 't1' });
+    expect(requests.map(r => new URL(r.url).pathname)).toEqual([
+      '/probe/thing/t1/pay',
+      '/probe/thing/t1/pay',
     ]);
   });
 

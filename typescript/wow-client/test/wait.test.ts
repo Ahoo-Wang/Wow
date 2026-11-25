@@ -23,6 +23,7 @@ import {
   formatWaitPlan,
   formatWaitTimeout,
   type Hop,
+  parseHop,
   parseWaitPlan,
   QUERYABLE_SUBSCRIPTION,
   wait,
@@ -112,8 +113,35 @@ describe('wait plans', () => {
       'handled',
       'handled(a/b/c)',
       'committed(a b)',
+      'committed)',
     ])
       expect(() => parseWaitPlan(value), value).toThrow(TypeError);
+    expect(() => parseHop(' committed')).toThrow(TypeError);
+    expect(parseHop('committed (ctx)')).toEqual(wait.committed('ctx'));
+  });
+
+  it('refuses what the service refuses before reading a hop: more than 4,096 characters or 32 hops', () => {
+    // WaitHeader.MAX_LENGTH and MAX_HOPS of `wow-api` (#6821).
+    expect(() => parseWaitPlan(`committed${' '.repeat(4_100)}`)).toThrow(
+      'A wait plan is at most 4096 characters; this one has 4109.',
+    );
+    const hops = (count: number) =>
+      Array.from({ length: count }, () => 'committed').join(' > ');
+    expect(parseWaitPlan(hops(32)).hops).toHaveLength(32);
+    expect(() => parseWaitPlan(hops(33))).toThrow(
+      'A wait plan has at most 32 hops; this one has 33.',
+    );
+  });
+
+  it('reads a hop left open with white space in time linear in its length, as the service does', () => {
+    // A pattern whose quantifiers share the white space of a hop left open
+    // backtracks over it (#6815); the hop is read in one pass instead.
+    const open = `accepted(${' '.repeat(2_000)}x`;
+    const started = performance.now();
+    expect(() => parseHop(open)).toThrow(TypeError);
+    expect(() => parseHop(`accepted${' '.repeat(2_000)}(x`)).toThrow(TypeError);
+    // The service's own test gives the same read a 1 s budget.
+    expect(performance.now() - started).toBeLessThan(1_000);
   });
 
   it('spells timeouts in seconds when whole, else milliseconds', () => {

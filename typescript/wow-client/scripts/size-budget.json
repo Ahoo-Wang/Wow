@@ -10,8 +10,8 @@
       "reason": "Raised 2026-11-10 to 13,700 B, about 17% over the 11,731 B measured then, as typescript/AGENTS.md sets a ceiling: the module boundaries of X-88 (descriptor.ts split into descriptor.ts, fieldDescriptor.ts and semanticTypes.ts, content unchanged) cost 34 B over the 11,697 B measured before, which the 1.6% margin left would not hold across the splits to come. Raised 2026-09-25, about 18% over the 10,075 B measured then: N3 expression builders, intended growth."
     },
     "./routes": {
-      "gzip": 7000,
-      "reason": "Set 2026-10-28, about 16% over the 6,030 B measured then: the service routes client with the HTTP sender, the problem reader and the Manifest check it shares with the root entry, kept apart from it so the root stays within its ceiling."
+      "gzip": 8400,
+      "reason": "Raised 2026-11-25 to 8,400 B, about 17% over the 7,181 B measured then, as typescript/AGENTS.md sets a ceiling: the HTTP sender now refuses a request's headers that name a header the client writes from the request's own fields (#7040), and the problem reader reads Retry-After as RFC 9110 spells it and a retry value it does not know as absent (#7044, #7039), both shared with the root entry. Set 2026-10-28, about 16% over the 6,030 B measured then: the service routes client with the HTTP sender, the problem reader and the Manifest check it shares with the root entry, kept apart from it so the root stays within its ceiling."
     },
     "./testing": {
       "gzip": 3500,

@@ -60,7 +60,9 @@ pass the version you hold and a 304 answers `{ notModified: true, version }`.
 datasets (`GET /wow/dataset`).
 
 Every method takes `RequestOptions` last: the `scope` and `space` to act in,
-more `headers`, and the `signal` that cancels the request.
+more `headers` (never one the client writes from a request's own fields,
+such as `Wow-Request-Id`: set the field), and the `signal` that cancels the
+request.
 
 Relative time is resolved by the server, never by the browser's clock:
 
@@ -105,7 +107,8 @@ ends with (the server's default plan when there is none), and `stream` one
 `WaitPlan.ACCEPTED`, `COMMITTED`, `SNAPSHOT`, or `WaitPlan.of(...hops)` of the
 `wait` hops (`accepted`, `committed`, `snapshot`, `queryable`, or a subscription's
 `handled`, also across a saga's derived commands), `.within(ms)` its timeout;
-`timeout` is in milliseconds and overrides it. `parseWaitPlan` and
+`timeout` is in milliseconds and overrides it; every plan states its timeout
+(`Wow-Wait-Timeout`), as Kotlin's client does. `parseWaitPlan` and
 `formatWaitPlan` read and write the `Wow-Wait` header. `targetTenant` and `targetScope`
 (`{ ownerId?, spaceId? }`) act in another tenant, owner or space. Every command carries a request id
 (`Wow-Request-Id`), given or generated: a retry with the same one is answered
