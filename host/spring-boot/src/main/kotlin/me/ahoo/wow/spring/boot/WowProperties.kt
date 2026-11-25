@@ -88,9 +88,10 @@ class WowProperties {
      * `wow.backend=auto` falls back to memory when no durable backend is available, the public port serves without a
      * `CallerResolver` bean, a single Kafka broker gives no durability warning, and a platform service may take its
      * callers from request headers. None of them is allowed in a deployment. In one of these profiles the internal
-     * port binds `127.0.0.1` unless `wow.internal.host` or `wow.node.address` names another address.
+     * port binds `127.0.0.1` unless `wow.internal.host` or `wow.node.address` names another address. `dev` and `local`
+     * by default: a profile named `test` or `demo` is often a shared environment's, which must not run so.
      */
-    var devProfiles: MutableSet<String> = linkedSetOf("dev", "local", "test", "demo")
+    var devProfiles: MutableSet<String> = linkedSetOf("dev", "local")
 
     /**
      * The backend of a node that names no `wow.stores`: `auto` (the default) takes PostgreSQL or MongoDB by the

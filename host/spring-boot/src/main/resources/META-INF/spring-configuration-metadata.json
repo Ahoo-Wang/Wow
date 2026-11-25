@@ -542,9 +542,9 @@
   }, {
     "name" : "wow.dev-profiles",
     "type" : "java.util.Set<java.lang.String>",
-    "description" : "The profiles in which the node runs for development, its one statement: an address states nothing, so a node whose `wow.internal.host` is a loopback address, without such a profile, is a deployment. In development `wow.backend=auto` falls back to memory when no durable backend is available, the public port serves without a `CallerResolver` bean, a single Kafka broker gives no durability warning, and a platform service may take its callers from request headers. None of them is allowed in a deployment. In one of these profiles the internal port binds `127.0.0.1` unless `wow.internal.host` or `wow.node.address` names another address.",
+    "description" : "The profiles in which the node runs for development, its one statement: an address states nothing, so a node whose `wow.internal.host` is a loopback address, without such a profile, is a deployment. In development `wow.backend=auto` falls back to memory when no durable backend is available, the public port serves without a `CallerResolver` bean, a single Kafka broker gives no durability warning, and a platform service may take its callers from request headers. None of them is allowed in a deployment. In one of these profiles the internal port binds `127.0.0.1` unless `wow.internal.host` or `wow.node.address` names another address. `dev` and `local` by default: a profile named `test` or `demo` is often a shared environment's, which must not run so.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties",
-    "defaultValue" : [ "dev", "local", "test", "demo" ]
+    "defaultValue" : [ "dev", "local" ]
   }, {
     "name" : "wow.elasticsearch.index-prefix",
     "type" : "java.lang.String",
