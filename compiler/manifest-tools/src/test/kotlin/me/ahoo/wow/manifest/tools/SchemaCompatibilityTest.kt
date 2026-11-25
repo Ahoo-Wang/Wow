@@ -350,6 +350,22 @@ class SchemaCompatibilityTest {
     }
 
     @Test
+    fun `a polymorphic field made nullable should be read as its subtypes and null, of an anyOf or a oneOf`() {
+        // A polymorphic definition has no type, only its subtypes: anyOf [null, it] is them and null (#6843).
+        val subtypes = listOf(obj("a" to STRING, required = listOf("a")), obj("b" to NUMBER, required = listOf("b")))
+        listOf("anyOf", "oneOf").forEach { keyword ->
+            val defs = mapOf("C" to mapOf(keyword to subtypes))
+            val required = obj("c" to mapOf("\$ref" to "#/\$defs/C"), required = listOf("c"))
+            val nullable = obj("c" to mapOf("anyOf" to listOf(mapOf("type" to "null"), mapOf("\$ref" to "#/\$defs/C"))))
+            changes(required, nullable, oldDefs = defs, newDefs = defs).assert().withFailMessage { keyword }
+                .containsExactlyInAnyOrder(
+                    "ADDITIVE s.c: field made optional",
+                    "ADDITIVE s.c.$keyword[0]: alternative added",
+                )
+        }
+    }
+
+    @Test
     fun `a change behind a reference of an allOf member should be compared, either way it flows`() {
         val subtype = mapOf("allOf" to listOf(obj("p" to mapOf("\$ref" to "#/\$defs/P")), obj("kind" to STRING)))
         val payload = obj("secret" to STRING, required = listOf("secret"))
@@ -621,5 +637,17 @@ class SchemaCompatibilityTest {
             .assert().containsExactly("ADDITIVE s.a: pattern changed from ^a to ^b")
         stored(obj("a" to NUMBER + ("multipleOf" to 2)), obj("a" to NUMBER))
             .assert().containsExactly("ADDITIVE s.a: multipleOf 2 lifted")
+    }
+
+    @Test
+    fun `an anyOf or a oneOf of number and integer compared with itself should be no change`() {
+        // An old alternative is matched with its identical new one first, not the first that accepts it (#6880): a
+        // oneOf's alternatives each matched unchanged are not checked again for a value two may share.
+        listOf("anyOf", "oneOf").forEach { keyword ->
+            val schema = mapOf(keyword to listOf(mapOf("type" to "number"), mapOf("type" to "integer")))
+            SchemaCompatibility(mapOf("t" to schema), mapOf("t" to schema))
+                .compare("s", "#/\$defs/t", "#/\$defs/t", false).map { it.toString() }.assert()
+                .withFailMessage { keyword }.isEmpty()
+        }
     }
 }

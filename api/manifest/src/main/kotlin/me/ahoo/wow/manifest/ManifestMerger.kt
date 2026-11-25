@@ -111,7 +111,10 @@ object ManifestMerger {
     private fun withRoutesAdded(
         declared: List<Pair<String, ContextManifest>>,
         conflicts: MutableList<String>,
-    ): List<Pair<String, ContextManifest>> = declared.groupBy { it.second.name }.values.flatMap { entries ->
+    ): List<Pair<String, ContextManifest>> = declared.groupBy { it.second.name }.values.flatMap { declarations ->
+        // By source, so the routes and errors they add are in one order whatever order the fragments come in: the class
+        // path's in the build, the ServiceLoader's in the node (#6841).
+        val entries = declarations.sortedBy { it.first }
         val owner = entries.firstOrNull { !it.second.routesOnly } ?: entries.first()
         // A context declared twice stays twice, so each declaration's conflicts are reported.
         val added = entries.filter { it !== owner && it.second.routesOnly }

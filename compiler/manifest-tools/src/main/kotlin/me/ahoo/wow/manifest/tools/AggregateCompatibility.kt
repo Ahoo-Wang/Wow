@@ -186,10 +186,11 @@ private fun Changes.readerBreaks(
  * id that the other side lacks are that change's, already reported.
  */
 private fun Changes.compareCommand(path: String, baseline: CommandManifest, current: CommandManifest, owned: Side?) {
-    compareValues("$path.aliases", baseline.aliases, current.aliases, "alias")
+    compareAliases("$path.aliases", baseline.aliases, current.aliases)
     list += schemas.compare("$path.schema", baseline.schema, current.schema)
     compareInternal("$path.internal", baseline.internal, current.internal)
     compareOccurredAt("$path.occurredAtProperty", baseline.occurredAtProperty, current.occurredAtProperty)
+    compareIdProperty("$path.idProperty", baseline.idProperty, current.idProperty)
     if (baseline.creation != current.creation) {
         val change = "creation changed from ${baseline.creation} to ${current.creation}"
         if (current.creation == Creation.ALLOWED) {
@@ -215,6 +216,21 @@ private fun Changes.compareCommand(path: String, baseline: CommandManifest, curr
         if (owned == Side.BASELINE) baseline.routes.filterNot { isOwn(it, current.routes) } else baseline.routes,
         if (owned == Side.CURRENT) current.routes.filterNot { isOwn(it, baseline.routes) } else current.routes,
     )
+}
+
+/**
+ * The body field a command's aggregate id is read from (`@AggregateId`), which clients name it by
+ * (`CommandIndex.idPropertyOf`, the HTTP reference): one added is additive, since a sender that names none is routed as
+ * before; one removed or moved to another field is breaking, since a sender's body names the aggregate by a field the
+ * command no longer reads, and a creation without it takes a generated id (#6842).
+ */
+private fun Changes.compareIdProperty(path: String, baseline: String?, current: String?) {
+    when {
+        baseline == current -> Unit
+        baseline == null -> additive(path, "the body names the command's aggregate, by $current")
+        current == null -> breaking(path, "the body no longer names the command's aggregate, by $baseline")
+        else -> breaking(path, "the body names the command's aggregate by $current, not $baseline")
+    }
 }
 
 /**
@@ -252,7 +268,7 @@ private fun Changes.compareInternal(path: String, baseline: Boolean, current: Bo
  * [SchemaDirection.STORED], so a constraint counts for the readers alone ([readerBreaks]).
  */
 private fun Changes.compareEvent(path: String, baseline: EventManifest, current: EventManifest, exposure: Exposure) {
-    compareValues("$path.aliases", baseline.aliases, current.aliases, "alias")
+    compareAliases("$path.aliases", baseline.aliases, current.aliases)
     val schemaChanges =
         schemas.compare("$path.schema", baseline.schema, current.schema, direction = SchemaDirection.STORED)
     when {
@@ -319,10 +335,6 @@ private fun Changes.removedEvent(path: String, event: EventManifest, retired: Li
         )
     }
 }
-
-/** Whether two names of an event within an aggregate are the same: a simple one, or a full one ending in it. */
-private fun sameName(left: String, right: String): Boolean =
-    left == right || left.endsWith(".$right") || right.endsWith(".$left")
 
 private fun Changes.compareQuery(path: String, baseline: QueryManifest, current: QueryManifest) {
     compareRoutes("$path.routes", baseline.routes, current.routes)

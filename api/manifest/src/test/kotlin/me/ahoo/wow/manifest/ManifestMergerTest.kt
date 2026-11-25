@@ -615,4 +615,28 @@ class ManifestMergerTest {
         conflicts.filter { it.contains("takes a segment an aggregate, the jobs or the framework reserves") }
             .assert().hasSize(2)
     }
+
+    @Test
+    fun `two server fragments in either order should merge into one Manifest`() {
+        // The routes and errors they add are ordered by their sources, not by the class path's order (#6841).
+        val domain = ManifestFragment("shop-domain.json", Manifests.fragment())
+        fun server(file: String, route: String, code: String) = ManifestFragment(
+            file,
+            Manifest(
+                contexts = listOf(
+                    ContextManifest(
+                        name = "shop",
+                        errors = listOf(ErrorManifest(code, 409)),
+                        routes = listOf(
+                            ServiceRouteManifest(route, RouteManifest("GET", "/shop/$route"), errors = listOf(code)),
+                        ),
+                    ),
+                ),
+            ),
+        )
+        val reports = server("shop-reports.json", "reports", "shop.reports.closed")
+        val summaries = server("shop-summaries.json", "summaries", "shop.summaries.closed")
+        ManifestMerger.merge(listOf(domain, reports, summaries)).assert()
+            .isEqualTo(ManifestMerger.merge(listOf(summaries, domain, reports)))
+    }
 }

@@ -134,6 +134,19 @@ class ManifestCompatibilityTest {
                 "ADDITIVE $CART.commands[AddItem]: command renamed to PutItem, which keeps AddItem as an alias",
                 "ADDITIVE $CART.commands[PutItem].aliases: alias AddItem added",
             ),
+            // The full name keeps the simple one, as AliasCheck and the kernel take it (#6843).
+            row(
+                "command renamed with its full name as an alias",
+                BASELINE.addItem { it.copyWith(name = "PutItem", aliases = listOf("shop.cart.AddItem")) },
+                "ADDITIVE $CART.commands[AddItem]: command renamed to PutItem, which keeps AddItem as an alias",
+                "ADDITIVE $CART.commands[PutItem].aliases: alias shop.cart.AddItem added",
+            ),
+            // The body field clients name the aggregate by (#6842).
+            row(
+                "command's aggregate id named by the body",
+                BASELINE.addItem { it.copyWith(idProperty = "cartId") },
+                "ADDITIVE $CART.commands[AddItem].idProperty: the body names the command's aggregate, by cartId",
+            ),
             row(
                 "command alias added",
                 BASELINE.addItem { it.copyWith(aliases = listOf("Put")) },
@@ -582,5 +595,39 @@ class ManifestCompatibilityTest {
     fun `a change should name its kind`() {
         ManifestChange(ADDITIVE, "p", "d").toString().assert().isEqualTo("ADDITIVE p: d")
         ManifestChange(BREAKING, "p", "d").kind.assert().isEqualTo(BREAKING)
+    }
+
+    @Test
+    fun `an alias rewritten between its simple and its full name should be no change`() {
+        // AliasCheck and the kernel take shop.cart.Put as Put: neither side's name is removed (#6843).
+        fun changes(baseline: Manifest, current: Manifest) =
+            ManifestCompatibility.compare(baseline, current).changes.map { it.toString() }
+        val simple = BASELINE.addItem { it.copyWith(aliases = listOf("Put")) }
+        val full = BASELINE.addItem { it.copyWith(aliases = listOf("shop.cart.Put")) }
+        changes(simple, full).assert().isEmpty()
+        changes(full, simple).assert().isEmpty()
+        changes(
+            BASELINE.itemAdded { it.copyWith(aliases = listOf("ItemPut")) },
+            BASELINE.itemAdded { it.copyWith(aliases = listOf("shop.cart.ItemPut")) },
+        ).assert().isEmpty()
+        // Another name is still another alias.
+        changes(simple, BASELINE.addItem { it.copyWith(aliases = listOf("shop.cart.Place")) }).assert().containsExactly(
+            "BREAKING $CART.commands[AddItem].aliases: alias Put removed",
+            "ADDITIVE $CART.commands[AddItem].aliases: alias shop.cart.Place added",
+        )
+    }
+
+    @Test
+    fun `a command whose aggregate id moves to another field or leaves the body should break`() {
+        // A sender's body names the aggregate by the old field, which the command no longer reads (#6842).
+        val named = BASELINE.addItem { it.copyWith(idProperty = "cartId") }
+        ManifestCompatibility.compare(named, BASELINE.addItem { it.copyWith(idProperty = "ownerCartId") }).changes
+            .map { it.toString() }.assert().containsExactly(
+                "BREAKING $CART.commands[AddItem].idProperty: the body names the command's aggregate by ownerCartId, " +
+                    "not cartId",
+            )
+        ManifestCompatibility.compare(named, BASELINE).changes.map { it.toString() }.assert().containsExactly(
+            "BREAKING $CART.commands[AddItem].idProperty: the body no longer names the command's aggregate, by cartId",
+        )
     }
 }

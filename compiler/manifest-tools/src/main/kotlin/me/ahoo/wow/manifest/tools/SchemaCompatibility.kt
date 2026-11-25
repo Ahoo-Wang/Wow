@@ -328,9 +328,12 @@ internal class SchemaCompatibility(
             // Each current alternative an old one matched, and whether it now accepts the old one's values unchanged.
             val matched = mutableMapOf<Int, Boolean>()
             oldAlternatives.forEachIndexed { index, alternative ->
-                val match = newAlternatives.indices.firstNotNullOfOrNull { candidate ->
+                // An unchanged alternative first, then the first that still accepts its values: of `[number, integer]`,
+                // `integer` is matched with `integer`, not with `number`, which accepts it too (#6880).
+                val matches = newAlternatives.indices.mapNotNull { candidate ->
                     trial(alternative, newAlternatives[candidate])?.let { candidate to it.isEmpty() }
                 }
+                val match = matches.firstOrNull { it.second } ?: matches.firstOrNull()
                 if (match == null) {
                     breaking("$path.$keyword[$index]", "alternative no longer accepted")
                 } else {
