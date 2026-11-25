@@ -482,6 +482,7 @@ export {
   type RefusalGroup,
   actions,
   ActionInputError,
+  isActionInputError,
   type ActionRefusal,
   type ActionRow,
 } from './runtime/actions.js';

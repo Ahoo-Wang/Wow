@@ -85,7 +85,9 @@ describe('the public surface of each entry', () => {
     const values = [...entryExports('@ahoo-wang/wow-view-engine')].filter(
       ([, kind]) => kind === 'value',
     );
-    expect(values).toHaveLength(58);
+    // 59: `isActionInputError`, the guard of the one error a host builds
+    // and throws into the engine, read by its shape as every other (#7073).
+    expect(values).toHaveLength(59);
   });
 
   /**

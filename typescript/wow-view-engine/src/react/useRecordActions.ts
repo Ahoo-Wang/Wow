@@ -16,13 +16,14 @@ import type { FieldOption, RecordKey } from '../model/index.js';
 import type { RecordRow } from '../record/index.js';
 import { rowNameOf } from '../record/path.js';
 import {
-  ActionInputError,
+  type ActionInputError,
   actionState,
   asksFirst,
   choiceOf,
   confirmOf,
   initialInput,
   invalidInput,
+  isActionInputError,
   missingInput,
   offeredAt,
   refusalsByReason,
@@ -431,7 +432,7 @@ export function useRecordActions({
                 options,
               );
             } catch (error) {
-              if (error instanceof ActionInputError) refusals.set(key, error);
+              if (isActionInputError(error)) refusals.set(key, error);
               throw error;
             }
           },

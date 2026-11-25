@@ -28,9 +28,11 @@ import {
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { createElement } from 'react';
 import {
   ActionInputError,
   actions,
+  isActionInputError,
   type RecordAction,
   type RecordActions,
 } from '../src/index.js';
@@ -247,5 +249,108 @@ describe('a form the source refused what was typed in', () => {
       expect(status()?.textContent).toContain('failed: Not that one.'),
     );
     expect(screen.queryByRole('dialog')).toBeNull();
+  });
+});
+
+describe('an action form the source refused, thrown by a second copy of the package', () => {
+  /**
+   * What `new ActionInputError(...)` is when the host's actions module was
+   * bundled with another copy of the package: the same name and members,
+   * another class. Every other error the engine and a host exchange is
+   * recognised by name for exactly this case (src/model/storeError.ts
+   * `isViewStoreError`: "Every guard of the engine's errors reads them so").
+   */
+  class SecondCopyActionInputError extends Error {
+    readonly reason: string;
+    readonly fields: Readonly<Record<string, string>>;
+    constructor(reason: string, fields: Readonly<Record<string, string>> = {}) {
+      super(reason);
+      this.name = 'ActionInputError';
+      this.reason = reason;
+      this.fields = { ...fields };
+    }
+  }
+
+  it('comes back with the refused field marked, as one from this copy does', async () => {
+    const run = vi.fn<RecordAction['run']>().mockRejectedValueOnce(
+      new SecondCopyActionInputError('Not a duration: 1m 1h.', {
+        backoff: 'Not a duration: 1m 1h.',
+      }),
+    );
+    const harness = setup();
+    render(
+      createElement(DataWorkbench, {
+        engine: harness.engine,
+        definitionId: 'orders',
+        instanceId: 'orders-1',
+        record: {
+          actions: actions([
+            {
+              id: 'spec',
+              label: 'Apply spec',
+              form: {
+                count: { label: 'Count', required: false },
+                backoff: { label: 'Backoff', required: false },
+              },
+              run,
+            },
+          ]),
+        },
+      }),
+    );
+    await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
+    const row = screen
+      .getAllByRole('row')
+      .find(found => within(found).queryByLabelText('Select o-1'))!;
+    await userEvent.click(
+      within(row).getByRole('button', { name: 'Actions for o-1' }),
+    );
+    await userEvent.click(
+      await screen.findByRole('menuitem', { name: 'Apply spec' }),
+    );
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.change(within(dialog).getByLabelText('Backoff'), {
+      target: { value: '1m 1h' },
+    });
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: 'Apply spec' }),
+    );
+    await waitFor(() => expect(run).toHaveBeenCalledTimes(1));
+
+    // The form comes back over the record, the field marked; any other
+    // failure closes it.
+    const returned = await screen.findByRole('dialog', {
+      name: 'Apply spec: o-1',
+    });
+    expect(
+      within(returned).getByLabelText('Backoff').getAttribute('aria-invalid'),
+    ).toBe('true');
+  });
+});
+
+describe('isActionInputError', () => {
+  it('reads the refusal by its name and shape, from any copy of the package', () => {
+    expect(isActionInputError(new ActionInputError('No.', { a: 'No.' }))).toBe(
+      true,
+    );
+    const built = Object.assign(new Error('No.'), {
+      name: 'ActionInputError',
+      reason: 'No.',
+      fields: { a: 'No.' },
+    });
+    expect(isActionInputError(built)).toBe(true);
+    for (const other of [
+      new Error('No.'),
+      Object.assign(new Error('No.'), { name: 'ActionInputError' }),
+      Object.assign(new Error('No.'), {
+        name: 'ActionInputError',
+        reason: 'No.',
+        fields: { a: 1 },
+      }),
+      { name: 'ActionInputError', reason: 'No.', fields: null },
+      null,
+      'ActionInputError',
+    ])
+      expect(isActionInputError(other)).toBe(false);
   });
 });
