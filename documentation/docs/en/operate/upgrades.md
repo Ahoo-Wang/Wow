@@ -270,4 +270,11 @@ Specs written with the test DSL now send and settle timers as a node does. A sch
 
 A saga that names an aggregate it creates by an id from `context.ids` creates a second one each time its commit is handled again, after a retry or a redelivery, because a derived request id comes from its target's id. Send the creating request without an id: the target's admission gives it the aggregate its first attempt created. In `sagaSpec`, `expectDeterministic()` and `whenRedelivered()` now draw new ids as a node does, so they fail such a saga. A spec that expected a handling after the first to draw `id-1` or `<aggregate>-1` again now sees the next id.
 
+Rebuild a service's code against this version: the compiler's generated bindings now pass the context each handler is bound in (`ProcessorBinding.saga`, `.project` and `.react` take `context`). A binding written by hand compiles unchanged when it names its arguments, and may name its `context`. Specs written with the test DSL change in step with the node:
+- a handler reads its state decoded from JSON, a copy of its own, in the context it is bound in;
+- a rejected receipt carries the command's scope;
+- the rejection of a call's compensation parks;
+- a receipt of another context's command is not retried under the saga's `@Retry`;
+- the answering client's `stream` emits rejected and failed results.
+
 The memory log, which the domain, processor and service tests run on, and a host's memory store refuse what PostgreSQL and MongoDB refuse. A group (`appendAll`) with a gap in an aggregate's versions, or of two contexts, throws the `IllegalArgumentException` the durable logs throw before writing anything, where its first streams were committed and a conflict followed; a host's memory store refuses another context's stream on the log `openLog(context)` gave, where it committed it. Such a test would have met the exception in production: append one context per log, and an aggregate's versions consecutively in a group.
