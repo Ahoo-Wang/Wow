@@ -58,7 +58,7 @@ import me.ahoo.wow.spring.boot.http.NodePublicPort
 import me.ahoo.wow.spring.boot.http.PeerDiscoveries
 import me.ahoo.wow.spring.boot.node.BeanFactoryDependencies
 import me.ahoo.wow.spring.boot.node.ContextSelection
-import me.ahoo.wow.spring.boot.node.GracefulShutdownSettled
+import me.ahoo.wow.spring.boot.node.GracefulShutdownBound
 import me.ahoo.wow.spring.boot.node.NodeAdmission
 import me.ahoo.wow.spring.boot.node.NodeClock
 import me.ahoo.wow.spring.boot.node.NodeIdentity
@@ -222,12 +222,14 @@ class WowAutoConfiguration {
     fun wowDevelopmentMode(properties: WowProperties, environment: Environment): DevelopmentMode =
         DevelopmentMode.of(properties, environment)
 
-    /** Lets the public server's graceful shutdown end before the server stops ([GracefulShutdownSettled]). */
-    @Bean
-    @InternalWowApi
-    fun wowGracefulShutdownSettled(): GracefulShutdownSettled = GracefulShutdownSettled()
-
     companion object {
+        /** Bounds the public server's graceful shutdown at the longest wait a request holds ([GracefulShutdownBound]). */
+        @Bean
+        @JvmStatic
+        @InternalWowApi
+        fun wowGracefulShutdownBound(environment: Environment): GracefulShutdownBound =
+            GracefulShutdownBound.of(environment)
+
         /** Refuses several beans of one single seam before any bean is built ([SingleSeams]). */
         @Bean
         @JvmStatic

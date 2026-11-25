@@ -14,6 +14,8 @@
 package me.ahoo.wow.http.internal
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import io.netty.channel.group.DefaultChannelGroup
+import io.netty.util.concurrent.GlobalEventExecutor
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.http.problem.ServerRefusals
 import org.springframework.http.server.reactive.ReactorHttpHandlerAdapter
@@ -24,6 +26,8 @@ import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.netty.DisposableServer
 import reactor.netty.http.HttpProtocol
 import reactor.netty.http.server.HttpServer
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * The internal port of the node: a Reactor Netty server of its own, apart from the public
@@ -34,6 +38,9 @@ import reactor.netty.http.server.HttpServer
  * It takes [InternalHttp.MAX_CONCURRENT_STREAMS] streams on a connection at a time, the limit the node's senders keep
  * within. It keeps Netty's guard against rapid resets: a connection on which it reads more than 200 `RST_STREAM`
  * frames in 30 seconds is closed.
+ *
+ * Its [stop] closes the connections still open, a request's whose body stalls among them: the host stops it last, once
+ * the node's forwards are drained, so nothing on it is waited for (#6958).
  *
  * The internal side is a trusted environment: the network keeps it apart, so building the port checks
  * no credential. An application reads where it is bound ([boundPort]); building and running it is the host's ([of]).
@@ -54,6 +61,9 @@ class InternalPort private constructor(
     @Volatile
     private var server: DisposableServer? = null
 
+    /** The connections the server accepted and has not closed. */
+    private val connections = DefaultChannelGroup(GlobalEventExecutor.INSTANCE)
+
     /** Whether the server is bound. */
     val isRunning: Boolean get() = server != null
 
@@ -72,6 +82,7 @@ class InternalPort private constructor(
             .protocol(HttpProtocol.HTTP11, HttpProtocol.H2C)
             .http2Settings { it.maxConcurrentStreams(InternalHttp.MAX_CONCURRENT_STREAMS.toLong()) }
             .httpRequestDecoder { it.h2cMaxContentLength(maxMessageSize) }
+            .doOnChannelInit { _, channel, _ -> connections.add(channel) }
             .handle(adapter)
         host?.let { configured = configured.host(it) }
         server = configured.bindNow().also { logger.info { "Wow internal port bound at ${it.address()}." } }
@@ -83,11 +94,16 @@ class InternalPort private constructor(
     fun stop() {
         server?.disposeNow()
         server = null
+        // Disposing the server closes its own socket alone: the connections it accepted stay open until closed.
+        connections.close().awaitUninterruptibly(CLOSE_TIMEOUT.inWholeMilliseconds)
         logger.info { "Wow internal port stopped." }
     }
 
     companion object {
         private val logger = KotlinLogging.logger {}
+
+        /** How long [stop] waits for the connections still open to close. */
+        private val CLOSE_TIMEOUT: Duration = 1.seconds
 
         /** The internal port of [settings], serving [routes]. */
         @InternalWowApi
