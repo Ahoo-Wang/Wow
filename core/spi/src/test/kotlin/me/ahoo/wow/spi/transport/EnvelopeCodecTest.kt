@@ -20,6 +20,7 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.result.Hop
+import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.reservation.ReservationKey
@@ -238,6 +239,18 @@ class EnvelopeCodecTest {
                 Transport(trace = mapOf("t" to "1"))
             ),
         )
+    }
+
+    @Test
+    fun `a reader should read a hop's stage a newer writer added as UNKNOWN`() {
+        val json = """{"format":1,"kind":"command","id":"c-1","type":"shop.order.Place","payload":{},
+            |"transport":{"wait":{"waitId":"w-1","origin":{"node":"n-1","address":"10.0.0.1:9090","service":"s"},
+            |"remaining":[{"stage":"delivered","context":"shop","subscription":"OrderView.onEvent"},
+            |{"stage":"committed","context":"shop"}],"deadline":1000}}}
+        """.trimMargin()
+        val hops = checkNotNull(checkNotNull(EnvelopeCodec.decode(json.toByteArray()).transport).wait).remaining
+        hops.map { it.stage }.assert().containsExactly(Stage.UNKNOWN, Stage.COMMITTED)
+        hops.first().subscription.assert().isEqualTo("OrderView.onEvent")
     }
 
     @Test

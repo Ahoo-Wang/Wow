@@ -15,6 +15,7 @@ package me.ahoo.wow.spi.log
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.result.Hop
+import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.reservation.ReservationKey
 import me.ahoo.wow.spi.wait.Origin
@@ -65,6 +66,16 @@ class TransportCodecTest {
         (wait["remaining"][0] as ObjectNode).put("group", "g")
         (newer["reservations"][0] as ObjectNode).put("ttl", 5)
         TransportCodec.decode(WowJson.mapper.writeValueAsBytes(newer)).assert().isEqualTo(full)
+    }
+
+    @Test
+    fun `a hop's stage a newer writer added should read as UNKNOWN, its subscription kept`() {
+        val newer = WowJson.mapper.readTree(TransportCodec.encode(full)) as ObjectNode
+        (newer["wait"]["remaining"][0] as ObjectNode).put("stage", "delivered")
+        val hops = checkNotNull(TransportCodec.decode(WowJson.mapper.writeValueAsBytes(newer)).wait).remaining
+        hops.map { it.stage }.assert().containsExactly(Stage.UNKNOWN, Stage.HANDLED)
+        hops.first().subscription.assert().isEqualTo("bank.projector")
+        hops.first().context.assert().isEqualTo("bank")
     }
 
     @Test

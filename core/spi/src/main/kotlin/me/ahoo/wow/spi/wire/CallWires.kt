@@ -22,7 +22,9 @@ import tools.jackson.core.JacksonException
 /**
  * The `Wow-Call` header's value of a [CallWire] ([CallHeader]): the base64url of its JSON in Wow's one
  * JSON configuration, which the server's call routes read and `wow-client` writes. A member of the
- * JSON that is not the wire form's is dropped as it is parsed.
+ * JSON that is not the wire form's is dropped as it is parsed, and a hop's stage the reader does not know reads as
+ * [me.ahoo.wow.api.result.Stage.UNKNOWN] ([WowJson.readerBuilder]): the internal port keeps reading what a peer of the
+ * next minor version sends.
  */
 @InternalWowApi
 object CallWires {
@@ -35,7 +37,7 @@ object CallWires {
     fun decode(value: String): CallWire {
         val bytes = CallHeader.decode(value)
         return try {
-            WowJson.mapper.readValue(bytes, CallWire::class.java)
+            WowJson.reader.readValue(bytes, CallWire::class.java)
         } catch (invalid: JacksonException) {
             throw IllegalArgumentException("Wow-Call is not a call: ${invalid.originalMessage}", invalid)
         }
