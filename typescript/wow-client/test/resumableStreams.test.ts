@@ -217,6 +217,38 @@ describe('resumable query streams (decision D253)', () => {
     expect(delays).toEqual([10, 2000]);
   });
 
+  it("fails at once with the problem of a resume whose Retry-After is beyond the longest wait between retries, as the Kotlin client's resume does", async () => {
+    const { requests } = answers(
+      () => sseResponse(row('p1') + end('permit-reclaimed')),
+      () => busy('30'),
+    );
+    const stream = await new SnapshotQueryClient(PRODUCT, client()).stream(
+      query,
+    );
+    const read: unknown[] = [];
+    const failure = await (async () => {
+      for await (const r of stream) read.push(r);
+    })().catch(e => e);
+    expect(ids(read)).toEqual(['p1']);
+    expect(failure).toBeInstanceOf(WowProblemError);
+    expect(failure.code).toBe('wow.query.busy');
+    expect(delays).not.toContain(30_000);
+    expect(requests).toHaveLength(2);
+
+    // A longest wait that holds it waits it out.
+    answers(
+      () => sseResponse(row('p1') + end('permit-reclaimed')),
+      () => busy('30'),
+      () => sseResponse(row('p2') + end('complete')),
+    );
+    const patient = await new SnapshotQueryClient(PRODUCT, client()).stream(
+      query,
+      { resume: { maxDelayMs: 60_000 } },
+    );
+    expect(ids(await readAll(patient))).toEqual(['p1', 'p2']);
+    expect(delays).toContain(30_000);
+  });
+
   it('gives up after its retries, with what stopped it', async () => {
     answers(
       () => sseResponse(row('p1') + end('permit-reclaimed')),

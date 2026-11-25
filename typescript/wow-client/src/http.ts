@@ -218,6 +218,91 @@ export async function send(
   }
 }
 
+/**
+ * `value` as one segment of a path, percent-encoded (internal). An empty
+ * value, `.` and `..` are refused before anything is sent: the URL a request
+ * goes to resolves a dot segment away (`%2e` too), so the request would reach
+ * another route than the one it names, and an empty one leaves its segment
+ * empty, a route no service has.
+ *
+ * @param value - The path variable's value
+ * @param what - What names it in the error, such as `The aggregate id`
+ * @throws TypeError for an empty value, `.` or `..`
+ */
+export function pathSegment(value: string, what: string): string {
+  if (value === '' || value === '.' || value === '..') {
+    throw new TypeError(
+      `${what} [${value}] cannot be sent in a path: it is empty or a relative segment, which the URL resolves away.`,
+    );
+  }
+  return encodeURIComponent(value);
+}
+
+/**
+ * The grace past a command's wait before its answer is given up on, as the
+ * Kotlin client's `RESPONSE_GRACE`: the service answers `wow.wait.timeout` at
+ * the wait's end, so a node that has not answered by then never will.
+ */
+export const ANSWER_GRACE_MS = 5_000;
+
+/**
+ * The longest a service waits by default (`wow.wait.max-timeout`): the wait
+ * that bounds a command stating none, whose wait is the service's default,
+ * which is at most that.
+ */
+export const LONGEST_WAIT_MS = 60_000;
+
+/**
+ * A bound over a command's whole answer (internal): its head, its body and,
+ * for a stream, every line, from when it is sent until `ms` later. Its
+ * `signal` aborts once the bound passes or the caller's own signal aborts,
+ * which ends the request and closes its connection.
+ */
+export class AnswerBound {
+  private readonly passing = new AbortController();
+  private readonly timer: ReturnType<typeof setTimeout>;
+  /** What the request is sent with: the caller's signal and the bound. */
+  readonly signal: AbortSignal;
+
+  /**
+   * @param ms - How long the whole answer may take
+   * @param caller - The caller's own signal, when it gave one
+   */
+  constructor(
+    readonly ms: number,
+    private readonly caller?: AbortSignal,
+  ) {
+    this.signal =
+      caller === undefined
+        ? this.passing.signal
+        : AbortSignal.any([caller, this.passing.signal]);
+    this.timer = setTimeout(
+      () =>
+        this.passing.abort(
+          new Error(`The command was not answered within ${ms} ms.`),
+        ),
+      ms,
+    );
+    // A process that only waits for this bound need not stay up for it.
+    (this.timer as { unref?: () => void }).unref?.();
+  }
+
+  /** Whether the bound passed before the caller gave up. */
+  get passed(): boolean {
+    return this.passing.signal.aborted && !this.abandoned;
+  }
+
+  /** Whether the caller aborted its request itself. */
+  get abandoned(): boolean {
+    return this.caller?.aborted === true;
+  }
+
+  /** Ends the bound: the answer is whole, or the request has failed. */
+  clear(): void {
+    clearTimeout(this.timer);
+  }
+}
+
 /** The entity tag of a response without its quotes or weak marker. */
 export function entityTag(response: Response): string | undefined {
   const tag = response.headers.get(WowHeaders.ETAG);

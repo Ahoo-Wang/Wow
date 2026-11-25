@@ -13,6 +13,7 @@
 
 import {
   entityTag,
+  pathSegment,
   type RequestOptions,
   send,
   type WowClientOptions,
@@ -249,7 +250,7 @@ export class StateClient<
     const base = `/${this.type.context}/${this.type.name}`;
     return id === undefined
       ? `${base}/state`
-      : `${base}/${encodeURIComponent(id)}/state`;
+      : `${base}/${pathSegment(id, 'The aggregate id')}/state`;
   }
 }
 

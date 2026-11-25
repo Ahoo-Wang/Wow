@@ -469,8 +469,9 @@ export class WowViewStore implements ViewStore {
     signal: AbortSignal | undefined,
   ): Promise<{ place: Place; instance: ViewInstance }> {
     // Ids in `system:` are the views a host declares in code; the service
-    // never issues or serves one.
-    if (isSystemInstanceId(id))
+    // never issues or serves one. Nor does it issue an empty id, `.` or
+    // `..`, which a path cannot carry: the URL resolves them away (#6889).
+    if (isSystemInstanceId(id) || id === '' || id === '.' || id === '..')
       throw new ViewStoreError('NOT_FOUND', `No such view: ${id}`);
     const entry = await request(() => this.routes.view(id, { signal }));
     const place: Place = entry.scope;

@@ -148,7 +148,7 @@ for (;;) {
 }
 ```
 
-客户端无法续读的失败，会以它的 `WowProblemError` 让流出错。取消读取方（`reader.cancel()`，或提前离开 `for await`）或中止 `signal`，都会让流在任何阶段停下：等待续读的退避结束，正在续读的请求被中止，不再发出任何请求。
+客户端无法续读的失败，会以它的 `WowProblemError` 让流出错。续读得到的 `Retry-After` 长于两次重试之间最长的等待（`resume.maxDelayMs`，默认 5 秒）时也是如此，与 Kotlin 客户端的续读一样：不会等它过去。取消读取方（`reader.cancel()`，或提前离开 `for await`）或中止 `signal`，都会让流在任何阶段停下：等待续读的退避结束，正在续读的请求被中止，不再发出任何请求。
 
 ## 查询事件流 {#query-event-streams}
 

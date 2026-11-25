@@ -288,6 +288,18 @@ describe('the V10 WowViewStore', () => {
       expect(fake.requests).toEqual([]);
     });
 
+    it('is NOT_FOUND for an id a path cannot carry, a link’s `..` or nothing at all, which it never sends (#6889)', async () => {
+      const fake = installFake();
+      // `GET /view-store/views/..` is `/view-store/` once the URL is
+      // resolved, and `…/views/` names no route: a 404 without a code, which
+      // reads as a service without a view store.
+      for (const id of ['..', '.', ''])
+        await expect(storeOf().get(id)).rejects.toMatchObject({
+          code: 'NOT_FOUND',
+        });
+      expect(fake.requests).toEqual([]);
+    });
+
     it('is written from where the read found it', async () => {
       const fake = installFake();
       const made = await storeOf().create(

@@ -148,7 +148,7 @@ for (;;) {
 }
 ```
 
-A failure the client cannot resume errors the stream with its `WowProblemError`. Cancelling the reader (`reader.cancel()`, or leaving a `for await` early) or aborting the `signal` stops the stream wherever it is: a wait to resume ends, a request asking again is aborted, and nothing more is sent.
+A failure the client cannot resume errors the stream with its `WowProblemError`. So does a resume answered with a `Retry-After` longer than the longest wait between retries (`resume.maxDelayMs`, 5 seconds by default), as the Kotlin client's resume does: it is not waited out. Cancelling the reader (`reader.cancel()`, or leaving a `for await` early) or aborting the `signal` stops the stream wherever it is: a wait to resume ends, a request asking again is aborted, and nothing more is sent.
 
 ## Query event streams
 
