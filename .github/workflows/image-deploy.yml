@@ -21,6 +21,11 @@
 # version, never `latest` and no `X.Y`; a stable release gets its version,
 # `X.Y` when it is the highest stable version of that line, and `latest` when
 # it is the latest line, so a re-run of an older patch moves no floating tag.
+# Each image is built once and pushed to GHCR, then that index is copied to
+# Docker Hub and Aliyun (docker buildx imagetools create), each copy a step
+# of its own with a step timeout and three attempts. image-check then reads
+# all of them back (release-published.mjs --only images), dispatched runs
+# included.
 name: Docker Images Deploy
 on:
   workflow_call:
@@ -219,13 +224,110 @@ jobs:
           labels: |
             org.opencontainers.image.description=${{ steps.describe.outputs.description }}
 
-      - name: Build and push
+      # The tags docker/metadata-action gives each registry, apart: the build
+      # pushes GHCR's, and the copies below Docker Hub's and Aliyun's.
+      - name: Tags per registry
+        id: tags
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          for registry in ghcr=ghcr.io/ahoo-wang/ dockerhub=ahoowang/ aliyun=registry.cn-shanghai.aliyuncs.com/ahoo/; do
+            name=${registry%%=*}
+            tags=$(awk -v prefix="${registry#*=}" 'index($0, prefix) == 1' <<<"$TAGS")
+            if [ -z "$tags" ]; then
+              echo "::error::docker/metadata-action gave no tag for ${registry#*=}"
+              exit 1
+            fi
+            echo "$name: $(tr '\n' ' ' <<<"$tags")"
+            { echo "$name<<EOF"; echo "$tags"; echo EOF; } >> "$GITHUB_OUTPUT"
+          done
+
+      # Built once and pushed to GHCR alone; Docker Hub and Aliyun get a copy
+      # of this very index, so the three hold one digest. A push that hangs
+      # ends the step, not the job.
+      - name: Build and push to GHCR
+        id: build
+        timeout-minutes: 30
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           platforms: linux/amd64,linux/arm64
           context: ${{ matrix.context }}
           push: true
           # AliyunCR refuses OCI 1.1 artifact manifests (provenance attestations).
+          # The copies below keep GHCR's digest only while the index has no
+          # attestation manifests (provenance and SBOM off): turning either on
+          # changes what `imagetools create` pushes, and image-check then
+          # reports digests that differ between the registries.
           provenance: false
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: ${{ steps.tags.outputs.ghcr }}
           labels: ${{ steps.meta.outputs.labels }}
+
+      # A copy of GHCR's index, its blobs read from GHCR. Each attempt is
+      # bounded so that three fit in the step (10.0.0-beta.7's push to Aliyun
+      # hung until the job's limit); the three pushes of a release took under
+      # a minute together.
+      - name: Copy to Docker Hub
+        timeout-minutes: 10
+        env:
+          SOURCE: ghcr.io/ahoo-wang/${{ matrix.image }}@${{ steps.build.outputs.digest }}
+          TAGS: ${{ steps.tags.outputs.dockerhub }}
+        run: |
+          args=()
+          while read -r tag; do args+=(--tag "$tag"); done <<<"$TAGS"
+          for attempt in 1 2 3; do
+            if timeout --kill-after=5s 3m docker buildx imagetools create "${args[@]}" "$SOURCE"; then
+              exit 0
+            fi
+            echo "::warning::Copying $SOURCE to Docker Hub failed (attempt $attempt of 3)"
+            [ "$attempt" = 3 ] || sleep 10
+          done
+          echo "::error::Docker Hub did not take $SOURCE in 3 attempts"
+          exit 1
+
+      - name: Copy to Aliyun
+        timeout-minutes: 10
+        env:
+          SOURCE: ghcr.io/ahoo-wang/${{ matrix.image }}@${{ steps.build.outputs.digest }}
+          TAGS: ${{ steps.tags.outputs.aliyun }}
+        run: |
+          args=()
+          while read -r tag; do args+=(--tag "$tag"); done <<<"$TAGS"
+          for attempt in 1 2 3; do
+            if timeout --kill-after=5s 3m docker buildx imagetools create "${args[@]}" "$SOURCE"; then
+              exit 0
+            fi
+            echo "::warning::Copying $SOURCE to Aliyun failed (attempt $attempt of 3)"
+            [ "$attempt" = 3 ] || sleep 10
+          done
+          echo "::error::Aliyun did not take $SOURCE in 3 attempts"
+          exit 1
+
+  # Reads back what image-deploy pushed, anonymously, as anyone pulls it
+  # (release-published.mjs --only images): every image on GHCR, Docker Hub and
+  # Aliyun at the version, an index of linux/amd64 and linux/arm64 with one
+  # digest on the three, and the floating tags moved only as the plan says. It
+  # holds no credentials and changes nothing published: a failure here is
+  # re-run alone, and re-running it publishes nothing.
+  image-check:
+    needs: [plan, image-deploy]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # All v* tags decide which floating tags this release moves.
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 24.22.3
+
+      - name: Check the published images
+        env:
+          VERSION: ${{ needs.plan.outputs.version }}
+        run: node .github/scripts/release-published.mjs --version "$VERSION" --only images

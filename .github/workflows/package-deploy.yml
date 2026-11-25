@@ -30,6 +30,13 @@
 # is marked latest on the latest line, with .github/release-notes/stable.md
 # when none exists. A tag of an older major is refused: it releases from its
 # maintenance branch (9.x from v9).
+#
+# After each publish a job reads it back, anonymously and with no secret
+# (release-published.mjs; npm-smoke for npm): maven-check after
+# central-deploy, image-check in image-deploy.yml, chart-check in
+# chart-deploy.yml. release-notes creates the GitHub release only once all of
+# them passed. A check changes nothing published, so a failed one is re-run
+# alone; a failed publish is re-run, and its check after it.
 name: Packages Deploy
 on:
   release:
@@ -293,6 +300,35 @@ jobs:
           SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
           SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
 
+  # Reads back what central-deploy released, anonymously, as a build resolves
+  # it (release-published.mjs --only maven): the POM of wow-bom, of every
+  # module it lists, of wow-dependencies and of each Gradle plugin marker, on
+  # Maven Central at the version. Central serves a release some minutes after
+  # it accepts it, so this waits for it, up to an hour, reading every 30
+  # seconds. It holds no credentials and changes nothing published: a failure
+  # here is re-run alone, and re-running it publishes nothing.
+  maven-check:
+    needs: central-deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 24.22.3
+
+      - name: Check Maven Central
+        env:
+          TAG: ${{ github.ref_name }}
+        run: node .github/scripts/release-published.mjs --version "${TAG#v}" --only maven
+
   # Publishes the tarballs preflight packed and checked; nothing is installed
   # or built here. It starts once both Maven publications have succeeded, so
   # a release never reaches npm without its JVM artifacts. The npm-publish
@@ -377,7 +413,7 @@ jobs:
         run: node .github/scripts/package-check.mjs --registry
 
   # The server images, under the tags release-plan.mjs gives them, once the
-  # release is on Maven Central and npm.
+  # release is on Maven Central and npm; its image-check reads them back.
   images:
     needs: npm-deploy
     permissions:
@@ -387,7 +423,7 @@ jobs:
     secrets: inherit
 
   # The wow-service Helm chart at the release's version, as an OCI chart where
-  # the images go, beside them.
+  # the images go, beside them; its chart-check reads it back.
   chart:
     needs: npm-deploy
     permissions:
@@ -401,9 +437,11 @@ jobs:
   # dispatched on the tag (a release created by hand started it otherwise).
   # Either way a pre-release is marked a pre-release and never the latest
   # release; a stable release is not a pre-release, and is the latest release
-  # when it is the latest line.
+  # when it is the latest line. It waits for every check of what was
+  # published (npm-smoke, maven-check, and the image-check and chart-check
+  # inside images and chart): no release page for a release missing a part.
   release-notes:
-    needs: [admission, npm-smoke]
+    needs: [admission, npm-smoke, images, chart, maven-check]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:

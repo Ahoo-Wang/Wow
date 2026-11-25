@@ -17,11 +17,7 @@ import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { fetcherFloor, peerFetchers } from './fetcher-floor.mjs';
 import { ROOT, readProjectVersion } from './project-version.mjs';
-import {
-  tarballUrl,
-  waitForRegistry,
-  waitForTarballs,
-} from './registry-wait.mjs';
+import { tarballUrl, waitForRegistry, waitForFiles } from './registry-wait.mjs';
 import {
   HELD_BACK,
   PUBLISHED,
@@ -604,7 +600,7 @@ if (
         version,
       );
       // The tarballs too, before any install: npm can serve a version's metadata before its tarball.
-      await waitForTarballs(
+      await waitForFiles(
         plan.map(({ name }) => [name, tarballUrl(name, version)]),
       );
       checkDistTags(plan, version);
