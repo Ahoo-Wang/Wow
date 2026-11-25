@@ -413,6 +413,7 @@ src/
       references.ts           — PanelReferenceLoads: loading what panels point at
   store/                      — Persistence port — imports model only
     MemoryViewStore.ts        — In-memory implementation for examples and tests; with a snapshot it re-reads before every write and undoes a write the snapshot refused (`UNAVAILABLE`); `changeAudience` in place, refusing to make personal a view a shared board shows (`INVALID`); a seeded system view is configured and read-only, one created with `scope: 'system'` (or seeded `stored: true`) is stored and written like a shared view (D81)
+    memoryViewRules.ts        — (internal) the view store service's refusals `MemoryViewStore` answers as it does (a definition id, a title, a config's kind, size and panels, preferences' ids, a list cursor it did not issue, all `INVALID`), whether preferences set change nothing, and its revisions
     localStorageSnapshot.ts   — `localStorageSnapshot(key)`: its snapshot in `localStorage` for development and single-user hosts — a refused write fails, tabs merge by revision or conflict, a `storage` event reloads
     ViewStore.ts              — The only port a backend must satisfy: eight methods and the optional `changeAudience`
     index.ts                  — Persistence is one port with eight methods

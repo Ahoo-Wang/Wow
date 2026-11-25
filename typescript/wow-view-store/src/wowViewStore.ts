@@ -104,7 +104,11 @@ export interface WowViewStoreOptions {
 /** The views one page of `list` answers when the options say none. */
 const LIST_PAGE = 100;
 
-/** Where a list page starts: the audience being read, and its own cursor. */
+/**
+ * Where a list page starts: the audience being read, and its own cursor: a
+ * query cursor of the shared and personal views, the offset into the system
+ * views, which the service answers whole.
+ */
 interface ListAt {
   audience: 'system' | 'shared' | 'personal';
   cursor: string | null;
@@ -125,7 +129,12 @@ function readListCursor(cursor: string | null | undefined): ListAt {
     const at = JSON.parse(
       atob(cursor.replace(/-/g, '+').replace(/_/g, '/')),
     ) as ListAt;
-    if (['system', 'shared', 'personal'].includes(at.audience)) return at;
+    if (
+      ['shared', 'personal'].includes(at.audience) ||
+      (at.audience === 'system' &&
+        (at.cursor === null || /^[1-9]\d{0,14}$/.test(String(at.cursor))))
+    )
+      return at;
   } catch {
     // Read as the malformed cursor below.
   }
@@ -259,9 +268,15 @@ export class WowViewStore implements ViewStore {
         this.routes.systemViews({ definitionId }, { signal }),
       );
       for (const view of system) this.rememberSystem(view);
+      // Answered whole, paged here by an offset: a page holds `pageSize`.
+      const offset = at.cursor === null ? 0 : Number(at.cursor);
+      const end = offset + size;
       return {
-        items: system.map(systemSummary),
-        next: { audience: 'shared', cursor: null },
+        items: system.slice(offset, end).map(systemSummary),
+        next:
+          end < system.length
+            ? { audience: 'system', cursor: String(end) }
+            : { audience: 'shared', cursor: null },
       };
     }
     const page = await request(() =>
@@ -443,7 +458,7 @@ export class WowViewStore implements ViewStore {
     return guard(async () => {
       const { requestId, signal } = context;
       // A revision this store never issues is refused before anything is
-      // sent, as CONFLICT, as an instance write's is (#6918).
+      // sent, as INVALID, as an instance write's is (#6918, #7022).
       const expectedVersion = versionOf(preferences.revision);
       try {
         const result = await request(() =>

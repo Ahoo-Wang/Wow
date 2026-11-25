@@ -36,7 +36,7 @@ export interface WowViewStoreOptions {
 
 - `fetcher` 走的基础 URL 要能提供 `/view-store/…`：视图存储服务前面的网关。它的拦截器携带是谁在请求，即授权信息；服务从主体中取得租户与所有者，从令牌（它的 `aud`）或网关的路由（`cosec-app-id`）取得保存每个视图的应用：CoSec 8 不读取 `CoSec-App-Id`，所以前端需要为它的应用签发的令牌，或者设置应用的路由；视图属于保留所有者时由 store 自己加上 `Wow-Scope`。没有哪条路径写出租户或所有者。
 - `permissions` 决定一份定义的视图哪些按钮可用，从不决定写入能做什么：每次写入都由服务授权。宿主按调用者持有的角色回答：`createShared` 与 `changeAudience` 按能写所有者 `(shared)` 的角色（出厂为 `view-store.shared-writer`），因为新建共享视图、共享个人视图和认领共享视图都需要它；`editSystem` 按能写 `(platform)` 的 `(system)` 的角色（`view-store.system-writer`）。不给时除 `editSystem` 外全部允许，`editSystem` 只有回答为 `true` 才开启。
-- `pageSize` 是 `list` 一页最多返回的视图数，默认 100，即服务的默认游标页大小。系统视图在第一页整体返回，所以第一页可能更多。
+- `pageSize` 是 `list` 一页最多返回的视图数，默认 100，即服务的默认游标页大小。服务整体返回系统视图，store 像对其他视图一样把它们分页，所以没有哪一页会更多。
 
 ```ts
 export declare class WowViewStore implements ViewStore {

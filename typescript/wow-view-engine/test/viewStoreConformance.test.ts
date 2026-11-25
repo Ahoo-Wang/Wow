@@ -21,12 +21,21 @@ import { recordConfig } from './fixtures.js';
 import {
   describeViewStoreConformance,
   type ConformanceCapabilities,
+  type ViewStoreConformance,
 } from './conformance/viewStoreConformance.js';
+import { describeViewStoreServiceRules } from './conformance/viewStoreServiceRules.js';
+
+/** The port's suite and the service's rules, which the memory answers as the service does. */
+function describeStore(subject: ViewStoreConformance): void {
+  describeViewStoreConformance(subject);
+  describeViewStoreServiceRules(subject);
+}
 
 /**
  * The port's conformance suite over the implementations this package ships
- * (view-store-backend.md 7, V2). The Wow backend's client runs the same suite
- * from `typescript/integration-test` (V3).
+ * (view-store-backend.md 7, V2), with the view store service's rules the
+ * memory answers as the service does (#7067). The Wow backend's client runs
+ * the same suites from `typescript/integration-test` (V3).
  */
 
 const SYSTEM_DEFINITION = 'conformance-system';
@@ -55,7 +64,7 @@ const MEMORY: ConformanceCapabilities = {
   storedSystemViews: true,
 };
 
-describeViewStoreConformance({
+describeStore({
   name: 'MemoryViewStore',
   capabilities: MEMORY,
   connect: () => {
@@ -66,7 +75,7 @@ describeViewStoreConformance({
 
 // A store that answers its list in pages, as `WowViewStore` does: a small
 // page here, so the case that crosses pages stays quick (R2-26).
-describeViewStoreConformance({
+describeStore({
   name: 'MemoryViewStore in small pages',
   capabilities: { ...MEMORY, pageSize: 2 },
   connect: () => {
@@ -81,7 +90,7 @@ afterEach(() => {
   keys = [];
 });
 
-describeViewStoreConformance({
+describeStore({
   name: 'MemoryViewStore over localStorageSnapshot',
   capabilities: MEMORY,
   // Every store opened is another tab over the one stored document, so

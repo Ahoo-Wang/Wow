@@ -159,11 +159,11 @@ export interface ViewStoreConformance {
   connect(): ConformanceStoreFactory | Promise<ConformanceStoreFactory>;
 }
 
-const ALICE: ConformanceContext = { owner: 'conformance-alice' };
+export const ALICE: ConformanceContext = { owner: 'conformance-alice' };
 const BOB: ConformanceContext = { owner: 'conformance-bob' };
 
 /** A config the port stores as it is; its semantics are the engine's. */
-function recordConfig(pageSize = 20): ViewConfig {
+export function recordConfig(pageSize = 20): ViewConfig {
   return {
     kind: 'record',
     filter: { op: 'and', children: [] },
@@ -227,16 +227,16 @@ function boardShowing(
   };
 }
 
-function write(): WriteOptions {
+export function write(): WriteOptions {
   return { requestId: `conformance-${crypto.randomUUID()}` };
 }
 
-function freshDefinition(): string {
+export function freshDefinition(): string {
   return `conformance-${crypto.randomUUID()}`;
 }
 
 /** What a promise rejected with, asserted to be the port's error with `code`. */
-async function refusal(
+export async function refusal(
   pending: Promise<unknown>,
   ...codes: ViewStoreErrorCode[]
 ): Promise<
@@ -267,7 +267,7 @@ async function refusal(
   return failure;
 }
 
-function ids(summaries: readonly ViewInstanceSummary[]): string[] {
+export function ids(summaries: readonly ViewInstanceSummary[]): string[] {
   return summaries.map(summary => summary.id);
 }
 
@@ -275,7 +275,7 @@ function ids(summaries: readonly ViewInstanceSummary[]): string[] {
  * A definition's whole list, as the engine reads it: page after page, each
  * asked for with the cursor the one before answered, until it answers none.
  */
-async function everyView(
+export async function everyView(
   store: ViewStore,
   definitionId: string,
 ): Promise<ViewInstanceSummary[]> {

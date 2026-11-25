@@ -101,18 +101,18 @@ export function memorySource(
         const matched = matchedIn(table, query.filter, query.sort);
         const { index, size } = query.pagination ?? DEFAULT_PAGINATION;
         const start = (index - 1) * size;
-        // The memory counts every match, so its total is always exact.
-        return {
-          total: matched.length,
-          exact: true,
-          list: matched.slice(start, start + size).map(projected(query)),
-        };
+        const list = matched.slice(start, start + size).map(projected(query));
+        // A total of `none` is none, as the service answers it; any other
+        // the memory counts whole, so it is always exact.
+        return query.total === 'none'
+          ? { total: null, exact: false, list }
+          : { total: matched.length, exact: true, list };
       }),
     cursor: asked =>
       settled(() => {
         const query = atNow(asked, clock, units);
         const matched = matchedIn(table, query.filter, query.sort);
-        const start = Number(query.cursor ?? 0);
+        const start = cursorStart(query.cursor);
         const end = start + (query.size ?? matched.length);
         return {
           list: matched.slice(start, end).map(projected(query)),
@@ -137,6 +137,52 @@ export function memorySource(
 }
 
 /** `work`'s answer as a service's: a promise, what it throws a rejection. */
+/** The violation a cursor the service did not issue breaks (`QueryViolation.InvalidCursor`). */
+const INVALID_CURSOR = {
+  path: 'cursor',
+  code: 'invalid-cursor',
+  message: 'Invalid cursor.',
+} as const;
+
+/**
+ * A query the source refuses, shaped as the `WowProblemError` a query
+ * client rejects with (its `problem`, `status`, `code` and `violations`),
+ * which the engine reads by its shape: the engine speaks Wow's query
+ * language alone and imports none of its clients.
+ */
+class QueryRefusal extends Error {
+  override readonly name = 'QueryRefusal';
+  readonly status = 400;
+  readonly code = 'wow.query.invalid';
+  readonly violations = [INVALID_CURSOR];
+  readonly retry = 'none';
+  readonly problem = {
+    type: 'urn:wow:error:wow.query.invalid',
+    title: 'Invalid query',
+    status: 400,
+    code: 'wow.query.invalid',
+    detail: 'Invalid cursor.',
+    retry: 'none',
+    violations: [INVALID_CURSOR],
+  };
+
+  constructor() {
+    super('[wow.query.invalid] Invalid cursor.');
+  }
+}
+
+/**
+ * Where a cursor page starts: none for the first page, else the offset a
+ * cursor this source issued names. One it did not issue is refused as the
+ * service refuses it, before reading anything: 400 `wow.query.invalid`
+ * with the violation `invalid-cursor` at `cursor`.
+ */
+function cursorStart(cursor: string | null | undefined): number {
+  if (cursor === undefined || cursor === null) return 0;
+  if (/^[1-9]\d{0,14}$/.test(cursor)) return Number(cursor);
+  throw new QueryRefusal();
+}
+
 function settled<T>(work: () => T): Promise<T> {
   return new Promise(resolve => resolve(work()));
 }

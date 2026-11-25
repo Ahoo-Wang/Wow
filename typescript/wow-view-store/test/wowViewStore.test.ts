@@ -435,13 +435,13 @@ describe('the V10 WowViewStore', () => {
       });
     });
 
-    it('are refused at a revision that is not one of this store', async () => {
+    it('are refused at a revision that is not one of this store as INVALID: malformed, not stale', async () => {
       installFake();
       const store = storeOf();
       const made = await personal(store);
       await expect(
         store.rename(made.id, 'Other', 'stale', write()),
-      ).rejects.toMatchObject({ code: 'CONFLICT' });
+      ).rejects.toMatchObject({ code: 'INVALID' });
     });
   });
 
@@ -668,7 +668,7 @@ describe('the V10 WowViewStore, a write’s revision and retry, and its list', (
     expect(again).toMatchObject({ id: made.id, config: { pageSize: 50 } });
   });
 
-  it('refuses preferences at a revision this store never issues as CONFLICT, before sending anything (#6918)', async () => {
+  it('refuses preferences at a revision this store never issues as INVALID, before sending anything (#6918)', async () => {
     installFake();
     const store = storeOf();
     await store.setPreferences(
@@ -677,14 +677,51 @@ describe('the V10 WowViewStore, a write’s revision and retry, and its list', (
       write(),
     );
     // As an instance write at such a revision is (`versionOf`): nothing was
-    // sent, so the outcome is known, and it is no unreachable service.
+    // sent, so the outcome is known, and it is no unreachable service. The
+    // request is malformed, not stale: INVALID, as a cursor never issued is.
+    const made = await personal(store);
+    for (const revision of ['not-a-version', 'NaN', '-1', '1.5', '']) {
+      await expect(
+        store.setPreferences(
+          'orders',
+          { order: ['b'], defaultInstanceId: null, revision },
+          write(),
+        ),
+        revision,
+      ).rejects.toMatchObject({ code: 'INVALID' });
+      await expect(
+        store.save(made.id, config, revision, write()),
+        revision,
+      ).rejects.toMatchObject({ code: 'INVALID' });
+    }
+  });
+
+  it('bounds a page by its pageSize across the configured system views, which the service answers whole (#7041)', async () => {
+    installFake({
+      systemViews: ['a', 'b', 'c'].map(id => ({
+        id: `configured-${id}`,
+        definitionId: 'orders',
+        title: id,
+        config: { kind: 'record' },
+      })),
+    });
+    const store = new WowViewStore({
+      fetcher: actingAs(ALICE),
+      pageSize: 2,
+    });
+    const first = await store.list('orders');
+    expect(first.items.map(view => view.id)).toEqual([
+      'configured-a',
+      'configured-b',
+    ]);
+    const second = await store.list('orders', { cursor: first.nextCursor });
+    expect(second.items.map(view => view.id)).toEqual(['configured-c']);
+    expect(second.nextCursor).toBeNull();
+    // A system cursor this store did not issue is refused as any is.
+    const forged = btoa(JSON.stringify({ audience: 'system', cursor: '-1' }));
     await expect(
-      store.setPreferences(
-        'orders',
-        { order: ['b'], defaultInstanceId: null, revision: 'not-a-version' },
-        write(),
-      ),
-    ).rejects.toMatchObject({ code: 'CONFLICT' });
+      store.list('orders', { cursor: forged }),
+    ).rejects.toMatchObject({ code: 'INVALID' });
   });
 
   it('refuses a page size below one where the store is made, as such a page would never end a list (#6919)', () => {
