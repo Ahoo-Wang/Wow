@@ -82,20 +82,24 @@ export function tarballUrl(name, version) {
 }
 
 /**
- * Waits until each of `tarballs` (`[name, url]` pairs) answers 200, reading
+ * Waits until each of `files` (`[name, url]` pairs) answers 200, reading
  * each one not yet there every `intervalMs` for at most `timeoutMs`. A 404, a
  * 5xx and a read that fails mean "not yet", as for waitForRegistry: a CDN that
  * has not caught up, or a reset on the way. A read that does not answer within
  * `intervalMs` fails, so none holds the wait past its bound. Any other answer,
  * a 401, 403 or 410 that no wait turns into a 200, is reported at once. At the
- * bound it fails, naming each package still missing with its last answer or
- * error.
+ * bound it fails, naming each file still missing with its last answer or
+ * error. `kind` names one file and `registry` where it is read from, in the
+ * log and the failure: npm's tarballs by default, Maven Central's POMs for
+ * release-published.mjs.
  */
-export async function waitForTarballs(
-  tarballs,
+export async function waitForFiles(
+  files,
   {
     timeoutMs = TARBALL_TIMEOUT_MS,
     intervalMs = TARBALL_INTERVAL_MS,
+    kind = 'tarball',
+    registry = 'the registry',
     fetch = globalThis.fetch,
     sleep = ms => new Promise(done => setTimeout(done, ms)),
     log = console.log,
@@ -103,7 +107,7 @@ export async function waitForTarballs(
 ) {
   const reads = Math.floor(timeoutMs / intervalMs) + 1;
   const last = new Map();
-  let missing = [...tarballs];
+  let missing = [...files];
   for (let read = 1; ; read++) {
     const still = [];
     for (const [name, url] of missing) {
@@ -129,24 +133,24 @@ export async function waitForTarballs(
         last.set(name, `answered ${answer}`);
         still.push([name, url]);
       } else
-        throw new Error(`the tarball of ${name}, ${url}, answered ${answer}`);
+        throw new Error(`the ${kind} of ${name}, ${url}, answered ${answer}`);
     }
     missing = still;
     if (missing.length === 0) {
       log(
-        `registry: serves the tarballs of ${tarballs.map(([name]) => name).join(', ')}`,
+        `registry: serves the ${kind}s of ${files.map(([name]) => name).join(', ')}`,
       );
       return;
     }
     if (read >= reads)
       throw new Error(
-        `the registry does not serve the tarballs of ${missing.map(([name]) => name).join(', ')} after ${((read - 1) * intervalMs) / 1000}s (${read} reads ${intervalMs / 1000}s apart)` +
+        `${registry} does not serve the ${kind}s of ${missing.map(([name]) => name).join(', ')} after ${((read - 1) * intervalMs) / 1000}s (${read} reads ${intervalMs / 1000}s apart)` +
           missing
             .map(([name, url]) => `\n  ${name}: ${url} ${last.get(name)}`)
             .join(''),
       );
     log(
-      `registry: waiting for the tarballs of ${missing.map(([name]) => name).join(', ')} (read ${read}/${reads})`,
+      `registry: waiting for the ${kind}s of ${missing.map(([name]) => name).join(', ')} (read ${read}/${reads})`,
     );
     await sleep(intervalMs);
   }

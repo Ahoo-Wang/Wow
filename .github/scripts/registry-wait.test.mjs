@@ -5,7 +5,7 @@
  */
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { waitForTarballs } from './registry-wait.mjs';
+import { waitForFiles } from './registry-wait.mjs';
 
 const CLIENT = [
   '@ahoo-wang/wow-client',
@@ -47,7 +47,7 @@ function registry(answers) {
 async function wait(fetch, tarballs = [CLIENT, REACT]) {
   const slept = [];
   const logs = [];
-  await waitForTarballs(tarballs, {
+  await waitForFiles(tarballs, {
     timeoutMs: 600_000,
     intervalMs: 10_000,
     fetch,
@@ -111,7 +111,7 @@ test('a read that never answers is abandoned at the interval and read again', as
     return { status: 200, statusText: 'OK', body: { cancel: async () => {} } };
   };
   const slept = [];
-  await waitForTarballs([CLIENT], {
+  await waitForFiles([CLIENT], {
     timeoutMs: 1_000,
     intervalMs: 20,
     fetch,
@@ -129,7 +129,7 @@ test('tarballs never there fail at the bound, each named with its last answer or
   });
   let slept = 0;
   await assert.rejects(
-    waitForTarballs([CLIENT, REACT], {
+    waitForFiles([CLIENT, REACT], {
       timeoutMs: 600_000,
       intervalMs: 10_000,
       fetch,
@@ -152,7 +152,7 @@ test('a 403, which no wait turns into a 200, is reported at once', async () => {
   const { fetch, reads } = registry({ [CLIENT[1]]: [403], [REACT[1]]: [200] });
   let slept = 0;
   await assert.rejects(
-    waitForTarballs([CLIENT, REACT], {
+    waitForFiles([CLIENT, REACT], {
       fetch,
       sleep: async () => slept++,
       log: () => {},
