@@ -54,7 +54,7 @@ import kotlin.time.toJavaDuration
  *   A second read of a partition already joined, such as a subscription catching up, and a bounded
  *   read run a consumer of their own for as long as their flow is collected: assigned the one partition, it seeks to
  *   `from` and polls, each poll at most [pollTimeout] on a virtual thread, emitting what it got; the consumer closes
- *   when the flow ends or is cancelled.
+ *   when the flow ends or is cancelled, without waiting for a fetch still in flight.
  * - [readAt] runs one consumer of its own for the call, whatever the number of offsets: it seeks to each offset still
  *   wanted, in ascending order, and takes every wanted one a poll returns before it seeks again. Offsets the partition
  *   does not hold are left out before it seeks, so they are no gap. It closes the consumer without waiting for a
@@ -198,7 +198,7 @@ class KafkaPartitionedSource(
                 }
             }
         } finally {
-            withContext(NonCancellable + dispatcher) { consumer.close() }
+            withContext(NonCancellable + dispatcher) { closeAtOnce(consumer) }
         }
     }
 
@@ -218,13 +218,17 @@ class KafkaPartitionedSource(
             }
             return readAt(consumer, target, wanted)
         } finally {
-            // With no group to leave and nothing to commit, it does not wait for the fetch still in flight: a close
-            // that waits for it takes the broker's fetch wait, half a second.
-            withContext(NonCancellable + dispatcher) {
-                consumer.close(CloseOptions.timeout(Duration.ZERO.toJavaDuration()))
-            }
+            withContext(NonCancellable + dispatcher) { closeAtOnce(consumer) }
         }
     }
+
+    /**
+     * Closes [consumer], a read's own, without waiting for the fetch still in flight: with no group to leave and
+     * nothing to commit, a close that waits for it only takes the broker's fetch wait (`fetch.max.wait.ms`, half a
+     * second by default) once the partition has nothing more to return (#6869).
+     */
+    private fun closeAtOnce(consumer: Consumer<String, ByteArray>) =
+        consumer.close(CloseOptions.timeout(Duration.ZERO.toJavaDuration()))
 
     /**
      * The messages at [wanted], polled by [consumer]. Each poll is a step of its own on the [dispatcher], so a cancel
