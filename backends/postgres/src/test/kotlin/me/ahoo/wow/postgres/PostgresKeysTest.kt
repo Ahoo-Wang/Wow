@@ -60,14 +60,64 @@ class PostgresKeysTest {
         PostgresKeys.indexes(snapshots.ddl()).map { it.name }.assert()
             .containsExactly("\"${snapshots.ownerIndex}\"", "\"${snapshots.spaceIndex}\"")
         columnsOf(PostgresTimerTables("shop").aggregate("order").ddl()).assert()
-            .containsExactly(setOf("owner_tenant_id", "owner_id", "key"))
+            .containsExactly(setOf("aggregate_tenant_id", "aggregate_id", "key"))
         columnsOf(PostgresReservationTables("shop", "order").ddl).assert()
             .containsExactly(setOf("tenant_id", "namespace", "key"))
         columnsOf(PostgresFailureLedgerTables("wow_failure_ledger").ddls).assert().hasSize(1)
         columnsOf(listOf(PostgresCheckpointStore.DDL)).assert()
             .containsExactly(setOf("subscription_group", "subscription", "partition"))
         columnsOf(PostgresLeaseStore.DDL).assert()
-            .containsExactly(setOf("subscription_group", "partition"), setOf("subscription_group", "node"))
+            .containsExactly(setOf("subscription_group", "partition"), setOf("service", "node"))
+    }
+
+    /**
+     * Each store's unique keys exactly as [PostgresKeys.keys] finds them in its real schema statements: what the start
+     * holds the catalog to. A key added to, dropped from or changed in a store's DDL changes this list.
+     */
+    @Test
+    fun `each store's keys found in its real DDL should be pinned`() {
+        val stores: Map<String, List<String>> = mapOf(
+            "log registry and counters" to PostgresEventLogTables("shop").ddl(),
+            "log table" to listOf(PostgresEventLogTables("shop").aggregate("order").ddl()),
+            "snapshots" to PostgresSnapshotTables("shop", "order").ddl(),
+            "timer registry" to PostgresTimerTables("shop").ddl(),
+            "timers" to PostgresTimerTables("shop").aggregate("order").ddl(),
+            "reservations" to PostgresReservationTables("shop", "order").ddl,
+            "failure ledger" to PostgresFailureLedgerTables("wow_failure_ledger").ddls,
+            "checkpoints" to listOf(PostgresCheckpointStore.DDL),
+            "leases and members" to PostgresLeaseStore.DDL,
+        )
+        stores.mapValues { (_, ddl) -> columnsOf(ddl) }.assert().isEqualTo(
+            mapOf(
+                "log registry and counters" to listOf(
+                    setOf("partition"),
+                    setOf("log_table"),
+                    setOf("context", "aggregate"),
+                ),
+                "log table" to listOf(
+                    setOf("partition", "sequence"),
+                    setOf("tenant_id", "aggregate_id", "version"),
+                    setOf("tenant_id", "request_id"),
+                ),
+                "snapshots" to listOf(setOf("tenant_id", "aggregate_id"), setOf("structure")),
+                "timer registry" to listOf(setOf("timer_table"), setOf("context", "aggregate")),
+                "timers" to listOf(setOf("aggregate_tenant_id", "aggregate_id", "key")),
+                "reservations" to listOf(setOf("tenant_id", "namespace", "key")),
+                "failure ledger" to listOf(
+                    setOf(
+                        "service",
+                        "subscription_context",
+                        "subscription",
+                        "context",
+                        "aggregate",
+                        "tenant_id",
+                        "aggregate_id",
+                    ),
+                ),
+                "checkpoints" to listOf(setOf("subscription_group", "subscription", "partition")),
+                "leases and members" to listOf(setOf("subscription_group", "partition"), setOf("service", "node")),
+            ),
+        )
     }
 
     @Test

@@ -26,7 +26,9 @@ import java.sql.Connection
  * A key holds when a valid unique index of the table, without a predicate or an expression, covers exactly its columns,
  * in any order (PostgreSQL makes one for each such constraint). An index a `CREATE INDEX` statement makes must exist by
  * its name: `auto` makes a missing one, and `validate` refuses it. A unique key is declared in its table's
- * `CREATE TABLE`, where it is checked, never as a `CREATE UNIQUE INDEX` of its own.
+ * `CREATE TABLE`, where it is checked, never as a `CREATE UNIQUE INDEX` of its own. A column added within a format
+ * (`ALTER TABLE … ADD COLUMN IF NOT EXISTS`, [additive]) must exist: `auto` adds a missing one, and `validate`
+ * refuses it.
  */
 internal object PostgresKeys {
     /** A unique key of [table] over [columns], as its statement wrote it ([declared]). */
@@ -57,7 +59,12 @@ internal object PostgresKeys {
             return@mapNotNull null
         }
         val target = PostgresSchema.target(statement)
-        Index(target.name, target.table, statement.trim())
+        Index(target.name, target.table, statement.trim()).takeIf { target.column == null }
+    }
+
+    /** The `ALTER TABLE … ADD COLUMN IF NOT EXISTS` statements of [statements]: the columns added within a format. */
+    fun additive(statements: List<String>): List<String> = statements.filter { statement ->
+        !CREATE_TABLE.containsMatchIn(statement) && PostgresSchema.target(statement).column != null
     }
 
     /**
@@ -80,6 +87,13 @@ internal object PostgresKeys {
             check(PostgresSchema.exists(connection, index.name)) {
                 "${unquoted(index.name)} of ${unquoted(index.table)} does not exist: create it as Wow's schema does " +
                     "(${index.statement}), or let ddl auto create it."
+            }
+        }
+        additive(statements).forEach { statement ->
+            check(!PostgresSchema.missing(connection, statement)) {
+                val table = unquoted(PostgresSchema.target(statement).table)
+                "$table lacks a column this version of Wow writes, added within its format: add it as Wow's schema " +
+                    "does ($statement), or let ddl auto add it."
             }
         }
     }

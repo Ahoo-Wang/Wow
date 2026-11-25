@@ -1,6 +1,6 @@
 -- The Wow benchmark server's store after a session (bench.sh inspect --sql): each table's size, and the events stored,
 -- as one JSON value. The account's stream table has a row per command, its events in `events` ({name, revision,
--- payload}, the name qualified); the snapshot table a row per account.
+-- body}, the name qualified); the snapshot table a row per account.
 analyze;
 select json_build_object(
     'tables', (

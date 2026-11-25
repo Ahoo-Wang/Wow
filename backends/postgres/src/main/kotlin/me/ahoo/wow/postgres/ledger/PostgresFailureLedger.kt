@@ -19,7 +19,9 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.ledger.LedgerRequest
 import me.ahoo.wow.api.ledger.Recoverable
+import me.ahoo.wow.api.wire.WireNames
 import me.ahoo.wow.postgres.PostgresFormat
+import me.ahoo.wow.postgres.UnknownStoredValues
 import me.ahoo.wow.postgres.autoCommitted
 import me.ahoo.wow.postgres.jdbc
 import me.ahoo.wow.spi.Ddl
@@ -233,13 +235,13 @@ class PostgresFailureLedger(
         }
 
         is ParkedAmendment.MarkRecoverable -> tables.markRecoverable to {
-            setString(1, amendment.recoverable.name)
+            setString(1, WireNames.of(amendment.recoverable))
             setKey(subscription, ref, first = 2)
             setNullableLong(KEY_COLUMNS + 2, amendment.failedAt)
         }
 
         is ParkedAmendment.Request -> tables.request to {
-            setString(1, amendment.request.name)
+            setString(1, WireNames.of(amendment.request))
             setKey(subscription, ref, first = 2)
             setNullableLong(KEY_COLUMNS + 2, amendment.failedAt)
         }
@@ -261,7 +263,7 @@ class PostgresFailureLedger(
             setInt(3, amendment.retries)
             setNullableLong(4, amendment.retryAt)
             setSpec(RESTATE_SPEC, amendment.retrySpec)
-            setString(RESTATE_SPEC + SPEC_COLUMNS, amendment.recoverable.name)
+            setString(RESTATE_SPEC + SPEC_COLUMNS, WireNames.of(amendment.recoverable))
             setKey(subscription, ref, first = RESTATE_SPEC + SPEC_COLUMNS + 1)
             setLong(RESTATE_SPEC + SPEC_COLUMNS + KEY_COLUMNS + 1, amendment.revision)
         }
@@ -296,8 +298,8 @@ class PostgresFailureLedger(
         setInt(first, entry.retries)
         setNullableLong(first + 1, entry.retryAt)
         setSpec(first + 2, entry.retrySpec)
-        setString(first + 2 + SPEC_COLUMNS, entry.recoverable.name)
-        setString(first + 3 + SPEC_COLUMNS, entry.request?.name)
+        setString(first + 2 + SPEC_COLUMNS, WireNames.of(entry.recoverable))
+        setString(first + 3 + SPEC_COLUMNS, entry.request?.let(WireNames::of))
         setNullableLong(first + 4 + SPEC_COLUMNS, entry.nextAttemptAt)
     }
 
@@ -318,7 +320,7 @@ class PostgresFailureLedger(
     private suspend fun <T> jdbc(block: (Connection) -> T): T =
         dispatcher.jdbc { dataSource.autoCommitted(block) }
 
-    private companion object {
+    internal companion object {
         const val DEFAULT_TABLE = "wow_failure_ledger"
 
         /** The service of a ledger built without one: a database of one service. */
@@ -332,6 +334,9 @@ class PostgresFailureLedger(
 
         /** Its retry state: the retries, the last one's start, the spec's columns, the mark, the request, the next. */
         const val RETRY_STATE_COLUMNS = 5 + SPEC_COLUMNS
+
+        /** The values of a later version this JVM's ledgers read, each warned of once. */
+        internal val unknown = UnknownStoredValues("the failure ledger")
 
         /** The first parameter of a restate's spec: after its reason, failure time, retries and last retry's start. */
         const val RESTATE_SPEC = 5
@@ -362,7 +367,7 @@ class PostgresFailureLedger(
 
         fun entryOf(row: ResultSet) = ParkedAggregate(
             subscription = SubscriptionId(row.getString("subscription_context"), row.getString("subscription")),
-            ref = AggregateType(row.getString("context"), row.getString("aggregate_name"))
+            ref = AggregateType(row.getString("context"), row.getString("aggregate"))
                 .ref(row.getString("tenant_id"), row.getString("aggregate_id")),
             partition = row.getInt("partition"),
             fromVersion = row.getInt("from_version"),
@@ -371,7 +376,7 @@ class PostgresFailureLedger(
             fromPosition = row.nullableLong("from_position"),
             skipOnly = row.getBoolean("skip_only"),
             retries = row.getInt("retries"),
-            retryAt = row.nullableLong("retry_at"),
+            retryAt = row.nullableLong("last_retry_at"),
             retrySpec = row.getInt("retry_max_retries").takeUnless { row.wasNull() }?.let { maxRetries ->
                 ParkedRetrySpec(
                     maxRetries = maxRetries,
@@ -379,8 +384,15 @@ class PostgresFailureLedger(
                     claimTtl = row.getLong("retry_claim_ttl_millis").milliseconds,
                 )
             },
-            recoverable = Recoverable.valueOf(row.getString("recoverable")),
-            request = row.getString("request")?.let { LedgerRequest.valueOf(it) },
+            // Read by their wire names; one this node does not know (a later version's) keeps the row, read as nobody
+            // said and as no request, kept as it is by the write of the whole entry that writes back what was read
+            // (replace: KEPT_RECOVERABLE, KEPT_REQUEST), and warned of once.
+            recoverable = row.getString("recoverable").let { stored ->
+                WireNames.entryOf<Recoverable>(stored) ?: Recoverable.UNKNOWN.also { unknown.warn("recoverable", stored) }
+            },
+            request = row.getString("request")?.let { stored ->
+                WireNames.entryOf<LedgerRequest>(stored).also { if (it == null) unknown.warn("request", stored) }
+            },
             nextAttemptAt = row.nullableLong("next_attempt_at"),
             revision = row.getLong("revision"),
         )

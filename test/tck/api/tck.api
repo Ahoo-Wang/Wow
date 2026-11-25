@@ -355,6 +355,7 @@ public abstract class me/ahoo/wow/tck/subscription/LeaseStoreSpec {
 	public final fun a heartbeat deletes the member records long expired, and keeps the others ()V
 	public final fun a live lease cannot be taken, an expired one can ()V
 	public final fun a member records the lease groups it serves, and a heartbeat replaces them ()V
+	public final fun a member records the node's version of Wow, or none ()V
 	public final fun a node that leaves is no longer a member but keeps its leases ()V
 	public final fun a released lease can be acquired at once ()V
 	public final fun a renewal renews the live leases the owner holds and leaves the others out ()V

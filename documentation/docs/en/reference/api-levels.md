@@ -213,6 +213,7 @@ The two lists below are generated from the sources of the published modules: the
 | `me.ahoo.wow.spi.subscription.Lease` | class | `wow-spi` |
 | `me.ahoo.wow.spi.subscription.Member` | class | `wow-spi` |
 | `me.ahoo.wow.spi.subscription.LeaseStore` | interface | `wow-spi` |
+| `me.ahoo.wow.spi.subscription.WowVersion` | object | `wow-spi` |
 | `me.ahoo.wow.spi.subscription.SubscriptionId` | class | `wow-spi` |
 | `me.ahoo.wow.spi.timer.Timer` | class | `wow-spi` |
 | `me.ahoo.wow.spi.timer.TimerStatus` | class | `wow-spi` |

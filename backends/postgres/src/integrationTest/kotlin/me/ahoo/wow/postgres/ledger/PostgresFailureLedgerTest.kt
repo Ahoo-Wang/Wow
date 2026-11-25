@@ -17,9 +17,11 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.ledger.Recoverable
 import me.ahoo.wow.postgres.PostgresFixture
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
+import me.ahoo.wow.spi.ledger.ParkedAmendment
 import me.ahoo.wow.spi.subscription.SubscriptionId
 import me.ahoo.wow.tck.ledger.FailureLedgerSpec
 import org.junit.jupiter.api.Test
@@ -81,6 +83,40 @@ class PostgresFailureLedgerTest : FailureLedgerSpec() {
     fun `a table name that is not a plain identifier is refused`() {
         assertThrownBy<IllegalArgumentException> { PostgresFailureLedger(PostgresFixture.dataSource, "x\"; drop") }
     }
+
+    @Test
+    fun `a mark and a request of a later version should survive a generic amendment, warned of once each`(): Unit =
+        runBlocking {
+            val table = "ledger_later_values"
+            val ledger = PostgresFailureLedger(PostgresFixture.dataSource, table).also { it.createSchema() }
+            val ref = AggregateType("shared", "order").ref("t", "later")
+            ledger.park(ParkedAggregate(PROJECTION, ref, 0, 3, "boom", 7)).assert().isTrue()
+            PostgresFixture.dataSource.connection.use { connection ->
+                connection.createStatement().use {
+                    it.execute("UPDATE $table SET recoverable = 'later-mark', request = 'later-request'")
+                }
+            }
+
+            val read = ledger.parked(PROJECTION, ref)!!
+            read.recoverable.assert().isEqualTo(Recoverable.UNKNOWN)
+            read.request.assert().isNull()
+            ledger.list(PROJECTION).single().request.assert().isNull()
+            PostgresFailureLedger.unknown.seen.assert().contains("recoverable=later-mark", "request=later-request")
+            // Each warned of once: a later read finds it warned already.
+            PostgresFailureLedger.unknown.warn("request", "later-request").assert().isFalse()
+
+            // The generic path writes the entry back whole, under the revision read: both values are kept.
+            ledger.amend(PROJECTION, ref, ParkedAmendment.ApplyRetrySpec(null)).assert().isNotNull()
+            PostgresFixture.dataSource.connection.use { connection ->
+                connection.createStatement().use {
+                    it.executeQuery("SELECT recoverable, request FROM $table").use { rows ->
+                        rows.next().assert().isTrue()
+                        rows.getString(1).assert().isEqualTo("later-mark")
+                        rows.getString(2).assert().isEqualTo("later-request")
+                    }
+                }
+            }
+        }
 
     private companion object {
         val PROJECTION = SubscriptionId("shared", "projection")

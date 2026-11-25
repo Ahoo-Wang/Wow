@@ -31,6 +31,7 @@ import me.ahoo.wow.spi.subscription.ExpiredMembers
 import me.ahoo.wow.spi.subscription.Lease
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.subscription.Member
+import me.ahoo.wow.spi.subscription.WowVersion
 import org.slf4j.LoggerFactory
 import java.sql.Connection
 import java.sql.PreparedStatement
@@ -45,8 +46,7 @@ import kotlin.time.TimeSource
 
 /**
  * The [LeaseStore] on PostgreSQL: one row per (group, partition) in `wow_lease` and one per (service, node), with the
- * node's internal address and the lease groups it serves (`groups`), in `wow_lease_member`, whose key
- * column `subscription_group` holds the service.
+ * node's internal address and the lease groups it serves (`groups`), in `wow_lease_member`, keyed by `service`.
  *
  * Every operation is one autocommitted statement, on a connection the store borrows once and keeps:
  * the store's operations run one at a time on it, so a renewal never waits behind the commands for a connection of
@@ -83,6 +83,8 @@ class PostgresLeaseStore(
     private val ddl: Ddl = Ddl.AUTO,
     /** How long [close] waits for the operation holding the connection: [CLOSE_TIMEOUT]; a test's own. */
     private val closeTimeout: Duration = CLOSE_TIMEOUT,
+    /** The version of Wow the member records carry: this node's ([WowVersion.CURRENT]); a test's own. */
+    private val wowVersion: String? = WowVersion.CURRENT,
 ) : LeaseStore, AutoCloseable {
     /** Claims the tables' format ([PostgresFormat]) and creates them when missing. */
     fun createSchema() {
@@ -154,8 +156,9 @@ class PostgresLeaseStore(
             setString(3, address)
             setLong(4, expiresAt)
             setArray(5, connection.createArrayOf("text", sorted.toTypedArray()))
+            setString(6, wowVersion)
             executeUpdate()
-            Member(service, node, address, expiresAt, sorted)
+            Member(service, node, address, expiresAt, sorted, wowVersion)
         }
         expired.due(service, ttl)?.let { before ->
             val left = minOf(ttl - started.elapsedNow(), expired.deleteBound(ttl))
@@ -331,11 +334,12 @@ class PostgresLeaseStore(
     )
 
     private fun memberOf(row: ResultSet) = Member(
-        service = row.getString("subscription_group"),
+        service = row.getString("service"),
         node = row.getString("node"),
         address = row.getString("address"),
         expiresAt = row.getLong("expires_at"),
         groups = (row.getArray("groups").array as Array<*>).mapTo(sortedSetOf()) { it as String },
+        wowVersion = row.getString("wow_version"),
     )
 
     private fun <T> ResultSet.map(row: (ResultSet) -> T): List<T> {
@@ -381,14 +385,16 @@ class PostgresLeaseStore(
             """.trimIndent(),
             """
             CREATE TABLE IF NOT EXISTS $MEMBERS_TABLE (
-                subscription_group text COLLATE "C" NOT NULL,
+                service text COLLATE "C" NOT NULL,
                 node text COLLATE "C" NOT NULL,
                 address text NOT NULL,
                 expires_at bigint NOT NULL,
                 groups text[] NOT NULL DEFAULT '{}',
-                PRIMARY KEY (subscription_group, node)
+                PRIMARY KEY (service, node)
             )
             """.trimIndent(),
+            // The node's version of Wow: a column added within the format, as every later one is (PostgresKeys).
+            "ALTER TABLE $MEMBERS_TABLE ADD COLUMN IF NOT EXISTS wow_version text",
         )
 
         /**
@@ -418,14 +424,15 @@ class PostgresLeaseStore(
         const val OWNERS = "SELECT $LEASE_COLUMNS FROM $LEASES " +
             "WHERE subscription_group = ? AND expires_at > ? ORDER BY partition"
 
-        const val HEARTBEAT = "INSERT INTO $MEMBERS_TABLE (subscription_group, node, address, expires_at, groups) " +
-            "VALUES (?, ?, ?, ?, ?) ON CONFLICT (subscription_group, node) " +
-            "DO UPDATE SET address = excluded.address, expires_at = excluded.expires_at, groups = excluded.groups"
+        const val HEARTBEAT = "INSERT INTO $MEMBERS_TABLE (service, node, address, expires_at, groups, wow_version) " +
+            "VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (service, node) " +
+            "DO UPDATE SET address = excluded.address, expires_at = excluded.expires_at, groups = excluded.groups, " +
+            "wow_version = excluded.wow_version"
 
-        const val MEMBERS = "SELECT subscription_group, node, address, expires_at, groups FROM $MEMBERS_TABLE " +
-            "WHERE subscription_group = ? AND expires_at > ? ORDER BY node"
+        const val MEMBERS = "SELECT service, node, address, expires_at, groups, wow_version FROM $MEMBERS_TABLE " +
+            "WHERE service = ? AND expires_at > ? ORDER BY node"
 
-        const val LEAVE = "DELETE FROM $MEMBERS_TABLE WHERE subscription_group = ? AND node = ?"
-        const val DELETE_EXPIRED = "DELETE FROM $MEMBERS_TABLE WHERE subscription_group = ? AND expires_at < ?"
+        const val LEAVE = "DELETE FROM $MEMBERS_TABLE WHERE service = ? AND node = ?"
+        const val DELETE_EXPIRED = "DELETE FROM $MEMBERS_TABLE WHERE service = ? AND expires_at < ?"
     }
 }

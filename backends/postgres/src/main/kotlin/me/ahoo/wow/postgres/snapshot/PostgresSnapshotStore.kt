@@ -119,7 +119,12 @@ class PostgresSnapshotStore(
                 PostgresFormat.schema(
                     connection,
                     ddl,
-                    listOf(tables.base to PostgresSnapshotTables.FORMAT),
+                    // The registry of the snapshot tables has its format record too, as the log's and the timers' do: a
+                    // registry missing under validate is refused at start, naming it, not at its first read.
+                    listOf(
+                        tables.base to PostgresSnapshotTables.FORMAT,
+                        PostgresSnapshotTables.TABLES to PostgresSnapshotTables.FORMAT,
+                    ),
                     tables.ddl()
                 )
             }

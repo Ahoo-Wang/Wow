@@ -453,7 +453,7 @@ The `snapshot` query model reads them as its system fields, flattened: `tenantId
 The structures with a format version are: the log entry's facts and transport data, the snapshot record, the state event, the command's wire form, the command result, the wait signal, the Kafka envelope and the cluster channel's messages.
 
 - Logs and snapshot stores record their format version per table. Every message on the wire carries its own: `format`, or `v` on the cluster channel.
-- **Adding is not a format change.** A new optional field with a default keeps the format version. Readers ignore fields they do not know, and fill in the default for a field that is missing.
+- **Adding is not a format change.** A new optional field with a default keeps the format version. Readers ignore fields they do not know, and fill in the default for a field that is missing. On PostgreSQL such a field is a column added within the format (`ALTER TABLE … ADD COLUMN IF NOT EXISTS`, the member record's `wow_version` the first): `ddl: auto` adds it to a table made before it, and `validate` refuses the table without it, naming the statement.
 - **A value a newer writer added** to a result's status, a hop's stage or a function's kind is read as `UNKNOWN`, wherever a node reads it: a log entry's transport, a topic's envelope, the cluster channel, a peer's `Wow-Call`. A server still refuses an unknown value in a client's request.
 - **Within a major version**, a new field is first read by one minor version and written only by the next, so two adjacent minor versions can run side by side during a rolling upgrade.
 - **A change old readers cannot read** waits for the next major version, whose migration tool converts the data.

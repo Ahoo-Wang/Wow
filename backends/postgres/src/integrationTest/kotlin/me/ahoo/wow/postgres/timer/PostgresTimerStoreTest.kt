@@ -97,20 +97,104 @@ class PostgresTimerStoreTest : TimerStoreSpec() {
         }
     }
 
-    private fun timer(ref: AggregateRef) = Timer(
+    @Test
+    fun `timers whose rule a later version wrote should be skipped by the due read, never starving the readable`(): Unit =
+        runBlocking {
+            val store = store(context)
+            val type = AggregateType(context, "order")
+            // More unreadable timers than the page holds, all due before more readable ones than it holds, all of one
+            // partition: the read goes on past the unreadable ones, and stops at a page of the readable.
+            val partition = Partitioner.partitionOf(type.ref("t", "o-0"), logPartitions)
+            val same = generateSequence(0) { it + 1 }.map { type.ref("t", "o-$it") }
+                .filter { Partitioner.partitionOf(it, logPartitions) == partition }.take(2 * (PAGE + 1)).toList()
+            val ahead = same.take(PAGE + 1)
+            val behind = same.drop(PAGE + 1)
+            ahead.forEachIndexed { at, ref -> store.put(timer(ref, dueAt = at + 1L)).assert().isTrue() }
+            behind.forEachIndexed { at, ref -> store.put(timer(ref, dueAt = 100L + at)).assert().isTrue() }
+            val table = PostgresTimerTables(context).aggregate("order").table
+            PostgresFixture.dataSource.connection.use { connection ->
+                connection.prepareStatement("UPDATE $table SET rule = ?::jsonb WHERE due_at < 100").use {
+                    it.setString(1, LATER_RULE)
+                    it.executeUpdate().assert().isEqualTo(ahead.size)
+                }
+            }
+
+            val partitions = (0 until logPartitions).toSet()
+            store.due(partitions, until = 1_000, perPartition = PAGE).map { it.owner }.assert()
+                .containsExactlyElementsOf(behind.take(PAGE))
+            PostgresTimerStore.unknown.seen.assert().contains("rule.misfire=later")
+            // One timer read by its key is refused, naming the value.
+            assertThrownBy<IllegalStateException> { runBlocking { store.find(ahead.first(), "k") } }
+                .message().contains("later")
+        }
+
+    @Test
+    fun `a read past skipped timers should stop where the due rows end`(): Unit = runBlocking {
+        val store = store(context)
+        val type = AggregateType(context, "order")
+        // A page filled by unreadable timers, then fewer readable ones behind them than the page holds.
+        val partition = Partitioner.partitionOf(type.ref("t", "o-0"), logPartitions)
+        val same = generateSequence(0) { it + 1 }.map { type.ref("t", "o-$it") }
+            .filter { Partitioner.partitionOf(it, logPartitions) == partition }.take(PAGE + 2).toList()
+        same.forEachIndexed { at, ref -> store.put(timer(ref, dueAt = at + 1L)).assert().isTrue() }
+        val table = PostgresTimerTables(context).aggregate("order").table
+        PostgresFixture.dataSource.connection.use { connection ->
+            connection.prepareStatement("UPDATE $table SET rule = ?::jsonb WHERE due_at <= ?").use {
+                it.setString(1, LATER_RULE)
+                it.setLong(2, PAGE + 1L)
+                it.executeUpdate().assert().isEqualTo(PAGE + 1)
+            }
+        }
+
+        store.due((0 until logPartitions).toSet(), until = 1_000, perPartition = PAGE).map { it.owner }.assert()
+            .containsExactly(same.last())
+    }
+
+    @Test
+    fun `a parked timer whose rule a later version wrote should be skipped by the parked read`(): Unit = runBlocking {
+        val store = store(context)
+        val type = AggregateType(context, "invoice")
+        val target = type.ref("t", "target")
+        val readable = type.ref("t", "readable")
+        val later = type.ref("t", "later")
+        listOf(readable, later).forEach { store.put(timer(it, target = target)).assert().isTrue() }
+        val table = PostgresTimerTables(context).aggregate("invoice").table
+        PostgresFixture.dataSource.connection.use { connection ->
+            connection.prepareStatement("UPDATE $table SET status = 'parked'").use { it.executeUpdate() }
+            connection.prepareStatement("UPDATE $table SET rule = ?::jsonb WHERE aggregate_id = ?").use {
+                it.setString(1, LATER_TYPE)
+                it.setString(2, later.id)
+                it.executeUpdate().assert().isEqualTo(1)
+            }
+        }
+
+        store.parked(target).map { it.owner }.assert().containsExactly(readable)
+        PostgresTimerStore.unknown.seen.assert().contains("rule.type=later")
+    }
+
+    private fun timer(ref: AggregateRef, dueAt: Long = 5, target: AggregateRef = ref) = Timer(
         id = "$ref#k@1",
         owner = ref,
         key = "k",
         version = 1,
         partition = Partitioner.partitionOf(ref, logPartitions),
-        rule = ScheduleRule.At(5),
-        dueAt = 5,
-        target = ref,
+        rule = ScheduleRule.At(dueAt),
+        dueAt = dueAt,
+        target = target,
         commandType = "${ref.type.context}.order.Cancel",
         body = "{}",
     )
 
     private companion object {
+        /** The due read's page of a partition, which the unreadable timers outnumber. */
+        const val PAGE = 2
+
+        /** A cron rule of a later version: a misfire this one does not know. */
+        const val LATER_RULE = """{"type":"cron","expression":"0 0 * * * *","timeZone":"UTC","misfire":"later"}"""
+
+        /** A rule of a type a later version adds. */
+        const val LATER_TYPE = """{"type":"later","at":5}"""
+
         fun store(context: String) =
             PostgresTimerStore(PostgresFixture.dataSource, context).also { it.createSchema() }
     }

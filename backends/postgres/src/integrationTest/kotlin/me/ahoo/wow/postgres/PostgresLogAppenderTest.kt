@@ -232,7 +232,7 @@ class PostgresLogAppenderTest : PostgresLogFixtures() {
                         "INSERT INTO \"${table(context, "order")}\" (partition, sequence, tenant_id, aggregate_id, " +
                             "version, command_id, request_id, command_type, commit_time, events, headers) " +
                             "VALUES (0, 1, 'tenant', 'taken', 1, 'rival', 'rival', 'Act', 0, " +
-                            "'[{\"name\": \"Happened\", \"revision\": 1, \"payload\": {}}]', '{}')",
+                            "'[{\"name\": \"Happened\", \"revision\": 1, \"body\": {}}]', '{}')",
                     )
                 }
                 val group = async(Dispatchers.IO) {
