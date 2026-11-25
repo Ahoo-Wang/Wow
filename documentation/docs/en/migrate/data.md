@@ -248,7 +248,7 @@ The import writes the tags the map names into the domain event the 9.x tags even
 
 ## 8. Start V10 and switch traffic
 
-1. Start the V10 service's nodes. A saga or a reactor of the service's own context starts at the end of its log, so it does not act on the imported 9.x history; a projection starts at the beginning and builds its read model from it. Its transport sink publishes the imported history too, each record up to the cut-over the import recorded marked imported: a peer's saga or reactor passes over it, and a peer's projection builds from it ([Published Streams](../guide/published-streams#history-imported-from-9x)).
+1. Start the V10 service's nodes. A saga or a reactor of the service's own context does not act on the imported 9.x history: it starts at the end of its log, and passes over every entry up to the cut-over the import recorded however it starts, a cut-over again after a rollback included; a projection starts at the beginning and builds its read model from it. Its transport sink publishes the imported history too, each record up to the cut-over the import recorded marked imported: a peer's saga or reactor passes over it, and a peer's projection builds from it ([Published Streams](../guide/published-streams#history-imported-from-9x)).
 2. Switch traffic to V10, and move every external consumer of 9.x topics to the V10 published streams. There is no 9.x-format sink.
 
 A service of an estate takes these steps in the estate's window, with the others ([One window](./cutover#one-window)).

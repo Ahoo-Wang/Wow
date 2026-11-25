@@ -79,9 +79,12 @@ import kotlin.random.Random
  * carries ([me.ahoo.wow.spi.log.Transport.trace]): what the handler does goes on in that trace.
  *
  * History migrate-data imported from 9.x is handed over as imported ([SubscribedEntry.imported]): a log entry at or
- * before [importedThrough], or a record a peer published so. A saga or a reactor passes over an imported record of a
- * peer's topic as it passes over an entry outside its filter, since 9.x already acted on it; a projection takes it,
- * and so does every subscription of the log, a compensation's parked retry of an imported entry among them.
+ * before [importedThrough], or a record a peer published so. A saga or a reactor passes over imported history as it
+ * passes over an entry outside its filter, since 9.x's own sagas and reactors already acted on it: a peer's imported
+ * record, and an entry of its own log at or before the cut-over, which it reads when it ran before a second import
+ * moved the cut-over (a cut-over again after a rollback, #6928; on a first cut-over it starts past them). A projection
+ * takes both, and a compensation's parked retry of an imported entry of the log is handled by every subscription: it
+ * retries what 9.x failed to handle.
  *
  * A fatal error ([NodeFatals.isFatal]: out of memory, say) is no failure of the handler: it is neither retried nor
  * parked, since the JVM is not to be trusted after one. Its lane records it as its node's fatal error ([fatals]) and
@@ -261,7 +264,7 @@ internal class SubscriptionWorker(
         val slot = Slot(entry.position.sequence)
         pending.addLast(slot)
         outstanding.set(pending.size)
-        if (!subscription.takes(stream) || skippedOnAdmit(entry) || passesOver(entry)) {
+        if (!subscription.takes(stream) || skippedOnAdmit(entry) || passesOverLive(entry)) {
             complete(slot)
             if (hops.waitsHere(entry)) {
                 val parked = parkedAt(entry)
@@ -274,6 +277,10 @@ internal class SubscriptionWorker(
 
     /** Whether [entry] is a record a peer published as imported, which a saga or a reactor passes over. */
     private fun passesOver(entry: SourcedEntry): Boolean = actsOnEntries && entry.published?.imported == true
+
+    /** Whether [entry], read live, is imported history a saga or a reactor passes over: a peer's, or its log's. */
+    private fun passesOverLive(entry: SourcedEntry): Boolean =
+        passesOver(entry) || actsOnEntries && entry.position.sequence <= importedThrough
 
     /** A parked aggregate's entries from its parked one on, and copies of what a retry handled, are skipped. */
     private fun skippedOnAdmit(entry: SourcedEntry): Boolean =
