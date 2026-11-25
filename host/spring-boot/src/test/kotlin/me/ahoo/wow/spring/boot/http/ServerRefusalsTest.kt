@@ -108,11 +108,16 @@ class ServerRefusalsTest {
         }
     }
 
+    /**
+     * Sent on a kept-alive connection and read by its `Content-Length`, not with `Connection: close`: Reactor Netty
+     * drains the rest of a kept-alive request's body, but closes a closing one's unread, and a Linux server then resets
+     * the connection before the client reads the 413 (#7001).
+     */
     @Test
     fun `a body past the codecs' limit should be a 413 problem on the real server`() {
         startHost().use { host ->
             val body = """{"owner":"${"a".repeat(300_000)}"}"""
-            val answer = raw(host.publicPort, post("/bank/account/open-account", body))
+            val answer = keptAlive(host.publicPort, post("/bank/account/open-account", body, close = false))
             answer.status.assert().isEqualTo(413)
             answer.headers["content-type"].assert().isEqualTo("application/problem+json")
             answer.problem!!["detail"].asString().assert()
@@ -144,12 +149,12 @@ class ServerRefusalsTest {
             return (head.joinToString("\r\n") + "\r\n\r\n").toByteArray()
         }
 
-        fun post(path: String, body: String): ByteArray {
+        fun post(path: String, body: String, close: Boolean = true): ByteArray {
             val bytes = body.toByteArray()
-            val head = listOf(
+            val head = listOfNotNull(
                 "POST $path HTTP/1.1",
                 "Host: 127.0.0.1",
-                "Connection: close",
+                "Connection: close".takeIf { close },
                 "Content-Type: application/json",
                 "Content-Length: ${bytes.size}",
             )
@@ -176,6 +181,32 @@ class ServerRefusalsTest {
                 // The server keeps the connection: what came is the answer.
             }
             parse(read.toString(Charsets.UTF_8))
+        }
+
+        /** Writes [request] to [port] and reads one response on the kept-alive connection: its head, then its body. */
+        fun keptAlive(port: Int, request: ByteArray): RawAnswer = Socket().use { socket ->
+            socket.connect(InetSocketAddress("127.0.0.1", port), 1_000)
+            socket.soTimeout = 5_000
+            socket.getOutputStream().apply {
+                write(request)
+                flush()
+            }
+            val input = socket.getInputStream()
+            val read = ByteArrayOutputStream()
+            while (!read.toString(Charsets.ISO_8859_1).contains("\r\n\r\n")) {
+                val next = input.read()
+                check(next >= 0) { "The connection closed before the response's head: $read" }
+                read.write(next)
+            }
+            val head = parse(read.toString(Charsets.UTF_8))
+            val body = ByteArray(head.headers.getValue("content-length").toInt())
+            var at = 0
+            while (at < body.size) {
+                val n = input.read(body, at, body.size - at)
+                check(n >= 0) { "The connection closed within the response's body." }
+                at += n
+            }
+            RawAnswer(head.status, head.headers, body.toString(Charsets.UTF_8))
         }
 
         private fun parse(text: String): RawAnswer {
