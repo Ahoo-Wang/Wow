@@ -50,9 +50,23 @@ const alive = pid => {
   }
 };
 
-/** A process that ignores TERM, as a node whose stop stalls on its stores does. */
-const stubborn = () =>
-  spawn('bash', ['-c', "trap '' TERM; while :; do sleep 0.1; done"]);
+/**
+ * A process that ignores TERM, as a node whose stop stalls on its stores does, once it says so: a TERM sent before
+ * bash has set its trap ends it at once, and no stop is stalled (#6976).
+ */
+const stubborn = async () => {
+  const node = spawn('bash', [
+    '-c',
+    "trap '' TERM; echo ignoring; while :; do sleep 0.1; done",
+  ]);
+  await new Promise((resolve, reject) => {
+    node.stdout.once('data', resolve);
+    node.once('exit', () =>
+      reject(new Error('the stub ended before it ignored TERM')),
+    );
+  });
+  return node;
+};
 
 test("a hand-over's restarted node, adopted by its pid file, is stopped before down removes the stores", async () => {
   const dir = mkdtempSync(join(tmpdir(), 'bench-nodes-'));
@@ -84,7 +98,7 @@ test("a hand-over's restarted node, adopted by its pid file, is stopped before d
 });
 
 test('a node that ignores TERM is killed after the stop seconds', async () => {
-  const node = stubborn();
+  const node = await stubborn();
   const exited = new Promise(resolve =>
     node.on('exit', (code, signal) => resolve(signal)),
   );
