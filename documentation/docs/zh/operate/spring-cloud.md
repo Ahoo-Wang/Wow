@@ -25,7 +25,7 @@ outline: deep
 dependencies {
     implementation(platform("org.springframework.cloud:spring-cloud-dependencies:2026.0.0"))
     implementation("me.ahoo.wow:wow-spring-cloud")
-    implementation("me.ahoo.cosky:cosky-spring-boot-starter:8.0.0-beta.11")
+    implementation("me.ahoo.cosky:cosky-spring-boot-starter:8.0.0-rc.1")
 }
 ```
 
@@ -81,7 +81,7 @@ Spring Cloud 在发送每次登记之前宣告它，时机在公开服务器启�
 
 不是由 Wow 节点自己登记的实例，在注册中心自己的元数据配置里写这三个键：`cosky.registry.metadata.*`、`spring.cloud.consul.discovery.metadata.*`、`eureka.instance.metadata-map.*`、`spring.cloud.nacos.discovery.metadata.*` 或 `spring.cloud.zookeeper.discovery.metadata.*`。键用短横线，因为 Consul 不接受带点的元数据键。
 
-CoSky 不做健康检查：只要进程续租，实例就一直登记着。在 CoSky 8.0.0-beta.11 上用默认租约测得：正常停止的节点在停止返回时已从其他服务的视图中消失，用 `SIGKILL` 杀掉的节点约 38 秒后消失（[CoSky 的租约](https://cosky.ahoo.me/zh/guide/service-discovery#租约)）。在此期间，客户端会跳过不答复的节点。有健康检查的注册中心（Consul、Eureka、Nacos）访问公开端口，与任何 Spring Boot 应用一样。
+CoSky 不做健康检查：只要进程续租，实例就一直登记着。在 CoSky 8.0.0-beta.11 上用默认租约测得：正常停止的节点在停止返回时已从其他服务的视图中消失，用 `SIGKILL` 杀掉的节点约 38 秒后消失（[CoSky 的租约](https://cosky.ahoo.me/zh/guide/service-discovery#租约)）。从 8.0.0-rc.1 起，CoSky 的 starter 在应用开始关闭时就注销，早于 Web 服务器停止接收请求，消费方因此更早离开正在停止的节点（[CoSky 8.0.0-rc.1](https://github.com/Ahoo-Wang/CoSky/releases/tag/v8.0.0-rc.1)）；上面的数字没有在它上面重新测量。在此期间，客户端会跳过不答复的节点。有健康检查的注册中心（Consul、Eureka、Nacos）访问公开端口，与任何 Spring Boot 应用一样。
 
 CoSky 把实例登记在 Spring Cloud 找到的第一个非回环地址上，自己没有相应的配置：用 `spring.cloud.inetutils.preferred-networks`（或 `ignored-interfaces`）选择网卡。只有公开端口在这个地址上被调用；内部地址来自元数据。
 
