@@ -2,7 +2,7 @@
 
 日期：2026-11-25。状态：持续维护。上位文档：[路线图](roadmap.md)。
 
-本文只写现状：Wow 10 现在在哪、正在做什么、到 GA 还剩什么，以及审查的标准与用户的长期要求。一项做完即从本文删去，不在这里追加合并流水；已合并的明细以 `git log origin/main` 为准，决定在[决策台账](decisions.md)（D1～D488 已定），未处理的审查发现在[审查台账](reviews.md)，已登记、未排期的事项在[路线图](roadmap.md) §6。2026-11-10 压缩前的最后一版为 `2c08f318ea`。
+本文只写现状：Wow 10 现在在哪、正在做什么、到 GA 还剩什么，以及审查的标准与用户的长期要求。一项做完即从本文删去，不在这里追加合并流水；已合并的明细以 `git log origin/main` 为准，决定在[决策台账](decisions.md)（D1～D489 已定），未处理的审查发现在[审查台账](reviews.md)，已登记、未排期的事项在[路线图](roadmap.md) §6。2026-11-10 压缩前的最后一版为 `2c08f318ea`。
 
 ## 1. 位置
 
@@ -55,7 +55,7 @@
 
 **深度审查第一轮已收尾**（2026-11-25）：13 个域审完，11-24 以来提的带 bug 标签的 issue 约 160 个，全部关闭，修复都在主干；破坏性的修复写在 Operate › Upgrades。带出的设计决定在 [D479](decisions.md)、[D480](decisions.md) 与 [D481](decisions.md)。各域的汇总 issue 留着「设计疑问」「没有测试的承诺」「未复现」三节，是第二轮的输入：#6738、#6797（内核）、#6761（日志、交接与订阅）、#6742（集群、路由与节点）、#6749（MongoDB）、#6752（PostgreSQL）、#6774（查询）、#6786（Kafka、Elasticsearch、ClickHouse）、#6819（HTTP 与 Kotlin 客户端）、#6845（编译器与 Manifest）、#6860（宿主）、#6921（TypeScript）、#6937（平台服务、迁移工具与 chart）、#6973（测试套件与真实服务器的限制）。
 
-**深度审查第二轮进行中**（2026-11-25 起，[D482](decisions.md)；基线 `370ac57604`）：由另一位协调者只凭仓库执行，横切为七路，每路一个不带标签的汇总 issue（题为 `Deep review r2: …`）与一个 `review/r2-<主题>` 分支。先行的五路都已交回，汇总 issue：公开 Kotlin API #7019、公开 TypeScript API #7022、配置键与格式 #7020、安全 #7021、第一轮修复的复核 #7018；共立带 bug 标签的 issue 约 60 个，在修（2026-11-25 22:40 UTC 还开着 17 个）。提案表都已逐行裁决：Kotlin API 为 [D483](decisions.md)，配置键、REST、Manifest 与格式为 [D484](decisions.md)，安全为 [D485](decisions.md)（其中默认的安全行为由用户定），TypeScript 与视图引擎为 [D486](decisions.md)。实现由交回的五个会话各自按文件链一个 PR 一个 PR 地做。升级路径、文档与行为一致两路等修复落定后再审。修复期间定下的几处在 [D487](decisions.md)。提交 Gradle 依赖图的工作流已合并（#7086、#7104），Dependabot 报出的 JVM 告警待安全一路分诊（[D487](decisions.md) ⑦）。额度用尽期间不经协调者合入的有 #7023（CoSec `8.0.0-beta.9`）、#7091 与 #7092（CosId 5.1.0，没有带基准对比）。子会话五路都在跑，重命令同时至多两条（[D488](decisions.md) ⑫）。M5 Max 做完的以 PR 交本轮协调者审并合入（[D488](decisions.md) ②）：#7111（发布后检查，X-131）与 #7117 已合入，#7116（演练脚本）留了意见待改；M5 Max 提的 #7097、#7098、#7109 的安排在 [D488](decisions.md) ⑤。各 PR 的升级说明写在正文的 `## Upgrades paragraph`，轮末统一汇总进 Operate › Upgrades。
+**深度审查第二轮进行中**（2026-11-25 起，[D482](decisions.md)；基线 `370ac57604`）：由另一位协调者只凭仓库执行，横切为七路，每路一个不带标签的汇总 issue（题为 `Deep review r2: …`）与一个 `review/r2-<主题>` 分支。先行的五路都已交回，汇总 issue：公开 Kotlin API #7019、公开 TypeScript API #7022、配置键与格式 #7020、安全 #7021、第一轮修复的复核 #7018；共立带 bug 标签的 issue 约 60 个，在修（2026-11-25 22:40 UTC 还开着 17 个）。提案表都已逐行裁决：Kotlin API 为 [D483](decisions.md)，配置键、REST、Manifest 与格式为 [D484](decisions.md)，安全为 [D485](decisions.md)（其中默认的安全行为由用户定），TypeScript 与视图引擎为 [D486](decisions.md)。实现由交回的五个会话各自按文件链一个 PR 一个 PR 地做。升级路径、文档与行为一致两路等修复落定后再审。修复期间定下的几处在 [D487](decisions.md)、[D488](decisions.md) 与 [D489](decisions.md)（内置 Sink 以显式的一代从日志重填，#7097）。提交 Gradle 依赖图的工作流已合并（#7086、#7104），Dependabot 报出的 JVM 告警待安全一路分诊（[D487](decisions.md) ⑦）。额度用尽期间不经协调者合入的有 #7023（CoSec `8.0.0-beta.9`）、#7091 与 #7092（CosId 5.1.0，没有带基准对比）。子会话五路都在跑，重命令同时至多两条（[D488](decisions.md) ⑫）。M5 Max 做完的以 PR 交本轮协调者审并合入（[D488](decisions.md) ②）：#7111（发布后检查，X-131）与 #7117 已合入，#7116（演练脚本）留了意见待改；M5 Max 提的 #7097、#7098、#7109 的安排在 [D488](decisions.md) ⑤。各 PR 的升级说明写在正文的 `## Upgrades paragraph`，轮末统一汇总进 Operate › Upgrades。
 
 **第一轮留给第二轮的问题**（[D481](decisions.md) ⑪）与现状：
 
