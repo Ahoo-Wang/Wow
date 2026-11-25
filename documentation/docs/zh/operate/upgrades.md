@@ -256,6 +256,8 @@ migrate-data 的 `compare` 和 `export` 发现差异时以 `4` 退出（以前�
 
 内存查询参考实现（`memoryQueries` 规格和使用内存存储的节点读取的就是它）现在拒绝两种原来会回答的查询，与 PostgreSQL 和 MongoDB 的拒绝一致（[查询语言](../reference/query-language#the-capability-descriptor)）。按日期字符串比较、排序或分组，例如 `state.placedAt > "2026-01-01T00:00:00Z"`、按 `Instant` 排序，或基于它的日期直方图，得到 `unsupported-capability`：改为按纪元时间字段（支持所有能力的数字）或按系统时间字段比较、排序或分组。按两个相互独立的数组字段排序，得到 `parallel-array-sort`：只按其中一个排序。依赖其中任何一种的规格，以前在它的节点失败的地方通过；现在它像节点一样失败。
 
+**PostgreSQL 上的计算值也是双精度。** `expression` 过滤、基于表达式的指标或分组以及派生指标都按 `float8` 计算，与 MongoDB、Elasticsearch、ClickHouse 和内存后端一致。处在十进制数边缘的比较可能与以前的答案不同：`amount * 3 > 0.3` 会匹配 `amount` 为 0.1 的记录。需要精确的地方（如金额），比较或聚合存储的字段。超出双精度范围的计算值以 `400 wow.query.out-of-range` 拒绝。
+
 ### 测试工具 {#the-test-kit}
 
 用测试 DSL 编写的规格会按节点的处理方式检查命令。请针对这个版本重新构建测试：`aggregateSpec` 和 `aggregateSpecTests` 新增了 `policy` 参数。

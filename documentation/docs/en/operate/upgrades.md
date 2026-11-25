@@ -256,6 +256,8 @@ A filter that ignores case compares both texts after Unicode simple case folding
 
 On the in-memory query reference, which a `memoryQueries` spec and a node on the memory store read, two queries that were answered are now refused, as PostgreSQL and MongoDB refuse them ([Query Language](../reference/query-language#the-capability-descriptor)). A comparison, sort or grouping by a date string, such as `state.placedAt > "2026-01-01T00:00:00Z"`, a sort by an `Instant`, or a date histogram over one, gets `unsupported-capability`: compare, sort or group by an epoch field instead, a number that supports every capability, or by the system time fields. A sort by two independent array fields gets `parallel-array-sort`: sort by one of them. A spec that relied on either passed where its node failed; it now fails as the node does.
 
+**A computed value is a double on PostgreSQL too.** An `expression` filter, a metric or a group over an expression and a derived metric are computed in `float8`, as on MongoDB, Elasticsearch, ClickHouse and memory. A comparison at the edge of a decimal can answer otherwise than before: `amount * 3 > 0.3` matches an `amount` of 0.1. Where exactness matters, as for money, compare or aggregate a stored field. A computed value beyond a double's range is refused with `400 wow.query.out-of-range`.
+
 ### The test kit {#the-test-kit}
 
 Specs written with the test DSL hold commands to what a node does with them. Rebuild the tests against this version: `aggregateSpec` and `aggregateSpecTests` take a `policy`.
