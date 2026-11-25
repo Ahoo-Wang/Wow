@@ -70,7 +70,10 @@ class R2StoreTckClosesTest {
 
             override fun available(config: StoreConfig): Boolean = false
 
-            override fun open(config: StoreConfig): Store = CountingStore(config, closes).also { opens.incrementAndGet() }
+            override fun open(config: StoreConfig): Store {
+                opens.incrementAndGet()
+                return CountingStore(config, closes)
+            }
         }
         val kit = object : StoreTck() {
             override fun config(): StoreConfig = StoreConfig.of("counting", "r2-counting")
