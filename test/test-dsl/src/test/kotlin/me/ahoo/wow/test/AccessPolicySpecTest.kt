@@ -209,6 +209,20 @@ class AccessPolicySpecTest {
     }
 
     @Test
+    fun `a command without a caller should be decided as the anonymous caller's, which a policy may let through (#6996)`() {
+        // As the gateway gives every request a caller, the anonymous one for none: a policy that allows it, here any
+        // caller, changes the aggregate. The kernel denies a command of no caller at all, whatever the policy.
+        val open = accessPolicy<Document> {
+            read { allowIf(true) }
+            write { allowIf(true) }
+        }
+        aggregateSpec(decided, policy = open) {
+            given(Created("sales"))
+            whenCommand(Edit("anyone")) { expectEventTypes(Edited::class) }
+        }
+    }
+
+    @Test
     fun `a service caller should change an aggregate its policy governs, as the kernel trusts a service`() =
         accessPolicySpec(model, documentAccess) {
             // As the kernel (CommandReach) and the queries decide: under a policy, a service acting as itself is
