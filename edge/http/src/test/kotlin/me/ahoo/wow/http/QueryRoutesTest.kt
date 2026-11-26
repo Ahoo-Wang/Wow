@@ -34,6 +34,7 @@ import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.admission.QueryBudget
 import me.ahoo.wow.query.error.QueryExecutionException
+import me.ahoo.wow.query.error.QueryOutOfRangeException
 import me.ahoo.wow.query.memory.InMemoryQueryStorage
 import me.ahoo.wow.query.policy.QueryEntryPolicy
 import me.ahoo.wow.spi.tenant.TenantPolicy
@@ -302,6 +303,19 @@ class QueryRoutesTest {
     }
 
     @Test
+    fun `a computed value its backend cannot hold should be answered as a 400 out-of-range problem (#7012)`() {
+        // A store's own failure (PostgreSQL's 22003), which the query routes answer by the error catalog's status.
+        val outOfRange = QueryNode(snapshots = { OutOfRange(it) })
+        listOf(
+            """{"kind":"count","filter":{"op":"match-all"}}""",
+            """{"kind":"list","filter":{"op":"match-all"}}""",
+            """{"kind":"paged","filter":{"op":"match-all"}}""",
+        ).forEach { body ->
+            outOfRange.query(body).assertQueryProblem(400, FrameworkCodes.QUERY_OUT_OF_RANGE)
+        }
+    }
+
+    @Test
     fun `only a list should be answered as an event stream`() {
         node.http.client.post().uri("/shop/cart/snapshot/query")
             .header("X-User", "alice")
@@ -464,6 +478,18 @@ fun Answer.assertQueryProblem(status: Int, code: String): Answer {
 }
 
 /** A gateway whose list fails after its first record, whose page fails as the backend, and whose count crashes. */
+/** A backend whose computed value went beyond a double's range, as PostgreSQL fails such a statement. */
+private class OutOfRange(private val delegate: QueryGateway) : QueryGateway by delegate {
+    override suspend fun count(query: CountQuery, caller: QueryCaller): CountResult = throw QueryOutOfRangeException()
+
+    override suspend fun resumes(query: ListQuery): Boolean = false
+
+    override fun list(query: ListQuery, caller: QueryCaller): Flow<ObjectNode> = flow { throw QueryOutOfRangeException() }
+
+    override suspend fun paged(query: PagedQuery, caller: QueryCaller): PagedList<ObjectNode> =
+        throw QueryOutOfRangeException()
+}
+
 private class FailingList(private val delegate: QueryGateway) : QueryGateway by delegate {
     override suspend fun resumes(query: ListQuery): Boolean = false
 
