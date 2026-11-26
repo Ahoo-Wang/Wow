@@ -35,6 +35,10 @@ package me.ahoo.wow.api.annotation
  *   wraps one of them (`@JvmInline value class DepartmentId(val value: String)`), published as the value it wraps;
  *   or a `List`, `Set` or `Collection` of them, neither the collection nor its elements nullable, for an attribute of
  *   several values. An enum is published as the name Jackson writes for its constant.
+ * - **Never a sensitive value**: an attribute is answered raw as `access.<name>` by every read of the state and on its
+ *   published stream, and queries compare and group it, so the compiler refuses a member that is `@Sensitive`,
+ *   overrides one that is, or whose values are of a `@Sensitive` type. What a computed member derives from a sensitive
+ *   field the compiler cannot see: derive an attribute from a value that is not sensitive.
  * - **Its name**: [name], else the member's name (a function's name as written). It is how the Manifest, the
  *   generated attribute references and the stored records name the attribute: lower camel case, a lower-case letter
  *   then letters and digits, at most 40 characters (`me.ahoo.wow.manifest.AccessAttributeName`), unique within the
