@@ -58,6 +58,9 @@ internal interface LaneOps<I, L> {
     /** Handles [item] alone, as an entry of a lane that runs each alone is. */
     suspend fun handleAlone(item: I)
 
+    /** Whether [item] is an entry the source did not deliver an earlier version before: it parks, alone. */
+    fun isGap(item: I): Boolean
+
     /** Parks [entry]'s aggregate from it, as a failure of its handling does. */
     suspend fun park(entry: SourcedEntry, failure: Throwable)
 
@@ -88,6 +91,10 @@ internal class LaneRuns<I, L>(
 ) {
     /** Runs [first], live in [lane], with the live entries queued behind it. */
     suspend fun live(first: I, lane: L) {
+        if (ops.isGap(first)) {
+            ops.handleAlone(first)
+            return
+        }
         val runHandler = subscription.runHandler
         if (runHandler == null) coalesced(first, lane) else run(first, lane, runHandler)
     }

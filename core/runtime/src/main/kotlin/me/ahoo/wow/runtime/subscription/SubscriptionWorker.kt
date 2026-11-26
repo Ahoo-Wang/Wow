@@ -70,7 +70,8 @@ import kotlin.random.Random
  * and one whose position the topic no longer retains marks the entry skip-only ([ParkedAggregate.skipOnly]): it is
  * never retried, by hand either, whatever an operator marked it, only skipped. A topic may deliver a record twice ([EntrySource.repeats]): the worker drops a copy of
  * an aggregate's version it handled already, as long as it remembers the aggregate ([REMEMBERED] of them, the most
- * recently handled).
+ * recently handled). On a state topic, whose aggregates' records come at every version ([EntrySource.contiguous]), an
+ * entry above the version after the last one seen parks its aggregate at the missing version ([VersionGaps]).
  *
  * An aggregate's entries are compared by their ordinal ([EntrySource.ordinalOf]): their version, or, in a topic of
  * commands or receipts, whose entries commit nothing, their offset. Parking, copies and
@@ -172,10 +173,10 @@ internal class SubscriptionWorker(
 
     /** How a lane runs its live entries together, null for a subscription that runs each alone. */
     private val runs = if (subscription.runsTogether) LaneRuns(subscription, source, handling, hops, Ops()) else null
-    private val pending = ArrayDeque<Slot>()
+    private val pending = ArrayDeque<LaneSlot>()
     private val outstanding = ZeroAwaitingCounter()
     private val queued =
-        AggregateLanes<Item>("${subscription.name} partition $partition", this, lanes, ::handle, ::stopped)
+        AggregateLanes<LaneItem>("${subscription.name} partition $partition", this, lanes, ::handle, ::stopped)
 
     /** What the worker writes to the ledger: a park, and a retry's repark or resolution. */
     private val writes = ParkWrites(
@@ -196,14 +197,10 @@ internal class SubscriptionWorker(
     private val parking = ParkStates(parked)
 
     /** Of a source that [EntrySource.repeats], the last ordinal handled of the aggregates handled most recently. */
-    private val handledThrough: LinkedHashMap<AggregateRef, Long>? = if (source.repeats) {
-        object : LinkedHashMap<AggregateRef, Long>(REMEMBERED, LOAD_FACTOR, true) {
-            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<AggregateRef, Long>?): Boolean =
-                size > REMEMBERED
-        }
-    } else {
-        null
-    }
+    private val handledThrough: LinkedHashMap<AggregateRef, Long>? = if (source.repeats) recentlySeen() else null
+
+    /** Of a source whose aggregates' entries come at every version, the last version seen of each. Under the monitor. */
+    private val gaps: VersionGaps? = if (source.contiguous) VersionGaps() else null
 
     /** Where the worker's watermark is stored, and up to where it was. */
     val saves = CheckpointSaves(subscription, partition, checkpoint) { watermark }
@@ -262,19 +259,26 @@ internal class SubscriptionWorker(
     private fun admit(entry: SourcedEntry) = synchronized(this) {
         val stream = entry.stream
         cursor = entry.position.sequence
-        val slot = Slot(entry.position.sequence)
+        val slot = LaneSlot(entry.position.sequence)
         pending.addLast(slot)
         outstanding.set(pending.size)
-        if (!subscription.takes(stream) || skippedOnAdmit(entry) || passesOverLive(entry)) {
+        // A gap parks its aggregate, whatever the subscription takes of the entry: an earlier version may be one it does.
+        val gap = gapOf(entry)
+        val passed = !subscription.takes(stream) || skippedOnAdmit(entry) || passesOverLive(entry)
+        if (gap == null && passed) {
             complete(slot)
             if (hops.waitsHere(entry)) {
                 val parked = parkedAt(entry)
                 lanes.launch { hops.signal(entry, Result.success(HandledEntry.NOTHING), parked) }
             }
         } else {
-            enqueue(stream.ref, Item.Live(entry, slot), first = false)
+            enqueue(stream.ref, LaneItem.Live(entry, slot, gap), first = false)
         }
     }
+
+    /** Called under the monitor: the version missing before [entry], which its aggregate parks at; null for none. */
+    private fun gapOf(entry: SourcedEntry): Int? = gaps?.takeUnless { UndecodableMessage.isUndecodable(entry) }
+        ?.admit(entry.stream.ref, entry.stream.version, parkedAt(entry))
 
     /** Whether [entry] is a record a peer published as imported, which a saga or a reactor passes over. */
     private fun passesOver(entry: SourcedEntry): Boolean = actsOnEntries && entry.published?.imported == true
@@ -291,10 +295,10 @@ internal class SubscriptionWorker(
     private fun parkedAt(entry: SourcedEntry): Boolean = parking.holds(entry.stream.ref, source.ordinalOf(entry))
 
     /** Called under the monitor. */
-    private fun enqueue(ref: AggregateRef, item: Item, first: Boolean) = queued.enqueue(ref, item, first)
+    private fun enqueue(ref: AggregateRef, item: LaneItem, first: Boolean) = queued.enqueue(ref, item, first)
 
     /** Called under the monitor. */
-    private fun complete(slot: Slot) {
+    private fun complete(slot: LaneSlot) {
         slot.done = true
         completeAbove++
         while (pending.firstOrNull()?.done == true) {
@@ -306,13 +310,13 @@ internal class SubscriptionWorker(
     }
 
     /** Runs [item], the next of [ref]'s [lane] ([queued]). */
-    private suspend fun handle(ref: AggregateRef, lane: Lane<Item>, item: Item) {
+    private suspend fun handle(ref: AggregateRef, lane: Lane<LaneItem>, item: LaneItem) {
         running.started()
         try {
             when (item) {
-                is Item.Live -> runs?.live(item, lane) ?: runLive(item)
-                is Item.Retry -> runRetry(ref, item)
-                is Item.Skip -> runSkip(ref, item)
+                is LaneItem.Live -> runs?.live(item, lane) ?: runLive(item)
+                is LaneItem.Retry -> runRetry(ref, item)
+                is LaneItem.Skip -> runSkip(ref, item)
             }
         } finally {
             running.ended(ref)
@@ -320,29 +324,29 @@ internal class SubscriptionWorker(
     }
 
     /** [failure] escaped [item] of [ref]: its lane ends ([AggregateLanes]), a fatal error recorded with its partition. */
-    private fun stopped(ref: AggregateRef, item: Item, failure: Throwable) {
+    private fun stopped(ref: AggregateRef, item: LaneItem, failure: Throwable) {
         // The lanes' end is logged at ERROR, under their one name: this names the aggregate it stopped at.
         logger.warn { "Subscription ${subscription.name} stopped at $ref in partition $partition: $failure." }
         // An operator's retry or skip fails with it, whatever it is, rather than wait on a lane that stops.
-        (item as? Item.Action)?.result?.completeExceptionally(failure)
+        (item as? LaneItem.Action)?.result?.completeExceptionally(failure)
         if (failure is VirtualMachineError) {
             fatals.record(Component.SUBSCRIPTION, "$group/${subscription.name}", failure, partition)
         }
     }
 
-    private suspend fun runLive(item: Item.Live) {
+    private suspend fun runLive(item: LaneItem.Live) {
         val entry = item.entry
         val (skipped, parked) = synchronized(this) { skippedInLane(entry) to parkedAt(entry) }
         // A run that did not finish it started its observation, which its handling goes on in; a skipped entry,
         // not handled, ends it as skipped before it completes (ObservedOutcome.SKIPPED).
         val held = item.observation?.also { item.observation = null }
-        val handled = if (skipped) {
-            held?.skipped()
-            Result.success(HandledEntry.NOTHING)
-        } else {
-            handling.handle(entry, held ?: handling.observation(entry))
+        val handled = when {
+            skipped -> Result.success(HandledEntry.NOTHING).also { held?.skipped() }
+            // Parked at once, at the version missing: a retry of the entry in place cannot bring the record about.
+            item.gap != null -> Result.failure(VersionGapException(item.gap))
+            else -> handling.handle(entry, held ?: handling.observation(entry))
         }
-        handled.exceptionOrNull()?.let { park(entry, it) }
+        handled.exceptionOrNull()?.let { park(entry, it, item.gap ?: entry.stream.version) }
         synchronized(this) {
             if (!skipped && handled.isSuccess) {
                 remember(entry)
@@ -353,12 +357,13 @@ internal class SubscriptionWorker(
     }
 
     /** The worker's side of [runs]: its monitor sections, its path of an entry alone, and its parking. */
-    private inner class Ops : LaneOps<Item.Live, Lane<Item>> {
-        override fun take(first: Item.Live, lane: Lane<Item>, max: Int): List<Taken<Item.Live>> {
+    private inner class Ops : LaneOps<LaneItem.Live, Lane<LaneItem>> {
+        override fun take(first: LaneItem.Live, lane: Lane<LaneItem>, max: Int): List<Taken<LaneItem.Live>> {
             synchronized(this@SubscriptionWorker) {
                 val items = arrayListOf(first)
-                while (items.size < max && lane.items.firstOrNull() is Item.Live) {
-                    items += lane.items.removeFirst() as Item.Live
+                // A gap ends the batch: it parks alone ([LaneRuns.live]).
+                while (items.size < max && (lane.items.firstOrNull() as? LaneItem.Live)?.let { it.gap == null } == true) {
+                    items += lane.items.removeFirst() as LaneItem.Live
                 }
                 // In version order, as skippedInLane expects.
                 return items.map { Taken(it, it.entry, skippedInLane(it.entry), parkedAt(it.entry)) }
@@ -366,10 +371,10 @@ internal class SubscriptionWorker(
         }
 
         override fun settle(
-            done: List<Taken<Item.Live>>,
+            done: List<Taken<LaneItem.Live>>,
             handled: Boolean,
-            lane: Lane<Item>,
-            rest: List<Taken<Item.Live>>,
+            lane: Lane<LaneItem>,
+            rest: List<Taken<LaneItem.Live>>,
         ): Boolean = synchronized(this@SubscriptionWorker) {
             if (handled) {
                 done.filterNot { it.skipped }.forEach { remember(it.entry) }
@@ -378,21 +383,23 @@ internal class SubscriptionWorker(
             // Abandoned, the worker forgot its lanes: the rest would wait in one no stop reaches ([abandon]).
             if (!abandoned) {
                 // Actions go first in a lane and live entries last, so the first live entry ends the actions.
-                val behindActions = lane.items.indexOfFirst { it is Item.Live }.takeIf { it >= 0 } ?: lane.items.size
+                val behindActions = lane.items.indexOfFirst { it is LaneItem.Live }.takeIf { it >= 0 } ?: lane.items.size
                 lane.items.addAll(behindActions, rest.map { it.item })
             }
             !abandoned
         }
 
-        override suspend fun handleAlone(item: Item.Live) = runLive(item)
+        override suspend fun handleAlone(item: LaneItem.Live) = runLive(item)
+
+        override fun isGap(item: LaneItem.Live): Boolean = item.gap != null
 
         override suspend fun park(entry: SourcedEntry, failure: Throwable) {
             this@SubscriptionWorker.park(entry, failure)
         }
 
-        override fun held(item: Item.Live): Observation? = item.observation?.also { item.observation = null }
+        override fun held(item: LaneItem.Live): Observation? = item.observation?.also { item.observation = null }
 
-        override fun hold(item: Item.Live, observation: Observation) {
+        override fun hold(item: LaneItem.Live, observation: Observation) {
             item.observation = observation
         }
     }
@@ -424,8 +431,8 @@ internal class SubscriptionWorker(
      * Parks the aggregate at [sourced]'s version, and at its position in a topic; its later entries are skipped until
      * the ledger entry is resolved.
      */
-    private suspend fun park(sourced: SourcedEntry, failure: Throwable) {
-        val (entry, changed) = writes.park(sourced, failure)
+    private suspend fun park(sourced: SourcedEntry, failure: Throwable, fromVersion: Int = sourced.stream.version) {
+        val (entry, changed) = writes.park(sourced, failure, fromVersion)
         if (changed && notifier !== ParkedNotifier.NONE) {
             val notice = ParkedNotice(
                 ParkedNotice.Kind.PARKED,
@@ -452,7 +459,7 @@ internal class SubscriptionWorker(
      * @return true when the aggregate was handled up to its last stream and is no longer parked; false when it was
      * not parked, a skip of it is running, or it failed again and stays parked from where it was.
      */
-    suspend fun retry(ref: AggregateRef): Boolean {
+    suspend fun retry(ref: AggregateRef, acceptGaps: Boolean): Boolean {
         val entry = ledger.parked(subscription.id, ref)
         val result = synchronized(this) {
             check(!abandoned) { "Subscription ${subscription.name} stopped in partition $partition." }
@@ -464,7 +471,7 @@ internal class SubscriptionWorker(
                 if (entry.skipOnly) {
                     return false
                 }
-                val item = Item.Retry(entry, CompletableDeferred())
+                val item = LaneItem.Retry(entry, CompletableDeferred(), acceptGaps)
                 parking.retrying(ref, item.result)
                 enqueue(ref, item, first = true)
                 item.result
@@ -474,14 +481,14 @@ internal class SubscriptionWorker(
     }
 
     @Suppress("TooGenericExceptionCaught") // The failure goes to the caller of retry; the aggregate stays parked.
-    private suspend fun runRetry(ref: AggregateRef, item: Item.Retry) {
+    private suspend fun runRetry(ref: AggregateRef, item: LaneItem.Retry) {
         var parked = item.parked
         try {
             // A lower entry may have failed and been parked while this retry waited in the lane.
             ledger.parked(subscription.id, ref)?.takeIf { source.ordinalOf(it) < source.ordinalOf(parked) }?.let {
                 parked = it
             }
-            val entries = try {
+            val scanned = try {
                 source.retryEntries(parked).toList()
             } catch (gone: UnrecoverableException) {
                 writes.unrecoverable(parked, gone)
@@ -489,22 +496,21 @@ internal class SubscriptionWorker(
                 item.result.complete(false)
                 return
             }
+            // At every version, the entries run on from where they are expected, unless an operator accepts a gap.
+            val walk = RetryWalk(scanned, parked, gaps != null, item.acceptGaps, subscription.name)
             var last: Long? = null
-            for (entry in entries) {
+            for (entry in walk.entries) {
                 val ordinal = source.ordinalOf(entry)
                 if (last != null && ordinal <= last) {
                     // A copy the topic holds twice.
                     continue
                 }
-                val failure = if (subscription.takes(entry.stream) && !passesOver(entry)) {
-                    handling.handle(entry).exceptionOrNull()
-                } else {
-                    null
-                }
+                val failure = retried(entry, walk)
                 if (failure != null) {
                     // Still failing: the entries before this one are handled, so the aggregate stays parked from
                     // this one, with the new reason; a resolve that raced it leaves nothing to update.
-                    parked = writes.repark(entry, failure, parked.partition)
+                    val from = (failure as? VersionGapException)?.missing ?: entry.stream.version
+                    parked = writes.repark(entry, failure, parked.partition, from)
                     if (last != null) {
                         // Copies of the entries handled here that the tail delivers later are skipped.
                         synchronized(this) { parking.retried(ref, last) }
@@ -536,7 +542,19 @@ internal class SubscriptionWorker(
         }
     }
 
-    private fun restoreParked(ref: AggregateRef, item: Item.Retry, parked: ParkedAggregate) = synchronized(this) {
+    /**
+     * Retries [entry]: what it failed with, the gap before it on [walk] or its handler's failure; null when it was
+     * handled, or is one the subscription does not take or passes over.
+     */
+    private suspend fun retried(entry: SourcedEntry, walk: RetryWalk): Throwable? {
+        walk.gapBefore(entry)?.let { return VersionGapException(it) }
+        if (!subscription.takes(entry.stream) || passesOver(entry)) {
+            return null
+        }
+        return handling.handle(entry).exceptionOrNull()
+    }
+
+    private fun restoreParked(ref: AggregateRef, item: LaneItem.Retry, parked: ParkedAggregate) = synchronized(this) {
         parking.parkedAgain(ref, item.result, source.ordinalOf(parked))
     }
 
@@ -557,13 +575,13 @@ internal class SubscriptionWorker(
             if (!parking.skipping(ref)) {
                 return false
             }
-            Item.Skip(CompletableDeferred()).also { enqueue(ref, it, first = true) }.result
+            LaneItem.Skip(CompletableDeferred()).also { enqueue(ref, it, first = true) }.result
         }
         return result.await()
     }
 
     @Suppress("TooGenericExceptionCaught") // The failure goes to the caller of skip; the aggregate stays parked.
-    private suspend fun runSkip(ref: AggregateRef, item: Item.Skip) {
+    private suspend fun runSkip(ref: AggregateRef, item: LaneItem.Skip) {
         var resolved = false
         val outcome = try {
             val removed = ledger.resolve(subscription.id, ref, partition)
@@ -592,38 +610,11 @@ internal class SubscriptionWorker(
         }
         cleared.forEach {
             when (it) {
-                is Item.Action -> it.result.cancel(CancellationException(STOPPED))
-                is Item.Live -> it.observation?.abandoned()
+                is LaneItem.Action -> it.result.cancel(CancellationException(STOPPED))
+                is LaneItem.Live -> it.observation?.abandoned()
             }
         }
-    }
-
-    private class Slot(val sequence: Long) {
-        var done = false
-    }
-
-    private sealed interface Item {
-        /**
-         * A live entry of a lane, and the [observation] of its handling a run started and did not finish: the lane's
-         * coroutine sets it before the lane takes the entry again, which its monitor orders. Its handling goes on in
-         * it; a skip ends it as skipped, a stop with its cancellation.
-         */
-        class Live(val entry: SourcedEntry, val slot: Slot) : Item {
-            var observation: Observation? = null
-        }
-
-        /** An operator's action on the aggregate, answered with [result]. */
-        sealed interface Action : Item {
-            val result: CompletableDeferred<Boolean>
-        }
-
-        class Retry(val parked: ParkedAggregate, override val result: CompletableDeferred<Boolean>) : Action
-        class Skip(override val result: CompletableDeferred<Boolean>) : Action
     }
 }
 
 private val logger = KotlinLogging.logger {}
-
-/** How many aggregates a worker of a source that repeats remembers the last version handled of. */
-private const val REMEMBERED = 4_096
-private const val LOAD_FACTOR = 0.75f

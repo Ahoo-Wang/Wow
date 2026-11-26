@@ -37,7 +37,7 @@ internal object RetiredOnly {
             requestId = record.requestId,
             commandType = record.commandType,
             commitTime = record.commitTime,
-            events = listOf(EventRecord(EVENT, 1, "{}")),
+            events = EVENTS,
             scope = record.scope,
             causation = record.causation,
             headers = record.headers,
@@ -47,6 +47,12 @@ internal object RetiredOnly {
         )
     }
 
-    /** Whether [stream] stands for a published record that holds no event. */
-    fun isRetiredOnly(stream: EventStreamRecord): Boolean = stream.events.singleOrNull()?.name == EVENT
+    /**
+     * Whether [stream] stands for a published record that holds no event: one of [EVENTS] itself, so the check every
+     * subscription makes of every entry ([Subscription.takes]) is one comparison of references.
+     */
+    fun isRetiredOnly(stream: EventStreamRecord): Boolean = stream.events === EVENTS
+
+    /** The events of every such stream: one list, which [isRetiredOnly] tells by its identity. */
+    private val EVENTS: List<EventRecord> = listOf(EventRecord(EVENT, 1, "{}"))
 }

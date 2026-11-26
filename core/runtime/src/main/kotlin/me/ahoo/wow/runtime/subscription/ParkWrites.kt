@@ -52,11 +52,16 @@ internal class ParkWrites(
     private val backpressure: BackpressureOptions,
 ) {
     /**
-     * Parks [sourced]'s aggregate at its version, and at its position in a topic, after [failure], once the partition
+     * Parks [sourced]'s aggregate at [fromVersion] (its own, or the one a gap before it misses), and at its position in a
+     * topic, after [failure], once the partition
      * runs again ([PartitionPause]), retried until it is stored. Returns the entry, and whether the ledger changed
      * ([FailureLedger.park]): the worker then holds the aggregate back and tells of the parking.
      */
-    suspend fun park(sourced: SourcedEntry, failure: Throwable): Pair<ParkedAggregate, Boolean> {
+    suspend fun park(
+        sourced: SourcedEntry,
+        failure: Throwable,
+        fromVersion: Int,
+    ): Pair<ParkedAggregate, Boolean> {
         val stream = sourced.stream
         val kind = if (failure is HandlingRejectedException) {
             null
@@ -71,7 +76,7 @@ internal class ParkWrites(
             subscription,
             stream.ref,
             partition,
-            stream.version,
+            fromVersion,
             classification.reasonOf(failure),
             clock.millis(),
             source.sourcePosition(sourced),
@@ -80,13 +85,14 @@ internal class ParkWrites(
         )
         workerLogger.warn(failure) {
             val after = when {
+                failure is VersionGapException -> "the topic did not deliver it (${VersionGapException.CODE})"
                 failure is HandlingRejectedException -> "a rejection"
                 unrecoverable -> "an unrecoverable failure, which it does not retry automatically"
                 kind == FailureClass.BACKPRESSURE ->
                     "${backpressure.maxAttempts} attempts its downstream pushed back"
                 else -> "${retry.maxAttempts} attempts"
             }
-            "Subscription ${subscription.name} parks ${stream.ref} from version ${stream.version} after $after."
+            "Subscription ${subscription.name} parks ${stream.ref} from version $fromVersion after $after."
         }
         // The ledger may sit on what paused the partition: it is written once the partition runs again.
         pause.awaitRunning()
@@ -100,16 +106,21 @@ internal class ParkWrites(
      * Records in the ledger that a retry failed again at [sourced], from where the aggregate is now parked, while it
      * is parked in partition [from], the one the retry read it in; returns the entry.
      */
-    suspend fun repark(sourced: SourcedEntry, failure: Throwable, from: Int): ParkedAggregate {
+    suspend fun repark(
+        sourced: SourcedEntry,
+        failure: Throwable,
+        from: Int,
+        fromVersion: Int,
+    ): ParkedAggregate {
         val stream = sourced.stream
         logger.warn(failure) {
-            "Subscription $subscription keeps ${stream.ref} parked, now from version ${stream.version}."
+            "Subscription $subscription keeps ${stream.ref} parked, now from version $fromVersion."
         }
         return ParkedAggregate(
             subscription,
             stream.ref,
             partition,
-            stream.version,
+            fromVersion,
             classification.reasonOf(failure),
             clock.millis(),
             source.sourcePosition(sourced),

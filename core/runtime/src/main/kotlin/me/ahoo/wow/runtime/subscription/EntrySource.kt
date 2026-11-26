@@ -104,6 +104,12 @@ internal interface EntrySource {
     val repeats: Boolean get() = false
 
     /**
+     * Whether an aggregate's entries come at every version, in order: a state topic, whose transport sink publishes
+     * every commit, so an entry above the version after the last one seen is a record not delivered ([VersionGaps]).
+     */
+    val contiguous: Boolean get() = false
+
+    /**
      * Whether the source's partitions may grow while it is read, a broker's topic whose keys map to its partitions:
      * an aggregate's later entries may then be in another partition than the one it parked in ([partitionOf]).
      */

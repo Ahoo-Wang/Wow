@@ -48,7 +48,7 @@ internal class UndecodableMessage(val failure: Throwable) {
                 requestId = UNDECODABLE,
                 commandType = UNDECODABLE,
                 commitTime = 0L,
-                events = listOf(EventRecord(EVENT, 1, "{}")),
+                events = EVENTS,
                 scope = Scope.NONE,
             ),
             null,
@@ -58,8 +58,14 @@ internal class UndecodableMessage(val failure: Throwable) {
         /** Whether [entry] is that of an undecodable message. */
         fun isUndecodable(entry: SourcedEntry): Boolean = entry.message is UndecodableMessage
 
-        /** Whether [stream] is the stream of an undecodable message's entry. */
-        fun isUndecodable(stream: EventStreamRecord): Boolean = stream.events.singleOrNull()?.name == EVENT
+        /**
+         * Whether [stream] is the stream of an undecodable message's entry: one of [EVENTS] itself, so the check every
+         * subscription makes of every entry ([Subscription.takes]) is one comparison of references.
+         */
+        fun isUndecodable(stream: EventStreamRecord): Boolean = stream.events === EVENTS
+
+        /** The events of every undecodable message's entry: one list, which [isUndecodable] tells by its identity. */
+        private val EVENTS: List<EventRecord> = listOf(EventRecord(EVENT, 1, "{}"))
 
         private const val UNDECODABLE = "(undecodable)"
     }
